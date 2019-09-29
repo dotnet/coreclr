@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Runtime;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -25,7 +24,7 @@ namespace System.Security
             return bstr;
         }
 
-        override protected bool ReleaseHandle()
+        protected override bool ReleaseHandle()
         {
             RuntimeImports.RhZeroMemory(handle, (UIntPtr)Marshal.SysStringByteLen(handle));
             Interop.OleAut32.SysFreeString(handle);

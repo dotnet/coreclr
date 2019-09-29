@@ -6,13 +6,12 @@
 **
 **
 **
-** Purpose: Exception thrown when a requested method or operation is not 
+** Purpose: Exception thrown when a requested method or operation is not
 **            implemented.
 **
 **
 =============================================================================*/
 
-#nullable enable
 using System.Runtime.Serialization;
 
 namespace System

@@ -5,13 +5,15 @@
 /*============================================================
 **
 **
-** Purpose: 
-** Contains eventing constants defined by the Windows 
+** Purpose:
+** Contains eventing constants defined by the Windows
 ** environment.
-** 
+**
 ============================================================*/
+
 #if ES_BUILD_STANDALONE
 #define FEATURE_MANAGED_ETW_CHANNELS
+using System;
 #endif
 
 #if ES_BUILD_STANDALONE
@@ -20,8 +22,6 @@ namespace Microsoft.Diagnostics.Tracing
 namespace System.Diagnostics.Tracing
 #endif
 {
-    using System;
-
     /// <summary>
     /// WindowsEventLevel. Custom values must be in the range from 16 through 255
     /// </summary>
@@ -48,7 +48,7 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         Informational,
         /// <summary>
-        /// All events, including previous levels 
+        /// All events, including previous levels
         /// </summary>
         Verbose
     }
@@ -76,7 +76,7 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         Start,
         /// <summary>
-        /// An activity end event 
+        /// An activity end event
         /// </summary>
         Stop,
         /// <summary>
@@ -108,7 +108,7 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         Send,
         /// <summary>
-        /// An event representing receiving an activity transfer from another component 
+        /// An event representing receiving an activity transfer from another component
         /// </summary>
         Receive = 240
     }
@@ -117,7 +117,6 @@ namespace System.Diagnostics.Tracing
     /// <summary>
     /// EventChannel. Custom values must be in the range from 16 through 255. Currently only predefined values allowed.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1028:EnumStorageShouldBeInt32", Justification = "Backwards compatibility")]
     public enum EventChannel : byte
     {
         /// <summary>
@@ -133,8 +132,7 @@ namespace System.Diagnostics.Tracing
         Analytic = 18,
         /// <summary>The debug channel</summary>
         Debug = 19,
-
-    };
+    }
 
     /// <summary>
     /// EventOpcode
@@ -143,11 +141,11 @@ namespace System.Diagnostics.Tracing
     public enum EventKeywords : long
     {
         /// <summary>
-        /// No events. 
+        /// No events.
         /// </summary>
         None = 0x0,
         /// <summary>
-        /// All Events 
+        /// All Events
         /// </summary>
         All = ~0,
         /// <summary>

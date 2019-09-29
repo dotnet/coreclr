@@ -41,7 +41,7 @@ HRESULT GetFirstWinRTTypeDef(
     
     hEnum.EnumTypeDefInit();
     
-    while (pMDInternalImport->EnumTypeDefNext(&hEnum, &tk))
+    while (pMDInternalImport->EnumNext(&hEnum, &tk))
     {
         DWORD dwAttr;
         IfFailRet(pMDInternalImport->GetTypeDefProps(tk, &dwAttr, NULL));
@@ -63,7 +63,7 @@ HRESULT GetFirstWinRTTypeDef(
     HENUMInternalHolder hEnum2(pMDInternalImport);
     hEnum2.EnumTypeDefInit();
     
-    while (pMDInternalImport->EnumTypeDefNext(&hEnum2, &tk))
+    while (pMDInternalImport->EnumNext(&hEnum2, &tk))
     {
         DWORD dwAttr;
         IfFailRet(pMDInternalImport->GetTypeDefProps(tk, &dwAttr, NULL));
@@ -79,7 +79,7 @@ HRESULT GetFirstWinRTTypeDef(
             
             hSubEnum.EnumTypeDefInit();
             
-            while (pMDInternalImport->EnumTypeDefNext(&hSubEnum, &tkPrivate))
+            while (pMDInternalImport->EnumNext(&hSubEnum, &tkPrivate))
             {
                 DWORD dwSubAttr;
                 IfFailRet(pMDInternalImport->GetTypeDefProps(tkPrivate, &dwSubAttr, NULL));
@@ -146,10 +146,9 @@ GetBindableWinRTName(
     // Therefore we do not have to use file name to create fake type name
     IfFailRet(GetFirstWinRTTypeDef(pMDInternalImport, &szNameSpace, &szTypeName, NULL, NULL));
     
-    DWORD dwSize = MAX_PATH_FNAME;
     WCHAR wzAsmName[MAX_PATH_FNAME];
+    DWORD dwSize = sizeof(wzAsmName);
     
-    dwSize = MAX_PATH_FNAME * sizeof(WCHAR);
     IfFailRet(pIAssemblyName->GetProperty(ASM_NAME_NAME, wzAsmName, &dwSize));
 
     StackSString sNamespaceAndType(wzAsmName);

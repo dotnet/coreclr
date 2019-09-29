@@ -84,7 +84,6 @@ bool emitInsIsCompare(instruction ins);
 bool emitInsIsLoad(instruction ins);
 bool emitInsIsStore(instruction ins);
 bool emitInsIsLoadOrStore(instruction ins);
-emitAttr emitInsAdjustLoadStoreAttr(instruction ins, emitAttr attr);
 emitAttr emitInsTargetRegSize(instrDesc* id);
 emitAttr emitInsLoadStoreSize(instrDesc* id);
 
@@ -339,6 +338,12 @@ static bool isIntegerRegister(regNumber reg)
 {
     return (reg >= REG_INT_FIRST) && (reg <= REG_INT_LAST);
 }
+
+//  Returns true if reg encodes for REG_SP or REG_FP
+static bool isStackRegister(regNumber reg)
+{
+    return (reg == REG_ZR) || (reg == REG_FP);
+} // ZR (R31) encodes the SP register
 
 // Returns true if 'value' is a legal unsigned immediate 8 bit encoding (such as for fMOV).
 static bool isValidUimm8(ssize_t value)
@@ -668,6 +673,12 @@ inline static bool insOptsConvertIntToFloat(insOpts opt)
 static bool isValidImmCond(ssize_t imm);
 static bool isValidImmCondFlags(ssize_t imm);
 static bool isValidImmCondFlagsImm5(ssize_t imm);
+
+// Computes page "delta" between two addresses
+inline static ssize_t computeRelPageAddr(size_t dstAddr, size_t srcAddr)
+{
+    return (dstAddr >> 12) - (srcAddr >> 12);
+}
 
 /************************************************************************/
 /*           The public entry points to output instructions             */

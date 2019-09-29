@@ -57,11 +57,14 @@
 
     IMPORT GetCurrentSavedRedirectContext
 
-    ;; Imports to support virtual import fixup for ngen images
-    IMPORT VirtualMethodFixupWorker
     ;; Import to support cross-moodule external method invocation in ngen images
     IMPORT ExternalMethodFixupWorker
+
+#ifdef FEATURE_PREJIT
+    ;; Imports to support virtual import fixup for ngen images
+    IMPORT VirtualMethodFixupWorker
     IMPORT StubDispatchFixupWorker
+#endif
 
 #ifdef FEATURE_READYTORUN
     IMPORT DynamicHelperWorker
@@ -706,7 +709,7 @@ LsetFP8
 ;
         NESTED_ENTRY GenericComPlusCallStub
 
-        PROLOG_WITH_TRANSITION_BLOCK 0x20
+        PROLOG_WITH_TRANSITION_BLOCK ASM_ENREGISTERED_RETURNTYPE_MAXSIZE
 
         add         r0, sp, #__PWTB_TransitionBlock ; pTransitionBlock
         mov         r1, r12                         ; pMethodDesc
@@ -720,7 +723,7 @@ LsetFP8
         ; r0 = fpRetSize
 
         ; return value is stored before float argument registers
-        add         r1, sp, #(__PWTB_FloatArgumentRegisters - 0x20)
+        add         r1, sp, #(__PWTB_FloatArgumentRegisters - ASM_ENREGISTERED_RETURNTYPE_MAXSIZE)
         bl          setStubReturnValue
 
         EPILOG_WITH_TRANSITION_BLOCK_RETURN
@@ -933,6 +936,12 @@ COMToCLRDispatchHelper_ArgumentsSetup
 PROFILE_ENTER           equ 1
 PROFILE_LEAVE           equ 2
 PROFILE_TAILCALL        equ 4
+
+        ; ------------------------------------------------------------------
+        ; void JIT_ProfilerEnterLeaveTailcallStub(UINT_PTR ProfilerHandle)
+        LEAF_ENTRY  JIT_ProfilerEnterLeaveTailcallStub
+        bx lr
+        LEAF_END
 
         ; Define the layout of the PROFILE_PLATFORM_SPECIFIC_DATA we push on the stack for all profiler
         ; helpers.
@@ -1241,6 +1250,7 @@ stackProbe_loop
     EPILOG_RETURN
     NESTED_END
 
+#ifdef FEATURE_PREJIT
 ;------------------------------------------------
 ; VirtualMethodFixupStub
 ;
@@ -1295,6 +1305,7 @@ stackProbe_loop
     EPILOG_BRANCH_REG r12
 
     NESTED_END
+#endif // FEATURE_PREJIT
 
 ;------------------------------------------------
 ; ExternalMethodFixupStub
@@ -1333,6 +1344,7 @@ stackProbe_loop
 
     NESTED_END
 
+#ifdef FEATURE_PREJIT
 ;------------------------------------------------
 ; StubDispatchFixupStub
 ;
@@ -1365,6 +1377,7 @@ stackProbe_loop
     EPILOG_BRANCH_REG   r12
  
     NESTED_END
+#endif // FEATURE_PREJIT
 
 ;------------------------------------------------
 ; JIT_RareDisableHelper

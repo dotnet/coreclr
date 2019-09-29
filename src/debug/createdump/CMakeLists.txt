@@ -18,9 +18,7 @@ remove_definitions(-D_UNICODE)
 
 include_directories(BEFORE ${VM_DIR})
 
-add_definitions(-DPAL_STDCPP_COMPAT=1)
-
-add_compile_options(-fPIE)
+add_definitions(-DPAL_STDCPP_COMPAT)
 
 set(CREATEDUMP_SOURCES 
     createdump.cpp 

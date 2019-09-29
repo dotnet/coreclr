@@ -11,9 +11,6 @@
 #include <intrin.h>
 #endif // _MSC_VER
 
-#define REDHAWK_PALIMPORT extern "C"
-#define REDHAWK_PALAPI __stdcall
-
 #if !defined(_MSC_VER)
 #define _alloca alloca
 #endif //_MSC_VER
@@ -537,23 +534,5 @@ inline bool FitsInU1(uint64_t val)
 {
     return val == (uint64_t)(uint8_t)val;
 }
-
-// -----------------------------------------------------------------------------------------------------------
-//
-// AppDomain emulation. The we don't have these in Redhawk so instead we emulate the bare minimum of the API
-// touched by the GC/HandleTable and pretend we have precisely one (default) appdomain.
-//
-
-#define RH_DEFAULT_DOMAIN_ID 1
-
-struct ADIndex
-{
-    DWORD m_dwIndex;
-
-    ADIndex () : m_dwIndex(RH_DEFAULT_DOMAIN_ID) {}
-    explicit ADIndex (DWORD id) : m_dwIndex(id) {}
-    BOOL operator==(const ADIndex& ad) const { return m_dwIndex == ad.m_dwIndex; }
-    BOOL operator!=(const ADIndex& ad) const { return m_dwIndex != ad.m_dwIndex; }
-};
 
 #endif // __GCENV_BASE_INCLUDED__

@@ -76,18 +76,18 @@ namespace System.Runtime.InteropServices.ComTypes
     [StructLayout(LayoutKind.Sequential)]
     public struct FUNCDESC
     {
-        public int memid;                   //MEMBERID memid;
+        public int memid;                   // MEMBERID memid;
         public IntPtr lprgscode;            // /* [size_is(cScodes)] */ SCODE RPC_FAR *lprgscode;
         public IntPtr lprgelemdescParam;    // /* [size_is(cParams)] */ ELEMDESC __RPC_FAR *lprgelemdescParam;
-        public FUNCKIND funckind;           //FUNCKIND funckind;
-        public INVOKEKIND invkind;          //INVOKEKIND invkind;
-        public CALLCONV callconv;           //CALLCONV callconv;
-        public short cParams;               //short cParams;
-        public short cParamsOpt;            //short cParamsOpt;
-        public short oVft;                  //short oVft;
-        public short cScodes;               //short cScodes;
-        public ELEMDESC elemdescFunc;       //ELEMDESC elemdescFunc;
-        public short wFuncFlags;            //WORD wFuncFlags;
+        public FUNCKIND funckind;           // FUNCKIND funckind;
+        public INVOKEKIND invkind;          // INVOKEKIND invkind;
+        public CALLCONV callconv;           // CALLCONV callconv;
+        public short cParams;               // short cParams;
+        public short cParamsOpt;            // short cParamsOpt;
+        public short oVft;                  // short oVft;
+        public short cScodes;               // short cScodes;
+        public ELEMDESC elemdescFunc;       // ELEMDESC elemdescFunc;
+        public short wFuncFlags;            // WORD wFuncFlags;
     }
 
     [Flags]
@@ -146,7 +146,7 @@ namespace System.Runtime.InteropServices.ComTypes
             public IDLDESC idldesc;
             [FieldOffset(0)]
             public PARAMDESC paramdesc;
-        };
+        }
         public DESCUNION desc;
     }
 
@@ -172,7 +172,7 @@ namespace System.Runtime.InteropServices.ComTypes
             public int oInst;
             [FieldOffset(0)]
             public IntPtr lpvarValue;
-        };
+        }
 
         public DESCUNION desc;
 
@@ -290,8 +290,8 @@ namespace System.Runtime.InteropServices.ComTypes
         void GetDllEntry(int memid, INVOKEKIND invKind, IntPtr pBstrDllName, IntPtr pBstrName, IntPtr pwOrdinal);
         void GetRefTypeInfo(int hRef, out ITypeInfo ppTI);
         void AddressOfMember(int memid, INVOKEKIND invKind, out IntPtr ppv);
-        void CreateInstance([MarshalAs(UnmanagedType.IUnknown)] object pUnkOuter, [In] ref Guid riid, [MarshalAs(UnmanagedType.IUnknown), Out] out object ppvObj);
-        void GetMops(int memid, out string pBstrMops);
+        void CreateInstance([MarshalAs(UnmanagedType.IUnknown)] object? pUnkOuter, [In] ref Guid riid, [MarshalAs(UnmanagedType.IUnknown), Out] out object ppvObj);
+        void GetMops(int memid, out string? pBstrMops);
         void GetContainingTypeLib(out ITypeLib ppTLB, out int pIndex);
         [PreserveSig]
         void ReleaseTypeAttr(IntPtr pTypeAttr);

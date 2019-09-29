@@ -1,9 +1,7 @@
 # Verify minimum required version
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.5.1)
 
-if(CMAKE_VERSION VERSION_EQUAL 3.0 OR CMAKE_VERSION VERSION_GREATER 3.0)
-    cmake_policy(SET CMP0042 NEW)
-endif()
+cmake_policy(SET CMP0042 NEW)
 
 # Set the project name
 project(CoreCLR)
@@ -11,7 +9,7 @@ project(CoreCLR)
 # Include cmake functions
 include(functions.cmake)
 
-# Include global configure settings
+# Verify that LTCG/LTO is available
 include(configure.cmake)
 
 if (WIN32)
@@ -35,12 +33,6 @@ endif(CORECLR_SET_RPATH)
 
 OPTION(CLR_CMAKE_ENABLE_CODE_COVERAGE "Enable code coverage" OFF)
 OPTION(CLR_CMAKE_WARNINGS_ARE_ERRORS "Warnings are errors" ON)
-
-# Ensure that python is present
-find_program(PYTHON NAMES python3 python2 python py)
-if (PYTHON STREQUAL "PYTHON-NOTFOUND")
-    message(FATAL_ERROR "PYTHON not found: Please install Python 2.7.9 or later from https://www.python.org/downloads/")
-endif()
 
 # Ensure other tools are present
 if (WIN32)
@@ -166,10 +158,8 @@ if(CLR_CMAKE_PLATFORM_UNIX AND NOT DEFINED CLR_CROSS_COMPONENTS_BUILD)
 endif()
 
 if(CLR_CMAKE_PLATFORM_UNIX)
-    add_subdirectory(src/ToolBox/SOS/lldbplugin)
     add_subdirectory(src/pal)
     add_subdirectory(src/coreclr/hosts)
-    add_subdirectory(src/ildasm/unixcoreclrloader)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 # Add this subdir. We install the headers for the jit.
@@ -181,6 +171,8 @@ if(WIN32)
   add_subdirectory(src/gc/sample)
 endif()
 
+add_subdirectory(src/tools/crossgen2/jitinterface)
+
 # Above projects do not build with these compile options
 # All of the compiler options are specified in file compileoptions.cmake
 # Do not add any new options here. They should be added in compileoptions.cmake
@@ -188,13 +180,6 @@ if(WIN32)
   add_compile_options(/FIWarningControl.h) # force include of WarningControl.h
   add_compile_options(/Zl) # omit default library name in .OBJ
 endif(WIN32)
-
-#------------------------------
-# Add Test Directory
-#------------------------------
-if(CLR_CMAKE_BUILD_TESTS)
-  add_subdirectory(tests)
-endif(CLR_CMAKE_BUILD_TESTS)
 
 #--------------------------------
 # Definition directives
@@ -220,10 +205,6 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   include_directories("src/pal/inc/rt")
   include_directories("src/pal/src/safecrt")
 endif (CLR_CMAKE_PLATFORM_UNIX)
-
-# Microsoft.Dotnet.BuildTools.Coreclr version
-set(BuildToolsVersion "1.0.4-prerelease")
-set(BuildToolsDir "${CLR_CMAKE_PACKAGES_DIR}/Microsoft.DotNet.BuildTools.CoreCLR/${BuildToolsVersion}")
 
 #------------------------------
 # Add Product Directory

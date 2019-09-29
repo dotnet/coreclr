@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
 using System.Diagnostics;
 
 namespace System.Text
@@ -25,7 +24,7 @@ namespace System.Text
         // GetByteCount
         // Note: We start by assuming that the output will be the same as count.  Having
         // an encoder or fallback may change that assumption
-        internal override unsafe int GetByteCount(char* chars, int charCount, EncoderNLS encoder)
+        internal override unsafe int GetByteCount(char* chars, int charCount, EncoderNLS? encoder)
         {
             // Just need to ASSERT, this is called by something else internal that checked parameters already
             Debug.Assert(charCount >= 0, "[Latin1Encoding.GetByteCount]count is negative");
@@ -38,7 +37,7 @@ namespace System.Text
 
             // If we have an encoder AND we aren't using default fallback,
             // then we may have a complicated count.
-            EncoderReplacementFallback fallback;
+            EncoderReplacementFallback? fallback;
             if (encoder != null)
             {
                 charLeftOver = encoder._charLeftOver;
@@ -55,7 +54,7 @@ namespace System.Text
             else
                 fallback = this.EncoderFallback as EncoderReplacementFallback;
 
-            if ((fallback != null && fallback.MaxCharCount == 1)/* || bIsBestFit*/)
+            if (fallback != null && fallback.MaxCharCount == 1/* || bIsBestFit*/)
             {
                 // Replacement fallback encodes surrogate pairs as two ?? (or two whatever), so return size is always
                 // same as input size.
@@ -68,7 +67,7 @@ namespace System.Text
                 if (charLeftOver > 0)
                     charCount++;
 
-                return (charCount);
+                return charCount;
             }
 
             // Count is more complicated if you have a funky fallback
@@ -79,7 +78,7 @@ namespace System.Text
             char* charEnd = chars + charCount;
 
             // For fallback we may need a fallback buffer, we know we aren't default fallback.
-            EncoderFallbackBuffer fallbackBuffer = null;
+            EncoderFallbackBuffer? fallbackBuffer = null;
             char* charsForFallback;
 
             // We may have a left over character from last time, try and process it.
@@ -146,7 +145,7 @@ namespace System.Text
         }
 
         internal override unsafe int GetBytes(char* chars, int charCount,
-                                                byte* bytes, int byteCount, EncoderNLS encoder)
+                                                byte* bytes, int byteCount, EncoderNLS? encoder)
         {
             // Just need to ASSERT, this is called by something else internal that checked parameters already
             Debug.Assert(bytes != null, "[Latin1Encoding.GetBytes]bytes is null");
@@ -159,7 +158,7 @@ namespace System.Text
 
             // Get any left over characters & check fast or slower fallback type
             char charLeftOver = (char)0;
-            EncoderReplacementFallback fallback = null;
+            EncoderReplacementFallback? fallback = null;
             if (encoder != null)
             {
                 charLeftOver = encoder._charLeftOver;
@@ -244,7 +243,7 @@ namespace System.Text
             byte* byteEnd = bytes + byteCount;
 
             // For fallback we may need a fallback buffer, we know we aren't default fallback, create & init it
-            EncoderFallbackBuffer fallbackBuffer = null;
+            EncoderFallbackBuffer? fallbackBuffer = null;
             char* charsForFallback;
 
             // We may have a left over character from last time, try and process it.
@@ -329,9 +328,9 @@ namespace System.Text
                 if (bytes >= byteEnd)
                 {
                     // didn't use this char, we'll throw or use buffer
-                    Debug.Assert(fallbackBuffer == null || fallbackBuffer.bFallingBack == false,
+                    Debug.Assert(fallbackBuffer == null || !fallbackBuffer.bFallingBack,
                         "[Latin1Encoding.GetBytes]Expected fallback to have throw initially if insufficient space");
-                    if (fallbackBuffer == null || fallbackBuffer.bFallingBack == false)
+                    if (fallbackBuffer == null || !fallbackBuffer.bFallingBack)
                     {
                         Debug.Assert(chars > charStart,
                             "[Latin1Encoding.GetBytes]Expected chars to have advanced (fallback case)");
@@ -365,7 +364,7 @@ namespace System.Text
         }
 
         // This is internal and called by something else,
-        internal override unsafe int GetCharCount(byte* bytes, int count, DecoderNLS decoder)
+        internal override unsafe int GetCharCount(byte* bytes, int count, DecoderNLS? decoder)
         {
             // Just assert, we're called internally so these should be safe, checked already
             Debug.Assert(bytes != null, "[Latin1Encoding.GetCharCount]bytes is null");
@@ -377,7 +376,7 @@ namespace System.Text
         }
 
         internal override unsafe int GetChars(byte* bytes, int byteCount,
-                                                char* chars, int charCount, DecoderNLS decoder)
+                                                char* chars, int charCount, DecoderNLS? decoder)
         {
             // Just need to ASSERT, this is called by something else internal that checked parameters already
             Debug.Assert(bytes != null, "[Latin1Encoding.GetChars]bytes is null");
@@ -453,13 +452,7 @@ namespace System.Text
         }
 
         // True if and only if the encoding only uses single byte code points.  (Ie, ASCII, 1252, etc)
-        public override bool IsSingleByte
-        {
-            get
-            {
-                return true;
-            }
-        }
+        public override bool IsSingleByte => true;
 
         public override bool IsAlwaysNormalized(NormalizationForm form)
         {
@@ -468,7 +461,7 @@ namespace System.Text
             // Also some letters like 0x00A8 (spacing diarisis) have compatibility decompositions, so false for KD & KC.
 
             // Only true for form C.
-            return (form == NormalizationForm.FormC);
+            return form == NormalizationForm.FormC;
         }
         // Since our best fit table is small we'll hard code it
         internal override char[] GetBestFitUnicodeToBytesData()

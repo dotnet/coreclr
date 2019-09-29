@@ -147,22 +147,12 @@ public class MyClass : IMyInterface
 #endif
    }
 
-   [DllImport("api-ms-win-core-sysinfo-l1-1-0.dll")]
-   public extern static int GetTickCount();
-
-   [DllImport("libcoreclr")]
-   public extern static int GetCurrentThreadId();
+   [DllImport("nativelibrary")]
+   public extern static int NativeMethod();
 
    static public void TestInterop()
    {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            GetTickCount();
-        }
-        else
-        {
-            GetCurrentThreadId();
-        }
+        NativeMethod();
    }
 
 #if V2
@@ -387,6 +377,19 @@ public struct MyChangingHFAStruct
         Assert.AreEqual(s.y, 23);
 #endif
     }
+}
+
+public struct MyStructWithVirtuals
+{
+    public string X;
+
+#if V2
+    public override string ToString()
+    {
+        X = "Overriden";
+        return base.ToString();
+    }
+#endif
 }
 
 public class ByteBaseClass : List<byte>

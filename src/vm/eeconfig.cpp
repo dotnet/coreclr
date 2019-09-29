@@ -122,44 +122,27 @@ LPUTF8 NarrowWideChar(__inout_z LPWSTR str)
     RETURN NULL;
 }
 
+/**************************************************************/
+static EEConfig g_EEConfig;
+
 HRESULT EEConfig::Setup()
 {
     STANDARD_VM_CONTRACT;
 
     ETWOnStartup (EEConfigSetup_V1,EEConfigSetupEnd_V1);
-        
-    // This 'new' uses EEConfig's overloaded new, which uses a static memory buffer and will
-    // not fail
-    EEConfig *pConfig = new EEConfig();
+
+    _ASSERTE(g_pConfig == NULL && "EEConfig::Setup called multiple times!");
+
+    EEConfig *pConfig = &g_EEConfig;
 
     HRESULT hr = pConfig->Init();
 
     if (FAILED(hr))
         return hr;
 
-    EEConfig *pConfigOld = NULL;
-    pConfigOld = InterlockedCompareExchangeT(&g_pConfig, pConfig, NULL);
+    g_pConfig = pConfig;
 
-    _ASSERTE(pConfigOld == NULL && "EEConfig::Setup called multiple times!");
-    
     return S_OK;
-}
-
-/**************************************************************/
-// For in-place constructor
-BYTE g_EEConfigMemory[sizeof(EEConfig)];
-
-void *EEConfig::operator new(size_t size)
-{
-    CONTRACT(void*) {
-        FORBID_FAULT;
-        GC_NOTRIGGER;
-        NOTHROW;
-        MODE_ANY;
-        POSTCONDITION(CheckPointer(RETVAL));
-    } CONTRACT_END;
-
-    RETURN g_EEConfigMemory;
 }
 
 /**************************************************************/
@@ -210,6 +193,8 @@ HRESULT EEConfig::Init()
     dwSpinLimitConstant = 0x0;
     dwSpinRetryCount = 0xA;
     dwMonitorSpinCount = 0;
+
+    dwJitHostMaxSlabCache = 0;
 
     iJitOptimizeType = OPT_DEFAULT;
     fJitFramed = false;
@@ -332,7 +317,7 @@ HRESULT EEConfig::Init()
     fStubLinkerUnwindInfoVerificationOn = FALSE;
 #endif
 
-#if defined(_DEBUG) && defined(WIN64EXCEPTIONS)
+#if defined(_DEBUG) && defined(FEATURE_EH_FUNCLETS)
     fSuppressLockViolationsOnReentryFromOS = false;
 #endif
 
@@ -349,10 +334,10 @@ HRESULT EEConfig::Init()
 #if defined(FEATURE_TIERED_COMPILATION)
     fTieredCompilation = false;
     fTieredCompilation_QuickJit = false;
-    fTieredCompilation_StartupTier_CallCounting = false;
-    fTieredCompilation_StartupTier_OptimizeCode = false;
-    tieredCompilation_StartupTier_CallCountThreshold = 1;
-    tieredCompilation_StartupTier_CallCountingDelayMs = 0;
+    fTieredCompilation_QuickJitForLoops = false;
+    fTieredCompilation_CallCounting = false;
+    tieredCompilation_CallCountThreshold = 1;
+    tieredCompilation_CallCountingDelayMs = 0;
 #endif
 
 #ifndef CROSSGEN_COMPILE
@@ -702,6 +687,8 @@ HRESULT EEConfig::sync()
     // Note the global variable is not updated directly by the GetRegKey function
     // so we only update it once (to avoid reentrancy windows)
 
+fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TrackDynamicMethodDebugInfo);
+
 #ifdef _DEBUG
     iFastGCStress       = GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_FastGCStress, iFastGCStress);
 
@@ -709,11 +696,6 @@ HRESULT EEConfig::sync()
     pszGcCoverageOnMethod = NarrowWideChar((LPWSTR)pszGcCoverageOnMethod);
     iGCLatencyMode = GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_GCLatencyMode, iGCLatencyMode);
 #endif
-
-    if (CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_ARMEnabled))
-    {
-        g_fEnableARM = TRUE;
-    }
 
     bool gcConcurrentWasForced = false;
     // The CLRConfig value for UNSUPPORTED_gcConcurrent defaults to -1, and treats any
@@ -821,7 +803,7 @@ HRESULT EEConfig::sync()
 
 #endif //STRESS_HEAP
 
-#ifdef _WIN64
+#ifdef BIT64
     iGCAffinityMask = GetConfigULONGLONG_DontUse_(CLRConfig::EXTERNAL_GCHeapAffinitizeMask, iGCAffinityMask);
     if (!iGCAffinityMask) iGCAffinityMask =  Configuration::GetKnobULONGLONGValue(W("System.GC.HeapAffinitizeMask"));
     if (!iGCSegmentSize) iGCSegmentSize =  GetConfigULONGLONG_DontUse_(CLRConfig::UNSUPPORTED_GCSegmentSize, iGCSegmentSize);
@@ -831,7 +813,13 @@ HRESULT EEConfig::sync()
     if (!iGCAffinityMask) iGCAffinityMask = Configuration::GetKnobDWORDValue(W("System.GC.HeapAffinitizeMask"), 0);
     if (!iGCSegmentSize) iGCSegmentSize =  GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_GCSegmentSize, iGCSegmentSize);
     if (!iGCgen0size) iGCgen0size = GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_GCgen0size, iGCgen0size);
-#endif //_WIN64
+#endif //BIT64
+
+    const ULONGLONG ullHeapHardLimit = Configuration::GetKnobULONGLONGValue(W("System.GC.HeapHardLimit"));
+    iGCHeapHardLimit = FitsIn<size_t, ULONGLONG>(ullHeapHardLimit)
+        ? static_cast<size_t>(ullHeapHardLimit)
+        : ClrSafeInt<size_t>::MaxInt();
+    iGCHeapHardLimitPercent = Configuration::GetKnobDWORDValue(W("System.GC.HeapHardLimitPercent"), 0);
 
     if (g_IGCHoardVM)
         iGCHoardVM = g_IGCHoardVM;
@@ -857,7 +845,7 @@ HRESULT EEConfig::sync()
     iGCConservative =  (CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_gcConservative) != 0);
 #endif // FEATURE_CONSERVATIVE_GC
 
-#ifdef _WIN64
+#ifdef BIT64
     iGCAllowVeryLargeObjects = (CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_gcAllowVeryLargeObjects) != 0);
 #endif
 
@@ -955,7 +943,6 @@ HRESULT EEConfig::sync()
     DoubleArrayToLargeObjectHeapThreshold = GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_DoubleArrayToLargeObjectHeap, DoubleArrayToLargeObjectHeapThreshold);
 #endif
 
-#ifdef FEATURE_PREJIT
     IfFailRet(CLRConfig::GetConfigValue(CLRConfig::INTERNAL_ZapBBInstr, (LPWSTR*)&szZapBBInstr));
     if (szZapBBInstr)
     {
@@ -976,7 +963,6 @@ HRESULT EEConfig::sync()
     }
     else 
         g_IBCLogger.DisableAllInstr();
-#endif
 
 
     dwDisableStackwalkCache = GetConfigDWORD_DontUse_(CLRConfig::EXTERNAL_DisableStackwalkCache, dwDisableStackwalkCache);
@@ -1002,6 +988,8 @@ HRESULT EEConfig::sync()
     dwSpinLimitConstant = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_SpinLimitConstant);
     dwSpinRetryCount = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_SpinRetryCount);
     dwMonitorSpinCount = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_Monitor_SpinCount);
+
+    dwJitHostMaxSlabCache = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_JitHostMaxSlabCache);
 
     fJitFramed = (GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_JitFramed, fJitFramed) != 0);
     fJitAlignLoops = (GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_JitAlignLoops, fJitAlignLoops) != 0);
@@ -1174,7 +1162,7 @@ HRESULT EEConfig::sync()
     if (iGCPollTypeOverride < GCPOLL_TYPE_COUNT)
         iGCPollType = GCPollType(iGCPollTypeOverride);
 
-#if defined(_DEBUG) && defined(WIN64EXCEPTIONS)
+#if defined(_DEBUG) && defined(FEATURE_EH_FUNCLETS)
     fSuppressLockViolationsOnReentryFromOS = (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_SuppressLockViolationsOnReentryFromOS) != 0);
 #endif
 
@@ -1203,47 +1191,56 @@ HRESULT EEConfig::sync()
     dwSleepOnExit = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_SleepOnExit);
 
 #if defined(FEATURE_TIERED_COMPILATION)
-    fTieredCompilation = Configuration::GetKnobBooleanValue(W("System.Runtime.TieredCompilation"), CLRConfig::EXTERNAL_TieredCompilation) != 0;
-
-    fTieredCompilation_QuickJit =
-        Configuration::GetKnobBooleanValue(
-            W("System.Runtime.TieredCompilation.QuickJit"),
-            CLRConfig::UNSUPPORTED_TC_QuickJit) != 0;
-
-    fTieredCompilation_StartupTier_CallCounting = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_TC_StartupTier_CallCounting) != 0;
-    fTieredCompilation_StartupTier_OptimizeCode = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_TC_StartupTier_OptimizeCode) != 0;
-
-    tieredCompilation_StartupTier_CallCountThreshold =
-        CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TC_StartupTier_CallCountThreshold);
-    if (tieredCompilation_StartupTier_CallCountThreshold < 1)
+    fTieredCompilation = Configuration::GetKnobBooleanValue(W("System.Runtime.TieredCompilation"), CLRConfig::EXTERNAL_TieredCompilation);
+    if (fTieredCompilation)
     {
-        tieredCompilation_StartupTier_CallCountThreshold = 1;
-    }
-    else if (tieredCompilation_StartupTier_CallCountThreshold > INT_MAX) // CallCounter uses 'int'
-    {
-        tieredCompilation_StartupTier_CallCountThreshold = INT_MAX;
-    }
+        fTieredCompilation_QuickJit =
+            Configuration::GetKnobBooleanValue(
+                W("System.Runtime.TieredCompilation.QuickJit"),
+                CLRConfig::EXTERNAL_TC_QuickJit);
+        if (fTieredCompilation_QuickJit)
+        {
+            fTieredCompilation_QuickJitForLoops =
+                Configuration::GetKnobBooleanValue(
+                    W("System.Runtime.TieredCompilation.QuickJitForLoops"),
+                    CLRConfig::UNSUPPORTED_TC_QuickJitForLoops);
+        }
 
-    tieredCompilation_StartupTier_CallCountingDelayMs =
-        CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TC_StartupTier_CallCountingDelayMs);
+        fTieredCompilation_CallCounting = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_TC_CallCounting) != 0;
+
+        tieredCompilation_CallCountThreshold = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_TC_CallCountThreshold);
+        if (tieredCompilation_CallCountThreshold < 1)
+        {
+            tieredCompilation_CallCountThreshold = 1;
+        }
+        else if (tieredCompilation_CallCountThreshold > INT_MAX) // CallCounter uses 'int'
+        {
+            tieredCompilation_CallCountThreshold = INT_MAX;
+        }
+
+        tieredCompilation_CallCountingDelayMs = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_TC_CallCountingDelayMs);
 
 #ifndef FEATURE_PAL
-    bool hadSingleProcessorAtStartup = CPUGroupInfo::HadSingleProcessorAtStartup();
+        bool hadSingleProcessorAtStartup = CPUGroupInfo::HadSingleProcessorAtStartup();
 #else // !FEATURE_PAL
-    bool hadSingleProcessorAtStartup = g_SystemInfo.dwNumberOfProcessors == 1;
+        bool hadSingleProcessorAtStartup = g_SystemInfo.dwNumberOfProcessors == 1;
 #endif // !FEATURE_PAL
-
-    if (hadSingleProcessorAtStartup)
-    {
-        DWORD delayMultiplier =
-            CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TC_StartupTier_DelaySingleProcMultiplier);
-        if (delayMultiplier > 1)
+        if (hadSingleProcessorAtStartup)
         {
-            DWORD newDelay = tieredCompilation_StartupTier_CallCountingDelayMs * delayMultiplier;
-            if (newDelay / delayMultiplier == tieredCompilation_StartupTier_CallCountingDelayMs)
+            DWORD delayMultiplier = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_TC_DelaySingleProcMultiplier);
+            if (delayMultiplier > 1)
             {
-                tieredCompilation_StartupTier_CallCountingDelayMs = newDelay;
+                DWORD newDelay = tieredCompilation_CallCountingDelayMs * delayMultiplier;
+                if (newDelay / delayMultiplier == tieredCompilation_CallCountingDelayMs)
+                {
+                    tieredCompilation_CallCountingDelayMs = newDelay;
+                }
             }
+        }
+
+        if (ETW::CompilationLog::TieredCompilation::Runtime::IsEnabled())
+        {
+            ETW::CompilationLog::TieredCompilation::Runtime::SendSettings();
         }
     }
 #endif

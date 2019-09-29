@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System;
 using System.Runtime.CompilerServices;
 
@@ -16,13 +15,13 @@ namespace System.Runtime.Intrinsics.X86
     {
         internal Popcnt() { }
 
-        public new static bool IsSupported { [Intrinsic] get { return false; } }
+        public static new bool IsSupported { [Intrinsic] get { return false; } }
 
         public new abstract class X64 : Sse41.X64
         {
             internal X64() { }
 
-            public new static bool IsSupported { [Intrinsic] get { return false; } }
+            public static new bool IsSupported { [Intrinsic] get { return false; } }
 
             /// <summary>
             /// __int64 _mm_popcnt_u64 (unsigned __int64 a)

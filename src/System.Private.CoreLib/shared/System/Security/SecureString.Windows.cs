@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Diagnostics;
 using System.Runtime;
 using System.Runtime.InteropServices;
@@ -272,7 +271,7 @@ namespace System.Security
                 return;
             }
 
-            var oldBuffer = _buffer;
+            SafeBSTRHandle oldBuffer = _buffer;
             SafeBSTRHandle newBuffer = SafeBSTRHandle.Allocate(GetAlignedSize((uint)capacity));
             SafeBSTRHandle.Copy(oldBuffer, newBuffer, (uint)_decryptedLength * sizeof(char));
             _buffer = newBuffer;

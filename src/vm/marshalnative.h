@@ -60,14 +60,6 @@ public:
 
     static FCDECL1(FC_BOOL_RET, IsPinnable, Object* obj);
 
-    //====================================================================
-    // map a fiber cookie from the hosting APIs into a managed Thread object
-    //====================================================================
-    static FCDECL1(THREADBASEREF, GetThreadFromFiberCookie, int cookie);
-
-    static FCDECL3(LPVOID, GetUnmanagedThunkForManagedMethodPtr, LPVOID pfnMethodToWrap, PCCOR_SIGNATURE pbSignature, ULONG cbSignature);
-    static FCDECL3(LPVOID, GetManagedThunkForUnmanagedMethodPtr, LPVOID pfnMethodToWrap, PCCOR_SIGNATURE pbSignature, ULONG cbSignature);
-
     static FCDECL2(LPVOID, GCHandleInternalAlloc, Object *obj, int type);
     static FCDECL1(VOID, GCHandleInternalFree, OBJECTHANDLE handle);
     static FCDECL1(LPVOID, GCHandleInternalGet, OBJECTHANDLE handle);
@@ -203,12 +195,6 @@ public:
     // typelib exported from the assembly.
     //====================================================================
     static FCDECL2(void, DoGetTypeLibGuidForAssembly, GUID * result, AssemblyBaseObject* refAsmUNSAFE);
-
-    //====================================================================
-    // Given a assembly, return the version number of the type library
-    // that would be exported from the assembly.
-    //====================================================================
-    static FCDECL3(void, GetTypeLibVersionForAssembly, AssemblyBaseObject* refAsmUNSAFE, INT32 *pMajorVersion, INT32 *pMinorVersion);
 
     //====================================================================
     // These methods are used to map COM slots to method info's.

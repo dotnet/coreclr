@@ -4,7 +4,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 
 namespace System.Collections.Concurrent
@@ -52,7 +52,7 @@ namespace System.Collections.Concurrent
         /// Lock used to protect cross-segment operations, including any updates to <see cref="_tail"/> or <see cref="_head"/>
         /// and any operations that need to get a consistent view of them.
         /// </summary>
-        private object _crossSegmentLock;
+        private readonly object _crossSegmentLock;
         /// <summary>The current tail segment.</summary>
         private volatile ConcurrentQueueSegment<T> _tail;
         /// <summary>The current head segment.</summary>
@@ -68,11 +68,20 @@ namespace System.Collections.Concurrent
         }
 
         /// <summary>
-        /// Initializes the contents of the queue from an existing collection.
+        /// Initializes a new instance of the <see cref="ConcurrentQueue{T}"/> class that contains elements copied
+        /// from the specified collection.
         /// </summary>
-        /// <param name="collection">A collection from which to copy elements.</param>
-        private void InitializeFromCollection(IEnumerable<T> collection)
+        /// <param name="collection">
+        /// The collection whose elements are copied to the new <see cref="ConcurrentQueue{T}"/>.
+        /// </param>
+        /// <exception cref="System.ArgumentNullException">The <paramref name="collection"/> argument is null.</exception>
+        public ConcurrentQueue(IEnumerable<T> collection)
         {
+            if (collection == null)
+            {
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.collection);
+            }
+
             _crossSegmentLock = new object();
 
             // Determine the initial segment size.  We'll use the default,
@@ -95,24 +104,6 @@ namespace System.Collections.Concurrent
             {
                 Enqueue(item);
             }
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ConcurrentQueue{T}"/> class that contains elements copied
-        /// from the specified collection.
-        /// </summary>
-        /// <param name="collection">
-        /// The collection whose elements are copied to the new <see cref="ConcurrentQueue{T}"/>.
-        /// </param>
-        /// <exception cref="System.ArgumentNullException">The <paramref name="collection"/> argument is null.</exception>
-        public ConcurrentQueue(IEnumerable<T> collection)
-        {
-            if (collection == null)
-            {
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.collection);
-            }
-
-            InitializeFromCollection(collection);
         }
 
         /// <summary>
@@ -220,17 +211,11 @@ namespace System.Collections.Concurrent
         /// that another thread will modify the collection after <see cref="IsEmpty"/> returns, thus invalidating
         /// the result.
         /// </remarks>
-        public bool IsEmpty
-        {
-            get
-            {
-                // IsEmpty == !TryPeek. We use a "resultUsed:false" peek in order to avoid marking
-                // segments as preserved for observation, making IsEmpty a cheaper way than either
-                // TryPeek(out T) or Count == 0 to check whether any elements are in the queue.
-                T ignoredResult;
-                return !TryPeek(out ignoredResult, resultUsed: false);
-            }
-        }
+        public bool IsEmpty =>
+            // IsEmpty == !TryPeek. We use a "resultUsed:false" peek in order to avoid marking
+            // segments as preserved for observation, making IsEmpty a cheaper way than either
+            // TryPeek(out T) or Count == 0 to check whether any elements are in the queue.
+            !TryPeek(out _, resultUsed: false);
 
         /// <summary>Copies the elements stored in the <see cref="ConcurrentQueue{T}"/> to a new array.</summary>
         /// <returns>A new array containing a snapshot of elements copied from the <see cref="ConcurrentQueue{T}"/>.</returns>
@@ -347,7 +332,7 @@ namespace System.Collections.Concurrent
                                     // With the cross-segment lock held, we're guaranteed that all of these internal segments are
                                     // consistent, as the head and tail segment can't be changed while we're holding the lock, and
                                     // dequeueing and enqueueing can only be done from the head and tail segments, which these aren't.
-                                    for (ConcurrentQueueSegment<T> s = head._nextSegment; s != tail; s = s._nextSegment)
+                                    for (ConcurrentQueueSegment<T> s = head._nextSegment!; s != tail; s = s._nextSegment!)
                                     {
                                         Debug.Assert(s._frozenForEnqueues, "Internal segment must be frozen as there's a following segment.");
                                         count += s._headAndTail.Tail - s.FreezeOffset;
@@ -415,7 +400,7 @@ namespace System.Collections.Concurrent
                 // Since there were segments before these, for our purposes we consider them to start at
                 // the 0th element, and since there is at least one segment after each, each was frozen
                 // by the time we snapped it, so we can iterate until each's frozen tail.
-                for (ConcurrentQueueSegment<T> s = head._nextSegment; s != tail; s = s._nextSegment)
+                for (ConcurrentQueueSegment<T> s = head._nextSegment!; s != tail; s = s._nextSegment!)
                 {
                     Debug.Assert(s._preservedForObservation);
                     Debug.Assert(s._frozenForEnqueues);
@@ -493,7 +478,7 @@ namespace System.Collections.Concurrent
         /// cref="ConcurrentQueue{T}"/>.</returns>
         /// <remarks>
         /// The enumeration represents a moment-in-time snapshot of the contents
-        /// of the queue.  It does not reflect any updates to the collection after 
+        /// of the queue.  It does not reflect any updates to the collection after
         /// <see cref="GetEnumerator"/> was called.  The enumerator is safe to use
         /// concurrently with reads from and writes to the queue.
         /// </remarks>
@@ -523,7 +508,7 @@ namespace System.Collections.Concurrent
 
                 // Mark them and all segments in between as preserving, and ensure no additional items
                 // can be added to the tail.
-                for (ConcurrentQueueSegment<T> s = head; ; s = s._nextSegment)
+                for (ConcurrentQueueSegment<T> s = head; ; s = s._nextSegment!)
                 {
                     s._preservedForObservation = true;
                     if (s == tail) break;
@@ -540,7 +525,7 @@ namespace System.Collections.Concurrent
         }
 
         /// <summary>Gets the item stored in the <paramref name="i"/>th entry in <paramref name="segment"/>.</summary>
-        private T GetItemWhenAvailable(ConcurrentQueueSegment<T> segment, int i)
+        private static T GetItemWhenAvailable(ConcurrentQueueSegment<T> segment, int i)
         {
             Debug.Assert(segment._preservedForObservation);
 
@@ -595,7 +580,7 @@ namespace System.Collections.Concurrent
             {
                 // Each segment between head and tail, not including head and tail.  Since there were
                 // segments before these, for our purposes we consider it to start at the 0th element.
-                for (ConcurrentQueueSegment<T> s = head._nextSegment; s != tail; s = s._nextSegment)
+                for (ConcurrentQueueSegment<T> s = head._nextSegment!; s != tail; s = s._nextSegment!)
                 {
                     Debug.Assert(s._preservedForObservation, "Would have had to been preserved as a segment part of enumeration");
                     Debug.Assert(s._frozenForEnqueues, "Would have had to be frozen for enqueues as it's intermediate");
@@ -688,12 +673,12 @@ namespace System.Collections.Concurrent
         /// true if an element was removed and returned from the beginning of the
         /// <see cref="ConcurrentQueue{T}"/> successfully; otherwise, false.
         /// </returns>
-        public bool TryDequeue(out T result) =>
+        public bool TryDequeue([MaybeNullWhen(false)] out T result) =>
             _head.TryDequeue(out result) || // fast-path that operates just on the head segment
             TryDequeueSlow(out result); // slow path that needs to fix up segments
 
         /// <summary>Tries to dequeue an item, removing empty segments as needed.</summary>
-        private bool TryDequeueSlow(out T item)
+        private bool TryDequeueSlow([MaybeNullWhen(false)] out T item)
         {
             while (true)
             {
@@ -711,7 +696,7 @@ namespace System.Collections.Concurrent
                 // check and this check, another item could have arrived).
                 if (head._nextSegment == null)
                 {
-                    item = default;
+                    item = default!;
                     return false;
                 }
 
@@ -752,13 +737,13 @@ namespace System.Collections.Concurrent
         /// For determining whether the collection contains any items, use of the <see cref="IsEmpty"/>
         /// property is recommended rather than peeking.
         /// </remarks>
-        public bool TryPeek(out T result) => TryPeek(out result, resultUsed: true);
+        public bool TryPeek([MaybeNullWhen(false)] out T result) => TryPeek(out result, resultUsed: true);
 
         /// <summary>Attempts to retrieve the value for the first element in the queue.</summary>
         /// <param name="result">The value of the first element, if found.</param>
         /// <param name="resultUsed">true if the result is needed; otherwise false if only the true/false outcome is needed.</param>
         /// <returns>true if an element was found; otherwise, false.</returns>
-        private bool TryPeek(out T result, bool resultUsed)
+        private bool TryPeek([MaybeNullWhen(false)] out T result, bool resultUsed)
         {
             // Starting with the head segment, look through all of the segments
             // for the first one we can find that's not empty.
@@ -768,7 +753,7 @@ namespace System.Collections.Concurrent
                 // Grab the next segment from this one, before we peek.
                 // This is to be able to see whether the value has changed
                 // during the peek operation.
-                ConcurrentQueueSegment<T> next = Volatile.Read(ref s._nextSegment);
+                ConcurrentQueueSegment<T>? next = Volatile.Read(ref s._nextSegment);
 
                 // Peek at the segment.  If we find an element, we're done.
                 if (s.TryPeek(out result, resultUsed))
@@ -805,7 +790,7 @@ namespace System.Collections.Concurrent
                 // and we'll traverse to that segment.
             }
 
-            result = default;
+            result = default!;
             return false;
         }
 

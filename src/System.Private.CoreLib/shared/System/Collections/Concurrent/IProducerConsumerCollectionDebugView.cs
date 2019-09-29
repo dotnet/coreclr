@@ -21,21 +21,13 @@ namespace System.Collections.Concurrent
         /// <param name="collection">A collection to browse in the debugger.</param>
         public IProducerConsumerCollectionDebugView(IProducerConsumerCollection<T> collection)
         {
-            if (collection == null)
-            {
-                throw new ArgumentNullException(nameof(collection));
-            }
-
-            _collection = collection;
+            _collection = collection ?? throw new ArgumentNullException(nameof(collection));
         }
 
         /// <summary>
         /// Returns a snapshot of the underlying collection's elements.
         /// </summary>
         [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
-        public T[] Items
-        {
-            get { return _collection.ToArray(); }
-        }
+        public T[] Items => _collection.ToArray();
     }
 }

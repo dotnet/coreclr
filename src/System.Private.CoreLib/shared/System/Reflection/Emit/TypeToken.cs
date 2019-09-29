@@ -17,7 +17,7 @@ namespace System.Reflection.Emit
 
         public override int GetHashCode() => Token;
 
-        public override bool Equals(object obj) => obj is TypeToken tt && Equals(tt);
+        public override bool Equals(object? obj) => obj is TypeToken tt && Equals(tt);
 
         public bool Equals(TypeToken obj) => obj.Token == Token;
 
@@ -26,4 +26,3 @@ namespace System.Reflection.Emit
         public static bool operator !=(TypeToken a, TypeToken b) => !(a == b);
     }
 }
-

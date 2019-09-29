@@ -2,15 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-
-using System;
-using System.Security;
-using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Runtime.CompilerServices;
 using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
@@ -68,8 +60,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         {
             IVector<T> _this = Unsafe.As<IVector<T>>(this);
 
-            uint index;
-            return _this.IndexOf(item, out index);
+            return _this.IndexOf(item, out _);
         }
 
         // void CopyTo(T[] array, int arrayIndex)

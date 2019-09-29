@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Diagnostics;
 
 namespace System
@@ -65,7 +64,7 @@ namespace System
             }
         }
 
-        private static float[] s_Pow10SingleTable = new float[]
+        private static readonly float[] s_Pow10SingleTable = new float[]
         {
             1e0f,   // 10^0
             1e1f,   // 10^1
@@ -80,7 +79,7 @@ namespace System
             1e10f,  // 10^10
         };
 
-        private static double[] s_Pow10DoubleTable = new double[]
+        private static readonly double[] s_Pow10DoubleTable = new double[]
         {
             1e0,    // 10^0
             1e1,    // 10^1
@@ -242,7 +241,7 @@ namespace System
             Debug.Assert((mantissa & ~info.DenormalMantissaMask) == 0);
             Debug.Assert((shiftedExponent & ~(((1UL << info.ExponentBits) - 1) << info.DenormalMantissaBits)) == 0); // exponent fits in its place
 
-            return (shiftedExponent | mantissa);
+            return shiftedExponent | mantissa;
         }
 
         private static ulong ConvertBigIntegerToFloatingPointBits(ref BigInteger value, in FloatingPointInfo info, uint integerBitsOfPrecision, bool hasNonZeroFractionalPart)
@@ -259,7 +258,7 @@ namespace System
             uint middleBlockIndex = topBlockIndex - 1;
             uint bottomBlockIndex = middleBlockIndex - 1;
 
-            ulong mantissa = 0;
+            ulong mantissa;
             int exponent = baseExponent + ((int)(bottomBlockIndex) * 32);
             bool hasZeroTail = !hasNonZeroFractionalPart;
 
@@ -426,14 +425,14 @@ namespace System
             uint totalDigits = (uint)(number.DigitsCount);
             uint integerDigitsMissing = positiveExponent - integerDigitsPresent;
 
-            uint integerFirstIndex = 0;
+            const uint IntegerFirstIndex = 0;
             uint integerLastIndex = integerDigitsPresent;
 
             uint fractionalFirstIndex = integerLastIndex;
             uint fractionalLastIndex = totalDigits;
 
             // First, we accumulate the integer part of the mantissa into a big_integer:
-            AccumulateDecimalDigitsIntoBigInteger(ref number, integerFirstIndex, integerLastIndex, out BigInteger integerValue);
+            AccumulateDecimalDigitsIntoBigInteger(ref number, IntegerFirstIndex, integerLastIndex, out BigInteger integerValue);
 
             if (integerDigitsMissing > 0)
             {

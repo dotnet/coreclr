@@ -620,8 +620,10 @@ typedef struct _DacGlobals
 
     ULONG fn__ThePreStubPatchLabel;
     ULONG fn__PrecodeFixupThunk;
+#ifdef FEATURE_PREJIT
     ULONG fn__StubDispatchFixupStub;
-    ULONG fn__StubDispatchFixupPatchLabel;;
+    ULONG fn__StubDispatchFixupPatchLabel;
+#endif
 #ifdef FEATURE_COMINTEROP
     ULONG fn__Unknown_AddRef;
     ULONG fn__Unknown_AddRefSpecial;
@@ -775,13 +777,13 @@ interface IMDInternalImport* DacGetMDImport(const ReflectionModule* reflectionMo
 
 int DacGetIlMethodSize(TADDR methAddr);
 struct COR_ILMETHOD* DacGetIlMethod(TADDR methAddr);
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
 struct _UNWIND_INFO * DacGetUnwindInfo(TADDR taUnwindInfo);
 
 // virtually unwind a CONTEXT out-of-process
 struct _KNONVOLATILE_CONTEXT_POINTERS;
 BOOL DacUnwindStackFrame(T_CONTEXT * pContext, T_KNONVOLATILE_CONTEXT_POINTERS* pContextPointers);
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 #if defined(FEATURE_PAL)
 // call back through data target to unwind out-of-process
@@ -1017,7 +1019,7 @@ public:
     {
         return DPtrType(DacTAddrOffset(m_addr, val, sizeof(type)));
     }
-#if defined (_WIN64)
+#if defined (BIT64)
     DPtrType operator+(unsigned int val)
     {
         return DPtrType(DacTAddrOffset(m_addr, val, sizeof(type)));
@@ -1061,7 +1063,7 @@ public:
     {
         return DPtrType(m_addr - val * sizeof(type));
     }
-#ifdef _WIN64
+#ifdef BIT64
     DPtrType operator-(unsigned int val)
     {
         return DPtrType(m_addr - val * sizeof(type));

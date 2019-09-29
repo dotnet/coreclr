@@ -3,19 +3,16 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Runtime.CompilerServices;
-#if BIT64
-using nint = System.Int64;
-#else
-using nint = System.Int32;
-#endif
+#if !DEBUG
 using Internal.Runtime.CompilerServices;
+#endif
 
 namespace System.Runtime.InteropServices
 {
     public partial struct GCHandle
     {
         [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern IntPtr InternalAlloc(object value, GCHandleType type);
+        private static extern IntPtr InternalAlloc(object? value, GCHandleType type);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void InternalFree(IntPtr handle);
@@ -30,9 +27,9 @@ namespace System.Runtime.InteropServices
 #endif
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern void InternalSet(IntPtr handle, object value);
+        private static extern void InternalSet(IntPtr handle, object? value);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        internal static extern object InternalCompareExchange(IntPtr handle, object value, object oldValue);
+        internal static extern object? InternalCompareExchange(IntPtr handle, object? value, object? oldValue);
     }
 }

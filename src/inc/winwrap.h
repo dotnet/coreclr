@@ -54,11 +54,6 @@
 // Undefine all of the windows wrappers so you can't use them.
 //*****************************************************************************
 
-// wincrypt.h
-#undef CryptAcquireContext
-#undef CryptSignHash
-#undef CryptVerifySignature
-
 // winbase.h
 #undef GetBinaryType
 #undef GetShortPathName
@@ -139,23 +134,12 @@
 #undef GetTimeFormat
 #undef LCMapString
 
-// winnetwk.h
-#undef WNetGetConnection
-
-// Win32 Fusion API's
-#undef QueryActCtxW
-
 #endif // !defined(__TODO_PORT_TO_WRAPPERS__)
 
 //
 // NT supports the wide entry points.  So we redefine the wrappers right back
 // to the *W entry points as macros.  This way no client code needs a wrapper on NT.
 //
-
-// wincrypt.h
-#define WszCryptAcquireContext CryptAcquireContextW
-#define WszCryptSignHash CryptSignHashW
-#define WszCryptVerifySignature CryptVerifySignatureW
 
 // winbase.h
 #define WszGetEnvironmentStrings   GetEnvironmentStringsW
@@ -219,7 +203,6 @@
 #define WszMultiByteToWideChar MultiByteToWideChar
 #define WszWideCharToMultiByte WideCharToMultiByte
 #define WszCreateSemaphore CreateSemaphoreW
-#define WszQueryActCtxW QueryActCtxW
 
 
 #ifdef FEATURE_CORESYSTEM
@@ -245,19 +228,13 @@
 #define WszLoadLibrary         LoadLibraryExWrapper
 #define WszLoadLibraryEx       LoadLibraryExWrapper
 #define WszCreateFile          CreateFileWrapper
-#define WszSetFileAttributes   SetFileAttributesWrapper  
 #define WszGetFileAttributes   GetFileAttributesWrapper
 #define WszGetFileAttributesEx GetFileAttributesExWrapper
 #define WszDeleteFile          DeleteFileWrapper
 #define WszFindFirstFileEx     FindFirstFileExWrapper
 #define WszFindNextFile        FindNextFileW
-#define WszCopyFile            CopyFileWrapper
-#define WszCopyFileEx          CopyFileExWrapper
 #define WszMoveFileEx          MoveFileExWrapper
-#define WszMoveFile(lpExistingFileName, lpNewFileName) WszMoveFileEx(lpExistingFileName, lpNewFileName, 0)
 #define WszCreateDirectory     CreateDirectoryWrapper 
-#define WszRemoveDirectory     RemoveDirectoryWrapper
-#define WszCreateHardLink      CreateHardLinkWrapper
 
 //Can not use extended syntax 
 #define WszGetFullPathName     GetFullPathNameW
@@ -270,8 +247,6 @@
 //APIS which have a buffer as an out parameter
 #define WszGetEnvironmentVariable GetEnvironmentVariableWrapper
 #define WszSearchPath          SearchPathWrapper
-#define WszGetShortPathName    GetShortPathNameWrapper
-#define WszGetLongPathName     GetLongPathNameWrapper
 #define WszGetModuleFileName   GetModuleFileNameWrapper
 
 //NOTE: IF the following API's are enabled ensure that they can work with LongFile Names
@@ -312,12 +287,6 @@ BOOL RunningInteractive();
 #else // !FEATURE_PAL
 #define RunningInteractive() FALSE
 #endif // !FEATURE_PAL
-
-// Determines if the process is running as Local System or as a service. Note that this function uses the
-// process' identity and not the thread's (if the thread is impersonating).
-//
-// If the function succeeds, it returns ERROR_SUCCESS, else it returns the error code returned by GetLastError()
-DWORD RunningAsLocalSystemOrService(OUT BOOL& fIsLocalSystemOrService);
 
 #ifndef Wsz_mbstowcs
 #define Wsz_mbstowcs(szOut, szIn, iSize) WszMultiByteToWideChar(CP_ACP, 0, szIn, -1, szOut, iSize)

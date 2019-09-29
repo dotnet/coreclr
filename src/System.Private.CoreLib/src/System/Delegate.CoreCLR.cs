@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -87,7 +86,7 @@ namespace System
         protected virtual object? DynamicInvokeImpl(object?[]? args)
         {
             RuntimeMethodHandleInternal method = new RuntimeMethodHandleInternal(GetInvokeMethod());
-            RuntimeMethodInfo invoke = (RuntimeMethodInfo)RuntimeType.GetMethodBase((RuntimeType)this.GetType(), method);
+            RuntimeMethodInfo invoke = (RuntimeMethodInfo)RuntimeType.GetMethodBase((RuntimeType)this.GetType(), method)!;
 
             return invoke.Invoke(this, BindingFlags.Default, null, args, null);
         }
@@ -156,7 +155,7 @@ namespace System
                 return unchecked((int)((long)this._methodPtrAux));
             */
             if (_methodPtrAux == IntPtr.Zero)
-                return ( _target != null ? RuntimeHelpers.GetHashCode(_target) * 33 : 0) + GetType().GetHashCode();
+                return (_target != null ? RuntimeHelpers.GetHashCode(_target) * 33 : 0) + GetType().GetHashCode();
             else
                 return GetType().GetHashCode();
         }
@@ -185,7 +184,7 @@ namespace System
                             // types at each step) until we find the declaring type. Since the declaring type
                             // we get from the method is probably shared and those in the hierarchy we're
                             // walking won't be we compare using the generic type definition forms instead.
-                            Type currentType = _target!.GetType();
+                            Type? currentType = _target!.GetType();
                             Type targetType = declaringType.GetGenericTypeDefinition();
                             while (currentType != null)
                             {
@@ -206,23 +205,17 @@ namespace System
                         else
                         {
                             // it's an open one, need to fetch the first arg of the instantiation
-                            MethodInfo invoke = this.GetType().GetMethod("Invoke");
+                            MethodInfo invoke = this.GetType().GetMethod("Invoke")!;
                             declaringType = (RuntimeType)invoke.GetParameters()[0].ParameterType;
                         }
                     }
                 }
-                _methodBase = (MethodInfo)RuntimeType.GetMethodBase(declaringType, method);
+                _methodBase = (MethodInfo)RuntimeType.GetMethodBase(declaringType, method)!;
             }
             return (MethodInfo)_methodBase;
         }
 
-        public object? Target
-        {
-            get
-            {
-                return GetTarget();
-            }
-        }
+        public object? Target => GetTarget();
 
         // V1 API.
         public static Delegate? CreateDelegate(Type type, object target, string method, bool ignoreCase, bool throwOnBindFailure)
@@ -423,42 +416,42 @@ namespace System
         // internal implementation details (FCALLS and utilities)
         //
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern bool BindToMethodName(object? target, RuntimeType methodType, string method, DelegateBindingFlags flags);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern bool BindToMethodInfo(object? target, IRuntimeMethodInfo method, RuntimeType methodType, DelegateBindingFlags flags);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern MulticastDelegate InternalAlloc(RuntimeType type);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern MulticastDelegate InternalAllocLike(Delegate d);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool InternalEqualTypes(object a, object b);
 
         // Used by the ctor. Do not call directly.
         // The name of this function will appear in managed stacktraces as delegate constructor.
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void DelegateConstruct(object target, IntPtr slot);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern IntPtr GetMulticastInvoke();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern IntPtr GetInvokeMethod();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern IRuntimeMethodInfo FindMethodHandle();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool InternalEqualMethodHandles(Delegate left, Delegate right);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern IntPtr AdjustTarget(object target, IntPtr methodPtr);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern IntPtr GetCallStub(IntPtr methodPtr);
 
         internal virtual object? GetTarget()
@@ -466,7 +459,7 @@ namespace System
             return (_methodPtrAux == IntPtr.Zero) ? _target : null;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool CompareUnmanagedFunctionPtrs(Delegate d1, Delegate d2);
     }
 

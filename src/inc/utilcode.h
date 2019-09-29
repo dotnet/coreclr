@@ -489,13 +489,6 @@ inline void *__cdecl operator new(size_t, void *_P)
 
 /********************************************************************************/
 /* portability helpers */
-#ifdef _WIN64
-#define IN_WIN64(x)     x
-#define IN_WIN32(x)
-#else
-#define IN_WIN64(x)
-#define IN_WIN32(x)     x
-#endif
 
 #ifdef _TARGET_64BIT_
 #define IN_TARGET_64BIT(x)     x
@@ -531,16 +524,8 @@ inline HRESULT OutOfMemory()
 //*****************************************************************************
 // Handle accessing localizable resource strings
 //*****************************************************************************
-// NOTE: Should use locale names as much as possible.  LCIDs don't support
-// custom cultures on Vista+.
-// TODO: This should always use the names
-#ifdef FEATURE_USE_LCID    
-typedef LCID LocaleID;
-typedef LCID LocaleIDValue;
-#else
 typedef LPCWSTR LocaleID;
 typedef WCHAR LocaleIDValue[LOCALE_NAME_MAX_LENGTH];
-#endif
 
 // Notes about the culture callbacks:
 // - The language we're operating in can change at *runtime*!
@@ -556,12 +541,7 @@ typedef WCHAR LocaleIDValue[LOCALE_NAME_MAX_LENGTH];
 
 // Callback to obtain both the culture name and the culture's parent culture name
 typedef HRESULT (*FPGETTHREADUICULTURENAMES)(__inout StringArrayList* pCultureNames);
-#ifdef FEATURE_USE_LCID
-// Callback to return the culture ID.
-const LCID UICULTUREID_DONTCARE = (LCID)-1;
-#else
 const LPCWSTR UICULTUREID_DONTCARE = NULL;
-#endif
 
 typedef int (*FPGETTHREADUICULTUREID)(LocaleIDValue*);
 
@@ -571,17 +551,8 @@ HMODULE CLRLoadLibraryEx(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags);
 
 BOOL CLRFreeLibrary(HMODULE hModule);
 
-// Prevent people from using LoadStringRC & LoadStringRCEx from inside the product since it
-// causes issues with having the wrong version picked up inside the shim.
-#define LoadStringRC __error("From inside the CLR, use UtilLoadStringRC; LoadStringRC is only meant to be exported.")
-#define LoadStringRCEx __error("From inside the CLR, use UtilLoadStringRCEx; LoadStringRC is only meant to be exported.")
-
 // Load a string using the resources for the current module.
 STDAPI UtilLoadStringRC(UINT iResouceID, __out_ecount (iMax) LPWSTR szBuffer, int iMax, int bQuiet=FALSE);
-
-#ifdef FEATURE_USE_LCID
-STDAPI UtilLoadStringRCEx(LCID lcid, UINT iResourceID, __out_ecount (iMax) LPWSTR szBuffer, int iMax, int bQuiet, int *pcwchUsed);
-#endif
 
 // Specify callbacks so that UtilLoadStringRC can find out which language we're in.
 // If no callbacks specified (or both parameters are NULL), we default to the
@@ -647,12 +618,8 @@ public:
         _ASSERTE(m_hInst != NULL || m_fMissing);
         if (id == UICULTUREID_DONTCARE)
             return FALSE;
-        
-#ifdef FEATURE_USE_LCID
-        return id == m_LangId;
-#else
+
         return wcscmp(id, m_LangId) == 0;
-#endif
     }
     
     HRESOURCEDLL GetLibraryHandle()
@@ -687,9 +654,6 @@ public:
   private:
     void SetId(LocaleID id)
     {
-#ifdef FEATURE_USE_LCID
-        m_LangId = id;
-#else
         if (id != UICULTUREID_DONTCARE)
         {
             wcsncpy_s(m_LangId, NumItems(m_LangId), id, NumItems(m_LangId));
@@ -699,7 +663,6 @@ public:
         {
             m_LangId[0] = W('\0');
         }
-#endif
     }
  };
 
@@ -1336,6 +1299,7 @@ class NumaNodeInfo
 {
 private:
     static BOOL m_enableGCNumaAware;
+    static uint16_t m_nNodes;
     static BOOL InitNumaNodeInfoAPI();
 
 public:
@@ -1349,6 +1313,7 @@ public: 	// functions
                                      DWORD allocType, DWORD prot, DWORD node);
 #ifndef FEATURE_PAL
     static BOOL GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, PUSHORT node_no);
+    static bool GetNumaInfo(PUSHORT total_nodes, DWORD* max_procs_per_node);
 #else // !FEATURE_PAL
     static BOOL GetNumaProcessorNodeEx(USHORT proc_no, PUSHORT node_no);
 #endif // !FEATURE_PAL
@@ -1393,6 +1358,7 @@ public:
     static void GetGroupForProcessor(WORD processor_number, 
 		    WORD *group_number, WORD *group_processor_number);
     static DWORD CalculateCurrentProcessorNumber();
+    static bool GetCPUGroupInfo(PUSHORT total_groups, DWORD* max_procs_per_group);
     //static void PopulateCPUUsageArray(void * infoBuffer, ULONG infoSize);
 
 #if !defined(FEATURE_REDHAWK)
@@ -1400,7 +1366,7 @@ public:
     static BOOL GetLogicalProcessorInformationEx(LOGICAL_PROCESSOR_RELATIONSHIP relationship,
 		   SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *slpiex, PDWORD count); 
     static BOOL SetThreadGroupAffinity(HANDLE h,
-		    GROUP_AFFINITY *groupAffinity, GROUP_AFFINITY *previousGroupAffinity);
+		    const GROUP_AFFINITY *groupAffinity, GROUP_AFFINITY *previousGroupAffinity);
     static BOOL GetThreadGroupAffinity(HANDLE h, GROUP_AFFINITY *groupAffinity);
     static BOOL GetSystemTimes(FILETIME *idleTime, FILETIME *kernelTime, FILETIME *userTime);
     static void ChooseCPUGroupAffinity(GROUP_AFFINITY *gf);
@@ -1899,12 +1865,12 @@ public:
     {
         WRAPPER_NO_CONTRACT;
         _ASSERTE(iIndex < m_iCount);
-        return ((void *) ((size_t) Ptr() + (iIndex * m_iElemSize)));
+        return (BYTE*) Ptr() + (iIndex * (size_t)m_iElemSize);
     }
-    int Size()
+    size_t Size()
     {
         LIMITED_METHOD_CONTRACT;
-        return (m_iCount * m_iElemSize);
+        return (m_iCount * (size_t)m_iElemSize);
     }
     int Count()
     {
@@ -2408,7 +2374,7 @@ protected:
     HASHENTRY *EntryPtr(ULONG iEntry)
     {
         LIMITED_METHOD_DAC_CONTRACT;
-        return (PTR_HASHENTRY(m_pcEntries + (iEntry * m_iEntrySize)));
+        return (PTR_HASHENTRY(m_pcEntries + (iEntry * (size_t)m_iEntrySize)));
     }
 
     ULONG     ItemIndex(HASHENTRY *p)
@@ -2859,7 +2825,7 @@ void CHashTableAndData<MemMgr>::InitFreeChain(
     BYTE* pcPtr;
     _ASSERTE(iEnd > iStart);
 
-    pcPtr = (BYTE*)m_pcEntries + iStart * m_iEntrySize;
+    pcPtr = (BYTE*)m_pcEntries + iStart * (size_t)m_iEntrySize;
     for (++iStart; iStart < iEnd; ++iStart)
     {
         ((FREEHASHENTRY *) pcPtr)->iFree = iStart;
@@ -3117,13 +3083,13 @@ class CClosedHashBase
     BYTE *EntryPtr(int iEntry)
     {
         LIMITED_METHOD_CONTRACT;
-        return (m_rgData + (iEntry * m_iEntrySize));
+        return (m_rgData + (iEntry * (size_t)m_iEntrySize));
     }
 
     BYTE *EntryPtr(int iEntry, BYTE *rgData)
     {
         LIMITED_METHOD_CONTRACT;
-        return (rgData + (iEntry * m_iEntrySize));
+        return (rgData + (iEntry * (size_t)m_iEntrySize));
     }
 
 public:
@@ -4907,16 +4873,6 @@ BOOL NoGuiOnAssert();
 VOID TerminateOnAssert();
 #endif // _DEBUG
 
-class HighCharHelper {
-public:
-    static inline BOOL IsHighChar(int c) {
-        return (BOOL)HighCharTable[c];
-    }
-
-private:
-    static const BYTE HighCharTable[];
-};
-
 
 BOOL ThreadWillCreateGuardPage(SIZE_T sizeReservedStack, SIZE_T sizeCommitedStack);
 
@@ -4944,22 +4900,15 @@ BOOL IsIPInModule(HMODULE_TGT hModule, PCODE ip);
 // which in turn calls InitUtilcode.
 //
 // This structure collects all of the critical callback info passed in InitUtilcode().
-// Note that one of them is GetCLRFunction() which is itself a gofer for many other
-// callbacks. If a callback fetch be safely deferred until we have TLS and stack probe
-// functionality running, it should be added to that function rather than this structure.
-// Things like IEE are here because that callback has to be set up before GetCLRFunction()
-// can be safely called.
 //----------------------------------------------------------------------------------------
 struct CoreClrCallbacks
 {
     typedef IExecutionEngine* (* pfnIEE_t)();
     typedef HRESULT (* pfnGetCORSystemDirectory_t)(SString& pbuffer);
-    typedef void* (* pfnGetCLRFunction_t)(LPCSTR functionName);
 
     HINSTANCE                   m_hmodCoreCLR;
     pfnIEE_t                    m_pfnIEE;
     pfnGetCORSystemDirectory_t  m_pfnGetCORSystemDirectory;
-    pfnGetCLRFunction_t         m_pfnGetCLRFunction;
 };
 
 
@@ -5200,18 +5149,6 @@ void EnableTerminationOnHeapCorruption();
 
 namespace Clr { namespace Util
 {
-    // This api returns a pointer to a null-terminated string that contains the local appdata directory
-    // or it returns NULL in the case that the directory could not be found. The return value from this function
-    // is not actually checked for existence. 
-    HRESULT GetLocalAppDataDirectory(LPCWSTR *ppwzLocalAppDataDirectory);
-    HRESULT SetLocalAppDataDirectory(LPCWSTR pwzLocalAppDataDirectory);
-
-namespace Reg
-{
-    HRESULT ReadStringValue(HKEY hKey, LPCWSTR wszSubKey, LPCWSTR wszName, SString & ssValue);
-    __success(return == S_OK)
-    HRESULT ReadStringValue(HKEY hKey, LPCWSTR wszSubKey, LPCWSTR wszName, __deref_out __deref_out_z LPWSTR* pwszValue);
-}
 
 #ifdef FEATURE_COMINTEROP
 namespace Com
@@ -5219,29 +5156,6 @@ namespace Com
     HRESULT FindInprocServer32UsingCLSID(REFCLSID rclsid, SString & ssInprocServer32Name);
 }
 #endif // FEATURE_COMINTEROP
-
-namespace Win32
-{
-    static const WCHAR LONG_FILENAME_PREFIX_W[] = W("\\\\?\\");
-    static const CHAR LONG_FILENAME_PREFIX_A[] = "\\\\?\\";
-
-    void GetModuleFileName(
-        HMODULE hModule,
-        SString & ssFileName,
-        bool fAllowLongFileNames = false);
-
-    __success(return == S_OK)
-    HRESULT GetModuleFileName(
-        HMODULE hModule,
-        __deref_out_z LPWSTR * pwszFileName,
-        bool fAllowLongFileNames = false);
-
-    void GetFullPathName(
-        SString const & ssFileName,
-        SString & ssPathName,
-        DWORD * pdwFilePartIdx,
-        bool fAllowLongFileNames = false);
-}
 
 }}
 
@@ -5346,9 +5260,5 @@ struct SpinConstants
 };
 
 extern SpinConstants g_SpinConstants;
-
-// ======================================================================================
-
-void* GetCLRFunction(LPCSTR FunctionName);
 
 #endif // __UtilCode_h__

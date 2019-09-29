@@ -7,7 +7,7 @@ using System.Reflection;
 
 namespace System
 {
-    [AttributeUsageAttribute(AttributeTargets.All, Inherited = true, AllowMultiple = false)]
+    [AttributeUsage(AttributeTargets.All, Inherited = true, AllowMultiple = false)]
     [Serializable]
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public abstract partial class Attribute
@@ -15,7 +15,7 @@ namespace System
         protected Attribute() { }
 
 #if !CORERT
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj == null)
                 return false;
@@ -25,7 +25,7 @@ namespace System
 
             Type thisType = this.GetType();
             object thisObj = this;
-            object thisResult, thatResult;
+            object? thisResult, thatResult;
 
             while (thisType != typeof(Attribute))
             {
@@ -41,7 +41,7 @@ namespace System
                         return false;
                     }
                 }
-                thisType = thisType.BaseType;
+                thisType = thisType.BaseType!;
             }
 
             return true;
@@ -54,13 +54,13 @@ namespace System
             while (type != typeof(Attribute))
             {
                 FieldInfo[] fields = type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
-                object vThis = null;
+                object? vThis = null;
 
                 for (int i = 0; i < fields.Length; i++)
                 {
-                    object fieldValue = fields[i].GetValue(this);
+                    object? fieldValue = fields[i].GetValue(this);
 
-                    // The hashcode of an array ignores the contents of the array, so it can produce 
+                    // The hashcode of an array ignores the contents of the array, so it can produce
                     // different hashcodes for arrays with the same contents.
                     // Since we do deep comparisons of arrays in Equals(), this means Equals and GetHashCode will
                     // be inconsistent for arrays. Therefore, we ignore hashes of arrays.
@@ -74,15 +74,15 @@ namespace System
                 if (vThis != null)
                     return vThis.GetHashCode();
 
-                type = type.BaseType;
+                type = type.BaseType!;
             }
 
             return type.GetHashCode();
         }
 #endif
 
-        // Compares values of custom-attribute fields.    
-        private static bool AreFieldValuesEqual(object thisValue, object thatValue)
+        // Compares values of custom-attribute fields.
+        private static bool AreFieldValuesEqual(object? thisValue, object? thatValue)
         {
             if (thisValue == null && thatValue == null)
                 return true;
@@ -99,14 +99,14 @@ namespace System
                     return false;
                 }
 
-                Array thisValueArray = thisValue as Array;
-                Array thatValueArray = thatValue as Array;
+                Array thisValueArray = (Array)thisValue;
+                Array thatValueArray = (Array)thatValue;
                 if (thisValueArray.Length != thatValueArray.Length)
                 {
                     return false;
                 }
 
-                // Attributes can only contain single-dimension arrays, so we don't need to worry about 
+                // Attributes can only contain single-dimension arrays, so we don't need to worry about
                 // multidimensional arrays.
                 Debug.Assert(thisValueArray.Rank == 1 && thatValueArray.Rank == 1);
                 for (int j = 0; j < thisValueArray.Length; j++)
@@ -119,7 +119,7 @@ namespace System
             }
             else
             {
-                // An object of type Attribute will cause a stack overflow. 
+                // An object of type Attribute will cause a stack overflow.
                 // However, this should never happen because custom attributes cannot contain values other than
                 // constants, single-dimensional arrays and typeof expressions.
                 Debug.Assert(!(thisValue is Attribute));
@@ -132,7 +132,7 @@ namespace System
 
         public virtual object TypeId => GetType();
 
-        public virtual bool Match(object obj) => Equals(obj);
+        public virtual bool Match(object? obj) => Equals(obj);
 
         public virtual bool IsDefaultAttribute() => false;
     }

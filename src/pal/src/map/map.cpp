@@ -572,7 +572,6 @@ CorUnix::InternalCreateFileMapping(
                 pThread,
                 hFile,
                 &aotFile,
-                GENERIC_READ,
                 &pFileObject
                 );
 
@@ -779,7 +778,6 @@ CorUnix::InternalCreateFileMapping(
         pThread,
         pMapping,
         &aotFileMapping, 
-        flProtect,          // TODO: is flProtect really an access right?
         phMapping,
         &pRegisteredMapping
         );
@@ -1115,7 +1113,6 @@ CorUnix::InternalMapViewOfFile(
         pThread,
         hFileMappingObject,
         &aotFileMapping,
-        dwDesiredAccess,
         &pMappingObject
         );
 
@@ -2157,17 +2154,36 @@ MAPmmapAndRecord(
     _ASSERTE(pPEBaseAddress != NULL);
 
     PAL_ERROR palError = NO_ERROR;
-    LPVOID pvBaseAddress = NULL;
-
     off_t adjust = offset & (GetVirtualPageSize() - 1);
+    LPVOID pvBaseAddress = static_cast<char *>(addr) - adjust;
 
-    pvBaseAddress = mmap(static_cast<char *>(addr) - adjust, len + adjust, prot, flags, fd, offset - adjust);
-    if (MAP_FAILED == pvBaseAddress)
+#ifdef __APPLE__
+    if ((prot & PROT_EXEC) != 0 && IsRunningOnMojaveHardenedRuntime())
     {
-        ERROR_(LOADER)( "mmap failed with code %d: %s.\n", errno, strerror( errno ) );
-        palError = FILEGetLastErrorFromErrno();
+        // Mojave hardened runtime doesn't allow executable mappings of a file. So we have to create an 
+        // anonymous mapping and read the file contents into it instead.
+
+        // Set the requested mapping with forced PROT_WRITE to ensure data from the file can be read there,
+        // read the data in and finally remove the forced PROT_WRITE
+        if ((mprotect(pvBaseAddress, len + adjust, prot | PROT_WRITE) == -1) ||
+            (pread(fd, pvBaseAddress, len + adjust, offset - adjust) == -1) ||
+            (((prot & PROT_WRITE) == 0) && mprotect(pvBaseAddress, len + adjust, prot) == -1))
+        {
+            palError = FILEGetLastErrorFromErrno();
+        }
     }
     else
+#endif
+    {
+        pvBaseAddress = mmap(static_cast<char *>(addr) - adjust, len + adjust, prot, flags, fd, offset - adjust);
+        if (MAP_FAILED == pvBaseAddress)
+        {
+            ERROR_(LOADER)( "mmap failed with code %d: %s.\n", errno, strerror( errno ) );
+            palError = FILEGetLastErrorFromErrno();
+        }
+    }
+
+    if (NO_ERROR == palError)
     {
         palError = MAPRecordMapping(pMappingObject, pPEBaseAddress, pvBaseAddress, len, prot);
         if (NO_ERROR != palError)
@@ -2229,7 +2245,6 @@ void * MAPMapPEFile(HANDLE hFile)
             pThread,
             hFile,
             &aotFile,
-            GENERIC_READ,
             &pFileObject
             );
     if (NO_ERROR != palError)
@@ -2255,25 +2270,13 @@ void * MAPMapPEFile(HANDLE hFile)
     //Step 1: Read the PE headers and reserve enough space for the whole image somewhere.
     IMAGE_DOS_HEADER dosHeader;
     IMAGE_NT_HEADERS ntHeader;
-    errno = 0;
-    if (0 != lseek(fd, 0, SEEK_SET))
-    {
-        palError = FILEGetLastErrorFromErrno();
-        ERROR_(LOADER)( "lseek failed\n" );
-        goto done;
-    }
-    if (sizeof(dosHeader) != read(fd, &dosHeader, sizeof(dosHeader)))
+    if (sizeof(dosHeader) != pread(fd, &dosHeader, sizeof(dosHeader), 0))
     {
         palError = FILEGetLastErrorFromErrno();
         ERROR_(LOADER)( "reading dos header failed\n" );
         goto done;
     }
-    if (dosHeader.e_lfanew != lseek(fd, dosHeader.e_lfanew, SEEK_SET))
-    {
-        palError = FILEGetLastErrorFromErrno();
-        goto done;
-    }
-    if (sizeof(ntHeader) != read(fd, &ntHeader, sizeof(ntHeader)))
+    if (sizeof(ntHeader) != pread(fd, &ntHeader, sizeof(ntHeader), dosHeader.e_lfanew))
     {
         palError = FILEGetLastErrorFromErrno();
         goto done;
@@ -2362,9 +2365,23 @@ void * MAPMapPEFile(HANDLE hFile)
 
     if (loadedBase == NULL)
     {
+        void *usedBaseAddr = NULL;
+#ifdef FEATURE_ENABLE_NO_ADDRESS_SPACE_RANDOMIZATION
+        if (g_useDefaultBaseAddr)
+        {
+            usedBaseAddr = (void*) preferredBase;
+        }
+#endif // FEATURE_ENABLE_NO_ADDRESS_SPACE_RANDOMIZATION
         // MAC64 requires we pass MAP_SHARED (or MAP_PRIVATE) flags - otherwise, the call is failed.
         // Refer to mmap documentation at http://www.manpagez.com/man/2/mmap/ for details.
-        loadedBase = mmap(NULL, virtualSize, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+        int mapFlags = MAP_ANON|MAP_PRIVATE;
+#ifdef __APPLE__
+        if (IsRunningOnMojaveHardenedRuntime())
+        {
+            mapFlags |= MAP_JIT;
+        }
+#endif // __APPLE__
+        loadedBase = mmap(usedBaseAddr, virtualSize, PROT_NONE, mapFlags, -1, 0);
     }
 
     if (MAP_FAILED == loadedBase)
@@ -2654,5 +2671,56 @@ BOOL MAPUnmapPEFile(LPCVOID lpAddress)
     }
 
     TRACE_(LOADER)("MAPUnmapPEFile returning %d\n", retval);
+    return retval;
+}
+
+/*++
+Function :
+    MAPMarkSectionAsNotNeeded - Mark a section as NotNeeded
+    returns TRUE if successful, FALSE otherwise
+--*/
+BOOL MAPMarkSectionAsNotNeeded(LPCVOID lpAddress)
+{
+    TRACE_(LOADER)("MAPMarkSectionAsNotNeeded(lpAddress=%p)\n", lpAddress);
+
+    if ( NULL == lpAddress )
+    {
+        ERROR_(LOADER)( "lpAddress cannot be NULL\n" );
+        return FALSE;
+    }
+
+    BOOL retval = TRUE;
+    CPalThread * pThread = InternalGetCurrentThread();
+    InternalEnterCriticalSection(pThread, &mapping_critsec);
+    PLIST_ENTRY pLink, pLinkNext = NULL;
+
+    // Look through the entire MappedViewList for all mappings associated with the
+    // section with an address 'lpAddress' which we want to mark as NotNeeded.
+
+    for(pLink = MappedViewList.Flink;
+            pLink != &MappedViewList;
+            pLink = pLinkNext)
+    {
+        pLinkNext = pLink->Flink;
+        PMAPPED_VIEW_LIST pView = CONTAINING_RECORD(pLink, MAPPED_VIEW_LIST, Link);
+
+        if (pView->lpAddress == lpAddress) // this entry is associated with the section
+        {
+            if (-1 == madvise(pView->lpAddress, pView->NumberOfBytesToMap, MADV_DONTNEED))
+            {
+                ERROR_(LOADER)("Unable to mark the section as NotNeeded.\n");
+                retval = FALSE;
+            }
+            else
+            {
+                pView->dwDesiredAccess = 0;
+            }
+            break;
+        }
+    }
+
+    InternalLeaveCriticalSection(pThread, &mapping_critsec);
+
+    TRACE_(LOADER)("MAPMarkSectionAsNotNeeded returning %d\n", retval);
     return retval;
 }

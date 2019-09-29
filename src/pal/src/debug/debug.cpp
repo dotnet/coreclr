@@ -346,7 +346,7 @@ DebugBreakCommand()
             goto FAILED;
         }
 
-        if (snprintf (exe_buf, sizeof (CHAR) * (dwexe_buf + 1), EXE_TEXT "%ls", (wchar_t *)exe_module.lib_name) <= 0)
+        if (snprintf (exe_buf, sizeof (CHAR) * (dwexe_buf + 1), EXE_TEXT "%ls", (wchar_t*)exe_module.lib_name) <= 0)
         {
             goto FAILED;
         }
@@ -375,10 +375,10 @@ DebugBreakCommand()
 FAILED:
     if (command_string)
     {
+        fprintf (stderr, "Failed to execute command: '%s'\n", command_string);
         free(command_string);
     }
 
-    fprintf (stderr, "Failed to execute command: '%s'\n", command_string);
     return -1;
 #else // ENABLE_RUN_ON_DEBUG_BREAK
     return 0;
@@ -448,7 +448,6 @@ GetThreadContext(
     palError = InternalGetThreadDataFromHandle(
         pThread,
         hThread,
-        0, // THREAD_GET_CONTEXT
         &pTargetThread,
         &pobjThread
         );
@@ -510,7 +509,6 @@ SetThreadContext(
     palError = InternalGetThreadDataFromHandle(
         pThread,
         hThread,
-        0, // THREAD_SET_CONTEXT
         &pTargetThread,
         &pobjThread
         );

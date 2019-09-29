@@ -693,6 +693,18 @@ BOOL ThreadpoolMgr::GetAvailableThreads(DWORD* AvailableWorkerThreads,
     return TRUE;
 }
 
+INT32 ThreadpoolMgr::GetThreadCount()
+{
+    WRAPPER_NO_CONTRACT;
+
+    if (!IsInitialized())
+    {
+        return 0;
+    }
+
+    return WorkerCounter.DangerousGetDirtyCounts().NumActive + CPThreadCounter.DangerousGetDirtyCounts().NumActive;
+}
+
 void QueueUserWorkItemHelp(LPTHREAD_START_ROUTINE Function, PVOID Context)
 {
     STATIC_CONTRACT_THROWS;
@@ -911,7 +923,7 @@ void ThreadpoolMgr::AdjustMaxWorkersActive()
     _ASSERTE(ThreadAdjustmentLock.IsHeld());
 
     DWORD currentTicks = GetTickCount();
-    LONG totalNumCompletions = Thread::GetTotalThreadPoolCompletionCount();
+    LONG totalNumCompletions = (LONG)Thread::GetTotalWorkerThreadPoolCompletionCount();
     LONG numCompletions = totalNumCompletions - VolatileLoad(&PriorCompletedWorkRequests);
 
     LARGE_INTEGER startTime = CurrentSampleStartTime;
@@ -1889,7 +1901,8 @@ DWORD WINAPI ThreadpoolMgr::WorkerThreadStart(LPVOID lpArgs)
     bool foundWork = true, wasNotRecalled = true;
 
     counts = WorkerCounter.GetCleanCounts();
-    FireEtwThreadPoolWorkerThreadStart(counts.NumActive, counts.NumRetired, GetClrInstanceId());
+    if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, ThreadPoolWorkerThreadStart))
+        FireEtwThreadPoolWorkerThreadStart(counts.NumActive, counts.NumRetired, GetClrInstanceId());
 
 #ifdef FEATURE_COMINTEROP
     BOOL fCoInited = FALSE;
@@ -2103,7 +2116,8 @@ WaitForWork:
         MaybeAddWorkingWorker();
     }
 
-    FireEtwThreadPoolWorkerThreadWait(counts.NumActive, counts.NumRetired, GetClrInstanceId());
+    if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, ThreadPoolWorkerThreadWait))
+        FireEtwThreadPoolWorkerThreadWait(counts.NumActive, counts.NumRetired, GetClrInstanceId());
 
 RetryWaitForWork:
     if (WorkerSemaphore->Wait(AppX::IsAppXProcess() ? WorkerTimeoutAppX : WorkerTimeout, WorkerThreadSpinLimit, NumberOfProcessors))
@@ -2183,7 +2197,8 @@ Exit:
     _ASSERTE(!IsIoPending());
 
     counts = WorkerCounter.GetCleanCounts();
-    FireEtwThreadPoolWorkerThreadStop(counts.NumActive, counts.NumRetired, GetClrInstanceId());
+    if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, ThreadPoolWorkerThreadStop))
+        FireEtwThreadPoolWorkerThreadStop(counts.NumActive, counts.NumRetired, GetClrInstanceId());
 
     return ERROR_SUCCESS;
 }
@@ -2297,7 +2312,7 @@ BOOL ThreadpoolMgr::RegisterWaitForSingleObject(PHANDLE phNewWaitObject,
         // We fire the "enqueue" ETW event here, to "mark" the thread that had called the API, rather than the
         // thread that will PostQueuedCompletionStatus (the dedicated WaitThread).
         // This event correlates with ThreadPoolIODequeue in ThreadpoolMgr::AsyncCallbackCompletion
-        if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, ThreadPoolIOEnqueue))
+        if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, ThreadPoolIOEnqueue))
             FireEtwThreadPoolIOEnqueue((LPOVERLAPPED)waitInfo, reinterpret_cast<void*>(Callback), (dwFlag & WAIT_SINGLE_EXECUTION) == 0, GetClrInstanceId());
     
         BOOL status = QueueUserAPC((PAPCFUNC)InsertNewWaitForSelf, threadCB->threadHandle, (size_t) waitInfo);
@@ -2545,7 +2560,7 @@ DWORD ThreadpoolMgr::MinimumRemainingWait(LIST_ENTRY* waitInfo, unsigned int num
 }
 
 #ifdef _MSC_VER
-#ifdef _WIN64
+#ifdef BIT64
 #pragma warning (disable : 4716)
 #else
 #pragma warning (disable : 4715)
@@ -2752,7 +2767,7 @@ DWORD WINAPI ThreadpoolMgr::WaitThreadStart(LPVOID lpArgs)
 #endif
 
 #ifdef _MSC_VER
-#ifdef _WIN64
+#ifdef BIT64
 #pragma warning (default : 4716)
 #else
 #pragma warning (default : 4715)
@@ -2855,7 +2870,7 @@ DWORD WINAPI ThreadpoolMgr::AsyncCallbackCompletion(PVOID pArgs)
 
         // We fire the "dequeue" ETW event here, before executing the user code, to enable correlation with
         // the ThreadPoolIOEnqueue fired in ThreadpoolMgr::RegisterWaitForSingleObject
-        if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, ThreadPoolIODequeue))
+        if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, ThreadPoolIODequeue))
             FireEtwThreadPoolIODequeue(waitInfo, reinterpret_cast<void*>(waitInfo->Callback), GetClrInstanceId());
 
         // the user callback can throw, the host must be prepared to handle it.
@@ -2864,6 +2879,10 @@ DWORD WINAPI ThreadpoolMgr::AsyncCallbackCompletion(PVOID pArgs)
 
         ((WAITORTIMERCALLBACKFUNC) waitInfo->Callback)
                                     ( waitInfo->Context, asyncCallback->waitTimedOut != FALSE);
+
+#ifndef FEATURE_PAL
+        Thread::IncrementIOThreadPoolCompletionCount(pThread);
+#endif
     }
 
     return ERROR_SUCCESS;
@@ -2965,7 +2984,7 @@ void ThreadpoolMgr::DeleteWait(WaitInfo* waitInfo)
     }
     else if (waitInfo->ExternalCompletionEvent != INVALID_HANDLE)
     {
-        UnsafeSetEvent(waitInfo->ExternalCompletionEvent);
+        SetEvent(waitInfo->ExternalCompletionEvent);
     }
     else if (waitInfo->ExternalEventSafeHandle != NULL)
     {
@@ -3094,12 +3113,7 @@ void ThreadpoolMgr::DeregisterWait(WaitInfo* pArgs)
 
     if (InterlockedDecrement(&waitInfo->refCount) == 0)
     {
-        // After we suspend EE during shutdown, a thread may be blocked in WaitForEndOfShutdown in alertable state.
-        // We don't allow a thread reenter runtime while processing APC or pumping message.
-        if (!g_fSuspendOnShutdown )
-        {
-            DeleteWait(waitInfo);
-        }
+        DeleteWait(waitInfo);
     }
     return;
 }
@@ -3416,7 +3430,7 @@ Top:
         // Note: we still fire the event for managed async IO, despite the fact we don't have a paired IOEnqueue event
         // for this case. We do this to "mark" the end of the previous workitem. When we provide full support at the higher
         // abstraction level for managed IO we can remove the IODequeues fired here
-        if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, ThreadPoolIODequeue)
+        if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, ThreadPoolIODequeue)
                 && !AreEtwIOQueueEventsSpeciallyHandled((LPOVERLAPPED_COMPLETION_ROUTINE)key) && pOverlapped != NULL)
         {
             FireEtwThreadPoolIODequeue(pOverlapped, OverlappedDataObject::GetOverlappedForTracing(pOverlapped), GetClrInstanceId());
@@ -3609,6 +3623,12 @@ Top:
                     ((LPOVERLAPPED_COMPLETION_ROUTINE) key)(errorCode, numBytes, pOverlapped);
                 }
 
+                if ((void *)key != CallbackForInitiateDrainageOfCompletionPortQueue &&
+                    (void *)key != CallbackForContinueDrainageOfCompletionPortQueue)
+                {
+                    Thread::IncrementIOThreadPoolCompletionCount(pThread);
+                }
+
                 if (pThread == NULL) {
                     pThread = GetThread();
                 }
@@ -3786,7 +3806,7 @@ BOOL ThreadpoolMgr::ShouldGrowCompletionPortThreadpool(ThreadCounter::Counts cou
         && (counts.NumActive == 0 ||  !GCHeapUtilities::IsGCInProgress(TRUE))
         )
     {
-        // adjust limit if neeeded
+        // adjust limit if needed
         if (counts.NumRetired == 0)
         {
             if (counts.NumActive + counts.NumRetired < MaxLimitTotalCPThreads &&
@@ -3903,7 +3923,7 @@ BOOL ThreadpoolMgr::IsIoPending()
 
 #ifndef FEATURE_PAL
 
-#ifdef _WIN64
+#ifdef BIT64
 #pragma warning (disable : 4716)
 #else
 #pragma warning (disable : 4715)
@@ -4390,7 +4410,7 @@ BOOL ThreadpoolMgr::SufficientDelaySinceLastDequeue()
 
 
 #ifdef _MSC_VER
-#ifdef _WIN64
+#ifdef BIT64
 #pragma warning (default : 4716)
 #else
 #pragma warning (default : 4715)
@@ -4498,7 +4518,7 @@ BOOL ThreadpoolMgr::CreateTimerQueueTimer(PHANDLE phNewTimer,
 }
 
 #ifdef _MSC_VER
-#ifdef _WIN64
+#ifdef BIT64
 #pragma warning (disable : 4716)
 #else
 #pragma warning (disable : 4715)
@@ -4605,7 +4625,7 @@ void ThreadpoolMgr::TimerThreadFire()
 }
 
 #ifdef _MSC_VER
-#ifdef _WIN64
+#ifdef BIT64
 #pragma warning (default : 4716)
 #else
 #pragma warning (default : 4715)
@@ -4854,7 +4874,7 @@ void ThreadpoolMgr::DeleteTimer(TimerInfo* timerInfo)
 
     if (timerInfo->ExternalCompletionEvent != INVALID_HANDLE)
     {
-        UnsafeSetEvent(timerInfo->ExternalCompletionEvent);
+        SetEvent(timerInfo->ExternalCompletionEvent);
         timerInfo->ExternalCompletionEvent = INVALID_HANDLE;
     }
 

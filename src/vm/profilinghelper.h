@@ -37,14 +37,25 @@ enum ProfAPIFaultFlags
 };
 #endif // _DEBUG
 
-class SidBuffer;
-
 //---------------------------------------------------------------------------------------
 // Static-only class to coordinate initialization of the various profiling API
 // structures, plus other utility stuff.
 //
 class ProfilingAPIUtility
 {
+private:    
+    enum ProfilerCompatibilityFlag
+    {
+        // Default: disable V2 profiler
+        kDisableV2Profiler = 0x0,
+
+        // Enable V2 profilers
+        kEnableV2Profiler  = 0x1,
+
+        // Disable Profiling
+        kPreventLoad       = 0x2,
+    };
+
 public:
     static HRESULT InitializeProfiling();
     static HRESULT LoadProfilerForAttach(
@@ -54,18 +65,51 @@ public:
         UINT cbClientData,
         DWORD dwConcurrentGCWaitTimeoutInMs);
 
+    static BOOL IsProfilerEvacuated();
     static void TerminateProfiling();
     static void LogProfError(int iStringResourceID, ...);
     static void LogProfInfo(int iStringResourceID, ...);
     static void LogNoInterfaceError(REFIID iidRequested, LPCWSTR wszClsid);
     INDEBUG(static BOOL ShouldInjectProfAPIFault(ProfAPIFaultFlags faultFlag);)
-#ifndef FEATURE_PAL
-    static HRESULT GetCurrentProcessUserSid(PSID * ppsid);
-#endif // !FEATURE_PAL
 
-    // helper functions for profiler evacuation counter holder
-    static void IncEvacuationCounter(Thread * pThread);
-    static void DecEvacuationCounter(Thread * pThread);
+#ifdef FEATURE_PROFAPI_ATTACH_DETACH
+    // ----------------------------------------------------------------------------
+    // ProfilingAPIUtility::IncEvacuationCounter
+    //
+    // Description: 
+    //    Simple helper to increase the evacuation counter inside an EE thread by one
+    //
+    // Arguments:
+    //    * pThread - pointer to an EE Thread
+    //
+    template<typename ThreadType>
+    static FORCEINLINE void IncEvacuationCounter(ThreadType * pThread) 
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        if (pThread) 
+            pThread->IncProfilerEvacuationCounter();
+    }
+
+    // ----------------------------------------------------------------------------
+    // ProfilingAPIUtility::DecEvacuationCounter
+    //
+    // Description: 
+    //    Simple helper to decrease the evacuation counter inside an EE thread by one
+    //    
+    // Arguments:
+    //    * pThread - pointer to an EE Thread
+    //
+    template<typename ThreadType>
+    static FORCEINLINE void DecEvacuationCounter(ThreadType * pThread) 
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        if (pThread) 
+            pThread->DecProfilerEvacuationCounter();
+    }
+
+#endif // FEATURE_PROFAPI_ATTACH_DETACH
 
     // See code:ProfilingAPIUtility::InitializeProfiling#LoadUnloadCallbackSynchronization
     static CRITSEC_COOKIE GetStatusCrst();
@@ -80,10 +124,6 @@ private:
         kAttachLoad,
     };
 
-    // Allocated lazily the first time it's needed, and then remains allocated until the
-    // process exits.
-    static SidBuffer * s_pSidBuffer;
-
     // See code:ProfilingAPIUtility::InitializeProfiling#LoadUnloadCallbackSynchronization
     static CRITSEC_COOKIE s_csStatus;
 
@@ -91,6 +131,13 @@ private:
     ProfilingAPIUtility() {}
 
     static HRESULT PerformDeferredInit();
+    static HRESULT DoPreInitialization(
+        EEToProfInterfaceImpl *pEEProf,
+        const CLSID *pClsid, 
+        LPCWSTR wszClsid, 
+        LPCWSTR wszProfilerDLL, 
+        LoadType loadType, 
+        DWORD dwConcurrentGCWaitTimeoutInMs);
     static HRESULT LoadProfiler(
         LoadType loadType,
         const CLSID * pClsid,

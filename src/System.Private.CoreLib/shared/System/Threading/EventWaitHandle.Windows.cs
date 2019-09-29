@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
-using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
@@ -35,7 +33,7 @@ namespace System.Threading
             if (handle.IsInvalid)
             {
                 handle.SetHandleAsInvalid();
-                if (name != null && name.Length != 0 && errorCode == Interop.Errors.ERROR_INVALID_HANDLE)
+                if (!string.IsNullOrEmpty(name) && errorCode == Interop.Errors.ERROR_INVALID_HANDLE)
                     throw new WaitHandleCannotBeOpenedException(SR.Format(SR.Threading_WaitHandleCannotBeOpenedException_InvalidHandle, name));
 
                 throw Win32Marshal.GetExceptionForWin32Error(errorCode, name);
@@ -63,7 +61,7 @@ namespace System.Threading
                     return OpenExistingResult.NameNotFound;
                 if (errorCode == Interop.Errors.ERROR_PATH_NOT_FOUND)
                     return OpenExistingResult.PathNotFound;
-                if (name != null && name.Length != 0 && errorCode == Interop.Errors.ERROR_INVALID_HANDLE)
+                if (!string.IsNullOrEmpty(name) && errorCode == Interop.Errors.ERROR_INVALID_HANDLE)
                     return OpenExistingResult.NameInvalid;
 
                 throw Win32Marshal.GetExceptionForWin32Error(errorCode, name);
@@ -77,15 +75,15 @@ namespace System.Threading
 
         public bool Reset()
         {
-            bool res = Interop.Kernel32.ResetEvent(SafeWaitHandle!); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/2384
+            bool res = Interop.Kernel32.ResetEvent(SafeWaitHandle);
             if (!res)
                 throw Win32Marshal.GetExceptionForLastWin32Error();
             return res;
         }
-        
+
         public bool Set()
         {
-            bool res = Interop.Kernel32.SetEvent(SafeWaitHandle!); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/2384
+            bool res = Interop.Kernel32.SetEvent(SafeWaitHandle);
             if (!res)
                 throw Win32Marshal.GetExceptionForLastWin32Error();
             return res;

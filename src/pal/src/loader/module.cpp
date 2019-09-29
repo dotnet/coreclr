@@ -41,11 +41,7 @@ SET_DEFAULT_DEBUG_CHANNEL(LOADER); // some headers have code with asserts, so do
 #include <errno.h>
 #include <string.h>
 #include <limits.h>
-#if NEED_DLCOMPAT
-#include "dlcompat.h"
-#else   // NEED_DLCOMPAT
 #include <dlfcn.h>
-#endif  // NEED_DLCOMPAT
 #include <stdlib.h>
 
 #ifdef __APPLE__
@@ -637,60 +633,6 @@ done:
 
 /*
 Function:
-  PAL_RegisterLibraryDirect
-
-  Registers a system handle to a loaded library with the module list.
-
-  Returns a PAL handle to the loaded library, or nullptr upon failure (error is set via SetLastError()).
-*/
-HMODULE
-PALAPI
-PAL_RegisterLibraryDirect(
-    IN NATIVE_LIBRARY_HANDLE dl_handle,
-    IN LPCWSTR lpLibFileName)
-{
-    PathCharString pathstr;
-    CHAR * lpstr = nullptr;
-    INT name_length;
-    HMODULE hModule = nullptr;
-
-    PERF_ENTRY(RegisterLibraryDirect);
-    ENTRY("RegisterLibraryDirect (lpLibFileName=%p (%S)) \n",
-        lpLibFileName ? lpLibFileName : W16_NULLSTRING,
-        lpLibFileName ? lpLibFileName : W16_NULLSTRING);
-
-    if (!LOADVerifyLibraryPath(lpLibFileName))
-    {
-        goto done;
-    }
-
-    lpstr = pathstr.OpenStringBuffer((PAL_wcslen(lpLibFileName)+1) * MaxWCharToAcpLength);
-    if (nullptr == lpstr)
-    {
-        goto done;
-    }
-    if (!LOADConvertLibraryPathWideStringToMultibyteString(lpLibFileName, lpstr, &name_length))
-    {
-        goto done;
-    }
-
-    /* do the Dos/Unix conversion on our own copy of the name */
-    FILEDosToUnixPathA(lpstr);
-    pathstr.CloseBuffer(name_length);
-
-    /* let LOADRegisterLibraryDirect call SetLastError in case of failure */
-    LockModuleList();
-    hModule = LOADRegisterLibraryDirect(dl_handle, lpstr, true /* fDynamic */);
-    UnlockModuleList();
-
-done:
-    LOGEXIT("RegisterLibraryDirect returns HMODULE %p\n", hModule);
-    PERF_EXIT(RegisterLibraryDirect);
-    return hModule;
-}
-
-/*
-Function:
   PAL_FreeLibraryDirect
 
   Free a loaded library
@@ -875,6 +817,39 @@ PAL_LOADUnloadPEFile(PVOID ptr)
     }
 
     LOGEXIT("PAL_LOADUnloadPEFile returns %d\n", retval);
+    return retval;
+}
+
+/*++
+    PAL_LOADMarkSectionAsNotNeeded
+
+    Mark a section as NotNeeded that was loaded by PAL_LOADLoadPEFile().
+
+Parameters:
+    IN ptr - the section address mapped by PAL_LOADLoadPEFile()
+
+Return value:
+    TRUE - success
+    FALSE - failure (incorrect ptr, etc.)
+--*/
+BOOL
+PALAPI
+PAL_LOADMarkSectionAsNotNeeded(void * ptr)
+{
+    BOOL retval = FALSE;
+
+    ENTRY("PAL_LOADMarkSectionAsNotNeeded (ptr=%p)\n", ptr);
+
+    if (nullptr == ptr)
+    {
+        ERROR( "Invalid pointer value\n" );
+    }
+    else
+    {
+        retval = MAPMarkSectionAsNotNeeded(ptr);
+    }
+
+    LOGEXIT("PAL_LOADMarkSectionAsNotNeeded returns %d\n", retval);
     return retval;
 }
 
@@ -1275,12 +1250,7 @@ static BOOL LOADCallDllMainSafe(MODSTRUCT *module, DWORD dwReason, LPVOID lpRese
               pParam->module->pDllMain,
               pParam->module->lib_name ? pParam->module->lib_name : W16_NULLSTRING);
 
-        {
-            // This module may be foreign to our PAL, so leave our PAL.
-            // If it depends on us, it will re-enter.
-            PAL_LeaveHolder holder;
-            pParam->ret = pParam->module->pDllMain(pParam->module->hinstance, pParam->dwReason, pParam->lpReserved);
-        }
+        pParam->ret = pParam->module->pDllMain(pParam->module->hinstance, pParam->dwReason, pParam->lpReserved);
     }
     PAL_EXCEPT(EXCEPTION_EXECUTE_HANDLER)
     {
@@ -1536,18 +1506,7 @@ static MODSTRUCT *LOADAllocModule(NATIVE_LIBRARY_HANDLE dl_handle, LPCSTR name)
     }
 
     module->dl_handle = dl_handle;
-#if NEED_DLCOMPAT
-    if (isdylib(module))
-    {
-        module->refcount = -1;
-    }
-    else
-    {
-        module->refcount = 1;
-    }
-#else   // NEED_DLCOMPAT
     module->refcount = 1;
-#endif  // NEED_DLCOMPAT
     module->self = module;
     module->hinstance = nullptr;
     module->threadLibCalls = TRUE;

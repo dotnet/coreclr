@@ -246,6 +246,7 @@ typedef unsigned char   regNumberSmall;
   #define FEATURE_MULTIREG_ARGS_OR_RET  1  // Support for passing and/or returning single values in more than one register
   #define FEATURE_MULTIREG_ARGS         0  // Support for passing a single argument in more than one register  
   #define FEATURE_MULTIREG_RET          1  // Support for returning a single value in more than one register
+  #define MAX_PASS_SINGLEREG_BYTES      8  // Maximum size of a struct passed in a single register (double).
   #define MAX_PASS_MULTIREG_BYTES       0  // No multireg arguments (note this seems wrong as MAX_ARG_REG_COUNT is 2)
   #define MAX_RET_MULTIREG_BYTES        8  // Maximum size of a struct that could be returned in more than one register
 
@@ -265,12 +266,6 @@ typedef unsigned char   regNumberSmall;
                                            // target
   #define FEATURE_EH               1       // To aid platform bring-up, eliminate exceptional EH clauses (catch, filter,
                                            // filter-handler, fault) and directly execute 'finally' clauses.
-
-#if defined(FEATURE_PAL)
-  #define FEATURE_EH_FUNCLETS      1
-#else  // !FEATURE_PAL
-  #define FEATURE_EH_FUNCLETS      0
-#endif // !FEATURE_PAL
 
   #define FEATURE_EH_CALLFINALLY_THUNKS 0  // Generate call-to-finally code in "thunks" in the enclosing EH region,
                                            // protected by "cloned finally" clauses.
@@ -488,6 +483,15 @@ typedef unsigned char   regNumberSmall;
   #define INS_stosp                INS_stosd
   #define INS_r_stosp              INS_r_stosd
 
+  // Any stack pointer adjustments larger than this (in bytes) when setting up outgoing call arguments
+  // requires a stack probe. Set it large enough so all normal stack arguments don't get a probe.
+  #define ARG_STACK_PROBE_THRESHOLD_BYTES 1024
+
+  // The number of bytes from the end the last probed page that must also be probed, to allow for some
+  // small SP adjustments without probes. If zero, then the stack pointer can point to the last byte/word
+  // on the stack guard page, and must be touched before any further "SUB SP".
+  #define STACK_PROBE_BOUNDARY_THRESHOLD_BYTES ARG_STACK_PROBE_THRESHOLD_BYTES
+
 #elif defined(_TARGET_AMD64_)
   // TODO-AMD64-CQ: Fine tune the following xxBlk threshold values:
  
@@ -531,6 +535,7 @@ typedef unsigned char   regNumberSmall;
   #define FEATURE_FASTTAILCALL     1       // Tail calls made as epilog+jmp
   #define FEATURE_TAILCALL_OPT     1       // opportunistic Tail calls (i.e. without ".tail" prefix) made as fast tail calls.
   #define FEATURE_SET_FLAGS        0       // Set to true to force the JIT to mark the trees with GTF_SET_FLAGS when the flags need to be set
+  #define MAX_PASS_SINGLEREG_BYTES      8  // Maximum size of a struct passed in a single register (double).
 #ifdef    UNIX_AMD64_ABI
   #define FEATURE_MULTIREG_ARGS_OR_RET  1  // Support for passing and/or returning single values in more than one register
   #define FEATURE_MULTIREG_ARGS         1  // Support for passing a single argument in more than one register  
@@ -556,7 +561,6 @@ typedef unsigned char   regNumberSmall;
   #define EMIT_TRACK_STACK_DEPTH   1
   #define TARGET_POINTER_SIZE      8       // equal to sizeof(void*) and the managed pointer size in bytes for this target
   #define FEATURE_EH               1       // To aid platform bring-up, eliminate exceptional EH clauses (catch, filter, filter-handler, fault) and directly execute 'finally' clauses.
-  #define FEATURE_EH_FUNCLETS      1
   #define FEATURE_EH_CALLFINALLY_THUNKS 1  // Generate call-to-finally code in "thunks" in the enclosing EH region, protected by "cloned finally" clauses.
 #ifdef    UNIX_AMD64_ABI
   #define ETW_EBP_FRAMED           1       // if 1 we cannot use EBP as a scratch register and must create EBP based frames for most methods
@@ -889,6 +893,9 @@ typedef unsigned char   regNumberSmall;
   #define INS_stosp                INS_stosq
   #define INS_r_stosp              INS_r_stosq
 
+  // AMD64 uses FEATURE_FIXED_OUT_ARGS so this can be zero.
+  #define STACK_PROBE_BOUNDARY_THRESHOLD_BYTES 0
+
 #elif defined(_TARGET_ARM_)
 
   // TODO-ARM-CQ: Use shift for division by power of 2
@@ -912,6 +919,7 @@ typedef unsigned char   regNumberSmall;
   #define FEATURE_MULTIREG_ARGS         1  // Support for passing a single argument in more than one register (including passing HFAs)
   #define FEATURE_MULTIREG_RET          1  // Support for returning a single value in more than one register (including HFA returns)
   #define FEATURE_STRUCT_CLASSIFIER     0  // Uses a classifier function to determine is structs are passed/returned in more than one register
+  #define MAX_PASS_SINGLEREG_BYTES      8  // Maximum size of a struct passed in a single register (double).
   #define MAX_PASS_MULTIREG_BYTES      32  // Maximum size of a struct that could be passed in more than one register (Max is an HFA of 4 doubles)
   #define MAX_RET_MULTIREG_BYTES       32  // Maximum size of a struct that could be returned in more than one register (Max is an HFA of 4 doubles)
   #define MAX_ARG_REG_COUNT             4  // Maximum registers used to pass a single argument in multiple registers. (max is 4 floats or doubles using an HFA)
@@ -923,7 +931,6 @@ typedef unsigned char   regNumberSmall;
                                            // need to track stack depth, but this is currently necessary to get GC information reported at call sites.
   #define TARGET_POINTER_SIZE      4       // equal to sizeof(void*) and the managed pointer size in bytes for this target
   #define FEATURE_EH               1       // To aid platform bring-up, eliminate exceptional EH clauses (catch, filter, filter-handler, fault) and directly execute 'finally' clauses.
-  #define FEATURE_EH_FUNCLETS      1
   #define FEATURE_EH_CALLFINALLY_THUNKS 0  // Generate call-to-finally code in "thunks" in the enclosing EH region, protected by "cloned finally" clauses.
   #define ETW_EBP_FRAMED           1       // if 1 we cannot use REG_FP as a scratch register and must setup the frame pointer for most methods
   #define CSE_CONSTS               1       // Enable if we want to CSE constants 
@@ -1009,6 +1016,7 @@ typedef unsigned char   regNumberSmall;
   #define RBM_OPT_RSVD             RBM_R10
 
   // We reserve R9 to store SP on entry for stack unwinding when localloc is used
+  // This needs to stay in sync with the ARM version of InlinedCallFrame::UpdateRegDisplay code.
   #define REG_SAVED_LOCALLOC_SP    REG_R9
   #define RBM_SAVED_LOCALLOC_SP    RBM_R9
 
@@ -1098,10 +1106,6 @@ typedef unsigned char   regNumberSmall;
   #define RBM_PROFILER_ENTER_ARG           RBM_R0
   #define REG_PROFILER_RET_SCRATCH         REG_R2
   #define RBM_PROFILER_RET_SCRATCH         RBM_R2
-  #define RBM_PROFILER_RET_USED            (RBM_R0 | RBM_R1 | RBM_R2)
-  #define REG_PROFILER_JMP_ARG             REG_R0
-  #define RBM_PROFILER_JMP_USED            RBM_R0
-  #define RBM_PROFILER_TAIL_USED           (RBM_R0 | RBM_R12 | RBM_LR)
   
   // The registers trashed by profiler enter/leave/tailcall hook
   // See vm\arm\asmhelpers.asm for more details.
@@ -1194,6 +1198,9 @@ typedef unsigned char   regNumberSmall;
   #define JCC_SIZE_MEDIUM         (4)
   #define JCC_SIZE_LARGE          (6)
 
+  // The first thing in an ARM32 prolog pushes LR to the stack, so this can be 0.
+  #define STACK_PROBE_BOUNDARY_THRESHOLD_BYTES 0
+
 #elif defined(_TARGET_ARM64_)
 
   #define CPU_LOAD_STORE_ARCH      1
@@ -1219,9 +1226,10 @@ typedef unsigned char   regNumberSmall;
   #define FEATURE_MULTIREG_ARGS         1  // Support for passing a single argument in more than one register  
   #define FEATURE_MULTIREG_RET          1  // Support for returning a single value in more than one register  
   #define FEATURE_STRUCT_CLASSIFIER     0  // Uses a classifier function to determine is structs are passed/returned in more than one register
-  #define MAX_PASS_MULTIREG_BYTES      32  // Maximum size of a struct that could be passed in more than one register (max is 4 doubles using an HFA)
-  #define MAX_RET_MULTIREG_BYTES       32  // Maximum size of a struct that could be returned in more than one register (Max is an HFA of 4 doubles)
-  #define MAX_ARG_REG_COUNT             4  // Maximum registers used to pass a single argument in multiple registers. (max is 4 floats or doubles using an HFA)
+  #define MAX_PASS_SINGLEREG_BYTES     16  // Maximum size of a struct passed in a single register (16-byte vector).
+  #define MAX_PASS_MULTIREG_BYTES      64  // Maximum size of a struct that could be passed in more than one register (max is 4 16-byte vectors using an HVA)
+  #define MAX_RET_MULTIREG_BYTES       64  // Maximum size of a struct that could be returned in more than one register (Max is an HVA of 4 16-byte vectors)
+  #define MAX_ARG_REG_COUNT             4  // Maximum registers used to pass a single argument in multiple registers. (max is 4 128-bit vectors using an HVA)
   #define MAX_RET_REG_COUNT             4  // Maximum registers used to return a value.
 
   #define NOGC_WRITE_BARRIERS      1       // We have specialized WriteBarrier JIT Helpers that DO-NOT trash the RBM_CALLEE_TRASH registers
@@ -1230,7 +1238,6 @@ typedef unsigned char   regNumberSmall;
                                            // need to track stack depth, but this is currently necessary to get GC information reported at call sites.
   #define TARGET_POINTER_SIZE      8       // equal to sizeof(void*) and the managed pointer size in bytes for this target
   #define FEATURE_EH               1       // To aid platform bring-up, eliminate exceptional EH clauses (catch, filter, filter-handler, fault) and directly execute 'finally' clauses.
-  #define FEATURE_EH_FUNCLETS      1
   #define FEATURE_EH_CALLFINALLY_THUNKS 1  // Generate call-to-finally code in "thunks" in the enclosing EH region, protected by "cloned finally" clauses.
   #define ETW_EBP_FRAMED           1       // if 1 we cannot use REG_FP as a scratch register and must setup the frame pointer for most methods
   #define CSE_CONSTS               1       // Enable if we want to CSE constants 
@@ -1409,14 +1416,19 @@ typedef unsigned char   regNumberSmall;
   #define REG_PREV(reg)           ((regNumber)((unsigned)(reg) - 1))
 
   // The following registers are used in emitting Enter/Leave/Tailcall profiler callbacks
-  #define REG_PROFILER_ENTER_ARG           REG_R0
-  #define RBM_PROFILER_ENTER_ARG           RBM_R0
-  #define REG_PROFILER_RET_SCRATCH         REG_R2
-  #define RBM_PROFILER_RET_SCRATCH         RBM_R2
-  #define RBM_PROFILER_RET_USED            (RBM_R0 | RBM_R1 | RBM_R2)
-  #define REG_PROFILER_JMP_ARG             REG_R0
-  #define RBM_PROFILER_JMP_USED            RBM_R0
-  #define RBM_PROFILER_TAIL_USED           (RBM_R0 | RBM_R12 | RBM_LR)
+  #define REG_PROFILER_ENTER_ARG_FUNC_ID    REG_R10
+  #define RBM_PROFILER_ENTER_ARG_FUNC_ID    RBM_R10
+  #define REG_PROFILER_ENTER_ARG_CALLER_SP  REG_R11
+  #define RBM_PROFILER_ENTER_ARG_CALLER_SP  RBM_R11
+  #define REG_PROFILER_LEAVE_ARG_FUNC_ID    REG_R10
+  #define RBM_PROFILER_LEAVE_ARG_FUNC_ID    RBM_R10
+  #define REG_PROFILER_LEAVE_ARG_CALLER_SP  REG_R11
+  #define RBM_PROFILER_LEAVE_ARG_CALLER_SP  RBM_R11
+
+  // The registers trashed by profiler enter/leave/tailcall hook
+  #define RBM_PROFILER_ENTER_TRASH     (RBM_CALLEE_TRASH & ~(RBM_ARG_REGS|RBM_ARG_RET_BUFF|RBM_FLTARG_REGS|RBM_FP))
+  #define RBM_PROFILER_LEAVE_TRASH     (RBM_CALLEE_TRASH & ~(RBM_ARG_REGS|RBM_ARG_RET_BUFF|RBM_FLTARG_REGS|RBM_FP))
+  #define RBM_PROFILER_TAILCALL_TRASH  RBM_PROFILER_LEAVE_TRASH
 
   // Which register are int and long values returned in ?
   #define REG_INTRET               REG_R0
@@ -1528,6 +1540,12 @@ typedef unsigned char   regNumberSmall;
   #define LDC_SIZE_SMALL          (4)
 
   #define JMP_SIZE_SMALL          (4)
+
+  // The number of bytes from the end the last probed page that must also be probed, to allow for some
+  // small SP adjustments without probes. If zero, then the stack pointer can point to the last byte/word
+  // on the stack guard page, and must be touched before any further "SUB SP".
+  // For arm64, this is the maximum prolog establishment pre-indexed (that is SP pre-decrement) offset.
+  #define STACK_PROBE_BOUNDARY_THRESHOLD_BYTES 512
 
 #else
   #error Unsupported or unset target architecture
@@ -1943,10 +1961,10 @@ inline regNumber regNextOfType(regNumber reg, var_types type)
  *  Type checks
  */
 
-inline bool isFloatRegType(int /* s/b "var_types" */ type)
+inline bool isFloatRegType(var_types type)
 {
 #if CPU_HAS_FP_SUPPORT
-    return type == TYP_DOUBLE || type == TYP_FLOAT;
+    return varTypeUsesFloatReg(type);
 #else
     return false;
 #endif

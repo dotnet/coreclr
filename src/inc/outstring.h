@@ -36,7 +36,7 @@ public:
         end = &start[initialAlloc];
     }
     
-    ~OutString() { delete start; }
+    ~OutString() { delete [] start; }
     
     // shortcut for printing decimal  
     OutString& operator<<(int i) { return(dec(i)); }
@@ -73,7 +73,7 @@ public:
         return(*this);
     }
     
-    OutString& operator<<(const wchar_t* str) {
+    OutString& operator<<(const WCHAR* str) {
         size_t len = wcslen(str);
         if (cur+len > end)
             Realloc(len);

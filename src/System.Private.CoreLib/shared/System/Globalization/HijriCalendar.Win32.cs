@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using Internal.Win32;
 
 namespace System.Globalization
@@ -16,7 +15,7 @@ namespace System.Globalization
                 // Never been set before.  Use the system value from registry.
                 _hijriAdvance = GetAdvanceHijriDate();
             }
-            return (_hijriAdvance);
+            return _hijriAdvance;
         }
 
         private const string InternationalRegKey = "Control Panel\\International";
@@ -40,7 +39,7 @@ namespace System.Globalization
         ============================================================================*/
         private static int GetAdvanceHijriDate()
         {
-            using (RegistryKey key = Registry.CurrentUser.OpenSubKey(InternationalRegKey))
+            using (RegistryKey? key = Registry.CurrentUser.OpenSubKey(InternationalRegKey))
             {
                 // Abort if we didn't find anything
                 if (key == null)
@@ -48,7 +47,7 @@ namespace System.Globalization
                     return 0;
                 }
 
-                object value = key.GetValue(HijriAdvanceRegKeyEntry);
+                object? value = key.GetValue(HijriAdvanceRegKeyEntry);
                 if (value == null)
                 {
                     return 0;
@@ -64,7 +63,7 @@ namespace System.Globalization
                     {
                         try
                         {
-                            int advance = int.Parse(str.AsSpan(HijriAdvanceRegKeyEntry.Length), provider:CultureInfo.InvariantCulture);
+                            int advance = int.Parse(str.AsSpan(HijriAdvanceRegKeyEntry.Length), provider: CultureInfo.InvariantCulture);
                             if ((advance >= MinAdvancedHijri) && (advance <= MaxAdvancedHijri))
                             {
                                 hijriAdvance = advance;

@@ -332,8 +332,9 @@ ArrayNative::AssignArrayEnum ArrayNative::CanAssignArrayTypeNoGC(const BASEARRAY
     // Copying primitives from one type to another
     if (CorTypeInfo::IsPrimitiveType_NoThrow(srcElType) && CorTypeInfo::IsPrimitiveType_NoThrow(destElType))
     {
-        if (srcElType == destElType)
+        if (GetNormalizedIntegralArrayElementType(srcElType) == GetNormalizedIntegralArrayElementType(destElType))
             return AssignWillWork;
+
         if (InvokeUtil::CanPrimitiveWiden(destElType, srcElType))
             return AssignPrimitiveWiden;
         else
@@ -591,7 +592,7 @@ void ArrayNative::UnBoxEachElement(BASEARRAYREF pSrc, unsigned int srcIndex, BAS
     MethodTable * pDestMT = destTH.GetMethodTable();
     PREFIX_ASSUME(pDestMT != NULL);
 
-    const unsigned int destSize = pDestMT->GetNumInstanceFieldBytes();
+    SIZE_T destSize = pDest->GetComponentSize();
     BYTE* srcData = (BYTE*) pSrc->GetDataPtr() + srcIndex * sizeof(OBJECTREF);
     BYTE* data = (BYTE*) pDest->GetDataPtr() + destIndex * destSize;
 

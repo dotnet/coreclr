@@ -23,6 +23,7 @@
 #endif
 
 PerfMap * PerfMap::s_Current = nullptr;
+bool PerfMap::s_ShowOptimizationTiers = false;
 
 // Initialize the map for the process - called from EEStartupHelper.
 void PerfMap::Initialize()
@@ -43,6 +44,11 @@ void PerfMap::Initialize()
         if (signalNum > 0)
         {
             PAL_IgnoreProfileSignal(signalNum);
+        }
+
+        if (CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_PerfMapShowOptimizationTiers) != 0)
+        {
+            s_ShowOptimizationTiers = true;
         }
     }
 }
@@ -156,7 +162,7 @@ void PerfMap::WriteLine(SString& line)
 }
 
 // Log a method to the map.
-void PerfMap::LogMethod(MethodDesc * pMethod, PCODE pCode, size_t codeSize)
+void PerfMap::LogMethod(MethodDesc * pMethod, PCODE pCode, size_t codeSize, const char *optimizationTier)
 {
     CONTRACTL{
         THROWS;
@@ -183,7 +189,15 @@ void PerfMap::LogMethod(MethodDesc * pMethod, PCODE pCode, size_t codeSize)
         // Build the map file line.
         StackScratchBuffer scratch;
         SString line;
-        line.Printf(FMT_CODE_ADDR " %x %s\n", pCode, codeSize, fullMethodSignature.GetANSI(scratch));
+        line.Printf(FMT_CODE_ADDR " %x %s", pCode, codeSize, fullMethodSignature.GetANSI(scratch));
+        if (optimizationTier != nullptr && s_ShowOptimizationTiers)
+        {
+            line.AppendPrintf("[%s]\n", optimizationTier);
+        }
+        else
+        {
+            line.Append(W('\n'));
+        }
 
         // Write the line.
         WriteLine(line);
@@ -229,14 +243,24 @@ void PerfMap::LogImage(PEFile * pFile)
 
 
 // Log a method to the map.
-void PerfMap::LogJITCompiledMethod(MethodDesc * pMethod, PCODE pCode, size_t codeSize)
+void PerfMap::LogJITCompiledMethod(MethodDesc * pMethod, PCODE pCode, size_t codeSize, PrepareCodeConfig *pConfig)
 {
     LIMITED_METHOD_CONTRACT;
 
-    if (s_Current != nullptr)
+    if (s_Current == nullptr)
     {
-        s_Current->LogMethod(pMethod, pCode, codeSize);
+        return;
     }
+
+    const char *optimizationTier = nullptr;
+#ifndef CROSSGEN_COMPILE
+    if (s_ShowOptimizationTiers)
+    {
+        optimizationTier = PrepareCodeConfig::GetJitOptimizationTierStr(pConfig, pMethod);
+    }
+#endif // CROSSGEN_COMPILE
+
+    s_Current->LogMethod(pMethod, pCode, codeSize, optimizationTier);
 }
 
 // Log a set of stub to the map.
@@ -312,6 +336,14 @@ NativeImagePerfMap::NativeImagePerfMap(Assembly * pAssembly, BSTR pDestPath)
 
     // Open the perf map file.
     OpenFile(sDestPerfMapPath);
+
+    // Determine whether to emit RVAs or file offsets based on the specified configuration.
+    m_EmitRVAs = true;
+    CLRConfigStringHolder wszFormat(CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_NativeImagePerfMapFormat));
+    if(wszFormat != NULL && (wcsncmp(wszFormat, strOFFSET, wcslen(strOFFSET)) == 0))
+    {
+        m_EmitRVAs = false;
+    }
 }
 
 // Log data to the perfmap for the specified module.
@@ -322,21 +354,8 @@ void NativeImagePerfMap::LogDataForModule(Module * pModule)
     PEImageLayout * pLoadedLayout = pModule->GetFile()->GetLoaded();
     _ASSERTE(pLoadedLayout != nullptr);
 
-    SIZE_T baseAddr = (SIZE_T)pLoadedLayout->GetBase();
-
-#ifdef FEATURE_READYTORUN_COMPILER
-    if (pLoadedLayout->HasReadyToRunHeader())
-    {
-        ReadyToRunInfo::MethodIterator mi(pModule->GetReadyToRunInfo());
-        while (mi.Next())
-        {
-            MethodDesc *hotDesc = mi.GetMethodDesc();
-
-            LogPreCompiledMethod(hotDesc, mi.GetMethodStartAddress(), baseAddr);
-        }
-    }
-    else
-#endif // FEATURE_READYTORUN_COMPILER
+#ifdef FEATURE_PREJIT
+    if (!pLoadedLayout->HasReadyToRunHeader())
     {
         MethodIterator mi((PTR_Module)pModule);
         while (mi.Next())
@@ -344,15 +363,28 @@ void NativeImagePerfMap::LogDataForModule(Module * pModule)
             MethodDesc *hotDesc = mi.GetMethodDesc();
             hotDesc->CheckRestore();
 
-            LogPreCompiledMethod(hotDesc, mi.GetMethodStartAddress(), baseAddr);
+            LogPreCompiledMethod(hotDesc, mi.GetMethodStartAddress(), pLoadedLayout, nullptr);
         }
+        return;
+    }
+#endif
+
+    ReadyToRunInfo::MethodIterator mi(pModule->GetReadyToRunInfo());
+    while (mi.Next())
+    {
+        MethodDesc* hotDesc = mi.GetMethodDesc();
+
+        LogPreCompiledMethod(hotDesc, mi.GetMethodStartAddress(), pLoadedLayout, "ReadyToRun");
     }
 }
 
 // Log a pre-compiled method to the perfmap.
-void NativeImagePerfMap::LogPreCompiledMethod(MethodDesc * pMethod, PCODE pCode, SIZE_T baseAddr)
+void NativeImagePerfMap::LogPreCompiledMethod(MethodDesc * pMethod, PCODE pCode, PEImageLayout *pLoadedLayout, const char *optimizationTier)
 {
     STANDARD_VM_CONTRACT;
+
+    _ASSERTE(pLoadedLayout != nullptr);
+    SIZE_T baseAddr = (SIZE_T)pLoadedLayout->GetBase();
 
     // Get information about the NGEN'd method code.
     EECodeInfo codeInfo(pCode);
@@ -363,14 +395,25 @@ void NativeImagePerfMap::LogPreCompiledMethod(MethodDesc * pMethod, PCODE pCode,
 
     // NGEN can split code between hot and cold sections which are separate in memory.
     // Emit an entry for each section if it is used.
+    PCODE addr;
     if (methodRegionInfo.hotSize > 0)
     {
-        LogMethod(pMethod, (PCODE)methodRegionInfo.hotStartAddress - baseAddr, methodRegionInfo.hotSize);
+        addr = (PCODE)methodRegionInfo.hotStartAddress - baseAddr;
+        if (!m_EmitRVAs)
+        {
+            addr = pLoadedLayout->RvaToOffset(addr);
+        }
+        LogMethod(pMethod, addr, methodRegionInfo.hotSize, optimizationTier);
     }
 
     if (methodRegionInfo.coldSize > 0)
     {
-        LogMethod(pMethod, (PCODE)methodRegionInfo.coldStartAddress - baseAddr, methodRegionInfo.coldSize);
+        addr = (PCODE)methodRegionInfo.coldStartAddress - baseAddr;
+        if (!m_EmitRVAs)
+        {
+            addr = pLoadedLayout->RvaToOffset(addr);
+        }
+        LogMethod(pMethod, addr, methodRegionInfo.coldSize, optimizationTier);
     }
 }
 

@@ -2,15 +2,13 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
-
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
     // DefaultInterfaceAttribute marks a WinRT class (or interface group) that has its default interface specified.
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface, AllowMultiple = false, Inherited = false)]
     public sealed class DefaultInterfaceAttribute : Attribute
     {
-        private Type m_defaultInterface;
+        private readonly Type m_defaultInterface;
 
         public DefaultInterfaceAttribute(Type defaultInterface)
         {
@@ -57,11 +55,11 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         public byte RevisionVersion => m_revisionVersion;
 
-        private Type m_interfaceType;
-        private byte m_majorVersion;
-        private byte m_minorVersion;
-        private byte m_buildVersion;
-        private byte m_revisionVersion;
+        private readonly Type m_interfaceType;
+        private readonly byte m_majorVersion;
+        private readonly byte m_minorVersion;
+        private readonly byte m_buildVersion;
+        private readonly byte m_revisionVersion;
     }
 
     // Applies to read-only array parameters
@@ -78,13 +76,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         public WriteOnlyArrayAttribute() { }
     }
 
-    // This attribute is applied on the return value to specify the name of the return value. 
+    // This attribute is applied on the return value to specify the name of the return value.
     // In WindowsRuntime all parameters including return value need to have unique names.
     // This is essential in JS as one of the ways to get at the results of a method in JavaScript is via a Dictionary object keyed by parameter name.
     [AttributeUsage(AttributeTargets.ReturnValue | AttributeTargets.Delegate, AllowMultiple = false, Inherited = false)]
     public sealed class ReturnValueNameAttribute : Attribute
     {
-        private string m_Name;
+        private readonly string m_Name;
 
         public ReturnValueNameAttribute(string name)
         {

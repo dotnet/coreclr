@@ -28,14 +28,6 @@
     <DefineConstants>$(DefineConstants);DEBUG;TRACE;XUNIT_PERF</DefineConstants>
   </PropertyGroup>
 
-  <!-- Setup target platform pointer size in bit-->
-  <PropertyGroup>
-    <PointerSize Condition="'$(Platform)'=='x64'">64</PointerSize>
-    <PointerSize Condition="'$(Platform)'=='arm64'">64</PointerSize>
-    <PointerSize Condition="'$(Platform)'=='x86'">32</PointerSize>
-    <PointerSize Condition="'$(Platform)'=='arm'">32</PointerSize>
-  </PropertyGroup>
-
   <!-- Setup the default output and intermediate paths -->
   <PropertyGroup>
     <BaseOutputPath>$(ProjectDir)..\bin\tests</BaseOutputPath>
@@ -65,6 +57,10 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <SkipSigning Condition="'$(CrossGen)' == 'true'">true</SkipSigning>
     <AssemblyKey>Test</AssemblyKey>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <GenerateRuntimeConfigurationFiles>false</GenerateRuntimeConfigurationFiles>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <UseAppHost>false</UseAppHost>
   </PropertyGroup>
 
   <!-- Expose the target OS in a more convenient fashion -->
@@ -124,15 +120,20 @@
     <TargetRid Condition="'$(TargetRid)' == ''">$(TestNugetRuntimeId)</TargetRid>
   </PropertyGroup>
 
+  <!-- The IL SDK adds a packagereference to the native ilasm package,
+       but does not detect musl or rhel, so we set the RID
+       ourselves. If we passed in a proper host RID from the build
+       scripts, we could also use that instead of relying on the IL
+       SDK RID detection. -->
+  <PropertyGroup>
+    <MicrosoftNetCoreIlasmPackageRuntimeId Condition=" '$(TargetRid)' == 'linux-musl-x64' ">$(TargetRid)</MicrosoftNetCoreIlasmPackageRuntimeId>
+    <MicrosoftNetCoreIlasmPackageRuntimeId Condition=" '$(TargetRid)' == 'rhel.6-x64' ">$(TargetRid)</MicrosoftNetCoreIlasmPackageRuntimeId>
+  </PropertyGroup>
+
   <PropertyGroup>
     <TargetsUnknownUnix Condition="'$(TargetsUnix)' == 'true' AND '$(OSGroup)' != 'FreeBSD' AND '$(OSGroup)' != 'Linux' AND '$(OSGroup)' != 'OSX'">true</TargetsUnknownUnix>
     <Language Condition="'$(Language)' == '' and  '$(MSBuildProjectExtension)' == '.csproj'">C#</Language>
     <Language Condition="'$(Language)' == '' and  '$(MSBuildProjectExtension)' == '.ilproj'">IL</Language>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(TargetFrameworkIdentifier)' != '.NETFramework'">
-    <!-- RAR thinks all EXEs require binding redirects.  That's not the case for CoreCLR -->
-    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
 
   <!-- Don't reference the mscorlib facade -->
@@ -144,14 +145,13 @@
   <PropertyGroup>
     <ZapRequire Condition="'$(ZapRequire)' == ''">2</ZapRequire>
   </PropertyGroup>
-  
+
   <PropertyGroup>
     <RestoreOutputPath>$(MSBuildProjectDirectory)\obj</RestoreOutputPath>
 
     <!-- Specify the target framework of the common test dependency project.json. -->
-    <NuGetTargetMoniker>.NETCoreApp,Version=v3.0</NuGetTargetMoniker>
-    <NuGetTargetMonikerShort>netcoreapp3.0</NuGetTargetMonikerShort>
-    <PrereleaseResolveNuGetPackages>true</PrereleaseResolveNuGetPackages>
+    <NuGetTargetMoniker>.NETCoreApp,Version=v5.0</NuGetTargetMoniker>
+    <NuGetTargetMonikerShort>netcoreapp5.0</NuGetTargetMonikerShort>
   </PropertyGroup>
 
 </Project>

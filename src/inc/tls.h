@@ -8,7 +8,10 @@
 // Encapsulates TLS access for maximum performance. 
 //
 
-
+// **************************************************************************************
+// WARNING!!!: These values are used by SOS in the diagnostics repo and need to the same.
+// See: https://github.com/dotnet/diagnostics/blob/master/src/inc/tls.h
+// **************************************************************************************
 
 #ifndef __tls_h__
 #define __tls_h__
@@ -16,7 +19,7 @@
 #define OFFSETOF__TLS__tls_CurrentThread         (0x0)
 #define OFFSETOF__TLS__tls_EETlsData             (2*sizeof(void*))
 
-#ifdef DBG_TARGET_WIN64
+#ifdef DBG_TARGET_64BIT
 #define WINNT_OFFSETOF__TEB__ThreadLocalStoragePointer  0x58
 #else
 #define WINNT_OFFSETOF__TEB__ThreadLocalStoragePointer  0x2c

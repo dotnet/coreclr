@@ -102,7 +102,7 @@ EXTERN_C void setFPReturn(int fpSize, INT64 retVal);
 // as large as the largest FieldMarshaler subclass. This requirement
 // is guarded by an assert.
 //=======================================================================
-#ifdef _WIN64
+#ifdef BIT64
 #define MAXFIELDMARSHALERSIZE               40
 #else
 #define MAXFIELDMARSHALERSIZE               24
@@ -1135,7 +1135,7 @@ struct StubPrecode {
         CONTRACTL
         {
             THROWS;
-            GC_TRIGGERS;
+            GC_NOTRIGGER;
         }
         CONTRACTL_END;
 
@@ -1148,7 +1148,7 @@ struct StubPrecode {
         CONTRACTL
         {
             THROWS;
-            GC_TRIGGERS;
+            GC_NOTRIGGER;
         }
         CONTRACTL_END;
 

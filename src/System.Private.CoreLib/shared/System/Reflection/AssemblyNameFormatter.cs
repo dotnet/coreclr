@@ -11,7 +11,7 @@ namespace System.Reflection
 {
     internal static class AssemblyNameFormatter
     {
-        public static string ComputeDisplayName(string name, Version version, string cultureName, byte[] pkt, AssemblyNameFlags flags, AssemblyContentType contentType)
+        public static string ComputeDisplayName(string? name, Version? version, string? cultureName, byte[]? pkt, AssemblyNameFlags flags, AssemblyContentType contentType)
         {
             const int PUBLIC_KEY_TOKEN_LEN = 8;
 
@@ -93,8 +93,8 @@ namespace System.Reflection
             bool needsQuoting = false;
             const char quoteChar = '\"';
 
-            //@todo: App-compat: You can use double or single quotes to quote a name, and Fusion (or rather the IdentityAuthority) picks one
-            // by some algorithm. Rather than guess at it, I'll just use double-quote consistently.
+            // App-compat: You can use double or single quotes to quote a name, and Fusion (or rather the IdentityAuthority) picks one
+            // by some algorithm. Rather than guess at it, we use double quotes consistently.
             if (s != s.Trim() || s.Contains('\"') || s.Contains('\''))
                 needsQuoting = true;
 
@@ -152,4 +152,3 @@ namespace System.Reflection
         };
     }
 }
-

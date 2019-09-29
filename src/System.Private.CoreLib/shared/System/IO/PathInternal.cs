@@ -11,28 +11,20 @@ namespace System.IO
     internal static partial class PathInternal
     {
         /// <summary>
-        /// Returns true if the path ends in a directory separator.
-        /// </summary>
-        internal static bool EndsInDirectorySeparator(ReadOnlySpan<char> path)
-            => path.Length > 0 && IsDirectorySeparator(path[path.Length - 1]);
-
-        /// <summary>
         /// Returns true if the path starts in a directory separator.
         /// </summary>
         internal static bool StartsWithDirectorySeparator(ReadOnlySpan<char> path) => path.Length > 0 && IsDirectorySeparator(path[0]);
 
+#if MS_IO_REDIST
         internal static string EnsureTrailingSeparator(string path)
-            => EndsInDirectorySeparator(path.AsSpan()) ? path : path + DirectorySeparatorCharAsString;
+            => EndsInDirectorySeparator(path) ? path : path + DirectorySeparatorCharAsString;
 
-        internal static string TrimEndingDirectorySeparator(string path) =>
-            EndsInDirectorySeparator(path.AsSpan()) && !IsRoot(path.AsSpan()) ?
-                path.Substring(0, path.Length - 1) :
-                path;
-
-        internal static ReadOnlySpan<char> TrimEndingDirectorySeparator(ReadOnlySpan<char> path) =>
-            EndsInDirectorySeparator(path) && !IsRoot(path) ?
-                path.Slice(0, path.Length - 1) :
-                path;
+        internal static bool EndsInDirectorySeparator(string path)
+            => !string.IsNullOrEmpty(path) && IsDirectorySeparator(path[path.Length - 1]);
+#else
+        internal static string EnsureTrailingSeparator(string path)
+            => Path.EndsInDirectorySeparator(path.AsSpan()) ? path : path + DirectorySeparatorCharAsString;
+#endif
 
         internal static bool IsRoot(ReadOnlySpan<char> path)
             => path.Length == GetRootLength(path);
@@ -81,7 +73,7 @@ namespace System.IO
                 char* rightEnd = r + second.Length;
 
                 while (l != leftEnd && r != rightEnd
-                    && (*l == *r || (ignoreCase && char.ToUpperInvariant((*l)) == char.ToUpperInvariant((*r)))))
+                    && (*l == *r || (ignoreCase && char.ToUpperInvariant(*l) == char.ToUpperInvariant(*r))))
                 {
                     commonChars++;
                     l++;
@@ -148,8 +140,8 @@ namespace System.IO
             if (PathInternal.IsDirectorySeparator(path[skip - 1]))
                 skip--;
 
-            // Remove "//", "/./", and "/../" from the path by copying each character to the output, 
-            // except the ones we're removing, such that the builder contains the normalized path 
+            // Remove "//", "/./", and "/../" from the path by copying each character to the output,
+            // except the ones we're removing, such that the builder contains the normalized path
             // at the end.
             if (skip > 0)
             {
@@ -201,7 +193,7 @@ namespace System.IO
 
                         i += 2;
                         continue;
-                   }
+                    }
                 }
 
                 // Normalize the directory separator if needed

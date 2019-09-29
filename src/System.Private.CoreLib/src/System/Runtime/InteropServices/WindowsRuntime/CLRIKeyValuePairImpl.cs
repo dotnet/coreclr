@@ -2,9 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
@@ -22,15 +19,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // IKeyValuePair<K, V> implementation
-        public K Key
-        {
-            get { return _pair.Key; }
-        }
+        public K Key => _pair.Key;
 
-        public V Value
-        {
-            get { return _pair.Value; }
-        }
+        public V Value => _pair.Value;
 
         // Called from the VM to wrap a boxed KeyValuePair with a CLRIKeyValuePairImpl.
         internal static object BoxHelper(object pair)

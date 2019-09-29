@@ -553,8 +553,8 @@ class ArrayBase : public Object
     friend class GCHeap;
     friend class CObjectHeader;
     friend class Object;
-    friend OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, BOOL bAllocateInLargeHeap); 
-    friend OBJECTREF FastAllocatePrimitiveArray(MethodTable* arrayType, DWORD cElements, BOOL bAllocateInLargeHeap);
+    friend OBJECTREF AllocateSzArray(MethodTable *pArrayMT, INT32 length, GC_ALLOC_FLAGS flags, BOOL bAllocateInLargeHeap);
+    friend OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, GC_ALLOC_FLAGS flags, BOOL bAllocateInLargeHeap); 
     friend FCDECL2(Object*, JIT_NewArr1VC_MP_FastPortable, CORINFO_CLASS_HANDLE arrayMT, INT_PTR size);
     friend FCDECL2(Object*, JIT_NewArr1OBJ_MP_FastPortable, CORINFO_CLASS_HANDLE arrayMT, INT_PTR size);
     friend class JIT_TrialAlloc;
@@ -721,7 +721,7 @@ class PtrArray : public ArrayBase
 {
     friend class GCHeap;
     friend class ClrDataAccess;
-    friend OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, BOOL bAllocateInLargeHeap); 
+    friend OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, DWORD flags, BOOL bAllocateInLargeHeap); 
     friend class JIT_TrialAlloc;
     friend class CheckAsmOffsets;
 
@@ -900,19 +900,6 @@ typedef PTR_Utf8StringObject UTF8STRINGREF;
  */
 
 
-/**
- *  The high bit state can be one of three value: 
- * STRING_STATE_HIGH_CHARS: We've examined the string and determined that it definitely has values greater than 0x80
- * STRING_STATE_FAST_OPS: We've examined the string and determined that it definitely has no chars greater than 0x80
- * STRING_STATE_UNDETERMINED: We've never examined this string.
- * We've also reserved another bit for future use.
- */
-
-#define STRING_STATE_UNDETERMINED     0x00000000
-#define STRING_STATE_HIGH_CHARS       0x40000000
-#define STRING_STATE_FAST_OPS         0x80000000
-#define STRING_STATE_SPECIAL_SORT     0xC0000000
-
 class StringObject : public Object
 {
 #ifdef DACCESS_COMPILE
@@ -940,27 +927,6 @@ class StringObject : public Object
 
     DWORD   GetStringLength()                           { LIMITED_METHOD_DAC_CONTRACT; return( m_StringLength );}
     WCHAR*  GetBuffer()                                 { LIMITED_METHOD_CONTRACT; _ASSERTE(this != nullptr); return (WCHAR*)( dac_cast<TADDR>(this) + offsetof(StringObject, m_FirstChar) );  }
-
-    DWORD GetHighCharState() {
-        WRAPPER_NO_CONTRACT;
-        DWORD ret = GetHeader()->GetBits() & (BIT_SBLK_STRING_HIGH_CHAR_MASK);
-        return ret;
-    }
-
-    VOID SetHighCharState(DWORD value) {
-        WRAPPER_NO_CONTRACT;
-        _ASSERTE(value==STRING_STATE_HIGH_CHARS || value==STRING_STATE_FAST_OPS 
-                 || value==STRING_STATE_UNDETERMINED || value==STRING_STATE_SPECIAL_SORT);
-
-        // you need to clear the present state before going to a new state, but we'll allow multiple threads to set it to the same thing.
-        _ASSERTE((GetHighCharState() == STRING_STATE_UNDETERMINED) || (GetHighCharState()==value));    
-
-        static_assert_no_msg(BIT_SBLK_STRING_HAS_NO_HIGH_CHARS == STRING_STATE_FAST_OPS && 
-                 STRING_STATE_HIGH_CHARS == BIT_SBLK_STRING_HIGH_CHARS_KNOWN &&
-                 STRING_STATE_SPECIAL_SORT == BIT_SBLK_STRING_HAS_SPECIAL_SORT);
-
-        GetHeader()->SetBit(value);
-    }
 
     static UINT GetBufferOffset()
     {
@@ -995,17 +961,10 @@ class StringObject : public Object
 
     static STRINGREF* InitEmptyStringRefPtr();
 
-    DWORD InternalCheckHighChars();
-
     BOOL HasTrailByte();
     BOOL GetTrailByte(BYTE *bTrailByte);
     BOOL SetTrailByte(BYTE bTrailByte);
     static BOOL CaseInsensitiveCompHelper(__in_ecount(aLength) WCHAR * strA, __in_z INT8 * strB, int aLength, int bLength, int *result);
-
-#ifdef VERIFY_HEAP
-    //has to use raw object to avoid recursive validation
-    BOOL ValidateHighChars ();
-#endif //VERIFY_HEAP
 
     /*=================RefInterpretGetStringValuesDangerousForGC======================
     **N.B.: This perfoms no range checking and relies on the caller to have done this.
@@ -1033,19 +992,6 @@ class StringObject : public Object
 private:
     static STRINGREF* EmptyStringRefPtr;
 };
-
-//The first two macros are essentially the same.  I just define both because
-//having both can make the code more readable.
-#define IS_FAST_SORT(state) (((state) == STRING_STATE_FAST_OPS))
-#define IS_SLOW_SORT(state) (((state) != STRING_STATE_FAST_OPS))
-
-//This macro should be used to determine things like indexing, casing, and encoding.
-#define IS_FAST_OPS_EXCEPT_SORT(state) (((state)==STRING_STATE_SPECIAL_SORT) || ((state)==STRING_STATE_FAST_OPS))
-#define IS_ASCII(state) (((state)==STRING_STATE_SPECIAL_SORT) || ((state)==STRING_STATE_FAST_OPS))
-#define IS_FAST_CASING(state) IS_ASCII(state)
-#define IS_FAST_INDEX(state)  IS_ASCII(state)
-#define IS_STRING_STATE_UNDETERMINED(state) ((state)==STRING_STATE_UNDETERMINED)
-#define HAS_HIGH_CHARS(state) ((state)==STRING_STATE_HIGH_CHARS)
 
 /*================================GetEmptyString================================
 **Get a reference to the empty string.  If we haven't already gotten one, we
@@ -1613,9 +1559,9 @@ NOINLINE AssemblyBaseObject* GetRuntimeAssemblyHelper(LPVOID __me, DomainAssembl
 // AssemblyLoadContextBaseObject
 // This class is the base class for AssemblyLoadContext
 //
-#if (defined(_TARGET_X86_) || defined(_TARGET_ARM_)) && !defined(FEATURE_PAL)
+#if defined(_TARGET_X86_) && !defined(FEATURE_PAL)
 #include "pshpack4.h"
-#endif // (defined(_TARGET_X86_) || defined(_TARGET_ARM_)) && !defined(FEATURE_PAL)
+#endif // defined(_TARGET_X86_) && !defined(FEATURE_PAL)
 class AssemblyLoadContextBaseObject : public Object
 {
     friend class MscorlibBinder;
@@ -1653,9 +1599,9 @@ class AssemblyLoadContextBaseObject : public Object
   public:
     INT_PTR GetNativeAssemblyLoadContext() { LIMITED_METHOD_CONTRACT; return _nativeAssemblyLoadContext; }
 };
-#if (defined(_TARGET_X86_) || defined(_TARGET_ARM_)) && !defined(FEATURE_PAL)
+#if defined(_TARGET_X86_) && !defined(FEATURE_PAL)
 #include "poppack.h"
-#endif // (defined(_TARGET_X86_) || defined(_TARGET_ARM_)) && !defined(FEATURE_PAL)
+#endif // defined(_TARGET_X86_) && !defined(FEATURE_PAL)
 
 // AssemblyNameBaseObject 
 // This class is the base class for assembly names
@@ -1678,9 +1624,7 @@ class AssemblyNameBaseObject : public Object
     OBJECTREF     _codeBase;
     OBJECTREF     _version;
     OBJECTREF     _strongNameKeyPair;
-    U1ARRAYREF    _hashForControl;
     DWORD         _hashAlgorithm;
-    DWORD         _hashAlgorithmForControl;
     DWORD         _versionCompatibility;
     DWORD         _flags;
 
@@ -1698,8 +1642,6 @@ class AssemblyNameBaseObject : public Object
     OBJECTREF GetVersion() { LIMITED_METHOD_CONTRACT; return _version; }
     DWORD GetAssemblyHashAlgorithm() { LIMITED_METHOD_CONTRACT; return _hashAlgorithm; }
     DWORD GetFlags() { LIMITED_METHOD_CONTRACT; return _flags; }
-    U1ARRAYREF GetHashForControl() { LIMITED_METHOD_CONTRACT; return _hashForControl;}
-    DWORD GetHashAlgorithmForControl() { LIMITED_METHOD_CONTRACT; return _hashAlgorithmForControl; }
 };
 
 // VersionBaseObject
@@ -2564,10 +2506,7 @@ public:
         return _xptrs;
     }
 
-    void SetStackTrace(StackTraceArray const & stackTrace, PTRARRAYREF dynamicMethodArray);
-    void SetNullStackTrace();
-
-    void GetStackTrace(StackTraceArray & stackTrace, PTRARRAYREF * outDynamicMethodArray = NULL) const;
+    void SetStackTrace(I1ARRAYREF stackTrace, PTRARRAYREF dynamicMethodArray);
 
 #ifdef DACCESS_COMPILE
     I1ARRAYREF GetStackTraceArrayObject() const
@@ -2575,6 +2514,9 @@ public:
         LIMITED_METHOD_DAC_CONTRACT;
         return _stackTrace;
     }
+    void GetStackTrace(StackTraceArray & stackTrace, PTRARRAYREF * outDynamicMethodArray = NULL) const;
+#else
+    void GetStackTrace(StackTraceArray & stackTrace, PTRARRAYREF * outDynamicMethodArray = NULL);
 #endif // DACCESS_COMPILE
 
     void SetInnerException(OBJECTREF innerException)
@@ -2731,6 +2673,7 @@ private:
     STRINGREF   _remoteStackTraceString;
     PTRARRAYREF _dynamicMethods;
     STRINGREF   _source;         // Mainly used by VB.
+    OBJECTREF   _stackTraceLock; // Lock used to access stacktrace from an exception object
 
     UINT_PTR    _ipForWatsonBuckets; // Contains the IP of exception for watson bucketing
     void*       _xptrs;

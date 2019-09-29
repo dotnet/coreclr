@@ -29,19 +29,13 @@
 #include <stdarg.h>     // for va_start, etc.
 
 #ifndef _SIZE_T_DEFINED
-#ifdef  _WIN64
+#ifdef  BIT64
 typedef unsigned __int64    size_t;
 #else
 typedef __w64 unsigned int  size_t;
-#endif  // !_WIN64
+#endif  // !BIT64
 #define _SIZE_T_DEFINED
 #endif  // !_SIZE_T_DEFINED
-
-#if !defined(_WCHAR_T_DEFINED) && !defined(_NATIVE_WCHAR_T_DEFINED)
-#error Unexpected define.
-typedef char16_t WCHAR;
-#define _WCHAR_T_DEFINED
-#endif
 
 #ifndef SUCCEEDED
 #define SUCCEEDED(hr)  ((HRESULT)(hr) >= 0)

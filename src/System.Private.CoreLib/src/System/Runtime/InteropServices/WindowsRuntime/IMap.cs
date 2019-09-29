@@ -2,9 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-
-using System;
 using System.Collections.Generic;
 
 // Windows.Foundation.Collections.IMap`2, IMapView`2, and IKeyValuePair`2 cannot be referenced from
@@ -16,7 +13,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     [ComImport]
     [Guid("3c2925fe-8519-45c1-aa79-197b6718c1c1")]
     [WindowsRuntimeImport]
-    internal interface IMap<K, V> : IIterable<IKeyValuePair<K, V>>
+    internal interface IMap<K, V> : IIterable<IKeyValuePair<K, V>> where K : notnull
     {
         V Lookup(K key);
         uint Size { get; }
@@ -35,7 +32,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         V Lookup(K key);
         uint Size { get; }
         bool HasKey(K key);
-        void Split(out IMapView<K, V> first, out IMapView<K, V> second);
+        void Split(out IMapView<K, V>? first, out IMapView<K, V>? second);
     }
 
     [ComImport]

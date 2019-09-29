@@ -1,4 +1,4 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
@@ -9,6 +9,7 @@ using System.Text;
 
 using Internal.Runtime.CompilerServices;
 
+#pragma warning disable SA1121 // explicitly using type aliases instead of built-in types
 #if BIT64
 using nuint = System.UInt64;
 #else
@@ -43,7 +44,9 @@ namespace System
         /// <param name="value">The value to search for.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool Contains<T>(this Span<T> span, T value)
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
+#nullable restore
         {
             if (RuntimeHelpers.IsBitwiseEquatable<T>())
             {
@@ -71,7 +74,9 @@ namespace System
         /// <param name="value">The value to search for.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool Contains<T>(this ReadOnlySpan<T> span, T value)
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
+#nullable restore
         {
             if (RuntimeHelpers.IsBitwiseEquatable<T>())
             {
@@ -98,7 +103,9 @@ namespace System
         /// <param name="value">The value to search for.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int IndexOf<T>(this Span<T> span, T value)
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
+#nullable restore
         {
             if (RuntimeHelpers.IsBitwiseEquatable<T>())
             {
@@ -125,7 +132,9 @@ namespace System
         /// <param name="value">The sequence to search for.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int IndexOf<T>(this Span<T> span, ReadOnlySpan<T> value)
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
+#nullable restore
         {
             if (RuntimeHelpers.IsBitwiseEquatable<T>())
             {
@@ -154,7 +163,9 @@ namespace System
         /// <param name="value">The value to search for.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int LastIndexOf<T>(this Span<T> span, T value)
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
+#nullable restore
         {
             if (RuntimeHelpers.IsBitwiseEquatable<T>())
             {
@@ -181,7 +192,9 @@ namespace System
         /// <param name="value">The sequence to search for.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int LastIndexOf<T>(this Span<T> span, ReadOnlySpan<T> value)
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
+#nullable restore
         {
             if (Unsafe.SizeOf<T>() == sizeof(byte) && RuntimeHelpers.IsBitwiseEquatable<T>())
                 return SpanHelpers.LastIndexOf(
@@ -198,7 +211,9 @@ namespace System
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool SequenceEqual<T>(this Span<T> span, ReadOnlySpan<T> other)
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
+#nullable restore
         {
             int length = span.Length;
 
@@ -248,7 +263,9 @@ namespace System
         /// <param name="value">The value to search for.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int IndexOf<T>(this ReadOnlySpan<T> span, T value)
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
+#nullable restore
         {
             if (RuntimeHelpers.IsBitwiseEquatable<T>())
             {
@@ -275,7 +292,9 @@ namespace System
         /// <param name="value">The sequence to search for.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int IndexOf<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> value)
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
+#nullable restore
         {
             if (RuntimeHelpers.IsBitwiseEquatable<T>())
             {
@@ -304,7 +323,9 @@ namespace System
         /// <param name="value">The value to search for.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int LastIndexOf<T>(this ReadOnlySpan<T> span, T value)
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
+#nullable restore
         {
             if (RuntimeHelpers.IsBitwiseEquatable<T>())
             {
@@ -331,7 +352,9 @@ namespace System
         /// <param name="value">The sequence to search for.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int LastIndexOf<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> value)
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
+#nullable restore
         {
             if (Unsafe.SizeOf<T>() == sizeof(byte) && RuntimeHelpers.IsBitwiseEquatable<T>())
                 return SpanHelpers.LastIndexOf(
@@ -351,7 +374,9 @@ namespace System
         /// <param name="value1">One of the values to search for.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int IndexOfAny<T>(this Span<T> span, T value0, T value1)
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
+#nullable restore
         {
             if (RuntimeHelpers.IsBitwiseEquatable<T>())
             {
@@ -382,7 +407,9 @@ namespace System
         /// <param name="value2">One of the values to search for.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int IndexOfAny<T>(this Span<T> span, T value0, T value1, T value2)
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
+#nullable restore
         {
             if (RuntimeHelpers.IsBitwiseEquatable<T>())
             {
@@ -413,7 +440,9 @@ namespace System
         /// <param name="values">The set of values to search for.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int IndexOfAny<T>(this Span<T> span, ReadOnlySpan<T> values)
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
+#nullable restore
         {
             if (RuntimeHelpers.IsBitwiseEquatable<T>())
             {
@@ -449,7 +478,7 @@ namespace System
 
                 if (Unsafe.SizeOf<T>() == sizeof(char))
                 {
-                    ref var valueRef = ref Unsafe.As<T, char>(ref MemoryMarshal.GetReference(values));
+                    ref char valueRef = ref Unsafe.As<T, char>(ref MemoryMarshal.GetReference(values));
                     if (values.Length == 5)
                     {
                         // Length 5 is a common length for FileSystemName expression (", <, >, *, ?) and in preference to 2 as it has an explicit overload
@@ -514,7 +543,9 @@ namespace System
         /// <param name="value1">One of the values to search for.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int IndexOfAny<T>(this ReadOnlySpan<T> span, T value0, T value1)
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
+#nullable restore
         {
             if (RuntimeHelpers.IsBitwiseEquatable<T>())
             {
@@ -545,7 +576,9 @@ namespace System
         /// <param name="value2">One of the values to search for.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int IndexOfAny<T>(this ReadOnlySpan<T> span, T value0, T value1, T value2)
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
+#nullable restore
         {
             if (RuntimeHelpers.IsBitwiseEquatable<T>())
             {
@@ -576,7 +609,9 @@ namespace System
         /// <param name="values">The set of values to search for.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int IndexOfAny<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> values)
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
+#nullable restore
         {
             if (RuntimeHelpers.IsBitwiseEquatable<T>())
             {
@@ -612,7 +647,7 @@ namespace System
 
                 if (Unsafe.SizeOf<T>() == sizeof(char))
                 {
-                    ref var valueRef = ref Unsafe.As<T, char>(ref MemoryMarshal.GetReference(values));
+                    ref char valueRef = ref Unsafe.As<T, char>(ref MemoryMarshal.GetReference(values));
                     if (values.Length == 5)
                     {
                         // Length 5 is a common length for FileSystemName expression (", <, >, *, ?) and in preference to 2 as it has an explicit overload
@@ -677,7 +712,9 @@ namespace System
         /// <param name="value1">One of the values to search for.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int LastIndexOfAny<T>(this Span<T> span, T value0, T value1)
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
+#nullable restore
         {
             if (Unsafe.SizeOf<T>() == sizeof(byte) && RuntimeHelpers.IsBitwiseEquatable<T>())
                 return SpanHelpers.LastIndexOfAny(
@@ -698,7 +735,9 @@ namespace System
         /// <param name="value2">One of the values to search for.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int LastIndexOfAny<T>(this Span<T> span, T value0, T value1, T value2)
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
+#nullable restore
         {
             if (Unsafe.SizeOf<T>() == sizeof(byte) && RuntimeHelpers.IsBitwiseEquatable<T>())
                 return SpanHelpers.LastIndexOfAny(
@@ -718,7 +757,9 @@ namespace System
         /// <param name="values">The set of values to search for.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int LastIndexOfAny<T>(this Span<T> span, ReadOnlySpan<T> values)
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
+#nullable restore
         {
             if (Unsafe.SizeOf<T>() == sizeof(byte) && RuntimeHelpers.IsBitwiseEquatable<T>())
                 return SpanHelpers.LastIndexOfAny(
@@ -738,7 +779,9 @@ namespace System
         /// <param name="value1">One of the values to search for.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int LastIndexOfAny<T>(this ReadOnlySpan<T> span, T value0, T value1)
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
+#nullable restore
         {
             if (Unsafe.SizeOf<T>() == sizeof(byte) && RuntimeHelpers.IsBitwiseEquatable<T>())
                 return SpanHelpers.LastIndexOfAny(
@@ -759,7 +802,9 @@ namespace System
         /// <param name="value2">One of the values to search for.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int LastIndexOfAny<T>(this ReadOnlySpan<T> span, T value0, T value1, T value2)
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
+#nullable restore
         {
             if (Unsafe.SizeOf<T>() == sizeof(byte) && RuntimeHelpers.IsBitwiseEquatable<T>())
                 return SpanHelpers.LastIndexOfAny(
@@ -779,7 +824,9 @@ namespace System
         /// <param name="values">The set of values to search for.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int LastIndexOfAny<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> values)
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
+#nullable restore
         {
             if (Unsafe.SizeOf<T>() == sizeof(byte) && RuntimeHelpers.IsBitwiseEquatable<T>())
                 return SpanHelpers.LastIndexOfAny(
@@ -796,7 +843,9 @@ namespace System
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool SequenceEqual<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> other)
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
+#nullable restore
         {
             int length = span.Length;
             if (RuntimeHelpers.IsBitwiseEquatable<T>())
@@ -844,7 +893,9 @@ namespace System
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool StartsWith<T>(this Span<T> span, ReadOnlySpan<T> value)
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
+#nullable restore
         {
             int valueLength = value.Length;
             if (RuntimeHelpers.IsBitwiseEquatable<T>())
@@ -865,7 +916,9 @@ namespace System
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool StartsWith<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> value)
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
+#nullable restore
         {
             int valueLength = value.Length;
             if (RuntimeHelpers.IsBitwiseEquatable<T>())
@@ -886,7 +939,9 @@ namespace System
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool EndsWith<T>(this Span<T> span, ReadOnlySpan<T> value)
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
+#nullable restore
         {
             int spanLength = span.Length;
             int valueLength = value.Length;
@@ -912,7 +967,9 @@ namespace System
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool EndsWith<T>(this ReadOnlySpan<T> span, ReadOnlySpan<T> value)
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
+#nullable restore
         {
             int spanLength = span.Length;
             int valueLength = value.Length;
@@ -981,7 +1038,7 @@ namespace System
         /// Creates a new span over the target array.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Span<T> AsSpan<T>(this T[] array)
+        public static Span<T> AsSpan<T>(this T[]? array)
         {
             return new Span<T>(array);
         }
@@ -996,10 +1053,10 @@ namespace System
         /// <remarks>Returns default when <paramref name="array"/> is null.</remarks>
         /// <exception cref="System.ArrayTypeMismatchException">Thrown when <paramref name="array"/> is covariant and array's type is not exactly T[].</exception>
         /// <exception cref="System.ArgumentOutOfRangeException">
-        /// Thrown when the specified <paramref name="start"/> or end index is not in the range (&lt;0 or &gt;=Length).
+        /// Thrown when the specified <paramref name="start"/> or end index is not in the range (&lt;0 or &gt;Length).
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Span<T> AsSpan<T>(this T[] array, int start, int length)
+        public static Span<T> AsSpan<T>(this T[]? array, int start, int length)
         {
             return new Span<T>(array, start, length);
         }
@@ -1022,7 +1079,7 @@ namespace System
         /// <remarks>Returns default when <paramref name="segment"/> is null.</remarks>
         /// <exception cref="System.ArrayTypeMismatchException">Thrown when <paramref name="segment"/> is covariant and array's type is not exactly T[].</exception>
         /// <exception cref="System.ArgumentOutOfRangeException">
-        /// Thrown when the specified <paramref name="start"/> or end index is not in the range (&lt;0 or &gt;=segment.Count).
+        /// Thrown when the specified <paramref name="start"/> or end index is not in the range (&lt;0 or &gt;segment.Count).
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Span<T> AsSpan<T>(this ArraySegment<T> segment, int start)
@@ -1056,7 +1113,7 @@ namespace System
         /// <remarks>Returns default when <paramref name="segment"/> is null.</remarks>
         /// <exception cref="System.ArrayTypeMismatchException">Thrown when <paramref name="segment"/> is covariant and array's type is not exactly T[].</exception>
         /// <exception cref="System.ArgumentOutOfRangeException">
-        /// Thrown when the specified <paramref name="start"/> or end index is not in the range (&lt;0 or &gt;=segment.Count).
+        /// Thrown when the specified <paramref name="start"/> or end index is not in the range (&lt;0 or &gt;segment.Count).
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Span<T> AsSpan<T>(this ArraySegment<T> segment, int start, int length)
@@ -1084,7 +1141,7 @@ namespace System
         /// <summary>
         /// Creates a new memory over the target array.
         /// </summary>
-        public static Memory<T> AsMemory<T>(this T[] array) => new Memory<T>(array);
+        public static Memory<T> AsMemory<T>(this T[]? array) => new Memory<T>(array);
 
         /// <summary>
         /// Creates a new memory over the portion of the target array beginning
@@ -1095,15 +1152,15 @@ namespace System
         /// <remarks>Returns default when <paramref name="array"/> is null.</remarks>
         /// <exception cref="System.ArrayTypeMismatchException">Thrown when <paramref name="array"/> is covariant and array's type is not exactly T[].</exception>
         /// <exception cref="System.ArgumentOutOfRangeException">
-        /// Thrown when the specified <paramref name="start"/> or end index is not in the range (&lt;0 or &gt;=array.Length).
+        /// Thrown when the specified <paramref name="start"/> or end index is not in the range (&lt;0 or &gt;array.Length).
         /// </exception>
-        public static Memory<T> AsMemory<T>(this T[] array, int start) => new Memory<T>(array, start);
+        public static Memory<T> AsMemory<T>(this T[]? array, int start) => new Memory<T>(array, start);
 
         /// <summary>
         /// Creates a new memory over the portion of the target array starting from
         /// 'startIndex' to the end of the array.
         /// </summary>
-        public static Memory<T> AsMemory<T>(this T[] array, Index startIndex)
+        public static Memory<T> AsMemory<T>(this T[]? array, Index startIndex)
         {
             if (array == null)
             {
@@ -1127,15 +1184,15 @@ namespace System
         /// <remarks>Returns default when <paramref name="array"/> is null.</remarks>
         /// <exception cref="System.ArrayTypeMismatchException">Thrown when <paramref name="array"/> is covariant and array's type is not exactly T[].</exception>
         /// <exception cref="System.ArgumentOutOfRangeException">
-        /// Thrown when the specified <paramref name="start"/> or end index is not in the range (&lt;0 or &gt;=Length).
+        /// Thrown when the specified <paramref name="start"/> or end index is not in the range (&lt;0 or &gt;Length).
         /// </exception>
-        public static Memory<T> AsMemory<T>(this T[] array, int start, int length) => new Memory<T>(array, start, length);
+        public static Memory<T> AsMemory<T>(this T[]? array, int start, int length) => new Memory<T>(array, start, length);
 
         /// <summary>
         /// Creates a new memory over the portion of the target array beginning at inclusive start index of the range
         /// and ending at the exclusive end index of the range.
         /// </summary>
-        public static Memory<T> AsMemory<T>(this T[] array, Range range)
+        public static Memory<T> AsMemory<T>(this T[]? array, Range range)
         {
             if (array == null)
             {
@@ -1165,7 +1222,7 @@ namespace System
         /// <remarks>Returns default when <paramref name="segment"/> is null.</remarks>
         /// <exception cref="System.ArrayTypeMismatchException">Thrown when <paramref name="segment"/> is covariant and array's type is not exactly T[].</exception>
         /// <exception cref="System.ArgumentOutOfRangeException">
-        /// Thrown when the specified <paramref name="start"/> or end index is not in the range (&lt;0 or &gt;=segment.Count).
+        /// Thrown when the specified <paramref name="start"/> or end index is not in the range (&lt;0 or &gt;segment.Count).
         /// </exception>
         public static Memory<T> AsMemory<T>(this ArraySegment<T> segment, int start)
         {
@@ -1185,7 +1242,7 @@ namespace System
         /// <remarks>Returns default when <paramref name="segment"/> is null.</remarks>
         /// <exception cref="System.ArrayTypeMismatchException">Thrown when <paramref name="segment"/> is covariant and array's type is not exactly T[].</exception>
         /// <exception cref="System.ArgumentOutOfRangeException">
-        /// Thrown when the specified <paramref name="start"/> or end index is not in the range (&lt;0 or &gt;=segment.Count).
+        /// Thrown when the specified <paramref name="start"/> or end index is not in the range (&lt;0 or &gt;segment.Count).
         /// </exception>
         public static Memory<T> AsMemory<T>(this ArraySegment<T> segment, int start, int length)
         {
@@ -1209,7 +1266,7 @@ namespace System
         /// </exception>
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void CopyTo<T>(this T[] source, Span<T> destination)
+        public static void CopyTo<T>(this T[]? source, Span<T> destination)
         {
             new ReadOnlySpan<T>(source).CopyTo(destination);
         }
@@ -1226,7 +1283,7 @@ namespace System
         /// </exception>
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void CopyTo<T>(this T[] source, Memory<T> destination)
+        public static void CopyTo<T>(this T[]? source, Memory<T> destination)
         {
             source.CopyTo(destination.Span);
         }
@@ -1275,7 +1332,7 @@ namespace System
         //
         //  The second problem is solved by making all addresses relative to the
         //  start of the first sequence and performing all operations in
-        //  unsigned integer arithmetic modulo 2³².
+        //  unsigned integer arithmetic modulo 2^32.
         //
         //  Example
         //  -------
@@ -1291,7 +1348,7 @@ namespace System
         //  address space as follows:
         //
         //      [----------------------------------------------)                            normal address space
-        //      0                                             2³²
+        //      0                                             2^32
         //                            [------------------)                                  first sequence
         //                            xRef            xRef + xLength
         //              [--------------------------)     .                                  second sequence
@@ -1302,7 +1359,7 @@ namespace System
         //                            .            .     .
         //                            .            .     .
         //                            [----------------------------------------------)      relative address space
-        //                            0            .     .                          2³²
+        //                            0            .     .                          2^32
         //                            [------------------)             :                    first sequence
         //                            x1           .     x2            :
         //                            -------------)                   [-------------       second sequence
@@ -1324,7 +1381,7 @@ namespace System
         //
         //  yRef relative to xRef is (yRef - xRef). If (yRef - xRef) is
         //  negative, casting it to an unsigned 32-bit integer turns it into
-        //  (yRef - xRef + 2³²). So, in the example above, y1 moves to the right
+        //  (yRef - xRef + 2^32). So, in the example above, y1 moves to the right
         //  of x2.
         //
         //  y2 is simply y1 + yLength. Note that this can overflow, as in the
@@ -1333,29 +1390,29 @@ namespace System
         //  The two sequences do *not* overlap if y is entirely in the space
         //  right of x in the relative address space. (It can't be left of it!)
         //
-        //          (y1 >= x2) && (y2 <= 2³²)
+        //          (y1 >= x2) && (y2 <= 2^32)
         //
         //  Inversely, they do overlap if
         //
-        //          (y1 < x2) || (y2 > 2³²)
+        //          (y1 < x2) || (y2 > 2^32)
         //
         //  After substituting x2 and y2 with their respective definition:
         //
-        //      == (y1 < xLength) || (y1 + yLength > 2³²)
+        //      == (y1 < xLength) || (y1 + yLength > 2^32)
         //
         //  Since yLength can't be greater than the size of the address space,
         //  the overflow can be avoided as follows:
         //
-        //      == (y1 < xLength) || (y1 > 2³² - yLength)
+        //      == (y1 < xLength) || (y1 > 2^32 - yLength)
         //
-        //  However, 2³² cannot be stored in an unsigned 32-bit integer, so one
+        //  However, 2^32 cannot be stored in an unsigned 32-bit integer, so one
         //  more change is needed to keep doing everything with unsigned 32-bit
         //  integers:
         //
         //      == (y1 < xLength) || (y1 > -yLength)
         //
         //  Due to modulo arithmetic, this gives exactly same result *except* if
-        //  yLength is zero, since 2³² - 0 is 0 and not 2³². So the case
+        //  yLength is zero, since 2^32 - 0 is 0 and not 2^32. So the case
         //  y.IsEmpty must be handled separately first.
         //
 
@@ -1467,7 +1524,7 @@ namespace System
         /// of the index of the next element that is larger than <paramref name="comparable"/> or, if there is
         /// no larger element, the bitwise complement of <see cref="Span{T}.Length"/>.
         /// </returns>
-        /// <exception cref="T:System.ArgumentNullException">
+        /// <exception cref="System.ArgumentNullException">
         /// <paramref name = "comparable" /> is <see langword="null"/> .
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1491,7 +1548,7 @@ namespace System
         /// of the index of the next element that is larger than <paramref name="comparable"/> or, if there is
         /// no larger element, the bitwise complement of <see cref="Span{T}.Length"/>.
         /// </returns>
-        /// <exception cref="T:System.ArgumentNullException">
+        /// <exception cref="System.ArgumentNullException">
         /// <paramref name = "comparable" /> is <see langword="null"/> .
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1517,7 +1574,7 @@ namespace System
         /// of the index of the next element that is larger than <paramref name="value"/> or, if there is
         /// no larger element, the bitwise complement of <see cref="Span{T}.Length"/>.
         /// </returns>
-        /// <exception cref="T:System.ArgumentNullException">
+        /// <exception cref="System.ArgumentNullException">
         /// <paramref name = "comparer" /> is <see langword="null"/> .
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1541,7 +1598,7 @@ namespace System
         /// of the index of the next element that is larger than <paramref name="comparable"/> or, if there is
         /// no larger element, the bitwise complement of <see cref="ReadOnlySpan{T}.Length"/>.
         /// </returns>
-        /// <exception cref="T:System.ArgumentNullException">
+        /// <exception cref="System.ArgumentNullException">
         /// <paramref name = "comparable" /> is <see langword="null"/> .
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1565,7 +1622,7 @@ namespace System
         /// of the index of the next element that is larger than <paramref name="comparable"/> or, if there is
         /// no larger element, the bitwise complement of <see cref="ReadOnlySpan{T}.Length"/>.
         /// </returns>
-        /// <exception cref="T:System.ArgumentNullException">
+        /// <exception cref="System.ArgumentNullException">
         /// <paramref name = "comparable" /> is <see langword="null"/> .
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1591,7 +1648,7 @@ namespace System
         /// of the index of the next element that is larger than <paramref name="value"/> or, if there is
         /// no larger element, the bitwise complement of <see cref="ReadOnlySpan{T}.Length"/>.
         /// </returns>
-        /// <exception cref="T:System.ArgumentNullException">
+        /// <exception cref="System.ArgumentNullException">
         /// <paramref name = "comparer" /> is <see langword="null"/> .
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

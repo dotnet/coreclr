@@ -32,7 +32,7 @@ public:
 
     // Requires stmt nodes to be already sequenced in evaluation order. Analyzes the graph
     // for introduction of phi-nodes as GT_PHI tree nodes at the beginning of each block.
-    // Each GT_LCL_VAR is given its ssa number through its gtSsaNum field in the node.
+    // Each GT_LCL_VAR is given its ssa number through its GetSsaNum() field in the node.
     // Each GT_PHI node will have gtOp1 set to lhs of the phi node and the gtOp2 to be a
     // GT_LIST of GT_PHI_ARG. Each use or def is denoted by the corresponding GT_LCL_VAR
     // tree. For example, to get all uses of a particular variable fully defined by its
@@ -93,6 +93,13 @@ private:
 
     // Compute the iterated dominance frontier for the specified block.
     void ComputeIteratedDominanceFrontier(BasicBlock* b, const BlkToBlkVectorMap* mapDF, BlkVector* bIDF);
+
+    // Insert a new GT_PHI statement.
+    void InsertPhi(BasicBlock* block, unsigned lclNum);
+
+    // Add a new GT_PHI_ARG node to an existing GT_PHI node
+    void AddPhiArg(
+        BasicBlock* block, Statement* stmt, GenTreePhi* phi, unsigned lclNum, unsigned ssaNum, BasicBlock* pred);
 
     // Requires "postOrder" to hold the blocks of the flowgraph in topologically sorted order. Requires
     // count to be the valid entries in the "postOrder" array. Inserts GT_PHI nodes at the beginning

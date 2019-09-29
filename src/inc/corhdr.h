@@ -21,7 +21,7 @@
 #define FRAMEWORK_REGISTRY_KEY_W        W("Software\\Microsoft\\.NETFramework")
 
 // keys for HKCU
-#ifdef _WIN64    
+#ifdef BIT64    
 #define USER_FRAMEWORK_REGISTRY_KEY             "Software\\Microsoft\\.NETFramework64"
 #define USER_FRAMEWORK_REGISTRY_KEY_W        W("Software\\Microsoft\\.NETFramework64")
 #else
@@ -239,7 +239,8 @@ typedef struct IMAGE_COR20_HEADER
     IMAGE_DATA_DIRECTORY    VTableFixups;
     IMAGE_DATA_DIRECTORY    ExportAddressTableJumps;
 
-	// null for ordinary IL images.  NGEN images it points at a code:CORCOMPILE_HEADER structure
+	// null for ordinary IL images. In NGEN images it points at a code:CORCOMPILE_HEADER structure.
+	// In Ready2Run images it points to a READYTORUN_HEADER.
     IMAGE_DATA_DIRECTORY    ManagedNativeHeader;
     
 } IMAGE_COR20_HEADER, *PIMAGE_COR20_HEADER;
@@ -1175,9 +1176,9 @@ typedef struct IMAGE_COR_ILMETHOD_SECT_EH_FAT
 /***********************************/
 typedef struct IMAGE_COR_ILMETHOD_SECT_EH_CLAUSE_SMALL
 {
-#ifdef _WIN64
+#ifdef BIT64
     unsigned            Flags         : 16;
-#else // !_WIN64
+#else // !BIT64
     CorExceptionFlag    Flags         : 16;
 #endif
     unsigned            TryOffset     : 16;

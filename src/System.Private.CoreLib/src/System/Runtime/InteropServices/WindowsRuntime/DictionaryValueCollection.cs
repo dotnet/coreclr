@@ -2,18 +2,14 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.WindowsRuntime;
-
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
     [DebuggerDisplay("Count = {Count}")]
-    internal sealed class DictionaryValueCollection<TKey, TValue> : ICollection<TValue>
+    internal sealed class DictionaryValueCollection<TKey, TValue> : ICollection<TValue> where TKey : notnull
     {
         private readonly IDictionary<TKey, TValue> dictionary;
 
@@ -43,15 +39,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        public int Count
-        {
-            get { return dictionary.Count; }
-        }
+        public int Count => dictionary.Count;
 
-        bool ICollection<TValue>.IsReadOnly
-        {
-            get { return true; }
-        }
+        bool ICollection<TValue>.IsReadOnly => true;
 
         void ICollection<TValue>.Add(TValue item)
         {
@@ -89,7 +79,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     }  // public class DictionaryValueCollection<TKey, TValue>
 
 
-    internal sealed class DictionaryValueEnumerator<TKey, TValue> : IEnumerator<TValue>
+    internal sealed class DictionaryValueEnumerator<TKey, TValue> : IEnumerator<TValue> where TKey : notnull
     {
         private readonly IDictionary<TKey, TValue> dictionary;
         private IEnumerator<KeyValuePair<TKey, TValue>> enumeration;
@@ -113,15 +103,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             return enumeration.MoveNext();
         }
 
-        object IEnumerator.Current
-        {
-            get { return ((IEnumerator<TValue>)this).Current; }
-        }
+        object? IEnumerator.Current => ((IEnumerator<TValue>)this).Current;
 
-        public TValue Current
-        {
-            get { return enumeration.Current.Value; }
-        }
+        public TValue Current => enumeration.Current.Value;
 
         public void Reset()
         {

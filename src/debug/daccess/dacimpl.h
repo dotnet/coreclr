@@ -59,7 +59,7 @@ extern CRITICAL_SECTION g_dacCritSec;
 inline TADDR CLRDATA_ADDRESS_TO_TADDR(CLRDATA_ADDRESS cdAddr)
 {
     SUPPORTS_DAC;
-#ifndef _WIN64
+#ifndef BIT64
     static_assert_no_msg(sizeof(TADDR)==sizeof(UINT));
     INT64 iSignedAddr = (INT64)cdAddr;
     if (iSignedAddr > INT_MAX || iSignedAddr < INT_MIN)
@@ -76,7 +76,7 @@ inline TADDR CLRDATA_ADDRESS_TO_TADDR(CLRDATA_ADDRESS cdAddr)
 inline HRESULT TRY_CLRDATA_ADDRESS_TO_TADDR(CLRDATA_ADDRESS cdAddr, TADDR* pOutTaddr)
 {
     SUPPORTS_DAC;
-#ifndef _WIN64
+#ifndef BIT64
     static_assert_no_msg(sizeof(TADDR)==sizeof(UINT));
     INT64 iSignedAddr = (INT64)cdAddr;
     if (iSignedAddr > INT_MAX || iSignedAddr < INT_MIN)
@@ -93,7 +93,7 @@ inline HRESULT TRY_CLRDATA_ADDRESS_TO_TADDR(CLRDATA_ADDRESS cdAddr, TADDR* pOutT
 inline TADDR CORDB_ADDRESS_TO_TADDR(CORDB_ADDRESS cdbAddr)
 {
     SUPPORTS_DAC;
-#ifndef _WIN64
+#ifndef BIT64
     static_assert_no_msg(sizeof(TADDR)==sizeof(UINT));
     if (cdbAddr > UINT_MAX)
     {
@@ -635,7 +635,7 @@ struct DAC_INSTANCE
     // a method descriptor
     ULONG32 MDEnumed:1;
 
-#ifdef _WIN64
+#ifdef BIT64
     // Keep DAC_INSTANCE a multiple of DAC_INSTANCE_ALIGN
     // bytes in size.
     ULONG32 pad[2];
@@ -839,7 +839,8 @@ class ClrDataAccess
       public ISOSDacInterface3,
       public ISOSDacInterface4,
       public ISOSDacInterface5,
-      public ISOSDacInterface6
+      public ISOSDacInterface6,
+      public ISOSDacInterface7
 {
 public:
     ClrDataAccess(ICorDebugDataTarget * pTarget, ICLRDataTarget * pLegacyTarget=0);
@@ -1079,10 +1080,10 @@ public:
     virtual HRESULT STDMETHODCALLTYPE GetAppDomainStoreData(struct DacpAppDomainStoreData *data);
     virtual HRESULT STDMETHODCALLTYPE GetAppDomainList(unsigned int count, CLRDATA_ADDRESS values[], unsigned int *pNeeded);
     virtual HRESULT STDMETHODCALLTYPE GetAppDomainData(CLRDATA_ADDRESS addr, struct DacpAppDomainData *data);
-    virtual HRESULT STDMETHODCALLTYPE GetAppDomainName(CLRDATA_ADDRESS addr, unsigned int count, __out_z __inout_ecount(count) wchar_t *name, unsigned int *pNeeded);
+    virtual HRESULT STDMETHODCALLTYPE GetAppDomainName(CLRDATA_ADDRESS addr, unsigned int count, __out_z __inout_ecount(count) WCHAR *name, unsigned int *pNeeded);
     virtual HRESULT STDMETHODCALLTYPE GetAssemblyList(CLRDATA_ADDRESS appDomain, int count, CLRDATA_ADDRESS values[], int *fetched);
     virtual HRESULT STDMETHODCALLTYPE GetAssemblyData(CLRDATA_ADDRESS baseDomainPtr, CLRDATA_ADDRESS assembly, struct DacpAssemblyData *data);
-    virtual HRESULT STDMETHODCALLTYPE GetAssemblyName(CLRDATA_ADDRESS assembly, unsigned int count, __out_z __inout_ecount(count) wchar_t *name, unsigned int *pNeeded);
+    virtual HRESULT STDMETHODCALLTYPE GetAssemblyName(CLRDATA_ADDRESS assembly, unsigned int count, __out_z __inout_ecount(count) WCHAR *name, unsigned int *pNeeded);
     virtual HRESULT STDMETHODCALLTYPE GetThreadData(CLRDATA_ADDRESS thread, struct DacpThreadData *data);
     virtual HRESULT STDMETHODCALLTYPE GetThreadFromThinlockID(UINT thinLockId, CLRDATA_ADDRESS *pThread);
     virtual HRESULT STDMETHODCALLTYPE GetStackLimits(CLRDATA_ADDRESS threadPtr, CLRDATA_ADDRESS *lower, CLRDATA_ADDRESS *upper, CLRDATA_ADDRESS *fp);
@@ -1090,27 +1091,27 @@ public:
 
     virtual HRESULT STDMETHODCALLTYPE GetMethodDescData(CLRDATA_ADDRESS methodDesc, CLRDATA_ADDRESS ip, struct DacpMethodDescData *data, ULONG cRevertedRejitVersions, DacpReJitData * rgRevertedRejitData, ULONG * pcNeededRevertedRejitData);
     virtual HRESULT STDMETHODCALLTYPE GetMethodDescPtrFromIP(CLRDATA_ADDRESS ip, CLRDATA_ADDRESS * ppMD);
-    virtual HRESULT STDMETHODCALLTYPE GetMethodDescName(CLRDATA_ADDRESS methodDesc, unsigned int count, __out_z __inout_ecount(count) wchar_t *name, unsigned int *pNeeded);
+    virtual HRESULT STDMETHODCALLTYPE GetMethodDescName(CLRDATA_ADDRESS methodDesc, unsigned int count, __out_z __inout_ecount(count) WCHAR *name, unsigned int *pNeeded);
     virtual HRESULT STDMETHODCALLTYPE GetMethodDescPtrFromFrame(CLRDATA_ADDRESS frameAddr, CLRDATA_ADDRESS * ppMD);
     virtual HRESULT STDMETHODCALLTYPE GetCodeHeaderData(CLRDATA_ADDRESS ip, struct DacpCodeHeaderData *data);
     virtual HRESULT STDMETHODCALLTYPE GetThreadpoolData(struct DacpThreadpoolData *data);
     virtual HRESULT STDMETHODCALLTYPE GetWorkRequestData(CLRDATA_ADDRESS addrWorkRequest, struct DacpWorkRequestData *data);
     virtual HRESULT STDMETHODCALLTYPE GetObjectData(CLRDATA_ADDRESS objAddr, struct DacpObjectData *data);
-    virtual HRESULT STDMETHODCALLTYPE GetObjectStringData(CLRDATA_ADDRESS obj, unsigned int count, __out_z __inout_ecount(count) wchar_t *stringData, unsigned int *pNeeded);
-    virtual HRESULT STDMETHODCALLTYPE GetObjectClassName(CLRDATA_ADDRESS obj, unsigned int count, __out_z __inout_ecount(count) wchar_t *className, unsigned int *pNeeded);
-    virtual HRESULT STDMETHODCALLTYPE GetMethodTableName(CLRDATA_ADDRESS mt, unsigned int count, __out_z __inout_ecount(count) wchar_t *mtName, unsigned int *pNeeded);
+    virtual HRESULT STDMETHODCALLTYPE GetObjectStringData(CLRDATA_ADDRESS obj, unsigned int count, __out_z __inout_ecount(count) WCHAR *stringData, unsigned int *pNeeded);
+    virtual HRESULT STDMETHODCALLTYPE GetObjectClassName(CLRDATA_ADDRESS obj, unsigned int count, __out_z __inout_ecount(count) WCHAR *className, unsigned int *pNeeded);
+    virtual HRESULT STDMETHODCALLTYPE GetMethodTableName(CLRDATA_ADDRESS mt, unsigned int count, __out_z __inout_ecount(count) WCHAR *mtName, unsigned int *pNeeded);
     virtual HRESULT STDMETHODCALLTYPE GetMethodTableData(CLRDATA_ADDRESS mt, struct DacpMethodTableData *data);
     virtual HRESULT STDMETHODCALLTYPE GetMethodTableFieldData(CLRDATA_ADDRESS mt, struct DacpMethodTableFieldData *data);
     virtual HRESULT STDMETHODCALLTYPE GetMethodTableTransparencyData(CLRDATA_ADDRESS mt, struct DacpMethodTableTransparencyData *data);
     virtual HRESULT STDMETHODCALLTYPE GetMethodTableForEEClass(CLRDATA_ADDRESS eeClass, CLRDATA_ADDRESS *value);
     virtual HRESULT STDMETHODCALLTYPE GetFieldDescData(CLRDATA_ADDRESS fieldDesc, struct DacpFieldDescData *data);
-    virtual HRESULT STDMETHODCALLTYPE GetFrameName(CLRDATA_ADDRESS vtable, unsigned int count, __out_z __inout_ecount(count) wchar_t *frameName, unsigned int *pNeeded);
+    virtual HRESULT STDMETHODCALLTYPE GetFrameName(CLRDATA_ADDRESS vtable, unsigned int count, __out_z __inout_ecount(count) WCHAR *frameName, unsigned int *pNeeded);
     virtual HRESULT STDMETHODCALLTYPE GetModule(CLRDATA_ADDRESS addr, IXCLRDataModule **mod);
     virtual HRESULT STDMETHODCALLTYPE GetModuleData(CLRDATA_ADDRESS moduleAddr, struct DacpModuleData *data);
     virtual HRESULT STDMETHODCALLTYPE TraverseModuleMap(ModuleMapType mmt, CLRDATA_ADDRESS moduleAddr, MODULEMAPTRAVERSE pCallback, LPVOID token);
     virtual HRESULT STDMETHODCALLTYPE GetMethodDescFromToken(CLRDATA_ADDRESS moduleAddr, mdToken token, CLRDATA_ADDRESS *methodDesc);
     virtual HRESULT STDMETHODCALLTYPE GetPEFileBase(CLRDATA_ADDRESS addr, CLRDATA_ADDRESS *base);
-    virtual HRESULT STDMETHODCALLTYPE GetPEFileName(CLRDATA_ADDRESS addr, unsigned int count, __out_z __inout_ecount(count) wchar_t *fileName, unsigned int *pNeeded);
+    virtual HRESULT STDMETHODCALLTYPE GetPEFileName(CLRDATA_ADDRESS addr, unsigned int count, __out_z __inout_ecount(count) WCHAR *fileName, unsigned int *pNeeded);
     virtual HRESULT STDMETHODCALLTYPE GetAssemblyModuleList(CLRDATA_ADDRESS assembly, unsigned int count, CLRDATA_ADDRESS modules[], unsigned int *pNeeded);
     virtual HRESULT STDMETHODCALLTYPE GetGCHeapData(struct DacpGcHeapData *data);
     virtual HRESULT STDMETHODCALLTYPE GetGCHeapList(unsigned int count, CLRDATA_ADDRESS heaps[], unsigned int *pNeeded);
@@ -1151,17 +1152,17 @@ public:
     virtual HRESULT STDMETHODCALLTYPE GetDacModuleHandle(HMODULE *phModule);
     
     virtual HRESULT STDMETHODCALLTYPE GetFailedAssemblyList(CLRDATA_ADDRESS appDomain, int count, CLRDATA_ADDRESS values[], unsigned int *pNeeded);
-    virtual HRESULT STDMETHODCALLTYPE GetPrivateBinPaths(CLRDATA_ADDRESS appDomain, int count, __out_z __inout_ecount(count) wchar_t *paths, unsigned int *pNeeded);
-    virtual HRESULT STDMETHODCALLTYPE GetAssemblyLocation(CLRDATA_ADDRESS assembly, int count, __out_z __inout_ecount(count) wchar_t *location, unsigned int *pNeeded);
-    virtual HRESULT STDMETHODCALLTYPE GetAppDomainConfigFile(CLRDATA_ADDRESS appDomain, int count, __out_z __inout_ecount(count) wchar_t *configFile, unsigned int *pNeeded);
-    virtual HRESULT STDMETHODCALLTYPE GetApplicationBase(CLRDATA_ADDRESS appDomain, int count, __out_z __inout_ecount(count) wchar_t *base, unsigned int *pNeeded);
+    virtual HRESULT STDMETHODCALLTYPE GetPrivateBinPaths(CLRDATA_ADDRESS appDomain, int count, __out_z __inout_ecount(count) WCHAR *paths, unsigned int *pNeeded);
+    virtual HRESULT STDMETHODCALLTYPE GetAssemblyLocation(CLRDATA_ADDRESS assembly, int count, __out_z __inout_ecount(count) WCHAR *location, unsigned int *pNeeded);
+    virtual HRESULT STDMETHODCALLTYPE GetAppDomainConfigFile(CLRDATA_ADDRESS appDomain, int count, __out_z __inout_ecount(count) WCHAR *configFile, unsigned int *pNeeded);
+    virtual HRESULT STDMETHODCALLTYPE GetApplicationBase(CLRDATA_ADDRESS appDomain, int count, __out_z __inout_ecount(count) WCHAR *base, unsigned int *pNeeded);
     
     virtual HRESULT STDMETHODCALLTYPE GetFailedAssemblyData(CLRDATA_ADDRESS assembly, unsigned int *pContext, HRESULT *pResult);
-    virtual HRESULT STDMETHODCALLTYPE GetFailedAssemblyLocation(CLRDATA_ADDRESS assembly, unsigned int count, __out_z __inout_ecount(count) wchar_t *location, unsigned int *pNeeded);
-    virtual HRESULT STDMETHODCALLTYPE GetFailedAssemblyDisplayName(CLRDATA_ADDRESS assembly, unsigned int count, __out_z __inout_ecount(count) wchar_t *name, unsigned int *pNeeded);
+    virtual HRESULT STDMETHODCALLTYPE GetFailedAssemblyLocation(CLRDATA_ADDRESS assembly, unsigned int count, __out_z __inout_ecount(count) WCHAR *location, unsigned int *pNeeded);
+    virtual HRESULT STDMETHODCALLTYPE GetFailedAssemblyDisplayName(CLRDATA_ADDRESS assembly, unsigned int count, __out_z __inout_ecount(count) WCHAR *name, unsigned int *pNeeded);
     
     virtual HRESULT STDMETHODCALLTYPE GetStackReferences(DWORD osThreadID, ISOSStackRefEnum **ppEnum);
-    virtual HRESULT STDMETHODCALLTYPE GetRegisterName(int regNum, unsigned int count, __out_z __inout_ecount(count) wchar_t *buffer, unsigned int *pNeeded);
+    virtual HRESULT STDMETHODCALLTYPE GetRegisterName(int regNum, unsigned int count, __out_z __inout_ecount(count) WCHAR *buffer, unsigned int *pNeeded);
     
     virtual HRESULT STDMETHODCALLTYPE GetHandleEnum(ISOSHandleEnum **ppHandleEnum);
     virtual HRESULT STDMETHODCALLTYPE GetHandleEnumForTypes(unsigned int types[], unsigned int count, ISOSHandleEnum **ppHandleEnum);
@@ -1187,6 +1188,12 @@ public:
 
     // ISOSDacInterface6
     virtual HRESULT STDMETHODCALLTYPE GetMethodTableCollectibleData(CLRDATA_ADDRESS mt, struct DacpMethodTableCollectibleData *data);
+
+    // ISOSDacInterface7
+    virtual HRESULT STDMETHODCALLTYPE GetPendingReJITID(CLRDATA_ADDRESS methodDesc, int *pRejitId);
+    virtual HRESULT STDMETHODCALLTYPE GetReJITInformation(CLRDATA_ADDRESS methodDesc, int rejitId, struct DacpReJitData2 *pReJitData);
+    virtual HRESULT STDMETHODCALLTYPE GetProfilerModifiedILInformation(CLRDATA_ADDRESS methodDesc, struct DacpProfilerILData *pILData);
+    virtual HRESULT STDMETHODCALLTYPE GetMethodsWithProfilerModifiedIL(CLRDATA_ADDRESS mod, CLRDATA_ADDRESS *methodDescs, int cMethodDescs, int *pcMethodDescs);
 
     //
     // ClrDataAccess.
@@ -1986,9 +1993,9 @@ private:
         
         // Walk the stack, set mEnumerated to true to ensure we don't do it again.
         unsigned int flagsStackWalk = ALLOW_INVALID_OBJECTS|ALLOW_ASYNC_STACK_WALK|SKIP_GSCOOKIE_CHECK;
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
         flagsStackWalk |= GC_FUNCLET_REFERENCE_REPORTING;
-#endif // defined(WIN64EXCEPTIONS)
+#endif // defined(FEATURE_EH_FUNCLETS)
 
         mEnumerated = true;
         mThread->StackWalkFrames(DacStackReferenceWalker::Callback, &gcctx, flagsStackWalk);
@@ -3493,11 +3500,11 @@ private:
 //
 //----------------------------------------------------------------------------
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
 typedef ExceptionTracker ClrDataExStateType;
-#else // WIN64EXCEPTIONS
+#else // FEATURE_EH_FUNCLETS
 typedef ExInfo ClrDataExStateType;
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 
 class ClrDataExceptionState : public IXCLRDataExceptionState

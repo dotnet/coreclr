@@ -5,7 +5,7 @@
 #ifndef _METADATATRACKER_H_
 #define _METADATATRACKER_H_
 
-#if defined(FEATURE_PREJIT) && defined(FEATURE_WINDOWSPHONE)
+#ifdef FEATURE_PREJIT
 
 #define METADATATRACKER_DATA 1
 #if !defined(DACCESS_COMPILE)
@@ -71,11 +71,10 @@ public:
 
         m_ModuleName = NULL;
 
-        DWORD len = (DWORD)wcslen(modName);
-        _ASSERTE(len + 1 != 0);      // Prevent Overflow
-        m_ModuleName = new wchar_t[len + 1];
-        NewArrayHolder<wchar_t> moduleNameHolder(m_ModuleName);
-        wcscpy_s((wchar_t *)m_ModuleName, len + 1, (wchar_t *)modName);
+        size_t len = wcslen(modName);
+        m_ModuleName = new WCHAR[len + 1];
+        NewArrayHolder<WCHAR> moduleNameHolder(m_ModuleName);
+        wcscpy_s((WCHAR *)m_ModuleName, len + 1, (WCHAR *)modName);
 
         m_MetadataBase = baseAddress;
         m_MetadataSize = mdSize; 

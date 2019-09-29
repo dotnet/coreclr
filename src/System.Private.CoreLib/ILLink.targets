@@ -48,7 +48,7 @@
        rewriting the assembly to an "output assembly"
   -->
   <UsingTask TaskName="ILLink" AssemblyFile="$(ILLinkTasksPath)" />
-  <Target Name="ILLinkTrimAssembly" Condition="'$(ILLinkTrimAssembly)' == 'true'" DependsOnTargets="EnsureBuildToolsRuntime">
+  <Target Name="ILLinkTrimAssembly" Condition="'$(ILLinkTrimAssembly)' == 'true'">
     <PropertyGroup>
       <ILLinkArgs>$(ILLinkArgs)-r $(TargetName)</ILLinkArgs>
       <!-- default action for core assemblies -->
@@ -62,8 +62,6 @@
       <ILLinkArgs>$(ILLinkArgs) -v true</ILLinkArgs>
       <!-- don't remove the embedded root xml resource since ILLink may run again on the assembly -->
       <ILLinkArgs>$(ILLinkArgs) --strip-resources false</ILLinkArgs>
-      <!-- reflection heuristics to apply -->
-      <ILLinkArgs>$(ILLinkArgs) -h LdtokenTypeMethods,InstanceConstructors</ILLinkArgs>
     </PropertyGroup>
 
     <MakeDir Directories="$(ILLinkTrimInputPath)" />

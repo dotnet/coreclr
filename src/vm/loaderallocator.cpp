@@ -7,6 +7,7 @@
 #include "stringliteralmap.h"
 #include "virtualcallstub.h"
 #include "threadsuspend.h"
+#include "mlinfo.h"
 #ifndef DACCESS_COMPILE
 #include "comdelegate.h"
 #endif
@@ -686,15 +687,7 @@ BOOL QCALLTYPE LoaderAllocator::Destroy(QCall::LoaderAllocatorHandle pLoaderAllo
         if (pDomainAssembly != NULL)
         {
             Assembly *pAssembly = pDomainAssembly->GetCurrentAssembly();
-
-            //if not fully loaded, it is still domain specific, so just get one from DomainAssembly
-            BaseDomain *pDomain = pAssembly ? pAssembly->Parent() : pDomainAssembly->GetAppDomain();
-
-            // This will probably change for shared code unloading
-            _ASSERTE(pDomain->IsAppDomain());
-
-            AppDomain *pAppDomain = pDomain->AsAppDomain();
-            pLoaderAllocator->m_pFirstDomainAssemblyFromSameALCToDelete = pAssembly->GetDomainAssembly(pAppDomain);
+            pLoaderAllocator->m_pFirstDomainAssemblyFromSameALCToDelete = pAssembly->GetDomainAssembly();
         }
 
         // Iterate through all references to other loader allocators and decrement their reference
@@ -1112,13 +1105,7 @@ void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory)
     // Take a page from the high-frequency heap for this.
     if (pExecutableHeapMemory != NULL)
     {
-#ifdef FEATURE_WINDOWSPHONE
-        // code:UMEntryThunk::CreateUMEntryThunk allocates memory on executable loader heap for phone.
-        // Reserve enough for a typical phone app to fit.
-        dwExecutableHeapReserveSize = 3 * GetOsPageSize();
-#else
         dwExecutableHeapReserveSize = GetOsPageSize();
-#endif
 
         _ASSERTE(dwExecutableHeapReserveSize < dwHighFrequencyHeapReserveSize);
         dwHighFrequencyHeapReserveSize -= dwExecutableHeapReserveSize;
@@ -1133,7 +1120,7 @@ void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory)
 
     dwTotalReserveMemSize = (DWORD) ALIGN_UP(dwTotalReserveMemSize, VIRTUAL_ALLOC_RESERVE_GRANULARITY);
 
-#if !defined(_WIN64)
+#if !defined(BIT64)
     // Make sure that we reserve as little as possible on 32-bit to save address space
     _ASSERTE(dwTotalReserveMemSize <= VIRTUAL_ALLOC_RESERVE_GRANULARITY);
 #endif
@@ -1547,53 +1534,6 @@ DispatchToken LoaderAllocator::GetDispatchToken(
 #endif // FAT_DISPATCH_TOKENS
 
     return DispatchToken::CreateDispatchToken(typeId, slotNumber);
-}
-
-DispatchToken LoaderAllocator::TryLookupDispatchToken(UINT32 typeId, UINT32 slotNumber)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    } CONTRACTL_END;
-
-#ifdef FAT_DISPATCH_TOKENS
-
-    if (DispatchToken::RequiresDispatchTokenFat(typeId, slotNumber))
-    {
-        if (m_pFatTokenSetLock != NULL)
-        {
-            DispatchTokenFat * pFat = NULL;
-            // Stack probes and locking operations are throwing. Catch all
-            // exceptions and just return an invalid token, since this is
-            EX_TRY
-            {
-                SimpleReadLockHolder rlock(m_pFatTokenSetLock);
-                if (m_pFatTokenSet != NULL)
-                {
-                    DispatchTokenFat key(typeId, slotNumber);
-                    pFat = m_pFatTokenSet->Lookup(&key);
-                }
-            }
-            EX_CATCH
-            {
-                pFat = NULL;
-            }
-            EX_END_CATCH(SwallowAllExceptions);
-
-            if (pFat != NULL)
-            {
-                return DispatchToken(pFat);
-            }
-        }
-        // Return invalid token when not found.
-        return DispatchToken();
-    }
-    else
-#endif // FAT_DISPATCH_TOKENS
-    {
-        return DispatchToken::CreateDispatchToken(typeId, slotNumber);
-    }
 }
 
 void LoaderAllocator::InitVirtualCallStubManager(BaseDomain * pDomain)

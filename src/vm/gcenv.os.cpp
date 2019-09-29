@@ -32,17 +32,13 @@ uint32_t g_pageSizeUnixInl = 0;
 
 static AffinitySet g_processAffinitySet;
 
-#ifdef FEATURE_PAL
-static uint32_t g_currentProcessCpuCount;
-#endif // FEATURE_PAL
-
 class GroupProcNo
 {
     uint16_t m_groupProc;
 
 public:
 
-    static const uint16_t NoGroup = 0x3ff;
+    static const uint16_t NoGroup = 0;
 
     GroupProcNo(uint16_t groupProc) : m_groupProc(groupProc)
     {
@@ -50,7 +46,8 @@ public:
 
     GroupProcNo(uint16_t group, uint16_t procIndex) : m_groupProc((group << 6) | procIndex)
     {
-        assert(group <= 0x3ff);
+        // Making this the same as the # of NUMA node we support.
+        assert(group < 0x40);
         assert(procIndex <= 0x3f);
     }
 
@@ -111,15 +108,15 @@ bool GCToOSInterface::Initialize()
 #ifdef FEATURE_PAL
     g_pageSizeUnixInl = GetOsPageSize();
 
-    g_currentProcessCpuCount = PAL_GetLogicalCpuCountFromOS();
+    uint32_t currentProcessCpuCount = PAL_GetLogicalCpuCountFromOS();
     if (PAL_GetCurrentThreadAffinitySet(AffinitySet::BitsetDataSize, g_processAffinitySet.GetBitsetData()))
     {
-        assert(g_currentProcessCpuCount == g_processAffinitySet.Count());
+        assert(currentProcessCpuCount == g_processAffinitySet.Count());
     }
     else
     {
         // There is no way to get affinity on the current OS, set the affinity set to reflect all processors
-        for (size_t i = 0; i < g_currentProcessCpuCount; i++)
+        for (size_t i = 0; i < currentProcessCpuCount; i++)
         {
             g_processAffinitySet.Add(i);
         }
@@ -197,6 +194,8 @@ bool GCToOSInterface::SetCurrentThreadIdealAffinity(uint16_t srcProcNo, uint16_t
     GroupProcNo srcGroupProcNo(srcProcNo);
     GroupProcNo dstGroupProcNo(dstProcNo);
 
+    PROCESSOR_NUMBER proc;
+
     if (CPUGroupInfo::CanEnableGCCPUGroups())
     {
         if (srcGroupProcNo.GetGroup() != dstGroupProcNo.GetGroup())
@@ -205,20 +204,12 @@ bool GCToOSInterface::SetCurrentThreadIdealAffinity(uint16_t srcProcNo, uint16_t
             //group. DO NOT MOVE THREADS ACROSS CPU GROUPS
             return true;
         }
-    }
 
-#if !defined(FEATURE_CORESYSTEM)
-    SetThreadIdealProcessor(GetCurrentThread(), (DWORD)dstGroupProcNo.GetProcIndex());
-#else
-    PROCESSOR_NUMBER proc;
-
-    if (dstGroupProcNo.GetGroup() != GroupProcNo::NoGroup)
-    {
         proc.Group = (WORD)dstGroupProcNo.GetGroup();
         proc.Number = (BYTE)dstGroupProcNo.GetProcIndex();
         proc.Reserved = 0;
 
-        success = !!SetThreadIdealProcessorEx(GetCurrentThread(), &proc, NULL);
+        success = !!SetThreadIdealProcessorEx(GetCurrentThread (), &proc, NULL);
     }
     else
     {
@@ -228,13 +219,31 @@ bool GCToOSInterface::SetCurrentThreadIdealAffinity(uint16_t srcProcNo, uint16_t
             success = !!SetThreadIdealProcessorEx(GetCurrentThread(), &proc, &proc);
         }
     }
-#endif // !FEATURE_CORESYSTEM
+
     return success;
 
 #else // !FEATURE_PAL
-    return GCToOSInterface::SetThreadAffinity(dstProcNo);
+
+    // There is no way to set a thread ideal processor on Unix, so do nothing.
+    return true;
 
 #endif // !FEATURE_PAL
+}
+
+bool GCToOSInterface::GetCurrentThreadIdealProc(uint16_t* procNo)
+{
+    LIMITED_METHOD_CONTRACT;
+    bool success = false;
+#ifndef FEATURE_PAL
+    PROCESSOR_NUMBER proc;
+    success = !!GetThreadIdealProcessorEx(GetCurrentThread(), &proc);
+    if (success)
+    {
+        GroupProcNo groupProcNo(proc.Group, proc.Number);
+        *procNo = groupProcNo.GetCombinedValue();
+    }
+#endif //FEATURE_PAL
+    return success;
 }
 
 // Get the number of the current processor
@@ -243,7 +252,16 @@ uint32_t GCToOSInterface::GetCurrentProcessorNumber()
     LIMITED_METHOD_CONTRACT;
 
     _ASSERTE(CanGetCurrentProcessorNumber());
+
+#ifndef FEATURE_PAL
+    PROCESSOR_NUMBER proc_no_cpu_group;
+    GetCurrentProcessorNumberEx(&proc_no_cpu_group);
+
+    GroupProcNo groupProcNo(proc_no_cpu_group.Group, proc_no_cpu_group.Number);
+    return groupProcNo.GetCombinedValue();
+#else
     return ::GetCurrentProcessorNumber();
+#endif //!FEATURE_PAL
 }
 
 // Check if the OS supports getting current processor number
@@ -297,25 +315,33 @@ void GCToOSInterface::YieldThread(uint32_t switchCount)
 //  size      - size of the virtual memory range
 //  alignment - requested memory alignment
 //  flags     - flags to control special settings like write watching
+//  node      - the NUMA node to reserve memory on
 // Return:
 //  Starting virtual address of the reserved range
-void* GCToOSInterface::VirtualReserve(size_t size, size_t alignment, uint32_t flags)
+void* GCToOSInterface::VirtualReserve(size_t size, size_t alignment, uint32_t flags, uint16_t node)
 {
     LIMITED_METHOD_CONTRACT;
 
-    DWORD memFlags = (flags & VirtualReserveFlags::WriteWatch) ? (MEM_RESERVE | MEM_WRITE_WATCH) : MEM_RESERVE;
-
-    // This is not strictly necessary for a correctness standpoint. Windows already guarantees
-    // allocation granularity alignment when using MEM_RESERVE, so aligning the size here has no effect.
-    // However, ClrVirtualAlloc does expect the size to be aligned to the allocation granularity.
-    size_t aligned_size = (size + g_SystemInfo.dwAllocationGranularity - 1) & ~static_cast<size_t>(g_SystemInfo.dwAllocationGranularity - 1);
-    if (alignment == 0)
+    if (node == NUMA_NODE_UNDEFINED)
     {
-        return ::ClrVirtualAlloc(0, aligned_size, memFlags, PAGE_READWRITE);
+        DWORD memFlags = (flags & VirtualReserveFlags::WriteWatch) ? (MEM_RESERVE | MEM_WRITE_WATCH) : MEM_RESERVE;
+
+        // This is not strictly necessary for a correctness standpoint. Windows already guarantees
+        // allocation granularity alignment when using MEM_RESERVE, so aligning the size here has no effect.
+        // However, ClrVirtualAlloc does expect the size to be aligned to the allocation granularity.
+        size_t aligned_size = (size + g_SystemInfo.dwAllocationGranularity - 1) & ~static_cast<size_t>(g_SystemInfo.dwAllocationGranularity - 1);
+        if (alignment == 0)
+        {
+            return ::ClrVirtualAlloc (0, aligned_size, memFlags, PAGE_READWRITE);
+        }
+        else
+        {
+            return ::ClrVirtualAllocAligned (0, aligned_size, memFlags, PAGE_READWRITE, alignment);
+        }
     }
     else
     {
-        return ::ClrVirtualAllocAligned(0, aligned_size, memFlags, PAGE_READWRITE, alignment);
+        return NumaNodeInfo::VirtualAllocExNuma (::GetCurrentProcess (), NULL, size, MEM_RESERVE, PAGE_READWRITE, node);
     }
 }
 
@@ -427,7 +453,7 @@ bool GCToOSInterface::SupportsWriteWatch()
     // check if the OS supports write-watch. 
     // Drawbridge does not support write-watch so we still need to do the runtime detection for them.
     // Otherwise, all currently supported OSes do support write-watch.
-    void* mem = VirtualReserve (g_SystemInfo.dwAllocationGranularity, 0, VirtualReserveFlags::WriteWatch);
+    void* mem = VirtualReserve(g_SystemInfo.dwAllocationGranularity, 0, VirtualReserveFlags::WriteWatch);
     if (mem != NULL)
     {
         VirtualRelease (mem, g_SystemInfo.dwAllocationGranularity);
@@ -495,7 +521,7 @@ bool GCToOSInterface::SetThreadAffinity(uint16_t procNo)
 #ifndef FEATURE_PAL
     GroupProcNo groupProcNo(procNo);
 
-    if (groupProcNo.GetGroup() != GroupProcNo::NoGroup)
+    if (CPUGroupInfo::CanEnableGCCPUGroups())
     {
         GROUP_AFFINITY ga;
         ga.Group = (WORD)groupProcNo.GetGroup();
@@ -582,7 +608,7 @@ uint32_t GCToOSInterface::GetCurrentProcessCpuCount()
                 GCToOSInterface::GetTotalProcessorCount():
                 ::GetCurrentProcessCpuCount();
 #else // !FEATURE_PAL
-    return g_currentProcessCpuCount;
+    return ::GetCurrentProcessCpuCount();
 #endif // !FEATURE_PAL
 }
 
@@ -939,6 +965,34 @@ bool GCToOSInterface::CanEnableGCNumaAware()
     return NumaNodeInfo::CanEnableGCNumaAware() != FALSE;
 }
 
+bool GCToOSInterface::GetNumaInfo(uint16_t* total_nodes, uint32_t* max_procs_per_node)
+{
+#ifndef FEATURE_PAL
+    return NumaNodeInfo::GetNumaInfo(total_nodes, (DWORD*)max_procs_per_node);
+#else
+    return false;
+#endif //!FEATURE_PAL
+}
+
+bool GCToOSInterface::GetCPUGroupInfo(uint16_t* total_groups, uint32_t* max_procs_per_group)
+{
+#ifndef FEATURE_PAL
+    return CPUGroupInfo::GetCPUGroupInfo(total_groups, (DWORD*)max_procs_per_group);
+#else
+    return false;
+#endif //!FEATURE_PAL
+}
+
+bool GCToOSInterface::CanEnableGCCPUGroups()
+{
+    LIMITED_METHOD_CONTRACT;
+#ifndef FEATURE_PAL
+    return CPUGroupInfo::CanEnableGCCPUGroups() != FALSE;
+#else
+    return false;
+#endif //!FEATURE_PAL
+}
+
 // Get processor number and optionally its NUMA node number for the specified heap number
 // Parameters:
 //  heap_number - heap number to get the result for
@@ -986,20 +1040,20 @@ bool GCToOSInterface::GetProcessorForHeap(uint16_t heap_number, uint16_t* proc_n
         GroupProcNo groupProcNo(gn, gpn);
         *proc_no = groupProcNo.GetCombinedValue();
 
+        PROCESSOR_NUMBER procNumber;
+
+        if (CPUGroupInfo::CanEnableGCCPUGroups())
+        {
+            procNumber.Group = gn;
+        }
+        else
+        {
+            // Get the current processor group
+            GetCurrentProcessorNumberEx(&procNumber);
+        }
+
         if (GCToOSInterface::CanEnableGCNumaAware())
         {
-            PROCESSOR_NUMBER procNumber;
-
-            if (CPUGroupInfo::CanEnableGCCPUGroups())
-            {
-                procNumber.Group = gn;
-            }
-            else
-            {
-                // Get the current processor group
-                GetCurrentProcessorNumberEx(&procNumber);
-            }
-
             procNumber.Number   = (BYTE)gpn;
             procNumber.Reserved = 0;
 
@@ -1010,7 +1064,7 @@ bool GCToOSInterface::GetProcessorForHeap(uint16_t heap_number, uint16_t* proc_n
         }
         else
         {   // no numa setting, each cpu group is treated as a node
-            *node_no = groupProcNo.GetGroup();
+            *node_no = procNumber.Group;
         }
 #else // !FEATURE_PAL
         *proc_no = procIndex;
@@ -1081,28 +1135,28 @@ bool GCToOSInterface::ParseGCHeapAffinitizeRangesEntry(const char** config_strin
 void CLRCriticalSection::Initialize()
 {
     WRAPPER_NO_CONTRACT;
-    UnsafeInitializeCriticalSection(&m_cs);
+    InitializeCriticalSection(&m_cs);
 }
 
 // Destroy the critical section
 void CLRCriticalSection::Destroy()
 {
     WRAPPER_NO_CONTRACT;
-    UnsafeDeleteCriticalSection(&m_cs);
+    DeleteCriticalSection(&m_cs);
 }
 
 // Enter the critical section. Blocks until the section can be entered.
 void CLRCriticalSection::Enter()
 {
     WRAPPER_NO_CONTRACT;
-    UnsafeEnterCriticalSection(&m_cs);
+    EnterCriticalSection(&m_cs);
 }
 
 // Leave the critical section
 void CLRCriticalSection::Leave()
 {
     WRAPPER_NO_CONTRACT;
-    UnsafeLeaveCriticalSection(&m_cs);
+    LeaveCriticalSection(&m_cs);
 }
 
 // An implementatino of GCEvent that delegates to

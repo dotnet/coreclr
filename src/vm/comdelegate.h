@@ -113,12 +113,6 @@ public:
     // get the one single delegate invoke stub
     static PCODE TheDelegateInvokeStub();
 
-#ifdef _TARGET_X86_
-#ifdef MDA_SUPPORTED
-    static Stub *GenerateStubForMDA(MethodDesc *pInvokeMD, MethodDesc *pStubMD, LPVOID pNativeTarget, Stub *pInnerStub);
-#endif // MDA_SUPPORTED
-#endif // _TARGET_X86_
-
     static MethodDesc * __fastcall GetMethodDesc(OBJECTREF obj);
     static OBJECTREF GetTargetObject(OBJECTREF obj);
 
@@ -144,9 +138,6 @@ public:
     static BOOL ValidateCtor(TypeHandle objHnd, TypeHandle ftnParentHnd, MethodDesc *pFtn, TypeHandle dlgtHnd, BOOL *pfIsOpenDelegate);
 
 private:
-    static BOOL ValidateBeginInvoke(DelegateEEClass* pClass);   // make certain the BeginInvoke method is consistant with the Invoke Method
-    static BOOL ValidateEndInvoke(DelegateEEClass* pClass);     // make certain the EndInvoke method is consistant with the Invoke Method
-
     static void BindToMethod(DELEGATEREF   *pRefThis,
                              OBJECTREF     *pRefFirstArg,
                              MethodDesc    *pTargetMethod,
@@ -203,6 +194,7 @@ struct ShuffleEntry
         OFSMASK      = 0x7fff, // Mask to get stack offset
         OFSREGMASK   = 0x1fff, // Mask to get register index
         SENTINEL     = 0xffff, // Indicates end of shuffle array
+        HELPERREG    = 0xcfff, // Use a helper register as source or destination (used to handle cycles in the shuffling)
     };
 
 #if defined(_TARGET_AMD64_) && !defined(UNIX_AMD64_ABI)

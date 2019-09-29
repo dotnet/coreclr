@@ -21,18 +21,20 @@ namespace System
 {
     // Note: users should make sure they copy the fields out of an ArraySegment onto their stack
     // then validate that the fields describe valid bounds within the array.  This must be done
-    // because assignments to value types are not atomic, and also because one thread reading 
+    // because assignments to value types are not atomic, and also because one thread reading
     // three fields from an ArraySegment may not see the same ArraySegment from one call to another
-    // (ie, users could assign a new value to the old location).  
+    // (ie, users could assign a new value to the old location).
     [Serializable]
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public readonly struct ArraySegment<T> : IList<T>, IReadOnlyList<T>
     {
         // Do not replace the array allocation with Array.Empty. We don't want to have the overhead of
         // instantiating another generic type in addition to ArraySegment<T> for new type parameters.
+#pragma warning disable CA1825
         public static ArraySegment<T> Empty { get; } = new ArraySegment<T>(new T[0]);
+#pragma warning restore CA1825
 
-        private readonly T[] _array; // Do not rename (binary serialization)
+        private readonly T[]? _array; // Do not rename (binary serialization)
         private readonly int _offset; // Do not rename (binary serialization)
         private readonly int _count; // Do not rename (binary serialization)
 
@@ -59,7 +61,7 @@ namespace System
             _count = count;
         }
 
-        public T[] Array => _array;
+        public T[]? Array => _array;
 
         public int Offset => _offset;
 
@@ -74,7 +76,7 @@ namespace System
                     ThrowHelper.ThrowArgumentOutOfRange_IndexException();
                 }
 
-                return _array[_offset + index];
+                return _array![_offset + index];
             }
             set
             {
@@ -83,7 +85,7 @@ namespace System
                     ThrowHelper.ThrowArgumentOutOfRange_IndexException();
                 }
 
-                _array[_offset + index] = value;
+                _array![_offset + index] = value;
             }
         }
 
@@ -93,29 +95,15 @@ namespace System
             return new Enumerator(this);
         }
 
-        public override int GetHashCode()
-        {
-            if (_array == null)
-            {
-                return 0;
-            }
-
-            int hash = 5381;
-            hash = System.Numerics.Hashing.HashHelpers.Combine(hash, _offset);
-            hash = System.Numerics.Hashing.HashHelpers.Combine(hash, _count);
-
-            // The array hash is expected to be an evenly-distributed mixture of bits,
-            // so rather than adding the cost of another rotation we just xor it.
-            hash ^= _array.GetHashCode();
-            return hash;
-        }
+        public override int GetHashCode() =>
+            _array is null ? 0 : HashCode.Combine(_offset, _count, _array.GetHashCode());
 
         public void CopyTo(T[] destination) => CopyTo(destination, 0);
 
         public void CopyTo(T[] destination, int destinationIndex)
         {
             ThrowInvalidOperationIfDefault();
-            System.Array.Copy(_array, _offset, destination, destinationIndex, _count);
+            System.Array.Copy(_array!, _offset, destination, destinationIndex, _count);
         }
 
         public void CopyTo(ArraySegment<T> destination)
@@ -128,32 +116,25 @@ namespace System
                 ThrowHelper.ThrowArgumentException_DestinationTooShort();
             }
 
-            System.Array.Copy(_array, _offset, destination._array, destination._offset, _count);
+            System.Array.Copy(_array!, _offset, destination._array!, destination._offset, _count);
         }
 
-        public override bool Equals(object obj)
-        {
-            if (obj is ArraySegment<T>)
-                return Equals((ArraySegment<T>)obj);
-            else
-                return false;
-        }
+        public override bool Equals(object? obj) =>
+            obj is ArraySegment<T> && Equals((ArraySegment<T>)obj);
 
-        public bool Equals(ArraySegment<T> obj)
-        {
-            return obj._array == _array && obj._offset == _offset && obj._count == _count;
-        }
+        public bool Equals(ArraySegment<T> obj) =>
+            obj._array == _array && obj._offset == _offset && obj._count == _count;
 
         public ArraySegment<T> Slice(int index)
         {
             ThrowInvalidOperationIfDefault();
-            
+
             if ((uint)index > (uint)_count)
             {
                 ThrowHelper.ThrowArgumentOutOfRange_IndexException();
             }
 
-            return new ArraySegment<T>(_array, _offset + index, _count - index);
+            return new ArraySegment<T>(_array!, _offset + index, _count - index);
         }
 
         public ArraySegment<T> Slice(int index, int count)
@@ -165,7 +146,7 @@ namespace System
                 ThrowHelper.ThrowArgumentOutOfRange_IndexException();
             }
 
-            return new ArraySegment<T>(_array, _offset + index, count);
+            return new ArraySegment<T>(_array!, _offset + index, count);
         }
 
         public T[] ToArray()
@@ -174,23 +155,17 @@ namespace System
 
             if (_count == 0)
             {
-                return Empty._array;
+                return Empty._array!;
             }
 
             var array = new T[_count];
-            System.Array.Copy(_array, _offset, array, 0, _count);
+            System.Array.Copy(_array!, _offset, array, 0, _count);
             return array;
         }
 
-        public static bool operator ==(ArraySegment<T> a, ArraySegment<T> b)
-        {
-            return a.Equals(b);
-        }
+        public static bool operator ==(ArraySegment<T> a, ArraySegment<T> b) => a.Equals(b);
 
-        public static bool operator !=(ArraySegment<T> a, ArraySegment<T> b)
-        {
-            return !(a == b);
-        }
+        public static bool operator !=(ArraySegment<T> a, ArraySegment<T> b) => !(a == b);
 
         public static implicit operator ArraySegment<T>(T[] array) => array != null ? new ArraySegment<T>(array) : default;
 
@@ -203,7 +178,7 @@ namespace System
                 if (index < 0 || index >= _count)
                     ThrowHelper.ThrowArgumentOutOfRange_IndexException();
 
-                return _array[_offset + index];
+                return _array![_offset + index];
             }
 
             set
@@ -212,7 +187,7 @@ namespace System
                 if (index < 0 || index >= _count)
                     ThrowHelper.ThrowArgumentOutOfRange_IndexException();
 
-                _array[_offset + index] = value;
+                _array![_offset + index] = value;
             }
         }
 
@@ -220,7 +195,7 @@ namespace System
         {
             ThrowInvalidOperationIfDefault();
 
-            int index = System.Array.IndexOf<T>(_array, item, _offset, _count);
+            int index = System.Array.IndexOf<T>(_array!, item, _offset, _count);
 
             Debug.Assert(index == -1 ||
                             (index >= _offset && index < _offset + _count));
@@ -228,15 +203,9 @@ namespace System
             return index >= 0 ? index - _offset : -1;
         }
 
-        void IList<T>.Insert(int index, T item)
-        {
-            ThrowHelper.ThrowNotSupportedException();
-        }
+        void IList<T>.Insert(int index, T item) => ThrowHelper.ThrowNotSupportedException();
 
-        void IList<T>.RemoveAt(int index)
-        {
-            ThrowHelper.ThrowNotSupportedException();
-        }
+        void IList<T>.RemoveAt(int index) => ThrowHelper.ThrowNotSupportedException();
         #endregion
 
         #region IReadOnlyList<T>
@@ -248,37 +217,26 @@ namespace System
                 if (index < 0 || index >= _count)
                     ThrowHelper.ThrowArgumentOutOfRange_IndexException();
 
-                return _array[_offset + index];
+                return _array![_offset + index];
             }
         }
         #endregion IReadOnlyList<T>
 
         #region ICollection<T>
-        bool ICollection<T>.IsReadOnly
-        {
-            get
-            {
-                // the indexer setter does not throw an exception although IsReadOnly is true.
-                // This is to match the behavior of arrays.
-                return true;
-            }
-        }
+        bool ICollection<T>.IsReadOnly =>
+            // the indexer setter does not throw an exception although IsReadOnly is true.
+            // This is to match the behavior of arrays.
+            true;
 
-        void ICollection<T>.Add(T item)
-        {
-            ThrowHelper.ThrowNotSupportedException();
-        }
+        void ICollection<T>.Add(T item) => ThrowHelper.ThrowNotSupportedException();
 
-        void ICollection<T>.Clear()
-        {
-            ThrowHelper.ThrowNotSupportedException();
-        }
+        void ICollection<T>.Clear() => ThrowHelper.ThrowNotSupportedException();
 
         bool ICollection<T>.Contains(T item)
         {
             ThrowInvalidOperationIfDefault();
 
-            int index = System.Array.IndexOf<T>(_array, item, _offset, _count);
+            int index = System.Array.IndexOf<T>(_array!, item, _offset, _count);
 
             Debug.Assert(index == -1 ||
                             (index >= _offset && index < _offset + _count));
@@ -313,7 +271,7 @@ namespace System
 
         public struct Enumerator : IEnumerator<T>
         {
-            private readonly T[] _array;
+            private readonly T[]? _array;
             private readonly int _start;
             private readonly int _end; // cache Offset + Count, since it's a little slow
             private int _current;
@@ -336,7 +294,7 @@ namespace System
                 if (_current < _end)
                 {
                     _current++;
-                    return (_current < _end);
+                    return _current < _end;
                 }
                 return false;
             }
@@ -349,11 +307,11 @@ namespace System
                         ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumNotStarted();
                     if (_current >= _end)
                         ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumEnded();
-                    return _array[_current];
+                    return _array![_current];
                 }
             }
 
-            object IEnumerator.Current => Current;
+            object? IEnumerator.Current => Current;
 
             void IEnumerator.Reset()
             {

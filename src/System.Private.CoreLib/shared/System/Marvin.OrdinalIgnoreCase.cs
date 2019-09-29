@@ -5,9 +5,10 @@
 using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Text;
+using System.Text.Unicode;
 using Internal.Runtime.CompilerServices;
 
+#pragma warning disable SA1121 // explicitly using type aliases instead of built-in types
 #if BIT64
 using nuint = System.UInt64;
 #else
@@ -66,7 +67,7 @@ namespace System
             return (int)(p1 ^ p0);
 
         NotAscii:
-            Debug.Assert(0 <= ucount && ucount <= Int32.MaxValue); // this should fit into a signed int
+            Debug.Assert(ucount <= int.MaxValue); // this should fit into a signed int
             return ComputeHash32OrdinalIgnoreCaseSlow(ref Unsafe.AddByteOffset(ref data, byteOffset), (int)ucount, p0, p1);
         }
 
@@ -74,7 +75,7 @@ namespace System
         {
             Debug.Assert(count > 0);
 
-            char[] borrowedArr = null;
+            char[]? borrowedArr = null;
             Span<char> scratch = (uint)count <= 64 ? stackalloc char[64] : (borrowedArr = ArrayPool<char>.Shared.Rent(count));
 
             int charsWritten = new ReadOnlySpan<char>(ref data, count).ToUpperInvariant(scratch);

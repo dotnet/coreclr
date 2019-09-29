@@ -2,11 +2,13 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#if ES_BUILD_STANDALONE
 using System;
+using Environment = Microsoft.Diagnostics.Tracing.Internal.Environment;
+#endif
 using System.Collections.Generic;
 
 #if ES_BUILD_STANDALONE
-using Environment = Microsoft.Diagnostics.Tracing.Internal.Environment;
 namespace Microsoft.Diagnostics.Tracing
 #else
 namespace System.Diagnostics.Tracing
@@ -19,7 +21,7 @@ namespace System.Diagnostics.Tracing
     internal class TraceLoggingMetadataCollector
     {
         private readonly Impl impl;
-        private readonly FieldMetadata currentGroup;
+        private readonly FieldMetadata? currentGroup;
         private int bufferedArrayFieldCount = int.MinValue;
 
         /// <summary>
@@ -53,25 +55,13 @@ namespace System.Diagnostics.Tracing
             set;
         }
 
-        internal int ScratchSize
-        {
-            get { return this.impl.scratchSize; }
-        }
+        internal int ScratchSize => this.impl.scratchSize;
 
-        internal int DataCount
-        {
-            get { return this.impl.dataCount; }
-        }
+        internal int DataCount => this.impl.dataCount;
 
-        internal int PinCount
-        {
-            get { return this.impl.pinCount; }
-        }
+        internal int PinCount => this.impl.pinCount;
 
-        private bool BeginningBufferedArray
-        {
-            get { return this.bufferedArrayFieldCount == 0; }
-        }
+        private bool BeginningBufferedArray => this.bufferedArrayFieldCount == 0;
 
         /// <summary>
         /// Call this method to add a group to the event and to return
@@ -93,7 +83,7 @@ namespace System.Diagnostics.Tracing
         /// <returns>
         /// A new metadata collector that can be used to add fields to the group.
         /// </returns>
-        public TraceLoggingMetadataCollector AddGroup(string name)
+        public TraceLoggingMetadataCollector AddGroup(string? name)
         {
             TraceLoggingMetadataCollector result = this;
 
@@ -101,7 +91,7 @@ namespace System.Diagnostics.Tracing
                 this.BeginningBufferedArray) // Error, FieldMetadata's constructor will throw the appropriate exception.
             {
                 var newGroup = new FieldMetadata(
-                    name,
+                    name!,
                     TraceLoggingDataType.Struct,
                     this.Tags,
                     this.BeginningBufferedArray);
@@ -309,7 +299,7 @@ namespace System.Diagnostics.Tracing
 
         internal byte[] GetMetadata()
         {
-            var size = this.impl.Encode(null);
+            int size = this.impl.Encode(null);
             var metadata = new byte[size];
             this.impl.Encode(metadata);
             return metadata;
@@ -375,11 +365,11 @@ namespace System.Diagnostics.Tracing
                 this.bufferNesting--;
             }
 
-            public int Encode(byte[] metadata)
+            public int Encode(byte[]? metadata)
             {
                 int size = 0;
 
-                foreach (var field in this.fields)
+                foreach (FieldMetadata field in this.fields)
                 {
                     field.Encode(ref size, metadata);
                 }

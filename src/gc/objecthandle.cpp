@@ -79,7 +79,7 @@ void CALLBACK PromoteRefCounted(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t *pExtra
     WRAPPER_NO_CONTRACT;
     UNREFERENCED_PARAMETER(pExtraInfo);
 
-    // there are too many races when asychnronously scanning ref-counted handles so we no longer support it
+    // there are too many races when asynchronously scanning ref-counted handles so we no longer support it
     _ASSERTE(!((ScanContext*)lp1)->concurrent);
 
     LOG((LF_GC, LL_INFO1000, LOG_HANDLE_OBJECT_CLASS("", pObjRef, "causes promotion of ", *pObjRef)));
@@ -623,7 +623,7 @@ bool Ref_Initialize()
         n_slots * sizeof(HHANDLETABLE));
     for (int uCPUindex = 0; uCPUindex < n_slots; uCPUindex++)
     {
-        pBucket->pTable[uCPUindex] = HndCreateHandleTable(s_rgTypeFlags, _countof(s_rgTypeFlags), ADIndex(1));
+        pBucket->pTable[uCPUindex] = HndCreateHandleTable(s_rgTypeFlags, _countof(s_rgTypeFlags));
         if (pBucket->pTable[uCPUindex] == NULL)
             goto CleanupAndFail;
 
@@ -688,7 +688,7 @@ void Ref_Shutdown()
 }
 
 #ifndef FEATURE_REDHAWK
-bool Ref_InitializeHandleTableBucket(HandleTableBucket* bucket, void* context)
+bool Ref_InitializeHandleTableBucket(HandleTableBucket* bucket)
 {
     CONTRACTL
     {
@@ -720,7 +720,7 @@ bool Ref_InitializeHandleTableBucket(HandleTableBucket* bucket, void* context)
     ZeroMemory(result->pTable, n_slots * sizeof(HHANDLETABLE));
 
     for (int uCPUindex=0; uCPUindex < n_slots; uCPUindex++) {
-        result->pTable[uCPUindex] = HndCreateHandleTable(s_rgTypeFlags, _countof(s_rgTypeFlags), ADIndex((DWORD)(uintptr_t)context));
+        result->pTable[uCPUindex] = HndCreateHandleTable(s_rgTypeFlags, _countof(s_rgTypeFlags));
         if (!result->pTable[uCPUindex])
             return false;
     }
@@ -863,11 +863,8 @@ void SetDependentHandleSecondary(OBJECTHANDLE handle, OBJECTREF objref)
     _ASSERTE(handle);
 
 #ifdef _DEBUG
-    // handle should not be in unloaded domain
-    ValidateAppDomainForHandle(handle);
-
     // Make sure the objref is valid before it is assigned to a handle
-    ValidateAssignObjrefForHandle(objref, HndGetHandleTableADIndex(HndGetHandleTable(handle)));
+    ValidateAssignObjrefForHandle(objref);
 #endif
     // unwrap the objectref we were given
     _UNCHECKED_OBJECTREF value = OBJECTREF_TO_UNCHECKED_OBJECTREF(objref);
@@ -967,13 +964,6 @@ void TraceVariableHandles(HANDLESCANPROC pfnTrace, uintptr_t lp1, uintptr_t lp2,
                 HHANDLETABLE hTable = walk->pBuckets[i]->pTable[getSlotNumber((ScanContext*) lp1)];
                 if (hTable)
                 {
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-                    if (g_fEnableARM)
-                    {
-                        ScanContext* sc = (ScanContext *)lp1;
-                        sc->pCurrentDomain = SystemDomain::GetAppDomainAtIndex(HndGetHandleTableADIndex(hTable));
-                    }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
                     HndScanHandlesForGC(hTable, VariableTraceDispatcher,
                                         lp1, (uintptr_t)&info, &type, 1, condemned, maxgen, HNDGCF_EXTRAINFO | flags);
                 }
@@ -1032,13 +1022,6 @@ void Ref_TracePinningRoots(uint32_t condemned, uint32_t maxgen, ScanContext* sc,
                 HHANDLETABLE hTable = walk->pBuckets[i]->pTable[getSlotNumber((ScanContext*) sc)];
                 if (hTable)
                 {
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-                    if (g_fEnableARM)
-                    {
-                        sc->pCurrentDomain = SystemDomain::GetAppDomainAtIndex(HndGetHandleTableADIndex(hTable));
-                    }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
                     // Pinned handles and async pinned handles are scanned in separate passes, since async pinned
                     // handles may require a callback into the EE in order to fully trace an async pinned
                     // object's object graph.
@@ -1074,13 +1057,6 @@ void Ref_TraceNormalRoots(uint32_t condemned, uint32_t maxgen, ScanContext* sc, 
                 HHANDLETABLE hTable = walk->pBuckets[i]->pTable[getSlotNumber(sc)];
                 if (hTable)
                 {
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-                    if (g_fEnableARM)
-                    {
-                        sc->pCurrentDomain = SystemDomain::GetAppDomainAtIndex(HndGetHandleTableADIndex(hTable));
-                    }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
                     HndScanHandlesForGC(hTable, PromoteObject, uintptr_t(sc), uintptr_t(fn), types, uTypeCount, condemned, maxgen, flags);
                 }
             }
@@ -1191,7 +1167,7 @@ void Ref_CheckReachable(uint32_t condemned, uint32_t maxgen, uintptr_t lp1)
 // strong handle to refer to the secondary as this could case a cycle in the graph if the secondary somehow
 // pointed back to the primary. Can't use weak handle because that would not keep the secondary object alive.
 //
-// The result is that a dependenHandle has the EFFECT of 
+// The result is that a dependentHandle has the EFFECT of 
 //    * long weak handles in both the primary and secondary objects
 //    * a strong reference from the primary object to the secondary one
 //
@@ -1360,48 +1336,6 @@ void TraceDependentHandlesBySingleThread(HANDLESCANPROC pfnTrace, uintptr_t lp1,
     }
 }
 
-// We scan handle tables by their buckets (ie, AD index). We could get into the situation where
-// the AD indices are not very compacted (for example if we have just unloaded ADs and their 
-// indices haven't been reused yet) and we could be scanning them in an unbalanced fashion. 
-// Consider using an array to represent the compacted form of all AD indices exist for the 
-// sized ref handles. 
-void ScanSizedRefByAD(uint32_t maxgen, HANDLESCANPROC scanProc, ScanContext* sc, Ref_promote_func* fn, uint32_t flags)
-{
-    HandleTableMap *walk = &g_HandleTableMap;
-    uint32_t type = HNDTYPE_SIZEDREF;
-    int uCPUindex = getSlotNumber(sc);
-    int n_slots = g_theGCHeap->GetNumberOfHeaps();
-
-    while (walk)
-    {
-        for (uint32_t i = 0; i < INITIAL_HANDLE_TABLE_ARRAY_SIZE; i ++)
-        {
-            if (walk->pBuckets[i] != NULL)
-            {
-                ADIndex adIndex = HndGetHandleTableADIndex(walk->pBuckets[i]->pTable[0]);
-                if ((adIndex.m_dwIndex % n_slots) == (uint32_t)uCPUindex)
-                {
-                    for (int index = 0; index < n_slots; index++)
-                    {
-                        HHANDLETABLE hTable = walk->pBuckets[i]->pTable[index];
-                        if (hTable)
-                        {
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-                            if (g_fEnableARM)
-                            {
-                                sc->pCurrentDomain = SystemDomain::GetAppDomainAtIndex(adIndex);
-                            }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-                            HndScanHandlesForGC(hTable, scanProc, uintptr_t(sc), uintptr_t(fn), &type, 1, maxgen, maxgen, flags);
-                        }
-                    }
-                }
-            }
-        }
-        walk = walk->pNext;
-    }
-}
-
 void ScanSizedRefByCPU(uint32_t maxgen, HANDLESCANPROC scanProc, ScanContext* sc, Ref_promote_func* fn, uint32_t flags)
 {
     HandleTableMap *walk = &g_HandleTableMap;
@@ -1417,13 +1351,6 @@ void ScanSizedRefByCPU(uint32_t maxgen, HANDLESCANPROC scanProc, ScanContext* sc
                 HHANDLETABLE hTable = walk->pBuckets[i]->pTable[uCPUindex];
                 if (hTable)
                 {
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-                    if (g_fEnableARM)
-                    {
-                        sc->pCurrentDomain = SystemDomain::GetAppDomainAtIndex(HndGetHandleTableADIndex(hTable));
-                    }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
                     HndScanHandlesForGC(hTable, scanProc, uintptr_t(sc), uintptr_t(fn), &type, 1, maxgen, maxgen, flags);
                 }
             }
@@ -1853,12 +1780,13 @@ OBJECTREF GetDependentHandleSecondary(OBJECTHANDLE handle)
 
 void PopulateHandleTableDacVars(GcDacVars* gcDacVars)
 {
+    UNREFERENCED_PARAMETER(gcDacVars);
+
     static_assert(offsetof(HandleTableMap, pBuckets) == offsetof(dac_handle_table_map, pBuckets), "handle table map DAC layout mismatch");
     static_assert(offsetof(HandleTableMap, pNext) == offsetof(dac_handle_table_map, pNext), "handle table map DAC layout mismatch");
     static_assert(offsetof(HandleTableMap, dwMaxIndex) == offsetof(dac_handle_table_map, dwMaxIndex), "handle table map DAC layout mismatch");
     static_assert(offsetof(HandleTableBucket, pTable) == offsetof(dac_handle_table_bucket, pTable), "handle table bucket DAC layout mismatch");
     static_assert(offsetof(HandleTableBucket, HandleTableIndex) == offsetof(dac_handle_table_bucket, HandleTableIndex), "handle table bucket DAC layout mismatch");
-    static_assert(offsetof(HandleTable, uADIndex) == offsetof(dac_handle_table, uADIndex), "handle table DAC layout mismatch");
 
 #ifndef DACCESS_COMPILE
     gcDacVars->handle_table_map = reinterpret_cast<dac_handle_table_map*>(&g_HandleTableMap);

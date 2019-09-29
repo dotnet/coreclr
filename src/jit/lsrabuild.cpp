@@ -692,7 +692,7 @@ bool LinearScan::isContainableMemoryOp(GenTree* node)
         {
             return true;
         }
-        LclVarDsc* varDsc = &compiler->lvaTable[node->AsLclVar()->gtLclNum];
+        LclVarDsc* varDsc = &compiler->lvaTable[node->AsLclVar()->GetLclNum()];
         return varDsc->lvDoNotEnregister;
     }
     return false;
@@ -906,7 +906,7 @@ regMaskTP LinearScan::getKillSetForBlockStore(GenTreeBlk* blkNode)
 
     if ((blkNode->OperGet() == GT_STORE_OBJ) && blkNode->OperIsCopyBlkOp())
     {
-        assert(blkNode->AsObj()->gtGcPtrCount != 0);
+        assert(blkNode->AsObj()->GetLayout()->HasGCPtr());
         killMask = compiler->compHelperCallKillSet(CORINFO_HELP_ASSIGN_BYREF);
     }
     else
@@ -1159,8 +1159,7 @@ bool LinearScan::buildKillPositionsForNode(GenTree* tree, LsraLocation currentLo
             unsigned        varIndex = 0;
             while (iter.NextElem(&varIndex))
             {
-                unsigned   varNum = compiler->lvaTrackedToVarNum[varIndex];
-                LclVarDsc* varDsc = compiler->lvaTable + varNum;
+                LclVarDsc* varDsc = compiler->lvaGetDescByTrackedIndex(varIndex);
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
                 if (varTypeNeedsPartialCalleeSave(varDsc->lvType))
                 {
@@ -1404,11 +1403,40 @@ void LinearScan::buildUpperVectorSaveRefPositions(GenTree* tree, LsraLocation cu
     {
         if (varTypeNeedsPartialCalleeSave(listNode->treeNode->TypeGet()))
         {
-            RefPosition* pos = newRefPosition(listNode->ref->getInterval(), currentLoc, RefTypeUpperVectorSave, tree,
-                                              RBM_FLT_CALLEE_SAVED);
+            // In the rare case where such an interval is live across nested calls, we don't need to insert another.
+            if (listNode->ref->getInterval()->recentRefPosition->refType != RefTypeUpperVectorSave)
+            {
+                RefPosition* pos = newRefPosition(listNode->ref->getInterval(), currentLoc, RefTypeUpperVectorSave,
+                                                  tree, RBM_FLT_CALLEE_SAVED);
+            }
         }
     }
 }
+
+//------------------------------------------------------------------------
+// buildUpperVectorRestoreRefPosition - Create a RefPosition for restoring
+//                                      the upper half of a large vector.
+//
+// Arguments:
+//    lclVarInterval - A lclVarInterval that is live at 'currentLoc'
+//    currentLoc     - The current location for which we're building RefPositions
+//    node           - The node, if any, that the restore would be inserted before.
+//                     If null, the restore will be inserted at the end of the block.
+//
+void LinearScan::buildUpperVectorRestoreRefPosition(Interval* lclVarInterval, LsraLocation currentLoc, GenTree* node)
+{
+    if (lclVarInterval->isPartiallySpilled)
+    {
+        unsigned     varIndex            = lclVarInterval->getVarIndex(compiler);
+        Interval*    upperVectorInterval = getUpperVectorInterval(varIndex);
+        RefPosition* pos = newRefPosition(upperVectorInterval, currentLoc, RefTypeUpperVectorRestore, node, RBM_NONE);
+        lclVarInterval->isPartiallySpilled = false;
+#ifdef _TARGET_XARCH_
+        pos->regOptional = true;
+#endif
+    }
+}
+
 #endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
 
 #ifdef DEBUG
@@ -1540,7 +1568,7 @@ void LinearScan::buildRefPositionsForNode(GenTree* tree, BasicBlock* block, Lsra
         // address computation. In this case we need to check whether it is a last use.
         if (tree->IsLocal() && ((tree->gtFlags & GTF_VAR_DEATH) != 0))
         {
-            LclVarDsc* const varDsc = &compiler->lvaTable[tree->AsLclVarCommon()->gtLclNum];
+            LclVarDsc* const varDsc = &compiler->lvaTable[tree->AsLclVarCommon()->GetLclNum()];
             if (isCandidateVar(varDsc))
             {
                 assert(varDsc->lvTracked);
@@ -1689,7 +1717,7 @@ void LinearScan::buildPhysRegRecords()
 //
 BasicBlock* getNonEmptyBlock(BasicBlock* block)
 {
-    while (block != nullptr && block->bbTreeList == nullptr)
+    while (block != nullptr && block->GetFirstLIRNode() == nullptr)
     {
         BasicBlock* nextBlock = block->bbNext;
         // Note that here we use the version of NumSucc that does not take a compiler.
@@ -1701,7 +1729,7 @@ BasicBlock* getNonEmptyBlock(BasicBlock* block)
         // assert( block->GetSucc(0) == nextBlock);
         block = nextBlock;
     }
-    assert(block != nullptr && block->bbTreeList != nullptr);
+    assert(block != nullptr && block->GetFirstLIRNode() != nullptr);
     return block;
 }
 
@@ -1737,11 +1765,10 @@ void LinearScan::insertZeroInitRefPositions()
     unsigned        varIndex = 0;
     while (iter.NextElem(&varIndex))
     {
-        unsigned   varNum = compiler->lvaTrackedToVarNum[varIndex];
-        LclVarDsc* varDsc = compiler->lvaTable + varNum;
+        LclVarDsc* varDsc = compiler->lvaGetDescByTrackedIndex(varIndex);
         if (!varDsc->lvIsParam && isCandidateVar(varDsc))
         {
-            JITDUMP("V%02u was live in to first block:", varNum);
+            JITDUMP("V%02u was live in to first block:", compiler->lvaTrackedIndexToLclNum(varIndex));
             Interval* interval = getIntervalForLocalVar(varIndex);
             if (compiler->info.compInitMem || varTypeIsGC(varDsc->TypeGet()))
             {
@@ -1749,6 +1776,7 @@ void LinearScan::insertZeroInitRefPositions()
                 GenTree*     firstNode = getNonEmptyBlock(compiler->fgFirstBB)->firstNode();
                 RefPosition* pos =
                     newRefPosition(interval, MinLocation, RefTypeZeroInit, firstNode, allRegs(interval->registerType));
+                pos->setRegOptional(true);
                 varDsc->lvMustInit = true;
             }
             else
@@ -1841,15 +1869,7 @@ void LinearScan::updateRegStateForArg(LclVarDsc* argDsc)
     {
         RegState* intRegState   = &compiler->codeGen->intRegState;
         RegState* floatRegState = &compiler->codeGen->floatRegState;
-        // In the case of AMD64 we'll still use the floating point registers
-        // to model the register usage for argument on vararg calls, so
-        // we will ignore the varargs condition to determine whether we use
-        // XMM registers or not for setting up the call.
-        bool isFloat = (isFloatRegType(argDsc->lvType)
-#ifndef _TARGET_AMD64_
-                        && !compiler->info.compIsVarArgs
-#endif
-                        && !compiler->opts.compUseSoftFP);
+        bool      isFloat       = emitter::isFloatReg(argDsc->lvArgReg);
 
         if (argDsc->lvIsHfaRegArg())
         {
@@ -1944,9 +1964,6 @@ void LinearScan::buildIntervals()
     // Assign these RefPositions to the (nonexistent) BB0.
     curBBNum = 0;
 
-    LclVarDsc*   argDsc;
-    unsigned int lclNum;
-
     RegState* intRegState                   = &compiler->codeGen->intRegState;
     RegState* floatRegState                 = &compiler->codeGen->floatRegState;
     intRegState->rsCalleeRegArgMaskLiveIn   = RBM_NONE;
@@ -1954,8 +1971,7 @@ void LinearScan::buildIntervals()
 
     for (unsigned int varIndex = 0; varIndex < compiler->lvaTrackedCount; varIndex++)
     {
-        lclNum = compiler->lvaTrackedToVarNum[varIndex];
-        argDsc = &(compiler->lvaTable[lclNum]);
+        LclVarDsc* argDsc = compiler->lvaGetDescByTrackedIndex(varIndex);
 
         if (!argDsc->lvIsParam)
         {
@@ -1991,6 +2007,7 @@ void LinearScan::buildIntervals()
                 assignPhysReg(inArgReg, interval);
             }
             RefPosition* pos = newRefPosition(interval, MinLocation, RefTypeParamDef, nullptr, mask);
+            pos->setRegOptional(true);
         }
         else if (varTypeIsStruct(argDsc->lvType))
         {
@@ -2004,6 +2021,7 @@ void LinearScan::buildIntervals()
                     Interval*    interval = getIntervalForLocalVar(fieldVarDsc->lvVarIndex);
                     RefPosition* pos =
                         newRefPosition(interval, MinLocation, RefTypeParamDef, nullptr, allRegs(TypeGet(fieldVarDsc)));
+                    pos->setRegOptional(true);
                 }
             }
         }
@@ -2019,9 +2037,9 @@ void LinearScan::buildIntervals()
     // (We do this here because we want to generate the ParamDef RefPositions in tracked
     // order, so that loop doesn't hit the non-tracked args)
 
-    for (unsigned argNum = 0; argNum < compiler->info.compArgsCount; argNum++, argDsc++)
+    for (unsigned argNum = 0; argNum < compiler->info.compArgsCount; argNum++)
     {
-        argDsc = &(compiler->lvaTable[argNum]);
+        LclVarDsc* argDsc = compiler->lvaGetDesc(argNum);
 
         if (argDsc->lvPromotedStruct())
         {
@@ -2061,7 +2079,7 @@ void LinearScan::buildIntervals()
         {
             JITDUMP("\n\nSetting " FMT_BB " as the predecessor for determining incoming variable registers of " FMT_BB
                     "\n",
-                    block->bbNum, predBlock->bbNum);
+                    predBlock->bbNum, block->bbNum);
             assert(predBlock->bbNum <= bbNumMaxBeforeResolution);
             blockInfo[block->bbNum].predBBNum = predBlock->bbNum;
         }
@@ -2109,8 +2127,7 @@ void LinearScan::buildIntervals()
                 unsigned        varIndex = 0;
                 while (iter.NextElem(&varIndex))
                 {
-                    unsigned   varNum = compiler->lvaTrackedToVarNum[varIndex];
-                    LclVarDsc* varDsc = compiler->lvaTable + varNum;
+                    LclVarDsc* varDsc = compiler->lvaGetDescByTrackedIndex(varIndex);
                     // Add a dummyDef for any candidate vars that are in the "newLiveIn" set.
                     // If this is the entry block, don't add any incoming parameters (they're handled with ParamDefs).
                     if (isCandidateVar(varDsc) && (predBlock != nullptr || !varDsc->lvIsParam))
@@ -2118,6 +2135,7 @@ void LinearScan::buildIntervals()
                         Interval*    interval = getIntervalForLocalVar(varIndex);
                         RefPosition* pos      = newRefPosition(interval, currentLoc, RefTypeDummyDef, nullptr,
                                                           allRegs(interval->registerType));
+                        pos->setRegOptional(true);
                     }
                 }
                 JITDUMP("Finished creating dummy definitions\n\n");
@@ -2162,15 +2180,17 @@ void LinearScan::buildIntervals()
         }
 
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-        // At the end of each block, we'll restore any upperVectors, so reset isPartiallySpilled on all of them.
+        // At the end of each block, create upperVectorRestores for any largeVectorVars that may be
+        // partiallySpilled (during the build phase all intervals will be marked isPartiallySpilled if
+        // they *may) be partially spilled at any point.
         if (enregisterLocalVars)
         {
             VarSetOps::Iter largeVectorVarsIter(compiler, largeVectorVars);
             unsigned        largeVectorVarIndex = 0;
             while (largeVectorVarsIter.NextElem(&largeVectorVarIndex))
             {
-                Interval* lclVarInterval           = getIntervalForLocalVar(largeVectorVarIndex);
-                lclVarInterval->isPartiallySpilled = false;
+                Interval* lclVarInterval = getIntervalForLocalVar(largeVectorVarIndex);
+                buildUpperVectorRestoreRefPosition(lclVarInterval, currentLoc, nullptr);
             }
         }
 #endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
@@ -2232,13 +2252,13 @@ void LinearScan::buildIntervals()
                 unsigned        varIndex = 0;
                 while (iter.NextElem(&varIndex))
                 {
-                    unsigned   varNum = compiler->lvaTrackedToVarNum[varIndex];
-                    LclVarDsc* varDsc = compiler->lvaTable + varNum;
+                    LclVarDsc* varDsc = compiler->lvaGetDescByTrackedIndex(varIndex);
                     assert(isCandidateVar(varDsc));
                     Interval*    interval = getIntervalForLocalVar(varIndex);
                     RefPosition* pos =
                         newRefPosition(interval, currentLoc, RefTypeExpUse, nullptr, allRegs(interval->registerType));
-                    JITDUMP(" V%02u", varNum);
+                    pos->setRegOptional(true);
+                    JITDUMP(" V%02u", compiler->lvaTrackedIndexToLclNum(varIndex));
                 }
                 JITDUMP("\n");
             }
@@ -2250,8 +2270,7 @@ void LinearScan::buildIntervals()
                 unsigned        varIndex = 0;
                 while (iter.NextElem(&varIndex))
                 {
-                    unsigned         varNum = compiler->lvaTrackedToVarNum[varIndex];
-                    LclVarDsc* const varDsc = &compiler->lvaTable[varNum];
+                    LclVarDsc* const varDsc = compiler->lvaGetDescByTrackedIndex(varIndex);
                     assert(isCandidateVar(varDsc));
                     RefPosition* const lastRP = getIntervalForLocalVar(varIndex)->lastRefPosition;
                     // We should be able to assert that lastRP is non-null if it is live-out, but sometimes liveness
@@ -2294,21 +2313,23 @@ void LinearScan::buildIntervals()
                 Interval*    interval = getIntervalForLocalVar(varDsc->lvVarIndex);
                 RefPosition* pos =
                     newRefPosition(interval, currentLoc, RefTypeExpUse, nullptr, allRegs(interval->registerType));
+                pos->setRegOptional(true);
             }
         }
 
 #ifdef DEBUG
         if (getLsraExtendLifeTimes())
         {
-            LclVarDsc* varDsc;
-            for (lclNum = 0, varDsc = compiler->lvaTable; lclNum < compiler->lvaCount; lclNum++, varDsc++)
+            for (unsigned lclNum = 0; lclNum < compiler->lvaCount; lclNum++)
             {
+                LclVarDsc* varDsc = compiler->lvaGetDesc(lclNum);
                 if (varDsc->lvLRACandidate)
                 {
                     JITDUMP("Adding exposed use of V%02u for LsraExtendLifetimes\n", lclNum);
                     Interval*    interval = getIntervalForLocalVar(varDsc->lvVarIndex);
                     RefPosition* pos =
                         newRefPosition(interval, currentLoc, RefTypeExpUse, nullptr, allRegs(interval->registerType));
+                    pos->setRegOptional(true);
                 }
             }
         }
@@ -2355,7 +2376,7 @@ void LinearScan::validateIntervals()
     {
         for (unsigned i = 0; i < compiler->lvaTrackedCount; i++)
         {
-            if (!compiler->lvaTable[compiler->lvaTrackedToVarNum[i]].lvLRACandidate)
+            if (!compiler->lvaGetDescByTrackedIndex(i)->lvLRACandidate)
             {
                 continue;
             }
@@ -2641,17 +2662,7 @@ RefPosition* LinearScan::BuildUse(GenTree* operand, regMaskTP candidates, int mu
             VarSetOps::RemoveElemD(compiler, currentLiveVars, varIndex);
         }
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-        if (interval->isPartiallySpilled)
-        {
-            unsigned     varIndex            = interval->getVarIndex(compiler);
-            Interval*    upperVectorInterval = getUpperVectorInterval(varIndex);
-            RefPosition* pos =
-                newRefPosition(upperVectorInterval, currentLoc, RefTypeUpperVectorRestore, operand, RBM_NONE);
-            interval->isPartiallySpilled = false;
-#ifdef _TARGET_XARCH_
-            pos->regOptional = true;
-#endif
-        }
+        buildUpperVectorRestoreRefPosition(interval, currentLoc, operand);
 #endif
     }
     else
@@ -2740,6 +2751,10 @@ int LinearScan::BuildOperandUses(GenTree* node, regMaskTP candidates)
     if (node->OperIsIndir())
     {
         return BuildIndirUses(node->AsIndir(), candidates);
+    }
+    if (node->OperIs(GT_LEA))
+    {
+        return BuildAddrUses(node, candidates);
     }
 #ifdef FEATURE_HW_INTRINSICS
     if (node->OperIsHWIntrinsic())
@@ -2853,11 +2868,6 @@ int LinearScan::BuildBinaryUses(GenTreeOp* node, regMaskTP candidates)
     int      srcCount = 0;
     GenTree* op1      = node->gtOp1;
     GenTree* op2      = node->gtGetOp2IfPresent();
-    if (node->IsReverseOp() && (op2 != nullptr))
-    {
-        srcCount += BuildOperandUses(op2, candidates);
-        op2 = nullptr;
-    }
     if (op1 != nullptr)
     {
         srcCount += BuildOperandUses(op1, candidates);
@@ -2886,7 +2896,7 @@ int LinearScan::BuildStoreLoc(GenTreeLclVarCommon* storeLoc)
     GenTree*     op1 = storeLoc->gtGetOp1();
     int          srcCount;
     RefPosition* singleUseRef = nullptr;
-    LclVarDsc*   varDsc       = &compiler->lvaTable[storeLoc->gtLclNum];
+    LclVarDsc*   varDsc       = &compiler->lvaTable[storeLoc->GetLclNum()];
 
 // First, define internal registers.
 #ifdef FEATURE_SIMD
@@ -3070,6 +3080,15 @@ int LinearScan::BuildReturn(GenTree* tree)
         regMaskTP useCandidates = RBM_NONE;
 
 #if FEATURE_MULTIREG_RET
+#ifdef _TARGET_ARM64_
+        if (varTypeIsSIMD(tree))
+        {
+            useCandidates = allSIMDRegs();
+            BuildUse(op1, useCandidates);
+            return 1;
+        }
+#endif // !_TARGET_ARM64_
+
         if (varTypeIsStruct(tree))
         {
             // op1 has to be either an lclvar or a multi-reg returning call
@@ -3208,8 +3227,8 @@ int LinearScan::BuildPutArgReg(GenTreeUnOp* node)
     {
         GenTreeObj* obj  = op1->AsObj();
         GenTree*    addr = obj->Addr();
-        unsigned    size = obj->gtBlkSize;
-        assert(size <= TARGET_POINTER_SIZE);
+        unsigned    size = obj->GetLayout()->GetSize();
+        assert(size <= MAX_PASS_SINGLEREG_BYTES);
         if (addr->OperIsLocalAddr())
         {
             // We don't need a source register.

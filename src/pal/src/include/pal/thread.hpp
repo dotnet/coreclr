@@ -31,7 +31,7 @@ Abstract:
 #endif // HAVE_MACH_EXCEPTIONS
 
 #include "threadsusp.hpp"
-#include "tls.hpp"
+#include "threadinfo.hpp"
 #include "synchobjects.hpp"
 #include <errno.h>
 
@@ -53,7 +53,7 @@ namespace CorUnix
         LPVOID lpParameter,
         DWORD dwCreationFlags,
         PalThreadType eThreadType,
-        LPDWORD lpThreadId,
+        SIZE_T* pThreadId,
         HANDLE *phThread
         );
 
@@ -75,7 +75,6 @@ namespace CorUnix
     InternalGetThreadDataFromHandle(
         CPalThread *pThread,
         HANDLE hThread,
-        DWORD dwRightsRequired,
         CPalThread **ppTargetThread,
         IPalObject **ppobjThread
         );
@@ -105,18 +104,12 @@ namespace CorUnix
         HANDLE *phThread
         );
 
-    PAL_ERROR
-    InitializeEndingThreadsData(
-        void
-        );
-
     BOOL
     GetThreadTimesInternal(
         IN HANDLE hThread,
         OUT LPFILETIME lpKernelTime,
         OUT LPFILETIME lpUserTime);
         
-#ifdef FEATURE_PAL_SXS
 #if HAVE_MACH_EXCEPTIONS
 
     // Structure used to return data about a single handler to a caller.
@@ -159,47 +152,17 @@ namespace CorUnix
         int GetIndexOfHandler(exception_mask_t bmExceptionMask);
     };
 #endif // HAVE_MACH_EXCEPTIONS
-#endif // FEATURE_PAL_SXS
-    
-    class CThreadSEHInfo : public CThreadInfoInitializer
-    {
-    public:
-#if !HAVE_MACH_EXCEPTIONS
-        BOOL safe_state;
-        int signal_code;
-#endif // !HAVE_MACH_EXCEPTIONSG
-
-        CThreadSEHInfo()
-        {
-        };
-    };
-
-    /* In the windows CRT there is a constant defined for the max width
-    of a _ecvt conversion. That constant is 348. 348 for the value, plus
-    the exponent value, decimal, and sign if required. */
-#define ECVT_MAX_COUNT_SIZE 348
-#define ECVT_MAX_BUFFER_SIZE 357
-
-    /*STR_TIME_SIZE is defined as 26 the size of the
-      return val by ctime_r*/
-#define STR_TIME_SIZE 26
 
     class CThreadCRTInfo : public CThreadInfoInitializer
     {
     public:
         CHAR *       strtokContext; // Context for strtok function
         WCHAR *      wcstokContext; // Context for wcstok function
-        struct PAL_tm localtimeBuffer; // Buffer for localtime function
-        CHAR         ctimeBuffer[ STR_TIME_SIZE ]; // Buffer for ctime function
-        CHAR         ECVTBuffer[ ECVT_MAX_BUFFER_SIZE ]; // Buffer for _ecvt function.
 
         CThreadCRTInfo() :
             strtokContext(NULL),
             wcstokContext(NULL)
         {
-            ZeroMemory(&localtimeBuffer, sizeof(localtimeBuffer));
-            ZeroMemory(ctimeBuffer, sizeof(ctimeBuffer));
-            ZeroMemory(ECVTBuffer, sizeof(ECVTBuffer));
         };
     };
 
@@ -215,7 +178,7 @@ namespace CorUnix
                 LPVOID,
                 DWORD,
                 PalThreadType,
-                LPDWORD,
+                SIZE_T*,
                 HANDLE*
                 );
 
@@ -332,24 +295,17 @@ namespace CorUnix
         //
 
         static void* ThreadEntry(void * pvParam);
-        
-#ifdef FEATURE_PAL_SXS
+
         //
         // Data for PAL side-by-side support
         //
 
     private:
-        // This is set whenever this thread is currently executing within
-        // a region of code that depends on this instance of the PAL
-        // in the process.
-        bool m_fInPal;
-
 #if HAVE_MACH_EXCEPTIONS
         // Record of Mach exception handlers that were already registered when we register our own CoreCLR
         // specific handlers.
         CThreadMachExceptionHandlers m_sMachExceptionHandlers;
 #endif // HAVE_MACH_EXCEPTIONS
-#endif // FEATURE_PAL_SXS
 
     public:
 
@@ -359,8 +315,6 @@ namespace CorUnix
 
         CThreadSynchronizationInfo synchronizationInfo;
         CThreadSuspensionInfo suspensionInfo;
-        CThreadSEHInfo sehInfo;
-        CThreadTLSInfo tlsInfo;
         CThreadApcInfo apcInfo;
         CThreadCRTInfo crtInfo;
 
@@ -391,9 +345,6 @@ namespace CorUnix
             m_stackBase(NULL),
             m_stackLimit(NULL),
             m_alternateStack(NULL)
-#ifdef FEATURE_PAL_SXS
-          , m_fInPal(TRUE)
-#endif // FEATURE_PAL_SXS
         {
         };
 
@@ -687,28 +638,6 @@ namespace CorUnix
             void
             );
         
-#ifdef FEATURE_PAL_SXS
-        //
-        // Functions for PAL side-by-side support
-        //
-
-        // This function needs to be called on a thread when it enters
-        // a region of code that depends on this instance of the PAL
-        // in the process.
-        PAL_ERROR Enter(PAL_Boundary boundary);
-
-        // This function needs to be called on a thread when it leaves
-        // a region of code that depends on this instance of the PAL
-        // in the process.
-        PAL_ERROR Leave(PAL_Boundary boundary);
-
-        // Returns TRUE whenever this thread is executing in a region
-        // of code that depends on this instance of the PAL in the process.
-        BOOL IsInPal()
-        {
-            return m_fInPal;
-        };
-
 #if HAVE_MACH_EXCEPTIONS
         // Hook Mach exceptions, i.e., call thread_swap_exception_ports
         // to replace the thread's current exception ports with our own.
@@ -732,12 +661,9 @@ namespace CorUnix
             return &m_sMachExceptionHandlers;
         }
 #endif // HAVE_MACH_EXCEPTIONS
-#endif // FEATURE_PAL_SXS
     };
 
-#if defined(FEATURE_PAL_SXS)
     extern "C" CPalThread *CreateCurrentThreadData();
-#endif // FEATURE_PAL_SXS
 
     inline CPalThread *GetCurrentPalThread()
     {
@@ -747,10 +673,8 @@ namespace CorUnix
     inline CPalThread *InternalGetCurrentThread()
     {
         CPalThread *pThread = GetCurrentPalThread();
-#if defined(FEATURE_PAL_SXS)
         if (pThread == nullptr)
             pThread = CreateCurrentThreadData();
-#endif // FEATURE_PAL_SXS
         return pThread;
     }
 
@@ -796,13 +720,6 @@ TLSCleanup(
     void
     );
 
-VOID 
-WaitForEndingThreads(
-    void
-    );
-
-extern int free_threads_spinlock;
-
 extern PAL_ActivationFunction g_activationFunction;
 extern PAL_SafeActivationCheckFunction g_safeActivationCheckFunction;
 
@@ -828,25 +745,32 @@ Abstract:
 
 --*/
 #if defined(__linux__)
-#define THREADSilentGetCurrentThreadId() (SIZE_T)syscall(SYS_gettid)
+#define PlatformGetCurrentThreadId() (SIZE_T)syscall(SYS_gettid)
 #elif defined(__APPLE__)
-inline SIZE_T THREADSilentGetCurrentThreadId() {
+inline SIZE_T PlatformGetCurrentThreadId() {
     uint64_t tid;
     pthread_threadid_np(pthread_self(), &tid);
     return (SIZE_T)tid;
 }
 #elif defined(__FreeBSD__)
 #include <sys/thr.h>
-inline SIZE_T THREADSilentGetCurrentThreadId() {
+inline SIZE_T PlatformGetCurrentThreadId() {
     long tid;
     thr_self(&tid);
     return (SIZE_T)tid;
 }
 #elif defined(__NetBSD__)
 #include <lwp.h>
-#define THREADSilentGetCurrentThreadId() (SIZE_T)_lwp_self()
+#define PlatformGetCurrentThreadId() (SIZE_T)_lwp_self()
 #else
-#define THREADSilentGetCurrentThreadId() (SIZE_T)pthread_self()
+#define PlatformGetCurrentThreadId() (SIZE_T)pthread_self()
 #endif
+
+inline SIZE_T THREADSilentGetCurrentThreadId() {
+    static __thread SIZE_T tid;
+    if (!tid)
+        tid = PlatformGetCurrentThreadId();
+    return tid;
+}
 
 #endif // _PAL_THREAD_HPP_
