@@ -312,8 +312,8 @@ namespace System
                     //
                     // Since deep copying can throw on OOM, try to get the copies
                     // outside the lock.
-                    object? _stackTraceCopy = (dispatchState.StackTrace == null) ? null : DeepCopyStackTrace(dispatchState.StackTrace);
-                    object? _dynamicMethodsCopy = (dispatchState.DynamicMethods == null) ? null : DeepCopyDynamicMethods(dispatchState.DynamicMethods);
+                    object? stackTraceCopy = (dispatchState.StackTrace == null) ? null : DeepCopyStackTrace(dispatchState.StackTrace);
+                    object? dynamicMethodsCopy = (dispatchState.DynamicMethods == null) ? null : DeepCopyDynamicMethods(dispatchState.DynamicMethods);
 
                     // Finally, restore the information.
                     //
@@ -324,7 +324,7 @@ namespace System
                         _watsonBuckets = dispatchState.WatsonBuckets;
                         _ipForWatsonBuckets = dispatchState.IpForWatsonBuckets;
                         _remoteStackTraceString = dispatchState.RemoteStackTrace;
-                        SaveStackTracesFromDeepCopy(this, _stackTraceCopy, _dynamicMethodsCopy);
+                        SaveStackTracesFromDeepCopy(this, stackTraceCopy, dynamicMethodsCopy);
                     }
                     _stackTraceString = null;
 
