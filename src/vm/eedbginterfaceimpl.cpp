@@ -397,12 +397,12 @@ CONTEXT *EEDbgInterfaceImpl::GetThreadFilterContext(Thread *thread)
 
 VOID * EEDbgInterfaceImpl::GetThreadDebuggerWord()
 {
-    return UnsafeTlsGetValue(g_debuggerWordTLSIndex);
+    return TlsGetValue(g_debuggerWordTLSIndex);
 }
 
 void EEDbgInterfaceImpl::SetThreadDebuggerWord(VOID *dw)
 {
-    UnsafeTlsSetValue(g_debuggerWordTLSIndex, dw);
+    TlsSetValue(g_debuggerWordTLSIndex, dw);
 }
 
 #endif
@@ -561,7 +561,7 @@ void EEDbgInterfaceImpl::GetMethodRegionInfo(const PCODE    pStart,
     *coldSize = methodRegionInfo.coldSize;
 }
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
 DWORD EEDbgInterfaceImpl::GetFuncletStartOffsets(const BYTE *pStart, DWORD* pStartOffsets, DWORD dwLength)
 {
     CONTRACTL
@@ -597,7 +597,7 @@ StackFrame EEDbgInterfaceImpl::FindParentStackFrame(CrawlFrame* pCF)
 
 #endif // !DACCESS_COMPILE
 }
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 #ifndef DACCESS_COMPILE
 size_t EEDbgInterfaceImpl::GetFunctionSize(MethodDesc *pFD)

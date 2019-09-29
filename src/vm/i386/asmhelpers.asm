@@ -35,8 +35,6 @@ ifdef FEATURE_COMINTEROP
 EXTERN _StubRareDisableHRWorker@4:PROC
 endif ; FEATURE_COMINTEROP
 EXTERN _StubRareDisableTHROWWorker@4:PROC
-EXTERN __imp__TlsGetValue@4:DWORD
-TlsGetValue PROTO stdcall
 ifdef FEATURE_HIJACK
 EXTERN _OnHijackWorker@4:PROC
 endif ;FEATURE_HIJACK
@@ -51,10 +49,6 @@ EXTERN _UMThunkStubRareDisableWorker@8:PROC
 EXTERN _VarargPInvokeStubWorker@12:PROC
 EXTERN _GenericPInvokeCalliStubWorker@12:PROC
 
-ifdef MDA_SUPPORTED
-EXTERN _PInvokeStackImbalanceWorker@8:PROC
-endif
-
 ifndef FEATURE_CORECLR
 EXTERN _CopyCtorCallStubWorker@4:PROC
 endif
@@ -65,8 +59,9 @@ ifdef FEATURE_COMINTEROP
 EXTERN _CLRToCOMWorker@8:PROC
 endif
 
-ifdef FEATURE_PREJIT
 EXTERN _ExternalMethodFixupWorker@16:PROC
+
+ifdef FEATURE_PREJIT
 EXTERN _VirtualMethodFixupWorker@8:PROC
 EXTERN _StubDispatchFixupWorker@16:PROC
 endif
@@ -1284,87 +1279,6 @@ GoCallCalliWorker:
 
 _GenericPInvokeCalliHelper@0 endp
 
-ifdef MDA_SUPPORTED
-
-;==========================================================================
-; Invoked from on-the-fly generated stubs when the stack imbalance MDA is
-; enabled. The common low-level work for both direct P/Invoke and unmanaged
-; delegate P/Invoke happens here. PInvokeStackImbalanceWorker is where the
-; actual imbalance check is implemented.
-; [ESP + 4] - the StackImbalanceCookie
-; [EBP + 8] - stack arguments (EBP frame pushed by the calling stub)
-; 
-_PInvokeStackImbalanceHelper@0 proc public
-    ; StackImbalanceCookie to EBX
-    push    ebx
-    lea     ebx, [esp + 8]
-    
-    push    esi
-    push    edi
-    
-    ; copy stack args
-    mov     edx, ecx
-    mov     ecx, [ebx + StackImbalanceCookie__m_dwStackArgSize]
-    sub     esp, ecx
-
-    shr     ecx, 2
-    lea     edi, [esp]
-    lea     esi, [ebp + 8]
-
-    cld
-    rep movsd
-    
-    ; record pre-call ESP
-    mov     [ebx + StackImbalanceCookie__m_dwSavedEsp], esp
-    
-    ; call the target (restore ECX in case it's a thiscall)
-    mov     ecx, edx
-    call    [ebx + StackImbalanceCookie__m_pTarget]
-
-    ; record post-call ESP and restore ESP to pre-pushed state
-    mov     ecx, esp
-    lea     esp, [ebp - SIZEOF_StackImbalanceCookie - 16] ; 4 DWORDs and the cookie have been pushed
-
-    ; save return value
-    push    eax
-    push    edx
-    sub     esp, 12
-    
-.errnz (StackImbalanceCookie__HAS_FP_RETURN_VALUE AND 00ffffffh), HAS_FP_RETURN_VALUE has changed - update asm code
-    
-    ; save top of the floating point stack if the target has FP retval
-    test    byte ptr [ebx + StackImbalanceCookie__m_callConv + 3], (StackImbalanceCookie__HAS_FP_RETURN_VALUE SHR 24)
-    jz      noFPURetVal
-    fstp    tbyte ptr [esp] ; save full 10 bytes to avoid precision loss
-noFPURetVal:
-
-    ; call PInvokeStackImbalanceWorker(StackImbalanceCookie *pSICookie, DWORD dwPostESP)
-    push    ecx
-    push    ebx
-    call    _PInvokeStackImbalanceWorker@8
-
-    ; restore return value
-    test    byte ptr [ebx + StackImbalanceCookie__m_callConv + 3], (StackImbalanceCookie__HAS_FP_RETURN_VALUE SHR 24)
-    jz      noFPURetValToRestore
-    fld     tbyte ptr [esp]
-noFPURetValToRestore:
-
-    add     esp, 12
-    pop     edx
-    pop     eax
-
-    ; restore registers
-    pop     edi
-    pop     esi
-
-    pop     ebx
-    
-    ; EBP frame and original stack arguments will be removed by the caller
-    ret
-_PInvokeStackImbalanceHelper@0 endp
-
-endif ; MDA_SUPPORTED
-
 ifdef FEATURE_COMINTEROP
 
 ;==========================================================================
@@ -1528,6 +1442,8 @@ public _StubDispatchFixupPatchLabel@0
 
 _StubDispatchFixupStub@0 endp
 
+endif ; FEATURE_PREJIT
+
 ;==========================================================================
 _ExternalMethodFixupStub@0 proc public
 
@@ -1605,6 +1521,7 @@ _DelayLoad_MethodCall@0 proc public
 _DelayLoad_MethodCall@0 endp
 endif
 
+ifdef FEATURE_PREJIT
 ;=======================================================================================
 ; The call in softbound vtable slots initially points to this function.
 ; The pupose of this function is to transfer the control to right target and
@@ -1645,8 +1562,7 @@ public _VirtualMethodFixupPatchLabel@0
         ret
 
 _VirtualMethodFixupStub@0 endp
-
-endif ; FEATURE_PREJIT
+endif
 
 ;==========================================================================
 ; The prestub

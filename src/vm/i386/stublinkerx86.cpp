@@ -82,12 +82,6 @@ extern "C" VOID __cdecl DebugCheckStubUnwindInfo();
 #endif // _DEBUG
 #endif // _TARGET_AMD64_
 
-// Presumably this code knows what it is doing with TLS.  If we are hiding these
-// services from normal code, reveal them here.
-#ifdef TlsGetValue
-#undef TlsGetValue
-#endif
-
 #ifdef FEATURE_COMINTEROP
 Thread* __stdcall CreateThreadBlockReturnHr(ComMethodFrame *pFrame);
 #endif
@@ -996,7 +990,7 @@ VOID StubLinkerCPU::X86EmitPushImm8(BYTE value)
 // Emits:
 //    PUSH <ptr>
 //---------------------------------------------------------------
-VOID StubLinkerCPU::X86EmitPushImmPtr(LPVOID value WIN64_ARG(X86Reg tmpReg /*=kR10*/))
+VOID StubLinkerCPU::X86EmitPushImmPtr(LPVOID value BIT64_ARG(X86Reg tmpReg /*=kR10*/))
 {
     STANDARD_VM_CONTRACT;
 
@@ -1737,6 +1731,49 @@ VOID StubLinkerCPU::X64EmitMovSSToMem(X86Reg Xmmreg, X86Reg baseReg, __int32 ofs
 {
     STANDARD_VM_CONTRACT;
     X64EmitMovXmmWorker(0xF3, 0x11, Xmmreg, baseReg, ofs);
+}
+
+VOID StubLinkerCPU::X64EmitMovqRegXmm(X86Reg reg, X86Reg Xmmreg)
+{
+    STANDARD_VM_CONTRACT;
+    X64EmitMovqWorker(0x7e, Xmmreg, reg);
+}
+
+VOID StubLinkerCPU::X64EmitMovqXmmReg(X86Reg Xmmreg, X86Reg reg)
+{
+    STANDARD_VM_CONTRACT;
+    X64EmitMovqWorker(0x6e, Xmmreg, reg);
+}
+
+//-----------------------------------------------------------------------------
+// Helper method for emitting movq between xmm and general purpose reqister
+//-----------------------------------------------------------------------------
+VOID StubLinkerCPU::X64EmitMovqWorker(BYTE opcode, X86Reg Xmmreg, X86Reg reg)
+{
+    BYTE    codeBuffer[10];
+    unsigned int     nBytes  = 0;
+    codeBuffer[nBytes++] = 0x66;
+    BYTE rex = REX_PREFIX_BASE | REX_OPERAND_SIZE_64BIT;
+    if (reg >= kR8)
+    {
+        rex |= REX_MODRM_RM_EXT;
+        reg = X86RegFromAMD64Reg(reg);
+    }
+    if (Xmmreg >= kXMM8)
+    {
+        rex |= REX_MODRM_REG_EXT;
+        Xmmreg = X86RegFromAMD64Reg(Xmmreg);
+    }
+    codeBuffer[nBytes++] = rex;
+    codeBuffer[nBytes++] = 0x0f;
+    codeBuffer[nBytes++] = opcode;
+    BYTE modrm = static_cast<BYTE>((Xmmreg << 3) | reg);
+    codeBuffer[nBytes++] = 0xC0|modrm;
+
+    _ASSERTE(nBytes <= _countof(codeBuffer));
+    
+    // Lastly, emit the encoded bytes
+    EmitBytes(codeBuffer, nBytes);    
 }
 
 //---------------------------------------------------------------
@@ -3654,37 +3691,6 @@ VOID StubLinkerCPU::EmitDisable(CodeLabel *pForwardRef, BOOL fCallIn, X86Reg Thr
     }
     CONTRACTL_END;
 
-#if defined(FEATURE_COMINTEROP) && defined(MDA_SUPPORTED)
-    // If we are checking whether the current thread is already holds the loader lock, vector
-    // such cases to the rare disable pathway, where we can check again.
-    if (fCallIn && (NULL != MDA_GET_ASSISTANT(Reentrancy)))
-    {
-        CodeLabel   *pNotReentrantLabel = NewCodeLabel();
-
-        // test byte ptr [ebx + Thread.m_fPreemptiveGCDisabled],1
-        X86EmitOffsetModRM(0xf6, (X86Reg)0, ThreadReg, Thread::GetOffsetOfGCFlag());
-        Emit8(1);
-
-        // jz NotReentrant
-        X86EmitCondJump(pNotReentrantLabel, X86CondCode::kJZ);
-        
-        X86EmitPushReg(kEAX);
-        X86EmitPushReg(kEDX);
-        X86EmitPushReg(kECX);
-
-        X86EmitCall(NewExternalCodeLabel((LPVOID) HasIllegalReentrancy), 0);
-
-        // If the probe fires, we go ahead and allow the call anyway.  At this point, there could be
-        // GC heap corruptions.  So the probe detects the illegal case, but doesn't prevent it.
-
-        X86EmitPopReg(kECX);
-        X86EmitPopReg(kEDX);
-        X86EmitPopReg(kEAX);
-
-        EmitLabel(pNotReentrantLabel);
-    }
-#endif
-
     // move byte ptr [ebx + Thread.m_fPreemptiveGCDisabled],1
     X86EmitOffsetModRM(0xc6, (X86Reg)0, ThreadReg, Thread::GetOffsetOfGCFlag());
     Emit8(1);
@@ -3831,7 +3837,37 @@ VOID StubLinkerCPU::EmitShuffleThunk(ShuffleEntry *pShuffleEntryArray)
 #ifdef UNIX_AMD64_ABI
     for (ShuffleEntry* pEntry = pShuffleEntryArray; pEntry->srcofs != ShuffleEntry::SENTINEL; pEntry++)
     {
-        if (pEntry->srcofs & ShuffleEntry::REGMASK)
+        if (pEntry->srcofs == ShuffleEntry::HELPERREG)
+        {
+            if (pEntry->dstofs & ShuffleEntry::REGMASK)
+            {
+                // movq dstReg, xmm8
+                int dstRegIndex = pEntry->dstofs & ShuffleEntry::OFSREGMASK;
+                X64EmitMovqRegXmm(c_argRegs[dstRegIndex], (X86Reg)kXMM8);
+            }
+            else
+            {
+                // movsd [rax + dst], xmm8
+                int dstOffset = (pEntry->dstofs + 1) * sizeof(void*);
+                X64EmitMovSDToMem((X86Reg)kXMM8, SCRATCH_REGISTER_X86REG, dstOffset);
+            }
+        }
+        else if (pEntry->dstofs == ShuffleEntry::HELPERREG)
+        {
+            if (pEntry->srcofs & ShuffleEntry::REGMASK)
+            {
+                // movq xmm8, srcReg
+                int srcRegIndex = pEntry->srcofs & ShuffleEntry::OFSREGMASK;
+                X64EmitMovqXmmReg((X86Reg)kXMM8, c_argRegs[srcRegIndex]);
+            }
+            else
+            {
+                // movsd xmm8, [rax + src]
+                int srcOffset = (pEntry->srcofs + 1) * sizeof(void*);
+                X64EmitMovSDFromMem((X86Reg)(kXMM8), SCRATCH_REGISTER_X86REG, srcOffset);
+            }
+        }
+        else if (pEntry->srcofs & ShuffleEntry::REGMASK)
         {
             // Source in a general purpose or float register, destination in the same kind of a register or on stack
             int srcRegIndex = pEntry->srcofs & ShuffleEntry::OFSREGMASK;
@@ -5775,7 +5811,7 @@ void TailCallFrame::GcScanRoots(promote_func *fn, ScanContext* sc)
 
                 offset &= 0x7FFFFFFC;
                 
-#ifdef _WIN64
+#ifdef BIT64
                 offset <<= 1;
 #endif
                 offset += sizeof(void*);
@@ -5835,12 +5871,12 @@ static void EncodeOneGCOffset(CPUSTUBLINKER *pSl, ULONG delta, BOOL maybeInterio
     // we use the 1 bit to denote a range
     _ASSERTE((delta % sizeof(void*)) == 0);
 
-#if defined(_WIN64)
+#if defined(BIT64)
     // For 64-bit, we have 3 bits of alignment, so we allow larger frames
     // by shifting and gaining a free high-bit.
     ULONG encodedDelta = delta >> 1;
 #else
-    // For 32-bit, we just limit our frame size to <2GB. (I know, such a bummer!)
+    // For 32-bit, we just limit our frame size to <2GB.
     ULONG encodedDelta = delta;
 #endif
     _ASSERTE((encodedDelta & 0x80000003) == 0);
@@ -6516,7 +6552,7 @@ void rel32SetInterlocked(/*PINT32*/ PVOID pRel32, TADDR target, MethodDesc* pMD)
     CONTRACTL
     {
         THROWS;         // Creating a JumpStub could throw OutOfMemory
-        GC_TRIGGERS;
+        GC_NOTRIGGER;
     }
     CONTRACTL_END;
 
@@ -6531,7 +6567,7 @@ BOOL rel32SetInterlocked(/*PINT32*/ PVOID pRel32, TADDR target, TADDR expected, 
     CONTRACTL
     {
         THROWS;         // Creating a JumpStub could throw OutOfMemory
-        GC_TRIGGERS;
+        GC_NOTRIGGER;
     }
     CONTRACTL_END;
 
@@ -6549,10 +6585,10 @@ void StubPrecode::Init(MethodDesc* pMD, LoaderAllocator *pLoaderAllocator /* = N
 {
     WRAPPER_NO_CONTRACT;
 
-    IN_WIN64(m_movR10 = X86_INSTR_MOV_R10_IMM64);   // mov r10, pMethodDesc
-    IN_WIN32(m_movEAX = X86_INSTR_MOV_EAX_IMM32);   // mov eax, pMethodDesc
+    IN_TARGET_64BIT(m_movR10 = X86_INSTR_MOV_R10_IMM64);   // mov r10, pMethodDesc
+    IN_TARGET_32BIT(m_movEAX = X86_INSTR_MOV_EAX_IMM32);   // mov eax, pMethodDesc
     m_pMethodDesc = (TADDR)pMD;
-    IN_WIN32(m_mov_rm_r = X86_INSTR_MOV_RM_R);      // mov reg,reg
+    IN_TARGET_32BIT(m_mov_rm_r = X86_INSTR_MOV_RM_R);      // mov reg,reg
     m_type = type;
     m_jmp = X86_INSTR_JMP_REL32;        // jmp rel32
 
@@ -6768,7 +6804,7 @@ void ThisPtrRetBufPrecode::Init(MethodDesc* pMD, LoaderAllocator *pLoaderAllocat
 {
     WRAPPER_NO_CONTRACT;
 
-    IN_WIN64(m_nop1 = X86_INSTR_NOP;)   // nop
+    IN_TARGET_64BIT(m_nop1 = X86_INSTR_NOP;)   // nop
 #ifdef UNIX_AMD64_ABI
     m_prefix1 = 0x48;
     m_movScratchArg0 = 0xC78B;          // mov rax,rdi
@@ -6777,11 +6813,11 @@ void ThisPtrRetBufPrecode::Init(MethodDesc* pMD, LoaderAllocator *pLoaderAllocat
     m_prefix3 = 0x48;
     m_movArg1Scratch = 0xF08B;          // mov rsi,rax
 #else
-    IN_WIN64(m_prefix1 = 0x48;)
+    IN_TARGET_64BIT(m_prefix1 = 0x48;)
     m_movScratchArg0 = 0xC889;          // mov r/eax,r/ecx
-    IN_WIN64(m_prefix2 = 0x48;)
+    IN_TARGET_64BIT(m_prefix2 = 0x48;)
     m_movArg0Arg1 = 0xD189;             // mov r/ecx,r/edx
-    IN_WIN64(m_prefix3 = 0x48;)
+    IN_TARGET_64BIT(m_prefix3 = 0x48;)
     m_movArg1Scratch = 0xC289;          // mov r/edx,r/eax
 #endif
     m_nop2 = X86_INSTR_NOP;             // nop

@@ -33,12 +33,6 @@ public:
                                    LPCWSTR wszRefedModuleFileName,
                                    INT32 tkResolution);
 
-    // LoadInMemoryTypeByName
-    // This function will return the class token for the named element.
-    static
-    void QCALLTYPE LoadInMemoryTypeByName(QCall::ModuleHandle pModule, LPCWSTR wszFullName);
-
-
     // SetFieldRVAContent
     // This function is used to set the FieldRVA with the content data
     static
@@ -66,7 +60,7 @@ public:
     // GetMemberRefOfFieldInfo
     // This function will return a memberRef token given a FieldInfo
     static
-    mdMemberRef QCALLTYPE GetMemberRefOfFieldInfo(QCall::ModuleHandle pModule, mdTypeDef tr, EnregisteredTypeHandle th, mdFieldDef tkField);
+    mdMemberRef QCALLTYPE GetMemberRefOfFieldInfo(QCall::ModuleHandle pModule, mdTypeDef tr, QCall::TypeHandle th, mdFieldDef tkField);
 
     // GetMemberRefFromSignature
     // This function will return the MemberRef token given the signature from managed code

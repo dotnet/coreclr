@@ -4,8 +4,8 @@
 
 /*============================================================
 **
-** 
-** 
+**
+**
 **
 **
 ** Purpose: Exception for a missing satellite assembly needed
@@ -15,7 +15,6 @@
 **
 ===========================================================*/
 
-#nullable enable
 using System.Runtime.Serialization;
 
 namespace System.Resources
@@ -24,7 +23,7 @@ namespace System.Resources
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public class MissingSatelliteAssemblyException : SystemException
     {
-        private string? _cultureName;
+        private readonly string? _cultureName;
 
         public MissingSatelliteAssemblyException()
             : base(SR.MissingSatelliteAssembly_Default)

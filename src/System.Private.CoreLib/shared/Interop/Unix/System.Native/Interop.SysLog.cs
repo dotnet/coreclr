@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Runtime.InteropServices;
 
 internal static partial class Interop
@@ -45,7 +44,7 @@ internal static partial class Interop
         }
 
         /// <summary>
-        /// Write a message to the system logger, which in turn writes the message to the system console, log files, etc. 
+        /// Write a message to the system logger, which in turn writes the message to the system console, log files, etc.
         /// See man 3 syslog for more info
         /// </summary>
         /// <param name="priority">

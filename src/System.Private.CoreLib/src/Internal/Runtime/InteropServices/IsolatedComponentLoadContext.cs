@@ -13,18 +13,18 @@ namespace Internal.Runtime.InteropServices
     /// or IJW components loaded from native. It provides a load context that uses an <see cref="AssemblyDependencyResolver" /> to resolve the component's
     /// dependencies within the ALC and not pollute the default ALC.
     ///</summary>
-    internal class IsolatedComponentLoadContext : AssemblyLoadContext
+    internal sealed class IsolatedComponentLoadContext : AssemblyLoadContext
     {
         private readonly AssemblyDependencyResolver _resolver;
 
-        public IsolatedComponentLoadContext(string componentAssemblyPath)
+        public IsolatedComponentLoadContext(string componentAssemblyPath) : base($"IsolatedComponentLoadContext({componentAssemblyPath})")
         {
             _resolver = new AssemblyDependencyResolver(componentAssemblyPath);
         }
 
-        protected override Assembly Load(AssemblyName assemblyName)
+        protected override Assembly? Load(AssemblyName assemblyName)
         {
-            string assemblyPath = _resolver.ResolveAssemblyToPath(assemblyName);
+            string? assemblyPath = _resolver.ResolveAssemblyToPath(assemblyName);
             if (assemblyPath != null)
             {
                 return LoadFromAssemblyPath(assemblyPath);
@@ -35,7 +35,7 @@ namespace Internal.Runtime.InteropServices
 
         protected override IntPtr LoadUnmanagedDll(string unmanagedDllName)
         {
-            string libraryPath = _resolver.ResolveUnmanagedDllToPath(unmanagedDllName);
+            string? libraryPath = _resolver.ResolveUnmanagedDllToPath(unmanagedDllName);
             if (libraryPath != null)
             {
                 return LoadUnmanagedDllFromPath(libraryPath);

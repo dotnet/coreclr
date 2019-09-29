@@ -2,9 +2,6 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 # Local GC meta-issue: https://github.com/dotnet/coreclr/issues/11518
 
-# https://github.com/dotnet/coreclr/issues/11517
-remove_definitions(-DFEATURE_APPDOMAIN_RESOURCE_MONITORING)
-
 # https://github.com/dotnet/coreclr/issues/11516
 remove_definitions(-DSTRESS_HEAP)
 
@@ -95,11 +92,11 @@ list(APPEND GC_SOURCES ${GC_HEADERS})
 convert_to_absolute_path(GC_SOURCES ${GC_SOURCES})
 
 add_library_clr(clrgc SHARED ${GC_SOURCES})
+add_dependencies(clrgc eventing_headers)
 target_link_libraries(clrgc ${GC_LINK_LIBRARIES})
 install_clr(clrgc)
 
 if(CLR_CMAKE_PLATFORM_UNIX)
-  add_compile_options(-fPIC)
   # dprintf causes many warnings (https://github.com/dotnet/coreclr/issues/13367)
   add_compile_options(-Wno-format)
 endif(CLR_CMAKE_PLATFORM_UNIX)

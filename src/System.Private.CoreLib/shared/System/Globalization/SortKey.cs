@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Diagnostics;
 
 namespace System.Globalization
@@ -18,7 +17,7 @@ namespace System.Globalization
         private readonly byte[] _keyData;
 
         /// <summary>
-        /// The following constructor is designed to be called from CompareInfo to get the 
+        /// The following constructor is designed to be called from CompareInfo to get the
         /// the sort key of specific string for synthetic culture
         /// </summary>
         internal SortKey(string localeName, string str, CompareOptions options, byte[] keyData)

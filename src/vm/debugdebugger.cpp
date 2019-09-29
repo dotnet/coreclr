@@ -819,14 +819,13 @@ FCIMPL1(void, DebugDebugger::CustomNotification, Object * dataUNSAFE)
         StrongHandleHolder objHandle = pAppDomain->CreateStrongHandle(pData);
         MethodTable * pMT = pData->GetGCSafeMethodTable();
         Module * pModule = pMT->GetModule();
-        DomainFile * pDomainFile = pModule->GetDomainFile(pAppDomain);
+        DomainFile * pDomainFile = pModule->GetDomainFile();
         mdTypeDef classToken = pMT->GetCl();
 
         pThread->SetThreadCurrNotification(objHandle);
         g_pDebugInterface->SendCustomDebuggerNotification(pThread, pDomainFile, classToken);   
         pThread->ClearThreadCurrNotification();
 
-        TESTHOOKCALL(AppDomainCanBeUnloaded(DefaultADID, FALSE));
         if (pThread->IsAbortRequested())
         {
             pThread->HandleThreadAbort();
@@ -1087,9 +1086,11 @@ void DebugStackTrace::GetStackFramesFromException(OBJECTREF * e,
 
     // Now get the _stackTrace reference
     StackTraceArray traceData;
-    EXCEPTIONREF(*e)->GetStackTrace(traceData, pDynamicMethodArray);
-
+    ZeroMemory(&traceData, sizeof(traceData));
     GCPROTECT_BEGIN(traceData);
+
+        EXCEPTIONREF(*e)->GetStackTrace(traceData, pDynamicMethodArray);
+
         // The number of frame info elements in the stack trace info
         pData->cElements = static_cast<int>(traceData.Size());
 

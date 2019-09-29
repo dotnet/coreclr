@@ -960,35 +960,6 @@ bool emitter::emitInsMayWriteMultipleRegs(instrDesc* id)
     }
 }
 
-// For the small loads/store instruction we adjust the size 'attr'
-// depending upon whether we have a load or a store
-//
-emitAttr emitter::emitInsAdjustLoadStoreAttr(instruction ins, emitAttr attr)
-{
-    if (EA_SIZE(attr) <= EA_4BYTE)
-    {
-        if (emitInsIsLoad(ins))
-        {
-            // The value of 'ins' encodes the size to load
-            // we use EA_8BYTE here because it is the size we will write (into dataReg)
-            // it is also required when ins is INS_ldrsw
-            //
-            attr = EA_8BYTE;
-        }
-        else
-        {
-            assert(emitInsIsStore(ins));
-
-            // The value of 'ins' encodes the size to store
-            // we use EA_4BYTE here because it is the size of the register
-            // that we want to display when storing small values
-            //
-            attr = EA_4BYTE;
-        }
-    }
-    return attr;
-}
-
 // Takes an instrDesc 'id' and uses the instruction 'ins' to determine the
 // size of the target register that is written or read by the instruction.
 // Note that even if EA_4BYTE is returned a load instruction will still
@@ -8422,9 +8393,8 @@ BYTE* emitter::emitOutputLoadLabel(BYTE* dst, BYTE* srcAddr, BYTE* dstAddr, inst
     {
         // adrp x, [rel page addr] -- compute page address: current page addr + rel page addr
         assert(fmt == IF_LARGEADR);
-        ssize_t relPageAddr =
-            (((ssize_t)dstAddr & 0xFFFFFFFFFFFFF000LL) - ((ssize_t)srcAddr & 0xFFFFFFFFFFFFF000LL)) >> 12;
-        dst = emitOutputShortAddress(dst, INS_adrp, IF_DI_1E, relPageAddr, dstReg);
+        ssize_t relPageAddr = computeRelPageAddr((size_t)dstAddr, (size_t)srcAddr);
+        dst                 = emitOutputShortAddress(dst, INS_adrp, IF_DI_1E, relPageAddr, dstReg);
 
         // add x, x, page offs -- compute address = page addr + page offs
         ssize_t imm12 = (ssize_t)dstAddr & 0xFFF; // 12 bits
@@ -8524,8 +8494,7 @@ BYTE* emitter::emitOutputLJ(insGroup* ig, BYTE* dst, instrDesc* i)
             {
                 // adrp x, [rel page addr] -- compute page address: current page addr + rel page addr
                 assert(fmt == IF_LARGELDC);
-                ssize_t relPageAddr =
-                    (((ssize_t)dstAddr & 0xFFFFFFFFFFFFF000LL) - ((ssize_t)srcAddr & 0xFFFFFFFFFFFFF000LL)) >> 12;
+                ssize_t relPageAddr = computeRelPageAddr((size_t)dstAddr, (size_t)srcAddr);
                 if (isVectorRegister(dstReg))
                 {
                     // Update addrReg with the reserved integer register
@@ -10698,7 +10667,7 @@ void emitter::emitDispAddrRRExt(regNumber reg1, regNumber reg2, insOpts opt, boo
  *  Display (optionally) the instruction encoding in hex
  */
 
-void emitter::emitDispInsHex(BYTE* code, size_t sz)
+void emitter::emitDispInsHex(instrDesc* id, BYTE* code, size_t sz)
 {
     // We do not display the instruction hex if we want diff-able disassembly
     if (!emitComp->opts.disDiffable)
@@ -10709,6 +10678,7 @@ void emitter::emitDispInsHex(BYTE* code, size_t sz)
         }
         else
         {
+            assert(sz == 0);
             printf("              ");
         }
     }
@@ -10742,7 +10712,7 @@ void emitter::emitDispIns(
 
     /* Display the instruction hex code */
 
-    emitDispInsHex(pCode, sz);
+    emitDispInsHex(id, pCode, sz);
 
     printf("      ");
 
@@ -10879,8 +10849,9 @@ void emitter::emitDispIns(
             break;
 
         case IF_BR_1B: // BR_1B   ................ ......nnnnn.....         Rn
+            // The size of a branch target is always EA_PTRSIZE
             assert(insOptsNone(id->idInsOpt()));
-            emitDispReg(id->idReg3(), size, false);
+            emitDispReg(id->idReg3(), EA_PTRSIZE, false);
             break;
 
         case IF_LS_1A: // LS_1A   XX...V..iiiiiiii iiiiiiiiiiittttt      Rt    PC imm(1MB)
@@ -11581,8 +11552,6 @@ void emitter::emitDispFrameRef(int varx, int disp, int offs, bool asmfm)
 //
 void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataReg, GenTreeIndir* indir)
 {
-    emitAttr ldstAttr = isVectorRegister(dataReg) ? attr : emitInsAdjustLoadStoreAttr(ins, attr);
-
     GenTree* addr = indir->Addr();
 
     if (addr->isContained())
@@ -11631,7 +11600,7 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
                     noway_assert(emitInsIsLoad(ins) || (tmpReg != dataReg));
 
                     // Then load/store dataReg from/to [tmpReg + offset]
-                    emitIns_R_R_I(ins, ldstAttr, dataReg, tmpReg, offset);
+                    emitIns_R_R_I(ins, attr, dataReg, tmpReg, offset);
                 }
                 else // large offset
                 {
@@ -11645,7 +11614,7 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
                     noway_assert(tmpReg != index->gtRegNum);
 
                     // Then load/store dataReg from/to [tmpReg + index*scale]
-                    emitIns_R_R_R_I(ins, ldstAttr, dataReg, tmpReg, index->gtRegNum, lsl, INS_OPTS_LSL);
+                    emitIns_R_R_R_I(ins, attr, dataReg, tmpReg, index->gtRegNum, lsl, INS_OPTS_LSL);
                 }
             }
             else // (offset == 0)
@@ -11653,21 +11622,21 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
                 if (lsl > 0)
                 {
                     // Then load/store dataReg from/to [memBase + index*scale]
-                    emitIns_R_R_R_I(ins, ldstAttr, dataReg, memBase->gtRegNum, index->gtRegNum, lsl, INS_OPTS_LSL);
+                    emitIns_R_R_R_I(ins, attr, dataReg, memBase->gtRegNum, index->gtRegNum, lsl, INS_OPTS_LSL);
                 }
                 else // no scale
                 {
                     // Then load/store dataReg from/to [memBase + index]
-                    emitIns_R_R_R(ins, ldstAttr, dataReg, memBase->gtRegNum, index->gtRegNum);
+                    emitIns_R_R_R(ins, attr, dataReg, memBase->gtRegNum, index->gtRegNum);
                 }
             }
         }
         else // no Index register
         {
-            if (emitIns_valid_imm_for_ldst_offset(offset, EA_SIZE(attr)))
+            if (emitIns_valid_imm_for_ldst_offset(offset, emitTypeSize(indir->TypeGet())))
             {
                 // Then load/store dataReg from/to [memBase + offset]
-                emitIns_R_R_I(ins, ldstAttr, dataReg, memBase->gtRegNum, offset);
+                emitIns_R_R_I(ins, attr, dataReg, memBase->gtRegNum, offset);
             }
             else
             {
@@ -11678,14 +11647,14 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
                 codeGen->instGen_Set_Reg_To_Imm(EA_PTRSIZE, tmpReg, offset);
 
                 // Then load/store dataReg from/to [memBase + tmpReg]
-                emitIns_R_R_R(ins, ldstAttr, dataReg, memBase->gtRegNum, tmpReg);
+                emitIns_R_R_R(ins, attr, dataReg, memBase->gtRegNum, tmpReg);
             }
         }
     }
     else // addr is not contained, so we evaluate it into a register
     {
         // Then load/store dataReg from/to [addrReg]
-        emitIns_R_R(ins, ldstAttr, dataReg, addr->gtRegNum);
+        emitIns_R_R(ins, attr, dataReg, addr->gtRegNum);
     }
 }
 
@@ -11870,5 +11839,122 @@ regNumber emitter::emitInsTernary(instruction ins, emitAttr attr, GenTree* dst, 
 
     return dst->gtRegNum;
 }
+
+#if defined(DEBUG) || defined(LATE_DISASM)
+
+void emitter::getMemoryOperation(instrDesc* id, unsigned* pMemAccessKind, bool* pIsLocalAccess)
+{
+    unsigned    memAccessKind = PERFSCORE_MEMORY_NONE;
+    bool        isLocalAccess = false;
+    instruction ins           = id->idIns();
+
+    if (emitInsIsLoadOrStore(ins))
+    {
+        if (emitInsIsLoad(ins))
+        {
+            if (emitInsIsStore(ins))
+            {
+                memAccessKind = PERFSCORE_MEMORY_READ_WRITE;
+            }
+            else
+            {
+                memAccessKind = PERFSCORE_MEMORY_READ;
+            }
+        }
+        else
+        {
+            assert(emitInsIsStore(ins));
+            memAccessKind = PERFSCORE_MEMORY_WRITE;
+        }
+
+        insFormat insFmt = id->idInsFmt();
+
+        switch (insFmt)
+        {
+            case IF_LS_1A:
+                isLocalAccess = true;
+                break;
+
+            case IF_LS_2A:
+            case IF_LS_2B:
+            case IF_LS_2C:
+            case IF_LS_3A:
+                if (isStackRegister(id->idReg2()))
+                {
+                    isLocalAccess = true;
+                }
+                break;
+
+            case IF_LS_3B:
+            case IF_LS_3C:
+            case IF_LS_3D:
+            case IF_LS_3E:
+                if (isStackRegister(id->idReg3()))
+                {
+                    isLocalAccess = true;
+                }
+                break;
+
+            default:
+                assert(!"Logic Error");
+                memAccessKind = PERFSCORE_MEMORY_NONE;
+                break;
+        }
+    }
+
+    *pMemAccessKind = memAccessKind;
+    *pIsLocalAccess = isLocalAccess;
+}
+
+//----------------------------------------------------------------------------------------
+// getInsExecutionCharacteristics:
+//    Returns the current instruction execution characteristics
+//
+// Arguments:
+//    id  - The current instruction descriptor to be evaluated
+//
+// Return Value:
+//    A struct containing the current instruction execution characteristics
+//
+// Notes:
+//
+emitter::insExecutionCharacteristics emitter::getInsExecutionCharacteristics(instrDesc* id)
+{
+    insExecutionCharacteristics result;
+    instruction                 ins    = id->idIns();
+    insFormat                   insFmt = id->idInsFmt();
+
+    unsigned memAccessKind;
+    bool     isLocalAccess;
+    getMemoryOperation(id, &memAccessKind, &isLocalAccess);
+
+    result.insThroughput = PERFSCORE_THROUGHPUT_ILLEGAL;
+    result.insLatency    = PERFSCORE_LATENCY_ILLEGAL;
+
+    if (memAccessKind == PERFSCORE_MEMORY_READ)
+    {
+        result.insLatency = PERFSCORE_LATENCY_4C;
+    }
+    else if (memAccessKind == PERFSCORE_MEMORY_WRITE)
+    {
+        result.insLatency = PERFSCORE_LATENCY_1C;
+    }
+    else if (memAccessKind == PERFSCORE_MEMORY_READ_WRITE)
+    {
+        result.insLatency = PERFSCORE_LATENCY_5C;
+    }
+
+    // ToDo: Determine individual instruction throughput as latency
+    //
+    result.insThroughput = PERFSCORE_THROUGHPUT_DEFAULT;
+    if (memAccessKind == PERFSCORE_MEMORY_NONE)
+    {
+        result.insLatency = PERFSCORE_LATENCY_DEFAULT;
+    }
+
+    return result;
+}
+
+#endif // defined(DEBUG) || defined(LATE_DISASM)
 
 #endif // defined(_TARGET_ARM64_)

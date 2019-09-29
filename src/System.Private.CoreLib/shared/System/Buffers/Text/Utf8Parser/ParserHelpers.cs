@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Runtime.CompilerServices;
 
 namespace System.Buffers.Text
@@ -27,7 +26,7 @@ namespace System.Buffers.Text
         public const int Int64OverflowLength = 19;
         public const int Int64OverflowLengthHex = 16;
 
-        public static readonly byte[] s_hexLookup =
+        public static ReadOnlySpan<byte> HexLookup => new byte[] // rely on C# compiler optimization to reference static data
         {
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,             // 15
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,             // 31

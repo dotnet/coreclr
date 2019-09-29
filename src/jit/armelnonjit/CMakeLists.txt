@@ -13,13 +13,14 @@ if(FEATURE_READYTORUN)
 endif(FEATURE_READYTORUN)
 
 if (CLR_CMAKE_PLATFORM_ARCH_I386)
-    remove_definitions(-D_TARGET_X86_=1)
+    remove_definitions(-D_TARGET_X86_)
     add_definitions(-D_TARGET_ARM_)
-    add_definitions(-DARM_SOFTFP=1)
+    add_definitions(-DARM_SOFTFP)
+    add_definitions(-DFEATURE_EH_FUNCLETS)
     set(JIT_ARCH_ALTJIT_SOURCES ${JIT_ARM_SOURCES})
     set(JIT_ARCH_LINK_LIBRARIES gcinfo_arm)
 elseif(CLR_CMAKE_PLATFORM_ARCH_AMD64)
-    remove_definitions(-D_TARGET_AMD64_=1)
+    remove_definitions(-D_TARGET_AMD64_)
     add_definitions(-D_TARGET_ARM64_)
     set(JIT_ARCH_ALTJIT_SOURCES ${JIT_ARM64_SOURCES})
     set(JIT_ARCH_LINK_LIBRARIES gcinfo_arm64)
@@ -40,6 +41,8 @@ endif(NOT WIN32)
 if(WIN32)
   add_definitions(-DFX_VER_INTERNALNAME_STR=armelnonjit.dll)
 endif(WIN32)
+
+set_source_files_properties(${JIT_EXPORTS_FILE} PROPERTIES GENERATED TRUE)
 
 add_library_clr(armelnonjit
    SHARED

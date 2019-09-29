@@ -33,7 +33,7 @@
 #include "asmconstants.h"
 #include "virtualcallstub.h"
 
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
 MethodDesc * GetUserMethodForILStub(Thread * pThread, UINT_PTR uStubSP, MethodDesc * pILStubMD, Frame ** ppFrameOut);
 
 #if !defined(DACCESS_COMPILE)
@@ -1659,7 +1659,7 @@ EXCEPTION_HANDLER_IMPL(COMPlusFrameHandler)
 #ifdef HAVE_GCCOVER // This is a debug only macro
     if (GCStress<cfg_instr_jit>::IsEnabled())
     {
-        // UnsafeTlsGetValue trashes last error. When Complus_GCStress=4, GC is invoked
+        // TlsGetValue trashes last error. When Complus_GCStress=4, GC is invoked
         // on every allowable JITed instruction by means of our exception handling machanism
         // it is very easy to trash the last error. For example, a p/invoke called a native method
         // which sets last error. Before we getting the last error in the IL stub, it is trashed here
@@ -1867,6 +1867,21 @@ NOINLINE LPVOID COMPlusEndCatchWorker(Thread * pThread)
 
     // Sync managed exception state, for the managed thread, based upon any active exception tracker
     pThread->SyncManagedExceptionState(fIsDebuggerHelperThread);
+
+    if (InlinedCallFrame::FrameHasActiveCall(pThread->m_pFrame))
+    {
+        // When unwinding an exception in ReadyToRun, the JIT_PInvokeEnd helper which unlinks the ICF from 
+        // the thread will be skipped. This is because unlike jitted code, each pinvoke is wrapped by calls
+        // to the JIT_PInvokeBegin and JIT_PInvokeEnd helpers, which push and pop the ICF on the thread. The
+        // ICF is not linked at the method prolog and unlined at the epilog when running R2R code. Since the
+        // JIT_PInvokeEnd helper will be skipped, we need to unlink the ICF here. If the executing method
+        // has another pinovoke, it will re-link the ICF again when the JIT_PInvokeBegin helper is called
+
+        if (ExecutionManager::IsReadyToRunCode(((InlinedCallFrame*)pThread->m_pFrame)->m_pCallerReturnAddress))
+        {
+            pThread->m_pFrame->Pop(pThread);
+        }
+    }
 
     LOG((LF_EH, LL_INFO1000, "COMPlusPEndCatch: esp=%p\n", esp));
 
@@ -3561,7 +3576,7 @@ EXCEPTION_HANDLER_IMPL(COMPlusFrameHandlerRevCom)
 }
 #endif // FEATURE_COMINTEROP
 #endif // !DACCESS_COMPILE
-#endif // !WIN64EXCEPTIONS
+#endif // !FEATURE_EH_FUNCLETS
 
 PTR_CONTEXT GetCONTEXTFromRedirectedStubStackFrame(CONTEXT * pContext)
 {
@@ -3575,7 +3590,7 @@ PTR_CONTEXT GetCONTEXTFromRedirectedStubStackFrame(CONTEXT * pContext)
 #ifndef DACCESS_COMPILE
 LONG CLRNoCatchHandler(EXCEPTION_POINTERS* pExceptionInfo, PVOID pv)
 {
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
     WRAPPER_NO_CONTRACT;
     STATIC_CONTRACT_ENTRY_POINT;
 
@@ -3594,9 +3609,9 @@ LONG CLRNoCatchHandler(EXCEPTION_POINTERS* pExceptionInfo, PVOID pv)
     //END_ENTRYPOINT_VOIDRET;
 
     return result;
-#else  // !WIN64EXCEPTIONS
+#else  // !FEATURE_EH_FUNCLETS
     return EXCEPTION_CONTINUE_SEARCH;
-#endif // !WIN64EXCEPTIONS
+#endif // !FEATURE_EH_FUNCLETS
 }
 #endif // !DACCESS_COMPILE
 
@@ -3647,7 +3662,10 @@ AdjustContextForVirtualStub(
     }
 
     PCODE callsite = GetAdjustedCallAddress(*dac_cast<PTR_PCODE>(GetSP(pContext)));
-    pExceptionRecord->ExceptionAddress = (PVOID)callsite;
+    if (pExceptionRecord != NULL)
+    {
+        pExceptionRecord->ExceptionAddress = (PVOID)callsite;
+    }
     SetIP(pContext, callsite);
 
 #if defined(GCCOVER_TOLERATE_SPURIOUS_AV)

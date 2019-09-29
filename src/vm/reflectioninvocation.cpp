@@ -476,10 +476,7 @@ FCIMPL6(Object*, RuntimeTypeHandle::CreateInstance, ReflectClassBaseObject* refT
             else 
                 rv = pVMT->Allocate();
 
-            if (!pVMT->Collectible())
-            {
-                *pbCanBeCached = true;
-            }
+            *pbCanBeCached = true;
         }
         else // !pVMT->HasDefaultConstructor()
         {
@@ -495,7 +492,6 @@ FCIMPL6(Object*, RuntimeTypeHandle::CreateInstance, ReflectClassBaseObject* refT
 
             // We've got the class, lets allocate it and call the constructor
             OBJECTREF o;
-            bool remoting = false;
 
             o = AllocateObject(pVMT);
             GCPROTECT_BEGIN(o);
@@ -518,7 +514,7 @@ FCIMPL6(Object*, RuntimeTypeHandle::CreateInstance, ReflectClassBaseObject* refT
             // No need to set these if they cannot be cached. In particular, if the type is a value type with a custom
             // parameterless constructor, don't allow caching and have subsequent calls come back here to allocate an object and
             // call the constructor.
-            if (!remoting && !pVMT->Collectible() && !pVMT->IsValueType())
+            if (!pVMT->IsValueType())
             {
                 *pbCanBeCached = true;
                 *pConstructor = pMeth;
@@ -1926,7 +1922,7 @@ FCIMPL1(void, ReflectionInvocation::RunModuleConstructor, ReflectModuleBaseObjec
 
     Assembly *pAssem = pModule->GetAssembly();
 
-    DomainFile *pDomainFile = pModule->FindDomainFile(GetAppDomain());
+    DomainFile *pDomainFile = pModule->GetDomainFile();
     if (pDomainFile==NULL || !pDomainFile->IsActive())
     {
         HELPER_METHOD_FRAME_BEGIN_1(refModule);
@@ -2283,21 +2279,6 @@ FCIMPL4(void, ReflectionInvocation::MakeTypedReference, TypedByRef * value, Obje
     HELPER_METHOD_FRAME_END();
 }
 FCIMPLEND
-
-FCIMPL2(void, ReflectionInvocation::SetTypedReference, TypedByRef * target, Object* objUNSAFE) {
-    FCALL_CONTRACT;
-    
-    // <TODO>@TODO: We fixed serious bugs in this method very late in the endgame
-    // for V1 RTM. So it was decided to disable this API (nobody would seem to
-    // be using it anyway). If this API is enabled again, the implementation should 
-    // be similar to COMArrayInfo::SetValue.
-    // </TODO>
-    HELPER_METHOD_FRAME_BEGIN_0();
-    COMPlusThrow(kNotSupportedException);
-    HELPER_METHOD_FRAME_END();
-}
-FCIMPLEND
-
 
 // This is an internal helper function to TypedReference class.
 // It extracts the object from the typed reference.
@@ -2709,13 +2690,13 @@ public:
     }
 };
 
-void QCALLTYPE ReflectionEnum::GetEnumValuesAndNames(EnregisteredTypeHandle pEnumType, QCall::ObjectHandleOnStack pReturnValues, QCall::ObjectHandleOnStack pReturnNames, BOOL fGetNames)
+void QCALLTYPE ReflectionEnum::GetEnumValuesAndNames(QCall::TypeHandle pEnumType, QCall::ObjectHandleOnStack pReturnValues, QCall::ObjectHandleOnStack pReturnNames, BOOL fGetNames)
 {
     QCALL_CONTRACT;
 
     BEGIN_QCALL;
 
-    TypeHandle th = TypeHandle::FromPtr(pEnumType);
+    TypeHandle th = pEnumType.AsTypeHandle();
 
     if (!th.IsEnum())
         COMPlusThrow(kArgumentException, W("Arg_MustBeEnum"));
@@ -2781,19 +2762,19 @@ void QCALLTYPE ReflectionEnum::GetEnumValuesAndNames(EnregisteredTypeHandle pEnu
                 break;
 
             case ELEMENT_TYPE_I4:
-            IN_WIN32(case ELEMENT_TYPE_I:)
+            IN_TARGET_32BIT(case ELEMENT_TYPE_I:)
                 value = *((INT32 *)pValue);
                 break;
 
             case ELEMENT_TYPE_U4:
-            IN_WIN32(case ELEMENT_TYPE_U:)
+            IN_TARGET_32BIT(case ELEMENT_TYPE_U:)
                 value = *((UINT32 *)pValue);
                 break;
 
             case ELEMENT_TYPE_I8:
             case ELEMENT_TYPE_U8:
-            IN_WIN64(case ELEMENT_TYPE_I:)
-            IN_WIN64(case ELEMENT_TYPE_U:)
+            IN_TARGET_64BIT(case ELEMENT_TYPE_I:)
+            IN_TARGET_64BIT(case ELEMENT_TYPE_U:)
                 value = *((INT64 *)pValue);
                 break;
 
@@ -2886,40 +2867,10 @@ FCIMPLEND
 //*************************************************************************************************
 //*************************************************************************************************
 //*************************************************************************************************
-//      ReflectionBinder
+//      ReflectionEnum
 //*************************************************************************************************
 //*************************************************************************************************
 //*************************************************************************************************
-
-FCIMPL2(FC_BOOL_RET, ReflectionBinder::DBCanConvertPrimitive, ReflectClassBaseObject* source, ReflectClassBaseObject* target) {
-    FCALL_CONTRACT;
-    
-    VALIDATEOBJECT(source);
-    VALIDATEOBJECT(target);
-
-    CorElementType tSRC = source->GetType().GetSignatureCorElementType();
-    CorElementType tTRG = target->GetType().GetSignatureCorElementType();
-
-    FC_RETURN_BOOL(InvokeUtil::IsPrimitiveType(tTRG) && InvokeUtil::CanPrimitiveWiden(tTRG, tSRC));
-}
-FCIMPLEND
-
-FCIMPL2(FC_BOOL_RET, ReflectionBinder::DBCanConvertObjectPrimitive, Object* sourceObj, ReflectClassBaseObject* target) {
-    FCALL_CONTRACT;
-    
-    VALIDATEOBJECT(sourceObj);
-    VALIDATEOBJECT(target);
-
-    if (sourceObj == 0)
-        FC_RETURN_BOOL(true);
-
-    TypeHandle th(sourceObj->GetMethodTable());
-    CorElementType tSRC = th.GetVerifierCorElementType();
-
-    CorElementType tTRG = target->GetType().GetSignatureCorElementType();
-    FC_RETURN_BOOL(InvokeUtil::IsPrimitiveType(tTRG) && InvokeUtil::CanPrimitiveWiden(tTRG, tSRC));
-}
-FCIMPLEND
 
 FCIMPL2(FC_BOOL_RET, ReflectionEnum::InternalEquals, Object *pRefThis, Object* pRefTarget)
 {
@@ -3065,7 +3016,7 @@ FCIMPL2(int, ReflectionEnum::InternalCompareTo, Object *pRefThis, Object* pRefTa
 
         
     case ELEMENT_TYPE_I4:
-    IN_WIN32(case ELEMENT_TYPE_I:)
+    IN_TARGET_32BIT(case ELEMENT_TYPE_I:)
         {
             INT32 i1 = *(INT32*)pThis;
             INT32 i2 = *(INT32*)pTarget;
@@ -3076,7 +3027,7 @@ FCIMPL2(int, ReflectionEnum::InternalCompareTo, Object *pRefThis, Object* pRefTa
      
 
     case ELEMENT_TYPE_I8:
-    IN_WIN64(case ELEMENT_TYPE_I:)
+    IN_TARGET_64BIT(case ELEMENT_TYPE_I:)
         {
             INT64 i1 = *(INT64*)pThis;
             INT64 i2 = *(INT64*)pTarget;
@@ -3114,7 +3065,7 @@ FCIMPL2(int, ReflectionEnum::InternalCompareTo, Object *pRefThis, Object* pRefTa
         break;
 
     case ELEMENT_TYPE_U4:
-    IN_WIN32(case ELEMENT_TYPE_U:)
+    IN_TARGET_32BIT(case ELEMENT_TYPE_U:)
         {
             UINT32 u1 = *(UINT32 *)pThis;
             UINT32 u2 = *(UINT32 *)pTarget;
@@ -3124,7 +3075,7 @@ FCIMPL2(int, ReflectionEnum::InternalCompareTo, Object *pRefThis, Object* pRefTa
         break;
 
     case ELEMENT_TYPE_U8:
-    IN_WIN64(case ELEMENT_TYPE_U:)
+    IN_TARGET_64BIT(case ELEMENT_TYPE_U:)
         {
             UINT64 u1 = *(UINT64*)pThis;
             UINT64 u2 = *(UINT64*)pTarget;

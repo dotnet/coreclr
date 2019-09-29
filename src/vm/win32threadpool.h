@@ -141,10 +141,10 @@ public:
         Counts GetCleanCounts()
         {
             LIMITED_METHOD_CONTRACT;
-#ifdef _WIN64
+#ifdef BIT64
             // VolatileLoad x64 bit read is atomic
             return DangerousGetDirtyCounts();
-#else // !_WIN64
+#else // !BIT64
             // VolatileLoad may result in torn read
             Counts result;
 #ifndef DACCESS_COMPILE
@@ -154,7 +154,7 @@ public:
             result.AsLongLong = 0; //prevents prefast warning for DAC builds
 #endif
             return result;
-#endif // !_WIN64
+#endif // !BIT64
         }
 
         //
@@ -243,6 +243,8 @@ public:
  
     static BOOL GetAvailableThreads(DWORD* AvailableWorkerThreads, 
                                  DWORD* AvailableIOCompletionThreads);
+
+    static INT32 GetThreadCount();
 
     static BOOL QueueUserWorkItem(LPTHREAD_START_ROUTINE Function, 
                                   PVOID Context,
@@ -529,7 +531,7 @@ private:
                         HANDLE hEvent = refSH->GetHandle();
                         if (hEvent != INVALID_HANDLE_VALUE)
                         {
-                            UnsafeSetEvent(hEvent);
+                            SetEvent(hEvent);
                         }
                     }
                 }
@@ -615,7 +617,7 @@ private:
         Volatile<LONG> lock;   		// this is the spin lock
         DWORD         count;  		// count of number of elements in the list
         Entry*        root;   		// ptr to first element of recycled list
-#ifndef _WIN64
+#ifndef BIT64
 		DWORD         filler;       // Pad the structure to a multiple of the 16.
 #endif
 
@@ -841,7 +843,7 @@ public:
     static void NotifyWorkItemCompleted()
     {
         WRAPPER_NO_CONTRACT;
-        Thread::IncrementThreadPoolCompletionCount();
+        Thread::IncrementWorkerThreadPoolCompletionCount(GetThread());
         UpdateLastDequeueTime();
     }
 

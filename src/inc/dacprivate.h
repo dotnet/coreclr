@@ -527,6 +527,35 @@ struct MSLAYOUT DacpReJitData : ZeroInit<DacpReJitData>
     CLRDATA_ADDRESS                 NativeCodeAddr;
 };
 
+struct MSLAYOUT DacpReJitData2 : ZeroInit<DacpReJitData2>
+{
+    enum Flags
+    {
+        kUnknown,
+        kRequested,
+        kActive,
+        kReverted,
+    };
+
+    ULONG                           rejitID;
+    Flags                           flags;
+    CLRDATA_ADDRESS                 il;
+    CLRDATA_ADDRESS                 ilCodeVersionNodePtr;
+};
+
+struct MSLAYOUT DacpProfilerILData : ZeroInit<DacpProfilerILData>
+{
+    enum ModificationType
+    {
+        Unmodified,
+        ILModified,
+        ReJITModified,
+    };
+
+    ModificationType                type;
+    CLRDATA_ADDRESS                 il;
+    ULONG                           rejitID;
+};
 
 struct MSLAYOUT DacpMethodDescData : ZeroInit<DacpMethodDescData>
 {
@@ -587,16 +616,18 @@ struct MSLAYOUT DacpMethodDescTransparencyData : ZeroInit<DacpMethodDescTranspar
 
 struct MSLAYOUT DacpTieredVersionData
 {
-    enum TieredState 
+    enum OptimizationTier
     {
-        NON_TIERED,
-        TIERED_0,
-        TIERED_1,
-        TIERED_UNKNOWN
+        OptimizationTier_Unknown,
+        OptimizationTier_MinOptJitted,
+        OptimizationTier_Optimized,
+        OptimizationTier_QuickJitted,
+        OptimizationTier_OptimizedTier1,
+        OptimizationTier_ReadyToRun,
     };
     
     CLRDATA_ADDRESS NativeCodeAddr;
-    TieredState     TieredInfo;
+    OptimizationTier OptimizationTier;
     CLRDATA_ADDRESS NativeCodeVersionNodePtr;
 };
 

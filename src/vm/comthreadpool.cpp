@@ -182,6 +182,37 @@ FCIMPL2(VOID, ThreadPoolNative::CorGetAvailableThreads,DWORD* workerThreads, DWO
 FCIMPLEND
 
 /*****************************************************************************************************/
+FCIMPL0(INT32, ThreadPoolNative::GetThreadCount)
+{
+    FCALL_CONTRACT;
+    return ThreadpoolMgr::GetThreadCount();
+}
+FCIMPLEND
+
+/*****************************************************************************************************/
+INT64 QCALLTYPE ThreadPoolNative::GetCompletedWorkItemCount()
+{
+    QCALL_CONTRACT;
+
+    INT64 result = 0;
+
+    BEGIN_QCALL;
+
+    result = (INT64)Thread::GetTotalThreadPoolCompletionCount();
+
+    END_QCALL;
+    return result;
+}
+
+/*****************************************************************************************************/
+FCIMPL0(INT64, ThreadPoolNative::GetPendingUnmanagedWorkItemCount)
+{
+    FCALL_CONTRACT;
+    return PerAppDomainTPCountList::GetUnmanagedTPCount()->GetNumRequests();
+}
+FCIMPLEND
+
+/*****************************************************************************************************/
 
 FCIMPL0(VOID, ThreadPoolNative::NotifyRequestProgress)
 {
@@ -716,7 +747,7 @@ FCIMPL1(FC_BOOL_RET, ThreadPoolNative::CorPostQueuedCompletionStatus, LPOVERLAPP
     // OS doesn't signal handle, so do it here
     lpOverlapped->Internal = 0;
 
-    if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, ThreadPoolIOEnqueue))
+    if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, ThreadPoolIOEnqueue))
         FireEtwThreadPoolIOEnqueue(lpOverlapped, OBJECTREFToObject(overlapped), false, GetClrInstanceId());
     
     res = ThreadpoolMgr::PostQueuedCompletionStatus(lpOverlapped, 

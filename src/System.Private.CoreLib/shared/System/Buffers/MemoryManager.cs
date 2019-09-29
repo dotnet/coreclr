@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Runtime.CompilerServices;
 
 namespace System.Buffers
@@ -71,6 +70,5 @@ namespace System.Buffers
         /// Clean up of any leftover managed and unmanaged resources.
         /// </summary>
         protected abstract void Dispose(bool disposing);
-
     }
 }

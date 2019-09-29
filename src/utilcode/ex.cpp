@@ -1063,26 +1063,6 @@ void DECLSPEC_NORETURN ThrowOutOfMemory()
 
 #include "corexcep.h"
 
-void DECLSPEC_NORETURN ThrowMessage(LPCSTR string, ...)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-    
-    StackSString message;
-
-    va_list args;
-    va_start(args, string);
-    message.VPrintf(string, args);
-    va_end(args);
-
-    EX_THROW(HRMsgException, (E_FAIL, message));
-}
-
-
 //--------------------------------------------------------------------------------
 // Helper for EX_THROW_WITH_INNER()
 //
@@ -1180,11 +1160,7 @@ void GetHRMsg(HRESULT hr, SString &result, BOOL bNoGeekStuff/* = FALSE*/)
         DWORD dwFlags = FORMAT_MESSAGE_FROM_SYSTEM;
         dwFlags |= FORMAT_MESSAGE_MAX_WIDTH_MASK;
 
-#if FEATURE_USE_LCID        
-        fHaveDescr = strDescr.FormatMessage(dwFlags, 0, hr, LANG_USER_DEFAULT);
-#else
         fHaveDescr = strDescr.FormatMessage(dwFlags, 0, hr, 0);
-#endif
     }
 
     LPCSTR name = Exception::GetHRSymbolicName(hr);

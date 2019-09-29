@@ -15,7 +15,6 @@
 #include "apithreadstress.h"
 #include <objbase.h>
 
-#include "sha1.h"
 #include "eventtrace.h"
 #include "peimagelayout.inl"
 
@@ -30,8 +29,6 @@ CrstStatic  PEImage::s_hashLock;
 PtrHashMap *PEImage::s_Images = NULL;
 CrstStatic  PEImage::s_ijwHashLock;
 PtrHashMap *PEImage::s_ijwFixupDataHash;
-
-extern LocaleID g_lcid; // fusion path comparison lcid
 
 /* static */
 void PEImage::Startup()
@@ -60,11 +57,6 @@ void PEImage::Startup()
     s_ijwFixupDataHash->Init(CompareIJWDataBase, FALSE, &ijwLock);
 
     PEImageLayout::Startup();
-#ifdef FEATURE_USE_LCID
-    g_lcid = MAKELCID(LOCALE_INVARIANT, SORT_DEFAULT);
-#else // FEATURE_USE_LCID
-    g_lcid = NULL; // invariant
-#endif //FEATURE_USE_LCID
 
     RETURN;
 }
@@ -123,6 +115,7 @@ CHECK PEImage::CheckILFormat()
         pLayoutToCheck = pLayoutHolder;
     }
 
+#ifdef FEATURE_PREJIT
     if (PEFile::ShouldTreatNIAsMSIL())
     {
         // This PEImage may intentionally be an NI image, being used as if it were an
@@ -132,6 +125,7 @@ CHECK PEImage::CheckILFormat()
         CHECK(pLayoutToCheck->CheckCORFormat());
     }
     else
+#endif
     {
         CHECK(pLayoutToCheck->CheckILFormat());
     }
@@ -342,18 +336,6 @@ CHECK PEImage::CheckCanonicalFullPath(const SString &path)
     CHECK_OK;
 }
 
-#ifdef FEATURE_USE_LCID
-LCID g_lcid =0; // fusion path comparison lcid
-#else
-LPCWSTR g_lcid=NULL;
-#endif
-/* static */
-LocaleID PEImage::GetFileSystemLocale()
-{
-    LIMITED_METHOD_CONTRACT;
-    return g_lcid;
-}
-
 BOOL PEImage::PathEquals(const SString &p1, const SString &p2)
 {
     CONTRACTL
@@ -367,7 +349,7 @@ BOOL PEImage::PathEquals(const SString &p1, const SString &p2)
 #ifdef FEATURE_CASE_SENSITIVE_FILESYSTEM
     return p1.Equals(p2);
 #else
-    return p1.EqualsCaseInsensitive(p2, g_lcid);
+    return p1.EqualsCaseInsensitive(p2);
 #endif
 }
 
@@ -450,7 +432,6 @@ IMDInternalImport* PEImage::GetMDImport()
     return m_pMDImport;
 }
 
-#ifdef FEATURE_PREJIT
 IMDInternalImport* PEImage::GetNativeMDImport(BOOL loadAllowed)
 {
     CONTRACTL
@@ -508,7 +489,6 @@ void PEImage::OpenNativeMDImport()
     }
     _ASSERTE(m_pNativeMDImport);
 }
-#endif
 
 void PEImage::OpenMDImport()
 {
@@ -617,17 +597,6 @@ void PEImage::GetMVID(GUID *pMvid)
 #endif // _DEBUG
 }
 
-void PEImage::GetHashedStrongNameSignature(SBuffer &result)
-{
-    COUNT_T size;
-    const void *sig = GetStrongNameSignature(&size);
-
-    SHA1Hash hasher;
-    hasher.AddData((BYTE *) sig, size);
-    result.Set(hasher.GetHash(), SHA1_HASH_SIZE);
-}
-
-
 void PEImage::VerifyIsAssembly()
 {
     CONTRACTL
@@ -673,6 +642,7 @@ void PEImage::VerifyIsILOrNIAssembly(BOOL fIL)
         ThrowFormat(COR_E_ASSEMBLYEXPECTED);
 
     CHECK checkGoodFormat;
+#ifdef FEATURE_PREJIT
     if (fIL)
     {
         checkGoodFormat = CheckILFormat();
@@ -681,6 +651,9 @@ void PEImage::VerifyIsILOrNIAssembly(BOOL fIL)
     {
         checkGoodFormat = CheckNativeFormat();
     }
+#else
+    checkGoodFormat = CheckILFormat();
+#endif
     if (!checkGoodFormat)
         ThrowFormat(COR_E_BADIMAGEFORMAT);
     
@@ -948,8 +921,6 @@ void PEImage::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 PEImage::PEImage():
     m_refCount(1),
     m_bIsTrustedNativeImage(FALSE),
-    m_bIsNativeImageInstall(FALSE),
-    m_bPassiveDomainOnly(FALSE),
     m_bInHashMap(FALSE),
 #ifdef METADATATRACKER_DATA
     m_pMDTracker(NULL),
@@ -958,9 +929,6 @@ PEImage::PEImage():
     m_pNativeMDImport(NULL),
     m_hFile(INVALID_HANDLE_VALUE),
     m_bOwnHandle(true),
-    m_bSignatureInfoCached(FALSE),
-    m_hrSignatureInfoStatus(E_UNEXPECTED),
-    m_dwSignatureInfo(0),
     m_dwPEKind(0),
     m_dwMachine(0),
     m_fCachedKindAndMachine(FALSE)
@@ -1109,7 +1077,7 @@ PTR_PEImageLayout PEImage::CreateLayoutMapped()
     }
     else if (IsFile())
     {
-        PEImageLayoutHolder pLayout(PEImageLayout::Map(GetFileHandle(),this));
+        PEImageLayoutHolder pLayout(PEImageLayout::Map(this));
 
         bool fMarkAnyCpuImageAsLoaded = false;
         // Avoid mapping another image if we can. We can only do this for IL-ONLY images
@@ -1163,7 +1131,7 @@ PTR_PEImageLayout PEImage::CreateLayoutFlat(BOOL bPermitWriteableSections)
 
     _ASSERTE(m_pLayouts[IMAGE_FLAT] == NULL);
 
-    PTR_PEImageLayout pFlatLayout = PEImageLayout::LoadFlat(GetFileHandle(),this);
+    PTR_PEImageLayout pFlatLayout = PEImageLayout::LoadFlat(this);
 
     if (!bPermitWriteableSections
         && pFlatLayout->CheckNTHeaders()
@@ -1211,7 +1179,7 @@ PTR_PEImage PEImage::LoadImage(HMODULE hMod)
 
     StackSString path;
     GetPathFromDll(hMod, path);
-    PEImageHolder pImage(PEImage::OpenImage(path,(MDInternalImportFlags)(MDInternalImport_CheckLongPath|MDInternalImport_CheckShortPath)));
+    PEImageHolder pImage(PEImage::OpenImage(path,(MDInternalImportFlags)(0)));
     if (pImage->HasLoadedLayout())
         RETURN dac_cast<PTR_PEImage>(pImage.Extract());
 
@@ -1353,7 +1321,7 @@ void PEImage::LoadNoMetaData()
     else
     {
         _ASSERTE(!m_path.IsEmpty());
-        SetLayout(IMAGE_LOADED,PEImageLayout::LoadFlat(GetFileHandle(),this));
+        SetLayout(IMAGE_LOADED,PEImageLayout::LoadFlat(this));
     }
 }
 

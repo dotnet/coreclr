@@ -16,7 +16,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #pragma hdrstop
 #endif
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 
 //------------------------------------------------------------------------
 // Compiler::unwindGetFuncLocations: Get the start/end emitter locations for this
@@ -120,9 +120,10 @@ void Compiler::unwindGetFuncLocations(FuncInfoDsc*             func,
 
 #if defined(_TARGET_UNIX_)
 
-void Compiler::createCfiCode(FuncInfoDsc* func, UCHAR codeOffset, UCHAR cfiOpcode, USHORT dwarfReg, INT offset)
+void Compiler::createCfiCode(FuncInfoDsc* func, UNATIVE_OFFSET codeOffset, UCHAR cfiOpcode, short dwarfReg, INT offset)
 {
-    CFI_CODE cfiEntry(codeOffset, cfiOpcode, dwarfReg, offset);
+    noway_assert(static_cast<UCHAR>(codeOffset) == codeOffset);
+    CFI_CODE cfiEntry(static_cast<UCHAR>(codeOffset), cfiOpcode, dwarfReg, offset);
     func->cfiCodes->push_back(cfiEntry);
 }
 
@@ -130,9 +131,8 @@ void Compiler::unwindPushPopCFI(regNumber reg)
 {
     assert(compGeneratingProlog);
 
-    FuncInfoDsc* func     = funCurrentFunc();
-    unsigned int cbProlog = unwindGetCurrentOffset(func);
-    noway_assert((BYTE)cbProlog == cbProlog);
+    FuncInfoDsc*   func     = funCurrentFunc();
+    UNATIVE_OFFSET cbProlog = unwindGetCurrentOffset(func);
 
     regMaskTP relOffsetMask = RBM_CALLEE_SAVED
 #if defined(UNIX_AMD64_ABI) && ETW_EBP_FRAMED
@@ -166,7 +166,7 @@ void Compiler::unwindBegPrologCFI()
 {
     assert(compGeneratingProlog);
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     FuncInfoDsc* func = funCurrentFunc();
 
     // There is only one prolog for a function/funclet, and it comes first. So now is
@@ -205,12 +205,11 @@ void Compiler::unwindPushPopMaskCFI(regMaskTP regMask, bool isFloat)
 void Compiler::unwindAllocStackCFI(unsigned size)
 {
     assert(compGeneratingProlog);
-    FuncInfoDsc* func     = funCurrentFunc();
-    unsigned int cbProlog = 0;
+    FuncInfoDsc*   func     = funCurrentFunc();
+    UNATIVE_OFFSET cbProlog = 0;
     if (compGeneratingProlog)
     {
         cbProlog = unwindGetCurrentOffset(func);
-        noway_assert((BYTE)cbProlog == cbProlog);
     }
     createCfiCode(func, cbProlog, CFI_ADJUST_CFA_OFFSET, DWARF_REG_ILLEGAL, size);
 }
@@ -225,9 +224,8 @@ void Compiler::unwindAllocStackCFI(unsigned size)
 void Compiler::unwindSetFrameRegCFI(regNumber reg, unsigned offset)
 {
     assert(compGeneratingProlog);
-    FuncInfoDsc* func     = funCurrentFunc();
-    unsigned int cbProlog = unwindGetCurrentOffset(func);
-    noway_assert((BYTE)cbProlog == cbProlog);
+    FuncInfoDsc*   func     = funCurrentFunc();
+    UNATIVE_OFFSET cbProlog = unwindGetCurrentOffset(func);
 
     createCfiCode(func, cbProlog, CFI_DEF_CFA_REGISTER, mapRegNumToDwarfReg(reg));
     if (offset != 0)
@@ -255,7 +253,7 @@ void Compiler::unwindEmitFuncCFI(FuncInfoDsc* func, void* pHotCode, void* pColdC
     }
     else
     {
-        startOffset = func->startLoc->CodeOffset(genEmitter);
+        startOffset = func->startLoc->CodeOffset(GetEmitter());
     }
 
     if (func->endLoc == nullptr)
@@ -264,7 +262,7 @@ void Compiler::unwindEmitFuncCFI(FuncInfoDsc* func, void* pHotCode, void* pColdC
     }
     else
     {
-        endOffset = func->endLoc->CodeOffset(genEmitter);
+        endOffset = func->endLoc->CodeOffset(GetEmitter());
     }
 
     DWORD size = (DWORD)func->cfiCodes->size();
@@ -300,7 +298,7 @@ void Compiler::unwindEmitFuncCFI(FuncInfoDsc* func, void* pHotCode, void* pColdC
         }
         else
         {
-            startOffset = func->coldStartLoc->CodeOffset(genEmitter);
+            startOffset = func->coldStartLoc->CodeOffset(GetEmitter());
         }
 
         if (func->coldEndLoc == nullptr)
@@ -309,7 +307,7 @@ void Compiler::unwindEmitFuncCFI(FuncInfoDsc* func, void* pHotCode, void* pColdC
         }
         else
         {
-            endOffset = func->coldEndLoc->CodeOffset(genEmitter);
+            endOffset = func->coldEndLoc->CodeOffset(GetEmitter());
         }
 
 #ifdef DEBUG
@@ -397,13 +395,13 @@ UNATIVE_OFFSET Compiler::unwindGetCurrentOffset(FuncInfoDsc* func)
     UNATIVE_OFFSET offset;
     if (func->funKind == FUNC_ROOT)
     {
-        offset = genEmitter->emitGetPrologOffsetEstimate();
+        offset = GetEmitter()->emitGetPrologOffsetEstimate();
     }
     else
     {
 #if defined(_TARGET_AMD64_) || (defined(_TARGET_UNIX_) && (defined(_TARGET_ARMARCH_) || defined(_TARGET_X86_)))
         assert(func->startLoc != nullptr);
-        offset = func->startLoc->GetFuncletPrologOffset(genEmitter);
+        offset = func->startLoc->GetFuncletPrologOffset(GetEmitter());
 #else
         offset = 0; // TODO ???
 #endif

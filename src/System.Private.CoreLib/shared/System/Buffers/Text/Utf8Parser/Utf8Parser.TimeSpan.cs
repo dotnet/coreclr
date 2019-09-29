@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Diagnostics;
 
 namespace System.Buffers.Text
@@ -18,7 +17,7 @@ namespace System.Buffers.Text
         /// <param name="standardFormat">Expected format of the Utf8 string</param>
         /// <returns>
         /// true for success. "bytesConsumed" contains the length in bytes of the substring that was parsed.
-        /// false if the string was not syntactically valid or an overflow or underflow occurred. "bytesConsumed" is set to 0. 
+        /// false if the string was not syntactically valid or an overflow or underflow occurred. "bytesConsumed" is set to 0.
         /// </returns>
         /// <remarks>
         /// Formats supported:
@@ -138,7 +137,6 @@ namespace System.Buffers.Text
             const long MaxMilliSeconds = long.MaxValue / TimeSpan.TicksPerMillisecond;
             const long MinMilliSeconds = long.MinValue / TimeSpan.TicksPerMillisecond;
 
-            Debug.Assert(days >= 0 && hours >= 0 && minutes >= 0 && seconds >= 00 && fraction >= 0);
             if (hours > 23 || minutes > 59 || seconds > 59)
             {
                 timeSpan = default;

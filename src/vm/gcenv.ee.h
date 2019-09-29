@@ -55,14 +55,13 @@ public:
     void DiagUpdateGenerationBounds();
     void DiagGCEnd(size_t index, int gen, int reason, bool fConcurrent);
     void DiagWalkFReachableObjects(void* gcContext);
-    void DiagWalkSurvivors(void* gcContext);
+    void DiagWalkSurvivors(void* gcContext, bool fCompacting);
     void DiagWalkLOHSurvivors(void* gcContext);
     void DiagWalkBGCSurvivors(void* gcContext);
     void StompWriteBarrier(WriteBarrierParameters* args);
 
     void EnableFinalization(bool foundFinalizers);
     void HandleFatalError(unsigned int exitCode);
-    bool ShouldFinalizeObjectForUnload(void* pDomain, Object* obj);
     bool EagerFinalized(Object* obj);
     MethodTable* GetFreeObjectMethodTable();
     bool GetBooleanConfigValue(const char* key, bool* value);
@@ -76,12 +75,7 @@ public:
     void WalkAsyncPinned(Object* object, void* context, void(*callback)(Object*, Object*, void*));
     IGCToCLREventSink* EventSink();
 
-    uint32_t GetDefaultDomainIndex();
-    void *GetAppDomainAtIndex(uint32_t appDomainIndex);
-    bool AppDomainCanAccessHandleTable(uint32_t appDomainID);
-    uint32_t GetIndexOfAppDomainBeingUnloaded();
     uint32_t GetTotalNumSizedRefHandles();
-    bool AppDomainIsRudeUnload(void *appDomain);
 
     bool AnalyzeSurvivorsRequested(int condemnedGeneration);
     void AnalyzeSurvivorsFinished(int condemnedGeneration);

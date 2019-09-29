@@ -189,20 +189,20 @@ inline static void GetAndSetLiteralValue(LPVOID pDst, CorElementType dstType, LP
     case ELEMENT_TYPE_CHAR:
         *(UINT16*)pDst = (UINT16)srcValue;
         break;
-#if !defined(_WIN64)
+#if !defined(BIT64)
     case ELEMENT_TYPE_I:
 #endif
     case ELEMENT_TYPE_I4:
         *(int*)pDst = (int)srcValue;
         break;
-#if !defined(_WIN64)
+#if !defined(BIT64)
     case ELEMENT_TYPE_U:
 #endif
     case ELEMENT_TYPE_U4:
     case ELEMENT_TYPE_R4:
         *(unsigned*)pDst = (unsigned)srcValue;
         break;
-#if defined(_WIN64)
+#if defined(BIT64)
     case ELEMENT_TYPE_I:
 #endif
     case ELEMENT_TYPE_I8:
@@ -210,7 +210,7 @@ inline static void GetAndSetLiteralValue(LPVOID pDst, CorElementType dstType, LP
         *(INT64*)pDst = (INT64)srcValue;
         break;
 
-#if defined(_WIN64)
+#if defined(BIT64)
     case ELEMENT_TYPE_U:
 #endif
     case ELEMENT_TYPE_U8:
@@ -388,7 +388,81 @@ static SIZE_T GetRegisterValue(DebuggerEval *pDE, CorDebugRegister reg, void *re
             ret = FPSpillToR8(&(pDE->m_context.Xmm0) + (reg - REGISTER_AMD64_XMM0));
             break;
 
-#endif // !_TARGET_X86_ && !_TARGET_AMD64_
+#elif defined(_TARGET_ARM64_)
+        // fall through
+        case REGISTER_ARM64_X0:
+        case REGISTER_ARM64_X1:
+        case REGISTER_ARM64_X2:
+        case REGISTER_ARM64_X3:
+        case REGISTER_ARM64_X4:
+        case REGISTER_ARM64_X5:
+        case REGISTER_ARM64_X6:
+        case REGISTER_ARM64_X7:
+        case REGISTER_ARM64_X8:
+        case REGISTER_ARM64_X9:
+        case REGISTER_ARM64_X10:
+        case REGISTER_ARM64_X11:
+        case REGISTER_ARM64_X12:
+        case REGISTER_ARM64_X13:
+        case REGISTER_ARM64_X14:
+        case REGISTER_ARM64_X15:
+        case REGISTER_ARM64_X16:
+        case REGISTER_ARM64_X17:
+        case REGISTER_ARM64_X18:
+        case REGISTER_ARM64_X19:
+        case REGISTER_ARM64_X20:
+        case REGISTER_ARM64_X21:
+        case REGISTER_ARM64_X22:
+        case REGISTER_ARM64_X23:
+        case REGISTER_ARM64_X24:
+        case REGISTER_ARM64_X25:
+        case REGISTER_ARM64_X26:
+        case REGISTER_ARM64_X27:
+        case REGISTER_ARM64_X28:
+            ret = pDE->m_context.X[reg - REGISTER_ARM64_X0];
+            break;
+
+        case REGISTER_ARM64_LR:
+            ret = pDE->m_context.Lr;
+            break;
+
+
+        case REGISTER_ARM64_V0:
+        case REGISTER_ARM64_V1:
+        case REGISTER_ARM64_V2:
+        case REGISTER_ARM64_V3:
+        case REGISTER_ARM64_V4:
+        case REGISTER_ARM64_V5:
+        case REGISTER_ARM64_V6:
+        case REGISTER_ARM64_V7:
+        case REGISTER_ARM64_V8:
+        case REGISTER_ARM64_V9:
+        case REGISTER_ARM64_V10:
+        case REGISTER_ARM64_V11:
+        case REGISTER_ARM64_V12:
+        case REGISTER_ARM64_V13:
+        case REGISTER_ARM64_V14:
+        case REGISTER_ARM64_V15:
+        case REGISTER_ARM64_V16:
+        case REGISTER_ARM64_V17:
+        case REGISTER_ARM64_V18:
+        case REGISTER_ARM64_V19:
+        case REGISTER_ARM64_V20:
+        case REGISTER_ARM64_V21:
+        case REGISTER_ARM64_V22:
+        case REGISTER_ARM64_V23:
+        case REGISTER_ARM64_V24:
+        case REGISTER_ARM64_V25:
+        case REGISTER_ARM64_V26:
+        case REGISTER_ARM64_V27:
+        case REGISTER_ARM64_V28:
+        case REGISTER_ARM64_V29:
+        case REGISTER_ARM64_V30:
+        case REGISTER_ARM64_V31:
+            ret = FPSpillToR8(&pDE->m_context.V[reg - REGISTER_ARM64_V0]);
+            break;
+
+#endif // !_TARGET_X86_ && !_TARGET_AMD64_ && !_TARGET_ARM64_
         default:
             _ASSERT(!"Invalid register number!");
 
@@ -530,7 +604,81 @@ static void SetRegisterValue(DebuggerEval *pDE, CorDebugRegister reg, void *regA
             R8ToFPSpill(&(pDE->m_context.Xmm0) + (reg - REGISTER_AMD64_XMM0), newValue);
             break;
 
-#endif // !_TARGET_X86_ && !_TARGET_AMD64_
+#elif defined(_TARGET_ARM64_)
+        // fall through
+        case REGISTER_ARM64_X0:
+        case REGISTER_ARM64_X1:
+        case REGISTER_ARM64_X2:
+        case REGISTER_ARM64_X3:
+        case REGISTER_ARM64_X4:
+        case REGISTER_ARM64_X5:
+        case REGISTER_ARM64_X6:
+        case REGISTER_ARM64_X7:
+        case REGISTER_ARM64_X8:
+        case REGISTER_ARM64_X9:
+        case REGISTER_ARM64_X10:
+        case REGISTER_ARM64_X11:
+        case REGISTER_ARM64_X12:
+        case REGISTER_ARM64_X13:
+        case REGISTER_ARM64_X14:
+        case REGISTER_ARM64_X15:
+        case REGISTER_ARM64_X16:
+        case REGISTER_ARM64_X17:
+        case REGISTER_ARM64_X18:
+        case REGISTER_ARM64_X19:
+        case REGISTER_ARM64_X20:
+        case REGISTER_ARM64_X21:
+        case REGISTER_ARM64_X22:
+        case REGISTER_ARM64_X23:
+        case REGISTER_ARM64_X24:
+        case REGISTER_ARM64_X25:
+        case REGISTER_ARM64_X26:
+        case REGISTER_ARM64_X27:
+        case REGISTER_ARM64_X28:
+            pDE->m_context.X[reg - REGISTER_ARM64_X0] = newValue;
+            break;
+
+        case REGISTER_ARM64_LR:
+            pDE->m_context.Lr = newValue;
+            break;
+
+
+        case REGISTER_ARM64_V0:
+        case REGISTER_ARM64_V1:
+        case REGISTER_ARM64_V2:
+        case REGISTER_ARM64_V3:
+        case REGISTER_ARM64_V4:
+        case REGISTER_ARM64_V5:
+        case REGISTER_ARM64_V6:
+        case REGISTER_ARM64_V7:
+        case REGISTER_ARM64_V8:
+        case REGISTER_ARM64_V9:
+        case REGISTER_ARM64_V10:
+        case REGISTER_ARM64_V11:
+        case REGISTER_ARM64_V12:
+        case REGISTER_ARM64_V13:
+        case REGISTER_ARM64_V14:
+        case REGISTER_ARM64_V15:
+        case REGISTER_ARM64_V16:
+        case REGISTER_ARM64_V17:
+        case REGISTER_ARM64_V18:
+        case REGISTER_ARM64_V19:
+        case REGISTER_ARM64_V20:
+        case REGISTER_ARM64_V21:
+        case REGISTER_ARM64_V22:
+        case REGISTER_ARM64_V23:
+        case REGISTER_ARM64_V24:
+        case REGISTER_ARM64_V25:
+        case REGISTER_ARM64_V26:
+        case REGISTER_ARM64_V27:
+        case REGISTER_ARM64_V28:
+        case REGISTER_ARM64_V29:
+        case REGISTER_ARM64_V30:
+        case REGISTER_ARM64_V31:
+            R8ToFPSpill(&pDE->m_context.V[reg - REGISTER_ARM64_V0], newValue);
+            break;
+
+#endif // !_TARGET_X86_ && !_TARGET_AMD64_ && !_TARGET_ARM64_
         default:
             _ASSERT(!"Invalid register number!");
 
@@ -566,15 +714,15 @@ static PVOID GetRegisterValueAndReturnAddress(DebuggerEval *pDE,
 
     PVOID pAddr;
 
-#if !defined(_WIN64)
+#if !defined(BIT64)
     pAddr = pInt64Buf;
     DWORD *pLow = (DWORD*)(pInt64Buf);
     DWORD *pHigh  = pLow + 1;
-#endif // _WIN64
+#endif // BIT64
 
     switch (pFEAD->argHome.kind)
     {
-#if !defined(_WIN64)
+#if !defined(BIT64)
     case RAK_REGREG:
         *pLow = GetRegisterValue(pDE, pFEAD->argHome.u.reg2, pFEAD->argHome.u.reg2Addr, pFEAD->argHome.u.reg2Value);
         *pHigh = GetRegisterValue(pDE, pFEAD->argHome.reg1, pFEAD->argHome.reg1Addr, pFEAD->argHome.reg1Value);
@@ -589,7 +737,7 @@ static PVOID GetRegisterValueAndReturnAddress(DebuggerEval *pDE,
         *pLow = *((DWORD*)CORDB_ADDRESS_TO_PTR(pFEAD->argHome.addr));
         *pHigh = GetRegisterValue(pDE, pFEAD->argHome.reg1, pFEAD->argHome.reg1Addr, pFEAD->argHome.reg1Value);
         break;
-#endif // _WIN64
+#endif // BIT64
 
     case RAK_REG:
         // Simply grab the value out of the proper register.
@@ -702,15 +850,15 @@ static void GetFuncEvalArgValue(DebuggerEval *pDE,
         {
             INT64 *pSource;
 
-#if defined(_WIN64)
+#if defined(BIT64)
             _ASSERTE(dataLocation & DL_MaybeInteriorPtrArray);
 
             pSource = (INT64 *)pMaybeInteriorPtrArg;
-#else  // !_WIN64
+#else  // !BIT64
             _ASSERTE(dataLocation & DL_BufferForArgsArray);
 
             pSource = pBufferArg;
-#endif // !_WIN64
+#endif // !BIT64
 
             if (!isByRef)
             {
@@ -1068,13 +1216,13 @@ static void GetFuncEvalArgValue(DebuggerEval *pDE,
 static CorDebugRegister GetArgAddrFromReg( DebuggerIPCE_FuncEvalArgData *pFEAD)
 {
     CorDebugRegister retval = REGISTER_INSTRUCTION_POINTER; // good as default as any
-#if defined(_WIN64)
+#if defined(BIT64)
     retval = (pFEAD->argHome.kind == RAK_REG ?
               pFEAD->argHome.reg1 :
               (CorDebugRegister)((int)REGISTER_IA64_F0 + pFEAD->argHome.floatIndex));
-#else  // !_WIN64
+#else  // !BIT64
     retval = pFEAD->argHome.reg1;
-#endif // !_WIN64
+#endif // !BIT64
     return retval;
 }
 
@@ -1106,11 +1254,11 @@ static void SetFuncEvalByRefArgValue(DebuggerEval *pDE,
         {
             INT64 source;
 
-#if defined(_WIN64)
+#if defined(BIT64)
             source = (INT64)maybeInteriorPtrArg;
-#else  // !_WIN64
+#else  // !BIT64
             source = bufferByRefArg;
-#endif // !_WIN64
+#endif // !BIT64
 
             if (pFEAD->argIsLiteral)
             {
@@ -1124,7 +1272,7 @@ static void SetFuncEvalByRefArgValue(DebuggerEval *pDE,
             }
             else
             {
-#if !defined(_WIN64)
+#if !defined(BIT64)
                 // RAK_REG is the only 4 byte type, all others are 8 byte types.
                 _ASSERTE(pFEAD->argHome.kind != RAK_REG);
 
@@ -1151,12 +1299,12 @@ static void SetFuncEvalByRefArgValue(DebuggerEval *pDE,
                 default:
                     break;
                 }
-#else // _WIN64
+#else // BIT64
                 // The only types we use are RAK_REG and RAK_FLOAT, and both of them can be 4 or 8 bytes.
                 _ASSERTE((pFEAD->argHome.kind == RAK_REG) || (pFEAD->argHome.kind == RAK_FLOAT));
 
                 SetRegisterValue(pDE, pFEAD->argHome.reg1, pFEAD->argHome.reg1Addr, source);
-#endif // _WIN64
+#endif // BIT64
             }
         }
         break;
@@ -1206,7 +1354,7 @@ static void SetFuncEvalByRefArgValue(DebuggerEval *pDE,
                 // RAK_REG is the only valid 4 byte type on WIN32.  On WIN64, both RAK_REG and RAK_FLOAT can be
                 // 4 bytes or 8 bytes.
                 _ASSERTE((pFEAD->argHome.kind == RAK_REG)
-                         WIN64_ONLY(|| (pFEAD->argHome.kind == RAK_FLOAT)));
+                         BIT64_ONLY(|| (pFEAD->argHome.kind == RAK_FLOAT)));
 
                 CorDebugRegister regNum = GetArgAddrFromReg(pFEAD);
 
@@ -1309,7 +1457,7 @@ static void GCProtectAllPassedArgs(DebuggerEval *pDE,
         case ELEMENT_TYPE_R8:
             // 64bit values
 
-#if defined(_WIN64)
+#if defined(BIT64)
             //
             // Only need to worry about protecting if a pointer is a 64 bit quantity.
             //
@@ -1358,7 +1506,7 @@ static void GCProtectAllPassedArgs(DebuggerEval *pDE,
                 }
 #endif
             }
-#endif // _WIN64
+#endif // BIT64
             break;
 
         case ELEMENT_TYPE_VALUETYPE:
@@ -2214,7 +2362,7 @@ void CopyArgsToBuffer(DebuggerEval *pDE,
             else
             {
 
-#if !defined(_WIN64)
+#if !defined(BIT64)
                 // RAK_REG is the only 4 byte type, all others are 8 byte types.
                 _ASSERTE(pFEAD->argHome.kind != RAK_REG);
                 
@@ -2231,13 +2379,13 @@ void CopyArgsToBuffer(DebuggerEval *pDE,
 
                 *pDest = *pAddr;
 
-#else  // _WIN64
+#else  // BIT64
                 // Both RAK_REG and RAK_FLOAT can be either 4 bytes or 8 bytes.
                 _ASSERTE((pFEAD->argHome.kind == RAK_REG) || (pFEAD->argHome.kind == RAK_FLOAT));
 
                 CorDebugRegister regNum = GetArgAddrFromReg(pFEAD);
                 *pDest = GetRegisterValue(pDE, regNum, pFEAD->argHome.reg1Addr, pFEAD->argHome.reg1Value);
-#endif // _WIN64
+#endif // BIT64
 
 
 
@@ -2336,7 +2484,7 @@ void CopyArgsToBuffer(DebuggerEval *pDE,
                 // RAK_REG is the only valid 4 byte type on WIN32.  On WIN64, RAK_REG and RAK_FLOAT
                 // can both be either 4 bytes or 8 bytes;
                 _ASSERTE((pFEAD->argHome.kind == RAK_REG)
-                         WIN64_ONLY(|| (pFEAD->argHome.kind == RAK_FLOAT)));
+                         BIT64_ONLY(|| (pFEAD->argHome.kind == RAK_FLOAT)));
 
                 CorDebugRegister regNum = GetArgAddrFromReg(pFEAD);
 
@@ -2437,7 +2585,7 @@ void CopyArgsToBuffer(DebuggerEval *pDE,
                 // RAK_REG is the only valid 4 byte type on WIN32.  On WIN64, RAK_REG and RAK_FLOAT
                 // can both be either 4 bytes or 8 bytes;
                 _ASSERTE((pFEAD->argHome.kind == RAK_REG)
-                         WIN64_ONLY(|| (pFEAD->argHome.kind == RAK_FLOAT)));
+                         BIT64_ONLY(|| (pFEAD->argHome.kind == RAK_FLOAT)));
 
                 CorDebugRegister regNum = GetArgAddrFromReg(pFEAD);
 
@@ -3757,9 +3905,9 @@ void * STDCALL FuncEvalHijackWorker(DebuggerEval *pDE)
     FrameWithCookie<FuncEvalFrame> FEFrame(pDE, GetIP(&pDE->m_context), true);
     FEFrame.Push();
 
-    // On ARM the single step flag is per-thread and not per context.  We need to make sure that the SS flag is cleared
+    // On ARM/ARM64 the single step flag is per-thread and not per context.  We need to make sure that the SS flag is cleared
     // for the funceval, and that the state is back to what it should be after the funceval completes.
-#ifdef _TARGET_ARM_
+#ifdef FEATURE_EMULATE_SINGLESTEP
     bool ssEnabled = pDE->m_thread->IsSingleStepEnabled();
     if (ssEnabled)
         pDE->m_thread->DisableSingleStep();
@@ -3767,7 +3915,7 @@ void * STDCALL FuncEvalHijackWorker(DebuggerEval *pDE)
 
     FuncEvalHijackRealWorker(pDE, pThread, &FEFrame);
 
-#ifdef _TARGET_ARM_
+#ifdef FEATURE_EMULATE_SINGLESTEP
     if (ssEnabled)
         pDE->m_thread->EnableSingleStep();
 #endif
@@ -3898,12 +4046,12 @@ void * STDCALL FuncEvalHijackWorker(DebuggerEval *pDE)
 }
 
 
-#if defined(WIN64EXCEPTIONS) && !defined(FEATURE_PAL)
+#if defined(FEATURE_EH_FUNCLETS) && !defined(FEATURE_PAL)
 
 EXTERN_C EXCEPTION_DISPOSITION
 FuncEvalHijackPersonalityRoutine(IN     PEXCEPTION_RECORD   pExceptionRecord
-                       WIN64_ARG(IN     ULONG64             MemoryStackFp)
-                   NOT_WIN64_ARG(IN     ULONG32             MemoryStackFp),
+                       BIT64_ARG(IN     ULONG64             MemoryStackFp)
+                   NOT_BIT64_ARG(IN     ULONG32             MemoryStackFp),
                                  IN OUT PCONTEXT            pContextRecord,
                                  IN OUT PDISPATCHER_CONTEXT pDispatcherContext
                                 )
@@ -3935,6 +4083,6 @@ FuncEvalHijackPersonalityRoutine(IN     PEXCEPTION_RECORD   pExceptionRecord
 }
 
 
-#endif // WIN64EXCEPTIONS && !FEATURE_PAL
+#endif // FEATURE_EH_FUNCLETS && !FEATURE_PAL
 
 #endif // ifndef DACCESS_COMPILE

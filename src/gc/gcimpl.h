@@ -76,6 +76,8 @@ public:
     // Gets the amount of bytes objects currently occupy on the GC heap.
     size_t  GetCurrentObjSize();
 
+    uint64_t GetTotalAllocatedBytes();
+
     size_t  GetLastGCStartTime(int generation);
     size_t  GetLastGCDuration(int generation);
     size_t  GetNow();
@@ -169,11 +171,12 @@ public:
 
     unsigned GetCondemnedGeneration();
 
-    void GetMemoryInfo(uint32_t* highMemLoadThreshold, 
-                       uint64_t* totalPhysicalMem, 
-                       uint32_t* lastRecordedMemLoad,
-                       size_t* lastRecordedHeapSize,
-                       size_t* lastRecordedFragmentation);
+    void GetMemoryInfo(uint64_t* highMemLoadThresholdBytes, 
+                       uint64_t* totalAvailableMemoryBytes, 
+                       uint64_t* lastRecordedMemLoadBytes,
+                       uint32_t* lastRecordedMemLoadPct,
+                       size_t* lastRecordedHeapSizeBytes,
+                       size_t* lastRecordedFragmentationBytes);
 
     int GetGcLatencyMode();
     int SetGcLatencyMode(int newLatencyMode);
@@ -206,10 +209,10 @@ public:
     PER_HEAP_ISOLATED size_t GetFinalizablePromotedCount();
 
     void SetFinalizeQueueForShutdown(bool fHasLock);
-    bool FinalizeAppDomain(void *pDomain, bool fRunFinalizers);
     bool ShouldRestartFinalizerWatchDog();
 
     void DiagWalkObject (Object* obj, walk_fn fn, void* context);
+    void DiagWalkObject2 (Object* obj, walk_fn2 fn, void* context);
     void SetFinalizeRunOnShutdown(bool value);
 
 public:	// FIX 
@@ -304,6 +307,10 @@ protected:
 
 public:
     Object * NextObj (Object * object);
+
+    int GetLastGCPercentTimeInGC();
+
+    size_t GetLastGCGenerationSize(int gen);
 };
 
 #endif  // GCIMPL_H_

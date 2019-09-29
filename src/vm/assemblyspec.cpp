@@ -22,7 +22,6 @@
 #include "eeconfig.h"
 #include "strongname.h"
 #include "strongnameholders.h"
-#include "mdaassistants.h"
 #include "eventtrace.h"
 
 #ifdef FEATURE_COMINTEROP
@@ -433,13 +432,6 @@ HRESULT AssemblySpec::InitializeSpec(StackingAllocator* alloc, ASSEMBLYNAMEREF* 
     }
 
     CloneFieldsToStackingAllocator(alloc);
-
-    // Hash for control 
-    // <TODO>@TODO cts, can we use unsafe in this case!!!</TODO>
-    if ((*pName)->GetHashForControl() != NULL)
-        SetHashForControl((*pName)->GetHashForControl()->GetDataPtr(), 
-                          (*pName)->GetHashForControl()->GetNumComponents(), 
-                          (*pName)->GetHashAlgorithmForControl());
 
     // Extract embedded WinRT name, if present.
     ParseEncodedName();
@@ -916,11 +908,8 @@ DomainAssembly *AssemblySpec::LoadDomainAssembly(FileLoadLevel targetLevel,
 
     ETWOnStartup (LoaderCatchCall_V1, LoaderCatchCallEnd_V1);
     AppDomain* pDomain = GetAppDomain();
-
-
-    DomainAssembly *pAssembly = nullptr;
-
-    ICLRPrivBinder * pBinder = GetHostBinder();
+    
+    ICLRPrivBinder* pBinder = GetHostBinder();
     
     // If no binder was explicitly set, check if parent assembly has a binder.
     if (pBinder == nullptr)
@@ -928,7 +917,8 @@ DomainAssembly *AssemblySpec::LoadDomainAssembly(FileLoadLevel targetLevel,
         pBinder = GetBindingContextFromParentAssembly(pDomain);
     }
 
-    if ((pAssembly == nullptr) && CanUseWithBindingCache())
+    DomainAssembly* pAssembly = nullptr;
+    if (CanUseWithBindingCache())
     {
         pAssembly = pDomain->FindCachedAssembly(this);
     }
@@ -938,7 +928,6 @@ DomainAssembly *AssemblySpec::LoadDomainAssembly(FileLoadLevel targetLevel,
         pDomain->LoadDomainFile(pAssembly, targetLevel);
         RETURN pAssembly;
     }
-
 
     PEAssemblyHolder pFile(pDomain->BindAssemblySpec(this, fThrowOnFileNotFound));
     if (pFile == NULL)

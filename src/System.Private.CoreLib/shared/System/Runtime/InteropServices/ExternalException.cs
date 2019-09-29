@@ -6,13 +6,12 @@
 **
 **
 **
-** Purpose: Exception base class for all errors from Interop or Structured 
+** Purpose: Exception base class for all errors from Interop or Structured
 **          Exception Handling code.
 **
 **
 =============================================================================*/
 
-#nullable enable
 using System.Globalization;
 using System.Runtime.Serialization;
 
@@ -53,13 +52,7 @@ namespace System.Runtime.InteropServices
         {
         }
 
-        public virtual int ErrorCode
-        {
-            get
-            {
-                return HResult;
-            }
-        }
+        public virtual int ErrorCode => HResult;
 
         public override string ToString()
         {
@@ -76,7 +69,7 @@ namespace System.Runtime.InteropServices
             Exception? innerException = InnerException;
             if (innerException != null)
             {
-                s = s + " ---> " + innerException.ToString();
+                s = s + Environment.NewLine + InnerExceptionPrefix + innerException.ToString();
             }
 
             if (StackTrace != null)

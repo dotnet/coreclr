@@ -422,69 +422,6 @@ FCIMPL1(LPVOID, MarshalNative::GetFunctionPointerForDelegateInternal, Object* re
 }
 FCIMPLEND
 
-//====================================================================
-// map a fiber cookie from the hosting APIs into a managed Thread object
-//====================================================================
-FCIMPL1(THREADBASEREF, MarshalNative::GetThreadFromFiberCookie, int cookie)
-{
-    FCALL_CONTRACT;
-
-    _ASSERTE(cookie);
-
-    THREADBASEREF ret = 0;
-    
-    // Set up a frame
-    HELPER_METHOD_FRAME_BEGIN_RET_0();
-
-    // Any host who is sophisticated enough to correctly schedule fibers
-    // had better be sophisticated enough to give us a real fiber cookie.
-    Thread  *pThread = *((Thread **) &cookie);
-    
-    // Minimal check that it smells like a thread:
-    _ASSERTE(pThread->m_fPreemptiveGCDisabled.Load() == 0 || pThread->m_fPreemptiveGCDisabled.Load() == 1);
-    
-    ret = (THREADBASEREF)(pThread->GetExposedObject()); 
-    HELPER_METHOD_FRAME_END();
-
-    return ret;
-}
-FCIMPLEND
-
-FCIMPL3(LPVOID, MarshalNative::GetUnmanagedThunkForManagedMethodPtr, LPVOID pfnMethodToWrap, PCCOR_SIGNATURE pbSignature, ULONG cbSignature)
-{
-    CONTRACTL
-    {
-        FCALL_CHECK;
-        INJECT_FAULT(FCThrow(kOutOfMemoryException););
-        PRECONDITION(CheckPointer(pfnMethodToWrap, NULL_OK));
-        PRECONDITION(CheckPointer(pbSignature, NULL_OK));
-    }
-    CONTRACTL_END;
-
-    LPVOID pThunk = NULL;
-    return pThunk;
-}
-FCIMPLEND
-
-
-/************************************************************************
- * PInvoke.GetManagedThunkForUnmanagedMethodPtr()
- */
-FCIMPL3(LPVOID, MarshalNative::GetManagedThunkForUnmanagedMethodPtr, LPVOID pfnMethodToWrap, PCCOR_SIGNATURE pbSignature, ULONG cbSignature)
-{
-    CONTRACTL
-    {
-        FCALL_CHECK;
-        PRECONDITION(CheckPointer(pfnMethodToWrap, NULL_OK));
-        PRECONDITION(CheckPointer(pbSignature, NULL_OK));
-    }
-    CONTRACTL_END;
-
-    LPVOID pThunk = NULL;
-    return pThunk;
-}
-FCIMPLEND
-
 /************************************************************************
  * PInvoke.GetLastWin32Error
  */
@@ -1751,34 +1688,6 @@ FCIMPL2(void, MarshalNative::DoGetTypeLibGuidForAssembly, GUID * result, Assembl
     IfFailThrow(::GetTypeLibGuidForAssembly(pAssembly, result));
 
     GCPROTECT_END ();
-    HELPER_METHOD_FRAME_END();
-}
-FCIMPLEND
-
-FCIMPL3(void, MarshalNative::GetTypeLibVersionForAssembly, AssemblyBaseObject* refAsmUNSAFE, INT32 *pMajorVersion, INT32 *pMinorVersion)
-{
-    FCALL_CONTRACT;
-
-    // Validate the arguments.
-    _ASSERTE(refAsmUNSAFE != NULL);
-
-    ASSEMBLYREF refAsm = (ASSEMBLYREF) refAsmUNSAFE;
-    HELPER_METHOD_FRAME_BEGIN_1(refAsm);
-
-    HRESULT hr = S_OK;
-
-    // Retrieve the assembly from the ASSEMBLYREF.
-    Assembly *pAssembly = refAsm->GetAssembly();
-    _ASSERTE(pAssembly);
-
-    // Retrieve the version for the assembly.
-    USHORT usMaj, usMin;
-    IfFailThrow(::GetTypeLibVersionForAssembly(pAssembly, &usMaj, &usMin));
-
-    // Set the out parameters.
-    *pMajorVersion = usMaj;
-    *pMinorVersion = usMin;
-
     HELPER_METHOD_FRAME_END();
 }
 FCIMPLEND

@@ -93,16 +93,7 @@ typedef DPTR(EnCSyncBlockInfo) PTR_EnCSyncBlockInfo;
 // reducing the mask.  We use the very high bit, in _DEBUG, to be sure we never forget
 // to mask the Value to obtain the Index
 
-    // These first three are only used on strings (If the first one is on, we know whether 
-    // the string has high byte characters, and the second bit tells which way it is. 
-    // Note that we are reusing the FINALIZER_RUN bit since strings don't have finalizers,
-    // so the value of this bit does not matter for strings
-#define BIT_SBLK_STRING_HAS_NO_HIGH_CHARS   0x80000000
-
-#define BIT_SBLK_STRING_HIGH_CHARS_KNOWN    0x40000000
-#define BIT_SBLK_STRING_HAS_SPECIAL_SORT    0xC0000000
-#define BIT_SBLK_STRING_HIGH_CHAR_MASK      0xC0000000
-
+#define BIT_SBLK_UNUSED                     0x80000000
 #define BIT_SBLK_FINALIZER_RUN              0x40000000
 #define BIT_SBLK_GC_RESERVE                 0x20000000
 
@@ -140,11 +131,11 @@ typedef DPTR(EnCSyncBlockInfo) PTR_EnCSyncBlockInfo;
 
 // The GC is highly dependent on SIZE_OF_OBJHEADER being exactly the sizeof(ObjHeader)
 // We define this macro so that the preprocessor can calculate padding structures.
-#ifdef _WIN64
+#ifdef BIT64
 #define SIZEOF_OBJHEADER    8
-#else // !_WIN64
+#else // !BIT64
 #define SIZEOF_OBJHEADER    4
-#endif // !_WIN64
+#endif // !BIT64
  
 
 inline void InitializeSpinConstants()
@@ -1282,15 +1273,15 @@ class ObjHeader
 
   private:
     // !!! Notice: m_SyncBlockValue *MUST* be the last field in ObjHeader.
-#ifdef _WIN64
+#ifdef BIT64
     DWORD    m_alignpad;
-#endif // _WIN64
+#endif // BIT64
 
     Volatile<DWORD> m_SyncBlockValue;      // the Index and the Bits
 
-#if defined(_WIN64) && defined(_DEBUG)
+#if defined(BIT64) && defined(_DEBUG)
     void IllegalAlignPad();
-#endif // _WIN64 && _DEBUG
+#endif // BIT64 && _DEBUG
 
     INCONTRACT(void * GetPtrForLockContract());
 
@@ -1300,11 +1291,11 @@ class ObjHeader
     FORCEINLINE DWORD GetHeaderSyncBlockIndex()
     {
         LIMITED_METHOD_DAC_CONTRACT;
-#if defined(_WIN64) && defined(_DEBUG) && !defined(DACCESS_COMPILE)
+#if defined(BIT64) && defined(_DEBUG) && !defined(DACCESS_COMPILE)
         // On WIN64 this field is never modified, but was initialized to 0
         if (m_alignpad != 0)
             IllegalAlignPad();
-#endif // _WIN64 && _DEBUG && !DACCESS_COMPILE
+#endif // BIT64 && _DEBUG && !DACCESS_COMPILE
 
         // pull the value out before checking it to avoid race condition
         DWORD value = m_SyncBlockValue.LoadWithoutBarrier();
@@ -1405,11 +1396,11 @@ class ObjHeader
         LIMITED_METHOD_CONTRACT;
         SUPPORTS_DAC;
 
-#if defined(_WIN64) && defined(_DEBUG) && !defined(DACCESS_COMPILE)
+#if defined(BIT64) && defined(_DEBUG) && !defined(DACCESS_COMPILE)
         // On WIN64 this field is never modified, but was initialized to 0
         if (m_alignpad != 0)
             IllegalAlignPad();
-#endif // _WIN64 && _DEBUG && !DACCESS_COMPILE
+#endif // BIT64 && _DEBUG && !DACCESS_COMPILE
 
         return m_SyncBlockValue.LoadWithoutBarrier();
     }

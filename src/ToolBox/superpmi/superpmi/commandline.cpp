@@ -107,7 +107,7 @@ void CommandLine::DumpHelp(const char* program)
     printf("\n");
     printf(" -target <target>\n");
     printf("     Used by the assembly differences calculator. This specifies the target\n");
-    printf("     architecture for cross-compilation. Currently allowed <target> value: arm64\n");
+    printf("     architecture for cross-compilation. Currently allowed <target> values: arm, arm64\n");
     printf("\n");
     printf(" -coredistools\n");
     printf("     Use disassembly tools from the CoreDisTools library\n");
@@ -151,7 +151,7 @@ void CommandLine::DumpHelp(const char* program)
     printf("     ; if there are any failures, record their MC numbers in the file fail.mcl\n");
 }
 
-static bool ParseJitOption(const char* optionString, wchar_t** key, wchar_t** value)
+static bool ParseJitOption(const char* optionString, WCHAR** key, WCHAR** value)
 {
     char tempKey[1024];
 
@@ -169,11 +169,11 @@ static bool ParseJitOption(const char* optionString, wchar_t** key, wchar_t** va
     const char* tempVal = &optionString[i + 1];
 
     const unsigned keyLen = i;
-    wchar_t*       keyBuf = new wchar_t[keyLen + 1];
+    WCHAR*       keyBuf = new WCHAR[keyLen + 1];
     MultiByteToWideChar(CP_UTF8, 0, tempKey, keyLen + 1, keyBuf, keyLen + 1);
 
     const unsigned valLen = (unsigned)strlen(tempVal);
-    wchar_t*       valBuf = new wchar_t[valLen + 1];
+    WCHAR*       valBuf = new WCHAR[valLen + 1];
     MultiByteToWideChar(CP_UTF8, 0, tempVal, valLen + 1, valBuf, valLen + 1);
 
     *key   = keyBuf;
@@ -593,11 +593,28 @@ bool CommandLine::Parse(int argc, char* argv[], /* OUT */ Options* o)
         DumpHelp(argv[0]);
         return false;
     }
-    if (o->targetArchitecture != nullptr && (0 != _stricmp(o->targetArchitecture, "arm64")))
+    if (o->targetArchitecture != nullptr)
     {
-        LogError("Illegal target architecture specified with -target (only arm64 is supported).");
-        DumpHelp(argv[0]);
-        return false;
+        const char* errorMessage = nullptr;
+#ifdef _TARGET_AMD64_
+        if (0 != _stricmp(o->targetArchitecture, "arm64"))
+        {
+            errorMessage = "Illegal target architecture specified with -target (only arm64 is supported on x64 host).";
+        }
+#elif defined(_TARGET_X86_)
+        if (0 != _stricmp(o->targetArchitecture, "arm"))
+        {
+            errorMessage = "Illegal target architecture specified with -target (only arm is supported on x86 host).";
+        }
+#else
+        errorMessage = "-target is unsupported on this platform.";
+#endif
+        if (errorMessage != nullptr)
+        {
+            LogError(errorMessage);
+            DumpHelp(argv[0]);
+            return false;
+        }
     }
     if (o->skipCleanup && !o->parallel)
     {
@@ -653,8 +670,8 @@ bool CommandLine::AddJitOption(int&  currArgument,
         targetjitOptions = *pJitOptions;
     }
 
-    wchar_t* key;
-    wchar_t* value;
+    WCHAR* key;
+    WCHAR* value;
     if ((currArgument >= argc) || !ParseJitOption(argv[currArgument], &key, &value))
     {
         DumpHelp(argv[0]);
@@ -662,9 +679,9 @@ bool CommandLine::AddJitOption(int&  currArgument,
     }
 
     DWORD keyIndex =
-        (DWORD)targetjitOptions->AddBuffer((unsigned char*)key, sizeof(wchar_t) * ((unsigned int)wcslen(key) + 1));
+        (DWORD)targetjitOptions->AddBuffer((unsigned char*)key, sizeof(WCHAR) * ((unsigned int)wcslen(key) + 1));
     DWORD valueIndex =
-        (DWORD)targetjitOptions->AddBuffer((unsigned char*)value, sizeof(wchar_t) * ((unsigned int)wcslen(value) + 1));
+        (DWORD)targetjitOptions->AddBuffer((unsigned char*)value, sizeof(WCHAR) * ((unsigned int)wcslen(value) + 1));
     targetjitOptions->Add(keyIndex, valueIndex);
 
     delete[] key;

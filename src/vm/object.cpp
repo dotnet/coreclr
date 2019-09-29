@@ -173,6 +173,11 @@ TypeHandle Object::GetGCSafeTypeHandleIfPossible() const
     MethodTable * pMT = GetGCSafeMethodTable();
     _ASSERTE(pMT != NULL);
 
+    if (pMT == g_pFreeObjectMethodTable)
+    {
+        return NULL;
+    }
+
     // Don't look at types that belong to an unloading AppDomain, or else
     // pObj->GetGCSafeTypeHandle() can AV. For example, we encountered this AV when pObj
     // was an array like this:
@@ -222,8 +227,6 @@ TypeHandle Object::GetGCSafeTypeHandleIfPossible() const
     }
 
     Module * pLoaderModule = pMTToCheck->GetLoaderModule();
-
-    BaseDomain * pBaseDomain = pLoaderModule->GetDomain();
 
     // Don't look up types that are unloading due to Collectible Assemblies. Haven't been
     // able to find a case where we actually encounter objects like this that can cause
@@ -646,6 +649,10 @@ VOID Object::ValidateInner(BOOL bDeep, BOOL bVerifyNextHeader, BOOL bVerifySyncB
             if ((nextObj != NULL) &&
                 (nextObj->GetGCSafeMethodTable() != g_pFreeObjectMethodTable))
             {
+                // we need a read barrier here - to make sure we read the object header _after_                
+                // reading data that tells us that the object is eligible for verification
+                // (also see: gc.cpp/a_fit_segment_end_p)
+                VOLATILE_MEMORY_BARRIER();
                 CHECK_AND_TEAR_DOWN(nextObj->GetHeader()->Validate(FALSE));
             }
         }
@@ -1009,88 +1016,6 @@ BOOL StringObject::CaseInsensitiveCompHelper(__in_ecount(aLength) WCHAR *strACha
     }
     
 }
-
-/*=============================InternalHasHighChars=============================
-**Action:  Checks if the string can be sorted quickly.  The requirements are that
-**         the string contain no character greater than 0x80 and that the string not
-**         contain an apostrophe or a hypen.  Apostrophe and hyphen are excluded so that
-**         words like co-op and coop sort together.
-**Returns: Void.  The side effect is to set a bit on the string indicating whether or not
-**         the string contains high chars.
-**Arguments: The String to be checked.
-**Exceptions: None
-==============================================================================*/
-DWORD StringObject::InternalCheckHighChars() {
-    WRAPPER_NO_CONTRACT;
-
-    WCHAR *chars;
-    WCHAR c;
-    INT32 length;
-
-    RefInterpretGetStringValuesDangerousForGC((WCHAR **) &chars, &length);
-
-    DWORD stringState = STRING_STATE_FAST_OPS;
-
-    for (int i=0; i<length; i++) {
-        c = chars[i];
-        if (c>=0x80) {
-            SetHighCharState(STRING_STATE_HIGH_CHARS);
-            return STRING_STATE_HIGH_CHARS;
-        } else if (HighCharHelper::IsHighChar((int)c)) {
-            //This means that we have a character which forces special sorting,
-            //but doesn't necessarily force slower casing and indexing.  We'll
-            //set a value to remember this, but we need to check the rest of
-            //the string because we may still find a charcter greater than 0x7f.
-            stringState = STRING_STATE_SPECIAL_SORT;
-        }
-    }
-
-    SetHighCharState(stringState);
-    return stringState;
-}
-
-#ifdef VERIFY_HEAP
-/*=============================ValidateHighChars=============================
-**Action:  Validate if the HighChars bits is set correctly, no side effect
-**Returns: BOOL for result of validation
-**Arguments: The String to be checked.
-**Exceptions: None
-==============================================================================*/
-BOOL StringObject::ValidateHighChars()
-{
-    WRAPPER_NO_CONTRACT;
-    DWORD curStringState = GetHighCharState ();
-    // state could always be undetermined
-    if (curStringState == STRING_STATE_UNDETERMINED)
-    {
-        return TRUE;
-    }
-
-    WCHAR *chars;
-    INT32 length;
-    RefInterpretGetStringValuesDangerousForGC((WCHAR **) &chars, &length);
-
-    DWORD stringState = STRING_STATE_FAST_OPS;
-    for (int i=0; i<length; i++) {
-        WCHAR c = chars[i];
-        if (c>=0x80) 
-        {
-            // if there is a high char in the string, the state has to be STRING_STATE_HIGH_CHARS
-            return curStringState == STRING_STATE_HIGH_CHARS;
-        } 
-        else if (HighCharHelper::IsHighChar((int)c)) {
-            //This means that we have a character which forces special sorting,
-            //but doesn't necessarily force slower casing and indexing.  We'll
-            //set a value to remember this, but we need to check the rest of
-            //the string because we may still find a charcter greater than 0x7f.
-            stringState = STRING_STATE_SPECIAL_SORT;
-        }
-    }
-    
-    return stringState == curStringState;
-}
-
-#endif //VERIFY_HEAP
 
 /*============================InternalTrailByteCheck============================
 **Action: Many years ago, VB didn't have the concept of a byte array, so enterprising
@@ -2044,54 +1969,114 @@ StackTraceElement & StackTraceArray::operator[](size_t index)
 }
 
 #if !defined(DACCESS_COMPILE)
-// Define the lock used to access stacktrace from an exception object
+// Define the lock used to access stacktrace from a global exception type
 SpinLock g_StackTraceArrayLock;
 
-void ExceptionObject::SetStackTrace(StackTraceArray const & stackTrace, PTRARRAYREF dynamicMethodArray)
+void ExceptionObject::SetStackTrace(I1ARRAYREF stackTrace, PTRARRAYREF dynamicMethodArray)
 {        
     CONTRACTL
     {
-        GC_NOTRIGGER;
-        NOTHROW;
+        THROWS;
+        GC_TRIGGERS;
         MODE_COOPERATIVE;
     }
     CONTRACTL_END;
 
-    Thread *m_pThread = GetThread();
-    SpinLock::AcquireLock(&g_StackTraceArrayLock, SPINLOCK_THREAD_PARAM_ONLY_IN_SOME_BUILDS);
+    if (_stackTraceLock == NULL || GetMethodTable() == g_pOutOfMemoryExceptionClass)
+    {
+        // We can't activate the SyncBlock for an OutOfMemoryException, so use preallocated SpinLock
+        SpinLock::AcquireLock(&g_StackTraceArrayLock);
 
-    SetObjectReference((OBJECTREF*)&_stackTrace, (OBJECTREF)stackTrace.Get());
-    SetObjectReference((OBJECTREF*)&_dynamicMethods, (OBJECTREF)dynamicMethodArray);
+        SetObjectReference((OBJECTREF*)&_stackTrace, (OBJECTREF)stackTrace);
+        SetObjectReference((OBJECTREF*)&_dynamicMethods, (OBJECTREF)dynamicMethodArray);
 
-    SpinLock::ReleaseLock(&g_StackTraceArrayLock, SPINLOCK_THREAD_PARAM_ONLY_IN_SOME_BUILDS);
+        SpinLock::ReleaseLock(&g_StackTraceArrayLock);
+    }
+    else
+    {
+        struct _gc
+        {
+            EXCEPTIONREF throwable;
+            OBJECTREF dynamicMethodArray;
+            OBJECTREF stateLock;
+            OBJECTREF trace;
+        };
+        _gc gc;
+        gc.throwable = (EXCEPTIONREF)this;
+        gc.dynamicMethodArray = (OBJECTREF)dynamicMethodArray;
+        gc.stateLock = _stackTraceLock;
+        gc.trace = stackTrace;
+        GCPROTECT_BEGIN(gc);
 
+        // Aquire lock
+        gc.stateLock->EnterObjMonitor();
+
+        SetObjectReference((OBJECTREF*)&gc.throwable->_stackTrace, gc.trace);
+        SetObjectReference((OBJECTREF*)&gc.throwable->_dynamicMethods, gc.dynamicMethodArray);
+
+        // Release lock
+        gc.stateLock->LeaveObjMonitor();
+
+        GCPROTECT_END();
+    }
 }
 
-void ExceptionObject::SetNullStackTrace()
-{        
+void ExceptionObject::GetStackTrace(StackTraceArray& stackTrace, PTRARRAYREF* outDynamicMethodArray /*= NULL*/)
+{
     CONTRACTL
     {
-        GC_NOTRIGGER;
-        NOTHROW;
+        THROWS;
+        GC_TRIGGERS;
         MODE_COOPERATIVE;
     }
     CONTRACTL_END;
 
-    Thread *m_pThread = GetThread();
-    SpinLock::AcquireLock(&g_StackTraceArrayLock, SPINLOCK_THREAD_PARAM_ONLY_IN_SOME_BUILDS);
+    if (_stackTraceLock == NULL || GetMethodTable() == g_pOutOfMemoryExceptionClass)
+    {
+        // We can't activate the SyncBlock for an OutOfMemoryException, so use preallocated SpinLock
+        SpinLock::AcquireLock(&g_StackTraceArrayLock);
 
-    I1ARRAYREF stackTraceArray = NULL;
-    PTRARRAYREF dynamicMethodArray = NULL;
+        StackTraceArray temp(_stackTrace);
+        stackTrace.Swap(temp);
 
-    SetObjectReference((OBJECTREF*)&_stackTrace, (OBJECTREF)stackTraceArray);
-    SetObjectReference((OBJECTREF*)&_dynamicMethods, (OBJECTREF)dynamicMethodArray);
+        if (outDynamicMethodArray != NULL)
+        {
+            *outDynamicMethodArray = _dynamicMethods;
+        }
 
-    SpinLock::ReleaseLock(&g_StackTraceArrayLock, SPINLOCK_THREAD_PARAM_ONLY_IN_SOME_BUILDS);
+        SpinLock::ReleaseLock(&g_StackTraceArrayLock);
+    }
+    else 
+    {
+        struct _gc
+        {
+            EXCEPTIONREF throwable;
+            OBJECTREF stateLock;
+        };
+        _gc gc;
+        gc.throwable = (EXCEPTIONREF)this;
+        gc.stateLock = _stackTraceLock;
+        GCPROTECT_BEGIN(gc);
+
+        // Aquire lock
+        gc.stateLock->EnterObjMonitor();
+
+        StackTraceArray temp(gc.throwable->_stackTrace);
+        stackTrace.Swap(temp);
+
+        if (outDynamicMethodArray != NULL)
+        {
+            *outDynamicMethodArray = gc.throwable->_dynamicMethods;
+        }
+
+        // Release lock
+        gc.stateLock->LeaveObjMonitor();
+
+        GCPROTECT_END();
+    }
 }
-
-#endif // !defined(DACCESS_COMPILE)
-
-void ExceptionObject::GetStackTrace(StackTraceArray & stackTrace, PTRARRAYREF * outDynamicMethodArray /*= NULL*/) const
+#else
+void ExceptionObject::GetStackTrace(StackTraceArray& stackTrace, PTRARRAYREF* outDynamicMethodArray /*= NULL*/) const
 {
     CONTRACTL
     {
@@ -2101,11 +2086,6 @@ void ExceptionObject::GetStackTrace(StackTraceArray & stackTrace, PTRARRAYREF * 
     }
     CONTRACTL_END;
 
-#if !defined(DACCESS_COMPILE)
-    Thread *m_pThread = GetThread();
-    SpinLock::AcquireLock(&g_StackTraceArrayLock, SPINLOCK_THREAD_PARAM_ONLY_IN_SOME_BUILDS);
-#endif // !defined(DACCESS_COMPILE)
-
     StackTraceArray temp(_stackTrace);
     stackTrace.Swap(temp);
 
@@ -2113,12 +2093,8 @@ void ExceptionObject::GetStackTrace(StackTraceArray & stackTrace, PTRARRAYREF * 
     {
         *outDynamicMethodArray = _dynamicMethods;
     }
-
-#if !defined(DACCESS_COMPILE)
-    SpinLock::ReleaseLock(&g_StackTraceArrayLock, SPINLOCK_THREAD_PARAM_ONLY_IN_SOME_BUILDS);
-#endif // !defined(DACCESS_COMPILE)
-
 }
+#endif // !defined(DACCESS_COMPILE)
 
 bool LAHashDependentHashTrackerObject::IsLoaderAllocatorLive()
 {

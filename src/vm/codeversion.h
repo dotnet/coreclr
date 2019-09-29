@@ -37,8 +37,10 @@ typedef DPTR(class CodeVersionManager) PTR_CodeVersionManager;
 
 #endif
 
-
-
+#ifdef HAVE_GCCOVER
+class GCCoverageInfo;
+typedef DPTR(class GCCoverageInfo) PTR_GCCoverageInfo;
+#endif
 
 class NativeCodeVersion
 {
@@ -54,20 +56,27 @@ public:
     NativeCodeVersion(PTR_NativeCodeVersionNode pVersionNode);
 #endif
     explicit NativeCodeVersion(PTR_MethodDesc pMethod);
+
     BOOL IsNull() const;
     PTR_MethodDesc GetMethodDesc() const;
     NativeCodeVersionId GetVersionId() const;
     BOOL IsDefaultVersion() const;
     PCODE GetNativeCode() const;
+
+#ifdef FEATURE_CODE_VERSIONING
     ILCodeVersion GetILCodeVersion() const;
     ReJITID GetILCodeVersionId() const;
+#endif
+
 #ifndef DACCESS_COMPILE
     BOOL SetNativeCodeInterlocked(PCODE pCode, PCODE pExpected = NULL);
 #endif
+
     enum OptimizationTier
     {
         OptimizationTier0,
-        OptimizationTier1
+        OptimizationTier1,
+        OptimizationTierOptimized, // may do less optimizations than tier 1
     };
 #ifdef FEATURE_TIERED_COMPILATION
     OptimizationTier GetOptimizationTier() const;
@@ -75,8 +84,15 @@ public:
     void SetOptimizationTier(OptimizationTier tier);
 #endif
 #endif // FEATURE_TIERED_COMPILATION
+
+#ifdef HAVE_GCCOVER
+    PTR_GCCoverageInfo GetGCCoverageInfo() const;
+    void SetGCCoverageInfo(PTR_GCCoverageInfo gcCover);
+#endif
+
     bool operator==(const NativeCodeVersion & rhs) const;
     bool operator!=(const NativeCodeVersion & rhs) const;
+
 #if defined(DACCESS_COMPILE) && defined(FEATURE_CODE_VERSIONING)
     // The DAC is privy to the backing node abstraction
     PTR_NativeCodeVersionNode AsNode() const;
@@ -85,7 +101,7 @@ public:
 private:
 
 #ifndef FEATURE_CODE_VERSIONING
-    MethodDesc* m_pMethodDesc;
+    PTR_MethodDesc m_pMethodDesc;
 #else // FEATURE_CODE_VERSIONING
 
 #ifndef DACCESS_COMPILE
@@ -177,11 +193,18 @@ public:
         kStateActive = 0x00000002,
 
         kStateMask = 0x0000000F,
+
+        // Indicates that the method being ReJITted is an inliner of the actual 
+        // ReJIT request and we should not issue the GetReJITParameters for this 
+        // method.
+        kSuppressParams = 0x80000000
     };
 
     RejitFlags GetRejitState() const;
+    BOOL GetEnableReJITCallback() const;
 #ifndef DACCESS_COMPILE
     void SetRejitState(RejitFlags newState);
+    void SetEnableReJITCallback(BOOL state);
 #endif
 
 #ifdef DACCESS_COMPILE
@@ -221,13 +244,16 @@ class NativeCodeVersionNode
     friend NativeCodeVersionIterator;
     friend MethodDescVersioningState;
     friend ILCodeVersionNode;
+
 public:
 #ifndef DACCESS_COMPILE
     NativeCodeVersionNode(NativeCodeVersionId id, MethodDesc* pMethod, ReJITID parentId, NativeCodeVersion::OptimizationTier optimizationTier);
 #endif
+
 #ifdef DEBUG
     BOOL LockOwnedByCurrentThread() const;
 #endif
+
     PTR_MethodDesc GetMethodDesc() const;
     NativeCodeVersionId GetVersionId() const;
     PCODE GetNativeCode() const;
@@ -238,12 +264,18 @@ public:
     BOOL SetNativeCodeInterlocked(PCODE pCode, PCODE pExpected);
     void SetActiveChildFlag(BOOL isActive);
 #endif
+
 #ifdef FEATURE_TIERED_COMPILATION
     NativeCodeVersion::OptimizationTier GetOptimizationTier() const;
 #ifndef DACCESS_COMPILE
     void SetOptimizationTier(NativeCodeVersion::OptimizationTier tier);
 #endif
 #endif // FEATURE_TIERED_COMPILATION
+
+#ifdef HAVE_GCCOVER
+    PTR_GCCoverageInfo GetGCCoverageInfo() const;
+    void SetGCCoverageInfo(PTR_GCCoverageInfo gcCover);
+#endif
 
 private:
     //union - could save a little memory?
@@ -257,6 +289,9 @@ private:
     NativeCodeVersionId m_id;
 #ifdef FEATURE_TIERED_COMPILATION
     NativeCodeVersion::OptimizationTier m_optTier;
+#endif
+#ifdef HAVE_GCCOVER
+    PTR_GCCoverageInfo m_gcCover;
 #endif
 
     enum NativeCodeVersionNodeFlags
@@ -326,12 +361,14 @@ public:
     DWORD GetJitFlags() const;
     const InstrumentedILOffsetMapping* GetInstrumentedILMap() const;
     ILCodeVersion::RejitFlags GetRejitState() const;
+    BOOL GetEnableReJITCallback() const;
     PTR_ILCodeVersionNode GetNextILVersionNode() const;
 #ifndef DACCESS_COMPILE
     void SetIL(COR_ILMETHOD* pIL);
     void SetJitFlags(DWORD flags);
     void SetInstrumentedILMap(SIZE_T cMap, COR_IL_MAP * rgMap);
     void SetRejitState(ILCodeVersion::RejitFlags newState);
+    void SetEnableReJITCallback(BOOL state);
     void SetNextILVersionNode(ILCodeVersionNode* pNextVersionNode);
 #endif
 
@@ -490,7 +527,7 @@ public:
     static count_t Hash(key_t k)
     {
         LIMITED_METHOD_CONTRACT;
-        return (count_t)(size_t)dac_cast<TADDR>(k);
+        return (count_t)dac_cast<TADDR>(k);
     }
 
     static element_t Null() { LIMITED_METHOD_CONTRACT; return dac_cast<PTR_MethodDescVersioningState>(nullptr); }
@@ -610,7 +647,8 @@ public:
     HRESULT AddILCodeVersion(Module* pModule, mdMethodDef methodDef, ReJITID rejitId, ILCodeVersion* pILCodeVersion);
     HRESULT AddNativeCodeVersion(ILCodeVersion ilCodeVersion, MethodDesc* pClosedMethodDesc, NativeCodeVersion::OptimizationTier optimizationTier, NativeCodeVersion* pNativeCodeVersion);
     HRESULT DoJumpStampIfNecessary(MethodDesc* pMD, PCODE pCode);
-    PCODE PublishVersionableCodeIfNecessary(MethodDesc* pMethodDesc, BOOL fCanBackpatchPrestub);
+    PCODE PublishNonJumpStampVersionableCodeIfNecessary(MethodDesc* pMethodDesc, bool *doBackpatchRef, bool *doFullBackpatchRef);
+    PCODE PublishJumpStampVersionableCodeIfNecessary(MethodDesc* pMethodDesc);
     HRESULT PublishNativeCodeVersion(MethodDesc* pMethodDesc, NativeCodeVersion nativeCodeVersion, BOOL fEESuspended);
     HRESULT GetOrCreateMethodDescVersioningState(MethodDesc* pMethod, MethodDescVersioningState** ppMethodDescVersioningState);
     HRESULT GetOrCreateILCodeVersioningState(Module* pModule, mdMethodDef methodDef, ILCodeVersioningState** ppILCodeVersioningState);
@@ -621,6 +659,20 @@ public:
 #endif
 
     static bool IsMethodSupported(PTR_MethodDesc pMethodDesc);
+
+#ifndef DACCESS_COMPILE
+    static bool InitialNativeCodeVersionMayNotBeTheDefaultNativeCodeVersion()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return s_initialNativeCodeVersionMayNotBeTheDefaultNativeCodeVersion;
+    }
+
+    static void SetInitialNativeCodeVersionMayNotBeTheDefaultNativeCodeVersion()
+    {
+        LIMITED_METHOD_CONTRACT;
+        s_initialNativeCodeVersionMayNotBeTheDefaultNativeCodeVersion = true;
+    }
+#endif
 
 private:
 
@@ -634,7 +686,10 @@ private:
         CDynArray<CodePublishError> * pUnsupportedMethodErrors);
     static HRESULT GetNonVersionableError(MethodDesc* pMD);
     void ReportCodePublishError(CodePublishError* pErrorRecord);
+    void ReportCodePublishError(MethodDesc* pMD, HRESULT hrStatus);
     void ReportCodePublishError(Module* pModule, mdMethodDef methodDef, MethodDesc* pMD, HRESULT hrStatus);
+
+    static bool s_initialNativeCodeVersionMayNotBeTheDefaultNativeCodeVersion;
 #endif
 
     //Module,MethodDef -> ILCodeVersioningState

@@ -11,12 +11,14 @@
 #include "asmconstants.h"
 #include "asmmacros.h"
 
+#ifdef FEATURE_PREJIT
     IMPORT VirtualMethodFixupWorker
+    IMPORT StubDispatchFixupWorker
+#endif
     IMPORT ExternalMethodFixupWorker
     IMPORT PreStubWorker
     IMPORT NDirectImportWorker
     IMPORT VSD_ResolveWorker
-    IMPORT StubDispatchFixupWorker
     IMPORT JIT_InternalThrow
     IMPORT ComPreStubWorker
     IMPORT COMToCLRWorker
@@ -532,6 +534,7 @@ Exit
         ret      lr
     WRITE_BARRIER_END JIT_WriteBarrier
 
+#ifdef FEATURE_PREJIT
 ;------------------------------------------------
 ; VirtualMethodFixupStub
 ;
@@ -579,6 +582,8 @@ Exit
     EPILOG_BRANCH_REG x12
 
     NESTED_END
+#endif // FEATURE_PREJIT
+
 ;------------------------------------------------
 ; ExternalMethodFixupStub
 ;
@@ -652,6 +657,7 @@ LNoFloatRetVal
         ret
 LNoDoubleRetVal
 
+        ;; Float HFA return case
         cmp     w0, #16
         bne     LNoFloatHFARetVal
         ldp     s0, s1, [x1]
@@ -659,12 +665,21 @@ LNoDoubleRetVal
         ret
 LNoFloatHFARetVal
 
+        ;;Double HFA return case
         cmp     w0, #32
         bne     LNoDoubleHFARetVal
         ldp     d0, d1, [x1]
         ldp     d2, d3, [x1, #16]
         ret
 LNoDoubleHFARetVal
+
+        ;;Vector HVA return case
+        cmp     w3, #64
+        bne     LNoVectorHVARetVal
+        ldp     q0, q1, [x1]
+        ldp     q2, q3, [x1, #32]
+        ret
+LNoVectorHVARetVal
 
         EMIT_BREAKPOINT ; Unreachable
 
@@ -691,7 +706,7 @@ NoFloatingPointRetVal
 ;
     NESTED_ENTRY GenericComPlusCallStub
 
-        PROLOG_WITH_TRANSITION_BLOCK 0x20
+        PROLOG_WITH_TRANSITION_BLOCK ASM_ENREGISTERED_RETURNTYPE_MAXSIZE
 
         add         x0, sp, #__PWTB_TransitionBlock ; pTransitionBlock
         mov         x1, x12                         ; pMethodDesc
@@ -705,8 +720,8 @@ NoFloatingPointRetVal
 
         ; x0 = fpRetSize
 
-        ; return value is stored before float argument registers
-        add         x1, sp, #(__PWTB_FloatArgumentRegisters - 0x20)
+        ; The return value is stored before float argument registers
+        add         x1, sp, #(__PWTB_FloatArgumentRegisters - ASM_ENREGISTERED_RETURNTYPE_MAXSIZE)
         bl          setStubReturnValue
 
         EPILOG_WITH_TRANSITION_BLOCK_RETURN
@@ -1044,7 +1059,7 @@ UMThunkStub_DoTrapReturningThreads
 ; ------------------------------------------------------------------
 ; Hijack function for functions which return a scalar type or a struct (value type)
     NESTED_ENTRY OnHijackTripThread
-    PROLOG_SAVE_REG_PAIR   fp, lr, #-144!
+    PROLOG_SAVE_REG_PAIR   fp, lr, #-176!
     ; Spill callee saved registers 
     PROLOG_SAVE_REG_PAIR   x19, x20, #16
     PROLOG_SAVE_REG_PAIR   x21, x22, #32
@@ -1055,9 +1070,9 @@ UMThunkStub_DoTrapReturningThreads
     ; save any integral return value(s)
     stp x0, x1, [sp, #96]
 
-    ; save any FP/HFA return value(s)
-    stp d0, d1, [sp, #112]
-    stp d2, d3, [sp, #128]
+    ; save any FP/HFA/HVA return value(s)
+    stp q0, q1, [sp, #112]
+    stp q2, q3, [sp, #144]
 
     mov x0, sp
     bl OnHijackWorker
@@ -1065,16 +1080,16 @@ UMThunkStub_DoTrapReturningThreads
     ; restore any integral return value(s)
     ldp x0, x1, [sp, #96]
 
-    ; restore any FP/HFA return value(s)
-    ldp d0, d1, [sp, #112]
-    ldp d2, d3, [sp, #128]
+    ; restore any FP/HFA/HVA return value(s)
+    ldp q0, q1, [sp, #112]
+    ldp q2, q3, [sp, #144]
 
     EPILOG_RESTORE_REG_PAIR   x19, x20, #16
     EPILOG_RESTORE_REG_PAIR   x21, x22, #32
     EPILOG_RESTORE_REG_PAIR   x23, x24, #48
     EPILOG_RESTORE_REG_PAIR   x25, x26, #64
     EPILOG_RESTORE_REG_PAIR   x27, x28, #80
-    EPILOG_RESTORE_REG_PAIR   fp, lr,   #144!
+    EPILOG_RESTORE_REG_PAIR   fp, lr,   #176!
     EPILOG_RETURN
     NESTED_END
 
@@ -1585,7 +1600,69 @@ DoWrite
     ; Branch to the write barrier (which is already correctly overwritten with
     ; single or multi-proc code based on the current CPU
     b       JIT_WriteBarrier
-    LEAF_END 
-	
+    LEAF_END
+
+#ifdef PROFILING_SUPPORTED
+
+; ------------------------------------------------------------------
+; void JIT_ProfilerEnterLeaveTailcallStub(UINT_PTR ProfilerHandle)
+   LEAF_ENTRY  JIT_ProfilerEnterLeaveTailcallStub
+   ret      lr
+   LEAF_END
+
+ #define PROFILE_ENTER    1
+ #define PROFILE_LEAVE    2
+ #define PROFILE_TAILCALL 4
+ #define SIZEOF__PROFILE_PLATFORM_SPECIFIC_DATA 256
+
+; ------------------------------------------------------------------
+    MACRO
+    GenerateProfileHelper $helper, $flags
+
+    LCLS __HelperNakedFuncName
+__HelperNakedFuncName SETS "$helper":CC:"Naked"
+    IMPORT $helper
+
+    NESTED_ENTRY $__HelperNakedFuncName
+        ; On entry:
+        ;   x10 = functionIDOrClientID
+        ;   x11 = profiledSp
+        ;   x12 = throwable
+        ;
+        ; On exit:
+        ;   Values of x0-x8, q0-q7, fp are preserved.
+        ;   Values of other volatile registers are not preserved.
+
+        PROLOG_SAVE_REG_PAIR fp, lr, -SIZEOF__PROFILE_PLATFORM_SPECIFIC_DATA! ; Allocate space and save Fp, Pc.
+        SAVE_ARGUMENT_REGISTERS sp, 16          ; Save x8 and argument registers (x0-x7).
+        str     xzr, [sp, #88]                  ; Clear functionId.
+        SAVE_FLOAT_ARGUMENT_REGISTERS sp, 96    ; Save floating-point/SIMD registers (q0-q7).
+        add     x12, fp, SIZEOF__PROFILE_PLATFORM_SPECIFIC_DATA ; Compute probeSp - initial value of Sp on entry to the helper.
+        stp     x12, x11, [sp, #224]            ; Save probeSp, profiledSp.
+        str     xzr, [sp, #240]                 ; Clear hiddenArg.
+        mov     w12, $flags
+        stp     w12, wzr, [sp, #248]            ; Save flags and clear unused field.
+
+        mov     x0, x10
+        mov     x1, sp
+        bl $helper
+
+        RESTORE_ARGUMENT_REGISTERS sp, 16       ; Restore x8 and argument registers.
+        RESTORE_FLOAT_ARGUMENT_REGISTERS sp, 96 ; Restore floating-point/SIMD registers.
+
+        EPILOG_RESTORE_REG_PAIR fp, lr, SIZEOF__PROFILE_PLATFORM_SPECIFIC_DATA!
+        EPILOG_RETURN
+
+    NESTED_END
+0
+
+    MEND
+
+    GenerateProfileHelper ProfileEnter, PROFILE_ENTER
+    GenerateProfileHelper ProfileLeave, PROFILE_LEAVE
+    GenerateProfileHelper ProfileTailcall, PROFILE_TAILCALL
+
+#endif
+
 ; Must be at very end of file
     END

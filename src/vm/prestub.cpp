@@ -36,8 +36,6 @@
 #include "clrtocomcall.h"
 #endif
 
-#include "mdaassistants.h"
-
 #ifdef FEATURE_STACK_SAMPLING
 #include "stacksampler.h"
 #endif
@@ -322,34 +320,6 @@ PCODE MethodDesc::PrepareInitialCode()
     return pCode;
 }
 
-PCODE MethodDesc::PrepareCode(NativeCodeVersion codeVersion)
-{
-    STANDARD_VM_CONTRACT;
-    
-#ifdef FEATURE_CODE_VERSIONING
-    if (codeVersion.IsDefaultVersion())
-    {
-#endif
-        // fast path
-        PrepareCodeConfig config(codeVersion, TRUE, TRUE);
-        return PrepareCode(&config);
-#ifdef FEATURE_CODE_VERSIONING
-    }
-    else
-    {
-        // a bit slower path (+1 usec?)
-        VersionedPrepareCodeConfig config;
-        {
-            CodeVersionManager::TableLockHolder lock(GetCodeVersionManager());
-            config = VersionedPrepareCodeConfig(codeVersion);
-        }
-        config.FinishConfiguration();
-        return PrepareCode(&config);
-    }
-#endif
-    
-}
-
 PCODE MethodDesc::PrepareCode(PrepareCodeConfig* pConfig)
 {
     STANDARD_VM_CONTRACT;
@@ -360,6 +330,20 @@ PCODE MethodDesc::PrepareCode(PrepareCodeConfig* pConfig)
     return PrepareILBasedCode(pConfig);
 }
 
+bool MayUsePrecompiledILStub()
+{
+    if (g_pConfig->InteropValidatePinnedObjects())
+        return false;
+
+    if (CORProfilerTrackTransitions())
+        return false;
+    
+    if (g_pConfig->InteropLogArguments())
+        return false;
+
+    return true;
+}
+
 PCODE MethodDesc::PrepareILBasedCode(PrepareCodeConfig* pConfig)
 {
     STANDARD_VM_CONTRACT;
@@ -367,22 +351,43 @@ PCODE MethodDesc::PrepareILBasedCode(PrepareCodeConfig* pConfig)
 
     if (pConfig->MayUsePrecompiledCode())
     {
-        pCode = GetPrecompiledCode(pConfig);
+#ifdef FEATURE_READYTORUN
+        if (this->IsDynamicMethod() && GetLoaderModule()->IsSystem() && MayUsePrecompiledILStub())
+        {
+            DynamicMethodDesc *stubMethodDesc = this->AsDynamicMethodDesc();
+            if (stubMethodDesc->IsILStub() && stubMethodDesc->IsPInvokeStub())
+            {
+                ILStubResolver *pStubResolver = stubMethodDesc->GetILStubResolver();
+                if (pStubResolver->IsCLRToNativeInteropStub())
+                {
+                    MethodDesc *pTargetMD = stubMethodDesc->GetILStubResolver()->GetStubTargetMethodDesc();
+                    if (pTargetMD != NULL)
+                    {
+                        pCode = pTargetMD->GetPrecompiledR2RCode(pConfig);
+                        if (pCode != NULL)
+                        {
+                            LOG((LF_ZAP, LL_INFO10000,
+                                "ZAP: Using R2R precompiled code" FMT_ADDR " for %s.%s sig=\"%s\" (token %x).\n",
+                                DBG_ADDR(pCode),
+                                m_pszDebugClassName,
+                                m_pszDebugMethodName,
+                                m_pszDebugMethodSignature,
+                                GetMemberDef()));
+
+                            pConfig->SetNativeCode(pCode, &pCode);
+                        }
+                    }
+                }
+            }
+        }
+#endif // FEATURE_READYTORUN
+
+        if (pCode == NULL)
+            pCode = GetPrecompiledCode(pConfig);
     }
 
     if (pCode == NULL)
     {
-#ifdef FEATURE_TIERED_COMPILATION
-        if (!g_pConfig->TieredCompilation_QuickJit() &&
-            IsEligibleForTieredCompilation() &&
-            pConfig->GetCodeVersion().GetOptimizationTier() == NativeCodeVersion::OptimizationTier0 &&
-            CallCounter::IsEligibleForTier0CallCounting(this))
-        {
-            GetCallCounter()->DisableTier0CallCounting(this);
-            pConfig->GetCodeVersion().SetOptimizationTier(NativeCodeVersion::OptimizationTier1);
-        }
-#endif
-
         LOG((LF_CLASSLOADER, LL_INFO1000000,
             "    In PrepareILBasedCode, calling JitCompileCode\n"));
         pCode = JitCompileCode(pConfig);
@@ -407,21 +412,39 @@ PCODE MethodDesc::GetPrecompiledCode(PrepareCodeConfig* pConfig)
     pCode = GetPrecompiledNgenCode(pConfig);
 #endif
 
+    if (pCode != NULL)
+    {
+    #ifdef FEATURE_CODE_VERSIONING
+        pConfig->SetGeneratedOrLoadedNewCode();
+    #endif
+    }
 #ifdef FEATURE_READYTORUN
-    if (pCode == NULL)
+    else
     {
         pCode = GetPrecompiledR2RCode(pConfig);
         if (pCode != NULL)
         {
             LOG((LF_ZAP, LL_INFO10000,
-                    "ZAP: Using R2R precompiled code" FMT_ADDR "for %s.%s sig=\"%s\" (token %x).\n",
+                    "ZAP: Using R2R precompiled code" FMT_ADDR " for %s.%s sig=\"%s\" (token %x).\n",
                     DBG_ADDR(pCode),
                     m_pszDebugClassName,
                     m_pszDebugMethodName,
                     m_pszDebugMethodSignature,
                     GetMemberDef()));
 
-            pConfig->SetNativeCode(pCode, &pCode);
+            if (pConfig->SetNativeCode(pCode, &pCode))
+            {
+            #ifdef FEATURE_CODE_VERSIONING
+                pConfig->SetGeneratedOrLoadedNewCode();
+            #endif
+            #ifdef FEATURE_TIERED_COMPILATION
+                if (pConfig->GetMethodDesc()->IsEligibleForTieredCompilation())
+                {
+                    _ASSERTE(pConfig->GetCodeVersion().GetOptimizationTier() == NativeCodeVersion::OptimizationTier0);
+                    pConfig->SetShouldCountCalls();
+                }
+            #endif
+            }
         }
     }
 #endif // FEATURE_READYTORUN
@@ -473,7 +496,7 @@ PCODE MethodDesc::GetPrecompiledNgenCode(PrepareCodeConfig* pConfig)
     if (pCode != NULL)
     {
         LOG((LF_ZAP, LL_INFO10000,
-            "ZAP: Using NGEN precompiled code" FMT_ADDR "for %s.%s sig=\"%s\" (token %x).\n",
+            "ZAP: Using NGEN precompiled code " FMT_ADDR " for %s.%s sig=\"%s\" (token %x).\n",
             DBG_ADDR(pCode),
             m_pszDebugClassName,
             m_pszDebugMethodName,
@@ -494,7 +517,7 @@ PCODE MethodDesc::GetPrecompiledNgenCode(PrepareCodeConfig* pConfig)
 
 #ifdef HAVE_GCCOVER
         if (GCStress<cfg_instr_ngen>::IsEnabled())
-            SetupGcCoverage(this, (BYTE*)pCode);
+            SetupGcCoverage(pConfig->GetCodeVersion(), (BYTE*)pCode);
 #endif // HAVE_GCCOVER
 
 #ifdef PROFILING_SUPPORTED 
@@ -720,7 +743,19 @@ PCODE MethodDesc::JitCompileCode(PrepareCodeConfig* pConfig)
             pCode = GetMulticoreJitCode();
             if (pCode != NULL)
             {
-                pConfig->SetNativeCode(pCode, &pCode);
+                if (pConfig->SetNativeCode(pCode, &pCode))
+                {
+                #ifdef FEATURE_CODE_VERSIONING
+                    pConfig->SetGeneratedOrLoadedNewCode();
+                #endif
+                #ifdef FEATURE_TIERED_COMPILATION
+                    if (pConfig->GetMethodDesc()->IsEligibleForTieredCompilation() &&
+                        pConfig->GetCodeVersion().GetOptimizationTier() == NativeCodeVersion::OptimizationTier0)
+                    {
+                        pConfig->SetShouldCountCalls();
+                    }
+                #endif
+                }
                 pEntry->m_hrResultCode = S_OK;
                 return pCode;
             }
@@ -740,21 +775,17 @@ PCODE MethodDesc::JitCompileCodeLockedEventWrapper(PrepareCodeConfig* pConfig, J
     ULONG sizeOfCode = 0;
     CORJIT_FLAGS flags;
 
-#ifdef MDA_SUPPORTED 
-    MdaJitCompilationStart* pProbe = MDA_GET_ASSISTANT(JitCompilationStart);
-    if (pProbe)
-        pProbe->NowCompiling(this);
-#endif // MDA_SUPPORTED
-
 #ifdef PROFILING_SUPPORTED 
     {
         BEGIN_PIN_PROFILER(CORProfilerTrackJITInfo());
         // For methods with non-zero rejit id we send ReJITCompilationStarted, otherwise
         // JITCompilationStarted. It isn't clear if this is the ideal policy for these
         // notifications yet.
-        ReJITID rejitId = pConfig->GetCodeVersion().GetILCodeVersionId();
+        NativeCodeVersion nativeCodeVersion = pConfig->GetCodeVersion();
+        ReJITID rejitId = nativeCodeVersion.GetILCodeVersionId();
         if (rejitId != 0)
         {
+            _ASSERTE(!nativeCodeVersion.IsDefaultVersion());
             g_profControlBlock.pProfInterface->ReJITCompilationStarted((FunctionID)this,
                 rejitId,
                 TRUE);
@@ -777,12 +808,17 @@ PCODE MethodDesc::JitCompileCodeLockedEventWrapper(PrepareCodeConfig* pConfig, J
 
                 g_profControlBlock.pProfInterface->DynamicMethodJITCompilationStarted((FunctionID)this, TRUE, ilHeaderPointer, ilSize);
             }
+
+            if (nativeCodeVersion.IsDefaultVersion())
+            {
+                pConfig->SetProfilerMayHaveActivatedNonDefaultCodeVersion();
+            }
         }
         END_PIN_PROFILER();
     }
 #endif // PROFILING_SUPPORTED
 
-    if (!ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context,
+    if (!ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context,
         TRACE_LEVEL_VERBOSE,
         CLR_JIT_KEYWORD))
     {
@@ -819,9 +855,7 @@ PCODE MethodDesc::JitCompileCodeLockedEventWrapper(PrepareCodeConfig* pConfig, J
                 &methodName,
                 &methodSignature,
                 pCode,
-                pConfig->GetCodeVersion().GetVersionId(),
-                pConfig->ProfilerRejectedPrecompiledCode(),
-                pConfig->ReadyToRunRejectedPrecompiledCode());
+                pConfig);
         }
 
     }
@@ -836,10 +870,11 @@ PCODE MethodDesc::JitCompileCodeLockedEventWrapper(PrepareCodeConfig* pConfig, J
         // For methods with non-zero rejit id we send ReJITCompilationFinished, otherwise
         // JITCompilationFinished. It isn't clear if this is the ideal policy for these
         // notifications yet.
-        ReJITID rejitId = pConfig->GetCodeVersion().GetILCodeVersionId();
+        NativeCodeVersion nativeCodeVersion = pConfig->GetCodeVersion();
+        ReJITID rejitId = nativeCodeVersion.GetILCodeVersionId();
         if (rejitId != 0)
         {
-
+            _ASSERTE(!nativeCodeVersion.IsDefaultVersion());
             g_profControlBlock.pProfInterface->ReJITCompilationFinished((FunctionID)this,
                 rejitId,
                 S_OK,
@@ -861,6 +896,11 @@ PCODE MethodDesc::JitCompileCodeLockedEventWrapper(PrepareCodeConfig* pConfig, J
             {
                 g_profControlBlock.pProfInterface->DynamicMethodJITCompilationFinished((FunctionID)this, pEntry->m_hrResultCode, TRUE);
             }
+
+            if (nativeCodeVersion.IsDefaultVersion())
+            {
+                pConfig->SetProfilerMayHaveActivatedNonDefaultCodeVersion();
+            }
         }
         END_PIN_PROFILER();
     }
@@ -877,7 +917,7 @@ PCODE MethodDesc::JitCompileCodeLockedEventWrapper(PrepareCodeConfig* pConfig, J
     {
 #ifdef FEATURE_PERFMAP
         // Save the JIT'd method information so that perf can resolve JIT'd call frames.
-        PerfMap::LogJITCompiledMethod(this, pCode, sizeOfCode);
+        PerfMap::LogJITCompiledMethod(this, pCode, sizeOfCode, pConfig);
 #endif
     }
 
@@ -922,6 +962,10 @@ PCODE MethodDesc::JitCompileCodeLocked(PrepareCodeConfig* pConfig, JitListLockEn
     PCODE pOtherCode = NULL;
     EX_TRY
     {
+#ifndef CROSSGEN_COMPILE
+        Thread::CurrentPrepareCodeConfigHolder threadPrepareCodeConfigHolder(GetThread(), pConfig);
+#endif
+
         pCode = UnsafeJitFunction(pConfig->GetCodeVersion(), pilHeader, *pFlags, pSizeOfCode);
     }
     EX_CATCH
@@ -947,15 +991,15 @@ PCODE MethodDesc::JitCompileCodeLocked(PrepareCodeConfig* pConfig, JitListLockEn
     }
     EX_END_CATCH(RethrowTerminalExceptions)
 
-        if (pOtherCode != NULL)
-        {
-            // Somebody finished jitting recursively while we were jitting the method.
-            // Just use their method & leak the one we finished. (Normally we hope
-            // not to finish our JIT in this case, as we will abort early if we notice
-            // a reentrant jit has occurred.  But we may not catch every place so we
-            // do a definitive final check here.
-            return pOtherCode;
-        }
+    if (pOtherCode != NULL)
+    {
+        // Somebody finished jitting recursively while we were jitting the method.
+        // Just use their method & leak the one we finished. (Normally we hope
+        // not to finish our JIT in this case, as we will abort early if we notice
+        // a reentrant jit has occurred.  But we may not catch every place so we
+        // do a definitive final check here.
+        return pOtherCode;
+    }
 
     _ASSERTE(pCode != NULL);
 
@@ -975,7 +1019,7 @@ PCODE MethodDesc::JitCompileCodeLocked(PrepareCodeConfig* pConfig, JitListLockEn
             return pOtherCode;
         }
 
-        SetupGcCoverage(this, (BYTE*)pCode);
+        SetupGcCoverage(pConfig->GetCodeVersion(), (BYTE*)pCode);
 
         // This thread should always win the publishing race
         // since we're under a lock.
@@ -998,6 +1042,32 @@ PCODE MethodDesc::JitCompileCodeLocked(PrepareCodeConfig* pConfig, JitListLockEn
         return pOtherCode;
     }
 
+#ifdef FEATURE_CODE_VERSIONING
+    pConfig->SetGeneratedOrLoadedNewCode();
+#endif
+
+#ifdef FEATURE_TIERED_COMPILATION
+    if (pFlags->IsSet(CORJIT_FLAGS::CORJIT_FLAG_TIER0))
+    {
+        _ASSERTE(pConfig->GetCodeVersion().GetOptimizationTier() == NativeCodeVersion::OptimizationTier0);
+        _ASSERTE(pConfig->GetMethodDesc()->IsEligibleForTieredCompilation());
+        _ASSERTE(pConfig->GetMethodDesc()->GetCallCounter()->IsCallCountingEnabled(pConfig->GetMethodDesc()));
+
+        if (pConfig->JitSwitchedToOptimized())
+        {
+            // Update the tier in the code version. The JIT may have decided to switch from tier 0 to optimized, in which case
+            // call counting would have to be disabled for the method.
+            MethodDesc *methodDesc = pConfig->GetMethodDesc();
+            methodDesc->GetCallCounter()->DisableCallCounting(methodDesc);
+            pConfig->GetCodeVersion().SetOptimizationTier(NativeCodeVersion::OptimizationTierOptimized);
+        }
+        else
+        {
+            pConfig->SetShouldCountCalls();
+        }
+    }
+#endif
+
 #if defined(FEATURE_JIT_PITCHING)
     SavePitchingCandidate(this, *pSizeOfCode);
 #endif
@@ -1018,7 +1088,19 @@ PrepareCodeConfig::PrepareCodeConfig(NativeCodeVersion codeVersion, BOOL needsMu
     m_needsMulticoreJitNotification(needsMulticoreJitNotification),
     m_mayUsePrecompiledCode(mayUsePrecompiledCode),
     m_ProfilerRejectedPrecompiledCode(FALSE),
-    m_ReadyToRunRejectedPrecompiledCode(FALSE)
+    m_ReadyToRunRejectedPrecompiledCode(FALSE),
+#ifdef FEATURE_CODE_VERSIONING
+    m_profilerMayHaveActivatedNonDefaultCodeVersion(false),
+    m_generatedOrLoadedNewCode(false),
+#endif
+#ifdef FEATURE_TIERED_COMPILATION
+    m_shouldCountCalls(false),
+#endif
+    m_jitSwitchedToMinOpt(false),
+#ifdef FEATURE_TIERED_COMPILATION
+    m_jitSwitchedToOptimized(false),
+#endif
+    m_nextInSameThread(nullptr)
 {}
 
 MethodDesc* PrepareCodeConfig::GetMethodDesc()
@@ -1129,6 +1211,67 @@ BOOL PrepareCodeConfig::MayUsePrecompiledCode()
     return m_mayUsePrecompiledCode;
 }
 
+PrepareCodeConfig::JitOptimizationTier PrepareCodeConfig::GetJitOptimizationTier(
+    PrepareCodeConfig *config,
+    MethodDesc *methodDesc)
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(methodDesc != nullptr);
+    _ASSERTE(config == nullptr || methodDesc == config->GetMethodDesc());
+
+    if (config != nullptr)
+    {
+        if (config->JitSwitchedToMinOpt())
+        {
+            return JitOptimizationTier::MinOptJitted;
+        }
+    #ifdef FEATURE_TIERED_COMPILATION
+        else if (config->JitSwitchedToOptimized())
+        {
+            _ASSERTE(methodDesc->IsEligibleForTieredCompilation());
+            _ASSERTE(config->GetCodeVersion().GetOptimizationTier() == NativeCodeVersion::OptimizationTierOptimized);
+            return JitOptimizationTier::Optimized;
+        }
+        else if (methodDesc->IsEligibleForTieredCompilation())
+        {
+            switch (config->GetCodeVersion().GetOptimizationTier())
+            {
+                case NativeCodeVersion::OptimizationTier0:
+                    return JitOptimizationTier::QuickJitted;
+
+                case NativeCodeVersion::OptimizationTier1:
+                    return JitOptimizationTier::OptimizedTier1;
+
+                case NativeCodeVersion::OptimizationTierOptimized:
+                    return JitOptimizationTier::Optimized;
+
+                default:
+                    UNREACHABLE();
+            }
+        }
+    #endif
+    }
+
+    return methodDesc->IsJitOptimizationDisabled() ? JitOptimizationTier::MinOptJitted : JitOptimizationTier::Optimized;
+}
+
+const char *PrepareCodeConfig::GetJitOptimizationTierStr(PrepareCodeConfig *config, MethodDesc *methodDesc)
+{
+    WRAPPER_NO_CONTRACT;
+
+    switch (GetJitOptimizationTier(config, methodDesc))
+    {
+        case JitOptimizationTier::Unknown: return "Unknown";
+        case JitOptimizationTier::MinOptJitted: return "MinOptJitted";
+        case JitOptimizationTier::Optimized: return "Optimized";
+        case JitOptimizationTier::QuickJitted: return "QuickJitted";
+        case JitOptimizationTier::OptimizedTier1: return "OptimizedTier1";
+
+        default:
+            UNREACHABLE();
+    }
+}
+
 #ifdef FEATURE_CODE_VERSIONING
 VersionedPrepareCodeConfig::VersionedPrepareCodeConfig() {}
 
@@ -1205,6 +1348,26 @@ CORJIT_FLAGS VersionedPrepareCodeConfig::GetJitCompilationFlags()
 #endif
 
     return flags;
+}
+
+PrepareCodeConfigBuffer::PrepareCodeConfigBuffer(NativeCodeVersion codeVersion)
+{
+    WRAPPER_NO_CONTRACT;
+
+    if (codeVersion.IsDefaultVersion())
+    {
+        // fast path
+        new(m_buffer) PrepareCodeConfig(codeVersion, TRUE, TRUE);
+        return;
+    }
+
+    // a bit slower path (+1 usec?)
+    VersionedPrepareCodeConfig *config;
+    {
+        CodeVersionManager::TableLockHolder lock(codeVersion.GetMethodDesc()->GetCodeVersionManager());
+        config = new(m_buffer) VersionedPrepareCodeConfig(codeVersion);
+    }
+    config->FinishConfiguration();
 }
 
 #endif //FEATURE_CODE_VERSIONING
@@ -1812,67 +1975,53 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
         pThread->HandleThreadAbort();
     }
 
-    /***************************   CALL COUNTER    ***********************/
-    // If we are counting calls for tiered compilation, leave the prestub
-    // in place so that we can continue intercepting method invocations.
-    // When the TieredCompilationManager has received enough call notifications
-    // for this method only then do we back-patch it.
-    BOOL fCanBackpatchPrestub = TRUE;
-#ifdef FEATURE_TIERED_COMPILATION
-    BOOL fNeedsCallCounting = FALSE;
-    TieredCompilationManager* pTieredCompilationManager = nullptr;
-    if (IsEligibleForTieredCompilation() && CallCounter::IsEligibleForCallCounting(this))
-    {
-        pTieredCompilationManager = GetAppDomain()->GetTieredCompilationManager();
-        BOOL fWasPromotedToNextTier = FALSE;
-        GetCallCounter()->OnMethodCalled(this, pTieredCompilationManager, &fCanBackpatchPrestub, &fWasPromotedToNextTier);
-        fNeedsCallCounting = !fWasPromotedToNextTier;
-    }
-#endif
-
-    /***************************  VERSIONABLE CODE    *********************/
-
-    BOOL fIsPointingToPrestub = IsPointingToPrestub();
-    bool fIsVersionableWithoutJumpStamp = false;
-#ifdef FEATURE_CODE_VERSIONING
-    fIsVersionableWithoutJumpStamp = IsVersionableWithoutJumpStamp();
-    if (fIsVersionableWithoutJumpStamp ||
-        (!fIsPointingToPrestub && IsVersionableWithJumpStamp()))
-    {
-        pCode = GetCodeVersionManager()->PublishVersionableCodeIfNecessary(this, fCanBackpatchPrestub);
-
-#ifdef FEATURE_TIERED_COMPILATION
-        if (pTieredCompilationManager != nullptr && fNeedsCallCounting && fCanBackpatchPrestub && pCode != NULL)
-        {
-            pTieredCompilationManager->OnMethodCallCountingStoppedWithoutTierPromotion(this);
-        }
-#endif
-
-        fIsPointingToPrestub = IsPointingToPrestub();
-    }
-#endif
-
     /**************************   BACKPATCHING   *************************/
     // See if the addr of code has changed from the pre-stub
-    if (!fIsPointingToPrestub)
+
+#ifdef FEATURE_CODE_VERSIONING
+    if (IsVersionableWithoutJumpStamp())
     {
-        LOG((LF_CLASSLOADER, LL_INFO10000,
-                "    In PreStubWorker, method already jitted, backpatching call point\n"));
-#if defined(FEATURE_JIT_PITCHING)
-        MarkMethodNotPitchingCandidate(this);
-#endif
-        RETURN DoBackpatch(pMT, pDispatchingMT, TRUE);
-    }
-    
-    if (pCode)
-    {
-        // The only reasons we are still pointing to prestub is because the call counter
-        // prevented it or this thread lost the race with another thread in updating the
-        // entry point. We should still short circuit and return the code without
-        // backpatching.
+        bool doBackpatch = true;
+        bool doFullBackpatch = false;
+        pCode = GetCodeVersionManager()->PublishNonJumpStampVersionableCodeIfNecessary(this, &doBackpatch, &doFullBackpatch);
+
+        if (doBackpatch)
+        {
+            RETURN DoBackpatch(pMT, pDispatchingMT, doFullBackpatch);
+        }
+
+        _ASSERTE(pCode != NULL);
+        _ASSERTE(!doFullBackpatch);
         RETURN pCode;
     }
-    
+#endif
+
+    if (!IsPointingToPrestub())
+    {
+        bool doFullBackpatch = true;
+    #ifdef FEATURE_CODE_VERSIONING
+        if (IsVersionableWithJumpStamp())
+        {
+            _ASSERTE(IsVersionableWithJumpStamp());
+            pCode = GetCodeVersionManager()->PublishJumpStampVersionableCodeIfNecessary(this);
+            if (pCode == NULL)
+            {
+                doFullBackpatch = false;
+            }
+        }
+    #endif
+
+        if (doFullBackpatch)
+        {
+            LOG((LF_CLASSLOADER, LL_INFO10000,
+                "    In PreStubWorker, method already jitted, backpatching call point\n"));
+        #if defined(FEATURE_JIT_PITCHING)
+            MarkMethodNotPitchingCandidate(this);
+        #endif
+            RETURN DoBackpatch(pMT, pDispatchingMT, TRUE);
+        }
+    }
+
     /**************************   CODE CREATION  *************************/
     if (IsUnboxingStub())
     {
@@ -1886,7 +2035,7 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
 #endif // defined(FEATURE_SHARE_GENERIC_CODE)
     else if (IsIL() || IsNoMetadata())
     {
-        if (!IsNativeCodeStableAfterInit() && (!fIsVersionableWithoutJumpStamp || IsVersionableWithPrecode()))
+        if (!IsNativeCodeStableAfterInit())
         {
             GetOrCreatePrecode();
         }
@@ -1932,16 +2081,6 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
     // should have thrown an exception if it couldn't make a stub.
     _ASSERTE((pStub != NULL) ^ (pCode != NULL));
 
-    /**************************   SECURITY   *************************/
-
-    // Lets check to see if we need declarative security on this stub, If we have
-    // security checks on this method or class then we need to add an intermediate
-    // stub that performs declarative checks prior to calling the real stub.
-    // record if security needs to intercept this call (also depends on whether we plan to use stubs for declarative security)
-
-
-    _ASSERTE((pStub != NULL) ^ (pCode != NULL));
-
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
     //
     // We are seeing memory reordering race around fixups (see DDB 193514 and related bugs). We get into
@@ -1957,13 +2096,6 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
 
     if (pCode != NULL)
     {
-        if (fIsVersionableWithoutJumpStamp)
-        {
-            // Methods versionable without a jump stamp should not get here unless there was a failure. There may have been a
-            // failure to update the code versions above for some reason. Don't backpatch this time and try again next time.
-            return pCode;
-        }
-
         _ASSERTE(!MayHaveEntryPointSlotsToBackpatch()); // This path doesn't lock the MethodDescBackpatchTracker as it should only
                                                         // happen for jump-stampable or non-versionable methods
         SetCodeEntryPoint(pCode);
@@ -2447,7 +2579,7 @@ EXTERN_C PCODE STDCALL ExternalMethodFixupWorker(TransitionBlock * pTransitionBl
 }
 
 
-#if !defined(_TARGET_X86_) && !defined(_TARGET_AMD64_)
+#if !defined(_TARGET_X86_) && !defined(_TARGET_AMD64_) && defined(FEATURE_PREJIT)
 
 //==========================================================================================
 // In NGen image, virtual slots inherited from cross-module dependencies point to jump thunks.
@@ -2504,7 +2636,7 @@ EXTERN_C PCODE VirtualMethodFixupWorker(Object * pThisPtr,  CORCOMPILE_VIRTUAL_I
 #endif
     return pCode;
 }
-#endif // !defined(_TARGET_X86_) && !defined(_TARGET_AMD64_)
+#endif // !defined(_TARGET_X86_) && !defined(_TARGET_AMD64_) && defined(FEATURE_PREJIT)
 
 #ifdef FEATURE_READYTORUN
 

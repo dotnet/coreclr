@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -34,9 +35,6 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         public extern Utf8String(ReadOnlySpan<byte> value);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -60,15 +58,12 @@ namespace System
         /// Invalid code unit sequences are replaced with U+FFFD in the resulting <see cref="Utf8String"/>.
         /// </remarks>
         [MethodImpl(MethodImplOptions.InternalCall)]
-        public extern Utf8String(byte[] value, int startIndex, int length);
+        public extern Utf8String(byte[]? value, int startIndex, int length);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
-        private Utf8String Ctor(byte[] value, int startIndex, int length) => Ctor(new ReadOnlySpan<byte>(value, startIndex, length));
+        private Utf8String Ctor(byte[]? value, int startIndex, int length) => Ctor(new ReadOnlySpan<byte>(value, startIndex, length));
 
         /// <summary>
         /// Creates a <see cref="Utf8String"/> instance from existing null-terminated UTF-8 data.
@@ -79,11 +74,8 @@ namespace System
         /// </remarks>
         [MethodImpl(MethodImplOptions.InternalCall)]
         [CLSCompliant(false)]
-        public unsafe extern Utf8String(byte* value);
+        public extern unsafe Utf8String(byte* value);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -107,9 +99,6 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         public extern Utf8String(ReadOnlySpan<char> value);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -135,15 +124,12 @@ namespace System
         /// Invalid code unit sequences are replaced with U+FFFD in the resulting <see cref="Utf8String"/>.
         /// </remarks>
         [MethodImpl(MethodImplOptions.InternalCall)]
-        public extern Utf8String(char[] value, int startIndex, int length);
+        public extern Utf8String(char[]? value, int startIndex, int length);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
-        private Utf8String Ctor(char[] value, int startIndex, int length) => Ctor(new ReadOnlySpan<char>(value, startIndex, length));
+        private Utf8String Ctor(char[]? value, int startIndex, int length) => Ctor(new ReadOnlySpan<char>(value, startIndex, length));
 
         /// <summary>
         /// Creates a <see cref="Utf8String"/> instance from existing null-terminated UTF-16 data.
@@ -154,11 +140,8 @@ namespace System
         /// </remarks>
         [MethodImpl(MethodImplOptions.InternalCall)]
         [CLSCompliant(false)]
-        public unsafe extern Utf8String(char* value);
+        public extern unsafe Utf8String(char* value);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -180,15 +163,22 @@ namespace System
         /// Invalid code unit sequences are replaced with U+FFFD in the resulting <see cref="Utf8String"/>.
         /// </remarks>
         [MethodImpl(MethodImplOptions.InternalCall)]
-        public extern Utf8String(string value);
+        public extern Utf8String(string? value);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
-        private Utf8String Ctor(string value) => Ctor(value.AsSpan());
+        private Utf8String Ctor(string? value) => Ctor(value.AsSpan());
+
+        internal static Utf8String CreateFromRune(Rune value)
+        {
+            Utf8String newString = FastAllocate(value.Utf8SequenceLength);
+            int bytesWritten = value.EncodeToUtf8(new Span<byte>(ref newString.DangerousGetMutableReference(), newString.Length));
+
+            Debug.Assert(bytesWritten == value.Utf8SequenceLength);
+
+            return newString;
+        }
 
         /*
          * HELPER METHODS

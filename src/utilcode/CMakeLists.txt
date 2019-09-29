@@ -40,6 +40,7 @@ set(UTILCODE_COMMON_SOURCES
   format1.cpp
   prettyprintsig.cpp
   regutil.cpp
+  sha1.cpp
   sigbuilder.cpp
   sigparser.cpp
   sstring.cpp
@@ -101,14 +102,12 @@ set(UTILCODE_STATICNOHOST_SOURCES
   hostimpl.cpp
 )
 
+set (UTILCODE_DEPENDENCIES eventing_headers)
+
 convert_to_absolute_path(UTILCODE_SOURCES ${UTILCODE_SOURCES})
 convert_to_absolute_path(UTILCODE_DAC_SOURCES ${UTILCODE_DAC_SOURCES})
 convert_to_absolute_path(UTILCODE_CROSSGEN_SOURCES ${UTILCODE_CROSSGEN_SOURCES})
 convert_to_absolute_path(UTILCODE_STATICNOHOST_SOURCES ${UTILCODE_STATICNOHOST_SOURCES})
-
-if(CLR_CMAKE_PLATFORM_UNIX)
-    add_compile_options(-fPIC)
-endif(CLR_CMAKE_PLATFORM_UNIX)
 
 add_subdirectory(dac)
 add_subdirectory(dyncrt)

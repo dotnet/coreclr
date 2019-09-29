@@ -5,28 +5,36 @@
 #include "common.h"
 #include "diagnosticserver.h"
 #include "eventpipeprotocolhelper.h"
+#include "dumpdiagnosticprotocolhelper.h"
+#include "profilerdiagnosticprotocolhelper.h"
+#include "diagnosticsprotocol.h"
 
 #ifdef FEATURE_PAL
 #include "pal.h"
 #endif // FEATURE_PAL
 
+#ifdef FEATURE_AUTO_TRACE
+#include "autotrace.h"
+#endif
+
 #ifdef FEATURE_PERFTRACING
 
 IpcStream::DiagnosticsIpc *DiagnosticServer::s_pIpc = nullptr;
+Volatile<bool> DiagnosticServer::s_shuttingDown(false);
+HANDLE DiagnosticServer::s_hServerThread = INVALID_HANDLE_VALUE;
 
-static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
+DWORD WINAPI DiagnosticServer::DiagnosticsServerThread(LPVOID)
 {
     CONTRACTL
     {
         NOTHROW;
         GC_TRIGGERS;
-        MODE_ANY;
-        PRECONDITION(lpThreadParameter != nullptr);
+        MODE_PREEMPTIVE;
+        PRECONDITION(s_pIpc != nullptr);
     }
     CONTRACTL_END;
 
-    auto pIpc = reinterpret_cast<IpcStream::DiagnosticsIpc *>(lpThreadParameter);
-    if (pIpc == nullptr)
+    if (s_pIpc == nullptr)
     {
         STRESS_LOG0(LF_DIAGNOSTICS_PORT, LL_ERROR, "Diagnostics IPC listener was undefined\n");
         return 1;
@@ -38,39 +46,53 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
 
     EX_TRY
     {
-        while (true)
+        while (!s_shuttingDown)
         {
             // FIXME: Ideally this would be something like a std::shared_ptr
-            IpcStream *pStream = pIpc->Accept(LoggingCallback);
+            IpcStream *pStream = s_pIpc->Accept(LoggingCallback);
+
             if (pStream == nullptr)
                 continue;
-
-            // TODO: Read operation should happen in a loop.
-            uint32_t nNumberOfBytesRead = 0;
-            MessageHeader header;
-            bool fSuccess = pStream->Read(&header, sizeof(header), nNumberOfBytesRead);
-            if (!fSuccess || nNumberOfBytesRead != sizeof(header))
+#ifdef FEATURE_AUTO_TRACE
+            auto_trace_signal();
+#endif
+            DiagnosticsIpc::IpcMessage message;
+            if (!message.Initialize(pStream))
             {
+                DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, CORDIAGIPC_E_BAD_ENCODING);
                 delete pStream;
                 continue;
             }
 
-            switch (header.RequestType)
+            if (::strcmp((char *)message.GetHeader().Magic, (char *)DiagnosticsIpc::DotnetIpcMagic_V1.Magic) != 0)
             {
-            case DiagnosticMessageType::EnableEventPipe:
-                EventPipeProtocolHelper::EnableFileTracingEventHandler(pStream);
+                DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, CORDIAGIPC_E_UNKNOWN_MAGIC);
+                delete pStream;
+                continue;
+            }
+
+            switch ((DiagnosticsIpc::DiagnosticServerCommandSet)message.GetHeader().CommandSet)
+            {
+            case DiagnosticsIpc::DiagnosticServerCommandSet::EventPipe:
+                EventPipeProtocolHelper::HandleIpcMessage(message, pStream);
                 break;
 
-            case DiagnosticMessageType::DisableEventPipe:
-                EventPipeProtocolHelper::DisableFileTracingEventHandler(pStream);
+#ifdef FEATURE_PAL
+            case DiagnosticsIpc::DiagnosticServerCommandSet::Dump:
+                DumpDiagnosticProtocolHelper::HandleIpcMessage(message, pStream);
                 break;
+#endif
 
-            case DiagnosticMessageType::StreamEventPipe:
-                EventPipeProtocolHelper::AttachTracingEventHandler(pStream);
+#ifdef FEATURE_PROFAPI_ATTACH_DETACH
+            case DiagnosticsIpc::DiagnosticServerCommandSet::Profiler:
+                ProfilerDiagnosticProtocolHelper::AttachProfiler(message, pStream);
                 break;
+#endif // FEATURE_PROFAPI_ATTACH_DETACH
 
             default:
-                LOG((LF_DIAGNOSTICS_PORT, LL_WARNING, "Received unknow request type (%d)\n", header.RequestType));
+                STRESS_LOG1(LF_DIAGNOSTICS_PORT, LL_WARNING, "Received unknown request type (%d)\n", message.GetHeader().CommandSet);
+                DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, CORDIAGIPC_E_UNKNOWN_COMMAND);
+                delete pStream;
                 break;
             }
         }
@@ -110,12 +132,16 @@ bool DiagnosticServer::Initialize()
 
         // TODO: Should we handle/assert that (s_pIpc == nullptr)?
         s_pIpc = IpcStream::DiagnosticsIpc::Create(
-            "dotnetcore-diagnostic", ErrorCallback);
+            "dotnet-diagnostic", ErrorCallback);
 
         if (s_pIpc != nullptr)
         {
+#ifdef FEATURE_AUTO_TRACE
+            auto_trace_init();
+            auto_trace_launch();
+#endif
             DWORD dwThreadId = 0;
-            HANDLE hThread = ::CreateThread( // TODO: Is it correct to have this "lower" level call here?
+            s_hServerThread = ::CreateThread( // TODO: Is it correct to have this "lower" level call here?
                 nullptr,                     // no security attribute
                 0,                           // default stack size
                 DiagnosticsServerThread,     // thread proc
@@ -123,8 +149,11 @@ bool DiagnosticServer::Initialize()
                 0,                           // not suspended
                 &dwThreadId);                // returns thread ID
 
-            if (hThread == nullptr)
+            if (s_hServerThread == NULL)
             {
+                delete s_pIpc;
+                s_pIpc = nullptr;
+
                 // Failed to create IPC thread.
                 STRESS_LOG1(
                     LF_DIAGNOSTICS_PORT,                                 // facility
@@ -134,10 +163,9 @@ bool DiagnosticServer::Initialize()
             }
             else
             {
-                // FIXME: Maybe hold on to the thread to abort/cleanup at exit?
-                ::CloseHandle(hThread);
-
-                // TODO: Add error handling?
+#ifdef FEATURE_AUTO_TRACE
+                auto_trace_wait();
+#endif
                 fSuccess = true;
             }
         }
@@ -163,6 +191,8 @@ bool DiagnosticServer::Shutdown()
 
     bool fSuccess = false;
 
+    s_shuttingDown = true;
+
     EX_TRY
     {
         if (s_pIpc != nullptr)
@@ -171,11 +201,32 @@ bool DiagnosticServer::Shutdown()
                 STRESS_LOG2(
                     LF_DIAGNOSTICS_PORT,                                  // facility
                     LL_ERROR,                                             // level
-                    "Failed to unlink diagnostic IPC: error (%d): %s.\n", // msg
+                    "Failed to close diagnostic IPC: error (%d): %s.\n",  // msg
                     code,                                                 // data1
                     szMessage);                                           // data2
             };
-            s_pIpc->Unlink(ErrorCallback);
+            s_pIpc->Close(ErrorCallback); // This will break the accept waiting for client connection.
+
+            if (s_hServerThread != NULL)
+            {
+#ifndef FEATURE_PAL
+                ::CancelSynchronousIo(s_hServerThread);
+#endif // FEATURE_PAL
+
+                // At this point, IO operations on the server thread through the
+                // IPC channel has been closed/cancelled.
+
+                // On non-Windows, this function is blocking on threads that already exit.
+                // ::WaitForSingleObject(s_hServerThread, INFINITE);
+
+                // Close the thread handle (dispose OS resource).
+                ::CloseHandle(s_hServerThread);
+                s_hServerThread = INVALID_HANDLE_VALUE;
+            }
+
+            // If we do not wait for thread to teardown, then we cannot delete this object.
+            // delete s_pIpc;
+            // s_pIpc = nullptr;
         }
         fSuccess = true;
     }

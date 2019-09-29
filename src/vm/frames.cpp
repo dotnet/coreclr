@@ -26,7 +26,6 @@
 #include "clsload.hpp"
 #include "cgensys.h"
 #include "virtualcallstub.h"
-#include "mdaassistants.h"
 #include "dllimport.h"
 #include "gcrefmap.h"
 #include "asmconstants.h"
@@ -310,14 +309,6 @@ void Frame::Init()
 #include "frames.h"
 
 } // void Frame::Init()
-
-// static
-void Frame::Term()
-{
-    LIMITED_METHOD_CONTRACT;
-    delete s_pFrameVTables;
-    s_pFrameVTables = NULL;
-}
 
 #endif // DACCESS_COMPILE
 
@@ -975,15 +966,21 @@ void GCFrame::GcScanRoots(promote_func *fn, ScanContext* sc)
 
     PTR_PTR_Object pRefs = dac_cast<PTR_PTR_Object>(m_pObjRefs);
 
-    for (UINT i = 0;i < m_numObjRefs; i++)  {
-
-        LOG((LF_GC, INFO3, "GC Protection Frame Promoting" FMT_ADDR "to",
-             DBG_ADDR(OBJECTREF_TO_UNCHECKED_OBJECTREF(m_pObjRefs[i])) ));
+    for (UINT i = 0; i < m_numObjRefs; i++)
+    {
+        auto fromAddress = OBJECTREF_TO_UNCHECKED_OBJECTREF(m_pObjRefs[i]);
         if (m_MaybeInterior)
-            PromoteCarefully(fn, pRefs + i, sc, GC_CALL_INTERIOR|CHECK_APP_DOMAIN);
+        {
+            PromoteCarefully(fn, pRefs + i, sc, GC_CALL_INTERIOR | CHECK_APP_DOMAIN);
+        }
         else
+        {
             (*fn)(pRefs + i, sc, 0);
-        LOG((LF_GC, INFO3, FMT_ADDR "\n", DBG_ADDR(OBJECTREF_TO_UNCHECKED_OBJECTREF(m_pObjRefs[i])) ));
+        }
+
+        auto toAddress = OBJECTREF_TO_UNCHECKED_OBJECTREF(m_pObjRefs[i]);
+        LOG((LF_GC, INFO3, "GC Protection Frame promoted" FMT_ADDR "to" FMT_ADDR "\n",
+            DBG_ADDR(fromAddress), DBG_ADDR(toAddress)));
     }
 }
 
@@ -1003,6 +1000,97 @@ VOID GCFrame::Pop()
         Thread::ObjectRefNew(&m_pObjRefs[i]);       // Unprotect them
 #endif
 }
+
+#ifndef CROSSGEN_COMPILE
+// GCFrame destructor removes the GCFrame from the current thread's explicit frame list.
+// This prevents issues in functions that have HELPER_METHOD_FRAME_BEGIN / END around 
+// GCPROTECT_BEGIN / END and where the C++ compiler places some local variables over 
+// the stack location of the GCFrame local variable after the variable goes out of scope. 
+GCFrame::~GCFrame()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    if (m_Next != NULL)
+    {
+        // Do a manual switch to the GC cooperative mode instead of using the GCX_COOP_THREAD_EXISTS
+        // macro so that this function isn't slowed down by having to deal with FS:0 chain on x86 Windows.
+        BOOL wasCoop = m_pCurThread->PreemptiveGCDisabled();
+        if (!wasCoop)
+        {
+            m_pCurThread->DisablePreemptiveGC();
+        }
+
+        // When the frame is destroyed, make sure it is no longer in the
+        // frame chain managed by the Thread.
+
+        Pop();
+
+#if defined(FEATURE_EH_FUNCLETS) && !defined(FEATURE_PAL)
+        PTR_ExceptionTracker pCurrentTracker = m_pCurThread->GetExceptionState()->GetCurrentExceptionTracker();
+        if (pCurrentTracker != NULL)
+        {
+            if (pCurrentTracker->GetLimitFrame() == this)
+            {
+                // The current frame that was just popped was the EH limit frame. We need to reset the EH limit frame
+                // to the current frame so that it stays on the frame chain from initial explicit frame.
+                // The ExceptionTracker::HasFrameBeenUnwoundByAnyActiveException needs that to correctly detect
+                // frames that were unwound.
+                pCurrentTracker->ResetLimitFrame();
+            }
+
+            PTR_Frame frame = pCurrentTracker->GetInitialExplicitFrame();
+            if (frame != NULL)
+            {
+                while ((frame != FRAME_TOP) && (frame != this))
+                {
+                    PTR_Frame nextFrame = frame->PtrNextFrame();
+                    if (nextFrame == this)
+                    {
+                        // Repair frame chain from the initial explicit frame to the current frame,
+                        // skipping the current GCFrame that was destroyed
+                        frame->m_Next = m_pCurThread->m_pFrame;
+                        break;
+                    }
+                    frame = nextFrame;
+                }
+            }
+        }
+#endif // FEATURE_EH_FUNCLETS && !FEATURE_PAL
+
+        if (!wasCoop)
+        {
+            m_pCurThread->EnablePreemptiveGC();
+        }
+
+    }
+}
+
+ExceptionFilterFrame::~ExceptionFilterFrame()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    if (m_Next != NULL)
+    {
+        GCX_COOP();
+        // When the frame is destroyed, make sure it is no longer in the
+        // frame chain managed by the Thread.
+        Pop();
+    }
+}
+
+#endif // !CROSSGEN_COMPILE
 
 #ifdef FEATURE_INTERPRETER
 // Methods of IntepreterFrame.
@@ -1114,7 +1202,7 @@ void HijackFrame::GcScanRoots(promote_func *fn, ScanContext* sc)
         case RT_ByRef:
             LOG((LF_GC, INFO3, "Hijack Frame Carefully Promoting pointer" FMT_ADDR "to",
                 DBG_ADDR(OBJECTREF_TO_UNCHECKED_OBJECTREF(*objPtr))));
-            PromoteCarefully(fn, objPtr, sc, GC_CALL_INTERIOR | GC_CALL_CHECK_APP_DOMAIN);
+            PromoteCarefully(fn, objPtr, sc, GC_CALL_INTERIOR);
             LOG((LF_GC, INFO3, FMT_ADDR "\n", DBG_ADDR(OBJECTREF_TO_UNCHECKED_OBJECTREF(*objPtr))));
             break;
 
@@ -1343,7 +1431,7 @@ void TransitionFrame::PromoteCallerStackUsingGCRefMap(promote_func* fn, ScanCont
             fn(dac_cast<PTR_PTR_Object>(ppObj), sc, CHECK_APP_DOMAIN);
             break;
         case GCREFMAP_INTERIOR:
-            PromoteCarefully(fn, dac_cast<PTR_PTR_Object>(ppObj), sc, GC_CALL_INTERIOR | GC_CALL_CHECK_APP_DOMAIN);
+            PromoteCarefully(fn, dac_cast<PTR_PTR_Object>(ppObj), sc, GC_CALL_INTERIOR);
             break;
         case GCREFMAP_METHOD_PARAM:
             if (sc->promotion)
@@ -1425,7 +1513,7 @@ ComPlusMethodFrame::ComPlusMethodFrame(TransitionBlock * pTransitionBlock, Metho
 #endif // #ifndef DACCESS_COMPILE
 
 //virtual
-void ComPlusMethodFrame::GcScanRoots(promote_func *fn, ScanContext* sc)
+void ComPlusMethodFrame::GcScanRoots(promote_func* fn, ScanContext* sc)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -1435,13 +1523,23 @@ void ComPlusMethodFrame::GcScanRoots(promote_func *fn, ScanContext* sc)
     FramedMethodFrame::GcScanRoots(fn, sc);
     PromoteCallerStack(fn, sc);
 
-    MetaSig::RETURNTYPE returnType = GetFunction()->ReturnsObject();
 
     // Promote the returned object
-    if(returnType == MetaSig::RETOBJ)
+    MethodDesc* methodDesc = GetFunction();
+    ReturnKind returnKind = methodDesc->GetReturnKind();
+    if (returnKind == RT_Object)
+    {
         (*fn)(GetReturnObjectPtr(), sc, CHECK_APP_DOMAIN);
-    else if (returnType == MetaSig::RETBYREF)
-        PromoteCarefully(fn, GetReturnObjectPtr(), sc, GC_CALL_INTERIOR|CHECK_APP_DOMAIN);
+    }
+    else if (returnKind == RT_ByRef)
+    {
+        PromoteCarefully(fn, GetReturnObjectPtr(), sc, GC_CALL_INTERIOR | CHECK_APP_DOMAIN);
+    }
+    else
+    {
+        _ASSERTE_MSG(!IsStructReturnKind(returnKind), "NYI: We can't promote multiregs struct returns");
+        _ASSERTE_MSG(IsScalarReturnKind(returnKind), "Non-scalar types must be promoted.");
+    }
 }
 #endif // FEATURE_COMINTEROP
 
@@ -1515,18 +1613,11 @@ void ComMethodFrame::DoSecondPassHandlerCleanup(Frame * pCurFrame)
 {
     LIMITED_METHOD_CONTRACT;
 
-    // Find ComMethodFrame, noting any ContextTransitionFrame along the way
+    // Find ComMethodFrame
 
     while ((pCurFrame != FRAME_TOP) && 
            (pCurFrame->GetVTablePtr() != ComMethodFrame::GetMethodFrameVPtr()))
     {
-        if (pCurFrame->GetVTablePtr() == ContextTransitionFrame::GetMethodFrameVPtr())
-        {
-            // If there is a context transition before we find a ComMethodFrame, do nothing.  Expect that 
-            // the AD transition code will perform the corresponding work after it pops its context 
-            // transition frame and before it rethrows the exception.
-            return;
-        }
         pCurFrame = pCurFrame->PtrNextFrame();
     }
 
@@ -1949,26 +2040,6 @@ void UnmanagedToManagedFrame::ExceptionUnwind()
 }
 
 #endif // !DACCESS_COMPILE
-
-void ContextTransitionFrame::GcScanRoots(promote_func *fn, ScanContext* sc)
-{
-    WRAPPER_NO_CONTRACT;
-
-    // Don't check app domains here - m_LastThrownObjectInParentContext is in the parent frame's app domain
-    (*fn)(dac_cast<PTR_PTR_Object>(PTR_HOST_MEMBER_TADDR(ContextTransitionFrame, this, m_LastThrownObjectInParentContext)), sc, 0);
-    LOG((LF_GC, INFO3, "    " FMT_ADDR "\n", DBG_ADDR(m_LastThrownObjectInParentContext) ));
-    
-    // don't need to worry about the object moving as it is stored in a weak handle
-    // but do need to report it so it doesn't get collected if the only reference to
-    // it is in this frame. So only do something if are in promotion phase. And if are
-    // in reloc phase this could cause invalid refs as the object may have been moved.
-    if (! sc->promotion)
-        return;
-        
-    // The dac only cares about strong references at the moment.  Since this is always
-    // in a weak ref, we don't report it here.
-}
-
 
 PCODE UnmanagedToManagedFrame::GetReturnAddress()
 {

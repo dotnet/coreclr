@@ -15,7 +15,6 @@
 #include "eeconfig.h"
 #include "eehash.h"
 #include "../dlls/mscorrc/resource.h"
-#include "mdaassistants.h"
 #include "typeparse.h"
 #include "comdelegate.h"
 #include "olevariant.h"
@@ -2267,15 +2266,6 @@ MarshalInfo::MarshalInfo(Module* pModule,
                     m_args.m_pMT = m_pMT;
                     m_type = MARSHAL_TYPE_CRITICALHANDLE;
                 }
-                else if (sig.IsClassThrowing(pModule, g_ReflectionMethodInterfaceName, pTypeContext))
-                {
-                    if (nativeType != NATIVE_TYPE_DEFAULT)
-                    {
-                        IfFailGoto(E_FAIL, lFail);
-                    }
-
-                    m_type = MARSHAL_TYPE_RUNTIMEMETHODINFO;
-                }
 #ifdef FEATURE_COMINTEROP
                 else if (m_pMT->IsInterface())
                 {
@@ -2371,24 +2361,6 @@ MarshalInfo::MarshalInfo(Module* pModule,
                     }
                     m_type = MARSHAL_TYPE_LAYOUTCLASSPTR;
                     m_args.m_pMT = m_pMT;
-                }    
-                else if (sig.IsClassThrowing(pModule, g_ReflectionModuleName, pTypeContext))
-                {
-                    if (nativeType != NATIVE_TYPE_DEFAULT)
-                    {
-                        IfFailGoto(E_FAIL, lFail);
-                    }
-
-                    m_type = MARSHAL_TYPE_RUNTIMEMODULE;
-                }
-                else if (sig.IsClassThrowing(pModule, g_ReflectionAssemblyName, pTypeContext))
-                {
-                    if (nativeType != NATIVE_TYPE_DEFAULT)
-                    {
-                        IfFailGoto(E_FAIL, lFail);
-                    }
-
-                    m_type = MARSHAL_TYPE_RUNTIMEASSEMBLY;
                 }
 #ifdef FEATURE_COMINTEROP
                 else if (m_ms == MARSHAL_SCENARIO_WINRT && sig.IsClassThrowing(pModule, g_SystemUriClassName, pTypeContext))
@@ -2830,6 +2802,8 @@ MarshalInfo::MarshalInfo(Module* pModule,
                 }
             }
 
+            m_args.na.m_pArrayMT = arrayTypeHnd.GetMethodTable();
+
             // Handle retrieving the information for the array type.
             IfFailGoto(HandleArrayElemType(&ParamInfo, thElement, asArray->GetRank(), mtype == ELEMENT_TYPE_SZARRAY, isParam, pAssembly), lFail);
             break;
@@ -2962,7 +2936,7 @@ lExit:
                     if (SUCCEEDED(pInternalImport->GetDefaultValue(token, &defaultValue)) && defaultValue.m_bType == ELEMENT_TYPE_VOID)
                     {
                         // check if it has params attribute
-                        if (pInternalImport->GetCustomAttributeByName(token, INTEROP_PARAMARRAY_TYPE, 0,0) == S_OK)
+                        if (pModule->GetCustomAttribute(token, WellKnownAttribute::ParamArray, 0,0) == S_OK)
                             m_fOleVarArgCandidate = TRUE;
                     }
                 }
@@ -3297,7 +3271,7 @@ void MarshalInfo::GenerateArgumentIL(NDirectStubLinker* psl,
     pcsMarshal->EmitNOP("// } argument");
     pcsUnmarshal->EmitNOP("// } argument");
 
-    pMarshaler->EmitSetupArgument(pcsDispatch);
+    pMarshaler->EmitSetupArgumentForDispatch(pcsDispatch);
     if (m_paramidx == 0)
     {
         CorCallingConvention callConv = psl->GetStubTargetCallingConv();
@@ -4305,9 +4279,8 @@ VOID MarshalInfo::MarshalTypeToString(SString& strMarshalType, BOOL fSizeIsSpeci
     {
         GCX_COOP();
         
-        OBJECTHANDLE objHandle = m_pCMHelper->GetCustomMarshalerInfo()->GetCustomMarshaler();
+        OBJECTREF pObjRef = m_pCMHelper->GetCustomMarshalerInfo()->GetCustomMarshaler();
         {
-            OBJECTREF pObjRef = ObjectFromHandle(objHandle);
             DefineFullyQualifiedNameForClassW();
 
             strMarshalType.Printf(W("custom marshaler (%s)"),
@@ -4462,15 +4435,6 @@ VOID MarshalInfo::MarshalTypeToString(SString& strMarshalType, BOOL fSizeIsSpeci
                 break;
             case MARSHAL_TYPE_RUNTIMEMETHODHANDLE:
                 strRetVal = W("RuntimeMethodHandle");
-                break;
-            case MARSHAL_TYPE_RUNTIMEMETHODINFO:
-                strRetVal = W("RuntimeMethodInfo");
-                break;
-            case MARSHAL_TYPE_RUNTIMEMODULE:
-                strRetVal = W("RuntimeModule");
-                break;
-            case MARSHAL_TYPE_RUNTIMEASSEMBLY:
-                strRetVal = W("RuntimeAssembly");
                 break;
             default:
                 strRetVal = W("<UNKNOWN>");
@@ -4727,7 +4691,7 @@ void MarshalInfo::MarshalHiddenLengthArgument(NDirectStubLinker *psl, BOOL manag
     if (managedToNative)
     {
         ILCodeStream* pcsDispatch = psl->GetDispatchCodeStream();
-        pHiddenLengthMarshaler->EmitSetupArgument(pcsDispatch);
+        pHiddenLengthMarshaler->EmitSetupArgumentForDispatch(pcsDispatch);
     }
 }
 
@@ -5045,7 +5009,7 @@ void ArrayMarshalInfo::InitElementInfo(CorNativeType arrayNativeType, MarshalInf
                 case NATIVE_TYPE_LPTSTR:
                 {
 #ifdef FEATURE_COMINTEROP
-                    if (ms == MarshalInfo::MARSHAL_SCENARIO_COMINTEROP || IsAMIExport(m_flags))
+                    if (ms == MarshalInfo::MARSHAL_SCENARIO_COMINTEROP)
                     {
                         // We disallow NATIVE_TYPE_LPTSTR for COM or if we are exporting. 
                         ReportInvalidArrayMarshalInfo(IDS_EE_BADMARSHALPARAM_NO_LPTSTR);
@@ -5136,22 +5100,7 @@ void ArrayMarshalInfo::InitElementInfo(CorNativeType arrayNativeType, MarshalInf
             }
             else
             {
-                // When exporting, we need to handle enums specially.
-                if (IsAMIExport(m_flags) && m_thElement.IsEnum())
-                {
-                    // Get the element type of the underlying type.
-                    CorElementType et = m_thElement.GetInternalCorElementType();
-                    
-                    // If it is not a 32-bit type, convert as the underlying type.
-                    if ((et == ELEMENT_TYPE_I4) || (et == ELEMENT_TYPE_U4))
-                        m_vtElement = VT_RECORD;             
-                    else
-                        m_vtElement = OleVariant::GetVarTypeForTypeHandle(m_thElement);
-                }             
-                else
-                {                   
-                    m_vtElement = OleVariant::GetVarTypeForTypeHandle(m_thElement);
-                }
+                m_vtElement = OleVariant::GetVarTypeForTypeHandle(m_thElement);
             }
         }
 #ifdef FEATURE_COMINTEROP
@@ -5199,18 +5148,6 @@ void ArrayMarshalInfo::InitElementInfo(CorNativeType arrayNativeType, MarshalInf
        }
         if (set_error)
             COMPlusThrow(kPlatformNotSupportedException, m_resID);
-    }
-
-    // If we are exporting, we need to substitute the VTHACK_* VARTYPE with the actual
-    // types as expressed in the type library.
-    if (IsAMIExport(m_flags))
-    {
-        if (m_vtElement == VTHACK_ANSICHAR)
-            m_vtElement = VT_UI1;
-        else if (m_vtElement == VTHACK_WINBOOL)
-            m_vtElement = VT_I4;
-		else if (m_vtElement == VTHACK_CBOOL)
-		    m_vtElement = VT_UI1;
     }
 
 LExit:;

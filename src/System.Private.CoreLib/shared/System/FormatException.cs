@@ -8,10 +8,9 @@
 **
 ** Purpose: Exception to designate an illegal argument to FormatMessage.
 **
-** 
+**
 ===========================================================*/
 
-#nullable enable
 using System.Runtime.Serialization;
 
 namespace System

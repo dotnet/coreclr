@@ -74,32 +74,12 @@ STDMETHODIMP RegMeta::GetAssemblyProps(       // S_OK or error.
     {
         *pdwAssemblyFlags = pMiniMd->getFlagsOfAssembly(pRecord);
 
-#ifdef FEATURE_WINDOWSPHONE
         // Turn on the afPublicKey if PublicKey blob is not empty
         DWORD cbPublicKey;
         const BYTE *pbPublicKey;
         IfFailGo(pMiniMd->getPublicKeyOfAssembly(pRecord, &pbPublicKey, &cbPublicKey));
         if (cbPublicKey != 0)
             *pdwAssemblyFlags |= afPublicKey;
-#else
-        if (ppbPublicKey)
-        {
-            if (pcbPublicKey && *pcbPublicKey)
-                *pdwAssemblyFlags |= afPublicKey;
-        }
-        else
-        {
-#ifdef _DEBUG
-            // Assert that afPublicKey is set if PublicKey blob is not empty
-            DWORD cbPublicKey;
-            const BYTE *pbPublicKey;
-            IfFailGo(pMiniMd->getPublicKeyOfAssembly(pRecord, &pbPublicKey, &cbPublicKey));
-            bool hasPublicKey = cbPublicKey != 0;
-            bool hasPublicKeyFlag = ( *pdwAssemblyFlags & afPublicKey ) != 0;
-            _ASSERTE( hasPublicKey == hasPublicKeyFlag );
-#endif
-        }
-#endif // FEATURE_WINDOWSPHONE
     }
     // This call has to be last to set 'hr', so CLDB_S_TRUNCATION is not rewritten with S_OK
     if (szName || pchName)
@@ -713,14 +693,6 @@ ErrExit:
     return hr;
 }   // RegMeta::FindManifestResourceByName
 
-extern HRESULT STDMETHODCALLTYPE
-    GetAssembliesByName(LPCWSTR  szAppBase,
-                        LPCWSTR  szPrivateBin,
-                        LPCWSTR  szAssemblyName,
-                        IUnknown *ppIUnk[],
-                        ULONG    cMax,
-                        ULONG    *pcAssemblies);
-
 //*******************************************************************************
 // Used to find assemblies either in Fusion cache or on disk at build time.
 //*******************************************************************************
@@ -743,8 +715,7 @@ STDMETHODIMP RegMeta::FindAssembliesByName( // S_OK or error
    
     // No need to lock this function. It is going through fusion to find the matching Assemblies by name
 
-    IfFailGo(GetAssembliesByName(szAppBase, szPrivateBin,
-                                 szAssemblyName, ppIUnk, cMax, pcAssemblies));
+    IfFailGo(COR_E_NOTSUPPORTED);
 
 ErrExit:
     STOP_MD_PERF(FindAssembliesByName);

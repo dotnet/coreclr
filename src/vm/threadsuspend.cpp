@@ -16,8 +16,6 @@
 #include "finalizerthread.h"
 #include "dbginterface.h"
 
-#include "mdaassistants.h"
-
 // from ntstatus.h
 #define STATUS_SUSPEND_COUNT_EXCEEDED    ((NTSTATUS)0xC000004AL)
 
@@ -687,7 +685,7 @@ static StackWalkAction TAStackCrawlCallBackWorker(CrawlFrame* pCf, StackCrawlCon
     EE_ILEXCEPTION_CLAUSE EHClause;
 
     StackWalkAction action = SWA_CONTINUE;
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
     // On X86, the EH encoding for catch clause is completely mess.
     // If catch clause is in its own basic block, the end of catch includes everything in the basic block.
     // For nested catch, the end of catch may include several jmp instructions after JIT_EndCatch call.
@@ -701,7 +699,7 @@ static StackWalkAction TAStackCrawlCallBackWorker(CrawlFrame* pCf, StackCrawlCon
         fAtJitEndCatch = TRUE;
         offs -= 1;
     }
-#endif  // !WIN64EXCEPTIONS
+#endif  // !FEATURE_EH_FUNCLETS
 
     for(ULONG i=0; i < EHCount; i++)
     {
@@ -722,7 +720,7 @@ static StackWalkAction TAStackCrawlCallBackWorker(CrawlFrame* pCf, StackCrawlCon
         if (offs >= EHClause.HandlerStartPC &&
             offs < EHClause.HandlerEndPC)
         {
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
             if (fAtJitEndCatch)
             {
                 // On X86, JIT's EH info may include the instruction after JIT_EndCatch inside the same catch
@@ -735,7 +733,7 @@ static StackWalkAction TAStackCrawlCallBackWorker(CrawlFrame* pCf, StackCrawlCon
                     continue;
                 }
             }
-#endif // !WIN64EXCEPTIONS
+#endif // !FEATURE_EH_FUNCLETS
             pData->fWithinEHClause = true;
             // We're within an EH clause. If we're asking about CERs too then stop the stack walk if we've reached a conclusive
             // result or continue looking otherwise. Else we can stop the stackwalk now.
@@ -751,14 +749,14 @@ static StackWalkAction TAStackCrawlCallBackWorker(CrawlFrame* pCf, StackCrawlCon
     }
     }
 
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
 #ifdef _DEBUG
     if (fAtJitEndCatch)
     {
         _ASSERTE (countInCatch > 0);
     }
 #endif   // _DEBUG
-#endif   // !WIN64EXCEPTIONS_
+#endif   // !FEATURE_EH_FUNCLETS
     return action;
 }
 
@@ -1242,7 +1240,7 @@ BOOL Thread::IsContextSafeToRedirect(CONTEXT* pContext)
         if (pContext->ContextFlags & (CONTEXT_SERVICE_ACTIVE|CONTEXT_EXCEPTION_ACTIVE))
         {
             // cannot process exception
-            LOG((LF_ALWAYS, LL_WARNING, "thread [os id=0x08%x id=0x08%x] redirect failed due to ContextFlags of 0x%08x\n", m_OSThreadId, m_ThreadId, pContext->ContextFlags));
+            LOG((LF_ALWAYS, LL_WARNING, "thread [os id=0x08%x id=0x08%x] redirect failed due to ContextFlags of 0x%08x\n", (DWORD)m_OSThreadId, m_ThreadId, pContext->ContextFlags));
             isSafeToRedirect = FALSE;
         }
     }
@@ -1356,7 +1354,6 @@ Thread::UserAbort(ThreadAbortRequester requester,
         case eExitProcess:
         case eFastExitProcess:
         case eRudeExitProcess:
-        case eDisableRuntime:
             GetEEPolicy()->NotifyHostOnDefaultAction(operation,action);
             EEPolicy::HandleExitProcessFromEscalation(action, HOST_E_EXITPROCESS_THREADABORT);
             _ASSERTE (!"Should not reach here");
@@ -1423,14 +1420,6 @@ Thread::UserAbort(ThreadAbortRequester requester,
 
         RaiseTheExceptionInternalOnly(exceptObj, FALSE);
     }
-
-#ifdef MDA_SUPPORTED
-    if (requester != TAR_FuncEval)
-    {
-        // FuncEval abort is always aborting another thread.  No need to trigger MDA.
-        MDA_TRIGGER_ASSISTANT(AsynchronousThreadAbort, ReportViolation(GetThread(), this));
-    }
-#endif
 
     _ASSERTE(this != pCurThread);      // Aborting another thread.
 
@@ -1765,7 +1754,7 @@ LRetry:
                               | TS_Detached
                               | TS_Unstarted)));
 
-#if defined(_TARGET_X86_) && !defined(WIN64EXCEPTIONS)
+#if defined(_TARGET_X86_) && !defined(FEATURE_EH_FUNCLETS)
         // TODO WIN64: consider this if there is a way to detect of managed code on stack.
         if ((m_pFrame == FRAME_TOP)
             && (GetFirstCOMPlusSEHRecord(this) == EXCEPTION_CHAIN_END)
@@ -1788,7 +1777,7 @@ LRetry:
         if (!m_fPreemptiveGCDisabled)
         {
             if ((m_pFrame != FRAME_TOP) && m_pFrame->IsTransitionToNativeFrame()
-#if defined(_TARGET_X86_) && !defined(WIN64EXCEPTIONS)
+#if defined(_TARGET_X86_) && !defined(FEATURE_EH_FUNCLETS)
                 && ((size_t) GetFirstCOMPlusSEHRecord(this) > ((size_t) m_pFrame) - 20)
 #endif // _TARGET_X86_
                 )
@@ -1986,7 +1975,6 @@ LPrepareRetry:
             case eExitProcess:
             case eFastExitProcess:
             case eRudeExitProcess:
-            case eDisableRuntime:
                 GetEEPolicy()->NotifyHostOnTimeout(operation1, action1);
                 EEPolicy::HandleExitProcessFromEscalation(action1, HOST_E_EXITPROCESS_TIMEOUT);
                 _ASSERTE (!"Should not reach here");
@@ -2543,9 +2531,8 @@ void Thread::RareDisablePreemptiveGC()
     // Note IsGCInProgress is also true for say Pause (anywhere SuspendEE happens) and GCThread is the 
     // thread that did the Pause. While in Pause if another thread attempts Rev/Pinvoke it should get inside the following and 
     // block until resume
-    if (((GCHeapUtilities::IsGCInProgress()  && (this != ThreadSuspend::GetSuspensionThread())) ||
-        (m_State & (TS_UserSuspendPending | TS_DebugSuspendPending | TS_StackCrawlNeeded))) &&
-        (!g_fSuspendOnShutdown || IsFinalizerThread() || IsShutdownSpecialThread()))
+    if ((GCHeapUtilities::IsGCInProgress()  && (this != ThreadSuspend::GetSuspensionThread())) ||
+        (m_State & (TS_UserSuspendPending | TS_DebugSuspendPending | TS_StackCrawlNeeded)))
     {
         if (!ThreadStore::HoldingThreadStore(this))
         {
@@ -2653,47 +2640,6 @@ void Thread::RareDisablePreemptiveGC()
         STRESS_LOG0(LF_SYNC, LL_INFO1000, "RareDisablePreemptiveGC: leaving\n");
     }
 
-    // Block all threads except finalizer and shutdown thread during shutdown.
-    // If g_fSuspendFinalizerOnShutdown is set, block the finalizer too.
-    if ((g_fSuspendOnShutdown && !IsFinalizerThread() && !IsShutdownSpecialThread()) ||
-        (g_fSuspendFinalizerOnShutdown && IsFinalizerThread()))
-    {
-        STRESS_LOG1(LF_SYNC, LL_INFO1000, "RareDisablePreemptiveGC: entering. Thread state = %x\n", m_State.Load());
-
-        EnablePreemptiveGC();
-
-        // Cannot use GCX_PREEMP_NO_DTOR here because we're inside of the thread
-        // PREEMP->COOP switch mechanism and GCX_PREEMP's assert's will fire.
-        // Instead we use BEGIN_GCX_ASSERT_PREEMP to inform Scan of the mode
-        // change here.
-        BEGIN_GCX_ASSERT_PREEMP;
-
-#ifdef PROFILING_SUPPORTED
-        // If profiler desires GC events, notify it that this thread is waiting until the GC is over
-        // Do not send suspend notifications for debugger suspensions
-        {
-            BEGIN_PIN_PROFILER(CORProfilerTrackSuspends());
-            if (!(m_State & TS_DebugSuspendPending))
-            {
-                g_profControlBlock.pProfInterface->RuntimeThreadSuspended((ThreadID)this);
-            }
-            END_PIN_PROFILER();
-        }
-#endif // PROFILING_SUPPORTED
-
-
-
-        // The thread is blocked for shutdown.  We do not concern for GC violation.
-        CONTRACT_VIOLATION(GCViolation);
-
-        WaitForEndOfShutdown();
-
-        END_GCX_ASSERT_PREEMP;
-
-        __SwitchToThread(INFINITE, CALLER_LIMITS_SPINNING);
-        _ASSERTE(!"Cannot reach here");
-    }
-
 Exit: ;
     END_PRESERVE_LAST_ERROR;
 }
@@ -2740,7 +2686,6 @@ void Thread::HandleThreadAbortTimeout()
         case eExitProcess:
         case eFastExitProcess:
         case eRudeExitProcess:
-        case eDisableRuntime:
             GetEEPolicy()->NotifyHostOnTimeout(operation,action);
             EEPolicy::HandleExitProcessFromEscalation(action, HOST_E_EXITPROCESS_THREADABORT);
             _ASSERTE (!"Should not reach here");
@@ -2762,8 +2707,6 @@ void Thread::HandleThreadAbort ()
 
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
-
-    TESTHOOKCALL(AppDomainCanBeUnloaded(DefaultADID, FALSE));
 
     // It's possible we could go through here if we hit a hard SO and MC++ has called back
     // into the runtime on this thread
@@ -2844,7 +2787,6 @@ void Thread::PreWorkForThreadAbort()
             case eExitProcess:
             case eFastExitProcess:
             case eRudeExitProcess:
-            case eDisableRuntime:
                     {
                 GetEEPolicy()->NotifyHostOnDefaultAction(OPR_ThreadRudeAbortInCriticalRegion,action);
                 GetEEPolicy()->HandleExitProcessFromEscalation(action,HOST_E_EXITPROCESS_ADUNLOAD);
@@ -4282,7 +4224,7 @@ HRESULT ThreadSuspend::SuspendRuntime(ThreadSuspend::SUSPEND_REASON reason)
 
                     if (thread->m_fPreemptiveGCDisabled)
                     {
-                        DWORD id = thread->m_OSThreadId;
+                        DWORD id = (DWORD) thread->m_OSThreadId;
                         if (id == 0xbaadf00d)
                         {
                             sprintf_s (message, COUNTOF(message), "Thread CLR ID=%x cannot be suspended",
@@ -4660,9 +4602,9 @@ int RedirectedThrowControlExceptionFilter(
 // add lots of arbitrary code here.
 void
 ThrowControlForThread(
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
         FaultingExceptionFrame *pfef
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
         )
 {
     STATIC_CONTRACT_THROWS;
@@ -4687,7 +4629,7 @@ ThrowControlForThread(
             STRESS_LOG0(LF_SYNC, LL_INFO100, "ThrowControlForThread resume\n");
             pThread->ResetThrowControlForThread();
             // Thread abort is not allowed at this point
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
             __try{
                 RaiseException(BOOTUP_EXCEPTION_COMPLUS,0,0,NULL);
             }
@@ -4695,21 +4637,21 @@ ThrowControlForThread(
             {
                 _ASSERTE(!"Should not reach here");
             }
-#else // WIN64EXCEPTIONS
+#else // FEATURE_EH_FUNCLETS
             RtlRestoreContext(pThread->m_OSContext, NULL);
-#endif // !WIN64EXCEPTIONS
+#endif // !FEATURE_EH_FUNCLETS
             _ASSERTE(!"Should not reach here");
         }
         pThread->SetThrowControlForThread(Thread::InducedThreadStop);
     }
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
     *(TADDR*)pfef = FaultingExceptionFrame::GetMethodFrameVPtr();
     *pfef->GetGSCookiePtr() = GetProcessGSCookie();
-#else // WIN64EXCEPTIONS
+#else // FEATURE_EH_FUNCLETS
     FrameWithCookie<FaultingExceptionFrame> fef;
     FaultingExceptionFrame *pfef = &fef;
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
     pfef->InitAndLink(pThread->m_OSContext);
 
     // !!! Can not assert here.  Sometimes our EHInfo for catch clause extends beyond
@@ -5292,7 +5234,7 @@ void Thread::SysResumeFromDebug(AppDomain *pAppDomain)
                      "[0x%x] RESUME: TS_DebugSuspendPending was set, but will be removed\n",
                      thread->GetThreadId()));
 
-#ifdef _TARGET_ARM_
+#ifdef FEATURE_EMULATE_SINGLESTEP
                 if (thread->IsSingleStepEnabled())
                 {
                     if (ISREDIRECTEDTHREAD(thread))
@@ -5586,7 +5528,7 @@ StackWalkAction SWCB_GetExecutionState(CrawlFrame *pCF, VOID *pData)
                 // return address for hijacking.
                 if (!pES->m_IsInterruptible)
                 {
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
                     PREGDISPLAY pRDT = pCF->GetRegisterSet();
                     _ASSERTE(pRDT != NULL);
 
@@ -5662,11 +5604,11 @@ StackWalkAction SWCB_GetExecutionState(CrawlFrame *pCF, VOID *pData)
                         PORTABILITY_ASSERT("Platform NYI");
 #endif // _TARGET_???_
                     }
-#else // WIN64EXCEPTIONS
+#else // FEATURE_EH_FUNCLETS
                     // peel off the next frame to expose the return address on the stack
                     pES->m_FirstPass = FALSE;
                     action = SWA_CONTINUE;
-#endif // !WIN64EXCEPTIONS
+#endif // !FEATURE_EH_FUNCLETS
                 }
 #endif // HIJACK_NONINTERRUPTIBLE_THREADS
             }
@@ -5695,7 +5637,7 @@ StackWalkAction SWCB_GetExecutionState(CrawlFrame *pCF, VOID *pData)
     }
     else
     {
-#if defined(_TARGET_X86_) && !defined(WIN64EXCEPTIONS)
+#if defined(_TARGET_X86_) && !defined(FEATURE_EH_FUNCLETS)
         // Second pass, looking for the address of the return address so we can
         // hijack:
 
@@ -5779,95 +5721,10 @@ void STDCALL OnHijackWorker(HijackArgs * pArgs)
 #endif // HIJACK_NONINTERRUPTIBLE_THREADS
 }
 
-ReturnKind GetReturnKindFromMethodTable(Thread *pThread, EECodeInfo *codeInfo)
-{
-#ifdef _WIN64
-    // For simplicity, we don't hijack in funclets, but if you ever change that, 
-    // be sure to choose the OnHijack... callback type to match that of the FUNCLET
-    // not the main method (it would probably be Scalar).
-#endif // _WIN64
-
-    ENABLE_FORBID_GC_LOADER_USE_IN_THIS_SCOPE();
-    // Mark that we are performing a stackwalker like operation on the current thread.
-    // This is necessary to allow the signature parsing functions to work without triggering any loads
-    ClrFlsValueSwitch threadStackWalking(TlsIdx_StackWalkerWalkingThread, pThread);
-
-    MethodDesc *methodDesc = codeInfo->GetMethodDesc();
-    _ASSERTE(methodDesc != nullptr);
-
-#ifdef _TARGET_X86_
-    MetaSig msig(methodDesc);
-    if (msig.HasFPReturn())
-    {
-        // Figuring out whether the function returns FP or not is hard to do
-        // on-the-fly, so we use a different callback helper on x86 where this
-        // piece of information is needed in order to perform the right save &
-        // restore of the return value around the call to OnHijackScalarWorker.
-        return RT_Float;
-    }
-#endif // _TARGET_X86_
-
-    MethodTable* pMT = NULL;
-    MetaSig::RETURNTYPE type = methodDesc->ReturnsObject(INDEBUG_COMMA(false) &pMT);
-    if (type == MetaSig::RETOBJ)
-    {
-        return RT_Object;
-    }
-
-    if (type == MetaSig::RETBYREF)
-    {
-        return RT_ByRef;
-    }
-
-#ifdef UNIX_AMD64_ABI
-    // The Multi-reg return case using the classhandle is only implemented for AMD64 SystemV ABI.
-    // On other platforms, multi-reg return is not supported with GcInfo v1.
-    // So, the relevant information must be obtained from the GcInfo tables (which requires version2).
-    if (type == MetaSig::RETVALUETYPE)
-    {
-        EEClass *eeClass = pMT->GetClass();
-        ReturnKind regKinds[2] = { RT_Unset, RT_Unset };
-        int orefCount = 0;
-        for (int i = 0; i < 2; i++)
-        {
-            if (eeClass->GetEightByteClassification(i) == SystemVClassificationTypeIntegerReference)
-            {
-                regKinds[i] = RT_Object;
-            }
-            else if (eeClass->GetEightByteClassification(i) == SystemVClassificationTypeIntegerByRef)
-            {
-                regKinds[i] = RT_ByRef;
-            }
-            else
-            {
-                regKinds[i] = RT_Scalar;
-            }
-        }
-        ReturnKind structReturnKind = GetStructReturnKind(regKinds[0], regKinds[1]);
-        return structReturnKind;
-    }
-#endif // UNIX_AMD64_ABI
-
-    return RT_Scalar;
-}
-
 ReturnKind GetReturnKind(Thread *pThread, EECodeInfo *codeInfo)
 {
     GCInfoToken gcInfoToken = codeInfo->GetGCInfoToken();
     ReturnKind returnKind = codeInfo->GetCodeManager()->GetReturnKind(gcInfoToken);
-
-    if (!IsValidReturnKind(returnKind))
-    {
-        returnKind = GetReturnKindFromMethodTable(pThread, codeInfo);
-    }
-    else
-    {
-#if !defined(FEATURE_MULTIREG_RETURN) || defined(UNIX_AMD64_ABI)
-         // For ARM64 struct-return, GetReturnKindFromMethodTable() is not supported
-        _ASSERTE(returnKind == GetReturnKindFromMethodTable(pThread, codeInfo));
-#endif // !FEATURE_MULTIREG_RETURN || UNIX_AMD64_ABI
-    }
-
     _ASSERTE(IsValidReturnKind(returnKind));
     return returnKind;
 }
@@ -6731,7 +6588,7 @@ retry_for_debugger:
                 }
                 EX_CATCH
                 {
-                    // Bummer... couldn't init the abort event. Its a shame, but not fatal. We'll simply not use it
+                    // Couldn't init the abort event. Its a shame, but not fatal. We'll simply not use it
                     // on this iteration and try again next time.
                     if (pEvent) {
                         _ASSERTE(!pEvent->IsValid());

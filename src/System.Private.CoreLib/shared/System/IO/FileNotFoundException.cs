@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Diagnostics;
 using System.Runtime.Serialization;
 
@@ -31,7 +30,7 @@ namespace System.IO
             HResult = HResults.COR_E_FILENOTFOUND;
         }
 
-        public FileNotFoundException(string? message, string? fileName) 
+        public FileNotFoundException(string? message, string? fileName)
             : base(message)
         {
             HResult = HResults.COR_E_FILENOTFOUND;
@@ -62,7 +61,6 @@ namespace System.IO
                 if ((FileName == null) &&
                     (HResult == System.HResults.COR_E_EXCEPTION))
                     _message = SR.IO_FileNotFound;
-
                 else if (FileName != null)
                     _message = FileLoadException.FormatFileLoadExceptionMessage(FileName, HResult);
             }
@@ -75,19 +73,18 @@ namespace System.IO
         {
             string s = GetType().ToString() + ": " + Message;
 
-            if (FileName != null && FileName.Length != 0)
+            if (!string.IsNullOrEmpty(FileName))
                 s += Environment.NewLine + SR.Format(SR.IO_FileName_Name, FileName);
 
             if (InnerException != null)
-                s = s + " ---> " + InnerException.ToString();
+                s = s + Environment.NewLine + InnerExceptionPrefix + InnerException.ToString();
 
             if (StackTrace != null)
                 s += Environment.NewLine + StackTrace;
 
             if (FusionLog != null)
             {
-                if (s == null)
-                    s = " ";
+                s ??= " ";
                 s += Environment.NewLine;
                 s += Environment.NewLine;
                 s += FusionLog;
@@ -110,4 +107,3 @@ namespace System.IO
         }
     }
 }
-

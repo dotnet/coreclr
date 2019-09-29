@@ -33,7 +33,7 @@ static bool s_fNGenNoMetaData;
 // Zapper Object instead of creating one on your own.
 
 
-STDAPI NGenWorker(LPCWSTR pwzFilename, DWORD dwFlags, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzOutputFilename=NULL, LPCWSTR pwzPlatformWinmdPaths=NULL, ICorSvcLogger *pLogger = NULL, LPCWSTR pwszCLRJITPath = nullptr)
+STDAPI NGenWorker(LPCWSTR pwzFilename, DWORD dwFlags, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzOutputFilename=NULL, SIZE_T customBaseAddress=0, LPCWSTR pwzPlatformWinmdPaths=NULL, ICorSvcLogger *pLogger = NULL, LPCWSTR pwszCLRJITPath = nullptr)
 {    
     HRESULT hr = S_OK;
 
@@ -82,6 +82,8 @@ STDAPI NGenWorker(LPCWSTR pwzFilename, DWORD dwFlags, LPCWSTR pwzPlatformAssembl
 
         if (pwzOutputFilename)
             zap->SetOutputFilename(pwzOutputFilename);
+
+        zap->SetCustomBaseAddress(customBaseAddress);
 
         if (pwzPlatformAssembliesPaths != nullptr)
             zap->SetPlatformAssembliesPaths(pwzPlatformAssembliesPaths);
@@ -408,6 +410,8 @@ void Zapper::Init(ZapperOptions *pOptions, bool fFreeZapperOptions)
     m_pAssemblyEmit = NULL;
     m_fFreeZapperOptions = fFreeZapperOptions;
 
+    m_customBaseAddress = 0;
+
 #ifdef LOGGING
     InitializeLogging();
 #endif
@@ -509,19 +513,6 @@ void Zapper::LoadAndInitializeJITForNgen(LPCWSTR pwzJitName, OUT HINSTANCE* phJi
         Error(W("Unable to load Jit Compiler: %s, hr=0x%08x\r\n"), pwzJitName, hr);
         ThrowLastError();
     }
-
-#if !defined(CROSSGEN_COMPILE)
-    typedef void (__stdcall* pSxsJitStartup) (CoreClrCallbacks const & cccallbacks);
-    pSxsJitStartup sxsJitStartupFn = (pSxsJitStartup) GetProcAddress(*phJit, "sxsJitStartup");
-    if (sxsJitStartupFn == NULL)
-    {
-        Error(W("Unable to load Jit startup function: %s\r\n"), pwzJitName);
-        ThrowLastError();
-    }
-
-    CoreClrCallbacks cccallbacks = GetClrCallbacks();
-    (*sxsJitStartupFn) (cccallbacks);
-#endif
 
     typedef void (__stdcall* pJitStartup)(ICorJitHost* host);
     pJitStartup jitStartupFn = (pJitStartup)GetProcAddress(*phJit, "jitStartup");
@@ -1201,6 +1192,35 @@ void Zapper::InitializeCompilerFlags(CORCOMPILE_VERSION_INFO * pVersionInfo)
 
 #endif // _TARGET_X86_
 
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+    // If we're crossgenning CoreLib, allow generating non-VEX intrinsics. The generated code might
+    // not actually be supported by the processor at runtime so we compensate for it by
+    // not letting the get_IsSupported method to be intrinsically expanded in crossgen
+    // (see special handling around CORINFO_FLG_JIT_INTRINSIC in ZapInfo).
+    // That way the actual support checks will always be jitted.
+    // We only do this for CoreLib because forgetting to wrap intrinsics under IsSupported
+    // checks can lead to illegal instruction traps (instead of a nice managed exception).
+    if (m_pEECompileInfo->GetAssemblyModule(m_hAssembly) == m_pEECompileInfo->GetLoaderModuleForMscorlib())
+    {
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_FEATURE_SIMD);
+
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_AES);
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_PCLMULQDQ);
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_SSE3);
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_SSSE3);
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_SSE41);
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_SSE42);
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_POPCNT);
+        // Leaving out CORJIT_FLAGS::CORJIT_FLAG_USE_AVX, CORJIT_FLAGS::CORJIT_FLAG_USE_FMA
+        // CORJIT_FLAGS::CORJIT_FLAG_USE_AVX2, CORJIT_FLAGS::CORJIT_FLAG_USE_BMI1,
+        // CORJIT_FLAGS::CORJIT_FLAG_USE_BMI2 on purpose - these require VEX encodings
+        // and the JIT doesn't support generating code for methods with mixed encodings.
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_LZCNT);
+#endif // defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+    }
+#endif // defined(_TARGET_X86_) || defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+
     if (   m_pOpt->m_compilerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_INFO)
         && m_pOpt->m_compilerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_CODE)
         && m_pOpt->m_compilerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_PROF_ENTERLEAVE))
@@ -1671,4 +1691,15 @@ void Zapper::SetOutputFilename(LPCWSTR pwzOutputFilename)
 SString Zapper::GetOutputFileName()
 {
     return m_outputFilename;
+}
+
+
+void Zapper::SetCustomBaseAddress(SIZE_T baseAddress)
+{
+    m_customBaseAddress = baseAddress;
+}
+
+SIZE_T Zapper::GetCustomBaseAddress()
+{
+    return m_customBaseAddress;
 }

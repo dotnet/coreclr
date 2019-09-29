@@ -11,8 +11,8 @@
 **
 ===========================================================*/
 
-#nullable enable
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Runtime.Serialization;
@@ -305,7 +305,7 @@ namespace System.Threading
             currentThread._synchronizationContext = null;
             if (currentExecutionCtx != null)
             {
-                // The EC always needs to be reset for this overload, as it will flow back to the caller if it performs 
+                // The EC always needs to be reset for this overload, as it will flow back to the caller if it performs
                 // extra work prior to returning to the Dispatch loop. For example for Task-likes it will flow out of await points
                 RestoreChangedContextToThread(currentThread, contextToRestore: null, currentExecutionCtx);
             }
@@ -316,8 +316,8 @@ namespace System.Threading
 
         internal static void RunForThreadPoolUnsafe<TState>(ExecutionContext executionContext, Action<TState> callback, in TState state)
         {
-            // We aren't running in try/catch as if an exception is directly thrown on the ThreadPool either process 
-            // will crash or its a ThreadAbortException. 
+            // We aren't running in try/catch as if an exception is directly thrown on the ThreadPool either process
+            // will crash or its a ThreadAbortException.
 
             CheckThreadPoolAndContextsAreDefault();
             Debug.Assert(executionContext != null && !executionContext.m_isDefault, "ExecutionContext argument is Default.");
@@ -381,7 +381,7 @@ namespace System.Threading
         {
             Debug.Assert(previousExecutionCtx != nextExecutionCtx);
 
-            // Collect Change Notifications 
+            // Collect Change Notifications
             IAsyncLocal[]? previousChangeNotifications = previousExecutionCtx?.m_localChangeNotifications;
             IAsyncLocal[]? nextChangeNotifications = nextExecutionCtx?.m_localChangeNotifications;
 
@@ -394,8 +394,8 @@ namespace System.Threading
                 if (previousChangeNotifications != null && nextChangeNotifications != null)
                 {
                     // Notifications can't exist without values
-                    Debug.Assert(previousExecutionCtx!.m_localValues != null); // TODO-NULLABLE: Compiler can't see that we're only here when this is non-null
-                    Debug.Assert(nextExecutionCtx!.m_localValues != null); // TODO-NULLABLE: Compiler can't see that we're only here when this is non-null
+                    Debug.Assert(previousExecutionCtx!.m_localValues != null);
+                    Debug.Assert(nextExecutionCtx!.m_localValues != null);
                     // Both contexts have change notifications, check previousExecutionCtx first
                     foreach (IAsyncLocal local in previousChangeNotifications)
                     {
@@ -413,7 +413,7 @@ namespace System.Threading
                         // Check for additional notifications in nextExecutionCtx
                         foreach (IAsyncLocal local in nextChangeNotifications)
                         {
-                            // If the local has a value in the previous context, we already fired the event 
+                            // If the local has a value in the previous context, we already fired the event
                             // for that local in the code above.
                             if (!previousExecutionCtx.m_localValues.TryGetValue(local, out object? previousValue))
                             {
@@ -429,7 +429,7 @@ namespace System.Threading
                 else if (previousChangeNotifications != null)
                 {
                     // Notifications can't exist without values
-                    Debug.Assert(previousExecutionCtx!.m_localValues != null); // TODO-NULLABLE: Compiler can't see that we're only here when this is non-null
+                    Debug.Assert(previousExecutionCtx!.m_localValues != null);
                     // No current values, so just check previous against null
                     foreach (IAsyncLocal local in previousChangeNotifications)
                     {
@@ -443,9 +443,9 @@ namespace System.Threading
                 else // Implied: nextChangeNotifications != null
                 {
                     // Notifications can't exist without values
-                    Debug.Assert(nextExecutionCtx!.m_localValues != null); // TODO-NULLABLE: Compiler can't see that we're only here when this is non-null
+                    Debug.Assert(nextExecutionCtx!.m_localValues != null);
                     // No previous values, so just check current against null
-                    foreach (IAsyncLocal local in nextChangeNotifications!) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34665
+                    foreach (IAsyncLocal local in nextChangeNotifications!)
                     {
                         nextExecutionCtx.m_localValues.TryGetValue(local, out object? currentValue);
                         if (currentValue != null)
@@ -463,6 +463,7 @@ namespace System.Threading
             }
         }
 
+        [DoesNotReturn]
         [StackTraceHidden]
         private static void ThrowNullContext()
         {
@@ -549,7 +550,7 @@ namespace System.Threading
                 }
             }
 
-            Thread.CurrentThread._executionContext = 
+            Thread.CurrentThread._executionContext =
                 (!isFlowSuppressed && AsyncLocalValueMap.IsEmpty(newValues)) ?
                 null : // No values, return to Default context
                 new ExecutionContext(newValues, newChangeNotifications, isFlowSuppressed);
@@ -631,14 +632,8 @@ namespace System.Threading
             return _thread?.GetHashCode() ?? 0;
         }
 
-        public static bool operator ==(AsyncFlowControl a, AsyncFlowControl b)
-        {
-            return a.Equals(b);
-        }
+        public static bool operator ==(AsyncFlowControl a, AsyncFlowControl b) => a.Equals(b);
 
-        public static bool operator !=(AsyncFlowControl a, AsyncFlowControl b)
-        {
-            return !(a == b);
-        }
+        public static bool operator !=(AsyncFlowControl a, AsyncFlowControl b) => !(a == b);
     }
 }

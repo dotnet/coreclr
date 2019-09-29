@@ -1486,6 +1486,7 @@ namespace CorUnix
         }
 
         HANDLE hWorkerThread = NULL;
+        SIZE_T osThreadId = 0;
         palErr = InternalCreateThread(pthrCurrent,
                                       NULL,
                                       0,
@@ -1493,14 +1494,14 @@ namespace CorUnix
                                       (PVOID)pSynchManager,
                                       0,
                                       PalWorkerThread,
-                                      &pSynchManager->m_dwWorkerThreadTid,
+                                      &osThreadId,
                                       &hWorkerThread);
 
         if (NO_ERROR == palErr)
         {
+            pSynchManager->m_dwWorkerThreadTid = (DWORD)osThreadId;
             palErr = InternalGetThreadDataFromHandle(pthrCurrent,
                                                      hWorkerThread,
-                                                     0,
                                                      &pSynchManager->m_pthrWorker,
                                                      &pSynchManager->m_pipoThread);
             if (NO_ERROR != palErr)
@@ -2506,9 +2507,10 @@ namespace CorUnix
         BYTE * pbySrc, * pbyDst = rgSendBuf;
         WaitingThreadsListNode * pWLNode = SharedIDToTypePointer(WaitingThreadsListNode, shridWLNode);
 
+
+        _ASSERT_MSG(NULL != pWLNode, "Bad shared wait list node identifier (%p)\n", (VOID*)shridWLNode);
         _ASSERT_MSG(gPID != pWLNode->dwProcessId, "WakeUpRemoteThread called on local thread\n");
         _ASSERT_MSG(NULL != shridWLNode, "NULL shared identifier\n");
-        _ASSERT_MSG(NULL != pWLNode, "Bad shared wait list node identifier (%p)\n", (VOID*)shridWLNode);
         _ASSERT_MSG(MsgSize <= PIPE_BUF, "Message too long [MsgSize=%d PIPE_BUF=%d]\n", MsgSize, (int)PIPE_BUF);
 
         TRACE("Waking up remote thread {pid=%x, tid=%x} by sending cmd=%u and shridWLNode=%p over process pipe\n",

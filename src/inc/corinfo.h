@@ -217,11 +217,11 @@ TODO: Talk about initializing strutures before use
 #endif
 #endif
 
-SELECTANY const GUID JITEEVersionIdentifier = { /* d609bed1-7831-49fc-bd49-b6f054dd4d46 */
-    0xd609bed1,
-    0x7831,
-    0x49fc,
-    {0xbd, 0x49, 0xb6, 0xf0, 0x54, 0xdd, 0x4d, 0x46}
+SELECTANY const GUID JITEEVersionIdentifier = { /* e2ae5b32-a9ab-426e-bc2a-ae1a883e0367 */
+    0xe2ae5b32,
+    0xa9ab,
+    0x426e,
+    {0xbc, 0x2a, 0xae, 0x1a, 0x88, 0x3e, 0x03, 0x67}
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -330,7 +330,7 @@ struct SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR
     //     returns true if we the eightbyte at index slotIndex is of SSE type.
     // 
     // Follows the rules of the AMD64 System V ABI specification at www.x86-64.org/documentation/abi.pdf.
-    // Please reffer to it for definitions/examples.
+    // Please refer to it for definitions/examples.
     //
     bool IsSseSlot(unsigned slotIndex) const
     {
@@ -832,7 +832,7 @@ enum CorInfoFlag
     CORINFO_FLG_INTRINSIC             = 0x00400000, // This method MAY have an intrinsic ID
     CORINFO_FLG_CONSTRUCTOR           = 0x00800000, // This method is an instance or type initializer
     CORINFO_FLG_AGGRESSIVE_OPT        = 0x01000000, // The method may contain hot code and should be aggressively optimized if possible
-//  CORINFO_FLG_UNUSED                = 0x02000000,
+    CORINFO_FLG_DISABLE_TIER0_FOR_LOOPS = 0x02000000, // Indicates that tier 0 JIT should not be used for a method that contains a loop
     CORINFO_FLG_NOSECURITYWRAP        = 0x04000000, // The method requires no security checks
     CORINFO_FLG_DONT_INLINE           = 0x10000000, // The method should not be inlined
     CORINFO_FLG_DONT_INLINE_CALLER    = 0x20000000, // The method should not be inlined, nor should its callers. It cannot be tail called.
@@ -864,6 +864,8 @@ enum CorInfoMethodRuntimeFlags
     CORINFO_FLG_BAD_INLINEE         = 0x00000001, // The method is not suitable for inlining
     CORINFO_FLG_VERIFIABLE          = 0x00000002, // The method has verifiable code
     CORINFO_FLG_UNVERIFIABLE        = 0x00000004, // The method has unverifiable code
+    CORINFO_FLG_SWITCHED_TO_MIN_OPT = 0x00000008, // The JIT decided to switch to MinOpt for this method, when it was not requested
+    CORINFO_FLG_SWITCHED_TO_OPTIMIZED = 0x00000010, // The JIT decided to switch to tier 1 for this method, when a different tier was requested
 };
 
 
@@ -1811,6 +1813,8 @@ struct CORINFO_EE_INFO
         unsigned    offsetOfCalleeSavedFP;
         unsigned    offsetOfCallTarget;
         unsigned    offsetOfReturnAddress;
+        // This offset is used only for ARM
+        unsigned    offsetOfSPAfterProlog;
     }
     inlinedCallFrameInfo;
 
@@ -1872,15 +1876,15 @@ struct CORINFO_Object
 struct CORINFO_String : public CORINFO_Object
 {
     unsigned                stringLen;
-    wchar_t                 chars[1];       // actually of variable size
+    WCHAR                   chars[1];       // actually of variable size
 };
 
 struct CORINFO_Array : public CORINFO_Object
 {
     unsigned                length;
-#ifdef _WIN64
+#ifdef BIT64
     unsigned                alignpad;
-#endif // _WIN64
+#endif // BIT64
 
 #if 0
     /* Multi-dimensional arrays have the lengths and bounds here */
@@ -1904,9 +1908,9 @@ struct CORINFO_Array : public CORINFO_Object
 struct CORINFO_Array8 : public CORINFO_Object
 {
     unsigned                length;
-#ifdef _WIN64
+#ifdef BIT64
     unsigned                alignpad;
-#endif // _WIN64
+#endif // BIT64
 
     union
     {
@@ -1921,9 +1925,9 @@ struct CORINFO_Array8 : public CORINFO_Object
 struct CORINFO_RefArray : public CORINFO_Object
 {
     unsigned                length;
-#ifdef _WIN64
+#ifdef BIT64
     unsigned                alignpad;
-#endif // _WIN64
+#endif // BIT64
 
 #if 0
     /* Multi-dimensional arrays have the lengths and bounds here */

@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Runtime.Serialization;
 
 namespace System.IO
@@ -42,17 +41,7 @@ namespace System.IO
             FileName = fileName;
         }
 
-        public override string Message
-        {
-            get
-            {
-                if (_message == null)
-                {
-                    _message = FormatFileLoadExceptionMessage(FileName, HResult);
-                }
-                return _message;
-            }
-        }
+        public override string Message => _message ??= FormatFileLoadExceptionMessage(FileName, HResult);
 
         public string? FileName { get; }
         public string? FusionLog { get; }
@@ -61,19 +50,18 @@ namespace System.IO
         {
             string s = GetType().ToString() + ": " + Message;
 
-            if (FileName != null && FileName.Length != 0)
+            if (!string.IsNullOrEmpty(FileName))
                 s += Environment.NewLine + SR.Format(SR.IO_FileName_Name, FileName);
 
             if (InnerException != null)
-                s = s + " ---> " + InnerException.ToString();
+                s = s + Environment.NewLine + InnerExceptionPrefix + InnerException.ToString();
 
             if (StackTrace != null)
                 s += Environment.NewLine + StackTrace;
 
             if (FusionLog != null)
             {
-                if (s == null)
-                    s = " ";
+                s ??= " ";
                 s += Environment.NewLine;
                 s += Environment.NewLine;
                 s += FusionLog;

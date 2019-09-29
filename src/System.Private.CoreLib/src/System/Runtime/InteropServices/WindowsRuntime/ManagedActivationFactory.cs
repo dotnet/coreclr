@@ -2,12 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-
-using System;
 using System.Reflection;
-using System.Runtime.InteropServices;
-using System.Security;
 using System.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
@@ -30,7 +25,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     [ClassInterface(ClassInterfaceType.None)]
     internal sealed class ManagedActivationFactory : IActivationFactory, IManagedActivationFactory
     {
-        private Type m_type;
+        private readonly Type m_type;
 
         internal ManagedActivationFactory(Type type)
         {
@@ -50,7 +45,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         {
             try
             {
-                return Activator.CreateInstance(m_type);
+                return Activator.CreateInstance(m_type)!;
             }
             catch (MissingMethodException)
             {
@@ -59,12 +54,12 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             catch (TargetInvocationException e)
             {
-                throw e.InnerException;
+                throw e.InnerException!;
             }
         }
 
         // Runs the class constructor
-        // Currently only Jupiter use this to run class constructor in order to 
+        // Currently only Jupiter use this to run class constructor in order to
         // initialize DependencyProperty objects and do necessary work
         void IManagedActivationFactory.RunClassConstructor()
         {

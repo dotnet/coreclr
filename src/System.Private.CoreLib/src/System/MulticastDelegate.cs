@@ -2,8 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -31,7 +31,7 @@ namespace System
         {
         }
 
-        // This constructor is called from a class to generate a 
+        // This constructor is called from a class to generate a
         // delegate based upon a static method name and the Type object
         // for the class defining the method.
         protected MulticastDelegate(Type target, string method) : base(target, method)
@@ -40,7 +40,7 @@ namespace System
 
         internal bool IsUnmanagedFunctionPtr()
         {
-            return (_invocationCount == (IntPtr)(-1));
+            return _invocationCount == (IntPtr)(-1);
         }
 
         internal bool InvocationListLogicallyNull()
@@ -55,7 +55,7 @@ namespace System
 
         // equals returns true IIF the delegate is not null and has the
         //    same target, method and invocation list as this object
-        public override sealed bool Equals(object? obj)
+        public sealed override bool Equals(object? obj)
         {
             if (obj == null)
                 return false;
@@ -68,7 +68,7 @@ namespace System
             // the types are the same, obj should also be a
             // MulticastDelegate
             Debug.Assert(obj is MulticastDelegate, "Shouldn't have failed here since we already checked the types are the same!");
-            var d = Unsafe.As<MulticastDelegate>(obj);
+            MulticastDelegate d = Unsafe.As<MulticastDelegate>(obj);
 
             if (_invocationCount != (IntPtr)0)
             {
@@ -89,7 +89,7 @@ namespace System
                     }
 
                     // now we know 'this' is not a special one, so we can work out what the other is
-                    if ((d._invocationList as Delegate) != null)
+                    if (d._invocationList is Delegate)
                         // this is a secure/wrapper delegate so we need to unwrap and check the inner one
                         return Equals(d._invocationList);
 
@@ -104,7 +104,7 @@ namespace System
                     }
                     else
                     {
-                        Debug.Assert((_invocationList as object[]) != null, "empty invocation list on multicast delegate");
+                        Debug.Assert(_invocationList is object[], "empty invocation list on multicast delegate");
                         return InvocationListEquals(d);
                     }
                 }
@@ -123,7 +123,7 @@ namespace System
                 }
 
                 // now we know 'this' is not a special one, so we can work out what the other is
-                if ((d._invocationList as Delegate) != null)
+                if (d._invocationList is Delegate)
                     // this is a secure/wrapper delegate so we need to unwrap and check the inner one
                     return Equals(d._invocationList);
 
@@ -165,7 +165,7 @@ namespace System
             if (a[index] != null)
             {
                 MulticastDelegate d = (MulticastDelegate)o;
-                MulticastDelegate dd = (MulticastDelegate)a[index]!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34644
+                MulticastDelegate dd = (MulticastDelegate)a[index]!; // TODO-NULLABLE: Indexer nullability tracked (https://github.com/dotnet/roslyn/issues/34644)
 
                 if (dd._methodPtr == d._methodPtr &&
                     dd._target == d._target &&
@@ -221,7 +221,7 @@ namespace System
 
         // This method will combine this delegate with the passed delegate
         //    to form a new delegate.
-        protected override sealed Delegate CombineImpl(Delegate? follow)
+        protected sealed override Delegate CombineImpl(Delegate? follow)
         {
             if ((object?)follow == null) // cast to object for a more efficient test
                 return this;
@@ -328,7 +328,7 @@ namespace System
         {
             for (int i = 0; i < count; i++)
             {
-                if (!(a[start + i].Equals(b[i])))
+                if (!a[start + i].Equals(b[i]))
                     return false;
             }
             return true;
@@ -339,7 +339,7 @@ namespace System
         //    look at the invocation list.)  If this is found we remove it from
         //    this list and return a new delegate.  If its not found a copy of the
         //    current list is returned.
-        protected override sealed Delegate? RemoveImpl(Delegate value)
+        protected sealed override Delegate? RemoveImpl(Delegate value)
         {
             // There is a special case were we are removing using a delegate as
             //    the value we need to check for this case
@@ -411,7 +411,7 @@ namespace System
         }
 
         // This method returns the Invocation list of this multicast delegate.
-        public override sealed Delegate[] GetInvocationList()
+        public sealed override Delegate[] GetInvocationList()
         {
             Delegate[] del;
             if (!(_invocationList is object[] invocationList))
@@ -463,7 +463,7 @@ namespace System
             return ReferenceEquals(d2, d1) ? false : !d2.Equals(d1);
         }
 
-        public override sealed int GetHashCode()
+        public sealed override int GetHashCode()
         {
             if (IsUnmanagedFunctionPtr())
                 return ValueType.GetHashCodeOfPtr(_methodPtr) ^ ValueType.GetHashCodeOfPtr(_methodPtrAux);
@@ -557,7 +557,7 @@ namespace System
                         RuntimeType reflectedType = (RuntimeType)GetType();
                         declaringType = reflectedType;
                     }
-                    _methodBase = (MethodInfo)RuntimeType.GetMethodBase(declaringType, method);
+                    _methodBase = (MethodInfo)RuntimeType.GetMethodBase(declaringType, method)!;
                 }
                 return (MethodInfo)_methodBase;
             }
@@ -567,18 +567,17 @@ namespace System
         }
 
         // this should help inlining
+        [DoesNotReturn]
         [System.Diagnostics.DebuggerNonUserCode]
-        private void ThrowNullThisInDelegateToInstance()
-        {
+        private static void ThrowNullThisInDelegateToInstance() =>
             throw new ArgumentException(SR.Arg_DlgtNullInst);
-        }
 
         [System.Diagnostics.DebuggerNonUserCode]
         private void CtorClosed(object target, IntPtr methodPtr)
         {
             if (target == null)
                 ThrowNullThisInDelegateToInstance();
-            this._target = target!; // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
+            this._target = target;
             this._methodPtr = methodPtr;
         }
 

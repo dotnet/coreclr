@@ -516,8 +516,7 @@
     __try                                                                       \
     {                                                                           \
         ___oldOkayToThrowValue = ___pState->IsOkToThrow();                      \
-        ___pState->SetOkToThrow();                                        \
-        PAL_ENTER_THROWS_REGION;
+        ___pState->SetOkToThrow();
 
 // Special version that avoids touching the debug state after doing work in a DllMain for process or thread detach.
 #define PAL_TRY_HANDLER_DBG_BEGIN_DLLMAIN(_reason)                              \
@@ -535,11 +534,9 @@
         if ((_reason == DLL_PROCESS_DETACH) || (_reason == DLL_THREAD_DETACH))  \
         {                                                                       \
             ___pState = NULL;                                                   \
-        }                                                                       \
-        PAL_ENTER_THROWS_REGION;
+        }
 
 #define PAL_TRY_HANDLER_DBG_END                                                 \
-        PAL_LEAVE_THROWS_REGION                                                 \
     }                                                                           \
     __finally                                                                   \
     {                                                                           \
@@ -592,7 +589,7 @@
 #define SET_UNALIGNED_VAL64(_pObject, _Value) SET_UNALIGNED_64(_pObject, VAL64((UINT64)_Value))
 #endif
 
-#ifdef _WIN64
+#ifdef BIT64
 #define VALPTR(x) VAL64(x)
 #define GET_UNALIGNED_PTR(x) GET_UNALIGNED_64(x)
 #define GET_UNALIGNED_VALPTR(x) GET_UNALIGNED_VAL64(x)

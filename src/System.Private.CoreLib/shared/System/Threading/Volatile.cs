@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
 using Internal.Runtime.CompilerServices;
@@ -91,7 +91,7 @@ namespace System.Threading
         [NonVersionable]
         public static long Read(ref long location) =>
 #if BIT64
-            (Int64)Unsafe.As<Int64, VolatileIntPtr>(ref location).Value;
+            (long)Unsafe.As<long, VolatileIntPtr>(ref location).Value;
 #else
             // On 32-bit machines, we use Interlocked, since an ordinary volatile read would not be atomic.
             Interlocked.CompareExchange(ref location, 0, 0);
@@ -101,7 +101,7 @@ namespace System.Threading
         [NonVersionable]
         public static void Write(ref long location, long value) =>
 #if BIT64
-            Unsafe.As<Int64, VolatileIntPtr>(ref location).Value = (IntPtr)value;
+            Unsafe.As<long, VolatileIntPtr>(ref location).Value = (IntPtr)value;
 #else
             // On 32-bit, we use Interlocked, since an ordinary volatile write would not be atomic.
             Interlocked.Exchange(ref location, value);
@@ -219,12 +219,13 @@ namespace System.Threading
 
         [Intrinsic]
         [NonVersionable]
+        [return: NotNullIfNotNull("location")]
         public static T Read<T>(ref T location) where T : class? =>
             Unsafe.As<T>(Unsafe.As<T, VolatileObject>(ref location).Value);
 
         [Intrinsic]
         [NonVersionable]
-        public static void Write<T>(ref T location, T value) where T : class? =>
+        public static void Write<T>([NotNullIfNotNull("value")] ref T location, T value) where T : class? =>
             Unsafe.As<T, VolatileObject>(ref location).Value = value;
         #endregion
     }

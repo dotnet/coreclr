@@ -2,11 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
@@ -16,11 +14,11 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     public sealed class EventRegistrationTokenTable<T> where T : class
     {
         // Note this dictionary is also used as the synchronization object for this table
-        private Dictionary<EventRegistrationToken, T> m_tokens = new Dictionary<EventRegistrationToken, T>();
+        private readonly Dictionary<EventRegistrationToken, T> m_tokens = new Dictionary<EventRegistrationToken, T>();
 
         // Cached multicast delegate which will invoke all of the currently registered delegates.  This
         // will be accessed frequently in common coding paterns, so we don't want to calculate it repeatedly.
-        private volatile T m_invokeList;
+        private volatile T? m_invokeList = null;
 
         public EventRegistrationTokenTable()
         {
@@ -28,19 +26,15 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // static check at construction time
             if (!typeof(Delegate).IsAssignableFrom(typeof(T)))
             {
-                throw new InvalidOperationException(SR.Format(SR.InvalidOperation_EventTokenTableRequiresDelegate, typeof (T)));
+                throw new InvalidOperationException(SR.Format(SR.InvalidOperation_EventTokenTableRequiresDelegate, typeof(T)));
             }
         }
 
         // The InvocationList property provides access to a delegate which will invoke every registered event handler
         // in this table.  If the property is set, the new value will replace any existing token registrations.
-        public T InvocationList
+        public T? InvocationList
         {
-            get
-            {
-                return m_invokeList;
-            }
-
+            get => m_invokeList;
             set
             {
                 lock (m_tokens)
@@ -57,7 +51,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        public EventRegistrationToken AddEventHandler(T handler)
+        public EventRegistrationToken AddEventHandler(T? handler)
         {
             // Windows Runtime allows null handlers.  Assign those a token value of 0 for easy identity
             if (handler == null)
@@ -85,9 +79,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             m_tokens[token] = handler;
 
             // Update the current invocation list to include the newly added delegate
-            Delegate invokeList = (Delegate)(object)m_invokeList;
+            Delegate? invokeList = (Delegate?)(object?)m_invokeList;
             invokeList = MulticastDelegate.Combine(invokeList, (Delegate)(object)handler);
-            m_invokeList = (T)(object)invokeList;
+            m_invokeList = (T?)(object?)invokeList;
 
             return token;
         }
@@ -136,7 +130,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // take a dependency upon it.  (Simply applying the hash-value algorithm directly won't work in the
             // case of collisions, where we'll use a different token value).
 
-            uint handlerHashCode = 0;
+            uint handlerHashCode;
             Delegate[] invocationList = ((Delegate)(object)handler).GetInvocationList();
             if (invocationList.Length == 1)
             {
@@ -151,10 +145,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             return new EventRegistrationToken(tokenValue);
         }
 
-        // Remove the event handler from the table and 
+        // Remove the event handler from the table and
         // Get the delegate associated with an event registration token if it exists
         // If the event registration token is not registered, returns false
-        public bool RemoveEventHandler(EventRegistrationToken token, out T handler)
+        public bool RemoveEventHandler(EventRegistrationToken token, [NotNullWhen(true)] out T? handler)
         {
             lock (m_tokens)
             {
@@ -182,7 +176,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        public void RemoveEventHandler(T handler)
+        public void RemoveEventHandler(T? handler)
         {
             // To match the Windows Runtime behaivor when adding a null handler, removing one is a no-op
             if (handler == null)
@@ -198,8 +192,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 // value.  Therefore we need to make sure we really have the handler we want before taking the
                 // fast path.
                 EventRegistrationToken preferredToken = GetPreferredToken(handler);
-                T registeredHandler;
-                if (m_tokens.TryGetValue(preferredToken, out registeredHandler))
+                if (m_tokens.TryGetValue(preferredToken, out T? registeredHandler))
                 {
                     if (registeredHandler == handler)
                     {
@@ -230,19 +223,18 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         private void RemoveEventHandlerNoLock(EventRegistrationToken token)
         {
-            T handler;
-            if (m_tokens.TryGetValue(token, out handler))
+            if (m_tokens.TryGetValue(token, out T? handler))
             {
                 m_tokens.Remove(token);
 
                 // Update the current invocation list to remove the delegate
-                Delegate invokeList = (Delegate)(object)m_invokeList;
-                invokeList = MulticastDelegate.Remove(invokeList, (Delegate)(object)handler);
-                m_invokeList = (T)(object)invokeList;
+                Delegate? invokeList = (Delegate?)(object?)m_invokeList;
+                invokeList = MulticastDelegate.Remove(invokeList, (Delegate?)(object?)handler);
+                m_invokeList = (T?)(object?)invokeList;
             }
         }
 
-        public static EventRegistrationTokenTable<T> GetOrCreateEventRegistrationTokenTable(ref EventRegistrationTokenTable<T> refEventTable)
+        public static EventRegistrationTokenTable<T> GetOrCreateEventRegistrationTokenTable(ref EventRegistrationTokenTable<T>? refEventTable)
         {
             if (refEventTable == null)
             {

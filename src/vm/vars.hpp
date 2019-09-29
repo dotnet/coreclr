@@ -20,7 +20,7 @@ typedef LPVOID  DictionaryEntry;
 /* Define the implementation dependent size types */
 
 #ifndef _INTPTR_T_DEFINED
-#ifdef  _WIN64
+#ifdef  BIT64
 typedef __int64             intptr_t;
 #else
 typedef int                 intptr_t;
@@ -29,7 +29,7 @@ typedef int                 intptr_t;
 #endif
 
 #ifndef _UINTPTR_T_DEFINED
-#ifdef  _WIN64
+#ifdef  BIT64
 typedef unsigned __int64    uintptr_t;
 #else
 typedef unsigned int        uintptr_t;
@@ -38,7 +38,7 @@ typedef unsigned int        uintptr_t;
 #endif
 
 #ifndef _PTRDIFF_T_DEFINED
-#ifdef  _WIN64
+#ifdef  BIT64
 typedef __int64             ptrdiff_t;
 #else
 typedef int                 ptrdiff_t;
@@ -48,7 +48,7 @@ typedef int                 ptrdiff_t;
 
 
 #ifndef _SIZE_T_DEFINED
-#ifdef  _WIN64
+#ifdef  BIT64
 typedef unsigned __int64 size_t;
 #else
 typedef unsigned int     size_t;
@@ -56,11 +56,6 @@ typedef unsigned int     size_t;
 #define _SIZE_T_DEFINED
 #endif
 
-
-#ifndef _WCHAR_T_DEFINED
-typedef unsigned short wchar_t;
-#define _WCHAR_T_DEFINED
-#endif
 
 #include "util.hpp"
 #include <corpriv.h>
@@ -482,28 +477,9 @@ extern int g_IGCTrimCommit;
 #endif
 
 extern BOOL g_fEnableETW;
-extern BOOL g_fEnableARM;
 
 // Returns a BOOL to indicate if the runtime is active or not
 BOOL IsRuntimeActive(); 
-
-//
-// Can we run managed code?
-//
-struct LoaderLockCheck
-{
-    enum kind
-    {
-        ForMDA,
-        ForCorrectness,
-        None,
-    };
-};
-BOOL CanRunManagedCode(LoaderLockCheck::kind checkKind, HINSTANCE hInst = 0);
-inline BOOL CanRunManagedCode(HINSTANCE hInst = 0)
-{
-    return CanRunManagedCode(LoaderLockCheck::ForMDA, hInst);
-}
 
 //
 // Global state variable indicating if the EE is in its init phase.
@@ -529,10 +505,6 @@ EXTERN BOOL g_fComStarted;
 GVAL_DECL(DWORD, g_fEEShutDown);
 EXTERN DWORD g_fFastExitProcess;
 EXTERN BOOL g_fFatalErrorOccurredOnGCThread;
-#ifndef DACCESS_COMPILE
-EXTERN BOOL g_fSuspendOnShutdown;
-EXTERN BOOL g_fSuspendFinalizerOnShutdown;
-#endif // DACCESS_COMPILE
 EXTERN Volatile<LONG> g_fForbidEnterEE;
 GVAL_DECL(bool, g_fProcessDetach);
 EXTERN bool g_fManagedAttach;
@@ -555,15 +527,10 @@ enum FWStatus
 };
 
 EXTERN DWORD g_FinalizerWaiterStatus;
-extern ULONGLONG g_ObjFinalizeStartTime;
-extern Volatile<BOOL> g_FinalizerIsRunning;
-extern Volatile<ULONG> g_FinalizerLoopCount;
 
 #if defined(FEATURE_PAL) && defined(FEATURE_EVENT_TRACE)
 extern Volatile<BOOL> g_TriggerHeapDump;
 #endif // FEATURE_PAL
-
-extern LONG GetProcessedExitProcessEventCount();
 
 #ifndef DACCESS_COMPILE
 //

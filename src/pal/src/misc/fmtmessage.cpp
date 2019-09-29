@@ -22,7 +22,6 @@ Revision History:
 
 #include "pal/palinternal.h"
 #include "pal/dbgmsg.h"
-#include "pal/unicode_data.h"
 #include "pal/critsect.h"
 #include "pal/module.h"
 #include "pal/misc.h"
@@ -32,12 +31,9 @@ Revision History:
 #include "errorstrings.h"
 
 #include <stdarg.h>
-#if NEED_DLCOMPAT
-#include "dlcompat.h"
-#else   // NEED_DLCOMPAT
 #include <dlfcn.h>
-#endif  // NEED_DLCOMPAT
 #include <errno.h>
+#include <wctype.h>
 
 SET_DEFAULT_DEBUG_CHANNEL(MISC);
 
@@ -189,7 +185,7 @@ Function :
     Returns the LPWSTR string, or NULL on failure.
 */
     
-static LPWSTR FMTMSG_ProcessPrintf( wchar_t c , 
+static LPWSTR FMTMSG_ProcessPrintf( WCHAR c , 
                                  LPWSTR lpPrintfString,
                                  LPWSTR lpInsertString)
 {
@@ -446,7 +442,7 @@ FormatMessageW(
                 *lpWorkingString = '\0';
                 goto exit;
             }
-            else if ( PAL_iswdigit( *lpSourceString ) )
+            else if ( iswdigit( *lpSourceString ) )
             {
                 /* Get the insert number. */
                 WCHAR Number[] = { '\0', '\0', '\0' };
@@ -455,11 +451,11 @@ FormatMessageW(
                 Number[ 0 ] = *lpSourceString;
                 lpSourceString++;
                 
-                if ( PAL_iswdigit( *lpSourceString ) )
+                if ( iswdigit( *lpSourceString ) )
                 {
                     Number[ 1 ] = *lpSourceString;
                     lpSourceString++;
-                    if ( PAL_iswdigit( *lpSourceString ) )
+                    if ( iswdigit( *lpSourceString ) )
                     {
                         ERROR( "Invalid insert indentifier.\n" );
                         SetLastError( ERROR_INVALID_PARAMETER );

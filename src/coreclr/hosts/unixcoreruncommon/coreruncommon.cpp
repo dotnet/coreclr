@@ -6,6 +6,8 @@
 // Code that is used by both the Unix corerun and coreconsole.
 //
 
+#include "config.h"
+
 #include <cstdlib>
 #include <cstring>
 #include <assert.h>
@@ -19,6 +21,9 @@
 #if defined(__FreeBSD__)
 #include <sys/types.h>
 #include <sys/param.h>
+#endif
+#if HAVE_GETAUXVAL
+#include <sys/auxv.h>
 #endif
 #if defined(HAVE_SYS_SYSCTL_H) || defined(__FreeBSD__)
 #include <sys/sysctl.h>
@@ -105,6 +110,17 @@ bool GetEntrypointExecutableAbsolutePath(std::string& entrypointExecutable)
         result = false;
     }
 #else
+
+#if HAVE_GETAUXVAL && defined(AT_EXECFN)
+    const char *execfn = (const char *)getauxval(AT_EXECFN);
+
+    if (execfn)
+    {
+        entrypointExecutable.assign(execfn);
+        result = true;
+    }
+    else
+#endif
     // On other OSs, return the symlink that will be resolved by GetAbsolutePath
     // to fetch the entrypoint EXE absolute path, inclusive of filename.
     result = GetAbsolutePath(symlinkEntrypointExecutable, entrypointExecutable);
@@ -275,6 +291,26 @@ const char* GetEnvValueBoolean(const char* envVariable)
     return (std::strcmp(envValue, "1") == 0 || strcasecmp(envValue, "true") == 0) ? "true" : "false";
 }
 
+static void *TryLoadHostPolicy(const char *hostPolicyPath)
+{
+#if defined(__APPLE__)
+    static const char LibrarySuffix[] = ".dylib";
+#else // Various Linux-related OS-es
+    static const char LibrarySuffix[] = ".so";
+#endif
+
+    std::string hostPolicyCompletePath(hostPolicyPath);
+    hostPolicyCompletePath.append(LibrarySuffix);
+
+    void *libraryPtr = dlopen(hostPolicyCompletePath.c_str(), RTLD_LAZY);
+    if (libraryPtr == nullptr)
+    {
+        fprintf(stderr, "Failed to load mock hostpolicy at path '%s'. Error: %s", hostPolicyCompletePath.c_str(), dlerror());
+    }
+
+    return libraryPtr;
+}
+
 int ExecuteManagedAssembly(
             const char* currentExeAbsolutePath,
             const char* clrFilesAbsolutePath,
@@ -343,10 +379,9 @@ int ExecuteManagedAssembly(
     char* mockHostpolicyPath = getenv("MOCK_HOSTPOLICY");
     if (mockHostpolicyPath)
     {
-        hostpolicyLib = dlopen(mockHostpolicyPath, RTLD_LAZY);
+        hostpolicyLib = TryLoadHostPolicy(mockHostpolicyPath);
         if (hostpolicyLib == nullptr)
         {
-            fprintf(stderr, "Failed to load mock hostpolicy at path '%s'. Error: %s", mockHostpolicyPath, dlerror());
             return -1;
         }
     }

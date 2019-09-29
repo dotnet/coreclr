@@ -2,20 +2,19 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
 using System.Runtime.InteropServices;
 
 namespace System.Runtime.CompilerServices
 {
     /// <summary>
     /// Managed structure used by CrossLoaderAllocatorHeap to isolate per LoaderAllocator
-    /// data. 
+    /// data.
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     internal class LAHashDependentHashTracker
     {
-        GCHandle _dependentHandle;
-        IntPtr _loaderAllocator;
+        private GCHandle _dependentHandle;
+        private IntPtr _loaderAllocator;
 
         ~LAHashDependentHashTracker()
         {
@@ -31,7 +30,7 @@ namespace System.Runtime.CompilerServices
     [StructLayout(LayoutKind.Sequential)]
     internal class LAHashKeyToTrackers
     {
-        object _trackerOrTrackerSet;
-        object _laLocalKeyValueStore;
+        private object _trackerOrTrackerSet = null!;
+        private object _laLocalKeyValueStore = null!;
     }
 }

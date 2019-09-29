@@ -148,10 +148,10 @@ COM_METHOD SymWriter::Initialize
     
     if (szFilename != NULL)
     {
-        wchar_t fullpath[_MAX_PATH];
-        wchar_t drive[_MAX_DRIVE];
-        wchar_t dir[_MAX_DIR];
-        wchar_t fname[_MAX_FNAME];
+        WCHAR fullpath[_MAX_PATH];
+        WCHAR drive[_MAX_DRIVE];
+        WCHAR dir[_MAX_DIR];
+        WCHAR fname[_MAX_FNAME];
         _wsplitpath_s( szFilename, drive, COUNTOF(drive), dir, COUNTOF(dir), fname, COUNTOF(fname), NULL, 0 );
         _wmakepath_s( fullpath, COUNTOF(fullpath), drive, dir, fname, W("ildb") );
         if (wcsncpy_s( m_szPath, COUNTOF(m_szPath), fullpath, _TRUNCATE) == STRUNCATE)
@@ -202,7 +202,7 @@ HRESULT SymWriter::GetOrCreateDocument(
 {
     ULONG UrlEntry;
     DWORD strLength = WszWideCharToMultiByte(CP_UTF8, 0, wcsUrl, -1, 0, 0, 0, 0);
-    LPSTR multiByteURL = (LPSTR) new char [strLength+1];
+    LPSTR multiByteURL = (LPSTR) new char [strLength];
     HRESULT hr  = S_OK;
 
     if (multiByteURL == NULL)
@@ -210,7 +210,7 @@ HRESULT SymWriter::GetOrCreateDocument(
         return E_OUTOFMEMORY;
     }
 
-    WszWideCharToMultiByte(CP_UTF8, 0, wcsUrl, -1, multiByteURL, strLength+1, 0, 0);
+    WszWideCharToMultiByte(CP_UTF8, 0, wcsUrl, -1, multiByteURL, strLength, 0, 0);
 
     if (m_pStringPool->FindString(multiByteURL, &UrlEntry) == S_FALSE) // no file of that name has been seen before
     {
@@ -1155,10 +1155,10 @@ COM_METHOD SymWriter::GetDebugCVInfo(
 
     // We need to change the .ildb extension to .pdb to be
     // compatible with VS7
-    wchar_t fullpath[_MAX_PATH];
-    wchar_t drive[_MAX_DRIVE];
-    wchar_t dir[_MAX_DIR];
-    wchar_t fname[_MAX_FNAME];
+    WCHAR fullpath[_MAX_PATH];
+    WCHAR drive[_MAX_DRIVE];
+    WCHAR dir[_MAX_DIR];
+    WCHAR fname[_MAX_FNAME];
     if (_wsplitpath_s( m_szPath, drive, COUNTOF(drive), dir, COUNTOF(dir), fname, COUNTOF(fname), NULL, 0 ))
         return E_FAIL;
     if (_wmakepath_s( fullpath, COUNTOF(fullpath), drive, dir, fname, W("pdb") ))

@@ -46,7 +46,6 @@ private:
 class EventPipeSessionProviderList
 {
 public:
-
     // Create a new list based on the input.
     EventPipeSessionProviderList(
         const EventPipeProviderConfiguration *pConfigs,
@@ -58,10 +57,13 @@ public:
 
     // Get the session provider for the specified provider.
     // Return NULL if one doesn't exist.
-    EventPipeSessionProvider* GetSessionProvider(EventPipeProvider *pProvider);
+    EventPipeSessionProvider* GetSessionProvider(const EventPipeProvider *pProvider) const;
 
     // Returns true if the list is empty.
     bool IsEmpty() const;
+
+    // Clear the list of providers.
+    void Clear();
 
     EventPipeSessionProviderList() = delete;
     EventPipeSessionProviderList(const EventPipeSessionProviderList &other) = delete;

@@ -24,7 +24,6 @@
 #include "eeconfig.h"
 #include "corhost.h"
 #include "reflectioninvocation.h"
-#include "mdaassistants.h"
 #include "sigbuilder.h"
 #include "callsiteinspect.h"
 
@@ -146,8 +145,6 @@ ComPlusCallInfo *ComPlusCall::PopulateComPlusCallMethodDesc(MethodDesc* pMD, DWO
 
     if (pdwStubFlags == NULL)
         return pComInfo;
-
-    pMD->ComputeSuppressUnmanagedCodeAccessAttr(pMD->GetMDImport());
 
     //
     // Compute NDirectStubFlags
@@ -1153,12 +1150,12 @@ BOOL ComPlusMethodFrame::TraceFrame(Thread *thread, BOOL fromPatch,
     // Get the call site info
     //
 
-#if defined(_WIN64)
+#if defined(BIT64)
     // Interop debugging is currently not supported on WIN64, so we always return FALSE.
     // The result is that you can't step into an unmanaged frame or step out to one.  You
     // also can't step a breakpoint in one.
     return FALSE;
-#endif // _WIN64
+#endif // BIT64
 
     TADDR ip, returnIP, returnSP;
     GetUnmanagedCallSite(&ip, &returnIP, &returnSP);
