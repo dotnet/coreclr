@@ -32,12 +32,12 @@ namespace System.Globalization
             }
             else
             {
-	                // Inline the following condition to avoid potential implementation cycles within globalization
-	                //
-	                // _isAsciiEqualityOrdinal = _sortName == "" || _sortName == "en" || _sortName.StartsWith("en-", StringComparison.Ordinal);
-	                //
-	                _isAsciiEqualityOrdinal = _sortName.Length == 0 ||
-	                    (_sortName.Length >= 2 && _sortName[0] == 'e' && _sortName[1] == 'n' && (_sortName.Length == 2 || _sortName[2] == '-'));
+                // Inline the following condition to avoid potential implementation cycles within globalization
+                //
+                // _isAsciiEqualityOrdinal = _sortName == "" || _sortName == "en" || _sortName.StartsWith("en-", StringComparison.Ordinal);
+                //
+                _isAsciiEqualityOrdinal = _sortName.Length == 0 ||
+                    (_sortName.Length >= 2 && _sortName[0] == 'e' && _sortName[1] == 'n' && (_sortName.Length == 2 || _sortName[2] == '-'));
 
                 _sortHandle = SortHandleCache.GetCachedSortHandle(_sortName);
             }
