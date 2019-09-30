@@ -806,8 +806,7 @@ namespace Internal.JitInterface
             out TypeDesc exactType,
             out MethodDesc callerMethod,
             out EcmaModule callerModule,
-            out bool useInstantiatingStub,
-            out MethodDesc pResultHmethodDesc)
+            out bool useInstantiatingStub)
         {
 #if DEBUG
             // In debug, write some bogus data to the struct to ensure we have filled everything
@@ -1141,7 +1140,6 @@ namespace Internal.JitInterface
             }
 
             pResult->hMethod = ObjectToHandle(methodToDescribe);
-            pResultHmethodDesc = methodToDescribe;
 
             // TODO: access checks
             pResult->accessAllowed = CorInfoIsAccessAllowedResult.CORINFO_ACCESS_ALLOWED;
@@ -1267,7 +1265,6 @@ namespace Internal.JitInterface
             MethodDesc callerMethod;
             EcmaModule callerModule;
             bool useInstantiatingStub;
-            MethodDesc pResultHmethodDesc;
             ceeInfoGetCallInfo(
                 ref pResolvedToken, 
                 pConstrainedResolvedToken, 
@@ -1281,10 +1278,9 @@ namespace Internal.JitInterface
                 out exactType,
                 out callerMethod,
                 out callerModule,
-                out useInstantiatingStub,
-                out pResultHmethodDesc);
+                out useInstantiatingStub);
 
-            pResult->methodFlags = FilterNamedIntrinsicMethodAttribs(pResult->methodFlags, pResultHmethodDesc);
+            pResult->methodFlags = FilterNamedIntrinsicMethodAttribs(pResult->methodFlags, methodToCall);
 
             if (pResult->thisTransform == CORINFO_THIS_TRANSFORM.CORINFO_BOX_THIS)
             {
