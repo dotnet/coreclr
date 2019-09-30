@@ -2517,10 +2517,10 @@ namespace Internal.JitInterface
         {
             MethodDesc method = HandleToObject(ftn);
 
-            string result = null;
-            string classResult = null;
-            string namespaceResult = null;
-            string enclosingResult = null;
+            string result;
+            string classResult;
+            string namespaceResult;
+            string enclosingResult;
 
             result = getMethodNameFromMetadataImpl(method, out classResult, out namespaceResult, out enclosingResult);
 

@@ -1184,14 +1184,14 @@ namespace Internal.JitInterface
 
                 if (_TARGET_X86_ || _TARGET_AMD64_)
                 {
-                    fIsPlatformHWIntrinsic = string.Equals(namespaceName, "System.Runtime.Intrinsics.X86");
+                    fIsPlatformHWIntrinsic = (namespaceName == "System.Runtime.Intrinsics.X86");
                 }
                 else if (_TARGET_ARM64_)
                 {
-                    fIsPlatformHWIntrinsic = string.Equals(namespaceName, "System.Runtime.Intrinsics.Arm.Arm64");
+                    fIsPlatformHWIntrinsic = (namespaceName == "System.Runtime.Intrinsics.Arm.Arm64");
                 }
 
-                fIsHWIntrinsic = fIsPlatformHWIntrinsic || (string.Equals(namespaceName, "System.Runtime.Intrinsics"));
+                fIsHWIntrinsic = fIsPlatformHWIntrinsic || (namespaceName == "System.Runtime.Intrinsics");
 
                 // By default, we want to treat the get_IsSupported method for platform specific HWIntrinsic ISAs as
                 // method calls. This will be modified as needed below based on what ISAs are considered baseline.
@@ -1201,7 +1201,7 @@ namespace Internal.JitInterface
                 // but we don't know what the target machine will support.
                 //
                 // Additionally, we make sure none of the hardware intrinsic method bodies get pregenerated in crossgen
-                // (see ZapInfo::CompileMethod) but get JITted instead. The JITted method will have the correct
+                // (see ShouldSkipCompilation) but get JITted instead. The JITted method will have the correct
                 // answer for the CPU the code is running on.
                 fTreatAsRegularMethodCall = (fIsGetIsSupportedMethod && fIsPlatformHWIntrinsic) || (!fIsPlatformHWIntrinsic && fIsHWIntrinsic);
 
@@ -1211,16 +1211,16 @@ namespace Internal.JitInterface
                     {
                         // Simplify the comparison logic by grabbing the name of the ISA
                         string isaName = (enclosingClassName == null) ? className : enclosingClassName;
-                        if ((string.Equals(isaName, "Sse")) || (string.Equals(isaName, "Sse2")))
+                        if ((isaName == "Sse") || (isaName == "Sse2"))
                         {
-                            if ((enclosingClassName == null) || (string.Equals(className, "X64")))
+                            if ((enclosingClassName == null) || (className == "X64"))
                             {
                                 // If it's anything related to Sse/Sse2, we can expand unconditionally since this is
                                 // a baseline requirement of CoreCLR.
                                 fTreatAsRegularMethodCall = false;
                             }
                         }
-                        else if ((string.Equals(className, "Avx")) || (string.Equals(className, "Fma")) || (string.Equals(className, "Avx2")) || (string.Equals(className, "Bmi1")) || (string.Equals(className, "Bmi2")))
+                        else if ((className == "Avx") || (className == "Fma") || (className == "Avx2") || (className == "Bmi1") || (className == "Bmi2"))
                         {
                             if ((enclosingClassName == null) || (string.Equals(className, "X64")))
                             {
@@ -1236,14 +1236,14 @@ namespace Internal.JitInterface
                             }
                         }
                     }
-                    else if (string.Equals(namespaceName, "System"))
+                    else if (namespaceName == "System")
                     {
-                        if ((string.Equals(className, "Math")) || (string.Equals(className, "MathF")))
+                        if ((className == "Math") || (className == "MathF"))
                         {
                             // These are normally handled via the SSE4.1 instructions ROUNDSS/ROUNDSD.
                             // However, we don't know the ISAs the target machine supports so we should
                             // fallback to the method call implementation instead.
-                            fTreatAsRegularMethodCall = string.Equals(methodName, "Round");
+                            fTreatAsRegularMethodCall = (methodName == "Round");
                         }
                     }
                 }
