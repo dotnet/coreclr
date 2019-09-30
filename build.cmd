@@ -302,6 +302,7 @@ if /i %__BuildType% NEQ Release set __RestoreOptData=0
 
 set "__BinDir=%__RootBinDir%\Product\%__BuildOS%.%__BuildArch%.%__BuildType%"
 set "__IntermediatesDir=%__RootBinDir%\obj\%__BuildOS%.%__BuildArch%.%__BuildType%"
+set "__ArtifactsIntermediatesDir=%__ProjectDir%\artifacts\obj\"
 if "%__NMakeMakefiles%"=="1" (set "__IntermediatesDir=%__RootBinDir%\nmakeobj\%__BuildOS%.%__BuildArch%.%__BuildType%")
 set "__PackagesBinDir=%__BinDir%\.nuget"
 set "__CrossComponentBinDir=%__BinDir%"
@@ -430,7 +431,7 @@ REM ===
 REM =========================================================================================
 
 set __IntermediatesIncDir=%__IntermediatesDir%\src\inc
-set __IntermediatesEventingDir=%__IntermediatesDir%\Eventing
+set __IntermediatesEventingDir=%__ArtifactsIntermediatesDir%\Eventing\%__BuildArch%\%__BuildType%
 
 REM Find python and set it to the variable PYTHON
 set _C=-c "import sys; sys.stdout.write(sys.executable)"

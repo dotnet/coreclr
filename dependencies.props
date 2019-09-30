@@ -11,9 +11,6 @@
     </RestoreSources>
   </PropertyGroup>
 
-  <!-- [ARCADE REMOVE] Versions.props is imported by Arcade SDK targets when building with Arcade -->
-  <Import Project="eng/Versions.props" Condition="'$(ArcadeBuild)' != 'true'" />
-
   <!-- Source of truth for dependency tooling: the commit hash of the dotnet/versions master branch as of the last auto-upgrade. -->
   <PropertyGroup>
     <CoreClrCurrentRef>5d3c9a7c54c1c59b764de0e2dfb6bbb4ce29476c</CoreClrCurrentRef>

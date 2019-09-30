@@ -3,7 +3,7 @@
 
   <Import Project="Microsoft.NETCore.Native.props" />
 
-  <Import Project="$([MSBuild]::GetPathOfFileAbove(dir.props))" />
+  <Import Project="$([MSBuild]::GetPathOfFileAbove(Directory.Build.props))" />
 
   <PropertyGroup Condition="'$(PackageTargetRuntime)' == ''">
     <IsLineupPackage Condition="'$(IsLineupPackage)' == ''">true</IsLineupPackage>
