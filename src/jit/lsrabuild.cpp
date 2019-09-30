@@ -2259,8 +2259,8 @@ void LinearScan::buildIntervals()
                         LclVarDsc* varDsc = compiler->lvaGetDescByTrackedIndex(varIndex);
                         assert(isCandidateVar(varDsc));
                         Interval*    interval = getIntervalForLocalVar(varIndex);
-                        RefPosition* pos      = newRefPosition(interval, currentLoc, RefTypeExpUse, nullptr,
-                                                          allRegs(interval->registerType));
+                        regMaskTP    regMask  = allRegs(interval->registerType);
+                        RefPosition* pos      = newRefPosition(interval, currentLoc, RefTypeExpUse, nullptr, regMask);
                         pos->setRegOptional(true);
                         JITDUMP(" V%02u", compiler->lvaTrackedIndexToLclNum(varIndex));
                     }

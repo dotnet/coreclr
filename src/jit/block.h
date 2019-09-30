@@ -862,8 +862,8 @@ struct BasicBlock : private LIR::Range
         return sameTryRegion(blk1, blk2) && sameHndRegion(blk1, blk2);
     }
 
-    bool hasEHFlowIn();
-    bool hasEHFlowOut();
+    bool hasEHBoundaryIn();
+    bool hasEHBoundaryOut();
 
 // Some non-zero value that will not collide with real tokens for bbCatchTyp
 #define BBCT_NONE 0x00000000

@@ -821,8 +821,8 @@ void LinearScan::setBlockSequence()
         blockInfo[block->bbNum].hasCriticalInEdge  = false;
         blockInfo[block->bbNum].hasCriticalOutEdge = false;
         blockInfo[block->bbNum].weight             = block->getBBWeight(compiler);
-        blockInfo[block->bbNum].hasEHBoundaryIn    = block->hasEHFlowIn();
-        blockInfo[block->bbNum].hasEHBoundaryOut   = block->hasEHFlowOut();
+        blockInfo[block->bbNum].hasEHBoundaryIn    = block->hasEHBoundaryIn();
+        blockInfo[block->bbNum].hasEHBoundaryOut   = block->hasEHBoundaryOut();
 
 #if TRACK_LSRA_STATS
         blockInfo[block->bbNum].spillCount         = 0;
@@ -847,7 +847,7 @@ void LinearScan::setBlockSequence()
                     assert(!"Switch with single successor");
                 }
             }
-            if (((predBlock->bbFlags & BBF_KEEP_BBJ_ALWAYS) != 0) || (hasUniquePred && predBlock->hasEHFlowOut()))
+            if (((predBlock->bbFlags & BBF_KEEP_BBJ_ALWAYS) != 0) || (hasUniquePred && predBlock->hasEHBoundaryOut()))
             {
                 // Treat this as having incomding EH flow, since we can't insert resolution moves into
                 // the ALWAYS block of a BBCallAlwaysPair, and a unique pred with an EH out edge won't
@@ -1359,13 +1359,13 @@ void LinearScan::identifyCandidatesExceptionDataflow()
 
     foreach_block(compiler, block)
     {
-        if (block->hasEHFlowIn())
+        if (block->hasEHBoundaryIn())
         {
             // live on entry to handler
             VarSetOps::UnionD(compiler, exceptVars, block->bbLiveIn);
         }
 
-        if (block->hasEHFlowOut())
+        if (block->hasEHBoundaryOut())
         {
             VarSetOps::UnionD(compiler, exceptVars, block->bbLiveOut);
 #ifdef DEBUG
@@ -2248,7 +2248,7 @@ BasicBlock* LinearScan::findPredBlockForLiveIn(BasicBlock* block,
         if (predBlock != nullptr)
         {
             // We should already have returned null if this block has a single incoming EH boundary edge.
-            assert(!predBlock->hasEHFlowOut());
+            assert(!predBlock->hasEHBoundaryOut());
             if (isBlockVisited(predBlock))
             {
                 if (predBlock->bbJumpKind == BBJ_COND)
@@ -5153,10 +5153,10 @@ void LinearScan::RegsToFree::updateRegs(Interval* interval, RefPosition* refPosi
 // Arguments:
 //    regsToFree         - the 'RegsToFree' struct
 //
-void LinearScan::freeRegisters(RegsToFree& regsToFree)
+void LinearScan::freeRegisters(RegsToFree* regsToFree)
 {
     INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_FREE_REGS));
-    regMaskTP current = regsToFree.current;
+    regMaskTP current = regsToFree->current;
     while (current != RBM_NONE)
     {
         regMaskTP nextRegBit = genFindLowestBit(current);
@@ -5164,8 +5164,8 @@ void LinearScan::freeRegisters(RegsToFree& regsToFree)
         regNumber nextReg = genRegNumFromMask(nextRegBit);
         freeRegister(getRegisterRecord(nextReg));
     }
-    regsToFree.current = regsToFree.delayed;
-    regsToFree.delayed = RBM_NONE;
+    regsToFree->current = regsToFree->delayed;
+    regsToFree->delayed = RBM_NONE;
 }
 
 //------------------------------------------------------------------------
@@ -5298,14 +5298,14 @@ void LinearScan::allocateRegisters()
             }
             if (currentLocation > prevLocation)
             {
-                freeRegisters(regsToFree);
+                freeRegisters(&regsToFree);
                 if ((currentLocation > (prevLocation + 1)) && (regsToFree.current != RBM_NONE))
                 {
-                    // If we have current regsToFree at this point, it means that we had delayRegs.
-                    // (that would be the RefPosition that it was supposed to interfere with).
+                    // If we have current regsToFree at this point, it means that we had pending delayRegs, but
+                    // didn't find the def RefPosition at 'prevLocation + 1' that it was supposed to interfere with.
                     assert(!"Found a delayRegFree associated with Location with no reference");
                     // However, to be cautious for the Release build case, we will free them.
-                    freeRegisters(regsToFree);
+                    freeRegisters(&regsToFree);
                 }
             }
         }
@@ -5343,7 +5343,7 @@ void LinearScan::allocateRegisters()
         if (!handledBlockEnd && (refType == RefTypeBB || refType == RefTypeDummyDef))
         {
             // Free any delayed regs (now in regsToFree) before processing the block boundary
-            freeRegisters(regsToFree);
+            freeRegisters(&regsToFree);
             handledBlockEnd    = true;
             curBBStartLocation = currentRefPosition->nodeLocation;
             if (currentBlock == nullptr)
@@ -5974,7 +5974,15 @@ void LinearScan::allocateRegisters()
     else
 #endif // DEBUG
     {
-        freeRegisters(regsToFree);
+        freeRegisters(&regsToFree);
+        if (!regsToFree.isEmpty())
+        {
+            // If we have current regsToFree at this point, it means that we had delayRegs with no
+            // corresponding def for it to interfere with, which shouldn't happen.
+            assert(!"Found a pending delayRegFree at end of allocation.");
+            // However, to be cautious for the Release build case, we will free them.
+            freeRegisters(&regsToFree);
+        }
     }
 
 #ifdef DEBUG
@@ -7256,11 +7264,11 @@ void LinearScan::resolveRegisters()
             foreach_block(compiler, block)
             {
                 printf("\n" FMT_BB, block->bbNum);
-                if (block->hasEHFlowIn())
+                if (block->hasEHBoundaryIn())
                 {
                     JITDUMP("  EH flow in");
                 }
-                if (block->hasEHFlowOut())
+                if (block->hasEHBoundaryOut())
                 {
                     JITDUMP("  EH flow out");
                 }

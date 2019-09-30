@@ -1073,7 +1073,7 @@ private:
         }
         void updateRegs(Interval* interval, RefPosition* refPosition, regMaskTP regMask);
     };
-    void freeRegisters(RegsToFree& regsToFree);
+    void freeRegisters(RegsToFree* regsToFree);
 
     // Get the type that this tree defines.
     var_types getDefType(GenTree* tree)
