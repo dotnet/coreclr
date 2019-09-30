@@ -34,18 +34,12 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             GCInfoNode = new MethodGCInfoNode(this);
             _method = methodDesc;
             SignatureContext = signatureContext;
-            _compilationStarted = 0;
         }
 
         public void SetCode(ObjectData data)
         {
             Debug.Assert(_methodCode == null);
             _methodCode = data;
-        }
-
-        public bool AlreadyStartedCompilation()
-        {
-            return Interlocked.CompareExchange(ref _compilationStarted, 1, 0) == 1;
         }
 
         public MethodDesc Method => _method;

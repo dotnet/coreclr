@@ -42,7 +42,7 @@ namespace ILCompiler.DependencyAnalysis
         {
             _codegenNodeFactory = codegenNodeFactory;
 
-            // Node caches
+            // Create node caches
             _importStrings = new NodeCache<ModuleToken, ISymbolNode>(key =>
             {
                 return new StringImport(_codegenNodeFactory.StringImports, key, GetSignatureContext());

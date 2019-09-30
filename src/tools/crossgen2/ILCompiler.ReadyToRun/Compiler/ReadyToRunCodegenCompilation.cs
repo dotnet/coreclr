@@ -236,22 +236,10 @@ namespace ILCompiler
         protected override void ComputeDependencyNodeDependencies(List<DependencyNodeCore<NodeFactory>> obj)
         {
             PerfEventSource.Log.JitSectionStart();
-            List<Task> tasks = new List<Task>();
             ConditionalWeakTable<Thread, CorInfoImpl> cwt = new ConditionalWeakTable<Thread, CorInfoImpl>();
             Parallel.ForEach(obj, dependency =>
             {
-                var methodCodeNodeNeedingCode = dependency as MethodWithGCInfo;
-                if (methodCodeNodeNeedingCode == null)
-                {
-                    // To compute dependencies of the shadow method that tracks dictionary
-                    // dependencies we need to ensure there is code for the canonical method body.
-                    var dependencyMethod = (ShadowConcreteMethodNode)dependency;
-                    methodCodeNodeNeedingCode = (MethodWithGCInfo)dependencyMethod.CanonicalMethodNode;
-                }
-
-                // We might have already compiled this method.
-                if (methodCodeNodeNeedingCode.AlreadyStartedCompilation())
-                    return;
+                MethodWithGCInfo methodCodeNodeNeedingCode = dependency as MethodWithGCInfo;
 
                 MethodDesc method = methodCodeNodeNeedingCode.Method;
                 if (!NodeFactory.CompilationModuleGroup.ContainsMethodBody(method, unboxingStub: false))
