@@ -32,7 +32,7 @@ namespace System.Globalization
             }
             else
             {
-                _isAsciiEqualityOrdinal = _sortName == "" || _sortName.StartsWith("en-", StringComparison.Ordinal) || _sortName == "en";
+                _isAsciiEqualityOrdinal = _sortName == "" || _sortName == "en" || (_sortName.Length > 3 && _sortName[0] == 'e' && _sortName[1] == 'n' && _sortName[2] == '-');
 
                 _sortHandle = SortHandleCache.GetCachedSortHandle(_sortName);
             }
