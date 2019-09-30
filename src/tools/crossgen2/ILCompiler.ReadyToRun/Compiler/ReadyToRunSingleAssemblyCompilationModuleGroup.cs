@@ -188,5 +188,16 @@ namespace ILCompiler
 
             return canInline;
         }
+
+        public override bool GeneratesPInvoke(MethodDesc method)
+        {
+            // PInvokes depend on details of the core library.
+            //
+            // We allow compiling them if both the module of the pinvoke and the core library
+            // are in the version bubble.
+            Debug.Assert(method is EcmaMethod);
+            return _versionBubbleModuleSet.Contains(((EcmaMethod)method).Module)
+                && _versionBubbleModuleSet.Contains(method.Context.SystemModule);
+        }
     }
 }

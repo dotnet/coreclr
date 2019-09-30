@@ -1739,6 +1739,7 @@ namespace System.StubHelpers
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern void ValidateByref(IntPtr byref, IntPtr pMD, object pThis); // the byref is pinned so we can safely "cast" it to IntPtr
 
+        [Intrinsic]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern IntPtr GetStubContext();
 
