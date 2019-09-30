@@ -300,10 +300,13 @@ namespace System
                 object? stackTraceCopy = (dispatchState.StackTrace == null) ? null : DeepCopyStackTrace(dispatchState.StackTrace);
                 object? dynamicMethodsCopy = (dispatchState.DynamicMethods == null) ? null : DeepCopyDynamicMethods(dispatchState.DynamicMethods);
 
+                // Watson buckets and remoteStackTraceString fields are captured and restored without any locks. It is possible for them to get out of sync without
+                // overall violating integrity of the system.
                 _watsonBuckets = dispatchState.WatsonBuckets;
                 _ipForWatsonBuckets = dispatchState.IpForWatsonBuckets;
                 _remoteStackTraceString = dispatchState.RemoteStackTrace;
 
+                // The binary stack trace and references to dynamic methods have to be restored under a lock to guarantee integrity of the system.
                 SaveStackTracesFromDeepCopy(this, stackTraceCopy, dynamicMethodsCopy);
 
                 _stackTraceString = null;
