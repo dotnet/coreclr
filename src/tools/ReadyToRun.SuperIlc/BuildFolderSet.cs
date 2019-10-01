@@ -310,7 +310,11 @@ namespace ReadyToRun.SuperIlc
                 foreach (CompilerRunner runner in frameworkRunners)
                 {
                     ProcessInfo compilationProcess = kvp.Value[(int)runner.Index];
-                    if (compilationProcess.Succeeded)
+                    if (compilationProcess == null)
+                    {
+                        // No compilation process (e.g. there's no real compilation phase for the JIT mode)
+                    }
+                    else if (compilationProcess.Succeeded)
                     {
                         skipCopying.Add(compilationProcess.Parameters.InputFileName);
                         AnalyzeCompilationLog(compilationProcess, runner.Index);
