@@ -1473,7 +1473,6 @@ public:
 #endif
     }
 
-
     bool IsHfaRegArg()
     {
 #ifdef FEATURE_HFA
