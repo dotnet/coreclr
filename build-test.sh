@@ -189,6 +189,7 @@ precompile_coreroot_fx()
     
     __Command="${__DotNetCli} $CORE_ROOT/ReadyToRun.SuperIlc/ReadyToRun.SuperIlc.dll compile-framework"
     __Command="${__Command} -cr $CORE_ROOT";
+    __Command="${__Command} -cp $__CrossgenExe";
     __Command="${__Command} --release";
     __Command="${__Command} --large-bubble";
     if [ $__DoCrossgen -ne 0 ]; then
