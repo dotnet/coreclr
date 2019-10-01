@@ -38,7 +38,7 @@ set(SUPERPMI_SHIM_COUNTER_SOURCES
 )
 
 if (WIN32)
-    preprocess_def_file(${CMAKE_CURRENT_SOURCE_DIR}/superpmi-shim-counter.def ${CMAKE_CURRENT_BINARY_DIR}/superpmi-shim-counter.def)
+    preprocess_file(${CMAKE_CURRENT_SOURCE_DIR}/superpmi-shim-counter.def ${CMAKE_CURRENT_BINARY_DIR}/superpmi-shim-counter.def)
 
     list(APPEND SUPERPMI_SHIM_COUNTER_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/superpmi-shim-counter.def)
 endif (WIN32)

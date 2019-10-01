@@ -95,15 +95,25 @@ function(convert_to_absolute_path RetSources)
 endfunction(convert_to_absolute_path)
 
 #Preprocess exports definition file
-function(preprocess_def_file inputFilename outputFilename)
+function(preprocess_file inputFilename outputFilename)
   get_compile_definitions(PREPROCESS_DEFINITIONS)
-  get_include_directories(ASM_INCLUDE_DIRECTORIES)
-  add_custom_command(
-    OUTPUT ${outputFilename}
-    COMMAND ${CMAKE_CXX_COMPILER} ${ASM_INCLUDE_DIRECTORIES} /P /EP /TC ${PREPROCESS_DEFINITIONS}  /Fi${outputFilename}  ${inputFilename}
-    DEPENDS ${inputFilename}
-    COMMENT "Preprocessing ${inputFilename} - ${CMAKE_CXX_COMPILER} ${ASM_INCLUDE_DIRECTORIES} /P /EP /TC ${PREPROCESS_DEFINITIONS}  /Fi${outputFilename}  ${inputFilename}"
-  )
+  get_include_directories(PREPROCESS_INCLUDE_DIRECTORIES)
+  if (MSVC)
+    add_custom_command(
+        OUTPUT ${outputFilename}
+        COMMAND ${CMAKE_CXX_COMPILER} ${PREPROCESS_INCLUDE_DIRECTORIES} /P /EP /TC ${PREPROCESS_DEFINITIONS}  /Fi${outputFilename}  ${inputFilename}
+        DEPENDS ${inputFilename}
+        COMMENT "Preprocessing ${inputFilename}. Outputting to ${outputFilename}"
+    )
+  else()
+    add_custom_command(
+        OUTPUT ${outputFilename}
+        COMMAND ${CMAKE_CXX_COMPILER} -E -P ${PREPROCESS_DEFINITIONS} ${INCLUDE_DIRECTORIES} -o ${outputFilename} -x c ${inputFilename}
+        DEPENDS ${inputFilename}
+        COMMENT "Preprocessing ${inputFilename}. Outputting to ${outputFilename}"
+    )
+  endif()
+
 
   set_source_files_properties(${outputFilename}
                               PROPERTIES GENERATED TRUE)
@@ -124,7 +134,7 @@ function(preprocess_compile_asm)
     # Inserts a custom command in CMake build to preprocess each asm source file
     get_filename_component(name ${ASM_FILE} NAME_WE)
     file(TO_CMAKE_PATH "${CMAKE_CURRENT_BINARY_DIR}/${name}.asm" ASM_PREPROCESSED_FILE)
-    preprocess_def_file(${ASM_FILE} ${ASM_PREPROCESSED_FILE})
+    preprocess_file(${ASM_FILE} ${ASM_PREPROCESSED_FILE})
 
     # We do not pass any defines since we have already done pre-processing above
     set (ASM_CMDLINE "-o ${CMAKE_CURRENT_BINARY_DIR}/${name}.obj ${ASM_PREPROCESSED_FILE}")
