@@ -17,7 +17,7 @@ There are two ways to rewrite IL
    This approach means that you can modify functions in response to changing conditions, and you can revert the modified code if you decide you are done with it. See the other entries about ReJIT in this folder for more information.
 
 ## How to rewrite IL
-Hopefully this section will be fleshed out in the future. Right now we have some documentation in the archives at [Creating an IL-rewriting profiler](davbr-blog-archive/Creating an IL-rewriting profiler.md), but there is no start to finish tutorial on IL rewriting.
+Hopefully this section will be fleshed out in the future. Right now we have some documentation in the archives at [Creating an IL-rewriting profiler](<./davbr-blog-archive/Creating an IL-rewriting profiler.md>), but there is no start to finish tutorial on IL rewriting.
 
 ## What if multiple profilers want to rewrite IL in a given process?
 The `ICorProfiler*` interfaces do not provide a way to multiplex different profilers, only one profiler can be loaded at a time. The [CLR Instrumentation Engine](https://github.com/microsoft/CLRInstrumentationEngine) project was created to address this limitation. If you are concerned about profiler multiplexing, head over and check out the project. A short summary is that it provides a higher level interface than the `ICorProfiler*` interfaces, and also provides way for multiple profilers to interact in a well defined manner.
