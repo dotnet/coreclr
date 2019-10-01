@@ -35,6 +35,7 @@ namespace ILCompiler
         private string _targetArchitectureStr;
         private TargetOS _targetOS;
         private string _targetOSStr;
+        private string _jitPath;
         private OptimizationMode _optimizationMode;
         private string _systemModuleName = DefaultSystemModule;
         private bool _tuning;
@@ -140,6 +141,7 @@ namespace ILCompiler
 
                 syntax.DefineOption("targetarch", ref _targetArchitectureStr, "Target architecture for cross compilation");
                 syntax.DefineOption("targetos", ref _targetOSStr, "Target OS for cross compilation");
+                syntax.DefineOption("jitpath", ref _jitPath, "File path to JIT compiler");
 
                 syntax.DefineOption("singlemethodtypename", ref _singleMethodTypeName, "Single method compilation: name of the owning type");
                 syntax.DefineOption("singlemethodname", ref _singleMethodName, "Single method compilation: name of the method");
@@ -337,7 +339,6 @@ namespace ILCompiler
                     }
                 }
 
-
                 List<ModuleDesc> versionBubbleModules = new List<ModuleDesc>();
                 if (_isInputVersionBubble)
                 {
@@ -373,21 +374,19 @@ namespace ILCompiler
                 inputFilePath = input.Value;
                 break;
             }
-            CompilationBuilder builder = new ReadyToRunCodegenCompilationBuilder(typeSystemContext, compilationGroup, inputFilePath,
-                ibcTuning: _tuning,
-                resilient: _resilient);
+            CompilationBuilder builder = new ReadyToRunCodegenCompilationBuilder(typeSystemContext, compilationGroup, inputFilePath, _tuning, _resilient);
 
             string compilationUnitPrefix = "";
             builder.UseCompilationUnitPrefix(compilationUnitPrefix);
 
             ILProvider ilProvider = new ReadyToRunILProvider();
 
-
             DependencyTrackingLevel trackingLevel = _dgmlLogFileName == null ?
                 DependencyTrackingLevel.None : (_generateFullDgmlLog ? DependencyTrackingLevel.All : DependencyTrackingLevel.First);
 
             builder
                 .UseILProvider(ilProvider)
+                .UseJitPath(_jitPath)
                 .UseBackendOptions(_codegenOptions)
                 .UseLogger(logger)
                 .UseDependencyTracking(trackingLevel)
