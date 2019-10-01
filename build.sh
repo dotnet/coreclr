@@ -179,8 +179,7 @@ restore_optdata()
 
 generate_event_logging_sources()
 {
-    __OutputDir=$1
-    __OutputEventingDir="$__OutputDir/Eventing"
+    __OutputEventingDir=$1
 
     __PythonWarningFlags="-Wall"
     if [[ $__IgnoreWarnings == 0 ]]; then
@@ -195,7 +194,7 @@ generate_event_logging()
 {
     # Event Logging Infrastructure
     if [[ $__SkipMSCorLib == 0 ]]; then
-        generate_event_logging_sources "$__IntermediatesDir"
+        generate_event_logging_sources "$__ArtifactsIntermediatesDir/Eventing/$__BuildArch/$__BuildType"
     fi
 }
 
@@ -1020,6 +1019,7 @@ __MsbuildDebugLogsDir="$__LogsDir/MsbuildDebugLogs"
 __BinDir="$__RootBinDir/Product/$__BuildOS.$__BuildArch.$__BuildType"
 __PackagesBinDir="$__BinDir/.nuget"
 export __IntermediatesDir="$__RootBinDir/obj/$__BuildOS.$__BuildArch.$__BuildType"
+export __ArtifactsIntermediatesDir="$__ProjectDir/artifacts/obj"
 __isMSBuildOnNETCoreSupported=0
 __CrossComponentBinDir="$__BinDir"
 
