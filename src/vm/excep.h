@@ -611,7 +611,7 @@ FCDECL1(Object*, MissingMemberException_FormatSignature, I1Array* pPersistedSigU
 #define EXCEPTION_UNWIND (EXCEPTION_UNWINDING | EXCEPTION_EXIT_UNWIND | \
                           EXCEPTION_TARGET_UNWIND | EXCEPTION_COLLIDED_UNWIND)
 
-#define IS_UNWINDING(Flag) (((Flag) & EXCEPTION_UNWIND) != 0)
+#define IS_UNWINDING(Flag) ((Flag & EXCEPTION_UNWIND) != 0)
 
 //#include "CodeMan.h"
 
