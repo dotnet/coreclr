@@ -4802,9 +4802,6 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
     noway_assert(newArg != nullptr);
     noway_assert(newArg->OperIs(GT_FIELD_LIST));
 
-    // We need to propagate any GTF_ALL_EFFECT flags from the end of the list back to the beginning.
-    // This is verified in fgDebugCheckFlags().
-
     for (GenTreeFieldList::Use& use : newArg->AsFieldList()->Uses())
     {
         newArg->gtFlags |= (use.GetNode()->gtFlags & GTF_ALL_EFFECT);
