@@ -5117,24 +5117,10 @@ void LinearScan::freeRegister(RegRecord* physRegRecord)
 // Return Value:
 //    True iff the register has been unassigned.
 //
-void LinearScan::RegsToFree::updateRegs(Interval* interval, RefPosition* refPosition, regMaskTP regMask)
+void LinearScan::RegsToFree::updateRegs(RefPosition* refPosition, regMaskTP regMask)
 {
-    bool         unassign        = false;
-    RefPosition* nextRefPosition = refPosition->nextRefPosition;
-    if (refPosition->lastUse || nextRefPosition == nullptr)
-    {
-        assert(refPosition->isIntervalRef());
-
-        if (refPosition->copyReg || (refPosition->refType != RefTypeExpUse && nextRefPosition == nullptr))
-        {
-            unassign = true;
-        }
-        else
-        {
-            interval->isActive = false;
-        }
-    }
-    if (unassign)
+    bool unassign = false;
+    assert(refPosition->isIntervalRef());
     {
         if (refPosition->delayRegFree)
         {
@@ -5151,21 +5137,23 @@ void LinearScan::RegsToFree::updateRegs(Interval* interval, RefPosition* refPosi
 // LinearScan::freeRegisters: Free the registers in 'regsToFree'
 //
 // Arguments:
-//    regsToFree         - the 'RegsToFree' struct
+//    regsToFree         - the mask of registers to free
 //
-void LinearScan::freeRegisters(RegsToFree* regsToFree)
+void LinearScan::freeRegisters(regMaskTP regsToFree)
 {
-    INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_FREE_REGS));
-    regMaskTP current = regsToFree->current;
-    while (current != RBM_NONE)
+    if (regsToFree == RBM_NONE)
     {
-        regMaskTP nextRegBit = genFindLowestBit(current);
-        current &= ~nextRegBit;
+        return;
+    }
+
+    INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_FREE_REGS));
+    while (regsToFree != RBM_NONE)
+    {
+        regMaskTP nextRegBit = genFindLowestBit(regsToFree);
+        regsToFree &= ~nextRegBit;
         regNumber nextReg = genRegNumFromMask(nextRegBit);
         freeRegister(getRegisterRecord(nextReg));
     }
-    regsToFree->current = regsToFree->delayed;
-    regsToFree->delayed = RBM_NONE;
 }
 
 //------------------------------------------------------------------------
@@ -5231,8 +5219,9 @@ void LinearScan::allocateRegisters()
 
     BasicBlock* currentBlock = nullptr;
 
-    LsraLocation prevLocation = MinLocation;
-    RegsToFree   regsToFree   = {RBM_NONE, RBM_NONE};
+    LsraLocation prevLocation    = MinLocation;
+    regMaskTP    regsToFree      = RBM_NONE;
+    regMaskTP    delayRegsToFree = RBM_NONE;
 
     // This is the most recent RefPosition for which a register was allocated
     // - currently only used for DEBUG but maintained in non-debug, for clarity of code
@@ -5289,7 +5278,7 @@ void LinearScan::allocateRegisters()
 
         LsraLocation currentLocation = currentRefPosition->nodeLocation;
 
-        if (!regsToFree.isEmpty())
+        if ((regsToFree | delayRegsToFree) != RBM_NONE)
         {
             // Free at a new location, or at a basic block boundary
             if (refType == RefTypeBB)
@@ -5298,15 +5287,18 @@ void LinearScan::allocateRegisters()
             }
             if (currentLocation > prevLocation)
             {
-                freeRegisters(&regsToFree);
-                if ((currentLocation > (prevLocation + 1)) && (regsToFree.current != RBM_NONE))
+                freeRegisters(regsToFree);
+                if ((currentLocation > (prevLocation + 1)) && (delayRegsToFree != RBM_NONE))
                 {
-                    // If we have current regsToFree at this point, it means that we had pending delayRegs, but
-                    // didn't find the def RefPosition at 'prevLocation + 1' that it was supposed to interfere with.
+                    // We should never see a delayReg that is delayed until a Location that has no RefPosition
+                    // (that would be the RefPosition that it was supposed to interfere with).
                     assert(!"Found a delayRegFree associated with Location with no reference");
                     // However, to be cautious for the Release build case, we will free them.
-                    freeRegisters(&regsToFree);
+                    freeRegisters(delayRegsToFree);
+                    delayRegsToFree = RBM_NONE;
                 }
+                regsToFree      = delayRegsToFree;
+                delayRegsToFree = RBM_NONE;
             }
         }
         prevLocation = currentLocation;
@@ -5343,7 +5335,8 @@ void LinearScan::allocateRegisters()
         if (!handledBlockEnd && (refType == RefTypeBB || refType == RefTypeDummyDef))
         {
             // Free any delayed regs (now in regsToFree) before processing the block boundary
-            freeRegisters(&regsToFree);
+            freeRegisters(regsToFree);
+            regsToFree         = RBM_NONE;
             handledBlockEnd    = true;
             curBBStartLocation = currentRefPosition->nodeLocation;
             if (currentBlock == nullptr)
@@ -5638,10 +5631,9 @@ void LinearScan::allocateRegisters()
                     // and ensure that the next use of this localVar does not occur after the nextPhysRegRefPos
                     // There must be a next RefPosition, because we know that the Interval extends beyond the
                     // nextPhysRegRefPos.
-                    RefPosition* nextLclVarRefPos = nextRefPosition;
-                    assert(nextLclVarRefPos != nullptr);
-                    if (!matchesPreferences || nextPhysRegRefPos->nodeLocation < nextLclVarRefPos->nodeLocation ||
-                        physRegRecord->conflictingFixedRegReference(nextLclVarRefPos))
+                    assert(nextRefPosition != nullptr);
+                    if (!matchesPreferences || nextPhysRegRefPos->nodeLocation < nextRefPosition->nodeLocation ||
+                        physRegRecord->conflictingFixedRegReference(nextRefPosition))
                     {
                         keepAssignment = false;
                     }
@@ -5731,8 +5723,20 @@ void LinearScan::allocateRegisters()
                     assert(copyReg != REG_NA);
                     INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_COPY_REG, currentInterval, copyReg));
                     lastAllocatedRefPosition = currentRefPosition;
-                    regsToFree.updateRegs(currentInterval, currentRefPosition,
-                                          genRegMask(assignedRegister) | currentRefPosition->registerAssignment);
+                    if (currentRefPosition->lastUse)
+                    {
+                        if (currentRefPosition->delayRegFree)
+                        {
+                            INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_LAST_USE_DELAYED, currentInterval,
+                                                            assignedRegister));
+                            delayRegsToFree |= (genRegMask(assignedRegister) | currentRefPosition->registerAssignment);
+                        }
+                        else
+                        {
+                            INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_LAST_USE, currentInterval, assignedRegister));
+                            regsToFree |= (genRegMask(assignedRegister) | currentRefPosition->registerAssignment);
+                        }
+                    }
                     // If this is a tree temp (non-localVar) interval, we will need an explicit move.
                     if (!currentInterval->isLocalVar)
                     {
@@ -5744,7 +5748,7 @@ void LinearScan::allocateRegisters()
                 else
                 {
                     INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_NEEDS_NEW_REG, nullptr, assignedRegister));
-                    regsToFree.current |= genRegMask(assignedRegister);
+                    regsToFree |= genRegMask(assignedRegister);
                     // We want a new register, but we don't want this to be considered a spill.
                     assignedRegister = REG_NA;
                     if (physRegRecord->assignedInterval == currentInterval)
@@ -5876,7 +5880,7 @@ void LinearScan::allocateRegisters()
             assignedRegBit                         = genRegMask(assignedRegister);
             currentRefPosition->registerAssignment = assignedRegBit;
             currentInterval->physReg               = assignedRegister;
-            regsToFree.current &= ~assignedRegBit; // we'll set it again later if it's dead
+            regsToFree &= ~assignedRegBit; // we'll set it again later if it's dead
 
             // If this interval is dead, free the register.
             // The interval could be dead if this is a user variable, or if the
@@ -5886,15 +5890,36 @@ void LinearScan::allocateRegisters()
             // (it will be freed when it is used).
             if (!currentInterval->IsUpperVector())
             {
-                regsToFree.updateRegs(currentInterval, currentRefPosition, assignedRegBit);
-
-                // Update the register preferences for the relatedInterval, if this is 'preferencedToDef'.
-                // Don't propagate to subsequent relatedIntervals; that will happen as they are allocated, and we
-                // don't know yet whether the register will be retained.
-                if ((currentRefPosition->lastUse || nextRefPosition == nullptr) &&
-                    (currentInterval->relatedInterval != nullptr))
+                if (currentRefPosition->lastUse || currentRefPosition->nextRefPosition == nullptr)
                 {
-                    currentInterval->relatedInterval->updateRegisterPreferences(assignedRegBit);
+                    assert(currentRefPosition->isIntervalRef());
+
+                    if (refType != RefTypeExpUse && currentRefPosition->nextRefPosition == nullptr)
+                    {
+                        if (currentRefPosition->delayRegFree)
+                        {
+                            delayRegsToFree |= assignedRegBit;
+
+                            INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_LAST_USE_DELAYED));
+                        }
+                        else
+                        {
+                            regsToFree |= assignedRegBit;
+
+                            INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_LAST_USE));
+                        }
+                    }
+                    else
+                    {
+                        currentInterval->isActive = false;
+                    }
+                    // Update the register preferences for the relatedInterval, if this is 'preferencedToDef'.
+                    // Don't propagate to subsequent relatedIntervals; that will happen as they are allocated, and we
+                    // don't know yet whether the register will be retained.
+                    if (currentInterval->relatedInterval != nullptr)
+                    {
+                        currentInterval->relatedInterval->updateRegisterPreferences(assignedRegBit);
+                    }
                 }
             }
 
@@ -5974,15 +5999,7 @@ void LinearScan::allocateRegisters()
     else
 #endif // DEBUG
     {
-        freeRegisters(&regsToFree);
-        if (!regsToFree.isEmpty())
-        {
-            // If we have current regsToFree at this point, it means that we had delayRegs with no
-            // corresponding def for it to interfere with, which shouldn't happen.
-            assert(!"Found a pending delayRegFree at end of allocation.");
-            // However, to be cautious for the Release build case, we will free them.
-            freeRegisters(&regsToFree);
-        }
+        freeRegisters(regsToFree | delayRegsToFree);
     }
 
 #ifdef DEBUG

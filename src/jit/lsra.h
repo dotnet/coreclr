@@ -1071,9 +1071,9 @@ private:
         {
             return current == RBM_NONE && delayed == RBM_NONE;
         }
-        void updateRegs(Interval* interval, RefPosition* refPosition, regMaskTP regMask);
+        void updateRegs(RefPosition* refPosition, regMaskTP regMask);
     };
-    void freeRegisters(RegsToFree* regsToFree);
+    void freeRegisters(regMaskTP regsToFree);
 
     // Get the type that this tree defines.
     var_types getDefType(GenTree* tree)

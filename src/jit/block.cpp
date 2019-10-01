@@ -1375,10 +1375,7 @@ BasicBlock* Compiler::bbNewBasicBlock(BBjumpKinds jumpKind)
 }
 
 //------------------------------------------------------------------------
-// blockhasEHBoundaryIn: Determine if this block has an incoming EH boundary.
-//
-// Arguments:
-//    block   - the BasicBlock
+// blockhasEHBoundaryIn: Determine if this block begins at an EH boundary.
 //
 // Return Value:
 //    True iff the block is the target of an EH edge; false otherwise.
@@ -1395,21 +1392,29 @@ bool BasicBlock::hasEHBoundaryIn()
 //------------------------------------------------------------------------
 // blockhasEHBoundaryOut: Determine if this block ends in an EH boundary.
 //
-// Arguments:
-//    block   - the BasicBlock
-//
 // Return Value:
-//    True iff the block end in an exception boundary that requires that all lclVars
-//    be valid on the stack; false otherwise.
+//    True iff the block ends in an exception boundary that requires that all lclVars
+//    have an up-to-date value on the stack; false otherwise.
 //
 bool BasicBlock::hasEHBoundaryOut()
 {
-    // If a predecessor is marked BBF_KEEP_BBJ_ALWAYS, then we must keep all live incoming
-    // vars on the stack.
-    if (((bbFlags & BBF_KEEP_BBJ_ALWAYS) != 0) || (bbJumpKind == BBJ_EHFILTERRET) || (bbJumpKind == BBJ_EHFINALLYRET))
+    // If a block is marked BBF_KEEP_BBJ_ALWAYS, it is always paired with its predecessor which is an
+    // EH boundary block. It must remain empty, and we must keep all live incoming vars on the stack.
+    if ((bbFlags & BBF_KEEP_BBJ_ALWAYS) != 0)
     {
         return true;
     }
+
+    if (bbJumpKind == BBJ_EHFILTERRET)
+    {
+        return true;
+    }
+
+    if (bbJumpKind == BBJ_EHFINALLYRET)
+    {
+        return true;
+    }
+
 #if FEATURE_EH_FUNCLETS
     if (bbJumpKind == BBJ_EHCATCHRET)
     {
