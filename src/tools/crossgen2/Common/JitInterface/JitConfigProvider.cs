@@ -21,18 +21,20 @@ namespace Internal.JitInterface
             get;
         }
 
+        public string JitPath
+        {
+            get;
+        }
+
         public IEnumerable<CorJitFlag> Flags => _jitFlags;
 
         /// <summary>
         /// Creates a new instance of <see cref="JitConfigProvider"/>.
         /// </summary>
         /// <param name="parameters">Name-value pairs separated by an equals sign.</param>
-        public JitConfigProvider(IEnumerable<CorJitFlag> jitFlags, IEnumerable<KeyValuePair<string, string>> parameters)
+        public JitConfigProvider(string jitPath, IEnumerable<CorJitFlag> jitFlags, IEnumerable<KeyValuePair<string, string>> parameters)
         {
-            foreach (var param in parameters)
-            {
-                _config[param.Key] = param.Value;
-            }
+            JitPath = jitPath;
 
             ArrayBuilder<CorJitFlag> jitFlagBuilder = new ArrayBuilder<CorJitFlag>();
             foreach (CorJitFlag jitFlag in jitFlags)
@@ -40,6 +42,11 @@ namespace Internal.JitInterface
                 jitFlagBuilder.Add(jitFlag);
             }
             _jitFlags = jitFlagBuilder.ToArray();
+
+            foreach (var param in parameters)
+            {
+                _config[param.Key] = param.Value;
+            }
 
             UnmanagedInstance = CreateUnmanagedInstance();
         }
