@@ -1315,46 +1315,37 @@ void Lowering::LowerArg(GenTreeCall* call, GenTree** ppArg)
 #if !defined(_TARGET_64BIT_)
     if (varTypeIsLong(type))
     {
-        bool isReg = (info->regNum != REG_STK);
-        if (isReg)
+        noway_assert(arg->OperIs(GT_LONG));
+        GenTree*          argLo     = arg->AsOp()->gtGetOp1();
+        GenTree*          argHi     = arg->AsOp()->gtGetOp2();
+        GenTreeFieldList* fieldList = new (comp, GT_FIELD_LIST) GenTreeFieldList();
+        fieldList->gtUses           = new (comp, CMK_ASTNode) GenTreeFieldList::Use(argLo, 0, TYP_INT);
+        fieldList->gtUses->SetNext(new (comp, CMK_ASTNode) GenTreeFieldList::Use(argHi, 4, TYP_INT));
+        GenTree* newArg = NewPutArg(call, fieldList, info, type);
+
+        if (info->regNum != REG_STK)
         {
-            noway_assert(arg->OperGet() == GT_LONG);
             assert(info->numRegs == 2);
-
-            GenTree* argLo = arg->gtGetOp1();
-            GenTree* argHi = arg->gtGetOp2();
-
-            GenTreeFieldList* fieldList = new (comp, GT_FIELD_LIST) GenTreeFieldList();
-            fieldList->gtUses           = new (comp, CMK_ASTNode) GenTreeFieldList::Use(argLo, 0, TYP_INT);
-            fieldList->gtUses->SetNext(new (comp, CMK_ASTNode) GenTreeFieldList::Use(argHi, 4, TYP_INT));
-            GenTree* putArg = NewPutArg(call, fieldList, info, type);
-
-            BlockRange().InsertBefore(arg, putArg);
-            BlockRange().Remove(arg);
-            *ppArg = fieldList;
-            assert(info->GetNode() == fieldList);
+            // In the register argument case, NewPutArg replaces the original field list args with new
+            // GT_PUTARG_REG nodes, inserts them in linear order and returns the field list. So the
+            // only thing left to do is to insert the field list itself in linear order.
+            assert(newArg == fieldList);
+            BlockRange().InsertBefore(arg, newArg);
         }
         else
         {
-            assert(arg->OperGet() == GT_LONG);
             // For longs, we will replace the GT_LONG with a GT_FIELD_LIST, and put that under a PUTARG_STK.
             // Although the hi argument needs to be pushed first, that will be handled by the general case,
             // in which the fields will be reversed.
             assert(info->numSlots == 2);
-            GenTree*          argLo     = arg->gtGetOp1();
-            GenTree*          argHi     = arg->gtGetOp2();
-            GenTreeFieldList* fieldList = new (comp, GT_FIELD_LIST) GenTreeFieldList();
-            fieldList->gtUses           = new (comp, CMK_ASTNode) GenTreeFieldList::Use(argLo, 0, TYP_INT);
-            fieldList->gtUses->SetNext(new (comp, CMK_ASTNode) GenTreeFieldList::Use(argHi, 4, TYP_INT));
-            GenTree* putArg  = NewPutArg(call, fieldList, info, type);
-            putArg->gtRegNum = info->regNum;
-
-            // We can't call ReplaceArgWithPutArgOrBitcast here because it presumes that we are keeping the original
-            // arg.
-            BlockRange().InsertBefore(arg, fieldList, putArg);
-            BlockRange().Remove(arg);
-            *ppArg = putArg;
+            newArg->gtRegNum = REG_STK;
+            BlockRange().InsertBefore(arg, fieldList, newArg);
         }
+
+        *ppArg = newArg;
+        assert(info->GetNode() == newArg);
+
+        BlockRange().Remove(arg);
     }
     else
 #endif // !defined(_TARGET_64BIT_)
