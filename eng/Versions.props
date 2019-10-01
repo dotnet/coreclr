@@ -2,13 +2,13 @@
 <Project>
   <PropertyGroup>
     <!-- The .NET Core product branding version -->
-    <ProductVersion>3.0.1</ProductVersion>
+    <ProductVersion>3.1.0</ProductVersion>
     <!-- File version numbers -->
     <MajorVersion>4</MajorVersion>
     <MinorVersion>7</MinorVersion>
     <!-- Always use shipping version instead of dummy versions -->
     <DotNetUseShippingVersions>true</DotNetUseShippingVersions>
-    <PreReleaseVersionLabel>servicing</PreReleaseVersionLabel>
+    <PreReleaseVersionLabel>preview1</PreReleaseVersionLabel>
     <!-- Opt-in/out repo features -->
     <UsingToolIbcOptimization>true</UsingToolIbcOptimization>
     <UsingToolMicrosoftNetCompilers>true</UsingToolMicrosoftNetCompilers>
@@ -21,11 +21,11 @@
     <!-- roslyn -->
     <MicrosoftNetCompilersToolsetVersion>3.3.0-beta2-19367-02</MicrosoftNetCompilersToolsetVersion>
     <!-- corefx -->
-    <MicrosoftPrivateCoreFxNETCoreAppVersion>4.6.0-rc2.19461.13</MicrosoftPrivateCoreFxNETCoreAppVersion>
-    <MicrosoftNETCorePlatformsVersion>3.0.0-rc2.19461.13</MicrosoftNETCorePlatformsVersion>
+    <MicrosoftPrivateCoreFxNETCoreAppVersion>4.7.0-preview1.19461.12</MicrosoftPrivateCoreFxNETCoreAppVersion>
+    <MicrosoftNETCorePlatformsVersion>3.1.0-preview1.19461.12</MicrosoftNETCorePlatformsVersion>
     <MicrosoftBclAsyncInterfacesVersion>1.0.0-preview7.19326.2</MicrosoftBclAsyncInterfacesVersion>
     <!-- core-setup -->
-    <MicrosoftNETCoreAppVersion>3.0.0-rc2-19460-02</MicrosoftNETCoreAppVersion>
+    <MicrosoftNETCoreAppVersion>3.1.0-preview1.19459.38</MicrosoftNETCoreAppVersion>
     <!-- dotnet-core-internal-tooling -->
     <IbcMergePackageVersion>5.0.6-beta.19203.1</IbcMergePackageVersion>
     <!-- dotnet-optimization -->
