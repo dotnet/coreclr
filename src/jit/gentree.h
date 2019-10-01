@@ -2418,35 +2418,108 @@ struct GenTreeFieldList : public GenTree
 
     class UseList
     {
-        Use* head;
+        Use* m_head;
+        Use* m_tail;
 
     public:
-        UseList(Use* head) : head(head)
+        UseList() : m_head(nullptr), m_tail(nullptr)
         {
+        }
+
+        Use* GetHead() const
+        {
+            return m_head;
         }
 
         UseIterator begin() const
         {
-            return head;
+            return m_head;
         }
 
         UseIterator end() const
         {
             return nullptr;
         }
+
+        void AddUse(Use* newUse)
+        {
+            assert(newUse->GetNext() == nullptr);
+
+            if (m_head == nullptr)
+            {
+                m_head = newUse;
+            }
+            else
+            {
+                m_tail->SetNext(newUse);
+            }
+
+            m_tail = newUse;
+        }
+
+        void InsertUse(Use* insertAfter, Use* newUse)
+        {
+            assert(newUse->GetNext() == nullptr);
+
+            newUse->SetNext(insertAfter->GetNext());
+            insertAfter->SetNext(newUse);
+
+            if (m_tail == insertAfter)
+            {
+                m_tail = newUse;
+            }
+        }
+
+        void Reverse()
+        {
+            m_tail = m_head;
+            m_head = nullptr;
+
+            for (Use *next, *use = m_tail; use != nullptr; use = next)
+            {
+                next = use->GetNext();
+                use->SetNext(m_head);
+                m_head = use;
+            }
+        }
+
+        bool IsSorted() const
+        {
+            unsigned offset = 0;
+            for (GenTreeFieldList::Use& use : *this)
+            {
+                if (use.GetOffset() < offset)
+                {
+                    return false;
+                }
+                offset = use.GetOffset();
+            }
+            return true;
+        }
     };
 
-    Use* gtUses;
+private:
+    UseList m_uses;
 
-    GenTreeFieldList() : GenTree(GT_FIELD_LIST, TYP_STRUCT), gtUses(nullptr)
+public:
+    GenTreeFieldList() : GenTree(GT_FIELD_LIST, TYP_STRUCT)
     {
         SetContained();
     }
 
-    UseList Uses()
+    UseList& Uses()
     {
-        return gtUses;
+        return m_uses;
     }
+
+    // Add a new field use to the end of the use list and update side effect flags.
+    void AddField(Compiler* compiler, GenTree* node, unsigned offset, var_types type);
+    // Add a new field use to the end of the use list without updating side effect flags.
+    void AddFieldLIR(Compiler* compiler, GenTree* node, unsigned offset, var_types type);
+    // Insert a new field use after the specified use and update side effect flags.
+    void InsertField(Compiler* compiler, Use* insertAfter, GenTree* node, unsigned offset, var_types type);
+    // Insert a new field use after the specified use without updating side effect flags.
+    void InsertFieldLIR(Compiler* compiler, Use* insertAfter, GenTree* node, unsigned offset, var_types type);
 
     //--------------------------------------------------------------------------
     // Equals: Check if 2 FIELD_LIST nodes are equal.

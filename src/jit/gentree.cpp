@@ -793,6 +793,29 @@ regMaskTP GenTree::gtGetRegMask() const
     return resultMask;
 }
 
+void GenTreeFieldList::AddField(Compiler* compiler, GenTree* node, unsigned offset, var_types type)
+{
+    m_uses.AddUse(new (compiler, CMK_ASTNode) Use(node, offset, type));
+    gtFlags |= node->gtFlags & GTF_ALL_EFFECT;
+}
+
+void GenTreeFieldList::AddFieldLIR(Compiler* compiler, GenTree* node, unsigned offset, var_types type)
+{
+    m_uses.AddUse(new (compiler, CMK_ASTNode) Use(node, offset, type));
+}
+
+void GenTreeFieldList::InsertField(Compiler* compiler, Use* insertAfter, GenTree* node, unsigned offset, var_types type)
+{
+    m_uses.InsertUse(insertAfter, new (compiler, CMK_ASTNode) Use(node, offset, type));
+    gtFlags |= node->gtFlags & GTF_ALL_EFFECT;
+}
+
+void GenTreeFieldList::InsertFieldLIR(
+    Compiler* compiler, Use* insertAfter, GenTree* node, unsigned offset, var_types type)
+{
+    m_uses.InsertUse(insertAfter, new (compiler, CMK_ASTNode) Use(node, offset, type));
+}
+
 //---------------------------------------------------------------
 // GetOtherRegMask: Get the reg mask of gtOtherRegs of call node
 //
@@ -7508,20 +7531,13 @@ GenTree* Compiler::gtCloneExpr(
         break;
 
         case GT_FIELD_LIST:
-        {
-            copy                         = new (this, GT_FIELD_LIST) GenTreeFieldList();
-            copy->gtType                 = tree->gtType;
-            GenTreeFieldList::Use** tail = &copy->AsFieldList()->gtUses;
+            copy = new (this, GT_FIELD_LIST) GenTreeFieldList();
             for (GenTreeFieldList::Use& use : tree->AsFieldList()->Uses())
             {
-                *tail = new (this, CMK_ASTNode)
-                    GenTreeFieldList::Use(gtCloneExpr(use.GetNode(), addFlags, deepVarNum, deepVarVal), use.GetOffset(),
-                                          use.GetType());
-                copy->gtFlags |= (*tail)->GetNode()->gtFlags & GTF_ALL_EFFECT;
-                tail = &((*tail)->NextRef());
+                copy->AsFieldList()->AddField(this, gtCloneExpr(use.GetNode(), addFlags, deepVarNum, deepVarVal),
+                                              use.GetOffset(), use.GetType());
             }
-        }
-        break;
+            break;
 
         case GT_CMPXCHG:
             copy = new (this, GT_CMPXCHG)
@@ -8752,7 +8768,7 @@ GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
 
         // Special nodes
         case GT_FIELD_LIST:
-            m_statePtr = m_node->AsFieldList()->gtUses;
+            m_statePtr = m_node->AsFieldList()->Uses().GetHead();
             m_advance  = &GenTreeUseEdgeIterator::AdvanceFieldList;
             AdvanceFieldList();
             return;

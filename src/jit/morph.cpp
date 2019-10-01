@@ -3928,21 +3928,13 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
             noway_assert(!reMorphing);
 
 #ifdef _TARGET_X86_
-
             // Build the mkrefany as a GT_FIELD_LIST
             GenTreeFieldList* fieldList = new (this, GT_FIELD_LIST) GenTreeFieldList();
-            fieldList->gtUses           = new (this, CMK_ASTNode)
-                GenTreeFieldList::Use(argx->gtOp.gtOp1, OFFSETOF__CORINFO_TypedReference__dataPtr, TYP_BYREF);
-            fieldList->gtUses->SetNext(
-                new (this, CMK_ASTNode)
-                    GenTreeFieldList::Use(argx->gtOp.gtOp2, OFFSETOF__CORINFO_TypedReference__type, TYP_I_IMPL));
-            fieldList->gtFlags |=
-                (fieldList->gtUses->GetNode()->gtFlags | fieldList->gtUses->GetNext()->GetNode()->gtFlags) &
-                GTF_ALL_EFFECT;
-            fgArgTabEntry* fp = Compiler::gtArgEntryByNode(call, argx);
+            fieldList->AddField(this, argx->AsOp()->gtGetOp1(), OFFSETOF__CORINFO_TypedReference__dataPtr, TYP_BYREF);
+            fieldList->AddField(this, argx->AsOp()->gtGetOp2(), OFFSETOF__CORINFO_TypedReference__type, TYP_I_IMPL);
+            fgArgTabEntry* fp = gtArgEntryByNode(call, argx);
             args->SetNode(fieldList);
             assert(fp->GetNode() == fieldList);
-
 #else  // !_TARGET_X86_
 
             // Get a new temp
@@ -4006,32 +3998,29 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                 LclVarDsc*           varDsc    = lvaGetDesc(lcl);
                 GenTreeFieldList*    fieldList = new (this, GT_FIELD_LIST) GenTreeFieldList();
 
-                fgArgTabEntry* fp = Compiler::gtArgEntryByNode(call, argx);
+                fgArgTabEntry* fp = gtArgEntryByNode(call, argx);
                 args->SetNode(fieldList);
                 assert(fp->GetNode() == fieldList);
 
-                GenTreeFieldList::Use** tail = &fieldList->gtUses;
                 for (unsigned fieldLclNum = varDsc->lvFieldLclStart;
                      fieldLclNum < varDsc->lvFieldLclStart + varDsc->lvFieldCnt; ++fieldLclNum)
                 {
-                    LclVarDsc* fieldVarDsc = &lvaTable[fieldLclNum];
+                    LclVarDsc* fieldVarDsc = lvaGetDesc(fieldLclNum);
+                    GenTree*   fieldLcl;
+
                     if (fieldLclNum == varDsc->lvFieldLclStart)
                     {
                         lcl->SetLclNum(fieldLclNum);
                         lcl->ChangeOper(GT_LCL_VAR);
-                        lcl->gtType = fieldVarDsc->lvType;
-
-                        *tail = new (this, CMK_ASTNode)
-                            GenTreeFieldList::Use(lcl, fieldVarDsc->lvFldOffset, fieldVarDsc->lvType);
+                        lcl->gtType = fieldVarDsc->TypeGet();
+                        fieldLcl    = lcl;
                     }
                     else
                     {
-                        GenTree* fieldLcl = gtNewLclvNode(fieldLclNum, fieldVarDsc->lvType);
-                        *tail             = new (this, CMK_ASTNode)
-                            GenTreeFieldList::Use(fieldLcl, fieldVarDsc->lvFldOffset, fieldVarDsc->lvType);
+                        fieldLcl = gtNewLclvNode(fieldLclNum, fieldVarDsc->TypeGet());
                     }
 
-                    tail = &((*tail)->NextRef());
+                    fieldList->AddField(this, fieldLcl, fieldVarDsc->lvFldOffset, fieldVarDsc->TypeGet());
                 }
             }
         }
@@ -4578,17 +4567,14 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
                 {
                     // We can use the struct promoted field as the two arguments
 
-                    GenTree* loLclVar = gtNewLclvNode(loVarNum, loType);
-                    GenTree* hiLclVar = gtNewLclvNode(hiVarNum, hiType);
-
                     // Create a new tree for 'arg'
                     //    replace the existing LDOBJ(ADDR(LCLVAR))
                     //    with a FIELD_LIST(LCLVAR-LO, FIELD_LIST(LCLVAR-HI, nullptr))
                     //
-                    newArg         = new (this, GT_FIELD_LIST) GenTreeFieldList();
-                    newArg->gtUses = new (this, CMK_ASTNode) GenTreeFieldList::Use(loLclVar, 0, loType);
-                    newArg->gtUses->SetNext(new (this, CMK_ASTNode)
-                                                GenTreeFieldList::Use(hiLclVar, TARGET_POINTER_SIZE, hiType));
+
+                    newArg = new (this, GT_FIELD_LIST) GenTreeFieldList();
+                    newArg->AddField(this, gtNewLclvNode(loVarNum, loType), 0, loType);
+                    newArg->AddField(this, gtNewLclvNode(hiVarNum, hiType), TARGET_POINTER_SIZE, hiType);
                 }
             }
         }
@@ -4721,17 +4707,13 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
             //    replace the existing LDOBJ(ADDR(LCLVAR))
             //    with a FIELD_LIST(LCLFLD-LO, LCLFLD-HI)
             //
-            unsigned offset              = baseOffset;
-            newArg                       = new (this, GT_FIELD_LIST) GenTreeFieldList();
-            GenTreeFieldList::Use** tail = &newArg->AsFieldList()->gtUses;
-
+            unsigned offset = baseOffset;
+            newArg          = new (this, GT_FIELD_LIST) GenTreeFieldList();
             for (unsigned inx = 0; inx < elemCount; inx++)
             {
-                elemSize            = genTypeSize(type[inx]);
                 GenTree* nextLclFld = gtNewLclFldNode(varNum, type[inx], offset);
-                *tail               = new (this, CMK_ASTNode) GenTreeFieldList::Use(nextLclFld, offset, type[inx]);
-                tail                = &((*tail)->NextRef());
-                offset += elemSize;
+                newArg->AddField(this, nextLclFld, offset, type[inx]);
+                offset += genTypeSize(type[inx]);
             }
         }
         // Are we passing a GT_OBJ struct?
@@ -4760,12 +4742,10 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
             //    with a FIELD_LIST(IND(EXPR), FIELD_LIST(IND(EXPR+8), nullptr) ...)
             //
 
-            unsigned offset              = 0;
-            newArg                       = new (this, GT_FIELD_LIST) GenTreeFieldList();
-            GenTreeFieldList::Use** tail = &newArg->AsFieldList()->gtUses;
+            newArg          = new (this, GT_FIELD_LIST) GenTreeFieldList();
+            unsigned offset = 0;
             for (unsigned inx = 0; inx < elemCount; inx++)
             {
-                elemSize         = genTypeSize(type[inx]);
                 GenTree* curAddr = baseAddr;
                 if (offset != 0)
                 {
@@ -4781,11 +4761,9 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
 
                 // For safety all GT_IND should have at least GT_GLOB_REF set.
                 curItem->gtFlags |= GTF_GLOB_REF;
-                newArg->gtFlags |= curItem->gtFlags & GTF_ALL_EFFECT;
 
-                *tail = new (this, CMK_ASTNode) GenTreeFieldList::Use(curItem, offset, type[inx]);
-                tail  = (&(*tail)->NextRef());
-                offset += elemSize;
+                newArg->AddField(this, curItem, offset, type[inx]);
+                offset += genTypeSize(type[inx]);
             }
         }
     }
@@ -4800,12 +4778,6 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
 #endif
 
     noway_assert(newArg != nullptr);
-    noway_assert(newArg->OperIs(GT_FIELD_LIST));
-
-    for (GenTreeFieldList::Use& use : newArg->AsFieldList()->Uses())
-    {
-        newArg->gtFlags |= (use.GetNode()->gtFlags & GTF_ALL_EFFECT);
-    }
 
 #ifdef DEBUG
     if (verbose)
@@ -4833,25 +4805,20 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
 //
 GenTreeFieldList* Compiler::fgMorphLclArgToFieldlist(GenTreeLclVarCommon* lcl)
 {
-    LclVarDsc* varDsc = &(lvaTable[lcl->GetLclNum()]);
-    assert(varDsc->lvPromoted == true);
+    LclVarDsc* varDsc = lvaGetDesc(lcl);
+    assert(varDsc->lvPromoted);
+    unsigned fieldCount  = varDsc->lvFieldCnt;
+    unsigned fieldLclNum = varDsc->lvFieldLclStart;
 
-    unsigned                fieldCount  = varDsc->lvFieldCnt;
-    GenTreeFieldList*       newArg      = new (this, GT_FIELD_LIST) GenTreeFieldList();
-    GenTreeFieldList::Use** tail        = &newArg->gtUses;
-    unsigned                fieldLclNum = varDsc->lvFieldLclStart;
-
-    // We can use the struct promoted field as arguments
+    GenTreeFieldList* fieldList = new (this, GT_FIELD_LIST) GenTreeFieldList();
     for (unsigned i = 0; i < fieldCount; i++)
     {
-        LclVarDsc* fieldVarDsc = &lvaTable[fieldLclNum];
-        GenTree*   lclVar      = gtNewLclvNode(fieldLclNum, fieldVarDsc->lvType);
-
-        *tail = new (this, CMK_ASTNode) GenTreeFieldList::Use(lclVar, fieldVarDsc->lvFldOffset, fieldVarDsc->lvType);
-        tail  = &((*tail)->NextRef());
+        LclVarDsc* fieldVarDsc = lvaGetDesc(fieldLclNum);
+        GenTree*   lclVar      = gtNewLclvNode(fieldLclNum, fieldVarDsc->TypeGet());
+        fieldList->AddField(this, lclVar, fieldVarDsc->lvFldOffset, fieldVarDsc->TypeGet());
         fieldLclNum++;
     }
-    return newArg;
+    return fieldList;
 }
 
 //------------------------------------------------------------------------

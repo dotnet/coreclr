@@ -710,14 +710,10 @@ GenTree* DecomposeLongs::DecomposeFieldList(GenTreeFieldList* fieldList, GenTree
 
     Range().Remove(longNode);
 
-    loUse->SetNode(longNode->gtOp1);
+    loUse->SetNode(longNode->gtGetOp1());
     loUse->SetType(TYP_INT);
 
-    GenTreeFieldList::Use* hiUse =
-        new (m_compiler, CMK_ASTNode) GenTreeFieldList::Use(longNode->gtOp2, loUse->GetOffset() + 4, TYP_INT);
-
-    hiUse->SetNext(loUse->GetNext());
-    loUse->SetNext(hiUse);
+    fieldList->InsertFieldLIR(m_compiler, loUse, longNode->gtGetOp2(), loUse->GetOffset() + 4, TYP_INT);
 
     return fieldList->gtNext;
 }

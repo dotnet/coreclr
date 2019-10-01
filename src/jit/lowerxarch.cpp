@@ -419,48 +419,8 @@ void Lowering::LowerPutArgStk(GenTreePutArgStk* putArgStk)
 
         // The code generator will push these fields in reverse order by offset. Reorder the list here s.t. the order
         // of uses is visible to LSRA.
-        unsigned               fieldCount = 0;
-        GenTreeFieldList::Use* head       = nullptr;
-        for (GenTreeFieldList::Use *current = fieldList->gtUses, *next; current != nullptr; current = next)
-        {
-            next = current->GetNext();
-
-            // First, insert the field node into the sorted list.
-            GenTreeFieldList::Use* prev = nullptr;
-            for (GenTreeFieldList::Use* cursor = head;; cursor = cursor->GetNext())
-            {
-                // If the offset of the current list node is greater than the offset of the cursor or if we have
-                // reached the end of the list, insert the current node before the cursor and terminate.
-                if ((cursor == nullptr) || (current->GetOffset() > cursor->GetOffset()))
-                {
-                    if (prev == nullptr)
-                    {
-                        assert(cursor == head);
-                        head = current;
-                    }
-                    else
-                    {
-                        prev->SetNext(current);
-                    }
-
-                    current->SetNext(cursor);
-                    break;
-                }
-            }
-
-            fieldCount++;
-        }
-
-        // In theory, the upper bound for the size of a field list is 8: these constructs only appear when passing the
-        // collection of lclVars that represent the fields of a promoted struct lclVar, and we do not promote struct
-        // lclVars with more than 4 fields. If each of these lclVars is of type long, decomposition will split the
-        // corresponding field list nodes in two, giving an upper bound of 8.
-        //
-        // The reason that this is important is that the algorithm we use above to sort the field list is O(N^2): if
-        // the maximum size of a field list grows significantly, we will need to reevaluate it.
-        assert(fieldCount <= 8);
-
-        fieldList->gtUses = head;
+        assert(fieldList->Uses().IsSorted());
+        fieldList->Uses().Reverse();
 
         // Now that the fields have been sorted, the kind of code we will generate.
         bool     allFieldsAreSlots = true;

@@ -1316,11 +1316,9 @@ void Lowering::LowerArg(GenTreeCall* call, GenTree** ppArg)
     if (varTypeIsLong(type))
     {
         noway_assert(arg->OperIs(GT_LONG));
-        GenTree*          argLo     = arg->AsOp()->gtGetOp1();
-        GenTree*          argHi     = arg->AsOp()->gtGetOp2();
         GenTreeFieldList* fieldList = new (comp, GT_FIELD_LIST) GenTreeFieldList();
-        fieldList->gtUses           = new (comp, CMK_ASTNode) GenTreeFieldList::Use(argLo, 0, TYP_INT);
-        fieldList->gtUses->SetNext(new (comp, CMK_ASTNode) GenTreeFieldList::Use(argHi, 4, TYP_INT));
+        fieldList->AddFieldLIR(comp, arg->AsOp()->gtGetOp1(), 0, TYP_INT);
+        fieldList->AddFieldLIR(comp, arg->AsOp()->gtGetOp2(), 4, TYP_INT);
         GenTree* newArg = NewPutArg(call, fieldList, info, type);
 
         if (info->regNum != REG_STK)
