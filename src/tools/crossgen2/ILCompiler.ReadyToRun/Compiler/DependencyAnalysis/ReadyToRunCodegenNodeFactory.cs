@@ -498,7 +498,7 @@ namespace ILCompiler.DependencyAnalysis
             return _methodSignatures.GetOrAdd(new MethodFixupKey(fixupKind, key));
         }
 
-        private class TypeFixupKey: IEquatable<TypeFixupKey>
+        private class TypeFixupKey : IEquatable<TypeFixupKey>
         {
             public readonly ReadyToRunFixupKind FixupKind;
             public readonly TypeDesc TypeDesc;

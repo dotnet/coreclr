@@ -21,7 +21,6 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
         public SignatureContext SignatureContext { get; }
 
         private ObjectData _methodCode;
-        private int _compilationStarted;
         private FrameInfo[] _frameInfos;
         private byte[] _gcInfo;
         private ObjectData _ehInfo;

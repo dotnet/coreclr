@@ -65,45 +65,45 @@ public sealed class PerfEventSourceListener
         // For all of the events below, we only want to process them after the warmup is complete. We can't just start this listener after
         // we have started the warmup because those runs might take some time, and we don't want to erroneously process warmup events when
         // trying to measure the real runs.
-        traceEventSession.Source.Dynamic.AddCallbackForProviderEvent(providerName, "LoadingPhase/Start", delegate (TraceEvent traceEvent)
+        traceEventSession.Source.Dynamic.AddCallbackForProviderEvent(providerName, "Loading/Start", delegate (TraceEvent traceEvent)
         {
             if (_doneWarmup.WaitOne(0))
                 _loadingMsec -= traceEvent.TimeStampRelativeMSec;
         });
-        traceEventSession.Source.Dynamic.AddCallbackForProviderEvent(providerName, "LoadingPhase/Stop", delegate (TraceEvent traceEvent)
+        traceEventSession.Source.Dynamic.AddCallbackForProviderEvent(providerName, "Loading/Stop", delegate (TraceEvent traceEvent)
         {
             if (_doneWarmup.WaitOne(0))
                 _loadingMsec += traceEvent.TimeStampRelativeMSec;
         });
 
-        traceEventSession.Source.Dynamic.AddCallbackForProviderEvent(providerName, "GraphProcessingPhase/Start", delegate (TraceEvent traceEvent)
+        traceEventSession.Source.Dynamic.AddCallbackForProviderEvent(providerName, "GraphProcessing/Start", delegate (TraceEvent traceEvent)
         {
             if (_doneWarmup.WaitOne(0))
                 _graphProcessingMsec -= traceEvent.TimeStampRelativeMSec;
         });
-        traceEventSession.Source.Dynamic.AddCallbackForProviderEvent(providerName, "GraphProcessingPhase/Stop", delegate (TraceEvent traceEvent)
+        traceEventSession.Source.Dynamic.AddCallbackForProviderEvent(providerName, "GraphProcessing/Stop", delegate (TraceEvent traceEvent)
         {
             if (_doneWarmup.WaitOne(0))
                 _graphProcessingMsec += traceEvent.TimeStampRelativeMSec;
         });
 
-        traceEventSession.Source.Dynamic.AddCallbackForProviderEvent(providerName, "EmittingPhase/Start", delegate (TraceEvent traceEvent)
+        traceEventSession.Source.Dynamic.AddCallbackForProviderEvent(providerName, "Emitting/Start", delegate (TraceEvent traceEvent)
         {
             if (_doneWarmup.WaitOne(0))
                 _emittingMsec -= traceEvent.TimeStampRelativeMSec;
         });
-        traceEventSession.Source.Dynamic.AddCallbackForProviderEvent(providerName, "EmittingPhase/Stop", delegate (TraceEvent traceEvent)
+        traceEventSession.Source.Dynamic.AddCallbackForProviderEvent(providerName, "Emitting/Stop", delegate (TraceEvent traceEvent)
         {
             if (_doneWarmup.WaitOne(0))
                 _emittingMsec += traceEvent.TimeStampRelativeMSec;
         });
 
-        traceEventSession.Source.Dynamic.AddCallbackForProviderEvent(providerName, "JitSection/Start", delegate (TraceEvent traceEvent)
+        traceEventSession.Source.Dynamic.AddCallbackForProviderEvent(providerName, "Jit/Start", delegate (TraceEvent traceEvent)
         {
             if (_doneWarmup.WaitOne(0))
                 _jitMsec -= traceEvent.TimeStampRelativeMSec;
         });
-        traceEventSession.Source.Dynamic.AddCallbackForProviderEvent(providerName, "JitSection/Stop", delegate (TraceEvent traceEvent)
+        traceEventSession.Source.Dynamic.AddCallbackForProviderEvent(providerName, "Jit/Stop", delegate (TraceEvent traceEvent)
         {
             if (_doneWarmup.WaitOne(0))
                 _jitMsec += traceEvent.TimeStampRelativeMSec;
