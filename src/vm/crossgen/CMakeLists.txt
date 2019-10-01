@@ -262,7 +262,7 @@ endif (CLR_CMAKE_PLATFORM_LINUX)
 add_library_clr(cee_crossgen ${VM_CROSSGEN_SOURCES})
 add_dependencies(cee_crossgen eventing_headers)
 set_target_properties(cee_crossgen PROPERTIES CROSSGEN_COMPONENT TRUE)
-target_precompile_header(cee_crossgen common.h)
+target_precompile_header(TARGET cee_crossgen HEADER common.h)
 if (MSVC)
   # mscorlib.cpp does not compile with precompiled header file
   set_source_files_properties(../mscorlib.cpp PROPERTIES COMPILE_FLAGS "/Y-")

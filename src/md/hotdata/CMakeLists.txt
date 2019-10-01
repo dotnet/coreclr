@@ -31,16 +31,16 @@ endif (WIN32)
 
 add_library_clr(mdhotdata_dac ${MDHOTDATA_SOURCES})
 set_target_properties(mdhotdata_dac PROPERTIES DAC_COMPONENT TRUE)
-target_precompile_header(mdhotdata_dac external.h)
+target_precompile_header(TARGET mdhotdata_dac HEADER external.h)
 
 add_library_clr(mdhotdata_full ${MDHOTDATA_SOURCES})
-target_precompile_header(mdhotdata_full external.h)
+target_precompile_header(TARGET mdhotdata_full HEADER external.h)
 
 add_library_clr(mdhotdata_crossgen ${MDHOTDATA_SOURCES})
 set_target_properties(mdhotdata_crossgen PROPERTIES CROSSGEN_COMPONENT TRUE)
-target_precompile_header(mdhotdata_crossgen external.h)
+target_precompile_header(TARGET mdhotdata_crossgen HEADER external.h)
 
 if(WIN32)
   add_library_clr(mdhotdata-staticcrt ${MDHOTDATA_SOURCES})
-  target_precompile_header(mdhotdata-staticcrt external.h)
+  target_precompile_header(TARGET mdhotdata-staticcrt HEADER external.h)
 endif(WIN32)

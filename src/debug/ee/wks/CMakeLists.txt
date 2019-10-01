@@ -37,5 +37,5 @@ else ()
 
 endif (WIN32)
 
-target_precompile_header(cordbee_wks stdafx.h)
+target_precompile_header(TARGET cordbee_wks HEADER stdafx.h)
 add_dependencies(cordbee_wks eventing_headers)

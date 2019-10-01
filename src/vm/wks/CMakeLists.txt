@@ -8,7 +8,7 @@ if (WIN32)
 endif (WIN32)
 
 add_library_clr(cee_wks ${VM_SOURCES_WKS} ${VM_SOURCES_WKS_ARCH_ASM})
-target_precompile_header(cee_wks common.h)
+target_precompile_header(TARGET cee_wks HEADER common.h)
 if (MSVC)
     # mscorlib.cpp does not compile with precompiled header file
     set_source_files_properties(../mscorlib.cpp PROPERTIES COMPILE_FLAGS "/Y-")

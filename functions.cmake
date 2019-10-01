@@ -101,7 +101,7 @@ function(preprocess_compile_asm)
   set(options "")
   set(oneValueArgs OUTPUT_OBJECTS)
   set(multiValueArgs ASM_FILES)
-  cmake_parse_arguments(COMPILE_ASM "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+  cmake_parse_arguments(PARSE_ARGV 0 COMPILE_ASM "${options}" "${oneValueArgs}" "${multiValueArgs}")
   
   get_include_directories_asm(ASM_INCLUDE_DIRECTORIES)
 
@@ -182,49 +182,49 @@ function(generate_exports_file_prefix inputFilename outputFilename prefix)
                               PROPERTIES GENERATED TRUE)
 endfunction()
 
-function(add_precompiled_header header cppFile targetSources)
-  if(MSVC)
-    set(precompiledBinary "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/stdafx.pch")
+# target_precompile_header(TARGET targetName HEADER headerName [ADDITIONAL_INCLUDE_DIRECTORIES includeDirs])
+function(target_precompile_header)
+  set(options "")
+  set(oneValueArgs TARGET HEADER)
+  set(multiValueArgs ADDITIONAL_INCLUDE_DIRECTORIES)
+  cmake_parse_arguments(PARSE_ARGV 0 PRECOMPILE_HEADERS "${options}" "${oneValueArgs}" "${multiValueArgs}")
 
-    set_source_files_properties(${cppFile}
-                                PROPERTIES COMPILE_FLAGS "/Yc\"${header}\" /Fp\"${precompiledBinary}\""
-                                           OBJECT_OUTPUTS "${precompiledBinary}")
-    set_source_files_properties(${${targetSources}}
-                                PROPERTIES COMPILE_FLAGS "/Yu\"${header}\" /Fp\"${precompiledBinary}\""
-                                           OBJECT_DEPENDS "${precompiledBinary}")
-    # Add cppFile to SourcesVar
-    set(${targetSources} ${${targetSources}} ${cppFile} PARENT_SCOPE)
-  endif(MSVC)
-endfunction()
+  if (PRECOMPILE_HEADERS_TARGET STREQUAL "")
+  message(SEND_ERROR "No target supplied to target_precompile_header.")
+  endif()
+  if (PRECOMPILE_HEADERS_HEADER STREQUAL "")
+    message(SEND_ERROR "No header supplied to target_precompile_header.")
+  endif()
 
-function(target_precompile_header targetName header)
   if(MSVC)
-    get_filename_component(PCH_NAME ${header} NAME_WE)
+    get_filename_component(PCH_NAME ${PRECOMPILE_HEADERS_HEADER} NAME_WE)
     # We need to use the $<TARGET_PROPERTY:NAME> generator here instead of the ${targetName} variable since
     # CMake evaluates source file properties once per directory. If we just use ${targetName}, we end up sharing
     # the same PCH between targets, which doesn't work.
     set(precompiledBinary "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/${PCH_NAME}.$<TARGET_PROPERTY:NAME>.pch")
-    set(pchSourceFile "${CMAKE_CURRENT_BINARY_DIR}/${PCH_NAME}.${targetName}.cpp")
+    set(pchSourceFile "${CMAKE_CURRENT_BINARY_DIR}/${PCH_NAME}.${PRECOMPILE_HEADERS_TARGET}.cpp")
 
-    file(GENERATE OUTPUT ${pchSourceFile} CONTENT "#include \"${header}\"")
+    file(GENERATE OUTPUT ${pchSourceFile} CONTENT "#include \"${PRECOMPILE_HEADERS_HEADER}\"")
+
+    set(PCH_SOURCE_FILE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR} ${PRECOMPILE_HEADERS_ADDITIONAL_INCLUDE_DIRECTORIES})
 
     set_source_files_properties(${pchSourceFile}
-                                PROPERTIES COMPILE_FLAGS "/Yc\"${header}\" /Fp\"${precompiledBinary}\""
+                                PROPERTIES COMPILE_FLAGS "/Yc\"${PRECOMPILE_HEADERS_HEADER}\" /Fp\"${precompiledBinary}\""
                                             OBJECT_OUTPUTS "${precompiledBinary}"
-                                            INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
-    get_target_property(TARGET_SOURCES ${targetName} SOURCES)
+                                            INCLUDE_DIRECTORIES "${PCH_SOURCE_FILE_INCLUDE_DIRECTORIES}")
+    get_target_property(TARGET_SOURCES ${PRECOMPILE_HEADERS_TARGET} SOURCES)
 
     foreach (SOURCE ${TARGET_SOURCES})
       get_source_file_property(SOURCE_LANG ${SOURCE} LANGUAGE)
       if (("${SOURCE_LANG}" STREQUAL "C") OR ("${SOURCE_LANG}" STREQUAL "CXX"))
         set_source_files_properties(${SOURCE}
-          PROPERTIES COMPILE_FLAGS "/Yu\"${header}\" /Fp\"${precompiledBinary}\""
+          PROPERTIES COMPILE_FLAGS "/Yu\"${PRECOMPILE_HEADERS_HEADER}\" /Fp\"${precompiledBinary}\""
                       OBJECT_DEPENDS "${precompiledBinary}")
       endif()
     endforeach()
 
-    # Add pchSourceFile to targetName target
-    target_sources(${targetName} PRIVATE ${pchSourceFile})
+    # Add pchSourceFile to PRECOMPILE_HEADERS_TARGET target
+    target_sources(${PRECOMPILE_HEADERS_TARGET} PRIVATE ${pchSourceFile})
   endif(MSVC)
 endfunction()
 

@@ -46,7 +46,7 @@ _add_library(superpmi-shim-collector
     ${SUPERPMI_SHIM_COLLECTOR_SOURCES}
 )
 
-target_precompile_header(superpmi-shim-collector standardpch.h)
+target_precompile_header(TARGET superpmi-shim-collector HEADER standardpch.h)
 
 if(CLR_CMAKE_PLATFORM_UNIX)
     target_link_libraries(superpmi-shim-collector
