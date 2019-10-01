@@ -5238,7 +5238,8 @@ int Compiler::lvaAssignVirtualFrameOffsetToArg(unsigned lclNum,
 #if FEATURE_ARG_SPLIT
         if (this->info.compIsVarArgs)
         {
-            if (varDsc->lvType == TYP_STRUCT && varDsc->GetOtherArgReg() >= MAX_REG_ARG && varDsc->GetOtherArgReg() != REG_NA)
+            if (varDsc->lvType == TYP_STRUCT && varDsc->GetOtherArgReg() >= MAX_REG_ARG &&
+                varDsc->GetOtherArgReg() != REG_NA)
             {
                 // This is a split struct. It will account for an extra (8 bytes)
                 // of alignment.

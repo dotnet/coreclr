@@ -6083,7 +6083,8 @@ void CodeGen::genJmpMethod(GenTree* jmp)
 
             if (type1 != TYP_UNKNOWN)
             {
-                GetEmitter()->emitIns_R_S(ins_Load(type1), emitTypeSize(type1), varDsc->GetOtherArgReg(), varNum, offset1);
+                GetEmitter()->emitIns_R_S(ins_Load(type1), emitTypeSize(type1), varDsc->GetOtherArgReg(), varNum,
+                                          offset1);
                 regSet.rsMaskVars |= genRegMask(varDsc->GetOtherArgReg());
                 gcInfo.gcMarkRegPtrVal(varDsc->GetOtherArgReg(), type1);
             }

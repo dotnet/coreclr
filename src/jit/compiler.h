@@ -686,7 +686,6 @@ public:
 
 #if FEATURE_MULTIREG_ARGS
 
-
     regNumber GetOtherArgReg() const
     {
         return (regNumber)_lvOtherArgReg;
