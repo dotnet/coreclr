@@ -458,7 +458,7 @@ the `READYTORUN_FIXUP_ModuleOverride` bit flag on the signature fixup byte or th
 `ELEMENT_TYPE_MODULE_ZAPSIG` COR element type).
 
 **Disclaimer:** The manifest metadata is a new feature that hasn't shipped yet; it involves
-straightforward adaptation of a fragile nGen technology to ReadyToRun images as an expedite
+straightforward adaptation of a fragile NGen technology to ReadyToRun images as an expedite
 means for enabling new functionality (larger version bubble support). The precise details of
 this encoding are still work in progress and likely to further evolve.
 
