@@ -2321,13 +2321,17 @@ struct GenTreeFieldList : public GenTree
     {
         GenTree*  m_node;
         Use*      m_next;
-        unsigned  m_offset;
+        uint16_t  m_offset;
         var_types m_type;
 
     public:
         Use(GenTree* node, unsigned offset, var_types type)
-            : m_node(node), m_next(nullptr), m_offset(offset), m_type(type)
+            : m_node(node), m_next(nullptr), m_offset(static_cast<uint16_t>(offset)), m_type(type)
         {
+            // We can save space on 32 bit hosts by storing the offset as uint16_t. Struct promotion
+            // only accepts structs which are much smaller than that - 128 bytes = max 4 fields * max
+            // SIMD vector size (32 bytes).
+            assert(offset <= UINT16_MAX);
         }
 
         GenTree*& NodeRef()
