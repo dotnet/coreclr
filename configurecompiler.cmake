@@ -334,11 +334,11 @@ if(CLR_CMAKE_PLATFORM_UNIX)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 if(CLR_CMAKE_PLATFORM_LINUX)
-  add_compile_options($<$<COMPILE_LANGUAGE:ASM>:-Wa,--noeexcstack>)
+  add_compile_options($<$<COMPILE_LANGUAGE:ASM>:-Wa,--noexecstack>)
   add_link_options(-Wl,--build-id=sha1)
 endif(CLR_CMAKE_PLATFORM_LINUX)
 if(CLR_CMAKE_PLATFORM_FREEBSD)
-  add_compile_options($<$<COMPILE_LANGUAGE:ASM>:-Wa,--noeexcstack>)
+  add_compile_options($<$<COMPILE_LANGUAGE:ASM>:-Wa,--noexecstack>)
   add_link_options(-fuse-ld=lld LINKER:--build-id=sha1)
 endif(CLR_CMAKE_PLATFORM_FREEBSD)
 
