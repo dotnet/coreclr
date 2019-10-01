@@ -8,9 +8,18 @@ Revisions:
 
 # Introduction
 
-This document describes ReadyToRun format 3.1 implemented in CoreCLR as of June 2019 and not yet implemented proposed extensions 3.2 for the support of composite R2R file format. **Composite R2R file format** has basically the same structure as the traditional R2R file format defined in earlier revisions except that the output file represents a larger number of input MSIL assemblies compiled together as a logical unit.
+This document describes ReadyToRun format 3.1 implemented in CoreCLR as of June 2019 and not yet
+implemented proposed extensions 3.2 for the support of composite R2R file format. 
+**Composite R2R file format** has basically the same structure as the traditional R2R file format
+defined in earlier revisions except that the output file represents a larger number of input MSIL
+assemblies compiled together as a logical unit.
 
-**Note**: The addition of the new composite R2R file format flavor doesn't require bumping up the major ReadyToRun format version number. This is because, according to the format definition, the composite R2R file format doesn't technically conform to the single-input R2R supported by older versions of CoreCLR so there's no risk of *"the old loader"* messing up by incorrectly trying to run *"the new file"*. The only downside is that the *"new composite R2R file"* won't run with the *"old loader"* and thus it will somewhat violate the design principle that R2R is a mere code cache.
+**Note**: The addition of the new composite R2R file format flavor doesn't require bumping up the
+major ReadyToRun format version number. This is because, according to the format definition, the
+composite R2R file format doesn't technically conform to the single-input R2R supported by older
+versions of CoreCLR so there's no risk of *"the old loader"* messing up by incorrectly trying to
+run *"the new file"*. The only downside is that the *"new composite R2R file"* won't run with the
+*"old loader"* and thus it will somewhat violate the design principle that R2R is a mere code cache.
 
 # PE Headers and CLI Headers
 
@@ -23,9 +32,15 @@ customizations:
 
 The image contains full copy of the IL and metadata that it was generated from.
 
-For **single-file R2R PE files**, the COR header and ECMA 335 metadata pointed to by the COM descriptor data directory item in the COFF header represents the actual input MSIL metadata of the compiled module.
+For **single-file R2R PE files**, the COR header and ECMA 335 metadata pointed to by the COM
+descriptor data directory item in the COFF header represents the actual input MSIL metadata of
+the compiled module.
 
-For **composite R2R files** (denoted by the `READYTORUN_FLAG_COMPOSITE` flag in the R2R header) there is no global COR header (as there are potentially multiple metadata blocks in the file). The ReadyToRun header structure is pointed to by the well-known export symbol `RTR_HEADER`. The "actual" metadata for the individual component assemblies is accessed via the R2R section `READYTORUN_SECTION_ASSEMBLIES`.
+For **composite R2R files** (denoted by the `READYTORUN_FLAG_COMPOSITE` flag in the R2R header)
+there is no global COR header (as there are potentially multiple metadata blocks in the file).
+The ReadyToRun header structure is pointed to by the well-known export symbol `RTR_HEADER`.
+The "actual" metadata for the individual component assemblies is accessed via the R2R section
+`READYTORUN_SECTION_ASSEMBLIES`.
 
 ## Future Improvements
 
@@ -348,6 +363,10 @@ means that the i-th value is the sum of values [1..i].
 
 The list is terminated by a 0 (0 is not meaningful as valid delta).
 
+**Note:** This section is only present in single-file R2R files. In composite R2R files created
+by compiling multiple input MSIL assemblies, method entrypoints need to be split by assembly and
+are addressed through `READYTORUN_SECTION_ASSEMBLIES` section instead.
+
 ## READYTORUN_SECTION_EXCEPTION_INFO
 
 Exception handling information. This section contains array of 
@@ -400,15 +419,26 @@ This section contains a native hashtable of all defined & export types within th
 |         0 | defined type
 |         1 | exported type
 
-The version-resilient hashing algorithm used for hashing the type names is implemented in [vm/versionresilienthashcode.cpp](https://github.com/dotnet/coreclr/blob/ec2a74e7649f1c0ecff32ce86724bf3ca80bfd46/src/vm/versionresilienthashcode.cpp#L75).
+The version-resilient hashing algorithm used for hashing the type names is implemented in
+[vm/versionresilienthashcode.cpp](https://github.com/dotnet/coreclr/blob/ec2a74e7649f1c0ecff32ce86724bf3ca80bfd46/src/vm/versionresilienthashcode.cpp#L75).
 
-**Note::** This section is only present in single-file R2R files. In composite R2R files created by compiling multiple input MSIL assemblies, the available types need to be split by assembly and are addressed through `READYTORUN_SECTION_ASSEMBLIES` secion instead.
+**Note:** This section is only present in single-file R2R files. In composite R2R files created
+by compiling multiple input MSIL assemblies, the available types need to be split by assembly
+and are addressed through `READYTORUN_SECTION_ASSEMBLIES` section instead.
 
 ## READYTORUN_SECTION_INSTANCE_METHOD_ENTRYPOINTS
 
-This section contains a native hashtable of all generic method instantiations compiled into the R2R executable. The key is the method instance signature; the appropriate version-resilient hash code calculation is implemented in [vm/versionresilienthashcode.cpp](https://github.com/dotnet/coreclr/blob/ec2a74e7649f1c0ecff32ce86724bf3ca80bfd46/src/vm/versionresilienthashcode.cpp#L128); the value, represented by the `EntryPointWithBlobVertex` class, stores the method index in the runtime function table, the fixups blob and a blob encoding the method signature.
+This section contains a native hashtable of all generic method instantiations compiled into
+the R2R executable. The key is the method instance signature; the appropriate version-resilient
+hash code calculation is implemented in
+[vm/versionresilienthashcode.cpp](https://github.com/dotnet/coreclr/blob/ec2a74e7649f1c0ecff32ce86724bf3ca80bfd46/src/vm/versionresilienthashcode.cpp#L128);
+the value, represented by the `EntryPointWithBlobVertex` class, stores the method index in the
+runtime function table, the fixups blob and a blob encoding the method signature.
 
-**Note::** This section is only present in single-file R2R files. In composite R2R files created by compiling multiple input MSIL assemblies, the available types need to be split by assembly and are addressed through `READYTORUN_SECTION_ASSEMBLIES` secion instead.
+**Note:** In contrast to non-generic method entrypoints, this section is executable-wide for
+composite R2R images. It represents all generics needed by all assemblies within the composite
+executable. As mentioned elsewhere in this document, CoreCLR runtime requires changes to
+properly look up methods stored in this section in the composite R2R case.
 
 ## READYTORUN_SECTION_INLINING_INFO
 
@@ -420,11 +450,21 @@ This section contains a native hashtable of all generic method instantiations co
 
 ## READYTORUN_SECTION_MANIFEST_METADATA
 
-Manifest metadata is an [ECMA-335] metadata blob containing extra reference assemblies within the version bubble introduced by inlining on top of assembly references stored in the input MSIL. As of R2R version 3.1, the metadata is only searched for the AssemblyRef table. This is used to translate module override indices in signatures to the actual reference modules (using either the `READYTORUN_FIXUP_ModuleOverride` bit flag on the signature fixup byte or the `ELEMENT_TYPE_MODULE_ZAPSIG` COR element type).
+Manifest metadata is an [ECMA-335] metadata blob containing extra reference assemblies within
+the version bubble introduced by inlining on top of assembly references stored in the input MSIL.
+As of R2R version 3.1, the metadata is only searched for the AssemblyRef table. This is used to
+translate module override indices in signatures to the actual reference modules (using either
+the `READYTORUN_FIXUP_ModuleOverride` bit flag on the signature fixup byte or the
+`ELEMENT_TYPE_MODULE_ZAPSIG` COR element type).
 
-**Disclaimer:** The manifest metadata is a new feature that hasn't shipped yet; it involves straightforward adaptation of a fragile nGen technology to ReadyToRun images as an expedite means for enabling new functionality (larger version bubble support). The precise details of this encoding are still work in progress and likely to further evolve.
+**Disclaimer:** The manifest metadata is a new feature that hasn't shipped yet; it involves
+straightforward adaptation of a fragile nGen technology to ReadyToRun images as an expedite
+means for enabling new functionality (larger version bubble support). The precise details of
+this encoding are still work in progress and likely to further evolve.
 
-**Note:** It doesn't make sense to store references to assemblies external to the version bubble in the manifest metadata as there's no guarantee that their metadata token values remain constant; thus we cannot encode signatures relative to them.
+**Note:** It doesn't make sense to store references to assemblies external to the version bubble
+in the manifest metadata as there's no guarantee that their metadata token values remain
+constant; thus we cannot encode signatures relative to them.
 
 The module override index translation algorithm is as follows (**ILAR** = *the number of `AssemblyRef` rows in the input MSIL*):
 
@@ -440,11 +480,18 @@ The module override index translation algorithm is as follows (**ILAR** = *the n
 
 **TODO**: document attribute presence encoding
 
-**Note**: We already know this table uses assembly-relative token encoding so it has similar characteristics like `READYTORUN_SECTION_AVAILABLE_TYPES` or `READYTORUN_SECTION_METHOD_ENTRYPOINTS`. No matter what component assembly-relative encoding we end up choosing for these tables, we should use the same encoding for ATTRIBUTEPRESENCE.
+**Note**: We already know this table uses assembly-relative token encoding so it has similar
+characteristics like `READYTORUN_SECTION_AVAILABLE_TYPES` or `READYTORUN_SECTION_METHOD_ENTRYPOINTS`.
+No matter what component assembly-relative encoding we end up choosing for these tables, we
+should use the same encoding for ATTRIBUTEPRESENCE.
 
 ## READYTORUN_SECTION_ASSEMBLIES (v3.2+)
 
-This section is only present in composite R2R files. It is a straight binary array of the entries `READYTORUN_SECTION_ASSEMBLIES_ENTRY` parallel to the indices in the manifest metadata AssemblyRef table in the sense that it's a linear table where the row indices correspond to the equivalent AssemblyRef indices. Just like in the AssemblyRef ECMA 335 table, the indexing is 1-based (the first entry in the table corresponds to index 1).
+This section is only present in composite R2R files. It is a straight binary array of the
+entries `READYTORUN_SECTION_ASSEMBLIES_ENTRY` parallel to the indices in the manifest metadata
+AssemblyRef table in the sense that it's a linear table where the row indices correspond to the
+equivalent AssemblyRef indices. Just like in the AssemblyRef ECMA 335 table, the indexing is
+1-based (the first entry in the table corresponds to index 1).
 
 ```C++
 struct READYTORUN_SECTION_ASSEMBLIES_ENTRY
@@ -455,13 +502,14 @@ struct READYTORUN_SECTION_ASSEMBLIES_ENTRY
 };
 ```
 
-**TODO:** It remains to be seen whether `READYTORUN_SECTION_METHODCALL_THUNKS` and / or `READYTORUN_SECTION_INLINING_INFO` also require changes specific to the composite R2R file format.
+**TODO:** It remains to be seen whether `READYTORUN_SECTION_METHODCALL_THUNKS` and / or
+`READYTORUN_SECTION_INLINING_INFO` also require changes specific to the composite R2R file format.
 
 # Native Format
 
-Native format is set of encoding patterns that allow persisting type system data in a binary format that is 
-efficient for runtime access - both in working set and CPU cycles. (Originally designed for and extensively 
-used by .NET Native.)
+Native format is set of encoding patterns that allow persisting type system data in a binary
+format that is efficient for runtime access - both in working set and CPU cycles. (Originally
+designed for and extensively used by .NET Native.)
 
 ## Integer encoding
 
