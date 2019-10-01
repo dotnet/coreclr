@@ -1641,7 +1641,7 @@ public:
     {
         unsigned size = getSlotCount();
 #ifdef FEATURE_HFA
-        if (isHfaRegArg)
+        if (IsHfaRegArg())
         {
 #ifdef _TARGET_ARM_
             // We counted the number of regs, but if they are DOUBLE hfa regs we have to double the size.
