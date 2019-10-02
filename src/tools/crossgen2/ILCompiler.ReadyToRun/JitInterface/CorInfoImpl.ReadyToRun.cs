@@ -577,6 +577,20 @@ namespace Internal.JitInterface
             return false;
         }
 
+        private ModuleToken HandleToModuleToken(ref CORINFO_RESOLVED_TOKEN pResolvedToken, MethodDesc methodDesc)
+        {
+            if (methodDesc != null && (_compilation.NodeFactory.CompilationModuleGroup.VersionsWithMethodBody(methodDesc) || methodDesc.IsPInvoke))
+            {
+                if ((CorTokenType)(unchecked((uint)pResolvedToken.token) & 0xFF000000u) == CorTokenType.mdtMethodDef &&
+                    methodDesc?.GetTypicalMethodDefinition() is EcmaMethod ecmaMethod)
+                {
+                    mdToken token = (mdToken)MetadataTokens.GetToken(ecmaMethod.Handle);
+                    return new ModuleToken(ecmaMethod.Module, token);
+                }
+            }
+
+            return HandleToModuleToken(ref pResolvedToken);
+        }
         private ModuleToken HandleToModuleToken(ref CORINFO_RESOLVED_TOKEN pResolvedToken)
         {
             mdToken token = pResolvedToken.token;
@@ -1002,13 +1016,8 @@ namespace Internal.JitInterface
                 }
             }
 
-            if (constrainedType != null)
-            {
-                targetMethod = originalMethod;
-            }
             methodToCall = targetMethod;
             MethodDesc canonMethod = targetMethod.GetCanonMethodTarget(CanonicalFormKind.Specific);
-            MethodDesc methodToDescribe = methodToCall;
 
             if (directCall)
             {
@@ -1057,7 +1066,7 @@ namespace Internal.JitInterface
                             ? DictionaryEntryKind.ConstrainedMethodEntrySlot
                             : DictionaryEntryKind.MethodEntrySlot);
 
-                        ComputeRuntimeLookupForSharedGenericToken(entryKind, ref pResolvedToken, pConstrainedResolvedToken, targetMethod, ref pResult->codePointerOrStubLookup);
+                        ComputeRuntimeLookupForSharedGenericToken(entryKind, ref pResolvedToken, pConstrainedResolvedToken, originalMethod, ref pResult->codePointerOrStubLookup);
                     }
                 }
                 else
@@ -1065,7 +1074,7 @@ namespace Internal.JitInterface
                     if (allowInstParam)
                     {
                         useInstantiatingStub = false;
-                        methodToDescribe = canonMethod;
+                        methodToCall = canonMethod;
                     }
 
                     pResult->kind = CORINFO_CALL_KIND.CORINFO_CALL;
@@ -1120,7 +1129,7 @@ namespace Internal.JitInterface
                     // Handle invalid IL - see comment in code:CEEInfo::ComputeRuntimeLookupForSharedGenericToken
                     && entityFromContext(pResolvedToken.tokenContext) is MethodDesc methodDesc && methodDesc.IsSharedByGenericInstantiations)
                 {
-                    ComputeRuntimeLookupForSharedGenericToken(DictionaryEntryKind.DispatchStubAddrSlot, ref pResolvedToken, null, targetMethod, ref pResult->codePointerOrStubLookup);
+                    ComputeRuntimeLookupForSharedGenericToken(DictionaryEntryKind.DispatchStubAddrSlot, ref pResolvedToken, null, originalMethod, ref pResult->codePointerOrStubLookup);
                 }
                 else
                 {
@@ -1130,17 +1139,18 @@ namespace Internal.JitInterface
                 }
             }
 
-            pResult->hMethod = ObjectToHandle(methodToDescribe);
+            pResult->hMethod = ObjectToHandle(methodToCall);
 
             // TODO: access checks
             pResult->accessAllowed = CorInfoIsAccessAllowedResult.CORINFO_ACCESS_ALLOWED;
 
             // We're pretty much done at this point.  Let's grab the rest of the information that the jit is going to
             // need.
-            pResult->classFlags = getClassAttribsInternal(methodToDescribe.OwningType);
+            pResult->classFlags = getClassAttribsInternal(type);
 
-            pResult->methodFlags = getMethodAttribsInternal(methodToDescribe);
-            Get_CORINFO_SIG_INFO(methodToDescribe, &pResult->sig, useInstantiatingStub);
+            pResult->methodFlags = getMethodAttribsInternal(methodToCall);
+
+            Get_CORINFO_SIG_INFO(methodToCall, &pResult->sig, useInstantiatingStub);
         }
 
         private void getCallInfo(ref CORINFO_RESOLVED_TOKEN pResolvedToken, CORINFO_RESOLVED_TOKEN* pConstrainedResolvedToken, CORINFO_METHOD_STRUCT_* callerHandle, CORINFO_CALLINFO_FLAGS flags, CORINFO_CALL_INFO* pResult)
@@ -1195,7 +1205,7 @@ namespace Internal.JitInterface
 
                         pResult->codePointerOrStubLookup.constLookup = CreateConstLookupToSymbol(
                             _compilation.SymbolNodeFactory.InterfaceDispatchCell(
-                                new MethodWithToken(targetMethod, HandleToModuleToken(ref pResolvedToken), constrainedType: null),
+                                new MethodWithToken(targetMethod, HandleToModuleToken(ref pResolvedToken, targetMethod), constrainedType: null),
                                 GetSignatureContext(),
                                 isUnboxingStub: false,
                                 _compilation.NameMangler.GetMangledMethodName(MethodBeingCompiled).ToString()));
@@ -1227,7 +1237,7 @@ namespace Internal.JitInterface
                         // READYTORUN: FUTURE: Direct calls if possible
                         pResult->codePointerOrStubLookup.constLookup = CreateConstLookupToSymbol(
                             _compilation.NodeFactory.MethodEntrypoint(
-                                new MethodWithToken(nonUnboxingMethod, HandleToModuleToken(ref pResolvedToken), constrainedType),
+                                new MethodWithToken(nonUnboxingMethod, HandleToModuleToken(ref pResolvedToken, nonUnboxingMethod), constrainedType),
                                 isUnboxingStub,
                                 isInstantiatingStub: useInstantiatingStub,
                                 isPrecodeImportRequired: (flags & CORINFO_CALLINFO_FLAGS.CORINFO_CALLINFO_LDFTN) != 0,
@@ -1246,7 +1256,7 @@ namespace Internal.JitInterface
                         bool atypicalCallsite = (flags & CORINFO_CALLINFO_FLAGS.CORINFO_CALLINFO_ATYPICAL_CALLSITE) != 0;
                         pResult->codePointerOrStubLookup.constLookup = CreateConstLookupToSymbol(
                             _compilation.NodeFactory.DynamicHelperCell(
-                                new MethodWithToken(targetMethod, HandleToModuleToken(ref pResolvedToken), constrainedType: null),
+                                new MethodWithToken(targetMethod, HandleToModuleToken(ref pResolvedToken, targetMethod), constrainedType: null),
                                 useInstantiatingStub,
                                 GetSignatureContext()));
 
@@ -1275,7 +1285,7 @@ namespace Internal.JitInterface
                     {
                         pResult->instParamLookup = CreateConstLookupToSymbol(_compilation.SymbolNodeFactory.ReadyToRunHelper(
                             ReadyToRunHelperId.MethodDictionary,
-                            new MethodWithToken(targetMethod, HandleToModuleToken(ref pResolvedToken), constrainedType),
+                            new MethodWithToken(targetMethod, HandleToModuleToken(ref pResolvedToken, targetMethod), constrainedType),
                             signatureContext: GetSignatureContext()));
                     }
                     else
