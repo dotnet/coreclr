@@ -119,7 +119,7 @@ struct RCW;
 
 #ifndef PtrAlign
 #define PtrAlign(size) \
-    ((size + PTRALIGNCONST) & (~PTRALIGNCONST))
+    (((size) + PTRALIGNCONST) & (~PTRALIGNCONST))
 #endif //!PtrAlign
 
 // code:Object is the respesentation of an managed object on the GC heap.
@@ -2506,18 +2506,15 @@ public:
         return _xptrs;
     }
 
-    void SetStackTrace(StackTraceArray const & stackTrace, PTRARRAYREF dynamicMethodArray);
-    void SetNullStackTrace();
+    void SetStackTrace(I1ARRAYREF stackTrace, PTRARRAYREF dynamicMethodArray);
 
     void GetStackTrace(StackTraceArray & stackTrace, PTRARRAYREF * outDynamicMethodArray = NULL) const;
 
-#ifdef DACCESS_COMPILE
     I1ARRAYREF GetStackTraceArrayObject() const
     {
         LIMITED_METHOD_DAC_CONTRACT;
         return _stackTrace;
     }
-#endif // DACCESS_COMPILE
 
     void SetInnerException(OBJECTREF innerException)
     {

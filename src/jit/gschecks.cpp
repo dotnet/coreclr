@@ -136,7 +136,7 @@ Compiler::fgWalkResult Compiler::gsMarkPtrsAndAssignGroups(GenTree** pTree, fgWa
         // local vars and param uses
         case GT_LCL_VAR:
         case GT_LCL_FLD:
-            lclNum = tree->gtLclVarCommon.gtLclNum;
+            lclNum = tree->gtLclVarCommon.GetLclNum();
 
             if (pState->isUnderIndir)
             {
@@ -190,10 +190,11 @@ Compiler::fgWalkResult Compiler::gsMarkPtrsAndAssignGroups(GenTree** pTree, fgWa
             newState.isUnderIndir = false;
             newState.isAssignSrc  = false;
             {
-                if (tree->gtCall.gtCallObjp)
+                if (tree->AsCall()->gtCallThisArg != nullptr)
                 {
                     newState.isUnderIndir = true;
-                    comp->fgWalkTreePre(&tree->gtCall.gtCallObjp, gsMarkPtrsAndAssignGroups, (void*)&newState);
+                    comp->fgWalkTreePre(&tree->AsCall()->gtCallThisArg->NodeRef(), gsMarkPtrsAndAssignGroups,
+                                        (void*)&newState);
                 }
 
                 for (GenTreeCall::Use& use : tree->AsCall()->Args())
@@ -257,7 +258,7 @@ Compiler::fgWalkResult Compiler::gsMarkPtrsAndAssignGroups(GenTree** pTree, fgWa
 
                     if ((isLocVar || isLocFld) && tree->gtOp.gtOp2)
                     {
-                        lclNum               = tree->gtOp.gtOp1->gtLclVarCommon.gtLclNum;
+                        lclNum               = tree->gtOp.gtOp1->gtLclVarCommon.GetLclNum();
                         newState.lvAssignDef = lclNum;
                         newState.isAssignSrc = true;
                     }

@@ -7461,7 +7461,7 @@ GenTree* Compiler::fgOptimizeDelegateConstructor(GenTreeCall*            call,
             {
                 JITDUMP("optimized\n");
 
-                GenTree*             thisPointer       = call->gtCallObjp;
+                GenTree*             thisPointer       = call->gtCallThisArg->GetNode();
                 GenTree*             targetObjPointers = call->gtCallArgs->GetNode();
                 GenTreeCall::Use*    helperArgs        = nullptr;
                 CORINFO_LOOKUP       pLookup;
@@ -7495,7 +7495,7 @@ GenTree* Compiler::fgOptimizeDelegateConstructor(GenTreeCall*            call,
         {
             JITDUMP("optimized\n");
 
-            GenTree*          thisPointer       = call->gtCallObjp;
+            GenTree*          thisPointer       = call->gtCallThisArg->GetNode();
             GenTree*          targetObjPointers = call->gtCallArgs->GetNode();
             GenTreeCall::Use* helperArgs        = gtNewCallArgs(thisPointer, targetObjPointers);
 
@@ -7639,7 +7639,7 @@ GenTree* Compiler::fgDoNormalizeOnStore(GenTree* tree)
             // Small-typed arguments and aliased locals are normalized on load.
             // Other small-typed locals are normalized on store.
             // If it is an assignment to one of the latter, insert the cast on RHS
-            unsigned   varNum = op1->gtLclVarCommon.gtLclNum;
+            unsigned   varNum = op1->gtLclVarCommon.GetLclNum();
             LclVarDsc* varDsc = &lvaTable[varNum];
 
             if (varDsc->lvNormalizeOnStore())
@@ -9845,7 +9845,7 @@ VARSET_VALRET_TP Compiler::fgGetVarBits(GenTree* tree)
 
     assert(tree->gtOper == GT_LCL_VAR || tree->gtOper == GT_LCL_FLD);
 
-    unsigned int lclNum = tree->gtLclVarCommon.gtLclNum;
+    unsigned int lclNum = tree->gtLclVarCommon.GetLclNum();
     LclVarDsc*   varDsc = lvaTable + lclNum;
     if (varDsc->lvTracked)
     {
@@ -11002,11 +11002,11 @@ void Compiler::fgUnlinkRange(BasicBlock* bBeg, BasicBlock* bEnd)
 
 void Compiler::fgRemoveBlock(BasicBlock* block, bool unreachable)
 {
-    BasicBlock* bPrev = block->bbPrev;
-
     /* The block has to be either unreachable or empty */
 
     PREFIX_ASSUME(block != nullptr);
+
+    BasicBlock* bPrev = block->bbPrev;
 
     JITDUMP("fgRemoveBlock " FMT_BB "\n", block->bbNum);
 
@@ -18781,9 +18781,9 @@ void Compiler::fgSetTreeSeqHelper(GenTree* tree, bool isLIR)
         case GT_CALL:
 
             /* We'll evaluate the 'this' argument value first */
-            if (tree->gtCall.gtCallObjp)
+            if (tree->AsCall()->gtCallThisArg != nullptr)
             {
-                fgSetTreeSeqHelper(tree->gtCall.gtCallObjp, isLIR);
+                fgSetTreeSeqHelper(tree->AsCall()->gtCallThisArg->GetNode(), isLIR);
             }
 
             for (GenTreeCall::Use& use : tree->AsCall()->Args())
@@ -21320,12 +21320,12 @@ void Compiler::fgDebugCheckFlags(GenTree* tree)
 
                 call = tree->AsCall();
 
-                if (call->gtCallObjp)
+                if (call->gtCallThisArg != nullptr)
                 {
-                    fgDebugCheckFlags(call->gtCallObjp);
-                    chkFlags |= (call->gtCallObjp->gtFlags & GTF_SIDE_EFFECT);
+                    fgDebugCheckFlags(call->gtCallThisArg->GetNode());
+                    chkFlags |= (call->gtCallThisArg->GetNode()->gtFlags & GTF_SIDE_EFFECT);
 
-                    if (call->gtCallObjp->gtFlags & GTF_ASG)
+                    if ((call->gtCallThisArg->GetNode()->gtFlags & GTF_ASG) != 0)
                     {
                         treeFlags |= GTF_ASG;
                     }
@@ -22270,7 +22270,7 @@ void Compiler::fgAttachStructInlineeToAsg(GenTree* tree, GenTree* child, CORINFO
         // If it is a multireg return on x64/ux, the local variable should be marked as lvIsMultiRegRet
         if (child->AsCall()->HasMultiRegRetVal())
         {
-            unsigned lclNum                  = tree->gtOp.gtOp1->gtLclVarCommon.gtLclNum;
+            unsigned lclNum                  = tree->gtOp.gtOp1->gtLclVarCommon.GetLclNum();
             lvaTable[lclNum].lvIsMultiRegRet = true;
         }
         return;
@@ -22603,7 +22603,7 @@ Compiler::fgWalkResult Compiler::fgLateDevirtualization(GenTree** pTree, fgWalkD
 
         if ((lhs->OperGet() == GT_LCL_VAR) && (lhs->TypeGet() == TYP_REF))
         {
-            const unsigned lclNum = lhs->gtLclVarCommon.gtLclNum;
+            const unsigned lclNum = lhs->gtLclVarCommon.GetLclNum();
             LclVarDsc*     lcl    = comp->lvaGetDesc(lclNum);
 
             if (lcl->lvSingleDef)
