@@ -341,7 +341,7 @@ for /l %%G in (1, 1, %__NumberOfTestGroups%) do (
 
         REM Disable warnAsError - coreclr issue 19922
         powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -Command "%__ProjectDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
-            %__ProjectDir%\tests\build.proj -warnAsError:0 !__Logging! %TargetsWindowsMsbuildArg% %__msbuildArgs% !__PriorityArg! %__UnprocessedBuildArgs% "/t:CopyAllNativeProjectReferenceBinaries"
+            %__ProjectDir%\tests\build.proj -warnAsError:0 !__Logging! %TargetsWindowsMsbuildArg% %__msbuildArgs% !__PriorityArg! %__UnprocessedBuildArgs% "/t:CopyAllNativeProjectReferenceBinaries" "/nodeReuse:false"
 
         if errorlevel 1 (
             echo %__ErrMsgPrefix%%__MsgPrefix%Error: copying native test binaries failed. Refer to the build log files for details:
