@@ -37,7 +37,7 @@ set(SUPERPMI_SHIM_SIMPLE_SOURCES
 )
 
 if (WIN32)
-    preprocess_def_file(${CMAKE_CURRENT_SOURCE_DIR}/superpmi-shim-simple.def ${CMAKE_CURRENT_BINARY_DIR}/superpmi-shim-simple.def)
+    preprocess_file(${CMAKE_CURRENT_SOURCE_DIR}/superpmi-shim-simple.def ${CMAKE_CURRENT_BINARY_DIR}/superpmi-shim-simple.def)
 
     list(APPEND SUPERPMI_SHIM_SIMPLE_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/superpmi-shim-simple.def)
 endif (WIN32)

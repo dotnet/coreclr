@@ -13,25 +13,38 @@ function(get_compile_definitions DefinitionName)
     # Get the current list of definitions
     get_directory_property(COMPILE_DEFINITIONS_LIST COMPILE_DEFINITIONS)
 
+    # The entries that contain generator expressions must have the -D inside of the
+    # expression. So we transform e.g. $<$<CONFIG:Debug>:_DEBUG> to $<$<CONFIG:Debug>:-D_DEBUG>
+
+    # CMake's support for multiple values within a single generator expression is somewhat ad-hoc.
+    # Since we have a number of complex generator expressions, we use them with multiple values to ensure that
+    # we don't forget to update all of the generator expressions if one needs to be updated.
+    # As a result, we need to expand out the multi-valued generator expression to wrap each individual value here.
+    # Otherwise, CMake will fail to expand it.
+    set(LastGeneratorExpression "")
     foreach(DEFINITION IN LISTS COMPILE_DEFINITIONS_LIST)
-        # If there is a definition that uses the $<TARGET_PROPERTY:prop> generator expression
-        # we need to remove it since that generator expression is only valid on binary targets.
-        # Assume that the value is OFF.
-        string(REGEX REPLACE "\\$<TARGET_PROPERTY:[^,>]+>" "OFF" DEFINITION "${DEFINITION}")
+      # If there is a definition that uses the $<TARGET_PROPERTY:prop> generator expression
+      # we need to remove it since that generator expression is only valid on binary targets.
+      # Assume that the value is 0.
+      string(REGEX REPLACE "\\$<TARGET_PROPERTY:[^,>]+>" "0" DEFINITION "${DEFINITION}")
 
-        if (${DEFINITION} MATCHES "^\\$<(.+):([^>]+)>?$")
-            # The entries that contain generator expressions must have the -D inside of the
-            # expression. So we transform e.g. $<$<CONFIG:Debug>:_DEBUG> to $<$<CONFIG:Debug>:-D_DEBUG>
-
-            # If we have a list of entries in the generator expression, we need to allow the entry to not end with '>' since the '>' will be in another entry.
-            set(DEFINITION "$<${CMAKE_MATCH_1}:-D${CMAKE_MATCH_2}>")
-        elseif(${DEFINITION} MATCHES "([^>]+)>$")
-            # This entry is the last in a list nested within a generator expression.
-            set(DEFINITION "-D${CMAKE_MATCH_1}")
+      if (${DEFINITION} MATCHES "^\\$<(.+):([^>]+)(>?)$")
+        if("${CMAKE_MATCH_3}" STREQUAL "")
+          set(DEFINITION "$<${CMAKE_MATCH_1}:-D${CMAKE_MATCH_2}>")
+          set(LastGeneratorExpression "${CMAKE_MATCH_1}")
         else()
-            set(DEFINITION -D${DEFINITION})
+          set(DEFINITION "$<${CMAKE_MATCH_1}:-D${CMAKE_MATCH_2}>")
         endif()
-        list(APPEND DEFINITIONS ${DEFINITION})
+      elseif(${DEFINITION} MATCHES "([^>]+)>$")
+        # This entry is the last in a list nested within a generator expression.
+        set(DEFINITION "$<${LastGeneratorExpression}:-D${CMAKE_MATCH_1}>")
+        set(LastGeneratorExpression "")
+      elseif(NOT "${LastGeneratorExpression}" STREQUAL "")
+        set(DEFINITION "$<${LastGeneratorExpression}:-D${DEFINITION}>")
+      else()
+        set(DEFINITION -D${DEFINITION})
+      endif()
+      list(APPEND DEFINITIONS ${DEFINITION})
     endforeach()
     set(${DefinitionName} ${DEFINITIONS} PARENT_SCOPE)
 endfunction(get_compile_definitions)
@@ -82,15 +95,25 @@ function(convert_to_absolute_path RetSources)
 endfunction(convert_to_absolute_path)
 
 #Preprocess exports definition file
-function(preprocess_def_file inputFilename outputFilename)
+function(preprocess_file inputFilename outputFilename)
   get_compile_definitions(PREPROCESS_DEFINITIONS)
-  get_include_directories(ASM_INCLUDE_DIRECTORIES)
-  add_custom_command(
-    OUTPUT ${outputFilename}
-    COMMAND ${CMAKE_CXX_COMPILER} ${ASM_INCLUDE_DIRECTORIES} /P /EP /TC ${PREPROCESS_DEFINITIONS}  /Fi${outputFilename}  ${inputFilename}
-    DEPENDS ${inputFilename}
-    COMMENT "Preprocessing ${inputFilename} - ${CMAKE_CXX_COMPILER} ${ASM_INCLUDE_DIRECTORIES} /P /EP /TC ${PREPROCESS_DEFINITIONS}  /Fi${outputFilename}  ${inputFilename}"
-  )
+  get_include_directories(PREPROCESS_INCLUDE_DIRECTORIES)
+  if (MSVC)
+    add_custom_command(
+        OUTPUT ${outputFilename}
+        COMMAND ${CMAKE_CXX_COMPILER} ${PREPROCESS_INCLUDE_DIRECTORIES} /P /EP /TC ${PREPROCESS_DEFINITIONS}  /Fi${outputFilename}  ${inputFilename}
+        DEPENDS ${inputFilename}
+        COMMENT "Preprocessing ${inputFilename}. Outputting to ${outputFilename}"
+    )
+  else()
+    add_custom_command(
+        OUTPUT ${outputFilename}
+        COMMAND ${CMAKE_CXX_COMPILER} -E -P ${PREPROCESS_DEFINITIONS} ${INCLUDE_DIRECTORIES} -o ${outputFilename} -x c ${inputFilename}
+        DEPENDS ${inputFilename}
+        COMMENT "Preprocessing ${inputFilename}. Outputting to ${outputFilename}"
+    )
+  endif()
+
 
   set_source_files_properties(${outputFilename}
                               PROPERTIES GENERATED TRUE)
@@ -111,7 +134,7 @@ function(preprocess_compile_asm)
     # Inserts a custom command in CMake build to preprocess each asm source file
     get_filename_component(name ${ASM_FILE} NAME_WE)
     file(TO_CMAKE_PATH "${CMAKE_CURRENT_BINARY_DIR}/${name}.asm" ASM_PREPROCESSED_FILE)
-    preprocess_def_file(${ASM_FILE} ${ASM_PREPROCESSED_FILE})
+    preprocess_file(${ASM_FILE} ${ASM_PREPROCESSED_FILE})
 
     # We do not pass any defines since we have already done pre-processing above
     set (ASM_CMDLINE "-o ${CMAKE_CURRENT_BINARY_DIR}/${name}.obj ${ASM_PREPROCESSED_FILE}")
@@ -189,10 +212,10 @@ function(target_precompile_header)
   set(multiValueArgs ADDITIONAL_INCLUDE_DIRECTORIES)
   cmake_parse_arguments(PARSE_ARGV 0 PRECOMPILE_HEADERS "${options}" "${oneValueArgs}" "${multiValueArgs}")
 
-  if (PRECOMPILE_HEADERS_TARGET STREQUAL "")
+  if ("${PRECOMPILE_HEADERS_TARGET}" STREQUAL "")
   message(SEND_ERROR "No target supplied to target_precompile_header.")
   endif()
-  if (PRECOMPILE_HEADERS_HEADER STREQUAL "")
+  if ("${PRECOMPILE_HEADERS_HEADER}" STREQUAL "")
     message(SEND_ERROR "No header supplied to target_precompile_header.")
   endif()
 

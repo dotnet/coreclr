@@ -32,7 +32,7 @@ if(WIN32)
 
     convert_to_absolute_path(DEF_SOURCES ${DEF_SOURCES})
 
-    preprocess_def_file(${DEF_SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/mscordbi.def)
+    preprocess_file(${DEF_SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/mscordbi.def)
 
     list(APPEND MSCORDBI_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/mscordbi.def)
 else(WIN32)

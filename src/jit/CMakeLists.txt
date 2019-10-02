@@ -298,7 +298,7 @@ convert_to_absolute_path(JIT_ARM64_SOURCES ${JIT_ARM64_SOURCES})
 if(WIN32)
   set(CLRJIT_EXPORTS ${CMAKE_CURRENT_LIST_DIR}/ClrJit.exports)
   set(JIT_EXPORTS_FILE ${CMAKE_CURRENT_BINARY_DIR}/ClrJit.exports.def)
-  preprocess_def_file (${CLRJIT_EXPORTS} ${JIT_EXPORTS_FILE})
+  preprocess_file (${CLRJIT_EXPORTS} ${JIT_EXPORTS_FILE})
 
   set(SHARED_LIB_SOURCES ${SOURCES} ${JIT_EXPORTS_FILE})
 else()
