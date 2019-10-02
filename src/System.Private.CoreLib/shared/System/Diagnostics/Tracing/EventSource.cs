@@ -3869,10 +3869,10 @@ namespace System.Diagnostics.Tracing
 
         internal static uint s_currentPid;              // current process id, used in synthesizing quasi-GUIDs
         [ThreadStatic]
-        private static byte m_EventSourceExceptionRecurenceCount = 0; // current recursion count inside ThrowEventSourceException
+        private static byte m_EventSourceExceptionRecurenceCount; // current recursion count inside ThrowEventSourceException
 
         [ThreadStatic]
-        private static bool m_EventSourceInDecodeObject = false;
+        private static bool m_EventSourceInDecodeObject;
 
 #if FEATURE_MANAGED_ETW_CHANNELS
         internal volatile ulong[]? m_channelData;
@@ -4505,7 +4505,7 @@ namespace System.Diagnostics.Tracing
         /// and another EventSource is created as part of the process.
         /// </summary>
         [ThreadStatic]
-        private static bool s_ConnectingEventSourcesAndListener = false;
+        private static bool s_ConnectingEventSourcesAndListener;
 #endif
 
         /// <summary>
