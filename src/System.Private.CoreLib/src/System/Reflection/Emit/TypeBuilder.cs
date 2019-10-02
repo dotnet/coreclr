@@ -1377,7 +1377,7 @@ namespace System.Reflection.Emit
                 // The signature grabbing code has to be up here or the signature won't be finished
                 // and our equals check won't work.
                 int sigLength;
-                byte[] sigBytes = method.GetMethodSignature().InternalGetSignature(out sigLength);
+                _ = method.GetMethodSignature().InternalGetSignature(out sigLength);
 
                 if (m_listMethods.Contains(method))
                 {

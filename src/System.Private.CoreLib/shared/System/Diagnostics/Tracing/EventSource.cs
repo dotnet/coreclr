@@ -308,9 +308,8 @@ namespace System.Diagnostics.Tracing
             {
                 if (attrib.Guid != null)
                 {
-                    Guid g = Guid.Empty;
 #if !ES_BUILD_AGAINST_DOTNET_V35
-                    if (Guid.TryParse(attrib.Guid, out g))
+                    if (Guid.TryParse(attrib.Guid, out Guid g))
                         return g;
 #else
                     try { return new Guid(attrib.Guid); }
@@ -2654,7 +2653,6 @@ namespace System.Diagnostics.Tracing
 #endif
 
             m_outOfBandMessageCount = 0;
-            bool shouldReport = (commandArgs.perEventSourceSessionId > 0) && (commandArgs.perEventSourceSessionId <= SessionMask.MAX);
             try
             {
                 EnsureDescriptorsInitialized();
@@ -2978,7 +2976,7 @@ namespace System.Diagnostics.Tracing
                                     goto TRY_AGAIN_WITH_SMALLER_CHUNK_SIZE;
                                 }
                             }
-                            success = false;
+
                             if (ThrowOnEventWriteErrors)
                                 ThrowEventSourceException("SendManifest");
                             break;
@@ -3028,13 +3026,6 @@ namespace System.Diagnostics.Tracing
             }
 
 #if (!ES_BUILD_PCL && !ES_BUILD_PN)
-            // In the reflection only context, we have to do things by hand.
-            string fullTypeNameToFind = attributeType.FullName!;
-
-#if EVENT_SOURCE_LEGACY_NAMESPACE_SUPPORT
-            fullTypeNameToFind = fullTypeNameToFind.Replace("System.Diagnostics.Eventing", "System.Diagnostics.Tracing");
-#endif
-
             foreach (CustomAttributeData data in CustomAttributeData.GetCustomAttributes(member))
             {
                 if (AttributeTypeNamesMatch(attributeType, data.Constructor.ReflectedType!))

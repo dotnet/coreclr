@@ -2290,7 +2290,6 @@ namespace System
 
             char* digits = stackalloc char[MaxUInt32DecDigits];
             char* p = UInt32ToDecChars(digits + MaxUInt32DecDigits, (uint)value, minDigits);
-            int i = (int)(digits + MaxUInt32DecDigits - p);
             sb.Append(p, (int)(digits + MaxUInt32DecDigits - p));
         }
 
