@@ -13250,6 +13250,11 @@ TypeHandle* AllocateNewMethodDictionaryForExpansion(InstantiatedMethodDesc* pIMD
     ULONG_PTR* pSizeSlot = ((ULONG_PTR*)pInstOrPerInstInfo) + pIMD->GetNumGenericMethodArgs();
     *pSizeSlot = cbSize;
 
+#ifdef _DEBUG
+    TypeHandle** ppOldDictSlot = (TypeHandle**)pInstOrPerInstInfo + pIMD->GetNumGenericMethodArgs() + 1;
+    *ppOldDictSlot = (TypeHandle*)pIMD->m_pPerInstInfo.GetValue();
+#endif
+
     return pInstOrPerInstInfo;
 }
 
@@ -13263,6 +13268,11 @@ TypeHandle* AllocateNewTypeDictionaryForExpansion(MethodTable* pMT, DWORD cbSize
 
     ULONG_PTR* pSizeSlot = ((ULONG_PTR*)pInstOrPerInstInfo) + pMT->GetNumGenericArgs();
     *pSizeSlot = cbSize;
+
+#ifdef _DEBUG
+    TypeHandle** ppOldDictSlot = (TypeHandle**)pInstOrPerInstInfo + pMT->GetNumGenericArgs() + 1;
+    *ppOldDictSlot = (TypeHandle*)pMT->GetPerInstInfo()[pMT->GetNumDicts() - 1].GetValue();
+#endif
 
     return pInstOrPerInstInfo;
 }
@@ -13298,6 +13308,8 @@ void Module::RecordTypeForDictionaryExpansion_Locked(MethodTable* pGenericParent
             // Publish the new dictionary slots to the type.
             TypeHandle** pPerInstInfo = (TypeHandle**)pDependencyMT->GetPerInstInfo()->GetValuePtr();
             FastInterlockExchangePointer(pPerInstInfo + (pDependencyMT->GetNumDicts() - 1), pInstOrPerInstInfo);
+
+            FlushProcessWriteBuffers();
         }
     }
 
@@ -13334,6 +13346,8 @@ void Module::RecordMethodForDictionaryExpansion_Locked(MethodDesc* pDependencyMD
         TypeHandle* pInstOrPerInstInfo = AllocateNewMethodDictionaryForExpansion(pIMDDependency, sizeFromDictLayout);
 
         FastInterlockExchangePointer((TypeHandle**)pIMDDependency->m_pPerInstInfo.GetValuePtr(), pInstOrPerInstInfo);
+
+        FlushProcessWriteBuffers();
     }
 
     GCX_COOP();
