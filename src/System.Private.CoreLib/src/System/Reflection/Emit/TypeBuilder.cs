@@ -258,7 +258,7 @@ namespace System.Reflection.Emit
                 runtimeType2 = t2;
             }
 
-            // If the type builder view is eqaul then it is equal
+            // If the type builder view is equal then it is equal
             if (tb1 != null && tb2 != null && object.ReferenceEquals(tb1, tb2))
                 return true;
 
