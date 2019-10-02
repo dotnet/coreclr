@@ -340,7 +340,7 @@ for /l %%G in (1, 1, %__NumberOfTestGroups%) do (
         )
     ) else (
         REM Disable warnAsError - coreclr issue 19922
-        set __MSBuildBuildArgs=!__ProjectDir!\tests\build.proj -warnAsError:0 -nodeReuse:false !__Logging! !TargetsWindowsMsbuildArg! !__msbuildArgs! !__PriorityArg! !__UnprocessedBuildArgs! "/t:CopyAllNativeProjectReferenceBinaries"
+        set __MSBuildBuildArgs=!__ProjectDir!\tests\build.proj -warnAsError:0 /nodeReuse:false !__Logging! !TargetsWindowsMsbuildArg! !__msbuildArgs! !__PriorityArg! !__UnprocessedBuildArgs! "/t:CopyAllNativeProjectReferenceBinaries"
         echo Running: msbuild !__MSBuildBuildArgs!
         !__CommonMSBuildCmdPrefix! !__MSBuildBuildArgs!
 
@@ -366,9 +366,9 @@ if "%__CopyNativeTestBinaries%" == "1" goto :SkipManagedBuild
 REM Check that we've built about as many tests as we expect. This is primarily intended to prevent accidental changes that cause us to build
 REM drastically fewer Pri-1 tests than expected.
 echo %__MsgPrefix%Check the managed tests build
-echo Running: dotnet msbuild %__ProjectDir%\tests\src\runtest.proj /t:CheckTestBuild -nodeReuse:false /p:CLRTestPriorityToBuild=%__Priority% %__msbuildArgs% %__unprocessedBuildArgs%
+echo Running: dotnet msbuild %__ProjectDir%\tests\src\runtest.proj /t:CheckTestBuild /nodeReuse:false /p:CLRTestPriorityToBuild=%__Priority% %__msbuildArgs% %__unprocessedBuildArgs%
 powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__ProjectDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
-    %__ProjectDir%\tests\src\runtest.proj /t:CheckTestBuild -nodeReuse:false /p:CLRTestPriorityToBuild=%__Priority% %__msbuildArgs% %__unprocessedBuildArgs%
+    %__ProjectDir%\tests\src\runtest.proj /t:CheckTestBuild /nodeReuse:false /p:CLRTestPriorityToBuild=%__Priority% %__msbuildArgs% %__unprocessedBuildArgs%
 if errorlevel 1 (
     echo %__ErrMsgPrefix%%__MsgPrefix%Error: Check Test Build failed.
     exit /b 1
