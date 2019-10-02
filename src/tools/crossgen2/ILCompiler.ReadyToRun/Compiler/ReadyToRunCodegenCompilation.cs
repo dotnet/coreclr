@@ -215,7 +215,7 @@ namespace ILCompiler
                 _dependencyGraph.ComputeMarkedNodes();
                 var nodes = _dependencyGraph.MarkedNodeList;
 
-                using (StartStopEvents emittingEvents = StartStopEvents.PerfEventSource.Log.EmittingEvents())
+                using (PerfEventSource.StartStopEvents.EmittingEvents())
                 {
                     NodeFactory.SetMarkingComplete();
                     ReadyToRunObjectWriter.EmitObject(inputPeReader, outputFile, nodes, NodeFactory);
@@ -236,7 +236,7 @@ namespace ILCompiler
 
         protected override void ComputeDependencyNodeDependencies(List<DependencyNodeCore<NodeFactory>> obj)
         {
-            using (StartStopEvents jitEvents = StartStopEvents.PerfEventSource.Log.JitEvents())
+            using (PerfEventSource.StartStopEvents.JitEvents())
             {
                 ConditionalWeakTable<Thread, CorInfoImpl> cwt = new ConditionalWeakTable<Thread, CorInfoImpl>();
                 Parallel.ForEach(obj, dependency =>
@@ -258,7 +258,7 @@ namespace ILCompiler
 
                     try
                     {
-                        using (StartStopEvents jitMethodEvents = StartStopEvents.PerfEventSource.Log.JitMethodEvents())
+                        using (PerfEventSource.StartStopEvents.JitMethodEvents())
                         {
                             CorInfoImpl corInfoImpl = cwt.GetValue(Thread.CurrentThread, thread => new CorInfoImpl(this, _jitConfigProvider));
                             corInfoImpl.CompileMethod(methodCodeNodeNeedingCode);

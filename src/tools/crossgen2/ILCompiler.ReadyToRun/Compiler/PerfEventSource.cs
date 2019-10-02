@@ -10,77 +10,97 @@ using System.Diagnostics.Tracing;
 /// </summary>
 namespace ILCompiler
 {
-    // The event IDs here must not collide with the ones used by DependencyAnalysis' PerfEventSource
-    public struct StartStopEvents : IDisposable
+    [EventSource(Name = "Microsoft-ILCompiler-Perf")]
+    public class PerfEventSource : EventSource
     {
-        private Action _stopAction;
-        public void Dispose()
+        private PerfEventSource() { }
+
+        public static PerfEventSource Log = new PerfEventSource();
+
+        public struct StartStopEvents : IDisposable
         {
-            _stopAction();
+            private Action _stopAction;
+
+            private StartStopEvents(Action stopAction)
+            {
+                _stopAction = stopAction;
+            }
+
+            public void Dispose()
+            {
+                _stopAction?.Invoke();
+            }
+
+            public static StartStopEvents LoadingEvents()
+            {
+                if (!Log.IsEnabled())
+                    return new StartStopEvents();
+
+                Log.LoadingStart();
+                return new StartStopEvents(Log.LoadingStop);
+            }
+
+            public static StartStopEvents EmittingEvents()
+            {
+                if (!Log.IsEnabled())
+                    return new StartStopEvents();
+
+                Log.EmittingStart();
+                return new StartStopEvents(Log.EmittingStop);
+            }
+
+            public static StartStopEvents CompilationEvents()
+            {
+                if (!Log.IsEnabled())
+                    return new StartStopEvents();
+
+                Log.CompilationStart();
+                return new StartStopEvents(Log.CompilationStop);
+            }
+
+            public static StartStopEvents JitEvents()
+            {
+                if (!Log.IsEnabled())
+                    return new StartStopEvents();
+
+                Log.JitStart();
+                return new StartStopEvents(Log.JitStop);
+            }
+
+            public static StartStopEvents JitMethodEvents()
+            {
+                if (!Log.IsEnabled())
+                    return new StartStopEvents();
+
+                Log.JitMethodStart();
+                return new StartStopEvents(Log.JitMethodStop);
+            }
         }
 
-        private StartStopEvents(Action startAction, Action stopAction)
-        {
-            startAction();
-            _stopAction = stopAction;
-        }
+        // The event IDs here must not collide with the ones used by DependencyAnalysis' PerfEventSource
+        [Event(1, Level = EventLevel.Informational)]
+        private void LoadingStart() { WriteEvent(1); }
+        [Event(2, Level = EventLevel.Informational)]
+        private void LoadingStop() { WriteEvent(2); }
 
-        [EventSource(Name = "Microsoft-ILCompiler-Perf")]
-        public class PerfEventSource : EventSource
-        {
-            public static PerfEventSource Log = new PerfEventSource();
+        [Event(3, Level = EventLevel.Informational)]
+        private void EmittingStart() { WriteEvent(3); }
+        [Event(4, Level = EventLevel.Informational)]
+        private void EmittingStop() { WriteEvent(4); }
 
-            private PerfEventSource() { }
+        [Event(5, Level = EventLevel.Informational)]
+        private void CompilationStart() { WriteEvent(5); }
+        [Event(6, Level = EventLevel.Informational)]
+        private void CompilationStop() { WriteEvent(6); }
 
-            public StartStopEvents LoadingEvents()
-            {
-                return new StartStopEvents(LoadingStart, LoadingStop);
-            }
+        [Event(7, Level = EventLevel.Informational)]
+        private void JitStart() { WriteEvent(7); }
+        [Event(8, Level = EventLevel.Informational)]
+        private void JitStop() { WriteEvent(8); }
 
-            public StartStopEvents EmittingEvents()
-            {
-                return new StartStopEvents(EmittingStart, EmittingStop);
-            }
-
-            public StartStopEvents CompilationEvents()
-            {
-                return new StartStopEvents(CompilationStart, CompilationStop);
-            }
-
-            public StartStopEvents JitEvents()
-            {
-                return new StartStopEvents(JitStart, JitStop);
-            }
-
-            public StartStopEvents JitMethodEvents()
-            {
-                return new StartStopEvents(JitMethodStart, JitMethodStop);
-            }
-
-            [Event(1, Level = EventLevel.Informational)]
-            private void LoadingStart() { WriteEvent(1); }
-            [Event(2, Level = EventLevel.Informational)]
-            private void LoadingStop() { WriteEvent(2); }
-
-            [Event(3, Level = EventLevel.Informational)]
-            private void EmittingStart() { WriteEvent(3); }
-            [Event(4, Level = EventLevel.Informational)]
-            private void EmittingStop() { WriteEvent(4); }
-
-            [Event(5, Level = EventLevel.Informational)]
-            private void CompilationStart() { WriteEvent(5); }
-            [Event(6, Level = EventLevel.Informational)]
-            private void CompilationStop() { WriteEvent(6); }
-
-            [Event(7, Level = EventLevel.Informational)]
-            private void JitStart() { WriteEvent(7); }
-            [Event(8, Level = EventLevel.Informational)]
-            private void JitStop() { WriteEvent(8); }
-
-            [Event(9, Level = EventLevel.Informational)]
-            private void JitMethodStart() { WriteEvent(9); }
-            [Event(10, Level = EventLevel.Informational)]
-            private void JitMethodStop() { WriteEvent(10); }
-        }
+        [Event(9, Level = EventLevel.Informational)]
+        private void JitMethodStart() { WriteEvent(9); }
+        [Event(10, Level = EventLevel.Informational)]
+        private void JitMethodStop() { WriteEvent(10); }
     }
 }
