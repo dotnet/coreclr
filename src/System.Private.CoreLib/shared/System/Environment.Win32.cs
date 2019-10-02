@@ -194,7 +194,7 @@ namespace System
                 // Domain names aren't typically long.
                 // https://support.microsoft.com/en-us/help/909264/naming-conventions-in-active-directory-for-computers-domains-sites-and
                 Span<char> initialDomainNameBuffer = stackalloc char[64];
-                var domainBuilder = new ValueStringBuilder(initialBuffer);
+                var domainBuilder = new ValueStringBuilder(initialDomainNameBuffer);
                 uint length = (uint)domainBuilder.Capacity;
 
                 // This API will fail to return the domain name without a buffer for the SID.
