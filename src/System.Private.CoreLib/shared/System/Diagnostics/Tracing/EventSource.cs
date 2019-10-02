@@ -2922,12 +2922,10 @@ namespace System.Diagnostics.Tracing
 
         // Send out the ETW manifest XML out to ETW
         // Today, we only send the manifest to ETW, custom listeners don't get it.
-        private unsafe bool SendManifest(byte[]? rawManifest)
+        private unsafe void SendManifest(byte[]? rawManifest)
         {
-            bool success = true;
-
             if (rawManifest == null)
-                return false;
+                return;
 
             Debug.Assert(!SelfDescribingEvents);
 
@@ -2995,7 +2993,6 @@ namespace System.Diagnostics.Tracing
                 }
             }
 #endif // FEATURE_MANAGED_ETW
-            return success;
         }
 
 #if (ES_BUILD_PCL)
