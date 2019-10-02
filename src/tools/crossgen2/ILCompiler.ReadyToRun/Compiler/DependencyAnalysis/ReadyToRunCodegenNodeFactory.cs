@@ -64,17 +64,7 @@ namespace ILCompiler.DependencyAnalysis
             NameMangler = nameMangler;
             MetadataManager = metadataManager;
 
-            // Create node caches
-            _typeSymbols = new NodeCache<TypeDesc, IEETypeNode>(CreateNecessaryTypeNode);
-            _constructedTypeSymbols = new NodeCache<TypeDesc, IEETypeNode>(CreateConstructedTypeNode);
-            _methodEntrypoints = new NodeCache<MethodDesc, IMethodNode>(CreateMethodEntrypointNode);
-            _genericReadyToRunHelpersFromDict = new NodeCache<ReadyToRunGenericHelperKey, ISymbolNode>(CreateGenericLookupFromDictionaryNode);
-            _genericReadyToRunHelpersFromType = new NodeCache<ReadyToRunGenericHelperKey, ISymbolNode>(CreateGenericLookupFromTypeNode);
-
-            _readOnlyDataBlobs = new NodeCache<ReadOnlyDataBlobKey, BlobNode>(key =>
-            {
-                return new BlobNode(key.Name, ObjectNodeSection.ReadOnlyDataSection, key.Data, key.Alignment);
-            });
+            CreateNodeCaches();
         }
 
         public CompilerTypeSystemContext TypeSystemContext { get; }
@@ -94,6 +84,20 @@ namespace ILCompiler.DependencyAnalysis
             _markingComplete = true;
         }
 
+        private void CreateNodeCaches()
+        {
+            _typeSymbols = new NodeCache<TypeDesc, IEETypeNode>(CreateNecessaryTypeNode);
+            _constructedTypeSymbols = new NodeCache<TypeDesc, IEETypeNode>(CreateConstructedTypeNode);
+            _methodEntrypoints = new NodeCache<MethodDesc, IMethodNode>(CreateMethodEntrypointNode);
+            _genericReadyToRunHelpersFromDict = new NodeCache<ReadyToRunGenericHelperKey, ISymbolNode>(CreateGenericLookupFromDictionaryNode);
+            _genericReadyToRunHelpersFromType = new NodeCache<ReadyToRunGenericHelperKey, ISymbolNode>(CreateGenericLookupFromTypeNode);
+
+            _readOnlyDataBlobs = new NodeCache<ReadOnlyDataBlobKey, BlobNode>(key =>
+            {
+                return new BlobNode(key.Name, ObjectNodeSection.ReadOnlyDataSection, key.Data, key.Alignment);
+            });
+        }
+
         public abstract void AttachToDependencyGraph(DependencyAnalyzerBase<NodeFactory> graph);
 
         protected abstract IMethodNode CreateMethodEntrypointNode(MethodDesc method);
@@ -106,14 +110,14 @@ namespace ILCompiler.DependencyAnalysis
 
         protected abstract ISymbolNode CreateGenericLookupFromTypeNode(ReadyToRunGenericHelperKey helperKey);
 
-        private readonly NodeCache<TypeDesc, IEETypeNode> _typeSymbols;
+        private NodeCache<TypeDesc, IEETypeNode> _typeSymbols;
 
         public IEETypeNode NecessaryTypeSymbol(TypeDesc type)
         {
             return _typeSymbols.GetOrAdd(type);
         }
 
-        private readonly NodeCache<TypeDesc, IEETypeNode> _constructedTypeSymbols;
+        private NodeCache<TypeDesc, IEETypeNode> _constructedTypeSymbols;
 
         public IEETypeNode ConstructedTypeSymbol(TypeDesc type)
         {
@@ -128,21 +132,21 @@ namespace ILCompiler.DependencyAnalysis
             return _methodEntrypoints.GetOrAdd(method);
         }
 
-        private readonly NodeCache<ReadyToRunGenericHelperKey, ISymbolNode> _genericReadyToRunHelpersFromDict;
+        private NodeCache<ReadyToRunGenericHelperKey, ISymbolNode> _genericReadyToRunHelpersFromDict;
 
         public ISymbolNode ReadyToRunHelperFromDictionaryLookup(ReadyToRunHelperId id, Object target, TypeSystemEntity dictionaryOwner)
         {
             return _genericReadyToRunHelpersFromDict.GetOrAdd(new ReadyToRunGenericHelperKey(id, target, dictionaryOwner));
         }
 
-        private readonly NodeCache<ReadyToRunGenericHelperKey, ISymbolNode> _genericReadyToRunHelpersFromType;
+        private NodeCache<ReadyToRunGenericHelperKey, ISymbolNode> _genericReadyToRunHelpersFromType;
 
         public ISymbolNode ReadyToRunHelperFromTypeLookup(ReadyToRunHelperId id, Object target, TypeSystemEntity dictionaryOwner)
         {
             return _genericReadyToRunHelpersFromType.GetOrAdd(new ReadyToRunGenericHelperKey(id, target, dictionaryOwner));
         }
 
-        private readonly NodeCache<ReadOnlyDataBlobKey, BlobNode> _readOnlyDataBlobs;
+        private NodeCache<ReadOnlyDataBlobKey, BlobNode> _readOnlyDataBlobs;
 
         public BlobNode ReadOnlyDataBlob(Utf8String name, byte[] blobData, int alignment)
         {
@@ -217,6 +221,12 @@ namespace ILCompiler.DependencyAnalysis
             CopiedCorHeaderNode = corHeaderNode;
             if (!win32Resources.IsEmpty)
                 Win32ResourcesNode = new Win32ResourcesNode(win32Resources);
+
+            CreateCodegenNodeCaches();
+        }
+
+        private void CreateCodegenNodeCaches()
+        {
 
             // Create node caches
             _constructedHelpers = new NodeCache<ReadyToRunHelper, ISymbolNode>(CreateReadyToRunHelperCell);
@@ -345,7 +355,7 @@ namespace ILCompiler.DependencyAnalysis
 
         public ImportSectionNode PrecodeImports;
 
-        private readonly NodeCache<ReadyToRunHelper, ISymbolNode> _constructedHelpers;
+        private NodeCache<ReadyToRunHelper, ISymbolNode> _constructedHelpers;
 
         private SignatureContext GetSignatureContext()
         {
@@ -363,7 +373,7 @@ namespace ILCompiler.DependencyAnalysis
         }
 
 
-        private readonly NodeCache<TypeAndMethod, IMethodNode> _importMethods;
+        private NodeCache<TypeAndMethod, IMethodNode> _importMethods;
 
         private IMethodNode CreateMethodEntrypoint(TypeAndMethod key)
         {
@@ -421,7 +431,7 @@ namespace ILCompiler.DependencyAnalysis
             return _importMethods.GetOrAdd(key);
         }
 
-        private readonly NodeCache<TypeAndMethod, MethodWithGCInfo> _localMethodCache = new NodeCache<TypeAndMethod, MethodWithGCInfo>();
+        private NodeCache<TypeAndMethod, MethodWithGCInfo> _localMethodCache = new NodeCache<TypeAndMethod, MethodWithGCInfo>();
 
         private MethodWithGCInfo CreateMethodEntrypointNodeHelper(MethodWithToken targetMethod, bool isUnboxingStub, bool isInstantiatingStub, SignatureContext signatureContext)
         {
@@ -485,7 +495,7 @@ namespace ILCompiler.DependencyAnalysis
 
         }
 
-        private readonly NodeCache<MethodFixupKey, MethodFixupSignature> _methodSignatures;
+        private NodeCache<MethodFixupKey, MethodFixupSignature> _methodSignatures;
 
         public MethodFixupSignature MethodSignature(
             ReadyToRunFixupKind fixupKind,
@@ -524,7 +534,7 @@ namespace ILCompiler.DependencyAnalysis
             }
         }
 
-        private readonly NodeCache<TypeFixupKey, TypeFixupSignature> _typeSignatures;
+        private NodeCache<TypeFixupKey, TypeFixupSignature> _typeSignatures;
 
         public TypeFixupSignature TypeSignature(ReadyToRunFixupKind fixupKind, TypeDesc typeDesc)
         {
@@ -783,7 +793,7 @@ namespace ILCompiler.DependencyAnalysis
             }
         }
 
-        private readonly NodeCache<DynamicHelperCellKey, ISymbolNode> _dynamicHelperCellCache;
+        private NodeCache<DynamicHelperCellKey, ISymbolNode> _dynamicHelperCellCache;
 
         public ISymbolNode DynamicHelperCell(MethodWithToken methodWithToken, bool isInstantiatingStub, SignatureContext signatureContext)
         {
@@ -791,28 +801,28 @@ namespace ILCompiler.DependencyAnalysis
             return _dynamicHelperCellCache.GetOrAdd(key);
         }
 
-        private readonly NodeCache<EcmaModule, CopiedCorHeaderNode> _copiedCorHeaders;
+        private NodeCache<EcmaModule, CopiedCorHeaderNode> _copiedCorHeaders;
 
         public CopiedCorHeaderNode CopiedCorHeader(EcmaModule module)
         {
             return _copiedCorHeaders.GetOrAdd(module);
         }
 
-        private readonly NodeCache<EcmaModule, CopiedMetadataBlobNode> _copiedMetadataBlobs;
+        private NodeCache<EcmaModule, CopiedMetadataBlobNode> _copiedMetadataBlobs;
 
         public CopiedMetadataBlobNode CopiedMetadataBlob(EcmaModule module)
         {
             return _copiedMetadataBlobs.GetOrAdd(module);
         }
 
-        private readonly NodeCache<MethodDesc, CopiedMethodILNode> _copiedMethodIL;
+        private NodeCache<MethodDesc, CopiedMethodILNode> _copiedMethodIL;
 
         public CopiedMethodILNode CopiedMethodIL(EcmaMethod method)
         {
             return _copiedMethodIL.GetOrAdd(method);
         }
 
-        private readonly NodeCache<EcmaField, CopiedFieldRvaNode> _copiedFieldRvas;
+        private NodeCache<EcmaField, CopiedFieldRvaNode> _copiedFieldRvas;
 
         public CopiedFieldRvaNode CopiedFieldRva(FieldDesc field)
         {
@@ -833,21 +843,21 @@ namespace ILCompiler.DependencyAnalysis
             return _copiedFieldRvas.GetOrAdd(ecmaField);
         }
 
-        private readonly NodeCache<EcmaModule, CopiedStrongNameSignatureNode> _copiedStrongNameSignatures;
+        private NodeCache<EcmaModule, CopiedStrongNameSignatureNode> _copiedStrongNameSignatures;
 
         public CopiedStrongNameSignatureNode CopiedStrongNameSignature(EcmaModule module)
         {
             return _copiedStrongNameSignatures.GetOrAdd(module);
         }
 
-        private readonly NodeCache<EcmaModule, CopiedManagedResourcesNode> _copiedManagedResources;
+        private NodeCache<EcmaModule, CopiedManagedResourcesNode> _copiedManagedResources;
 
         public CopiedManagedResourcesNode CopiedManagedResources(EcmaModule module)
         {
             return _copiedManagedResources.GetOrAdd(module);
         }
 
-        private readonly NodeCache<MethodWithGCInfo, ProfileDataNode> _profileDataCountsNodes;
+        private NodeCache<MethodWithGCInfo, ProfileDataNode> _profileDataCountsNodes;
 
         public ProfileDataNode ProfileData(MethodWithGCInfo method)
         {
