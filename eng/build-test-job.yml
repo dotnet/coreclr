@@ -38,6 +38,7 @@ jobs:
     crossgen2: ${{ parameters.crossgen2 }}
     corefxTests: ${{ parameters.corefxTests }}
     stagedBuild: ${{ parameters.stagedBuild }}
+    crossrootfsDir: ${{ parameters.crossrootfsDir }}
 
     # Test jobs should continue on error for internal builds
     ${{ if eq(variables['System.TeamProject'], 'internal') }}:
@@ -59,8 +60,6 @@ jobs:
     ${{ if and(ne(parameters.testGroup, 'innerloop'), ne(parameters.displayNameArgs, '')) }}:
       name: 'build_test_p1_${{ parameters.displayNameArgs }}_${{ parameters.osGroup }}${{ parameters.osSubgroup }}_${{ parameters.archType }}_${{ parameters.buildConfig }}'      
       displayName: 'Build Test Pri1 ${{ parameters.displayNameArgs }} ${{ parameters.osGroup }}${{ parameters.osSubgroup }} ${{ parameters.archType }} ${{ parameters.buildConfig }}'
-
-    crossrootfsDir: ${{ parameters.crossrootfsDir }}
 
     variables:
 
