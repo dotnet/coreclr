@@ -303,8 +303,7 @@ namespace System.Reflection
                         short maxSize = (short)Math.Min(end - i, (int)c_MaxUnicodeCharsReallocate - 1);
 
                         short count = 1;
-                        for (; count < maxSize && pStr[i + count] > '\x7f'; ++count)
-                            ;
+                        for (; count < maxSize && pStr[i + count] > '\x7f'; ++count) ;
 
                         // Is the last a high surrogate?
                         if (pStr[i + count - 1] >= 0xD800 && pStr[i + count - 1] <= 0xDBFF)

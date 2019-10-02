@@ -2466,8 +2466,7 @@ namespace System
                     {
                         case '\'':
                         case '"':
-                            while (src < format.Length && pFormat[src] != 0 && pFormat[src++] != ch)
-                                ;
+                            while (src < format.Length && pFormat[src] != 0 && pFormat[src++] != ch) ;
                             break;
                         case '\\':
                             if (src < format.Length && pFormat[src] != 0)
