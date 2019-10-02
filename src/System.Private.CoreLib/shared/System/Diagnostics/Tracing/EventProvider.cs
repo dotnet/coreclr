@@ -10,7 +10,6 @@ using System.Security.Permissions;
 using BitOperations = Microsoft.Diagnostics.Tracing.Internal.BitOperations;
 #endif
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Numerics;
 using System.Runtime.InteropServices;
