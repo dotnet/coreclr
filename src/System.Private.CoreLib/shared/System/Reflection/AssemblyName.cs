@@ -354,14 +354,7 @@ namespace System.Reflection
                         }
                         prevInputPos = i + 1;
                     }
-                    else if (ch == force1 || ch == force2)
-                    {
-                        dest = EnsureDestinationSize(pStr, dest, i, c_EncodedCharsPerByte,
-                            c_MaxAsciiCharsReallocate * c_EncodedCharsPerByte, ref destPos, prevInputPos);
-                        EscapeAsciiChar(ch, dest, ref destPos);
-                        prevInputPos = i + 1;
-                    }
-                    else if (ch != rsvd && (isUriString ? !IsReservedUnreservedOrHash(ch) : !IsUnreserved(ch)))
+                    else if (ch == force1 || ch == force2 || (ch != rsvd && (isUriString ? !IsReservedUnreservedOrHash(ch) : !IsUnreserved(ch))))
                     {
                         dest = EnsureDestinationSize(pStr, dest, i, c_EncodedCharsPerByte,
                             c_MaxAsciiCharsReallocate * c_EncodedCharsPerByte, ref destPos, prevInputPos);
