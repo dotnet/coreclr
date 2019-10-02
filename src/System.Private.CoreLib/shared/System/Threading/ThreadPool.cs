@@ -700,12 +700,35 @@ namespace System.Threading
             }
 
             /// <summary>
-            /// Performs a limited search for the given item in the queue and removes the item if found.
+            /// Performs a search for the given item in the queue and removes the item if found.
             /// Returns true if item was indeed removed.
+            /// Returns false if item was not found or is no longer inlineable.
             /// </summary>
-            internal bool TryRemove(object callback)
+            internal bool TryRemove(Task callback)
             {
-                return _enqSegment.TryRemove(callback);
+                var enqSegment = _enqSegment;
+                if (enqSegment.TryRemove(callback))
+                {
+                    return true;
+                }
+
+                for (LocalQueueSegment? segment = _deqSegment;
+                   segment != null && segment != enqSegment;
+                   segment = segment._nextSegment)
+                {
+                    if ((callback.m_stateFlags & TASK_STATE_COMPLETED_OR_INVOKED) != 0)
+                    {
+                        // task cannot be inlined
+                        return false;
+                    }
+
+                    if (segment.TryRemove(callback))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
             }
 
             /// <summary>
@@ -769,14 +792,6 @@ namespace System.Threading
                 ///     This ensures that "Full" slots occupy a contiguous range (not a requirement and is not true for the "global" flavor of the queue)
                 /// </summary>
                 private const int Change = 2;
-
-                /// <summary>
-                /// How far we look through items when asked to remove/deschedule one.
-                /// This is a rather arbitrary number to mitigate degenerate cases.
-                /// Normally the stretch of full items will not be nearly this long.
-                /// On the other hand we can afford to search a bit, since the alternative is blocking and waiting, which is very expensive.
-                /// </summary>
-                private const int RemoveRange = 1024;
 
                 /// <summary>
                 /// When a segment has more than this, we steal half of its slots.
@@ -1123,10 +1138,16 @@ namespace System.Threading
                 /// Searches for the given callback and removes it.
                 /// Returns "true" if actually removed the item.
                 /// </summary>
-                internal bool TryRemove(object callback)
+                internal bool TryRemove(Task callback)
                 {
-                    for (int position = _queueEnds.Enqueue - 1, l = position - RemoveRange; position != l; position--)
+                    for (int position = _queueEnds.Enqueue - 1; ; position--)
                     {
+                        if ((callback.m_stateFlags & TASK_STATE_COMPLETED_OR_INVOKED) != 0)
+                        {
+                            // task cannot be inlined
+                            return false;
+                        }
+
                         ref Slot slot = ref this[position];
                         if (slot.Item == callback)
                         {
@@ -1135,8 +1156,10 @@ namespace System.Threading
                             ref var deqSlot = ref this[deqPosition];
                             if (Interlocked.CompareExchange(ref deqSlot.SequenceNumber, deqPosition + Change, deqPosition + Full) == deqPosition + Full)
                             {
-                                // lock the slot.
-                                if (Interlocked.CompareExchange(ref slot.SequenceNumber, position + Change, position + Full) == position + Full)
+                                // lock the slot,
+                                // unless it is the same as Dequeue, in which case we have already locked it
+                                if (position == deqPosition ||
+                                    Interlocked.CompareExchange(ref slot.SequenceNumber, position + Change, position + Full) == position + Full)
                                 {
                                     // Successfully locked the slot.
                                     // check if the item is still there
@@ -1144,14 +1167,23 @@ namespace System.Threading
                                     {
                                         slot.Item = null;
 
-                                        // unlock the slot and Dequeue and return success.
+                                        // unlock the slot.
+                                        // must happen after setting slot to null
                                         Volatile.Write(ref slot.SequenceNumber, position + Full);
-                                        deqSlot.SequenceNumber = deqPosition + Full;
+
+                                        // unlock Dequeue (if different) and return success.
+                                        if (position != deqPosition)
+                                        {
+                                            deqSlot.SequenceNumber = deqPosition + Full;
+                                        }
                                         return true;
                                     }
 
                                     // unlock the slot and exit
-                                    slot.SequenceNumber = position + Full;
+                                    if (position != deqPosition)
+                                    {
+                                        slot.SequenceNumber = position + Full;
+                                    }
                                 }
 
                                 // unlock Dequeue
@@ -1324,9 +1356,41 @@ namespace System.Threading
             RequestThread();
         }
 
-        internal bool TryRemove(object callback)
+        /// <summary>
+        ///  Task in these states cannot be inlined
+        /// </summary>
+        private const int TASK_STATE_COMPLETED_OR_INVOKED = Task.TASK_STATE_CANCELED | Task.TASK_STATE_FAULTED | Task.TASK_STATE_RAN_TO_COMPLETION | Task.TASK_STATE_DELEGATE_INVOKED;
+
+        internal bool TryRemove(Task callback)
         {
-            return GetLocalQueue()?.TryRemove(callback) ?? false;
+            int localQueueIndex = GetLocalQueueIndex();
+            LocalQueue? localQueue = _localQueues[localQueueIndex];
+            if (localQueue != null && localQueue.TryRemove(callback))
+            {
+                return true;
+            }
+
+            for (int i = 0; i < _localQueues.Length; ++i)
+            {
+                if (i == localQueueIndex)
+                {
+                    continue;
+                }
+
+                if ((callback.m_stateFlags & TASK_STATE_COMPLETED_OR_INVOKED) != 0)
+                {
+                    // task cannot be inlined
+                    return false;
+                }
+
+                localQueue = _localQueues[i];
+                if (localQueue != null && localQueue.TryRemove(callback))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public object? PopLocal(int localQueueIndex)
@@ -2010,7 +2074,7 @@ namespace System.Threading
         }
 
         // This method tries to take the target callback out of the current thread's queue.
-        internal static bool TryPopCustomWorkItem(object workItem)
+        internal static bool TryPopCustomWorkItem(Task workItem)
         {
             Debug.Assert(null != workItem);
 
