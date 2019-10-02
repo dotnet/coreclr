@@ -5,6 +5,7 @@
        to send test jobs to helix. -->
 
   <Import Sdk="Microsoft.DotNet.Helix.Sdk" Project="Sdk.props" Condition=" '$(UsesHelixSdk)' == 'true' " />
+  <Import Project="Directory.Build.props" Condition=" '$(UsesHelixSdk)' != 'true' "/>
 
   <!-- This target runs once and creates several instances of this project (one for each scenario)
        that will run in parallel. -->
@@ -119,7 +120,7 @@
   </Target>
 
   <Target Name="PrepareCorrelationPayloadDirectory">
-    <MSBuild Projects="xunitconsolerunner.depproj" Targets="Restore" />
+    <MSBuild Projects="src/xunitconsolerunner.depproj" Targets="Restore" />
 
     <ItemGroup>
       <_XUnitConsoleRunnerFiles Include="$(PackagesDir)$(MicrosoftDotNetXUnitConsoleRunnerPackage.ToLower())\$(MicrosoftDotNetXUnitConsoleRunnerVersion)\**\xunit.console.*" />

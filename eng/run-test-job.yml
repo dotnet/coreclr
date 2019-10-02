@@ -270,3 +270,12 @@ jobs:
           scenarios:
           - jitelthookenabled
           - jitelthookenabled_tiered
+
+    # Publish Logs
+    - task: PublishBuildArtifacts@1
+      displayName: Publish Logs
+      inputs:
+        pathtoPublish: $(binDirectory)/Logs
+        artifactName: ${{ format('TestLogs_run_test_job_{0}{1}_{2}_{3}', parameters.osGroup, parameters.osSubgroup, parameters.archType, parameters.buildConfig) }}
+      continueOnError: true
+      condition: always()
