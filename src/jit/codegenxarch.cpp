@@ -6070,7 +6070,8 @@ void CodeGen::genJmpMethod(GenTree* jmp)
             //
 
             // Update varDsc->lvArgReg and lvOtherArgReg life and GC Info to indicate varDsc stack slot is dead and
-            // argReg is going live. Note that we cannot modify varDsc->GetRegNum() and lvOtherArgReg here because another
+            // argReg is going live. Note that we cannot modify varDsc->GetRegNum() and lvOtherArgReg here because
+            // another
             // basic block may not be expecting it. Therefore manually update life of argReg.  Note that GT_JMP marks
             // the end of the basic block and after which reg life and gc info will be recomputed for the new block in
             // genCodeForBBList().
@@ -6111,7 +6112,8 @@ void CodeGen::genJmpMethod(GenTree* jmp)
                 GetEmitter()->emitIns_R_S(ins_Load(loadType), emitTypeSize(loadType), argReg, varNum, 0);
 
                 // Update argReg life and GC Info to indicate varDsc stack slot is dead and argReg is going live.
-                // Note that we cannot modify varDsc->GetRegNum() here because another basic block may not be expecting it.
+                // Note that we cannot modify varDsc->GetRegNum() here because another basic block may not be expecting
+                // it.
                 // Therefore manually update life of argReg.  Note that GT_JMP marks the end of the basic block
                 // and after which reg life and gc info will be recomputed for the new block in genCodeForBBList().
                 regSet.AddMaskVars(genRegMask(argReg));

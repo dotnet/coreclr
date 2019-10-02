@@ -6260,7 +6260,7 @@ void LinearScan::resolveLocalRef(BasicBlock* block, GenTree* treeNode, RefPositi
                 }
                 else
                 {
-		  varDsc->SetRegNum(assignedReg);
+                    varDsc->SetRegNum(assignedReg);
                 }
             }
         }
@@ -7231,7 +7231,7 @@ void LinearScan::resolveRegisters()
         {
             if (!isCandidateVar(varDsc))
             {
-	      varDsc->SetRegNum(REG_STK);
+                varDsc->SetRegNum(REG_STK);
             }
             else
             {
@@ -7320,7 +7320,7 @@ void LinearScan::resolveRegisters()
                         }
                         else
                         {
-			    varDsc->SetRegNum(firstRefPosition->assignedReg());
+                            varDsc->SetRegNum(firstRefPosition->assignedReg());
                         }
                     }
                 }

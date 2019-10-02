@@ -624,8 +624,6 @@ public:
 
     /////////////////////
 
-
-
     regNumber GetRegNum() const
     {
         return (regNumber)_lvRegNum;
@@ -754,12 +752,12 @@ public:
         {
             if (GetRegNum() != REG_STK)
             {
-	        regMask = genRegMaskFloat(GetRegNum(), TypeGet());
+                regMask = genRegMaskFloat(GetRegNum(), TypeGet());
             }
         }
         else
         {
-	    if (GetRegNum() != REG_STK)
+            if (GetRegNum() != REG_STK)
             {
                 regMask = genRegMask(GetRegNum());
             }
