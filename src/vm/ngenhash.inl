@@ -151,7 +151,7 @@ void NgenHashTable<NGEN_HASH_ARGS>::BaseInsertEntry(NgenHashValue iHash, VALUE *
     pVolatileEntry->m_iHashValue = iHash;
 
     // Compute which bucket the entry belongs in based on the hash.
-    DWORD dwBucket = iHash % VolatileLoad(&m_cWarmBuckets);
+    DWORD dwBucket = iHash % m_cWarmBuckets;
 
     // Prepare to link the new entry at the head of the bucket chain.
     pVolatileEntry->m_pNextEntry = (GetWarmBuckets())[dwBucket];
