@@ -14,7 +14,6 @@ using Internal.TypeSystem;
 using ILCompiler.DependencyAnalysis;
 using ILCompiler.DependencyAnalysis.ReadyToRun;
 using ILCompiler.DependencyAnalysisFramework;
-using System.Collections;
 
 namespace ILCompiler
 {
@@ -219,7 +218,7 @@ namespace ILCompiler
                 _dependencyGraph.ComputeMarkedNodes();
                 var nodes = _dependencyGraph.MarkedNodeList;
 
-                using (StartStopEvents emittingEvents = StartStopEvents.PerfEventSource.Log.EmittingEvents())
+                using (PerfEventSource.StartStopEvents.EmittingEvents())
                 {
                     NodeFactory.SetMarkingComplete();
                     ReadyToRunObjectWriter.EmitObject(inputPeReader, outputFile, nodes, NodeFactory);
@@ -240,7 +239,7 @@ namespace ILCompiler
 
         protected override void ComputeDependencyNodeDependencies(List<DependencyNodeCore<NodeFactory>> obj)
         {
-            using (StartStopEvents jitEvents = StartStopEvents.PerfEventSource.Log.JitEvents())
+            using (PerfEventSource.StartStopEvents.JitEvents())
             {
                 foreach (DependencyNodeCore<NodeFactory> dependency in obj)
                 {
@@ -272,7 +271,7 @@ namespace ILCompiler
 
                     try
                     {
-                        using (StartStopEvents jitMethodEvents = StartStopEvents.PerfEventSource.Log.JitMethodEvents())
+                        using (PerfEventSource.StartStopEvents.JitMethodEvents())
                         {
                             _corInfo.CompileMethod(methodCodeNodeNeedingCode);
                         }

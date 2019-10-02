@@ -250,7 +250,7 @@ namespace ILCompiler.DependencyAnalysisFramework
 
         public override void ComputeMarkedNodes()
         {
-            using (StartStopEvents graphProcessingEvents = StartStopEvents.PerfEventSource.Log.GraphProcessingEvents())
+            using (PerfEventSource.StartStopEvents.GraphProcessingEvents())
             {
                 if (_markingCompleted)
                     return;
@@ -258,7 +258,7 @@ namespace ILCompiler.DependencyAnalysisFramework
                 do
                 {
                     // Run mark stack algorithm as much as possible
-                    using (StartStopEvents dependencyAnalysisEvents = StartStopEvents.PerfEventSource.Log.DependencyAnalysisEvents())
+                    using (PerfEventSource.StartStopEvents.DependencyAnalysisEvents())
                     {
                         ProcessMarkStack();
                     }
@@ -287,7 +287,7 @@ namespace ILCompiler.DependencyAnalysisFramework
         {
             if (_marker.MarkNode(node, reason1, reason2, reason))
             {
-                StartStopEvents.PerfEventSource.Log.AddedNodeToMarkStack();
+                PerfEventSource.Log.AddedNodeToMarkStack();
 
                 // Pop the top node of the mark stack
                 if (_stackPopRandomizer == null)

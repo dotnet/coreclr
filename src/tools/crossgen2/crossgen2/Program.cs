@@ -227,10 +227,10 @@ namespace ILCompiler
                     throw new CommandLineException("Target OS is not supported");
             }
 
-            using (StartStopEvents compilationEvents = StartStopEvents.PerfEventSource.Log.CompilationEvents())
+            using (PerfEventSource.StartStopEvents.CompilationEvents())
             {
                 ICompilation compilation;
-                using (StartStopEvents loadingEvents = StartStopEvents.PerfEventSource.Log.LoadingEvents())
+                using (PerfEventSource.StartStopEvents.LoadingEvents())
                 {
                     //
                     // Initialize type system context
