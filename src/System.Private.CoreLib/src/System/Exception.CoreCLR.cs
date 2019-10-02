@@ -420,5 +420,15 @@ namespace System
             return new DispatchState(stackTrace, dynamicMethods,
                 _remoteStackTraceString, _ipForWatsonBuckets, _watsonBuckets);
         }
+
+        partial void SetCurrentStackTraceCore()
+        {
+            // Store the current stack trace into the "remote" stack trace, which was originally introduced
+            // to support remoting of exceptions across app-domain boundaries, and is thus concatenated into
+            // Exception.StackTrace when it's retrieved.
+            _remoteStackTraceString =
+                Environment.StackTrace + Environment.NewLine +
+                SR.Exception_EndStackTraceFromPreviousThrow + Environment.NewLine;
+        }
     }
 }
