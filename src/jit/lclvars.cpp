@@ -452,7 +452,7 @@ void Compiler::lvaInitThisPtr(InitVarDscInfo* varDscInfo)
 
         varDsc->lvArgReg = genMapRegArgNumToRegNum(varDscInfo->allocRegArg(TYP_INT), varDsc->TypeGet());
 #if FEATURE_MULTIREG_ARGS
-        varDsc->lvOtherArgReg = REG_NA;
+        varDsc->SetOtherArgReg(REG_NA);
 #endif
         varDsc->lvOnFrame = true; // The final home for this incoming register might be our local stack frame
 
@@ -496,7 +496,7 @@ void Compiler::lvaInitRetBuffArg(InitVarDscInfo* varDscInfo)
         }
 
 #if FEATURE_MULTIREG_ARGS
-        varDsc->lvOtherArgReg = REG_NA;
+        varDsc->SetOtherArgReg(REG_NA);
 #endif
         varDsc->lvOnFrame = true; // The final home for this incoming register might be our local stack frame
 
@@ -808,7 +808,7 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
             unsigned firstAllocatedRegArgNum = 0;
 
 #if FEATURE_MULTIREG_ARGS
-            varDsc->lvOtherArgReg = REG_NA;
+            varDsc->SetOtherArgReg(REG_NA);
 #endif // FEATURE_MULTIREG_ARGS
 
 #if defined(UNIX_AMD64_ABI)
@@ -851,7 +851,7 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
                 varDsc->lvArgReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum, TYP_I_IMPL);
                 if (cSlots == 2)
                 {
-                    varDsc->lvOtherArgReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum + 1, TYP_I_IMPL);
+                    varDsc->SetOtherArgReg(genMapRegArgNumToRegNum(firstAllocatedRegArgNum + 1, TYP_I_IMPL));
                 }
             }
 #elif defined(UNIX_AMD64_ABI)
@@ -868,7 +868,7 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
 
                 if (secondEightByteType != TYP_UNDEF)
                 {
-                    varDsc->lvOtherArgReg = genMapRegArgNumToRegNum(secondAllocatedRegArgNum, secondEightByteType);
+                    varDsc->SetOtherArgReg(genMapRegArgNumToRegNum(secondAllocatedRegArgNum, secondEightByteType));
                 }
             }
 #else  // ARM32
@@ -886,7 +886,7 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
 #ifdef _TARGET_ARM_
             if (varDsc->TypeGet() == TYP_LONG)
             {
-                varDsc->lvOtherReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum + 1, TYP_INT);
+                varDsc->SetOtherArgReg(genMapRegArgNumToRegNum(firstAllocatedRegArgNum + 1, TYP_INT));
             }
 #endif // _TARGET_ARM_
 
@@ -1078,7 +1078,7 @@ void Compiler::lvaInitGenericsCtxt(InitVarDscInfo* varDscInfo)
             varDsc->lvIsRegArg = 1;
             varDsc->lvArgReg   = genMapRegArgNumToRegNum(varDscInfo->regArgNum(TYP_INT), varDsc->TypeGet());
 #if FEATURE_MULTIREG_ARGS
-            varDsc->lvOtherArgReg = REG_NA;
+            varDsc->SetOtherArgReg(REG_NA);
 #endif
             varDsc->lvOnFrame = true; // The final home for this incoming register might be our local stack frame
 
@@ -1141,7 +1141,7 @@ void Compiler::lvaInitVarArgsHandle(InitVarDscInfo* varDscInfo)
             varDsc->lvIsRegArg = 1;
             varDsc->lvArgReg   = genMapRegArgNumToRegNum(varArgHndArgNum, TYP_I_IMPL);
 #if FEATURE_MULTIREG_ARGS
-            varDsc->lvOtherArgReg = REG_NA;
+            varDsc->SetOtherArgReg(REG_NA);
 #endif
             varDsc->lvOnFrame = true; // The final home for this incoming register might be our local stack frame
 #ifdef _TARGET_ARM_
@@ -1323,7 +1323,7 @@ void Compiler::lvaInitVarDsc(LclVarDsc*              varDsc,
 #endif
 
 #if FEATURE_MULTIREG_ARGS
-    varDsc->lvOtherArgReg = REG_NA;
+    varDsc->SetOtherArgReg(REG_NA);
 #endif // FEATURE_MULTIREG_ARGS
 }
 
@@ -2194,7 +2194,7 @@ void Compiler::StructPromotionHelper::PromoteStructVar(unsigned lclNum)
                 // a SIMD field of an enregisterable struct, it is the only field.
                 // We will assert that, in case future changes are made to the ABI.
                 assert(varDsc->lvFieldCnt == 1);
-                fieldVarDsc->lvOtherArgReg = varDsc->lvOtherArgReg;
+                fieldVarDsc->SetOtherArgReg(varDsc->GetOtherArgReg());
             }
 #endif // FEATURE_MULTIREG_ARGS && defined(FEATURE_SIMD)
         }
@@ -3596,7 +3596,7 @@ void Compiler::lvaMarkLclRefs(GenTree* tree, BasicBlock* block, Statement* stmt,
 
                     NOT_BOOL:
 
-                        lclNum = op1->gtLclVarCommon.gtLclNum;
+                        lclNum = op1->gtLclVarCommon.GetLclNum();
                         noway_assert(lclNum < lvaCount);
 
                         lvaTable[lclNum].lvIsBoolean = false;
@@ -3615,7 +3615,7 @@ void Compiler::lvaMarkLclRefs(GenTree* tree, BasicBlock* block, Statement* stmt,
     /* This must be a local variable reference */
 
     assert((tree->gtOper == GT_LCL_VAR) || (tree->gtOper == GT_LCL_FLD));
-    unsigned lclNum = tree->gtLclVarCommon.gtLclNum;
+    unsigned lclNum = tree->gtLclVarCommon.GetLclNum();
 
     noway_assert(lclNum < lvaCount);
     LclVarDsc* varDsc = lvaTable + lclNum;
@@ -4064,7 +4064,7 @@ void Compiler::lvaComputeRefCounts(bool isRecompute, bool setSlotNumbers)
                     case GT_STORE_LCL_VAR:
                     case GT_STORE_LCL_FLD:
                     {
-                        const unsigned lclNum = node->AsLclVarCommon()->gtLclNum;
+                        const unsigned lclNum = node->AsLclVarCommon()->GetLclNum();
                         lvaTable[lclNum].incRefCnts(weight, this);
                         break;
                     }
@@ -4854,7 +4854,7 @@ void Compiler::lvaUpdateArgsWithInitialReg()
 
         if (varDsc->lvIsRegCandidate())
         {
-            varDsc->lvRegNum = varDsc->lvArgInitReg;
+            varDsc->lvRegNum = varDsc->GetArgInitReg();
         }
     }
 }
@@ -5238,7 +5238,8 @@ int Compiler::lvaAssignVirtualFrameOffsetToArg(unsigned lclNum,
 #if FEATURE_ARG_SPLIT
         if (this->info.compIsVarArgs)
         {
-            if (varDsc->lvType == TYP_STRUCT && varDsc->lvOtherArgReg >= MAX_REG_ARG && varDsc->lvOtherArgReg != REG_NA)
+            if (varDsc->lvType == TYP_STRUCT && varDsc->GetOtherArgReg() >= MAX_REG_ARG &&
+                varDsc->GetOtherArgReg() != REG_NA)
             {
                 // This is a split struct. It will account for an extra (8 bytes)
                 // of alignment.
@@ -7255,7 +7256,7 @@ Compiler::fgWalkResult Compiler::lvaStressLclFldCB(GenTree** pTree, fgWalkData* 
     Compiler* pComp      = ((lvaStressLclFldArgs*)data->pCallbackData)->m_pCompiler;
     bool      bFirstPass = ((lvaStressLclFldArgs*)data->pCallbackData)->m_bFirstPass;
     noway_assert(lcl->gtOper == GT_LCL_VAR);
-    unsigned   lclNum = lcl->gtLclVarCommon.gtLclNum;
+    unsigned   lclNum = lcl->gtLclVarCommon.GetLclNum();
     var_types  type   = lcl->TypeGet();
     LclVarDsc* varDsc = &pComp->lvaTable[lclNum];
 

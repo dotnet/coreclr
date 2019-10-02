@@ -55,6 +55,11 @@ namespace Internal.JitInterface
 
         private ExceptionDispatchInfo _lastException;
 
+        private static bool s_jitRegistered = RegisterJITModule();
+
+        [DllImport("clrjitilc")]
+        private extern static IntPtr PAL_RegisterModule([MarshalAs(UnmanagedType.LPUTF8Str)] string moduleName);
+
         [DllImport("clrjitilc", CallingConvention=CallingConvention.StdCall)] // stdcall in CoreCLR!
         private extern static IntPtr jitStartup(IntPtr host);
 
@@ -109,12 +114,26 @@ namespace Internal.JitInterface
 
         private readonly UnboxingMethodDescFactory _unboxingThunkFactory;
 
+        private static bool RegisterJITModule()
+        {
+            if ((Environment.OSVersion.Platform == PlatformID.Unix) || (Environment.OSVersion.Platform == PlatformID.MacOSX))
+            {
+                return PAL_RegisterModule("libclrjitilc.so") != (IntPtr)1;
+            }
+            else
+            {
+                return true;
+            }
+        }
+
         public CorInfoImpl(JitConfigProvider jitConfig)
         {
             //
             // Global initialization
             //
             _jitConfig = jitConfig;
+            if (!s_jitRegistered)
+                throw new IOException("Failed to register JIT");
 
             jitStartup(GetJitHost(_jitConfig.UnmanagedInstance));
 
@@ -691,11 +710,6 @@ namespace Internal.JitInterface
             return (uint)result;
         }
 
-        private uint getMethodAttribs(CORINFO_METHOD_STRUCT_* ftn)
-        {
-            return getMethodAttribsInternal(HandleToObject(ftn));
-        }
-
         private void setMethodAttribs(CORINFO_METHOD_STRUCT_* ftn, CorInfoMethodRuntimeFlags attribs)
         {
             // TODO: Inlining
@@ -873,6 +887,7 @@ namespace Internal.JitInterface
                 getJitFlags(ref flags, (uint)sizeof(CORJIT_FLAGS));
 
                 Debug.Assert(!_simdHelper.IsVectorOfT(type)
+                    || ((DefType)type).InstanceFieldSize.IsIndeterminate /* This would happen in the ReadyToRun case */
                     || ((DefType)type).InstanceFieldSize.AsInt == GetMaxIntrinsicSIMDVectorLength(_jit, &flags));
 #endif
 
@@ -2470,33 +2485,45 @@ namespace Internal.JitInterface
             return (byte*)GetPin(StringToUTF8(method.Name));
         }
 
-        private byte* getMethodNameFromMetadata(CORINFO_METHOD_STRUCT_* ftn, byte** className, byte** namespaceName, byte** enclosingClassName)
+        private String getMethodNameFromMetadataImpl(MethodDesc method, out string className, out string namespaceName, out string enclosingClassName)
         {
-            MethodDesc method = HandleToObject(ftn);
-
             string result = null;
-            string classResult = null;
-            string namespaceResult = null;
-            string enclosingResult = null;
+            className = null;
+            namespaceName = null;
+            enclosingClassName = null;
 
             result = method.Name;
 
             MetadataType owningType = method.OwningType as MetadataType;
             if (owningType != null)
             {
-                classResult = owningType.Name;
-                namespaceResult = owningType.Namespace;
+                className = owningType.Name;
+                namespaceName = owningType.Namespace;
 
                 // Query enclosingClassName when the method is in a nested class
                 // and get the namespace of enclosing classes (nested class's namespace is empty)
                 var containingType = owningType.ContainingType;
                 if (containingType != null)
                 {
-                    enclosingResult = containingType.Name;
-                    namespaceResult = containingType.Namespace;
+                    enclosingClassName = containingType.Name;
+                    namespaceName = containingType.Namespace;
                 }
             }
-            
+
+            return result;
+        }
+
+        private byte* getMethodNameFromMetadata(CORINFO_METHOD_STRUCT_* ftn, byte** className, byte** namespaceName, byte** enclosingClassName)
+        {
+            MethodDesc method = HandleToObject(ftn);
+
+            string result;
+            string classResult;
+            string namespaceResult;
+            string enclosingResult;
+
+            result = getMethodNameFromMetadataImpl(method, out classResult, out namespaceResult, out enclosingResult);
+
             if (className != null)
                 *className = classResult != null ? (byte*)GetPin(StringToUTF8(classResult)) : null;
             if (namespaceName != null)
@@ -2996,7 +3023,6 @@ namespace Internal.JitInterface
             flags.Set(CorJitFlag.CORJIT_FLAG_PREJIT);
             flags.Set(CorJitFlag.CORJIT_FLAG_USE_PINVOKE_HELPERS);
 
-#if !READYTORUN
             if (_compilation.TypeSystemContext.Target.Architecture == TargetArchitecture.X86
                 || _compilation.TypeSystemContext.Target.Architecture == TargetArchitecture.X64)
             {
@@ -3008,7 +3034,6 @@ namespace Internal.JitInterface
                 flags.Set(CorJitFlag.CORJIT_FLAG_USE_SSSE3);
                 flags.Set(CorJitFlag.CORJIT_FLAG_USE_LZCNT);
             }
-#endif
 
             if (this.MethodBeingCompiled.IsNativeCallable)
                 flags.Set(CorJitFlag.CORJIT_FLAG_REVERSE_PINVOKE);

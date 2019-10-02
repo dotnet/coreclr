@@ -157,7 +157,7 @@ CodeGen::CodeGen(Compiler* theCompiler) : CodeGenInterface(theCompiler)
 
     /* Assume that we not fully interruptible */
 
-    genInterruptible = false;
+    SetInterruptible(false);
 #ifdef _TARGET_ARMARCH_
     SetHasTailCalls(false);
 #endif // _TARGET_ARMARCH_
@@ -457,7 +457,7 @@ regMaskTP CodeGenInterface::genGetRegMask(GenTree* tree)
     assert(tree->gtOper == GT_LCL_VAR);
 
     regMaskTP        regMask = RBM_NONE;
-    const LclVarDsc* varDsc  = compiler->lvaTable + tree->gtLclVarCommon.gtLclNum;
+    const LclVarDsc* varDsc  = compiler->lvaTable + tree->gtLclVarCommon.GetLclNum();
     if (varDsc->lvPromoted)
     {
         for (unsigned i = varDsc->lvFieldLclStart; i < varDsc->lvFieldLclStart + varDsc->lvFieldCnt; ++i)
@@ -983,18 +983,52 @@ BasicBlock* CodeGen::genCreateTempLabel()
     return block;
 }
 
-// inline
-void CodeGen::genDefineTempLabel(BasicBlock* label)
+void CodeGen::genLogLabel(BasicBlock* bb)
 {
 #ifdef DEBUG
     if (compiler->opts.dspCode)
     {
-        printf("\n      L_M%03u_" FMT_BB ":\n", Compiler::s_compMethodsCount, label->bbNum);
+        printf("\n      L_M%03u_" FMT_BB ":\n", Compiler::s_compMethodsCount, bb->bbNum);
     }
 #endif
+}
 
+// genDefineTempLabel: Define a label based on the current GC info tracked by
+// the code generator.
+//
+// Arguments:
+//     label - A label represented as a basic block. These are created with
+//     genCreateTempLabel and are not normal basic blocks.
+//
+// Notes:
+//     The label will be defined with the current GC info tracked by the code
+//     generator. When the emitter sees this label it will thus remove any temporary
+//     GC refs it is tracking in registers. For example, a call might produce a ref
+//     in RAX which the emitter would track but which would not be tracked in
+//     codegen's GC info since codegen would immediately copy it from RAX into its
+//     home.
+//
+void CodeGen::genDefineTempLabel(BasicBlock* label)
+{
+    genLogLabel(label);
     label->bbEmitCookie =
         GetEmitter()->emitAddLabel(gcInfo.gcVarPtrSetCur, gcInfo.gcRegGCrefSetCur, gcInfo.gcRegByrefSetCur);
+}
+
+// genDefineInlineTempLabel: Define an inline label that does not affect the GC
+// info.
+//
+// Arguments:
+//     label - A label represented as a basic block. These are created with
+//     genCreateTempLabel and are not normal basic blocks.
+//
+// Notes:
+//     The emitter will continue to track GC info as if there was no label.
+//
+void CodeGen::genDefineInlineTempLabel(BasicBlock* label)
+{
+    genLogLabel(label);
+    label->bbEmitCookie = GetEmitter()->emitAddInlineLabel();
 }
 
 /*****************************************************************************
@@ -1108,7 +1142,7 @@ unsigned CodeGenInterface::InferStructOpSizeAlign(GenTree* op, unsigned* alignme
     }
     else if (op->gtOper == GT_LCL_VAR)
     {
-        unsigned   varNum = op->gtLclVarCommon.gtLclNum;
+        unsigned   varNum = op->gtLclVarCommon.GetLclNum();
         LclVarDsc* varDsc = compiler->lvaTable + varNum;
         assert(varDsc->lvType == TYP_STRUCT);
         opSize = varDsc->lvSize();
@@ -2126,7 +2160,7 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 #endif
             printf("; %s based frame\n", isFramePointerUsed() ? STR_FPBASE : STR_SPBASE);
 
-        if (genInterruptible)
+        if (GetInterruptible())
         {
             printf("; fully interruptible\n");
         }
@@ -2253,7 +2287,7 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 
     compiler->EndPhase(PHASE_GENERATE_CODE);
 
-    codeSize = GetEmitter()->emitEndCodeGen(compiler, trackedStackPtrsContig, genInterruptible, genFullPtrRegMap,
+    codeSize = GetEmitter()->emitEndCodeGen(compiler, trackedStackPtrsContig, GetInterruptible(), genFullPtrRegMap,
                                             (compiler->info.compRetType == TYP_REF), compiler->compHndBBtabCount,
                                             &prologSize, &epilogSize, codePtr, &coldCodePtr, &consPtr);
 
@@ -4451,7 +4485,7 @@ void CodeGen::genEnregisterIncomingStackArgs()
 
         /* Figure out the home offset of the incoming argument */
 
-        regNumber regNum = varDsc->lvArgInitReg;
+        regNumber regNum = varDsc->GetArgInitReg();
         assert(regNum != REG_STK);
 
         GetEmitter()->emitIns_R_S(ins_Load(type), emitTypeSize(type), regNum, varNum, 0);
@@ -7596,7 +7630,7 @@ void CodeGen::genFnProlog()
 
 #endif // PROFILING_SUPPORTED
 
-    if (!genInterruptible)
+    if (!GetInterruptible())
     {
         /*-------------------------------------------------------------------------
          *
@@ -7720,7 +7754,7 @@ void CodeGen::genFnProlog()
     // And again make sure it's big enough for ReJIT
     //
 
-    if (genInterruptible)
+    if (GetInterruptible())
     {
         genPrologPadForReJit();
         GetEmitter()->emitMarkPrologEnd();

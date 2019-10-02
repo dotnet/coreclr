@@ -692,7 +692,7 @@ bool LinearScan::isContainableMemoryOp(GenTree* node)
         {
             return true;
         }
-        LclVarDsc* varDsc = &compiler->lvaTable[node->AsLclVar()->gtLclNum];
+        LclVarDsc* varDsc = &compiler->lvaTable[node->AsLclVar()->GetLclNum()];
         return varDsc->lvDoNotEnregister;
     }
     return false;
@@ -1568,7 +1568,7 @@ void LinearScan::buildRefPositionsForNode(GenTree* tree, BasicBlock* block, Lsra
         // address computation. In this case we need to check whether it is a last use.
         if (tree->IsLocal() && ((tree->gtFlags & GTF_VAR_DEATH) != 0))
         {
-            LclVarDsc* const varDsc = &compiler->lvaTable[tree->AsLclVarCommon()->gtLclNum];
+            LclVarDsc* const varDsc = &compiler->lvaTable[tree->AsLclVarCommon()->GetLclNum()];
             if (isCandidateVar(varDsc))
             {
                 assert(varDsc->lvTracked);
@@ -1819,17 +1819,17 @@ void LinearScan::unixAmd64UpdateRegStateForArg(LclVarDsc* argDsc)
         }
     }
 
-    if ((argDsc->lvOtherArgReg != REG_STK) && (argDsc->lvOtherArgReg != REG_NA))
+    if ((argDsc->GetOtherArgReg() != REG_STK) && (argDsc->GetOtherArgReg() != REG_NA))
     {
-        if (genRegMask(argDsc->lvOtherArgReg) & (RBM_ALLFLOAT))
+        if (genRegMask(argDsc->GetOtherArgReg()) & (RBM_ALLFLOAT))
         {
-            assert(genRegMask(argDsc->lvOtherArgReg) & (RBM_FLTARG_REGS));
-            floatRegState->rsCalleeRegArgMaskLiveIn |= genRegMask(argDsc->lvOtherArgReg);
+            assert(genRegMask(argDsc->GetOtherArgReg()) & (RBM_FLTARG_REGS));
+            floatRegState->rsCalleeRegArgMaskLiveIn |= genRegMask(argDsc->GetOtherArgReg());
         }
         else
         {
-            assert(genRegMask(argDsc->lvOtherArgReg) & (RBM_ARG_REGS));
-            intRegState->rsCalleeRegArgMaskLiveIn |= genRegMask(argDsc->lvOtherArgReg);
+            assert(genRegMask(argDsc->GetOtherArgReg()) & (RBM_ARG_REGS));
+            intRegState->rsCalleeRegArgMaskLiveIn |= genRegMask(argDsc->GetOtherArgReg());
         }
     }
 }
@@ -1885,9 +1885,9 @@ void LinearScan::updateRegStateForArg(LclVarDsc* argDsc)
         {
             JITDUMP("Int arg V%02u in reg %s\n", (argDsc - compiler->lvaTable), getRegName(argDsc->lvArgReg));
 #if FEATURE_MULTIREG_ARGS
-            if (argDsc->lvOtherArgReg != REG_NA)
+            if (argDsc->GetOtherArgReg() != REG_NA)
             {
-                JITDUMP("(second half) in reg %s\n", getRegName(argDsc->lvOtherArgReg));
+                JITDUMP("(second half) in reg %s\n", getRegName(argDsc->GetOtherArgReg()));
             }
 #endif // FEATURE_MULTIREG_ARGS
             compiler->raUpdateRegStateForArg(intRegState, argDsc);
@@ -2896,7 +2896,7 @@ int LinearScan::BuildStoreLoc(GenTreeLclVarCommon* storeLoc)
     GenTree*     op1 = storeLoc->gtGetOp1();
     int          srcCount;
     RefPosition* singleUseRef = nullptr;
-    LclVarDsc*   varDsc       = &compiler->lvaTable[storeLoc->gtLclNum];
+    LclVarDsc*   varDsc       = &compiler->lvaTable[storeLoc->GetLclNum()];
 
 // First, define internal registers.
 #ifdef FEATURE_SIMD

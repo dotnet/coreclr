@@ -21,7 +21,9 @@ namespace System.Reflection
         internal RuntimeAssembly() { throw new NotSupportedException(); }
 
         #region private data members
+#pragma warning disable 67 // events are declared but not used
         private event ModuleResolveEventHandler? _ModuleResolve;
+#pragma warning restore 67
         private string? m_fullname;
         private object? m_syncRoot;   // Used to keep collectible types alive and as the syncroot for reflection.emit
 #pragma warning disable 169
@@ -338,7 +340,7 @@ namespace System.Reflection
             return nLoad(assemblyRef, codeBase, null, ref stackMark, true, assemblyLoadContext);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern RuntimeAssembly nLoad(AssemblyName fileName,
                                                     string? codeBase,
                                                     RuntimeAssembly? assemblyContext,
@@ -390,7 +392,7 @@ namespace System.Reflection
         }
 
         // Returns the names of all the resources
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern string[] GetManifestResourceNames(RuntimeAssembly assembly);
 
         // Returns the names of all the resources
@@ -400,7 +402,7 @@ namespace System.Reflection
         }
 
         // Returns the names of all the resources
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern AssemblyName[] GetReferencedAssemblies(RuntimeAssembly assembly);
 
         public override AssemblyName[] GetReferencedAssemblies()
@@ -523,7 +525,7 @@ namespace System.Reflection
             return CultureInfo.GetCultureInfo(locale);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool FCallIsDynamic(RuntimeAssembly assembly);
 
         public override bool IsDynamic => FCallIsDynamic(GetNativeHandle());
@@ -566,23 +568,6 @@ namespace System.Reflection
             RuntimeAssembly runtimeAssembly = this;
             GetPublicKey(JitHelpers.GetQCallAssemblyOnStack(ref runtimeAssembly), JitHelpers.GetObjectHandleOnStack(ref publicKey));
             return publicKey;
-        }
-
-        // This method is called by the VM.
-        private RuntimeModule? OnModuleResolveEvent(string moduleName)
-        {
-            ModuleResolveEventHandler? moduleResolve = _ModuleResolve;
-            if (moduleResolve == null)
-                return null;
-
-            foreach (ModuleResolveEventHandler handler in moduleResolve.GetInvocationList())
-            {
-                RuntimeModule ret = (RuntimeModule)handler(this, new ResolveEventArgs(moduleName, this));
-                if (ret != null)
-                    return ret;
-            }
-
-            return null;
         }
 
         public override Assembly GetSatelliteAssembly(CultureInfo culture)
@@ -655,10 +640,10 @@ namespace System.Reflection
             return GetModulesInternal(false, getResourceModules);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern RuntimeModule GetManifestModule(RuntimeAssembly assembly);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int GetToken(RuntimeAssembly assembly);
 
         public sealed override Type[] GetForwardedTypes()
