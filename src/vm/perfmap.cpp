@@ -269,6 +269,42 @@ void PerfMap::LogJITCompiledMethod(MethodDesc * pMethod, PCODE pCode, size_t cod
     s_Current->LogMethod(pMethod, pCode, codeSize, optimizationTier);
 }
 
+// Log a pre-compiled method to the perfmap.
+void PerfMap::LogPreCompiledMethod(MethodDesc * pMethod, PCODE pCode)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    // Get information about the NGEN'd method code.
+    EECodeInfo codeInfo(pCode);
+    _ASSERTE(codeInfo.IsValid());
+
+    IJitManager::MethodRegionInfo methodRegionInfo;
+    codeInfo.GetMethodRegionInfo(&methodRegionInfo);
+
+    // Logging failures should not cause any exceptions to flow upstream.
+    EX_TRY
+    {
+        // Get the full method signature.
+        SString name;
+        pMethod->GetFullMethodInfo(name);
+
+        StackScratchBuffer scratch;
+
+        // NGEN can split code between hot and cold sections which are separate in memory.
+        // Emit an entry for each section if it is used.
+        if (methodRegionInfo.hotSize > 0)
+        {
+            PerfJitDump::LogMethod((void*)methodRegionInfo.hotStartAddress, methodRegionInfo.hotSize, name.GetANSI(scratch));
+        }
+
+        if (methodRegionInfo.coldSize > 0)
+        {
+            PerfJitDump::LogMethod((void*)methodRegionInfo.coldStartAddress, methodRegionInfo.coldSize, name.GetANSI(scratch));
+        }
+    }
+    EX_CATCH{} EX_END_CATCH(SwallowAllExceptions);
+}
+
 // Log a set of stub to the map.
 void PerfMap::LogStubs(const char* stubType, const char* stubOwner, PCODE pCode, size_t codeSize)
 {
