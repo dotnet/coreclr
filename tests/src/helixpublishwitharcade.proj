@@ -63,7 +63,7 @@
     <TestEnvFileName Condition=" '$(TargetsWindows)' != 'true' ">SetStressModes_$(Scenario).sh</TestEnvFileName>
   </PropertyGroup>
 
-  <Import Project="testgrouping.proj" />
+  <Import Project="../testgrouping.proj" />
 
   <Target Name="DiscoverAllXUnitWrappers">
     <ItemGroup>
@@ -120,7 +120,7 @@
   </Target>
 
   <Target Name="PrepareCorrelationPayloadDirectory">
-    <MSBuild Projects="src/xunitconsolerunner.depproj" Targets="Restore" />
+    <MSBuild Projects="xunitconsolerunner.depproj" Targets="Restore" />
 
     <ItemGroup>
       <_XUnitConsoleRunnerFiles Include="$(PackagesDir)$(MicrosoftDotNetXUnitConsoleRunnerPackage.ToLower())\$(MicrosoftDotNetXUnitConsoleRunnerVersion)\**\xunit.console.*" />
@@ -136,7 +136,7 @@
 
     <ItemGroup>
       <_PayloadGroups Include="$(PayloadGroups)" />
-      <_ProjectsToBuild Include="testenvironment.proj">
+      <_ProjectsToBuild Include="../testenvironment.proj">
         <Properties>Scenario=$(Scenario);TestEnvFileName=$(PayloadsRootDirectory)%(_PayloadGroups.Identity)\$(TestEnvFileName);TargetsWindows=$(TargetsWindows)</Properties>
       </_ProjectsToBuild>
     </ItemGroup>

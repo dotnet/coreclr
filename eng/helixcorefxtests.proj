@@ -5,7 +5,7 @@
        to send test jobs to helix. -->
 
   <Import Sdk="Microsoft.DotNet.Helix.Sdk" Project="Sdk.props" Condition=" '$(UsesHelixSdk)' == 'true' " />
-  <Import Project="Directory.Build.props" Condition=" '$(UsesHelixSdk)' != 'true' "/>
+  <Import Project="$([MSBuild]::GetPathOfFileAbove(Directory.Build.props))" Condition=" '$(UsesHelixSdk)' != 'true' "/>
 
   <!-- Import Microsoft.DotNet.Build.Tasks.Feed.targets for `ParseBuildManifest` -->
   <Import Project="$(NuGetPackageRoot)microsoft.dotnet.build.tasks.feed\$(MicrosoftDotNetBuildTasksFeedVersion)\build\Microsoft.DotNet.Build.Tasks.Feed.targets" />
