@@ -104,7 +104,7 @@ namespace ILCompiler
         {
             foreach (MethodDesc method in type.GetAllMethods())
             {
-                // Skip methods with no IL and uninstantiated generic methods
+                // Skip methods with no IL
                 if (method.IsAbstract)
                     continue;
 
