@@ -1150,6 +1150,7 @@ namespace System.Text
 
         public StringBuilder Append(bool value) => Append(value.ToString());
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public StringBuilder Append(char value)
         {
             if (m_ChunkLength < m_ChunkChars.Length)
