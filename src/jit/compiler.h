@@ -7297,9 +7297,9 @@ public:
     {
         return codeGen->IsFullPtrRegMapRequired();
     }
-    void SetFullPtrRegMap(bool value)
+    void SetFullPtrRegMapRequired(bool value)
     {
-        codeGen->SetFullPtrRegMap(value);
+        codeGen->SetFullPtrRegMapRequired(value);
     }
 
 // Things that MAY belong either in CodeGen or CodeGenContext

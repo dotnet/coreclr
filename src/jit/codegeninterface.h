@@ -386,7 +386,7 @@ public:
     {
         return m_cgFullPtrRegMap;
     }
-    void SetFullPtrRegMap(bool value)
+    void SetFullPtrRegMapRequired(bool value)
     {
         m_cgFullPtrRegMap = value;
     }
