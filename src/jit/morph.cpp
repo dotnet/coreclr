@@ -1029,7 +1029,7 @@ fgArgTabEntry* fgArgInfo::AddRegArg(unsigned          argNum,
     curArgTabEntry->numSlots  = 0;
     curArgTabEntry->alignment = alignment;
     curArgTabEntry->SetLateArgInx(UINT_MAX);
-    curArgTabEntry->tmpNum    = BAD_VAR_NUM;
+    curArgTabEntry->tmpNum = BAD_VAR_NUM;
     curArgTabEntry->SetIsSplit(false);
     curArgTabEntry->isTmp     = false;
     curArgTabEntry->needTmp   = false;
@@ -1111,7 +1111,7 @@ fgArgTabEntry* fgArgInfo::AddStkArg(unsigned          argNum,
     curArgTabEntry->numSlots  = numSlots;
     curArgTabEntry->alignment = alignment;
     curArgTabEntry->SetLateArgInx(UINT_MAX);
-    curArgTabEntry->tmpNum    = BAD_VAR_NUM;
+    curArgTabEntry->tmpNum = BAD_VAR_NUM;
     curArgTabEntry->SetIsSplit(false);
     curArgTabEntry->isTmp     = false;
     curArgTabEntry->needTmp   = false;
