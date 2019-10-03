@@ -159,22 +159,5 @@ namespace System
         public new Type GetType() => base.GetType();
 
         partial void RestoreRemoteStackTrace(SerializationInfo info, StreamingContext context);
-
-        [StackTraceHidden]
-        internal void SetCurrentStackTrace()
-        {
-            if (_stackTrace != null || _remoteStackTraceString != null)
-            {
-                ThrowHelper.ThrowInvalidOperationException();
-            }
-
-            if (!IsImmutableAgileException(this))
-            {
-                SetCurrentStackTraceCore();
-            }
-        }
-
-        [StackTraceHidden]
-        partial void SetCurrentStackTraceCore();
     }
 }
