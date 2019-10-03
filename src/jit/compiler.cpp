@@ -5942,8 +5942,17 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
 #ifdef DEBUG
     if (JitConfig.DumpJittedMethods() == 1 && !compIsForInlining())
     {
-        printf("Compiling %4d %s::%s, IL size = %u, hsh=0x%x\n", Compiler::jitTotalMethodCompiled, info.compClassName,
+        printf("Compiling %4d %s::%s, IL size = %u, hsh=0x%x", Compiler::jitTotalMethodCompiled, info.compClassName,
                info.compMethodName, info.compILCodeSize, info.compMethodHash());
+        if (opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER0))
+        {
+            printf(" for Tier-0");
+        }
+        else if (opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER1))
+        {
+            printf(" for Tier-1");
+        }
+        printf("\n");
     }
     if (compIsForInlining())
     {
