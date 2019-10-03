@@ -246,7 +246,7 @@ if (WIN32)
   set(CMAKE_STATIC_LINKER_FLAGS_RELEASE "${CMAKE_STATIC_LINKER_FLAGS_RELEASE} /LTCG")
 
   # ReleaseWithDebugInfo build specific flags
-  add_link_options("$<$<CONFIG:RELWITHDEBINFO>:/LTCG;/OPT:REF;/OPT:NOICF>")
+  add_link_options("$<$<CONFIG:RELWITHDEBINFO>:/LTCG;/OPT:REF;/OPT:ICF>")
   set(CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO} /LTCG")
 
   # Force uCRT to be dynamically linked for Release build
