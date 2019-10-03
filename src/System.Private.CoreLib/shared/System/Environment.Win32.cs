@@ -143,7 +143,9 @@ namespace System
                     name = name.Slice(index + 1);
                 }
 
-                return name.ToString();
+                string result = name.ToString();
+                builder.Dispose();
+                return result;
             }
         }
 
@@ -185,7 +187,8 @@ namespace System
                 if (index != -1)
                 {
                     // In the form of DOMAIN\User, cut off \User and return
-                    return name.Slice(0, index).ToString();
+                    builder.Length = index;
+                    return builder.ToString();
                 }
 
                 // In theory we should never get use out of LookupAccountNameW as the above API should
@@ -216,6 +219,7 @@ namespace System
                     domainBuilder.EnsureCapacity((int)length);
                 }
 
+                builder.Dispose();
                 domainBuilder.Length = (int)length;
                 return domainBuilder.ToString();
             }
