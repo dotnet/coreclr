@@ -89,7 +89,7 @@ namespace System.Threading.Tasks
             public const EventTask TraceSynchronousWork = (EventTask)9;
         }
 
-        public static class Keywords // thisname is important for EventSource
+        public static class Keywords // this name is important for EventSource
         {
             /// <summary>
             /// Only the most basic information about the workings of the task library
