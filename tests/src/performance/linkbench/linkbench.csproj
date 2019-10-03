@@ -7,6 +7,7 @@
     <NugetTargetMoniker>.NETStandard,Version=v1.6</NugetTargetMoniker>
     <NugetTargetMonikerShort>netstandard1.6</NugetTargetMonikerShort>
     <TargetFramework>netstandard1.6</TargetFramework>
+    <CLRTestKind>BuildOnly</CLRTestKind>
   </PropertyGroup>
   <PropertyGroup>
     <RestoreOutputPath>..\obj</RestoreOutputPath>
@@ -18,12 +19,7 @@
       <Visible>False</Visible>
     </CodeAnalysisDependentAssemblyPaths>
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="BenchmarkOptions.cs" />
-    <Compile Include="linkbench.cs" />
-  </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), performance.targets))\performance.targets" />
   <PropertyGroup>
-    <ProjectAssetsFile>$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), performance.targets))\obj\project.assets.json</ProjectAssetsFile>
+    <ProjectAssetsFile>$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), performance.csproj))\obj\project.assets.json</ProjectAssetsFile>
   </PropertyGroup>
 </Project>

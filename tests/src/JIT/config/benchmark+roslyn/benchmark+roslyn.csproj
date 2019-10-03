@@ -93,7 +93,7 @@
     <TargetFramework>netstandard1.4</TargetFramework>
     <TargetFrameworkIdentifier>.NETStandard</TargetFrameworkIdentifier>
   </PropertyGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), Directory.Build.targets))\Directory.Build.targets" />
   <Target Name="Build"
      DependsOnTargets="ResolveReferences" />
 </Project>

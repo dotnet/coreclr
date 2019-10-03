@@ -1,5 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), Directory.Build.props))\Directory.Build.props" />
   <PropertyGroup>
     <AssemblyName>PerfLab</AssemblyName>
     <OutputType>Library</OutputType>
@@ -8,6 +7,7 @@
     <TargetFramework>netstandard1.6</TargetFramework>
     <NuGetTargetMoniker>.NETStandard,Version=v1.6</NuGetTargetMoniker>
     <NuGetTargetMonikerShort>netstandard1.6</NuGetTargetMonikerShort>
+    <CLRTestKind>BuildOnly</CLRTestKind>
   </PropertyGroup>
   <PropertyGroup>
     <RestoreOutputPath>..\obj</RestoreOutputPath>
@@ -29,8 +29,7 @@
     <Compile Include="ThreadingPerf.cs" />
     <Compile Include="XunitPerformance.cs" />
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), performance.targets))/performance.targets" />
   <PropertyGroup>
-    <ProjectAssetsFile>$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), performance.targets))/obj/project.assets.json</ProjectAssetsFile>
+    <ProjectAssetsFile>$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), performance.csproj))/obj/project.assets.json</ProjectAssetsFile>
   </PropertyGroup>
 </Project>

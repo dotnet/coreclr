@@ -15,5 +15,5 @@
     </File>
   </ItemGroup>
 
-  <Import Project="$([MSBuild]::GetPathOfFileAbove(dir.targets))" />
+  <Import Project="$([MSBuild]::GetPathOfFileAbove(Directory.Build.targets))" />
 </Project>
