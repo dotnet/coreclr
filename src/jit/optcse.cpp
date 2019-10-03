@@ -2075,21 +2075,17 @@ public:
 
         // If there's just a single def for the CSE, we'll put this
         // CSE into SSA form on the fly. We won't need any PHIs.
-        bool     cseInSSA  = false;
         unsigned cseSsaNum = SsaConfig::RESERVED_SSA_NUM;
 
         if (dsc->csdDefCount == 1)
         {
             JITDUMP("CSE #%02u is single-def, so associated cse temp V%02u will be in SSA\n", dsc->csdIndex,
                     cseLclVarNum);
-            cseInSSA                                    = true;
             m_pCompiler->lvaTable[cseLclVarNum].lvInSsa = true;
 
-            // Allocate the ssa num. We'll fill in block and tree when we find the def below.
-            BasicBlock*   defBlock  = nullptr;
-            GenTree*      defTree   = nullptr;
+            // Allocate the ssa num
             CompAllocator allocator = m_pCompiler->getAllocator(CMK_SSA);
-            cseSsaNum = m_pCompiler->lvaTable[cseLclVarNum].lvPerSsaData.AllocSsaNum(allocator, defBlock, defTree);
+            cseSsaNum               = m_pCompiler->lvaTable[cseLclVarNum].lvPerSsaData.AllocSsaNum(allocator);
         }
 
 #ifdef DEBUG
@@ -2372,12 +2368,10 @@ public:
                 noway_assert(asg->gtOp.gtOp1->gtOper == GT_LCL_VAR);
 
                 // Backpatch the SSA def, if we're putting this cse temp into ssa.
-                asg->gtOp.gtOp1->AsLclVarCommon()->SetSsaNum(cseSsaNum);
+                asg->gtOp.gtOp1->AsLclVar()->SetSsaNum(cseSsaNum);
 
-                if (cseInSSA)
+                if (cseSsaNum != SsaConfig::RESERVED_SSA_NUM)
                 {
-                    // We should have allocated an ssa number above.
-                    assert(cseSsaNum != SsaConfig::RESERVED_SSA_NUM);
                     LclSsaVarDsc* ssaVarDsc = m_pCompiler->lvaTable[cseLclVarNum].GetPerSsaData(cseSsaNum);
 
                     // These should not have been set yet, since this is the first and
