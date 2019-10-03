@@ -1437,7 +1437,7 @@ public:
         return false;
 #endif
     }
-    void SetIsSplit(bool value)
+    void SetSplit(bool value)
     {
 #ifdef FEATURE_ARG_SPLIT
         _isSplit = value;

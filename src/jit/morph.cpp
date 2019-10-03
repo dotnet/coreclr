@@ -1030,7 +1030,7 @@ fgArgTabEntry* fgArgInfo::AddRegArg(unsigned          argNum,
     curArgTabEntry->alignment = alignment;
     curArgTabEntry->SetLateArgInx(UINT_MAX);
     curArgTabEntry->tmpNum = BAD_VAR_NUM;
-    curArgTabEntry->SetIsSplit(false);
+    curArgTabEntry->SetSplit(false);
     curArgTabEntry->isTmp     = false;
     curArgTabEntry->needTmp   = false;
     curArgTabEntry->needPlace = false;
@@ -1112,7 +1112,7 @@ fgArgTabEntry* fgArgInfo::AddStkArg(unsigned          argNum,
     curArgTabEntry->alignment = alignment;
     curArgTabEntry->SetLateArgInx(UINT_MAX);
     curArgTabEntry->tmpNum = BAD_VAR_NUM;
-    curArgTabEntry->SetIsSplit(false);
+    curArgTabEntry->SetSplit(false);
     curArgTabEntry->isTmp     = false;
     curArgTabEntry->needTmp   = false;
     curArgTabEntry->needPlace = false;
@@ -1211,7 +1211,7 @@ void fgArgInfo::SplitArg(unsigned argNum, unsigned numRegs, unsigned numSlots)
     }
     else
     {
-        curArgTabEntry->SetIsSplit(true);
+        curArgTabEntry->SetSplit(true);
         curArgTabEntry->numRegs  = numRegs;
         curArgTabEntry->numSlots = numSlots;
         hasStackArgs             = true;
