@@ -503,7 +503,7 @@ build_native_projects()
             pwd
             $__ProjectRoot/eng/common/msbuild.sh $__ProjectRoot/eng/empty.csproj \
                                                  /p:NativeVersionFile=$__versionSourceFile \
-                                                 /p:ArcadeBuild=true /t:GenerateNativeVersionFile /restore \
+                                                 /t:GenerateNativeVersionFile /restore \
                                                  $__CommonMSBuildArgs $__UnprocessedBuildArgs
             if [ $? -ne 0 ]; then
                 echo "${__ErrMsgPrefix}Failed to generate native version file."
