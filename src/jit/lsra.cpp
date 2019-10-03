@@ -5108,32 +5108,6 @@ void LinearScan::freeRegister(RegRecord* physRegRecord)
 }
 
 //------------------------------------------------------------------------
-// LinearScan::updateRegs: Update register after allocating a RefPosition
-//
-// Arguments:
-//    currentInterval    - the Interval for the RefPositoin
-//    currentRefPosition - the RefPosition that has been allocated
-//
-// Return Value:
-//    True iff the register has been unassigned.
-//
-void LinearScan::RegsToFree::updateRegs(RefPosition* refPosition, regMaskTP regMask)
-{
-    bool unassign = false;
-    assert(refPosition->isIntervalRef());
-    {
-        if (refPosition->delayRegFree)
-        {
-            delayed |= regMask;
-        }
-        else
-        {
-            current |= regMask;
-        }
-    }
-}
-
-//------------------------------------------------------------------------
 // LinearScan::freeRegisters: Free the registers in 'regsToFree'
 //
 // Arguments:
