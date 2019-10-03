@@ -30,6 +30,7 @@ set_target_properties(unwinder_dac PROPERTIES DAC_COMPONENT TRUE)
 target_compile_definitions(unwinder_dac PRIVATE FEATURE_NO_HOST)
 
 add_library_clr(unwinder_dac_amd64 ${UNWINDER_SOURCES})
+add_dependencies(unwinder_dac_amd64 eventing_headers)
 set_target_properties(unwinder_dac_amd64 PROPERTIES DAC_COMPONENT TRUE)
 target_compile_definitions(unwinder_dac_amd64 PRIVATE FEATURE_NO_HOST)
 
