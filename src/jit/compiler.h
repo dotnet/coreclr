@@ -7295,7 +7295,7 @@ public:
 
     bool GetFullPtrRegMap()
     {
-        return codeGen->doFullPtrRegMap();
+        return codeGen->IsFullPtrRegMapRequired();
     }
     void SetFullPtrRegMap(bool value)
     {

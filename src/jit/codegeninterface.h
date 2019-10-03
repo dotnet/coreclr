@@ -382,7 +382,7 @@ private:
     //        for fully interruptible methods)
     //
 public:
-    bool doFullPtrRegMap()
+    bool IsFullPtrRegMapRequired()
     {
         return m_cgFullPtrRegMap;
     }

@@ -6705,7 +6705,7 @@ void CodeGen::genReserveEpilog(BasicBlock* block)
 
     bool jmpEpilog = ((block->bbFlags & BBF_HAS_JMP) != 0);
 
-    if (doFullPtrRegMap() && !jmpEpilog)
+    if (IsFullPtrRegMapRequired() && !jmpEpilog)
     {
         if (varTypeIsGC(compiler->info.compRetNativeType))
         {
