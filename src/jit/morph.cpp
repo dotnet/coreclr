@@ -821,7 +821,7 @@ void fgArgTabEntry::Dump()
     {
         printf(", lateArgInx=%u", GetLateArgInx());
     }
-    if (GetIsSplit())
+    if (GetSplit())
     {
         printf(", isSplit");
     }
@@ -1178,7 +1178,7 @@ void fgArgInfo::UpdateStkArg(fgArgTabEntry* curArgTabEntry, GenTree* node, bool 
            (!isLateArg && ((node->gtFlags & GTF_LATE_ARG) == 0)));
 
     noway_assert(curArgTabEntry->use != callTree->gtCallThisArg);
-    assert((curArgTabEntry->regNum == REG_STK) || curArgTabEntry->GetIsSplit());
+    assert((curArgTabEntry->regNum == REG_STK) || curArgTabEntry->GetSplit());
     assert(curArgTabEntry->use->GetNode() == node);
     nextSlotNum = (unsigned)roundUp(nextSlotNum, curArgTabEntry->alignment);
     assert(curArgTabEntry->slotNum == nextSlotNum);
@@ -1204,7 +1204,7 @@ void fgArgInfo::SplitArg(unsigned argNum, unsigned numRegs, unsigned numSlots)
 
     if (argsComplete)
     {
-        assert(curArgTabEntry->GetIsSplit() == true);
+        assert(curArgTabEntry->GetSplit() == true);
         assert(curArgTabEntry->numRegs == numRegs);
         assert(curArgTabEntry->numSlots == numSlots);
         assert(hasStackArgs == true);
