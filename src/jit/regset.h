@@ -100,8 +100,6 @@ public:
 
 public: // TODO-Cleanup: Should be private, but GCInfo uses them
 
-                                                                                     // allocated to variables
-
     regMaskTP GetMaskVars() const // 'get' property function for rsMaskVars property
     {
         return _rsMaskVars;
