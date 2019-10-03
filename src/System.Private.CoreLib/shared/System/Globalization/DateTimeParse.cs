@@ -5185,7 +5185,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
                 if (s.Length > MaxLineLength || (curLineLength + s.Length + 2) > MaxLineLength)
                 {
                     buffer.Append(',');
-                    buffer.Append(Environment.NewLine);
+                    buffer.Append(Environment.NewLineConst);
                     buffer.Append(' ', NewLinePadding);
                     curLineLength = 0;
                 }
@@ -5202,7 +5202,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
             s = Hex(strs[strs.Length - 1]);
             if (s.Length > MaxLineLength || (curLineLength + s.Length + 6) > MaxLineLength)
             {
-                buffer.Append(Environment.NewLine);
+                buffer.Append(Environment.NewLineConst);
                 buffer.Append(' ', NewLinePadding);
             }
             else
