@@ -1061,18 +1061,6 @@ private:
                              LsraLocation* nextRefLocationPtr,
                              RegisterType  regType);
     void freeRegister(RegRecord* physRegRecord);
-
-    struct RegsToFree
-    {
-        regMaskTP current;
-        regMaskTP delayed;
-
-        bool isEmpty()
-        {
-            return current == RBM_NONE && delayed == RBM_NONE;
-        }
-        void updateRegs(RefPosition* refPosition, regMaskTP regMask);
-    };
     void freeRegisters(regMaskTP regsToFree);
 
     // Get the type that this tree defines.
