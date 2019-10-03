@@ -2287,7 +2287,7 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 
     compiler->EndPhase(PHASE_GENERATE_CODE);
 
-    codeSize = GetEmitter()->emitEndCodeGen(compiler, trackedStackPtrsContig, GetInterruptible(), GetFullPtrRegMap(),
+    codeSize = GetEmitter()->emitEndCodeGen(compiler, trackedStackPtrsContig, GetInterruptible(), IsFullPtrRegMapRequired(),
                                             (compiler->info.compRetType == TYP_REF), compiler->compHndBBtabCount,
                                             &prologSize, &epilogSize, codePtr, &coldCodePtr, &consPtr);
 
