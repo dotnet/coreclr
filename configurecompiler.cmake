@@ -242,7 +242,7 @@ if (WIN32)
   add_link_options("$<$<CONFIG:CHECKED>:/OPT:REF;/OPT:NOICF>")
 
   # Release build specific flags
-  add_link_options("$<$<CONFIG:RELEASE>:/LTCG;/OPT:REF;/OPT:NOICF>")
+  add_link_options("$<$<CONFIG:RELEASE>:/LTCG;/OPT:REF;/OPT:ICF>")
   set(CMAKE_STATIC_LINKER_FLAGS_RELEASE "${CMAKE_STATIC_LINKER_FLAGS_RELEASE} /LTCG")
 
   # ReleaseWithDebugInfo build specific flags
