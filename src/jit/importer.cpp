@@ -14239,6 +14239,18 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     }
                     break;
 
+                    case CORINFO_FIELD_INTRINSIC_DIRECTORY_SEPARATOR_CHAR:
+                    {
+                        assert(aflags & CORINFO_ACCESS_GET);
+#if defined(_TARGET_WINDOWS_)
+                        op1 = gtNewIconNode((ssize_t)'\\', lclTyp);
+#else
+                        op1 = gtNewIconNode((ssize_t)'/', lclTyp);
+#endif
+                        goto FIELD_DONE;
+                    }
+                    break;
+
                     default:
                         assert(!"Unexpected fieldAccessor");
                 }

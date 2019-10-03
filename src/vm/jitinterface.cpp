@@ -1338,6 +1338,11 @@ static CORINFO_FIELD_ACCESSOR getFieldIntrinsic(FieldDesc * field)
     {
         return CORINFO_FIELD_INTRINSIC_ISLITTLEENDIAN;
     }
+    else
+    if (MscorlibBinder::GetField(FIELD__PATH__DIRECTORY_SEPARATOR_CHAR) == field)
+    {
+        return CORINFO_FIELD_INTRINSIC_DIRECTORY_SEPARATOR_CHAR;
+    }
 
     return (CORINFO_FIELD_ACCESSOR)-1;
 }

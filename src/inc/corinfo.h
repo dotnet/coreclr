@@ -1723,6 +1723,7 @@ enum CORINFO_FIELD_ACCESSOR
     CORINFO_FIELD_INTRINSIC_ZERO,           // intrinsic zero (IntPtr.Zero, UIntPtr.Zero)
     CORINFO_FIELD_INTRINSIC_EMPTY_STRING,   // intrinsic emptry string (String.Empty)
     CORINFO_FIELD_INTRINSIC_ISLITTLEENDIAN, // intrinsic BitConverter.IsLittleEndian
+    CORINFO_FIELD_INTRINSIC_DIRECTORY_SEPARATOR_CHAR, // intrinsic Path.DirectorySeparatorChar
 };
 
 // Set of flags returned in CORINFO_FIELD_INFO::fieldFlags

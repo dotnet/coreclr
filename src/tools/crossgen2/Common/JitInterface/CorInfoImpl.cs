@@ -2071,6 +2071,11 @@ namespace Internal.JitInterface
             {
                 return CORINFO_FIELD_ACCESSOR.CORINFO_FIELD_INTRINSIC_ISLITTLEENDIAN;
             }
+            else if (owningType.Name == "Path" && owningType.Namespace == "System.IO" &&
+                field.Name == "DirectorySeparatorChar")
+            {
+                return CORINFO_FIELD_ACCESSOR.CORINFO_FIELD_INTRINSIC_DIRECTORY_SEPARATOR_CHAR;
+            }
 
             return (CORINFO_FIELD_ACCESSOR)(-1);
         }

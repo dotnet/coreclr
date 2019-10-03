@@ -6,6 +6,7 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 #if MS_IO_REDIST
@@ -24,6 +25,7 @@ namespace System.IO
     {
         // Public static readonly variant of the separators. The Path implementation itself is using
         // internal const variant of the separators for better performance.
+        [Intrinsic]
         public static readonly char DirectorySeparatorChar = PathInternal.DirectorySeparatorChar;
         public static readonly char AltDirectorySeparatorChar = PathInternal.AltDirectorySeparatorChar;
         public static readonly char VolumeSeparatorChar = PathInternal.VolumeSeparatorChar;

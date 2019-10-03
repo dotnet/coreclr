@@ -792,6 +792,9 @@ DEFINE_FIELD(UINTPTR,               ZERO,                   Zero)
 DEFINE_CLASS(BITCONVERTER,          System,                 BitConverter)
 DEFINE_FIELD(BITCONVERTER,          ISLITTLEENDIAN,         IsLittleEndian)
 
+DEFINE_CLASS(PATH,                  IO,                     Path)
+DEFINE_FIELD(PATH,                  DIRECTORY_SEPARATOR_CHAR, DirectorySeparatorChar)
+
 // Defined as element type alias
 // DEFINE_CLASS(STRING,                System,                 String)
 DEFINE_FIELD(STRING,                M_FIRST_CHAR,           _firstChar)
