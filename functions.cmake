@@ -94,7 +94,7 @@ function(convert_to_absolute_path RetSources)
     set(${RetSources} ${AbsolutePathSources} PARENT_SCOPE)
 endfunction(convert_to_absolute_path)
 
-#Preprocess exports definition file
+#Preprocess file
 function(preprocess_file inputFilename outputFilename)
   get_compile_definitions(PREPROCESS_DEFINITIONS)
   get_include_directories(PREPROCESS_INCLUDE_DIRECTORIES)
@@ -106,14 +106,14 @@ function(preprocess_file inputFilename outputFilename)
         COMMENT "Preprocessing ${inputFilename}. Outputting to ${outputFilename}"
     )
   else()
+    message("Adding preprocessing command for ${inputFilename} to ${outputFilename}")
     add_custom_command(
         OUTPUT ${outputFilename}
-        COMMAND ${CMAKE_CXX_COMPILER} -E -P ${PREPROCESS_DEFINITIONS} ${INCLUDE_DIRECTORIES} -o ${outputFilename} -x c ${inputFilename}
+        COMMAND ${CMAKE_CXX_COMPILER} -E -P ${PREPROCESS_DEFINITIONS} ${PREPROCESS_INCLUDE_DIRECTORIES} -o ${outputFilename} -x c ${inputFilename}
         DEPENDS ${inputFilename}
         COMMENT "Preprocessing ${inputFilename}. Outputting to ${outputFilename}"
     )
   endif()
-
 
   set_source_files_properties(${outputFilename}
                               PROPERTIES GENERATED TRUE)
