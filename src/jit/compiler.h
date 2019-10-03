@@ -7293,7 +7293,7 @@ public:
                            unsigned refCntWtdStkDbl);
 #endif // DOUBLE_ALIGN
 
-    bool GetFullPtrRegMap()
+    bool IsFullPtrRegMapRequired()
     {
         return codeGen->IsFullPtrRegMapRequired();
     }

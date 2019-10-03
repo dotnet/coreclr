@@ -328,7 +328,7 @@ GCInfo::regPtrDsc* GCInfo::gcRegPtrAllocDsc()
 {
     regPtrDsc* regPtrNext;
 
-    assert(compiler->GetFullPtrRegMap());
+    assert(compiler->IsFullPtrRegMapRequired());
 
     /* Allocate a new entry and initialize it */
 
@@ -605,7 +605,7 @@ void GCInfo::gcRegPtrSetInit()
 {
     gcRegGCrefSetCur = gcRegByrefSetCur = 0;
 
-    if (compiler->GetFullPtrRegMap())
+    if (compiler->IsFullPtrRegMapRequired())
     {
         gcRegPtrList = gcRegPtrLast = nullptr;
     }
