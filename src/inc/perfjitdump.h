@@ -6,24 +6,20 @@
 #ifndef PERF_JITDUMP_H
 #define PERF_JITDUMP_H
 
-struct PerfJitDumpState;
+int
+PALAPI
+// Start the jitdump file
+PAL_PerfJitDump_Start(const char* path);
 
-// Generates a perf jitdump file.
-class PerfJitDump
-{
-private:
-    static PerfJitDumpState& GetState();
+int
+PALAPI
+// Log a method to the jitdump file.
+PAL_PerfJitDump_LogMethod(void* pCode, size_t codeSize, const char* symbol, void* debugInfo, void* unwindInfo);
 
-public:
-    // Start the jitdump file
-    static void Start();
-
-    // Log a method to the jitdump file.
-    static void LogMethod(void* pCode, size_t codeSize, const char* symbol);
-
-    // Finish the jitdump file
-    static void Finish();
-};
+int
+PALAPI
+// Finish the jitdump file
+PAL_PerfJitDump_Finish();
 
 #endif // PERF_JITDUMP_H
 

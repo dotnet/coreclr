@@ -51,9 +51,20 @@ void PerfMap::Initialize()
         {
             s_ShowOptimizationTiers = true;
         }
-#ifndef CROSSGEN_COMPILE
-        PerfJitDump::Start();
-#endif
+
+        char jitdumpPath[4096];
+
+        // CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_PerfMapJitDumpPath) returns a LPWSTR
+        // Use GetEnvironmentVariableA because it is simpler.
+        // Keep comment here to make it searchable.
+        auto len = GetEnvironmentVariableA("COMPlus_PerfMapJitDumpPath", jitdumpPath, sizeof(jitdumpPath) - 1);
+
+        if (len == 0)
+        {
+            GetTempPathA(sizeof(jitdumpPath) - 1, jitdumpPath);
+        }
+
+        PAL_PerfJitDump_Start(jitdumpPath);
     }
 }
 
@@ -64,9 +75,7 @@ void PerfMap::Destroy()
 
     if (s_Current != nullptr)
     {
-#ifndef CROSSGEN_COMPILE
-        PerfJitDump::Finish();
-#endif
+        PAL_PerfJitDump_Finish();
         delete s_Current;
         s_Current = nullptr;
     }
@@ -204,9 +213,7 @@ void PerfMap::LogMethod(MethodDesc * pMethod, PCODE pCode, size_t codeSize, cons
 
         // Write the line.
         WriteLine(line);
-#ifndef CROSSGEN_COMPILE
-        PerfJitDump::LogMethod((void*)pCode, codeSize, name.GetANSI(scratch));
-#endif
+        PAL_PerfJitDump_LogMethod((void*)pCode, codeSize, name.GetANSI(scratch), nullptr, nullptr);
     }
     EX_CATCH{} EX_END_CATCH(SwallowAllExceptions);
 }
@@ -274,6 +281,11 @@ void PerfMap::LogPreCompiledMethod(MethodDesc * pMethod, PCODE pCode)
 {
     LIMITED_METHOD_CONTRACT;
 
+    if (s_Current == nullptr)
+    {
+        return;
+    }
+
     // Get information about the NGEN'd method code.
     EECodeInfo codeInfo(pCode);
     _ASSERTE(codeInfo.IsValid());
@@ -290,16 +302,26 @@ void PerfMap::LogPreCompiledMethod(MethodDesc * pMethod, PCODE pCode)
 
         StackScratchBuffer scratch;
 
+        if (s_ShowOptimizationTiers)
+        {
+            name.AppendPrintf(W("[PreJIT]"));
+        }
+
         // NGEN can split code between hot and cold sections which are separate in memory.
         // Emit an entry for each section if it is used.
         if (methodRegionInfo.hotSize > 0)
         {
-            PerfJitDump::LogMethod((void*)methodRegionInfo.hotStartAddress, methodRegionInfo.hotSize, name.GetANSI(scratch));
+            PAL_PerfJitDump_LogMethod((void*)methodRegionInfo.hotStartAddress, methodRegionInfo.hotSize, name.GetANSI(scratch), nullptr, nullptr);
         }
 
         if (methodRegionInfo.coldSize > 0)
         {
-            PerfJitDump::LogMethod((void*)methodRegionInfo.coldStartAddress, methodRegionInfo.coldSize, name.GetANSI(scratch));
+            if (s_ShowOptimizationTiers)
+            {
+                pMethod->GetFullMethodInfo(name);
+                name.AppendPrintf(W("[PreJit-cold]"));
+            }
+            PAL_PerfJitDump_LogMethod((void*)methodRegionInfo.coldStartAddress, methodRegionInfo.coldSize, name.GetANSI(scratch), nullptr, nullptr);
         }
     }
     EX_CATCH{} EX_END_CATCH(SwallowAllExceptions);
@@ -336,9 +358,7 @@ void PerfMap::LogStubs(const char* stubType, const char* stubOwner, PCODE pCode,
 
         // Write the line.
         s_Current->WriteLine(line);
-#ifndef CROSSGEN_COMPILE
-        PerfJitDump::LogMethod((void*)pCode, codeSize, name.GetANSI(scratch));
-#endif
+        PAL_PerfJitDump_LogMethod((void*)pCode, codeSize, name.GetANSI(scratch), nullptr, nullptr);
     }
     EX_CATCH{} EX_END_CATCH(SwallowAllExceptions);
 }

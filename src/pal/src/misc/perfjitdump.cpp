@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 // ===========================================================================
 
-#if defined(__linux__)
+#if defined(__linux__) && !defined(CROSSGEN_COMPILE)
 #define JITDUMP_SUPPORTED
 #endif
 
@@ -26,6 +26,7 @@
 #include <sys/syscall.h>
 #include <time.h>
 #include <unistd.h>
+#include <linux/limits.h>
 
 #include "../inc/llvm/ELF.h"
 
@@ -141,38 +142,66 @@ struct PerfJitDumpState
     pthread_mutex_t mutex;
     uint64_t codeIndex;
 
-    void Start()
+    int Start(const char* path)
     {
-        pthread_mutex_lock(&mutex);
-
-        char jitdumpPath[1024];
-
-        snprintf(jitdumpPath, sizeof(jitdumpPath), "/tmp/jit-%i.dump", getpid());
-
-        fd = open(jitdumpPath, O_CREAT|O_TRUNC|O_RDWR|O_CLOEXEC, S_IRUSR|S_IWUSR );
+        int result = 0;
 
         // Write file header
         FileHeader header;
 
-        write(fd, &header, sizeof(FileHeader));
+        result = pthread_mutex_lock(&mutex);
 
-        fsync(fd);
+        if (enabled)
+            goto exit;
+
+        if (result != 0)
+            goto exit;
+
+        char jitdumpPath[PATH_MAX];
+
+        result = snprintf(jitdumpPath, sizeof(jitdumpPath), "%s/jit-%i.dump", path, getpid());
+
+        if (result >= PATH_MAX)
+            goto exit;
+
+        result = open(jitdumpPath, O_CREAT|O_TRUNC|O_RDWR|O_CLOEXEC, S_IRUSR|S_IWUSR );
+
+        if (result == -1)
+            goto exit;
+
+        fd = result;
+
+        result = write(fd, &header, sizeof(FileHeader));
+
+        if (result == -1)
+            goto exit;
+
+        result = fsync(fd);
+
+        if (result == -1)
+            goto exit;
 
         // mmap jitdump file
         // this is a marker for perf inject to find the jitdumpfile
         mmapAddr = mmap(nullptr, sizeof(FileHeader), PROT_READ | PROT_EXEC, MAP_PRIVATE, fd, 0);
 
+        if (mmapAddr == MAP_FAILED)
+            goto exit;
+
         enabled = true;
 
-        pthread_mutex_unlock(&mutex);
+exit:
+        result = pthread_mutex_unlock(&mutex);
+
+        return result;
     }
 
-    void LogMethod(void* pCode, size_t codeSize, const char* symbol)
+    int LogMethod(void* pCode, size_t codeSize, const char* symbol, void* debugInfo, void* unwindInfo)
     {
+        int result = 0;
+
         if (enabled)
         {
-            pthread_mutex_lock(&mutex);
-
             size_t symbolLen = strlen(symbol);
 
             JitCodeLoadRecord record;
@@ -182,86 +211,134 @@ struct PerfJitDumpState
             record.code_size = codeSize;
             record.code_index = ++codeIndex;
             record.header.total_size = sizeof(JitCodeLoadRecord) + symbolLen + 1 + codeSize;
+
+            result = pthread_mutex_lock(&mutex);
+
+            if (result != 0)
+                goto exit;
+
+            if (!enabled)
+                goto exit;
+
+            // ToDo write debugInfo and unwindInfo immediately before the JitCodeLoadRecord (while lock is held).
+
             record.header.timestamp = GetTimeStampNS();
 
-            write(fd, &record, sizeof(JitCodeLoadRecord));
+            result = write(fd, &record, sizeof(JitCodeLoadRecord));
 
-            write(fd, symbol, symbolLen + 1);
+            if (result == -1)
+                goto exit;
 
-            write(fd, pCode, codeSize);
+            result = write(fd, symbol, symbolLen + 1);
 
-            fsync(fd);
+            if (result == -1)
+                goto exit;
 
-            pthread_mutex_unlock(&mutex);
+            result = write(fd, pCode, codeSize);
+
+            if (result == -1)
+                goto exit;
+
+            result = fsync(fd);
+
+            if (result == -1)
+                goto exit;
+
+exit:
+            if (result != 0)
+                enabled = false;
+
+            result = pthread_mutex_unlock(&mutex);
         }
+        return result;
     }
 
-    void Finish()
+    int Finish()
     {
+        int result = 0;
+
         if (enabled)
         {
-            // Lock the mutex
-            pthread_mutex_lock(&mutex);
-
             enabled = false;
 
-            munmap(mmapAddr, sizeof(FileHeader));
+            // Lock the mutex
+            result = pthread_mutex_lock(&mutex);
 
-            fsync(fd);
+            if (result != 0)
+                goto exit;
 
-            close(fd);
+            result = munmap(mmapAddr, sizeof(FileHeader));
 
-            pthread_mutex_unlock(&mutex);
+            if (result == -1)
+                goto exit;
+
+            result = fsync(fd);
+
+            if (result == -1)
+                goto exit;
+
+            result = close(fd);
+
+            if (result == -1)
+                goto exit;
+
+exit:
+            result = pthread_mutex_unlock(&mutex);
         }
+        return result;
     }
 };
 
 
-PerfJitDumpState& PerfJitDump::GetState()
+PerfJitDumpState& GetState()
 {
     static PerfJitDumpState s;
 
     return s;
 }
 
-void PerfJitDump::Start()
+int
+PALAPI
+PAL_PerfJitDump_Start(const char* path)
 {
-    GetState().Start();
+    return GetState().Start(path);
 }
 
-void PerfJitDump::LogMethod(void* pCode, size_t codeSize, const char* symbol)
+int
+PALAPI
+PAL_PerfJitDump_LogMethod(void* pCode, size_t codeSize, const char* symbol, void* debugInfo, void* unwindInfo)
 {
-    GetState().LogMethod(pCode, codeSize, symbol);
+    return GetState().LogMethod(pCode, codeSize, symbol, debugInfo, unwindInfo);
 }
 
-void PerfJitDump::Finish()
+int
+PALAPI
+PAL_PerfJitDump_Finish()
 {
-    GetState().Finish();
+    return GetState().Finish();
 }
 
 #else // JITDUMP_SUPPORTED
 
-struct PerfJitDumpState
+int
+PALAPI
+PAL_PerfJitDump_Start(const char* path)
 {
-};
-
-PerfJitDumpState& PerfJitDump::GetState()
-{
-    static PerfJitDumpState s;
-
-    return s;
+    return 0;
 }
 
-void PerfJitDump::Start()
+int
+PALAPI
+PAL_PerfJitDump_LogMethod(void* pCode, size_t codeSize, const char* symbol, void* debugInfo, void* unwindInfo)
 {
+    return 0;
 }
 
-void PerfJitDump::LogMethod(void* pCode, size_t codeSize, const char* symbol)
+int
+PALAPI
+PAL_PerfJitDump_Finish()
 {
-}
-
-void PerfJitDump::Finish()
-{
+    return 0;
 }
 
 #endif // JITDUMP_SUPPORTED
