@@ -144,7 +144,7 @@ namespace System.Text
             }
             capacity = Math.Max(capacity, length);
 
-            m_ChunkChars = new char[capacity];
+            m_ChunkChars = AllocateCharArray(capacity);
             m_ChunkLength = length;
 
             unsafe
@@ -182,7 +182,7 @@ namespace System.Text
             }
 
             m_MaxCapacity = maxCapacity;
-            m_ChunkChars = new char[capacity];
+            m_ChunkChars = AllocateCharArray(capacity);
         }
 
         private StringBuilder(SerializationInfo info, StreamingContext context)
@@ -242,7 +242,7 @@ namespace System.Text
 
             // Assign
             m_MaxCapacity = persistedMaxCapacity;
-            m_ChunkChars = new char[persistedCapacity];
+            m_ChunkChars = AllocateCharArray(persistedCapacity);
             persistedString.CopyTo(0, m_ChunkChars, 0, persistedString.Length);
             m_ChunkLength = persistedString.Length;
             m_ChunkPrevious = null;
@@ -314,7 +314,7 @@ namespace System.Text
                 if (Capacity != value)
                 {
                     int newLen = value - m_ChunkOffset;
-                    char[] newArray = new char[newLen];
+                    char[] newArray = AllocateCharArray(newLen);
                     Array.Copy(m_ChunkChars, 0, newArray, 0, m_ChunkLength);
                     m_ChunkChars = newArray;
                 }
@@ -479,7 +479,7 @@ namespace System.Text
                         {
                             // We crossed a chunk boundary when reducing the Length. We must replace this middle-chunk with a new larger chunk,
                             // to ensure the capacity we want is preserved.
-                            char[] newArray = new char[newLen];
+                            char[] newArray = AllocateCharArray(newLen);
                             Array.Copy(chunk.m_ChunkChars, 0, newArray, 0, chunk.m_ChunkLength);
                             m_ChunkChars = newArray;
                         }
@@ -2442,6 +2442,7 @@ namespace System.Text
             }
 
             // Allocate the array before updating any state to avoid leaving inconsistent state behind in case of out of memory exception
+            // calling GC.AllocateUninitializedArray does not give a perf boost, because newBlockLength is always less than MaxChunkSize
             char[] chunkChars = new char[newBlockLength];
 
             // Move all of the data from this chunk to a new one, via a few O(1) pointer adjustments.
@@ -2588,7 +2589,7 @@ namespace System.Text
             Debug.Assert(size > 0);
             Debug.Assert(maxCapacity > 0);
 
-            m_ChunkChars = new char[size];
+            m_ChunkChars = new char[size]; // calling GC.AllocateUninitializedArray does not give a perf boost, because size is never more than DefaultCapacity
             m_MaxCapacity = maxCapacity;
             m_ChunkPrevious = previousBlock;
             if (previousBlock != null)
@@ -2677,5 +2678,10 @@ namespace System.Text
             Debug.Assert(chunk != null, "We fell off the beginning of the string!");
             AssertInvariants();
         }
+
+        private static char[] AllocateCharArray(int size)
+            => size > 85_000 / sizeof(char)
+                ? GC.AllocateUninitializedArray<char>(size) // lacks of zeroing gives a nice perf boost for LOH-allocated arrays
+                : new char[size]; // small arrays very often come from a pre-zeored thread allocation context, calling AllocateUninitializedArray would decrease the perf
     }
 }
