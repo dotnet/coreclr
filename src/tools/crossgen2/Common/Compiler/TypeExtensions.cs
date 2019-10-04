@@ -54,7 +54,7 @@ namespace ILCompiler
         public static bool RequiresInstArg(this MethodDesc method)
         {
             return method.IsSharedByGenericInstantiations &&
-                (method.HasInstantiation || method.Signature.IsStatic || method.ImplementationType.IsValueType);
+                (method.HasInstantiation || method.Signature.IsStatic || method.ImplementationType.IsValueType || (method.OwningType.IsInterface && !method.IsAbstract));
         }
 
         /// <summary>
@@ -72,7 +72,7 @@ namespace ILCompiler
         /// </summary>
         public static bool RequiresInstMethodTableArg(this MethodDesc method)
         {
-            return (method.Signature.IsStatic || method.ImplementationType.IsValueType) &&
+            return (method.Signature.IsStatic || method.ImplementationType.IsValueType || (method.OwningType.IsInterface && !method.IsAbstract)) &&
                 method.IsSharedByGenericInstantiations &&
                 !method.HasInstantiation;
         }
