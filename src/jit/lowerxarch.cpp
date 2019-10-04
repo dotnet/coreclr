@@ -154,6 +154,11 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
             src = src->AsUnOp()->gtGetOp1();
         }
 
+        if (blkNode->OperIs(GT_STORE_OBJ))
+        {
+            blkNode->SetOper(GT_STORE_BLK);
+        }
+
         if (!blkNode->OperIs(GT_STORE_DYN_BLK) && (size <= INITBLK_UNROLL_LIMIT))
         {
             if (!src->OperIs(GT_CNS_INT))
