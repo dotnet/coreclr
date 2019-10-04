@@ -207,7 +207,7 @@ enum bgc_state
     bgc_mark_handles,
     bgc_mark_stack,
     bgc_revisit_soh,
-    bgc_revisit_loh,
+    bgc_revisit_ploh,
     bgc_overflow_soh,
     bgc_overflow_loh,
     bgc_final_marking,
