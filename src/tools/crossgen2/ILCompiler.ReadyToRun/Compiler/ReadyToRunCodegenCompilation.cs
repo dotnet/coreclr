@@ -8,7 +8,6 @@ using System.IO;
 using System.Reflection.PortableExecutable;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using System.Threading.Tasks;
 
 using Internal.IL;
 using Internal.JitInterface;
@@ -239,16 +238,10 @@ namespace ILCompiler
             using (PerfEventSource.StartStopEvents.JitEvents())
             {
                 ConditionalWeakTable<Thread, CorInfoImpl> cwt = new ConditionalWeakTable<Thread, CorInfoImpl>();
-                Parallel.ForEach(obj, dependency =>
+                foreach (DependencyNodeCore<NodeFactory> dependency in obj)
                 {
                     MethodWithGCInfo methodCodeNodeNeedingCode = dependency as MethodWithGCInfo;
-
                     MethodDesc method = methodCodeNodeNeedingCode.Method;
-                    if (!NodeFactory.CompilationModuleGroup.ContainsMethodBody(method, unboxingStub: false))
-                    {
-                        // Don't drill into methods defined outside of this version bubble
-                        return;
-                    }
 
                     if (Logger.IsVerbose)
                     {
@@ -277,7 +270,7 @@ namespace ILCompiler
                     {
                         Logger.Writer.WriteLine($"Warning: Method `{method}` was not compiled because `{ex.Message}` requires runtime JIT");
                     }
-                });
+                }
             }
         }
 

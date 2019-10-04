@@ -6,16 +6,15 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Reflection.Metadata;
-using System.Reflection.Metadata.Ecma335;
+
 using ILCompiler.DependencyAnalysis.ReadyToRun;
 using ILCompiler.DependencyAnalysisFramework;
+using ILCompiler.Win32Resources;
 
 using Internal.JitInterface;
 using Internal.TypeSystem;
 using Internal.Text;
 using Internal.TypeSystem.Ecma;
-using ILCompiler.Win32Resources;
 
 namespace ILCompiler.DependencyAnalysis
 {
@@ -235,7 +234,7 @@ namespace ILCompiler.DependencyAnalysis
 
             _localMethodCache = new NodeCache<TypeAndMethod, MethodWithGCInfo>(key =>
             {
-                return new MethodWithGCInfo(key.Method.Method, GetSignatureContext());
+                return new MethodWithGCInfo(key.Method.Method, key.SignatureContext);
             });
 
             _methodSignatures = new NodeCache<MethodFixupKey, MethodFixupSignature>(key =>
@@ -243,7 +242,7 @@ namespace ILCompiler.DependencyAnalysis
                 return new MethodFixupSignature(
                     key.FixupKind,
                     key.TypeAndMethod.Method,
-                    InputModuleContext,
+                    key.TypeAndMethod.SignatureContext,
                     key.TypeAndMethod.IsUnboxingStub,
                     key.TypeAndMethod.IsInstantiatingStub
                 );
@@ -256,7 +255,6 @@ namespace ILCompiler.DependencyAnalysis
 
             _dynamicHelperCellCache = new NodeCache<DynamicHelperCellKey, ISymbolNode>(key =>
             {
-                SignatureContext signatureContext = GetSignatureContext();
                 return new DelayLoadHelperMethodImport(
                     this,
                     DispatchImports,
@@ -267,10 +265,10 @@ namespace ILCompiler.DependencyAnalysis
                     MethodSignature(
                         ReadyToRunFixupKind.READYTORUN_FIXUP_VirtualEntry,
                         key.Method,
-                        signatureContext: signatureContext,
+                        signatureContext: key.SignatureContext,
                         isUnboxingStub: key.IsUnboxingStub,
                         isInstantiatingStub: key.IsInstantiatingStub),
-                    signatureContext);
+                    key.SignatureContext);
             });
 
             _copiedCorHeaders = new NodeCache<EcmaModule, CopiedCorHeaderNode>(module =>
@@ -357,11 +355,6 @@ namespace ILCompiler.DependencyAnalysis
 
         private NodeCache<ReadyToRunHelper, ISymbolNode> _constructedHelpers;
 
-        private SignatureContext GetSignatureContext()
-        {
-            return InputModuleContext;
-        }
-
         public ISymbolNode GetReadyToRunHelperCell(ReadyToRunHelper helperId)
         {
             return _constructedHelpers.GetOrAdd(helperId);
@@ -381,7 +374,7 @@ namespace ILCompiler.DependencyAnalysis
             bool isUnboxingStub = key.IsUnboxingStub;
             bool isInstantiatingStub = key.IsInstantiatingStub;
             bool isPrecodeImportRequired = key.IsPrecodeImportRequired;
-            SignatureContext signatureContext = InputModuleContext;
+            SignatureContext signatureContext = key.SignatureContext;
             if (CompilationModuleGroup.ContainsMethodBody(method.Method, false))
             {
                 if (isPrecodeImportRequired)
@@ -427,7 +420,7 @@ namespace ILCompiler.DependencyAnalysis
             bool isPrecodeImportRequired,
             SignatureContext signatureContext)
         {
-            TypeAndMethod key = new TypeAndMethod(method.ConstrainedType, method, isUnboxingStub, isInstantiatingStub, isPrecodeImportRequired);
+            TypeAndMethod key = new TypeAndMethod(method.ConstrainedType, method, isUnboxingStub, isInstantiatingStub, isPrecodeImportRequired, signatureContext);
             return _importMethods.GetOrAdd(key);
         }
 
@@ -441,7 +434,10 @@ namespace ILCompiler.DependencyAnalysis
 
             TypeAndMethod localMethodKey = new TypeAndMethod(localMethod.OwningType,
                 new MethodWithToken(localMethod, default(ModuleToken), constrainedType: null),
-                isUnboxingStub: false, isInstantiatingStub: false, isPrecodeImportRequired: false);
+                isUnboxingStub: false,
+                isInstantiatingStub: false,
+                isPrecodeImportRequired: false,
+                signatureContext);
             return _localMethodCache.GetOrAdd(localMethodKey);
         }
 
@@ -467,7 +463,7 @@ namespace ILCompiler.DependencyAnalysis
             }
         }
 
-        private class MethodFixupKey : IEquatable<MethodFixupKey>
+        private struct MethodFixupKey : IEquatable<MethodFixupKey>
         {
             public readonly ReadyToRunFixupKind FixupKind;
             public readonly TypeAndMethod TypeAndMethod;
@@ -504,23 +500,27 @@ namespace ILCompiler.DependencyAnalysis
             bool isInstantiatingStub,
             SignatureContext signatureContext)
         {
-            TypeAndMethod key = new TypeAndMethod(method.ConstrainedType, method, isUnboxingStub, isInstantiatingStub, false);
+            TypeAndMethod key = new TypeAndMethod(method.ConstrainedType, method, isUnboxingStub, isInstantiatingStub, false, signatureContext);
             return _methodSignatures.GetOrAdd(new MethodFixupKey(fixupKind, key));
         }
 
-        private class TypeFixupKey : IEquatable<TypeFixupKey>
+        private struct TypeFixupKey : IEquatable<TypeFixupKey>
         {
             public readonly ReadyToRunFixupKind FixupKind;
             public readonly TypeDesc TypeDesc;
-            public TypeFixupKey(ReadyToRunFixupKind fixupKind, TypeDesc typeDesc)
+            public readonly SignatureContext SignatureContext;
+            public TypeFixupKey(ReadyToRunFixupKind fixupKind, TypeDesc typeDesc, SignatureContext signatureContext)
             {
                 FixupKind = fixupKind;
                 TypeDesc = typeDesc;
+                SignatureContext = signatureContext;
             }
 
             public bool Equals(TypeFixupKey other)
             {
-                return FixupKind == other.FixupKind && TypeDesc == other.TypeDesc;
+                return FixupKind == other.FixupKind 
+                    && TypeDesc == other.TypeDesc 
+                    && SignatureContext.Equals(other.SignatureContext);
             }
 
             public override bool Equals(object obj)
@@ -530,15 +530,17 @@ namespace ILCompiler.DependencyAnalysis
 
             public override int GetHashCode()
             {
-                return FixupKind.GetHashCode() ^ TypeDesc.GetHashCode();
+                return FixupKind.GetHashCode()
+                    ^ (31 * TypeDesc.GetHashCode())
+                    ^ (23 * SignatureContext.GetHashCode());
             }
         }
 
         private NodeCache<TypeFixupKey, TypeFixupSignature> _typeSignatures;
 
-        public TypeFixupSignature TypeSignature(ReadyToRunFixupKind fixupKind, TypeDesc typeDesc)
+        public TypeFixupSignature TypeSignature(ReadyToRunFixupKind fixupKind, TypeDesc typeDesc, SignatureContext signatureContext)
         {
-            TypeFixupKey fixupKey = new TypeFixupKey(fixupKind, typeDesc);
+            TypeFixupKey fixupKey = new TypeFixupKey(fixupKind, typeDesc, signatureContext);
             return _typeSignatures.GetOrAdd(fixupKey);
         }
 
@@ -746,8 +748,10 @@ namespace ILCompiler.DependencyAnalysis
                 this,
                 HelperImports,
                 GetGenericStaticHelper(helperKey.HelperId),
-                TypeSignature(ReadyToRunFixupKind.READYTORUN_FIXUP_Invalid, (TypeDesc)helperKey.Target)
-            );
+                TypeSignature(
+                    ReadyToRunFixupKind.READYTORUN_FIXUP_Invalid,
+                    (TypeDesc)helperKey.Target,
+                    InputModuleContext));
         }
 
         protected override ISymbolNode CreateGenericLookupFromTypeNode(ReadyToRunGenericHelperKey helperKey)
@@ -756,8 +760,10 @@ namespace ILCompiler.DependencyAnalysis
                 this,
                 HelperImports,
                 GetGenericStaticHelper(helperKey.HelperId),
-                TypeSignature(ReadyToRunFixupKind.READYTORUN_FIXUP_Invalid, (TypeDesc)helperKey.Target)
-            );
+                TypeSignature(
+                    ReadyToRunFixupKind.READYTORUN_FIXUP_Invalid,
+                    (TypeDesc)helperKey.Target,
+                    InputModuleContext));
         }
 
         struct DynamicHelperCellKey : IEquatable<DynamicHelperCellKey>
@@ -765,19 +771,22 @@ namespace ILCompiler.DependencyAnalysis
             public readonly MethodWithToken Method;
             public readonly bool IsUnboxingStub;
             public readonly bool IsInstantiatingStub;
+            public readonly SignatureContext SignatureContext;
 
-            public DynamicHelperCellKey(MethodWithToken method, bool isUnboxingStub, bool isInstantiatingStub)
+            public DynamicHelperCellKey(MethodWithToken method, bool isUnboxingStub, bool isInstantiatingStub, SignatureContext signatureContext)
             {
                 Method = method;
                 IsUnboxingStub = isUnboxingStub;
                 IsInstantiatingStub = isInstantiatingStub;
+                SignatureContext = signatureContext;
             }
 
             public bool Equals(DynamicHelperCellKey other)
             {
-                return Method.Equals(other.Method) 
-                    && IsUnboxingStub == other.IsUnboxingStub 
-                    && IsInstantiatingStub == other.IsInstantiatingStub;
+                return Method.Equals(other.Method)
+                    && IsUnboxingStub == other.IsUnboxingStub
+                    && IsInstantiatingStub == other.IsInstantiatingStub
+                    && SignatureContext.Equals(other.SignatureContext);
             }
 
             public override bool Equals(object obj)
@@ -789,7 +798,8 @@ namespace ILCompiler.DependencyAnalysis
             {
                 return Method.GetHashCode()
                      ^ (IsUnboxingStub ? -0x80000000 : 0)
-                     ^ (IsInstantiatingStub ? -0x40000000 : 0);
+                     ^ (IsInstantiatingStub ? -0x40000000 : 0) 
+                     ^ (31 * SignatureContext.GetHashCode());
             }
         }
 
@@ -797,7 +807,7 @@ namespace ILCompiler.DependencyAnalysis
 
         public ISymbolNode DynamicHelperCell(MethodWithToken methodWithToken, bool isInstantiatingStub, SignatureContext signatureContext)
         {
-            DynamicHelperCellKey key = new DynamicHelperCellKey(methodWithToken, isUnboxingStub: false, isInstantiatingStub);
+            DynamicHelperCellKey key = new DynamicHelperCellKey(methodWithToken, isUnboxingStub: false, isInstantiatingStub, signatureContext);
             return _dynamicHelperCellCache.GetOrAdd(key);
         }
 
