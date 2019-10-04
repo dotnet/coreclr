@@ -164,9 +164,25 @@ namespace Internal.JitInterface
 
         public void CompileMethod(IReadyToRunMethodCodeNode methodCodeNodeNeedingCode)
         {
+            bool codeGotPublished = false;
             _methodCodeNode = methodCodeNodeNeedingCode;
 
-            CompileMethodInternal(methodCodeNodeNeedingCode);
+            try
+            {
+                if (!ShouldSkipCompilation(methodCodeNodeNeedingCode))
+                {
+                    CompileMethodInternal(methodCodeNodeNeedingCode);
+                    codeGotPublished = true;
+                }
+            }
+            finally
+            {
+                if (!codeGotPublished)
+                {
+                    PublishEmptyCode();
+                }
+                CompileMethodCleanup();
+            }
         }
 
         private SignatureContext GetSignatureContext()
