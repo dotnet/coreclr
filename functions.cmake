@@ -106,7 +106,6 @@ function(preprocess_file inputFilename outputFilename)
         COMMENT "Preprocessing ${inputFilename}. Outputting to ${outputFilename}"
     )
   else()
-    message("Adding preprocessing command for ${inputFilename} to ${outputFilename}")
     add_custom_command(
         OUTPUT ${outputFilename}
         COMMAND ${CMAKE_CXX_COMPILER} -E -P ${PREPROCESS_DEFINITIONS} ${PREPROCESS_INCLUDE_DIRECTORIES} -o ${outputFilename} -x c ${inputFilename}
