@@ -4266,8 +4266,8 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
 #endif
 
 #ifdef _TARGET_ARM_
-    if ((fgEntryPtr->isSplit && fgEntryPtr->numSlots + fgEntryPtr->numRegs > 4) ||
-        (!fgEntryPtr->isSplit && fgEntryPtr->regNum == REG_STK))
+    if ((fgEntryPtr->GetSplit() && fgEntryPtr->numSlots + fgEntryPtr->numRegs > 4) ||
+        (!fgEntryPtr->GetSplit() && fgEntryPtr->regNum == REG_STK))
 #else
     if (fgEntryPtr->regNum == REG_STK)
 #endif
