@@ -54,9 +54,11 @@ static int FindICULibs(const char* versionPrefix, char* symbolName, char* symbol
 // equal to the version we are built against and less or equal to that version
 // plus 20 to give us enough headspace. The ICU seems to version about twice
 // a year.
-// The minimum ICU version is the version from Alpine Linux 3.6, which is
-// the minimum version we know works for the product.
-#define MinICUVersion  58
+// On some platforms (mainly Alpine Linux) we want to make our minimum version
+// an earlier version than what we build that we know we support.
+#ifndef MinICUVersion
+#define MinICUVersion  U_ICU_VERSION_MAJOR_NUM
+#endif
 #define MaxICUVersion  (MinICUVersion + 20)
 #define MinMinorICUVersion  1
 #define MaxMinorICUVersion  5
