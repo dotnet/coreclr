@@ -1264,7 +1264,7 @@ void fgArgInfo::ArgsComplete()
 #endif
         }
 #if FEATURE_ARG_SPLIT
-        else if (curArgTabEntry->isSplit)
+        else if (curArgTabEntry->GetSplit())
         {
             hasStructRegArg = true;
             hasStackArgs    = true;
@@ -1393,7 +1393,7 @@ void fgArgInfo::ArgsComplete()
                     prevArgTabEntry->needPlace = true;
                 }
 #if FEATURE_ARG_SPLIT
-                else if (prevArgTabEntry->isSplit)
+                else if (prevArgTabEntry->GetSplit())
                 {
                     prevArgTabEntry->needPlace = true;
                 }
