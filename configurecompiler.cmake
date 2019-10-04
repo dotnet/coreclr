@@ -6,11 +6,17 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+cmake_policy(SET CMP0083 NEW)
+
 include(CheckPIESupported)
 include(CheckCXXCompilerFlag)
 
 # All code we build should be compiled as position independent
-check_pie_supported()
+check_pie_supported(OUTPUT_VARIABLE PIE_SUPPORT_OUTPUT LANGUAGES CXX)
+if(NOT CMAKE_CXX_LINK_PIE_SUPPORTED)
+  message(WARNING "PIE is not supported at link time: ${PIE_SUPPORT_OUTPUT}.\n"
+                  "PIE link options will not be passed to linker.")
+endif()
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 check_cxx_compiler_flag(-faligned-new COMPILER_SUPPORTS_F_ALIGNED_NEW)
@@ -316,11 +322,6 @@ elseif (CLR_CMAKE_PLATFORM_UNIX)
       add_link_options("$<$<AND:$<OR:$<CONFIG:DEBUG>,$<CONFIG:CHECKED>>,$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>>:${CLR_SANITIZE_LINK_OPTIONS};-Wl,--gc-sections>")
     endif ()
   endif(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
-
-  # This linker option causes executables we build to be marked as containing position independent code.
-  # It is necessary to make ASLR work for executables.
-  add_link_options($<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:-pie>)
-
 endif(WIN32)
 
 # CLR_ADDITIONAL_LINKER_FLAGS - used for passing additional arguments to linker
