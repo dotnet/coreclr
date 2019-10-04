@@ -63,7 +63,9 @@ static int FindICULibs(const char* versionPrefix, char* symbolName, char* symbol
 #define MinSubICUVersion 1
 #define MaxSubICUVersion 5
 
-static_assert(MaxICUVersion >= U_ICU_VERSION_MAJOR_NUM, "The max supported ICU version is less than the version we are building against.");
+#if MaxICUVersion < U_ICU_VERSION_MAJOR_NUM || U_ICU_VERSION_MAJOR_NUM < MinICUVersion
+#error "The ICU version we are compiling against is not in our supported ICU version range."
+#endif
 
 // Get filename of an ICU library with the requested version in the name
 // There are three possible cases of the version components values:
