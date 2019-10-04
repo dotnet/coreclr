@@ -3212,7 +3212,7 @@ VOID StubLinkerCPU::EmitComputedInstantiatingMethodStub(MethodDesc* pSharedMD, s
     CONTRACTL
     {
         STANDARD_VM_CHECK;
-        PRECONDITION(pMD->RequiresInstArg());
+        PRECONDITION(pSharedMD->RequiresInstArg());
     }
     CONTRACTL_END;
 

@@ -211,7 +211,6 @@ public:
 };
 
 
-#if defined(UNIX_AMD64_ABI)
 // Return an index of argument slot. First indices are reserved for general purpose registers,
 // the following ones for float registers and then the rest for stack slots.
 // This index is independent of how many registers are actually used to pass arguments.
@@ -230,7 +229,11 @@ int GetNormalizedArgumentSlotIndex(UINT16 offset)
     else
     {
         // stack slot
-        index = NUM_ARGUMENT_REGISTERS + NUM_FLOAT_ARGUMENT_REGISTERS + (offset & ShuffleEntry::OFSMASK);
+        index = NUM_ARGUMENT_REGISTERS
+#ifdef NUM_FLAT_ARGUMENT_REGISTERS
+                + NUM_FLOAT_ARGUMENT_REGISTERS
+#endif
+                + (offset & ShuffleEntry::OFSMASK);
     }
 
     return index;
@@ -250,8 +253,6 @@ struct ShuffleGraphNode
     // Nodes that are marked are either already processed or don't participate in the shuffling
     UINT8 isMarked;
 };
-
-#endif // UNIX_AMD64_ABI
 
 VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<ShuffleEntry> * pShuffleEntryArray)
 {
