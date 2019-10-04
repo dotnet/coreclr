@@ -38,12 +38,14 @@ if (WIN32)
         COMMAND ${CMAKE_CXX_COMPILER} ${DEFINITIONS} /EP "${CMAKE_CURRENT_BINARY_DIR}/AsmConstants.tmp" >"${CMAKE_CURRENT_BINARY_DIR}/AsmConstants.inc"
     )
 
-    set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/AsmConstants.inc
-      PROPERTIES
-        GENERATED TRUE
-        HEADER_FILE_ONLY TRUE)
+    set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/AsmConstants.inc PROPERTIES GENERATED TRUE)
 
-    target_sources(cee_wks PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/AsmConstants.inc)
+    add_custom_target(
+      asmconstants_inc
+      DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/AsmConstants.inc
+    )
+
+    add_dependencies(cee_wks asmconstants_inc)
 
   endif(NOT CLR_CMAKE_PLATFORM_ARCH_ARM AND NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
 
