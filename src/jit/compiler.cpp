@@ -4249,7 +4249,7 @@ void Compiler::compFunctionTraceStart()
         {
             printf("  ");
         }
-        printf("{ Start Jitting Method %d %s (MethodHash=%08x)\n", Compiler::jitTotalMethodCompiled, info.compFullName,
+        printf("{ Start Jitting Method %4d %s (MethodHash=%08x)\n", Compiler::jitTotalMethodCompiled, info.compFullName,
                info.compMethodHash()); /* } editor brace matching workaround for this printf */
     }
 #endif // DEBUG
@@ -4272,10 +4272,14 @@ void Compiler::compFunctionTraceEnd(void* methodCodePtr, ULONG methodCodeSize, b
         {
             printf("  ");
         }
+
+        // Note: that is incorrect if we are compiling several methods at the same time.
+        unsigned methodNumber = Compiler::jitTotalMethodCompiled - 1;
+
         /* { editor brace-matching workaround for following printf */
-        printf("} Jitted Method %03x at" FMT_ADDR "method %s size %08x%s%s\n", Compiler::jitTotalMethodCompiled,
-               DBG_ADDR(methodCodePtr), info.compFullName, methodCodeSize,
-               isNYI ? " NYI" : (compIsForImportOnly() ? " import only" : ""), opts.altJit ? " altjit" : "");
+        printf("} Jitted Method %4d at" FMT_ADDR "method %s size %08x%s%s\n", methodNumber, DBG_ADDR(methodCodePtr),
+               info.compFullName, methodCodeSize, isNYI ? " NYI" : (compIsForImportOnly() ? " import only" : ""),
+               opts.altJit ? " altjit" : "");
     }
 #endif // DEBUG
 }
