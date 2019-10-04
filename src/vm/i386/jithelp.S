@@ -621,7 +621,13 @@ LEAF_END JIT_Dbl2IntSSE2, _TEXT
 // JIT_StackProbe
 //
 // Purpose:
-//  Does stack probing at one-page intervals.
+//   the helper will consequently access ("probe") a word on each page of the stack
+//   starting with the page right beneath [esp] down to the one pointed to by eax.
+//   The procedure is needed to make sure that the "guard" page is pushed down below the allocated stack frame.
+//   The call to the helper will be emitted by JIT in the function prolog when large (larger than 0x3000 bytes) stack frame is required.
+//
+// NOTE: this helper will modify a value of esp and must establish the frame pointer.
+// NOTE: On Linux we must advance the stack pointer as we probe - it is not allowed to access 65535 bytes below esp.
 //
 #define PAGE_SIZE 0x1000
 NESTED_ENTRY JIT_StackProbe, _TEXT, NoHandler
@@ -632,14 +638,15 @@ NESTED_ENTRY JIT_StackProbe, _TEXT, NoHandler
     PROLOG_BEG
     PROLOG_END
 
-    sub     esp, PAGE_SIZE       // esp points to some byte on the first unprobed page
-    or      esp, (PAGE_SIZE - 1) // esp points to the last byte on the first unprobed page
+    sub     esp, PAGE_SIZE         // esp points to some byte on the first unprobed page
+    or      esp, (PAGE_SIZE - 1)   // esp points to the **highest address** on the first unprobed page
+                                   // This is done to make the loop end condition simpler.
 
 LOCAL_LABEL(ProbeLoop):
     test    [esp], eax
-    sub     esp, PAGE_SIZE
+    sub     esp, PAGE_SIZE         // esp points to the highest address of the **next page** to probe
     cmp     esp, eax
-    jge     LOCAL_LABEL(ProbeLoop)
+    jge     LOCAL_LABEL(ProbeLoop) // if esp >= eax, then we need to probe the page pointed to by esp.
 
     EPILOG_BEG
     mov     esp, ebp

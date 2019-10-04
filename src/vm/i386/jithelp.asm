@@ -1464,6 +1464,12 @@ JIT_EndCatch PROC stdcall public
 
 JIT_EndCatch ENDP
 
+; The following helper will consequently access ("probe") a word on each page of the stack
+; starting with the page right beneath [esp] down to the one pointed to by eax.
+; The procedure is needed to make sure that the "guard" page is pushed down below the allocated stack frame.
+; The call to the helper will be emitted by JIT in the function prolog when large (larger than 0x3000 bytes) stack frame is required.
+;
+; NOTE: this helper will modify a value of esp and must establish the frame pointer.
 PAGE_SIZE equ 1000h
 
 _JIT_StackProbe@0 PROC public
@@ -1475,13 +1481,13 @@ _JIT_StackProbe@0 PROC public
     mov     ebp, esp
 
     sub     esp, PAGE_SIZE       ; esp points to some byte on the first unprobed page
-    or      esp, (PAGE_SIZE - 1) ; esp points to the last byte on the first unprobed page
-
+    or      esp, (PAGE_SIZE - 1) ; esp points to the **highest address** on the first unprobed page
+                                 ; This is done to make the loop end condition simpler.
 ProbeLoop:
     test    [esp], eax
-    sub     esp, PAGE_SIZE
+    sub     esp, PAGE_SIZE       ; esp points to the highest address of the **next page** to probe
     cmp     esp, eax
-    jge     ProbeLoop
+    jge     ProbeLoop            ; if esp >= eax, then we need to probe the page pointed to by esp.
 
     mov     esp, ebp
     pop     ebp

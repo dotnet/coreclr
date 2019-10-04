@@ -955,6 +955,13 @@ endif ; _DEBUG
 
 NESTED_END TailCallHelperStub, _TEXT
 
+; The following helper will consequently access ("probe") a word on each page of the stack
+; starting with the page right beneath [rsp] down to the one pointed to by r11.
+; The procedure is needed to make sure that the "guard" page is pushed down below the allocated stack frame.
+; The call to the helper will be emitted by JIT in the function/funclet prolog when large (larger than 0x3000 bytes) stack frame is required.
+;
+; NOTE: this helper will NOT modify a value of rsp and can be defined as a leaf function.
+
 PAGE_SIZE equ 1000h
 
 LEAF_ENTRY JIT_StackProbe, _TEXT
@@ -968,13 +975,14 @@ LEAF_ENTRY JIT_StackProbe, _TEXT
         ; NOTE: this helper will probe at least one page below the one pointed by rsp.
 
         lea     rax, [rsp - PAGE_SIZE] ; rax points to some byte on the first unprobed page
-        or      rax, (PAGE_SIZE - 1)   ; rax points to the last byte on the first unprobed page
+        or      rax, (PAGE_SIZE - 1)   ; rax points to the **highest address** on the first unprobed page
+                                       ; This is done to make the following loop end condition simpler.
 
 ProbeLoop:
         test    dword ptr [rax], eax
-        sub     rax, PAGE_SIZE
+        sub     rax, PAGE_SIZE         ; rax points to the highest address of the **next page** to probe
         cmp     rax, r11
-        jge     ProbeLoop
+        jge     ProbeLoop              ; if (rax >= r11), then we need to probe the page pointed to by rax.
 
         ret
 
