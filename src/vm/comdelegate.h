@@ -22,6 +22,12 @@ typedef ArgBasedStubCache MulticastStubCache;
 
 VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, struct ShuffleEntry * pShuffleEntryArray, size_t nEntries);
 
+enum class ShuffleComputationType
+{
+    InstantiatingStub,
+    DelegateShuffleThunk
+};
+BOOL GenerateShuffleArrayPortable(MethodDesc* pMethodSrc, MethodDesc *pMethodDst, SArray<ShuffleEntry> * pShuffleEntryArray, ShuffleComputationType shuffleType);
 
 // This class represents the native methods for the Delegate class
 class COMDelegate
@@ -197,20 +203,12 @@ struct ShuffleEntry
         HELPERREG    = 0xcfff, // Use a helper register as source or destination (used to handle cycles in the shuffling)
     };
 
-#if defined(_TARGET_AMD64_) && !defined(UNIX_AMD64_ABI)
-    union {
-        UINT16          srcofs;
-        CorElementType  argtype;    // AMD64: shuffle array is just types
-    };
-#else
-
     UINT16    srcofs;
 
     union {
         UINT16    dstofs;           //if srcofs != SENTINEL
         UINT16    stacksizedelta;   //if dstofs == SENTINEL, difference in stack size between virtual and static sigs
     };
-#endif // _TARGET_AMD64_
 };
 
 

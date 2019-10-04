@@ -99,6 +99,8 @@ EXTERN_C void SinglecastDelegateInvokeStub();
 #define ENREGISTERED_RETURNTYPE_INTEGER_MAXSIZE 4
 #define CALLDESCR_ARGREGS                       1   // CallDescrWorker has ArgumentRegister parameter
 
+#define NO_SHUFFLE_INSTANTIATINGSTUB            1
+
 //=======================================================================
 // IMPORTANT: This value is used to figure out how much to allocate
 // for a fixed array of FieldMarshaler's. That means it must be at least

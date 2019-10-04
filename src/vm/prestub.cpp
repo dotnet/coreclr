@@ -1615,17 +1615,31 @@ Stub * MakeUnboxingStubWorker(MethodDesc *pMD)
 
     _ASSERTE(pUnboxedMD != NULL && pUnboxedMD != pMD);
 
-#ifdef FEATURE_STUBS_AS_IL
-    if (pUnboxedMD->RequiresInstMethodTableArg())
+#ifndef NO_SHUFFLE_INSTANTIATINGSTUB
+    StackSArray<ShuffleEntry> portableShuffle;
+    if (GenerateShuffleArrayPortable(pMD, pUnboxedMD, &portableShuffle, ShuffleComputationType::InstantiatingStub))
     {
-        pstub = CreateUnboxingILStubForSharedGenericValueTypeMethods(pUnboxedMD);
+        CPUSTUBLINKER sl;
+        _ASSERTE(pUnboxedMD != NULL && pUnboxedMD != pMD);
+        sl.EmitComputedInstantiatingMethodStub(pUnboxedMD, &portableShuffle[0], NULL);
+
+        pstub = sl.Link(pMD->GetLoaderAllocator()->GetStubHeap());
     }
     else
 #endif
     {
-        CPUSTUBLINKER sl;
-        sl.EmitUnboxMethodStub(pUnboxedMD);
-        pstub = sl.Link(pMD->GetLoaderAllocator()->GetStubHeap());
+#ifdef FEATURE_STUBS_AS_IL
+        if (pUnboxedMD->RequiresInstMethodTableArg())
+        {
+            pstub = CreateUnboxingILStubForSharedGenericValueTypeMethods(pUnboxedMD);
+        }
+        else
+#endif
+        {
+            CPUSTUBLINKER sl;
+            sl.EmitUnboxMethodStub(pUnboxedMD);
+            pstub = sl.Link(pMD->GetLoaderAllocator()->GetStubHeap());
+        }
     }
     RETURN pstub;
 }
@@ -1667,15 +1681,29 @@ Stub * MakeInstantiatingStubWorker(MethodDesc *pMD)
     }
     Stub *pstub = NULL;
 
-#ifdef FEATURE_STUBS_AS_IL
-    pstub = CreateInstantiatingILStub(pSharedMD, extraArg);
-#else
-    CPUSTUBLINKER sl;
-    _ASSERTE(pSharedMD != NULL && pSharedMD != pMD);
-    sl.EmitInstantiatingMethodStub(pSharedMD, extraArg);
+#ifndef NO_SHUFFLE_INSTANTIATINGSTUB
+    StackSArray<ShuffleEntry> portableShuffle;
+    if (GenerateShuffleArrayPortable(pMD, pSharedMD, &portableShuffle, ShuffleComputationType::InstantiatingStub))
+    {
+        CPUSTUBLINKER sl;
+        _ASSERTE(pSharedMD != NULL && pSharedMD != pMD);
+        sl.EmitComputedInstantiatingMethodStub(pSharedMD, &portableShuffle[0], extraArg);
 
-    pstub = sl.Link(pMD->GetLoaderAllocator()->GetStubHeap());
+        pstub = sl.Link(pMD->GetLoaderAllocator()->GetStubHeap());
+    }
+    else
 #endif
+    {
+#ifdef FEATURE_STUBS_AS_IL
+        pstub = CreateInstantiatingILStub(pSharedMD, extraArg);
+#else
+        CPUSTUBLINKER sl;
+        _ASSERTE(pSharedMD != NULL && pSharedMD != pMD);
+        sl.EmitInstantiatingMethodStub(pSharedMD, extraArg);
+
+        pstub = sl.Link(pMD->GetLoaderAllocator()->GetStubHeap());
+#endif
+    }
 
     RETURN pstub;
 }

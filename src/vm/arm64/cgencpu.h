@@ -461,6 +461,10 @@ public:
 
     void EmitShuffleThunk(struct ShuffleEntry *pShuffleEntryArray);
 
+#if defined(FEATURE_SHARE_GENERIC_CODE)  
+    void EmitComputedInstantiatingMethodStub(MethodDesc* pSharedMD, struct ShuffleEntry *pShuffleEntryArray, void* extraArg);
+#endif // FEATURE_SHARE_GENERIC_CODE
+
 #ifdef _DEBUG
     void EmitNop() { Emit32(0xD503201F); }
 #endif

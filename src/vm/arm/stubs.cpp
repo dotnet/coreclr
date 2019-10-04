@@ -2155,6 +2155,74 @@ VOID StubLinkerCPU::EmitInstantiatingMethodStub(MethodDesc* pSharedMD, void* ext
 }
 #endif // FEATURE_SHARE_GENERIC_CODE
 
+VOID StubLinkerCPU::EmitComputedInstantiatingMethodStub(MethodDesc* pSharedMD, struct ShuffleEntry *pShuffleEntryArray, void* extraArg)
+{
+    struct ShuffleEntry *pEntry = pShuffleEntryArray;
+    while (pEntry->srcofs != ShuffleEntry::SENTINEL)
+    {
+        _ASSERTE(pEntry->dstofs & ShuffleEntry::REGMASK);
+        _ASSERTE(pEntry->srcofs & ShuffleEntry::REGMASK);
+
+        ThumbEmitMovRegReg(ThumbReg(pEntry->dstofs & ShuffleEntry::OFSMASK),
+                            ThumbReg(pEntry->srcofs & ShuffleEntry::OFSMASK));
+
+        pEntry++;
+    }
+
+    MetaSig msig(pSharedMD);
+    ArgIterator argit(&msig);
+
+    // Place instantiation parameter into the correct register.
+    ArgLocDesc sInstArgLoc;
+    argit.GetParamTypeLoc(&sInstArgLoc);
+    int regHidden = sInstArgLoc.m_idxGenReg;
+    _ASSERTE(regHidden != -1);
+    if (extraArg == NULL)
+    {
+        // Extract MethodTable pointer (the hidden arg) from the object instance.
+        //  ldr regHidden, [r0]
+        ThumbEmitLoadRegIndirect(ThumbReg(regHidden), ThumbReg(0), 0);
+
+        // Skip over the MethodTable* to find the address of the unboxed value type.
+        //  add r0, #sizeof(MethodTable*)
+        ThumbEmitIncrement(ThumbReg(0), sizeof(MethodTable*));
+    }
+    else
+    {
+        // mov regHidden, #pHiddenArg
+        ThumbEmitMovConstant(ThumbReg(regHidden), (TADDR)extraArg);
+    }
+
+    bool isRelative = MethodTable::VTableIndir2_t::isRelative
+                      && pSharedMD->IsVtableSlot();
+
+#ifndef FEATURE_NGEN_RELOCS_OPTIMIZATIONS
+    _ASSERTE(!isRelative);
+#endif
+
+    if (extraArg == NULL)
+    {
+        X86EmitIndexRegLoad(c_argRegs[paramTypeArgIndex], THIS_kREG);
+        X86EmitAddReg(THIS_kREG, sizeof(void*));
+    }
+    else
+    {
+        X86EmitRegLoad(c_argRegs[paramTypeArgIndex], (UINT_PTR)extraArg);
+    }
+
+    if (isRelative)
+    {
+        ThumbEmitProlog(1, 0, FALSE);
+    }
+
+    ThumbEmitCallManagedMethod(pSharedMD, true);
+
+    if (isRelative)
+    {
+        ThumbEmitEpilog();
+    }
+}
+
 void StubLinkerCPU::EmitUnboxMethodStub(MethodDesc *pMD)
 {
     if (pMD->RequiresInstMethodTableArg())

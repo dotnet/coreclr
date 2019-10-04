@@ -546,6 +546,29 @@ public:
 #endif
     }
 
+#ifdef _TARGET_X86_
+    // Get layout information for the argument that the ArgIterator is currently visiting.
+    void GetArgLoc(int argOffset, ArgLocDesc *pLoc)
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        pLoc->Init();
+
+        int cSlots = (GetArgSize() + 3) / 4;
+        if (!TransitionBlock::IsStackArgumentOffset(argOffset))
+        {
+            pLoc->m_idxGenReg = TransitionBlock::GetArgumentIndexFromOffset(argOffset);
+            _ASSERTE(cSlots == 1);
+            pLoc->m_cGenReg = cSlots;
+        }
+        else
+        {
+            pLoc->m_idxStack = TransitionBlock::GetStackArgumentIndexFromOffset(argOffset);
+            pLoc->m_cStack = cSlots;
+        }
+    }
+#endif
+
 #ifdef _TARGET_ARM_
     // Get layout information for the argument that the ArgIterator is currently visiting.
     void GetArgLoc(int argOffset, ArgLocDesc *pLoc)
@@ -643,7 +666,7 @@ public:
     }
 #endif // _TARGET_ARM64_
 
-#if defined(_TARGET_AMD64_) && defined(UNIX_AMD64_ABI)
+#if defined(_TARGET_AMD64_)
     // Get layout information for the argument that the ArgIterator is currently visiting.
     void GetArgLoc(int argOffset, ArgLocDesc* pLoc)
     {
@@ -655,7 +678,6 @@ public:
             *pLoc = m_argLocDescForStructInRegs;
             return;
         }
-#endif // UNIX_AMD64_ABI
 
         if (argOffset == TransitionBlock::StructInRegsOffset)
         {
@@ -664,6 +686,7 @@ public:
             _ASSERTE(false);
             return;
         }
+#endif // UNIX_AMD64_ABI
 
         pLoc->Init();
 
@@ -684,7 +707,7 @@ public:
             pLoc->m_cStack = (GetArgSize() + STACK_ELEM_SIZE - 1) / STACK_ELEM_SIZE;
         }
     }
-#endif // _TARGET_AMD64_ && UNIX_AMD64_ABI
+#endif // _TARGET_AMD64_
 
 protected:
     DWORD               m_dwFlags;              // Cached flags

@@ -965,6 +965,7 @@ public:
     void EmitShuffleThunk(struct ShuffleEntry *pShuffleEntryArray);
 #if defined(FEATURE_SHARE_GENERIC_CODE)  
     void EmitInstantiatingMethodStub(MethodDesc* pSharedMD, void* extra);
+    VOID EmitComputedInstantiatingMethodStub(MethodDesc* pSharedMD, struct ShuffleEntry *pShuffleEntryArray, void* extraArg);
 #endif // FEATURE_SHARE_GENERIC_CODE
 
     static Stub * CreateTailCallCopyArgsThunk(CORINFO_SIG_INFO * pSig,
