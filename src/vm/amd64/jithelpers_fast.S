@@ -538,8 +538,8 @@ LEAF_ENTRY JIT_Stelem_Ref__ArrayStoreCheck_Helper, _TEXT
 #endif
 LEAF_END JIT_Stelem_Ref__ArrayStoreCheck_Helper, _TEXT
 
-// The following helper will consequently access ("probe") a word on each page of the stack
-// starting with the page right beneath [rsp] down to the one pointed to by r11.
+// The following helper will access ("probe") a word on each page of the stack
+// starting with the page right beneath rsp down to the one pointed to by r11.
 // The procedure is needed to make sure that the "guard" page is pushed down below the allocated stack frame.
 // The call to the helper will be emitted by JIT in the function/funclet prolog when large (larger than 0x3000 bytes) stack frame is required.
 //

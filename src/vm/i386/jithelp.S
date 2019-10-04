@@ -621,8 +621,8 @@ LEAF_END JIT_Dbl2IntSSE2, _TEXT
 // JIT_StackProbe
 //
 // Purpose:
-//   the helper will consequently access ("probe") a word on each page of the stack
-//   starting with the page right beneath [esp] down to the one pointed to by eax.
+//   the helper will access ("probe") a word on each page of the stack
+//   starting with the page right beneath esp down to the one pointed to by eax.
 //   The procedure is needed to make sure that the "guard" page is pushed down below the allocated stack frame.
 //   The call to the helper will be emitted by JIT in the function prolog when large (larger than 0x3000 bytes) stack frame is required.
 //
