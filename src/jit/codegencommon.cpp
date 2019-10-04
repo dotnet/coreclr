@@ -4609,7 +4609,8 @@ void CodeGen::genCheckUseBlockInit()
                         else
                         {
                             // Var is partially enregistered
-                            noway_assert(genTypeSize(varDsc->TypeGet()) > sizeof(int) && varDsc->GetOtherReg() == REG_STK);
+                            noway_assert(genTypeSize(varDsc->TypeGet()) > sizeof(int) &&
+                                         varDsc->GetOtherReg() == REG_STK);
                             initStkLclCnt += genTypeStSz(TYP_INT);
                             counted = true;
                         }
