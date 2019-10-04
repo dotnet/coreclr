@@ -98,8 +98,7 @@ public:
 
     void verifyRegistersUsed(regMaskTP regMask);
 
-public: // TODO-Cleanup: Should be private, but GCInfo uses them
-
+public:
     regMaskTP GetMaskVars() const // 'get' property function for rsMaskVars property
     {
         return _rsMaskVars;
