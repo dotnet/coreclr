@@ -11339,7 +11339,7 @@ void Compiler::gtGetArgMsg(
         else
         {
 #ifdef _TARGET_ARM_
-            if (curArgTabEntry->GetSplit())
+            if (curArgTabEntry->IsSplit())
             {
                 regNumber firstReg = curArgTabEntry->regNum;
                 if (listCount == -1)
@@ -11469,7 +11469,7 @@ void Compiler::gtGetLateArgMsg(
             sprintf_s(bufp, bufLength, "this in %s%c", compRegVarName(argReg), 0);
         }
 #ifdef _TARGET_ARM_
-        else if (curArgTabEntry->GetSplit())
+        else if (curArgTabEntry->IsSplit())
         {
             regNumber firstReg = curArgTabEntry->regNum;
             unsigned  argNum   = curArgTabEntry->argNum;

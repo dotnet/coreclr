@@ -821,7 +821,7 @@ void fgArgTabEntry::Dump()
     {
         printf(", lateArgInx=%u", GetLateArgInx());
     }
-    if (GetSplit())
+    if (IsSplit())
     {
         printf(", isSplit");
     }
@@ -1178,7 +1178,7 @@ void fgArgInfo::UpdateStkArg(fgArgTabEntry* curArgTabEntry, GenTree* node, bool 
            (!isLateArg && ((node->gtFlags & GTF_LATE_ARG) == 0)));
 
     noway_assert(curArgTabEntry->use != callTree->gtCallThisArg);
-    assert((curArgTabEntry->regNum == REG_STK) || curArgTabEntry->GetSplit());
+    assert((curArgTabEntry->regNum == REG_STK) || curArgTabEntry->IsSplit());
     assert(curArgTabEntry->use->GetNode() == node);
     nextSlotNum = (unsigned)roundUp(nextSlotNum, curArgTabEntry->alignment);
     assert(curArgTabEntry->slotNum == nextSlotNum);
@@ -1204,7 +1204,7 @@ void fgArgInfo::SplitArg(unsigned argNum, unsigned numRegs, unsigned numSlots)
 
     if (argsComplete)
     {
-        assert(curArgTabEntry->GetSplit() == true);
+        assert(curArgTabEntry->IsSplit() == true);
         assert(curArgTabEntry->numRegs == numRegs);
         assert(curArgTabEntry->numSlots == numSlots);
         assert(hasStackArgs == true);
@@ -1264,7 +1264,7 @@ void fgArgInfo::ArgsComplete()
 #endif
         }
 #if FEATURE_ARG_SPLIT
-        else if (curArgTabEntry->GetSplit())
+        else if (curArgTabEntry->IsSplit())
         {
             hasStructRegArg = true;
             hasStackArgs    = true;
@@ -1393,7 +1393,7 @@ void fgArgInfo::ArgsComplete()
                     prevArgTabEntry->needPlace = true;
                 }
 #if FEATURE_ARG_SPLIT
-                else if (prevArgTabEntry->GetSplit())
+                else if (prevArgTabEntry->IsSplit())
                 {
                     prevArgTabEntry->needPlace = true;
                 }
@@ -4266,8 +4266,8 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
 #endif
 
 #ifdef _TARGET_ARM_
-    if ((fgEntryPtr->GetSplit() && fgEntryPtr->numSlots + fgEntryPtr->numRegs > 4) ||
-        (!fgEntryPtr->GetSplit() && fgEntryPtr->regNum == REG_STK))
+    if ((fgEntryPtr->IsSplit() && fgEntryPtr->numSlots + fgEntryPtr->numRegs > 4) ||
+        (!fgEntryPtr->IsSplit() && fgEntryPtr->regNum == REG_STK))
 #else
     if (fgEntryPtr->regNum == REG_STK)
 #endif
