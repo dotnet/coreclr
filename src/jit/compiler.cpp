@@ -4229,6 +4229,26 @@ bool Compiler::compRsvdRegCheck(FrameLayoutState curState)
 }
 #endif // _TARGET_ARMARCH_
 
+const char* Compiler::compGetTieringName() const
+{
+    bool tier0 = opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER0);
+    bool tier1 = opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER1);
+    assert(!tier0 || !tier1); // We don't expect multiple TIER flags to be set at one time.
+
+    if (tier0)
+    {
+        return "Tier-0";
+    }
+    else if (tier1)
+    {
+        return "Tier-1";
+    }
+    else
+    {
+        return "No-Tier";
+    }
+}
+
 void Compiler::compFunctionTraceStart()
 {
 #ifdef DEBUG
@@ -4249,8 +4269,9 @@ void Compiler::compFunctionTraceStart()
         {
             printf("  ");
         }
-        printf("{ Start Jitting Method %4d %s (MethodHash=%08x)\n", Compiler::jitTotalMethodCompiled, info.compFullName,
-               info.compMethodHash()); /* } editor brace matching workaround for this printf */
+        printf("{ Start Jitting Method %4d %s (MethodHash=%08x) %s\n", Compiler::jitTotalMethodCompiled,
+               info.compFullName, info.compMethodHash(),
+               compGetTieringName()); /* } editor brace matching workaround for this printf */
     }
 #endif // DEBUG
 }
@@ -5946,17 +5967,9 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
 #ifdef DEBUG
     if (JitConfig.DumpJittedMethods() == 1 && !compIsForInlining())
     {
-        printf("Compiling %4d %s::%s, IL size = %u, hsh=0x%x", Compiler::jitTotalMethodCompiled, info.compClassName,
-               info.compMethodName, info.compILCodeSize, info.compMethodHash());
-        if (opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER0))
-        {
-            printf(" for Tier-0");
-        }
-        else if (opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER1))
-        {
-            printf(" for Tier-1");
-        }
-        printf("\n");
+        printf("Compiling %4d %s::%s, IL size = %u, hsh=0x%x %s\n", Compiler::jitTotalMethodCompiled,
+               info.compClassName, info.compMethodName, info.compILCodeSize, info.compMethodHash(),
+               compGetTieringName());
     }
     if (compIsForInlining())
     {
