@@ -13,7 +13,7 @@ include(CheckCXXCompilerFlag)
 
 # All code we build should be compiled as position independent
 check_pie_supported(OUTPUT_VARIABLE PIE_SUPPORT_OUTPUT LANGUAGES CXX)
-if(NOT CMAKE_CXX_LINK_PIE_SUPPORTED)
+if(NOT MSVC AND NOT CMAKE_CXX_LINK_PIE_SUPPORTED)
   message(WARNING "PIE is not supported at link time: ${PIE_SUPPORT_OUTPUT}.\n"
                   "PIE link options will not be passed to linker.")
 endif()
@@ -191,7 +191,7 @@ endif()
 # Initialize Cmake compiler flags and other variables
 #-----------------------------------------------------
 
-if(WIN32)
+if(MSVC)
     add_compile_options(/Zi /FC /Zc:strictStrings)
 elseif (CLR_CMAKE_PLATFORM_UNIX)
     add_compile_options(-g)
@@ -217,7 +217,7 @@ add_compile_definitions("$<$<OR:$<CONFIG:RELEASE>,$<CONFIG:RELWITHDEBINFO>>:NDEB
 
 set(CMAKE_CXX_STANDARD_LIBRARIES "") # do not link against standard win32 libs i.e. kernel32, uuid, user32, etc.
 
-if (WIN32)
+if (MSVC)
   add_link_options(/GUARD:CF)
 
   # Linker flags
@@ -337,7 +337,7 @@ elseif (CLR_CMAKE_PLATFORM_UNIX)
       add_link_options("$<$<AND:$<OR:$<CONFIG:DEBUG>,$<CONFIG:CHECKED>>,$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>>:${CLR_SANITIZE_LINK_OPTIONS};-Wl,--gc-sections>")
     endif ()
   endif(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
-endif(WIN32)
+endif(MSVC)
 
 # CLR_ADDITIONAL_LINKER_FLAGS - used for passing additional arguments to linker
 # CLR_ADDITIONAL_COMPILER_OPTIONS - used for passing additional arguments to compiler
@@ -544,7 +544,7 @@ if(CLR_CMAKE_PLATFORM_UNIX)
   add_compile_options(${CLR_ADDITIONAL_COMPILER_OPTIONS})
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
-if (WIN32)
+if (MSVC)
   # Compile options for targeting windows
 
   # The following options are set by the razzle build
@@ -607,7 +607,7 @@ if (WIN32)
     add_definitions(-DDISABLE_CONTRACTS)
   endif (CLR_CMAKE_TARGET_ARCH_ARM OR CLR_CMAKE_TARGET_ARCH_ARM64)
 
-endif (WIN32)
+endif (MSVC)
 
 if(CLR_CMAKE_ENABLE_CODE_COVERAGE)
 
