@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 // ===========================================================================
 
-#if defined(__linux__) && !defined(CROSSGEN_COMPILE)
+#if defined(__linux__)
 #define JITDUMP_SUPPORTED
 #endif
 
@@ -11,7 +11,6 @@
 #include "pal/dbgmsg.h"
 
 #include <cstddef>
-#include "perfjitdump.h"
 
 #ifdef JITDUMP_SUPPORTED
 
@@ -131,7 +130,7 @@ struct PerfJitDumpState
     PerfJitDumpState() :
         enabled(false),
         fd(-1),
-        mmapAddr(nullptr),
+        mmapAddr(MAP_FAILED),
         mutex(PTHREAD_MUTEX_INITIALIZER),
         codeIndex(0)
     {}
@@ -142,6 +141,30 @@ struct PerfJitDumpState
     pthread_mutex_t mutex;
     uint64_t codeIndex;
 
+    int FatalError(bool locked)
+    {
+        enabled = false;
+
+        if (mmapAddr != MAP_FAILED)
+        {
+            munmap(mmapAddr, sizeof(FileHeader));
+            mmapAddr = MAP_FAILED;
+        }
+
+        if (fd != -1)
+        {
+            close(fd);
+            fd = -1;
+        }
+
+        if (locked)
+        {
+            pthread_mutex_unlock(&mutex);
+        }
+
+        return -1;
+    }
+
     int Start(const char* path)
     {
         int result = 0;
@@ -151,10 +174,10 @@ struct PerfJitDumpState
 
         result = pthread_mutex_lock(&mutex);
 
-        if (enabled)
-            goto exit;
-
         if (result != 0)
+            return FatalError(false);
+
+        if (enabled)
             goto exit;
 
         char jitdumpPath[PATH_MAX];
@@ -162,38 +185,41 @@ struct PerfJitDumpState
         result = snprintf(jitdumpPath, sizeof(jitdumpPath), "%s/jit-%i.dump", path, getpid());
 
         if (result >= PATH_MAX)
-            goto exit;
+            return FatalError(true);
 
         result = open(jitdumpPath, O_CREAT|O_TRUNC|O_RDWR|O_CLOEXEC, S_IRUSR|S_IWUSR );
 
         if (result == -1)
-            goto exit;
+            return FatalError(true);
 
         fd = result;
 
         result = write(fd, &header, sizeof(FileHeader));
 
         if (result == -1)
-            goto exit;
+            return FatalError(true);
 
         result = fsync(fd);
 
         if (result == -1)
-            goto exit;
+            return FatalError(true);
 
         // mmap jitdump file
         // this is a marker for perf inject to find the jitdumpfile
         mmapAddr = mmap(nullptr, sizeof(FileHeader), PROT_READ | PROT_EXEC, MAP_PRIVATE, fd, 0);
 
         if (mmapAddr == MAP_FAILED)
-            goto exit;
+            return FatalError(true);
 
         enabled = true;
 
 exit:
         result = pthread_mutex_unlock(&mutex);
 
-        return result;
+        if (result != 0)
+            return FatalError(false);
+
+        return 0;
     }
 
     int LogMethod(void* pCode, size_t codeSize, const char* symbol, void* debugInfo, void* unwindInfo)
@@ -215,7 +241,7 @@ exit:
             result = pthread_mutex_lock(&mutex);
 
             if (result != 0)
-                goto exit;
+                return FatalError(false);
 
             if (!enabled)
                 goto exit;
@@ -227,30 +253,31 @@ exit:
             result = write(fd, &record, sizeof(JitCodeLoadRecord));
 
             if (result == -1)
-                goto exit;
+                return FatalError(true);
 
             result = write(fd, symbol, symbolLen + 1);
 
             if (result == -1)
-                goto exit;
+                return FatalError(true);
 
             result = write(fd, pCode, codeSize);
 
             if (result == -1)
-                goto exit;
+                return FatalError(true);
 
             result = fsync(fd);
 
             if (result == -1)
-                goto exit;
+                return FatalError(true);
 
 exit:
-            if (result != 0)
-                enabled = false;
-
             result = pthread_mutex_unlock(&mutex);
+
+            if (result != 0)
+                return FatalError(false);
+
         }
-        return result;
+        return 0;
     }
 
     int Finish()
@@ -265,27 +292,36 @@ exit:
             result = pthread_mutex_lock(&mutex);
 
             if (result != 0)
+                return FatalError(false);
+
+            if (!enabled)
                 goto exit;
 
             result = munmap(mmapAddr, sizeof(FileHeader));
 
             if (result == -1)
-                goto exit;
+                return FatalError(true);
+
+            mmapAddr = MAP_FAILED;
 
             result = fsync(fd);
 
             if (result == -1)
-                goto exit;
+                return FatalError(true);
 
             result = close(fd);
 
             if (result == -1)
-                goto exit;
+                return FatalError(true);
 
+            fd = -1;
 exit:
             result = pthread_mutex_unlock(&mutex);
+
+            if (result != 0)
+                return -1;
         }
-        return result;
+        return 0;
     }
 };
 

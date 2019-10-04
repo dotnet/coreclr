@@ -11,7 +11,6 @@
 #include "perfmap.h"
 #include "perfinfo.h"
 #include "pal.h"
-#include "perfjitdump.h"
 
 // The code addresses are actually native image offsets during crossgen. Print
 // them as 32-bit numbers for consistent output when cross-targeting and to
@@ -52,12 +51,13 @@ void PerfMap::Initialize()
             s_ShowOptimizationTiers = true;
         }
 
+#ifndef CROSSGEN_COMPILE
         char jitdumpPath[4096];
 
         // CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_PerfMapJitDumpPath) returns a LPWSTR
         // Use GetEnvironmentVariableA because it is simpler.
         // Keep comment here to make it searchable.
-        auto len = GetEnvironmentVariableA("COMPlus_PerfMapJitDumpPath", jitdumpPath, sizeof(jitdumpPath) - 1);
+        DWORD len = GetEnvironmentVariableA("COMPlus_PerfMapJitDumpPath", jitdumpPath, sizeof(jitdumpPath) - 1);
 
         if (len == 0)
         {
@@ -65,6 +65,7 @@ void PerfMap::Initialize()
         }
 
         PAL_PerfJitDump_Start(jitdumpPath);
+#endif // CROSSGEN_COMPILE
     }
 }
 
