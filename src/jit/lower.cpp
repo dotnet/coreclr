@@ -113,14 +113,14 @@ GenTree* Lowering::LowerNode(GenTree* node)
                 // TODO-Cleanup: We're passing isContainable = true but ContainCheckIndir rejects
                 // address containment in some cases so we end up creating trivial (reg + offfset)
                 // or (reg + reg) LEAs that are not necessary.
-                TryCreateAddrMode(LIR::Use(BlockRange(), &node->AsIndir()->Addr(), node), true);
+                TryCreateAddrMode(node->AsIndir()->Addr(), true);
                 ContainCheckIndir(node->AsIndir());
             }
             break;
 
         case GT_STOREIND:
             assert(node->TypeGet() != TYP_STRUCT);
-            TryCreateAddrMode(LIR::Use(BlockRange(), &node->AsStoreInd()->Addr(), node), true);
+            TryCreateAddrMode(node->AsIndir()->Addr(), true);
             if (!comp->codeGen->gcInfo.gcIsWriteBarrierStoreIndNode(node))
             {
                 LowerStoreIndir(node->AsIndir());
@@ -128,14 +128,8 @@ GenTree* Lowering::LowerNode(GenTree* node)
             break;
 
         case GT_ADD:
-        {
-            GenTree* afterTransform = LowerAdd(node);
-            if (afterTransform != nullptr)
-            {
-                return afterTransform;
-            }
-            __fallthrough;
-        }
+            LowerAdd(node->AsOp());
+            break;
 
 #if !defined(_TARGET_64BIT_)
         case GT_ADD_LO:
@@ -4269,36 +4263,6 @@ GenTree* Lowering::LowerVirtualStubCall(GenTreeCall* call)
 }
 
 //------------------------------------------------------------------------
-// AddrModeCleanupHelper: Remove the nodes that are no longer used after an
-// addressing mode is constructed
-//
-// Arguments:
-//    addrMode - A pointer to a new GenTreeAddrMode
-//    node     - The node currently being considered for removal
-//
-// Return Value:
-//    None.
-//
-// Assumptions:
-//    'addrMode' and 'node' must be contained in the current block
-//
-void Lowering::AddrModeCleanupHelper(GenTreeAddrMode* addrMode, GenTree* node)
-{
-    if (node == addrMode->Base() || node == addrMode->Index())
-    {
-        return;
-    }
-
-    // TODO-LIR: change this to use the LIR mark bit and iterate instead of recursing
-    node->VisitOperands([this, addrMode](GenTree* operand) -> GenTree::VisitResult {
-        AddrModeCleanupHelper(addrMode, operand);
-        return GenTree::VisitResult::Continue;
-    });
-
-    BlockRange().Remove(node);
-}
-
-//------------------------------------------------------------------------
 // Lowering::AreSourcesPossibleModifiedLocals:
 //    Given two nodes which will be used in an addressing mode (base,
 //    index), check to see if they are lclVar reads, and if so, walk
@@ -4385,12 +4349,15 @@ bool Lowering::AreSourcesPossiblyModifiedLocals(GenTree* addr, GenTree* base, Ge
 //    isContainable - true if this addressing mode can be contained
 //
 // Returns:
-//    The created LEA node or the original address node if an LEA could
-//    not be formed.
+//    true if the address node was changed to a LEA, false otherwise.
 //
-GenTree* Lowering::TryCreateAddrMode(LIR::Use&& use, bool isContainable)
+bool Lowering::TryCreateAddrMode(GenTree* addr, bool isContainable)
 {
-    GenTree* addr   = use.Def();
+    if (!addr->OperIs(GT_ADD) || addr->gtOverflow())
+    {
+        return false;
+    }
+
     GenTree* base   = nullptr;
     GenTree* index  = nullptr;
     unsigned scale  = 0;
@@ -4418,13 +4385,13 @@ GenTree* Lowering::TryCreateAddrMode(LIR::Use&& use, bool isContainable)
         // this is just a reg-const add
         if (index == nullptr)
         {
-            return addr;
+            return false;
         }
 
         // this is just a reg-reg add
-        if (scale == 1 && offset == 0)
+        if ((scale == 1) && (offset == 0))
         {
-            return addr;
+            return false;
         }
     }
 
@@ -4433,7 +4400,7 @@ GenTree* Lowering::TryCreateAddrMode(LIR::Use&& use, bool isContainable)
     {
         JITDUMP("No addressing mode:\n  ");
         DISPNODE(addr);
-        return addr;
+        return false;
     }
 
     JITDUMP("Addressing mode:\n");
@@ -4449,13 +4416,21 @@ GenTree* Lowering::TryCreateAddrMode(LIR::Use&& use, bool isContainable)
         JITDUMP("  + %d\n", offset);
     }
 
-    var_types addrModeType = addr->TypeGet();
-    if (addrModeType == TYP_REF)
-    {
-        addrModeType = TYP_BYREF;
-    }
+    // Save the (potentially) unused operands before changing the address to LEA.
+    ArrayStack<GenTree*> unusedStack(comp->getAllocator(CMK_ArrayStack));
+    unusedStack.Push(addr->AsOp()->gtGetOp1());
+    unusedStack.Push(addr->AsOp()->gtGetOp2());
 
-    GenTreeAddrMode* addrMode = new (comp, GT_LEA) GenTreeAddrMode(addrModeType, base, index, scale, offset);
+    addr->ChangeOper(GT_LEA);
+    // Make sure there are no leftover side effects (though the existing ADD we're
+    // changing shouldn't have any at this point, but sometimes it does).
+    addr->gtFlags &= ~GTF_ALL_EFFECT;
+
+    GenTreeAddrMode* addrMode = addr->AsAddrMode();
+    addrMode->SetBase(base);
+    addrMode->SetIndex(index);
+    addrMode->SetScale(scale);
+    addrMode->SetOffset(static_cast<int>(offset));
 
     // Neither the base nor the index should now be contained.
     if (base != nullptr)
@@ -4466,22 +4441,42 @@ GenTree* Lowering::TryCreateAddrMode(LIR::Use&& use, bool isContainable)
     {
         index->ClearContained();
     }
-    addrMode->gtFlags |= (addr->gtFlags & GTF_IND_FLAGS);
-    addrMode->gtFlags &= ~GTF_ALL_EFFECT; // LEAs are side-effect-free.
 
-    JITDUMP("New addressing mode node:\n");
+    // Remove all the nodes that are no longer used.
+    while (!unusedStack.Empty())
+    {
+        GenTree* unused = unusedStack.Pop();
+
+        // Use a loop to process some of the nodes iteratively
+        // instead of pushing them on the stack.
+        while ((unused != base) && (unused != index))
+        {
+            JITDUMP("Removing unused node:\n  ");
+            DISPNODE(unused);
+
+            BlockRange().Remove(unused);
+
+            if (unused->OperIs(GT_ADD, GT_MUL, GT_LSH))
+            {
+                // Push the first operand and loop back to process the second one.
+                // This minimizes the stack depth because the second one tends to be
+                // a constant so it gets processed and then the first one gets popped.
+                unusedStack.Push(unused->AsOp()->gtGetOp1());
+                unused = unused->AsOp()->gtGetOp2();
+            }
+            else
+            {
+                assert(unused->OperIs(GT_CNS_INT));
+                break;
+            }
+        }
+    }
+
+    JITDUMP("New addressing mode node:\n  ");
     DISPNODE(addrMode);
     JITDUMP("\n");
 
-    BlockRange().InsertAfter(addr, addrMode);
-
-    // Now we need to remove all the nodes subsumed by the addrMode
-    AddrModeCleanupHelper(addrMode, addr);
-
-    // Replace the original address node with the addrMode.
-    use.ReplaceWith(comp, addrMode);
-
-    return addrMode;
+    return true;
 }
 
 //------------------------------------------------------------------------
@@ -4490,13 +4485,10 @@ GenTree* Lowering::TryCreateAddrMode(LIR::Use&& use, bool isContainable)
 // Arguments:
 //    node - the node we care about
 //
-// Returns:
-//    The next node to lower if we have transformed the ADD; nullptr otherwise.
-//
-GenTree* Lowering::LowerAdd(GenTree* node)
+void Lowering::LowerAdd(GenTreeOp* node)
 {
 #ifndef _TARGET_ARMARCH_
-    if (varTypeIsIntegralOrI(node))
+    if (varTypeIsIntegralOrI(node->TypeGet()))
     {
         LIR::Use use;
         if (BlockRange().TryGetUse(node, &use))
@@ -4504,19 +4496,18 @@ GenTree* Lowering::LowerAdd(GenTree* node)
             // If this is a child of an indir, let the parent handle it.
             // If there is a chain of adds, only look at the topmost one.
             GenTree* parent = use.User();
-            if (!parent->OperIsIndir() && (parent->gtOper != GT_ADD))
+            if (!parent->OperIsIndir() && !parent->OperIs(GT_ADD))
             {
-                GenTree* addr = TryCreateAddrMode(std::move(use), false);
-                if (addr != node)
-                {
-                    return addr->gtNext;
-                }
+                TryCreateAddrMode(node, false);
             }
         }
     }
 #endif // !_TARGET_ARMARCH_
 
-    return nullptr;
+    if (node->OperIs(GT_ADD))
+    {
+        ContainCheckBinary(node);
+    }
 }
 
 //------------------------------------------------------------------------
