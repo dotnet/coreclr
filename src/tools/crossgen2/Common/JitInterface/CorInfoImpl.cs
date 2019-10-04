@@ -167,6 +167,12 @@ namespace Internal.JitInterface
 #endif
             try
             {
+#if READYTORUN
+                if (ShouldSkipCompilation(methodCodeNodeNeedingCode))
+                {
+                    return;
+                }
+#endif
                 _isFallbackBodyCompilation = methodIL != null;
 
                 CORINFO_METHOD_INFO methodInfo;

@@ -166,14 +166,7 @@ namespace Internal.JitInterface
         {
             _methodCodeNode = methodCodeNodeNeedingCode;
 
-            if (!ShouldSkipCompilation(methodCodeNodeNeedingCode))
-            {
-                CompileMethodInternal(methodCodeNodeNeedingCode);
-            }
-            else
-            {
-                PublishEmptyCode();
-            }
+            CompileMethodInternal(methodCodeNodeNeedingCode);
         }
 
         private SignatureContext GetSignatureContext()
