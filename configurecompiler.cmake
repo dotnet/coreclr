@@ -231,28 +231,43 @@ if (WIN32)
   endif ()
 
   #Do not create Side-by-Side Assembly Manifest
+  add_link_options($<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:/MANIFEST:NO>)
   # can handle addresses larger than 2 gigabytes
+  add_link_options($<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:/LARGEADDRESSAWARE>)
   #Compatible with Data Execution Prevention
+  add_link_options($<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:/NXCOMPAT>)
   #Use address space layout randomization
+  add_link_options($<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:/DYNAMICBASE>)
   #shrink pdb size
-  add_link_options("$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:/MANIFEST:NO;/LARGEADDRESSAWARE;/NXCOMPAT;/DYNAMICBASE;/PDBCOMPRESS;/DEBUG;/IGNORE:4197,4013,4254,4070,4221;/SUBSYSTEM:WINDOWS,${WINDOWS_SUBSYSTEM_VERSION}>")
+  add_link_options($<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:/PDBCOMPRESS>)
+
+  add_link_options($<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:/DEBUG>)
+  add_link_options($<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:/IGNORE:4197,4013,4254,4070,4221>)
+  add_link_options($<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:/SUBSYSTEM:WINDOWS,${WINDOWS_SUBSYSTEM_VERSION}>)
 
   set(CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS} /IGNORE:4221")
-
-  add_link_options("$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:/DEBUG;/PDBCOMPRESS;/STACK:1572864>")
+  
+  add_link_options($<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:/DEBUG>)
+  add_link_options($<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:/PDBCOMPRESS>)
+  add_link_options($<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:/STACK:1572864>)
 
   # Debug build specific flags
   add_link_options($<$<AND:$<OR:$<CONFIG:DEBUG>,$<CONFIG:CHECKED>>,$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>>:/NOVCFEATURE>)
 
   # Checked build specific flags
-  add_link_options("$<$<CONFIG:CHECKED>:/OPT:REF;/OPT:NOICF>")
+  add_link_options($<$<CONFIG:CHECKED>:/OPT:REF>)
+  add_link_options($<$<CONFIG:CHECKED>:/OPT:NOICF>)
 
   # Release build specific flags
-  add_link_options("$<$<CONFIG:RELEASE>:/LTCG;/OPT:REF;/OPT:ICF>")
+  add_link_options($<$<CONFIG:CHECKED>:/LTCG>)
+  add_link_options($<$<CONFIG:CHECKED>:/OPT:REF>)
+  add_link_options($<$<CONFIG:CHECKED>:/OPT:ICF>)
   set(CMAKE_STATIC_LINKER_FLAGS_RELEASE "${CMAKE_STATIC_LINKER_FLAGS_RELEASE} /LTCG")
 
   # ReleaseWithDebugInfo build specific flags
-  add_link_options("$<$<CONFIG:RELWITHDEBINFO>:/LTCG;/OPT:REF;/OPT:ICF>")
+  add_link_options($<$<CONFIG:CHECKED>:/LTCG>)
+  add_link_options($<$<CONFIG:CHECKED>:/OPT:REF>)
+  add_link_options($<$<CONFIG:CHECKED>:/OPT:ICF>)
   set(CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO} /LTCG")
 
   # Force uCRT to be dynamically linked for Release build
