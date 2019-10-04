@@ -7040,10 +7040,10 @@ void Compiler::optHoistLoopBlocks(unsigned loopNum, ArrayStack<BasicBlock*>* blo
                         m_beforeSideEffect = false;
                     }
                 }
-                // For this purpose, we only care about memory side effects.  We assume that expressions will
+
+                // In the section below, we only care about memory side effects.  We assume that expressions will
                 // be hoisted so that they are evaluated in the same order as they would have been in the loop,
                 // and therefore throw exceptions in the same order.
-                // (So we don't use GTF_GLOBALLY_VISIBLE_SIDE_EFFECTS here, since that includes exceptions.)
                 //
                 if (tree->IsCall())
                 {
