@@ -1393,11 +1393,6 @@ namespace System.Threading
             return false;
         }
 
-        public object? PopLocal(int localQueueIndex)
-        {
-            return _localQueues[localQueueIndex]?.TryPop();
-        }
-
         public object? DequeueAny(ref bool missedSteal, LocalQueue localQueue)
         {
             // We come here after Pop failed.
@@ -1512,9 +1507,7 @@ namespace System.Threading
                 currentThread._executionContext = null;
                 currentThread._synchronizationContext = null;
 
-                // Every new worker that finds work will ask for parallelizm increase, but only once.
-                // This helps with front-edge ramping up from cold states.
-                bool requestedAnotherWorker = false;
+                int tasksDispatched = 0;
 
                 //
                 // Use operate on workQueue local to try block so it can be enregistered
@@ -1557,13 +1550,13 @@ namespace System.Threading
                     if (workQueue.loggingEnabled)
                         System.Diagnostics.Tracing.FrameworkEventSource.Log.ThreadPoolDequeueWorkObject(workItem);
 
-                    //
                     // We are about to execute external code, which can take a while, block or even wait on something from other tasks.
                     // Make sure there is a request, so that starvation is noticed if we do not come back for a while.
                     // If this is our first workitem, be more aggressive.
-                    if (!requestedAnotherWorker)
+                    if (tasksDispatched++ == 0)
                     {
-                        requestedAnotherWorker = true;
+                        // Every new worker that finds work will ask for parallelizm increase, but only once.
+                        // This helps with front-edge ramping up from cold states.
                         workQueue.RequestThread();
                     }
                     else
@@ -1621,7 +1614,21 @@ namespace System.Threading
                     // us to return the thread to the pool or not.
                     //
                     if (!ThreadPool.NotifyWorkItemComplete())
+                    {
                         return false;
+                    }
+
+                    if ((tasksDispatched & 15) == 0)
+                    {
+                        // we have dispatched another 16 tasks. Make sure the core Id is not stale due to caching.
+                        // Running with stale core Id is very rare, but when happends may result in latency outliers
+                        // due to neglect of our "real" local queue.
+                        //
+                        // "16" was picked based on typical latency distributions in a task scheduling benchmark
+                        // as happening often enough to cap the effects of "neglect" while also being cheap
+                        // even when compared to nearly no-op tasks.
+                        Thread.FlushCurrentProcessorId();
+                    }
                 }
                 while (ThreadPool.KeepDispatching(quantumStartTime));
 
