@@ -585,6 +585,12 @@ namespace Internal.JitInterface
                 throw new RequiresRuntimeJitException(nameof(fIsTailPrefix));
             }
 
+            MethodDesc exactCallee = HandleToObject(exactCalleeHnd);
+            if (exactCallee != null && exactCallee.RequireSecObject)
+            {
+                return false;
+            }
+
             return false;
         }
 

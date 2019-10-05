@@ -661,6 +661,11 @@ namespace Internal.JitInterface
                 result |= CorInfoFlag.CORINFO_FLG_PINVOKE;
             }
 
+            if (method.RequireSecObject)
+            {
+                result |= CorInfoFlag.CORINFO_FLG_DONT_INLINE_CALLER;
+            }
+
             if (method.IsAggressiveOptimization)
             {
                 result |= CorInfoFlag.CORINFO_FLG_AGGRESSIVE_OPT;

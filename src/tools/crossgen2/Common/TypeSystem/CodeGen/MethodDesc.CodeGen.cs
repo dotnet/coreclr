@@ -57,6 +57,14 @@ namespace Internal.TypeSystem
             }
         }
 
+        public virtual bool RequireSecObject
+        {
+            get
+            {
+                return false;
+            }
+        }
+
         /// <summary>
         /// Gets a value specifying whether this method should not be optimized.
         /// </summary>
@@ -168,6 +176,14 @@ namespace Internal.TypeSystem
             }
         }
 
+        public override bool RequireSecObject
+        {
+            get
+            {
+                return _methodDef.RequireSecObject;
+            }
+        }
+
         public override bool IsNoOptimization
         {
             get
@@ -249,6 +265,14 @@ namespace Internal.TypeSystem
             get
             {
                 return _typicalMethodDef.IsAggressiveOptimization;
+            }
+        }
+
+        public override bool RequireSecObject
+        {
+            get
+            {
+                return _typicalMethodDef.RequireSecObject;
             }
         }
 
