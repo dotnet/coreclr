@@ -5533,20 +5533,6 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
 #if defined(_TARGET_X86_)
     bool fCallerPop = call->CallerPop();
 
-#ifdef UNIX_X86_ABI
-    if (!call->IsUnmanaged())
-    {
-        CorInfoCallConv callConv = CORINFO_CALLCONV_DEFAULT;
-
-        if ((callType != CT_HELPER) && call->callInfo)
-        {
-            callConv = call->callInfo->sig.callConv;
-        }
-
-        fCallerPop |= IsCallerPop(callConv);
-    }
-#endif // UNIX_X86_ABI
-
     // If the callee pops the arguments, we pass a positive value as the argSize, and the emitter will
     // adjust its stack level accordingly.
     // If the caller needs to explicitly pop its arguments, we must pass a negative value, and then do the

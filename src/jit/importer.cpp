@@ -7861,12 +7861,9 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
 #endif // !FEATURE_VARARG
 
 #ifdef UNIX_X86_ABI
-    if (call->gtCall.callInfo == nullptr)
-    {
-        call->gtCall.callInfo      = new (this, CMK_CorCallInfo) CORINFO_CALL_INFO;
-        *call->gtCall.callInfo     = *callInfo;
-        call->gtCall.callInfo->sig = *sig;
-    }
+    // On Unix x86 we usually use caller-cleaned convention.
+    if (!call->IsUnmanaged() && IsCallerPop(sig->callConv))
+        call->gtFlags |= GTF_CALL_POP_ARGS;
 #endif // UNIX_X86_ABI
 
     if ((sig->callConv & CORINFO_CALLCONV_MASK) == CORINFO_CALLCONV_VARARG ||
