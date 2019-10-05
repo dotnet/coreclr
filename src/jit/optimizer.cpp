@@ -7067,7 +7067,8 @@ void Compiler::optHoistLoopBlocks(unsigned loopNum, ArrayStack<BasicBlock*>* blo
                         {
                             m_beforeSideEffect = false;
                         }
-                        // Additional check for helper calls that thow exceptions 
+
+                        // Additional check for helper calls that throw exceptions
                         if (!treeIsInvariant)
                         {
                             // We have a tree that is not loop invariant and we thus cannot hoist
@@ -7079,7 +7080,6 @@ void Compiler::optHoistLoopBlocks(unsigned loopNum, ArrayStack<BasicBlock*>* blo
                                 m_beforeSideEffect = false;
                             }
                         }
-
                     }
                 }
                 else if (tree->OperIs(GT_ASG))
