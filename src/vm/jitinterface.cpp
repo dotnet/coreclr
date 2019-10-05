@@ -13965,7 +13965,7 @@ bool CEEInfo::getTailCallHelpers(
     MethodDesc* pTargetMD = (MethodDesc*)hTarget;
     // We currently do not handle generating the proper call to managed varargs
     // method.
-    if (!pTargetMD->IsVarArg())
+    if (pTargetMD == NULL || !pTargetMD->IsVarArg())
     {
         // We do not want to request the JIT to give us back the target function
         // pointer for methods where we would use VSD to invoke them. This is
@@ -13977,7 +13977,7 @@ bool CEEInfo::getTailCallHelpers(
         // will show up here with the target MD being the function IFoo<__Canon>::M
         // and the context being IFoo<Object>. We create the MD IFoo<Object>::M here
         // to be able to express the call in the IL stubs created below.
-        if (pTargetMD != nullptr && !pTargetMD->HasMethodInstantiation() &&
+        if (pTargetMD != NULL && !pTargetMD->HasMethodInstantiation() &&
             pTargetMD->IsInterface() && pTargetMD->IsAbstract())
         {
             TypeHandle ownerClsHnd = GetTypeFromContext(hContext);
@@ -13997,7 +13997,7 @@ bool CEEInfo::getTailCallHelpers(
 
         MetaSig msig(callSiteSig->pSig, callSiteSig->cbSig, GetModule(callSiteSig->scope), &typeCtx);
 
-        _ASSERTE(callSiteSig->hasTypeArg() == (pTargetMD != nullptr && pTargetMD->RequiresInstArg()));
+        _ASSERTE(callSiteSig->hasTypeArg() == (pTargetMD != NULL && pTargetMD->RequiresInstArg()));
 
         bool isCallvirt = (flags & CORINFO_TAILCALL_IS_CALLVIRT) != 0;
 
