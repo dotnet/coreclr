@@ -3008,9 +3008,7 @@ namespace Internal.JitInterface
         }
 
         private void getModuleNativeEntryPointRange(ref void* pStart, ref void* pEnd)
-        {
-            throw new NotImplementedException("getModuleNativeEntryPointRange");
-        }
+        { throw new NotImplementedException("getModuleNativeEntryPointRange"); }
 
         private uint getExpectedTargetArchitecture()
         {
