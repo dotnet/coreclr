@@ -521,7 +521,7 @@ public:
         }
         else if (slotNum == 1)
         {
-            return lvOtherArgReg;
+            return GetOtherArgReg();
         }
         else
         {
@@ -624,8 +624,6 @@ public:
 
     /////////////////////
 
-    __declspec(property(get = GetRegNum, put = SetRegNum)) regNumber lvRegNum;
-
     regNumber GetRegNum() const
     {
         return (regNumber)_lvRegNum;
@@ -640,7 +638,6 @@ public:
 /////////////////////
 
 #if defined(_TARGET_64BIT_)
-    __declspec(property(get = GetOtherReg, put = SetOtherReg)) regNumber lvOtherReg;
 
     regNumber GetOtherReg() const
     {
@@ -655,7 +652,6 @@ public:
                                        // "unreachable code" warnings
     }
 #else  // !_TARGET_64BIT_
-    __declspec(property(get = GetOtherReg, put = SetOtherReg)) regNumber lvOtherReg;
 
     regNumber GetOtherReg() const
     {
@@ -685,7 +681,6 @@ public:
     }
 
 #if FEATURE_MULTIREG_ARGS
-    __declspec(property(get = GetOtherArgReg, put = SetOtherArgReg)) regNumber lvOtherArgReg;
 
     regNumber GetOtherArgReg() const
     {
@@ -745,7 +740,7 @@ public:
 
     bool lvIsInReg() const
     {
-        return lvIsRegCandidate() && (lvRegNum != REG_STK);
+        return lvIsRegCandidate() && (GetRegNum() != REG_STK);
     }
 
     regMaskTP lvRegMask() const
@@ -753,16 +748,16 @@ public:
         regMaskTP regMask = RBM_NONE;
         if (varTypeIsFloating(TypeGet()))
         {
-            if (lvRegNum != REG_STK)
+            if (GetRegNum() != REG_STK)
             {
-                regMask = genRegMaskFloat(lvRegNum, TypeGet());
+                regMask = genRegMaskFloat(GetRegNum(), TypeGet());
             }
         }
         else
         {
-            if (lvRegNum != REG_STK)
+            if (GetRegNum() != REG_STK)
             {
-                regMask = genRegMask(lvRegNum);
+                regMask = genRegMask(GetRegNum());
             }
         }
         return regMask;
@@ -945,7 +940,7 @@ public:
 
     void PrintVarReg() const
     {
-        printf("%s", getRegName(lvRegNum));
+        printf("%s", getRegName(GetRegNum()));
     }
 #endif // DEBUG
 
@@ -1473,8 +1468,7 @@ public:
 #endif
     }
 
-    __declspec(property(get = getIsHfaRegArg)) bool isHfaRegArg;
-    bool getIsHfaRegArg()
+    bool IsHfaRegArg()
     {
 #ifdef FEATURE_HFA
         return IsHfa(_hfaElemKind) && isPassedInRegisters();
@@ -1641,7 +1635,7 @@ public:
     {
         unsigned size = getSlotCount();
 #ifdef FEATURE_HFA
-        if (isHfaRegArg)
+        if (IsHfaRegArg())
         {
 #ifdef _TARGET_ARM_
             // We counted the number of regs, but if they are DOUBLE hfa regs we have to double the size.
@@ -7295,14 +7289,13 @@ public:
                            unsigned refCntWtdStkDbl);
 #endif // DOUBLE_ALIGN
 
-    __declspec(property(get = getFullPtrRegMap, put = setFullPtrRegMap)) bool genFullPtrRegMap;
-    bool getFullPtrRegMap()
+    bool IsFullPtrRegMapRequired()
     {
-        return codeGen->genFullPtrRegMap;
+        return codeGen->IsFullPtrRegMapRequired();
     }
-    void setFullPtrRegMap(bool value)
+    void SetFullPtrRegMapRequired(bool value)
     {
-        codeGen->setFullPtrRegMap(value);
+        codeGen->SetFullPtrRegMapRequired(value);
     }
 
 // Things that MAY belong either in CodeGen or CodeGenContext
@@ -9974,6 +9967,17 @@ public:
             // Special nodes
             case GT_PHI:
                 for (GenTreePhi::Use& use : node->AsPhi()->Uses())
+                {
+                    result = WalkTree(&use.NodeRef(), node);
+                    if (result == fgWalkResult::WALK_ABORT)
+                    {
+                        return result;
+                    }
+                }
+                break;
+
+            case GT_FIELD_LIST:
+                for (GenTreeFieldList::Use& use : node->AsFieldList()->Uses())
                 {
                     result = WalkTree(&use.NodeRef(), node);
                     if (result == fgWalkResult::WALK_ABORT)

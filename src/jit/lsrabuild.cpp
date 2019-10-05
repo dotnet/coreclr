@@ -1546,9 +1546,6 @@ void LinearScan::buildRefPositionsForNode(GenTree* tree, BasicBlock* block, Lsra
     assert(tree->OperGet() != GT_LIST);
     assert(tree->OperGet() != GT_CLS_VAR);
 
-    // The LIR traversal visits only the first node in a GT_FIELD_LIST.
-    assert((tree->OperGet() != GT_FIELD_LIST) || tree->AsFieldList()->IsFieldListHead());
-
     // The set of internal temporary registers used by this node are stored in the
     // gtRsvdRegs register mask. Clear it out.
     tree->gtRsvdRegs = RBM_NONE;
@@ -1819,17 +1816,17 @@ void LinearScan::unixAmd64UpdateRegStateForArg(LclVarDsc* argDsc)
         }
     }
 
-    if ((argDsc->lvOtherArgReg != REG_STK) && (argDsc->lvOtherArgReg != REG_NA))
+    if ((argDsc->GetOtherArgReg() != REG_STK) && (argDsc->GetOtherArgReg() != REG_NA))
     {
-        if (genRegMask(argDsc->lvOtherArgReg) & (RBM_ALLFLOAT))
+        if (genRegMask(argDsc->GetOtherArgReg()) & (RBM_ALLFLOAT))
         {
-            assert(genRegMask(argDsc->lvOtherArgReg) & (RBM_FLTARG_REGS));
-            floatRegState->rsCalleeRegArgMaskLiveIn |= genRegMask(argDsc->lvOtherArgReg);
+            assert(genRegMask(argDsc->GetOtherArgReg()) & (RBM_FLTARG_REGS));
+            floatRegState->rsCalleeRegArgMaskLiveIn |= genRegMask(argDsc->GetOtherArgReg());
         }
         else
         {
-            assert(genRegMask(argDsc->lvOtherArgReg) & (RBM_ARG_REGS));
-            intRegState->rsCalleeRegArgMaskLiveIn |= genRegMask(argDsc->lvOtherArgReg);
+            assert(genRegMask(argDsc->GetOtherArgReg()) & (RBM_ARG_REGS));
+            intRegState->rsCalleeRegArgMaskLiveIn |= genRegMask(argDsc->GetOtherArgReg());
         }
     }
 }
@@ -1885,9 +1882,9 @@ void LinearScan::updateRegStateForArg(LclVarDsc* argDsc)
         {
             JITDUMP("Int arg V%02u in reg %s\n", (argDsc - compiler->lvaTable), getRegName(argDsc->lvArgReg));
 #if FEATURE_MULTIREG_ARGS
-            if (argDsc->lvOtherArgReg != REG_NA)
+            if (argDsc->GetOtherArgReg() != REG_NA)
             {
-                JITDUMP("(second half) in reg %s\n", getRegName(argDsc->lvOtherArgReg));
+                JITDUMP("(second half) in reg %s\n", getRegName(argDsc->GetOtherArgReg()));
             }
 #endif // FEATURE_MULTIREG_ARGS
             compiler->raUpdateRegStateForArg(intRegState, argDsc);
