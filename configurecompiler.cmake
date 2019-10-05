@@ -625,3 +625,5 @@ if(CLR_CMAKE_ENABLE_CODE_COVERAGE)
   endif(CLR_CMAKE_PLATFORM_UNIX)
 
 endif(CLR_CMAKE_ENABLE_CODE_COVERAGE)
+
+include(configuretools.cmake)

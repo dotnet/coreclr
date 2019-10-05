@@ -91,38 +91,6 @@ done
 
 OS=$(uname)
 
-locate_gcc_exec() {
-  ENV_KNOB="CLR_$(echo "$1" | tr '[:lower:]' '[:upper:]')"
-  if env | grep -q "^$ENV_KNOB="; then
-    eval "echo \"\$$ENV_KNOB\""
-    return
-  fi
-
-  if command -v "$gcc_prefix$1$desired_gcc_version" > /dev/null 2>&1
-  then
-    command -v "$gcc_prefix$1$desired_gcc_version"
-  elif command -v "$gcc_prefix$1" > /dev/null 2>&1
-  then
-    command -v "$gcc_prefix$1"
-  else
-    exit 1
-  fi
-}
-
-if ! gcc_link="$(locate_gcc_exec link)"; then { echo "Unable to locate link"; exit 1; } fi
-
-if ! gcc_ar="$(locate_gcc_exec ar)"; then { echo "Unable to locate gcc-ar"; exit 1; } fi
-
-if ! gcc_nm="$(locate_gcc_exec nm)"; then { echo "Unable to locate gcc-nm"; exit 1; } fi
-
-if [ "$OS" = "Linux" ] || [ "$OS" = "FreeBSD" ] || [ "$OS" = "OpenBSD" ] || [ "$OS" = "NetBSD" ] || [ "$OS" = "SunOS" ]; then
-  if ! gcc_objdump="$(locate_gcc_exec objdump)"; then { echo "Unable to locate gcc-objdump"; exit 1; } fi
-fi
-
-if ! gcc_objcopy="$(locate_gcc_exec objcopy)"; then { echo "Unable to locate gcc-objcopy"; exit 1; } fi
-
-if ! gcc_ranlib="$(locate_gcc_exec ranlib)"; then { echo "Unable to locate gcc-ranlib"; exit 1; } fi
-
 cmake_extra_defines=
 if [ "$CROSSCOMPILE" = "1" ]; then
     if [ -z "$ROOTFS_DIR" ]; then
@@ -159,12 +127,6 @@ cmake_command=$(command -v cmake3 || command -v cmake)
 # Include CMAKE_USER_MAKE_RULES_OVERRIDE as uninitialized since it will hold its value in the CMake cache otherwise can cause issues when branch switching
 $cmake_command \
   -G "$generator" \
-  "-DCMAKE_AR=$gcc_ar" \
-  "-DCMAKE_LINKER=$gcc_link" \
-  "-DCMAKE_NM=$gcc_nm" \
-  "-DCMAKE_RANLIB=$gcc_ranlib" \
-  "-DCMAKE_OBJCOPY=$gcc_objcopy" \
-  "-DCMAKE_OBJDUMP=$gcc_objdump" \
   "-DCMAKE_BUILD_TYPE=$buildtype" \
   "-DCLR_CMAKE_ENABLE_CODE_COVERAGE=$code_coverage" \
   "-DCMAKE_USER_MAKE_RULES_OVERRIDE=" \
