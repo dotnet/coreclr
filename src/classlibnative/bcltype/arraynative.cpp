@@ -961,9 +961,6 @@ FCIMPL6(void, ArrayNative::ArrayCopy, ArrayBase* m_pSrc, INT32 m_iSrcIndex, Arra
         FC_GC_POLL();
         return;
     }
-    else if (reliable) {
-        FCThrowResVoid(kArrayTypeMismatchException, W("ArrayTypeMismatch_ConstrainedCopy"));
-    }
 
     HELPER_METHOD_FRAME_BEGIN_PROTECT(gc);
     if (r == AssignDontKnow)
@@ -972,12 +969,13 @@ FCIMPL6(void, ArrayNative::ArrayCopy, ArrayBase* m_pSrc, INT32 m_iSrcIndex, Arra
     }
     CONSISTENCY_CHECK(r != AssignDontKnow);
 
-    if (r == AssignWrongType)
-        COMPlusThrow(kArrayTypeMismatchException, W("ArrayTypeMismatch_CantAssignType"));
-
     // If we were called from Array.ConstrainedCopy, ensure that the array copy
     // is guaranteed to succeed.
-    _ASSERTE(!reliable || r == AssignWillWork);
+    if (reliable && r != AssignWillWork)
+        COMPlusThrow(kArrayTypeMismatchException, W("ArrayTypeMismatch_ConstrainedCopy"));
+
+    if (r == AssignWrongType)
+        COMPlusThrow(kArrayTypeMismatchException, W("ArrayTypeMismatch_CantAssignType"));
 
     if (m_iLength > 0)
     {

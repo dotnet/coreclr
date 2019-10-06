@@ -266,17 +266,14 @@ public:
     // There are two variants of the "CanCastTo" method:
     //
     // CanCastTo
-    // - restore encoded pointers on demand
     // - might throw, might trigger GC
     // - return type is boolean (FALSE = cannot cast, TRUE = can cast)
     //
     // CanCastToNoGC
-    // - do not restore encoded pointers on demand
     // - does not throw, does not trigger GC
     // - return type is three-valued (CanCast, CannotCast, MaybeCast)
     //
     // MaybeCast indicates an inconclusive result
-    // - the test tripped on an encoded pointer
     // - the test required calling into GC-triggering or throwing helpers
     // - the test result could not be obtained from a cache
     // so the caller should now call CanCastTo if it cares
