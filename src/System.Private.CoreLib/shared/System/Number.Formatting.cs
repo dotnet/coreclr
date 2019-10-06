@@ -1225,7 +1225,7 @@ namespace System
             return bufferEnd;
         }
 
-        private static unsafe string UInt32ToDecStr(uint value, int digits)
+        internal static unsafe string UInt32ToDecStr(uint value, int digits)
         {
             int bufferLength = Math.Max(digits, FormattingHelpers.CountDigits(value));
 
@@ -1481,7 +1481,7 @@ namespace System
             number.CheckConsistency();
         }
 
-        private static unsafe string UInt64ToDecStr(ulong value, int digits)
+        internal static unsafe string UInt64ToDecStr(ulong value, int digits)
         {
             if (digits < 1)
                 digits = 1;
