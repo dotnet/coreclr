@@ -175,23 +175,18 @@ TypeHandle::CastResult CastCache::TryGet(TADDR source, TADDR target)
     return TypeHandle::MaybeCast;
 }
 
-void CastCache::TrySet(TADDR source, TADDR target, BOOL result, BOOL noGC)
+void CastCache::TrySet(TADDR source, TADDR target, BOOL result)
 {
     CONTRACTL
     {
-        if (noGC) { NOTHROW; } else { THROWS; }
-        if (noGC) { GC_NOTRIGGER; } else { GC_TRIGGERS; }
+        THROWS;
+        GC_TRIGGERS;
         MODE_COOPERATIVE;
     }
     CONTRACTL_END;
 
     if (s_cache == NULL)
     {
-        if (noGC)
-        {
-            return;
-        }
-
         FlushCurrentCache();
     }
 
@@ -242,7 +237,7 @@ void CastCache::TrySet(TADDR source, TADDR target, BOOL result, BOOL noGC)
         }
 
         // bucket is full.
-    } while (!noGC && TryGrow(table));
+    } while (TryGrow(table));
 
     // pick a victim somewhat randomly within a bucket 
     // NB: ++ is not interlocked. We are ok if we lose counts here. It is just a number that changes.

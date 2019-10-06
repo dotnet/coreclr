@@ -407,9 +407,6 @@ BOOL TypeDesc::CanCastTo(TypeHandle toType, TypeHandlePairList *pVisited)
     {
         TypeVarTypeDesc *tyvar = (TypeVarTypeDesc*) this;
 
-        DWORD numConstraints;
-        TypeHandle *constraints = tyvar->GetConstraints(&numConstraints, CLASS_DEPENDENCIES_LOADED);
-
         if (toType == g_pObjectClass)
             return TRUE;
 
@@ -425,6 +422,9 @@ BOOL TypeDesc::CanCastTo(TypeHandle toType, TypeHandlePairList *pVisited)
             if ((specialConstraints & gpNotNullableValueTypeConstraint) != 0) 
                 return TRUE;
         }
+
+        DWORD numConstraints;
+        TypeHandle *constraints = tyvar->GetConstraints(&numConstraints, CLASS_DEPENDENCIES_LOADED);
 
         if (constraints == NULL)
             return FALSE;
@@ -542,38 +542,9 @@ TypeHandle::CastResult TypeDesc::CanCastToNoGC(TypeHandle toType)
 
     if (IsArray())
     {
-        TypeHandle::CastResult result = TypeHandle::CannotCast;
+        // TODO: VS fastest way to get array MT?
         MethodTable* pMT = this->GetMethodTable();
-
-        if (toType.IsArray())
-        {
-            result = pMT->ArrayIsInstanceOfNoGC(toType);
-        }
-        else if (toType.IsTypeDesc())
-        {
-            result = TypeHandle::CannotCast;
-        }
-        else
-        {
-            MethodTable* toMT = toType.AsMethodTable();
-            if (toMT->IsInterface() && toMT->HasInstantiation())
-            {
-                result = pMT->ArraySupportsBizarreInterfaceNoGC(toMT);
-            }
-            else
-            {
-                result = pMT->CanCastToClassOrInterfaceNoGC(toMT);
-            }
-        }
-
-        // leafs add cached conversion for the method table
-        // since we started from a typedesc, add a typedesc conversion too
-        if (result != TypeHandle::MaybeCast)
-        {
-            CastCache::TryAddToCacheNoGC(TypeHandle(this), toType, result);
-        }
-
-        return result;
+        return CastCache::TryGetFromCache(pMT, toType);
     }
 
     // NOTE: The rest of the cases that we handle here are very uncommon.

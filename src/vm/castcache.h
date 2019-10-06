@@ -94,7 +94,7 @@ public:
         }
         CONTRACTL_END;
 
-        TryAddToCache(source.AsTAddr(), target.AsTAddr(), result, false);
+        TryAddToCache(source.AsTAddr(), target.AsTAddr(), result);
     }
 
     FORCEINLINE static void TryAddToCache(MethodTable* pSourceMT, TypeHandle target, BOOL result)
@@ -107,33 +107,7 @@ public:
         }
         CONTRACTL_END;
 
-        TryAddToCache((TADDR)pSourceMT, target.AsTAddr(), result, false);
-    }
-
-    FORCEINLINE static void TryAddToCacheNoGC(TypeHandle source, TypeHandle target, BOOL result)
-    {
-        CONTRACTL
-        {
-            NOTHROW;
-            GC_NOTRIGGER;
-            MODE_COOPERATIVE;
-        }
-        CONTRACTL_END;
-
-        TryAddToCache(source.AsTAddr(), target.AsTAddr(), result, true);
-    }
-
-    FORCEINLINE static void TryAddToCacheNoGC(MethodTable* pSourceMT, TypeHandle target, BOOL result)
-    {
-        CONTRACTL
-        {
-            NOTHROW;
-            GC_NOTRIGGER;
-            MODE_COOPERATIVE;
-        }
-        CONTRACTL_END;
-
-        TryAddToCache((TADDR)pSourceMT, target.AsTAddr(), result, true);
+        TryAddToCache((TADDR)pSourceMT, target.AsTAddr(), result);
     }
 
     FORCEINLINE static TypeHandle::CastResult TryGetFromCache(TypeHandle source, TypeHandle target)
@@ -229,12 +203,12 @@ private:
         return TryGet(source, target);
     }
 
-    FORCEINLINE static void TryAddToCache(TADDR source, TADDR target, BOOL result, BOOL noGC)
+    FORCEINLINE static void TryAddToCache(TADDR source, TADDR target, BOOL result)
     {
         CONTRACTL
         {
-            if (noGC) { NOTHROW; } else { THROWS; }
-            if (noGC) { GC_NOTRIGGER; } else { GC_TRIGGERS; }
+            THROWS;
+            GC_TRIGGERS;
             MODE_COOPERATIVE;
         }
         CONTRACTL_END;
@@ -242,7 +216,7 @@ private:
         if (source == target)
             return;
         
-        TrySet(source, target, result, noGC);
+        TrySet(source, target, result);
     }
 
     FORCEINLINE static bool TryGrow(BASEARRAYREF table)
@@ -323,7 +297,7 @@ private:
     static BASEARRAYREF CreateCastCache(DWORD size);
     static BOOL MaybeReplaceCacheWithLarger(DWORD size);
     static TypeHandle::CastResult TryGet(TADDR source, TADDR target);
-    static void TrySet(TADDR source, TADDR target, BOOL result, BOOL noGC);
+    static void TrySet(TADDR source, TADDR target, BOOL result);
 
 #else // !DACCESS_COMPILE && !CROSSGEN_COMPILE
 public:
@@ -336,14 +310,6 @@ public:
     }
 
     FORCEINLINE static void TryAddToCache(MethodTable* pSourceMT, TypeHandle target, BOOL result)
-    {
-    }
-
-    FORCEINLINE static void TryAddToCacheNoGC(TypeHandle source, TypeHandle target, BOOL result)
-    {
-    }
-
-    FORCEINLINE static void TryAddToCacheNoGC(MethodTable* pSourceMT, TypeHandle target, BOOL result)
     {
     }
 

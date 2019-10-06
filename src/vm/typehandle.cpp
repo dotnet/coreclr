@@ -690,20 +690,13 @@ TypeHandle::CastResult TypeHandle::CanCastToNoGC(TypeHandle type)  const
     if (*this == type)
         return CanCast;
 
-    bool isTypeDesc = IsTypeDesc();
-    if (!isTypeDesc && type.IsTypeDesc())
+    if (IsTypeDesc())
+        return AsTypeDesc()->CanCastToNoGC(type);
+
+    if (type.IsTypeDesc())
         return CannotCast;
 
-    TypeHandle::CastResult result = CastCache::TryGetFromCache(*this, type);
-    if (result != TypeHandle::MaybeCast)
-    {
-        return result;
-    }
-
-    if (isTypeDesc)
-        return AsTypeDesc()->CanCastToNoGC(type);
-                
-    return AsMethodTable()->CanCastToClassOrInterfaceNoGC(type.AsMethodTable());
+    return CastCache::TryGetFromCache(*this, type);
 }
 #include <optdefault.h>
 

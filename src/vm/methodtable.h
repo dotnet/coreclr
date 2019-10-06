@@ -1972,34 +1972,11 @@ public:
     //-------------------------------------------------------------------
     // CASTING
     // 
-    // There are two variants of each of these methods:
-    //
-    // CanCastToX
-    // - restore encoded pointers on demand
-    // - might throw, might trigger GC
-    // - return type is boolean (FALSE = cannot cast, TRUE = can cast)
-    //
-    // CanCastToXNoGC
-    // - do not restore encoded pointers on demand
-    // - does not throw, does not trigger GC
-    // - return type is three-valued (CanCast, CannotCast, MaybeCast)
-    // - MaybeCast indicates that the test tripped on an encoded pointer
-    //   so the caller should now call CanCastToXRestoring if it cares
-    // 
     BOOL CanCastToInterface(MethodTable *pTargetMT, TypeHandlePairList *pVisited = NULL);
-    TypeHandle::CastResult CanCastToInterfaceNoGC(MethodTable* pTargetMT);
-
     BOOL CanCastToClass(MethodTable *pTargetMT, TypeHandlePairList *pVisited = NULL);
-    TypeHandle::CastResult CanCastToClassNoGC(MethodTable* pTargetMT);
-
-    BOOL CanCastToClassOrInterface(MethodTable *pTargetMT, TypeHandlePairList *pVisited);
-    TypeHandle::CastResult CanCastToClassOrInterfaceNoGC(MethodTable* pTargetMT);
-   
+    BOOL CanCastToClassOrInterface(MethodTable *pTargetMT, TypeHandlePairList *pVisited);  
     BOOL MethodTable::ArraySupportsBizarreInterface(MethodTable* pInterfaceMT, TypeHandlePairList* pVisited);
-    TypeHandle::CastResult ArraySupportsBizarreInterfaceNoGC(MethodTable *pTargetMT);
-
     BOOL ArrayIsInstanceOf(TypeHandle toTypeHnd, TypeHandlePairList* pVisited);
-    TypeHandle::CastResult ArrayIsInstanceOfNoGC(TypeHandle toTypeHnd);
 
     BOOL CanCastByVarianceToInterfaceOrDelegate(MethodTable* pTargetMT, TypeHandlePairList* pVisited);
     BOOL CanCastToNonVariantInterface(MethodTable* pTargetMT);

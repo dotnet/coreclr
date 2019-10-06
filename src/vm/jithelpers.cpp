@@ -2071,46 +2071,6 @@ HCIMPLEND_RAW
 //
 //========================================================================
 
-TypeHandle::CastResult ObjIsInstanceOfNoGCCore(Object *pObject, TypeHandle toTypeHnd)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_COOPERATIVE;
-        PRECONDITION(CheckPointer(pObject));
-    } CONTRACTL_END;
-    
-    MethodTable *pMT = pObject->GetMethodTable();
-
-    // Quick exact match should be checked already (a cache lookup would do it)
-    _ASSERTE(TypeHandle(pMT) != toTypeHnd);
-
-    if ((toTypeHnd.IsInterface() && ( pMT->IsComObjectType() || pMT->IsICastable())))
-    {
-        return TypeHandle::MaybeCast;
-    }
-
-    if (pMT->IsArray())
-    {
-        if (toTypeHnd.IsArray())
-            return pMT->ArrayIsInstanceOfNoGC(toTypeHnd);
-
-        if (toTypeHnd.IsInterface() && toTypeHnd.HasInstantiation())
-        {
-            MethodTable* toMT = toTypeHnd.GetMethodTable();
-            return pMT->ArraySupportsBizarreInterfaceNoGC(toMT);
-        }
-    }
-    
-    if (toTypeHnd.IsTypeDesc())
-    {
-        CastCache::TryAddToCacheNoGC(pMT, toTypeHnd, FALSE);
-        return TypeHandle::CannotCast;
-    }
-
-    return pMT->CanCastToClassOrInterfaceNoGC(toTypeHnd.AsMethodTable());
-}
-
 TypeHandle::CastResult STDCALL ObjIsInstanceOfNoGC(Object *pObject, TypeHandle toTypeHnd)
 {
     CONTRACTL {
@@ -2121,13 +2081,8 @@ TypeHandle::CastResult STDCALL ObjIsInstanceOfNoGC(Object *pObject, TypeHandle t
     } CONTRACTL_END;
 
     MethodTable* pMT = pObject->GetMethodTable();
-    TypeHandle::CastResult result = CastCache::TryGetFromCache(pMT, toTypeHnd);
-    if (result != TypeHandle::MaybeCast)
-    {
-        return result;
-    }
+    return CastCache::TryGetFromCache(pMT, toTypeHnd);
 
-    return ObjIsInstanceOfNoGCCore(pObject, toTypeHnd);
 }
 
 BOOL ObjIsInstanceOfCore(Object *pObject, TypeHandle toTypeHnd, BOOL throwCastException)
@@ -2412,15 +2367,10 @@ HCIMPL2(Object *, JIT_ChkCastArray, CORINFO_CLASS_HANDLE type, Object *pObject)
     {
         TypeHandle th = TypeHandle(type);
         result = CastCache::TryGetFromCache(pMT, th);
-        if (result == TypeHandle::MaybeCast)
+        if (result == TypeHandle::CanCast)
         {
-            result = pMT->ArrayIsInstanceOfNoGC(th);
+            return pObject;
         }
-    }
-
-    if (result == TypeHandle::CanCast)
-    {
-        return pObject;
     }
 
     ENDFORBIDGC();
@@ -2457,10 +2407,6 @@ HCIMPL2(Object *, JIT_IsInstanceOfArray, CORINFO_CLASS_HANDLE type, Object *pObj
     {
         TypeHandle th = TypeHandle(type);
         TypeHandle::CastResult result = CastCache::TryGetFromCache(pMT, th);
-        if (result == TypeHandle::MaybeCast)
-        {
-            result = pMT->ArrayIsInstanceOfNoGC(th);
-        }
 
         switch (result) {
         case TypeHandle::CanCast:
@@ -2540,12 +2486,7 @@ NOINLINE HCIMPL2(Object *, JITutil_IsInstanceOfInterface, MethodTable *pInterfac
     FCALL_CONTRACT;
 
     MethodTable* pMT = obj->GetMethodTable();
-
     TypeHandle::CastResult result = CastCache::TryGetFromCache(pMT, pInterfaceMT);
-    if (result == TypeHandle::MaybeCast && pMT->IsArray() && pInterfaceMT->HasInstantiation())
-    {
-        result = pMT->ArraySupportsBizarreInterfaceNoGC(pInterfaceMT);
-    }
 
     switch (result) {
     case TypeHandle::CanCast:
@@ -2567,12 +2508,7 @@ NOINLINE HCIMPL2(Object *, JITutil_ChkCastInterface, MethodTable *pInterfaceMT, 
     FCALL_CONTRACT;
 
     MethodTable* pMT = obj->GetMethodTable();
-
     TypeHandle::CastResult result = CastCache::TryGetFromCache(pMT, pInterfaceMT);
-    if (result == TypeHandle::MaybeCast && pMT->IsArray() && pInterfaceMT->HasInstantiation())
-    {
-        result = pMT->ArraySupportsBizarreInterfaceNoGC(pInterfaceMT);
-    }
 
     if (result == TypeHandle::CanCast)
     {
