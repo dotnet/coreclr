@@ -12,7 +12,6 @@ parameters:
   testGroup: ''
   crossrootfsDir: ''
   corefxTests: false
-  readyToRun: false
   stagedBuild: false
 
   # arcade-specific parameters
@@ -58,13 +57,6 @@ jobs:
     - name: nativeRootFolderPath
       value: $(binTestsPath)/$(osGroup).$(archType).$(buildConfigUpper)
 
-    - name: testArtifactNameR2RPart
-      value: ''
-
-    - ${{ if eq(parameters.readyToRun, true) }}:
-      - name: testArtifactNameR2RPart
-        value: '_r2r'
-
     - name: testArtifactNameCoreFxPart
       value: ''
 
@@ -80,7 +72,7 @@ jobs:
         value: _$(testGroup)
 
     - name: testArtifactName
-      value: Tests$(testArtifactNameR2RPart)$(testArtifactNameCoreFxPart)_${{ parameters.managedTestBuildOsGroup }}${{ parameters.managedTestBuildOsSubgroup }}_${{ parameters.managedTestBuildArchType }}_$(buildConfig)$(testArtifactNameTestGroupPart)
+      value: Tests$(testArtifactNameCoreFxPart)_${{ parameters.managedTestBuildOsGroup }}${{ parameters.managedTestBuildOsSubgroup }}_${{ parameters.managedTestBuildArchType }}_$(buildConfig)$(testArtifactNameTestGroupPart)
 
     - name: testNativeArtifactName
       value: 'NativeTestComponents_$(osGroup)$(osSubgroup)_$(archType)_$(buildConfig)'
