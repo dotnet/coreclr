@@ -1205,9 +1205,7 @@ namespace System
         {
             while (--digits >= 0 || value != 0)
             {
-                // TODO https://github.com/dotnet/coreclr/issues/3439
-                uint newValue = value / 10;
-                *(--bufferEnd) = (byte)(value - (newValue * 10) + '0');
+                *(--bufferEnd) = (byte)(Math.DivRem(value, 10, out uint newValue) + '0');
                 value = newValue;
             }
             return bufferEnd;
@@ -1217,9 +1215,7 @@ namespace System
         {
             while (--digits >= 0 || value != 0)
             {
-                // TODO https://github.com/dotnet/coreclr/issues/3439
-                uint newValue = value / 10;
-                *(--bufferEnd) = (char)(value - (newValue * 10) + '0');
+                *(--bufferEnd) = (char)(Math.DivRem(value, 10, out uint newValue) + '0');
                 value = newValue;
             }
             return bufferEnd;
@@ -1243,9 +1239,7 @@ namespace System
                 {
                     do
                     {
-                        // TODO https://github.com/dotnet/coreclr/issues/3439
-                        uint div = value / 10;
-                        *(--p) = (char)('0' + value - (div * 10));
+                        *(--p) = (char)('0' + Math.DivRem(value, 10, out uint div));
                         value = div;
                     }
                     while (value != 0);
@@ -1276,9 +1270,7 @@ namespace System
                 {
                     do
                     {
-                        // TODO https://github.com/dotnet/coreclr/issues/3439
-                        uint div = value / 10;
-                        *(--p) = (char)('0' + value - (div * 10));
+                        *(--p) = (char)('0' + Math.DivRem(value, 10, out uint div));
                         value = div;
                     }
                     while (value != 0);
