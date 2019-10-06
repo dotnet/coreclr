@@ -18,6 +18,9 @@ jobs:
     - Linux_x64
     - Windows_NT_x64
     - Windows_NT_x86
+    jobParameters:
+      testGroup: outerloop
+      crossgenFramework: true
 
 - template: /eng/platform-matrix.yml
   parameters:

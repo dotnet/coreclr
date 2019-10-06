@@ -27,7 +27,7 @@
 
 const char *GetTType( TraceType tt);
 
-#define IsSingleStep(exception) (exception == EXCEPTION_SINGLE_STEP)
+#define IsSingleStep(exception) ((exception) == EXCEPTION_SINGLE_STEP)
 
 
 

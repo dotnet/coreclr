@@ -4,6 +4,8 @@ parameters:
   osGroup: ''
   osSubgroup: ''
   container: ''
+  testGroup: ''
+  crossgenFramework: false
   crossrootfsDir: ''
   timeoutInMinutes: ''
   signBinaries: false
@@ -12,15 +14,16 @@ parameters:
 
 ### Product build
 jobs:
-- template: xplat-job.yml
+- template: xplat-test-job.yml
   parameters:
     buildConfig: ${{ parameters.buildConfig }}
     archType: ${{ parameters.archType }}
     osGroup: ${{ parameters.osGroup }}
     osSubgroup: ${{ parameters.osSubgroup }}
     helixType: 'build/product/'
-    enableMicrobuild: true
+    testGroup: ${{ parameters.testGroup }}
     stagedBuild: ${{ parameters.stagedBuild }}
+    enableMicrobuild: true
 
     # Compute job name from template parameters
     name: ${{ format('build_{0}{1}_{2}_{3}', parameters.osGroup, parameters.osSubgroup, parameters.archType, parameters.buildConfig) }}
@@ -36,10 +39,6 @@ jobs:
 
     gatherAssetManifests: true
     variables:
-    - name: osGroup
-      value: ${{ parameters.osGroup }}
-    - name: osSubgroup
-      value: ${{ parameters.osSubgroup }}
     - name: stripSymbolsArg
       value: ''
     # Strip symbols only on the release build
@@ -87,6 +86,11 @@ jobs:
     - ${{ if and(eq(parameters.buildConfig, 'Release'), and(eq(parameters.osGroup, 'Windows_NT'), not(or(eq(parameters.archType, 'arm64'), eq(parameters.archType, 'arm'))))) }}:
       - name: enforcePgoArg
         value: '-enforcepgo'
+    - name: crossgenArg
+      value: ''
+    - ${{ if eq(parameters.crossgenFramework, true) }}:
+      - name: crossgenArg
+        value: 'crossgen'
 
     steps:
 
@@ -130,6 +134,14 @@ jobs:
       - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) -ci -skiptests -skipbuildpackages $(officialBuildIdArg) $(ibcOptimizeArg) $(enforcePgoArg)
         displayName: Build product
 
+    # Build native test components and optionally crossgen the framework assemblies
+    - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+      - script: ./build-test.sh skipmanaged $(crossgenArg) $(buildConfig) $(archType) $(crossArg) $(priorityArg) $(clangArg)
+        displayName: Build native test components
+    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+      - script: build-test.cmd skipmanaged $(crossgenArg) $(buildConfig) $(archType) $(priorityArg)
+        displayName: Build native test components
+
     # Sign on Windows
     - ${{ if and(eq(parameters.osGroup, 'Windows_NT'), eq(parameters.signBinaries, 'true')) }}:
       - powershell: eng\common\build.ps1 -ci -sign -restore -configuration:$(buildConfig) -warnaserror:0 /p:ArcadeBuild=true /p:OfficialBuild=true /p:BuildOS=$(osGroup) /p:BuildArch=$(archType) /p:BuildType=$(_BuildConfig) /p:DotNetSignType=$env:_SignType -projects $(Build.SourcesDirectory)\eng\empty.csproj
@@ -145,11 +157,37 @@ jobs:
         condition: always()
 
     # Publish product output directory for consumption by tests.
-    - task: PublishBuildArtifacts@1
-      displayName: Publish product build
-      inputs:
-        pathtoPublish: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(_BuildConfig)
-        artifactName: ${{ format('BinDir_{0}{1}_{2}_{3}', parameters.osGroup, parameters.osSubgroup, parameters.archType, parameters.buildConfig) }}
+    - template: /eng/upload-artifact-step.yml
+      parameters:
+        rootFolder: '$(productBuildRootFolderPath)'
+        includeRootFolder: false
+        archiveFile: $(Build.StagingDirectory)/$(productBuildArtifactName)$(archiveExtension)
+        archiveType: $(archiveType)
+        tarCompression: $(tarCompression)
+        artifactName: $(productBuildArtifactName)
+        displayName: 'product build'
+
+    # Publish test native components for consumption by test execution.
+    - template: /eng/upload-artifact-step.yml
+      parameters:
+        rootFolder: $(testNativeRootFolderPath)
+        includeRootFolder: false
+        archiveFile: $(Build.StagingDirectory)/$(testNativeArtifactName)$(archiveExtension)
+        archiveType: $(archiveType)
+        tarCompression: $(tarCompression)
+        artifactName: $(testNativeArtifactName)
+        displayName: 'native test components'
+
+    # Publish test build root for consumption by test execution.
+    - template: /eng/upload-artifact-step.yml
+      parameters:
+        rootFolder: $(testBuildRootFolderPath)
+        includeRootFolder: false
+        archiveFile: $(Build.StagingDirectory)/$(testBuildArtifactName)$(archiveExtension)
+        archiveType: $(archiveType)
+        tarCompression: $(tarCompression)
+        artifactName: $(testBuildArtifactName)
+        displayName: 'test build tree'
 
     # Get key vault secrets for publishing
     - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:

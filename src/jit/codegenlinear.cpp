@@ -61,10 +61,10 @@ void CodeGen::genInitializeRegisterState()
         noway_assert(!varTypeIsFloating(varDsc->TypeGet()));
 
         // Mark the register as holding the variable
-        assert(varDsc->lvRegNum != REG_STK);
+        assert(varDsc->GetRegNum() != REG_STK);
         if (!varDsc->lvAddrExposed)
         {
-            regSet.verifyRegUsed(varDsc->lvRegNum);
+            regSet.verifyRegUsed(varDsc->GetRegNum());
         }
     }
 }
@@ -259,7 +259,7 @@ void CodeGen::genCodeForBBlist()
             }
         }
 
-        regSet.rsMaskVars = newLiveRegSet;
+        regSet.SetMaskVars(newLiveRegSet);
 
 #ifdef DEBUG
         if (compiler->verbose)
@@ -474,7 +474,7 @@ void CodeGen::genCodeForBBlist()
         /* Make sure we didn't bungle pointer register tracking */
 
         regMaskTP ptrRegs       = gcInfo.gcRegGCrefSetCur | gcInfo.gcRegByrefSetCur;
-        regMaskTP nonVarPtrRegs = ptrRegs & ~regSet.rsMaskVars;
+        regMaskTP nonVarPtrRegs = ptrRegs & ~regSet.GetMaskVars();
 
         // If return is a GC-type, clear it.  Note that if a common
         // epilog is generated (genReturnBB) it has a void return
@@ -492,14 +492,14 @@ void CodeGen::genCodeForBBlist()
         if (nonVarPtrRegs)
         {
             printf("Regset after " FMT_BB " gcr=", block->bbNum);
-            printRegMaskInt(gcInfo.gcRegGCrefSetCur & ~regSet.rsMaskVars);
-            compiler->GetEmitter()->emitDispRegSet(gcInfo.gcRegGCrefSetCur & ~regSet.rsMaskVars);
+            printRegMaskInt(gcInfo.gcRegGCrefSetCur & ~regSet.GetMaskVars());
+            compiler->GetEmitter()->emitDispRegSet(gcInfo.gcRegGCrefSetCur & ~regSet.GetMaskVars());
             printf(", byr=");
-            printRegMaskInt(gcInfo.gcRegByrefSetCur & ~regSet.rsMaskVars);
-            compiler->GetEmitter()->emitDispRegSet(gcInfo.gcRegByrefSetCur & ~regSet.rsMaskVars);
+            printRegMaskInt(gcInfo.gcRegByrefSetCur & ~regSet.GetMaskVars());
+            compiler->GetEmitter()->emitDispRegSet(gcInfo.gcRegByrefSetCur & ~regSet.GetMaskVars());
             printf(", regVars=");
-            printRegMaskInt(regSet.rsMaskVars);
-            compiler->GetEmitter()->emitDispRegSet(regSet.rsMaskVars);
+            printRegMaskInt(regSet.GetMaskVars());
+            compiler->GetEmitter()->emitDispRegSet(regSet.GetMaskVars());
             printf("\n");
         }
 
@@ -824,7 +824,7 @@ void CodeGen::genSpillVar(GenTree* tree)
         emitAttr  size   = emitTypeSize(lclTyp);
 
         instruction storeIns = ins_Store(lclTyp, compiler->isSIMDTypeLocalAligned(varNum));
-        assert(varDsc->lvRegNum == tree->gtRegNum);
+        assert(varDsc->GetRegNum() == tree->gtRegNum);
         inst_TT_RV(storeIns, tree, tree->gtRegNum, 0, size);
 
         genUpdateRegLife(varDsc, /*isBorn*/ false, /*isDying*/ true DEBUGARG(tree));
@@ -847,10 +847,10 @@ void CodeGen::genSpillVar(GenTree* tree)
     }
 
     tree->gtFlags &= ~GTF_SPILL;
-    varDsc->lvRegNum = REG_STK;
+    varDsc->SetRegNum(REG_STK);
     if (varTypeIsMultiReg(tree))
     {
-        varDsc->lvOtherReg = REG_STK;
+        varDsc->SetOtherReg(REG_STK);
     }
 
 #ifdef USING_VARIABLE_LIVE_RANGE
@@ -874,7 +874,7 @@ void CodeGen::genSpillVar(GenTree* tree)
 void CodeGenInterface::genUpdateVarReg(LclVarDsc* varDsc, GenTree* tree)
 {
     assert(tree->OperIsScalarLocal() || (tree->gtOper == GT_COPY));
-    varDsc->lvRegNum = tree->gtRegNum;
+    varDsc->SetRegNum(tree->gtRegNum);
 }
 
 //------------------------------------------------------------------------
@@ -1004,7 +1004,7 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
             // TODO-Review: We would like to call:
             //      genUpdateRegLife(varDsc, /*isBorn*/ true, /*isDying*/ false DEBUGARG(tree));
             // instead of the following code, but this ends up hitting this assert:
-            //      assert((regSet.rsMaskVars & regMask) == 0);
+            //      assert((regSet.GetMaskVars() & regMask) == 0);
             // due to issues with LSRA resolution moves.
             // So, just force it for now. This probably indicates a condition that creates a GC hole!
             //
@@ -1292,9 +1292,9 @@ regNumber CodeGen::genConsumeReg(GenTree* tree)
     {
         GenTreeLclVarCommon* lcl    = tree->AsLclVarCommon();
         LclVarDsc*           varDsc = &compiler->lvaTable[lcl->GetLclNum()];
-        if (varDsc->lvRegNum != REG_STK && varDsc->lvRegNum != tree->gtRegNum)
+        if (varDsc->GetRegNum() != REG_STK && varDsc->GetRegNum() != tree->gtRegNum)
         {
-            inst_RV_RV(ins_Copy(tree->TypeGet()), tree->gtRegNum, varDsc->lvRegNum);
+            inst_RV_RV(ins_Copy(tree->TypeGet()), tree->gtRegNum, varDsc->GetRegNum());
         }
     }
 
@@ -1318,9 +1318,9 @@ regNumber CodeGen::genConsumeReg(GenTree* tree)
 
         if ((tree->gtFlags & GTF_VAR_DEATH) != 0)
         {
-            gcInfo.gcMarkRegSetNpt(genRegMask(varDsc->lvRegNum));
+            gcInfo.gcMarkRegSetNpt(genRegMask(varDsc->GetRegNum()));
         }
-        else if (varDsc->lvRegNum == REG_STK)
+        else if (varDsc->GetRegNum() == REG_STK)
         {
             // We have loaded this into a register only temporarily
             gcInfo.gcMarkRegSetNpt(genRegMask(tree->gtRegNum));
@@ -1387,7 +1387,7 @@ void CodeGen::genConsumeRegs(GenTree* tree)
             unsigned   varNum = tree->AsLclVarCommon()->GetLclNum();
             LclVarDsc* varDsc = compiler->lvaTable + varNum;
 
-            noway_assert(varDsc->lvRegNum == REG_STK);
+            noway_assert(varDsc->GetRegNum() == REG_STK);
             noway_assert(tree->IsRegOptional() || !varDsc->lvLRACandidate);
 
             // Update the life of the lcl var.
@@ -1651,10 +1651,9 @@ void CodeGen::genPutArgStkFieldList(GenTreePutArgStk* putArgStk, unsigned outArg
     // Evaluate each of the GT_FIELD_LIST items into their register
     // and store their register into the outgoing argument area.
     unsigned argOffset = putArgStk->getArgOffset();
-    for (GenTreeFieldList* fieldListPtr = putArgStk->gtOp1->AsFieldList(); fieldListPtr != nullptr;
-         fieldListPtr                   = fieldListPtr->Rest())
+    for (GenTreeFieldList::Use& use : putArgStk->gtOp1->AsFieldList()->Uses())
     {
-        GenTree* nextArgNode = fieldListPtr->gtOp.gtOp1;
+        GenTree* nextArgNode = use.GetNode();
         genConsumeReg(nextArgNode);
 
         regNumber reg  = nextArgNode->gtRegNum;
@@ -1663,7 +1662,7 @@ void CodeGen::genPutArgStkFieldList(GenTreePutArgStk* putArgStk, unsigned outArg
 
         // Emit store instructions to store the registers produced by the GT_FIELD_LIST into the outgoing
         // argument area.
-        unsigned thisFieldOffset = argOffset + fieldListPtr->gtFieldOffset;
+        unsigned thisFieldOffset = argOffset + use.GetOffset();
         GetEmitter()->emitIns_S_R(ins_Store(type), attr, reg, outArgVarNum, thisFieldOffset);
 
 // We can't write beyond the arg area unless this is a tail call, in which case we use

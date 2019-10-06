@@ -2542,7 +2542,7 @@ void StackTraceInfo::SaveStackTrace(BOOL bAllowAllocMem, OBJECTHANDLE hThrowable
                     }
                 }
 
-                ((EXCEPTIONREF)ObjectFromHandle(hThrowable))->SetStackTrace(gc.stackTrace, gc.dynamicMethodsArray);
+                ((EXCEPTIONREF)ObjectFromHandle(hThrowable))->SetStackTrace(gc.stackTrace.Get(), gc.dynamicMethodsArray);
                 
                 // Update _stackTraceString field.
                 ((EXCEPTIONREF)ObjectFromHandle(hThrowable))->SetStackTraceString(NULL);
@@ -3119,25 +3119,6 @@ void ResMgrGetString(LPCWSTR wszResourceName, STRINGREF * ppMessage)
         *ppMessage = value;
     }
 }
-
-// GetResourceFromDefault
-// transition to the default domain and get a resource there
-FCIMPL1(Object*, GetResourceFromDefault, StringObject* keyUnsafe)
-{
-    FCALL_CONTRACT;
-
-    STRINGREF ret = NULL;
-    STRINGREF key = (STRINGREF)keyUnsafe;
-
-    HELPER_METHOD_FRAME_BEGIN_RET_2(ret, key);
-
-    ret = GetResourceStringFromManaged(key);
-
-    HELPER_METHOD_FRAME_END();
-
-    return OBJECTREFToObject(ret);
-}
-FCIMPLEND
 
 void FreeExceptionData(ExceptionData *pedata)
 {

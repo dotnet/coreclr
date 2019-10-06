@@ -391,11 +391,11 @@ struct GenTree
 
 #define NO_CSE (0)
 
-#define IS_CSE_INDEX(x) (x != 0)
-#define IS_CSE_USE(x) (x > 0)
-#define IS_CSE_DEF(x) (x < 0)
-#define GET_CSE_INDEX(x) ((x > 0) ? x : -x)
-#define TO_CSE_DEF(x) (-x)
+#define IS_CSE_INDEX(x) ((x) != 0)
+#define IS_CSE_USE(x) ((x) > 0)
+#define IS_CSE_DEF(x) ((x) < 0)
+#define GET_CSE_INDEX(x) (((x) > 0) ? x : -(x))
+#define TO_CSE_DEF(x) (-(x))
 
     signed char gtCSEnum; // 0 or the CSE index (negated if def)
                           // valid only for CSE expressions
@@ -885,9 +885,6 @@ public:
 #define GTF_ARRLEN_ARR_IDX          0x80000000 // GT_ARR_LENGTH -- Length which feeds into an array index expression
 #define GTF_ARRLEN_NONFAULTING      0x20000000 // GT_ARR_LENGTH  -- An array length operation that cannot fault. Same as GT_IND_NONFAULTING.
 
-#define GTF_FIELD_LIST_HEAD         0x80000000 // GT_FIELD_LIST -- Indicates that this is the first field in a list of
-                                               //                  struct fields constituting a single call argument.
-
 #define GTF_SIMD12_OP               0x80000000 // GT_SIMD -- Indicates that the operands need to be handled as SIMD12
                                                //            even if they have been retyped as SIMD16.
 
@@ -967,14 +964,9 @@ public:
         if (gtType == TYP_VOID)
         {
             // These are the only operators which can produce either VOID or non-VOID results.
-            assert(OperIs(GT_NOP, GT_CALL, GT_FIELD_LIST, GT_COMMA) || OperIsCompare() || OperIsLong() ||
-                   OperIsSIMD() || OperIsHWIntrinsic());
+            assert(OperIs(GT_NOP, GT_CALL, GT_COMMA) || OperIsCompare() || OperIsLong() || OperIsSIMD() ||
+                   OperIsHWIntrinsic());
             return false;
-        }
-
-        if (gtOper == GT_FIELD_LIST)
-        {
-            return (gtFlags & GTF_FIELD_LIST_HEAD) != 0;
         }
 
         return true;
@@ -997,10 +989,6 @@ public:
                 // LIST nodes may not be present in a block's LIR sequence, but they may
                 // be present as children of an LIR node.
                 return (gtNext == nullptr) && (gtPrev == nullptr);
-
-            case GT_FIELD_LIST:
-                // Only the head of the FIELD_LIST is present in the block's LIR sequence.
-                return (((gtFlags & GTF_FIELD_LIST_HEAD) != 0) || ((gtNext == nullptr) && (gtPrev == nullptr)));
 
             case GT_ADDR:
             {
@@ -1529,11 +1517,6 @@ public:
         return OperIsLong(gtOper);
     }
 
-    bool OperIsFieldListHead()
-    {
-        return (gtOper == GT_FIELD_LIST) && ((gtFlags & GTF_FIELD_LIST_HEAD) != 0);
-    }
-
     bool OperIsConditionalJump() const
     {
         return (gtOper == GT_JTRUE) || (gtOper == GT_JCMP) || (gtOper == GT_JCC);
@@ -1595,7 +1578,6 @@ public:
         switch (gtOper)
         {
             case GT_LIST:
-            case GT_FIELD_LIST:
             case GT_INTRINSIC:
             case GT_LEA:
 #ifdef FEATURE_SIMD
@@ -1638,19 +1620,9 @@ public:
         return OperIsList(gtOper);
     }
 
-    static bool OperIsFieldList(genTreeOps gtOper)
-    {
-        return gtOper == GT_FIELD_LIST;
-    }
-
-    bool OperIsFieldList() const
-    {
-        return OperIsFieldList(gtOper);
-    }
-
     static bool OperIsAnyList(genTreeOps gtOper)
     {
-        return OperIsList(gtOper) || OperIsFieldList(gtOper);
+        return OperIsList(gtOper);
     }
 
     bool OperIsAnyList() const
@@ -2341,6 +2313,248 @@ struct GenTreePhi final : public GenTree
 #endif
 };
 
+// Represents a list of fields constituting a struct, when it is passed as an argument.
+//
+struct GenTreeFieldList : public GenTree
+{
+    class Use
+    {
+        GenTree*  m_node;
+        Use*      m_next;
+        uint16_t  m_offset;
+        var_types m_type;
+
+    public:
+        Use(GenTree* node, unsigned offset, var_types type)
+            : m_node(node), m_next(nullptr), m_offset(static_cast<uint16_t>(offset)), m_type(type)
+        {
+            // We can save space on 32 bit hosts by storing the offset as uint16_t. Struct promotion
+            // only accepts structs which are much smaller than that - 128 bytes = max 4 fields * max
+            // SIMD vector size (32 bytes).
+            assert(offset <= UINT16_MAX);
+        }
+
+        GenTree*& NodeRef()
+        {
+            return m_node;
+        }
+
+        GenTree* GetNode() const
+        {
+            return m_node;
+        }
+
+        void SetNode(GenTree* node)
+        {
+            assert(node != nullptr);
+            m_node = node;
+        }
+
+        Use*& NextRef()
+        {
+            return m_next;
+        }
+
+        Use* GetNext() const
+        {
+            return m_next;
+        }
+
+        void SetNext(Use* next)
+        {
+            m_next = next;
+        }
+
+        unsigned GetOffset() const
+        {
+            return m_offset;
+        }
+
+        var_types GetType() const
+        {
+            return m_type;
+        }
+
+        void SetType(var_types type)
+        {
+            m_type = type;
+        }
+    };
+
+    class UseIterator
+    {
+        Use* use;
+
+    public:
+        UseIterator(Use* use) : use(use)
+        {
+        }
+
+        Use& operator*()
+        {
+            return *use;
+        }
+
+        Use* operator->()
+        {
+            return use;
+        }
+
+        void operator++()
+        {
+            use = use->GetNext();
+        }
+
+        bool operator==(const UseIterator& other)
+        {
+            return use == other.use;
+        }
+
+        bool operator!=(const UseIterator& other)
+        {
+            return use != other.use;
+        }
+    };
+
+    class UseList
+    {
+        Use* m_head;
+        Use* m_tail;
+
+    public:
+        UseList() : m_head(nullptr), m_tail(nullptr)
+        {
+        }
+
+        Use* GetHead() const
+        {
+            return m_head;
+        }
+
+        UseIterator begin() const
+        {
+            return m_head;
+        }
+
+        UseIterator end() const
+        {
+            return nullptr;
+        }
+
+        void AddUse(Use* newUse)
+        {
+            assert(newUse->GetNext() == nullptr);
+
+            if (m_head == nullptr)
+            {
+                m_head = newUse;
+            }
+            else
+            {
+                m_tail->SetNext(newUse);
+            }
+
+            m_tail = newUse;
+        }
+
+        void InsertUse(Use* insertAfter, Use* newUse)
+        {
+            assert(newUse->GetNext() == nullptr);
+
+            newUse->SetNext(insertAfter->GetNext());
+            insertAfter->SetNext(newUse);
+
+            if (m_tail == insertAfter)
+            {
+                m_tail = newUse;
+            }
+        }
+
+        void Reverse()
+        {
+            m_tail = m_head;
+            m_head = nullptr;
+
+            for (Use *next, *use = m_tail; use != nullptr; use = next)
+            {
+                next = use->GetNext();
+                use->SetNext(m_head);
+                m_head = use;
+            }
+        }
+
+        bool IsSorted() const
+        {
+            unsigned offset = 0;
+            for (GenTreeFieldList::Use& use : *this)
+            {
+                if (use.GetOffset() < offset)
+                {
+                    return false;
+                }
+                offset = use.GetOffset();
+            }
+            return true;
+        }
+    };
+
+private:
+    UseList m_uses;
+
+public:
+    GenTreeFieldList() : GenTree(GT_FIELD_LIST, TYP_STRUCT)
+    {
+        SetContained();
+    }
+
+    UseList& Uses()
+    {
+        return m_uses;
+    }
+
+    // Add a new field use to the end of the use list and update side effect flags.
+    void AddField(Compiler* compiler, GenTree* node, unsigned offset, var_types type);
+    // Add a new field use to the end of the use list without updating side effect flags.
+    void AddFieldLIR(Compiler* compiler, GenTree* node, unsigned offset, var_types type);
+    // Insert a new field use after the specified use and update side effect flags.
+    void InsertField(Compiler* compiler, Use* insertAfter, GenTree* node, unsigned offset, var_types type);
+    // Insert a new field use after the specified use without updating side effect flags.
+    void InsertFieldLIR(Compiler* compiler, Use* insertAfter, GenTree* node, unsigned offset, var_types type);
+
+    //--------------------------------------------------------------------------
+    // Equals: Check if 2 FIELD_LIST nodes are equal.
+    //
+    // Arguments:
+    //    list1 - The first FIELD_LIST node
+    //    list2 - The second FIELD_LIST node
+    //
+    // Return Value:
+    //    true if the 2 FIELD_LIST nodes have the same type, number of uses, and the
+    //    uses are equal.
+    //
+    static bool Equals(GenTreeFieldList* list1, GenTreeFieldList* list2)
+    {
+        assert(list1->TypeGet() == TYP_STRUCT);
+        assert(list2->TypeGet() == TYP_STRUCT);
+
+        UseIterator i1   = list1->Uses().begin();
+        UseIterator end1 = list1->Uses().end();
+        UseIterator i2   = list2->Uses().begin();
+        UseIterator end2 = list2->Uses().end();
+
+        for (; (i1 != end1) && (i2 != end2); ++i1, ++i2)
+        {
+            if (!Compare(i1->GetNode(), i2->GetNode()) || (i1->GetOffset() != i2->GetOffset()) ||
+                (i1->GetType() != i2->GetType()))
+            {
+                return false;
+            }
+        }
+
+        return (i1 == end1) && (i2 == end2);
+    }
+};
+
 //------------------------------------------------------------------------
 // GenTreeUseEdgeIterator: an iterator that will produce each use edge of a GenTree node in the order in which
 //                         they are used.
@@ -2395,6 +2609,7 @@ class GenTreeUseEdgeIterator final
     void AdvanceArrOffset();
     void AdvanceDynBlk();
     void AdvanceStoreDynBlk();
+    void AdvanceFieldList();
     void AdvancePhi();
 
     template <bool ReverseOperands>
@@ -3070,59 +3285,6 @@ struct GenTreeArgList : public GenTreeOp
     }
 };
 
-// Represents a list of fields constituting a struct, when it is passed as an argument.
-// The first field of the struct is marked with the GTF_FIELD_LIST_HEAD flag, and
-// in LIR form it is the only member of the list that is threaded into the execution
-// order.
-// It differs from the GenTreeArgList in a couple of ways:
-// - The entire list represents a single argument.
-// - It contains additional fields to provide the offset and type of the field.
-//
-struct GenTreeFieldList : public GenTreeArgList
-{
-    unsigned  gtFieldOffset;
-    var_types gtFieldType;
-
-    bool IsFieldListHead() const
-    {
-        return (gtFlags & GTF_FIELD_LIST_HEAD) != 0;
-    }
-
-#if DEBUGGABLE_GENTREE
-    GenTreeFieldList() : GenTreeArgList()
-    {
-    }
-#endif
-
-    GenTreeFieldList*& Rest()
-    {
-        assert(gtOp2 == nullptr || gtOp2->OperGet() == GT_FIELD_LIST);
-        return *reinterpret_cast<GenTreeFieldList**>(&gtOp2);
-    }
-
-    GenTreeFieldList(GenTree* arg, unsigned fieldOffset, var_types fieldType, GenTreeFieldList* prevList)
-        : GenTreeArgList(GT_FIELD_LIST, arg, nullptr)
-    {
-        // While GT_FIELD_LIST can be in a GT_LIST, GT_FIELD_LISTs cannot be nested or have GT_LISTs.
-        assert(!arg->OperIsAnyList());
-        gtFieldOffset = fieldOffset;
-        gtFieldType   = fieldType;
-        gtType        = fieldType;
-        if (prevList == nullptr)
-        {
-            gtFlags |= GTF_FIELD_LIST_HEAD;
-
-            // A GT_FIELD_LIST head is always contained. Other nodes return false from IsValue()
-            // and should not be marked as contained.
-            SetContained();
-        }
-        else
-        {
-            prevList->gtOp2 = this;
-        }
-    }
-};
-
 // There was quite a bit of confusion in the code base about which of gtOp1 and gtOp2 was the
 // 'then' and 'else' clause of a colon node.  Adding these accessors, while not enforcing anything,
 // at least *allows* the programmer to be obviously correct.
@@ -3358,6 +3520,7 @@ struct GenTreeCall final : public GenTree
     public:
         Use(GenTree* node, Use* next = nullptr) : m_node(node), m_next(next)
         {
+            assert(node != nullptr);
         }
 
         GenTree*& NodeRef()
@@ -3367,6 +3530,7 @@ struct GenTreeCall final : public GenTree
 
         GenTree* GetNode() const
         {
+            assert(m_node != nullptr);
             return m_node;
         }
 
@@ -3411,6 +3575,11 @@ struct GenTreeCall final : public GenTree
             return m_use;
         }
 
+        Use* GetUse() const
+        {
+            return m_use;
+        }
+
         UseIterator& operator++()
         {
             m_use = m_use->GetNext();
@@ -3448,11 +3617,11 @@ struct GenTreeCall final : public GenTree
         }
     };
 
-    GenTree* gtCallObjp;     // The instance argument ('this' pointer)
-    Use*     gtCallArgs;     // The list of arguments in original evaluation order
-    Use*     gtCallLateArgs; // On x86:     The register arguments in an optimal order
-                             // On ARM/x64: - also includes any outgoing arg space arguments
-                             //             - that were evaluated into a temp LclVar
+    Use* gtCallThisArg;  // The instance argument ('this' pointer)
+    Use* gtCallArgs;     // The list of arguments in original evaluation order
+    Use* gtCallLateArgs; // On x86:     The register arguments in an optimal order
+                         // On ARM/x64: - also includes any outgoing arg space arguments
+                         //             - that were evaluated into a temp LclVar
     fgArgInfo* fgArgInfo;
 
     UseList Args()
@@ -4078,6 +4247,8 @@ struct GenTreeCall final : public GenTree
     void ReplaceCallOperand(GenTree** operandUseEdge, GenTree* replacement);
 
     bool AreArgsComplete() const;
+
+    static bool Equals(GenTreeCall* c1, GenTreeCall* c2);
 
     GenTreeCall(var_types type) : GenTree(GT_CALL, type)
     {
@@ -6368,10 +6539,9 @@ inline bool GenTree::IsValidCallArgument()
 {
     if (OperIsList())
     {
-        // GT_FIELD_LIST is the only list allowed.
         return false;
     }
-    if (OperIsFieldList())
+    if (OperIs(GT_FIELD_LIST))
     {
 #if !FEATURE_MULTIREG_ARGS && !FEATURE_PUT_STRUCT_ARG_STK
 

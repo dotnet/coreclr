@@ -1972,8 +1972,8 @@ StackTraceElement & StackTraceArray::operator[](size_t index)
 // Define the lock used to access stacktrace from an exception object
 SpinLock g_StackTraceArrayLock;
 
-void ExceptionObject::SetStackTrace(StackTraceArray const & stackTrace, PTRARRAYREF dynamicMethodArray)
-{        
+void ExceptionObject::SetStackTrace(I1ARRAYREF stackTrace, PTRARRAYREF dynamicMethodArray)
+{
     CONTRACTL
     {
         GC_NOTRIGGER;
@@ -1982,38 +1982,14 @@ void ExceptionObject::SetStackTrace(StackTraceArray const & stackTrace, PTRARRAY
     }
     CONTRACTL_END;
 
-    Thread *m_pThread = GetThread();
-    SpinLock::AcquireLock(&g_StackTraceArrayLock, SPINLOCK_THREAD_PARAM_ONLY_IN_SOME_BUILDS);
+    SpinLock::AcquireLock(&g_StackTraceArrayLock);
 
-    SetObjectReference((OBJECTREF*)&_stackTrace, (OBJECTREF)stackTrace.Get());
+    SetObjectReference((OBJECTREF*)&_stackTrace, (OBJECTREF)stackTrace);
     SetObjectReference((OBJECTREF*)&_dynamicMethods, (OBJECTREF)dynamicMethodArray);
 
-    SpinLock::ReleaseLock(&g_StackTraceArrayLock, SPINLOCK_THREAD_PARAM_ONLY_IN_SOME_BUILDS);
+    SpinLock::ReleaseLock(&g_StackTraceArrayLock);
 
 }
-
-void ExceptionObject::SetNullStackTrace()
-{        
-    CONTRACTL
-    {
-        GC_NOTRIGGER;
-        NOTHROW;
-        MODE_COOPERATIVE;
-    }
-    CONTRACTL_END;
-
-    Thread *m_pThread = GetThread();
-    SpinLock::AcquireLock(&g_StackTraceArrayLock, SPINLOCK_THREAD_PARAM_ONLY_IN_SOME_BUILDS);
-
-    I1ARRAYREF stackTraceArray = NULL;
-    PTRARRAYREF dynamicMethodArray = NULL;
-
-    SetObjectReference((OBJECTREF*)&_stackTrace, (OBJECTREF)stackTraceArray);
-    SetObjectReference((OBJECTREF*)&_dynamicMethods, (OBJECTREF)dynamicMethodArray);
-
-    SpinLock::ReleaseLock(&g_StackTraceArrayLock, SPINLOCK_THREAD_PARAM_ONLY_IN_SOME_BUILDS);
-}
-
 #endif // !defined(DACCESS_COMPILE)
 
 void ExceptionObject::GetStackTrace(StackTraceArray & stackTrace, PTRARRAYREF * outDynamicMethodArray /*= NULL*/) const
@@ -2027,8 +2003,7 @@ void ExceptionObject::GetStackTrace(StackTraceArray & stackTrace, PTRARRAYREF * 
     CONTRACTL_END;
 
 #if !defined(DACCESS_COMPILE)
-    Thread *m_pThread = GetThread();
-    SpinLock::AcquireLock(&g_StackTraceArrayLock, SPINLOCK_THREAD_PARAM_ONLY_IN_SOME_BUILDS);
+    SpinLock::AcquireLock(&g_StackTraceArrayLock);
 #endif // !defined(DACCESS_COMPILE)
 
     StackTraceArray temp(_stackTrace);
@@ -2040,7 +2015,7 @@ void ExceptionObject::GetStackTrace(StackTraceArray & stackTrace, PTRARRAYREF * 
     }
 
 #if !defined(DACCESS_COMPILE)
-    SpinLock::ReleaseLock(&g_StackTraceArrayLock, SPINLOCK_THREAD_PARAM_ONLY_IN_SOME_BUILDS);
+    SpinLock::ReleaseLock(&g_StackTraceArrayLock);
 #endif // !defined(DACCESS_COMPILE)
 
 }

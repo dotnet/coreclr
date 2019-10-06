@@ -7461,7 +7461,7 @@ GenTree* Compiler::fgOptimizeDelegateConstructor(GenTreeCall*            call,
             {
                 JITDUMP("optimized\n");
 
-                GenTree*             thisPointer       = call->gtCallObjp;
+                GenTree*             thisPointer       = call->gtCallThisArg->GetNode();
                 GenTree*             targetObjPointers = call->gtCallArgs->GetNode();
                 GenTreeCall::Use*    helperArgs        = nullptr;
                 CORINFO_LOOKUP       pLookup;
@@ -7495,7 +7495,7 @@ GenTree* Compiler::fgOptimizeDelegateConstructor(GenTreeCall*            call,
         {
             JITDUMP("optimized\n");
 
-            GenTree*          thisPointer       = call->gtCallObjp;
+            GenTree*          thisPointer       = call->gtCallThisArg->GetNode();
             GenTree*          targetObjPointers = call->gtCallArgs->GetNode();
             GenTreeCall::Use* helperArgs        = gtNewCallArgs(thisPointer, targetObjPointers);
 
@@ -18781,9 +18781,9 @@ void Compiler::fgSetTreeSeqHelper(GenTree* tree, bool isLIR)
         case GT_CALL:
 
             /* We'll evaluate the 'this' argument value first */
-            if (tree->gtCall.gtCallObjp)
+            if (tree->AsCall()->gtCallThisArg != nullptr)
             {
-                fgSetTreeSeqHelper(tree->gtCall.gtCallObjp, isLIR);
+                fgSetTreeSeqHelper(tree->AsCall()->gtCallThisArg->GetNode(), isLIR);
             }
 
             for (GenTreeCall::Use& use : tree->AsCall()->Args())
@@ -18833,6 +18833,13 @@ void Compiler::fgSetTreeSeqHelper(GenTree* tree, bool isLIR)
 
         case GT_PHI:
             for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
+            {
+                fgSetTreeSeqHelper(use.GetNode(), isLIR);
+            }
+            break;
+
+        case GT_FIELD_LIST:
+            for (GenTreeFieldList::Use& use : tree->AsFieldList()->Uses())
             {
                 fgSetTreeSeqHelper(use.GetNode(), isLIR);
             }
@@ -18889,8 +18896,7 @@ void Compiler::fgSetTreeSeqFinish(GenTree* tree, bool isLIR)
     {
         tree->gtFlags &= ~GTF_REVERSE_OPS;
 
-        if ((tree->OperGet() == GT_LIST) || (tree->OperGet() == GT_ARGPLACE) ||
-            (tree->OperGet() == GT_FIELD_LIST && !tree->AsFieldList()->IsFieldListHead()))
+        if (tree->OperIs(GT_LIST, GT_ARGPLACE))
         {
             return;
         }
@@ -21209,7 +21215,6 @@ void Compiler::fgDebugCheckFlags(GenTree* tree)
                 break;
 
             case GT_LIST:
-            case GT_FIELD_LIST:
                 if ((op2 != nullptr) && op2->OperIsAnyList())
                 {
                     ArrayStack<GenTree*> stack(getAllocator(CMK_DebugOnly));
@@ -21320,12 +21325,12 @@ void Compiler::fgDebugCheckFlags(GenTree* tree)
 
                 call = tree->AsCall();
 
-                if (call->gtCallObjp)
+                if (call->gtCallThisArg != nullptr)
                 {
-                    fgDebugCheckFlags(call->gtCallObjp);
-                    chkFlags |= (call->gtCallObjp->gtFlags & GTF_SIDE_EFFECT);
+                    fgDebugCheckFlags(call->gtCallThisArg->GetNode());
+                    chkFlags |= (call->gtCallThisArg->GetNode()->gtFlags & GTF_SIDE_EFFECT);
 
-                    if (call->gtCallObjp->gtFlags & GTF_ASG)
+                    if ((call->gtCallThisArg->GetNode()->gtFlags & GTF_ASG) != 0)
                     {
                         treeFlags |= GTF_ASG;
                     }
@@ -21426,6 +21431,14 @@ void Compiler::fgDebugCheckFlags(GenTree* tree)
 
             case GT_PHI:
                 for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
+                {
+                    fgDebugCheckFlags(use.GetNode());
+                    chkFlags |= (use.GetNode()->gtFlags & GTF_ALL_EFFECT);
+                }
+                break;
+
+            case GT_FIELD_LIST:
+                for (GenTreeFieldList::Use& use : tree->AsFieldList()->Uses())
                 {
                     fgDebugCheckFlags(use.GetNode());
                     chkFlags |= (use.GetNode()->gtFlags & GTF_ALL_EFFECT);

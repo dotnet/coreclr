@@ -3,9 +3,13 @@ parameters:
   archType: ''
   osGroup: ''
   osSubgroup: ''
+  managedTestBuildOsGroup: ''
+  managedTestBuildOsSubgroup: ''
+  managedTestBuildArchType: ''
   name: ''
   helixType: '(unspecified)'
   container: ''
+  testGroup: ''
   crossrootfsDir: ''
   corefxTests: false
   readyToRun: false
@@ -45,32 +49,62 @@ jobs:
     gatherAssetManifests: ${{ parameters.gatherAssetManifests }}
   
     variables:
-    - ${{ if ne(parameters.testGroup, '') }}:
-      - name: testArtifactRootName
-        value: ${{ parameters.osGroup }}${{ parameters.osSubgroup }}_${{ parameters.archType }}_${{ parameters.buildConfig }}_${{ parameters.testGroup }}
-
-    - ${{ if eq(parameters.testGroup, '') }}:
-      - name: testArtifactRootName
-        value: ${{ parameters.osGroup }}${{ parameters.osSubgroup }}_${{ parameters.archType }}_${{ parameters.buildConfig }}
-
     - name: binTestsPath
       value: $(Build.SourcesDirectory)/bin/tests
 
     - name: testRootFolderPath
       value: $(binTestsPath)/$(osGroup).$(archType).$(buildConfigUpper)
 
-    - ${{ if and(eq(parameters.corefxTests, true), eq(parameters.readyToRun, true)) }}:
+    - name: nativeRootFolderPath
+      value: $(binTestsPath)/$(osGroup).$(archType).$(buildConfigUpper)
+
+    - name: testArtifactNameR2RPart
+      value: ''
+
+    - ${{ if eq(parameters.readyToRun, true) }}:
+      - name: testArtifactNameR2RPart
+        value: '_r2r'
+
+    - name: testArtifactNameCoreFxPart
+      value: ''
+
+    - ${{ if eq(parameters.corefxTests, true) }}:
+      - name: testArtifactNameCoreFxPart
+        value: '_corefx'
+
+    - name: testArtifactNameTestGroupPart
+      value: ''
+
+    - ${{ if ne(parameters.testGroup, '') }}:
       - name: testArtifactName
-        value: Tests_r2r_corefx_$(testArtifactRootName)
-    - ${{ if and(eq(parameters.corefxTests, true), ne(parameters.readyToRun, true)) }}:
-      - name: testArtifactName
-        value: Tests_corefx_$(testArtifactRootName)
-    - ${{ if and(ne(parameters.corefxTests, true), eq(parameters.readyToRun, true)) }}:
-      - name: testArtifactName
-        value: Tests_r2r_$(testArtifactRootName)
-    - ${{ if and(ne(parameters.corefxTests, true), ne(parameters.readyToRun, true)) }}:
-      - name: testArtifactName
-        value: Tests_$(testArtifactRootName)
+        value: _$(testGroup)
+
+    - name: testArtifactName
+      value: Tests$(testArtifactNameR2RPart)$(testArtifactNameCoreFxPart)_${{ parameters.managedTestBuildOsGroup }}${{ parameters.managedTestBuildOsSubgroup }}_${{ parameters.managedTestBuildArchType }}_$(buildConfig)$(testArtifactNameTestGroupPart)
+
+    - name: testNativeArtifactName
+      value: 'NativeTestComponents_$(osGroup)$(osSubgroup)_$(archType)_$(buildConfig)'
+
+    - name: testNativeRootFolderPath
+      value: $(binTestsPath)/obj/$(osGroup).$(archType).$(buildConfigUpper)
+
+    - name: testBuildRootFolderPath
+      value: $(binTestsPath)/$(osGroup).$(archType).$(buildConfigUpper)
+
+    - name: testBuildArtifactName
+      value: 'TestBuild_$(osGroup)$(osSubgroup)_$(archType)_$(buildConfig)'
+
+    - name: microsoftNetSdkIlFolderPath
+      value: $(Build.SourcesDirectory)/.packages/microsoft.net.sdk.il
+
+    - name: microsoftNetSdkIlArtifactName
+      value: 'MicrosoftNetSdkIlPackage_${{ parameters.managedTestBuildOsGroup }}${{ parameters.managedTestBuildOsSubgroup }}_${{ parameters.managedTestBuildArchType }}_$(buildConfig)'
+
+    - name: productBuildArtifactName
+      value: 'BinDir_$(osGroup)$(osSubgroup)_$(archType)_$(buildConfig)'
+
+    - name: productBuildRootFolderPath
+      value: '$(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(buildConfigUpper)'
 
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       - name: archiveExtension
@@ -87,6 +121,17 @@ jobs:
         value: tar
       - name: tarCompression
         value: gz
+
+    - name: priorityArg
+      value: ''
+
+    - ${{ if ne(parameters.testGroup, 'innerloop') }}:
+      - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+        - name: priorityArg
+          value: 'priority1'
+      - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+        - name: priorityArg
+          value: '-priority=1'
 
     - ${{ each variable in parameters.variables }}:
       - ${{insert}}: ${{ variable }}

@@ -378,7 +378,7 @@ LPVOID __FCThrowArgument(LPVOID me, enum RuntimeExceptionKind reKind, LPCWSTR ar
 #ifdef __GNUC__
 #define F_CALL_CONV __attribute__((cdecl, regparm(3)))
 
-// GCC fastcall convention (simulated via stdcall) is different from MSVC fastcall convention. GCC can use up
+// GCC FCALL convention (simulated via cdecl, regparm(3)) is different from MSVC FCALL convention. GCC can use up
 // to 3 registers to store parameters. The registers used are EAX, EDX, ECX. Dummy parameters and reordering
 // of the actual parameters in the FCALL signature is used to make the calling convention to look like in MSVC.
 #define SWIZZLE_REGARG_ORDER
@@ -1176,8 +1176,8 @@ public:
 #define HCCALL3(funcname, a1, a2, a3)   funcname(a1, a2, a3)
 #define HCCALL4(funcname, a1, a2, a3, a4)       funcname(a1, a2, a4, a3)
 #define HCCALL5(funcname, a1, a2, a3, a4, a5)   funcname(a1, a2, a5, a4, a3)
-#define HCCALL1_PTR(rettype, funcptr, a1)        rettype (F_CALL_CONV * funcptr)(a1)
-#define HCCALL2_PTR(rettype, funcptr, a1, a2)    rettype (F_CALL_CONV * funcptr)(a1, a2)
+#define HCCALL1_PTR(rettype, funcptr, a1)        rettype (F_CALL_CONV * (funcptr))(a1)
+#define HCCALL2_PTR(rettype, funcptr, a1, a2)    rettype (F_CALL_CONV * (funcptr))(a1, a2)
 #endif // !SWIZZLE_REGARG_ORDER
 #else // SWIZZLE_STKARG_ORDER
 
@@ -1200,8 +1200,8 @@ public:
 #define HCCALL3(funcname, a1, a2, a3)   funcname(a1, a2, a3)
 #define HCCALL4(funcname, a1, a2, a3, a4)       funcname(a1, a2, a3, a4)
 #define HCCALL5(funcname, a1, a2, a3, a4, a5)   funcname(a1, a2, a3, a4, a5)
-#define HCCALL1_PTR(rettype, funcptr, a1)        rettype (F_CALL_CONV * funcptr)(a1)
-#define HCCALL2_PTR(rettype, funcptr, a1, a2)    rettype (F_CALL_CONV * funcptr)(a1, a2)
+#define HCCALL1_PTR(rettype, funcptr, a1)        rettype (F_CALL_CONV * (funcptr))(a1)
+#define HCCALL2_PTR(rettype, funcptr, a1, a2)    rettype (F_CALL_CONV * (funcptr))(a1, a2)
 
 #endif // !SWIZZLE_STKARG_ORDER
 
