@@ -7931,13 +7931,6 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
         opts.compNeedSecurityCheck = true;
     }
 
-#ifdef DEBUG
-    // In debug we want to be able to register callsites with the EE.
-    assert(call->gtCall.callSig == nullptr);
-    call->gtCall.callSig = new (this, CMK_Unknown) CORINFO_SIG_INFO;
-    *call->gtCall.callSig = *sig;
-#endif
-
     //--------------------------- Inline NDirect ------------------------------
 
     // For inline cases we technically should look at both the current
@@ -8338,6 +8331,13 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
     }
 
 DONE:
+
+#ifdef DEBUG
+    // In debug we want to be able to register callsites with the EE.
+    assert(call->gtCall.callSig == nullptr);
+    call->gtCall.callSig = new (this, CMK_Generic) CORINFO_SIG_INFO;
+    *call->gtCall.callSig = *sig;
+#endif
 
     if (tailCall)
     {
