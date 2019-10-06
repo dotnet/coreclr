@@ -24,7 +24,7 @@ parameters:
 ### buildConfig and archType.
 
 jobs:
-- ${{ if and(eq(parameters.archType, parameters.managedTestBuildArchType), eq(parameters.osSubgroup, parameters.managedTestBuildOsSubgroup), eq(parameters.osGroup, parameters.managedTestBuildOsGroup)) }}:
+- ${{ if and(ne(parameters.corefxTests, true), eq(parameters.archType, parameters.managedTestBuildArchType), eq(parameters.osSubgroup, parameters.managedTestBuildOsSubgroup), eq(parameters.osGroup, parameters.managedTestBuildOsGroup)) }}:
   - template: build-test-job.yml
     parameters:
       buildConfig: ${{ parameters.buildConfig }}
