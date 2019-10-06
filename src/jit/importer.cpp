@@ -7848,7 +7848,7 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
 
 #ifdef UNIX_X86_ABI
     // On Unix x86 we usually use caller-cleaned convention.
-    if (!call->IsUnmanaged() && IsCallerPop(sig->callConv))
+    if (!call->gtCall.IsUnmanaged() && IsCallerPop(sig->callConv))
         call->gtFlags |= GTF_CALL_POP_ARGS;
 #endif // UNIX_X86_ABI
 

@@ -6139,7 +6139,7 @@ void MethodContext::recGetTailCallHelpers(
 }
 void MethodContext::dmpGetTailCallHelpers(const Agnostic_GetTailCallHelpers& key, const Agnostic_CORINFO_TAILCALL_HELPERS& value)
 {
-    printf("GetTailCallHelpers key callToken-%016llX sig%s flg-%08X",
+    printf("GetTailCallHelpers key callToken-%s sig-%s flg-%08X",
         SpmiDumpHelper::DumpAgnostic_CORINFO_RESOLVED_TOKEN(key.callToken).c_str(),
         SpmiDumpHelper::DumpAgnostic_CORINFO_SIG_INFO(key.sig).c_str(),
         key.flags);
