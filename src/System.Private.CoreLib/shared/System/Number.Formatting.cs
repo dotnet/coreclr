@@ -1205,8 +1205,7 @@ namespace System
         {
             while (--digits >= 0 || value != 0)
             {
-                *(--bufferEnd) = (byte)(Math.DivRem(value, 10, out uint newValue) + '0');
-                value = newValue;
+                *(--bufferEnd) = (byte)(Math.DivRem(value, 10, out value) + '0');
             }
             return bufferEnd;
         }
@@ -1215,8 +1214,7 @@ namespace System
         {
             while (--digits >= 0 || value != 0)
             {
-                *(--bufferEnd) = (char)(Math.DivRem(value, 10, out uint newValue) + '0');
-                value = newValue;
+                *(--bufferEnd) = (char)(Math.DivRem(value, 10, out value) + '0');
             }
             return bufferEnd;
         }
@@ -1239,8 +1237,7 @@ namespace System
                 {
                     do
                     {
-                        *(--p) = (char)('0' + Math.DivRem(value, 10, out uint div));
-                        value = div;
+                        *(--p) = (char)('0' + Math.DivRem(value, 10, out value));
                     }
                     while (value != 0);
                 }
@@ -1270,8 +1267,7 @@ namespace System
                 {
                     do
                     {
-                        *(--p) = (char)('0' + Math.DivRem(value, 10, out uint div));
-                        value = div;
+                        *(--p) = (char)('0' + Math.DivRem(value, 10, out value));
                     }
                     while (value != 0);
                 }
