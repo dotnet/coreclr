@@ -59,13 +59,11 @@ struct ArgBufferLayout
     bool HasTargetAddress;
     unsigned int TargetAddressOffset;
     InlineSArray<ArgBufferValue, 8> Values;
-    int GenericContextIndex;
     unsigned int Size;
 
     ArgBufferLayout()
         : HasTargetAddress(false)
         , TargetAddressOffset(0)
-        , GenericContextIndex(-1)
         , Size(0)
     {
     }
@@ -329,29 +327,17 @@ void TailCallHelp::CreateTailCallHelperStubs(
     LOG((LF_STUBS, LL_INFO1000, "TAILCALLHELP: Incoming sig %s\n", incSig.GetCString()));
 #endif
 
-    // There are two cases where we will need the tailcalling site to pass us the target:
-    // * It was a calli, for obvious reasons
-    // * The target is generic _or_ requires a generic context. We cannot
-    // express calls that depend on generic type params in CallTarget since it
-    // is not generic. In addition the JIT will pass us the generic context in
-    // the latter case so we need to make sure we do not end up with two generic
-    // contexts, and the easiest way is just to take the target address from the
-    // JIT.
-    *storeArgsNeedsTarget = pCalleeMD == NULL || pCalleeMD->RequiresInstArg() || callSiteSig.IsGenericMethod();
+    *storeArgsNeedsTarget = pCalleeMD == NULL || pCalleeMD->IsSharedByGenericInstantiations();
 
-    // We 'attach' the tailcall stub to the target method except for the case of
-    // calli (where the callee MD will be null). We do not reuse stubs for calli
-    // tailcalls as those are presumably very rare and not worth the trouble.
-    LoaderAllocator* pLoaderAllocator =
-        pCalleeMD == NULL
-        ? pCallerMD->GetLoaderAllocator()
-        : pCalleeMD->GetLoaderAllocator();
+    // The tailcall helper stubs are always allocated together with the caller.
+    // If we ever wish to share these stubs they should be allocated with the
+    // callee in most cases.
+    LoaderAllocator* pLoaderAllocator = pCallerMD->GetLoaderAllocator();
 
     TypeHandle retTyHnd = NormalizeSigType(callSiteSig.GetRetTypeHandleThrowing());
     TailCallInfo info(pCallerMD, pCalleeMD, pLoaderAllocator, &callSiteSig, virt, retTyHnd);
 
-    bool hasGenericContext = pCalleeMD != NULL && pCalleeMD->RequiresInstArg();
-    LayOutArgBuffer(callSiteSig, pCalleeMD, *storeArgsNeedsTarget, hasGenericContext, &info.ArgBufLayout);
+    LayOutArgBuffer(callSiteSig, pCalleeMD, *storeArgsNeedsTarget, &info.ArgBufLayout);
     info.HasGCDescriptor = GenerateGCDescriptor(pCalleeMD, info.ArgBufLayout, &info.GCRefMapBuilder);
 
     *storeArgsStub = CreateStoreArgsStub(info);
@@ -360,8 +346,7 @@ void TailCallHelp::CreateTailCallHelperStubs(
 
 void TailCallHelp::LayOutArgBuffer(
     MetaSig& callSiteSig, MethodDesc* calleeMD,
-    bool storeTarget, bool hasGenericContext,
-    ArgBufferLayout* layout)
+    bool storeTarget, ArgBufferLayout* layout)
 {
     unsigned int offs = 0;
 
@@ -390,20 +375,6 @@ void TailCallHelp::LayOutArgBuffer(
         addValue(thisHnd);
     }
 
-    auto addGenCtx = [&]()
-    {
-        if (!hasGenericContext)
-            return;
-
-        layout->GenericContextIndex = static_cast<int>(layout->Values.GetCount());
-        addValue(TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_I)));
-    };
-
-    // Generic context comes before args on all platforms except X86.
-#ifndef _TARGET_X86_
-    addGenCtx();
-#endif
-
     callSiteSig.Reset();
     CorElementType ty;
     while ((ty = callSiteSig.NextArg()) != ELEMENT_TYPE_END)
@@ -412,10 +383,6 @@ void TailCallHelp::LayOutArgBuffer(
         tyHnd = NormalizeSigType(tyHnd);
         addValue(tyHnd);
     }
-
-#ifdef _TARGET_X86_
-    addGenCtx();
-#endif
 
     if (storeTarget)
     {
@@ -458,20 +425,13 @@ TypeHandle TailCallHelp::NormalizeSigType(TypeHandle tyHnd)
 bool TailCallHelp::GenerateGCDescriptor(
     MethodDesc* pTargetMD, const ArgBufferLayout& layout, GCRefMapBuilder* builder)
 {
-    auto writeToken = [&](unsigned int offset, int token)
-    {
-        _ASSERTE(offset % TARGET_POINTER_SIZE == 0);
-        builder->WriteToken(
-            static_cast<int>(offset / TARGET_POINTER_SIZE),
-            token);
-    };
-
     auto writeGCType = [&](unsigned int offset, CorInfoGCType type)
     {
+        _ASSERTE(offset % TARGET_POINTER_SIZE == 0);
         switch (type)
         {
-            case TYPE_GC_REF: writeToken(offset, GCREFMAP_REF); break;
-            case TYPE_GC_BYREF: writeToken(offset, GCREFMAP_INTERIOR); break;
+            case TYPE_GC_REF: builder->WriteToken(offset / TARGET_POINTER_SIZE, GCREFMAP_REF); break;
+            case TYPE_GC_BYREF: builder->WriteToken(offset / TARGET_POINTER_SIZE, GCREFMAP_INTERIOR); break;
             case TYPE_GC_NONE: break;
             default: UNREACHABLE_MSG("Invalid type"); break;
         }
@@ -481,21 +441,6 @@ bool TailCallHelp::GenerateGCDescriptor(
     for (COUNT_T i = 0; i < layout.Values.GetCount(); i++)
     {
         const ArgBufferValue& val = layout.Values[i];
-
-        if (static_cast<int>(i) == layout.GenericContextIndex)
-        {
-            if (pTargetMD->RequiresInstMethodDescArg())
-            {
-                writeToken(val.Offset, GCREFMAP_METHOD_PARAM);
-            }
-            else
-            {
-                _ASSERTE(pTargetMD->RequiresInstMethodTableArg());
-                writeToken(val.Offset, GCREFMAP_TYPE_PARAM);
-            }
-
-            continue;
-        }
 
         TypeHandle tyHnd = val.TyHnd;
         if (tyHnd.IsValueType())

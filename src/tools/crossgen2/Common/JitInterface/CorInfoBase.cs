@@ -330,7 +330,7 @@ namespace Internal.JitInterface
         [UnmanagedFunctionPointerAttribute(default(CallingConvention))]
         delegate void* __getTailCallCopyArgsThunk(IntPtr _this, IntPtr* ppException, CORINFO_SIG_INFO* pSig, CorInfoHelperTailCallSpecialHandling flags);
         [UnmanagedFunctionPointerAttribute(default(CallingConvention))]
-        [return: MarshalAs(UnmanagedType.I1)]delegate bool __getTailCallHelpers(IntPtr _this, IntPtr* ppException, CORINFO_METHOD_STRUCT_* hTarget, CORINFO_CONTEXT_STRUCT* hContext, CORINFO_SIG_INFO* callSiteSig, CORINFO_GET_TAILCALL_HELPERS_FLAGS flags, ref CORINFO_TAILCALL_HELPERS pResult);
+        [return: MarshalAs(UnmanagedType.I1)]delegate bool __getTailCallHelpers(IntPtr _this, IntPtr* ppException, ref CORINFO_RESOLVED_TOKEN callToken, CORINFO_SIG_INFO* sig, CORINFO_GET_TAILCALL_HELPERS_FLAGS flags, ref CORINFO_TAILCALL_HELPERS pResult);
         [UnmanagedFunctionPointerAttribute(default(CallingConvention))]
         [return: MarshalAs(UnmanagedType.I1)]delegate bool __convertPInvokeCalliToCall(IntPtr _this, IntPtr* ppException, ref CORINFO_RESOLVED_TOKEN pResolvedToken, [MarshalAs(UnmanagedType.I1)]bool mustConvert);
         [UnmanagedFunctionPointerAttribute(default(CallingConvention))]
@@ -2562,12 +2562,12 @@ namespace Internal.JitInterface
             }
         }
 
-        [return: MarshalAs(UnmanagedType.I1)]static bool _getTailCallHelpers(IntPtr thisHandle, IntPtr* ppException, CORINFO_METHOD_STRUCT_* hTarget, CORINFO_CONTEXT_STRUCT* hContext, CORINFO_SIG_INFO* callSiteSig, CORINFO_GET_TAILCALL_HELPERS_FLAGS flags, ref CORINFO_TAILCALL_HELPERS pResult)
+        [return: MarshalAs(UnmanagedType.I1)]static bool _getTailCallHelpers(IntPtr thisHandle, IntPtr* ppException, ref CORINFO_RESOLVED_TOKEN callToken, CORINFO_SIG_INFO* sig, CORINFO_GET_TAILCALL_HELPERS_FLAGS flags, ref CORINFO_TAILCALL_HELPERS pResult)
         {
             var _this = GetThis(thisHandle);
             try
             {
-                return _this.getTailCallHelpers(hTarget, hContext, callSiteSig, flags, ref pResult);
+                return _this.getTailCallHelpers(ref callToken, sig, flags, ref pResult);
             }
             catch (Exception ex)
             {

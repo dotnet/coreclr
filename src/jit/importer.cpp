@@ -1933,11 +1933,6 @@ GenTree* Compiler::impMethodPointer(CORINFO_RESOLVED_TOKEN* pResolvedToken, CORI
             {
                 op1->gtFptrVal.gtEntryPoint = pCallInfo->codePointerLookup.constLookup;
             }
-            else
-            {
-                op1->gtFptrVal.gtEntryPoint.addr       = nullptr;
-                op1->gtFptrVal.gtEntryPoint.accessType = IAT_VALUE;
-            }
 #endif
             break;
 
@@ -7359,15 +7354,6 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
 
         sig = &calliSig;
 
-#ifdef DEBUG
-        // We cannot lazily obtain the signature of a CALLI call because it has no method
-        // handle that we can use, so we need to save its full call signature here.
-        assert(call->gtCall.callInfo == nullptr);
-        call->gtCall.callInfo      = new (this, CMK_CorCallInfo) CORINFO_CALL_INFO;
-        *call->gtCall.callInfo     = *callInfo;
-        call->gtCall.callInfo->sig = calliSig;
-#endif // DEBUG
-
         if (IsTargetAbi(CORINFO_CORERT_ABI))
         {
             bool managedCall = (((calliSig.callConv & CORINFO_CALLCONV_MASK) != CORINFO_CALLCONV_STDCALL) &&
@@ -7901,15 +7887,6 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
 #endif
             eeGetCallSiteSig(pResolvedToken->token, pResolvedToken->tokenScope, pResolvedToken->tokenContext, sig);
 
-#ifdef DEBUG
-            // We cannot lazily obtain the signature of a vararg call because using its method
-            // handle will give us only the declared argument list, not the full argument list.
-            assert(call->gtCall.callInfo == nullptr);
-            call->gtCall.callInfo      = new (this, CMK_CorCallInfo) CORINFO_CALL_INFO;
-            *call->gtCall.callInfo     = *callInfo;
-            call->gtCall.callInfo->sig = *sig;
-#endif
-
             // For vararg calls we must be sure to load the return type of the
             // method actually being called, as well as the return types of the
             // specified in the vararg signature. With type equivalency, these types
@@ -7953,6 +7930,13 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
         // the current method's stack frame
         opts.compNeedSecurityCheck = true;
     }
+
+#ifdef DEBUG
+    // In debug we want to be able to register callsites with the EE.
+    assert(call->gtCall.callSig == nullptr);
+    call->gtCall.callSig = new (this, CMK_Unknown) CORINFO_SIG_INFO;
+    *call->gtCall.callSig = *sig;
+#endif
 
     //--------------------------- Inline NDirect ------------------------------
 
@@ -8413,7 +8397,6 @@ DONE:
             // True virtual or indirect calls, shouldn't pass in a callee handle.
             CORINFO_METHOD_HANDLE exactCalleeHnd =
                 ((call->gtCall.gtCallType != CT_USER_FUNC) || call->gtCall.IsVirtual()) ? nullptr : methHnd;
-            GenTree* thisArg = call->gtCall.gtCallObjp;
 
             if (info.compCompHnd->canTailCall(info.compMethodHnd, methHnd, exactCalleeHnd, explicitTailCall))
             {
@@ -8459,7 +8442,21 @@ DONE:
 #endif // FEATURE_TAILCALL_OPT
                 }
 
-                // we can't report success just yet...
+                // This might or might not turn into a tailcall. We do more
+                // checks in morph. For explicit tailcalls we need more
+                // information in morph in case it turns out to be a
+                // helper-based tailcall.
+                if (explicitTailCall)
+                {
+                    assert(call->gtCall.tailCallInfo == nullptr);
+                    call->gtCall.tailCallInfo = new (this, CMK_CorTailCallInfo) TailCallSiteInfo;
+                    switch (opcode)
+                    {
+                    case CEE_CALLI: call->gtCall.tailCallInfo->SetCalli(sig); break;
+                    case CEE_CALLVIRT: call->gtCall.tailCallInfo->SetCallvirt(sig, pResolvedToken); break;
+                    default: call->gtCall.tailCallInfo->SetCall(sig, pResolvedToken); break;
+                    }
+                }
             }
             else
             {
@@ -8504,15 +8501,6 @@ DONE:
 
         assert(call->gtOper == GT_CALL);
         assert(callInfo != nullptr);
-
-        // Tail calls require us to save the call site's call info so we can
-        // obtain tailcall helpers later.
-        if (call->gtCall.callInfo == nullptr)
-        {
-            call->gtCall.callInfo      = new (this, CMK_CorCallInfo) CORINFO_CALL_INFO;
-            *call->gtCall.callInfo     = *callInfo;
-            call->gtCall.callInfo->sig = *sig;
-        }
 
         if (compIsForInlining() && opcode == CEE_CALLVIRT)
         {

@@ -3264,14 +3264,11 @@ public:
     // Obtain tailcall help for the specified call site.
     virtual bool getTailCallHelpers(
 
-        // Target method being called. Can be null if this is calli.
-        CORINFO_METHOD_HANDLE hTarget,
+        // The resolved token for the call. Can be null for calli.
+        CORINFO_RESOLVED_TOKEN* callToken,
 
-        // Context of the call. Can be null.
-        CORINFO_CONTEXT_HANDLE hContext,
-
-        // Call site signature. Necessary for calli and varargs.
-        CORINFO_SIG_INFO* callSiteSig,
+        // The signature at the callsite.
+        CORINFO_SIG_INFO* sig,
 
         // Flags for the tailcall site.
         CORINFO_GET_TAILCALL_HELPERS_FLAGS flags,

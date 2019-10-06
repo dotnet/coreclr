@@ -30,8 +30,7 @@ private:
 
     static void LayOutArgBuffer(
         MetaSig& callSiteSig, MethodDesc* calleeMD,
-        bool storeTarget, bool hasGenericContext,
-        ArgBufferLayout* layout);
+        bool storeTarget, ArgBufferLayout* layout);
     static TypeHandle NormalizeSigType(TypeHandle tyHnd);
     static bool GenerateGCDescriptor(MethodDesc* pTargetMD, const ArgBufferLayout& values, GCRefMapBuilder* builder);
 

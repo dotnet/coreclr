@@ -6108,9 +6108,8 @@ void* MethodContext::repGetTailCallCopyArgsThunk(CORINFO_SIG_INFO* pSig, CorInfo
 }
 
 void MethodContext::recGetTailCallHelpers(
-    CORINFO_METHOD_HANDLE hTarget,
-    CORINFO_CONTEXT_HANDLE hContext,
-    CORINFO_SIG_INFO* callSiteSig,
+    CORINFO_RESOLVED_TOKEN* callToken,
+    CORINFO_SIG_INFO* sig,
     CORINFO_GET_TAILCALL_HELPERS_FLAGS flags,
     CORINFO_TAILCALL_HELPERS* pResult)
 {
@@ -6120,9 +6119,8 @@ void MethodContext::recGetTailCallHelpers(
     Agnostic_GetTailCallHelpers key;
     ZeroMemory(&key, sizeof(Agnostic_GetTailCallHelpers));
 
-    key.hTarget = (DWORDLONG)hTarget;
-    key.hContext = (DWORDLONG)hContext;
-    key.callSiteSig = SpmiRecordsHelper::StoreAgnostic_CORINFO_SIG_INFO(*callSiteSig, GetTailCallHelpers);
+    key.callToken = SpmiRecordsHelper::StoreAgnostic_CORINFO_RESOLVED_TOKEN(callToken, GetTailCallHelpers);
+    key.sig = SpmiRecordsHelper::StoreAgnostic_CORINFO_SIG_INFO(*sig, GetTailCallHelpers);
     key.flags = (DWORD)flags;
 
     Agnostic_CORINFO_TAILCALL_HELPERS value;
@@ -6141,9 +6139,9 @@ void MethodContext::recGetTailCallHelpers(
 }
 void MethodContext::dmpGetTailCallHelpers(const Agnostic_GetTailCallHelpers& key, const Agnostic_CORINFO_TAILCALL_HELPERS& value)
 {
-    printf("GetTailCallHelpers key hTarget-%016llX sig%s flg-%08X",
-        key.hTarget,
-        SpmiDumpHelper::DumpAgnostic_CORINFO_SIG_INFO(key.callSiteSig).c_str(),
+    printf("GetTailCallHelpers key callToken-%016llX sig%s flg-%08X",
+        SpmiDumpHelper::DumpAgnostic_CORINFO_RESOLVED_TOKEN(key.callToken).c_str(),
+        SpmiDumpHelper::DumpAgnostic_CORINFO_SIG_INFO(key.sig).c_str(),
         key.flags);
     printf(", value result-%s flg-%08X hStoreArgs-%016llX hCallTarget-%016llX hDispatcher-%016llX",
         value.result ? "true" : "false",
@@ -6153,9 +6151,8 @@ void MethodContext::dmpGetTailCallHelpers(const Agnostic_GetTailCallHelpers& key
         value.hDispatcher);
 }
 bool MethodContext::repGetTailCallHelpers(
-    CORINFO_METHOD_HANDLE hTarget,
-    CORINFO_CONTEXT_HANDLE hContext,
-    CORINFO_SIG_INFO* callSiteSig,
+    CORINFO_RESOLVED_TOKEN* callToken,
+    CORINFO_SIG_INFO* sig,
     CORINFO_GET_TAILCALL_HELPERS_FLAGS flags,
     CORINFO_TAILCALL_HELPERS* pResult)
 {
@@ -6163,13 +6160,11 @@ bool MethodContext::repGetTailCallHelpers(
 
     Agnostic_GetTailCallHelpers key;
     ZeroMemory(&key, sizeof(Agnostic_GetTailCallHelpers));
-    key.hTarget = (DWORDLONG)hTarget;
-    key.hContext = (DWORDLONG)hContext;
-    key.callSiteSig = SpmiRecordsHelper::RestoreAgnostic_CORINFO_SIG_INFO(*callSiteSig, GetTailCallHelpers);
+    key.callToken = SpmiRecordsHelper::RestoreAgnostic_CORINFO_RESOLVED_TOKEN(callToken, GetTailCallHelpers);
+    key.sig = SpmiRecordsHelper::RestoreAgnostic_CORINFO_SIG_INFO(*sig, GetTailCallHelpers);
     key.flags = (DWORD)flags;
 
-    AssertCodeMsg(GetTailCallHelpers->GetIndex(key) != -1, EXCEPTIONCODE_MC, "Didn't find %016llX",
-                  (DWORDLONG)hTarget);
+    AssertCodeMsg(GetTailCallHelpers->GetIndex(key) != -1, EXCEPTIONCODE_MC, "Could not find matching tail call helper call");
     Agnostic_CORINFO_TAILCALL_HELPERS value = GetTailCallHelpers->Get(key);
     if (!value.result)
         return false;

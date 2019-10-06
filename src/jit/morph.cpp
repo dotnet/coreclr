@@ -6951,7 +6951,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee, const char** failReason)
     if (callee->IsTailPrefixedCall())
     {
         assert(impTailCallRetTypeCompatible(info.compRetNativeType, info.compMethodInfo->args.retTypeClass,
-                                            (var_types)callee->gtReturnType, callee->callInfo->sig.retTypeClass));
+                                            (var_types)callee->gtReturnType, callee->gtRetClsHnd));
     }
 #endif
 
@@ -7309,7 +7309,7 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
         }
 
         assert(call->IsTailPrefixedCall());
-        assert(call->callInfo != nullptr);
+        assert(call->tailCallInfo != nullptr);
 
         // We do not currently handle non-standard args except for VSD stubs.
         if (!call->IsVirtualStub() && call->HasNonStandardAddedArgs(this))
@@ -7329,19 +7329,19 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
         {
             // Make sure we can get the helpers. We do this last as the runtime
             // will likely be required to generate these.
-            CORINFO_METHOD_HANDLE  targetMethHnd = call->callInfo->hMethod;
-            CORINFO_CONTEXT_HANDLE contextHnd    = call->callInfo->contextHandle;
-            CORINFO_SIG_INFO*      callSiteSig   = &call->callInfo->sig;
-            unsigned               flags         = 0;
-            if ((call->callInfo->kind == CORINFO_VIRTUALCALL_VTABLE) ||
-                (call->callInfo->kind == CORINFO_VIRTUALCALL_STUB) ||
-                (call->callInfo->kind == CORINFO_VIRTUALCALL_LDVIRTFTN))
+            CORINFO_RESOLVED_TOKEN* token = nullptr;
+            CORINFO_SIG_INFO* sig = call->tailCallInfo->GetSig();
+            unsigned flags = 0;
+            if (!call->tailCallInfo->IsCalli())
             {
-                flags |= CORINFO_TAILCALL_IS_CALLVIRT;
+                token = call->tailCallInfo->GetToken();
+                if (call->tailCallInfo->IsCallvirt())
+                {
+                    flags |= CORINFO_TAILCALL_IS_CALLVIRT;
+                }
             }
 
-            if (!info.compCompHnd->getTailCallHelpers(targetMethHnd, contextHnd, callSiteSig,
-                                                      (CORINFO_GET_TAILCALL_HELPERS_FLAGS)flags, &tailCallHelpers))
+            if (!info.compCompHnd->getTailCallHelpers(token, sig, (CORINFO_GET_TAILCALL_HELPERS_FLAGS)flags, &tailCallHelpers))
             {
                 failTailCall("Tail call help not available");
                 return nullptr;
@@ -7651,13 +7651,6 @@ GenTree* Compiler::fgMorphTailCallViaHelpers(GenTreeCall* call, CORINFO_TAILCALL
     // handle the retbuf below.
     if (call->IsVirtualStub())
     {
-        // The runtime should not ask us to store the target for a call through
-        // virtual stubs as it can always generate proper callvirt for the cases
-        // where we would use VSD. We do not want this situation to occur as,
-        // for VSD, the target will point to a stub that is not callable through
-        // calli for the runtime.
-        noway_assert(!(help.flags & CORINFO_TAILCALL_STORE_TARGET));
-
         JITDUMP("This is a VSD\n");
 // X86/ARM32 do not include the stub arg in the arg list.
 #if !defined(_TARGET_X86_) && !defined(_TARGET_ARM_)
@@ -7679,6 +7672,88 @@ GenTree* Compiler::fgMorphTailCallViaHelpers(GenTreeCall* call, CORINFO_TAILCALL
         call->gtCallMoreFlags &= ~GTF_CALL_M_RETBUFFARG;
 
         // We changed args so recompute info.
+        call->fgArgInfo = nullptr;
+    }
+
+    // If asked to store target and we have a type arg we will store
+    // instantiating stub, so in that case we should not pass the type arg.
+    if ((help.flags & CORINFO_TAILCALL_STORE_TARGET) &&
+        call->tailCallInfo->GetSig()->hasTypeArg())
+    {
+        JITDUMP("Removing type arg");
+
+        assert(call->gtCallArgs != nullptr);
+        if (Target::g_tgtArgOrder == Target::ARG_ORDER_R2L)
+        {
+            // Generic context is first arg
+            call->gtCallArgs = call->gtCallArgs->GetNext();
+        }
+        else
+        {
+            // Generic context is last arg
+            GenTreeCall::Use** lastArgSlot = &call->gtCallArgs;
+            while ((*lastArgSlot)->GetNext() != nullptr)
+                lastArgSlot = &(*lastArgSlot)->NextRef();
+
+            *lastArgSlot = nullptr;
+        }
+        call->fgArgInfo = nullptr;
+    }
+
+    // We may need to pass the target, for instance for calli or generic methods
+    // where we pass instantiating stub.
+    if (help.flags & CORINFO_TAILCALL_STORE_TARGET)
+    {
+        JITDUMP("Adding target since VM requested it\n");
+        GenTree* target;
+        if (call->tailCallInfo->IsCalli())
+        {
+            noway_assert(call->gtCallType == CT_INDIRECT && call->gtCallAddr != nullptr);
+            target = call->gtCallAddr;
+        }
+        else
+        {
+            CORINFO_CALL_INFO callInfo;
+            unsigned flags = CORINFO_CALLINFO_LDFTN;
+            if (call->tailCallInfo->IsCallvirt())
+            {
+                flags |= CORINFO_CALLINFO_CALLVIRT;
+            }
+
+            eeGetCallInfo(
+                call->tailCallInfo->GetToken(),
+                nullptr,
+                (CORINFO_CALLINFO_FLAGS)flags,
+                &callInfo);
+
+            // R2R requires different handling but we don't support tailcall via
+            // helpers in R2R yet, so just leave it for now.
+            assert(!opts.IsReadyToRun());
+
+            if (!call->tailCallInfo->IsCallvirt() ||
+                (callInfo.methodFlags & (CORINFO_FLG_FINAL | CORINFO_FLG_STATIC)) ||
+                !(callInfo.methodFlags & CORINFO_FLG_VIRTUAL))
+            {
+                target = getMethodPointerTree(call->tailCallInfo->GetToken(), &callInfo);
+            }
+            else
+            {
+                assert(call->gtCallObjp != nullptr);
+                // TODO: Proper cloning of the this pointer.
+                target = getVirtMethodPointerTree(
+                    gtCloneExpr(call->gtCallObjp), call->tailCallInfo->GetToken(), &callInfo);
+            }
+        }
+
+        // Insert target as last arg
+        GenTreeCall::Use** newArgSlot = &call->gtCallArgs;
+        while (*newArgSlot != nullptr)
+        {
+            newArgSlot = &(*newArgSlot)->NextRef();
+        }
+
+        *newArgSlot = gtNewCallArgs(target);
+
         call->fgArgInfo = nullptr;
     }
 
@@ -7734,38 +7809,6 @@ GenTree* Compiler::fgMorphTailCallViaHelpers(GenTreeCall* call, CORINFO_TAILCALL
         assert(thisPtr != nullptr);
         call->gtCallArgs = gtPrependNewCallArg(thisPtr, call->gtCallArgs);
         call->fgArgInfo  = nullptr;
-    }
-
-    // We may need to pass the target address, for instance for calli.
-    if (help.flags & CORINFO_TAILCALL_STORE_TARGET)
-    {
-        JITDUMP("VM requested target, so adding target\n");
-        GenTree* target;
-        if (call->gtCallType == CT_INDIRECT)
-        {
-            noway_assert(call->gtCallAddr != nullptr);
-
-            // The target is the last argument and thus evaluation order is
-            // preserved.
-            target           = call->gtCallAddr;
-            call->gtCallAddr = nullptr;
-        }
-        else
-        {
-            noway_assert(call->gtCallType == CT_USER_FUNC && call->gtCallMethHnd != nullptr);
-            target = fgGetDirectCallTargetAddress(call);
-        }
-
-        // Insert target as last arg
-        GenTreeCall::Use** newArgSlot = &call->gtCallArgs;
-        while (*newArgSlot != nullptr)
-        {
-            newArgSlot = &(*newArgSlot)->NextRef();
-        }
-
-        *newArgSlot = gtNewCallArgs(target);
-
-        call->fgArgInfo = nullptr;
     }
 
     // This is now a direct call to the store args stub and not a tailcall.
@@ -7880,7 +7923,9 @@ GenTree* Compiler::fgCreateCallDispatcherAndGetResult(GenTreeCall*          orig
 
     // Add callTarget
     callDispatcherNode->gtCallArgs =
-        gtPrependNewCallArg(fgGetMethodAddress(callTargetStubHnd, CORINFO_ACCESS_ANY), callDispatcherNode->gtCallArgs);
+        gtPrependNewCallArg(
+            new (this, GT_FTN_ADDR) GenTreeFptrVal(TYP_I_IMPL, callTargetStubHnd),
+            callDispatcherNode->gtCallArgs);
 
     // Add the caller's return address slot.
     if (lvaRetAddrVar == BAD_VAR_NUM)
@@ -7911,74 +7956,230 @@ GenTree* Compiler::fgCreateCallDispatcherAndGetResult(GenTreeCall*          orig
     return comma;
 }
 
-// fgGetDirectCallTargetAddress: Create a node that represents the target
-// address of a direct call.
-//
-// Arguments:
-//     call - a call node
-//
-// Return Value:
-//     A node for the function address of the target the specified node would call
-//
-GenTree* Compiler::fgGetDirectCallTargetAddress(GenTreeCall* call)
+GenTree* Compiler::getMethodPointerTree(CORINFO_RESOLVED_TOKEN* pResolvedToken,
+                                        CORINFO_CALL_INFO* pCallInfo)
 {
-    assert(call->gtCallType == CT_USER_FUNC);
-
-    unsigned aflags = CORINFO_ACCESS_ANY;
-
-    if (call->IsSameThis())
+    switch (pCallInfo->kind)
     {
-        aflags |= CORINFO_ACCESS_THIS;
+        case CORINFO_CALL:
+            return new (this, GT_FTN_ADDR) GenTreeFptrVal(TYP_I_IMPL, pCallInfo->hMethod);
+        case CORINFO_CALL_CODE_POINTER:
+            return getLookupTree(pResolvedToken, &pCallInfo->codePointerLookup, GTF_ICON_FTN_ADDR, pCallInfo->hMethod);
+        default:
+            noway_assert(!"unknown call kind");
+            return nullptr;
     }
-
-    if (!call->NeedsNullCheck())
-    {
-        aflags |= CORINFO_ACCESS_NONNULL;
-    }
-
-    return fgGetMethodAddress(call->gtCallMethHnd, (CORINFO_ACCESS_FLAGS)aflags);
 }
 
-// fgGetMethodAddress: Create a node that represents the address of a method.
-//
-// Arguments:
-//     methHnd - the handle of the method
-//     flags - the access flags
-//
-// Return Value:
-//     A node that represents the address of the method.
-//
-GenTree* Compiler::fgGetMethodAddress(CORINFO_METHOD_HANDLE methHnd, CORINFO_ACCESS_FLAGS flags)
+GenTree* Compiler::getLookupTree(CORINFO_RESOLVED_TOKEN* pResolvedToken,
+                                 CORINFO_LOOKUP* pLookup,
+                                 unsigned handleFlags,
+                                 void* compileTimeHandle)
 {
-    CORINFO_CONST_LOOKUP addrInfo;
-    info.compCompHnd->getFunctionEntryPoint(methHnd, &addrInfo, flags);
-
-    GenTree* result = nullptr;
-    switch (addrInfo.accessType)
+    if (!pLookup->lookupKind.needsRuntimeLookup)
     {
-        case IAT_VALUE:
-            result = gtNewIconHandleNode((size_t)addrInfo.addr, GTF_ICON_FTN_ADDR);
-            break;
-        case IAT_PVALUE:
-            result = gtNewIconHandleNode((size_t)addrInfo.addr, GTF_ICON_FTN_ADDR);
-            result = gtNewOperNode(GT_IND, TYP_I_IMPL, result);
-            break;
-        case IAT_PPVALUE:
-            result = gtNewIconHandleNode((size_t)addrInfo.addr, GTF_ICON_FTN_ADDR);
-            result = gtNewOperNode(GT_IND, TYP_I_IMPL, result);
-            result = gtNewOperNode(GT_IND, TYP_I_IMPL, result);
-            break;
-        case IAT_RELPVALUE:
+        // No runtime lookup is required.
+        // Access is direct or memory-indirect (of a fixed address) reference
+
+        CORINFO_GENERIC_HANDLE handle       = nullptr;
+        void*                  pIndirection = nullptr;
+        assert(pLookup->constLookup.accessType != IAT_PPVALUE && pLookup->constLookup.accessType != IAT_RELPVALUE);
+
+        if (pLookup->constLookup.accessType == IAT_VALUE)
         {
-            GenTree* offsetPtr = gtNewIconHandleNode((size_t)addrInfo.addr, GTF_ICON_FTN_ADDR);
-            GenTree* offset    = gtNewOperNode(GT_IND, TYP_I_IMPL, offsetPtr);
-            GenTree* cellAddr  = gtNewIconHandleNode((size_t)addrInfo.addr, GTF_ICON_FTN_ADDR);
-            result             = gtNewOperNode(GT_ADD, TYP_I_IMPL, offset, cellAddr);
-            break;
+            handle = pLookup->constLookup.handle;
         }
-        default:
-            noway_assert(!"Bad accessType");
-            break;
+        else if (pLookup->constLookup.accessType == IAT_PVALUE)
+        {
+            pIndirection = pLookup->constLookup.addr;
+        }
+
+        return gtNewIconEmbHndNode(handle, pIndirection, handleFlags, compileTimeHandle);
+    }
+
+    return getRuntimeLookupTree(pResolvedToken, pLookup, compileTimeHandle);
+}
+
+GenTree* Compiler::getRuntimeLookupTree(CORINFO_RESOLVED_TOKEN* pResolvedToken,
+                                        CORINFO_LOOKUP*         pLookup,
+                                        void*                   compileTimeHandle)
+{
+    // This method can only be called from the importer instance of the Compiler.
+    // In other word, it cannot be called by the instance of the Compiler for the inlinee.
+    assert(!compIsForInlining());
+
+    CORINFO_RUNTIME_LOOKUP* pRuntimeLookup = &pLookup->runtimeLookup;
+    // It's available only via the run-time helper function
+    if (pRuntimeLookup->indirections == CORINFO_USEHELPER)
+    {
+        GenTree* argNode =
+            gtNewIconEmbHndNode(pRuntimeLookup->signature, nullptr, GTF_ICON_TOKEN_HDL, compileTimeHandle);
+        GenTreeCall::Use* helperArgs = gtNewCallArgs(getRuntimeContextTree(pLookup->lookupKind.runtimeLookupKind), argNode);
+
+        return gtNewHelperCallNode(pRuntimeLookup->helper, TYP_I_IMPL, helperArgs);
+    }
+
+    GenTree* result = getRuntimeContextTree(pLookup->lookupKind.runtimeLookupKind);
+
+    ArrayStack<GenTree*> stmts(getAllocator(CMK_ArrayStack));
+
+    auto cloneTree = [&](GenTree** tree DEBUGARG(const char* reason))
+    {
+        if (!((*tree)->gtFlags & GTF_GLOB_EFFECT))
+        {
+            GenTree* clone = gtClone(*tree, true);
+
+            if (clone)
+            {
+                return clone;
+            }
+        }
+
+        unsigned temp = lvaGrabTemp(true DEBUGARG(reason));
+        stmts.Push(gtNewTempAssign(temp, *tree));
+        *tree = gtNewLclvNode(temp, lvaGetActualType(temp));
+        return gtNewLclvNode(temp, lvaGetActualType(temp));
+    };
+
+    // Applied repeated indirections
+    for (WORD i = 0; i < pRuntimeLookup->indirections; i++)
+    {
+        GenTree* preInd = nullptr;
+        if ((i == 1 && pRuntimeLookup->indirectFirstOffset) || (i == 2 && pRuntimeLookup->indirectSecondOffset))
+        {
+            preInd = cloneTree(&result DEBUGARG("getRuntimeLookupTree indirectOffset"));
+        }
+
+        if (i != 0)
+        {
+            result = gtNewOperNode(GT_IND, TYP_I_IMPL, result);
+            result->gtFlags |= GTF_IND_NONFAULTING;
+            result->gtFlags |= GTF_IND_INVARIANT;
+        }
+
+        if ((i == 1 && pRuntimeLookup->indirectFirstOffset) || (i == 2 && pRuntimeLookup->indirectSecondOffset))
+        {
+            result = gtNewOperNode(GT_ADD, TYP_I_IMPL, preInd, result);
+        }
+
+        if (pRuntimeLookup->offsets[i] != 0)
+        {
+            result =
+                gtNewOperNode(GT_ADD, TYP_I_IMPL, result, gtNewIconNode(pRuntimeLookup->offsets[i], TYP_I_IMPL));
+        }
+    }
+
+    // No null test required
+    if (!pRuntimeLookup->testForNull)
+    {
+        if (pRuntimeLookup->indirections > 0)
+        {
+            result = gtNewOperNode(GT_IND, TYP_I_IMPL, result);
+            result->gtFlags |= GTF_IND_NONFAULTING;
+
+            if (pRuntimeLookup->testForFixup)
+            {
+                unsigned slotLclNum = lvaGrabTemp(true DEBUGARG("getRuntimeLookupTree test"));
+                stmts.Push(gtNewTempAssign(slotLclNum, result));
+
+                GenTree* slot = gtNewLclvNode(slotLclNum, TYP_I_IMPL);
+                // downcast the pointer to a TYP_INT on 64-bit targets
+                slot = impImplicitIorI4Cast(slot, TYP_INT);
+                // Use a GT_AND to check for the lowest bit and indirect if it is set
+                GenTree* test  = gtNewOperNode(GT_AND, TYP_INT, slot, gtNewIconNode(1));
+                GenTree* relop = gtNewOperNode(GT_EQ, TYP_INT, test, gtNewIconNode(0));
+
+                // slot = GT_IND(slot - 1)
+                slot           = gtNewLclvNode(slotLclNum, TYP_I_IMPL);
+                GenTree* add   = gtNewOperNode(GT_ADD, TYP_I_IMPL, slot, gtNewIconNode(-1, TYP_I_IMPL));
+                GenTree* indir = gtNewOperNode(GT_IND, TYP_I_IMPL, add);
+                indir->gtFlags |= GTF_IND_NONFAULTING;
+                indir->gtFlags |= GTF_IND_INVARIANT;
+
+                slot           = gtNewLclvNode(slotLclNum, TYP_I_IMPL);
+                GenTree* asg   = gtNewAssignNode(slot, indir);
+                GenTree* colon = new (this, GT_COLON) GenTreeColon(TYP_VOID, gtNewNothingNode(), asg);
+                GenTree* qmark = gtNewQmarkNode(TYP_VOID, relop, colon);
+                stmts.Push(qmark);
+
+                result = gtNewLclvNode(slotLclNum, TYP_I_IMPL);
+            }
+        }
+    }
+    else
+    {
+        assert(pRuntimeLookup->indirections != 0);
+
+        // Extract the handle
+        GenTree* handle = gtNewOperNode(GT_IND, TYP_I_IMPL, result);
+        handle->gtFlags |= GTF_IND_NONFAULTING;
+
+        GenTree* handleCopy = cloneTree(&handle DEBUGARG("getRuntimeLookupTree handle"));
+
+        // Call to helper
+        GenTree* argNode = gtNewIconEmbHndNode(pRuntimeLookup->signature, nullptr, GTF_ICON_TOKEN_HDL, compileTimeHandle);
+
+        GenTreeCall::Use* helperArgs = gtNewCallArgs(getRuntimeContextTree(pLookup->lookupKind.runtimeLookupKind), argNode);
+        GenTree*          helperCall = gtNewHelperCallNode(pRuntimeLookup->helper, TYP_I_IMPL, helperArgs);
+
+        result = helperCall;
+        //// Check for null and possibly call helper
+        //GenTree* relop = gtNewOperNode(GT_NE, TYP_INT, handle, gtNewIconNode(0, TYP_I_IMPL));
+
+        //GenTree* colon = new (this, GT_COLON) GenTreeColon(TYP_I_IMPL,
+        //                                                gtNewNothingNode(), // do nothing if nonnull
+        //                                                helperCall);
+
+        //GenTree* qmark = gtNewQmarkNode(TYP_I_IMPL, relop, colon);
+
+        //unsigned tmp;
+        //if (handleCopy->IsLocal())
+        //{
+        //    tmp = handleCopy->gtLclVarCommon.GetLclNum();
+        //}
+        //else
+        //{
+        //    tmp = lvaGrabTemp(true DEBUGARG("spilling QMark1"));
+        //}
+
+        //stmts.Push(gtNewTempAssign(tmp, qmark));
+        //result = gtNewLclvNode(tmp, TYP_I_IMPL);
+    }
+
+    // Produces GT_COMMA(stmt1, GT_COMMA(stmt2, ... GT_COMMA(stmtN, result)))
+
+    while (!stmts.Empty())
+    {
+        result = gtNewOperNode(GT_COMMA, TYP_I_IMPL, stmts.Pop(), result);
+    }
+
+    DISPTREE(result);
+    return result;
+}
+
+GenTree* Compiler::getVirtMethodPointerTree(GenTree* thisPtr,
+                                            CORINFO_RESOLVED_TOKEN* pResolvedToken,
+                                            CORINFO_CALL_INFO* pCallInfo)
+{
+    GenTree* exactTypeDesc = getTokenHandleTree(pResolvedToken, true);
+    GenTree* exactMethodDesc = getTokenHandleTree(pResolvedToken, false);
+
+    GenTreeCall::Use* helpArgs = gtNewCallArgs(thisPtr, exactTypeDesc, exactMethodDesc);
+    return gtNewHelperCallNode(CORINFO_HELP_VIRTUAL_FUNC_PTR, TYP_I_IMPL, helpArgs);
+}
+
+GenTree* Compiler::getTokenHandleTree(CORINFO_RESOLVED_TOKEN* pResolvedToken, bool parent)
+{
+    CORINFO_GENERICHANDLE_RESULT embedInfo;
+    info.compCompHnd->embedGenericHandle(pResolvedToken, parent ? TRUE : FALSE, &embedInfo);
+
+    GenTree* result = getLookupTree(pResolvedToken, &embedInfo.lookup, gtTokenToIconFlags(pResolvedToken->token),
+                                    embedInfo.compileTimeHandle);
+
+    // If we have a result and it requires runtime lookup, wrap it in a runtime lookup node.
+    if ((result != nullptr) && embedInfo.lookup.lookupKind.needsRuntimeLookup)
+    {
+        result = gtNewRuntimeLookup(embedInfo.compileTimeHandle, embedInfo.handleType, result);
     }
 
     return result;
@@ -8955,7 +9156,6 @@ GenTree* Compiler::fgMorphLeaf(GenTree* tree)
             case IAT_VALUE:
                 tree = gtNewOperNode(GT_NOP, tree->TypeGet(), tree); // prevents constant folding
                 break;
-
             default:
                 noway_assert(!"Unknown addrInfo.accessType");
         }

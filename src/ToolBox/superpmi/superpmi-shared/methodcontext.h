@@ -445,9 +445,8 @@ public:
     };
     struct Agnostic_GetTailCallHelpers
     {
-        DWORDLONG hTarget;
-        DWORDLONG hContext;
-        Agnostic_CORINFO_SIG_INFO callSiteSig;
+        Agnostic_CORINFO_RESOLVED_TOKEN callToken;
+        Agnostic_CORINFO_SIG_INFO sig;
         DWORD flags;
     };
     struct Agnostic_CORINFO_TAILCALL_HELPERS
@@ -1306,16 +1305,14 @@ public:
     void* repGetTailCallCopyArgsThunk(CORINFO_SIG_INFO* pSig, CorInfoHelperTailCallSpecialHandling flags);
 
     void recGetTailCallHelpers(
-        CORINFO_METHOD_HANDLE hTarget,
-        CORINFO_CONTEXT_HANDLE hContext,
-        CORINFO_SIG_INFO* callSiteSig,
+        CORINFO_RESOLVED_TOKEN* callToken,
+        CORINFO_SIG_INFO* sig,
         CORINFO_GET_TAILCALL_HELPERS_FLAGS flags,
         CORINFO_TAILCALL_HELPERS* pResult);
     void dmpGetTailCallHelpers(const Agnostic_GetTailCallHelpers& key, const Agnostic_CORINFO_TAILCALL_HELPERS& value);
     bool repGetTailCallHelpers(
-        CORINFO_METHOD_HANDLE hTarget,
-        CORINFO_CONTEXT_HANDLE hContext,
-        CORINFO_SIG_INFO* callSiteSig,
+        CORINFO_RESOLVED_TOKEN* callToken,
+        CORINFO_SIG_INFO* sig,
         CORINFO_GET_TAILCALL_HELPERS_FLAGS flags,
         CORINFO_TAILCALL_HELPERS* pResult);
 

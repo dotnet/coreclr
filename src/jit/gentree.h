@@ -3305,6 +3305,47 @@ public:
     regMaskTP GetABIReturnRegs();
 };
 
+class TailCallSiteInfo
+{
+    bool m_isCallvirt : 1;
+    bool m_isCalli : 1;
+    CORINFO_SIG_INFO m_sig;
+    CORINFO_RESOLVED_TOKEN m_token;
+
+public:
+    bool IsCallvirt() { return m_isCallvirt; }
+    bool IsCalli() { return m_isCalli; }
+    CORINFO_RESOLVED_TOKEN* GetToken()
+    {
+        assert(!IsCalli());
+        return &m_token;
+    }
+    CORINFO_SIG_INFO* GetSig() { return &m_sig; }
+
+    void SetCalli(CORINFO_SIG_INFO* sig)
+    {
+        m_isCallvirt = false;
+        m_isCalli = true;
+        m_sig = *sig;
+    }
+
+    void SetCallvirt(CORINFO_SIG_INFO* sig, CORINFO_RESOLVED_TOKEN* token)
+    {
+        m_isCallvirt = true;
+        m_isCalli = false;
+        m_sig = *sig;
+        m_token = *token;
+    }
+
+    void SetCall(CORINFO_SIG_INFO* sig, CORINFO_RESOLVED_TOKEN* token)
+    {
+        m_isCallvirt = false;
+        m_isCalli = false;
+        m_sig = *sig;
+        m_token = *token;
+    }
+};
+
 class fgArgInfo;
 
 struct GenTreeCall final : public GenTree
@@ -3429,9 +3470,12 @@ struct GenTreeCall final : public GenTree
     regList regArgList;
 #endif
 
-    // TODO-Throughput: Revisit this (this used to be only defined if
-    // FEATURE_FIXED_OUT_ARGS was enabled, so this makes GenTreeCall 4 bytes bigger on x86).
-    CORINFO_CALL_INFO* callInfo; // Used by tail calls and to register callsites with the EE
+#ifdef DEBUG
+    // Used to register callsites with the EE
+    CORINFO_SIG_INFO* callSig;
+#endif
+
+    TailCallSiteInfo* tailCallInfo;
 
 #if FEATURE_MULTIREG_RET
 
@@ -4235,8 +4279,14 @@ struct GenTreeFptrVal : public GenTree
     CORINFO_CONST_LOOKUP gtEntryPoint;
 #endif
 
-    GenTreeFptrVal(var_types type, CORINFO_METHOD_HANDLE meth) : GenTree(GT_FTN_ADDR, type), gtFptrMethod(meth)
+    GenTreeFptrVal(var_types type, CORINFO_METHOD_HANDLE meth)
+        : GenTree(GT_FTN_ADDR, type)
+        , gtFptrMethod(meth)
     {
+#ifdef FEATURE_READYTORUN_COMPILER
+        gtEntryPoint.addr       = nullptr;
+        gtEntryPoint.accessType = IAT_VALUE;
+#endif
     }
 #if DEBUGGABLE_GENTREE
     GenTreeFptrVal() : GenTree()
