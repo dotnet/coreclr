@@ -4056,7 +4056,7 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
                     }
                     if (z->OperIs(GT_NEG))
                     {
-                        z = z->gtGetOp1();
+                        z   = z->gtGetOp1();
                         fma = negMul ? NI_FMA_MultiplySubtractNegatedScalar : NI_FMA_MultiplySubtractScalar;
                     }
                     else
@@ -4064,11 +4064,11 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
                         fma = negMul ? NI_FMA_MultiplyAddNegatedScalar : NI_FMA_MultiplyAddScalar;
                     }
 
-                    GenTree* op3 = 
+                    GenTree* op3 =
                         gtNewSimdHWIntrinsicNode(TYP_SIMD16, z, NI_Vector128_CreateScalarUnsafe, callType, 16);
-                    GenTree* op2 = 
+                    GenTree* op2 =
                         gtNewSimdHWIntrinsicNode(TYP_SIMD16, y, NI_Vector128_CreateScalarUnsafe, callType, 16);
-                    GenTree* op1 = 
+                    GenTree* op1 =
                         gtNewSimdHWIntrinsicNode(TYP_SIMD16, x, NI_Vector128_CreateScalarUnsafe, callType, 16);
                     GenTree* res = gtNewSimdHWIntrinsicNode(TYP_SIMD16, op1, op2, op3, fma, callType, 16);
 
