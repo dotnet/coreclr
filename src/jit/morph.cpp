@@ -2647,7 +2647,7 @@ void Compiler::fgInitArgInfo(GenTreeCall* call)
         assert(arg2 != nullptr);
         nonStandardArgs.Add(arg2, REG_LNGARG_HI);
     }
-#else  // !_TARGET_X86_
+#else // !_TARGET_X86_
     // TODO-X86-CQ: Currently RyuJIT/x86 passes args on the stack, so this is not needed.
     // If/when we change that, the following code needs to be changed to correctly support the (TBD) managed calling
     // convention for x86/SSE.
