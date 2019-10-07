@@ -59,7 +59,7 @@ void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
 
         regNumber op1Reg = REG_NA;
         regNumber op2Reg = REG_NA;
-        emitter*  emit   = getEmitter();
+        emitter*  emit   = GetEmitter();
 
         assert(numArgs >= 0);
         instruction ins = HWIntrinsicInfo::lookupIns(intrinsicId, baseType);
@@ -74,7 +74,7 @@ void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
             {
                 genConsumeRegs(op1);
                 op1Reg = op1->gtRegNum;
-                getEmitter()->emitIns_R_R(ins, simdSize, targetReg, op1Reg, opt);
+                GetEmitter()->emitIns_R_R(ins, simdSize, targetReg, op1Reg, opt);
                 break;
             }
 
@@ -86,7 +86,7 @@ void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
                 op1Reg = op1->gtRegNum;
                 op2Reg = op2->gtRegNum;
 
-                getEmitter()->emitIns_R_R_R(ins, simdSize, targetReg, op1Reg, op2Reg, opt);
+                GetEmitter()->emitIns_R_R_R(ins, simdSize, targetReg, op1Reg, op2Reg, opt);
                 break;
             }
 
@@ -109,9 +109,9 @@ void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
 
                 if (targetReg != op1Reg)
                 {
-                    getEmitter()->emitIns_R_R(INS_mov, simdSize, targetReg, op1Reg);
+                    GetEmitter()->emitIns_R_R(INS_mov, simdSize, targetReg, op1Reg);
                 }
-                getEmitter()->emitIns_R_R_R(ins, simdSize, targetReg, op2Reg, op3Reg);
+                GetEmitter()->emitIns_R_R_R(ins, simdSize, targetReg, op2Reg, op3Reg);
                 break;
             }
 
