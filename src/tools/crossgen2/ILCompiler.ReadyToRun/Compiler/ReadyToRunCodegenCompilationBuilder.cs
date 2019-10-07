@@ -143,7 +143,7 @@ namespace ILCompiler
                 corJitFlags.Add(CorJitFlag.CORJIT_FLAG_BBINSTR);
 
             corJitFlags.Add(CorJitFlag.CORJIT_FLAG_FEATURE_SIMD);
-            var jitConfig = new JitConfigProvider(_jitPath, corJitFlags, _ryujitOptions);
+            var jitConfig = new JitConfigProvider(corJitFlags, _ryujitOptions, _jitPath);
 
             return new ReadyToRunCodegenCompilation(
                 graph,
