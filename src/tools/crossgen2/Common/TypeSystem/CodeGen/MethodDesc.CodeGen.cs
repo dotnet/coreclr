@@ -57,6 +57,12 @@ namespace Internal.TypeSystem
             }
         }
 
+        /// <summary>
+        /// Gets a value indicating whether this method was marked with the
+        /// System.Security.DynamicSecurityMethod attribute. For such methods
+        /// runtime needs to be able to find their caller, their caller's caller
+        /// or the method itself on the call stack using stack walking.
+        /// </summary>
         public virtual bool RequireSecObject
         {
             get

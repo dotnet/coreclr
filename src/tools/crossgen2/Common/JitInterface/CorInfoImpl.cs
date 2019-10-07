@@ -661,10 +661,12 @@ namespace Internal.JitInterface
                 result |= CorInfoFlag.CORINFO_FLG_PINVOKE;
             }
 
+#if READYTORUN
             if (method.RequireSecObject)
             {
                 result |= CorInfoFlag.CORINFO_FLG_DONT_INLINE_CALLER;
             }
+#endif
 
             if (method.IsAggressiveOptimization)
             {

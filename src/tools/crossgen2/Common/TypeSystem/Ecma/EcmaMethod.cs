@@ -26,13 +26,12 @@ namespace Internal.TypeSystem.Ecma
             public const int Synchronized           = 0x00200;
             public const int AggressiveOptimization = 0x00400;
             public const int NoOptimization         = 0x00800;
+            public const int RequireSecObject       = 0x01000;
 
-            public const int AttributeMetadataCache = 0x01000;
-            public const int Intrinsic              = 0x02000;
-            public const int NativeCallable         = 0x04000;
-            public const int RuntimeExport          = 0x08000;
-
-            public const int RequireSecObject       = 0x10000;
+            public const int AttributeMetadataCache = 0x02000;
+            public const int Intrinsic              = 0x04000;
+            public const int NativeCallable         = 0x08000;
+            public const int RuntimeExport          = 0x10000;
         };
 
         private EcmaType _type;
