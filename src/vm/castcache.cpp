@@ -22,6 +22,11 @@ BASEARRAYREF CastCache::CreateCastCache(DWORD size)
     }
     CONTRACTL_END;
 
+    // size must be positive
+    _ASSERTE(size > 0);
+    // size must be a power of two
+    _ASSERTE((size & (size - 1)) == 0);
+
     BASEARRAYREF table = NULL;
 
     try
@@ -74,9 +79,6 @@ BOOL CastCache::MaybeReplaceCacheWithLarger(DWORD size)
         return FALSE;
     }
 
-    // since we are resizing, there must be a cache
-    _ASSERTE(s_cache);
-
     OBJECTREF currentTableRef = ObjectFromHandle(s_cache);
     OBJECTREF prevTableRef = (OBJECTREF)(Object*)InterlockedCompareExchangeObjectInHandle(s_cache, newTable, currentTableRef);
 
@@ -93,24 +95,24 @@ void CastCache::FlushCurrentCache()
     }
     CONTRACTL_END;
 
-    OBJECTHANDLE cache = s_cache;
-    if (cache == NULL)
-    {
-        cache = CreateGlobalHandle(NULL);
-        OBJECTHANDLE prevCache = FastInterlockCompareExchangePointer(&s_cache, cache, NULL);
-        if (prevCache != NULL)
-        {
-            // someone has already created the cache, use that
-            DestroyGlobalHandle(cache);
-            cache = prevCache;
-        }
-    }
-
-    BASEARRAYREF currentTableRef = (BASEARRAYREF)ObjectFromHandle(cache);
+    BASEARRAYREF currentTableRef = (BASEARRAYREF)ObjectFromHandle(s_cache);
     int size = !currentTableRef ? INITIAL_CACHE_SIZE : CacheElementCount(currentTableRef);
 
     BASEARRAYREF newTable = CreateCastCache(size);
-    StoreObjectInHandle(cache, newTable);
+    StoreObjectInHandle(s_cache, newTable);
+}
+
+void CastCache::Initialize()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    s_cache = CreateGlobalHandle(NULL);
 }
 
 TypeHandle::CastResult CastCache::TryGet(TADDR source, TADDR target)
@@ -123,13 +125,15 @@ TypeHandle::CastResult CastCache::TryGet(TADDR source, TADDR target)
     }
     CONTRACTL_END;
 
-    OBJECTHANDLE cache = s_cache;
-    if (cache == NULL)
+    BASEARRAYREF table = (BASEARRAYREF)ObjectFromHandle(s_cache);
+
+    // we use NULL as a sentinel for a rare case when a table could not be allocated
+    // because we avoid OOMs in conversions
+    // we could use 0-element table instead, but then we would have to check the size here.
+    if (!table)
     {
         return TypeHandle::MaybeCast;
     }
-
-    BASEARRAYREF table = (BASEARRAYREF)ObjectFromHandle(cache);
 
     DWORD index = KeyToBucket(table, source, target);
     CastCacheEntry* pEntry = &Elements(table)[index];
@@ -185,11 +189,6 @@ void CastCache::TrySet(TADDR source, TADDR target, BOOL result)
     }
     CONTRACTL_END;
 
-    if (s_cache == NULL)
-    {
-        FlushCurrentCache();
-    }
-
     DWORD bucket;
     BASEARRAYREF table;
 
@@ -198,6 +197,8 @@ void CastCache::TrySet(TADDR source, TADDR target, BOOL result)
         table = (BASEARRAYREF)ObjectFromHandle(s_cache);
         if (!table)
         {
+            // we did not allocate a table, it is very rare, try flushing, but do not continue looping.
+            FlushCurrentCache();
             return;
         }
 

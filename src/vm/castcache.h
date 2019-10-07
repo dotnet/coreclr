@@ -152,6 +152,7 @@ public:
     }
 
     static void FlushCurrentCache();
+    static void Initialize();
 
 private:
 
@@ -316,6 +317,10 @@ public:
     FORCEINLINE static TypeHandle::CastResult TryGetFromCache(TypeHandle source, TypeHandle target)
     {
         return TypeHandle::MaybeCast;
+    }
+
+    static void CastCache::Initialize()
+    {
     }
 
 #endif // !DACCESS_COMPILE && !CROSSGEN_COMPILE
