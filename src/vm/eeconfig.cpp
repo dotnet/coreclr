@@ -1240,9 +1240,7 @@ HRESULT EEConfig::sync()
     dwSleepOnExit = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_SleepOnExit);
 
 #if defined(FEATURE_TIERED_COMPILATION)
-    fTieredCompilation = Configuration::GetKnobBooleanValue(W("System.Runtime.TieredCompilation"), CLRConfig::EXTERNAL_TieredCompilation) ||
-        //this older name is deprecated, but still accepted for a time. Preserving it is a very small overhead not to needlessly break things.
-        CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_LEGACY_TieredCompilation) != 0;
+    fTieredCompilation = Configuration::GetKnobBooleanValue(W("System.Runtime.TieredCompilation"), CLRConfig::EXTERNAL_TieredCompilation) != 0;
 
     fTieredCompilation_CallCounting = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation_Test_CallCounting) != 0;
     fTieredCompilation_OptimizeTier0 = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation_Test_OptimizeTier0) != 0;
@@ -1253,8 +1251,22 @@ HRESULT EEConfig::sync()
     {
         tieredCompilation_tier1CallCountThreshold = 1;
     }
+
     tieredCompilation_tier1CallCountingDelayMs =
         CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation_Tier1CallCountingDelayMs);
+    if (CPUGroupInfo::HadSingleProcessorAtStartup())
+    {
+        DWORD delayMultiplier =
+            CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation_Tier1DelaySingleProcMultiplier);
+        if (delayMultiplier > 1)
+        {
+            DWORD newDelay = tieredCompilation_tier1CallCountingDelayMs * delayMultiplier;
+            if (newDelay / delayMultiplier == tieredCompilation_tier1CallCountingDelayMs)
+            {
+                tieredCompilation_tier1CallCountingDelayMs = newDelay;
+            }
+        }
+    }
 #endif
 
 #if defined(FEATURE_GDBJIT) && defined(_DEBUG)
