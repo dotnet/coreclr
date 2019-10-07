@@ -731,8 +731,10 @@ endif
     UpdateCardTable:
         mov     byte ptr [rcx], 0FFh
 ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
-        sub     rcx, [g_card_table]
-        shr     rcx, 0Ah
+        ; check if we need to update the card bundle table
+        ; restore destination address from rdi - rdi has been incremented by 8 already
+        lea     rcx, [rdi-8]
+        shr     rcx, 15h
         add     rcx, [g_card_bundle_table]
         cmp     byte ptr [rcx], 0FFh
         jne     UpdateCardBundleTable
