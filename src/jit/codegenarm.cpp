@@ -1815,6 +1815,19 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
     else
     {
         assert(frameSize >= compiler->getVeryLargeFrameSize());
+
+        genInstrWithConstant(INS_sub, EA_PTRSIZE, REG_STACK_PROBE_HELPER_ARG, REG_SPBASE, frameSize,
+                             INS_FLAGS_DONT_CARE, REG_STACK_PROBE_HELPER_ARG);
+        regSet.verifyRegUsed(REG_STACK_PROBE_HELPER_ARG);
+        genEmitHelperCall(CORINFO_HELP_STACK_PROBE, 0, EA_UNKNOWN, REG_STACK_PROBE_HELPER_CALL_TARGET);
+        compiler->unwindPadding();
+        GetEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, REG_SPBASE, REG_STACK_PROBE_HELPER_ARG);
+
+        if ((genRegMask(initReg) & (RBM_STACK_PROBE_HELPER_ARG | RBM_STACK_PROBE_HELPER_CALL_TARGET |
+                                    RBM_STACK_PROBE_HELPER_TRASH)) != RBM_NONE)
+        {
+            *pInitRegZeroed = false;
+        }
     }
 
     compiler->unwindAllocStack(frameSize);
