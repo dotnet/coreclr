@@ -52,10 +52,6 @@ set(NATIVEGLOBALIZATION_SOURCES
 
 include_directories(${UTYPES_H})
 
-if(CLR_CMAKE_PLATFORM_ALPINE_LINUX)
-    add_compile_definitions(MinICUVersion=58)
-endif()
-
 _add_library(System.Globalization.Native
     SHARED
     ${NATIVEGLOBALIZATION_SOURCES}

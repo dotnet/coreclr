@@ -56,18 +56,12 @@ static int FindICULibs(const char* versionPrefix, char* symbolName, char* symbol
 // a year.
 // On some platforms (mainly Alpine Linux) we want to make our minimum version
 // an earlier version than what we build that we know we support.
-#ifndef MinICUVersion
-#define MinICUVersion  U_ICU_VERSION_MAJOR_NUM
-#endif
-#define MaxICUVersion  (MinICUVersion + 20)
+#define MinICUVersion  50
+#define MaxICUVersion  (U_ICU_VERSION_MAJOR_NUM + 20)
 #define MinMinorICUVersion  1
 #define MaxMinorICUVersion  5
 #define MinSubICUVersion 1
 #define MaxSubICUVersion 5
-
-#if MaxICUVersion < U_ICU_VERSION_MAJOR_NUM || U_ICU_VERSION_MAJOR_NUM < MinICUVersion
-#error "The ICU version we are compiling against is not in our supported ICU version range."
-#endif
 
 // Get filename of an ICU library with the requested version in the name
 // There are three possible cases of the version components values:
