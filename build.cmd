@@ -372,9 +372,6 @@ if not !errorlevel! == 0 (
     exit /b !errorlevel!
 )
 
-:: Eval the output from set-cmake-path.ps1
-for /f "delims=" %%a in ('powershell -NoProfile -ExecutionPolicy ByPass "& "%basePath%\set-cmake-path.ps1""') do %%a
-
 REM =========================================================================================
 REM ===
 REM === Restore optimization profile data
@@ -502,7 +499,7 @@ if %__BuildCrossArchNative% EQU 1 (
     set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
     set __Logging=!_MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-    "%CMakePath%" --build %__IntermediatesDir% --target install --config %__BuildType% -j %NumberOfCores% -- %__Logging%
+    "%CMakePath%" --build %__CrossCompIntermediatesDir% --target install --config %__BuildType% -j %NumberOfCores% -- %__Logging%
 
     if not !errorlevel! == 0 (
         echo %__ErrMsgPrefix%%__MsgPrefix%Error: cross-arch components build failed. Refer to the build log files for details.
