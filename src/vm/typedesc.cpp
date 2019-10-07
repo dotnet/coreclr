@@ -354,7 +354,7 @@ BOOL TypeDesc::HasTypeParam()
 
 #ifndef DACCESS_COMPILE
 
-BOOL TypeDesc::CanCastTo(TypeHandle toType, TypeHandlePairList *pVisited)
+BOOL TypeDesc::CanCastTo(TypeHandle toTypeHnd, TypeHandlePairList *pVisited)
 {
     CONTRACTL
     {
@@ -364,25 +364,22 @@ BOOL TypeDesc::CanCastTo(TypeHandle toType, TypeHandlePairList *pVisited)
     }
     CONTRACTL_END
 
-    if (TypeHandle(this) == toType)
+    if (TypeHandle(this) == toTypeHnd)
         return TRUE;
+
+    BOOL fCast = FALSE;
 
     if (IsArray())
     {
-        BOOL fCast = FALSE;
         MethodTable* pMT = this->GetMethodTable();
 
-        if (toType.IsArray())
+        if (toTypeHnd.IsArray())
         {
-            fCast = pMT->ArrayIsInstanceOf(toType, /* pVisited */ NULL);
+            fCast = pMT->ArrayIsInstanceOf(toTypeHnd, /* pVisited */ NULL);
         }
-        else if (toType.IsTypeDesc())
+        else if (!toTypeHnd.IsTypeDesc())
         {
-            fCast = FALSE;
-        }
-        else
-        {
-            MethodTable* toMT = toType.AsMethodTable();
+            MethodTable* toMT = toTypeHnd.AsMethodTable();
             if (toMT->IsInterface() && toMT->HasInstantiation())
             {
                 fCast = pMT->ArraySupportsBizarreInterface(toMT, /* pVisited */ NULL);
@@ -393,88 +390,85 @@ BOOL TypeDesc::CanCastTo(TypeHandle toType, TypeHandlePairList *pVisited)
             }
         }
 
-        // leafs add cached conversion for the method table
+        // leafs add cached conversion for the method table.
         // since we started from a typedesc, add a typedesc conversion too
-        CastCache::TryAddToCache(TypeHandle(this), toType, fCast);
+        CastCache::TryAddToCache(TypeHandle(this), toTypeHnd, fCast);
         return fCast;
     }
-
-    // NOTE: The rest of the cases that we handle here are very uncommon.
-    //       We will not bother with caching these unless a good reason discovered.
 
     //A boxed variable type can be cast to any of its constraints, or object, if none are specified
     if (IsGenericVariable())
     {
         TypeVarTypeDesc *tyvar = (TypeVarTypeDesc*) this;
 
-        if (toType == g_pObjectClass)
-            return TRUE;
-
-        if (toType == g_pValueTypeClass) 
+        if (toTypeHnd == g_pObjectClass)
+        {
+            fCast = TRUE;
+        }
+        else if (toTypeHnd == g_pValueTypeClass) 
         {
             mdGenericParam genericParamToken = tyvar->GetToken();
             DWORD flags;
-            if (FAILED(tyvar->GetModule()->GetMDImport()->GetGenericParamProps(genericParamToken, NULL, &flags, NULL, NULL, NULL)))
+            if (!FAILED(tyvar->GetModule()->GetMDImport()->GetGenericParamProps(genericParamToken, NULL, &flags, NULL, NULL, NULL)))
             {
-                return FALSE;
+                DWORD specialConstraints = flags & gpSpecialConstraintMask;
+                if ((specialConstraints & gpNotNullableValueTypeConstraint) != 0)
+                {
+                    fCast = TRUE;
+                }
             }
-            DWORD specialConstraints = flags & gpSpecialConstraintMask;
-            if ((specialConstraints & gpNotNullableValueTypeConstraint) != 0) 
-                return TRUE;
         }
-
-        DWORD numConstraints;
-        TypeHandle *constraints = tyvar->GetConstraints(&numConstraints, CLASS_DEPENDENCIES_LOADED);
-
-        if (constraints == NULL)
-            return FALSE;
-
-        for (DWORD i = 0; i < numConstraints; i++)
+        else
         {
-            if (constraints[i].CanCastTo(toType, pVisited))
-                return TRUE;
+            DWORD numConstraints;
+            TypeHandle* constraints = tyvar->GetConstraints(&numConstraints, CLASS_DEPENDENCIES_LOADED);
+
+            if (constraints != NULL)
+            {
+                for (DWORD i = 0; i < numConstraints; i++)
+                {
+                    if (constraints[i].CanCastTo(toTypeHnd, pVisited))
+                    {
+                        fCast = TRUE;
+                        break;
+                    }
+                }
+            }
         }
-        return FALSE;
     }
-
-    // If we're not casting to a TypeDesc (i.e. not to a reference array type, variable type etc.)
-    // then we must be trying to cast to a class or interface type.
-    if (!toType.IsTypeDesc())
+    else if (toTypeHnd.IsTypeDesc())
     {
-        // I am a variable type, pointer type, function pointer type
-        // etc.  I am not an object or value type.  Therefore
-        // I can't be cast to an object or value type.
-        return FALSE;
+        TypeDesc* toTypeDesc = toTypeHnd.AsTypeDesc();
+        CorElementType toKind = toTypeDesc->GetInternalCorElementType();
+        CorElementType fromKind = GetInternalCorElementType();
+
+        // The element kinds must match
+        if (toKind == fromKind)
+        {
+            switch (toKind)
+            {
+            case ELEMENT_TYPE_BYREF:
+            case ELEMENT_TYPE_PTR:
+                fCast = TypeDesc::CanCastParam(dac_cast<PTR_ParamTypeDesc>(this)->GetTypeParam(), dac_cast<PTR_ParamTypeDesc>(toTypeDesc)->GetTypeParam(), pVisited);
+                break;
+            case ELEMENT_TYPE_VAR:
+            case ELEMENT_TYPE_MVAR:
+            case ELEMENT_TYPE_FNPTR:
+                fCast = FALSE;
+                break;
+            default:
+                BAD_FORMAT_NOTHROW_ASSERT(toKind == ELEMENT_TYPE_TYPEDBYREF || CorTypeInfo::IsPrimitiveType(toKind));
+                // array cast should have been handled above
+                _ASSERTE(toKind != ELEMENT_TYPE_ARRAY);
+                _ASSERTE(toKind != ELEMENT_TYPE_SZARRAY);
+
+                fCast = TRUE;
+            }
+        }
     }
 
-    TypeDesc* toTypeDesc = toType.AsTypeDesc();
-
-    CorElementType toKind = toTypeDesc->GetInternalCorElementType();
-    CorElementType fromKind = GetInternalCorElementType();
-
-    // The element kinds must match
-    if (toKind != fromKind)
-        return FALSE;
-
-    switch (toKind)
-    {
-    case ELEMENT_TYPE_BYREF:
-    case ELEMENT_TYPE_PTR:
-        return TypeDesc::CanCastParam(dac_cast<PTR_ParamTypeDesc>(this)->GetTypeParam(), dac_cast<PTR_ParamTypeDesc>(toTypeDesc)->GetTypeParam(), pVisited);
-
-    case ELEMENT_TYPE_VAR:
-    case ELEMENT_TYPE_MVAR:
-    case ELEMENT_TYPE_FNPTR:
-        return FALSE;
-
-    default:
-        BAD_FORMAT_NOTHROW_ASSERT(toKind == ELEMENT_TYPE_TYPEDBYREF || CorTypeInfo::IsPrimitiveType(toKind));
-        // array cast should have been handled above
-        _ASSERTE(toKind != ELEMENT_TYPE_ARRAY);
-        _ASSERTE(toKind != ELEMENT_TYPE_SZARRAY);
-
-        return TRUE;
-    }
+    CastCache::TryAddToCache(TypeHandle(this), toTypeHnd, fCast);
+    return fCast;
 }
 
 BOOL TypeDesc::CanCastParam(TypeHandle fromParam, TypeHandle toParam, TypeHandlePairList *pVisited)
@@ -537,159 +531,7 @@ TypeHandle::CastResult TypeDesc::CanCastToNoGC(TypeHandle toType)
     }
     CONTRACTL_END
 
-    if (TypeHandle(this) == toType)
-        return TypeHandle::CanCast;
-
-    if (IsArray())
-    {
-        // TODO: VS fastest way to get array MT?
-        MethodTable* pMT = this->GetMethodTable();
-        return CastCache::TryGetFromCache(pMT, toType);
-    }
-
-    // NOTE: The rest of the cases that we handle here are very uncommon.
-    //       We will not bother with caching these unless a good reason discovered.
-
-    //A boxed variable type can be cast to any of its constraints, or object, if none are specified
-    if (IsGenericVariable())
-    {
-        TypeVarTypeDesc *tyvar = (TypeVarTypeDesc*) this;
-
-        if (!tyvar->ConstraintsLoaded())
-            return TypeHandle::MaybeCast;
-
-        DWORD numConstraints;
-        TypeHandle *constraints = tyvar->GetCachedConstraints(&numConstraints);
-
-        if (toType == g_pObjectClass)
-            return TypeHandle::CanCast;
-
-        if (toType == g_pValueTypeClass)
-            return TypeHandle::MaybeCast;
-
-        if (constraints == NULL)
-            return TypeHandle::CannotCast;
-
-        for (DWORD i = 0; i < numConstraints; i++)
-        {
-            if (constraints[i].CanCastToNoGC(toType) == TypeHandle::CanCast)
-                return TypeHandle::CanCast;
-        }
-        return TypeHandle::MaybeCast;
-    }
-
-    // If we're not casting to a TypeDesc (i.e. not to a reference array type, variable type etc.)
-    // then we must be trying to cast to a class or interface type.
-    if (!toType.IsTypeDesc())
-    {
-        // I am a variable type, pointer type, function pointer type
-        // etc.  I am not an object or value type.  Therefore
-        // I can't be cast to an object or value type.
-        return TypeHandle::CannotCast;
-    }
-
-    TypeDesc* toTypeDesc = toType.AsTypeDesc();
-
-    CorElementType toKind = toTypeDesc->GetInternalCorElementType();
-    CorElementType fromKind = GetInternalCorElementType();
-
-    // The element kinds must match
-    if (toKind != fromKind)
-        return TypeHandle::CannotCast;
-
-    switch (toKind)
-    {
-    case ELEMENT_TYPE_BYREF:
-    case ELEMENT_TYPE_PTR:
-        return TypeDesc::CanCastParamNoGC(dac_cast<PTR_ParamTypeDesc>(this)->GetTypeParam(), dac_cast<PTR_ParamTypeDesc>(toTypeDesc)->GetTypeParam());
-
-    case ELEMENT_TYPE_VAR:
-    case ELEMENT_TYPE_MVAR:
-    case ELEMENT_TYPE_FNPTR:
-        return TypeHandle::CannotCast;
-
-    default:
-        BAD_FORMAT_NOTHROW_ASSERT(toKind == ELEMENT_TYPE_TYPEDBYREF || CorTypeInfo::IsPrimitiveType_NoThrow(toKind));
-        // array cast should have been handled above
-        _ASSERTE(toKind != ELEMENT_TYPE_ARRAY);
-        _ASSERTE(toKind != ELEMENT_TYPE_SZARRAY);
-        return TypeHandle::CanCast;
-    }
-}
-
-TypeHandle::CastResult TypeDesc::CanCastParamNoGC(TypeHandle fromParam, TypeHandle toParam)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_COOPERATIVE;
-        FORBID_FAULT;
-    }
-    CONTRACTL_END
-
-        // While boxed value classes inherit from object their
-        // unboxed versions do not.  Parameterized types have the
-        // unboxed version, thus, if the from type parameter is value
-        // class then only an exact match works.
-    if (fromParam == toParam)
-        return TypeHandle::CanCast;
-
-        // Object parameters dont need an exact match but only inheritance, check for that
-    CorElementType fromParamCorType = fromParam.GetVerifierCorElementType();
-    if (CorTypeInfo::IsObjRef_NoThrow(fromParamCorType))
-    {
-        return fromParam.CanCastToNoGC(toParam);
-    }
-    else if (CorTypeInfo::IsGenericVariable_NoThrow(fromParamCorType))
-    {
-        TypeVarTypeDesc* varFromParam = fromParam.AsGenericVariable();
-            
-        if (!varFromParam->ConstraintsLoaded())
-            return TypeHandle::MaybeCast;
-
-        if (!varFromParam->ConstrainedAsObjRef())
-            return TypeHandle::CannotCast;
-            
-        return fromParam.CanCastToNoGC(toParam);
-    }
-    else if (CorTypeInfo::IsPrimitiveType_NoThrow(fromParamCorType))
-    {
-        CorElementType toParamCorType = toParam.GetVerifierCorElementType();
-        if(CorTypeInfo::IsPrimitiveType_NoThrow(toParamCorType))
-        {
-            if (toParamCorType == fromParamCorType)
-                return TypeHandle::CanCast;
-
-            // Primitive types such as E_T_I4 and E_T_U4 are interchangeable
-            // Enums with interchangeable underlying types are interchangable
-            // BOOL is NOT interchangeable with I1/U1, neither CHAR -- with I2/U2
-            if((toParamCorType != ELEMENT_TYPE_BOOLEAN)
-                &&(fromParamCorType != ELEMENT_TYPE_BOOLEAN)
-                &&(toParamCorType != ELEMENT_TYPE_CHAR)
-                &&(fromParamCorType != ELEMENT_TYPE_CHAR))
-            {
-                if ((CorTypeInfo::Size_NoThrow(toParamCorType) == CorTypeInfo::Size_NoThrow(fromParamCorType))
-                    && (CorTypeInfo::IsFloat_NoThrow(toParamCorType) == CorTypeInfo::IsFloat_NoThrow(fromParamCorType)))
-                {
-                    return TypeHandle::CanCast;
-                }
-            }
-        } // end if(CorTypeInfo::IsPrimitiveType(toParamCorType))
-    } // end if(CorTypeInfo::IsPrimitiveType(fromParamCorType)) 
-    else
-    {
-        // Types with equivalence need the slow path
-        MethodTable * pFromMT = fromParam.GetMethodTable();
-        if (pFromMT != NULL && pFromMT->HasTypeEquivalence())
-            return TypeHandle::MaybeCast;
-        MethodTable * pToMT = toParam.GetMethodTable();
-        if (pToMT != NULL && pToMT->HasTypeEquivalence())
-            return TypeHandle::MaybeCast;
-    }
-
-    // Anything else is not a match.
-    return TypeHandle::CannotCast;
+    return CastCache::TryGetFromCache(TypeHandle(this), toType);
 }
 
 BOOL TypeDesc::IsEquivalentTo(TypeHandle type COMMA_INDEBUG(TypeHandlePairList *pVisited))

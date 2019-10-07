@@ -89,7 +89,6 @@ public:
     TypeHandle::CastResult CanCastToNoGC(TypeHandle type);
 
     static BOOL CanCastParam(TypeHandle fromParam, TypeHandle toParam, TypeHandlePairList *pVisited);
-    static TypeHandle::CastResult CanCastParamNoGC(TypeHandle fromParam, TypeHandle toParam);
 
 #ifndef DACCESS_COMPILE
     BOOL IsEquivalentTo(TypeHandle type COMMA_INDEBUG(TypeHandlePairList *pVisited));

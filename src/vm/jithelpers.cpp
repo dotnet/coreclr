@@ -2106,9 +2106,9 @@ BOOL ObjIsInstanceOfCore(Object *pObject, TypeHandle toTypeHnd, BOOL throwCastEx
         {
             fCast = pMT->ArrayIsInstanceOf(toTypeHnd, /* pVisited */ NULL);
         }
-        else
+        else if (!toTypeHnd.IsTypeDesc())
         {
-            MethodTable* toMT = toTypeHnd.GetMethodTable();
+            MethodTable* toMT = toTypeHnd.AsMethodTable();
             if (toMT->IsInterface() && toMT->HasInstantiation())
             {
                 fCast = pMT->ArraySupportsBizarreInterface(toMT, /* pVisited */ NULL);
