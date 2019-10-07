@@ -3767,7 +3767,7 @@
     <value>Type '{0}' has more than one COM unregistration function.</value>
   </data>
   <data name="Utf8String_CallbackProvidedMalformedData" xml:space="preserve">
-    <value>The callback populated its buffer with ill-formed UTF-8 data. Callbacks are required to populate the buffer with only well-formed UTF-8 data.</value>
+    <value>The callback populated its buffer with ill-formed UTF-8 data. Callbacks are required to populate the buffer only with well-formed UTF-8 data.</value>
   </data>
   <data name="Utf8String_InputContainedMalformedUtf16" xml:space="preserve">
     <value>The input buffer contained ill-formed UTF-16 data.</value>
