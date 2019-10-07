@@ -7791,7 +7791,7 @@ void CodeGen::genArm64EmitterUnitTests()
 // genAllocLclFrame: Probe the stack and allocate the local stack frame: subtract from SP.
 //
 // Notes:
-//      On ARM64, this only does the probing; allocating the frame is done when callee-saved registers are saved.
+//      This only does the probing; allocating the frame is done when callee-saved registers are saved.
 //      This is done before anything has been pushed. The previous frame might have a large outgoing argument
 //      space that has been allocated, but the lowest addresses have not been touched. Our frame setup might
 //      not touch up to the first 504 bytes. This means we could miss a guard page. On Windows, however,
@@ -7799,13 +7799,6 @@ void CodeGen::genArm64EmitterUnitTests()
 //      page by default, so we need to be more careful. We do an extra probe if we might not have probed
 //      recently enough. That is, if a call and prolog establishment might lead to missing a page. We do this
 //      on Windows as well just to be consistent, even though it should not be necessary.
-//
-//      On ARM32, the first instruction of the prolog is always a push (which touches the lowest address
-//      of the stack), either of the LR register or of some argument registers, e.g., in the case of
-//      pre-spilling. The LR register is always pushed because we require it to allow for GC return
-//      address hijacking (see the comment in CodeGen::genPushCalleeSavedRegisters()). These pushes
-//      happen immediately before calling this function, so the SP at the current location has already
-//      been touched.
 //
 void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pInitRegZeroed, regMaskTP maskArgRegsLiveIn)
 {
@@ -7860,9 +7853,6 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         // Emit the following sequence to 'tickle' the pages. Note it is important that stack pointer not change
         // until this is complete since the tickles could cause a stack overflow, and we need to be able to crawl
         // the stack afterward (which means the stack pointer needs to be known).
-        //
-        // ARM64 needs 2 registers. ARM32 needs 3 registers. See VERY_LARGE_FRAME_SIZE_REG_MASK for how these
-        // are reserved.
 
         regMaskTP availMask = RBM_ALLINT & (regSet.rsGetModifiedRegsMask() | ~RBM_INT_CALLEE_SAVED);
         availMask &= ~maskArgRegsLiveIn;   // Remove all of the incoming argument registers as they are currently live
