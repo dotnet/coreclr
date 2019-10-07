@@ -2678,7 +2678,7 @@ void Compiler::fgInitArgInfo(GenTreeCall* call)
         // Add a conservative estimate of the stack size in a special parameter (r11) at the call site.
         // It will be used only on the intercepted-for-host code path to copy the arguments.
 
-        GenTree* cns = new (this, GT_CNS_INT) GenTreeIntCon(TYP_I_IMPL, fgEstimateCallStackSize(call));
+        GenTree* cns     = new (this, GT_CNS_INT) GenTreeIntCon(TYP_I_IMPL, fgEstimateCallStackSize(call));
         call->gtCallArgs = gtPrependNewCallArg(cns, call->gtCallArgs);
         numArgs++;
 
