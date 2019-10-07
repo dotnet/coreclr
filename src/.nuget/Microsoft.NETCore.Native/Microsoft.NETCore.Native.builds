@@ -1,13 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Project>
-  <Import Project="Microsoft.NETCore.Native.props" />
-  <Import Project="Sdk.props" Sdk="Microsoft.Build.Traversal" />
-
+<Project Sdk="Microsoft.Build.Traversal">
   <ItemGroup>
     <!-- identity project, runtime specific projects are included by props above -->
     <Project Include="$(MSBuildProjectName).pkgproj" />
   </ItemGroup>
 
   <Import Project="$([MSBuild]::GetPathOfFileAbove(builds.targets))" />
-  <Import Project="Sdk.targets" Sdk="Microsoft.Build.Traversal" />
 </Project>
