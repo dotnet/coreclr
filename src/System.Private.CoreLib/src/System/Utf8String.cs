@@ -8,6 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.Unicode;
 using Internal.Runtime.CompilerServices;
 
 namespace System
@@ -166,6 +167,13 @@ namespace System
                 && left.Length == right.Length
                 && SpanHelpers.SequenceEqual(ref left.DangerousGetMutableReference(), ref right.DangerousGetMutableReference(), (uint)left.Length);
         }
+
+        /// <summary>
+        /// Returns the number of <see langword="char"/>s that would result from transcoding this
+        /// <see cref="Utf8String"/> instance to a <see cref="string"/>. This is also the length
+        /// of the <see cref="string"/> that is returned by the <see cref="ToString"/> method.
+        /// </summary>
+        public int GetCharCount() => Utf8Utility.GetUtf16CharCountFromKnownWellFormedUtf8(this.AsBytes());
 
         /// <summary>
         /// Returns a hash code using a <see cref="StringComparison.Ordinal"/> comparison.

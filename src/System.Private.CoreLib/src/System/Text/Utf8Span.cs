@@ -148,6 +148,13 @@ namespace System.Text
             return StringComparer.FromComparison(comparison).Equals(left.ToString(), right.ToString());
         }
 
+        /// <summary>
+        /// Returns the number of <see langword="char"/>s that would result from transcoding this
+        /// <see cref="Utf8Span"/> instance to a <see cref="string"/>. This is also the length
+        /// of the <see cref="string"/> that is returned by the <see cref="ToString"/> method.
+        /// </summary>
+        public int GetCharCount() => Utf8Utility.GetUtf16CharCountFromKnownWellFormedUtf8(Bytes);
+
         public override int GetHashCode()
         {
             // TODO_UTF8STRING: Consider whether this should use a different seed than String.GetHashCode.
