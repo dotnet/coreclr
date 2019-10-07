@@ -64,46 +64,32 @@ namespace System
             public struct Enumerator : IEnumerator<byte>
             {
                 private readonly Utf8String _obj;
-                private int _curByteIdx;
+                private int _nextByteIdx;
 
                 internal Enumerator(Utf8String obj)
                 {
                     _obj = obj;
-                    _curByteIdx = -1;
+                    _nextByteIdx = 0;
+                    Current = default;
                 }
 
-                public byte Current
-                {
-                    get
-                    {
-                        byte retVal = default;
-
-                        // Make copies of fields to avoid tearing issues.
-                        // Disallow reading past the end of the object.
-
-                        ReadOnlySpan<byte> byteSpan = _obj.AsBytesSkipNullCheck();
-                        int curByteIdx = _curByteIdx;
-
-                        if ((uint)curByteIdx < (uint)byteSpan.Length)
-                        {
-                            retVal = byteSpan[curByteIdx];
-                        }
-
-                        return retVal;
-                    }
-                }
+                public byte Current { get; private set; }
 
                 public bool MoveNext()
                 {
-                    int curByteIdx = _curByteIdx + 1;
+                    int nextByteIdx = _nextByteIdx;
+                    ReadOnlySpan<byte> objAsBytes = _obj.AsBytesSkipNullCheck();
 
-                    if ((uint)curByteIdx >= (uint)_obj.Length)
+                    if ((uint)nextByteIdx < (uint)objAsBytes.Length)
                     {
-                        return false; // no more data
+                        Current = objAsBytes[nextByteIdx];
+                        _nextByteIdx = nextByteIdx + 1;
+                        return true;
                     }
-
-                    _curByteIdx = curByteIdx;
-                    return true;
+                    else
+                    {
+                        return false;
+                    }
                 }
 
                 void IDisposable.Dispose()
@@ -113,10 +99,7 @@ namespace System
 
                 object IEnumerator.Current => Current;
 
-                void IEnumerator.Reset()
-                {
-                    _curByteIdx = -1;
-                }
+                void IEnumerator.Reset() => throw NotImplemented.ByDesign;
             }
         }
 
@@ -208,11 +191,7 @@ namespace System
 
                 object IEnumerator.Current => Current;
 
-                void IEnumerator.Reset()
-                {
-                    _currentCharPair = default;
-                    _nextByteIdx = 0;
-                }
+                void IEnumerator.Reset() => throw NotImplemented.ByDesign;
             }
         }
 
@@ -278,11 +257,7 @@ namespace System
 
                 object IEnumerator.Current => Current;
 
-                void IEnumerator.Reset()
-                {
-                    _currentRune = default;
-                    _nextByteIdx = 0;
-                }
+                void IEnumerator.Reset() => throw NotImplemented.ByDesign;
             }
         }
     }
