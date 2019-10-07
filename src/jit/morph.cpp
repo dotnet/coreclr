@@ -2672,19 +2672,19 @@ void Compiler::fgInitArgInfo(GenTreeCall* call)
     CLANG_FORMAT_COMMENT_ANCHOR;
 
 #if !defined(FEATURE_CORECLR)
-        if (call->IsUnmanaged() && !opts.ShouldUsePInvokeHelpers())
-        {
-            assert(!call->gtCallCookie);
-            // Add a conservative estimate of the stack size in a special parameter (r11) at the call site.
-            // It will be used only on the intercepted-for-host code path to copy the arguments.
+    if (call->IsUnmanaged() && !opts.ShouldUsePInvokeHelpers())
+    {
+        assert(!call->gtCallCookie);
+        // Add a conservative estimate of the stack size in a special parameter (r11) at the call site.
+        // It will be used only on the intercepted-for-host code path to copy the arguments.
 
-            GenTree* cns = new (this, GT_CNS_INT) GenTreeIntCon(TYP_I_IMPL, fgEstimateCallStackSize(call));
-            call->gtCallArgs = gtPrependNewCallArg(cns, call->gtCallArgs);
-            numArgs++;
+        GenTree* cns = new (this, GT_CNS_INT) GenTreeIntCon(TYP_I_IMPL, fgEstimateCallStackSize(call));
+        call->gtCallArgs = gtPrependNewCallArg(cns, call->gtCallArgs);
+        numArgs++;
 
-            nonStandardArgs.Add(cns, REG_PINVOKE_COOKIE_PARAM);
-        }
-        else
+        nonStandardArgs.Add(cns, REG_PINVOKE_COOKIE_PARAM);
+    }
+    else
 #endif // !defined(FEATURE_CORECLR)
         if (call->IsVirtualStub())
     {
