@@ -2669,19 +2669,24 @@ void Compiler::fgInitArgInfo(GenTreeCall* call)
     // We are allowed to have a Fixed Return Buffer argument combined
     // with any of the remaining non-standard arguments
     //
-    if (call->IsUnmanaged() && !opts.ShouldUsePInvokeHelpers())
-    {
-        assert(!call->gtCallCookie);
-        // Add a conservative estimate of the stack size in a special parameter (r11) at the call site.
-        // It will be used only on the intercepted-for-host code path to copy the arguments.
+    CLANG_FORMAT_COMMENT_ANCHOR;
 
-        GenTree* cns     = new (this, GT_CNS_INT) GenTreeIntCon(TYP_I_IMPL, fgEstimateCallStackSize(call));
-        call->gtCallArgs = gtPrependNewCallArg(cns, call->gtCallArgs);
-        numArgs++;
+#if !defined(FEATURE_CORECLR)
+        if (call->IsUnmanaged() && !opts.ShouldUsePInvokeHelpers())
+        {
+            assert(!call->gtCallCookie);
+            // Add a conservative estimate of the stack size in a special parameter (r11) at the call site.
+            // It will be used only on the intercepted-for-host code path to copy the arguments.
 
-        nonStandardArgs.Add(cns, REG_PINVOKE_COOKIE_PARAM);
-    }
-    else if (call->IsVirtualStub())
+            GenTree* cns = new (this, GT_CNS_INT) GenTreeIntCon(TYP_I_IMPL, fgEstimateCallStackSize(call));
+            call->gtCallArgs = gtPrependNewCallArg(cns, call->gtCallArgs);
+            numArgs++;
+
+            nonStandardArgs.Add(cns, REG_PINVOKE_COOKIE_PARAM);
+        }
+        else
+#endif // !defined(FEATURE_CORECLR)
+        if (call->IsVirtualStub())
     {
         if (!call->IsTailCallViaHelper())
         {
