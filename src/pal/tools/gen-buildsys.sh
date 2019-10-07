@@ -6,11 +6,10 @@
 if [ $# -lt 5 ]
 then
   echo "Usage..."
-  echo "gen-buildsys-clang.sh <path to top level CMakeLists.txt> <ClangMajorVersion> <ClangMinorVersion> <Architecture> <ScriptDirectory> [build flavor] [coverage] [ninja] [scan-build] [cmakeargs]"
-  echo "Specify the path to the top level CMake file - <ProjectK>/src/NDP"
-  echo "Specify the clang version to use, split into major and minor version"
+  echo "gen-buildsys.sh <path to top level CMakeLists.txt> <path to intermediate directory> <Architecture> [build flavor] [coverage] [ninja] [scan-build] [cmakeargs]"
+  echo "Specify the path to the top level CMake file."
+  echo "Specify the path that the build system files are generated in."
   echo "Specify the target architecture."
-  echo "Specify the script directory."
   echo "Optionally specify the build configuration (flavor.) Defaults to DEBUG." 
   echo "Optionally specify 'coverage' to enable code coverage build."
   echo "Optionally specify 'scan-build' to enable build with clang static analyzer."
@@ -19,29 +18,7 @@ then
   exit 1
 fi
 
-# Set up the environment to be used for building with clang.
-if command -v "clang-$2.$3" > /dev/null
-    then
-        desired_llvm_version="-$2.$3"
-elif command -v "clang$2$3" > /dev/null
-    then
-        desired_llvm_version="$2$3"
-elif command -v "clang-$2$3" > /dev/null
-    then
-        desired_llvm_version="-$2$3"
-elif command -v clang > /dev/null
-    then
-        desired_llvm_version=
-else
-    echo "Unable to find Clang Compiler"
-    exit 1
-fi
-
-export CC="$(command -v clang$desired_llvm_version)"
-export CXX="$(command -v clang++$desired_llvm_version)"
-
-build_arch="$4"
-script_dir="$5"
+build_arch="$3"
 buildtype=DEBUG
 code_coverage=OFF
 build_tests=OFF
@@ -49,11 +26,11 @@ scan_build=OFF
 generator="Unix Makefiles"
 __UnprocessedCMakeArgs=""
 
-for i in "${@:6}"; do
+for i in "${@:4}"; do
     upperI="$(echo $i | awk '{print toupper($0)}')"
     case $upperI in
-      # Possible build types are DEBUG, CHECKED, RELEASE, RELWITHDEBINFO, MINSIZEREL.
-      DEBUG | CHECKED | RELEASE | RELWITHDEBINFO | MINSIZEREL)
+      # Possible build types are DEBUG, CHECKED, RELEASE, RELWITHDEBINFO.
+      DEBUG | CHECKED | RELEASE | RELWITHDEBINFO)
       buildtype=$upperI
       ;;
       COVERAGE)
@@ -86,30 +63,11 @@ if [ "$CROSSCOMPILE" == "1" ]; then
     export TARGET_BUILD_ARCH=$build_arch
     cmake_extra_defines="$cmake_extra_defines -C $CONFIG_DIR/tryrun.cmake"
     cmake_extra_defines="$cmake_extra_defines -DCMAKE_TOOLCHAIN_FILE=$CONFIG_DIR/toolchain.cmake"
-    cmake_extra_defines="$cmake_extra_defines -DCLR_UNIX_CROSS_BUILD=1"
-fi
-if [ $OS == "Linux" ]; then
-    linux_id_file="/etc/os-release"
-    if [[ -n "$CROSSCOMPILE" ]]; then
-        linux_id_file="$ROOTFS_DIR/$linux_id_file"
-    fi
-    if [[ -e $linux_id_file ]]; then
-        source $linux_id_file
-        cmake_extra_defines="$cmake_extra_defines -DCLR_CMAKE_LINUX_ID=$ID"
-    fi
-fi
-if [ "$build_arch" == "armel" ]; then
-    cmake_extra_defines="$cmake_extra_defines -DARM_SOFTFP=1"
 fi
 
-__currentScriptDir="$script_dir"
+cmake_command=$(command -v cmake)
 
-cmake_command=$(command -v cmake3 || command -v cmake)
-
-if [[ "$scan_build" == "ON" ]]; then
-    export CCC_CC=$CC
-    export CCC_CXX=$CXX
-    export SCAN_BUILD_COMMAND=$(command -v scan-build$desired_llvm_version)
+if [[ "$scan_build" == "ON" && "$SCAN_BUILD_COMMAND" != "" ]]; then
     cmake_command="$SCAN_BUILD_COMMAND $cmake_command"
 fi
 
@@ -122,4 +80,5 @@ $cmake_command \
   "-DCMAKE_USER_MAKE_RULES_OVERRIDE=" \
   $cmake_extra_defines \
   $__UnprocessedCMakeArgs \
-  "$1"
+  -S "$1" \
+  -B "$2"

@@ -215,11 +215,9 @@ if not defined VSINSTALLDIR (
 )
 if not exist "%VSINSTALLDIR%DIA SDK" goto NoDIA
 
-pushd "%__NativeTestIntermediatesDir%"
 set __ExtraCmakeArgs="-DCMAKE_SYSTEM_VERSION=10.0"
-call "%__SourceDir%\pal\tools\gen-buildsys-win.bat" ""%__ProjectFilesDir%"" %__VSVersion% %__BuildArch% !__ExtraCmakeArgs!
+call "%__SourceDir%\pal\tools\gen-buildsys.cmd" "%__ProjectFilesDir%" "%__NativeTestIntermediatesDir%" %__VSVersion% %__BuildArch% !__ExtraCmakeArgs!
 @if defined _echo @echo on
-popd
 
 if not exist "%__NativeTestIntermediatesDir%\install.vcxproj" (
     echo %__ErrMsgPrefix%%__MsgPrefix%Failed to generate test native component build project!
