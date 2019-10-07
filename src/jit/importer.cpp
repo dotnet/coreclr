@@ -4040,9 +4040,9 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
                     //   -x *  y - z -> NI_FMA_MultiplySubtractNegatedScalar
                     //   -x * -y - z -> NI_FMA_MultiplySubtractScalar
 
-                    GenTree* x = impPopStack().val;
-                    GenTree* y = impPopStack().val;
                     GenTree* z = impPopStack().val;
+                    GenTree* y = impPopStack().val;
+                    GenTree* x = impPopStack().val;
 
                     bool           negMul = x->OperIs(GT_NEG) ^ y->OperIs(GT_NEG);
                     NamedIntrinsic fma;
