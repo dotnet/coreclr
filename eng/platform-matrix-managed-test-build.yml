@@ -297,7 +297,8 @@ jobs:
       archType: arm64
       osGroup: Windows_NT
       helixQueues:
-      # TODO: Consider adding Windows.10.Arm64.Open here if capacity is enough for handling both Windows_NT/arm and Windows_NT/arm64 testing
+      - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(parameters.helixQueueGroup, 'ci')) }}:
+        - Windows.10.Arm64.Open
       - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
         - Windows.10.Arm64
       ${{ insert }}: ${{ parameters.jobParameters }}
