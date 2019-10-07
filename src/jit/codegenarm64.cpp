@@ -7818,35 +7818,23 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
 
     const target_size_t pageSize = compiler->eeGetPageSize();
 
-#ifdef _TARGET_ARM64_
     // What offset from the final SP was the last probe? If we haven't probed almost a complete page, and
     // if the next action on the stack might subtract from SP first, before touching the current SP, then
     // we do one more probe at the very bottom. This can happen if we call a function on arm64 that does
     // a "STP fp, lr, [sp-504]!", that is, pre-decrement SP then store. Note that we probe here for arm64,
     // but we don't alter SP.
     target_size_t lastTouchDelta = 0;
-#endif // _TARGET_ARM64_
 
     assert(!compiler->info.compPublishStubParam || (REG_SECRET_STUB_PARAM != initReg));
 
     if (frameSize < pageSize)
     {
-#ifdef _TARGET_ARM_
-        inst_RV_IV(INS_sub, REG_SPBASE, frameSize, EA_PTRSIZE);
-#endif // _TARGET_ARM_
-
-#ifdef _TARGET_ARM64_
         lastTouchDelta = frameSize;
-#endif // _TARGET_ARM64_
     }
     else if (frameSize < compiler->getVeryLargeFrameSize())
     {
-#if defined(_TARGET_ARM64_)
         regNumber rTemp = REG_ZR; // We don't need a register for the target of the dummy load
         lastTouchDelta  = frameSize;
-#else
-        regNumber rTemp = initReg;
-#endif
 
         for (target_size_t probeOffset = pageSize; probeOffset <= frameSize; probeOffset += pageSize)
         {
@@ -7859,19 +7847,11 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
             regSet.verifyRegUsed(initReg);
             *pInitRegZeroed = false; // The initReg does not contain zero
 
-#ifdef _TARGET_ARM64_
             lastTouchDelta -= pageSize;
-#endif // _TARGET_ARM64_
         }
 
-#ifdef _TARGET_ARM64_
         assert(lastTouchDelta == frameSize % pageSize);
         compiler->unwindPadding();
-#else  // !_TARGET_ARM64_
-        instGen_Set_Reg_To_Imm(EA_PTRSIZE, initReg, frameSize);
-        compiler->unwindPadding();
-        GetEmitter()->emitIns_R_R_R(INS_sub, EA_4BYTE, REG_SPBASE, REG_SPBASE, initReg);
-#endif // !_TARGET_ARM64_
     }
     else
     {
@@ -7892,21 +7872,7 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         regNumber rLimit;
         regMaskTP tempMask;
 
-#if defined(_TARGET_ARM64_)
-
         regNumber rTemp = REG_ZR; // We don't need a register for the target of the dummy load
-
-#else // _TARGET_ARM_
-
-        regNumber rTemp;
-
-        // We pick the next lowest register number for rTemp
-        noway_assert(availMask != RBM_NONE);
-        tempMask = genFindLowestBit(availMask);
-        rTemp    = genRegNumFromMask(tempMask);
-        availMask &= ~tempMask;
-
-#endif // _TARGET_ARM_
 
         // We pick the next lowest register number for rLimit
         noway_assert(availMask != RBM_NONE);
@@ -7942,12 +7908,7 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         // `emitIns_J` with a negative `instrCount` to branch back a specific number of instructions.
 
         GetEmitter()->emitIns_R_R_R(INS_ldr, EA_4BYTE, rTemp, REG_SPBASE, rOffset);
-#if defined(_TARGET_ARM_)
-        regSet.verifyRegUsed(rTemp);
-        GetEmitter()->emitIns_R_I(INS_sub, EA_PTRSIZE, rOffset, pageSize);
-#elif defined(_TARGET_ARM64_)
         GetEmitter()->emitIns_R_R_I(INS_sub, EA_PTRSIZE, rOffset, rOffset, pageSize);
-#endif
         GetEmitter()->emitIns_R_R(INS_cmp, EA_PTRSIZE, rLimit, rOffset); // If equal, we need to probe again
         GetEmitter()->emitIns_J(INS_bls, NULL, -4);
 
@@ -7955,16 +7916,9 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
 
         compiler->unwindPadding();
 
-#ifdef _TARGET_ARM64_
         lastTouchDelta = frameSize % pageSize;
-#endif // _TARGET_ARM64_
-
-#ifdef _TARGET_ARM_
-        inst_RV_RV(INS_add, REG_SPBASE, rLimit, TYP_I_IMPL);
-#endif // _TARGET_ARM_
     }
 
-#ifdef _TARGET_ARM64_
     if (lastTouchDelta + STACK_PROBE_BOUNDARY_THRESHOLD_BYTES > pageSize)
     {
         assert(lastTouchDelta + STACK_PROBE_BOUNDARY_THRESHOLD_BYTES < 2 * pageSize);
@@ -7975,17 +7929,6 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         regSet.verifyRegUsed(initReg);
         *pInitRegZeroed = false; // The initReg does not contain zero
     }
-#endif // _TARGET_ARM64_
-
-#ifdef _TARGET_ARM_
-    compiler->unwindAllocStack(frameSize);
-#ifdef USING_SCOPE_INFO
-    if (!doubleAlignOrFramePointerUsed())
-    {
-        psiAdjustStackLevel(frameSize);
-    }
-#endif // USING_SCOPE_INFO
-#endif // _TARGET_ARM_
 }
 
 #endif // _TARGET_ARM64_
