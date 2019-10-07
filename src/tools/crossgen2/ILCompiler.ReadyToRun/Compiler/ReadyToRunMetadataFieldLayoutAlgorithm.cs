@@ -15,6 +15,7 @@ using ILCompiler.DependencyAnalysis.ReadyToRun;
 using Internal.TypeSystem;
 using Internal.TypeSystem.Ecma;
 using Internal.TypeSystem.Interop;
+using System.Collections.Concurrent;
 
 namespace ILCompiler
 {

@@ -41,10 +41,17 @@ namespace ILCompiler.DependencyAnalysis
         public ReadyToRunSymbolNodeFactory(ReadyToRunCodegenNodeFactory codegenNodeFactory)
         {
             _codegenNodeFactory = codegenNodeFactory;
+<<<<<<< HEAD
             CreateNodeCaches();
         }
 
         private void CreateNodeCaches()
+=======
+            CreateSymbolNodeCaches();
+        }
+
+        private void CreateSymbolNodeCaches()
+>>>>>>> Preparation to introduce parallelism into CrossGen2
         {
             _importStrings = new NodeCache<ModuleTokenAndSignatureContext, ISymbolNode>(key =>
             {
@@ -203,9 +210,13 @@ namespace ILCompiler.DependencyAnalysis
 
             public override int GetHashCode()
             {
+<<<<<<< HEAD
                 return Id.GetHashCode() 
                     ^ (Target.GetHashCode() * 23)
                     ^ (SignatureContext.GetHashCode() * 31);
+=======
+                return Id.GetHashCode() ^ (SignatureContext.GetHashCode() * 31);
+>>>>>>> Preparation to introduce parallelism into CrossGen2
             }
         }
 
