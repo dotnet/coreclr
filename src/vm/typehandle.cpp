@@ -677,7 +677,7 @@ BOOL TypeHandle::CanCastTo(TypeHandle type, TypeHandlePairList *pVisited)  const
 }
 
 #include <optsmallperfcritical.h>
-TypeHandle::CastResult TypeHandle::CanCastToNoGC(TypeHandle type)  const
+TypeHandle::CastResult TypeHandle::CanCastToCached(TypeHandle type)  const
 {
     CONTRACTL
     {
@@ -690,10 +690,7 @@ TypeHandle::CastResult TypeHandle::CanCastToNoGC(TypeHandle type)  const
     if (*this == type)
         return CanCast;
 
-    if (IsTypeDesc())
-        return AsTypeDesc()->CanCastToNoGC(type);
-
-    if (type.IsTypeDesc())
+    if (!IsTypeDesc() && type.IsTypeDesc())
         return CannotCast;
 
     return CastCache::TryGetFromCache(*this, type);

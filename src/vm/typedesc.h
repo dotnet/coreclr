@@ -75,18 +75,17 @@ public:
     // - might throw, might trigger GC
     // - return type is boolean (FALSE = cannot cast, TRUE = can cast)
     //
-    // CanCastToNoGC
+    // CanCastToCached
     // - does not throw, does not trigger GC
     // - return type is three-valued (CanCast, CannotCast, MaybeCast)
     //
     // MaybeCast indicates an inconclusive result
-    // - the test required calling into GC-triggering or throwing helpers
     // - the test result could not be obtained from a cache
-    // so the caller should now call CanCastTo if it cares
+    //   so the caller should now call CanCastTo if it cares
     // 
 
     BOOL CanCastTo(TypeHandle type, TypeHandlePairList *pVisited);
-    TypeHandle::CastResult CanCastToNoGC(TypeHandle type);
+    TypeHandle::CastResult CanCastToCached(TypeHandle type);
 
     static BOOL CanCastParam(TypeHandle fromParam, TypeHandle toParam, TypeHandlePairList *pVisited);
 

@@ -1674,7 +1674,7 @@ EXTERN_C FCDECL0(VOID, JIT_PollGC_Nop);
 BOOL ObjIsInstanceOf(Object *pObject, TypeHandle toTypeHnd, BOOL throwCastException = FALSE);
 BOOL ObjIsInstanceOfCore(Object* pObject, TypeHandle toTypeHnd, BOOL throwCastException = FALSE);
 
-EXTERN_C TypeHandle::CastResult STDCALL ObjIsInstanceOfNoGC(Object *pObject, TypeHandle toTypeHnd);
+EXTERN_C TypeHandle::CastResult STDCALL ObjIsInstanceOfCached(Object *pObject, TypeHandle toTypeHnd);
 
 #ifdef BIT64
 class InlinedCallFrame;

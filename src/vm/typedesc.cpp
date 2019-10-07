@@ -520,7 +520,7 @@ BOOL TypeDesc::CanCastParam(TypeHandle fromParam, TypeHandle toParam, TypeHandle
     return FALSE;
 }
 
-TypeHandle::CastResult TypeDesc::CanCastToNoGC(TypeHandle toType)
+TypeHandle::CastResult TypeDesc::CanCastToCached(TypeHandle toType)
 {
     CONTRACTL
     {

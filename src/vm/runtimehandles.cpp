@@ -1362,7 +1362,7 @@ FCIMPL2(FC_BOOL_RET, RuntimeTypeHandle::CanCastTo, ReflectClassBaseObject *pType
 
     BOOL iRetVal = 0;
 
-    TypeHandle::CastResult r = fromHandle.CanCastToNoGC(toHandle);
+    TypeHandle::CastResult r = fromHandle.CanCastToCached(toHandle);
     if (r == TypeHandle::MaybeCast)
     {
         HELPER_METHOD_FRAME_BEGIN_RET_2(refType, refTarget);

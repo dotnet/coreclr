@@ -2071,7 +2071,7 @@ HCIMPLEND_RAW
 //
 //========================================================================
 
-TypeHandle::CastResult STDCALL ObjIsInstanceOfNoGC(Object *pObject, TypeHandle toTypeHnd)
+TypeHandle::CastResult STDCALL ObjIsInstanceOfCached(Object *pObject, TypeHandle toTypeHnd)
 {
     CONTRACTL {
         NOTHROW;
@@ -2438,7 +2438,7 @@ HCIMPL2(Object *, JIT_IsInstanceOfAny, CORINFO_CLASS_HANDLE type, Object* obj)
     }
 
     TypeHandle th = TypeHandle(type);
-    switch (ObjIsInstanceOfNoGC(obj, th)) {
+    switch (ObjIsInstanceOfCached(obj, th)) {
     case TypeHandle::CanCast:
         return obj;
     case TypeHandle::CannotCast:
@@ -2466,7 +2466,7 @@ HCIMPL2(Object *, JIT_ChkCastAny, CORINFO_CLASS_HANDLE type, Object *pObject)
     }
 
     TypeHandle th = TypeHandle(type);
-    TypeHandle::CastResult result = ObjIsInstanceOfNoGC(pObject, th);
+    TypeHandle::CastResult result = ObjIsInstanceOfCached(pObject, th);
     if (result == TypeHandle::CanCast)
     {
         return pObject;
@@ -3278,7 +3278,7 @@ HCIMPL3(void, JIT_Stelem_Ref_Portable, PtrArray* array, unsigned idx, Object *va
 
         if (arrayElemTH != TypeHandle(valMT) && arrayElemTH != TypeHandle(g_pObjectClass))
         {   
-            TypeHandle::CastResult result = ObjIsInstanceOfNoGC(val, arrayElemTH);
+            TypeHandle::CastResult result = ObjIsInstanceOfCached(val, arrayElemTH);
             if (result != TypeHandle::CanCast)
             {
                 // FCALL_CONTRACT increase ForbidGC count.  Normally, HELPER_METHOD_FRAME macros decrease the count.

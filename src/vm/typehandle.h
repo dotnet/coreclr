@@ -269,14 +269,13 @@ public:
     // - might throw, might trigger GC
     // - return type is boolean (FALSE = cannot cast, TRUE = can cast)
     //
-    // CanCastToNoGC
+    // CanCastToCached
     // - does not throw, does not trigger GC
     // - return type is three-valued (CanCast, CannotCast, MaybeCast)
     //
     // MaybeCast indicates an inconclusive result
-    // - the test required calling into GC-triggering or throwing helpers
     // - the test result could not be obtained from a cache
-    // so the caller should now call CanCastTo if it cares
+    //   so the caller should now call CanCastTo if it cares
     //
     // Note that if the TypeHandle is a valuetype, the caller is responsible
     // for checking that the valuetype is in its boxed form before calling
@@ -285,7 +284,7 @@ public:
 
     BOOL CanCastTo(TypeHandle type, TypeHandlePairList *pVisited = NULL) const;
     BOOL IsBoxedAndCanCastTo(TypeHandle type, TypeHandlePairList *pVisited) const;
-    CastResult CanCastToNoGC(TypeHandle type) const;
+    CastResult CanCastToCached(TypeHandle type) const;
 
 #ifndef DACCESS_COMPILE
     // Type equivalence based on Guid and TypeIdentifier attributes
