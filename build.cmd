@@ -490,22 +490,10 @@ if %__BuildCrossArchNative% EQU 1 (
 
     if defined __ConfigureOnly goto SkipCrossCompBuild
 
-    set __BuildLogRootName=Cross
-    set __BuildLog="%__LogsDir%\!__BuildLogRootName!_%__BuildOS%__%__BuildArch%__%__BuildType%.log"
-    set __BuildWrn="%__LogsDir%\!__BuildLogRootName!_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn"
-    set __BuildErr="%__LogsDir%\!__BuildLogRootName!_%__BuildOS%__%__BuildArch%__%__BuildType%.err"
-    set __MsbuildLog=/flp:Verbosity=normal;LogFile=!__BuildLog!
-    set __MsbuildWrn=/flp1:WarningsOnly;LogFile=!__BuildWrn!
-    set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
-    set __Logging=!_MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
-
-    "%CMakePath%" --build %__CrossCompIntermediatesDir% --target install --config %__BuildType% -j %NumberOfCores% -- %__Logging%
+    "%CMakePath%" --build %__CrossCompIntermediatesDir% --target install --config %__BuildType% -j %NumberOfCores%
 
     if not !errorlevel! == 0 (
-        echo %__ErrMsgPrefix%%__MsgPrefix%Error: cross-arch components build failed. Refer to the build log files for details.
-        echo     !__BuildLog!
-        echo     !__BuildWrn!
-        echo     !__BuildErr!
+        echo %__ErrMsgPrefix%%__MsgPrefix%Error: cross-arch components build failed.
         exit /b !errorlevel!
     )
 
@@ -574,22 +562,11 @@ if %__BuildNative% EQU 1 (
 
     if defined __ConfigureOnly goto SkipNativeBuild
 
-    set __BuildLogRootName=CoreCLR
-    set __BuildLog="%__LogsDir%\!__BuildLogRootName!_%__BuildOS%__%__BuildArch%__%__BuildType%.log"
-    set __BuildWrn="%__LogsDir%\!__BuildLogRootName!_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn"
-    set __BuildErr="%__LogsDir%\!__BuildLogRootName!_%__BuildOS%__%__BuildArch%__%__BuildType%.err"
-    set __MsbuildLog=/flp:Verbosity=normal;LogFile=!__BuildLog!
-    set __MsbuildWrn=/flp1:WarningsOnly;LogFile=!__BuildWrn!
-    set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
-    set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-    "%CMakePath%" --build %__IntermediatesDir% --target install --config %__BuildType% -j %NumberOfCores% -- %__Logging%
+    "%CMakePath%" --build %__IntermediatesDir% --target install --config %__BuildType% -j %NumberOfCores%
 
     if not !errorlevel! == 0 (
-        echo %__ErrMsgPrefix%%__MsgPrefix%Error: native component build failed. Refer to the build log files for details.
-        echo     !__BuildLog!
-        echo     !__BuildWrn!
-        echo     !__BuildErr!
+        echo %__ErrMsgPrefix%%__MsgPrefix%Error: native component build failed.
         exit /b !errorlevel!
     )
 
