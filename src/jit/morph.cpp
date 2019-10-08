@@ -7468,7 +7468,7 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, void* pfnCopyArgs)
         // We don't need this arg to be in the normal stub register, so
         // clear out the register assignment.
         assert(stubAddrArg->GetRegNum() == virtualStubParamInfo->GetReg());
-        stubAddrArg->GetRegNum() = REG_NA;
+        stubAddrArg->SetRegNum(REG_NA);
 
         // And push the stub address onto the list of arguments
         call->gtCallArgs = gtPrependNewCallArg(stubAddrArg, call->gtCallArgs);
