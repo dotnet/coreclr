@@ -380,7 +380,7 @@ void Rationalizer::RewriteAssignment(LIR::Use& use)
                 if (varDsc->HasGCPtr())
                 {
                     CORINFO_CLASS_HANDLE structHnd = varDsc->lvVerTypeInfo.GetClassHandle();
-                    GenTreeObj*          objNode   = comp->gtNewObjNode(structHnd, location)->AsObj();
+                    GenTreeObj*          objNode   = comp->gtNewObjNode(structHnd, location);
                     objNode->ChangeOper(GT_STORE_OBJ);
                     objNode->SetData(value);
                     storeBlk = objNode;

@@ -6399,26 +6399,10 @@ GenTree* Compiler::gtNewAssignNode(GenTree* dst, GenTree* src)
 // Return Value:
 //    Returns a node representing the struct value at the given address.
 //
-// Notes:
-//    It will currently return a GT_OBJ node for any struct type, but may
-//    return a GT_IND or a non-indirection for a scalar type.
-
-GenTree* Compiler::gtNewObjNode(CORINFO_CLASS_HANDLE structHnd, GenTree* addr)
+GenTreeObj* Compiler::gtNewObjNode(CORINFO_CLASS_HANDLE structHnd, GenTree* addr)
 {
     var_types nodeType = impNormStructType(structHnd);
     assert(varTypeIsStruct(nodeType));
-
-    if (!varTypeIsStruct(nodeType))
-    {
-        if ((addr->gtOper == GT_ADDR) && (addr->gtGetOp1()->TypeGet() == nodeType))
-        {
-            return addr->gtGetOp1();
-        }
-        else
-        {
-            return gtNewOperNode(GT_IND, nodeType, addr);
-        }
-    }
 
     GenTreeObj* objNode = new (this, GT_OBJ) GenTreeObj(nodeType, addr, typGetObjLayout(structHnd));
 

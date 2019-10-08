@@ -9507,10 +9507,7 @@ GenTree* Compiler::fgMorphBlkNode(GenTree* tree, bool isDest)
             else
             {
                 tree = gtNewObjNode(structHnd, addr);
-                if (tree->OperGet() == GT_OBJ)
-                {
-                    gtSetObjGcInfo(tree->AsObj());
-                }
+                gtSetObjGcInfo(tree->AsObj());
             }
         }
         else
@@ -9677,10 +9674,7 @@ GenTree* Compiler::fgMorphBlockOperand(GenTree* tree, var_types asgType, unsigne
                     else
                     {
                         newTree = gtNewObjNode(clsHnd, addr);
-                        if (newTree->OperGet() == GT_OBJ)
-                        {
-                            gtSetObjGcInfo(newTree->AsObj());
-                        }
+                        gtSetObjGcInfo(newTree->AsObj());
                     }
                 }
                 else
@@ -17532,11 +17526,11 @@ GenTree* Compiler::fgMorphImplicitByRefArgs(GenTree* tree, bool isAddr)
         else
         {
             tree = gtNewObjNode(lclVarDsc->lvVerTypeInfo.GetClassHandle(), tree);
-        }
 
-        if (structType == TYP_STRUCT)
-        {
-            gtSetObjGcInfo(tree->AsObj());
+            if (structType == TYP_STRUCT)
+            {
+                gtSetObjGcInfo(tree->AsObj());
+            }
         }
 
         // TODO-CQ: If the VM ever stops violating the ABI and passing heap references
