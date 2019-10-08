@@ -63,7 +63,7 @@ build_test_wrappers()
         __MsbuildErr="/fileloggerparameters2:\"ErrorsOnly;LogFile=${__BuildErr}\""
         __Logging="$__MsbuildLog $__MsbuildWrn $__MsbuildErr /consoleloggerparameters:$buildVerbosity"
 
-        nextCommand="\"${__DotNetCli}\" msbuild \"${__ProjectDir}/tests/src/runtest.proj\" /p:RestoreAdditionalProjectSources=https://dotnet.myget.org/F/dotnet-core/ /p:BuildWrappers=true /p:TargetsWindows=false $__Logging /p:__BuildOS=$__BuildOS /p:__BuildType=$__BuildType /p:__BuildArch=$__BuildArch"
+        nextCommand="\"${__DotNetCli}\" msbuild \"${__ProjectDir}/tests/src/runtest.proj\" /nodereuse:false /p:BuildWrappers=true /p:TargetsWindows=false $__Logging /p:__BuildOS=$__BuildOS /p:__BuildType=$__BuildType /p:__BuildArch=$__BuildArch"
         eval $nextCommand
 
         if [ $? -ne 0 ]; then

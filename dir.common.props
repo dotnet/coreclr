@@ -111,13 +111,8 @@
     <!-- This name is used to create a GIT repository URL https://github.com/dotnet/$(GitHubRepositoryName) used to find source code for debugging -->
     <GitHubRepositoryName Condition="'$(GitHubRepositoryName)' == ''">coreclr</GitHubRepositoryName>
 
-    <Platform Condition="'$(Platform)' == ''">$(BuildArch)</Platform>
-    <Platform Condition="'$(Platform)' == 'amd64'">x64</Platform>
-
     <!-- Default to portable build if not explicitly set -->
     <PortableBuild Condition="'$(PortableBuild)' == ''">true</PortableBuild>
-
-    <OverrideRestoreOutputPath>true</OverrideRestoreOutputPath>
 
     <!-- If true, indicates that this is not an officially supported release -->
     <!-- It is important to flip this to false in official release branches -->

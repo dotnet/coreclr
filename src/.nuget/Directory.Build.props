@@ -5,9 +5,6 @@
   <Import Project="../Directory.Build.props" />
   <Import Project="packaging.props" />
 
-  <!-- Allow specialization of the packaging by creating a props file of the same name of the project immediately next to the project -->
-  <Import Condition="Exists('$(MSBuildProjectDirectory)/$(MSBuildProjectName).props')" Project="$(MSBuildProjectDirectory)/$(MSBuildProjectName).props"/>
-
   <PropertyGroup>
     <!-- defined in Packaging.targets, but we need this before targets are imported -->
     <PackagePlatform>AnyCPU</PackagePlatform>
