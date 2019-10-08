@@ -226,7 +226,7 @@ void emitter::emitInsSanityCheck(instrDesc* id)
             assert(emitGetInsSC(id) < 0x100);
             assert(insOptsNone(id->idInsOpt()) || insOptsIndexed(id->idInsOpt()));
             break;
-            
+
         case IF_LS_2D: // LS_2D   .Q.............. xx.xssnnnnnttttt      Vt Rn
             assert(isValidVectorDatasize(id->idOpSize()));
             assert(isValidArrangement(id->idOpSize(), id->idInsOpt()));
@@ -303,7 +303,7 @@ void emitter::emitInsSanityCheck(instrDesc* id)
             assert(!id->idIsLclVar());
             assert(insOptsNone(id->idInsOpt()));
             break;
-            
+
         case IF_LS_3F: // LS_3F   .Q.........mmmmm xx.xssnnnnnttttt      Vt Rn Rm
             assert(isValidVectorDatasize(id->idOpSize()));
             assert(isValidArrangement(id->idOpSize(), id->idInsOpt()));
@@ -1974,7 +1974,6 @@ emitter::code_t emitter::emitInsCode(instruction ins, insFormat fmt)
                 }
             }
             break;
-            
 
         case IF_BI_0A:
         case IF_BI_0B:
@@ -8216,22 +8215,22 @@ void emitter::emitIns_Call(EmitCallType          callType,
     {
         case EA_1BYTE:
         {
-            result |= 0x0000;   // clear bits 10 and 11
+            result |= 0x0000; // clear bits 10 and 11
         }
 
         case EA_2BYTE:
         {
-            result |= 0x0400;   // set bit at location 10, clear bit at location 11
+            result |= 0x0400; // set bit at location 10, clear bit at location 11
         }
 
         case EA_4BYTE:
         {
-            result |= 0x0800;   // clear bit at location 10, set bit at location 11
+            result |= 0x0800; // clear bit at location 10, set bit at location 11
         }
 
         case EA_8BYTE:
         {
-            result |= 0x0C00;   // set bits at location 10 and 11
+            result |= 0x0C00; // set bits at location 10 and 11
         }
 
         default:
@@ -8277,7 +8276,6 @@ void emitter::emitIns_Call(EmitCallType          callType,
             result |= 0x4000;
             result |= (index & 0x2) << 11;
             result |= (index & 0x1) << 11;
-            
         }
 
         case EA_4BYTE:
@@ -9364,11 +9362,11 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             elemsize = optGetElemsize(id->idInsOpt());
             code     = emitInsCode(ins, fmt);
 
-            code |= insEncodeVectorsize(id->idOpSize());    // Q
-            code |= 0x5000;                                 // xxx          - We only support the one register variant right now
-            code |= insEncodeVLSElemsize(elemsize);         // ss
-            code |= insEncodeReg_Rn(id->idReg2());          // nnnnn
-            code |= insEncodeReg_Vt(id->idReg1());          // ttttt
+            code |= insEncodeVectorsize(id->idOpSize()); // Q
+            code |= 0x5000;                         // xxx          - We only support the one register variant right now
+            code |= insEncodeVLSElemsize(elemsize); // ss
+            code |= insEncodeReg_Rn(id->idReg2());  // nnnnn
+            code |= insEncodeReg_Vt(id->idReg1());  // ttttt
 
             dst += emitOutput_Instr(dst, code);
             break;
@@ -9378,9 +9376,9 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             imm      = emitGetInsSC(id);
             code     = emitInsCode(ins, fmt);
 
-            code |= insEncodeVLSIndex(elemsize, imm);       // Q xx S ss
-            code |= insEncodeReg_Rn(id->idReg2());          // nnnnn
-            code |= insEncodeReg_Vt(id->idReg1());          // ttttt
+            code |= insEncodeVLSIndex(elemsize, imm); // Q xx S ss
+            code |= insEncodeReg_Rn(id->idReg2());    // nnnnn
+            code |= insEncodeReg_Vt(id->idReg1());    // ttttt
 
             dst += emitOutput_Instr(dst, code);
             break;
@@ -9486,12 +9484,12 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             elemsize = optGetElemsize(id->idInsOpt());
             code     = emitInsCode(ins, fmt);
 
-            code |= insEncodeReg_Vt(id->idReg1());          // ttttt
-            code |= insEncodeReg_Rn(id->idReg2());          // nnnnn
-            code |= insEncodeVLSElemsize(elemsize);         // ss
-            code |= 0x5000;                                 // xx.x         - We only support the one register variant right now
-            code |= insEncodeReg_Rm(id->idReg3());          // mmmmm
-            code |= insEncodeVectorsize(id->idOpSize());    // Q
+            code |= insEncodeReg_Vt(id->idReg1());  // ttttt
+            code |= insEncodeReg_Rn(id->idReg2());  // nnnnn
+            code |= insEncodeVLSElemsize(elemsize); // ss
+            code |= 0x5000;                         // xx.x         - We only support the one register variant right now
+            code |= insEncodeReg_Rm(id->idReg3());  // mmmmm
+            code |= insEncodeVectorsize(id->idOpSize()); // Q
 
             dst += emitOutput_Instr(dst, code);
             break;
@@ -9501,10 +9499,10 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             imm      = emitGetInsSC(id);
             code     = emitInsCode(ins, fmt);
 
-            code |= insEncodeVLSIndex(elemsize, imm);       // Q xx S ss
-            code |= insEncodeReg_Rm(id->idReg3());          // mmmmm
-            code |= insEncodeReg_Rn(id->idReg2());          // nnnnn
-            code |= insEncodeReg_Vt(id->idReg1());          // ttttt
+            code |= insEncodeVLSIndex(elemsize, imm); // Q xx S ss
+            code |= insEncodeReg_Rm(id->idReg3());    // mmmmm
+            code |= insEncodeReg_Rn(id->idReg2());    // nnnnn
+            code |= insEncodeReg_Vt(id->idReg1());    // ttttt
 
             dst += emitOutput_Instr(dst, code);
             break;
