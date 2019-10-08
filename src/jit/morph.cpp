@@ -4952,8 +4952,7 @@ void Compiler::fgMakeOutgoingStructArgCopy(GenTreeCall*         call,
     }
 
     // Copy the valuetype to the temp
-    unsigned size    = info.compCompHnd->getClassSize(copyBlkClass);
-    GenTree* copyBlk = gtNewBlkOpNode(dest, argx, size, false /* not volatile */, true /* copyBlock */);
+    GenTree* copyBlk = gtNewBlkOpNode(dest, argx, false /* not volatile */, true /* copyBlock */);
     copyBlk          = fgMorphCopyBlock(copyBlk);
 
 #if FEATURE_FIXED_OUT_ARGS
@@ -8008,8 +8007,8 @@ void Compiler::fgMorphRecursiveFastTailCallIntoLoop(BasicBlock* block, GenTreeCa
                     {
                         const bool isVolatile  = false;
                         const bool isCopyBlock = false;
-                        init = gtNewBlkOpNode(lcl, gtNewIconNode(0), varDsc->lvSize(), isVolatile, isCopyBlock);
-                        init = fgMorphInitBlock(init);
+                        init                   = gtNewBlkOpNode(lcl, gtNewIconNode(0), isVolatile, isCopyBlock);
+                        init                   = fgMorphInitBlock(init);
                     }
                     else
                     {

@@ -2502,7 +2502,7 @@ public:
     GenTree* gtNewSIMDVectorOne(var_types simdType, var_types baseType, unsigned size);
 #endif
 
-    GenTree* gtNewBlkOpNode(GenTree* dst, GenTree* srcOrFillVal, unsigned size, bool isVolatile, bool isCopyBlock);
+    GenTree* gtNewBlkOpNode(GenTree* dst, GenTree* srcOrFillVal, bool isVolatile, bool isCopyBlock);
 
     GenTree* gtNewPutArgReg(var_types type, GenTree* arg, regNumber argReg);
 

@@ -6533,19 +6533,10 @@ GenTree* Compiler::gtNewCpObjNode(GenTree* dstAddr, GenTree* srcAddr, CORINFO_CL
 {
     GenTree* lhs = gtNewStructVal(structHnd, dstAddr);
     GenTree* src = nullptr;
-    unsigned size;
 
-    if (lhs->OperIsBlk())
+    if (lhs->OperIs(GT_OBJ))
     {
-        size = lhs->AsBlk()->GetLayout()->GetSize();
-        if (lhs->OperGet() == GT_OBJ)
-        {
-            gtSetObjGcInfo(lhs->AsObj());
-        }
-    }
-    else
-    {
-        size = genTypeSize(lhs->gtType);
+        gtSetObjGcInfo(lhs->AsObj());
     }
 
     if (srcAddr->OperGet() == GT_ADDR)
@@ -6557,7 +6548,7 @@ GenTree* Compiler::gtNewCpObjNode(GenTree* dstAddr, GenTree* srcAddr, CORINFO_CL
         src = gtNewOperNode(GT_IND, lhs->TypeGet(), srcAddr);
     }
 
-    GenTree* result = gtNewBlkOpNode(lhs, src, size, isVolatile, true);
+    GenTree* result = gtNewBlkOpNode(lhs, src, isVolatile, true);
     return result;
 }
 
@@ -6725,7 +6716,6 @@ void Compiler::gtBlockOpInit(GenTree* result, GenTree* dst, GenTree* srcOrFillVa
 // Arguments:
 //    dst           - Destination or target to copy to / initialize the buffer.
 //    srcOrFillVall - the size of the buffer to copy/initialize or zero, in the case of CpObj.
-//    size          - The size of the buffer or a class token (in the case of CpObj).
 //    isVolatile    - Whether this is a volatile memory operation or not.
 //    isCopyBlock   - True if this is a block copy (rather than a block init).
 //
@@ -6736,7 +6726,7 @@ void Compiler::gtBlockOpInit(GenTree* result, GenTree* dst, GenTree* srcOrFillVa
 //    If size is zero, the dst must be a GT_OBJ with the class handle.
 //    'dst' must be a block node or lclVar.
 //
-GenTree* Compiler::gtNewBlkOpNode(GenTree* dst, GenTree* srcOrFillVal, unsigned size, bool isVolatile, bool isCopyBlock)
+GenTree* Compiler::gtNewBlkOpNode(GenTree* dst, GenTree* srcOrFillVal, bool isVolatile, bool isCopyBlock)
 {
     assert(dst->OperIsBlk() || dst->OperIsLocal());
     if (isCopyBlock)
