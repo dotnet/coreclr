@@ -45,6 +45,10 @@
     IMPORT  g_sw_ww_table
 #endif
 
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+    IMPORT g_card_bundle_table
+#endif
+
     IMPORT  g_ephemeral_low
     IMPORT  g_ephemeral_high
     IMPORT  g_lowest_address
@@ -526,7 +530,18 @@ UpdateCardTable
         strb     w16, [x12, x15]
 
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
-#error Need to implement for ARM64
+        ; Check if we need to update the card bundle table
+        ldr      x12, wbs_card_bundle_table
+
+        ; x15 := offset within card bundle table
+        lsr      x15, x14, #21
+
+        ldrb     w16, [x12, x15]
+        cmp      w16, 0xFF
+        beq      Exit
+
+        mov      x16, 0xFF
+        strb     w16, [x12, x15]
 #endif
 
 Exit
