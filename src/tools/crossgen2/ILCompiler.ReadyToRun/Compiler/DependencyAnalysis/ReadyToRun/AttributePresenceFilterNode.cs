@@ -22,6 +22,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
     public class AttributePresenceFilterNode : HeaderTableNode
     {
         private EcmaModule _module;
+        private ObjectData computedData;
 
         public override int ClassCode => 56456113;
 
@@ -106,7 +107,8 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             return customAttributeEntries;
         }
 
-        private uint xorshift128(uint[] state)
+        // Algorithm "xor128" from p. 5 of Marsaglia, "Xorshift RNGs"
+        private uint XorShift128(uint[] state)
         {
             uint s, t = state[3];
             state[3] = state[2];
@@ -122,6 +124,11 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             // This node does not trigger generation of other nodes.
             if (relocsOnly)
                 return new ObjectData(Array.Empty<byte>(), Array.Empty<Relocation>(), 1, new ISymbolDefinitionNode[] { this });
+
+            if (computedData != null)
+            {
+                return computedData;
+            }
 
             List<CustomAttributeEntry> customAttributeEntries = GetCustomAttributeEntries();
             int countOfEntries = customAttributeEntries.Count;
@@ -153,13 +160,10 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
                 // Attempt to fill table
                 foreach (var customAttributeEntry in customAttributeEntries)
                 {
-                    string szNamespace = customAttributeEntry.TypeNamespace;
-                    string szName = customAttributeEntry.TypeName;
-                    int tkParent = customAttributeEntry.Parent;
-                    string name = szNamespace + "." + szName;
+                    string name = customAttributeEntry.TypeNamespace + "." + customAttributeEntry.TypeName;
                     // This hashing algorithm MUST match exactly the logic in NativeCuckooFilter
                     int hashOfAttribute = ReadyToRunHashCode.NameHashCode(name);
-                    uint hash = unchecked((uint)System.HashCode.Combine(hashOfAttribute, tkParent));
+                    uint hash = unchecked((uint)TypeHashingAlgorithms.CombineTwoValuesIntoHash((uint)hashOfAttribute, (uint)customAttributeEntry.Parent));
                     ushort fingerprint = (ushort)(hash >> 16);
                     if (fingerprint == 0)
                     {
@@ -169,7 +173,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
                     uint fingerprintHash = (uint)fingerprint;
                     uint bucketBIndex = (bucketAIndex ^ (fingerprintHash % bucketCount));
                     Debug.Assert(bucketAIndex == (bucketBIndex ^ (fingerprintHash % bucketCount)));
-                    if ((xorshift128(state) & 1) != 0) // Randomly choose which bucket to attempt to fill first
+                    if ((XorShift128(state) & 1) != 0) // Randomly choose which bucket to attempt to fill first
                     {
                         uint temp = bucketAIndex;
                         bucketAIndex = bucketBIndex;
@@ -211,7 +215,9 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
                     };
                     // Scan for pre-existing fingerprint entry in buckets
                     if (hasEntryInBucket(bucketAIndex, fingerprint) || hasEntryInBucket(bucketBIndex, fingerprint))
+                    {
                         continue;
+                    }
 
                     // Determine if there is space in a bucket to add a new entry
                     if (isEmptyEntryInBucket(bucketAIndex))
@@ -219,17 +225,20 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
                         fillEmptyEntryInBucket(bucketAIndex, fingerprint);
                         continue;
                     }
+
                     if (isEmptyEntryInBucket(bucketBIndex))
                     {
                         fillEmptyEntryInBucket(bucketBIndex, fingerprint);
                         continue;
                     }
+
+                    bool success = false;
                     int MaxNumKicks = 256;
                     // Note, that bucketAIndex itself was chosen randomly above.
-                    for (int n = 0; n < MaxNumKicks; n++)
+                    for (int n = 0; !success && n < MaxNumKicks; n++)
                     {
                         // Randomly swap an entry in bucket bucketAIndex with fingerprint
-                        uint entryIndexInBucket = xorshift128(state) & 0x7;
+                        uint entryIndexInBucket = XorShift128(state) & 0x7;
                         ushort temp = fingerprint;
                         fingerprint = pTable[(bucketAIndex * 8) + entryIndexInBucket];
                         pTable[(bucketAIndex * 8) + entryIndexInBucket] = temp;
@@ -244,6 +253,11 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
                         }
                     }
 
+                    if (success)
+                    {
+                        continue;
+                    }
+
                     tryAgainWithBiggerTable = true;
                 }
 
@@ -254,21 +268,28 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
                 }
             }
             while(tryAgainWithBiggerTable && ((countOfRetries++) < 2));
-            
+
+            byte[] result;
             if (tryAgainWithBiggerTable)
             {
-                return new ObjectData(Array.Empty<byte>(), Array.Empty<Relocation>(), 1, new ISymbolDefinitionNode[] { this });
+                result = Array.Empty<byte>();
             }
             else
             {
-                byte[] result = new byte[pTable.Length * 2];
+                result = new byte[pTable.Length * 2];
                 for (int i = 0; i < pTable.Length; i++)
                 {
                     result[i * 2] = (byte)(pTable[i] % 256);
                     result[i * 2 + 1] = (byte)(pTable[i] >> 8);
                 }
-                return new ObjectData(result, Array.Empty<Relocation>(), 1, new ISymbolDefinitionNode[] { this });
             }
+
+            ObjectDataBuilder builder = new ObjectDataBuilder(factory, relocsOnly);
+            builder.RequireInitialAlignment(16);
+            builder.AddSymbol(this);
+            builder.EmitBytes(result);
+            computedData = builder.ToObjectData();
+            return computedData;
         }
     }
 }

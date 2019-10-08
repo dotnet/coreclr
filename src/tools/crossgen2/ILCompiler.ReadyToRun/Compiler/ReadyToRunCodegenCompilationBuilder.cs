@@ -82,6 +82,16 @@ namespace ILCompiler
             ModuleTokenResolver moduleTokenResolver = new ModuleTokenResolver(_compilationGroup, _context);
             SignatureContext signatureContext = new SignatureContext(_inputModule, moduleTokenResolver);
             CopiedCorHeaderNode corHeaderNode = new CopiedCorHeaderNode(_inputModule);
+            AttributePresenceFilterNode attributePresenceFilterNode = null;
+            
+            // Core library attributes are checked FAR more often than other dlls
+            // attributes, so produce a highly efficient table for determining if they are
+            // present. Other assemblies *MAY* benefit from this feature, but it doesn't show
+            // as useful at this time.
+            if (this._inputModule == this._inputModule.Context.SystemModule)
+            {
+                 attributePresenceFilterNode = new AttributePresenceFilterNode(_inputModule, _context.Target);
+            }
 
             // Produce a ResourceData where the IBC PROFILE_DATA entry has been filtered out
             ResourceData win32Resources = new ResourceData(_inputModule, (object type, object name, ushort language) =>
@@ -102,13 +112,13 @@ namespace ILCompiler
 
             ReadyToRunCodegenNodeFactory factory = new ReadyToRunCodegenNodeFactory(
                 _context,
-                _inputModule,
                 _compilationGroup,
                 _nameMangler,
                 moduleTokenResolver,
                 signatureContext,
                 corHeaderNode,
-                win32Resources);
+                win32Resources,
+                attributePresenceFilterNode);
 
             DependencyAnalyzerBase<NodeFactory> graph = CreateDependencyGraph(factory);
 

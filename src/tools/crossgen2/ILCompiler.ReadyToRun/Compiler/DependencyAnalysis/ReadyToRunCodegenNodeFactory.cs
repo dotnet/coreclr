@@ -208,28 +208,29 @@ namespace ILCompiler.DependencyAnalysis
     public sealed class ReadyToRunCodegenNodeFactory : NodeFactory
     {
         private Dictionary<TypeAndMethod, IMethodNode> _importMethods;
-        private EcmaModule _inputModule;
 
         public ReadyToRunCodegenNodeFactory(
             CompilerTypeSystemContext context,
-            EcmaModule inputModule,
             CompilationModuleGroup compilationModuleGroup,
             NameMangler nameMangler,
             ModuleTokenResolver moduleTokenResolver,
             SignatureContext signatureContext,
             CopiedCorHeaderNode corHeaderNode,
-            ResourceData win32Resources)
+            ResourceData win32Resources,
+            AttributePresenceFilterNode attributePresenceFilterNode)
             : base(context,
                   compilationModuleGroup,
                   nameMangler,
                   new ReadyToRunTableManager(context))
         {
+            // To make the code future compatible to the composite R2R story
+            // do NOT attempt to pass and store _inputModule here
             _importMethods = new Dictionary<TypeAndMethod, IMethodNode>();
-            _inputModule = inputModule;
 
             Resolver = moduleTokenResolver;
             InputModuleContext = signatureContext;
             CopiedCorHeaderNode = corHeaderNode;
+            AttributePresenceFilterNode = attributePresenceFilterNode;
             if (!win32Resources.IsEmpty)
                 Win32ResourcesNode = new Win32ResourcesNode(win32Resources);
         }
@@ -241,6 +242,8 @@ namespace ILCompiler.DependencyAnalysis
         public CopiedCorHeaderNode CopiedCorHeaderNode;
 
         public Win32ResourcesNode Win32ResourcesNode;
+
+        public AttributePresenceFilterNode  AttributePresenceFilterNode;
 
         public HeaderNode Header;
 
@@ -487,9 +490,8 @@ namespace ILCompiler.DependencyAnalysis
             // attributes, so produce a highly efficient table for determining if they are
             // present. Other assemblies *MAY* benefit from this feature, but it doesn't show
             // as useful at this time.
-            if (this._inputModule == this._inputModule.Context.SystemModule)
+            if (this.AttributePresenceFilter != null)
             {
-                AttributePresenceFilter = new AttributePresenceFilterNode(this._inputModule, Target);
                 Header.Add(Internal.Runtime.ReadyToRunSectionType.AttributePresence, AttributePresenceFilter, AttributePresenceFilter);
             }
 

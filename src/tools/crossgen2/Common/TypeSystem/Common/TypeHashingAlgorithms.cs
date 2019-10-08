@@ -115,7 +115,7 @@ namespace Internal.NativeFormat
             return hash1 ^ hash2;
         }
 
-        // This function may be needed in a portion of the codebase which is too low level to use 
+        // This function may be needed in a portion of the codebase which is too low level to use
         // globalization, ergo, we cannot call ToString on the integer.
         private static string IntToString(int arg)
         {
@@ -145,7 +145,7 @@ namespace Internal.NativeFormat
 
         public static int ComputeArrayTypeHashCode(int elementTypeHashCode, int rank)
         {
-            // Arrays are treated as generic types in some parts of our system. The array hashcodes are 
+            // Arrays are treated as generic types in some parts of our system. The array hashcodes are
             // carefully crafted to be the same as the hashcodes of their implementation generic types.
 
             int hashCode;
@@ -250,6 +250,39 @@ namespace Internal.NativeFormat
             {
                 return index * 0x5498341 + 0x832424;
             }
+        }
+
+        private static uint XXHash32_MixEmptyState()
+        {
+            // Unlike System.HashCode, these hash values are required to be stable, so don't
+            // mixin a random process specific value
+            return 374761393U; // Prime5
+        }
+
+        private static uint XXHash32_QueueRound(uint hash, uint queuedValue)
+        {
+            return ((uint)_rotl((int)(hash + queuedValue * 3266489917U/*Prime3*/), 17)) * 668265263U/*Prime4*/;
+        }
+
+        private static uint XXHash32_MixFinal(uint hash)
+        {
+            hash ^= hash >> 15;
+            hash *= 2246822519U/*Prime2*/;
+            hash ^= hash >> 13;
+            hash *= 3266489917U/*Prime3*/;
+            hash ^= hash >> 16;
+            return hash;
+        }
+
+        public static uint CombineTwoValuesIntoHash(uint value1, uint value2)
+        {
+            // This matches the behavior of System.HashCode.Combine(value1, value2) as of the time of authoring
+            uint hash = XXHash32_MixEmptyState();
+            hash += 8;
+            hash = XXHash32_QueueRound(hash, value1);
+            hash = XXHash32_QueueRound(hash, value2);
+            hash = XXHash32_MixFinal(hash);
+            return hash;
         }
     }
 }
