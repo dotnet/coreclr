@@ -102,6 +102,7 @@ namespace ILCompiler
 
             ReadyToRunCodegenNodeFactory factory = new ReadyToRunCodegenNodeFactory(
                 _context,
+                _inputModule,
                 _compilationGroup,
                 _nameMangler,
                 moduleTokenResolver,

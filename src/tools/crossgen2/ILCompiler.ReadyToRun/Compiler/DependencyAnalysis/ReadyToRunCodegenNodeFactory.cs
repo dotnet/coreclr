@@ -208,9 +208,11 @@ namespace ILCompiler.DependencyAnalysis
     public sealed class ReadyToRunCodegenNodeFactory : NodeFactory
     {
         private Dictionary<TypeAndMethod, IMethodNode> _importMethods;
+        private EcmaModule _inputModule;
 
         public ReadyToRunCodegenNodeFactory(
             CompilerTypeSystemContext context,
+            EcmaModule inputModule,
             CompilationModuleGroup compilationModuleGroup,
             NameMangler nameMangler,
             ModuleTokenResolver moduleTokenResolver,
@@ -223,6 +225,7 @@ namespace ILCompiler.DependencyAnalysis
                   new ReadyToRunTableManager(context))
         {
             _importMethods = new Dictionary<TypeAndMethod, IMethodNode>();
+            _inputModule = inputModule;
 
             Resolver = moduleTokenResolver;
             InputModuleContext = signatureContext;
@@ -264,6 +267,8 @@ namespace ILCompiler.DependencyAnalysis
         public ISymbolNode FilterFuncletPersonalityRoutine;
 
         public DebugInfoTableNode DebugInfoTable;
+
+        public AttributePresenceFilterNode AttributePresenceFilter;
 
         public ImportSectionNode EagerImports;
 
@@ -477,6 +482,16 @@ namespace ILCompiler.DependencyAnalysis
 
             DebugInfoTable = new DebugInfoTableNode(Target);
             Header.Add(Internal.Runtime.ReadyToRunSectionType.DebugInfo, DebugInfoTable, DebugInfoTable);
+
+            // Core library attributes are checked FAR more often than other dlls
+            // attributes, so produce a highly efficient table for determining if they are
+            // present. Other assemblies *MAY* benefit from this feature, but it doesn't show
+            // as useful at this time.
+            if (this._inputModule == this._inputModule.Context.SystemModule)
+            {
+                AttributePresenceFilter = new AttributePresenceFilterNode(this._inputModule, Target);
+                Header.Add(Internal.Runtime.ReadyToRunSectionType.AttributePresence, AttributePresenceFilter, AttributePresenceFilter);
+            }
 
             EagerImports = new ImportSectionNode(
                 "EagerImports",
