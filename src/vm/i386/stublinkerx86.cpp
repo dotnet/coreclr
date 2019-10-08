@@ -3241,17 +3241,31 @@ VOID StubLinkerCPU::EmitComputedInstantiatingMethodStub(MethodDesc* pSharedMD, s
     MetaSig msig(pSharedMD);
     ArgIterator argit(&msig);
 
-    int paramTypeArgOffset = argit.GetParamTypeArgOffset();
-    int paramTypeArgIndex = TransitionBlock::GetArgumentIndexFromOffset(paramTypeArgOffset);
+    if (argit.HasParamType())
+    {
+        int paramTypeArgOffset = argit.GetParamTypeArgOffset();
+        int paramTypeArgIndex = TransitionBlock::GetArgumentIndexFromOffset(paramTypeArgOffset);
+
+        if (extraArg == NULL)
+        {
+            if (pSharedMD->RequiresInstMethodTableArg())
+            {
+                // Unboxing stub case
+                // Extract MethodTable pointer (the hidden arg) from the object instance.
+                X86EmitIndexRegLoad(c_argRegs[paramTypeArgIndex], THIS_kREG);
+            }
+        }
+        else
+        {
+            X86EmitRegLoad(c_argRegs[paramTypeArgIndex], (UINT_PTR)extraArg);
+        }
+    }
 
     if (extraArg == NULL)
     {
-        X86EmitIndexRegLoad(c_argRegs[paramTypeArgIndex], THIS_kREG);
+        // Unboxing stub case
+        // Skip over the MethodTable* to find the address of the unboxed value type.
         X86EmitAddReg(THIS_kREG, sizeof(void*));
-    }
-    else
-    {
-        X86EmitRegLoad(c_argRegs[paramTypeArgIndex], (UINT_PTR)extraArg);
     }
 
     EmitTailJumpToMethod(pSharedMD);
@@ -3416,6 +3430,7 @@ VOID StubLinkerCPU::EmitInstantiatingMethodStub(MethodDesc* pMD, void* extra)
         X86EmitPushImm32((AlignUp(cbStack, 16) / sizeof(void*)) - 1);           // -1 for extra stack arg
 
         X86EmitRegLoad(kRAX, GetEEFuncEntryPoint(InstantiatingMethodStubWorker));// MOV RAX, DWORD
+        Emit16(X86_INSTR_JMP_EAX);
     }
     else
     {
@@ -3423,7 +3438,6 @@ VOID StubLinkerCPU::EmitInstantiatingMethodStub(MethodDesc* pMD, void* extra)
         _ASSERTE(argit.SizeOfArgStack() == 0);
     }
 
-    Emit16(X86_INSTR_JMP_EAX);
 
 #else   
     int paramTypeArgOffset = argit.GetParamTypeArgOffset();

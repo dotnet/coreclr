@@ -2172,25 +2172,36 @@ VOID StubLinkerCPU::EmitComputedInstantiatingMethodStub(MethodDesc* pSharedMD, s
     MetaSig msig(pSharedMD);
     ArgIterator argit(&msig);
 
-    // Place instantiation parameter into the correct register.
-    ArgLocDesc sInstArgLoc;
-    argit.GetParamTypeLoc(&sInstArgLoc);
-    int regHidden = sInstArgLoc.m_idxGenReg;
-    _ASSERTE(regHidden != -1);
+    if (argit.HasParamType())
+    {
+        // Place instantiation parameter into the correct register.
+        ArgLocDesc sInstArgLoc;
+        argit.GetParamTypeLoc(&sInstArgLoc);
+        int regHidden = sInstArgLoc.m_idxGenReg;
+        _ASSERTE(regHidden != -1);
+        if (extraArg == NULL)
+        {
+            if (pSharedMD->RequiresInstMethodTableArg())
+            {
+                // Unboxing stub case
+                // Extract MethodTable pointer (the hidden arg) from the object instance.
+                //  ldr regHidden, [r0]
+                ThumbEmitLoadRegIndirect(ThumbReg(regHidden), ThumbReg(0), 0);
+            }
+        }
+        else
+        {
+            // mov regHidden, #pHiddenArg
+            ThumbEmitMovConstant(ThumbReg(regHidden), (TADDR)extraArg);
+        }
+    }
+
     if (extraArg == NULL)
     {
-        // Extract MethodTable pointer (the hidden arg) from the object instance.
-        //  ldr regHidden, [r0]
-        ThumbEmitLoadRegIndirect(ThumbReg(regHidden), ThumbReg(0), 0);
-
+        // Unboxing stub case
         // Skip over the MethodTable* to find the address of the unboxed value type.
         //  add r0, #sizeof(MethodTable*)
         ThumbEmitIncrement(ThumbReg(0), sizeof(MethodTable*));
-    }
-    else
-    {
-        // mov regHidden, #pHiddenArg
-        ThumbEmitMovConstant(ThumbReg(regHidden), (TADDR)extraArg);
     }
 
     bool isRelative = MethodTable::VTableIndir2_t::isRelative

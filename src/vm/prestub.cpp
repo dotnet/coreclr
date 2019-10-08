@@ -1617,10 +1617,29 @@ Stub * MakeUnboxingStubWorker(MethodDesc *pMD)
 
 #ifndef NO_SHUFFLE_INSTANTIATINGSTUB
     StackSArray<ShuffleEntry> portableShuffle;
-    if (GenerateShuffleArrayPortable(pMD, pUnboxedMD, &portableShuffle, ShuffleComputationType::InstantiatingStub))
+    BOOL usePortableShuffle = FALSE;
+    if (!pUnboxedMD->RequiresInstMethodTableArg())
+    {
+        ShuffleEntry entry;
+        entry.srcofs = ShuffleEntry::SENTINEL;
+        entry.dstofs = 0;
+        portableShuffle.Append(entry);
+        usePortableShuffle = TRUE;
+    }
+    else
+    {
+        usePortableShuffle = GenerateShuffleArrayPortable(pMD, pUnboxedMD, &portableShuffle, ShuffleComputationType::InstantiatingStub);
+    }
+
+    if (usePortableShuffle)
     {
         CPUSTUBLINKER sl;
         _ASSERTE(pUnboxedMD != NULL && pUnboxedMD != pMD);
+
+        // The shuffle for an unboxing stub of a method that doesn't capture the 
+        // type of the this pointer must be a no-op
+        _ASSERTE(!pUnboxedMD->RequiresInstMethodTableArg() || (portableShuffle.GetCount() == 1)); 
+
         sl.EmitComputedInstantiatingMethodStub(pUnboxedMD, &portableShuffle[0], NULL);
 
         pstub = sl.Link(pMD->GetLoaderAllocator()->GetStubHeap());

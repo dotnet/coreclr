@@ -1746,22 +1746,35 @@ VOID StubLinkerCPU::EmitComputedInstantiatingMethodStub(MethodDesc* pSharedMD, s
     MetaSig msig(pSharedMD);
     ArgIterator argit(&msig);
 
-    ArgLocDesc sInstArgLoc;
-    argit.GetParamTypeLoc(&sInstArgLoc);
-    int regHidden = sInstArgLoc.m_idxGenReg;
-    _ASSERTE(regHidden != -1);
+    if (argit.HasParamType())
+    {
+        ArgLocDesc sInstArgLoc;
+        argit.GetParamTypeLoc(&sInstArgLoc);
+        int regHidden = sInstArgLoc.m_idxGenReg;
+        _ASSERTE(regHidden != -1);
+
+        if (extraArg == NULL)
+        {
+            if (pSharedMD->RequiresInstMethodTableArg())
+            {
+                // Unboxing stub case
+                // Fill param arg with methodtable of this pointer
+                // ldr regHidden, [x0, #0]
+                EmitLoadStoreRegImm(eLOAD, IntReg(regHidden), IntReg(0), 0);
+            }
+        }
+        else
+        {
+            EmitMovConstant(IntReg(regHidden), (UINT64)extraArg);
+        }
+    }
 
     if (extraArg == NULL)
     {
-        // ldr regHidden, [x0, #0]
-        EmitLoadStoreRegImm(eLOAD, IntReg(regHidden), IntReg(0), 0);
+        // Unboxing stub case
         // Address of the value type is address of the boxed instance plus sizeof(MethodDesc*).
         //  add x0, #sizeof(MethodDesc*)
         EmitAddImm(IntReg(0), IntReg(0), sizeof(MethodDesc*));
-    }
-    else
-    {
-        EmitMovConstant(IntReg(regHidden), (UINT64)extraArg);
     }
 
     // Tail call the real target.

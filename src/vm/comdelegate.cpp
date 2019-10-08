@@ -230,7 +230,7 @@ int GetNormalizedArgumentSlotIndex(UINT16 offset)
     {
         // stack slot
         index = NUM_ARGUMENT_REGISTERS
-#ifdef NUM_FLAT_ARGUMENT_REGISTERS
+#ifdef NUM_FLOAT_ARGUMENT_REGISTERS
                 + NUM_FLOAT_ARGUMENT_REGISTERS
 #endif
                 + (offset & ShuffleEntry::OFSMASK);
@@ -451,7 +451,7 @@ BOOL GenerateShuffleArrayPortable(MethodDesc* pMethodSrc, MethodDesc *pMethodDst
             // The this pointer is an implicit argument for the destination signature. But on the source side it's
             // just another regular argument and needs to be iterated over by sArgPlacerSrc and the MetaSig.
             sArgPlacerSrc.GetArgLoc(sArgPlacerSrc.GetNextOffset(), &sArgSrc);
-            sArgPlacerDst.GetThisLoc(&sArgDst);
+            sArgPlacerSrc.GetThisLoc(&sArgDst);
         }
         else if (shuffleType == ShuffleComputationType::InstantiatingStub)
         {
