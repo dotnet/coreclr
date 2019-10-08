@@ -3798,7 +3798,7 @@ void Compiler::lvaMarkLocalVars(BasicBlock* block, bool isRecompute)
     {
         MarkLocalVarsVisitor visitor(this, block, stmt, isRecompute);
         DISPSTMT(stmt);
-        visitor.WalkTree(stmt->GetRootTreePointer(), nullptr);
+        visitor.WalkTree(stmt->GetTreeRootPointer(), nullptr);
     }
 }
 

@@ -1312,7 +1312,7 @@ inline GenTree* Compiler::gtUnusedValNode(GenTree* expr)
 
 inline void Compiler::gtSetStmtInfo(Statement* stmt)
 {
-    GenTree* expr = stmt->GetRootTree();
+    GenTree* expr = stmt->GetTreeRoot();
 
     /* Recursively process the expression */
 

@@ -5822,7 +5822,7 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk)
     // first check to see if all phi args have the same value.
     for (; (stmt != nullptr) && stmt->IsPhiDefnStmt(); stmt = stmt->GetNextStmt())
     {
-        GenTree* asg = stmt->GetRootTree();
+        GenTree* asg = stmt->GetTreeRoot();
         assert(asg->OperIs(GT_ASG));
 
         GenTreeLclVar* newSsaDef = asg->AsOp()->gtGetOp1()->AsLclVar();
@@ -5991,7 +5991,7 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk)
         if (verbose)
         {
             printf("\n***** " FMT_BB ", " FMT_STMT "(before)\n", blk->bbNum, stmt->GetID());
-            gtDispTree(stmt->GetRootTree());
+            gtDispTree(stmt->GetTreeRoot());
             printf("\n");
         }
 #endif
@@ -6005,7 +6005,7 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk)
         if (verbose)
         {
             printf("\n***** " FMT_BB ", " FMT_STMT "(after)\n", blk->bbNum, stmt->GetID());
-            gtDispTree(stmt->GetRootTree());
+            gtDispTree(stmt->GetTreeRoot());
             printf("\n");
             if (stmt->GetNextStmt() != nullptr)
             {

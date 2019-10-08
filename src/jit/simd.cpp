@@ -2280,7 +2280,7 @@ void Compiler::impMarkContiguousSIMDFieldAssignments(Statement* stmt)
     {
         return;
     }
-    GenTree* expr = stmt->GetRootTree();
+    GenTree* expr = stmt->GetTreeRoot();
     if (expr->OperGet() == GT_ASG && expr->TypeGet() == TYP_FLOAT)
     {
         GenTree*  curDst            = expr->gtOp.gtOp1;
@@ -2300,7 +2300,7 @@ void Compiler::impMarkContiguousSIMDFieldAssignments(Statement* stmt)
         else if (fgPreviousCandidateSIMDFieldAsgStmt != nullptr)
         {
             assert(index > 0);
-            GenTree* prevAsgExpr = fgPreviousCandidateSIMDFieldAsgStmt->GetRootTree();
+            GenTree* prevAsgExpr = fgPreviousCandidateSIMDFieldAsgStmt->GetTreeRoot();
             GenTree* prevDst     = prevAsgExpr->gtOp.gtOp1;
             GenTree* prevSrc     = prevAsgExpr->gtOp.gtOp2;
             if (!areArgumentsContiguous(prevDst, curDst) || !areArgumentsContiguous(prevSrc, curSrc))

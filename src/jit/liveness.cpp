@@ -1797,7 +1797,7 @@ void Compiler::fgComputeLife(VARSET_TP&       life,
     VARSET_TP keepAliveVars(VarSetOps::Union(this, volatileVars, compCurBB->bbScope));
 
     noway_assert(VarSetOps::IsSubset(this, keepAliveVars, life));
-    noway_assert(endNode || (startNode == compCurStmt->GetRootTree()));
+    noway_assert(endNode || (startNode == compCurStmt->GetTreeRoot()));
 
     // NOTE: Live variable analysis will not work if you try
     // to use the result of an assignment node directly!
@@ -2273,7 +2273,7 @@ bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
         {
             // This is a "NORMAL" statement with the assignment node hanging from the statement.
 
-            noway_assert(compCurStmt->GetRootTree() == asgNode);
+            noway_assert(compCurStmt->GetTreeRoot() == asgNode);
             JITDUMP("top level assign\n");
 
             if (sideEffList != nullptr)
@@ -2291,7 +2291,7 @@ bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
                 // Replace the assignment statement with the list of side effects
 
                 *pTree = sideEffList;
-                compCurStmt->SetRootTree(sideEffList);
+                compCurStmt->SetTreeRoot(sideEffList);
 #ifdef DEBUG
                 *treeModf = true;
 #endif // DEBUG
@@ -2620,7 +2620,7 @@ void Compiler::fgInterBlockLocalVarLiveness()
                 /* Compute the liveness for each tree node in the statement */
                 bool stmtInfoDirty = false;
 
-                fgComputeLife(life, compCurStmt->GetRootTree(), nullptr, volatileVars,
+                fgComputeLife(life, compCurStmt->GetTreeRoot(), nullptr, volatileVars,
                               &stmtInfoDirty DEBUGARG(&treeModf));
 
                 if (stmtInfoDirty)
@@ -2634,7 +2634,7 @@ void Compiler::fgInterBlockLocalVarLiveness()
                 if (verbose && treeModf)
                 {
                     printf("\nfgComputeLife modified tree:\n");
-                    gtDispTree(compCurStmt->GetRootTree());
+                    gtDispTree(compCurStmt->GetTreeRoot());
                     printf("\n");
                 }
 #endif // DEBUG

@@ -8427,7 +8427,7 @@ GenTree* dFindTree(unsigned id)
     {
         for (Statement* stmt : block->Statements())
         {
-            tree = dFindTree(stmt->GetRootTree(), id);
+            tree = dFindTree(stmt->GetTreeRoot(), id);
             if (tree != nullptr)
             {
                 dbTreeBlock = block;
@@ -10676,7 +10676,7 @@ void cNodeIR(Compiler* comp, GenTree* tree)
 
 void cStmtIR(Compiler* comp, Statement* stmt)
 {
-    cTreeIR(comp, stmt->GetRootTree());
+    cTreeIR(comp, stmt->GetTreeRoot());
     if (!comp->dumpIRNoStmts)
     {
         dTabStopIR(0, COLUMN_OPCODE);

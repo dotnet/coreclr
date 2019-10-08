@@ -442,7 +442,7 @@ void Compiler::optAddCopies()
             optAddCopyLclNum   = lclNum;  // in
             optAddCopyAsgnNode = nullptr; // out
 
-            fgWalkTreePre(stmt->GetRootTreePointer(), Compiler::optAddCopiesCallback, (void*)this, false);
+            fgWalkTreePre(stmt->GetTreeRootPointer(), Compiler::optAddCopiesCallback, (void*)this, false);
 
             noway_assert(optAddCopyAsgnNode);
 
@@ -476,7 +476,7 @@ void Compiler::optAddCopies()
         if (verbose)
         {
             printf("\nIntroducing a new copy for V%02u\n", lclNum);
-            gtDispTree(stmt->GetRootTree());
+            gtDispTree(stmt->GetTreeRoot());
             printf("\n");
         }
 #endif
@@ -3930,8 +3930,8 @@ GenTree* Compiler::optAssertionProp_Update(GenTree* newTree, GenTree* tree, Stat
             {
                 // If there's no parent, the tree being replaced is the root of the
                 // statement.
-                assert((stmt->GetRootTree() == tree) && (stmt->GetRootTreePointer() == useEdge));
-                stmt->SetRootTree(newTree);
+                assert((stmt->GetTreeRoot() == tree) && (stmt->GetTreeRootPointer() == useEdge));
+                stmt->SetTreeRoot(newTree);
             }
 
             // We only need to ensure that the gtNext field is set as it is used to traverse
@@ -4990,7 +4990,7 @@ Statement* Compiler::optVNAssertionPropCurStmt(BasicBlock* block, Statement* stm
     optAssertionPropagatedCurrentStmt = false;
 
     VNAssertionPropVisitorInfo data(this, block, stmt);
-    fgWalkTreePre(stmt->GetRootTreePointer(), Compiler::optVNAssertionPropCurStmtVisitor, &data);
+    fgWalkTreePre(stmt->GetTreeRootPointer(), Compiler::optVNAssertionPropCurStmtVisitor, &data);
 
     if (optAssertionPropagatedCurrentStmt)
     {

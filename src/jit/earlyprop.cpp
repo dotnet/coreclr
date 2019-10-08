@@ -258,7 +258,7 @@ GenTree* Compiler::optEarlyPropRewriteTree(GenTree* tree)
             //      *  stmtExpr  void  (top level)
             //      \--*  indir     int
             //          \--*  lclVar    ref    V02 loc0
-            if (compCurStmt->GetRootTree() == tree)
+            if (compCurStmt->GetTreeRoot() == tree)
             {
                 return nullptr;
             }
@@ -608,7 +608,7 @@ void Compiler::optFoldNullCheck(GenTree* tree)
                                                 // until we get to the statement containing the null check.
                                                 // We only need to check the side effects at the root of each statement.
                                                 Statement* curStmt = compCurStmt->GetPrevStmt();
-                                                currentTree        = curStmt->GetRootTree();
+                                                currentTree        = curStmt->GetTreeRoot();
                                                 while (canRemoveNullCheck && (currentTree != defParent))
                                                 {
                                                     if ((nodesWalked++ > maxNodesWalked) ||
@@ -620,7 +620,7 @@ void Compiler::optFoldNullCheck(GenTree* tree)
                                                     {
                                                         curStmt = curStmt->GetPrevStmt();
                                                         assert(curStmt != nullptr);
-                                                        currentTree = curStmt->GetRootTree();
+                                                        currentTree = curStmt->GetTreeRoot();
                                                     }
                                                 }
 

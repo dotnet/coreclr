@@ -5302,7 +5302,7 @@ struct Statement
 {
 public:
     Statement(GenTree* expr, IL_OFFSETX offset DEBUGARG(unsigned stmtID))
-        : m_rootTree(expr)
+        : m_treeRoot(expr)
         , m_treeList(nullptr)
         , m_inlineContext(nullptr)
         , m_ILOffsetX(offset)
@@ -5316,19 +5316,19 @@ public:
     {
     }
 
-    GenTree* GetRootTree() const
+    GenTree* GetTreeRoot() const
     {
-        return m_rootTree;
+        return m_treeRoot;
     }
 
-    GenTree** GetRootTreePointer()
+    GenTree** GetTreeRootPointer()
     {
-        return &m_rootTree;
+        return &m_treeRoot;
     }
 
-    void SetRootTree(GenTree* rootTree)
+    void SetTreeRoot(GenTree* treeRoot)
     {
-        m_rootTree = rootTree;
+        m_treeRoot = treeRoot;
     }
 
     GenTree* GetTreeList() const
@@ -5411,21 +5411,21 @@ public:
 
     bool IsPhiDefnStmt() const
     {
-        return m_rootTree->IsPhiDefn();
+        return m_treeRoot->IsPhiDefn();
     }
 
     unsigned char GetCostSz() const
     {
-        return m_rootTree->GetCostSz();
+        return m_treeRoot->GetCostSz();
     }
 
     unsigned char GetCostEx() const
     {
-        return m_rootTree->GetCostEx();
+        return m_treeRoot->GetCostEx();
     }
 
 private:
-    GenTree* m_rootTree; // The root of the expression tree.
+    GenTree* m_treeRoot; // The root of the expression tree.
     GenTree* m_treeList; // The tree list head (for forward walks).
 
     InlineContext* m_inlineContext; // The inline context for this statement.
