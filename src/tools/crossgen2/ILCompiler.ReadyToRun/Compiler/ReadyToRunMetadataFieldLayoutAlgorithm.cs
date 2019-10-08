@@ -5,6 +5,7 @@
 using System;
 using System.Diagnostics;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Reflection;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
@@ -14,7 +15,6 @@ using ILCompiler.DependencyAnalysis.ReadyToRun;
 using Internal.TypeSystem;
 using Internal.TypeSystem.Ecma;
 using Internal.TypeSystem.Interop;
-using System.Collections.Concurrent;
 
 namespace ILCompiler
 {

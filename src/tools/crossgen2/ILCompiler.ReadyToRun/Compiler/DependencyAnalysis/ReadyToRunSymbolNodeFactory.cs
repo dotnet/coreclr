@@ -41,10 +41,10 @@ namespace ILCompiler.DependencyAnalysis
         public ReadyToRunSymbolNodeFactory(ReadyToRunCodegenNodeFactory codegenNodeFactory)
         {
             _codegenNodeFactory = codegenNodeFactory;
-            CreateSymbolNodeCaches();
+            CreateNodeCaches();
         }
 
-        private void CreateSymbolNodeCaches()
+        private void CreateNodeCaches()
         {
             _importStrings = new NodeCache<ModuleTokenAndSignatureContext, ISymbolNode>(key =>
             {
@@ -203,7 +203,9 @@ namespace ILCompiler.DependencyAnalysis
 
             public override int GetHashCode()
             {
-                return Id.GetHashCode() ^ (SignatureContext.GetHashCode() * 31);
+                return Id.GetHashCode() 
+                    ^ (Target.GetHashCode() * 23)
+                    ^ (SignatureContext.GetHashCode() * 31);
             }
         }
 

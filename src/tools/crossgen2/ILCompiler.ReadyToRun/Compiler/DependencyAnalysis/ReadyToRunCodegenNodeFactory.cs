@@ -221,12 +221,11 @@ namespace ILCompiler.DependencyAnalysis
             if (!win32Resources.IsEmpty)
                 Win32ResourcesNode = new Win32ResourcesNode(win32Resources);
 
-            CreateCodegenNodeCaches();
+            CreateNodeCaches();
         }
 
-        private void CreateCodegenNodeCaches()
+        private void CreateNodeCaches()
         {
-
             // Create node caches
             _constructedHelpers = new NodeCache<ReadyToRunHelper, ISymbolNode>(CreateReadyToRunHelperCell);
 
@@ -488,7 +487,6 @@ namespace ILCompiler.DependencyAnalysis
             {
                 return FixupKind.GetHashCode() ^ TypeAndMethod.GetHashCode();
             }
-
         }
 
         private NodeCache<MethodFixupKey, MethodFixupSignature> _methodSignatures;
