@@ -10902,10 +10902,6 @@ void Compiler::gtDispTree(GenTree*     tree,
             printf(" %s <- %s", varTypeName(toType), varTypeName(fromType));
         }
 
-        if (tree->gtOper == GT_OBJ && (tree->gtFlags & GTF_VAR_DEATH))
-        {
-            printf(" (last use)");
-        }
         if (tree->OperIsBlkOp())
         {
             if (tree->OperIsCopyBlkOp())
