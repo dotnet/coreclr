@@ -4193,12 +4193,10 @@ void Compiler::fgMorphMultiregStructArgs(GenTreeCall* call)
                     {
                         if (argx->OperIs(GT_OBJ))
                         {
-                            fgMorphBlkToInd(argx->AsObj(), hfaType);
+                            argx->SetOper(GT_IND);
                         }
-                        else
-                        {
-                            argx->gtType = hfaType;
-                        }
+
+                        argx->gtType = hfaType;
                     }
                 }
 
@@ -5812,7 +5810,7 @@ GenTree* Compiler::fgMorphLocalVar(GenTree* tree, bool forceRemorph)
         {
             if (newTree->OperIsBlk() && ((tree->gtFlags & GTF_VAR_DEF) == 0))
             {
-                fgMorphBlkToInd(newTree->AsBlk(), newTree->gtType);
+                newTree->SetOper(GT_IND);
             }
             return newTree;
         }
@@ -8557,7 +8555,7 @@ GenTree* Compiler::fgMorphLeaf(GenTree* tree)
             {
                 if (newTree->OperIsBlk() && ((tree->gtFlags & GTF_VAR_DEF) == 0))
                 {
-                    fgMorphBlkToInd(newTree->AsBlk(), newTree->gtType);
+                    newTree->SetOper(GT_IND);
                 }
                 return newTree;
             }
@@ -9344,27 +9342,6 @@ GenTree* Compiler::fgMorphPromoteLocalInitBlock(GenTreeLclVar* destLclNode, GenT
 }
 
 //------------------------------------------------------------------------
-// fgMorphBlkToInd: Change a blk node into a GT_IND of the specified type
-//
-// Arguments:
-//    tree - the node to be modified.
-//    type - the type of indirection to change it to.
-//
-// Return Value:
-//    Returns the node, modified in place.
-//
-// Notes:
-//    This doesn't really warrant a separate method, but is here to abstract
-//    the fact that these nodes can be modified in-place.
-
-GenTree* Compiler::fgMorphBlkToInd(GenTreeBlk* tree, var_types type)
-{
-    tree->SetOper(GT_IND);
-    tree->gtType = type;
-    return tree;
-}
-
-//------------------------------------------------------------------------
 // fgMorphGetStructAddr: Gets the address of a struct object
 //
 // Arguments:
@@ -9596,7 +9573,7 @@ GenTree* Compiler::fgMorphBlockOperand(GenTree* tree, var_types asgType, unsigne
                 }
                 else if (effectiveVal->OperIsBlk())
                 {
-                    effectiveVal = fgMorphBlkToInd(effectiveVal->AsBlk(), asgType);
+                    effectiveVal->SetOper(GT_IND);
                 }
             }
             effectiveVal->gtType = asgType;
@@ -9650,7 +9627,8 @@ GenTree* Compiler::fgMorphBlockOperand(GenTree* tree, var_types asgType, unsigne
             {
                 if (indirTree->OperIsBlk() && !isBlkReqd)
                 {
-                    (void)fgMorphBlkToInd(effectiveVal->AsBlk(), asgType);
+                    effectiveVal->SetOper(GT_IND);
+                    effectiveVal->gtType = asgType;
                 }
                 else
                 {
@@ -10163,7 +10141,8 @@ GenTree* Compiler::fgMorphCopyBlock(GenTree* tree)
             dest     = fgMorphBlockOperand(dest, asgType, blockWidth, false /*isBlkReqd*/);
             if (dest->OperIsBlk())
             {
-                (void)fgMorphBlkToInd(dest->AsBlk(), TYP_STRUCT);
+                dest->SetOper(GT_IND);
+                dest->gtType = TYP_STRUCT;
             }
             destAddr = gtNewOperNode(GT_ADDR, TYP_BYREF, dest);
         }
@@ -10823,7 +10802,8 @@ GenTree* Compiler::fgMorphFieldAssignToSIMDIntrinsicSet(GenTree* tree)
             if (tree->gtGetOp1()->OperIsBlk())
             {
                 assert(tree->gtGetOp1()->TypeGet() == simdType);
-                fgMorphBlkToInd(tree->gtGetOp1()->AsBlk(), simdType);
+                tree->gtGetOp1()->SetOper(GT_IND);
+                tree->gtGetOp1()->gtType = simdType;
             }
         }
 #ifdef DEBUG
@@ -13240,7 +13220,7 @@ DONE_MORPHING_CHILDREN:
                 GenTree* commaOp2 = commaNode->AsOp()->gtOp2;
                 if (commaOp2->OperIsBlk())
                 {
-                    commaOp2 = fgMorphBlkToInd(commaOp2->AsBlk(), commaOp2->TypeGet());
+                    commaOp2->SetOper(GT_IND);
                 }
                 if (commaOp2->gtOper == GT_IND)
                 {
