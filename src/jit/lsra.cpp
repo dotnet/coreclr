@@ -849,7 +849,7 @@ void LinearScan::setBlockSequence()
             }
             if (((predBlock->bbFlags & BBF_KEEP_BBJ_ALWAYS) != 0) || (hasUniquePred && predBlock->hasEHBoundaryOut()))
             {
-                // Treat this as having incomding EH flow, since we can't insert resolution moves into
+                // Treat this as having incoming EH flow, since we can't insert resolution moves into
                 // the ALWAYS block of a BBCallAlwaysPair, and a unique pred with an EH out edge won't
                 // allow us to keep any variables enregistered.
                 blockInfo[block->bbNum].hasEHBoundaryIn = true;
@@ -4748,7 +4748,6 @@ void LinearScan::processBlockStartLocations(BasicBlock* currentBlock)
         // This should still be in its initialized empty state.
         for (unsigned varIndex = 0; varIndex < compiler->lvaTrackedCount; varIndex++)
         {
-            unsigned varNum = compiler->lvaTrackedToVarNum[varIndex];
             assert(inVarToRegMap[varIndex] == REG_STK);
         }
 #endif // DEBUG
