@@ -419,7 +419,6 @@ INST2(ldp,     "ldp",    0,LD, IF_EN2E,   0x29400000,  0x28400000)
 INST2(ldpsw,   "ldpsw",  0,LD, IF_EN2E,   0x69400000,  0x68400000)
                                    //  ldpsw   Rt,Ra,[Xn]           LS_3B  0110100101000000 0aaaaannnnnttttt   6940 0000   [Xn imm7]
                                    //  ldpsw   Rt,Ra,[Xn+simm7]     LS_3C  0110100PP1iiiiii iaaaaannnnnttttt   6840 0000   [Xn imm7 LSL {} pre/post/no inc]
-                                   
 
 INST2(stp,     "stp",    0,ST, IF_EN2E,   0x29000000,  0x28000000)
                                    //  stp     Rt,Ra,[Xn]           LS_3B  X010100100000000 0aaaaannnnnttttt   2900 0000   [Xn imm7]

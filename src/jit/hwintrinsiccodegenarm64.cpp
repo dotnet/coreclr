@@ -27,7 +27,7 @@
 //
 static bool genIsTableDrivenHWIntrinsic(NamedIntrinsic intrinsicId, HWIntrinsicCategory category)
 {
-    // TODO - make more categories to the table-driven framework
+    // TODO-Arm64-Cleanup - make more categories to the table-driven framework
     const bool tableDrivenCategory = (category != HW_Category_Scalar) && (category != HW_Category_Helper);
     const bool tableDrivenFlag     = true;
     return tableDrivenCategory && tableDrivenFlag;
