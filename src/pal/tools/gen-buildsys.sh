@@ -6,14 +6,13 @@
 if [ $# -lt 5 ]
 then
   echo "Usage..."
-  echo "gen-buildsys.sh <path to top level CMakeLists.txt> <path to intermediate directory> <Architecture> [build flavor] [coverage] [ninja] [scan-build] [cmakeargs]"
+  echo "gen-buildsys.sh <path to top level CMakeLists.txt> <path to intermediate directory> <Architecture> [build flavor] [ninja] [scan-build] [cmakeargs]"
   echo "Specify the path to the top level CMake file."
   echo "Specify the path that the build system files are generated in."
   echo "Specify the target architecture."
   echo "Optionally specify the build configuration (flavor.) Defaults to DEBUG." 
-  echo "Optionally specify 'coverage' to enable code coverage build."
   echo "Optionally specify 'scan-build' to enable build with clang static analyzer."
-  echo "Target ninja instead of make. ninja must be on the PATH."
+  echo "Use the Ninja generator instead of the Unix Makefiles generator."
   echo "Pass additional arguments to CMake call."
   exit 1
 fi
@@ -32,10 +31,6 @@ for i in "${@:4}"; do
       # Possible build types are DEBUG, CHECKED, RELEASE, RELWITHDEBINFO.
       DEBUG | CHECKED | RELEASE | RELWITHDEBINFO)
       buildtype=$upperI
-      ;;
-      COVERAGE)
-      echo "Code coverage is turned on for this build."
-      code_coverage=ON
       ;;
       NINJA)
       generator=Ninja
@@ -75,7 +70,6 @@ fi
 $cmake_command \
   -G "$generator" \
   "-DCMAKE_BUILD_TYPE=$buildtype" \
-  "-DCLR_CMAKE_ENABLE_CODE_COVERAGE=$code_coverage" \
   "-DCMAKE_INSTALL_PREFIX=$__CMakeBinDir" \
   "-DCMAKE_USER_MAKE_RULES_OVERRIDE=" \
   $cmake_extra_defines \

@@ -476,7 +476,7 @@ build_native_projects()
     platformArch="$1"
     intermediatesForBuild="$2"
 
-    extraCmakeArguments="-DCLR_CMAKE_TARGET_OS=${__BuildOS} -DCLR_CMAKE_HOST_ARCH=${platformArch}"
+    extraCmakeArguments=""
     message="native tests assets"
 
     # All set to commence the build
@@ -526,7 +526,11 @@ build_native_projects()
             source "$scriptDir/find-gcc.sh" $__GccMajorVersion "$__GccMinorVersion"
         fi
 
-        nextCommand="CONFIG_DIR=\"$__ProjectRoot/cross\" \"$scriptDir/gen-buildsys.sh\" \"$__TestDir\" \"$intermediatesForBuild\" $platformArch $__BuildType $__CodeCoverage $generator $extraCmakeArguments $__cmakeargs"
+        if [[ -n "$__CodeCoverage" ]]; then
+            extraCmakeArguments="$extraCmakeArguments -DCLR_CMAKE_ENABLE_CODE_COVERAGE=1"
+        fi
+
+        nextCommand="CONFIG_DIR=\"$__ProjectRoot/cross\" \"$scriptDir/gen-buildsys.sh\" \"$__TestDir\" \"$intermediatesForBuild\" $platformArch $__BuildType $generator $extraCmakeArguments $__cmakeargs"
         echo "Invoking $nextCommand"
         eval $nextCommand
         

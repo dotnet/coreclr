@@ -265,9 +265,13 @@ build_native()
             echo "Invoking \"$scriptDir/find-gcc.sh\" $__GccMajorVersion \"$__GccMinorVersion\""
             source "$scriptDir/find-gcc.sh" $__GccMajorVersion "$__GccMinorVersion"
         fi
+        
+        if [[ -n "$__CodeCoverage" ]]; then
+            extraCmakeArguments="$extraCmakeArguments -DCLR_CMAKE_ENABLE_CODE_COVERAGE=1"
+        fi
 
-        echo "Invoking \"$scriptDir/gen-buildsys.sh\" \"$__ProjectRoot\" \"$intermediatesForBuild\" $platformArch $__BuildType $__CodeCoverage $generator $scan_build $extraCmakeArguments $__cmakeargs"
-        source "$scriptDir/gen-buildsys.sh" "$__ProjectRoot" "$intermediatesForBuild" $platformArch $__BuildType $__CodeCoverage $generator $scan_build "$extraCmakeArguments" "$__cmakeargs"
+        echo "Invoking \"$scriptDir/gen-buildsys.sh\" \"$__ProjectRoot\" \"$intermediatesForBuild\" $platformArch $__BuildType $generator $scan_build $extraCmakeArguments $__cmakeargs"
+        source "$scriptDir/gen-buildsys.sh" "$__ProjectRoot" "$intermediatesForBuild" $platformArch $__BuildType $generator $scan_build "$extraCmakeArguments" "$__cmakeargs"
     
         if [ $? != 0  ]; then
             echo "${__ErrMsgPrefix}Failed to generate $message build project!"
