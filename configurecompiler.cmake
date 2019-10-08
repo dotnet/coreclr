@@ -73,8 +73,9 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
     endif()
 
     execute_process(
-        COMMAND "source ${LINUX_ID_FILE} && echo $ID"
-        OUTPUT_VARIABLE CLR_CMAKE_LINUX_ID)
+        COMMAND bash -c "source ${LINUX_ID_FILE} && echo \$ID"
+        OUTPUT_VARIABLE CLR_CMAKE_LINUX_ID
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
 
     if(DEFINED CLR_CMAKE_LINUX_ID)
         if(CLR_CMAKE_LINUX_ID STREQUAL tizen)
