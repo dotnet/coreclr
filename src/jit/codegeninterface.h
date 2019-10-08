@@ -76,7 +76,7 @@ public:
     //  The following property indicates whether to align loops.
     //  (Used to avoid effects of loop alignment when diagnosing perf issues.)
 
-    bool DoAlignLoops()
+    bool ShouldAlignLoops()
     {
         return m_genAlignLoops;
     }
