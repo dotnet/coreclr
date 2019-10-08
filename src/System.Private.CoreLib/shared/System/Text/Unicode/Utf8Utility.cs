@@ -66,7 +66,6 @@ namespace System.Text.Unicode
         /// to UTF-16. The behavior of this method is undefined if <paramref name="utf8Data"/> contains
         /// any ill-formed UTF-8 subsequences.
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe int GetUtf16CharCountFromKnownWellFormedUtf8(ReadOnlySpan<byte> utf8Data)
         {
             // Remember: the number of resulting UTF-16 chars will never be greater than the number
