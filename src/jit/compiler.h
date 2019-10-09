@@ -667,8 +667,6 @@ public:
 
     /////////////////////
 
-
-
     regNumber GetArgReg() const
     {
         return (regNumber)_lvArgReg;
