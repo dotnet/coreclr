@@ -165,7 +165,7 @@ namespace JIT.HardwareIntrinsics.Arm
             {
                 var testStruct = new TestStruct();
 
-                for (var i = 0; i < Op1ElementCount; i++) { _data1[i] = TestLibrary.Generator.GetSByte(); }
+                for (var i = 0; i < Op1ElementCount; i++) { _data1[i] = (sbyte)-TestLibrary.Generator.GetSByte(); }
                 Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector128<SByte>, byte>(ref testStruct._fld1), ref Unsafe.As<SByte, byte>(ref _data1[0]), (uint)Unsafe.SizeOf<Vector128<SByte>>());
 
                 return testStruct;
@@ -208,7 +208,7 @@ namespace JIT.HardwareIntrinsics.Arm
 
         static SimpleUnaryOpTest__AbsByte()
         {
-            for (var i = 0; i < Op1ElementCount; i++) { _data1[i] = TestLibrary.Generator.GetSByte(); }
+            for (var i = 0; i < Op1ElementCount; i++) { _data1[i] = (sbyte)-TestLibrary.Generator.GetSByte(); }
             Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector128<SByte>, byte>(ref _clsVar1), ref Unsafe.As<SByte, byte>(ref _data1[0]), (uint)Unsafe.SizeOf<Vector128<SByte>>());
         }
 
@@ -216,10 +216,10 @@ namespace JIT.HardwareIntrinsics.Arm
         {
             Succeeded = true;
 
-            for (var i = 0; i < Op1ElementCount; i++) { _data1[i] = TestLibrary.Generator.GetSByte(); }
+            for (var i = 0; i < Op1ElementCount; i++) { _data1[i] = (sbyte)-TestLibrary.Generator.GetSByte(); }
             Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector128<SByte>, byte>(ref _fld1), ref Unsafe.As<SByte, byte>(ref _data1[0]), (uint)Unsafe.SizeOf<Vector128<SByte>>());
 
-            for (var i = 0; i < Op1ElementCount; i++) { _data1[i] = TestLibrary.Generator.GetSByte(); }
+            for (var i = 0; i < Op1ElementCount; i++) { _data1[i] = (sbyte)-TestLibrary.Generator.GetSByte(); }
             _dataTable = new DataTable(_data1, new Byte[RetElementCount], LargestVectorSize);
         }
 
