@@ -4356,6 +4356,8 @@ public:
 
     void fgAddFinallyTargetFlags();
 
+    void fgTailMergeThrows();
+
 #if defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
     // Sometimes we need to defer updating the BBF_FINALLY_TARGET bit. fgNeedToAddFinallyTargetBits signals
     // when this is necessary.
