@@ -17,6 +17,8 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
     public class AttributePresenceFilterNode : HeaderTableNode
     {
         private EcmaModule _module;
+
+        // TODO: Eliminate the cache (https://github.com/dotnet/coreclr/issues/27116)
         private ObjectData _computedData;
 
         public override int ClassCode => 56456113;
@@ -48,11 +50,8 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             {
                 CustomAttribute customAttribute = reader.GetCustomAttribute(handle);
                 EntityHandle customAttributeConstructorHandle = customAttribute.Constructor;
-                MethodDesc customAttributeConstructorMethodDesc = this._module.GetMethod(customAttributeConstructorHandle);
-                DefType customAttributeDefType = customAttributeConstructorMethodDesc.OwningType as DefType;
-                Debug.Assert(customAttributeDefType != null);
-                string customAttributeTypeNamespace = customAttributeDefType.Namespace;
-                string customAttributeTypeName = customAttributeDefType.Name;
+                string customAttributeTypeNamespace, customAttributeTypeName;
+                ReadCustomAttributeTypeNameWithoutResolving(customAttributeConstructorHandle, out customAttributeTypeNamespace, out customAttributeTypeName);
                 // System.Runtime.CompilerServices.NullableAttribute is NEVER added to the table (There are *many* of these, and they provide no useful value to the runtime)
                 if (customAttributeTypeNamespace == "System.Runtime.CompilerServices" && customAttributeTypeName == "NullableAttribute")
                 {
@@ -100,6 +99,29 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
                 });
             }
             return customAttributeEntries;
+        }
+
+        private void ReadCustomAttributeTypeNameWithoutResolving(EntityHandle customAttributeConstructorHandle, out string customAttributeTypeNamespace, out string customAttributeTypeName)
+        {
+            /**
+             * It is possible that the assembly that defines the attribute is not provided as a reference assembly.
+             *
+             * Most the time, as long as the custom attribute is not accessed or the reference assembly is available at runtime, the code will work just fine.
+             *
+             * If we used _module.GetMethod(customAttributeConstructorHandle), we should have caused an exception and failing the compilation.
+             *
+             * Therefore, we have this alternate path to obtain the type namespace and name.
+             */
+            // TODO: Handle MethodRef (https://github.com/dotnet/coreclr/issues/27118)
+            Debug.Assert(customAttributeConstructorHandle.Kind == HandleKind.MethodDefinition);
+            MethodDefinitionHandle customAttributeConstructorDefinitionHandle = (MethodDefinitionHandle)customAttributeConstructorHandle;
+            MethodDefinition customAttributeConstructorDefinition = _module.MetadataReader.GetMethodDefinition(customAttributeConstructorDefinitionHandle);
+            TypeDefinitionHandle customAttributeConstructorTypeDefinitionHandle = customAttributeConstructorDefinition.GetDeclaringType();
+            TypeDefinition customAttributeConstructorTypeDefinition = _module.MetadataReader.GetTypeDefinition(customAttributeConstructorTypeDefinitionHandle);
+            StringHandle customAttributeConstructorTypeNamespaceHandle = customAttributeConstructorTypeDefinition.Namespace;
+            StringHandle customAttributeConstructorTypeNameHandle = customAttributeConstructorTypeDefinition.Name;
+            customAttributeTypeNamespace = _module.MetadataReader.GetString(customAttributeConstructorTypeNamespaceHandle);
+            customAttributeTypeName = _module.MetadataReader.GetString(customAttributeConstructorTypeNameHandle);
         }
 
         // Algorithm "xor128" from p. 5 of Marsaglia, "Xorshift RNGs"
