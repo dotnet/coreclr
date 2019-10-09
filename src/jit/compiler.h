@@ -517,7 +517,7 @@ public:
     {
         if (slotNum == 0)
         {
-            return GetArgReg();
+            return _lvArgReg;
         }
         else if (slotNum == 1)
         {
