@@ -5766,7 +5766,7 @@ GenTree* Compiler::fgMorphStackArgForVarArgs(unsigned lclNum, var_types varType,
         GenTree* tree;
         if (varTypeIsStruct(varType))
         {
-            tree = gtNewBlockVal(ptrArg, varDsc->lvExactSize);
+            tree = new (this, GT_BLK) GenTreeBlk(GT_BLK, TYP_STRUCT, ptrArg, typGetBlkLayout(varDsc->lvExactSize));
         }
         else
         {
@@ -9456,8 +9456,6 @@ GenTree* Compiler::fgMorphBlkNode(GenTree* tree, bool isDest)
         // The pattern is that the COMMA should be the address expression.
         // Therefore, we insert a GT_ADDR just above the node, and wrap it in an obj or ind.
         // TODO-1stClassStructs: Consider whether this can be improved.
-        // Also consider whether some of this can be included in gtNewBlockVal (though note
-        // that doing so may cause us to query the type system before we otherwise would).
         // Example:
         //   before: [3] comma struct <- [2] comma struct <- [1] LCL_VAR struct
         //   after: [3] comma byref <- [2] comma byref <- [4] addr byref <- [1] LCL_VAR struct
@@ -17141,7 +17139,7 @@ void Compiler::fgRetypeImplicitByRefArgs()
 
         if (lvaIsImplicitByRefLocal(lclNum))
         {
-            size_t size;
+            unsigned size;
 
             if (varDsc->lvSize() > REGSIZE_BYTES)
             {
@@ -17205,7 +17203,7 @@ void Compiler::fgRetypeImplicitByRefArgs()
                     GenTree* lhs = gtNewLclvNode(newLclNum, varDsc->lvType);
                     // RHS is an indirection (using GT_OBJ) off the parameter.
                     GenTree* addr   = gtNewLclvNode(lclNum, TYP_BYREF);
-                    GenTree* rhs    = gtNewBlockVal(addr, (unsigned)size);
+                    GenTree* rhs    = new (this, GT_BLK) GenTreeBlk(GT_BLK, TYP_STRUCT, addr, typGetBlkLayout(size));
                     GenTree* assign = gtNewAssignNode(lhs, rhs);
                     fgNewStmtAtBeg(fgFirstBB, assign);
                 }
