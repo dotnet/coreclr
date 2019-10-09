@@ -853,8 +853,11 @@ static LPVOID VIRTUALResetMemory(
     if (st == 0)
     {
         pRetVal = lpAddress;
+
+#ifdef MADV_DONTDUMP
         // Do not include committed memory in coredump.
         madvise((LPVOID)StartBoundary, MemSize, MADV_DONTDUMP);
+#endif
     }
 
     LogVaOperation(
@@ -1031,8 +1034,10 @@ static LPVOID ReserveVirtualMemory(
     }
 #endif  // MMAP_ANON_IGNORES_PROTECTION
 
+#ifdef MADV_DONTDUMP
     // Do not include reserved memory in coredump.
     madvise(pRetVal, MemSize, MADV_DONTDUMP);
+#endif
 
     return pRetVal;
 }
@@ -1177,8 +1182,10 @@ VIRTUALCommitMemory(
                 goto error;
             }
  
+#ifdef MADV_DODUMP
             // Include committed memory in coredump.
             madvise((void *) StartBoundary, MemSize, MADV_DODUMP);
+#endif
 
             VIRTUALSetAllocState(MEM_COMMIT, runStart, runLength, pInformation);
 
@@ -1537,8 +1544,10 @@ VirtualFree(
             }
 #endif  // MMAP_ANON_IGNORES_PROTECTION
 
+#ifdef MADV_DONTDUMP
             // Do not include committed memory in coredump.
             madvise((LPVOID) StartBoundary, MemSize, MADV_DONTDUMP);
+#endif
 
             SIZE_T index = 0;
             SIZE_T nNumOfPagesToChange = 0;
@@ -1721,9 +1730,11 @@ VirtualProtect(
             *lpflOldProtect = PAGE_EXECUTE_READWRITE;
         }
         
+#ifdef MADV_DONTDUMP
         // Include or exclude memory from coredump based on the protection.
         int advise = flNewProtect == PAGE_NOACCESS ? MADV_DONTDUMP : MADV_DODUMP;
         madvise((LPVOID)StartBoundary, MemSize, advise);
+#endif
 
         bRetVal = TRUE;
     }
