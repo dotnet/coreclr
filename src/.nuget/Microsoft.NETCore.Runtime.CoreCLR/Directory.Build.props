@@ -6,5 +6,5 @@
       <TargetPath>ref/netstandard1.0</TargetPath>
     </File>
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetPathOfFileAbove(Directory.Build.targets))" />
+  <Import Project="../Directory.Build.props" />
 </Project>

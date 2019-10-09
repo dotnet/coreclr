@@ -3,5 +3,5 @@
   <PropertyGroup>
     <SupportedPackageOSGroups>Linux;OSX;FreeBSD</SupportedPackageOSGroups>
   </PropertyGroup>
-  <Import Project="$([MSBuild]::GetPathOfFileAbove(Directory.Build.targets))" />
+  <Import Project="../Directory.Build.props" />
 </Project>
