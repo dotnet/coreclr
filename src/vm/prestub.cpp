@@ -1638,7 +1638,7 @@ Stub * MakeUnboxingStubWorker(MethodDesc *pMD)
 
         // The shuffle for an unboxing stub of a method that doesn't capture the 
         // type of the this pointer must be a no-op
-        _ASSERTE(!pUnboxedMD->RequiresInstMethodTableArg() || (portableShuffle.GetCount() == 1)); 
+        _ASSERTE(pUnboxedMD->RequiresInstMethodTableArg() || (portableShuffle.GetCount() == 1)); 
 
         sl.EmitComputedInstantiatingMethodStub(pUnboxedMD, &portableShuffle[0], NULL);
 

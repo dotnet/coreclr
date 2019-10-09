@@ -1735,6 +1735,8 @@ VOID StubLinkerCPU::EmitShuffleThunk(ShuffleEntry *pShuffleEntryArray)
 // Emits code to adjust arguments for static delegate target.
 VOID StubLinkerCPU::EmitComputedInstantiatingMethodStub(MethodDesc* pSharedMD, struct ShuffleEntry *pShuffleEntryArray, void* extraArg)
 {
+    STANDARD_VM_CONTRACT;
+
     for (ShuffleEntry* pEntry = pShuffleEntryArray; pEntry->srcofs != ShuffleEntry::SENTINEL; pEntry++)
     {
         _ASSERTE(pEntry->dstofs & ShuffleEntry::REGMASK);

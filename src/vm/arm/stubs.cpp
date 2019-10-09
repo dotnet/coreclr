@@ -2157,6 +2157,8 @@ VOID StubLinkerCPU::EmitInstantiatingMethodStub(MethodDesc* pSharedMD, void* ext
 
 VOID StubLinkerCPU::EmitComputedInstantiatingMethodStub(MethodDesc* pSharedMD, struct ShuffleEntry *pShuffleEntryArray, void* extraArg)
 {
+    STANDARD_VM_CONTRACT;
+
     struct ShuffleEntry *pEntry = pShuffleEntryArray;
     while (pEntry->srcofs != ShuffleEntry::SENTINEL)
     {
@@ -2210,16 +2212,6 @@ VOID StubLinkerCPU::EmitComputedInstantiatingMethodStub(MethodDesc* pSharedMD, s
 #ifndef FEATURE_NGEN_RELOCS_OPTIMIZATIONS
     _ASSERTE(!isRelative);
 #endif
-
-    if (extraArg == NULL)
-    {
-        X86EmitIndexRegLoad(c_argRegs[paramTypeArgIndex], THIS_kREG);
-        X86EmitAddReg(THIS_kREG, sizeof(void*));
-    }
-    else
-    {
-        X86EmitRegLoad(c_argRegs[paramTypeArgIndex], (UINT_PTR)extraArg);
-    }
 
     if (isRelative)
     {

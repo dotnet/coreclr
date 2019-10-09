@@ -3209,12 +3209,7 @@ VOID StubLinkerCPU::EmitUnboxMethodStub(MethodDesc* pUnboxMD)
 #if defined(FEATURE_SHARE_GENERIC_CODE) && defined(_TARGET_AMD64_)
 VOID StubLinkerCPU::EmitComputedInstantiatingMethodStub(MethodDesc* pSharedMD, struct ShuffleEntry *pShuffleEntryArray, void* extraArg)
 {
-    CONTRACTL
-    {
-        STANDARD_VM_CHECK;
-        PRECONDITION(pSharedMD->RequiresInstArg());
-    }
-    CONTRACTL_END;
+    STANDARD_VM_CONTRACT;
 
     for (ShuffleEntry* pEntry = pShuffleEntryArray; pEntry->srcofs != ShuffleEntry::SENTINEL; pEntry++)
     {

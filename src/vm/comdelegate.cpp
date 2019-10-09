@@ -436,7 +436,7 @@ BOOL GenerateShuffleArrayPortable(MethodDesc* pMethodSrc, MethodDesc *pMethodDst
     ArgLocDesc sArgSrc;
     ArgLocDesc sArgDst;
 
-    int argSlots = NUM_ARGUMENT_REGISTERS
+    unsigned int argSlots = NUM_ARGUMENT_REGISTERS
 #ifdef NUM_FLOAT_ARGUMENT_REGISTERS
                     + NUM_FLOAT_ARGUMENT_REGISTERS 
 #endif

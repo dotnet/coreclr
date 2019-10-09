@@ -690,13 +690,16 @@ public:
 
         pLoc->Init();
 
+#if defined(UNIX_AMD64_ABI)
         if (TransitionBlock::IsFloatArgumentRegisterOffset(argOffset))
         {
             // Dividing by 16 as size of each register in FloatArgumentRegisters is 16 bytes.
             pLoc->m_idxFloatReg = (argOffset - TransitionBlock::GetOffsetOfFloatArgumentRegisters()) / 16;
             pLoc->m_cFloatReg = 1;
         }
-        else if (!TransitionBlock::IsStackArgumentOffset(argOffset))
+        else 
+#endif // UNIX_AMD64_ABI
+        if (!TransitionBlock::IsStackArgumentOffset(argOffset))
         {
             pLoc->m_idxGenReg = TransitionBlock::GetArgumentIndexFromOffset(argOffset);
             pLoc->m_cGenReg = 1;
