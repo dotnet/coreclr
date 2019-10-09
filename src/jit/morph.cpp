@@ -2695,7 +2695,7 @@ void Compiler::fgInitArgInfo(GenTreeCall* call)
             call->gtCallArgs = gtPrependNewCallArg(stubAddrArg, call->gtCallArgs);
 
             numArgs++;
-            nonStandardArgs.Add(stubAddrArg, stubAddrArg->gtRegNum);
+            nonStandardArgs.Add(stubAddrArg, stubAddrArg->GetRegNum());
         }
         else
         {
@@ -2748,15 +2748,15 @@ void Compiler::fgInitArgInfo(GenTreeCall* call)
     {
         assert(call->gtEntryPoint.addr != nullptr);
 
-        size_t   addrValue            = (size_t)call->gtEntryPoint.addr;
-        GenTree* indirectCellAddress  = gtNewIconHandleNode(addrValue, GTF_ICON_FTN_ADDR);
-        indirectCellAddress->gtRegNum = REG_R2R_INDIRECT_PARAM;
+        size_t   addrValue           = (size_t)call->gtEntryPoint.addr;
+        GenTree* indirectCellAddress = gtNewIconHandleNode(addrValue, GTF_ICON_FTN_ADDR);
+        indirectCellAddress->SetRegNum(REG_R2R_INDIRECT_PARAM);
 
         // Push the stub address onto the list of arguments.
         call->gtCallArgs = gtPrependNewCallArg(indirectCellAddress, call->gtCallArgs);
 
         numArgs++;
-        nonStandardArgs.Add(indirectCellAddress, indirectCellAddress->gtRegNum);
+        nonStandardArgs.Add(indirectCellAddress, indirectCellAddress->GetRegNum());
     }
 
 #endif // FEATURE_READYTORUN_COMPILER && _TARGET_ARMARCH_
@@ -3689,7 +3689,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                 {
                     if (isPow2(passingSize))
                     {
-                        canTransform = (!argEntry->isHfaArg || (passingSize == genTypeSize(argEntry->GetHfaType())));
+                        canTransform = (!argEntry->IsHfaArg() || (passingSize == genTypeSize(argEntry->GetHfaType())));
                     }
 
 #if defined(_TARGET_ARM64_) || defined(UNIX_AMD64_ABI)
@@ -4176,12 +4176,12 @@ void Compiler::fgMorphMultiregStructArgs(GenTreeCall* call)
         }
 
         unsigned size = (fgEntryPtr->numRegs + fgEntryPtr->numSlots);
-        if ((size > 1) || (fgEntryPtr->isHfaArg && argx->TypeGet() == TYP_STRUCT))
+        if ((size > 1) || (fgEntryPtr->IsHfaArg() && argx->TypeGet() == TYP_STRUCT))
         {
             foundStructArg = true;
             if (varTypeIsStruct(argx) && !argx->OperIs(GT_FIELD_LIST))
             {
-                if (fgEntryPtr->isHfaArg)
+                if (fgEntryPtr->IsHfaArg())
                 {
                     var_types hfaType = fgEntryPtr->GetHfaType();
                     unsigned  structSize;
@@ -7467,8 +7467,8 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, void* pfnCopyArgs)
 
         // We don't need this arg to be in the normal stub register, so
         // clear out the register assignment.
-        assert(stubAddrArg->gtRegNum == virtualStubParamInfo->GetReg());
-        stubAddrArg->gtRegNum = REG_NA;
+        assert(stubAddrArg->GetRegNum() == virtualStubParamInfo->GetReg());
+        stubAddrArg->SetRegNum(REG_NA);
 
         // And push the stub address onto the list of arguments
         call->gtCallArgs = gtPrependNewCallArg(stubAddrArg, call->gtCallArgs);
@@ -7707,8 +7707,8 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, void* pfnCopyArgs)
 
         // We don't need this arg to be in the normal stub register, so
         // clear out the register assignment.
-        assert(stubAddrArg->gtRegNum == virtualStubParamInfo->GetReg());
-        stubAddrArg->gtRegNum = REG_NA;
+        assert(stubAddrArg->GetRegNum() == virtualStubParamInfo->GetReg());
+        stubAddrArg->SetRegNum(REG_NA);
 
         // And push the stub address onto the list of arguments
         call->gtCallArgs = gtPrependNewCallArg(stubAddrArg, call->gtCallArgs);
@@ -7803,7 +7803,7 @@ GenTree* Compiler::fgGetStubAddrArg(GenTreeCall* call)
         stubAddrArg  = gtNewIconHandleNode(addr, GTF_ICON_FTN_ADDR);
     }
     assert(stubAddrArg != nullptr);
-    stubAddrArg->gtRegNum = virtualStubParamInfo->GetReg();
+    stubAddrArg->SetRegNum(virtualStubParamInfo->GetReg());
     return stubAddrArg;
 }
 
@@ -13192,6 +13192,14 @@ DONE_MORPHING_CHILDREN:
 
                     // Perform the transform ADDR(IND(...)) == (...).
                     GenTree* addr = op1->gtOp.gtOp1;
+
+                    // If tree has a zero field sequence annotation, update the annotation
+                    // on addr node.
+                    FieldSeqNode* zeroFieldSeq = nullptr;
+                    if (GetZeroOffsetFieldMap()->Lookup(tree, &zeroFieldSeq))
+                    {
+                        fgAddFieldSeqForZeroOffset(addr, zeroFieldSeq);
+                    }
 
                     noway_assert(varTypeIsGC(addr->gtType) || addr->gtType == TYP_I_IMPL);
 
