@@ -53,7 +53,7 @@ void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
     {
         GenTree*  op1        = node->gtGetOp1();
         GenTree*  op2        = node->gtGetOp2();
-        regNumber targetReg  = node->gtRegNum;
+        regNumber targetReg  = node->GetRegNum();
         var_types targetType = node->TypeGet();
         var_types baseType   = node->gtSIMDBaseType;
 
@@ -73,7 +73,7 @@ void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
             case 1:
             {
                 genConsumeRegs(op1);
-                op1Reg = op1->gtRegNum;
+                op1Reg = op1->GetRegNum();
                 GetEmitter()->emitIns_R_R(ins, simdSize, targetReg, op1Reg, opt);
                 break;
             }
@@ -83,8 +83,8 @@ void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
                 genConsumeRegs(op1);
                 genConsumeRegs(op2);
 
-                op1Reg = op1->gtRegNum;
-                op2Reg = op2->gtRegNum;
+                op1Reg = op1->GetRegNum();
+                op2Reg = op2->GetRegNum();
 
                 GetEmitter()->emitIns_R_R_R(ins, simdSize, targetReg, op1Reg, op2Reg, opt);
                 break;
@@ -95,17 +95,17 @@ void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
                 GenTreeArgList* argList = op1->AsArgList();
                 op1                     = argList->Current();
                 genConsumeRegs(op1);
-                op1Reg = op1->gtRegNum;
+                op1Reg = op1->GetRegNum();
 
                 argList = argList->Rest();
                 op2     = argList->Current();
                 genConsumeRegs(op2);
-                op2Reg = op2->gtRegNum;
+                op2Reg = op2->GetRegNum();
 
                 argList      = argList->Rest();
                 GenTree* op3 = argList->Current();
                 genConsumeRegs(op3);
-                regNumber op3Reg = op3->gtRegNum;
+                regNumber op3Reg = op3->GetRegNum();
 
                 if (targetReg != op1Reg)
                 {
