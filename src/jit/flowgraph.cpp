@@ -684,22 +684,22 @@ void Compiler::fgInsertStmtNearEnd(BasicBlock* block, Statement* stmt)
 #if DEBUG
         if (block->bbJumpKind == BBJ_COND)
         {
-            assert(lastStmt->GetTreeRoot()->gtOper == GT_JTRUE);
+            assert(lastStmt->GetRootNode()->gtOper == GT_JTRUE);
         }
         else if (block->bbJumpKind == BBJ_RETURN)
         {
-            assert((lastStmt->GetTreeRoot()->gtOper == GT_RETURN) || (lastStmt->GetTreeRoot()->gtOper == GT_JMP) ||
+            assert((lastStmt->GetRootNode()->gtOper == GT_RETURN) || (lastStmt->GetRootNode()->gtOper == GT_JMP) ||
                    // BBJ_RETURN blocks in functions returning void do not get a GT_RETURN node if they
                    // have a .tail prefix (even if canTailCall returns false for these calls)
                    // code:Compiler::impImportBlockCode (search for the RET: label)
                    // Ditto for real tail calls (all code after them has been removed)
-                   ((lastStmt->GetTreeRoot()->gtOper == GT_CALL) &&
-                    ((info.compRetType == TYP_VOID) || lastStmt->GetTreeRoot()->AsCall()->IsTailCall())));
+                   ((lastStmt->GetRootNode()->gtOper == GT_CALL) &&
+                    ((info.compRetType == TYP_VOID) || lastStmt->GetRootNode()->AsCall()->IsTailCall())));
         }
         else
         {
             assert(block->bbJumpKind == BBJ_SWITCH);
-            assert(lastStmt->GetTreeRoot()->gtOper == GT_SWITCH);
+            assert(lastStmt->GetRootNode()->gtOper == GT_SWITCH);
         }
 #endif // DEBUG
 
@@ -8215,9 +8215,9 @@ GenTree* Compiler::fgCreateMonitorTree(unsigned lvaMonAcquired, unsigned lvaThis
     }
 #endif
 
-    if (block->bbJumpKind == BBJ_RETURN && block->lastStmt()->GetTreeRoot()->gtOper == GT_RETURN)
+    if (block->bbJumpKind == BBJ_RETURN && block->lastStmt()->GetRootNode()->gtOper == GT_RETURN)
     {
-        GenTree* retNode = block->lastStmt()->GetTreeRoot();
+        GenTree* retNode = block->lastStmt()->GetRootNode();
         GenTree* retExpr = retNode->gtOp.gtOp1;
 
         if (retExpr != nullptr)
@@ -8753,8 +8753,8 @@ private:
                     returnBlock->bbJumpDest = constReturnBlock;
 
                     // Remove GT_RETURN since constReturnBlock returns the constant.
-                    assert(returnBlock->lastStmt()->GetTreeRoot()->OperIs(GT_RETURN));
-                    assert(returnBlock->lastStmt()->GetTreeRoot()->gtGetOp1()->IsIntegralConst());
+                    assert(returnBlock->lastStmt()->GetRootNode()->OperIs(GT_RETURN));
+                    assert(returnBlock->lastStmt()->GetRootNode()->gtGetOp1()->IsIntegralConst());
                     comp->fgRemoveStmt(returnBlock, returnBlock->lastStmt());
 
                     // Using 'returnBlock' as the insertion point for 'mergedReturnBlock'
@@ -8827,7 +8827,7 @@ private:
             return nullptr;
         }
 
-        GenTree* lastExpr = lastStmt->GetTreeRoot();
+        GenTree* lastExpr = lastStmt->GetRootNode();
         if (!lastExpr->OperIs(GT_RETURN))
         {
             return nullptr;
@@ -10019,7 +10019,7 @@ void Compiler::fgRemoveStmt(BasicBlock* block, Statement* stmt)
 
 #ifdef DEBUG
     if (verbose &&
-        stmt->GetTreeRoot()->gtOper != GT_NOP) // Don't print if it is a GT_NOP. Too much noise from the inliner.
+        stmt->GetRootNode()->gtOper != GT_NOP) // Don't print if it is a GT_NOP. Too much noise from the inliner.
     {
         printf("\nRemoving statement ");
         gtDispStmt(stmt);
@@ -10121,7 +10121,7 @@ bool Compiler::fgCheckRemoveStmt(BasicBlock* block, Statement* stmt)
         return false;
     }
 
-    GenTree*   tree = stmt->GetTreeRoot();
+    GenTree*   tree = stmt->GetRootNode();
     genTreeOps oper = tree->OperGet();
 
     if (OperIsControlFlow(oper) || GenTree::OperIsHWIntrinsic(oper) || oper == GT_NO_OP)
@@ -10826,7 +10826,7 @@ void Compiler::fgRemoveConditionalJump(BasicBlock* block)
     else
     {
         Statement* test = block->lastStmt();
-        GenTree*   tree = test->GetTreeRoot();
+        GenTree*   tree = test->GetRootNode();
 
         noway_assert(tree->gtOper == GT_JTRUE);
 
@@ -10857,7 +10857,7 @@ void Compiler::fgRemoveConditionalJump(BasicBlock* block)
         }
         else
         {
-            test->SetTreeRoot(sideEffList);
+            test->SetRootNode(sideEffList);
 
             fgMorphBlockStmt(block, test DEBUGARG("fgRemoveConditionalJump"));
         }
@@ -14232,7 +14232,7 @@ bool Compiler::fgOptimizeSwitchBranches(BasicBlock* block)
     else
     {
         switchStmt = block->lastStmt();
-        switchTree = switchStmt->GetTreeRoot();
+        switchTree = switchStmt->GetRootNode();
 
         assert(switchTree->OperGet() == GT_SWITCH);
     }
@@ -14303,7 +14303,7 @@ bool Compiler::fgOptimizeSwitchBranches(BasicBlock* block)
                 /* Replace the conditional statement with the list of side effects */
                 noway_assert(sideEffList->gtOper != GT_SWITCH);
 
-                switchStmt->SetTreeRoot(sideEffList);
+                switchStmt->SetRootNode(sideEffList);
 
                 if (fgStmtListThreaded)
                 {
@@ -14425,7 +14425,7 @@ bool Compiler::fgBlockEndFavorsTailDuplication(BasicBlock* block)
         // that would otherwise be lost at the upcoming merge point.
 
         Statement* lastStmt = block->lastStmt();
-        GenTree*   tree     = lastStmt->GetTreeRoot();
+        GenTree*   tree     = lastStmt->GetRootNode();
         if (tree->gtOper != GT_ASG)
         {
             return false;
@@ -14474,7 +14474,7 @@ bool Compiler::fgBlockIsGoodTailDuplicationCandidate(BasicBlock* target)
         return false;
     }
 
-    GenTree* tree = stmt->GetTreeRoot();
+    GenTree* tree = stmt->GetRootNode();
 
     if (tree->gtOper != GT_JTRUE)
     {
@@ -14554,7 +14554,7 @@ bool Compiler::fgOptimizeUncondBranchToSimpleCond(BasicBlock* block, BasicBlock*
 
     // Duplicate the target block at the end of this block
 
-    GenTree* cloned = gtCloneExpr(stmt->GetTreeRoot());
+    GenTree* cloned = gtCloneExpr(stmt->GetRootNode());
     noway_assert(cloned);
     Statement* jmpStmt = gtNewStmt(cloned);
 
@@ -14682,7 +14682,7 @@ bool Compiler::fgOptimizeBranchToNext(BasicBlock* block, BasicBlock* bNext, Basi
         else
         {
             Statement* condStmt = block->lastStmt();
-            GenTree*   cond     = condStmt->GetTreeRoot();
+            GenTree*   cond     = condStmt->GetRootNode();
             noway_assert(cond->gtOper == GT_JTRUE);
 
             /* check for SIDE_EFFECTS */
@@ -14715,7 +14715,7 @@ bool Compiler::fgOptimizeBranchToNext(BasicBlock* block, BasicBlock* bNext, Basi
                     /* Replace the conditional statement with the list of side effects */
                     noway_assert(sideEffList->gtOper != GT_JTRUE);
 
-                    condStmt->SetTreeRoot(sideEffList);
+                    condStmt->SetRootNode(sideEffList);
 
                     if (fgStmtListThreaded)
                     {
@@ -14829,7 +14829,7 @@ bool Compiler::fgOptimizeBranch(BasicBlock* bJump)
     unsigned estDupCostSz = 0;
     for (Statement* stmt : bDest->Statements())
     {
-        GenTree* expr = stmt->GetTreeRoot();
+        GenTree* expr = stmt->GetRootNode();
 
         /* We call gtPrepareCost to measure the cost of duplicating this tree */
         gtPrepareCost(expr);
@@ -14960,7 +14960,7 @@ bool Compiler::fgOptimizeBranch(BasicBlock* bJump)
     }
 
     // Get to the condition node from the statement tree.
-    GenTree* condTree = newLastStmt->GetTreeRoot();
+    GenTree* condTree = newLastStmt->GetRootNode();
     noway_assert(condTree->gtOper == GT_JTRUE);
 
     // Set condTree to the operand to the GT_JTRUE.
@@ -16165,7 +16165,7 @@ void Compiler::fgReorderBlocks()
             /* Reverse the bPrev jump condition */
             Statement* condTestStmt = bPrev->lastStmt();
 
-            GenTree* condTest = condTestStmt->GetTreeRoot();
+            GenTree* condTest = condTestStmt->GetRootNode();
             noway_assert(condTest->gtOper == GT_JTRUE);
 
             condTest->gtOp.gtOp1 = gtReverseCond(condTest->gtOp.gtOp1);
@@ -19086,7 +19086,7 @@ void Compiler::fgSetStmtSeq(Statement* stmt)
     fgTreeSeqLst = &list;
     fgTreeSeqBeg = nullptr;
 
-    fgSetTreeSeqHelper(stmt->GetTreeRoot(), false);
+    fgSetTreeSeqHelper(stmt->GetRootNode(), false);
 
     /* Record the address of the first node */
 
@@ -19120,7 +19120,7 @@ void Compiler::fgSetStmtSeq(Statement* stmt)
         BAD_LIST:;
 
             printf("\n");
-            gtDispTree(stmt->GetTreeRoot());
+            gtDispTree(stmt->GetRootNode());
             printf("\n");
 
             for (GenTree* bad = &list; bad != nullptr; bad = bad->gtNext)
@@ -21579,7 +21579,7 @@ void Compiler::fgDebugCheckNodeLinks(BasicBlock* block, Statement* stmt)
         }
         else
         {
-            noway_assert(tree == stmt->GetTreeRoot());
+            noway_assert(tree == stmt->GetRootNode());
         }
 
         /* Cross-check gtPrev,gtNext with gtOp for simple trees */
@@ -21596,7 +21596,7 @@ void Compiler::fgDebugCheckNodeLinks(BasicBlock* block, Statement* stmt)
                 noway_assert(stmt == block->FirstNonPhiDef());
                 noway_assert(stmt->GetTreeList()->gtOper == GT_CATCH_ARG);
                 // The root of the tree should have GTF_ORDER_SIDEEFF set
-                noway_assert(stmt->GetTreeRoot()->gtFlags & GTF_ORDER_SIDEEFF);
+                noway_assert(stmt->GetRootNode()->gtFlags & GTF_ORDER_SIDEEFF);
             }
         }
 
@@ -21722,14 +21722,14 @@ void Compiler::fgDebugCheckStmtsList(BasicBlock* block, bool morphTrees)
 
         /* For each statement check that the exception flags are properly set */
 
-        noway_assert(stmt->GetTreeRoot());
+        noway_assert(stmt->GetRootNode());
 
         if (verbose && 0)
         {
-            gtDispTree(stmt->GetTreeRoot());
+            gtDispTree(stmt->GetRootNode());
         }
 
-        fgDebugCheckFlags(stmt->GetTreeRoot());
+        fgDebugCheckFlags(stmt->GetRootNode());
 
         // Not only will this stress fgMorphBlockStmt(), but we also get all the checks
         // done by fgMorphTree()
@@ -21873,7 +21873,7 @@ void Compiler::fgDebugCheckNodesUniqueness()
         {
             for (Statement* stmt : block->Statements())
             {
-                GenTree* root = stmt->GetTreeRoot();
+                GenTree* root = stmt->GetRootNode();
                 fgWalkTreePre(&root, UniquenessCheckWalker::MarkTreeId, &walker);
             }
         }
@@ -21980,10 +21980,10 @@ void Compiler::fgInline()
             // In debug builds we want the inline tree to show all failed
             // inlines. Some inlines may fail very early and never make it to
             // candidate stage. So scan the tree looking for those early failures.
-            fgWalkTreePre(stmt->GetTreeRootPointer(), fgFindNonInlineCandidate, stmt);
+            fgWalkTreePre(stmt->GetRootNodePointer(), fgFindNonInlineCandidate, stmt);
 #endif
 
-            GenTree* expr = stmt->GetTreeRoot();
+            GenTree* expr = stmt->GetRootNode();
 
             // The importer ensures that all inline candidates are
             // statement expressions.  So see if we have a call.
@@ -22012,7 +22012,7 @@ void Compiler::fgInline()
                     //
                     // If so, remove the GT_NOP and continue
                     // on with the next statement.
-                    if (stmt->GetTreeRoot()->IsNothingNode())
+                    if (stmt->GetRootNode()->IsNothingNode())
                     {
                         fgRemoveStmt(block, stmt);
                         continue;
@@ -22034,7 +22034,7 @@ void Compiler::fgInline()
             // possible further optimization, as the (now complete) GT_RET_EXPR
             // replacement may have enabled optimizations by providing more
             // specific types for trees or variables.
-            fgWalkTree(stmt->GetTreeRootPointer(), fgUpdateInlineReturnExpressionPlaceHolder, fgLateDevirtualization,
+            fgWalkTree(stmt->GetRootNodePointer(), fgUpdateInlineReturnExpressionPlaceHolder, fgLateDevirtualization,
                        (void*)this);
 
             // See if stmt is of the form GT_COMMA(call, nop)
@@ -22042,7 +22042,7 @@ void Compiler::fgInline()
             if (expr->OperGet() == GT_COMMA && expr->gtOp.gtOp1->OperGet() == GT_CALL &&
                 expr->gtOp.gtOp2->OperGet() == GT_NOP)
             {
-                stmt->SetTreeRoot(expr->gtOp.gtOp1);
+                stmt->SetRootNode(expr->gtOp.gtOp1);
             }
         }
 
@@ -22062,7 +22062,7 @@ void Compiler::fgInline()
         for (Statement* stmt : block->Statements())
         {
             // Call Compiler::fgDebugCheckInlineCandidates on each node
-            fgWalkTreePre(stmt->GetTreeRootPointer(), fgDebugCheckInlineCandidates);
+            fgWalkTreePre(stmt->GetRootNodePointer(), fgDebugCheckInlineCandidates);
         }
 
         block = block->bbNext;
@@ -22911,8 +22911,8 @@ void Compiler::fgInsertInlineeBlocks(InlineInfo* pInlineInfo)
     BasicBlock*  block;
 
     noway_assert(iciBlock->bbStmtList != nullptr);
-    noway_assert(iciStmt->GetTreeRoot() != nullptr);
-    assert(iciStmt->GetTreeRoot() == iciCall);
+    noway_assert(iciStmt->GetRootNode() != nullptr);
+    assert(iciStmt->GetRootNode() == iciCall);
     noway_assert(iciCall->gtOper == GT_CALL);
 
 #ifdef DEBUG
@@ -23229,7 +23229,7 @@ _Done:
     // Detach the GT_CALL node from the original statement by hanging a "nothing" node under it,
     // so that fgMorphStmts can remove the statement once we return from here.
     //
-    iciStmt->SetTreeRoot(gtNewNothingNode());
+    iciStmt->SetRootNode(gtNewNothingNode());
 }
 
 //------------------------------------------------------------------------
@@ -23937,7 +23937,7 @@ void Compiler::fgRemoveEmptyFinally()
 
         for (Statement* stmt : firstBlock->Statements())
         {
-            GenTree* stmtExpr = stmt->GetTreeRoot();
+            GenTree* stmtExpr = stmt->GetRootNode();
 
             if (stmtExpr->gtOper != GT_RETFILT)
             {
@@ -24369,7 +24369,7 @@ void Compiler::fgRemoveEmptyTry()
                 if (block->bbJumpKind == BBJ_EHFINALLYRET)
                 {
                     Statement* finallyRet     = block->lastStmt();
-                    GenTree*   finallyRetExpr = finallyRet->GetTreeRoot();
+                    GenTree*   finallyRetExpr = finallyRet->GetRootNode();
                     assert(finallyRetExpr->gtOper == GT_RETFILT);
                     fgRemoveStmt(block, finallyRet);
                     block->bbJumpKind = BBJ_ALWAYS;
@@ -24384,7 +24384,7 @@ void Compiler::fgRemoveEmptyTry()
             // since we're removing the enclosing handler.
             for (Statement* stmt : block->Statements())
             {
-                GenTree* expr = stmt->GetTreeRoot();
+                GenTree* expr = stmt->GetRootNode();
                 if (expr->gtOper == GT_END_LFIN)
                 {
                     const unsigned nestLevel = expr->gtVal.gtVal1;
@@ -24903,7 +24903,7 @@ void Compiler::fgCloneFinally()
             if (block->bbJumpKind == BBJ_EHFINALLYRET)
             {
                 Statement* finallyRet     = newBlock->lastStmt();
-                GenTree*   finallyRetExpr = finallyRet->GetTreeRoot();
+                GenTree*   finallyRetExpr = finallyRet->GetRootNode();
                 assert(finallyRetExpr->gtOper == GT_RETFILT);
                 fgRemoveStmt(newBlock, finallyRet);
                 newBlock->bbJumpKind = BBJ_ALWAYS;
@@ -25249,7 +25249,7 @@ void Compiler::fgCleanupContinuation(BasicBlock* continuation)
     bool foundEndLFin = false;
     for (Statement* stmt : continuation->Statements())
     {
-        GenTree* expr = stmt->GetTreeRoot();
+        GenTree* expr = stmt->GetRootNode();
         if (expr->gtOper == GT_END_LFIN)
         {
             assert(!foundEndLFin);
@@ -25638,7 +25638,7 @@ unsigned Compiler::fgMeasureIR()
         {
             for (Statement* stmt : block->Statements())
             {
-                fgWalkTreePre(stmt->GetTreeRootPointer(),
+                fgWalkTreePre(stmt->GetRootNodePointer(),
                               [](GenTree** slot, fgWalkData* data) -> Compiler::fgWalkResult {
                                   (*reinterpret_cast<unsigned*>(data->pCallbackData))++;
                                   return Compiler::WALK_CONTINUE;

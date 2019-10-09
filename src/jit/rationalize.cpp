@@ -937,10 +937,10 @@ void Rationalizer::DoPhase()
         {
             assert(statement->GetTreeList() != nullptr);
             assert(statement->GetTreeList()->gtPrev == nullptr);
-            assert(statement->GetTreeRoot() != nullptr);
-            assert(statement->GetTreeRoot()->gtNext == nullptr);
+            assert(statement->GetRootNode() != nullptr);
+            assert(statement->GetRootNode()->gtNext == nullptr);
 
-            BlockRange().InsertAtEnd(LIR::Range(statement->GetTreeList(), statement->GetTreeRoot()));
+            BlockRange().InsertAtEnd(LIR::Range(statement->GetTreeList(), statement->GetRootNode()));
 
             // If this statement has correct offset information, change it into an IL offset
             // node and insert it into the LIR.
@@ -953,7 +953,7 @@ void Rationalizer::DoPhase()
             }
 
             m_block = block;
-            visitor.WalkTree(statement->GetTreeRootPointer(), nullptr);
+            visitor.WalkTree(statement->GetRootNodePointer(), nullptr);
         }
 
         block->bbStmtList = nullptr;

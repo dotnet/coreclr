@@ -941,7 +941,7 @@ bool Compiler::optComputeIterInfo(GenTree* incr, BasicBlock* from, BasicBlock* t
 //
 bool Compiler::optIsLoopTestEvalIntoTemp(Statement* testStmt, Statement** newTestStmt)
 {
-    GenTree* test = testStmt->GetTreeRoot();
+    GenTree* test = testStmt->GetRootNode();
 
     if (test->gtOper != GT_JTRUE)
     {
@@ -966,7 +966,7 @@ bool Compiler::optIsLoopTestEvalIntoTemp(Statement* testStmt, Statement** newTes
             return false;
         }
 
-        GenTree* tree = prevStmt->GetTreeRoot();
+        GenTree* tree = prevStmt->GetRootNode();
         if (tree->OperGet() == GT_ASG)
         {
             GenTree* lhs = tree->gtOp.gtOp1;
@@ -1043,7 +1043,7 @@ bool Compiler::optExtractInitTestIncr(
     // Check if we have the incr stmt before the test stmt, if we don't,
     // check if incr is part of the loop "top".
     Statement* incrStmt = testStmt->GetPrevStmt();
-    if (incrStmt == nullptr || optIsLoopIncrTree(incrStmt->GetTreeRoot()) == BAD_VAR_NUM)
+    if (incrStmt == nullptr || optIsLoopIncrTree(incrStmt->GetRootNode()) == BAD_VAR_NUM)
     {
         if (top == nullptr || top->bbStmtList == nullptr || top->bbStmtList->GetPrevStmt() == nullptr)
         {
@@ -1052,7 +1052,7 @@ bool Compiler::optExtractInitTestIncr(
 
         // If the prev stmt to loop test is not incr, then check if we have loop test evaluated into a tmp.
         Statement* toplastStmt = top->lastStmt();
-        if (optIsLoopIncrTree(toplastStmt->GetTreeRoot()) != BAD_VAR_NUM)
+        if (optIsLoopIncrTree(toplastStmt->GetRootNode()) != BAD_VAR_NUM)
         {
             incrStmt = toplastStmt;
         }
@@ -1089,7 +1089,7 @@ bool Compiler::optExtractInitTestIncr(
         else
         {
             // Must be a duplicated loop condition.
-            noway_assert(initStmt->GetTreeRoot()->gtOper == GT_JTRUE);
+            noway_assert(initStmt->GetRootNode()->gtOper == GT_JTRUE);
         }
 #endif // DEBUG
         if (doGetPrev)
@@ -1099,9 +1099,9 @@ bool Compiler::optExtractInitTestIncr(
         noway_assert(initStmt != nullptr);
     }
 
-    *ppInit = initStmt->GetTreeRoot();
-    *ppTest = testStmt->GetTreeRoot();
-    *ppIncr = incrStmt->GetTreeRoot();
+    *ppInit = initStmt->GetRootNode();
+    *ppTest = testStmt->GetRootNode();
+    *ppIncr = incrStmt->GetRootNode();
 
     return true;
 }
@@ -1304,12 +1304,12 @@ bool Compiler::optRecordLoop(BasicBlock*   head,
                 block = block->bbNext;
                 for (Statement* stmt : block->Statements())
                 {
-                    if (stmt->GetTreeRoot() == incr)
+                    if (stmt->GetRootNode() == incr)
                     {
                         break;
                     }
                     printf("\n");
-                    gtDispTree(stmt->GetTreeRoot());
+                    gtDispTree(stmt->GetRootNode());
                 }
             } while (block != bottom);
         }
@@ -3616,7 +3616,7 @@ void Compiler::optUnrollLoops()
         if (initStmt->IsCompilerAdded())
         {
             /* Must be a duplicated loop condition */
-            noway_assert(initStmt->GetTreeRoot()->gtOper == GT_JTRUE);
+            noway_assert(initStmt->GetRootNode()->gtOper == GT_JTRUE);
 
             dupCond  = true;
             initStmt = initStmt->GetPrevStmt();
@@ -3641,7 +3641,7 @@ void Compiler::optUnrollLoops()
             continue;
         }
 
-        GenTree* incr = incrStmt->GetTreeRoot();
+        GenTree* incr = incrStmt->GetRootNode();
 
         // Don't unroll loops we don't understand.
         if (incr->gtOper != GT_ASG)
@@ -3650,8 +3650,8 @@ void Compiler::optUnrollLoops()
         }
         incr = incr->gtOp.gtOp2;
 
-        GenTree* init = initStmt->GetTreeRoot();
-        GenTree* test = testStmt->GetTreeRoot();
+        GenTree* init = initStmt->GetRootNode();
+        GenTree* test = testStmt->GetRootNode();
 
         /* Make sure everything looks ok */
         if ((init->gtOper != GT_ASG) || (init->gtOp.gtOp1->gtOper != GT_LCL_VAR) ||
@@ -3662,7 +3662,7 @@ void Compiler::optUnrollLoops()
             (incr->gtOp.gtOp1->gtLclVarCommon.GetLclNum() != lvar) || (incr->gtOp.gtOp2->gtOper != GT_CNS_INT) ||
             (incr->gtOp.gtOp2->gtIntCon.gtIconVal != iterInc) ||
 
-            (testStmt->GetTreeRoot()->gtOper != GT_JTRUE))
+            (testStmt->GetRootNode()->gtOper != GT_JTRUE))
         {
             noway_assert(!"Bad precondition in Compiler::optUnrollLoops()");
             continue;
@@ -3779,7 +3779,7 @@ void Compiler::optUnrollLoops()
                         // Remove the test; we're doing a full unroll.
 
                         Statement* testCopyStmt = newBlock->lastStmt();
-                        GenTree*   testCopyExpr = testCopyStmt->GetTreeRoot();
+                        GenTree*   testCopyExpr = testCopyStmt->GetRootNode();
                         assert(testCopyExpr->gtOper == GT_JTRUE);
                         GenTree* sideEffList = nullptr;
                         gtExtractSideEffList(testCopyExpr, &sideEffList, GTF_SIDE_EFFECT | GTF_ORDER_SIDEEFF);
@@ -3789,7 +3789,7 @@ void Compiler::optUnrollLoops()
                         }
                         else
                         {
-                            testCopyStmt->SetTreeRoot(sideEffList);
+                            testCopyStmt->SetRootNode(sideEffList);
                         }
                         newBlock->bbJumpKind = BBJ_NONE;
 
@@ -3855,7 +3855,7 @@ void Compiler::optUnrollLoops()
                 testStmt = preHeaderStmt->GetPrevStmt();
 
                 noway_assert((testStmt != nullptr) && (testStmt->GetNextStmt() == nullptr));
-                noway_assert(testStmt->GetTreeRoot()->gtOper == GT_JTRUE);
+                noway_assert(testStmt->GetRootNode()->gtOper == GT_JTRUE);
 
                 initStmt = testStmt->GetPrevStmt();
                 noway_assert((initStmt != nullptr) && (initStmt->GetNextStmt() == testStmt));
@@ -3876,7 +3876,7 @@ void Compiler::optUnrollLoops()
             {
                 printf("Whole unrolled loop:\n");
 
-                gtDispTree(initStmt->GetTreeRoot());
+                gtDispTree(initStmt->GetRootNode());
                 printf("\n");
                 fgDumpTrees(head->bbNext, insertAfter);
             }
@@ -4126,7 +4126,7 @@ void Compiler::fgOptWhileLoop(BasicBlock* block)
 
     /* Get to the condition node from the statement tree */
 
-    GenTree* condTree = condStmt->GetTreeRoot();
+    GenTree* condTree = condStmt->GetRootNode();
     noway_assert(condTree->gtOper == GT_JTRUE);
 
     condTree = condTree->gtOp.gtOp1;
@@ -6020,7 +6020,7 @@ bool Compiler::optIsVarAssigned(BasicBlock* beg, BasicBlock* end, GenTree* skip,
 
         for (Statement* stmt : beg->Statements())
         {
-            if (fgWalkTreePre(stmt->GetTreeRootPointer(), optIsVarAssgCB, &desc))
+            if (fgWalkTreePre(stmt->GetRootNodePointer(), optIsVarAssgCB, &desc))
             {
                 result = true;
                 goto DONE;
@@ -6084,7 +6084,7 @@ int Compiler::optIsSetAssgLoop(unsigned lnum, ALLVARSET_VALARG_TP vars, varRefKi
 
             for (Statement* stmt : StatementList(beg->FirstNonPhiDef()))
             {
-                fgWalkTreePre(stmt->GetTreeRootPointer(), optIsVarAssgCB, &desc);
+                fgWalkTreePre(stmt->GetRootNodePointer(), optIsVarAssgCB, &desc);
 
                 if (desc.ivaMaskIncomplete)
                 {
@@ -6834,12 +6834,12 @@ void Compiler::optHoistLoopBlocks(unsigned loopNum, ArrayStack<BasicBlock*>* blo
         {
             for (Statement* stmt : StatementList(block->FirstNonPhiDef()))
             {
-                WalkTree(stmt->GetTreeRootPointer(), nullptr);
-                assert(m_valueStack.TopRef().Node() == stmt->GetTreeRoot());
+                WalkTree(stmt->GetRootNodePointer(), nullptr);
+                assert(m_valueStack.TopRef().Node() == stmt->GetRootNode());
 
                 if (m_valueStack.TopRef().m_hoistable)
                 {
-                    m_compiler->optHoistCandidate(stmt->GetTreeRoot(), m_loopNum, m_hoistContext);
+                    m_compiler->optHoistCandidate(stmt->GetRootNode(), m_loopNum, m_hoistContext);
                 }
 
                 m_valueStack.Reset();
@@ -7430,7 +7430,7 @@ void Compiler::fgCreateLoopPreHeader(unsigned lnum)
 
     for (Statement* stmt : top->Statements())
     {
-        GenTree* tree = stmt->GetTreeRoot();
+        GenTree* tree = stmt->GetRootNode();
         if (tree->OperGet() != GT_ASG)
         {
             break;
@@ -8206,7 +8206,7 @@ bool Compiler::optIdentifyLoopOptInfo(unsigned loopNum, LoopCloneContext* contex
             info.stmt               = stmt;
             const bool lclVarsOnly  = false;
             const bool computeStack = false;
-            fgWalkTreePre(stmt->GetTreeRootPointer(), optCanOptimizeByLoopCloningVisitor, &info, lclVarsOnly,
+            fgWalkTreePre(stmt->GetRootNodePointer(), optCanOptimizeByLoopCloningVisitor, &info, lclVarsOnly,
                           computeStack);
         }
     }
@@ -8669,7 +8669,7 @@ void Compiler::optOptimizeBoolsGcStress(BasicBlock* condBlock)
     }
 
     noway_assert(condBlock->bbJumpKind == BBJ_COND);
-    GenTree* cond = condBlock->lastStmt()->GetTreeRoot();
+    GenTree* cond = condBlock->lastStmt()->GetRootNode();
 
     noway_assert(cond->gtOper == GT_JTRUE);
 
@@ -8887,14 +8887,14 @@ void Compiler::optOptimizeBools()
                 continue;
             }
 
-            GenTree* t2 = s2->GetTreeRoot();
+            GenTree* t2 = s2->GetRootNode();
             noway_assert(t2->gtOper == GT_JTRUE);
 
             /* Find the condition for the first block */
 
             Statement* s1 = b1->lastStmt();
 
-            GenTree* t1 = s1->GetTreeRoot();
+            GenTree* t1 = s1->GetRootNode();
             noway_assert(t1->gtOper == GT_JTRUE);
 
             if (b2->countOfInEdges() > 1)

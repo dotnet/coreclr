@@ -36,7 +36,7 @@ RyuJIT represents a function as a doubly-linked list of `BasicBlock` values. Eac
 
 Both HIR and LIR blocks are composed of `GenTree` nodes that define the operations performed by the block. A `GenTree` node may consume some number of operands and may produce a singly-defined, at-most-singly-used value as a result. These values are referred to interchangably as *SDSU* temps or *tree* temps. Defs of SDSU temps are represented by `GenTree` nodes themselves, and uses are represented by edges from the using node to the defining node. Furthermore, SDSU temps defined in one block may not be used in a different block. In cases where a value must be multiply-defined, multiply-used, or defined in one block and used in another, the IR provides another class of temporary: the local var. Local vars are defined by assignment nodes in HIR or store nodes in LIR, and are used by local var nodes in both forms.
 
-An HIR block is composed of a doubly-linked list of statement nodes (`Statement`), each of which references a single expression tree (`m_treeRoot`). The `GenTree` nodes in this tree execute in "tree order", which is defined as the order produced by a depth-first, left-to-right traversal of the tree, with two notable exceptions:
+An HIR block is composed of a doubly-linked list of statement nodes (`Statement`), each of which references a single expression tree (`m_rootNode`). The `GenTree` nodes in this tree execute in "tree order", which is defined as the order produced by a depth-first, left-to-right traversal of the tree, with two notable exceptions:
 - Binary nodes marked with the `GTF_REVERSE_OPS` flag execute their right operand tree (`gtOp2`) before their left operand tree (`gtOp1`)
 - Dynamically-sized block copy nodes where `gtEvalSizeFirst` is `true` execute the `gtDynamicSize` tree before executing their other operand trees.
 
@@ -56,7 +56,7 @@ Each operation is represented as a GenTree node, with an opcode (`GT_xxx`), zero
 
 HIR statement nodes utilize the same `GenTree` base type as the operation nodes, though they are not truly related.
 * The statement nodes are doubly-linked. The first statement node in a block points to the last node in the block via its `m_prev` link. Note that the last statement node does *not* point to the first; that is, the list is not fully circular.
-* Each statement node contains two `GenTree` links – `m_treeRoot` points to the top-level node in the statement (i.e. the root of the tree that represents the statement), while `m_treeList` points to the first node in execution order (again, this link is not always valid).
+* Each statement node contains two `GenTree` links – `m_rootNode` points to the top-level node in the statement (i.e. the root of the tree that represents the statement), while `m_treeList` points to the first node in execution order (again, this link is not always valid).
 
 ## Local var descriptors
 
@@ -510,7 +510,7 @@ There are several properties of the IR that are valid only during (or after) spe
 Ordering:
 
 * For `Statement` nodes, the `m_next` and `m_prev` fields must always be consistent. The last statement in the `BasicBlock` must have `m_next` equal to null. By convention, the `m_prev` of the first statement in the `BasicBlock` must be the last statement of the `BasicBlock`.
-  * In all phases, `m_TreeRoot` points to the top-level node of the expression.
+  * In all phases, `m_rootNode` points to the top-level node of the expression.
 * For 'GenTree' nodes, the `gtNext` and `gtPrev` fields are either null, prior to ordering, or they are consistent (i.e. `A->gtPrev->gtNext = A`, and `A->gtNext->gtPrev == A`, if they are non-null).
 * After normalization the `m_treeList` of the containing statement points to the first node to be executed.
 * Prior to normalization, the `gtNext` and `gtPrev` pointers on the expression `GenTree` nodes are invalid. The expression nodes are only traversed via the links from parent to child (e.g. `node->gtGetOp1()`, or `node->gtOp.gtOp1`). The `gtNext/gtPrev` links are set by `fgSetBlockOrder()`.
@@ -518,7 +518,7 @@ Ordering:
 * After rationalization, all `GT_COMMA` nodes are eliminated, statements are flattened, and the primary traversal mechanism becomes the `gtNext/gtPrev` links which define the execution order.
 * In tree ordering:
   * The `gtPrev` of the first node (`m_treeList`) is always null.
-  * The `gtNext` of the last node (`m_treeRoot`) is always null.
+  * The `gtNext` of the last node (`m_rootNode`) is always null.
 
 ## LclVar phase-dependent properties
 

@@ -2648,7 +2648,7 @@ public:
 
     Statement* gtCloneStmt(Statement* stmt)
     {
-        GenTree* exprClone = gtCloneExpr(stmt->GetTreeRoot());
+        GenTree* exprClone = gtCloneExpr(stmt->GetRootNode());
         return gtNewStmt(exprClone, stmt->GetILOffsetX());
     }
 

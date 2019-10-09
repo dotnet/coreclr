@@ -214,7 +214,7 @@ void ObjectAllocator::MarkEscapingVarsAndBuildConnGraph()
         for (Statement* stmt : block->Statements())
         {
             BuildConnGraphVisitor buildConnGraphVisitor(this);
-            buildConnGraphVisitor.WalkTree(stmt->GetTreeRootPointer(), nullptr);
+            buildConnGraphVisitor.WalkTree(stmt->GetRootNodePointer(), nullptr);
         }
     }
 }
@@ -349,7 +349,7 @@ bool ObjectAllocator::MorphAllocObjNodes()
 
         for (Statement* stmt : block->Statements())
         {
-            GenTree* stmtExpr = stmt->GetTreeRoot();
+            GenTree* stmtExpr = stmt->GetRootNode();
             GenTree* op2      = nullptr;
 
             bool canonicalAllocObjFound = false;
@@ -399,7 +399,7 @@ bool ObjectAllocator::MorphAllocObjNodes()
                     // definitely-stack-pointing pointers. All definitely-stack-pointing pointers are in both sets.
                     MarkLclVarAsDefinitelyStackPointing(lclNum);
                     MarkLclVarAsPossiblyStackPointing(lclNum);
-                    stmt->GetTreeRoot()->gtBashToNOP();
+                    stmt->GetRootNode()->gtBashToNOP();
                     comp->optMethodFlags |= OMF_HAS_OBJSTACKALLOC;
                     didStackAllocate = true;
                 }
@@ -423,7 +423,7 @@ bool ObjectAllocator::MorphAllocObjNodes()
             {
                 // We assume that GT_ALLOCOBJ nodes are always present in the
                 // canonical form.
-                comp->fgWalkTreePre(stmt->GetTreeRootPointer(), AssertWhenAllocObjFoundVisitor);
+                comp->fgWalkTreePre(stmt->GetRootNodePointer(), AssertWhenAllocObjFoundVisitor);
             }
 #endif // DEBUG
         }
@@ -911,7 +911,7 @@ void ObjectAllocator::RewriteUses()
         for (Statement* stmt : block->Statements())
         {
             RewriteUsesVisitor rewriteUsesVisitor(this);
-            rewriteUsesVisitor.WalkTree(stmt->GetTreeRootPointer(), nullptr);
+            rewriteUsesVisitor.WalkTree(stmt->GetRootNodePointer(), nullptr);
         }
     }
 }
