@@ -4,6 +4,7 @@
 
 using System.Diagnostics;
 using System.Numerics;
+using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 using Internal.Runtime.CompilerServices;
 
@@ -83,6 +84,8 @@ namespace System.Text.Unicode
             byte* pLastBufferPosProcessed = null; // used for invariant checking in debug builds
 #endif
 
+        BeforeEnterMainLoop:
+
             while (pInputBuffer <= pFinalPosWhereCanReadDWordFromInputBuffer)
             {
                 // Read 32 bits at a time. This is enough to hold any possible UTF8-encoded scalar.
@@ -143,7 +146,7 @@ namespace System.Text.Unicode
                                 // point in the not-too-distant future (otherwise we would've stayed entirely
                                 // within the all-ASCII vectorized code at the entry to this method).
 
-                                mask = (uint)Sse2.MoveMask(Sse2.LoadVector128((byte*)pInputBuffer));
+                                mask = (uint)Sse2.MoveMask(Sse2.LoadVector128((sbyte*)pInputBuffer));
                                 if (mask != 0)
                                 {
                                     goto Sse2LoopTerminatedEarlyDueToNonAsciiData;
@@ -280,6 +283,90 @@ namespace System.Text.Unicode
                         // We have two runs of two bytes each.
                         pInputBuffer += 4;
                         tempUtf16CodeUnitCountAdjustment -= 2; // 4 UTF-8 code units -> 2 UTF-16 code units (and 2 scalars)
+
+                        if (Sse2.IsSupported && Bmi1.IsSupported)
+                        {
+                            // Optimization: If we see 2-byte subsequences in the text, perhaps the text consists
+                            // mostly of 2-byte subsequences with some scattered ASCII.
+
+                            Vector128<sbyte> vecAll61 = Vector128.Create(unchecked((sbyte)0x61));
+                            Vector128<sbyte> vecAllA0 = Vector128.Create(unchecked((sbyte)0xA0));
+                            Vector128<sbyte> vecAllBF = Vector128.Create(unchecked((sbyte)0xBF));
+
+                            // The check below is really "can we read 16 bytes from the input buffer?" since 'pFinalPos...' is already offset
+                            // n.b. The subtraction below could result in a negative value (since we advanced pInputBuffer above), so
+                            // use nint instead of nuint.
+
+                            while ((nint)(pFinalPosWhereCanReadDWordFromInputBuffer - pInputBuffer) >= 12)
+                            {
+                                // Note the below is an UNALIGNED load. We'll also pre-populate 'thisDWord' just
+                                // in case we need to jump out of the loop eagerly.
+
+                                Vector128<sbyte> thisXmm = Sse2.LoadVector128((sbyte*)pInputBuffer);
+                                thisDWord = Sse2.ConvertToUInt32(thisXmm.AsUInt32());
+
+                                // The vector below is a mask of two-byte header bytes [ C2..DF ]
+                                // which are followed by a continuation byte [ 80..BF ].
+
+                                Vector128<sbyte> validTwoByteStarts =
+                                    Sse2.AndNot(
+                                        Sse2.CompareGreaterThan(Sse2.ShiftRightLogical128BitLane(thisXmm, 1), vecAllBF),
+                                        Sse2.CompareGreaterThan(Sse2.Add(thisXmm, vecAllA0), vecAll61));
+                                uint maskOfTwoByteStarts = (uint)Sse2.MoveMask(validTwoByteStarts);
+
+                                if (maskOfTwoByteStarts == 0)
+                                {
+                                    goto AfterReadDWord; // there's no 2-byte data in this vector
+                                }
+
+                                uint combinedMask = (maskOfTwoByteStarts * 3) - 1;
+                                combinedMask -= (uint)Sse2.MoveMask(thisXmm);
+
+                                // At this point, each bit of the low WORD of combinedMask is 1 if the corresponding byte
+                                // is ASCII or part of a well-formed 2-byte UTF-8 subsequence; 0 otherwise.
+                                // (The high WORD of combinedMask is set to all-ones. It's filtered out in the below code.)
+                                //
+                                // Example of an all-valid vector:
+                                //
+                                // Input vector =           [ ... 20 0A 80 CF 20 A0 C2 ] (written as little-endian)
+                                // combinedMask = 111...111 | ...  1  1  1  1  1  1  1
+                                //                        ^-- first WORD is all-ones
+                                //
+                                // Example of a not-all-valid vector:
+                                //
+                                // Input vector =           [ ... 20 FF 7F CF 20 A0 C2 ] (written as little-endian)
+                                // combinedMask = 111...111 | ...  1  0  1  0  1  1  1
+                                //                        ^-- first WORD is all-ones
+                                //
+                                // In the check below, it's ok if bit 15 (corresponding to the final byte of the vector)
+                                // isn't set. This is because it's possible that the vector ends with a standalone 2-byte
+                                // marker (e.g., [ C2 ]), but we don't yet know if it's valid because we still need to
+                                // read more data. If bit 15 isn't set, we can't mark it as consumed and we can only
+                                // advance the read pointer by 15 bytes. If bit 15 is set, we'll mark it as consumed
+                                // and will advance the read pointer by the full 16 bytes.
+
+                                if (((combinedMask + 1) & 0x7FFFu) == 0)
+                                {
+                                    // Each 2-code unit UTF-8 sequence -> 1 UTF-16 code unit (and 1 scalar)
+
+                                    tempUtf16CodeUnitCountAdjustment -= BitOperations.PopCount(maskOfTwoByteStarts);
+                                    pInputBuffer = pInputBuffer + Bmi1.BitFieldExtract(combinedMask, 15, 1) + 15;
+                                    continue;
+                                }
+
+                                // If we reached this point, the vector contained an invalid 2-byte sequence,
+                                // or it contained a 3-byte or 4-byte sequence that we haven't yet processed.
+                                // We only want to increment the read pointer to where the unknown data began,
+                                // which means we need to adjust our masks so that we don't incorrectly mark
+                                // data which came *after* this point as read & validated.
+
+                                combinedMask = ~combinedMask;
+                                pInputBuffer += Bmi1.TrailingZeroCount(combinedMask);
+                                maskOfTwoByteStarts &= Bmi1.GetMaskUpToLowestSetBit(combinedMask);
+                                tempUtf16CodeUnitCountAdjustment -= BitOperations.PopCount(maskOfTwoByteStarts);
+                                goto BeforeEnterMainLoop;
+                            }
+                        }
 
                         if (pInputBuffer <= pFinalPosWhereCanReadDWordFromInputBuffer)
                         {
