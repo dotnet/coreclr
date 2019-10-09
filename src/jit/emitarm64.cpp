@@ -8216,26 +8216,31 @@ void emitter::emitIns_Call(EmitCallType          callType,
         case EA_1BYTE:
         {
             result |= 0x0000; // clear bits 10 and 11
+            break;
         }
 
         case EA_2BYTE:
         {
             result |= 0x0400; // set bit at location 10, clear bit at location 11
+            break;
         }
 
         case EA_4BYTE:
         {
             result |= 0x0800; // clear bit at location 10, set bit at location 11
+            break;
         }
 
         case EA_8BYTE:
         {
             result |= 0x0C00; // set bits at location 10 and 11
+            break;
         }
 
         default:
         {
             assert(!"Invalid element size");
+            break;
         }
     }
 
@@ -8263,6 +8268,7 @@ void emitter::emitIns_Call(EmitCallType          callType,
             result |= (index & 0x8) << 27;
             result |= (index & 0x4) << 10;
             result |= (index & 0x3) << 10;
+            break;
         }
 
         case EA_2BYTE:
@@ -8276,6 +8282,7 @@ void emitter::emitIns_Call(EmitCallType          callType,
             result |= 0x4000;
             result |= (index & 0x2) << 11;
             result |= (index & 0x1) << 11;
+            break;
         }
 
         case EA_4BYTE:
@@ -8288,6 +8295,7 @@ void emitter::emitIns_Call(EmitCallType          callType,
             result |= (index & 0x2) << 29;
             result |= 0x8000;
             result |= (index & 0x1) << 12;
+            break;
         }
 
         case EA_8BYTE:
@@ -8299,11 +8307,13 @@ void emitter::emitIns_Call(EmitCallType          callType,
 
             result |= (index & 0x1) << 30;
             result |= 0x8400;
+            break;
         }
 
         default:
         {
             assert(!"Invalid element size");
+            break;
         }
     }
 
@@ -12130,7 +12140,11 @@ void emitter::getMemoryOperation(instrDesc* id, unsigned* pMemAccessKind, bool* 
             case IF_LS_2A:
             case IF_LS_2B:
             case IF_LS_2C:
+            case IF_LS_2D:
+            case IF_LS_2E:
             case IF_LS_3A:
+            case IF_LS_3F:
+            case IF_LS_3G:
                 if (isStackRegister(id->idReg2()))
                 {
                     isLocalAccess = true;

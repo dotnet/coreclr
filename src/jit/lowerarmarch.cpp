@@ -836,8 +836,6 @@ void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
         // Exit early if containment isn't supported
         return;
     }
-
-    unreached();
 }
 #endif // FEATURE_HW_INTRINSICS
 
