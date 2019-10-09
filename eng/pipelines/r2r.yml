@@ -34,5 +34,5 @@ jobs:
     helixQueueGroup: ci
     jobParameters:
       testGroup: outerloop
-      readyToRun: true
-      displayNameArgs: R2R
+      r2rPlatforms:
+      - all

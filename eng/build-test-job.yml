@@ -8,6 +8,8 @@ parameters:
   displayNameArgs: ''
   condition: true
   stagedBuild: false
+  priBuildNamePart: ''
+  priDisplayNamePart: ''
 
 ### Build managed test components (native components are getting built as part
 ### of the the product build job).
@@ -35,13 +37,10 @@ jobs:
       continueOnError: true
 
     # Compute job name from template parameters
-    ${{ if eq(parameters.testGroup, 'innerloop') }}:
-      name: 'build_test_p0_${{ parameters.osGroup }}${{ parameters.osSubgroup }}_${{ parameters.archType }}_${{ parameters.buildConfig }}'      
-      displayName: 'Build Test Pri0 ${{ parameters.osGroup }}${{ parameters.osSubgroup }} ${{ parameters.archType }} ${{ parameters.buildConfig }}'
+    name: 'build_test_${{ parameters.priBuildNamePart }}${{ parameters.displayNameArgs }}_${{ parameters.osGroup }}${{ parameters.osSubgroup }}_${{ parameters.archType }}_${{ parameters.buildConfig }}'
+    displayName: 'Build Test ${{ parameters.priDisplayNamePart }}${{ parameters.displayNameArgs }} ${{ parameters.osGroup }}${{ parameters.osSubgroup }} ${{ parameters.archType }} ${{ parameters.buildConfig }}'
 
-    ${{ if ne(parameters.testGroup, 'innerloop') }}:
-      name: 'build_test_p1_${{ parameters.osGroup }}${{ parameters.osSubgroup }}_${{ parameters.archType }}_${{ parameters.buildConfig }}'      
-      displayName: 'Build Test Pri1 ${{ parameters.osGroup }}${{ parameters.osSubgroup }} ${{ parameters.archType }} ${{ parameters.buildConfig }}'
+    crossrootfsDir: ${{ parameters.crossrootfsDir }}
 
     # Since the condition is being altered, merge the default with the additional conditions.
     # See https://docs.microsoft.com/azure/devops/pipelines/process/conditions

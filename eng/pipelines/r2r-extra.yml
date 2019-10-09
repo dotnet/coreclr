@@ -32,5 +32,6 @@ jobs:
     helixQueueGroup: ci
     testGroup: r2r-extra
     jobParameters:
-      readyToRun: true
-      displayNameArgs: R2R
+      testGroup: r2r-extra
+      r2rPlatforms:
+      - all

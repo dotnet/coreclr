@@ -57,7 +57,7 @@ jobs:
       testGroup: outerloop
 
 #
-# Checked test builds
+# Checked JIT + ReadyToRun test jobs
 #
 - template: /eng/platform-matrix.yml
   parameters:
@@ -85,30 +85,19 @@ jobs:
     helixQueueGroup: ci
     jobParameters:
       testGroup: outerloop
-
-#
-# Checked R2R test runs
-#
-- template: /eng/platform-matrix.yml
-  parameters:
-    jobTemplate: run-test-job.yml
-    buildConfig: checked
-    platforms:
-    - Linux_arm64
-    - Linux_musl_x64
-    - Linux_musl_arm64
-    - Linux_rhel6_x64
-    - Linux_x64
-    - OSX_x64
-    - Windows_NT_x64
-    - Windows_NT_x86
-    - Windows_NT_arm
-    - Windows_NT_arm64
-    helixQueueGroup: ci
-    jobParameters:
-      testGroup: outerloop
-      readyToRun: true
-      displayNameArgs: R2R
+      jitPlatforms:
+      - all
+      r2rPlatforms:
+      - Linux_arm64
+      - Linux_musl_x64
+      - Linux_musl_arm64
+      - Linux_rhel6_x64
+      - Linux_x64
+      - OSX_x64
+      - Windows_NT_x64
+      - Windows_NT_x86
+      - Windows_NT_arm
+      - Windows_NT_arm64
 
 #
 # Crossgen-comparison jobs
