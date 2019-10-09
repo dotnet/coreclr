@@ -9500,10 +9500,6 @@ void Compiler::gtDispNodeName(GenTree* tree)
     {
         sprintf_s(bufp, sizeof(buf), " %s_ovfl%c", name, 0);
     }
-    else if (tree->OperIsBlk() && !tree->OperIsDynBlk())
-    {
-        sprintf_s(bufp, sizeof(buf), " %s(%d)", name, tree->AsBlk()->GetLayout()->GetSize());
-    }
     else
     {
         sprintf_s(bufp, sizeof(buf), " %s%c", name, 0);
@@ -9985,6 +9981,42 @@ void Compiler::gtDispNode(GenTree* tree, IndentStack* indentStack, __in __in_z _
         if (tree->gtOper != GT_CAST)
         {
             printf(" %-6s", varTypeName(tree->TypeGet()));
+
+            if (varTypeIsStruct(tree->TypeGet()))
+            {
+                ClassLayout* layout = nullptr;
+
+                if (tree->OperIs(GT_BLK, GT_OBJ, GT_STORE_BLK, GT_STORE_OBJ))
+                {
+                    layout = tree->AsBlk()->GetLayout();
+                }
+                else if (tree->OperIs(GT_LCL_VAR, GT_STORE_LCL_VAR))
+                {
+                    LclVarDsc* varDsc = lvaGetDesc(tree->AsLclVar());
+
+                    if (varTypeIsStruct(varDsc->TypeGet()))
+                    {
+                        layout = varDsc->GetLayout();
+                    }
+                }
+
+                if (layout != nullptr)
+                {
+                    if (layout->IsBlockLayout())
+                    {
+                        printf("<%u>", layout->GetSize());
+                    }
+                    else if (varTypeIsSIMD(tree->TypeGet()))
+                    {
+                        printf("<%s>", layout->GetClassName());
+                    }
+                    else
+                    {
+                        printf("<%s, %u>", layout->GetClassName(), layout->GetSize());
+                    }
+                }
+            }
+
             if (tree->gtOper == GT_LCL_VAR || tree->gtOper == GT_STORE_LCL_VAR)
             {
                 LclVarDsc* varDsc = &lvaTable[tree->AsLclVarCommon()->GetLclNum()];
