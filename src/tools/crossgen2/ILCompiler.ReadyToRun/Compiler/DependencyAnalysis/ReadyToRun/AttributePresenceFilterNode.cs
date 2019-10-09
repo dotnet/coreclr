@@ -244,7 +244,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
                         if (isEmptyEntryInBucket(bucketAIndex))
                         {
                             fillEmptyEntryInBucket(bucketAIndex, fingerprint);
-                            continue;
+                            success = true;
                         }
                     }
 
