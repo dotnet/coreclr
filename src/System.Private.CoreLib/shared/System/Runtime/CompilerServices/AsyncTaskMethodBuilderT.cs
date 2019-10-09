@@ -284,12 +284,31 @@ namespace System.Runtime.CompilerServices
             public ExecutionContext? Context;
 
             /// <summary>A delegate to the <see cref="MoveNext()"/> method.</summary>
-            public Action MoveNextAction => _moveNextAction ??= new Action(MoveNext);
+            public Action MoveNextAction => _moveNextAction ??= GetMoveNextAction();
 
             internal sealed override void ExecuteFromThreadPool(Thread threadPoolThread) => MoveNext(threadPoolThread);
 
             /// <summary>Calls MoveNext on <see cref="StateMachine"/></summary>
             public void MoveNext() => MoveNext(threadPoolThread: null);
+
+            /// <summary> Creates a MoveNext action which is potentially wrapped to enable TPL etw and event source tracing. </summary>
+            private Action GetMoveNextAction()
+            {
+                Action moveNext = new Action(MoveNext);
+
+                // If logging is on, wrap the action so that the TPL event source can output 
+                // continuation info during the TaskWaitBegin event.
+                if (AsyncCausalityTracer.LoggingOn)
+                {
+                    moveNext = AsyncMethodBuilderCore.CreateContinuationWrapper(moveNext, (continuation, task) =>
+                    {
+                        // Simply call MoveNext();
+                        continuation();
+                    }, this);
+                }
+
+                return moveNext;
+            }
 
             private void MoveNext(Thread? threadPoolThread)
             {
