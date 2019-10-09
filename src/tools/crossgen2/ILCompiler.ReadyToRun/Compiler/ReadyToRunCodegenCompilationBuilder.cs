@@ -88,9 +88,9 @@ namespace ILCompiler
             // attributes, so produce a highly efficient table for determining if they are
             // present. Other assemblies *MAY* benefit from this feature, but it doesn't show
             // as useful at this time.
-            if (this._inputModule == this._inputModule.Context.SystemModule)
+            if (_inputModule == _inputModule.Context.SystemModule)
             {
-                 attributePresenceFilterNode = new AttributePresenceFilterNode(_inputModule, _context.Target);
+                 attributePresenceFilterNode = new AttributePresenceFilterNode(_inputModule);
             }
 
             // Produce a ResourceData where the IBC PROFILE_DATA entry has been filtered out

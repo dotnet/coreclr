@@ -5,14 +5,9 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
-using System.Runtime.InteropServices;
-using System.Text;
 
-using Internal.JitInterface;
-using Internal.NativeFormat;
 using Internal.Text;
 using Internal.TypeSystem;
 using Internal.TypeSystem.Ecma;
@@ -22,12 +17,12 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
     public class AttributePresenceFilterNode : HeaderTableNode
     {
         private EcmaModule _module;
-        private ObjectData computedData;
+        private ObjectData _computedData;
 
         public override int ClassCode => 56456113;
 
-        public AttributePresenceFilterNode(EcmaModule module, TargetDetails target)
-            : base(target)
+        public AttributePresenceFilterNode(EcmaModule module)
+            : base(module.Context.Target)
         {
             this._module = module;
         }
@@ -102,7 +97,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
                     TypeNamespace = customAttributeTypeNamespace,
                     TypeName = customAttributeTypeName,
                     Parent = reader.GetToken(customAttribute.Parent)
-                }); ;
+                });
             }
             return customAttributeEntries;
         }
@@ -125,9 +120,9 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             if (relocsOnly)
                 return new ObjectData(Array.Empty<byte>(), Array.Empty<Relocation>(), 1, new ISymbolDefinitionNode[] { this });
 
-            if (computedData != null)
+            if (_computedData != null)
             {
-                return computedData;
+                return _computedData;
             }
 
             List<CustomAttributeEntry> customAttributeEntries = GetCustomAttributeEntries();
@@ -288,8 +283,8 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             builder.RequireInitialAlignment(16);
             builder.AddSymbol(this);
             builder.EmitBytes(result);
-            computedData = builder.ToObjectData();
-            return computedData;
+            _computedData = builder.ToObjectData();
+            return _computedData;
         }
     }
 }

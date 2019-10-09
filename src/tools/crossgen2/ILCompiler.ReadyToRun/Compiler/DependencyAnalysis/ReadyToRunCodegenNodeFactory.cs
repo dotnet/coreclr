@@ -230,7 +230,7 @@ namespace ILCompiler.DependencyAnalysis
             Resolver = moduleTokenResolver;
             InputModuleContext = signatureContext;
             CopiedCorHeaderNode = corHeaderNode;
-            AttributePresenceFilterNode = attributePresenceFilterNode;
+            AttributePresenceFilter = attributePresenceFilterNode;
             if (!win32Resources.IsEmpty)
                 Win32ResourcesNode = new Win32ResourcesNode(win32Resources);
         }
@@ -242,8 +242,6 @@ namespace ILCompiler.DependencyAnalysis
         public CopiedCorHeaderNode CopiedCorHeaderNode;
 
         public Win32ResourcesNode Win32ResourcesNode;
-
-        public AttributePresenceFilterNode  AttributePresenceFilterNode;
 
         public HeaderNode Header;
 
