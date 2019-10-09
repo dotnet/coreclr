@@ -4386,6 +4386,10 @@ void emitter::emitIns_R_R(
 
         case INS_ld1:
         {
+            assert(isVectorRegister(reg1));
+            assert(isIntegerRegister(reg2));
+            assert(isValidVectorDatasize(size));
+            assert(isValidArrangement(size, opt));
             fmt = IF_LS_2D;
             break;
         }
