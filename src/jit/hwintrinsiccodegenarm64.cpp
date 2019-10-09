@@ -67,7 +67,11 @@ void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
         emitAttr simdSize = EA_ATTR(node->gtSIMDSize);
         insOpts  opt      = INS_OPTS_NONE;
 
-        if (category != HW_Category_SIMDScalar)
+        if (category == HW_Category_SIMDScalar)
+        {
+            simdSize = emitActualTypeSize(baseType);
+        }
+        else
         {
             opt = genGetSimdInsOpt(simdSize, baseType);
         }
