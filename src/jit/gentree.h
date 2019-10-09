@@ -5425,8 +5425,13 @@ public:
     }
 
 private:
-    GenTree* m_rootNode; // The root of the expression tree.
-    GenTree* m_treeList; // The tree list head (for forward walks).
+    // The root of the expression tree.
+    // Note: It will be the last node in evaluation order.
+    GenTree* m_rootNode;
+
+    // The tree list head (for forward walks in evaluation order).
+    // The value is `nullptr` until we have set the sequencing of the nodes.
+    GenTree* m_treeList;
 
     InlineContext* m_inlineContext; // The inline context for this statement.
 
@@ -5437,6 +5442,9 @@ private:
     unsigned  m_stmtID;
 #endif
 
+    // The statement nodes are doubly-linked. The first statement node in a block points
+    // to the last node in the block via its `m_prev` link. Note that the last statement node
+    // does not point to the first: it's `m_next == nullptr`; that is, the list is not fully circular.
     Statement* m_next;
     Statement* m_prev;
 
