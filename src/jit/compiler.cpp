@@ -2346,8 +2346,8 @@ void Compiler::compSetProcessor()
     if (JitConfig.EnableHWIntrinsic())
     {
         // Dummy ISAs for simplifying the JIT code
-        opts.setSupportedISA(InstructionSet_Base);
-        opts.setSupportedISA(InstructionSet_Base_Arm64);
+        opts.setSupportedISA(InstructionSet_ArmBase);
+        opts.setSupportedISA(InstructionSet_ArmBase_Arm64);
         opts.setSupportedISA(InstructionSet_Vector64);
         opts.setSupportedISA(InstructionSet_Vector128);
     }

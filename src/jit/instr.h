@@ -332,9 +332,9 @@ enum InstructionSet
     InstructionSet_AdvSimd_Fp16,  // ID_AA64PFR0_EL1.AdvSIMD is 1 or better
     InstructionSet_AdvSimd_v81,   // ID_AA64ISAR0_EL1.RDM is 1 or better
     InstructionSet_Aes,           // ID_AA64ISAR0_EL1.AES is 1 or better
+    InstructionSet_ArmBase,
+    InstructionSet_ArmBase_Arm64,
     InstructionSet_Atomics,       // ID_AA64ISAR0_EL1.Atomic is 2 or better
-    InstructionSet_Base,
-    InstructionSet_Base_Arm64,
     InstructionSet_Crc32,         // ID_AA64ISAR0_EL1.CRC32 is 1 or better
     InstructionSet_Dcpop,         // ID_AA64ISAR1_EL1.DPB is 1 or better
     InstructionSet_Dp,            // ID_AA64ISAR0_EL1.DP is 1 or better

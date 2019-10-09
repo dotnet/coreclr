@@ -21,8 +21,8 @@ static InstructionSet Arm64VersionOfIsa(InstructionSet isa)
     {
         case InstructionSet_AdvSimd:
             return InstructionSet_AdvSimd_Arm64;
-        case InstructionSet_Base:
-            return InstructionSet_Base_Arm64;
+        case InstructionSet_ArmBase:
+            return InstructionSet_ArmBase_Arm64;
         default:
             unreached();
     }
@@ -50,12 +50,9 @@ static InstructionSet lookupInstructionSet(const char* className)
         {
             return InstructionSet_Aes;
         }
-    }
-    else if (className[0] == 'B')
-    {
-        if (strcmp(className, "Base") == 0)
+        if (strcmp(className, "ArmBase") == 0)
         {
-            return InstructionSet_Base;
+            return InstructionSet_ArmBase;
         }
     }
     else if (className[0] == 'S')
@@ -154,7 +151,7 @@ bool HWIntrinsicInfo::isFullyImplementedIsa(InstructionSet isa)
         // These ISAs are fully implemented
         case InstructionSet_AdvSimd:
         case InstructionSet_Aes:
-        case InstructionSet_Base:
+        case InstructionSet_ArmBase:
         case InstructionSet_Sha1:
         case InstructionSet_Sha256:
         case InstructionSet_Vector64:
@@ -182,7 +179,8 @@ bool HWIntrinsicInfo::isScalarIsa(InstructionSet isa)
 {
     switch (isa)
     {
-        case InstructionSet_Base:
+        case InstructionSet_ArmBase:
+        case InstructionSet_ArmBase_Arm64:
         {
             return true;
         }
@@ -348,9 +346,9 @@ GenTree* Compiler::impSpecialIntrinsic(NamedIntrinsic        intrinsic,
             break;
         }
 
-        case NI_Base_LeadingZeroCount:
-        case NI_Base_Arm64_LeadingSignCount:
-        case NI_Base_Arm64_LeadingZeroCount:
+        case NI_ArmBase_LeadingZeroCount:
+        case NI_ArmBase_Arm64_LeadingSignCount:
+        case NI_ArmBase_Arm64_LeadingZeroCount:
         case NI_Sha1_FixedRotate:
         {
             assert(numArgs == 1);
