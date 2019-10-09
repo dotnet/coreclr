@@ -89,7 +89,7 @@ stages:
     dependsOn: build
     jobs:
     #
-    # Release test builds
+    # Release JIT + ReadyToRun test builds
     #
     - template: /eng/platform-matrix.yml
       parameters:
@@ -100,21 +100,8 @@ stages:
         stagedBuild: true
         jobParameters:
           testGroup: outerloop
+          jitPlatforms:
+          - all
+          r2rPlatforms:
+          - all
           condition: ne(variables['_BypassTesting'], 'true')
-
-    #
-    # ReadyToRun test builds
-    #
-    - template: /eng/platform-matrix.yml
-      parameters:
-        jobTemplate: test-job.yml
-        buildConfig: release
-        platformGroup: all
-        helixQueueGroup: all
-        stagedBuild: true
-        jobParameters:
-          testGroup: outerloop
-          readyToRun: true
-          displayNameArgs: R2R
-          condition: ne(variables['_BypassTesting'], 'true')
-          

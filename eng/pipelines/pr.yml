@@ -64,7 +64,7 @@ jobs:
       testGroup: innerloop
 
 #
-# Checked test builds
+# Checked JIT + ReadyToRun test jobs
 #
 - template: /eng/platform-matrix.yml
   parameters:
@@ -83,24 +83,13 @@ jobs:
     helixQueueGroup: pr
     jobParameters:
       testGroup: innerloop
-
-#
-# ReadyToRun test jobs
-#
-- template: /eng/platform-matrix.yml
-  parameters:
-    jobTemplate: test-job.yml
-    buildConfig: checked
-    platforms:
-    - Linux_x64
-    - OSX_x64
-    - Windows_NT_x64
-    - Windows_NT_x86
-    helixQueueGroup: pr
-    jobParameters:
-      testGroup: innerloop
-      readyToRun: true
-      displayNameArgs: R2R
+      jitPlatforms:
+      - all
+      r2rPlatforms:
+      - Linux_x64
+      - OSX_x64
+      - Windows_NT_x64
+      - Windows_NT_x86
 
 #
 # CoreFX test runs against CoreCLR
