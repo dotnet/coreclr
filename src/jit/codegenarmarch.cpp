@@ -2319,7 +2319,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
             genConsumeArgSplitStruct(argNode->AsPutArgSplit());
             for (unsigned idx = 0; idx < curArgTabEntry->numRegs; idx++)
             {
-                regNumber argReg   = (regNumber)((unsigned)curArgTabEntry->regNum + idx);
+                regNumber argReg   = (regNumber)((unsigned)curArgTabEntry->GetRegNum() + idx);
                 regNumber allocReg = argNode->AsPutArgSplit()->GetRegNumByIdx(idx);
                 if (argReg != allocReg)
                 {
