@@ -1321,7 +1321,7 @@ void Lowering::LowerArg(GenTreeCall* call, GenTree** ppArg)
         fieldList->AddFieldLIR(comp, arg->AsOp()->gtGetOp2(), 4, TYP_INT);
         GenTree* newArg = NewPutArg(call, fieldList, info, type);
 
-        if (info->regNum != REG_STK)
+        if (info->GetRegNum() != REG_STK)
         {
             assert(info->numRegs == 2);
             // In the register argument case, NewPutArg replaces the original field list args with new
