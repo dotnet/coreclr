@@ -11340,7 +11340,7 @@ void Compiler::gtGetArgMsg(
 #ifdef _TARGET_ARM_
             if (curArgTabEntry->IsSplit())
             {
-                regNumber firstReg = curArgTabEntry->regNum;
+                regNumber firstReg = curArgTabEntry->GetRegNum();
                 if (listCount == -1)
                 {
                     if (curArgTabEntry->numRegs == 1)
@@ -11470,7 +11470,7 @@ void Compiler::gtGetLateArgMsg(
 #ifdef _TARGET_ARM_
         else if (curArgTabEntry->IsSplit())
         {
-            regNumber firstReg = curArgTabEntry->regNum;
+            regNumber firstReg = curArgTabEntry->GetRegNum();
             unsigned  argNum   = curArgTabEntry->argNum;
             if (listCount == -1)
             {
