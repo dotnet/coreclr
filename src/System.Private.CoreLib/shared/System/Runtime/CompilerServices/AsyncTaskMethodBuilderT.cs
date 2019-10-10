@@ -296,7 +296,7 @@ namespace System.Runtime.CompilerServices
             {
                 Action moveNext = new Action(MoveNext);
 
-                // If logging is on, wrap the action so that TaskAwaiter can find the continuation's associated task when 
+                // If logging is on, wrap the action so that TaskAwaiter can find the continuation's associated task when
                 // sending the TaskWaitBegin event to the TplEventSource
                 if (AsyncCausalityTracer.LoggingOn)
                 {
