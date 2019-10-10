@@ -94,6 +94,11 @@ public:
         }
         CONTRACTL_END;
 
+        // fully loaded types cannot be "undone" and thus castability can be cached.
+        // do not cache if any of the types is not fully loaded.
+        if (!source.IsFullyLoaded() || !target.IsFullyLoaded())
+            return;
+
         TryAddToCache(source.AsTAddr(), target.AsTAddr(), result);
     }
 
@@ -106,6 +111,11 @@ public:
             MODE_COOPERATIVE;
         }
         CONTRACTL_END;
+
+        // fully loaded types cannot be "undone" and thus castability can be cached.
+        // do not cache if any of the types is not fully loaded.
+        if (!pSourceMT->IsFullyLoaded() || !target.IsFullyLoaded())
+            return;
 
         TryAddToCache((TADDR)pSourceMT, target.AsTAddr(), result);
     }
@@ -303,10 +313,6 @@ private:
 #else // !DACCESS_COMPILE && !CROSSGEN_COMPILE
 public:
     FORCEINLINE static void TryAddToCache(TypeHandle source, TypeHandle target, BOOL result)
-    {
-    }
-
-    FORCEINLINE static void TryAddToCacheAny(MethodTable* pSourceMT, TypeHandle target, BOOL result)
     {
     }
 
