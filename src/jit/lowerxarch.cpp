@@ -229,8 +229,9 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
 
         if (src->OperIs(GT_IND))
         {
-            // Make sure that GT_IND lowering didn't mark the source address as contained,
-            // containment is supported only in certain cases.
+            // TODO-Cleanup: Make sure that GT_IND lowering didn't mark the source address as contained.
+            // Sometimes the GT_IND type is a non-struct type and then GT_IND lowering may contain the
+            // address, not knowing that GT_IND is part of a block op that has containment restrictions.
             src->AsIndir()->Addr()->ClearContained();
         }
 
