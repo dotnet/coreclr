@@ -296,8 +296,8 @@ namespace System.Runtime.CompilerServices
             {
                 Action moveNext = new Action(MoveNext);
 
-                // If logging is on, wrap the action so that the TPL event source can output 
-                // continuation info during the TaskWaitBegin event.
+                // If logging is on, wrap the action so that TaskAwaiter can find the continuation's associated task when 
+                // sending the TaskWaitBegin event to the TplEventSource
                 if (AsyncCausalityTracer.LoggingOn)
                 {
                     moveNext = AsyncMethodBuilderCore.CreateContinuationWrapper(moveNext, (continuation, task) =>
