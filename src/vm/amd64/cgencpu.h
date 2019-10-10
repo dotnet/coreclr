@@ -35,7 +35,6 @@ class ComCallMethodDesc;
 //
 // functions implemented in AMD64 assembly
 //
-EXTERN_C void InstantiatingMethodStubWorker(void);
 EXTERN_C void SinglecastDelegateInvokeStub();
 EXTERN_C void FastCallFinalizeWorker(Object *obj, PCODE funcPtr);
 

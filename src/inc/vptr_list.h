@@ -92,9 +92,6 @@ VPTR_CLASS(ExternalMethodFrame)
 #ifdef FEATURE_READYTORUN
 VPTR_CLASS(DynamicHelperFrame)
 #endif
-#if !defined(_TARGET_X86_)
-VPTR_CLASS(StubHelperFrame)
-#endif
 #if defined(_TARGET_X86_)
 VPTR_CLASS(UMThkCallFrame)
 #endif

@@ -1615,7 +1615,7 @@ Stub * MakeUnboxingStubWorker(MethodDesc *pMD)
 
     _ASSERTE(pUnboxedMD != NULL && pUnboxedMD != pMD);
 
-#ifndef NO_SHUFFLE_INSTANTIATINGSTUB
+#ifdef FEATURE_PORTABLE_SHUFFLE_THUNKS
     StackSArray<ShuffleEntry> portableShuffle;
     BOOL usePortableShuffle = FALSE;
     if (!pUnboxedMD->RequiresInstMethodTableArg())
@@ -1648,17 +1648,24 @@ Stub * MakeUnboxingStubWorker(MethodDesc *pMD)
 #endif
     {
 #ifdef FEATURE_STUBS_AS_IL
+#ifndef FEATURE_PORTABLE_SHUFFLE_THUNKS
         if (pUnboxedMD->RequiresInstMethodTableArg())
+#endif // !FEATURE_PORTABLE_SHUFFLE_THUNKS
         {
+            _ASSERTE(pUnboxedMD->RequiresInstMethodTableArg());
             pstub = CreateUnboxingILStubForSharedGenericValueTypeMethods(pUnboxedMD);
         }
+#ifndef FEATURE_PORTABLE_SHUFFLE_THUNKS
         else
-#endif
+#endif // !FEATURE_PORTABLE_SHUFFLE_THUNKS
+#endif // FEATURE_STUBS_AS_IL
+#ifndef FEATURE_PORTABLE_SHUFFLE_THUNKS
         {
             CPUSTUBLINKER sl;
             sl.EmitUnboxMethodStub(pUnboxedMD);
             pstub = sl.Link(pMD->GetLoaderAllocator()->GetStubHeap());
         }
+#endif // !FEATURE_PORTABLE_SHUFFLE_THUNKS
     }
     RETURN pstub;
 }
@@ -1700,7 +1707,7 @@ Stub * MakeInstantiatingStubWorker(MethodDesc *pMD)
     }
     Stub *pstub = NULL;
 
-#ifndef NO_SHUFFLE_INSTANTIATINGSTUB
+#ifdef FEATURE_PORTABLE_SHUFFLE_THUNKS
     StackSArray<ShuffleEntry> portableShuffle;
     if (GenerateShuffleArrayPortable(pMD, pSharedMD, &portableShuffle, ShuffleComputationType::InstantiatingStub))
     {

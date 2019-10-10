@@ -96,6 +96,9 @@ EXTERN_C void setFPReturn(int fpSize, INT64 retVal);
 // Offset of pc register
 #define PC_REG_RELATIVE_OFFSET 4
 
+// Use architecture neutral shuffle, instantiating and unboxing thunks
+#define FEATURE_PORTABLE_SHUFFLE_THUNKS
+
 //=======================================================================
 // IMPORTANT: This value is used to figure out how much to allocate
 // for a fixed array of FieldMarshaler's. That means it must be at least
@@ -945,9 +948,6 @@ public:
     }
 #endif // FEATURE_INTERPRETER
 
-    void EmitStubLinkFrame(TADDR pFrameVptr, int offsetOfFrame, int offsetOfTransitionBlock);
-    void EmitStubUnlinkFrame();
-
     void ThumbEmitCondFlagJump(CodeLabel * target,UINT cond);
 
     void ThumbEmitCondRegJump(CodeLabel *target, BOOL nonzero, ThumbReg reg);
@@ -957,16 +957,9 @@ public:
     // Scratches r12.
     void ThumbEmitCallManagedMethod(MethodDesc *pMD, bool fTailcall);
 
-    void EmitUnboxMethodStub(MethodDesc* pRealMD);
-    static UINT_PTR HashMulticastInvoke(MetaSig* pSig);
-
-    void EmitMulticastInvoke(UINT_PTR hash);
     void EmitSecureDelegateInvoke(UINT_PTR hash);
     void EmitShuffleThunk(struct ShuffleEntry *pShuffleEntryArray);
-#if defined(FEATURE_SHARE_GENERIC_CODE)  
-    void EmitInstantiatingMethodStub(MethodDesc* pSharedMD, void* extra);
     VOID EmitComputedInstantiatingMethodStub(MethodDesc* pSharedMD, struct ShuffleEntry *pShuffleEntryArray, void* extraArg);
-#endif // FEATURE_SHARE_GENERIC_CODE
 
     static Stub * CreateTailCallCopyArgsThunk(CORINFO_SIG_INFO * pSig,
                                               MethodDesc* pMD,

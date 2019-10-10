@@ -10,6 +10,11 @@
 struct ArrayOpScript;
 class MetaSig;
 
+#ifdef _TARGET_AMD64_
+// Use architecture neutral shuffle, instantiating and unboxing thunks
+#define FEATURE_PORTABLE_SHUFFLE_THUNKS
+#endif
+
 extern PCODE GetPreStubEntryPoint();
 
 //=======================================================================
@@ -366,7 +371,9 @@ class StubLinkerCPU : public StubLinker
 #endif // _TARGET_X86_
 #endif // !FEATURE_STUBS_AS_IL
 
+#ifdef _TARGET_X86_
         VOID EmitUnboxMethodStub(MethodDesc* pRealMD);
+#endif // _TARGET_X86_
         VOID EmitTailJumpToMethod(MethodDesc *pMD);
 #ifdef _TARGET_AMD64_
         VOID EmitLoadMethodAddressIntoAX(MethodDesc *pMD);
@@ -374,8 +381,8 @@ class StubLinkerCPU : public StubLinker
 
 #if defined(FEATURE_SHARE_GENERIC_CODE)  
         VOID EmitInstantiatingMethodStub(MethodDesc* pSharedMD, void* extra);
-        VOID EmitComputedInstantiatingMethodStub(MethodDesc* pSharedMD, struct ShuffleEntry *pShuffleEntryArray, void* extraArg);
 #endif // FEATURE_SHARE_GENERIC_CODE
+        VOID EmitComputedInstantiatingMethodStub(MethodDesc* pSharedMD, struct ShuffleEntry *pShuffleEntryArray, void* extraArg);
 
 #if defined(FEATURE_COMINTEROP) && defined(_TARGET_X86_)
         //========================================================================
@@ -399,9 +406,11 @@ class StubLinkerCPU : public StubLinker
         VOID EmitDelegateInvoke();
 #endif // _TARGET_X86_
 
+#if defined(_TARGET_X86_) && !defined(FEATURE_MULTICASTSTUB_AS_IL)
         //===========================================================================
         // Emits code for MulticastDelegate.Invoke() - sig specific
         VOID EmitMulticastInvoke(UINT_PTR hash);
+#endif // defined(_TARGET_X86_) && !defined(FEATURE_MULTICASTSTUB_AS_IL)
 
         //===========================================================================
         // Emits code for Delegate.Invoke() on delegates that recorded creator assembly

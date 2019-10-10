@@ -35,11 +35,7 @@
 
 #ifndef DACCESS_COMPILE
 
-#if defined(_TARGET_AMD64_) && !defined(UNIX_AMD64_ABI)
-
-// ShuffleOfs not needed
-
-#elif defined(_TARGET_X86_)
+#if defined(_TARGET_X86_)
 
 // Return an encoded shuffle entry describing a general register or stack offset that needs to be shuffled.
 static UINT16 ShuffleOfs(INT ofs, UINT stackSizeDelta = 0)
@@ -65,6 +61,8 @@ static UINT16 ShuffleOfs(INT ofs, UINT stackSizeDelta = 0)
     return static_cast<UINT16>(ofs);
 }
 #endif
+
+#ifdef FEATURE_PORTABLE_SHUFFLE_THUNKS
 
 // Iterator for extracting shuffle entries for argument desribed by an ArgLocDesc.
 // Used when calculating shuffle array entries in GenerateShuffleArray below.
@@ -253,99 +251,6 @@ struct ShuffleGraphNode
     // Nodes that are marked are either already processed or don't participate in the shuffling
     UINT8 isMarked;
 };
-
-VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<ShuffleEntry> * pShuffleEntryArray)
-{
-    STANDARD_VM_CONTRACT;
-
-#if defined(_TARGET_X86_)
-    ShuffleEntry entry;
-    ZeroMemory(&entry, sizeof(entry));
-
-    // Must create independent msigs to prevent the argiterators from
-    // interfering with other.
-    MetaSig sSigSrc(pInvoke);
-    MetaSig sSigDst(pTargetMeth);
-
-    _ASSERTE(sSigSrc.HasThis());
-
-    ArgIterator sArgPlacerSrc(&sSigSrc);
-    ArgIterator sArgPlacerDst(&sSigDst);
-
-    UINT stackSizeSrc = sArgPlacerSrc.SizeOfArgStack();
-    UINT stackSizeDst = sArgPlacerDst.SizeOfArgStack();
-
-    if (stackSizeDst > stackSizeSrc)
-    {
-        // we can drop arguments but we can never make them up - this is definitely not allowed
-        COMPlusThrow(kVerificationException);
-    }
-
-    UINT stackSizeDelta;
-
-#ifdef UNIX_X86_ABI
-    // Stack does not shrink as UNIX_X86_ABI uses CDECL (instead of STDCALL).
-    stackSizeDelta = 0;
-#else
-    stackSizeDelta = stackSizeSrc - stackSizeDst;
-#endif
-
-    INT ofsSrc, ofsDst;
-
-    // if the function is non static we need to place the 'this' first
-    if (!pTargetMeth->IsStatic())
-    {
-        entry.srcofs = ShuffleOfs(sArgPlacerSrc.GetNextOffset());
-        entry.dstofs = ShuffleEntry::REGMASK | 4;
-        pShuffleEntryArray->Append(entry);
-    }
-    else if (sArgPlacerSrc.HasRetBuffArg())
-    {
-        // the first register is used for 'this'
-        entry.srcofs = ShuffleOfs(sArgPlacerSrc.GetRetBuffArgOffset());
-        entry.dstofs = ShuffleOfs(sArgPlacerDst.GetRetBuffArgOffset(), stackSizeDelta);
-        if (entry.srcofs != entry.dstofs)
-            pShuffleEntryArray->Append(entry);
-    }
-
-    while (TransitionBlock::InvalidOffset != (ofsSrc = sArgPlacerSrc.GetNextOffset()))
-    {
-        ofsDst = sArgPlacerDst.GetNextOffset();
-
-        int cbSize = sArgPlacerDst.GetArgSize();
-
-        do
-        {
-            entry.srcofs = ShuffleOfs(ofsSrc);
-            entry.dstofs = ShuffleOfs(ofsDst, stackSizeDelta);
-
-            ofsSrc += STACK_ELEM_SIZE;
-            ofsDst += STACK_ELEM_SIZE;
-
-            if (entry.srcofs != entry.dstofs)
-                pShuffleEntryArray->Append(entry);
-
-            cbSize -= STACK_ELEM_SIZE;
-        }
-        while (cbSize > 0);
-    }
-
-    if (stackSizeDelta != 0)
-    {
-        // Emit code to move the return address
-        entry.srcofs = 0;     // retaddress is assumed to be at esp
-        entry.dstofs = static_cast<UINT16>(stackSizeDelta);
-        pShuffleEntryArray->Append(entry);
-    }
-
-    entry.srcofs = ShuffleEntry::SENTINEL;
-    entry.dstofs = static_cast<UINT16>(stackSizeDelta);
-    pShuffleEntryArray->Append(entry);
-
-#else // Portable default implementation
-    GenerateShuffleArrayPortable(pInvoke, pTargetMeth, pShuffleEntryArray, ShuffleComputationType::DelegateShuffleThunk);
-#endif
-}
 
 BOOL AddNextShuffleEntryToArray(ArgLocDesc sArgSrc, ArgLocDesc sArgDst, SArray<ShuffleEntry> * pShuffleEntryArray, ShuffleComputationType shuffleType)
 {
@@ -621,7 +526,93 @@ BOOL GenerateShuffleArrayPortable(MethodDesc* pMethodSrc, MethodDesc *pMethodDst
         }
     }
 
-#if defined(_TARGET_X86_)
+    entry.srcofs = ShuffleEntry::SENTINEL;
+    entry.dstofs = 0;
+    pShuffleEntryArray->Append(entry);
+
+    return TRUE;
+}
+#endif // FEATURE_PORTABLE_SHUFFLE_THUNKS
+
+VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<ShuffleEntry> * pShuffleEntryArray)
+{
+    STANDARD_VM_CONTRACT;
+
+#ifdef FEATURE_PORTABLE_SHUFFLE_THUNKS
+    // Portable default implementation
+    GenerateShuffleArrayPortable(pInvoke, pTargetMeth, pShuffleEntryArray, ShuffleComputationType::DelegateShuffleThunk);
+#elif defined(_TARGET_X86_)
+    ShuffleEntry entry;
+    ZeroMemory(&entry, sizeof(entry));
+
+    // Must create independent msigs to prevent the argiterators from
+    // interfering with other.
+    MetaSig sSigSrc(pInvoke);
+    MetaSig sSigDst(pTargetMeth);
+
+    _ASSERTE(sSigSrc.HasThis());
+
+    ArgIterator sArgPlacerSrc(&sSigSrc);
+    ArgIterator sArgPlacerDst(&sSigDst);
+
+    UINT stackSizeSrc = sArgPlacerSrc.SizeOfArgStack();
+    UINT stackSizeDst = sArgPlacerDst.SizeOfArgStack();
+
+    if (stackSizeDst > stackSizeSrc)
+    {
+        // we can drop arguments but we can never make them up - this is definitely not allowed
+        COMPlusThrow(kVerificationException);
+    }
+
+    UINT stackSizeDelta;
+
+#ifdef UNIX_X86_ABI
+    // Stack does not shrink as UNIX_X86_ABI uses CDECL (instead of STDCALL).
+    stackSizeDelta = 0;
+#else
+    stackSizeDelta = stackSizeSrc - stackSizeDst;
+#endif
+
+    INT ofsSrc, ofsDst;
+
+    // if the function is non static we need to place the 'this' first
+    if (!pTargetMeth->IsStatic())
+    {
+        entry.srcofs = ShuffleOfs(sArgPlacerSrc.GetNextOffset());
+        entry.dstofs = ShuffleEntry::REGMASK | 4;
+        pShuffleEntryArray->Append(entry);
+    }
+    else if (sArgPlacerSrc.HasRetBuffArg())
+    {
+        // the first register is used for 'this'
+        entry.srcofs = ShuffleOfs(sArgPlacerSrc.GetRetBuffArgOffset());
+        entry.dstofs = ShuffleOfs(sArgPlacerDst.GetRetBuffArgOffset(), stackSizeDelta);
+        if (entry.srcofs != entry.dstofs)
+            pShuffleEntryArray->Append(entry);
+    }
+
+    while (TransitionBlock::InvalidOffset != (ofsSrc = sArgPlacerSrc.GetNextOffset()))
+    {
+        ofsDst = sArgPlacerDst.GetNextOffset();
+
+        int cbSize = sArgPlacerDst.GetArgSize();
+
+        do
+        {
+            entry.srcofs = ShuffleOfs(ofsSrc);
+            entry.dstofs = ShuffleOfs(ofsDst, stackSizeDelta);
+
+            ofsSrc += STACK_ELEM_SIZE;
+            ofsDst += STACK_ELEM_SIZE;
+
+            if (entry.srcofs != entry.dstofs)
+                pShuffleEntryArray->Append(entry);
+
+            cbSize -= STACK_ELEM_SIZE;
+        }
+        while (cbSize > 0);
+    }
+
     if (stackSizeDelta != 0)
     {
         // Emit code to move the return address
@@ -629,13 +620,14 @@ BOOL GenerateShuffleArrayPortable(MethodDesc* pMethodSrc, MethodDesc *pMethodDst
         entry.dstofs = static_cast<UINT16>(stackSizeDelta);
         pShuffleEntryArray->Append(entry);
     }
-#endif // defined(_TARGET_X86_)
 
     entry.srcofs = ShuffleEntry::SENTINEL;
-    entry.dstofs = stackSizeDelta;
+    entry.dstofs = static_cast<UINT16>(stackSizeDelta);
     pShuffleEntryArray->Append(entry);
 
-    return TRUE;
+#else
+#error Unsupported architecture
+#endif
 }
 
 

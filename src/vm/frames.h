@@ -69,8 +69,6 @@
 //    | |                         to either a EE runtime helper function or
 //    | |                         a framed method.
 //    | |
-//    | +-StubHelperFrame       - for instantiating stubs that need to grow stack arguments
-//    | |
 //    | +-SecureDelegateFrame   - represents a call Delegate.Invoke for secure delegate
 //    |   |
 //    |   +-MulticastFrame      - this frame protects arguments to a MulticastDelegate
@@ -234,9 +232,6 @@ FRAME_TYPE_NAME(StubDispatchFrame)
 FRAME_TYPE_NAME(ExternalMethodFrame)
 #ifdef FEATURE_READYTORUN
 FRAME_TYPE_NAME(DynamicHelperFrame)
-#endif
-#if !defined(_TARGET_X86_)
-FRAME_TYPE_NAME(StubHelperFrame)
 #endif
 FRAME_TYPE_NAME(GCFrame)
 #ifdef FEATURE_INTERPRETER
@@ -2378,40 +2373,6 @@ public:
 
 typedef VPTR(class DynamicHelperFrame) PTR_DynamicHelperFrame;
 #endif // FEATURE_READYTORUN
-
-//------------------------------------------------------------------------
-// This frame is used for instantiating stubs when the argument transform
-// is too complex to generate a tail-calling stub.
-//------------------------------------------------------------------------
-#if !defined(_TARGET_X86_)
-class StubHelperFrame : public TransitionFrame
-{
-    friend class CheckAsmOffsets;
-    friend class StubLinkerCPU;
-
-    VPTR_VTABLE_CLASS(StubHelperFrame, TransitionFrame)
-    VPTR_UNIQUE(VPTR_UNIQUE_StubHelperFrame)
-
-    TransitionBlock m_TransitionBlock;
-
-    virtual TADDR GetTransitionBlock()
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        return PTR_HOST_MEMBER_TADDR(StubHelperFrame, this,
-            m_TransitionBlock);
-    }
-
-    static int GetOffsetOfTransitionBlock()
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        return offsetof(StubHelperFrame, m_TransitionBlock);
-    }
-
-private:
-    // Keep as last entry in class
-    DEFINE_VTABLE_GETTER_AND_CTOR_AND_DTOR(StubHelperFrame)
-};
-#endif // _TARGET_X86_
 
 #ifdef FEATURE_COMINTEROP
 

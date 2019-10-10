@@ -1810,18 +1810,6 @@ void StubLinkerCPU::EmitCallManagedMethod(MethodDesc *pMD, BOOL fTailCall)
 
 #ifndef CROSSGEN_COMPILE
 
-void StubLinkerCPU::EmitUnboxMethodStub(MethodDesc *pMD)
-{
-    _ASSERTE(!pMD->RequiresInstMethodDescArg());
-
-    // Address of the value type is address of the boxed instance plus sizeof(MethodDesc*).
-    //  add x0, #sizeof(MethodDesc*)
-    EmitAddImm(IntReg(0), IntReg(0), sizeof(MethodDesc*));
-
-    // Tail call the real target.
-    EmitCallManagedMethod(pMD, TRUE /* tail call */);
-}
-
 #ifdef FEATURE_READYTORUN
 
 //
