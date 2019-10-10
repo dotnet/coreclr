@@ -150,8 +150,10 @@ bool HWIntrinsicInfo::isFullyImplementedIsa(InstructionSet isa)
     {
         // These ISAs are fully implemented
         case InstructionSet_AdvSimd:
+        case InstructionSet_AdvSimd_Arm64:
         case InstructionSet_Aes:
         case InstructionSet_ArmBase:
+        case InstructionSet_ArmBase_Arm64:
         case InstructionSet_Sha1:
         case InstructionSet_Sha256:
         case InstructionSet_Vector64:
