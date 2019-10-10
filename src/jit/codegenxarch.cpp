@@ -2980,9 +2980,9 @@ void CodeGen::genCodeForInitBlkUnroll(GenTreeBlk* node)
             emit->emitIns_AR_R(INS_movdqu, EA_ATTR(regSize), srcXmmReg, dstAddrBaseReg, dstOffset);
         }
 
-        // TODO-CQ: On x86 we could initialize 8 byte at once by using MOVQ instead of two 4 byte MOV stores.
-        // On x64 it may also be worth zero initializing a 4/8 byte remainder using MOVD/MOVQ, that avoids the
-        // need to allocate a GPR just for the remainder.
+        // TODO-CQ-XArch: On x86 we could initialize 8 byte at once by using MOVQ instead of two 4 byte MOV stores.
+        // On x64 it may also be worth zero initializing a 4/8 byte remainder using MOVD/MOVQ, that avoids the need
+        // to allocate a GPR just for the remainder.
     }
 
     // Fill the remainder using normal stores.
@@ -3125,9 +3125,9 @@ void CodeGen::genCodeForCpBlkUnroll(GenTreeBlk* node)
             }
         }
 
-        // TODO-CQ: On x86 we could copy 8 byte at once by using MOVQ instead of four 4 byte MOV stores.
-        // On x64 it may also be worth copying a 4/8 byte remainder using MOVD/MOVQ, that avoids the
-        // need to allocate a GPR just for the remainder.
+        // TODO-CQ-XArch: On x86 we could copy 8 byte at once by using MOVQ instead of four 4 byte MOV stores.
+        // On x64 it may also be worth copying a 4/8 byte remainder using MOVD/MOVQ, that avoids the need to
+        // allocate a GPR just for the remainder.
     }
 
     if (size > 0)
