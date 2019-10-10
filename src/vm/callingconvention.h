@@ -707,7 +707,12 @@ public:
         else
         {
             pLoc->m_idxStack = TransitionBlock::GetStackArgumentIndexFromOffset(argOffset);
-            pLoc->m_cStack = (GetArgSize() + STACK_ELEM_SIZE - 1) / STACK_ELEM_SIZE;
+            int argOnStackSize;
+            if (IsArgPassedByRef())
+                argOnStackSize = STACK_ELEM_SIZE;
+            else
+                argOnStackSize = GetArgSize();
+            pLoc->m_cStack = (argOnStackSize + STACK_ELEM_SIZE - 1) / STACK_ELEM_SIZE;
         }
     }
 #endif // _TARGET_AMD64_
