@@ -474,7 +474,7 @@ namespace JIT.HardwareIntrinsics.Arm
             {
                 for (var i = 1; i < RetElementCount; i++)
                 {
-                    if (BitConverter.SingleToInt32Bits(result[i]) != BitConverter.SingleToInt32Bits(firstOp[i]))
+                    if (BitConverter.SingleToInt32Bits(result[i]) != 0)
                     {
                         succeeded = false;
                         break;
