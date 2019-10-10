@@ -84,7 +84,7 @@ namespace System.Text.Unicode
             byte* pLastBufferPosProcessed = null; // used for invariant checking in debug builds
 #endif
 
-        BeforeEnterMainLoop:
+        DoBoundsCheckAndReenterMainLoop:
 
             while (pInputBuffer <= pFinalPosWhereCanReadDWordFromInputBuffer)
             {
@@ -319,24 +319,25 @@ namespace System.Text.Unicode
                                     goto AfterReadDWord; // there's no 2-byte data in this vector
                                 }
 
-                                uint combinedMask = (maskOfTwoByteStarts * 3) - 1;
-                                combinedMask -= (uint)Sse2.MoveMask(thisXmm);
-
-                                // At this point, each bit of the low WORD of combinedMask is 1 if the corresponding byte
-                                // is ASCII or part of a well-formed 2-byte UTF-8 subsequence; 0 otherwise.
-                                // (The high WORD of combinedMask is set to all-ones. It's filtered out in the below code.)
+                                // We're building up a mask consisting of two WORDs: each bit of the low WORD is set
+                                // if the corresponding byte is ASCII or part of a well-formed 2-byte UTF-8 sequence;
+                                // otherwise the bit is not set. The high WORD is set to all-ones.
                                 //
                                 // Example of an all-valid vector:
                                 //
                                 // Input vector =           [ ... 20 0A 80 CF 20 A0 C2 ] (written as little-endian)
-                                // combinedMask = 111...111 | ...  1  1  1  1  1  1  1
+                                //     tempMask = 111...111 | ...  1  1  1  1  1  1  1
                                 //                        ^-- first WORD is all-ones
                                 //
                                 // Example of a not-all-valid vector:
                                 //
                                 // Input vector =           [ ... 20 FF 7F CF 20 A0 C2 ] (written as little-endian)
-                                // combinedMask = 111...111 | ...  1  0  1  0  1  1  1
+                                //     tempMask = 111...111 | ...  1  0  1  0  1  1  1
                                 //                        ^-- first WORD is all-ones
+                                //
+                                // Then we set combinedMask = tempMask + 1. This means that a tzcnt of combinedMask
+                                // will tell us how many valid bytes we saw, unless all 16 bytes were valid, at which
+                                // point combinedMask = 0.
                                 //
                                 // In the check below, it's ok if bit 15 (corresponding to the final byte of the vector)
                                 // isn't set. This is because it's possible that the vector ends with a standalone 2-byte
@@ -345,13 +346,19 @@ namespace System.Text.Unicode
                                 // advance the read pointer by 15 bytes. If bit 15 is set, we'll mark it as consumed
                                 // and will advance the read pointer by the full 16 bytes.
 
-                                if (((combinedMask + 1) & 0x7FFFu) == 0)
+                                uint combinedMask = (maskOfTwoByteStarts * 3) - (uint)Sse2.MoveMask(thisXmm);
+
+                                if ((combinedMask & 0x7FFFu) == 0)
                                 {
                                     // Each 2-code unit UTF-8 sequence -> 1 UTF-16 code unit (and 1 scalar)
 
                                     tempUtf16CodeUnitCountAdjustment -= BitOperations.PopCount(maskOfTwoByteStarts);
-                                    pInputBuffer = pInputBuffer + Bmi1.BitFieldExtract(combinedMask, 15, 1) + 15;
-                                    continue;
+
+                                    Debug.Assert(combinedMask == 0 || combinedMask == 0xFFFF_8000u);
+
+                                    pInputBuffer -= combinedMask >> 31; // sub 0 if all 16 bytes were valid; otherwise sub 1
+                                    pInputBuffer += 16;
+                                    continue; // stay within the tight vectorized loop if possible
                                 }
 
                                 // If we reached this point, the vector contained an invalid 2-byte sequence,
@@ -360,11 +367,10 @@ namespace System.Text.Unicode
                                 // which means we need to adjust our masks so that we don't incorrectly mark
                                 // data which came *after* this point as read & validated.
 
-                                combinedMask = ~combinedMask;
                                 pInputBuffer += Bmi1.TrailingZeroCount(combinedMask);
                                 maskOfTwoByteStarts &= Bmi1.GetMaskUpToLowestSetBit(combinedMask);
                                 tempUtf16CodeUnitCountAdjustment -= BitOperations.PopCount(maskOfTwoByteStarts);
-                                goto BeforeEnterMainLoop;
+                                goto DoBoundsCheckAndReenterMainLoop; // can't stay within the vectorized loop
                             }
                         }
 
