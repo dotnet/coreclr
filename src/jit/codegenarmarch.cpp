@@ -1999,7 +1999,7 @@ void CodeGen::genCodeForInitBlkUnroll(GenTreeBlk* node)
 }
 
 //----------------------------------------------------------------------------------
-// genCodeForCpBlkUnroll - Generate unrolled block copy code.
+// genCodeForCpBlkUnroll: Generate unrolled block copy code.
 //
 // Arguments:
 //    node - the GT_STORE_BLK node to generate code for
