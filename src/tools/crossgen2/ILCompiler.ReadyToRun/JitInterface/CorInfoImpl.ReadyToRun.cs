@@ -164,15 +164,24 @@ namespace Internal.JitInterface
 
         public void CompileMethod(IReadyToRunMethodCodeNode methodCodeNodeNeedingCode)
         {
+            bool codeGotPublished = false;
             _methodCodeNode = methodCodeNodeNeedingCode;
 
-            if (!ShouldSkipCompilation(methodCodeNodeNeedingCode))
+            try
             {
-                CompileMethodInternal(methodCodeNodeNeedingCode);
+                if (!ShouldSkipCompilation(methodCodeNodeNeedingCode))
+                {
+                    CompileMethodInternal(methodCodeNodeNeedingCode);
+                    codeGotPublished = true;
+                }
             }
-            else
+            finally
             {
-                PublishEmptyCode();
+                if (!codeGotPublished)
+                {
+                    PublishEmptyCode();
+                }
+                CompileMethodCleanup();
             }
         }
 
@@ -555,6 +564,10 @@ namespace Internal.JitInterface
 
                 case CorInfoHelpFunc.CORINFO_HELP_BBT_FCN_ENTER:
                     id = ReadyToRunHelper.LogMethodEnter;
+                    break;
+
+                case CorInfoHelpFunc.CORINFO_HELP_STACK_PROBE:
+                    id = ReadyToRunHelper.StackProbe;
                     break;
 
                 case CorInfoHelpFunc.CORINFO_HELP_INITCLASS:
@@ -1909,13 +1922,21 @@ namespace Internal.JitInterface
             }
             else
             {
-                throw new NotImplementedException();
+                var sig = (MethodSignature)HandleToObject((IntPtr)callSiteSig->pSig);
+                return SignatureRequiresMarshaling(sig);
             }
         }
 
         private bool convertPInvokeCalliToCall(ref CORINFO_RESOLVED_TOKEN pResolvedToken, bool mustConvert)
         {
             throw new NotImplementedException();
+        }
+
+        private bool canGetCookieForPInvokeCalliSig(CORINFO_SIG_INFO* szMetaSig)
+        {
+            // If we answer "true" here, RyuJIT is going to ask for the cookie and for the CORINFO_HELP_PINVOKE_CALLI
+            // helper. The helper doesn't exist in ReadyToRun, so let's just throw right here.
+            throw new RequiresRuntimeJitException($"{MethodBeingCompiled} -> {nameof(canGetCookieForPInvokeCalliSig)}");
         }
 
         private bool MethodRequiresMarshaling(EcmaMethod method)
@@ -1932,12 +1953,17 @@ namespace Internal.JitInterface
                 return true;
             }
 
-            if (TypeRequiresMarshaling(method.Signature.ReturnType, isReturnType: true))
+            return SignatureRequiresMarshaling(method.Signature);
+        }
+
+        private bool SignatureRequiresMarshaling(MethodSignature sig)
+        {
+            if (TypeRequiresMarshaling(sig.ReturnType, isReturnType: true))
             {
                 return true;
             }
 
-            foreach (TypeDesc argType in method.Signature)
+            foreach (TypeDesc argType in sig)
             {
                 if (TypeRequiresMarshaling(argType, isReturnType: false))
                 {

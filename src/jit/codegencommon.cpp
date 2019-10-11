@@ -173,7 +173,7 @@ CodeGen::CodeGen(Compiler* theCompiler) : CodeGenInterface(theCompiler)
 
 void CodeGenInterface::genMarkTreeInReg(GenTree* tree, regNumber reg)
 {
-    tree->gtRegNum = reg;
+    tree->SetRegNum(reg);
 }
 
 #if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
@@ -801,11 +801,11 @@ TempDsc* CodeGenInterface::getSpillTempDsc(GenTree* tree)
 
     // Get the tree's SpillDsc.
     RegSet::SpillDsc* prevDsc;
-    RegSet::SpillDsc* spillDsc = regSet.rsGetSpillInfo(tree, tree->gtRegNum, &prevDsc);
+    RegSet::SpillDsc* spillDsc = regSet.rsGetSpillInfo(tree, tree->GetRegNum(), &prevDsc);
     assert(spillDsc != nullptr);
 
     // Get the temp desc.
-    TempDsc* temp = regSet.rsGetSpillTempWord(tree->gtRegNum, spillDsc, prevDsc);
+    TempDsc* temp = regSet.rsGetSpillTempWord(tree->GetRegNum(), spillDsc, prevDsc);
     return temp;
 }
 
@@ -1787,7 +1787,7 @@ void CodeGen::genExitCode(BasicBlock* block)
             {
                 noway_assert(varDsc->lvIsParam);
 
-                gcInfo.gcMarkRegPtrVal(varDsc->lvArgReg, varDsc->TypeGet());
+                gcInfo.gcMarkRegPtrVal(varDsc->GetArgReg(), varDsc->TypeGet());
             }
 
             GetEmitter()->emitThisGCrefRegs = GetEmitter()->emitInitGCrefRegs = gcInfo.gcRegGCrefSetCur;
@@ -3370,7 +3370,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
         {
             // A struct might be passed  partially in XMM register for System V calls.
             // So a single arg might use both register files.
-            if (emitter::isFloatReg(varDsc->lvArgReg) != doingFloat)
+            if (emitter::isFloatReg(varDsc->GetArgReg()) != doingFloat)
             {
                 continue;
             }
@@ -3466,7 +3466,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
 #endif // defined(UNIX_AMD64_ABI)
         {
             // Bingo - add it to our table
-            regArgNum = genMapRegNumToRegArgNum(varDsc->lvArgReg, regType);
+            regArgNum = genMapRegNumToRegArgNum(varDsc->GetArgReg(), regType);
 
             noway_assert(regArgNum < argMax);
             // We better not have added it already (there better not be multiple vars representing this argument
@@ -3546,7 +3546,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             regNumber regNum = genMapRegArgNumToRegNum(regArgNum + i, regType);
 
 #if !defined(UNIX_AMD64_ABI)
-            assert((i > 0) || (regNum == varDsc->lvArgReg));
+            assert((i > 0) || (regNum == varDsc->GetArgReg()));
 #endif // defined(UNIX_AMD64_ABI)
 
             // Is the arg dead on entry to the method ?
@@ -3582,14 +3582,14 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
 
 #ifdef _TARGET_ARM_
             // On the ARM when the varDsc is a struct arg (or pre-spilled due to varargs) the initReg/xtraReg
-            // could be equal to lvArgReg. The pre-spilled registers are also not considered live either since
+            // could be equal to GetArgReg(). The pre-spilled registers are also not considered live either since
             // they've already been spilled.
             //
             if ((regSet.rsMaskPreSpillRegs(false) & genRegMask(regNum)) == 0)
 #endif // _TARGET_ARM_
             {
 #if !defined(UNIX_AMD64_ABI)
-                noway_assert(xtraReg != (varDsc->lvArgReg + i));
+                noway_assert(xtraReg != (varDsc->GetArgReg() + i));
 #endif
                 noway_assert(regArgMaskLive & genRegMask(regNum));
             }
@@ -4025,18 +4025,18 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                     size = EA_GCREF;
                 }
 
-                noway_assert(varDscDest->lvArgReg == varDscSrc->GetRegNum());
+                noway_assert(varDscDest->GetArgReg() == varDscSrc->GetRegNum());
 
-                GetEmitter()->emitIns_R_R(INS_xchg, size, varDscSrc->GetRegNum(), varDscSrc->lvArgReg);
+                GetEmitter()->emitIns_R_R(INS_xchg, size, varDscSrc->GetRegNum(), varDscSrc->GetArgReg());
                 regSet.verifyRegUsed(varDscSrc->GetRegNum());
-                regSet.verifyRegUsed(varDscSrc->lvArgReg);
+                regSet.verifyRegUsed(varDscSrc->GetArgReg());
 
                 /* mark both arguments as processed */
                 regArgTab[destReg].processed = true;
                 regArgTab[srcReg].processed  = true;
 
-                regArgMaskLive &= ~genRegMask(varDscSrc->lvArgReg);
-                regArgMaskLive &= ~genRegMask(varDscDest->lvArgReg);
+                regArgMaskLive &= ~genRegMask(varDscSrc->GetArgReg());
+                regArgMaskLive &= ~genRegMask(varDscDest->GetArgReg());
 #ifdef USING_SCOPE_INFO
                 psiMoveToReg(varNumSrc);
                 psiMoveToReg(varNumDest);
@@ -5431,7 +5431,7 @@ regMaskTP CodeGen::genJmpCallArgMask()
         const LclVarDsc& desc = compiler->lvaTable[varNum];
         if (desc.lvIsRegArg)
         {
-            argMask |= genRegMask(desc.lvArgReg);
+            argMask |= genRegMask(desc.GetArgReg());
         }
     }
     return argMask;
@@ -6505,7 +6505,7 @@ void CodeGen::genReportGenericContextArg(regNumber initReg, bool* pInitRegZeroed
     // Load from the argument register only if it is not prespilled.
     if (compiler->lvaIsRegArgument(contextArg) && !isPrespilledForProfiling)
     {
-        reg = varDsc->lvArgReg;
+        reg = varDsc->GetArgReg();
     }
     else
     {
@@ -9847,7 +9847,7 @@ instruction CodeGen::genMapShiftInsToShiftByConstantIns(instruction ins, int shi
 //    (lclNum) for the first argument with a stack slot is always 0.
 //    For System V systems or armarch, there is no such calling convention requirement, and the code
 //    needs to find the first stack passed argument from the caller. This is done by iterating over
-//    all the lvParam variables and finding the first with lvArgReg equals to REG_STK.
+//    all the lvParam variables and finding the first with GetArgReg() equals to REG_STK.
 //
 unsigned CodeGen::getFirstArgWithStackSlot()
 {
@@ -9864,7 +9864,7 @@ unsigned CodeGen::getFirstArgWithStackSlot()
         // we find any non-parameters.
         assert(varDsc->lvIsParam);
 
-        if (varDsc->lvArgReg == REG_STK)
+        if (varDsc->GetArgReg() == REG_STK)
         {
             baseVarNum = i;
             break;
@@ -10907,9 +10907,9 @@ void CodeGen::genIPmappingGen()
             if ((block->bbRefs > 1) && (stmt != nullptr))
             {
                 bool found = false;
-                if (stmt->gtStmtILoffsx != BAD_IL_OFFSET)
+                if (stmt->GetILOffsetX() != BAD_IL_OFFSET)
                 {
-                    IL_OFFSET ilOffs = jitGetILoffs(stmt->gtStmtILoffsx);
+                    IL_OFFSET ilOffs = jitGetILoffs(stmt->GetILOffsetX());
                     for (unsigned i = 0; i < eeBoundariesCount; ++i)
                     {
                         if (eeBoundaries[i].ilOffset == ilOffs)
@@ -10963,7 +10963,7 @@ const char* CodeGen::siStackVarName(size_t offs, size_t size, unsigned reg, unsi
 GenTreeIndir CodeGen::indirForm(var_types type, GenTree* base)
 {
     GenTreeIndir i(GT_IND, type, base, nullptr);
-    i.gtRegNum = REG_NA;
+    i.SetRegNum(REG_NA);
     i.SetContained();
     return i;
 }
@@ -10975,7 +10975,7 @@ GenTreeIndir CodeGen::indirForm(var_types type, GenTree* base)
 GenTreeStoreInd CodeGen::storeIndirForm(var_types type, GenTree* base, GenTree* data)
 {
     GenTreeStoreInd i(type, base, data);
-    i.gtRegNum = REG_NA;
+    i.SetRegNum(REG_NA);
     return i;
 }
 
@@ -10986,7 +10986,7 @@ GenTreeStoreInd CodeGen::storeIndirForm(var_types type, GenTree* base, GenTree* 
 GenTreeIntCon CodeGen::intForm(var_types type, ssize_t value)
 {
     GenTreeIntCon i(type, value);
-    i.gtRegNum = REG_NA;
+    i.SetRegNum(REG_NA);
     return i;
 }
 
@@ -11013,17 +11013,17 @@ void CodeGen::genLongReturn(GenTree* treeNode)
     assert(op1->OperGet() == GT_LONG);
     GenTree* loRetVal = op1->gtGetOp1();
     GenTree* hiRetVal = op1->gtGetOp2();
-    assert((loRetVal->gtRegNum != REG_NA) && (hiRetVal->gtRegNum != REG_NA));
+    assert((loRetVal->GetRegNum() != REG_NA) && (hiRetVal->GetRegNum() != REG_NA));
 
     genConsumeReg(loRetVal);
     genConsumeReg(hiRetVal);
-    if (loRetVal->gtRegNum != REG_LNGRET_LO)
+    if (loRetVal->GetRegNum() != REG_LNGRET_LO)
     {
-        inst_RV_RV(ins_Copy(targetType), REG_LNGRET_LO, loRetVal->gtRegNum, TYP_INT);
+        inst_RV_RV(ins_Copy(targetType), REG_LNGRET_LO, loRetVal->GetRegNum(), TYP_INT);
     }
-    if (hiRetVal->gtRegNum != REG_LNGRET_HI)
+    if (hiRetVal->GetRegNum() != REG_LNGRET_HI)
     {
-        inst_RV_RV(ins_Copy(targetType), REG_LNGRET_HI, hiRetVal->gtRegNum, TYP_INT);
+        inst_RV_RV(ins_Copy(targetType), REG_LNGRET_HI, hiRetVal->GetRegNum(), TYP_INT);
     }
 }
 #endif // _TARGET_X86_ || _TARGET_ARM_
@@ -11071,7 +11071,7 @@ void CodeGen::genReturn(GenTree* treeNode)
         else if (targetType != TYP_VOID)
         {
             assert(op1 != nullptr);
-            noway_assert(op1->gtRegNum != REG_NA);
+            noway_assert(op1->GetRegNum() != REG_NA);
 
             // !! NOTE !! genConsumeReg will clear op1 as GC ref after it has
             // consumed a reg for the operand. This is because the variable
@@ -11096,22 +11096,22 @@ void CodeGen::genReturn(GenTree* treeNode)
             {
                 if (targetType == TYP_FLOAT)
                 {
-                    GetEmitter()->emitIns_R_R(INS_vmov_f2i, EA_4BYTE, REG_INTRET, op1->gtRegNum);
+                    GetEmitter()->emitIns_R_R(INS_vmov_f2i, EA_4BYTE, REG_INTRET, op1->GetRegNum());
                 }
                 else
                 {
                     assert(targetType == TYP_DOUBLE);
                     GetEmitter()->emitIns_R_R_R(INS_vmov_d2i, EA_8BYTE, REG_INTRET, REG_NEXT(REG_INTRET),
-                                                op1->gtRegNum);
+                                                op1->GetRegNum());
                 }
             }
             else
 #endif // _TARGET_ARM_
             {
                 regNumber retReg = varTypeIsFloating(treeNode) ? REG_FLOATRET : REG_INTRET;
-                if (op1->gtRegNum != retReg)
+                if (op1->GetRegNum() != retReg)
                 {
-                    inst_RV_RV(ins_Move_Extend(targetType, true), retReg, op1->gtRegNum, targetType);
+                    inst_RV_RV(ins_Move_Extend(targetType, true), retReg, op1->GetRegNum(), targetType);
                 }
             }
 #endif // !_TARGET_ARM64_

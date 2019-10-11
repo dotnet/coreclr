@@ -117,6 +117,12 @@ bool DiagnosticServer::Initialize()
     }
     CONTRACTL_END;
 
+    // COMPlus_EnableDiagnostics==0 disables diagnostics so we don't create the diagnostics pipe/socket or diagnostics server thread
+    if (CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_EnableDiagnostics) == 0)
+    {
+        return true;
+    }
+
     bool fSuccess = false;
 
     EX_TRY
@@ -206,27 +212,6 @@ bool DiagnosticServer::Shutdown()
                     szMessage);                                           // data2
             };
             s_pIpc->Close(ErrorCallback); // This will break the accept waiting for client connection.
-
-            if (s_hServerThread != NULL)
-            {
-#ifndef FEATURE_PAL
-                ::CancelSynchronousIo(s_hServerThread);
-#endif // FEATURE_PAL
-
-                // At this point, IO operations on the server thread through the
-                // IPC channel has been closed/cancelled.
-
-                // On non-Windows, this function is blocking on threads that already exit.
-                // ::WaitForSingleObject(s_hServerThread, INFINITE);
-
-                // Close the thread handle (dispose OS resource).
-                ::CloseHandle(s_hServerThread);
-                s_hServerThread = INVALID_HANDLE_VALUE;
-            }
-
-            // If we do not wait for thread to teardown, then we cannot delete this object.
-            // delete s_pIpc;
-            // s_pIpc = nullptr;
         }
         fSuccess = true;
     }

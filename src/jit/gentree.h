@@ -527,8 +527,6 @@ public:
     // The register number is stored in a small format (8 bits), but the getters return and the setters take
     // a full-size (unsigned) format, to localize the casts here.
 
-    __declspec(property(get = GetRegNum, put = SetRegNum)) regNumber gtRegNum;
-
     bool canBeContained() const;
 
     // for codegen purposes, is this node a subnode of its parent
@@ -1881,7 +1879,7 @@ public:
     bool DefinesLocalAddr(Compiler* comp, unsigned width, GenTreeLclVarCommon** pLclVarTree, bool* pIsEntire);
 
     // These are only used for dumping.
-    // The gtRegNum is only valid in LIR, but the dumping methods are not easily
+    // The GetRegNum() is only valid in LIR, but the dumping methods are not easily
     // modified to check this.
     CLANG_FORMAT_COMMENT_ANCHOR;
 
@@ -1892,7 +1890,7 @@ public:
     }
     regNumber GetReg() const
     {
-        return (GetRegTag() != GT_REGTAG_NONE) ? gtRegNum : REG_NA;
+        return (GetRegTag() != GT_REGTAG_NONE) ? GetRegNum() : REG_NA;
     }
 #endif
 
@@ -2101,11 +2099,7 @@ public:
         gtFlags &= ~GTF_REUSE_REG_VAL;
     }
 
-    void SetIndirExceptionFlags(Compiler* comp)
-    {
-        assert(OperIsIndirOrArrLength());
-        gtFlags |= OperMayThrow(comp) ? GTF_EXCEPT : GTF_IND_NONFAULTING;
-    }
+    void SetIndirExceptionFlags(Compiler* comp);
 
 #if MEASURE_NODE_SIZE
     static void DumpNodeSizes(FILE* fp);
@@ -2851,8 +2845,8 @@ struct GenTreeIntConCommon : public GenTree
 // node representing a read from a physical register
 struct GenTreePhysReg : public GenTree
 {
-    // physregs need a field beyond gtRegNum because
-    // gtRegNum indicates the destination (and can be changed)
+    // physregs need a field beyond GetRegNum() because
+    // GetRegNum() indicates the destination (and can be changed)
     // whereas reg indicates the source
     regNumber gtSrcReg;
     GenTreePhysReg(regNumber r, var_types type = TYP_I_IMPL) : GenTree(GT_PHYSREG, type), gtSrcReg(r)
@@ -3610,7 +3604,7 @@ struct GenTreeCall final : public GenTree
     // TODO-AllArch: enable for all call nodes to unify single-reg and multi-reg returns.
     ReturnTypeDesc gtReturnTypeDesc;
 
-    // gtRegNum would always be the first return reg.
+    // GetRegNum() would always be the first return reg.
     // The following array holds the other reg numbers of multi-reg return.
     regNumberSmall gtOtherRegs[MAX_RET_REG_COUNT - 1];
 
@@ -3664,7 +3658,7 @@ struct GenTreeCall final : public GenTree
 
         if (idx == 0)
         {
-            return gtRegNum;
+            return GetRegNum();
         }
 
 #if FEATURE_MULTIREG_RET
@@ -3690,7 +3684,7 @@ struct GenTreeCall final : public GenTree
 
         if (idx == 0)
         {
-            gtRegNum = reg;
+            SetRegNum(reg);
         }
 #if FEATURE_MULTIREG_RET
         else
@@ -4253,7 +4247,7 @@ struct GenTreeMultiRegOp : public GenTreeOp
 
     unsigned GetRegCount() const
     {
-        if (gtRegNum == REG_NA || gtRegNum == REG_STK)
+        if (GetRegNum() == REG_NA || GetRegNum() == REG_STK)
         {
             return 0;
         }
@@ -4275,7 +4269,7 @@ struct GenTreeMultiRegOp : public GenTreeOp
 
         if (idx == 0)
         {
-            return gtRegNum;
+            return GetRegNum();
         }
 
         return gtOtherReg;
@@ -5301,86 +5295,154 @@ struct GenTreeILOffset : public GenTree
 struct Statement
 {
 public:
-    GenTree*       gtStmtExpr;      // root of the expression tree
-    GenTree*       gtStmtList;      // first node (for forward walks)
-    InlineContext* gtInlineContext; // The inline context for this statement.
-    IL_OFFSETX     gtStmtILoffsx;   // instr offset (if available)
-
-#ifdef DEBUG
-    IL_OFFSET gtStmtLastILoffs; // instr offset at end of stmt
-
-private:
-    unsigned m_stmtID;
-#endif
-
-public:
-    __declspec(property(get = getPrevStmt)) Statement* gtPrevStmt;
-
-    Statement* gtNext;
-    Statement* gtPrev;
-
-    bool compilerAdded;
-
-    Statement* GetNextStmt()
-    {
-        if (gtNext == nullptr)
-        {
-            return nullptr;
-        }
-        else
-        {
-            return gtNext;
-        }
-    }
-
-    Statement* getPrevStmt()
-    {
-        if (gtPrev == nullptr)
-        {
-            return nullptr;
-        }
-        else
-        {
-            return gtPrev;
-        }
-    }
-
     Statement(GenTree* expr, IL_OFFSETX offset DEBUGARG(unsigned stmtID))
-        : gtStmtExpr(expr)
-        , gtStmtList(nullptr)
-        , gtInlineContext(nullptr)
-        , gtStmtILoffsx(offset)
+        : m_rootNode(expr)
+        , m_treeList(nullptr)
+        , m_inlineContext(nullptr)
+        , m_ILOffsetX(offset)
 #ifdef DEBUG
-        , gtStmtLastILoffs(BAD_IL_OFFSET)
+        , m_lastILOffset(BAD_IL_OFFSET)
         , m_stmtID(stmtID)
 #endif
-        , gtNext(nullptr)
-        , gtPrev(nullptr)
-        , compilerAdded(false)
+        , m_next(nullptr)
+        , m_prev(nullptr)
+        , m_compilerAdded(false)
     {
     }
 
-    bool IsPhiDefnStmt()
+    GenTree* GetRootNode() const
     {
-        return gtStmtExpr->IsPhiDefn();
+        return m_rootNode;
     }
 
-    unsigned char GetCostSz() const
+    GenTree** GetRootNodePointer()
     {
-        return gtStmtExpr->GetCostSz();
+        return &m_rootNode;
     }
 
-    unsigned char GetCostEx() const
+    void SetRootNode(GenTree* treeRoot)
     {
-        return gtStmtExpr->GetCostEx();
+        m_rootNode = treeRoot;
+    }
+
+    GenTree* GetTreeList() const
+    {
+        return m_treeList;
+    }
+
+    void SetTreeList(GenTree* treeHead)
+    {
+        m_treeList = treeHead;
+    }
+
+    InlineContext* GetInlineContext() const
+    {
+        return m_inlineContext;
+    }
+
+    void SetInlineContext(InlineContext* inlineContext)
+    {
+        m_inlineContext = inlineContext;
+    }
+
+    IL_OFFSETX GetILOffsetX() const
+    {
+        return m_ILOffsetX;
+    }
+
+    void SetILOffsetX(IL_OFFSETX offsetX)
+    {
+        m_ILOffsetX = offsetX;
     }
 
 #ifdef DEBUG
+
+    IL_OFFSET GetLastILOffset() const
+    {
+        return m_lastILOffset;
+    }
+
+    void SetLastILOffset(IL_OFFSET lastILOffset)
+    {
+        m_lastILOffset = lastILOffset;
+    }
+
     unsigned GetID() const
     {
         return m_stmtID;
     }
+#endif // DEBUG
+
+    Statement* GetNextStmt() const
+    {
+        return m_next;
+    }
+
+    void SetNextStmt(Statement* nextStmt)
+    {
+        m_next = nextStmt;
+    }
+
+    Statement* GetPrevStmt() const
+    {
+        return m_prev;
+    }
+
+    void SetPrevStmt(Statement* prevStmt)
+    {
+        m_prev = prevStmt;
+    }
+
+    bool IsCompilerAdded() const
+    {
+        return m_compilerAdded;
+    }
+
+    void SetCompilerAdded()
+    {
+        m_compilerAdded = true;
+    }
+
+    bool IsPhiDefnStmt() const
+    {
+        return m_rootNode->IsPhiDefn();
+    }
+
+    unsigned char GetCostSz() const
+    {
+        return m_rootNode->GetCostSz();
+    }
+
+    unsigned char GetCostEx() const
+    {
+        return m_rootNode->GetCostEx();
+    }
+
+private:
+    // The root of the expression tree.
+    // Note: It will be the last node in evaluation order.
+    GenTree* m_rootNode;
+
+    // The tree list head (for forward walks in evaluation order).
+    // The value is `nullptr` until we have set the sequencing of the nodes.
+    GenTree* m_treeList;
+
+    InlineContext* m_inlineContext; // The inline context for this statement.
+
+    IL_OFFSETX m_ILOffsetX; // The instr offset (if available).
+
+#ifdef DEBUG
+    IL_OFFSET m_lastILOffset; // The instr offset at the end of this statement.
+    unsigned  m_stmtID;
 #endif
+
+    // The statement nodes are doubly-linked. The first statement node in a block points
+    // to the last node in the block via its `m_prev` link. Note that the last statement node
+    // does not point to the first: it's `m_next == nullptr`; that is, the list is not fully circular.
+    Statement* m_next;
+    Statement* m_prev;
+
+    bool m_compilerAdded; // Was the statement created by optimizer?
 };
 
 class StatementIterator
@@ -5399,7 +5461,7 @@ public:
 
     StatementIterator& operator++()
     {
-        m_stmt = m_stmt->gtNext;
+        m_stmt = m_stmt->GetNextStmt();
         return *this;
     }
 
@@ -5643,7 +5705,7 @@ struct GenTreePutArgSplit : public GenTreePutArgStk
     // Type required to support multi-reg struct arg.
     var_types m_regType[MAX_REG_ARG];
 
-    // First reg of struct is always given by gtRegNum.
+    // First reg of struct is always given by GetRegNum().
     // gtOtherRegs holds the other reg numbers of struct.
     regNumberSmall gtOtherRegs[MAX_REG_ARG - 1];
 
@@ -5670,7 +5732,7 @@ struct GenTreePutArgSplit : public GenTreePutArgStk
 
         if (idx == 0)
         {
-            return gtRegNum;
+            return GetRegNum();
         }
 
         return (regNumber)gtOtherRegs[idx - 1];
@@ -5691,7 +5753,7 @@ struct GenTreePutArgSplit : public GenTreePutArgStk
         assert(idx < MAX_REG_ARG);
         if (idx == 0)
         {
-            gtRegNum = reg;
+            SetRegNum(reg);
         }
         else
         {
@@ -5832,7 +5894,7 @@ struct GenTreeCopyOrReload : public GenTreeUnOp
 {
 #if FEATURE_MULTIREG_RET
     // State required to support copy/reload of a multi-reg call node.
-    // The first register is always given by gtRegNum.
+    // The first register is always given by GetRegNum().
     //
     regNumberSmall gtOtherRegs[MAX_RET_REG_COUNT - 1];
 #endif
@@ -5871,7 +5933,7 @@ struct GenTreeCopyOrReload : public GenTreeUnOp
 
         if (idx == 0)
         {
-            return gtRegNum;
+            return GetRegNum();
         }
 
 #if FEATURE_MULTIREG_RET
@@ -5897,7 +5959,7 @@ struct GenTreeCopyOrReload : public GenTreeUnOp
 
         if (idx == 0)
         {
-            gtRegNum = reg;
+            SetRegNum(reg);
         }
 #if FEATURE_MULTIREG_RET
         else
@@ -5941,8 +6003,8 @@ struct GenTreeCopyOrReload : public GenTreeUnOp
     {
 #if FEATURE_MULTIREG_RET
         // We need to return the highest index for which we have a valid register.
-        // Note that the gtOtherRegs array is off by one (the 0th register is gtRegNum).
-        // If there's no valid register in gtOtherRegs, gtRegNum must be valid.
+        // Note that the gtOtherRegs array is off by one (the 0th register is GetRegNum()).
+        // If there's no valid register in gtOtherRegs, GetRegNum() must be valid.
         // Note that for most nodes, the set of valid registers must be contiguous,
         // but for COPY or RELOAD there is only a valid register for the register positions
         // that must be copied or reloaded.
@@ -5956,13 +6018,13 @@ struct GenTreeCopyOrReload : public GenTreeUnOp
         }
 #endif
         // We should never have a COPY or RELOAD with no valid registers.
-        assert(gtRegNum != REG_NA);
+        assert(GetRegNum() != REG_NA);
         return 1;
     }
 
     GenTreeCopyOrReload(genTreeOps oper, var_types type, GenTree* op1) : GenTreeUnOp(oper, type, op1)
     {
-        gtRegNum = REG_NA;
+        SetRegNum(REG_NA);
         ClearOtherRegs();
     }
 
@@ -6766,7 +6828,7 @@ inline regNumber GenTree::GetRegByIndex(int regIndex)
 {
     if (regIndex == 0)
     {
-        return gtRegNum;
+        return GetRegNum();
     }
 
 #if FEATURE_MULTIREG_RET
