@@ -4304,19 +4304,20 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
     else if (strncmp(namespaceName, "System.Runtime.Intrinsics", 25) == 0)
     {
         namespaceName += 25;
+        const char* platformNamespaceName;
+
 #if defined(_TARGET_XARCH_)
-        if ((namespaceName[0] == '\0') || (strcmp(namespaceName, ".X86") == 0))
+        platformNamespaceName = ".X86";
+#elif defined(_TARGET_ARM64_)
+        platformNamespaceName = ".Arm";
+#else
+#error Unsupported platform
+#endif
+
+        if ((namespaceName[0] == '\0') || (strcmp(namespaceName, platformNamespaceName) == 0))
         {
             result = HWIntrinsicInfo::lookupId(this, className, methodName, enclosingClassName);
         }
-#elif defined(_TARGET_ARM64_)
-        if ((namespaceName[0] == '\0') || (strcmp(namespaceName, ".Arm.Arm64") == 0))
-        {
-            result = lookupHWIntrinsic(className, methodName);
-        }
-#else // !defined(_TARGET_XARCH_) && !defined(_TARGET_ARM64_)
-#error Unsupported platform
-#endif // !defined(_TARGET_XARCH_) && !defined(_TARGET_ARM64_)
         else if (strcmp(methodName, "get_IsSupported") == 0)
         {
             return NI_IsSupported_False;
@@ -7542,20 +7543,6 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
         exactContextHnd                = callInfo->contextHandle;
         exactContextNeedsRuntimeLookup = callInfo->exactContextNeedsRuntimeLookup == TRUE;
 
-        // Recursive call is treated as a loop to the begining of the method.
-        if (gtIsRecursiveCall(methHnd))
-        {
-#ifdef DEBUG
-            if (verbose)
-            {
-                JITDUMP("\nFound recursive call in the method. Mark " FMT_BB " to " FMT_BB
-                        " as having a backward branch.\n",
-                        fgFirstBB->bbNum, compCurBB->bbNum);
-            }
-#endif
-            fgMarkBackwardJump(fgFirstBB, compCurBB);
-        }
-
         switch (callInfo->kind)
         {
 
@@ -8482,6 +8469,15 @@ DONE:
         }
     }
 
+    // A tail recursive call is a potential loop from the current block to the start of the method.
+    if (canTailCall && gtIsRecursiveCall(methHnd))
+    {
+        JITDUMP("\nFound tail recursive call in the method. Mark " FMT_BB " to " FMT_BB
+                " as having a backward branch.\n",
+                fgFirstBB->bbNum, compCurBB->bbNum);
+        fgMarkBackwardJump(fgFirstBB, compCurBB);
+    }
+
     // Note: we assume that small return types are already normalized by the managed callee
     // or by the pinvoke stub for calls to unmanaged code.
 
@@ -9121,18 +9117,6 @@ REDO_RETURN_NODE:
             return op;
         }
     }
-#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
-    else if ((op->gtOper == GT_HWIntrinsic) && varTypeIsSIMD(op->gtType))
-    {
-        // TODO-ARM64-FIXME Implement ARM64 ABI for Short Vectors properly
-        // assert(op->gtType == info.compRetNativeType)
-        if (op->gtType != info.compRetNativeType)
-        {
-            // Insert a register move to keep target type of SIMD intrinsic intact
-            op = gtNewScalarHWIntrinsicNode(info.compRetNativeType, op, NI_ARM64_NONE_MOV);
-        }
-    }
-#endif
     else if (op->gtOper == GT_COMMA)
     {
         op->AsOp()->gtOp2 = impFixupStructReturnType(op->AsOp()->gtOp2, retClsHnd);

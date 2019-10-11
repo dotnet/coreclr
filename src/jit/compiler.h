@@ -3622,6 +3622,16 @@ protected:
 protected:
     bool compSupportsHWIntrinsic(InstructionSet isa);
 
+    GenTree* impSpecialIntrinsic(NamedIntrinsic        intrinsic,
+                                 CORINFO_CLASS_HANDLE  clsHnd,
+                                 CORINFO_METHOD_HANDLE method,
+                                 CORINFO_SIG_INFO*     sig,
+                                 bool                  mustExpand);
+
+    GenTree* getArgForHWIntrinsic(var_types argType, CORINFO_CLASS_HANDLE argClass);
+    GenTree* impNonConstFallback(NamedIntrinsic intrinsic, var_types simdType, var_types baseType);
+    GenTree* addRangeCheckIfNeeded(NamedIntrinsic intrinsic, GenTree* lastOp, bool mustExpand);
+
 #ifdef _TARGET_XARCH_
     GenTree* impBaseIntrinsic(NamedIntrinsic        intrinsic,
                               CORINFO_CLASS_HANDLE  clsHnd,
@@ -3668,17 +3678,7 @@ protected:
                                 CORINFO_METHOD_HANDLE method,
                                 CORINFO_SIG_INFO*     sig,
                                 bool                  mustExpand);
-
-protected:
-    GenTree* getArgForHWIntrinsic(var_types argType, CORINFO_CLASS_HANDLE argClass);
-    GenTree* impNonConstFallback(NamedIntrinsic intrinsic, var_types simdType, var_types baseType);
-    GenTree* addRangeCheckIfNeeded(NamedIntrinsic intrinsic, GenTree* lastOp, bool mustExpand);
 #endif // _TARGET_XARCH_
-#ifdef _TARGET_ARM64_
-    InstructionSet lookupHWIntrinsicISA(const char* className);
-    NamedIntrinsic lookupHWIntrinsic(const char* className, const char* methodName);
-    GenTree* addRangeCheckIfNeeded(GenTree* lastOp, unsigned int max, bool mustExpand);
-#endif // _TARGET_ARM64_
 #endif // FEATURE_HW_INTRINSICS
     GenTree* impArrayAccessIntrinsic(CORINFO_CLASS_HANDLE clsHnd,
                                      CORINFO_SIG_INFO*    sig,
@@ -5182,8 +5182,6 @@ protected:
 
     void        fgInitBBLookup();
     BasicBlock* fgLookupBB(unsigned addr);
-
-    bool fgHasBackwardJump;
 
     bool fgCanSwitchToOptimized();
     void fgSwitchToOptimized();
@@ -8241,6 +8239,7 @@ public:
     bool compQmarkUsed;            // Does the method use GT_QMARK/GT_COLON
     bool compQmarkRationalized;    // Is it allowed to use a GT_QMARK/GT_COLON node.
     bool compUnsafeCastUsed;       // Does the method use LDIND/STIND to cast between scalar/refernce types
+    bool compHasBackwardJump;      // Does the method (or some inlinee) have a lexically backwards jump?
 
 // NOTE: These values are only reliable after
 //       the importing is completely finished.
@@ -8262,7 +8261,7 @@ public:
     bool compLSRADone;
     bool compRationalIRForm;
 
-    bool compUsesThrowHelper; // There is a call to a THOROW_HELPER for the compiled method.
+    bool compUsesThrowHelper; // There is a call to a THROW_HELPER for the compiled method.
 
     bool compGeneratingProlog;
     bool compGeneratingEpilog;
