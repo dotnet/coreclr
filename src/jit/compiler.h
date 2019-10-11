@@ -4357,6 +4357,14 @@ public:
     void fgAddFinallyTargetFlags();
 
     void fgTailMergeThrows();
+    void fgTailMergeThrowsFallThroughHelper(BasicBlock* predBlock,
+                                            BasicBlock* nonCanonicalBlock,
+                                            BasicBlock* canonicalBlock,
+                                            flowList*   predEdge);
+    void fgTailMergeThrowsJumpToHelper(BasicBlock* predBlock,
+                                       BasicBlock* nonCanonicalBlock,
+                                       BasicBlock* canonicalBlock,
+                                       flowList*   predEdge);
 
 #if defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
     // Sometimes we need to defer updating the BBF_FINALLY_TARGET bit. fgNeedToAddFinallyTargetBits signals

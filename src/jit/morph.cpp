@@ -16677,10 +16677,6 @@ void Compiler::fgMorph()
 
     EndPhase(PHASE_CLONE_FINALLY);
 
-    fgTailMergeThrows();
-
-    EndPhase(PHASE_MERGE_THROWS);
-
     /* For x64 and ARM64 we need to mark irregular parameters */
     lvaRefCountState = RCS_EARLY;
     fgResetImplicitByRefRefCount();

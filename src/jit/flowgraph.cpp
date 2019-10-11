@@ -25729,7 +25729,8 @@ bool Compiler::fgUseThrowHelperBlocks()
 //    that can be merged, and opportunistically merges them.
 //
 //    Does not handle throws yet as the analysis is more costly and less
-//    likely to pay off.
+//    likely to pay off. So analysis is restricted to blocks with just one
+//    statement.
 //
 //    For throw helper call merging, we are looking for examples like
 //    the below. Here BB17 and BB21 have identical trees that call noreturn
@@ -25739,46 +25740,33 @@ bool Compiler::fgUseThrowHelperBlocks()
 //    have successor blocks. We don't turn these into true throw blocks
 //    until morph.
 //
-// ------------ BB16 [005..006) -> BB18 (cond), preds={} succs={BB17,BB18}
+//    BB16 [005..006) -> BB18 (cond), preds={} succs={BB17,BB18}
 //
-//              *  JTRUE     void
-//              \--*  NE        int
-//                 +--*  LCL_VAR   int    V03 arg3
-//                 \--*  CNS_INT   int    0
+//    *  JTRUE     void
+//    \--*  NE        int
+//       ...
 //
-// ------------ BB17 [005..006), preds={} succs={BB19}
+//    BB17 [005..006), preds={} succs={BB19}
 //
-//              *  CALL      void   ThrowHelper.ThrowArgumentOutOfRangeException
-//              \--*  CNS_INT   int    33
+//    *  CALL      void   ThrowHelper.ThrowArgumentOutOfRangeException
+//    \--*  CNS_INT   int    33
 //
+//    BB20 [005..006) -> BB22 (cond), preds={} succs={BB21,BB22}
 //
-// ------------ BB20 [005..006) -> BB22 (cond), preds={} succs={BB21,BB22}
+//    *  JTRUE     void
+//    \--*  LE        int
+//       ...
 //
-//              *  JTRUE     void
-//              \--*  LE        int
-//                 ...
+//    BB21 [005..006), preds={} succs={BB22}
 //
-// ------------ BB21 [005..006), preds={} succs={BB22}
+//    *  CALL      void   ThrowHelper.ThrowArgumentOutOfRangeException
+//    \--*  CNS_INT   int    33
 //
-//              *  CALL      void   ThrowHelper.ThrowArgumentOutOfRangeException
-//              \--*  CNS_INT   int    33
-//
-
 void Compiler::fgTailMergeThrows()
 {
+    noway_assert(opts.OptimizationEnabled());
+
     JITDUMP("\n*************** In fgTailMergeThrows\n");
-
-    if (opts.MinOpts())
-    {
-        JITDUMP("Method compiled with minOpts, no merging.\n");
-        return;
-    }
-
-    if (opts.compDbgCode)
-    {
-        JITDUMP("Method compiled with debug codegen, no merging.\n");
-        return;
-    }
 
     // Early out case for most methods. Throw helpers are rare.
     if (!doesMethodHaveNoreturnCalls())
@@ -25787,39 +25775,48 @@ void Compiler::fgTailMergeThrows()
         return;
     }
 
-    struct ThrowHelperKey
+    // This transformation requires block pred lists to be built
+    // so that flow can be safely updated.
+    assert(fgComputePredsDone);
+
+    struct ThrowHelper
     {
         BasicBlock*  m_block;
         GenTreeCall* m_call;
 
-        ThrowHelperKey() : m_block(nullptr), m_call(nullptr)
+        ThrowHelper() : m_block(nullptr), m_call(nullptr)
         {
         }
 
-        ThrowHelperKey(BasicBlock* block, GenTreeCall* call) : m_block(block), m_call(call)
+        ThrowHelper(BasicBlock* block, GenTreeCall* call) : m_block(block), m_call(call)
         {
         }
 
-        static bool Equals(const ThrowHelperKey& x, const ThrowHelperKey& y)
+        static bool Equals(const ThrowHelper x, const ThrowHelper& y)
         {
             return BasicBlock::sameEHRegion(x.m_block, y.m_block) && GenTreeCall::Equals(x.m_call, y.m_call);
         }
 
-        static unsigned GetHashCode(const ThrowHelperKey& x)
+        static unsigned GetHashCode(const ThrowHelper& x)
         {
             return static_cast<unsigned>(reinterpret_cast<uintptr_t>(x.m_call->gtCallMethHnd));
         }
     };
 
-    typedef JitHashTable<ThrowHelperKey, ThrowHelperKey, BasicBlock*> CallToBlockMap;
+    typedef JitHashTable<ThrowHelper, ThrowHelper, BasicBlock*> CallToBlockMap;
 
     CompAllocator   allocator(getAllocator(CMK_TailMergeThrows));
     CallToBlockMap  callMap(allocator);
     BlockToBlockMap blockMap(allocator);
 
-    // We will run two passes here, so we can avoid pred lists.
+    // We will run two passes here.
+    //
+    // The first pass finds candidate blocks and builds the mapping
+    // from candidates to canonical blocks, the second pass modifies flow.
     int numCandidates = 0;
 
+    // First pass
+    //
     // Scan for THROW blocks. Note early on in compilation (before morph)
     // noretrurn blcoks are not marked as BBJ_THROW.
     //
@@ -25828,10 +25825,9 @@ void Compiler::fgTailMergeThrows()
     // and there is less jumbled flow to sort out later.
     for (BasicBlock* block = fgLastBB; block != nullptr; block = block->bbPrev)
     {
-        // Pattern matching explicit throws is more complex as we need
-        // to match all the statements in the block, not just the
-        // call. Skip for now.
-        if (block->bbJumpKind == BBJ_THROW)
+        // Hmm, odd BBJ_RETURN case when throw helper is tail called.
+        // TODO: sort this out over in morph.
+        if (block->bbJumpKind == BBJ_RETURN)
         {
             continue;
         }
@@ -25840,13 +25836,13 @@ void Compiler::fgTailMergeThrows()
         // (this isn't guaranteed, but seems likely)
         Statement* stmt = block->firstStmt();
 
-        if ((stmt == nullptr) || stmt->GetNextStmt() != nullptr)
+        if ((stmt == nullptr) || (stmt->GetNextStmt() != nullptr))
         {
             continue;
         }
 
         // ...that is a call
-        GenTree* tree = stmt->gtStmtExpr;
+        GenTree* const tree = stmt->gtStmtExpr;
 
         if (!tree->IsCall())
         {
@@ -25854,7 +25850,7 @@ void Compiler::fgTailMergeThrows()
         }
 
         // ...that does not return
-        GenTreeCall* call = tree->AsCall();
+        GenTreeCall* const call = tree->AsCall();
 
         if (!call->IsNoReturn())
         {
@@ -25864,29 +25860,29 @@ void Compiler::fgTailMergeThrows()
         // Sanity check -- only user funcs should be marked do not return
         assert(call->gtCallType == CT_USER_FUNC);
 
-        // Ok, we've found a call. See if this is one we know about already,
-        // or something new.
+        // Ok, we've found a suitable call. See if this is one we know
+        // about already, or something new.
         BasicBlock* canonicalBlock = nullptr;
 
-        JITDUMP("*** Does not return call\n");
+        JITDUMP("\n*** Does not return call\n");
         DISPTREE(call);
 
         // Have we found an equivalent call already?
-        ThrowHelperKey key(block, call);
+        ThrowHelper key(block, call);
         if (callMap.Lookup(key, &canonicalBlock))
         {
             // Make sure we're not at risk of crossing EH boundaries
             assert(BasicBlock::sameEHRegion(block, canonicalBlock));
 
             // Yes, this one can be optimized away...
-            JITDUMP("*** in " FMT_BB " can be dup'd to canonical " FMT_BB "\n", block->bbNum, canonicalBlock->bbNum);
+            JITDUMP("    in " FMT_BB " can be dup'd to canonical " FMT_BB "\n", block->bbNum, canonicalBlock->bbNum);
             blockMap.Set(block, canonicalBlock);
             numCandidates++;
         }
         else
         {
             // No, add this as the canonical example
-            JITDUMP("*** in " FMT_BB " is unique, marking it as canonical\n", block->bbNum);
+            JITDUMP("    in " FMT_BB " is unique, marking it as canonical\n", block->bbNum);
             callMap.Set(key, block);
         }
     }
@@ -25898,72 +25894,166 @@ void Compiler::fgTailMergeThrows()
         return;
     }
 
-    JITDUMP("\n*** found %d merge candidates, rewriting flow\n", numCandidates);
+    JITDUMP("\n*** found %d merge candidates, rewriting flow\n\n", numCandidates);
 
-    // Rewalk block list and make suitable updates.
-    for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
+    // Second pass.
+    //
+    // We walk the map rather than the block list, to save a bit of time.
+    BlockToBlockMap::KeyIterator iter(blockMap.Begin());
+    BlockToBlockMap::KeyIterator end(blockMap.End());
+    int                          updateCount = 0;
+
+    for (; !iter.Equal(end); iter++)
     {
-        // Only handle conditional branches to throw helpers for now.
-        if (block->bbJumpKind != BBJ_COND)
+        BasicBlock* const nonCanonicalBlock = iter.Get();
+        BasicBlock* const canonicalBlock    = iter.GetValue();
+        flowList*         nextPredEdge      = nullptr;
+
+        // Walk pred list of the non canonical block, updating flow to target
+        // the canonical block instead.
+        for (flowList* predEdge = nonCanonicalBlock->bbPreds; predEdge != nullptr; predEdge = nextPredEdge)
         {
-            continue;
+            BasicBlock* const predBlock = predEdge->flBlock;
+            nextPredEdge                = predEdge->flNext;
+
+            switch (predBlock->bbJumpKind)
+            {
+                case BBJ_NONE:
+                {
+                    fgTailMergeThrowsFallThroughHelper(predBlock, nonCanonicalBlock, canonicalBlock, predEdge);
+                    updateCount++;
+                }
+                break;
+
+                case BBJ_ALWAYS:
+                {
+                    fgTailMergeThrowsJumpToHelper(predBlock, nonCanonicalBlock, canonicalBlock, predEdge);
+                    updateCount++;
+                }
+                break;
+
+                case BBJ_COND:
+                {
+                    // Flow to non canonical block could be via fall through or jump or both.
+                    if (predBlock->bbNext == nonCanonicalBlock)
+                    {
+                        fgTailMergeThrowsFallThroughHelper(predBlock, nonCanonicalBlock, canonicalBlock, predEdge);
+                    }
+
+                    if (predBlock->bbJumpDest == nonCanonicalBlock)
+                    {
+                        fgTailMergeThrowsJumpToHelper(predBlock, nonCanonicalBlock, canonicalBlock, predEdge);
+                    }
+                    updateCount++;
+                }
+                break;
+
+                case BBJ_SWITCH:
+                {
+                    JITDUMP("*** " FMT_BB " now branching to " FMT_BB "\n", predBlock->bbNum, canonicalBlock->bbNum);
+                    fgReplaceSwitchJumpTarget(predBlock, canonicalBlock, nonCanonicalBlock);
+                    updateCount++;
+                }
+                break;
+
+                default:
+                    // We don't expect other kinds of preds, and it is safe to ignore them
+                    // as flow is still correct, just not as optimized as it could be.
+                    break;
+            }
         }
+    }
 
-        // See if this block falls through to a non-canonical throw helper block.
-        BasicBlock* fallThrough = block->bbNext;
-        BasicBlock* newDest     = nullptr;
-
-        if (blockMap.Lookup(fallThrough, &newDest))
-        {
-            // Modify the fallThrough to be an empty BBJ_ALWAYS block that
-            // targets the canonical block. Hopefully, later flow opts clean
-            // this up....
-            Statement* stmt = fallThrough->firstStmt();
-
-            // Note we have verified in the first pass that
-            // fallThrough has just one statement.  Assert that's still
-            // the case.
-            assert((stmt != nullptr) && stmt->GetNextStmt() == nullptr);
-
-            // Also the fall through should have a unique successor.
-            assert((fallThrough->bbJumpKind == BBJ_NONE) || (fallThrough->bbJumpKind == BBJ_ALWAYS));
-
-            JITDUMP("*** " FMT_BB " now branching to empty " FMT_BB " and then to " FMT_BB "\n", block->bbNum,
-                    fallThrough->bbNum, newDest->bbNum);
-            fgRemoveStmt(fallThrough, stmt);
-
-            BasicBlock* fallThroughNext =
-                fallThrough->bbJumpKind == BBJ_NONE ? fallThrough->bbNext : fallThrough->bbJumpDest;
-            fgRemoveRefPred(fallThroughNext, fallThrough);
-            fallThrough->bbJumpKind = BBJ_ALWAYS;
-            fallThrough->bbJumpDest = newDest;
-            fgAddRefPred(newDest, fallThrough);
-        }
-
-        // See if this block jumps to a non-canonical throw helper block.
-        //
-        // (Note we check this in addition to the fall-through case
-        // above, in the off case that a branch is choosing between
-        // two possible throw helper calls).
-        BasicBlock* jumpDest = block->bbJumpDest;
-
-        if (blockMap.Lookup(jumpDest, &newDest))
-        {
-            // Yes, revise to jump to target the canonical block.
-            JITDUMP("*** " FMT_BB " now branching to " FMT_BB " instead of " FMT_BB "\n", block->bbNum, newDest->bbNum,
-                    jumpDest->bbNum);
-            fgReplaceJumpTarget(block, newDest, jumpDest);
-            fgRemoveRefPred(jumpDest, block);
-            fgAddRefPred(newDest, block);
-            continue;
-        }
+    // If we altered flow, reset fgModified. Given where we sit in the
+    // phase list, flow-dependent side data hasn't been built yet, so
+    // nothing needs invalidation.
+    //
+    // Note we could invoke a cleanup pass here, but optOptimizeFlow
+    // seems to be missing some safety checks and doesn't expect to
+    // see an already cleaned-up flow graph.
+    if (updateCount > 0)
+    {
+        assert(fgModified);
+        fgModified = false;
     }
 
 #if DEBUG
     if (verbose)
     {
-        printf("\n*************** After fgTailMergeThrows()\n");
+        printf("\n*************** After fgTailMergeThrows(%d updates)\n", updateCount);
         fgDispBasicBlocks();
+        fgVerifyHandlerTab();
+        fgDebugCheckBBlist();
     }
 #endif // DEBUG
+}
+
+//------------------------------------------------------------------------
+// fgTailMergeThrowsFallThroughHelper: fixup flow for fall throughs to mergable throws
+//
+// Arguments:
+//    predBlock - block falling through to the throw helper
+//    nonCanonicalBlock - original fall through target
+//    canonicalBlock - new (jump) target
+//    predEdge - original flow edge
+//
+// Notes:
+//    Alters fall through flow of predBlock so it jumps to the canonicalBlock
+//    via a new basic block.
+void Compiler::fgTailMergeThrowsFallThroughHelper(BasicBlock* predBlock,
+                                                  BasicBlock* nonCanonicalBlock,
+                                                  BasicBlock* canonicalBlock,
+                                                  flowList*   predEdge)
+{
+    assert(predBlock->bbNext == nonCanonicalBlock);
+
+    BasicBlock* const newBlock = fgNewBBafter(BBJ_ALWAYS, predBlock, true);
+
+    JITDUMP("*** " FMT_BB " now falling through to empty " FMT_BB " and then to " FMT_BB "\n", predBlock->bbNum,
+            newBlock->bbNum, canonicalBlock->bbNum);
+
+    // Remove the old flow
+    fgRemoveRefPred(nonCanonicalBlock, predBlock);
+
+    // Wire up the new flow
+    predBlock->bbNext = newBlock;
+    fgAddRefPred(newBlock, predBlock, predEdge);
+
+    newBlock->bbJumpDest = canonicalBlock;
+    fgAddRefPred(canonicalBlock, newBlock, predEdge);
+
+    // Note there's now a jump to the canonical block
+    canonicalBlock->bbFlags |= (BBF_JMP_TARGET | BBF_HAS_LABEL);
+}
+
+//------------------------------------------------------------------------
+// fgTailMergeThrowsJumpToHelper: fixup flow for jumps to mergable throws
+//
+// Arguments:
+//    predBlock - block jumping to the throw helper
+//    nonCanonicalBlock - original jump target
+//    canonicalBlock - new jump target
+//    predEdge - original flow edge
+//
+// Notes:
+//    Alters jumpDest of predBlock so it jumps to the canonicalBlock
+
+void Compiler::fgTailMergeThrowsJumpToHelper(BasicBlock* predBlock,
+                                             BasicBlock* nonCanonicalBlock,
+                                             BasicBlock* canonicalBlock,
+                                             flowList*   predEdge)
+{
+    assert(predBlock->bbJumpDest == nonCanonicalBlock);
+
+    JITDUMP("*** " FMT_BB " now branching to " FMT_BB "\n", predBlock->bbNum, canonicalBlock->bbNum);
+
+    // Remove the old flow
+    fgRemoveRefPred(nonCanonicalBlock, predBlock);
+
+    // Wire up the new flow
+    predBlock->bbJumpDest = canonicalBlock;
+    fgAddRefPred(canonicalBlock, predBlock, predEdge);
+
+    // Note there's now a jump to the canonical block
+    canonicalBlock->bbFlags |= (BBF_JMP_TARGET | BBF_HAS_LABEL);
 }
