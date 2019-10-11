@@ -978,6 +978,62 @@ void Lowering::LowerHWIntrinsic(GenTreeHWIntrinsic* node)
             LowerHWIntrinsicCC(node, NI_AVX_PTEST, GenCondition::UGT);
             break;
 
+        case NI_FMA_MultiplyAddScalar: {
+            // Math(F).FusedMultiplyAdd is expanded into NI_FMA_MultiplyAddScalar but
+            // depending on additional GT_NEG nodes it can be:
+            //
+            //    x *  y + z -> NI_FMA_MultiplyAddScalar
+            //    x * -y + z -> NI_FMA_MultiplyAddNegatedScalar
+            //   -x *  y + z -> NI_FMA_MultiplyAddNegatedScalar
+            //   -x * -y + z -> NI_FMA_MultiplyAddScalar
+            //    x *  y - z -> NI_FMA_MultiplySubtractScalar
+            //    x * -y - z -> NI_FMA_MultiplySubtractNegatedScalar
+            //   -x *  y - z -> NI_FMA_MultiplySubtractNegatedScalar
+            //   -x * -y - z -> NI_FMA_MultiplySubtractScalar
+            //
+            GenTreeArgList* argList = node->gtGetOp1()->AsArgList();
+            if (argList->Current()->OperIsUnary())
+            {
+                GenTreeUnOp* createScalarOp1 = argList->Current()->AsUnOp();
+                GenTree* argX                = createScalarOp1->gtGetOp1();
+                argList                      = argList->Rest();
+                if (argList->Current()->OperIsUnary())
+                {
+                    GenTreeUnOp* createScalarOp2 = argList->Current()->AsUnOp();
+                    GenTree*                argY = createScalarOp2->gtGetOp1();
+                    argList                      = argList->Rest();
+                    if (argList->Current()->OperIsUnary())
+                    {
+                        GenTreeUnOp* createScalarOp3 = argList->Current()->AsUnOp();
+                        GenTree*                argZ = createScalarOp3->gtGetOp1();
+                        bool                  negMul = argX->OperIs(GT_NEG) ^ argY->OperIs(GT_NEG);
+                        if (argX->OperIs(GT_NEG))
+                        {
+                            GenTree* arg = argX->gtGetOp1();
+                            // TODO: replace argX with arg
+                        }
+                        if (argY->OperIs(GT_NEG))
+                        {
+                            GenTree* arg = argY->gtGetOp1();
+                            // TODO: replace argY with arg
+                        }
+                        if (argZ->OperIs(GT_NEG))
+                        {
+                            GenTree* arg = argZ->gtGetOp1();
+                            // TODO: replace argZ with arg
+                            node->gtHWIntrinsicId = negMul ? NI_FMA_MultiplySubtractNegatedScalar : NI_FMA_MultiplySubtractScalar;
+                        }
+                        else
+                        {
+                            node->gtHWIntrinsicId = negMul ? NI_FMA_MultiplyAddNegatedScalar : NI_FMA_MultiplyAddScalar;
+                        }
+                    }
+                }
+            }
+
+            break;
+        }
+
         default:
             break;
     }
