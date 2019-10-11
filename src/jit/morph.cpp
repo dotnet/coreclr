@@ -16673,12 +16673,13 @@ void Compiler::fgMorph()
     EndPhase(PHASE_MERGE_FINALLY_CHAINS);
 
     fgCloneFinally();
+    fgUpdateFinallyTargetFlags();
 
     EndPhase(PHASE_CLONE_FINALLY);
 
-    fgUpdateFinallyTargetFlags();
-
     fgTailMergeThrows();
+
+    EndPhase(PHASE_MERGE_THROWS);
 
     /* For x64 and ARM64 we need to mark irregular parameters */
     lvaRefCountState = RCS_EARLY;

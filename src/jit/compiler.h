@@ -6328,6 +6328,7 @@ public:
 #define OMF_HAS_FATPOINTER 0x00000020    // Method contains call, that needs fat pointer transformation.
 #define OMF_HAS_OBJSTACKALLOC 0x00000040 // Method contains an object allocated on the stack.
 #define OMF_HAS_GUARDEDDEVIRT 0x00000080 // Method contains guarded devirtualization candidate
+#define OMF_HAS_NORETURN_CALLS 0x0000010 // Method contains calls to noreturn methods
 
     bool doesMethodHaveFatPointer()
     {
@@ -6359,6 +6360,16 @@ public:
     void clearMethodHasGuardedDevirtualization()
     {
         optMethodFlags &= ~OMF_HAS_GUARDEDDEVIRT;
+    }
+
+    bool doesMethodHaveNoreturnCalls()
+    {
+        return (optMethodFlags & OMF_HAS_NORETURN_CALLS) != 0;
+    }
+
+    void setMethodHasNoreturnCalls()
+    {
+        optMethodFlags |= OMF_HAS_NORETURN_CALLS;
     }
 
     void addGuardedDevirtualizationCandidate(GenTreeCall*          call,

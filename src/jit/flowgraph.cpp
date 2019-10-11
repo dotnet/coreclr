@@ -5011,6 +5011,8 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, Fixed
         {
             // Mark the call node as "no return" as it can impact caller's code quality.
             impInlineInfo->iciCall->gtCallMoreFlags |= GTF_CALL_M_DOES_NOT_RETURN;
+            // Mark root method as containing a noreturn call.
+            impInlineRoot()->setMethodHasNoreturnCalls();
         }
 
         // If the inline is viable and discretionary, do the
@@ -25728,6 +25730,40 @@ bool Compiler::fgUseThrowHelperBlocks()
 //
 //    Does not handle throws yet as the analysis is more costly and less
 //    likely to pay off.
+//
+//    For throw helper call merging, we are looking for examples like
+//    the below. Here BB17 and BB21 have identical trees that call noreturn
+//    methods, so we can modify BB16 to branch to BB21 and delete BB17.
+//
+//    Also note as a quirk of how we model flow that both BB17 and BB21
+//    have successor blocks. We don't turn these into true throw blocks
+//    until morph.
+//
+// ------------ BB16 [005..006) -> BB18 (cond), preds={} succs={BB17,BB18}
+//
+//              *  JTRUE     void
+//              \--*  NE        int
+//                 +--*  LCL_VAR   int    V03 arg3
+//                 \--*  CNS_INT   int    0
+//
+// ------------ BB17 [005..006), preds={} succs={BB19}
+//
+//              *  CALL      void   ThrowHelper.ThrowArgumentOutOfRangeException
+//              \--*  CNS_INT   int    33
+//
+//
+// ------------ BB20 [005..006) -> BB22 (cond), preds={} succs={BB21,BB22}
+//
+//              *  JTRUE     void
+//              \--*  LE        int
+//                 ...
+//
+// ------------ BB21 [005..006), preds={} succs={BB22}
+//
+//              *  CALL      void   ThrowHelper.ThrowArgumentOutOfRangeException
+//              \--*  CNS_INT   int    33
+//
+
 void Compiler::fgTailMergeThrows()
 {
     JITDUMP("\n*************** In fgTailMergeThrows\n");
@@ -25744,6 +25780,13 @@ void Compiler::fgTailMergeThrows()
         return;
     }
 
+    // Early out case for most methods. Throw helpers are rare.
+    if (!doesMethodHaveNoreturnCalls())
+    {
+        JITDUMP("Method does not have any noreturn calls.\n");
+        return;
+    }
+
     struct ThrowHelperKey
     {
         BasicBlock*  m_block;
@@ -25752,14 +25795,11 @@ void Compiler::fgTailMergeThrows()
         ThrowHelperKey() : m_block(nullptr), m_call(nullptr)
         {
         }
+
         ThrowHelperKey(BasicBlock* block, GenTreeCall* call) : m_block(block), m_call(call)
         {
         }
-    };
 
-    struct ThrowHelperKeyFuncs
-    {
-    public:
         static bool Equals(const ThrowHelperKey& x, const ThrowHelperKey& y)
         {
             return BasicBlock::sameEHRegion(x.m_block, y.m_block) && GenTreeCall::Equals(x.m_call, y.m_call);
@@ -25771,16 +25811,17 @@ void Compiler::fgTailMergeThrows()
         }
     };
 
-    CompAllocator allocator(getAllocator(CMK_Generic));
-    typedef JitHashTable<ThrowHelperKey, ThrowHelperKeyFuncs, BasicBlock*> CallToBlockMap;
-    CallToBlockMap*  callMap  = new (allocator) CallToBlockMap(allocator);
-    BlockToBlockMap* blockMap = new (allocator) BlockToBlockMap(allocator);
+    typedef JitHashTable<ThrowHelperKey, ThrowHelperKey, BasicBlock*> CallToBlockMap;
+
+    CompAllocator   allocator(getAllocator(CMK_TailMergeThrows));
+    CallToBlockMap  callMap(allocator);
+    BlockToBlockMap blockMap(allocator);
 
     // We will run two passes here, so we can avoid pred lists.
     int numCandidates = 0;
 
-    // Scan for THROW blocks. Note early on throw helpers are not
-    // marked as BBJ_THROW, they are noreturn calls.
+    // Scan for THROW blocks. Note early on in compilation (before morph)
+    // noretrurn blcoks are not marked as BBJ_THROW.
     //
     // Walk blocks from last to first so that any branches we
     // introduce to the canonical blocks end up lexically forward
@@ -25832,21 +25873,21 @@ void Compiler::fgTailMergeThrows()
 
         // Have we found an equivalent call already?
         ThrowHelperKey key(block, call);
-        if (callMap->Lookup(key, &canonicalBlock))
+        if (callMap.Lookup(key, &canonicalBlock))
         {
             // Make sure we're not at risk of crossing EH boundaries
             assert(BasicBlock::sameEHRegion(block, canonicalBlock));
 
             // Yes, this one can be optimized away...
             JITDUMP("*** in " FMT_BB " can be dup'd to canonical " FMT_BB "\n", block->bbNum, canonicalBlock->bbNum);
-            blockMap->Set(block, canonicalBlock);
+            blockMap.Set(block, canonicalBlock);
             numCandidates++;
         }
         else
         {
             // No, add this as the canonical example
             JITDUMP("*** in " FMT_BB " is unique, marking it as canonical\n", block->bbNum);
-            callMap->Set(key, block);
+            callMap.Set(key, block);
         }
     }
 
@@ -25872,7 +25913,7 @@ void Compiler::fgTailMergeThrows()
         BasicBlock* fallThrough = block->bbNext;
         BasicBlock* newDest     = nullptr;
 
-        if (blockMap->Lookup(fallThrough, &newDest))
+        if (blockMap.Lookup(fallThrough, &newDest))
         {
             // Modify the fallThrough to be an empty BBJ_ALWAYS block that
             // targets the canonical block. Hopefully, later flow opts clean
@@ -25906,7 +25947,7 @@ void Compiler::fgTailMergeThrows()
         // two possible throw helper calls).
         BasicBlock* jumpDest = block->bbJumpDest;
 
-        if (blockMap->Lookup(jumpDest, &newDest))
+        if (blockMap.Lookup(jumpDest, &newDest))
         {
             // Yes, revise to jump to target the canonical block.
             JITDUMP("*** " FMT_BB " now branching to " FMT_BB " instead of " FMT_BB "\n", block->bbNum, newDest->bbNum,
