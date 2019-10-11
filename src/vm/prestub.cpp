@@ -1353,7 +1353,7 @@ PrepareCodeConfigBuffer::PrepareCodeConfigBuffer(NativeCodeVersion codeVersion)
 
 #endif //FEATURE_CODE_VERSIONING
 
-#ifdef FEATURE_STUBS_AS_IL
+#ifdef FEATURE_INSTANTIATINGSTUB_AS_IL
 
 // CreateInstantiatingILStubTargetSig:
 // This method is used to create the signature of the target of the ILStub
@@ -1647,7 +1647,7 @@ Stub * MakeUnboxingStubWorker(MethodDesc *pMD)
     else
 #endif
     {
-#ifdef FEATURE_STUBS_AS_IL
+#ifdef FEATURE_INSTANTIATINGSTUB_AS_IL
 #ifndef FEATURE_PORTABLE_SHUFFLE_THUNKS
         if (pUnboxedMD->RequiresInstMethodTableArg())
 #endif // !FEATURE_PORTABLE_SHUFFLE_THUNKS
@@ -1658,7 +1658,7 @@ Stub * MakeUnboxingStubWorker(MethodDesc *pMD)
 #ifndef FEATURE_PORTABLE_SHUFFLE_THUNKS
         else
 #endif // !FEATURE_PORTABLE_SHUFFLE_THUNKS
-#endif // FEATURE_STUBS_AS_IL
+#endif // FEATURE_INSTANTIATINGSTUB_AS_IL
 #ifndef FEATURE_PORTABLE_SHUFFLE_THUNKS
         {
             CPUSTUBLINKER sl;
@@ -1720,7 +1720,7 @@ Stub * MakeInstantiatingStubWorker(MethodDesc *pMD)
     else
 #endif
     {
-#ifdef FEATURE_STUBS_AS_IL
+#ifdef FEATURE_INSTANTIATINGSTUB_AS_IL
         pstub = CreateInstantiatingILStub(pSharedMD, extraArg);
 #else
         CPUSTUBLINKER sl;

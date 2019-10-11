@@ -224,13 +224,13 @@ MethodDesc* ILStubCache::CreateNewMethodDesc(LoaderHeap* pCreationHeap, MethodTa
     }
     else
 #endif
-#ifdef FEATURE_STUBS_AS_IL
     if (SF_IsSecureDelegateStub(dwStubFlags))
     {
         pMD->m_dwExtendedFlags |= DynamicMethodDesc::nomdSecureDelegateStub;
         pMD->GetILStubResolver()->SetStubType(ILStubResolver::SecureDelegateStub);
     }
     else
+#ifdef FEATURE_INSTANTIATINGSTUB_AS_IL
     if (SF_IsUnboxingILStub(dwStubFlags))
     {
         pMD->m_dwExtendedFlags |= DynamicMethodDesc::nomdUnboxingILStub;

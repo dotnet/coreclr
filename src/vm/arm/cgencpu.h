@@ -96,9 +96,6 @@ EXTERN_C void setFPReturn(int fpSize, INT64 retVal);
 // Offset of pc register
 #define PC_REG_RELATIVE_OFFSET 4
 
-// Use architecture neutral shuffle, instantiating and unboxing thunks
-#define FEATURE_PORTABLE_SHUFFLE_THUNKS
-
 //=======================================================================
 // IMPORTANT: This value is used to figure out how much to allocate
 // for a fixed array of FieldMarshaler's. That means it must be at least
@@ -957,7 +954,6 @@ public:
     // Scratches r12.
     void ThumbEmitCallManagedMethod(MethodDesc *pMD, bool fTailcall);
 
-    void EmitSecureDelegateInvoke(UINT_PTR hash);
     void EmitShuffleThunk(struct ShuffleEntry *pShuffleEntryArray);
     VOID EmitComputedInstantiatingMethodStub(MethodDesc* pSharedMD, struct ShuffleEntry *pShuffleEntryArray, void* extraArg);
 

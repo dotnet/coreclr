@@ -18,7 +18,9 @@ class ShuffleThunkCache;
 #include "dllimportcallback.h"
 #include "stubcache.h"
 
+#ifndef FEATURE_MULTICASTSTUB_AS_IL
 typedef ArgBasedStubCache MulticastStubCache;
+#endif
 
 VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, struct ShuffleEntry * pShuffleEntryArray, size_t nEntries);
 
@@ -37,12 +39,12 @@ private:
     // friend VOID CPUSTUBLINKER::EmitShuffleThunk(...);
     friend class CPUSTUBLINKER;
     friend class DelegateInvokeStubManager;
-    friend class SecureDelegateFrame;
     friend BOOL MulticastFrame::TraceFrame(Thread *thread, BOOL fromPatch, 
                                 TraceDestination *trace, REGDISPLAY *regs);
 
-    static MulticastStubCache* m_pSecureDelegateStubCache;
+#ifndef FEATURE_MULTICASTSTUB_AS_IL
     static MulticastStubCache* m_pMulticastStubCache;
+#endif
 
     static CrstStatic   s_DelegateToFPtrHashCrst;   // Lock for the following hash.
     static PtrHashMap*  s_pDelegateToFPtrHash;      // Hash table containing the Delegate->FPtr pairs

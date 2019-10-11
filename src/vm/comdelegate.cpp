@@ -632,8 +632,9 @@ VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<S
 
 
 ShuffleThunkCache *COMDelegate::m_pShuffleThunkCache = NULL;
-MulticastStubCache *COMDelegate::m_pSecureDelegateStubCache = NULL;
+#ifndef FEATURE_MULTICASTSTUB_AS_IL
 MulticastStubCache *COMDelegate::m_pMulticastStubCache = NULL;
+#endif
 
 CrstStatic   COMDelegate::s_DelegateToFPtrHashCrst;
 PtrHashMap*  COMDelegate::s_pDelegateToFPtrHash = NULL;
@@ -658,8 +659,9 @@ void COMDelegate::Init()
     s_pDelegateToFPtrHash->Init(TRUE, &lock);
 
     m_pShuffleThunkCache = new ShuffleThunkCache(SystemDomain::GetGlobalLoaderAllocator()->GetStubHeap());
+#ifndef FEATURE_MULTICASTSTUB_AS_IL
     m_pMulticastStubCache = new MulticastStubCache();
-    m_pSecureDelegateStubCache = new MulticastStubCache();
+#endif
 }
 
 #ifdef FEATURE_COMINTEROP
@@ -2521,7 +2523,6 @@ FCIMPL1(PCODE, COMDelegate::GetMulticastInvoke, Object* refThisIn)
 FCIMPLEND
 #endif // FEATURE_MULTICASTSTUB_AS_IL
 
-#ifdef FEATURE_STUBS_AS_IL
 PCODE COMDelegate::GetSecureInvoke(MethodDesc* pMD)
 {
     CONTRACTL
@@ -2588,60 +2589,6 @@ PCODE COMDelegate::GetSecureInvoke(MethodDesc* pMD)
     }
     return pStub->GetEntryPoint();
 }
-#else // FEATURE_STUBS_AS_IL
-PCODE COMDelegate::GetSecureInvoke(MethodDesc* pMD)
-{
-    CONTRACT (PCODE)
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        POSTCONDITION(RETVAL != NULL);
-    }
-    CONTRACT_END;
-
-    MethodTable *       pDelegateMT = pMD->GetMethodTable();
-    DelegateEEClass*    delegateEEClass = (DelegateEEClass*) pDelegateMT->GetClass();
-
-    Stub *pStub = delegateEEClass->m_pSecureDelegateInvokeStub;
-
-    if (pStub == NULL)
-    {
-        GCX_PREEMP();
-
-        MetaSig sig(pMD);
-
-        UINT_PTR hash = CPUSTUBLINKER::HashMulticastInvoke(&sig);
-
-        pStub = m_pSecureDelegateStubCache->GetStub(hash);
-        if (!pStub)
-        {
-            CPUSTUBLINKER sl;
-
-            LOG((LF_CORDB,LL_INFO10000, "COMD::GIMS making a multicast delegate\n"));
-            sl.EmitSecureDelegateInvoke(hash);
-
-            // The cache is process-wide, based on signature.  It never unloads
-            Stub *pCandidate = sl.Link(SystemDomain::GetGlobalLoaderAllocator()->GetStubHeap(), NEWSTUB_FL_MULTICAST);
-
-            Stub *pWinner = m_pSecureDelegateStubCache->AttemptToSetStub(hash, pCandidate);
-            pCandidate->DecRef();
-            if (!pWinner)
-                COMPlusThrowOM();
-
-            LOG((LF_CORDB,LL_INFO10000, "Putting a MC stub at 0x%x (code:0x%x)\n",
-                pWinner, (BYTE*)pWinner+sizeof(Stub)));
-
-            pStub = pWinner;
-        }
-
-        g_IBCLogger.LogEEClassCOWTableAccess(pDelegateMT);
-        EnsureWritablePages(&delegateEEClass->m_pSecureDelegateInvokeStub);
-        delegateEEClass->m_pSecureDelegateInvokeStub = pStub;
-    }
-    RETURN (pStub->GetEntryPoint());
-}
-#endif // FEATURE_STUBS_AS_IL
 
 #endif // CROSSGEN_COMPILE
 

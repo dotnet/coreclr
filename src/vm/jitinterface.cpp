@@ -5791,7 +5791,6 @@ void CEEInfo::getCallInfo(
 
     pResult->secureDelegateInvoke = FALSE;
 
-#ifdef FEATURE_STUBS_AS_IL
     if (m_pMethodBeingCompiled->IsDynamicMethod())
     {
         auto pMD = m_pMethodBeingCompiled->AsDynamicMethodDesc();
@@ -5800,7 +5799,6 @@ void CEEInfo::getCallInfo(
             pResult->secureDelegateInvoke = TRUE;
         }
     }
-#endif
 
     EE_TO_JIT_TRANSITION();
 }

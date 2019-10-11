@@ -2725,12 +2725,12 @@ public:
         return !!(m_dwExtendedFlags & nomdMulticastStub);
     }
 #endif
-#ifdef FEATURE_STUBS_AS_IL
     bool IsSecureDelegateStub() {
         LIMITED_METHOD_DAC_CONTRACT;
         _ASSERTE(IsILStub());
         return !!(m_dwExtendedFlags & nomdSecureDelegateStub);
     }
+#ifdef FEATURE_INSTANTIATINGSTUB_AS_IL
     bool IsUnboxingILStub() { 
         LIMITED_METHOD_DAC_CONTRACT; 
         _ASSERTE(IsILStub());

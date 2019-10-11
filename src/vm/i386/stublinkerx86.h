@@ -10,11 +10,6 @@
 struct ArrayOpScript;
 class MetaSig;
 
-#ifdef _TARGET_AMD64_
-// Use architecture neutral shuffle, instantiating and unboxing thunks
-#define FEATURE_PORTABLE_SHUFFLE_THUNKS
-#endif
-
 extern PCODE GetPreStubEntryPoint();
 
 //=======================================================================
@@ -411,10 +406,6 @@ class StubLinkerCPU : public StubLinker
         // Emits code for MulticastDelegate.Invoke() - sig specific
         VOID EmitMulticastInvoke(UINT_PTR hash);
 #endif // defined(_TARGET_X86_) && !defined(FEATURE_MULTICASTSTUB_AS_IL)
-
-        //===========================================================================
-        // Emits code for Delegate.Invoke() on delegates that recorded creator assembly
-        VOID EmitSecureDelegateInvoke(UINT_PTR hash);
 #endif // !FEATURE_STUBS_AS_IL
 
         //===========================================================================
