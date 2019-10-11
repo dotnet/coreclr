@@ -19,9 +19,9 @@ namespace JIT.HardwareIntrinsics.Arm
 {
     public static partial class Program
     {
-        private static void {Method}{RetBaseType}()
+        private static void {TestName}()
         {
-            var test = new ScalarUnaryOpTest__{Method}{RetBaseType}();
+            var test = new ScalarUnaryOpTest__{TestName}();
 
             if (test.IsSupported)
             {
@@ -62,7 +62,7 @@ namespace JIT.HardwareIntrinsics.Arm
         }
     }
 
-    public sealed unsafe class ScalarUnaryOpTest__{Method}{RetBaseType}
+    public sealed unsafe class ScalarUnaryOpTest__{TestName}
     {
         private struct TestStruct
         {
@@ -76,7 +76,7 @@ namespace JIT.HardwareIntrinsics.Arm
                 return testStruct;
             }
 
-            public void RunStructFldScenario(ScalarUnaryOpTest__{Method}{RetBaseType} testClass)
+            public void RunStructFldScenario(ScalarUnaryOpTest__{TestName} testClass)
             {
                 var result = {Isa}.{Method}(_fld);
                 testClass.ValidateResult(_fld, result);
@@ -89,12 +89,12 @@ namespace JIT.HardwareIntrinsics.Arm
 
         private {Op1BaseType} _fld;
 
-        static ScalarUnaryOpTest__{Method}{RetBaseType}()
+        static ScalarUnaryOpTest__{TestName}()
         {
             _clsVar = {NextValueOp1};
         }
 
-        public ScalarUnaryOpTest__{Method}{RetBaseType}()
+        public ScalarUnaryOpTest__{TestName}()
         {
             Succeeded = true;
 
@@ -155,7 +155,7 @@ namespace JIT.HardwareIntrinsics.Arm
         {
             TestLibrary.TestFramework.BeginScenario(nameof(RunClassLclFldScenario));
 
-            var test = new ScalarUnaryOpTest__{Method}{RetBaseType}();
+            var test = new ScalarUnaryOpTest__{TestName}();
             var result = {Isa}.{Method}(test._fld);
 
             ValidateResult(test._fld, result);
