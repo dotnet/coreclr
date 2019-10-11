@@ -1281,7 +1281,7 @@ inline void GenTree::gtBashToNOP()
 {
     ChangeOper(GT_NOP);
 
-    gtType     = TYP_VOID;
+    gtType        = TYP_VOID;
     AsOp()->gtOp1 = AsOp()->gtOp2 = nullptr;
 
     gtFlags &= ~(GTF_ALL_EFFECT | GTF_REVERSE_OPS);
@@ -3398,7 +3398,8 @@ inline void Compiler::LoopDsc::VERIFY_lpTestTree()
 
     GenTree* iterator = nullptr;
     GenTree* limit    = nullptr;
-    if ((lpTestTree->AsOp()->gtOp2->gtOper == GT_LCL_VAR) && (lpTestTree->AsOp()->gtOp2->gtFlags & GTF_VAR_ITERATOR) != 0)
+    if ((lpTestTree->AsOp()->gtOp2->gtOper == GT_LCL_VAR) &&
+        (lpTestTree->AsOp()->gtOp2->gtFlags & GTF_VAR_ITERATOR) != 0)
     {
         iterator = lpTestTree->AsOp()->gtOp2;
         limit    = lpTestTree->AsOp()->gtOp1;

@@ -5882,7 +5882,7 @@ bool Compiler::optNarrowTree(GenTree* tree, var_types srct, var_types dstt, Valu
                             // Clear the GTF_UNSIGNED flag, as it may have been set on the cast node
                             tree->gtFlags &= ~GTF_UNSIGNED;
                             tree->AsOp()->gtOp2 = nullptr;
-                            tree->gtVNPair   = op1->gtVNPair; // Set to op1's ValueNumber
+                            tree->gtVNPair      = op1->gtVNPair; // Set to op1's ValueNumber
                         }
                         else
                         {
@@ -8691,7 +8691,7 @@ void Compiler::optOptimizeBoolsGcStress(BasicBlock* condBlock)
     GenTree* comparandClone = gtCloneExpr(comparand);
 
     noway_assert(relop->AsOp()->gtOp1 == comparand);
-    genTreeOps oper   = compStressCompile(STRESS_OPT_BOOLS_GC, 50) ? GT_OR : GT_AND;
+    genTreeOps oper      = compStressCompile(STRESS_OPT_BOOLS_GC, 50) ? GT_OR : GT_AND;
     relop->AsOp()->gtOp1 = gtNewOperNode(oper, TYP_I_IMPL, comparand, comparandClone);
 
     // Comparand type is already checked, and we have const int, there is no harm

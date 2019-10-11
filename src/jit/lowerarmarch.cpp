@@ -526,7 +526,7 @@ void Lowering::LowerHWIntrinsic(GenTreeHWIntrinsic* node)
                 // Unsigned >= 0 ==> Always true
                 // Unsigned < 0 ==> Always false
                 node->gtHWIntrinsicId = setAllVector;
-                node->AsOp()->gtOp1      = comp->gtNewLconNode((intrinsicID == NI_ARM64_SIMD_GE_ZERO) ? ~0ULL : 0ULL);
+                node->AsOp()->gtOp1   = comp->gtNewLconNode((intrinsicID == NI_ARM64_SIMD_GE_ZERO) ? ~0ULL : 0ULL);
                 BlockRange().InsertBefore(node, node->AsOp()->gtOp1);
                 if ((origOp1->gtFlags & GTF_ALL_EFFECT) == 0)
                 {

@@ -3147,7 +3147,8 @@ bool Compiler::gtMarkAddrMode(GenTree* addr, int* pCostEx, int* pCostSz, var_typ
                     if ((op1->gtOper == GT_MUL) || (op1->gtOper == GT_LSH))
                     {
                         if ((op1->AsOp()->gtOp1->gtOper == GT_NOP) ||
-                            (op1->AsOp()->gtOp1->gtOper == GT_MUL && op1->AsOp()->gtOp1->AsOp()->gtOp1->gtOper == GT_NOP))
+                            (op1->AsOp()->gtOp1->gtOper == GT_MUL &&
+                             op1->AsOp()->gtOp1->AsOp()->gtOp1->gtOper == GT_NOP))
                         {
                             op1->gtFlags |= GTF_ADDRMODE_NO_CSE;
                             if (op1->AsOp()->gtOp1->gtOper == GT_MUL)
@@ -3167,7 +3168,8 @@ bool Compiler::gtMarkAddrMode(GenTree* addr, int* pCostEx, int* pCostSz, var_typ
                     if ((op2->gtOper == GT_MUL) || (op2->gtOper == GT_LSH))
                     {
                         if ((op2->AsOp()->gtOp1->gtOper == GT_NOP) ||
-                            (op2->AsOp()->gtOp1->gtOper == GT_MUL && op2->AsOp()->gtOp1->AsOp()->gtOp1->gtOper == GT_NOP))
+                            (op2->AsOp()->gtOp1->gtOper == GT_MUL &&
+                             op2->AsOp()->gtOp1->AsOp()->gtOp1->gtOper == GT_NOP))
                         {
                             op2->gtFlags |= GTF_ADDRMODE_NO_CSE;
                             if (op2->AsOp()->gtOp1->gtOper == GT_MUL)
@@ -7251,7 +7253,7 @@ GenTree* Compiler::gtCloneExpr(
 
             case GT_LIST:
                 assert((tree->AsOp()->gtOp2 == nullptr) || tree->AsOp()->gtOp2->OperIsList());
-                copy             = new (this, GT_LIST) GenTreeArgList(tree->AsOp()->gtOp1);
+                copy                = new (this, GT_LIST) GenTreeArgList(tree->AsOp()->gtOp1);
                 copy->AsOp()->gtOp2 = tree->AsOp()->gtOp2;
                 break;
 
@@ -7308,7 +7310,8 @@ GenTree* Compiler::gtCloneExpr(
                 break;
 
             case GT_QMARK:
-                copy = new (this, GT_QMARK) GenTreeQmark(tree->TypeGet(), tree->AsOp()->gtOp1, tree->AsOp()->gtOp2, this);
+                copy =
+                    new (this, GT_QMARK) GenTreeQmark(tree->TypeGet(), tree->AsOp()->gtOp1, tree->AsOp()->gtOp2, this);
                 break;
 
             case GT_OBJ:
@@ -12986,7 +12989,7 @@ GenTree* Compiler::gtTryRemoveBoxUpstreamEffects(GenTree* op, BoxRemovalOptions 
         asg->gtBashToNOP();
 
         // Update the copy from the value to be boxed to the box temp
-        GenTree* newDst     = gtNewOperNode(GT_ADDR, TYP_BYREF, gtNewLclvNode(boxTempLcl, boxTempType));
+        GenTree* newDst        = gtNewOperNode(GT_ADDR, TYP_BYREF, gtNewLclvNode(boxTempLcl, boxTempType));
         copyDst->AsOp()->gtOp1 = newDst;
 
         // Return the address of the now-struct typed box temp
@@ -15817,14 +15820,14 @@ bool GenTree::DefinesLocalAddr(Compiler* comp, unsigned width, GenTreeLclVarComm
             // If we just adding a zero then we allow an IsEntire match against width
             //  otherwise we change width to zero to disallow an IsEntire Match
             return AsOp()->gtOp2->DefinesLocalAddr(comp, AsOp()->gtOp1->IsIntegralConst(0) ? width : 0, pLclVarTree,
-                                                pIsEntire);
+                                                   pIsEntire);
         }
         else if (AsOp()->gtOp2->IsCnsIntOrI())
         {
             // If we just adding a zero then we allow an IsEntire match against width
             //  otherwise we change width to zero to disallow an IsEntire Match
             return AsOp()->gtOp1->DefinesLocalAddr(comp, AsOp()->gtOp2->IsIntegralConst(0) ? width : 0, pLclVarTree,
-                                                pIsEntire);
+                                                   pIsEntire);
         }
     }
     // Post rationalization we could have GT_IND(GT_LEA(..)) trees.
@@ -17629,7 +17632,8 @@ void GenTree::ParseArrayAddressWork(Compiler*       comp,
                     assert(!AsOp()->gtOp2->gtIntCon.ImmedValNeedsReloc(comp));
                     // TODO-CrossBitness: we wouldn't need the cast below if GenTreeIntCon::gtIconVal had target_ssize_t
                     // type.
-                    target_ssize_t subMul = target_ssize_t{1} << (target_ssize_t)AsOp()->gtOp2->gtIntConCommon.IconValue();
+                    target_ssize_t subMul = target_ssize_t{1}
+                                            << (target_ssize_t)AsOp()->gtOp2->gtIntConCommon.IconValue();
                     AsOp()->gtOp1->ParseArrayAddressWork(comp, inputMul * subMul, pArr, pInxVN, pOffset, pFldSeq);
                     return;
                 }

@@ -351,9 +351,9 @@ void Rationalizer::RewriteAssignment(LIR::Use& use)
                     GenTreeSIMD* simdTree = new (comp, GT_SIMD)
                         GenTreeSIMD(simdType, initVal, SIMDIntrinsicInit, baseType, genTypeSize(simdType));
                     assignment->AsOp()->gtOp2 = simdTree;
-                    value                  = simdTree;
-                    initVal->gtNext        = simdTree;
-                    simdTree->gtPrev       = initVal;
+                    value                     = simdTree;
+                    initVal->gtNext           = simdTree;
+                    simdTree->gtPrev          = initVal;
 
                     simdTree->gtNext = location;
                     location->gtPrev = simdTree;

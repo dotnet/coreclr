@@ -2363,7 +2363,7 @@ public:
 
                 // assign the proper Value Numbers
                 asg->gtVNPair.SetBoth(ValueNumStore::VNForVoid()); // The GT_ASG node itself is $VN.Void
-                asg->AsOp()->gtOp1->gtVNPair = val->gtVNPair;         // The dest op is the same as 'val'
+                asg->AsOp()->gtOp1->gtVNPair = val->gtVNPair;      // The dest op is the same as 'val'
 
                 noway_assert(asg->AsOp()->gtOp1->gtOper == GT_LCL_VAR);
 

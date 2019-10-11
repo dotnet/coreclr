@@ -1486,9 +1486,9 @@ GenTree* Compiler::impGetStructAddr(GenTree*             structVal,
     {
         assert(structVal->AsOp()->gtOp2->gtType == type); // Second thing is the struct
 
-        Statement* oldLastStmt = impLastStmt;
-        structVal->AsOp()->gtOp2  = impGetStructAddr(structVal->AsOp()->gtOp2, structHnd, curLevel, willDeref);
-        structVal->gtType      = TYP_BYREF;
+        Statement* oldLastStmt   = impLastStmt;
+        structVal->AsOp()->gtOp2 = impGetStructAddr(structVal->AsOp()->gtOp2, structHnd, curLevel, willDeref);
+        structVal->gtType        = TYP_BYREF;
 
         if (oldLastStmt != impLastStmt)
         {
@@ -1706,7 +1706,7 @@ GenTree* Compiler::impNormStructVal(GenTree*             structVal,
             if (blockNode->OperIsSimdOrHWintrinsic())
             {
                 parent->AsOp()->gtOp2 = impNormStructVal(blockNode, structHnd, curLevel, forceNormalization);
-                alreadyNormalized  = true;
+                alreadyNormalized     = true;
             }
             else
 #endif
@@ -1721,8 +1721,8 @@ GenTree* Compiler::impNormStructVal(GenTree*             structVal,
                 // GT_COMMA below the blockNode addr.
                 GenTree* blockNodeAddr = blockNode->AsOp()->gtOp1;
                 assert(blockNodeAddr->gtType == TYP_BYREF);
-                GenTree* commaNode    = parent;
-                commaNode->gtType     = TYP_BYREF;
+                GenTree* commaNode       = parent;
+                commaNode->gtType        = TYP_BYREF;
                 commaNode->AsOp()->gtOp2 = blockNodeAddr;
                 blockNode->AsOp()->gtOp1 = commaNode;
                 if (parent == structVal)
@@ -11819,7 +11819,8 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 // This does not need CORINFO_HELP_ARRADDR_ST
                 if (arrayNodeFrom->OperGet() == GT_INDEX && arrayNodeFrom->AsOp()->gtOp1->gtOper == GT_LCL_VAR &&
                     arrayNodeTo->gtOper == GT_LCL_VAR &&
-                    arrayNodeTo->gtLclVarCommon.GetLclNum() == arrayNodeFrom->AsOp()->gtOp1->gtLclVarCommon.GetLclNum() &&
+                    arrayNodeTo->gtLclVarCommon.GetLclNum() ==
+                        arrayNodeFrom->AsOp()->gtOp1->gtLclVarCommon.GetLclNum() &&
                     !lvaTable[arrayNodeTo->gtLclVarCommon.GetLclNum()].lvAddrExposed)
                 {
                     JITDUMP("\nstelem of ref from same array: skipping covariant store check\n");
@@ -17224,7 +17225,7 @@ SPILLSTACK:
                     {
                         unsigned temp = lvaGrabTemp(true DEBUGARG("spill addStmt JTRUE ref Op1"));
                         impAssignTempGen(temp, relOp->AsOp()->gtOp1, level);
-                        type              = genActualType(lvaTable[temp].TypeGet());
+                        type                 = genActualType(lvaTable[temp].TypeGet());
                         relOp->AsOp()->gtOp1 = gtNewLclvNode(temp, type);
                     }
 
@@ -17232,7 +17233,7 @@ SPILLSTACK:
                     {
                         unsigned temp = lvaGrabTemp(true DEBUGARG("spill addStmt JTRUE ref Op2"));
                         impAssignTempGen(temp, relOp->AsOp()->gtOp2, level);
-                        type              = genActualType(lvaTable[temp].TypeGet());
+                        type                 = genActualType(lvaTable[temp].TypeGet());
                         relOp->AsOp()->gtOp2 = gtNewLclvNode(temp, type);
                     }
                 }

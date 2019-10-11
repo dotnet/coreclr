@@ -7650,7 +7650,7 @@ GenTree* Compiler::fgDoNormalizeOnStore(GenTree* tree)
 
                 if (fgCastNeeded(op2, varDsc->TypeGet()))
                 {
-                    op2              = gtNewCastNode(TYP_INT, op2, false, varDsc->TypeGet());
+                    op2                 = gtNewCastNode(TYP_INT, op2, false, varDsc->TypeGet());
                     tree->AsOp()->gtOp2 = op2;
 
                     // Propagate GTF_COLON_COND
@@ -14373,8 +14373,8 @@ bool Compiler::fgOptimizeSwitchBranches(BasicBlock* block)
 #endif // DEBUG
 
         switchTree->ChangeOper(GT_JTRUE);
-        GenTree* zeroConstNode = gtNewZeroConNode(genActualType(switchVal->TypeGet()));
-        GenTree* condNode      = gtNewOperNode(GT_EQ, TYP_INT, switchVal, zeroConstNode);
+        GenTree* zeroConstNode    = gtNewZeroConNode(genActualType(switchVal->TypeGet()));
+        GenTree* condNode         = gtNewOperNode(GT_EQ, TYP_INT, switchVal, zeroConstNode);
         switchTree->AsOp()->gtOp1 = condNode;
         switchTree->AsOp()->gtOp1->gtFlags |= (GTF_RELOP_JMP_USED | GTF_DONT_CSE);
 
@@ -20613,8 +20613,8 @@ Compiler::fgWalkResult Compiler::fgStress64RsltMulCB(GenTree** pTree, fgWalkData
     tree->AsOp()->gtOp1 = pComp->gtNewOperNode(GT_NOP, TYP_LONG, tree->AsOp()->gtOp1);
     tree->AsOp()->gtOp1 = pComp->gtNewCastNode(TYP_LONG, tree->AsOp()->gtOp1, false, TYP_LONG);
     tree->AsOp()->gtOp2 = pComp->gtNewCastNode(TYP_LONG, tree->AsOp()->gtOp2, false, TYP_LONG);
-    tree->gtType     = TYP_LONG;
-    *pTree           = pComp->gtNewCastNode(TYP_INT, tree, false, TYP_INT);
+    tree->gtType        = TYP_LONG;
+    *pTree              = pComp->gtNewCastNode(TYP_INT, tree, false, TYP_INT);
 
 #ifdef DEBUG
     if (pComp->verbose)
@@ -21607,8 +21607,8 @@ void Compiler::fgDebugCheckNodeLinks(BasicBlock* block, Statement* stmt)
             switch (tree->gtOper)
             {
                 case GT_QMARK:
-                    expectedPrevTree =
-                        tree->AsOp()->gtOp2->AsColon()->ThenNode(); // "then" operand of the GT_COLON (generated second).
+                    expectedPrevTree = tree->AsOp()->gtOp2->AsColon()->ThenNode(); // "then" operand of the GT_COLON
+                                                                                   // (generated second).
                     break;
 
                 case GT_COLON:
@@ -22188,7 +22188,7 @@ GenTree* Compiler::fgGetStructAsStructPtr(GenTree* tree)
 
         case GT_COMMA:
             tree->AsOp()->gtOp2 = fgGetStructAsStructPtr(tree->AsOp()->gtOp2);
-            tree->gtType     = TYP_BYREF;
+            tree->gtType        = TYP_BYREF;
             return tree;
 
         default:
@@ -22242,7 +22242,7 @@ GenTree* Compiler::fgAssignStructInlineeToVar(GenTree* child, CORINFO_CLASS_HAND
         if (child->gtOper == GT_COMMA)
         {
             lastComma->AsOp()->gtOp2 = newInlinee;
-            newInlinee            = child;
+            newInlinee               = child;
         }
     }
     else

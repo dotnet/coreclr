@@ -673,7 +673,8 @@ GCInfo::WriteBarrierForm GCInfo::gcWriteBarrierFormFromTargetAddress(GenTree* tg
             {
                 if (tgtAddr->AsOp()->gtOp1->TypeGet() == TYP_BYREF || tgtAddr->AsOp()->gtOp1->TypeGet() == TYP_REF)
                 {
-                    assert(!(tgtAddr->AsOp()->gtOp2->TypeGet() == TYP_BYREF || tgtAddr->AsOp()->gtOp2->TypeGet() == TYP_REF));
+                    assert(!(tgtAddr->AsOp()->gtOp2->TypeGet() == TYP_BYREF ||
+                             tgtAddr->AsOp()->gtOp2->TypeGet() == TYP_REF));
                     tgtAddr        = tgtAddr->AsOp()->gtOp1;
                     simplifiedExpr = true;
                 }

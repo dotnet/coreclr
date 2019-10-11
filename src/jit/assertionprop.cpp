@@ -4754,7 +4754,7 @@ GenTree* Compiler::optVNConstantPropOnJTrue(BasicBlock* block, GenTree* test)
     GenTree* sideEffList = optExtractSideEffListFromConst(relop);
 
     // Transform the relop's operands to be both zeroes.
-    ValueNum vnZero             = vnStore->VNZeroForType(TYP_INT);
+    ValueNum vnZero                = vnStore->VNZeroForType(TYP_INT);
     relop->AsOp()->gtOp1           = gtNewIconNode(0);
     relop->AsOp()->gtOp1->gtVNPair = ValueNumPair(vnZero, vnZero);
     relop->AsOp()->gtOp2           = gtNewIconNode(0);

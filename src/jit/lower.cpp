@@ -968,7 +968,7 @@ void Lowering::ReplaceArgWithPutArgOrBitcast(GenTree** argSlot, GenTree* putArgO
     GenTree* arg = *argSlot;
 
     // Replace the argument with the putarg/copy
-    *argSlot                    = putArgOrBitcast;
+    *argSlot                       = putArgOrBitcast;
     putArgOrBitcast->AsOp()->gtOp1 = arg;
 
     // Insert the putarg/copy into the block
@@ -2532,7 +2532,7 @@ GenTree* Lowering::DecomposeLongCompare(GenTree* cmp)
     {
         BlockRange().Remove(cmp);
 
-        GenTree* jcc    = cmpUse.User();
+        GenTree* jcc       = cmpUse.User();
         jcc->AsOp()->gtOp1 = nullptr;
         jcc->ChangeOper(GT_JCC);
         jcc->gtFlags |= GTF_USE_FLAGS;
