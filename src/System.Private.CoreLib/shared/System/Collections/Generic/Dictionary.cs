@@ -6,6 +6,9 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
+using System.Runtime.InteropServices;
+
+using Internal.Runtime.CompilerServices;
 
 namespace System.Collections.Generic
 {
@@ -36,14 +39,15 @@ namespace System.Collections.Generic
     [TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public class Dictionary<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, IReadOnlyDictionary<TKey, TValue>, ISerializable, IDeserializationCallback where TKey : notnull
     {
+        [StructLayout(LayoutKind.Auto)]
         private struct Entry
         {
+            public uint hashCode;
+            public TKey key;           // Key of entry
             // 0-based index of next entry in chain: -1 means end of chain
             // also encodes whether this entry _itself_ is part of the free list by changing sign and subtracting 3,
             // so -2 means end of free list, -3 means index 0 but on free list, -4 means index 1 but on free list, etc.
             public int next;
-            public uint hashCode;
-            public TKey key;           // Key of entry
             public TValue value;         // Value of entry
         }
 
@@ -168,8 +172,10 @@ namespace System.Collections.Generic
         {
             get
             {
-                int i = FindEntry(key);
-                if (i >= 0) return _entries![i].value;
+                if (TryGetValue(key, out TValue value))
+                {
+                    return value;
+                }
                 ThrowHelper.ThrowKeyNotFoundException(key);
                 return default;
             }
@@ -191,8 +197,7 @@ namespace System.Collections.Generic
 
         bool ICollection<KeyValuePair<TKey, TValue>>.Contains(KeyValuePair<TKey, TValue> keyValuePair)
         {
-            int i = FindEntry(keyValuePair.Key);
-            if (i >= 0 && EqualityComparer<TValue>.Default.Equals(_entries![i].value, keyValuePair.Value))
+            if (TryGetValue(keyValuePair.Key, out TValue value) && EqualityComparer<TValue>.Default.Equals(value, keyValuePair.Value))
             {
                 return true;
             }
@@ -201,8 +206,7 @@ namespace System.Collections.Generic
 
         bool ICollection<KeyValuePair<TKey, TValue>>.Remove(KeyValuePair<TKey, TValue> keyValuePair)
         {
-            int i = FindEntry(keyValuePair.Key);
-            if (i >= 0 && EqualityComparer<TValue>.Default.Equals(_entries![i].value, keyValuePair.Value))
+            if (TryGetValue(keyValuePair.Key, out TValue value) && EqualityComparer<TValue>.Default.Equals(value, keyValuePair.Value))
             {
                 Remove(keyValuePair.Key);
                 return true;
@@ -228,7 +232,7 @@ namespace System.Collections.Generic
         }
 
         public bool ContainsKey(TKey key)
-            => FindEntry(key) >= 0;
+            => TryGetValue(key, out _);
 
         public bool ContainsValue(TValue value)
         {
@@ -318,69 +322,83 @@ namespace System.Collections.Generic
             }
         }
 
-        private int FindEntry(TKey key)
+        public unsafe bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
         {
             if (key == null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }
 
-            int i = -1;
             int[]? buckets = _buckets;
-            Entry[]? entries = _entries;
-            int collisionCount = 0;
+            ref Entry entry = ref Unsafe.AsRef<Entry>(null);
             if (buckets != null)
             {
-                Debug.Assert(entries != null, "expected entries to be != null");
+                Debug.Assert(_entries != null, "expected entries to be != null");
                 IEqualityComparer<TKey>? comparer = _comparer;
                 if (comparer == null)
                 {
                     uint hashCode = (uint)key.GetHashCode();
                     // Value in _buckets is 1-based
-                    i = buckets[hashCode % (uint)buckets.Length] - 1;
+                    int i = buckets[hashCode % (uint)buckets.Length] - 1;
                     if (default(TKey)! != null) // TODO-NULLABLE: default(T) == null warning (https://github.com/dotnet/roslyn/issues/34757)
                     {
+                        Entry[]? entries = _entries;
+                        int collisionCount = 0;
                         // ValueType: Devirtualize with EqualityComparer<TValue>.Default intrinsic
                         while (true)
                         {
                             // Should be a while loop https://github.com/dotnet/coreclr/issues/15476
                             // Test in if to drop range check for following array access
-                            if ((uint)i >= (uint)entries.Length || (entries[i].hashCode == hashCode && EqualityComparer<TKey>.Default.Equals(entries[i].key, key)))
+                            if ((uint)i >= (uint)entries.Length)
                             {
-                                break;
+                                goto ReturnNotFound;
                             }
 
-                            i = entries[i].next;
+                            entry = ref entries[i];
+                            if (entry.hashCode == hashCode && EqualityComparer<TKey>.Default.Equals(entry.key, key))
+                            {
+                                goto ReturnFound;
+                            }
+
+                            i = entry.next;
                             if (collisionCount >= entries.Length)
                             {
                                 // The chain of entries forms a loop; which means a concurrent update has happened.
                                 // Break out of the loop and throw, rather than looping forever.
-                                ThrowHelper.ThrowInvalidOperationException_ConcurrentOperationsNotSupported();
+                                goto ConcurrentOperation;
                             }
                             collisionCount++;
                         }
                     }
                     else
                     {
+                        Entry[]? entries = _entries;
                         // Object type: Shared Generic, EqualityComparer<TValue>.Default won't devirtualize
                         // https://github.com/dotnet/coreclr/issues/17273
                         // So cache in a local rather than get EqualityComparer per loop iteration
                         EqualityComparer<TKey> defaultComparer = EqualityComparer<TKey>.Default;
+                        int collisionCount = 0;
                         while (true)
                         {
                             // Should be a while loop https://github.com/dotnet/coreclr/issues/15476
                             // Test in if to drop range check for following array access
-                            if ((uint)i >= (uint)entries.Length || (entries[i].hashCode == hashCode && defaultComparer.Equals(entries[i].key, key)))
+                            if ((uint)i >= (uint)entries.Length)
                             {
-                                break;
+                                goto ReturnNotFound;
                             }
 
-                            i = entries[i].next;
+                            entry = ref entries[i];
+                            if (entry.hashCode == hashCode && defaultComparer.Equals(entry.key, key))
+                            {
+                                goto ReturnFound;
+                            }
+
+                            i = entry.next;
                             if (collisionCount >= entries.Length)
                             {
                                 // The chain of entries forms a loop; which means a concurrent update has happened.
                                 // Break out of the loop and throw, rather than looping forever.
-                                ThrowHelper.ThrowInvalidOperationException_ConcurrentOperationsNotSupported();
+                                goto ConcurrentOperation;
                             }
                             collisionCount++;
                         }
@@ -390,30 +408,49 @@ namespace System.Collections.Generic
                 {
                     uint hashCode = (uint)comparer.GetHashCode(key);
                     // Value in _buckets is 1-based
-                    i = buckets[hashCode % (uint)buckets.Length] - 1;
+                    int i = buckets[hashCode % (uint)buckets.Length] - 1;
+                    Entry[]? entries = _entries;
+                    int collisionCount = 0;
                     while (true)
                     {
                         // Should be a while loop https://github.com/dotnet/coreclr/issues/15476
                         // Test in if to drop range check for following array access
-                        if ((uint)i >= (uint)entries.Length ||
-                            (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key)))
+                        if ((uint)i >= (uint)entries.Length)
                         {
-                            break;
+                            goto ReturnNotFound;
                         }
 
-                        i = entries[i].next;
+                        entry = ref entries[i];
+                        if (entry.hashCode == hashCode && comparer.Equals(entry.key, key))
+                        {
+                            goto ReturnFound;
+                        }
+
+                        i = entry.next;
                         if (collisionCount >= entries.Length)
                         {
                             // The chain of entries forms a loop; which means a concurrent update has happened.
                             // Break out of the loop and throw, rather than looping forever.
-                            ThrowHelper.ThrowInvalidOperationException_ConcurrentOperationsNotSupported();
+                            goto ConcurrentOperation;
                         }
                         collisionCount++;
                     }
                 }
             }
 
-            return i;
+            goto ReturnNotFound;
+
+        ConcurrentOperation:
+            ThrowHelper.ThrowInvalidOperationException_ConcurrentOperationsNotSupported();
+        ReturnFound:
+            value = entry.value;
+            bool found = true;
+        Return:
+            return found;
+        ReturnNotFound:
+            value = default!;
+            found = false;
+            goto Return;
         }
 
         private int Initialize(int capacity)
@@ -852,18 +889,6 @@ namespace System.Collections.Generic
             return false;
         }
 
-        public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
-        {
-            int i = FindEntry(key);
-            if (i >= 0)
-            {
-                value = _entries![i].value;
-                return true;
-            }
-            value = default!;
-            return false;
-        }
-
         public bool TryAdd(TKey key, TValue value)
             => TryInsert(key, value, InsertionBehavior.None);
 
@@ -1022,10 +1047,9 @@ namespace System.Collections.Generic
             {
                 if (IsCompatibleKey(key))
                 {
-                    int i = FindEntry((TKey)key);
-                    if (i >= 0)
+                    if (TryGetValue((TKey)key, out TValue value))
                     {
-                        return _entries![i].value;
+                        return value;
                     }
                 }
                 return null;
