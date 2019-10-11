@@ -3652,8 +3652,7 @@ static MarshalInfo::MarshalType DoMarshalReturnValue(MetaSig&           msig,
                                 TRUE,
                                 isInstanceMethod,
                                 pMD,
-                                TRUE,
-                                FALSE
+                                TRUE
                                 DEBUG_ARG(pDebugName)
                                 DEBUG_ARG(pDebugClassName)
                                 DEBUG_ARG(0)
@@ -4043,8 +4042,7 @@ static void CreateNDirectStubWorker(StubState*         pss,
                                                  TRUE,
                                                  isInstanceMethod ? TRUE : FALSE,
                                                  pMD,
-                                                 TRUE,
-                                                 FALSE
+                                                 TRUE
                                                  DEBUG_ARG(pSigDesc->m_pDebugName)
                                                  DEBUG_ARG(pSigDesc->m_pDebugClassName)
                                                  DEBUG_ARG(i + 1));
@@ -4377,8 +4375,7 @@ static void CreateStructStub(ILStubState* pss,
             TRUE,
             FALSE,
             pMD,
-            TRUE,
-            FALSE
+            TRUE
             DEBUG_ARG(pSigDesc->m_pDebugName)
             DEBUG_ARG(pSigDesc->m_pDebugClassName)
             DEBUG_ARG(-1 /* field */));

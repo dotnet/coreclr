@@ -55,191 +55,177 @@ VOID ParseNativeType(Module*                     pModule,
     }
     CONTRACTL_END;
 
-    BOOL                fAnsi               = (flags == ParseNativeTypeFlags::IsAnsi);
+    BOOL fAnsi = (flags == ParseNativeTypeFlags::IsAnsi);
 #ifdef FEATURE_COMINTEROP
-    BOOL                fIsWinRT            = (flags == ParseNativeTypeFlags::IsWinRT);
+    BOOL fIsWinRT = (flags == ParseNativeTypeFlags::IsWinRT);
 #endif // FEATURE_COMINTEROP
-    
-    EX_TRY
-    {
 
-        MarshalInfo mlInfo(
-            pModule,
-            sig,
-            pTypeContext,
-            fd,
+    MarshalInfo mlInfo(
+        pModule,
+        sig,
+        pTypeContext,
+        fd,
 #if FEATURE_COMINTEROP
-            fIsWinRT ? MarshalInfo::MARSHAL_SCENARIO_WINRT_FIELD : MarshalInfo::MARSHAL_SCENARIO_FIELD,
+        fIsWinRT ? MarshalInfo::MARSHAL_SCENARIO_WINRT_FIELD : MarshalInfo::MARSHAL_SCENARIO_FIELD,
 #else
-            MarshalInfo::MARSHAL_SCENARIO_FIELD,
+        MarshalInfo::MARSHAL_SCENARIO_FIELD,
 #endif
-            fAnsi ? nltAnsi : nltUnicode,
-            nlfNone,
-            FALSE,
-            0,
-            0,
-            FALSE, // We only need validation of the native signature and the MARSHAL_TYPE_*
-            FALSE, // so we don't need to accurately get the BestFitCustomAttribute data for this construction.
-            FALSE, /* fEmitsIL */
-            FALSE, /* onInstanceMethod */
-            nullptr,
-            FALSE, /* fUseCustomMarshal */
-            TRUE /* fCalculatingFieldMetadata */
+        fAnsi ? nltAnsi : nltUnicode,
+        nlfNone,
+        FALSE,
+        0,
+        0,
+        FALSE, // We only need validation of the native signature and the MARSHAL_TYPE_*
+        FALSE, // so we don't need to accurately get the BestFitCustomAttribute data for this construction.
+        FALSE, /* fEmitsIL */
+        FALSE, /* onInstanceMethod */
+        nullptr,
+        FALSE /* fUseCustomMarshal */
 #ifdef _DEBUG
-            ,
-            szFieldName,
-            szClassName,
-            -1 /* field */
+        ,
+        szFieldName,
+        szClassName,
+        -1 /* field */
 #endif
-        );
+    );
 
-        OverrideProcArgs const* const pargs = mlInfo.GetOverrideProcArgs();
+    OverrideProcArgs const* const pargs = mlInfo.GetOverrideProcArgs();
 
-        switch (mlInfo.GetMarshalType())
-        {
-            case MarshalInfo::MARSHAL_TYPE_GENERIC_1:
-            case MarshalInfo::MARSHAL_TYPE_GENERIC_U1:
-                *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(INT8), alignof(INT8));
-                break;
-            case MarshalInfo::MARSHAL_TYPE_GENERIC_2:
-            case MarshalInfo::MARSHAL_TYPE_GENERIC_U2:
-                *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(INT16), alignof(INT16));
-                break;
-            case MarshalInfo::MARSHAL_TYPE_GENERIC_4:
-            case MarshalInfo::MARSHAL_TYPE_GENERIC_U4:
-                *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(INT32), alignof(INT32));
-                break;
-            case MarshalInfo::MARSHAL_TYPE_GENERIC_8:
-#if defined(_TARGET_X86_) && defined(UNIX_X86_ABI)
-                *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(INT64), 4);
-#else
-                *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(INT64), sizeof(INT64));
-#endif
-                break;
-            case MarshalInfo::MARSHAL_TYPE_ANSICHAR:
-                *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(CHAR), sizeof(CHAR));
-                break;
-            case MarshalInfo::MARSHAL_TYPE_WINBOOL:
-                *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(BOOL), sizeof(BOOL));
-                break;
-            case MarshalInfo::MARSHAL_TYPE_CBOOL:
-                *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(bool), sizeof(bool));
-                break;
-#ifdef FEATURE_COMINTEROP
-            case MarshalInfo::MARSHAL_TYPE_VTBOOL:
-                *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(VARIANT_BOOL), sizeof(VARIANT_BOOL));
-                break;
-#endif
-            case MarshalInfo::MARSHAL_TYPE_FLOAT:
-                *pNFD = NativeFieldDescriptor(NativeFieldCategory::FLOAT, sizeof(float), sizeof(float));
-                break;
-            case MarshalInfo::MARSHAL_TYPE_DOUBLE:
-#if defined(_TARGET_X86_) && defined(UNIX_X86_ABI)
-                *pNFD = NativeFieldDescriptor(NativeFieldCategory::FLOAT, sizeof(double), 4);
-#else
-                *pNFD = NativeFieldDescriptor(NativeFieldCategory::FLOAT, sizeof(double), sizeof(double));
-#endif
-                break;
-            case MarshalInfo::MARSHAL_TYPE_CURRENCY:
-                *pNFD = NativeFieldDescriptor(MscorlibBinder::GetClass(CLASS__CURRENCY));
-                break;
-            case MarshalInfo::MARSHAL_TYPE_DECIMAL:
-                // The decimal type can't be blittable since the managed and native alignment requirements differ.
-                // Native needs 8-byte alignment since one field is a 64-bit integer, but managed only needs 4-byte alignment since all fields are ints.
-                *pNFD = NativeFieldDescriptor(MscorlibBinder::GetClass(CLASS__NATIVEDECIMAL));
-                break;
-            case MarshalInfo::MARSHAL_TYPE_GUID:
-                *pNFD = NativeFieldDescriptor(MscorlibBinder::GetClass(CLASS__GUID));
-                break;
-            case MarshalInfo::MARSHAL_TYPE_DATE:
-                *pNFD = NativeFieldDescriptor(NativeFieldCategory::FLOAT, sizeof(double), sizeof(double));
-                break;
-            case MarshalInfo::MARSHAL_TYPE_LPWSTR:
-            case MarshalInfo::MARSHAL_TYPE_LPSTR:
-            case MarshalInfo::MARSHAL_TYPE_LPUTF8STR:
-            case MarshalInfo::MARSHAL_TYPE_BSTR:
-            case MarshalInfo::MARSHAL_TYPE_ANSIBSTR:
-                *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(void*), sizeof(void*));
-                break;      
-#ifdef FEATURE_COMINTEROP
-            case MarshalInfo::MARSHAL_TYPE_HSTRING:
-                *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(HSTRING), sizeof(HSTRING));
-                break;
-            case MarshalInfo::MARSHAL_TYPE_DATETIME:
-                *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(INT64), alignof(INT64));
-                break;
-            case MarshalInfo::MARSHAL_TYPE_INTERFACE:
-                *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(IUnknown*), sizeof(IUnknown*));
-                break;
-            case MarshalInfo::MARSHAL_TYPE_SAFEARRAY:
-                *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(SAFEARRAY*), sizeof(SAFEARRAY*));
-                break;
-#endif
-            case MarshalInfo::MARSHAL_TYPE_DELEGATE:
-                *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(void*), sizeof(void*));
-                break;
-            case MarshalInfo::MARSHAL_TYPE_BLITTABLEVALUECLASS:
-            case MarshalInfo::MARSHAL_TYPE_VALUECLASS:
-            case MarshalInfo::MARSHAL_TYPE_LAYOUTCLASS:
-            case MarshalInfo::MARSHAL_TYPE_BLITTABLE_LAYOUTCLASS:
-                *pNFD = NativeFieldDescriptor(pargs->m_pMT);
-                break;
-#ifdef FEATURE_COMINTEROP
-            case MarshalInfo::MARSHAL_TYPE_OBJECT:
-                *pNFD = NativeFieldDescriptor(MscorlibBinder::GetClass(CLASS__NATIVEVARIANT));
-                break;
-#endif
-            case MarshalInfo::MARSHAL_TYPE_SAFEHANDLE:
-            case MarshalInfo::MARSHAL_TYPE_CRITICALHANDLE:
-                *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(void*), sizeof(void*));
-                break;
-            case MarshalInfo::MARSHAL_TYPE_FIXED_ARRAY:
-            {
-                CREATE_MARSHALER_CARRAY_OPERANDS mops;
-                mlInfo.GetMops(&mops);
-
-                MethodTable *pMT = mops.methodTable;
-
-                if (pMT->IsEnum())
-                {
-                    pMT = MscorlibBinder::GetElementType(pMT->GetInternalCorElementType());
-                }
-
-                *pNFD = NativeFieldDescriptor(OleVariant::GetNativeMethodTableForVarType(mops.elementType, pMT), mops.additive);
-                break;
-            }
-            case MarshalInfo::MARSHAL_TYPE_FIXED_CSTR:
-                *pNFD = NativeFieldDescriptor(MscorlibBinder::GetClass(CLASS__BYTE), pargs->fs.fixedStringLength);
-                break;
-            case MarshalInfo::MARSHAL_TYPE_FIXED_WSTR:
-                *pNFD = NativeFieldDescriptor(MscorlibBinder::GetClass(CLASS__UINT16), pargs->fs.fixedStringLength);
-                break;
-#ifdef FEATURE_COMINTEROP
-            case MarshalInfo::MARSHAL_TYPE_SYSTEMTYPE:
-                *pNFD = NativeFieldDescriptor(MscorlibBinder::GetClass(CLASS__TYPENAMENATIVE));
-                break;
-            case MarshalInfo::MARSHAL_TYPE_EXCEPTION:
-                *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(int), alignof(int));
-                break;
-            case MarshalInfo::MARSHAL_TYPE_NULLABLE:
-                *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(IUnknown*), sizeof(IUnknown*));
-                break;
-#endif
-            case MarshalInfo::MARSHAL_TYPE_UNKNOWN:
-            default:
-                *pNFD = NativeFieldDescriptor();
-                break;
-        }
-    }
-    EX_CATCH
+    switch (mlInfo.GetMarshalType())
     {
-        // We were unable to determine the native type, likely because there is a mutually recursive type reference
-        // in this field's type. Mark this field as an "illegal" native field type. We'll throw an exception
-        // if the user actually tries to marshal this type from managed code to native code.
-        *pNFD = NativeFieldDescriptor();
-    }
-    EX_END_CATCH(RethrowTerminalExceptions);
+        case MarshalInfo::MARSHAL_TYPE_GENERIC_1:
+        case MarshalInfo::MARSHAL_TYPE_GENERIC_U1:
+            *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(INT8), alignof(INT8));
+            break;
+        case MarshalInfo::MARSHAL_TYPE_GENERIC_2:
+        case MarshalInfo::MARSHAL_TYPE_GENERIC_U2:
+            *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(INT16), alignof(INT16));
+            break;
+        case MarshalInfo::MARSHAL_TYPE_GENERIC_4:
+        case MarshalInfo::MARSHAL_TYPE_GENERIC_U4:
+            *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(INT32), alignof(INT32));
+            break;
+        case MarshalInfo::MARSHAL_TYPE_GENERIC_8:
+#if defined(_TARGET_X86_) && defined(UNIX_X86_ABI)
+            *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(INT64), 4);
+#else
+            *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(INT64), sizeof(INT64));
+#endif
+            break;
+        case MarshalInfo::MARSHAL_TYPE_ANSICHAR:
+            *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(CHAR), sizeof(CHAR));
+            break;
+        case MarshalInfo::MARSHAL_TYPE_WINBOOL:
+            *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(BOOL), sizeof(BOOL));
+            break;
+        case MarshalInfo::MARSHAL_TYPE_CBOOL:
+            *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(bool), sizeof(bool));
+            break;
+#ifdef FEATURE_COMINTEROP
+        case MarshalInfo::MARSHAL_TYPE_VTBOOL:
+            *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(VARIANT_BOOL), sizeof(VARIANT_BOOL));
+            break;
+#endif
+        case MarshalInfo::MARSHAL_TYPE_FLOAT:
+            *pNFD = NativeFieldDescriptor(NativeFieldCategory::FLOAT, sizeof(float), sizeof(float));
+            break;
+        case MarshalInfo::MARSHAL_TYPE_DOUBLE:
+#if defined(_TARGET_X86_) && defined(UNIX_X86_ABI)
+            *pNFD = NativeFieldDescriptor(NativeFieldCategory::FLOAT, sizeof(double), 4);
+#else
+            *pNFD = NativeFieldDescriptor(NativeFieldCategory::FLOAT, sizeof(double), sizeof(double));
+#endif
+            break;
+        case MarshalInfo::MARSHAL_TYPE_CURRENCY:
+            *pNFD = NativeFieldDescriptor(MscorlibBinder::GetClass(CLASS__CURRENCY));
+            break;
+        case MarshalInfo::MARSHAL_TYPE_DECIMAL:
+            // The decimal type can't be blittable since the managed and native alignment requirements differ.
+            // Native needs 8-byte alignment since one field is a 64-bit integer, but managed only needs 4-byte alignment since all fields are ints.
+            *pNFD = NativeFieldDescriptor(MscorlibBinder::GetClass(CLASS__NATIVEDECIMAL));
+            break;
+        case MarshalInfo::MARSHAL_TYPE_GUID:
+            *pNFD = NativeFieldDescriptor(MscorlibBinder::GetClass(CLASS__GUID));
+            break;
+        case MarshalInfo::MARSHAL_TYPE_DATE:
+            *pNFD = NativeFieldDescriptor(NativeFieldCategory::FLOAT, sizeof(double), sizeof(double));
+            break;
+        case MarshalInfo::MARSHAL_TYPE_LPWSTR:
+        case MarshalInfo::MARSHAL_TYPE_LPSTR:
+        case MarshalInfo::MARSHAL_TYPE_LPUTF8STR:
+        case MarshalInfo::MARSHAL_TYPE_BSTR:
+        case MarshalInfo::MARSHAL_TYPE_ANSIBSTR:
+            *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(void*), sizeof(void*));
+            break;      
+#ifdef FEATURE_COMINTEROP
+        case MarshalInfo::MARSHAL_TYPE_HSTRING:
+            *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(HSTRING), sizeof(HSTRING));
+            break;
+        case MarshalInfo::MARSHAL_TYPE_DATETIME:
+            *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(INT64), alignof(INT64));
+            break;
+        case MarshalInfo::MARSHAL_TYPE_INTERFACE:
+            *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(IUnknown*), sizeof(IUnknown*));
+            break;
+        case MarshalInfo::MARSHAL_TYPE_SAFEARRAY:
+            *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(SAFEARRAY*), sizeof(SAFEARRAY*));
+            break;
+#endif
+        case MarshalInfo::MARSHAL_TYPE_DELEGATE:
+            *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(void*), sizeof(void*));
+            break;
+        case MarshalInfo::MARSHAL_TYPE_BLITTABLEVALUECLASS:
+        case MarshalInfo::MARSHAL_TYPE_VALUECLASS:
+        case MarshalInfo::MARSHAL_TYPE_LAYOUTCLASS:
+        case MarshalInfo::MARSHAL_TYPE_BLITTABLE_LAYOUTCLASS:
+            *pNFD = NativeFieldDescriptor(pargs->m_pMT);
+            break;
+#ifdef FEATURE_COMINTEROP
+        case MarshalInfo::MARSHAL_TYPE_OBJECT:
+            *pNFD = NativeFieldDescriptor(MscorlibBinder::GetClass(CLASS__NATIVEVARIANT));
+            break;
+#endif
+        case MarshalInfo::MARSHAL_TYPE_SAFEHANDLE:
+        case MarshalInfo::MARSHAL_TYPE_CRITICALHANDLE:
+            *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(void*), sizeof(void*));
+            break;
+        case MarshalInfo::MARSHAL_TYPE_FIXED_ARRAY:
+        {
+            CREATE_MARSHALER_CARRAY_OPERANDS mops;
+            mlInfo.GetMops(&mops);
 
+            MethodTable *pMT = mops.methodTable;
+
+            if (pMT->IsEnum())
+            {
+                pMT = MscorlibBinder::GetElementType(pMT->GetInternalCorElementType());
+            }
+
+            *pNFD = NativeFieldDescriptor(OleVariant::GetNativeMethodTableForVarType(mops.elementType, pMT), mops.additive);
+            break;
+        }
+        case MarshalInfo::MARSHAL_TYPE_FIXED_CSTR:
+            *pNFD = NativeFieldDescriptor(MscorlibBinder::GetClass(CLASS__BYTE), pargs->fs.fixedStringLength);
+            break;
+        case MarshalInfo::MARSHAL_TYPE_FIXED_WSTR:
+            *pNFD = NativeFieldDescriptor(MscorlibBinder::GetClass(CLASS__UINT16), pargs->fs.fixedStringLength);
+            break;
+#ifdef FEATURE_COMINTEROP
+        case MarshalInfo::MARSHAL_TYPE_SYSTEMTYPE:
+            *pNFD = NativeFieldDescriptor(MscorlibBinder::GetClass(CLASS__TYPENAMENATIVE));
+            break;
+        case MarshalInfo::MARSHAL_TYPE_EXCEPTION:
+            *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(int), alignof(int));
+            break;
+        case MarshalInfo::MARSHAL_TYPE_NULLABLE:
+            *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(IUnknown*), sizeof(IUnknown*));
+            break;
+#endif
+        case MarshalInfo::MARSHAL_TYPE_UNKNOWN:
+        default:
+            *pNFD = NativeFieldDescriptor();
+            break;
+    }
 }
 
 bool IsFieldBlittable(
