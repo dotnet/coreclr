@@ -64,22 +64,8 @@ jobs:
     - name: nativeRootFolderPath
       value: $(binTestsPath)/$(osGroup).$(archType).$(buildConfigUpper)
 
-    - name: testArtifactNameCoreFxPart
-      value: ''
-
-    - ${{ if eq(parameters.corefxTests, true) }}:
-      - name: testArtifactNameCoreFxPart
-        value: '_corefx'
-
-    - name: testArtifactNameTestGroupPart
-      value: ''
-
-    - ${{ if ne(parameters.testGroup, '') }}:
-      - name: testArtifactNameTestGroupPart
-        value: _${{ parameters.testGroup }}
-
     - name: testArtifactName
-      value: Tests$(testArtifactNameCoreFxPart)_${{ parameters.managedTestBuildOsGroup }}${{ parameters.managedTestBuildOsSubgroup }}_$(archType)_$(buildConfig)$(testArtifactNameTestGroupPart)
+      value: Tests_${{ parameters.managedTestBuildOsGroup }}${{ parameters.managedTestBuildOsSubgroup }}_$(archType)_$(buildConfig)
 
     - name: testNativeArtifactName
       value: 'NativeTestComponents_$(osGroup)$(osSubgroup)_$(archType)_$(buildConfig)'

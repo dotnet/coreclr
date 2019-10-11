@@ -5,13 +5,10 @@ parameters:
   osSubgroup: ''
   container: ''
   testGroup: ''
-  # If true, run the corefx tests instead of the coreclr ones
-  corefxTests: false
+  crossrootfsDir: ''
   displayNameArgs: ''
   condition: true
   stagedBuild: false
-  priBuildNamePart: ''
-  priDisplayNamePart: ''
 
 ### Build managed test components (native components are getting built as part
 ### of the the product build job).
@@ -32,7 +29,6 @@ jobs:
     managedTestBuildOsSubgroup: ${{ parameters.osSubgroup }}
     container: ${{ parameters.container }}
     testGroup: ${{ parameters.testGroup }}
-    corefxTests: ${{ parameters.corefxTests }}
     stagedBuild: ${{ parameters.stagedBuild }}
 
     # Test jobs should continue on error for internal builds
@@ -40,8 +36,13 @@ jobs:
       continueOnError: true
 
     # Compute job name from template parameters
-    name: 'build_test_${{ parameters.priBuildNamePart }}${{ parameters.displayNameArgs }}_${{ parameters.osGroup }}${{ parameters.osSubgroup }}_${{ parameters.archType }}_${{ parameters.buildConfig }}'
-    displayName: 'Build Test ${{ parameters.priDisplayNamePart }}${{ parameters.displayNameArgs }} ${{ parameters.osGroup }}${{ parameters.osSubgroup }} ${{ parameters.archType }} ${{ parameters.buildConfig }}'
+    ${{ if eq(parameters.testGroup, 'innerloop') }}:
+      name: 'build_test_p0_${{ parameters.osGroup }}${{ parameters.osSubgroup }}_${{ parameters.archType }}_${{ parameters.buildConfig }}'      
+      displayName: 'Build Test Pri0 ${{ parameters.osGroup }}${{ parameters.osSubgroup }} ${{ parameters.archType }} ${{ parameters.buildConfig }}'
+
+    ${{ if ne(parameters.testGroup, 'innerloop') }}:
+      name: 'build_test_p1_${{ parameters.osGroup }}${{ parameters.osSubgroup }}_${{ parameters.archType }}_${{ parameters.buildConfig }}'      
+      displayName: 'Build Test Pri1 ${{ parameters.osGroup }}${{ parameters.osSubgroup }} ${{ parameters.archType }} ${{ parameters.buildConfig }}'
 
     # Since the condition is being altered, merge the default with the additional conditions.
     # See https://docs.microsoft.com/azure/devops/pipelines/process/conditions
@@ -113,16 +114,15 @@ jobs:
 
     # Publish .packages/microsoft.net.sdk.il needed for traversing
     # test projects during the copynativeonly command in run test job.
-    - ${{ if ne(parameters.corefxTests, true) }}:
-      - template: /eng/upload-artifact-step.yml
-        parameters:
-          rootFolder: $(microsoftNetSdkIlFolderPath)
-          includeRootFolder: false
-          archiveFile: $(Build.StagingDirectory)/$(microsoftNetSdkIlArtifactName)$(archiveExtension)
-          archiveType: $(archiveType)
-          tarCompression: $(tarCompression)
-          artifactName: $(microsoftNetSdkIlArtifactName)
-          displayName: 'Microsoft.NET.Sdk.IL package'
+    - template: /eng/upload-artifact-step.yml
+      parameters:
+        rootFolder: $(microsoftNetSdkIlFolderPath)
+        includeRootFolder: false
+        archiveFile: $(Build.StagingDirectory)/$(microsoftNetSdkIlArtifactName)$(archiveExtension)
+        archiveType: $(archiveType)
+        tarCompression: $(tarCompression)
+        artifactName: $(microsoftNetSdkIlArtifactName)
+        displayName: 'Microsoft.NET.Sdk.IL package'
 
 
     # Publish Logs
@@ -130,9 +130,6 @@ jobs:
       displayName: Publish Logs
       inputs:
         pathtoPublish: $(Build.SourcesDirectory)/bin/Logs
-        ${{ if eq(parameters.corefxTests, true) }}:
-          artifactName: ${{ format('TestBuildLogs_corefx_{0}{1}_{2}_{3}_{4}', parameters.osGroup, parameters.osSubgroup, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
-        ${{ if ne(parameters.corefxTests, true) }}:
-          artifactName: ${{ format('TestBuildLogs_{0}{1}_{2}_{3}_{4}', parameters.osGroup, parameters.osSubgroup, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
+        artifactName: ${{ format('TestBuildLogs_{0}{1}_{2}_{3}_{4}', parameters.osGroup, parameters.osSubgroup, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
       continueOnError: true
       condition: always()

@@ -23,7 +23,7 @@ jobs:
 
 - template: /eng/platform-matrix.yml
   parameters:
-    jobTemplate: test-job.yml
+    jobTemplate: build-test-job.yml
     buildConfig: checked
     platforms:
     - Linux_arm
@@ -34,5 +34,21 @@ jobs:
     helixQueueGroup: ci
     jobParameters:
       testGroup: outerloop
-      r2rPlatforms:
-      - all
+      readyToRun: true
+      displayNameArgs: R2R
+
+- template: /eng/platform-matrix.yml
+  parameters:
+    jobTemplate: run-test-job.yml
+    buildConfig: checked
+    platforms:
+    - Linux_arm
+    - Linux_arm64
+    - Linux_x64
+    - Windows_NT_x64
+    - Windows_NT_x86
+    helixQueueGroup: ci
+    jobParameters:
+      testGroup: outerloop
+      readyToRun: true
+      displayNameArgs: R2R
