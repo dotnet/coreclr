@@ -3,7 +3,7 @@
 # This file invokes cmake and generates the build system for Clang.
 #
 
-if [ $# -lt 5 ]
+if [ $# -lt 4 ]
 then
   echo "Usage..."
   echo "gen-buildsys.sh <path to top level CMakeLists.txt> <path to intermediate directory> <Architecture> [build flavor] [ninja] [scan-build] [cmakeargs]"
