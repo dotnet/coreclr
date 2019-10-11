@@ -195,12 +195,6 @@ bool DiagnosticServer::Shutdown()
     }
     CONTRACTL_END;
 
-    // COMPlus_EnableDiagnostics==0 disables diagnostics so there is nothing to do here.
-    if (CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_EnableDiagnostics) == 0)
-    {
-        return true;
-    }
-
     bool fSuccess = false;
 
     s_shuttingDown = true;
