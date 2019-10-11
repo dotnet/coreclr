@@ -206,9 +206,6 @@ bool DiagnosticServer::Shutdown()
                     szMessage);                                           // data2
             };
             s_pIpc->Close(ErrorCallback); // This will break the accept waiting for client connection.
-
-            delete s_pIpc;
-            s_pIpc = nullptr;
         }
         fSuccess = true;
     }
