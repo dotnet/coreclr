@@ -978,7 +978,8 @@ void Lowering::LowerHWIntrinsic(GenTreeHWIntrinsic* node)
             LowerHWIntrinsicCC(node, NI_AVX_PTEST, GenCondition::UGT);
             break;
 
-        case NI_FMA_MultiplyAddScalar: {
+        case NI_FMA_MultiplyAddScalar:
+        {
             // Math(F).FusedMultiplyAdd is expanded into NI_FMA_MultiplyAddScalar but
             // depending on additional GT_NEG nodes it can be:
             //
@@ -995,18 +996,18 @@ void Lowering::LowerHWIntrinsic(GenTreeHWIntrinsic* node)
             if (argList->Current()->OperIsHWIntrinsic()) // CreateScalarUnsafe is expected
             {
                 GenTreeUnOp* createScalarOpX = argList->Current()->AsUnOp();
-                GenTree* argX                = createScalarOpX->gtGetOp1();
+                GenTree*     argX            = createScalarOpX->gtGetOp1();
                 argList                      = argList->Rest();
                 if (argList->Current()->OperIsHWIntrinsic()) // CreateScalarUnsafe is expected
                 {
                     GenTreeUnOp* createScalarOpY = argList->Current()->AsUnOp();
-                    GenTree*                argY = createScalarOpY->gtGetOp1();
+                    GenTree*     argY            = createScalarOpY->gtGetOp1();
                     argList                      = argList->Rest();
                     if (argList->Current()->OperIsHWIntrinsic()) // CreateScalarUnsafe is expected
                     {
                         GenTreeUnOp* createScalarOpZ = argList->Current()->AsUnOp();
-                        GenTree*                argZ = createScalarOpZ->gtGetOp1();
-                        bool                  negMul = argX->OperIs(GT_NEG) ^ argY->OperIs(GT_NEG);
+                        GenTree*       argZ = createScalarOpZ->gtGetOp1();
+                        bool         negMul = argX->OperIs(GT_NEG) ^ argY->OperIs(GT_NEG);
                         if (argX->OperIs(GT_NEG))
                         {
                             BlockRange().Remove(argX);
@@ -1021,7 +1022,8 @@ void Lowering::LowerHWIntrinsic(GenTreeHWIntrinsic* node)
                         {
                             BlockRange().Remove(argZ);
                             createScalarOpZ->gtOp1 = argZ->gtGetOp1();
-                            node->gtHWIntrinsicId = negMul ? NI_FMA_MultiplySubtractNegatedScalar : NI_FMA_MultiplySubtractScalar;
+                            node->gtHWIntrinsicId =
+                                negMul ? NI_FMA_MultiplySubtractNegatedScalar : NI_FMA_MultiplySubtractScalar;
                         }
                         else
                         {
@@ -1030,7 +1032,6 @@ void Lowering::LowerHWIntrinsic(GenTreeHWIntrinsic* node)
                     }
                 }
             }
-
             break;
         }
 
