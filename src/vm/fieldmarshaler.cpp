@@ -317,10 +317,19 @@ bool IsFieldBlittable(
             {
                 isBlittable = false;
             }
-            else if (valueTypeHandle.GetMethodTable()->HasSameTypeDefAs(g_pNullableClass))
+#if FEATURE_COMINTEROP
+            else if (flags == ParseNativeTypeFlags::IsWinRT)
             {
-                isBlittable = false;
+                if (valueTypeHandle.GetMethodTable()->HasSameTypeDefAs(g_pNullableClass))
+                {
+                    isBlittable = false;
+                }
+                else if (valueTypeHandle.GetMethodTable()->HasSameTypeDefAs(MscorlibBinder::GetClass(CLASS__KEYVALUEPAIRGENERIC)))
+                {
+                    isBlittable = false;
+                }
             }
+#endif
             else
             {
                 isBlittable = !valueTypeHandle.GetMethodTable()->HasInstantiation() && valueTypeHandle.GetMethodTable()->IsBlittable();
