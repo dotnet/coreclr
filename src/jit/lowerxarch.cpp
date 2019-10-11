@@ -1006,8 +1006,8 @@ void Lowering::LowerHWIntrinsic(GenTreeHWIntrinsic* node)
                     if (argList->Current()->OperIsHWIntrinsic()) // CreateScalarUnsafe is expected
                     {
                         GenTreeUnOp* createScalarOpZ = argList->Current()->AsUnOp();
-                        GenTree*       argZ = createScalarOpZ->gtGetOp1();
-                        bool         negMul = argX->OperIs(GT_NEG) ^ argY->OperIs(GT_NEG);
+                        GenTree*     argZ            = createScalarOpZ->gtGetOp1();
+                        bool         negMul          = argX->OperIs(GT_NEG) ^ argY->OperIs(GT_NEG);
                         if (argX->OperIs(GT_NEG))
                         {
                             BlockRange().Remove(argX);
