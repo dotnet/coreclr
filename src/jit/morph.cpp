@@ -6963,6 +6963,14 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
         return nullptr;
     }
 
+    // Heuristic: regular calls to noreturn methods can sometimes be
+    // merged, so if we have multiple such calls, we defer tail calling.
+    if (call->IsNoReturn() && (optNoReturnCallCount > 1))
+    {
+        failTailCall("Defer tail calling throw helper; anticipating merge");
+        return nullptr;
+    }
+
 #ifdef _TARGET_AMD64_
     // Needed for Jit64 compat.
     // In future, enabling tail calls from methods that need GS cookie check

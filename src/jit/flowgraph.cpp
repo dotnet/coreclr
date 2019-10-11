@@ -25769,9 +25769,9 @@ void Compiler::fgTailMergeThrows()
     JITDUMP("\n*************** In fgTailMergeThrows\n");
 
     // Early out case for most methods. Throw helpers are rare.
-    if (!doesMethodHaveNoreturnCalls())
+    if (optNoReturnCallCount < 2)
     {
-        JITDUMP("Method does not have any noreturn calls.\n");
+        JITDUMP("Method does not have multiple noreturn calls.\n");
         return;
     }
 
