@@ -21608,8 +21608,8 @@ void Compiler::fgDebugCheckNodeLinks(BasicBlock* block, Statement* stmt)
             switch (tree->gtOper)
             {
                 case GT_QMARK:
-                    expectedPrevTree = tree->AsOp()->gtOp2->AsColon()->ThenNode(); // "then" operand of the GT_COLON
-                                                                                   // (generated second).
+                    // "then" operand of the GT_COLON (generated second).
+                    expectedPrevTree = tree->AsOp()->gtOp2->AsColon()->ThenNode();
                     break;
 
                 case GT_COLON:

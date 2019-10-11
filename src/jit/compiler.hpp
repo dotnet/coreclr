@@ -4587,7 +4587,7 @@ inline void DEBUG_DESTROY_NODE(GenTree* tree)
     {
         tree->AsOp()->gtOp1 = tree->AsOp()->gtOp2 = nullptr;
     }
-    // Must do this last, because the "GetOp()" check above will fail otherwise.
+    // Must do this last, because the "AsOp()" check above will fail otherwise.
     // Don't call SetOper, because GT_COUNT is not a valid value
     tree->gtOper = GT_COUNT;
 #endif
