@@ -1988,9 +1988,12 @@ void CodeGen::genCodeForInitBlkUnroll(GenTreeBlk* node)
             case 2:
                 storeIns = INS_strh;
                 break;
-            default:
+            case 4:
+            case 8:
                 storeIns = INS_str;
                 break;
+            default:
+                unreached();
         }
 
         emit->emitIns_R_R_I(storeIns, EA_ATTR(regSize), srcReg, dstAddrBaseReg, dstOffset);
@@ -2143,11 +2146,16 @@ void CodeGen::genCodeForCpBlkUnroll(GenTreeBlk* node)
                 attr = EA_4BYTE;
 #endif
                 break;
-            default:
+            case 4:
+#ifdef _TARGET_ARM64_
+            case 8:
+#endif
                 loadIns  = INS_ldr;
                 storeIns = INS_str;
                 attr     = EA_ATTR(regSize);
                 break;
+            default:
+                unreached();
         }
 
         if (srcLclNum != BAD_VAR_NUM)
