@@ -289,7 +289,7 @@ namespace ReadyToRun.SuperIlc
                 {
                     if (exclusion != null && (!exclusion.Crossgen2Only || runner.Index == CompilerIndex.CPAOT))
                     {
-                        _frameworkExclusions.Add(exclusion.SimpleName, exclusion.Reason);
+                        _frameworkExclusions[exclusion.SimpleName] = exclusion.Reason;
                         continue;
                     }
                     ProcessInfo compilationProcess = new ProcessInfo(new CompilationProcessConstructor(runner, _options.CoreRootDirectory.FullName, frameworkDll));
@@ -559,7 +559,7 @@ namespace ReadyToRun.SuperIlc
         {
             const int TopAppCount = 10;
 
-            IEnumerable<ProcessInfo> selection = processes.OrderByDescending(process => process.DurationMilliseconds).Take(TopAppCount);
+            IEnumerable<ProcessInfo> selection = processes.Where(process => !process.IsEmpty).OrderByDescending(process => process.DurationMilliseconds).Take(TopAppCount);
             int count = selection.Count();
             if (count == 0)
             {

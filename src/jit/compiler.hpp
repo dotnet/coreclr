@@ -904,9 +904,9 @@ inline GenTree::GenTree(genTreeOps oper, var_types type DEBUGARG(bool largeNode)
     ClearAssertion();
 #endif
 
-    gtNext   = nullptr;
-    gtPrev   = nullptr;
-    gtRegNum = REG_NA;
+    gtNext = nullptr;
+    gtPrev = nullptr;
+    SetRegNum(REG_NA);
     INDEBUG(gtRegTag = GT_REGTAG_NONE;)
 
     INDEBUG(gtCostsInitialized = false;)
@@ -1312,7 +1312,7 @@ inline GenTree* Compiler::gtUnusedValNode(GenTree* expr)
 
 inline void Compiler::gtSetStmtInfo(Statement* stmt)
 {
-    GenTree* expr = stmt->gtStmtExpr;
+    GenTree* expr = stmt->GetRootNode();
 
     /* Recursively process the expression */
 
@@ -1845,7 +1845,7 @@ inline VARSET_VALRET_TP Compiler::lvaStmtLclMask(Statement* stmt)
 
     assert(fgStmtListThreaded);
 
-    for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
+    for (GenTree* tree = stmt->GetTreeList(); tree != nullptr; tree = tree->gtNext)
     {
         if (tree->gtOper != GT_LCL_VAR)
         {

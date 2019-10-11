@@ -328,7 +328,6 @@ void GenTree::InitNodeSize()
     static_assert_no_msg(sizeof(GenTreeDynBlk)       <= TREE_NODE_SZ_LARGE); // *** large node
     static_assert_no_msg(sizeof(GenTreeRetExpr)      <= TREE_NODE_SZ_LARGE); // *** large node
     static_assert_no_msg(sizeof(GenTreeILOffset)     <= TREE_NODE_SZ_SMALL);
-    static_assert_no_msg(sizeof(Statement)         <= TREE_NODE_SZ_LARGE); // *** large node
     static_assert_no_msg(sizeof(GenTreeClsVar)       <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreeArgPlace)     <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreePhiArg)       <= TREE_NODE_SZ_SMALL);
@@ -571,7 +570,7 @@ void Compiler::fgWalkAllTreesPre(fgWalkPreFn* visitor, void* pCallBackData)
     {
         for (Statement* stmt : block->Statements())
         {
-            fgWalkTreePre(&stmt->gtStmtExpr, visitor, pCallBackData);
+            fgWalkTreePre(stmt->GetRootNodePointer(), visitor, pCallBackData);
         }
     }
 }
@@ -666,7 +665,7 @@ bool GenTree::gtHasReg() const
     }
     else
     {
-        hasReg = (gtRegNum != REG_NA);
+        hasReg = (GetRegNum() != REG_NA);
     }
 
     return hasReg;
@@ -744,7 +743,7 @@ regMaskTP GenTree::gtGetRegMask() const
     if (IsMultiRegCall())
     {
         // temporarily cast away const-ness as AsCall() method is not declared const
-        resultMask    = genRegMask(gtRegNum);
+        resultMask    = genRegMask(GetRegNum());
         GenTree* temp = const_cast<GenTree*>(this);
         resultMask |= temp->AsCall()->GetOtherRegMask();
     }
@@ -787,7 +786,7 @@ regMaskTP GenTree::gtGetRegMask() const
 #endif // FEATURE_ARG_SPLIT
     else
     {
-        resultMask = genRegMask(gtRegNum);
+        resultMask = genRegMask(GetRegNum());
     }
 
     return resultMask;
@@ -3735,7 +3734,7 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                                 // under a struct assignment would not be considered for addressing modes.
                                 if (compCurStmt != nullptr)
                                 {
-                                    GenTree* expr = compCurStmt->gtStmtExpr;
+                                    GenTree* expr = compCurStmt->GetRootNode();
                                     if ((expr->OperGet() == GT_ASG) &&
                                         ((expr->gtGetOp1() == tree) || (expr->gtGetOp2() == tree)))
                                     {
@@ -6800,7 +6799,7 @@ GenTree* Compiler::gtNewPutArgReg(var_types type, GenTree* arg, regNumber argReg
 #else
     node          = gtNewOperNode(GT_PUTARG_REG, type, arg);
 #endif
-    node->gtRegNum = argReg;
+    node->SetRegNum(argReg);
 
     return node;
 }
@@ -7812,14 +7811,14 @@ GenTree* Compiler::gtReplaceTree(Statement* stmt, GenTree* tree, GenTree* replac
     GenTree** treePtr    = nullptr;
     GenTree*  treeParent = tree->gtGetParent(&treePtr);
 
-    assert(treeParent != nullptr || tree == stmt->gtStmtExpr);
+    assert(treeParent != nullptr || tree == stmt->GetRootNode());
 
     if (treePtr == nullptr)
     {
         // Replace the stmt expr and rebuild the linear order for "stmt".
         assert(treeParent == nullptr);
         assert(fgOrder != FGOrderLinear);
-        stmt->gtStmtExpr = tree;
+        stmt->SetRootNode(tree);
         fgSetStmtSeq(stmt);
     }
     else
@@ -7866,8 +7865,8 @@ GenTree* Compiler::gtReplaceTree(Statement* stmt, GenTree* tree, GenTree* replac
         {
             // Update the linear oder start of "stmt" if treeFirstNode
             // appears to have replaced the original first node.
-            assert(treeFirstNode == stmt->gtStmtList);
-            stmt->gtStmtList = fgGetFirstNode(replacementTree);
+            assert(treeFirstNode == stmt->GetTreeList());
+            stmt->SetTreeList(fgGetFirstNode(replacementTree));
         }
 
         if (treeNextNode != nullptr)
@@ -7928,7 +7927,7 @@ void Compiler::gtUpdateTreeAncestorsSideEffects(GenTree* tree)
 
 void Compiler::gtUpdateStmtSideEffects(Statement* stmt)
 {
-    fgWalkTree(&stmt->gtStmtExpr, fgUpdateSideEffectsPre, fgUpdateSideEffectsPost);
+    fgWalkTree(stmt->GetRootNodePointer(), fgUpdateSideEffectsPre, fgUpdateSideEffectsPost);
 }
 
 //------------------------------------------------------------------------
@@ -7953,7 +7952,7 @@ void Compiler::gtUpdateNodeOperSideEffects(GenTree* tree)
         tree->gtFlags &= ~GTF_EXCEPT;
         if (tree->OperIsIndirOrArrLength())
         {
-            tree->gtFlags |= GTF_IND_NONFAULTING;
+            tree->SetIndirExceptionFlags(this);
         }
     }
 
@@ -9271,6 +9270,38 @@ bool GenTree::Precedes(GenTree* other)
     return false;
 }
 
+//------------------------------------------------------------------------------
+// SetIndirExceptionFlags : Set GTF_EXCEPT and GTF_IND_NONFAULTING flags as appropriate
+//                          on an indirection or an array length node.
+//
+// Arguments:
+//    comp  - compiler instance
+//
+
+void GenTree::SetIndirExceptionFlags(Compiler* comp)
+{
+    GenTree* addr = nullptr;
+    if (OperIsIndir())
+    {
+        addr = AsIndir()->Addr();
+    }
+    else
+    {
+        assert(gtOper == GT_ARR_LENGTH);
+        addr = AsArrLen()->ArrRef();
+    }
+
+    if (OperMayThrow(comp) || ((addr->gtFlags & GTF_EXCEPT) != 0))
+    {
+        gtFlags |= GTF_EXCEPT;
+    }
+    else
+    {
+        gtFlags &= ~GTF_EXCEPT;
+        gtFlags |= GTF_IND_NONFAULTING;
+    }
+}
+
 #ifdef DEBUG
 
 /* static */ int GenTree::gtDispFlags(unsigned flags, unsigned debugFlags)
@@ -10034,7 +10065,7 @@ void Compiler::gtDispRegVal(GenTree* tree)
         // case GenTree::GT_REGTAG_NONE:       printf(" NOREG");   break;
 
         case GenTree::GT_REGTAG_REG:
-            printf(" REG %s", compRegVarName(tree->gtRegNum));
+            printf(" REG %s", compRegVarName(tree->GetRegNum()));
             break;
 
         default:
@@ -10043,7 +10074,7 @@ void Compiler::gtDispRegVal(GenTree* tree)
 
     if (tree->IsMultiRegCall())
     {
-        // 0th reg is gtRegNum, which is already printed above.
+        // 0th reg is GettRegNum(), which is already printed above.
         // Print the remaining regs of a multi-reg call node.
         GenTreeCall* call     = tree->AsCall();
         unsigned     regCount = call->GetReturnTypeDesc()->TryGetReturnRegCount();
@@ -10557,7 +10588,7 @@ void Compiler::gtDispLeaf(GenTree* tree, IndentStack* indentStack)
             }
             else if (tree->InReg())
             {
-                printf(" %s", compRegVarName(tree->gtRegNum));
+                printf(" %s", compRegVarName(tree->GetRegNum()));
             }
 
             if (varDsc->lvPromoted)
@@ -11339,9 +11370,9 @@ void Compiler::gtGetArgMsg(
         else
         {
 #ifdef _TARGET_ARM_
-            if (curArgTabEntry->isSplit)
+            if (curArgTabEntry->IsSplit())
             {
-                regNumber firstReg = curArgTabEntry->regNum;
+                regNumber firstReg = curArgTabEntry->GetRegNum();
                 if (listCount == -1)
                 {
                     if (curArgTabEntry->numRegs == 1)
@@ -11450,7 +11481,7 @@ void Compiler::gtGetLateArgMsg(
 
     fgArgTabEntry* curArgTabEntry = gtArgEntryByLateArgIndex(call, lateArgIndex);
     assert(curArgTabEntry);
-    regNumber argReg = curArgTabEntry->regNum;
+    regNumber argReg = curArgTabEntry->GetRegNum();
 
 #if !FEATURE_FIXED_OUT_ARGS
     assert(lateArgIndex < call->regArgListCount);
@@ -11469,9 +11500,9 @@ void Compiler::gtGetLateArgMsg(
             sprintf_s(bufp, bufLength, "this in %s%c", compRegVarName(argReg), 0);
         }
 #ifdef _TARGET_ARM_
-        else if (curArgTabEntry->isSplit)
+        else if (curArgTabEntry->IsSplit())
         {
-            regNumber firstReg = curArgTabEntry->regNum;
+            regNumber firstReg = curArgTabEntry->GetRegNum();
             unsigned  argNum   = curArgTabEntry->argNum;
             if (listCount == -1)
             {
@@ -11540,7 +11571,7 @@ void Compiler::gtGetLateArgMsg(
                 assert(listCount <= MAX_ARG_REG_COUNT);
                 char separator = (curArgTabEntry->numRegs == 2) ? ',' : '-';
                 sprintf_s(bufp, bufLength, "arg%d %s%c%s%c", curArgTabEntry->argNum, compRegVarName(argReg), separator,
-                          compRegVarName(curArgTabEntry->getRegNum(curArgTabEntry->numRegs - 1)), 0);
+                          compRegVarName(curArgTabEntry->GetRegNum(curArgTabEntry->numRegs - 1)), 0);
             }
             else
 #endif
@@ -11601,7 +11632,7 @@ void Compiler::gtDispStmt(Statement* stmt, const char* msg /* = nullptr */)
             printf("%s ", msg);
         }
         printStmtID(stmt);
-        IL_OFFSETX firstILOffsx = stmt->gtStmtILoffsx;
+        IL_OFFSETX firstILOffsx = stmt->GetILOffsetX();
         printf(" (IL ");
         if (firstILOffsx == BAD_IL_OFFSET)
         {
@@ -11613,7 +11644,7 @@ void Compiler::gtDispStmt(Statement* stmt, const char* msg /* = nullptr */)
         }
         printf("...");
 
-        IL_OFFSET lastILOffs = stmt->gtStmtLastILoffs;
+        IL_OFFSET lastILOffs = stmt->GetLastILOffset();
         if (lastILOffs == BAD_IL_OFFSET)
         {
             printf("  ???");
@@ -11624,7 +11655,7 @@ void Compiler::gtDispStmt(Statement* stmt, const char* msg /* = nullptr */)
         }
         printf(")\n");
     }
-    gtDispTree(stmt->gtStmtExpr);
+    gtDispTree(stmt->GetRootNode());
 }
 
 //------------------------------------------------------------------------
@@ -12860,7 +12891,7 @@ GenTree* Compiler::gtTryRemoveBoxUpstreamEffects(GenTree* op, BoxRemovalOptions 
             asgStmt->GetID(), copyStmt->GetID());
 
     // If we don't recognize the form of the assign, bail.
-    GenTree* asg = asgStmt->gtStmtExpr;
+    GenTree* asg = asgStmt->GetRootNode();
     if (asg->gtOper != GT_ASG)
     {
         JITDUMP(" bailing; unexpected assignment op %s\n", GenTree::OpName(asg->gtOper));
@@ -12907,7 +12938,7 @@ GenTree* Compiler::gtTryRemoveBoxUpstreamEffects(GenTree* op, BoxRemovalOptions 
     }
 
     // If we don't recognize the form of the copy, bail.
-    GenTree* copy = copyStmt->gtStmtExpr;
+    GenTree* copy = copyStmt->GetRootNode();
     if (copy->gtOper != GT_ASG)
     {
         // GT_RET_EXPR is a tolerable temporary failure.
@@ -13062,7 +13093,7 @@ GenTree* Compiler::gtTryRemoveBoxUpstreamEffects(GenTree* op, BoxRemovalOptions 
         // value as the copy is fairly cheap and likely
         // the optimizer can trim things down to just the
         // minimal side effect parts.
-        copyStmt->gtStmtExpr = copySrc;
+        copyStmt->SetRootNode(copySrc);
         JITDUMP(" to scalar read via [%06u]\n", dspTreeID(copySrc));
     }
     else
@@ -13071,7 +13102,7 @@ GenTree* Compiler::gtTryRemoveBoxUpstreamEffects(GenTree* op, BoxRemovalOptions 
         // source struct; there's no need to read the
         // entire thing, and no place to put it.
         assert(copySrc->gtOper == GT_OBJ || copySrc->gtOper == GT_IND || copySrc->gtOper == GT_FIELD);
-        copyStmt->gtStmtExpr = copySrc;
+        copyStmt->SetRootNode(copySrc);
 
         if (options == BR_REMOVE_AND_NARROW || options == BR_REMOVE_AND_NARROW_WANT_TYPE_HANDLE)
         {
@@ -13238,8 +13269,8 @@ GenTree* Compiler::gtOptimizeEnumHasFlag(GenTree* thisOp, GenTree* flagOp)
         const unsigned thisTmp     = lvaGrabTemp(true DEBUGARG("Enum:HasFlag this temp"));
         GenTree*       thisAsg     = gtNewTempAssign(thisTmp, thisVal);
         Statement*     thisAsgStmt = thisOp->AsBox()->gtCopyStmtWhenInlinedBoxValue;
-        thisAsgStmt->gtStmtExpr    = thisAsg;
-        thisValOpt                 = gtNewLclvNode(thisTmp, type);
+        thisAsgStmt->SetRootNode(thisAsg);
+        thisValOpt = gtNewLclvNode(thisTmp, type);
     }
 
     if (flagVal->IsIntegralConst())
@@ -13254,9 +13285,9 @@ GenTree* Compiler::gtOptimizeEnumHasFlag(GenTree* thisOp, GenTree* flagOp)
         const unsigned flagTmp     = lvaGrabTemp(true DEBUGARG("Enum:HasFlag flag temp"));
         GenTree*       flagAsg     = gtNewTempAssign(flagTmp, flagVal);
         Statement*     flagAsgStmt = flagOp->AsBox()->gtCopyStmtWhenInlinedBoxValue;
-        flagAsgStmt->gtStmtExpr    = flagAsg;
-        flagValOpt                 = gtNewLclvNode(flagTmp, type);
-        flagValOptCopy             = gtNewLclvNode(flagTmp, type);
+        flagAsgStmt->SetRootNode(flagAsg);
+        flagValOpt     = gtNewLclvNode(flagTmp, type);
+        flagValOptCopy = gtNewLclvNode(flagTmp, type);
     }
 
     // Turn the call into (thisValTmp & flagTmp) == flagTmp.
@@ -15441,7 +15472,7 @@ Compiler::FindLinkData Compiler::gtFindLink(Statement* stmt, GenTree* node)
 {
     FindLinkData data = {node, nullptr, nullptr};
 
-    fgWalkResult result = fgWalkTreePre(&stmt->gtStmtExpr, gtFindLinkCB, &data);
+    fgWalkResult result = fgWalkTreePre(stmt->GetRootNodePointer(), gtFindLinkCB, &data);
 
     if (result == WALK_ABORT)
     {

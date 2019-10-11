@@ -626,7 +626,7 @@ unsigned Compiler::optValnumCSE_Locate()
         {
             /* We walk the tree in the forwards direction (bottom up) */
             bool stmtHasArrLenCandidate = false;
-            for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
+            for (GenTree* tree = stmt->GetTreeList(); tree != nullptr; tree = tree->gtNext)
             {
                 if (tree->OperIsCompare() && stmtHasArrLenCandidate)
                 {
@@ -1011,7 +1011,7 @@ void Compiler::optValnumCSE_Availablity()
         {
             // We walk the tree in the forwards direction (bottom up)
 
-            for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
+            for (GenTree* tree = stmt->GetTreeList(); tree != nullptr; tree = tree->gtNext)
             {
                 if (IS_CSE_INDEX(tree->gtCSEnum))
                 {
@@ -2012,6 +2012,7 @@ public:
     // It will replace all of the CSE defs with assignments to a new "cse0" LclVar
     // and will replace all of the CSE uses with reads of the "cse0" LclVar
     //
+    // It will also put cse0 into SSA if there is just one def.
     void PerformCSE(CSE_Candidate* successfulCandidate)
     {
         unsigned cseRefCnt = (successfulCandidate->DefCount() * 2) + successfulCandidate->UseCount();
@@ -2071,6 +2072,21 @@ public:
         //
         Compiler::CSEdsc*      dsc = successfulCandidate->CseDsc();
         Compiler::treeStmtLst* lst;
+
+        // If there's just a single def for the CSE, we'll put this
+        // CSE into SSA form on the fly. We won't need any PHIs.
+        unsigned cseSsaNum = SsaConfig::RESERVED_SSA_NUM;
+
+        if (dsc->csdDefCount == 1)
+        {
+            JITDUMP("CSE #%02u is single-def, so associated cse temp V%02u will be in SSA\n", dsc->csdIndex,
+                    cseLclVarNum);
+            m_pCompiler->lvaTable[cseLclVarNum].lvInSsa = true;
+
+            // Allocate the ssa num
+            CompAllocator allocator = m_pCompiler->getAllocator(CMK_SSA);
+            cseSsaNum               = m_pCompiler->lvaTable[cseLclVarNum].lvPerSsaData.AllocSsaNum(allocator);
+        }
 
 #ifdef DEBUG
         // Verify that all of the ValueNumbers in this list are correct as
@@ -2184,6 +2200,9 @@ public:
                 //
                 ValueNumStore* vnStore = m_pCompiler->vnStore;
                 cse                    = m_pCompiler->gtNewLclvNode(cseLclVarNum, cseLclVarTyp);
+
+                // Assign the ssa num for the use. Note it may be the reserved num.
+                cse->gtLclVarCommon.SetSsaNum(cseSsaNum);
 
                 // assign the proper ValueNumber, A CSE use discards any exceptions
                 cse->gtVNPair = vnStore->VNPNormalPair(exp->gtVNPair);
@@ -2348,9 +2367,29 @@ public:
 
                 noway_assert(asg->gtOp.gtOp1->gtOper == GT_LCL_VAR);
 
+                // Backpatch the SSA def, if we're putting this cse temp into ssa.
+                asg->gtOp.gtOp1->AsLclVar()->SetSsaNum(cseSsaNum);
+
+                if (cseSsaNum != SsaConfig::RESERVED_SSA_NUM)
+                {
+                    LclSsaVarDsc* ssaVarDsc = m_pCompiler->lvaTable[cseLclVarNum].GetPerSsaData(cseSsaNum);
+
+                    // These should not have been set yet, since this is the first and
+                    // only def for this CSE.
+                    assert(ssaVarDsc->m_defLoc.m_blk == nullptr);
+                    assert(ssaVarDsc->m_defLoc.m_tree == nullptr);
+
+                    ssaVarDsc->m_vnPair        = val->gtVNPair;
+                    ssaVarDsc->m_defLoc.m_blk  = blk;
+                    ssaVarDsc->m_defLoc.m_tree = asg;
+                }
+
                 /* Create a reference to the CSE temp */
                 GenTree* ref  = m_pCompiler->gtNewLclvNode(cseLclVarNum, cseLclVarTyp);
                 ref->gtVNPair = val->gtVNPair; // The new 'ref' is the same as 'val'
+
+                // Assign the ssa num for the ref use. Note it may be the reserved num.
+                ref->gtLclVarCommon.SetSsaNum(cseSsaNum);
 
                 // If it has a zero-offset field seq, copy annotation to the ref
                 if (hasZeroMapAnnotation)
@@ -2891,7 +2930,7 @@ void Compiler::optCleanupCSEs()
         for (Statement* stmt : StatementList(block->FirstNonPhiDef()))
         {
             // We must clear the gtCSEnum field.
-            for (GenTree* tree = stmt->gtStmtExpr; tree; tree = tree->gtPrev)
+            for (GenTree* tree = stmt->GetRootNode(); tree; tree = tree->gtPrev)
             {
                 tree->gtCSEnum = NO_CSE;
             }
@@ -2917,7 +2956,7 @@ void Compiler::optEnsureClearCSEInfo()
         // Walk the statement trees in this basic block
         for (Statement* stmt : StatementList(block->FirstNonPhiDef()))
         {
-            for (GenTree* tree = stmt->gtStmtExpr; tree; tree = tree->gtPrev)
+            for (GenTree* tree = stmt->GetRootNode(); tree; tree = tree->gtPrev)
             {
                 assert(tree->gtCSEnum == NO_CSE);
             }
