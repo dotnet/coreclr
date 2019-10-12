@@ -23,6 +23,8 @@ public static class Bisect
 
     public static volatile object VolatileObject;
 
+    private static double xi, error;
+
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void Escape(object obj)
     {
@@ -33,7 +35,7 @@ public static class Bisect
     private static bool Bench()
     {
         int idbg, iflag;
-        double a, b, error, p1, xi;
+        double a, b, p1;
 
         iflag = 0;
         error = 0.0;
@@ -150,9 +152,17 @@ public static class Bisect
         }
     }
 
+    private static bool VerifyResult()
+    {
+        const float DIFF = 0.0000001f;
+        bool result = Math.Abs(xi - 1.3247175216674805) < DIFF;
+        return result & Math.Abs(error - 0.00000095367431640625) < DIFF;
+    }
+
     private static bool TestBase()
     {
-        bool result = Bench();
+        Bench();
+        bool result = VerifyResult();
         return result;
     }
 

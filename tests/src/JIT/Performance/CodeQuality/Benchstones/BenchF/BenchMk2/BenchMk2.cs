@@ -41,6 +41,27 @@ public static class BenchMk2
         return true;
     }
 
+    private static bool VerifyResult()
+    {
+        const float DIFF = 0.0000001f;
+        bool result = Math.Abs(s_p - 3.1415927f) < DIFF;
+        result &= s_n == Iterations;
+
+#if DEBUG
+        result &= Math.Abs(s_a - 0) < DIFF;
+        result &= Math.Abs(s_f - s_p) < DIFF;
+        result &= Math.Abs(s_x - s_p) < DIFF;
+        result &= Math.Abs(s_e - 0) < DIFF;
+#else
+        result &= Math.Abs(s_a - 0.0000000010103666) < DIFF;
+        result &= Math.Abs(s_f - 0.0000007853982) < DIFF;
+        result &= Math.Abs(s_x - s_p) < DIFF;
+        result &= Math.Abs(s_e - 0) < DIFF;
+#endif
+
+        return result;
+    }
+
     [Benchmark]
     public static void Test()
     {
@@ -61,7 +82,8 @@ public static class BenchMk2
 
     public static int Main()
     {
-        bool result = TestBase();
+        TestBase();
+        bool result = VerifyResult();
         return (result ? 100 : -1);
     }
 }
