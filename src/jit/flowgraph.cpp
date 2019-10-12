@@ -26022,7 +26022,7 @@ void Compiler::fgTailMergeThrowsFallThroughHelper(BasicBlock* predBlock,
     newBlock->bbJumpDest = canonicalBlock;
     fgAddRefPred(canonicalBlock, newBlock, predEdge);
 
-    // Note there's now a jump to the canonical block
+    // Note there is now a jump to the canonical block
     canonicalBlock->bbFlags |= (BBF_JMP_TARGET | BBF_HAS_LABEL);
 }
 
@@ -26054,6 +26054,6 @@ void Compiler::fgTailMergeThrowsJumpToHelper(BasicBlock* predBlock,
     predBlock->bbJumpDest = canonicalBlock;
     fgAddRefPred(canonicalBlock, predBlock, predEdge);
 
-    // Note there's now a jump to the canonical block
+    // Note there is now a jump to the canonical block
     canonicalBlock->bbFlags |= (BBF_JMP_TARGET | BBF_HAS_LABEL);
 }
