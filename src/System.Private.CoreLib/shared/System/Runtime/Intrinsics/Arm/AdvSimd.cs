@@ -665,6 +665,150 @@ namespace System.Runtime.Intrinsics.Arm
         public static unsafe Vector128<ulong> LoadVector128(ulong* address) => LoadVector128(address);
 
         /// <summary>
+        /// uint8x8_t vmvn_u8 (uint8x8_t a)
+        ///   A32: VMVN Dd, Dn, Dm
+        ///   A64: MVN Vd, Vn, Vm
+        /// </summary>
+        public static Vector64<byte> Not(Vector64<byte> value) => Not(value);
+
+        // /// <summary>
+        // /// float64x1_t vmvn_f64 (float64x1_t a)
+        // ///   A32: VMVN Dd, Dn, Dm
+        // ///   A64: MVN Vd, Vn, Vm
+        // /// The above native signature does not exist. We provide this additional overload for consistency with the other scalar APIs.
+        // /// </summary>
+        // public static Vector64<double> Not(Vector64<double> value) => Not(value);
+
+        /// <summary>
+        /// int16x4_t vmvn_s16 (int16x4_t a)
+        ///   A32: VMVN Dd, Dn, Dm
+        ///   A64: MVN Vd, Vn, Vm
+        /// </summary>
+        public static Vector64<short> Not(Vector64<short> value) => Not(value);
+
+        /// <summary>
+        /// int32x2_t vmvn_s32(int32x2_t a)
+        ///   A32: VMVN Dd, Dn, Dm
+        ///   A64: MVN Vd, Vn, Vm
+        /// </summary>
+        public static Vector64<int> Not(Vector64<int> value) => Not(value);
+
+        // /// <summary>
+        // /// int64x1_t vmvn_s64 (int64x1_t a)
+        // ///   A32: VMVN Dd, Dn, Dm
+        // ///   A64: MVN Vd, Vn, Vm
+        // /// </summary>
+        // public static Vector64<long> Not(Vector64<long> value) => Not(value);
+
+        /// <summary>
+        /// int8x8_t vmvn_s8 (int8x8_t a)
+        ///   A32: VMVN Dd, Dn, Dm
+        ///   A64: MVN Vd, Vn, Vm
+        /// </summary>
+        public static Vector64<sbyte> Not(Vector64<sbyte> value) => Not(value);
+
+        /// <summary>
+        /// float32x2_t vmvn_f32 (float32x2_t a)
+        ///   A32: VMVN Dd, Dn, Dm
+        ///   A64: MVN Vd, Vn, Vm
+        /// The above native signature does not exist. We provide this additional overload for consistency with the other scalar APIs.
+        /// </summary>
+        public static Vector64<float> Not(Vector64<float> value) => Not(value);
+
+        /// <summary>
+        /// uint16x4_t vmvn_u16 (uint16x4_t a)
+        ///   A32: VMVN Dd, Dn, Dm
+        ///   A64: MVN Vd, Vn, Vm
+        /// </summary>
+        public static Vector64<ushort> Not(Vector64<ushort> value) => Not(value);
+
+        /// <summary>
+        /// uint32x2_t vmvn_u32 (uint32x2_t a)
+        ///   A32: VMVN Dd, Dn, Dm
+        ///   A64: MVN Vd, Vn, Vm
+        /// </summary>
+        public static Vector64<uint> Not(Vector64<uint> value) => Not(value);
+
+        // /// <summary>
+        // /// uint64x1_t vmvn_u64 (uint64x1_t a)
+        // ///   A32: VMVN Dd, Dn, Dm
+        // ///   A64: MVN Vd, Vn, Vm
+        // /// </summary>
+        // public static Vector64<ulong> Not(Vector64<ulong> value) => Not(value);
+
+        /// <summary>
+        /// uint8x16_t vmvn_u8 (uint8x16_t a)
+        ///   A32: VMVN Dd, Dn, Dm
+        ///   A64: MVN Vd, Vn, Vm
+        /// </summary>
+        public static Vector128<byte> Not(Vector128<byte> value) => Not(value);
+
+        /// <summary>
+        /// float64x2_t vmvn_f64 (float64x2_t a)
+        ///   A32: VMVN Dd, Dn, Dm
+        ///   A64: MVN Vd, Vn, Vm
+        /// The above native signature does not exist. We provide this additional overload for consistency with the other scalar APIs.
+        /// </summary>
+        public static Vector128<double> Not(Vector128<double> value) => Not(value);
+
+        /// <summary>
+        /// int16x8_t vmvn_s16 (int16x8_t a)
+        ///   A32: VMVN Dd, Dn, Dm
+        ///   A64: MVN Vd, Vn, Vm
+        /// </summary>
+        public static Vector128<short> Not(Vector128<short> value) => Not(value);
+
+        /// <summary>
+        /// int32x4_t vmvn_s32(int32x4_t a)
+        ///   A32: VMVN Dd, Dn, Dm
+        ///   A64: MVN Vd, Vn, Vm
+        /// </summary>
+        public static Vector128<int> Not(Vector128<int> value) => Not(value);
+
+        /// <summary>
+        /// int64x2_t vmvn_s64 (int64x2_t a)
+        ///   A32: VMVN Dd, Dn, Dm
+        ///   A64: MVN Vd, Vn, Vm
+        /// </summary>
+        public static Vector128<long> Not(Vector128<long> value) => Not(value);
+
+        /// <summary>
+        /// int8x16_t vmvn_s8 (int8x16_t a)
+        ///   A32: VMVN Dd, Dn, Dm
+        ///   A64: MVN Vd, Vn, Vm
+        /// </summary>
+        public static Vector128<sbyte> Not(Vector128<sbyte> value) => Not(value);
+
+        /// <summary>
+        /// float32x4_t vmvn_f32 (float32x4_t a)
+        ///   A32: VMVN Dd, Dn, Dm
+        ///   A64: MVN Vd, Vn, Vm
+        /// The above native signature does not exist. We provide this additional overload for consistency with the other scalar APIs.
+        /// </summary>
+        public static Vector128<float> Not(Vector128<float> value) => Not(value);
+
+        /// <summary>
+        /// uint16x8_t vmvn_u16 (uint16x8_t a)
+        ///   A32: VMVN Dd, Dn, Dm
+        ///   A64: MVN Vd, Vn, Vm
+        /// </summary>
+        public static Vector128<ushort> Not(Vector128<ushort> value) => Not(value);
+
+        /// <summary>
+        /// uint32x4_t vmvn_u32 (uint32x4_t a)
+        ///   A32: VMVN Dd, Dn, Dm
+        ///   A64: MVN Vd, Vn, Vm
+        /// </summary>
+        public static Vector128<uint> Not(Vector128<uint> value) => Not(value);
+
+        /// <summary>
+        /// uint64x2_t vmvn_u64 (uint64x2_t a)
+        ///   A32: VMVN Dd, Dn, Dm
+        ///   A64: MVN Vd, Vn, Vm
+        /// </summary>
+        public static Vector128<ulong> Not(Vector128<ulong> value) => Not(value);
+
+        /// <summary>
         /// uint8x8_t vorr_u8 (uint8x8_t a, uint8x8_t b)
         ///   A32: VORR Dd, Dn, Dm
         ///   A64: ORR Vd, Vn, Vm
