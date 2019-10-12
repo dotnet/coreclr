@@ -121,7 +121,7 @@ void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
                 op2Reg  = op2->GetRegNum();
 
                 argList          = argList->Rest();
-                GenTree* op3     = argList->Current();
+                GenTree*  op3    = argList->Current();
                 regNumber op3Reg = op3->GetRegNum();
 
                 if (targetReg != op1Reg)
@@ -202,7 +202,7 @@ void CodeGen::genSpecialIntrinsic(GenTreeHWIntrinsic* node)
             emit->emitIns_R_R(ins, emitSize, targetReg, op2Reg, opt);
             break;
         }
-        
+
         case NI_ArmBase_LeadingZeroCount:
         case NI_ArmBase_Arm64_LeadingSignCount:
         case NI_ArmBase_Arm64_LeadingZeroCount:
