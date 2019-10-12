@@ -12467,7 +12467,7 @@ DONE_MORPHING_CHILDREN:
 
                     op2->AsIntConCommon()->SetIconValue(-op2->AsIntConCommon()->IconValue());
                     op2->AsIntConRef().gtFieldSeq = FieldSeqStore::NotAField();
-                    oper                     = GT_ADD;
+                    oper                          = GT_ADD;
                     tree->ChangeOper(oper);
                     goto CM_ADD_OP;
                 }
@@ -12603,7 +12603,7 @@ DONE_MORPHING_CHILDREN:
                     {
                         cns1 = op1->AsOp()->gtOp2;
                         op2->AsIntConCommon()->SetIconValue(cns1->AsIntConCommon()->IconValue() +
-                                                         op2->AsIntConCommon()->IconValue());
+                                                            op2->AsIntConCommon()->IconValue());
 #ifdef _TARGET_64BIT_
                         if (op2->TypeGet() == TYP_INT)
                         {
