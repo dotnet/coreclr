@@ -636,7 +636,7 @@ private:
                 // the benefit of a larger tree is unclear.
                 JITDUMP("Updating GT_RET_EXPR [%06u] for VOID return to refer to a NOP\n",
                         compiler->dspTreeID(retExpr));
-                GenTree* nopTree                     = compiler->gtNewNothingNode();
+                GenTree* nopTree                        = compiler->gtNewNothingNode();
                 retExpr->AsRetExpr()->gtInlineCandidate = nopTree;
             }
             else

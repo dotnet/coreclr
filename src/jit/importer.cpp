@@ -1624,7 +1624,7 @@ GenTree* Compiler::impNormStructVal(GenTree*             structVal,
 
         case GT_RET_EXPR:
             structVal->AsRetExpr()->gtRetClsHnd = structHnd;
-            makeTemp                         = true;
+            makeTemp                            = true;
             break;
 
         case GT_ARGPLACE:
