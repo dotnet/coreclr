@@ -726,7 +726,7 @@ DEFINE_FIELD(RAW_DATA,              DATA,                   Data)
 
 DEFINE_CLASS(RAW_ARRAY_DATA,        CompilerServices,       RawArrayData)
 DEFINE_FIELD(RAW_ARRAY_DATA,        LENGTH,                 Length)
-#ifdef BIT64
+#ifdef _TARGET_64BIT_
 DEFINE_FIELD(RAW_ARRAY_DATA,        PADDING,                Padding)
 #endif
 DEFINE_FIELD(RAW_ARRAY_DATA,        DATA,                   Data)
