@@ -229,7 +229,7 @@ endm
 
 ; PERF TODO: consider prefetching the entire interface map into the cache
 
-; For all bizarre castes this quickly fails and falls back onto the JITutil_IsInstanceOfAny
+; For all bizarre castes this quickly fails and falls back onto the JITutil_IsInstanceOfInterface
 ; helper, this means that all failure cases take the slow path as well.
 ;
 ; This can trash r10/r11

@@ -2082,7 +2082,6 @@ TypeHandle::CastResult STDCALL ObjIsInstanceOfCached(Object *pObject, TypeHandle
 
     MethodTable* pMT = pObject->GetMethodTable();
     return CastCache::TryGetFromCache(pMT, toTypeHnd);
-
 }
 
 BOOL ObjIsInstanceOfCore(Object *pObject, TypeHandle toTypeHnd, BOOL throwCastException)
@@ -2353,24 +2352,11 @@ HCIMPL2(Object *, JIT_ChkCastArray, CORINFO_CLASS_HANDLE type, Object *pObject)
         return NULL;
     }
 
-    OBJECTREF refObj = ObjectToOBJECTREF(pObject);
-    VALIDATEOBJECTREF(refObj);
-
-    TypeHandle::CastResult result;
-
-    MethodTable* pMT = refObj->GetMethodTable();
-    if (!pMT->IsArray())
+    TypeHandle th = TypeHandle(type);
+    TypeHandle::CastResult result = ObjIsInstanceOfCached(pObject, th);
+    if (result == TypeHandle::CanCast)
     {
-        result = TypeHandle::CannotCast;
-    }
-    else
-    {
-        TypeHandle th = TypeHandle(type);
-        result = CastCache::TryGetFromCache(pMT, th);
-        if (result == TypeHandle::CanCast)
-        {
-            return pObject;
-        }
+        return pObject;
     }
 
     ENDFORBIDGC();
