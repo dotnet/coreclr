@@ -9,7 +9,6 @@
 #define _CAST_CACHE_H
 
 #include "util.hpp"
-#include "syncclean.hpp"
 
 //
 // A very lightweight cache that maps {source, target} -> result, where result is 
@@ -30,13 +29,13 @@
 //
 // The overal design of the cache is an open-addressing hash table with quadratic probing 
 // strategy and a limited bucket size. 
-// In a case of inserting into a full bucket, we -
-// 1) try getting a bigger table if not already at max size. Otherwise
+// In a case of inserting we -
+// 1) use an empty entry within the bucket path or preempt an entry with a longer distance from it origin.
 // 2) pick a random victim entry within the bucket and replace it with a new entry. 
 // That is basically our expiration policy. We want to keep things simple.
 // 
-// The cache permits fully concurrent writes and stores. We use double-versioned entries to detect tearing, 
-// which happens temporarily during updating. Entries in a torn state are ignored by readers and writers.
+// The cache permits fully concurrent writes and stores. We use versioned entries to detect incomplete states and 
+// tearing, which happens temporarily during updating. Entries in an inconsistent state are ignored by readers and writers.
 // As a result TryGet is Wait-Free - no locking or spinning.
 //             TryAdd is mostly Wait-Free (may try allocating a new table), but is more complex than TryGet.
 // 
@@ -51,11 +50,25 @@ class CastCache
 {
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
+    static const int VERSION_NUM_SIZE = 29;
+    static const int VERSION_NUM_MASK = (1 << VERSION_NUM_SIZE) - 1;
+
     struct CastCacheEntry
     {
-        DWORD               version1;
-        DWORD               version2;
-
+        // version has the following structure:
+        // [ distance:3bit |  versionNum:29bit ]
+        //
+        // distance is how many iterations is the entry from it ideal position. 
+        // we use that for preemption.
+        //
+        // versionNum is a monotonicaly increasing numerical tag.
+        // Writer "claims" entry by atomically incrementing the tag. Thus odd number indicates an entry in progress.
+        // Upon completion of adding an entry the tag is incremented again making it even. Even number indicates a complete entry.
+        //
+        // Readers will read the version twice before and after retrieving the entry. 
+        // To have a usable entry both reads must yield the same even version.
+        // 
+        DWORD               version;
         TADDR               source;
         // pointers have unused lower bits due to alignment, we use one for the result
         TADDR               targetAndResult;

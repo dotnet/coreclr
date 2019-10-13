@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 //
-// File: castcache.h
+// File: castcache.cpp
 //
 
 #include "common.h"
@@ -140,23 +140,25 @@ TypeHandle::CastResult CastCache::TryGet(TADDR source, TADDR target)
 
     for (DWORD i = 0; i < BUCKET_SIZE; i++)
     {
-        // must read in this order: version1 -> entry parts -> version2
-        // because writers change them in the opposite order
-        DWORD version1 = VolatileLoad(&pEntry->version1);
+        // must read in this order: version -> entry parts -> version
+        // if version is odd or changes, the entry is inconsistent and thus ignored
+        DWORD version1 = VolatileLoad(&pEntry->version);
         TADDR entrySource = pEntry->source;
-        TADDR entryTargetAndResult = VolatileLoad(&pEntry->targetAndResult);
 
         if (entrySource == source)
         {
+            TADDR entryTargetAndResult = VolatileLoad(&pEntry->targetAndResult);
+    
             // target never has its lower bit set.
             // a matching entryTargetAndResult would have same bits, except for the lowest one, which is the result.
             entryTargetAndResult ^= target;
             if (entryTargetAndResult <= 1)
             {
-                DWORD version2 = pEntry->version2;
-                if (version2 != version1)
+                DWORD version2 = pEntry->version;
+                if (version2 != version1 || (version1 & 1))
                 {
-                    // oh, so close, someone stomped over the entry while we were reading.
+                    // oh, so close, the entry is in inconsistent state. 
+                    // it is either changing or has changed while we were reading.
                     // treat it as a miss.
                     break;
                 }
@@ -208,18 +210,27 @@ void CastCache::TrySet(TADDR source, TADDR target, BOOL result)
 
         for (DWORD i = 0; i < BUCKET_SIZE; i++)
         {
-            // claim the entry if unused
-            DWORD version1 = pEntry->version1;
-            if (version1 == 0)
+            // claim the entry if unused or is more distant than us from its origin.
+            // Note - someone familiar with Robin Hood hashing will notice that 
+            //        we do the opposite - we are "robbing the poor".
+            //        Robin Hood strategy improves average lookup in a lossles dictionary by reducing 
+            //        outliers via giving preference to more distant entries. 
+            //        What we have here is a lossy cache with outliers bounded by the bucket size.
+            //        We improve average lookup by giving preference to the "richer" entries.
+            //        If we used Robin Hood strategy we could eventually end up with all 
+            //        entries in the table being maximally "poor". 
+            DWORD version = pEntry->version;
+            if (version == 0 || (version >> VERSION_NUM_SIZE) > i)
             {
-                DWORD version2 = InterlockedCompareExchangeT(&pEntry->version2, version1 + 1, version1);
-                if (version2 == version1)
+                DWORD newVersion = (i << VERSION_NUM_SIZE) + (version & VERSION_NUM_MASK) + 1;
+                DWORD versionOrig = InterlockedCompareExchangeT(&pEntry->version, newVersion, version);
+                if (versionOrig == version)
                 {
                     pEntry->SetEntry(source, target, result);
 
                     // entry is in inconsistent state and cannot be read or written to until we 
                     // update the version, which is the last thing we do here
-                    VolatileStore(&pEntry->version1, version1 + 1);
+                    VolatileStore(&pEntry->version, newVersion + 1);
                     return;
                 }
                 // someone snatched the entry. try the next one in the bucket.
@@ -240,30 +251,39 @@ void CastCache::TrySet(TADDR source, TADDR target, BOOL result)
         // bucket is full.
     } while (TryGrow(table));
 
+    // reread table after TryGrow.
+    table = (BASEARRAYREF)ObjectFromHandle(s_cache);
+    if (!table)
+    {
+        // we did not allocate a table.
+        return;
+    }
+
     // pick a victim somewhat randomly within a bucket 
     // NB: ++ is not interlocked. We are ok if we lose counts here. It is just a number that changes.
-    DWORD victim = VictimCounter(table)++ & (BUCKET_SIZE - 1);
+    DWORD victimDistance = VictimCounter(table)++ & (BUCKET_SIZE - 1);
     // position the victim in a quadratic reprobe bucket
-    victim = (victim * victim + victim) / 2;
+    DWORD victim = (victimDistance * victimDistance + victimDistance) / 2;
 
     {
         CastCacheEntry* pEntry = &Elements(table)[(bucket + victim) & TableMask(table)];
 
-        DWORD version2 = pEntry->version1;
-        if (version2 == MAXDWORD)
+        DWORD version = pEntry->version;
+        if ((version & VERSION_NUM_MASK) >= (VERSION_NUM_MASK - 2))
         {
-            // It is unlikely for a reader to sit between versions while exactly 2^32 updates happens.
+            // It is unlikely for a reader to sit between versions while exactly 2^VERSION_NUM_SIZE updates happens.
             // Anyways, to not bother about the possibility, lets get a new cache. It will not happen often, if ever.
             FlushCurrentCache();
             return;
         }
 
-        DWORD version1 = InterlockedCompareExchangeT(&pEntry->version2, version2 + 1, version2);
+        DWORD newVersion = (victimDistance << VERSION_NUM_SIZE) + (version & VERSION_NUM_MASK) + 1;
+        DWORD versionOrig = InterlockedCompareExchangeT(&pEntry->version, newVersion, version);
 
-        if (version1 == version2)
+        if (versionOrig == version)
         {
             pEntry->SetEntry(source, target, result);
-            VolatileStore(&pEntry->version1, version2 + 1);
+            VolatileStore(&pEntry->version, newVersion + 1);
         }
     }
 }
