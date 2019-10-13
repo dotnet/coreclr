@@ -7244,9 +7244,9 @@ GenTree* Compiler::gtCloneExpr(
                 break;
 
             case GT_CAST:
-                copy =
-                    new (this, LargeOpOpcode()) GenTreeCast(tree->TypeGet(), tree->AsCast()->CastOp(), tree->IsUnsigned(),
-                                                            tree->AsCast()->gtCastType DEBUGARG(/*largeNode*/ TRUE));
+                copy = new (this, LargeOpOpcode())
+                    GenTreeCast(tree->TypeGet(), tree->AsCast()->CastOp(), tree->IsUnsigned(),
+                                tree->AsCast()->gtCastType DEBUGARG(/*largeNode*/ TRUE));
                 break;
 
             // The nodes below this are not bashed, so they can be allocated at their individual sizes.
