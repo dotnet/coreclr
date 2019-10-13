@@ -237,11 +237,17 @@ namespace System.Collections.Generic
         public bool ContainsValue(TValue value)
         {
             Entry[]? entries = _entries;
+            int count = _count;
+            bool result = false;
             if (value == null)
             {
-                for (int i = 0; i < _count; i++)
+                for (int i = 0; i < count; i++)
                 {
-                    if (entries![i].next >= -1 && entries[i].value == null) return true;
+                    if (entries![i].next >= -1 && entries[i].value == null)
+                    {
+                        result = true;
+                        break;
+                    }
                 }
             }
             else
@@ -249,9 +255,13 @@ namespace System.Collections.Generic
                 if (default(TValue)! != null) // TODO-NULLABLE: default(T) == null warning (https://github.com/dotnet/roslyn/issues/34757)
                 {
                     // ValueType: Devirtualize with EqualityComparer<TValue>.Default intrinsic
-                    for (int i = 0; i < _count; i++)
+                    for (int i = 0; i < count; i++)
                     {
-                        if (entries![i].next >= -1 && EqualityComparer<TValue>.Default.Equals(entries[i].value, value)) return true;
+                        if (entries![i].next >= -1 && EqualityComparer<TValue>.Default.Equals(entries[i].value, value))
+                        {
+                            result = true;
+                            break;
+                        }
                     }
                 }
                 else
@@ -260,13 +270,17 @@ namespace System.Collections.Generic
                     // https://github.com/dotnet/coreclr/issues/17273
                     // So cache in a local rather than get EqualityComparer per loop iteration
                     EqualityComparer<TValue> defaultComparer = EqualityComparer<TValue>.Default;
-                    for (int i = 0; i < _count; i++)
+                    for (int i = 0; i < count; i++)
                     {
-                        if (entries![i].next >= -1 && defaultComparer.Equals(entries[i].value, value)) return true;
+                        if (entries![i].next >= -1 && defaultComparer.Equals(entries[i].value, value))
+                        {
+                            result = true;
+                            break;
+                        }
                     }
                 }
             }
-            return false;
+            return result;
         }
 
         private void CopyTo(KeyValuePair<TKey, TValue>[] array, int index)
