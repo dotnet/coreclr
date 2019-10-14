@@ -2410,6 +2410,14 @@ GetThreadTimes(
         OUT LPFILETIME lpKernelTime,
         OUT LPFILETIME lpUserTime);
 
+PALIMPORT
+HRESULT
+PALAPI
+SetThreadName(
+    IN HANDLE hThread,
+    IN PCWSTR lpThreadDescription
+);
+
 #define TLS_OUT_OF_INDEXES ((DWORD)0xFFFFFFFF)
 
 PALIMPORT
