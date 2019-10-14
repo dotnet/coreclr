@@ -31,7 +31,7 @@ BASEARRAYREF CastCache::CreateCastCache(DWORD size)
 
     try
     {
-        table = (BASEARRAYREF)AllocatePrimitiveArray(CorElementType::ELEMENT_TYPE_I8, (size + 1) * sizeof(CastCacheEntry) / sizeof(INT64));
+        table = (BASEARRAYREF)AllocatePrimitiveArray(CorElementType::ELEMENT_TYPE_I4, (size + 1) * sizeof(CastCacheEntry) / sizeof(INT32));
     }
     catch (OutOfMemoryException)
     {
@@ -39,7 +39,7 @@ BASEARRAYREF CastCache::CreateCastCache(DWORD size)
         size = INITIAL_CACHE_SIZE;
         try
         {
-            table = (BASEARRAYREF)AllocatePrimitiveArray(CorElementType::ELEMENT_TYPE_I8, (size + 1) * sizeof(CastCacheEntry) / sizeof(INT64));
+            table = (BASEARRAYREF)AllocatePrimitiveArray(CorElementType::ELEMENT_TYPE_I4, (size + 1) * sizeof(CastCacheEntry) / sizeof(INT32));
         }
         catch (OutOfMemoryException)
         {
