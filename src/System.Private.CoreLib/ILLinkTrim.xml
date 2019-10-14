@@ -7,6 +7,11 @@
       <!-- This is an internal API for now and is not yet used outside tests. -->
       <method name="AllocateUninitializedArray" />
     </type>
+    <type fullname="System.HighPerformanceCounter">
+      <!-- Not yet used. Keep for testing. -->
+      <property name="TickCount" />
+      <property name="Frequency" />
+    </type>
     <!-- Properties and methods used by a debugger. -->
     <type fullname="System.Threading.Tasks.Task">
       <property name="ParentForDebugger" />

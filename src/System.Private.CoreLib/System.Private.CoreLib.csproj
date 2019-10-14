@@ -184,6 +184,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Exception.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\GC.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\HighPerformanceCounter.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Internal.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\FileLoadException.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\FileNotFoundException.CoreCLR.cs" />

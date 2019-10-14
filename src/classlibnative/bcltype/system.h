@@ -53,6 +53,8 @@ public:
     static FCDECL0(INT64, __GetSystemTimeAsFileTime);
     static FCDECL0(UINT32, GetTickCount);
     static FCDECL0(UINT64, GetTickCount64);
+    static FCDECL0(UINT64, QueryPerformanceFrequency);
+    static FCDECL0(UINT64, QueryPerformanceCounter);
 
     static
     void QCALLTYPE Exit(INT32 exitcode);

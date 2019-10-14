@@ -200,8 +200,35 @@ FCIMPL0(UINT64, SystemNative::GetTickCount64)
 }
 FCIMPLEND;
 
+FCIMPL0(UINT64, SystemNative::QueryPerformanceFrequency)
+{
+    FCALL_CONTRACT;
 
+    LARGE_INTEGER ts;
+    if (!::QueryPerformanceFrequency(&ts))
+    {
+        // Windows: On systems that run Windows XP or later, the function will always succeed.
+        assert(!"Failed to query performance frequency");
+    }
 
+    return (UINT64)ts.QuadPart;
+}
+FCIMPLEND;
+
+FCIMPL0(UINT64, SystemNative::QueryPerformanceCounter)
+{
+    FCALL_CONTRACT;
+
+    LARGE_INTEGER ts;
+    if (!::QueryPerformanceCounter(&ts))
+    {
+        // Windows: On systems that run Windows XP or later, the function will always succeed.
+        assert(!"Failed to query performance counter");      
+    }
+    
+    return (UINT64)ts.QuadPart; 
+}
+FCIMPLEND;
 
 VOID QCALLTYPE SystemNative::Exit(INT32 exitcode)
 {
