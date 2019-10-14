@@ -168,11 +168,12 @@ namespace System.Collections.Generic
 
         IEnumerable<TValue> IReadOnlyDictionary<TKey, TValue>.Values => _values ??= new ValueCollection(this);
 
-        public TValue this[TKey key]
+        public unsafe TValue this[TKey key]
         {
             get
             {
-                if (TryGetValue(key, out TValue value))
+                ref TValue value = ref FindValue(key);
+                if (Unsafe.AsPointer(ref value) != null)
                 {
                     return value;
                 }
@@ -195,18 +196,20 @@ namespace System.Collections.Generic
         void ICollection<KeyValuePair<TKey, TValue>>.Add(KeyValuePair<TKey, TValue> keyValuePair)
             => Add(keyValuePair.Key, keyValuePair.Value);
 
-        bool ICollection<KeyValuePair<TKey, TValue>>.Contains(KeyValuePair<TKey, TValue> keyValuePair)
+        unsafe bool ICollection<KeyValuePair<TKey, TValue>>.Contains(KeyValuePair<TKey, TValue> keyValuePair)
         {
-            if (TryGetValue(keyValuePair.Key, out TValue value) && EqualityComparer<TValue>.Default.Equals(value, keyValuePair.Value))
+            ref TValue value = ref FindValue(keyValuePair.Key);
+            if (Unsafe.AsPointer(ref value) != null && EqualityComparer<TValue>.Default.Equals(value, keyValuePair.Value))
             {
                 return true;
             }
             return false;
         }
 
-        bool ICollection<KeyValuePair<TKey, TValue>>.Remove(KeyValuePair<TKey, TValue> keyValuePair)
+        unsafe bool ICollection<KeyValuePair<TKey, TValue>>.Remove(KeyValuePair<TKey, TValue> keyValuePair)
         {
-            if (TryGetValue(keyValuePair.Key, out TValue value) && EqualityComparer<TValue>.Default.Equals(value, keyValuePair.Value))
+            ref TValue value = ref FindValue(keyValuePair.Key);
+            if (Unsafe.AsPointer(ref value) != null && EqualityComparer<TValue>.Default.Equals(value, keyValuePair.Value))
             {
                 Remove(keyValuePair.Key);
                 return true;
@@ -231,8 +234,8 @@ namespace System.Collections.Generic
             }
         }
 
-        public bool ContainsKey(TKey key)
-            => TryGetValue(key, out _);
+        public unsafe bool ContainsKey(TKey key)
+            => Unsafe.AsPointer(ref FindValue(key)) != null;
 
         public bool ContainsValue(TValue value)
         {
@@ -336,7 +339,7 @@ namespace System.Collections.Generic
             }
         }
 
-        public unsafe bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
+        private unsafe ref TValue FindValue(TKey key)
         {
             if (key == null)
             {
@@ -456,13 +459,11 @@ namespace System.Collections.Generic
         ConcurrentOperation:
             ThrowHelper.ThrowInvalidOperationException_ConcurrentOperationsNotSupported();
         ReturnFound:
-            value = entry.value;
-            bool found = true;
+            ref TValue value = ref entry.value;
         Return:
-            return found;
+            return ref value;
         ReturnNotFound:
-            value = default!;
-            found = false;
+            value = ref Unsafe.AsRef<TValue>(null);
             goto Return;
         }
 
@@ -907,6 +908,18 @@ namespace System.Collections.Generic
             return false;
         }
 
+        public unsafe bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
+        {
+            ref TValue val = ref FindValue(key);
+            if (Unsafe.AsPointer(ref val) != null)
+            {
+                value = val;
+                return true;
+            }
+            value = default!;
+            return false;
+        }
+
         public bool TryAdd(TKey key, TValue value)
             => TryInsert(key, value, InsertionBehavior.None);
 
@@ -1059,13 +1072,14 @@ namespace System.Collections.Generic
 
         ICollection IDictionary.Values => (ICollection)Values;
 
-        object? IDictionary.this[object key]
+        unsafe object? IDictionary.this[object key]
         {
             get
             {
                 if (IsCompatibleKey(key))
                 {
-                    if (TryGetValue((TKey)key, out TValue value))
+                    ref TValue value = ref FindValue((TKey)key);
+                    if (Unsafe.AsPointer(ref value) != null)
                     {
                         return value;
                     }
