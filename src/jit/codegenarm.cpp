@@ -1790,27 +1790,26 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
 
     if (frameSize < pageSize)
     {
-        inst_RV_IV(INS_sub, REG_SPBASE, frameSize, EA_PTRSIZE);
+        GetEmitter()->emitIns_R_I(INS_sub, EA_PTRSIZE, REG_SPBASE, frameSize);
     }
     else if (frameSize < compiler->getVeryLargeFrameSize())
     {
-        regNumber rTemp = initReg;
-
         for (target_size_t probeOffset = pageSize; probeOffset <= frameSize; probeOffset += pageSize)
         {
             // Generate:
             //    movw initReg, -probeOffset
-            //    ldr rTemp, [SP + initReg]  // load into initReg on arm32, wzr on ARM64
+            //    ldr initReg, [SP + initReg]
 
             instGen_Set_Reg_To_Imm(EA_PTRSIZE, initReg, -(ssize_t)probeOffset);
-            GetEmitter()->emitIns_R_R_R(INS_ldr, EA_4BYTE, rTemp, REG_SPBASE, initReg);
-            regSet.verifyRegUsed(initReg);
-            *pInitRegZeroed = false; // The initReg does not contain zero
+            GetEmitter()->emitIns_R_R_R(INS_ldr, EA_PTRSIZE, initReg, REG_SPBASE, initReg);
         }
+
+        regSet.verifyRegUsed(initReg);
+        *pInitRegZeroed = false; // The initReg does not contain zero
 
         instGen_Set_Reg_To_Imm(EA_PTRSIZE, initReg, frameSize);
         compiler->unwindPadding();
-        GetEmitter()->emitIns_R_R_R(INS_sub, EA_4BYTE, REG_SPBASE, REG_SPBASE, initReg);
+        GetEmitter()->emitIns_R_R_R(INS_sub, EA_PTRSIZE, REG_SPBASE, REG_SPBASE, initReg);
     }
     else
     {
