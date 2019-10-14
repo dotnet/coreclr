@@ -352,7 +352,7 @@ namespace System.Collections.Generic
                 if (comparer == null)
                 {
                     uint hashCode = (uint)key.GetHashCode();
-                    int i = buckets[hashCode % (uint)buckets.Length];
+                    int i = buckets[HashHelpers.FastRange(hashCode, (uint)buckets.Length)];
                     if (default(TKey)! != null) // TODO-NULLABLE: default(T) == null warning (https://github.com/dotnet/roslyn/issues/34757)
                     {
                         // ValueType: Devirtualize with EqualityComparer<TValue>.Default intrinsic
@@ -421,7 +421,7 @@ namespace System.Collections.Generic
                 else
                 {
                     uint hashCode = (uint)comparer.GetHashCode(key);
-                    int i = buckets[hashCode % (uint)buckets.Length];
+                    int i = buckets[HashHelpers.FastRange(hashCode, (uint)buckets.Length)];
                     Entry[]? entries = _entries;
                     int allowedCollisions = entries.Length;
                     // Value in _buckets is 1-based; sutract 1 from i. We do it here so it fuses with the follwoing conditional.
@@ -497,7 +497,7 @@ namespace System.Collections.Generic
             uint hashCode = (uint)((comparer == null) ? key.GetHashCode() : comparer.GetHashCode(key));
 
             int allowedCollisions = entries.Length;
-            ref int bucket = ref _buckets[hashCode % (uint)_buckets.Length];
+            ref int bucket = ref _buckets[HashHelpers.FastRange(hashCode, (uint)_buckets.Length)];
             // Value in _buckets is 1-based
             int i = bucket - 1;
 
@@ -641,7 +641,7 @@ namespace System.Collections.Generic
                 if (count == entries.Length)
                 {
                     Resize();
-                    bucket = ref _buckets[hashCode % (uint)_buckets.Length];
+                    bucket = ref _buckets[HashHelpers.FastRange(hashCode, (uint)_buckets.Length)];
                 }
                 index = count;
                 _count = count + 1;
@@ -754,7 +754,7 @@ namespace System.Collections.Generic
             {
                 if (entries[i].next >= -1)
                 {
-                    uint bucket = entries[i].hashCode % (uint)newSize;
+                    uint bucket = HashHelpers.FastRange(entries[i].hashCode, (uint)newSize);
                     // Value in _buckets is 1-based
                     entries[i].next = buckets[bucket] - 1;
                     // Value in _buckets is 1-based
@@ -783,7 +783,7 @@ namespace System.Collections.Generic
                 Debug.Assert(entries != null, "entries should be non-null");
                 int allowedCollisions = entries.Length;
                 uint hashCode = (uint)(_comparer?.GetHashCode(key) ?? key.GetHashCode());
-                uint bucket = hashCode % (uint)buckets.Length;
+                uint bucket = HashHelpers.FastRange(hashCode, (uint)buckets.Length);
                 int last = -1;
                 // Value in buckets is 1-based
                 int i = buckets[bucket] - 1;
@@ -852,7 +852,7 @@ namespace System.Collections.Generic
                 Debug.Assert(entries != null, "entries should be non-null");
                 int allowedCollisions = entries.Length;
                 uint hashCode = (uint)(_comparer?.GetHashCode(key) ?? key.GetHashCode());
-                uint bucket = hashCode % (uint)buckets.Length;
+                uint bucket = HashHelpers.FastRange(hashCode, (uint)buckets.Length);
                 int last = -1;
                 // Value in buckets is 1-based
                 int i = buckets[bucket] - 1;
@@ -1035,7 +1035,7 @@ namespace System.Collections.Generic
                 {
                     ref Entry entry = ref entries![count];
                     entry = oldEntries[i];
-                    uint bucket = hashCode % (uint)newSize;
+                    uint bucket = HashHelpers.FastRange(hashCode, (uint)newSize);
                     // Value in _buckets is 1-based
                     entry.next = buckets![bucket] - 1; // If we get here, we have entries, therefore buckets is not null.
                     // Value in _buckets is 1-based
