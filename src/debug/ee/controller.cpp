@@ -3473,66 +3473,22 @@ bool DebuggerController::DispatchUnwind(Thread *thread,
             {
                 LOG((LF_CORDB, LL_INFO10000, "Dispatch Unwind: Found candidate\n"));
 
+                used = true;
 
-                //  Assumptions here:
-                //      Function with handlers are -ALWAYS- EBP-frame based (JIT assumption)
                 //
-                //      newFrame is the EBP for the handler
-                //      p->m_unwindFP points to the stack slot with the return address of the function.
+                // Assume that this isn't going to block us at all --
+                // other threads may be waiting to patch or unpatch something,
+                // or to dispatch.
                 //
-                //  For the interesting case: stepover, we want to know if the handler is in the same function
-                //  as the stepper, if its above it (caller) o under it (callee) in order to know if we want
-                //  to patch the handler or not.
-                //
-                //  3 cases:
-                //
-                //      a) Handler is in a function under the function where the step happened. It therefore is
-                //         a stepover. We don't want to patch this handler. The handler will have an EBP frame.
-                //         So it will be at least be 2 DWORDs away from the m_unwindFP of the controller (
-                //         1 DWORD from the pushed return address and 1 DWORD for the push EBP).
-                //
-                //      b) Handler is in the same function as the stepper. We want to patch the handler. In this
-                //         case handlerFP will be the same as p->m_unwindFP-sizeof(void*). Why? p->m_unwindFP
-                //         stores a pointer to the return address of the function. As a function with a handler
-                //         is always EBP frame based it will have the following code in the prolog:
-                //
-                //                  push ebp        <- ( sub esp, 4 ; mov [esp], ebp )
-                //                  mov  esp, ebp
-                //
-                //         Therefore EBP will be equal to &CallerReturnAddress-4.
-                //
-                //      c) Handler is above the function where the stepper is. We want to patch the handler. handlerFP
-                //         will be always greater than the pointer to the return address of the function where the
-                //         stepper is.
-                //
-                //
-                //
+                LOG((LF_CORDB, LL_INFO10000,
+                    "Unwind trigger at offset 0x%p; handlerFP: 0x%p unwindReason: 0x%x.\n",
+                     newOffset, handlerFP.GetSPValue(), unwindReason));
 
-                if (IsEqualOrCloserToRoot(handlerFP, p->m_unwindFP))
-                {
-                    used = true;
-
-                    //
-                    // Assume that this isn't going to block us at all --
-                    // other threads may be waiting to patch or unpatch something,
-                    // or to dispatch.
-                    //
-                    LOG((LF_CORDB, LL_INFO10000,
-                        "Unwind trigger at offset 0x%p; handlerFP: 0x%p unwindReason: 0x%x.\n",
-                         newOffset, handlerFP.GetSPValue(), unwindReason));
-
-                    p->TriggerUnwind(thread,
-                                     fd, pDJI,
-                                     newOffset,
-                                     handlerFP,
-                                     unwindReason);
-                }
-                else
-                {
-                    LOG((LF_CORDB, LL_INFO10000,
-                        "Unwind trigger at offset 0x%p; handlerFP: 0x%p unwindReason: 0x%x.\n",
-                         newOffset, handlerFP.GetSPValue(), unwindReason));
-                }
+                p->TriggerUnwind(thread,
+                                 fd, pDJI,
+                                 newOffset,
+                                 handlerFP,
+                                 unwindReason);
             }
 
             p = pNext;
@@ -7938,14 +7894,23 @@ void DebuggerJMCStepper::TriggerMethodEnter(Thread * thread,
     if (!fIsUserCode)
         return;
 
+    if ((m_eMode != cStepIn) && (m_fp != LEAF_MOST_FRAME))
+    {
+        // We can run a stack trace in managed code (eg, not a stub)
+        ControllerStackInfo info;
+        StackTraceTicket ticket(ip);
+        info.GetStackInfo(ticket, thread, LEAF_MOST_FRAME, NULL);
+
+        if (IsCloserToLeaf(info.m_activeFrame.fp, m_fp))
+        {
+            LOG((LF_CORDB, LL_INFO100000, "DJMCStepper::TME, skipping b/c step-out fp\n"));
+            return;
+        }
+    }
+
     // MethodEnter is only enabled when we want to stop in a JMC function.
     // And that's where we are now. So patch the ip and resume.
     // The stepper will hit the patch, and stop.
-
-    // It's a good thing we have the fp passed in, because we have no other
-    // way of getting it. We can't do a stack trace here (the stack trace
-    // would start at the last pushed Frame, which miss a lot of managed
-    // frames).
 
     // Don't bind to a particular AppDomain so that we can do a Cross-Appdomain step.
     AddBindAndActivateNativeManagedPatch(pDesc,
