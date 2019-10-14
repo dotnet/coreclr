@@ -251,7 +251,7 @@ namespace System.Runtime.Intrinsics.Arm
 
         /// <summary>
         ///   A32: VADD.F32 Sd, Sn, Sm
-        ///   A64: 
+        ///   A64:
         /// </summary>
         public static Vector64<float> AddScalar(Vector64<float> left, Vector64<float> right) { throw new PlatformNotSupportedException(); }
 
