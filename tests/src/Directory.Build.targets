@@ -64,10 +64,6 @@
     </ProjectReference>
   </ItemGroup>
 
-  <PropertyGroup>
-    <ErrorIfBuildToolsRestoredFromIndividualProject Condition="!Exists('$(ToolsDir)')">true</ErrorIfBuildToolsRestoredFromIndividualProject>
-  </PropertyGroup>
-  
   <Import Project="..\Directory.Build.targets" />
 
   <!-- Determine if this project should be built or not -->

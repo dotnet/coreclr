@@ -27,6 +27,7 @@
     <RuntimeIdentifiers>win7-x86;win7-x64</RuntimeIdentifiers>
     <IsTestProject>false</IsTestProject>
   </PropertyGroup>
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), Directory.Build.targets))\Directory.Build.targets" />
   <Target Name="Build"
      DependsOnTargets="ResolveReferences" /> 
 </Project>

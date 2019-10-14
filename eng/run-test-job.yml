@@ -361,6 +361,6 @@ jobs:
       displayName: Publish Logs
       inputs:
         pathtoPublish: $(Build.SourcesDirectory)/bin/Logs
-        artifactName: ${{ format('TestLogs_run_test_job_{0}{1}_{2}_{3}_{4}_{5}_{6}', parameters.osGroup, parameters.osSubgroup, parameters.archType, parameters.buildConfig, parameters.managedTestBuildOsGroup, parameters.managedTestBuildOsSubgroup, parameters.testGroup) }}
+        artifactName: ${{ format('TestRunLogs_{0}{1}_{2}_{3}_{4}_{5}_{6}', parameters.osGroup, parameters.osSubgroup, parameters.archType, parameters.buildConfig, parameters.managedTestBuildOsGroup, parameters.managedTestBuildOsSubgroup, parameters.testGroup) }}
       continueOnError: true
       condition: always()

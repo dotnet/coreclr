@@ -46,22 +46,6 @@
     <TargetingPackPath Condition="'$(BaseTargetingPackPath)' == ''">$(RootBinDir)TargetingPack\</TargetingPackPath>
   </PropertyGroup>
 
-  <!-- Add test-specific package restore sources. -->
-  <PropertyGroup>
-    <RestoreSources Condition="'$(DotNetBuildOffline)' != 'true'">
-      https://dotnet.myget.org/F/dotnet-corefxlab/api/v3/index.json;
-      https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json;
-      https://dotnetfeed.blob.core.windows.net/dotnet-coreclr/index.json;
-      https://dotnet.myget.org/F/dotnet-core/api/v3/index.json;
-      https://api.nuget.org/v3/index.json;
-      $(RestoreSources)
-    </RestoreSources>
-    <RestoreSources Condition="'$(IntermediateAzureFeed)' != ''">
-      $(IntermediateAzureFeed);
-      $(RestoreSources)
-    </RestoreSources>
-  </PropertyGroup>
-
   <PropertyGroup Condition="'$(BuildAllProjects)'=='true'">
     <!-- When we do a traversal build we get all packages up front, don't restore them again -->
     <RestorePackages>false</RestorePackages>
