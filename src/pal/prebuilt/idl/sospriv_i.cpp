@@ -115,5 +115,6 @@ BIND_UUID_OF(ISOSDacInterface3)
 BIND_UUID_OF(ISOSDacInterface4)
 BIND_UUID_OF(ISOSDacInterface5)
 BIND_UUID_OF(ISOSDacInterface6)
+BIND_UUID_OF(ISOSDacInterface7)
 #endif
 
