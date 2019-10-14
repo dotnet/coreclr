@@ -17845,7 +17845,6 @@ public:
             if (m_stmtModified)
             {
                 printf("LocalAddressVisitor modified statement:\n");
-                m_compiler->gtDispTree(stmt->GetRootNode());
                 m_compiler->gtDispStmt(stmt);
             }
 
