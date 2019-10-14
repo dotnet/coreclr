@@ -39,18 +39,18 @@ class highperformancecounter
     public static ulong HighPerformanceCounter_Frequency()
     {
         Type HighPerformanceCounter = typeof(object).Assembly.GetType("System.HighPerformanceCounter");
-        var QueryPerformanceFrequency = HighPerformanceCounter.GetProperty("Frequency",
+        var Frequency = HighPerformanceCounter.GetProperty("Frequency",
             bindingAttr: System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
 
-        return (ulong)QueryPerformanceFrequency.GetValue(null);
+        return (ulong)Frequency.GetValue(null);
     }
 
     public static ulong HighPerformanceCounter_TickCount()
     {
         Type HighPerformanceCounter = typeof(object).Assembly.GetType("System.HighPerformanceCounter");
-        var QueryPerformanceFrequency = HighPerformanceCounter.GetProperty("TickCount",
+        var TickCount = HighPerformanceCounter.GetProperty("TickCount",
             bindingAttr: System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
 
-        return (ulong)QueryPerformanceFrequency.GetValue(null);
+        return (ulong)TickCount.GetValue(null);
     }
 }
