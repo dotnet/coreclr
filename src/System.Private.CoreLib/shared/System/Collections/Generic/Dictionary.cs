@@ -359,7 +359,7 @@ namespace System.Collections.Generic
                         Entry[]? entries = _entries;
                         int allowedCollisions = entries.Length;
 
-                        // Value in _buckets is 1-based; sutract 1 from i. We do it here so it fuses with the follwoing conditional.
+                        // Value in _buckets is 1-based; subtract 1 from i. We do it here so it fuses with the following conditional.
                         i--;
                         do
                         {
@@ -392,7 +392,7 @@ namespace System.Collections.Generic
                         EqualityComparer<TKey> defaultComparer = EqualityComparer<TKey>.Default;
                         Entry[]? entries = _entries;
                         int allowedCollisions = entries.Length;
-                        // Value in _buckets is 1-based; sutract 1 from i. We do it here so it fuses with the follwoing conditional.
+                        // Value in _buckets is 1-based; subtract 1 from i. We do it here so it fuses with the following conditional.
                         i--;
                         do
                         {
@@ -424,7 +424,7 @@ namespace System.Collections.Generic
                     int i = buckets[HashHelpers.FastRange(hashCode, (uint)buckets.Length)];
                     Entry[]? entries = _entries;
                     int allowedCollisions = entries.Length;
-                    // Value in _buckets is 1-based; sutract 1 from i. We do it here so it fuses with the follwoing conditional.
+                    // Value in _buckets is 1-based; subtract 1 from i. We do it here so it fuses with the following conditional.
                     i--;
                     do
                     {
