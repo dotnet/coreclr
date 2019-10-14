@@ -357,7 +357,7 @@ namespace System.Collections.Generic
                     {
                         // ValueType: Devirtualize with EqualityComparer<TValue>.Default intrinsic
                         Entry[]? entries = _entries;
-                        int allowedCollisions = entries.Length;
+                        int collisions = 0;
 
                         // Value in _buckets is 1-based; subtract 1 from i. We do it here so it fuses with the following conditional.
                         i--;
@@ -378,8 +378,8 @@ namespace System.Collections.Generic
 
                             i = entry.next;
 
-                            allowedCollisions--;
-                        } while (allowedCollisions >= 0);
+                            collisions++;
+                        } while ((uint)collisions < (uint)entries.Length);
                         // The chain of entries forms a loop; which means a concurrent update has happened.
                         // Break out of the loop and throw, rather than looping forever.
                         goto ConcurrentOperation;
@@ -391,7 +391,7 @@ namespace System.Collections.Generic
                         // So cache in a local rather than get EqualityComparer per loop iteration
                         EqualityComparer<TKey> defaultComparer = EqualityComparer<TKey>.Default;
                         Entry[]? entries = _entries;
-                        int allowedCollisions = entries.Length;
+                        int collisions = 0;
                         // Value in _buckets is 1-based; subtract 1 from i. We do it here so it fuses with the following conditional.
                         i--;
                         do
@@ -411,8 +411,8 @@ namespace System.Collections.Generic
 
                             i = entry.next;
 
-                            allowedCollisions--;
-                        } while (allowedCollisions >= 0);
+                            collisions++;
+                        } while ((uint)collisions < (uint)entries.Length);
                         // The chain of entries forms a loop; which means a concurrent update has happened.
                         // Break out of the loop and throw, rather than looping forever.
                         goto ConcurrentOperation;
@@ -423,7 +423,7 @@ namespace System.Collections.Generic
                     uint hashCode = (uint)comparer.GetHashCode(key);
                     int i = buckets[HashHelpers.FastRange(hashCode, (uint)buckets.Length)];
                     Entry[]? entries = _entries;
-                    int allowedCollisions = entries.Length;
+                    int collisions = 0;
                     // Value in _buckets is 1-based; subtract 1 from i. We do it here so it fuses with the following conditional.
                     i--;
                     do
@@ -443,8 +443,8 @@ namespace System.Collections.Generic
 
                         i = entry.next;
 
-                        allowedCollisions--;
-                    } while (allowedCollisions >= 0);
+                        collisions++;
+                    } while ((uint)collisions < (uint)entries.Length);
                     // The chain of entries forms a loop; which means a concurrent update has happened.
                     // Break out of the loop and throw, rather than looping forever.
                     goto ConcurrentOperation;
@@ -496,7 +496,7 @@ namespace System.Collections.Generic
             IEqualityComparer<TKey>? comparer = _comparer;
             uint hashCode = (uint)((comparer == null) ? key.GetHashCode() : comparer.GetHashCode(key));
 
-            int allowedCollisions = entries.Length;
+            int collisions = 0;
             ref int bucket = ref _buckets[HashHelpers.FastRange(hashCode, (uint)_buckets.Length)];
             // Value in _buckets is 1-based
             int i = bucket - 1;
@@ -534,8 +534,8 @@ namespace System.Collections.Generic
 
                         i = entries[i].next;
 
-                        allowedCollisions--;
-                        if (allowedCollisions < 0)
+                        collisions++;
+                        if ((uint)collisions >= (uint)entries.Length)
                         {
                             // The chain of entries forms a loop; which means a concurrent update has happened.
                             // Break out of the loop and throw, rather than looping forever.
@@ -577,8 +577,8 @@ namespace System.Collections.Generic
 
                         i = entries[i].next;
 
-                        allowedCollisions--;
-                        if (allowedCollisions < 0)
+                        collisions++;
+                        if ((uint)collisions >= (uint)entries.Length)
                         {
                             // The chain of entries forms a loop; which means a concurrent update has happened.
                             // Break out of the loop and throw, rather than looping forever.
@@ -617,8 +617,8 @@ namespace System.Collections.Generic
 
                     i = entries[i].next;
 
-                    allowedCollisions--;
-                    if (allowedCollisions < 0)
+                    collisions++;
+                    if ((uint)collisions >= (uint)entries.Length)
                     {
                         // The chain of entries forms a loop; which means a concurrent update has happened.
                         // Break out of the loop and throw, rather than looping forever.
@@ -666,7 +666,7 @@ namespace System.Collections.Generic
             _version++;
 
             // Value types never rehash
-            if (default(TKey)! == null && (entries.Length - allowedCollisions) > HashHelpers.HashCollisionThreshold && comparer is NonRandomizedStringEqualityComparer) // TODO-NULLABLE: default(T) == null warning (https://github.com/dotnet/roslyn/issues/34757)
+            if (default(TKey)! == null && collisions > HashHelpers.HashCollisionThreshold && comparer is NonRandomizedStringEqualityComparer) // TODO-NULLABLE: default(T) == null warning (https://github.com/dotnet/roslyn/issues/34757)
             {
                 // If we hit the collision threshold we'll need to switch to the comparer which is using randomized string hashing
                 // i.e. EqualityComparer<string>.Default.
@@ -781,7 +781,7 @@ namespace System.Collections.Generic
             if (buckets != null)
             {
                 Debug.Assert(entries != null, "entries should be non-null");
-                int allowedCollisions = entries.Length;
+                int collisions = 0;
                 uint hashCode = (uint)(_comparer?.GetHashCode(key) ?? key.GetHashCode());
                 uint bucket = HashHelpers.FastRange(hashCode, (uint)buckets.Length);
                 int last = -1;
@@ -823,8 +823,8 @@ namespace System.Collections.Generic
                     last = i;
                     i = entry.next;
 
-                    allowedCollisions--;
-                    if (allowedCollisions < 0)
+                    collisions++;
+                    if ((uint)collisions >= (uint)entries.Length)
                     {
                         // The chain of entries forms a loop; which means a concurrent update has happened.
                         // Break out of the loop and throw, rather than looping forever.
@@ -850,7 +850,7 @@ namespace System.Collections.Generic
             if (buckets != null)
             {
                 Debug.Assert(entries != null, "entries should be non-null");
-                int allowedCollisions = entries.Length;
+                int collisions = 0;
                 uint hashCode = (uint)(_comparer?.GetHashCode(key) ?? key.GetHashCode());
                 uint bucket = HashHelpers.FastRange(hashCode, (uint)buckets.Length);
                 int last = -1;
@@ -894,8 +894,8 @@ namespace System.Collections.Generic
                     last = i;
                     i = entry.next;
 
-                    allowedCollisions--;
-                    if (allowedCollisions < 0)
+                    collisions++;
+                    if ((uint)collisions >= (uint)entries.Length)
                     {
                         // The chain of entries forms a loop; which means a concurrent update has happened.
                         // Break out of the loop and throw, rather than looping forever.
