@@ -2433,7 +2433,7 @@ namespace System.Text
             // - We'd also prefer to make it at least at big as the current length (thus doubling capacity).
             //   - But this is only up to a maximum, so we stay in the small object heap, and never allocate
             //     really big chunks even if the string gets really big.
-            int newBlockLength = Math.Max(minBlockCharCount, Math.Min(Length, MaxChunkSize));
+            int newBlockLength = Math.Max(minBlockCharCount, Math.Min(Length * 2, MaxChunkSize));
 
             // Check for integer overflow (logical buffer size > int.MaxValue)
             if (m_ChunkOffset + m_ChunkLength + newBlockLength < newBlockLength)
