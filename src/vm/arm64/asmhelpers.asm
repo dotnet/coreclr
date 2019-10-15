@@ -518,30 +518,30 @@ SkipEphemeralCheck
         ; Check if we need to update the card table
         ldr      x12, wbs_card_table
 
-        ; x15 := offset within card table
-        lsr      x15, x14, #11
+        ; x15 := pointer into card table
+        add      x15, x12, x14, lsr #11
 
-        ldrb     w16, [x12, x15]
-        cmp      w16, 0xFF
+        ldrb     w12, [x15]
+        cmp      x12, 0xFF
         beq      Exit
 
 UpdateCardTable
-        mov      x16, 0xFF
-        strb     w16, [x12, x15]
+        mov      x12, 0xFF
+        strb     w12, [x15]
 
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
         ; Check if we need to update the card bundle table
         ldr      x12, wbs_card_bundle_table
 
-        ; x15 := offset within card bundle table
-        lsr      x15, x14, #21
+        ; x15 := pointer into card bundle table
+        add      x15, x12, x14, lsr #21
 
-        ldrb     w16, [x12, x15]
-        cmp      w16, 0xFF
+        ldrb     w12, [x15]
+        cmp      x12, 0xFF
         beq      Exit
 
-        mov      x16, 0xFF
-        strb     w16, [x12, x15]
+        mov      x12, 0xFF
+        strb     w12, [x15]
 #endif
 
 Exit
