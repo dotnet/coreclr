@@ -667,8 +667,6 @@ namespace System
                 return new T[length];
             }
 
-            if (length < 0)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.lengths, 0, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 #if DEBUG
             // in DEBUG arrays of any length can be created uninitialized
 #else
@@ -683,6 +681,9 @@ namespace System
                 return new T[length];
             }
 #endif
+            if (length < 0)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.lengths, 0, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+
             return (T[])AllocateNewArray(typeof(T[]).TypeHandle.Value, length, zeroingOptional: true);
         }
     }
