@@ -23,12 +23,14 @@ parameters:
   windowsArm: false
   windowsArm64: false
 
-  unixManagedTestBuildOsGroup: ''
-  unixManagedTestBuildOsSubgroup: ''
-  unixManagedTestBuildArchType: ''
-  
-  windows32bitManagedTestBuildArchType: ''
-  windows64bitManagedTestBuildArchType: ''
+  x86ManagedTestBuildOsGroup: ''
+  x86ManagedTestBuildOsSubgroup: ''
+  x64ManagedTestBuildOsGroup: ''
+  x64ManagedTestBuildOsSubgroup: ''
+  armManagedTestBuildOsGroup: ''
+  armManagedTestBuildOsSubgroup: ''
+  arm64ManagedTestBuildOsGroup: ''
+  arm64ManagedTestBuildOsSubgroup: ''
 
 jobs:
 
@@ -41,9 +43,8 @@ jobs:
       buildConfig: ${{ parameters.buildConfig }}
       archType: arm
       osGroup: Linux
-      managedTestBuildOsGroup: ${{ parameters.unixManagedTestBuildOsGroup }}
-      managedTestBuildOsSubgroup: ${{ parameters.unixManagedTestBuildOsSubgroup }}
-      managedTestBuildArchType: ${{ parameters.unixManagedTestBuildArchType }}
+      managedTestBuildOsGroup: ${{ parameters.armManagedTestBuildOsGroup }}
+      managedTestBuildOsSubgroup: ${{ parameters.armManagedTestBuildOsSubgroup }}
       container:
         image: ubuntu-16.04-cross-14.04-23cacb0-20190923200213
         registry: mcr
@@ -66,9 +67,8 @@ jobs:
       buildConfig: ${{ parameters.buildConfig }}
       archType: arm64
       osGroup: Linux
-      managedTestBuildOsGroup: ${{ parameters.unixManagedTestBuildOsGroup }}
-      managedTestBuildOsSubgroup: ${{ parameters.unixManagedTestBuildOsSubgroup }}
-      managedTestBuildArchType: ${{ parameters.unixManagedTestBuildArchType }}
+      managedTestBuildOsGroup: ${{ parameters.arm64ManagedTestBuildOsGroup }}
+      managedTestBuildOsSubgroup: ${{ parameters.arm64ManagedTestBuildOsSubgroup }}
       container:
         image: ubuntu-16.04-cross-arm64-cfdd435-20190923200213
         registry: mcr
@@ -93,18 +93,18 @@ jobs:
       archType: x64
       osGroup: Linux
       osSubgroup: _musl
-      managedTestBuildOsGroup: ${{ parameters.unixManagedTestBuildOsGroup }}
-      managedTestBuildOsSubgroup: ${{ parameters.unixManagedTestBuildOsSubgroup }}
-      managedTestBuildArchType: ${{ parameters.unixManagedTestBuildArchType }}
+      managedTestBuildOsGroup: ${{ parameters.x64ManagedTestBuildOsGroup }}
+      managedTestBuildOsSubgroup: ${{ parameters.x64ManagedTestBuildOsSubgroup }}
       container:
         image: alpine-3.9-WithNode-0fc54a3-20190918214015
         registry: mcr
       helixQueues:
       - ${{ if eq(variables['System.TeamProject'], 'public') }}:
-        - (Alpine.38.Amd64.Open)Ubuntu.1604.Amd64.Open@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.8-helix-09ca40b-20190508143246
+        - (Alpine.310.Amd64.Open)Ubuntu.1604.Amd64.Open@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.10-helix-3043688-20190918214010
       - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
         - (Alpine.38.Amd64)ubuntu.1604.amd64@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.8-helix-09ca40b-20190508143246
         - (Alpine.39.Amd64)ubuntu.1604.amd64@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.9-helix-09ca40b-20190508143246
+        - (Alpine.310.Amd64)ubuntu.1604.amd64@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.10-helix-3043688-20190918214010
       ${{ insert }}: ${{ parameters.jobParameters }}
 
 # Linux musl arm64
@@ -117,9 +117,8 @@ jobs:
       archType: arm64
       osGroup: Linux
       osSubgroup: _musl
-      managedTestBuildOsGroup: ${{ parameters.unixManagedTestBuildOsGroup }}
-      managedTestBuildOsSubgroup: ${{ parameters.unixManagedTestBuildOsSubgroup }}
-      managedTestBuildArchType: ${{ parameters.unixManagedTestBuildArchType }}
+      managedTestBuildOsGroup: ${{ parameters.arm64ManagedTestBuildOsGroup }}
+      managedTestBuildOsSubgroup: ${{ parameters.arm64ManagedTestBuildOsSubgroup }}
       container:
         image: ubuntu-16.04-cross-arm64-alpine-406629a-20190923200213
         registry: mcr
@@ -141,9 +140,8 @@ jobs:
       archType: x64
       osGroup: Linux
       osSubgroup: _rhel6
-      managedTestBuildOsGroup: ${{ parameters.unixManagedTestBuildOsGroup }}
-      managedTestBuildOsSubgroup: ${{ parameters.unixManagedTestBuildOsSubgroup }}
-      managedTestBuildArchType: ${{ parameters.unixManagedTestBuildArchType }}
+      managedTestBuildOsGroup: ${{ parameters.x64ManagedTestBuildOsGroup }}
+      managedTestBuildOsSubgroup: ${{ parameters.x64ManagedTestBuildOsSubgroup }}
       container:
         image: centos-6-50f0d02-20190918213956
         registry: mcr
@@ -162,9 +160,8 @@ jobs:
       buildConfig: ${{ parameters.buildConfig }}
       archType: x64
       osGroup: Linux
-      managedTestBuildOsGroup: ${{ parameters.unixManagedTestBuildOsGroup }}
-      managedTestBuildOsSubgroup: ${{ parameters.unixManagedTestBuildOsSubgroup }}
-      managedTestBuildArchType: ${{ parameters.unixManagedTestBuildArchType }}
+      managedTestBuildOsGroup: ${{ parameters.x64ManagedTestBuildOsGroup }}
+      managedTestBuildOsSubgroup: ${{ parameters.x64ManagedTestBuildOsSubgroup }}
       container:
         image: centos-7-50f0d02-20190918214028
         registry: mcr
@@ -211,9 +208,8 @@ jobs:
       buildConfig: ${{ parameters.buildConfig }}
       archType: x64
       osGroup: OSX
-      managedTestBuildOsGroup: ${{ parameters.unixManagedTestBuildOsGroup }}
-      managedTestBuildOsSubgroup: ${{ parameters.unixManagedTestBuildOsSubgroup }}
-      managedTestBuildArchType: ${{ parameters.unixManagedTestBuildArchType }}
+      managedTestBuildOsGroup: ${{ parameters.x64ManagedTestBuildOsGroup }}
+      managedTestBuildOsSubgroup: ${{ parameters.x64ManagedTestBuildOsSubgroup }}
       helixQueues:
       - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(parameters.helixQueueGroup, 'pr', 'ci', 'corefx')) }}:
         - OSX.1013.Amd64.Open
@@ -234,8 +230,6 @@ jobs:
       buildConfig: ${{ parameters.buildConfig }}
       archType: x64
       osGroup: Windows_NT
-      managedTestBuildOsGroup: 'Windows_NT'
-      managedTestBuildArchType: ${{ parameters.windows64bitManagedTestBuildArchType }}
       helixQueues:
       - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(parameters.helixQueueGroup, 'pr', 'ci', 'corefx')) }}:
         - Windows.10.Amd64.Open
@@ -261,8 +255,6 @@ jobs:
       buildConfig: ${{ parameters.buildConfig }}
       archType: x86
       osGroup: Windows_NT
-      managedTestBuildOsGroup: 'Windows_NT'
-      managedTestBuildArchType: ${{ parameters.windows32bitManagedTestBuildArchType }}
       helixQueues:
       - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(parameters.helixQueueGroup, 'pr', 'ci', 'corefx')) }}:
         - Windows.10.Amd64.Open
@@ -286,8 +278,6 @@ jobs:
       buildConfig: ${{ parameters.buildConfig }}
       archType: arm
       osGroup: Windows_NT
-      managedTestBuildOsGroup: 'Windows_NT'
-      managedTestBuildArchType: ${{ parameters.windows32bitManagedTestBuildArchType }}
       helixQueues:
       # NOTE: there are no queues specified for Windows_NT_arm public with helixQueueGroup='pr'. This means that specifying
       # Windows_NT_arm for a PR job causes a build, but no test run. If the test build and test runs were separate jobs,
@@ -307,8 +297,6 @@ jobs:
       buildConfig: ${{ parameters.buildConfig }}
       archType: arm64
       osGroup: Windows_NT
-      managedTestBuildOsGroup: 'Windows_NT'
-      managedTestBuildArchType: ${{ parameters.windows64bitManagedTestBuildArchType }}
       helixQueues:
       # TODO: Consider adding Windows.10.Arm64.Open here if capacity is enough for handling both Windows_NT/arm and Windows_NT/arm64 testing
       - ${{ if eq(variables['System.TeamProject'], 'internal') }}:

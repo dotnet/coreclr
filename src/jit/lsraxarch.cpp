@@ -1122,7 +1122,7 @@ int LinearScan::BuildCall(GenTreeCall* call)
         if (argNode->OperIsPutArgReg())
         {
             srcCount++;
-            BuildUse(argNode, genRegMask(argNode->gtRegNum));
+            BuildUse(argNode, genRegMask(argNode->GetRegNum()));
         }
 #ifdef UNIX_AMD64_ABI
         else if (argNode->OperGet() == GT_FIELD_LIST)
@@ -1131,7 +1131,7 @@ int LinearScan::BuildCall(GenTreeCall* call)
             {
                 assert(use.GetNode()->OperIsPutArgReg());
                 srcCount++;
-                BuildUse(use.GetNode(), genRegMask(use.GetNode()->gtRegNum));
+                BuildUse(use.GetNode(), genRegMask(use.GetNode()->GetRegNum()));
             }
         }
 #endif // UNIX_AMD64_ABI
@@ -1142,7 +1142,7 @@ int LinearScan::BuildCall(GenTreeCall* call)
         fgArgTabEntry* curArgTabEntry = compiler->gtArgEntryByNode(call, argNode);
         assert(curArgTabEntry);
 
-        if (curArgTabEntry->regNum == REG_STK)
+        if (curArgTabEntry->GetRegNum() == REG_STK)
         {
             // late arg that is not passed in a register
             assert(argNode->gtOper == GT_PUTARG_STK);
@@ -1170,16 +1170,16 @@ int LinearScan::BuildCall(GenTreeCall* call)
             unsigned regIndex = 0;
             for (GenTreeFieldList::Use& use : argNode->AsFieldList()->Uses())
             {
-                const regNumber argReg = curArgTabEntry->getRegNum(regIndex);
-                assert(use.GetNode()->gtRegNum == argReg);
+                const regNumber argReg = curArgTabEntry->GetRegNum(regIndex);
+                assert(use.GetNode()->GetRegNum() == argReg);
                 regIndex++;
             }
         }
         else
 #endif // UNIX_AMD64_ABI
         {
-            const regNumber argReg = curArgTabEntry->regNum;
-            assert(argNode->gtRegNum == argReg);
+            const regNumber argReg = curArgTabEntry->GetRegNum();
+            assert(argNode->GetRegNum() == argReg);
         }
 #endif // DEBUG
     }

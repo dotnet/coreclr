@@ -640,8 +640,8 @@ AGAIN:
 #endif
 
         case GT_COMMA:
-            //     tree->gtOp.gtOp1 - already processed by genCreateAddrMode()
-            tree = tree->gtOp.gtOp2;
+            //     tree->AsOp()->gtOp1 - already processed by genCreateAddrMode()
+            tree = tree->AsOp()->gtOp2;
             goto AGAIN;
 
         default:
@@ -704,7 +704,7 @@ AGAIN:
             {
                 // TODO-LdStArch-Bug: Should regTmp be a dst on the node or an internal reg?
                 // Either way, it is not currently being handled by Lowering.
-                regNumber regTmp = tree->gtRegNum;
+                regNumber regTmp = tree->GetRegNum();
                 assert(regTmp != REG_NA);
                 GetEmitter()->emitIns_R_S(ins_Load(tree->TypeGet()), size, regTmp, varNum, offs);
                 GetEmitter()->emitIns_R_R(ins, size, regTmp, reg, flags);
@@ -754,8 +754,8 @@ AGAIN:
         break;
 
         case GT_COMMA:
-            //     tree->gtOp.gtOp1 - already processed by genCreateAddrMode()
-            tree = tree->gtOp.gtOp2;
+            //     tree->AsOp()->gtOp1 - already processed by genCreateAddrMode()
+            tree = tree->AsOp()->gtOp2;
             goto AGAIN;
 
         default:
@@ -867,7 +867,7 @@ AGAIN:
 
                 default:
                     regNumber regTmp;
-                    regTmp = tree->gtRegNum;
+                    regTmp = tree->GetRegNum();
 
                     GetEmitter()->emitIns_R_S(ins_Load(tree->TypeGet()), size, regTmp, varNum, offs);
                     GetEmitter()->emitIns_R_R(ins, size, reg, regTmp, flags);
@@ -936,7 +936,7 @@ AGAIN:
             break;
 
         case GT_COMMA:
-            tree = tree->gtOp.gtOp2;
+            tree = tree->AsOp()->gtOp2;
             goto AGAIN;
 
         default:
@@ -1162,7 +1162,7 @@ void CodeGen::inst_RV_TT_IV(instruction ins, emitAttr attr, regNumber reg1, GenT
     }
     else
     {
-        regNumber rmOpReg = rmOp->gtRegNum;
+        regNumber rmOpReg = rmOp->GetRegNum();
         GetEmitter()->emitIns_SIMD_R_R_I(ins, attr, reg1, rmOpReg, ival);
     }
 }

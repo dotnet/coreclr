@@ -227,6 +227,25 @@ void emitter::emitInsSanityCheck(instrDesc* id)
             assert(insOptsNone(id->idInsOpt()) || insOptsIndexed(id->idInsOpt()));
             break;
 
+        case IF_LS_2D: // LS_2D   .Q.............. xx.xssnnnnnttttt      Vt Rn
+            assert(isValidVectorDatasize(id->idOpSize()));
+            assert(isValidArrangement(id->idOpSize(), id->idInsOpt()));
+            assert(isVectorRegister(id->idReg1()));
+            assert(isIntegerRegister(id->idReg2()));
+            assert(emitGetInsSC(id) == 0);
+            assert(!id->idIsLclVar());
+            break;
+
+        case IF_LS_2E: // LS_2E   .Q.............. xx.Sssnnnnnttttt      Vt[] Rn
+            assert(isValidVectorDatasize(id->idOpSize()));
+            assert(isValidArrangement(id->idOpSize(), id->idInsOpt()));
+            assert(isVectorRegister(id->idReg1()));
+            assert(isIntegerRegister(id->idReg2()));
+            elemsize = optGetElemsize(id->idInsOpt());
+            assert(isValidVectorIndex(id->idOpSize(), elemsize, emitGetInsSC(id)));
+            assert(!id->idIsLclVar());
+            break;
+
         case IF_LS_3A: // LS_3A   .X.......X.mmmmm oooS..nnnnnttttt      Rt Rn Rm ext(Rm) LSL {}
             assert(isIntegerRegister(id->idReg1()) || // ZR
                    isVectorRegister(id->idReg1()));
@@ -283,6 +302,27 @@ void emitter::emitInsSanityCheck(instrDesc* id)
             assert(emitGetInsSC(id) == 0);
             assert(!id->idIsLclVar());
             assert(insOptsNone(id->idInsOpt()));
+            break;
+
+        case IF_LS_3F: // LS_3F   .Q.........mmmmm xx.xssnnnnnttttt      Vt Rn Rm
+            assert(isValidVectorDatasize(id->idOpSize()));
+            assert(isValidArrangement(id->idOpSize(), id->idInsOpt()));
+            assert(isVectorRegister(id->idReg1()));
+            assert(isIntegerRegister(id->idReg2()));
+            assert(isIntegerRegister(id->idReg3()));
+            assert(emitGetInsSC(id) == 0);
+            assert(!id->idIsLclVar());
+            break;
+
+        case IF_LS_3G: // LS_3G   .Q.........mmmmm xx.Sssnnnnnttttt      Vt[] Rn Rm
+            assert(isValidVectorDatasize(id->idOpSize()));
+            assert(isValidArrangement(id->idOpSize(), id->idInsOpt()));
+            assert(isVectorRegister(id->idReg1()));
+            assert(isIntegerRegister(id->idReg2()));
+            assert(isIntegerRegister(id->idReg3()));
+            elemsize = optGetElemsize(id->idInsOpt());
+            assert(isValidVectorIndex(id->idOpSize(), elemsize, emitGetInsSC(id)));
+            assert(!id->idIsLclVar());
             break;
 
         case IF_DI_1A: // DI_1A   X.......shiiiiii iiiiiinnnnn.....         Rn    imm(i12,sh)
@@ -873,10 +913,14 @@ bool emitter::emitInsMayWriteToGCReg(instrDesc* id)
         case IF_LS_2A: // LS_2A   .X.......X...... ......nnnnnttttt      Rt Rn
         case IF_LS_2B: // LS_2B   .X.......Xiiiiii iiiiiinnnnnttttt      Rt Rn    imm(0-4095)
         case IF_LS_2C: // LS_2C   .X.......X.iiiii iiiiP.nnnnnttttt      Rt Rn    imm(-256..+255) pre/post inc
+        case IF_LS_2D: // LS_2D   .Q.............. xx.xssnnnnnttttt      Vt Rn
+        case IF_LS_2E: // LS_2E   .Q.............. xx.Sssnnnnnttttt      Vt[] Rn
         case IF_LS_3A: // LS_3A   .X.......X.mmmmm xxxS..nnnnnttttt      Rt Rn Rm ext(Rm) LSL {}
         case IF_LS_3B: // LS_3B   X............... .aaaaannnnnttttt      Rt Ra Rn
         case IF_LS_3C: // LS_3C   X.........iiiiii iaaaaannnnnttttt      Rt Ra Rn imm(im7,sh)
         case IF_LS_3D: // LS_3D   .X.......X.mmmmm ......nnnnnttttt      Wm Rt Rn
+        case IF_LS_3F: // LS_3F   .Q.........mmmmm xx.xssnnnnnttttt      Vt Rn Rm
+        case IF_LS_3G: // LS_3G   .Q.........mmmmm xx.Sssnnnnnttttt      Vt[] Rn Rm
 
             // For the Store instructions the "target" register is actually a "source" value
 
@@ -1457,6 +1501,7 @@ emitter::code_t emitter::emitInsCode(instruction ins, insFormat fmt)
     const static insFormat formatEncode4G[4] = {IF_DR_2E, IF_DR_2F, IF_DV_2M, IF_DV_2L};
     const static insFormat formatEncode4H[4] = {IF_DV_3E, IF_DV_3A, IF_DV_2L, IF_DV_2M};
     const static insFormat formatEncode4I[4] = {IF_DV_3D, IF_DV_3B, IF_DV_2G, IF_DV_2A};
+    const static insFormat formatEncode4J[4] = {IF_LS_2D, IF_LS_3F, IF_LS_2E, IF_LS_3G};
     const static insFormat formatEncode3A[3] = {IF_DR_3A, IF_DR_3B, IF_DI_2C};
     const static insFormat formatEncode3B[3] = {IF_DR_2A, IF_DR_2B, IF_DI_1C};
     const static insFormat formatEncode3C[3] = {IF_DR_3A, IF_DR_3B, IF_DV_3C};
@@ -1637,6 +1682,17 @@ emitter::code_t emitter::emitInsCode(instruction ins, insFormat fmt)
             for (index = 0; index < 4; index++)
             {
                 if (fmt == formatEncode4I[index])
+                {
+                    encoding_found = true;
+                    break;
+                }
+            }
+            break;
+
+        case IF_EN4J:
+            for (index = 0; index < 4; index++)
+            {
+                if (fmt == formatEncode4J[index])
                 {
                     encoding_found = true;
                     break;
@@ -4327,6 +4383,16 @@ void emitter::emitIns_R_R(
             assert(elemsize == EA_4BYTE);
             fmt = IF_DV_2P;
             break;
+
+        case INS_ld1:
+        {
+            assert(isVectorRegister(reg1));
+            assert(isIntegerRegister(reg2));
+            assert(isValidVectorDatasize(size));
+            assert(isValidArrangement(size, opt));
+            fmt = IF_LS_2D;
+            break;
+        }
 
         default:
             unreached();
@@ -8142,6 +8208,124 @@ void emitter::emitIns_Call(EmitCallType          callType,
 
 /*****************************************************************************
  *
+ *  Returns the encoding to select the vector elemsize for an Arm64 ld/st# vector instruction
+ */
+
+/*static*/ emitter::code_t emitter::insEncodeVLSElemsize(emitAttr size)
+{
+    code_t result = 0x00000000;
+
+    switch (size)
+    {
+        case EA_1BYTE:
+        {
+            result |= 0x0000; // clear bits 10 and 11
+            break;
+        }
+
+        case EA_2BYTE:
+        {
+            result |= 0x0400; // set bit at location 10, clear bit at location 11
+            break;
+        }
+
+        case EA_4BYTE:
+        {
+            result |= 0x0800; // clear bit at location 10, set bit at location 11
+            break;
+        }
+
+        case EA_8BYTE:
+        {
+            result |= 0x0C00; // set bits at location 10 and 11
+            break;
+        }
+
+        default:
+        {
+            assert(!"Invalid element size");
+            break;
+        }
+    }
+
+    return result;
+}
+
+/*****************************************************************************
+ *
+ *  Returns the encoding to select the index for an Arm64 ld/st# vector by elem instruction
+ */
+
+/*static*/ emitter::code_t emitter::insEncodeVLSIndex(emitAttr size, ssize_t index)
+{
+    code_t result = 0x00000000;
+
+    switch (size)
+    {
+        case EA_1BYTE:
+        {
+            // Q  = ?   - bit location 30
+            // xx = 00  - bit location 14 and 15
+            // S = ?    - bit location 12
+            // ss = ?0  - bit location 10 and 11
+
+            result |= (index & 0x8) << 27;
+            result |= (index & 0x4) << 10;
+            result |= (index & 0x3) << 10;
+            break;
+        }
+
+        case EA_2BYTE:
+        {
+            // Q  = ?   - bit location 30
+            // xx = 01  - bit location 14 and 15
+            // S = ?    - bit location 12
+            // ss = ??  - bit location 10 and 11
+
+            result |= (index & 0x4) << 28;
+            result |= 0x4000;
+            result |= (index & 0x2) << 11;
+            result |= (index & 0x1) << 11;
+            break;
+        }
+
+        case EA_4BYTE:
+        {
+            // Q  = ?   - bit location 30
+            // xx = 10  - bit location 14 and 15
+            // S = ?    - bit location 12
+            // ss = 00  - bit location 10 and 11
+
+            result |= (index & 0x2) << 29;
+            result |= 0x8000;
+            result |= (index & 0x1) << 12;
+            break;
+        }
+
+        case EA_8BYTE:
+        {
+            // Q  = ?   - bit location 30
+            // xx = 10  - bit location 14 and 15
+            // S = 0    - bit location 12
+            // ss = 01  - bit location 10 and 11
+
+            result |= (index & 0x1) << 30;
+            result |= 0x8400;
+            break;
+        }
+
+        default:
+        {
+            assert(!"Invalid element size");
+            break;
+        }
+    }
+
+    return result;
+}
+
+/*****************************************************************************
+ *
  *  Returns the encoding to select the fcvt operation for Arm64 instructions
  */
 /*static*/ emitter::code_t emitter::insEncodeConvertOpt(insFormat fmt, insOpts conversion)
@@ -9188,6 +9372,31 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             dst += emitOutput_Instr(dst, code);
             break;
 
+        case IF_LS_2D: // LS_2D   .Q.............. xx.xssnnnnnttttt      Vt Rn
+            elemsize = optGetElemsize(id->idInsOpt());
+            code     = emitInsCode(ins, fmt);
+
+            code |= insEncodeVectorsize(id->idOpSize()); // Q
+            code |= 0x5000;                         // xxx          - We only support the one register variant right now
+            code |= insEncodeVLSElemsize(elemsize); // ss
+            code |= insEncodeReg_Rn(id->idReg2());  // nnnnn
+            code |= insEncodeReg_Vt(id->idReg1());  // ttttt
+
+            dst += emitOutput_Instr(dst, code);
+            break;
+
+        case IF_LS_2E: // LS_2E   .Q.............. xx.Sssnnnnnttttt      Vt[] Rn
+            elemsize = optGetElemsize(id->idInsOpt());
+            imm      = emitGetInsSC(id);
+            code     = emitInsCode(ins, fmt);
+
+            code |= insEncodeVLSIndex(elemsize, imm); // Q xx S ss
+            code |= insEncodeReg_Rn(id->idReg2());    // nnnnn
+            code |= insEncodeReg_Vt(id->idReg1());    // ttttt
+
+            dst += emitOutput_Instr(dst, code);
+            break;
+
         case IF_LS_3A: // LS_3A   .X.......X.mmmmm oooS..nnnnnttttt      Rt Rn Rm ext(Rm) LSL {}
             assert(insOptsLSExtend(id->idInsOpt()));
             code = emitInsCode(ins, fmt);
@@ -9282,6 +9491,33 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             code |= insEncodeReg_Rm(id->idReg1());             // mmmmm
             code |= insEncodeReg_Rt(id->idReg2());             // ttttt
             code |= insEncodeReg_Rn(id->idReg3());             // nnnnn
+            dst += emitOutput_Instr(dst, code);
+            break;
+
+        case IF_LS_3F: // LS_3F   .Q.........mmmmm xx.xssnnnnnttttt      Vt Rn Rm
+            elemsize = optGetElemsize(id->idInsOpt());
+            code     = emitInsCode(ins, fmt);
+
+            code |= insEncodeReg_Vt(id->idReg1());  // ttttt
+            code |= insEncodeReg_Rn(id->idReg2());  // nnnnn
+            code |= insEncodeVLSElemsize(elemsize); // ss
+            code |= 0x5000;                         // xx.x         - We only support the one register variant right now
+            code |= insEncodeReg_Rm(id->idReg3());  // mmmmm
+            code |= insEncodeVectorsize(id->idOpSize()); // Q
+
+            dst += emitOutput_Instr(dst, code);
+            break;
+
+        case IF_LS_3G: // LS_3G   .Q.........mmmmm xx.Sssnnnnnttttt      Vt[] Rn Rm
+            elemsize = optGetElemsize(id->idInsOpt());
+            imm      = emitGetInsSC(id);
+            code     = emitInsCode(ins, fmt);
+
+            code |= insEncodeVLSIndex(elemsize, imm); // Q xx S ss
+            code |= insEncodeReg_Rm(id->idReg3());    // mmmmm
+            code |= insEncodeReg_Rn(id->idReg2());    // nnnnn
+            code |= insEncodeReg_Vt(id->idReg1());    // ttttt
+
             dst += emitOutput_Instr(dst, code);
             break;
 
@@ -10929,6 +11165,20 @@ void emitter::emitDispIns(
             emitDispAddrRI(id->idReg2(), id->idInsOpt(), imm);
             break;
 
+        case IF_LS_2D: // LS_2D   .Q.............. xx.xssnnnnnttttt      Vt Rn
+            assert(insOptsNone(id->idInsOpt()));
+            assert(emitGetInsSC(id) == 0);
+            emitDispReg(id->idReg1(), emitInsTargetRegSize(id), true);
+            emitDispAddrRI(id->idReg2(), id->idInsOpt(), 0);
+            break;
+
+        case IF_LS_2E: // LS_2E   .Q.............. xx.Sssnnnnnttttt      Vt[] Rn
+            assert(insOptsNone(id->idInsOpt()));
+            assert(emitGetInsSC(id) == 0);
+            emitDispReg(id->idReg1(), emitInsTargetRegSize(id), true);
+            emitDispAddrRI(id->idReg2(), id->idInsOpt(), 0);
+            break;
+
         case IF_LS_3A: // LS_3A   .X.......X.mmmmm oooS..nnnnnttttt      Rt Rn Rm ext(Rm) LSL {}
             assert(insOptsLSExtend(id->idInsOpt()));
             emitDispReg(id->idReg1(), emitInsTargetRegSize(id), true);
@@ -10972,6 +11222,22 @@ void emitter::emitDispIns(
             assert((EA_SIZE(size) == 4) || (EA_SIZE(size) == 8));
             emitDispReg(id->idReg1(), size, true);
             emitDispReg(id->idReg2(), size, true);
+            emitDispAddrRI(id->idReg3(), id->idInsOpt(), 0);
+            break;
+
+        case IF_LS_3F: // LS_3F   .Q.........mmmmm xx.xssnnnnnttttt      Vt Rn Rm
+            assert(insOptsNone(id->idInsOpt()));
+            assert(emitGetInsSC(id) == 0);
+            emitDispReg(id->idReg1(), emitInsTargetRegSize(id), true);
+            emitDispReg(id->idReg2(), emitInsTargetRegSize(id), true);
+            emitDispAddrRI(id->idReg3(), id->idInsOpt(), 0);
+            break;
+
+        case IF_LS_3G: // LS_3G   .Q.........mmmmm xx.Sssnnnnnttttt      Vt[] Rn Rm
+            assert(insOptsNone(id->idInsOpt()));
+            assert(emitGetInsSC(id) == 0);
+            emitDispReg(id->idReg1(), emitInsTargetRegSize(id), true);
+            emitDispReg(id->idReg2(), emitInsTargetRegSize(id), true);
             emitDispAddrRI(id->idReg3(), id->idInsOpt(), 0);
             break;
 
@@ -11588,13 +11854,13 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
                     if (lsl > 0)
                     {
                         // Generate code to set tmpReg = base + index*scale
-                        emitIns_R_R_R_I(INS_add, addType, tmpReg, memBase->gtRegNum, index->gtRegNum, lsl,
+                        emitIns_R_R_R_I(INS_add, addType, tmpReg, memBase->GetRegNum(), index->GetRegNum(), lsl,
                                         INS_OPTS_LSL);
                     }
                     else // no scale
                     {
                         // Generate code to set tmpReg = base + index
-                        emitIns_R_R_R(INS_add, addType, tmpReg, memBase->gtRegNum, index->gtRegNum);
+                        emitIns_R_R_R(INS_add, addType, tmpReg, memBase->GetRegNum(), index->GetRegNum());
                     }
 
                     noway_assert(emitInsIsLoad(ins) || (tmpReg != dataReg));
@@ -11608,13 +11874,13 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
                     codeGen->instGen_Set_Reg_To_Imm(EA_PTRSIZE, tmpReg, offset);
                     // Then add the base register
                     //      rd = rd + base
-                    emitIns_R_R_R(INS_add, addType, tmpReg, tmpReg, memBase->gtRegNum);
+                    emitIns_R_R_R(INS_add, addType, tmpReg, tmpReg, memBase->GetRegNum());
 
                     noway_assert(emitInsIsLoad(ins) || (tmpReg != dataReg));
-                    noway_assert(tmpReg != index->gtRegNum);
+                    noway_assert(tmpReg != index->GetRegNum());
 
                     // Then load/store dataReg from/to [tmpReg + index*scale]
-                    emitIns_R_R_R_I(ins, attr, dataReg, tmpReg, index->gtRegNum, lsl, INS_OPTS_LSL);
+                    emitIns_R_R_R_I(ins, attr, dataReg, tmpReg, index->GetRegNum(), lsl, INS_OPTS_LSL);
                 }
             }
             else // (offset == 0)
@@ -11622,12 +11888,12 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
                 if (lsl > 0)
                 {
                     // Then load/store dataReg from/to [memBase + index*scale]
-                    emitIns_R_R_R_I(ins, attr, dataReg, memBase->gtRegNum, index->gtRegNum, lsl, INS_OPTS_LSL);
+                    emitIns_R_R_R_I(ins, attr, dataReg, memBase->GetRegNum(), index->GetRegNum(), lsl, INS_OPTS_LSL);
                 }
                 else // no scale
                 {
                     // Then load/store dataReg from/to [memBase + index]
-                    emitIns_R_R_R(ins, attr, dataReg, memBase->gtRegNum, index->gtRegNum);
+                    emitIns_R_R_R(ins, attr, dataReg, memBase->GetRegNum(), index->GetRegNum());
                 }
             }
         }
@@ -11636,7 +11902,7 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
             if (emitIns_valid_imm_for_ldst_offset(offset, emitTypeSize(indir->TypeGet())))
             {
                 // Then load/store dataReg from/to [memBase + offset]
-                emitIns_R_R_I(ins, attr, dataReg, memBase->gtRegNum, offset);
+                emitIns_R_R_I(ins, attr, dataReg, memBase->GetRegNum(), offset);
             }
             else
             {
@@ -11647,14 +11913,14 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
                 codeGen->instGen_Set_Reg_To_Imm(EA_PTRSIZE, tmpReg, offset);
 
                 // Then load/store dataReg from/to [memBase + tmpReg]
-                emitIns_R_R_R(ins, attr, dataReg, memBase->gtRegNum, tmpReg);
+                emitIns_R_R_R(ins, attr, dataReg, memBase->GetRegNum(), tmpReg);
             }
         }
     }
     else // addr is not contained, so we evaluate it into a register
     {
         // Then load/store dataReg from/to [addrReg]
-        emitIns_R_R(ins, attr, dataReg, addr->gtRegNum);
+        emitIns_R_R(ins, attr, dataReg, addr->GetRegNum());
     }
 }
 
@@ -11678,13 +11944,13 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
 
     if (intConst)
     {
-        emitIns_R_I(ins, attr, dst->gtRegNum, intConst->IconValue());
-        return dst->gtRegNum;
+        emitIns_R_I(ins, attr, dst->GetRegNum(), intConst->IconValue());
+        return dst->GetRegNum();
     }
     else
     {
-        emitIns_R_R(ins, attr, dst->gtRegNum, src->gtRegNum);
-        return dst->gtRegNum;
+        emitIns_R_R(ins, attr, dst->GetRegNum(), src->GetRegNum());
+        return dst->GetRegNum();
     }
 }
 
@@ -11763,33 +12029,33 @@ regNumber emitter::emitInsTernary(instruction ins, emitAttr attr, GenTree* dst, 
     }
     if (intConst != nullptr)
     {
-        emitIns_R_R_I(ins, attr, dst->gtRegNum, nonIntReg->gtRegNum, intConst->IconValue());
+        emitIns_R_R_I(ins, attr, dst->GetRegNum(), nonIntReg->GetRegNum(), intConst->IconValue());
     }
     else
     {
         if (isMulOverflow)
         {
             regNumber extraReg = dst->GetSingleTempReg();
-            assert(extraReg != dst->gtRegNum);
+            assert(extraReg != dst->GetRegNum());
 
             if ((dst->gtFlags & GTF_UNSIGNED) != 0)
             {
                 if (attr == EA_4BYTE)
                 {
                     // Compute 8 byte results from 4 byte by 4 byte multiplication.
-                    emitIns_R_R_R(INS_umull, EA_8BYTE, dst->gtRegNum, src1->gtRegNum, src2->gtRegNum);
+                    emitIns_R_R_R(INS_umull, EA_8BYTE, dst->GetRegNum(), src1->GetRegNum(), src2->GetRegNum());
 
                     // Get the high result by shifting dst.
-                    emitIns_R_R_I(INS_lsr, EA_8BYTE, extraReg, dst->gtRegNum, 32);
+                    emitIns_R_R_I(INS_lsr, EA_8BYTE, extraReg, dst->GetRegNum(), 32);
                 }
                 else
                 {
                     assert(attr == EA_8BYTE);
                     // Compute the high result.
-                    emitIns_R_R_R(INS_umulh, attr, extraReg, src1->gtRegNum, src2->gtRegNum);
+                    emitIns_R_R_R(INS_umulh, attr, extraReg, src1->GetRegNum(), src2->GetRegNum());
 
                     // Now multiply without skewing the high result.
-                    emitIns_R_R_R(ins, attr, dst->gtRegNum, src1->gtRegNum, src2->gtRegNum);
+                    emitIns_R_R_R(ins, attr, dst->GetRegNum(), src1->GetRegNum(), src2->GetRegNum());
                 }
 
                 // zero-sign bit comparison to detect overflow.
@@ -11801,10 +12067,10 @@ regNumber emitter::emitInsTernary(instruction ins, emitAttr attr, GenTree* dst, 
                 if (attr == EA_4BYTE)
                 {
                     // Compute 8 byte results from 4 byte by 4 byte multiplication.
-                    emitIns_R_R_R(INS_smull, EA_8BYTE, dst->gtRegNum, src1->gtRegNum, src2->gtRegNum);
+                    emitIns_R_R_R(INS_smull, EA_8BYTE, dst->GetRegNum(), src1->GetRegNum(), src2->GetRegNum());
 
                     // Get the high result by shifting dst.
-                    emitIns_R_R_I(INS_lsr, EA_8BYTE, extraReg, dst->gtRegNum, 32);
+                    emitIns_R_R_I(INS_lsr, EA_8BYTE, extraReg, dst->GetRegNum(), 32);
 
                     bitShift = 31;
                 }
@@ -11812,22 +12078,22 @@ regNumber emitter::emitInsTernary(instruction ins, emitAttr attr, GenTree* dst, 
                 {
                     assert(attr == EA_8BYTE);
                     // Save the high result in a temporary register.
-                    emitIns_R_R_R(INS_smulh, attr, extraReg, src1->gtRegNum, src2->gtRegNum);
+                    emitIns_R_R_R(INS_smulh, attr, extraReg, src1->GetRegNum(), src2->GetRegNum());
 
                     // Now multiply without skewing the high result.
-                    emitIns_R_R_R(ins, attr, dst->gtRegNum, src1->gtRegNum, src2->gtRegNum);
+                    emitIns_R_R_R(ins, attr, dst->GetRegNum(), src1->GetRegNum(), src2->GetRegNum());
 
                     bitShift = 63;
                 }
 
                 // Sign bit comparison to detect overflow.
-                emitIns_R_R_I(INS_cmp, attr, extraReg, dst->gtRegNum, bitShift, INS_OPTS_ASR);
+                emitIns_R_R_I(INS_cmp, attr, extraReg, dst->GetRegNum(), bitShift, INS_OPTS_ASR);
             }
         }
         else
         {
             // We can just multiply.
-            emitIns_R_R_R(ins, attr, dst->gtRegNum, src1->gtRegNum, src2->gtRegNum);
+            emitIns_R_R_R(ins, attr, dst->GetRegNum(), src1->GetRegNum(), src2->GetRegNum());
         }
     }
 
@@ -11837,7 +12103,7 @@ regNumber emitter::emitInsTernary(instruction ins, emitAttr attr, GenTree* dst, 
         codeGen->genCheckOverflow(dst);
     }
 
-    return dst->gtRegNum;
+    return dst->GetRegNum();
 }
 
 #if defined(DEBUG) || defined(LATE_DISASM)
@@ -11878,7 +12144,11 @@ void emitter::getMemoryOperation(instrDesc* id, unsigned* pMemAccessKind, bool* 
             case IF_LS_2A:
             case IF_LS_2B:
             case IF_LS_2C:
+            case IF_LS_2D:
+            case IF_LS_2E:
             case IF_LS_3A:
+            case IF_LS_3F:
+            case IF_LS_3G:
                 if (isStackRegister(id->idReg2()))
                 {
                     isLocalAccess = true;

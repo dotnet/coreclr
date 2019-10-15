@@ -199,6 +199,8 @@ namespace ILCompiler.DependencyAnalysis
         }
     }
 
+    // To make the code future compatible to the composite R2R story
+    // do NOT attempt to pass and store _inputModule here
     public sealed class ReadyToRunCodegenNodeFactory : NodeFactory
     {
         public ReadyToRunCodegenNodeFactory(
@@ -208,16 +210,17 @@ namespace ILCompiler.DependencyAnalysis
             ModuleTokenResolver moduleTokenResolver,
             SignatureContext signatureContext,
             CopiedCorHeaderNode corHeaderNode,
-            ResourceData win32Resources)
+            ResourceData win32Resources,
+            AttributePresenceFilterNode attributePresenceFilterNode)
             : base(context,
                   compilationModuleGroup,
                   nameMangler,
                   new ReadyToRunTableManager(context))
         {
-
             Resolver = moduleTokenResolver;
             InputModuleContext = signatureContext;
             CopiedCorHeaderNode = corHeaderNode;
+            AttributePresenceFilter = attributePresenceFilterNode;
             if (!win32Resources.IsEmpty)
                 Win32ResourcesNode = new Win32ResourcesNode(win32Resources);
 
@@ -339,6 +342,8 @@ namespace ILCompiler.DependencyAnalysis
         public ISymbolNode FilterFuncletPersonalityRoutine;
 
         public DebugInfoTableNode DebugInfoTable;
+
+        public AttributePresenceFilterNode AttributePresenceFilter;
 
         public ImportSectionNode EagerImports;
 
@@ -581,6 +586,15 @@ namespace ILCompiler.DependencyAnalysis
 
             DebugInfoTable = new DebugInfoTableNode(Target);
             Header.Add(Internal.Runtime.ReadyToRunSectionType.DebugInfo, DebugInfoTable, DebugInfoTable);
+
+            // Core library attributes are checked FAR more often than other dlls
+            // attributes, so produce a highly efficient table for determining if they are
+            // present. Other assemblies *MAY* benefit from this feature, but it doesn't show
+            // as useful at this time.
+            if (this.AttributePresenceFilter != null)
+            {
+                Header.Add(Internal.Runtime.ReadyToRunSectionType.AttributePresence, AttributePresenceFilter, AttributePresenceFilter);
+            }
 
             EagerImports = new ImportSectionNode(
                 "EagerImports",

@@ -164,15 +164,24 @@ namespace Internal.JitInterface
 
         public void CompileMethod(IReadyToRunMethodCodeNode methodCodeNodeNeedingCode)
         {
+            bool codeGotPublished = false;
             _methodCodeNode = methodCodeNodeNeedingCode;
 
-            if (!ShouldSkipCompilation(methodCodeNodeNeedingCode))
+            try
             {
-                CompileMethodInternal(methodCodeNodeNeedingCode);
+                if (!ShouldSkipCompilation(methodCodeNodeNeedingCode))
+                {
+                    CompileMethodInternal(methodCodeNodeNeedingCode);
+                    codeGotPublished = true;
+                }
             }
-            else
+            finally
             {
-                PublishEmptyCode();
+                if (!codeGotPublished)
+                {
+                    PublishEmptyCode();
+                }
+                CompileMethodCleanup();
             }
         }
 
@@ -555,6 +564,10 @@ namespace Internal.JitInterface
 
                 case CorInfoHelpFunc.CORINFO_HELP_BBT_FCN_ENTER:
                     id = ReadyToRunHelper.LogMethodEnter;
+                    break;
+
+                case CorInfoHelpFunc.CORINFO_HELP_STACK_PROBE:
+                    id = ReadyToRunHelper.StackProbe;
                     break;
 
                 case CorInfoHelpFunc.CORINFO_HELP_INITCLASS:

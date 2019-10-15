@@ -2857,7 +2857,7 @@ void emitter::emitHandleMemOp(GenTreeIndir* indir, instrDesc* id, insFormat fmt,
     {
         if (memBase != nullptr)
         {
-            id->idAddr()->iiaAddrMode.amBaseReg = memBase->gtRegNum;
+            id->idAddr()->iiaAddrMode.amBaseReg = memBase->GetRegNum();
         }
         else
         {
@@ -2866,7 +2866,7 @@ void emitter::emitHandleMemOp(GenTreeIndir* indir, instrDesc* id, insFormat fmt,
 
         if (indir->HasIndex())
         {
-            id->idAddr()->iiaAddrMode.amIndxReg = indir->Index()->gtRegNum;
+            id->idAddr()->iiaAddrMode.amIndxReg = indir->Index()->GetRegNum();
         }
         else
         {
@@ -2986,7 +2986,7 @@ void emitter::emitInsStoreInd(instruction ins, emitAttr attr, GenTreeStoreInd* m
         else
         {
             assert(!data->isContained());
-            emitIns_C_R(ins, attr, addr->gtClsVar.gtClsVarHnd, data->gtRegNum, 0);
+            emitIns_C_R(ins, attr, addr->gtClsVar.gtClsVarHnd, data->GetRegNum(), 0);
         }
         return;
     }
@@ -3001,7 +3001,7 @@ void emitter::emitInsStoreInd(instruction ins, emitAttr attr, GenTreeStoreInd* m
         else
         {
             assert(!data->isContained());
-            emitIns_S_R(ins, attr, data->gtRegNum, varNode->GetLclNum(), 0);
+            emitIns_S_R(ins, attr, data->GetRegNum(), varNode->GetLclNum(), 0);
         }
 
         // Updating variable liveness after instruction was emitted
@@ -3028,7 +3028,7 @@ void emitter::emitInsStoreInd(instruction ins, emitAttr attr, GenTreeStoreInd* m
         id = emitNewInstrAmd(attr, offset);
         id->idIns(ins);
         emitHandleMemOp(mem, id, IF_AWR_RRD, ins);
-        id->idReg1(data->gtRegNum);
+        id->idReg1(data->GetRegNum());
         sz = emitInsSizeAM(id, insCodeMR(ins));
         id->idCodeSize(sz);
     }
@@ -3049,7 +3049,7 @@ void emitter::emitInsStoreInd(instruction ins, emitAttr attr, GenTreeStoreInd* m
 void emitter::emitInsStoreLcl(instruction ins, emitAttr attr, GenTreeLclVarCommon* varNode)
 {
     assert(varNode->OperIs(GT_STORE_LCL_VAR));
-    assert(varNode->gtRegNum == REG_NA); // stack store
+    assert(varNode->GetRegNum() == REG_NA); // stack store
 
     GenTree* data = varNode->gtGetOp1();
     codeGen->inst_set_SV_var(varNode);
@@ -3061,7 +3061,7 @@ void emitter::emitInsStoreLcl(instruction ins, emitAttr attr, GenTreeLclVarCommo
     else
     {
         assert(!data->isContained());
-        emitIns_S_R(ins, attr, data->gtRegNum, varNode->GetLclNum(), 0);
+        emitIns_S_R(ins, attr, data->GetRegNum(), varNode->GetLclNum(), 0);
     }
 
     // Updating variable liveness after instruction was emitted
@@ -3091,11 +3091,11 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
     GenTree* cnsOp   = nullptr;
     GenTree* otherOp = nullptr;
 
-    if (dst->isContained() || (dst->isLclField() && (dst->gtRegNum == REG_NA)) || dst->isUsedFromSpillTemp())
+    if (dst->isContained() || (dst->isLclField() && (dst->GetRegNum() == REG_NA)) || dst->isUsedFromSpillTemp())
     {
         // dst can only be a modrm
         // dst on 3opImul isn't really the dst
-        assert(dst->isUsedFromMemory() || (dst->gtRegNum == REG_NA) || instrIs3opImul(ins));
+        assert(dst->isUsedFromMemory() || (dst->GetRegNum() == REG_NA) || instrIs3opImul(ins));
         assert(!src->isUsedFromMemory());
 
         memOp = dst;
@@ -3210,7 +3210,7 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
                         {
                             // src is a class static variable
                             // dst is a register
-                            emitIns_R_C(ins, attr, dst->gtRegNum, memBase->gtClsVar.gtClsVarHnd, 0);
+                            emitIns_R_C(ins, attr, dst->GetRegNum(), memBase->gtClsVar.gtClsVarHnd, 0);
                         }
                     }
                     else
@@ -3226,7 +3226,7 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
                             // src is an contained immediate
                             // dst is a class static variable
                             emitIns_C_I(ins, attr, memBase->gtClsVar.gtClsVarHnd, 0,
-                                        (int)src->gtIntConCommon.IconValue());
+                                        (int)src->AsIntConCommon()->IconValue());
                         }
                         else
                         {
@@ -3234,11 +3234,11 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
 
                             // src is a register
                             // dst is a class static variable
-                            emitIns_C_R(ins, attr, memBase->gtClsVar.gtClsVarHnd, src->gtRegNum, 0);
+                            emitIns_C_R(ins, attr, memBase->gtClsVar.gtClsVarHnd, src->GetRegNum(), 0);
                         }
                     }
 
-                    return dst->gtRegNum;
+                    return dst->GetRegNum();
                 }
 
                 default: // Addressing mode [base + index * scale + offset]
@@ -3252,7 +3252,7 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
                         assert(otherOp == nullptr);
                         assert(src->IsCnsIntOrI());
 
-                        id = emitNewInstrAmdCns(attr, memIndir->Offset(), (int)src->gtIntConCommon.IconValue());
+                        id = emitNewInstrAmdCns(attr, memIndir->Offset(), (int)src->AsIntConCommon()->IconValue());
                     }
                     else
                     {
@@ -3264,7 +3264,7 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
 
                         // there must be one non-contained op
                         assert(!regTree->isContained());
-                        id->idReg1(regTree->gtRegNum);
+                        id->idReg1(regTree->GetRegNum());
                     }
                     assert(id != nullptr);
 
@@ -3335,7 +3335,7 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
                             assert(cnsOp == src);
                             assert(otherOp == nullptr);
 
-                            sz = emitInsSizeAM(id, insCodeMI(ins), (int)src->gtIntConCommon.IconValue());
+                            sz = emitInsSizeAM(id, insCodeMI(ins), (int)src->AsIntConCommon()->IconValue());
                         }
                         else
                         {
@@ -3350,7 +3350,7 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
                     dispIns(id);
                     emitCurIGsize += sz;
 
-                    return (memOp == src) ? dst->gtRegNum : REG_NA;
+                    return (memOp == src) ? dst->GetRegNum() : REG_NA;
                 }
             }
         }
@@ -3403,13 +3403,13 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
             {
                 // src is a stack based local variable
                 // dst is a register
-                emitIns_R_S(ins, attr, dst->gtRegNum, varNum, offset);
+                emitIns_R_S(ins, attr, dst->GetRegNum(), varNum, offset);
             }
         }
         else
         {
             assert(memOp == dst);
-            assert((dst->gtRegNum == REG_NA) || dst->IsRegOptional());
+            assert((dst->GetRegNum() == REG_NA) || dst->IsRegOptional());
 
             if (cnsOp != nullptr)
             {
@@ -3419,7 +3419,7 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
 
                 // src is an contained immediate
                 // dst is a stack based local variable
-                emitIns_S_I(ins, attr, varNum, offset, (int)src->gtIntConCommon.IconValue());
+                emitIns_S_I(ins, attr, varNum, offset, (int)src->AsIntConCommon()->IconValue());
             }
             else
             {
@@ -3428,7 +3428,7 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
 
                 // src is a register
                 // dst is a stack based local variable
-                emitIns_S_R(ins, attr, src->gtRegNum, varNum, offset);
+                emitIns_S_R(ins, attr, src->GetRegNum(), varNum, offset);
             }
         }
     }
@@ -3441,7 +3441,7 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
         {
             assert(!dst->isContained());
             GenTreeIntConCommon* intCns = src->AsIntConCommon();
-            emitIns_R_I(ins, attr, dst->gtRegNum, intCns->IconValue());
+            emitIns_R_I(ins, attr, dst->GetRegNum(), intCns->IconValue());
         }
         else
         {
@@ -3449,7 +3449,7 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
             GenTreeDblCon* dblCns = src->AsDblCon();
 
             CORINFO_FIELD_HANDLE hnd = emitFltOrDblConst(dblCns->gtDconVal, emitTypeSize(dblCns));
-            emitIns_R_C(ins, attr, dst->gtRegNum, hnd, 0);
+            emitIns_R_C(ins, attr, dst->GetRegNum(), hnd, 0);
         }
     }
     else // reg, reg
@@ -3459,15 +3459,15 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
 
         if (instrHasImplicitRegPairDest(ins))
         {
-            emitIns_R(ins, attr, src->gtRegNum);
+            emitIns_R(ins, attr, src->GetRegNum());
         }
         else
         {
-            emitIns_R_R(ins, attr, dst->gtRegNum, src->gtRegNum);
+            emitIns_R_R(ins, attr, dst->GetRegNum(), src->GetRegNum());
         }
     }
 
-    return dst->gtRegNum;
+    return dst->GetRegNum();
 }
 
 //------------------------------------------------------------------------
@@ -3540,7 +3540,7 @@ void emitter::emitInsRMW(instruction ins, emitAttr attr, GenTreeStoreInd* storeI
         // ind, reg
         id = emitNewInstrAmd(attr, offset);
         emitHandleMemOp(storeInd, id, IF_ARW_RRD, ins);
-        id->idReg1(src->gtRegNum);
+        id->idReg1(src->GetRegNum());
         id->idIns(ins);
         sz = emitInsSizeAM(id, insCodeMR(ins));
     }
@@ -5214,40 +5214,9 @@ void emitter::emitIns_I_AI(instruction ins, emitAttr attr, int val, ssize_t disp
     emitCurIGsize += sz;
 }
 
-void emitter::emitIns_R_AR(instruction ins, emitAttr attr, regNumber ireg, regNumber base, int disp)
+void emitter::emitIns_R_AR(instruction ins, emitAttr attr, regNumber reg, regNumber base, int disp)
 {
-    assert((CodeGen::instIsFP(ins) == false) && (EA_SIZE(attr) <= EA_32BYTE) && (ireg != REG_NA));
-    noway_assert(emitVerifyEncodable(ins, EA_SIZE(attr), ireg));
-
-    if (ins == INS_lea)
-    {
-        if (ireg == base && disp == 0)
-        {
-            // Maybe the emitter is not the common place for this optimization, but it's a better choke point
-            // for all the emitIns(ins, tree), we would have to be analyzing at each call site
-            //
-            return;
-        }
-    }
-
-    UNATIVE_OFFSET sz;
-    instrDesc*     id  = emitNewInstrAmd(attr, disp);
-    insFormat      fmt = emitInsModeFormat(ins, IF_RRD_ARD);
-
-    id->idIns(ins);
-    id->idInsFmt(fmt);
-    id->idReg1(ireg);
-
-    id->idAddr()->iiaAddrMode.amBaseReg = base;
-    id->idAddr()->iiaAddrMode.amIndxReg = REG_NA;
-
-    assert(emitGetInsAmdAny(id) == disp); // make sure "disp" is stored properly
-
-    sz = emitInsSizeAM(id, insCodeRM(ins));
-    id->idCodeSize(sz);
-
-    dispIns(id);
-    emitCurIGsize += sz;
+    emitIns_R_ARX(ins, attr, reg, base, REG_NA, 1, disp);
 }
 
 void emitter::emitIns_R_AI(instruction ins, emitAttr attr, regNumber ireg, ssize_t disp)
@@ -5275,41 +5244,9 @@ void emitter::emitIns_R_AI(instruction ins, emitAttr attr, regNumber ireg, ssize
     emitCurIGsize += sz;
 }
 
-void emitter::emitIns_AR_R(instruction ins, emitAttr attr, regNumber ireg, regNumber base, int disp)
+void emitter::emitIns_AR_R(instruction ins, emitAttr attr, regNumber reg, regNumber base, int disp)
 {
-    UNATIVE_OFFSET sz;
-    instrDesc*     id = emitNewInstrAmd(attr, disp);
-    insFormat      fmt;
-
-    if (ireg == REG_NA)
-    {
-        fmt = emitInsModeFormat(ins, IF_ARD);
-    }
-    else
-    {
-        fmt = emitInsModeFormat(ins, IF_ARD_RRD);
-
-        assert((CodeGen::instIsFP(ins) == false) && (EA_SIZE(attr) <= EA_32BYTE));
-        noway_assert(emitVerifyEncodable(ins, EA_SIZE(attr), ireg));
-
-        id->idReg1(ireg);
-    }
-
-    id->idIns(ins);
-    id->idInsFmt(fmt);
-
-    id->idAddr()->iiaAddrMode.amBaseReg = base;
-    id->idAddr()->iiaAddrMode.amIndxReg = REG_NA;
-
-    assert(emitGetInsAmdAny(id) == disp); // make sure "disp" is stored properly
-
-    sz = emitInsSizeAM(id, insCodeMR(ins));
-    id->idCodeSize(sz);
-
-    dispIns(id);
-    emitCurIGsize += sz;
-
-    emitAdjustStackDepthPushPop(ins);
+    emitIns_ARX_R(ins, attr, reg, base, REG_NA, 1, disp);
 }
 
 //------------------------------------------------------------------------
@@ -5448,68 +5385,14 @@ void emitter::emitIns_I_ARR(instruction ins, emitAttr attr, int val, regNumber r
     emitCurIGsize += sz;
 }
 
-void emitter::emitIns_R_ARR(instruction ins, emitAttr attr, regNumber ireg, regNumber base, regNumber index, int disp)
+void emitter::emitIns_R_ARR(instruction ins, emitAttr attr, regNumber reg, regNumber base, regNumber index, int disp)
 {
-    assert((CodeGen::instIsFP(ins) == false) && (EA_SIZE(attr) <= EA_8BYTE) && (ireg != REG_NA));
-    noway_assert(emitVerifyEncodable(ins, EA_SIZE(attr), ireg));
-
-    UNATIVE_OFFSET sz;
-    instrDesc*     id  = emitNewInstrAmd(attr, disp);
-    insFormat      fmt = emitInsModeFormat(ins, IF_RRD_ARD);
-
-    id->idIns(ins);
-    id->idInsFmt(fmt);
-    id->idReg1(ireg);
-
-    id->idAddr()->iiaAddrMode.amBaseReg = base;
-    id->idAddr()->iiaAddrMode.amIndxReg = index;
-    id->idAddr()->iiaAddrMode.amScale   = emitter::OPSZ1;
-
-    assert(emitGetInsAmdAny(id) == disp); // make sure "disp" is stored properly
-
-    sz = emitInsSizeAM(id, insCodeRM(ins));
-    id->idCodeSize(sz);
-
-    dispIns(id);
-    emitCurIGsize += sz;
+    emitIns_R_ARX(ins, attr, reg, base, index, 1, disp);
 }
 
-void emitter::emitIns_ARR_R(instruction ins, emitAttr attr, regNumber ireg, regNumber reg, regNumber index, int disp)
+void emitter::emitIns_ARR_R(instruction ins, emitAttr attr, regNumber reg, regNumber base, regNumber index, int disp)
 {
-    UNATIVE_OFFSET sz;
-    instrDesc*     id = emitNewInstrAmd(attr, disp);
-    insFormat      fmt;
-
-    if (ireg == REG_NA)
-    {
-        fmt = emitInsModeFormat(ins, IF_ARD);
-    }
-    else
-    {
-        fmt = emitInsModeFormat(ins, IF_ARD_RRD);
-
-        assert((CodeGen::instIsFP(ins) == false) && (EA_SIZE(attr) <= EA_8BYTE));
-        noway_assert(emitVerifyEncodable(ins, EA_SIZE(attr), ireg));
-
-        id->idReg1(ireg);
-    }
-
-    id->idIns(ins);
-    id->idInsFmt(fmt);
-
-    id->idAddr()->iiaAddrMode.amBaseReg = reg;
-    id->idAddr()->iiaAddrMode.amIndxReg = index;
-    id->idAddr()->iiaAddrMode.amScale   = emitEncodeScale(1);
-
-    assert(emitGetInsAmdAny(id) == disp); // make sure "disp" is stored properly
-
-    sz = emitInsSizeAM(id, insCodeMR(ins));
-    id->idCodeSize(sz);
-
-    dispIns(id);
-    emitCurIGsize += sz;
-
-    emitAdjustStackDepthPushPop(ins);
+    emitIns_ARX_R(ins, attr, reg, base, index, 1, disp);
 }
 
 void emitter::emitIns_I_ARX(
@@ -5564,10 +5447,18 @@ void emitter::emitIns_I_ARX(
 }
 
 void emitter::emitIns_R_ARX(
-    instruction ins, emitAttr attr, regNumber ireg, regNumber base, regNumber index, unsigned mul, int disp)
+    instruction ins, emitAttr attr, regNumber reg, regNumber base, regNumber index, unsigned scale, int disp)
 {
-    assert((CodeGen::instIsFP(ins) == false) && (EA_SIZE(attr) <= EA_8BYTE) && (ireg != REG_NA));
-    noway_assert(emitVerifyEncodable(ins, EA_SIZE(attr), ireg));
+    assert(!CodeGen::instIsFP(ins) && (EA_SIZE(attr) <= EA_32BYTE) && (reg != REG_NA));
+    noway_assert(emitVerifyEncodable(ins, EA_SIZE(attr), reg));
+
+    if ((ins == INS_lea) && (reg == base) && (index == REG_NA) && (disp == 0))
+    {
+        // Maybe the emitter is not the common place for this optimization, but it's a better choke point
+        // for all the emitIns(ins, tree), we would have to be analyzing at each call site
+        //
+        return;
+    }
 
     UNATIVE_OFFSET sz;
     instrDesc*     id  = emitNewInstrAmd(attr, disp);
@@ -5575,11 +5466,11 @@ void emitter::emitIns_R_ARX(
 
     id->idIns(ins);
     id->idInsFmt(fmt);
-    id->idReg1(ireg);
+    id->idReg1(reg);
 
     id->idAddr()->iiaAddrMode.amBaseReg = base;
     id->idAddr()->iiaAddrMode.amIndxReg = index;
-    id->idAddr()->iiaAddrMode.amScale   = emitEncodeScale(mul);
+    id->idAddr()->iiaAddrMode.amScale   = emitEncodeScale(scale);
 
     assert(emitGetInsAmdAny(id) == disp); // make sure "disp" is stored properly
 
@@ -5591,13 +5482,13 @@ void emitter::emitIns_R_ARX(
 }
 
 void emitter::emitIns_ARX_R(
-    instruction ins, emitAttr attr, regNumber ireg, regNumber base, regNumber index, unsigned mul, int disp)
+    instruction ins, emitAttr attr, regNumber reg, regNumber base, regNumber index, unsigned scale, int disp)
 {
     UNATIVE_OFFSET sz;
     instrDesc*     id = emitNewInstrAmd(attr, disp);
     insFormat      fmt;
 
-    if (ireg == REG_NA)
+    if (reg == REG_NA)
     {
         fmt = emitInsModeFormat(ins, IF_ARD);
     }
@@ -5605,10 +5496,10 @@ void emitter::emitIns_ARX_R(
     {
         fmt = emitInsModeFormat(ins, IF_ARD_RRD);
 
-        noway_assert(emitVerifyEncodable(ins, EA_SIZE(attr), ireg));
-        assert((CodeGen::instIsFP(ins) == false) && (EA_SIZE(attr) <= EA_8BYTE));
+        noway_assert(emitVerifyEncodable(ins, EA_SIZE(attr), reg));
+        assert(!CodeGen::instIsFP(ins) && (EA_SIZE(attr) <= EA_32BYTE));
 
-        id->idReg1(ireg);
+        id->idReg1(reg);
     }
 
     id->idIns(ins);
@@ -5616,7 +5507,7 @@ void emitter::emitIns_ARX_R(
 
     id->idAddr()->iiaAddrMode.amBaseReg = base;
     id->idAddr()->iiaAddrMode.amIndxReg = index;
-    id->idAddr()->iiaAddrMode.amScale   = emitEncodeScale(mul);
+    id->idAddr()->iiaAddrMode.amScale   = emitEncodeScale(scale);
 
     assert(emitGetInsAmdAny(id) == disp); // make sure "disp" is stored properly
 

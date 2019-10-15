@@ -157,7 +157,7 @@ void Rationalizer::RewriteNodeAsCall(GenTree**             use,
 #endif // DEBUG
 
 #ifdef FEATURE_READYTORUN_COMPILER
-    call->gtCall.setEntryPoint(entryPoint);
+    call->AsCall()->setEntryPoint(entryPoint);
 #endif
 
     call = comp->fgMorphArgs(call);
@@ -210,7 +210,7 @@ void Rationalizer::RewriteIntrinsicAsUserCall(GenTree** use, ArrayStack<GenTree*
     GenTreeIntrinsic* intrinsic = (*use)->AsIntrinsic();
 
     GenTreeCall::Use* args;
-    if (intrinsic->gtOp.gtOp2 == nullptr)
+    if (intrinsic->AsOp()->gtOp2 == nullptr)
     {
         args = comp->gtNewCallArgs(intrinsic->gtGetOp1());
     }
@@ -244,7 +244,7 @@ void Rationalizer::SanityCheck()
         {
             ValidateStatement(statement, block);
 
-            for (GenTree* tree = statement->gtStmtList; tree; tree = tree->gtNext)
+            for (GenTree* tree = statement->GetTreeList(); tree; tree = tree->gtNext)
             {
                 // QMARK nodes should have been removed before this phase.
                 assert(tree->OperGet() != GT_QMARK);
@@ -344,16 +344,16 @@ void Rationalizer::RewriteAssignment(LIR::Use& use)
             if (location->OperGet() == GT_LCL_VAR)
             {
                 var_types simdType = location->TypeGet();
-                GenTree*  initVal  = assignment->gtOp.gtOp2;
+                GenTree*  initVal  = assignment->AsOp()->gtOp2;
                 var_types baseType = comp->getBaseTypeOfSIMDLocal(location);
                 if (baseType != TYP_UNKNOWN)
                 {
                     GenTreeSIMD* simdTree = new (comp, GT_SIMD)
                         GenTreeSIMD(simdType, initVal, SIMDIntrinsicInit, baseType, genTypeSize(simdType));
-                    assignment->gtOp.gtOp2 = simdTree;
-                    value                  = simdTree;
-                    initVal->gtNext        = simdTree;
-                    simdTree->gtPrev       = initVal;
+                    assignment->AsOp()->gtOp2 = simdTree;
+                    value                     = simdTree;
+                    initVal->gtNext           = simdTree;
+                    simdTree->gtPrev          = initVal;
 
                     simdTree->gtNext = location;
                     location->gtPrev = simdTree;
@@ -781,7 +781,7 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, Compiler::Ge
                 simdNode->gtType = TYP_SIMD8;
             }
             // Certain SIMD trees require rationalizing.
-            if (simdNode->gtSIMD.gtSIMDIntrinsicID == SIMDIntrinsicInitArray)
+            if (simdNode->AsSIMD()->gtSIMDIntrinsicID == SIMDIntrinsicInitArray)
             {
                 // Rewrite this as an explicit load.
                 JITDUMP("Rewriting GT_SIMD array init as an explicit load:\n");
@@ -935,25 +935,25 @@ void Rationalizer::DoPhase()
 
         for (Statement* statement : StatementList(firstStatement))
         {
-            assert(statement->gtStmtList != nullptr);
-            assert(statement->gtStmtList->gtPrev == nullptr);
-            assert(statement->gtStmtExpr != nullptr);
-            assert(statement->gtStmtExpr->gtNext == nullptr);
+            assert(statement->GetTreeList() != nullptr);
+            assert(statement->GetTreeList()->gtPrev == nullptr);
+            assert(statement->GetRootNode() != nullptr);
+            assert(statement->GetRootNode()->gtNext == nullptr);
 
-            BlockRange().InsertAtEnd(LIR::Range(statement->gtStmtList, statement->gtStmtExpr));
+            BlockRange().InsertAtEnd(LIR::Range(statement->GetTreeList(), statement->GetRootNode()));
 
             // If this statement has correct offset information, change it into an IL offset
             // node and insert it into the LIR.
-            if (statement->gtStmtILoffsx != BAD_IL_OFFSET)
+            if (statement->GetILOffsetX() != BAD_IL_OFFSET)
             {
                 assert(!statement->IsPhiDefnStmt());
                 GenTreeILOffset* ilOffset = new (comp, GT_IL_OFFSET)
-                    GenTreeILOffset(statement->gtStmtILoffsx DEBUGARG(statement->gtStmtLastILoffs));
-                BlockRange().InsertBefore(statement->gtStmtList, ilOffset);
+                    GenTreeILOffset(statement->GetILOffsetX() DEBUGARG(statement->GetLastILOffset()));
+                BlockRange().InsertBefore(statement->GetTreeList(), ilOffset);
             }
 
             m_block = block;
-            visitor.WalkTree(&statement->gtStmtExpr, nullptr);
+            visitor.WalkTree(statement->GetRootNodePointer(), nullptr);
         }
 
         block->bbStmtList = nullptr;
