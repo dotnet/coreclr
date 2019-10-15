@@ -2329,7 +2329,8 @@ void Compiler::impSpillStackEnsure(bool spillLeaves)
 
         // Temps introduced by the importer itself don't need to be spilled
 
-        bool isTempLcl = (tree->OperGet() == GT_LCL_VAR) && (tree->AsLclVarCommon()->GetLclNum() >= info.compLocalsCount);
+        bool isTempLcl =
+            (tree->OperGet() == GT_LCL_VAR) && (tree->AsLclVarCommon()->GetLclNum() >= info.compLocalsCount);
 
         if (isTempLcl)
         {
@@ -2555,7 +2556,7 @@ BasicBlock* Compiler::impPushCatchArgOnStack(BasicBlock* hndBlk, CORINFO_CLASS_H
 #if defined(JIT32_GCENCODER)
     const bool forceInsertNewBlock = isSingleBlockFilter || compStressCompile(STRESS_CATCH_ARG, 5);
 #else
-    const bool forceInsertNewBlock                                        = compStressCompile(STRESS_CATCH_ARG, 5);
+    const bool forceInsertNewBlock                                           = compStressCompile(STRESS_CATCH_ARG, 5);
 #endif // defined(JIT32_GCENCODER)
 
     /* Spill GT_CATCH_ARG to a temp if there are jumps to the beginning of the handler */
@@ -3075,8 +3076,8 @@ GenTree* Compiler::impInitializeArrayIntrinsic(CORINFO_SIG_INFO* sig)
     //
     GenTree* arrayAssignment = impLastStmt->GetRootNode();
     if ((arrayAssignment->gtOper != GT_ASG) || (arrayAssignment->AsOp()->gtOp1->gtOper != GT_LCL_VAR) ||
-        (arrayLocalNode->gtOper != GT_LCL_VAR) ||
-        (arrayAssignment->AsOp()->gtOp1->AsLclVarCommon()->GetLclNum() != arrayLocalNode->AsLclVarCommon()->GetLclNum()))
+        (arrayLocalNode->gtOper != GT_LCL_VAR) || (arrayAssignment->AsOp()->gtOp1->AsLclVarCommon()->GetLclNum() !=
+                                                   arrayLocalNode->AsLclVarCommon()->GetLclNum()))
     {
         return nullptr;
     }
@@ -16435,7 +16436,8 @@ bool Compiler::impReturnInstruction(BasicBlock* block, int prefixFlags, OPCODE& 
                         // Some other block(s) have seen the CEE_RET first.
                         // Better they spilled to the same temp.
                         assert(impInlineInfo->retExpr->gtOper == GT_LCL_VAR);
-                        assert(impInlineInfo->retExpr->AsLclVarCommon()->GetLclNum() == op2->AsLclVarCommon()->GetLclNum());
+                        assert(impInlineInfo->retExpr->AsLclVarCommon()->GetLclNum() ==
+                               op2->AsLclVarCommon()->GetLclNum());
                     }
 #endif
                 }
