@@ -197,7 +197,7 @@
                 "HelixJobType": "test/functional/cli/",
                 "TargetsWindows": "false",
                 "Rid": "linux-musl-x64",
-                "TargetQueues": "(Alpine.39.Amd64)ubuntu.1604.amd64@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.9-helix-09ca40b-20190508143246",
+                "TargetQueues": "(Alpine.310.Amd64)Ubuntu.1604.Amd64@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.10-helix-3043688-20190918214010",
                 "TestContainerSuffix": "alpine36",
                 "TargetsNonWindowsArg": "TargetsNonWindows "
                 },
@@ -214,7 +214,7 @@
                 "HelixJobType": "test/functional/r2r/cli/",
                 "TargetsWindows": "false",
                 "Rid": "linux-musl-x64",
-                "TargetQueues": "(Alpine.39.Amd64)ubuntu.1604.amd64@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.9-helix-09ca40b-20190508143246",
+                "TargetQueues": "(Alpine.310.Amd64)Ubuntu.1604.Amd64@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.10-helix-3043688-20190918214010",
                 "TestContainerSuffix": "alpine36-r2r",
                 "CrossgenArg": "Crossgen ",
                 "TargetsNonWindowsArg": "TargetsNonWindows "
