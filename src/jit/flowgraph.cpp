@@ -25842,7 +25842,7 @@ void Compiler::fgTailMergeThrows()
         }
 
         // ...that is a call
-        GenTree* const tree = stmt->gtStmtExpr;
+        GenTree* const tree = stmt->GetRootNode();
 
         if (!tree->IsCall())
         {
