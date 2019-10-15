@@ -23455,7 +23455,8 @@ Statement* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
                             // Look for (COMMA (CALL(special dce helper...), (FIELD ...)))
                             GenTree* op1 = actualArgNode->AsOp()->gtOp1;
                             GenTree* op2 = actualArgNode->AsOp()->gtOp2;
-                            if (op1->IsCall() && ((op1->AsCall()->gtCallMoreFlags & GTF_CALL_M_HELPER_SPECIAL_DCE) != 0) &&
+                            if (op1->IsCall() &&
+                                ((op1->AsCall()->gtCallMoreFlags & GTF_CALL_M_HELPER_SPECIAL_DCE) != 0) &&
                                 (op2->gtOper == GT_FIELD) && ((op2->gtFlags & GTF_EXCEPT) == 0))
                             {
                                 JITDUMP("\nPerforming special dce on unused arg [%06u]:"

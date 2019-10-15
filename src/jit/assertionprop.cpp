@@ -1966,7 +1966,7 @@ AssertionInfo Compiler::optAssertionGenJtrue(GenTree* tree)
     }
     // Validate op1 and op2
     if ((op1->gtOper != GT_CALL) || (op1->AsCall()->gtCallType != CT_HELPER) || (op1->TypeGet() != TYP_REF) || // op1
-        (op2->gtOper != GT_CNS_INT) || (op2->gtIntCon.gtIconVal != 0))                                      // op2
+        (op2->gtOper != GT_CNS_INT) || (op2->gtIntCon.gtIconVal != 0))                                         // op2
     {
         return NO_ASSERTION_INDEX;
     }

@@ -2274,7 +2274,7 @@ void fgArgInfo::EvalArgsToTemps()
 
         if (tmpRegArgNext == nullptr)
         {
-            tmpRegArgNext                   = compiler->gtNewCallArgs(defArg);
+            tmpRegArgNext                      = compiler->gtNewCallArgs(defArg);
             callTree->AsCall()->gtCallLateArgs = tmpRegArgNext;
         }
         else
