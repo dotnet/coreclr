@@ -171,7 +171,7 @@ namespace System.Collections.Generic
             get
             {
                 ref TValue value = ref FindValue(key);
-                if (Unsafe.IsNotNullRef(ref value))
+                if (!Unsafe.IsNullRef(ref value))
                 {
                     return value;
                 }
@@ -197,7 +197,7 @@ namespace System.Collections.Generic
         bool ICollection<KeyValuePair<TKey, TValue>>.Contains(KeyValuePair<TKey, TValue> keyValuePair)
         {
             ref TValue value = ref FindValue(keyValuePair.Key);
-            if (Unsafe.IsNotNullRef(ref value) && EqualityComparer<TValue>.Default.Equals(value, keyValuePair.Value))
+            if (!Unsafe.IsNullRef(ref value) && EqualityComparer<TValue>.Default.Equals(value, keyValuePair.Value))
             {
                 return true;
             }
@@ -207,7 +207,7 @@ namespace System.Collections.Generic
         bool ICollection<KeyValuePair<TKey, TValue>>.Remove(KeyValuePair<TKey, TValue> keyValuePair)
         {
             ref TValue value = ref FindValue(keyValuePair.Key);
-            if (Unsafe.IsNotNullRef(ref value) && EqualityComparer<TValue>.Default.Equals(value, keyValuePair.Value))
+            if (!Unsafe.IsNullRef(ref value) && EqualityComparer<TValue>.Default.Equals(value, keyValuePair.Value))
             {
                 Remove(keyValuePair.Key);
                 return true;
@@ -232,9 +232,8 @@ namespace System.Collections.Generic
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe bool ContainsKey(TKey key)
-            => Unsafe.IsNotNullRef(ref FindValue(key));
+            => !Unsafe.IsNullRef(ref FindValue(key));
 
         public bool ContainsValue(TValue value)
         {
@@ -324,7 +323,7 @@ namespace System.Collections.Generic
             }
         }
 
-        private unsafe ref TValue FindValue(TKey key)
+        private ref TValue FindValue(TKey key)
         {
             if (key == null)
             {
@@ -896,7 +895,7 @@ namespace System.Collections.Generic
         public unsafe bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
         {
             ref TValue valRef = ref FindValue(key);
-            if (Unsafe.IsNotNullRef(ref valRef))
+            if (!Unsafe.IsNullRef(ref valRef))
             {
                 value = valRef;
                 return true;
@@ -1064,7 +1063,7 @@ namespace System.Collections.Generic
                 if (IsCompatibleKey(key))
                 {
                     ref TValue value = ref FindValue((TKey)key);
-                    if (Unsafe.IsNotNullRef(ref value))
+                    if (!Unsafe.IsNullRef(ref value))
                     {
                         return value;
                     }
