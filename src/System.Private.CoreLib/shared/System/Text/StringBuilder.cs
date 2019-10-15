@@ -1153,14 +1153,12 @@ namespace System.Text
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public StringBuilder Append(char value)
         {
-            if (m_ChunkLength < m_ChunkChars.Length)
+            if (m_ChunkLength >= m_ChunkChars.Length)
             {
-                m_ChunkChars[m_ChunkLength++] = value;
+                ExpandByABlock(1);
             }
-            else
-            {
-                Append(value, 1);
-            }
+            
+            m_ChunkChars[m_ChunkLength++] = value;
 
             return this;
         }
