@@ -1157,7 +1157,7 @@ namespace System.Text
             {
                 ExpandByABlock(1);
             }
-            
+
             m_ChunkChars[m_ChunkLength++] = value;
 
             return this;
