@@ -6,7 +6,6 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
-using System.Runtime.InteropServices;
 
 using Internal.Runtime.CompilerServices;
 
@@ -39,15 +38,14 @@ namespace System.Collections.Generic
     [TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public class Dictionary<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, IReadOnlyDictionary<TKey, TValue>, ISerializable, IDeserializationCallback where TKey : notnull
     {
-        [StructLayout(LayoutKind.Auto)]
         private struct Entry
         {
             public uint hashCode;
-            public TKey key;           // Key of entry
             // 0-based index of next entry in chain: -1 means end of chain
             // also encodes whether this entry _itself_ is part of the free list by changing sign and subtracting 3,
             // so -2 means end of free list, -3 means index 0 but on free list, -4 means index 1 but on free list, etc.
             public int next;
+            public TKey key;           // Key of entry
             public TValue value;         // Value of entry
         }
 
@@ -168,12 +166,12 @@ namespace System.Collections.Generic
 
         IEnumerable<TValue> IReadOnlyDictionary<TKey, TValue>.Values => _values ??= new ValueCollection(this);
 
-        public unsafe TValue this[TKey key]
+        public TValue this[TKey key]
         {
             get
             {
                 ref TValue value = ref FindValue(key);
-                if (Unsafe.AsPointer(ref value) != null)
+                if (Unsafe.IsNotNullRef(ref value))
                 {
                     return value;
                 }
@@ -196,20 +194,20 @@ namespace System.Collections.Generic
         void ICollection<KeyValuePair<TKey, TValue>>.Add(KeyValuePair<TKey, TValue> keyValuePair)
             => Add(keyValuePair.Key, keyValuePair.Value);
 
-        unsafe bool ICollection<KeyValuePair<TKey, TValue>>.Contains(KeyValuePair<TKey, TValue> keyValuePair)
+        bool ICollection<KeyValuePair<TKey, TValue>>.Contains(KeyValuePair<TKey, TValue> keyValuePair)
         {
             ref TValue value = ref FindValue(keyValuePair.Key);
-            if (Unsafe.AsPointer(ref value) != null && EqualityComparer<TValue>.Default.Equals(value, keyValuePair.Value))
+            if (Unsafe.IsNotNullRef(ref value) && EqualityComparer<TValue>.Default.Equals(value, keyValuePair.Value))
             {
                 return true;
             }
             return false;
         }
 
-        unsafe bool ICollection<KeyValuePair<TKey, TValue>>.Remove(KeyValuePair<TKey, TValue> keyValuePair)
+        bool ICollection<KeyValuePair<TKey, TValue>>.Remove(KeyValuePair<TKey, TValue> keyValuePair)
         {
             ref TValue value = ref FindValue(keyValuePair.Key);
-            if (Unsafe.AsPointer(ref value) != null && EqualityComparer<TValue>.Default.Equals(value, keyValuePair.Value))
+            if (Unsafe.IsNotNullRef(ref value) && EqualityComparer<TValue>.Default.Equals(value, keyValuePair.Value))
             {
                 Remove(keyValuePair.Key);
                 return true;
@@ -236,7 +234,7 @@ namespace System.Collections.Generic
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe bool ContainsKey(TKey key)
-            => Unsafe.AsPointer(ref FindValue(key)) != null;
+            => Unsafe.IsNotNullRef(ref FindValue(key));
 
         public bool ContainsValue(TValue value)
         {
@@ -334,7 +332,7 @@ namespace System.Collections.Generic
             }
 
             int[]? buckets = _buckets;
-            ref Entry entry = ref Unsafe.AsRef<Entry>(null);
+            ref Entry entry = ref Unsafe.NullRef<Entry>();
             if (buckets != null)
             {
                 Debug.Assert(_entries != null, "expected entries to be != null");
@@ -450,7 +448,7 @@ namespace System.Collections.Generic
         Return:
             return ref value;
         ReturnNotFound:
-            value = ref Unsafe.AsRef<TValue>(null);
+            value = ref Unsafe.NullRef<TValue>();
             goto Return;
         }
 
@@ -898,7 +896,7 @@ namespace System.Collections.Generic
         public unsafe bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
         {
             ref TValue valRef = ref FindValue(key);
-            if (Unsafe.AsPointer(ref valRef) != null)
+            if (Unsafe.IsNotNullRef(ref valRef))
             {
                 value = valRef;
                 return true;
@@ -1059,14 +1057,14 @@ namespace System.Collections.Generic
 
         ICollection IDictionary.Values => (ICollection)Values;
 
-        unsafe object? IDictionary.this[object key]
+        object? IDictionary.this[object key]
         {
             get
             {
                 if (IsCompatibleKey(key))
                 {
                     ref TValue value = ref FindValue((TKey)key);
-                    if (Unsafe.AsPointer(ref value) != null)
+                    if (Unsafe.IsNotNullRef(ref value))
                     {
                         return value;
                     }

@@ -387,5 +387,65 @@ namespace Internal.Runtime.CompilerServices
         {
             throw new PlatformNotSupportedException();
         }
+
+        /// <summary>
+        /// Returns a by-ref to a null reference of type <typeparamref name="T"/>.
+        /// Note this is the address of the by-ref not what the ref points to.
+        /// </summary>
+        [Intrinsic]
+        [NonVersionable]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static ref T NullRef<T>()
+        {
+#if CORECLR
+            throw new PlatformNotSupportedException();
+            // ldnull
+            // ret
+#else
+            return ref Unsafe.AsRef<T>(null);
+#endif
+        }
+
+        /// <summary>
+        /// Returns if a given by-ref of type <typeparamref name="T"/> is a null reference.
+        /// Note this is the address of the by-ref not what the ref points to.
+        /// </summary>
+        [Intrinsic]
+        [NonVersionable]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static bool IsNullRef<T>(ref T source)
+        {
+#if CORECLR
+            throw new PlatformNotSupportedException();
+            // ldarg.0
+            // ldc.i4.0
+            // conv.u
+            // ceq
+            // ret
+#else
+            return Unsafe.AsPointer(ref source) == null;
+#endif
+        }
+
+        /// <summary>
+        /// Returns if a given by-ref of type <typeparamref name="T"/> is not a null reference.
+        /// Note this is the address of the by-ref not what the ref points to.
+        /// </summary>
+        [Intrinsic]
+        [NonVersionable]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static bool IsNotNullRef<T>(ref T source)
+        {
+#if CORECLR
+            throw new PlatformNotSupportedException();
+            // ldarg.0
+            // ldc.i4.0
+            // conv.u
+            // cgt.un
+            // ret
+#else
+            return Unsafe.AsPointer(ref source) != null;
+#endif
+        }
     }
 }
