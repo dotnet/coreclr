@@ -1780,10 +1780,7 @@ int LinearScan::BuildIntrinsic(GenTree* tree)
             // xmm register. When we add support in emitter to emit 128-bit
             // data constants and instructions that operate on 128-bit
             // memory operands we can avoid the need for an internal register.
-            if (tree->AsIntrinsic()->gtIntrinsicId == CORINFO_INTRINSIC_Abs)
-            {
-                internalFloatDef = buildInternalFloatRegisterDefForNode(tree, internalFloatRegCandidates());
-            }
+            internalFloatDef = buildInternalFloatRegisterDefForNode(tree, internalFloatRegCandidates());
             break;
 
 #ifdef _TARGET_X86_

@@ -10466,10 +10466,8 @@ void Compiler::fgCompactBlocks(BasicBlock* block, BasicBlock* bNext)
             block->bbWeight = bNext->bbWeight;
 
             block->bbFlags |= (bNext->bbFlags & BBF_PROF_WEIGHT); // Set the profile weight flag (if necessary)
-            if (block->bbWeight != 0)
-            {
-                block->bbFlags &= ~BBF_RUN_RARELY; // Clear any RarelyRun flag
-            }
+            assert(block->bbWeight != 0);
+            block->bbFlags &= ~BBF_RUN_RARELY; // Clear any RarelyRun flag
         }
     }
     // otherwise if either block has a zero weight we select the zero weight
@@ -15044,8 +15042,7 @@ bool Compiler::fgOptimizeBranch(BasicBlock* bJump)
         }
         else
         {
-            BasicBlock::weight_t newWeightDest    = 0;
-            BasicBlock::weight_t unloopWeightDest = 0;
+            BasicBlock::weight_t newWeightDest = 0;
 
             if (weightDest > weightJump)
             {
@@ -15055,9 +15052,9 @@ bool Compiler::fgOptimizeBranch(BasicBlock* bJump)
             {
                 newWeightDest = (weightDest * 2) / (BB_LOOP_WEIGHT * BB_UNITY_WEIGHT);
             }
-            if ((newWeightDest > 0) || (unloopWeightDest > 0))
+            if (newWeightDest > 0)
             {
-                bDest->bbWeight = Max(newWeightDest, unloopWeightDest);
+                bDest->bbWeight = newWeightDest;
             }
         }
     }
