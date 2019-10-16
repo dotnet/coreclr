@@ -28,10 +28,6 @@ EXTERN  g_lowest_address:QWORD
 EXTERN  g_highest_address:QWORD
 EXTERN  g_card_table:QWORD
 
-ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
-EXTERN g_card_bundle_table:QWORD
-endif
-
 ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 EXTERN  g_sw_ww_table:QWORD
 EXTERN  g_sw_ww_enabled_for_gc_heap:BYTE
@@ -157,17 +153,6 @@ endif
 
     UpdateCardTable:
         mov     byte ptr [rcx], 0FFh
-ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
-        sub     rcx, [g_card_table]
-        shr     rcx, 0Ah
-        add     rcx, [g_card_bundle_table]
-        cmp     byte ptr [rcx], 0FFh
-        jne     UpdateCardBundleTable
-        REPRET
-
-    UpdateCardBundleTable:
-        mov     byte ptr [rcx], 0FFh
-endif
         ret
 
     align 16
