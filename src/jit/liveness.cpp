@@ -1452,6 +1452,7 @@ VARSET_VALRET_TP Compiler::fgUpdateLiveSet(VARSET_VALARG_TP liveSet, GenTree* tr
                 VARSET_TP* deadVarBits = nullptr;
                 if (varTypeIsStruct(lclVarTree) && LookupPromotedStructDeathVars(lclVarTree, &deadVarBits))
                 {
+                    // `nullptr` dereferencing.
                     VarSetOps::DiffD(this, newLiveSet, *deadVarBits);
                 }
                 else

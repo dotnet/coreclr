@@ -118,8 +118,11 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
                 VARSET_TP* deadTrackedFieldVars = nullptr;
                 hasDeadTrackedFieldVars =
                     compiler->LookupPromotedStructDeathVars(indirAddrLocal, &deadTrackedFieldVars);
+                // because `deadTrackedFieldVars` can't be changed inside `LookupPromotedStructDeathVars`
+                // it means after the call it will be `nullptr`.
                 if (hasDeadTrackedFieldVars)
                 {
+                    // so that `*deadTrackedFieldVars` will cause `nullptr` dereferencing.
                     VarSetOps::Assign(compiler, varDeltaSet, *deadTrackedFieldVars);
                 }
             }

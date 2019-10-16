@@ -7391,7 +7391,8 @@ public:
 
     bool LookupPromotedStructDeathVars(GenTree* tree, VARSET_TP** bits)
     {
-        bits        = nullptr;
+        bits = nullptr; // We are rewriting the argument value, so the address that we got
+                        // is lost after that. this was added in https://github.com/dotnet/coreclr/pull/19753/files.
         bool result = false;
 
         if (m_promotedStructDeathVars != nullptr)
