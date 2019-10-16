@@ -5596,7 +5596,7 @@ bool Compiler::optNarrowTree(GenTree* tree, var_types srct, var_types dstt, Valu
                 if (doit)
                 {
                     tree->ChangeOperConst(GT_CNS_INT);
-                    tree->gtType             = TYP_INT;
+                    tree->gtType                = TYP_INT;
                     tree->AsIntCon()->gtIconVal = (int)lval;
                     if (vnStore != nullptr)
                     {
@@ -5649,7 +5649,7 @@ bool Compiler::optNarrowTree(GenTree* tree, var_types srct, var_types dstt, Valu
 #ifdef _TARGET_64BIT_
                 if (doit)
                 {
-                    tree->gtType             = TYP_INT;
+                    tree->gtType                = TYP_INT;
                     tree->AsIntCon()->gtIconVal = (int)ival;
                     if (vnStore != nullptr)
                     {

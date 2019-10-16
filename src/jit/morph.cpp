@@ -10373,7 +10373,7 @@ GenTree* Compiler::fgMorphCopyBlock(GenTree* tree)
                     CORINFO_CLASS_HANDLE classHnd = lvaTable[srcLclNum].lvVerTypeInfo.GetClassHandle();
                     CORINFO_FIELD_HANDLE fieldHnd =
                         info.compCompHnd->getFieldInClass(classHnd, lvaTable[fieldLclNum].lvFldOrdinal);
-                    curFieldSeq                          = GetFieldSeqStore()->CreateSingleton(fieldHnd);
+                    curFieldSeq                             = GetFieldSeqStore()->CreateSingleton(fieldHnd);
                     fieldOffsetNode->AsIntCon()->gtFieldSeq = curFieldSeq;
 
                     dest = gtNewOperNode(GT_ADD, TYP_BYREF, dest, fieldOffsetNode);
@@ -12247,7 +12247,7 @@ DONE_MORPHING_CHILDREN:
                         {
                             gtReverseCond(tree);
                             cns2->AsIntCon()->gtIconVal = 0;
-                            oper                     = tree->gtOper;
+                            oper                        = tree->gtOper;
                         }
                     }
                     else if (andOp->gtType == TYP_LONG)
@@ -12341,7 +12341,7 @@ DONE_MORPHING_CHILDREN:
 
             ival1 = (int)andMask->AsIntConCommon()->LngValue();
             andMask->SetOper(GT_CNS_INT);
-            andMask->gtType             = TYP_INT;
+            andMask->gtType                = TYP_INT;
             andMask->AsIntCon()->gtIconVal = ival1;
 
             /* now change the type of the AND node */
@@ -18354,9 +18354,9 @@ void Compiler::fgAddFieldSeqForZeroOffset(GenTree* addr, FieldSeqNode* fieldSeqZ
     switch (addr->OperGet())
     {
         case GT_CNS_INT:
-            fieldSeqUpdate            = GetFieldSeqStore()->Append(addr->AsIntCon()->gtFieldSeq, fieldSeqZero);
+            fieldSeqUpdate               = GetFieldSeqStore()->Append(addr->AsIntCon()->gtFieldSeq, fieldSeqZero);
             addr->AsIntCon()->gtFieldSeq = fieldSeqUpdate;
-            fieldSeqRecorded          = true;
+            fieldSeqRecorded             = true;
             break;
 
         case GT_LCL_FLD:
@@ -18387,7 +18387,7 @@ void Compiler::fgAddFieldSeqForZeroOffset(GenTree* addr, FieldSeqNode* fieldSeqZ
 
                 fieldSeqUpdate = GetFieldSeqStore()->Append(addr->AsOp()->gtOp1->AsIntCon()->gtFieldSeq, fieldSeqZero);
                 addr->AsOp()->gtOp1->AsIntCon()->gtFieldSeq = fieldSeqUpdate;
-                fieldSeqRecorded                         = true;
+                fieldSeqRecorded                            = true;
             }
             else if (addr->AsOp()->gtOp2->OperGet() == GT_CNS_INT)
             {
@@ -18395,7 +18395,7 @@ void Compiler::fgAddFieldSeqForZeroOffset(GenTree* addr, FieldSeqNode* fieldSeqZ
 
                 fieldSeqUpdate = GetFieldSeqStore()->Append(addr->AsOp()->gtOp2->AsIntCon()->gtFieldSeq, fieldSeqZero);
                 addr->AsOp()->gtOp2->AsIntCon()->gtFieldSeq = fieldSeqUpdate;
-                fieldSeqRecorded                         = true;
+                fieldSeqRecorded                            = true;
             }
             break;
 

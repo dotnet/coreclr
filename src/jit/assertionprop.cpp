@@ -1966,7 +1966,7 @@ AssertionInfo Compiler::optAssertionGenJtrue(GenTree* tree)
     }
     // Validate op1 and op2
     if ((op1->gtOper != GT_CALL) || (op1->AsCall()->gtCallType != CT_HELPER) || (op1->TypeGet() != TYP_REF) || // op1
-        (op2->gtOper != GT_CNS_INT) || (op2->AsIntCon()->gtIconVal != 0))                                         // op2
+        (op2->gtOper != GT_CNS_INT) || (op2->AsIntCon()->gtIconVal != 0))                                      // op2
     {
         return NO_ASSERTION_INDEX;
     }
@@ -2626,7 +2626,7 @@ GenTree* Compiler::optConstantAssertionProp(AssertionDsc* curAssertion,
             {
                 newTree->ChangeOperConst(GT_CNS_INT);
                 newTree->AsIntCon()->gtIconVal = (int)curAssertion->op2.lconVal;
-                newTree->gtType             = TYP_INT;
+                newTree->gtType                = TYP_INT;
             }
             break;
 
@@ -3375,7 +3375,7 @@ GenTree* Compiler::optAssertionPropLocal_RelOp(ASSERT_VALARG_TP assertions, GenT
     }
 
     op2->AsIntCon()->gtIconVal = foldResult;
-    op2->gtType             = TYP_INT;
+    op2->gtType                = TYP_INT;
 
     return optAssertionProp_Update(op2, tree, stmt);
 }
