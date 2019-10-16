@@ -3029,7 +3029,7 @@ regNumber LinearScan::tryAllocateFreeReg(Interval* currentInterval, RefPosition*
             score |= RELATED_PREFERENCE;
         }
 
-        if ((preferCalleeSave && physRegRecord->isCalleeSave) || (!preferCalleeSave && !physRegRecord->isCalleeSave))
+        if (preferCalleeSave == physRegRecord->isCalleeSave)
         {
             score |= CALLER_CALLEE;
         }
