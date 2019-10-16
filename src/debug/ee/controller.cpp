@@ -5115,40 +5115,23 @@ bool DebuggerStepper::IsRangeAppropriate(ControllerStackInfo *info)
     }
 
 #if defined(FEATURE_EH_FUNCLETS)
-    // There are two scenarios which make this function more complicated on WIN64.
+    // There are three scenarios which make this function more complicated on WIN64.
     // 1)  We initiate a step in the parent method or a funclet but end up stepping into another funclet closer to the leaf.
     //      a)  start in the parent method
     //      b)  start in a funclet
     // 2)  We initiate a step in a funclet but end up stepping out to the parent method or a funclet closer to the root.
     //      a) end up in the parent method
     //      b) end up in a funclet
+    // 3)  We initiate a step and then change stack allocation within the method or funclet
     // In both cases the range of the stepper should still be appropriate.
 
     bool fValidParentMethodFP = (m_fpParentMethod != LEAF_MOST_FRAME);
 
-    if (fActiveFrameIsFunclet)
+    // All scenaris have the same condition
+    if (fValidParentMethodFP && (m_fpParentMethod == info->GetReturnFrame(true).fp))
     {
-        // Scenario 1a
-        if (m_fp == info->GetReturnFrame().fp)
-        {
-            LOG((LF_CORDB,LL_INFO10000, "DS::IRA: returning TRUE\n"));
-            return true;
-        }
-        // Scenario 1b & 2b have the same condition
-        else if (fValidParentMethodFP && (m_fpParentMethod == info->GetReturnFrame().fp))
-        {
-            LOG((LF_CORDB,LL_INFO10000, "DS::IRA: returning TRUE\n"));
-            return true;
-        }
-    }
-    else
-    {
-        // Scenario 2a
-        if (fValidParentMethodFP && (m_fpParentMethod == info->m_activeFrame.fp))
-        {
-            LOG((LF_CORDB,LL_INFO10000, "DS::IRA: returning TRUE\n"));
-            return true;
-        }
+        LOG((LF_CORDB,LL_INFO10000, "DS::IRA: (parent SP) returning TRUE\n"));
+        return true;
     }
 #endif // FEATURE_EH_FUNCLETS
 
@@ -6562,9 +6545,9 @@ void DebuggerStepper::StepOut(FramePointer fp, StackTraceTicket ticket)
 #if defined(FEATURE_EH_FUNCLETS)
     // We need to remember the parent method frame pointer here so that we will recognize
     // the range of the stepper as being valid when we return to the parent method or stackalloc.
-    if (info.m_activeFrame.IsNonFilterFuncletFrame())
+    if (info.HasReturnFrame(true))
     {
-        m_fpParentMethod = info.GetReturnFrame().fp;
+        m_fpParentMethod = info.GetReturnFrame(true).fp;
     }
 #endif // FEATURE_EH_FUNCLETS
 
@@ -6900,10 +6883,10 @@ bool DebuggerStepper::Step(FramePointer fp, bool in,
         m_fp = info.m_activeFrame.fp;
 #if defined(FEATURE_EH_FUNCLETS)
         // We need to remember the parent method frame pointer here so that we will recognize
-        // the range of the stepper as being valid when we return to the parent method.
-        if (info.m_activeFrame.IsNonFilterFuncletFrame())
+        // the range of the stepper as being valid when we return to the parent method or stackalloc.
+        if (info.HasReturnFrame(true))
         {
-            m_fpParentMethod = info.GetReturnFrame().fp;
+            m_fpParentMethod = info.GetReturnFrame(true).fp;
         }
 #endif // FEATURE_EH_FUNCLETS
     }
