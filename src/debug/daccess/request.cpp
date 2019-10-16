@@ -579,19 +579,19 @@ ClrDataAccess::GetStackLimits(CLRDATA_ADDRESS threadPtr, CLRDATA_ADDRESS *lower,
 }
 
 HRESULT
-ClrDataAccess::GetRegisterName(int regNum, unsigned int count, __out_z __inout_ecount(count) wchar_t *buffer, unsigned int *pNeeded)
+ClrDataAccess::GetRegisterName(int regNum, unsigned int count, __out_z __inout_ecount(count) WCHAR *buffer, unsigned int *pNeeded)
 {
     if (!buffer && !pNeeded)
         return E_POINTER;
 
 #ifdef _TARGET_AMD64_
-    static const wchar_t *regs[] = 
+    static const WCHAR *regs[] = 
     {
         W("rax"), W("rcx"), W("rdx"), W("rbx"), W("rsp"), W("rbp"), W("rsi"), W("rdi"),
         W("r8"), W("r9"), W("r10"), W("r11"), W("r12"), W("r13"), W("r14"), W("r15"),
     };
 #elif defined(_TARGET_ARM_)
-    static const wchar_t *regs[] = 
+    static const WCHAR *regs[] = 
     {
         W("r0"),
         W("r1"),
@@ -604,7 +604,7 @@ ClrDataAccess::GetRegisterName(int regNum, unsigned int count, __out_z __inout_e
         W("r8"), W("r9"), W("r10"), W("r11"), W("r12"), W("sp"), W("lr")
     };
 #elif defined(_TARGET_ARM64_)
-    static const wchar_t *regs[] = 
+    static const WCHAR *regs[] = 
     {
         W("X0"),
         W("X1"),
@@ -619,7 +619,7 @@ ClrDataAccess::GetRegisterName(int regNum, unsigned int count, __out_z __inout_e
         W("X28"), W("Fp"),  W("Lr"),  W("Sp")
     };
 #elif defined(_TARGET_X86_)
-    static const wchar_t *regs[] = 
+    static const WCHAR *regs[] = 
     {
         W("eax"), W("ecx"), W("edx"), W("ebx"), W("esp"), W("ebp"), W("esi"), W("edi"),
     };
@@ -634,7 +634,7 @@ ClrDataAccess::GetRegisterName(int regNum, unsigned int count, __out_z __inout_e
         return E_UNEXPECTED;
     
     
-    const wchar_t caller[] = W("caller.");
+    const WCHAR caller[] = W("caller.");
     unsigned int needed = (callerFrame?(unsigned int)wcslen(caller):0) + (unsigned int)wcslen(regs[regNum]) + 1;
     if (pNeeded)
         *pNeeded = needed;
@@ -780,7 +780,7 @@ ClrDataAccess::GetThreadData(CLRDATA_ADDRESS threadAddr, struct DacpThreadData *
         TO_CDADDR(thread->m_LastThrownObjectHandle);
     threadData->nextThread =
         HOST_CDADDR(ThreadStore::s_pThreadStore->m_ThreadList.GetNext(thread));
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     if (thread->m_ExceptionState.m_pCurrentTracker)
     {
         threadData->firstNestedException = PTR_HOST_TO_TADDR(
@@ -789,7 +789,7 @@ ClrDataAccess::GetThreadData(CLRDATA_ADDRESS threadAddr, struct DacpThreadData *
 #else
     threadData->firstNestedException = PTR_HOST_TO_TADDR(
         thread->m_ExceptionState.m_currentExInfo.m_pPrevNestedInfo);
-#endif // _WIN64
+#endif // FEATURE_EH_FUNCLETS
 
     SOSDacLeave();
     return hr;
@@ -1104,104 +1104,77 @@ HRESULT ClrDataAccess::GetTieredVersions(
     EX_TRY
     {
         CodeVersionManager *pCodeVersionManager = pMD->GetCodeVersionManager();
+        ILCodeVersion ilCodeVersion = pCodeVersionManager->GetILCodeVersion(pMD, rejitId);
 
-        // Total number of jitted rejit versions
-        ULONG cJittedRejitVersions;
-        if (!SUCCEEDED(ReJitManager::GetReJITIDs(pMD, 0 /* cReJitIds */, &cJittedRejitVersions, NULL /* reJitIds */)))
+        if (ilCodeVersion.IsNull())
         {
-            goto cleanup;
-        }
-
-        if ((ULONG)rejitId >= cJittedRejitVersions)
-        {
+            // Bad rejit ID
             hr = E_INVALIDARG;
             goto cleanup;
         }
 
-        ULONG cReJitIds;
-        StackSArray<ReJITID> reJitIds;
-
-        // Prepare array to populate with rejitids.
-        ReJITID *rgReJitIds = reJitIds.OpenRawBuffer(cJittedRejitVersions);
-        if (rgReJitIds != NULL)
+        TADDR r2rImageBase = NULL;
+        TADDR r2rImageEnd = NULL;
         {
-            hr = ReJitManager::GetReJITIDs(pMD, cJittedRejitVersions, &cReJitIds, rgReJitIds);
-            if (SUCCEEDED(hr))
+            PTR_Module pModule = (PTR_Module)pMD->GetModule();
+            if (pModule->IsReadyToRun())
             {
-                reJitIds.CloseRawBuffer(cReJitIds);
-
-                ILCodeVersion ilCodeVersion = pCodeVersionManager->GetILCodeVersion(pMD, reJitIds[rejitId]);
-
-                if (ilCodeVersion.IsNull())
-                {
-                    hr = S_FALSE;
-                    goto cleanup;
-                }
-
-                TADDR r2rImageBase = NULL;
-                TADDR r2rImageEnd = NULL;
-                {
-                    PTR_Module pModule = (PTR_Module)pMD->GetModule();
-                    if (pModule->IsReadyToRun())
-                    {
-                        PTR_PEImageLayout pImage = pModule->GetReadyToRunInfo()->GetImage();
-                        r2rImageBase = dac_cast<TADDR>(pImage->GetBase());
-                        r2rImageEnd = r2rImageBase + pImage->GetSize();
-                    }
-                }
-
-                NativeCodeVersionCollection nativeCodeVersions = ilCodeVersion.GetNativeCodeVersions(pMD);
-                int count = 0;
-                for (NativeCodeVersionIterator iter = nativeCodeVersions.Begin(); iter != nativeCodeVersions.End(); iter++)
-                {
-                    TADDR pNativeCode = PCODEToPINSTR((*iter).GetNativeCode());
-                    nativeCodeAddrs[count].NativeCodeAddr = pNativeCode;
-                    PTR_NativeCodeVersionNode pNode = (*iter).AsNode();
-                    nativeCodeAddrs[count].NativeCodeVersionNodePtr = TO_CDADDR(PTR_TO_TADDR(pNode));
-
-                    if (r2rImageBase <= pNativeCode && pNativeCode < r2rImageEnd)
-                    {
-                        nativeCodeAddrs[count].OptimizationTier = DacpTieredVersionData::OptimizationTier_ReadyToRun;
-                    }
-                    else if (pMD->IsEligibleForTieredCompilation())
-                    {
-                        switch ((*iter).GetOptimizationTier())
-                        {
-                        default:
-                            nativeCodeAddrs[count].OptimizationTier = DacpTieredVersionData::OptimizationTier_Unknown;
-                            break;
-                        case NativeCodeVersion::OptimizationTier0:
-                            nativeCodeAddrs[count].OptimizationTier = DacpTieredVersionData::OptimizationTier_QuickJitted;
-                            break;
-                        case NativeCodeVersion::OptimizationTier1:
-                            nativeCodeAddrs[count].OptimizationTier = DacpTieredVersionData::OptimizationTier_OptimizedTier1;
-                            break;
-                        case NativeCodeVersion::OptimizationTierOptimized:
-                            nativeCodeAddrs[count].OptimizationTier = DacpTieredVersionData::OptimizationTier_Optimized;
-                            break;
-                        }
-                    }
-                    else if (pMD->IsJitOptimizationDisabled())
-                    {
-                        nativeCodeAddrs[count].OptimizationTier = DacpTieredVersionData::OptimizationTier_MinOptJitted;
-                    }
-                    else
-                    {
-                        nativeCodeAddrs[count].OptimizationTier = DacpTieredVersionData::OptimizationTier_Optimized;
-                    }
-
-                    ++count;
-
-                    if (count >= cNativeCodeAddrs)
-                    {
-                        hr = S_FALSE;
-                        break;
-                    }
-                }
-
-                *pcNativeCodeAddrs = count;
+                PTR_PEImageLayout pImage = pModule->GetReadyToRunInfo()->GetImage();
+                r2rImageBase = dac_cast<TADDR>(pImage->GetBase());
+                r2rImageEnd = r2rImageBase + pImage->GetSize();
             }
         }
+
+        NativeCodeVersionCollection nativeCodeVersions = ilCodeVersion.GetNativeCodeVersions(pMD);
+        int count = 0;
+        for (NativeCodeVersionIterator iter = nativeCodeVersions.Begin(); iter != nativeCodeVersions.End(); iter++)
+        {
+            TADDR pNativeCode = PCODEToPINSTR((*iter).GetNativeCode());
+            nativeCodeAddrs[count].NativeCodeAddr = pNativeCode;
+            PTR_NativeCodeVersionNode pNode = (*iter).AsNode();
+            nativeCodeAddrs[count].NativeCodeVersionNodePtr = TO_CDADDR(PTR_TO_TADDR(pNode));
+
+            if (r2rImageBase <= pNativeCode && pNativeCode < r2rImageEnd)
+            {
+                nativeCodeAddrs[count].OptimizationTier = DacpTieredVersionData::OptimizationTier_ReadyToRun;
+            }
+            else if (pMD->IsEligibleForTieredCompilation())
+            {
+                switch ((*iter).GetOptimizationTier())
+                {
+                default:
+                    nativeCodeAddrs[count].OptimizationTier = DacpTieredVersionData::OptimizationTier_Unknown;
+                    break;
+                case NativeCodeVersion::OptimizationTier0:
+                    nativeCodeAddrs[count].OptimizationTier = DacpTieredVersionData::OptimizationTier_QuickJitted;
+                    break;
+                case NativeCodeVersion::OptimizationTier1:
+                    nativeCodeAddrs[count].OptimizationTier = DacpTieredVersionData::OptimizationTier_OptimizedTier1;
+                    break;
+                case NativeCodeVersion::OptimizationTierOptimized:
+                    nativeCodeAddrs[count].OptimizationTier = DacpTieredVersionData::OptimizationTier_Optimized;
+                    break;
+                }
+            }
+            else if (pMD->IsJitOptimizationDisabled())
+            {
+                nativeCodeAddrs[count].OptimizationTier = DacpTieredVersionData::OptimizationTier_MinOptJitted;
+            }
+            else
+            {
+                nativeCodeAddrs[count].OptimizationTier = DacpTieredVersionData::OptimizationTier_Optimized;
+            }
+
+            ++count;
+
+            if (count >= cNativeCodeAddrs)
+            {
+                hr = S_FALSE;
+                break;
+            }
+        }
+
+        *pcNativeCodeAddrs = count;
     }
     EX_CATCH
     {
@@ -1348,7 +1321,7 @@ ClrDataAccess::GetMethodDescPtrFromIP(CLRDATA_ADDRESS ip, CLRDATA_ADDRESS * ppMD
 }
 
 HRESULT
-ClrDataAccess::GetMethodDescName(CLRDATA_ADDRESS methodDesc, unsigned int count, __out_z __inout_ecount(count) wchar_t *name, unsigned int *pNeeded)
+ClrDataAccess::GetMethodDescName(CLRDATA_ADDRESS methodDesc, unsigned int count, __out_z __inout_ecount(count) WCHAR *name, unsigned int *pNeeded)
 {
     if (methodDesc == 0)
         return E_INVALIDARG;
@@ -1424,7 +1397,7 @@ ClrDataAccess::GetMethodDescName(CLRDATA_ADDRESS methodDesc, unsigned int count,
     if (SUCCEEDED(hr))
     {
 
-        const wchar_t *val = str.GetUnicode();
+        const WCHAR *val = str.GetUnicode();
 
         if (pNeeded)
             *pNeeded = str.GetCount() + 1;
@@ -1456,7 +1429,7 @@ ClrDataAccess::GetDomainFromContext(CLRDATA_ADDRESS contextAddr, CLRDATA_ADDRESS
 
 
 HRESULT
-ClrDataAccess::GetObjectStringData(CLRDATA_ADDRESS obj, unsigned int count, __out_z __inout_ecount(count) wchar_t *stringData, unsigned int *pNeeded)
+ClrDataAccess::GetObjectStringData(CLRDATA_ADDRESS obj, unsigned int count, __out_z __inout_ecount(count) WCHAR *stringData, unsigned int *pNeeded)
 {
     if (obj == 0)
         return E_INVALIDARG;
@@ -1487,7 +1460,7 @@ ClrDataAccess::GetObjectStringData(CLRDATA_ADDRESS obj, unsigned int count, __ou
                 count = needed;
 
             TADDR pszStr = TO_TADDR(obj)+offsetof(StringObject, m_FirstChar);
-            hr = m_pTarget->ReadVirtual(pszStr, (PBYTE)stringData, count * sizeof(wchar_t), &needed);
+            hr = m_pTarget->ReadVirtual(pszStr, (PBYTE)stringData, count * sizeof(WCHAR), &needed);
         
             if (SUCCEEDED(hr))
                 stringData[count - 1] = W('\0');
@@ -1508,7 +1481,7 @@ ClrDataAccess::GetObjectStringData(CLRDATA_ADDRESS obj, unsigned int count, __ou
 }
 
 HRESULT
-ClrDataAccess::GetObjectClassName(CLRDATA_ADDRESS obj, unsigned int count, __out_z __inout_ecount(count) wchar_t *className, unsigned int *pNeeded)
+ClrDataAccess::GetObjectClassName(CLRDATA_ADDRESS obj, unsigned int count, __out_z __inout_ecount(count) WCHAR *className, unsigned int *pNeeded)
 {
     if (obj == 0)
         return E_INVALIDARG;
@@ -1545,7 +1518,7 @@ ClrDataAccess::GetObjectClassName(CLRDATA_ADDRESS obj, unsigned int count, __out
         {
             StackSString s;
             TypeString::AppendType(s, TypeHandle(mt), TypeString::FormatNamespace|TypeString::FormatFullInst);
-            const wchar_t *val = s.GetUnicode();
+            const WCHAR *val = s.GetUnicode();
 
             if (pNeeded)
                 *pNeeded = s.GetCount() + 1;
@@ -1775,7 +1748,7 @@ ClrDataAccess::GetMethodTableData(CLRDATA_ADDRESS mt, struct DacpMethodTableData
 }
 
 HRESULT
-ClrDataAccess::GetMethodTableName(CLRDATA_ADDRESS mt, unsigned int count, __out_z __inout_ecount(count) wchar_t *mtName, unsigned int *pNeeded)
+ClrDataAccess::GetMethodTableName(CLRDATA_ADDRESS mt, unsigned int count, __out_z __inout_ecount(count) WCHAR *mtName, unsigned int *pNeeded)
 {
     if (mt == 0)
         return E_INVALIDARG;
@@ -1838,7 +1811,7 @@ ClrDataAccess::GetMethodTableName(CLRDATA_ADDRESS mt, unsigned int count, __out_
             }
             else
             {
-                const wchar_t *val = s.GetUnicode();
+                const WCHAR *val = s.GetUnicode();
 
                 if (pNeeded)
                     *pNeeded = s.GetCount() + 1;
@@ -2038,7 +2011,7 @@ ClrDataAccess::GetMethodTableForEEClass(CLRDATA_ADDRESS eeClass, CLRDATA_ADDRESS
 }
 
 HRESULT
-ClrDataAccess::GetFrameName(CLRDATA_ADDRESS vtable, unsigned int count, __out_z __inout_ecount(count) wchar_t *frameName, unsigned int *pNeeded)
+ClrDataAccess::GetFrameName(CLRDATA_ADDRESS vtable, unsigned int count, __out_z __inout_ecount(count) WCHAR *frameName, unsigned int *pNeeded)
 {
     if (vtable == 0)
         return E_INVALIDARG;
@@ -2078,7 +2051,7 @@ ClrDataAccess::GetFrameName(CLRDATA_ADDRESS vtable, unsigned int count, __out_z 
 }
 
 HRESULT
-ClrDataAccess::GetPEFileName(CLRDATA_ADDRESS addr, unsigned int count, __out_z __inout_ecount(count) wchar_t *fileName, unsigned int *pNeeded)
+ClrDataAccess::GetPEFileName(CLRDATA_ADDRESS addr, unsigned int count, __out_z __inout_ecount(count) WCHAR *fileName, unsigned int *pNeeded)
 {
     if (addr == 0 || (fileName == NULL && pNeeded == NULL) || (fileName != NULL && count == 0))
         return E_INVALIDARG;
@@ -2407,7 +2380,7 @@ ClrDataAccess::GetFailedAssemblyData(CLRDATA_ADDRESS assembly, unsigned int *pCo
 
 HRESULT
 ClrDataAccess::GetFailedAssemblyLocation(CLRDATA_ADDRESS assembly, unsigned int count,
-                                         __out_z __inout_ecount(count) wchar_t *location, unsigned int *pNeeded)
+                                         __out_z __inout_ecount(count) WCHAR *location, unsigned int *pNeeded)
 {
     if (assembly == NULL || (location == NULL && pNeeded == NULL) || (location != NULL && count == 0))
         return E_INVALIDARG;
@@ -2437,7 +2410,7 @@ ClrDataAccess::GetFailedAssemblyLocation(CLRDATA_ADDRESS assembly, unsigned int 
 }
 
 HRESULT
-ClrDataAccess::GetFailedAssemblyDisplayName(CLRDATA_ADDRESS assembly, unsigned int count, __out_z __inout_ecount(count) wchar_t *name, unsigned int *pNeeded)
+ClrDataAccess::GetFailedAssemblyDisplayName(CLRDATA_ADDRESS assembly, unsigned int count, __out_z __inout_ecount(count) WCHAR *name, unsigned int *pNeeded)
 {
     if (assembly == NULL || (name == NULL && pNeeded == NULL) || (name != NULL && count == 0))
         return E_INVALIDARG;
@@ -2547,7 +2520,7 @@ ClrDataAccess::GetFailedAssemblyList(CLRDATA_ADDRESS appDomain, int count,
 }
 
 HRESULT
-ClrDataAccess::GetAppDomainName(CLRDATA_ADDRESS addr, unsigned int count, __out_z __inout_ecount(count) wchar_t *name, unsigned int *pNeeded)
+ClrDataAccess::GetAppDomainName(CLRDATA_ADDRESS addr, unsigned int count, __out_z __inout_ecount(count) WCHAR *name, unsigned int *pNeeded)
 {
     SOSDacEnter();
 
@@ -2588,7 +2561,7 @@ ClrDataAccess::GetAppDomainName(CLRDATA_ADDRESS addr, unsigned int count, __out_
 
 HRESULT
 ClrDataAccess::GetApplicationBase(CLRDATA_ADDRESS appDomain, int count,
-                                  __out_z __inout_ecount(count) wchar_t *base, unsigned int *pNeeded)
+                                  __out_z __inout_ecount(count) WCHAR *base, unsigned int *pNeeded)
 {
     // Method is not supported on CoreCLR
 
@@ -2597,7 +2570,7 @@ ClrDataAccess::GetApplicationBase(CLRDATA_ADDRESS appDomain, int count,
 
 HRESULT
 ClrDataAccess::GetPrivateBinPaths(CLRDATA_ADDRESS appDomain, int count,
-                                  __out_z __inout_ecount(count) wchar_t *paths, unsigned int *pNeeded)
+                                  __out_z __inout_ecount(count) WCHAR *paths, unsigned int *pNeeded)
 {
     // Method is not supported on CoreCLR
 
@@ -2606,7 +2579,7 @@ ClrDataAccess::GetPrivateBinPaths(CLRDATA_ADDRESS appDomain, int count,
 
 HRESULT
 ClrDataAccess::GetAppDomainConfigFile(CLRDATA_ADDRESS appDomain, int count,
-                                      __out_z __inout_ecount(count) wchar_t *configFile, unsigned int *pNeeded)
+                                      __out_z __inout_ecount(count) WCHAR *configFile, unsigned int *pNeeded)
 {
     // Method is not supported on CoreCLR
 
@@ -2658,7 +2631,7 @@ ClrDataAccess::GetAssemblyData(CLRDATA_ADDRESS cdBaseDomainPtr, CLRDATA_ADDRESS 
 }
 
 HRESULT
-ClrDataAccess::GetAssemblyName(CLRDATA_ADDRESS assembly, unsigned int count, __out_z __inout_ecount(count) wchar_t *name, unsigned int *pNeeded)
+ClrDataAccess::GetAssemblyName(CLRDATA_ADDRESS assembly, unsigned int count, __out_z __inout_ecount(count) WCHAR *name, unsigned int *pNeeded)
 {
     SOSDacEnter();
     Assembly* pAssembly = PTR_Assembly(TO_TADDR(assembly));
@@ -2678,7 +2651,7 @@ ClrDataAccess::GetAssemblyName(CLRDATA_ADDRESS assembly, unsigned int count, __o
         StackSString displayName;
         pAssembly->GetManifestFile()->GetDisplayName(displayName, 0);
         
-        const wchar_t *val = displayName.GetUnicode();
+        const WCHAR *val = displayName.GetUnicode();
         
         if (pNeeded)
             *pNeeded = displayName.GetCount() + 1;
@@ -2699,7 +2672,7 @@ ClrDataAccess::GetAssemblyName(CLRDATA_ADDRESS assembly, unsigned int count, __o
 }
 
 HRESULT
-ClrDataAccess::GetAssemblyLocation(CLRDATA_ADDRESS assembly, int count, __out_z __inout_ecount(count) wchar_t *location, unsigned int *pNeeded)
+ClrDataAccess::GetAssemblyLocation(CLRDATA_ADDRESS assembly, int count, __out_z __inout_ecount(count) WCHAR *location, unsigned int *pNeeded)
 {
     if ((assembly == NULL) || (location == NULL && pNeeded == NULL) || (location != NULL && count == 0))
     {
@@ -3177,11 +3150,11 @@ ClrDataAccess::GetNestedExceptionData(CLRDATA_ADDRESS exception, CLRDATA_ADDRESS
 
     SOSDacEnter();
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     ExceptionTracker *pExData = PTR_ExceptionTracker(TO_TADDR(exception));
 #else
     ExInfo *pExData = PTR_ExInfo(TO_TADDR(exception));
-#endif // _WIN64
+#endif // FEATURE_EH_FUNCLETS
 
     if (!pExData)
     {
@@ -3699,7 +3672,7 @@ ClrDataAccess::GetJumpThunkTarget(T_CONTEXT *ctx, CLRDATA_ADDRESS *targetIP, CLR
     return hr;
 #else
     return E_FAIL;
-#endif // _WIN64
+#endif // _TARGET_AMD64_
 }
 
 
@@ -4299,5 +4272,173 @@ HRESULT ClrDataAccess::GetClrNotification(CLRDATA_ADDRESS arguments[], int count
 
     SOSDacLeave();
 
-    return hr;;
+    return hr;
+}
+
+HRESULT ClrDataAccess::GetPendingReJITID(CLRDATA_ADDRESS methodDesc, int *pRejitId)
+{
+    if (methodDesc == 0 || pRejitId == NULL)
+    {
+        return E_INVALIDARG;
+    }
+
+    SOSDacEnter();
+    
+    *pRejitId = -1;
+    PTR_MethodDesc pMD = PTR_MethodDesc(TO_TADDR(methodDesc));
+
+    CodeVersionManager* pCodeVersionManager = pMD->GetCodeVersionManager();
+    CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
+    ILCodeVersion ilVersion = pCodeVersionManager->GetActiveILCodeVersion(pMD);
+    if (ilVersion.IsNull())
+    {
+        hr = E_INVALIDARG;
+    }
+    else if (ilVersion.GetRejitState() == ILCodeVersion::kStateRequested)
+    {
+        *pRejitId = (int)ilVersion.GetVersionId();
+    }
+    else
+    {
+        hr = S_FALSE;
+    }
+
+    SOSDacLeave();
+
+    return hr;
+}
+
+HRESULT ClrDataAccess::GetReJITInformation(CLRDATA_ADDRESS methodDesc, int rejitId, struct DacpReJitData2 *pReJitData)
+{
+    if (methodDesc == 0 || rejitId < 0 || pReJitData == NULL)
+    {
+        return E_INVALIDARG;
+    }
+
+    SOSDacEnter();
+
+    PTR_MethodDesc pMD = PTR_MethodDesc(TO_TADDR(methodDesc));
+
+    CodeVersionManager* pCodeVersionManager = pMD->GetCodeVersionManager();
+    CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
+    ILCodeVersion ilVersion = pCodeVersionManager->GetILCodeVersion(pMD, rejitId);
+    if (ilVersion.IsNull())
+    {
+        hr = E_INVALIDARG;
+    }
+    else
+    {
+        pReJitData->rejitID = rejitId;
+
+        switch (ilVersion.GetRejitState())
+        {
+        default:
+            _ASSERTE(!"Unknown SharedRejitInfo state.  DAC should be updated to understand this new state.");
+            pReJitData->flags = DacpReJitData2::kUnknown;
+            break;
+
+        case ILCodeVersion::kStateRequested:
+            pReJitData->flags = DacpReJitData2::kRequested;
+            break;
+
+        case ILCodeVersion::kStateActive:
+            pReJitData->flags = DacpReJitData2::kActive;
+            break;
+        }
+
+        pReJitData->il = TO_CDADDR(PTR_TO_TADDR(ilVersion.GetIL()));
+        PTR_ILCodeVersionNode nodePtr = ilVersion.IsDefaultVersion() ? NULL : ilVersion.AsNode();
+        pReJitData->ilCodeVersionNodePtr = TO_CDADDR(PTR_TO_TADDR(nodePtr));
+    }
+    
+    SOSDacLeave();
+
+    return hr;    
+}
+
+
+HRESULT ClrDataAccess::GetProfilerModifiedILInformation(CLRDATA_ADDRESS methodDesc, struct DacpProfilerILData *pILData)
+{
+    if (methodDesc == 0 || pILData == NULL)
+    {
+        return E_INVALIDARG;
+    }
+
+    SOSDacEnter();
+
+    pILData->type = DacpProfilerILData::Unmodified;
+    pILData->rejitID = 0;
+    pILData->il = NULL;
+    PTR_MethodDesc pMD = PTR_MethodDesc(TO_TADDR(methodDesc));
+
+    CodeVersionManager* pCodeVersionManager = pMD->GetCodeVersionManager();
+    CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
+    ILCodeVersion ilVersion = pCodeVersionManager->GetActiveILCodeVersion(pMD);
+    if (ilVersion.GetRejitState() != ILCodeVersion::kStateActive || !ilVersion.HasDefaultIL())
+    {
+        pILData->type = DacpProfilerILData::ReJITModified;
+        pILData->rejitID = static_cast<ULONG>(pCodeVersionManager->GetActiveILCodeVersion(pMD).GetVersionId());
+    }
+
+    TADDR pDynamicIL = pMD->GetModule()->GetDynamicIL(pMD->GetMemberDef(), TRUE);
+    if (pDynamicIL != NULL)
+    {
+        pILData->type = DacpProfilerILData::ILModified;
+        pILData->il = (CLRDATA_ADDRESS)pDynamicIL;
+    }
+
+    SOSDacLeave();
+
+    return hr;
+}
+
+HRESULT ClrDataAccess::GetMethodsWithProfilerModifiedIL(CLRDATA_ADDRESS mod, CLRDATA_ADDRESS *methodDescs, int cMethodDescs, int *pcMethodDescs)
+{
+    if (mod == 0 || methodDescs == NULL || cMethodDescs == 0 || pcMethodDescs == NULL)
+    {
+        return E_INVALIDARG;
+    }
+
+    SOSDacEnter();
+
+    *pcMethodDescs = 0;
+
+    PTR_Module pModule = PTR_Module(TO_TADDR(mod));
+    CodeVersionManager* pCodeVersionManager = pModule->GetCodeVersionManager();
+    CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
+
+    LookupMap<PTR_MethodTable>::Iterator typeIter(&pModule->m_TypeDefToMethodTableMap);
+    for (int i = 0; typeIter.Next(); i++)
+    {
+        if (*pcMethodDescs >= cMethodDescs)
+        {
+            break;
+        }
+
+        if (typeIter.GetElement())
+        {
+            MethodTable* pMT = typeIter.GetElement();
+            for (MethodTable::IntroducedMethodIterator itMethods(pMT, FALSE); itMethods.IsValid(); itMethods.Next())
+            {
+                PTR_MethodDesc pMD = dac_cast<PTR_MethodDesc>(itMethods.GetMethodDesc());
+
+                TADDR pDynamicIL = pModule->GetDynamicIL(pMD->GetMemberDef(), TRUE);
+                ILCodeVersion ilVersion = pCodeVersionManager->GetActiveILCodeVersion(pMD);
+                if (ilVersion.GetRejitState() != ILCodeVersion::kStateActive || !ilVersion.HasDefaultIL() || pDynamicIL != NULL)
+                {
+                    methodDescs[*pcMethodDescs] = PTR_CDADDR(pMD);
+                    ++(*pcMethodDescs);
+                }
+
+                if (*pcMethodDescs >= cMethodDescs)
+                {
+                    break;
+                }
+            }
+        }
+    }
+
+    SOSDacLeave();
+
+    return hr;
 }

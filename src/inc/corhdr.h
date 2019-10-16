@@ -21,7 +21,7 @@
 #define FRAMEWORK_REGISTRY_KEY_W        W("Software\\Microsoft\\.NETFramework")
 
 // keys for HKCU
-#ifdef _WIN64    
+#ifdef BIT64    
 #define USER_FRAMEWORK_REGISTRY_KEY             "Software\\Microsoft\\.NETFramework64"
 #define USER_FRAMEWORK_REGISTRY_KEY_W        W("Software\\Microsoft\\.NETFramework64")
 #else
@@ -1176,9 +1176,9 @@ typedef struct IMAGE_COR_ILMETHOD_SECT_EH_FAT
 /***********************************/
 typedef struct IMAGE_COR_ILMETHOD_SECT_EH_CLAUSE_SMALL
 {
-#ifdef _WIN64
+#ifdef BIT64
     unsigned            Flags         : 16;
-#else // !_WIN64
+#else // !BIT64
     CorExceptionFlag    Flags         : 16;
 #endif
     unsigned            TryOffset     : 16;
@@ -1894,10 +1894,10 @@ typedef enum CorSaveSize
 } CorSaveSize;
 #endif
 
-#define COR_IS_METHOD_MANAGED_IL(flags)         ((flags & 0xf) == (miIL | miManaged))
-#define COR_IS_METHOD_MANAGED_OPTIL(flags)      ((flags & 0xf) == (miOPTIL | miManaged))
-#define COR_IS_METHOD_MANAGED_NATIVE(flags)     ((flags & 0xf) == (miNative | miManaged))
-#define COR_IS_METHOD_UNMANAGED_NATIVE(flags)   ((flags & 0xf) == (miNative | miUnmanaged))
+#define COR_IS_METHOD_MANAGED_IL(flags)         (((flags) & 0xf) == (miIL | miManaged))
+#define COR_IS_METHOD_MANAGED_OPTIL(flags)      (((flags) & 0xf) == (miOPTIL | miManaged))
+#define COR_IS_METHOD_MANAGED_NATIVE(flags)     (((flags) & 0xf) == (miNative | miManaged))
+#define COR_IS_METHOD_UNMANAGED_NATIVE(flags)   (((flags) & 0xf) == (miNative | miUnmanaged))
 
 //
 // Enum used with NATIVE_TYPE_ARRAY.

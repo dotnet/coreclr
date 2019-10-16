@@ -922,7 +922,7 @@ public:
         {
             // Field access stubs are not shared and do not use the secret parameter.
         }
-#ifndef _WIN64
+#ifndef BIT64
         else if (SF_IsForwardDelegateStub(m_dwStubFlags) ||
                 (SF_IsForwardCOMStub(m_dwStubFlags) && SF_IsWinRTDelegateStub(m_dwStubFlags)))
         {
@@ -930,7 +930,7 @@ public:
             // don't use the secret parameter. Except for AMD64 where we use the secret
             // argument to pass the real target to the stub-for-host.
         }
-#endif // !_WIN64
+#endif // !BIT64
         else
         {
             // All other IL stubs will need to use the secret parameter.
@@ -2283,7 +2283,7 @@ void NDirectStubLinker::DoNDirect(ILCodeStream *pcsEmit, DWORD dwStubFlags, Meth
                 // for managed-to-unmanaged CALLI that requires marshaling, the target is passed
                 // as the secret argument to the stub by GenericPInvokeCalliHelper (asmhelpers.asm)
                 EmitLoadStubContext(pcsEmit, dwStubFlags);
-#ifdef _WIN64
+#ifdef BIT64
                 // the secret arg has been shifted to left and ORed with 1 (see code:GenericPInvokeCalliHelper)
                 pcsEmit->EmitLDC(1);
                 pcsEmit->EmitSHR_UN();
@@ -4394,12 +4394,13 @@ void NDirect::AddMethodDescChunkWithLockTaken(NDirectStubParameters* pParams, Me
 // IL.  This allows us to cache a stub based on the inputs to CreateNDirectStubWorker
 // instead of having to generate the IL first before doing the caching.
 //
-void CreateNDirectStubAccessMetadata(StubSigDesc*       pSigDesc,       // IN
-                                     CorPinvokeMap      unmgdCallConv,  // IN
-                                     DWORD*             pdwStubFlags,   // IN/OUT
-                                     int*               piLCIDArg,      // OUT
-                                     int*               pNumArgs        // OUT
-                                     )
+static void CreateNDirectStubAccessMetadata(
+                StubSigDesc*    pSigDesc,       // IN
+                CorPinvokeMap   unmgdCallConv,  // IN
+                DWORD*          pdwStubFlags,   // IN/OUT
+                int*            piLCIDArg,      // OUT
+                int*            pNumArgs        // OUT
+                )
 {
     STANDARD_VM_CONTRACT;
 
@@ -4485,20 +4486,19 @@ void CreateNDirectStubAccessMetadata(StubSigDesc*       pSigDesc,       // IN
         }
     }
 
+    int lcidArg = -1;
     if (pSigDesc->m_pMD != NULL)
     {
-        (*piLCIDArg) = GetLCIDParameterIndex(pSigDesc->m_pMD);
-    }
-    else
-    {
-        (*piLCIDArg) = -1;
+        lcidArg = GetLCIDParameterIndex(pSigDesc->m_pMD);
+
+        // Check to see if we need to do LCID conversion.
+        if (lcidArg != -1 && lcidArg > (*pNumArgs))
+        {
+            COMPlusThrow(kIndexOutOfRangeException, IDS_EE_INVALIDLCIDPARAM);
+        }
     }
 
-    // Check to see if we need to do LCID conversion.
-    if ((*piLCIDArg) != -1 && (*piLCIDArg) > (*pNumArgs))
-    {
-        COMPlusThrow(kIndexOutOfRangeException, IDS_EE_INVALIDLCIDPARAM);
-    }
+    (*piLCIDArg) = lcidArg;
 
     if (SF_IsCOMStub(*pdwStubFlags) && !SF_IsWinRTStaticStub(*pdwStubFlags))
     {
@@ -5569,7 +5569,7 @@ MethodDesc* RestoreNGENedStub(MethodDesc* pStubMD)
 
 #if defined(HAVE_GCCOVER)
         if (GCStress<cfg_instr_ngen>::IsEnabled())
-            SetupGcCoverage(pStubMD, (BYTE*) pCode);
+            SetupGcCoverage(NativeCodeVersion(pStubMD), (BYTE*)pCode);
 #endif // HAVE_GCCOVER
 
     }
@@ -5876,8 +5876,7 @@ private:
 };  // class LoadLibErrorTracker
 
 // Load the library directly. On Unix systems, don't register it yet with PAL. 
-// * External callers like AssemblyNative::InternalLoadUnmanagedDllFromPath() and the upcoming 
-//   System.Runtime.InteropServices.NativeLibrary.Load() need the raw system handle
+// * External callers like System.Runtime.InteropServices.NativeLibrary.Load() need the raw system handle
 // * Internal callers like LoadLibraryModule() can convert this handle to a HMODULE via PAL APIs on Unix
 static NATIVE_LIBRARY_HANDLE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, LoadLibErrorTracker *pErrorTracker )
 {
@@ -6735,8 +6734,6 @@ VOID NDirect::NDirectLink(NDirectMethodDesc *pMD)
 // it can reenter managed mode and throw a COM+ exception if the DLL linking
 // fails.
 //==========================================================================
-
-
 EXTERN_C LPVOID STDCALL NDirectImportWorker(NDirectMethodDesc* pMD)
 {
     LPVOID ret = NULL;
@@ -6776,7 +6773,7 @@ EXTERN_C LPVOID STDCALL NDirectImportWorker(NDirectMethodDesc* pMD)
         //
         INDEBUG(Thread *pThread = GetThread());
         {
-            _ASSERTE(pThread->GetFrame()->GetVTablePtr() == InlinedCallFrame::GetMethodFrameVPtr());
+            _ASSERTE(pMD->ShouldSuppressGCTransition() || pThread->GetFrame()->GetVTablePtr() == InlinedCallFrame::GetMethodFrameVPtr());
 
             CONSISTENCY_CHECK(pMD->IsNDirect());
             //

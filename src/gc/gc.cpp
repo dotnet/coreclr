@@ -2611,6 +2611,10 @@ exclusive_sync* gc_heap::bgc_alloc_lock;
 
 oom_history gc_heap::oom_info;
 
+int         gc_heap::oomhist_index_per_heap = 0;
+
+oom_history gc_heap::oomhist_per_heap[max_oom_history_count];
+
 fgm_history gc_heap::fgm_result;
 
 size_t      gc_heap::allocated_since_last_gc = 0;
@@ -3941,7 +3945,7 @@ size_t gcard_of ( uint8_t*);
 
 //GC Flags
 #define GC_MARKED       (size_t)0x1
-#define slot(i, j) ((uint8_t**)(i))[j+1]
+#define slot(i, j) ((uint8_t**)(i))[(j)+1]
 
 #define free_object_base_size (plug_skew + sizeof(ArrayBase))
 
@@ -10917,6 +10921,8 @@ gc_heap::init_gc_heap (int  h_number)
 
     ephemeral_heap_segment = 0;
 
+    oomhist_index_per_heap = 0;
+
     freeable_large_heap_segment = 0;
 
     condemned_generation_num = 0;
@@ -12146,6 +12152,17 @@ size_t gc_heap::limit_from_size (size_t size, uint32_t flags, size_t physical_li
     return new_limit;
 }
 
+void gc_heap::add_to_oom_history_per_heap()
+{
+    oom_history* current_hist = &oomhist_per_heap[oomhist_index_per_heap];
+    memcpy (current_hist, &oom_info, sizeof (oom_info));
+    oomhist_index_per_heap++;
+    if (oomhist_index_per_heap == max_oom_history_count)
+    {
+        oomhist_index_per_heap = 0;
+    }
+}
+
 void gc_heap::handle_oom (int heap_num, oom_reason reason, size_t alloc_size, 
                           uint8_t* allocated, uint8_t* reserved)
 {
@@ -12175,6 +12192,7 @@ void gc_heap::handle_oom (int heap_num, oom_reason reason, size_t alloc_size,
     oom_info.available_pagefile_mb = fgm_result.available_pagefile_mb;
     oom_info.loh_p = fgm_result.loh_p;
 
+    add_to_oom_history_per_heap();
     fgm_result.fgm = fgm_no_failure;
 
     // Break early - before the more_space_lock is release so no other threads
@@ -12377,13 +12395,13 @@ void gc_heap::send_full_gc_notification (int gen_num, BOOL due_to_alloc_p)
 
 wait_full_gc_status gc_heap::full_gc_wait (GCEvent *event, int time_out_ms)
 {
-    uint32_t maxgen_percent = 0;
 #ifdef MULTIPLE_HEAPS
-    maxgen_percent = g_heaps[0]->fgn_maxgen_percent;
+    gc_heap* hp = gc_heap::g_heaps[0];
 #else
-    maxgen_percent = fgn_maxgen_percent;
+    gc_heap* hp = pGenGCHeap;
 #endif //MULTIPLE_HEAPS
-    if (maxgen_percent == 0)
+
+    if (hp->fgn_maxgen_percent == 0)
     {
         return wait_full_gc_na;
     }
@@ -12392,7 +12410,7 @@ wait_full_gc_status gc_heap::full_gc_wait (GCEvent *event, int time_out_ms)
 
     if ((wait_result == WAIT_OBJECT_0) || (wait_result == WAIT_TIMEOUT))
     {
-        if (maxgen_percent == 0)
+        if (hp->fgn_maxgen_percent == 0)
         {
             return wait_full_gc_cancelled;
         }
@@ -13775,7 +13793,8 @@ exit:
     if (loh_alloc_state == a_state_cant_allocate)
     {
         assert (oom_r != oom_no_failure);
-        if (should_retry_other_heap (size))
+
+        if ((oom_r != oom_cant_commit) && should_retry_other_heap (size))
         {
             loh_alloc_state = a_state_retry_allocate;
         }
@@ -34781,7 +34800,11 @@ HRESULT GCHeap::Initialize()
         return CLR_E_GC_BAD_AFFINITY_CONFIG;
     }
 
-    if ((cpu_index_ranges_holder.Get() != nullptr) || (config_affinity_mask != 0))
+    if ((cpu_index_ranges_holder.Get() != nullptr)
+#ifdef PLATFORM_WINDOWS
+        || (config_affinity_mask != 0)
+#endif
+    )
     {
         affinity_config_specified_p = true;
     }
@@ -34801,12 +34824,7 @@ HRESULT GCHeap::Initialize()
 
     nhp = min (nhp, MAX_SUPPORTED_CPUS);
 #ifndef FEATURE_REDHAWK
-    gc_heap::gc_thread_no_affinitize_p = (gc_heap::heap_hard_limit ? false : (GCConfig::GetNoAffinitize() != 0));
-
-    if (gc_heap::heap_hard_limit)
-    {
-        gc_heap::gc_thread_no_affinitize_p = ((config_affinity_set.Count() == 0) && (config_affinity_mask == 0));
-    }
+    gc_heap::gc_thread_no_affinitize_p = (gc_heap::heap_hard_limit ? !affinity_config_specified_p : (GCConfig::GetNoAffinitize() != 0));
 
     if (!(gc_heap::gc_thread_no_affinitize_p))
     {
@@ -34816,10 +34834,10 @@ HRESULT GCHeap::Initialize()
         {
             nhp = min(nhp, num_affinitized_processors);
         }
-#ifdef FEATURE_PAL
+#ifndef PLATFORM_WINDOWS
         // Limit the GC heaps to the number of processors available in the system.
         nhp = min (nhp, GCToOSInterface::GetTotalProcessorCount());
-#endif // FEATURE_PAL
+#endif // !PLATFORM_WINDOWS
     }
 #endif //!FEATURE_REDHAWK
 #endif //MULTIPLE_HEAPS
@@ -36900,6 +36918,7 @@ bool GCHeap::RegisterForFullGCNotification(uint32_t gen2Percentage,
     }
 #else //MULTIPLE_HEAPS
     pGenGCHeap->fgn_last_alloc = dd_new_allocation (pGenGCHeap->dynamic_data_of (0));
+    pGenGCHeap->fgn_maxgen_percent = gen2Percentage;
 #endif //MULTIPLE_HEAPS
 
     pGenGCHeap->full_gc_approach_event.Reset();
@@ -36913,9 +36932,17 @@ bool GCHeap::RegisterForFullGCNotification(uint32_t gen2Percentage,
 
 bool GCHeap::CancelFullGCNotification()
 {
+#ifdef MULTIPLE_HEAPS
+    for (int hn = 0; hn < gc_heap::n_heaps; hn++)
+    {
+        gc_heap* hp = gc_heap::g_heaps [hn];
+        hp->fgn_maxgen_percent = 0;
+    }
+#else //MULTIPLE_HEAPS
     pGenGCHeap->fgn_maxgen_percent = 0;
-    pGenGCHeap->fgn_loh_percent = 0;
+#endif //MULTIPLE_HEAPS
 
+    pGenGCHeap->fgn_loh_percent = 0;
     pGenGCHeap->full_gc_approach_event.Set();
     pGenGCHeap->full_gc_end_event.Set();
     

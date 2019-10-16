@@ -59,7 +59,7 @@ namespace System.Runtime.CompilerServices
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }
 
-            return _container.TryGetValueWorker(key!, out value); // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+            return _container.TryGetValueWorker(key, out value);
         }
 
         /// <summary>Adds a key to the table.</summary>
@@ -80,13 +80,13 @@ namespace System.Runtime.CompilerServices
 
             lock (_lock)
             {
-                int entryIndex = _container.FindEntry(key!, out _); // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+                int entryIndex = _container.FindEntry(key, out _);
                 if (entryIndex != -1)
                 {
                     ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_AddingDuplicate);
                 }
 
-                CreateEntry(key!, value); // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+                CreateEntry(key, value);
             }
         }
 
@@ -102,7 +102,7 @@ namespace System.Runtime.CompilerServices
 
             lock (_lock)
             {
-                int entryIndex = _container.FindEntry(key!, out _); // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+                int entryIndex = _container.FindEntry(key, out _);
 
                 // if we found a key we should just update, if no we should create a new entry.
                 if (entryIndex != -1)
@@ -111,7 +111,7 @@ namespace System.Runtime.CompilerServices
                 }
                 else
                 {
-                    CreateEntry(key!, value); // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+                    CreateEntry(key, value);
                 }
             }
         }
@@ -133,7 +133,7 @@ namespace System.Runtime.CompilerServices
 
             lock (_lock)
             {
-                return _container.Remove(key!); // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+                return _container.Remove(key);
             }
         }
 
@@ -196,7 +196,7 @@ namespace System.Runtime.CompilerServices
         private TValue GetValueLocked(TKey key, CreateValueCallback createValueCallback)
         {
             // If we got here, the key was not in the table. Invoke the callback (outside the lock)
-            // to generate the new value for the key. 
+            // to generate the new value for the key.
             TValue newValue = createValueCallback(key);
 
             lock (_lock)
@@ -266,9 +266,9 @@ namespace System.Runtime.CompilerServices
             // there is any outstanding enumerator, no compaction is performed.
 
             private ConditionalWeakTable<TKey, TValue>? _table; // parent table, set to null when disposed
-            private readonly int _maxIndexInclusive;           // last index in the container that should be enumerated
-            private int _currentIndex = -1;                    // the current index into the container
-            private KeyValuePair<TKey, TValue> _current;       // the current entry set by MoveNext and returned from Current
+            private readonly int _maxIndexInclusive;            // last index in the container that should be enumerated
+            private int _currentIndex;                          // the current index into the container
+            private KeyValuePair<TKey, TValue> _current;        // the current entry set by MoveNext and returned from Current
 
             public Enumerator(ConditionalWeakTable<TKey, TValue> table)
             {
@@ -397,17 +397,17 @@ namespace System.Runtime.CompilerServices
         //    - Used with live key (linked into a bucket list where _buckets[hashCode & (_buckets.Length - 1)] points to first entry)
         //         depHnd.IsAllocated == true, depHnd.GetPrimary() != null
         //         hashCode == RuntimeHelpers.GetHashCode(depHnd.GetPrimary()) & int.MaxValue
-        //         next links to next Entry in bucket. 
-        //                          
+        //         next links to next Entry in bucket.
+        //
         //    - Used with dead key (linked into a bucket list where _buckets[hashCode & (_buckets.Length - 1)] points to first entry)
         //         depHnd.IsAllocated == true, depHnd.GetPrimary() is null
-        //         hashCode == <notcare> 
-        //         next links to next Entry in bucket. 
+        //         hashCode == <notcare>
+        //         next links to next Entry in bucket.
         //
         //    - Has been removed from the table (by a call to Remove)
         //         depHnd.IsAllocated == true, depHnd.GetPrimary() == <notcare>
-        //         hashCode == -1 
-        //         next links to next Entry in bucket. 
+        //         hashCode == -1
+        //         next links to next Entry in bucket.
         //
         // The only difference between "used with live key" and "used with dead key" is that
         // depHnd.GetPrimary() returns null. The transition from "used with live key" to "used with dead key"
@@ -445,13 +445,13 @@ namespace System.Runtime.CompilerServices
                 Debug.Assert(parent != null);
                 Debug.Assert(IsPowerOfTwo(InitialCapacity));
 
-                int size = InitialCapacity;
-                _buckets = new int[size];
+                const int Size = InitialCapacity;
+                _buckets = new int[Size];
                 for (int i = 0; i < _buckets.Length; i++)
                 {
                     _buckets[i] = -1;
                 }
-                _entries = new Entry[size];
+                _entries = new Entry[Size];
 
                 // Only store the parent after all of the allocations have happened successfully.
                 // Otherwise, as part of growing or clearing the container, we could end up allocating

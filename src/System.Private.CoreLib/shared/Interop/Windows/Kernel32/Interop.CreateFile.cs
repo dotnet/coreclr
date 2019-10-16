@@ -7,9 +7,9 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 
-internal partial class Interop
+internal static partial class Interop
 {
-    internal partial class Kernel32
+    internal static partial class Kernel32
     {
         /// <summary>
         /// WARNING: This method does not implicitly handle long paths. Use CreateFile.
@@ -33,7 +33,7 @@ internal partial class Interop
             int dwFlagsAndAttributes,
             IntPtr hTemplateFile)
         {
-            lpFileName = PathInternal.EnsureExtendedPrefixIfNeeded(lpFileName)!; // TODO-NULLABLE: Remove ! when [NotNullIfNotNull] respected
+            lpFileName = PathInternal.EnsureExtendedPrefixIfNeeded(lpFileName);
             return CreateFilePrivate(lpFileName, dwDesiredAccess, dwShareMode, ref securityAttrs, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
         }
     }

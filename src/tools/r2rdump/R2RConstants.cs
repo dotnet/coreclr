@@ -121,7 +121,8 @@ namespace R2RDump
         READYTORUN_FIXUP_DelegateCtor = 0x2C, /* optimized delegate ctor */
         READYTORUN_FIXUP_DeclaringTypeHandle = 0x2D,
 
-        READYTORUN_FIXUP_IndirectPInvokeTarget = 0x2E, /* Target of an inlined pinvoke */
+        READYTORUN_FIXUP_IndirectPInvokeTarget = 0x2E, /* Target (indirect) of an inlined pinvoke */
+        READYTORUN_FIXUP_PInvokeTarget = 0x2F, /* Target of an inlined pinvoke */
     }
 
     //
@@ -176,6 +177,7 @@ namespace R2RDump
         // PInvoke helpers
         READYTORUN_HELPER_PInvokeBegin = 0x42,
         READYTORUN_HELPER_PInvokeEnd = 0x43,
+        READYTORUN_HELPER_GCPoll = 0x44,
 
         // Get string handle lazily
         READYTORUN_HELPER_GetString = 0x50,
@@ -237,10 +239,10 @@ namespace R2RDump
         READYTORUN_HELPER_Dbl2ULngOvf = 0xD7,
 
         // Floating point ops
-        READYTORUN_HELPER_FltRem = 0xE0,
-        READYTORUN_HELPER_DblRem = 0xE1,
-        READYTORUN_HELPER_FltRound = 0xE2,
-        READYTORUN_HELPER_DblRound = 0xE3,
+        READYTORUN_HELPER_DblRem = 0xE0,
+        READYTORUN_HELPER_FltRem = 0xE1,
+        READYTORUN_HELPER_DblRound = 0xE2,
+        READYTORUN_HELPER_FltRound = 0xE3,
 
         // Personality rountines
         READYTORUN_HELPER_PersonalityRoutine = 0xF0,
@@ -270,6 +272,8 @@ namespace R2RDump
 
         // JIT32 x86-specific exception handling
         READYTORUN_HELPER_EndCatch = 0x110,
+
+        READYTORUN_HELPER_StackProbe = 0x111,
     }
 
     public enum CorElementType : byte

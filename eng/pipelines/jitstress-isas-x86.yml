@@ -2,7 +2,20 @@ trigger: none
 
 pr: none
 
+schedules:
+- cron: "30 19 * * 6"
+  displayName: Sat at 11:30 AM (UTC-8:00)
+  branches:
+    include:
+    - master
+  always: true
+
 jobs:
+#
+# Checkout repository
+#
+- template: /eng/checkout-job.yml
+
 - template: /eng/platform-matrix.yml
   parameters:
     jobTemplate: build-job.yml
@@ -12,6 +25,8 @@ jobs:
     - OSX_x64
     - Windows_NT_x64
     - Windows_NT_x86
+    jobParameters:
+      testGroup: jitstress-isas-x86
 
 - template: /eng/platform-matrix.yml
   parameters:

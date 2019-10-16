@@ -276,11 +276,13 @@ public:
     CallDsc* gcCallDescList;
     CallDsc* gcCallDescLast;
 
-    //-------------------------------------------------------------------------
-
-    void gcCountForHeader(UNALIGNED unsigned int* untrackedCount, UNALIGNED unsigned int* varPtrTableSize);
+//-------------------------------------------------------------------------
 
 #ifdef JIT32_GCENCODER
+    void gcCountForHeader(UNALIGNED unsigned int* pUntrackedCount, UNALIGNED unsigned int* pVarPtrTableSize);
+
+    bool gcIsUntrackedLocalOrNonEnregisteredArg(unsigned varNum, bool* pThisKeptAliveIsInUntracked = nullptr);
+
     size_t gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, unsigned codeSize, size_t* pArgTabOffset);
 #else
     RegSlotMap*   m_regSlotMap;
@@ -356,7 +358,7 @@ private:
 
 #endif // JIT32_GCENCODER
 
-#if !defined(JIT32_GCENCODER) || defined(WIN64EXCEPTIONS)
+#if !defined(JIT32_GCENCODER) || defined(FEATURE_EH_FUNCLETS)
 
     // This method expands the tracked stack variables lifetimes so that any lifetimes within filters
     // are reported as pinned.
@@ -369,7 +371,7 @@ private:
     void gcDumpVarPtrDsc(varPtrDsc* desc);
 #endif // DEBUG
 
-#endif // !defined(JIT32_GCENCODER) || defined(WIN64EXCEPTIONS)
+#endif // !defined(JIT32_GCENCODER) || defined(FEATURE_EH_FUNCLETS)
 
 #if DUMP_GC_TABLES
 

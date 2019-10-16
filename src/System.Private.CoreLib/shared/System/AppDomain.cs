@@ -17,9 +17,6 @@ using System.Threading;
 
 namespace System
 {
-#if PROJECTN
-    [Internal.Runtime.CompilerServices.RelocatedType("System.Runtime.Extensions")]
-#endif
     public sealed partial class AppDomain : MarshalByRefObject
     {
         private static readonly AppDomain s_domain = new AppDomain();
@@ -41,7 +38,7 @@ namespace System
 
         public PermissionSet PermissionSet => new PermissionSet(PermissionState.Unrestricted);
 
-        public event UnhandledExceptionEventHandler UnhandledException
+        public event UnhandledExceptionEventHandler? UnhandledException
         {
             add { AppContext.UnhandledException += value; }
             remove { AppContext.UnhandledException -= value; }
@@ -49,7 +46,7 @@ namespace System
 
         public string? DynamicDirectory => null;
 
-        [ObsoleteAttribute("AppDomain.SetDynamicBase has been deprecated. Please investigate the use of AppDomainSetup.DynamicBase instead. https://go.microsoft.com/fwlink/?linkid=14202")]
+        [Obsolete("AppDomain.SetDynamicBase has been deprecated. Please investigate the use of AppDomainSetup.DynamicBase instead. https://go.microsoft.com/fwlink/?linkid=14202")]
         public void SetDynamicBase(string? path) { }
 
         public string FriendlyName
@@ -67,15 +64,15 @@ namespace System
 
         public bool IsHomogenous => true;
 
-        public event EventHandler DomainUnload;
+        public event EventHandler? DomainUnload;
 
-        public event EventHandler<FirstChanceExceptionEventArgs> FirstChanceException
+        public event EventHandler<FirstChanceExceptionEventArgs>? FirstChanceException
         {
             add { AppContext.FirstChanceException += value; }
             remove { AppContext.FirstChanceException -= value; }
         }
 
-        public event EventHandler ProcessExit
+        public event EventHandler? ProcessExit
         {
             add { AppContext.ProcessExit += value; }
             remove { AppContext.ProcessExit -= value; }
@@ -119,7 +116,7 @@ namespace System
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_CAS); // This api is only meaningful for very specific partial trust/CAS scenarios
         }
 
-        private int ExecuteAssembly(Assembly assembly, string?[]? args)
+        private static int ExecuteAssembly(Assembly assembly, string?[]? args)
         {
             MethodInfo? entry = assembly.EntryPoint;
             if (entry == null)
@@ -161,7 +158,7 @@ namespace System
         public bool IsFinalizingForUnload() => false;
 
         public override string ToString() =>
-            SR.AppDomain_Name + FriendlyName + Environment.NewLine + SR.AppDomain_NoContextPolicies;
+            SR.AppDomain_Name + FriendlyName + Environment.NewLineConst + SR.AppDomain_NoContextPolicies;
 
         public static void Unload(AppDomain domain)
         {
@@ -184,7 +181,7 @@ namespace System
 
         public static bool MonitoringIsEnabled
         {
-            get { return true; }
+            get => true;
             set
             {
                 if (!value)
@@ -207,52 +204,52 @@ namespace System
 
         public long MonitoringTotalAllocatedMemorySize => GC.GetTotalAllocatedBytes(precise: false);
 
-        [ObsoleteAttribute("AppDomain.GetCurrentThreadId has been deprecated because it does not provide a stable Id when managed threads are running on fibers (aka lightweight threads). To get a stable identifier for a managed thread, use the ManagedThreadId property on Thread.  https://go.microsoft.com/fwlink/?linkid=14202", false)]
+        [Obsolete("AppDomain.GetCurrentThreadId has been deprecated because it does not provide a stable Id when managed threads are running on fibers (aka lightweight threads). To get a stable identifier for a managed thread, use the ManagedThreadId property on Thread.  https://go.microsoft.com/fwlink/?linkid=14202", false)]
         public static int GetCurrentThreadId() => Environment.CurrentManagedThreadId;
 
         public bool ShadowCopyFiles => false;
 
-        [ObsoleteAttribute("AppDomain.AppendPrivatePath has been deprecated. Please investigate the use of AppDomainSetup.PrivateBinPath instead. https://go.microsoft.com/fwlink/?linkid=14202")]
+        [Obsolete("AppDomain.AppendPrivatePath has been deprecated. Please investigate the use of AppDomainSetup.PrivateBinPath instead. https://go.microsoft.com/fwlink/?linkid=14202")]
         public void AppendPrivatePath(string? path) { }
 
-        [ObsoleteAttribute("AppDomain.ClearPrivatePath has been deprecated. Please investigate the use of AppDomainSetup.PrivateBinPath instead. https://go.microsoft.com/fwlink/?linkid=14202")]
+        [Obsolete("AppDomain.ClearPrivatePath has been deprecated. Please investigate the use of AppDomainSetup.PrivateBinPath instead. https://go.microsoft.com/fwlink/?linkid=14202")]
         public void ClearPrivatePath() { }
 
-        [ObsoleteAttribute("AppDomain.ClearShadowCopyPath has been deprecated. Please investigate the use of AppDomainSetup.ShadowCopyDirectories instead. https://go.microsoft.com/fwlink/?linkid=14202")]
+        [Obsolete("AppDomain.ClearShadowCopyPath has been deprecated. Please investigate the use of AppDomainSetup.ShadowCopyDirectories instead. https://go.microsoft.com/fwlink/?linkid=14202")]
         public void ClearShadowCopyPath() { }
 
-        [ObsoleteAttribute("AppDomain.SetCachePath has been deprecated. Please investigate the use of AppDomainSetup.CachePath instead. https://go.microsoft.com/fwlink/?linkid=14202")]
+        [Obsolete("AppDomain.SetCachePath has been deprecated. Please investigate the use of AppDomainSetup.CachePath instead. https://go.microsoft.com/fwlink/?linkid=14202")]
         public void SetCachePath(string? path) { }
 
-        [ObsoleteAttribute("AppDomain.SetShadowCopyFiles has been deprecated. Please investigate the use of AppDomainSetup.ShadowCopyFiles instead. https://go.microsoft.com/fwlink/?linkid=14202")]
+        [Obsolete("AppDomain.SetShadowCopyFiles has been deprecated. Please investigate the use of AppDomainSetup.ShadowCopyFiles instead. https://go.microsoft.com/fwlink/?linkid=14202")]
         public void SetShadowCopyFiles() { }
 
-        [ObsoleteAttribute("AppDomain.SetShadowCopyPath has been deprecated. Please investigate the use of AppDomainSetup.ShadowCopyDirectories instead. https://go.microsoft.com/fwlink/?linkid=14202")]
+        [Obsolete("AppDomain.SetShadowCopyPath has been deprecated. Please investigate the use of AppDomainSetup.ShadowCopyDirectories instead. https://go.microsoft.com/fwlink/?linkid=14202")]
         public void SetShadowCopyPath(string? path) { }
 
         public Assembly[] GetAssemblies() => AssemblyLoadContext.GetLoadedAssemblies();
 
-        public event AssemblyLoadEventHandler AssemblyLoad
+        public event AssemblyLoadEventHandler? AssemblyLoad
         {
             add { AssemblyLoadContext.AssemblyLoad += value; }
             remove { AssemblyLoadContext.AssemblyLoad -= value; }
         }
 
-        public event ResolveEventHandler AssemblyResolve
+        public event ResolveEventHandler? AssemblyResolve
         {
             add { AssemblyLoadContext.AssemblyResolve += value; }
             remove { AssemblyLoadContext.AssemblyResolve -= value; }
         }
 
-        public event ResolveEventHandler ReflectionOnlyAssemblyResolve;
+        public event ResolveEventHandler? ReflectionOnlyAssemblyResolve;
 
-        public event ResolveEventHandler TypeResolve
+        public event ResolveEventHandler? TypeResolve
         {
             add { AssemblyLoadContext.TypeResolve += value; }
             remove { AssemblyLoadContext.TypeResolve -= value; }
         }
 
-        public event ResolveEventHandler ResourceResolve
+        public event ResolveEventHandler? ResourceResolve
         {
             add { AssemblyLoadContext.ResourceResolve += value; }
             remove { AssemblyLoadContext.ResourceResolve -= value; }
@@ -326,20 +323,20 @@ namespace System
 
         public object? CreateInstanceAndUnwrap(string assemblyName, string typeName, bool ignoreCase, BindingFlags bindingAttr, Binder? binder, object?[]? args, System.Globalization.CultureInfo? culture, object?[]? activationAttributes)
         {
-            ObjectHandle? oh = CreateInstance(assemblyName, 
-                                             typeName, 
-                                             ignoreCase, 
+            ObjectHandle? oh = CreateInstance(assemblyName,
+                                             typeName,
+                                             ignoreCase,
                                              bindingAttr,
-                                             binder, 
-                                             args, 
-                                             culture, 
-                                             activationAttributes); 
+                                             binder,
+                                             args,
+                                             culture,
+                                             activationAttributes);
             return oh?.Unwrap();
         }
 
         public object? CreateInstanceAndUnwrap(string assemblyName, string typeName, object?[]? activationAttributes)
         {
-            ObjectHandle? oh = CreateInstance(assemblyName, typeName, activationAttributes);            
+            ObjectHandle? oh = CreateInstance(assemblyName, typeName, activationAttributes);
             return oh?.Unwrap();
         }
 
@@ -373,20 +370,20 @@ namespace System
 
         public object? CreateInstanceFromAndUnwrap(string assemblyFile, string typeName, bool ignoreCase, BindingFlags bindingAttr, Binder? binder, object?[]? args, System.Globalization.CultureInfo? culture, object?[]? activationAttributes)
         {
-            ObjectHandle? oh = CreateInstanceFrom(assemblyFile, 
-                                                 typeName, 
-                                                 ignoreCase, 
+            ObjectHandle? oh = CreateInstanceFrom(assemblyFile,
+                                                 typeName,
+                                                 ignoreCase,
                                                  bindingAttr,
-                                                 binder, 
-                                                 args, 
-                                                 culture, 
+                                                 binder,
+                                                 args,
+                                                 culture,
                                                  activationAttributes);
             return oh?.Unwrap();
         }
 
         public object? CreateInstanceFromAndUnwrap(string assemblyFile, string typeName, object?[]? activationAttributes)
         {
-            ObjectHandle? oh = CreateInstanceFrom(assemblyFile, typeName, activationAttributes);            
+            ObjectHandle? oh = CreateInstanceFrom(assemblyFile, typeName, activationAttributes);
             return oh?.Unwrap();
         }
 
@@ -409,7 +406,7 @@ namespace System
                                 (Func<IPrincipal>)mi.CreateDelegate(typeof(Func<IPrincipal>)));
                         }
 
-                        principal = s_getUnauthenticatedPrincipal!(); // TODO-NULLABLE: Remove ! when [NotNullIfNotNull] respected
+                        principal = s_getUnauthenticatedPrincipal();
                         break;
 
                     case PrincipalPolicy.WindowsPrincipal:
@@ -425,7 +422,7 @@ namespace System
                                 (Func<IPrincipal>)mi.CreateDelegate(typeof(Func<IPrincipal>)));
                         }
 
-                        principal = s_getWindowsPrincipal!(); // TODO-NULLABLE: Remove ! when [NotNullIfNotNull] respected
+                        principal = s_getWindowsPrincipal();
                         break;
                 }
             }

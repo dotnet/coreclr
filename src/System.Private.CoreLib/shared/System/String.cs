@@ -33,6 +33,17 @@ namespace System
 #nullable restore
         ICloneable
     {
+        //
+        // These fields map directly onto the fields in an EE StringObject.  See object.h for the layout.
+        //
+        [NonSerialized]
+        private int _stringLength;
+
+        // For empty strings, this will be '\0' since
+        // strings are both null-terminated and length prefixed
+        [NonSerialized]
+        private char _firstChar;
+
         /*
          * CONSTRUCTORS
          *
@@ -41,12 +52,9 @@ namespace System
          * src/vm/ecall.cpp for instructions on how to add new overloads.
          */
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern String(char[] value);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -64,12 +72,9 @@ namespace System
             return result;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern String(char[] value, int startIndex, int length);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -100,12 +105,9 @@ namespace System
         }
 
         [CLSCompliant(false)]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern unsafe String(char* value);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -125,12 +127,9 @@ namespace System
         }
 
         [CLSCompliant(false)]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern unsafe String(char* value, int startIndex, int length);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -164,9 +163,6 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         public extern unsafe String(sbyte* value);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -185,9 +181,6 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         public extern unsafe String(sbyte* value, int startIndex, int length);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -217,7 +210,7 @@ namespace System
         }
 
         // Encoder for String..ctor(sbyte*) and String..ctor(sbyte*, int, int)
-        private static unsafe string CreateStringForSByteConstructor(byte *pb, int numBytes)
+        private static unsafe string CreateStringForSByteConstructor(byte* pb, int numBytes)
         {
             Debug.Assert(numBytes >= 0);
             Debug.Assert(pb <= (pb + numBytes));
@@ -231,7 +224,7 @@ namespace System
                 throw new ArgumentException(SR.Arg_InvalidANSIString);
 
             string newString = FastAllocateString(numCharsRequired);
-            fixed (char *pFirstChar = &newString._firstChar)
+            fixed (char* pFirstChar = &newString._firstChar)
             {
                 numCharsRequired = Interop.Kernel32.MultiByteToWideChar(Interop.Kernel32.CP_ACP, Interop.Kernel32.MB_PRECOMPOSED, pb, numBytes, pFirstChar, numCharsRequired);
             }
@@ -247,9 +240,6 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         public extern unsafe String(sbyte* value, int startIndex, int length, Encoding enc);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -281,12 +271,9 @@ namespace System
             return enc.GetString(new ReadOnlySpan<byte>(pStart, length));
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern String(char c, int count);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -333,12 +320,9 @@ namespace System
             return result;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern String(ReadOnlySpan<char> value);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif

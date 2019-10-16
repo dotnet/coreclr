@@ -16,7 +16,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // That's because they are invoked with special "this"! The "this" object
     // for all of these methods are not EnumerableToIterableAdapter objects. Rather, they are of type
     // IEnumerable<T>. No actual EnumerableToIterableAdapter object is ever instantiated. Thus, you will
-    // see a lot of expressions that cast "this" to "IEnumerable<T>". 
+    // see a lot of expressions that cast "this" to "IEnumerable<T>".
     internal sealed class EnumerableToIterableAdapter
     {
         private EnumerableToIterableAdapter()
@@ -41,12 +41,12 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         internal sealed class NonGenericToGenericEnumerator : IEnumerator<object?>
         {
-            private IEnumerator enumerator;
+            private readonly IEnumerator enumerator;
 
             public NonGenericToGenericEnumerator(IEnumerator enumerator)
             { this.enumerator = enumerator; }
 
-            public object? Current { get { return enumerator.Current; } }
+            public object? Current => enumerator.Current;
             public bool MoveNext() { return enumerator.MoveNext(); }
             public void Reset() { enumerator.Reset(); }
             public void Dispose() { }
@@ -63,7 +63,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // Adapter class which holds a managed IEnumerator<T>, exposing it as a Windows Runtime IIterator<T>
     internal sealed class EnumeratorToIteratorAdapter<T> : IIterator<T>, IBindableIterator
     {
-        private IEnumerator<T> m_enumerator;
+        private readonly IEnumerator<T> m_enumerator;
         private bool m_firstItem = true;
         private bool m_hasCurrent;
 
@@ -94,13 +94,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        object? IBindableIterator.Current
-        {
-            get
-            {
-                return ((IIterator<T>)this).Current;
-            }
-        }
+        object? IBindableIterator.Current => ((IIterator<T>)this).Current;
 
         public bool HasCurrent
         {

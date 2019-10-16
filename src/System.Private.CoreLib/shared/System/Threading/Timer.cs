@@ -4,6 +4,7 @@
 
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
+using System.Runtime.ExceptionServices;
 using System.Threading.Tasks;
 
 namespace System.Threading
@@ -62,7 +63,7 @@ namespace System.Threading
         {
             // The VM's timer implementation does not work well for very long-duration timers.
             // So we limit our native timer duration to a "small" value.
-            // This may cause us to attempt to fire timers early, but that's ok - 
+            // This may cause us to attempt to fire timers early, but that's ok -
             // we'll just see that none of our timers has actually reached its due time,
             // and schedule the native timer again.
             const uint maxPossibleDuration = 0x0fffffff;
@@ -72,19 +73,11 @@ namespace System.Threading
             {
                 long elapsed = TickCount64 - _currentTimerStartTicks;
                 if (elapsed >= _currentTimerDuration)
-                    return true; //the timer's about to fire
+                    return true; // the timer's about to fire
 
                 uint remainingDuration = _currentTimerDuration - (uint)elapsed;
                 if (actualDuration >= remainingDuration)
-                    return true; //the timer will fire earlier than this request
-            }
-
-            // If Pause is underway then do not schedule the timers
-            // A later update during resume will re-schedule
-            if (_pauseTicks != 0)
-            {
-                Debug.Assert(!_isTimerScheduled);
-                return true;
+                    return true; // the timer will fire earlier than this request
             }
 
             if (SetTimer(actualDuration))
@@ -122,9 +115,6 @@ namespace System.Threading
         // every time the timer fires, but also the more likely it is that when it does we won't
         // need to look at the long list because the current time will be <= _currentAbsoluteThreshold.
         private const int ShortTimersThresholdMilliseconds = 333;
-
-        // Time when Pause was called
-        private volatile int _pauseTicks = 0;
 
         // Fire any timers that have expired, and update the native timer to schedule the rest of them.
         // We're in a thread pool work item here, and if there are multiple timers to be fired, we want
@@ -428,7 +418,7 @@ namespace System.Threading
 
         // When Timer.Dispose(WaitHandle) is used, we need to signal the wait handle only
         // after all pending callbacks are complete.  We set _canceled to prevent any callbacks that
-        // are already queued from running.  We track the number of callbacks currently executing in 
+        // are already queued from running.  We track the number of callbacks currently executing in
         // _callbacksRunning.  We set _notifyWhenNoCallbacksRunning only when _callbacksRunning
         // reaches zero.  Same applies if Timer.DisposeAsync() is used, except with a Task<bool>
         // instead of with a provided WaitHandle.
@@ -544,7 +534,9 @@ namespace System.Threading
                         // returning false if you use it multiple times. Since first calling Timer.Dispose(WaitHandle)
                         // and then calling Timer.DisposeAsync is not something anyone is likely to or should do, we
                         // simplify by just failing in that case.
-                        return new ValueTask(Task.FromException(new InvalidOperationException(SR.InvalidOperation_TimerAlreadyClosed)));
+                        var e = new InvalidOperationException(SR.InvalidOperation_TimerAlreadyClosed);
+                        e.SetCurrentStackTrace();
+                        return new ValueTask(Task.FromException(e));
                     }
                 }
                 else
@@ -656,7 +648,7 @@ namespace System.Threading
         };
     }
 
-    // TimerHolder serves as an intermediary between Timer and TimerQueueTimer, releasing the TimerQueueTimer 
+    // TimerHolder serves as an intermediary between Timer and TimerQueueTimer, releasing the TimerQueueTimer
     // if the Timer is collected.
     // This is necessary because Timer itself cannot use its finalizer for this purpose.  If it did,
     // then users could control timer lifetimes using GC.SuppressFinalize/ReRegisterForFinalize.
@@ -775,12 +767,12 @@ namespace System.Threading
 
         public Timer(TimerCallback callback)
         {
-            int dueTime = -1;   // We want timer to be registered, but not activated.  Requires caller to call
-            int period = -1;    // Change after a timer instance is created.  This is to avoid the potential
+            const uint DueTime = unchecked((uint)(-1)); // We want timer to be registered, but not activated.  Requires caller to call
+            const uint Period = unchecked((uint)(-1));  // Change after a timer instance is created.  This is to avoid the potential
                                 // for a timer to be fired before the returned value is assigned to the variable,
-                                // potentially causing the callback to reference a bogus value (if passing the timer to the callback). 
+                                // potentially causing the callback to reference a bogus value (if passing the timer to the callback).
 
-            TimerSetup(callback, this, (uint)dueTime, (uint)period);
+            TimerSetup(callback, this, DueTime, Period);
         }
 
         private void TimerSetup(TimerCallback callback,

@@ -41,6 +41,7 @@ namespace BasicEventSourceTests
             public string displayName;
             public string displayUnits;
             public int callbackCount;
+            public ManualResetEvent sawEvent;
             
             public SimpleEventListener(string targetSourceName, EventLevel level)
             {
@@ -53,6 +54,7 @@ namespace BasicEventSourceTests
                 means = new HashSet<int>(); 
                 args = new Dictionary<string, string>();
                 args.Add("EventCounterIntervalSec", "1");
+                sawEvent = new ManualResetEvent(false);
             }
             
             protected override void OnEventSourceCreated(EventSource source)
@@ -76,6 +78,7 @@ namespace BasicEventSourceTests
                             if (payload.Key.Equals("Mean"))
                             {
                                 int mean = Int32.Parse(payload.Value.ToString());
+                                Console.WriteLine("Adding " + mean + " to known list of means");
                                 means.Add(mean);
                             }
                             else if (payload.Key.Equals("DisplayName"))
@@ -88,6 +91,7 @@ namespace BasicEventSourceTests
                             }
                         }
                     }
+                    sawEvent.Set();
                     callbackCount++;
                 }
             }
@@ -95,23 +99,19 @@ namespace BasicEventSourceTests
             public bool validateMean()
             {
                 // we expect to see 1 because we wrote only 1s
+                // we *might* also see 0 because there is a period of time we didn't write stuff and got callback
                 if (!means.Contains(1)) 
                 {
+                    Console.WriteLine("Mean doesn't have a 1");
                     return false;
                 }
-
-                // we also expect to see 0 because there is a period of time we didn't write stuff and got callback
-                if (!means.Contains(0)) 
-                {
-                    return false;
-                }
-
                 return true;
             }
         }
 
         public static int Main(string[] args)
         {
+
             // Create an EventListener.
             using (SimpleEventListener myListener = new SimpleEventListener("SimpleEventSource", EventLevel.Verbose))
             {
@@ -127,7 +127,7 @@ namespace BasicEventSourceTests
                     eventSource.WriteOne();
                 }
 
-                Thread.Sleep(3000);
+                myListener.sawEvent.WaitOne(-1); // Block until we see at least one event
 
                 if (!myListener.validateMean())
                 {

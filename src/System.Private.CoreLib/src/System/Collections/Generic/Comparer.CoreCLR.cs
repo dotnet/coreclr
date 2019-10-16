@@ -2,12 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Runtime;
 using System.Runtime.CompilerServices;
 
 namespace System.Collections.Generic
 {
-    [TypeDependencyAttribute("System.Collections.Generic.ObjectComparer`1")]
+    [TypeDependency("System.Collections.Generic.ObjectComparer`1")]
     public abstract partial class Comparer<T> : IComparer, IComparer<T>
     {
         // To minimize generic instantiation overhead of creating the comparer per type, we keep the generic portion of the code as small

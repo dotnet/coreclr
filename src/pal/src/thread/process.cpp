@@ -480,7 +480,6 @@ CreateProcessA(
         CommandLineW,
         lpProcessAttributes,
         lpThreadAttributes,
-        bInheritHandles,
         dwCreationFlags,
         lpEnvironment,
         CurrentDirectoryW,
@@ -551,7 +550,6 @@ CreateProcessW(
         lpCommandLine,
         lpProcessAttributes,
         lpThreadAttributes,
-        bInheritHandles,
         dwCreationFlags,
         lpEnvironment,
         lpCurrentDirectory,
@@ -588,7 +586,6 @@ PrepareStandardHandle(
         pThread,
         hFile,
         &aotFile,
-        0,
         &pobjFile
         );
 
@@ -663,7 +660,6 @@ CorUnix::InternalCreateProcess(
     LPWSTR lpCommandLine,
     LPSECURITY_ATTRIBUTES lpProcessAttributes,
     LPSECURITY_ATTRIBUTES lpThreadAttributes,
-    BOOL bInheritHandles,
     DWORD dwCreationFlags,
     LPVOID lpEnvironment,
     LPCWSTR lpCurrentDirectory,
@@ -897,7 +893,6 @@ CorUnix::InternalCreateProcess(
         pThread,
         pobjProcess,
         &aotProcess,
-        PROCESS_ALL_ACCESS,
         &hProcess,
         &pobjProcessRegistered
         );
@@ -1464,12 +1459,6 @@ static BOOL PROCEndProcess(HANDLE hProcess, UINT uExitCode, BOOL bTerminateUncon
         TerminateCurrentProcessNoExit(bTerminateUnconditionally);
 
         LOGEXIT("PROCEndProcess will not return\n");
-
-        // exit() runs atexit handlers possibly registered by foreign code.
-        // The right thing to do here is to leave the PAL.  If our client
-        // registered our own PAL_Terminate with atexit(), the latter will
-        // explicitly re-enter us.
-        PAL_Leave(PAL_BoundaryBottom);
 
         if (bTerminateUnconditionally)
         {
@@ -2558,12 +2547,6 @@ PAL_GetCPUBusyTime(
         {
             return 0;
         }
-
-        UINT cpuLimit;
-        if (PAL_GetCpuLimit(&cpuLimit) && cpuLimit < dwNumberOfProcessors)
-        {
-            dwNumberOfProcessors = cpuLimit;
-        }
     }
 
     if (getrusage(RUSAGE_SELF, &resUsage) == -1)
@@ -2733,7 +2716,6 @@ OpenProcess(
         pThread,
         pobjProcess,
         &aotProcess,
-        dwDesiredAccess,
         &hProcess,
         &pobjProcessRegistered
         );
@@ -2908,7 +2890,6 @@ GetProcessModulesFromHandle(
             pThread,
             hProcess,
             &aotProcess,
-            0,
             &pobjProcess);
 
         if (NO_ERROR != palError)
@@ -3626,7 +3607,6 @@ PROCGetProcessIDFromHandle(
         pThread,
         hProcess,
         &aotProcess,
-        0,
         &pobjProcess
         );
 
@@ -3831,7 +3811,6 @@ CorUnix::CreateInitialProcessAndThreadObjects(
         pThread,
         pobjProcess,
         &aotProcess,
-        PROCESS_ALL_ACCESS,
         &hProcess,
         &g_pobjProcess
         );
@@ -4203,7 +4182,6 @@ PROCGetProcessStatus(
         pThread,
         hProcess,
         &aotProcess,
-        0,
         &pobjProcess
         );
 

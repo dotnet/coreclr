@@ -10,7 +10,7 @@ namespace System.Reflection
     {
         // This class can only be created from inside the EE.
         private RuntimeExceptionHandlingClause() { }
-        
+
         private RuntimeMethodBody _methodBody = null!;
         private ExceptionHandlingClauseOptions _flags;
         private int _tryOffset;
@@ -19,7 +19,7 @@ namespace System.Reflection
         private int _handlerLength;
         private int _catchMetadataToken;
         private int _filterOffset;
-        
+
         public override ExceptionHandlingClauseOptions Flags => _flags;
         public override int TryOffset => _tryOffset;
         public override int TryLength => _tryLength;
@@ -50,7 +50,7 @@ namespace System.Reflection
                 {
                     Type? declaringType = _methodBody._methodBase.DeclaringType;
                     Module module = (declaringType == null) ? _methodBody._methodBase.Module : declaringType.Module;
-                    type = module.ResolveType(_catchMetadataToken, (declaringType == null) ? null : declaringType.GetGenericArguments(),
+                    type = module.ResolveType(_catchMetadataToken, declaringType?.GetGenericArguments(),
                         _methodBody._methodBase is MethodInfo ? _methodBody._methodBase.GetGenericArguments() : null);
                 }
 
@@ -80,4 +80,3 @@ namespace System.Reflection
         }
     }
 }
-

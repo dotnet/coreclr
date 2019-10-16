@@ -199,7 +199,6 @@ HRESULT EEConfig::Init()
     iJitOptimizeType = OPT_DEFAULT;
     fJitFramed = false;
     fJitAlignLoops = false;
-    fAddRejitNops = false;
     fJitMinOpts = false;
     fPInvokeRestoreEsp = (DWORD)-1;
 
@@ -317,7 +316,7 @@ HRESULT EEConfig::Init()
     fStubLinkerUnwindInfoVerificationOn = FALSE;
 #endif
 
-#if defined(_DEBUG) && defined(WIN64EXCEPTIONS)
+#if defined(_DEBUG) && defined(FEATURE_EH_FUNCLETS)
     fSuppressLockViolationsOnReentryFromOS = false;
 #endif
 
@@ -803,7 +802,7 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
 
 #endif //STRESS_HEAP
 
-#ifdef _WIN64
+#ifdef BIT64
     iGCAffinityMask = GetConfigULONGLONG_DontUse_(CLRConfig::EXTERNAL_GCHeapAffinitizeMask, iGCAffinityMask);
     if (!iGCAffinityMask) iGCAffinityMask =  Configuration::GetKnobULONGLONGValue(W("System.GC.HeapAffinitizeMask"));
     if (!iGCSegmentSize) iGCSegmentSize =  GetConfigULONGLONG_DontUse_(CLRConfig::UNSUPPORTED_GCSegmentSize, iGCSegmentSize);
@@ -813,7 +812,7 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
     if (!iGCAffinityMask) iGCAffinityMask = Configuration::GetKnobDWORDValue(W("System.GC.HeapAffinitizeMask"), 0);
     if (!iGCSegmentSize) iGCSegmentSize =  GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_GCSegmentSize, iGCSegmentSize);
     if (!iGCgen0size) iGCgen0size = GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_GCgen0size, iGCgen0size);
-#endif //_WIN64
+#endif //BIT64
 
     const ULONGLONG ullHeapHardLimit = Configuration::GetKnobULONGLONGValue(W("System.GC.HeapHardLimit"));
     iGCHeapHardLimit = FitsIn<size_t, ULONGLONG>(ullHeapHardLimit)
@@ -845,7 +844,7 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
     iGCConservative =  (CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_gcConservative) != 0);
 #endif // FEATURE_CONSERVATIVE_GC
 
-#ifdef _WIN64
+#ifdef BIT64
     iGCAllowVeryLargeObjects = (CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_gcAllowVeryLargeObjects) != 0);
 #endif
 
@@ -996,10 +995,6 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
     fJitMinOpts = (GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_JITMinOpts, fJitMinOpts) == 1);
     iJitOptimizeType      =  GetConfigDWORD_DontUse_(CLRConfig::EXTERNAL_JitOptimizeType, iJitOptimizeType);
     if (iJitOptimizeType > OPT_RANDOM)     iJitOptimizeType = OPT_DEFAULT;
-
-#ifdef FEATURE_REJIT
-    fAddRejitNops = (GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_AddRejitNops, fAddRejitNops) != 0);
-#endif
 
 #ifdef _TARGET_X86_
     fPInvokeRestoreEsp = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_Jit_NetFx40PInvokeStackResilience);
@@ -1162,7 +1157,7 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
     if (iGCPollTypeOverride < GCPOLL_TYPE_COUNT)
         iGCPollType = GCPollType(iGCPollTypeOverride);
 
-#if defined(_DEBUG) && defined(WIN64EXCEPTIONS)
+#if defined(_DEBUG) && defined(FEATURE_EH_FUNCLETS)
     fSuppressLockViolationsOnReentryFromOS = (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_SuppressLockViolationsOnReentryFromOS) != 0);
 #endif
 

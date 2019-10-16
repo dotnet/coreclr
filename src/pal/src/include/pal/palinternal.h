@@ -206,7 +206,6 @@ function_name() to call the system's implementation
 #define srand DUMMY_srand
 #define atoi DUMMY_atoi
 #define atof DUMMY_atof
-#define tm PAL_tm
 #define size_t DUMMY_size_t
 #define time_t PAL_time_t
 #define va_list DUMMY_va_list
@@ -326,13 +325,6 @@ function_name() to call the system's implementation
 #undef va_copy
 #endif
 
-
-#ifdef _VAC_
-#define wchar_16 wchar_t
-#else
-#define wchar_t wchar_16
-#endif // _VAC_
-
 #define ptrdiff_t PAL_ptrdiff_t
 #define intptr_t PAL_intptr_t
 #define uintptr_t PAL_uintptr_t
@@ -349,7 +341,7 @@ function_name() to call the system's implementation
 #undef va_arg
 #endif
 
-#if !defined(_MSC_VER) && defined(_WIN64)
+#if !defined(_MSC_VER) && defined(BIT64)
 #undef _BitScanForward64
 #undef _BitScanReverse64
 #endif 
@@ -412,7 +404,6 @@ function_name() to call the system's implementation
 #undef towlower
 #undef wint_t
 #undef atoi
-#undef atol
 #undef atof
 #undef malloc
 #undef realloc
@@ -420,35 +411,22 @@ function_name() to call the system's implementation
 #undef qsort
 #undef bsearch
 #undef time
-#undef tm
-#undef localtime
-#undef mktime
 #undef FILE
 #undef fclose
-#undef setbuf
 #undef fopen
 #undef fread
-#undef feof
 #undef ferror
 #undef ftell
 #undef fflush
 #undef fwrite
 #undef fgets
-#undef fgetws
-#undef fputc
-#undef putchar
 #undef fputs
 #undef fseek
 #undef fgetpos
 #undef fsetpos
 #undef getcwd
-#undef getc
-#undef fgetc
-#undef ungetc
 #undef _flushall
 #undef setvbuf
-#undef mkstemp
-#undef rename
 #undef unlink
 #undef size_t
 #undef time_t
@@ -460,7 +438,6 @@ function_name() to call the system's implementation
 #undef stdout
 #undef stderr
 #undef abs
-#undef labs
 #undef llabs
 #undef acos
 #undef acosh
@@ -522,11 +499,9 @@ function_name() to call the system's implementation
 #undef srand
 #undef errno
 #undef getenv 
-#undef wcsspn
 #undef open
 #undef glob
 
-#undef wchar_t
 #undef ptrdiff_t
 #undef intptr_t
 #undef uintptr_t
@@ -541,7 +516,6 @@ function_name() to call the system's implementation
 #undef vprintf
 #undef wprintf
 #undef wcstod
-#undef wcstol
 #undef wcstoul
 #undef _wcstoui64
 #undef wcscat
@@ -554,7 +528,6 @@ function_name() to call the system's implementation
 #undef wcspbrk
 #undef wcsstr
 #undef wcscmp
-#undef wcsncat
 #undef wcsncpy
 #undef wcstok
 #undef wcscspn
@@ -568,8 +541,6 @@ function_name() to call the system's implementation
 #undef _mm_getcsr
 #undef _mm_setcsr
 #endif // _AMD64_
-
-#undef ctime
 
 #undef min
 #undef max
@@ -603,7 +574,6 @@ function_name() to call the system's implementation
 #undef siglongjmp
 
 #undef _SIZE_T_DEFINED
-#undef _WCHAR_T_DEFINED
 
 #define _DONT_USE_CTYPE_INLINE_
 #if HAVE_RUNETYPE_H
@@ -618,6 +588,7 @@ function_name() to call the system's implementation
 #define _WITH_GETLINE
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <sys/types.h>
 #include <pwd.h>
@@ -692,7 +663,7 @@ typedef enum _TimeConversionConstants
 }
 
 bool
-ReadMemoryValueFromFile(const char* filename, size_t* val);
+ReadMemoryValueFromFile(const char* filename, uint64_t* val);
 
 #ifdef __APPLE__
 bool

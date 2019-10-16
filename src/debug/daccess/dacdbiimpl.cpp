@@ -1003,13 +1003,19 @@ void DacDbiInterfaceImpl::GetSequencePoints(MethodDesc *     pMethodDesc,
     if (!success)
         ThrowHR(E_FAIL);
 
-    // if there is a rejit IL map for this function, apply that in preference to load-time mapping
 #ifdef FEATURE_REJIT
     CodeVersionManager * pCodeVersionManager = pMethodDesc->GetCodeVersionManager();
+    ILCodeVersion ilVersion;
     NativeCodeVersion nativeCodeVersion = pCodeVersionManager->GetNativeCodeVersion(dac_cast<PTR_MethodDesc>(pMethodDesc), (PCODE)startAddr);
     if (!nativeCodeVersion.IsNull())
     {
-        const InstrumentedILOffsetMapping * pRejitMapping = nativeCodeVersion.GetILCodeVersion().GetInstrumentedILMap();
+        ilVersion = nativeCodeVersion.GetILCodeVersion();
+    }
+
+    // if there is a rejit IL map for this function, apply that in preference to load-time mapping
+    if (!ilVersion.IsNull() && !ilVersion.IsDefaultVersion())
+    {
+        const InstrumentedILOffsetMapping * pRejitMapping = ilVersion.GetInstrumentedILMap();
         ComposeMapping(pRejitMapping, mapCopy, &entryCount);
     }
     else
@@ -5095,7 +5101,7 @@ void DacDbiInterfaceImpl::AlignStackPointer(CORDB_ADDRESS * pEsp)
     SUPPORTS_DAC;
 
     // Nop on x86.
-#if defined(_WIN64)
+#if defined(BIT64)
     // on 64-bit, stack pointer must be 16-byte aligned. 
     // Stacks grown down, so round down to nearest 0xF bits.
     *pEsp &= ~((CORDB_ADDRESS) 0xF);
@@ -5241,7 +5247,7 @@ void DacDbiInterfaceImpl::Hijack(
     // is automatically turned off.
     //
     // The debugger could always re-enable the single-step flag if it wants to.    
-#ifndef _TARGET_ARM_
+#ifndef FEATURE_EMULATE_SINGLESTEP
     UnsetSSFlag(reinterpret_cast<DT_CONTEXT *>(&ctx)); 
 #endif
 

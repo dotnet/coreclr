@@ -11,7 +11,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     //
     internal sealed class CustomPropertyImpl : ICustomProperty
     {
-        private PropertyInfo m_property;
+        private readonly PropertyInfo m_property;
 
         //
         // Constructor
@@ -28,31 +28,15 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // ICustomProperty interface implementation
         //
 
-        public string Name
-        {
-            get
-            {
-                return m_property.Name;
-            }
-        }
+        public string Name => m_property.Name;
 
-        public bool CanRead
-        {
-            get
-            {
-                // Return false if the getter is not public
-                return m_property.GetGetMethod() != null;
-            }
-        }
+        public bool CanRead =>
+            // Return false if the getter is not public
+            m_property.GetGetMethod() != null;
 
-        public bool CanWrite
-        {
-            get
-            {
-                // Return false if the setter is not public
-                return m_property.GetSetMethod() != null;
-            }
-        }
+        public bool CanWrite =>
+            // Return false if the setter is not public
+            m_property.GetSetMethod() != null;
 
         public object? GetValue(object target)
         {
@@ -86,8 +70,8 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 target = proxy.GetTarget();
             }
 
-            // You can get PropertyInfo for properties with a private getter/public setter (or vice versa) 
-            // even if you pass BindingFlags.Public only. And in this case, passing binding flags to 
+            // You can get PropertyInfo for properties with a private getter/public setter (or vice versa)
+            // even if you pass BindingFlags.Public only. And in this case, passing binding flags to
             // GetValue/SetValue won't work as the default binder ignores those values
             // Use GetGetMethod/GetSetMethod instead
 
@@ -113,12 +97,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             return rtMethod.Invoke(target, BindingFlags.Default, null, args, null);
         }
 
-        public Type Type
-        {
-            get
-            {
-                return m_property.PropertyType;
-            }
-        }
+        public Type Type => m_property.PropertyType;
     }
 }

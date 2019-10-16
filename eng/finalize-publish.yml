@@ -19,9 +19,10 @@ jobs:
         name: NetCoreInternal-Pool
         queue: BuildPool.Windows.10.Amd64.VS2017
       dependsOn: ${{ parameters.dependsOn }}
+      publishUsingPipelines: true
   # Update dotnet/versions
   - job: Finalize_Publish_Versions
-    displayName: Finalize_Publish_Versions
+    displayName: Finalize Publish Versions
     dependsOn:
     - Asset_Registry_Publish
     pool:
@@ -30,13 +31,12 @@ jobs:
       - group: DotNet-Versions-Publish
     steps:
     # Download nuget packages
-    # Use parameters.dependsOn to determine the set of nuget packages we are publishing
-    - ${{ each build_id in parameters.dependsOn }}:
-      - task: DownloadPipelineArtifact@0
-        displayName: Download ${{ build_id }} nuget packages
-        inputs:
-          artifactName: ${{ build_id }}_nuget
-          targetPath: ${{ parameters.artifactsDir }}/nuget
+    - task: DownloadBuildArtifacts@0
+      displayName: Download nuget package artifacts
+      inputs:
+        buildType: current
+        artifactName: PackageArtifacts
+        downloadPath: ${{ parameters.artifactsDir }}/nuget
 
     - powershell: |
         $prefix = "refs/heads/"
@@ -49,31 +49,14 @@ jobs:
         Write-Host "For Build.SourceBranch $branch, FullBranchName is $branchName"
         Write-Host "##vso[task.setvariable variable=FullBranchName;]$branchName"
         ls -R ${{ parameters.artifactsDir }}/nuget/*.nupkg
-        $(Build.SourcesDirectory)/UpdatePublishedVersions.ps1 `
-        -gitHubUser ${{ parameters.gitHubUser }} `
-        -gitHubEmail ${{ parameters.gitHubEmail }} `
-        -gitHubAuthToken ${{ parameters.gitHubAuthToken }} `
-        -versionsRepoOwner ${{ parameters.versionsRepoOwner }} `
-        -versionsRepo ${{ parameters.versionsRepo }} `
-        -versionsRepoPath build-info/dotnet/coreclr/$branchName `
-        -nupkgPath ${{ parameters.artifactsDir }}/nuget/*.nupkg
+        & $(Build.SourcesDirectory)/eng/common/build.ps1 -restore -build -ci `
+        -projects "$(Build.SourcesDirectory)/eng/updateversions.proj" `
+        /p:GitHubUser="${{ parameters.gitHubUser }}" `
+        /p:GitHubEmail="${{ parameters.gitHubEmail }}" `
+        /p:GitHubAuthToken="${{ parameters.gitHubAuthToken }}" `
+        /p:VersionsRepoOwner="${{ parameters.versionsRepoOwner }}" `
+        /p:VersionsRepo="${{ parameters.versionsRepo }}" `
+        /p:VersionsRepoPath="build-info/dotnet/coreclr/$branchName" `
+        /p:ShippedNuGetPackageGlobPath="${{ parameters.artifactsDir }}/nuget/*.nupkg"
 
-      displayName: Run UpdatePublishedVersions.ps1
-
-    - task: CopyFiles@2
-      displayName: Copy Files to $(Build.StagingDirectory)\BuildLogs
-      inputs:
-        SourceFolder: '$(Build.SourcesDirectory)'
-        Contents: |
-          *.log
-          *.binlog
-        TargetFolder: '$(Build.StagingDirectory)\BuildLogs'
-      continueOnError: true
-      condition: succeededOrFailed()
-
-    - task: PublishBuildArtifacts@1
-      displayName: Publish Artifact BuildLogs
-      inputs:
-        PathtoPublish: '$(Build.StagingDirectory)\BuildLogs'
-        ArtifactName: Finalize_Publish_Versions
-      condition: succeededOrFailed()
+      displayName: Update dotnet/versions

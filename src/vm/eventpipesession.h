@@ -112,7 +112,7 @@ public:
     uint64_t GetMask() const
     {
         LIMITED_METHOD_CONTRACT;
-        return (1ui64 << m_index);
+        return ((uint64_t)1 << m_index);
     }
 
     uint32_t GetIndex() const
@@ -208,7 +208,11 @@ public:
     CLREvent *GetWaitEvent();
 
     // Enable a session in the event pipe.
-    void Enable();
+    // MUST be called AFTER sending the IPC response
+    // Side effects:
+    // - sends file header information for nettrace format
+    // - turns on IpcStreaming thread which flushes events to stream
+    void StartStreaming();
 
     // Disable a session in the event pipe.
     // side-effects: writes all buffers to stream/file

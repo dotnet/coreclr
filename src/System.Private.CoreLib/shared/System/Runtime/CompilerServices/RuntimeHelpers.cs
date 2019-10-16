@@ -23,7 +23,7 @@ namespace System.Runtime.CompilerServices
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
-            (int offset, int length) = range.GetOffsetAndLength(array!.Length); // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+            (int offset, int length) = range.GetOffsetAndLength(array.Length);
 
             if (default(T)! != null || typeof(T[]) == array.GetType()) // TODO-NULLABLE: default(T) == null warning (https://github.com/dotnet/roslyn/issues/34757)
             {
@@ -63,6 +63,26 @@ namespace System.Runtime.CompilerServices
             }
 
             return GetUninitializedObjectInternal(type);
+        }
+
+        public static void ExecuteCodeWithGuaranteedCleanup(TryCode code, CleanupCode backoutCode, object? userData)
+        {
+            if (code == null)
+                throw new ArgumentNullException(nameof(code));
+            if (backoutCode == null)
+                throw new ArgumentNullException(nameof(backoutCode));
+
+            bool exceptionThrown = true;
+
+            try
+            {
+                code(userData);
+                exceptionThrown = false;
+            }
+            finally
+            {
+                backoutCode(userData, exceptionThrown);
+            }
         }
 
         public static void PrepareContractedDelegate(Delegate d)

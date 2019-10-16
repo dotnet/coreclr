@@ -32,7 +32,7 @@ namespace System.Buffers.Text
                 }
                 else if (kind == DateTimeKind.Utc)
                 {
-                    bytesRequired += 1;
+                    bytesRequired++;
                 }
             }
             else
@@ -49,7 +49,7 @@ namespace System.Buffers.Text
             bytesWritten = bytesRequired;
 
             // Hoist most of the bounds checks on buffer.
-            { var unused = destination[MinimumBytesNeeded - 1]; }
+            { _ = destination[MinimumBytesNeeded - 1]; }
 
             FormattingHelpers.WriteFourDecimalDigits((uint)value.Year, destination, 0);
             destination[4] = Utf8Constants.Minus;
@@ -92,7 +92,6 @@ namespace System.Buffers.Text
                 destination[30] = Utf8Constants.Colon;
                 FormattingHelpers.WriteTwoDecimalDigits((uint)offset.Hours, destination, 28);
                 destination[27] = sign;
-
             }
             else if (kind == DateTimeKind.Utc)
             {

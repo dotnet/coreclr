@@ -269,10 +269,27 @@ bool EventPipe::EnableInternal(
     // Enable the sample profiler
     SampleProfiler::Enable(pEventPipeProviderCallbackDataQueue);
 
-    // Enable the session.
-    pSession->Enable();
-
     return true;
+}
+
+void EventPipe::StartStreaming(EventPipeSessionID id)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    CrstHolder _crst(GetLock());
+
+    if (!IsSessionIdInCollection(id))
+        return;
+
+    EventPipeSession *const pSession = reinterpret_cast<EventPipeSession *>(id);
+
+    pSession->StartStreaming();
 }
 
 void EventPipe::Disable(EventPipeSessionID id)
@@ -614,7 +631,7 @@ void EventPipe::WriteEventInternal(
     {
         for (uint32_t i = 0; i < MaxNumberOfSessions; ++i)
         {
-            if ((s_allowWrite & (1ui64 << i)) == 0)
+            if ((s_allowWrite & ((uint64_t)1 << i)) == 0)
                 continue;
 
             // Now that we know this session is probably live we pay the perf cost of the memory barriers
@@ -699,11 +716,17 @@ bool EventPipe::WalkManagedStackForThread(Thread *pThread, StackContents &stackC
 
     stackContents.Reset();
 
+    // Before we call into StackWalkFrames we need to mark GC_ON_TRANSITIONS as FALSE
+    // because under GCStress runs (GCStress=0x3), a GC will be triggered for every transition,
+    // which will cause the GC to try to walk the stack while we are in the middle of walking the stack.
+    bool gcOnTransitions = GC_ON_TRANSITIONS(FALSE);
+
     StackWalkAction swaRet = pThread->StackWalkFrames(
         (PSTACKWALKFRAMESCALLBACK)&StackWalkCallback,
         &stackContents,
         ALLOW_ASYNC_STACK_WALK | FUNCTIONSONLY | HANDLESKIPPEDFRAMES | ALLOW_INVALID_OBJECTS);
 
+    GC_ON_TRANSITIONS(gcOnTransitions);
     return ((swaRet == SWA_DONE) || (swaRet == SWA_CONTINUE));
 }
 

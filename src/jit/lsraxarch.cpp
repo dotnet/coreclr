@@ -92,12 +92,11 @@ int LinearScan::BuildNode(GenTree* tree)
             // use lvLRACandidate here instead.
             if (tree->IsRegOptional())
             {
-                if (!compiler->lvaTable[tree->AsLclVarCommon()->gtLclNum].lvTracked ||
-                    compiler->lvaTable[tree->AsLclVarCommon()->gtLclNum].lvDoNotEnregister)
+                if (!compiler->lvaTable[tree->AsLclVarCommon()->GetLclNum()].lvTracked ||
+                    compiler->lvaTable[tree->AsLclVarCommon()->GetLclNum()].lvDoNotEnregister)
                 {
                     tree->ClearRegOptional();
                     tree->SetContained();
-                    INDEBUG(dumpNodeInfo(tree, dstCandidates, 0, 0));
                     return 0;
                 }
             }
@@ -114,10 +113,9 @@ int LinearScan::BuildNode(GenTree* tree)
             // is processed, unless this is marked "isLocalDefUse" because it is a stack-based argument
             // to a call or an orphaned dead node.
             //
-            LclVarDsc* const varDsc = &compiler->lvaTable[tree->AsLclVarCommon()->gtLclNum];
+            LclVarDsc* const varDsc = &compiler->lvaTable[tree->AsLclVarCommon()->GetLclNum()];
             if (isCandidateVar(varDsc))
             {
-                INDEBUG(dumpNodeInfo(tree, dstCandidates, 0, 1));
                 return 0;
             }
             srcCount = 0;
@@ -649,7 +647,7 @@ int LinearScan::BuildNode(GenTree* tree)
             BuildDef(tree, RBM_EXCEPTION_OBJECT);
             break;
 
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
         case GT_END_LFIN:
             srcCount = 0;
             assert(dstCount == 0);
@@ -705,7 +703,6 @@ int LinearScan::BuildNode(GenTree* tree)
     assert(isLocalDefUse == (tree->IsValue() && tree->IsUnusedValue()));
     assert(!tree->IsUnusedValue() || (dstCount != 0));
     assert(dstCount == tree->GetRegisterDstCount());
-    INDEBUG(dumpNodeInfo(tree, dstCandidates, srcCount, dstCount));
     return srcCount;
 }
 
@@ -806,7 +803,6 @@ int LinearScan::BuildRMWUses(GenTreeOp* node, regMaskTP candidates)
     int       srcCount      = 0;
     GenTree*  op1           = node->gtOp1;
     GenTree*  op2           = node->gtGetOp2IfPresent();
-    bool      isReverseOp   = node->IsReverseOp();
     regMaskTP op1Candidates = candidates;
     regMaskTP op2Candidates = candidates;
 
@@ -831,7 +827,6 @@ int LinearScan::BuildRMWUses(GenTreeOp* node, regMaskTP candidates)
     bool prefOp2 = false;
     getTgtPrefOperands(node, prefOp1, prefOp2);
     assert(!prefOp2 || node->OperIsCommutative());
-    assert(!isReverseOp || node->OperIsCommutative());
 
     // Determine which operand, if any, should be delayRegFree. Normally, this would be op2,
     // but if we have a commutative operator and op1 is a contained memory op, it would be op1.
@@ -867,12 +862,6 @@ int LinearScan::BuildRMWUses(GenTreeOp* node, regMaskTP candidates)
     {
         assert(!prefOp1 || delayUseOperand != op1);
         assert(!prefOp2 || delayUseOperand != op2);
-    }
-
-    if (isReverseOp)
-    {
-        op1 = op2;
-        op2 = node->gtOp1;
     }
 
     // Build first use
@@ -1098,25 +1087,25 @@ int LinearScan::BuildCall(GenTreeCall* call)
 
     // First, determine internal registers.
     // We will need one for any float arguments to a varArgs call.
-    for (GenTree* list = call->gtCallLateArgs; list; list = list->MoveNext())
+    for (GenTreeCall::Use& use : call->LateArgs())
     {
-        GenTree* argNode = list->Current();
+        GenTree* argNode = use.GetNode();
         if (argNode->OperIsPutArgReg())
         {
             HandleFloatVarArgs(call, argNode, &callHasFloatRegArgs);
         }
         else if (argNode->OperGet() == GT_FIELD_LIST)
         {
-            for (GenTreeFieldList* entry = argNode->AsFieldList(); entry != nullptr; entry = entry->Rest())
+            for (GenTreeFieldList::Use& use : argNode->AsFieldList()->Uses())
             {
-                assert(entry->Current()->OperIsPutArgReg());
-                HandleFloatVarArgs(call, entry->Current(), &callHasFloatRegArgs);
+                assert(use.GetNode()->OperIsPutArgReg());
+                HandleFloatVarArgs(call, use.GetNode(), &callHasFloatRegArgs);
             }
         }
     }
 
     // Now, count reg args
-    for (GenTree* list = call->gtCallLateArgs; list; list = list->MoveNext())
+    for (GenTreeCall::Use& use : call->LateArgs())
     {
         // By this point, lowering has ensured that all call arguments are one of the following:
         // - an arg setup store
@@ -1127,22 +1116,22 @@ int LinearScan::BuildCall(GenTreeCall* call)
         // - a put arg
         //
         // Note that this property is statically checked by LinearScan::CheckBlock.
-        GenTree* argNode = list->Current();
+        GenTree* argNode = use.GetNode();
 
         // Each register argument corresponds to one source.
         if (argNode->OperIsPutArgReg())
         {
             srcCount++;
-            BuildUse(argNode, genRegMask(argNode->gtRegNum));
+            BuildUse(argNode, genRegMask(argNode->GetRegNum()));
         }
 #ifdef UNIX_AMD64_ABI
         else if (argNode->OperGet() == GT_FIELD_LIST)
         {
-            for (GenTreeFieldList* entry = argNode->AsFieldList(); entry != nullptr; entry = entry->Rest())
+            for (GenTreeFieldList::Use& use : argNode->AsFieldList()->Uses())
             {
-                assert(entry->Current()->OperIsPutArgReg());
+                assert(use.GetNode()->OperIsPutArgReg());
                 srcCount++;
-                BuildUse(entry->Current(), genRegMask(entry->Current()->gtRegNum));
+                BuildUse(use.GetNode(), genRegMask(use.GetNode()->GetRegNum()));
             }
         }
 #endif // UNIX_AMD64_ABI
@@ -1153,7 +1142,7 @@ int LinearScan::BuildCall(GenTreeCall* call)
         fgArgTabEntry* curArgTabEntry = compiler->gtArgEntryByNode(call, argNode);
         assert(curArgTabEntry);
 
-        if (curArgTabEntry->regNum == REG_STK)
+        if (curArgTabEntry->GetRegNum() == REG_STK)
         {
             // late arg that is not passed in a register
             assert(argNode->gtOper == GT_PUTARG_STK);
@@ -1178,24 +1167,24 @@ int LinearScan::BuildCall(GenTreeCall* call)
             assert(argNode->isContained());
             assert(varTypeIsStruct(argNode) || curArgTabEntry->isStruct);
 
-            int i = 0;
-            for (GenTreeFieldList* entry = argNode->AsFieldList(); entry != nullptr; entry = entry->Rest())
+            unsigned regIndex = 0;
+            for (GenTreeFieldList::Use& use : argNode->AsFieldList()->Uses())
             {
-                const regNumber argReg = (i == 0) ? curArgTabEntry->regNum : curArgTabEntry->otherRegNum;
-                assert(entry->Current()->gtRegNum == argReg);
-                assert(i < 2);
-                i++;
+                const regNumber argReg = curArgTabEntry->GetRegNum(regIndex);
+                assert(use.GetNode()->GetRegNum() == argReg);
+                regIndex++;
             }
         }
         else
 #endif // UNIX_AMD64_ABI
         {
-            const regNumber argReg = curArgTabEntry->regNum;
-            assert(argNode->gtRegNum == argReg);
+            const regNumber argReg = curArgTabEntry->GetRegNum();
+            assert(argNode->GetRegNum() == argReg);
         }
 #endif // DEBUG
     }
 
+#ifdef DEBUG
     // Now, count stack args
     // Note that these need to be computed into a register, but then
     // they're just stored to the stack - so the reg doesn't
@@ -1203,10 +1192,9 @@ int LinearScan::BuildCall(GenTreeCall* call)
     // because the code generator doesn't actually consider it live,
     // so it can't be spilled.
 
-    GenTree* args = call->gtCallArgs;
-    while (args)
+    for (GenTreeCall::Use& use : call->Args())
     {
-        GenTree* arg = args->gtGetOp1();
+        GenTree* arg = use.GetNode();
         if (!(arg->gtFlags & GTF_LATE_ARG) && !arg)
         {
             if (arg->IsValue() && !arg->isContained())
@@ -1214,8 +1202,8 @@ int LinearScan::BuildCall(GenTreeCall* call)
                 assert(arg->IsUnusedValue());
             }
         }
-        args = args->gtGetOp2();
     }
+#endif // DEBUG
 
     // set reg requirements on call target represented as control sequence.
     if (ctrlExpr != nullptr)
@@ -1280,7 +1268,7 @@ int LinearScan::BuildCall(GenTreeCall* call)
 int LinearScan::BuildBlockStore(GenTreeBlk* blkNode)
 {
     GenTree* dstAddr  = blkNode->Addr();
-    unsigned size     = blkNode->gtBlkSize;
+    unsigned size     = blkNode->Size();
     GenTree* source   = blkNode->Data();
     int      srcCount = 0;
 
@@ -1447,20 +1435,16 @@ int LinearScan::BuildBlockStore(GenTreeBlk* blkNode)
         buildInternalIntRegisterDefForNode(blkNode, blkSizeRegMask);
     }
 
-    if (!dstAddr->isContained() && !blkNode->IsReverseOp())
+    if (!dstAddr->isContained())
     {
         srcCount++;
         BuildUse(dstAddr, dstAddrRegMask);
     }
+
     if ((srcAddrOrFill != nullptr) && !srcAddrOrFill->isContained())
     {
         srcCount++;
         BuildUse(srcAddrOrFill, sourceRegMask);
-    }
-    if (!dstAddr->isContained() && blkNode->IsReverseOp())
-    {
-        srcCount++;
-        BuildUse(dstAddr, dstAddrRegMask);
     }
 
     if (blkNode->OperIs(GT_STORE_DYN_BLK))
@@ -1498,11 +1482,11 @@ int LinearScan::BuildPutArgStk(GenTreePutArgStk* putArgStk)
         unsigned     prevOffset = putArgStk->getArgSize();
         // We need to iterate over the fields twice; once to determine the need for internal temps,
         // and once to actually build the uses.
-        for (GenTreeFieldList* current = putArgStk->gtOp1->AsFieldList(); current != nullptr; current = current->Rest())
+        for (GenTreeFieldList::Use& use : putArgStk->gtOp1->AsFieldList()->Uses())
         {
-            GenTree* const  fieldNode   = current->Current();
+            GenTree* const  fieldNode   = use.GetNode();
             const var_types fieldType   = fieldNode->TypeGet();
-            const unsigned  fieldOffset = current->gtFieldOffset;
+            const unsigned  fieldOffset = use.GetOffset();
 
 #ifdef _TARGET_X86_
             assert(fieldType != TYP_LONG);
@@ -1512,7 +1496,7 @@ int LinearScan::BuildPutArgStk(GenTreePutArgStk* putArgStk)
             // Note that we need to check the GT_FIELD_LIST type, not 'fieldType'. This is because the
             // GT_FIELD_LIST will be TYP_SIMD12 whereas the fieldType might be TYP_SIMD16 for lclVar, where
             // we "round up" to 16.
-            if ((current->gtFieldType == TYP_SIMD12) && (simdTemp == nullptr))
+            if ((use.GetType() == TYP_SIMD12) && (simdTemp == nullptr))
             {
                 simdTemp = buildInternalFloatRegisterDefForNode(putArgStk);
             }
@@ -1539,16 +1523,12 @@ int LinearScan::BuildPutArgStk(GenTreePutArgStk* putArgStk)
             }
 #endif // _TARGET_X86_
 
-            if (varTypeIsGC(fieldType))
-            {
-                putArgStk->gtNumberReferenceSlots++;
-            }
             prevOffset = fieldOffset;
         }
 
-        for (GenTreeFieldList* current = putArgStk->gtOp1->AsFieldList(); current != nullptr; current = current->Rest())
+        for (GenTreeFieldList::Use& use : putArgStk->gtOp1->AsFieldList()->Uses())
         {
-            GenTree* const fieldNode = current->Current();
+            GenTree* const fieldNode = use.GetNode();
             if (!fieldNode->isContained())
             {
                 BuildUse(fieldNode);
@@ -1580,8 +1560,7 @@ int LinearScan::BuildPutArgStk(GenTreePutArgStk* putArgStk)
         return BuildSimple(putArgStk);
     }
 
-    GenTree* dst     = putArgStk;
-    GenTree* srcAddr = nullptr;
+    ClassLayout* layout = src->AsObj()->GetLayout();
 
     // If we have a buffer between XMM_REGSIZE_BYTES and CPBLK_UNROLL_LIMIT bytes, we'll use SSE2.
     // Structs and buffer with sizes <= CPBLK_UNROLL_LIMIT bytes are occurring in more than 95% of
@@ -1597,7 +1576,7 @@ int LinearScan::BuildPutArgStk(GenTreePutArgStk* putArgStk)
             // x86 specific note: if the size is odd, the last copy operation would be of size 1 byte.
             // But on x86 only RBM_BYTE_REGS could be used as byte registers.  Therefore, exclude
             // RBM_NON_BYTE_REGS from internal candidates.
-            if ((putArgStk->gtNumberReferenceSlots == 0) && (size & (XMM_REGSIZE_BYTES - 1)) != 0)
+            if (!layout->HasGCPtr() && (size & (XMM_REGSIZE_BYTES - 1)) != 0)
             {
                 regMaskTP regMask = allRegs(TYP_INT);
 
@@ -2456,20 +2435,6 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
                 break;
             }
 
-            case NI_SSE_CompareScalarOrderedEqual:
-            case NI_SSE_CompareScalarUnorderedEqual:
-            case NI_SSE_CompareScalarOrderedNotEqual:
-            case NI_SSE_CompareScalarUnorderedNotEqual:
-            case NI_SSE2_CompareScalarOrderedEqual:
-            case NI_SSE2_CompareScalarUnorderedEqual:
-            case NI_SSE2_CompareScalarOrderedNotEqual:
-            case NI_SSE2_CompareScalarUnorderedNotEqual:
-            {
-                buildInternalIntRegisterDefForNode(intrinsicTree, allByteRegs());
-                setInternalRegsDelayFree = true;
-                break;
-            }
-
             case NI_SSE2_MaskMove:
             {
                 assert(numArgs == 3);
@@ -3004,10 +2969,10 @@ void LinearScan::SetContainsAVXFlags(unsigned sizeOfSIMDVector /* = 0*/)
 {
     if (compiler->canUseVexEncoding())
     {
-        compiler->getEmitter()->SetContainsAVX(true);
+        compiler->GetEmitter()->SetContainsAVX(true);
         if (sizeOfSIMDVector == 32)
         {
-            compiler->getEmitter()->SetContains256bitAVX(true);
+            compiler->GetEmitter()->SetContains256bitAVX(true);
         }
     }
 }

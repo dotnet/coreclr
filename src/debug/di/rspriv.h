@@ -52,7 +52,7 @@ struct MachineInfo;
 #include "eventchannel.h"
 
 #undef ASSERT
-#define CRASH(x)  _ASSERTE(!x)
+#define CRASH(x)  _ASSERTE(!(x))
 #define ASSERT(x) _ASSERTE(x)
 
 // We want to keep the 'worst' HRESULT - if one has failed (..._E_...) & the
@@ -3969,8 +3969,8 @@ public:
     // This has m_cPatch elements.
     PRD_TYPE             *m_rgUncommitedOpcode;
 
-    // CORDB_ADDRESS's are UINT_PTR's (64 bit under _WIN64, 32 bit otherwise)
-#if defined(DBG_TARGET_WIN64)
+    // CORDB_ADDRESS's are UINT_PTR's (64 bit under BIT64, 32 bit otherwise)
+#if defined(DBG_TARGET_64BIT)
 #define MAX_ADDRESS     (_UI64_MAX)
 #else
 #define MAX_ADDRESS     (ULONG_MAX)
@@ -6944,11 +6944,11 @@ public:
     // new-style constructor
     CordbMiscFrame(DebuggerIPCE_JITFuncData * pJITFuncData);
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     SIZE_T             parentIP;
     FramePointer       fpParentOrSelf;
     bool               fIsFilterFunclet;
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 };
 
 
@@ -7128,10 +7128,10 @@ public:
     bool      IsFunclet();
     bool      IsFilterFunclet();
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     // return the offset of the parent method frame at which an exception occurs
     SIZE_T    GetParentIP();
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
     TADDR GetAmbientESP() { return m_taAmbientESP; }
     TADDR GetReturnRegisterValue();
@@ -11157,7 +11157,11 @@ public:
     DbgRSThread();
 
     // The TLS slot that we'll put this thread object in.
-    static DWORD s_TlsSlot;
+#ifndef __GNUC__
+    static __declspec(thread) DbgRSThread* t_pCurrent;
+#else  // !__GNUC__
+    static __thread DbgRSThread* t_pCurrent;
+#endif // !__GNUC__
 
     static LONG s_Total; // Total count of thread objects
 
@@ -11170,8 +11174,7 @@ public:
         InterlockedIncrement(&s_Total);
 
         DbgRSThread * p = new (nothrow) DbgRSThread();
-        BOOL f = TlsSetValue(s_TlsSlot, p);
-        _ASSERT(f);
+        t_pCurrent = p;
         return p;
     }
 
@@ -11179,8 +11182,7 @@ public:
     {
         InterlockedDecrement(&s_Total);
 
-        BOOL f = TlsSetValue(s_TlsSlot, NULL);
-        _ASSERT(f);
+        t_pCurrent = NULL;
 
         delete this;
     }

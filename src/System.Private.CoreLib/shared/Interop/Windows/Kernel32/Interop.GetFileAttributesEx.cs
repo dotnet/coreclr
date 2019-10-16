@@ -3,15 +3,12 @@
 // See the LICENSE file in the project root for more information.
 
 #nullable enable
-using Microsoft.Win32.SafeHandles;
-using System;
-using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 
-internal partial class Interop
+internal static partial class Interop
 {
-    internal partial class Kernel32
+    internal static partial class Kernel32
     {
         /// <summary>
         /// WARNING: This method does not implicitly handle long paths. Use GetFileAttributesEx.
@@ -21,7 +18,7 @@ internal partial class Interop
 
         internal static bool GetFileAttributesEx(string name, GET_FILEEX_INFO_LEVELS fileInfoLevel, ref WIN32_FILE_ATTRIBUTE_DATA lpFileInformation)
         {
-            name = PathInternal.EnsureExtendedPrefixIfNeeded(name)!; // TODO-NULLABLE: Remove ! when [NotNullIfNotNull] respected
+            name = PathInternal.EnsureExtendedPrefixIfNeeded(name);
             return GetFileAttributesExPrivate(name, fileInfoLevel, ref lpFileInformation);
         }
     }

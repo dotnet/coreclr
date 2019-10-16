@@ -14,7 +14,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     public sealed class EventRegistrationTokenTable<T> where T : class
     {
         // Note this dictionary is also used as the synchronization object for this table
-        private Dictionary<EventRegistrationToken, T> m_tokens = new Dictionary<EventRegistrationToken, T>();
+        private readonly Dictionary<EventRegistrationToken, T> m_tokens = new Dictionary<EventRegistrationToken, T>();
 
         // Cached multicast delegate which will invoke all of the currently registered delegates.  This
         // will be accessed frequently in common coding paterns, so we don't want to calculate it repeatedly.
@@ -26,7 +26,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // static check at construction time
             if (!typeof(Delegate).IsAssignableFrom(typeof(T)))
             {
-                throw new InvalidOperationException(SR.Format(SR.InvalidOperation_EventTokenTableRequiresDelegate, typeof (T)));
+                throw new InvalidOperationException(SR.Format(SR.InvalidOperation_EventTokenTableRequiresDelegate, typeof(T)));
             }
         }
 
@@ -34,10 +34,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // in this table.  If the property is set, the new value will replace any existing token registrations.
         public T? InvocationList
         {
-            get
-            {
-                return m_invokeList;
-            }
+            get => m_invokeList;
             set
             {
                 lock (m_tokens)
@@ -133,7 +130,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // take a dependency upon it.  (Simply applying the hash-value algorithm directly won't work in the
             // case of collisions, where we'll use a different token value).
 
-            uint handlerHashCode = 0;
+            uint handlerHashCode;
             Delegate[] invocationList = ((Delegate)(object)handler).GetInvocationList();
             if (invocationList.Length == 1)
             {
@@ -148,7 +145,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             return new EventRegistrationToken(tokenValue);
         }
 
-        // Remove the event handler from the table and 
+        // Remove the event handler from the table and
         // Get the delegate associated with an event registration token if it exists
         // If the event registration token is not registered, returns false
         public bool RemoveEventHandler(EventRegistrationToken token, [NotNullWhen(true)] out T? handler)
@@ -243,7 +240,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             {
                 Interlocked.CompareExchange(ref refEventTable, new EventRegistrationTokenTable<T>(), null);
             }
-            return refEventTable!; // TODO-NULLABLE: Remove ! when compiler specially-recognizes CompareExchange for nullability
+            return refEventTable;
         }
     }
 }

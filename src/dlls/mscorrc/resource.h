@@ -12,9 +12,9 @@
 #define MSG_FOR_URT_HR(hr) (0x6000 + (HRESULT_CODE(hr)))
 #define MAX_URT_HRESULT_CODE 0x3000
 
-#define HR_FOR_URT_MSG(code) ((code >=0x6000 && code <= 0x6000+MAX_URT_HRESULT_CODE) ? \
-                                 MAKE_HRESULT(SEVERITY_ERROR, FACILITY_URT, code - 0x6000) : \
-                                 code)
+#define HR_FOR_URT_MSG(code) (((code) >=0x6000 && (code) <= 0x6000+MAX_URT_HRESULT_CODE) ? \
+                                 MAKE_HRESULT(SEVERITY_ERROR, FACILITY_URT, (code) - 0x6000) : \
+                                 (code))
 
 #ifndef HRESULT_CODE
 #define HRESULT_CODE(hr)    ((hr) & 0xFFFF)
@@ -445,7 +445,6 @@
 #define IDS_EE_OUT_OF_MEMORY_WITHIN_RANGE       0x1aac
 #define IDS_EE_ARRAY_DIMENSIONS_EXCEEDED        0x1aad
 
-#define IDS_EE_CODEEXECUTION_ASSEMBLY_FOR_PASSIVE_DOMAIN_ONLY 0x1ab2
 #define IDS_CLASSLOAD_MI_CANNOT_OVERRIDE        0x1ab3
 #define IDS_CLASSLOAD_COLLECTIBLEFIXEDVTATTR    0x1ab6
 #define IDS_CLASSLOAD_EQUIVALENTBADTYPE         0x1ab7
@@ -724,4 +723,3 @@
 #define IDS_EE_BADMARSHAL_WINRT_COPYCTOR           0x2648
 #define IDS_EE_BADMARSHAL_DELEGATE_TLB_INTERFACE   0x2649
 #define IDS_EE_THREAD_APARTMENT_NOT_SUPPORTED      0x264A
- 

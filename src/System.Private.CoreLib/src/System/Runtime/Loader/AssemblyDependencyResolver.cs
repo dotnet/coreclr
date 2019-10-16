@@ -1,4 +1,4 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
@@ -45,10 +45,7 @@ namespace System.Runtime.Loader
             {
                 // Setup error writer for this thread. This makes the hostpolicy redirect all error output
                 // to the writer specified. Have to store the previous writer to set it back once this is done.
-                corehost_error_writer_fn errorWriter = new corehost_error_writer_fn(message =>
-                {
-                    errorMessage.AppendLine(message);
-                });
+                corehost_error_writer_fn errorWriter = new corehost_error_writer_fn(message => errorMessage.AppendLine(message));
 
                 IntPtr errorWriterPtr = Marshal.GetFunctionPointerForDelegate(errorWriter);
                 IntPtr previousErrorWriterPtr = corehost_set_error_writer(errorWriterPtr);
@@ -99,7 +96,7 @@ namespace System.Runtime.Loader
             _assemblyPaths = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (string assemblyPath in assemblyPaths)
             {
-                _assemblyPaths.Add(Path.GetFileNameWithoutExtension(assemblyPath)!, assemblyPath); // TODO-NULLABLE: Remove ! when [NotNullIfNotNull] respected
+                _assemblyPaths.Add(Path.GetFileNameWithoutExtension(assemblyPath), assemblyPath);
             }
 
             _nativeSearchPaths = SplitPathsList(nativeSearchPathsList);
@@ -117,17 +114,17 @@ namespace System.Runtime.Loader
 
             // Determine if the assembly name is for a satellite assembly or not
             // This is the same logic as in AssemblyBinder::BindByTpaList in CoreCLR
-            // - If the culture name is non-empty and it's not 'neutral' 
-            // - The culture name is the value of the AssemblyName.Culture.Name 
+            // - If the culture name is non-empty and it's not 'neutral'
+            // - The culture name is the value of the AssemblyName.Culture.Name
             //     (CoreCLR gets this and stores it as the culture name in the internal assembly name)
             //     AssemblyName.CultureName is just a shortcut to AssemblyName.Culture.Name.
-            if (!string.IsNullOrEmpty(assemblyName.CultureName) && 
+            if (!string.IsNullOrEmpty(assemblyName.CultureName) &&
                 !string.Equals(assemblyName.CultureName, NeutralCultureName, StringComparison.OrdinalIgnoreCase))
             {
                 // Load satellite assembly
                 // Search resource search paths by appending the culture name and the expected assembly file name.
                 // Copies the logic in BindSatelliteResourceByResourceRoots in CoreCLR.
-                // Note that the runtime will also probe APP_PATHS the same way, but that feature is effectively 
+                // Note that the runtime will also probe APP_PATHS the same way, but that feature is effectively
                 // being deprecated, so we chose to not support the same behavior for components.
                 foreach (string searchPath in _resourceSearchPaths)
                 {

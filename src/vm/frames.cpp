@@ -1001,6 +1001,110 @@ VOID GCFrame::Pop()
 #endif
 }
 
+#ifndef CROSSGEN_COMPILE
+// GCFrame destructor removes the GCFrame from the current thread's explicit frame list.
+// This prevents issues in functions that have HELPER_METHOD_FRAME_BEGIN / END around 
+// GCPROTECT_BEGIN / END and where the C++ compiler places some local variables over 
+// the stack location of the GCFrame local variable after the variable goes out of scope. 
+GCFrame::~GCFrame()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    if (m_Next != NULL)
+    {
+        // Do a manual switch to the GC cooperative mode instead of using the GCX_COOP_THREAD_EXISTS
+        // macro so that this function isn't slowed down by having to deal with FS:0 chain on x86 Windows.
+        BOOL wasCoop = m_pCurThread->PreemptiveGCDisabled();
+        if (!wasCoop)
+        {
+            m_pCurThread->DisablePreemptiveGC();
+        }
+
+        // When the frame is destroyed, make sure it is no longer in the
+        // frame chain managed by the Thread.
+
+        Pop();
+
+#ifndef FEATURE_PAL
+
+        PTR_Frame frame = NULL;
+
+#ifdef FEATURE_EH_FUNCLETS
+        PTR_ExceptionTracker pCurrentTracker = m_pCurThread->GetExceptionState()->GetCurrentExceptionTracker();
+        if (pCurrentTracker != NULL)
+        {
+            frame = pCurrentTracker->GetInitialExplicitFrame();
+        }
+#else
+        PTR_PTR_Frame ptrToInitialFrame = m_pCurThread->GetExceptionState()->GetPtrToBottomFrameDuringUnwind();
+        if (ptrToInitialFrame != NULL)
+        {
+            frame = *ptrToInitialFrame;
+            if (frame == this)
+            {
+                // The current frame that was just popped was the bottom frame used
+                // as an initial frame to scan stack frames.
+                // Update the bottom frame pointer to point to the first valid frame.
+                *ptrToInitialFrame = m_pCurThread->m_pFrame;
+            }
+        }
+#endif // FEATURE_EH_FUNCLETS
+
+        if (frame != NULL)
+        {
+            // There is an initial explicit frame, so we need to scan the explicit frame chain starting at
+            // that frame to see if the current frame that is being destroyed was on the chain.
+
+            while ((frame != FRAME_TOP) && (frame != this))
+            {
+                PTR_Frame nextFrame = frame->PtrNextFrame();
+                if (nextFrame == this)
+                {
+                    // Repair frame chain from the initial explicit frame to the current frame,
+                    // skipping the current GCFrame that was destroyed
+                    frame->m_Next = m_pCurThread->m_pFrame;
+                    break;
+                }
+                frame = nextFrame;
+                _ASSERTE(frame != NULL);
+            }
+        }
+#endif // !FEATURE_PAL
+
+        if (!wasCoop)
+        {
+            m_pCurThread->EnablePreemptiveGC();
+        }
+    }
+}
+
+ExceptionFilterFrame::~ExceptionFilterFrame()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    if (m_Next != NULL)
+    {
+        GCX_COOP();
+        // When the frame is destroyed, make sure it is no longer in the
+        // frame chain managed by the Thread.
+        Pop();
+    }
+}
+
+#endif // !CROSSGEN_COMPILE
+
 #ifdef FEATURE_INTERPRETER
 // Methods of IntepreterFrame.
 InterpreterFrame::InterpreterFrame(Interpreter* interp) 
@@ -1522,18 +1626,11 @@ void ComMethodFrame::DoSecondPassHandlerCleanup(Frame * pCurFrame)
 {
     LIMITED_METHOD_CONTRACT;
 
-    // Find ComMethodFrame, noting any ContextTransitionFrame along the way
+    // Find ComMethodFrame
 
     while ((pCurFrame != FRAME_TOP) && 
            (pCurFrame->GetVTablePtr() != ComMethodFrame::GetMethodFrameVPtr()))
     {
-        if (pCurFrame->GetVTablePtr() == ContextTransitionFrame::GetMethodFrameVPtr())
-        {
-            // If there is a context transition before we find a ComMethodFrame, do nothing.  Expect that 
-            // the AD transition code will perform the corresponding work after it pops its context 
-            // transition frame and before it rethrows the exception.
-            return;
-        }
         pCurFrame = pCurFrame->PtrNextFrame();
     }
 
@@ -1956,26 +2053,6 @@ void UnmanagedToManagedFrame::ExceptionUnwind()
 }
 
 #endif // !DACCESS_COMPILE
-
-void ContextTransitionFrame::GcScanRoots(promote_func *fn, ScanContext* sc)
-{
-    WRAPPER_NO_CONTRACT;
-
-    // Don't check app domains here - m_LastThrownObjectInParentContext is in the parent frame's app domain
-    (*fn)(dac_cast<PTR_PTR_Object>(PTR_HOST_MEMBER_TADDR(ContextTransitionFrame, this, m_LastThrownObjectInParentContext)), sc, 0);
-    LOG((LF_GC, INFO3, "    " FMT_ADDR "\n", DBG_ADDR(m_LastThrownObjectInParentContext) ));
-    
-    // don't need to worry about the object moving as it is stored in a weak handle
-    // but do need to report it so it doesn't get collected if the only reference to
-    // it is in this frame. So only do something if are in promotion phase. And if are
-    // in reloc phase this could cause invalid refs as the object may have been moved.
-    if (! sc->promotion)
-        return;
-        
-    // The dac only cares about strong references at the moment.  Since this is always
-    // in a weak ref, we don't report it here.
-}
-
 
 PCODE UnmanagedToManagedFrame::GetReturnAddress()
 {

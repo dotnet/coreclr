@@ -3,13 +3,13 @@
 // See the LICENSE file in the project root for more information.
 /*============================================================
 **
-** 
-** 
+**
+**
 **
 **
 ** Purpose: List for exceptions.
 **
-** 
+**
 ===========================================================*/
 
 namespace System.Collections
@@ -57,7 +57,6 @@ namespace System.Collections
                     throw new ArgumentNullException(nameof(key), SR.ArgumentNull_Key);
                 }
 
-
                 version++;
                 DictionaryNode? last = null;
                 DictionaryNode? node;
@@ -91,55 +90,19 @@ namespace System.Collections
             }
         }
 
-        public int Count
-        {
-            get
-            {
-                return count;
-            }
-        }
+        public int Count => count;
 
-        public ICollection Keys
-        {
-            get
-            {
-                return new NodeKeyValueCollection(this, true);
-            }
-        }
+        public ICollection Keys => new NodeKeyValueCollection(this, true);
 
-        public bool IsReadOnly
-        {
-            get
-            {
-                return false;
-            }
-        }
+        public bool IsReadOnly => false;
 
-        public bool IsFixedSize
-        {
-            get
-            {
-                return false;
-            }
-        }
+        public bool IsFixedSize => false;
 
-        public bool IsSynchronized
-        {
-            get
-            {
-                return false;
-            }
-        }
+        public bool IsSynchronized => false;
 
         public object SyncRoot => this;
 
-        public ICollection Values
-        {
-            get
-            {
-                return new NodeKeyValueCollection(this, false);
-            }
-        }
+        public ICollection Values => new NodeKeyValueCollection(this, false);
 
         public void Add(object key, object? value)
         {
@@ -147,7 +110,6 @@ namespace System.Collections
             {
                 throw new ArgumentNullException(nameof(key), SR.ArgumentNull_Key);
             }
-
 
             version++;
             DictionaryNode? last = null;
@@ -269,11 +231,10 @@ namespace System.Collections
 
         private class NodeEnumerator : IDictionaryEnumerator
         {
-            private ListDictionaryInternal list;
+            private readonly ListDictionaryInternal list;
             private DictionaryNode? current;
-            private int version;
+            private readonly int version;
             private bool start;
-
 
             public NodeEnumerator(ListDictionaryInternal list)
             {
@@ -283,13 +244,7 @@ namespace System.Collections
                 current = null;
             }
 
-            public object Current
-            {
-                get
-                {
-                    return Entry;
-                }
-            }
+            public object Current => Entry;
 
             public DictionaryEntry Entry
             {
@@ -345,7 +300,7 @@ namespace System.Collections
                         current = current.next;
                     }
                 }
-                return (current != null);
+                return current != null;
             }
 
             public void Reset()
@@ -359,11 +314,10 @@ namespace System.Collections
             }
         }
 
-
         private class NodeKeyValueCollection : ICollection
         {
-            private ListDictionaryInternal list;
-            private bool isKeys;
+            private readonly ListDictionaryInternal list;
+            private readonly bool isKeys;
 
             public NodeKeyValueCollection(ListDictionaryInternal list, bool isKeys)
             {
@@ -401,34 +355,21 @@ namespace System.Collections
                 }
             }
 
-            bool ICollection.IsSynchronized
-            {
-                get
-                {
-                    return false;
-                }
-            }
+            bool ICollection.IsSynchronized => false;
 
-            object ICollection.SyncRoot
-            {
-                get
-                {
-                    return list.SyncRoot;
-                }
-            }
+            object ICollection.SyncRoot => list.SyncRoot;
 
             IEnumerator IEnumerable.GetEnumerator()
             {
                 return new NodeKeyValueEnumerator(list, isKeys);
             }
 
-
             private class NodeKeyValueEnumerator : IEnumerator
             {
-                private ListDictionaryInternal list;
+                private readonly ListDictionaryInternal list;
                 private DictionaryNode? current;
-                private int version;
-                private bool isKeys;
+                private readonly int version;
+                private readonly bool isKeys;
                 private bool start;
 
                 public NodeKeyValueEnumerator(ListDictionaryInternal list, bool isKeys)
@@ -470,7 +411,7 @@ namespace System.Collections
                             current = current.next;
                         }
                     }
-                    return (current != null);
+                    return current != null;
                 }
 
                 public void Reset()

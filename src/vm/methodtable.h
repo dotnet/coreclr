@@ -239,7 +239,7 @@ typedef DPTR(GuidInfo) PTR_GuidInfo;
 // GenericsDictInfo is stored at negative offset of the dictionary
 struct GenericsDictInfo
 {
-#ifdef _WIN64
+#ifdef BIT64
     DWORD m_dwPadding;               // Just to keep the size a multiple of 8
 #endif
 
@@ -354,7 +354,7 @@ struct MethodTableWriteableData
     // GC (like AD unload)
     Volatile<DWORD> m_dwLastVerifedGCCnt;
 
-#ifdef _WIN64
+#ifdef BIT64
     DWORD m_dwPadding;               // Just to keep the size a multiple of 8
 #endif
 
@@ -3037,7 +3037,11 @@ public:
     {
         LIMITED_METHOD_DAC_CONTRACT;
 
+#ifdef FEATURE_PREJIT
         return GetFlag(enum_flag_IsPreRestored);
+#else
+        return FALSE;
+#endif
     }
 
     //-------------------------------------------------------------------
@@ -3676,8 +3680,8 @@ private:
         enum_flag_UNUSED_ComponentSize_6    = 0x00004000,
         enum_flag_UNUSED_ComponentSize_7    = 0x00008000,
 
-#define SET_FALSE(flag)     (flag & 0)
-#define SET_TRUE(flag)      (flag & 0xffff)
+#define SET_FALSE(flag)     ((flag) & 0)
+#define SET_TRUE(flag)      ((flag) & 0xffff)
 
         // IMPORTANT! IMPORTANT! IMPORTANT!
         //
