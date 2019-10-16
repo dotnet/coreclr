@@ -121,6 +121,16 @@ enum EtwThreadFlags
 #define ETW_TRACING_ENABLED(Context, EventDescriptor) (ETW_EVENT_ENABLED(Context, EventDescriptor) && EventEnabled##EventDescriptor())
 #define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) (ETW_CATEGORY_ENABLED(Context, Level, Keyword))
 #define ETW_PROVIDER_ENABLED(ProviderSymbol) (XplatEventLogger::IsProviderEnabled(Context))
+
+#ifndef XPLAT_EVENT_LOGGER_IS_ENABLED
+#define XPLAT_EVENT_LOGGER_IS_ENABLED
+extern "C" bool XplatEventLoggerIsEnabled()
+{
+    return XplatEventLogger::IsEventLoggingEnabled();
+}
+#endif // XPLAT_EVENT_LOGGER_IS_ENABLED
+
+
 #endif // defined(FEATURE_PERFTRACING)
 #endif // !defined(FEATURE_PAL)
 
