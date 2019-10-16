@@ -198,10 +198,9 @@ public:
     //bool ControllerStackInfo::HasReturnFrame()  Returns
     //      true if m_returnFrame is valid.  Returns false
     //      if m_returnFrame is set to m_activeFrame
-    bool HasReturnFrame() {LIMITED_METHOD_CONTRACT;  return m_returnFound; }
+    bool HasReturnFrame(bool allowUnmamanged = false) {LIMITED_METHOD_CONTRACT;  return m_returnFound && (allowUnmamanged || m_returnFrame.managed); }
 
-    const FrameInfo& GetReturnFrame() {LIMITED_METHOD_CONTRACT;  return m_returnFrame; }
-
+    FrameInfo& GetReturnFrame(bool allowUnmamanged = false) {LIMITED_METHOD_CONTRACT; return HasReturnFrame(allowUnmamanged) ? m_returnFrame : m_activeFrame; }
     // This function "undoes" an unwind, i.e. it takes the active frame (the current frame)
     // and sets it to be the return frame (the caller frame).  Currently it is only used by
     // the stepper to step out of an LCG method.  See DebuggerStepper::DetectHandleLCGMethods()

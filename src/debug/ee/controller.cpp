@@ -337,7 +337,7 @@ void ControllerStackInfo::GetStackInfo(
     if (result == SWA_DONE)
     {
         _ASSERTE(!HasReturnFrame()); // We didn't find a managed return frame
-        m_returnFrame = m_activeFrame;
+        _ASSERTE(HasReturnFrame(true)); // All threads have at least one unmanaged frame
     }
 }
 
@@ -418,14 +418,6 @@ StackWalkAction ControllerStackInfo::WalkStack(FrameInfo *pInfo, void *data)
 
         if (i->m_activeFound )
         {
-            // We care if the current frame is unmanaged (in case a managed stepper is initiated
-            // on a thread currently in unmanaged code). But since we can't step-out to UM frames, 
-            // we can just skip them in the stack walk.
-            if (!pInfo->managed)
-            {
-                return SWA_CONTINUE;
-            }
-        
             if (pInfo->chainReason == CHAIN_CLASS_INIT)
                 i->m_specialChainReason = pInfo->chainReason;
 
@@ -439,7 +431,9 @@ StackWalkAction ControllerStackInfo::WalkStack(FrameInfo *pInfo, void *data)
 
                 i->m_returnFound = true;
 
-                return SWA_ABORT;
+                // We care if the current frame is unmanaged
+                // Continue unless we found a managed return frame.
+                return pInfo->managed ? SWA_ABORT : SWA_CONTINUE;
             }
         }
         else
