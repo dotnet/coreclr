@@ -2220,7 +2220,7 @@ bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
         return false;
     }
 
-    if (asgNode && (asgNode->gtFlags & GTF_ASG))
+    if (asgNode->gtFlags & GTF_ASG)
     {
         noway_assert(rhsNode);
         noway_assert(tree->gtFlags & GTF_VAR_DEF);
