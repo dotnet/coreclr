@@ -28,6 +28,13 @@
     <CrossArchitectureSpecificToolFile Include="$(BinDir)$(CrossTargetComponentFolder)\mscordaccore.dll" />
     <CrossArchitectureSpecificToolFile Include="$(BinDir)$(CrossTargetComponentFolder)\mscordbi.dll" />
 
+    <Crossgen2Files Include="$(BinDir)crossgen2\crossgen2.dll" />
+    <Crossgen2Files Include="$(BinDir)crossgen2\ILCompiler*.dll" />
+    <Crossgen2Files Include="$(BinDir)crossgen2\Microsoft.DiaSymReader.dll" />
+    <Crossgen2Files Include="$(BinDir)crossgen2\System.CommandLine.dll" />
+    <Crossgen2Files Include="$(BinDir)crossgen2\clrjitilc.dll" />
+    <Crossgen2Files Include="$(BinDir)crossgen2\jitinterface.dll" />
+
     <!-- prevent accidental inclusion in AOT projects. -->
     <File Include="$(PlaceholderFile)">
       <TargetPath>runtimes/$(PackageTargetRuntime)-aot/lib/netstandard1.0</TargetPath>
