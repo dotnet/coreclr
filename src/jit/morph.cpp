@@ -12416,8 +12416,7 @@ DONE_MORPHING_CHILDREN:
                             // Update the ValueNumber for 'cns2', as we just changed it to 0
                             fgValueNumberTreeConst(cns2);
                         }
-
-                            op2 = tree->AsOp()->gtOp2 = gtFoldExpr(op2);
+                        op2 = tree->AsOp()->gtOp2 = gtFoldExpr(op2);
                     }
                 }
                 else if (tree->IsUnsigned() && op2->IsIntegralConst(0))
