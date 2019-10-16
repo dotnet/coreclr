@@ -5987,6 +5987,10 @@ void LinearScan::allocateRegisters()
                     {
                         unassign = true;
                     }
+                    else
+                    {
+                        currentInterval->isActive = false;
+                    }
                 }
                 if (unassign)
                 {
