@@ -7496,9 +7496,10 @@ GenTree* Compiler::gtCloneExpr(
                 inds[dim] = gtCloneExpr(tree->AsArrElem()->gtArrInds[dim], addFlags, deepVarNum, deepVarVal);
             }
             copy = new (this, GT_ARR_ELEM)
-                GenTreeArrElem(tree->TypeGet(), gtCloneExpr(tree->AsArrElem()->gtArrObj, addFlags, deepVarNum, deepVarVal),
-                               tree->AsArrElem()->gtArrRank, tree->AsArrElem()->gtArrElemSize, tree->AsArrElem()->gtArrElemType,
-                               &inds[0]);
+                GenTreeArrElem(tree->TypeGet(),
+                               gtCloneExpr(tree->AsArrElem()->gtArrObj, addFlags, deepVarNum, deepVarVal),
+                               tree->AsArrElem()->gtArrRank, tree->AsArrElem()->gtArrElemSize,
+                               tree->AsArrElem()->gtArrElemType, &inds[0]);
         }
         break;
 

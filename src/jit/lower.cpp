@@ -5241,8 +5241,9 @@ GenTree* Lowering::LowerArrElem(GenTree* node)
 
     // Generate the LEA and make it reverse evaluation, because we want to evaluate the index expression before the
     // base.
-    unsigned scale  = arrElem->AsArrElem()->gtArrElemSize;
-    unsigned offset = comp->eeGetMDArrayDataOffset(arrElem->AsArrElem()->gtArrElemType, arrElem->AsArrElem()->gtArrRank);
+    unsigned scale = arrElem->AsArrElem()->gtArrElemSize;
+    unsigned offset =
+        comp->eeGetMDArrayDataOffset(arrElem->AsArrElem()->gtArrElemType, arrElem->AsArrElem()->gtArrRank);
 
     GenTree* leaIndexNode = prevArrOffs;
     if (!jitIsScaleIndexMul(scale))
