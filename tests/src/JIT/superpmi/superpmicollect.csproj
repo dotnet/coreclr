@@ -18,7 +18,6 @@
   <ItemGroup>
     <_SpmiTestProjects Include="..\Performance\CodeQuality\Bytemark\Bytemark.csproj" />
     <_SpmiTestProjects Include="..\Methodical\fp\exgen\10w5d_cs_do.csproj" />
-    <_SpmiTestProjects Include="..\Generics\Coverage\chaos65204782cs.csproj" />
     <_SpmiTestProjects Update="@(_SpmiTestProjects)">
       <Properties>OutputPath=$(OutputPath)\%(FileName)</Properties>
     </_SpmiTestProjects>
