@@ -3,21 +3,21 @@
   <ProductDependencies>
   </ProductDependencies>
   <ToolsetDependencies>
-    <Dependency Name="Microsoft.DotNet.Arcade.Sdk" Version="5.0.0-beta.19515.1">
+    <Dependency Name="Microsoft.DotNet.Arcade.Sdk" Version="5.0.0-beta.19515.2">
       <Uri>https://github.com/dotnet/arcade</Uri>
-      <Sha>a093b5b2bef24499239a2e9b4114db01fa19e446</Sha>
+      <Sha>cbfa29d4e859622ada3d226f90f103f659665d31</Sha>
     </Dependency>
-    <Dependency Name="Microsoft.DotNet.Helix.Sdk" Version="5.0.0-beta.19515.1">
+    <Dependency Name="Microsoft.DotNet.Helix.Sdk" Version="5.0.0-beta.19515.2">
       <Uri>https://github.com/dotnet/arcade</Uri>
-      <Sha>a093b5b2bef24499239a2e9b4114db01fa19e446</Sha>
+      <Sha>cbfa29d4e859622ada3d226f90f103f659665d31</Sha>
     </Dependency>
-    <Dependency Name="Microsoft.DotNet.Build.Tasks.Feed" Version="5.0.0-beta.19515.1">
+    <Dependency Name="Microsoft.DotNet.Build.Tasks.Feed" Version="5.0.0-beta.19515.2">
       <Uri>https://github.com/dotnet/arcade</Uri>
-      <Sha>a093b5b2bef24499239a2e9b4114db01fa19e446</Sha>
+      <Sha>cbfa29d4e859622ada3d226f90f103f659665d31</Sha>
     </Dependency>
-    <Dependency Name="Microsoft.DotNet.Build.Tasks.Packaging" Version="5.0.0-beta.19515.1">
+    <Dependency Name="Microsoft.DotNet.Build.Tasks.Packaging" Version="5.0.0-beta.19515.2">
       <Uri>https://github.com/dotnet/arcade</Uri>
-      <Sha>a093b5b2bef24499239a2e9b4114db01fa19e446</Sha>
+      <Sha>cbfa29d4e859622ada3d226f90f103f659665d31</Sha>
     </Dependency>
     <Dependency Name="Microsoft.Private.CoreFx.NETCoreApp" Version="5.0.0-alpha1.19467.6">
       <Uri>https://github.com/dotnet/corefx</Uri>
@@ -39,9 +39,9 @@
       <Uri>https://dev.azure.com/dnceng/internal/_git/dotnet-optimization</Uri>
       <Sha>d0bb63d2ec7060714e63ee4082fac48f2e57f3e2</Sha>
     </Dependency>
-    <Dependency Name="Microsoft.DotNet.VersionTools.Tasks" Version="5.0.0-beta.19515.1">
+    <Dependency Name="Microsoft.DotNet.VersionTools.Tasks" Version="5.0.0-beta.19515.2">
       <Uri>https://github.com/dotnet/arcade</Uri>
-      <Sha>a093b5b2bef24499239a2e9b4114db01fa19e446</Sha>
+      <Sha>cbfa29d4e859622ada3d226f90f103f659665d31</Sha>
     </Dependency>
   </ToolsetDependencies>
 </Dependencies>
