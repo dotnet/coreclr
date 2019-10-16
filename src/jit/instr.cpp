@@ -889,7 +889,7 @@ AGAIN:
 
 #if CPU_LOAD_STORE_ARCH
             assert(!"GT_CLS_VAR not supported in ARM backend");
-#else  // CPU_LOAD_STORE_ARCH
+#else // CPU_LOAD_STORE_ARCH
             GetEmitter()->emitIns_R_C(ins, size, reg, tree->AsClsVar()->gtClsVarHnd, offs);
 #endif // CPU_LOAD_STORE_ARCH
             return;
