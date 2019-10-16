@@ -232,7 +232,7 @@ namespace System.Collections.Generic
             }
         }
 
-        public unsafe bool ContainsKey(TKey key)
+        public bool ContainsKey(TKey key)
             => !Unsafe.IsNullRef(ref FindValue(key));
 
         public bool ContainsValue(TValue value)
@@ -891,7 +891,7 @@ namespace System.Collections.Generic
             return false;
         }
 
-        public unsafe bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
+        public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
         {
             ref TValue valRef = ref FindValue(key);
             if (!Unsafe.IsNullRef(ref valRef))
