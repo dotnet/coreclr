@@ -1311,6 +1311,10 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
 
     if (fIsDllUnloading)
     {
+        // The process is detaching, so set the global state.
+        // This is used to get around FreeLibrary problems.
+        g_fProcessDetach = true;
+
         ETW::EnumerationLog::ProcessShutdown();
     }
 
@@ -1326,11 +1330,6 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
     // Get the current thread.
     Thread * pThisThread = GetThread();
 #endif
-
-    // If the process is detaching then set the global state.
-    // This is used to get around FreeLibrary problems.
-    if(fIsDllUnloading)
-        g_fProcessDetach = true;
 
     if (IsDbgHelperSpecialThread())
     {
