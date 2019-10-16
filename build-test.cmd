@@ -247,7 +247,8 @@ if not exist "%__NativeTestIntermediatesDir%\CMakeCache.txt" (
     exit /b 1
 )
 
-"%CMakePath%" --build %__NativeTestIntermediatesDir% --target install --config %__BuildType% -j %NumberOfCores%
+REM We pass the /m flag directly to MSBuild so that we can get both MSBuild and CL parallelism, which is fastest for our builds.
+"%CMakePath%" --build %__NativeTestIntermediatesDir% --target install --config %__BuildType% -- /m
 
 if errorlevel 1 (
     echo %__ErrMsgPrefix%%__MsgPrefix%Error: native test build failed.
