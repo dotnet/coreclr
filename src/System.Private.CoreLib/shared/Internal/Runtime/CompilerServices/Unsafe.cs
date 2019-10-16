@@ -395,16 +395,13 @@ namespace Internal.Runtime.CompilerServices
         [Intrinsic]
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static ref T NullRef<T>()
+        public static ref T NullRef<T>()
         {
-#if CORECLR
-            throw new PlatformNotSupportedException();
+            return ref Unsafe.AsRef<T>(null);
+
             // ldc.i4.0
             // conv.u
             // ret
-#else
-            return ref Unsafe.AsRef<T>(null);
-#endif
         }
 
         /// <summary>
@@ -417,18 +414,15 @@ namespace Internal.Runtime.CompilerServices
         [Intrinsic]
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static bool IsNullRef<T>(ref T source)
+        public static bool IsNullRef<T>(ref T source)
         {
-#if CORECLR
-            throw new PlatformNotSupportedException();
+            return Unsafe.AsPointer(ref source) == null;
+
             // ldarg.0
             // ldc.i4.0
             // conv.u
             // ceq
             // ret
-#else
-            return Unsafe.AsPointer(ref source) == null;
-#endif
         }
     }
 }
