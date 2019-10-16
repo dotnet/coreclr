@@ -115,6 +115,7 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
             if (indirAddrLocal != nullptr && isDying)
             {
                 assert(!isBorn); // GTF_VAR_DEATH only set for LDOBJ last use.
+                unreached(); // Try to find a test where we use it.
                 VARSET_TP* deadTrackedFieldVars = nullptr;
                 hasDeadTrackedFieldVars =
                     compiler->LookupPromotedStructDeathVars(indirAddrLocal, &deadTrackedFieldVars);
