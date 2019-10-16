@@ -4,7 +4,7 @@
 
 namespace System.Diagnostics.Tracing
 {
-    internal sealed class RuntimeEventSourceHelper
+    internal static class RuntimeEventSourceHelper
     {
         private static long prevProcUserTime = 0;
         private static long prevProcKernelTime = 0;
@@ -27,7 +27,7 @@ namespace System.Diagnostics.Tracing
                 return 0;
             }
 
-            if (prevSystemUserTime == 0 && prevSystemKernelTime == 0) // These may be 0 when we report CPU usage for the first time, in which case we should just return 0. 
+            if (prevSystemUserTime == 0 && prevSystemKernelTime == 0) // These may be 0 when we report CPU usage for the first time, in which case we should just return 0.
             {
                 cpuUsage = 0;
             }

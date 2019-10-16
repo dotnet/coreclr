@@ -2,32 +2,34 @@
 <Project>
   <PropertyGroup>
     <!-- The .NET Core product branding version -->
-    <ProductVersion>3.0.0</ProductVersion>
+    <ProductVersion>5.0.0</ProductVersion>
     <!-- File version numbers -->
-    <MajorVersion>4</MajorVersion>
-    <MinorVersion>7</MinorVersion>
+    <MajorVersion>5</MajorVersion>
+    <MinorVersion>0</MinorVersion>
     <!-- Always use shipping version instead of dummy versions -->
     <DotNetUseShippingVersions>true</DotNetUseShippingVersions>
-    <PreReleaseVersionLabel>preview8</PreReleaseVersionLabel>
+    <PreReleaseVersionLabel>alpha1</PreReleaseVersionLabel>
     <!-- Opt-in/out repo features -->
+    <UsingToolIbcOptimization>true</UsingToolIbcOptimization>
     <UsingToolMicrosoftNetCompilers>true</UsingToolMicrosoftNetCompilers>
     <UsingToolXliff>false</UsingToolXliff>
     <!-- Package versions -->
     <!-- arcade -->
-    <MicrosoftDotNetBuildTasksFeedVersion>2.2.0-beta.19324.24</MicrosoftDotNetBuildTasksFeedVersion>
-    <MicrosoftDotNetBuildTasksPackagingVersion>1.0.0-beta.19324.24</MicrosoftDotNetBuildTasksPackagingVersion>
+    <MicrosoftDotNetBuildTasksFeedVersion>2.2.0-beta.19463.3</MicrosoftDotNetBuildTasksFeedVersion>
+    <MicrosoftDotNetBuildTasksPackagingVersion>1.0.0-beta.19463.3</MicrosoftDotNetBuildTasksPackagingVersion>
     <MicrosoftDotNetXUnitConsoleRunnerVersion>2.5.1-beta.19278.1</MicrosoftDotNetXUnitConsoleRunnerVersion>
+    <MicrosoftDotNetVersionToolsTasksVersion>1.0.0-beta.19463.3</MicrosoftDotNetVersionToolsTasksVersion>
     <!-- corefx -->
-    <MicrosoftPrivateCoreFxNETCoreAppVersion>4.6.0-preview8.19326.15</MicrosoftPrivateCoreFxNETCoreAppVersion>
-    <MicrosoftNETCorePlatformsVersion>3.0.0-preview8.19326.15</MicrosoftNETCorePlatformsVersion>
+    <MicrosoftPrivateCoreFxNETCoreAppVersion>5.0.0-alpha1.19508.1</MicrosoftPrivateCoreFxNETCoreAppVersion>
+    <MicrosoftNETCorePlatformsVersion>5.0.0-alpha1.19508.1</MicrosoftNETCorePlatformsVersion>
     <MicrosoftBclAsyncInterfacesVersion>1.0.0-preview7.19326.2</MicrosoftBclAsyncInterfacesVersion>
     <!-- core-setup -->
-    <MicrosoftNETCoreAppVersion>3.0.0-preview7-27826-04</MicrosoftNETCoreAppVersion>
-    <!-- dotnet-core-internal-tooling -->
-    <IbcMergePackageVersion>5.0.6-beta.19203.1</IbcMergePackageVersion>
+    <MicrosoftNETCoreAppVersion>5.0.0-alpha1.19510.2</MicrosoftNETCoreAppVersion>
     <!-- dotnet-optimization -->
-    <optimizationIBCCoreCLRVersion>99.99.99-master-20190624.3</optimizationIBCCoreCLRVersion>
-    <optimizationPGOCoreCLRVersion>99.99.99-master-20190624.3</optimizationPGOCoreCLRVersion>
+    <optimizationIBCCoreCLRVersion>99.99.99-master-20190716.1</optimizationIBCCoreCLRVersion>
+    <optimizationPGOCoreCLRVersion>99.99.99-master-20190716.1</optimizationPGOCoreCLRVersion>
+    <!-- ilasm -->
+    <MicrosoftNETCoreILAsmPackageVersion>5.0.0-alpha1.19413.7</MicrosoftNETCoreILAsmPackageVersion>
   </PropertyGroup>
   <!--Package names-->
   <PropertyGroup>

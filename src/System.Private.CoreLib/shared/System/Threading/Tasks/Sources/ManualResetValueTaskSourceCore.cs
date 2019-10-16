@@ -48,7 +48,7 @@ namespace System.Threading.Tasks.Sources
             // Reset/update state for the next use/await of this instance.
             _version++;
             _completed = false;
-            _result = default!; // TODO-NULLABLE: Remove ! when nullable attributes are respected
+            _result = default;
             _error = null;
             _executionContext = null;
             _capturedContext = null;
@@ -64,8 +64,8 @@ namespace System.Threading.Tasks.Sources
             SignalCompletion();
         }
 
-        /// <summary>Complets with an error.</summary>
-        /// <param name="error"></param>
+        /// <summary>Completes with an error.</summary>
+        /// <param name="error">The exception.</param>
         public void SetException(Exception error)
         {
             _error = ExceptionDispatchInfo.Capture(error);

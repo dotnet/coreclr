@@ -112,8 +112,8 @@ int ThreadpoolMgr::ThreadAdjustmentInterval;
 #define CP_THREAD_PENDINGIO_WAIT 5000           // polling interval when thread is retired but has a pending io
 #define GATE_THREAD_DELAY 500 /*milliseconds*/
 #define GATE_THREAD_DELAY_TOLERANCE 50 /*milliseconds*/
-#define DELAY_BETWEEN_SUSPENDS 5000 + GATE_THREAD_DELAY // time to delay between suspensions
-#define SUSPEND_TIME GATE_THREAD_DELAY+100      // milliseconds to suspend during SuspendProcessing
+#define DELAY_BETWEEN_SUSPENDS (5000 + GATE_THREAD_DELAY) // time to delay between suspensions
+#define SUSPEND_TIME (GATE_THREAD_DELAY + 100)      // milliseconds to suspend during SuspendProcessing
 
 LONG ThreadpoolMgr::Initialization=0;           // indicator of whether the threadpool is initialized.
 
@@ -1901,7 +1901,8 @@ DWORD WINAPI ThreadpoolMgr::WorkerThreadStart(LPVOID lpArgs)
     bool foundWork = true, wasNotRecalled = true;
 
     counts = WorkerCounter.GetCleanCounts();
-    FireEtwThreadPoolWorkerThreadStart(counts.NumActive, counts.NumRetired, GetClrInstanceId());
+    if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, ThreadPoolWorkerThreadStart))
+        FireEtwThreadPoolWorkerThreadStart(counts.NumActive, counts.NumRetired, GetClrInstanceId());
 
 #ifdef FEATURE_COMINTEROP
     BOOL fCoInited = FALSE;
@@ -2115,7 +2116,8 @@ WaitForWork:
         MaybeAddWorkingWorker();
     }
 
-    FireEtwThreadPoolWorkerThreadWait(counts.NumActive, counts.NumRetired, GetClrInstanceId());
+    if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, ThreadPoolWorkerThreadWait))
+        FireEtwThreadPoolWorkerThreadWait(counts.NumActive, counts.NumRetired, GetClrInstanceId());
 
 RetryWaitForWork:
     if (WorkerSemaphore->Wait(AppX::IsAppXProcess() ? WorkerTimeoutAppX : WorkerTimeout, WorkerThreadSpinLimit, NumberOfProcessors))
@@ -2195,7 +2197,8 @@ Exit:
     _ASSERTE(!IsIoPending());
 
     counts = WorkerCounter.GetCleanCounts();
-    FireEtwThreadPoolWorkerThreadStop(counts.NumActive, counts.NumRetired, GetClrInstanceId());
+    if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, ThreadPoolWorkerThreadStop))
+        FireEtwThreadPoolWorkerThreadStop(counts.NumActive, counts.NumRetired, GetClrInstanceId());
 
     return ERROR_SUCCESS;
 }
@@ -2513,11 +2516,11 @@ int ThreadpoolMgr::FindWaitIndex(const ThreadCB* threadCB, const HANDLE waitHand
 
 // if no wraparound that the timer is expired if duetime is less than current time
 // if wraparound occurred, then the timer expired if dueTime was greater than last time or dueTime is less equal to current time
-#define TimeExpired(last,now,duetime) (last <= now ? \
-                                       (duetime <= now && duetime >= last): \
-                                       (duetime >= last || duetime <= now))
+#define TimeExpired(last,now,duetime) ((last) <= (now) ? \
+                                       ((duetime) <= (now) && (duetime) >= (last)): \
+                                       ((duetime) >= (last) || (duetime) <= (now)))
 
-#define TimeInterval(end,start) ( end > start ? (end - start) : ((0xffffffff - start) + end + 1)   )
+#define TimeInterval(end,start) ((end) > (start) ? ((end) - (start)) : ((0xffffffff - (start)) + (end) + 1))
 
 // Returns the minimum of the remaining time to reach a timeout among all the waits
 DWORD ThreadpoolMgr::MinimumRemainingWait(LIST_ENTRY* waitInfo, unsigned int numWaits)
@@ -2557,7 +2560,7 @@ DWORD ThreadpoolMgr::MinimumRemainingWait(LIST_ENTRY* waitInfo, unsigned int num
 }
 
 #ifdef _MSC_VER
-#ifdef _WIN64
+#ifdef BIT64
 #pragma warning (disable : 4716)
 #else
 #pragma warning (disable : 4715)
@@ -2764,7 +2767,7 @@ DWORD WINAPI ThreadpoolMgr::WaitThreadStart(LPVOID lpArgs)
 #endif
 
 #ifdef _MSC_VER
-#ifdef _WIN64
+#ifdef BIT64
 #pragma warning (default : 4716)
 #else
 #pragma warning (default : 4715)
@@ -3920,7 +3923,7 @@ BOOL ThreadpoolMgr::IsIoPending()
 
 #ifndef FEATURE_PAL
 
-#ifdef _WIN64
+#ifdef BIT64
 #pragma warning (disable : 4716)
 #else
 #pragma warning (disable : 4715)
@@ -4407,7 +4410,7 @@ BOOL ThreadpoolMgr::SufficientDelaySinceLastDequeue()
 
 
 #ifdef _MSC_VER
-#ifdef _WIN64
+#ifdef BIT64
 #pragma warning (default : 4716)
 #else
 #pragma warning (default : 4715)
@@ -4515,7 +4518,7 @@ BOOL ThreadpoolMgr::CreateTimerQueueTimer(PHANDLE phNewTimer,
 }
 
 #ifdef _MSC_VER
-#ifdef _WIN64
+#ifdef BIT64
 #pragma warning (disable : 4716)
 #else
 #pragma warning (disable : 4715)
@@ -4622,7 +4625,7 @@ void ThreadpoolMgr::TimerThreadFire()
 }
 
 #ifdef _MSC_VER
-#ifdef _WIN64
+#ifdef BIT64
 #pragma warning (default : 4716)
 #else
 #pragma warning (default : 4715)

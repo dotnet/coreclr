@@ -2,19 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
 using System.IO;
 using System.Globalization;
-using System.Collections;
-using System.Text;
 using System.Reflection;
-using System.Security;
-using System.Threading;
-using System.Runtime.InteropServices;
-using System.Runtime.CompilerServices;
-using Microsoft.Win32;
-using System.Collections.Generic;
-using System.Runtime.Versioning;
 using System.Diagnostics;
 using Internal.Resources;
 
@@ -43,7 +33,7 @@ namespace System.Resources
 
             string? startingCulture = culture?.Name;
 
-            if (_PRIInitialized == false)
+            if (!_PRIInitialized)
             {
                 // Always throw if we did not fully succeed in initializing the WinRT Resource Manager.
 
@@ -82,10 +72,10 @@ namespace System.Resources
         //
         // 1) For Framework assemblies, we always use satellite assembly based lookup.
         // 2) For non-FX assemblies:
-        //    
+        //
         //    a) If the assembly lives under PLATFORM_RESOURCE_ROOTS (as specified by the host during AppDomain creation),
         //       then we will use satellite assembly based lookup in assemblies like *.resources.dll.
-        //   
+        //
         //    b) For any other non-FX assembly, we will use the modern resource manager with the premise that app package
         //       contains the PRI resources.
         //
@@ -100,7 +90,7 @@ namespace System.Resources
 #if FEATURE_APPX
             // Check to see if the assembly is under PLATFORM_RESOURCE_ROOTS. If it is, then we should use satellite assembly lookup for it.
             string? platformResourceRoots = (string?)AppContext.GetData("PLATFORM_RESOURCE_ROOTS");
-            if ((platformResourceRoots != null) && (platformResourceRoots != string.Empty))
+            if (!string.IsNullOrEmpty(platformResourceRoots))
             {
                 string resourceAssemblyPath = resourcesAssembly.Location;
 
@@ -132,9 +122,9 @@ namespace System.Resources
         // Throws MissingManifestResourceException and WinRT HResults
         private void SetUapConfiguration()
         {
-            Debug.Assert(_useUapResourceManagement == false); // Only this function writes to this member
+            Debug.Assert(!_useUapResourceManagement); // Only this function writes to this member
             Debug.Assert(_WinRTResourceManager == null); // Only this function writes to this member
-            Debug.Assert(_PRIInitialized == false); // Only this function writes to this member
+            Debug.Assert(!_PRIInitialized); // Only this function writes to this member
             Debug.Assert(_PRIExceptionInfo == null); // Only this function writes to this member
 
 #if FEATURE_APPX
@@ -164,8 +154,7 @@ namespace System.Resources
             // an empty string. We may in fact fail earlier for another reason, but otherwise we will
             // throw a MissingManifestResourceException when GetString is called indicating that a
             // resW filename called "" could not be found.
-            if (reswFilename == null)
-                reswFilename = string.Empty;
+            reswFilename ??= string.Empty;
 
             // At this point it is important NOT to set _useUapResourceManagement to false
             // if the PRI file does not exist because we are now certain we need to load PRI

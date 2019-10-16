@@ -163,14 +163,14 @@ typedef LPSTR   LPUTF8;
 #endif
 
 
-#define IS_DIGIT(ch) ((ch >= W('0')) && (ch <= W('9')))
-#define DIGIT_TO_INT(ch) (ch - W('0'))
-#define INT_TO_DIGIT(i) ((WCHAR)(W('0') + i))
+#define IS_DIGIT(ch) (((ch) >= W('0')) && ((ch) <= W('9')))
+#define DIGIT_TO_INT(ch) ((ch) - W('0'))
+#define INT_TO_DIGIT(i) ((WCHAR)(W('0') + (i)))
 
-#define IS_HEXDIGIT(ch) (((ch >= W('a')) && (ch <= W('f'))) || \
-                         ((ch >= W('A')) && (ch <= W('F'))))
+#define IS_HEXDIGIT(ch) ((((ch) >= W('a')) && ((ch) <= W('f'))) || \
+                         (((ch) >= W('A')) && ((ch) <= W('F'))))
 #define HEXDIGIT_TO_INT(ch) ((towlower(ch) - W('a')) + 10)
-#define INT_TO_HEXDIGIT(i) ((WCHAR)(W('a') + (i - 10)))
+#define INT_TO_HEXDIGIT(i) ((WCHAR)(W('a') + ((i) - 10)))
 
 
 // Helper will 4 byte align a value, rounding up.
@@ -489,13 +489,6 @@ inline void *__cdecl operator new(size_t, void *_P)
 
 /********************************************************************************/
 /* portability helpers */
-#ifdef _WIN64
-#define IN_WIN64(x)     x
-#define IN_WIN32(x)
-#else
-#define IN_WIN64(x)
-#define IN_WIN32(x)     x
-#endif
 
 #ifdef _TARGET_64BIT_
 #define IN_TARGET_64BIT(x)     x
@@ -972,10 +965,10 @@ inline HRESULT BadError(HRESULT hr)
 }
 
 #define TESTANDRETURNPOINTER(pointer)           \
-    TESTANDRETURN(pointer!=NULL, E_POINTER)
+    TESTANDRETURN((pointer)!=NULL, E_POINTER)
 
 #define TESTANDRETURNMEMORY(pointer)            \
-    TESTANDRETURN(pointer!=NULL, E_OUTOFMEMORY)
+    TESTANDRETURN((pointer)!=NULL, E_OUTOFMEMORY)
 
 #define TESTANDRETURNHR(hr)                     \
     TESTANDRETURN(SUCCEEDED(hr), hr)
@@ -1306,6 +1299,7 @@ class NumaNodeInfo
 {
 private:
     static BOOL m_enableGCNumaAware;
+    static uint16_t m_nNodes;
     static BOOL InitNumaNodeInfoAPI();
 
 public:
@@ -1319,6 +1313,7 @@ public: 	// functions
                                      DWORD allocType, DWORD prot, DWORD node);
 #ifndef FEATURE_PAL
     static BOOL GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, PUSHORT node_no);
+    static bool GetNumaInfo(PUSHORT total_nodes, DWORD* max_procs_per_node);
 #else // !FEATURE_PAL
     static BOOL GetNumaProcessorNodeEx(USHORT proc_no, PUSHORT node_no);
 #endif // !FEATURE_PAL
@@ -1363,6 +1358,7 @@ public:
     static void GetGroupForProcessor(WORD processor_number, 
 		    WORD *group_number, WORD *group_processor_number);
     static DWORD CalculateCurrentProcessorNumber();
+    static bool GetCPUGroupInfo(PUSHORT total_groups, DWORD* max_procs_per_group);
     //static void PopulateCPUUsageArray(void * infoBuffer, ULONG infoSize);
 
 #if !defined(FEATURE_REDHAWK)
@@ -1370,7 +1366,7 @@ public:
     static BOOL GetLogicalProcessorInformationEx(LOGICAL_PROCESSOR_RELATIONSHIP relationship,
 		   SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *slpiex, PDWORD count); 
     static BOOL SetThreadGroupAffinity(HANDLE h,
-		    GROUP_AFFINITY *groupAffinity, GROUP_AFFINITY *previousGroupAffinity);
+		    const GROUP_AFFINITY *groupAffinity, GROUP_AFFINITY *previousGroupAffinity);
     static BOOL GetThreadGroupAffinity(HANDLE h, GROUP_AFFINITY *groupAffinity);
     static BOOL GetSystemTimes(FILETIME *idleTime, FILETIME *kernelTime, FILETIME *userTime);
     static void ChooseCPUGroupAffinity(GROUP_AFFINITY *gf);
@@ -4877,16 +4873,6 @@ BOOL NoGuiOnAssert();
 VOID TerminateOnAssert();
 #endif // _DEBUG
 
-class HighCharHelper {
-public:
-    static inline BOOL IsHighChar(int c) {
-        return (BOOL)HighCharTable[c];
-    }
-
-private:
-    static const BYTE HighCharTable[];
-};
-
 
 BOOL ThreadWillCreateGuardPage(SIZE_T sizeReservedStack, SIZE_T sizeCommitedStack);
 
@@ -5163,18 +5149,6 @@ void EnableTerminationOnHeapCorruption();
 
 namespace Clr { namespace Util
 {
-    // This api returns a pointer to a null-terminated string that contains the local appdata directory
-    // or it returns NULL in the case that the directory could not be found. The return value from this function
-    // is not actually checked for existence. 
-    HRESULT GetLocalAppDataDirectory(LPCWSTR *ppwzLocalAppDataDirectory);
-    HRESULT SetLocalAppDataDirectory(LPCWSTR pwzLocalAppDataDirectory);
-
-namespace Reg
-{
-    HRESULT ReadStringValue(HKEY hKey, LPCWSTR wszSubKey, LPCWSTR wszName, SString & ssValue);
-    __success(return == S_OK)
-    HRESULT ReadStringValue(HKEY hKey, LPCWSTR wszSubKey, LPCWSTR wszName, __deref_out __deref_out_z LPWSTR* pwszValue);
-}
 
 #ifdef FEATURE_COMINTEROP
 namespace Com
@@ -5182,29 +5156,6 @@ namespace Com
     HRESULT FindInprocServer32UsingCLSID(REFCLSID rclsid, SString & ssInprocServer32Name);
 }
 #endif // FEATURE_COMINTEROP
-
-namespace Win32
-{
-    static const WCHAR LONG_FILENAME_PREFIX_W[] = W("\\\\?\\");
-    static const CHAR LONG_FILENAME_PREFIX_A[] = "\\\\?\\";
-
-    void GetModuleFileName(
-        HMODULE hModule,
-        SString & ssFileName,
-        bool fAllowLongFileNames = false);
-
-    __success(return == S_OK)
-    HRESULT GetModuleFileName(
-        HMODULE hModule,
-        __deref_out_z LPWSTR * pwszFileName,
-        bool fAllowLongFileNames = false);
-
-    void GetFullPathName(
-        SString const & ssFileName,
-        SString & ssPathName,
-        DWORD * pdwFilePartIdx,
-        bool fAllowLongFileNames = false);
-}
 
 }}
 

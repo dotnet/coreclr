@@ -11,7 +11,7 @@ namespace System.Runtime.CompilerServices
 {
     public static partial class RuntimeHelpers
     {
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void InitializeArray(Array array, RuntimeFieldHandle fldHandle);
 
         // GetObjectValue is intended to allow value classes to be manipulated as 'Object'
@@ -27,7 +27,7 @@ namespace System.Runtime.CompilerServices
         // cloned when you pass them around, and are always passed by value.
         // Of course, reference types are not cloned.
         //
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         [return: NotNullIfNotNull("obj")]
         public static extern object? GetObjectValue(object? obj);
 
@@ -39,7 +39,7 @@ namespace System.Runtime.CompilerServices
         // This call will generate an exception if the specified class constructor threw an
         // exception when it ran.
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _RunClassConstructor(RuntimeType type);
 
         public static void RunClassConstructor(RuntimeTypeHandle type)
@@ -55,7 +55,7 @@ namespace System.Runtime.CompilerServices
         // This call will generate an exception if the specified module constructor threw an
         // exception when it ran.
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _RunModuleConstructor(System.Reflection.RuntimeModule module);
 
         public static void RunModuleConstructor(ModuleHandle module)
@@ -67,7 +67,7 @@ namespace System.Runtime.CompilerServices
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern void _CompileMethod(RuntimeMethodHandleInternal method);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern unsafe void _PrepareMethod(IRuntimeMethodInfo method, IntPtr* pInstantiation, int cInstantiation);
 
         public static void PrepareMethod(RuntimeMethodHandle method)
@@ -92,22 +92,21 @@ namespace System.Runtime.CompilerServices
             }
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void PrepareDelegate(Delegate d);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern int GetHashCode(object o);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public new static extern bool Equals(object? o1, object? o2);
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        public static extern new bool Equals(object? o1, object? o2);
 
         public static int OffsetToStringData
         {
             // This offset is baked in by string indexer intrinsic, so there is no harm
             // in getting it baked in here as well.
             [System.Runtime.Versioning.NonVersionable]
-            get
-            {
+            get =>
                 // Number of bytes from the address pointed to by a reference to
                 // a String to the first 16-bit character in the String.  Skip
                 // over the MethodTable pointer, & String
@@ -116,36 +115,29 @@ namespace System.Runtime.CompilerServices
                 // This property allows C#'s fixed statement to work on Strings.
                 // On 64 bit platforms, this should be 12 (8+4) and on 32 bit 8 (4+4).
 #if BIT64
-                return 12;
+                12;
 #else // 32
-                return 8;
+                8;
 #endif // BIT64
-            }
+
         }
 
         // This method ensures that there is sufficient stack to execute the average Framework function.
         // If there is not enough stack, then it throws System.InsufficientExecutionStackException.
         // Note: this method is not part of the CER support, and is not to be confused with ProbeForSufficientStack
         // below.
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void EnsureSufficientExecutionStack();
 
         // This method ensures that there is sufficient stack to execute the average Framework function.
         // If there is not enough stack, then it return false.
         // Note: this method is not part of the CER support, and is not to be confused with ProbeForSufficientStack
         // below.
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern bool TryEnsureSufficientExecutionStack();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void ExecuteCodeWithGuaranteedCleanup(TryCode code, CleanupCode backoutCode, object? userData);
-
-        internal static void ExecuteBackoutCodeHelper(object backoutCode, object? userData, bool exceptionThrown)
-        {
-            ((CleanupCode)backoutCode)(userData, exceptionThrown);
-        }
-
         /// <returns>true if given type is reference type or value type that contains references</returns>
+        [Intrinsic]
         public static bool IsReferenceOrContainsReferences<T>()
         {
             // The body of this function will be replaced by the EE with unsafe code!!!
@@ -157,11 +149,27 @@ namespace System.Runtime.CompilerServices
         /// <remarks>
         /// Only use the result of this for Equals() comparison, not for CompareTo() comparison.
         /// </remarks>
+        [Intrinsic]
         internal static bool IsBitwiseEquatable<T>()
         {
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementationForRuntimeHelpers for how this happens.
             throw new InvalidOperationException();
+        }
+
+        internal static ref byte GetRawData(this object obj) =>
+            ref Unsafe.As<RawData>(obj).Data;
+
+        [Intrinsic]
+        internal static ref byte GetRawSzArrayData(this Array array) =>
+            ref Unsafe.As<RawArrayData>(array).Data;
+
+        internal static unsafe ushort GetElementSize(this Array array)
+        {
+            Debug.Assert(ObjectHasComponentSize(array));
+
+            // The first UINT16 of the method table is component size.
+            return *(ushort*)GetObjectMethodTablePointer(array);
         }
 
         // Returns true iff the object has a component size;
@@ -204,8 +212,7 @@ namespace System.Runtime.CompilerServices
             // mov tmp, qword ptr [rax] ; rax = obj ref, tmp = MethodTable* pointer
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern object GetUninitializedObjectInternal(Type type);
-
     }
 }

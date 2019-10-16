@@ -256,8 +256,6 @@ public:
 
     static HRESULT Setup();
 
-    void *operator new(size_t size);
-
     HRESULT Init();
     HRESULT Cleanup();
 
@@ -278,7 +276,6 @@ public:
     unsigned int  GenOptimizeType(void)                     const {LIMITED_METHOD_CONTRACT;  return iJitOptimizeType; }
     bool          JitFramed(void)                           const {LIMITED_METHOD_CONTRACT;  return fJitFramed; }
     bool          JitAlignLoops(void)                       const {LIMITED_METHOD_CONTRACT;  return fJitAlignLoops; }
-    bool          AddRejitNops(void)                        const {LIMITED_METHOD_DAC_CONTRACT;  return fAddRejitNops; }
     bool          JitMinOpts(void)                          const {LIMITED_METHOD_CONTRACT;  return fJitMinOpts; }
     
     // Tiered Compilation config
@@ -462,7 +459,7 @@ public:
 
     bool IsJitVerificationDisabled(void)    const {LIMITED_METHOD_CONTRACT;  return fJitVerificationDisable; }
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     bool SuppressLockViolationsOnReentryFromOS() const {LIMITED_METHOD_CONTRACT;  return fSuppressLockViolationsOnReentryFromOS; }
 #endif
 
@@ -615,6 +612,8 @@ public:
     int     GetGCHeapCount()                const {LIMITED_METHOD_CONTRACT; return iGCHeapCount;}
     int     GetGCNoAffinitize ()            const {LIMITED_METHOD_CONTRACT; return iGCNoAffinitize;}
     size_t  GetGCAffinityMask()             const {LIMITED_METHOD_CONTRACT; return iGCAffinityMask;}
+    size_t  GetGCHeapHardLimit()            const {LIMITED_METHOD_CONTRACT; return iGCHeapHardLimit;}
+    int     GetGCHeapHardLimitPercent()     const {LIMITED_METHOD_CONTRACT; return iGCHeapHardLimitPercent;}
 
 #ifdef GCTRIMCOMMIT
 
@@ -625,7 +624,7 @@ public:
 #ifdef FEATURE_CONSERVATIVE_GC
     bool    GetGCConservative()             const {LIMITED_METHOD_CONTRACT; return iGCConservative;}
 #endif
-#ifdef _WIN64
+#ifdef BIT64
     bool    GetGCAllowVeryLargeObjects()    const {LIMITED_METHOD_CONTRACT; return iGCAllowVeryLargeObjects;}
 #endif
 #ifdef _DEBUG
@@ -668,7 +667,6 @@ public:
         REQUIRE_ZAPS_NONE,      // Dont care if native image is used or not
         REQUIRE_ZAPS_ALL,       // All assemblies must have native images
         REQUIRE_ZAPS_ALL_JIT_OK,// All assemblies must have native images, but its OK if the JIT-compiler also gets used (if some function was not ngenned)
-        REQUIRE_ZAPS_SUPPORTED, // All assemblies must have native images, unless the loader does not support the scenario. Its OK if the JIT-compiler also gets used
         
         REQUIRE_ZAPS_COUNT
     };
@@ -788,7 +786,6 @@ private: //----------------------------------------------------------------
     bool fTrackDynamicMethodDebugInfo; //  Enable/Disable tracking dynamic method debug info
     bool fJitFramed;                   // Enable/Disable EBP based frames
     bool fJitAlignLoops;               // Enable/Disable loop alignment
-    bool fAddRejitNops;                // Enable/Disable nop padding for rejit.          default is true
     bool fJitMinOpts;                  // Enable MinOpts for all jitted methods
 
     unsigned iJitOptimizeType; // 0=Blended,1=SmallCode,2=FastCode,              default is 0=Blended
@@ -872,7 +869,7 @@ private: //----------------------------------------------------------------
     // Verifier
     bool fVerifierOff;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     bool fSuppressLockViolationsOnReentryFromOS;
 #endif
 
@@ -920,6 +917,8 @@ private: //----------------------------------------------------------------
     int  iGCHeapCount;
     int  iGCNoAffinitize;
     size_t  iGCAffinityMask;
+    size_t iGCHeapHardLimit;
+    int iGCHeapHardLimitPercent;
 
 #ifdef GCTRIMCOMMIT
 
@@ -930,9 +929,9 @@ private: //----------------------------------------------------------------
 #ifdef FEATURE_CONSERVATIVE_GC
     bool iGCConservative;
 #endif // FEATURE_CONSERVATIVE_GC
-#ifdef _WIN64
+#ifdef BIT64
     bool iGCAllowVeryLargeObjects;
-#endif // _WIN64
+#endif // BIT64
 
     bool fGCBreakOnOOM;
 

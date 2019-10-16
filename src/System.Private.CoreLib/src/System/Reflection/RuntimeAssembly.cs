@@ -21,7 +21,9 @@ namespace System.Reflection
         internal RuntimeAssembly() { throw new NotSupportedException(); }
 
         #region private data members
-        private event ModuleResolveEventHandler _ModuleResolve;
+#pragma warning disable 67 // events are declared but not used
+        private event ModuleResolveEventHandler? _ModuleResolve;
+#pragma warning restore 67
         private string? m_fullname;
         private object? m_syncRoot;   // Used to keep collectible types alive and as the syncroot for reflection.emit
 #pragma warning disable 169
@@ -50,11 +52,11 @@ namespace System.Reflection
                 {
                     Interlocked.CompareExchange<object?>(ref m_syncRoot, new object(), null);
                 }
-                return m_syncRoot!; // TODO-NULLABLE: Remove ! when compiler specially-recognizes CompareExchange for nullability
+                return m_syncRoot;
             }
         }
 
-        public override event ModuleResolveEventHandler ModuleResolve
+        public override event ModuleResolveEventHandler? ModuleResolve
         {
             add
             {
@@ -65,8 +67,6 @@ namespace System.Reflection
                 _ModuleResolve -= value;
             }
         }
-
-        private const string s_localFilePrefix = "file:";
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void GetCodeBase(QCallAssembly assembly,
@@ -248,9 +248,9 @@ namespace System.Reflection
             return GetManifestResourceStream(resourceName);
         }
 
-        public unsafe override Stream? GetManifestResourceStream(string name)
+        public override unsafe Stream? GetManifestResourceStream(string name)
         {
-            uint length = 0;
+            uint length;
             RuntimeAssembly runtimeAssembly = this;
             byte* pbInMemoryResource = GetResource(JitHelpers.GetQCallAssemblyOnStack(ref runtimeAssembly), name, out length);
 
@@ -268,15 +268,10 @@ namespace System.Reflection
             throw new PlatformNotSupportedException();
         }
 
-        public override Module ManifestModule
-        {
-            get
-            {
-                // We don't need to return the "external" ModuleBuilder because
-                // it is meant to be read-only
-                return RuntimeAssembly.GetManifestModule(GetNativeHandle());
-            }
-        }
+        public override Module ManifestModule =>
+            // We don't need to return the "external" ModuleBuilder because
+            // it is meant to be read-only
+            RuntimeAssembly.GetManifestModule(GetNativeHandle());
 
         public override object[] GetCustomAttributes(bool inherit)
         {
@@ -345,7 +340,7 @@ namespace System.Reflection
             return nLoad(assemblyRef, codeBase, null, ref stackMark, true, assemblyLoadContext);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern RuntimeAssembly nLoad(AssemblyName fileName,
                                                     string? codeBase,
                                                     RuntimeAssembly? assemblyContext,
@@ -353,13 +348,7 @@ namespace System.Reflection
                                                     bool throwOnFileNotFound,
                                                     AssemblyLoadContext? assemblyLoadContext = null);
 
-        public override bool ReflectionOnly
-        {
-            get
-            {
-                return false;
-            }
-        }
+        public override bool ReflectionOnly => false;
 
         // Returns the module in this assembly with name 'name'
 
@@ -403,7 +392,7 @@ namespace System.Reflection
         }
 
         // Returns the names of all the resources
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern string[] GetManifestResourceNames(RuntimeAssembly assembly);
 
         // Returns the names of all the resources
@@ -413,7 +402,7 @@ namespace System.Reflection
         }
 
         // Returns the names of all the resources
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern AssemblyName[] GetReferencedAssemblies(RuntimeAssembly assembly);
 
         public override AssemblyName[] GetReferencedAssemblies()
@@ -473,21 +462,9 @@ namespace System.Reflection
             }
         }
 
-        public override bool GlobalAssemblyCache
-        {
-            get
-            {
-                return false;
-            }
-        }
+        public override bool GlobalAssemblyCache => false;
 
-        public override long HostContext
-        {
-            get
-            {
-                return 0;
-            }
-        }
+        public override long HostContext => 0;
 
         private static string? VerifyCodeBase(string? codebase)
         {
@@ -545,19 +522,13 @@ namespace System.Reflection
             if (locale == null)
                 return CultureInfo.InvariantCulture;
 
-            return new CultureInfo(locale);
+            return CultureInfo.GetCultureInfo(locale);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool FCallIsDynamic(RuntimeAssembly assembly);
 
-        public override bool IsDynamic
-        {
-            get
-            {
-                return FCallIsDynamic(GetNativeHandle());
-            }
-        }
+        public override bool IsDynamic => FCallIsDynamic(GetNativeHandle());
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void GetSimpleName(QCallAssembly assembly, StringHandleOnStack retSimpleName);
@@ -599,23 +570,6 @@ namespace System.Reflection
             return publicKey;
         }
 
-        // This method is called by the VM.
-        private RuntimeModule? OnModuleResolveEvent(string moduleName)
-        {
-            ModuleResolveEventHandler moduleResolve = _ModuleResolve;
-            if (moduleResolve == null)
-                return null;
-
-            foreach (ModuleResolveEventHandler handler in moduleResolve.GetInvocationList())
-            {
-                RuntimeModule ret = (RuntimeModule)handler(this, new ResolveEventArgs(moduleName, this));
-                if (ret != null)
-                    return ret;
-            }
-
-            return null;
-        }
-
         public override Assembly GetSatelliteAssembly(CultureInfo culture)
         {
             return GetSatelliteAssembly(culture, null);
@@ -635,16 +589,10 @@ namespace System.Reflection
                                                        Version? version,
                                                        bool throwOnFileNotFound)
         {
-            AssemblyName an = new AssemblyName();
-
+            var an = new AssemblyName();
             an.SetPublicKey(GetPublicKey());
             an.Flags = GetFlags() | AssemblyNameFlags.PublicKey;
-
-            if (version == null)
-                an.Version = GetVersion();
-            else
-                an.Version = version;
-
+            an.Version = version ?? GetVersion();
             an.CultureInfo = culture;
             an.Name = GetSimpleName() + ".resources";
 
@@ -692,10 +640,10 @@ namespace System.Reflection
             return GetModulesInternal(false, getResourceModules);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern RuntimeModule GetManifestModule(RuntimeAssembly assembly);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int GetToken(RuntimeAssembly assembly);
 
         public sealed override Type[] GetForwardedTypes()

@@ -8,8 +8,6 @@
 **
 ===========================================================*/
 
-//This class contains only static members and doesn't require serialization.
-
 using System.Runtime.CompilerServices;
 
 namespace System
@@ -94,7 +92,7 @@ namespace System
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern float FMod(float x, float y);
-        
+
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern unsafe float ModF(float x, float* intptr);
     }

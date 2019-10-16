@@ -426,7 +426,7 @@ private:
         DebuggerJitInfo        *dji; // used for Slave and native patches, though only when tracking JIT Info
     };
 
-#ifndef _TARGET_ARM_
+#ifndef FEATURE_EMULATE_SINGLESTEP
     // this is shared among all the skippers for this controller. see the comments
     // right before the definition of SharedPatchBypassBuffer for lifetime info.
     SharedPatchBypassBuffer* m_pSharedPatchBypassBuffer;
@@ -530,7 +530,7 @@ public:
     // Is this patch at a position at which it's safe to take a stack?
     bool IsSafeForStackTrace();
 
-#ifndef _TARGET_ARM_
+#ifndef FEATURE_EMULATE_SINGLESTEP
     // gets a pointer to the shared buffer
     SharedPatchBypassBuffer* GetOrCreateSharedPatchBypassBuffer();
 
@@ -961,7 +961,7 @@ inline bool IsInUsedAction(DPOSS_ACTION action)
 inline void VerifyExecutableAddress(const BYTE* address)
 {
 // TODO: : when can we apply this to x86?
-#if defined(_WIN64)   
+#if defined(BIT64)   
 #if defined(_DEBUG) 
 #ifndef FEATURE_PAL    
     MEMORY_BASIC_INFORMATION mbi;
@@ -983,7 +983,7 @@ inline void VerifyExecutableAddress(const BYTE* address)
     }
 #endif // !FEATURE_PAL    
 #endif // _DEBUG   
-#endif // _WIN64
+#endif // BIT64
 }
 
 #endif // !DACCESS_COMPILE
@@ -1456,7 +1456,7 @@ class DebuggerPatchSkip : public DebuggerController
     CORDB_ADDRESS_TYPE      *m_address;
     int                      m_iOrigDisp;        // the original displacement of a relative call or jump
     InstructionAttribute     m_instrAttrib;      // info about the instruction being skipped over
-#ifndef _TARGET_ARM_
+#ifndef FEATURE_EMULATE_SINGLESTEP
     // this is shared among all the skippers and the controller. see the comments
     // right before the definition of SharedPatchBypassBuffer for lifetime info.
     SharedPatchBypassBuffer *m_pSharedPatchBypassBuffer;
@@ -1562,7 +1562,8 @@ protected:
     virtual bool TrapStepInHelper(ControllerStackInfo * pInfo,
                                   const BYTE * ipCallTarget,
                                   const BYTE * ipNext,
-                                  bool fCallingIntoFunclet);
+                                  bool fCallingIntoFunclet,
+                                  bool fIsJump);
     virtual bool IsInterestingFrame(FrameInfo * pFrame);
     virtual bool DetectHandleNonUserCode(ControllerStackInfo *info, DebuggerMethodInfo * pInfo);
     
@@ -1673,11 +1674,11 @@ protected:
     // This is the only frame that the ranges are valid in.    
     FramePointer            m_fp;
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
     // This frame pointer is used for funclet stepping.
     // See IsRangeAppropriate() for more information.
     FramePointer            m_fpParentMethod;
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
     
     //m_fpException is 0 if we haven't stepped into an exception, 
     //  and is ignored.  If we get a TriggerUnwind while mid-step, we note
@@ -1736,7 +1737,8 @@ protected:
     virtual bool TrapStepInHelper(ControllerStackInfo * pInfo,
                                   const BYTE * ipCallTarget,
                                   const BYTE * ipNext,
-                                  bool fCallingIntoFunclet);
+                                  bool fCallingIntoFunclet,
+                                  bool fIsJump);
     virtual bool IsInterestingFrame(FrameInfo * pFrame);
     virtual void TriggerMethodEnter(Thread * thread, DebuggerJitInfo * dji, const BYTE * ip, FramePointer fp);
     virtual bool DetectHandleNonUserCode(ControllerStackInfo *info, DebuggerMethodInfo * pInfo);

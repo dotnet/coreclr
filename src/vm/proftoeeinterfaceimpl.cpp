@@ -7343,7 +7343,7 @@ typedef struct _PROFILER_STACK_WALK_DATA
     ULONG32 contextFlags;
     void *clientData;
     
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     StackFrame sfParent;
 #endif
 } PROFILER_STACK_WALK_DATA;
@@ -7747,7 +7747,7 @@ Loop:
                 CodeManState codeManState;
                 codeManState.dwIsSet = 0;
                 REGDISPLAY rd;
-                ZeroMemory(&rd, sizeof(rd));
+                FillRegDisplay(&rd, &ctxCur);
 
                 rd.SetEbpLocation(&ctxCur.Ebp);
                 rd.SP = ctxCur.Esp;
@@ -8268,7 +8268,7 @@ HRESULT ProfToEEInterfaceImpl::DoStackSnapshot(ThreadID thread,
     data.infoFlags = infoFlags;
     data.contextFlags = 0;
     data.clientData = clientData;
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     data.sfParent.Clear();
 #endif
 

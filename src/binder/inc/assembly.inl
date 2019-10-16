@@ -83,23 +83,6 @@ void Assembly::SetAssemblyName(AssemblyName *pAssemblyName,
     }
 }
 
-BOOL Assembly::GetInspectionOnly()
-{
-    return ((m_dwAssemblyFlags & FLAG_INSPECTION_ONLY) != 0);
-}
-
-void Assembly::SetInspectionOnly(BOOL fInspectionOnly)
-{
-    if (fInspectionOnly)
-    {
-        m_dwAssemblyFlags |= FLAG_INSPECTION_ONLY;
-    }
-    else
-    {
-        m_dwAssemblyFlags &= ~FLAG_INSPECTION_ONLY;
-    }
-}
-
 BOOL Assembly::GetIsInGAC()
 {
     return ((m_dwAssemblyFlags & FLAG_IS_IN_GAC) != 0);
@@ -184,21 +167,6 @@ void Assembly::SetMDImport(IMDInternalImport *pMDImport)
 
     m_pMDImport = pMDImport;
     m_pMDImport->AddRef();
-}
-
-mdAssembly *Assembly::GetAssemblyRefTokens()
-{
-    return m_pAssemblyRefTokens;
-}
-
-DWORD Assembly::GetNbAssemblyRefTokens()
-{
-    return m_dwCAssemblyRefTokens;
-}
-
-void Assembly::SetNbAsssemblyRefTokens(DWORD dwCAssemblyRefTokens)
-{
-    m_dwCAssemblyRefTokens = dwCAssemblyRefTokens;
 }
 
 BINDER_SPACE::Assembly* GetAssemblyFromPrivAssemblyFast(ICLRPrivAssembly *pPrivAssembly)

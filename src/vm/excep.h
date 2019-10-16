@@ -22,7 +22,14 @@ class Thread;
 #include <excepcpu.h>
 #include "interoputil.h"
 
+#if defined(_TARGET_ARM_) || defined(_TARGET_X86_)
+#define VSD_STUB_CAN_THROW_AV
+#endif // _TARGET_ARM_ || _TARGET_X86_
+
 BOOL IsExceptionFromManagedCode(const EXCEPTION_RECORD * pExceptionRecord);
+#ifdef VSD_STUB_CAN_THROW_AV
+BOOL IsIPinVirtualStub(PCODE f_IP);
+#endif // VSD_STUB_CAN_THROW_AV
 bool IsIPInMarkedJitHelper(UINT_PTR uControlPc);
 
 #if defined(FEATURE_HIJACK) && (!defined(_TARGET_X86_) || defined(FEATURE_PAL))
@@ -125,7 +132,7 @@ void TerminateExceptionHandling();
 
 // Prototypes
 EXTERN_C VOID STDCALL ResetCurrentContext();
-#if !defined(WIN64EXCEPTIONS)
+#if !defined(FEATURE_EH_FUNCLETS)
 #ifdef _DEBUG
 void CheckStackBarrier(EXCEPTION_REGISTRATION_RECORD *exRecord);
 #endif
@@ -133,7 +140,7 @@ EXCEPTION_REGISTRATION_RECORD *FindNestedEstablisherFrame(EXCEPTION_REGISTRATION
 LFH LookForHandler(const EXCEPTION_POINTERS *pExceptionPointers, Thread *pThread, ThrowCallbackType *tct);
 StackWalkAction COMPlusThrowCallback (CrawlFrame *pCf, ThrowCallbackType *pData);
 void UnwindFrames(Thread *pThread, ThrowCallbackType *tct);
-#endif // !defined(WIN64EXCEPTIONS)
+#endif // !defined(FEATURE_EH_FUNCLETS)
 
 void UnwindFrameChain(Thread *pThread, LPVOID pvLimitSP);
 DWORD MapWin32FaultToCOMPlusException(EXCEPTION_RECORD *pExceptionRecord);
@@ -228,8 +235,6 @@ LONG ThreadBaseExceptionAppDomainFilter(PEXCEPTION_POINTERS pExceptionInfo, PVOI
 struct CallOutFilterParam { BOOL OneShot; };
 LONG CallOutFilter(PEXCEPTION_POINTERS pExceptionInfo, PVOID pv);
 
-
-void DECLSPEC_NORETURN RaiseDeadLockException();
 
 void STDMETHODCALLTYPE DefaultCatchHandler(PEXCEPTION_POINTERS pExceptionInfo,
                                            OBJECTREF *Throwable = NULL,
@@ -410,7 +415,7 @@ VOID DECLSPEC_NORETURN RealCOMPlusThrowInvalidCastException(TypeHandle thCastFro
 VOID DECLSPEC_NORETURN RealCOMPlusThrowInvalidCastException(OBJECTREF *pObj, TypeHandle thCastTo);
 
 
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
 
 #include "eexcp.h"
 #include "exinfo.h"
@@ -449,7 +454,7 @@ struct NestedHandlerExRecord : public FrameHandlerExRecord
     }
 };
 
-#endif // !WIN64EXCEPTIONS
+#endif // !FEATURE_EH_FUNCLETS
 
 #if defined(ENABLE_CONTRACTS_IMPL)
 
@@ -523,7 +528,7 @@ BOOL        IsThreadHijackedForThreadStop(Thread* pThread, EXCEPTION_RECORD* pEx
 void        AdjustContextForThreadStop(Thread* pThread, T_CONTEXT* pContext);
 OBJECTREF   CreateCOMPlusExceptionObject(Thread* pThread, EXCEPTION_RECORD* pExceptionRecord, BOOL bAsynchronousThreadStop);
 
-#if !defined(WIN64EXCEPTIONS)
+#if !defined(FEATURE_EH_FUNCLETS)
 EXCEPTION_HANDLER_DECL(COMPlusFrameHandler);
 EXCEPTION_HANDLER_DECL(COMPlusNestedExceptionHandler);
 #ifdef FEATURE_COMINTEROP
@@ -560,7 +565,7 @@ struct FrameHandlerExRecordWithBarrier {
 void VerifyValidTransitionFromManagedCode(Thread *pThread, CrawlFrame *pCF);
 #endif // defined(_TARGET_X86_)
 #endif // _DEBUG
-#endif // !defined(WIN64EXCEPTIONS)
+#endif // !defined(FEATURE_EH_FUNCLETS)
 
 //==========================================================================
 // This is a workaround designed to allow the use of the StubLinker object at bootup
@@ -594,7 +599,6 @@ VOID DECLSPEC_NORETURN ThrowFieldLayoutError(mdTypeDef cl,                // cl 
 UINT GetResourceIDForFileLoadExceptionHR(HRESULT hr);
 
 FCDECL1(Object*, MissingMemberException_FormatSignature, I1Array* pPersistedSigUNSAFE);
-FCDECL1(Object*, GetResourceFromDefault, StringObject* key);
 
 #define EXCEPTION_NONCONTINUABLE 0x1    // Noncontinuable exception
 #define EXCEPTION_UNWINDING 0x2         // Unwind is in progress
@@ -794,7 +798,7 @@ void SaveCurrentExceptionInfo(PEXCEPTION_RECORD pRecord, PT_CONTEXT pContext);
 void SetReversePInvokeEscapingUnhandledExceptionStatus(BOOL fIsUnwinding,
 #ifdef _TARGET_X86_
                                                        EXCEPTION_REGISTRATION_RECORD * pEstablisherFrame
-#elif defined(WIN64EXCEPTIONS)
+#elif defined(FEATURE_EH_FUNCLETS)
                                                        ULONG64 pEstablisherFrame
 #else
 #error Unsupported platform
@@ -840,11 +844,11 @@ public:
     BOOL static ShouldTreatActiveExceptionAsNonCorrupting();
     void static MarkLastActiveExceptionCorruptionSeverityForReraiseReuse();
     void static SetupCorruptionSeverityForActiveException(BOOL fIsRethrownException, BOOL fIsNestedException, BOOL fShouldTreatExceptionAsNonCorrupting = FALSE);
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     typedef DPTR(class ExceptionTracker) PTR_ExceptionTracker;
     void static SetupCorruptionSeverityForActiveExceptionInUnwindPass(Thread *pCurThread, PTR_ExceptionTracker pEHTracker, BOOL fIsFirstPass, 
                                                                      DWORD dwExceptionCode);
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
     void static ResetLastActiveCorruptionSeverityPostCatchHandler(Thread *pThread);
 };
 
@@ -863,9 +867,6 @@ enum ExceptionNotificationHandlerType
     ,
     FirstChanceExceptionHandler = 0x2
 };
-
-// Defined in Frames.h
-// class ContextTransitionFrame;
 
 // This class contains methods to support delivering the various exception notifications.
 class ExceptionNotifications
@@ -910,7 +911,7 @@ public:
 
 #ifndef DACCESS_COMPILE
 
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
 void ResetThreadAbortState(PTR_Thread pThread, void *pEstablisherFrame);
 #else
 void ResetThreadAbortState(PTR_Thread pThread, CrawlFrame *pCf, StackFrame sfCurrentStackFrame);

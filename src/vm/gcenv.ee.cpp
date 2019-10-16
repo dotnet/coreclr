@@ -142,9 +142,9 @@ static void ScanStackRoots(Thread * pThread, promote_func* fn, ScanContext* sc)
 #endif
     {
         unsigned flagsStackWalk = ALLOW_ASYNC_STACK_WALK | ALLOW_INVALID_OBJECTS;
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
         flagsStackWalk |= GC_FUNCLET_REFERENCE_REPORTING;
-#endif // defined(WIN64EXCEPTIONS)
+#endif // defined(FEATURE_EH_FUNCLETS)
         pThread->StackWalkFrames( GcStackCrawlCallBack, &gcctx, flagsStackWalk);
     }
 }
@@ -802,10 +802,10 @@ void GCToEEInterface::DiagWalkBGCSurvivors(void* gcContext)
 
 void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
 {
+    assert(args != nullptr);
     int stompWBCompleteActions = SWB_PASS;
     bool is_runtime_suspended = args->is_runtime_suspended;
 
-    assert(args != nullptr);
     switch (args->operation)
     {
     case WriteBarrierOp::StompResize:
@@ -1097,6 +1097,18 @@ bool GCToEEInterface::GetIntConfigValue(const char* key, int64_t* value)
         return true;
     }
 
+    if (strcmp(key, "GCHeapHardLimit") == 0)
+    {
+        *value = g_pConfig->GetGCHeapHardLimit();
+        return true;
+    }
+
+    if (strcmp(key, "GCHeapHardLimitPercent") == 0)
+    {
+        *value = g_pConfig->GetGCHeapHardLimitPercent();
+        return true;
+    }
+
     if (strcmp(key, "GCLOHThreshold") == 0)
     {
         *value = g_pConfig->GetGCLOHThreshold();
@@ -1123,7 +1135,7 @@ bool GCToEEInterface::GetIntConfigValue(const char* key, int64_t* value)
             return false;
         }
 
-        wchar_t *end;
+        WCHAR *end;
         uint64_t result;
         errno = 0;
         result = _wcstoui64(out, &end, 16);
@@ -1237,7 +1249,7 @@ namespace
     bool CreateSuspendableThread(
         void (*threadStart)(void*),
         void* argument,
-        const wchar_t* name)
+        const WCHAR* name)
     {
         LIMITED_METHOD_CONTRACT;
 
@@ -1320,7 +1332,7 @@ namespace
     bool CreateNonSuspendableThread(
         void (*threadStart)(void*),
         void* argument,
-        const wchar_t* name)
+        const WCHAR* name)
     {
         LIMITED_METHOD_CONTRACT;
 

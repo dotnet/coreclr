@@ -33,10 +33,10 @@
 
 #include "configuration.h"
 
-#ifdef _WIN64
+#ifdef BIT64
 #define CHECK_DUPLICATED_STRUCT_LAYOUTS
 #include "../debug/daccess/fntableaccess.h"
-#endif // _WIN64
+#endif // BIT64
 
 #ifdef FEATURE_PERFMAP
 #include "perfmap.h"
@@ -989,7 +989,7 @@ void IJitManager::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 
 #endif // #ifdef DACCESS_COMPILE
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
 
 PTR_VOID GetUnwindDataBlob(TADDR moduleBase, PTR_RUNTIME_FUNCTION pRuntimeFunction, /* out */ SIZE_T * pSize)
 {
@@ -1179,7 +1179,7 @@ BOOL IJitManager::IsFilterFunclet(EECodeInfo * pCodeInfo)
     return false;
 }
 
-#else // WIN64EXCEPTIONS
+#else // FEATURE_EH_FUNCLETS
 
 PTR_VOID GetUnwindDataBlob(TADDR moduleBase, PTR_RUNTIME_FUNCTION pRuntimeFunction, /* out */ SIZE_T * pSize)
 {
@@ -1187,7 +1187,7 @@ PTR_VOID GetUnwindDataBlob(TADDR moduleBase, PTR_RUNTIME_FUNCTION pRuntimeFuncti
     return dac_cast<PTR_VOID>(pRuntimeFunction->UnwindData + moduleBase);
 }
 
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 
 #ifndef CROSSGEN_COMPILE
@@ -1485,9 +1485,9 @@ void EEJitManager::SetCpuInfo()
     }
 #if defined(FEATURE_PAL)
     PAL_GetJitCpuCapabilityFlags(&CPUCompileFlags);
-#elif defined(_WIN64)
+#elif defined(BIT64)
     // FP and SIMD support are enabled by default
-    CPUCompileFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_HAS_ARM64_SIMD);
+    CPUCompileFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_HAS_ARM64_ADVSIMD);
     CPUCompileFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_HAS_ARM64_FP);
     // PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE (30)
     if (IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE))
@@ -1501,7 +1501,7 @@ void EEJitManager::SetCpuInfo()
     {
         CPUCompileFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_HAS_ARM64_CRC32);
     }
-#endif // _WIN64
+#endif // BIT64
 #endif // _TARGET_ARM64_
 
     m_CPUCompileFlags = CPUCompileFlags;
@@ -2275,9 +2275,9 @@ void CodeHeapRequestInfo::Init()
     m_throwOnOutOfMemoryWithinRange = true;
 }
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
 
-#ifdef _WIN64
+#ifdef BIT64
 extern "C" PT_RUNTIME_FUNCTION GetRuntimeFunctionCallback(IN ULONG64   ControlPc,
                                                         IN PVOID     Context)
 #else
@@ -2317,7 +2317,7 @@ extern "C" PT_RUNTIME_FUNCTION GetRuntimeFunctionCallback(IN ULONG     ControlPc
 
     return  prf;
 }
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 HeapList* EEJitManager::NewCodeHeap(CodeHeapRequestInfo *pInfo, DomainCodeHeapList *pADHeapList)
 {
@@ -2331,7 +2331,7 @@ HeapList* EEJitManager::NewCodeHeap(CodeHeapRequestInfo *pInfo, DomainCodeHeapLi
     size_t initialRequestSize = pInfo->getRequestSize();
     size_t minReserveSize = VIRTUAL_ALLOC_RESERVE_GRANULARITY; //     ( 64 KB)
 
-#ifdef _WIN64
+#ifdef BIT64
     if (pInfo->m_hiAddr == 0)
     {
         if (pADHeapList->m_CodeHeapList.Count() > CODE_HEAP_SIZE_INCREASE_THRESHOLD)
@@ -2539,7 +2539,7 @@ void* EEJitManager::allocCodeRaw(CodeHeapRequestInfo *pInfo,
 }
 
 CodeHeader* EEJitManager::allocCode(MethodDesc* pMD, size_t blockSize, size_t reserveForJumpStubs, CorJitAllocMemFlag flag
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
                                     , UINT nUnwindInfos
                                     , TADDR * pModuleBase
 #endif
@@ -2565,13 +2565,7 @@ CodeHeader* EEJitManager::allocCode(MethodDesc* pMD, size_t blockSize, size_t re
 #if defined(_TARGET_X86_)
     // when not optimizing for code size, 8-byte align the method entry point, so that
     // the JIT can in turn 8-byte align the loop entry headers.
-    // 
-    // when ReJIT is enabled, 8-byte-align the method entry point so that we may use an
-    // 8-byte interlocked operation to atomically poke the top most bytes (e.g., to
-    // redirect the rejit jmp-stamp at the top of the method from the prestub to the
-    // rejitted code, or to reinstate original code on a revert).
-    else if ((g_pConfig->GenOptimizeType() != OPT_SIZE) ||
-        pMD->IsVersionableWithJumpStamp())
+    else if ((g_pConfig->GenOptimizeType() != OPT_SIZE))
     {
         alignment = max(alignment, 8);
     }
@@ -2651,7 +2645,7 @@ CodeHeader* EEJitManager::allocCode(MethodDesc* pMD, size_t blockSize, size_t re
         pCodeHdr->SetEHInfo(NULL);
         pCodeHdr->SetGCInfo(NULL);
         pCodeHdr->SetMethodDesc(pMD);
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
         pCodeHdr->SetNumberOfUnwindInfos(nUnwindInfos);
         *pModuleBase = (TADDR)pCodeHeap;
 #endif
@@ -3694,7 +3688,7 @@ BOOL EEJitManager::JitCodeToMethodInfo(
         // take into account cold code.
         pCodeInfo->m_relOffset = (DWORD)(PCODEToPINSTR(currentPC) - pCHdr->GetCodeStartAddress());
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
         // Computed lazily by code:EEJitManager::LazyGetFunctionEntry
         pCodeInfo->m_pFunctionEntry = NULL;
 #endif
@@ -3862,7 +3856,7 @@ void EEJitManager::NibbleMapSet(HeapList * pHp, TADDR pCode, BOOL bSet)
 }
 #endif // !DACCESS_COMPILE
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
 // Note: This returns the root unwind record (the one that describes the prolog)
 // in cases where there is fragmented unwind.
 PTR_RUNTIME_FUNCTION EEJitManager::LazyGetFunctionEntry(EECodeInfo * pCodeInfo)
@@ -4076,7 +4070,7 @@ Exit:
 
     END_PRESERVE_LAST_ERROR;
 }
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 #ifdef DACCESS_COMPILE
 
@@ -4204,6 +4198,21 @@ PCODE ExecutionManager::GetCodeStartAddress(PCODE currentPC)
     if (!codeInfo.IsValid())
         return NULL;
     return PINSTRToPCODE(codeInfo.GetStartAddress());
+}
+
+//**************************************************************************
+NativeCodeVersion ExecutionManager::GetNativeCodeVersion(PCODE currentPC)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        FORBID_FAULT;
+    }
+    CONTRACTL_END;
+
+    EECodeInfo codeInfo(currentPC);
+    return codeInfo.IsValid() ? codeInfo.GetNativeCodeVersion() : NativeCodeVersion();
 }
 
 //**************************************************************************
@@ -4409,7 +4418,7 @@ LPCWSTR ExecutionManager::GetJitName()
 #if !defined(CROSSGEN_COMPILE)
     if (g_CLRJITPath != nullptr)
     {
-        const wchar_t* p = wcsrchr(g_CLRJITPath, DIRECTORY_SEPARATOR_CHAR_W);
+        const WCHAR* p = wcsrchr(g_CLRJITPath, DIRECTORY_SEPARATOR_CHAR_W);
         if (p != nullptr)
         {
             pwzJitName = p + 1; // Return just the filename, not the directory name
@@ -5273,7 +5282,7 @@ static void GetFuncletStartOffsetsHelper(PCODE pCodeStart, SIZE_T size, SIZE_T o
     }
 }
 
-#if defined(WIN64EXCEPTIONS) && defined(DACCESS_COMPILE)
+#if defined(FEATURE_EH_FUNCLETS) && defined(DACCESS_COMPILE)
 
 // 
 // To locate an entry in the function entry table (the program exceptions data directory), the debugger
@@ -5349,7 +5358,7 @@ static void EnumRuntimeFunctionEntriesToFindEntry(PTR_RUNTIME_FUNCTION pRtf, PTR
         _ASSERTE(low <= mid && mid <= high);
     }
 }
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 #ifdef FEATURE_PREJIT
 //***************************************************************************************
@@ -5641,7 +5650,7 @@ BOOL NativeImageJitManager::JitCodeToMethodInfo(RangeSection * pRangeSection,
         if (ColdMethodIndex < 0)
             return FALSE;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
         // Save the raw entry
         int RawColdMethodIndex = ColdMethodIndex;
 
@@ -5690,7 +5699,7 @@ BOOL NativeImageJitManager::JitCodeToMethodInfo(RangeSection * pRangeSection,
             // We are using RUNTIME_FUNCTION as METHODTOKEN
             pCodeInfo->m_methodToken = METHODTOKEN(pRangeSection, dac_cast<TADDR>(FunctionEntry));
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
             PTR_RUNTIME_FUNCTION RawColdFunctionEntry = ColdFunctionTable + RawColdMethodIndex;
 #ifdef _TARGET_AMD64_
             if ((RawColdFunctionEntry->UnwindData & RUNTIME_FUNCTION_INDIRECT) != 0)
@@ -5730,7 +5739,7 @@ BOOL NativeImageJitManager::JitCodeToMethodInfo(RangeSection * pRangeSection,
         if (MethodIndex < 0)
             return FALSE;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
         // Save the raw entry
         PTR_RUNTIME_FUNCTION RawFunctionEntry = FunctionTable + MethodIndex;;
 
@@ -5767,7 +5776,7 @@ BOOL NativeImageJitManager::JitCodeToMethodInfo(RangeSection * pRangeSection,
             // We are using RUNTIME_FUNCTION as METHODTOKEN
             pCodeInfo->m_methodToken = METHODTOKEN(pRangeSection, dac_cast<TADDR>(FunctionEntry));
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
             AMD64_ONLY(_ASSERTE((RawFunctionEntry->UnwindData & RUNTIME_FUNCTION_INDIRECT) == 0));
             pCodeInfo->m_pFunctionEntry = RawFunctionEntry;
 #endif
@@ -5777,7 +5786,7 @@ BOOL NativeImageJitManager::JitCodeToMethodInfo(RangeSection * pRangeSection,
     return TRUE;
 }
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
 PTR_RUNTIME_FUNCTION NativeImageJitManager::LazyGetFunctionEntry(EECodeInfo * pCodeInfo)
 {
     CONTRACTL {
@@ -5909,7 +5918,7 @@ BOOL NativeImageJitManager::IsFilterFunclet(EECodeInfo * pCodeInfo)
     return fRet;
 }
 
-#endif  // WIN64EXCEPTIONS
+#endif  // FEATURE_EH_FUNCLETS
  
 StubCodeBlockKind NativeImageJitManager::GetStubCodeBlockKind(RangeSection * pRangeSection, PCODE currentPC)
 {
@@ -6014,7 +6023,7 @@ void NativeImageJitManager::JitTokenToMethodRegionInfo(const METHODTOKEN& Method
 
         PTR_RUNTIME_FUNCTION FunctionEntry;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
         while (pColdCodeMap[ColdMethodIndex].mainFunctionEntryRVA == 0)
             ColdMethodIndex--;
 
@@ -6069,7 +6078,7 @@ void NativeImageJitManager::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
     IJitManager::EnumMemoryRegions(flags);
 }
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
 
 //
 // EnumMemoryRegionsForMethodUnwindInfo - enumerate the memory necessary to read the unwind info for the
@@ -6106,7 +6115,7 @@ void NativeImageJitManager::EnumMemoryRegionsForMethodUnwindInfo(CLRDataEnumMemo
         DacEnumMemoryRegion(PTR_TO_TADDR(pUnwindData), size); 
 }
 
-#endif //WIN64EXCEPTIONS
+#endif //FEATURE_EH_FUNCLETS
 #endif // #ifdef DACCESS_COMPILE
 
 #endif // FEATURE_PREJIT
@@ -6267,130 +6276,6 @@ DWORD NativeUnwindInfoLookupTable::GetMethodDescRVA(NGenLayoutInfo * pNgenLayout
 
 #endif // FEATURE_PREJIT || FEATURE_READYTORUN
 
-#ifndef DACCESS_COMPILE
-
-//-----------------------------------------------------------------------------
-
-
-// Nirvana Support
-
-MethodDesc* __stdcall Nirvana_FindMethodDesc(PCODE ptr, BYTE*& hotStartAddress, size_t& hotSize, BYTE*& coldStartAddress, size_t & coldSize)
-{
-    EECodeInfo codeInfo(ptr);
-    if (!codeInfo.IsValid())
-        return NULL;
-
-    IJitManager::MethodRegionInfo methodRegionInfo;
-    codeInfo.GetMethodRegionInfo(&methodRegionInfo);
-
-    hotStartAddress  = (BYTE*)methodRegionInfo.hotStartAddress;
-    hotSize          = methodRegionInfo.hotSize;
-    coldStartAddress = (BYTE*)methodRegionInfo.coldStartAddress;
-    coldSize         = methodRegionInfo.coldSize;
-
-    return codeInfo.GetMethodDesc();
-}
-
-
-bool Nirvana_GetMethodInfo(MethodDesc * pMD, BYTE*& hotStartAddress, size_t& hotSize, BYTE*& coldStartAddress, size_t & coldSize)
-{
-    EECodeInfo codeInfo(pMD->GetNativeCode());
-    if (!codeInfo.IsValid())
-        return false;
-
-    IJitManager::MethodRegionInfo methodRegionInfo;
-    codeInfo.GetMethodRegionInfo(&methodRegionInfo);
-
-    hotStartAddress  = (BYTE*)methodRegionInfo.hotStartAddress;
-    hotSize          = methodRegionInfo.hotSize;
-    coldStartAddress = (BYTE*)methodRegionInfo.coldStartAddress;
-    coldSize         = methodRegionInfo.coldSize;
-
-    return true;
-}
-
-
-#include "sigformat.h"
-
-__forceinline bool Nirvana_PrintMethodDescWorker(__in_ecount(iBuffer) char * szBuffer, size_t iBuffer, MethodDesc * pMD, const char * pSigString)
-{
-    if (iBuffer == 0) 
-        return false;
-
-    szBuffer[0] = '\0';
-    pSigString = strchr(pSigString, ' ');
-
-    if (pSigString == NULL)
-        return false;
-
-    ++pSigString;
-
-    LPCUTF8 pNamespace;
-    LPCUTF8 pClassName = pMD->GetMethodTable()->GetFullyQualifiedNameInfo(&pNamespace);
-
-    if (pClassName == NULL)
-        return false;
-
-    if (*pNamespace != 0)
-    {
-        if (_snprintf_s(szBuffer, iBuffer, _TRUNCATE, "%s.%s.%s", pNamespace, pClassName, pSigString) == -1)
-            return false;
-    }
-    else
-    {
-        if (_snprintf_s(szBuffer, iBuffer, _TRUNCATE, "%s.%s", pClassName, pSigString) == -1)
-            return false;
-    }
-
-    _ASSERTE(szBuffer[0] != '\0');
-
-    return true;
-}
-
-bool __stdcall Nirvana_PrintMethodDesc(__in_ecount(iBuffer) char * szBuffer, size_t iBuffer, MethodDesc * pMD)
-{
-    bool fResult = false;
-
-    EX_TRY
-    {
-        NewHolder<SigFormat> pSig = new SigFormat(pMD, NULL, false);
-        fResult = Nirvana_PrintMethodDescWorker(szBuffer, iBuffer, pMD, pSig->GetCString());
-    }
-    EX_CATCH
-    {
-        fResult = false;
-    }
-    EX_END_CATCH(SwallowAllExceptions)
-    
-    return fResult;
-};
-
-
-// Nirvana_Dummy() is a dummy function that is exported privately by ordinal only.
-// The sole purpose of this function is to reference Nirvana_FindMethodDesc(),
-// Nirvana_GetMethodInfo(), and Nirvana_PrintMethodDesc() so that they are not
-// inlined or removed by the compiler or the linker.
-
-DWORD __stdcall Nirvana_Dummy()
-{
-    LIMITED_METHOD_CONTRACT;
-    void * funcs[] = { 
-        (void*)Nirvana_FindMethodDesc,
-        (void*)Nirvana_GetMethodInfo,
-        (void*)Nirvana_PrintMethodDesc 
-    };
-
-    size_t n = sizeof(funcs) / sizeof(funcs[0]);
-
-    size_t sum = 0;
-    for (size_t i = 0; i < n; ++i)
-        sum += (size_t)funcs[i];
-
-    return (DWORD)sum;
-}
-
-
-#endif // #ifndef DACCESS_COMPILE
 
 
 #ifdef FEATURE_PREJIT
@@ -6450,7 +6335,7 @@ BOOL MethodIterator::Next()
         //iterate the hot methods 
         if (methodIteratorOptions & Hot)
         {
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
             //Skip to the next method.
             // skip over method fragments and funclets.
             while (m_CurrentRuntimeFunctionIndex < m_pNgenLayout->m_nRuntimeFunctions[0])
@@ -6470,7 +6355,7 @@ BOOL MethodIterator::Next()
 
     if (methodIteratorOptions & Unprofiled)
     {
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
          //Skip to the next method.
         // skip over method fragments and funclets.
         while (m_CurrentRuntimeFunctionIndex < m_pNgenLayout->m_nRuntimeFunctions[1])
@@ -6535,7 +6420,7 @@ TADDR MethodIterator::GetMethodColdStartAddress()
 
         PTR_RUNTIME_FUNCTION FunctionEntry;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
         DWORD MainFunctionEntryRVA = m_pNgenLayout->m_ColdCodeMap[m_CurrentColdRuntimeFunctionIndex].mainFunctionEntryRVA;
 
         if (MainFunctionEntryRVA == 0)
@@ -6971,7 +6856,7 @@ BOOL ReadyToRunJitManager::JitCodeToMethodInfo(RangeSection * pRangeSection,
         return TRUE;
     }
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     // Save the raw entry
     PTR_RUNTIME_FUNCTION RawFunctionEntry = pRuntimeFunctions + MethodIndex;
 
@@ -6984,7 +6869,7 @@ BOOL ReadyToRunJitManager::JitCodeToMethodInfo(RangeSection * pRangeSection,
 
     if (ppMethodDesc)
     {
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
         *ppMethodDesc = pMethodDesc;
 #else
         *ppMethodDesc = pInfo->GetMethodDescForEntryPoint(ImageBase + RUNTIME_FUNCTION__BeginAddress(FunctionEntry));
@@ -7000,7 +6885,7 @@ BOOL ReadyToRunJitManager::JitCodeToMethodInfo(RangeSection * pRangeSection,
         // We are using RUNTIME_FUNCTION as METHODTOKEN
         pCodeInfo->m_methodToken = METHODTOKEN(pRangeSection, dac_cast<TADDR>(FunctionEntry));
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
         AMD64_ONLY(_ASSERTE((RawFunctionEntry->UnwindData & RUNTIME_FUNCTION_INDIRECT) == 0));
         pCodeInfo->m_pFunctionEntry = RawFunctionEntry;
 #endif
@@ -7009,7 +6894,7 @@ BOOL ReadyToRunJitManager::JitCodeToMethodInfo(RangeSection * pRangeSection,
     return TRUE;
 }
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
 PTR_RUNTIME_FUNCTION ReadyToRunJitManager::LazyGetFunctionEntry(EECodeInfo * pCodeInfo)
 {
     CONTRACTL {
@@ -7099,7 +6984,7 @@ BOOL ReadyToRunJitManager::IsFilterFunclet(EECodeInfo * pCodeInfo)
     return fRet;
 }
 
-#endif  // WIN64EXCEPTIONS
+#endif  // FEATURE_EH_FUNCLETS
 
 void ReadyToRunJitManager::JitTokenToMethodRegionInfo(const METHODTOKEN& MethodToken, 
                                                    MethodRegionInfo * methodRegionInfo)
@@ -7127,7 +7012,7 @@ void ReadyToRunJitManager::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
     IJitManager::EnumMemoryRegions(flags);
 }
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
 
 //
 // EnumMemoryRegionsForMethodUnwindInfo - enumerate the memory necessary to read the unwind info for the
@@ -7164,7 +7049,7 @@ void ReadyToRunJitManager::EnumMemoryRegionsForMethodUnwindInfo(CLRDataEnumMemor
         DacEnumMemoryRegion(PTR_TO_TADDR(pUnwindData), size); 
 }
 
-#endif //WIN64EXCEPTIONS
+#endif //FEATURE_EH_FUNCLETS
 #endif // #ifdef DACCESS_COMPILE
 
 #endif

@@ -2,14 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
 using System.Globalization;
-using System.Threading;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
-using System.Security;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 
@@ -99,9 +94,9 @@ namespace System
 
     public static partial class Convert
     {
-        //A typeof operation is fairly expensive (does a system call), so we'll cache these here
-        //statically.  These are exactly lined up with the TypeCode, eg. ConvertType[TypeCode.Int16]
-        //will give you the type of an short.
+        // A typeof operation is fairly expensive (does a system call), so we'll cache these here
+        // statically.  These are exactly lined up with the TypeCode, eg. ConvertType[TypeCode.Int16]
+        // will give you the type of an short.
         internal static readonly Type[] ConvertTypes = {
             typeof(System.Empty),
             typeof(object),
@@ -120,24 +115,23 @@ namespace System
             typeof(double),
             typeof(decimal),
             typeof(DateTime),
-            typeof(object), //TypeCode is discontinuous so we need a placeholder.
+            typeof(object), // TypeCode is discontinuous so we need a placeholder.
             typeof(string)
         };
 
         // Need to special case Enum because typecode will be underlying type, e.g. Int32
         private static readonly Type EnumType = typeof(Enum);
 
-        internal static readonly char[] base64Table = {'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O',
-                                                       'P','Q','R','S','T','U','V','W','X','Y','Z','a','b','c','d',
-                                                       'e','f','g','h','i','j','k','l','m','n','o','p','q','r','s',
-                                                       't','u','v','w','x','y','z','0','1','2','3','4','5','6','7',
-                                                       '8','9','+','/','=' };
+        internal static readonly char[] base64Table = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
+                                                        'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd',
+                                                        'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's',
+                                                        't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7',
+                                                        '8', '9', '+', '/', '=' };
 
         private const int base64LineBreakPosition = 76;
 
 #if DEBUG
-        private static bool TriggerAsserts = DoAsserts();
-        private static bool DoAsserts()
+        static Convert()
         {
             Debug.Assert(ConvertTypes != null, "[Convert.cctor]ConvertTypes!=null");
             Debug.Assert(ConvertTypes.Length == ((int)TypeCode.String + 1), "[Convert.cctor]ConvertTypes.Length == ((int)TypeCode.String + 1)");
@@ -147,7 +141,6 @@ namespace System
                             "[Convert.cctor]ConvertTypes[(int)TypeCode.String]==typeof(System.String)");
             Debug.Assert(ConvertTypes[(int)TypeCode.Int32] == typeof(int),
                             "[Convert.cctor]ConvertTypes[(int)TypeCode.Int32]==typeof(int)");
-            return true;
         }
 #endif
 
@@ -210,47 +203,28 @@ namespace System
             // This line is invalid for things like Enums that return a TypeCode
             // of int, but the object can't actually be cast to an int.
             //            if (v.GetTypeCode() == typeCode) return value;
-            switch (typeCode)
+            return typeCode switch
             {
-                case TypeCode.Boolean:
-                    return v.ToBoolean(provider);
-                case TypeCode.Char:
-                    return v.ToChar(provider);
-                case TypeCode.SByte:
-                    return v.ToSByte(provider);
-                case TypeCode.Byte:
-                    return v.ToByte(provider);
-                case TypeCode.Int16:
-                    return v.ToInt16(provider);
-                case TypeCode.UInt16:
-                    return v.ToUInt16(provider);
-                case TypeCode.Int32:
-                    return v.ToInt32(provider);
-                case TypeCode.UInt32:
-                    return v.ToUInt32(provider);
-                case TypeCode.Int64:
-                    return v.ToInt64(provider);
-                case TypeCode.UInt64:
-                    return v.ToUInt64(provider);
-                case TypeCode.Single:
-                    return v.ToSingle(provider);
-                case TypeCode.Double:
-                    return v.ToDouble(provider);
-                case TypeCode.Decimal:
-                    return v.ToDecimal(provider);
-                case TypeCode.DateTime:
-                    return v.ToDateTime(provider);
-                case TypeCode.String:
-                    return v.ToString(provider);
-                case TypeCode.Object:
-                    return value;
-                case TypeCode.DBNull:
-                    throw new InvalidCastException(SR.InvalidCast_DBNull);
-                case TypeCode.Empty:
-                    throw new InvalidCastException(SR.InvalidCast_Empty);
-                default:
-                    throw new ArgumentException(SR.Arg_UnknownTypeCode);
-            }
+                TypeCode.Boolean => v.ToBoolean(provider),
+                TypeCode.Char => v.ToChar(provider),
+                TypeCode.SByte => v.ToSByte(provider),
+                TypeCode.Byte => v.ToByte(provider),
+                TypeCode.Int16 => v.ToInt16(provider),
+                TypeCode.UInt16 => v.ToUInt16(provider),
+                TypeCode.Int32 => v.ToInt32(provider),
+                TypeCode.UInt32 => v.ToUInt32(provider),
+                TypeCode.Int64 => v.ToInt64(provider),
+                TypeCode.UInt64 => v.ToUInt64(provider),
+                TypeCode.Single => v.ToSingle(provider),
+                TypeCode.Double => v.ToDouble(provider),
+                TypeCode.Decimal => v.ToDecimal(provider),
+                TypeCode.DateTime => v.ToDateTime(provider),
+                TypeCode.String => v.ToString(provider),
+                TypeCode.Object => value,
+                TypeCode.DBNull => throw new InvalidCastException(SR.InvalidCast_DBNull),
+                TypeCode.Empty => throw new InvalidCastException(SR.InvalidCast_Empty),
+                _ => throw new ArgumentException(SR.Arg_UnknownTypeCode),
+            };
         }
 
         internal static object DefaultToType(IConvertible value, Type targetType, IFormatProvider? provider)
@@ -298,7 +272,7 @@ namespace System
                 return value.ToString(provider);
             if (ReferenceEquals(targetType, ConvertTypes[(int)TypeCode.Object]))
                 return (object)value;
-            //  Need to special case Enum because typecode will be underlying type, e.g. Int32
+            // Need to special case Enum because typecode will be underlying type, e.g. Int32
             if (ReferenceEquals(targetType, EnumType))
                 return (Enum)value;
             if (ReferenceEquals(targetType, ConvertTypes[(int)TypeCode.DBNull]))
@@ -415,7 +389,6 @@ namespace System
             return value == null ? false : ((IConvertible)value).ToBoolean(provider);
         }
 
-
         public static bool ToBoolean(bool value)
         {
             return value;
@@ -438,7 +411,6 @@ namespace System
         {
             return value != 0;
         }
-
 
         public static bool ToBoolean(short value)
         {
@@ -511,7 +483,6 @@ namespace System
         // public static bool ToBoolean(TimeSpan value)
 
         // Conversions to Char
-
 
         public static char ToChar(object? value)
         {
@@ -628,7 +599,6 @@ namespace System
         {
             return ((IConvertible)value).ToChar(null);
         }
-
 
         // Disallowed conversions to Char
         // public static char ToChar(TimeSpan value)
@@ -864,7 +834,6 @@ namespace System
             return ((IConvertible)value).ToByte(null);
         }
 
-
         // Disallowed conversions to Byte
         // public static byte ToByte(TimeSpan value)
 
@@ -974,7 +943,6 @@ namespace System
             return ((IConvertible)value).ToInt16(null);
         }
 
-
         // Disallowed conversions to Int16
         // public static short ToInt16(TimeSpan value)
 
@@ -991,7 +959,6 @@ namespace System
         {
             return value == null ? (ushort)0 : ((IConvertible)value).ToUInt16(provider);
         }
-
 
         [CLSCompliant(false)]
         public static ushort ToUInt16(bool value)
@@ -1044,7 +1011,6 @@ namespace System
             if (value > ushort.MaxValue) ThrowUInt16OverflowException();
             return (ushort)value;
         }
-
 
         [CLSCompliant(false)]
         public static ushort ToUInt16(long value)
@@ -1114,7 +1080,6 @@ namespace System
         {
             return value == null ? 0 : ((IConvertible)value).ToInt32(provider);
         }
-
 
         public static int ToInt32(bool value)
         {
@@ -1227,7 +1192,6 @@ namespace System
             return ((IConvertible)value).ToInt32(null);
         }
 
-
         // Disallowed conversions to Int32
         // public static int ToInt32(TimeSpan value)
 
@@ -1244,7 +1208,6 @@ namespace System
         {
             return value == null ? 0 : ((IConvertible)value).ToUInt32(provider);
         }
-
 
         [CLSCompliant(false)]
         public static uint ToUInt32(bool value)
@@ -1373,7 +1336,6 @@ namespace System
             return value == null ? 0 : ((IConvertible)value).ToInt64(provider);
         }
 
-
         public static long ToInt64(bool value)
         {
             return value ? bool.True : bool.False;
@@ -1428,7 +1390,6 @@ namespace System
         {
             return value;
         }
-
 
         public static long ToInt64(float value)
         {
@@ -1492,7 +1453,6 @@ namespace System
         {
             return value;
         }
-
 
         [CLSCompliant(false)]
         public static ulong ToUInt64(sbyte value)
@@ -1679,7 +1639,6 @@ namespace System
             return float.Parse(value, NumberStyles.Float | NumberStyles.AllowThousands, provider);
         }
 
-
         public static float ToSingle(bool value)
         {
             return value ? bool.True : bool.False;
@@ -1704,7 +1663,6 @@ namespace System
         {
             return value == null ? 0 : ((IConvertible)value).ToDouble(provider);
         }
-
 
         [CLSCompliant(false)]
         public static double ToDouble(sbyte value)
@@ -2179,7 +2137,6 @@ namespace System
             return value;
         }
 
-
         //
         // Conversions which understand Base XXX numbers.
         //
@@ -2453,7 +2410,7 @@ namespace System
 
         public static unsafe int ToBase64CharArray(byte[] inArray, int offsetIn, int length, char[] outArray, int offsetOut, Base64FormattingOptions options)
         {
-            //Do data verfication
+            // Do data verfication
             if (inArray == null)
                 throw new ArgumentNullException(nameof(inArray));
             if (outArray == null)
@@ -2470,7 +2427,6 @@ namespace System
                 throw new ArgumentException(SR.Format(SR.Arg_EnumIllegalVal, (int)options), nameof(options));
             }
 
-
             int retVal;
 
             int inArrayLength;
@@ -2486,7 +2442,7 @@ namespace System
                 return 0;
 
             bool insertLineBreaks = (options == Base64FormattingOptions.InsertLineBreaks);
-            //This is the maximally required length that must be available in the char array
+            // This is the maximally required length that must be available in the char array
             outArrayLength = outArray.Length;
 
             // Length of the char buffer required
@@ -2542,7 +2498,7 @@ namespace System
             int calcLength = offset + (length - lengthmod3);
             int j = 0;
             int charcount = 0;
-            //Convert three bytes at a time to base64 notation.  This will consume 4 chars.
+            // Convert three bytes at a time to base64 notation.  This will consume 4 chars.
             int i;
 
             // get a pointer to the base64Table to avoid unnecessary range checking
@@ -2563,11 +2519,11 @@ namespace System
                     outChars[j] = base64[(inData[i] & 0xfc) >> 2];
                     outChars[j + 1] = base64[((inData[i] & 0x03) << 4) | ((inData[i + 1] & 0xf0) >> 4)];
                     outChars[j + 2] = base64[((inData[i + 1] & 0x0f) << 2) | ((inData[i + 2] & 0xc0) >> 6)];
-                    outChars[j + 3] = base64[(inData[i + 2] & 0x3f)];
+                    outChars[j + 3] = base64[inData[i + 2] & 0x3f];
                     j += 4;
                 }
 
-                //Where we left off before
+                // Where we left off before
                 i = calcLength;
 
                 if (insertLineBreaks && (lengthmod3 != 0) && (charcount == base64LineBreakPosition))
@@ -2578,18 +2534,18 @@ namespace System
 
                 switch (lengthmod3)
                 {
-                    case 2: //One character padding needed
+                    case 2: // One character padding needed
                         outChars[j] = base64[(inData[i] & 0xfc) >> 2];
                         outChars[j + 1] = base64[((inData[i] & 0x03) << 4) | ((inData[i + 1] & 0xf0) >> 4)];
                         outChars[j + 2] = base64[(inData[i + 1] & 0x0f) << 2];
-                        outChars[j + 3] = base64[64]; //Pad
+                        outChars[j + 3] = base64[64]; // Pad
                         j += 4;
                         break;
                     case 1: // Two character padding needed
                         outChars[j] = base64[(inData[i] & 0xfc) >> 2];
                         outChars[j + 1] = base64[(inData[i] & 0x03) << 4];
-                        outChars[j + 2] = base64[64]; //Pad
-                        outChars[j + 3] = base64[64]; //Pad
+                        outChars[j + 2] = base64[64]; // Pad
+                        outChars[j + 3] = base64[64]; // Pad
                         j += 4;
                         break;
                 }
@@ -2600,7 +2556,7 @@ namespace System
 
         private static int ToBase64_CalculateAndValidateOutputLength(int inputLength, bool insertLineBreaks)
         {
-            long outlen = ((long)inputLength) / 3 * 4;          // the base length - we want integer division here. 
+            long outlen = ((long)inputLength) / 3 * 4;          // the base length - we want integer division here.
             outlen += ((inputLength % 3) != 0) ? 4 : 0;         // at most 4 more chars for the remainder
 
             if (outlen == 0)
@@ -2624,7 +2580,6 @@ namespace System
             return (int)outlen;
         }
 
-
         /// <summary>
         /// Converts the specified string, which encodes binary data as Base64 digits, to the equivalent byte array.
         /// </summary>
@@ -2636,7 +2591,6 @@ namespace System
 
             if (s == null)
                 throw new ArgumentNullException(nameof(s));
-
 
             unsafe
             {
@@ -2660,7 +2614,7 @@ namespace System
         public static bool TryFromBase64Chars(ReadOnlySpan<char> chars, Span<byte> bytes, out int bytesWritten)
         {
             // This is actually local to one of the nested blocks but is being declared at the top as we don't want multiple stackallocs
-            // for each iteraton of the loop. 
+            // for each iteraton of the loop.
             Span<char> tempBuffer = stackalloc char[4];  // Note: The tempBuffer size could be made larger than 4 but the size must be a multiple of 4.
 
             bytesWritten = 0;
@@ -2682,7 +2636,7 @@ namespace System
                     // If we got here, the very first character not consumed was a whitespace. We can skip past any consecutive whitespace, then continue decoding.
 
                     int indexOfFirstNonSpace = 1;
-                    for (; ; )
+                    while (true)
                     {
                         if (indexOfFirstNonSpace == chars.Length)
                             break;
@@ -2701,7 +2655,7 @@ namespace System
                         return false;
                     }
 
-                    // We now loop again to decode the next run of non-space characters. 
+                    // We now loop again to decode the next run of non-space characters.
                 }
                 else
                 {
@@ -2744,7 +2698,7 @@ namespace System
                         return true;
                     }
 
-                    // We now loop again to decode the next run of non-space characters. 
+                    // We now loop again to decode the next run of non-space characters.
                 }
             }
 
@@ -2776,7 +2730,7 @@ namespace System
         private static bool IsSpace(this char c) => c == ' ' || c == '\t' || c == '\r' || c == '\n';
 
         /// <summary>
-        /// Converts the specified range of a Char array, which encodes binary data as Base64 digits, to the equivalent byte array.     
+        /// Converts the specified range of a Char array, which encodes binary data as Base64 digits, to the equivalent byte array.
         /// </summary>
         /// <param name="inArray">Chars representing Base64 encoding characters</param>
         /// <param name="offset">A position within the input array.</param>
@@ -2795,7 +2749,6 @@ namespace System
 
             if (offset > inArray.Length - length)
                 throw new ArgumentOutOfRangeException(nameof(offset), SR.ArgumentOutOfRange_OffsetLength);
-
 
             if (inArray.Length == 0)
             {
@@ -2885,7 +2838,6 @@ namespace System
                 // This is ok: as soon as we hit them during actual decode we will recognise them as illegal and throw.
                 if (c <= intSpace)
                     usefulInputLength--;
-
                 else if (c == intEq)
                 {
                     usefulInputLength--;
@@ -2916,4 +2868,3 @@ namespace System
         }
     }  // class Convert
 }  // namespace
-

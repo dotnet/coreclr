@@ -408,7 +408,7 @@ HRESULT CEECompileInfo::LoadTypeRefWinRT(
             {
                 LPCSTR psznamespace;
                 LPCSTR pszname;
-                pAssemblyImport->GetNameOfTypeRef(ref, &psznamespace, &pszname);
+                IfFailThrow(pAssemblyImport->GetNameOfTypeRef(ref, &psznamespace, &pszname));
                 AssemblySpec spec;
                 spec.InitializeSpec(tkResolutionScope, pAssemblyImport, NULL);
                 spec.SetWindowsRuntimeType(psznamespace, pszname);
@@ -4717,6 +4717,14 @@ BOOL CEEPreloader::IsUncompiledMethod(CORINFO_METHOD_HANDLE handle)
 #else
     return m_compileMethodsHash.LookupPtr(pMD) != NULL;
 #endif
+}
+
+BOOL CEEPreloader::ShouldSuppressGCTransition(CORINFO_METHOD_HANDLE handle)
+{
+    STANDARD_VM_CONTRACT;
+
+    MethodDesc *pMD = GetMethod(handle);
+    return pMD->ShouldSuppressGCTransition();
 }
 
 static bool IsTypeAccessibleOutsideItsAssembly(TypeHandle th)

@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.ConstrainedExecution;
 using System.Threading;
 
@@ -23,7 +22,6 @@ namespace System.Runtime.InteropServices
         //   manipulating _state.
 
         /// <summary>Specifies the handle to be wrapped.</summary>
-        [SuppressMessage("Microsoft.Security", "CA2111:PointersShouldNotBeVisible")]
         protected IntPtr handle;
         /// <summary>Combined ref count and closed/disposed flags (so we can atomically modify them).</summary>
         private volatile int _state;
@@ -40,7 +38,7 @@ namespace System.Runtime.InteropServices
         /// +-----------------------------------------------------------+---+---+
         /// |                           Ref count                       | D | C |
         /// +-----------------------------------------------------------+---+---+
-        /// 
+        ///
         /// Where D = 1 means a Dispose has been performed and C = 1 means the
         /// underlying handle has been (or will be shortly) released.
         /// </remarks>
@@ -50,7 +48,7 @@ namespace System.Runtime.InteropServices
             public const int Disposed = 0b10;
             public const int RefCount = unchecked(~0b11); // 2 bits reserved for closed/disposed; ref count gets 30 bits
             public const int RefCountOne = 1 << 2;
-        };
+        }
 
         /// <summary>Creates a SafeHandle class.</summary>
         protected SafeHandle(IntPtr invalidHandleValue, bool ownsHandle)
@@ -165,7 +163,7 @@ namespace System.Runtime.InteropServices
                 // the state moves to closed.
                 newState = oldState + StateBits.RefCountOne;
             } while (Interlocked.CompareExchange(ref _state, newState, oldState) != oldState);
-            
+
             // If we got here we managed to update the ref count while the state
             // remained non closed. So we're done.
             success = true;

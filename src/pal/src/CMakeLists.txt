@@ -9,8 +9,6 @@ if(NOT DEFINED ENV{ROOTFS_DIR})
   include_directories(SYSTEM /usr/local/include)
 endif()
 
-add_compile_options(-fPIC)
-
 if(NOT CLR_CMAKE_USE_SYSTEM_LIBUNWIND)
   include_directories(libunwind/include)
   include_directories(libunwind/include/tdep)
@@ -60,9 +58,7 @@ if(CORECLR_SET_RPATH)
     set(MACOSX_RPATH ON)
 endif(CORECLR_SET_RPATH)
 
-if(CMAKE_VERSION VERSION_EQUAL 3.0 OR CMAKE_VERSION VERSION_GREATER 3.0)
-    cmake_policy(SET CMP0042 NEW)
-endif()
+cmake_policy(SET CMP0042 NEW)
 
 # Include directories
 
@@ -134,14 +130,12 @@ add_definitions(-DPIC)
 add_definitions(-D_FILE_OFFSET_BITS=64)
 if(PAL_CMAKE_PLATFORM_ARCH_AMD64)
   add_definitions(-DBIT64)
-  add_definitions(-D_WIN64)
   set(PAL_ARCH_SOURCES_DIR amd64)
 elseif(PAL_CMAKE_PLATFORM_ARCH_ARM)
   add_definitions(-DBIT32)
   set(PAL_ARCH_SOURCES_DIR arm)
 elseif(PAL_CMAKE_PLATFORM_ARCH_ARM64)
   add_definitions(-DBIT64)
-  add_definitions(-D_WIN64)
   set(PAL_ARCH_SOURCES_DIR arm64)
 elseif(PAL_CMAKE_PLATFORM_ARCH_I386)
   add_definitions(-DBIT32)
@@ -189,7 +183,6 @@ set(SOURCES
   cruntime/math.cpp
   cruntime/mbstring.cpp
   cruntime/misc.cpp
-  cruntime/misctls.cpp
   cruntime/path.cpp
   cruntime/printf.cpp
   cruntime/printfcpp.cpp
@@ -231,6 +224,7 @@ set(SOURCES
   misc/jitsupport.cpp
   misc/miscpalapi.cpp
   misc/msgbox.cpp
+  misc/perfjitdump.cpp
   misc/strutil.cpp
   misc/sysinfo.cpp
   misc/time.cpp
@@ -283,7 +277,6 @@ set(SOURCES
   thread/process.cpp
   thread/thread.cpp
   thread/threadsusp.cpp
-  thread/tls.cpp
 )
 
 if(NOT CLR_CMAKE_USE_SYSTEM_LIBUNWIND)

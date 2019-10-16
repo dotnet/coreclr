@@ -2,6 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+// ===================================================================================================
+// Portions of the code implemented below are based on the 'Berkeley SoftFloat Release 3e' algorithms.
+// ===================================================================================================
+
 /*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XX                                                                           XX
@@ -728,7 +732,7 @@ bool ConfigMethodRange::Contains(ICorJitInfo* info, CORINFO_METHOD_HANDLE method
 //    because of bad characters or too many entries, or had values
 //    that were too large to represent.
 
-void ConfigMethodRange::InitRanges(const wchar_t* rangeStr, unsigned capacity)
+void ConfigMethodRange::InitRanges(const WCHAR* rangeStr, unsigned capacity)
 {
     // Make sure that the memory was zero initialized
     assert(m_inited == 0 || m_inited == 1);
@@ -750,9 +754,9 @@ void ConfigMethodRange::InitRanges(const wchar_t* rangeStr, unsigned capacity)
     m_ranges             = (Range*)jitHost->allocateMemory(capacity * sizeof(Range));
     m_entries            = capacity;
 
-    const wchar_t* p           = rangeStr;
-    unsigned       lastRange   = 0;
-    bool           setHighPart = false;
+    const WCHAR* p           = rangeStr;
+    unsigned     lastRange   = 0;
+    bool         setHighPart = false;
 
     while ((*p != 0) && (lastRange < m_entries))
     {
@@ -1472,7 +1476,7 @@ void HelperCallProperties::init()
 //
 // You must use ';' as a separator; whitespace no longer works
 
-AssemblyNamesList2::AssemblyNamesList2(const wchar_t* list, HostAllocator alloc) : m_alloc(alloc)
+AssemblyNamesList2::AssemblyNamesList2(const WCHAR* list, HostAllocator alloc) : m_alloc(alloc)
 {
     WCHAR          prevChar   = '?';     // dummy
     LPWSTR         nameStart  = nullptr; // start of the name currently being processed. nullptr if no current name
@@ -1559,7 +1563,7 @@ bool AssemblyNamesList2::IsInList(const char* assemblyName)
 // MethodSet
 //=============================================================================
 
-MethodSet::MethodSet(const wchar_t* filename, HostAllocator alloc) : m_pInfos(nullptr), m_alloc(alloc)
+MethodSet::MethodSet(const WCHAR* filename, HostAllocator alloc) : m_pInfos(nullptr), m_alloc(alloc)
 {
     FILE* methodSetFile = _wfopen(filename, W("r"));
     if (methodSetFile == nullptr)
@@ -1891,25 +1895,65 @@ double FloatingPointUtils::round(double x)
     //            MathF.Round(float), and FloatingPointUtils::round(float)
     // ************************************************************************************
 
-    // If the number has no fractional part do nothing
-    // This shortcut is necessary to workaround precision loss in borderline cases on some platforms
+    // This is based on the 'Berkeley SoftFloat Release 3e' algorithm
 
-    if (x == (double)((INT64)x))
+    uint64_t bits     = *reinterpret_cast<uint64_t*>(&x);
+    int32_t  exponent = (int32_t)(bits >> 52) & 0x07FF;
+
+    if (exponent <= 0x03FE)
     {
+        if ((bits << 1) == 0)
+        {
+            // Exactly +/- zero should return the original value
+            return x;
+        }
+
+        // Any value less than or equal to 0.5 will always round to exactly zero
+        // and any value greater than 0.5 will always round to exactly one. However,
+        // we need to preserve the original sign for IEEE compliance.
+
+        double result = ((exponent == 0x03FE) && ((bits & UI64(0x000FFFFFFFFFFFFF)) != 0)) ? 1.0 : 0.0;
+        return _copysign(result, x);
+    }
+
+    if (exponent >= 0x0433)
+    {
+        // Any value greater than or equal to 2^52 cannot have a fractional part,
+        // So it will always round to exactly itself.
+
         return x;
     }
 
-    // We had a number that was equally close to 2 integers.
-    // We need to return the even one.
+    // The absolute value should be greater than or equal to 1.0 and less than 2^52
+    assert((0x03FF <= exponent) && (exponent <= 0x0432));
 
-    double flrTempVal = floor(x + 0.5);
+    // Determine the last bit that represents the integral portion of the value
+    // and the bits representing the fractional portion
 
-    if ((x == (floor(x) + 0.5)) && (fmod(flrTempVal, 2.0) != 0))
+    uint64_t lastBitMask   = UI64(1) << (0x0433 - exponent);
+    uint64_t roundBitsMask = lastBitMask - 1;
+
+    // Increment the first fractional bit, which represents the midpoint between
+    // two integral values in the current window.
+
+    bits += lastBitMask >> 1;
+
+    if ((bits & roundBitsMask) == 0)
     {
-        flrTempVal -= 1.0;
+        // If that overflowed and the rest of the fractional bits are zero
+        // then we were exactly x.5 and we want to round to the even result
+
+        bits &= ~lastBitMask;
+    }
+    else
+    {
+        // Otherwise, we just want to strip the fractional bits off, truncating
+        // to the current integer value.
+
+        bits &= ~roundBitsMask;
     }
 
-    return _copysign(flrTempVal, x);
+    return *reinterpret_cast<double*>(&bits);
 }
 
 // Windows x86 and Windows ARM/ARM64 may not define _copysignf() but they do define _copysign().
@@ -1933,25 +1977,127 @@ float FloatingPointUtils::round(float x)
     //            Math.Round(double), and FloatingPointUtils::round(double)
     // ************************************************************************************
 
-    // If the number has no fractional part do nothing
-    // This shortcut is necessary to workaround precision loss in borderline cases on some platforms
+    // This is based on the 'Berkeley SoftFloat Release 3e' algorithm
 
-    if (x == (float)((INT32)x))
+    uint32_t bits     = *reinterpret_cast<uint32_t*>(&x);
+    int32_t  exponent = (int32_t)(bits >> 23) & 0xFF;
+
+    if (exponent <= 0x7E)
     {
+        if ((bits << 1) == 0)
+        {
+            // Exactly +/- zero should return the original value
+            return x;
+        }
+
+        // Any value less than or equal to 0.5 will always round to exactly zero
+        // and any value greater than 0.5 will always round to exactly one. However,
+        // we need to preserve the original sign for IEEE compliance.
+
+        float result = ((exponent == 0x7E) && ((bits & 0x007FFFFF) != 0)) ? 1.0f : 0.0f;
+        return _copysignf(result, x);
+    }
+
+    if (exponent >= 0x96)
+    {
+        // Any value greater than or equal to 2^52 cannot have a fractional part,
+        // So it will always round to exactly itself.
+
         return x;
     }
 
-    // We had a number that was equally close to 2 integers.
-    // We need to return the even one.
+    // The absolute value should be greater than or equal to 1.0 and less than 2^52
+    assert((0x7F <= exponent) && (exponent <= 0x95));
 
-    float flrTempVal = floorf(x + 0.5f);
+    // Determine the last bit that represents the integral portion of the value
+    // and the bits representing the fractional portion
 
-    if ((x == (floorf(x) + 0.5f)) && (fmodf(flrTempVal, 2.0f) != 0))
+    uint32_t lastBitMask   = 1U << (0x96 - exponent);
+    uint32_t roundBitsMask = lastBitMask - 1;
+
+    // Increment the first fractional bit, which represents the midpoint between
+    // two integral values in the current window.
+
+    bits += lastBitMask >> 1;
+
+    if ((bits & roundBitsMask) == 0)
     {
-        flrTempVal -= 1.0f;
+        // If that overflowed and the rest of the fractional bits are zero
+        // then we were exactly x.5 and we want to round to the even result
+
+        bits &= ~lastBitMask;
+    }
+    else
+    {
+        // Otherwise, we just want to strip the fractional bits off, truncating
+        // to the current integer value.
+
+        bits &= ~roundBitsMask;
     }
 
-    return _copysignf(flrTempVal, x);
+    return *reinterpret_cast<float*>(&bits);
+}
+
+bool FloatingPointUtils::isNormal(double x)
+{
+    int64_t bits = reinterpret_cast<int64_t&>(x);
+    bits &= 0x7FFFFFFFFFFFFFFF;
+    return (bits < 0x7FF0000000000000) && (bits != 0) && ((bits & 0x7FF0000000000000) != 0);
+}
+
+bool FloatingPointUtils::isNormal(float x)
+{
+    int32_t bits = reinterpret_cast<int32_t&>(x);
+    bits &= 0x7FFFFFFF;
+    return (bits < 0x7F800000) && (bits != 0) && ((bits & 0x7F800000) != 0);
+}
+
+//------------------------------------------------------------------------
+// hasPreciseReciprocal: check double for precise reciprocal. E.g. 2.0 <--> 0.5
+//
+// Arguments:
+//    x - value to check for precise reciprocal
+//
+// Return Value:
+//    True if 'x' is a power of two value and is not denormal (denormals may not be well-defined
+//    on some platforms such as if the user modified the floating-point environment via a P/Invoke)
+//
+
+bool FloatingPointUtils::hasPreciseReciprocal(double x)
+{
+    if (!isNormal(x))
+    {
+        return false;
+    }
+
+    uint64_t i        = reinterpret_cast<uint64_t&>(x);
+    uint64_t exponent = (i >> 52) & 0x7FFul;   // 0x7FF mask drops the sign bit
+    uint64_t mantissa = i & 0xFFFFFFFFFFFFFul; // 0xFFFFFFFFFFFFF mask drops the sign + exponent bits
+    return mantissa == 0 && exponent != 0 && exponent != 1023;
+}
+
+//------------------------------------------------------------------------
+// hasPreciseReciprocal: check float for precise reciprocal. E.g. 2.0f <--> 0.5f
+//
+// Arguments:
+//    x - value to check for precise reciprocal
+//
+// Return Value:
+//    True if 'x' is a power of two value and is not denormal (denormals may not be well-defined
+//    on some platforms such as if the user modified the floating-point environment via a P/Invoke)
+//
+
+bool FloatingPointUtils::hasPreciseReciprocal(float x)
+{
+    if (!isNormal(x))
+    {
+        return false;
+    }
+
+    uint32_t i        = reinterpret_cast<uint32_t&>(x);
+    uint32_t exponent = (i >> 23) & 0xFFu; // 0xFF mask drops the sign bit
+    uint32_t mantissa = i & 0x7FFFFFu;     // 0x7FFFFF mask drops the sign + exponent bits
+    return mantissa == 0 && exponent != 0 && exponent != 127;
 }
 
 namespace MagicDivide

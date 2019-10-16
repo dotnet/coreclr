@@ -32,7 +32,6 @@
 #include "invokeutil.h"
 #include "eeconfig.h"
 #include "typestring.h"
-#include "sha1.h"
 #include "finalizerthread.h"
 #include "threadsuspend.h"
 
@@ -124,15 +123,6 @@ FCIMPL1(FC_BOOL_RET, ExceptionNative::IsImmutableAgileException, Object* pExcept
     FC_RETURN_BOOL(CLRException::IsPreallocatedExceptionObject(pException));
 }
 FCIMPLEND
-
-FCIMPL1(FC_BOOL_RET, ExceptionNative::IsTransient, INT32 hresult)
-{
-    FCALL_CONTRACT;
-
-    FC_RETURN_BOOL(Exception::IsTransient(hresult));
-}
-FCIMPLEND
-
 
 // This FCall sets a flag against the thread exception state to indicate to
 // IL_Throw and the StackTraceInfo implementation to account for the fact
@@ -260,11 +250,11 @@ FCIMPL3(VOID, ExceptionNative::SaveStackTracesFromDeepCopy, Object* pExceptionOb
     if (gc.stackTrace.Size() > 0)
     {
         // Save the stacktrace details in the exception under a lock
-        gc.refException->SetStackTrace(gc.stackTrace, gc.dynamicMethodsArray);
+        gc.refException->SetStackTrace(gc.stackTrace.Get(), gc.dynamicMethodsArray);
     }
     else
     {
-        gc.refException->SetNullStackTrace();
+        gc.refException->SetStackTrace(NULL, NULL);
     }
 
     HELPER_METHOD_FRAME_END();
@@ -757,7 +747,7 @@ FCIMPL5(VOID, Buffer::BlockCopy, ArrayBase *src, int srcOffset, ArrayBase *dst, 
     }
 
     if (srcOffset < 0 || dstOffset < 0 || count < 0) {
-        const wchar_t* str = W("srcOffset");
+        const WCHAR* str = W("srcOffset");
         if (dstOffset < 0) str = W("dstOffset");
         if (count < 0) str = W("count");
         FCThrowArgumentOutOfRangeVoid(str, W("ArgumentOutOfRange_NeedNonNegNum"));
@@ -771,11 +761,7 @@ FCIMPL5(VOID, Buffer::BlockCopy, ArrayBase *src, int srcOffset, ArrayBase *dst, 
     PTR_BYTE dstPtr = dst->GetDataPtr() + dstOffset;
 
     if ((srcPtr != dstPtr) && (count > 0)) {
-#if defined(_AMD64_) && !defined(PLATFORM_UNIX)
-        JIT_MemCpy(dstPtr, srcPtr, count);
-#else
         memmove(dstPtr, srcPtr, count);
-#endif
     }
 
     FC_GC_POLL();
@@ -845,34 +831,9 @@ FCIMPL1(FC_BOOL_RET, Buffer::IsPrimitiveTypeArray, ArrayBase *arrayUNSAFE)
 }
 FCIMPLEND
 
-// Returns the length in bytes of an array containing
-// primitive type elements
-FCIMPL1(INT32, Buffer::ByteLength, ArrayBase* arrayUNSAFE)
-{
-    FCALL_CONTRACT;
-
-    _ASSERTE(arrayUNSAFE != NULL);
-
-    SIZE_T iRetVal = arrayUNSAFE->GetNumComponents() * arrayUNSAFE->GetComponentSize();
-
-    // This API is explosed both as Buffer.ByteLength and also used indirectly in argument
-    // checks for Buffer.GetByte/SetByte.
-    //
-    // If somebody called Get/SetByte on 2GB+ arrays, there is a decent chance that 
-    // the computation of the index has overflowed. Thus we intentionally always 
-    // throw on 2GB+ arrays in Get/SetByte argument checks (even for indicies <2GB)
-    // to prevent people from running into a trap silently.
-    if (iRetVal > INT32_MAX)
-        FCThrow(kOverflowException);
-
-    return (INT32)iRetVal;
-}
-FCIMPLEND
-
 //
 // GCInterface
 //
-MethodDesc *GCInterface::m_pCacheMethod=NULL;
 
 UINT64   GCInterface::m_ulMemPressure = 0;
 UINT64   GCInterface::m_ulThreshold = MIN_GC_MEMORYPRESSURE_THRESHOLD;
@@ -886,15 +847,15 @@ UINT64   GCInterface::m_remPressure[NEW_PRESSURE_COUNT] = {0, 0, 0, 0};   // his
 // (m_iteration % NEW_PRESSURE_COUNT) is used as an index into m_addPressure and m_remPressure
 UINT     GCInterface::m_iteration = 0;
 
-FCIMPL5(void, GCInterface::GetMemoryInfo, UINT32* highMemLoadThreshold, UINT64* totalPhysicalMem, UINT32* lastRecordedMemLoad, size_t* lastRecordedHeapSize, size_t* lastRecordedFragmentation)
+FCIMPL6(void, GCInterface::GetMemoryInfo, UINT64* highMemLoadThreshold, UINT64* totalAvailableMemoryBytes, UINT64* lastRecordedMemLoadBytes, UINT32* lastRecordedMemLoadPct, size_t* lastRecordedHeapSizeBytes, size_t* lastRecordedFragmentationBytes)
 {
     FCALL_CONTRACT;
 
     FC_GC_POLL_NOT_NEEDED();
     
-    return GCHeapUtilities::GetGCHeap()->GetMemoryInfo(highMemLoadThreshold, totalPhysicalMem, 
-                                                       lastRecordedMemLoad, 
-                                                       lastRecordedHeapSize, lastRecordedFragmentation);
+    return GCHeapUtilities::GetGCHeap()->GetMemoryInfo(highMemLoadThreshold, totalAvailableMemoryBytes,
+                                                       lastRecordedMemLoadBytes, lastRecordedMemLoadPct, 
+                                                       lastRecordedHeapSizeBytes, lastRecordedFragmentationBytes);
 }
 FCIMPLEND
 
@@ -1546,11 +1507,11 @@ void GCInterface::AddMemoryPressure(UINT64 bytesAllocated)
     }
 }
 
-#ifdef _WIN64
+#ifdef BIT64
 const unsigned MIN_MEMORYPRESSURE_BUDGET = 4 * 1024 * 1024;        // 4 MB
-#else // _WIN64
+#else // BIT64
 const unsigned MIN_MEMORYPRESSURE_BUDGET = 3 * 1024 * 1024;        // 3 MB
-#endif // _WIN64
+#endif // BIT64
 
 const unsigned MAX_MEMORYPRESSURE_RATIO = 10;                      // 40 MB or 30 MB
 

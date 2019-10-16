@@ -42,7 +42,7 @@ WARNING:   When setting properties based on their current state (for example:
     </PropertyGroup>
     <!-- In order to avoid the overhead of calling MSBuild (as it may result in chains of MSBuild calls) I am assuming the extension in this circumstance. -->
     <PropertyGroup Condition="$(CLRTestProjectToRun) != '' AND $(GenerateRunScript)">
-      <ExecuteShFullPath>$(OutputPath)$([System.IO.Path]::GetFilenameWithoutExtension(&quot;$(CLRTestProjectToRun)&quot;)).exe</ExecuteShFullPath>
+      <ExecuteShFullPath>$(OutputPath)$([System.IO.Path]::GetFilenameWithoutExtension(&quot;$(CLRTestProjectToRun)&quot;)).dll</ExecuteShFullPath>
     </PropertyGroup>
     <PropertyGroup Condition="!$(GenerateRunScript)">
       <ExecuteShFullPath>$(OutputPath)$(MSBuildProjectName).$(OutputType.ToLower())</ExecuteShFullPath>
@@ -281,8 +281,8 @@ $(BashLinkerTestCleanupCmds)
       ]]></BashCLRTestLaunchCmds>
       <BashCLRTestLaunchCmds Condition="'$(CLRTestKind)' == 'RunOnly'"><![CDATA[
 $(BashCLRTestLaunchCmds)
-echo export CDPATH="$%28dirname "$0")"
-export CDPATH="$%28dirname "$0")"
+echo export CDPATH="$%28dirname "${BASH_SOURCE[0]}")"
+export CDPATH="$%28dirname "${BASH_SOURCE[0]}")"
 echo /usr/bin/env bash $(InputAssemblyName) %24(printf "'%s' " "${CLRTestExecutionArguments[@]}")
 /usr/bin/env bash $(InputAssemblyName) "${CLRTestExecutionArguments[@]}"
 CLRTestExitCode=$?
@@ -371,7 +371,7 @@ ReleaseLock()
         return 3
     fi
 }
-cd "$%28dirname "$0")"
+cd "$%28dirname "${BASH_SOURCE[0]}")"
 LockFile="lock"
 
 

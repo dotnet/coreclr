@@ -22,7 +22,6 @@ class GCCoverageInfo {
 public:
     IJitManager::MethodRegionInfo methodRegion;    
     BYTE*         curInstr;         // The last instruction that was able to execute 
-    MethodDesc*   lastMD;           // Used to quickly figure out the culprite
 
         // Following 6 variables are for prolog / epilog walking coverage        
     ICodeManager* codeMan;          // CodeMan for this method
@@ -61,10 +60,11 @@ public:
 
 };
 
+typedef DPTR(GCCoverageInfo) PTR_GCCoverageInfo; // see code:GCCoverageInfo::savedCode
+
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif // _MSC_VER
-
 
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 
@@ -107,6 +107,75 @@ public:
 #define INTERRUPT_INSTR_PROTECT_RET     0xBADC0DE2  
 
 #endif // _TARGET_*
+
+// The body of this method is in this header file to allow
+// mscordaccore.dll to link without getting an unsat symbol
+//
+inline bool IsGcCoverageInterruptInstructionVal(UINT32 instrVal)
+{
+#if defined(_TARGET_ARM64_)
+
+    switch (instrVal)
+    {
+    case INTERRUPT_INSTR:
+    case INTERRUPT_INSTR_CALL:
+    case INTERRUPT_INSTR_PROTECT_RET:
+        return true;
+    default:
+        return false;
+    }
+
+#elif defined(_TARGET_ARM_)
+
+    UINT16 instrVal16 = static_cast<UINT16>(instrVal);
+    size_t instrLen = GetARMInstructionLength(instrVal16);
+
+    if (instrLen == 2)
+    {
+        switch (instrVal16)
+        {
+        case INTERRUPT_INSTR:
+        case INTERRUPT_INSTR_CALL:
+        case INTERRUPT_INSTR_PROTECT_RET:
+            return true;
+        default:
+            return false;
+        }
+    }
+    else
+    {
+        _ASSERTE(instrLen == 4);
+
+        switch (instrVal)
+        {
+        case INTERRUPT_INSTR_32:
+        case INTERRUPT_INSTR_CALL_32:
+        case INTERRUPT_INSTR_PROTECT_RET_32:
+            return true;
+        default:
+            return false;
+        }
+    }
+
+#else // x64 and x86
+
+    switch (instrVal)
+    {
+    case INTERRUPT_INSTR:
+    case INTERRUPT_INSTR_CALL:
+    case INTERRUPT_INSTR_PROTECT_FIRST_RET:
+    case INTERRUPT_INSTR_PROTECT_SECOND_RET:
+    case INTERRUPT_INSTR_PROTECT_BOTH_RET:
+        return true;
+    default:
+        return false;
+    }
+
+#endif  // _TARGET_XXXX_
+}
+
+bool IsGcCoverageInterruptInstruction(PBYTE instrPtr);
+bool IsGcCoverageInterrupt(LPVOID ip);
 
 #endif // HAVE_GCCOVER
 

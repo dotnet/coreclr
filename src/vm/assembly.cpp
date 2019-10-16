@@ -1462,6 +1462,62 @@ void ValidateMainMethod(MethodDesc * pFD, CorEntryPointType *pType)
     }
 }
 
+struct Param
+{
+    MethodDesc *pFD;
+    short numSkipArgs;
+    INT32 *piRetVal;
+    PTRARRAYREF *stringArgs;
+    CorEntryPointType EntryType;
+    DWORD cCommandArgs;
+    LPWSTR *wzArgs;
+} param;
+
+static void RunMainInternal(Param* pParam)
+{
+    MethodDescCallSite  threadStart(pParam->pFD);
+
+    PTRARRAYREF StrArgArray = NULL;
+    GCPROTECT_BEGIN(StrArgArray);
+
+    // Build the parameter array and invoke the method.
+    if (pParam->EntryType == EntryManagedMain) {
+        if (pParam->stringArgs == NULL) {
+            // Allocate a COM Array object with enough slots for cCommandArgs - 1
+            StrArgArray = (PTRARRAYREF) AllocateObjectArray((pParam->cCommandArgs - pParam->numSkipArgs), g_pStringClass);
+
+            // Create Stringrefs for each of the args
+            for (DWORD arg = pParam->numSkipArgs; arg < pParam->cCommandArgs; arg++) {
+                STRINGREF sref = StringObject::NewString(pParam->wzArgs[arg]);
+                StrArgArray->SetAt(arg - pParam->numSkipArgs, (OBJECTREF) sref);
+            }
+        }
+        else
+            StrArgArray = *pParam->stringArgs;
+    }
+
+    ARG_SLOT stackVar = ObjToArgSlot(StrArgArray);
+
+    if (pParam->pFD->IsVoid())
+    {
+        // Set the return value to 0 instead of returning random junk
+        *pParam->piRetVal = 0;
+        threadStart.Call(&stackVar);
+    }
+    else
+    {
+        *pParam->piRetVal = (INT32)threadStart.Call_RetArgSlot(&stackVar);
+        SetLatchedExitCode(*pParam->piRetVal);
+    }
+
+    GCPROTECT_END();
+
+    //<TODO>
+    // When we get mainCRTStartup from the C++ then this should be able to go away.</TODO>
+    fflush(stdout);
+    fflush(stderr);
+}
+
 /* static */
 HRESULT RunMain(MethodDesc *pFD ,
                 short numSkipArgs,
@@ -1506,16 +1562,8 @@ HRESULT RunMain(MethodDesc *pFD ,
 
     ETWFireEvent(Main_V1);
 
-    struct Param
-    {
-        MethodDesc *pFD;
-        short numSkipArgs;
-        INT32 *piRetVal;
-        PTRARRAYREF *stringArgs;
-        CorEntryPointType EntryType;
-        DWORD cCommandArgs;
-        LPWSTR *wzArgs;
-    } param;
+    Param param;
+
     param.pFD = pFD;
     param.numSkipArgs = numSkipArgs;
     param.piRetVal = piRetVal;
@@ -1526,47 +1574,7 @@ HRESULT RunMain(MethodDesc *pFD ,
 
     EX_TRY_NOCATCH(Param *, pParam, &param)
     {
-        MethodDescCallSite  threadStart(pParam->pFD);
-        
-        PTRARRAYREF StrArgArray = NULL;
-        GCPROTECT_BEGIN(StrArgArray);
-
-        // Build the parameter array and invoke the method.
-        if (pParam->EntryType == EntryManagedMain) {
-            if (pParam->stringArgs == NULL) {
-                // Allocate a COM Array object with enough slots for cCommandArgs - 1
-                StrArgArray = (PTRARRAYREF) AllocateObjectArray((pParam->cCommandArgs - pParam->numSkipArgs), g_pStringClass);
-
-                // Create Stringrefs for each of the args
-                for (DWORD arg = pParam->numSkipArgs; arg < pParam->cCommandArgs; arg++) {
-                    STRINGREF sref = StringObject::NewString(pParam->wzArgs[arg]);
-                    StrArgArray->SetAt(arg - pParam->numSkipArgs, (OBJECTREF) sref);
-                }
-            }
-            else
-                StrArgArray = *pParam->stringArgs;
-        }
-
-        ARG_SLOT stackVar = ObjToArgSlot(StrArgArray);
-
-        if (pParam->pFD->IsVoid()) 
-        {
-            // Set the return value to 0 instead of returning random junk
-            *pParam->piRetVal = 0;
-            threadStart.Call(&stackVar);
-        }
-        else 
-        {
-            *pParam->piRetVal = (INT32)threadStart.Call_RetArgSlot(&stackVar);
-            SetLatchedExitCode(*pParam->piRetVal);
-        }
-
-        GCPROTECT_END();
-
-        //<TODO>
-        // When we get mainCRTStartup from the C++ then this should be able to go away.</TODO>
-        fflush(stdout);
-        fflush(stderr);
+        RunMainInternal(pParam);
     }
     EX_END_NOCATCH
 
@@ -2088,39 +2096,6 @@ void Assembly::AddExportedType(mdExportedType cl)
 }
 
 
-
-
-HRESULT STDMETHODCALLTYPE
-GetAssembliesByName(LPCWSTR  szAppBase,
-                    LPCWSTR  szPrivateBin,
-                    LPCWSTR  szAssemblyName,
-                    IUnknown *ppIUnk[],
-                    ULONG    cMax,
-                    ULONG    *pcAssemblies)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        MODE_PREEMPTIVE;
-        GC_TRIGGERS;
-        INJECT_FAULT(return E_OUTOFMEMORY;);
-    }
-    CONTRACTL_END
-
-    HRESULT hr = S_OK;
-
-    if (g_fEEInit) {
-        // Cannot call this during EE startup
-        return MSEE_E_ASSEMBLYLOADINPROGRESS;
-    }
-
-    if (!(szAssemblyName && ppIUnk && pcAssemblies))
-        return E_POINTER;
-
-    hr = COR_E_NOTSUPPORTED;
-
-    return hr;
-}// Used by the IMetadata API's to access an assemblies metadata.
 
 void DECLSPEC_NORETURN Assembly::ThrowTypeLoadException(LPCUTF8 pszFullName, UINT resIDWhy)
 {

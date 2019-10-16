@@ -63,12 +63,9 @@ namespace System.Threading
             get
             {
                 object? obj = ExecutionContext.GetLocalValue(this);
-                return (obj == null) ? default! : (T)obj; // TODO-NULLABLE: Remove ! when nullable attributes are respected
+                return (obj == null) ? default : (T)obj;
             }
-            set
-            {
-                ExecutionContext.SetLocalValue(this, value, m_valueChangedHandler != null);
-            }
+            set => ExecutionContext.SetLocalValue(this, value, m_valueChangedHandler != null);
         }
 
         void IAsyncLocal.OnValueChanged(object? previousValueObj, object? currentValueObj, bool contextChanged)

@@ -5,6 +5,11 @@ pr: none
 
 jobs:
 #
+# Checkout repository
+#
+- template: /eng/checkout-job.yml
+
+#
 # Debug builds
 #
 - template: /eng/platform-matrix.yml
@@ -21,6 +26,8 @@ jobs:
     - OSX_x64
     - Windows_NT_arm
     - Windows_NT_arm64
+    jobParameters:
+      testGroup: outerloop
 
 #
 # Checked builds
@@ -30,6 +37,8 @@ jobs:
     jobTemplate: build-job.yml
     buildConfig: checked
     platformGroup: all
+    jobParameters:
+      testGroup: outerloop
 
 #
 # Release builds
@@ -44,6 +53,8 @@ jobs:
     - Linux_x64
     - OSX_x64
     - Windows_NT_x86
+    jobParameters:
+      testGroup: outerloop
 
 #
 # Checked test builds
@@ -82,6 +93,17 @@ jobs:
       displayNameArgs: R2R
 
 #
+# Crossgen-comparison jobs
+#
+- template: /eng/platform-matrix.yml
+  parameters:
+    jobTemplate: crossgen-comparison-job.yml
+    buildConfig: release
+    platforms:
+    - Linux_arm
+    helixQueueGroup: ci
+
+#
 # Formatting
 #
 - template: /eng/platform-matrix.yml
@@ -89,4 +111,3 @@ jobs:
     jobTemplate: format-job.yml
     platforms:
     - Linux_x64
-    - Windows_NT_x64

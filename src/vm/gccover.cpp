@@ -72,64 +72,27 @@ static MethodDesc* getTargetMethodDesc(PCODE target)
     return nullptr;
 }
 
-
 bool IsGcCoverageInterruptInstruction(PBYTE instrPtr)
 {
+    UINT32 instrVal;
+
 #if defined(_TARGET_ARM64_)
-    UINT32 instrVal = *reinterpret_cast<UINT32*>(instrPtr);
-    switch (instrVal)
-    {
-    case INTERRUPT_INSTR:
-    case INTERRUPT_INSTR_CALL:
-    case INTERRUPT_INSTR_PROTECT_RET:
-        return true;
-    default:
-        return false;
-    }
+    instrVal = *reinterpret_cast<UINT32*>(instrPtr);
 #elif defined(_TARGET_ARM_)
-    
     size_t instrLen = GetARMInstructionLength(instrPtr);
     if (instrLen == 2)
     {
-        UINT16 instrVal = *reinterpret_cast<UINT16*>(instrPtr);
-        switch (instrVal)
-        {
-        case INTERRUPT_INSTR:
-        case INTERRUPT_INSTR_CALL:
-        case INTERRUPT_INSTR_PROTECT_RET:
-            return true;
-        default:
-            return false;
-        }
+        instrVal = *reinterpret_cast<UINT16*>(instrPtr);
     }
     else
     {
-        _ASSERTE(instrLen == 4);
-        UINT32 instrVal = *reinterpret_cast<UINT32*>(instrPtr);
-        switch (instrVal)
-        {
-        case INTERRUPT_INSTR_32:
-        case INTERRUPT_INSTR_CALL_32:
-        case INTERRUPT_INSTR_PROTECT_RET_32:
-            return true;
-        default:
-            return false;
-        }
+        instrVal = *reinterpret_cast<UINT32*>(instrPtr);
     }
 #else // x64 and x86
-    UINT8 instrVal = *reinterpret_cast<UINT8*>(instrPtr);
-    switch (instrVal)
-    {
-    case INTERRUPT_INSTR:
-    case INTERRUPT_INSTR_CALL:
-    case INTERRUPT_INSTR_PROTECT_FIRST_RET:
-    case INTERRUPT_INSTR_PROTECT_SECOND_RET:
-    case INTERRUPT_INSTR_PROTECT_BOTH_RET:
-        return true;
-    default:
-        return false;
-    }
+    instrVal = *instrPtr;
 #endif
+
+    return IsGcCoverageInterruptInstructionVal(instrVal);
 }
 
 bool IsOriginalInstruction(PBYTE instrPtr, GCCoverageInfo* gcCover, DWORD offset)
@@ -162,13 +125,16 @@ bool IsOriginalInstruction(PBYTE instrPtr, GCCoverageInfo* gcCover, DWORD offset
 
 
 void SetupAndSprinkleBreakpoints(
-    MethodDesc                    * pMD,     
+    NativeCodeVersion               nativeCodeVersion,
     EECodeInfo                    * pCodeInfo,
     IJitManager::MethodRegionInfo   methodRegionInfo,
     BOOL                            fZapped
     )
 {
+    _ASSERTE(!nativeCodeVersion.IsNull());
+
     // Allocate room for the GCCoverageInfo and copy of the method instructions
+    MethodDesc *pMD = nativeCodeVersion.GetMethodDesc();
     size_t memSize = sizeof(GCCoverageInfo) + methodRegionInfo.hotSize + methodRegionInfo.coldSize;
     GCCoverageInfo* gcCover = (GCCoverageInfo*)(void*) pMD->GetLoaderAllocator()->GetHighFrequencyHeap()->AllocAlignedMem(memSize, CODE_SIZE_ALIGN);
 
@@ -179,8 +145,6 @@ void SetupAndSprinkleBreakpoints(
     gcCover->gcInfoToken       = pCodeInfo->GetGCInfoToken();
     gcCover->callerThread      = 0;
     gcCover->doingEpilogChecks = true;    
-
-    gcCover->lastMD            = pMD;   /* pass pMD to SprinkleBreakpoints */
 
     gcCover->SprinkleBreakpoints(gcCover->savedCode, 
                                  gcCover->methodRegion.hotStartAddress,  
@@ -200,16 +164,15 @@ void SetupAndSprinkleBreakpoints(
     }
 #endif
 
-    gcCover->lastMD = NULL;     /* clear lastMD */
-
-    _ASSERTE(!pMD->m_GcCover);
-    *EnsureWritablePages(&pMD->m_GcCover) = gcCover;
+    nativeCodeVersion.SetGCCoverageInfo(gcCover);
 }
 
-void SetupAndSprinkleBreakpointsForJittedMethod(MethodDesc                    * pMD, 
+void SetupAndSprinkleBreakpointsForJittedMethod(NativeCodeVersion               nativeCodeVersion,
                                                 PCODE                           codeStart
                                                )
 {
+    _ASSERTE(!nativeCodeVersion.IsNull());
+
     EECodeInfo codeInfo(codeStart);
     _ASSERTE(codeInfo.IsValid());
     _ASSERTE(codeInfo.GetRelOffset() == 0);
@@ -220,9 +183,9 @@ void SetupAndSprinkleBreakpointsForJittedMethod(MethodDesc                    * 
     _ASSERTE(PCODEToPINSTR(codeStart) == methodRegionInfo.hotStartAddress);
 
 #ifdef _DEBUG
-    if (!g_pConfig->SkipGCCoverage(pMD->GetModule()->GetSimpleName()))
+    if (!g_pConfig->SkipGCCoverage(nativeCodeVersion.GetMethodDesc()->GetModule()->GetSimpleName()))
 #endif
-    SetupAndSprinkleBreakpoints(pMD,
+    SetupAndSprinkleBreakpoints(nativeCodeVersion,
                                 &codeInfo,
                                 methodRegionInfo,
                                 FALSE
@@ -232,10 +195,12 @@ void SetupAndSprinkleBreakpointsForJittedMethod(MethodDesc                    * 
 /****************************************************************************/
 /* called when a method is first jitted when GCStress level 4 or 8 is on */
 
-void SetupGcCoverage(MethodDesc* pMD, BYTE* methodStartPtr) {
+void SetupGcCoverage(NativeCodeVersion nativeCodeVersion, BYTE* methodStartPtr)
+{
+    _ASSERTE(!nativeCodeVersion.IsNull());
 
 #ifdef _DEBUG
-    if (!g_pConfig->ShouldGcCoverageOnMethod(pMD->m_pszDebugMethodName)) {
+    if (!g_pConfig->ShouldGcCoverageOnMethod(nativeCodeVersion.GetMethodDesc()->m_pszDebugMethodName)) {
         return;
     }
 #endif
@@ -258,22 +223,23 @@ void SetupGcCoverage(MethodDesc* pMD, BYTE* methodStartPtr) {
     // code, and since the rejitted method does not get instrumented
     // we should be able to tolerate that the gc cover info does not
     // match.
-    if (pMD->m_GcCover)
+    if (nativeCodeVersion.GetGCCoverageInfo() != NULL)
     {
         return;
     }
 
     PCODE codeStart = (PCODE) methodStartPtr;
-    SetupAndSprinkleBreakpointsForJittedMethod(pMD, codeStart);
+    SetupAndSprinkleBreakpointsForJittedMethod(nativeCodeVersion, codeStart);
 }
 
 #ifdef FEATURE_PREJIT
 
-void SetupGcCoverageForNativeMethod(MethodDesc* pMD, 
+void SetupGcCoverageForNativeMethod(NativeCodeVersion nativeCodeVersion,
                                     PCODE codeStart, 
                                      IJitManager::MethodRegionInfo& methodRegionInfo
                                    ) 
 {
+    _ASSERTE(!nativeCodeVersion.IsNull());
 
     EECodeInfo codeInfo(codeStart);
     _ASSERTE(codeInfo.IsValid());
@@ -281,7 +247,7 @@ void SetupGcCoverageForNativeMethod(MethodDesc* pMD,
 
     _ASSERTE(PCODEToPINSTR(codeStart) == methodRegionInfo.hotStartAddress);
 
-    SetupAndSprinkleBreakpoints(pMD,
+    SetupAndSprinkleBreakpoints(nativeCodeVersion,
                                 &codeInfo,
                                 methodRegionInfo,
                                 TRUE
@@ -333,7 +299,7 @@ void SetupGcCoverageForNativeImage(Module* module)
         IJitManager::MethodRegionInfo methodRegionInfo;
         mi.GetMethodRegionInfo(&methodRegionInfo);
 
-        SetupGcCoverageForNativeMethod(pMD, pMethodStart, methodRegionInfo);
+        SetupGcCoverageForNativeMethod(NativeCodeVersion(pMD), pMethodStart, methodRegionInfo);
     }
 }
 #endif
@@ -876,7 +842,7 @@ void replaceSafePointInstructionWithGcStressInstr(UINT32 safePointOffset, LPVOID
     {
         instructionIsACallThroughRegister = TRUE;
     }
-#endif
+#endif  // _TARGET_XXXX_
     // safe point must always be after a call instruction 
     // and cannot be both call by register & immediate
     // The safe points are also marked at jump calls( a special variant of 
@@ -893,7 +859,7 @@ void replaceSafePointInstructionWithGcStressInstr(UINT32 safePointOffset, LPVOID
         *((WORD*)instrPtr - 1) = INTERRUPT_INSTR_CALL;
 #elif defined(_TARGET_ARM64_)
         *((DWORD*)instrPtr - 1) = INTERRUPT_INSTR_CALL;
-#endif
+#endif // _TARGET_XXXX_
     }
     else if(instructionIsACallThroughImmediate)
     {
@@ -946,7 +912,7 @@ void replaceSafePointInstructionWithGcStressInstr(UINT32 safePointOffset, LPVOID
         }
     }
 }
-#endif
+#endif // PARTIALLY_INTERRUPTIBLE_GC_SUPPORTED
 
 //Replaces the provided interruptible range with corresponding 2 or 4 byte gcStress illegal instruction
 bool replaceInterruptibleRangesWithGcStressInstr (UINT32 startOffset, UINT32 stopOffset, LPVOID pGCCover)
@@ -997,7 +963,6 @@ bool replaceInterruptibleRangesWithGcStressInstr (UINT32 startOffset, UINT32 sto
         PBYTE instrPtr = rangeStart;
         while(instrPtr < rangeStop)
         {
-
             // The instruction about to be replaced cannot already be a gcstress instruction
             _ASSERTE(!IsGcCoverageInterruptInstruction(instrPtr));
 #if defined(_TARGET_ARM_)
@@ -1018,7 +983,7 @@ bool replaceInterruptibleRangesWithGcStressInstr (UINT32 startOffset, UINT32 sto
             if(!isCallToStopForGCJitHelper(instrPtr))
                 *((DWORD*)instrPtr) = INTERRUPT_INSTR;
             instrPtr += 4;
-#endif
+#endif // TARGET_XXXX_
 
         }
 
@@ -1033,7 +998,7 @@ bool replaceInterruptibleRangesWithGcStressInstr (UINT32 startOffset, UINT32 sto
     }
     return FALSE;
 }
-#endif
+#endif // defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
 
 // Is this a call instruction to JIT_RareDisableHelper()
 // We cannot insert GCStress instruction at this call
@@ -1350,7 +1315,9 @@ bool IsGcCoverageInterrupt(LPVOID ip)
         return false;
     }
 
-    GCCoverageInfo *gcCover = codeInfo.GetMethodDesc()->m_GcCover;
+    NativeCodeVersion nativeCodeVersion = codeInfo.GetNativeCodeVersion();
+    _ASSERTE(!nativeCodeVersion.IsNull());
+    GCCoverageInfo *gcCover = nativeCodeVersion.GetGCCoverageInfo();
     if (gcCover == nullptr)
     {
         return false;
@@ -1412,7 +1379,9 @@ BOOL OnGcCoverageInterrupt(PCONTEXT regs)
     forceStack[1] = &pMD;                // This is so I can see it fastchecked
     forceStack[2] = &offset;             // This is so I can see it fastchecked
 
-    GCCoverageInfo* gcCover = pMD->m_GcCover;
+    NativeCodeVersion nativeCodeVersion = codeInfo.GetNativeCodeVersion();
+    _ASSERTE(!nativeCodeVersion.IsNull());
+    GCCoverageInfo* gcCover = nativeCodeVersion.GetGCCoverageInfo();
     forceStack[3] = &gcCover;            // This is so I can see it fastchecked
     if (gcCover == 0)
         return(FALSE);        // we aren't doing code gcCoverage on this function
@@ -1446,7 +1415,7 @@ BOOL OnGcCoverageInterrupt(PCONTEXT regs)
 #ifdef _DEBUG
     if (!g_pConfig->SkipGCCoverage(pMD->GetModule()->GetSimpleName()))
 #endif
-    DoGcStress(regs, pMD);
+    DoGcStress(regs, codeInfo.GetNativeCodeVersion());
 
 #endif // !USE_REDIRECT_FOR_GCSTRESS
 
@@ -1464,26 +1433,25 @@ FORCEINLINE void UpdateGCStressInstructionWithoutGC ()
 
 /****************************************************************************/
 
-void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
+void DoGcStress (PCONTEXT regs, NativeCodeVersion nativeCodeVersion)
 {
     PCODE controlPc = GetIP(regs);
     PBYTE instrPtr = reinterpret_cast<PBYTE>(PCODEToPINSTR(controlPc));
 
-    if (!pMD)
+    if (nativeCodeVersion.IsNull())
     {
-        pMD = ExecutionManager::GetCodeMethodDesc(controlPc);
-        if (!pMD)
+        nativeCodeVersion = ExecutionManager::GetNativeCodeVersion(controlPc);
+        if (nativeCodeVersion.IsNull())
             return;
     }
 
-    GCCoverageInfo *gcCover = pMD->m_GcCover;
+    GCCoverageInfo *gcCover = nativeCodeVersion.GetGCCoverageInfo();
 
     EECodeInfo codeInfo(controlPc);
-    _ASSERTE(codeInfo.GetMethodDesc() == pMD);
+    _ASSERTE(codeInfo.GetNativeCodeVersion() == nativeCodeVersion);
     DWORD offset = codeInfo.GetRelOffset();
 
     Thread *pThread = GetThread();
-
 
     if (!IsGcCoverageInterruptInstruction(instrPtr))
     {
@@ -1808,17 +1776,9 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
         gcFrame.Init(pThread, (OBJECTREF*)retValRegs, numberOfRegs, TRUE);
     }
 
-    if (gcCover->lastMD != pMD) 
-    {
-        LOG((LF_GCROOTS, LL_INFO100000, "GCCOVER: Doing GC at method %s::%s offset 0x%x\n",
-                 pMD->m_pszDebugClassName, pMD->m_pszDebugMethodName, offset));
-        gcCover->lastMD =pMD;
-    } 
-    else 
-    {
-        LOG((LF_GCROOTS, LL_EVERYTHING, "GCCOVER: Doing GC at method %s::%s offset 0x%x\n",
-                pMD->m_pszDebugClassName, pMD->m_pszDebugMethodName, offset));
-    }
+    MethodDesc *pMD = nativeCodeVersion.GetMethodDesc();
+    LOG((LF_GCROOTS, LL_EVERYTHING, "GCCOVER: Doing GC at method %s::%s offset 0x%x\n",
+            pMD->m_pszDebugClassName, pMD->m_pszDebugMethodName, offset));
 
     //-------------------------------------------------------------------------
     // Do the actual stress work

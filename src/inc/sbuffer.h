@@ -46,7 +46,7 @@
 // ================================================================================
 
 #define ALIGNMENT(size) \
-    (( (size^(size-1)) >> 1) +1)
+    (( ((size)^((size)-1)) >> 1) +1)
 
 #define ALIGN(size, align) \
     (((size)+((align)-1)) & ~((align)-1))
@@ -506,7 +506,7 @@ protected:
   protected:
     union {
         BYTE     *m_buffer;
-        wchar_t  *m_asStr;     // For debugging, view as a unicode string
+        WCHAR    *m_asStr;     // For debugging, view as a unicode string
     };
     
 #if _DEBUG

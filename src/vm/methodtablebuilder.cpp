@@ -1505,16 +1505,16 @@ MethodTableBuilder::BuildMethodTableThrowing(
         LPCUTF8 nameSpace;
         HRESULT hr = GetMDImport()->GetNameOfTypeDef(bmtInternal->pType->GetTypeDefToken(), &className, &nameSpace);
 
-#if defined(_TARGET_ARM64_)
-        // All the funtions in System.Runtime.Intrinsics.Arm.Arm64 are hardware intrinsics.
-        if (hr == S_OK && strcmp(nameSpace, "System.Runtime.Intrinsics.Arm.Arm64") == 0)
-#else
-        // All the funtions in System.Runtime.Intrinsics.X86 are hardware intrinsics.
         if (bmtInternal->pType->IsNested())
         {
             IfFailThrow(GetMDImport()->GetNameOfTypeDef(bmtInternal->pType->GetEnclosingTypeToken(), NULL, &nameSpace));
         }
-        
+
+#if defined(_TARGET_ARM64_)
+        // All the funtions in System.Runtime.Intrinsics.Arm are hardware intrinsics.
+        if (hr == S_OK && strcmp(nameSpace, "System.Runtime.Intrinsics.Arm") == 0)
+#else
+        // All the funtions in System.Runtime.Intrinsics.X86 are hardware intrinsics.
         if (hr == S_OK && (strcmp(nameSpace, "System.Runtime.Intrinsics.X86") == 0))
 #endif
         {
@@ -1526,6 +1526,12 @@ MethodTableBuilder::BuildMethodTableThrowing(
             {
                 // Disable AOT compiling for managed implementation of hardware intrinsics.
                 // We specially treat them here to ensure correct ISA features are set during compilation
+                //
+                // When a hardware intrinsic is not supported, the JIT can generate a PlatformNotSupportedException
+                // at runtime. We cannot do the same in AOT. AOT generated ones would cause illegal instruction traps.
+                //
+                // To avoid it, one must make sure all usages are protected under IsSupported. We can guarantee this for 
+                // CoreLib. That's why we can allow these to AOT compile in CoreLib:
                 COMPlusThrow(kTypeLoadException, IDS_EE_HWINTRINSIC_NGEN_DISALLOWED);
             }
 #endif // defined(CROSSGEN_COMPILE)
@@ -2932,7 +2938,7 @@ MethodTableBuilder::EnumerateClassMethods()
             if (fIsClassInterface
 #if defined(FEATURE_DEFAULT_INTERFACES)
                 // Only fragile crossgen wasn't upgraded to deal with default interface methods.
-                && !IsReadyToRunCompilation()
+                && !IsReadyToRunCompilation() && !IsNgenPDBCompilationProcess()
 #endif
                 )
             {
@@ -6047,11 +6053,6 @@ MethodTableBuilder::InitMethodDesc(
     if (IsMdStatic(dwMemberAttrs))
         pNewMD->SetStatic();
 
-    // Set suppress unmanaged code access permission attribute
-
-    if (pNewMD->IsNDirect())
-        pNewMD->ComputeSuppressUnmanagedCodeAccessAttr(pIMDII);
-
 #ifdef _DEBUG 
     // Mark as many methods as synchronized as possible.
     //
@@ -6961,15 +6962,43 @@ MethodTableBuilder::NeedsNativeCodeSlot(bmtMDMethod * pMDMethod)
 
 #ifdef FEATURE_TIERED_COMPILATION
     // Keep in-sync with MethodDesc::DetermineAndSetIsEligibleForTieredCompilation()
-    if (g_pConfig->TieredCompilation() &&
+    if ((g_pConfig->TieredCompilation() &&
 
         // Policy - If QuickJit is disabled and the module does not have any pregenerated code, the method would be ineligible
         // for tiering currently to avoid some unnecessary overhead
         (g_pConfig->TieredCompilation_QuickJit() || GetModule()->HasNativeOrReadyToRunImage()) &&
 
         (pMDMethod->GetMethodType() == METHOD_TYPE_NORMAL || pMDMethod->GetMethodType() == METHOD_TYPE_INSTANTIATED))
+
+#ifdef FEATURE_REJIT
+        ||
+
+        // Methods that are R2R need precode if ReJIT is enabled. Keep this in sync with MethodDesc::IsEligibleForReJIT()
+        (ReJitManager::IsReJITEnabled() &&
+
+            GetMethodClassification(pMDMethod->GetMethodType()) == mcIL &&
+
+            !GetModule()->IsCollectible() &&
+
+            !GetModule()->IsEditAndContinueEnabled())
+#endif // FEATURE_REJIT
+        )
     {
         return TRUE;
+    }
+#endif
+
+#ifdef FEATURE_DEFAULT_INTERFACES
+    if (IsInterface())
+    {
+        DWORD attrs = pMDMethod->GetDeclAttrs();
+        if (!IsMdStatic(attrs) && IsMdVirtual(attrs) && !IsMdAbstract(attrs))
+        {
+            // Default interface method. Since interface methods currently need to have a precode, the native code slot will be
+            // used to retrieve the native code entry point, instead of getting it from the precode, which is not reliable with
+            // debuggers setting breakpoints.
+            return TRUE;
+        }
     }
 #endif
 
@@ -11975,7 +12004,6 @@ BOOL HasLayoutMetadata(Assembly* pAssembly, IMDInternalImport* pInternalImport, 
 
     HRESULT hr;
     ULONG clFlags;
-
     if (FAILED(pInternalImport->GetTypeDefProps(cl, &clFlags, NULL)))
     {
         pAssembly->ThrowTypeLoadException(pInternalImport, cl, IDS_CLASSLOAD_BADFORMAT);

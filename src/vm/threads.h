@@ -11,28 +11,6 @@
 //
 
 // 
-// #RuntimeThreadLocals.
-// 
-// Windows has a feature call Thread Local Storage (TLS, which is data that the OS allocates every time it
-// creates a thread). Programs access this storage by using the Windows TlsAlloc, TlsGetValue, TlsSetValue
-// APIs (see http://msdn2.microsoft.com/en-us/library/ms686812.aspx). The runtime allocates two such slots
-// for its use
-// 
-//     * A slot that holds a pointer to the runtime thread object code:Thread (see code:#ThreadClass). The
-//         runtime has a special optimized version of this helper code:GetThread (we actually emit assembly
-//         code on the fly so it is as fast as possible). These code:Thread objects live in the
-//         code:ThreadStore.
-//         
-//      * The other slot holds the current code:AppDomain (a managed equivalent of a process). The
-//          runtime thread object also has a pointer to the thread's AppDomain (see code:Thread.m_pDomain,
-//          so in theory this TLS is redundant. It is there for speed (one less pointer indirection). The
-//          optimized helper for this is code:GetAppDomain (we emit assembly code on the fly for this one
-//          too).
-//          
-// Initially these TLS slots are empty (when the OS starts up), however before we run managed code, we must
-// set them properly so that managed code knows what AppDomain it is in and we can suspend threads properly
-// for a GC (see code:#SuspendingTheRuntime)
-// 
 // #SuspendingTheRuntime
 // 
 // One of the primary differences between runtime code (managed code), and traditional (unmanaged code) is
@@ -162,12 +140,12 @@ class     ThreadLocalIBCInfo;
 class     EECodeInfo;
 class     DebuggerPatchSkip;
 class     FaultingExceptionFrame;
-class     ContextTransitionFrame;
 enum      BinderMethodID : int;
 class     CRWLock;
 struct    LockEntry;
 class     PendingTypeLoadHolder;
 class     PrepareCodeConfig;
+class     NativeCodeVersion;
 
 struct    ThreadLocalBlock;
 typedef DPTR(struct ThreadLocalBlock) PTR_ThreadLocalBlock;
@@ -451,11 +429,6 @@ public:
 
 inline BOOL dbgOnly_IsSpecialEEThread() { return FALSE; }
 
-#define INCTHREADLOCKCOUNT() { }
-#define DECTHREADLOCKCOUNT() { }
-#define INCTHREADLOCKCOUNTTHREAD(thread) { }
-#define DECTHREADLOCKCOUNTTHREAD(thread) { }
-
 #define FORBIDGC_LOADER_USE_ENABLED() false
 #define ENABLE_FORBID_GC_LOADER_USE_IN_THIS_SCOPE()    ;
 
@@ -493,8 +466,11 @@ typedef Thread::ForbidSuspendThreadHolder ForbidSuspendThreadHolder;
 
 #else // CROSSGEN_COMPILE
 
-#ifdef _TARGET_ARM_
+#if (defined(_TARGET_ARM_) && defined(FEATURE_EMULATE_SINGLESTEP))
 #include "armsinglestepper.h"
+#endif
+#if (defined(_TARGET_ARM64_) && defined(FEATURE_EMULATE_SINGLESTEP))
+#include "arm64singlestepper.h"
 #endif
 
 #if !defined(PLATFORM_SUPPORTS_SAFE_THREADSUSPEND)
@@ -662,9 +638,9 @@ void CommonTripThread();
 // When we resume a thread at a new location, to get an exception thrown, we have to
 // pretend the exception originated elsewhere.
 EXTERN_C void ThrowControlForThread(
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
         FaultingExceptionFrame *pfef
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
         );
 
 // RWLock state inside TLS
@@ -1038,8 +1014,6 @@ class Thread: public IUnknown
     friend void         ThreadBaseObject::SetDelegate(OBJECTREF delegate);
 
     friend void CallFinalizerOnThreadObject(Object *obj);
-
-    friend class ContextTransitionFrame;  // To set m_dwBeginLockCount
 
     // Debug and Profiler caches ThreadHandle.
     friend class Debugger;                  // void Debugger::ThreadStarted(Thread* pRuntimeThread, BOOL fAttaching);
@@ -2346,8 +2320,6 @@ public:
 
 public:
 
-    void DECLSPEC_NORETURN RaiseCrossContextException(Exception* pEx, ContextTransitionFrame* pFrame);
-
     // ClearContext are to be called only during shutdown
     void ClearContext();
 
@@ -2909,11 +2881,16 @@ public:
             ResetThreadStateNC(Thread::TSNC_DebuggerIsStepping);
     }
 
-#ifdef _TARGET_ARM_
-    // ARM doesn't currently support any reliable hardware mechanism for single-stepping. Instead we emulate
-    // this in software. This support is used only by the debugger.
+#ifdef FEATURE_EMULATE_SINGLESTEP
+    // ARM doesn't currently support any reliable hardware mechanism for single-stepping.
+    // ARM64 unix doesn't currently support any reliable hardware mechanism for single-stepping.
+    // For each we emulate single step in software. This support is used only by the debugger.
 private:
+#if defined(_TARGET_ARM_)
     ArmSingleStepper m_singleStepper;
+#else
+    Arm64SingleStepper m_singleStepper;
+#endif
 public:
 #ifndef DACCESS_COMPILE
     // Given the context with which this thread shall be resumed and the first WORD of the instruction that
@@ -2926,9 +2903,13 @@ public:
         m_singleStepper.Enable();
     }
 
-    void BypassWithSingleStep(DWORD ip, WORD opcode1, WORD opcode2)
+    void BypassWithSingleStep(const void* ip ARM_ARG(WORD opcode1) ARM_ARG(WORD opcode2) ARM64_ARG(uint32_t opcode))
     {
-        m_singleStepper.Bypass(ip, opcode1, opcode2);
+#if defined(_TARGET_ARM_)
+        m_singleStepper.Bypass((DWORD)ip, opcode1, opcode2);
+#else
+        m_singleStepper.Bypass((uint64_t)ip, opcode);
+#endif
     }
 
     void DisableSingleStep()
@@ -2954,7 +2935,7 @@ public:
         return m_singleStepper.Fixup(pCtx, dwExceptionCode);
     }
 #endif // !DACCESS_COMPILE
-#endif // _TARGET_ARM_
+#endif // FEATURE_EMULATE_SINGLESTEP
 
     private:
 
@@ -3164,7 +3145,7 @@ public:
     bool InitRegDisplay(const PREGDISPLAY, const PT_CONTEXT, bool validContext);
     void FillRegDisplay(const PREGDISPLAY pRD, PT_CONTEXT pctx);
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     static PCODE VirtualUnwindCallFrame(T_CONTEXT* pContext, T_KNONVOLATILE_CONTEXT_POINTERS* pContextPointers = NULL,
                                            EECodeInfo * pCodeInfo = NULL);
     static UINT_PTR VirtualUnwindCallFrame(PREGDISPLAY pRD, EECodeInfo * pCodeInfo = NULL);
@@ -3174,7 +3155,7 @@ public:
         PT_RUNTIME_FUNCTION pFunctionEntry = NULL, UINT_PTR uImageBase = NULL);
     static UINT_PTR VirtualUnwindToFirstManagedCallFrame(T_CONTEXT* pContext);
 #endif // DACCESS_COMPILE
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
     // During a <clinit>, this thread must not be asynchronously
     // stopped or interrupted.  That would leave the class unavailable
@@ -3700,7 +3681,7 @@ private:
     friend class NDirect; // Quick access to thread stub creation
 
 #ifdef HAVE_GCCOVER
-    friend void DoGcStress (PT_CONTEXT regs, MethodDesc *pMD);  // Needs to call UnhijackThread
+    friend void DoGcStress (PT_CONTEXT regs, NativeCodeVersion nativeCodeVersion);  // Needs to call UnhijackThread
 #endif // HAVE_GCCOVER
 
     ULONG           m_ExternalRefCount;
@@ -4227,11 +4208,11 @@ public:
    this fast, the table is not perfect (there can be collisions), but this should
    not cause false positives, but it may allow errors to go undetected  */
 
-#ifdef _WIN64
+#ifdef BIT64
 #define OBJREF_HASH_SHIFT_AMOUNT 3
-#else // _WIN64
+#else // BIT64
 #define OBJREF_HASH_SHIFT_AMOUNT 2
-#endif // _WIN64
+#endif // BIT64
 
         // For debugging, you may want to make this number very large, (8K)
         // should basically insure that no collisions happen
@@ -4845,10 +4826,10 @@ private:
     // So we save reference to the clause post which TA was reraised, which is used in ExceptionTracker::ProcessManagedCallFrame
     // to make ThreadAbort proceed ahead instead of going in a loop.
     // This problem only happens on Win64 due to JIT64.  The common scenario is VB's "On error resume next"
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     DWORD       m_dwIndexClauseForCatch;
     StackFrame  m_sfEstablisherOfActualHandlerFrame;
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 public:
     // Holds per-thread information the debugger uses to expose locking information
@@ -5563,13 +5544,6 @@ struct PendingSync
     }
     void Restore(BOOL bRemoveFromSB);
 };
-
-
-#define INCTHREADLOCKCOUNT() { }
-#define DECTHREADLOCKCOUNT() { }
-#define INCTHREADLOCKCOUNTTHREAD(thread) { }
-#define DECTHREADLOCKCOUNTTHREAD(thread) { }
-
 
 // --------------------------------------------------------------------------------
 // GCHolder is used to implement the normal GCX_ macros.
@@ -6751,5 +6725,17 @@ private:
 };
 
 BOOL Debug_IsLockedViaThreadSuspension();
+
+#ifdef FEATURE_WRITEBARRIER_COPY
+
+BYTE* GetWriteBarrierCodeLocation(VOID* barrier);
+BOOL IsIPInWriteBarrierCodeCopy(PCODE controlPc);
+PCODE AdjustWriteBarrierIP(PCODE controlPc);
+
+#else // FEATURE_WRITEBARRIER_COPY
+
+#define GetWriteBarrierCodeLocation(barrier) ((BYTE*)(barrier))
+
+#endif // FEATURE_WRITEBARRIER_COPY
 
 #endif //__threads_h__

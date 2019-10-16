@@ -18,12 +18,6 @@
 #ifndef _COR_COMPILE_H_
 #define _COR_COMPILE_H_
 
-#if !defined(_TARGET_X86_) || defined(FEATURE_PAL)
-#ifndef WIN64EXCEPTIONS
-#define WIN64EXCEPTIONS
-#endif
-#endif  // !_TARGET_X86_ || FEATURE_PAL
-
 #include <cor.h>
 #include <corhdr.h>
 #include <corinfo.h>
@@ -694,7 +688,8 @@ enum CORCOMPILE_FIXUP_BLOB_KIND
 
     ENCODE_DECLARINGTYPE_HANDLE,
 
-    ENCODE_INDIRECT_PINVOKE_TARGET,                 /* For calling a pinvoke method ptr  */
+    ENCODE_INDIRECT_PINVOKE_TARGET,                 /* For calling a pinvoke method ptr indirectly */
+    ENCODE_PINVOKE_TARGET,                          /* For calling a pinvoke method ptr */
 
     ENCODE_MODULE_HANDLE                = 0x50,     /* Module token */
     ENCODE_STATIC_FIELD_ADDRESS,                    /* For accessing a static field */
@@ -772,7 +767,7 @@ struct CORCOMPILE_EXCEPTION_CLAUSE
 
 struct CORCOMPILE_COLD_METHOD_ENTRY
 {
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     DWORD       mainFunctionEntryRVA;
 #endif
     // TODO: hotCodeSize should be encoded in GC info
@@ -1185,6 +1180,8 @@ class ICorCompilePreloader
     virtual void MethodReferencedByCompiledCode(CORINFO_METHOD_HANDLE handle) = 0;
 
     virtual BOOL IsUncompiledMethod(CORINFO_METHOD_HANDLE handle) = 0;
+
+    virtual BOOL ShouldSuppressGCTransition(CORINFO_METHOD_HANDLE handle) = 0;
 
     // Return a method handle that was previously registered and
     // hasn't been compiled already, and remove it from the set

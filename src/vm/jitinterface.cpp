@@ -436,9 +436,12 @@ CEEInfo::ConvToJitSig(
 
     SigTypeContext typeContext;
 
+    uint32_t sigRetFlags = 0;
     if (pContextMD)
     {
         SigTypeContext::InitTypeContext(pContextMD, contextType, &typeContext);
+        if (pContextMD->ShouldSuppressGCTransition())
+            sigRetFlags |= CORINFO_SIGFLAG_SUPPRESS_GC_TRANSITION;
     }
     else
     {
@@ -472,7 +475,6 @@ CEEInfo::ConvToJitSig(
 
         _ASSERTE(!sig.IsNull());
         Module * module = GetModule(scopeHnd);
-        sigRet->flags = 0;
 
         ULONG data;
         IfFailThrow(sig.GetCallingConvInfo(&data));
@@ -521,10 +523,10 @@ CEEInfo::ConvToJitSig(
     else
     {
         // This is local variables declaration
+        sigRetFlags |= CORINFO_SIGFLAG_IS_LOCAL_SIG;
 
         sigRet->callConv = CORINFO_CALLCONV_DEFAULT;
         sigRet->retType = CORINFO_TYPE_VOID;
-        sigRet->flags   = CORINFO_SIGFLAG_IS_LOCAL_SIG;
         sigRet->numArgs = 0;
         if (!sig.IsNull())
         {
@@ -546,6 +548,9 @@ CEEInfo::ConvToJitSig(
 
         sigRet->args = (CORINFO_ARG_LIST_HANDLE)sig.GetPtr();
     }
+
+    // Set computed flags
+    sigRet->flags = sigRetFlags;
 
     _ASSERTE(SigInfoFlagsAreValid(sigRet));
 } // CEEInfo::ConvToJitSig
@@ -6764,8 +6769,6 @@ DWORD CEEInfo::getMethodAttribsInternal (CORINFO_METHOD_HANDLE ftn)
 
     DWORD result = CORINFO_FLG_NOSECURITYWRAP;
 
-    // <REVISIT_TODO>@todo: can we git rid of CORINFO_FLG_ stuff and just include cor.h?</REVISIT_TODO>
-
     DWORD attribs = pMD->GetAttrs();
 
     if (IsMdFamily(attribs))
@@ -7098,26 +7101,6 @@ bool getILIntrinsicImplementation(MethodDesc * ftn,
             methInfo->options = (CorInfoOptions)0;
             return true;
         }
-    }
-    else if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__GET_RAW_SZ_ARRAY_DATA)->GetMemberDef())
-    {
-        mdToken tokRawSzArrayData = MscorlibBinder::GetField(FIELD__RAW_SZARRAY_DATA__DATA)->GetMemberDef();
-
-        static BYTE ilcode[] = { CEE_LDARG_0,
-                                 CEE_LDFLDA,0,0,0,0,
-                                 CEE_RET };
-
-        ilcode[2] = (BYTE)(tokRawSzArrayData);
-        ilcode[3] = (BYTE)(tokRawSzArrayData >> 8);
-        ilcode[4] = (BYTE)(tokRawSzArrayData >> 16);
-        ilcode[5] = (BYTE)(tokRawSzArrayData >> 24);
-
-        methInfo->ILCode = const_cast<BYTE*>(ilcode);
-        methInfo->ILCodeSize = sizeof(ilcode);
-        methInfo->maxStack = 1;
-        methInfo->EHcount = 0;
-        methInfo->options = (CorInfoOptions)0;
-        return true;
     }
 
     return false;
@@ -7570,6 +7553,27 @@ bool getILIntrinsicImplementationForRuntimeHelpers(MethodDesc * ftn,
         return true;
     }
 
+    if (tk == MscorlibBinder::GetMethod(METHOD__RUNTIME_HELPERS__GET_RAW_SZ_ARRAY_DATA)->GetMemberDef())
+    {
+        mdToken tokRawSzArrayData = MscorlibBinder::GetField(FIELD__RAW_ARRAY_DATA__DATA)->GetMemberDef();
+
+        static BYTE ilcode[] = { CEE_LDARG_0,
+                                 CEE_LDFLDA,0,0,0,0,
+                                 CEE_RET };
+
+        ilcode[2] = (BYTE)(tokRawSzArrayData);
+        ilcode[3] = (BYTE)(tokRawSzArrayData >> 8);
+        ilcode[4] = (BYTE)(tokRawSzArrayData >> 16);
+        ilcode[5] = (BYTE)(tokRawSzArrayData >> 24);
+
+        methInfo->ILCode = const_cast<BYTE*>(ilcode);
+        methInfo->ILCodeSize = sizeof(ilcode);
+        methInfo->maxStack = 1;
+        methInfo->EHcount = 0;
+        methInfo->options = (CorInfoOptions)0;
+        return true;
+    }
+
     return false;
 }
 
@@ -7637,7 +7641,7 @@ getMethodInfoHelper(
 
         MethodTable * pMT  = ftn->GetMethodTable();
 
-        if (pMT->GetModule()->IsSystem())
+        if (ftn->IsJitIntrinsic())
         {
             if (MscorlibBinder::IsClass(pMT, CLASS__JIT_HELPERS))
             {
@@ -9993,14 +9997,6 @@ CorInfoUnmanagedCallConv CEEInfo::getUnmanagedCallConv(CORINFO_METHOD_HANDLE met
 }
 
 /*********************************************************************/
-BOOL NDirectMethodDesc::ComputeMarshalingRequired()
-{
-    WRAPPER_NO_CONTRACT;
-
-    return NDirect::MarshalingRequired(this);
-}
-
-/*********************************************************************/
 BOOL CEEInfo::pInvokeMarshalingRequired(CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* callSiteSig)
 {
     CONTRACTL {
@@ -10203,13 +10199,27 @@ void* CEEInfo::getAddressOfPInvokeFixup(CORINFO_METHOD_HANDLE method,
 }
 
 /*********************************************************************/
-    // return address of fixup area for late-bound N/Direct calls.
+// return address of fixup area for late-bound N/Direct calls.
 void CEEInfo::getAddressOfPInvokeTarget(CORINFO_METHOD_HANDLE method,
                                         CORINFO_CONST_LOOKUP *pLookup)
 {
     WRAPPER_NO_CONTRACT;
 
-    void *pIndirection;
+    void* pIndirection;
+    {
+        JIT_TO_EE_TRANSITION_LEAF();
+
+        MethodDesc* pMD = GetMethod(method);
+        if (NDirectMethodDesc::TryResolveNDirectTargetForNoGCTransition(pMD, &pIndirection))
+        {
+            pLookup->accessType = IAT_VALUE;
+            pLookup->addr = pIndirection;
+            return;
+        }
+
+        EE_TO_JIT_TRANSITION_LEAF();
+    }
+
     pLookup->accessType = IAT_PVALUE;
     pLookup->addr = getAddressOfPInvokeFixup(method, &pIndirection);
     _ASSERTE(pIndirection == NULL);
@@ -10263,6 +10273,9 @@ void InlinedCallFrame::GetEEInfo(CORINFO_EE_INFO::InlinedCallFrameInfo *pInfo)
     pInfo->offsetOfCalleeSavedFP         = sizeof(GSCookie) + offsetof(InlinedCallFrame, m_pCalleeSavedFP);
     pInfo->offsetOfCallTarget            = sizeof(GSCookie) + offsetof(InlinedCallFrame, m_Datum);
     pInfo->offsetOfReturnAddress         = sizeof(GSCookie) + offsetof(InlinedCallFrame, m_pCallerReturnAddress);
+#ifdef _TARGET_ARM_
+    pInfo->offsetOfSPAfterProlog         = sizeof(GSCookie) + offsetof(InlinedCallFrame, m_pSPAfterProlog);
+#endif // _TARGET_ARM_
 }
 
 /*********************************************************************/
@@ -10297,7 +10310,7 @@ void CEEInfo::getEEInfo(CORINFO_EE_INFO *pEEInfoOut)
         // ** IMPORTANT ** If you ever need to change the value of this fixed size, make sure to change the R2R
         // version number, otherwise older R2R images will probably crash when used.
 
-        const int r2rInlinedCallFrameSize = TARGET_POINTER_SIZE * 11;
+        const int r2rInlinedCallFrameSize = TARGET_POINTER_SIZE * READYTORUN_PInvokeTransitionFrameSizeInPointerUnits;
 
 #if defined(_DEBUG) && !defined(CROSSBITNESS_COMPILE)
         InlinedCallFrame::GetEEInfo(&pEEInfoOut->inlinedCallFrameInfo);
@@ -11275,7 +11288,7 @@ void reservePersonalityRoutineSpace(ULONG &unwindSize)
 //
 void CEEJitInfo::reserveUnwindInfo(BOOL isFunclet, BOOL isColdCode, ULONG unwindSize)
 {
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
@@ -11300,10 +11313,10 @@ void CEEJitInfo::reserveUnwindInfo(BOOL isFunclet, BOOL isColdCode, ULONG unwind
     m_totalUnwindInfos++;
 
     EE_TO_JIT_TRANSITION_LEAF();
-#else // WIN64EXCEPTIONS
+#else // FEATURE_EH_FUNCLETS
     LIMITED_METHOD_CONTRACT;
     // Dummy implementation to make cross-platform altjit work
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 }
 
 // Allocate and initialize the .rdata and .pdata for this method or
@@ -11336,7 +11349,7 @@ void CEEJitInfo::allocUnwindInfo (
         CorJitFuncKind      funcKind               /* IN */
         )
 {
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     CONTRACTL {
         THROWS;
         GC_TRIGGERS;
@@ -11477,10 +11490,10 @@ void CEEJitInfo::allocUnwindInfo (
 #endif // defined(_TARGET_AMD64_)
 
     EE_TO_JIT_TRANSITION();
-#else // WIN64EXCEPTIONS
+#else // FEATURE_EH_FUNCLETS
     LIMITED_METHOD_CONTRACT;
     // Dummy implementation to make cross-platform altjit work
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 }
 
 void CEEJitInfo::recordCallSite(ULONG                 instrOffset,
@@ -11510,7 +11523,7 @@ void CEEJitInfo::recordRelocation(void * location,
         MODE_PREEMPTIVE;
     } CONTRACTL_END;
 
-#ifdef _WIN64
+#ifdef BIT64
     JIT_TO_EE_TRANSITION();
 
     INT64 delta;
@@ -11688,13 +11701,13 @@ void CEEJitInfo::recordRelocation(void * location,
     }
 
     EE_TO_JIT_TRANSITION();
-#else // _WIN64
+#else // BIT64
     JIT_TO_EE_TRANSITION_LEAF();
 
     // Nothing to do on 32-bit
 
     EE_TO_JIT_TRANSITION_LEAF();
-#endif // _WIN64
+#endif // BIT64
 }
 
 WORD CEEJitInfo::getRelocTypeHint(void * target)
@@ -12104,7 +12117,7 @@ void CEEJitInfo::allocMem (
         totalSize += roDataSize;
     }
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     totalSize.AlignUp(sizeof(DWORD));
     totalSize += m_totalUnwindSize;
 #endif
@@ -12123,7 +12136,7 @@ void CEEJitInfo::allocMem (
     }
 
     m_CodeHeader = m_jitManager->allocCode(m_pMethodBeingCompiled, totalSize.Value(), GetReserveForJumpStubs(), flag
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
                                            , m_totalUnwindInfos
                                            , &m_moduleBase
 #endif
@@ -12145,7 +12158,7 @@ void CEEJitInfo::allocMem (
         *roDataBlock = NULL;
     }
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     current = (BYTE *)ALIGN_UP(current, sizeof(DWORD));
 
     m_theUnwindBlock = current;
@@ -12177,12 +12190,12 @@ void * CEEJitInfo::allocGCInfo (size_t size)
     _ASSERTE(m_CodeHeader != 0);
     _ASSERTE(m_CodeHeader->GetGCInfo() == 0);
 
-#ifdef _WIN64
+#ifdef BIT64
     if (size & 0xFFFFFFFF80000000LL)
     {
         COMPlusThrowHR(CORJIT_OUTOFMEM);
     }
-#endif // _WIN64
+#endif // BIT64
 
     block = m_jitManager->allocGCInfo(m_CodeHeader,(DWORD)size, &m_GCinfo_len);
     if (!block)
@@ -12598,8 +12611,6 @@ CorJitResult CallCompileMethodWithSEHWrapper(EEJitManager *jitMgr,
         flags.Set(CORJIT_FLAGS::CORJIT_FLAG_FRAMED);
     if (g_pConfig->JitAlignLoops())
         flags.Set(CORJIT_FLAGS::CORJIT_FLAG_ALIGN_LOOPS);
-    if (ftn->IsVersionableWithJumpStamp() || g_pConfig->AddRejitNops())
-        flags.Set(CORJIT_FLAGS::CORJIT_FLAG_PROF_REJIT_NOPS);
 #ifdef _TARGET_X86_
     if (g_pConfig->PInvokeRestoreEsp(ftn->GetModule()->IsPreV4Assembly()))
         flags.Set(CORJIT_FLAGS::CORJIT_FLAG_PINVOKE_RESTORE_ESP);
@@ -13666,6 +13677,15 @@ BOOL LoadDynamicInfoEntry(Module *currentModule,
         }
         break;
 
+    case ENCODE_PINVOKE_TARGET:
+        {
+            MethodDesc *pMethod = ZapSig::DecodeMethod(currentModule, pInfoModule, pBlob);
+
+            _ASSERTE(pMethod->IsNDirect());
+            result = (size_t)(LPVOID)NDirectMethodDesc::ResolveAndSetNDirectTarget((NDirectMethodDesc*)pMethod);
+        }
+        break;
+
 #if defined(PROFILING_SUPPORTED)
     case ENCODE_PROFILING_HANDLE:
         {
@@ -14179,7 +14199,7 @@ EECodeInfo::EECodeInfo()
     m_pMD = NULL;
     m_relOffset = 0;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     m_pFunctionEntry = NULL;
 #endif
 }
@@ -14218,7 +14238,7 @@ Invalid:
     m_pMD = NULL;
     m_relOffset = 0;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     m_pFunctionEntry = NULL;
 #endif
 }
@@ -14233,7 +14253,7 @@ TADDR EECodeInfo::GetSavedMethodCode()
         HOST_NOCALLS;
         SUPPORTS_DAC;
     } CONTRACTL_END;
-#ifndef _WIN64
+#ifndef BIT64
 #if defined(HAVE_GCCOVER)
     _ASSERTE (!m_pMD->m_GcCover || GCStress<cfg_instr>::IsEnabled());
     if (GCStress<cfg_instr>::IsEnabled()
@@ -14263,7 +14283,33 @@ TADDR EECodeInfo::GetStartAddress()
     return m_pJM->JitTokenToStartAddress(m_methodToken);
 }
 
-#if defined(WIN64EXCEPTIONS)
+NativeCodeVersion EECodeInfo::GetNativeCodeVersion()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+    }
+    CONTRACTL_END;
+
+    PTR_MethodDesc pMD = PTR_MethodDesc(GetMethodDesc());
+    if (pMD == NULL)
+    {
+        return NativeCodeVersion();
+    }
+
+#ifdef FEATURE_CODE_VERSIONING
+    if (pMD->IsVersionable())
+    {
+        CodeVersionManager *pCodeVersionManager = pMD->GetCodeVersionManager();
+        CodeVersionManager::TableLockHolder lockHolder(pCodeVersionManager);
+        return pCodeVersionManager->GetNativeCodeVersion(pMD, PINSTRToPCODE(GetStartAddress()));
+    }
+#endif
+    return NativeCodeVersion(pMD);
+}
+
+#if defined(FEATURE_EH_FUNCLETS)
 
 // ----------------------------------------------------------------------------
 // EECodeInfo::GetMainFunctionInfo
@@ -14319,7 +14365,7 @@ BOOL EECodeInfo::HasFrameRegister()
 }
 #endif // defined(_TARGET_AMD64_)
 
-#endif // defined(WIN64EXCEPTIONS)
+#endif // defined(FEATURE_EH_FUNCLETS)
 
 
 #if defined(_TARGET_AMD64_)

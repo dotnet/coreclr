@@ -1,45 +1,42 @@
+# This is a "response file" used to pass fine-grained test exclusions to the
+# corefx xunit test wrapper scripts, RunTests.cmd or RunTests.sh. Lines here
+# should be in a format that xunit understands. Lines beginning with '#' are
+# comment lines and are ignored.
+#
+# The interesting xunit exclusion syntax is (extracted from help screen for
+# "dotnet.exe xunit.console.dll -?"):
+#
+# -------------------------------------------------------------------------
+# -nomethod "name"       : do not run a given test method (can be fully specified or use a wildcard;
+#                        : i.e., 'MyNamespace.MyClass.MyTestMethod' or '*.MyTestMethod')
+#                        : if specified more than once, acts as an AND operation
+# -noclass "name"        : do not run any methods in a given test class (should be fully
+#                        : specified; i.e., 'MyNamespace.MyClass')
+#                        : if specified more than once, acts as an AND operation
+# -nonamespace "name"    : do not run any methods in a given namespace (i.e.,
+#                        : 'MyNamespace.MySubNamespace')
+#                        : if specified more than once, acts as an AND operation
+# -------------------------------------------------------------------------
+#
+# Please list a GitHub issue for every exclusion.
+
 -notrait category=OuterLoop
 -notrait category=RequiresElevation
 
-# Wrong Microsoft.Bcl.AsyncInterfaces binary (netcoreapp vs. netstandard)
--noclass System.Threading.Tasks.Sources.Tests.ManualResetValueTaskSourceTests
+# System.ComponentModel.Composition.Registration.Tests: test failures
+-noclass System.ComponentModel.Composition.Registration.Tests.RegistrationBuilderAttributedOverrideUnitTests
 
-# Old System.Composition.Runtime
--nomethod System.Composition.Runtime.Tests.CompositionContractTests.Equals_Object_ReturnsExpected
--noclass System.Composition.Hosting.Tests.ContainerConfigurationTests
-
-# Missing OOB dependencies
--nonamespace System.Numerics.Tensors.Tests
--nonamespace System.Numerics.Tensors
--nonamespace System.Resources.Extensions.Tests
+# Timeout on Linux/arm32
 -nonamespace System.Data.SqlClient.Tests
--nonamespace System.Data.SqlClient.ManualTesting.Tests
--nonamespace System.Drawing.Printing.Tests
--nonamespace System.Media.Test
--noclass System.Security.Cryptography.X509Certificates.Tests.X509Certificate2UITests
 
-# Missing OOB dependencies - Disable UTF8 string tests
+# Missing OOB dependencies (System.Utf8String.Experimental) - Disable UTF8 string tests
 -noclass System.Net.Http.Tests.Utf8StringContentTests
 -noclass System.Tests.Char8Tests
 -noclass System.Tests.MemoryTests
 -noclass System.Tests.ReflectionTests
 -noclass System.Tests.Utf8ExtensionsTests
 -noclass System.Tests.Utf8StringTests
-
-# Missing OOB dependencies - Disable Tests from System.ComponentModel entirely
--nonamespace System.ComponentModel.Composition
--nonamespace System.ComponentModel.Composition.AttributedModel
--nonamespace System.ComponentModel.Composition.Extensibility
--nonamespace System.ComponentModel.Composition.Factories
--nonamespace System.ComponentModel.Composition.Hosting
--nonamespace System.ComponentModel.Composition.Primitives
--nonamespace System.ComponentModel.Composition.ReflectionModel
--nonamespace System.ComponentModel.Tests
--nonamespace System.ComponentModel.Design.Tests
--nonamespace System.ComponentModel.Design.Serialization.Tests
--nonamespace System.ComponentModel.Design.Tests
--nonamespace System.ComponentModel.TypeConverterTests
--nonamespace Tests.Integration
+-noclass System.Text.Tests.Utf8SpanTests
 
 # https://github.com/dotnet/corefx/issues/37886
 -nomethod System.Security.Cryptography.Rsa.Tests.RSAXml.FromNonsenseXml
@@ -67,10 +64,6 @@
 # Timeout in System.Runtime.Serialization.Formatters.Tests.BinaryFormatterTests.SerializeHugeObjectGraphs: https://github.com/dotnet/coreclr/issues/20246
 -nomethod System.Runtime.Serialization.Formatters.Tests.BinaryFormatterTests.SerializeHugeObjectGraphs
 
-# Assert with TieredCompilation=1 JitStress=1/2: https://github.com/dotnet/coreclr/issues/25263
--nomethod Generic.Dictionary.DictionaryConcurrentAccessDetectionTests.DictionaryConcurrentAccessDetection_ReferenceTypeKey
--nomethod Generic.Dictionary.DictionaryConcurrentAccessDetectionTests.DictionaryConcurrentAccessDetection_ValueTypeKey
-
 # Test failure: https://github.com/dotnet/corefx/issues/37989
 -nomethod MonoTests.System.Runtime.Caching.MemoryCacheTest.Contains
 
@@ -78,51 +71,31 @@
 # https://github.com/dotnet/coreclr/issues/22414
 -nomethod System.Numerics.Tests.ToStringTest.RunRegionSpecificStandardFormatToStringTests
 
+# Failure in System.Text.Encoding.Tests due to bug fix in DecoderNLS.Convert
+# https://github.com/dotnet/coreclr/issues/27191
+-nomethod System.Text.Tests.DecoderConvert2.PosTest6
+
 # Timeout in System.Text.RegularExpressions.Tests.RegexMatchTests.Match_ExcessPrefix
 # https://github.com/dotnet/coreclr/issues/18912
 -nomethod System.Text.RegularExpressions.Tests.RegexMatchTests.Match_ExcessPrefix
 
-# Assert with JITMinOpts=1: https://github.com/dotnet/coreclr/issues/25070
--nonamespace Microsoft.VisualBasic.Tests
-
 # Assert: https://github.com/dotnet/coreclr/issues/25050
 -nonamespace System.Data.Common.Tests
 
-# requires corefx test updates
--nomethod System.Data.Tests.Common.DbConnectionStringBuilderTest.Add_Keyword_Invalid
--nomethod System.Data.Tests.Common.DbConnectionStringBuilderTest.Indexer_Keyword_Invalid
+# Test failure: https://github.com/dotnet/corefx/issues/39223
+-nomethod System.ComponentModel.TypeConverterTests.FontConverterTest.TestConvertFrom
 
-# requires corefx test updates https://github.com/dotnet/corefx/pull/38452
--nomethod System.SpanTests.ReadOnlySpanTests.ZeroLengthIndexOfAny_ManyInteger
--nomethod System.SpanTests.ReadOnlySpanTests.ZeroLengthIndexOfAny_ManyString
--nomethod System.SpanTests.ReadOnlySpanTests.ZeroLengthIndexOfMany_Byte
--nomethod System.SpanTests.ReadOnlySpanTests.ZeroLengthIndexOfMany_Char
--nomethod System.SpanTests.ReadOnlySpanTests.ZeroLengthLastIndexOfAny_Byte_ManyByte
--nomethod System.SpanTests.ReadOnlySpanTests.ZeroLengthLastIndexOfAny_ManyByte
--nomethod System.SpanTests.ReadOnlySpanTests.ZeroLengthLastIndexOfAny_String_ManyByte
--nomethod System.SpanTests.SpanTests.ZeroLengthIndexOfAny_ManyInteger
--nomethod System.SpanTests.SpanTests.ZeroLengthIndexOfAny_ManyString
--nomethod System.SpanTests.SpanTests.ZeroLengthIndexOfMany_Byte
--nomethod System.SpanTests.SpanTests.ZeroLengthIndexOfMany_Char
--nomethod System.SpanTests.SpanTests.ZeroLengthLastIndexOfAny_Byte_ManyByte
--nomethod System.SpanTests.SpanTests.ZeroLengthLastIndexOfAny_ManyByte
--nomethod System.SpanTests.SpanTests.ZeroLengthLastIndexOfAny_String_ManyByte
+# Test failure: https://github.com/dotnet/coreclr/pull/26570
+-nomethod System.Tests.StringComparerTests.CreateCultureOptions_InvalidArguments_Throws
 
-# requires corefx test updates: https://github.com/dotnet/corefx/pull/38692
--nomethod System.Tests.StringTests.CasingAsSpan_NullCulture_ThrowsArgumentNullException
-
-# requires corefx test updates: https://github.com/dotnet/corefx/pull/38747
--nomethod System.Diagnostics.Tests.StackTraceTests.Ctor_EmptyException_FNeedFileInfo
--nomethod System.Diagnostics.Tests.StackTraceTests.Ctor_EmptyException_GetFramesReturnsNull
--nomethod System.Diagnostics.Tests.StackTraceTests.Ctor_EmptyException_SkipFrames
--nomethod System.Diagnostics.Tests.StackTraceTests.Ctor_EmptyException_SkipFrames_FNeedFileInfo
--nomethod System.Diagnostics.Tests.StackTraceTests.Ctor_Exception_LargeSkipFrames
--nomethod System.Diagnostics.Tests.StackTraceTests.Ctor_Exception_LargeSkipFrames_FNeedFileInfo
--nomethod System.Diagnostics.Tests.StackTraceTests.Ctor_LargeSkipFrames_GetFramesReturnsNull
--nomethod System.Diagnostics.Tests.StackTraceTests.Ctor_LargeSkipFramesFNeedFileInfo_GetFramesReturnsNull
-
-# requires corefx test updates
--nomethod System.Tests.StringTests.SameSpanToLower
--nomethod System.Tests.StringTests.ToLowerOverlapping
--nomethod System.Tests.StringTests.SameSpanToUpper
--nomethod System.Tests.StringTests.ToUpperOverlapping
+# corefx tests need to be updated for changes to GetHashCode
+-nomethod System.Numerics.Tests.GenericVectorTests.GetHashCodeInt16
+-nomethod System.Numerics.Tests.GenericVectorTests.GetHashCodeInt32
+-nomethod System.Numerics.Tests.GenericVectorTests.GetHashCodeDouble
+-nomethod System.Numerics.Tests.GenericVectorTests.GetHashCodeByte
+-nomethod System.Numerics.Tests.GenericVectorTests.GetHashCodeSByte
+-nomethod System.Numerics.Tests.GenericVectorTests.GetHashCodeUInt64
+-nomethod System.Numerics.Tests.GenericVectorTests.GetHashCodeUInt16
+-nomethod System.Numerics.Tests.GenericVectorTests.GetHashCodeInt64
+-nomethod System.Numerics.Tests.GenericVectorTests.GetHashCodeSingle
+-nomethod System.Numerics.Tests.GenericVectorTests.GetHashCodeUInt32

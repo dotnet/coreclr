@@ -38,7 +38,7 @@
 #ifdef FEATURE_COMINTEROP
 #include<roerrorapi.h>
 #endif
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
 #include "exceptionhandling.h"
 #endif
 
@@ -52,6 +52,9 @@
 // Support for extracting MethodDesc of a delegate.
 #include "comdelegate.h"
 
+#ifdef HAVE_GCCOVER
+#include "gccover.h"
+#endif // HAVE_GCCOVER
 
 #ifndef FEATURE_PAL
 // Windows uses 64kB as the null-reference area
@@ -1004,7 +1007,7 @@ bool EHRangeTreeNode::TryContains(EHRangeTreeNode* pNode)
         }
     }
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     // If we are boot-strapping the tree, don't recurse down because the result could be unreliable.  Note that
     // even if we don't recurse, given a particular node, we can still always find its most specific container with
     // the logic above, i.e. it's always safe to do one depth level of checking.
@@ -1049,7 +1052,7 @@ bool EHRangeTreeNode::TryContains(EHRangeTreeNode* pNode)
             }
         }
     }
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
     return false;
 }
@@ -1101,7 +1104,7 @@ bool EHRangeTreeNode::HandlerContains(EHRangeTreeNode* pNode)
         }
     }
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     // Refer to the comment in TryContains().
     if (!m_pTree->m_fInitializing)
     {
@@ -1125,7 +1128,7 @@ bool EHRangeTreeNode::HandlerContains(EHRangeTreeNode* pNode)
             }
         }
     }
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
     return false;
 }
@@ -1177,7 +1180,7 @@ bool EHRangeTreeNode::FilterContains(EHRangeTreeNode* pNode)
         }
     }
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     // Refer to the comment in TryContains().
     if (!m_pTree->m_fInitializing)
     {
@@ -1201,7 +1204,7 @@ bool EHRangeTreeNode::FilterContains(EHRangeTreeNode* pNode)
             }
         }
     }
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
     return false;
 }
@@ -1314,7 +1317,7 @@ EHRangeTree::EHRangeTree(IJitManager* pIJM,
 
         if (pEHClause->Flags == COR_ILEXCEPTION_CLAUSE_FILTER)
         {
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
             // Because of funclets, there is no way to guarantee the placement of a filter.
             // Thus, we need to loop through the funclets to find the end offset.
             for (int f = 0; f < cFunclet; f++)
@@ -1335,7 +1338,7 @@ EHRangeTree::EHRangeTree(IJitManager* pIJM,
                     break;
                 }
             }
-#else  // WIN64EXCEPTIONS
+#else  // FEATURE_EH_FUNCLETS
             // On x86, since the filter doesn't have an end FilterPC, the only way we can know the size
             // of the filter is if it's located immediately prior to it's handler and immediately after
             // its try region.  We assume that this is, and if it isn't, we're so amazingly hosed that
@@ -1347,7 +1350,7 @@ EHRangeTree::EHRangeTree(IJitManager* pIJM,
             goto LError;
         }
             pNodeCur->m_FilterEndPC = pEHClause->HandlerStartPC;
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
         }
 
         pNodeCur->MarkAsRange();
@@ -1574,7 +1577,7 @@ const char *TCFStringFromConst(TRY_CATCH_FINALLY tcf)
 }
 #endif //LOGGING
 
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
 // We're unwinding if we'll return to the EE's code.  Otherwise
 // we'll return to someplace in the current code.  Anywhere outside
 // this function is "EE code".
@@ -1638,7 +1641,7 @@ BOOL LeaveCatch(ICodeManager* pEECM,
     SetSP(pCtx, (UINT_PTR)esp);
     return TRUE;
 }
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 TRY_CATCH_FINALLY GetTcf(EHRangeTreeNode *pNode,
                          unsigned offset)
@@ -1795,7 +1798,7 @@ HRESULT IsLegalTransition(Thread *pThread,
                 case TCF_NONE:
                 case TCF_TRY:
                 {
-#if !defined(WIN64EXCEPTIONS)
+#if !defined(FEATURE_EH_FUNCLETS)
                     CONTEXT *pFilterCtx = pThread->GetFilterContext();
                     if (pFilterCtx == NULL)
                         return CORDBG_E_SET_IP_IMPOSSIBLE;
@@ -1810,14 +1813,14 @@ HRESULT IsLegalTransition(Thread *pThread,
                             return E_FAIL;
                     }
                     return S_OK;
-#else  // WIN64EXCEPTIONS
+#else  // FEATURE_EH_FUNCLETS
                     // <NOTE>
-                    // Setting IP out of a catch clause is not supported for WIN64EXCEPTIONS because of funclets.
+                    // Setting IP out of a catch clause is not supported for FEATURE_EH_FUNCLETS because of funclets.
                     // This scenario is disabled with approval from VS because it's not considered to
                     // be a common user scenario.
                     // </NOTE>
                     return CORDBG_E_CANT_SET_IP_OUT_OF_CATCH_ON_WIN64;
-#endif // !WIN64EXCEPTIONS
+#endif // !FEATURE_EH_FUNCLETS
                     break;
                 }
 
@@ -1851,7 +1854,7 @@ HRESULT IsLegalTransition(Thread *pThread,
                 case TCF_NONE:
                 case TCF_TRY:
                 {
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
                     if (!FinallyIsUnwinding(pNode, pEECM, pReg, addrStart))
                     {
                         CONTEXT *pFilterCtx = pThread->GetFilterContext();
@@ -1871,14 +1874,14 @@ HRESULT IsLegalTransition(Thread *pThread,
                     {
                         return CORDBG_E_CANT_SET_IP_OUT_OF_FINALLY;
                     }
-#else // !WIN64EXCEPTIONS
+#else // !FEATURE_EH_FUNCLETS
                     // <NOTE>
-                    // Setting IP out of a non-unwinding finally clause is not supported on WIN64EXCEPTIONS because of funclets.
+                    // Setting IP out of a non-unwinding finally clause is not supported on FEATURE_EH_FUNCLETS because of funclets.
                     // This scenario is disabled with approval from VS because it's not considered to be a common user
                     // scenario.
                     // </NOTE>
                     return CORDBG_E_CANT_SET_IP_OUT_OF_FINALLY_ON_WIN64;
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
                     break;
                 }
@@ -2133,7 +2136,7 @@ BOOL IsInFirstFrameOfHandler(Thread *pThread, IJitManager *pJitManager, const ME
 } // BOOL IsInFirstFrameOfHandler()
 
 
-#if !defined(WIN64EXCEPTIONS)
+#if !defined(FEATURE_EH_FUNCLETS)
 
 //******************************************************************************
 // LookForHandler -- search for a function that will handle the exception.
@@ -2202,7 +2205,7 @@ void UnwindFrames(                      // No return value.
                              tct->pBottomFrame);
 } // void UnwindFrames()
 
-#endif // !defined(WIN64EXCEPTIONS)
+#endif // !defined(FEATURE_EH_FUNCLETS)
 
 void StackTraceInfo::SaveStackTrace(BOOL bAllowAllocMem, OBJECTHANDLE hThrowable, BOOL bReplaceStack, BOOL bSkipLastElement)
 {
@@ -2539,7 +2542,7 @@ void StackTraceInfo::SaveStackTrace(BOOL bAllowAllocMem, OBJECTHANDLE hThrowable
                     }
                 }
 
-                ((EXCEPTIONREF)ObjectFromHandle(hThrowable))->SetStackTrace(gc.stackTrace, gc.dynamicMethodsArray);
+                ((EXCEPTIONREF)ObjectFromHandle(hThrowable))->SetStackTrace(gc.stackTrace.Get(), gc.dynamicMethodsArray);
                 
                 // Update _stackTraceString field.
                 ((EXCEPTIONREF)ObjectFromHandle(hThrowable))->SetStackTraceString(NULL);
@@ -2665,14 +2668,14 @@ VOID FixupOnRethrow(Thread* pCurThread, EXCEPTION_POINTERS* pExceptionPointers)
 
 // Replacing the exception context breaks unwinding on AMD64.  It also breaks exception dispatch on IA64.
 // The info saved by pExState will be given to exception filters.
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
         // Restore original context if available.
         if (pExState->GetContextRecord())
         {
             ReplaceExceptionContextRecord(pExceptionPointers->ContextRecord,
                                           pExState->GetContextRecord());
         }
-#endif // !WIN64EXCEPTIONS
+#endif // !FEATURE_EH_FUNCLETS
     }
 
     pExState->GetFlags()->SetIsRethrown();
@@ -2695,10 +2698,10 @@ LONG RaiseExceptionFilter(EXCEPTION_POINTERS* ep, LPVOID pv)
     {
         // need to reset the EH info back to the original thrown exception
         FixupOnRethrow(GetThread(), ep);
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
         // only do this once
         pParam->isRethrown++;
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
     }
     else
     {
@@ -3117,25 +3120,6 @@ void ResMgrGetString(LPCWSTR wszResourceName, STRINGREF * ppMessage)
     }
 }
 
-// GetResourceFromDefault
-// transition to the default domain and get a resource there
-FCIMPL1(Object*, GetResourceFromDefault, StringObject* keyUnsafe)
-{
-    FCALL_CONTRACT;
-
-    STRINGREF ret = NULL;
-    STRINGREF key = (STRINGREF)keyUnsafe;
-
-    HELPER_METHOD_FRAME_BEGIN_RET_2(ret, key);
-
-    ret = GetResourceStringFromManaged(key);
-
-    HELPER_METHOD_FRAME_END();
-
-    return OBJECTREFToObject(ret);
-}
-FCIMPLEND
-
 void FreeExceptionData(ExceptionData *pedata)
 {
     CONTRACTL
@@ -3343,7 +3327,7 @@ DWORD MapWin32FaultToCOMPlusException(EXCEPTION_RECORD *pExceptionRecord)
 }
 
 #ifdef _DEBUG
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
 // check if anyone has written to the stack above the handler which would wipe out the EH registration
 void CheckStackBarrier(EXCEPTION_REGISTRATION_RECORD *exRecord)
 {
@@ -3360,7 +3344,7 @@ void CheckStackBarrier(EXCEPTION_REGISTRATION_RECORD *exRecord)
         }
     }
 }
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 #endif // _DEBUG
 
 //-------------------------------------------------------------------------
@@ -3396,7 +3380,7 @@ void COMPlusCooperativeTransitionHandler(Frame* pFrame)
     UnwindFrameChain(pThread, pFrame);
     CONSISTENCY_CHECK(pFrame == pThread->GetFrame());
 
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
     // An exception is being thrown through here.  The COM+ exception
     // info keeps a pointer to a frame that is used by the next
     // COM+ Exception Handler as the starting point of its crawl.
@@ -3416,7 +3400,7 @@ void COMPlusCooperativeTransitionHandler(Frame* pFrame)
         LOG((LF_EH, LL_INFO1000, "\tpExInfo->m_pSearchBoundary = %08x\n", (void*)pFrame));
         pExState->m_currentExInfo.m_pSearchBoundary = pFrame;
     }
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 }
 
     // Restore us to preemptive gc mode.
@@ -4268,46 +4252,6 @@ bool CheckThreadExceptionStateForInterception()
 static Volatile<BOOL> fReady = 0;
 static SpinLock initLock;
 
-void DECLSPEC_NORETURN RaiseDeadLockException()
-{
-    STATIC_CONTRACT_THROWS;
-
-// Disable the "initialization of static local vars is no thread safe" error
-#ifdef _MSC_VER
-#pragma warning(disable: 4640)
-#endif
-    CHECK_LOCAL_STATIC_VAR(static SString s);
-#ifdef _MSC_VER
-#pragma warning(default : 4640)
-#endif
-    if (!fReady)
-    {
-        WCHAR name[256];
-        HRESULT hr = S_OK;
-        {
-            FAULT_NOT_FATAL();
-            GCX_COOP();
-            hr = UtilLoadStringRC(IDS_EE_THREAD_DEADLOCK_VICTIM, name, sizeof(name)/sizeof(WCHAR), 1);
-            }
-        initLock.Init(LOCK_TYPE_DEFAULT);
-        SpinLockHolder  __spinLockHolder(&initLock);
-        if (!fReady)
-            {
-                if (SUCCEEDED(hr))
-                {
-                    s.Set(name);
-                fReady = 1;
-                }
-                else
-                {
-                    ThrowHR(hr);
-                }
-            }
-        }
-
-    ThrowHR(HOST_E_DEADLOCK, s);
-}
-
 //******************************************************************************
 //
 //  ExceptionIsAlwaysSwallowed
@@ -4610,7 +4554,7 @@ BOOL UpdateCurrentThrowable(PEXCEPTION_RECORD pExceptionRecord)
 
         if (IsComPlusException(pExceptionRecord))
         {
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
             OBJECTREF oThrowable = pThread->LastThrownObject();
 
             // @TODO: we have a problem on Win64 where we won't have any place to
@@ -4621,7 +4565,7 @@ BOOL UpdateCurrentThrowable(PEXCEPTION_RECORD pExceptionRecord)
             //        We have the same problem in EEPolicy::LogFatalError().
             LOG((LF_EH, LL_INFO100, "UpdateCurrentThrowable: setting throwable to %s\n", (oThrowable == NULL) ? "NULL" : oThrowable->GetMethodTable()->GetDebugClassName()));
             pThread->SafeSetThrowables(oThrowable);
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
         }
     }
 
@@ -5591,7 +5535,7 @@ BOOL NotifyAppDomainsOfUnhandledException(
     if (pThread->DetermineIfGuardPagePresent())
     {
         // x86 only
-#if !defined(WIN64EXCEPTIONS)
+#if !defined(FEATURE_EH_FUNCLETS)
         // If the Thread object's exception state's exception pointers
         //  is null, use the passed-in pointer.
         BOOL bSetPointers = FALSE;
@@ -5604,7 +5548,7 @@ BOOL NotifyAppDomainsOfUnhandledException(
             pExceptionState->SetExceptionPointers(pExceptionPointers);
         }
 
-#endif // !defined(WIN64EXCEPTIONS)
+#endif // !defined(FEATURE_EH_FUNCLETS)
 
         INSTALL_NESTED_EXCEPTION_HANDLER(pThread->GetFrame());
 
@@ -5614,14 +5558,14 @@ BOOL NotifyAppDomainsOfUnhandledException(
 
         UNINSTALL_NESTED_EXCEPTION_HANDLER();
 
-#if !defined(WIN64EXCEPTIONS)
+#if !defined(FEATURE_EH_FUNCLETS)
 
         if (bSetPointers)
         {
             pExceptionState->SetExceptionPointers(NULL);
         }
 
-#endif // !defined(WIN64EXCEPTIONS)
+#endif // !defined(FEATURE_EH_FUNCLETS)
 
     }
 
@@ -6360,7 +6304,7 @@ void AdjustContextForThreadStop(Thread* pThread,
 
     _ASSERTE(pThread->m_OSContext);
 
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
     SetIP(pContext, GetIP(pThread->m_OSContext));
     SetSP(pContext, (GetSP(pThread->m_OSContext)));
 
@@ -6383,14 +6327,14 @@ void AdjustContextForThreadStop(Thread* pThread,
     PORTABILITY_ASSERT("AdjustContextForThreadStop");
 #endif
 
-#else // !WIN64EXCEPTIONS
+#else // !FEATURE_EH_FUNCLETS
     CopyOSContext(pContext, pThread->m_OSContext);
 #if defined(_TARGET_ARM_) && defined(_DEBUG)
     // Make sure that the thumb bit is set on the IP of the original abort context we just restored.
     PCODE controlPC = GetIP(pContext);
     _ASSERTE(controlPC & THUMB_CODE);
 #endif // _TARGET_ARM_
-#endif // !WIN64EXCEPTIONS                                                    
+#endif // !FEATURE_EH_FUNCLETS                                                    
 
     pThread->ResetThrowControlForThread();
 
@@ -6549,6 +6493,8 @@ DWORD GetGcMarkerExceptionCode(LPVOID ip)
 #if defined(HAVE_GCCOVER)
     WRAPPER_NO_CONTRACT;
 
+    // IsGcCoverageInterrupt(ip) requires "gccover.h"
+    //
     if (GCStress<cfg_any>::IsEnabled() && IsGcCoverageInterrupt(ip))
     {
         return STATUS_CLR_GCCOVER_CODE;
@@ -6648,7 +6594,7 @@ IsDebuggerFault(EXCEPTION_RECORD *pExceptionRecord,
 
 #ifdef DEBUGGING_SUPPORTED
 
-#ifdef _TARGET_ARM_
+#ifdef FEATURE_EMULATE_SINGLESTEP
     // On ARM we don't have any reliable hardware support for single stepping so it is emulated in software.
     // The implementation will end up throwing an EXCEPTION_BREAKPOINT rather than an EXCEPTION_SINGLE_STEP
     // and leaves other aspects of the thread context in an invalid state. Therefore we use this opportunity
@@ -6666,7 +6612,7 @@ IsDebuggerFault(EXCEPTION_RECORD *pExceptionRecord,
         pExceptionRecord->ExceptionCode = EXCEPTION_SINGLE_STEP;
         pExceptionRecord->ExceptionAddress = (PVOID)pContext->Pc;
     }
-#endif // _TARGET_ARM_
+#endif // FEATURE_EMULATE_SINGLESTEP
 
     // Is this exception really meant for the COM+ Debugger? Note: we will let the debugger have a chance if there
     // is a debugger attached to any part of the process. It is incorrect to consider whether or not the debugger
@@ -6691,7 +6637,7 @@ IsDebuggerFault(EXCEPTION_RECORD *pExceptionRecord,
 
 #endif // FEATURE_PAL
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
 
 #ifndef _TARGET_X86_
 EXTERN_C void JIT_MemSet_End();
@@ -6710,6 +6656,39 @@ EXTERN_C void JIT_WriteBarrier_Debug_End();
 #ifdef _TARGET_ARM_
 EXTERN_C void FCallMemcpy_End();
 #endif
+
+#ifdef VSD_STUB_CAN_THROW_AV
+//Return TRUE if pContext->Pc is in VirtualStub
+BOOL IsIPinVirtualStub(PCODE f_IP)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    Thread * pThread = GetThread();
+
+    // We may not have a managed thread object. Example is an AV on the helper thread.
+    // (perhaps during StubManager::IsStub)
+    if (pThread == NULL)
+    {
+        return FALSE;
+    }
+
+    VirtualCallStubManager::StubKind sk;
+    VirtualCallStubManager::FindStubManager(f_IP, &sk, FALSE /* usePredictStubKind */);
+
+    if (sk == VirtualCallStubManager::SK_DISPATCH)
+    {
+        return TRUE;
+    }
+    else if (sk == VirtualCallStubManager::SK_RESOLVE)
+    {
+        return TRUE;
+    }
+
+    else {
+        return FALSE;
+    }
+}
+#endif // VSD_STUB_CAN_THROW_AV
 
 // Check if the passed in instruction pointer is in one of the
 // JIT helper functions.
@@ -6744,7 +6723,7 @@ bool IsIPInMarkedJitHelper(UINT_PTR uControlPc)
 
     return false;
 }
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 // Returns TRUE if caller should resume execution.
 BOOL
@@ -6753,6 +6732,17 @@ AdjustContextForWriteBarrier(
         CONTEXT *pContext)
 {
     WRAPPER_NO_CONTRACT;
+
+    PCODE ip = GetIP(pContext);
+
+#ifdef FEATURE_WRITEBARRIER_COPY
+    if (IsIPInWriteBarrierCodeCopy(ip))
+    {
+        // Pretend we were executing the barrier function at its original location so that the unwinder can unwind the frame
+        ip = AdjustWriteBarrierIP(ip);
+        SetIP(pContext, ip);
+    }
+#endif // FEATURE_WRITEBARRIER_COPY
 
 #ifdef FEATURE_DATABREAKPOINT
 
@@ -6764,7 +6754,6 @@ AdjustContextForWriteBarrier(
 
     if (pExceptionRecord == nullptr)
     {
-        PCODE ip = GetIP(pContext);
 #if defined(_TARGET_X86_)
         bool withinWriteBarrierGroup = ((ip >= (PCODE) JIT_WriteBarrierGroup) && (ip <= (PCODE) JIT_WriteBarrierGroup_End));
         bool withinPatchedWriteBarrierGroup = ((ip >= (PCODE) JIT_PatchedWriteBarrierGroup) && (ip <= (PCODE) JIT_PatchedWriteBarrierGroup_End));
@@ -6811,7 +6800,7 @@ AdjustContextForWriteBarrier(
         SetSP(pContext, PCODE((BYTE*)GetSP(pContext) + sizeof(void*)));
     }
     return FALSE;
-#elif defined(WIN64EXCEPTIONS) // _TARGET_X86_ && !PLATFORM_UNIX
+#elif defined(FEATURE_EH_FUNCLETS) // _TARGET_X86_ && !PLATFORM_UNIX
     void* f_IP = dac_cast<PTR_VOID>(GetIP(pContext));
 
     CONTEXT             tempContext;
@@ -6877,7 +6866,7 @@ AdjustContextForWriteBarrier(
     }
 
     return FALSE;
-#else // WIN64EXCEPTIONS
+#else // FEATURE_EH_FUNCLETS
     PORTABILITY_ASSERT("AdjustContextForWriteBarrier");
     return FALSE;
 #endif // ELSE
@@ -7030,7 +7019,7 @@ void InitSavedExceptionInfo()
 void FaultingExceptionFrame::Init(CONTEXT *pContext)
 {
     WRAPPER_NO_CONTRACT;
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
 #ifdef _TARGET_X86_
     CalleeSavedRegisters *pRegs = GetCalleeSavedRegisters();
 #define CALLEE_SAVED_REGISTER(regname) pRegs->regname = pContext->regname;
@@ -7041,10 +7030,10 @@ void FaultingExceptionFrame::Init(CONTEXT *pContext)
 #else // _TARGET_X86_
     PORTABILITY_ASSERT("FaultingExceptionFrame::Init");
 #endif // _TARGET_???_ (ELSE)
-#else // !WIN64EXCEPTIONS
+#else // !FEATURE_EH_FUNCLETS
     m_ReturnAddress = ::GetIP(pContext);
     CopyOSContext(&m_ctx, pContext);
-#endif // !WIN64EXCEPTIONS
+#endif // !FEATURE_EH_FUNCLETS
 }
 
 //
@@ -7107,7 +7096,7 @@ bool ShouldHandleManagedFault(
         return false;
 #endif // _DEBUG
 
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
     // If there's any frame below the ESP of the exception, then we can forget it.
     if (pThread->m_pFrame < dac_cast<PTR_VOID>(GetSP(pContext)))
         return false;
@@ -7118,7 +7107,7 @@ bool ShouldHandleManagedFault(
     {
         return false;
     }
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
     {
         // If it's not a fault in jitted code, forget it.
@@ -7258,12 +7247,12 @@ LONG WINAPI CLRVectoredExceptionHandler(PEXCEPTION_POINTERS pExceptionInfo)
     // 1.  pThread refers to *this* thread.
     // 2.  If another thread tries to hijack this thread, it will see we are not in managed
     //     code (and thus won't try to hijack us).
-#if defined(WIN64EXCEPTIONS) && defined(FEATURE_HIJACK)
+#if defined(FEATURE_EH_FUNCLETS) && defined(FEATURE_HIJACK)
     if (pThread != NULL)
     {
         pThread->UnhijackThreadNoAlloc();
     }
-#endif // defined(WIN64EXCEPTIONS) && defined(FEATURE_HIJACK)
+#endif // defined(FEATURE_EH_FUNCLETS) && defined(FEATURE_HIJACK)
 
     if (pExceptionInfo->ExceptionRecord->ExceptionCode == STATUS_STACK_OVERFLOW)
     {
@@ -7342,7 +7331,7 @@ LONG WINAPI CLRVectoredExceptionHandlerPhase2(PEXCEPTION_POINTERS pExceptionInfo
         return EXCEPTION_EXECUTE_HANDLER;
     }
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
 
     if (action == VEH_EXECUTE_HANDLE_MANAGED_EXCEPTION)
     {
@@ -7360,7 +7349,7 @@ LONG WINAPI CLRVectoredExceptionHandlerPhase2(PEXCEPTION_POINTERS pExceptionInfo
         return EXCEPTION_CONTINUE_EXECUTION;
     }
 
-#endif // defined(WIN64EXCEPTIONS)
+#endif // defined(FEATURE_EH_FUNCLETS)
 
 
     //
@@ -7416,7 +7405,7 @@ LONG WINAPI CLRVectoredExceptionHandlerPhase2(PEXCEPTION_POINTERS pExceptionInfo
         return UserBreakpointFilter(pExceptionInfo);
     }
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
     BOOL fShouldHandleManagedFault;
 
     {
@@ -7441,7 +7430,7 @@ LONG WINAPI CLRVectoredExceptionHandlerPhase2(PEXCEPTION_POINTERS pExceptionInfo
                            );
         return EXCEPTION_CONTINUE_EXECUTION;
 }
-#endif // defined(WIN64EXCEPTIONS)
+#endif // defined(FEATURE_EH_FUNCLETS)
 
     return EXCEPTION_EXECUTE_HANDLER;
 }
@@ -7537,13 +7526,13 @@ VEH_ACTION WINAPI CLRVectoredExceptionHandlerPhase3(PEXCEPTION_POINTERS pExcepti
                 // the subsequent logic here sees a managed fault.
                 //
                 // On 64-bit, some additional work is required..
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
                 return VEH_EXECUTE_HANDLE_MANAGED_EXCEPTION;
-#endif // defined(WIN64EXCEPTIONS) 
+#endif // defined(FEATURE_EH_FUNCLETS) 
             }
             else if (AdjustContextForVirtualStub(pExceptionRecord, pContext))
             {
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
                 return VEH_EXECUTE_HANDLE_MANAGED_EXCEPTION;
 #endif
             }
@@ -8035,7 +8024,7 @@ LONG WINAPI CLRVectoredExceptionHandlerShim(PEXCEPTION_POINTERS pExceptionInfo)
         }
 
 #ifdef _DEBUG
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
         {
             CantAllocHolder caHolder;
 
@@ -8047,7 +8036,7 @@ LONG WINAPI CLRVectoredExceptionHandlerShim(PEXCEPTION_POINTERS pExceptionInfo)
                 pRecord = pRecord->Next;
             }
         }
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
         {
             // The call to "CLRVectoredExceptionHandler" above can return EXCEPTION_CONTINUE_SEARCH
@@ -8101,12 +8090,12 @@ LONG WINAPI CLRVectoredExceptionHandlerShim(PEXCEPTION_POINTERS pExceptionInfo)
         }
 #endif // _DEBUG
 
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
         {
             CantAllocHolder caHolder;
             STRESS_LOG1(LF_EH, LL_INFO1000, "CLRVectoredExceptionHandlerShim: returning %d\n", result);
         }
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
     }
 
@@ -8457,13 +8446,13 @@ LONG ReflectionInvocationExceptionFilter(
         _ASSERTE(pCurTES != NULL);
 
         // Get the exception tracker for the current exception
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
         PTR_ExceptionTracker pEHTracker = pCurTES->GetCurrentExceptionTracker();
 #elif _TARGET_X86_
         PTR_ExInfo pEHTracker = pCurTES->GetCurrentExceptionTracker();
-#else // !(_WIN64 || _TARGET_X86_)
+#else // !(BIT64 || _TARGET_X86_)
 #error Unsupported platform
-#endif // _WIN64
+#endif // BIT64
 
 #ifdef FEATURE_CORRUPTING_EXCEPTIONS
         if (pEHTracker->GetCorruptionSeverity() == ProcessCorrupting)
@@ -8588,7 +8577,7 @@ bool DebugIsEECxxException(EXCEPTION_RECORD* pExceptionRecord)
 //     [1] pExceptionObject : void*
 //     [2] pThrowInfo       : ThrowInfo*
 
-#ifdef _WIN64
+#ifdef BIT64
 #define NUM_CXX_EXCEPTION_PARAMS 4
 #else
 #define NUM_CXX_EXCEPTION_PARAMS 3
@@ -8749,7 +8738,7 @@ void StripFileInfoFromStackTrace(SString &ssStackTrace)
 void SetReversePInvokeEscapingUnhandledExceptionStatus(BOOL fIsUnwinding,
 #if defined(_TARGET_X86_)
                                                        EXCEPTION_REGISTRATION_RECORD * pEstablisherFrame
-#elif defined(WIN64EXCEPTIONS)
+#elif defined(FEATURE_EH_FUNCLETS)
                                                        ULONG64 pEstablisherFrame
 #else
 #error Unsupported platform
@@ -9291,7 +9280,7 @@ BOOL IsThrowableThreadAbortException(OBJECTREF oThrowable)
 // The caller can also specify the starting EHTracker to walk the list from.
 // If not specified, this will default to the current exception tracker active
 // on the thread.
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
 PTR_ExceptionTracker GetEHTrackerForPreallocatedException(OBJECTREF oPreAllocThrowable,
                                                           PTR_ExceptionTracker pStartingEHTracker)
 #elif _TARGET_X86_
@@ -9314,13 +9303,13 @@ PTR_ExInfo GetEHTrackerForPreallocatedException(OBJECTREF oPreAllocThrowable,
     CONTRACTL_END;
 
     // Get the reference to the current exception tracker
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
     PTR_ExceptionTracker pEHTracker = (pStartingEHTracker != NULL) ? pStartingEHTracker : GetThread()->GetExceptionState()->GetCurrentExceptionTracker();
 #elif _TARGET_X86_
     PTR_ExInfo pEHTracker = (pStartingEHTracker != NULL) ? pStartingEHTracker : GetThread()->GetExceptionState()->GetCurrentExceptionTracker();
-#else // !(_WIN64 || _TARGET_X86_)
+#else // !(BIT64 || _TARGET_X86_)
 #error Unsupported platform
-#endif // _WIN64
+#endif // BIT64
 
     BOOL fFoundTracker = FALSE;
 
@@ -9396,16 +9385,16 @@ PTR_EHWatsonBucketTracker GetWatsonBucketTrackerForPreallocatedException(OBJECTR
     {
         // Find the reference to the exception tracker corresponding to the preallocated exception,
         // starting the search from the current exception tracker (2nd arg of NULL specifies that).
- #if defined(WIN64EXCEPTIONS)
+ #if defined(FEATURE_EH_FUNCLETS)
         PTR_ExceptionTracker pEHTracker = NULL;
         PTR_ExceptionTracker pPreviousEHTracker = NULL;
 
 #elif _TARGET_X86_
         PTR_ExInfo pEHTracker = NULL;
         PTR_ExInfo pPreviousEHTracker = NULL;
-#else // !(_WIN64 || _TARGET_X86_)
+#else // !(BIT64 || _TARGET_X86_)
 #error Unsupported platform
-#endif // _WIN64
+#endif // BIT64
 
         if (fStartSearchFromPreviousTracker)
         {
@@ -10939,7 +10928,7 @@ void EHWatsonBucketTracker::CaptureUnhandledInfoForWatson(TypeOfReportedError to
 
 // Given a throwable, this function will attempt to find an active EH tracker corresponding to it.
 // If none found, it will return NULL
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
 PTR_ExceptionTracker GetEHTrackerForException(OBJECTREF oThrowable, PTR_ExceptionTracker pStartingEHTracker)
 #elif _TARGET_X86_
 PTR_ExInfo GetEHTrackerForException(OBJECTREF oThrowable, PTR_ExInfo pStartingEHTracker)
@@ -10959,7 +10948,7 @@ PTR_ExInfo GetEHTrackerForException(OBJECTREF oThrowable, PTR_ExInfo pStartingEH
 
     // Get the reference to the exception tracker to start with. If one has been provided to us,
     // then use it. Otherwise, start from the current one.
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     PTR_ExceptionTracker pEHTracker = (pStartingEHTracker != NULL) ? pStartingEHTracker : GetThread()->GetExceptionState()->GetCurrentExceptionTracker();
 #elif _TARGET_X86_
     PTR_ExInfo pEHTracker = (pStartingEHTracker != NULL) ? pStartingEHTracker : GetThread()->GetExceptionState()->GetCurrentExceptionTracker();
@@ -11269,7 +11258,7 @@ BOOL CEHelper::IsProcessCorruptedStateException(OBJECTREF oThrowable)
     // Check if we have an exception tracker for this exception
     // and if so, if it represents corrupting exception or not.
     // Get the exception tracker for the current exception
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     PTR_ExceptionTracker pEHTracker = GetEHTrackerForException(oThrowable, NULL);
 #elif _TARGET_X86_
     PTR_ExInfo pEHTracker = GetEHTrackerForException(oThrowable, NULL);
@@ -11286,7 +11275,7 @@ BOOL CEHelper::IsProcessCorruptedStateException(OBJECTREF oThrowable)
     return FALSE;
 }
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
 void CEHelper::SetupCorruptionSeverityForActiveExceptionInUnwindPass(Thread *pCurThread, PTR_ExceptionTracker pEHTracker, BOOL fIsFirstPass,
                                     DWORD dwExceptionCode)
 {
@@ -11360,7 +11349,7 @@ void CEHelper::SetupCorruptionSeverityForActiveExceptionInUnwindPass(Thread *pCu
     }
 #endif // !DACCESS_COMPILE
 }
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 // This method is invoked from the personality routine for managed code and is used to setup the
 // corruption severity for the active exception on the thread exception state and the
@@ -11389,13 +11378,13 @@ void CEHelper::SetupCorruptionSeverityForActiveException(BOOL fIsRethrownExcepti
     _ASSERTE(pCurTES != NULL);
 
     // Get the exception tracker for the current exception
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     PTR_ExceptionTracker pEHTracker = pCurTES->GetCurrentExceptionTracker();
 #elif _TARGET_X86_
     PTR_ExInfo pEHTracker = pCurTES->GetCurrentExceptionTracker();
-#else // !(_WIN64 || _TARGET_X86_)
+#else // !(BIT64 || _TARGET_X86_)
 #error Unsupported platform
-#endif // _WIN64
+#endif // BIT64
 
     _ASSERTE(pEHTracker != NULL);
 
@@ -11478,7 +11467,7 @@ void CEHelper::SetupCorruptionSeverityForActiveException(BOOL fIsRethrownExcepti
     {
         // Its either a rethrow or nested exception
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     PTR_ExceptionTracker pOrigEHTracker = NULL;
 #elif _TARGET_X86_
     PTR_ExInfo pOrigEHTracker = NULL;
@@ -11720,7 +11709,7 @@ void CEHelper::ResetLastActiveCorruptionSeverityPostCatchHandler(Thread *pThread
     // if applicable. An example is throwing and catching an exception within a catch block. We will update
     // the LastActiveCorruptionSeverity based upon the active exception domain. If we are not in one, we will
     // set it to "NotSet".
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     PTR_ExceptionTracker pEHTracker = pCurTES->GetCurrentExceptionTracker();
 #elif _TARGET_X86_
     PTR_ExInfo pEHTracker = pCurTES->GetCurrentExceptionTracker();
@@ -12207,7 +12196,7 @@ void ExceptionNotifications::DeliverFirstChanceNotification()
 }
 
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
 struct TAResetStateCallbackData
 {
     // Do we have more managed code up the stack?
@@ -12258,13 +12247,13 @@ StackWalkAction TAResetStateCallback(CrawlFrame* pCf, void* data)
 
     return retStatus;
 }
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 // This function will reset the thread abort state against the specified thread if it is determined that
 // there is no more managed code on the stack.
 //
 // Note: This function should be invoked ONLY during unwind.
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
 void ResetThreadAbortState(PTR_Thread pThread, void *pEstablisherFrame)
 #else
 void ResetThreadAbortState(PTR_Thread pThread, CrawlFrame *pCf, StackFrame sfCurrentStackFrame)
@@ -12276,7 +12265,7 @@ void ResetThreadAbortState(PTR_Thread pThread, CrawlFrame *pCf, StackFrame sfCur
         GC_NOTRIGGER;
         MODE_ANY;
         PRECONDITION(pThread != NULL);
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
         PRECONDITION(pEstablisherFrame != NULL);
 #else
         PRECONDITION(pCf != NULL);
@@ -12289,14 +12278,14 @@ void ResetThreadAbortState(PTR_Thread pThread, CrawlFrame *pCf, StackFrame sfCur
 
     if (pThread->IsAbortRequested())
     {
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
         if (GetNextCOMPlusSEHRecord(static_cast<EXCEPTION_REGISTRATION_RECORD *>(pEstablisherFrame)) == EXCEPTION_CHAIN_END)
         {
             // Topmost handler and abort requested.
             fResetThreadAbortState = TRUE;
             LOG((LF_EH, LL_INFO100, "ResetThreadAbortState: Topmost handler resets abort as no more managed code beyond %p.\n", pEstablisherFrame));
         }
-#else // !WIN64EXCEPTIONS
+#else // !FEATURE_EH_FUNCLETS
         // Get the active exception tracker
         PTR_ExceptionTracker pCurEHTracker = pThread->GetExceptionState()->GetCurrentExceptionTracker();
         _ASSERTE(pCurEHTracker != NULL);
@@ -12351,7 +12340,7 @@ void ResetThreadAbortState(PTR_Thread pThread, CrawlFrame *pCf, StackFrame sfCur
             LOG((LF_EH, LL_INFO100, "ResetThreadAbortState: Resetting thread abort state since there is no more managed code beyond stack frames:\n"));
             LOG((LF_EH, LL_INFO100, "sf.SP = %p   ", dataCallback.sfSeedCrawlFrame.SP));
         }
-#endif // !WIN64EXCEPTIONS
+#endif // !FEATURE_EH_FUNCLETS
     }
 
     if (fResetThreadAbortState)
@@ -13169,8 +13158,7 @@ MethodDesc * GetUserMethodForILStub(Thread * pThread, UINT_PTR uStubSP, MethodDe
         // The construction of the COM->CLR path ensures that our corresponding ComMethodFrame
         // should be present further up the stack. Normally, the ComMethodFrame in question is
         // simply the next stack frame; however, there are situations where there may be other
-        // stack frames present (such as an optional ContextTransitionFrame if we switched
-        // AppDomains, or an inlined stack frame from a QCall in the IL stub).
+        // stack frames present (such as an inlined stack frame from a QCall in the IL stub).
         while (pCurFrame->GetVTablePtr() != ComMethodFrame::GetMethodFrameVPtr())
         {
             pCurFrame = pCurFrame->PtrNextFrame();

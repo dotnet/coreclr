@@ -11,7 +11,7 @@ using System.Threading;
 
 namespace System.Resources
 {
-    partial class ResourceReader
+    public partial class ResourceReader
     {
         private readonly bool _permitDeserialization;  // can deserialize BinaryFormatted resources
         private object? _binaryFormatter; // binary formatter instance to use for deserializing
@@ -95,7 +95,7 @@ namespace System.Resources
             return (obj, stream) => typedDelegate((TInstance)obj, stream);
         }
 
-        private bool ValidateReaderType(string readerType)
+        private static bool ValidateReaderType(string readerType)
         {
             return ResourceManager.IsDefaultType(readerType, ResourceManager.ResReaderTypeName);
         }

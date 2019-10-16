@@ -27,6 +27,13 @@ struct EventData;
 
 typedef uint64_t EventPipeSessionID;
 
+enum class EventPipeState : uint32_t
+{
+    NotInitialized,
+    Initialized,
+    ShuttingDown,
+};
+
 class EventPipe
 {
     // Declare friends.
@@ -51,6 +58,7 @@ public:
         uint32_t numProviders,
         EventPipeSessionType sessionType,
         EventPipeSerializationFormat format,
+        const bool rundownRequested,
         IpcStream *const pStream);
 
     // Disable tracing via the event pipe.
@@ -59,11 +67,15 @@ public:
     // Get the session for the specified session ID.
     static EventPipeSession *GetSession(EventPipeSessionID id);
 
+    // start sending the required events down the pipe
+    // starting with file header info and then buffered events
+    static void StartStreaming(EventPipeSessionID id);
+
     // Specifies whether or not the event pipe is enabled.
     static bool Enabled()
     {
         LIMITED_METHOD_CONTRACT;
-        return s_tracingInitialized && (s_numberOfSessions.LoadWithoutBarrier() > 0);
+        return (s_state.LoadWithoutBarrier() >= EventPipeState::Initialized) && (s_numberOfSessions.LoadWithoutBarrier() > 0);
     }
 
     // Create a provider.
@@ -99,6 +111,9 @@ public:
 
     // Get next event.
     static EventPipeEventInstance *GetNextEvent(EventPipeSessionID sessionID);
+
+    // Get the event handle that signals when new events are available.
+    static HANDLE GetWaitHandle(EventPipeSessionID sessionID);
 
 #ifdef DEBUG
     static bool IsLockOwnedByCurrentThread();
@@ -195,9 +210,10 @@ private:
     }
 
     static CrstStatic s_configCrst;
-    static Volatile<bool> s_tracingInitialized;
+    static Volatile<EventPipeState> s_state;
     static EventPipeConfiguration s_config;
     static VolatilePtr<EventPipeSession> s_pSessions[MaxNumberOfSessions];
+    static Volatile<uint64_t> s_allowWrite;
     static EventPipeEventSource *s_pEventSource;
 
     //! Bitmask tracking EventPipe active sessions.

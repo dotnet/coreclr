@@ -1004,7 +1004,7 @@ VOID ClassLoader::PopulateAvailableClassHashTable(Module* pModule,
     IfFailThrow(pImport->EnumTypeDefInit(&hTypeDefEnum));
 
     // Now loop through all the classdefs adding the CVID and scope to the hash
-    while(pImport->EnumTypeDefNext(&hTypeDefEnum, &td)) {
+    while(pImport->EnumNext(&hTypeDefEnum, &td)) {
         
         AddAvailableClassHaveLock(pModule,
                                   td,
@@ -1012,7 +1012,7 @@ VOID ClassLoader::PopulateAvailableClassHashTable(Module* pModule,
                                   szWinRtNamespacePrefix,
                                   cchWinRtNamespacePrefix);
     }
-    pImport->EnumTypeDefClose(&hTypeDefEnum);
+    pImport->EnumClose(&hTypeDefEnum);
 }
 
 
@@ -3339,8 +3339,7 @@ TypeHandle ClassLoader::CreateTypeHandleForTypeKey(TypeKey* pKey, AllocMemTracke
         else 
         {
             // no parameterized type allowed on a reference
-            if (paramType.GetInternalCorElementType() == ELEMENT_TYPE_BYREF ||
-                paramType.GetInternalCorElementType() == ELEMENT_TYPE_TYPEDBYREF)
+            if (paramType.GetInternalCorElementType() == ELEMENT_TYPE_BYREF)
             {
                 ThrowTypeLoadException(pKey, IDS_CLASSLOAD_GENERAL);
             }

@@ -26,7 +26,7 @@
 
 const char *GetTType( TraceType tt);
 
-#define IsSingleStep(exception) (exception == EXCEPTION_SINGLE_STEP)
+#define IsSingleStep(exception) ((exception) == EXCEPTION_SINGLE_STEP)
 
 
 
@@ -69,7 +69,7 @@ bool DebuggerControllerPatch::IsSafeForStackTrace()
 
 }
 
-#ifndef _TARGET_ARM_
+#ifndef FEATURE_EMULATE_SINGLESTEP
 // returns a pointer to the shared buffer.  each call will AddRef() the object
 // before returning it so callers only need to Release() when they're finished with it.
 SharedPatchBypassBuffer* DebuggerControllerPatch::GetOrCreateSharedPatchBypassBuffer()
@@ -92,7 +92,7 @@ SharedPatchBypassBuffer* DebuggerControllerPatch::GetOrCreateSharedPatchBypassBu
 
     return m_pSharedPatchBypassBuffer;
 }
-#endif // _TARGET_ARM_
+#endif // FEATURE_EMULATE_SINGLESTEP
 
 // @todo - remove all this splicing trash
 // This Sort/Splice stuff just reorders the patches within a particular chain such
@@ -433,9 +433,9 @@ StackWalkAction ControllerStackInfo::WalkStack(FrameInfo *pInfo, void *data)
             {
                 i->m_returnFrame = *pInfo;
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
                 CopyREGDISPLAY(&(i->m_returnFrame.registers), &(pInfo->registers));
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
                 i->m_returnFound = true;
 
@@ -446,9 +446,9 @@ StackWalkAction ControllerStackInfo::WalkStack(FrameInfo *pInfo, void *data)
         {
             i->m_activeFrame = *pInfo;
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
             CopyREGDISPLAY(&(i->m_activeFrame.registers), &(pInfo->registers));
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
             i->m_activeFound = true;
 
@@ -502,7 +502,7 @@ DebuggerControllerPatch *DebuggerPatchTable::AddPatchForMethodDef(DebuggerContro
     {
         ThrowOutOfMemory();
     }
-#ifndef _TARGET_ARM_
+#ifndef FEATURE_EMULATE_SINGLESTEP
     patch->Initialize();
 #endif
 
@@ -602,7 +602,7 @@ DebuggerControllerPatch *DebuggerPatchTable::AddPatchForAddress(DebuggerControll
     {
         ThrowOutOfMemory();
     }
-#ifndef _TARGET_ARM_
+#ifndef FEATURE_EMULATE_SINGLESTEP
     patch->Initialize();
 #endif
 
@@ -721,7 +721,7 @@ void DebuggerPatchTable::RemovePatch(DebuggerControllerPatch *patch)
 {
     // Since we're deleting this patch, it must not be activated (i.e. it must not have a stored opcode)
     _ASSERTE( !patch->IsActivated() );
-#ifndef _TARGET_ARM_
+#ifndef FEATURE_EMULATE_SINGLESTEP
     patch->DoCleanup();
 #endif
 
@@ -2259,7 +2259,7 @@ bool DebuggerController::ModuleHasPatches( Module* pModule )
 //
 static bool _AddrIsJITHelper(PCODE addr)
 {
-#if !defined(_WIN64) && !defined(FEATURE_PAL)
+#if !defined(BIT64) && !defined(FEATURE_PAL)
     // Is the address in the runtime dll (clr.dll or coreclr.dll) at all? (All helpers are in
     // that dll)
     if (g_runtimeLoadedBaseAddress <= addr && 
@@ -2291,9 +2291,9 @@ static bool _AddrIsJITHelper(PCODE addr)
              "_ANIM: address within runtime dll, but not a helper function "
              "0x%08x\n", addr));
     }
-#else // !defined(_WIN64) && !defined(FEATURE_PAL)
+#else // !defined(BIT64) && !defined(FEATURE_PAL)
     // TODO: Figure out what we want to do here
-#endif // !defined(_WIN64) && !defined(FEATURE_PAL)
+#endif // !defined(BIT64) && !defined(FEATURE_PAL)
 
     return false;
 }
@@ -3233,7 +3233,7 @@ void DebuggerController::ApplyTraceFlag(Thread *thread)
     g_pEEInterface->MarkThreadForDebugStepping(thread, true);
     LOG((LF_CORDB,LL_INFO1000, "DC::ApplyTraceFlag marked thread for debug stepping\n"));
     
-    SetSSFlag(reinterpret_cast<DT_CONTEXT *>(context) ARM_ARG(thread));
+    SetSSFlag(reinterpret_cast<DT_CONTEXT *>(context) ARM_ARG(thread) ARM64_ARG(thread));
     LOG((LF_CORDB,LL_INFO1000, "DC::ApplyTraceFlag Leaving, baby!\n"));
 }
 
@@ -3271,7 +3271,7 @@ void DebuggerController::UnapplyTraceFlag(Thread *thread)
 
     // Always need to unmark for stepping
     g_pEEInterface->MarkThreadForDebugStepping(thread, false);
-    UnsetSSFlag(reinterpret_cast<DT_CONTEXT *>(context) ARM_ARG(thread));
+    UnsetSSFlag(reinterpret_cast<DT_CONTEXT *>(context) ARM_ARG(thread) ARM64_ARG(thread));
 }
 
 void DebuggerController::EnableExceptionHook()
@@ -4311,7 +4311,7 @@ bool DebuggerController::DispatchNativeException(EXCEPTION_RECORD *pException,
         g_pEEInterface->SetThreadFilterContext(pCurThread, NULL);
     }
 
-#ifdef _TARGET_ARM_
+#ifdef FEATURE_EMULATE_SINGLESTEP
     if (pCurThread->IsSingleStepEnabled())
         pCurThread->ApplySingleStep(pContext);
 #endif
@@ -4337,7 +4337,7 @@ DebuggerPatchSkip::DebuggerPatchSkip(Thread *thread,
     // On ARM the single-step emulation already utilizes a per-thread execution buffer similar to the scheme
     // below. As a result we can skip most of the instruction parsing logic that's instead internalized into
     // the single-step emulation itself.
-#ifndef _TARGET_ARM_
+#ifndef FEATURE_EMULATE_SINGLESTEP
 
     // NOTE: in order to correctly single-step RIP-relative writes on multiple threads we need to set up
     // a shared buffer with the instruction and a buffer for the RIP-relative value so that all threads
@@ -4423,7 +4423,7 @@ DebuggerPatchSkip::DebuggerPatchSkip(Thread *thread,
     }
 #endif // _TARGET_AMD64_
 
-#endif // !_TARGET_ARM_
+#endif // !FEATURE_EMULATE_SINGLESTEP
 
     // Signals our thread that the debugger will be manipulating the context 
     // during the patch skip operation. This effectively prevents other threads
@@ -4457,8 +4457,8 @@ DebuggerPatchSkip::DebuggerPatchSkip(Thread *thread,
         ARM_ONLY(_ASSERTE(!"We should always have a filter context in DebuggerPatchSkip."));
     }
 
-#ifdef _TARGET_ARM_
-    // Since we emulate all single-stepping on ARM using an instruction buffer and a breakpoint all we have to
+#ifdef FEATURE_EMULATE_SINGLESTEP
+    // Since we emulate all single-stepping on ARM/ARM64 using an instruction buffer and a breakpoint all we have to
     // do here is initiate a normal single-step except that we pass the instruction to be stepped explicitly
     // (calling EnableSingleStep() would infer this by looking at the PC in the context, which would pick up
     // the patch we're trying to skip).
@@ -4469,18 +4469,21 @@ DebuggerPatchSkip::DebuggerPatchSkip(Thread *thread,
     {
         ControllerLockHolder lockController;
         g_pEEInterface->MarkThreadForDebugStepping(thread, true);
+
+#ifdef _TARGET_ARM_
         WORD opcode2 = 0;
 
         if (Is32BitInstruction(patch->opcode))
         {
             opcode2 = CORDbgGetInstruction((CORDB_ADDRESS_TYPE *)(((DWORD)patch->address) + 2));
         }
+#endif // _TARGET_ARM_
 
-        thread->BypassWithSingleStep((DWORD)patch->address, patch->opcode, opcode2);
+        thread->BypassWithSingleStep(patch->address, patch->opcode ARM_ARG(opcode2));
         m_singleStep = true;
     }
 
-#else // _TARGET_ARM_
+#else // FEATURE_EMULATE_SINGLESTEP
    
 #ifdef _TARGET_ARM64_
     patchBypass = NativeWalker::SetupOrSimulateInstructionForPatchSkip(context, m_pSharedPatchBypassBuffer, (const BYTE *)patch->address, patch->opcode);
@@ -4503,14 +4506,14 @@ DebuggerPatchSkip::DebuggerPatchSkip(Thread *thread,
 
     EnableSingleStep();
 
-#endif // _TARGET_ARM_
+#endif // FEATURE_EMULATE_SINGLESTEP
 
     EnableExceptionHook();
 }
 
 DebuggerPatchSkip::~DebuggerPatchSkip()
 {
-#ifndef _TARGET_ARM_
+#ifndef FEATURE_EMULATE_SINGLESTEP
     _ASSERTE(m_pSharedPatchBypassBuffer);
     m_pSharedPatchBypassBuffer->Release();
 #endif
@@ -4518,8 +4521,8 @@ DebuggerPatchSkip::~DebuggerPatchSkip()
 
 void DebuggerPatchSkip::DebuggerDetachClean()
 {
-// Since for ARM SharedPatchBypassBuffer isn't existed, we don't have to anything here.
-#ifndef _TARGET_ARM_
+// Since for ARM/ARM64 SharedPatchBypassBuffer isn't existed, we don't have to anything here.
+#ifndef FEATURE_EMULATE_SINGLESTEP
    // Fix for Bug 1176448
    // When a debugger is detaching from the debuggee, we need to move the IP if it is pointing 
    // somewhere in PatchBypassBuffer.All managed threads are suspended during detach, so changing 
@@ -4632,7 +4635,7 @@ TP_RESULT DebuggerPatchSkip::TriggerPatch(DebuggerControllerPatch *patch,
     ARM_ONLY(_ASSERTE(!"Should not have called DebuggerPatchSkip::TriggerPatch."));
     LOG((LF_CORDB, LL_EVERYTHING, "DPS::TP called\n"));
 
-#if defined(_DEBUG) && !defined(_TARGET_ARM_)
+#if defined(_DEBUG) && !defined(FEATURE_EMULATE_SINGLESTEP)
     CONTEXT *context = GetManagedLiveCtx(thread);
 
     LOG((LF_CORDB, LL_INFO1000, "DPS::TP: We've patched 0x%x (byPass:0x%x) "
@@ -4651,7 +4654,7 @@ TP_RESULT DebuggerPatchSkip::TriggerPatch(DebuggerControllerPatch *patch,
 
     patchCheck = g_patches->GetNextPatch(patchCheck);
     _ASSERTE(patchCheck == NULL);
-#endif // _DEBUG
+#endif // defined(_DEBUG) && !defined(FEATURE_EMULATE_SINGLESTEP)
 
     DisableAll();
     EnableExceptionHook();
@@ -4689,7 +4692,7 @@ TP_RESULT DebuggerPatchSkip::TriggerExceptionHook(Thread *thread, CONTEXT * cont
 
     LOG((LF_CORDB,LL_INFO10000, "DPS::TEH: doing the patch-skip thing\n"));    
 
-#if defined(_TARGET_ARM64_)
+#if defined(_TARGET_ARM64_) && !defined(FEATURE_EMULATE_SINGLESTEP)
 
     if (!IsSingleStep(exception->ExceptionCode))
     {
@@ -4712,7 +4715,8 @@ TP_RESULT DebuggerPatchSkip::TriggerExceptionHook(Thread *thread, CONTEXT * cont
     SetIP(context, targetIp);
     LOG((LF_CORDB, LL_ALWAYS, "Redirecting after Patch to 0x%p\n", GetIP(context)));
 
-#elif defined (_TARGET_ARM_)
+#elif defined(FEATURE_EMULATE_SINGLESTEP)
+
 //Do nothing 
 #else
     _ASSERTE(m_pSharedPatchBypassBuffer);
@@ -5004,9 +5008,9 @@ DebuggerStepper::DebuggerStepper(Thread *thread,
     m_rangeCount(0),
     m_realRangeCount(0),
     m_fp(LEAF_MOST_FRAME),
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
     m_fpParentMethod(LEAF_MOST_FRAME),
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
     m_fpException(LEAF_MOST_FRAME),
     m_fdException(0),
     m_cFuncEvalNesting(0)
@@ -5092,7 +5096,7 @@ bool DebuggerStepper::IsRangeAppropriate(ControllerStackInfo *info)
 
     FrameInfo *realFrame;
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
     bool fActiveFrameIsFunclet = info->m_activeFrame.IsNonFilterFuncletFrame();
 
     if (fActiveFrameIsFunclet)
@@ -5100,7 +5104,7 @@ bool DebuggerStepper::IsRangeAppropriate(ControllerStackInfo *info)
         realFrame = &(info->m_returnFrame);
     }
     else
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
     {
         realFrame = &(info->m_activeFrame);
     }
@@ -5116,7 +5120,7 @@ bool DebuggerStepper::IsRangeAppropriate(ControllerStackInfo *info)
         return true;
     }
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
     // There are two scenarios which make this function more complicated on WIN64.
     // 1)  We initiate a step in the parent method or a funclet but end up stepping into another funclet closer to the leaf.
     //      a)  start in the parent method
@@ -5152,7 +5156,7 @@ bool DebuggerStepper::IsRangeAppropriate(ControllerStackInfo *info)
             return true;
         }
     }
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
     LOG((LF_CORDB,LL_INFO10000, "DS::IRA: returning FALSE\n"));
     return false;
@@ -5601,7 +5605,8 @@ bool DebuggerStepper::TrapStepInHelper(
     ControllerStackInfo * pInfo,
     const BYTE * ipCallTarget,
     const BYTE * ipNext,
-    bool fCallingIntoFunclet)
+    bool fCallingIntoFunclet,
+    bool fIsJump)
 {
     TraceDestination td;
 
@@ -5857,7 +5862,7 @@ bool DebuggerStepper::TrapStep(ControllerStackInfo *info, bool in)
                 // fall through...
 
             case WALK_CALL:
-                LOG((LF_CORDB,LL_INFO10000, "DC::TS:Imm:WALK_CALL ip=%p nextip=%p\n", walker.GetIP(), walker.GetNextIP()));
+                LOG((LF_CORDB,LL_INFO10000, "DC::TS:Imm:WALK_CALL ip=%p nextip=%p skipip=%p\n", walker.GetIP(), walker.GetNextIP(), walker.GetSkipIP()));
 
                 // If we're doing some sort of intra-method jump (usually, to get EIP in a clever way, via the CALL
                 // instruction), then put the bp where we're going, NOT at the instruction following the call
@@ -5869,7 +5874,7 @@ bool DebuggerStepper::TrapStep(ControllerStackInfo *info, bool in)
 
                 if (walker.GetNextIP() != NULL)
                 {
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
                     // There are 4 places we could be jumping:
                     // 1) to the beginning of the same method (recursive call)
                     // 2) somewhere in the same funclet, that isn't the method start
@@ -5909,7 +5914,7 @@ bool DebuggerStepper::TrapStep(ControllerStackInfo *info, bool in)
                     // In this case, we want to step into the funclet even if the step operation is a step-over.
                     if (in || fCallingIntoFunclet)
                     {
-                        if (TrapStepInHelper(info, walker.GetNextIP(), walker.GetSkipIP(), fCallingIntoFunclet))
+                        if (TrapStepInHelper(info, walker.GetNextIP(), walker.GetSkipIP(), fCallingIntoFunclet, fIsJump))
                         {
                             return true;
                         }
@@ -6045,7 +6050,7 @@ bool DebuggerStepper::TrapStep(ControllerStackInfo *info, bool in)
                 }
             }
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
             fCallingIntoFunclet = IsAddrWithinMethodIncludingFunclet(ji, info->m_activeFrame.md, walker.GetNextIP());
 #endif
             if (in || fCallingIntoFunclet)
@@ -6067,7 +6072,7 @@ bool DebuggerStepper::TrapStep(ControllerStackInfo *info, bool in)
                     return true;
                 }
 
-                if (TrapStepInHelper(info, walker.GetNextIP(), walker.GetSkipIP(), fCallingIntoFunclet))
+                if (TrapStepInHelper(info, walker.GetNextIP(), walker.GetSkipIP(), fCallingIntoFunclet, false))
                 {
                     return true;
                 }
@@ -6129,7 +6134,7 @@ bool DebuggerStepper::IsAddrWithinFrame(DebuggerJitInfo *dji,
         }
     }
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
     // On WIN64, we also check whether the targetAddr and the currentAddr is in the same funclet.
     _ASSERTE(currentAddr != NULL);
     if (result)
@@ -6138,7 +6143,7 @@ bool DebuggerStepper::IsAddrWithinFrame(DebuggerJitInfo *dji,
         int targetFuncletIndex  = dji->GetFuncletIndex((CORDB_ADDRESS)targetAddr,  DebuggerJitInfo::GFIM_BYADDRESS);
         result = (currentFuncletIndex == targetFuncletIndex);
     }
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
     return result;
 }
@@ -6181,7 +6186,7 @@ void DebuggerStepper::TrapStepOut(ControllerStackInfo *info, bool fForceTraditio
 
     bool fReturningFromFinallyFunclet = false;
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
     // When we step out of a funclet, we should do one of two things, depending
     // on the original stepping intention:
     // 1) If we originally want to step out, then we should skip the parent method.
@@ -6258,7 +6263,7 @@ void DebuggerStepper::TrapStepOut(ControllerStackInfo *info, bool fForceTraditio
             }
         }
     }
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 #ifdef _DEBUG
     FramePointer dbgLastFP; // for debug, make sure we're making progress through the stack.
@@ -6560,14 +6565,14 @@ void DebuggerStepper::StepOut(FramePointer fp, StackTraceTicket ticket)
 
     m_stepIn = FALSE;
     m_fp = info.m_activeFrame.fp;
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
     // We need to remember the parent method frame pointer here so that we will recognize
     // the range of the stepper as being valid when we return to the parent method.
     if (info.m_activeFrame.IsNonFilterFuncletFrame())
     {
         m_fpParentMethod = info.m_returnFrame.fp;
     }
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
     m_eMode = cStepOut;
 
@@ -6899,14 +6904,14 @@ bool DebuggerStepper::Step(FramePointer fp, bool in,
     else
     {
         m_fp = info.m_activeFrame.fp;
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
         // We need to remember the parent method frame pointer here so that we will recognize
         // the range of the stepper as being valid when we return to the parent method.
         if (info.m_activeFrame.IsNonFilterFuncletFrame())
         {
             m_fpParentMethod = info.m_returnFrame.fp;
         }
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
     }
     m_eMode = m_stepIn ? cStepIn : cStepOver;
 
@@ -7593,11 +7598,11 @@ void DebuggerStepper::PrepareForSendEvent(StackTraceTicket ticket)
         csi.GetStackInfo(ticket, GetThread(), LEAF_MOST_FRAME, NULL);
 
         if (csi.m_targetFrameFound &&
-#if !defined(WIN64EXCEPTIONS)
+#if !defined(FEATURE_EH_FUNCLETS)
             IsCloserToRoot(m_fpStepInto, csi.m_activeFrame.fp)
 #else
             IsCloserToRoot(m_fpStepInto, (csi.m_activeFrame.IsNonFilterFuncletFrame() ? csi.m_returnFrame.fp : csi.m_activeFrame.fp))
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
            )
 
         {
@@ -7768,9 +7773,10 @@ bool DebuggerJMCStepper::TrapStepInHelper(
     ControllerStackInfo * pInfo,
     const BYTE * ipCallTarget,
     const BYTE * ipNext,
-    bool fCallingIntoFunclet)
+    bool fCallingIntoFunclet,
+    bool fIsJump)
 {
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
     // There are no funclets on x86.
     _ASSERTE(!fCallingIntoFunclet);
 #endif
@@ -7788,31 +7794,33 @@ bool DebuggerJMCStepper::TrapStepInHelper(
         // So in either case, we have to execute the rest of this function.
     }
 
-    MethodDesc * pDesc = pInfo->m_activeFrame.md;
-    DebuggerJitInfo *dji = NULL;
+    if (!fIsJump)
+    {
+        MethodDesc * pDesc = pInfo->m_activeFrame.md;
+        DebuggerJitInfo *dji = NULL;
 
-    // We may not have a DJI if we're in an attach case. We should still be able to do a JMC-step in though.
-    // So NULL is ok here.
-    dji = g_pDebugger->GetJitInfo(pDesc, (const BYTE*) ipNext);
+        // We may not have a DJI if we're in an attach case. We should still be able to do a JMC-step in though.
+        // So NULL is ok here.
+        dji = g_pDebugger->GetJitInfo(pDesc, (const BYTE*) ipNext);
+
+        // Place patch after call, which is at ipNext. Note we don't need an IL->Native map here
+        // since we disassembled native code to find the ip after the call.
+        SIZE_T offset = CodeRegionInfo::GetCodeRegionInfo(dji, pDesc).AddressToOffset(ipNext);
 
 
-    // Place patch after call, which is at ipNext. Note we don't need an IL->Native map here
-    // since we disassembled native code to find the ip after the call.
-    SIZE_T offset = CodeRegionInfo::GetCodeRegionInfo(dji, pDesc).AddressToOffset(ipNext);
+        LOG((LF_CORDB, LL_INFO100000, "DJMCStepper::TSIH, at '%s::%s', calling=0x%p, next=0x%p, offset=%d\n",
+            pDesc->m_pszDebugClassName,
+            pDesc->m_pszDebugMethodName,
+            ipCallTarget, ipNext,
+            offset));
 
-
-    LOG((LF_CORDB, LL_INFO100000, "DJMCStepper::TSIH, at '%s::%s', calling=0x%p, next=0x%p, offset=%d\n",
-        pDesc->m_pszDebugClassName,
-        pDesc->m_pszDebugMethodName,
-        ipCallTarget, ipNext,
-        offset));
-
-    // Place a patch at the native address (inside the managed method).
-    AddBindAndActivateNativeManagedPatch(pInfo->m_activeFrame.md,
-             dji,
-             offset,
-             pInfo->m_returnFrame.fp,
-             NULL);
+        // Place a patch at the native address (inside the managed method).
+        AddBindAndActivateNativeManagedPatch(pInfo->m_activeFrame.md,
+                dji,
+                offset,
+                pInfo->m_returnFrame.fp,
+                NULL);
+    }
 
     EnableMethodEnter();
 
@@ -8927,9 +8935,9 @@ bool DebuggerContinuableExceptionBreakpoint::SendEvent(Thread *thread, bool fIpC
 
     // On WIN64, by the time we get here the DebuggerExState is gone already.
     // ExceptionTrackers are cleaned up before we resume execution for a handled exception.
-#if !defined(WIN64EXCEPTIONS)
+#if !defined(FEATURE_EH_FUNCLETS)
     thread->GetExceptionState()->GetDebuggerState()->SetDebuggerInterceptContext(NULL);
-#endif // !WIN64EXCEPTIONS
+#endif // !FEATURE_EH_FUNCLETS
 
 
     //

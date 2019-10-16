@@ -46,7 +46,9 @@ UINT64 QCALLTYPE EventPipeInternal::Enable(
             numProviders,
             outputFile != NULL ? EventPipeSessionType::File : EventPipeSessionType::Listener,
             format,
+            true,
             nullptr);
+        EventPipe::StartStreaming(sessionID);
     }
     END_QCALL;
 
@@ -274,6 +276,19 @@ bool QCALLTYPE EventPipeInternal::GetNextEvent(UINT64 sessionID, EventPipeEventI
 
     END_QCALL;
     return pNextInstance != NULL;
+}
+
+HANDLE QCALLTYPE EventPipeInternal::GetWaitHandle(UINT64 sessionID)
+{
+    QCALL_CONTRACT;
+
+    HANDLE waitHandle;
+    BEGIN_QCALL;
+
+    waitHandle = EventPipe::GetWaitHandle(sessionID);
+
+    END_QCALL;
+    return waitHandle;
 }
 
 #endif // FEATURE_PERFTRACING
