@@ -5012,7 +5012,7 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, Fixed
             // Mark the call node as "no return" as it can impact caller's code quality.
             impInlineInfo->iciCall->gtCallMoreFlags |= GTF_CALL_M_DOES_NOT_RETURN;
             // Mark root method as containing a noreturn call.
-            impInlineRoot()->setMethodHasNoreturnCalls();
+            impInlineRoot()->setMethodHasNoReturnCalls();
         }
 
         // If the inline is viable and discretionary, do the
@@ -25825,13 +25825,6 @@ void Compiler::fgTailMergeThrows()
     // and there is less jumbled flow to sort out later.
     for (BasicBlock* block = fgLastBB; block != nullptr; block = block->bbPrev)
     {
-        // Hmm, odd BBJ_RETURN case when throw helper is tail called.
-        // TODO: sort this out over in morph.
-        if (block->bbJumpKind == BBJ_RETURN)
-        {
-            continue;
-        }
-
         // For throw helpers the block should have exactly one statement....
         // (this isn't guaranteed, but seems likely)
         Statement* stmt = block->firstStmt();
@@ -25871,9 +25864,6 @@ void Compiler::fgTailMergeThrows()
         ThrowHelper key(block, call);
         if (callMap.Lookup(key, &canonicalBlock))
         {
-            // Make sure we're not at risk of crossing EH boundaries
-            assert(BasicBlock::sameEHRegion(block, canonicalBlock));
-
             // Yes, this one can be optimized away...
             JITDUMP("    in " FMT_BB " can be dup'd to canonical " FMT_BB "\n", block->bbNum, canonicalBlock->bbNum);
             blockMap.Set(block, canonicalBlock);

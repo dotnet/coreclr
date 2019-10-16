@@ -6377,12 +6377,12 @@ public:
 
     unsigned optMethodFlags;
 
-    bool doesMethodHaveNoreturnCalls()
+    bool doesMethodHaveNoReturnCalls()
     {
         return optNoReturnCallCount > 0;
     }
 
-    void setMethodHasNoreturnCalls()
+    void setMethodHasNoReturnCalls()
     {
         optNoReturnCallCount++;
     }
