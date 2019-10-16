@@ -318,7 +318,7 @@ namespace System.Text
         // Note that this could also change the contents of this.encoder, which is the same
         // object that the caller is using, so the caller could mess up the encoder for us
         // if they aren't careful.
-        internal unsafe virtual bool InternalFallback(char ch, ref char* chars)
+        internal virtual unsafe bool InternalFallback(char ch, ref char* chars)
         {
             // Shouldn't have null charStart
             Debug.Assert(charStart != null,
@@ -376,14 +376,9 @@ namespace System.Text
             return bFallingBack;
         }
 
-        // private helper methods
         [DoesNotReturn]
-        internal void ThrowLastCharRecursive(int charRecursive)
-        {
+        internal static void ThrowLastCharRecursive(int charRecursive) =>
             // Throw it, using our complete character
-            throw new ArgumentException(
-                SR.Format(SR.Argument_RecursiveFallback,
-                    charRecursive), "chars");
-        }
+            throw new ArgumentException(SR.Format(SR.Argument_RecursiveFallback, charRecursive), "chars");
     }
 }

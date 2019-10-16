@@ -1069,40 +1069,6 @@ HRESULT CorRuntimeHostBase::UnloadAppDomain2(DWORD dwDomainId, BOOL fWaitUntilDo
 }
 
 //*****************************************************************************
-// Fiber Methods
-//*****************************************************************************
-
-HRESULT CorRuntimeHostBase::LocksHeldByLogicalThread(DWORD *pCount)
-{
-    if (!pCount)
-        return E_POINTER;
-
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        ENTRY_POINT;
-    }
-    CONTRACTL_END;
-
-    BEGIN_ENTRYPOINT_NOTHROW;
-
-    Thread* pThread = GetThread();
-    if (pThread == NULL)
-        *pCount = 0;
-    else
-        *pCount = pThread->m_dwLockCount;
-
-    END_ENTRYPOINT_NOTHROW;
-
-    return S_OK;
-}
-
-//*****************************************************************************
-// ICorConfiguration
-//*****************************************************************************
-
-//*****************************************************************************
 // IUnknown
 //*****************************************************************************
 
@@ -1272,31 +1238,6 @@ static PEImage *MapFileHelper(HANDLE hFile)
     }
     PEImageHolder pImage(PEImage::LoadFlat(base, dwSize));
     return pImage.Extract();
-}
-
-HRESULT CorRuntimeHostBase::MapFile(HANDLE hFile, HMODULE* phHandle)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
-        ENTRY_POINT;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr;
-    BEGIN_ENTRYPOINT_NOTHROW;
-
-    BEGIN_EXTERNAL_ENTRYPOINT(&hr)
-    {
-        *phHandle = (HMODULE) (MapFileHelper(hFile)->GetLoadedLayout()->GetBase());
-    }
-    END_EXTERNAL_ENTRYPOINT;
-    END_ENTRYPOINT_NOTHROW;
-
-
-    return hr;
 }
 
 LONG CorHost2::m_RefCount = 0;

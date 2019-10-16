@@ -41,11 +41,22 @@ set(MDRUNTIME_HEADERS
 convert_to_absolute_path(MDRUNTIME_HEADERS ${MDRUNTIME_HEADERS})
 convert_to_absolute_path(MDRUNTIME_SOURCES ${MDRUNTIME_SOURCES})
 
-if(CLR_CMAKE_PLATFORM_UNIX)
-    add_compile_options(-fPIC)
-endif(CLR_CMAKE_PLATFORM_UNIX)
+if (WIN32)
+    list(APPEND MDRUNTIME_SOURCES ${MDRUNTIME_HEADERS})
+endif (WIN32)
 
-add_subdirectory(dac)
-add_subdirectory(wks)
-add_subdirectory(dbi)
-add_subdirectory(crossgen)
+add_library_clr(mdruntime_dac ${MDRUNTIME_SOURCES})
+set_target_properties(mdruntime_dac PROPERTIES DAC_COMPONENT TRUE)
+target_precompile_header(TARGET mdruntime_dac HEADER stdafx.h)
+
+add_library_clr(mdruntime_wks ${MDRUNTIME_SOURCES})
+target_compile_definitions(mdruntime_wks PRIVATE FEATURE_METADATA_EMIT_ALL)
+target_precompile_header(TARGET mdruntime_wks HEADER stdafx.h)
+
+add_library_clr(mdruntime-dbi ${MDRUNTIME_SOURCES})
+set_target_properties(mdruntime-dbi PROPERTIES DBI_COMPONENT TRUE)
+target_precompile_header(TARGET mdruntime-dbi HEADER stdafx.h)
+
+add_library_clr(mdruntime_crossgen ${MDRUNTIME_SOURCES})
+set_target_properties(mdruntime_crossgen PROPERTIES CROSSGEN_COMPONENT TRUE)
+target_precompile_header(TARGET mdruntime_crossgen HEADER stdafx.h)

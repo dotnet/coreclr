@@ -13,6 +13,7 @@ using System.Runtime.InteropServices;
 
 using Internal.Runtime.CompilerServices;
 
+#pragma warning disable SA1121 // explicitly using type aliases instead of built-in types
 #if BIT64
 using nint = System.Int64;
 using nuint = System.UInt64;
@@ -35,21 +36,23 @@ namespace System
             if (!IsPrimitiveTypeArray(array))
                 throw new ArgumentException(SR.Arg_MustBePrimArray, nameof(array));
 
-            return _ByteLength(array);
+            nuint byteLength = (nuint)array.LongLength * (nuint)array.GetElementSize();
+
+            // This API is explosed both as Buffer.ByteLength and also used indirectly in argument
+            // checks for Buffer.GetByte/SetByte.
+            //
+            // If somebody called Get/SetByte on 2GB+ arrays, there is a decent chance that
+            // the computation of the index has overflowed. Thus we intentionally always
+            // throw on 2GB+ arrays in Get/SetByte argument checks (even for indicies <2GB)
+            // to prevent people from running into a trap silently.
+
+            return checked((int)byteLength);
         }
 
         public static byte GetByte(Array array, int index)
         {
-            // Is the array present?
-            if (array == null)
-                throw new ArgumentNullException(nameof(array));
-
-            // Is it of primitive types?
-            if (!IsPrimitiveTypeArray(array))
-                throw new ArgumentException(SR.Arg_MustBePrimArray, nameof(array));
-
-            // Is the index in valid range of the array?
-            if ((uint)index >= (uint)_ByteLength(array))
+            // array argument validation done via ByteLength
+            if ((uint)index >= (uint)ByteLength(array))
                 throw new ArgumentOutOfRangeException(nameof(index));
 
             return Unsafe.Add<byte>(ref array.GetRawArrayData(), index);
@@ -57,16 +60,8 @@ namespace System
 
         public static void SetByte(Array array, int index, byte value)
         {
-            // Is the array present?
-            if (array == null)
-                throw new ArgumentNullException(nameof(array));
-
-            // Is it of primitive types?
-            if (!IsPrimitiveTypeArray(array))
-                throw new ArgumentException(SR.Arg_MustBePrimArray, nameof(array));
-
-            // Is the index in valid range of the array?
-            if ((uint)index >= (uint)_ByteLength(array))
+            // array argument validation done via ByteLength
+            if ((uint)index >= (uint)ByteLength(array))
                 throw new ArgumentOutOfRangeException(nameof(index));
 
             Unsafe.Add<byte>(ref array.GetRawArrayData(), index) = value;
@@ -85,9 +80,9 @@ namespace System
             SpanHelpers.ClearWithoutReferences(ref *dest, len);
         }
 
-        // The attributes on this method are chosen for best JIT performance. 
+        // The attributes on this method are chosen for best JIT performance.
         // Please do not edit unless intentional.
-        [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
         public static unsafe void MemoryCopy(void* source, void* destination, long destinationSizeInBytes, long sourceBytesToCopy)
         {
@@ -98,9 +93,9 @@ namespace System
             Memmove((byte*)destination, (byte*)source, checked((nuint)sourceBytesToCopy));
         }
 
-        // The attributes on this method are chosen for best JIT performance. 
+        // The attributes on this method are chosen for best JIT performance.
         // Please do not edit unless intentional.
-        [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
         public static unsafe void MemoryCopy(void* source, void* destination, ulong destinationSizeInBytes, ulong sourceBytesToCopy)
         {
@@ -109,34 +104,6 @@ namespace System
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.sourceBytesToCopy);
             }
             Memmove((byte*)destination, (byte*)source, checked((nuint)sourceBytesToCopy));
-        }
-
-        internal static unsafe void Memcpy(byte[] dest, int destIndex, byte* src, int srcIndex, int len)
-        {
-            Debug.Assert((srcIndex >= 0) && (destIndex >= 0) && (len >= 0), "Index and length must be non-negative!");
-            Debug.Assert(dest.Length - destIndex >= len, "not enough bytes in dest");
-            // If dest has 0 elements, the fixed statement will throw an 
-            // IndexOutOfRangeException.  Special-case 0-byte copies.
-            if (len == 0)
-                return;
-            fixed (byte* pDest = dest)
-            {
-                Memcpy(pDest + destIndex, src + srcIndex, len);
-            }
-        }
-
-        internal static unsafe void Memcpy(byte* pDest, int destIndex, byte[] src, int srcIndex, int len)
-        {
-            Debug.Assert((srcIndex >= 0) && (destIndex >= 0) && (len >= 0), "Index and length must be non-negative!");
-            Debug.Assert(src.Length - srcIndex >= len, "not enough bytes in src");
-            // If dest has 0 elements, the fixed statement will throw an 
-            // IndexOutOfRangeException.  Special-case 0-byte copies.
-            if (len == 0)
-                return;
-            fixed (byte* pSrc = src)
-            {
-                Memcpy(pDest + destIndex, pSrc + srcIndex, len);
-            }
         }
 
         // This method has different signature for x64 and other platforms and is done for performance reasons.
@@ -525,7 +492,7 @@ namespace System
 
         // Non-inlinable wrapper around the QCall that avoids polluting the fast path
         // with P/Invoke prolog/epilog.
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         private static unsafe void _Memmove(byte* dest, byte* src, nuint len)
         {
             __Memmove(dest, src, len);
@@ -533,7 +500,7 @@ namespace System
 
         // Non-inlinable wrapper around the QCall that avoids polluting the fast path
         // with P/Invoke prolog/epilog.
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         private static unsafe void _Memmove(ref byte dest, ref byte src, nuint len)
         {
             fixed (byte* pDest = &dest)

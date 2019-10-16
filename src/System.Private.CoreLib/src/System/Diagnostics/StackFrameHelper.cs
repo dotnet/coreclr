@@ -2,24 +2,14 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Text;
 using System.Threading;
-using System.Security;
-using System.IO;
 using System.Reflection;
-using System.Runtime.InteropServices;
-using System.Runtime.CompilerServices;
-using System.Globalization;
-using System.Runtime.Versioning;
 
 namespace System.Diagnostics
 {
     // READ ME:
-    // Modifying the order or fields of this object may require other changes 
-    // to the unmanaged definition of the StackFrameHelper class, in 
+    // Modifying the order or fields of this object may require other changes
+    // to the unmanaged definition of the StackFrameHelper class, in
     // VM\DebugDebugger.h. The binder will catch some of these layout problems.
     internal class StackFrameHelper
     {
@@ -30,7 +20,7 @@ namespace System.Diagnostics
 #pragma warning disable 414
         // dynamicMethods is an array of System.Resolver objects, used to keep
         // DynamicMethodDescs AND collectible LoaderAllocators alive for the lifetime of StackFrameHelper.
-        private object? dynamicMethods; // Field is not used from managed.        
+        private object? dynamicMethods; // Field is not used from managed.
 
         private IntPtr[]? rgMethodHandle;
         private string[]? rgAssemblyPath;
@@ -55,7 +45,7 @@ namespace System.Diagnostics
         private static GetSourceLineInfoDelegate? s_getSourceLineInfo = null;
 
         [ThreadStatic]
-        private static int t_reentrancy = 0;
+        private static int t_reentrancy;
 
         public StackFrameHelper(Thread? target)
         {
@@ -79,16 +69,16 @@ namespace System.Diagnostics
 
             // 0 means capture all frames.  For StackTraces from an Exception, the EE always
             // captures all frames.  For other uses of StackTraces, we can abort stack walking after
-            // some limit if we want to by setting this to a non-zero value.  In Whidbey this was 
+            // some limit if we want to by setting this to a non-zero value.  In Whidbey this was
             // hard-coded to 512, but some customers complained.  There shouldn't be any need to limit
             // this as memory/CPU is no longer allocated up front.  If there is some reason to provide a
-            // limit in the future, then we should expose it in the managed API so applications can 
+            // limit in the future, then we should expose it in the managed API so applications can
             // override it.
             iFrameCount = 0;
         }
 
         //
-        // Initializes the stack trace helper. If fNeedFileInfo is true, initializes rgFilename, 
+        // Initializes the stack trace helper. If fNeedFileInfo is true, initializes rgFilename,
         // rgiLineNumber and rgiColumnNumber fields using the portable PDB reader if not already
         // done by GetStackFramesInternal (on Windows for old PDB format).
         //
@@ -117,11 +107,11 @@ namespace System.Diagnostics
                         return;
                     }
 
-                    Type[] parameterTypes = new Type[] 
+                    Type[] parameterTypes = new Type[]
                     {
-                        typeof(Assembly), typeof(string), typeof(IntPtr), typeof(int), typeof(IntPtr), 
-                        typeof(int), typeof(int), typeof(int), 
-                        typeof(string).MakeByRefType(), typeof(int).MakeByRefType(), typeof(int).MakeByRefType() 
+                        typeof(Assembly), typeof(string), typeof(IntPtr), typeof(int), typeof(IntPtr),
+                        typeof(int), typeof(int), typeof(int),
+                        typeof(string).MakeByRefType(), typeof(int).MakeByRefType(), typeof(int).MakeByRefType()
                     };
                     MethodInfo? symbolsMethodInfo = symbolsType.GetMethod("GetSourceLineInfo", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance, null, parameterTypes, null);
                     if (symbolsMethodInfo == null)
@@ -180,7 +170,7 @@ namespace System.Diagnostics
 
         public virtual int GetOffset(int i) { return rgiOffset![i]; }
         public virtual int GetILOffset(int i) { return rgiILOffset![i]; }
-        public virtual string? GetFilename(int i) { return rgFilename == null ? null : rgFilename[i]; }
+        public virtual string? GetFilename(int i) { return rgFilename?[i]; }
         public virtual int GetLineNumber(int i) { return rgiLineNumber == null ? 0 : rgiLineNumber[i]; }
         public virtual int GetColumnNumber(int i) { return rgiColumnNumber == null ? 0 : rgiColumnNumber[i]; }
 

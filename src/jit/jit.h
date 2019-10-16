@@ -276,15 +276,14 @@
 #define UNIX_AMD64_ABI_ONLY(x)
 #endif // defined(UNIX_AMD64_ABI)
 
-#if defined(UNIX_AMD64_ABI) || !defined(_TARGET_64BIT_) || (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_))
+#if defined(UNIX_AMD64_ABI) || !defined(_TARGET_64BIT_) || defined(_TARGET_ARM64_)
 #define FEATURE_PUT_STRUCT_ARG_STK 1
 #define PUT_STRUCT_ARG_STK_ONLY_ARG(x) , x
 #define PUT_STRUCT_ARG_STK_ONLY(x) x
-#else // !(defined(UNIX_AMD64_ABI) && defined(_TARGET_64BIT_) && !(defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_))
+#else
 #define PUT_STRUCT_ARG_STK_ONLY_ARG(x)
 #define PUT_STRUCT_ARG_STK_ONLY(x)
-#endif // !(defined(UNIX_AMD64_ABI) && defined(_TARGET_64BIT_) && !(defined(_TARGET_WINDOWS_) &&
-       // defined(_TARGET_ARM64_))
+#endif
 
 #if defined(UNIX_AMD64_ABI)
 #define UNIX_AMD64_ABI_ONLY_ARG(x) , x
@@ -560,6 +559,9 @@ const bool dspGCtbls = true;
 #define DISPTREE(t)                                                                                                    \
     if (JitTls::GetCompiler()->verbose)                                                                                \
         JitTls::GetCompiler()->gtDispTree(t);
+#define DISPSTMT(t)                                                                                                    \
+    if (JitTls::GetCompiler()->verbose)                                                                                \
+        JitTls::GetCompiler()->gtDispStmt(t);
 #define DISPRANGE(range)                                                                                               \
     if (JitTls::GetCompiler()->verbose)                                                                                \
         JitTls::GetCompiler()->gtDispRange(range);
@@ -574,6 +576,7 @@ const bool dspGCtbls = true;
 #define DBEXEC(flg, expr)
 #define DISPNODE(t)
 #define DISPTREE(t)
+#define DISPSTMT(t)
 #define DISPRANGE(range)
 #define DISPTREERANGE(range, t)
 #define VERBOSE 0

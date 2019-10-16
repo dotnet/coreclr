@@ -9,7 +9,7 @@ using RuntimeTypeCache = System.RuntimeType.RuntimeTypeCache;
 
 namespace System.Reflection
 {
-    internal unsafe sealed class RtFieldInfo : RuntimeFieldInfo, IRuntimeFieldInfo
+    internal sealed unsafe class RtFieldInfo : RuntimeFieldInfo, IRuntimeFieldInfo
     {
         #region Private Data Members
         // aggressive caching
@@ -23,11 +23,8 @@ namespace System.Reflection
         internal INVOCATION_FLAGS InvocationFlags
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return (m_invocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_INITIALIZED) != 0 ?
+            get => (m_invocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_INITIALIZED) != 0 ?
                     m_invocationFlags : InitializeInvocationFlags();
-            }
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -60,7 +57,7 @@ namespace System.Reflection
             }
 
             // must be last to avoid threading problems
-            return (m_invocationFlags = invocationFlags | INVOCATION_FLAGS.INVOCATION_FLAGS_INITIALIZED);
+            return m_invocationFlags = invocationFlags | INVOCATION_FLAGS.INVOCATION_FLAGS_INITIALIZED;
         }
         #endregion
 
@@ -75,13 +72,7 @@ namespace System.Reflection
         #endregion
 
         #region Private Members
-        RuntimeFieldHandleInternal IRuntimeFieldInfo.Value
-        {
-            get
-            {
-                return new RuntimeFieldHandleInternal(m_fieldHandle);
-            }
-        }
+        RuntimeFieldHandleInternal IRuntimeFieldInfo.Value => new RuntimeFieldHandleInternal(m_fieldHandle);
 
         #endregion
 
@@ -110,40 +101,17 @@ namespace System.Reflection
 
         internal override bool CacheEquals(object? o)
         {
-            RtFieldInfo? m = o as RtFieldInfo;
-
-            if (m is null)
-                return false;
-
-            return m.m_fieldHandle == m_fieldHandle;
+            return o is RtFieldInfo m && m.m_fieldHandle == m_fieldHandle;
         }
 
         #endregion
 
         #region MemberInfo Overrides
-        public override string Name
-        {
-            get
-            {
-                if (m_name == null)
-                    m_name = RuntimeFieldHandle.GetName(this);
+        public override string Name => m_name ??= RuntimeFieldHandle.GetName(this);
 
-                return m_name;
-            }
-        }
+        internal string FullName => DeclaringType!.FullName + "." + Name;
 
-        internal string FullName
-        {
-            get
-            {
-                return DeclaringType!.FullName + "." + Name;
-            }
-        }
-
-        public override int MetadataToken
-        {
-            get { return RuntimeFieldHandle.GetToken(this); }
-        }
+        public override int MetadataToken => RuntimeFieldHandle.GetToken(this);
 
         internal override RuntimeModule GetRuntimeModule()
         {
@@ -195,11 +163,8 @@ namespace System.Reflection
             if (obj.IsNull)
                 throw new ArgumentException(SR.Arg_TypedReference_Null);
 
-            unsafe
-            {
-                // Passing TypedReference by reference is easier to make correct in native code
-                return RuntimeFieldHandle.GetValueDirect(this, (RuntimeType)FieldType, &obj, (RuntimeType?)DeclaringType);
-            }
+            // Passing TypedReference by reference is easier to make correct in native code
+            return RuntimeFieldHandle.GetValueDirect(this, (RuntimeType)FieldType, &obj, (RuntimeType?)DeclaringType);
         }
 
         [DebuggerStepThroughAttribute]
@@ -242,47 +207,29 @@ namespace System.Reflection
             if (obj.IsNull)
                 throw new ArgumentException(SR.Arg_TypedReference_Null);
 
-            unsafe
-            {
-                // Passing TypedReference by reference is easier to make correct in native code
-                RuntimeFieldHandle.SetValueDirect(this, (RuntimeType)FieldType, &obj, value, (RuntimeType?)DeclaringType);
-            }
+            // Passing TypedReference by reference is easier to make correct in native code
+            RuntimeFieldHandle.SetValueDirect(this, (RuntimeType)FieldType, &obj, value, (RuntimeType?)DeclaringType);
         }
 
-        public override RuntimeFieldHandle FieldHandle
-        {
-            get
-            {
-                return new RuntimeFieldHandle(this);
-            }
-        }
+        public override RuntimeFieldHandle FieldHandle => new RuntimeFieldHandle(this);
 
         internal IntPtr GetFieldHandle()
         {
             return m_fieldHandle;
         }
 
-        public override FieldAttributes Attributes
-        {
-            get
-            {
-                return m_fieldAttributes;
-            }
-        }
+        public override FieldAttributes Attributes => m_fieldAttributes;
 
         public override Type FieldType
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return m_fieldType ?? InitializeFieldType();
-            }
+            get => m_fieldType ?? InitializeFieldType();
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private RuntimeType InitializeFieldType()
         {
-            return (m_fieldType = new Signature(this, m_declaringType).FieldType);
+            return m_fieldType = new Signature(this, m_declaringType).FieldType;
         }
 
         public override Type[] GetRequiredCustomModifiers()

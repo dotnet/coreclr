@@ -200,68 +200,6 @@ LEADINGWHITE:
 }
 
 
-// Function to parse apart a command line and return the 
-// arguments just like argv and argc
-// This function is a little funky because of the pointer work
-// but it is neat because it allows the recipient of the char**
-// to only have to do a single delete []
-LPWSTR* CommandLineToArgvW(__in LPWSTR lpCmdLine, DWORD *pNumArgs)
-{
-
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        INJECT_FAULT(return NULL;); 
-    }
-    CONTRACTL_END
-
-    DWORD argcount = 0;
-    LPWSTR retval = NULL;
-    LPWSTR *pslot;
-    // First we need to find out how many strings there are in the command line
-    _ASSERTE(lpCmdLine);
-    _ASSERTE(pNumArgs);
-
-    LPWSTR pdst = NULL;
-    argcount = ParseCommandLine(lpCmdLine, &pdst);
-
-    // This check is because on WinCE the Application Name is not passed in as an argument to the app!
-    if (argcount == 0)
-    {
-        *pNumArgs = 0;
-        return NULL;
-    }
-
-    // Now we need alloc a buffer the size of the command line + the number of strings * DWORD
-    retval = new (nothrow) WCHAR[(argcount*sizeof(WCHAR*))/sizeof(WCHAR) + (pdst - (LPWSTR)NULL)];
-    if(!retval)
-        return NULL;
-
-    pdst = (LPWSTR)( argcount*sizeof(LPWSTR*) + (BYTE*)retval );
-    ParseCommandLine(lpCmdLine, &pdst);
-    pdst = (LPWSTR)( argcount*sizeof(LPWSTR*) + (BYTE*)retval );
-    pslot = (LPWSTR*)retval;
-    for (DWORD i = 0; i < argcount; i++)
-    {
-        *(pslot++) = pdst;
-        while (*pdst != W('\0'))
-        {
-            pdst++;
-        }
-        pdst++;
-    }
-
-    
-
-    *pNumArgs = argcount;
-    return (LPWSTR*)retval;
-
-}
-
-
-
-
 //************************************************************************
 // CQuickHeap
 //
@@ -955,7 +893,7 @@ SIZE_T *NativeVarStackAddr(const ICorDebugInfo::VarLoc &   varLoc,
 }
 
 
-#if defined(_WIN64)
+#if defined(BIT64)
 void GetNativeVarValHelper(SIZE_T* dstAddrLow, SIZE_T* dstAddrHigh, SIZE_T* srcAddr, SIZE_T size)
 {
     if (size == 1)
@@ -977,14 +915,14 @@ void GetNativeVarValHelper(SIZE_T* dstAddrLow, SIZE_T* dstAddrHigh, SIZE_T* srcA
         UNREACHABLE();
     }
 }
-#endif // _WIN64
+#endif // BIT64
 
 
 bool    GetNativeVarVal(const ICorDebugInfo::VarLoc &   varLoc,
                         PCONTEXT                        pCtx,
                         SIZE_T                      *   pVal1,
                         SIZE_T                      *   pVal2
-                        WIN64_ARG(SIZE_T                cbSize))
+                        BIT64_ARG(SIZE_T                cbSize))
 {
 
     STATIC_CONTRACT_NOTHROW;
@@ -993,7 +931,7 @@ bool    GetNativeVarVal(const ICorDebugInfo::VarLoc &   varLoc,
 
     switch(varLoc.vlType)
     {
-#if !defined(_WIN64)
+#if !defined(BIT64)
         SIZE_T          regOffs;
 
     case ICorDebugInfo::VLT_REG:
@@ -1040,7 +978,7 @@ bool    GetNativeVarVal(const ICorDebugInfo::VarLoc &   varLoc,
     case ICorDebugInfo::VLT_FPSTK:
          _ASSERTE(!"NYI"); break;
 
-#else  // _WIN64
+#else  // BIT64
     case ICorDebugInfo::VLT_REG:
     case ICorDebugInfo::VLT_REG_FP:
     case ICorDebugInfo::VLT_STK:
@@ -1052,7 +990,7 @@ bool    GetNativeVarVal(const ICorDebugInfo::VarLoc &   varLoc,
         _ASSERTE(!"GNVV: This function should not be called for value types");
         break;
 
-#endif // _WIN64
+#endif // BIT64
 
     default:
          _ASSERTE(!"Bad locType"); break;
@@ -1062,7 +1000,7 @@ bool    GetNativeVarVal(const ICorDebugInfo::VarLoc &   varLoc,
 }
 
 
-#if defined(_WIN64)
+#if defined(BIT64)
 void SetNativeVarValHelper(SIZE_T* dstAddr, SIZE_T valueLow, SIZE_T valueHigh, SIZE_T size)
 {
     if (size == 1)
@@ -1084,14 +1022,14 @@ void SetNativeVarValHelper(SIZE_T* dstAddr, SIZE_T valueLow, SIZE_T valueHigh, S
         UNREACHABLE();
     }
 }
-#endif // _WIN64
+#endif // BIT64
 
 
 bool    SetNativeVarVal(const ICorDebugInfo::VarLoc &   varLoc,
                         PCONTEXT                        pCtx,
                         SIZE_T                          val1,
                         SIZE_T                          val2
-                        WIN64_ARG(SIZE_T                cbSize))
+                        BIT64_ARG(SIZE_T                cbSize))
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
@@ -1099,7 +1037,7 @@ bool    SetNativeVarVal(const ICorDebugInfo::VarLoc &   varLoc,
 
     switch(varLoc.vlType)
     {
-#if !defined(_WIN64)
+#if !defined(BIT64)
         SIZE_T          regOffs;
 
     case ICorDebugInfo::VLT_REG:
@@ -1146,7 +1084,7 @@ bool    SetNativeVarVal(const ICorDebugInfo::VarLoc &   varLoc,
     case ICorDebugInfo::VLT_FPSTK:
          _ASSERTE(!"NYI"); break;
 
-#else  // _WIN64
+#else  // BIT64
     case ICorDebugInfo::VLT_REG:
     case ICorDebugInfo::VLT_REG_FP:
     case ICorDebugInfo::VLT_STK:
@@ -1158,35 +1096,13 @@ bool    SetNativeVarVal(const ICorDebugInfo::VarLoc &   varLoc,
         _ASSERTE(!"GNVV: This function should not be called for value types");
         break;
 
-#endif // _WIN64
+#endif // BIT64
 
     default:
          _ASSERTE(!"Bad locType"); break;
     }
 
     return true;
-}
-
-HRESULT VMPostError(                    // Returned error.
-    HRESULT     hrRpt,                  // Reported error.
-    ...)                                // Error arguments.
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    GCX_PREEMP();
-   
-    va_list     marker;                 // User text.
-    va_start(marker, hrRpt);
-    hrRpt = PostErrorVA(hrRpt, marker);
-    va_end(marker);
-    
-    return hrRpt;
 }
 
 #ifndef CROSSGEN_COMPILE
@@ -1341,7 +1257,7 @@ DWORD GetLogicalCpuCountFromOS()
                 // (which would be best), but there are variants faster than these:
                 // See http://en.wikipedia.org/wiki/Hamming_weight.
                 // This is the naive implementation.
-#if !_WIN64
+#if !BIT64
                 count = (pmask & 0x55555555) + ((pmask >> 1) &  0x55555555);
                 count = (count & 0x33333333) + ((count >> 2) &  0x33333333);
                 count = (count & 0x0F0F0F0F) + ((count >> 4) &  0x0F0F0F0F);
@@ -1355,7 +1271,7 @@ DWORD GetLogicalCpuCountFromOS()
                 pmask = (pmask & 0x0000ffff0000ffffull) + ((pmask >> 16) & 0x0000ffff0000ffffull);
                 pmask = (pmask & 0x00000000ffffffffull) + ((pmask >> 32) & 0x00000000ffffffffull);
                 count = static_cast<DWORD>(pmask);
-#endif // !_WIN64 else
+#endif // !BIT64 else
                 assert (count > 0);
 
                 if (prevcount)

@@ -116,7 +116,7 @@ namespace System.Runtime.InteropServices
         }
 
         private const VarEnum VT_BYREF_VARIANT = VarEnum.VT_BYREF | VarEnum.VT_VARIANT;
-        private const VarEnum VT_TYPEMASK = (VarEnum) 0x0fff;
+        private const VarEnum VT_TYPEMASK = (VarEnum)0x0fff;
         private const VarEnum VT_BYREF_TYPEMASK = VT_TYPEMASK | VarEnum.VT_BYREF;
 
         private static unsafe ref Variant GetVariant(ref Variant pSrc)
@@ -130,7 +130,7 @@ namespace System.Runtime.InteropServices
                 Span<Variant> pByRefVariant = new Span<Variant>(pSrc.AsByRefVariant.ToPointer(), 1);
                 if ((pByRefVariant[0].VariantType & VT_BYREF_TYPEMASK) == VT_BYREF_VARIANT)
                 {
-                   return ref pByRefVariant[0];
+                    return ref pByRefVariant[0];
                 }
             }
 
@@ -158,8 +158,8 @@ namespace System.Runtime.InteropServices
 
             const int InvalidIdx = -1;
             object[] args = new object[pDispParams.cArgs];
-            int [] byrefsMap = new int[pDispParams.cArgs];
-            bool [] usedArgs = new bool[pDispParams.cArgs];
+            int[] byrefsMap = new int[pDispParams.cArgs];
+            bool[] usedArgs = new bool[pDispParams.cArgs];
 
             int totalCount = pDispParams.cNamedArgs + pDispParams.cArgs;
             var vars = new Span<Variant>(pDispParams.rgvarg.ToPointer(), totalCount);
@@ -267,7 +267,7 @@ namespace System.Runtime.InteropServices
                 _connectionPoint.Unadvise(_cookie);
                 Marshal.ReleaseComObject(_connectionPoint);
             }
-            catch (Exception)
+            catch
             {
                 // swallow all exceptions on unadvise
                 // the host may not be available at this point
@@ -277,5 +277,5 @@ namespace System.Runtime.InteropServices
                 _connectionPoint = null;
             }
         }
-    };
+    }
 }

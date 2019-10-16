@@ -34,10 +34,6 @@
     #define LOGGING
 #endif
 
-#if !defined(_TARGET_X86_) || defined(FEATURE_PAL)
-#define WIN64EXCEPTIONS
-#endif
-
 #if !defined(FEATURE_UTILCODE_NO_DEPENDENCIES)
 // Failpoint support
 #if defined(_DEBUG) && !defined(DACCESS_COMPILE) && !defined(FEATURE_PAL)
@@ -76,7 +72,7 @@
     #error Please add a new #elif clause and define all portability macros for the new platform
 #endif
 
-#if defined(_WIN64)
+#if defined(BIT64)
 #define JIT_IS_ALIGNED
 #endif
 
@@ -178,7 +174,7 @@
 
 // Prefer double alignment for structs and arrays with doubles. Put arrays of doubles more agressively 
 // into large object heap for performance because large object heap is 8 byte aligned 
-#if !defined(FEATURE_64BIT_ALIGNMENT) && !defined(_WIN64)
+#if !defined(FEATURE_64BIT_ALIGNMENT) && !defined(BIT64)
 #define FEATURE_DOUBLE_ALIGNMENT_HINT
 #endif
 

@@ -91,7 +91,9 @@ static void restore_signal_and_resend(int code, struct sigaction* action);
 
 #if !HAVE_MACH_EXCEPTIONS
 bool g_registered_signal_handlers = false;
+bool g_enable_alternate_stack_check = false;
 #endif // !HAVE_MACH_EXCEPTIONS
+
 static bool g_registered_sigterm_handler = false;
 
 struct sigaction g_previous_sigterm;
@@ -132,6 +134,11 @@ BOOL SEHInitializeSignals(CorUnix::CPalThread *pthrCurrent, DWORD flags)
     TRACE("Initializing signal handlers\n");
 
 #if !HAVE_MACH_EXCEPTIONS
+
+    char* enableAlternateStackCheck = getenv("COMPlus_EnableAlternateStackCheck");
+
+    g_enable_alternate_stack_check = enableAlternateStackCheck && (strtoul(enableAlternateStackCheck, NULL, 10) != 0);
+
     if (flags & PAL_INITIALIZE_REGISTER_SIGNALS)
     {
         g_registered_signal_handlers = true;
@@ -402,11 +409,25 @@ Return :
 --*/
 bool IsRunningOnAlternateStack(void *context)
 {
-    stack_t *signalStack = &((native_context_t *)context)->uc_stack;
-    // Check if the signalStack local variable address is within the alternate stack range. If it is not,
-    // then either the alternate stack was not installed at all or the current method is not running on it.
-    void* alternateStackEnd = (char *)signalStack->ss_sp + signalStack->ss_size;
-    return ((signalStack->ss_flags & SS_DISABLE) == 0) && (signalStack->ss_sp <= &signalStack) && (&signalStack < alternateStackEnd);
+    bool isRunningOnAlternateStack;
+    if (g_enable_alternate_stack_check)
+    {
+        // Note: WSL doesn't return the alternate signal ranges in the uc_stack (the whole structure is zeroed no
+        // matter whether the code is running on an alternate stack or not). So the check would always fail on WSL.
+        stack_t *signalStack = &((native_context_t *)context)->uc_stack;
+        // Check if the signalStack local variable address is within the alternate stack range. If it is not,
+        // then either the alternate stack was not installed at all or the current method is not running on it.
+        void* alternateStackEnd = (char *)signalStack->ss_sp + signalStack->ss_size;
+        isRunningOnAlternateStack = ((signalStack->ss_flags & SS_DISABLE) == 0) && (signalStack->ss_sp <= &signalStack) && (&signalStack < alternateStackEnd);
+    }
+    else
+    {
+        // If alternate stack check is disabled, consider always that we are running on an alternate
+        // signal handler stack.
+        isRunningOnAlternateStack = true;
+    }
+
+    return isRunningOnAlternateStack;
 }
 
 /*++
@@ -626,7 +647,10 @@ static void inject_activation_handler(int code, siginfo_t *siginfo, void *contex
 
         if (g_safeActivationCheckFunction(CONTEXTGetPC(&winContext), /* checkingCurrentThread */ TRUE))
         {
+            int savedErrNo = errno; // Make sure that errno is not modified
             g_activationFunction(&winContext);
+            errno = savedErrNo;
+
             // Activation function may have modified the context, so update it.
             CONTEXTToNativeContext(&winContext, ucontext);
         }
@@ -717,50 +741,6 @@ void PAL_IgnoreProfileSignal(int signalNum)
 #endif
 }
 
-
-/*++
-Function :
-    SEHSetSafeState
-
-    specify whether the current thread is in a state where exception handling 
-    of signals can be done safely
-
-Parameters:
-    BOOL state : TRUE if the thread is safe, FALSE otherwise
-
-(no return value)
---*/
-void SEHSetSafeState(CPalThread *pthrCurrent, BOOL state)
-{
-    if (NULL == pthrCurrent)
-    {
-        ASSERT( "Unable to get the thread object.\n" );
-        return;
-    }
-    pthrCurrent->sehInfo.safe_state = state;
-}
-
-/*++
-Function :
-    SEHGetSafeState
-
-    determine whether the current thread is in a state where exception handling 
-    of signals can be done safely
-
-    (no parameters)
-
-Return value :
-    TRUE if the thread is in a safe state, FALSE otherwise
---*/
-BOOL SEHGetSafeState(CPalThread *pthrCurrent)
-{
-    if (NULL == pthrCurrent)
-    {
-        ASSERT( "Unable to get the thread object.\n" );
-        return FALSE;
-    }
-    return pthrCurrent->sehInfo.safe_state;
-}
 
 /*++
 Function :

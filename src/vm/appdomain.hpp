@@ -1898,12 +1898,6 @@ public:
         BOOL Next(CollectibleAssemblyHolder<DomainAssembly *> * pDomainAssemblyHolder);
         // Note: Does not lock the assembly list, but AddRefs collectible assemblies.
         BOOL Next_Unlocked(CollectibleAssemblyHolder<DomainAssembly *> * pDomainAssemblyHolder);
-#ifndef DACCESS_COMPILE
-    private:
-        // Can be called only from AppDomain shutdown code:AppDomain::ShutdownAssemblies.
-        // Note: Does not lock the assembly list and does not AddRefs collectible assemblies.
-        BOOL Next_UnsafeNoAddRef(DomainAssembly ** ppDomainAssembly);
-#endif
 
     private:
         inline DWORD GetIndex()
@@ -2044,9 +2038,6 @@ public:
 
     void TryIncrementalLoad(DomainFile *pFile, FileLoadLevel workLevel, FileLoadLockHolder &lockHolder);
 
-    Assembly *LoadAssemblyHelper(LPCWSTR wszAssembly,
-                                 LPCWSTR wszCodeBase);
-
 #ifndef DACCESS_COMPILE // needs AssemblySpec
 
     void GetCacheAssemblyList(SetSHash<PTR_DomainAssembly>& assemblyList);
@@ -2123,29 +2114,6 @@ public:
 
 
     PEAssembly *TryResolveAssembly(AssemblySpec *pSpec);
-
-    // Store a successful binding into the cache.  This will keep the file from
-    // being physically unmapped, as well as shortcutting future attempts to bind
-    // the same spec throught the Cached entry point.
-    //
-    // Right now we only cache assembly binds for "probing" type
-    // binding situations, basically when loading domain neutral assemblies or
-    // zap files.
-    //
-    // <TODO>@todo: We may want to be more aggressive about this if
-    // there are other situations where we are repeatedly binding the
-    // same assembly specs, though.</TODO>
-    //
-    // Returns TRUE if stored
-    //         FALSE if it's a duplicate (caller should clean up args)
-    BOOL StoreBindAssemblySpecResult(AssemblySpec *pSpec,
-                                     PEAssembly *pFile,
-                                     BOOL clone = TRUE);
-
-    BOOL StoreBindAssemblySpecError(AssemblySpec *pSpec,
-                                    HRESULT hr,
-                                    OBJECTREF *pThrowable,
-                                    BOOL clone = TRUE);
 
     //****************************************************************************************
     //

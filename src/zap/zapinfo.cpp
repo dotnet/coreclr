@@ -38,7 +38,7 @@ ZapInfo::ZapInfo(ZapImage * pImage, mdMethodDef md, CORINFO_METHOD_HANDLE handle
     m_pCode(NULL),
     m_pColdCode(NULL),
     m_pROData(NULL),
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     // Unwind info of the main method body. It will get merged with GC info.
     m_pMainUnwindInfo(NULL),
     m_cbMainUnwindInfo(0),
@@ -48,7 +48,7 @@ ZapInfo::ZapInfo(ZapImage * pImage, mdMethodDef md, CORINFO_METHOD_HANDLE handle
 #if defined(_TARGET_AMD64_)
     m_pChainedColdUnwindInfo(NULL),
 #endif
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
     m_pExceptionInfo(NULL),
     m_pProfileData(NULL),
     m_pProfilingHandle(NULL),
@@ -72,7 +72,7 @@ ZapInfo::~ZapInfo()
     delete [] m_pOffsetMapping;
 
     delete [] m_pGCInfo;
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     delete [] m_pMainUnwindInfo;
 #endif
 }
@@ -96,12 +96,12 @@ void ZapInfo::ResetForJitRetry()
 
     m_cbGCInfo = 0;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     delete [] m_pMainUnwindInfo;
     m_pMainUnwindInfo = NULL;
 
     m_cbMainUnwindInfo = 0;
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
     // The rest of these pointers are in the ZapWriter's ZapHeap, and will go away when the ZapWriter
     // goes away. That's ok for altjit fallback; we'll use extra memory until the ZapWriter goes away,
@@ -111,13 +111,13 @@ void ZapInfo::ResetForJitRetry()
     m_pColdCode = NULL;
     m_pROData = NULL;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     m_pUnwindInfoFragments = NULL;
     m_pUnwindInfo = NULL;
 #if defined(_TARGET_AMD64_)
     m_pChainedColdUnwindInfo = NULL;
 #endif
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
     m_pExceptionInfo = NULL;
     m_pProfileData = NULL;
@@ -198,11 +198,6 @@ CORJIT_FLAGS ZapInfo::ComputeJitFlags(CORINFO_METHOD_HANDLE handle)
         jitFlags.Clear(CORJIT_FLAGS::CORJIT_FLAG_PROCSPLIT);
     }
 
-    // Rejit is now enabled by default for NGEN'ed code. This costs us
-    // some size in exchange for diagnostic functionality, but we've got
-    // further work planned that should mitigate the size increase.
-    jitFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_PROF_REJIT_NOPS);
-
 #ifdef FEATURE_READYTORUN_COMPILER
     if (IsReadyToRunCompilation())
     {
@@ -240,11 +235,11 @@ ZapGCInfo * ZapInfo::EmitGCInfo()
 {    
     _ASSERTE(m_pGCInfo != NULL);
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     return m_pImage->m_pGCInfoTable->GetGCInfo(m_pGCInfo, m_cbGCInfo, m_pMainUnwindInfo, m_cbMainUnwindInfo);
 #else
     return m_pImage->m_pGCInfoTable->GetGCInfo(m_pGCInfo, m_cbGCInfo);
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 }
 
 ZapImport ** ZapInfo::EmitFixupList()
@@ -341,6 +336,7 @@ void ZapInfo::ProcessReferences()
         case ZapNodeType_Import_MethodHandle:
         case ZapNodeType_Import_FunctionEntry:
         case ZapNodeType_Import_IndirectPInvokeTarget:
+        case ZapNodeType_Import_PInvokeTarget:
             hMethod = (CORINFO_METHOD_HANDLE)(((ZapImport *)pTarget)->GetHandle());
             fMaybeConditionalImport = true;
             break;
@@ -697,7 +693,7 @@ public:
         if (!UnwindInfoEquals(k1->m_pColdUnwindInfo, k2->m_pColdUnwindInfo, equivalentNodes))
             return FALSE;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
         if (!UnwindInfoFragmentsEquals(k1->m_pUnwindInfoFragments, k2->m_pUnwindInfoFragments, equivalentNodes))
             return FALSE;
 #endif
@@ -812,7 +808,7 @@ void ZapInfo::PublishCompiledMethod()
     pMethod->m_pDebugInfo = EmitDebugInfo();
     pMethod->m_pGCInfo = EmitGCInfo();
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     pMethod->m_pUnwindInfoFragments = m_pUnwindInfoFragments;
 
     // Set the combined GCInfo + UnwindInfo blob
@@ -826,7 +822,7 @@ void ZapInfo::PublishCompiledMethod()
     }
 #endif // _TARGET_AMD64_
 
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 #ifndef FEATURE_FULL_NGEN
     //
@@ -1159,12 +1155,12 @@ void * ZapInfo::allocGCInfo(size_t size)
 {
     _ASSERTE(m_pGCInfo == NULL);
 
-#ifdef _WIN64
+#ifdef BIT64
     if (size & 0xFFFFFFFF80000000LL)
     {
         IfFailThrow(CORJIT_OUTOFMEM);
     }
-#endif // _WIN64
+#endif // BIT64
 
     m_pGCInfo = new BYTE[size];
     m_cbGCInfo = size;
@@ -1335,7 +1331,7 @@ void ZapInfo::allocUnwindInfo (
         CorJitFuncKind      funcKind               /* IN */
         )
 {
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     _ASSERTE(pHotCode == m_pCode->GetData());
     _ASSERTE(pColdCode == NULL || pColdCode == m_pColdCode->GetData());
 
@@ -1391,7 +1387,7 @@ void ZapInfo::allocUnwindInfo (
         ZapUnwindData * pUnwindData = m_pImage->m_pUnwindDataTable->GetUnwindData(pUnwindBlock, unwindSize, funcKind == CORJIT_FUNC_FILTER);
         pUnwindInfo->SetUnwindData(pUnwindData);
     }     
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 }
 
 BOOL ZapInfo::logMsg(unsigned level, const char *fmt, va_list args)
@@ -1443,8 +1439,13 @@ LONG * ZapInfo::getAddrOfCaptureThreadGlobal(void **ppIndirection)
 {
     _ASSERTE(ppIndirection != NULL);
 
-    *ppIndirection = (LONG *) m_pImage->GetInnerPtr(m_pImage->m_pEEInfoTable,
-        offsetof(CORCOMPILE_EE_INFO_TABLE, addrOfCaptureThreadGlobal));
+    *ppIndirection = NULL;
+    if (!IsReadyToRunCompilation())
+    {
+        *ppIndirection = (LONG*)m_pImage->GetInnerPtr(m_pImage->m_pEEInfoTable,
+            offsetof(CORCOMPILE_EE_INFO_TABLE, addrOfCaptureThreadGlobal));
+    }
+
     return NULL;
 }
 
@@ -2017,6 +2018,7 @@ void * ZapInfo::getPInvokeUnmanagedTarget(CORINFO_METHOD_HANDLE method, void **p
 void * ZapInfo::getAddressOfPInvokeFixup(CORINFO_METHOD_HANDLE method,void **ppIndirection)
 {
     _ASSERTE(ppIndirection != NULL);
+    *ppIndirection = NULL;
 
     m_pImage->m_pPreloader->AddMethodToTransitiveClosureOfInstantiations(method);
 
@@ -2026,23 +2028,35 @@ void * ZapInfo::getAddressOfPInvokeFixup(CORINFO_METHOD_HANDLE method,void **ppI
         if (moduleHandle == m_pImage->m_hModule
             && m_pImage->m_pPreloader->CanEmbedMethodHandle(method, m_currentMethodHandle))
         {
-            *ppIndirection = NULL;
             return PVOID(m_pImage->GetWrappers()->GetAddrOfPInvokeFixup(method));
         }
     }
 
     //
-    // Note we could a fixup to a direct call site, rather than to
-    // the indirection.  This would saves us an extra indirection, but changes the
-    // semantics slightly (so that the pinvoke will be bound when the calling
-    // method is first run, not at the exact moment of the first pinvoke.)
+    // The indirect P/Invoke target enables the traditional semantics of
+    // resolving the P/Invoke target at the callsite. Providing a non-indirect
+    // fixup indicates the P/Invoke target will be resolved when the enclosing
+    // function is compiled. This subtle semantic difference is chosen for
+    // scenarios when resolution of the target must occur under a specific GC mode.
     //
 
-    ZapImport * pImport = m_pImage->GetImportTable()->GetIndirectPInvokeTargetImport(method);
+    void *fixup = NULL;
+    ZapImport *pImport = NULL;
+    if (m_pImage->m_pPreloader->ShouldSuppressGCTransition(method))
+    {
+        pImport = m_pImage->GetImportTable()->GetPInvokeTargetImport(method);
+        fixup = pImport;
+    }
+    else
+    {
+        pImport = m_pImage->GetImportTable()->GetIndirectPInvokeTargetImport(method);
+        *ppIndirection = pImport;
+    }
+
+    _ASSERTE(pImport != NULL);
     AppendConditionalImport(pImport);
 
-    *ppIndirection = pImport;
-    return NULL;
+    return fixup;
 }
 
 void ZapInfo::getAddressOfPInvokeTarget(CORINFO_METHOD_HANDLE method, CORINFO_CONST_LOOKUP *pLookup)
@@ -2058,6 +2072,7 @@ void ZapInfo::getAddressOfPInvokeTarget(CORINFO_METHOD_HANDLE method, CORINFO_CO
         return;
     }
 
+    _ASSERTE(pIndirection != NULL);
     pLookup->accessType = IAT_PPVALUE;
     pLookup->addr = pIndirection;
 }

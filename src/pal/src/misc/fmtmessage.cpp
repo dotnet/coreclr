@@ -31,11 +31,7 @@ Revision History:
 #include "errorstrings.h"
 
 #include <stdarg.h>
-#if NEED_DLCOMPAT
-#include "dlcompat.h"
-#else   // NEED_DLCOMPAT
 #include <dlfcn.h>
-#endif  // NEED_DLCOMPAT
 #include <errno.h>
 #include <wctype.h>
 
@@ -189,7 +185,7 @@ Function :
     Returns the LPWSTR string, or NULL on failure.
 */
     
-static LPWSTR FMTMSG_ProcessPrintf( wchar_t c , 
+static LPWSTR FMTMSG_ProcessPrintf( WCHAR c , 
                                  LPWSTR lpPrintfString,
                                  LPWSTR lpInsertString)
 {

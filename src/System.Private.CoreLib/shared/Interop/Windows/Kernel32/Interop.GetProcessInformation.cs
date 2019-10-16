@@ -5,9 +5,9 @@
 using System;
 using System.Runtime.InteropServices;
 
-internal partial class Interop
+internal static partial class Interop
 {
-    internal partial class Kernel32
+    internal static partial class Kernel32
     {
         internal const int ProcessLeapSecondInfo = 8;
 
@@ -18,6 +18,6 @@ internal partial class Interop
         }
 
         [DllImport(Libraries.Kernel32)]
-        internal static unsafe extern Interop.BOOL GetProcessInformation(IntPtr hProcess, int ProcessInformationClass, void* ProcessInformation, int ProcessInformationSize);
+        internal static extern unsafe Interop.BOOL GetProcessInformation(IntPtr hProcess, int ProcessInformationClass, void* ProcessInformation, int ProcessInformationSize);
     }
 }

@@ -41,7 +41,7 @@ typedef BitVec          ASSERT_TP;
 typedef BitVec_ValArg_T ASSERT_VALARG_TP;
 typedef BitVec_ValRet_T ASSERT_VALRET_TP;
 
-// We use the following format when print the BasicBlock number: bbNum
+// We use the following format when printing the BasicBlock number: bbNum
 // This define is used with string concatenation to put this in printf format strings  (Note that %u means unsigned int)
 #define FMT_BB "BB%02u"
 
@@ -57,7 +57,7 @@ enum BBjumpKinds : BYTE
 {
     BBJ_EHFINALLYRET,// block ends with 'endfinally' (for finally or fault)
     BBJ_EHFILTERRET, // block ends with 'endfilter'
-    BBJ_EHCATCHRET,  // block ends with a leave out of a catch (only #if FEATURE_EH_FUNCLETS)
+    BBJ_EHCATCHRET,  // block ends with a leave out of a catch (only #if defined(FEATURE_EH_FUNCLETS))
     BBJ_THROW,       // block ends with 'throw'
     BBJ_RETURN,      // block ends with 'ret'
     BBJ_NONE,        // block flows into the next one (no jump)
@@ -73,7 +73,7 @@ enum BBjumpKinds : BYTE
 // clang-format on
 
 struct GenTree;
-struct GenTreeStmt;
+struct Statement;
 struct BasicBlock;
 class Compiler;
 class typeInfo;
@@ -95,8 +95,8 @@ struct EHblkDsc;
  */
 struct BBswtDesc
 {
-    unsigned     bbsCount;  // count of cases (includes 'default' if bbsHasDefault)
     BasicBlock** bbsDstTab; // case label table address
+    unsigned     bbsCount;  // count of cases (includes 'default' if bbsHasDefault)
     bool         bbsHasDefault;
 
     BBswtDesc() : bbsHasDefault(true)
@@ -417,7 +417,7 @@ struct BasicBlock : private LIR::Range
 #define BBF_HAS_NEWARRAY        0x00400000 // BB contains 'new' of an array
 #define BBF_HAS_NEWOBJ          0x00800000 // BB contains 'new' of an object type.
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
 
 #define BBF_FINALLY_TARGET      0x01000000 // BB is the target of a finally return: where a finally will return during
                                            // non-exceptional flow. Because the ARM calling sequence for calling a
@@ -426,7 +426,7 @@ struct BasicBlock : private LIR::Range
                                            // generate correct code at the finally target, to allow for proper stack
                                            // unwind from within a non-exceptional call to a finally.
 
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
 
 #define BBF_BACKWARD_JUMP       0x02000000 // BB is surrounded by a backward jump/switch arc
 #define BBF_RETLESS_CALL        0x04000000 // BBJ_CALLFINALLY that will never return (and therefore, won't need a paired
@@ -647,6 +647,8 @@ struct BasicBlock : private LIR::Range
     // trees *except* PHI definitions.
     bool isEmpty();
 
+    bool isValid();
+
     // Returns "true" iff "this" is the first block of a BBJ_CALLFINALLY/BBJ_ALWAYS pair --
     // a block corresponding to an exit from the try of a try/finally.  In the flow graph,
     // this becomes a block that calls the finally, and a second, immediately
@@ -662,13 +664,13 @@ struct BasicBlock : private LIR::Range
     // generating code.
     bool isBBCallAlwaysPair()
     {
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
         if (this->bbJumpKind == BBJ_CALLFINALLY)
 #else
         if ((this->bbJumpKind == BBJ_CALLFINALLY) && !(this->bbFlags & BBF_RETLESS_CALL))
 #endif
         {
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
             // On ARM, there are no retless BBJ_CALLFINALLY.
             assert(!(this->bbFlags & BBF_RETLESS_CALL));
 #endif
@@ -741,14 +743,14 @@ struct BasicBlock : private LIR::Range
         return bbRefs;
     }
 
-    __declspec(property(get = getBBTreeList, put = setBBTreeList)) GenTree* bbTreeList; // the body of the block.
+    Statement* bbStmtList;
 
-    GenTree* getBBTreeList() const
+    GenTree* GetFirstLIRNode() const
     {
         return m_firstNode;
     }
 
-    void setBBTreeList(GenTree* tree)
+    void SetFirstLIRNode(GenTree* tree)
     {
         m_firstNode = tree;
     }
@@ -977,9 +979,9 @@ struct BasicBlock : private LIR::Range
 
     void* bbEmitCookie;
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
     void* bbUnwindNopEmitCookie;
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
 
 #ifdef VERIFIER
     stackDesc bbStackIn;  // stack descriptor for  input
@@ -1033,8 +1035,6 @@ struct BasicBlock : private LIR::Range
     unsigned        bbTgtStkDepth; // Native stack depth on entry (for throw-blocks)
     static unsigned s_nMaxTrees;   // The max # of tree nodes in any BB
 
-    unsigned bbStmtNum; // The statement number of the first stmt in this block
-
     // This is used in integrity checks.  We semi-randomly pick a traversal stamp, label all blocks
     // in the BB list with that stamp (in this field); then we can tell if (e.g.) predecessors are
     // still in the BB list by whether they have the same stamp (with high probability).
@@ -1056,8 +1056,13 @@ struct BasicBlock : private LIR::Range
         return bbNum - 1;
     }
 
-    GenTreeStmt* firstStmt() const;
-    GenTreeStmt* lastStmt() const;
+    Statement* firstStmt() const;
+    Statement* lastStmt() const;
+
+    StatementList Statements() const
+    {
+        return StatementList(firstStmt());
+    }
 
     GenTree* firstNode();
     GenTree* lastNode();
@@ -1075,10 +1080,10 @@ struct BasicBlock : private LIR::Range
 
     // Returns the first statement in the statement list of "this" that is
     // not an SSA definition (a lcl = phi(...) assignment).
-    GenTreeStmt* FirstNonPhiDef();
-    GenTreeStmt* FirstNonPhiDefOrCatchArgAsg();
+    Statement* FirstNonPhiDef();
+    Statement* FirstNonPhiDefOrCatchArgAsg();
 
-    BasicBlock() : bbLiveIn(VarSetOps::UninitVal()), bbLiveOut(VarSetOps::UninitVal())
+    BasicBlock() : bbStmtList(nullptr), bbLiveIn(VarSetOps::UninitVal()), bbLiveOut(VarSetOps::UninitVal())
     {
     }
 
@@ -1173,6 +1178,7 @@ struct BasicBlock : private LIR::Range
 #ifdef DEBUG
     bool Contains(const GenTree* node)
     {
+        assert(IsLIR());
         for (Iterator iter = begin(); iter != end(); ++iter)
         {
             if (*iter == node)

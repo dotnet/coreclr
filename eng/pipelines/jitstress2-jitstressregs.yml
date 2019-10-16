@@ -11,11 +11,18 @@ schedules:
   always: true
 
 jobs:
+#
+# Checkout repository
+#
+- template: /eng/checkout-job.yml
+
 - template: /eng/platform-matrix.yml
   parameters:
     jobTemplate: build-job.yml
     buildConfig: checked
     platformGroup: all
+    jobParameters:
+      testGroup: jitstress2-jitstressregs
 
 - template: /eng/platform-matrix.yml
   parameters:

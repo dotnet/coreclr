@@ -32,7 +32,6 @@
 #include "invokeutil.h"
 #include "eeconfig.h"
 #include "typestring.h"
-#include "sha1.h"
 #include "finalizerthread.h"
 #include "threadsuspend.h"
 
@@ -251,11 +250,11 @@ FCIMPL3(VOID, ExceptionNative::SaveStackTracesFromDeepCopy, Object* pExceptionOb
     if (gc.stackTrace.Size() > 0)
     {
         // Save the stacktrace details in the exception under a lock
-        gc.refException->SetStackTrace(gc.stackTrace, gc.dynamicMethodsArray);
+        gc.refException->SetStackTrace(gc.stackTrace.Get(), gc.dynamicMethodsArray);
     }
     else
     {
-        gc.refException->SetNullStackTrace();
+        gc.refException->SetStackTrace(NULL, NULL);
     }
 
     HELPER_METHOD_FRAME_END();
@@ -748,7 +747,7 @@ FCIMPL5(VOID, Buffer::BlockCopy, ArrayBase *src, int srcOffset, ArrayBase *dst, 
     }
 
     if (srcOffset < 0 || dstOffset < 0 || count < 0) {
-        const wchar_t* str = W("srcOffset");
+        const WCHAR* str = W("srcOffset");
         if (dstOffset < 0) str = W("dstOffset");
         if (count < 0) str = W("count");
         FCThrowArgumentOutOfRangeVoid(str, W("ArgumentOutOfRange_NeedNonNegNum"));
@@ -832,34 +831,9 @@ FCIMPL1(FC_BOOL_RET, Buffer::IsPrimitiveTypeArray, ArrayBase *arrayUNSAFE)
 }
 FCIMPLEND
 
-// Returns the length in bytes of an array containing
-// primitive type elements
-FCIMPL1(INT32, Buffer::ByteLength, ArrayBase* arrayUNSAFE)
-{
-    FCALL_CONTRACT;
-
-    _ASSERTE(arrayUNSAFE != NULL);
-
-    SIZE_T iRetVal = arrayUNSAFE->GetNumComponents() * arrayUNSAFE->GetComponentSize();
-
-    // This API is explosed both as Buffer.ByteLength and also used indirectly in argument
-    // checks for Buffer.GetByte/SetByte.
-    //
-    // If somebody called Get/SetByte on 2GB+ arrays, there is a decent chance that 
-    // the computation of the index has overflowed. Thus we intentionally always 
-    // throw on 2GB+ arrays in Get/SetByte argument checks (even for indicies <2GB)
-    // to prevent people from running into a trap silently.
-    if (iRetVal > INT32_MAX)
-        FCThrow(kOverflowException);
-
-    return (INT32)iRetVal;
-}
-FCIMPLEND
-
 //
 // GCInterface
 //
-MethodDesc *GCInterface::m_pCacheMethod=NULL;
 
 UINT64   GCInterface::m_ulMemPressure = 0;
 UINT64   GCInterface::m_ulThreshold = MIN_GC_MEMORYPRESSURE_THRESHOLD;
@@ -1533,11 +1507,11 @@ void GCInterface::AddMemoryPressure(UINT64 bytesAllocated)
     }
 }
 
-#ifdef _WIN64
+#ifdef BIT64
 const unsigned MIN_MEMORYPRESSURE_BUDGET = 4 * 1024 * 1024;        // 4 MB
-#else // _WIN64
+#else // BIT64
 const unsigned MIN_MEMORYPRESSURE_BUDGET = 3 * 1024 * 1024;        // 3 MB
-#endif // _WIN64
+#endif // BIT64
 
 const unsigned MAX_MEMORYPRESSURE_RATIO = 10;                      // 40 MB or 30 MB
 

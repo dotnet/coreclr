@@ -37,11 +37,17 @@ LEAF_ENTRY JIT_CheckedWriteBarrier, _TEXT
         .byte 0x72, 0x0e
         PREPARE_EXTERNAL_VAR g_highest_address, rax
         cmp     rdi, [rax]
+
+#ifdef FEATURE_WRITEBARRIER_COPY
+        // jnb     NotInHeap
+        .byte 0x73, 0x06
+        jmp     [rip + C_FUNC(JIT_WriteBarrier_Loc)]
+#else
         // jnb     NotInHeap
         .byte 0x73, 0x02
-        
-        // call C_FUNC(JIT_WriteBarrier)
+        // jmp C_FUNC(JIT_WriteBarrier)
         .byte 0xeb, 0x05
+#endif
 
     NotInHeap:
         // See comment above about possible AV
@@ -388,6 +394,13 @@ LEAF_ENTRY JIT_ByRefWriteBarrier, _TEXT
         ret
 LEAF_END_MARKED JIT_ByRefWriteBarrier, _TEXT
 
+#ifdef FEATURE_WRITEBARRIER_COPY
+        // When JIT_WriteBarrier is copied into an allocated page, the JIT_Stelem_Ref and its
+        // helpers use this global variable to jump to it. This variable is set in InitThreadManager.
+        .global _JIT_WriteBarrier_Loc
+        .zerofill __DATA,__common,_JIT_WriteBarrier_Loc,8,3
+#endif // FEATURE_WRITEBARRIER_COPY
+
 // TODO: put definition for this in asmconstants.h
 #define CanCast 1
 
@@ -424,7 +437,11 @@ LEAF_ENTRY JIT_Stelem_Ref, _TEXT
         mov     rsi, rdx
 
         // JIT_WriteBarrier(Object** dst, Object* src)
+#ifdef FEATURE_WRITEBARRIER_COPY
+        jmp     [rip + C_FUNC(JIT_WriteBarrier_Loc)]
+#else
         jmp     C_FUNC(JIT_WriteBarrier)
+#endif
 
     LOCAL_LABEL(AssigningNull):
         // write barrier is not needed for assignment of NULL references
@@ -478,7 +495,11 @@ LEAF_ENTRY JIT_Stelem_Ref__ObjIsInstanceOfNoGC_Helper, _TEXT
         mov     rsi, rdx
 
         // JIT_WriteBarrier(Object** dst, Object* src)
+#ifdef FEATURE_WRITEBARRIER_COPY
+        jmp     [rip + C_FUNC(JIT_WriteBarrier_Loc)]
+#else
         jmp     C_FUNC(JIT_WriteBarrier)
+#endif
 
     LOCAL_LABEL(NeedCheck):
         jmp     C_FUNC(JIT_Stelem_Ref__ArrayStoreCheck_Helper)
@@ -510,5 +531,51 @@ LEAF_ENTRY JIT_Stelem_Ref__ArrayStoreCheck_Helper, _TEXT
         RESET_FRAME_WITH_RBP
         
         // JIT_WriteBarrier(Object** dst, Object* src)
+#ifdef FEATURE_WRITEBARRIER_COPY
+        jmp     [rip + C_FUNC(JIT_WriteBarrier_Loc)]
+#else
         jmp     C_FUNC(JIT_WriteBarrier)
+#endif
 LEAF_END JIT_Stelem_Ref__ArrayStoreCheck_Helper, _TEXT
+
+// The following helper will access ("probe") a word on each page of the stack
+// starting with the page right beneath rsp down to the one pointed to by r11.
+// The procedure is needed to make sure that the "guard" page is pushed down below the allocated stack frame.
+// The call to the helper will be emitted by JIT in the function/funclet prolog when large (larger than 0x3000 bytes) stack frame is required.
+//
+// NOTE: On Linux we must advance the stack pointer as we probe - it is not allowed to access 65535 bytes below rsp.
+// Since this helper will modify a value of rsp - it must establish the frame pointer.
+//
+// See also https://github.com/dotnet/coreclr/issues/16827#issue-303331518 for more information.
+
+#define PAGE_SIZE 0x1000
+
+NESTED_ENTRY JIT_StackProbe, _TEXT, NoHandler
+        // On entry:
+        //   r11 - points to the lowest address on the stack frame being allocated (i.e. [InitialSp - FrameSize])
+        //   rsp - points to some byte on the last probed page
+        // On exit:
+        //   r11 - is preserved
+        //
+        // NOTE: this helper will probe at least one page below the one pointed by rsp.
+
+        push_nonvol_reg rbp
+        mov     rbp, rsp
+        set_cfa_register rbp, 16
+
+    END_PROLOGUE
+
+        sub     rsp, PAGE_SIZE         // rsp points to some byte on the first unprobed page
+        or      rsp, (PAGE_SIZE - 1)   // rsp points to the **highest address** on the first unprobed page
+                                       // This is done to make the following loop end condition simpler.
+
+LOCAL_LABEL(ProbeLoop):
+        test    dword ptr [rsp], eax
+        sub     rsp, PAGE_SIZE         // rsp points to the highest address of the **next page** to probe
+        cmp     rsp, r11
+        jge     LOCAL_LABEL(ProbeLoop) // if (rsp >= r11), then we need to probe the page pointed to by rsp.
+
+        RESET_FRAME_WITH_RBP
+        ret
+
+NESTED_END JIT_StackProbe, _TEXT
