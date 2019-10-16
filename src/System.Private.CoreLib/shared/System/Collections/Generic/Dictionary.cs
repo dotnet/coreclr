@@ -340,11 +340,11 @@ namespace System.Collections.Generic
                 {
                     uint hashCode = (uint)key.GetHashCode();
                     int i = buckets[hashCode % (uint)buckets.Length];
+                    Entry[]? entries = _entries;
+                    uint collisionCount = 0;
                     if (default(TKey)! != null) // TODO-NULLABLE: default(T) == null warning (https://github.com/dotnet/roslyn/issues/34757)
                     {
                         // ValueType: Devirtualize with EqualityComparer<TValue>.Default intrinsic
-                        Entry[]? entries = _entries;
-                        int collisionCount = 0;
 
                         // Value in _buckets is 1-based; subtract 1 from i. We do it here so it fuses with the following conditional.
                         i--;
@@ -366,7 +366,7 @@ namespace System.Collections.Generic
                             i = entry.next;
 
                             collisionCount++;
-                        } while ((uint)collisionCount <= (uint)entries.Length);
+                        } while (collisionCount <= (uint)entries.Length);
                         // The chain of entries forms a loop; which means a concurrent update has happened.
                         // Break out of the loop and throw, rather than looping forever.
                         goto ConcurrentOperation;
@@ -377,8 +377,7 @@ namespace System.Collections.Generic
                         // https://github.com/dotnet/coreclr/issues/17273
                         // So cache in a local rather than get EqualityComparer per loop iteration
                         EqualityComparer<TKey> defaultComparer = EqualityComparer<TKey>.Default;
-                        Entry[]? entries = _entries;
-                        int collisionCount = 0;
+
                         // Value in _buckets is 1-based; subtract 1 from i. We do it here so it fuses with the following conditional.
                         i--;
                         do
@@ -399,7 +398,7 @@ namespace System.Collections.Generic
                             i = entry.next;
 
                             collisionCount++;
-                        } while ((uint)collisionCount <= (uint)entries.Length);
+                        } while (collisionCount <= (uint)entries.Length);
                         // The chain of entries forms a loop; which means a concurrent update has happened.
                         // Break out of the loop and throw, rather than looping forever.
                         goto ConcurrentOperation;
@@ -410,7 +409,7 @@ namespace System.Collections.Generic
                     uint hashCode = (uint)comparer.GetHashCode(key);
                     int i = buckets[hashCode % (uint)buckets.Length];
                     Entry[]? entries = _entries;
-                    int collisionCount = 0;
+                    uint collisionCount = 0;
                     // Value in _buckets is 1-based; subtract 1 from i. We do it here so it fuses with the following conditional.
                     i--;
                     do
@@ -431,7 +430,7 @@ namespace System.Collections.Generic
                         i = entry.next;
 
                         collisionCount++;
-                    } while ((uint)collisionCount <= (uint)entries.Length);
+                    } while (collisionCount <= (uint)entries.Length);
                     // The chain of entries forms a loop; which means a concurrent update has happened.
                     // Break out of the loop and throw, rather than looping forever.
                     goto ConcurrentOperation;
@@ -481,7 +480,7 @@ namespace System.Collections.Generic
             IEqualityComparer<TKey>? comparer = _comparer;
             uint hashCode = (uint)((comparer == null) ? key.GetHashCode() : comparer.GetHashCode(key));
 
-            int collisionCount = 0;
+            uint collisionCount = 0;
             ref int bucket = ref _buckets[hashCode % (uint)_buckets.Length];
             // Value in _buckets is 1-based
             int i = bucket - 1;
@@ -520,7 +519,7 @@ namespace System.Collections.Generic
                         i = entries[i].next;
 
                         collisionCount++;
-                        if ((uint)collisionCount > (uint)entries.Length)
+                        if (collisionCount > (uint)entries.Length)
                         {
                             // The chain of entries forms a loop; which means a concurrent update has happened.
                             // Break out of the loop and throw, rather than looping forever.
@@ -563,7 +562,7 @@ namespace System.Collections.Generic
                         i = entries[i].next;
 
                         collisionCount++;
-                        if ((uint)collisionCount > (uint)entries.Length)
+                        if (collisionCount > (uint)entries.Length)
                         {
                             // The chain of entries forms a loop; which means a concurrent update has happened.
                             // Break out of the loop and throw, rather than looping forever.
@@ -603,7 +602,7 @@ namespace System.Collections.Generic
                     i = entries[i].next;
 
                     collisionCount++;
-                    if ((uint)collisionCount > (uint)entries.Length)
+                    if (collisionCount > (uint)entries.Length)
                     {
                         // The chain of entries forms a loop; which means a concurrent update has happened.
                         // Break out of the loop and throw, rather than looping forever.
@@ -766,7 +765,7 @@ namespace System.Collections.Generic
             if (buckets != null)
             {
                 Debug.Assert(entries != null, "entries should be non-null");
-                int collisionCount = 0;
+                uint collisionCount = 0;
                 uint hashCode = (uint)(_comparer?.GetHashCode(key) ?? key.GetHashCode());
                 uint bucket = hashCode % (uint)buckets.Length;
                 int last = -1;
@@ -809,7 +808,7 @@ namespace System.Collections.Generic
                     i = entry.next;
 
                     collisionCount++;
-                    if ((uint)collisionCount > (uint)entries.Length)
+                    if (collisionCount > (uint)entries.Length)
                     {
                         // The chain of entries forms a loop; which means a concurrent update has happened.
                         // Break out of the loop and throw, rather than looping forever.
@@ -835,7 +834,7 @@ namespace System.Collections.Generic
             if (buckets != null)
             {
                 Debug.Assert(entries != null, "entries should be non-null");
-                int collisionCount = 0;
+                uint collisionCount = 0;
                 uint hashCode = (uint)(_comparer?.GetHashCode(key) ?? key.GetHashCode());
                 uint bucket = hashCode % (uint)buckets.Length;
                 int last = -1;
@@ -880,7 +879,7 @@ namespace System.Collections.Generic
                     i = entry.next;
 
                     collisionCount++;
-                    if ((uint)collisionCount > (uint)entries.Length)
+                    if (collisionCount > (uint)entries.Length)
                     {
                         // The chain of entries forms a loop; which means a concurrent update has happened.
                         // Break out of the loop and throw, rather than looping forever.
