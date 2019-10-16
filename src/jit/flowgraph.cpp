@@ -19270,16 +19270,7 @@ unsigned Compiler::fgGetCodeEstimate(BasicBlock* block)
     for (Statement* stmt : StatementList(block->FirstNonPhiDef()))
     {
         unsigned char cost = stmt->GetCostSz();
-        if (cost < MAX_COST)
-        {
-            costSz += cost;
-        }
-        else
-        {
-            // We could walk the tree to find out the real GetCostSz(),
-            // but just using MAX_COST for this trees code size works OK
-            costSz += cost;
-        }
+        costSz += cost;
     }
 
     return costSz;
