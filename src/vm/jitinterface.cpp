@@ -2583,7 +2583,7 @@ void CEEInfo::embedGenericHandle(
     JIT_TO_EE_TRANSITION();
 
     BOOL fRuntimeLookup;
-    MethodDesc * pTemplateMD = NULL;    
+    MethodDesc * pTemplateMD = NULL;
 
     if (!fEmbedParent && pResolvedToken->hMethod != NULL)
     {
@@ -2627,6 +2627,15 @@ void CEEInfo::embedGenericHandle(
 
         if (pResolvedToken->tokenType == CORINFO_TOKENKIND_Newarr)
         {
+            pResult->compileTimeHandle = (CORINFO_GENERIC_HANDLE)th.AsArray()->GetTemplateMethodTable();
+        }
+        else
+        if (pResolvedToken->tokenType == CORINFO_TOKENKIND_Ldtoken && th.IsArray()
+            && m_pMethodBeingCompiled == MscorlibBinder::GetMethod(METHOD__BUFFER__BLOCKCOPY))
+        {
+            // Workaround for https://github.com/dotnet/coreclr/issues/10258
+            // Allow cheaper type checks to be generated in selected performance critical CoreLib methods until this issue
+            // is fixed properly.
             pResult->compileTimeHandle = (CORINFO_GENERIC_HANDLE)th.AsArray()->GetTemplateMethodTable();
         }
         else
@@ -3843,7 +3852,7 @@ BOOL CEEInfo::canInlineTypeCheckWithObjectVTable (CORINFO_CLASS_HANDLE clsHnd)
         ret = FALSE;
     }
     else
-    if (VMClsHnd == TypeHandle(g_pCanonMethodTableClass))   
+    if (VMClsHnd == TypeHandle(g_pCanonMethodTableClass))
     {
         // We can't do this optimization in shared generics code because of we do not know what the actual type is going to be.
         // (It can be array, marshalbyref, etc.)

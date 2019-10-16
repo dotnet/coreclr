@@ -4103,6 +4103,9 @@ NOINLINE HCIMPL1(Object*, JIT_GetRuntimeType_Framed, CORINFO_CLASS_HANDLE type)
     if (refType == NULL)
     {
         HELPER_METHOD_FRAME_BEGIN_RET_1(refType);
+        // Compensate for CORINFO_TOKENKIND_Ldtoken optimization done by CEEInfo::embedGenericHandle
+        if (!typeHandle.IsTypeDesc() && typeHandle.AsMethodTable()->IsArray())
+            typeHandle = ArrayBase::GetTypeHandle(typeHandle.AsMethodTable());
         refType = typeHandle.GetManagedClassObject();
         HELPER_METHOD_FRAME_END();
     }
