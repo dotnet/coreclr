@@ -1360,20 +1360,28 @@ FCIMPL2(FC_BOOL_RET, RuntimeTypeHandle::CanCastTo, ReflectClassBaseObject *pType
     TypeHandle fromHandle = refType->GetType();
     TypeHandle toHandle = refTarget->GetType();
 
-    BOOL iRetVal = 0;
-
     TypeHandle::CastResult r = fromHandle.CanCastToCached(toHandle);
-    if (r == TypeHandle::MaybeCast)
+    if (r != TypeHandle::MaybeCast)
     {
-        HELPER_METHOD_FRAME_BEGIN_RET_2(refType, refTarget);
-        iRetVal = fromHandle.CanCastTo(toHandle);
-        HELPER_METHOD_FRAME_END();
+        FC_RETURN_BOOL((BOOL)r);
     }
-    else
+
+    BOOL iRetVal;
+    HELPER_METHOD_FRAME_BEGIN_RET_2(refType, refTarget);
     {
-        iRetVal = (r == TypeHandle::CanCast);
+        // We allow T to be cast to Nullable<T>
+        if (!fromHandle.IsTypeDesc() && Nullable::IsNullableForType(toHandle, fromHandle.AsMethodTable()))
+        {
+            // do not put this in the cache (see TypeHandle::CanCastTo and ObjIsInstanceOfCore). 
+            iRetVal = TRUE;
+        }
+        else
+        {
+            iRetVal = fromHandle.CanCastTo(toHandle);
+        }
     }
-        
+    HELPER_METHOD_FRAME_END();
+
     FC_RETURN_BOOL(iRetVal);
 }
 FCIMPLEND

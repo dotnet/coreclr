@@ -2099,7 +2099,15 @@ BOOL ObjIsInstanceOfCore(Object *pObject, TypeHandle toTypeHnd, BOOL throwCastEx
     OBJECTREF obj = ObjectToOBJECTREF(pObject);
     GCPROTECT_BEGIN(obj);
 
-    if (pMT->IsArray())
+    // we check nullable case first because it is not cacheable.
+    // object castability and type castability disagree on T --> Nullable<T>, 
+    // so we can't put this in the cache
+    if (Nullable::IsNullableForType(toTypeHnd, pMT))
+    {
+        // allow an object of type T to be cast to Nullable<T> (they have the same representation)
+        fCast = TRUE;
+    }
+    else if (pMT->IsArray())
     {
         if (toTypeHnd.IsArray())
         {

@@ -672,6 +672,18 @@ BOOL TypeHandle::CanCastTo(TypeHandle type, TypeHandlePairList *pVisited)  const
         if (isTypeDesc)
             return AsTypeDesc()->CanCastTo(type, pVisited);
 
+// no caching in crossgen case 
+#ifndef CROSSGEN_COMPILE
+        // we check nullable case first because it is not cacheable.
+        // object castability and type castability disagree on T --> Nullable<T>, 
+        // so we can't put this in the cache
+        if (Nullable::IsNullableForType(type, AsMethodTable()))
+        {
+            // do not allow type T to be cast to Nullable<T>
+            return FALSE;
+        }
+#endif  //!CROSSGEN_COMPILE
+
         return AsMethodTable()->CanCastToClassOrInterface(type.AsMethodTable(), pVisited);
     }
 }

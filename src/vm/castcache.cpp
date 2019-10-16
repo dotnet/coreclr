@@ -11,6 +11,7 @@
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
 OBJECTHANDLE CastCache::s_cache = NULL;
+DWORD CastCache::s_lastFlushSize = INITIAL_CACHE_SIZE;
 
 BASEARRAYREF CastCache::CreateCastCache(DWORD size)
 {
@@ -29,19 +30,32 @@ BASEARRAYREF CastCache::CreateCastCache(DWORD size)
 
     BASEARRAYREF table = NULL;
 
-    try
+    // if we get an OOM here, we try a smaller size
+    EX_TRY
     {
+        FAULT_NOT_FATAL();
         table = (BASEARRAYREF)AllocatePrimitiveArray(CorElementType::ELEMENT_TYPE_I4, (size + 1) * sizeof(CastCacheEntry) / sizeof(INT32));
     }
-    catch (OutOfMemoryException)
+    EX_CATCH
     {
-        // try a small cache
+    }
+    EX_END_CATCH(RethrowCorruptingExceptions)
+
+    if (!table)
+    {
         size = INITIAL_CACHE_SIZE;
-        try
+        // if we get an OOM again we return NULL
+        EX_TRY
         {
+            FAULT_NOT_FATAL();
             table = (BASEARRAYREF)AllocatePrimitiveArray(CorElementType::ELEMENT_TYPE_I4, (size + 1) * sizeof(CastCacheEntry) / sizeof(INT32));
         }
-        catch (OutOfMemoryException)
+        EX_CATCH
+        {
+        }
+        EX_END_CATCH(RethrowCorruptingExceptions)
+
+        if (!table)
         {
             // OK, no cache then
             return NULL;
@@ -79,27 +93,24 @@ BOOL CastCache::MaybeReplaceCacheWithLarger(DWORD size)
         return FALSE;
     }
 
-    OBJECTREF currentTableRef = ObjectFromHandle(s_cache);
-    OBJECTREF prevTableRef = (OBJECTREF)(Object*)InterlockedCompareExchangeObjectInHandle(s_cache, newTable, currentTableRef);
-
-    return prevTableRef == currentTableRef;
+    StoreObjectInHandle(s_cache, newTable);
+    return TRUE;
 }
 
 void CastCache::FlushCurrentCache()
 {
     CONTRACTL
     {
-        THROWS;
-        GC_TRIGGERS;
+        NOTHROW;
+        GC_NOTRIGGER;
         MODE_COOPERATIVE;
     }
     CONTRACTL_END;
 
     BASEARRAYREF currentTableRef = (BASEARRAYREF)ObjectFromHandle(s_cache);
-    int size = !currentTableRef ? INITIAL_CACHE_SIZE : CacheElementCount(currentTableRef);
+    s_lastFlushSize = !currentTableRef ? INITIAL_CACHE_SIZE : CacheElementCount(currentTableRef);
 
-    BASEARRAYREF newTable = CreateCastCache(size);
-    StoreObjectInHandle(s_cache, newTable);
+    StoreObjectInHandle(s_cache, NULL);
 }
 
 void CastCache::Initialize()
@@ -199,8 +210,8 @@ void CastCache::TrySet(TADDR source, TADDR target, BOOL result)
         table = (BASEARRAYREF)ObjectFromHandle(s_cache);
         if (!table)
         {
-            // we did not allocate a table, it is very rare, try flushing, but do not continue looping.
-            FlushCurrentCache();
+            // we did not allocate a table or flushed it, try replacing, but do not continue looping.
+            MaybeReplaceCacheWithLarger(s_lastFlushSize);
             return;
         }
 

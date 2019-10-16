@@ -112,6 +112,10 @@ public:
         if (!source.IsFullyLoaded() || !target.IsFullyLoaded())
             return;
 
+        // we should not be caching T --> Nullable<T>. result is contextual.
+        // unsubsttituted generic T is ok though. there is an agreement on that.
+        _ASSERTE(source.IsTypeDesc() || !Nullable::IsNullableForType(target, source.AsMethodTable()));
+
         TryAddToCache(source.AsTAddr(), target.AsTAddr(), result);
     }
 
@@ -129,6 +133,9 @@ public:
         // do not cache if any of the types is not fully loaded.
         if (!pSourceMT->IsFullyLoaded() || !target.IsFullyLoaded())
             return;
+
+        // we should not be caching T --> Nullable<T>. result is contextual.
+        _ASSERTE(!Nullable::IsNullableForType(target, pSourceMT));
 
         TryAddToCache((TADDR)pSourceMT, target.AsTAddr(), result);
     }
@@ -208,6 +215,7 @@ private:
     static const DWORD BUCKET_SIZE = 8;
 
     static OBJECTHANDLE   s_cache;
+    static DWORD          s_lastFlushSize;
 
     FORCEINLINE static TypeHandle::CastResult TryGetFromCache(TADDR source, TADDR target)
     {
