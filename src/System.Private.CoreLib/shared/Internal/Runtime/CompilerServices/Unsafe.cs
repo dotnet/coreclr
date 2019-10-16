@@ -389,8 +389,7 @@ namespace Internal.Runtime.CompilerServices
         }
 
         /// <summary>
-        /// Returns a by-ref that is a null reference to a type <typeparamref name="T"/>.
-        /// Note this is the address of the by-ref not what the ref points to.
+        /// Returns a by-ref to type <typeparamref name="T"/> that is a null reference.
         /// </summary>
         [Intrinsic]
         [NonVersionable]
@@ -406,7 +405,6 @@ namespace Internal.Runtime.CompilerServices
 
         /// <summary>
         /// Returns if a given by-ref to type <typeparamref name="T"/> is a null reference.
-        /// Note this is the address of the by-ref not what the ref points to.
         /// </summary>
         /// <remarks>
         /// This check is conceptually similar to "(void*)(&amp;source) == nullptr".
