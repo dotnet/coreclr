@@ -25818,7 +25818,7 @@ void Compiler::fgTailMergeThrows()
     // First pass
     //
     // Scan for THROW blocks. Note early on in compilation (before morph)
-    // noretrurn blcoks are not marked as BBJ_THROW.
+    // noretrurn blocks are not marked as BBJ_THROW.
     //
     // Walk blocks from last to first so that any branches we
     // introduce to the canonical blocks end up lexically forward
@@ -25988,8 +25988,11 @@ void Compiler::fgTailMergeThrows()
 //    predEdge - original flow edge
 //
 // Notes:
-//    Alters fall through flow of predBlock so it jumps to the canonicalBlock
-//    via a new basic block.
+//    Alters fall through flow of predBlock so it jumps to the
+//    canonicalBlock via a new basic block.  Does not try and fix
+//    jump-around flow; we leave that to optOptimizeFlow which runs
+//    just afterwards.
+//
 void Compiler::fgTailMergeThrowsFallThroughHelper(BasicBlock* predBlock,
                                                   BasicBlock* nonCanonicalBlock,
                                                   BasicBlock* canonicalBlock,
@@ -26026,8 +26029,8 @@ void Compiler::fgTailMergeThrowsFallThroughHelper(BasicBlock* predBlock,
 //    predEdge - original flow edge
 //
 // Notes:
-//    Alters jumpDest of predBlock so it jumps to the canonicalBlock
-
+//    Alters jumpDest of predBlock so it jumps to the canonicalBlock.
+//
 void Compiler::fgTailMergeThrowsJumpToHelper(BasicBlock* predBlock,
                                              BasicBlock* nonCanonicalBlock,
                                              BasicBlock* canonicalBlock,
