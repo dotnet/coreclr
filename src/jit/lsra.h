@@ -1600,10 +1600,7 @@ private:
         }
         // This is probably not necessary, but keeps things consistent.
         fromTree->gtFlags &= ~GTF_VAR_DEATH;
-        if (toTree != nullptr) // Just to be conservative
-        {
-            toTree->gtFlags |= GTF_VAR_DEATH;
-        }
+        toTree->gtFlags |= GTF_VAR_DEATH;
     }
 #endif // defined(_TARGET_XARCH_)
 
