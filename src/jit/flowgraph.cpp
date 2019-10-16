@@ -13683,11 +13683,7 @@ void Compiler::fgComputeEdgeWeights()
             }
         }
 
-        if (inconsistentProfileData)
-        {
-            hasIncompleteEdgeWeights = true;
-            break;
-        }
+        assert(!inconsistentProfileData); // Should use EARLY_EXIT when it is false.
 
         if (numEdges == goodEdgeCountCurrent)
         {
