@@ -62,6 +62,7 @@ bool SigInfoFlagsAreValid (CORINFO_SIG_INFO *sig)
     LIMITED_METHOD_CONTRACT;
     return !(sig->flags & ~(  CORINFO_SIGFLAG_IS_LOCAL_SIG
                             | CORINFO_SIGFLAG_IL_STUB
+                            | CORINFO_SIGFLAG_SUPPRESS_GC_TRANSITION
                             ));
 }
 
@@ -435,6 +436,10 @@ extern "C"
     void STDCALL JIT_MemCpy(void *dest, const void *src, SIZE_T count);
 
     void STDMETHODCALLTYPE JIT_ProfilerEnterLeaveTailcallStub(UINT_PTR ProfilerHandle);
+
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+    void STDCALL JIT_StackProbe();
+#endif // _TARGET_X86_ || _TARGET_AMD64_
 };
 
 

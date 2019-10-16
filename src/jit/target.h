@@ -469,7 +469,7 @@ typedef unsigned char   regNumberSmall;
   // See vm\i386\asmhelpers.asm for more details.
   #define RBM_PROFILER_ENTER_TRASH     RBM_NONE
   #define RBM_PROFILER_LEAVE_TRASH     RBM_NONE
-  #define RBM_PROFILER_TAILCALL_TRASH  (RBM_ALLINT & ~RBM_ARG_REGS)
+  #define RBM_PROFILER_TAILCALL_TRASH  (RBM_CALLEE_TRASH & ~RBM_ARG_REGS)
 
   // What sort of reloc do we use for [disp32] address mode
   #define IMAGE_REL_BASED_DISP32   IMAGE_REL_BASED_HIGHLOW
@@ -491,6 +491,11 @@ typedef unsigned char   regNumberSmall;
   // small SP adjustments without probes. If zero, then the stack pointer can point to the last byte/word
   // on the stack guard page, and must be touched before any further "SUB SP".
   #define STACK_PROBE_BOUNDARY_THRESHOLD_BYTES ARG_STACK_PROBE_THRESHOLD_BYTES
+
+  #define REG_STACK_PROBE_HELPER_ARG   REG_EAX
+  #define RBM_STACK_PROBE_HELPER_ARG   RBM_EAX
+
+  #define RBM_STACK_PROBE_HELPER_TRASH RBM_NONE
 
 #elif defined(_TARGET_AMD64_)
   // TODO-AMD64-CQ: Fine tune the following xxBlk threshold values:
@@ -895,6 +900,15 @@ typedef unsigned char   regNumberSmall;
 
   // AMD64 uses FEATURE_FIXED_OUT_ARGS so this can be zero.
   #define STACK_PROBE_BOUNDARY_THRESHOLD_BYTES 0
+
+  #define REG_STACK_PROBE_HELPER_ARG   REG_R11
+  #define RBM_STACK_PROBE_HELPER_ARG   RBM_R11
+
+#ifdef _TARGET_UNIX_
+  #define RBM_STACK_PROBE_HELPER_TRASH RBM_NONE
+#else // !_TARGET_UNIX_
+  #define RBM_STACK_PROBE_HELPER_TRASH RBM_RAX
+#endif // !_TARGET_UNIX_
 
 #elif defined(_TARGET_ARM_)
 

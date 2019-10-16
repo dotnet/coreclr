@@ -193,18 +193,18 @@ inline HfaElemKind HfaElemKindFromType(var_types type)
 typedef const char* VarName; // Actual ASCII string
 struct VarScopeDsc
 {
+    unsigned vsdVarNum; // (remapped) LclVarDsc number
+    unsigned vsdLVnum;  // 'which' in eeGetLVinfo().
+                        // Also, it is the index of this entry in the info.compVarScopes array,
+                        // which is useful since the array is also accessed via the
+                        // compEnterScopeList and compExitScopeList sorted arrays.
+
     IL_OFFSET vsdLifeBeg; // instr offset of beg of life
     IL_OFFSET vsdLifeEnd; // instr offset of end of life
-    unsigned  vsdVarNum;  // (remapped) LclVarDsc number
 
 #ifdef DEBUG
     VarName vsdName; // name of the var
 #endif
-
-    unsigned vsdLVnum; // 'which' in eeGetLVinfo().
-                       // Also, it is the index of this entry in the info.compVarScopes array,
-                       // which is useful since the array is also accessed via the
-                       // compEnterScopeList and compExitScopeList sorted arrays.
 };
 
 // This is the location of a SSA definition.
@@ -517,11 +517,11 @@ public:
     {
         if (slotNum == 0)
         {
-            return lvArgReg;
+            return (regNumber)_lvArgReg;
         }
         else if (slotNum == 1)
         {
-            return lvOtherArgReg;
+            return GetOtherArgReg();
         }
         else
         {
@@ -624,8 +624,6 @@ public:
 
     /////////////////////
 
-    __declspec(property(get = GetRegNum, put = SetRegNum)) regNumber lvRegNum;
-
     regNumber GetRegNum() const
     {
         return (regNumber)_lvRegNum;
@@ -640,7 +638,6 @@ public:
 /////////////////////
 
 #if defined(_TARGET_64BIT_)
-    __declspec(property(get = GetOtherReg, put = SetOtherReg)) regNumber lvOtherReg;
 
     regNumber GetOtherReg() const
     {
@@ -655,7 +652,6 @@ public:
                                        // "unreachable code" warnings
     }
 #else  // !_TARGET_64BIT_
-    __declspec(property(get = GetOtherReg, put = SetOtherReg)) regNumber lvOtherReg;
 
     regNumber GetOtherReg() const
     {
@@ -671,8 +667,6 @@ public:
 
     /////////////////////
 
-    __declspec(property(get = GetArgReg, put = SetArgReg)) regNumber lvArgReg;
-
     regNumber GetArgReg() const
     {
         return (regNumber)_lvArgReg;
@@ -685,7 +679,6 @@ public:
     }
 
 #if FEATURE_MULTIREG_ARGS
-    __declspec(property(get = GetOtherArgReg, put = SetOtherArgReg)) regNumber lvOtherArgReg;
 
     regNumber GetOtherArgReg() const
     {
@@ -745,7 +738,7 @@ public:
 
     bool lvIsInReg() const
     {
-        return lvIsRegCandidate() && (lvRegNum != REG_STK);
+        return lvIsRegCandidate() && (GetRegNum() != REG_STK);
     }
 
     regMaskTP lvRegMask() const
@@ -753,16 +746,16 @@ public:
         regMaskTP regMask = RBM_NONE;
         if (varTypeIsFloating(TypeGet()))
         {
-            if (lvRegNum != REG_STK)
+            if (GetRegNum() != REG_STK)
             {
-                regMask = genRegMaskFloat(lvRegNum, TypeGet());
+                regMask = genRegMaskFloat(GetRegNum(), TypeGet());
             }
         }
         else
         {
-            if (lvRegNum != REG_STK)
+            if (GetRegNum() != REG_STK)
             {
-                regMask = genRegMask(lvRegNum);
+                regMask = genRegMask(GetRegNum());
             }
         }
         return regMask;
@@ -945,7 +938,7 @@ public:
 
     void PrintVarReg() const
     {
-        printf("%s", getRegName(lvRegNum));
+        printf("%s", getRegName(GetRegNum()));
     }
 #endif // DEBUG
 
@@ -1406,8 +1399,7 @@ public:
     {
         _lateArgInx = inx;
     }
-    __declspec(property(get = getRegNum)) regNumber regNum;
-    regNumber getRegNum()
+    regNumber GetRegNum()
     {
         return (regNumber)regNums[0];
     }
@@ -1426,14 +1418,13 @@ public:
         assert(i < MAX_ARG_REG_COUNT);
         regNums[i] = (regNumberSmall)regNum;
     }
-    regNumber getRegNum(unsigned int i)
+    regNumber GetRegNum(unsigned int i)
     {
         assert(i < MAX_ARG_REG_COUNT);
         return (regNumber)regNums[i];
     }
 
-    __declspec(property(get = getIsSplit, put = setIsSplit)) bool isSplit;
-    bool getIsSplit()
+    bool IsSplit()
     {
 #ifdef FEATURE_ARG_SPLIT
         return _isSplit;
@@ -1441,7 +1432,7 @@ public:
         return false;
 #endif
     }
-    void setIsSplit(bool value)
+    void SetSplit(bool value)
     {
 #ifdef FEATURE_ARG_SPLIT
         _isSplit = value;
@@ -1463,8 +1454,7 @@ public:
 #endif // FEATURE_VARARG
     }
 
-    __declspec(property(get = getIsHfaArg)) bool isHfaArg;
-    bool getIsHfaArg()
+    bool IsHfaArg()
     {
 #ifdef FEATURE_HFA
         return IsHfa(_hfaElemKind);
@@ -1551,7 +1541,7 @@ public:
             }
 #endif // _TARGET_ARM_
 
-            if (!isHfaArg)
+            if (!IsHfaArg())
             {
                 // We haven't previously set this; do so now.
                 _hfaElemKind = HfaElemKindFromType(type);
@@ -1596,7 +1586,7 @@ public:
 
     bool isPassedInRegisters()
     {
-        return !isSplit && (numRegs != 0);
+        return !IsSplit() && (numRegs != 0);
     }
 
     bool isPassedInFloatRegisters()
@@ -1604,13 +1594,13 @@ public:
 #ifdef _TARGET_X86
         return false;
 #else
-        return isValidFloatArgReg(regNum);
+        return isValidFloatArgReg(GetRegNum());
 #endif
     }
 
     bool isSingleRegOrSlot()
     {
-        return !isSplit && ((numRegs == 1) || (numSlots == 1));
+        return !IsSplit() && ((numRegs == 1) || (numSlots == 1));
     }
 
     // Returns the number of "slots" used, where for this purpose a
@@ -1622,7 +1612,7 @@ public:
             assert(isPassedInRegisters());
             assert(numRegs == 1);
         }
-        else if (regNum == REG_STK)
+        else if (GetRegNum() == REG_STK)
         {
             assert(!isPassedInRegisters());
             assert(numRegs == 0);
@@ -1646,7 +1636,7 @@ public:
             // We counted the number of regs, but if they are DOUBLE hfa regs we have to double the size.
             if (GetHfaType() == TYP_DOUBLE)
             {
-                assert(!isSplit);
+                assert(!IsSplit());
                 size <<= 1;
             }
 #elif defined(_TARGET_ARM64_)
@@ -1680,7 +1670,7 @@ public:
             return;
         }
 
-        regNumber argReg = getRegNum(0);
+        regNumber argReg = GetRegNum(0);
 #ifdef _TARGET_ARM_
         unsigned int regSize = (GetHfaType() == TYP_DOUBLE) ? 2 : 1;
 #else
@@ -2654,8 +2644,8 @@ public:
 
     Statement* gtCloneStmt(Statement* stmt)
     {
-        GenTree* exprClone = gtCloneExpr(stmt->gtStmtExpr);
-        return gtNewStmt(exprClone, stmt->gtStmtILoffsx);
+        GenTree* exprClone = gtCloneExpr(stmt->GetRootNode());
+        return gtNewStmt(exprClone, stmt->GetILOffsetX());
     }
 
     // Internal helper for cloning a call
@@ -3629,6 +3619,16 @@ protected:
 protected:
     bool compSupportsHWIntrinsic(InstructionSet isa);
 
+    GenTree* impSpecialIntrinsic(NamedIntrinsic        intrinsic,
+                                 CORINFO_CLASS_HANDLE  clsHnd,
+                                 CORINFO_METHOD_HANDLE method,
+                                 CORINFO_SIG_INFO*     sig,
+                                 bool                  mustExpand);
+
+    GenTree* getArgForHWIntrinsic(var_types argType, CORINFO_CLASS_HANDLE argClass);
+    GenTree* impNonConstFallback(NamedIntrinsic intrinsic, var_types simdType, var_types baseType);
+    GenTree* addRangeCheckIfNeeded(NamedIntrinsic intrinsic, GenTree* lastOp, bool mustExpand);
+
 #ifdef _TARGET_XARCH_
     GenTree* impBaseIntrinsic(NamedIntrinsic        intrinsic,
                               CORINFO_CLASS_HANDLE  clsHnd,
@@ -3675,17 +3675,7 @@ protected:
                                 CORINFO_METHOD_HANDLE method,
                                 CORINFO_SIG_INFO*     sig,
                                 bool                  mustExpand);
-
-protected:
-    GenTree* getArgForHWIntrinsic(var_types argType, CORINFO_CLASS_HANDLE argClass);
-    GenTree* impNonConstFallback(NamedIntrinsic intrinsic, var_types simdType, var_types baseType);
-    GenTree* addRangeCheckIfNeeded(NamedIntrinsic intrinsic, GenTree* lastOp, bool mustExpand);
 #endif // _TARGET_XARCH_
-#ifdef _TARGET_ARM64_
-    InstructionSet lookupHWIntrinsicISA(const char* className);
-    NamedIntrinsic lookupHWIntrinsic(const char* className, const char* methodName);
-    GenTree* addRangeCheckIfNeeded(GenTree* lastOp, unsigned int max, bool mustExpand);
-#endif // _TARGET_ARM64_
 #endif // FEATURE_HW_INTRINSICS
     GenTree* impArrayAccessIntrinsic(CORINFO_CLASS_HANDLE clsHnd,
                                      CORINFO_SIG_INFO*    sig,
@@ -3822,7 +3812,7 @@ private:
     bool        impNestedStackSpill;
 
     // For displaying instrs with generated native code (-n:B)
-    Statement* impLastILoffsStmt; // oldest stmt added for which we did not gtStmtLastILoffs
+    Statement* impLastILoffsStmt; // oldest stmt added for which we did not call SetLastILOffset().
     void       impNoteLastILoffs();
 #endif
 
@@ -4019,7 +4009,7 @@ private:
     void impSpillCliqueSetMember(SpillCliqueDir predOrSucc, BasicBlock* blk, BYTE val);
 
     void impPushVar(GenTree* op, typeInfo tiRetVal);
-    void impLoadVar(unsigned lclNum, IL_OFFSET offset, typeInfo tiRetVal);
+    void impLoadVar(unsigned lclNum, IL_OFFSET offset, const typeInfo& tiRetVal);
     void impLoadVar(unsigned lclNum, IL_OFFSET offset)
     {
         impLoadVar(lclNum, offset, lvaTable[lclNum].lvVerTypeInfo);
@@ -4122,7 +4112,7 @@ private:
     bool impIsImplicitTailCallCandidate(
         OPCODE curOpcode, const BYTE* codeAddrOfNextOpcode, const BYTE* codeEnd, int prefixFlags, bool isRecursive);
 
-    CORINFO_RESOLVED_TOKEN* impAllocateToken(CORINFO_RESOLVED_TOKEN token);
+    CORINFO_RESOLVED_TOKEN* impAllocateToken(const CORINFO_RESOLVED_TOKEN& token);
 
     /*
     XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -5137,9 +5127,9 @@ public:
         fgWalkPreFn*  wtprVisitorFn;
         fgWalkPostFn* wtpoVisitorFn;
         void*         pCallbackData; // user-provided data
-        bool          wtprLclsOnly;  // whether to only visit lclvar nodes
         GenTree*      parent;        // parent of current node, provided to callback
         GenTreeStack* parentStack;   // stack of parent nodes, if asked for
+        bool          wtprLclsOnly;  // whether to only visit lclvar nodes
 #ifdef DEBUG
         bool printModified; // callback can use this
 #endif
@@ -5189,8 +5179,6 @@ protected:
 
     void        fgInitBBLookup();
     BasicBlock* fgLookupBB(unsigned addr);
-
-    bool fgHasBackwardJump;
 
     bool fgCanSwitchToOptimized();
     void fgSwitchToOptimized();
@@ -6277,15 +6265,15 @@ protected:
 
     struct isVarAssgDsc
     {
-        GenTree* ivaSkip;
+        GenTree*     ivaSkip;
+        ALLVARSET_TP ivaMaskVal; // Set of variables assigned to.  This is a set of all vars, not tracked vars.
 #ifdef DEBUG
         void* ivaSelf;
 #endif
-        unsigned     ivaVar;            // Variable we are interested in, or -1
-        ALLVARSET_TP ivaMaskVal;        // Set of variables assigned to.  This is a set of all vars, not tracked vars.
-        bool         ivaMaskIncomplete; // Variables not representable in ivaMaskVal were assigned to.
-        varRefKinds  ivaMaskInd;        // What kind of indirect assignments are there?
-        callInterf   ivaMaskCall;       // What kind of calls are there?
+        unsigned    ivaVar;            // Variable we are interested in, or -1
+        varRefKinds ivaMaskInd;        // What kind of indirect assignments are there?
+        callInterf  ivaMaskCall;       // What kind of calls are there?
+        bool        ivaMaskIncomplete; // Variables not representable in ivaMaskVal were assigned to.
     };
 
     static callInterf optCallInterf(GenTreeCall* call);
@@ -7219,8 +7207,8 @@ public:
     struct IPmappingDsc
     {
         IPmappingDsc* ipmdNext;      // next line# record
-        IL_OFFSETX    ipmdILoffsx;   // the instr offset
         emitLocation  ipmdNativeLoc; // the emitter location of the native code corresponding to the IL offset
+        IL_OFFSETX    ipmdILoffsx;   // the instr offset
         bool          ipmdIsLabel;   // Can this code be a branch label?
     };
 
@@ -7294,14 +7282,13 @@ public:
                            unsigned refCntWtdStkDbl);
 #endif // DOUBLE_ALIGN
 
-    __declspec(property(get = getFullPtrRegMap, put = setFullPtrRegMap)) bool genFullPtrRegMap;
-    bool getFullPtrRegMap()
+    bool IsFullPtrRegMapRequired()
     {
-        return codeGen->genFullPtrRegMap;
+        return codeGen->IsFullPtrRegMapRequired();
     }
-    void setFullPtrRegMap(bool value)
+    void SetFullPtrRegMapRequired(bool value)
     {
-        codeGen->setFullPtrRegMap(value);
+        codeGen->SetFullPtrRegMapRequired(value);
     }
 
 // Things that MAY belong either in CodeGen or CodeGenContext
@@ -8249,6 +8236,7 @@ public:
     bool compQmarkUsed;            // Does the method use GT_QMARK/GT_COLON
     bool compQmarkRationalized;    // Is it allowed to use a GT_QMARK/GT_COLON node.
     bool compUnsafeCastUsed;       // Does the method use LDIND/STIND to cast between scalar/refernce types
+    bool compHasBackwardJump;      // Does the method (or some inlinee) have a lexically backwards jump?
 
 // NOTE: These values are only reliable after
 //       the importing is completely finished.
@@ -8270,7 +8258,7 @@ public:
     bool compLSRADone;
     bool compRationalIRForm;
 
-    bool compUsesThrowHelper; // There is a call to a THOROW_HELPER for the compiled method.
+    bool compUsesThrowHelper; // There is a call to a THROW_HELPER for the compiled method.
 
     bool compGeneratingProlog;
     bool compGeneratingEpilog;
@@ -8653,6 +8641,7 @@ public:
         STRESS_MODE(RANDOM_INLINE)                                                              \
         STRESS_MODE(SWITCH_CMP_BR_EXPANSION)                                                    \
         STRESS_MODE(GENERIC_VARN)                                                               \
+        STRESS_MODE(PROFILER_CALLBACKS) /* Will generate profiler hooks for ELT callbacks */    \
                                                                                                 \
         /* After COUNT_VARN, stress level 2 does all of these all the time */                   \
                                                                                                 \
@@ -8708,6 +8697,8 @@ public:
         return false;
 #endif
     }
+
+    const char* compGetTieringName() const;
 
     codeOptimize compCodeOpt()
     {
@@ -8800,12 +8791,13 @@ public:
         UNATIVE_OFFSET compTotalHotCodeSize;  // Total number of bytes of Hot Code in the method
         UNATIVE_OFFSET compTotalColdCodeSize; // Total number of bytes of Cold Code in the method
 
-        unsigned compCallUnmanaged;   // count of unmanaged calls
+        unsigned compUnmanagedCallCountWithGCTransition; // count of unmanaged calls with GC transition.
+
         unsigned compLvFrameListRoot; // lclNum for the Frame root
         unsigned compXcptnsCount;     // Number of exception-handling clauses read in the method's IL.
                                       // You should generally use compHndBBtabCount instead: it is the
                                       // current number of EH clauses (after additions like synchronized
-                                      // methods and funclets, and removals like unreachable code deletion).
+        // methods and funclets, and removals like unreachable code deletion).
 
         bool compMatchedVM; // true if the VM is "matched": either the JIT is a cross-compiler
                             // and the VM expects that, or the JIT is a "self-host" compiler
@@ -8904,6 +8896,12 @@ public:
     {
         return compMethodReturnsNativeScalarType() || compMethodReturnsRetBufAddr() ||
                compMethodReturnsMultiRegRetType();
+    }
+
+    // Returns true if the method requires a PInvoke prolog and epilog
+    bool compMethodRequiresPInvokeFrame()
+    {
+        return (info.compUnmanagedCallCountWithGCTransition > 0);
     }
 
 #if defined(DEBUG)
@@ -9330,8 +9328,8 @@ public:
                              bool bashStructToRef = false); // converts from jit type representation to typeInfo
     typeInfo verMakeTypeInfo(CorInfoType          ciType,
                              CORINFO_CLASS_HANDLE clsHnd); // converts from jit type representation to typeInfo
-    BOOL verIsSDArray(typeInfo ti);
-    typeInfo verGetArrayElemType(typeInfo ti);
+    BOOL verIsSDArray(const typeInfo& ti);
+    typeInfo verGetArrayElemType(const typeInfo& ti);
 
     typeInfo verParseArgSigToTypeInfo(CORINFO_SIG_INFO* sig, CORINFO_ARG_LIST_HANDLE args);
     BOOL verNeedsVerification();
@@ -9353,7 +9351,7 @@ public:
                                                      // return false to the caller.
                                                      // If false, it will throw.
                                     );
-    bool verIsBoxedValueType(typeInfo ti);
+    bool verIsBoxedValueType(const typeInfo& ti);
 
     void verVerifyCall(OPCODE                  opcode,
                        CORINFO_RESOLVED_TOKEN* pResolvedToken,
@@ -9973,6 +9971,17 @@ public:
             // Special nodes
             case GT_PHI:
                 for (GenTreePhi::Use& use : node->AsPhi()->Uses())
+                {
+                    result = WalkTree(&use.NodeRef(), node);
+                    if (result == fgWalkResult::WALK_ABORT)
+                    {
+                        return result;
+                    }
+                }
+                break;
+
+            case GT_FIELD_LIST:
+                for (GenTreeFieldList::Use& use : node->AsFieldList()->Uses())
                 {
                     result = WalkTree(&use.NodeRef(), node);
                     if (result == fgWalkResult::WALK_ABORT)

@@ -36,6 +36,7 @@
 -noclass System.Tests.ReflectionTests
 -noclass System.Tests.Utf8ExtensionsTests
 -noclass System.Tests.Utf8StringTests
+-noclass System.Text.Tests.Utf8SpanTests
 
 # https://github.com/dotnet/corefx/issues/37886
 -nomethod System.Security.Cryptography.Rsa.Tests.RSAXml.FromNonsenseXml
@@ -69,6 +70,10 @@
 # Timeout in System.Numerics.Tests.ToStringTest.RunRegionSpecificStandardFormatToStringTests
 # https://github.com/dotnet/coreclr/issues/22414
 -nomethod System.Numerics.Tests.ToStringTest.RunRegionSpecificStandardFormatToStringTests
+
+# Failure in System.Text.Encoding.Tests due to bug fix in DecoderNLS.Convert
+# https://github.com/dotnet/coreclr/issues/27191
+-nomethod System.Text.Tests.DecoderConvert2.PosTest6
 
 # Timeout in System.Text.RegularExpressions.Tests.RegexMatchTests.Match_ExcessPrefix
 # https://github.com/dotnet/coreclr/issues/18912

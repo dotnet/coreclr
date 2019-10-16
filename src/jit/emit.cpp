@@ -4656,7 +4656,7 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
 
         if (thisDsc->lvRegister)
         {
-            emitSyncThisObjReg = thisDsc->lvRegNum;
+            emitSyncThisObjReg = thisDsc->GetRegNum();
 
             if (emitSyncThisObjReg == (int)REG_ARG_0 &&
                 (codeGen->intRegState.rsCalleeRegArgMaskLiveIn & genRegMask(REG_ARG_0)))
@@ -7108,7 +7108,7 @@ void emitter::emitStackPop(BYTE* addr, bool isCall, unsigned char callInstrSize,
         // recorded (when we're doing the ptr reg map for a non-fully-interruptible method).
         if (emitFullGCinfo
 #ifndef JIT32_GCENCODER
-            || (emitComp->genFullPtrRegMap && (!emitComp->GetInterruptible()) && isCall)
+            || (emitComp->IsFullPtrRegMapRequired() && (!emitComp->GetInterruptible()) && isCall)
 #endif // JIT32_GCENCODER
                 )
         {

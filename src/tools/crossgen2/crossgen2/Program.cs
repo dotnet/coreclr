@@ -36,6 +36,7 @@ namespace ILCompiler
         private string _targetArchitectureStr;
         private TargetOS _targetOS;
         private string _targetOSStr;
+        private string _jitPath;
         private OptimizationMode _optimizationMode;
         private string _systemModuleName = DefaultSystemModule;
         private bool _tuning;
@@ -145,6 +146,7 @@ namespace ILCompiler
 
                 syntax.DefineOption("targetarch", ref _targetArchitectureStr, "Target architecture for cross compilation");
                 syntax.DefineOption("targetos", ref _targetOSStr, "Target OS for cross compilation");
+                syntax.DefineOption("jitpath", ref _jitPath, "Path to JIT compiler library");
 
                 syntax.DefineOption("singlemethodtypename", ref _singleMethodTypeName, "Single method compilation: name of the owning type");
                 syntax.DefineOption("singlemethodname", ref _singleMethodName, "Single method compilation: name of the method");
@@ -232,181 +234,184 @@ namespace ILCompiler
                     throw new CommandLineException("Target OS is not supported");
             }
 
-            PerfEventSource.Log.CompilationStart();
-            PerfEventSource.Log.LoadingStart();
-            //
-            // Initialize type system context
-            //
-
-            SharedGenericsMode genericsMode = SharedGenericsMode.CanonicalReferenceTypes;
-
-            var targetDetails = new TargetDetails(_targetArchitecture, _targetOS, TargetAbi.CoreRT, SimdVectorLength.None);
-            CompilerTypeSystemContext typeSystemContext = new ReadyToRunCompilerContext(targetDetails, genericsMode);
-
-            //
-            // TODO: To support our pre-compiled test tree, allow input files that aren't managed assemblies since
-            // some tests contain a mixture of both managed and native binaries.
-            //
-            // See: https://github.com/dotnet/corert/issues/2785
-            //
-            // When we undo this this hack, replace this foreach with
-            //  typeSystemContext.InputFilePaths = _inputFilePaths;
-            //
-            Dictionary<string, string> inputFilePaths = new Dictionary<string, string>();
-            foreach (var inputFile in _inputFilePaths)
+            using (PerfEventSource.StartStopEvents.CompilationEvents())
             {
-                try
+                ICompilation compilation;
+                using (PerfEventSource.StartStopEvents.LoadingEvents())
                 {
-                    var module = typeSystemContext.GetModuleFromPath(inputFile.Value);
-                    inputFilePaths.Add(inputFile.Key, inputFile.Value);
-                }
-                catch (TypeSystemException.BadImageFormatException)
-                {
-                    // Keep calm and carry on.
-                }
-            }
+                    //
+                    // Initialize type system context
+                    //
 
-            typeSystemContext.InputFilePaths = inputFilePaths;
-            typeSystemContext.ReferenceFilePaths = _referenceFilePaths;
+                    SharedGenericsMode genericsMode = SharedGenericsMode.CanonicalReferenceTypes;
 
-            typeSystemContext.SetSystemModule(typeSystemContext.GetModuleForSimpleName(_systemModuleName));
+                    var targetDetails = new TargetDetails(_targetArchitecture, _targetOS, TargetAbi.CoreRT, SimdVectorLength.None);
+                    CompilerTypeSystemContext typeSystemContext = new ReadyToRunCompilerContext(targetDetails, genericsMode);
 
-            if (typeSystemContext.InputFilePaths.Count == 0)
-                throw new CommandLineException("No input files specified");
-
-            //
-            // Initialize compilation group and compilation roots
-            //
-
-            // Single method mode?
-            MethodDesc singleMethod = CheckAndParseSingleMethodModeArguments(typeSystemContext);
-
-            var logger = new Logger(Console.Out, _isVerbose);
-
-            List<ModuleDesc> referenceableModules = new List<ModuleDesc>();
-            List<ModuleDesc> inputModulesForProfileData = new List<ModuleDesc>();
-            foreach (var inputFile in inputFilePaths)
-            {
-                try
-                {
-                    ModuleDesc module = typeSystemContext.GetModuleFromPath(inputFile.Value);
-                    referenceableModules.Add(module);
-                    inputModulesForProfileData.Add(module);
-                }
-                catch { } // Ignore non-managed pe files
-            }
-
-            foreach (var referenceFile in _referenceFilePaths.Values)
-            {
-                try
-                {
-                    referenceableModules.Add(typeSystemContext.GetModuleFromPath(referenceFile));
-                }
-                catch { } // Ignore non-managed pe files
-            }
-
-            ProfileDataManager profileDataManager = new ProfileDataManager(logger, referenceableModules, inputModulesForProfileData, _tibcFiles, context:typeSystemContext, nonLocalizedGenerics: _nonlocalizedGenericsIbc);
-
-            CompilationModuleGroup compilationGroup;
-            List<ICompilationRootProvider> compilationRoots = new List<ICompilationRootProvider>();
-            if (singleMethod != null)
-            {
-                // Compiling just a single method
-                compilationGroup = new SingleMethodCompilationModuleGroup(singleMethod);
-                compilationRoots.Add(new SingleMethodRootProvider(singleMethod));
-            }
-            else
-            {
-                // Either single file, or multifile library, or multifile consumption.
-                EcmaModule entrypointModule = null;
-                foreach (var inputFile in typeSystemContext.InputFilePaths)
-                {
-                    EcmaModule module = typeSystemContext.GetModuleFromPath(inputFile.Value);
-
-                    if (module.PEReader.PEHeaders.IsExe)
-                    {
-                        if (entrypointModule != null)
-                            throw new Exception("Multiple EXE modules");
-                        entrypointModule = module;
-                    }
-                }
-
-                List<EcmaModule> inputModules = new List<EcmaModule>();
-
-                foreach (var inputFile in typeSystemContext.InputFilePaths)
-                {
-                    EcmaModule module = typeSystemContext.GetModuleFromPath(inputFile.Value);
-                    compilationRoots.Add(new ReadyToRunRootProvider(module, profileDataManager));
-                    inputModules.Add(module);
-
-                    if (!_isInputVersionBubble)
-                    {
-                        break;
-                    }
-                }
-
-
-                List<ModuleDesc> versionBubbleModules = new List<ModuleDesc>();
-                if (_isInputVersionBubble)
-                {
-                    // In large version bubble mode add reference paths to the compilation group
-                    foreach (string referenceFile in _referenceFilePaths.Values)
+                    //
+                    // TODO: To support our pre-compiled test tree, allow input files that aren't managed assemblies since
+                    // some tests contain a mixture of both managed and native binaries.
+                    //
+                    // See: https://github.com/dotnet/corert/issues/2785
+                    //
+                    // When we undo this this hack, replace this foreach with
+                    //  typeSystemContext.InputFilePaths = _inputFilePaths;
+                    //
+                    Dictionary<string, string> inputFilePaths = new Dictionary<string, string>();
+                    foreach (var inputFile in _inputFilePaths)
                     {
                         try
                         {
-                            // Currently SimpleTest.targets has no easy way to filter out non-managed assemblies
-                            // from the reference list.
-                            EcmaModule module = typeSystemContext.GetModuleFromPath(referenceFile);
-                            versionBubbleModules.Add(module);
+                            var module = typeSystemContext.GetModuleFromPath(inputFile.Value);
+                            inputFilePaths.Add(inputFile.Key, inputFile.Value);
                         }
-                        catch (TypeSystemException.BadImageFormatException ex)
+                        catch (TypeSystemException.BadImageFormatException)
                         {
-                            Console.WriteLine("Warning: cannot open reference assembly '{0}': {1}", referenceFile, ex.Message);
+                            // Keep calm and carry on.
                         }
                     }
+
+                    typeSystemContext.InputFilePaths = inputFilePaths;
+                    typeSystemContext.ReferenceFilePaths = _referenceFilePaths;
+
+                    typeSystemContext.SetSystemModule(typeSystemContext.GetModuleForSimpleName(_systemModuleName));
+
+                    if (typeSystemContext.InputFilePaths.Count == 0)
+                        throw new CommandLineException("No input files specified");
+
+                    //
+                    // Initialize compilation group and compilation roots
+                    //
+
+                    // Single method mode?
+                    MethodDesc singleMethod = CheckAndParseSingleMethodModeArguments(typeSystemContext);
+
+                    var logger = new Logger(Console.Out, _isVerbose);
+
+                    List<ModuleDesc> referenceableModules = new List<ModuleDesc>();
+                    List<ModuleDesc> inputModulesForProfileData = new List<ModuleDesc>();
+                    foreach (var inputFile in inputFilePaths)
+                    {
+                        try
+                        {
+                            ModuleDesc module = typeSystemContext.GetModuleFromPath(inputFile.Value);
+                            referenceableModules.Add(module);
+                            inputModulesForProfileData.Add(module);
+                        }
+                        catch { } // Ignore non-managed pe files
+                    }
+
+                    foreach (var referenceFile in _referenceFilePaths.Values)
+                    {
+                        try
+                        {
+                            referenceableModules.Add(typeSystemContext.GetModuleFromPath(referenceFile));
+                        }
+                        catch { } // Ignore non-managed pe files
+                    }
+
+                    ProfileDataManager profileDataManager = new ProfileDataManager(logger, referenceableModules, inputModulesForProfileData, _tibcFiles, context:typeSystemContext, nonLocalizedGenerics: _nonlocalizedGenericsIbc);
+
+                    CompilationModuleGroup compilationGroup;
+                    List<ICompilationRootProvider> compilationRoots = new List<ICompilationRootProvider>();
+                    if (singleMethod != null)
+                    {
+                        // Compiling just a single method
+                        compilationGroup = new SingleMethodCompilationModuleGroup(singleMethod);
+                        compilationRoots.Add(new SingleMethodRootProvider(singleMethod));
+                    }
+                    else
+                    {
+                        // Either single file, or multifile library, or multifile consumption.
+                        EcmaModule entrypointModule = null;
+                        foreach (var inputFile in typeSystemContext.InputFilePaths)
+                        {
+                            EcmaModule module = typeSystemContext.GetModuleFromPath(inputFile.Value);
+
+                            if (module.PEReader.PEHeaders.IsExe)
+                            {
+                                if (entrypointModule != null)
+                                    throw new Exception("Multiple EXE modules");
+                                entrypointModule = module;
+                            }
+                        }
+
+                        List<EcmaModule> inputModules = new List<EcmaModule>();
+
+                        foreach (var inputFile in typeSystemContext.InputFilePaths)
+                        {
+                            EcmaModule module = typeSystemContext.GetModuleFromPath(inputFile.Value);
+                            compilationRoots.Add(new ReadyToRunRootProvider(module, profileDataManager));
+                            inputModules.Add(module);
+
+                            if (!_isInputVersionBubble)
+                            {
+                                break;
+                            }
+                        }
+
+
+                        List<ModuleDesc> versionBubbleModules = new List<ModuleDesc>();
+                        if (_isInputVersionBubble)
+                        {
+                            // In large version bubble mode add reference paths to the compilation group
+                            foreach (string referenceFile in _referenceFilePaths.Values)
+                            {
+                                try
+                                {
+                                    // Currently SimpleTest.targets has no easy way to filter out non-managed assemblies
+                                    // from the reference list.
+                                    EcmaModule module = typeSystemContext.GetModuleFromPath(referenceFile);
+                                    versionBubbleModules.Add(module);
+                                }
+                                catch (TypeSystemException.BadImageFormatException ex)
+                                {
+                                    Console.WriteLine("Warning: cannot open reference assembly '{0}': {1}", referenceFile, ex.Message);
+                                }
+                            }
+                        }
+
+                        compilationGroup = new ReadyToRunSingleAssemblyCompilationModuleGroup(
+                            typeSystemContext, inputModules, versionBubbleModules, _includeGenericsFromVersionBubble,
+                            _partial ? profileDataManager : null);
+                    }
+
+                    //
+                    // Compile
+                    //
+
+                    string inputFilePath = "";
+                    foreach (var input in typeSystemContext.InputFilePaths)
+                    {
+                        inputFilePath = input.Value;
+                        break;
+                    }
+                    CompilationBuilder builder = new ReadyToRunCodegenCompilationBuilder(typeSystemContext, compilationGroup, inputFilePath,
+                        ibcTuning: _tuning,
+                        resilient: _resilient);
+
+                    string compilationUnitPrefix = "";
+                    builder.UseCompilationUnitPrefix(compilationUnitPrefix);
+
+                    ILProvider ilProvider = new ReadyToRunILProvider();
+
+                    DependencyTrackingLevel trackingLevel = _dgmlLogFileName == null ?
+                        DependencyTrackingLevel.None : (_generateFullDgmlLog ? DependencyTrackingLevel.All : DependencyTrackingLevel.First);
+
+                    builder
+                        .UseILProvider(ilProvider)
+                        .UseJitPath(_jitPath)
+                        .UseBackendOptions(_codegenOptions)
+                        .UseLogger(logger)
+                        .UseDependencyTracking(trackingLevel)
+                        .UseCompilationRoots(compilationRoots)
+                        .UseOptimizationMode(_optimizationMode);
+
+                    compilation = builder.ToCompilation();
+
                 }
-
-                compilationGroup = new ReadyToRunSingleAssemblyCompilationModuleGroup(
-                    typeSystemContext, inputModules, versionBubbleModules, _includeGenericsFromVersionBubble, 
-                    _partial ? profileDataManager : null);
+                compilation.Compile(_outputFilePath);
             }
-
-            //
-            // Compile
-            //
-
-            string inputFilePath = "";
-            foreach (var input in typeSystemContext.InputFilePaths)
-            {
-                inputFilePath = input.Value;
-                break;
-            }
-            CompilationBuilder builder = new ReadyToRunCodegenCompilationBuilder(typeSystemContext, compilationGroup, inputFilePath,
-                ibcTuning: _tuning,
-                resilient: _resilient);
-
-            string compilationUnitPrefix = "";
-            builder.UseCompilationUnitPrefix(compilationUnitPrefix);
-
-            ILProvider ilProvider = new ReadyToRunILProvider();
-
-
-            DependencyTrackingLevel trackingLevel = _dgmlLogFileName == null ?
-                DependencyTrackingLevel.None : (_generateFullDgmlLog ? DependencyTrackingLevel.All : DependencyTrackingLevel.First);
-
-            builder
-                .UseILProvider(ilProvider)
-                .UseBackendOptions(_codegenOptions)
-                .UseLogger(logger)
-                .UseDependencyTracking(trackingLevel)
-                .UseCompilationRoots(compilationRoots)
-                .UseOptimizationMode(_optimizationMode);
-
-            ICompilation compilation = builder.ToCompilation();
-
-            PerfEventSource.Log.LoadingStop();
-            compilation.Compile(_outputFilePath);
-            PerfEventSource.Log.CompilationStop();
 
             return 0;
         }
