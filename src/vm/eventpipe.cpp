@@ -45,7 +45,7 @@ extern "C"
 #endif
 void InitProvidersAndEvents();
 
-// This is a wrapper method for LTTng.
+// This is a wrapper method for LTTng. See https://github.com/dotnet/coreclr/pull/27273 for details.
 extern "C" bool XplatEventLoggerIsEnabled()
 {
     return XplatEventLogger::IsEventLoggingEnabled();
