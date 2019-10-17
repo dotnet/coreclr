@@ -16,6 +16,8 @@ class PerfInfo;
 class PerfMap
 {
 private:
+    static bool s_enabled;
+
     // The one and only PerfMap for the process.
     static PerfMap * s_Current;
 
