@@ -1747,6 +1747,9 @@ void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
         compInlineResult = nullptr;
     }
 
+    // Set this to the first phase to run
+    mostRecentlyActivePhase = PHASE_PRE_IMPORT;
+
 #ifdef FEATURE_TRACELOGGING
     // Make sure JIT telemetry is initialized as soon as allocations can be made
     // but no later than a point where noway_asserts can be thrown.
@@ -1755,9 +1758,8 @@ void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
     //    Note: JIT telemetry could gather data when compiler is not fully initialized.
     //          So you have to initialize the compiler variables you use for telemetry.
     assert((unsigned)PHASE_PRE_IMPORT == 0);
-    previousCompletedPhase = PHASE_PRE_IMPORT;
-    info.compILCodeSize    = 0;
-    info.compMethodHnd     = nullptr;
+    info.compILCodeSize = 0;
+    info.compMethodHnd  = nullptr;
     compJitTelemetry.Initialize(this);
 #endif
 
@@ -4404,6 +4406,57 @@ void Compiler::compFunctionTraceEnd(void* methodCodePtr, ULONG methodCodeSize, b
 #endif // DEBUG
 }
 
+void Compiler::BeginPhase(Phases phase)
+{
+    mostRecentlyActivePhase = phase;
+}
+
+void Compiler::EndPhase(Phases phase)
+{
+    // Not redundant until we call begin phase everywhere
+    mostRecentlyActivePhase = phase;
+
+#if defined(FEATURE_JIT_METHOD_PERF)
+    if (pCompJitTimer != nullptr)
+    {
+        pCompJitTimer->EndPhase(this, phase);
+    }
+#endif
+
+#if DUMP_FLOWGRAPHS
+    fgDumpFlowGraph(phase);
+#endif // DUMP_FLOWGRAPHS
+
+#ifdef DEBUG
+    if (dumpIR)
+    {
+        if ((*dumpIRPhase == L'*') || (wcscmp(dumpIRPhase, PhaseShortNames[phase]) == 0))
+        {
+            printf("\n");
+            printf("IR after %s (switch: %ls)\n", PhaseEnums[phase], PhaseShortNames[phase]);
+            printf("\n");
+
+            if (dumpIRLinear)
+            {
+                dFuncIR();
+            }
+            else if (dumpIRTrees)
+            {
+                dTrees();
+            }
+
+            // If we are just dumping a single method and we have a request to exit
+            // after dumping, do so now.
+
+            if (dumpIRExit && ((*dumpIRPhase != L'*') || (phase == PHASE_EMIT_GCEH)))
+            {
+                exit(0);
+            }
+        }
+    }
+#endif
+}
+
 //*********************************************************************************************
 // #Phases
 //
@@ -4416,55 +4469,62 @@ void Compiler::compFunctionTraceEnd(void* methodCodePtr, ULONG methodCodeSize, b
 //
 void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags* compileFlags)
 {
-    if (compIsForInlining())
-    {
-        // Notify root instance that an inline attempt is about to import IL
-        impInlineRoot()->m_inlineStrategy->NoteImport();
-    }
-
-    hashBv::Init(this);
-
-    VarSetOps::AssignAllowUninitRhs(this, compCurLife, VarSetOps::UninitVal());
-
-    /* The temp holding the secret stub argument is used by fgImport() when importing the intrinsic. */
-
-    if (info.compPublishStubParam)
-    {
-        assert(lvaStubArgumentVar == BAD_VAR_NUM);
-        lvaStubArgumentVar                  = lvaGrabTempWithImplicitUse(false DEBUGARG("stub argument"));
-        lvaTable[lvaStubArgumentVar].lvType = TYP_I_IMPL;
-    }
-
-    EndPhase(PHASE_PRE_IMPORT);
-
-    compFunctionTraceStart();
-
-    /* Convert the instrs in each basic block to a tree based intermediate representation */
-
-    fgImport();
-
-    assert(!fgComputePredsDone);
-    if (fgCheapPredsValid)
-    {
-        // Remove cheap predecessors before inlining and fat call transformation;
-        // allowing the cheap predecessor lists to be inserted causes problems
-        // with splitting existing blocks.
-        fgRemovePreds();
-    }
-
-    // Transform indirect calls that require control flow expansion.
-    fgTransformIndirectCalls();
-
-    EndPhase(PHASE_IMPORTATION);
-
-    if (compIsForInlining())
-    {
-        /* Quit inlining if fgImport() failed for any reason. */
-
-        if (!compDonotInline())
+    // PreImportPhase: do some initialization before importing
+    //
+    auto preImportAction = [this]() {
+        if (compIsForInlining())
         {
-            /* Filter out unimported BBs */
+            // Notify root instance that an inline attempt is about to import IL
+            impInlineRoot()->m_inlineStrategy->NoteImport();
+        }
 
+        hashBv::Init(this);
+
+        VarSetOps::AssignAllowUninitRhs(this, compCurLife, VarSetOps::UninitVal());
+
+        /* The temp holding the secret stub argument is used by fgImport() when importing the intrinsic. */
+
+        if (info.compPublishStubParam)
+        {
+            assert(lvaStubArgumentVar == BAD_VAR_NUM);
+            lvaStubArgumentVar                  = lvaGrabTempWithImplicitUse(false DEBUGARG("stub argument"));
+            lvaTable[lvaStubArgumentVar].lvType = TYP_I_IMPL;
+        }
+
+        compFunctionTraceStart();
+    };
+
+    DoPhase(this, PHASE_PRE_IMPORT, preImportAction, PhaseChecks::NONE);
+
+    // ImportPhase: convert the IL into the jit's IR
+    //
+    auto importAction = [this]() {
+        fgImport();
+
+        assert(!fgComputePredsDone);
+        if (fgCheapPredsValid)
+        {
+            // Remove cheap predecessors before inlining and fat call transformation;
+            // allowing the cheap predecessor lists to be inserted causes problems
+            // with splitting existing blocks.
+            fgRemovePreds();
+        }
+    };
+
+    DoPhase(this, PHASE_IMPORTATION, importAction, PhaseChecks::NONE);
+
+    // IndirectCallTransformPhase: expand calls that might introduce complex control flow
+    //
+    DoPhase(this, PHASE_INDXCALL, &Compiler::fgTransformIndirectCalls, PhaseChecks::NONE);
+
+    // PostImportPhase: cleanup inlinees
+    //
+    auto postImportAction = [this]() {
+
+        // If this is a viable inline candidate
+        if (compIsForInlining() && !compDonotInline())
+        {
+            // Filter out unimported BBs
             fgRemoveEmptyBlocks();
 
             // Update type of return spill temp if we have gathered
@@ -4485,8 +4545,13 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
                 }
             }
         }
+    };
 
-        EndPhase(PHASE_POST_IMPORT);
+    DoPhase(this, PHASE_POST_IMPORT, postImportAction, PhaseChecks::NONE);
+
+    // If we're importing for inlining, we're done.
+    if (compIsForInlining())
+    {
 
 #ifdef FEATURE_JIT_METHOD_PERF
         if (pCompJitTimer != nullptr)
@@ -4503,7 +4568,7 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
 
     assert(!compDonotInline());
 
-    // Maybe the caller was not interested in generating code
+    // If we're just importing, we're done.
     if (compIsForImportOnly())
     {
         compFunctionTraceEnd(nullptr, 0, false);
@@ -4518,14 +4583,13 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
 
     if (compileFlags->IsSet(JitFlags::JIT_FLAG_BBINSTR))
     {
-        fgInstrumentMethod();
+        DoPhase(this, PHASE_IBCINSTR, &Compiler::fgInstrumentMethod, PhaseChecks::NONE);
     }
 
     // We could allow ESP frames. Just need to reserve space for
     // pushing EBP if the method becomes an EBP-frame after an edit.
     // Note that requiring a EBP Frame disallows double alignment.  Thus if we change this
     // we either have to disallow double alignment for E&C some other way or handle it in EETwain.
-
     if (opts.compDbgEnC)
     {
         codeGen->setFramePointerRequired(true);
@@ -4542,113 +4606,87 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
         // compLocallocUsed            = true;
     }
 
-    EndPhase(PHASE_POST_IMPORT);
-
-    /* Initialize the BlockSet epoch */
-
+    // Initialize the BlockSet epoch
     NewBasicBlockEpoch();
 
-    /* Massage the trees so that we can generate code out of them */
+    // Morph: massage the trees so that we can generate code out of them
+    //
+    DoPhase(this, PHASE_MORPH, &Compiler::fgMorph, PhaseChecks::NONE);
 
-    fgMorph();
-    EndPhase(PHASE_MORPH_END);
-
-    /* GS security checks for unsafe buffers */
+    // GS security checks for unsafe buffers
+    //
     if (getNeedsGSSecurityCookie())
     {
-#ifdef DEBUG
-        if (verbose)
-        {
-            printf("\n*************** -GS checks for unsafe buffers \n");
-        }
-#endif
+        auto gsAction = [this]() {
+            gsGSChecksInitCookie();
 
-        gsGSChecksInitCookie();
+            if (compGSReorderStackLayout)
+            {
+                gsCopyShadowParams();
+            }
+        };
 
-        if (compGSReorderStackLayout)
-        {
-            gsCopyShadowParams();
-        }
-
-#ifdef DEBUG
-        if (verbose)
-        {
-            fgDispBasicBlocks(true);
-            printf("\n");
-        }
-#endif
+        DoPhase(this, PHASE_GS_COOKIE, gsAction, PhaseChecks::NONE);
     }
-    EndPhase(PHASE_GS_COOKIE);
 
-    /* Compute bbNum, bbRefs and bbPreds */
+    // Compute bbNum, bbRefs and bbPreds
+    //
+    auto computePredsAction = [this]() {
 
-    JITDUMP("\nRenumbering the basic blocks for fgComputePred\n");
-    fgRenumberBlocks();
+        JITDUMP("\nRenumbering the basic blocks for fgComputePred\n");
+        fgRenumberBlocks();
+        noway_assert(!fgComputePredsDone); // This is the first time full (not cheap) preds will be computed.
+        fgComputePreds();
+    };
 
-    noway_assert(!fgComputePredsDone); // This is the first time full (not cheap) preds will be computed.
-    fgComputePreds();
-    EndPhase(PHASE_COMPUTE_PREDS);
+    DoPhase(this, PHASE_COMPUTE_PREDS, computePredsAction);
 
-    /* If we need to emit GC Poll calls, mark the blocks that need them now.  This is conservative and can
-     * be optimized later. */
-    fgMarkGCPollBlocks();
-    EndPhase(PHASE_MARK_GC_POLL_BLOCKS);
+    // If we need to emit GC Poll calls, mark the blocks that need
+    // them now.  This is conservative and can be optimized later.
+    //
+    DoPhase(this, PHASE_MARK_GC_POLL_BLOCKS, &Compiler::fgMarkGCPollBlocks);
 
-    /* From this point on the flowgraph information such as bbNum,
-     * bbRefs or bbPreds has to be kept updated */
-
+    // From this point on the flowgraph information such as bbNum,
+    // bbRefs or bbPreds has to be kept updated
+    //
     // Compute the block and edge weights
-    fgComputeBlockAndEdgeWeights();
-    EndPhase(PHASE_COMPUTE_EDGE_WEIGHTS);
+    //
+    DoPhase(this, PHASE_COMPUTE_EDGE_WEIGHTS, &Compiler::fgComputeBlockAndEdgeWeights);
 
 #if defined(FEATURE_EH_FUNCLETS)
 
-    /* Create funclets from the EH handlers. */
-
-    fgCreateFunclets();
-    EndPhase(PHASE_CREATE_FUNCLETS);
+    // Create funclets from the EH handlers.
+    //
+    DoPhase(this, PHASE_CREATE_FUNCLETS, &Compiler::fgCreateFunclets);
 
 #endif // FEATURE_EH_FUNCLETS
 
     if (opts.OptimizationEnabled())
     {
-        optOptimizeLayout();
-        EndPhase(PHASE_OPTIMIZE_LAYOUT);
+        // Optimize flow graph block order
+        //
+        DoPhase(this, PHASE_OPTIMIZE_LAYOUT, &Compiler::optOptimizeLayout);
 
         // Compute reachability sets and dominators.
-        fgComputeReachability();
-        EndPhase(PHASE_COMPUTE_REACHABILITY);
+        //
+        DoPhase(this, PHASE_COMPUTE_REACHABILITY, &Compiler::fgComputeReachability);
+
+        // Loop bottom test transformation and loop block weights
+        //
+        DoPhase(this, PHASE_OPTIMIZE_LOOPS, &Compiler::optOptimizeLoops);
+
+        // Clone loops with optimization opportunities
+        //
+        DoPhase(this, PHASE_CLONE_LOOPS, &Compiler::optCloneLoops);
+
+        // Loop unolling
+        //
+        DoPhase(this, PHASE_UNROLL_LOOPS, &Compiler::optUnrollLoops);
     }
 
-    if (opts.OptimizationEnabled())
-    {
-        /*  Perform loop inversion (i.e. transform "while" loops into
-            "repeat" loops) and discover and classify natural loops
-            (e.g. mark iterative loops as such). Also marks loop blocks
-            and sets bbWeight to the loop nesting levels
-        */
-
-        optOptimizeLoops();
-        EndPhase(PHASE_OPTIMIZE_LOOPS);
-
-        // Clone loops with optimization opportunities, and
-        // choose the one based on dynamic condition evaluation.
-        optCloneLoops();
-        EndPhase(PHASE_CLONE_LOOPS);
-
-        /* Unroll loops */
-        optUnrollLoops();
-        EndPhase(PHASE_UNROLL_LOOPS);
-    }
-
-#ifdef DEBUG
-    fgDebugCheckLinks();
-#endif
-
-    /* Create the variable table (and compute variable ref counts) */
-
-    lvaMarkLocalVars();
-    EndPhase(PHASE_MARK_LOCAL_VARS);
+    // Create the variable table (and compute variable ref counts)
+    //
+    DoPhase(this, PHASE_MARK_LOCAL_VARS, &Compiler::lvaMarkLocalVars);
 
     // IMPORTANT, after this point, every place where trees are modified or cloned
     // the local variable reference counts must be updated
@@ -4659,39 +4697,26 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
 
     if (opts.OptimizationEnabled())
     {
-        /* Optimize boolean conditions */
-
-        optOptimizeBools();
-        EndPhase(PHASE_OPTIMIZE_BOOLS);
-
-        // optOptimizeBools() might have changed the number of blocks; the dominators/reachability might be bad.
+        // Optimize boolean conditions
+        //
+        DoPhase(this, PHASE_OPTIMIZE_BOOLS, &Compiler::optOptimizeBools);
     }
 
-    /* Figure out the order in which operators are to be evaluated */
-    fgFindOperOrder();
-    EndPhase(PHASE_FIND_OPER_ORDER);
+    // Figure out the order in which operators are to be evaluated
+    //
+    DoPhase(this, PHASE_FIND_OPER_ORDER, &Compiler::fgFindOperOrder);
 
     // Weave the tree lists. Anyone who modifies the tree shapes after
     // this point is responsible for calling fgSetStmtSeq() to keep the
     // nodes properly linked.
-    // This can create GC poll calls, and create new BasicBlocks (without updating dominators/reachability).
-    fgSetBlockOrder();
-    EndPhase(PHASE_SET_BLOCK_ORDER);
+    //
+    // This can create GC poll calls, and create new BasicBlocks
+    // (without updating dominators/reachability).
+    //
+    DoPhase(this, PHASE_SET_BLOCK_ORDER, &Compiler::fgSetBlockOrder);
 
     // IMPORTANT, after this point, every place where tree topology changes must redo evaluation
     // order (gtSetStmtInfo) and relink nodes (fgSetStmtSeq) if required.
-    CLANG_FORMAT_COMMENT_ANCHOR;
-
-#ifdef DEBUG
-    // Now  we have determined the order of evaluation and the gtCosts for every node.
-    // If verbose, dump the full set of trees here before the optimization phases mutate them
-    //
-    if (verbose)
-    {
-        fgDispBasicBlocks(true); // 'true' will call fgDumpTrees() after dumping the BasicBlocks
-        printf("\n");
-    }
-#endif
 
     // At this point we know if we are fully interruptible or not
     if (opts.OptimizationEnabled())
@@ -4724,68 +4749,55 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
         {
             if (doSsa)
             {
-                fgSsaBuild();
-                EndPhase(PHASE_BUILD_SSA);
+                DoPhase(this, PHASE_BUILD_SSA, &Compiler::fgSsaBuild);
             }
 
             if (doEarlyProp)
             {
-                /* Propagate array length and rewrite getType() method call */
-                optEarlyProp();
-                EndPhase(PHASE_EARLY_PROP);
+                DoPhase(this, PHASE_EARLY_PROP, &Compiler::optEarlyProp);
             }
 
             if (doValueNum)
             {
-                fgValueNumber();
-                EndPhase(PHASE_VALUE_NUMBER);
+                DoPhase(this, PHASE_VALUE_NUMBER, &Compiler::fgValueNumber);
             }
 
             if (doLoopHoisting)
             {
-                /* Hoist invariant code out of loops */
-                optHoistLoopCode();
-                EndPhase(PHASE_HOIST_LOOP_CODE);
+                DoPhase(this, PHASE_HOIST_LOOP_CODE, &Compiler::optHoistLoopCode);
             }
 
             if (doCopyProp)
             {
-                /* Perform VN based copy propagation */
-                optVnCopyProp();
-                EndPhase(PHASE_VN_COPY_PROP);
+                DoPhase(this, PHASE_VN_COPY_PROP, &Compiler::optVnCopyProp);
             }
 
 #if FEATURE_ANYCSE
             /* Remove common sub-expressions */
-            optOptimizeCSEs();
+            DoPhase(this, PHASE_OPTIMIZE_VALNUM_CSES, &Compiler::optOptimizeCSEs);
 #endif // FEATURE_ANYCSE
 
 #if ASSERTION_PROP
             if (doAssertionProp)
             {
-                /* Assertion propagation */
-                optAssertionPropMain();
-                EndPhase(PHASE_ASSERTION_PROP_MAIN);
+                DoPhase(this, PHASE_ASSERTION_PROP_MAIN, &Compiler::optAssertionPropMain);
             }
 
             if (doRangeAnalysis)
             {
-                /* Optimize array index range checks */
-                RangeCheck rc(this);
-                rc.OptimizeRangeChecks();
-                EndPhase(PHASE_OPTIMIZE_INDEX_CHECKS);
+                auto rangeAction = [this]() {
+                    RangeCheck rc(this);
+                    rc.OptimizeRangeChecks();
+                };
+                DoPhase(this, PHASE_OPTIMIZE_INDEX_CHECKS, rangeAction);
             }
 #endif // ASSERTION_PROP
 
-            /* update the flowgraph if we modified it during the optimization phase*/
+            // update the flowgraph if we modified it during the optimization phases
             if (fgModified)
             {
-                fgUpdateFlowGraph();
-                EndPhase(PHASE_UPDATE_FLOW_GRAPH);
-
-                // Recompute the edge weight if we have modified the flow graph
-                fgComputeEdgeWeights();
-                EndPhase(PHASE_COMPUTE_EDGE_WEIGHTS2);
+                DoPhase(this, PHASE_UPDATE_FLOW_GRAPH, [this]() { fgUpdateFlowGraph(); });
+                DoPhase(this, PHASE_COMPUTE_EDGE_WEIGHTS2, &Compiler::fgComputeEdgeWeights);
             }
 
             // Iterate if requested, resetting annotations first.
@@ -4803,8 +4815,7 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
     compQuirkForPPPflag = compQuirkForPPP();
 #endif
 
-    fgDetermineFirstColdBlock();
-    EndPhase(PHASE_DETERMINE_FIRST_COLD_BLOCK);
+    DoPhase(this, PHASE_DETERMINE_FIRST_COLD_BLOCK, &Compiler::fgDetermineFirstColdBlock);
 
 #ifdef DEBUG
     fgDebugCheckLinks(compStressCompile(STRESS_REMORPH_TREES, 50));
@@ -4833,17 +4844,10 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
     // platforms, this will be part of the more general lowering phase.  For now, though, we do a separate
     // pass of "final lowering."  We must do this before (final) liveness analysis, because this creates
     // range check throw blocks, in which the liveness must be correct.
-    fgSimpleLowering();
-    EndPhase(PHASE_SIMPLE_LOWERING);
+    //
+    DoPhase(this, PHASE_SIMPLE_LOWERING, &Compiler::fgSimpleLowering);
 
-#ifdef DEBUG
-    fgDebugCheckBBlist();
-    fgDebugCheckLinks();
-#endif
-
-    /* Enable this to gather statistical data such as
-     * call and register argument info, flowgraph and loop info, etc. */
-
+    // Enable this to gather statistical data
     compJitStats();
 
 #ifdef _TARGET_ARM_
@@ -4875,8 +4879,8 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
     lvaTrackedFixed = true; // We can not add any new tracked variables after this point.
 
     /* Now that lowering is completed we can proceed to perform register allocation */
-    m_pLinearScan->doLinearScan();
-    EndPhase(PHASE_LINEAR_SCAN);
+    auto linearScanAction = [this]() { m_pLinearScan->doLinearScan(); };
+    DoPhase(this, PHASE_LINEAR_SCAN, linearScanAction);
 
     // Copied from rpPredictRegUse()
     SetFullPtrRegMapRequired(codeGen->GetInterruptible() || !codeGen->isFramePointerUsed());
@@ -4885,8 +4889,8 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
     fgDebugCheckLinks();
 #endif
 
-    /* Generate code */
-
+    // Generate code
+    //
     codeGen->genGenerateCode(methodCodePtr, methodCodeSize);
 
 #ifdef FEATURE_JIT_METHOD_PERF

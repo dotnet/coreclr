@@ -2894,22 +2894,12 @@ bool Compiler::optConfigDisableCSE2()
 
 void Compiler::optOptimizeCSEs()
 {
-#ifdef DEBUG
-    if (verbose)
-    {
-        printf("\n*************** In optOptimizeCSEs()\n");
-        printf("Blocks/Trees at start of optOptimizeCSE phase\n");
-        fgDispBasicBlocks(true);
-    }
-#endif // DEBUG
-
     optCSECandidateCount = 0;
     optCSEstart          = lvaCount;
 
 #if FEATURE_VALNUM_CSE
     INDEBUG(optEnsureClearCSEInfo());
     optOptimizeValnumCSEs();
-    EndPhase(PHASE_OPTIMIZE_VALNUM_CSES);
 #endif // FEATURE_VALNUM_CSE
 }
 

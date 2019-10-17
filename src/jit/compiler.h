@@ -8958,7 +8958,7 @@ public:
 
 #endif // !_TARGET_X86_
 
-    Phases previousCompletedPhase; // the most recently completed phase
+    Phases mostRecentlyActivePhase; // the most recently active phase
 
     //-------------------------------------------------------------------------
     //  The following keeps track of how many bytes of local frame space we've
@@ -9471,7 +9471,8 @@ private:
     static LPCWSTR JitTimeLogCsv();        // Retrieve the file name for CSV from ConfigDWORD.
     static LPCWSTR compJitTimeLogFilename; // If a log file for JIT time is desired, filename to write it to.
 #endif
-    inline void EndPhase(Phases phase); // Indicate the end of the given phase.
+    void BeginPhase(Phases phase); // Indicate the beginning of the given phase.
+    void EndPhase(Phases phase);   // Indicate the end of the given phase.
 
 #if MEASURE_CLRAPI_CALLS
     // Thin wrappers that call into JitTimer (if present).

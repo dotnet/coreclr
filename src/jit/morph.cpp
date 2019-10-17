@@ -16556,49 +16556,12 @@ void Compiler::fgPostExpandQmarkChecks()
 
 void Compiler::fgMorph()
 {
-    noway_assert(!compIsForInlining()); // Inlinee's compiler should never reach here.
+    // Inlinee's compiler should never reach here.
+    noway_assert(!compIsForInlining());
 
+    // Do various morph-specific initializations
+    //
     fgOutgoingArgTemps = nullptr;
-
-#ifdef DEBUG
-    if (verbose)
-    {
-        printf("*************** In fgMorph()\n");
-    }
-    if (verboseTrees)
-    {
-        fgDispBasicBlocks(true);
-    }
-#endif // DEBUG
-
-    // Insert call to class constructor as the first basic block if
-    // we were asked to do so.
-    if (info.compCompHnd->initClass(nullptr /* field */, info.compMethodHnd /* method */,
-                                    impTokenLookupContextHandle /* context */) &
-        CORINFO_INITCLASS_USE_HELPER)
-    {
-        fgEnsureFirstBBisScratch();
-        fgNewStmtAtBeg(fgFirstBB, fgInitThisClass());
-    }
-
-#ifdef DEBUG
-    if (opts.compGcChecks)
-    {
-        for (unsigned i = 0; i < info.compArgsCount; i++)
-        {
-            if (lvaTable[i].TypeGet() == TYP_REF)
-            {
-                // confirm that the argument is a GC pointer (for debugging (GC stress))
-                GenTree*          op   = gtNewLclvNode(i, TYP_REF);
-                GenTreeCall::Use* args = gtNewCallArgs(op);
-                op                     = gtNewHelperCallNode(CORINFO_HELP_CHECK_OBJ, TYP_VOID, args);
-
-                fgEnsureFirstBBisScratch();
-                fgNewStmtAtEnd(fgFirstBB, op);
-            }
-        }
-    }
-#endif // DEBUG
 
 #if defined(DEBUG) && defined(_TARGET_XARCH_)
     if (opts.compStackCheckOnRet)
@@ -16616,30 +16579,56 @@ void Compiler::fgMorph()
     }
 #endif // defined(DEBUG) && defined(_TARGET_X86_)
 
-    /* Filter out unimported BBs */
+    // Pre-morph setup
+    //
+    auto preMorphActions = [this]() {
 
-    fgRemoveEmptyBlocks();
+        // Insert call to class constructor as the first basic block if
+        // we were asked to do so.
+        if (info.compCompHnd->initClass(nullptr /* field */, info.compMethodHnd /* method */,
+                                        impTokenLookupContextHandle /* context */) &
+            CORINFO_INITCLASS_USE_HELPER)
+        {
+            fgEnsureFirstBBisScratch();
+            fgNewStmtAtBeg(fgFirstBB, fgInitThisClass());
+        }
 
 #ifdef DEBUG
-    /* Inliner could add basic blocks. Check that the flowgraph data is up-to-date */
-    fgDebugCheckBBlist(false, false);
+        if (opts.compGcChecks)
+        {
+            for (unsigned i = 0; i < info.compArgsCount; i++)
+            {
+                if (lvaTable[i].TypeGet() == TYP_REF)
+                {
+                    // confirm that the argument is a GC pointer (for debugging (GC stress))
+                    GenTree*          op   = gtNewLclvNode(i, TYP_REF);
+                    GenTreeCall::Use* args = gtNewCallArgs(op);
+                    op                     = gtNewHelperCallNode(CORINFO_HELP_CHECK_OBJ, TYP_VOID, args);
+
+                    fgEnsureFirstBBisScratch();
+                    fgNewStmtAtEnd(fgFirstBB, op);
+                }
+            }
+        }
 #endif // DEBUG
 
-    EndPhase(PHASE_MORPH_INIT);
+        // Filter out unimported BBs
+        fgRemoveEmptyBlocks();
+    };
 
-    /* Inline */
-    fgInline();
-#if 0
-    JITDUMP("trees after inlining\n");
-    DBEXEC(VERBOSE, fgDispBasicBlocks(true));
-#endif
+    DoPhase(this, PHASE_MORPH_INIT, preMorphActions, PhaseChecks::NONE);
+
+    // Inline
+    //
+    DoPhase(this, PHASE_MORPH_INLINE, &Compiler::fgInline, PhaseChecks::NONE);
 
     RecordStateAtEndOfInlining(); // Record "start" values for post-inlining cycles and elapsed time.
 
-    EndPhase(PHASE_MORPH_INLINE);
-
+    // Determine where objects are allocated
+    //
     // Transform each GT_ALLOCOBJ node into either an allocation helper call or
     // local variable allocation on the stack.
+    //
     ObjectAllocator objectAllocator(this); // PHASE_ALLOCATE_OBJECTS
 
     if (JitConfig.JitObjectStackAllocation() && opts.OptimizationEnabled())
@@ -16649,73 +16638,64 @@ void Compiler::fgMorph()
 
     objectAllocator.Run();
 
-    /* Add any internal blocks/trees we may need */
+    // Add any internal blocks/trees we may need
+    //
+    DoPhase(this, PHASE_MORPH_ADDFG, &Compiler::fgAddInternal, PhaseChecks::NONE);
 
-    fgAddInternal();
+    // Remove empty try regions
+    //
+    DoPhase(this, PHASE_EMPTY_TRY, &Compiler::fgRemoveEmptyTry, PhaseChecks::NONE);
 
-#ifdef DEBUG
-    /* Inliner could add basic blocks. Check that the flowgraph data is up-to-date */
-    fgDebugCheckBBlist(false, false);
-    /* Inliner could clone some trees. */
-    fgDebugCheckNodesUniqueness();
-#endif // DEBUG
+    // Remove empty finally regions
+    //
+    DoPhase(this, PHASE_EMPTY_FINALLY, &Compiler::fgRemoveEmptyFinally, PhaseChecks::NONE);
 
-    fgRemoveEmptyTry();
+    // Streamline chains of finally invocations
+    //
+    DoPhase(this, PHASE_MERGE_FINALLY_CHAINS, &Compiler::fgMergeFinallyChains, PhaseChecks::NONE);
 
-    EndPhase(PHASE_EMPTY_TRY);
+    // Clone code in finallys to reduce overhead for non-exceptional paths
+    //
+    DoPhase(this, PHASE_CLONE_FINALLY, &Compiler::fgCloneFinally, PhaseChecks::NONE);
 
-    fgRemoveEmptyFinally();
-
-    EndPhase(PHASE_EMPTY_FINALLY);
-
-    fgMergeFinallyChains();
-
-    EndPhase(PHASE_MERGE_FINALLY_CHAINS);
-
-    fgCloneFinally();
-
-    EndPhase(PHASE_CLONE_FINALLY);
-
+    // Ensure blocks targeted by finallys are properly marked
+    //
     fgUpdateFinallyTargetFlags();
 
-    /* For x64 and ARM64 we need to mark irregular parameters */
+    // For x64 and ARM64 we need to mark irregular parameters
     lvaRefCountState = RCS_EARLY;
     fgResetImplicitByRefRefCount();
 
-    /* Promote struct locals if necessary */
-    fgPromoteStructs();
+    // Promote struct locals
+    //
+    DoPhase(this, PHASE_PROMOTE_STRUCTS, &Compiler::fgPromoteStructs, PhaseChecks::NONE);
 
-    /* Now it is the time to figure out what locals have address-taken. */
-    fgMarkAddressExposedLocals();
+    // Figure out what locals are address-taken.
+    //
+    DoPhase(this, PHASE_STR_ADRLCL, &Compiler::fgMarkAddressExposedLocals, PhaseChecks::NONE);
 
-    EndPhase(PHASE_STR_ADRLCL);
-
-    /* Apply the type update to implicit byref parameters; also choose (based on address-exposed
-       analysis) which implicit byref promotions to keep (requires copy to initialize) or discard. */
-    fgRetypeImplicitByRefArgs();
+    // Apply the type update to implicit byref parameters; also choose (based on address-exposed
+    // analysis) which implicit byref promotions to keep (requires copy to initialize) or discard.
+    //
+    DoPhase(this, PHASE_MORPH_IMPBYREF, &Compiler::fgRetypeImplicitByRefArgs, PhaseChecks::NONE);
 
 #ifdef DEBUG
-    /* Now that locals have address-taken and implicit byref marked, we can safely apply stress. */
+    // Now that locals have address-taken and implicit byref marked, we can safely apply stress.
     lvaStressLclFld();
     fgStress64RsltMul();
 #endif // DEBUG
 
-    EndPhase(PHASE_MORPH_IMPBYREF);
+    // Morph the trees in all the blocks of the method
+    //
+    auto morphBlocks = [this]() {
+        fgMorphBlocks();
 
-    /* Morph the trees in all the blocks of the method */
+        // Fix any LclVar annotations on discarded struct promotion temps for implicit by-ref args
+        fgMarkDemotedImplicitByRefArgs();
+        lvaRefCountState = RCS_INVALID;
+    };
 
-    fgMorphBlocks();
-
-    /* Fix any LclVar annotations on discarded struct promotion temps for implicit by-ref args */
-    fgMarkDemotedImplicitByRefArgs();
-    lvaRefCountState = RCS_INVALID;
-
-    EndPhase(PHASE_MORPH_GLOBAL);
-
-#if 0
-    JITDUMP("trees after fgMorphBlocks\n");
-    DBEXEC(VERBOSE, fgDispBasicBlocks(true));
-#endif
+    DoPhase(this, PHASE_MORPH_GLOBAL, morphBlocks, PhaseChecks::NONE);
 
 #if defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
     if (fgNeedToAddFinallyTargetBits)
@@ -16726,8 +16706,7 @@ void Compiler::fgMorph()
     }
 #endif // defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
 
-    /* Decide the kind of code we want to generate */
-
+    // Decide the kind of code we want to generate
     fgSetOptions();
 
     fgExpandQmarkNodes();
