@@ -1633,7 +1633,7 @@ GenTree* Compiler::impNormStructVal(GenTree*             structVal,
 
         case GT_INDEX:
             // This will be transformed to an OBJ later.
-            alreadyNormalized                    = true;
+            alreadyNormalized                       = true;
             structVal->AsIndex()->gtStructElemClass = structHnd;
             structVal->AsIndex()->gtIndElemSize     = info.compCompHnd->getClassSize(structHnd);
             break;
@@ -11712,9 +11712,9 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                         assert(lclTyp != TYP_STRUCT || op1->AsIndex()->gtStructElemClass != nullptr);
                         if (lclTyp == TYP_STRUCT)
                         {
-                            size                       = info.compCompHnd->getClassSize(ldelemClsHnd);
+                            size                          = info.compCompHnd->getClassSize(ldelemClsHnd);
                             op1->AsIndex()->gtIndElemSize = size;
-                            op1->gtType                = lclTyp;
+                            op1->gtType                   = lclTyp;
                         }
                     }
 
