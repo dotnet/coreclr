@@ -1,6 +1,6 @@
 # Get the version of the compiler that is in the file name for tool location.
 set (CLR_CMAKE_COMPILER_FILE_NAME_VERSION "")
-if (CMAKE_C_COMIPLER MATCHES "-?[0-9]+\.?[0-9]+$")
+if (CMAKE_C_COMPILER MATCHES "-?[0-9]+\.?[0-9]+$")
   set(CLR_CMAKE_COMPILER_FILE_NAME_VERSION "${CMAKE_MATCH_0}")
 endif()
 
@@ -14,7 +14,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     find_program(EXEC_LOCATION
      NAMES
      "${LLVM_PREFIX}${exec}${CLR_CMAKE_COMPILER_FILE_NAME_VERSION}"
-     "${LLVM_PREFIX}${exec}$")
+     "${LLVM_PREFIX}${exec}")
     if (EXEC_LOCATION STREQUAL "EXEC_LOCATION-NOTFOUND")
       message(FATAL_ERROR "Unable to find llvm tool for: ${exec}.")
     endif()
