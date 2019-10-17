@@ -8339,7 +8339,7 @@ public:
             return compMinOptsIsSet;
         }
 #else  // !DEBUG
-        bool MinOpts()
+        bool MinOpts() const
         {
             return compMinOpts;
         }
