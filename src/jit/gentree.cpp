@@ -4484,7 +4484,11 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
         {
             costEx = 0;
             costSz = 0;
-            level  = 0;
+
+            level  = gtSetEvalOrder(tree->gtDynBlk.Addr());
+            costEx = tree->gtDynBlk.Addr()->GetCostEx();
+            costSz = tree->gtDynBlk.Addr()->GetCostSz();
+
             if (oper == GT_STORE_DYN_BLK)
             {
                 lvl2  = gtSetEvalOrder(tree->gtDynBlk.Data());
@@ -4492,10 +4496,7 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                 costEx += tree->gtDynBlk.Data()->GetCostEx();
                 costSz += tree->gtDynBlk.Data()->GetCostSz();
             }
-            lvl2               = gtSetEvalOrder(tree->gtDynBlk.Addr());
-            level              = max(level, lvl2);
-            costEx             = tree->gtDynBlk.Addr()->GetCostEx();
-            costSz             = tree->gtDynBlk.Addr()->GetCostSz();
+
             unsigned sizeLevel = gtSetEvalOrder(tree->gtDynBlk.gtDynamicSize);
 
             // Determine whether the size node should be evaluated first.
