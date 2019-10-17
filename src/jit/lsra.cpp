@@ -2795,7 +2795,7 @@ regNumber LinearScan::tryAllocateFreeReg(Interval* currentInterval, RefPosition*
 
     bool preferCalleeSave = currentInterval->preferCalleeSave;
 
-    bool avoidByteRegs    = false;
+    bool avoidByteRegs = false;
 #ifdef _TARGET_X86_
     if ((relatedPreferences & ~RBM_BYTE_REGS) != RBM_NONE)
     {
@@ -2894,7 +2894,7 @@ regNumber LinearScan::tryAllocateFreeReg(Interval* currentInterval, RefPosition*
         {
             // We'll only prefer a callee-save register if it's already been used.
             regMaskTP unusedCalleeSaves = calleeSaveCandidates & ~(compiler->codeGen->regSet.rsGetModifiedRegsMask());
-            callerCalleePrefs &= ~unusedCalleeSaves;
+            callerCalleePrefs = calleeSaveCandidates & ~unusedCalleeSaves;
             preferences &= ~unusedCalleeSaves;
         }
         else
