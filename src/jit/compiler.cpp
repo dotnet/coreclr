@@ -4662,6 +4662,11 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
         /* Optimize boolean conditions */
 
         optOptimizeBools();
+
+        if (info.compRetType == TYP_BOOL)
+        {
+            optMergeBoolReturns();
+        }
         EndPhase(PHASE_OPTIMIZE_BOOLS);
 
         // optOptimizeBools() might have changed the number of blocks; the dominators/reachability might be bad.

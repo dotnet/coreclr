@@ -8794,6 +8794,140 @@ GenTree* Compiler::optIsBoolCond(GenTree* condBranch, GenTree** compPtr, bool* b
     return opr1;
 }
 
+//-------------------------------------------------------------------------
+//  isBlockReturnBoolConst: is basic block just for `return true/false`
+//
+//  Arguments:
+//      block      The Basic Block to check
+//      value      The Boolean value it returns, e.g. true for `return true`
+//
+//  Return Value:
+//      Returns true if the basic block only consists of a single statement with a single
+//      GT_RETURN CNS_INT 0/1 operation
+//
+bool Compiler::isReturnBoolConst(BasicBlock* block, bool& value)
+{
+    if ((block == nullptr) || (block->bbJumpKind != BBJ_RETURN) || (block->firstStmt() == nullptr))
+    {
+        return false;
+    }
+    GenTree* returnOp = block->firstStmt()->GetRootNode();
+    if (block->firstStmt()->GetNextStmt() == nullptr && returnOp->OperIs(GT_RETURN))
+    {
+        if (returnOp->gtGetOp1()->IsIntegralConst(0))
+        {
+            value = false;
+            return true;
+        }
+        else if (returnOp->gtGetOp1()->IsIntegralConst(1))
+        {
+            value = true;
+            return true;
+        }
+        // Can be just (?)
+        // value = (INT8)(returnOp->gtGetOp1()->AsIntCon()->IconValue) > 0;
+    }
+    return false;
+}
+
+//-------------------------------------------------------------------------
+//  optMergeBoolReturns: find all BBJ_COND basic block with `return true/false` tails.
+//  e.g.
+//
+//  if (expr)             // BBJ_COND with GT_JTRUE node
+//      goto ReturnTrue;  // block->bbJumpDest
+//  goto ReturnTrue;      // block->bbNext
+//
+//  ReturnTrue:           // BBJ_RETURN with GT_RETURN CNS_INT 1
+//      return true;
+//  ReturnFalse:          // BBJ_RETURN with GT_RETURN CNS_INT 0
+//      return true;
+//
+// And transform it into just `return expr` (or `return !expr` if block->bbJumpDest is return false)
+//
+void Compiler::optMergeBoolReturns()
+{
+#ifdef DEBUG
+    if (verbose)
+    {
+        printf("*************** In optMergeBoolReturns()\n");
+        if (verboseTrees)
+        {
+            printf("Blocks/Trees before phase\n");
+            fgDispBasicBlocks(true);
+        }
+    }
+#endif
+    assert(info.compRetType == TYP_BOOL);
+    for (BasicBlock* block = fgFirstBB; block; block = block->bbNext)
+    {
+        if ((block->bbJumpKind != BBJ_COND) || (block->firstStmt() == nullptr))
+        {
+            continue;
+        }
+
+        GenTree* returnOp = block->firstStmt()->GetRootNode();
+        if (returnOp->OperIs(GT_JTRUE))
+        {
+            bool nextBbReturnValue;
+            bool jumpBbReturnValue;
+
+            // are bbNext and bbJumpDest `return true/false`?
+            if (!isReturnBoolConst(block->bbNext, nextBbReturnValue) ||
+                !isReturnBoolConst(block->bbJumpDest, jumpBbReturnValue))
+            {
+                continue;
+            }
+
+            assert(block->bbNext != block->bbJumpDest);
+
+            if (nextBbReturnValue == jumpBbReturnValue)
+            {
+                // both branches are the same, e.g.:
+                // if (expr)
+                //     return true;
+                // else
+                //     return true;
+                continue;
+            }
+
+            if ((block->bbNext->countOfInEdges() != 1) ||
+                (!nextBbReturnValue && block->bbJumpDest->countOfInEdges() != 1))
+            {
+                // both blocks are used by someone else so it will increase binary size
+                // e.g. `jmp` vs `sete+movzx+ret`. However it probably improves performance so it's a trade-off
+                continue;
+            }
+
+            if (!(returnOp->gtGetOp1()->OperIsCompare()) ||
+                varTypeIsFloating(returnOp->gtGetOp1()->TypeGet()))
+            {
+                continue;
+            }
+
+            if (!jumpBbReturnValue)
+            {
+                returnOp->gtGetOp1()->ChangeOper(GenTree::ReverseRelop(returnOp->gtGetOp1()->OperGet()),
+                                                 GenTree::PRESERVE_VN);
+            }
+
+            // remove self from the lists of predecessors for block->bbJumpDest and block->bbNext
+            // these blocks are now probably unreachable and will be deleted
+            fgRemoveRefPred(block->bbJumpDest, block);
+            fgRemoveRefPred(block->bbNext, block);
+
+            returnOp->gtGetOp1()->gtFlags &= ~(GTF_RELOP_JMP_USED);
+            returnOp->ChangeOperUnchecked(GT_RETURN); // was: GT_JTRUE
+            returnOp->ChangeType(TYP_INT);            // was: TYP_VOID
+            block->bbJumpKind = BBJ_RETURN;           // was: BBJ_COND
+            block->bbJumpDest = nullptr;
+        }
+    }
+#ifdef DEBUG
+    fgDebugCheckBBlist();
+#endif
+}
+
 void Compiler::optOptimizeBools()
 {
 #ifdef DEBUG

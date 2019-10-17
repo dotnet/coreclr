@@ -4391,6 +4391,7 @@ public:
 
     void fgMorphStmts(BasicBlock* block, bool* lnot, bool* loadw);
     void fgMorphBlocks();
+    void fgExpandBoolReturns();
 
     bool fgMorphBlockStmt(BasicBlock* block, Statement* stmt DEBUGARG(const char* msg));
 
@@ -5738,6 +5739,10 @@ private:
 
 public:
     void optOptimizeBools();
+
+    bool isReturnBoolConst(BasicBlock* block, bool& value);
+
+    void optMergeBoolReturns();
 
 private:
     GenTree* optIsBoolCond(GenTree* condBranch, GenTree** compPtr, bool* boolPtr);

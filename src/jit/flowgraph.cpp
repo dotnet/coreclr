@@ -8890,6 +8890,86 @@ private:
 };
 }
 
+//-------------------------------------------------------------------------
+//  fgExpandBoolReturns: find all Bool BBJ_RETURN basic blocks and expand
+//  them into BBJ_COND if it's possible to re-use existing `return true/false`
+//  blocks. E.g.:
+//
+//  ReturnFalse:       // used by someone else
+//      return false;
+//  return x == 0;
+//
+//  to:
+//
+//  ReturnFalse:
+//      return false;
+//  if (x != 0)
+//      goto ReturnFalse;
+//  return true;
+//
+void Compiler::fgExpandBoolReturns()
+{
+    // Now look for BBJ_RETURN with a comparison, e.g. `return x == 0`
+    for (BasicBlock* block = fgFirstBB; block; block = block->bbNext)
+    {
+        if ((block->bbJumpKind != BBJ_RETURN) || (block->firstStmt() == nullptr) || (block->bbFlags & BBF_HAS_JMP) != 0)
+        {
+            continue;
+        }
+
+        GenTree* returnOp = block->firstStmt()->GetRootNode();
+        if (block->firstStmt()->GetNextStmt() == nullptr && returnOp->OperIs(GT_RETURN) &&
+            (returnOp->gtFlags & GTF_RET_MERGED) == 0)
+        {
+            GenTree* returnExpOp = returnOp->gtGetOp1();
+            if (!(returnExpOp->OperIsCompare()) || varTypeIsFloating(returnExpOp->gtGetOp1()->TypeGet()))
+            {
+                continue;
+            }
+
+            bool bbPrevJumpCnsValue = false;
+
+            // Expand only if previous block is also a BBJ_COND and jumps to a bool const.
+            if (block->bbPrev == nullptr || block->bbPrev->bbJumpKind != BBJ_COND ||
+                !isReturnBoolConst(block->bbPrev->bbJumpDest, bbPrevJumpCnsValue) ||
+                !BasicBlock::sameEHRegion(block, block->bbPrev))
+            {
+                continue;
+            }
+
+            bool bbNextCnsValue = false;
+            const bool bbNextIsCns = isReturnBoolConst(block->bbNext, bbNextCnsValue);
+            
+            if (!bbPrevJumpCnsValue)
+            {
+                // Inverse op so we can target the existing 'return false'
+                // only if `return false` is not block->bbNext (in this case we don't have to reverse)
+                returnExpOp->ChangeOper(GenTree::ReverseRelop(returnExpOp->OperGet()), GenTree::PRESERVE_VN);
+            }
+
+            // Change BBJ_RETURN to BBJ_COND and jump to the existing retTrueBb or retFalseBb
+            block->bbJumpKind = BBJ_COND;
+            block->bbJumpDest = block->bbPrev->bbJumpDest;
+            returnOp->ChangeOperUnchecked(GT_JTRUE);
+            returnOp->ChangeType(TYP_VOID);
+            returnExpOp->gtFlags |= GTF_RELOP_JMP_USED;
+
+            // Create a basic block with just `return true(false);` after the current block
+            // but first, check if there is already one there
+            if (!bbNextIsCns || bbNextCnsValue == bbPrevJumpCnsValue)
+            {
+                BasicBlock* retBoolBlk = fgNewBBafter(BBJ_RETURN, block, true);
+                retBoolBlk->bbFlags |= BBF_JMP_TARGET | BBF_INTERNAL;
+                retBoolBlk->setBBWeight(block->bbWeight);
+                GenTreeIntCon* boolCns = gtNewIconNode(bbPrevJumpCnsValue ? 0 : 1);
+                fgInsertStmtAtEnd(retBoolBlk,
+                                  gtNewStmt(gtNewOperNode(GT_RETURN, genActualType(info.compRetType), boolCns)));
+            }
+            fgAddRefPred(block->bbPrev->bbJumpDest, block);
+        }
+    }
+}
+
 /*****************************************************************************
 *
 *  Add any internal blocks/trees we may need
@@ -8905,6 +8985,11 @@ void Compiler::fgAddInternal()
     {
         fgEnsureFirstBBisScratch();
         fgFirstBB->bbFlags |= BBF_DONT_REMOVE;
+    }
+
+    if (info.compRetType == TYP_BOOL)
+    {
+        fgExpandBoolReturns();
     }
 
     /*
