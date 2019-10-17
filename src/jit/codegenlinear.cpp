@@ -2313,7 +2313,8 @@ void CodeGen::genCodeForJumpTrue(GenTreeOp* jtrue)
     }
 
 #if defined(_TARGET_XARCH_)
-    if ((condition.GetCode() == GenCondition::FNEU) && GenTree::Compare(relop->gtGetOp1(), relop->gtGetOp2(), true))
+    if ((condition.GetCode() == GenCondition::FNEU) &&
+        (relop->gtGetOp1()->GetRegNum() == relop->gtGetOp2()->GetRegNum()))
     {
         // For floating point, `x != x` is a common way of
         // checking for NaN. So, in the case where both
