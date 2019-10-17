@@ -6942,8 +6942,8 @@ GenTree* Compiler::gtClone(GenTree* tree, bool complexOK)
             // Remember that the LclVar node has been cloned. The flag will be set
             // on 'copy' as well.
             tree->gtFlags |= GTF_VAR_CLONED;
-            copy =
-                gtNewLclvNode(tree->AsLclVarCommon()->GetLclNum(), tree->gtType DEBUGARG(tree->AsLclVar()->gtLclILoffs));
+            copy = gtNewLclvNode(tree->AsLclVarCommon()->GetLclNum(),
+                                 tree->gtType DEBUGARG(tree->AsLclVar()->gtLclILoffs));
             break;
 
         case GT_LCL_FLD:
