@@ -5127,7 +5127,7 @@ bool DebuggerStepper::IsRangeAppropriate(ControllerStackInfo *info)
 
     bool fValidParentMethodFP = (m_fpParentMethod != LEAF_MOST_FRAME);
 
-    // All scenaris have the same condition
+    // All scenarios have the same condition
     if (fValidParentMethodFP && (m_fpParentMethod == info->GetReturnFrame(true).fp))
     {
         LOG((LF_CORDB,LL_INFO10000, "DS::IRA: (parent SP) returning TRUE\n"));
