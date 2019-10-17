@@ -79,6 +79,14 @@ inline regMaskTP calleeSaveRegs(RegisterType rt)
 }
 
 //------------------------------------------------------------------------
+// registerTypesEquivalent: Get the set of callee-save registers of the given RegisterType
+//
+inline regMaskTP callerSaveRegs(RegisterType rt)
+{
+    return varTypeIsIntegralOrI(rt) ? RBM_INT_CALLEE_TRASH : RBM_FLT_CALLEE_TRASH;
+}
+
+//------------------------------------------------------------------------
 // RefInfo: Captures the necessary information for a definition that is "in-flight"
 //          during `buildIntervals` (i.e. a tree-node definition has been encountered,
 //          but not its use). This includes the RefPosition and its associated

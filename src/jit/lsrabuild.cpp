@@ -2400,15 +2400,17 @@ void LinearScan::buildIntervals()
                     // so we won't break even until we have at least 4 * BB_UNITY_WEIGHT.
                     // Given that we also don't have a good way to tell whether the variable is live
                     // across a call in the non-EH code, we'll be extra conservative about this.
-                    // Note that for writeThru intervals we haven't updated the callee-saves preferences.
-                    // We'll do so only if we keep the preferCalleeSave.
+                    // Note that for writeThru intervals we don't update the preferences to be only callee-save.
                     if (weight <= (BB_UNITY_WEIGHT * 7))
                     {
+                        // If this is relatively low weight, don't prefer callee-save at all.
                         interval->preferCalleeSave = false;
                     }
                     else
                     {
-                        interval->updateRegisterPreferences(RBM_CALLEE_SAVED);
+                        // In other cases, we'll add in the callee-save regs to the preferences, but not clear
+                        // the non-callee-save regs . We also handle this case specially in tryAllocateFreeReg().
+                        interval->registerPreferences |= calleeSaveRegs(interval->registerType);
                     }
                 }
             }

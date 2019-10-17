@@ -848,11 +848,8 @@ void LinearScan::setBlockSequence()
                     assert(!"Switch with single successor");
                 }
             }
-            if (((predBlock->bbFlags & BBF_KEEP_BBJ_ALWAYS) != 0) || (hasUniquePred && predBlock->hasEHBoundaryOut()))
+            if (predBlock->hasEHBoundaryOut())
             {
-                // Treat this as having incoming EH flow, since we can't insert resolution moves into
-                // the ALWAYS block of a BBCallAlwaysPair, and a unique pred with an EH out edge won't
-                // allow us to keep any variables enregistered.
                 blockInfo[block->bbNum].hasEHBoundaryIn = true;
             }
         }
@@ -2797,6 +2794,7 @@ regNumber LinearScan::tryAllocateFreeReg(Interval* currentInterval, RefPosition*
     LsraLocation relatedLastLocation = rangeEndLocation;
 
     bool preferCalleeSave = currentInterval->preferCalleeSave;
+
     bool avoidByteRegs    = false;
 #ifdef _TARGET_X86_
     if ((relatedPreferences & ~RBM_BYTE_REGS) != RBM_NONE)
@@ -2886,6 +2884,27 @@ regNumber LinearScan::tryAllocateFreeReg(Interval* currentInterval, RefPosition*
         {
             relatedLastLocation = relatedInterval->lastRefPosition->nodeLocation;
         }
+    }
+
+    regMaskTP callerCalleePrefs;
+    if (preferCalleeSave)
+    {
+        regMaskTP calleeSaveCandidates = calleeSaveRegs(currentInterval->registerType);
+        if (currentInterval->isWriteThru)
+        {
+            // We'll only prefer a callee-save register if it's already been used.
+            regMaskTP unusedCalleeSaves = calleeSaveCandidates & ~(compiler->codeGen->regSet.rsGetModifiedRegsMask());
+            callerCalleePrefs &= ~unusedCalleeSaves;
+            preferences &= ~unusedCalleeSaves;
+        }
+        else
+        {
+            callerCalleePrefs = calleeSaveCandidates;
+        }
+    }
+    else
+    {
+        callerCalleePrefs = callerSaveRegs(currentInterval->registerType);
     }
 
     // If this has a delayed use (due to being used in a rmw position of a
@@ -3083,7 +3102,7 @@ regNumber LinearScan::tryAllocateFreeReg(Interval* currentInterval, RefPosition*
             score |= RELATED_PREFERENCE;
         }
 
-        if (preferCalleeSave == physRegRecord->isCalleeSave)
+        if ((candidateBit & callerCalleePrefs) != RBM_NONE)
         {
             score |= CALLER_CALLEE;
         }
