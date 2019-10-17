@@ -4361,7 +4361,14 @@ const char* Compiler::compGetTieringName() const
     {
         if (compSwitchedToMinOpts)
         {
-            return "Tier-1/FullOpts switched to MinOpts";
+            if (compSwitchedToOptimized)
+            {
+                return "Tier-0 switched to FullOpts, then to MinOpts";
+            }
+            else
+            {
+                return "Tier-1/FullOpts switched to MinOpts";
+            }
         }
         else
         {
