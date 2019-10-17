@@ -45,6 +45,12 @@ extern "C"
 #endif
 void InitProvidersAndEvents();
 
+// This is a wrapper method for LTTng.
+extern "C" bool XplatEventLoggerIsEnabled()
+{
+    return XplatEventLogger::IsEventLoggingEnabled();
+}
+
 void EventPipe::Initialize()
 {
     STANDARD_VM_CONTRACT;
