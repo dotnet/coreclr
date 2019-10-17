@@ -4357,27 +4357,29 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
             break;
 
         case GT_ARR_ELEM:
+        {
+            GenTreeArrElem* arrElem = tree->AsArrElem();
 
-            level  = gtSetEvalOrder(tree->AsArrElem()->gtArrObj);
-            costEx = tree->AsArrElem()->gtArrObj->GetCostEx();
-            costSz = tree->AsArrElem()->gtArrObj->GetCostSz();
+            level  = gtSetEvalOrder(arrElem->gtArrObj);
+            costEx = arrElem->gtArrObj->GetCostEx();
+            costSz = arrElem->gtArrObj->GetCostSz();
 
-            unsigned dim;
-            for (dim = 0; dim < tree->AsArrElem()->gtArrRank; dim++)
+            for (unsigned dim = 0; dim < arrElem->gtArrRank; dim++)
             {
-                lvl2 = gtSetEvalOrder(tree->AsArrElem()->gtArrInds[dim]);
+                lvl2 = gtSetEvalOrder(arrElem->gtArrInds[dim]);
                 if (level < lvl2)
                 {
                     level = lvl2;
                 }
-                costEx += tree->AsArrElem()->gtArrInds[dim]->GetCostEx();
-                costSz += tree->AsArrElem()->gtArrInds[dim]->GetCostSz();
+                costEx += arrElem->gtArrInds[dim]->GetCostEx();
+                costSz += arrElem->gtArrInds[dim]->GetCostSz();
             }
 
-            level += tree->AsArrElem()->gtArrRank;
-            costEx += 2 + (tree->AsArrElem()->gtArrRank * (IND_COST_EX + 1));
-            costSz += 2 + (tree->AsArrElem()->gtArrRank * 2);
-            break;
+            level += arrElem->gtArrRank;
+            costEx += 2 + (arrElem->gtArrRank * (IND_COST_EX + 1));
+            costSz += 2 + (arrElem->gtArrRank * 2);
+        }
+        break;
 
         case GT_ARR_OFFSET:
             level  = gtSetEvalOrder(tree->gtArrOffs.gtOffset);
@@ -7490,16 +7492,15 @@ GenTree* Compiler::gtCloneExpr(
 
         case GT_ARR_ELEM:
         {
-            GenTree* inds[GT_ARR_MAX_RANK];
-            for (unsigned dim = 0; dim < tree->AsArrElem()->gtArrRank; dim++)
+            GenTreeArrElem* arrElem = tree->AsArrElem();
+            GenTree*        inds[GT_ARR_MAX_RANK];
+            for (unsigned dim = 0; dim < arrElem->gtArrRank; dim++)
             {
-                inds[dim] = gtCloneExpr(tree->AsArrElem()->gtArrInds[dim], addFlags, deepVarNum, deepVarVal);
+                inds[dim] = gtCloneExpr(arrElem->gtArrInds[dim], addFlags, deepVarNum, deepVarVal);
             }
             copy = new (this, GT_ARR_ELEM)
-                GenTreeArrElem(tree->TypeGet(),
-                               gtCloneExpr(tree->AsArrElem()->gtArrObj, addFlags, deepVarNum, deepVarVal),
-                               tree->AsArrElem()->gtArrRank, tree->AsArrElem()->gtArrElemSize,
-                               tree->AsArrElem()->gtArrElemType, &inds[0]);
+                GenTreeArrElem(arrElem->TypeGet(), gtCloneExpr(arrElem->gtArrObj, addFlags, deepVarNum, deepVarVal),
+                               arrElem->gtArrRank, arrElem->gtArrElemSize, arrElem->gtArrElemType, &inds[0]);
         }
         break;
 
