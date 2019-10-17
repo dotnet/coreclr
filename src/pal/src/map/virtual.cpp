@@ -855,7 +855,7 @@ static LPVOID VIRTUALResetMemory(
         pRetVal = lpAddress;
 
 #ifdef MADV_DONTDUMP
-        // Do not include committed memory in coredump.
+        // Do not include reset memory in coredump.
         madvise((LPVOID)StartBoundary, MemSize, MADV_DONTDUMP);
 #endif
     }
@@ -1545,7 +1545,7 @@ VirtualFree(
 #endif  // MMAP_ANON_IGNORES_PROTECTION
 
 #ifdef MADV_DONTDUMP
-            // Do not include committed memory in coredump.
+            // Do not include freed memory in coredump.
             madvise((LPVOID) StartBoundary, MemSize, MADV_DONTDUMP);
 #endif
 
