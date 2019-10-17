@@ -28,6 +28,19 @@ namespace ILCompiler.DependencyAnalysis
 #endif
         }
 
+        public ObjectDataBuilder(TargetDetails target, bool relocsOnly)
+        {
+            _target = target;
+            _data = new ArrayBuilder<byte>();
+            _relocs = new ArrayBuilder<Relocation>();
+            Alignment = 1;
+            _definedSymbols = new ArrayBuilder<ISymbolDefinitionNode>();
+#if DEBUG
+            _numReservations = 0;
+            _checkAllSymbolDependenciesMustBeMarked = !relocsOnly;
+#endif
+        }
+
         private TargetDetails _target;
         private ArrayBuilder<Relocation> _relocs;
         private ArrayBuilder<byte> _data;

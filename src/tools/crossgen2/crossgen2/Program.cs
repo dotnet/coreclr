@@ -333,7 +333,7 @@ namespace ILCompiler
                         foreach (var inputFile in typeSystemContext.InputFilePaths)
                         {
                             EcmaModule module = typeSystemContext.GetModuleFromPath(inputFile.Value);
-                            compilationRoots.Add(new ReadyToRunRootProvider(module, profileDataManager));
+                            compilationRoots.Add(new ReadyToRunRootProvider(module, profileDataManager, targetDetails));
                             inputModules.Add(module);
 
                             if (!_isInputVersionBubble)

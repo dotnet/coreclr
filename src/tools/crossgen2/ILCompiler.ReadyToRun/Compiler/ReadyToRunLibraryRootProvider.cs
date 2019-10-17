@@ -2,8 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System;
+
 using Internal.TypeSystem.Ecma;
 using Internal.TypeSystem;
+using ILCompiler.DependencyAnalysis.ReadyToRun;
 
 namespace ILCompiler
 {
@@ -14,11 +17,13 @@ namespace ILCompiler
     {
         private EcmaModule _module;
         private ProfileData _profileData;
+        private TargetDetails _targetDetails;
 
-        public ReadyToRunRootProvider(EcmaModule module, ProfileDataManager profileDataManager)
+        public ReadyToRunRootProvider(EcmaModule module, ProfileDataManager profileDataManager, TargetDetails targetDetails)
         {
             _module = module;
             _profileData = profileDataManager.GetDataForModuleDesc(module);
+            _targetDetails = targetDetails;
         }
 
         public void AddCompilationRoots(IRootingServiceProvider rootProvider)
@@ -131,15 +136,28 @@ namespace ILCompiler
                     // Skip them in library mode since they're not going to be callable.
                     continue;
                 }
+                catch (InvalidOperationException)
+                {
+                    //
+                    // This catch block is meant to catch the exception thrown by ArgIterator
+                    // used in GCRefMapBuilder.GetCallRefMap, an example when that
+                    // happen is when an indeterminate size type is used in the signature.
+                    //
+                    // TODO: InvalidOperationException sounds fairly general - do we risk
+                    // catching cases where we should have crashed the compiler instead?
+                    // (e.g. Some of us wrote buggy code but got misled by test result)
+                    //
+                    continue;
+                }
             }
         }
 
         /// <summary>
-        /// Validates that it will be possible to generate '<paramref name="method"/>' based on the types 
+        /// Validates that it will be possible to generate '<paramref name="method"/>' based on the types
         /// in its signature. Unresolvable types in a method's signature prevent RyuJIT from generating
         /// even a stubbed out throwing implementation.
         /// </summary>
-        public static void CheckCanGenerateMethod(MethodDesc method)
+        public void CheckCanGenerateMethod(MethodDesc method)
         {
             MethodSignature signature = method.Signature;
 
@@ -153,6 +171,15 @@ namespace ILCompiler
             {
                 CheckTypeCanBeUsedInSignature(signature[i]);
             }
+
+            //
+            // CheckTypeCanBeUsedInSignature is insufficient - the ArgIterator used in GetCallRefMap() can be used to detect
+            // some cases (e.g. usage of types with indeterminate size) where compilation will eventually fail downstream.
+            //
+            // TODO: Is it possible to augment CheckTypeCanBeUsedInSignature() to accomplish the same? It is relative straightforward
+            // to check if the type has indeterminate size, but is that sufficient?
+            //
+            new GCRefMapBuilder(_targetDetails, false).GetCallRefMap(method);
         }
 
         private static void CheckTypeCanBeUsedInSignature(TypeDesc type)
