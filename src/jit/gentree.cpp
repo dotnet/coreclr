@@ -7508,10 +7508,12 @@ GenTree* Compiler::gtCloneExpr(
         case GT_ARR_OFFSET:
         {
             copy = new (this, GT_ARR_OFFSET)
-                GenTreeArrOffs(tree->TypeGet(), gtCloneExpr(tree->AsArrOffs()->gtOffset, addFlags, deepVarNum, deepVarVal),
+                GenTreeArrOffs(tree->TypeGet(),
+                               gtCloneExpr(tree->AsArrOffs()->gtOffset, addFlags, deepVarNum, deepVarVal),
                                gtCloneExpr(tree->AsArrOffs()->gtIndex, addFlags, deepVarNum, deepVarVal),
                                gtCloneExpr(tree->AsArrOffs()->gtArrObj, addFlags, deepVarNum, deepVarVal),
-                               tree->AsArrOffs()->gtCurrDim, tree->AsArrOffs()->gtArrRank, tree->AsArrOffs()->gtArrElemType);
+                               tree->AsArrOffs()->gtCurrDim, tree->AsArrOffs()->gtArrRank,
+                               tree->AsArrOffs()->gtArrElemType);
         }
         break;
 
