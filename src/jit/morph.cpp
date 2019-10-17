@@ -4669,7 +4669,7 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
             assert(varNum < lvaCount);
             LclVarDsc* varDsc = &lvaTable[varNum];
 
-            unsigned baseOffset = (argValue->OperGet() == GT_LCL_FLD) ? argValue->gtLclFld.gtLclOffs : 0;
+            unsigned baseOffset = (argValue->OperGet() == GT_LCL_FLD) ? argValue->AsLclFld()->gtLclOffs : 0;
             unsigned lastOffset = baseOffset + structSize;
 
             // The allocated size of our LocalVar must be at least as big as lastOffset
@@ -6359,10 +6359,10 @@ GenTree* Compiler::fgMorphField(GenTree* tree, MorphAddrContext* mac)
                     static_assert_no_msg(GTF_FLD_VOLATILE == GTF_CLS_VAR_VOLATILE);
                     static_assert_no_msg(GTF_FLD_INITCLASS == GTF_CLS_VAR_INITCLASS);
                     tree->SetOper(GT_CLS_VAR);
-                    tree->gtClsVar.gtClsVarHnd = symHnd;
+                    tree->AsClsVar()->gtClsVarHnd = symHnd;
                     FieldSeqNode* fieldSeq =
                         fieldMayOverlap ? FieldSeqStore::NotAField() : GetFieldSeqStore()->CreateSingleton(symHnd);
-                    tree->gtClsVar.gtFieldSeq = fieldSeq;
+                    tree->AsClsVar()->gtFieldSeq = fieldSeq;
                 }
 
                 return tree;
@@ -8271,7 +8271,7 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
             {
                 structHnd = call->gtRetClsHnd;
                 if (info.compCompHnd->isStructRequiringStackAllocRetBuf(structHnd) &&
-                    !(dest->OperGet() == GT_LCL_VAR && dest->gtLclVar.GetLclNum() == info.compRetBuffArg))
+                    !(dest->OperGet() == GT_LCL_VAR && dest->AsLclVar()->GetLclNum() == info.compRetBuffArg))
                 {
                     // Force re-evaluating the argInfo as the return argument has changed.
                     call->fgArgInfo = nullptr;
@@ -8397,7 +8397,7 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
             {
                 GenTree* var = origDest->AsOp()->gtOp1;
                 origDest     = gtNewOperNode(GT_COMMA, var->TypeGet(), origDest,
-                                         gtNewLclvNode(var->gtLclVar.GetLclNum(), var->TypeGet()));
+                                         gtNewLclvNode(var->AsLclVar()->GetLclNum(), var->TypeGet()));
             }
         }
         GenTree* copyBlk = gtNewCpObjNode(origDest, retValVarAddr, structHnd, false);
@@ -8515,7 +8515,7 @@ GenTree* Compiler::fgMorphLeaf(GenTree* tree)
         if (info.compIsVarArgs)
         {
             GenTree* newTree =
-                fgMorphStackArgForVarArgs(tree->gtLclFld.GetLclNum(), tree->gtType, tree->gtLclFld.gtLclOffs);
+                fgMorphStackArgForVarArgs(tree->AsLclFld()->GetLclNum(), tree->gtType, tree->AsLclFld()->gtLclOffs);
             if (newTree != nullptr)
             {
                 if (newTree->OperIsBlk() && ((tree->gtFlags & GTF_VAR_DEF) == 0))
@@ -12364,69 +12364,62 @@ DONE_MORPHING_CHILDREN:
         case GT_GE:
         case GT_GT:
 
-            if ((tree->gtFlags & GTF_UNSIGNED) == 0)
+            if (op2->gtOper == GT_CNS_INT)
             {
-                if (op2->gtOper == GT_CNS_INT)
+                cns2 = op2;
+                /* Check for "expr relop 1" */
+                if (cns2->IsIntegralConst(1))
                 {
-                    cns2 = op2;
-                    /* Check for "expr relop 1" */
-                    if (cns2->IsIntegralConst(1))
+                    /* Check for "expr >= 1" */
+                    if (oper == GT_GE)
                     {
-                        /* Check for "expr >= 1" */
-                        if (oper == GT_GE)
-                        {
-                            /* Change to "expr > 0" */
-                            oper = GT_GT;
-                            goto SET_OPER;
-                        }
-                        /* Check for "expr < 1" */
-                        else if (oper == GT_LT)
-                        {
-                            /* Change to "expr <= 0" */
-                            oper = GT_LE;
-                            goto SET_OPER;
-                        }
+                        /* Change to "expr != 0" for unsigned and "expr > 0" for signed */
+                        oper = (tree->IsUnsigned()) ? GT_NE : GT_GT;
+                        goto SET_OPER;
                     }
-                    /* Check for "expr relop -1" */
-                    else if (cns2->IsIntegralConst(-1) && ((oper == GT_LE) || (oper == GT_GT)))
+                    /* Check for "expr < 1" */
+                    else if (oper == GT_LT)
                     {
-                        /* Check for "expr <= -1" */
-                        if (oper == GT_LE)
-                        {
-                            /* Change to "expr < 0" */
-                            oper = GT_LT;
-                            goto SET_OPER;
-                        }
-                        /* Check for "expr > -1" */
-                        else if (oper == GT_GT)
-                        {
-                            /* Change to "expr >= 0" */
-                            oper = GT_GE;
-
-                        SET_OPER:
-                            // IF we get here we should be changing 'oper'
-                            assert(tree->OperGet() != oper);
-
-                            // Keep the old ValueNumber for 'tree' as the new expr
-                            // will still compute the same value as before
-                            tree->SetOper(oper, GenTree::PRESERVE_VN);
-                            cns2->gtIntCon.gtIconVal = 0;
-
-                            // vnStore is null before the ValueNumber phase has run
-                            if (vnStore != nullptr)
-                            {
-                                // Update the ValueNumber for 'cns2', as we just changed it to 0
-                                fgValueNumberTreeConst(cns2);
-                            }
-
-                            op2 = tree->AsOp()->gtOp2 = gtFoldExpr(op2);
-                        }
+                        /* Change to "expr == 0" for unsigned and "expr <= 0" for signed */
+                        oper = (tree->IsUnsigned()) ? GT_EQ : GT_LE;
+                        goto SET_OPER;
                     }
                 }
-            }
-            else // we have an unsigned comparison
-            {
-                if (op2->IsIntegralConst(0))
+                /* Check for "expr relop -1" */
+                else if (!tree->IsUnsigned() && cns2->IsIntegralConst(-1))
+                {
+                    /* Check for "expr <= -1" */
+                    if (oper == GT_LE)
+                    {
+                        /* Change to "expr < 0" */
+                        oper = GT_LT;
+                        goto SET_OPER;
+                    }
+                    /* Check for "expr > -1" */
+                    else if (oper == GT_GT)
+                    {
+                        /* Change to "expr >= 0" */
+                        oper = GT_GE;
+
+                    SET_OPER:
+                        // IF we get here we should be changing 'oper'
+                        assert(tree->OperGet() != oper);
+
+                        // Keep the old ValueNumber for 'tree' as the new expr
+                        // will still compute the same value as before
+                        tree->SetOper(oper, GenTree::PRESERVE_VN);
+                        cns2->gtIntCon.gtIconVal = 0;
+
+                        // vnStore is null before the ValueNumber phase has run
+                        if (vnStore != nullptr)
+                        {
+                            // Update the ValueNumber for 'cns2', as we just changed it to 0
+                            fgValueNumberTreeConst(cns2);
+                        }
+                        op2 = tree->AsOp()->gtOp2 = gtFoldExpr(op2);
+                    }
+                }
+                else if (tree->IsUnsigned() && op2->IsIntegralConst(0))
                 {
                     if ((oper == GT_GT) || (oper == GT_LE))
                     {
@@ -16465,7 +16458,7 @@ void Compiler::fgExpandQmarkStmt(BasicBlock* block, Statement* stmt)
     if (dst != nullptr)
     {
         assert(dst->gtOper == GT_LCL_VAR);
-        lclNum = dst->gtLclVar.GetLclNum();
+        lclNum = dst->AsLclVar()->GetLclNum();
     }
     else
     {
@@ -17042,13 +17035,13 @@ void Compiler::fgMorphLocalField(GenTree* tree, GenTree* parent)
 {
     noway_assert(tree->OperGet() == GT_LCL_FLD);
 
-    unsigned   lclNum = tree->gtLclFld.GetLclNum();
+    unsigned   lclNum = tree->AsLclFld()->GetLclNum();
     LclVarDsc* varDsc = &lvaTable[lclNum];
 
     if (varTypeIsStruct(varDsc) && (varDsc->lvPromoted))
     {
         // Promoted struct
-        unsigned   fldOffset     = tree->gtLclFld.gtLclOffs;
+        unsigned   fldOffset     = tree->AsLclFld()->gtLclOffs;
         unsigned   fieldLclIndex = 0;
         LclVarDsc* fldVarDsc     = nullptr;
 
@@ -17066,7 +17059,7 @@ void Compiler::fgMorphLocalField(GenTree* tree, GenTree* parent)
                 )
         {
             // There is an existing sub-field we can use.
-            tree->gtLclFld.SetLclNum(fieldLclIndex);
+            tree->AsLclFld()->SetLclNum(fieldLclIndex);
 
             // The field must be an enregisterable type; otherwise it would not be a promoted field.
             // The tree type may not match, e.g. for return types that have been morphed, but both

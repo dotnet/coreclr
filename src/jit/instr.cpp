@@ -482,7 +482,7 @@ void CodeGen::inst_set_SV_var(GenTree* tree)
     assert(tree && (tree->gtOper == GT_LCL_VAR || tree->gtOper == GT_LCL_VAR_ADDR || tree->gtOper == GT_STORE_LCL_VAR));
     assert(tree->gtLclVarCommon.GetLclNum() < compiler->lvaCount);
 
-    GetEmitter()->emitVarRefOffs = tree->gtLclVar.gtLclILoffs;
+    GetEmitter()->emitVarRefOffs = tree->AsLclVar()->gtLclILoffs;
 
 #endif // DEBUG
 }
@@ -584,7 +584,7 @@ AGAIN:
 
         case GT_LCL_FLD:
 
-            offs += tree->gtLclFld.gtLclOffs;
+            offs += tree->AsLclFld()->gtLclOffs;
             goto LCL;
 
         LCL:
@@ -611,11 +611,11 @@ AGAIN:
 
             if (shfv)
             {
-                GetEmitter()->emitIns_C_I(ins, size, tree->gtClsVar.gtClsVarHnd, offs, shfv);
+                GetEmitter()->emitIns_C_I(ins, size, tree->AsClsVar()->gtClsVarHnd, offs, shfv);
             }
             else
             {
-                GetEmitter()->emitIns_C(ins, size, tree->gtClsVar.gtClsVarHnd, offs);
+                GetEmitter()->emitIns_C(ins, size, tree->AsClsVar()->gtClsVarHnd, offs);
             }
             return;
 
@@ -691,7 +691,7 @@ AGAIN:
 
         case GT_LCL_FLD:
         case GT_STORE_LCL_FLD:
-            offs += tree->gtLclFld.gtLclOffs;
+            offs += tree->AsLclFld()->gtLclOffs;
             goto LCL;
 
         LCL:
@@ -741,7 +741,7 @@ AGAIN:
             else
 #endif // CPU_LOAD_STORE_ARCH
             {
-                GetEmitter()->emitIns_C_R(ins, size, tree->gtClsVar.gtClsVarHnd, reg, offs);
+                GetEmitter()->emitIns_C_R(ins, size, tree->AsClsVar()->gtClsVarHnd, reg, offs);
             }
             return;
 
@@ -840,7 +840,7 @@ AGAIN:
 
         case GT_LCL_FLD_ADDR:
         case GT_LCL_FLD:
-            offs += tree->gtLclFld.gtLclOffs;
+            offs += tree->AsLclFld()->gtLclOffs;
             goto LCL;
 
         LCL:
@@ -889,8 +889,8 @@ AGAIN:
 
 #if CPU_LOAD_STORE_ARCH
             assert(!"GT_CLS_VAR not supported in ARM backend");
-#else  // CPU_LOAD_STORE_ARCH
-            GetEmitter()->emitIns_R_C(ins, size, reg, tree->gtClsVar.gtClsVarHnd, offs);
+#else // CPU_LOAD_STORE_ARCH
+            GetEmitter()->emitIns_R_C(ins, size, reg, tree->AsClsVar()->gtClsVarHnd, offs);
 #endif // CPU_LOAD_STORE_ARCH
             return;
 
@@ -923,12 +923,12 @@ AGAIN:
             emitAttr       size;
             if (offs == 0)
             {
-                constVal = (target_ssize_t)(tree->gtLngCon.gtLconVal);
+                constVal = (target_ssize_t)(tree->AsLngCon()->gtLconVal);
                 size     = EA_PTRSIZE;
             }
             else
             {
-                constVal = (target_ssize_t)(tree->gtLngCon.gtLconVal >> 32);
+                constVal = (target_ssize_t)(tree->AsLngCon()->gtLconVal >> 32);
                 size     = EA_4BYTE;
             }
 
@@ -1105,7 +1105,7 @@ void CodeGen::inst_RV_TT_IV(instruction ins, emitAttr attr, regNumber reg1, GenT
 
                 case GT_CLS_VAR_ADDR:
                 {
-                    GetEmitter()->emitIns_R_C_I(ins, attr, reg1, addr->gtClsVar.gtClsVarHnd, 0, ival);
+                    GetEmitter()->emitIns_R_C_I(ins, attr, reg1, addr->AsClsVar()->gtClsVarHnd, 0, ival);
                     return;
                 }
 
@@ -1133,14 +1133,14 @@ void CodeGen::inst_RV_TT_IV(instruction ins, emitAttr attr, regNumber reg1, GenT
                     GenTreeLclFld* lclField = rmOp->AsLclFld();
 
                     varNum = lclField->GetLclNum();
-                    offset = lclField->gtLclFld.gtLclOffs;
+                    offset = lclField->AsLclFld()->gtLclOffs;
                     break;
                 }
 
                 case GT_LCL_VAR:
                 {
                     assert(rmOp->IsRegOptional() ||
-                           !compiler->lvaGetDesc(rmOp->gtLclVar.GetLclNum())->lvIsRegCandidate());
+                           !compiler->lvaGetDesc(rmOp->AsLclVar()->GetLclNum())->lvIsRegCandidate());
                     varNum = rmOp->AsLclVar()->GetLclNum();
                     offset = 0;
                     break;
