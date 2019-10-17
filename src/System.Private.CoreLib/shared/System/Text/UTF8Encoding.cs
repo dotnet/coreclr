@@ -30,7 +30,7 @@ namespace System.Text
     // used mostly to distinguish UTF-8 text from other encodings, and doesn't
     // switch the byte orderings.
 
-    public class UTF8Encoding : Encoding
+    public partial class UTF8Encoding : Encoding
     {
         /*
             bytes   bits    UTF-8 representation
@@ -47,13 +47,7 @@ namespace System.Text
 
         private const int UTF8_CODEPAGE = 65001;
 
-        // Allow for de-virtualization (see https://github.com/dotnet/coreclr/pull/9230)
-        internal sealed class UTF8EncodingSealed : UTF8Encoding
-        {
-            public UTF8EncodingSealed(bool encoderShouldEmitUTF8Identifier) : base(encoderShouldEmitUTF8Identifier) { }
 
-            public override ReadOnlySpan<byte> Preamble => _emitUTF8Identifier ? PreambleSpan : default;
-        }
 
         // Used by Encoding.UTF8 for lazy initialization
         // The initialization code will not be run until a static member of the class is referenced
@@ -379,7 +373,7 @@ namespace System.Text
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private unsafe int GetBytesCommon(char* pChars, int charCount, byte* pBytes, int byteCount)
+        private protected unsafe int GetBytesCommon(char* pChars, int charCount, byte* pBytes, int byteCount)
         {
             // Common helper method for all non-EncoderNLS entry points to GetBytes.
             // A modification of this method should be copied in to each of the supported encodings: ASCII, UTF8, UTF16, UTF32.
@@ -571,7 +565,7 @@ namespace System.Text
         // Note:  We throw exceptions on individually encoded surrogates and other non-shortest forms.
         //        If exceptions aren't turned on, then we drop all non-shortest &individual surrogates.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private unsafe int GetCharsCommon(byte* pBytes, int byteCount, char* pChars, int charCount)
+        private protected unsafe int GetCharsCommon(byte* pBytes, int byteCount, char* pChars, int charCount)
         {
             // Common helper method for all non-DecoderNLS entry points to GetChars.
             // A modification of this method should be copied in to each of the supported encodings: ASCII, UTF8, UTF16, UTF32.
