@@ -110,7 +110,6 @@ enum EtwThreadFlags
 #define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) (EventPipeHelper::IsEnabled(Context, Level, Keyword) || \
         (XplatEventLogger::IsKeywordEnabled(Context, Level, Keyword)))
 #define ETW_PROVIDER_ENABLED(ProviderSymbol) (TRUE)
-
 #else //defined(FEATURE_PERFTRACING)
 #define ETW_INLINE
 #define ETWOnStartup(StartEventName, EndEventName)
@@ -122,7 +121,6 @@ enum EtwThreadFlags
 #define ETW_TRACING_ENABLED(Context, EventDescriptor) (ETW_EVENT_ENABLED(Context, EventDescriptor) && EventEnabled##EventDescriptor())
 #define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) (ETW_CATEGORY_ENABLED(Context, Level, Keyword))
 #define ETW_PROVIDER_ENABLED(ProviderSymbol) (XplatEventLogger::IsProviderEnabled(Context))
-
 #endif // defined(FEATURE_PERFTRACING)
 #endif // !defined(FEATURE_PAL)
 
@@ -493,6 +491,7 @@ public:
         }
     }
 };
+
 
 #endif  // defined(FEATURE_PAL) && (defined(FEATURE_EVENT_TRACE) || defined(FEATURE_EVENTSOURCE_XPLAT))
 
