@@ -25,6 +25,10 @@ TreeLifeUpdater<ForCodeGen>::TreeLifeUpdater(Compiler* compiler)
 // Arguments:
 //    tree - the tree which affects liveness.
 //
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4702)
+#endif
 template <bool ForCodeGen>
 void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
 {
@@ -116,9 +120,6 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
             {
                 assert(!isBorn); // GTF_VAR_DEATH only set for LDOBJ last use.
                 unreached();     // Try to find a test where we use it.
-#ifdef _MSC_VER
-#pragma warning(disable : 4702)
-#endif
                 VARSET_TP* deadTrackedFieldVars = nullptr;
                 hasDeadTrackedFieldVars =
                     compiler->LookupPromotedStructDeathVars(indirAddrLocal, &deadTrackedFieldVars);
@@ -283,6 +284,9 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
         }
     }
 }
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 //------------------------------------------------------------------------
 // UpdateLife: Determine whether the tree affects liveness, and update liveness sets accordingly.
