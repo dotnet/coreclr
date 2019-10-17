@@ -7371,6 +7371,9 @@ public:
     bool LookupPromotedStructDeathVars(GenTree* tree, VARSET_TP** bits)
     {
         unreached();
+#ifdef _MSC_VER
+#pragma warning(disable : 4702)
+#endif
         bits = nullptr; // We are rewriting the argument value, so the address that we got
                         // is lost after that. this was added in https://github.com/dotnet/coreclr/pull/19753/files.
         bool result = false;
