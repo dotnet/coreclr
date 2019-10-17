@@ -1596,7 +1596,7 @@ private:
         }
         // If 'fromTree' was a lclVar, it must be contained and 'toTree' must match.
         if (!fromTree->isContained() || (toTree == nullptr) || !toTree->OperIs(GT_LCL_VAR) ||
-            (toTree->AsLclVarCommon()->GetLclNum() != toTree->AsLclVarCommon()->GetLclNum()))
+            (fromTree->AsLclVarCommon()->GetLclNum() != toTree->AsLclVarCommon()->GetLclNum()))
         {
             assert(!"Unmatched RMW indirections");
             return;
