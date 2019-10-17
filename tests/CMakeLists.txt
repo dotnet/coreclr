@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 
 cmake_policy(SET CMP0042 NEW)
-project(Project)
+project(Tests)
 
 set(INC_PLATFORM_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/Common/Platform)
 if (WIN32)
