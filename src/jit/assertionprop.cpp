@@ -28,7 +28,7 @@ Compiler::fgWalkResult Compiler::optAddCopiesCallback(GenTree** pTree, fgWalkDat
 
     if (tree->OperIs(GT_ASG))
     {
-        GenTree*  op1  = tree->gtOp.gtOp1;
+        GenTree*  op1  = tree->AsOp()->gtOp1;
         Compiler* comp = data->compiler;
 
         if ((op1->gtOper == GT_LCL_VAR) && (op1->gtLclVarCommon.GetLclNum() == comp->optAddCopyLclNum))
@@ -442,19 +442,19 @@ void Compiler::optAddCopies()
             optAddCopyLclNum   = lclNum;  // in
             optAddCopyAsgnNode = nullptr; // out
 
-            fgWalkTreePre(&stmt->gtStmtExpr, Compiler::optAddCopiesCallback, (void*)this, false);
+            fgWalkTreePre(stmt->GetRootNodePointer(), Compiler::optAddCopiesCallback, (void*)this, false);
 
             noway_assert(optAddCopyAsgnNode);
 
             GenTree* tree = optAddCopyAsgnNode;
-            GenTree* op1  = tree->gtOp.gtOp1;
+            GenTree* op1  = tree->AsOp()->gtOp1;
 
             noway_assert(tree && op1 && tree->OperIs(GT_ASG) && (op1->gtOper == GT_LCL_VAR) &&
                          (op1->gtLclVarCommon.GetLclNum() == lclNum));
 
             /* Assign the old expression into the new temp */
 
-            GenTree* newAsgn = gtNewTempAssign(copyLclNum, tree->gtOp.gtOp2);
+            GenTree* newAsgn = gtNewTempAssign(copyLclNum, tree->AsOp()->gtOp2);
 
             /* Copy the new temp to op1 */
 
@@ -465,8 +465,8 @@ void Compiler::optAddCopies()
             tree->gtBashToNOP();
             tree->ChangeOper(GT_COMMA);
 
-            tree->gtOp.gtOp1 = newAsgn;
-            tree->gtOp.gtOp2 = copyAsgn;
+            tree->AsOp()->gtOp1 = newAsgn;
+            tree->AsOp()->gtOp2 = copyAsgn;
 
             tree->gtFlags |= (newAsgn->gtFlags & GTF_ALL_EFFECT);
             tree->gtFlags |= (copyAsgn->gtFlags & GTF_ALL_EFFECT);
@@ -476,7 +476,7 @@ void Compiler::optAddCopies()
         if (verbose)
         {
             printf("\nIntroducing a new copy for V%02u\n", lclNum);
-            gtDispTree(stmt->gtStmtExpr);
+            gtDispTree(stmt->GetRootNode());
             printf("\n");
         }
 #endif
@@ -987,7 +987,7 @@ AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
 
             if (op2->gtOper == GT_IND)
             {
-                op2                = op2->gtOp.gtOp1;
+                op2                = op2->AsOp()->gtOp1;
                 assertion.op2.kind = O2K_IND_CNS_INT;
             }
             else
@@ -1024,7 +1024,7 @@ AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
             /* Skip over a GT_COMMA node(s), if necessary */
             while (op2->gtOper == GT_COMMA)
             {
-                op2 = op2->gtOp.gtOp2;
+                op2 = op2->AsOp()->gtOp2;
             }
 
             assertion.op1.kind       = O1K_LCLVAR;
@@ -1105,17 +1105,17 @@ AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
                     }
                     else if (op2->gtOper == GT_CNS_LNG)
                     {
-                        assertion.op2.lconVal = op2->gtLngCon.gtLconVal;
+                        assertion.op2.lconVal = op2->AsLngCon()->gtLconVal;
                     }
                     else
                     {
                         noway_assert(op2->gtOper == GT_CNS_DBL);
                         /* If we have an NaN value then don't record it */
-                        if (_isnan(op2->gtDblCon.gtDconVal))
+                        if (_isnan(op2->AsDblCon()->gtDconVal))
                         {
                             goto DONE_ASSERTION; // Don't make an assertion
                         }
-                        assertion.op2.dconVal = op2->gtDblCon.gtDconVal;
+                        assertion.op2.dconVal = op2->AsDblCon()->gtDconVal;
                     }
 
                     //
@@ -1272,7 +1272,7 @@ AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
     //
     else if (op1->gtOper == GT_IND)
     {
-        op1 = op1->gtOp.gtOp1;
+        op1 = op1->AsOp()->gtOp1;
         //
         // Is this an indirection of a local variable?
         //
@@ -1310,7 +1310,7 @@ AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
             // Ngen case
             if (op2->gtOper == GT_IND)
             {
-                if (!optIsTreeKnownIntValue(!optLocalAssertionProp, op2->gtOp.gtOp1, &cnsValue, &iconFlags))
+                if (!optIsTreeKnownIntValue(!optLocalAssertionProp, op2->AsOp()->gtOp1, &cnsValue, &iconFlags))
                 {
                     goto DONE_ASSERTION; // Don't make an assertion
                 }
@@ -1318,13 +1318,13 @@ AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
                 assertion.assertionKind  = assertionKind;
                 assertion.op2.kind       = O2K_IND_CNS_INT;
                 assertion.op2.u1.iconVal = cnsValue;
-                assertion.op2.vn         = vnStore->VNConservativeNormalValue(op2->gtOp.gtOp1->gtVNPair);
+                assertion.op2.vn         = vnStore->VNConservativeNormalValue(op2->AsOp()->gtOp1->gtVNPair);
 
                 /* iconFlags should only contain bits in GTF_ICON_HDL_MASK */
                 assert((iconFlags & ~GTF_ICON_HDL_MASK) == 0);
                 assertion.op2.u1.iconFlags = iconFlags;
 #ifdef _TARGET_64BIT_
-                if (op2->gtOp.gtOp1->TypeGet() == TYP_LONG)
+                if (op2->AsOp()->gtOp1->TypeGet() == TYP_LONG)
                 {
                     assertion.op2.u1.iconFlags |= 1; // Signify that this is really TYP_LONG
                 }
@@ -1405,7 +1405,7 @@ bool Compiler::optIsTreeKnownIntValue(bool vnBased, GenTree* tree, ssize_t* pCon
         // overlapping gtIconVal.
         else if (tree->OperGet() == GT_CNS_LNG)
         {
-            *pConstant = tree->gtLngCon.gtLconVal;
+            *pConstant = tree->AsLngCon()->gtLconVal;
             *pFlags    = tree->GetIconHandleFlag();
             return true;
         }
@@ -1903,7 +1903,7 @@ AssertionInfo Compiler::optAssertionGenJtrue(GenTree* tree)
         return NO_ASSERTION_INDEX;
     }
 
-    GenTree* relop = tree->gtOp.gtOp1;
+    GenTree* relop = tree->AsOp()->gtOp1;
     if ((relop->OperKind() & GTK_RELOP) == 0)
     {
         return NO_ASSERTION_INDEX;
@@ -1911,8 +1911,8 @@ AssertionInfo Compiler::optAssertionGenJtrue(GenTree* tree)
 
     Compiler::optAssertionKind assertionKind = OAK_INVALID;
 
-    GenTree* op1 = relop->gtOp.gtOp1;
-    GenTree* op2 = relop->gtOp.gtOp2;
+    GenTree* op1 = relop->AsOp()->gtOp1;
+    GenTree* op2 = relop->AsOp()->gtOp2;
 
     AssertionInfo info = optCreateJTrueBoundsAssertion(tree);
     if (info.HasAssertion())
@@ -1948,13 +1948,13 @@ AssertionInfo Compiler::optAssertionGenJtrue(GenTree* tree)
     }
 
     // Check op1 and op2 for an indirection of a GT_LCL_VAR and keep it in op1.
-    if (((op1->gtOper != GT_IND) || (op1->gtOp.gtOp1->gtOper != GT_LCL_VAR)) &&
-        ((op2->gtOper == GT_IND) && (op2->gtOp.gtOp1->gtOper == GT_LCL_VAR)))
+    if (((op1->gtOper != GT_IND) || (op1->AsOp()->gtOp1->gtOper != GT_LCL_VAR)) &&
+        ((op2->gtOper == GT_IND) && (op2->AsOp()->gtOp1->gtOper == GT_LCL_VAR)))
     {
         jitstd::swap(op1, op2);
     }
     // If op1 is ind, then extract op1's oper.
-    if ((op1->gtOper == GT_IND) && (op1->gtOp.gtOp1->gtOper == GT_LCL_VAR))
+    if ((op1->gtOper == GT_IND) && (op1->AsOp()->gtOp1->gtOper == GT_LCL_VAR))
     {
         return optCreateJtrueAssertions(op1, op2, assertionKind);
     }
@@ -1965,8 +1965,8 @@ AssertionInfo Compiler::optAssertionGenJtrue(GenTree* tree)
         jitstd::swap(op1, op2);
     }
     // Validate op1 and op2
-    if ((op1->gtOper != GT_CALL) || (op1->gtCall.gtCallType != CT_HELPER) || (op1->TypeGet() != TYP_REF) || // op1
-        (op2->gtOper != GT_CNS_INT) || (op2->gtIntCon.gtIconVal != 0))                                      // op2
+    if ((op1->gtOper != GT_CALL) || (op1->AsCall()->gtCallType != CT_HELPER) || (op1->TypeGet() != TYP_REF) || // op1
+        (op2->gtOper != GT_CNS_INT) || (op2->gtIntCon.gtIconVal != 0))                                         // op2
     {
         return NO_ASSERTION_INDEX;
     }
@@ -2033,7 +2033,7 @@ AssertionIndex Compiler::optAssertionGenPhiDefn(GenTree* tree)
     // All phi arguments are non-null implies phi rhs is non-null.
     if (isNonNull)
     {
-        return optCreateAssertion(tree->gtOp.gtOp1, nullptr, OAK_NOT_EQUAL);
+        return optCreateAssertion(tree->AsOp()->gtOp1, nullptr, OAK_NOT_EQUAL);
     }
     return NO_ASSERTION_INDEX;
 }
@@ -2067,7 +2067,7 @@ void Compiler::optAssertionGen(GenTree* tree)
             // VN takes care of non local assertions for assignments and data flow.
             if (optLocalAssertionProp)
             {
-                assertionInfo = optCreateAssertion(tree->gtOp.gtOp1, tree->gtOp.gtOp2, OAK_EQUAL);
+                assertionInfo = optCreateAssertion(tree->AsOp()->gtOp1, tree->AsOp()->gtOp2, OAK_EQUAL);
             }
             else
             {
@@ -2113,7 +2113,7 @@ void Compiler::optAssertionGen(GenTree* tree)
                 {
                     // For tail calls we lose the this pointer in the argument list but that's OK because a null check
                     // was made explicit, so we get the assertion when we walk the GT_IND in the argument list.
-                    noway_assert(tree->gtCall.IsTailCall());
+                    noway_assert(tree->AsCall()->IsTailCall());
                     break;
                 }
 #endif // _TARGET_X86_ || _TARGET_AMD64_ || _TARGET_ARM_
@@ -2129,7 +2129,7 @@ void Compiler::optAssertionGen(GenTree* tree)
                 // This represets an assertion that we would like to prove to be true. It is not actually a true
                 // assertion.
                 // If we can prove this assertion true then we can eliminate this cast.
-                assertionInfo   = optCreateAssertion(tree->gtOp.gtOp1, tree, OAK_SUBRANGE);
+                assertionInfo   = optCreateAssertion(tree->AsOp()->gtOp1, tree, OAK_SUBRANGE);
                 assertionProven = false;
             }
             break;
@@ -2327,7 +2327,7 @@ AssertionIndex Compiler::optAssertionIsSubtype(GenTree* tree, GenTree* methodTab
             {
                 continue;
             }
-            methodTableArg = methodTableArg->gtOp.gtOp1;
+            methodTableArg = methodTableArg->AsOp()->gtOp1;
         }
         else if (curAssertion->op2.kind != O2K_CONST_INT)
         {
@@ -2613,14 +2613,14 @@ GenTree* Compiler::optConstantAssertionProp(AssertionDsc* curAssertion,
                 return nullptr;
             }
             newTree->ChangeOperConst(GT_CNS_DBL);
-            newTree->gtDblCon.gtDconVal = curAssertion->op2.dconVal;
+            newTree->AsDblCon()->gtDconVal = curAssertion->op2.dconVal;
             break;
 
         case O2K_CONST_LONG:
             if (newTree->gtType == TYP_LONG)
             {
                 newTree->ChangeOperConst(GT_CNS_NATIVELONG);
-                newTree->gtIntConCommon.SetLngValue(curAssertion->op2.lconVal);
+                newTree->AsIntConCommon()->SetLngValue(curAssertion->op2.lconVal);
             }
             else
             {
@@ -3078,8 +3078,8 @@ GenTree* Compiler::optAssertionProp_RelOp(ASSERT_VALARG_TP assertions, GenTree* 
 GenTree* Compiler::optAssertionPropGlobal_RelOp(ASSERT_VALARG_TP assertions, GenTree* tree, Statement* stmt)
 {
     GenTree* newTree = tree;
-    GenTree* op1     = tree->gtOp.gtOp1;
-    GenTree* op2     = tree->gtOp.gtOp2;
+    GenTree* op1     = tree->AsOp()->gtOp1;
+    GenTree* op2     = tree->AsOp()->gtOp2;
 
     // Look for assertions of the form (tree EQ/NE 0)
     AssertionIndex index = optGlobalAssertionIsEqualOrNotEqualZero(assertions, tree);
@@ -3195,13 +3195,13 @@ GenTree* Compiler::optAssertionPropGlobal_RelOp(ASSERT_VALARG_TP assertions, Gen
         else if (op1->TypeGet() == TYP_LONG)
         {
             op1->ChangeOperConst(GT_CNS_NATIVELONG);
-            op1->gtIntConCommon.SetLngValue(vnStore->ConstantValue<INT64>(vnCns));
+            op1->AsIntConCommon()->SetLngValue(vnStore->ConstantValue<INT64>(vnCns));
         }
         else if (op1->TypeGet() == TYP_DOUBLE)
         {
             double constant = vnStore->ConstantValue<double>(vnCns);
             op1->ChangeOperConst(GT_CNS_DBL);
-            op1->gtDblCon.gtDconVal = constant;
+            op1->AsDblCon()->gtDconVal = constant;
 
             // Nothing can be equal to NaN. So if IL had "op1 == NaN", then we already made op1 NaN,
             // which will yield a false correctly. Instead if IL had "op1 != NaN", then we already
@@ -3213,7 +3213,7 @@ GenTree* Compiler::optAssertionPropGlobal_RelOp(ASSERT_VALARG_TP assertions, Gen
         {
             float constant = vnStore->ConstantValue<float>(vnCns);
             op1->ChangeOperConst(GT_CNS_DBL);
-            op1->gtDblCon.gtDconVal = constant;
+            op1->AsDblCon()->gtDconVal = constant;
             // See comments for TYP_DOUBLE.
             allowReverse = (_isnan(constant) == 0);
         }
@@ -3238,9 +3238,9 @@ GenTree* Compiler::optAssertionPropGlobal_RelOp(ASSERT_VALARG_TP assertions, Gen
         if (verbose)
         {
             printf("\nVN relop based copy assertion prop in " FMT_BB ":\n", compCurBB->bbNum);
-            printf("Assertion index=#%02u: V%02d.%02d %s V%02d.%02d\n", index, op1->gtLclVar.GetLclNum(),
-                   op1->gtLclVar.GetSsaNum(), (curAssertion->assertionKind == OAK_EQUAL) ? "==" : "!=",
-                   op2->gtLclVar.GetLclNum(), op2->gtLclVar.GetSsaNum());
+            printf("Assertion index=#%02u: V%02d.%02d %s V%02d.%02d\n", index, op1->AsLclVar()->GetLclNum(),
+                   op1->AsLclVar()->GetSsaNum(), (curAssertion->assertionKind == OAK_EQUAL) ? "==" : "!=",
+                   op2->AsLclVar()->GetLclNum(), op2->AsLclVar()->GetSsaNum());
             gtDispTree(tree, nullptr, nullptr, true);
         }
 #endif
@@ -3254,9 +3254,9 @@ GenTree* Compiler::optAssertionPropGlobal_RelOp(ASSERT_VALARG_TP assertions, Gen
             // now. We don't create OAK_EQUAL assertion on floating point from GT_ASG
             // because we depend on value num which would constant prop the NaN.
             op1->ChangeOperConst(GT_CNS_DBL);
-            op1->gtDblCon.gtDconVal = 0;
+            op1->AsDblCon()->gtDconVal = 0;
             op2->ChangeOperConst(GT_CNS_DBL);
-            op2->gtDblCon.gtDconVal = 0;
+            op2->AsDblCon()->gtDconVal = 0;
         }
         // Change the op1 LclVar to the op2 LclVar
         else
@@ -3299,8 +3299,8 @@ GenTree* Compiler::optAssertionPropLocal_RelOp(ASSERT_VALARG_TP assertions, GenT
 {
     assert(tree->OperGet() == GT_EQ || tree->OperGet() == GT_NE);
 
-    GenTree* op1 = tree->gtOp.gtOp1;
-    GenTree* op2 = tree->gtOp.gtOp2;
+    GenTree* op1 = tree->AsOp()->gtOp1;
+    GenTree* op2 = tree->AsOp()->gtOp2;
 
     // For Local AssertionProp we only can fold when op1 is a GT_LCL_VAR
     if (op1->gtOper != GT_LCL_VAR)
@@ -3394,8 +3394,8 @@ GenTree* Compiler::optAssertionProp_Cast(ASSERT_VALARG_TP assertions, GenTree* t
     assert(tree->gtOper == GT_CAST);
 
     var_types fromType = tree->CastFromType();
-    var_types toType   = tree->gtCast.gtCastType;
-    GenTree*  op1      = tree->gtCast.CastOp();
+    var_types toType   = tree->AsCast()->gtCastType;
+    GenTree*  op1      = tree->AsCast()->CastOp();
 
     // force the fromType to unsigned if GT_UNSIGNED flag is set
     if (tree->IsUnsigned())
@@ -3413,7 +3413,7 @@ GenTree* Compiler::optAssertionProp_Cast(ASSERT_VALARG_TP assertions, GenTree* t
     GenTree* lcl = op1;
     while (lcl->gtOper == GT_COMMA)
     {
-        lcl = lcl->gtOp.gtOp2;
+        lcl = lcl->AsOp()->gtOp2;
     }
 
     // If we don't have a cast of a LCL_VAR then bail.
@@ -3470,7 +3470,7 @@ GenTree* Compiler::optAssertionProp_Cast(ASSERT_VALARG_TP assertions, GenTree* t
             while (tmp->gtOper == GT_COMMA)
             {
                 tmp->gtType = toType;
-                tmp         = tmp->gtOp.gtOp2;
+                tmp         = tmp->AsOp()->gtOp2;
             }
             noway_assert(tmp == lcl);
             tmp->gtType = toType;
@@ -3527,9 +3527,9 @@ GenTree* Compiler::optAssertionProp_Ind(ASSERT_VALARG_TP assertions, GenTree* tr
 
     // Check for add of a constant.
     GenTree* op1 = tree->AsIndir()->Addr();
-    if ((op1->gtOper == GT_ADD) && (op1->gtOp.gtOp2->gtOper == GT_CNS_INT))
+    if ((op1->gtOper == GT_ADD) && (op1->AsOp()->gtOp2->gtOper == GT_CNS_INT))
     {
-        op1 = op1->gtOp.gtOp1;
+        op1 = op1->AsOp()->gtOp1;
     }
 
     if (op1->gtOper != GT_LCL_VAR)
@@ -3930,8 +3930,8 @@ GenTree* Compiler::optAssertionProp_Update(GenTree* newTree, GenTree* tree, Stat
             {
                 // If there's no parent, the tree being replaced is the root of the
                 // statement.
-                assert((stmt->gtStmtExpr == tree) && (&stmt->gtStmtExpr == useEdge));
-                stmt->gtStmtExpr = newTree;
+                assert((stmt->GetRootNode() == tree) && (stmt->GetRootNodePointer() == useEdge));
+                stmt->SetRootNode(newTree);
             }
 
             // We only need to ensure that the gtNext field is set as it is used to traverse
@@ -4514,12 +4514,12 @@ ASSERT_TP* Compiler::optComputeAssertionGen()
         // Walk the statement trees in this basic block.
         for (Statement* stmt : block->Statements())
         {
-            for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
+            for (GenTree* tree = stmt->GetTreeList(); tree != nullptr; tree = tree->gtNext)
             {
                 if (tree->gtOper == GT_JTRUE)
                 {
                     // A GT_TRUE is always the last node in a tree, so we can break here
-                    assert((tree->gtNext == nullptr) && (stmt->gtNext == nullptr));
+                    assert((tree->gtNext == nullptr) && (stmt->GetNextStmt() == nullptr));
                     jtrue = tree;
                     break;
                 }
@@ -4754,11 +4754,11 @@ GenTree* Compiler::optVNConstantPropOnJTrue(BasicBlock* block, GenTree* test)
     GenTree* sideEffList = optExtractSideEffListFromConst(relop);
 
     // Transform the relop's operands to be both zeroes.
-    ValueNum vnZero             = vnStore->VNZeroForType(TYP_INT);
-    relop->gtOp.gtOp1           = gtNewIconNode(0);
-    relop->gtOp.gtOp1->gtVNPair = ValueNumPair(vnZero, vnZero);
-    relop->gtOp.gtOp2           = gtNewIconNode(0);
-    relop->gtOp.gtOp2->gtVNPair = ValueNumPair(vnZero, vnZero);
+    ValueNum vnZero                = vnStore->VNZeroForType(TYP_INT);
+    relop->AsOp()->gtOp1           = gtNewIconNode(0);
+    relop->AsOp()->gtOp1->gtVNPair = ValueNumPair(vnZero, vnZero);
+    relop->AsOp()->gtOp2           = gtNewIconNode(0);
+    relop->AsOp()->gtOp2->gtVNPair = ValueNumPair(vnZero, vnZero);
 
     // Update the oper and restore the value numbers.
     bool evalsToTrue = (vnStore->CoercedConstantValue<INT64>(vnCns) != 0);
@@ -4983,14 +4983,14 @@ Statement* Compiler::optVNAssertionPropCurStmt(BasicBlock* block, Statement* stm
     }
 
     // Preserve the prev link before the propagation and morph.
-    Statement* prev = (stmt == block->firstStmt()) ? nullptr : stmt->getPrevStmt();
+    Statement* prev = (stmt == block->firstStmt()) ? nullptr : stmt->GetPrevStmt();
 
     // Perform VN based assertion prop first, in case we don't find
     // anything in assertion gen.
     optAssertionPropagatedCurrentStmt = false;
 
     VNAssertionPropVisitorInfo data(this, block, stmt);
-    fgWalkTreePre(&stmt->gtStmtExpr, Compiler::optVNAssertionPropCurStmtVisitor, &data);
+    fgWalkTreePre(stmt->GetRootNodePointer(), Compiler::optVNAssertionPropCurStmtVisitor, &data);
 
     if (optAssertionPropagatedCurrentStmt)
     {
@@ -5065,7 +5065,7 @@ void Compiler::optAssertionPropMain()
             }
 
             // Perform assertion gen for control flow based assertions.
-            for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
+            for (GenTree* tree = stmt->GetTreeList(); tree != nullptr; tree = tree->gtNext)
             {
                 optAssertionGen(tree);
             }
@@ -5150,16 +5150,16 @@ void Compiler::optAssertionPropMain()
 
             // Preserve the prev link before the propagation and morph, to check if propagation
             // removes the current stmt.
-            Statement* prevStmt = (stmt == block->firstStmt()) ? nullptr : stmt->getPrevStmt();
+            Statement* prevStmt = (stmt == block->firstStmt()) ? nullptr : stmt->GetPrevStmt();
 
             optAssertionPropagatedCurrentStmt = false; // set to true if a assertion propagation took place
                                                        // and thus we must morph, set order, re-link
-            for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
+            for (GenTree* tree = stmt->GetTreeList(); tree != nullptr; tree = tree->gtNext)
             {
                 if (tree->OperIs(GT_JTRUE))
                 {
                     // A GT_TRUE is always the last node in a tree, so we can break here
-                    assert((tree->gtNext == nullptr) && (stmt->gtNext == nullptr));
+                    assert((tree->gtNext == nullptr) && (stmt->GetNextStmt() == nullptr));
                     break;
                 }
 

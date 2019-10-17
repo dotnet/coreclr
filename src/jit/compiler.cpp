@@ -2343,16 +2343,120 @@ void Compiler::compSetProcessor()
 #endif // _TARGET_XARCH_
 
 #if defined(_TARGET_ARM64_)
-    // There is no JitFlag for Base instructions handle manually
-    opts.setSupportedISA(InstructionSet_Base);
-    // Dummy ISAs for simplifying the JIT code
-    opts.setSupportedISA(InstructionSet_Vector64);
-    opts.setSupportedISA(InstructionSet_Vector128);
-#define HARDWARE_INTRINSIC_CLASS(flag, jit_config, isa)                                                                \
-    if (jitFlags.IsSet(JitFlags::flag) && JitConfig.jit_config())                                                      \
-        opts.setSupportedISA(InstructionSet_##isa);
-#include "hwintrinsiclistArm64.h"
+    if (JitConfig.EnableHWIntrinsic())
+    {
+        // Dummy ISAs for simplifying the JIT code
+        opts.setSupportedISA(InstructionSet_ArmBase);
+        opts.setSupportedISA(InstructionSet_ArmBase_Arm64);
+        opts.setSupportedISA(InstructionSet_Vector64);
+        opts.setSupportedISA(InstructionSet_Vector128);
+    }
 
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_AES) && JitConfig.EnableArm64Aes())
+    {
+        opts.setSupportedISA(InstructionSet_Aes);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_ATOMICS) && JitConfig.EnableArm64Atomics())
+    {
+        opts.setSupportedISA(InstructionSet_Atomics);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_CRC32) && JitConfig.EnableArm64Crc32())
+    {
+        opts.setSupportedISA(InstructionSet_Crc32);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_DCPOP) && JitConfig.EnableArm64Dcpop())
+    {
+        opts.setSupportedISA(InstructionSet_Dcpop);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_DP) && JitConfig.EnableArm64Dp())
+    {
+        opts.setSupportedISA(InstructionSet_Dp);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_FCMA) && JitConfig.EnableArm64Fcma())
+    {
+        opts.setSupportedISA(InstructionSet_Fcma);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_FP) && JitConfig.EnableArm64Fp())
+    {
+        opts.setSupportedISA(InstructionSet_Fp);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_FP16) && JitConfig.EnableArm64Fp16())
+    {
+        opts.setSupportedISA(InstructionSet_Fp16);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_JSCVT) && JitConfig.EnableArm64Jscvt())
+    {
+        opts.setSupportedISA(InstructionSet_Jscvt);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_LRCPC) && JitConfig.EnableArm64Lrcpc())
+    {
+        opts.setSupportedISA(InstructionSet_Lrcpc);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_PMULL) && JitConfig.EnableArm64Pmull())
+    {
+        opts.setSupportedISA(InstructionSet_Pmull);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SHA1) && JitConfig.EnableArm64Sha1())
+    {
+        opts.setSupportedISA(InstructionSet_Sha1);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SHA256) && JitConfig.EnableArm64Sha256())
+    {
+        opts.setSupportedISA(InstructionSet_Sha256);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SHA512) && JitConfig.EnableArm64Sha512())
+    {
+        opts.setSupportedISA(InstructionSet_Sha512);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SHA3) && JitConfig.EnableArm64Sha3())
+    {
+        opts.setSupportedISA(InstructionSet_Sha3);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_ADVSIMD) && JitConfig.EnableArm64AdvSimd())
+    {
+        opts.setSupportedISA(InstructionSet_AdvSimd);
+        opts.setSupportedISA(InstructionSet_AdvSimd_Arm64);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_ADVSIMD_V81) && JitConfig.EnableArm64AdvSimd_v81())
+    {
+        opts.setSupportedISA(InstructionSet_AdvSimd_v81);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_ADVSIMD_FP16) && JitConfig.EnableArm64AdvSimd_Fp16())
+    {
+        opts.setSupportedISA(InstructionSet_AdvSimd_Fp16);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SM3) && JitConfig.EnableArm64Sm3())
+    {
+        opts.setSupportedISA(InstructionSet_Sm3);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SM4) && JitConfig.EnableArm64Sm4())
+    {
+        opts.setSupportedISA(InstructionSet_Sm4);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SVE) && JitConfig.EnableArm64Sve())
+    {
+        opts.setSupportedISA(InstructionSet_Sve);
+    }
 #endif
 }
 
@@ -3320,10 +3424,11 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
         compProfilerMethHndIndirected = false;
     }
 
-    // Honour COMPlus_JitELTHookEnabled only if VM has not asked us to generate profiler
-    // hooks in the first place. That is, override VM only if it hasn't asked for a
-    // profiler callback for this method.
-    if (!compProfilerHookNeeded && (JitConfig.JitELTHookEnabled() != 0))
+    // Honour COMPlus_JitELTHookEnabled or STRESS_PROFILER_CALLBACKS stress mode
+    // only if VM has not asked us to generate profiler hooks in the first place.
+    // That is, override VM only if it hasn't asked for a profiler callback for this method.
+    if (!compProfilerHookNeeded &&
+        ((JitConfig.JitELTHookEnabled() != 0) || compStressCompile(STRESS_PROFILER_CALLBACKS, 5)))
     {
         opts.compJitELTHookEnabled = true;
     }
@@ -4040,7 +4145,7 @@ _SetMinOpts:
 
         if (opts.jitFlags->IsSet(JitFlags::JIT_FLAG_RELOC))
         {
-            codeGen->genAlignLoops = false; // loop alignment not supported for prejitted code
+            codeGen->SetAlignLoops(false); // loop alignment not supported for prejitted code
 
             // The zapper doesn't set JitFlags::JIT_FLAG_ALIGN_LOOPS, and there is
             // no reason for it to set it as the JIT doesn't currently support loop alignment
@@ -4050,7 +4155,7 @@ _SetMinOpts:
         }
         else
         {
-            codeGen->genAlignLoops = opts.jitFlags->IsSet(JitFlags::JIT_FLAG_ALIGN_LOOPS);
+            codeGen->SetAlignLoops(opts.jitFlags->IsSet(JitFlags::JIT_FLAG_ALIGN_LOOPS));
         }
     }
 
@@ -4850,7 +4955,7 @@ void Compiler::ResetOptAnnotations()
     {
         for (Statement* stmt : block->Statements())
         {
-            for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
+            for (GenTree* tree = stmt->GetTreeList(); tree != nullptr; tree = tree->gtNext)
             {
                 tree->ClearVN();
                 tree->ClearAssertion();
@@ -5155,9 +5260,9 @@ int Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SHA256);
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SHA512);
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SHA3);
-        compileFlags->Set(JitFlags::JIT_FLAG_HAS_ARM64_SIMD);
-        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SIMD_V81);
-        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SIMD_FP16);
+        compileFlags->Set(JitFlags::JIT_FLAG_HAS_ARM64_ADVSIMD);
+        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_ADVSIMD_V81);
+        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_ADVSIMD_FP16);
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SM3);
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SM4);
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SVE);
@@ -5776,7 +5881,7 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
     info.compTotalHotCodeSize  = 0;
     info.compTotalColdCodeSize = 0;
 
-    fgHasBackwardJump = false;
+    compHasBackwardJump = false;
 
 #ifdef DEBUG
     compCurBB = nullptr;
@@ -5815,8 +5920,8 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
     }
     info.compRetNativeType = info.compRetType = JITtype2varType(methodInfo->args.retType);
 
-    info.compCallUnmanaged   = 0;
-    info.compLvFrameListRoot = BAD_VAR_NUM;
+    info.compUnmanagedCallCountWithGCTransition = 0;
+    info.compLvFrameListRoot                    = BAD_VAR_NUM;
 
     info.compInitMem = ((methodInfo->options & CORINFO_OPT_INIT_LOCALS) != 0);
 
@@ -5912,10 +6017,10 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
     }
 
 #ifdef FEATURE_CORECLR
-    if (fgHasBackwardJump && (info.compFlags & CORINFO_FLG_DISABLE_TIER0_FOR_LOOPS) != 0 && fgCanSwitchToOptimized())
+    if (compHasBackwardJump && (info.compFlags & CORINFO_FLG_DISABLE_TIER0_FOR_LOOPS) != 0 && fgCanSwitchToOptimized())
 #else // !FEATURE_CORECLR
     // We may want to use JitConfig value here to support DISABLE_TIER0_FOR_LOOPS
-    if (fgHasBackwardJump && fgCanSwitchToOptimized())
+    if (compHasBackwardJump && fgCanSwitchToOptimized())
 #endif
     {
         // Method likely has a loop, switch to the OptimizedTier to avoid spending too much time running slower code
@@ -6888,7 +6993,7 @@ Compiler::NodeToIntMap* Compiler::FindReachableNodesInNodeTestData()
     {
         for (Statement* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->GetNextStmt())
         {
-            for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
+            for (GenTree* tree = stmt->GetTreeList(); tree != nullptr; tree = tree->gtNext)
             {
                 TestLabelAndNum tlAndN;
 
@@ -7019,7 +7124,7 @@ void Compiler::compCallArgStats()
     {
         for (Statement* stmt : block->Statements())
         {
-            for (GenTree* call = stmt->gtStmtList; call != nullptr; call = call->gtNext)
+            for (GenTree* call = stmt->GetTreeList(); call != nullptr; call = call->gtNext)
             {
                 if (call->gtOper != GT_CALL)
                     continue;
@@ -7036,7 +7141,7 @@ void Compiler::compCallArgStats()
 
                 if (call->AsCall()->gtCallThisArg == nullptr)
                 {
-                    if (call->gtCall.gtCallType == CT_HELPER)
+                    if (call->AsCall()->gtCallType == CT_HELPER)
                     {
                         argHelperCalls++;
                     }
@@ -8427,7 +8532,7 @@ GenTree* dFindTree(unsigned id)
     {
         for (Statement* stmt : block->Statements())
         {
-            tree = dFindTree(stmt->gtStmtExpr, id);
+            tree = dFindTree(stmt->GetRootNode(), id);
             if (tree != nullptr)
             {
                 dbTreeBlock = block;
@@ -8655,7 +8760,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
 
             if (comp->compRationalIRForm)
             {
-                for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
+                for (GenTree* tree = stmt->GetTreeList(); tree != nullptr; tree = tree->gtNext)
                 {
                     cNodeIR(comp, tree);
                 }
@@ -9606,7 +9711,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
                             switch (tree->GetRegTag())
                             {
                                 case GenTree::GT_REGTAG_REG:
-                                    chars += printf(":%s", comp->compRegVarName(tree->gtRegNum));
+                                    chars += printf(":%s", comp->compRegVarName(tree->GetRegNum()));
                                     break;
                                 default:
                                     break;
@@ -9626,7 +9731,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
                         switch (tree->GetRegTag())
                         {
                             case GenTree::GT_REGTAG_REG:
-                                chars += printf("(%s)", comp->compRegVarName(tree->gtRegNum));
+                                chars += printf("(%s)", comp->compRegVarName(tree->GetRegNum()));
                                 break;
                             default:
                                 break;
@@ -9670,7 +9775,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
                             switch (tree->GetRegTag())
                             {
                                 case GenTree::GT_REGTAG_REG:
-                                    chars += printf(":%s", comp->compRegVarName(tree->gtRegNum));
+                                    chars += printf(":%s", comp->compRegVarName(tree->GetRegNum()));
                                     break;
                                 default:
                                     break;
@@ -9690,7 +9795,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
                         switch (tree->GetRegTag())
                         {
                             case GenTree::GT_REGTAG_REG:
-                                chars += printf("(%s)", comp->compRegVarName(tree->gtRegNum));
+                                chars += printf("(%s)", comp->compRegVarName(tree->GetRegNum()));
                                 break;
                             default:
                                 break;
@@ -9883,7 +9988,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
 
         case GT_RET_EXPR:
 
-            chars += printf("t%d", tree->gtRetExpr.gtInlineCandidate->gtTreeID);
+            chars += printf("t%d", tree->AsRetExpr()->gtInlineCandidate->gtTreeID);
             break;
 
         case GT_PHYSREG:
@@ -10483,12 +10588,12 @@ void cNodeIR(Compiler* comp, GenTree* tree)
 
         case GT_CALL:
 
-            if (tree->gtCall.gtCallType != CT_INDIRECT)
+            if (tree->AsCall()->gtCallType != CT_INDIRECT)
             {
                 const char* methodName;
                 const char* className;
 
-                methodName = comp->eeGetMethodName(tree->gtCall.gtCallMethHnd, &className);
+                methodName = comp->eeGetMethodName(tree->AsCall()->gtCallMethHnd, &className);
 
                 chars += printf(" %s.%s", className, methodName);
             }
@@ -10676,7 +10781,7 @@ void cNodeIR(Compiler* comp, GenTree* tree)
 
 void cStmtIR(Compiler* comp, Statement* stmt)
 {
-    cTreeIR(comp, stmt->gtStmtExpr);
+    cTreeIR(comp, stmt->GetRootNode());
     if (!comp->dumpIRNoStmts)
     {
         dTabStopIR(0, COLUMN_OPCODE);

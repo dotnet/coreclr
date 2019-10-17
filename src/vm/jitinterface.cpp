@@ -436,9 +436,12 @@ CEEInfo::ConvToJitSig(
 
     SigTypeContext typeContext;
 
+    uint32_t sigRetFlags = 0;
     if (pContextMD)
     {
         SigTypeContext::InitTypeContext(pContextMD, contextType, &typeContext);
+        if (pContextMD->ShouldSuppressGCTransition())
+            sigRetFlags |= CORINFO_SIGFLAG_SUPPRESS_GC_TRANSITION;
     }
     else
     {
@@ -472,7 +475,6 @@ CEEInfo::ConvToJitSig(
 
         _ASSERTE(!sig.IsNull());
         Module * module = GetModule(scopeHnd);
-        sigRet->flags = 0;
 
         ULONG data;
         IfFailThrow(sig.GetCallingConvInfo(&data));
@@ -521,10 +523,10 @@ CEEInfo::ConvToJitSig(
     else
     {
         // This is local variables declaration
+        sigRetFlags |= CORINFO_SIGFLAG_IS_LOCAL_SIG;
 
         sigRet->callConv = CORINFO_CALLCONV_DEFAULT;
         sigRet->retType = CORINFO_TYPE_VOID;
-        sigRet->flags   = CORINFO_SIGFLAG_IS_LOCAL_SIG;
         sigRet->numArgs = 0;
         if (!sig.IsNull())
         {
@@ -546,6 +548,9 @@ CEEInfo::ConvToJitSig(
 
         sigRet->args = (CORINFO_ARG_LIST_HANDLE)sig.GetPtr();
     }
+
+    // Set computed flags
+    sigRet->flags = sigRetFlags;
 
     _ASSERTE(SigInfoFlagsAreValid(sigRet));
 } // CEEInfo::ConvToJitSig
@@ -6764,8 +6769,6 @@ DWORD CEEInfo::getMethodAttribsInternal (CORINFO_METHOD_HANDLE ftn)
 
     DWORD result = CORINFO_FLG_NOSECURITYWRAP;
 
-    // <REVISIT_TODO>@todo: can we git rid of CORINFO_FLG_ stuff and just include cor.h?</REVISIT_TODO>
-
     DWORD attribs = pMD->GetAttrs();
 
     if (IsMdFamily(attribs))
@@ -7251,6 +7254,29 @@ bool getILIntrinsicImplementationForUnsafe(MethodDesc * ftn,
         methInfo->options = (CorInfoOptions)0;
         return true;
     }
+    else if (tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__BYREF_NULLREF)->GetMemberDef())
+    {
+        static const BYTE ilcode[] = { CEE_LDC_I4_0, CEE_CONV_U, CEE_RET };
+        methInfo->ILCode = const_cast<BYTE*>(ilcode);
+        methInfo->ILCodeSize = sizeof(ilcode);
+        methInfo->maxStack = 1;
+        methInfo->EHcount = 0;
+        methInfo->options = (CorInfoOptions)0;
+        return true;
+    }
+    else if (tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__BYREF_IS_NULL)->GetMemberDef())
+    {
+        // 'ldnull' opcode would produce type o, and we can't compare & against o (ECMA-335, Table III.4).
+        // However, we can compare & against native int, so we'll use that instead.
+
+        static const BYTE ilcode[] = { CEE_LDARG_0, CEE_LDC_I4_0, CEE_CONV_U, CEE_PREFIX1, (CEE_CEQ & 0xFF), CEE_RET };
+        methInfo->ILCode = const_cast<BYTE*>(ilcode);
+        methInfo->ILCodeSize = sizeof(ilcode);
+        methInfo->maxStack = 2;
+        methInfo->EHcount = 0;
+        methInfo->options = (CorInfoOptions)0;
+        return true;
+    }
     else if (tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__BYREF_INIT_BLOCK_UNALIGNED)->GetMemberDef())
     {
         static const BYTE ilcode[] = { CEE_LDARG_0, CEE_LDARG_1, CEE_LDARG_2, CEE_PREFIX1, (CEE_UNALIGNED & 0xFF), 0x01, CEE_PREFIX1, (CEE_INITBLK & 0xFF), CEE_RET };
@@ -7552,7 +7578,7 @@ bool getILIntrinsicImplementationForRuntimeHelpers(MethodDesc * ftn,
 
     if (tk == MscorlibBinder::GetMethod(METHOD__RUNTIME_HELPERS__GET_RAW_SZ_ARRAY_DATA)->GetMemberDef())
     {
-        mdToken tokRawSzArrayData = MscorlibBinder::GetField(FIELD__RAW_SZARRAY_DATA__DATA)->GetMemberDef();
+        mdToken tokRawSzArrayData = MscorlibBinder::GetField(FIELD__RAW_ARRAY_DATA__DATA)->GetMemberDef();
 
         static BYTE ilcode[] = { CEE_LDARG_0,
                                  CEE_LDFLDA,0,0,0,0,
@@ -9994,14 +10020,6 @@ CorInfoUnmanagedCallConv CEEInfo::getUnmanagedCallConv(CORINFO_METHOD_HANDLE met
 }
 
 /*********************************************************************/
-BOOL NDirectMethodDesc::ComputeMarshalingRequired()
-{
-    WRAPPER_NO_CONTRACT;
-
-    return NDirect::MarshalingRequired(this);
-}
-
-/*********************************************************************/
 BOOL CEEInfo::pInvokeMarshalingRequired(CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* callSiteSig)
 {
     CONTRACTL {
@@ -10204,13 +10222,27 @@ void* CEEInfo::getAddressOfPInvokeFixup(CORINFO_METHOD_HANDLE method,
 }
 
 /*********************************************************************/
-    // return address of fixup area for late-bound N/Direct calls.
+// return address of fixup area for late-bound N/Direct calls.
 void CEEInfo::getAddressOfPInvokeTarget(CORINFO_METHOD_HANDLE method,
                                         CORINFO_CONST_LOOKUP *pLookup)
 {
     WRAPPER_NO_CONTRACT;
 
-    void *pIndirection;
+    void* pIndirection;
+    {
+        JIT_TO_EE_TRANSITION_LEAF();
+
+        MethodDesc* pMD = GetMethod(method);
+        if (NDirectMethodDesc::TryResolveNDirectTargetForNoGCTransition(pMD, &pIndirection))
+        {
+            pLookup->accessType = IAT_VALUE;
+            pLookup->addr = pIndirection;
+            return;
+        }
+
+        EE_TO_JIT_TRANSITION_LEAF();
+    }
+
     pLookup->accessType = IAT_PVALUE;
     pLookup->addr = getAddressOfPInvokeFixup(method, &pIndirection);
     _ASSERTE(pIndirection == NULL);
@@ -13665,6 +13697,15 @@ BOOL LoadDynamicInfoEntry(Module *currentModule,
             _ASSERTE(pMethod->IsNDirect());
             NDirectMethodDesc *pMD = (NDirectMethodDesc*)pMethod;
             result = (size_t)(LPVOID)&(pMD->GetWriteableData()->m_pNDirectTarget);
+        }
+        break;
+
+    case ENCODE_PINVOKE_TARGET:
+        {
+            MethodDesc *pMethod = ZapSig::DecodeMethod(currentModule, pInfoModule, pBlob);
+
+            _ASSERTE(pMethod->IsNDirect());
+            result = (size_t)(LPVOID)NDirectMethodDesc::ResolveAndSetNDirectTarget((NDirectMethodDesc*)pMethod);
         }
         break;
 

@@ -1,7 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="$([MSBuild]::GetPathOfFileAbove(dir.props))" />
-
   <!-- Generate rsp -->
   <Import Project="GenerateCompilerResponseFile.targets" />
 
@@ -305,6 +303,8 @@
     <Compile Include="$(BclSourcesRoot)\System\Utf8String.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Utf8String.Comparison.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Utf8String.Construction.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Utf8String.Conversion.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Utf8String.Enumeration.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Utf8String.Manipulation.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Utf8String.Searching.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Utf8StringSplitOptions.cs" />
@@ -314,10 +314,11 @@
     <Compile Include="$(BclSourcesRoot)\System\Text\Utf8Span.Enumeration.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Text\Utf8Span.Manipulation.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Text\Utf8Span.Searching.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Text\Utf8StringComparer.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\XplatEventLogger.cs" Condition="'$(FeatureXplatEventSource)' == 'true'" />
-    <Compile Include="$(IntermediateOutputPath)../Eventing/NativeRuntimeEventSource.cs" Condition="'$(FeaturePerfTracing)' == 'true' AND '$(BuildingInsideVisualStudio)' != 'true' " />
+    <Compile Include="$(IntermediateOutputPath)../../../Eventing/$(BuildArch)/$(Configuration)/NativeRuntimeEventSource.cs" Condition="'$(FeaturePerfTracing)' == 'true' AND '$(BuildingInsideVisualStudio)' != 'true' " />
   </ItemGroup>
   <ItemGroup Condition="'$(FeatureCominterop)' == 'true'">
     <Compile Include="$(BclSourcesRoot)\Internal\Runtime\InteropServices\WindowsRuntime\ExceptionSupport.cs" />
