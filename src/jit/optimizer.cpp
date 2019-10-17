@@ -3656,12 +3656,12 @@ void Compiler::optUnrollLoops()
 
         /* Make sure everything looks ok */
         if ((init->gtOper != GT_ASG) || (init->AsOp()->gtOp1->gtOper != GT_LCL_VAR) ||
-            (init->AsOp()->gtOp1->AsLclVarCommon()->GetLclNum() != lvar) || (init->AsOp()->gtOp2->gtOper != GT_CNS_INT) ||
-            (init->AsOp()->gtOp2->AsIntCon()->gtIconVal != lbeg) ||
+            (init->AsOp()->gtOp1->AsLclVarCommon()->GetLclNum() != lvar) ||
+            (init->AsOp()->gtOp2->gtOper != GT_CNS_INT) || (init->AsOp()->gtOp2->AsIntCon()->gtIconVal != lbeg) ||
 
             !((incr->gtOper == GT_ADD) || (incr->gtOper == GT_SUB)) || (incr->AsOp()->gtOp1->gtOper != GT_LCL_VAR) ||
-            (incr->AsOp()->gtOp1->AsLclVarCommon()->GetLclNum() != lvar) || (incr->AsOp()->gtOp2->gtOper != GT_CNS_INT) ||
-            (incr->AsOp()->gtOp2->AsIntCon()->gtIconVal != iterInc) ||
+            (incr->AsOp()->gtOp1->AsLclVarCommon()->GetLclNum() != lvar) ||
+            (incr->AsOp()->gtOp2->gtOper != GT_CNS_INT) || (incr->AsOp()->gtOp2->AsIntCon()->gtIconVal != iterInc) ||
 
             (testStmt->GetRootNode()->gtOper != GT_JTRUE))
         {
