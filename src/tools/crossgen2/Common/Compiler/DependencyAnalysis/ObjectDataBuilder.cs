@@ -15,17 +15,8 @@ namespace ILCompiler.DependencyAnalysis
         : Internal.Runtime.ITargetBinaryWriter
 #endif
     {
-        public ObjectDataBuilder(NodeFactory factory, bool relocsOnly)
+        public ObjectDataBuilder(NodeFactory factory, bool relocsOnly) : this(factory.Target, relocsOnly)
         {
-            _target = factory.Target;
-            _data = new ArrayBuilder<byte>();
-            _relocs = new ArrayBuilder<Relocation>();
-            Alignment = 1;
-            _definedSymbols = new ArrayBuilder<ISymbolDefinitionNode>();
-#if DEBUG
-            _numReservations = 0;
-            _checkAllSymbolDependenciesMustBeMarked = !relocsOnly;
-#endif
         }
 
         public ObjectDataBuilder(TargetDetails target, bool relocsOnly)

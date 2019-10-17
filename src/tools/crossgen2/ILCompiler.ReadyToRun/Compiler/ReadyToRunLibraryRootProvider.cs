@@ -17,13 +17,11 @@ namespace ILCompiler
     {
         private EcmaModule _module;
         private ProfileData _profileData;
-        private TargetDetails _targetDetails;
 
-        public ReadyToRunRootProvider(EcmaModule module, ProfileDataManager profileDataManager, TargetDetails targetDetails)
+        public ReadyToRunRootProvider(EcmaModule module, ProfileDataManager profileDataManager)
         {
             _module = module;
             _profileData = profileDataManager.GetDataForModuleDesc(module);
-            _targetDetails = targetDetails;
         }
 
         public void AddCompilationRoots(IRootingServiceProvider rootProvider)
@@ -179,7 +177,7 @@ namespace ILCompiler
             // TODO: Is it possible to augment CheckTypeCanBeUsedInSignature() to accomplish the same? It is relative straightforward
             // to check if the type has indeterminate size, but is that sufficient?
             //
-            new GCRefMapBuilder(_targetDetails, false).GetCallRefMap(method);
+            new GCRefMapBuilder(_module.Context.Target, false).GetCallRefMap(method);
         }
 
         private static void CheckTypeCanBeUsedInSignature(TypeDesc type)
