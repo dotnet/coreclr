@@ -7206,7 +7206,7 @@ void CodeGen::genSSE41RoundOp(GenTreeOp* treeNode)
                     GenTreeLclFld* lclField = srcNode->AsLclFld();
 
                     varNum = lclField->GetLclNum();
-                    offset = lclField->AsLclFld()->gtLclOffs;
+                    offset = lclField->gtLclOffs;
                     break;
                 }
 
