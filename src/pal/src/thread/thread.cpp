@@ -1580,19 +1580,19 @@ GetThreadTimes(
 
 HRESULT
 PALAPI
-SetThreadName(    
+SetThreadDescription(    
     IN HANDLE hThread,
     IN PCWSTR lpThreadDescription)
 {
     CPalThread *pThread;
     PAL_ERROR palError;
 
-    PERF_ENTRY(SetThreadName);
-    ENTRY("SetThreadName(hThread=%p,lpThreadDescription=%p)\n", hThread, lpThreadDescription);
+    PERF_ENTRY(SetThreadDescription);
+    ENTRY("SetThreadDescription(hThread=%p,lpThreadDescription=%p)\n", hThread, lpThreadDescription);
 
     pThread = InternalGetCurrentThread();
 
-    palError = InternalSetThreadName(
+    palError = InternalSetThreadDescription(
         pThread,
         hThread,
         lpThreadDescription
@@ -1603,14 +1603,14 @@ SetThreadName(
         pThread->SetLastError(palError);
     }
 
-    LOGEXIT("SetThreadNameExit");
-    PERF_EXIT(SetThreadName);
+    LOGEXIT("SetThreadDescription");
+    PERF_EXIT(SetThreadDescription);
 
-    return NO_ERROR != palError ? 0x80004005 : 0; // E_FAIL
+    return HRESULT_FROM_WIN32(palError);
 }
 
 PAL_ERROR
-CorUnix::InternalSetThreadName(
+CorUnix::InternalSetThreadDescription(
     CPalThread *pThread,
     HANDLE hTargetThread,
     PCWSTR lpThreadDescription
@@ -1619,9 +1619,9 @@ CorUnix::InternalSetThreadName(
     PAL_ERROR palError = NO_ERROR;
     CPalThread *pTargetThread = NULL;
     IPalObject *pobjThread = NULL;
-    int   nameSize;
-    char  *nameBuf = NULL;
     int error;
+    int nameSize;
+    char *nameBuf = NULL;
 
 // The exact API of pthread_setname_np varies very wildly depending on OS.
 // For now, only Linux is implemented.
@@ -1636,25 +1636,32 @@ CorUnix::InternalSetThreadName(
 
     if (NO_ERROR != palError)
     {
-        goto InternalSetThreadNameExit;
+        goto InternalSetThreadDescriptionExit;
     }
 
     pTargetThread->Lock(pThread);
-    
-    /* translate the wide char lpPathName string to multibyte string */
-    if(0 == (nameSize = WideCharToMultiByte( CP_ACP, 0, lpThreadDescription, -1, NULL, 0,
-                                            NULL, NULL )))
+
+    /* translate the wide char lpThreadDescription string to multibyte string */
+    nameSize = WideCharToMultiByte(CP_ACP, 0, lpThreadDescription, -1, NULL, 0, NULL, NULL);
+
+    if (0 == nameSize)
     {
         palError = ERROR_INTERNAL_ERROR;
-        goto InternalSetThreadNameExit;
+        goto InternalSetThreadDescriptionExit;
     }
 
-    if (((nameBuf = (char *)PAL_malloc(nameSize)) == NULL) ||
-        (WideCharToMultiByte( CP_ACP, 0, lpThreadDescription, -1, nameBuf, nameSize, NULL,
-                              NULL) != nameSize))
+    nameBuf = (char *)PAL_malloc(nameSize);
+    if (nameBuf == NULL)
+    {
+        palError = ERROR_OUTOFMEMORY;
+        goto InternalSetThreadDescriptionExit;
+    }
+
+    if (WideCharToMultiByte(CP_ACP, 0, lpThreadDescription, -1, nameBuf, nameSize, NULL,
+                            NULL) != nameSize)
     {
         palError = ERROR_INTERNAL_ERROR;
-        goto InternalSetThreadNameExit;
+        goto InternalSetThreadDescriptionExit;
     }
 
     // Null terminate early.
@@ -1666,10 +1673,10 @@ CorUnix::InternalSetThreadName(
     if (error != 0) 
     {
         palError = ERROR_INTERNAL_ERROR;
-        goto InternalSetThreadNameExit;
+        goto InternalSetThreadDescriptionExit;
     }
 
-InternalSetThreadNameExit:
+InternalSetThreadDescriptionExit:
 
     if (NULL != pTargetThread)
     {

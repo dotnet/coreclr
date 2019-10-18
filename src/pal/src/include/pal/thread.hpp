@@ -201,7 +201,7 @@ namespace CorUnix
 
         friend
             PAL_ERROR
-            InternalSetThreadName(
+            InternalSetThreadDescription(
                 CPalThread *,
                 HANDLE,
                 PCWSTR
