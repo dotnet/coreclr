@@ -22,7 +22,7 @@
 #define FMT_CODE_ADDR "%p"
 #endif
 
-bool PerfMap::s_enabled = false;
+Volatile<bool> PerfMap::s_enabled = false;
 PerfMap * PerfMap::s_Current = nullptr;
 bool PerfMap::s_ShowOptimizationTiers = false;
 
