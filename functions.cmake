@@ -353,7 +353,7 @@ function(_add_executable)
     # It is some kind of misplay between -ffunction-sections, -fdata-sections compiler options and --gc-collect and -pie 
     # linker options.
     # As a workaround, don't set the -pie linker option when building the corebundle on RHEL / CentOS 6
-    if (NOT (BUILDING_ON_RHEL_6 AND CLR_CMAKE_BUILD_COREBUNDLE))
+    if (BUILDING_ON_RHEL_6 AND CLR_CMAKE_BUILD_COREBUNDLE)
       # This linker option causes executables we build to be marked as containing position independent code.
       # It is necessary to make ASLR work for executables.
       set_target_properties(${ARGV0} PROPERTIES POSITION_INDEPENDENT_CODE OFF)
