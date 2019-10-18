@@ -6,7 +6,7 @@
     <DebugType />
     <Optimize>True</Optimize>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
-    <JitOptimizationSensitive>true</JitOptimizationSensitive>
+    <JitOptimizationSensitive Condition="'$(Platform)' == 'arm64'">true</JitOptimizationSensitive>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="VectorMgdMgd.cs" />
