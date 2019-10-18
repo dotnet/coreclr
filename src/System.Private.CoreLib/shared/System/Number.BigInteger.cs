@@ -353,7 +353,7 @@ namespace System
                 while (index < lhsLength)
                 {
                     ulong sum = (ulong)(lhs._blocks[index]) + carry;
-                    lhs._blocks[index] = (uint)(sum);
+                    result._blocks[index] = (uint)(sum);
                     carry = (uint)(sum >> 32);
 
                     index++;
@@ -953,13 +953,13 @@ namespace System
                 else
                 {
                     // Extract the high position bits which would be shifted out of range.
-                    uint highPositionBits = (uint)(input) >> (int)(64 - remainingBitsToShift);
+                    uint highPositionBits = (uint)(input >> (int)(64 - remainingBitsToShift));
 
                     // Shift the input. The result should be stored to current block.
                     ulong shiftedInput = input << (int)(remainingBitsToShift);
                     output.ExtendBlock((uint)(shiftedInput));
 
-                    uint highBits = (uint)(input >> 32);
+                    uint highBits = (uint)(shiftedInput >> 32);
 
                     if (highBits != 0)
                     {
