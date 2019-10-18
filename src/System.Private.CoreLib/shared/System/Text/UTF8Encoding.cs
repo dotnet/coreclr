@@ -47,6 +47,14 @@ namespace System.Text
 
         private const int UTF8_CODEPAGE = 65001;
 
+        /// <summary>
+        /// Transcoding to UTF-8 bytes from UTF-16 input chars will result in a maximum 3:1 expansion.
+        /// </summary>
+        /// <remarks>
+        /// Supplementary code points are expanded to UTF-8 from UTF-16 at a 4:2 ratio,
+        /// so 3:1 is still the correct value for maximum expansion.
+        /// </remarks>
+        private const int MaxUtf8BytesPerChar = 3;
 
 
         // Used by Encoding.UTF8 for lazy initialization
@@ -57,7 +65,7 @@ namespace System.Text
 
         // Yes, the idea of emitting U+FEFF as a UTF-8 identifier has made it into
         // the standard.
-        internal readonly bool _emitUTF8Identifier = false;
+        private protected readonly bool _emitUTF8Identifier = false;
 
         private readonly bool _isThrowException = false;
 
@@ -780,8 +788,7 @@ namespace System.Text
             if (EncoderFallback.MaxCharCount > 1)
                 byteCount *= EncoderFallback.MaxCharCount;
 
-            // Max 3 bytes per char.  (4 bytes per 2 chars for surrogates)
-            byteCount *= 3;
+            byteCount *= MaxUtf8BytesPerChar;
 
             if (byteCount > 0x7fffffff)
                 throw new ArgumentOutOfRangeException(nameof(charCount), SR.ArgumentOutOfRange_GetByteCountOverflow);
