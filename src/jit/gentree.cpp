@@ -4482,9 +4482,6 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
         case GT_STORE_DYN_BLK:
         case GT_DYN_BLK:
         {
-            costEx = 0;
-            costSz = 0;
-
             level  = gtSetEvalOrder(tree->gtDynBlk.Addr());
             costEx = tree->gtDynBlk.Addr()->GetCostEx();
             costSz = tree->gtDynBlk.Addr()->GetCostSz();
