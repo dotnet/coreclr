@@ -89,6 +89,9 @@ namespace SafeHandleTests
         [DllImport(nameof(SafeHandleNative))]
         public static extern void GetHandleAndCookie(IntPtr value, out TestSafeHandle handle, [MarshalAs(UnmanagedType.CustomMarshaler, MarshalTypeRef = typeof(ThrowingCustomMarshaler), MarshalCookie = "")] out object cookie);
 
+        [DllImport(nameof(SafeHandleNative))]
+        public static extern void GetHandleAndArray(out short arrSize, [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 0)] out short[] arrShort, IntPtr value, out TestSafeHandle handle);
+
         [DllImport(nameof(SafeHandleNative), CallingConvention = CallingConvention.Cdecl)]
         public static extern void SafeHandle_Invalid([MarshalAs(UnmanagedType.Interface)] TestSafeHandle handle);
 

@@ -21,6 +21,14 @@ namespace SafeHandleTests
             Assert.Throws<InvalidOperationException>(() => SafeHandleNative.GetHandleAndCookie(value, out h, out var cookie));
 
             Assert.AreEqual(value, h.DangerousGetHandle());
+
+            // Try again, this time triggering unmarshal failure with an array.
+            value = (IntPtr)456;
+            h = new TestSafeHandle();
+
+            Assert.Throws<OverflowException>(() => SafeHandleNative.GetHandleAndArray(out _, out _, value, out h));
+
+            Assert.AreEqual(value, h.DangerousGetHandle());
         }
     }
 }

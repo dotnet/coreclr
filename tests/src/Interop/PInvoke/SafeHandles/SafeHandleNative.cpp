@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include <platformdefines.h>
+#include <xplatform.h>
 
 struct StructWithHandle
 {
@@ -66,3 +67,12 @@ extern "C" void DLL_EXPORT GetHandleAndCookie(intptr_t value, HANDLE* handle, vo
     *pCookie = (void*)4567; // the value here does not matter. It just needs to not be nullptr.
 }
 
+extern "C" void DLL_EXPORT GetHandleAndArray(/*out*/SHORT* arrSize, SHORT** ppActual, intptr_t value, HANDLE* handle)
+{
+    *arrSize = -1; // minus one is going to make this throw on unmarshal
+
+    // Still need to provide something allocated using an expected allocator so that the marshaller can unalloc
+    *ppActual = (SHORT*)CoreClrAlloc(sizeof(SHORT));
+
+    *handle = (HANDLE)value;
+}
