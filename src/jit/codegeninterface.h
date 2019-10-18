@@ -75,12 +75,12 @@ public:
     //-------------------------------------------------------------------------
     //  The following property indicates whether to align loops.
     //  (Used to avoid effects of loop alignment when diagnosing perf issues.)
-    __declspec(property(get = doAlignLoops, put = setAlignLoops)) bool genAlignLoops;
-    bool doAlignLoops()
+
+    bool ShouldAlignLoops()
     {
         return m_genAlignLoops;
     }
-    void setAlignLoops(bool value)
+    void SetAlignLoops(bool value)
     {
         m_genAlignLoops = value;
     }
@@ -382,12 +382,11 @@ private:
     //        for fully interruptible methods)
     //
 public:
-    __declspec(property(get = doFullPtrRegMap, put = setFullPtrRegMap)) bool genFullPtrRegMap;
-    bool doFullPtrRegMap()
+    bool IsFullPtrRegMapRequired()
     {
         return m_cgFullPtrRegMap;
     }
-    void setFullPtrRegMap(bool value)
+    void SetFullPtrRegMapRequired(bool value)
     {
         m_cgFullPtrRegMap = value;
     }

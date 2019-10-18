@@ -42,6 +42,8 @@ namespace Internal.JitInterface
             ARM = 0x01c4,
         }
 
+        private const string JitLibrary = "clrjitilc";
+
 #if SUPPORT_JIT
         private const string JitSupportLibrary = "*";
 #else
@@ -57,13 +59,13 @@ namespace Internal.JitInterface
 
         private static bool s_jitRegistered = RegisterJITModule();
 
-        [DllImport("clrjitilc")]
+        [DllImport(JitLibrary)]
         private extern static IntPtr PAL_RegisterModule([MarshalAs(UnmanagedType.LPUTF8Str)] string moduleName);
 
-        [DllImport("clrjitilc", CallingConvention=CallingConvention.StdCall)] // stdcall in CoreCLR!
+        [DllImport(JitLibrary, CallingConvention=CallingConvention.StdCall)] // stdcall in CoreCLR!
         private extern static IntPtr jitStartup(IntPtr host);
 
-        [DllImport("clrjitilc", CallingConvention=CallingConvention.StdCall)]
+        [DllImport(JitLibrary, CallingConvention=CallingConvention.StdCall)]
         private extern static IntPtr getJit();
 
         [DllImport(JitSupportLibrary)]
@@ -126,6 +128,16 @@ namespace Internal.JitInterface
             }
         }
 
+        private IntPtr JitLibraryResolver(string libraryName, System.Reflection.Assembly assembly, DllImportSearchPath? searchPath)
+        {
+            IntPtr libHandle = IntPtr.Zero;
+            if (libraryName == JitLibrary)
+            {
+                libHandle = NativeLibrary.Load(_jitConfig.JitPath, assembly, searchPath);
+            }
+            return libHandle;
+        }
+
         public CorInfoImpl(JitConfigProvider jitConfig)
         {
             //
@@ -133,7 +145,14 @@ namespace Internal.JitInterface
             //
             _jitConfig = jitConfig;
             if (!s_jitRegistered)
+            {
                 throw new IOException("Failed to register JIT");
+            }
+
+            if (_jitConfig.JitPath != null)
+            {
+                NativeLibrary.SetDllImportResolver(typeof(CorInfoImpl).Assembly, JitLibraryResolver);
+            }
 
             jitStartup(GetJitHost(_jitConfig.UnmanagedInstance));
 
@@ -162,100 +181,81 @@ namespace Internal.JitInterface
 
         private void CompileMethodInternal(IMethodNode methodCodeNodeNeedingCode, MethodIL methodIL = null)
         {
-#if READYTORUN
-            bool codeGotPublished = false;
-#endif
-            try
+            _isFallbackBodyCompilation = methodIL != null;
+
+            CORINFO_METHOD_INFO methodInfo;
+            methodIL = Get_CORINFO_METHOD_INFO(MethodBeingCompiled, methodIL, &methodInfo);
+
+            // This is e.g. an "extern" method in C# without a DllImport or InternalCall.
+            if (methodIL == null)
             {
-                _isFallbackBodyCompilation = methodIL != null;
+                ThrowHelper.ThrowInvalidProgramException(ExceptionStringID.InvalidProgramSpecific, MethodBeingCompiled);
+            }
 
-                CORINFO_METHOD_INFO methodInfo;
-                methodIL = Get_CORINFO_METHOD_INFO(MethodBeingCompiled, methodIL, &methodInfo);
-
-                // This is e.g. an "extern" method in C# without a DllImport or InternalCall.
-                if (methodIL == null)
-                {
-                    ThrowHelper.ThrowInvalidProgramException(ExceptionStringID.InvalidProgramSpecific, MethodBeingCompiled);
-                }
-
-                _methodScope = methodInfo.scope;
+            _methodScope = methodInfo.scope;
 
 #if !READYTORUN
-                SetDebugInformation(methodCodeNodeNeedingCode, methodIL);
+            SetDebugInformation(methodCodeNodeNeedingCode, methodIL);
 #endif
 
-                CorInfoImpl _this = this;
+            CorInfoImpl _this = this;
 
-                IntPtr exception;
-                IntPtr nativeEntry;
-                uint codeSize;
-                var result = JitCompileMethod(out exception,
-                        _jit, (IntPtr)Unsafe.AsPointer(ref _this), _unmanagedCallbacks,
-                        ref methodInfo, (uint)CorJitFlag.CORJIT_FLAG_CALL_GETJITFLAGS, out nativeEntry, out codeSize);
-                if (exception != IntPtr.Zero)
-                {
-                    if (_lastException != null)
-                    {
-                        // If we captured a managed exception, rethrow that.
-                        // TODO: might not actually be the real reason. It could be e.g. a JIT failure/bad IL that followed
-                        // an inlining attempt with a type system problem in it...
-#if SUPPORT_JIT
-                        _lastException.Throw();
-#else
-                        if (_lastException.SourceException is TypeSystemException)
-                        {
-                            // Type system exceptions can be turned into code that throws the exception at runtime.
-                            _lastException.Throw();
-                        }
-#if READYTORUN
-                        else if (_lastException.SourceException is RequiresRuntimeJitException)
-                        {
-                            // Runtime JIT requirement is not a cause for failure, we just mustn't JIT a particular method
-                            _lastException.Throw();
-                        }
-#endif
-                        else
-                        {
-                            // This is just a bug somewhere.
-                            throw new CodeGenerationFailedException(_methodCodeNode.Method, _lastException.SourceException);
-                        }
-#endif
-                    }
-
-                    // This is a failure we don't know much about.
-                    char* szMessage = GetExceptionMessage(exception);
-                    string message = szMessage != null ? new string(szMessage) : "JIT Exception";
-                    throw new Exception(message);
-                }
-                if (result == CorJitResult.CORJIT_BADCODE)
-                {
-                    ThrowHelper.ThrowInvalidProgramException();
-                }
-                if (result != CorJitResult.CORJIT_OK)
-                {
-#if SUPPORT_JIT
-                    // FailFast?
-                    throw new Exception("JIT failed");
-#else
-                    throw new CodeGenerationFailedException(_methodCodeNode.Method);
-#endif
-                }
-
-                PublishCode();
-#if READYTORUN
-                codeGotPublished = true;
-#endif
-            }
-            finally
+            IntPtr exception;
+            IntPtr nativeEntry;
+            uint codeSize;
+            var result = JitCompileMethod(out exception,
+                    _jit, (IntPtr)Unsafe.AsPointer(ref _this), _unmanagedCallbacks,
+                    ref methodInfo, (uint)CorJitFlag.CORJIT_FLAG_CALL_GETJITFLAGS, out nativeEntry, out codeSize);
+            if (exception != IntPtr.Zero)
             {
-#if READYTORUN
-                if (!codeGotPublished)
+                if (_lastException != null)
                 {
-                    PublishEmptyCode();
-                }
+                    // If we captured a managed exception, rethrow that.
+                    // TODO: might not actually be the real reason. It could be e.g. a JIT failure/bad IL that followed
+                    // an inlining attempt with a type system problem in it...
+#if SUPPORT_JIT
+                    _lastException.Throw();
+#else
+                    if (_lastException.SourceException is TypeSystemException)
+                    {
+                        // Type system exceptions can be turned into code that throws the exception at runtime.
+                        _lastException.Throw();
+                    }
+#if READYTORUN
+                    else if (_lastException.SourceException is RequiresRuntimeJitException)
+                    {
+                        // Runtime JIT requirement is not a cause for failure, we just mustn't JIT a particular method
+                        _lastException.Throw();
+                    }
 #endif
-                CompileMethodCleanup();
+                    else
+                    {
+                        // This is just a bug somewhere.
+                        throw new CodeGenerationFailedException(_methodCodeNode.Method, _lastException.SourceException);
+                    }
+#endif
+                }
+
+                // This is a failure we don't know much about.
+                char* szMessage = GetExceptionMessage(exception);
+                string message = szMessage != null ? new string(szMessage) : "JIT Exception";
+                throw new Exception(message);
             }
+            if (result == CorJitResult.CORJIT_BADCODE)
+            {
+                ThrowHelper.ThrowInvalidProgramException();
+            }
+            if (result != CorJitResult.CORJIT_OK)
+            {
+#if SUPPORT_JIT
+                // FailFast?
+                throw new Exception("JIT failed");
+#else
+                throw new CodeGenerationFailedException(_methodCodeNode.Method);
+#endif
+            }
+
+            PublishCode();
         }
 
         private void PublishCode()
@@ -660,6 +660,13 @@ namespace Internal.JitInterface
             {
                 result |= CorInfoFlag.CORINFO_FLG_PINVOKE;
             }
+
+#if READYTORUN
+            if (method.RequireSecObject)
+            {
+                result |= CorInfoFlag.CORINFO_FLG_DONT_INLINE_CALLER;
+            }
+#endif
 
             if (method.IsAggressiveOptimization)
             {
@@ -2642,8 +2649,6 @@ namespace Internal.JitInterface
         { throw new NotImplementedException("getAddressOfPInvokeFixup"); }
         private void* GetCookieForPInvokeCalliSig(CORINFO_SIG_INFO* szMetaSig, ref void* ppIndirection)
         { throw new NotImplementedException("GetCookieForPInvokeCalliSig"); }
-        private bool canGetCookieForPInvokeCalliSig(CORINFO_SIG_INFO* szMetaSig)
-        { throw new NotImplementedException("canGetCookieForPInvokeCalliSig"); }
         private CORINFO_JUST_MY_CODE_HANDLE_* getJustMyCodeHandle(CORINFO_METHOD_STRUCT_* method, ref CORINFO_JUST_MY_CODE_HANDLE_* ppIndirection)
         {
             ppIndirection = null;

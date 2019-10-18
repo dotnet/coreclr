@@ -2135,10 +2135,6 @@ void SystemDomain::LoadBaseSystemClasses()
     g_pICastableInterface = MscorlibBinder::GetClass(CLASS__ICASTABLE);
 #endif // FEATURE_ICASTABLE
 
-    // Load a special marker method used to detect Constrained Execution Regions
-    // at jit time.
-    g_pExecuteBackoutCodeHelperMethod = MscorlibBinder::GetMethod(METHOD__RUNTIME_HELPERS__EXECUTE_BACKOUT_CODE_HELPER);
-
     // Make sure that FCall mapping for Monitor.Enter is initialized. We need it in case Monitor.Enter is used only as JIT helper. 
     // For more details, see comment in code:JITutil_MonEnterWorker around "__me = GetEEFuncEntryPointMacro(JIT_MonEnter)".
     ECall::GetFCallImpl(MscorlibBinder::GetMethod(METHOD__MONITOR__ENTER));
@@ -2247,36 +2243,6 @@ void SystemDomain::SetThreadAptState (Thread::ApartmentState state)
     }
 }
 #endif // defined(FEATURE_COMINTEROP_APARTMENT_SUPPORT) && !defined(CROSSGEN_COMPILE)
-
-// Helper function to load an assembly. This is called from LoadCOMClass.
-/* static */
-
-Assembly *AppDomain::LoadAssemblyHelper(LPCWSTR wszAssembly,
-                                        LPCWSTR wszCodeBase)
-{
-    CONTRACT(Assembly *)
-    {
-        THROWS;
-        POSTCONDITION(CheckPointer(RETVAL));
-        PRECONDITION(wszAssembly || wszCodeBase);
-        INJECT_FAULT(COMPlusThrowOM(););
-    }
-    CONTRACT_END;
-
-    AssemblySpec spec;
-    if(wszAssembly) {
-        #define MAKE_TRANSLATIONFAILED  { ThrowOutOfMemory(); }
-        MAKE_UTF8PTR_FROMWIDE(szAssembly,wszAssembly);
-        #undef  MAKE_TRANSLATIONFAILED
-       
-        IfFailThrow(spec.Init(szAssembly));
-    }
-
-    if (wszCodeBase) {
-        spec.SetCodeBase(wszCodeBase);
-    }
-    RETURN spec.LoadAssembly(FILE_LOADED);
-}
 
 #if defined(FEATURE_CLASSIC_COMINTEROP) && !defined(CROSSGEN_COMPILE)
 

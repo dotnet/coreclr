@@ -64,6 +64,13 @@ namespace ILCompiler
 
         public bool CanInline(MethodDesc caller, MethodDesc callee)
         {
+            // Check to see if the method requires a security object.  This means they call demand and
+            // shouldn't be inlined.
+            if (callee.RequireSecObject)
+            {
+                return false;
+            }
+
             return NodeFactory.CompilationModuleGroup.CanInline(caller, callee);
         }
 
@@ -229,10 +236,11 @@ namespace ILCompiler
                 _dependencyGraph.ComputeMarkedNodes();
                 var nodes = _dependencyGraph.MarkedNodeList;
 
-                PerfEventSource.Log.EmittingStart();
-                NodeFactory.SetMarkingComplete();
-                ReadyToRunObjectWriter.EmitObject(inputPeReader, outputFile, nodes, NodeFactory);
-                PerfEventSource.Log.EmittingStop();
+                using (PerfEventSource.StartStopEvents.EmittingEvents())
+                {
+                    NodeFactory.SetMarkingComplete();
+                    ReadyToRunObjectWriter.EmitObject(inputPeReader, outputFile, nodes, NodeFactory);
+                }
             }
         }
 
@@ -249,55 +257,56 @@ namespace ILCompiler
 
         protected override void ComputeDependencyNodeDependencies(List<DependencyNodeCore<NodeFactory>> obj)
         {
-            foreach (DependencyNodeCore<NodeFactory> dependency in obj)
+            using (PerfEventSource.StartStopEvents.JitEvents())
             {
-                var methodCodeNodeNeedingCode = dependency as MethodWithGCInfo;
-                if (methodCodeNodeNeedingCode == null)
+                foreach (DependencyNodeCore<NodeFactory> dependency in obj)
                 {
-                    // To compute dependencies of the shadow method that tracks dictionary
-                    // dependencies we need to ensure there is code for the canonical method body.
-                    var dependencyMethod = (ShadowConcreteMethodNode)dependency;
-                    methodCodeNodeNeedingCode = (MethodWithGCInfo)dependencyMethod.CanonicalMethodNode;
-                }
+                    var methodCodeNodeNeedingCode = dependency as MethodWithGCInfo;
+                    if (methodCodeNodeNeedingCode == null)
+                    {
+                        // To compute dependencies of the shadow method that tracks dictionary
+                        // dependencies we need to ensure there is code for the canonical method body.
+                        var dependencyMethod = (ShadowConcreteMethodNode)dependency;
+                        methodCodeNodeNeedingCode = (MethodWithGCInfo)dependencyMethod.CanonicalMethodNode;
+                    }
 
-                // We might have already compiled this method.
-                if (methodCodeNodeNeedingCode.StaticDependenciesAreComputed)
-                    continue;
+                    // We might have already compiled this method.
+                    if (methodCodeNodeNeedingCode.StaticDependenciesAreComputed)
+                        continue;
 
-                MethodDesc method = methodCodeNodeNeedingCode.Method;
-                if (!NodeFactory.CompilationModuleGroup.ContainsMethodBody(method, unboxingStub: false))
-                {
-                    // Don't drill into methods defined outside of this version bubble
-                    continue;
-                }
+                    MethodDesc method = methodCodeNodeNeedingCode.Method;
+                    if (!NodeFactory.CompilationModuleGroup.ContainsMethodBody(method, unboxingStub: false))
+                    {
+                        // Don't drill into methods defined outside of this version bubble
+                        continue;
+                    }
 
-                if (Logger.IsVerbose)
-                {
-                    string methodName = method.ToString();
-                    Logger.Writer.WriteLine("Compiling " + methodName);
-                }
+                    if (Logger.IsVerbose)
+                    {
+                        string methodName = method.ToString();
+                        Logger.Writer.WriteLine("Compiling " + methodName);
+                    }
 
-                try
-                {
-                    PerfEventSource.Log.JitStart();
-                    _corInfo.CompileMethod(methodCodeNodeNeedingCode);
-                }
-                catch (TypeSystemException ex)
-                {
-                    // If compilation fails, don't emit code for this method. It will be Jitted at runtime
-                    Logger.Writer.WriteLine($"Warning: Method `{method}` was not compiled because: {ex.Message}");
-                }
-                catch (RequiresRuntimeJitException ex)
-                {
-                    Logger.Writer.WriteLine($"Info: Method `{method}` was not compiled because `{ex.Message}` requires runtime JIT");
-                }
-                catch (CodeGenerationFailedException ex) when (_resilient)
-                {
-                    Logger.Writer.WriteLine($"Warning: Method `{method}` was not compiled because `{ex.Message}` requires runtime JIT");
-                }
-                finally
-                {
-                    PerfEventSource.Log.JitStop();
+                    try
+                    {
+                        using (PerfEventSource.StartStopEvents.JitMethodEvents())
+                        {
+                            _corInfo.CompileMethod(methodCodeNodeNeedingCode);
+                        }
+                    }
+                    catch (TypeSystemException ex)
+                    {
+                        // If compilation fails, don't emit code for this method. It will be Jitted at runtime
+                        Logger.Writer.WriteLine($"Warning: Method `{method}` was not compiled because: {ex.Message}");
+                    }
+                    catch (RequiresRuntimeJitException ex)
+                    {
+                        Logger.Writer.WriteLine($"Info: Method `{method}` was not compiled because `{ex.Message}` requires runtime JIT");
+                    }
+                    catch (CodeGenerationFailedException ex) when (_resilient)
+                    {
+                        Logger.Writer.WriteLine($"Warning: Method `{method}` was not compiled because `{ex.Message}` requires runtime JIT");
+                    }
                 }
             }
         }

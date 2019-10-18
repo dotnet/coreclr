@@ -58,9 +58,7 @@ if(CORECLR_SET_RPATH)
     set(MACOSX_RPATH ON)
 endif(CORECLR_SET_RPATH)
 
-if(CMAKE_VERSION VERSION_EQUAL 3.0 OR CMAKE_VERSION VERSION_GREATER 3.0)
-    cmake_policy(SET CMP0042 NEW)
-endif()
+cmake_policy(SET CMP0042 NEW)
 
 # Include directories
 
@@ -226,6 +224,7 @@ set(SOURCES
   misc/jitsupport.cpp
   misc/miscpalapi.cpp
   misc/msgbox.cpp
+  misc/perfjitdump.cpp
   misc/strutil.cpp
   misc/sysinfo.cpp
   misc/time.cpp

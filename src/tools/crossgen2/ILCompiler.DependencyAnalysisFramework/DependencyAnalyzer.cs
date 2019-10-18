@@ -250,42 +250,45 @@ namespace ILCompiler.DependencyAnalysisFramework
 
         public override void ComputeMarkedNodes()
         {
-            PerfEventSource.Log.GraphProcessingStart();
-            if (_markingCompleted)
-                return;
-
-            do
+            using (PerfEventSource.StartStopEvents.GraphProcessingEvents())
             {
-                // Run mark stack algorithm as much as possible
-                PerfEventSource.Log.DependencyAnalysisStart();
-                ProcessMarkStack();
-                PerfEventSource.Log.DependencyAnalysisStop();
+                if (_markingCompleted)
+                    return;
 
-                // Compute all dependencies which were not ready during the ProcessMarkStack step
-                ComputeDependencies(_deferredStaticDependencies);
-                foreach (DependencyNodeCore<DependencyContextType> node in _deferredStaticDependencies)
+                do
                 {
-                    Debug.Assert(node.StaticDependenciesAreComputed);
-                    GetStaticDependenciesImpl(node);
-                }
+                    // Run mark stack algorithm as much as possible
+                    using (PerfEventSource.StartStopEvents.DependencyAnalysisEvents())
+                    {
+                        ProcessMarkStack();
+                    }
 
-                _deferredStaticDependencies.Clear();
-            } while (_markStack.Count != 0);
+                    // Compute all dependencies which were not ready during the ProcessMarkStack step
+                    ComputeDependencies(_deferredStaticDependencies);
+                    foreach (DependencyNodeCore<DependencyContextType> node in _deferredStaticDependencies)
+                    {
+                        Debug.Assert(node.StaticDependenciesAreComputed);
+                        GetStaticDependenciesImpl(node);
+                    }
 
-            if (_resultSorter != null)
-                _markedNodes.Sort(_resultSorter);
+                    _deferredStaticDependencies.Clear();
+                } while (_markStack.Count != 0);
 
-            _markedNodesFinal = _markedNodes.ToImmutableArray();
-            _markedNodes = null;
-            _markingCompleted = true;
-            PerfEventSource.Log.GraphProcessingStop();
+                if (_resultSorter != null)
+                    _markedNodes.Sort(_resultSorter);
+
+                _markedNodesFinal = _markedNodes.ToImmutableArray();
+                _markedNodes = null;
+                _markingCompleted = true;
+            }
         }
 
         private bool AddToMarkStack(DependencyNodeCore<DependencyContextType> node, string reason, DependencyNodeCore<DependencyContextType> reason1, DependencyNodeCore<DependencyContextType> reason2)
         {
             if (_marker.MarkNode(node, reason1, reason2, reason))
             {
-                PerfEventSource.Log.AddedNodeToMarkStack();
+                if (PerfEventSource.Log.IsEnabled())
+                    PerfEventSource.Log.AddedNodeToMarkStack();
 
                 // Pop the top node of the mark stack
                 if (_stackPopRandomizer == null)
