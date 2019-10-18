@@ -544,7 +544,6 @@ int LinearScan::BuildNode(GenTree* tree)
 #endif // FEATURE_HW_INTRINSICS
 
             // Consumes arrLen & index - has no result
-            srcCount = 2;
             assert(dstCount == 0);
             srcCount = BuildOperandUses(tree->AsBoundsChk()->gtIndex);
             srcCount += BuildOperandUses(tree->AsBoundsChk()->gtArrLen);
