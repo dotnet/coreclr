@@ -1159,7 +1159,7 @@ private:
 
     void setIntervalAsSpilled(Interval* interval);
     void setIntervalAsSplit(Interval* interval);
-    void spillInterval(Interval* interval, RefPosition* fromRefPosition, RefPosition* toRefPosition);
+    void spillInterval(Interval* interval, RefPosition* fromRefPosition DEBUGARG(RefPosition* toRefPosition));
 
     void spillGCRefs(RefPosition* killRefPosition);
 
