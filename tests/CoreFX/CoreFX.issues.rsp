@@ -100,6 +100,6 @@
 -nomethod System.Numerics.Tests.GenericVectorTests.GetHashCodeSingle
 -nomethod System.Numerics.Tests.GenericVectorTests.GetHashCodeUInt32
 
-# corefx tests needs to be updated with updated argument name
+# corefx tests need to be updated with updated argument name
 -nomethod System.Security.Cryptography.DeriveBytesTests.PasswordDeriveBytesTests.GetBytes_ZeroLength
 -nomethod System.Tests.BufferTests.BlockCopy_Invalid
