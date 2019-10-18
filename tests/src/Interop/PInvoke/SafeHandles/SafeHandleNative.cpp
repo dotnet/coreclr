@@ -61,7 +61,7 @@ extern "C" DLL_EXPORT void STDMETHODVCALLTYPE SafeHandle_Invalid(...)
 {
 }
 
-extern "C" void DLL_EXPORT GetHandleAndCookie(intptr_t value, HANDLE* handle, void** pCookie)
+extern "C" void DLL_EXPORT GetHandleAndCookie(void** pCookie, intptr_t value, HANDLE* handle)
 {
     *handle = (HANDLE)value;
     *pCookie = (void*)4567; // the value here does not matter. It just needs to not be nullptr.

@@ -18,7 +18,7 @@ namespace SafeHandleTests
             IntPtr value = (IntPtr)123;
             TestSafeHandle h = new TestSafeHandle();
 
-            Assert.Throws<InvalidOperationException>(() => SafeHandleNative.GetHandleAndCookie(value, out h, out var cookie));
+            Assert.Throws<InvalidOperationException>(() => SafeHandleNative.GetHandleAndCookie(out _, value, out h));
 
             Assert.AreEqual(value, h.DangerousGetHandle());
 
