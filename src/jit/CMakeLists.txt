@@ -66,6 +66,7 @@ set( JIT_SOURCES
   objectalloc.cpp
   optcse.cpp
   optimizer.cpp
+  phase.cpp
   rangecheck.cpp
   rationalize.cpp
   regalloc.cpp

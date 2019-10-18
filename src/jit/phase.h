@@ -22,10 +22,10 @@ public:
     virtual void Run();
 
 protected:
-    Phase(Compiler* _comp, Phases _phase, PhaseChecks _checks = PhaseChecks::ALL)
-        : comp(_comp), name(nullptr), phase(_phase), checks(_checks)
+    Phase(Compiler* _compiler, Phases _phase, PhaseChecks _checks = PhaseChecks::ALL)
+        : comp(_compiler), m_name(nullptr), m_phase(_phase), m_checks(_checks)
     {
-        name = PhaseNames[_phase];
+        m_name = PhaseNames[_phase];
     }
 
     virtual void PrePhase();
@@ -33,75 +33,10 @@ protected:
     virtual void PostPhase();
 
     Compiler*   comp;
-    const char* name;
-    Phases      phase;
-    PhaseChecks checks;
+    const char* m_name;
+    Phases      m_phase;
+    PhaseChecks m_checks;
 };
-
-inline void Phase::Run()
-{
-    PrePhase();
-    DoPhase();
-    PostPhase();
-}
-
-inline void Phase::PrePhase()
-{
-    comp->BeginPhase(phase);
-
-#ifdef DEBUG
-    if (VERBOSE)
-    {
-        if (comp->compIsForInlining())
-        {
-            printf("\n*************** Inline @[%06u] Starting PHASE %s\n",
-                   Compiler::dspTreeID(comp->impInlineInfo->iciCall), name);
-        }
-        else
-        {
-            printf("\n*************** Starting PHASE %s\n", name);
-        }
-    }
-
-    if ((checks == PhaseChecks::ALL) && (comp->expensiveDebugCheckLevel >= 2))
-    {
-        // If everyone used the Phase class, this would duplicate the PostPhase() from the previous phase.
-        // But, not everyone does, so go ahead and do the check here, too.
-        comp->fgDebugCheckBBlist();
-        comp->fgDebugCheckLinks();
-    }
-#endif // DEBUG
-}
-
-inline void Phase::PostPhase()
-{
-#ifdef DEBUG
-    if (VERBOSE)
-    {
-        if (comp->compIsForInlining())
-        {
-            printf("\n*************** Inline @[%06u] Finishing PHASE %s\n",
-                   Compiler::dspTreeID(comp->impInlineInfo->iciCall), name);
-        }
-        else
-        {
-            printf("\n*************** Finishing PHASE %s\n", name);
-        }
-
-        printf("Trees after %s\n", name);
-        comp->fgDispBasicBlocks(true);
-    }
-
-    if (checks == PhaseChecks::ALL)
-    {
-        comp->fgDebugCheckBBlist();
-        comp->fgDebugCheckLinks();
-        comp->fgDebugCheckNodesUniqueness();
-    }
-#endif // DEBUG
-
-    comp->EndPhase(phase);
-}
 
 // A phase that accepts a lambda for the actions done by the phase.
 //
@@ -111,8 +46,8 @@ template <typename A>
 class ActionPhase final : public Phase
 {
 public:
-    ActionPhase(Compiler* _comp, Phases _phase, A _action, PhaseChecks _checks)
-        : Phase(_comp, _phase, _checks), action(_action)
+    ActionPhase(Compiler* _compiler, Phases _phase, A _action, PhaseChecks _checks)
+        : Phase(_compiler, _phase, _checks), action(_action)
     {
     }
 
@@ -129,9 +64,9 @@ private:
 // Wrapper for using ActionPhase
 //
 template <typename A>
-void DoPhase(Compiler* _comp, Phases _phase, A _action, PhaseChecks _checks = PhaseChecks::ALL)
+void DoPhase(Compiler* _compiler, Phases _phase, A _action, PhaseChecks _checks = PhaseChecks::ALL)
 {
-    ActionPhase<A> phase(_comp, _phase, _action, _checks);
+    ActionPhase<A> phase(_compiler, _phase, _action, _checks);
     phase.Run();
 }
 
@@ -140,8 +75,8 @@ void DoPhase(Compiler* _comp, Phases _phase, A _action, PhaseChecks _checks = Ph
 class CompilerPhase final : public Phase
 {
 public:
-    CompilerPhase(Compiler* _comp, Phases _phase, void (Compiler::*_action)(), PhaseChecks _checks)
-        : Phase(_comp, _phase, _checks), action(_action)
+    CompilerPhase(Compiler* _compiler, Phases _phase, void (Compiler::*_action)(), PhaseChecks _checks)
+        : Phase(_compiler, _phase, _checks), action(_action)
     {
     }
 
@@ -157,9 +92,12 @@ private:
 
 // Wrapper for using CompilePhase
 //
-inline void DoPhase(Compiler* _comp, Phases _phase, void (Compiler::*_action)(), PhaseChecks _checks = PhaseChecks::ALL)
+inline void DoPhase(Compiler* _compiler,
+                    Phases    _phase,
+                    void (Compiler::*_action)(),
+                    PhaseChecks      _checks = PhaseChecks::ALL)
 {
-    CompilerPhase phase(_comp, _phase, _action, _checks);
+    CompilerPhase phase(_compiler, _phase, _action, _checks);
     phase.Run();
 }
 

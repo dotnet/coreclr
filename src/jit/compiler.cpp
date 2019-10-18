@@ -4423,10 +4423,6 @@ void Compiler::EndPhase(Phases phase)
     }
 #endif
 
-#if DUMP_FLOWGRAPHS
-    fgDumpFlowGraph(phase);
-#endif // DUMP_FLOWGRAPHS
-
 #ifdef DEBUG
     if (dumpIR)
     {
