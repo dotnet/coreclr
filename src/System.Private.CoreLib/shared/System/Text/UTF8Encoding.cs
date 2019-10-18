@@ -65,7 +65,7 @@ namespace System.Text
 
         // Yes, the idea of emitting U+FEFF as a UTF-8 identifier has made it into
         // the standard.
-        private protected readonly bool _emitUTF8Identifier = false;
+        private readonly bool _emitUTF8Identifier = false;
 
         private readonly bool _isThrowException = false;
 
@@ -381,7 +381,7 @@ namespace System.Text
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private protected unsafe int GetBytesCommon(char* pChars, int charCount, byte* pBytes, int byteCount)
+        private unsafe int GetBytesCommon(char* pChars, int charCount, byte* pBytes, int byteCount)
         {
             // Common helper method for all non-EncoderNLS entry points to GetBytes.
             // A modification of this method should be copied in to each of the supported encodings: ASCII, UTF8, UTF16, UTF32.
@@ -573,7 +573,7 @@ namespace System.Text
         // Note:  We throw exceptions on individually encoded surrogates and other non-shortest forms.
         //        If exceptions aren't turned on, then we drop all non-shortest &individual surrogates.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private protected unsafe int GetCharsCommon(byte* pBytes, int byteCount, char* pChars, int charCount)
+        private unsafe int GetCharsCommon(byte* pBytes, int byteCount, char* pChars, int charCount)
         {
             // Common helper method for all non-DecoderNLS entry points to GetChars.
             // A modification of this method should be copied in to each of the supported encodings: ASCII, UTF8, UTF16, UTF32.
