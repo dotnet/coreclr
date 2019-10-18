@@ -80,6 +80,7 @@ void PerfMap::Destroy()
     if (s_enabled)
     {
         s_enabled = false;
+        // PAL_PerfJitDump_Finish is lock protected and can safely be called multiple times
         PAL_PerfJitDump_Finish();
     }
 }
