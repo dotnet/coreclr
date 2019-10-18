@@ -112,7 +112,7 @@ class ActionPhase final : public Phase
 {
 public:
     ActionPhase(Compiler* _comp, Phases _phase, A _action, PhaseChecks _checks)
-        : action(_action), Phase(_comp, _phase, _checks)
+        : Phase(_comp, _phase, _checks), action(_action)
     {
     }
 
@@ -141,7 +141,7 @@ class CompilerPhase final : public Phase
 {
 public:
     CompilerPhase(Compiler* _comp, Phases _phase, void (Compiler::*_action)(), PhaseChecks _checks)
-        : action(_action), Phase(_comp, _phase, _checks)
+        : Phase(_comp, _phase, _checks), action(_action)
     {
     }
 
