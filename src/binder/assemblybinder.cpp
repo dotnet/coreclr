@@ -490,7 +490,8 @@ namespace BINDER_SPACE
 
                 IF_FAIL_GO(BindByName(pApplicationContext,
                                       pAssemblyName,
-                                      BIND_NONE,
+                                      false, // skipFailureCaching
+                                      false, // skipVersionCompatibilityCheck
                                       excludeAppPaths,
                                       &bindResult));
             }
@@ -653,7 +654,8 @@ namespace BINDER_SPACE
     /* static */
     HRESULT AssemblyBinder::BindByName(ApplicationContext *pApplicationContext,
                                        AssemblyName       *pAssemblyName,
-                                       DWORD               dwBindFlags,
+                                       bool                skipFailureCaching,
+                                       bool                skipVersionCompatibilityCheck,
                                        bool                excludeAppPaths,
                                        BindResult         *pBindResult)
     {
@@ -668,7 +670,7 @@ namespace BINDER_SPACE
         hr = pApplicationContext->GetFailureCache()->Lookup(assemblyDisplayName);
         if (FAILED(hr))
         {
-            if ((hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)) && RerunBind(dwBindFlags))
+            if ((hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)) && skipFailureCaching)
             {
                 // Ignore pre-existing transient bind error (re-bind will succeed)
                 pApplicationContext->GetFailureCache()->Remove(assemblyDisplayName);
@@ -691,7 +693,7 @@ namespace BINDER_SPACE
 
         IF_FAIL_GO(BindLocked(pApplicationContext,
                               pAssemblyName,
-                              dwBindFlags,
+                              skipVersionCompatibilityCheck,
                               excludeAppPaths,
                               pBindResult));
 
@@ -704,7 +706,7 @@ namespace BINDER_SPACE
     Exit:
         if (FAILED(hr))
         {
-            if (RerunBind(dwBindFlags))
+            if (skipFailureCaching)
             {
                 if (hr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
                 {
@@ -773,7 +775,7 @@ namespace BINDER_SPACE
         {
             IF_FAIL_GO(BindLocked(pApplicationContext,
                                   pAssemblyName,
-                                  BIND_NONE,
+                                  false, // skipVersionCompatibilityCheck
                                   excludeAppPaths,
                                   &lockedBindResult));
             if (lockedBindResult.HaveResult())
@@ -803,7 +805,7 @@ namespace BINDER_SPACE
     /* static */
     HRESULT AssemblyBinder::BindLocked(ApplicationContext *pApplicationContext,
                                        AssemblyName       *pAssemblyName,
-                                       DWORD               dwBindFlags,
+                                       bool                skipVersionCompatibilityCheck,
                                        bool                excludeAppPaths,
                                        BindResult         *pBindResult)
     {
@@ -816,7 +818,7 @@ namespace BINDER_SPACE
         if (pContextEntry != NULL)
         {
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
-            if (IgnoreRefDefMatch(dwBindFlags))
+            if (skipVersionCompatibilityCheck)
             {
                 // Skip RefDef matching if we have been asked to.
             }
@@ -1531,9 +1533,12 @@ Retry:
         CRITSEC_Holder contextLock(pApplicationContext->GetCriticalSectionCookie());
         
         // Attempt uncached bind and register stream if possible
+        // We skip version compatibility check - so assemblies with same simple name will be reported
+        // as a successfull bind. Below we compare MVIDs in that case instead (which is a more precise equality check).
         hr = BindByName(pApplicationContext,
                         pAssemblyName,
-                        BIND_CACHE_RERUN_BIND | BIND_IGNORE_REFDEF_MATCH,
+                        true,  // skipFailureCaching
+                        true,  // skipVersionCompatibilityCheck
                         false, // excludeAppPaths
                         &bindResult);
         
