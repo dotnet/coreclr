@@ -232,6 +232,11 @@ namespace System.Runtime.CompilerServices
 
             public bool IsEnum()
             {
+                if (g_pEnumClass == null) // workaround, TODO: port MscorlibBinder.GetClass
+                {
+                    g_pEnumClass = GetObjectMethodTablePointer(WFlagsHighEnum.CategoryArray);
+                }
+
                 return ParentMethodTable == g_pEnumClass;
             }
 
@@ -346,8 +351,8 @@ namespace System.Runtime.CompilerServices
             public static bool IsPrimitiveType_NoThrow(CorElementType type)
             {
                 // TODO: native code has a CorTypeInfoEntry table and this check is more efficient
-                return (type >= CorElementType.ELEMENT_TYPE_BOOLEAN && type <= CorElementType.ELEMENT_TYPE_R8) ||
-                       type == CorElementType.ELEMENT_TYPE_I || type == CorElementType.ELEMENT_TYPE_U;
+                return (type >= CorElementType.ELEMENT_TYPE_VOID && type <= CorElementType.ELEMENT_TYPE_R8) ||
+                        type == CorElementType.ELEMENT_TYPE_I || type == CorElementType.ELEMENT_TYPE_U;
             }
         }
 
@@ -357,13 +362,6 @@ namespace System.Runtime.CompilerServices
             TypeHandle elementTh = GetObjectMethodTablePointer(array)->GetArrayElementTypeHandle();
             CorElementType elementEt = elementTh.GetVerifierCorElementType();
             return CorTypeInfo.IsPrimitiveType_NoThrow(elementEt);
-        }
-
-        // Returns a bool to indicate if the array is of primitive types or not.
-        public static unsafe byte MyTest(Array array)
-        {
-            TypeHandle elementTh = GetObjectMethodTablePointer(array)->GetArrayElementTypeHandle();
-            return (byte)elementTh.GetVerifierCorElementType();
         }
 
         // Given an object reference, returns its MethodTable* as an IntPtr.
