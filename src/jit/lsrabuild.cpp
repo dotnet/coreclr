@@ -2124,23 +2124,21 @@ void LinearScan::buildIntervals()
                     }
                 }
             }
-            else
+            else if (block != compiler->fgFirstBB)
             {
                 // Any lclVars live-in on a non-EH boundary edge are resolution candidates.
                 VarSetOps::UnionD(compiler, resolutionCandidateVars, currentLiveVars);
 
                 VARSET_TP newLiveIn(VarSetOps::MakeCopy(compiler, currentLiveVars));
-                bool      needsDummyDefs = false;
                 if (predBlock != nullptr)
                 {
                     // Compute set difference: newLiveIn = currentLiveVars - predBlock->bbLiveOut
                     VarSetOps::DiffD(compiler, newLiveIn, predBlock->bbLiveOut);
-                    needsDummyDefs = (!VarSetOps::IsEmpty(compiler, newLiveIn) && block != compiler->fgFirstBB);
                 }
 
                 // Create dummy def RefPositions
 
-                if (needsDummyDefs)
+                if (!VarSetOps::IsEmpty(compiler, newLiveIn))
                 {
                     // If we are using locations from a predecessor, we should never require DummyDefs.
                     assert(!predBlockIsAllocated);

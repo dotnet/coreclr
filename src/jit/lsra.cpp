@@ -2240,6 +2240,13 @@ BasicBlock* LinearScan::findPredBlockForLiveIn(BasicBlock* block,
         return nullptr;
     }
 
+    // We may have throw blocks with no predecessors, or unreachable blocks.
+    if (block->bbPreds == nullptr)
+    {
+        JITDUMP("\n\nNo predecessor; ");
+        return nullptr;
+    }
+
 #ifdef DEBUG
     assert(*pPredBlockIsAllocated == false);
     if (getLsraBlockBoundaryLocations() == LSRA_BLOCK_BOUNDARY_LAYOUT)
@@ -4788,6 +4795,8 @@ void LinearScan::processBlockStartLocations(BasicBlock* currentBlock)
     // If this block enters an exception region, all incoming vars are on the stack.
     if (predBBNum == 0)
     {
+        if (blockInfo[currentBlock->bbNum].hasEHBoundaryIn)
+        {
 #if DEBUG
         // This should still be in its initialized empty state.
         for (unsigned varIndex = 0; varIndex < compiler->lvaTrackedCount; varIndex++)
