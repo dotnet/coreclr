@@ -365,6 +365,10 @@ namespace System
                     result._blocks[index] = carry;
                     result._length = (lhsLength + 1);
                 }
+                else
+                {
+                    result._length = lhsLength;
+                }
             }
 
             public static void Add(ref BigInteger lhs, ref BigInteger rhs, out BigInteger result)
@@ -925,8 +929,15 @@ namespace System
 
             public static void ShiftLeft(ulong input, uint shift, ref BigInteger output)
             {
+                if (input == 0)
+                {
+                    output.SetZero();
+                    return;
+                }
+
                 if (shift == 0)
                 {
+                    output.SetUInt64(input);
                     return;
                 }
 
