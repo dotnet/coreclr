@@ -4795,6 +4795,7 @@ void LinearScan::processBlockStartLocations(BasicBlock* currentBlock)
     // If this block enters an exception region, all incoming vars are on the stack.
     if (predBBNum == 0)
     {
+#if DEBUG
         if (blockInfo[currentBlock->bbNum].hasEHBoundaryIn)
         {
 #if DEBUG
