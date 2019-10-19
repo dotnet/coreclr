@@ -3,6 +3,8 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics.X86;
 
 namespace System.Collections
 {
@@ -85,6 +87,33 @@ namespace System.Collections
             }
 
             return GetPrime(newSize);
+        }
+
+        // Takes an index and distributes it in the range [0, range)
+        // e.g. 0 to range exclusive.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint FastRange(uint index, uint range)
+        {
+            // Sse42.IsSupported check is baked into the R2R image so while the value returned
+            // from this method will be different on both branches, it will remain stable during
+            // a process' lifetime even if it is recompiled by tiered compilation.
+            if (Sse42.IsSupported)
+            {
+                // Using fastrange from Daniel Lemire https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
+                //
+                // While fastrange is "fair"; it expects an evenly distributed hashCode
+                // from [0,2^32) to produce a distributed range. As many hashCodes in .NET
+                // are generated with the high entropy in the LSB we need to redistribute
+                // the hash; for this we use Crc32. These two together allow us to skip the
+                // more costly idiv instruction.
+
+                return (uint)((Sse42.Crc32(0, index) * (ulong)range) >> 32);
+            }
+            else
+            {
+                // Fast Crc isn't supported so we will use the slower modulo.
+                return index % range;
+            }
         }
     }
 }
