@@ -364,7 +364,7 @@ namespace BINDER_SPACE
     {
         HRESULT hr = S_OK;
  
-       if (!BINDER_SPACE::fAssemblyBinderInitialized)
+        if (!BINDER_SPACE::fAssemblyBinderInitialized)
         {
             g_BinderVariables = new Variables();
             IF_FAIL_GO(g_BinderVariables->Init());
@@ -596,10 +596,9 @@ namespace BINDER_SPACE
         // At run-time, System.Private.CoreLib.dll is expected to be the NI image.
         sCoreLib = sCoreLibDir;
         sCoreLib.Append(CoreLibName_IL_W);
-        BOOL fExplicitBindToNativeImage = (fBindToNativeImage == true)? TRUE:FALSE;
         IF_FAIL_GO(AssemblyBinder::GetAssembly(sCoreLib,
                                                TRUE /* fIsInGAC */,
-                                               fExplicitBindToNativeImage,
+                                               fBindToNativeImage,
                                                &pSystemAssembly));
         
         *ppSystemAssembly = pSystemAssembly.Extract();
