@@ -81,28 +81,18 @@ namespace BINDER_SPACE
                                  
         static HRESULT TranslatePEToArchitectureType(DWORD  *pdwPAFlags, PEKIND *PeKind);
         
-    protected:
+    private:
         enum
         {
             BIND_NONE = 0x00,
-            BIND_CACHE_FAILURES = 0x01,
-            BIND_CACHE_RERUN_BIND = 0x02,
-            BIND_IGNORE_DYNAMIC_BINDS = 0x04
+            //BIND_CACHE_FAILURES = 0x01,
+            BIND_CACHE_RERUN_BIND = 0x02
+            //BIND_IGNORE_DYNAMIC_BINDS = 0x04
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
             ,
             BIND_IGNORE_REFDEF_MATCH = 0x8
 #endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
         };
-
-        static BOOL IgnoreDynamicBinds(DWORD dwBindFlags)
-        {
-            return ((dwBindFlags & BIND_IGNORE_DYNAMIC_BINDS) != 0);
-        }
-
-        static BOOL CacheBindFailures(DWORD dwBindFlags)
-        {
-            return ((dwBindFlags & BIND_CACHE_FAILURES) != 0);
-        }
 
         static BOOL RerunBind(DWORD dwBindFlags)
         {
