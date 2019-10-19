@@ -4,6 +4,7 @@
 
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using Internal.Runtime.CompilerServices;
 
@@ -201,14 +202,168 @@ namespace System.Runtime.CompilerServices
 
         // Subset of src\vm\methodtable.h
         [StructLayout(LayoutKind.Explicit)]
-        private struct MethodTable
+        private unsafe struct MethodTable
         {
+            // globals
+            private static MethodTable* g_pEnumClass = null; // TODO: set
+
             [FieldOffset(0)]
             public ushort ComponentSize;
             [FieldOffset(0)]
-            public uint Flags;
+            public WFlagsHighEnum Flags;
             [FieldOffset(4)]
             public uint BaseSize;
+            [FieldOffset(24)]
+            public MethodTable* ParentMethodTable;
+            [FieldOffset(48)]
+            public MethodTable* CanonMT;
+            [FieldOffset(56)]
+            public TypeHandle ElementTypeHnd;
+
+            public WFlagsHighEnum GetFlag(WFlagsHighEnum flag)
+            {
+                return Flags & flag;
+            }
+
+            public TypeHandle GetArrayElementTypeHandle()
+            {
+                return ElementTypeHnd;
+            }
+
+            public bool IsEnum()
+            {
+                return ParentMethodTable == g_pEnumClass;
+            }
+
+            public bool IsTruePrimitive()
+            {
+                return GetFlag(WFlagsHighEnum.CategoryMask) == WFlagsHighEnum.CategoryTruePrimitive;
+            }
+
+            public EEClass* GetClass()
+            {
+                ulong addr = (ulong)CanonMT;
+                if ((addr & 2) == 0)
+                {
+                    // pointer to EEClass
+                    return (EEClass*)CanonMT;
+                }
+                // pointer to canonical MethodTable.
+                return (EEClass*)(addr - 2);
+            }
+
+            public CorElementType GetVerifierCorElementType()
+            {
+                switch (GetFlag(WFlagsHighEnum.CategoryElementTypeMask))
+                {
+                    case WFlagsHighEnum.CategoryArray:
+                        return CorElementType.ELEMENT_TYPE_ARRAY;
+                    case WFlagsHighEnum.CategoryArray | WFlagsHighEnum.CategoryIfArrayThenSzArray:
+                        return CorElementType.ELEMENT_TYPE_SZARRAY;
+                    case WFlagsHighEnum.CategoryValueType:
+                        return CorElementType.ELEMENT_TYPE_VALUETYPE;
+                    case WFlagsHighEnum.CategoryPrimitiveValueType:
+                    {
+                        if (IsTruePrimitive() || IsEnum())
+                        {
+                            return GetClass()->NormType;
+                        }
+                        else
+                        {
+                            return CorElementType.ELEMENT_TYPE_VALUETYPE;
+                        }
+                    }
+                    default:
+                        return CorElementType.ELEMENT_TYPE_CLASS;
+                }
+            }
+        }
+
+        [StructLayout(LayoutKind.Explicit)]
+        private struct EEClass // src/vm/class.h
+        {
+            [FieldOffset(82)]
+            public CorElementType NormType; // BYTE m_NormType
+        }
+
+        [StructLayout(LayoutKind.Explicit)]
+        private struct TypeDesc // src/vm/typedesc.h
+        {
+            [FieldOffset(0)]
+            public ulong TypeAndFlags; // DWORD m_typeAndFlags
+
+            public CorElementType GetInternalCorElementType()
+            {
+                return (CorElementType)(TypeAndFlags & 0xFF);
+            }
+        }
+
+        [Flags]
+        private enum WFlagsHighEnum
+        {
+            CategoryMask               = 0x000F0000,
+            CategoryTruePrimitive      = 0x00070000,
+            CategoryValueType          = 0x00040000,
+            CategoryArray              = 0x00080000,
+            CategoryIfArrayThenSzArray = 0x00020000,
+            CategoryPrimitiveValueType = 0x00060000,
+            CategoryElementTypeMask    = 0x000E0000,
+        }
+
+        [StructLayout(LayoutKind.Explicit)]
+        private unsafe struct TypeHandle
+        {
+            [FieldOffset(0)]
+            public ulong TAddr;
+            [FieldOffset(0)]
+            public MethodTable* MT;
+
+            public bool IsTypeDesc()
+            {
+                return (TAddr & 2) != 0;
+            }
+
+            public TypeDesc* AsTypeDesc()
+            {
+                return (TypeDesc*)(TAddr - 2);
+            }
+
+            public CorElementType GetVerifierCorElementType()
+            {
+                if (IsTypeDesc())
+                {
+                    return AsTypeDesc()->GetInternalCorElementType();
+                }
+                else
+                {
+                    return MT->GetVerifierCorElementType();
+                }
+            }
+        }
+
+        private struct CorTypeInfo
+        {
+            public static bool IsPrimitiveType_NoThrow(CorElementType type)
+            {
+                // TODO: native code has a CorTypeInfoEntry table and this check is more efficient
+                return (type >= CorElementType.ELEMENT_TYPE_BOOLEAN && type <= CorElementType.ELEMENT_TYPE_R8) ||
+                       type == CorElementType.ELEMENT_TYPE_I || type == CorElementType.ELEMENT_TYPE_U;
+            }
+        }
+
+        // Returns a bool to indicate if the array is of primitive types or not.
+        internal static unsafe bool IsPrimitiveTypeArray(Array array)
+        {
+            TypeHandle elementTh = GetObjectMethodTablePointer(array)->GetArrayElementTypeHandle();
+            CorElementType elementEt = elementTh.GetVerifierCorElementType();
+            return CorTypeInfo.IsPrimitiveType_NoThrow(elementEt);
+        }
+
+        // Returns a bool to indicate if the array is of primitive types or not.
+        public static unsafe byte MyTest(Array array)
+        {
+            TypeHandle elementTh = GetObjectMethodTablePointer(array)->GetArrayElementTypeHandle();
+            return (byte)elementTh.GetVerifierCorElementType();
         }
 
         // Given an object reference, returns its MethodTable* as an IntPtr.

@@ -20,8 +20,7 @@ namespace System
     {
         // Returns a bool to indicate if the array is of primitive data types
         // or not.
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern bool IsPrimitiveTypeArray(Array array);
+        private static bool IsPrimitiveTypeArray(Array array) => RuntimeHelpers.IsPrimitiveTypeArray(array);
 
         // This method has a slightly different behavior on arm and other platforms.
         // On arm this method behaves like memcpy and does not handle overlapping buffers.
