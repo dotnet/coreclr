@@ -1624,8 +1624,8 @@ static size_t GetCacheSizeFromCpuId()
                 {
                     maxSize = maxSize / logicalProcessorCount;
                 }
+            }
         }
-
         else if (memcmp(buffer + 4, "AuthenticAMD", 12) == 0) {
             if (getcpuid(0x80000000, buffer) >= 0x80000006)
             {
