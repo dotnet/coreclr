@@ -29,19 +29,7 @@ jobs:
 
 - template: /eng/platform-matrix.yml
   parameters:
-    jobTemplate: build-test-job.yml
-    buildConfig: checked
-    platforms:
-    - Linux_x64
-    - Windows_NT_x64
-    - Windows_NT_x86
-    helixQueueGroup: ci
-    jobParameters:
-      testGroup: jitstressregs-x86
-
-- template: /eng/platform-matrix.yml
-  parameters:
-    jobTemplate: run-test-job.yml
+    jobTemplate: test-job.yml
     buildConfig: checked
     platforms:
     - Linux_x64

@@ -26,16 +26,7 @@ jobs:
 
 - template: /eng/platform-matrix.yml
   parameters:
-    jobTemplate: build-test-job.yml
-    buildConfig: checked
-    platformGroup: gcstress
-    helixQueueGroup: ci
-    jobParameters:
-      testGroup: gcstress0x3-gcstress0xc
-
-- template: /eng/platform-matrix.yml
-  parameters:
-    jobTemplate: run-test-job.yml
+    jobTemplate: test-job.yml
     buildConfig: checked
     platformGroup: gcstress
     helixQueueGroup: ci
