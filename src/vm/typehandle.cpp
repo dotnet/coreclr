@@ -656,8 +656,7 @@ BOOL TypeHandle::CanCastTo(TypeHandle type, TypeHandlePairList *pVisited)  const
     if (*this == type)
         return true;
 
-    bool isTypeDesc = IsTypeDesc();
-    if (!isTypeDesc && type.IsTypeDesc())
+    if (!IsTypeDesc() && type.IsTypeDesc())
         return false;
         
     {
@@ -669,10 +668,9 @@ BOOL TypeHandle::CanCastTo(TypeHandle type, TypeHandlePairList *pVisited)  const
             return (BOOL)result;
         }
 
-        if (isTypeDesc)
+        if (IsTypeDesc())
             return AsTypeDesc()->CanCastTo(type, pVisited);
 
-// no caching in crossgen case 
 #ifndef CROSSGEN_COMPILE
         // we check nullable case first because it is not cacheable.
         // object castability and type castability disagree on T --> Nullable<T>, 
@@ -814,7 +812,7 @@ TypeHandle TypeHandle::MergeTypeHandlesToCommonParent(TypeHandle ta, TypeHandle 
         if (tb.IsInterface() && tb.HasInstantiation())
         {
             //Check to see if we can merge the array to a common interface (such as Derived[] and IList<Base>)
-            if (ArraySupportsBizarreInterface(ta.AsArray(), tb.AsMethodTable()))
+            if (ta.AsArray()->ArraySupportsBizarreInterface(tb.AsMethodTable(), /* pVisited */ NULL))
                 return tb;
         }
 
@@ -825,7 +823,7 @@ TypeHandle TypeHandle::MergeTypeHandlesToCommonParent(TypeHandle ta, TypeHandle 
         if (ta.IsInterface() && ta.HasInstantiation())
         {
             //Check to see if we can merge the array to a common interface (such as Derived[] and IList<Base>)
-            if (ArraySupportsBizarreInterface(tb.AsArray(), ta.AsMethodTable()))
+            if (tb.AsArray()->ArraySupportsBizarreInterface(ta.AsMethodTable(), /* pVisited */ NULL))
                 return ta;
         }
 

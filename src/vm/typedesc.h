@@ -88,7 +88,7 @@ public:
     TypeHandle::CastResult CanCastToCached(TypeHandle type);
 
     static BOOL CanCastParam(TypeHandle fromParam, TypeHandle toParam, TypeHandlePairList *pVisited);
-
+       
 #ifndef DACCESS_COMPILE
     BOOL IsEquivalentTo(TypeHandle type COMMA_INDEBUG(TypeHandlePairList *pVisited));
 #endif
@@ -384,6 +384,9 @@ public:
 
         return g_pArrayClass;
     }
+
+    BOOL ArrayIsInstanceOf(ArrayTypeDesc* toArrayType, TypeHandlePairList* pVisited);
+    BOOL ArraySupportsBizarreInterface(MethodTable* pInterfaceMT, TypeHandlePairList* pVisited);
 
 #ifdef FEATURE_COMINTEROP
     ComCallWrapperTemplate *GetComCallWrapperTemplate()

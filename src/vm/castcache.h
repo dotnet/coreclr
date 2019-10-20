@@ -153,21 +153,6 @@ public:
         return TryGetFromCache(source.AsTAddr(), target.AsTAddr());
     }
 
-    FORCEINLINE static TypeHandle::CastResult TryGetFromCacheAny(TypeHandle source, TypeHandle target)
-    {
-        CONTRACTL
-        {
-            NOTHROW;
-            GC_NOTRIGGER;
-            MODE_ANY;
-        }
-        CONTRACTL_END;
-
-        GCX_COOP();
-
-        return TryGetFromCache(source, target);
-    }
-
     FORCEINLINE static TypeHandle::CastResult TryGetFromCache(MethodTable* pSourceMT, TypeHandle target)
     {
         CONTRACTL

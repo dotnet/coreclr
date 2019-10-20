@@ -29,6 +29,7 @@
 #include "peimagelayout.inl"
 #include "eventtrace.h"
 #include "invokeutil.h"
+#include "castcache.h"
 
 BOOL QCALLTYPE MdUtf8String::EqualsCaseInsensitive(LPCUTF8 szLhs, LPCUTF8 szRhs, INT32 stringNumBytes)
 {
@@ -1377,7 +1378,19 @@ FCIMPL2(FC_BOOL_RET, RuntimeTypeHandle::CanCastTo, ReflectClassBaseObject *pType
         }
         else
         {
-            iRetVal = fromHandle.CanCastTo(toHandle);
+            if (fromHandle.IsTypeDesc())
+            {
+                iRetVal = fromHandle.AsTypeDesc()->CanCastTo(toHandle, /* pVisited */ NULL);
+            }
+            else if (toHandle.IsTypeDesc())
+            {
+                iRetVal = FALSE;
+                CastCache::TryAddToCache(fromHandle, toHandle, FALSE);
+            }
+            else
+            {
+                iRetVal = fromHandle.AsMethodTable()->CanCastToClassOrInterface(toHandle.AsMethodTable(), /* pVisited */ NULL);
+            }
         }
     }
     HELPER_METHOD_FRAME_END();

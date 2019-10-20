@@ -354,12 +354,72 @@ BOOL TypeDesc::HasTypeParam()
 
 #ifndef DACCESS_COMPILE
 
+BOOL ArrayTypeDesc::ArrayIsInstanceOf(ArrayTypeDesc *toArrayType, TypeHandlePairList* pVisited)
+{
+    CONTRACTL{
+        THROWS;
+        GC_TRIGGERS;
+        MODE_COOPERATIVE;
+        PRECONDITION(this->IsArray());
+        PRECONDITION(toArrayType->IsArray());
+    } CONTRACTL_END;
+
+    // GetRank touches EEClass. Try to avoid it for SZArrays.
+    if (toArrayType->GetInternalCorElementType() == ELEMENT_TYPE_SZARRAY)
+    {
+        if (this->GetInternalCorElementType() != ELEMENT_TYPE_SZARRAY)
+        {
+            return TypeHandle::CannotCast;
+        }
+    }
+    else
+    {
+        if (this->GetRank() != toArrayType->GetRank())
+        {
+            return TypeHandle::CannotCast;
+        }
+    }
+    _ASSERTE(this->GetRank() == toArrayType->GetRank());
+
+    TypeHandle elementTypeHandle = this->GetArrayElementTypeHandle();
+    TypeHandle toElementTypeHandle = toArrayType->GetArrayElementTypeHandle();
+
+    BOOL result = (elementTypeHandle == toElementTypeHandle) ||
+        TypeDesc::CanCastParam(elementTypeHandle, toElementTypeHandle, pVisited);
+
+    return result;
+}
+
+BOOL ArrayTypeDesc::ArraySupportsBizarreInterface(MethodTable *pInterfaceMT, TypeHandlePairList *pVisited)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+
+        PRECONDITION(this->IsArray());
+        PRECONDITION(pInterfaceMT->IsInterface());
+        PRECONDITION(pInterfaceMT->HasInstantiation());
+    }
+    CONTRACTL_END
+
+    // IList<T> & IReadOnlyList<T> only supported for SZ_ARRAYS
+    if (this->GetInternalCorElementType() != ELEMENT_TYPE_SZARRAY)
+        return FALSE;
+
+    if (!IsImplicitInterfaceOfSZArray(pInterfaceMT))
+        return FALSE;
+
+    return TypeDesc::CanCastParam(this->GetTypeParam(), pInterfaceMT->GetInstantiation()[0], pVisited);
+}
+
 BOOL TypeDesc::CanCastTo(TypeHandle toTypeHnd, TypeHandlePairList *pVisited)
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
+        MODE_COOPERATIVE;
         INJECT_FAULT(COMPlusThrowOM());
     }
     CONTRACTL_END
@@ -375,18 +435,22 @@ BOOL TypeDesc::CanCastTo(TypeHandle toTypeHnd, TypeHandlePairList *pVisited)
 
         if (toTypeHnd.IsArray())
         {
-            fCast = pMT->ArrayIsInstanceOf(toTypeHnd, /* pVisited */ NULL);
+            // NOTE: in a few cases array type desc may contain a methodtable for object[] 
+            //       we cannot delegate the cast analysis to the method tables here
+            //       we could get a wrong result, so we need to use the typedesc helpers.
+            fCast = dac_cast<PTR_ArrayTypeDesc>(this)->ArrayIsInstanceOf(toTypeHnd.AsArray(), pVisited);
         }
         else if (!toTypeHnd.IsTypeDesc())
         {
             MethodTable* toMT = toTypeHnd.AsMethodTable();
             if (toMT->IsInterface() && toMT->HasInstantiation())
             {
-                fCast = pMT->ArraySupportsBizarreInterface(toMT, /* pVisited */ NULL);
+                // see comment above about ArrayIsInstanceOf
+                fCast = dac_cast<PTR_ArrayTypeDesc>(this)->ArraySupportsBizarreInterface(toMT, pVisited);
             }
             else
             {
-                fCast = pMT->CanCastToClassOrInterface(toMT, /* pVisited */ NULL);
+                fCast = pMT->CanCastToClassOrInterface(toMT, pVisited);
             }
         }
 

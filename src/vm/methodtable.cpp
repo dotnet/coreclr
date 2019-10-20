@@ -1668,11 +1668,17 @@ BOOL MethodTable::CanCastToClassOrInterface(MethodTable* pTargetMT, TypeHandlePa
         PRECONDITION(!pTargetMT->IsArray());
         PRECONDITION(IsRestored_NoLogging());
     }
-        CONTRACTL_END
+    CONTRACTL_END
 
-        BOOL result = pTargetMT->IsInterface() ?
-                                    CanCastToInterface(pTargetMT, pVisited) :
-                                    CanCastToClass(pTargetMT, pVisited);
+#ifndef CROSSGEN_COMPILE
+    // we cannot cache T --> Nullable<T> here since result is contextual.
+    // callers should have handled this already according to their rules.
+    _ASSERTE(!Nullable::IsNullableForType(TypeHandle(pTargetMT), this));
+#endif // CROSSGEN_COMPILE
+
+    BOOL result = pTargetMT->IsInterface() ?
+                                CanCastToInterface(pTargetMT, pVisited) :
+                                CanCastToClass(pTargetMT, pVisited);
 
     // We only consider type-based conversion rules here.
     // Therefore a negative result cannot rule out convertibility for ICastable and COM objects
