@@ -11046,9 +11046,9 @@ void Compiler::gtDispTree(GenTree*     tree,
 #ifdef FEATURE_HW_INTRINSICS
         if (tree->gtOper == GT_HWIntrinsic)
         {
-            printf(" %s %s",
-                   tree->AsHWIntrinsic()->gtSIMDBaseType == TYP_UNKNOWN ? ""
-                                                                     : varTypeName(tree->AsHWIntrinsic()->gtSIMDBaseType),
+            printf(" %s %s", tree->AsHWIntrinsic()->gtSIMDBaseType == TYP_UNKNOWN
+                                 ? ""
+                                 : varTypeName(tree->AsHWIntrinsic()->gtSIMDBaseType),
                    HWIntrinsicInfo::lookupName(tree->AsHWIntrinsic()->gtHWIntrinsicId));
         }
 #endif // FEATURE_HW_INTRINSICS
