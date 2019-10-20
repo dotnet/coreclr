@@ -2054,9 +2054,8 @@ AGAIN:
                     hash = genTreeHashAdd(hash, tree->gtAllocObj.gtNewHelper);
                     break;
                 case GT_RUNTIMELOOKUP:
-                    hash =
-                        genTreeHashAdd(hash,
-                                       static_cast<unsigned>(reinterpret_cast<uintptr_t>(tree->AsRuntimeLookup()->gtHnd)));
+                    hash = genTreeHashAdd(hash, static_cast<unsigned>(
+                                                    reinterpret_cast<uintptr_t>(tree->AsRuntimeLookup()->gtHnd)));
                     break;
                 case GT_BLK:
                 case GT_OBJ:
