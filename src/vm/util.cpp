@@ -1583,7 +1583,8 @@ static size_t GetCacheSizeFromCpuId()
 
         DWORD maxCpuId = getcpuid(0, buffer);
 
-        if (memcmp(buffer + 4, "GenuineIntel", 12) == 0) {
+        if (memcmp(buffer + 4, "GenuineIntel", 12) == 0)
+        {
             /*
             //The following lines are commented because the OS API  on Windows 2003 SP1 is not returning the Cache Relation information on x86.
             //Once the OS API (LH and above) is updated with this information, we should start using the OS API to get the cache enumeration by
