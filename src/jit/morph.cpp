@@ -12514,7 +12514,8 @@ DONE_MORPHING_CHILDREN:
                     // If a GC happens, the byref won't get updated. This can happen if one
                     // of the int components is negative. It also requires the address generation
                     // be in a fully-interruptible code region.
-                    if (!varTypeIsGC(op1->AsOp()->gtGetOp1()->TypeGet()) && !varTypeIsGC(op2->AsOp()->gtGetOp1()->TypeGet()))
+                    if (!varTypeIsGC(op1->AsOp()->gtGetOp1()->TypeGet()) &&
+                        !varTypeIsGC(op2->AsOp()->gtGetOp1()->TypeGet()))
                     {
                         cns1          = op1->AsOp()->gtGetOp2();
                         cns2          = op2->AsOp()->gtGetOp2();
@@ -12552,15 +12553,15 @@ DONE_MORPHING_CHILDREN:
 
                 if (op2->IsCnsIntOrI() && varTypeIsIntegralOrI(typ))
                 {
-                    /* Fold "((x+icon1)+icon2) to (x+(icon1+icon2))" same for bitwise OR*/
+                    /* Fold "((x+icon1)+icon2) to (x+(icon1+icon2))" same for bitwise OR */
                     CLANG_FORMAT_COMMENT_ANCHOR;
 
-                    if (op1->OperIs(oper) &&                                 //
-                        !gtIsActiveCSE_Candidate(op1) &&                     //
+                    if (op1->OperIs(oper) &&                                      //
+                        !gtIsActiveCSE_Candidate(op1) &&                          //
                         op1->AsOp()->gtGetOp2()->IsCnsIntOrI() &&                 //
                         (op1->AsOp()->gtGetOp2()->OperGet() == op2->OperGet()) && //
                         (op1->AsOp()->gtGetOp2()->TypeGet() != TYP_REF) &&        // Don't fold REFs
-                        (op2->TypeGet() != TYP_REF))                         // Don't fold REFs
+                        (op2->TypeGet() != TYP_REF))                              // Don't fold REFs
                     {
                         cns1          = op1->AsOp()->gtGetOp2();
                         ssize_t icon1 = cns1->AsIntConCommon()->IconValue();
