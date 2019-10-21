@@ -12761,7 +12761,7 @@ DONE_MORPHING_CHILDREN:
                     goto DONE_MORPHING_CHILDREN;
                 }
             }
-            else if (fgOperIsBitwiseRotationRoot(oper))
+            if (fgOperIsBitwiseRotationRoot(oper))
             {
                 tree = fgRecognizeAndMorphBitwiseRotation(tree);
 
