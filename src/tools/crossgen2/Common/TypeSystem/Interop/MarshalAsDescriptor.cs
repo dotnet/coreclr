@@ -37,7 +37,7 @@ namespace Internal.TypeSystem
         LPStruct = 0x2b,    // This is not  defined in Ecma-335(II.23.4)
         CustomMarshaler = 0x2c,
         LPUTF8Str = 0x30,
-        Invalid = 0x50,      // This is the default value
+        Default = 0x50,      // This is the default value
         Variant = 0x51,
     }
 
