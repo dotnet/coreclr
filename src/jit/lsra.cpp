@@ -6719,13 +6719,6 @@ void LinearScan::updateMaxSpill(RefPosition* refPosition)
             // to know what they are here.
             var_types typ;
 
-#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-            if (refType == RefTypeUpperVectorSave)
-            {
-                typ = LargeVectorSaveType;
-            }
-            else
-#endif // !FEATURE_PARTIAL_SIMD_CALLEE_SAVE
             {
                 GenTree* treeNode = refPosition->treeNode;
                 if (treeNode == nullptr)
