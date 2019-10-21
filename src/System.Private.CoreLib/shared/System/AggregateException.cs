@@ -438,16 +438,12 @@ namespace System
             StringBuilder text = new StringBuilder();
             text.Append(base.ToString());
 
-            for (int i = 0; i < m_innerExceptions.Count; i++)
+            foreach (Exception ex in m_innerExceptions)
             {
-                if (m_innerExceptions[i] == InnerException)
+                if (object.ReferenceEquals(ex, InnerException))
                     continue; // Already logged in base.ToString()
 
-                text.Append(Environment.NewLineConst + InnerExceptionPrefix);
-                text.AppendFormat(CultureInfo.InvariantCulture, SR.AggregateException_InnerException, i);
-                text.Append(m_innerExceptions[i].ToString());
-                text.Append("<---");
-                text.AppendLine();
+                text.Append(InnerExceptionToString(ex));
             }
 
             return text.ToString();

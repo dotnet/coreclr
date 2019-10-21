@@ -66,11 +66,7 @@ namespace System.Runtime.InteropServices
                 s += ": " + message;
             }
 
-            Exception? innerException = InnerException;
-            if (innerException != null)
-            {
-                s += Environment.NewLineConst + InnerExceptionPrefix + innerException.ToString();
-            }
+            s += InnerExceptionToString(InnerException);
 
             if (StackTrace != null)
                 s += Environment.NewLineConst + StackTrace;

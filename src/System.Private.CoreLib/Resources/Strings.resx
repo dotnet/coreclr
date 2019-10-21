@@ -159,10 +159,6 @@
   <data name="AggregateException_DeserializationFailure" xml:space="preserve">
     <value>The serialization stream contains no inner exceptions.</value>
   </data>
-  <data name="AggregateException_InnerException" xml:space="preserve">
-    <value>(Inner Exception #{0}) </value>
-    <comment>This text is prepended to each inner exception description during aggregate exception formatting</comment>
-  </data>
   <data name="AppDomain_AppBaseNotSet" xml:space="preserve">
     <value>The ApplicationBase must be set before retrieving this property.</value>
   </data>
@@ -2223,9 +2219,6 @@
   </data>
   <data name="EventSource_VarArgsParameterMismatch" xml:space="preserve">
     <value>Event {0} was called with a different type as defined (argument "{1}"). This may cause the event to be displayed incorrectly.</value>
-  </data>
-  <data name="Exception_EndOfInnerExceptionStack" xml:space="preserve">
-    <value>--- End of inner exception stack trace ---</value>
   </data>
   <data name="Exception_WasThrown" xml:space="preserve">
     <value>Exception of type '{0}' was thrown.</value>

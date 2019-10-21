@@ -50,11 +50,10 @@ namespace System.IO
         {
             string s = GetType().ToString() + ": " + Message;
 
-            if (!string.IsNullOrEmpty(FileName))
+            if (!string.IsNullOrEmpty(FileName) && !Message.Contains(FileName))
                 s += Environment.NewLineConst + SR.Format(SR.IO_FileName_Name, FileName);
 
-            if (InnerException != null)
-                s += Environment.NewLineConst + InnerExceptionPrefix + InnerException.ToString();
+            s += InnerExceptionToString(InnerException);
 
             if (StackTrace != null)
                 s += Environment.NewLineConst + StackTrace;

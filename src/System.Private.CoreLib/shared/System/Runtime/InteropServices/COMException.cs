@@ -58,11 +58,7 @@ namespace System.Runtime.InteropServices
                 s.Append(": ").Append(message);
             }
 
-            Exception? innerException = InnerException;
-            if (innerException != null)
-            {
-                s.Append(Environment.NewLineConst + InnerExceptionPrefix).Append(innerException.ToString());
-            }
+            s.Append(InnerExceptionToString(InnerException));
 
             string? stackTrace = StackTrace;
             if (stackTrace != null)

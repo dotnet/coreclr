@@ -5,6 +5,7 @@
 using System.Collections;
 using System.Diagnostics;
 using System.Runtime.Serialization;
+using System.Text;
 
 namespace System
 {
@@ -12,8 +13,6 @@ namespace System
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public partial class Exception : ISerializable
     {
-        private protected const string InnerExceptionPrefix = " ---> ";
-
         public Exception()
         {
             _HResult = HResults.COR_E_EXCEPTION;
@@ -128,10 +127,7 @@ namespace System
                 s += ": " + message;
             }
 
-            if (_innerException != null)
-            {
-                s += Environment.NewLineConst + InnerExceptionPrefix + _innerException.ToString() + Environment.NewLineConst + "   " + SR.Exception_EndOfInnerExceptionStack;
-            }
+            s += InnerExceptionToString(InnerException);
 
             string? stackTrace = StackTrace;
             if (stackTrace != null)
@@ -140,6 +136,20 @@ namespace System
             }
 
             return s;
+        }
+
+        // Returns the indented inner exception's ToString() prefixed with a newline.
+        // If there is no inner exception, returns empty string.
+        private protected string InnerExceptionToString(Exception? inner)
+        {
+            if (inner == null)
+                return "";
+
+            var sb = new StringBuilder(inner.ToString());
+            sb.Replace("\r\n", "\n");
+            sb.Replace("\n", Environment.NewLineConst + "      ");
+
+            return Environment.NewLineConst + " ---> " + sb.ToString();
         }
 
         protected event EventHandler<SafeSerializationEventArgs>? SerializeObjectState

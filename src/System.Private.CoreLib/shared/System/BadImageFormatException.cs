@@ -95,11 +95,10 @@ namespace System
         {
             string s = GetType().ToString() + ": " + Message;
 
-            if (!string.IsNullOrEmpty(_fileName))
+            if (!string.IsNullOrEmpty(_fileName) && !Message.Contains(_fileName))
                 s += Environment.NewLineConst + SR.Format(SR.IO_FileName_Name, _fileName);
 
-            if (InnerException != null)
-                s += InnerExceptionPrefix + InnerException.ToString();
+            s += InnerExceptionToString(InnerException);
 
             if (StackTrace != null)
                 s += Environment.NewLineConst + StackTrace;
