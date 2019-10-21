@@ -1675,10 +1675,9 @@ OBJECTREF EETypeLoadException::CreateThrowable()
 // EEFileLoadException is an EE exception subclass representing a file loading
 // error
 // ---------------------------------------------------------------------------
-EEFileLoadException::EEFileLoadException(const SString &name, HRESULT hr, void *pFusionLog, Exception *pInnerException/* = NULL*/)
+EEFileLoadException::EEFileLoadException(const SString &name, HRESULT hr, Exception *pInnerException/* = NULL*/)
   : EEException(GetFileLoadKind(hr)),
     m_name(name),
-    m_pFusionLog(pFusionLog),
     m_hr(hr)
 {
     CONTRACTL
@@ -1822,18 +1821,14 @@ OBJECTREF EEFileLoadException::CreateThrowable()
     }
     CONTRACTL_END;
 
-    // Fetch any log info from the fusion log
-    SString logText;
     struct _gc {
         OBJECTREF pNewException;
         STRINGREF pNewFileString;
-        STRINGREF pFusLogString;
     } gc;
     ZeroMemory(&gc, sizeof(gc));
     GCPROTECT_BEGIN(gc);
 
     gc.pNewFileString = StringObject::NewString(m_name);
-    gc.pFusLogString = StringObject::NewString(logText);
     gc.pNewException = AllocateObject(MscorlibBinder::GetException(m_kind));
 
     MethodDesc* pMD = MemberLoader::FindMethod(gc.pNewException->GetMethodTable(),
@@ -1850,7 +1845,7 @@ OBJECTREF EEFileLoadException::CreateThrowable()
     ARG_SLOT args[] = {
         ObjToArgSlot(gc.pNewException),
         ObjToArgSlot(gc.pNewFileString),
-        ObjToArgSlot(gc.pFusLogString),
+        NULL,
         (ARG_SLOT) m_hr
     };
 
