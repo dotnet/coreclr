@@ -12514,10 +12514,12 @@ DONE_MORPHING_CHILDREN:
                     // If a GC happens, the byref won't get updated. This can happen if one
                     // of the int components is negative. It also requires the address generation
                     // be in a fully-interruptible code region.
-                    if (!varTypeIsGC(op1->AsOp()->gtOp1->TypeGet()) && !varTypeIsGC(op2->AsOp()->gtOp1->TypeGet()))
+                    if (!varTypeIsGC(op1->AsOp()->gtGetOp1()->TypeGet()) && !varTypeIsGC(op2->AsOp()->gtGetOp1()->TypeGet()))
                     {
-                        cns1 = op1->AsOp()->gtOp2;
-                        cns2 = op2->AsOp()->gtOp2;
+                        cns1          = op1->AsOp()->gtGetOp2();
+                        cns2          = op2->AsOp()->gtGetOp2();
+                        ssize_t icon1 = cns1->AsIntCon()->IconValue();
+                        ssize_t icon2 = cns2->AsIntCon()->IconValue();
 
                         if (oper == GT_ADD)
                         {
@@ -12525,11 +12527,11 @@ DONE_MORPHING_CHILDREN:
                             {
                                 break;
                             }
-                            cns1->AsIntCon()->SetIconValue(cns1->AsIntCon()->IconValue() + cns2->AsIntCon()->IconValue());
+                            cns1->AsIntCon()->SetIconValue(icon1 + icon2);
                         }
                         else
                         {
-                            cns1->AsIntCon()->SetIconValue(cns1->AsIntCon()->IconValue() | cns2->AsIntCon()->IconValue());
+                            cns1->AsIntCon()->SetIconValue(icon1 | icon2);
                         }
 #ifdef _TARGET_64BIT_
                         if (cns1->TypeGet() == TYP_INT)
