@@ -145,11 +145,25 @@ namespace System
             if (inner == null)
                 return "";
 
-            var sb = new StringBuilder(inner.ToString());
-            sb.Replace("\r\n", "\n");
-            sb.Replace("\n", Environment.NewLineConst + "      ");
+            /* Format something like this to clearly separate from the containin exception
+             ________________________________________________________________________________________________
+            |_1.Interop+Crypto+OpenSslCryptographicException: error:25070067:DSO support routines:DSO_load:could not load the shared library
+            |   at _1.Program.<>c.<Main>b__0_0() in C:\proj\30\ConsoleApp1\Program.cs:line 31
+            |   at _1.Program.Wrap(Action cb) in C:\proj\30\ConsoleApp1\Program.cs:line 61
+            \________________________________________________________________________________________________
 
-            return Environment.NewLineConst + " ---> " + sb.ToString();
+            */
+            const string hundredUnderscores = "________________________________________________________________________________________________" + Environment.NewLineConst;
+            string trimmedInner = inner.ToString().Trim(); // Remove any trailing newline
+
+            var sb = new StringBuilder();
+            sb.Append(Environment.NewLineConst + " ").Append(hundredUnderscores);
+            sb.Append(trimmedInner);
+            sb.Replace("\r\n", "\n", Environment.NewLineConst.Length, sb.Length - Environment.NewLineConst.Length); // Normalize, after the first newline
+            sb.Replace("\n", Environment.NewLineConst + " |", Environment.NewLineConst.Length, sb.Length - Environment.NewLineConst.Length); // Indent each line, after the first
+            sb.Append(Environment.NewLineConst + " \\").Append(hundredUnderscores);
+
+            return sb.ToString();
         }
 
         protected event EventHandler<SafeSerializationEventArgs>? SerializeObjectState
