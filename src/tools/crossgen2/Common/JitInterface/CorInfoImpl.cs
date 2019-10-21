@@ -3015,6 +3015,17 @@ namespace Internal.JitInterface
             }
         }
 
+        private bool isMethodDefinedInCoreLib()
+        {
+            TypeDesc owningType = MethodBeingCompiled.OwningType;
+            MetadataType owningMetadataType = owningType as MetadataType;
+            if (owningMetadataType == null)
+            {
+                return false;
+            }
+            return owningMetadataType.Module == _compilation.TypeSystemContext.SystemModule;
+        }
+
         private uint getJitFlags(ref CORJIT_FLAGS flags, uint sizeInBytes)
         {
             // Read the user-defined configuration options.
@@ -3028,8 +3039,12 @@ namespace Internal.JitInterface
             flags.Set(CorJitFlag.CORJIT_FLAG_PREJIT);
             flags.Set(CorJitFlag.CORJIT_FLAG_USE_PINVOKE_HELPERS);
 
-            if (_compilation.TypeSystemContext.Target.Architecture == TargetArchitecture.X86
+            if ((_compilation.TypeSystemContext.Target.Architecture == TargetArchitecture.X86
                 || _compilation.TypeSystemContext.Target.Architecture == TargetArchitecture.X64)
+#if READYTORUN
+                && isMethodDefinedInCoreLib()
+#endif
+               )
             {
                 // This list needs to match the list of intrinsics we can generate detection code for
                 // in HardwareIntrinsicHelpers.EmitIsSupportedIL.
