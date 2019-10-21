@@ -321,13 +321,6 @@ namespace System.Diagnostics
                             sb.AppendFormat(CultureInfo.InvariantCulture, inFileLineNum, fileName, sf.GetFileLineNumber());
                         }
                     }
-
-                    // Skip EDI boundary for async
-                    if (sf.IsLastFrameFromForeignExceptionStackTrace && !isAsync)
-                    {
-                        sb.AppendLine();
-                        sb.Append(SR.Exception_EndStackTraceFromPreviousThrow);
-                    }
                 }
             }
 
