@@ -12508,7 +12508,7 @@ DONE_MORPHING_CHILDREN:
                 /* Fold "((x+icon1)+(y+icon2)) to ((x+y)+(icon1+icon2))" same for bitwise OR */
 
                 if (op1->OperIs(op2->OperGet()) && op1->OperIs(oper) && !gtIsActiveCSE_Candidate(op2) &&
-                    op1->AsOp()->gtOp2->gtOper == GT_CNS_INT && op2->AsOp()->gtOp2->gtOper == GT_CNS_INT)
+                    op1->AsOp()->gtGetOp2()->IsCnsIntOrI() && op2->AsOp()->gtGetOp2()->IsCnsIntOrI())
                 {
                     // Don't create a byref pointer that may point outside of the ref object.
                     // If a GC happens, the byref won't get updated. This can happen if one
@@ -12525,11 +12525,11 @@ DONE_MORPHING_CHILDREN:
                             {
                                 break;
                             }
-                            cns1->AsIntCon()->gtIconVal += cns2->AsIntCon()->gtIconVal;
+                            cns1->AsIntCon()->SetIconValue(cns1->AsIntCon()->IconValue() + cns2->AsIntCon()->IconValue());
                         }
                         else
                         {
-                            cns1->AsIntCon()->gtIconVal |= cns2->AsIntCon()->gtIconVal;
+                            cns1->AsIntCon()->SetIconValue(cns1->AsIntCon()->IconValue() | cns2->AsIntCon()->IconValue());
                         }
 #ifdef _TARGET_64BIT_
                         if (cns1->TypeGet() == TYP_INT)
@@ -12555,13 +12555,12 @@ DONE_MORPHING_CHILDREN:
 
                     if (op1->OperIs(oper) &&                                 //
                         !gtIsActiveCSE_Candidate(op1) &&                     //
-                        op1->AsOp()->gtOp2->IsCnsIntOrI() &&                 //
-                        (op1->AsOp()->gtOp2->OperGet() == op2->OperGet()) && //
-                        (op1->AsOp()->gtOp2->TypeGet() != TYP_REF) &&        // Don't fold REFs
+                        op1->AsOp()->gtGetOp2()->IsCnsIntOrI() &&                 //
+                        (op1->AsOp()->gtGetOp2()->OperGet() == op2->OperGet()) && //
+                        (op1->AsOp()->gtGetOp2()->TypeGet() != TYP_REF) &&        // Don't fold REFs
                         (op2->TypeGet() != TYP_REF))                         // Don't fold REFs
                     {
-                        cns1 = op1->AsOp()->gtOp2;
-
+                        cns1          = op1->AsOp()->gtGetOp2();
                         ssize_t icon1 = cns1->AsIntConCommon()->IconValue();
                         ssize_t icon2 = op2->AsIntConCommon()->IconValue();
 
