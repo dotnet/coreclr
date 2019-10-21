@@ -134,19 +134,6 @@ namespace ILCompiler
                     // Skip them in library mode since they're not going to be callable.
                     continue;
                 }
-                catch (InvalidOperationException)
-                {
-                    //
-                    // This catch block is meant to catch the exception thrown by ArgIterator
-                    // used in GCRefMapBuilder.GetCallRefMap, an example when that
-                    // happen is when an indeterminate size type is used in the signature.
-                    //
-                    // TODO: InvalidOperationException sounds fairly general - do we risk
-                    // catching cases where we should have crashed the compiler instead?
-                    // (e.g. Some of us wrote buggy code but got misled by test result)
-                    //
-                    continue;
-                }
             }
         }
 
@@ -169,24 +156,25 @@ namespace ILCompiler
             {
                 CheckTypeCanBeUsedInSignature(signature[i]);
             }
-
-            //
-            // CheckTypeCanBeUsedInSignature is insufficient - the ArgIterator used in GetCallRefMap() can be used to detect
-            // some cases (e.g. usage of types with indeterminate size) where compilation will eventually fail downstream.
-            //
-            // TODO: Is it possible to augment CheckTypeCanBeUsedInSignature() to accomplish the same? It is relative straightforward
-            // to check if the type has indeterminate size, but is that sufficient?
-            //
-            new GCRefMapBuilder(_module.Context.Target, false).GetCallRefMap(method);
         }
 
         private static void CheckTypeCanBeUsedInSignature(TypeDesc type)
         {
-            MetadataType defType = type as MetadataType;
+            DefType defType = type as DefType;
 
             if (defType != null)
             {
                 defType.ComputeTypeContainsGCPointers();
+                if (defType.InstanceFieldSize.IsIndeterminate)
+                {
+                    //
+                    // If a method's signature refers to a type with an indeterminate size,
+                    // the compilation will eventually fail when we generate the GCRefMap.
+                    //
+                    // Therefore we need to avoid adding these method into the graph
+                    //
+                    ThrowHelper.ThrowTypeLoadException(ExceptionStringID.ClassLoadGeneral, type);
+                }
             }
         }
 
