@@ -138,14 +138,14 @@ namespace System
             return s;
         }
 
-        // Returns the indented inner exception's ToString() prefixed with a newline.
+        // Returns the indented inner exception's ToString() prefixed, but not suffixed, with a newline.
         // If there is no inner exception, returns empty string.
         private protected string InnerExceptionToString(Exception? inner)
         {
             if (inner == null)
                 return "";
 
-            /* Format something like this to clearly separate from the containin exception
+            /* Format something like this to clearly separate from the containing exception
              ________________________________________________________________________________________________
             |_1.Interop+Crypto+OpenSslCryptographicException: error:25070067:DSO support routines:DSO_load:could not load the shared library
             |   at _1.Program.<>c.<Main>b__0_0() in C:\proj\30\ConsoleApp1\Program.cs:line 31
@@ -153,15 +153,15 @@ namespace System
             \________________________________________________________________________________________________
 
             */
-            const string hundredUnderscores = "________________________________________________________________________________________________" + Environment.NewLineConst;
-            string trimmedInner = inner.ToString().Trim(); // Remove any trailing newline
+            const string nl = Environment.NewLineConst;
+            string hundredUnderscores = new string('_', 100);
 
             var sb = new StringBuilder();
-            sb.Append(Environment.NewLineConst + " ").Append(hundredUnderscores);
-            sb.Append(trimmedInner);
-            sb.Replace("\r\n", "\n", Environment.NewLineConst.Length, sb.Length - Environment.NewLineConst.Length); // Normalize, after the first newline
-            sb.Replace("\n", Environment.NewLineConst + " |", Environment.NewLineConst.Length, sb.Length - Environment.NewLineConst.Length); // Indent each line, after the first
-            sb.Append(Environment.NewLineConst + " \\").Append(hundredUnderscores);
+            sb.Append(nl + " ").Append(hundredUnderscores).Append(nl);
+            sb.Append(inner.ToString().Trim()); // Remove any trailing newline
+            sb.Replace("\r\n", "\n", nl.Length, sb.Length - nl.Length); // Normalize newlines except the first
+            sb.Replace("\n", nl + " |", nl.Length, sb.Length - nl.Length); // Indent each line, after the first
+            sb.Append(nl + " \\").Append(hundredUnderscores);
 
             return sb.ToString();
         }
