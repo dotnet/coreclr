@@ -52,15 +52,15 @@ namespace System.Runtime.InteropServices
         // Returns number of bytes required to convert given string to Ansi string. The return value includes null terminator.
         internal static unsafe int GetAnsiStringByteCount(ReadOnlySpan<char> chars)
         {
-            return Encoding.UTF8.GetByteCount(chars) + 1;
+            int byteLength = Encoding.UTF8.GetByteCount(chars);
+            return checked(byteLength + 1);
         }
 
-        // Converts given string to Ansi string. The converted value includes null terminator.
-        internal static unsafe int GetAnsiStringBytes(ReadOnlySpan<char> chars, Span<byte> bytes)
+        // Converts given string to Ansi string. The destination buffer must be large enough to hold the converted value, including null terminator.
+        internal static unsafe void GetAnsiStringBytes(ReadOnlySpan<char> chars, Span<byte> bytes)
         {
             int actualByteLength = Encoding.UTF8.GetBytes(chars, bytes);
             bytes[actualByteLength] = 0;
-            return actualByteLength;
         }
     }
 }

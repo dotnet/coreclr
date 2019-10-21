@@ -23,7 +23,7 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool IsPrimitiveTypeArray(Array array);
 
-        // Non-inlinable wrapper around the QCall that avoids poluting the fast path
+        // Non-inlinable wrapper around the QCall that avoids polluting the fast path
         // with P/Invoke prolog/epilog.
         [MethodImpl(MethodImplOptions.NoInlining)]
         internal static unsafe void _ZeroMemory(ref byte b, nuint byteLength)

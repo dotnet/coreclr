@@ -84,24 +84,48 @@ namespace System.Runtime.InteropServices
         // Returns number of bytes required to convert given string to Ansi string. The return value includes null terminator.
         internal static unsafe int GetAnsiStringByteCount(ReadOnlySpan<char> chars)
         {
-            fixed (char* pChars = chars)
+            int byteLength;
+
+            if (chars.Length == 0)
             {
-                return Interop.Kernel32.WideCharToMultiByte(
-                   Interop.Kernel32.CP_ACP, Interop.Kernel32.WC_NO_BEST_FIT_CHARS, pChars, chars.Length, null, 0, IntPtr.Zero, IntPtr.Zero) + 1;
+                byteLength = 0;
             }
+            else
+            {
+                fixed (char* pChars = chars)
+                {
+                    byteLength = Interop.Kernel32.WideCharToMultiByte(
+                        Interop.Kernel32.CP_ACP, Interop.Kernel32.WC_NO_BEST_FIT_CHARS, pChars, chars.Length, null, 0, IntPtr.Zero, IntPtr.Zero);
+                    if (byteLength == 0)
+                        throw new ArgumentException();
+                }
+            }
+
+            return checked(byteLength + 1);
         }
 
-        // Converts given string to Ansi string. The converted value includes null terminator.
-        internal static unsafe int GetAnsiStringBytes(ReadOnlySpan<char> chars, Span<byte> bytes)
+        // Converts given string to Ansi string. The destination buffer must be large enough to hold the converted value, including null terminator.
+        internal static unsafe void GetAnsiStringBytes(ReadOnlySpan<char> chars, Span<byte> bytes)
         {
-            fixed (char* pChars = chars)
-            fixed (byte* pBytes = bytes)
+            int byteLength;
+
+            if (chars.Length == 0)
             {
-                int actualByteLength = Interop.Kernel32.WideCharToMultiByte(
-                   Interop.Kernel32.CP_ACP, Interop.Kernel32.WC_NO_BEST_FIT_CHARS, pChars, chars.Length, pBytes, bytes.Length, IntPtr.Zero, IntPtr.Zero);
-                bytes[actualByteLength] = 0;
-                return actualByteLength;
+                byteLength = 0;
             }
+            else
+            {
+                fixed (char* pChars = chars)
+                fixed (byte* pBytes = bytes)
+                {
+                    byteLength = Interop.Kernel32.WideCharToMultiByte(
+                       Interop.Kernel32.CP_ACP, Interop.Kernel32.WC_NO_BEST_FIT_CHARS, pChars, chars.Length, pBytes, bytes.Length, IntPtr.Zero, IntPtr.Zero);
+                    if (byteLength == 0)
+                        throw new ArgumentException();
+                }
+            }
+
+            bytes[byteLength] = 0;
         }
     }
 }
