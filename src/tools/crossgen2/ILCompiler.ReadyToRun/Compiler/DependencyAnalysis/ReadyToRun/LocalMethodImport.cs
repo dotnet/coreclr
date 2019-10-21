@@ -53,5 +53,13 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             }
             yield return new DependencyListEntry(_localMethod, "Local method import");
         }
+
+        public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
+        {
+            int result = _localMethod.CompareToImpl(((LocalMethodImport)other)._localMethod, comparer);
+            if (result != 0) return result;
+
+            return base.CompareToImpl(other, comparer);
+        }
     }
 }

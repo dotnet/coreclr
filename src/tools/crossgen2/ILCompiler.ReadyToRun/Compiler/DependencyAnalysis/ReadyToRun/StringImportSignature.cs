@@ -41,7 +41,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
 
         public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
         {
-            return _token.CompareTo(((StringImportSignature)other)._token);
+            return _token.CompareTo(((StringImportSignature)other)._token, comparer);
         }
     }
 }

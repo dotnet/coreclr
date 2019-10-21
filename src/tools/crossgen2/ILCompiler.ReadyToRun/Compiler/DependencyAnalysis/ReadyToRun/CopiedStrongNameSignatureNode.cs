@@ -63,5 +63,10 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
 
             return builder.ToObjectData();
         }
+
+        public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
+        {
+            return comparer.Compare(_module, ((CopiedStrongNameSignatureNode)other)._module);
+        }
     }
 }

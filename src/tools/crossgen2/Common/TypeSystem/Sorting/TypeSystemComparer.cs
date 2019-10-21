@@ -2,6 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Collections;
+using System.Collections.Generic;
 using Debug = System.Diagnostics.Debug;
 
 namespace Internal.TypeSystem
@@ -24,7 +26,7 @@ namespace Internal.TypeSystem
     // to sort itself with respect to other instances of the same type.
     // Comparisons between different categories of types are centralized to a single location that
     // can provide rules to sort them.
-    public class TypeSystemComparer
+    public class TypeSystemComparer : IComparer<MethodDesc>
     {
         public int Compare(TypeDesc x, TypeDesc y)
         {
@@ -96,6 +98,33 @@ namespace Internal.TypeSystem
         }
 
         public int Compare(FieldDesc x, FieldDesc y)
+        {
+            if (x == y)
+            {
+                return 0;
+            }
+
+            int codeX = x.ClassCode;
+            int codeY = y.ClassCode;
+            if (codeX == codeY)
+            {
+                Debug.Assert(x.GetType() == y.GetType());
+
+                int result = x.CompareToImpl(y, this);
+
+                // We did a reference equality check above so an "Equal" result is not expected
+                Debug.Assert(result != 0);
+
+                return result;
+            }
+            else
+            {
+                Debug.Assert(x.GetType() != y.GetType());
+                return codeX > codeY ? -1 : 1;
+            }
+        }
+
+        public int Compare(ModuleDesc x, ModuleDesc y)
         {
             if (x == y)
             {

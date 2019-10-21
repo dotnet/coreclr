@@ -58,6 +58,11 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             AppendMangledName(context.NameMangler, sb);
             return sb.ToString();
         }
+
+        public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
+        {
+            throw new NotImplementedException("There should not be more than one EHInfoNode.");
+        }
     }
 
     public class ExceptionInfoLookupTableNode : HeaderTableNode

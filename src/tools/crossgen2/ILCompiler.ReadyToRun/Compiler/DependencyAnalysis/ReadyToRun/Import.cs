@@ -64,9 +64,21 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             return new DependencyListEntry[] { new DependencyListEntry(ImportSignature, "Signature for ready-to-run fixup import") };
         }
 
-        public int CompareToImpl(ISortableSymbolNode other, CompilerComparer comparer)
+        public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
         {
-            return new ObjectNodeComparer(comparer).Compare(this, (Import)other);
+            Import otherNode = (Import)other;
+            int result;
+            if (CallSite != null || otherNode.CallSite != null)
+            {
+                if (CallSite == null) return -1;
+                result = CallSite.CompareTo(otherNode.CallSite);
+                if (result != 0) return result;
+            }
+
+            result = ImportSignature.CompareToImpl(otherNode.ImportSignature, comparer);
+            if (result != 0) return result;
+
+            return Table.CompareToImpl(otherNode.Table, comparer);
         }
 
         public override bool RepresentsIndirectionCell => true;

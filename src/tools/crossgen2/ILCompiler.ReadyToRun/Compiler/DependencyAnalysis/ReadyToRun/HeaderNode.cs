@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System;
 using System.Collections.Generic;
 
 using Internal.Runtime;
@@ -46,6 +47,11 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
                 else
                     return ObjectNodeSection.DataSection;
             }
+        }
+
+        public sealed override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
+        {
+            throw new NotImplementedException("There should not be more than one of each type of HeaderTableNode.");
         }
     }
 
@@ -147,5 +153,10 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
         }
 
         public override int ClassCode => 627741208;
+
+        public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
+        {
+            throw new NotImplementedException("There should be at most one HeaderNode");
+        }
     }
 }

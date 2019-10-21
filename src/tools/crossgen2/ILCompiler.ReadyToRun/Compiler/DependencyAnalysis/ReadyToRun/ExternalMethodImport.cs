@@ -39,5 +39,11 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
         public MethodDesc Method => _method.Method;
 
         public override int ClassCode => 458823351;
+
+        // This is just here in case of future extension (everything is already compared in the base CompareToImpl)
+        public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
+        {
+            return base.CompareToImpl(other, comparer);
+        }
     }
 }

@@ -9,6 +9,12 @@ using Internal.Text;
 
 namespace ILCompiler.DependencyAnalysis
 {
+    interface ISimpleEmbeddedPointerIndirectionNode<out TTarget>
+        where TTarget : ISortableSymbolNode
+    {
+        TTarget Target { get; }
+    }
+
     /// <summary>
     /// Represents an array of pointers to symbols. <typeparamref name="TTarget"/> is the type
     /// of node each pointer within the vector points to.
@@ -29,7 +35,7 @@ namespace ILCompiler.DependencyAnalysis
             : base(
                   startSymbolMangledName,
                   endSymbolMangledName,
-                  nodeSorter != null ? new PointerIndirectionNodeComparer(nodeSorter) : null)
+                  new PointerIndirectionNodeComparer(nodeSorter))
         {
             _startSymbolMangledName = startSymbolMangledName;
         }
@@ -68,7 +74,7 @@ namespace ILCompiler.DependencyAnalysis
             }
         }
 
-        private class SimpleEmbeddedPointerIndirectionNode : EmbeddedPointerIndirectionNode<TTarget>
+        private class SimpleEmbeddedPointerIndirectionNode : EmbeddedPointerIndirectionNode<TTarget>, ISimpleEmbeddedPointerIndirectionNode<TTarget>
         {
             protected ArrayOfEmbeddedPointersNode<TTarget> _parentNode;
 
@@ -97,6 +103,17 @@ namespace ILCompiler.DependencyAnalysis
             }
 
             public override int ClassCode => -66002498;
+
+            public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
+            {
+                var otherNode = (ISimpleEmbeddedPointerIndirectionNode<ISortableSymbolNode>)other;
+
+                // We don't know whether other's generic type is the same as TTarget
+                int result = otherNode.Target.ClassCode - Target.ClassCode;
+                if (result != 0) return result > 0 ? -1 : 1;
+
+                return Target.CompareToImpl(otherNode.Target, comparer);
+            }
         }
 
         private class EmbeddedPointerIndirectionWithSymbolNode : SimpleEmbeddedPointerIndirectionNode, ISymbolDefinitionNode

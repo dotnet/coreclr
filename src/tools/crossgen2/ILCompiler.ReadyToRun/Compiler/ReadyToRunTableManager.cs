@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 
@@ -35,6 +36,7 @@ namespace ILCompiler
     {
         protected readonly CompilerTypeSystemContext _typeSystemContext;
         private HashSet<MethodDesc> _methodsGenerated = new HashSet<MethodDesc>();
+        private List<MethodDesc> _sortedMethods;
 
         public MetadataManager(CompilerTypeSystemContext context)
         {
@@ -53,12 +55,22 @@ namespace ILCompiler
 
             if (methodNode != null)
             {
-                _methodsGenerated.Add(methodNode.Method);
+                lock (_methodsGenerated)
+                {
+                    _methodsGenerated.Add(methodNode.Method);
+                }
             }
         }
         public IEnumerable<MethodDesc> GetCompiledMethods()
         {
-            return _methodsGenerated;
+            lock (this)
+            {
+                if (_sortedMethods == null)
+                {
+                    _sortedMethods = new List<MethodDesc>(_methodsGenerated.OrderBy(method => method, new TypeSystemComparer()));
+                }
+            }
+            return _sortedMethods;
         }
     }
 

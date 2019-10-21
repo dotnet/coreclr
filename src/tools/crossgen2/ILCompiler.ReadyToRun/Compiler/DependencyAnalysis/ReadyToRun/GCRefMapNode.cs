@@ -107,5 +107,10 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             AppendMangledName(factory.NameMangler, sb);
             return sb.ToString();
         }
+
+        public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
+        {
+            return _importSection.CompareToImpl(((GCRefMapNode)other)._importSection, comparer);
+        }
     }
 }

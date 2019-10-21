@@ -10,13 +10,16 @@ namespace Internal.TypeSystem.Ecma
 {
     partial class EcmaModule
     {
-        internal int CompareTo(EcmaModule other)
+        protected internal override int ClassCode => 50698845;
+
+        protected internal override int CompareToImpl(ModuleDesc other, TypeSystemComparer comparer)
         {
             if (this == other)
                 return 0;
 
+            EcmaModule otherModule = (EcmaModule)other;
             Guid thisMvid = _metadataReader.GetGuid(_metadataReader.GetModuleDefinition().Mvid);
-            Guid otherMvid = other._metadataReader.GetGuid(other.MetadataReader.GetModuleDefinition().Mvid);
+            Guid otherMvid = otherModule._metadataReader.GetGuid(otherModule.MetadataReader.GetModuleDefinition().Mvid);
 
             Debug.Assert(thisMvid.CompareTo(otherMvid) != 0, "Different instance of EcmaModule but same MVID?");
             return thisMvid.CompareTo(otherMvid);

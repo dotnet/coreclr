@@ -3,12 +3,18 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
-
 using Internal.Text;
 
 namespace ILCompiler.DependencyAnalysis
 {
-    class RvaEmbeddedPointerIndirectionNode<TTarget> : EmbeddedPointerIndirectionNode<TTarget>
+    interface IRvaEmbeddedPointerIndirectionNode<out TTarget>
+        where TTarget : ISortableSymbolNode
+    {
+        TTarget Target { get; }
+        string CallSite { get;  }
+    }
+
+    class RvaEmbeddedPointerIndirectionNode<TTarget> : EmbeddedPointerIndirectionNode<TTarget>, IRvaEmbeddedPointerIndirectionNode<TTarget>
         where TTarget : ISortableSymbolNode
     {
         private readonly string _callSite;
@@ -18,6 +24,8 @@ namespace ILCompiler.DependencyAnalysis
         {
             _callSite = callSite;
         }
+
+        public string CallSite => _callSite;
 
         protected override string GetName(NodeFactory factory) => $"Embedded pointer to {Target.GetMangledName(factory.NameMangler)}";
 
@@ -47,5 +55,23 @@ namespace ILCompiler.DependencyAnalysis
         }
 
         public override int ClassCode => -66002498;
+
+        public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
+        {
+            var otherNode = (IRvaEmbeddedPointerIndirectionNode<ISortableSymbolNode>) other;
+
+            // We don't know whether other's generic type is the same as TTarget
+            int result = otherNode.Target.ClassCode - Target.ClassCode;
+            if (result != 0) return result > 0 ? -1 : 1;
+
+            if (CallSite != null || otherNode.CallSite != null)
+            {
+                if (CallSite == null) return -1;
+                result = CallSite.CompareTo(otherNode.CallSite);
+                if (result != 0) return result;
+            }
+
+            return Target.CompareToImpl(otherNode.Target, comparer);
+        }
     }
 }

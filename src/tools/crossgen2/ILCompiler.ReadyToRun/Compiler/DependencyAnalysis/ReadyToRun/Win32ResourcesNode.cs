@@ -3,17 +3,9 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Reflection.Metadata;
-using System.Reflection.Metadata.Ecma335;
 
-using Internal.NativeFormat;
 using Internal.Text;
 using ILCompiler.Win32Resources;
-using Internal.TypeSystem;
-using Internal.TypeSystem.Ecma;
 
 namespace ILCompiler.DependencyAnalysis.ReadyToRun
 {
@@ -54,6 +46,11 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
         protected override string GetName(NodeFactory context)
         {
             return "____Win32Resources";
+        }
+
+        public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
+        {
+            throw new NotImplementedException("There should be at most one Win32ResourcesNode");
         }
 
         public int Size => _size;
