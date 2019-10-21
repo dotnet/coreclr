@@ -35,7 +35,7 @@ namespace ILCompiler.DependencyAnalysis
             : base(
                   startSymbolMangledName,
                   endSymbolMangledName,
-                  nodeSorter)
+                  new PointerIndirectionNodeComparer(nodeSorter))
         {
             _startSymbolMangledName = startSymbolMangledName;
         }
@@ -107,7 +107,12 @@ namespace ILCompiler.DependencyAnalysis
             public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
             {
                 var otherNode = (ISimpleEmbeddedPointerIndirectionNode<ISortableSymbolNode>)other;
-                return comparer.Compare(Target, otherNode.Target);
+
+                // We don't know whether other's generic type is the same as TTarget
+                int result = otherNode.Target.ClassCode - Target.ClassCode;
+                if (result != 0) return result > 0 ? -1 : 1;
+
+                return Target.CompareToImpl(otherNode.Target, comparer);
             }
         }
 

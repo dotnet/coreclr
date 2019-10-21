@@ -573,6 +573,9 @@
     <Compile Include="..\Common\TypeSystem\Sorting\MethodSignature.Sorting.cs">
       <Link>TypeSystem\Sorting\MethodSignature.Sorting.cs</Link>
     </Compile>
+    <Compile Include="..\Common\TypeSystem\Sorting\ModuleDesc.Sorting.cs">
+      <Link>TypeSystem\Sorting\ModuleDesc.Sorting.cs</Link>
+    </Compile>
     <Compile Include="..\Common\TypeSystem\Sorting\PointerType.Sorting.cs">
       <Link>TypeSystem\Sorting\PointerType.Sorting.cs</Link>
     </Compile>

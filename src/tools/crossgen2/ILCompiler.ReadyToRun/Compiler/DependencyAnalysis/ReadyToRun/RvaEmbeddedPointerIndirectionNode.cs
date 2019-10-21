@@ -3,20 +3,29 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
-using ILCompiler.DependencyAnalysis.ReadyToRun;
 using Internal.Text;
 
 namespace ILCompiler.DependencyAnalysis
 {
-    class SignatureEmbeddedPointerIndirectionNode : EmbeddedPointerIndirectionNode<Signature>
+    interface IRvaEmbeddedPointerIndirectionNode<out TTarget>
+        where TTarget : ISortableSymbolNode
     {
-        private readonly Import _import;
+        TTarget Target { get; }
+        string CallSite { get;  }
+    }
+
+    class RvaEmbeddedPointerIndirectionNode<TTarget> : EmbeddedPointerIndirectionNode<TTarget>, IRvaEmbeddedPointerIndirectionNode<TTarget>
+        where TTarget : ISortableSymbolNode
+    {
+        private readonly string _callSite;
         
-        public SignatureEmbeddedPointerIndirectionNode(Import import, Signature signature)
-            : base(signature)
+        public RvaEmbeddedPointerIndirectionNode(TTarget target, string callSite = null)
+            : base(target)
         {
-            _import = import;
+            _callSite = callSite;
         }
+
+        public string CallSite => _callSite;
 
         protected override string GetName(NodeFactory factory) => $"Embedded pointer to {Target.GetMangledName(factory.NameMangler)}";
 
@@ -36,12 +45,12 @@ namespace ILCompiler.DependencyAnalysis
     
         public override void AppendMangledName(NameMangler nameMangler, Utf8StringBuilder sb)
         {
-            sb.Append("SignaturePointer_");
+            sb.Append("RVA_");
             Target.AppendMangledName(nameMangler, sb);
-            if (_import.CallSite != null)
+            if (_callSite != null)
             {
                 sb.Append(" @ ");
-                sb.Append(_import.CallSite);
+                sb.Append(_callSite);
             }
         }
 
@@ -49,7 +58,20 @@ namespace ILCompiler.DependencyAnalysis
 
         public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
         {
-            return comparer.Compare(_import, ((SignatureEmbeddedPointerIndirectionNode)other)._import);
+            var otherNode = (IRvaEmbeddedPointerIndirectionNode<ISortableSymbolNode>) other;
+
+            // We don't know whether other's generic type is the same as TTarget
+            int result = otherNode.Target.ClassCode - Target.ClassCode;
+            if (result != 0) return result > 0 ? -1 : 1;
+
+            if (CallSite != null || otherNode.CallSite != null)
+            {
+                if (CallSite == null) return -1;
+                result = CallSite.CompareTo(otherNode.CallSite);
+                if (result != 0) return result;
+            }
+
+            return Target.CompareToImpl(otherNode.Target, comparer);
         }
     }
 }

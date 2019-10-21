@@ -138,7 +138,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
 
         public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
         {
-            return _sourceModule.CompareTo(((CopiedMetadataBlobNode)other)._sourceModule);
+            return comparer.Compare(_sourceModule, ((CopiedMetadataBlobNode)other)._sourceModule);
         }
     }
 }

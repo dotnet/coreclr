@@ -42,9 +42,9 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             _emitGCRefMap = emitGCRefMap;
 
             _imports = new ImportTable(_name + "_ImportBegin", _name + "_ImportEnd");
-            _signatures = new ArrayOfEmbeddedPointersNode<Signature>(_name + "_SigBegin", _name + "_SigEnd", new EmbeddedObjectNodeComparer(new CompilerComparer()));
+            _signatures = new ArrayOfEmbeddedPointersNode<Signature>(_name + "_SigBegin", _name + "_SigEnd", new ObjectNodeComparer(new CompilerComparer()));
             _signatureList = new List<Signature>();
-            _gcRefMap = _emitGCRefMap ? new GCRefMapNode(this) : null;
+            _gcRefMap = (_emitGCRefMap ? new GCRefMapNode(this) : null);
         }
 
         public void MaterializeSignature(ReadyToRunCodegenNodeFactory r2rFactory)

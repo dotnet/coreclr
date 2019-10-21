@@ -142,7 +142,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
 
         public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
         {
-            return _module.CompareTo(((CopiedCorHeaderNode)other)._module);
+            return comparer.Compare(_module, ((CopiedCorHeaderNode)other)._module);
         }
     }
 }
