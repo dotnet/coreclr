@@ -13210,8 +13210,6 @@ void Module::LoadHelperTable()
     if (tableSize == 0)
         return;
 
-    EnsureWritableExecutablePages(table, tableSize);
-
     BYTE * curEntry   = table;
     BYTE * tableEnd   = table + tableSize;
 
@@ -13717,19 +13715,19 @@ BOOL LoadDynamicInfoEntry(Module *currentModule,
             }
 
             // Profiling handle is opaque token. It does not have to be aligned thus we can not store it in the same location as token.
-            *EnsureWritablePages(entry+kZapProfilingHandleImportValueIndexClientData) = (SIZE_T)profilerHandle;
+            *(entry+kZapProfilingHandleImportValueIndexClientData) = (SIZE_T)profilerHandle;
 
             if (bHookFunction)
             {
-                *EnsureWritablePages(entry+kZapProfilingHandleImportValueIndexEnterAddr) = (SIZE_T)(void *)hlpDynamicFuncTable[DYNAMIC_CORINFO_HELP_PROF_FCN_ENTER].pfnHelper;
-                *EnsureWritablePages(entry+kZapProfilingHandleImportValueIndexLeaveAddr) = (SIZE_T)(void *)hlpDynamicFuncTable[DYNAMIC_CORINFO_HELP_PROF_FCN_LEAVE].pfnHelper;
-                *EnsureWritablePages(entry+kZapProfilingHandleImportValueIndexTailcallAddr) = (SIZE_T)(void *)hlpDynamicFuncTable[DYNAMIC_CORINFO_HELP_PROF_FCN_TAILCALL].pfnHelper;
+                *(entry+kZapProfilingHandleImportValueIndexEnterAddr) = (SIZE_T)(void *)hlpDynamicFuncTable[DYNAMIC_CORINFO_HELP_PROF_FCN_ENTER].pfnHelper;
+                *(entry+kZapProfilingHandleImportValueIndexLeaveAddr) = (SIZE_T)(void *)hlpDynamicFuncTable[DYNAMIC_CORINFO_HELP_PROF_FCN_LEAVE].pfnHelper;
+                *(entry+kZapProfilingHandleImportValueIndexTailcallAddr) = (SIZE_T)(void *)hlpDynamicFuncTable[DYNAMIC_CORINFO_HELP_PROF_FCN_TAILCALL].pfnHelper;
             }
             else
             {
-                *EnsureWritablePages(entry+kZapProfilingHandleImportValueIndexEnterAddr) = (SIZE_T)(void *)JIT_ProfilerEnterLeaveTailcallStub;
-                *EnsureWritablePages(entry+kZapProfilingHandleImportValueIndexLeaveAddr) = (SIZE_T)(void *)JIT_ProfilerEnterLeaveTailcallStub;
-                *EnsureWritablePages(entry+kZapProfilingHandleImportValueIndexTailcallAddr) = (SIZE_T)(void *)JIT_ProfilerEnterLeaveTailcallStub;
+                *(entry+kZapProfilingHandleImportValueIndexEnterAddr) = (SIZE_T)(void *)JIT_ProfilerEnterLeaveTailcallStub;
+                *(entry+kZapProfilingHandleImportValueIndexLeaveAddr) = (SIZE_T)(void *)JIT_ProfilerEnterLeaveTailcallStub;
+                *(entry+kZapProfilingHandleImportValueIndexTailcallAddr) = (SIZE_T)(void *)JIT_ProfilerEnterLeaveTailcallStub;
             }
         }
         break;
@@ -13745,7 +13743,7 @@ BOOL LoadDynamicInfoEntry(Module *currentModule,
             _ASSERTE(pField->IsRVA());
 
             // Field address is not aligned thus we can not store it in the same location as token.
-            *EnsureWritablePages(entry+1) = (size_t)pField->GetStaticAddressHandle(NULL);
+            *(entry+1) = (size_t)pField->GetStaticAddressHandle(NULL);
         }
         break;
 
@@ -13826,7 +13824,7 @@ BOOL LoadDynamicInfoEntry(Module *currentModule,
                 {
                 case READYTORUN_HELPER_Module:
                     {
-                        Module * pPrevious = InterlockedCompareExchangeT(EnsureWritablePages((Module **)entry), pInfoModule, NULL);
+                        Module * pPrevious = InterlockedCompareExchangeT((Module **)entry, pInfoModule, NULL);
                         if (pPrevious != pInfoModule && pPrevious != NULL)
                             COMPlusThrowHR(COR_E_FILELOAD, IDS_NATIVE_IMAGE_CANNOT_BE_LOADED_MULTIPLE_TIMES, pInfoModule->GetPath());
                         return TRUE;
@@ -13931,7 +13929,7 @@ BOOL LoadDynamicInfoEntry(Module *currentModule,
     }
 
     MemoryBarrier();
-    *EnsureWritablePages(entry) = result;
+    *entry = result;
 
     return TRUE;
 }
