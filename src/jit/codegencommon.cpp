@@ -2299,8 +2299,9 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 #if defined(DEBUG) || defined(LATE_DISASM)
     // Add code size information into the Perf Score
     // All compPerfScore calculations must be performed using doubles
-    compiler->info.compPerfScore += ((double) compiler->info.compTotalHotCodeSize * (double) PERFSCORE_CODESIZE_COST_HOT);
-    compiler->info.compPerfScore += ((double) compiler->info.compTotalColdCodeSize * (double) PERFSCORE_CODESIZE_COST_COLD);
+    compiler->info.compPerfScore += ((double)compiler->info.compTotalHotCodeSize * (double)PERFSCORE_CODESIZE_COST_HOT);
+    compiler->info.compPerfScore +=
+        ((double)compiler->info.compTotalColdCodeSize * (double)PERFSCORE_CODESIZE_COST_COLD);
 #endif // DEBUG || LATE_DISASM
 
 #ifdef DEBUG

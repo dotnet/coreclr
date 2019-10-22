@@ -3415,7 +3415,7 @@ size_t emitter::emitIssue1Instr(insGroup* ig, instrDesc* id, BYTE** dp)
 #if defined(DEBUG) || defined(LATE_DISASM)
     float insExeCost = insEvaluateExecutionCost(id);
     // All compPerfScore calculations must be performed using doubles
-    emitComp->info.compPerfScore += (double) (ig->igWeight / (double) BB_UNITY_WEIGHT) * insExeCost;
+    emitComp->info.compPerfScore += (double)(ig->igWeight / (double)BB_UNITY_WEIGHT) * insExeCost;
 #endif // defined(DEBUG) || defined(LATE_DISASM)
 
 // printf("[S=%02u]\n", emitCurStackLvl);
