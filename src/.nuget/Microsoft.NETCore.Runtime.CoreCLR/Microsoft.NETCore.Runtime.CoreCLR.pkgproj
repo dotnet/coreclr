@@ -15,5 +15,4 @@
   <Import Condition="'$(_packageTargetOSGroup)' != ''"  Project="$(MSBuildThisFileDirectory)runtime.$(_packageTargetOSGroup).$(MSBuildProjectName).props" />
 
   <Import Project="$([MSBuild]::GetPathOfFileAbove(Directory.Build.targets))" />
-
 </Project>
