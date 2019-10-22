@@ -37,6 +37,7 @@
 
     <MSBuild Projects="$(MSBuildProjectFile)" Targets="PrepareCorrelationPayloadDirectory" />
     <MSBuild Projects="$(MSBuildProjectFile)" Targets="PreparePayloadsDirectories" Properties="Scenarios=$(_Scenarios)" StopOnFirstFailure="true" />
+    <MSBuild Projects="$(MSBuildProjectFile)" Targets="Restore" Properties="UsesHelixSdk=true" />
 
     <ItemGroup>
       <_Scenarios Include="$(_Scenarios.Split(','))" />
