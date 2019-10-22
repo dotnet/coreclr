@@ -30,14 +30,14 @@
     <RestoreProjects Include="$(MSBuildThisFileDirectory)src\performance\performance.csproj" />
     <RestoreProjects Include="$(MSBuildThisFileDirectory)src\Common\CoreCLRTestLibrary\CoreCLRTestLibrary.csproj" />
     <RestoreProjects Include="$(MSBuildThisFileDirectory)src\Common\CoreFX\CoreFX.csproj" />
-    <RestoreProjects Include="$(MSBuildThisFileDirectory)src\Common\external\external.csproj" />
+    <RestoreProjects Include="$(MSBuildThisFileDirectory)external\external.csproj" />
     <RestoreProjects Include="$(MSBuildThisFileDirectory)src\Common\ilasm\ilasm.ilproj" />
   </ItemGroup>
 
   <Target Name="BuildTargetingPack" AfterTargets="BatchRestorePackages" Condition="$(__SkipTargetingPackBuild) != 'true'">
     <Message Text="Building Targeting Pack" Importance="High" />
     <Error  Text="BuildOS has not been specified. Please do that then run build again."  Condition="'$(BuildOS)' == 'AnyOS'" />
-    <MSBuild Projects="$(MSBuildThisFileDirectory)\src\Common\external\external.csproj"
+    <MSBuild Projects="$(MSBuildThisFileDirectory)external\external.csproj"
              Targets="Build" />
   </Target>
 
