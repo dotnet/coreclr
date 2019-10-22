@@ -91,16 +91,10 @@ fi
 scriptDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 dotnet=$"${scriptDir}"/../.dotnet/dotnet
-packageDir="${scriptDir}"/../.packages
-csprojPath="${scriptDir}"/src/Common/stress_dependencies/stress_dependencies.csproj
+csprojPath="${scriptDir}"/stress_dependencies/stress_dependencies.csproj
 
 if [ ! -e $dotnetCmd ]; then
     exit_with_error 1 'dotnet commandline does not exist:'$dotnetCmd
-fi
-
-# make package directory
-if [ ! -e $packageDir ]; then
-    mkdir -p $packageDir
 fi
 
 # make output directory
@@ -174,11 +168,21 @@ fi
 
 # Download the package
 echo Downloading CoreDisTools package
-bash -c -x "$dotnet restore $csprojPath --packages $packageDir"
+bash -c -x "$dotnet restore $csprojPath"
 if [ $? -ne 0 ]
 then
     exit_with_error 1 "Failed to restore the package"
 fi
+
+CoreDisToolsPackagePathOutputFile="../bin/obj/${__BuildOS}.x64/optdatapath.txt"
+
+bash -c -x "$dotnet msbuild $csprojPath /t:DumpCoreDisToolsPackagePath /p:CoreDisToolsPackagePathOutputFile=\"$CoreDisToolsPackagePathOutputFile\" /p:RuntimeIdentifier=\"$rid\""
+if [ $? -ne 0 ]
+then
+    exit_with_error 1 "Failed to find the path to CoreDisTools."
+fi
+
+packageDir=$(<"${CoreDisToolsPackagePathOutputFile}")
 
 # Get library path
 libPath=`find $packageDir | grep $rid | grep -m 1 libcoredistools`
