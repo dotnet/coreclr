@@ -1127,7 +1127,7 @@ FCIMPLEND
 **           zeroingOptional -> whether caller prefers to skip clearing the content of the array, if possible.
 **Exceptions: IDS_EE_ARRAY_DIMENSIONS_EXCEEDED when size is too large. OOM if can't allocate.
 ==============================================================================*/
-FCIMPL3(Object*, GCInterface::AllocateNewArray, void* arrayTypeHandle, INT32 length, CLR_BOOL zeroingOptional)
+FCIMPL3(Object*, GCInterface::AllocateNewArray, void* arrayTypeHandle, UINT32 length, CLR_BOOL zeroingOptional)
 {
     CONTRACTL {
         FCALL_CHECK;

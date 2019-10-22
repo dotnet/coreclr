@@ -87,7 +87,7 @@ namespace System
         internal static extern int _EndNoGCRegion();
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        internal static extern Array AllocateNewArray(IntPtr typeHandle, int length, bool zeroingOptional);
+        internal static extern Array AllocateNewArray(IntPtr typeHandle, uint length, bool zeroingOptional);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int GetGenerationWR(IntPtr handle);
@@ -651,17 +651,17 @@ namespace System
             }
         }
 
-        // Skips zero-initialization of the array if possible. If T contains object references,
-        // the array is always zero-initialized.
-        internal static T[] AllocateUninitializedArray<T>(int length)
+        /// <summary>
+        /// Skips zero-initialization of the array if possible. If T contains object references,
+        /// the array is always zero-initialized.
+        /// </summary>
+        internal static T[] AllocateUninitializedArray<T>(uint length)
         {
             if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
             {
                 return new T[length];
             }
 
-            if (length < 0)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.lengths, 0, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 #if DEBUG
             // in DEBUG arrays of any length can be created uninitialized
 #else
