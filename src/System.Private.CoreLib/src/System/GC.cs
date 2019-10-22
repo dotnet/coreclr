@@ -655,6 +655,7 @@ namespace System
         /// Skips zero-initialization of the array if possible. If T contains object references,
         /// the array is always zero-initialized.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] // forced to ensure no perf drop for small memory buffers (hot path)
         internal static T[] AllocateUninitializedArray<T>(uint length)
         {
             if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
@@ -673,7 +674,11 @@ namespace System
                 return new T[length];
             }
 
-            return (T[])AllocateNewArray(typeof(T[]).TypeHandle.Value, length, zeroingOptional: true);
+            // kept outside of the small arrays hot path to have inlining without big size growth
+            return AllocateUninitializedArray_NativeCall<T>(length);
         }
+
+        private static T[] AllocateUninitializedArray_NativeCall<T>(uint length)
+            => (T[])AllocateNewArray(typeof(T[]).TypeHandle.Value, length, zeroingOptional: true);
     }
 }
