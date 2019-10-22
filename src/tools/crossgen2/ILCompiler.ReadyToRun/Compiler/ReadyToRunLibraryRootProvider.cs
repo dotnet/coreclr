@@ -6,7 +6,6 @@ using System;
 
 using Internal.TypeSystem.Ecma;
 using Internal.TypeSystem;
-using ILCompiler.DependencyAnalysis.ReadyToRun;
 
 namespace ILCompiler
 {
@@ -142,7 +141,7 @@ namespace ILCompiler
         /// in its signature. Unresolvable types in a method's signature prevent RyuJIT from generating
         /// even a stubbed out throwing implementation.
         /// </summary>
-        public void CheckCanGenerateMethod(MethodDesc method)
+        public static void CheckCanGenerateMethod(MethodDesc method)
         {
             MethodSignature signature = method.Signature;
 
