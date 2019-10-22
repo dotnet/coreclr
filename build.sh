@@ -166,7 +166,7 @@ restore_optdata()
         "$__ProjectRoot/eng/common/msbuild.sh" $__ArcadeScriptArgs $OptDataProjectFilePath /t:DumpPgoDataPackagePath ${__CommonMSBuildArgs} /p:PgoDataPackagePathOutputFile=${PgoDataPackagePathOutputFile} 2>&1 > /dev/null
         local exit_code=$?
         if [ $exit_code != 0 ] || [ ! -f "${PgoDataPackagePathOutputFile}" ]; then
-            echo "${__ErrMsgPrefix}Failed to get PGO data package version."
+            echo "${__ErrMsgPrefix}Failed to get PGO data package path."
             exit $exit_code
         fi
 
@@ -176,7 +176,7 @@ restore_optdata()
         "$__ProjectRoot/eng/common/msbuild.sh" $__ArcadeScriptArgs $OptDataProjectFilePath /t:DumpIbcDataPackagePath ${__CommonMSBuildArgs} /p:IbcDataPackagePathOutputFile=${IbcDataPackagePathOutputFile} 2>&1 > /dev/null
         local exit_code=$?
         if [ $exit_code != 0 ] || [ ! -f "${IbcDataPackagePathOutputFile}" ]; then
-            echo "${__ErrMsgPrefix}Failed to get IBC data package version."
+            echo "${__ErrMsgPrefix}Failed to get IBC data package path."
             exit $exit_code
         fi
 

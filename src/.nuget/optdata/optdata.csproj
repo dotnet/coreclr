@@ -33,8 +33,7 @@
   <Target Name="DumpPgoDataPackagePath">
     <!-- Error if PgoDataPackagePathOutputFile is not set. -->
     <Error Condition="'$(PgoDataPackagePathOutputFile)'==''" Text="PgoDataPackagePathOutputFile must be passed as a property." />
-    <Error Condition="'$(Pkgoptimization_PGO_CoreCLR)' == ''" Text="PGO optimization package path not found!" />
-
+    
     <PropertyGroup>
       <PgoPackagePath>$([MSBuild]::NormalizePath($(Pkgoptimization_PGO_CoreCLR),../../,optimization.$(BuildOS)-$(BuildArch).PGO.CoreCLR,$(optimizationPGOCoreCLRVersion)))</PgoPackagePath>
     </PropertyGroup>
@@ -44,7 +43,8 @@
     <!-- Cleanup old version file -->
     <Delete Files="$(PgoDataPackagePathOutputFile)" Condition="Exists('$(PgoDataPackagePathOutputFile)')" />
 
-    <WriteLinesToFile File="$(PgoDataPackagePathOutputFile)" Lines="$(PgoPackagePath)" Overwrite="true"/>
+    <WriteLinesToFile File="$(PgoDataPackagePathOutputFile)" Lines="$(PgoPackagePath)" Condition="Exists('$(PgoDataPackagePathOutputFile)')" Overwrite="true"/>
+    <WriteLinesToFile File="$(PgoDataPackagePathOutputFile)" Lines="" Condition="!Exists('$(PgoDataPackagePathOutputFile)')" Overwrite="true"/>
     <Message Text="optimizationPGOCoreCLR Package path: $(PgoPackagePath) written to: $(PgoDataPackagePathOutputFile)" Importance="High" />
   </Target>
 
@@ -71,7 +71,8 @@
     <!-- Cleanup old version file -->
     <Delete Files="$(IbcDataPackagePathOutputFile)" Condition="Exists('$(IbcDataPackagePathOutputFile)')" />
 
-    <WriteLinesToFile File="$(IbcDataPackagePathOutputFile)" Lines="$(IbcPackagePath)" Overwrite="true"/>
+    <WriteLinesToFile File="$(IbcDataPackagePathOutputFile)" Lines="$(IbcPackagePath)" Condition="Exists('$(IbcDataPackagePathOutputFile)')" Overwrite="true"/>
+    <WriteLinesToFile File="$(IbcDataPackagePathOutputFile)" Lines="" Condition="!Exists('$(IbcDataPackagePathOutputFile)')" Overwrite="true"/>
     <Message Text="optimizationIBCCoreCLRVersion: $(IbcPackagePath) written to: $(IbcDataPackagePathOutputFile)" Importance="High" />
   </Target>
 
