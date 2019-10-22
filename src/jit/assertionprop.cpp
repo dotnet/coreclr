@@ -1973,7 +1973,11 @@ AssertionInfo Compiler::optAssertionGenJtrue(GenTree* tree)
 
     GenTreeCall* call = op1->AsCall();
 
-    // See 3712, should we add chkcast...? also what about R2R
+    // Note CORINFO_HELP_READYTORUN_ISINSTANCEOF does not have the same argument pattern.
+    // In particular, it is not possible to deduce what class is being tested from its args.
+    //
+    // Also note The CASTCLASS helpers won't appear in predicates as they throw on failure.
+    // So the helper list here is smaller than the one in optAssertionProp_Call.
     if ((call->gtCallMethHnd == eeFindHelper(CORINFO_HELP_ISINSTANCEOFINTERFACE)) ||
         (call->gtCallMethHnd == eeFindHelper(CORINFO_HELP_ISINSTANCEOFARRAY)) ||
         (call->gtCallMethHnd == eeFindHelper(CORINFO_HELP_ISINSTANCEOFCLASS)) ||
