@@ -2124,43 +2124,46 @@ void LinearScan::buildIntervals()
                     }
                 }
             }
-            else if (block != compiler->fgFirstBB)
+            else
             {
                 // Any lclVars live-in on a non-EH boundary edge are resolution candidates.
                 VarSetOps::UnionD(compiler, resolutionCandidateVars, currentLiveVars);
 
-                VARSET_TP newLiveIn(VarSetOps::MakeCopy(compiler, currentLiveVars));
-                if (predBlock != nullptr)
+                if (block != compiler->fgFirstBB)
                 {
-                    // Compute set difference: newLiveIn = currentLiveVars - predBlock->bbLiveOut
-                    VarSetOps::DiffD(compiler, newLiveIn, predBlock->bbLiveOut);
-                }
-
-                // Create dummy def RefPositions
-
-                if (!VarSetOps::IsEmpty(compiler, newLiveIn))
-                {
-                    // If we are using locations from a predecessor, we should never require DummyDefs.
-                    assert(!predBlockIsAllocated);
-
-                    JITDUMP("Creating dummy definitions\n");
-                    VarSetOps::Iter iter(compiler, newLiveIn);
-                    unsigned        varIndex = 0;
-                    while (iter.NextElem(&varIndex))
+                    VARSET_TP newLiveIn(VarSetOps::MakeCopy(compiler, currentLiveVars));
+                    if (predBlock != nullptr)
                     {
-                        LclVarDsc* varDsc = compiler->lvaGetDescByTrackedIndex(varIndex);
-                        // Add a dummyDef for any candidate vars that are in the "newLiveIn" set.
-                        // If this is the entry block, don't add any incoming parameters (they're handled with
-                        // ParamDefs).
-                        if (isCandidateVar(varDsc) && (predBlock != nullptr || !varDsc->lvIsParam))
-                        {
-                            Interval*    interval = getIntervalForLocalVar(varIndex);
-                            RefPosition* pos      = newRefPosition(interval, currentLoc, RefTypeDummyDef, nullptr,
-                                                              allRegs(interval->registerType));
-                            pos->setRegOptional(true);
-                        }
+                        // Compute set difference: newLiveIn = currentLiveVars - predBlock->bbLiveOut
+                        VarSetOps::DiffD(compiler, newLiveIn, predBlock->bbLiveOut);
                     }
-                    JITDUMP("Finished creating dummy definitions\n\n");
+
+                    // Create dummy def RefPositions
+
+                    if (!VarSetOps::IsEmpty(compiler, newLiveIn))
+                    {
+                        // If we are using locations from a predecessor, we should never require DummyDefs.
+                        assert(!predBlockIsAllocated);
+
+                        JITDUMP("Creating dummy definitions\n");
+                        VarSetOps::Iter iter(compiler, newLiveIn);
+                        unsigned        varIndex = 0;
+                        while (iter.NextElem(&varIndex))
+                        {
+                            LclVarDsc* varDsc = compiler->lvaGetDescByTrackedIndex(varIndex);
+                            // Add a dummyDef for any candidate vars that are in the "newLiveIn" set.
+                            // If this is the entry block, don't add any incoming parameters (they're handled with
+                            // ParamDefs).
+                            if (isCandidateVar(varDsc) && (predBlock != nullptr || !varDsc->lvIsParam))
+                            {
+                                Interval*    interval = getIntervalForLocalVar(varIndex);
+                                RefPosition* pos      = newRefPosition(interval, currentLoc, RefTypeDummyDef, nullptr,
+                                                                  allRegs(interval->registerType));
+                                pos->setRegOptional(true);
+                            }
+                        }
+                        JITDUMP("Finished creating dummy definitions\n\n");
+                    }
                 }
             }
         }
