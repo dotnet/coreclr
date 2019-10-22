@@ -66,8 +66,8 @@
 
 #include "stringarraylist.h"
 
+#include "../binder/inc/bindertracing.h"
 #include "../binder/inc/clrprivbindercoreclr.h"
-
 
 #include "clrprivtypecachewinrt.h"
 
@@ -5041,6 +5041,8 @@ PEAssembly * AppDomain::BindAssemblySpec(
 
     BOOL fForceReThrow = FALSE;
 
+    BinderTracing::AssemblyBindEvent bindEvent(pSpec);
+
 #if defined(FEATURE_COMINTEROP)
     // Handle WinRT assemblies in the classic/hybrid scenario. If this is an AppX process,
     // then this case will be handled by the previous block as part of the full set of
@@ -5111,6 +5113,7 @@ EndTry2:;
         }
         _ASSERTE((FAILED(hr) && !fThrowOnFileNotFound) || pAssembly != nullptr);
 
+        bindEvent.SetResult(pAssembly.GetValue());
         return pAssembly.Extract();
     }
     else
@@ -5283,6 +5286,7 @@ EndTry2:;
                 result->AddRef();
         }
 
+        bindEvent.SetResult(result.GetValue());
         return result.Extract();
     }
     else

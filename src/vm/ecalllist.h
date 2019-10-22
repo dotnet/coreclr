@@ -538,6 +538,7 @@ FCFuncStart(gAssemblyFuncs)
     QCFuncElement("GetEntryAssemblyNative", AssemblyNative::GetEntryAssembly)
     QCFuncElement("GetExecutingAssemblyNative", AssemblyNative::GetExecutingAssembly)
     FCFuncElement("GetAssemblyCount", AssemblyNative::GetAssemblyCount)
+    FCFuncElement("IsBinderTracingEnabled", AssemblyNative::IsBinderTracingEnabled)
 FCFuncEnd()
 
 FCFuncStart(gAssemblyBuilderFuncs)

@@ -123,5 +123,8 @@ namespace System.Reflection
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern uint GetAssemblyCount();
+
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        internal static extern bool IsBinderTracingEnabled();
     }
 }
