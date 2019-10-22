@@ -700,6 +700,12 @@ namespace Internal.JitInterface
             // Check for hardware intrinsics
             if (HardwareIntrinsicHelpers.IsHardwareIntrinsic(method))
             {
+#if READYTORUN
+                if (!isMethodDefinedInCoreLib())
+                {
+                    throw new RequiresRuntimeJitException("This function is not defined in CoreLib and it is using hardware intrinsics.");
+                }
+#endif
 #if !READYTORUN
                 // Do not report the get_IsSupported method as an intrinsic - RyuJIT would expand it to
                 // a constant depending on the code generation flags passed to it, but we would like to
