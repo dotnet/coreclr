@@ -20,12 +20,5 @@
     <CrossGenBinary Include="$(BinDir)System.Private.CoreLib.dll" />
     <ArchitectureSpecificToolFile Include="$(BinDir)crossgen" />
     <CrossArchitectureSpecificToolFile Condition="'$(HasCrossTargetComponents)' == 'true'" Include="$(BinDir)$(CrossTargetComponentFolder)\crossgen" />
-
-    <Crossgen2Files Include="$(BinDir)crossgen2\crossgen2.dll" />
-    <Crossgen2Files Include="$(BinDir)crossgen2\ILCompiler*.dll" />
-    <Crossgen2Files Include="$(BinDir)crossgen2\Microsoft.DiaSymReader.dll" />
-    <Crossgen2Files Include="$(BinDir)crossgen2\System.CommandLine.dll" />
-    <Crossgen2Files Include="$(BinDir)crossgen2\libclrjitilc.so" />
-    <Crossgen2Files Include="$(BinDir)crossgen2\libjitinterface.so" />
   </ItemGroup>
 </Project>

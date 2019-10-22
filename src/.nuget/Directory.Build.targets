@@ -34,10 +34,6 @@
       <NativeWithSymbolFile Include="@(ArchitectureSpecificToolFile)">
         <TargetPath>tools</TargetPath>
       </NativeWithSymbolFile>
-      <NativeWithSymbolFile Include="@(Crossgen2Files)" 
-                            Condition="'$(BuildArch)'=='x64' And ('$(__BuildOS)' == 'Windows_NT' Or '$(__BuildOS)' == 'Linux')">
-        <TargetPath>tools/crossgen2</TargetPath>
-      </NativeWithSymbolFile>
     </ItemGroup>
 
     <ItemGroup Condition="'$(HasCrossTargetComponents)'=='true'">
