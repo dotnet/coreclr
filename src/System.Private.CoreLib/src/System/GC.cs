@@ -662,9 +662,6 @@ namespace System
                 return new T[length];
             }
 
-#if DEBUG
-            // in DEBUG arrays of any length can be created uninitialized
-#else
             // otherwise small arrays are allocated using `new[]` as that is generally faster.
             //
             // The threshold was derived from various simulations.
@@ -675,7 +672,7 @@ namespace System
             {
                 return new T[length];
             }
-#endif
+
             return (T[])AllocateNewArray(typeof(T[]).TypeHandle.Value, length, zeroingOptional: true);
         }
     }
