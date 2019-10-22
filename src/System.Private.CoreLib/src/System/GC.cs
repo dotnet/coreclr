@@ -17,9 +17,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
 using System.Collections.Generic;
-#if !DEBUG
 using Internal.Runtime.CompilerServices;
-#endif
 
 namespace System
 {
