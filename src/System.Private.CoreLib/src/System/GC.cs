@@ -663,13 +663,8 @@ namespace System
                 return new T[length];
             }
 
-            // otherwise small arrays are allocated using `new[]` as that is generally faster.
-            //
-            // The threshold was derived from various simulations.
-            // As it turned out the threshold depends on overal pattern of all allocations and is typically in 200-300 byte range.
-            // The gradient around the number is shallow (there is no perf cliff) and the exact value of the threshold does not matter a lot.
-            // So it is 256 bytes including array header.
-            if (Unsafe.SizeOf<T>() * length < 256 - 3 * IntPtr.Size)
+            // small arrays are allocated using `new[]` as that is generally faster.
+            if (length < 2048 / Unsafe.SizeOf<T>())
             {
                 return new T[length];
             }
