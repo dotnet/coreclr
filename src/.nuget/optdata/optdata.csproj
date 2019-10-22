@@ -38,7 +38,7 @@
       <PgoPackagePath>$([MSBuild]::NormalizePath($(Pkgoptimization_PGO_CoreCLR),../../,optimization.$(BuildOS)-$(BuildArch).PGO.CoreCLR,$(optimizationPGOCoreCLRVersion)))</PgoPackagePath>
     </PropertyGroup>
 
-    <Error Condition="!Exists('$(PgoPackagePath)')" Text="Unable to locate restored PGO package. Maybe the platform-specific package naming changed?" />
+    <Error Condition="!Exists('$(PgoPackagePath)') And '$(OptimizationDataSupported)' == 'True'" Text="Unable to locate restored PGO package. Maybe the platform-specific package naming changed?" />
 
     <!-- Cleanup old version file -->
     <Delete Files="$(PgoDataPackagePathOutputFile)" Condition="Exists('$(PgoDataPackagePathOutputFile)')" />
@@ -66,7 +66,7 @@
       <IbcPackagePath>$([MSBuild]::NormalizePath($(Pkgoptimization_IBC_CoreCLR),../../,optimization.$(BuildOS)-$(BuildArch).IBC.CoreCLR,$(optimizationIBCCoreCLRVersion)))</IbcPackagePath>
     </PropertyGroup>
 
-    <Error Condition="!Exists('$(IbcPackagePath)')" Text="Unable to locate restored IBC package. Maybe the platform-specific package naming changed?" />
+    <Error Condition="!Exists('$(IbcPackagePath)') And '$(OptimizationDataSupported)' == 'True'" Text="Unable to locate restored IBC package. Maybe the platform-specific package naming changed?" />
 
     <!-- Cleanup old version file -->
     <Delete Files="$(IbcDataPackagePathOutputFile)" Condition="Exists('$(IbcDataPackagePathOutputFile)')" />
