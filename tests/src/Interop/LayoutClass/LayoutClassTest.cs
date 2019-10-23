@@ -227,7 +227,6 @@ namespace PInvokeTests
 
         public static bool RecursiveNativeLayout()
         {
-            
             TestFramework.BeginScenario("Test #5 Structure with field of nested layout class with field of containing structure.");
 
             try
@@ -236,7 +235,6 @@ namespace PInvokeTests
             }
             catch (TypeLoadException)
             {
-                
                 return true;
             }
 
