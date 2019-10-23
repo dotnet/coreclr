@@ -62,6 +62,8 @@
       <ILLinkArgs>$(ILLinkArgs) -v true</ILLinkArgs>
       <!-- don't remove the embedded root xml resource since ILLink may run again on the assembly -->
       <ILLinkArgs>$(ILLinkArgs) --strip-resources false</ILLinkArgs>
+      <!-- keep interface implementations -->
+      <ILLinkArgs>$(ILLinkArgs) --disable-opt unusedinterfaces</ILLinkArgs>
     </PropertyGroup>
 
     <MakeDir Directories="$(ILLinkTrimInputPath)" />
