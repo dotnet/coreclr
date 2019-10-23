@@ -342,10 +342,10 @@ License notice for Xorshift (Wikipedia)
 https://en.wikipedia.org/wiki/Xorshift
 License: https://en.wikipedia.org/wiki/Wikipedia:Text_of_Creative_Commons_Attribution-ShareAlike_3.0_Unported_License
 
-License for fastrange (https://github.com/lemire/fastrange)
+License for fastmod (https://github.com/lemire/fastmod)
 --------------------------------------
 
-   Copyright 2016 Daniel Lemire
+   Copyright 2018 Daniel Lemire
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.

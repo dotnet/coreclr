@@ -89,30 +89,26 @@ namespace System.Collections
             return GetPrime(newSize);
         }
 
-        // Takes an index and distributes it in the range [0, range)
-        // e.g. 0 to range exclusive.
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint FastRange(uint index, uint range)
-        {
-            // Sse42.IsSupported check is baked into the R2R image so while the value returned
-            // from this method will be different on both branches, it will remain stable during
-            // a process' lifetime even if it is recompiled by tiered compilation.
-            if (Sse42.IsSupported)
-            {
-                // Using fastrange from Daniel Lemire https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
-                //
-                // While fastrange is "fair"; it expects an evenly distributed hashCode
-                // from [0,2^32) to produce a distributed range. As many hashCodes in .NET
-                // are generated with the high entropy in the LSB we need to redistribute
-                // the hash; for this we use Crc32. These two together allow us to skip the
-                // more costly idiv instruction.
+        public static ulong GetFastModMultiplier(uint divisor)
+            => ulong.MaxValue / divisor + 1;
 
-                return (uint)((Sse42.Crc32(0, index) * (ulong)range) >> 32);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe uint FastMod(uint value, uint divisor, ulong multiplier)
+        {
+            // 64bit * 64bit => 128bit isn't currently supported by Math https://github.com/dotnet/corefx/issues/41822
+            if (Bmi2.X64.IsSupported)
+            {
+                // Using fastmod from Daniel Lemire https://lemire.me/blog/2019/02/08/faster-remainders-when-the-divisor-is-a-constant-beating-compilers-and-libdivide/
+
+                ulong lowbits = multiplier * value;
+                ulong low;
+                ulong high = Bmi2.X64.MultiplyNoFlags(lowbits, divisor, &low);
+                return (uint)high;
             }
             else
             {
-                // Fast Crc isn't supported so we will use the slower modulo.
-                return index % range;
+                // 64bit * 64bit => 128bit isn't supported so we will use the slower modulo.
+                return value % divisor;
             }
         }
     }
