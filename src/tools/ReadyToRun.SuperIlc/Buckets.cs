@@ -42,7 +42,7 @@ namespace ReadyToRun.SuperIlc
             }
         }
 
-        public void WriteToStream(StreamWriter output, bool detailed)
+        public void WriteToStream(TextWriter output, bool detailed)
         {
             output.WriteLine($@"#buckets: {_bucketMap.Count}, #failures: {_bucketMap.Sum(b => b.Value.Count)}");
 

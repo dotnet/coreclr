@@ -7,8 +7,8 @@ parameters:
   managedTestBuildOsSubgroup: ''
   container: ''
   testGroup: ''
-  jitPlatforms: ''
-  r2rPlatforms: ''
+  readyToRun: false
+  crossgen2: false
   helixQueues: ''
   crossrootfsDir: ''
   # If true, run the corefx tests instead of the coreclr ones
@@ -37,63 +37,20 @@ jobs:
       condition: ${{ parameters.condition }}
       stagedBuild: ${{ parameters.stagedBuild }}
 
-      ${{ if eq(parameters.testGroup, 'innerloop') }}:
-        priBuildNamePart: 'p0_'
-        priDisplayNamePart: 'Pri0 '
-      ${{ if ne(parameters.testGroup, 'innerloop') }}:
-        priBuildNamePart: 'p1_'
-        priDisplayNamePart: 'Pri1 '
-
-- ${{ if or(eq(parameters.r2rPlatforms, ''), containsValue(parameters.jitPlatforms, 'all'), containsValue(parameters.jitPlatforms, format('{0}{1}_{2}', parameters.osGroup, parameters.osSubgroup, parameters.archType))) }}:
-  - template: run-test-job.yml
-    parameters:
-      buildConfig: ${{ parameters.buildConfig }}
-      archType: ${{ parameters.archType }}
-      osGroup: ${{ parameters.osGroup }}
-      osSubgroup: ${{ parameters.osSubgroup }}
-      managedTestBuildOsGroup: ${{ parameters.managedTestBuildOsGroup }}
-      managedTestBuildOsSubgroup: ${{ parameters.managedTestBuildOsSubgroup }}
-      container: ${{ parameters.container }}
-      testGroup: ${{ parameters.testGroup }}
-      readyToRun: false
-      readyToRunNamePart: ''
-      readyToRunDisplayNamePart: ''
-      helixQueues: ${{ parameters.helixQueues }}
-      corefxTests: ${{ parameters.coreFxTests }}
-      displayNameArgs: ${{ parameters.displayNameArgs }}
-      stagedBuild: ${{ parameters.stagedBuild }}
-      runInUnloadableContext: ${{ parameters.runInUnloadableContext }}
-
-      ${{ if eq(parameters.testGroup, 'innerloop') }}:
-        priBuildNamePart: 'p0_'
-        priDisplayNamePart: 'Pri0 '
-      ${{ if ne(parameters.testGroup, 'innerloop') }}:
-        priBuildNamePart: 'p1_'
-        priDisplayNamePart: 'Pri1 '
-
-- ${{ if and(ne(parameters.r2rPlatforms, ''), or(containsValue(parameters.r2rPlatforms, 'all'), containsValue(parameters.r2rPlatforms, format('{0}{1}_{2}', parameters.osGroup, parameters.osSubgroup, parameters.archType)))) }}:
-  - template: run-test-job.yml
-    parameters:
-      buildConfig: ${{ parameters.buildConfig }}
-      archType: ${{ parameters.archType }}
-      osGroup: ${{ parameters.osGroup }}
-      osSubgroup: ${{ parameters.osSubgroup }}
-      managedTestBuildOsGroup: ${{ parameters.managedTestBuildOsGroup }}
-      managedTestBuildOsSubgroup: ${{ parameters.managedTestBuildOsSubgroup }}
-      container: ${{ parameters.container }}
-      testGroup: ${{ parameters.testGroup }}
-      readyToRun: true
-      readyToRunNamePart: 'r2r_'
-      readyToRunDisplayNamePart: 'R2R '
-      helixQueues: ${{ parameters.helixQueues }}
-      corefxTests: ${{ parameters.coreFxTests }}
-      displayNameArgs: ${{ parameters.displayNameArgs }}
-      stagedBuild: ${{ parameters.stagedBuild }}
-      runInUnloadableContext: ${{ parameters.runInUnloadableContext }}
-
-      ${{ if eq(parameters.testGroup, 'innerloop') }}:
-        priBuildNamePart: 'p0_'
-        priDisplayNamePart: 'Pri0 '
-      ${{ if ne(parameters.testGroup, 'innerloop') }}:
-        priBuildNamePart: 'p1_'
-        priDisplayNamePart: 'Pri1 '
+- template: run-test-job.yml
+  parameters:
+    buildConfig: ${{ parameters.buildConfig }}
+    archType: ${{ parameters.archType }}
+    osGroup: ${{ parameters.osGroup }}
+    osSubgroup: ${{ parameters.osSubgroup }}
+    managedTestBuildOsGroup: ${{ parameters.managedTestBuildOsGroup }}
+    managedTestBuildOsSubgroup: ${{ parameters.managedTestBuildOsSubgroup }}
+    container: ${{ parameters.container }}
+    testGroup: ${{ parameters.testGroup }}
+    readyToRun: ${{ parameters.readyToRun }}
+    crossgen2: ${{ parameters.crossgen2 }}
+    helixQueues: ${{ parameters.helixQueues }}
+    corefxTests: ${{ parameters.coreFxTests }}
+    displayNameArgs: ${{ parameters.displayNameArgs }}
+    stagedBuild: ${{ parameters.stagedBuild }}
+    runInUnloadableContext: ${{ parameters.runInUnloadableContext }}

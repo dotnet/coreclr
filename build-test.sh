@@ -169,41 +169,39 @@ generate_layout()
     if [ $__DoCrossgen -ne 0 ]; then
         precompile_coreroot_fx
     fi
+    if [ $__DoCrossgen2 -ne 0 ]; then
+        if [ "$__BuildArch" == "x64" ]; then
+            # Currently Crossgen2 only works on x64
+            precompile_coreroot_fx
+        else
+            # Just copy around the IL files to the output folder if Crossgen2 doesn't work
+            mkdir -p $CORE_ROOT/Tests/Core_Root/CPAOT-ret.out
+            cp -r $CORE_ROOT/Tests/Core_Root/* $CORE_ROOT/Tests/Core_Root/CPAOT-ret.out/
+        fi
+    fi
 }
 
 precompile_coreroot_fx()
 {
     echo "${__MsgPrefix}Running crossgen on framework assemblies in CORE_ROOT: '${CORE_ROOT}'"
 
-    # Read the exclusion file for this platform
-    skipCrossGenFiles=($(read_array "$(dirname "$0")/tests/skipCrossGenFiles.${__BuildArch}.txt"))
-    skipCrossGenFiles+=('System.Runtime.WindowsRuntime.dll')
-
     local overlayDir=$CORE_ROOT
-
-    filesToPrecompile=$(find -L $overlayDir -maxdepth 1 -iname \*.dll -not -iname \*.ni.dll -not -iname \*-ms-win-\* -not -iname xunit.\* -type f)
-    for fileToPrecompile in ${filesToPrecompile}
-    do
-        local filename=${fileToPrecompile}
-        if is_skip_crossgen_test "$(basename $filename)"; then
-                continue
-        fi
-        echo Precompiling $filename
-        $__CrossgenExe /Platform_Assemblies_Paths $overlayDir $filename 1> $filename.stdout 2>$filename.stderr
-        local exitCode=$?
-        if [[ $exitCode != 0 ]]; then
-            if grep -q -e '0x80131018' $filename.stderr; then
-                printf "\n\t$filename is not a managed assembly.\n\n"
-            else
-                echo Unable to precompile $filename.
-                cat $filename.stdout
-                cat $filename.stderr
-                exit $exitCode
-            fi
-        else
-            rm $filename.{stdout,stderr}
-        fi
-    done
+    
+    __Command="${__DotNetCli} $CORE_ROOT/ReadyToRun.SuperIlc/ReadyToRun.SuperIlc.dll compile-framework"
+    __Command="${__Command} -cr $CORE_ROOT";
+    __Command="${__Command} -cp $__CrossgenExe";
+    __Command="${__Command} --release";
+    __Command="${__Command} --large-bubble";
+    if [ $__DoCrossgen -ne 0 ]; then
+      __Command="${__Command} --nocrossgen2 --crossgen";
+    fi
+    echo "$__Command"
+    $__Command
+    local exitCode=$?
+    if [[ $exitCode != 0 ]]; then
+        printf "Error Crossgen-compiling framework assemblies."
+        exit $exitCode
+    fi
 }
 
 declare -a skipCrossGenFiles
@@ -718,6 +716,7 @@ __GenerateTestHostOnly=
 __priority1=
 __BuildTestWrappersOnly=
 __DoCrossgen=0
+__DoCrossgen2=0
 __CopyNativeTestBinaries=0
 __CopyNativeProjectsAfterCombinedTestBuild=true
 __SkipGenerateLayout=0
@@ -922,6 +921,10 @@ while :; do
 
         crossgen)
             __DoCrossgen=1
+            ;;
+
+        crossgen2)
+            __DoCrossgen2=1
             ;;
 
         bindir)

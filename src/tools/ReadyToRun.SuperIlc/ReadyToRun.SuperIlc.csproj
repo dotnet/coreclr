@@ -5,7 +5,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.0</TargetFramework>
     <NoWarn>8002,NU1701</NoWarn>
-    <Platform>AnyCPU</Platform>
+    <PlatformTarget>x64</PlatformTarget>
     <OutputPath>$(BinDir)\ReadyToRun.SuperIlc</OutputPath>
   </PropertyGroup>
 

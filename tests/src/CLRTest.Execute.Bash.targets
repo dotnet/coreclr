@@ -251,8 +251,12 @@ fi
 ]]>
           </BashLinkerTestCleanupCmds>
       </PropertyGroup>
+      <PropertyGroup Condition="'$(CLRTestIsHosted)'=='true'">
+          <_CLRTestRunFile>"$CORE_ROOT/corerun"</_CLRTestRunFile>
+          <_CLRTestRunFile Condition="'$(RunCrossGen)' == 'true'">"$CORE_ROOT/Crossgen-ret.out/corerun"</_CLRTestRunFile>
+          <_CLRTestRunFile Condition="'$(RunCrossGen2)' == 'true'">"$CORE_ROOT/CPAOT-ret.out/corerun"</_CLRTestRunFile>
+      </PropertyGroup>
       <PropertyGroup>
-      <_CLRTestRunFile Condition="'$(CLRTestIsHosted)'=='true'">"$CORE_ROOT/corerun"</_CLRTestRunFile>
       <BashCLRTestLaunchCmds>$(BashIlrtTestLaunchCmds)</BashCLRTestLaunchCmds>
 
       <BashCLRTestLaunchCmds Condition="'$(CLRTestKind)' == 'BuildAndRun'">

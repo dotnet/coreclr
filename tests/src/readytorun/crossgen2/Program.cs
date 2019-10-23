@@ -37,7 +37,7 @@ internal class Program
     private static bool NewString()
     {
         string s = new string('x', 10);
-        return s.Length == 10;
+        return s.Length == 11;
     }
 
     private static bool WriteLine()

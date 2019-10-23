@@ -9,6 +9,7 @@ parameters:
   testGroup: ''
   crossrootfsDir: ''
   readyToRun: false
+  crossgen2: false
   helixQueues: ''
   # If true, run the corefx tests instead of the coreclr ones
   corefxTests: false
@@ -252,7 +253,8 @@ jobs:
           timeoutPerTestCollectionInMinutes: 300
           timeoutPerTestInMinutes: 90
 
-        runCrossGen: ${{ parameters.readyToRun }}
+        runCrossGen: ${{ and(parameters.readyToRun, not(parameters.crossgen2)) }}
+        runCrossGen2: ${{ and(parameters.readyToRun, parameters.crossgen2) }}
         runInUnloadableContext: ${{ parameters.runInUnloadableContext }}
 
         ${{ if eq(variables['System.TeamProject'], 'internal') }}:

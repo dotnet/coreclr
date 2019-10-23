@@ -48,6 +48,7 @@ namespace ReadyToRun.SuperIlc
             // TODO: additional framework build failures
             new FrameworkExclusion("Microsoft.Diagnostics.Tracing.TraceEvent", "Assert failure in JIT", crossgen2Only: true),
             new FrameworkExclusion("System.Private.CoreLib", "Assert failure in JIT", crossgen2Only: true),
+            new FrameworkExclusion("System.Runtime.Serialization.Formatters", "Assert failure in JIT, morph.cpp @ 4701 - noway_assert(!varTypeIsGC(type[inx]));", crossgen2Only: true),
         };
 
         private readonly IEnumerable<BuildFolder> _buildFolders;
@@ -102,7 +103,7 @@ namespace ReadyToRun.SuperIlc
             _frameworkExclusions = new Dictionary<string, string>();
         }
 
-        private void WriteJittedMethodSummary(StreamWriter logWriter)
+        private void WriteJittedMethodSummary(TextWriter logWriter)
         {
             Dictionary<string, HashSet<string>>[] allMethodsPerModulePerCompiler = new Dictionary<string, HashSet<string>>[(int)CompilerIndex.Count];
 
@@ -555,7 +556,7 @@ namespace ReadyToRun.SuperIlc
             }
         }
 
-        private void WriteTopRankingProcesses(StreamWriter logWriter, string metric, IEnumerable<ProcessInfo> processes)
+        private void WriteTopRankingProcesses(TextWriter logWriter, string metric, IEnumerable<ProcessInfo> processes)
         {
             const int TopAppCount = 10;
 
@@ -616,7 +617,7 @@ namespace ReadyToRun.SuperIlc
             return (execution.Succeeded ? ExecutionOutcome.PASS : ExecutionOutcome.EXIT_CODE);
         }
 
-        private void WriteBuildStatistics(StreamWriter logWriter)
+        private void WriteBuildStatistics(TextWriter logWriter)
         {
             // The Count'th element corresponds to totals over all compiler runners used in the run
             int[,] compilationOutcomes = new int[(int)CompilationOutcome.Count, (int)CompilerIndex.Count + 1];
@@ -830,7 +831,7 @@ namespace ReadyToRun.SuperIlc
             }
         }
 
-        private void WriteFrameworkExclusions(StreamWriter logWriter)
+        private void WriteFrameworkExclusions(TextWriter logWriter)
         {
             int keyLength = _frameworkExclusions.Keys.Max(key => key.Length);
             const string SimpleNameTitle = "SIMPLE_NAME";
@@ -852,7 +853,7 @@ namespace ReadyToRun.SuperIlc
             }
         }
 
-        private void WritePerFolderStatistics(StreamWriter logWriter)
+        private void WritePerFolderStatistics(TextWriter logWriter)
         {
             string baseFolder = _options.InputDirectory.FullName;
             int baseOffset = baseFolder.Length + (baseFolder.Length > 0 && baseFolder[baseFolder.Length - 1] == Path.DirectorySeparatorChar ? 0 : 1);
@@ -980,7 +981,7 @@ namespace ReadyToRun.SuperIlc
             }
         }
 
-        private void WriteExecutableSizeStatistics(StreamWriter logWriter)
+        private void WriteExecutableSizeStatistics(TextWriter logWriter)
         {
             List<ExeSizeInfo> sizeStats = new List<ExeSizeInfo>();
             HashSet<string> libraryHashes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -1274,7 +1275,7 @@ namespace ReadyToRun.SuperIlc
             }
         }
 
-        private void WriteFoldersBlockedWithIssues(StreamWriter logWriter)
+        private void WriteFoldersBlockedWithIssues(TextWriter logWriter)
         {
             IEnumerable<BuildFolder> blockedFolders = _buildFolders.Where(folder => folder.IsBlockedWithIssue);
 
@@ -1292,6 +1293,8 @@ namespace ReadyToRun.SuperIlc
 
         public void WriteLogs()
         {
+            WriteBuildStatistics(Console.Out);
+
             string timestamp = DateTime.Now.ToString("MMdd-HHmm");
 
             string suffix = (_options.Release ? "ret-" : "chk-") + timestamp + ".log";
