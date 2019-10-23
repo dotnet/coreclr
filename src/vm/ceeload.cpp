@@ -13089,7 +13089,7 @@ public:
     ULONG GetOriginalMDUpdateMode()
     {
         WRAPPER_NO_CONTRACT;
-        _ASSERTE(m_OriginalMDUpdateMode != LONG_MAX);
+        _ASSERTE(m_OriginalMDUpdateMode != ULONG_MAX);
         return m_OriginalMDUpdateMode;
     }
 private:
