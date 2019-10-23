@@ -16,7 +16,7 @@ namespace System
             {
                 if (this is RuntimeType rt)
                     return RuntimeTypeHandle.IsInterface(rt);
-                return ((GetAttributeFlagsImpl() & TypeAttributes.ClassSemanticsMask) == TypeAttributes.Interface);
+                return (GetAttributeFlagsImpl() & TypeAttributes.ClassSemanticsMask) == TypeAttributes.Interface;
             }
         }
 
@@ -109,11 +109,9 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern RuntimeType GetTypeFromHandleUnsafe(IntPtr handle);
 
+        [Intrinsic]
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern Type GetTypeFromHandle(RuntimeTypeHandle handle);
-
-
-
 
 #if FEATURE_COMINTEROP
         internal bool IsWindowsRuntimeObject
@@ -125,7 +123,6 @@ namespace System
         {
             get { return IsExportedToWindowsRuntimeImpl(); }
         }
-
 
         // Protected routine to determine if this class represents a Windows Runtime object
         internal virtual bool IsWindowsRuntimeObjectImpl()
@@ -140,10 +137,10 @@ namespace System
         }
 #endif // FEATURE_COMINTEROP
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern bool operator ==(Type? left, Type? right);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern bool operator !=(Type? left, Type? right);
 
         // Exists to faciliate code sharing between CoreCLR and CoreRT.

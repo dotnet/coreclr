@@ -70,8 +70,8 @@ extern "C" void             RedirectedHandledJITCaseForGCStress_Stub(void);
 // CANNOT USE IsBad*Ptr() methods here.  They are *banned* APIs because of various
 // reasons (see http://winweb/wincet/bannedapis.htm).
 //
-#define IS_VALID_WRITE_PTR(addr, size)      _ASSERTE(addr != NULL)
-#define IS_VALID_CODE_PTR(addr)             _ASSERTE(addr != NULL)
+#define IS_VALID_WRITE_PTR(addr, size)      _ASSERTE((addr) != NULL)
+#define IS_VALID_CODE_PTR(addr)             _ASSERTE((addr) != NULL)
 
 
 void ThreadSuspend::SetSuspendRuntimeInProgress()
@@ -3189,9 +3189,11 @@ extern "C" PCONTEXT __stdcall GetCurrentSavedRedirectContext()
 {
     LIMITED_METHOD_CONTRACT;
 
-    DWORD dwLastError = GetLastError();
-    PCONTEXT pContext = GetThread()->GetSavedRedirectContext();
-    SetLastError(dwLastError);
+    PCONTEXT pContext;
+
+    BEGIN_PRESERVE_LAST_ERROR;
+    pContext = GetThread()->GetSavedRedirectContext();
+    END_PRESERVE_LAST_ERROR;
 
     return pContext;
 }
@@ -3204,7 +3206,7 @@ void __stdcall Thread::RedirectedHandledJITCase(RedirectReason reason)
 
     // We must preserve this in case we've interrupted an IL pinvoke stub before it
     // was able to save the error.
-    DWORD dwLastError = GetLastError();
+    DWORD dwLastError = GetLastError(); // BEGIN_PRESERVE_LAST_ERROR
 
     Thread *pThread = GetThread();
     _ASSERTE(pThread);
@@ -3351,7 +3353,7 @@ void __stdcall Thread::RedirectedHandledJITCase(RedirectReason reason)
 
             LOG((LF_SYNC, LL_INFO1000, "Resuming execution with RtlRestoreContext\n"));
 
-            SetLastError(dwLastError);
+            SetLastError(dwLastError); // END_PRESERVE_LAST_ERROR
 
             RtlRestoreContext(pCtx, NULL);
         }
@@ -3762,6 +3764,8 @@ COR_PRF_SUSPEND_REASON GCSuspendReasonToProfSuspendReason(ThreadSuspend::SUSPEND
         return COR_PRF_SUSPEND_FOR_INPROC_DEBUGGER;
     case ThreadSuspend::SUSPEND_FOR_GC_PREP:
         return COR_PRF_SUSPEND_FOR_GC_PREP;
+    case ThreadSuspend::SUSPEND_FOR_PROFILER:
+        return COR_PRF_SUSPEND_FOR_PROFILER;
     }
 }
 #endif // PROFILING_SUPPORTED
@@ -5685,6 +5689,8 @@ void STDCALL OnHijackWorker(HijackArgs * pArgs)
     CONTRACTL_END;
 
 #ifdef HIJACK_NONINTERRUPTIBLE_THREADS
+    BEGIN_PRESERVE_LAST_ERROR;
+
     Thread         *thread = GetThread();
 
     thread->ResetThreadState(Thread::TS_Hijacked);
@@ -5716,6 +5722,8 @@ void STDCALL OnHijackWorker(HijackArgs * pArgs)
 #endif // _DEBUG
 
     frame.Pop();
+
+    END_PRESERVE_LAST_ERROR;
 #else
     PORTABILITY_ASSERT("OnHijackWorker not implemented on this platform.");
 #endif // HIJACK_NONINTERRUPTIBLE_THREADS

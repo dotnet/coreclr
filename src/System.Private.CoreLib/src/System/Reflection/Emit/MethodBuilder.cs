@@ -205,7 +205,6 @@ namespace System.Reflection.Emit
                 throw new InvalidOperationException(SR.InvalidOperation_OpenLocalVariableScope);
             }
 
-
             m_ubBody = il.BakeByteArray();
 
             m_mdMethodFixups = il.GetTokenFixups();
@@ -251,7 +250,6 @@ namespace System.Reflection.Emit
                     }
                 }
             }
-
 
             m_bIsBaked = true;
 
@@ -305,13 +303,7 @@ namespace System.Reflection.Emit
             m_exceptions = null;
         }
 
-        internal override Type[] GetParameterTypes()
-        {
-            if (m_parameterTypes == null)
-                m_parameterTypes = Array.Empty<Type>();
-
-            return m_parameterTypes;
-        }
+        internal override Type[] GetParameterTypes() => m_parameterTypes ??= Array.Empty<Type>();
 
         internal static Type? GetMethodBaseReturnType(MethodBase? method)
         {
@@ -349,8 +341,7 @@ namespace System.Reflection.Emit
 
         internal SignatureHelper GetMethodSignature()
         {
-            if (m_parameterTypes == null)
-                m_parameterTypes = Array.Empty<Type>();
+            m_parameterTypes ??= Array.Empty<Type>();
 
             m_signature = SignatureHelper.GetMethodSigHelper(m_module, m_callingConvention, m_inst != null ? m_inst.Length : 0,
                 m_returnType, m_returnTypeRequiredCustomModifiers, m_returnTypeOptionalCustomModifiers,
@@ -400,7 +391,7 @@ namespace System.Reflection.Emit
 
         internal int ExceptionHandlerCount => m_exceptions != null ? m_exceptions.Length : 0;
 
-        internal int CalculateNumberOfExceptions(__ExceptionInfo[]? excp)
+        internal static int CalculateNumberOfExceptions(__ExceptionInfo[]? excp)
         {
             int num = 0;
 
@@ -419,7 +410,7 @@ namespace System.Reflection.Emit
 
         internal bool IsTypeCreated()
         {
-            return (m_containingType != null && m_containingType.IsCreated());
+            return m_containingType != null && m_containingType.IsCreated();
         }
 
         internal TypeBuilder GetTypeBuilder()
@@ -440,7 +431,7 @@ namespace System.Reflection.Emit
             {
                 return false;
             }
-            if (!(this.m_strName.Equals(((MethodBuilder)obj).m_strName)))
+            if (!this.m_strName.Equals(((MethodBuilder)obj).m_strName))
             {
                 return false;
             }
@@ -469,7 +460,7 @@ namespace System.Reflection.Emit
             sb.Append("Name: ").Append(m_strName).AppendLine(" ");
             sb.Append("Attributes: ").Append((int)m_iAttributes).AppendLine();
             sb.Append("Method Signature: ").Append(GetMethodSignature()).AppendLine();
-            sb.Append(Environment.NewLine);
+            sb.AppendLine();
             return sb.ToString();
         }
 
@@ -486,7 +477,7 @@ namespace System.Reflection.Emit
         {
             get
             {
-                if (m_containingType.m_isHiddenGlobalType == true)
+                if (m_containingType.m_isHiddenGlobalType)
                     return null;
                 return m_containingType;
             }
@@ -587,7 +578,6 @@ namespace System.Reflection.Emit
         {
             return MethodBuilderInstantiation.MakeGenericMethod(this, typeArguments);
         }
-
 
         public GenericTypeParameterBuilder[] DefineGenericParameters(params string[] names)
         {
@@ -737,7 +727,6 @@ namespace System.Reflection.Emit
             m_parameterTypeOptionalCustomModifiers = parameterTypeOptionalCustomModifiers;
         }
 
-
         public ParameterBuilder DefineParameter(int position, ParameterAttributes attributes, string? strParamName)
         {
             if (position < 0)
@@ -779,9 +768,7 @@ namespace System.Reflection.Emit
             ThrowIfGeneric();
             ThrowIfShouldNotHaveBody();
 
-            if (m_ilGenerator == null)
-                m_ilGenerator = new ILGenerator(this);
-            return m_ilGenerator;
+            return m_ilGenerator ??= new ILGenerator(this);
         }
 
         public ILGenerator GetILGenerator(int size)
@@ -789,9 +776,7 @@ namespace System.Reflection.Emit
             ThrowIfGeneric();
             ThrowIfShouldNotHaveBody();
 
-            if (m_ilGenerator == null)
-                m_ilGenerator = new ILGenerator(this, size);
-            return m_ilGenerator;
+            return m_ilGenerator ??= new ILGenerator(this, size);
         }
 
         private void ThrowIfShouldNotHaveBody()
@@ -807,7 +792,6 @@ namespace System.Reflection.Emit
             }
         }
 
-
         public bool InitLocals
         {
             // Property is set to true if user wishes to have zero initialized stack frame for this method. Default to false.
@@ -821,7 +805,6 @@ namespace System.Reflection.Emit
         }
 
         public string Signature => GetMethodSignature().ToString();
-
 
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
         {
@@ -856,12 +839,10 @@ namespace System.Reflection.Emit
 
         // this method should return true for any and every ca that requires more work
         // than just setting the ca
-        private bool IsKnownCA(ConstructorInfo con)
+        private static bool IsKnownCA(ConstructorInfo con)
         {
             Type? caType = con.DeclaringType;
-            if (caType == typeof(System.Runtime.CompilerServices.MethodImplAttribute)) return true;
-            else if (caType == typeof(DllImportAttribute)) return true;
-            else return false;
+            return caType == typeof(MethodImplAttribute) || caType == typeof(DllImportAttribute);
         }
 
         private void ParseCA(ConstructorInfo con)
@@ -1094,15 +1075,9 @@ namespace System.Reflection.Emit
                 other.m_kind == m_kind;
         }
 
-        public static bool operator ==(ExceptionHandler left, ExceptionHandler right)
-        {
-            return left.Equals(right);
-        }
+        public static bool operator ==(ExceptionHandler left, ExceptionHandler right) => left.Equals(right);
 
-        public static bool operator !=(ExceptionHandler left, ExceptionHandler right)
-        {
-            return !left.Equals(right);
-        }
+        public static bool operator !=(ExceptionHandler left, ExceptionHandler right) => !left.Equals(right);
 
         #endregion
     }

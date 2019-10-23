@@ -438,7 +438,7 @@ namespace System.Reflection.Emit
             // Transparent DynamicMethod to call the current DynamicMethod.
             //
 
-            RuntimeMethodHandle method = GetMethodDescriptor();
+            _ = GetMethodDescriptor();
             // ignore obj since it's a static method
 
             // create a signature object
@@ -535,8 +535,8 @@ namespace System.Reflection.Emit
 
         public bool InitLocals
         {
-            get { return m_fInitLocals; }
-            set { m_fInitLocals = value; }
+            get => m_fInitLocals;
+            set => m_fInitLocals = value;
         }
 
         //

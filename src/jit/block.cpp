@@ -631,9 +631,9 @@ bool BasicBlock::CloneBlockState(
     to->bbTgtStkDepth = from->bbTgtStkDepth;
 #endif // DEBUG
 
-    for (GenTreeStmt* fromStmt = from->firstStmt(); fromStmt != nullptr; fromStmt = fromStmt->getNextStmt())
+    for (Statement* fromStmt : from->Statements())
     {
-        auto newExpr = compiler->gtCloneExpr(fromStmt->gtStmtExpr, 0, varNum, varVal);
+        auto newExpr = compiler->gtCloneExpr(fromStmt->GetRootNode(), 0, varNum, varVal);
         if (!newExpr)
         {
             // gtCloneExpr doesn't handle all opcodes, so may fail to clone a statement.
@@ -674,7 +674,7 @@ bool BasicBlock::IsLIR()
 // Return Value:
 //    The first statement in the block's bbStmtList.
 //
-GenTreeStmt* BasicBlock::firstStmt() const
+Statement* BasicBlock::firstStmt() const
 {
     return bbStmtList;
 }
@@ -688,15 +688,15 @@ GenTreeStmt* BasicBlock::firstStmt() const
 // Return Value:
 //    The last statement in the block's bbStmtList.
 //
-GenTreeStmt* BasicBlock::lastStmt() const
+Statement* BasicBlock::lastStmt() const
 {
     if (bbStmtList == nullptr)
     {
         return nullptr;
     }
 
-    GenTreeStmt* result = bbStmtList->gtPrevStmt;
-    assert(result != nullptr && result->gtNext == nullptr);
+    Statement* result = bbStmtList->GetPrevStmt();
+    assert(result != nullptr && result->GetNextStmt() == nullptr);
     return result;
 }
 
@@ -705,7 +705,7 @@ GenTreeStmt* BasicBlock::lastStmt() const
 //
 GenTree* BasicBlock::firstNode()
 {
-    return IsLIR() ? bbTreeList : Compiler::fgGetFirstNode(firstStmt()->gtStmtExpr);
+    return IsLIR() ? GetFirstLIRNode() : Compiler::fgGetFirstNode(firstStmt()->GetRootNode());
 }
 
 //------------------------------------------------------------------------
@@ -713,7 +713,7 @@ GenTree* BasicBlock::firstNode()
 //
 GenTree* BasicBlock::lastNode()
 {
-    return IsLIR() ? m_lastNode : lastStmt()->gtStmtExpr;
+    return IsLIR() ? m_lastNode : lastStmt()->GetRootNode();
 }
 
 //------------------------------------------------------------------------
@@ -819,43 +819,43 @@ bool BasicBlock::isValid()
     else
     {
         // Should not have tree list before LIR.
-        return (bbTreeList == nullptr);
+        return (GetFirstLIRNode() == nullptr);
     }
 }
 
-GenTreeStmt* BasicBlock::FirstNonPhiDef()
+Statement* BasicBlock::FirstNonPhiDef()
 {
-    GenTreeStmt* stmt = firstStmt();
+    Statement* stmt = firstStmt();
     if (stmt == nullptr)
     {
         return nullptr;
     }
-    GenTree* tree = stmt->gtStmtExpr;
-    while ((tree->OperGet() == GT_ASG && tree->gtOp.gtOp2->OperGet() == GT_PHI) ||
-           (tree->OperGet() == GT_STORE_LCL_VAR && tree->gtOp.gtOp1->OperGet() == GT_PHI))
+    GenTree* tree = stmt->GetRootNode();
+    while ((tree->OperGet() == GT_ASG && tree->AsOp()->gtOp2->OperGet() == GT_PHI) ||
+           (tree->OperGet() == GT_STORE_LCL_VAR && tree->AsOp()->gtOp1->OperGet() == GT_PHI))
     {
-        stmt = stmt->getNextStmt();
+        stmt = stmt->GetNextStmt();
         if (stmt == nullptr)
         {
             return nullptr;
         }
-        tree = stmt->gtStmtExpr;
+        tree = stmt->GetRootNode();
     }
     return stmt;
 }
 
-GenTreeStmt* BasicBlock::FirstNonPhiDefOrCatchArgAsg()
+Statement* BasicBlock::FirstNonPhiDefOrCatchArgAsg()
 {
-    GenTreeStmt* stmt = FirstNonPhiDef();
+    Statement* stmt = FirstNonPhiDef();
     if (stmt == nullptr)
     {
         return nullptr;
     }
-    GenTree* tree = stmt->gtStmtExpr;
-    if ((tree->OperGet() == GT_ASG && tree->gtOp.gtOp2->OperGet() == GT_CATCH_ARG) ||
-        (tree->OperGet() == GT_STORE_LCL_VAR && tree->gtOp.gtOp1->OperGet() == GT_CATCH_ARG))
+    GenTree* tree = stmt->GetRootNode();
+    if ((tree->OperGet() == GT_ASG && tree->AsOp()->gtOp2->OperGet() == GT_CATCH_ARG) ||
+        (tree->OperGet() == GT_STORE_LCL_VAR && tree->AsOp()->gtOp1->OperGet() == GT_CATCH_ARG))
     {
-        stmt = stmt->getNextStmt();
+        stmt = stmt->GetNextStmt();
     }
     return stmt;
 }

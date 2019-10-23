@@ -213,24 +213,11 @@ typedef unsigned char   regNumberSmall;
 
   // TODO-CQ: Fine tune the following xxBlk threshold values:
 
-  #define CPBLK_MOVS_LIMIT         16      // When generating code for CpBlk, this is the buffer size 
-                                           // threshold to stop generating rep movs and switch to the helper call.
-                                           // NOTE: Using rep movs is currently disabled since we found it has bad performance
-                                           //       on pre-Ivy Bridge hardware.
-                                           
   #define CPBLK_UNROLL_LIMIT       64      // Upper bound to let the code generator to loop unroll CpBlk.
-  #define INITBLK_STOS_LIMIT       64      // When generating code for InitBlk, this is the buffer size 
-                                           // NOTE: Using rep stos is currently disabled since we found it has bad performance
-                                           //       on pre-Ivy Bridge hardware.
-                                           // threshold to stop generating rep movs and switch to the helper call.
   #define INITBLK_UNROLL_LIMIT     128     // Upper bound to let the code generator to loop unroll InitBlk.
   #define CPOBJ_NONGC_SLOTS_LIMIT  4       // For CpObj code generation, this is the the threshold of the number 
                                            // of contiguous non-gc slots that trigger generating rep movsq instead of 
                                            // sequences of movsq instructions
-                                           // The way we're currently disabling rep movs/stos is by setting a limit less than
-                                           // its unrolling counterparts.  When lower takes the decision on which one to make it
-                                           // always asks for the unrolling limit first so you can say the JIT 'favors' unrolling.
-                                           // Setting the limit to something lower than that makes lower to never consider it.
 
 #ifdef FEATURE_SIMD
   #define ALIGN_SIMD_TYPES         1       // whether SIMD type locals are to be aligned
@@ -469,7 +456,7 @@ typedef unsigned char   regNumberSmall;
   // See vm\i386\asmhelpers.asm for more details.
   #define RBM_PROFILER_ENTER_TRASH     RBM_NONE
   #define RBM_PROFILER_LEAVE_TRASH     RBM_NONE
-  #define RBM_PROFILER_TAILCALL_TRASH  (RBM_ALLINT & ~RBM_ARG_REGS)
+  #define RBM_PROFILER_TAILCALL_TRASH  (RBM_CALLEE_TRASH & ~RBM_ARG_REGS)
 
   // What sort of reloc do we use for [disp32] address mode
   #define IMAGE_REL_BASED_DISP32   IMAGE_REL_BASED_HIGHLOW
@@ -492,6 +479,11 @@ typedef unsigned char   regNumberSmall;
   // on the stack guard page, and must be touched before any further "SUB SP".
   #define STACK_PROBE_BOUNDARY_THRESHOLD_BYTES ARG_STACK_PROBE_THRESHOLD_BYTES
 
+  #define REG_STACK_PROBE_HELPER_ARG   REG_EAX
+  #define RBM_STACK_PROBE_HELPER_ARG   RBM_EAX
+
+  #define RBM_STACK_PROBE_HELPER_TRASH RBM_NONE
+
 #elif defined(_TARGET_AMD64_)
   // TODO-AMD64-CQ: Fine tune the following xxBlk threshold values:
  
@@ -500,26 +492,11 @@ typedef unsigned char   regNumberSmall;
   #define ROUND_FLOAT              0       // Do not round intermed float expression results
   #define CPU_HAS_BYTE_REGS        0
 
-  #define CPBLK_MOVS_LIMIT         16      // When generating code for CpBlk, this is the buffer size 
-                                           // threshold to stop generating rep movs and switch to the helper call.
-                                           // NOTE: Using rep movs is currently disabled since we found it has bad performance
-                                           //       on pre-Ivy Bridge hardware.
-                                           
   #define CPBLK_UNROLL_LIMIT       64      // Upper bound to let the code generator to loop unroll CpBlk.
-  #define INITBLK_STOS_LIMIT       64      // When generating code for InitBlk, this is the buffer size 
-                                           // NOTE: Using rep stos is currently disabled since we found it has bad performance
-                                           //       on pre-Ivy Bridge hardware.
-                                           // threshold to stop generating rep movs and switch to the helper call.
   #define INITBLK_UNROLL_LIMIT     128     // Upper bound to let the code generator to loop unroll InitBlk.
   #define CPOBJ_NONGC_SLOTS_LIMIT  4       // For CpObj code generation, this is the the threshold of the number 
                                            // of contiguous non-gc slots that trigger generating rep movsq instead of 
                                            // sequences of movsq instructions
-
-                                           // The way we're currently disabling rep movs/stos is by setting a limit less than
-                                           // its unrolling counterparts.  When lower takes the decision on which one to make it
-                                           // always asks for the unrolling limit first so you can say the JIT 'favors' unrolling.
-                                           // Setting the limit to something lower than that makes lower to never consider it.
-
 
 #ifdef FEATURE_SIMD
   #define ALIGN_SIMD_TYPES         1       // whether SIMD type locals are to be aligned
@@ -896,6 +873,15 @@ typedef unsigned char   regNumberSmall;
   // AMD64 uses FEATURE_FIXED_OUT_ARGS so this can be zero.
   #define STACK_PROBE_BOUNDARY_THRESHOLD_BYTES 0
 
+  #define REG_STACK_PROBE_HELPER_ARG   REG_R11
+  #define RBM_STACK_PROBE_HELPER_ARG   RBM_R11
+
+#ifdef _TARGET_UNIX_
+  #define RBM_STACK_PROBE_HELPER_TRASH RBM_NONE
+#else // !_TARGET_UNIX_
+  #define RBM_STACK_PROBE_HELPER_TRASH RBM_RAX
+#endif // !_TARGET_UNIX_
+
 #elif defined(_TARGET_ARM_)
 
   // TODO-ARM-CQ: Use shift for division by power of 2
@@ -1106,10 +1092,6 @@ typedef unsigned char   regNumberSmall;
   #define RBM_PROFILER_ENTER_ARG           RBM_R0
   #define REG_PROFILER_RET_SCRATCH         REG_R2
   #define RBM_PROFILER_RET_SCRATCH         RBM_R2
-  #define RBM_PROFILER_RET_USED            (RBM_R0 | RBM_R1 | RBM_R2)
-  #define REG_PROFILER_JMP_ARG             REG_R0
-  #define RBM_PROFILER_JMP_USED            RBM_R0
-  #define RBM_PROFILER_TAIL_USED           (RBM_R0 | RBM_R12 | RBM_LR)
   
   // The registers trashed by profiler enter/leave/tailcall hook
   // See vm\arm\asmhelpers.asm for more details.
@@ -1420,14 +1402,19 @@ typedef unsigned char   regNumberSmall;
   #define REG_PREV(reg)           ((regNumber)((unsigned)(reg) - 1))
 
   // The following registers are used in emitting Enter/Leave/Tailcall profiler callbacks
-  #define REG_PROFILER_ENTER_ARG           REG_R0
-  #define RBM_PROFILER_ENTER_ARG           RBM_R0
-  #define REG_PROFILER_RET_SCRATCH         REG_R2
-  #define RBM_PROFILER_RET_SCRATCH         RBM_R2
-  #define RBM_PROFILER_RET_USED            (RBM_R0 | RBM_R1 | RBM_R2)
-  #define REG_PROFILER_JMP_ARG             REG_R0
-  #define RBM_PROFILER_JMP_USED            RBM_R0
-  #define RBM_PROFILER_TAIL_USED           (RBM_R0 | RBM_R12 | RBM_LR)
+  #define REG_PROFILER_ENTER_ARG_FUNC_ID    REG_R10
+  #define RBM_PROFILER_ENTER_ARG_FUNC_ID    RBM_R10
+  #define REG_PROFILER_ENTER_ARG_CALLER_SP  REG_R11
+  #define RBM_PROFILER_ENTER_ARG_CALLER_SP  RBM_R11
+  #define REG_PROFILER_LEAVE_ARG_FUNC_ID    REG_R10
+  #define RBM_PROFILER_LEAVE_ARG_FUNC_ID    RBM_R10
+  #define REG_PROFILER_LEAVE_ARG_CALLER_SP  REG_R11
+  #define RBM_PROFILER_LEAVE_ARG_CALLER_SP  RBM_R11
+
+  // The registers trashed by profiler enter/leave/tailcall hook
+  #define RBM_PROFILER_ENTER_TRASH     (RBM_CALLEE_TRASH & ~(RBM_ARG_REGS|RBM_ARG_RET_BUFF|RBM_FLTARG_REGS|RBM_FP))
+  #define RBM_PROFILER_LEAVE_TRASH     (RBM_CALLEE_TRASH & ~(RBM_ARG_REGS|RBM_ARG_RET_BUFF|RBM_FLTARG_REGS|RBM_FP))
+  #define RBM_PROFILER_TAILCALL_TRASH  RBM_PROFILER_LEAVE_TRASH
 
   // Which register are int and long values returned in ?
   #define REG_INTRET               REG_R0

@@ -50,9 +50,8 @@ namespace System.Threading
             helper._ioCompletionCallback(helper._errorCode, helper._numBytes, helper._pNativeOverlapped);
         }
 
-
         // call back helper
-        internal static unsafe void PerformIOCompletionCallback(uint errorCode, uint numBytes, NativeOverlapped* pNativeOverlapped)
+        internal static void PerformIOCompletionCallback(uint errorCode, uint numBytes, NativeOverlapped* pNativeOverlapped)
         {
             do
             {
@@ -82,7 +81,6 @@ namespace System.Threading
 
     #endregion class _IOCompletionCallback
 
-
     #region class OverlappedData
 
     internal sealed unsafe class OverlappedData
@@ -104,7 +102,7 @@ namespace System.Threading
         internal ref int OffsetHigh => ref (_pNativeOverlapped != null) ? ref _pNativeOverlapped->OffsetHigh : ref _offsetHigh;
         internal ref IntPtr EventHandle => ref (_pNativeOverlapped != null) ? ref _pNativeOverlapped->EventHandle : ref _eventHandle;
 
-        internal unsafe NativeOverlapped* Pack(IOCompletionCallback? iocb, object? userData)
+        internal NativeOverlapped* Pack(IOCompletionCallback? iocb, object? userData)
         {
             if (_pNativeOverlapped != null)
             {
@@ -124,7 +122,7 @@ namespace System.Threading
             return AllocateNativeOverlapped();
         }
 
-        internal unsafe NativeOverlapped* UnsafePack(IOCompletionCallback? iocb, object? userData)
+        internal NativeOverlapped* UnsafePack(IOCompletionCallback? iocb, object? userData)
         {
             if (_pNativeOverlapped != null)
             {
@@ -135,21 +133,20 @@ namespace System.Threading
             return AllocateNativeOverlapped();
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern NativeOverlapped* AllocateNativeOverlapped();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void FreeNativeOverlapped(NativeOverlapped* nativeOverlappedPtr);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern OverlappedData GetOverlappedFromNative(NativeOverlapped* nativeOverlappedPtr);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void CheckVMForIOPacket(out NativeOverlapped* pNativeOverlapped, out uint errorCode, out uint numBytes);
     }
 
     #endregion class OverlappedData
-
 
     #region class Overlapped
 
@@ -180,33 +177,33 @@ namespace System.Threading
 
         public IAsyncResult? AsyncResult
         {
-            get { return _overlappedData!._asyncResult; }
-            set { _overlappedData!._asyncResult = value; }
+            get => _overlappedData!._asyncResult;
+            set => _overlappedData!._asyncResult = value;
         }
 
         public int OffsetLow
         {
-            get { return _overlappedData!.OffsetLow; }
-            set { _overlappedData!.OffsetLow = value; }
+            get => _overlappedData!.OffsetLow;
+            set => _overlappedData!.OffsetLow = value;
         }
 
         public int OffsetHigh
         {
-            get { return _overlappedData!.OffsetHigh; }
-            set { _overlappedData!.OffsetHigh = value; }
+            get => _overlappedData!.OffsetHigh;
+            set => _overlappedData!.OffsetHigh = value;
         }
 
         [Obsolete("This property is not 64-bit compatible.  Use EventHandleIntPtr instead.  http://go.microsoft.com/fwlink/?linkid=14202")]
         public int EventHandle
         {
-            get { return EventHandleIntPtr.ToInt32(); }
-            set { EventHandleIntPtr = new IntPtr(value); }
+            get => EventHandleIntPtr.ToInt32();
+            set => EventHandleIntPtr = new IntPtr(value);
         }
 
         public IntPtr EventHandleIntPtr
         {
-            get { return _overlappedData!.EventHandle; }
-            set { _overlappedData!.EventHandle = value; }
+            get => _overlappedData!.EventHandle;
+            set => _overlappedData!.EventHandle = value;
         }
 
         /*====================================================================

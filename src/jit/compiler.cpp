@@ -240,7 +240,7 @@ void Compiler::compDspSrcLinesByNativeIP(UNATIVE_OFFSET curIP)
 
     if (nextMappingDsc)
     {
-        UNATIVE_OFFSET offset = nextMappingDsc->ipmdNativeLoc.CodeOffset(genEmitter);
+        UNATIVE_OFFSET offset = nextMappingDsc->ipmdNativeLoc.CodeOffset(GetEmitter());
 
         if (offset <= curIP)
         {
@@ -468,61 +468,6 @@ var_types Compiler::getJitGCType(BYTE gcType)
     }
     return result;
 }
-
-#if FEATURE_MULTIREG_ARGS
-//---------------------------------------------------------------------------
-// getStructGcPtrsFromOp: Given a GenTree node of TYP_STRUCT that represents
-//                        a pass by value argument, return the gcPtr layout
-//                        for the pointers sized fields
-// Arguments:
-//    op         - the operand of TYP_STRUCT that is passed by value
-//    gcPtrsOut  - an array of BYTES that are written by this method
-//                 they will contain the VM's CorInfoGCType values
-//                 for each pointer sized field
-// Return Value:
-//     Two [or more] values are written into the gcPtrs array
-//
-// Note that for ARM64 there will always be exactly two pointer sized fields
-
-void Compiler::getStructGcPtrsFromOp(GenTree* op, BYTE* gcPtrsOut)
-{
-    assert(op->TypeGet() == TYP_STRUCT);
-
-#ifdef _TARGET_ARM64_
-    if (op->OperGet() == GT_OBJ)
-    {
-        CORINFO_CLASS_HANDLE objClass = op->gtObj.gtClass;
-
-        int structSize = info.compCompHnd->getClassSize(objClass);
-        assert(structSize <= 2 * TARGET_POINTER_SIZE);
-
-        BYTE gcPtrsTmp[2] = {TYPE_GC_NONE, TYPE_GC_NONE};
-
-        info.compCompHnd->getClassGClayout(objClass, &gcPtrsTmp[0]);
-
-        gcPtrsOut[0] = gcPtrsTmp[0];
-        gcPtrsOut[1] = gcPtrsTmp[1];
-    }
-    else if (op->OperGet() == GT_LCL_VAR)
-    {
-        GenTreeLclVarCommon* varNode = op->AsLclVarCommon();
-        unsigned             varNum  = varNode->gtLclNum;
-        assert(varNum < lvaCount);
-        LclVarDsc* varDsc = &lvaTable[varNum];
-
-        // At this point any TYP_STRUCT LclVar must be a 16-byte pass by value argument
-        assert(varDsc->lvSize() == 2 * TARGET_POINTER_SIZE);
-
-        gcPtrsOut[0] = varDsc->lvGcLayout[0];
-        gcPtrsOut[1] = varDsc->lvGcLayout[1];
-    }
-    else
-#endif
-    {
-        noway_assert(!"Unsupported Oper for getStructGcPtrsFromOp");
-    }
-}
-#endif // FEATURE_MULTIREG_ARGS
 
 #ifdef ARM_SOFTFP
 //---------------------------------------------------------------------------
@@ -1927,6 +1872,8 @@ void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
     // We start with the flow graph in tree-order
     fgOrder = FGOrderTree;
 
+    m_classLayoutTable = nullptr;
+
 #ifdef FEATURE_SIMD
     m_simdHandleCache = nullptr;
 #endif // FEATURE_SIMD
@@ -2065,8 +2012,8 @@ VarName Compiler::compVarName(regNumber reg, bool isFloatReg)
         {
             /* If the variable is not in a register, or not in the register we're looking for, quit. */
             /* Also, if it is a compiler generated variable (i.e. slot# > info.compVarScopesCount), don't bother. */
-            if ((varDsc->lvRegister != 0) && (varDsc->lvRegNum == reg) && (varDsc->IsFloatRegType() || !isFloatReg) &&
-                (varDsc->lvSlotNum < info.compVarScopesCount))
+            if ((varDsc->lvRegister != 0) && (varDsc->GetRegNum() == reg) &&
+                (varDsc->IsFloatRegType() || !isFloatReg) && (varDsc->lvSlotNum < info.compVarScopesCount))
             {
                 /* check if variable in that register is live */
                 if (VarSetOps::IsMember(this, compCurLife, varDsc->lvVarIndex))
@@ -2209,7 +2156,7 @@ void Compiler::compSetProcessor()
 #if defined(_TARGET_ARM_)
     info.genCPU = CPU_ARM;
 #elif defined(_TARGET_ARM64_)
-    info.genCPU       = CPU_ARM64;
+    info.genCPU      = CPU_ARM64;
 #elif defined(_TARGET_AMD64_)
     info.genCPU                   = CPU_X64;
 #elif defined(_TARGET_X86_)
@@ -2225,15 +2172,10 @@ void Compiler::compSetProcessor()
     CLANG_FORMAT_COMMENT_ANCHOR;
 
 #ifdef _TARGET_AMD64_
-    opts.compUseFCOMI = false;
-    opts.compUseCMOV  = true;
+    opts.compUseCMOV = true;
 #elif defined(_TARGET_X86_)
-    opts.compUseFCOMI = jitFlags.IsSet(JitFlags::JIT_FLAG_USE_FCOMI);
-    opts.compUseCMOV  = jitFlags.IsSet(JitFlags::JIT_FLAG_USE_CMOV);
-
+    opts.compUseCMOV = jitFlags.IsSet(JitFlags::JIT_FLAG_USE_CMOV);
 #ifdef DEBUG
-    if (opts.compUseFCOMI)
-        opts.compUseFCOMI = !compStressCompile(STRESS_USE_FCOMI, 50);
     if (opts.compUseCMOV)
         opts.compUseCMOV = !compStressCompile(STRESS_USE_CMOV, 50);
 #endif // DEBUG
@@ -2387,25 +2329,129 @@ void Compiler::compSetProcessor()
     {
         if (canUseVexEncoding())
         {
-            codeGen->getEmitter()->SetUseVEXEncoding(true);
+            codeGen->GetEmitter()->SetUseVEXEncoding(true);
             // Assume each JITted method does not contain AVX instruction at first
-            codeGen->getEmitter()->SetContainsAVX(false);
-            codeGen->getEmitter()->SetContains256bitAVX(false);
+            codeGen->GetEmitter()->SetContainsAVX(false);
+            codeGen->GetEmitter()->SetContains256bitAVX(false);
         }
     }
 #endif // _TARGET_XARCH_
 
 #if defined(_TARGET_ARM64_)
-    // There is no JitFlag for Base instructions handle manually
-    opts.setSupportedISA(InstructionSet_Base);
-    // Dummy ISAs for simplifying the JIT code
-    opts.setSupportedISA(InstructionSet_Vector64);
-    opts.setSupportedISA(InstructionSet_Vector128);
-#define HARDWARE_INTRINSIC_CLASS(flag, jit_config, isa)                                                                \
-    if (jitFlags.IsSet(JitFlags::flag) && JitConfig.jit_config())                                                      \
-        opts.setSupportedISA(InstructionSet_##isa);
-#include "hwintrinsiclistArm64.h"
+    if (JitConfig.EnableHWIntrinsic())
+    {
+        // Dummy ISAs for simplifying the JIT code
+        opts.setSupportedISA(InstructionSet_ArmBase);
+        opts.setSupportedISA(InstructionSet_ArmBase_Arm64);
+        opts.setSupportedISA(InstructionSet_Vector64);
+        opts.setSupportedISA(InstructionSet_Vector128);
+    }
 
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_AES) && JitConfig.EnableArm64Aes())
+    {
+        opts.setSupportedISA(InstructionSet_Aes);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_ATOMICS) && JitConfig.EnableArm64Atomics())
+    {
+        opts.setSupportedISA(InstructionSet_Atomics);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_CRC32) && JitConfig.EnableArm64Crc32())
+    {
+        opts.setSupportedISA(InstructionSet_Crc32);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_DCPOP) && JitConfig.EnableArm64Dcpop())
+    {
+        opts.setSupportedISA(InstructionSet_Dcpop);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_DP) && JitConfig.EnableArm64Dp())
+    {
+        opts.setSupportedISA(InstructionSet_Dp);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_FCMA) && JitConfig.EnableArm64Fcma())
+    {
+        opts.setSupportedISA(InstructionSet_Fcma);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_FP) && JitConfig.EnableArm64Fp())
+    {
+        opts.setSupportedISA(InstructionSet_Fp);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_FP16) && JitConfig.EnableArm64Fp16())
+    {
+        opts.setSupportedISA(InstructionSet_Fp16);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_JSCVT) && JitConfig.EnableArm64Jscvt())
+    {
+        opts.setSupportedISA(InstructionSet_Jscvt);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_LRCPC) && JitConfig.EnableArm64Lrcpc())
+    {
+        opts.setSupportedISA(InstructionSet_Lrcpc);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_PMULL) && JitConfig.EnableArm64Pmull())
+    {
+        opts.setSupportedISA(InstructionSet_Pmull);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SHA1) && JitConfig.EnableArm64Sha1())
+    {
+        opts.setSupportedISA(InstructionSet_Sha1);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SHA256) && JitConfig.EnableArm64Sha256())
+    {
+        opts.setSupportedISA(InstructionSet_Sha256);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SHA512) && JitConfig.EnableArm64Sha512())
+    {
+        opts.setSupportedISA(InstructionSet_Sha512);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SHA3) && JitConfig.EnableArm64Sha3())
+    {
+        opts.setSupportedISA(InstructionSet_Sha3);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_ADVSIMD) && JitConfig.EnableArm64AdvSimd())
+    {
+        opts.setSupportedISA(InstructionSet_AdvSimd);
+        opts.setSupportedISA(InstructionSet_AdvSimd_Arm64);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_ADVSIMD_V81) && JitConfig.EnableArm64AdvSimd_v81())
+    {
+        opts.setSupportedISA(InstructionSet_AdvSimd_v81);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_ADVSIMD_FP16) && JitConfig.EnableArm64AdvSimd_Fp16())
+    {
+        opts.setSupportedISA(InstructionSet_AdvSimd_Fp16);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SM3) && JitConfig.EnableArm64Sm3())
+    {
+        opts.setSupportedISA(InstructionSet_Sm3);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SM4) && JitConfig.EnableArm64Sm4())
+    {
+        opts.setSupportedISA(InstructionSet_Sm4);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SVE) && JitConfig.EnableArm64Sve())
+    {
+        opts.setSupportedISA(InstructionSet_Sve);
+    }
 #endif
 }
 
@@ -2629,7 +2675,7 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
         // First, initialize the AltJitExcludeAssemblies list, but only do it once.
         if (!s_pAltJitExcludeAssembliesListInitialized)
         {
-            const wchar_t* wszAltJitExcludeAssemblyList = JitConfig.AltJitExcludeAssemblies();
+            const WCHAR* wszAltJitExcludeAssemblyList = JitConfig.AltJitExcludeAssemblies();
             if (wszAltJitExcludeAssemblyList != nullptr)
             {
                 // NOTE: The Assembly name list is allocated in the process heap, not in the no-release heap, which is
@@ -3172,7 +3218,7 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
             // Setup assembly name list for disassembly, if not already set up.
             if (!s_pJitDisasmIncludeAssembliesListInitialized)
             {
-                const wchar_t* assemblyNameList = JitConfig.JitDisasmAssemblies();
+                const WCHAR* assemblyNameList = JitConfig.JitDisasmAssemblies();
                 if (assemblyNameList != nullptr)
                 {
                     s_pJitDisasmIncludeAssembliesList = new (HostAllocator::getHostAllocator())
@@ -3313,7 +3359,7 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
     // Read function list, if not already read, and there exists such a list.
     if (!s_pJitFunctionFileInitialized)
     {
-        const wchar_t* functionFileName = JitConfig.JitFunctionFile();
+        const WCHAR* functionFileName = JitConfig.JitFunctionFile();
         if (functionFileName != nullptr)
         {
             s_pJitMethodSet =
@@ -3373,10 +3419,11 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
         compProfilerMethHndIndirected = false;
     }
 
-    // Honour COMPlus_JitELTHookEnabled only if VM has not asked us to generate profiler
-    // hooks in the first place. That is, override VM only if it hasn't asked for a
-    // profiler callback for this method.
-    if (!compProfilerHookNeeded && (JitConfig.JitELTHookEnabled() != 0))
+    // Honour COMPlus_JitELTHookEnabled or STRESS_PROFILER_CALLBACKS stress mode
+    // only if VM has not asked us to generate profiler hooks in the first place.
+    // That is, override VM only if it hasn't asked for a profiler callback for this method.
+    if (!compProfilerHookNeeded &&
+        ((JitConfig.JitELTHookEnabled() != 0) || compStressCompile(STRESS_PROFILER_CALLBACKS, 5)))
     {
         opts.compJitELTHookEnabled = true;
     }
@@ -3391,7 +3438,7 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
 #endif // PROFILING_SUPPORTED
 
 #if FEATURE_TAILCALL_OPT
-    const wchar_t* strTailCallOpt = JitConfig.TailCallOpt();
+    const WCHAR* strTailCallOpt = JitConfig.TailCallOpt();
     if (strTailCallOpt != nullptr)
     {
         opts.compTailCallOpt = (UINT)_wtoi(strTailCallOpt) != 0;
@@ -3527,6 +3574,14 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
         {
             printf("OPTIONS: Tier-1 compilation\n");
         }
+        if (compSwitchedToOptimized)
+        {
+            printf("OPTIONS: Tier-0 compilation, switched to FullOpts");
+        }
+        if (compSwitchedToMinOpts)
+        {
+            printf("OPTIONS: Tier-1/FullOpts compilation, switched to MinOpts");
+        }
 
         printf("OPTIONS: compCodeOpt = %s\n",
                (opts.compCodeOpt == BLENDED_CODE)
@@ -3542,7 +3597,7 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
 
         if (jitFlags->IsSet(JitFlags::JIT_FLAG_BBOPT) && fgHaveProfileData())
         {
-            printf("OPTIONS: using real profile data\n");
+            printf("OPTIONS: optimized using profile data\n");
         }
 
         if (fgProfileData_ILSizeMismatch)
@@ -3640,11 +3695,11 @@ bool Compiler::compStressCompile(compStressArea stressArea, unsigned weight)
         return false;
     }
 
-    bool           doStress = false;
-    const wchar_t* strStressModeNames;
+    bool         doStress = false;
+    const WCHAR* strStressModeNames;
 
     // Does user explicitly prevent using this STRESS_MODE through the command line?
-    const wchar_t* strStressModeNamesNot = JitConfig.JitStressModeNamesNot();
+    const WCHAR* strStressModeNamesNot = JitConfig.JitStressModeNamesNot();
     if ((strStressModeNamesNot != nullptr) &&
         (wcsstr(strStressModeNamesNot, s_compStressModeNames[stressArea]) != nullptr))
     {
@@ -4055,6 +4110,7 @@ _SetMinOpts:
         !opts.jitFlags->IsSet(JitFlags::JIT_FLAG_MIN_OPT) && !opts.compDbgCode)
     {
         info.compCompHnd->setMethodAttribs(info.compMethodHnd, CORINFO_FLG_SWITCHED_TO_MIN_OPT);
+        compSwitchedToMinOpts = true;
     }
 
 #ifdef DEBUG
@@ -4093,7 +4149,7 @@ _SetMinOpts:
 
         if (opts.jitFlags->IsSet(JitFlags::JIT_FLAG_RELOC))
         {
-            codeGen->genAlignLoops = false; // loop alignment not supported for prejitted code
+            codeGen->SetAlignLoops(false); // loop alignment not supported for prejitted code
 
             // The zapper doesn't set JitFlags::JIT_FLAG_ALIGN_LOOPS, and there is
             // no reason for it to set it as the JIT doesn't currently support loop alignment
@@ -4103,7 +4159,7 @@ _SetMinOpts:
         }
         else
         {
-            codeGen->genAlignLoops = opts.jitFlags->IsSet(JitFlags::JIT_FLAG_ALIGN_LOOPS);
+            codeGen->SetAlignLoops(opts.jitFlags->IsSet(JitFlags::JIT_FLAG_ALIGN_LOOPS));
         }
     }
 
@@ -4282,6 +4338,59 @@ bool Compiler::compRsvdRegCheck(FrameLayoutState curState)
 }
 #endif // _TARGET_ARMARCH_
 
+const char* Compiler::compGetTieringName() const
+{
+    bool tier0 = opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER0);
+    bool tier1 = opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER1);
+    assert(!tier0 || !tier1); // We don't expect multiple TIER flags to be set at one time.
+
+    if (tier0)
+    {
+        return "Tier-0";
+    }
+    else if (tier1)
+    {
+        return "Tier-1";
+    }
+    else if (opts.OptimizationEnabled())
+    {
+        if (compSwitchedToOptimized)
+        {
+            return "Tier-0 switched to FullOpts";
+        }
+        else
+        {
+            return "FullOpts";
+        }
+    }
+    else if (opts.MinOpts())
+    {
+        if (compSwitchedToMinOpts)
+        {
+            if (compSwitchedToOptimized)
+            {
+                return "Tier-0 switched to FullOpts, then to MinOpts";
+            }
+            else
+            {
+                return "Tier-1/FullOpts switched to MinOpts";
+            }
+        }
+        else
+        {
+            return "MinOpts";
+        }
+    }
+    else if (opts.compDbgCode)
+    {
+        return "Debug";
+    }
+    else
+    {
+        return "Unknown optimization level";
+    }
+}
+
 void Compiler::compFunctionTraceStart()
 {
 #ifdef DEBUG
@@ -4302,8 +4411,9 @@ void Compiler::compFunctionTraceStart()
         {
             printf("  ");
         }
-        printf("{ Start Jitting %s (MethodHash=%08x)\n", info.compFullName,
-               info.compMethodHash()); /* } editor brace matching workaround for this printf */
+        printf("{ Start Jitting Method %4d %s (MethodHash=%08x) %s\n", Compiler::jitTotalMethodCompiled,
+               info.compFullName, info.compMethodHash(),
+               compGetTieringName()); /* } editor brace matching workaround for this printf */
     }
 #endif // DEBUG
 }
@@ -4325,10 +4435,14 @@ void Compiler::compFunctionTraceEnd(void* methodCodePtr, ULONG methodCodeSize, b
         {
             printf("  ");
         }
+
+        // Note: that is incorrect if we are compiling several methods at the same time.
+        unsigned methodNumber = Compiler::jitTotalMethodCompiled - 1;
+
         /* { editor brace-matching workaround for following printf */
-        printf("} Jitted Entry %03x at" FMT_ADDR "method %s size %08x%s%s\n", Compiler::jitTotalMethodCompiled,
-               DBG_ADDR(methodCodePtr), info.compFullName, methodCodeSize,
-               isNYI ? " NYI" : (compIsForImportOnly() ? " import only" : ""), opts.altJit ? " altjit" : "");
+        printf("} Jitted Method %4d at" FMT_ADDR "method %s size %08x%s%s\n", methodNumber, DBG_ADDR(methodCodePtr),
+               info.compFullName, methodCodeSize, isNYI ? " NYI" : (compIsForImportOnly() ? " import only" : ""),
+               opts.altJit ? " altjit" : "");
     }
 #endif // DEBUG
 }
@@ -4745,7 +4859,7 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
         compCycleEstimate = 0;
         for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
         {
-            for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+            for (Statement* stmt : block->Statements())
             {
                 compSizeEstimate += stmt->GetCostSz();
                 compCycleEstimate += stmt->GetCostEx();
@@ -4808,7 +4922,7 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
     EndPhase(PHASE_LINEAR_SCAN);
 
     // Copied from rpPredictRegUse()
-    genFullPtrRegMap = (codeGen->genInterruptible || !codeGen->isFramePointerUsed());
+    SetFullPtrRegMapRequired(codeGen->GetInterruptible() || !codeGen->isFramePointerUsed());
 
 #ifdef DEBUG
     fgDebugCheckLinks();
@@ -4876,9 +4990,9 @@ void Compiler::ResetOptAnnotations()
 
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt : block->Statements())
         {
-            for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
+            for (GenTree* tree = stmt->GetTreeList(); tree != nullptr; tree = tree->gtNext)
             {
                 tree->ClearVN();
                 tree->ClearAssertion();
@@ -4989,28 +5103,12 @@ bool Compiler::compQuirkForPPP()
         // This fixes the PPP backward compat issue
         varDscExposedStruct->lvExactSize += 32;
 
-        // Update the GC info to indicate that the padding area does
-        // not contain any GC pointers.
-        //
         // The struct is now 64 bytes.
-        //
         // We're on x64 so this should be 8 pointer slots.
         assert((varDscExposedStruct->lvExactSize / TARGET_POINTER_SIZE) == 8);
 
-        BYTE* oldGCPtrs = varDscExposedStruct->lvGcLayout;
-        BYTE* newGCPtrs = getAllocator(CMK_LvaTable).allocate<BYTE>(8);
-
-        for (int i = 0; i < 4; i++)
-        {
-            newGCPtrs[i] = oldGCPtrs[i];
-        }
-
-        for (int i = 4; i < 8; i++)
-        {
-            newGCPtrs[i] = TYPE_GC_NONE;
-        }
-
-        varDscExposedStruct->lvGcLayout = newGCPtrs;
+        varDscExposedStruct->SetLayout(
+            varDscExposedStruct->GetLayout()->GetPPPQuirkLayout(getAllocator(CMK_ClassLayout)));
 
         return true;
     }
@@ -5199,9 +5297,9 @@ int Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SHA256);
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SHA512);
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SHA3);
-        compileFlags->Set(JitFlags::JIT_FLAG_HAS_ARM64_SIMD);
-        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SIMD_V81);
-        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SIMD_FP16);
+        compileFlags->Set(JitFlags::JIT_FLAG_HAS_ARM64_ADVSIMD);
+        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_ADVSIMD_V81);
+        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_ADVSIMD_FP16);
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SM3);
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SM4);
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SVE);
@@ -5242,7 +5340,8 @@ int Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
     info.compClassName  = getAllocator(CMK_DebugOnly).allocate<char>(len);
     strcpy_s((char*)info.compClassName, len, classNamePtr);
 
-    info.compFullName = eeGetMethodFullName(methodHnd);
+    info.compFullName  = eeGetMethodFullName(methodHnd);
+    info.compPerfScore = 0.0;
 #endif // defined(DEBUG) || defined(LATE_DISASM)
 
 #ifdef DEBUG
@@ -5377,7 +5476,7 @@ int Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
 
         /* Tell the emitter that we're done with this function */
 
-        genEmitter->emitEndCG();
+        GetEmitter()->emitEndCG();
 
     DoneCleanUp:
         compDone();
@@ -5819,7 +5918,9 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
     info.compTotalHotCodeSize  = 0;
     info.compTotalColdCodeSize = 0;
 
-    fgHasBackwardJump = false;
+    compHasBackwardJump     = false;
+    compSwitchedToOptimized = false;
+    compSwitchedToMinOpts   = false;
 
 #ifdef DEBUG
     compCurBB = nullptr;
@@ -5827,6 +5928,7 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
 
     // Reset node and block ID counter
     compGenTreeID    = 0;
+    compStatementID  = 0;
     compBasicBlockID = 0;
 #endif
 
@@ -5834,7 +5936,7 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
 
     if (!compIsForInlining())
     {
-        codeGen->getEmitter()->emitBegCG(this, compHnd);
+        codeGen->GetEmitter()->emitBegCG(this, compHnd);
     }
 
     info.compIsStatic = (info.compFlags & CORINFO_FLG_STATIC) != 0;
@@ -5857,8 +5959,8 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
     }
     info.compRetNativeType = info.compRetType = JITtype2varType(methodInfo->args.retType);
 
-    info.compCallUnmanaged   = 0;
-    info.compLvFrameListRoot = BAD_VAR_NUM;
+    info.compUnmanagedCallCountWithGCTransition = 0;
+    info.compLvFrameListRoot                    = BAD_VAR_NUM;
 
     info.compInitMem = ((methodInfo->options & CORINFO_OPT_INIT_LOCALS) != 0);
 
@@ -5954,10 +6056,10 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
     }
 
 #ifdef FEATURE_CORECLR
-    if (fgHasBackwardJump && (info.compFlags & CORINFO_FLG_DISABLE_TIER0_FOR_LOOPS) != 0 && fgCanSwitchToOptimized())
+    if (compHasBackwardJump && (info.compFlags & CORINFO_FLG_DISABLE_TIER0_FOR_LOOPS) != 0 && fgCanSwitchToOptimized())
 #else // !FEATURE_CORECLR
     // We may want to use JitConfig value here to support DISABLE_TIER0_FOR_LOOPS
-    if (fgHasBackwardJump && fgCanSwitchToOptimized())
+    if (compHasBackwardJump && fgCanSwitchToOptimized())
 #endif
     {
         // Method likely has a loop, switch to the OptimizedTier to avoid spending too much time running slower code
@@ -6009,12 +6111,14 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
 #ifdef DEBUG
     if (JitConfig.DumpJittedMethods() == 1 && !compIsForInlining())
     {
-        printf("Compiling %4d %s::%s, IL size = %u, hsh=0x%x\n", Compiler::jitTotalMethodCompiled, info.compClassName,
-               info.compMethodName, info.compILCodeSize, info.compMethodHash());
+        printf("Compiling %4d %s::%s, IL size = %u, hsh=0x%x %s\n", Compiler::jitTotalMethodCompiled,
+               info.compClassName, info.compMethodName, info.compILCodeSize, info.compMethodHash(),
+               compGetTieringName());
     }
     if (compIsForInlining())
     {
-        compGenTreeID = impInlineInfo->InlinerCompiler->compGenTreeID;
+        compGenTreeID   = impInlineInfo->InlinerCompiler->compGenTreeID;
+        compStatementID = impInlineInfo->InlinerCompiler->compStatementID;
     }
 #endif
 
@@ -6024,6 +6128,7 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
     if (compIsForInlining())
     {
         impInlineInfo->InlinerCompiler->compGenTreeID    = compGenTreeID;
+        impInlineInfo->InlinerCompiler->compStatementID  = compStatementID;
         impInlineInfo->InlinerCompiler->compBasicBlockID = compBasicBlockID;
     }
 #endif
@@ -6925,22 +7030,20 @@ Compiler::NodeToIntMap* Compiler::FindReachableNodesInNodeTestData()
 
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->GetNextStmt())
         {
-            for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
+            for (GenTree* tree = stmt->GetTreeList(); tree != nullptr; tree = tree->gtNext)
             {
                 TestLabelAndNum tlAndN;
 
                 // For call nodes, translate late args to what they stand for.
                 if (tree->OperGet() == GT_CALL)
                 {
-                    GenTreeCall*    call = tree->AsCall();
-                    GenTreeArgList* args = call->gtCallArgs;
-                    unsigned        i    = 0;
-                    while (args != nullptr)
+                    GenTreeCall* call = tree->AsCall();
+                    unsigned     i    = 0;
+                    for (GenTreeCall::Use& use : call->Args())
                     {
-                        GenTree* arg = args->Current();
-                        if (arg->gtFlags & GTF_LATE_ARG)
+                        if ((use.GetNode()->gtFlags & GTF_LATE_ARG) != 0)
                         {
                             // Find the corresponding late arg.
                             GenTree* lateArg = call->fgArgInfo->GetArgNode(i);
@@ -6950,7 +7053,6 @@ Compiler::NodeToIntMap* Compiler::FindReachableNodesInNodeTestData()
                             }
                         }
                         i++;
-                        args = args->Rest();
                     }
                 }
 
@@ -7059,9 +7161,9 @@ void Compiler::compCallArgStats()
 
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt : block->Statements())
         {
-            for (GenTree* call = stmt->gtStmtList; call != nullptr; call = call->gtNext)
+            for (GenTree* call = stmt->GetTreeList(); call != nullptr; call = call->gtNext)
             {
                 if (call->gtOper != GT_CALL)
                     continue;
@@ -7076,9 +7178,9 @@ void Compiler::compCallArgStats()
 
                 argTotalCalls++;
 
-                if (!call->gtCall.gtCallObjp)
+                if (call->AsCall()->gtCallThisArg == nullptr)
                 {
-                    if (call->gtCall.gtCallType == CT_HELPER)
+                    if (call->AsCall()->gtCallType == CT_HELPER)
                     {
                         argHelperCalls++;
                     }
@@ -8086,8 +8188,7 @@ void dumpConvertedVarSet(Compiler* comp, VARSET_VALARG_TP vars)
     unsigned        varIndex = 0;
     while (iter.NextElem(&varIndex))
     {
-        unsigned varNum = comp->lvaTrackedToVarNum[varIndex];
-        assert(varNum < comp->lvaCount);
+        unsigned varNum    = comp->lvaTrackedIndexToLclNum(varIndex);
         pVarNumSet[varNum] = 1; // This varNum is in the set
     }
 
@@ -8190,6 +8291,13 @@ void cBlocksV(Compiler* comp)
     static unsigned sequenceNumber = 0; // separate calls with a number to indicate this function has been called
     printf("===================================================================== *BlocksV %u\n", sequenceNumber++);
     comp->fgDispBasicBlocks(true);
+}
+
+void cStmt(Compiler* comp, Statement* statement)
+{
+    static unsigned sequenceNumber = 0; // separate calls with a number to indicate this function has been called
+    printf("===================================================================== *Stmt %u\n", sequenceNumber++);
+    comp->gtDispStmt(statement, ">>>");
 }
 
 void cTree(Compiler* comp, GenTree* tree)
@@ -8413,10 +8521,10 @@ void dBlockList(BasicBlockList* list)
 // Trees, Stmts, and/or Blocks using id or bbNum.
 // That can be used in watch window or as a way to get address of fields for data break points.
 
-GenTree*     dbTree;
-GenTreeStmt* dbStmt;
-BasicBlock*  dbTreeBlock;
-BasicBlock*  dbBlock;
+GenTree*    dbTree;
+Statement*  dbStmt;
+BasicBlock* dbTreeBlock;
+BasicBlock* dbBlock;
 
 // Debug APIs for finding Trees, Stmts, and/or Blocks.
 // As a side effect, they set the debug variables above.
@@ -8461,9 +8569,9 @@ GenTree* dFindTree(unsigned id)
 
     for (block = comp->fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
+        for (Statement* stmt : block->Statements())
         {
-            tree = dFindTree(stmt->gtStmtExpr, id);
+            tree = dFindTree(stmt->GetRootNode(), id);
             if (tree != nullptr)
             {
                 dbTreeBlock = block;
@@ -8475,7 +8583,7 @@ GenTree* dFindTree(unsigned id)
     return nullptr;
 }
 
-GenTreeStmt* dFindStmt(unsigned id)
+Statement* dFindStmt(unsigned id)
 {
     Compiler*   comp = JitTls::GetCompiler();
     BasicBlock* block;
@@ -8485,7 +8593,7 @@ GenTreeStmt* dFindStmt(unsigned id)
     unsigned stmtId = 0;
     for (block = comp->fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
+        for (Statement* stmt : block->Statements())
         {
             stmtId++;
             if (stmtId == id)
@@ -8678,27 +8786,27 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
 
     if (!block->IsLIR())
     {
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
+        for (Statement* stmt : block->Statements())
         {
             // Print current stmt.
 
             if (trees)
             {
-                cTree(comp, stmt->gtStmtExpr);
+                cStmt(comp, stmt);
                 printf("\n");
                 printf("=====================================================================\n");
             }
 
             if (comp->compRationalIRForm)
             {
-                for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
+                for (GenTree* tree = stmt->GetTreeList(); tree != nullptr; tree = tree->gtNext)
                 {
                     cNodeIR(comp, tree);
                 }
             }
             else
             {
-                cTreeIR(comp, stmt->gtStmtExpr);
+                cStmtIR(comp, stmt);
             }
 
             if (!noStmts && !trees)
@@ -8709,7 +8817,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
     }
     else
     {
-        for (GenTree* node = block->bbTreeList; node != nullptr; node = node->gtNext)
+        for (GenTree* node = block->GetFirstLIRNode(); node != nullptr; node = node->gtNext)
         {
             cNodeIR(comp, node);
         }
@@ -9240,7 +9348,7 @@ int cTreeFlagsIR(Compiler* comp, GenTree* tree)
 
             case GT_OBJ:
             case GT_STORE_OBJ:
-                if (tree->AsObj()->HasGCPtr())
+                if (tree->AsObj()->GetLayout()->HasGCPtr())
                 {
                     chars += printf("[BLK_HASGCPTR]");
                 }
@@ -9504,16 +9612,16 @@ int cSsaNumIR(Compiler* comp, GenTree* tree)
 {
     int chars = 0;
 
-    if (tree->gtLclVarCommon.HasSsaName())
+    if (tree->AsLclVarCommon()->HasSsaName())
     {
         if (tree->gtFlags & GTF_VAR_USEASG)
         {
             assert(tree->gtFlags & GTF_VAR_DEF);
-            chars += printf("<u:%d><d:%d>", tree->gtLclVarCommon.gtSsaNum, comp->GetSsaNumForLocalVarDef(tree));
+            chars += printf("<u:%d><d:%d>", tree->AsLclVarCommon()->GetSsaNum(), comp->GetSsaNumForLocalVarDef(tree));
         }
         else
         {
-            chars += printf("<%s:%d>", (tree->gtFlags & GTF_VAR_DEF) ? "d" : "u", tree->gtLclVarCommon.gtSsaNum);
+            chars += printf("<%s:%d>", (tree->gtFlags & GTF_VAR_DEF) ? "d" : "u", tree->AsLclVarCommon()->GetSsaNum());
         }
     }
 
@@ -9614,7 +9722,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
         case GT_LCL_VAR:
         case GT_LCL_VAR_ADDR:
         case GT_STORE_LCL_VAR:
-            lclNum = tree->gtLclVarCommon.gtLclNum;
+            lclNum = tree->AsLclVarCommon()->GetLclNum();
             comp->gtGetLclVarNameInfo(lclNum, &ilKind, &ilName, &ilNum);
             if (ilName != nullptr)
             {
@@ -9635,14 +9743,14 @@ int cLeafIR(Compiler* comp, GenTree* tree)
                     {
                         if (varDsc->lvRegister)
                         {
-                            chars += printf(":%s", getRegName(varDsc->lvRegNum));
+                            chars += printf(":%s", getRegName(varDsc->GetRegNum()));
                         }
                         else
                         {
                             switch (tree->GetRegTag())
                             {
                                 case GenTree::GT_REGTAG_REG:
-                                    chars += printf(":%s", comp->compRegVarName(tree->gtRegNum));
+                                    chars += printf(":%s", comp->compRegVarName(tree->GetRegNum()));
                                     break;
                                 default:
                                     break;
@@ -9655,14 +9763,14 @@ int cLeafIR(Compiler* comp, GenTree* tree)
                 {
                     if (varDsc->lvRegister)
                     {
-                        chars += printf("(%s)", getRegName(varDsc->lvRegNum));
+                        chars += printf("(%s)", getRegName(varDsc->GetRegNum()));
                     }
                     else
                     {
                         switch (tree->GetRegTag())
                         {
                             case GenTree::GT_REGTAG_REG:
-                                chars += printf("(%s)", comp->compRegVarName(tree->gtRegNum));
+                                chars += printf("(%s)", comp->compRegVarName(tree->GetRegNum()));
                                 break;
                             default:
                                 break;
@@ -9678,15 +9786,15 @@ int cLeafIR(Compiler* comp, GenTree* tree)
         case GT_LCL_FLD_ADDR:
         case GT_STORE_LCL_FLD:
 
-            lclNum = tree->gtLclVarCommon.gtLclNum;
+            lclNum = tree->AsLclVarCommon()->GetLclNum();
             comp->gtGetLclVarNameInfo(lclNum, &ilKind, &ilName, &ilNum);
             if (ilName != nullptr)
             {
-                chars += printf("%s+%u", ilName, tree->gtLclFld.gtLclOffs);
+                chars += printf("%s+%u", ilName, tree->AsLclFld()->gtLclOffs);
             }
             else
             {
-                chars += printf("%s%d+%u", ilKind, ilNum, tree->gtLclFld.gtLclOffs);
+                chars += printf("%s%d+%u", ilKind, ilNum, tree->AsLclFld()->gtLclOffs);
                 LclVarDsc* varDsc = comp->lvaTable + lclNum;
                 if (comp->dumpIRLocals)
                 {
@@ -9699,14 +9807,14 @@ int cLeafIR(Compiler* comp, GenTree* tree)
                     {
                         if (varDsc->lvRegister)
                         {
-                            chars += printf(":%s", getRegName(varDsc->lvRegNum));
+                            chars += printf(":%s", getRegName(varDsc->GetRegNum()));
                         }
                         else
                         {
                             switch (tree->GetRegTag())
                             {
                                 case GenTree::GT_REGTAG_REG:
-                                    chars += printf(":%s", comp->compRegVarName(tree->gtRegNum));
+                                    chars += printf(":%s", comp->compRegVarName(tree->GetRegNum()));
                                     break;
                                 default:
                                     break;
@@ -9719,14 +9827,14 @@ int cLeafIR(Compiler* comp, GenTree* tree)
                 {
                     if (varDsc->lvRegister)
                     {
-                        chars += printf("(%s)", getRegName(varDsc->lvRegNum));
+                        chars += printf("(%s)", getRegName(varDsc->GetRegNum()));
                     }
                     else
                     {
                         switch (tree->GetRegTag())
                         {
                             case GenTree::GT_REGTAG_REG:
-                                chars += printf("(%s)", comp->compRegVarName(tree->gtRegNum));
+                                chars += printf("(%s)", comp->compRegVarName(tree->GetRegNum()));
                                 break;
                             default:
                                 break;
@@ -9736,7 +9844,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
             }
 
             // TODO: We probably want to expand field sequence.
-            // gtDispFieldSeq(tree->gtLclFld.gtFieldSeq);
+            // gtDispFieldSeq(tree->AsLclFld()->gtFieldSeq);
 
             hasSsa = true;
             break;
@@ -9753,7 +9861,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
             const char* className;
             const char* fieldName;
             const char* methodName;
-            const wchar_t* str;
+            const WCHAR* str;
 
             switch (tree->GetIconHandleFlag())
             {
@@ -9765,34 +9873,34 @@ int cLeafIR(Compiler* comp, GenTree* tree)
 
             case GTF_ICON_CLASS_HDL:
 
-                className = comp->eeGetClassName((CORINFO_CLASS_HANDLE)tree->gtIntCon.gtIconVal);
+                className = comp->eeGetClassName((CORINFO_CLASS_HANDLE)tree->AsIntCon()->gtIconVal);
                 chars += printf("CLASS(%s)", className);
                 break;
 
             case GTF_ICON_METHOD_HDL:
 
-                methodName = comp->eeGetMethodName((CORINFO_METHOD_HANDLE)tree->gtIntCon.gtIconVal,
+                methodName = comp->eeGetMethodName((CORINFO_METHOD_HANDLE)tree->AsIntCon()->gtIconVal,
                     &className);
                 chars += printf("METHOD(%s.%s)", className, methodName);
                 break;
 
             case GTF_ICON_FIELD_HDL:
 
-                fieldName = comp->eeGetFieldName((CORINFO_FIELD_HANDLE)tree->gtIntCon.gtIconVal,
+                fieldName = comp->eeGetFieldName((CORINFO_FIELD_HANDLE)tree->AsIntCon()->gtIconVal,
                     &className);
                 chars += printf("FIELD(%s.%s) ", className, fieldName);
                 break;
 
             case GTF_ICON_STATIC_HDL:
 
-                fieldName = comp->eeGetFieldName((CORINFO_FIELD_HANDLE)tree->gtIntCon.gtIconVal,
+                fieldName = comp->eeGetFieldName((CORINFO_FIELD_HANDLE)tree->AsIntCon()->gtIconVal,
                     &className);
                 chars += printf("STATIC_FIELD(%s.%s)", className, fieldName);
                 break;
 
             case GTF_ICON_STR_HDL:
 
-                str = comp->eeGetCPString(tree->gtIntCon.gtIconVal);
+                str = comp->eeGetCPString(tree->AsIntCon()->gtIconVal);
                 chars += printf("\"%S\"", str);
                 break;
 
@@ -9818,7 +9926,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
 
             case GTF_ICON_TOKEN_HDL:
 
-                chars += printf("TOKEN(%08X)", tree->gtIntCon.gtIconVal);
+                chars += printf("TOKEN(%08X)", tree->AsIntCon()->gtIconVal);
                 break;
 
             case GTF_ICON_TLS_HDL:
@@ -9848,14 +9956,14 @@ int cLeafIR(Compiler* comp, GenTree* tree)
             }
 #else
 #ifdef _TARGET_64BIT_
-                if ((tree->gtIntCon.gtIconVal & 0xFFFFFFFF00000000LL) != 0)
+                if ((tree->AsIntCon()->gtIconVal & 0xFFFFFFFF00000000LL) != 0)
                 {
-                    chars += printf("HANDLE(0x%llx)", dspPtr(tree->gtIntCon.gtIconVal));
+                    chars += printf("HANDLE(0x%llx)", dspPtr(tree->AsIntCon()->gtIconVal));
                 }
                 else
 #endif
                 {
-                    chars += printf("HANDLE(0x%0x)", dspPtr(tree->gtIntCon.gtIconVal));
+                    chars += printf("HANDLE(0x%0x)", dspPtr(tree->AsIntCon()->gtIconVal));
                 }
 #endif
             }
@@ -9863,18 +9971,18 @@ int cLeafIR(Compiler* comp, GenTree* tree)
             {
                 if (tree->TypeGet() == TYP_REF)
                 {
-                    assert(tree->gtIntCon.gtIconVal == 0);
+                    assert(tree->AsIntCon()->gtIconVal == 0);
                     chars += printf("null");
                 }
 #ifdef _TARGET_64BIT_
-                else if ((tree->gtIntCon.gtIconVal & 0xFFFFFFFF00000000LL) != 0)
+                else if ((tree->AsIntCon()->gtIconVal & 0xFFFFFFFF00000000LL) != 0)
                 {
-                    chars += printf("0x%llx", tree->gtIntCon.gtIconVal);
+                    chars += printf("0x%llx", tree->AsIntCon()->gtIconVal);
                 }
                 else
 #endif
                 {
-                    chars += printf("%ld(0x%x)", tree->gtIntCon.gtIconVal, tree->gtIntCon.gtIconVal);
+                    chars += printf("%ld(0x%x)", tree->AsIntCon()->gtIconVal, tree->AsIntCon()->gtIconVal);
                 }
             }
             break;
@@ -9900,7 +10008,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
             const char* methodName;
             const char* className;
 
-            methodName = comp->eeGetMethodName((CORINFO_METHOD_HANDLE)tree->gtVal.gtVal1, &className);
+            methodName = comp->eeGetMethodName((CORINFO_METHOD_HANDLE)tree->AsVal()->gtVal1, &className);
             chars += printf(" %s.%s", className, methodName);
         }
         break;
@@ -9919,12 +10027,12 @@ int cLeafIR(Compiler* comp, GenTree* tree)
 
         case GT_RET_EXPR:
 
-            chars += printf("t%d", tree->gtRetExpr.gtInlineCandidate->gtTreeID);
+            chars += printf("t%d", tree->AsRetExpr()->gtInlineCandidate->gtTreeID);
             break;
 
         case GT_PHYSREG:
 
-            chars += printf("%s", getRegName(tree->gtPhysReg.gtSrcReg, varTypeIsFloating(tree)));
+            chars += printf("%s", getRegName(tree->AsPhysReg()->gtSrcReg, varTypeIsFloating(tree)));
             break;
 
         case GT_LABEL:
@@ -9932,13 +10040,13 @@ int cLeafIR(Compiler* comp, GenTree* tree)
 
         case GT_IL_OFFSET:
 
-            if (tree->gtILOffset.gtStmtILoffsx == BAD_IL_OFFSET)
+            if (tree->AsILOffset()->gtStmtILoffsx == BAD_IL_OFFSET)
             {
                 chars += printf("?");
             }
             else
             {
-                chars += printf("0x%x", jitGetILoffs(tree->gtILOffset.gtStmtILoffsx));
+                chars += printf("0x%x", jitGetILoffs(tree->AsILOffset()->gtStmtILoffsx));
             }
             break;
 
@@ -10426,7 +10534,7 @@ void cNodeIR(Compiler* comp, GenTree* tree)
     }
     else if (op == GT_INTRINSIC)
     {
-        CorInfoIntrinsics intrin = tree->gtIntrinsic.gtIntrinsicId;
+        CorInfoIntrinsics intrin = tree->AsIntrinsic()->gtIntrinsicId;
 
         chars += printf(":");
         switch (intrin)
@@ -10511,7 +10619,7 @@ void cNodeIR(Compiler* comp, GenTree* tree)
 
         {
             const char* className = nullptr;
-            const char* fieldName = comp->eeGetFieldName(tree->gtField.gtFldHnd, &className);
+            const char* fieldName = comp->eeGetFieldName(tree->AsField()->gtFldHnd, &className);
 
             chars += printf(" %s.%s", className, fieldName);
         }
@@ -10519,12 +10627,12 @@ void cNodeIR(Compiler* comp, GenTree* tree)
 
         case GT_CALL:
 
-            if (tree->gtCall.gtCallType != CT_INDIRECT)
+            if (tree->AsCall()->gtCallType != CT_INDIRECT)
             {
                 const char* methodName;
                 const char* className;
 
-                methodName = comp->eeGetMethodName(tree->gtCall.gtCallMethHnd, &className);
+                methodName = comp->eeGetMethodName(tree->AsCall()->gtCallMethHnd, &className);
 
                 chars += printf(" %s.%s", className, methodName);
             }
@@ -10708,6 +10816,16 @@ void cNodeIR(Compiler* comp, GenTree* tree)
     }
 
     printf("\n");
+}
+
+void cStmtIR(Compiler* comp, Statement* stmt)
+{
+    cTreeIR(comp, stmt->GetRootNode());
+    if (!comp->dumpIRNoStmts)
+    {
+        dTabStopIR(0, COLUMN_OPCODE);
+        Compiler::printStmtID(stmt);
+    }
 }
 
 /*****************************************************************************

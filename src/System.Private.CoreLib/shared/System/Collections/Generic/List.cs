@@ -23,8 +23,8 @@ namespace System.Collections.Generic
     {
         private const int DefaultCapacity = 4;
 
-        private T[] _items; // Do not rename (binary serialization)
-        private int _size; // Do not rename (binary serialization)
+        internal T[] _items; // Do not rename (binary serialization)
+        internal int _size; // Do not rename (binary serialization)
         private int _version; // Do not rename (binary serialization)
 
 #pragma warning disable CA1825 // avoid the extra generic instantiation for Array.Empty<T>()
@@ -98,10 +98,7 @@ namespace System.Collections.Generic
         //
         public int Capacity
         {
-            get
-            {
-                return _items.Length;
-            }
+            get => _items.Length;
             set
             {
                 if (value < _size)
@@ -172,15 +169,12 @@ namespace System.Collections.Generic
         {
             // Non-null values are fine.  Only accept nulls if T is a class or Nullable<U>.
             // Note that default(T) is not equal to null for value types except when T is Nullable<U>.
-            return ((value is T) || (value == null && default(T)! == null)); // default(T) == null warning (https://github.com/dotnet/roslyn/issues/34757)
+            return (value is T) || (value == null && default(T)! == null); // default(T) == null warning (https://github.com/dotnet/roslyn/issues/34757)
         }
 
         object? IList.this[int index]
         {
-            get
-            {
-                return this[index];
-            }
+            get => this[index];
             set
             {
                 ThrowHelper.IfNullAndNullsAreIllegalThenThrow<T>(value, ExceptionArgument.value);
@@ -610,7 +604,6 @@ namespace System.Collections.Generic
             list._size = count;
             return list;
         }
-
 
         // Returns the index of the first occurrence of a given value in a range of
         // this list. The list is searched forwards from beginning to end.

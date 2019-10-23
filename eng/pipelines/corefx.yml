@@ -11,6 +11,11 @@ schedules:
   always: true
 
 jobs:
+#
+# Checkout repository
+#
+- template: /eng/checkout-job.yml
+
 - template: /eng/platform-matrix.yml
   parameters:
     jobTemplate: build-job.yml
@@ -23,6 +28,8 @@ jobs:
     # TODO: re-enable Windows_NT_arm when https://github.com/dotnet/corefx/issues/38863 is resolved
     - Windows_NT_x64
     - Windows_NT_x86
+    jobParameters:
+      testGroup: outerloop
 
 - template: /eng/platform-matrix.yml
   parameters:

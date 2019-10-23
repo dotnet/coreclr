@@ -18,13 +18,11 @@ namespace System.Reflection
         private RuntimeTypeCache m_reflectedTypeCache;
         private string? m_toString;
         private ParameterInfo[]? m_parameters; // Created lazily when GetParameters() is called.
-#pragma warning disable 414
-#pragma warning disable CA1823
+#pragma warning disable CA1823, 414
         private object _empty1 = null!; // These empties are used to ensure that RuntimeConstructorInfo and RuntimeMethodInfo are have a layout which is sufficiently similar
         private object _empty2 = null!;
         private object _empty3 = null!;
-#pragma warning restore CA1823
-#pragma warning restore 414
+#pragma warning restore CA1823, 414
         private IntPtr m_handle;
         private MethodAttributes m_methodAttributes;
         private BindingFlags m_bindingFlags;
@@ -89,21 +87,10 @@ namespace System.Reflection
         #region NonPublic Methods
         RuntimeMethodHandleInternal IRuntimeMethodInfo.Value => new RuntimeMethodHandleInternal(m_handle);
 
-        internal override bool CacheEquals(object? o)
-        {
-            return o is RuntimeConstructorInfo m && m.m_handle == m_handle;
-        }
+        internal override bool CacheEquals(object? o) =>
+            o is RuntimeConstructorInfo m && m.m_handle == m_handle;
 
-        private Signature Signature
-        {
-            get
-            {
-                if (m_signature == null)
-                    m_signature = new Signature(this, m_declaringType);
-
-                return m_signature;
-            }
-        }
+        private Signature Signature => m_signature ??= new Signature(this, m_declaringType);
 
         private RuntimeType ReflectedTypeInternal => m_reflectedTypeCache.GetRuntimeType();
 
@@ -185,7 +172,6 @@ namespace System.Reflection
         }
         #endregion
 
-
         #region MemberInfo Overrides
         public override string Name => RuntimeMethodHandle.GetName(this);
         public override MemberTypes MemberType => MemberTypes.Constructor;
@@ -209,13 +195,8 @@ namespace System.Reflection
         // This seems to always returns System.Void.
         internal override Type GetReturnType() { return Signature.ReturnType; }
 
-        internal override ParameterInfo[] GetParametersNoCopy()
-        {
-            if (m_parameters == null)
-                m_parameters = RuntimeParameterInfo.GetParameters(this, this, Signature);
-
-            return m_parameters;
-        }
+        internal override ParameterInfo[] GetParametersNoCopy() =>
+            m_parameters ??= RuntimeParameterInfo.GetParameters(this, this, Signature);
 
         public override ParameterInfo[] GetParameters()
         {
@@ -336,7 +317,7 @@ namespace System.Reflection
 
         public override bool IsSecurityTransparent => false;
 
-        public override bool ContainsGenericParameters => (DeclaringType != null && DeclaringType.ContainsGenericParameters);
+        public override bool ContainsGenericParameters => DeclaringType != null && DeclaringType.ContainsGenericParameters;
         #endregion
 
         #region ConstructorInfo Overrides
@@ -345,9 +326,6 @@ namespace System.Reflection
         public override object Invoke(BindingFlags invokeAttr, Binder? binder, object?[]? parameters, CultureInfo? culture)
         {
             INVOCATION_FLAGS invocationFlags = InvocationFlags;
-
-            // get the declaring TypeHandle early for consistent exceptions in IntrospectionOnly context
-            RuntimeTypeHandle declaringTypeHandle = m_declaringType.TypeHandle;
 
             if ((invocationFlags & (INVOCATION_FLAGS.INVOCATION_FLAGS_NO_INVOKE | INVOCATION_FLAGS.INVOCATION_FLAGS_CONTAINS_STACK_POINTERS | INVOCATION_FLAGS.INVOCATION_FLAGS_NO_CTOR_INVOKE)) != 0)
                 ThrowNoInvokeException();

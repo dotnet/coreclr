@@ -24,9 +24,9 @@
 #include "static_assert.h"
 
 #if BIT64
-    #define POINTER_BITS 64
+    #define POINTER_BITS (64)
 #else
-    #define POINTER_BITS 32
+    #define POINTER_BITS (32)
 #endif
 
 // ================================================================================
@@ -180,7 +180,6 @@
 typedef char                    CHAR;
 typedef signed char             SCHAR;
 typedef unsigned char           UCHAR;
-typedef wchar_t                 WCHAR;
 
 typedef CHAR                    ASCII;
 typedef CHAR                    ANSI;

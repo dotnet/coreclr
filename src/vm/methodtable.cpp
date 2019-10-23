@@ -569,17 +569,8 @@ void MethodTable::SetIsRestored()
         
     PRECONDITION(!IsFullyLoaded());
 
-    // If functions on this type have already been requested for rejit, then give the rejit
-    // manager a chance to jump-stamp the code we are implicitly restoring. This ensures the
-    // first thread entering the function will jump to the prestub and trigger the
-    // rejit. Note that the PublishMethodTableHolder may take a lock to avoid a rejit race.
-    // See code:ReJitManager::PublishMethodHolder::PublishMethodHolder#PublishCode
-    // for details on the race.
-    // 
-    {
-        PublishMethodTableHolder(this);
-        FastInterlockAnd(EnsureWritablePages(&(GetWriteableDataForWrite()->m_dwFlags)), ~MethodTableWriteableData::enum_flag_Unrestored);
-    }
+    FastInterlockAnd(EnsureWritablePages(&(GetWriteableDataForWrite()->m_dwFlags)), ~MethodTableWriteableData::enum_flag_Unrestored);
+
 #ifndef DACCESS_COMPILE
     if (ETW_PROVIDER_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER))
     {
@@ -2441,7 +2432,7 @@ bool MethodTable::ClassifyEightBytesWithManagedLayout(SystemVStructRegisterPassi
                     // those fields to be at their natural alignment.
 
                     LOG((LF_JIT, LL_EVERYTHING, "     %*sxxxx Field %d %s: offset %d (normalized %d), size %d not at natural alignment; not enregistering struct\n",
-                        nestingLevel * 5, "", fieldIndex, fieldIndex, (i == 0 ? "Value" : "Type"), fieldOffset, normalizedFieldOffset, fieldSize));
+                        nestingLevel * 5, "", fieldIndex, (i == 0 ? "Value" : "Type"), fieldOffset, normalizedFieldOffset, fieldSize));
                     return false;
                 }
 
@@ -2484,7 +2475,7 @@ bool MethodTable::ClassifyEightBytesWithManagedLayout(SystemVStructRegisterPassi
             // those fields to be at their natural alignment.
 
             LOG((LF_JIT, LL_EVERYTHING, "     %*sxxxx Field %d %s: offset %d (normalized %d), size %d not at natural alignment; not enregistering struct\n",
-                   nestingLevel * 5, "", fieldIndex, fieldIndex, fieldName, fieldOffset, normalizedFieldOffset, fieldSize));
+                   nestingLevel * 5, "", fieldIndex, fieldName, fieldOffset, normalizedFieldOffset, fieldSize));
             return false;
         }
 
@@ -2755,7 +2746,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
             // those fields to be at their natural alignment.
 
             LOG((LF_JIT, LL_EVERYTHING, "     %*sxxxx Native Field %d %s: offset %d (normalized %d), required alignment %d not at natural alignment; not enregistering struct\n",
-                nestingLevel * 5, "", fieldIndex, fieldIndex, fieldName, fieldOffset, normalizedFieldOffset, pFieldMarshaler->AlignmentRequirement()));
+                nestingLevel * 5, "", fieldIndex, fieldName, fieldOffset, normalizedFieldOffset, pFieldMarshaler->AlignmentRequirement()));
             return false;
         }
 

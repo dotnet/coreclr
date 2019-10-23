@@ -302,6 +302,7 @@ if /i %__BuildType% NEQ Release set __RestoreOptData=0
 
 set "__BinDir=%__RootBinDir%\Product\%__BuildOS%.%__BuildArch%.%__BuildType%"
 set "__IntermediatesDir=%__RootBinDir%\obj\%__BuildOS%.%__BuildArch%.%__BuildType%"
+set "__ArtifactsIntermediatesDir=%__ProjectDir%\artifacts\obj\"
 if "%__NMakeMakefiles%"=="1" (set "__IntermediatesDir=%__RootBinDir%\nmakeobj\%__BuildOS%.%__BuildArch%.%__BuildType%")
 set "__PackagesBinDir=%__BinDir%\.nuget"
 set "__CrossComponentBinDir=%__BinDir%"
@@ -320,6 +321,9 @@ if not exist "%__BinDir%"              md "%__BinDir%"
 if not exist "%__IntermediatesDir%"    md "%__IntermediatesDir%"
 if not exist "%__LogsDir%"             md "%__LogsDir%"
 if not exist "%__MsbuildDebugLogsDir%" md "%__MsbuildDebugLogsDir%"
+
+if not exist "%__RootBinDir%\Directory.Build.props" copy %__ProjectDir%\EmptyProps.props %__RootBinDir%\Directory.Build.props
+if not exist "%__RootBinDir%\Directory.Build.targets" copy %__ProjectDir%\EmptyProps.props %__RootBinDir%\Directory.Build.targets
 
 REM Set up the directory for MSBuild debug logs.
 set MSBUILDDEBUGPATH=%__MsbuildDebugLogsDir%
@@ -365,7 +369,7 @@ REM ============================================================================
 
 powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__ProjectDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
     %__ProjectDir%\eng\empty.csproj /p:NativeVersionFile="%__RootBinDir%\obj\_version.h"^
-    /p:ArcadeBuild=true /t:GenerateNativeVersionFile /restore^
+    /t:GenerateNativeVersionFile /restore^
     %__CommonMSBuildArgs% %__UnprocessedBuildArgs%
 if not !errorlevel! == 0 (
     echo %__ErrMsgPrefix%%__MsgPrefix%Error: Failed to generate version headers.
@@ -430,7 +434,7 @@ REM ===
 REM =========================================================================================
 
 set __IntermediatesIncDir=%__IntermediatesDir%\src\inc
-set __IntermediatesEventingDir=%__IntermediatesDir%\Eventing
+set __IntermediatesEventingDir=%__ArtifactsIntermediatesDir%\Eventing\%__BuildArch%\%__BuildType%
 
 REM Find python and set it to the variable PYTHON
 set _C=-c "import sys; sys.stdout.write(sys.executable)"
@@ -471,17 +475,20 @@ if %__BuildCrossArchNative% EQU 1 (
     if not exist "%__CrossCompIntermediatesDir%" md "%__CrossCompIntermediatesDir%"
     if defined __SkipConfigure goto SkipConfigureCrossBuild
 
-    pushd "%__CrossCompIntermediatesDir%"
     set __CMakeBinDir=%__CrossComponentBinDir%
     set "__CMakeBinDir=!__CMakeBinDir:\=/!"
     set __ExtraCmakeArgs="-DCLR_CROSS_COMPONENTS_BUILD=1" "-DCLR_CMAKE_TARGET_ARCH=%__BuildArch%" "-DCLR_CMAKE_TARGET_OS=%__BuildOS%" "-DCLR_CMAKE_PACKAGES_DIR=%__PackagesDir%" "-DCLR_CMAKE_PGO_INSTRUMENT=%__PgoInstrument%" "-DCLR_CMAKE_OPTDATA_VERSION=%__PgoOptDataVersion%" "-DCLR_CMAKE_PGO_OPTIMIZE=%__PgoOptimize%" "-DCMAKE_SYSTEM_VERSION=10.0"
-    call "%__SourceDir%\pal\tools\gen-buildsys-win.bat" "%__ProjectDir%" %__VSVersion% %__CrossArch% !__ExtraCmakeArgs!
+    call "%__SourceDir%\pal\tools\gen-buildsys.cmd" "%__ProjectDir%" "%__CrossCompIntermediatesDir%" %__VSVersion% %__CrossArch% !__ExtraCmakeArgs!
+    
+    if not !errorlevel! == 0 (
+        echo %__ErrMsgPrefix%%__MsgPrefix%Error: failed to generate native component build project!
+        exit /b 1
+    )
     @if defined _echo @echo on
-    popd
 
 :SkipConfigureCrossBuild
-    if not exist "%__CrossCompIntermediatesDir%\install.vcxproj" (
-        echo %__ErrMsgPrefix%%__MsgPrefix%Error: failed to generate cross-arch components build project!
+    if not exist "%__CrossCompIntermediatesDir%\CMakeCache.txt" (
+        echo %__ErrMsgPrefix%%__MsgPrefix%Error: unable to find generated native component build project!
         exit /b 1
     )
 
@@ -494,18 +501,13 @@ if %__BuildCrossArchNative% EQU 1 (
     set __MsbuildLog=/flp:Verbosity=normal;LogFile=!__BuildLog!
     set __MsbuildWrn=/flp1:WarningsOnly;LogFile=!__BuildWrn!
     set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
-    set __Logging=!_MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
+    set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-    call %__ProjectDir%\cmake_msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
-      /p:PortableBuild=true /maxcpucount^
-      %__CrossCompIntermediatesDir%\install.vcxproj^
-      !__Logging! /p:Configuration=%__BuildType% /p:Platform=%__CrossArch% %__CommonMSBuildArgs% %__UnprocessedBuildArgs%
+    REM We pass the /m flag directly to MSBuild so that we can get both MSBuild and CL parallelism, which is fastest for our builds.
+    "%CMakePath%" --build %__CrossCompIntermediatesDir% --target install --config %__BuildType% -- /m !__Logging!
 
     if not !errorlevel! == 0 (
-        echo %__ErrMsgPrefix%%__MsgPrefix%Error: cross-arch components build failed. Refer to the build log files for details.
-        echo     !__BuildLog!
-        echo     !__BuildWrn!
-        echo     !__BuildErr!
+        echo %__ErrMsgPrefix%%__MsgPrefix%Error: cross-arch components build failed.
         exit /b !errorlevel!
     )
 
@@ -557,17 +559,18 @@ if %__BuildNative% EQU 1 (
 
     echo %__MsgPrefix%Regenerating the Visual Studio solution
 
-    echo Cross Arch Defines !___CrossBuildDefine!
-
-    pushd "%__IntermediatesDir%"
     set __ExtraCmakeArgs=!___SDKVersion! !___CrossBuildDefine! "-DCLR_CMAKE_TARGET_OS=%__BuildOS%" "-DCLR_CMAKE_PACKAGES_DIR=%__PackagesDir%" "-DCLR_CMAKE_PGO_INSTRUMENT=%__PgoInstrument%" "-DCLR_CMAKE_OPTDATA_VERSION=%__PgoOptDataVersion%" "-DCLR_CMAKE_PGO_OPTIMIZE=%__PgoOptimize%"
-    call "%__SourceDir%\pal\tools\gen-buildsys-win.bat" "%__ProjectDir%" %__VSVersion% %__BuildArch% !__ExtraCmakeArgs!
+    call "%__SourceDir%\pal\tools\gen-buildsys.cmd" "%__ProjectDir%" "%__IntermediatesDir%" %__VSVersion% %__BuildArch% !__ExtraCmakeArgs!
+    if not !errorlevel! == 0 (
+        echo %__ErrMsgPrefix%%__MsgPrefix%Error: failed to generate native component build project!
+        exit /b 1
+    )
+    
     @if defined _echo @echo on
-    popd
 
 :SkipConfigure
-    if not exist "%__IntermediatesDir%\install.vcxproj" (
-        echo %__ErrMsgPrefix%%__MsgPrefix%Error: failed to generate native component build project!
+    if not exist "%__IntermediatesDir%\CMakeCache.txt" (
+        echo %__ErrMsgPrefix%%__MsgPrefix%Error: unable to find generated native component build project!
         exit /b 1
     )
 
@@ -582,15 +585,11 @@ if %__BuildNative% EQU 1 (
     set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
     set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-    call %__ProjectDir%\cmake_msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
-      /p:PortableBuild=true /maxcpucount %__IntermediatesDir%\install.vcxproj^
-      !__Logging! /p:Configuration=%__BuildType% /p:Platform=%__BuildArch% %__CommonMSBuildArgs% %__UnprocessedBuildArgs%
+    REM We pass the /m flag directly to MSBuild so that we can get both MSBuild and CL parallelism, which is fastest for our builds.
+    "%CMakePath%" --build %__IntermediatesDir% --target install --config %__BuildType% -- /m !__Logging!
 
     if not !errorlevel! == 0 (
-        echo %__ErrMsgPrefix%%__MsgPrefix%Error: native component build failed. Refer to the build log files for details.
-        echo     !__BuildLog!
-        echo     !__BuildWrn!
-        echo     !__BuildErr!
+        echo %__ErrMsgPrefix%%__MsgPrefix%Error: native component build failed.
         exit /b !errorlevel!
     )
 
@@ -631,7 +630,7 @@ if %__BuildCoreLib% EQU 1 (
 
         powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__ProjectDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
             %__ProjectDir%\src\build.proj /t:Restore^
-            /nodeReuse:false /p:PortableBuild=true /maxcpucount /p:IncludeRestoreOnlyProjects=true /p:ArcadeBuild=true^
+            /nodeReuse:false /p:PortableBuild=true /maxcpucount /p:IncludeRestoreOnlyProjects=true^
             !__Logging! %__CommonMSBuildArgs% !__ExtraBuildArgs! %__UnprocessedBuildArgs%
         if not !errorlevel! == 0 (
             echo %__ErrMsgPrefix%%__MsgPrefix%Error: Managed Product assemblies restore failed. Refer to the build log files for details.
@@ -644,7 +643,7 @@ if %__BuildCoreLib% EQU 1 (
         REM Disable warnAsError to work around VS bug (948084) where ucrt lib path is not set properly, resulting in CS1668
         powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -Command "%__ProjectDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
             %__ProjectDir%\src\build.proj -warnAsError:0^
-            /nodeReuse:false /p:PortableBuild=true /maxcpucount /p:ArcadeBuild=true^
+            /nodeReuse:false /p:PortableBuild=true /maxcpucount^
             '!__MsbuildLog!' '!__MsbuildWrn!' '!__MsbuildErr!' %__CommonMSBuildArgs% !__ExtraBuildArgs! %__UnprocessedBuildArgs%
         if not !errorlevel! == 0 (
             echo %__ErrMsgPrefix%%__MsgPrefix%Error: Managed Product assemblies build failed. Refer to the build log files for details.
@@ -652,6 +651,13 @@ if %__BuildCoreLib% EQU 1 (
             echo     !__BuildWrn!
             echo     !__BuildErr!
             exit /b !errorlevel!
+        )
+
+        if "%__BuildManagedTools%" == "1" (
+            echo %__MsgPrefix%Publishing crossgen2...
+            call %__ProjectDir%\dotnet.cmd publish --self-contained -r win-%__BuildArch% -c %__BuildType% -o "%__BinDir%\crossgen2" "%__ProjectDir%\src\tools\crossgen2\crossgen2\crossgen2.csproj"
+            copy /Y "%__BinDir%\clrjit.dll" "%__BinDir%\crossgen2\clrjitilc.dll"
+            copy /Y "%__BinDir%\jitinterface.dll" "%__BinDir%\crossgen2\jitinterface.dll"
         )
     )
     if %__IbcOptimize% EQU 1 (
@@ -859,7 +865,7 @@ if %__BuildPackages% EQU 1 (
     powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__ProjectDir%\eng\common\build.ps1"^
         -r -b -projects %__SourceDir%\.nuget\packages.builds^
         -verbosity minimal /nodeReuse:false /bl:!__BuildLog!^
-        /p:PortableBuild=true /p:ArcadeBuild=true^
+        /p:PortableBuild=true^
         /p:Platform=%__BuildArch% %__CommonMSBuildArgs% %__UnprocessedBuildArgs%
     if not !errorlevel! == 0 (
         echo %__ErrMsgPrefix%%__MsgPrefix%Error: Nuget package generation failed. Refer to the build log file for details.

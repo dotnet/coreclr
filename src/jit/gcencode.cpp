@@ -1537,10 +1537,10 @@ size_t GCInfo::gcInfoBlockHdrSave(
     header->prologSize = static_cast<unsigned char>(prologSize);
     assert(FitsIn<unsigned char>(epilogSize));
     header->epilogSize  = static_cast<unsigned char>(epilogSize);
-    header->epilogCount = compiler->getEmitter()->emitGetEpilogCnt();
-    if (header->epilogCount != compiler->getEmitter()->emitGetEpilogCnt())
+    header->epilogCount = compiler->GetEmitter()->emitGetEpilogCnt();
+    if (header->epilogCount != compiler->GetEmitter()->emitGetEpilogCnt())
         IMPL_LIMITATION("emitGetEpilogCnt() does not fit in InfoHdr::epilogCount");
-    header->epilogAtEnd = compiler->getEmitter()->emitHasEpilogEnd();
+    header->epilogAtEnd = compiler->GetEmitter()->emitHasEpilogEnd();
 
     if (compiler->codeGen->regSet.rsRegsModified(RBM_EDI))
         header->ediSaved = 1;
@@ -1549,7 +1549,7 @@ size_t GCInfo::gcInfoBlockHdrSave(
     if (compiler->codeGen->regSet.rsRegsModified(RBM_EBX))
         header->ebxSaved = 1;
 
-    header->interruptible = compiler->codeGen->genInterruptible;
+    header->interruptible = compiler->codeGen->GetInterruptible();
 
     if (!compiler->isFramePointerUsed())
     {
@@ -1612,11 +1612,11 @@ size_t GCInfo::gcInfoBlockHdrSave(
     if (compiler->info.compFlags & CORINFO_FLG_SYNCH)
     {
         assert(compiler->syncStartEmitCookie != NULL);
-        header->syncStartOffset = compiler->getEmitter()->emitCodeOffset(compiler->syncStartEmitCookie, 0);
+        header->syncStartOffset = compiler->GetEmitter()->emitCodeOffset(compiler->syncStartEmitCookie, 0);
         assert(header->syncStartOffset != INVALID_SYNC_OFFSET);
 
         assert(compiler->syncEndEmitCookie != NULL);
-        header->syncEndOffset = compiler->getEmitter()->emitCodeOffset(compiler->syncEndEmitCookie, 0);
+        header->syncEndOffset = compiler->GetEmitter()->emitCodeOffset(compiler->syncEndEmitCookie, 0);
         assert(header->syncEndOffset != INVALID_SYNC_OFFSET);
 
         assert(header->syncStartOffset < header->syncEndOffset);
@@ -1745,7 +1745,7 @@ size_t GCInfo::gcInfoBlockHdrSave(
             gcEpilogTable      = mask ? dest : NULL;
             gcEpilogPrevOffset = 0;
 
-            size_t sz = compiler->getEmitter()->emitGenEpilogLst(gcRecordEpilog, this);
+            size_t sz = compiler->GetEmitter()->emitGenEpilogLst(gcRecordEpilog, this);
 
             /* Add the size of the epilog table to the total size */
 
@@ -1758,7 +1758,7 @@ size_t GCInfo::gcInfoBlockHdrSave(
 
     if (mask)
     {
-        if (compiler->codeGen->genInterruptible)
+        if (compiler->codeGen->GetInterruptible())
         {
             genMethodICnt++;
         }
@@ -2238,43 +2238,45 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
                     totalSize += sz;
                 }
             }
-
-            else if (varDsc->lvType == TYP_STRUCT && varDsc->lvOnFrame && (varDsc->lvExactSize >= TARGET_POINTER_SIZE))
+            else if ((varDsc->TypeGet() == TYP_STRUCT) && varDsc->lvOnFrame && varDsc->HasGCPtr())
             {
-                // A struct will have gcSlots only if it is at least TARGET_POINTER_SIZE.
-                unsigned slots  = compiler->lvaLclSize(varNum) / TARGET_POINTER_SIZE;
-                BYTE*    gcPtrs = compiler->lvaGetGcLayout(varNum);
+                ClassLayout* layout = varDsc->GetLayout();
+                unsigned     slots  = layout->GetSlotCount();
 
-                // walk each member of the array
                 for (unsigned i = 0; i < slots; i++)
                 {
-                    if (gcPtrs[i] == TYPE_GC_NONE) // skip non-gc slots
-                        continue;
-
+                    if (!layout->IsGCPtr(i))
                     {
+                        continue;
+                    }
 
-                        unsigned offset = varDsc->lvStkOffs + i * TARGET_POINTER_SIZE;
+                    unsigned offset = varDsc->lvStkOffs + i * TARGET_POINTER_SIZE;
 #if DOUBLE_ALIGN
-                        // For genDoubleAlign(), locals are addressed relative to ESP and
-                        // arguments are addressed relative to EBP.
+                    // For genDoubleAlign(), locals are addressed relative to ESP and
+                    // arguments are addressed relative to EBP.
 
-                        if (compiler->genDoubleAlign() && varDsc->lvIsParam && !varDsc->lvIsRegArg)
-                            offset += compiler->codeGen->genTotalFrameSize();
+                    if (compiler->genDoubleAlign() && varDsc->lvIsParam && !varDsc->lvIsRegArg)
+                    {
+                        offset += compiler->codeGen->genTotalFrameSize();
+                    }
 #endif
-                        if (gcPtrs[i] == TYPE_GC_BYREF)
-                            offset |= byref_OFFSET_FLAG; // indicate it is a byref GC pointer
+                    if (layout->GetGCPtrType(i) == TYP_BYREF)
+                    {
+                        offset |= byref_OFFSET_FLAG; // indicate it is a byref GC pointer
+                    }
 
-                        int encodedoffset = lastoffset - offset;
-                        lastoffset        = offset;
+                    int encodedoffset = lastoffset - offset;
+                    lastoffset        = offset;
 
-                        if (mask == 0)
-                            totalSize += encodeSigned(NULL, encodedoffset);
-                        else
-                        {
-                            unsigned sz = encodeSigned(dest, encodedoffset);
-                            dest += sz;
-                            totalSize += sz;
-                        }
+                    if (mask == 0)
+                    {
+                        totalSize += encodeSigned(NULL, encodedoffset);
+                    }
+                    else
+                    {
+                        unsigned sz = encodeSigned(dest, encodedoffset);
+                        dest += sz;
+                        totalSize += sz;
                     }
                 }
             }
@@ -2448,10 +2450,10 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
 
     lastOffset = 0;
 
-    if (compiler->codeGen->genInterruptible)
+    if (compiler->codeGen->GetInterruptible())
     {
 #ifdef _TARGET_X86_
-        assert(compiler->genFullPtrRegMap);
+        assert(compiler->IsFullPtrRegMapRequired());
 
         unsigned ptrRegs = 0;
 
@@ -2782,7 +2784,7 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
         dest -= mask;
         totalSize++;
     }
-    else if (compiler->isFramePointerUsed()) // genInterruptible is false
+    else if (compiler->isFramePointerUsed()) // GetInterruptible() is false
     {
 #ifdef _TARGET_X86_
         /*
@@ -2900,11 +2902,11 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
         */
 
         /* If "this" is enregistered, note it. We do this explicitly here as
-           genFullPtrRegMap==false, and so we don't have any regPtrDsc's. */
+           IsFullPtrRegMapRequired()==false, and so we don't have any regPtrDsc's. */
 
         if (compiler->lvaKeepAliveAndReportThis() && compiler->lvaTable[compiler->info.compThisArg].lvRegister)
         {
-            unsigned thisRegMask   = genRegMask(compiler->lvaTable[compiler->info.compThisArg].lvRegNum);
+            unsigned thisRegMask   = genRegMask(compiler->lvaTable[compiler->info.compThisArg].GetRegNum());
             unsigned thisPtrRegEnc = gceEncodeCalleeSavedRegs(thisRegMask) << 4;
 
             if (thisPtrRegEnc)
@@ -2917,7 +2919,7 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
 
         CallDsc* call;
 
-        assert(compiler->genFullPtrRegMap == false);
+        assert(compiler->IsFullPtrRegMapRequired() == false);
 
         /* Walk the list of pointer register/argument entries */
 
@@ -3069,15 +3071,15 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
         dest -= mask;
         totalSize++;
     }
-    else // genInterruptible is false and we have an EBP-less frame
+    else // GetInterruptible() is false and we have an EBP-less frame
     {
-        assert(compiler->genFullPtrRegMap);
+        assert(compiler->IsFullPtrRegMapRequired());
 
 #ifdef _TARGET_X86_
 
         regPtrDsc*       genRegPtrTemp;
         regNumber        thisRegNum = regNumber(0);
-        PendingArgsStack pasStk(compiler->getEmitter()->emitMaxStackDepth, compiler);
+        PendingArgsStack pasStk(compiler->GetEmitter()->emitMaxStackDepth, compiler);
 
         /* Walk the list of pointer register/argument entries */
 
@@ -3929,7 +3931,7 @@ void GCInfo::gcInfoBlockHdrSave(GcInfoEncoder* gcInfoEncoder, unsigned methodSiz
 
         // A VM requirement due to how the decoder works (it ignores partially interruptible frames when
         // an exception has escaped, but the VM requires the security object to live on).
-        assert(compiler->codeGen->genInterruptible);
+        assert(compiler->codeGen->GetInterruptible());
 
         // The lv offset is FP-relative, and the using code expects caller-sp relative, so translate.
         // The normal GC lifetime reporting mechanisms will report a proper lifetime to the GC.
@@ -3961,7 +3963,7 @@ void GCInfo::gcInfoBlockHdrSave(GcInfoEncoder* gcInfoEncoder, unsigned methodSiz
 #endif // FEATURE_EH_FUNCLETS
 
 #ifdef _TARGET_ARMARCH_
-    if (compiler->codeGen->hasTailCalls)
+    if (compiler->codeGen->GetHasTailCalls())
     {
         gcInfoEncoderWithLog->SetHasTailCalls();
     }
@@ -3974,7 +3976,7 @@ void GCInfo::gcInfoBlockHdrSave(GcInfoEncoder* gcInfoEncoder, unsigned methodSiz
 
 #if DISPLAY_SIZES
 
-    if (compiler->codeGen->genInterruptible)
+    if (compiler->codeGen->GetInterruptible())
     {
         genMethodICnt++;
     }
@@ -4166,16 +4168,15 @@ void GCInfo::gcMakeRegPtrTable(
 
         // If this is a TYP_STRUCT, handle its GC pointers.
         // Note that the enregisterable struct types cannot have GC pointers in them.
-        if ((varDsc->lvType == TYP_STRUCT) && varDsc->lvOnFrame && (varDsc->lvExactSize >= TARGET_POINTER_SIZE))
+        if ((varDsc->TypeGet() == TYP_STRUCT) && varDsc->lvOnFrame && (varDsc->lvExactSize >= TARGET_POINTER_SIZE))
         {
-            unsigned slots  = compiler->lvaLclSize(varNum) / TARGET_POINTER_SIZE;
-            BYTE*    gcPtrs = compiler->lvaGetGcLayout(varNum);
+            ClassLayout* layout = varDsc->GetLayout();
+            unsigned     slots  = layout->GetSlotCount();
 
-            // walk each member of the array
             for (unsigned i = 0; i < slots; i++)
             {
-                if (gcPtrs[i] == TYPE_GC_NONE)
-                { // skip non-gc slots
+                if (!layout->IsGCPtr(i))
+                {
                     continue;
                 }
 
@@ -4188,7 +4189,7 @@ void GCInfo::gcMakeRegPtrTable(
                     offset += compiler->codeGen->genTotalFrameSize();
 #endif
                 GcSlotFlags flags = GC_SLOT_UNTRACKED;
-                if (gcPtrs[i] == TYPE_GC_BYREF)
+                if (layout->GetGCPtrType(i) == TYP_BYREF)
                 {
                     flags = (GcSlotFlags)(flags | GC_SLOT_INTERIOR);
                 }
@@ -4274,9 +4275,9 @@ void GCInfo::gcMakeRegPtrTable(
      **************************************************************************
      */
 
-    if (compiler->codeGen->genInterruptible)
+    if (compiler->codeGen->GetInterruptible())
     {
-        assert(compiler->genFullPtrRegMap);
+        assert(compiler->IsFullPtrRegMapRequired());
 
         regMaskSmall ptrRegs          = 0;
         regPtrDsc*   regStackArgFirst = nullptr;
@@ -4368,7 +4369,7 @@ void GCInfo::gcMakeRegPtrTable(
             // Currently just prologs and epilogs.
 
             InterruptibleRangeReporter reporter(prologSize, gcInfoEncoderWithLog);
-            compiler->getEmitter()->emitGenNoGCLst(reporter);
+            compiler->GetEmitter()->emitGenNoGCLst(reporter);
             prologSize = reporter.prevStart;
 
             // Report any remainder
@@ -4378,9 +4379,9 @@ void GCInfo::gcMakeRegPtrTable(
             }
         }
     }
-    else if (compiler->isFramePointerUsed()) // genInterruptible is false, and we're using EBP as a frame pointer.
+    else if (compiler->isFramePointerUsed()) // GetInterruptible() is false, and we're using EBP as a frame pointer.
     {
-        assert(compiler->genFullPtrRegMap == false);
+        assert(compiler->IsFullPtrRegMapRequired() == false);
 
         // Walk the list of pointer register/argument entries.
 
@@ -4484,9 +4485,9 @@ void GCInfo::gcMakeRegPtrTable(
             gcInfoEncoderWithLog->DefineCallSites(pCallSites, pCallSiteSizes, numCallSites);
         }
     }
-    else // genInterruptible is false and we have an EBP-less frame
+    else // GetInterruptible() is false and we have an EBP-less frame
     {
-        assert(compiler->genFullPtrRegMap);
+        assert(compiler->IsFullPtrRegMapRequired());
 
         // Walk the list of pointer register/argument entries */
         // First count them.
@@ -4744,7 +4745,7 @@ void GCInfo::gcInfoRecordGCStackArgLive(GcInfoEncoder* gcInfoEncoder, MakeRegPtr
     assert(genStackPtr->rpdArgTypeGet() == rpdARG_PUSH);
 
     // We only need to report these when we're doing fuly-interruptible
-    assert(compiler->codeGen->genInterruptible);
+    assert(compiler->codeGen->GetInterruptible());
 
     GCENCODER_WITH_LOGGING(gcInfoEncoderWithLog, gcInfoEncoder);
 
@@ -4781,7 +4782,7 @@ void GCInfo::gcInfoRecordGCStackArgsDead(GcInfoEncoder* gcInfoEncoder,
     // earlier, as going dead after the call.
 
     // We only need to report these when we're doing fuly-interruptible
-    assert(compiler->codeGen->genInterruptible);
+    assert(compiler->codeGen->GetInterruptible());
 
     GCENCODER_WITH_LOGGING(gcInfoEncoderWithLog, gcInfoEncoder);
 

@@ -9,6 +9,7 @@
 
 #include "sstring.h"
 #include "fstream.h"
+#include "volatile.h"
 
 class PerfInfo;
 
@@ -16,6 +17,8 @@ class PerfInfo;
 class PerfMap
 {
 private:
+    static Volatile<bool> s_enabled;
+
     // The one and only PerfMap for the process.
     static PerfMap * s_Current;
 
@@ -69,6 +72,9 @@ public:
 
     // Log a JIT compiled method to the map.
     static void LogJITCompiledMethod(MethodDesc * pMethod, PCODE pCode, size_t codeSize, PrepareCodeConfig *pConfig);
+
+    // Log a pre-compiled method to the map.
+    static void LogPreCompiledMethod(MethodDesc * pMethod, PCODE pCode);
 
     // Log a set of stub to the map.
     static void LogStubs(const char* stubType, const char* stubOwner, PCODE pCode, size_t codeSize);

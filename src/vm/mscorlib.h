@@ -93,8 +93,6 @@ DEFINE_METHOD(ARG_ITERATOR,         CTOR2,                  .ctor,              
 DEFINE_CLASS(ARGUMENT_HANDLE,       System,                 RuntimeArgumentHandle)
 
 DEFINE_CLASS(ARRAY,                 System,                 Array)
-DEFINE_PROPERTY(ARRAY,              LENGTH,                 Length,                     Int)
-DEFINE_METHOD(ARRAY,                GET_RAW_ARRAY_DATA,     GetRawArrayData, IM_RetRefByte)
 
 DEFINE_CLASS(ARRAY_WITH_OFFSET,     Interop,                ArrayWithOffset)                 
 DEFINE_FIELD(ARRAY_WITH_OFFSET,     M_ARRAY,                m_array)
@@ -147,9 +145,6 @@ DEFINE_FIELD_U(m_fullname,                 AssemblyBaseObject,     m_fullname)
 DEFINE_FIELD_U(m_syncRoot,                 AssemblyBaseObject,     m_pSyncRoot)
 DEFINE_FIELD_U(m_assembly,                 AssemblyBaseObject,     m_pAssembly)
 DEFINE_CLASS(ASSEMBLY,              Reflection,             RuntimeAssembly)
-DEFINE_FIELD(ASSEMBLY,              HANDLE,                 m_assembly)
-DEFINE_METHOD(ASSEMBLY,             GET_NAME,               GetName,                    IM_RetAssemblyName)
-DEFINE_METHOD(ASSEMBLY,             ON_MODULE_RESOLVE,      OnModuleResolveEvent,       IM_Str_RetModule)
 
 
 DEFINE_CLASS(ASYNCCALLBACK,         System,                 AsyncCallback)
@@ -344,16 +339,16 @@ DEFINE_FIELD_U(_message,           ExceptionObject,    _message)
 DEFINE_FIELD_U(_data,              ExceptionObject,    _data)
 DEFINE_FIELD_U(_innerException,    ExceptionObject,    _innerException)
 DEFINE_FIELD_U(_helpURL,           ExceptionObject,    _helpURL)
-DEFINE_FIELD_U(_source,            ExceptionObject,    _source)
 DEFINE_FIELD_U(_stackTrace,        ExceptionObject,    _stackTrace)
 DEFINE_FIELD_U(_watsonBuckets,     ExceptionObject,    _watsonBuckets)
 DEFINE_FIELD_U(_stackTraceString,  ExceptionObject,    _stackTraceString)
 DEFINE_FIELD_U(_remoteStackTraceString, ExceptionObject, _remoteStackTraceString)
 DEFINE_FIELD_U(_dynamicMethods,    ExceptionObject,    _dynamicMethods)
-DEFINE_FIELD_U(_xptrs,             ExceptionObject,    _xptrs)
-DEFINE_FIELD_U(_HResult,           ExceptionObject,    _HResult)
-DEFINE_FIELD_U(_xcode,             ExceptionObject,    _xcode)
+DEFINE_FIELD_U(_source,            ExceptionObject,    _source)
 DEFINE_FIELD_U(_ipForWatsonBuckets,ExceptionObject,    _ipForWatsonBuckets)
+DEFINE_FIELD_U(_xptrs,             ExceptionObject,    _xptrs)
+DEFINE_FIELD_U(_xcode,             ExceptionObject,    _xcode)
+DEFINE_FIELD_U(_HResult,           ExceptionObject,    _HResult)
 DEFINE_CLASS(EXCEPTION,             System,                 Exception)
 DEFINE_METHOD(EXCEPTION,            GET_CLASS_NAME,         GetClassName,               IM_RetStr)
 DEFINE_PROPERTY(EXCEPTION,          MESSAGE,                Message,                    Str)
@@ -691,12 +686,10 @@ DEFINE_CLASS(RTFIELD,               Reflection,             RtFieldInfo)
 DEFINE_METHOD(RTFIELD,              GET_FIELDHANDLE,        GetFieldHandle,            IM_RetIntPtr)
 
 DEFINE_CLASS(RUNTIME_HELPERS,       CompilerServices,       RuntimeHelpers)
-DEFINE_METHOD(RUNTIME_HELPERS,      PREPARE_CONSTRAINED_REGIONS, PrepareConstrainedRegions, SM_RetVoid)
-DEFINE_METHOD(RUNTIME_HELPERS,      PREPARE_CONSTRAINED_REGIONS_NOOP, PrepareConstrainedRegionsNoOP, SM_RetVoid)
-DEFINE_METHOD(RUNTIME_HELPERS,      EXECUTE_BACKOUT_CODE_HELPER, ExecuteBackoutCodeHelper, SM_Obj_Obj_Bool_RetVoid)
 DEFINE_METHOD(RUNTIME_HELPERS,      IS_REFERENCE_OR_CONTAINS_REFERENCES, IsReferenceOrContainsReferences, NoSig)
 DEFINE_METHOD(RUNTIME_HELPERS,      IS_BITWISE_EQUATABLE,    IsBitwiseEquatable, NoSig)
 DEFINE_METHOD(RUNTIME_HELPERS,      GET_RAW_SZ_ARRAY_DATA,   GetRawSzArrayData,  NoSig)
+DEFINE_METHOD(RUNTIME_HELPERS,      GET_RAW_ARRAY_DATA,      GetRawArrayData, NoSig)
 
 DEFINE_CLASS(JIT_HELPERS,           CompilerServices,       JitHelpers)
 DEFINE_METHOD(JIT_HELPERS,          ENUM_EQUALS,            EnumEquals, NoSig)
@@ -704,6 +697,8 @@ DEFINE_METHOD(JIT_HELPERS,          ENUM_COMPARE_TO,        EnumCompareTo, NoSig
 
 DEFINE_CLASS(UNSAFE,                InternalCompilerServices,       Unsafe)
 DEFINE_METHOD(UNSAFE,               AS_POINTER,             AsPointer, NoSig)
+DEFINE_METHOD(UNSAFE,               BYREF_IS_NULL,          IsNullRef, NoSig)
+DEFINE_METHOD(UNSAFE,               BYREF_NULLREF,          NullRef, NoSig)
 DEFINE_METHOD(UNSAFE,               AS_REF_IN,              AsRef, GM_RefT_RetRefT)
 DEFINE_METHOD(UNSAFE,               AS_REF_POINTER,         AsRef, GM_VoidPtr_RetRefT)
 DEFINE_METHOD(UNSAFE,               SIZEOF,                 SizeOf, NoSig)
@@ -730,9 +725,12 @@ DEFINE_METHOD(INTERLOCKED,          COMPARE_EXCHANGE_OBJECT,CompareExchange, SM_
 DEFINE_CLASS(RAW_DATA,              CompilerServices,       RawData)
 DEFINE_FIELD(RAW_DATA,              DATA,                   Data)
 
-DEFINE_CLASS(RAW_SZARRAY_DATA,      CompilerServices,       RawSzArrayData)
-DEFINE_FIELD(RAW_SZARRAY_DATA,      COUNT,                  Count)
-DEFINE_FIELD(RAW_SZARRAY_DATA,      DATA,                   Data)
+DEFINE_CLASS(RAW_ARRAY_DATA,        CompilerServices,       RawArrayData)
+DEFINE_FIELD(RAW_ARRAY_DATA,        LENGTH,                 Length)
+#ifdef _TARGET_64BIT_
+DEFINE_FIELD(RAW_ARRAY_DATA,        PADDING,                Padding)
+#endif
+DEFINE_FIELD(RAW_ARRAY_DATA,        DATA,                   Data)
 
 DEFINE_CLASS(RUNTIME_WRAPPED_EXCEPTION, CompilerServices,   RuntimeWrappedException)
 DEFINE_METHOD(RUNTIME_WRAPPED_EXCEPTION, OBJ_CTOR,          .ctor,                      IM_Obj_RetVoid)
@@ -910,10 +908,6 @@ DEFINE_CLASS(WINDOWSRUNTIMEMETATADA, WinRT, WindowsRuntimeMetadata)
 DEFINE_METHOD(WINDOWSRUNTIMEMETATADA,  ON_DESIGNER_NAMESPACE_RESOLVE, OnDesignerNamespaceResolve, SM_Str_RetArrStr)
 #endif //FEATURE_COMINTEROP
 
-DEFINE_CLASS(LAZY,              System,     Lazy`1)
-
-DEFINE_CLASS(LAZY_INITIALIZER,  Threading,  LazyInitializer)
-
 DEFINE_CLASS(VALUE_TYPE,            System,                 ValueType)
 DEFINE_METHOD(VALUE_TYPE,           GET_HASH_CODE,          GetHashCode,            IM_RetInt)
 DEFINE_METHOD(VALUE_TYPE,           EQUALS,                 Equals,                 IM_Obj_RetBool)
@@ -936,6 +930,7 @@ DEFINE_METHOD(DEBUGGER,             BREAK_CAN_THROW,        BreakCanThrow,      
 DEFINE_CLASS(BUFFER,                System,                 Buffer)
 DEFINE_METHOD(BUFFER,               MEMCPY_PTRBYTE_ARRBYTE, Memcpy,                 SM_PtrByte_Int_ArrByte_Int_Int_RetVoid)
 DEFINE_METHOD(BUFFER,               MEMCPY,                 Memcpy,                 SM_PtrByte_PtrByte_Int_RetVoid)
+DEFINE_METHOD(BUFFER,               BLOCKCOPY,              BlockCopy,              SM_Array_Int_Array_Int_Int_RetVoid)
 
 #ifdef FEATURE_COMINTEROP
 DEFINE_CLASS(WINDOWSRUNTIMEMARSHAL, WinRT,  WindowsRuntimeMarshal)

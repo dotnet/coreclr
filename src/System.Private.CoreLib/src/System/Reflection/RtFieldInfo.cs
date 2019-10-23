@@ -23,11 +23,8 @@ namespace System.Reflection
         internal INVOCATION_FLAGS InvocationFlags
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return (m_invocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_INITIALIZED) != 0 ?
+            get => (m_invocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_INITIALIZED) != 0 ?
                     m_invocationFlags : InitializeInvocationFlags();
-            }
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -60,7 +57,7 @@ namespace System.Reflection
             }
 
             // must be last to avoid threading problems
-            return (m_invocationFlags = invocationFlags | INVOCATION_FLAGS.INVOCATION_FLAGS_INITIALIZED);
+            return m_invocationFlags = invocationFlags | INVOCATION_FLAGS.INVOCATION_FLAGS_INITIALIZED;
         }
         #endregion
 
@@ -110,16 +107,7 @@ namespace System.Reflection
         #endregion
 
         #region MemberInfo Overrides
-        public override string Name
-        {
-            get
-            {
-                if (m_name == null)
-                    m_name = RuntimeFieldHandle.GetName(this);
-
-                return m_name;
-            }
-        }
+        public override string Name => m_name ??= RuntimeFieldHandle.GetName(this);
 
         internal string FullName => DeclaringType!.FullName + "." + Name;
 
@@ -175,11 +163,8 @@ namespace System.Reflection
             if (obj.IsNull)
                 throw new ArgumentException(SR.Arg_TypedReference_Null);
 
-            unsafe
-            {
-                // Passing TypedReference by reference is easier to make correct in native code
-                return RuntimeFieldHandle.GetValueDirect(this, (RuntimeType)FieldType, &obj, (RuntimeType?)DeclaringType);
-            }
+            // Passing TypedReference by reference is easier to make correct in native code
+            return RuntimeFieldHandle.GetValueDirect(this, (RuntimeType)FieldType, &obj, (RuntimeType?)DeclaringType);
         }
 
         [DebuggerStepThroughAttribute]
@@ -222,11 +207,8 @@ namespace System.Reflection
             if (obj.IsNull)
                 throw new ArgumentException(SR.Arg_TypedReference_Null);
 
-            unsafe
-            {
-                // Passing TypedReference by reference is easier to make correct in native code
-                RuntimeFieldHandle.SetValueDirect(this, (RuntimeType)FieldType, &obj, value, (RuntimeType?)DeclaringType);
-            }
+            // Passing TypedReference by reference is easier to make correct in native code
+            RuntimeFieldHandle.SetValueDirect(this, (RuntimeType)FieldType, &obj, value, (RuntimeType?)DeclaringType);
         }
 
         public override RuntimeFieldHandle FieldHandle => new RuntimeFieldHandle(this);
@@ -241,16 +223,13 @@ namespace System.Reflection
         public override Type FieldType
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return m_fieldType ?? InitializeFieldType();
-            }
+            get => m_fieldType ?? InitializeFieldType();
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private RuntimeType InitializeFieldType()
         {
-            return (m_fieldType = new Signature(this, m_declaringType).FieldType);
+            return m_fieldType = new Signature(this, m_declaringType).FieldType;
         }
 
         public override Type[] GetRequiredCustomModifiers()

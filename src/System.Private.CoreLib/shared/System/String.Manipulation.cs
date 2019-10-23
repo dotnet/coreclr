@@ -1000,8 +1000,7 @@ namespace System
 
             // If they asked to replace oldValue with a null, replace all occurrences
             // with the empty string.
-            if (newValue == null)
-                newValue = string.Empty;
+            newValue ??= string.Empty;
 
             CultureInfo referenceCulture = culture ?? CultureInfo.CurrentCulture;
             StringBuilder result = StringBuilderCache.Acquire();
@@ -1119,11 +1118,9 @@ namespace System
                 throw new ArgumentException(SR.Argument_StringZeroLength, nameof(oldValue));
 
             // Api behavior: if newValue is null, instances of oldValue are to be removed.
-            if (newValue == null)
-                newValue = string.Empty;
+            newValue ??= string.Empty;
 
-            Span<int> initialSpan = stackalloc int[StackallocIntBufferSizeLimit];
-            var replacementIndices = new ValueListBuilder<int>(initialSpan);
+            var replacementIndices = new ValueListBuilder<int>(stackalloc int[StackallocIntBufferSizeLimit]);
 
             unsafe
             {
@@ -1274,8 +1271,7 @@ namespace System
                 return new string[] { this };
             }
 
-            Span<int> initialSpan = stackalloc int[StackallocIntBufferSizeLimit];
-            var sepListBuilder = new ValueListBuilder<int>(initialSpan);
+            var sepListBuilder = new ValueListBuilder<int>(stackalloc int[StackallocIntBufferSizeLimit]);
 
             MakeSeparatorList(separators, ref sepListBuilder);
             ReadOnlySpan<int> sepList = sepListBuilder.AsSpan();
@@ -1352,11 +1348,8 @@ namespace System
                 return SplitInternal(separator!, count, options);
             }
 
-            Span<int> sepListInitialSpan = stackalloc int[StackallocIntBufferSizeLimit];
-            var sepListBuilder = new ValueListBuilder<int>(sepListInitialSpan);
-
-            Span<int> lengthListInitialSpan = stackalloc int[StackallocIntBufferSizeLimit];
-            var lengthListBuilder = new ValueListBuilder<int>(lengthListInitialSpan);
+            var sepListBuilder = new ValueListBuilder<int>(stackalloc int[StackallocIntBufferSizeLimit]);
+            var lengthListBuilder = new ValueListBuilder<int>(stackalloc int[StackallocIntBufferSizeLimit]);
 
             MakeSeparatorList(separators!, ref sepListBuilder, ref lengthListBuilder);
             ReadOnlySpan<int> sepList = sepListBuilder.AsSpan();
@@ -1380,8 +1373,7 @@ namespace System
 
         private string[] SplitInternal(string separator, int count, StringSplitOptions options)
         {
-            Span<int> sepListInitialSpan = stackalloc int[StackallocIntBufferSizeLimit];
-            var sepListBuilder = new ValueListBuilder<int>(sepListInitialSpan);
+            var sepListBuilder = new ValueListBuilder<int>(stackalloc int[StackallocIntBufferSizeLimit]);
 
             MakeSeparatorList(separator, ref sepListBuilder);
             ReadOnlySpan<int> sepList = sepListBuilder.AsSpan();
@@ -1786,7 +1778,7 @@ namespace System
             int start = 0;
 
             // Trim specified characters.
-            if (trimType != TrimType.Tail)
+            if ((trimType & TrimType.Head) != 0)
             {
                 for (start = 0; start < Length; start++)
                 {
@@ -1797,7 +1789,7 @@ namespace System
                 }
             }
 
-            if (trimType != TrimType.Head)
+            if ((trimType & TrimType.Tail) != 0)
             {
                 for (end = Length - 1; end >= start; end--)
                 {
@@ -1822,7 +1814,7 @@ namespace System
             int start = 0;
 
             // Trim specified characters.
-            if (trimType != TrimType.Tail)
+            if ((trimType & TrimType.Head) != 0)
             {
                 for (start = 0; start < Length; start++)
                 {
@@ -1843,7 +1835,7 @@ namespace System
                 }
             }
 
-            if (trimType != TrimType.Head)
+            if ((trimType & TrimType.Tail) != 0)
             {
                 for (end = Length - 1; end >= start; end--)
                 {
@@ -1874,13 +1866,6 @@ namespace System
                 len == Length ? this :
                 len == 0 ? string.Empty :
                 InternalSubString(start, len);
-        }
-
-        private enum TrimType
-        {
-            Head = 0,
-            Tail = 1,
-            Both = 2
         }
     }
 }

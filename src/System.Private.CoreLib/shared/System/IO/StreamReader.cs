@@ -471,7 +471,6 @@ namespace System.IO
                 CompressBuffer(2);
                 changedEncoding = true;
             }
-
             else if (_byteBuffer[0] == 0xFF && _byteBuffer[1] == 0xFE)
             {
                 // Little Endian Unicode, or possibly little endian UTF32
@@ -488,7 +487,6 @@ namespace System.IO
                     changedEncoding = true;
                 }
             }
-
             else if (_byteLen >= 3 && _byteBuffer[0] == 0xEF && _byteBuffer[1] == 0xBB && _byteBuffer[2] == 0xBF)
             {
                 // UTF-8
@@ -812,11 +810,9 @@ namespace System.IO
                     }
                     i++;
                 } while (i < _charLen);
+
                 i = _charLen - _charPos;
-                if (sb == null)
-                {
-                    sb = new StringBuilder(i + 80);
-                }
+                sb ??= new StringBuilder(i + 80);
                 sb.Append(_charBuffer, _charPos, i);
             } while (ReadBuffer() > 0);
             return sb.ToString();
@@ -896,10 +892,7 @@ namespace System.IO
                 } while (i < tmpCharLen);
 
                 i = tmpCharLen - tmpCharPos;
-                if (sb == null)
-                {
-                    sb = new StringBuilder(i + 80);
-                }
+                sb ??= new StringBuilder(i + 80);
                 sb.Append(tmpCharBuffer, tmpCharPos, i);
             } while (await ReadBufferAsync().ConfigureAwait(false) > 0);
 
@@ -1330,7 +1323,6 @@ namespace System.IO
                 return -1;
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override int Read(char[] buffer, int index, int count)
             {
                 return 0;

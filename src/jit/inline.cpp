@@ -568,7 +568,7 @@ void InlineContext::DumpXml(FILE* file, unsigned indent)
 //   stmt          - statement containing the call (if known)
 //   description   - string describing the context of the decision
 
-InlineResult::InlineResult(Compiler* compiler, GenTreeCall* call, GenTreeStmt* stmt, const char* description)
+InlineResult::InlineResult(Compiler* compiler, GenTreeCall* call, Statement* stmt, const char* description)
     : m_RootCompiler(nullptr)
     , m_Policy(nullptr)
     , m_Call(call)
@@ -589,13 +589,13 @@ InlineResult::InlineResult(Compiler* compiler, GenTreeCall* call, GenTreeStmt* s
     // Pass along some optional information to the policy.
     if (stmt != nullptr)
     {
-        m_InlineContext = stmt->gtInlineContext;
+        m_InlineContext = stmt->GetInlineContext();
         m_Policy->NoteContext(m_InlineContext);
 
 #if defined(DEBUG) || defined(INLINE_DATA)
         m_Policy->NoteOffset(call->gtRawILOffset);
 #else
-        m_Policy->NoteOffset(stmt->gtStmtILoffsx);
+        m_Policy->NoteOffset(stmt->GetILOffsetX());
 #endif // defined(DEBUG) || defined(INLINE_DATA)
     }
 
@@ -604,9 +604,9 @@ InlineResult::InlineResult(Compiler* compiler, GenTreeCall* call, GenTreeStmt* s
     m_Caller = compiler->info.compMethodHnd;
 
     // Get method handle for callee, if known
-    if (m_Call->gtCall.gtCallType == CT_USER_FUNC)
+    if (m_Call->AsCall()->gtCallType == CT_USER_FUNC)
     {
-        m_Callee = m_Call->gtCall.gtCallMethHnd;
+        m_Callee = m_Call->AsCall()->gtCallMethHnd;
     }
 }
 
@@ -1197,10 +1197,10 @@ InlineContext* InlineStrategy::NewRoot()
 InlineContext* InlineStrategy::NewSuccess(InlineInfo* inlineInfo)
 {
     InlineContext* calleeContext = new (m_Compiler, CMK_Inlining) InlineContext(this);
-    GenTreeStmt*   stmt          = inlineInfo->iciStmt;
+    Statement*     stmt          = inlineInfo->iciStmt;
     BYTE*          calleeIL      = inlineInfo->inlineCandidateInfo->methInfo.ILCode;
     unsigned       calleeILSize  = inlineInfo->inlineCandidateInfo->methInfo.ILCodeSize;
-    InlineContext* parentContext = stmt->gtInlineContext;
+    InlineContext* parentContext = stmt->GetInlineContext();
     GenTreeCall*   originalCall  = inlineInfo->inlineResult->GetCall();
 
     noway_assert(parentContext != nullptr);
@@ -1213,7 +1213,7 @@ InlineContext* InlineStrategy::NewSuccess(InlineInfo* inlineInfo)
     calleeContext->m_Sibling        = parentContext->m_Child;
     parentContext->m_Child          = calleeContext;
     calleeContext->m_Child          = nullptr;
-    calleeContext->m_Offset         = stmt->gtStmtILoffsx;
+    calleeContext->m_Offset         = stmt->GetILOffsetX();
     calleeContext->m_Observation    = inlineInfo->inlineResult->GetObservation();
     calleeContext->m_Success        = true;
     calleeContext->m_Devirtualized  = originalCall->IsDevirtualized();
@@ -1259,11 +1259,11 @@ InlineContext* InlineStrategy::NewSuccess(InlineInfo* inlineInfo)
 // Return Value:
 //    A new InlineContext for diagnostic purposes
 
-InlineContext* InlineStrategy::NewFailure(GenTreeStmt* stmt, InlineResult* inlineResult)
+InlineContext* InlineStrategy::NewFailure(Statement* stmt, InlineResult* inlineResult)
 {
     // Check for a parent context first. We should now have a parent
     // context for all statements.
-    InlineContext* parentContext = stmt->gtInlineContext;
+    InlineContext* parentContext = stmt->GetInlineContext();
     assert(parentContext != nullptr);
     InlineContext* failedContext = new (m_Compiler, CMK_Inlining) InlineContext(this);
     GenTreeCall*   originalCall  = inlineResult->GetCall();
@@ -1275,7 +1275,7 @@ InlineContext* InlineStrategy::NewFailure(GenTreeStmt* stmt, InlineResult* inlin
     failedContext->m_Sibling       = parentContext->m_Child;
     parentContext->m_Child         = failedContext;
     failedContext->m_Child         = nullptr;
-    failedContext->m_Offset        = stmt->gtStmtILoffsx;
+    failedContext->m_Offset        = stmt->GetILOffsetX();
     failedContext->m_Observation   = inlineResult->GetObservation();
     failedContext->m_Callee        = inlineResult->GetCallee();
     failedContext->m_Success       = false;
@@ -1723,7 +1723,7 @@ bool InlineStrategy::IsNoInline(ICorJitInfo* info, CORINFO_METHOD_HANDLE method)
 #if defined(DEBUG) || defined(INLINE_DATA)
 
     static ConfigMethodRange range;
-    const wchar_t*           noInlineRange = JitConfig.JitNoInlineRange();
+    const WCHAR*             noInlineRange = JitConfig.JitNoInlineRange();
 
     if (noInlineRange == nullptr)
     {
@@ -1734,7 +1734,7 @@ bool InlineStrategy::IsNoInline(ICorJitInfo* info, CORINFO_METHOD_HANDLE method)
     // number of spaces in our config string to see if there are
     // more. Number of ranges we need is 2x that value.
     unsigned entryCount = 1;
-    for (const wchar_t* p = noInlineRange; *p != 0; p++)
+    for (const WCHAR* p = noInlineRange; *p != 0; p++)
     {
         if (*p == L' ')
         {

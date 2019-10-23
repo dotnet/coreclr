@@ -2083,10 +2083,6 @@ void SystemDomain::LoadBaseSystemClasses()
     g_pUtf8StringClass = MscorlibBinder::GetClass(CLASS__UTF8_STRING);
 #endif // FEATURE_UTF8STRING
 
-    // Used by Buffer::BlockCopy
-    g_pByteArrayMT = ClassLoader::LoadArrayTypeThrowing(
-        TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_U1))).AsArray()->GetMethodTable();
-
 #ifndef CROSSGEN_COMPILE
     CrossLoaderAllocatorHashSetup::EnsureTypesLoaded();
 #endif
@@ -2125,10 +2121,6 @@ void SystemDomain::LoadBaseSystemClasses()
 #ifdef FEATURE_ICASTABLE
     g_pICastableInterface = MscorlibBinder::GetClass(CLASS__ICASTABLE);
 #endif // FEATURE_ICASTABLE
-
-    // Load a special marker method used to detect Constrained Execution Regions
-    // at jit time.
-    g_pExecuteBackoutCodeHelperMethod = MscorlibBinder::GetMethod(METHOD__RUNTIME_HELPERS__EXECUTE_BACKOUT_CODE_HELPER);
 
     // Make sure that FCall mapping for Monitor.Enter is initialized. We need it in case Monitor.Enter is used only as JIT helper. 
     // For more details, see comment in code:JITutil_MonEnterWorker around "__me = GetEEFuncEntryPointMacro(JIT_MonEnter)".
@@ -2239,36 +2231,6 @@ void SystemDomain::SetThreadAptState (Thread::ApartmentState state)
 }
 #endif // defined(FEATURE_COMINTEROP_APARTMENT_SUPPORT) && !defined(CROSSGEN_COMPILE)
 
-// Helper function to load an assembly. This is called from LoadCOMClass.
-/* static */
-
-Assembly *AppDomain::LoadAssemblyHelper(LPCWSTR wszAssembly,
-                                        LPCWSTR wszCodeBase)
-{
-    CONTRACT(Assembly *)
-    {
-        THROWS;
-        POSTCONDITION(CheckPointer(RETVAL));
-        PRECONDITION(wszAssembly || wszCodeBase);
-        INJECT_FAULT(COMPlusThrowOM(););
-    }
-    CONTRACT_END;
-
-    AssemblySpec spec;
-    if(wszAssembly) {
-        #define MAKE_TRANSLATIONFAILED  { ThrowOutOfMemory(); }
-        MAKE_UTF8PTR_FROMWIDE(szAssembly,wszAssembly);
-        #undef  MAKE_TRANSLATIONFAILED
-       
-        IfFailThrow(spec.Init(szAssembly));
-    }
-
-    if (wszCodeBase) {
-        spec.SetCodeBase(wszCodeBase);
-    }
-    RETURN spec.LoadAssembly(FILE_LOADED);
-}
-
 #if defined(FEATURE_CLASSIC_COMINTEROP) && !defined(CROSSGEN_COMPILE)
 
 MethodTable *AppDomain::LoadCOMClass(GUID clsid,
@@ -2325,17 +2287,10 @@ bool SystemDomain::IsReflectionInvocationMethod(MethodDesc* pMeth)
         CLASS__ASSEMBLY,
         CLASS__TYPE_DELEGATOR,
         CLASS__RUNTIME_HELPERS,
-        CLASS__LAZY_INITIALIZER,
         CLASS__DYNAMICMETHOD,
         CLASS__DELEGATE,
         CLASS__MULTICAST_DELEGATE
     };
-
-    static const BinderClassID genericReflectionInvocationTypes[] = {
-        CLASS__LAZY
-    };
-
-    static mdTypeDef genericReflectionInvocationTypeDefs[NumItems(genericReflectionInvocationTypes)];
 
     static bool fInited = false;
 
@@ -2347,26 +2302,10 @@ bool SystemDomain::IsReflectionInvocationMethod(MethodDesc* pMeth)
             MscorlibBinder::GetClass(reflectionInvocationTypes[i]);
         }
 
-        // Make sure all types are loaded so that we can use faster GetExistingClass()
-        for (unsigned i = 0; i < NumItems(genericReflectionInvocationTypes); i++)
-        {
-            genericReflectionInvocationTypeDefs[i] = MscorlibBinder::GetClass(genericReflectionInvocationTypes[i])->GetCl();
-        }
-
         VolatileStore(&fInited, true);
     }
 
-    if (pCaller->HasInstantiation())
-    {
-        // For generic types, pCaller will be an instantiated type and never equal to the type definition.
-        // So we compare their TypeDef tokens instead.
-        for (unsigned i = 0; i < NumItems(genericReflectionInvocationTypeDefs); i++)
-        {
-            if (pCaller->GetCl() == genericReflectionInvocationTypeDefs[i])
-                return true;
-        }
-    }
-    else
+    if (!pCaller->HasInstantiation())
     {
         for (unsigned i = 0; i < NumItems(reflectionInvocationTypes); i++)
         {
@@ -3988,8 +3927,17 @@ DomainAssembly *AppDomain::LoadDomainAssemblyInternal(AssemblySpec* pIdentity,
 
     // Cache result in all cases, since found pFile could be from a different AssemblyRef than pIdentity
     // Do not cache WindowsRuntime assemblies, they are cached in code:CLRPrivTypeCacheWinRT
-    if ((pIdentity != NULL) && (pIdentity->CanUseWithBindingCache()) && (result->CanUseWithBindingCache()))
+    if (pIdentity == NULL)
+    {
+        AssemblySpec spec;
+        spec.InitializeSpec(result->GetFile());
+        if (spec.CanUseWithBindingCache() && result->CanUseWithBindingCache())
+            GetAppDomain()->AddAssemblyToCache(&spec, result);
+    }
+    else if (pIdentity->CanUseWithBindingCache() && result->CanUseWithBindingCache())
+    {
         GetAppDomain()->AddAssemblyToCache(pIdentity, result);
+    }
     
     RETURN result;
 } // AppDomain::LoadDomainAssembly
@@ -5081,8 +5029,7 @@ AppDomain::BindHostedPrivAssembly(
 //---------------------------------------------------------------------------------------------------------------------
 PEAssembly * AppDomain::BindAssemblySpec(
     AssemblySpec *         pSpec, 
-    BOOL                   fThrowOnFileNotFound, 
-    BOOL                   fUseHostBinderIfAvailable)
+    BOOL                   fThrowOnFileNotFound)
 {
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
@@ -5117,7 +5064,7 @@ PEAssembly * AppDomain::BindAssemblySpec(
                 goto EndTry2; // Goto end of try block.
 
             PTR_CLRPrivAssemblyWinRT assem = dac_cast<PTR_CLRPrivAssemblyWinRT>(pAssembly->GetHostAssembly());
-            assem->SetFallbackBinder(pSpec->GetHostBinder());
+            assem->SetFallbackBinder(pSpec->GetFallbackLoadContextBinderForRequestingAssembly());
 EndTry2:;
         }
         // The combination of this conditional catch/ the following if statement which will throw reduces the count of exceptions 

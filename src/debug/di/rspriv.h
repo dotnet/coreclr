@@ -52,7 +52,7 @@ struct MachineInfo;
 #include "eventchannel.h"
 
 #undef ASSERT
-#define CRASH(x)  _ASSERTE(!x)
+#define CRASH(x)  _ASSERTE(!(x))
 #define ASSERT(x) _ASSERTE(x)
 
 // We want to keep the 'worst' HRESULT - if one has failed (..._E_...) & the
@@ -5537,7 +5537,7 @@ private:
     RSSmartPtr<CordbNativeCode> m_nativeCode;
 
     // Metadata Token for the IL function. Scoped to m_module.
-    mdMethodDef              m_MDToken;
+    const mdMethodDef        m_MDToken;
 
     // EnC version number of this instance
     SIZE_T                   m_dwEnCVersionNumber; 

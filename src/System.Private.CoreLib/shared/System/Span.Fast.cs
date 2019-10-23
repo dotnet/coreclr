@@ -154,10 +154,10 @@ namespace System
         /// It can be used for pinning and is required to support the use of span within a fixed statement.
         /// </summary>
         [EditorBrowsable(EditorBrowsableState.Never)]
-        public unsafe ref T GetPinnableReference()
+        public ref T GetPinnableReference()
         {
             // Ensure that the native code has just one forward branch that is predicted-not-taken.
-            ref T ret = ref Unsafe.AsRef<T>(null);
+            ref T ret = ref Unsafe.NullRef<T>();
             if (_length != 0) ret = ref _pointer.Value;
             return ref ret;
         }
@@ -280,15 +280,15 @@ namespace System
         /// Returns true if left and right point at the same memory and have the same length.  Note that
         /// this does *not* check to see if the *contents* are equal.
         /// </summary>
-        public static bool operator ==(Span<T> left, Span<T> right)
-        {
-            return left._length == right._length && Unsafe.AreSame<T>(ref left._pointer.Value, ref right._pointer.Value);
-        }
+        public static bool operator ==(Span<T> left, Span<T> right) =>
+            left._length == right._length &&
+            Unsafe.AreSame<T>(ref left._pointer.Value, ref right._pointer.Value);
 
         /// <summary>
         /// Defines an implicit conversion of a <see cref="Span{T}"/> to a <see cref="ReadOnlySpan{T}"/>
         /// </summary>
-        public static implicit operator ReadOnlySpan<T>(Span<T> span) => new ReadOnlySpan<T>(ref span._pointer.Value, span._length);
+        public static implicit operator ReadOnlySpan<T>(Span<T> span) =>
+            new ReadOnlySpan<T>(ref span._pointer.Value, span._length);
 
         /// <summary>
         /// For <see cref="Span{Char}"/>, returns a new instance of string that represents the characters pointed to by the span.

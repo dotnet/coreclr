@@ -64,7 +64,7 @@ namespace System
             return result;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         // reference to TypedReference is banned, so have to pass result as pointer
         private static extern unsafe void InternalMakeTypedReference(void* result, object target, IntPtr[] flds, RuntimeType lastFieldType);
 
@@ -86,7 +86,7 @@ namespace System
             return InternalToObject(&value);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern unsafe object InternalToObject(void* value);
 
         internal bool IsNull => Value == IntPtr.Zero && Type == IntPtr.Zero;
@@ -101,14 +101,9 @@ namespace System
             return __reftype(value).TypeHandle;
         }
 
-        // This may cause the type to be changed.
-        [CLSCompliant(false)]
-        public static unsafe void SetTypedReference(TypedReference target, object? value)
+        public static void SetTypedReference(TypedReference target, object? value)
         {
-            InternalSetTypedReference(&target, value);
+            throw new NotSupportedException();
         }
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern unsafe void InternalSetTypedReference(void* target, object? value);
     }
 }

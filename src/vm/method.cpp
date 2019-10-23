@@ -4004,18 +4004,8 @@ void MethodDesc::CheckRestore(ClassLoadLevel level)
 #endif
 
             g_IBCLogger.LogMethodDescWriteAccess(this);
-
-            // If this function had already been requested for rejit, then give the rejit
-            // manager a chance to jump-stamp the code we are restoring. This ensures the
-            // first thread entering the function will jump to the prestub and trigger the
-            // rejit. Note that the PublishMethodHolder may take a lock to avoid a rejit race.
-            // See code:ReJitManager::PublishMethodHolder::PublishMethodHolder#PublishCode
-            // for details on the race.
-            // 
-            {
-                PublishMethodHolder publishWorker(this, GetNativeCode());
-                pIMD->m_wFlags2 = pIMD->m_wFlags2 & ~InstantiatedMethodDesc::Unrestored;
-            }
+            
+            pIMD->m_wFlags2 = pIMD->m_wFlags2 & ~InstantiatedMethodDesc::Unrestored;
 
             if (ETW_PROVIDER_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER))
             {
@@ -4863,7 +4853,7 @@ bool MethodDesc::DetermineAndSetIsEligibleForTieredCompilation()
         !CORProfilerDisableTieredCompilation())
     {
         m_bFlags2 |= enum_flag2_IsEligibleForTieredCompilation;
-        _ASSERTE(IsVersionableWithoutJumpStamp());
+        _ASSERTE(IsVersionable());
         return true;
     }
 #endif
@@ -4939,21 +4929,31 @@ void MethodDesc::RecordAndBackpatchEntryPointSlot_Locked(
     backpatchTracker->AddSlotAndPatch_Locked(this, slotLoaderAllocator, slot, slotType, currentEntryPoint);
 }
 
-void MethodDesc::BackpatchEntryPointSlots(PCODE entryPoint, bool isPrestubEntryPoint)
+FORCEINLINE bool MethodDesc::TryBackpatchEntryPointSlots(
+    PCODE entryPoint,
+    bool isPrestubEntryPoint,
+    bool onlyFromPrestubEntryPoint)
 {
     WRAPPER_NO_CONTRACT;
-    _ASSERTE(entryPoint != NULL);
     _ASSERTE(MayHaveEntryPointSlotsToBackpatch());
+    _ASSERTE(entryPoint != NULL);
     _ASSERTE(isPrestubEntryPoint == (entryPoint == GetPrestubEntryPointToBackpatch()));
+    _ASSERTE(!isPrestubEntryPoint || !onlyFromPrestubEntryPoint);
     _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
 
     LoaderAllocator *mdLoaderAllocator = GetLoaderAllocator();
     MethodDescBackpatchInfoTracker *backpatchInfoTracker = mdLoaderAllocator->GetMethodDescBackpatchInfoTracker();
 
     // Get the entry point to backpatch inside the lock to synchronize with backpatching in MethodDesc::DoBackpatch()
-    if (GetEntryPointToBackpatch_Locked() == entryPoint)
+    PCODE previousEntryPoint = GetEntryPointToBackpatch_Locked();
+    if (previousEntryPoint == entryPoint)
     {
-        return;
+        return true;
+    }
+
+    if (onlyFromPrestubEntryPoint && previousEntryPoint != GetPrestubEntryPointToBackpatch())
+    {
+        return false;
     }
 
     if (IsVersionableWithVtableSlotBackpatch())
@@ -4983,6 +4983,27 @@ void MethodDesc::BackpatchEntryPointSlots(PCODE entryPoint, bool isPrestubEntryP
     // it last in case there are exceptions above, as setting the entry point indicates that all recorded slots have been
     // backpatched
     SetEntryPointToBackpatch_Locked(entryPoint);
+    return true;
+}
+
+void MethodDesc::TrySetInitialCodeEntryPointForVersionableMethod(
+    PCODE entryPoint,
+    bool mayHaveEntryPointSlotsToBackpatch)
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(entryPoint != NULL);
+    _ASSERTE(IsVersionable());
+    _ASSERTE(mayHaveEntryPointSlotsToBackpatch == MayHaveEntryPointSlotsToBackpatch());
+
+    if (mayHaveEntryPointSlotsToBackpatch)
+    {
+        TryBackpatchEntryPointSlotsFromPrestub(entryPoint);
+    }
+    else
+    {
+        _ASSERTE(IsVersionableWithPrecode());
+        GetOrCreatePrecode()->SetTargetInterlocked(entryPoint, TRUE /* fOnlyRedirectFromPrestub */);
+    }
 }
 
 void MethodDesc::SetCodeEntryPoint(PCODE entryPoint)
@@ -4994,7 +5015,7 @@ void MethodDesc::SetCodeEntryPoint(PCODE entryPoint)
     {
         BackpatchEntryPointSlots(entryPoint);
     }
-    else if (IsVersionableWithoutJumpStamp())
+    else if (IsVersionable())
     {
         _ASSERTE(IsVersionableWithPrecode());
         GetOrCreatePrecode()->SetTargetInterlocked(entryPoint, FALSE /* fOnlyRedirectFromPrestub */);
@@ -5016,7 +5037,7 @@ void MethodDesc::SetCodeEntryPoint(PCODE entryPoint)
 void MethodDesc::ResetCodeEntryPoint()
 {
     WRAPPER_NO_CONTRACT;
-    _ASSERTE(IsVersionableWithoutJumpStamp());
+    _ASSERTE(IsVersionable());
 
     if (MayHaveEntryPointSlotsToBackpatch())
     {
@@ -5025,7 +5046,10 @@ void MethodDesc::ResetCodeEntryPoint()
     }
 
     _ASSERTE(IsVersionableWithPrecode());
-    GetPrecode()->ResetTargetInterlocked();
+    if (HasPrecode())
+    {
+        GetPrecode()->ResetTargetInterlocked();
+    }
 }
 
 #endif // !CROSSGEN_COMPILE
@@ -5109,7 +5133,7 @@ BOOL MethodDesc::SetStableEntryPointInterlocked(PCODE addr)
     } CONTRACTL_END;
 
     _ASSERTE(!HasPrecode());
-    _ASSERTE(!IsVersionableWithoutJumpStamp());
+    _ASSERTE(!IsVersionable());
 
     PCODE pExpected = GetTemporaryEntryPoint();
     TADDR pSlot = GetAddrOfSlot();
@@ -5138,6 +5162,67 @@ BOOL MethodDesc::SetStableEntryPointInterlocked(PCODE addr)
     InterlockedUpdateFlags2(enum_flag2_HasStableEntryPoint, TRUE);
 
     return fResult;
+}
+
+BOOL NDirectMethodDesc::ComputeMarshalingRequired()
+{
+    WRAPPER_NO_CONTRACT;
+
+    return NDirect::MarshalingRequired(this);
+}
+
+/**********************************************************************************/
+// Forward declare the NDirectImportWorker function - See dllimport.cpp
+EXTERN_C LPVOID STDCALL NDirectImportWorker(NDirectMethodDesc*);
+void *NDirectMethodDesc::ResolveAndSetNDirectTarget(_In_ NDirectMethodDesc* pMD)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        INJECT_FAULT(COMPlusThrowOM(););
+        PRECONDITION(CheckPointer(pMD));
+    }
+    CONTRACTL_END
+
+// This build conditional is here due to dllimport.cpp
+// not being relevant during the crossgen build.
+#ifdef CROSSGEN_COMPILE
+    UNREACHABLE();
+
+#else
+    LPVOID targetMaybe = NDirectImportWorker(pMD);
+    _ASSERTE(targetMaybe != nullptr);
+    pMD->SetNDirectTarget(targetMaybe);
+    return targetMaybe;
+
+#endif // CROSSGEN_COMPILE
+}
+
+BOOL NDirectMethodDesc::TryResolveNDirectTargetForNoGCTransition(_In_ MethodDesc* pMD, _Out_ void** ndirectTarget)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        INJECT_FAULT(COMPlusThrowOM(););
+        PRECONDITION(CheckPointer(pMD));
+        PRECONDITION(CheckPointer(ndirectTarget));
+    }
+    CONTRACTL_END
+
+#ifdef CROSSGEN_COMPILE
+    UNREACHABLE();
+
+#else
+    if (!pMD->ShouldSuppressGCTransition())
+        return FALSE;
+
+    _ASSERTE(pMD->IsNDirect());
+    *ndirectTarget = ResolveAndSetNDirectTarget((NDirectMethodDesc*)pMD);
+    return TRUE;
+
+#endif // CROSSGEN_COMPILE
 }
 
 //*******************************************************************************
@@ -5327,7 +5412,6 @@ void NDirectMethodDesc::InitEarlyBoundNDirectTarget()
 //*******************************************************************************
 BOOL MethodDesc::HasNativeCallableAttribute()
 {
-
     CONTRACTL
     {
         THROWS;
@@ -5336,16 +5420,53 @@ BOOL MethodDesc::HasNativeCallableAttribute()
     }
     CONTRACTL_END;
 
-    HRESULT hr = GetModule()->GetCustomAttribute(GetMemberDef(),
+    HRESULT hr = GetCustomAttribute(
         WellKnownAttribute::NativeCallable,
-        NULL,
-        NULL);
-    if (hr == S_OK)
+        nullptr,
+        nullptr);
+    return (hr == S_OK) ? TRUE : FALSE;
+}
+
+//*******************************************************************************
+BOOL MethodDesc::ShouldSuppressGCTransition()
+{
+    CONTRACTL
     {
-        return TRUE;
+        NOTHROW;
+        GC_NOTRIGGER;
+        FORBID_FAULT;
+    }
+    CONTRACTL_END;
+
+    MethodDesc* tgt = nullptr;
+    if (IsNDirect())
+    {
+        tgt = this;
+    }
+    else if (IsILStub())
+    {
+        // From the IL stub, determine if the actual target has been
+        // marked to suppress the GC transition.
+        PTR_DynamicMethodDesc ilStubMD = AsDynamicMethodDesc();
+        PTR_ILStubResolver ilStubResolver = ilStubMD->GetILStubResolver();
+        tgt = ilStubResolver->GetStubTargetMethodDesc();
+
+        // In the event we can't get or don't have a target, there is no way
+        // to determine if we should suppress the GC transition.
+        if (tgt == nullptr)
+            return FALSE;
+    }
+    else
+    {
+        return FALSE;
     }
 
-    return FALSE;
+    _ASSERTE(tgt != nullptr);
+    HRESULT hr = tgt->GetCustomAttribute(
+        WellKnownAttribute::SuppressGCTransition,
+        nullptr,
+        nullptr);
+    return (hr == S_OK) ? TRUE : FALSE;
 }
 
 #ifdef FEATURE_COMINTEROP
@@ -5459,6 +5580,11 @@ MethodDesc::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
             pModule->GetPath();
         }
     }
+
+#ifdef FEATURE_CODE_VERSIONING
+    // Make sure the active IL and native code version are in triage dumps.
+    GetCodeVersionManager()->GetActiveILCodeVersion(dac_cast<PTR_MethodDesc>(this)).GetActiveNativeCodeVersion(dac_cast<PTR_MethodDesc>(this));
+#endif
 
     // Also, call DacValidateMD to dump the memory it needs. !clrstack calls 
     // DacValidateMD before it retrieves the method name. We don't expect 

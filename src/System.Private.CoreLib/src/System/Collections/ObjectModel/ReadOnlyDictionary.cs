@@ -38,29 +38,9 @@ namespace System.Collections.ObjectModel
 
         protected IDictionary<TKey, TValue> Dictionary => m_dictionary;
 
-        public KeyCollection Keys
-        {
-            get
-            {
-                if (m_keys == null)
-                {
-                    m_keys = new KeyCollection(m_dictionary.Keys);
-                }
-                return m_keys;
-            }
-        }
+        public KeyCollection Keys => m_keys ??= new KeyCollection(m_dictionary.Keys);
 
-        public ValueCollection Values
-        {
-            get
-            {
-                if (m_values == null)
-                {
-                    m_values = new ValueCollection(m_dictionary.Values);
-                }
-                return m_values;
-            }
-        }
+        public ValueCollection Values => m_values ??= new ValueCollection(m_dictionary.Values);
 
         #region IDictionary<TKey, TValue> Members
 
@@ -73,13 +53,7 @@ namespace System.Collections.ObjectModel
 
         ICollection<TValue> IDictionary<TKey, TValue>.Values => Values;
 
-        public TValue this[TKey key]
-        {
-            get
-            {
-                return m_dictionary[key];
-            }
-        }
+        public TValue this[TKey key] => m_dictionary[key];
 
         void IDictionary<TKey, TValue>.Add(TKey key, TValue value) =>
             ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_ReadOnlyCollection);
@@ -92,14 +66,8 @@ namespace System.Collections.ObjectModel
 
         TValue IDictionary<TKey, TValue>.this[TKey key]
         {
-            get
-            {
-                return m_dictionary[key];
-            }
-            set
-            {
-                ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_ReadOnlyCollection);
-            }
+            get => m_dictionary[key];
+            set => ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_ReadOnlyCollection);
         }
 
         #endregion
@@ -193,10 +161,7 @@ namespace System.Collections.ObjectModel
                 }
                 return null;
             }
-            set
-            {
-                ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_ReadOnlyCollection);
-            }
+            set => ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_ReadOnlyCollection);
         }
 
         void ICollection.CopyTo(Array array, int index)

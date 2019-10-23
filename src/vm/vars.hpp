@@ -57,11 +57,6 @@ typedef unsigned int     size_t;
 #endif
 
 
-#ifndef _WCHAR_T_DEFINED
-typedef unsigned short wchar_t;
-#define _WCHAR_T_DEFINED
-#endif
-
 #include "util.hpp"
 #include <corpriv.h>
 #include <cordbpriv.h>
@@ -396,8 +391,6 @@ GPTR_DECL(MethodTable,      g_pOverlappedDataClass);
 
 GPTR_DECL(MethodTable,      g_TypedReferenceMT);
 
-GPTR_DECL(MethodTable,      g_pByteArrayMT);
-
 #ifdef FEATURE_COMINTEROP
 GPTR_DECL(MethodTable,      g_pBaseCOMObject);
 GPTR_DECL(MethodTable,      g_pBaseRuntimeClass);
@@ -406,8 +399,6 @@ GPTR_DECL(MethodTable,      g_pBaseRuntimeClass);
 #ifdef FEATURE_ICASTABLE
 GPTR_DECL(MethodTable,      g_pICastableInterface);
 #endif // FEATURE_ICASTABLE
-
-GPTR_DECL(MethodDesc,       g_pExecuteBackoutCodeHelperMethod);
 
 GPTR_DECL(MethodDesc,       g_pObjectFinalizerMD);
 

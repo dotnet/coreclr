@@ -1,7 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="$([MSBuild]::GetPathOfFileAbove(dir.props))" />
-
   <!-- Generate rsp -->
   <Import Project="GenerateCompilerResponseFile.targets" />
 
@@ -303,13 +301,24 @@
     <Compile Include="$(BclSourcesRoot)\System\Char8.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Utf8Extensions.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Utf8String.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Utf8String.Comparison.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Utf8String.Construction.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Utf8String.Conversion.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Utf8String.Enumeration.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Utf8String.Manipulation.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Utf8String.Searching.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Utf8StringSplitOptions.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Text\Utf8Span.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Text\Utf8Span.Comparison.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Text\Utf8Span.Conversion.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Text\Utf8Span.Enumeration.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Text\Utf8Span.Manipulation.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Text\Utf8Span.Searching.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Text\Utf8StringComparer.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\XplatEventLogger.cs" Condition="'$(FeatureXplatEventSource)' == 'true'" />
-    <Compile Include="$(IntermediateOutputPath)../Eventing/NativeRuntimeEventSource.cs" Condition="'$(FeaturePerfTracing)' == 'true' AND '$(BuildingInsideVisualStudio)' != 'true' " />
+    <Compile Include="$(IntermediateOutputPath)../../../Eventing/$(BuildArch)/$(Configuration)/NativeRuntimeEventSource.cs" Condition="'$(FeaturePerfTracing)' == 'true' AND '$(BuildingInsideVisualStudio)' != 'true' " />
   </ItemGroup>
   <ItemGroup Condition="'$(FeatureCominterop)' == 'true'">
     <Compile Include="$(BclSourcesRoot)\Internal\Runtime\InteropServices\WindowsRuntime\ExceptionSupport.cs" />
@@ -406,9 +415,6 @@
     <Compile Include="$(CommonPath)\NotImplemented.cs" />
     <Compile Include="$(CommonPath)\System\SR.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="src\System\Runtime\RuntimeImports.cs" />
-  </ItemGroup>
   <Import Project="shared\System.Private.CoreLib.Shared.projitems" />
   <PropertyGroup>
     <CheckCDefines Condition="'$(CheckCDefines)'==''">true</CheckCDefines>
@@ -448,7 +454,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.FxCopAnalyzers" Version="2.9.4" PrivateAssets="all" />
-    <PackageReference Include="StyleCop.Analyzers" Version="1.1.118" PrivateAssets="all" />
+    <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.66" PrivateAssets="all" />
   </ItemGroup>
 
   <Import Project="CreateRuntimeRootILLinkDescriptorFile.targets" />
@@ -457,7 +463,7 @@
   </Target>
 
   <!-- This is working around dotnet/coreclr#26371 until dotnet/sourcelink#392 gets solved -->
-  <Target Name="AddUntrackedResourcesForSourceLink"
+  <Target Condition="'$(BuildingInsideVisualStudio)' != 'true'" Name="AddUntrackedResourcesForSourceLink"
     BeforeTargets="CoreCompile"
     DependsOnTargets="SetEmbeddedFilesFromSourceControlManagerUntrackedFiles;
                       _GenerateResxSource" >

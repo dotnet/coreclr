@@ -686,7 +686,6 @@ elseif(CLR_CMAKE_TARGET_ARCH_ARM)
         ${ARCH_SOURCES_DIR}/asmhelpers.asm
         ${ARCH_SOURCES_DIR}/CrtHelpers.asm
         ${ARCH_SOURCES_DIR}/ehhelpers.asm
-        ${ARCH_SOURCES_DIR}/memcpy.asm
         ${ARCH_SOURCES_DIR}/patchedcode.asm
         ${ARCH_SOURCES_DIR}/PInvokeStubs.asm
     )
@@ -740,7 +739,6 @@ else(WIN32)
             ${ARCH_SOURCES_DIR}/asmhelpers.S
             ${ARCH_SOURCES_DIR}/crthelpers.S
             ${ARCH_SOURCES_DIR}/ehhelpers.S
-            ${ARCH_SOURCES_DIR}/memcpy.S
             ${ARCH_SOURCES_DIR}/patchedcode.S
             ${ARCH_SOURCES_DIR}/pinvokestubs.S
         )
@@ -847,6 +845,10 @@ elseif(CLR_CMAKE_TARGET_ARCH_ARM64)
         exceptionhandling.h
     )
 
+    set(VM_SOURCES_WKS_ARCH
+        ${ARCH_SOURCES_DIR}/profiler.cpp
+    )
+
     if(CLR_CMAKE_PLATFORM_UNIX)
         list(APPEND VM_SOURCES_DAC_AND_WKS_ARCH
             ${ARCH_SOURCES_DIR}/arm64singlestepper.cpp
@@ -916,7 +918,11 @@ convert_to_absolute_path(VM_SOURCES_WKS ${VM_SOURCES_WKS})
 convert_to_absolute_path(VM_SOURCES_WKS_ARCH_ASM ${VM_SOURCES_WKS_ARCH_ASM})
 convert_to_absolute_path(VM_SOURCES_DAC ${VM_SOURCES_DAC})
 
-add_subdirectory(dac)
+add_library_clr(cee_dac ${VM_SOURCES_DAC})
+add_dependencies(cee_dac eventing_headers)
+set_target_properties(cee_dac PROPERTIES DAC_COMPONENT TRUE)
+target_precompile_header(TARGET cee_dac HEADER common.h)
+
 add_subdirectory(wks)
 
 if(FEATURE_PERFTRACING)

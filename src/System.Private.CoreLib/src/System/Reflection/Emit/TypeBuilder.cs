@@ -258,7 +258,7 @@ namespace System.Reflection.Emit
                 runtimeType2 = t2;
             }
 
-            // If the type builder view is eqaul then it is equal
+            // If the type builder view is equal then it is equal
             if (tb1 != null && tb2 != null && object.ReferenceEquals(tb1, tb2))
                 return true;
 
@@ -475,7 +475,6 @@ namespace System.Reflection.Emit
             if (fullname[0] == '\0')
                 throw new ArgumentException(SR.Argument_IllegalName, nameof(fullname));
 
-
             if (fullname.Length > 1023)
                 throw new ArgumentException(SR.Argument_TypeNameTooLong, nameof(fullname));
 
@@ -595,7 +594,7 @@ namespace System.Reflection.Emit
                 valueClassType.CreateType();
             }
 
-            fdBuilder = DefineField(name, valueClassType, (attributes | FieldAttributes.Static));
+            fdBuilder = DefineField(name, valueClassType, attributes | FieldAttributes.Static);
 
             // now we need to set the RVA
             fdBuilder.SetData(data, size);
@@ -697,9 +696,7 @@ namespace System.Reflection.Emit
 
         private void SetGenParamCustomAttributeNoLock(CustAttr ca)
         {
-            if (m_ca == null)
-                m_ca = new List<TypeBuilder.CustAttr>();
-
+            m_ca ??= new List<TypeBuilder.CustAttr>();
             m_ca.Add(ca);
         }
         #endregion
@@ -752,16 +749,7 @@ namespace System.Reflection.Emit
 
         public override RuntimeTypeHandle TypeHandle => throw new NotSupportedException(SR.NotSupported_DynamicModule);
 
-        public override string? FullName
-        {
-            get
-            {
-                if (m_strFullQualName == null)
-                    m_strFullQualName = TypeNameBuilder.ToString(this, TypeNameBuilder.Format.FullName);
-
-                return m_strFullQualName;
-            }
-        }
+        public override string? FullName => m_strFullQualName ??= TypeNameBuilder.ToString(this, TypeNameBuilder.Format.FullName);
 
         public override string? Namespace => m_strNameSpace;
 
@@ -959,7 +947,7 @@ namespace System.Reflection.Emit
             if (fromTypeBuilder.IsSubclassOf(this))
                 return true;
 
-            if (this.IsInterface == false)
+            if (!this.IsInterface)
                 return false;
 
             // now is This type a base type on one of the interface impl?
@@ -1147,7 +1135,6 @@ namespace System.Reflection.Emit
             }
         }
 
-
         public GenericTypeParameterBuilder[] DefineGenericParameters(params string[] names)
         {
             if (names == null)
@@ -1169,7 +1156,6 @@ namespace System.Reflection.Emit
 
             return m_inst;
         }
-
 
         public override Type MakeGenericType(params Type[] typeArguments)
         {
@@ -1390,8 +1376,7 @@ namespace System.Reflection.Emit
 
                 // The signature grabbing code has to be up here or the signature won't be finished
                 // and our equals check won't work.
-                int sigLength;
-                byte[] sigBytes = method.GetMethodSignature().InternalGetSignature(out sigLength);
+                _ = method.GetMethodSignature().InternalGetSignature(out _);
 
                 if (m_listMethods.Contains(method))
                 {
@@ -1463,7 +1448,7 @@ namespace System.Reflection.Emit
             ThrowIfCreated();
 
             // change the attributes and the class constructor's name
-            MethodAttributes attr = MethodAttributes.Private | MethodAttributes.Static | MethodAttributes.SpecialName;
+            const MethodAttributes attr = MethodAttributes.Private | MethodAttributes.Static | MethodAttributes.SpecialName;
 
             ConstructorBuilder constBuilder = new ConstructorBuilder(
                 ConstructorInfo.TypeConstructorName, attr, CallingConventions.Standard, null, m_module, this);
@@ -1680,7 +1665,7 @@ namespace System.Reflection.Emit
             CheckContext(type);
             CheckContext(requiredCustomModifiers);
 
-            if (m_enumUnderlyingType == null && IsEnum == true)
+            if (m_enumUnderlyingType == null && IsEnum)
             {
                 if ((attributes & FieldAttributes.Static) == 0)
                 {
@@ -1741,7 +1726,6 @@ namespace System.Reflection.Emit
         {
             return DefineProperty(name, attributes, callingConvention, returnType, null, null, parameterTypes, null, null);
         }
-
 
         public PropertyBuilder DefineProperty(string name, PropertyAttributes attributes,
             Type returnType, Type[]? returnTypeRequiredCustomModifiers, Type[]? returnTypeOptionalCustomModifiers,
@@ -1892,8 +1876,7 @@ namespace System.Reflection.Emit
             if (IsCreated())
                 return m_bakedRuntimeType;
 
-            if (m_typeInterfaces == null)
-                m_typeInterfaces = new List<Type>();
+            m_typeInterfaces ??= new List<Type>();
 
             int[] interfaceTokens = new int[m_typeInterfaces.Count];
             for (int i = 0; i < m_typeInterfaces.Count; i++)
@@ -2133,7 +2116,6 @@ namespace System.Reflection.Emit
                 return m_tdType;
             }
         }
-
 
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
         {

@@ -381,7 +381,7 @@ namespace System
                     Debug.Assert((resultIndex == largeLength) && (largeLength < MaxBlockCount));
 
                     result._blocks[resultIndex] = 1;
-                    result._length += 1;
+                    result._length++;
                 }
             }
 
@@ -526,7 +526,7 @@ namespace System
                     if (shiftLeft > 0)
                     {
                         divHi = (divHi << shiftLeft) | (divLo >> shiftRight);
-                        divLo = (divLo << shiftLeft);
+                        divLo <<= shiftLeft;
 
                         if (rhsLength > 2)
                         {
@@ -548,7 +548,7 @@ namespace System
                         if (shiftLeft > 0)
                         {
                             valHi = (valHi << shiftLeft) | (valLo >> shiftRight);
-                            valLo = (valLo << shiftLeft);
+                            valLo <<= shiftLeft;
 
                             if (i > 2)
                             {
@@ -775,7 +775,7 @@ namespace System
                 Debug.Assert(unchecked((uint)(maxResultLength)) <= MaxBlockCount);
 
                 // Zero out result internal blocks.
-                Buffer.ZeroMemory((byte*)(result.GetBlocksPointer()), (uint)maxResultLength * sizeof(uint));
+                Buffer.ZeroMemory((byte*)result.GetBlocksPointer(), (uint)maxResultLength * sizeof(uint));
 
                 int smallIndex = 0;
                 int resultStartIndex = 0;
@@ -915,7 +915,7 @@ namespace System
                 {
                     ref uint lhsValue = ref lhs._blocks[lhsStartIndex + i];
 
-                    ulong digit = (lhsValue + carry) + rhs._blocks[i];
+                    ulong digit = lhsValue + carry + rhs._blocks[i];
                     lhsValue = unchecked((uint)digit);
                     carry = digit >> 32;
                 }
@@ -953,12 +953,12 @@ namespace System
                 return false;
             }
 
-            private static unsafe uint SubtractDivisor(ref BigInteger lhs, int lhsStartIndex, ref BigInteger rhs, ulong q)
+            private static uint SubtractDivisor(ref BigInteger lhs, int lhsStartIndex, ref BigInteger rhs, ulong q)
             {
                 int lhsLength = lhs._length - lhsStartIndex;
                 int rhsLength = rhs._length;
 
-                Debug.Assert((lhsLength) >= 0);
+                Debug.Assert(lhsLength >= 0);
                 Debug.Assert(rhsLength >= 0);
                 Debug.Assert(lhsLength >= rhsLength);
                 Debug.Assert(q <= uint.MaxValue);
@@ -1078,8 +1078,8 @@ namespace System
                 if (carry != 0)
                 {
                     Debug.Assert(unchecked((uint)(_length)) + 1 <= MaxBlockCount);
-                    _blocks[index] = (uint)(carry);
-                    _length += 1;
+                    _blocks[index] = (uint)carry;
+                    _length++;
                 }
             }
 
@@ -1133,7 +1133,7 @@ namespace System
             public void SetValue(ref BigInteger rhs)
             {
                 int rhsLength = rhs._length;
-                Buffer.Memcpy((byte*)(GetBlocksPointer()), (byte*)(rhs.GetBlocksPointer()), (rhsLength * sizeof(uint)));
+                Buffer.Memcpy((byte*)GetBlocksPointer(), (byte*)rhs.GetBlocksPointer(), rhsLength * sizeof(uint));
                 _length = rhsLength;
             }
 
@@ -1173,7 +1173,7 @@ namespace System
                     _length += (int)(blocksToShift);
 
                     // Zero the remaining low blocks
-                    Buffer.ZeroMemory((byte*)(GetBlocksPointer()), (blocksToShift * sizeof(uint)));
+                    Buffer.ZeroMemory((byte*)GetBlocksPointer(), blocksToShift * sizeof(uint));
                 }
                 else
                 {
@@ -1206,7 +1206,7 @@ namespace System
                     _blocks[writeIndex - 1] = block << (int)(remainingBitsToShift);
 
                     // Zero the remaining low blocks
-                    Buffer.ZeroMemory((byte*)(GetBlocksPointer()), (blocksToShift * sizeof(uint)));
+                    Buffer.ZeroMemory((byte*)GetBlocksPointer(), blocksToShift * sizeof(uint));
 
                     // Check if the terminating block has no set bits
                     if (_blocks[_length - 1] == 0)

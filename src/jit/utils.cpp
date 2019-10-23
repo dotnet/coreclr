@@ -732,7 +732,7 @@ bool ConfigMethodRange::Contains(ICorJitInfo* info, CORINFO_METHOD_HANDLE method
 //    because of bad characters or too many entries, or had values
 //    that were too large to represent.
 
-void ConfigMethodRange::InitRanges(const wchar_t* rangeStr, unsigned capacity)
+void ConfigMethodRange::InitRanges(const WCHAR* rangeStr, unsigned capacity)
 {
     // Make sure that the memory was zero initialized
     assert(m_inited == 0 || m_inited == 1);
@@ -754,9 +754,9 @@ void ConfigMethodRange::InitRanges(const wchar_t* rangeStr, unsigned capacity)
     m_ranges             = (Range*)jitHost->allocateMemory(capacity * sizeof(Range));
     m_entries            = capacity;
 
-    const wchar_t* p           = rangeStr;
-    unsigned       lastRange   = 0;
-    bool           setHighPart = false;
+    const WCHAR* p           = rangeStr;
+    unsigned     lastRange   = 0;
+    bool         setHighPart = false;
 
     while ((*p != 0) && (lastRange < m_entries))
     {
@@ -1476,7 +1476,7 @@ void HelperCallProperties::init()
 //
 // You must use ';' as a separator; whitespace no longer works
 
-AssemblyNamesList2::AssemblyNamesList2(const wchar_t* list, HostAllocator alloc) : m_alloc(alloc)
+AssemblyNamesList2::AssemblyNamesList2(const WCHAR* list, HostAllocator alloc) : m_alloc(alloc)
 {
     WCHAR          prevChar   = '?';     // dummy
     LPWSTR         nameStart  = nullptr; // start of the name currently being processed. nullptr if no current name
@@ -1563,7 +1563,7 @@ bool AssemblyNamesList2::IsInList(const char* assemblyName)
 // MethodSet
 //=============================================================================
 
-MethodSet::MethodSet(const wchar_t* filename, HostAllocator alloc) : m_pInfos(nullptr), m_alloc(alloc)
+MethodSet::MethodSet(const WCHAR* filename, HostAllocator alloc) : m_pInfos(nullptr), m_alloc(alloc)
 {
     FILE* methodSetFile = _wfopen(filename, W("r"));
     if (methodSetFile == nullptr)
@@ -2036,6 +2036,68 @@ float FloatingPointUtils::round(float x)
     }
 
     return *reinterpret_cast<float*>(&bits);
+}
+
+bool FloatingPointUtils::isNormal(double x)
+{
+    int64_t bits = reinterpret_cast<int64_t&>(x);
+    bits &= 0x7FFFFFFFFFFFFFFF;
+    return (bits < 0x7FF0000000000000) && (bits != 0) && ((bits & 0x7FF0000000000000) != 0);
+}
+
+bool FloatingPointUtils::isNormal(float x)
+{
+    int32_t bits = reinterpret_cast<int32_t&>(x);
+    bits &= 0x7FFFFFFF;
+    return (bits < 0x7F800000) && (bits != 0) && ((bits & 0x7F800000) != 0);
+}
+
+//------------------------------------------------------------------------
+// hasPreciseReciprocal: check double for precise reciprocal. E.g. 2.0 <--> 0.5
+//
+// Arguments:
+//    x - value to check for precise reciprocal
+//
+// Return Value:
+//    True if 'x' is a power of two value and is not denormal (denormals may not be well-defined
+//    on some platforms such as if the user modified the floating-point environment via a P/Invoke)
+//
+
+bool FloatingPointUtils::hasPreciseReciprocal(double x)
+{
+    if (!isNormal(x))
+    {
+        return false;
+    }
+
+    uint64_t i        = reinterpret_cast<uint64_t&>(x);
+    uint64_t exponent = (i >> 52) & 0x7FFul;   // 0x7FF mask drops the sign bit
+    uint64_t mantissa = i & 0xFFFFFFFFFFFFFul; // 0xFFFFFFFFFFFFF mask drops the sign + exponent bits
+    return mantissa == 0 && exponent != 0 && exponent != 1023;
+}
+
+//------------------------------------------------------------------------
+// hasPreciseReciprocal: check float for precise reciprocal. E.g. 2.0f <--> 0.5f
+//
+// Arguments:
+//    x - value to check for precise reciprocal
+//
+// Return Value:
+//    True if 'x' is a power of two value and is not denormal (denormals may not be well-defined
+//    on some platforms such as if the user modified the floating-point environment via a P/Invoke)
+//
+
+bool FloatingPointUtils::hasPreciseReciprocal(float x)
+{
+    if (!isNormal(x))
+    {
+        return false;
+    }
+
+    uint32_t i        = reinterpret_cast<uint32_t&>(x);
+    uint32_t exponent = (i >> 23) & 0xFFu; // 0xFF mask drops the sign bit
+    uint32_t mantissa = i & 0x7FFFFFu;     // 0x7FFFFF mask drops the sign + exponent bits
+    return mantissa == 0 && exponent != 0 && exponent != 127;
 }
 
 namespace MagicDivide

@@ -31,14 +31,7 @@ Abstract:
 #include "config.h"
 #endif
 
-#if HAVE_COREFOUNDATION
-#define CF_EXCLUDE_CSTD_HEADERS
-#include <CoreFoundation/CoreFoundation.h>
 #include <wctype.h>
-#else
-#include <wctype.h>
-#endif
-
 #include <errno.h>
 #include <algorithm>
 
@@ -645,7 +638,7 @@ PAL_wcschr(
     {
         if (*string == c)
         {
-            LOGEXIT("wcschr returning wchar_t %p (%S)\n", string?string:W16_NULLSTRING, string?string:W16_NULLSTRING);
+            LOGEXIT("wcschr returning wchar_t %p (%S)\n", string, string);
             PERF_EXIT(wcschr);
             return (wchar_16 *) string;
         }
@@ -716,7 +709,7 @@ PAL_wcspbrk(
     {
         if (PAL_wcschr(strCharSet, *string) != NULL)
         {
-            LOGEXIT("wcspbrk returning wchar_t %p (%S)\n", string?string:W16_NULLSTRING, string?string:W16_NULLSTRING);
+            LOGEXIT("wcspbrk returning wchar_t %p (%S)\n", string, string);
             PERF_EXIT(wcspbrk);
             return (wchar_16 *) string;
         }

@@ -42,7 +42,7 @@ namespace System.Reflection.Emit
         private Type m_type;
         private Type[] m_inst;
         private string? m_strFullQualName;
-        internal Hashtable m_hashtable = new Hashtable();
+        internal Hashtable m_hashtable;
 
         #endregion
 
@@ -100,15 +100,7 @@ namespace System.Reflection.Emit
         public override object InvokeMember(string name, BindingFlags invokeAttr, Binder? binder, object? target, object?[]? args, ParameterModifier[]? modifiers, CultureInfo? culture, string[]? namedParameters) { throw new NotSupportedException(); }
         public override Assembly Assembly => m_type.Assembly;
         public override RuntimeTypeHandle TypeHandle => throw new NotSupportedException();
-        public override string? FullName
-        {
-            get
-            {
-                if (m_strFullQualName == null)
-                    m_strFullQualName = TypeNameBuilder.ToString(this, TypeNameBuilder.Format.FullName);
-                return m_strFullQualName;
-            }
-        }
+        public override string? FullName => m_strFullQualName ??= TypeNameBuilder.ToString(this, TypeNameBuilder.Format.FullName);
         public override string? Namespace => m_type.Namespace;
         public override string? AssemblyQualifiedName => TypeNameBuilder.ToString(this, TypeNameBuilder.Format.AssemblyQualifiedName);
         private Type Substitute(Type[] substitutes)

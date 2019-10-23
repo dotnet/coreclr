@@ -198,11 +198,6 @@ CORJIT_FLAGS ZapInfo::ComputeJitFlags(CORINFO_METHOD_HANDLE handle)
         jitFlags.Clear(CORJIT_FLAGS::CORJIT_FLAG_PROCSPLIT);
     }
 
-    // Rejit is now enabled by default for NGEN'ed code. This costs us
-    // some size in exchange for diagnostic functionality, but we've got
-    // further work planned that should mitigate the size increase.
-    jitFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_PROF_REJIT_NOPS);
-
 #ifdef FEATURE_READYTORUN_COMPILER
     if (IsReadyToRunCompilation())
     {
@@ -341,6 +336,7 @@ void ZapInfo::ProcessReferences()
         case ZapNodeType_Import_MethodHandle:
         case ZapNodeType_Import_FunctionEntry:
         case ZapNodeType_Import_IndirectPInvokeTarget:
+        case ZapNodeType_Import_PInvokeTarget:
             hMethod = (CORINFO_METHOD_HANDLE)(((ZapImport *)pTarget)->GetHandle());
             fMaybeConditionalImport = true;
             break;
@@ -445,7 +441,9 @@ void ZapInfo::CompileMethod()
     // Retrieve method attributes from EEJitInfo - the ZapInfo's version updates
     // some of the flags related to hardware intrinsics but we don't want that.
     DWORD methodAttribs = m_pEEJitInfo->getMethodAttribs(m_currentMethodHandle);
-    if (methodAttribs & CORINFO_FLG_AGGRESSIVE_OPT)
+
+#ifdef FEATURE_READYTORUN_COMPILER
+    if (IsReadyToRunCompilation() && (methodAttribs & CORINFO_FLG_AGGRESSIVE_OPT))
     {
         // Skip methods marked with MethodImplOptions.AggressiveOptimization, they will be jitted instead. In the future,
         // consider letting the JIT determine whether aggressively optimized code can/should be pregenerated for the method
@@ -454,6 +452,7 @@ void ZapInfo::CompileMethod()
             m_zapper->Info(W("Skipped because of aggressive optimization flag\n"));
         return;
     }
+#endif
 
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
     if (methodAttribs & CORINFO_FLG_JIT_INTRINSIC)
@@ -1443,8 +1442,13 @@ LONG * ZapInfo::getAddrOfCaptureThreadGlobal(void **ppIndirection)
 {
     _ASSERTE(ppIndirection != NULL);
 
-    *ppIndirection = (LONG *) m_pImage->GetInnerPtr(m_pImage->m_pEEInfoTable,
-        offsetof(CORCOMPILE_EE_INFO_TABLE, addrOfCaptureThreadGlobal));
+    *ppIndirection = NULL;
+    if (!IsReadyToRunCompilation())
+    {
+        *ppIndirection = (LONG*)m_pImage->GetInnerPtr(m_pImage->m_pEEInfoTable,
+            offsetof(CORCOMPILE_EE_INFO_TABLE, addrOfCaptureThreadGlobal));
+    }
+
     return NULL;
 }
 
@@ -2017,6 +2021,7 @@ void * ZapInfo::getPInvokeUnmanagedTarget(CORINFO_METHOD_HANDLE method, void **p
 void * ZapInfo::getAddressOfPInvokeFixup(CORINFO_METHOD_HANDLE method,void **ppIndirection)
 {
     _ASSERTE(ppIndirection != NULL);
+    *ppIndirection = NULL;
 
     m_pImage->m_pPreloader->AddMethodToTransitiveClosureOfInstantiations(method);
 
@@ -2026,23 +2031,35 @@ void * ZapInfo::getAddressOfPInvokeFixup(CORINFO_METHOD_HANDLE method,void **ppI
         if (moduleHandle == m_pImage->m_hModule
             && m_pImage->m_pPreloader->CanEmbedMethodHandle(method, m_currentMethodHandle))
         {
-            *ppIndirection = NULL;
             return PVOID(m_pImage->GetWrappers()->GetAddrOfPInvokeFixup(method));
         }
     }
 
     //
-    // Note we could a fixup to a direct call site, rather than to
-    // the indirection.  This would saves us an extra indirection, but changes the
-    // semantics slightly (so that the pinvoke will be bound when the calling
-    // method is first run, not at the exact moment of the first pinvoke.)
+    // The indirect P/Invoke target enables the traditional semantics of
+    // resolving the P/Invoke target at the callsite. Providing a non-indirect
+    // fixup indicates the P/Invoke target will be resolved when the enclosing
+    // function is compiled. This subtle semantic difference is chosen for
+    // scenarios when resolution of the target must occur under a specific GC mode.
     //
 
-    ZapImport * pImport = m_pImage->GetImportTable()->GetIndirectPInvokeTargetImport(method);
+    void *fixup = NULL;
+    ZapImport *pImport = NULL;
+    if (m_pImage->m_pPreloader->ShouldSuppressGCTransition(method))
+    {
+        pImport = m_pImage->GetImportTable()->GetPInvokeTargetImport(method);
+        fixup = pImport;
+    }
+    else
+    {
+        pImport = m_pImage->GetImportTable()->GetIndirectPInvokeTargetImport(method);
+        *ppIndirection = pImport;
+    }
+
+    _ASSERTE(pImport != NULL);
     AppendConditionalImport(pImport);
 
-    *ppIndirection = pImport;
-    return NULL;
+    return fixup;
 }
 
 void ZapInfo::getAddressOfPInvokeTarget(CORINFO_METHOD_HANDLE method, CORINFO_CONST_LOOKUP *pLookup)
@@ -2058,6 +2075,7 @@ void ZapInfo::getAddressOfPInvokeTarget(CORINFO_METHOD_HANDLE method, CORINFO_CO
         return;
     }
 
+    _ASSERTE(pIndirection != NULL);
     pLookup->accessType = IAT_PPVALUE;
     pLookup->addr = pIndirection;
 }

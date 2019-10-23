@@ -115,7 +115,7 @@ namespace System.Diagnostics.Tracing
                 new EventPipeProviderConfiguration(NativeRuntimeEventSource.EventSourceName, (ulong)aggregatedKeywords, (uint)highestLevel, null)
             };
 
-            m_sessionID = EventPipeInternal.Enable(null, EventPipeSerializationFormat.NetTrace, DefaultEventListenerCircularMBSize, providerConfiguration, 1);
+            m_sessionID = EventPipeInternal.Enable(null, EventPipeSerializationFormat.NetTrace, DefaultEventListenerCircularMBSize, providerConfiguration);
             Debug.Assert(m_sessionID != 0);
 
             // Get the session information that is required to properly dispatch events.
@@ -124,7 +124,7 @@ namespace System.Diagnostics.Tracing
             {
                 if (!EventPipeInternal.GetSessionInfo(m_sessionID, &sessionInfo))
                 {
-                    Debug.Assert(false, "GetSessionInfo returned false.");
+                    Debug.Fail("GetSessionInfo returned false.");
                 }
             }
 

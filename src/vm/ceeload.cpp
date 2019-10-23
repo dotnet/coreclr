@@ -589,7 +589,17 @@ void Module::Initialize(AllocMemTracker *pamTracker, LPCWSTR szName)
 
 #ifdef FEATURE_READYTORUN
     if (!HasNativeImage() && !IsResource())
-        m_pReadyToRunInfo = ReadyToRunInfo::Initialize(this, pamTracker);
+    {
+        if ((m_pReadyToRunInfo = ReadyToRunInfo::Initialize(this, pamTracker)) != NULL)
+        {
+            COUNT_T cMeta = 0;
+            if (GetFile()->GetOpenedILimage()->GetNativeManifestMetadata(&cMeta) != NULL)
+            {
+                // Load the native assembly import
+                GetNativeAssemblyImport(TRUE /* loadAllowed */);
+            }
+        }
+    }
 #endif
 
     // Initialize the instance fields that we need for all non-Resource Modules
@@ -12845,6 +12855,16 @@ idMethodSpec Module::LogInstantiatedMethod(const MethodDesc * md, ULONG flagNum)
     if (m_nativeImageProfiling)
     {
         CONTRACT_VIOLATION(ThrowsViolation|FaultViolation|GCViolation);
+
+        if (!m_tokenProfileData) 
+        { 
+            CreateProfilingData(); 
+        } 
+
+        if (!m_tokenProfileData) 
+        { 
+            return idMethodSpecNil; 
+        } 
 
         // get data
         SigBuilder sigBuilder;

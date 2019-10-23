@@ -173,16 +173,7 @@ namespace System.Reflection
 
         #region MemberInfo Overrides
         public override MemberTypes MemberType => MemberTypes.Property;
-        public override string Name
-        {
-            get
-            {
-                if (m_name == null)
-                    m_name = new MdUtf8String(m_utf8name).ToString();
-
-                return m_name;
-            }
-        }
+        public override string Name => m_name ??= new MdUtf8String(m_utf8name).ToString();
         public override Type? DeclaringType => m_declaringType;
 
         public sealed override bool HasSameMetadataDefinitionAs(MemberInfo other) => HasSameMetadataDefinitionAsCore<RuntimePropertyInfo>(other);
@@ -241,7 +232,7 @@ namespace System.Reflection
             {
                 for (int i = 0; i < m_otherMethod.Length; i++)
                 {
-                    if (Associates.IncludeAccessor(m_otherMethod[i] as MethodInfo, nonPublic))
+                    if (Associates.IncludeAccessor(m_otherMethod[i], nonPublic))
                         accessorList.Add(m_otherMethod[i]);
                 }
             }

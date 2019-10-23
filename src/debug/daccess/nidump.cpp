@@ -2194,6 +2194,10 @@ DataToTokenCore:
         buf.Append( W("Indirect P/Invoke target for ") );
         break;
 
+    case ENCODE_PINVOKE_TARGET:
+        buf.Append( W("P/Invoke target for ") );
+        break;
+
     case ENCODE_PROFILING_HANDLE:
         buf.Append( W("Profiling handle for ") );
         goto EncodeMethod;
@@ -2838,16 +2842,11 @@ IMetaDataImport2 * NativeImageDumper::TypeToString(PTR_CCOR_SIGNATURE &sig,
                 {   
                     if (sizes[i] != 0 && lowerBounds[i] != 0)   
                     {   
-                        if (lowerBounds[i] == 0)    
-                            buf.AppendPrintf( W("%s"), sizes[i] );
-                        else    
-                        {   
-                            buf.AppendPrintf( W("%d ..."), lowerBounds[i] );
-                            if (sizes[i] != 0)  
-                                buf.AppendPrintf( W("%d"),
-                                                  lowerBounds[i] + sizes[i]
-                                                  + 1 );
-                        }   
+                        buf.AppendPrintf( W("%d ..."), lowerBounds[i] );
+                        if (sizes[i] != 0)  
+                            buf.AppendPrintf( W("%d"),
+                                              lowerBounds[i] + sizes[i]
+                                              + 1 );
                     }   
                     if (i < rank-1) 
                         buf.Append( W(",") );

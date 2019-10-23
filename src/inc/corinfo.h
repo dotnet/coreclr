@@ -217,11 +217,11 @@ TODO: Talk about initializing strutures before use
 #endif
 #endif
 
-SELECTANY const GUID JITEEVersionIdentifier = { /* e2ae5b32-a9ab-426e-bc2a-ae1a883e0367 */
-    0xe2ae5b32,
-    0xa9ab,
-    0x426e,
-    {0xbc, 0x2a, 0xae, 0x1a, 0x88, 0x3e, 0x03, 0x67}
+SELECTANY const GUID JITEEVersionIdentifier = { /* 1ce51eeb-dfd0-4450-ba2c-ea0d2d863df5 */
+    0x1ce51eeb,
+    0xdfd0,
+    0x4450,
+    {0xba, 0x2c, 0xea, 0x0d, 0x2d, 0x86, 0x3d, 0xf5}
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -660,6 +660,8 @@ enum CorInfoHelpFunc
 
     CORINFO_HELP_GVMLOOKUP_FOR_SLOT,        // Resolve a generic virtual method target from this pointer and runtime method handle 
 
+    CORINFO_HELP_STACK_PROBE,               // Probes each page of the allocated stack frame
+
     CORINFO_HELP_COUNT,
 };
 
@@ -834,6 +836,7 @@ enum CorInfoFlag
     CORINFO_FLG_AGGRESSIVE_OPT        = 0x01000000, // The method may contain hot code and should be aggressively optimized if possible
     CORINFO_FLG_DISABLE_TIER0_FOR_LOOPS = 0x02000000, // Indicates that tier 0 JIT should not be used for a method that contains a loop
     CORINFO_FLG_NOSECURITYWRAP        = 0x04000000, // The method requires no security checks
+//  CORINFO_FLG_UNUSED                = 0x08000000,
     CORINFO_FLG_DONT_INLINE           = 0x10000000, // The method should not be inlined
     CORINFO_FLG_DONT_INLINE_CALLER    = 0x20000000, // The method should not be inlined, nor should its callers. It cannot be tail called.
     CORINFO_FLG_JIT_INTRINSIC         = 0x40000000, // Method is a potential jit intrinsic; verify identity by name check
@@ -1186,8 +1189,9 @@ enum CorInfoContextFlags
 
 enum CorInfoSigInfoFlags
 {
-    CORINFO_SIGFLAG_IS_LOCAL_SIG = 0x01,
-    CORINFO_SIGFLAG_IL_STUB      = 0x02,
+    CORINFO_SIGFLAG_IS_LOCAL_SIG           = 0x01,
+    CORINFO_SIGFLAG_IL_STUB                = 0x02,
+    CORINFO_SIGFLAG_SUPPRESS_GC_TRANSITION = 0x04,
 };
 
 struct CORINFO_SIG_INST
@@ -1876,7 +1880,7 @@ struct CORINFO_Object
 struct CORINFO_String : public CORINFO_Object
 {
     unsigned                stringLen;
-    wchar_t                 chars[1];       // actually of variable size
+    WCHAR                   chars[1];       // actually of variable size
 };
 
 struct CORINFO_Array : public CORINFO_Object

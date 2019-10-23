@@ -522,7 +522,6 @@ namespace System.Reflection.Emit
             if (!(opcode.Equals(OpCodes.Call) || opcode.Equals(OpCodes.Callvirt) || opcode.Equals(OpCodes.Newobj)))
                 throw new ArgumentException(SR.Argument_NotMethodCallOpcode, nameof(opcode));
 
-
             int stackchange = 0;
             int tk = GetMethodToken(methodInfo, optionalParameterTypes, false);
 
@@ -539,7 +538,7 @@ namespace System.Reflection.Emit
 
             // Pop the this parameter if the method is non-static and the
             // instruction is not newobj.
-            if (!(methodInfo is SymbolMethod) && methodInfo.IsStatic == false && !(opcode.Equals(OpCodes.Newobj)))
+            if (!(methodInfo is SymbolMethod) && !methodInfo.IsStatic && !opcode.Equals(OpCodes.Newobj))
                 stackchange--;
             // Pop the optional parameters off the stack.
             if (optionalParameterTypes != null)
@@ -688,7 +687,6 @@ namespace System.Reflection.Emit
             // correct offset to branch during the fixup process.
 
             EnsureCapacity(7);
-
 
             InternalEmit(opcode);
             if (OpCodes.TakesSingleByteArgument(opcode))
@@ -851,15 +849,8 @@ namespace System.Reflection.Emit
             // EndExceptionBlock
 
             // Delay init
-            if (m_exceptions == null)
-            {
-                m_exceptions = new __ExceptionInfo[DefaultExceptionArraySize];
-            }
-
-            if (m_currExcStack == null)
-            {
-                m_currExcStack = new __ExceptionInfo[DefaultExceptionArraySize];
-            }
+            m_exceptions ??= new __ExceptionInfo[DefaultExceptionArraySize];
+            m_currExcStack ??= new __ExceptionInfo[DefaultExceptionArraySize];
 
             if (m_exceptionCount >= m_exceptions.Length)
             {
@@ -1003,7 +994,6 @@ namespace System.Reflection.Emit
 
             MarkLabel(endLabel);
 
-
             Label finallyEndLabel = DefineLabel();
             current.SetFinallyEndLabel(finallyEndLabel);
 
@@ -1024,10 +1014,7 @@ namespace System.Reflection.Emit
             // Mark Label.
 
             // Delay init the lable array in case we dont use it
-            if (m_labelList == null)
-            {
-                m_labelList = new int[DefaultLabelArraySize];
-            }
+            m_labelList ??= new int[DefaultLabelArraySize];
 
             if (m_labelCount >= m_labelList.Length)
             {
@@ -1508,7 +1495,6 @@ namespace System.Reflection.Emit
         }
     }
 
-
     /// <summary>
     /// Scope Tree is a class that track the scope structure within a method body
     /// It keeps track two parallel array. m_ScopeAction keeps track the action. It can be
@@ -1560,21 +1546,14 @@ namespace System.Reflection.Emit
             int endOffset)
         {
             int i = GetCurrentActiveScopeIndex();
-            if (m_localSymInfos[i] == null)
-            {
-                m_localSymInfos[i] = new LocalSymInfo();
-            }
+            m_localSymInfos[i] ??= new LocalSymInfo();
             m_localSymInfos[i]!.AddLocalSymInfo(strName, signature, slot, startOffset, endOffset); // TODO-NULLABLE: Indexer nullability tracked (https://github.com/dotnet/roslyn/issues/34644)
         }
 
-        internal void AddUsingNamespaceToCurrentScope(
-            string strNamespace)
+        internal void AddUsingNamespaceToCurrentScope(string strNamespace)
         {
             int i = GetCurrentActiveScopeIndex();
-            if (m_localSymInfos[i] == null)
-            {
-                m_localSymInfos[i] = new LocalSymInfo();
-            }
+            m_localSymInfos[i] ??= new LocalSymInfo();
             m_localSymInfos[i]!.AddUsingNamespace(strNamespace); // TODO-NULLABLE: Indexer nullability tracked (https://github.com/dotnet/roslyn/issues/34644)
         }
 
@@ -1587,7 +1566,6 @@ namespace System.Reflection.Emit
 
             // make sure that arrays are large enough to hold addition info
             EnsureCapacity();
-
 
             m_ScopeActions[m_iCount] = sa;
             m_iOffsets[m_iCount] = iOffset;
@@ -1654,7 +1632,6 @@ namespace System.Reflection.Emit
         internal const int InitialSize = 16;
         internal LocalSymInfo?[] m_localSymInfos = null!;            // keep track debugging local information
     }
-
 
     /// <summary>
     /// This class tracks the line number info
@@ -1739,7 +1716,6 @@ namespace System.Reflection.Emit
         private const int InitialSize = 16;
         private int m_iLastFound;
     }
-
 
     /// <summary>
     /// This class tracks the line number info

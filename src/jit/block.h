@@ -41,7 +41,7 @@ typedef BitVec          ASSERT_TP;
 typedef BitVec_ValArg_T ASSERT_VALARG_TP;
 typedef BitVec_ValRet_T ASSERT_VALRET_TP;
 
-// We use the following format when print the BasicBlock number: bbNum
+// We use the following format when printing the BasicBlock number: bbNum
 // This define is used with string concatenation to put this in printf format strings  (Note that %u means unsigned int)
 #define FMT_BB "BB%02u"
 
@@ -73,7 +73,7 @@ enum BBjumpKinds : BYTE
 // clang-format on
 
 struct GenTree;
-struct GenTreeStmt;
+struct Statement;
 struct BasicBlock;
 class Compiler;
 class typeInfo;
@@ -95,8 +95,8 @@ struct EHblkDsc;
  */
 struct BBswtDesc
 {
-    unsigned     bbsCount;  // count of cases (includes 'default' if bbsHasDefault)
     BasicBlock** bbsDstTab; // case label table address
+    unsigned     bbsCount;  // count of cases (includes 'default' if bbsHasDefault)
     bool         bbsHasDefault;
 
     BBswtDesc() : bbsHasDefault(true)
@@ -743,16 +743,14 @@ struct BasicBlock : private LIR::Range
         return bbRefs;
     }
 
-    __declspec(property(get = getBBTreeList, put = setBBTreeList)) GenTree* bbTreeList; // the body of the block.
+    Statement* bbStmtList;
 
-    GenTreeStmt* bbStmtList;
-
-    GenTree* getBBTreeList() const
+    GenTree* GetFirstLIRNode() const
     {
         return m_firstNode;
     }
 
-    void setBBTreeList(GenTree* tree)
+    void SetFirstLIRNode(GenTree* tree)
     {
         m_firstNode = tree;
     }
@@ -1037,8 +1035,6 @@ struct BasicBlock : private LIR::Range
     unsigned        bbTgtStkDepth; // Native stack depth on entry (for throw-blocks)
     static unsigned s_nMaxTrees;   // The max # of tree nodes in any BB
 
-    unsigned bbStmtNum; // The statement number of the first stmt in this block
-
     // This is used in integrity checks.  We semi-randomly pick a traversal stamp, label all blocks
     // in the BB list with that stamp (in this field); then we can tell if (e.g.) predecessors are
     // still in the BB list by whether they have the same stamp (with high probability).
@@ -1060,8 +1056,13 @@ struct BasicBlock : private LIR::Range
         return bbNum - 1;
     }
 
-    GenTreeStmt* firstStmt() const;
-    GenTreeStmt* lastStmt() const;
+    Statement* firstStmt() const;
+    Statement* lastStmt() const;
+
+    StatementList Statements() const
+    {
+        return StatementList(firstStmt());
+    }
 
     GenTree* firstNode();
     GenTree* lastNode();
@@ -1079,8 +1080,8 @@ struct BasicBlock : private LIR::Range
 
     // Returns the first statement in the statement list of "this" that is
     // not an SSA definition (a lcl = phi(...) assignment).
-    GenTreeStmt* FirstNonPhiDef();
-    GenTreeStmt* FirstNonPhiDefOrCatchArgAsg();
+    Statement* FirstNonPhiDef();
+    Statement* FirstNonPhiDefOrCatchArgAsg();
 
     BasicBlock() : bbStmtList(nullptr), bbLiveIn(VarSetOps::UninitVal()), bbLiveOut(VarSetOps::UninitVal())
     {

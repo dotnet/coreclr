@@ -2059,28 +2059,11 @@ BOOL ObjHeader::Validate (BOOL bVerifySyncBlkIndex)
     Object * obj = GetBaseObject ();
     BOOL bVerifyMore = g_pConfig->GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_SYNCBLK;
     //the highest 2 bits have reloaded meaning
-    //for string objects:
-    //         BIT_SBLK_STRING_HAS_NO_HIGH_CHARS   0x80000000
-    //         BIT_SBLK_STRING_HIGH_CHARS_KNOWN    0x40000000
-    //         BIT_SBLK_STRING_HAS_SPECIAL_SORT    0xC0000000
-    //for other objects:
+    //         BIT_UNUSED                          0x80000000
     //         BIT_SBLK_FINALIZER_RUN              0x40000000
-    if (bits & BIT_SBLK_STRING_HIGH_CHAR_MASK)
+    if (bits & BIT_SBLK_FINALIZER_RUN)
     {
-        if (obj->GetGCSafeMethodTable () == g_pStringClass)
-        {
-            if (bVerifyMore)
-            {
-                ASSERT_AND_CHECK (((StringObject *)obj)->ValidateHighChars());
-            }
-        }
-        else
-        {
-            if (bits & BIT_SBLK_FINALIZER_RUN)
-            {
-                ASSERT_AND_CHECK (obj->GetGCSafeMethodTable ()->HasFinalizer ());
-            }
-        }
+        ASSERT_AND_CHECK (obj->GetGCSafeMethodTable ()->HasFinalizer ());
     }
 
     //BIT_SBLK_GC_RESERVE (0x20000000) is only set during GC. But for frozen object, we don't clean the bit
@@ -2613,49 +2596,51 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
 
         for (;;)
         {
-            // We might be interrupted during the wait (Thread.Interrupt), so we need an
-            // exception handler round the call.
-            struct Param
-            {
-                AwareLock *pThis;
-                INT32 timeOut;
-                DWORD ret;
-            } param;
-            param.pThis = this;
-            param.timeOut = timeOut;
-
             // Measure the time we wait so that, in the case where we wake up
             // and fail to acquire the mutex, we can adjust remaining timeout
             // accordingly.
             ULONGLONG start = CLRGetTickCount64();
 
-            EE_TRY_FOR_FINALLY(Param *, pParam, &param)
+            // It is likely the case that An APC threw an exception, for instance Thread.Interrupt(). The wait subsystem
+            // guarantees that if a signal to the event being waited upon is observed by the woken thread, that thread's
+            // wait will return WAIT_OBJECT_0. So in any race between m_SemEvent being signaled and the wait throwing an
+            // exception, a thread that is woken by an exception would not observe the signal, and the signal would wake
+            // another thread as necessary.
+
+            // We must decrement the waiter count in the case an exception happened. This holder takes care of that
+            class UnregisterWaiterHolder
             {
-                pParam->ret = pParam->pThis->m_SemEvent.Wait(pParam->timeOut, TRUE);
-                _ASSERTE((pParam->ret == WAIT_OBJECT_0) || (pParam->ret == WAIT_TIMEOUT));
-            }
-            EE_FINALLY
-            {
-                if (GOT_EXCEPTION())
+                LockState* m_pLockState;
+            public:
+                UnregisterWaiterHolder(LockState* pLockState) : m_pLockState(pLockState)
                 {
-                    // It is likely the case that An APC threw an exception, for instance Thread.Interrupt(). The wait subsystem
-                    // guarantees that if a signal to the event being waited upon is observed by the woken thread, that thread's
-                    // wait will return WAIT_OBJECT_0. So in any race between m_SemEvent being signaled and the wait throwing an
-                    // exception, a thread that is woken by an exception would not observe the signal, and the signal would wake
-                    // another thread as necessary.
-
-                    // We must decrement the waiter count.
-                    m_lockState.InterlockedUnregisterWaiter();
                 }
-            } EE_END_FINALLY;
 
-            ret = param.ret;
+                ~UnregisterWaiterHolder()
+                {
+                    if (m_pLockState != NULL)
+                    {
+                        m_pLockState->InterlockedUnregisterWaiter();
+                    }
+                }
+
+                void SuppressRelease()
+                {
+                    m_pLockState = NULL;
+                }
+            } unregisterWaiterHolder(&m_lockState);
+
+            ret = m_SemEvent.Wait(timeOut, TRUE);
+            _ASSERTE((ret == WAIT_OBJECT_0) || (ret == WAIT_TIMEOUT));
+
             if (ret != WAIT_OBJECT_0)
             {
-                // We timed out, decrement waiter count.
-                m_lockState.InterlockedUnregisterWaiter();
+                // We timed out
+                // (the holder unregisters the waiter here)
                 break;
             }
+
+            unregisterWaiterHolder.SuppressRelease();
 
             // Spin a bit while trying to acquire the lock. This has a few benefits:
             // - Spinning helps to reduce waiter starvation. Since other non-waiter threads can take the lock while there are

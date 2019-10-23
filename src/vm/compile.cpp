@@ -317,7 +317,7 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
             // If there is a host binder then use it to bind the assembly.
             if (isWinRT)
             {
-                pAssemblyHolder = pDomain->BindAssemblySpec(&spec, TRUE, FALSE);
+                pAssemblyHolder = pDomain->BindAssemblySpec(&spec, TRUE);
             }
             else
             {
@@ -408,7 +408,7 @@ HRESULT CEECompileInfo::LoadTypeRefWinRT(
             {
                 LPCSTR psznamespace;
                 LPCSTR pszname;
-                pAssemblyImport->GetNameOfTypeRef(ref, &psznamespace, &pszname);
+                IfFailThrow(pAssemblyImport->GetNameOfTypeRef(ref, &psznamespace, &pszname));
                 AssemblySpec spec;
                 spec.InitializeSpec(tkResolutionScope, pAssemblyImport, NULL);
                 spec.SetWindowsRuntimeType(psznamespace, pszname);
@@ -531,7 +531,7 @@ HRESULT CEECompileInfo::SetCompilationTarget(CORINFO_ASSEMBLY_HANDLE     assembl
 
         AssemblySpec mscorlib;
         mscorlib.InitializeSpec(SystemDomain::SystemFile());
-        GetAppDomain()->BindAssemblySpec(&mscorlib,TRUE,FALSE);
+        GetAppDomain()->BindAssemblySpec(&mscorlib,TRUE);
 
         if (!IsReadyToRunCompilation() && !SystemDomain::SystemFile()->HasNativeImage())
         {
@@ -4719,6 +4719,14 @@ BOOL CEEPreloader::IsUncompiledMethod(CORINFO_METHOD_HANDLE handle)
 #endif
 }
 
+BOOL CEEPreloader::ShouldSuppressGCTransition(CORINFO_METHOD_HANDLE handle)
+{
+    STANDARD_VM_CONTRACT;
+
+    MethodDesc *pMD = GetMethod(handle);
+    return pMD->ShouldSuppressGCTransition();
+}
+
 static bool IsTypeAccessibleOutsideItsAssembly(TypeHandle th)
 {
     STANDARD_VM_CONTRACT;
@@ -7170,8 +7178,7 @@ void ReportMissingDependency(Exception * e)
 
 PEAssembly *CompilationDomain::BindAssemblySpec(
     AssemblySpec *pSpec,
-    BOOL fThrowOnFileNotFound,
-    BOOL fUseHostBinderIfAvailable)
+    BOOL fThrowOnFileNotFound)
 {
     PEAssembly *pFile = NULL;
     //
@@ -7186,8 +7193,7 @@ PEAssembly *CompilationDomain::BindAssemblySpec(
         //
         pFile = AppDomain::BindAssemblySpec(
             pSpec,
-            fThrowOnFileNotFound,
-            fUseHostBinderIfAvailable);
+            fThrowOnFileNotFound);
     }
     EX_HOOK
     {

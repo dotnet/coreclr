@@ -51,7 +51,7 @@
 #include "canary.h"
 
 #undef ASSERT
-#define CRASH(x)  _ASSERTE(!x)
+#define CRASH(x)  _ASSERTE(!(x))
 #define ASSERT(x) _ASSERTE(x)
 
 
@@ -876,7 +876,6 @@ private:
 
 
     friend class Debugger;
-    HRESULT VerifySecurityOnRSCreatedEvents(HANDLE sse, HANDLE lsea, HANDLE lser);
     Debugger*                       m_debugger;
 
     // IPC_TARGET_* define default targets - if we ever want to do
