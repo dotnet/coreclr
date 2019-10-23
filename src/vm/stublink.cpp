@@ -1355,7 +1355,7 @@ bool StubLinker::EmitUnwindInfo(Stub* pStub, int globalsize, LoaderHeap* pHeap)
     // register a separate function table.
     //
     // But...RtlInstallFunctionTableCallback has a 2gb restriction...so
-    // make that LONG_MAX.
+    // make that INT32_MAX.
     //
 
     StubUnwindInfoHeader *pHeader = pStub->GetUnwindInfoHeader();

@@ -51,7 +51,7 @@
 #endif
 
 #define INT_MAX         2147483647
-#define LONG_MAX        2147483647L
+//#define LONG_MAX        2147483647L
 #define USHRT_MAX       0xffff
 #define UINT_MAX        0xffffffff
 //#define ULONG_MAX       0xffffffffUL
@@ -350,7 +350,7 @@ UIntToLong(
     IN UINT Operand,
     OUT LONG* Result)
 {
-    if (Operand <= LONG_MAX)
+    if (Operand <= _I32_MAX)
     {
         *Result = (LONG)Operand;
         return S_OK;
@@ -503,7 +503,7 @@ ULongToLong(
     IN ULONG Operand,
     OUT LONG* Result)
 {
-    if (Operand <= LONG_MAX)
+    if (Operand <= _I32_MAX)
     {
         *Result = (LONG)Operand;
         return S_OK;
@@ -545,7 +545,7 @@ ULongLongToLong(
     IN ULONGLONG Operand,
     OUT LONG* Result)
 {
-    if (Operand <= LONG_MAX)
+    if (Operand <= _I32_MAX)
     {
         *Result = (LONG)Operand;
         return S_OK;
