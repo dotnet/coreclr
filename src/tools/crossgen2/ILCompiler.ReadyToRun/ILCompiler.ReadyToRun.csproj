@@ -6,7 +6,8 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <DefineConstants>READYTORUN;$(DefineConstants)</DefineConstants>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
-    <PlatformTarget>AnyCPU</PlatformTarget>
+    <Platforms>x64;x86</Platforms>
+    <PlatformTargets Condition="'$(BuildArch)' != ''">$(BuildArch)</PlatformTargets>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 
     <!-- We're binplacing these into an existing publish layout so that F5 build in VS updates
