@@ -67,7 +67,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
 
         public int CompareTo(ModuleToken other, TypeSystemComparer comparer)
         {
-            int result = comparer.Compare(Module, other.Module);
+            int result = Module.CompareTo(other.Module);
             if (result != 0) return result;
 
             return Token.CompareTo(other.Token);

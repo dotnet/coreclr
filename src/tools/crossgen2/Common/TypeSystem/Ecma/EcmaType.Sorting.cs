@@ -18,7 +18,7 @@ namespace Internal.TypeSystem.Ecma
             if (result != 0)
                 return result;
 
-            return _module.CompareToImpl(otherType._module, comparer);
+            return _module.CompareTo(otherType._module);
         }
     }
 }

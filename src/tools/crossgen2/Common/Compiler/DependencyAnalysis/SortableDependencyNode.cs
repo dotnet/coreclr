@@ -32,7 +32,10 @@ namespace ILCompiler.DependencyAnalysis
         public abstract int ClassCode { get; }
 
         // Note to implementers: the type of `other` is actually the same as the type of `this`.
-        public abstract int CompareToImpl(ISortableNode other, CompilerComparer comparer);
+        public virtual int CompareToImpl(ISortableNode other, CompilerComparer comparer)
+        {
+            throw new NotImplementedException("Multiple nodes of this type are not supported");
+        }
 
         protected enum ObjectNodePhase
         {
