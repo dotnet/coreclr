@@ -15,7 +15,7 @@ unsafe class Program
     }
 
     [DllImport("Unused")]
-    private static extern void PointerToNonBlittableType(NonBlittable* pNonBlittable);
+    private static extern bool PointerToNonBlittableType(NonBlittable* pNonBlittable);
 
     static int Main()
     {
