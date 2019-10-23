@@ -259,13 +259,7 @@ void DispParamArrayMarshaler::MarshalNativeToManaged(VARIANT *pSrcVar, OBJECTREF
     if ((vt == VT_RECORD || vt == VTHACK_NONBLITTABLERECORD) && (pElemMT != nullptr && !pElemMT->IsBlittable()))
     {
         GCX_PREEMP();
-
-        MethodDesc* pStructMarshalStub = NDirect::CreateStructMarshalILStub(pElemMT);
-
-        if (pStructMarshalStub != nullptr)
-        {
-            pStructMarshalStubAddress = pStructMarshalStub->GetMultiCallableAddrOfCode();
-        }
+        pStructMarshalStubAddress = NDirect::GetEntryPointForStructMarshalStub(pElemMT);
     }
 
     // Create an array from the SAFEARRAY.
@@ -311,12 +305,7 @@ void DispParamArrayMarshaler::MarshalManagedToNative(OBJECTREF *pSrcObj, VARIANT
         if ((vt == VT_RECORD || vt == VTHACK_NONBLITTABLERECORD) && (pElemMT != nullptr && !pElemMT->IsBlittable()))
         {
             GCX_PREEMP();
-
-            MethodDesc* pStructMarshalStub = NDirect::CreateStructMarshalILStub(pElemMT);
-            if (pStructMarshalStub != nullptr)
-            {
-                pStructMarshalStubAddress = pStructMarshalStub->GetMultiCallableAddrOfCode();
-            }
+            pStructMarshalStubAddress = NDirect::GetEntryPointForStructMarshalStub(pElemMT);
         }
         GCPROTECT_END();
 

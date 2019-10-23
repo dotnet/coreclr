@@ -5734,6 +5734,17 @@ MethodDesc* NDirect::CreateStructMarshalILStub(MethodTable* pMT)
     RETURN pStubMD;
 }
 
+PCODE NDirect::GetEntryPointForStructMarshalStub(MethodTable* pMT)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    MethodDesc* pMD = CreateStructMarshalILStub(pMT);
+
+    _ASSERTE(pMD != nullptr);
+
+    return pMD->GetMultiCallableAddrOfCode();
+}
+
 MethodDesc* NDirect::CreateCLRToNativeILStub(PInvokeStaticSigInfo* pSigInfo,
                          DWORD dwStubFlags,
                          MethodDesc* pMD)

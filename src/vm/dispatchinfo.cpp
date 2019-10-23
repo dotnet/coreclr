@@ -2340,12 +2340,7 @@ void DispatchInfo::MarshalParamManagedToNativeRef(DispatchMemberInfo *pMemberInf
         if ((ElementVt == VT_RECORD || ElementVt == VTHACK_NONBLITTABLERECORD) && (pElementMT != nullptr && !pElementMT->IsBlittable()))
         {
             GCX_PREEMP();
-
-            MethodDesc* pStructMarshalStub = NDirect::CreateStructMarshalILStub(pElementMT);
-            if (pStructMarshalStub != nullptr)
-            {
-                pStructMarshalStubAddress = pStructMarshalStub->GetMultiCallableAddrOfCode();
-            }
+            pStructMarshalStubAddress = NDirect::GetEntryPointForStructMarshalStub(pElementMT);
         }
         GCPROTECT_END();
 

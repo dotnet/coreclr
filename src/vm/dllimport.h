@@ -104,6 +104,7 @@ public:
 #endif // FEATURE_COMINTEROP
 
     static MethodDesc* CreateStructMarshalILStub(MethodTable* pMT);
+    static PCODE GetEntryPointForStructMarshalStub(MethodTable* pMT);
 
     static MethodDesc* CreateCLRToNativeILStub(PInvokeStaticSigInfo* pSigInfo,
                              DWORD dwStubFlags,
