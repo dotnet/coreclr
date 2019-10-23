@@ -62,6 +62,7 @@ set __DoCrossgen2=
 set __CopyNativeTestBinaries=0
 set __CopyNativeProjectsAfterCombinedTestBuild=true
 set __SkipGenerateLayout=0
+set __LocalCoreFXPath=
 
 @REM CMD has a nasty habit of eating "=" on the argument list, so passing:
 @REM    -priority=1
@@ -105,6 +106,7 @@ if /i "%1" == "Exclude"               (set __Exclude=%2&set processedArgs=!proce
 if /i "%1" == "-priority"             (set __Priority=%2&shift&set processedArgs=!processedArgs! %1=%2&shift&goto Arg_Loop)
 if /i "%1" == "copynativeonly"        (set __CopyNativeTestBinaries=1&set __SkipNative=1&set __CopyNativeProjectsAfterCombinedTestBuild=false&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "skipgeneratelayout"    (set __SkipGenerateLayout=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+if /i "%1" == "localcorefxpath"       (set __LocalCoreFXPath=%2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
 if /i "%1" == "--"                    (set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 
 if [!processedArgs!]==[] (
@@ -562,6 +564,23 @@ if defined __DoCrossgen2 (
 
 
 rd /s /q "%CORE_ROOT_STAGE%"
+
+
+REM =========================================================================================
+REM ===
+REM === Copye CoreFX assemblies if needed.
+REM ===
+REM =========================================================================================
+
+
+if NOT "__LocalCoreFXPath"=="" (
+    echo Patch CoreFX from %__LocalCoreFXPath%
+    set NEXTCMD=python "%__ProjectDir%\tests\scripts\patch-corefx.py" -clr_core_root "%CORE_ROOT%"^
+    -fx_root "%__LocalCoreFXPath%" -arch %__BuildArch% -build_type %__BuildType%
+    echo !NEXTCMD!
+    !NEXTCMD!
+)
+
 
 REM =========================================================================================
 REM ===
