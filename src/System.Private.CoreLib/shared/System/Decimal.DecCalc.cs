@@ -990,7 +990,7 @@ ThrowOverflow:
 
                     // Have to scale by a bunch. Move the number to a buffer where it has room to grow as it's scaled.
                     //
-                    Unsafe.SkipInit(out Buf24 bufNum); // workaround for CS0165
+                    Unsafe.SkipInit(out Buf24 bufNum);
                     DebugPoison(ref bufNum);
 
                     bufNum.Low64 = low64;
@@ -1339,7 +1339,7 @@ ThrowOverflow:
 
                 ulong tmp;
                 uint hiProd;
-                Unsafe.SkipInit(out Buf24 bufProd); // workaround for CS0165
+                Unsafe.SkipInit(out Buf24 bufProd);
                 DebugPoison(ref bufProd);
 
                 if ((d1.High | d1.Mid) == 0)
@@ -1920,7 +1920,7 @@ ReturnZero:
             /// </summary>
             internal static unsafe void VarDecDiv(ref DecCalc d1, ref DecCalc d2)
             {
-                Unsafe.SkipInit(out Buf12 bufQuo); // workaround for CS0165
+                Unsafe.SkipInit(out Buf12 bufQuo);
                 DebugPoison(ref bufQuo);
 
                 uint power;
@@ -2021,7 +2021,7 @@ ReturnZero:
 
                     // Shift both dividend and divisor left by curScale.
                     //
-                    Unsafe.SkipInit(out Buf16 bufRem); // workaround for CS0165
+                    Unsafe.SkipInit(out Buf16 bufRem);
                     DebugPoison(ref bufRem);
 
                     bufRem.Low64 = d1.Low64 << curScale;
@@ -2090,7 +2090,7 @@ ReturnZero:
                         //
                         // Start by finishing the shift left by curScale.
                         //
-                        Unsafe.SkipInit(out Buf12 bufDivisor); // workaround for CS0165
+                        Unsafe.SkipInit(out Buf12 bufDivisor);
                         DebugPoison(ref bufDivisor);
 
                         bufDivisor.Low64 = divisor;
@@ -2243,7 +2243,7 @@ ThrowOverflow:
                     {
                         d1.uflags = d2.uflags;
                         // Try to scale up dividend to match divisor.
-                        Unsafe.SkipInit(out Buf12 bufQuo); // workaround for CS0165
+                        Unsafe.SkipInit(out Buf12 bufQuo);
                         DebugPoison(ref bufQuo);
 
                         bufQuo.Low64 = d1.Low64;
@@ -2303,7 +2303,7 @@ ThrowOverflow:
                     tmp = d2.Mid;
                 int shift = BitOperations.LeadingZeroCount(tmp);
 
-                Unsafe.SkipInit(out Buf28 b); // workaround for CS0165
+                Unsafe.SkipInit(out Buf28 b);
                 DebugPoison(ref b);
 
                 b.Buf24.Low64 = d1.Low64 << shift;
@@ -2358,7 +2358,7 @@ ThrowOverflow:
                 }
                 else
                 {
-                    Unsafe.SkipInit(out Buf12 bufDivisor); // workaround for CS0165
+                    Unsafe.SkipInit(out Buf12 bufDivisor);
                     DebugPoison(ref bufDivisor);
 
                     bufDivisor.Low64 = d2.Low64 << shift;
