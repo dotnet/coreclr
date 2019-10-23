@@ -1360,6 +1360,9 @@
   <data name="Argument_NeedNonGenericType" xml:space="preserve">
     <value>The specified Type must not be a generic type definition.</value>
   </data>
+  <data name="Argument_TypeMustBeComCreatable"  xml:space="preserve">
+    <value>The type must be creatable from COM.</value>
+  </data>
   <data name="Argument_NeedStructWithNoRefs" xml:space="preserve">
     <value>The specified Type must be a struct containing no references.</value>
   </data>

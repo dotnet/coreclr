@@ -824,6 +824,30 @@ namespace System.Runtime.InteropServices
             return type.GUID;
         }
 
+        private static bool DoesTypeSupportComActivation(Type type)
+        {
+            // If the type is not a class or a value class, then the type isn't supported for COM activation.
+            if (!type.IsClass && !type.IsValueType)
+            {
+                return false;
+            }
+
+            // If the type is abstract then it can't be activated.
+            if (type.IsAbstract)
+            {
+                return false;
+            }
+
+            // If the type is not a ValueType and does not have a public default constructor then it can't be activated.
+            if (!type.IsValueType && type.GetConstructor(BindingFlags.Instance | BindingFlags.Public,null,new Type[0],null) == null)
+            {
+                return false;
+            }
+
+            // All other conditions are met so check to see if the type is visible from COM.
+            return Marshal.IsTypeVisibleFromCom(type);
+        }
+
         /// <summary>
         /// This method generates a PROGID for the specified type. If the type has
         /// a PROGID in the metadata then it is returned otherwise a stable PROGID
@@ -842,6 +866,10 @@ namespace System.Runtime.InteropServices
             if (type.IsGenericType)
             {
                 throw new ArgumentException(SR.Argument_NeedNonGenericType, nameof(type));
+            }
+            if (!DoesTypeSupportComActivation(type))
+            {
+                throw new ArgumentException(SR.Argument_TypeMustBeComCreatable, nameof(type));
             }
 
             ProgIdAttribute? progIdAttribute = type.GetCustomAttribute<ProgIdAttribute>();
