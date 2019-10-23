@@ -7417,34 +7417,35 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, void* pfnCopyArgs)
         // arg on AMD64. So we remove it here as we will handle this case
         // specially below.
         fgArgInfo* argInfo = call->fgArgInfo;
-        if (argInfo != nullptr)
+        assert(argInfo != nullptr);
+
+        GenTreeCall::Use* vsdArg = nullptr;
+
+        for (unsigned index = 0; index < argInfo->ArgCount(); ++index)
         {
-            GenTreeCall::Use* vsdArg = nullptr;
-
-            for (unsigned index = 0; index < argInfo->ArgCount(); ++index)
+            fgArgTabEntry* arg = argInfo->GetArgEntry(index, false);
+            if (arg->isNonStandard)
             {
-                fgArgTabEntry* arg = argInfo->GetArgEntry(index, false);
-                if (arg->isNonStandard)
-                {
-                    // The only supported nonstandard arg for slow tailcalls is
-                    // VSD arg.
-                    assert(vsdArg == nullptr);
-                    vsdArg = arg->use;
+                // The only supported nonstandard arg for slow tailcalls is
+                // VSD arg.
+                assert(vsdArg == nullptr);
+                vsdArg = arg->use;
 #ifndef DEBUG
-                    break;
+                break;
 #endif
-                }
             }
-
-            assert(vsdArg != nullptr);
-            GenTreeCall::Use** ptr = &call->gtCallArgs;
-            while ((*ptr) != vsdArg)
-            {
-                ptr = &(*ptr)->NextRef();
-            }
-
-            *ptr = vsdArg->GetNext();
         }
+
+        assert(vsdArg != nullptr);
+        // Find the arg in the linked list keeping track of the pointer to it so
+        // we can unlink it.
+        GenTreeCall::Use** ptr = &call->gtCallArgs;
+        while ((*ptr) != vsdArg)
+        {
+            ptr = &(*ptr)->NextRef();
+        }
+
+        *ptr = vsdArg->GetNext();
 #endif
     }
 
