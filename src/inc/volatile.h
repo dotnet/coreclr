@@ -153,25 +153,31 @@ T VolatileLoad(T const * pt)
         asm volatile ("dmb ishld" : : : "memory");
     }
 #elif defined(_ARM64_) && defined(_MSC_VER)
+// silence warnings on casts in branches that are not taken.
+#pragma warning(push)
+#pragma warning(disable : 4302)
+#pragma warning(disable : 4311)
+#pragma warning(disable : 4312)
     T val;
     switch (sizeof(T))
     {
     case 1:
-        val = (typename RemoveVolatile<T>::type)__ldar8 ((UINT8   volatile*)pt);
+        val = (typename RemoveVolatile<T>::type)__ldar8 ((unsigned __int8   volatile*)pt);
         break;
     case 2:
-        val = (typename RemoveVolatile<T>::type)__ldar16((UINT16  volatile*)pt);
+        val = (typename RemoveVolatile<T>::type)__ldar16((unsigned __int16  volatile*)pt);
         break;
     case 4:
-        val = (typename RemoveVolatile<T>::type)__ldar32((UINT32  volatile*)pt);
+        val = (typename RemoveVolatile<T>::type)__ldar32((unsigned __int32  volatile*)pt);
         break;
     case 8:
-        val = (typename RemoveVolatile<T>::type)__ldar64((UINT64  volatile*)pt);
+        val = (typename RemoveVolatile<T>::type)__ldar64((unsigned __int64  volatile*)pt);
         break;
     default:
         val = *(T volatile const*)pt;
         __dmb(_ARM64_BARRIER_ISHLD);
     }
+#pragma warning(pop)
 #else
     T val = *(T volatile const *)pt;
     VOLATILE_MEMORY_BARRIER();
@@ -232,24 +238,30 @@ void VolatileStore(T* pt, T val)
         *(T volatile *)pt = val;
     }
 #elif defined(_ARM64_) && defined(_MSC_VER)
+// silence warnings on casts in branches that are not taken.
+#pragma warning(push)
+#pragma warning(disable : 4302)
+#pragma warning(disable : 4311)
+#pragma warning(disable : 4312)
     switch (sizeof(T))
     {
     case 1:
-        __stlr8 ((UINT8   volatile*)pt, (UINT8) val);
+        __stlr8 ((unsigned __int8   volatile*)pt, (unsigned __int8) val);
         break;
     case 2:
-        __stlr16((UINT16  volatile*)pt, (UINT16)val);
+        __stlr16((unsigned __int16  volatile*)pt, (unsigned __int16)val);
         break;
     case 4:
-        __stlr32((UINT32  volatile*)pt, (UINT32)val);
+        __stlr32((unsigned __int32  volatile*)pt, (unsigned __int32)val);
         break;
     case 8:
-        __stlr64((UINT64  volatile*)pt ,(UINT64)val);
+        __stlr64((unsigned __int64  volatile*)pt ,(unsigned __int64)val);
         break;
     default:
         __dmb(_ARM64_BARRIER_ISH);
         *(T volatile *)pt = val;
     }
+#pragma warning(pop)
 #else
     VOLATILE_MEMORY_BARRIER();
     *(T volatile *)pt = val;
