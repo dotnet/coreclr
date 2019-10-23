@@ -36,10 +36,10 @@ public:
 
 private:
     DWORD               m_dwHomeIndex;
+    LocalDesc           m_locDesc;
     MarshalHomeType     m_homeType;
     bool                m_hasTypeInfo = false;
     bool                m_unalignedIndirectStore;
-    LocalDesc          m_locDesc;
 
     void EmitUnalignedPrefixIfNeeded(ILCodeStream* pslILEmit)
     {

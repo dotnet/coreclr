@@ -2219,8 +2219,7 @@ MarshalInfo::MarshalInfo(Module* pModule,
                             m_type = MARSHAL_TYPE_HSTRING;
                             break;
                         }
-#endif // FEATURE_COMINTEROP
-                        
+#endif // FEATURE_COMINTEROP                        
                         case NATIVE_TYPE_FIXEDSYSSTRING:
                         {
                             if (m_ms == MARSHAL_SCENARIO_FIELD)
@@ -2275,7 +2274,6 @@ MarshalInfo::MarshalInfo(Module* pModule,
                             }
                             else if (builder)
                             {
-
                                 m_resID = IDS_EE_BADMARSHALPARAM_STRINGBUILDER;
                             }
                             else
