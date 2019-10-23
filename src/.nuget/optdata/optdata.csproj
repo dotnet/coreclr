@@ -43,8 +43,8 @@
     <!-- Cleanup old version file -->
     <Delete Files="$(PgoDataPackagePathOutputFile)" Condition="Exists('$(PgoDataPackagePathOutputFile)')" />
 
-    <WriteLinesToFile File="$(PgoDataPackagePathOutputFile)" Lines="$(PgoPackagePath)" Condition="Exists('$(PgoDataPackagePathOutputFile)')" Overwrite="true"/>
-    <WriteLinesToFile File="$(PgoDataPackagePathOutputFile)" Lines="" Condition="!Exists('$(PgoDataPackagePathOutputFile)')" Overwrite="true"/>
+    <WriteLinesToFile File="$(PgoDataPackagePathOutputFile)" Lines="$(PgoPackagePath)" Condition="'$(OptimizationDataSupported)' == 'True'" Overwrite="true"/>
+    <WriteLinesToFile File="$(PgoDataPackagePathOutputFile)" Lines="" Condition="'$(OptimizationDataSupported)' != 'True'" Overwrite="true"/>
     <Message Text="optimizationPGOCoreCLR Package path: $(PgoPackagePath) written to: $(PgoDataPackagePathOutputFile)" Importance="High" />
   </Target>
 
