@@ -31,7 +31,10 @@
 
     <PropertyGroup>
       <CoreDisToolsPackageVersion>$([System.IO.Path]::GetFileName('$(PkgMicrosoft_NETCore_CoreDisTools)'))</CoreDisToolsPackageVersion>
-      <CoreDisToolsPackagePath>$([MSBuild]::NormalizePath($(PkgMicrosoft_NETCore_CoreDisTools),../../,runtime.$(RuntimeIdentifier).$(MicrosoftNETCoreCoreDisToolsPackageName),$(CoreDisToolsPackageVersion)))</CoreDisToolsPackagePath>
+      <!-- The CoreDisTools package's rid-specific assets are an older, pinned version for non-Windows platforms. So we hardcode that here so we avoid parsing JSON in MSBuild. -->
+      <CoreDisToolsPackageVersion Condition="!$([MSBuild]::IsOSPlatform(Windows))">1.0.1-prerelease-00002</CoreDisToolsPackageVersion>
+      <CoreDisToolsPackageNameLowercase>$(MicrosoftNETCoreCoreDisToolsPackageName.ToLower())</CoreDisToolsPackageNameLowercase>
+      <CoreDisToolsPackagePath>$([MSBuild]::NormalizePath($(PkgMicrosoft_NETCore_CoreDisTools),../../,runtime.$(RuntimeIdentifier).$(CoreDisToolsPackageNameLowercase),$(CoreDisToolsPackageVersion)))</CoreDisToolsPackagePath>
     </PropertyGroup>
 
     <Error Condition="!Exists('$(CoreDisToolsPackagePath)')" Text="Unable to locate restored CoreDisTools package. Maybe the platform-specific package naming changed or there is not a version available for rid $(RuntimeIdentifier)?" />

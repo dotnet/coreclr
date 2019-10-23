@@ -154,7 +154,11 @@ initDistroRidGlobal ${__BuildOS} x64 ${isPortable}
 # 14.04 and 16.04 packages. Use the oldest package which will work on newer
 # platforms.
 if [[ ${__BuildOS} == "Linux" ]]; then
-   __DistroRid=ubuntu.14.04
+    if [[ ${__BuildArch} == "x64" ]]; then
+        __DistroRid=ubuntu.14.04-x64
+    elif [[ ${__BuildArch} == "x86" ]]; then
+        __DistroRid=ubuntu.14.04-x86
+    fi
 fi
 
 # Query runtime Id
@@ -174,9 +178,9 @@ then
     exit_with_error 1 "Failed to restore the package"
 fi
 
-CoreDisToolsPackagePathOutputFile="../bin/obj/${__BuildOS}.x64/optdatapath.txt"
+CoreDisToolsPackagePathOutputFile="${scriptDir}/../bin/obj/${__BuildOS}.x64/optdatapath.txt"
 
-bash -c -x "$dotnet msbuild $csprojPath /t:DumpCoreDisToolsPackagePath /p:CoreDisToolsPackagePathOutputFile=\"$CoreDisToolsPackagePathOutputFile\" /p:RuntimeIdentifier=\"$rid\""
+bash -c -x "$dotnet msbuild $csprojPath /t:DumpCoreDisToolsPackagePath /p:CoreDisToolsPackagePathOutputFile=\"$CoreDisToolsPackagePathOutputFile\" /p:RuntimeIdentifier=\"$rid\" /bl" 
 if [ $? -ne 0 ]
 then
     exit_with_error 1 "Failed to find the path to CoreDisTools."
