@@ -13,7 +13,7 @@ public class Test {
         var r = new Random(1234);
         for (int i = 0; i < 10000; i++)
         {
-            uint size = (uint)r.Next(10000);
+            int size = r.Next(10000);
             var arr = AllocUninitialized<byte>.Call(size);
 
             if (size > 1)
@@ -31,7 +31,7 @@ public class Test {
         // allocate a bunch of LOH int arrays and touch them.
         for (int i = 0; i < 1000; i++)
         {
-            uint size = (uint)r.Next(100000, 1000000);
+            int size = r.Next(100000, 1000000);
             var arr = AllocUninitialized<int>.Call(size);
 
             arr[0] = 5;
@@ -45,7 +45,7 @@ public class Test {
 
         // allocate a string array
         {
-            uint i = 100;
+            int i = 100;
             var arr = AllocUninitialized<string>.Call(i);
 
             arr[0] = "5";
@@ -61,7 +61,7 @@ public class Test {
         {
             if (IntPtr.Size == 8)
             {
-                uint i = 0x7FFFFFC7;
+                int i = 0x7FFFFFC7;
                 var arr = AllocUninitialized<byte>.Call(i);
 
                 arr[0] = 5;
@@ -74,25 +74,25 @@ public class Test {
             }
         }
 
-        // negative size int casted to uint
+        // negative size
         {
             try
             {
-                var arr = AllocUninitialized<byte>.Call((uint)-1);
+                var arr = AllocUninitialized<byte>.Call(-1);
 
                 Console.WriteLine("Scenario 5 Expected exception!");
                 return 1;
             }
-            catch (OutOfMemoryException)
+            catch (ArgumentOutOfRangeException)
             {
             }
         }
 
-        // too large int
+        // too large
         {
             try
             {
-                var arr = AllocUninitialized<double>.Call((uint)int.MaxValue);
+                var arr = AllocUninitialized<double>.Call(int.MaxValue);
 
                 Console.WriteLine("Scenario 6 Expected exception!");
                 return 1;
@@ -102,19 +102,6 @@ public class Test {
             }
         }
 
-        // too large uint
-        {
-            try
-            {
-                var arr = AllocUninitialized<double>.Call(uint.MaxValue);
-
-                Console.WriteLine("Scenario 7 Expected exception!");
-                return 1;
-            }
-            catch (OutOfMemoryException)
-            {
-            }
-        }
 
         Console.WriteLine("Test for GC.Collect() passed!");
         return 100;
@@ -126,14 +113,14 @@ public class Test {
         public static Func<int, T[]> Call = (i) =>
         {
             // replace the stub with actual impl.
-            Call = (Func<uint, T[]>)typeof(System.GC).
+            Call = (Func<int, T[]>)typeof(System.GC).
             GetMethod("AllocateUninitializedArray",
                 bindingAttr: System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
                 binder: null,
-                new Type[] { typeof(uint) },
+                new Type[] { typeof(int) },
                 modifiers: new System.Reflection.ParameterModifier[0]).
             MakeGenericMethod(new Type[] { typeof(T) }).
-            CreateDelegate(typeof(Func<uint, T[]>));
+            CreateDelegate(typeof(Func<int, T[]>));
 
             // call the impl.
             return Call(i);

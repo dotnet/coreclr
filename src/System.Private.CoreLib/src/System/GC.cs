@@ -85,7 +85,7 @@ namespace System
         internal static extern int _EndNoGCRegion();
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        internal static extern Array AllocateNewArray(IntPtr typeHandle, uint length, bool zeroingOptional);
+        internal static extern Array AllocateNewArray(IntPtr typeHandle, int length, bool zeroingOptional);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int GetGenerationWR(IntPtr handle);
@@ -650,28 +650,34 @@ namespace System
         }
 
         /// <summary>
-        /// Skips zero-initialization of the array if possible. If T contains object references,
-        /// the array is always zero-initialized.
+        /// Skips zero-initialization of the array if possible.
+        /// If T contains object references, the array is always zero-initialized.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)] // forced to ensure no perf drop for small memory buffers (hot path)
-        internal static T[] AllocateUninitializedArray<T>(uint length)
+        internal static T[] AllocateUninitializedArray<T>(int length)
         {
             if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
             {
                 return new T[length];
             }
 
+            if (length < 0)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.lengths, 0, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+            }
+
+#if !DEBUG  // for debug builds we always want to call AllocateNewArray to detect AllocateNewArray bugs
             // small arrays are allocated using `new[]` as that is generally faster.
             if (length < 2048 / Unsafe.SizeOf<T>())
             {
                 return new T[length];
             }
-
+#endif
             // kept outside of the small arrays hot path to have inlining without big size growth
-            return AllocateUninitializedArray_NativeCall<T>(length);
-        }
+            return AllocateNewUninitializedArray(length);
 
-        private static T[] AllocateUninitializedArray_NativeCall<T>(uint length)
-            => (T[])AllocateNewArray(typeof(T[]).TypeHandle.Value, length, zeroingOptional: true);
+            T[] AllocateNewUninitializedArray(int length)
+                => (T[])AllocateNewArray(typeof(T[]).TypeHandle.Value, length, zeroingOptional: true);
+        }
     }
 }
