@@ -2995,6 +2995,28 @@ AssertionIndex Compiler::optGlobalAssertionIsEqualOrNotEqual(ASSERT_VALARG_TP as
         {
             return assertionIndex;
         }
+
+        // Look for matching exact type assertions based on vtable accesses
+        if ((curAssertion->assertionKind == OAK_EQUAL) && (curAssertion->op1.kind == O1K_EXACT_TYPE) &&
+            op1->OperIs(GT_IND))
+        {
+            GenTreeIndir* indir = op1->AsIndir();
+
+            if (!indir->HasIndex() && (indir->Offset() == 0))
+            {
+                GenTree* indirBase = indir->Base();
+
+                if (indirBase->OperIs(GT_LCL_VAR) && (indirBase->TypeGet() == TYP_REF))
+                {
+                    // op1 is accessing vtable of a ref type'd local var
+                    if ((curAssertion->op1.vn == vnStore->VNConservativeNormalValue(indirBase->gtVNPair)) &&
+                        (curAssertion->op2.vn == vnStore->VNConservativeNormalValue(op2->gtVNPair)))
+                    {
+                        return assertionIndex;
+                    }
+                }
+            }
+        }
     }
     return NO_ASSERTION_INDEX;
 }
@@ -3119,13 +3141,13 @@ GenTree* Compiler::optAssertionPropGlobal_RelOp(ASSERT_VALARG_TP assertions, Gen
         return optAssertionProp_Update(newTree, tree, stmt);
     }
 
-    // Else check if we have an equality check involving a local
+    // Else check if we have an equality check involving a local or an indir
     if (!tree->OperIs(GT_EQ, GT_NE))
     {
         return nullptr;
     }
 
-    if (op1->gtOper != GT_LCL_VAR)
+    if (!op1->OperIs(GT_LCL_VAR, GT_IND))
     {
         return nullptr;
     }
@@ -3188,11 +3210,21 @@ GenTree* Compiler::optAssertionPropGlobal_RelOp(ASSERT_VALARG_TP assertions, Gen
         {
             op1->ChangeOperConst(GT_CNS_INT);
             op1->AsIntCon()->gtIconVal = vnStore->ConstantValue<int>(vnCns);
+
+            if (vnStore->IsVNHandle(vnCns))
+            {
+                op1->gtFlags |= (vnStore->GetHandleFlags(vnCns) & GTF_ICON_HDL_MASK);
+            }
         }
         else if (op1->TypeGet() == TYP_LONG)
         {
             op1->ChangeOperConst(GT_CNS_NATIVELONG);
             op1->AsIntConCommon()->SetLngValue(vnStore->ConstantValue<INT64>(vnCns));
+
+            if (vnStore->IsVNHandle(vnCns))
+            {
+                op1->gtFlags |= (vnStore->GetHandleFlags(vnCns) & GTF_ICON_HDL_MASK);
+            }
         }
         else if (op1->TypeGet() == TYP_DOUBLE)
         {
@@ -3227,6 +3259,16 @@ GenTree* Compiler::optAssertionPropGlobal_RelOp(ASSERT_VALARG_TP assertions, Gen
         }
 
         op1->gtVNPair.SetBoth(vnCns); // Preserve the ValueNumPair, as ChangeOperConst/SetOper will clear it.
+
+        // Also set the value number on the relop.
+        if (curAssertion->assertionKind == OAK_EQUAL)
+        {
+            tree->gtVNPair.SetBoth(vnStore->VNOneForType(TYP_INT));
+        }
+        else
+        {
+            tree->gtVNPair.SetBoth(vnStore->VNZeroForType(TYP_INT));
+        }
     }
     // If the assertion involves "op2" and "op1" is also a local var, then just morph the tree.
     else if (op2->gtOper == GT_LCL_VAR)
@@ -3957,7 +3999,7 @@ GenTree* Compiler::optAssertionProp_Update(GenTree* newTree, GenTree* tree, Stat
  *  Returns the modified tree, or nullptr if no assertion prop took place.
  */
 
-GenTree* Compiler::optAssertionProp(ASSERT_VALARG_TP assertions, GenTree* tree, Statement* stmt)
+GenTree* Compiler::optAssertionProp(ASSERT_VALARG_TP assertions, GenTree* tree, Statement* stmt, BasicBlock* block)
 {
     switch (tree->gtOper)
     {
@@ -3991,6 +4033,14 @@ GenTree* Compiler::optAssertionProp(ASSERT_VALARG_TP assertions, GenTree* tree, 
         case GT_GE:
 
             return optAssertionProp_RelOp(assertions, tree, stmt);
+
+        case GT_JTRUE:
+
+            if (block != nullptr)
+            {
+                return optVNConstantPropOnJTrue(block, tree);
+            }
+            return nullptr;
 
         default:
             return nullptr;
@@ -5153,18 +5203,11 @@ void Compiler::optAssertionPropMain()
                                                        // and thus we must morph, set order, re-link
             for (GenTree* tree = stmt->GetTreeList(); tree != nullptr; tree = tree->gtNext)
             {
-                if (tree->OperIs(GT_JTRUE))
-                {
-                    // A GT_TRUE is always the last node in a tree, so we can break here
-                    assert((tree->gtNext == nullptr) && (stmt->GetNextStmt() == nullptr));
-                    break;
-                }
-
                 JITDUMP("Propagating %s assertions for " FMT_BB ", stmt " FMT_STMT ", tree [%06d], tree -> %d\n",
                         BitVecOps::ToString(apTraits, assertions), block->bbNum, stmt->GetID(), dspTreeID(tree),
                         tree->GetAssertionInfo().GetAssertionIndex());
 
-                GenTree* newTree = optAssertionProp(assertions, tree, stmt);
+                GenTree* newTree = optAssertionProp(assertions, tree, stmt, block);
                 if (newTree)
                 {
                     assert(optAssertionPropagatedCurrentStmt == true);
