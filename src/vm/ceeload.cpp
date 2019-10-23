@@ -13277,6 +13277,38 @@ TypeHandle* AllocateNewTypeDictionaryForExpansion(MethodTable* pMT, DWORD cbSize
     return pInstOrPerInstInfo;
 }
 
+#ifdef _DEBUG
+void Module::EnsureTypeRecorded(MethodTable* pMT)
+{
+    _ASSERTE(SystemDomain::SystemModule()->m_DictionaryCrst.OwnedByCurrentThread());
+
+    BOOL typeExistsInHashtable = FALSE;
+    auto lamda = [&typeExistsInHashtable, pMT](OBJECTREF obj, MethodTable* pMTKey, MethodTable* pMTValue)
+    {
+        typeExistsInHashtable = (pMT == pMTValue);
+        return pMT != pMTValue;
+    };
+
+    m_dynamicSlotsHashForTypes.VisitValuesOfKey(pMT->GetCanonicalMethodTable(), lamda);
+    _ASSERTE(typeExistsInHashtable);
+}
+
+void Module::EnsureMethodRecorded(MethodDesc* pMD)
+{
+    _ASSERTE(SystemDomain::SystemModule()->m_DictionaryCrst.OwnedByCurrentThread());
+
+    BOOL methodExistsInHashtable = FALSE;
+    auto lamda = [&methodExistsInHashtable, pMD](OBJECTREF obj, MethodDesc* pMDKey, MethodDesc* pMDValue)
+    {
+        methodExistsInHashtable = (pMD== pMDValue);
+        return pMD != pMDValue;
+    };
+
+    m_dynamicSlotsHashForMethods.VisitValuesOfKey(pMD->GetExistingWrappedMethodDesc(), lamda);
+    _ASSERTE(methodExistsInHashtable);
+}
+#endif
+
 void Module::RecordTypeForDictionaryExpansion_Locked(MethodTable* pGenericParentMT, MethodTable* pDependencyMT)
 {
     CONTRACTL

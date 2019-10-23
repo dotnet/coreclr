@@ -967,6 +967,9 @@ void ClassLoader::LoadExactParents(MethodTable *pMT)
 
     MethodTableBuilder::CopyExactParentSlots(pMT, pApproxParentMT);
 
+    // Record this type for dynamic dictionary expansion (if applicable)
+    RecordDependenciesForDictionaryExpansion(pMT);
+
     // We can now mark this type as having exact parents
     pMT->SetHasExactParent();
 

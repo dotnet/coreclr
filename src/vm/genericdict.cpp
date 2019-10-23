@@ -1389,6 +1389,13 @@ Dictionary::PopulateEntry(
             // Lock is needed because dictionary pointers can get updated during dictionary size expansion
             CrstHolder ch(&SystemDomain::SystemModule()->m_DictionaryCrst);
 
+#if !defined(CROSSGEN_COMPILE) && defined(_DEBUG)
+            if (pMT != NULL)
+                pMT->GetModule()->EnsureTypeRecorded(pMT);
+            else
+                pMD->GetModule()->EnsureMethodRecorded(pMD);
+#endif
+
             Dictionary* pDictionary = pMT != NULL ? pMT->GetDictionary() : pMD->GetMethodDictionary();
 
             *EnsureWritablePages(pDictionary->GetSlotAddr(0, slotIndex)) = result;

@@ -3219,7 +3219,6 @@ TypeHandle ClassLoader::DoIncrementalLoad(TypeKey *pTypeKey, TypeHandle typeHnd,
             if (!typeHnd.IsTypeDesc())
             {
                 LoadExactParents(typeHnd.AsMethodTable());
-                RecordDependenciesForDictionaryExpansion(typeHnd.AsMethodTable());
             }
             break;
 

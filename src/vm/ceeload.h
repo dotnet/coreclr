@@ -3261,6 +3261,11 @@ public:
 
     void ExpandTypeDictionaries_Locked(MethodTable* pMT, DictionaryLayout* pOldLayout, DictionaryLayout* pNewLayout);
     void ExpandMethodDictionaries_Locked(MethodDesc* pMD, DictionaryLayout* pOldLayout, DictionaryLayout* pNewLayout);
+
+#ifdef _DEBUG
+    void EnsureTypeRecorded(MethodTable* pMT);
+    void EnsureMethodRecorded(MethodDesc* pMD);
+#endif
 #endif //!CROSSGEN_COMPILE
 };
 
