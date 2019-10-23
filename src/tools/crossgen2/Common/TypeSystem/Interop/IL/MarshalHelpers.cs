@@ -172,19 +172,22 @@ namespace Internal.TypeSystem.Interop
              MarshallerType marshallerType,
              out MarshallerKind elementMarshallerKind)
         {
+            elementMarshallerKind = MarshallerKind.Invalid;
+
             if (type.IsByRef)
             {
                 type = type.GetParameterType();
+
+                // Compat note: CLR allows ref returning blittable structs for IJW
+                if (isReturn)
+                    return MarshallerKind.Invalid;
             }
             TypeSystemContext context = type.Context;
             NativeTypeKind nativeType = NativeTypeKind.Default;
             bool isField = marshallerType == MarshallerType.Field;
 
             if (marshalAs != null)
-                nativeType = (NativeTypeKind)marshalAs.Type;
-
-
-            elementMarshallerKind = MarshallerKind.Invalid;
+                nativeType = marshalAs.Type;
 
             //
             // Determine MarshalerKind
@@ -263,7 +266,7 @@ namespace Internal.TypeSystem.Interop
 
                     case TypeFlags.IntPtr:
                     case TypeFlags.UIntPtr:
-                        if (nativeType == NativeTypeKind.Default)
+                        if (nativeType == NativeTypeKind.SysInt || nativeType == NativeTypeKind.SysUInt || nativeType == NativeTypeKind.Default)
                             return MarshallerKind.BlittableValue;
                         else
                             return MarshallerKind.Invalid;
@@ -304,48 +307,52 @@ namespace Internal.TypeSystem.Interop
                     else
                         return MarshallerKind.Invalid;
                 }
-
-                switch (nativeType)
+                else if (InteropTypes.IsSystemDecimal(context, type))
                 {
-                    case NativeTypeKind.Default:
-                    case NativeTypeKind.Struct:
-                        if (InteropTypes.IsSystemDecimal(context, type))
-                            return MarshallerKind.Decimal;
-                        break;
-
-                    case NativeTypeKind.LPStruct:
-                        if (InteropTypes.IsSystemGuid(context, type) ||
-                            InteropTypes.IsSystemDecimal(context, type))
-                        {
-                            if (isField || isReturn)
-                                return MarshallerKind.Invalid;
-                            else
-                                return MarshallerKind.BlittableStructPtr;
-                        }
-                        break;
-
-                    default:
+                    if (nativeType == NativeTypeKind.Struct || nativeType == NativeTypeKind.Default)
+                        return MarshallerKind.Decimal;
+                    else if (nativeType == NativeTypeKind.LPStruct && !isField && !isReturn)
+                        return MarshallerKind.BlittableStructPtr;
+                    else
                         return MarshallerKind.Invalid;
                 }
-
-                if (type is MetadataType)
+                else if (InteropTypes.IsSystemGuid(context, type))
                 {
-                    MetadataType metadataType = (MetadataType)type;
-                    // the struct type need to be either sequential or explicit. If it is
-                    // auto layout we will throw exception.
-                    if (!metadataType.HasLayout())
-                    {
-                        throw new InvalidProgramException("The specified structure " + metadataType.Name + " has invalid StructLayout information. It must be either Sequential or Explicit.");
-                    }
+                    if (nativeType == NativeTypeKind.Struct || nativeType == NativeTypeKind.Default)
+                        return MarshallerKind.BlittableStruct;
+                    else if (nativeType == NativeTypeKind.LPStruct && !isField && !isReturn)
+                        return MarshallerKind.BlittableStructPtr;
+                    else
+                        return MarshallerKind.Invalid;
+                }
+                else if (InteropTypes.IsSystemArgIterator(context, type))
+                {
+                    // Don't want to fall through to the blittable/haslayout case
+                    return MarshallerKind.Invalid;
+                }
+
+                if (type.HasInstantiation)
+                {
+                    throw new InvalidProgramException("Generic types cannot be marshaled.");
                 }
 
                 if (MarshalUtils.IsBlittableType(type))
                 {
+                    if (nativeType != NativeTypeKind.Default && nativeType != NativeTypeKind.Struct)
+                        return MarshallerKind.Invalid;
+
                     return MarshallerKind.BlittableStruct;
+                }
+                else if (((MetadataType)type).HasLayout())
+                {
+                    if (nativeType != NativeTypeKind.Default && nativeType != NativeTypeKind.Struct)
+                        return MarshallerKind.Invalid;
+
+                    return MarshallerKind.Struct;
                 }
                 else
                 {
-                    return MarshallerKind.Struct;
+                    return MarshallerKind.Invalid;
                 }
             }
             else if (type.IsSzArray)
@@ -403,15 +410,37 @@ namespace Internal.TypeSystem.Interop
                         return MarshallerKind.Invalid;
                 }
             }
-            else if (type.IsPointer || type.IsFunctionPointer)
+            else if (type.IsPointer)
             {
+                TypeDesc parameterType = ((PointerType)type).ParameterType;
+
+                if ((!parameterType.IsEnum
+                    && !parameterType.IsPrimitive
+                    && !MarshalUtils.IsBlittableType(parameterType))
+                    || parameterType.IsGCPointer)
+                {
+                    throw new InvalidProgramException("Pointers cannot reference marshaled structures.  Use ByRef instead.");
+                }
+
                 if (nativeType == NativeTypeKind.Default)
+                    return MarshallerKind.BlittableValue;
+                else
+                    return MarshallerKind.Invalid;
+            }
+            else if (type.IsFunctionPointer)
+            {
+                if (nativeType == NativeTypeKind.Func || nativeType == NativeTypeKind.Default)
                     return MarshallerKind.BlittableValue;
                 else
                     return MarshallerKind.Invalid;
             }
             else if (type.IsDelegate)
             {
+                if (type.HasInstantiation)
+                {
+                    throw new InvalidProgramException("Generic types cannot be marshaled.");
+                }
+
                 if (nativeType == NativeTypeKind.Default || nativeType == NativeTypeKind.Func)
                     return MarshallerKind.FunctionPointer;
                 else
@@ -501,6 +530,11 @@ namespace Internal.TypeSystem.Interop
             }
             else if (type is MetadataType mdType && mdType.HasLayout())
             {
+                if (type.HasInstantiation)
+                {
+                    throw new InvalidProgramException("Generic types cannot be marshaled.");
+                }
+
                 if (!isField && nativeType == NativeTypeKind.Default || nativeType == NativeTypeKind.LPStruct)
                     return MarshallerKind.LayoutClassPtr;
                 else if (isField && (nativeType == NativeTypeKind.Default || nativeType == NativeTypeKind.Struct))

@@ -98,6 +98,11 @@ namespace Internal.TypeSystem.Interop
             return IsCoreNamedType(context, type, "System", "Guid");
         }
 
+        public static bool IsSystemArgIterator(TypeSystemContext context, TypeDesc type)
+        {
+            return IsCoreNamedType(context, type, "System", "ArgIterator");
+        }
+
         private static bool IsOrDerivesFromType(TypeDesc type, MetadataType targetType)
         {
             while (type != null)
