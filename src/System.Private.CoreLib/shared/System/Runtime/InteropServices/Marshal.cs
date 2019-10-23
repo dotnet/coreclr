@@ -839,7 +839,7 @@ namespace System.Runtime.InteropServices
             }
 
             // If the type is not a ValueType and does not have a public default constructor then it can't be activated.
-            if (!type.IsValueType && type.GetConstructor(BindingFlags.Instance | BindingFlags.Public,null,new Type[0],null) == null)
+            if (!type.IsValueType && type.GetConstructor(BindingFlags.Instance | BindingFlags.Public, null, Array.Empty<Type>(), null) == null)
             {
                 return false;
             }
