@@ -129,6 +129,9 @@ struct RemoveVolatile<volatile T>
 // Starting at version 3.8, clang errors out on initializing of type int * to volatile int *. To fix this, we add two templates to cast away volatility
 // Helper structures for casting away volatileness
 
+#if defined(_ARM64_) && defined(_MSC_VER)
+#include <arm64intr.h>
+#endif
 
 template<typename T>
 inline
@@ -148,6 +151,26 @@ T VolatileLoad(T const * pt)
     {
         val = *(T volatile const *)pt;
         asm volatile ("dmb ishld" : : : "memory");
+    }
+#elif defined(_ARM64_) && defined(_MSC_VER)
+    T val;
+    switch (sizeof(T))
+    {
+    case 1:
+        val = (typename RemoveVolatile<T>::type)__ldar8 ((UINT8   volatile*)pt);
+        break;
+    case 2:
+        val = (typename RemoveVolatile<T>::type)__ldar16((UINT16  volatile*)pt);
+        break;
+    case 4:
+        val = (typename RemoveVolatile<T>::type)__ldar32((UINT32  volatile*)pt);
+        break;
+    case 8:
+        val = (typename RemoveVolatile<T>::type)__ldar64((UINT64  volatile*)pt);
+        break;
+    default:
+        val = *(T volatile const*)pt;
+        __dmb(_ARM64_BARRIER_ISHLD);
     }
 #else
     T val = *(T volatile const *)pt;
@@ -206,6 +229,25 @@ void VolatileStore(T* pt, T val)
     else
     {
         VOLATILE_MEMORY_BARRIER();
+        *(T volatile *)pt = val;
+    }
+#elif defined(_ARM64_) && defined(_MSC_VER)
+    switch (sizeof(T))
+    {
+    case 1:
+        __stlr8 ((UINT8   volatile*)pt, (UINT8) val);
+        break;
+    case 2:
+        __stlr16((UINT16  volatile*)pt, (UINT16)val);
+        break;
+    case 4:
+        __stlr32((UINT32  volatile*)pt, (UINT32)val);
+        break;
+    case 8:
+        __stlr64((UINT64  volatile*)pt ,(UINT64)val);
+        break;
+    default:
+        __dmb(_ARM64_BARRIER_ISH);
         *(T volatile *)pt = val;
     }
 #else
