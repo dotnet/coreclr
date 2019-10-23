@@ -103,10 +103,10 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
 
         public int CompareTo(SignatureContext other, TypeSystemComparer comparer)
         {
-            int result = comparer.Compare(GlobalContext, other.GlobalContext);
+            int result = GlobalContext.CompareTo(other.GlobalContext);
             if (result != 0) return result;
 
-            return comparer.Compare(LocalContext, other.LocalContext);
+            return LocalContext.CompareTo(other.LocalContext);
         }
     }
 }

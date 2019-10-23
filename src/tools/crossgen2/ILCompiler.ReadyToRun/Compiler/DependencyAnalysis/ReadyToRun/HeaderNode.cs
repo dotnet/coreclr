@@ -48,11 +48,6 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
                     return ObjectNodeSection.DataSection;
             }
         }
-
-        public sealed override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
-        {
-            throw new NotImplementedException("There should not be more than one of each type of HeaderTableNode.");
-        }
     }
 
     public class HeaderNode : ObjectNode, ISymbolDefinitionNode
@@ -153,10 +148,5 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
         }
 
         public override int ClassCode => 627741208;
-
-        public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
-        {
-            throw new NotImplementedException("There should be at most one HeaderNode");
-        }
     }
 }

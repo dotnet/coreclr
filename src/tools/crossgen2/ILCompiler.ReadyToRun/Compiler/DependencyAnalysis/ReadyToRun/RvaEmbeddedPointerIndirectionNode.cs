@@ -59,10 +59,7 @@ namespace ILCompiler.DependencyAnalysis
         public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
         {
             var otherNode = (IRvaEmbeddedPointerIndirectionNode<ISortableSymbolNode>) other;
-
-            // We don't know whether other's generic type is the same as TTarget
-            int result = otherNode.Target.ClassCode - Target.ClassCode;
-            if (result != 0) return result > 0 ? -1 : 1;
+            int result;
 
             if (CallSite != null || otherNode.CallSite != null)
             {
@@ -71,7 +68,8 @@ namespace ILCompiler.DependencyAnalysis
                 if (result != 0) return result;
             }
 
-            return Target.CompareToImpl(otherNode.Target, comparer);
+            // We don't know whether other's generic type is the same as TTarget
+            return comparer.Compare(Target, otherNode.Target);
         }
     }
 }

@@ -48,11 +48,6 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             return "____Win32Resources";
         }
 
-        public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
-        {
-            throw new NotImplementedException("There should be at most one Win32ResourcesNode");
-        }
-
         public int Size => _size;
     }
 }
