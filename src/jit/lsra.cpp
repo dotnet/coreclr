@@ -6068,8 +6068,16 @@ void LinearScan::allocateRegisters()
             }
             if (interval->isSpilled)
             {
+                unsigned prevBBNum = 0;
                 for (RefPosition* ref = interval->firstRefPosition; ref != nullptr; ref = ref->nextRefPosition)
                 {
+                    // For the resolution phase, we need to ensure that any block with exposed uses has the
+                    // incoming reg for 'this' as REG_STK.
+                    if (RefTypeIsUse(ref->refType) && (ref->bbNum != prevBBNum))
+                    {
+                        VarToRegMap inVarToRegMap = getInVarToRegMap(ref->bbNum);
+                        setVarReg(inVarToRegMap, thisVarDsc->lvVarIndex, REG_STK);
+                    }
                     if (ref->RegOptional())
                     {
                         ref->registerAssignment = RBM_NONE;
@@ -6096,6 +6104,7 @@ void LinearScan::allocateRegisters()
                         default:
                             break;
                     }
+                    prevBBNum = ref->bbNum;
                 }
             }
         }
