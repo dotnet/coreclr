@@ -2730,6 +2730,8 @@ DWORD Module::AllocateDynamicEntry(MethodTable *pMT)
         }
     }
 
+    m_pDynamicStaticsInfo[newId].pEnclosingMT = pMT;
+
     LOG((LF_CLASSLOADER, LL_INFO10000, "STATICS: Assigned dynamic ID %d to %s\n", newId, pMT->GetDebugClassName()));
 
     return newId;
