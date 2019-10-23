@@ -140,9 +140,6 @@ check_prereqs()
 
 restore_optdata()
 {
-    # we only need optdata on a Release build
-    if [[ "$__BuildType" != "Release" ]]; then __SkipRestoreOptData=1; fi
-
     local OptDataProjectFilePath="$__ProjectRoot/src/.nuget/optdata/optdata.csproj"
     if [[ ( $__SkipRestoreOptData == 0 ) && ( $__isMSBuildOnNETCoreSupported == 1 ) ]]; then
         echo "Restoring the OptimizationData package"

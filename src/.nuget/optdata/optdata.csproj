@@ -6,6 +6,7 @@
     <OptimizationDataSupported Condition="'$(BuildOS)' == 'Windows_NT' And ('$(BuildArch)' == 'x64' Or '$(BuildArch)' == 'x86')">True</OptimizationDataSupported>
     <OptimizationDataSupported Condition="'$(BuildOS)' == 'Linux' And '$(BuildArch)' == 'x64'">True</OptimizationDataSupported>
     <RuntimeIdentifiers>win7-x64;win7-x86;linux-x64</RuntimeIdentifiers>
+    <_BuildOSArchLowercase>$(BuildOS.ToLower())-$(BuildArch.ToLower())</_BuildOSArchLowercase>
   </PropertyGroup>
 
   <ItemGroup>
@@ -35,7 +36,7 @@
     <Error Condition="'$(PgoDataPackagePathOutputFile)'==''" Text="PgoDataPackagePathOutputFile must be passed as a property." />
     
     <PropertyGroup>
-      <PgoPackagePath>$([MSBuild]::NormalizePath($(Pkgoptimization_PGO_CoreCLR),../../,optimization.$(BuildOS)-$(BuildArch).PGO.CoreCLR,$(optimizationPGOCoreCLRVersion)))</PgoPackagePath>
+      <PgoPackagePath>$([MSBuild]::NormalizePath($(Pkgoptimization_PGO_CoreCLR),../../,optimization.$(_BuildOSArchLowercase).pgo.coreclr,$(optimizationPGOCoreCLRVersion)))</PgoPackagePath>
     </PropertyGroup>
 
     <Error Condition="!Exists('$(PgoPackagePath)') And '$(OptimizationDataSupported)' == 'True'" Text="Unable to locate restored PGO package. Maybe the platform-specific package naming changed?" />
@@ -63,7 +64,7 @@
     <Error Condition="'$(IbcDataPackagePathOutputFile)'==''" Text="IbcDataPackagePathOutputFile must be passed as a property." />
 
     <PropertyGroup>
-      <IbcPackagePath>$([MSBuild]::NormalizePath($(Pkgoptimization_IBC_CoreCLR),../../,optimization.$(BuildOS)-$(BuildArch).IBC.CoreCLR,$(optimizationIBCCoreCLRVersion)))</IbcPackagePath>
+      <IbcPackagePath>$([MSBuild]::NormalizePath($(Pkgoptimization_IBC_CoreCLR),../../,optimization.$(_BuildOSArchLowercase).ibc.coreclr,$(optimizationIBCCoreCLRVersion)))</IbcPackagePath>
     </PropertyGroup>
 
     <Error Condition="!Exists('$(IbcPackagePath)') And '$(OptimizationDataSupported)' == 'True'" Text="Unable to locate restored IBC package. Maybe the platform-specific package naming changed?" />
