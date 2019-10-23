@@ -263,7 +263,7 @@ typedef char * va_list;
 
 #define LONG_MIN    (-2147483647L - 1)
 #define LONG_MAX      2147483647L
-#define ULONG_MAX     0xffffffffUL
+//#define ULONG_MAX     0xffffffffUL
 
 #endif // !PAL_STDCPP_COMPAT
 

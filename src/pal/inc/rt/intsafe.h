@@ -54,7 +54,7 @@
 #define LONG_MAX        2147483647L
 #define USHRT_MAX       0xffff
 #define UINT_MAX        0xffffffff
-#define ULONG_MAX       0xffffffffUL
+//#define ULONG_MAX       0xffffffffUL
 #define DWORD_MAX       0xffffffffUL
 
 //
@@ -612,7 +612,7 @@ ULongLongToULong(
     HRESULT hr = INTSAFE_E_ARITHMETIC_OVERFLOW;
     *pulResult = ULONG_ERROR;
     
-    if (ullOperand <= ULONG_MAX)
+    if (ullOperand <= _UI32_MAX)
     {
         *pulResult = (ULONG)ullOperand;
         hr = S_OK;
