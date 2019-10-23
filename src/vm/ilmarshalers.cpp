@@ -3939,7 +3939,7 @@ void ILNativeArrayMarshaler::EmitCreateMngdMarshaler(ILCodeStream* pslILEmit)
 
     pslILEmit->EmitLDC(dwFlags);
 
-    if (mops.elementType == VTHACK_NONBLITTABLERECORD || (mops.elementType == VT_RECORD && !mops.methodTable->IsBlittable()))
+    if (mops.elementType == VT_RECORD && !mops.methodTable->IsBlittable())
     {
         pslILEmit->EmitLDFTN(pslILEmit->GetToken(NDirect::CreateStructMarshalILStub(mops.methodTable)));
     }
@@ -4550,7 +4550,7 @@ void ILFixedArrayMarshaler::EmitCreateMngdMarshaler(ILCodeStream* pslILEmit)
 
     pslILEmit->EmitLDC(mops.additive);
 
-    if (mops.elementType == VTHACK_NONBLITTABLERECORD || (mops.elementType == VT_RECORD && !mops.methodTable->IsBlittable()))
+    if (mops.elementType == VT_RECORD && !mops.methodTable->IsBlittable())
     {
         pslILEmit->EmitLDFTN(pslILEmit->GetToken(NDirect::CreateStructMarshalILStub(mops.methodTable)));
     }
@@ -4778,7 +4778,7 @@ void ILSafeArrayMarshaler::EmitCreateMngdMarshaler(ILCodeStream* pslILEmit)
     pslILEmit->EmitLDC(m_pargs->m_pMarshalInfo->GetArrayRank());
     pslILEmit->EmitLDC(dwFlags);
 
-    if (mops.elementType == VTHACK_NONBLITTABLERECORD || (mops.elementType == VT_RECORD && !mops.methodTable->IsBlittable()))
+    if (mops.elementType == VT_RECORD && !mops.methodTable->IsBlittable())
     {
         pslILEmit->EmitLDFTN(pslILEmit->GetToken(NDirect::CreateStructMarshalILStub(mops.methodTable)));
     }
@@ -5046,7 +5046,7 @@ void ILHiddenLengthArrayMarshaler::EmitCreateMngdMarshaler(ILCodeStream* pslILEm
     pslILEmit->EmitLDC(m_pargs->na.m_cbElementSize);
     pslILEmit->EmitLDC(m_pargs->na.m_vt);
 
-    if (m_pargs->na.m_vt == VTHACK_NONBLITTABLERECORD || (m_pargs->na.m_vt == VT_RECORD && !pElementMT->IsBlittable()))
+    if (m_pargs->na.m_vt == VTHACK_NONBLITTABLERECORD)
     {
         pslILEmit->EmitLDFTN(pslILEmit->GetToken(NDirect::CreateStructMarshalILStub(pElementMT)));
     }

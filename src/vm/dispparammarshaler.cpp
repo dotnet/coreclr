@@ -256,7 +256,7 @@ void DispParamArrayMarshaler::MarshalNativeToManaged(VARIANT *pSrcVar, OBJECTREF
         pElemMT = OleVariant::GetElementTypeForRecordSafeArray(pSafeArray).GetMethodTable();
 
     PCODE pStructMarshalStubAddress = NULL;
-    if ((vt == VT_RECORD || vt == VTHACK_NONBLITTABLERECORD) && (pElemMT != nullptr && !pElemMT->IsBlittable()))
+    if (vt == VT_RECORD && !pElemMT->IsBlittable())
     {
         GCX_PREEMP();
         pStructMarshalStubAddress = NDirect::GetEntryPointForStructMarshalStub(pElemMT);
@@ -302,7 +302,7 @@ void DispParamArrayMarshaler::MarshalManagedToNative(OBJECTREF *pSrcObj, VARIANT
 
         PCODE pStructMarshalStubAddress = NULL;
         GCPROTECT_BEGIN(*pSrcObj);
-        if ((vt == VT_RECORD || vt == VTHACK_NONBLITTABLERECORD) && (pElemMT != nullptr && !pElemMT->IsBlittable()))
+        if (vt == VT_RECORD && !pElemMT->IsBlittable())
         {
             GCX_PREEMP();
             pStructMarshalStubAddress = NDirect::GetEntryPointForStructMarshalStub(pElemMT);

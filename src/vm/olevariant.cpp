@@ -4128,7 +4128,7 @@ void OleVariant::MarshalArrayVariantOleToCom(VARIANT *pOleVariant,
             pElemMT = GetElementTypeForRecordSafeArray(pSafeArray).GetMethodTable();
 
         MethodDesc* pStructMarshalStub = nullptr;
-        if ((vt == VT_RECORD || vt == VTHACK_NONBLITTABLERECORD) && (pElemMT != nullptr && !pElemMT->IsBlittable()))
+        if (vt == VT_RECORD && !pElemMT->IsBlittable())
         {
             GCX_PREEMP();
 
@@ -4172,7 +4172,7 @@ void OleVariant::MarshalArrayVariantComToOle(VariantData *pComVariant,
 
     MethodDesc* pStructMarshalStub = nullptr;
     GCPROTECT_BEGIN(*pArrayRef);
-    if ((vt == VT_RECORD || vt == VTHACK_NONBLITTABLERECORD) && (pElemMT != nullptr && !pElemMT->IsBlittable()))
+    if (vt == VT_RECORD && !pElemMT->IsBlittable())
     {
         GCX_PREEMP();
 
@@ -4213,7 +4213,7 @@ void OleVariant::MarshalArrayVariantOleRefToCom(VARIANT *pOleVariant,
             pElemMT = GetElementTypeForRecordSafeArray(pSafeArray).GetMethodTable();
 
         MethodDesc* pStructMarshalStub = nullptr;
-        if ((vt == VT_RECORD || vt == VTHACK_NONBLITTABLERECORD) && (pElemMT != nullptr && !pElemMT->IsBlittable()))
+        if (vt == VT_RECORD && !pElemMT->IsBlittable())
         {
             GCX_PREEMP();
 
