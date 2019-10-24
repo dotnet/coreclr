@@ -93,14 +93,14 @@ namespace BinderTracing
     {
         _ASSERTE(assemblySpec != nullptr);
         
-        m_bindRequest.AssemblySpec->GetFileOrDisplayName(ASM_DISPLAYF_VERSION | ASM_DISPLAYF_CULTURE | ASM_DISPLAYF_PUBLIC_KEY_TOKEN, m_bindRequest.AssemblyName);
-        
         // ActivityTracker or EventSource may have triggered the system satellite load.
         // Don't track system satellite binding to avoid potential infinite recursion.
-        s_trackingBind = !m_bindRequest.AssemblySpec->IsMscorlibSatellite();
-
+        s_trackingBind = !m_bindRequest.AssemblySpec->IsMscorlibSatellite() && BinderTracing::IsEnabled();
         if (s_trackingBind)
+        {
+            m_bindRequest.AssemblySpec->GetFileOrDisplayName(ASM_DISPLAYF_VERSION | ASM_DISPLAYF_CULTURE | ASM_DISPLAYF_PUBLIC_KEY_TOKEN, m_bindRequest.AssemblyName);
             FireAssemblyBindStart(m_bindRequest);
+        }
     }
 
     AssemblyBindEvent::~AssemblyBindEvent()

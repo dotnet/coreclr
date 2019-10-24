@@ -28,12 +28,11 @@ namespace BinderTracingTests
 
     internal sealed class BinderEventListener : EventListener
     {
-        public Dictionary<Guid, BindEvent> BindEvents = new Dictionary<Guid, BindEvent>();
-
         private const EventKeywords TasksFlowActivityIds = (EventKeywords)0x80;
         private const EventKeywords BinderKeyword = (EventKeywords)0x4;
 
-        private object eventsLock = new object();
+        private readonly object eventsLock = new object();
+        private readonly Dictionary<Guid, BindEvent> bindEvents = new Dictionary<Guid, BindEvent>();
 
         public BindEvent[] WaitAndGetEventsForAssembly(string simpleName, int waitTimeoutInMs = 10000)
         {
@@ -43,7 +42,7 @@ namespace BinderTracingTests
             {
                 lock (eventsLock)
                 {
-                    var events = BindEvents.Values.Where(e => e.Completed && e.AssemblyName.Name == simpleName && !e.Nested);
+                    var events = bindEvents.Values.Where(e => e.Completed && e.AssemblyName.Name == simpleName && !e.Nested);
                     if (events.Any())
                     {
                         return events.ToArray();
@@ -77,27 +76,30 @@ namespace BinderTracingTests
             object GetData(string name) => data.Payload[data.PayloadNames.IndexOf(name)];
             string GetDataString(string name) => GetData(name).ToString();
 
-            lock (eventsLock)
+            switch (data.EventName)
             {
-                switch (data.EventName)
-                {
-                    case "AssemblyBindStart":
-                        Assert.True(!BindEvents.ContainsKey(data.ActivityId), "AssemblyBindStart should not exist for same activity ID ");
+                case "AssemblyBindStart":
+                    lock (eventsLock)
+                    {
+                        Assert.True(!bindEvents.ContainsKey(data.ActivityId), "AssemblyBindStart should not exist for same activity ID ");
                         var bindEvent = new BindEvent()
                         {
                             AssemblyName = new AssemblyName(GetDataString("AssemblyName")),
                             ActivityId = data.ActivityId,
                             ParentActivityId = data.RelatedActivityId,
-                            Nested = BindEvents.ContainsKey(data.RelatedActivityId)
+                            Nested = bindEvents.ContainsKey(data.RelatedActivityId)
                         };
-                        BindEvents.Add(data.ActivityId, bindEvent);
-                        break;
-                    case "AssemblyBindStop":
-                        Assert.True(BindEvents.ContainsKey(data.ActivityId), "AssemblyBindStop should have a matching AssemblyBindStart");
-                        BindEvents[data.ActivityId].Success = (bool)GetData("Success");
-                        BindEvents[data.ActivityId].Completed = true;
-                        break;
-                }
+                        bindEvents.Add(data.ActivityId, bindEvent);
+                    }
+                    break;
+                case "AssemblyBindStop":
+                    lock (eventsLock)
+                    {
+                        Assert.True(bindEvents.ContainsKey(data.ActivityId), "AssemblyBindStop should have a matching AssemblyBindStart");
+                        bindEvents[data.ActivityId].Success = (bool)GetData("Success");
+                        bindEvents[data.ActivityId].Completed = true;
+                    }
+                    break;
             }
         }
     }
