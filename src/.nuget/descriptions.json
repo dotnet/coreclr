@@ -50,8 +50,8 @@
         "CommonTypes": [ ]
     },
     {
-        "Name": "Microsoft.NETCore.Crossgen",
-        "Description": "The .NET Crossgen compiler.",
+        "Name": "Microsoft.NETCore.Crossgen2",
+        "Description": "The .NET Crossgen2 compiler.",
         "CommonTypes": [ ]
     }
 ]

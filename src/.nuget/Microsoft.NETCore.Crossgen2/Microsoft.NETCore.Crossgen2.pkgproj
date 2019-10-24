@@ -27,7 +27,7 @@
   }
 }
     </Crossgen2RuntimeConfigContents>
-    <Crossgen2RuntimeConfigFile>$(ArtifactsObjDir)crossgen2\crossgen.runtimeconfig.json</Crossgen2RuntimeConfigFile>
+    <Crossgen2RuntimeConfigFile>$(ArtifactsObjDir)crossgen2\crossgen2.runtimeconfig.json</Crossgen2RuntimeConfigFile>
   </PropertyGroup>
 
   <ItemGroup>
