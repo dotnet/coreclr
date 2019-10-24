@@ -89,6 +89,7 @@ namespace System.Collections
             return GetPrime(newSize);
         }
 
+#if BIT64
         public static ulong GetFastModMultiplier(uint divisor)
             => ulong.MaxValue / divisor + 1;
 
@@ -111,5 +112,6 @@ namespace System.Collections
                 return value % divisor;
             }
         }
+#endif
     }
 }
