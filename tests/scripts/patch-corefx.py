@@ -266,6 +266,14 @@ def patch_coreclr_root(core_root, fx_bin, corefx_binaries):
 ##########################################################################
 
 def main(args):
+    """
+        The way this script decides what to patch is by looking at the core
+        root for a list of dlls, then filtering out any ones built by coreclr.
+        This leaves us with a list of non-coreclr build dlls. Now we can use
+        that list to go through the corefx repo and any ones that also exist
+        in the corefx bin folder are copied over.
+    """
+
     log('Patching CoreFX binaries from local enlistment.')
 
     arch, build_type, clr_core_root, fx_root = validate_args(args)
