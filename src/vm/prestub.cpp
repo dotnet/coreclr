@@ -1197,6 +1197,17 @@ PrepareCodeConfig::JitOptimizationTier PrepareCodeConfig::GetJitOptimizationTier
     _ASSERTE(methodDesc != nullptr);
     _ASSERTE(config == nullptr || methodDesc == config->GetMethodDesc());
 
+    // The code below may take one or more locks. If process detach has already occurred, then other threads would have already
+    // been abruptly terminated, which may have left locks orphaned, so it would not be feasible to attempt taking a lock on
+    // process detach. This function is called from ETW-related code on shutdown where unfortunately it processes and sends
+    // rundown events upon process detach. If process detach has already occurred, then resort to best-effort behavior that may
+    // return inaccurate information. This is a temporary and targeted fix for a clear problem, and should not be used
+    // long-term.
+    if (g_fProcessDetach)
+    {
+        return JitOptimizationTier::Unknown;
+    }
+
     if (config != nullptr)
     {
         if (config->JitSwitchedToMinOpt())
