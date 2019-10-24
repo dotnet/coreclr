@@ -661,12 +661,8 @@ namespace System
                 return new T[length];
             }
 
-            if (length < 0)
-            {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.lengths, 0, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
-            }
-
-#if !DEBUG  // for debug builds we always want to call AllocateNewArray to detect AllocateNewArray bugs
+            // for debug builds we always want to call AllocateNewArray to detect AllocateNewArray bugs
+#if !DEBUG
             // small arrays are allocated using `new[]` as that is generally faster.
             if (length < 2048 / Unsafe.SizeOf<T>())
             {
@@ -676,8 +672,9 @@ namespace System
             // kept outside of the small arrays hot path to have inlining without big size growth
             return AllocateNewUninitializedArray(length);
 
+            // remove the local function when https://github.com/dotnet/coreclr/issues/5329 is implemented
             T[] AllocateNewUninitializedArray(int length)
-                => (T[])AllocateNewArray(typeof(T[]).TypeHandle.Value, length, zeroingOptional: true);
+                => Unsafe.As<T[]>(AllocateNewArray(typeof(T[]).TypeHandle.Value, length, zeroingOptional: true));
         }
     }
 }
