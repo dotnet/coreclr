@@ -1001,8 +1001,8 @@ public:
     TempDsc(int _tdNum, unsigned _tdSize, var_types _tdType) : tdNum(_tdNum), tdSize((BYTE)_tdSize), tdType(_tdType)
     {
 #ifdef DEBUG
-        assert(tdNum <
-               0); // temps must have a negative number (so they have a different number from all local variables)
+        // temps must have a negative number (so they have a different number from all local variables)
+        assert(tdNum < 0);
         tdOffs = BAD_TEMP_OFFSET;
 #endif // DEBUG
         if (tdNum != _tdNum)
@@ -6157,8 +6157,8 @@ protected:
 
         unsigned csdHashKey; // the orginal hashkey
 
-        unsigned csdIndex;          // 1..optCSECandidateCount
-        char     csdLiveAcrossCall; // 0 or 1
+        unsigned csdIndex; // 1..optCSECandidateCount
+        bool     csdLiveAcrossCall;
 
         unsigned short csdDefCount; // definition   count
         unsigned short csdUseCount; // use          count  (excluding the implicit uses at defs)
@@ -6314,8 +6314,8 @@ public:
     INDEBUG(void optDumpCopyPropStack(LclNumToGenTreePtrStack* curSsaName));
 
     /**************************************************************************
-    *               Early value propagation
-    *************************************************************************/
+     *               Early value propagation
+     *************************************************************************/
     struct SSAName
     {
         unsigned m_lvNum;
