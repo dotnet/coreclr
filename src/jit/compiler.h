@@ -6115,8 +6115,9 @@ protected:
 
     static const int MIN_CSE_COST = 2;
 
-    // Keeps tracked cse indices
-    BitVecTraits* cseTraits;
+    // trait information for CSE bitsets
+    BitVecTraits* cseMaskTraits;     // one bit per CSE candidate
+    BitVecTraits* cseLivenessTraits; // two bits per CSE candidate + 1
     EXPSET_TP     cseFull;
 
     /* Generic list of nodes - used by the CSE logic */
@@ -6241,8 +6242,7 @@ protected:
     unsigned optCSECandidateCount; // Count of CSE's candidates, reset for Lexical and ValNum CSE's
     unsigned optCSEstart;          // The first local variable number that is a CSE
     unsigned optCSEcount;          // The total count of CSE's introduced.
-    unsigned optCSEweight;         // The weight of the current block when we are
-                                   // scanning for CSE expressions
+    unsigned optCSEweight;         // The weight of the current block when we are doing PerformCS
 
     bool optIsCSEcandidate(GenTree* tree);
 
