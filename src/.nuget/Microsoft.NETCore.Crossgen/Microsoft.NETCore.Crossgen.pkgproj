@@ -20,10 +20,9 @@
 {
   "runtimeOptions": {
     "tfm": "netcoreapp3.0",
-    "rollForward": "major",
     "framework": {
       "name": "Microsoft.NETCore.App",
-      "version": "3.0.100"
+      "version": "5.0.0-alpha1.0"
     }
   }
 }
