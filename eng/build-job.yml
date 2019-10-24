@@ -59,10 +59,10 @@ jobs:
     - ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
       - name: clangArg
         value: '-clang6.0'
-    # Building for x64 MUSL happens on Alpine Linux and so we the clang 5.0 which is the only stable version
+    # Building for x64 MUSL happens on Alpine Linux and we need to use the stable version available there
     - ${{ if and(eq(parameters.osGroup, 'Linux'), eq(parameters.osSubgroup, '_musl'), eq(parameters.archType, 'x64')) }}:
       - name: clangArg
-        value: '-clang5.0'
+        value: ''
     - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
       # Variables used to publish packages to blob feed
       - name: dotnetfeedUrl
