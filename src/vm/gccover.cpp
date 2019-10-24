@@ -1825,8 +1825,6 @@ void DoGcStress (PCONTEXT regs, NativeCodeVersion nativeCodeVersion)
             _ASSERTE(!"Not expected multi reg return with pointers.");
 #endif // !_TARGET_AMD64_ || !PLATFORM_UNIX   
         }
-
-        gcFrame.Pop();
     }
 
 #if !defined(USE_REDIRECT_FOR_GCSTRESS)

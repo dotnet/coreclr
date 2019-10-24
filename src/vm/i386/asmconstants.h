@@ -189,10 +189,10 @@ ASMCONSTANTS_C_ASSERT(Thread_m_pFrame == offsetof(Thread, m_pFrame))
 #endif // CROSSGEN_COMPILE
 
 #ifndef CROSSGEN_COMPILE
-#define Thread_m_dwLockCount 0x14
+#define Thread_m_dwLockCount 0x18
 ASMCONSTANTS_C_ASSERT(Thread_m_dwLockCount == offsetof(Thread, m_dwLockCount))
 
-#define Thread_m_ThreadId 0x18
+#define Thread_m_ThreadId 0x1C
 ASMCONSTANTS_C_ASSERT(Thread_m_ThreadId == offsetof(Thread, m_ThreadId))
 
 #ifdef FEATURE_HIJACK

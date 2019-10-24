@@ -26,10 +26,6 @@
 //    Frame                     - the root class. There are no actual instances
 //    |                           of Frames.
 //    |
-//    +-GCFrame                 - this frame doesn't represent a method call.
-//    |                           it's sole purpose is to let the EE gc-protect
-//    |                           object references that it is manipulating.
-//    |
 //    +- FaultingExceptionFrame - this frame was placed on a method which faulted
 //    |                           to save additional state information
 //    |
@@ -238,7 +234,6 @@ FRAME_TYPE_NAME(DynamicHelperFrame)
 #if !defined(_TARGET_X86_)
 FRAME_TYPE_NAME(StubHelperFrame)
 #endif
-FRAME_TYPE_NAME(GCFrame)
 #ifdef FEATURE_INTERPRETER
 FRAME_TYPE_NAME(InterpreterFrame)
 #endif // FEATURE_INTERPRETER
@@ -2464,20 +2459,19 @@ private:
 
 #endif // FEATURE_COMINTEROP
 
-
 //------------------------------------------------------------------------
 // This frame protects object references for the EE's convenience.
 // This frame type actually is created from C++.
+// There is a chain of GCFrames on a Thread, separate from the
+// explicit frames derived from the Frame class.
 //------------------------------------------------------------------------
-class GCFrame : public Frame
+class GCFrame
 {
-    VPTR_VTABLE_CLASS(GCFrame, Frame)
-
 public:
 
 
     //--------------------------------------------------------------------
-    // This constructor pushes a new GCFrame on the frame chain.
+    // This constructor pushes a new GCFrame on the GC frame chain.
     //--------------------------------------------------------------------
 #ifndef DACCESS_COMPILE
     GCFrame() {
@@ -2486,9 +2480,15 @@ public:
 
     GCFrame(OBJECTREF *pObjRefs, UINT numObjRefs, BOOL maybeInterior);
     GCFrame(Thread *pThread, OBJECTREF *pObjRefs, UINT numObjRefs, BOOL maybeInterior);
-#endif
+#ifndef CROSSGEN_COMPILE
+    ~GCFrame();
+#endif // CROSSGEN_COMPILE
+
+#endif // DACCESS_COMPILE
+
     void Init(Thread *pThread, OBJECTREF *pObjRefs, UINT numObjRefs, BOOL maybeInterior);
 
+    void Push(Thread *pThread);
 
     //--------------------------------------------------------------------
     // Pops the GCFrame and cancels the GC protection. Also
@@ -2496,10 +2496,10 @@ public:
     //--------------------------------------------------------------------
     VOID Pop();
 
-    virtual void GcScanRoots(promote_func *fn, ScanContext* sc);
+    void GcScanRoots(promote_func *fn, ScanContext* sc);
 
 #ifdef _DEBUG
-    virtual BOOL Protects(OBJECTREF *ppORef)
+    BOOL Protects(OBJECTREF *ppORef)
     {
         LIMITED_METHOD_CONTRACT;
         for (UINT i = 0; i < m_numObjRefs; i++) {
@@ -2519,18 +2519,30 @@ public:
     }
 #endif
 
-#if defined(_DEBUG_IMPL)
-    const char* GetFrameTypeName() { LIMITED_METHOD_CONTRACT; return "GCFrame"; }
-#endif
+    PTR_GSCookie GetGSCookiePtr()
+    {
+        WRAPPER_NO_CONTRACT;
+        return dac_cast<PTR_GSCookie>(dac_cast<TADDR>(this) + GetOffsetOfGSCookie());
+    }
+
+    static int GetOffsetOfGSCookie()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+        return -(int)sizeof(GSCookie);
+    }
+
+    PTR_GCFrame PtrNextFrame()
+    {
+        WRAPPER_NO_CONTRACT;
+        return m_Next;
+    }
 
 private:
+    PTR_GCFrame   m_Next;
     PTR_OBJECTREF m_pObjRefs;
     UINT          m_numObjRefs;
     PTR_Thread    m_pCurThread;
     BOOL          m_MaybeInterior;
-
-    // Keep as last entry in class
-    DEFINE_VTABLE_GETTER_AND_DTOR(GCFrame)
 };
 
 #ifdef FEATURE_INTERPRETER
@@ -3582,7 +3594,7 @@ public:
 
 #define GCPROTECT_END()                                                 \
                 DEBUG_ASSURE_NO_RETURN_END(GCPROTECT) }                 \
-                __gcframe.Pop(); } while(0)
+                } while(0)
 
 
 #else // #ifndef DACCESS_COMPILE

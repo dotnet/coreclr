@@ -331,9 +331,6 @@ bool Frame::HasValidVTablePtr(Frame * pFrame)
     if (vptr == HelperMethodFrame::GetMethodFrameVPtr())
         return true;
 
-    if (vptr == GCFrame::GetMethodFrameVPtr())
-        return true;
-
     if (vptr == DebuggerSecurityCodeMarkFrame::GetMethodFrameVPtr())
         return true;
 
@@ -908,6 +905,35 @@ GCFrame::GCFrame(Thread *pThread, OBJECTREF *pObjRefs, UINT numObjRefs, BOOL may
     Init(pThread, pObjRefs, numObjRefs, maybeInterior);
 }
 
+GCFrame::~GCFrame()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    // Do a manual switch to the GC cooperative mode instead of using the GCX_COOP_THREAD_EXISTS
+    // macro so that this function isn't slowed down by having to deal with FS:0 chain on x86 Windows.
+    BOOL wasCoop = m_pCurThread->PreemptiveGCDisabled();
+    if (!wasCoop)
+    {
+        m_pCurThread->DisablePreemptiveGC();
+    }
+
+    // When the frame is destroyed, make sure it is no longer in the
+    // frame chain managed by the Thread.
+
+    Pop();
+
+    if (!wasCoop)
+    {
+        m_pCurThread->EnablePreemptiveGC();
+    }
+}
+
 void GCFrame::Init(Thread *pThread, OBJECTREF *pObjRefs, UINT numObjRefs, BOOL maybeInterior)
 {
     CONTRACTL
@@ -946,9 +972,8 @@ void GCFrame::Init(Thread *pThread, OBJECTREF *pObjRefs, UINT numObjRefs, BOOL m
     m_pCurThread    = pThread;
     m_MaybeInterior = maybeInterior;
 
-    Frame::Push(m_pCurThread);
+    Push(m_pCurThread);
 }
-
 
 //
 // GCFrame Object Scanning
@@ -986,6 +1011,42 @@ void GCFrame::GcScanRoots(promote_func *fn, ScanContext* sc)
 
 
 #ifndef DACCESS_COMPILE
+
+void GCFrame::Push(Thread *pThread)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_COOPERATIVE;
+    }
+    CONTRACTL_END;
+
+    _ASSERTE(*GetGSCookiePtr() == GetProcessGSCookie());
+
+    m_Next = pThread->GetGCFrame();
+
+    // GetOsPageSize() is used to relax the assert for cases where two Frames are
+    // declared in the same source function. We cannot predict the order
+    // in which the C compiler will lay them out in the stack frame.
+    // So GetOsPageSize() is a guess of the maximum stack frame size of any method
+    // with multiple Frames in mscorwks.dll
+    _ASSERTE(((m_Next == NULL) ||
+              (PBYTE(m_Next) + (2 * GetOsPageSize())) > PBYTE(this)) &&
+             "Pushing a GCFrame out of order ?");
+
+    _ASSERTE(// If AssertOnFailFast is set, the test expects to do stack overrun
+             // corruptions. In that case, the Frame chain may be corrupted,
+             // and the rest of the assert is not valid.
+             // Note that the corrupted Frame chain will be detected
+             // during stack-walking.
+             !g_pConfig->fAssertOnFailFast() ||
+             (m_Next == NULL) ||
+             (*m_Next->GetGSCookiePtr() == GetProcessGSCookie()));
+
+    pThread->SetGCFrame(this);
+}
+
 //--------------------------------------------------------------------
 // Pops the GCFrame and cancels the GC protection.
 //--------------------------------------------------------------------
@@ -993,7 +1054,20 @@ VOID GCFrame::Pop()
 {
     WRAPPER_NO_CONTRACT;
 
-    Frame::Pop(m_pCurThread);
+    _ASSERTE(m_pCurThread->GetGCFrame() == this && "Popping a GCFrame out of order ?");
+    _ASSERTE(*GetGSCookiePtr() == GetProcessGSCookie());
+    _ASSERTE(// If AssertOnFailFast is set, the test expects to do stack overrun
+             // corruptions. In that case, the Frame chain may be corrupted,
+             // and the rest of the assert is not valid.
+             // Note that the corrupted Frame chain will be detected
+             // during stack-walking.
+             !g_pConfig->fAssertOnFailFast() ||
+             (m_Next == NULL) ||
+             (*m_Next->GetGSCookiePtr() == GetProcessGSCookie()));
+
+    m_pCurThread->SetGCFrame(m_Next);
+    m_Next = NULL;
+
 #ifdef _DEBUG
     m_pCurThread->EnableStressHeap();
     for(UINT i = 0; i < m_numObjRefs; i++)
@@ -1066,6 +1140,17 @@ BOOL IsProtectedByGCFrame(OBJECTREF *ppObjectRef)
     ENABLE_FORBID_GC_LOADER_USE_IN_THIS_SCOPE ();
     IsProtectedByGCFrameStruct d = {ppObjectRef, 0};
     GetThread()->StackWalkFrames(IsProtectedByGCFrameStackWalkFramesCallback, &d);
+
+    GCFrame* pGCFrame = GetThread()->GetGCFrame();
+    while (pGCFrame != NULL)
+    {
+        if (pGCFrame->Protects(ppObjectRef)) {
+            d.count++;
+        }
+
+        pGCFrame = pGCFrame->PtrNextFrame();
+    }
+
     if (d.count > 1) {
         _ASSERTE(!"Multiple GCFrames protecting the same pointer. This will cause GC corruption!");
     }

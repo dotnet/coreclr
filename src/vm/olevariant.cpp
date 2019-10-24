@@ -32,7 +32,7 @@
 
 #define GCPROTECT_END_VARIANTDATA()                                     \
                 DEBUG_ASSURE_NO_RETURN_END(GCPROTECT); }                \
-                __gcframe.Pop(); } while(0)
+                } while(0)
 
 
 //Mapping from CVType to type handle. Used for conversion between the two internally.
