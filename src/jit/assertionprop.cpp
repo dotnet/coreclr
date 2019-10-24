@@ -3000,20 +3000,15 @@ AssertionIndex Compiler::optGlobalAssertionIsEqualOrNotEqual(ASSERT_VALARG_TP as
         if ((curAssertion->assertionKind == OAK_EQUAL) && (curAssertion->op1.kind == O1K_EXACT_TYPE) &&
             op1->OperIs(GT_IND))
         {
-            GenTreeIndir* indir = op1->AsIndir();
+            GenTree* indirAddr = op1->AsIndir()->Addr();
 
-            if (!indir->HasIndex() && (indir->Offset() == 0))
+            if (indirAddr->OperIs(GT_LCL_VAR) && (indirAddr->TypeGet() == TYP_REF))
             {
-                GenTree* indirBase = indir->Base();
-
-                if (indirBase->OperIs(GT_LCL_VAR) && (indirBase->TypeGet() == TYP_REF))
+                // op1 is accessing vtable of a ref type local var
+                if ((curAssertion->op1.vn == vnStore->VNConservativeNormalValue(indirBase->gtVNPair)) &&
+                    (curAssertion->op2.vn == vnStore->VNConservativeNormalValue(op2->gtVNPair)))
                 {
-                    // op1 is accessing vtable of a ref type'd local var
-                    if ((curAssertion->op1.vn == vnStore->VNConservativeNormalValue(indirBase->gtVNPair)) &&
-                        (curAssertion->op2.vn == vnStore->VNConservativeNormalValue(op2->gtVNPair)))
-                    {
-                        return assertionIndex;
-                    }
+                    return assertionIndex;
                 }
             }
         }
@@ -3143,6 +3138,12 @@ GenTree* Compiler::optAssertionPropGlobal_RelOp(ASSERT_VALARG_TP assertions, Gen
 
     // Else check if we have an equality check involving a local or an indir
     if (!tree->OperIs(GT_EQ, GT_NE))
+    {
+        return nullptr;
+    }
+
+    // Bail out if tree is not side effect free.
+    if ((tree->gtFlags & GTF_SIDE_EFFECT) != 0)
     {
         return nullptr;
     }
