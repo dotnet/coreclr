@@ -14,12 +14,14 @@ unsafe class Program
         bool _nonBlittable;
     }
 
+    // the "string unused" parameter is just so that we don't hit https://github.com/dotnet/coreclr/issues/27408 that
+    // makes this p/invoke actually work.
     [DllImport("Unused")]
-    private static extern bool PointerToNonBlittableType(NonBlittable* pNonBlittable);
+    private static extern void PointerToNonBlittableType(NonBlittable* pNonBlittable, string unused);
 
     static int Main()
     {
-        Assert.Throws<MarshalDirectiveException>(() => PointerToNonBlittableType(null));
+        Assert.Throws<MarshalDirectiveException>(() => PointerToNonBlittableType(null, null));
 
         return 100;
     }

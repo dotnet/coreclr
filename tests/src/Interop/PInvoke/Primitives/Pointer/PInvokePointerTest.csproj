@@ -7,5 +7,5 @@
   <ItemGroup>
     <Compile Include="PInvokePointerTest.cs" />
   </ItemGroup>
-  <Import Project="../../../Interop.settings.targets" />
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), Interop.settings.targets))\Interop.settings.targets" />
 </Project>
