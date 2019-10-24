@@ -171,6 +171,16 @@ generate_layout()
     fi
 }
 
+patch_corefx_libraries()
+{
+    echo "${__MsgPrefix}Patching CORE_ROOT: '${CORE_ROOT}' with CoreFX libaries from enlistment '${__LocalCoreFXPath}"
+
+    patchCoreFXArguments=("-clr_core_root" "${CORE_ROOT}" "-fx_root" "${__LocalCoreFXPath}" "-arch" "${__BuildArch}" "-build_type" "${__BuildType}")
+    scriptPath="$__ProjectDir/tests/scripts"
+    echo "python ${scriptPath}/patch-corefx.py ${patchCoreFXArguments[@]}"
+    $__Python "${scriptPath}/patch-corefx.py" "${patchCoreFXArguments[@]}"
+}
+
 precompile_coreroot_fx()
 {
     local overlayDir=$CORE_ROOT
@@ -419,6 +429,10 @@ build_Tests()
 
     if [ $__SkipGenerateLayout != 1 ]; then
         generate_layout
+    fi
+
+    if [ ! -z "$__LocalCoreFXPath" ]; then
+        patch_corefx_libraries
     fi
 }
 
@@ -778,7 +792,14 @@ __DoCrossgen2=0
 __CopyNativeTestBinaries=0
 __CopyNativeProjectsAfterCombinedTestBuild=true
 __SkipGenerateLayout=0
+__LocalCoreFXPath=""
 CORE_ROOT=
+
+# Default to python3 if it is installed
+__Python=python
+ if command -v python3 &>/dev/null; then
+    __Python=python3
+fi
 
 while :; do
     if [ $# -le 0 ]; then
@@ -1025,6 +1046,16 @@ while :; do
 
         skipgeneratelayout)
             __SkipGenerateLayout=1
+            ;;
+
+        localcorefxpath)
+            if [ -n "$2" ]; then
+                __LocalCoreFXPath="$2"
+                shift
+            else
+                echo "ERROR: 'localcorefxpath' requires a non-empty option argument"
+                exit 1
+            fi
             ;;
 
         *)
