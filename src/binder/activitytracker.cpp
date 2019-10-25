@@ -18,23 +18,22 @@
 void ActivityTracker::Start(/*out*/ GUID *activityId, /*out*/ GUID *relatedActivityId)
 {
     GCX_COOP();
-    MethodDescCallSite startBind(METHOD__ACTIVITY_TRACKER__START_ASSEMBLY_BIND);
-    ARG_SLOT args[] =
-    {
-        PtrToArgSlot(activityId),
-        PtrToArgSlot(relatedActivityId),
-    };
-    startBind.Call(args);
+
+    PREPARE_NONVIRTUAL_CALLSITE(METHOD__ACTIVITY_TRACKER__START_ASSEMBLY_BIND);
+    DECLARE_ARGHOLDER_ARRAY(args, 1);
+    args[ARGNUM_0] = PTR_TO_ARGHOLDER(activityId);
+    args[ARGNUM_1] = PTR_TO_ARGHOLDER(relatedActivityId);
+
+    CALL_MANAGED_METHOD_NORET(args)
 }
 
 void ActivityTracker::Stop(/*out*/ GUID *activityId)
 {
     GCX_COOP();
 
-    MethodDescCallSite stopBind(METHOD__ACTIVITY_TRACKER__STOP_ASSEMBLY_BIND);
-    ARG_SLOT args[] =
-    {
-        PtrToArgSlot(activityId),
-    };
-    stopBind.Call(args);
+    PREPARE_NONVIRTUAL_CALLSITE(METHOD__ACTIVITY_TRACKER__STOP_ASSEMBLY_BIND);
+    DECLARE_ARGHOLDER_ARRAY(args, 1);
+    args[ARGNUM_0] = PTR_TO_ARGHOLDER(activityId);
+
+    CALL_MANAGED_METHOD_NORET(args)
 }
