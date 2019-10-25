@@ -177,6 +177,7 @@ precompile_coreroot_fx()
 
     # Read the exclusion file for this platform
     skipCrossGenFiles=($(read_array "$(dirname "$0")/tests/skipCrossGenFiles.${__BuildArch}.txt"))
+    skipCrossGenFiles+=('System.Runtime.WindowsRuntime.dll')
 
     local overlayDir=$CORE_ROOT
 
