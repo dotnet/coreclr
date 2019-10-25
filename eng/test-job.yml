@@ -32,7 +32,6 @@ jobs:
       osSubgroup: ${{ parameters.managedTestBuildOsSubgroup }}
       container: ${{ parameters.container }}
       testGroup: ${{ parameters.testGroup }}
-      readyToRun: ${{ parameters.readyToRun }}
       crossrootfsDir: ${{ parameters.crossrootfsDir }}
       displayNameArgs: ${{ parameters.displayNameArgs }}
       condition: ${{ parameters.condition }}
