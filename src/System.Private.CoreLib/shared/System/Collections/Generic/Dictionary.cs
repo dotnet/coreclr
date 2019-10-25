@@ -333,16 +333,15 @@ namespace System.Collections.Generic
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }
 
-            int[]? buckets = _buckets;
             ref Entry entry = ref Unsafe.NullRef<Entry>();
-            if (buckets != null)
+            if (_buckets != null)
             {
                 Debug.Assert(_entries != null, "expected entries to be != null");
                 IEqualityComparer<TKey>? comparer = _comparer;
                 if (comparer == null)
                 {
                     uint hashCode = (uint)key.GetHashCode();
-                    int i = buckets[FastMod(hashCode, (uint)buckets.Length)];
+                    int i = GetBucket(hashCode);
                     Entry[]? entries = _entries;
                     uint collisionCount = 0;
                     if (default(TKey)! != null) // TODO-NULLABLE: default(T) == null warning (https://github.com/dotnet/roslyn/issues/34757)
@@ -410,7 +409,7 @@ namespace System.Collections.Generic
                 else
                 {
                     uint hashCode = (uint)comparer.GetHashCode(key);
-                    int i = buckets[FastMod(hashCode, (uint)buckets.Length)];
+                    int i = GetBucket(hashCode);
                     Entry[]? entries = _entries;
                     uint collisionCount = 0;
                     // Value in _buckets is 1-based; subtract 1 from i. We do it here so it fuses with the following conditional.
@@ -487,7 +486,7 @@ namespace System.Collections.Generic
             uint hashCode = (uint)((comparer == null) ? key.GetHashCode() : comparer.GetHashCode(key));
 
             uint collisionCount = 0;
-            ref int bucket = ref _buckets[FastMod(hashCode, (uint)_buckets.Length)];
+            ref int bucket = ref GetBucket(hashCode);
             // Value in _buckets is 1-based
             int i = bucket - 1;
 
@@ -631,7 +630,7 @@ namespace System.Collections.Generic
                 if (count == entries.Length)
                 {
                     Resize();
-                    bucket = ref _buckets[FastMod(hashCode, (uint)_buckets.Length)];
+                    bucket = ref GetBucket(hashCode);
                 }
                 index = count;
                 _count = count + 1;
@@ -728,7 +727,7 @@ namespace System.Collections.Generic
             Debug.Assert(_entries != null, "_entries should be non-null");
             Debug.Assert(newSize >= _entries.Length);
 
-            int[] buckets = new int[newSize];
+            _buckets = new int[newSize];
             Entry[] entries = new Entry[newSize];
 
             int count = _count;
@@ -750,15 +749,14 @@ namespace System.Collections.Generic
             {
                 if (entries[i].next >= -1)
                 {
-                    uint bucket = FastMod(entries[i].hashCode, (uint)newSize);
+                    ref int bucket = ref GetBucket(entries[i].hashCode);
                     // Value in _buckets is 1-based
-                    entries[i].next = buckets[bucket] - 1;
+                    entries[i].next = bucket - 1;
                     // Value in _buckets is 1-based
-                    buckets[bucket] = i + 1;
+                    bucket = i + 1;
                 }
             }
 
-            _buckets = buckets;
             _entries = entries;
         }
 
@@ -772,17 +770,16 @@ namespace System.Collections.Generic
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }
 
-            int[]? buckets = _buckets;
             Entry[]? entries = _entries;
-            if (buckets != null)
+            if (_buckets != null)
             {
                 Debug.Assert(entries != null, "entries should be non-null");
                 uint collisionCount = 0;
                 uint hashCode = (uint)(_comparer?.GetHashCode(key) ?? key.GetHashCode());
-                uint bucket = FastMod(hashCode, (uint)buckets.Length);
+                ref int bucket = ref GetBucket(hashCode);
                 int last = -1;
                 // Value in buckets is 1-based
-                int i = buckets[bucket] - 1;
+                int i = bucket - 1;
                 while (i >= 0)
                 {
                     ref Entry entry = ref entries[i];
@@ -792,7 +789,7 @@ namespace System.Collections.Generic
                         if (last < 0)
                         {
                             // Value in buckets is 1-based
-                            buckets[bucket] = entry.next + 1;
+                            bucket = entry.next + 1;
                         }
                         else
                         {
@@ -841,17 +838,16 @@ namespace System.Collections.Generic
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }
 
-            int[]? buckets = _buckets;
             Entry[]? entries = _entries;
-            if (buckets != null)
+            if (_buckets != null)
             {
                 Debug.Assert(entries != null, "entries should be non-null");
                 uint collisionCount = 0;
                 uint hashCode = (uint)(_comparer?.GetHashCode(key) ?? key.GetHashCode());
-                uint bucket = FastMod(hashCode, (uint)buckets.Length);
+                ref int bucket = ref GetBucket(hashCode);
                 int last = -1;
                 // Value in buckets is 1-based
-                int i = buckets[bucket] - 1;
+                int i = bucket - 1;
                 while (i >= 0)
                 {
                     ref Entry entry = ref entries[i];
@@ -861,7 +857,7 @@ namespace System.Collections.Generic
                         if (last < 0)
                         {
                             // Value in buckets is 1-based
-                            buckets[bucket] = entry.next + 1;
+                            bucket = entry.next + 1;
                         }
                         else
                         {
@@ -1040,7 +1036,6 @@ namespace System.Collections.Generic
             _version++;
             Initialize(newSize);
             Entry[]? entries = _entries;
-            int[]? buckets = _buckets;
             int count = 0;
             for (int i = 0; i < oldCount; i++)
             {
@@ -1049,11 +1044,11 @@ namespace System.Collections.Generic
                 {
                     ref Entry entry = ref entries![count];
                     entry = oldEntries[i];
-                    uint bucket = FastMod(hashCode, (uint)newSize);
+                    ref int bucket = ref GetBucket(hashCode);
                     // Value in _buckets is 1-based
-                    entry.next = buckets![bucket] - 1; // If we get here, we have entries, therefore buckets is not null.
+                    entry.next = bucket - 1; // If we get here, we have entries, therefore buckets is not null.
                     // Value in _buckets is 1-based
-                    buckets[bucket] = count + 1;
+                    bucket = count + 1;
                     count++;
                 }
             }
@@ -1172,11 +1167,19 @@ namespace System.Collections.Generic
         }
 
 #if BIT64
-        private uint FastMod(uint value, uint divisor)
-            => HashHelpers.FastMod(value, divisor, _fastModMultiplier);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private ref int GetBucket(uint hashCode)
+        {
+            int[] buckets = _buckets!;
+            return ref buckets[HashHelpers.FastMod(hashCode, (uint)buckets.Length, _fastModMultiplier)];
+        }
 #else
-        private static uint FastMod(uint value, uint divisor)
-            => value % divisor;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private ref int GetBucket(uint hashCode)
+        {
+            int[] buckets = _buckets!;
+            return ref buckets![hashCode % (uint)buckets.Length];
+        }
 #endif
 
         public struct Enumerator : IEnumerator<KeyValuePair<TKey, TValue>>,
