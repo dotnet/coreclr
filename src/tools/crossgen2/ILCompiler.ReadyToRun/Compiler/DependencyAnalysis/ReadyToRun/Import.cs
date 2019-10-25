@@ -14,7 +14,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
     {
         public readonly ImportSectionNode Table;
 
-        internal readonly RvaEmbeddedPointerIndirectionNode<Signature> ImportSignature;
+        internal readonly SignatureEmbeddedPointerIndirectionNode ImportSignature;
 
         internal readonly string CallSite;
 
@@ -22,7 +22,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
         {
             Table = tableNode;
             CallSite = callSite;
-            ImportSignature = new RvaEmbeddedPointerIndirectionNode<Signature>(importSignature, callSite);
+            ImportSignature = new SignatureEmbeddedPointerIndirectionNode(this, importSignature);
         }
 
         protected override void OnMarked(NodeFactory factory)
@@ -37,9 +37,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             return sb.ToString();
         }
 
-        private const int ClassCodeValue = 667823013;
-
-        public override int ClassCode => ClassCodeValue;
+        public override int ClassCode => 667823013;
 
         public virtual bool EmitPrecode => Table.EmitPrecode;
 
@@ -75,7 +73,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
                 if (result != 0) return result;
             }
 
-            result = ImportSignature.CompareToImpl(otherNode.ImportSignature, comparer);
+            result = comparer.Compare(ImportSignature.Target, otherNode.ImportSignature.Target);
             if (result != 0) return result;
 
             return Table.CompareToImpl(otherNode.Table, comparer);

@@ -31,11 +31,11 @@ namespace ILCompiler.DependencyAnalysis
         /// </summary>
         public delegate void OnMarkedDelegate(EmbeddedPointerIndirectionNode<TTarget> embeddedObject);
 
-        public ArrayOfEmbeddedPointersNode(string startSymbolMangledName, string endSymbolMangledName, IComparer<TTarget> nodeSorter)
+        public ArrayOfEmbeddedPointersNode(string startSymbolMangledName, string endSymbolMangledName, IComparer<EmbeddedPointerIndirectionNode<TTarget>> nodeSorter)
             : base(
                   startSymbolMangledName,
                   endSymbolMangledName,
-                  nodeSorter != null ? new PointerIndirectionNodeComparer(nodeSorter) : null)
+                  nodeSorter)
         {
             _startSymbolMangledName = startSymbolMangledName;
         }
@@ -59,7 +59,7 @@ namespace ILCompiler.DependencyAnalysis
 
         public override int ClassCode => (int)ObjectNodeOrder.ArrayOfEmbeddedPointersNode;
 
-        private class PointerIndirectionNodeComparer : IComparer<EmbeddedPointerIndirectionNode<TTarget>>
+        public class PointerIndirectionNodeComparer : IComparer<EmbeddedPointerIndirectionNode<TTarget>>
         {
             private IComparer<TTarget> _innerComparer;
 
