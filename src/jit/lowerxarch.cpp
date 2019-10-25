@@ -828,9 +828,9 @@ void Lowering::LowerHWIntrinsicCC(GenTreeHWIntrinsic* node, NamedIntrinsic newIn
 void Lowering::LowerFusedMultiplyAdd(GenTreeHWIntrinsic* node)
 {
     GenTreeArgList*     argList = node->gtGetOp1()->AsArgList();
-    GenTreeHWIntrinsic* createScalarOps[3];
+    GenTreeHWIntrinsic* createScalarOps[4]; // 3 arguments with 1-based index
 
-    for (auto& createScalarOp : createScalarOps)
+    for (int i = 1; i < 4; i++)
     {
         assert(argList->Current() != nullptr);
         if (argList->Current()->OperIsHWIntrinsic())
@@ -838,8 +838,8 @@ void Lowering::LowerFusedMultiplyAdd(GenTreeHWIntrinsic* node)
             GenTreeHWIntrinsic* hwArg = argList->Current()->AsHWIntrinsic();
             if (hwArg->gtHWIntrinsicId == NI_Vector128_CreateScalarUnsafe)
             {
-                createScalarOp = hwArg;
-                argList        = argList->Rest();
+                createScalarOps[i] = hwArg;
+                argList            = argList->Rest();
                 continue;
             }
         }
@@ -849,25 +849,25 @@ void Lowering::LowerFusedMultiplyAdd(GenTreeHWIntrinsic* node)
     }
     assert(argList == nullptr);
 
-    GenTree* argX = createScalarOps[0]->gtGetOp1();
-    GenTree* argY = createScalarOps[1]->gtGetOp1();
-    GenTree* argZ = createScalarOps[2]->gtGetOp1();
+    GenTree* argX = createScalarOps[1]->gtGetOp1();
+    GenTree* argY = createScalarOps[2]->gtGetOp1();
+    GenTree* argZ = createScalarOps[3]->gtGetOp1();
 
     const bool negMul = argX->OperIs(GT_NEG) != argY->OperIs(GT_NEG);
     if (argX->OperIs(GT_NEG))
     {
         BlockRange().Remove(argX);
-        createScalarOps[0]->gtOp1 = argX->gtGetOp1();
+        createScalarOps[1]->gtOp1 = argX->gtGetOp1();
     }
     if (argY->OperIs(GT_NEG))
     {
         BlockRange().Remove(argY);
-        createScalarOps[1]->gtOp1 = argY->gtGetOp1();
+        createScalarOps[2]->gtOp1 = argY->gtGetOp1();
     }
     if (argZ->OperIs(GT_NEG))
     {
         BlockRange().Remove(argZ);
-        createScalarOps[2]->gtOp1 = argZ->gtGetOp1();
+        createScalarOps[3]->gtOp1 = argZ->gtGetOp1();
         node->gtHWIntrinsicId     = negMul ? NI_FMA_MultiplySubtractNegatedScalar : NI_FMA_MultiplySubtractScalar;
     }
     else
