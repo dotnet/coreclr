@@ -126,6 +126,84 @@ namespace System.Runtime.Intrinsics.Arm
             /// </summary>
             public static Vector128<uint> CompareGreaterThanOrEqualZero(Vector128<float> value) => CompareGreaterThanOrEqualZero(value);
 
+            // /// <summary>
+            // /// uint64x1_t vcgtz_f64 (float64x1_t a)
+            // ///   A64: FCMGT Dd, Dn, #0
+            // /// </summary>
+            // public static Vector64<ulong> CompareGreaterThanZero(Vector64<double> value) => CompareGreaterThanZero(value);
+
+            /// <summary>
+            /// uint16x4_t vcgtz_s16 (int16x4_t a)
+            ///   A64: CMGT Vd, Vn, #0
+            /// </summary>
+            public static Vector64<ushort> CompareGreaterThanZero(Vector64<short> value) => CompareGreaterThanZero(value);
+
+            /// <summary>
+            /// uint32x2_t vcgtz_s32 (int32x2_t a)
+            ///   A64: CMGT Vd, Vn, #0
+            /// </summary>
+            public static Vector64<uint> CompareGreaterThanZero(Vector64<int> value) => CompareGreaterThanZero(value);
+
+            // /// <summary>
+            // /// uint64x1_t vcgtz_s64 (int64x1_t a)
+            // ///   A64: CMGT Dd, Dn, #0
+            // /// </summary>
+            // public static Vector64<ulong> CompareGreaterThanZero(Vector64<long> value) => CompareGreaterThanZero(value);
+
+            /// <summary>
+            /// uint8x8_t vcgtz_s8 (int8x8_t a)
+            ///   A64: CMGT Vd, Vn, #0
+            /// </summary>
+            public static Vector64<byte> CompareGreaterThanZero(Vector64<sbyte> value) => CompareGreaterThanZero(value);
+
+            /// <summary>
+            /// uint32x2_t vcgtz_f32 (float32x2_t a)
+            ///   A64: FCMGT Vd, Vn, #0
+            /// </summary>
+            public static Vector64<uint> CompareGreaterThanZero(Vector64<float> value) => CompareGreaterThanZero(value);
+
+            // /// <summary>
+            // /// uint64x1_t vcgtz_u64 (uint64x1_t a)
+            // ///   A64: CMGT Dd, Dn, #0
+            // /// </summary>
+            // public static Vector64<ulong> CompareGreaterThanZero(Vector64<ulong> value) => CompareGreaterThanZero(value);
+
+            /// <summary>
+            /// uint64x2_t vcgtzq_f64 (float64x2_t a)
+            ///   A64: FCMGT Vd, Vn, #0
+            /// </summary>
+            public static Vector128<ulong> CompareGreaterThanZero(Vector128<double> value) => CompareGreaterThanZero(value);
+
+            /// <summary>
+            /// uint16x8_t vcgtzq_s16 (int16x8_t a)
+            ///   A64: CMGT Vd, Vn, #0
+            /// </summary>
+            public static Vector128<ushort> CompareGreaterThanZero(Vector128<short> value) => CompareGreaterThanZero(value);
+
+            /// <summary>
+            /// uint32x4_t vcgtzq_s32 (int32x4_t a)
+            ///   A64: CMGT Vd, Vn, #0
+            /// </summary>
+            public static Vector128<uint> CompareGreaterThanZero(Vector128<int> value) => CompareGreaterThanZero(value);
+
+            /// <summary>
+            /// uint64x2_t vcgtzq_s64 (int64x2_t a)
+            ///   A64: CMGT Vd, Vn, #0
+            /// </summary>
+            public static Vector128<ulong> CompareGreaterThanZero(Vector128<long> value) => CompareGreaterThanZero(value);
+
+            /// <summary>
+            /// uint8x16_t vcgtzq_s8 (int8x16_t a)
+            ///   A64: CMGT Vd, Vn, #0
+            /// </summary>
+            public static Vector128<byte> CompareGreaterThanZero(Vector128<sbyte> value) => CompareGreaterThanZero(value);
+
+            /// <summary>
+            /// uint32x4_t vcgtzq_f32 (float32x4_t a)
+            ///   A64: FCMGT Vd, Vn, #0
+            /// </summary>
+            public static Vector128<uint> CompareGreaterThanZero(Vector128<float> value) => CompareGreaterThanZero(value);
+
             /// <summary>
             /// uint8x8_t vceqz_u8 (uint8x8_t a)
             ///   A64: CMEQ Vd, Vn, #0
