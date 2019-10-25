@@ -301,6 +301,8 @@ bool IsFieldBlittable(
             }
             else if (valueTypeHandle.GetMethodTable() == MscorlibBinder::GetClass(CLASS__DECIMAL))
             {
+                // The alignment requirements of the managed System.Decimal type do not match the native DECIMAL type.
+                // As a result, a field of type System.Decimal can't be blittable.
                 isBlittable = false;
             }
 #if FEATURE_COMINTEROP
