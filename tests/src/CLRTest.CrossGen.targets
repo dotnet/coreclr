@@ -70,7 +70,7 @@ if [ ! -z ${RunCrossGen2+x} ]%3B then
           cp $(MSBuildProjectName).dll IL/$(MSBuildProjectName).dll
           mv $(MSBuildProjectName).dll $(MSBuildProjectName).org
 
-          __cg2Cmd=$_DebuggerFullPath "$CORE_ROOT/corerun" "$CORE_ROOT/crossgen2/crossgen2.dll" 
+          __cg2Cmd=$_DebuggerFullPath "$CORE_ROOT/crossgen2/crossgen2"
           __cg2Rsp=$(MSBuildProjectName).dll.rsp
 
           rm $__cg2Rsp
@@ -147,7 +147,7 @@ if defined RunCrossGen2 (
             copy $(MSBuildProjectName).dll IL\$(MSBuildProjectName).dll
             ren $(MSBuildProjectName).dll $(MSBuildProjectName).org
 
-            set CrossGen2Cmd=!_DebuggerFullPath! "!CORE_ROOT!\corerun" "!CORE_ROOT!\crossgen2\crossgen2.dll"
+            set CrossGen2Cmd=!_DebuggerFullPath! "!CORE_ROOT!\crossgen2\crossgen2"
             set CrossGen2Rsp=%21scriptPath%21$(MSBuildProjectName).dll.rsp
 
             del !CrossGen2Rsp!
