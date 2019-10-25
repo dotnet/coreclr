@@ -195,7 +195,7 @@ namespace R2RDump
         /// <param name="n">The integer representation</param>
         private static bool ArgStringToInt(string arg, out int n)
         {
-			arg = arg.Trim();
+            arg = arg.Trim();
             if (arg.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
             {
                 return int.TryParse(arg.Substring(2), System.Globalization.NumberStyles.HexNumber, null, out n);
@@ -266,7 +266,7 @@ namespace R2RDump
         /// <param name="queries">The ids to search for</param>
         private void QueryRuntimeFunction(R2RReader r2r, IEnumerable<string> queries)
         {
-            if (queries.Count() > 0)
+            if (queries.Any())
             {
                 _dumper.WriteDivider("Runtime Functions");
             }
