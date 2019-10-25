@@ -102,7 +102,7 @@ private:
     // Check for dead lock situation.
     Volatile<LONG>      m_countNoTriggerGC;
 
-#ifdef _WIN64
+#ifdef BIT64
     // ensures that we are a multiple of 8-bytes
     UINT32 pad;      
 #endif
@@ -184,7 +184,6 @@ public:
         LONG RWLock;
         RWLock = InterlockedDecrement(&m_RWLock);
         _ASSERTE (RWLock >= 0);
-        DECTHREADLOCKCOUNT();
         EE_LOCK_RELEASED(this);
     }
 
@@ -198,7 +197,6 @@ public:
         LONG RWLock;
         RWLock = InterlockedExchange (&m_RWLock, 0);
         _ASSERTE(RWLock == -1);
-        DECTHREADLOCKCOUNT();
         EE_LOCK_RELEASED(this);
     }
 

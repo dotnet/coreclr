@@ -510,11 +510,23 @@ void InitGSCookie()
 
     GSCookie * pGSCookiePtr = GetProcessGSCookiePtr();
 
+#ifdef FEATURE_PAL
+    // On Unix, the GS cookie is stored in a read only data segment
+    DWORD newProtection = PAGE_READWRITE;
+#else // FEATURE_PAL
+    DWORD newProtection = PAGE_EXECUTE_READWRITE;
+#endif // !FEATURE_PAL
+
     DWORD oldProtection;
-    if(!ClrVirtualProtect((LPVOID)pGSCookiePtr, sizeof(GSCookie), PAGE_EXECUTE_READWRITE, &oldProtection))
+    if(!ClrVirtualProtect((LPVOID)pGSCookiePtr, sizeof(GSCookie), newProtection, &oldProtection))
     {
         ThrowLastError();
     }
+
+#ifdef FEATURE_PAL
+    // PAL layer is unable to extract old protection for regions that were not allocated using VirtualAlloc
+    oldProtection = PAGE_READONLY;
+#endif // FEATURE_PAL
 
 #ifndef FEATURE_PAL
     // The GSCookie cannot be in a writeable page
@@ -533,7 +545,7 @@ void InitGSCookie()
 
 #ifdef _DEBUG
     // In _DEBUG, always use the same value to make it easier to search for the cookie
-    val = (GSCookie) WIN64_ONLY(0x9ABCDEF012345678) NOT_WIN64(0x12345678);
+    val = (GSCookie) BIT64_ONLY(0x9ABCDEF012345678) NOT_BIT64(0x12345678);
 #endif
 
     // To test if it is initialized. Also for ICorMethodInfo::getGSCookie()
@@ -596,6 +608,31 @@ do { \
 #define IfFailGoLog(EXPR) IfFailGotoLog(EXPR, ErrExit)
 #endif
 
+
+#ifndef CROSSGEN_COMPILE
+#ifdef FEATURE_PAL
+void EESocketCleanupHelper()
+{
+    CONTRACTL
+    {
+        GC_NOTRIGGER;
+        MODE_ANY;
+    } CONTRACTL_END;
+
+    // Close the debugger transport socket first
+    if (g_pDebugInterface != NULL)
+    {
+        g_pDebugInterface->CleanupTransportSocket();
+    }
+
+    // Close the diagnostic server socket.
+#ifdef FEATURE_PERFTRACING
+    DiagnosticServer::Shutdown();
+#endif // FEATURE_PERFTRACING
+}
+#endif // FEATURE_PAL
+#endif // CROSSGEN_COMPILE
+
 void EEStartupHelper(COINITIEE fFlags)
 {
     CONTRACTL
@@ -653,7 +690,12 @@ void EEStartupHelper(COINITIEE fFlags)
 #ifdef FEATURE_PERFTRACING
         // Initialize the event pipe.
         EventPipe::Initialize();
+
 #endif // FEATURE_PERFTRACING
+
+#ifdef FEATURE_PAL
+        PAL_SetShutdownCallback(EESocketCleanupHelper);
+#endif // FEATURE_PAL
 
 #ifdef FEATURE_GDBJIT
         // Initialize gdbjit
@@ -1407,8 +1449,19 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
             {
                 if (g_IBCLogger.InstrEnabled())
                 {
-                    Thread * pThread = GetThread();
-                    ThreadLocalIBCInfo* pInfo = pThread->GetIBCInfo();
+                    Thread * pThread = GetThreadNULLOk();
+                    ThreadLocalIBCInfo* pInfo = NULL;
+
+                    if (pThread != NULL)
+                    {
+                        pInfo = pThread->GetIBCInfo();
+                        if (pInfo == NULL) 
+                        { 
+                            CONTRACT_VIOLATION( ThrowsViolation | FaultViolation); 
+                            pInfo = new ThreadLocalIBCInfo(); 
+                            pThread->SetIBCInfo(pInfo); 
+                        } 
+                    }
 
                     // Acquire the Crst lock before creating the IBCLoggingDisabler object.
                     // Only one thread at a time can be processing an IBC logging event.
@@ -1440,16 +1493,14 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
         // callbacks from coming into the profiler even after Shutdown() has been called.
         // See https://github.com/dotnet/coreclr/issues/22176 for an example of how that
         // happens.
-        // Callbacks will be prevented when ProfilingAPIUtility::Terminate() changes the state
-        // to detached, which occurs shortly afterwards. It might be kinder to make the detaching
-        // transition before calling Shutdown(), but if we do we'd have to be very careful not
-        // to break profilers that were relying on being able to call various APIs during
-        // Shutdown(). I suspect this isn't something we'll ever do unless we get complaints.
+        //
+        // To prevent issues when profilers are attached we intentionally skip freeing the
+        // profiler here. Since there is no guarantee that the profiler won't be accessed after
+        // we free it (e.g. through callbacks or ELT hooks), we can't safely free the profiler.
         if (CORProfilerPresent())
         {
-            // If EEShutdown is not being called due to a ProcessDetach event, so
-            // the profiler should still be present
-            if (!g_fProcessDetach)
+            // Don't call back in to the profiler if we are being torn down, it might be unloaded
+            if (!fIsDllUnloading)
             {
                 BEGIN_PIN_PROFILER(CORProfilerPresent());
                 GCX_PREEMP();
@@ -1458,9 +1509,6 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
             }
 
             g_fEEShutDown |= ShutDown_Profiler;
-
-            // Free the interface objects.
-            ProfilingAPIUtility::TerminateProfiling();
         }
 #endif // PROFILING_SUPPORTED
 

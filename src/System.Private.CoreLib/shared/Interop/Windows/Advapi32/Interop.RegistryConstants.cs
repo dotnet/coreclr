@@ -2,16 +2,16 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-internal partial class Interop
+internal static partial class Interop
 {
-    internal partial class Advapi32
+    internal static partial class Advapi32
     {
         internal static class RegistryOptions
         {
             internal const int REG_OPTION_NON_VOLATILE = 0x0000;     // (default) keys are persisted beyond reboot/unload
             internal const int REG_OPTION_VOLATILE = 0x0001;        // All keys created by the function are volatile
             internal const int REG_OPTION_CREATE_LINK = 0x0002;     // They key is a symbolic link
-            internal const int REG_OPTION_BACKUP_RESTORE = 0x0004;  // Use SE_BACKUP_NAME process special privileges         
+            internal const int REG_OPTION_BACKUP_RESTORE = 0x0004;  // Use SE_BACKUP_NAME process special privileges
         }
 
         internal static class RegistryView

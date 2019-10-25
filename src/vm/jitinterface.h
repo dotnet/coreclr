@@ -62,6 +62,7 @@ bool SigInfoFlagsAreValid (CORINFO_SIG_INFO *sig)
     LIMITED_METHOD_CONTRACT;
     return !(sig->flags & ~(  CORINFO_SIGFLAG_IS_LOCAL_SIG
                             | CORINFO_SIGFLAG_IL_STUB
+                            | CORINFO_SIGFLAG_SUPPRESS_GC_TRANSITION
                             ));
 }
 
@@ -343,13 +344,13 @@ private:
 
 #endif // _TARGET_AMD64_
 
-#ifdef _WIN64
+#ifdef BIT64
 EXTERN_C FCDECL1(Object*, JIT_TrialAllocSFastMP_InlineGetThread, CORINFO_CLASS_HANDLE typeHnd_);
 EXTERN_C FCDECL2(Object*, JIT_BoxFastMP_InlineGetThread, CORINFO_CLASS_HANDLE type, void* data);
 EXTERN_C FCDECL2(Object*, JIT_NewArr1VC_MP_InlineGetThread, CORINFO_CLASS_HANDLE arrayMT, INT_PTR size);
 EXTERN_C FCDECL2(Object*, JIT_NewArr1OBJ_MP_InlineGetThread, CORINFO_CLASS_HANDLE arrayMT, INT_PTR size);
 
-#endif // _WIN64
+#endif // BIT64
 
 EXTERN_C FCDECL2_VV(INT64, JIT_LMul, INT64 val1, INT64 val2);
 
@@ -415,7 +416,7 @@ void ValidateWriteBarrierHelpers();
 
 extern "C"
 {
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
     void STDCALL JIT_EndCatch();               // JIThelp.asm/JIThelp.s
 #endif // _TARGET_X86_
 
@@ -435,6 +436,10 @@ extern "C"
     void STDCALL JIT_MemCpy(void *dest, const void *src, SIZE_T count);
 
     void STDMETHODCALLTYPE JIT_ProfilerEnterLeaveTailcallStub(UINT_PTR ProfilerHandle);
+
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+    void STDCALL JIT_StackProbe();
+#endif // _TARGET_X86_ || _TARGET_AMD64_
 };
 
 
@@ -1360,14 +1365,14 @@ public:
         m_iNativeVarInfo = 0;
         m_pNativeVarInfo = NULL;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
         m_moduleBase = NULL;
         m_totalUnwindSize = 0;
         m_usedUnwindSize = 0;
         m_theUnwindBlock = NULL;
         m_totalUnwindInfos = 0;
         m_usedUnwindInfos = 0;
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
     }
 
 #ifdef _TARGET_AMD64_
@@ -1428,7 +1433,7 @@ public:
           m_jitManager(jm),
           m_CodeHeader(NULL),
           m_ILHeader(header),
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
           m_moduleBase(NULL),
           m_totalUnwindSize(0),
           m_usedUnwindSize(0),
@@ -1514,7 +1519,7 @@ protected :
     EEJitManager*           m_jitManager;   // responsible for allocating memory
     CodeHeader*             m_CodeHeader;   // descriptor for JITTED code
     COR_ILMETHOD_DECODER *  m_ILHeader;     // the code header as exist in the file
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     TADDR                   m_moduleBase;       // Base for unwind Infos
     ULONG                   m_totalUnwindSize;  // Total reserved unwind space
     ULONG                   m_usedUnwindSize;   // used space in m_theUnwindBlock
@@ -1667,7 +1672,7 @@ EXTERN_C FCDECL0(VOID, JIT_PollGC_Nop);
 BOOL ObjIsInstanceOf(Object *pObject, TypeHandle toTypeHnd, BOOL throwCastException = FALSE);
 EXTERN_C TypeHandle::CastResult STDCALL ObjIsInstanceOfNoGC(Object *pObject, TypeHandle toTypeHnd);
 
-#ifdef _WIN64
+#ifdef BIT64
 class InlinedCallFrame;
 Thread * __stdcall JIT_InitPInvokeFrame(InlinedCallFrame *pFrame, PTR_VOID StubSecretArg);
 #endif

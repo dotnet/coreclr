@@ -5,12 +5,12 @@
 using System;
 using System.Runtime.InteropServices;
 
-internal partial class Interop
+internal static partial class Interop
 {
-    internal partial class Kernel32
+    internal static partial class Kernel32
     {
         [DllImport(Libraries.Kernel32)]
-        internal static unsafe extern Interop.BOOL TzSpecificLocalTimeToSystemTime(
+        internal static extern unsafe Interop.BOOL TzSpecificLocalTimeToSystemTime(
             IntPtr lpTimeZoneInformation,
             Interop.Kernel32.SYSTEMTIME* lpLocalTime,
             Interop.Kernel32.SYSTEMTIME* lpUniversalTime);

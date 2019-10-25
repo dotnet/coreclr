@@ -14,16 +14,18 @@ class EHClauseInfo;
 
 #include "exceptionhandling.h"
 
-#if !defined(WIN64EXCEPTIONS)
+#if !defined(FEATURE_EH_FUNCLETS)
 // ExInfo contains definitions for 32bit
 #include "exinfo.h"
-#endif // !defined(WIN64EXCEPTIONS)
+#endif // !defined(FEATURE_EH_FUNCLETS)
 
 #if !defined(DACCESS_COMPILE)
 #define PRESERVE_WATSON_ACROSS_CONTEXTS 1
 #endif
 
 extern StackWalkAction COMPlusUnwindCallback(CrawlFrame *pCf, ThrowCallbackType *pData);
+
+typedef DPTR(PTR_Frame)                 PTR_PTR_Frame;
 
 //
 // This class serves as a forwarding and abstraction layer for the EH subsystem.
@@ -46,11 +48,11 @@ class ThreadExceptionState
     // ExceptionTracker or the ExInfo as appropriate for the platform
     friend class ProfToEEInterfaceImpl;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     friend class ExceptionTracker;
 #else
     friend class ExInfo;
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 public:
     
@@ -84,7 +86,7 @@ public:
     ThreadExceptionState();
     ~ThreadExceptionState();
 
-#if !defined(WIN64EXCEPTIONS)
+#if !defined(FEATURE_EH_FUNCLETS)
       void              SetExceptionPointers(EXCEPTION_POINTERS *pExceptionPointers);
 #endif
 
@@ -147,7 +149,7 @@ public:
 private:
     Thread* GetMyThread();
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     PTR_ExceptionTracker    m_pCurrentTracker;
     ExceptionTracker        m_OOMTracker;
 public:
@@ -158,12 +160,24 @@ public:
     }
 #else
     ExInfo                  m_currentExInfo;
+    PTR_PTR_Frame           m_ppBottomFrameDuringUnwind;
 public:
     PTR_ExInfo                 GetCurrentExceptionTracker()
     {
         LIMITED_METHOD_CONTRACT;
         return PTR_ExInfo(PTR_HOST_MEMBER_TADDR(ThreadExceptionState, this, m_currentExInfo));
     }
+
+    PTR_PTR_Frame GetPtrToBottomFrameDuringUnwind()
+    {
+        return m_ppBottomFrameDuringUnwind;
+    }
+
+    void SetPtrToBottomFrameDuringUnwind(PTR_PTR_Frame framePtr)
+    {
+        m_ppBottomFrameDuringUnwind = framePtr;
+    }
+
 #endif
 
 #ifdef FEATURE_CORRUPTING_EXCEPTIONS
@@ -232,7 +246,7 @@ public:
 
 private:
 
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
     
     //
     // @NICE: Ideally, these friends shouldn't all be enumerated like this.  If they were all part of the same
@@ -298,7 +312,7 @@ private:
     // friend StackWalkAction Thread::StackWalkFramesEx(PREGDISPLAY pRD, PSTACKWALKFRAMESCALLBACK pCallback,
     //                 VOID *pData, unsigned flags, Frame *pStartFrame);
 
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 };
 

@@ -15,7 +15,6 @@
 #include "apithreadstress.h"
 #include <objbase.h>
 
-#include "sha1.h"
 #include "eventtrace.h"
 #include "peimagelayout.inl"
 
@@ -598,17 +597,6 @@ void PEImage::GetMVID(GUID *pMvid)
 #endif // _DEBUG
 }
 
-void PEImage::GetHashedStrongNameSignature(SBuffer &result)
-{
-    COUNT_T size;
-    const void *sig = GetStrongNameSignature(&size);
-
-    SHA1Hash hasher;
-    hasher.AddData((BYTE *) sig, size);
-    result.Set(hasher.GetHash(), SHA1_HASH_SIZE);
-}
-
-
 void PEImage::VerifyIsAssembly()
 {
     CONTRACTL
@@ -933,7 +921,6 @@ void PEImage::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 PEImage::PEImage():
     m_refCount(1),
     m_bIsTrustedNativeImage(FALSE),
-    m_bPassiveDomainOnly(FALSE),
     m_bInHashMap(FALSE),
 #ifdef METADATATRACKER_DATA
     m_pMDTracker(NULL),
@@ -942,9 +929,6 @@ PEImage::PEImage():
     m_pNativeMDImport(NULL),
     m_hFile(INVALID_HANDLE_VALUE),
     m_bOwnHandle(true),
-    m_bSignatureInfoCached(FALSE),
-    m_hrSignatureInfoStatus(E_UNEXPECTED),
-    m_dwSignatureInfo(0),
     m_dwPEKind(0),
     m_dwMachine(0),
     m_fCachedKindAndMachine(FALSE)
@@ -1093,7 +1077,7 @@ PTR_PEImageLayout PEImage::CreateLayoutMapped()
     }
     else if (IsFile())
     {
-        PEImageLayoutHolder pLayout(PEImageLayout::Map(GetFileHandle(),this));
+        PEImageLayoutHolder pLayout(PEImageLayout::Map(this));
 
         bool fMarkAnyCpuImageAsLoaded = false;
         // Avoid mapping another image if we can. We can only do this for IL-ONLY images
@@ -1147,7 +1131,7 @@ PTR_PEImageLayout PEImage::CreateLayoutFlat(BOOL bPermitWriteableSections)
 
     _ASSERTE(m_pLayouts[IMAGE_FLAT] == NULL);
 
-    PTR_PEImageLayout pFlatLayout = PEImageLayout::LoadFlat(GetFileHandle(),this);
+    PTR_PEImageLayout pFlatLayout = PEImageLayout::LoadFlat(this);
 
     if (!bPermitWriteableSections
         && pFlatLayout->CheckNTHeaders()
@@ -1337,7 +1321,7 @@ void PEImage::LoadNoMetaData()
     else
     {
         _ASSERTE(!m_path.IsEmpty());
-        SetLayout(IMAGE_LOADED,PEImageLayout::LoadFlat(GetFileHandle(),this));
+        SetLayout(IMAGE_LOADED,PEImageLayout::LoadFlat(this));
     }
 }
 

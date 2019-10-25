@@ -22,32 +22,28 @@ namespace System
             throw new NotImplementedException();
         }
 
-        //Determines whether or not this instance of WeakReference still refers to an object
-        //that has not been collected.
+        // Determines whether or not this instance of WeakReference still refers to an object
+        // that has not been collected.
         //
         public extern virtual bool IsAlive
         {
-            [MethodImplAttribute(MethodImplOptions.InternalCall)]
+            [MethodImpl(MethodImplOptions.InternalCall)]
             get;
         }
 
-        //Returns a boolean indicating whether or not we're tracking objects until they're collected (true)
-        //or just until they're finalized (false).
+        // Returns a boolean indicating whether or not we're tracking objects until they're collected (true)
+        // or just until they're finalized (false).
         //
-        public virtual bool TrackResurrection
-        {
-            // We need to call IsTrackResurrection non-virtually in GetObjectData, and so the virtual property cannot be FCall directly
-            get { return IsTrackResurrection(); }
-        }
+        public virtual bool TrackResurrection => IsTrackResurrection();
 
-        //Gets the Object stored in the handle if it's accessible.
+        // Gets the Object stored in the handle if it's accessible.
         // Or sets it.
         //
         public extern virtual object? Target
         {
-            [MethodImplAttribute(MethodImplOptions.InternalCall)]
+            [MethodImpl(MethodImplOptions.InternalCall)]
             get;
-            [MethodImplAttribute(MethodImplOptions.InternalCall)]
+            [MethodImpl(MethodImplOptions.InternalCall)]
             set;
         }
 
@@ -57,13 +53,13 @@ namespace System
         // treated specially in gc.cpp's ScanForFinalization
         // This is needed for subclasses deriving from WeakReference, however.
         // Additionally, there may be some cases during shutdown when we run this finalizer.
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         extern ~WeakReference();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void Create(object? target, bool trackResurrection);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern bool IsTrackResurrection();
     }
 }

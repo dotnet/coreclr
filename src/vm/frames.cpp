@@ -1001,6 +1001,110 @@ VOID GCFrame::Pop()
 #endif
 }
 
+#ifndef CROSSGEN_COMPILE
+// GCFrame destructor removes the GCFrame from the current thread's explicit frame list.
+// This prevents issues in functions that have HELPER_METHOD_FRAME_BEGIN / END around 
+// GCPROTECT_BEGIN / END and where the C++ compiler places some local variables over 
+// the stack location of the GCFrame local variable after the variable goes out of scope. 
+GCFrame::~GCFrame()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    if (m_Next != NULL)
+    {
+        // Do a manual switch to the GC cooperative mode instead of using the GCX_COOP_THREAD_EXISTS
+        // macro so that this function isn't slowed down by having to deal with FS:0 chain on x86 Windows.
+        BOOL wasCoop = m_pCurThread->PreemptiveGCDisabled();
+        if (!wasCoop)
+        {
+            m_pCurThread->DisablePreemptiveGC();
+        }
+
+        // When the frame is destroyed, make sure it is no longer in the
+        // frame chain managed by the Thread.
+
+        Pop();
+
+#ifndef FEATURE_PAL
+
+        PTR_Frame frame = NULL;
+
+#ifdef FEATURE_EH_FUNCLETS
+        PTR_ExceptionTracker pCurrentTracker = m_pCurThread->GetExceptionState()->GetCurrentExceptionTracker();
+        if (pCurrentTracker != NULL)
+        {
+            frame = pCurrentTracker->GetInitialExplicitFrame();
+        }
+#else
+        PTR_PTR_Frame ptrToInitialFrame = m_pCurThread->GetExceptionState()->GetPtrToBottomFrameDuringUnwind();
+        if (ptrToInitialFrame != NULL)
+        {
+            frame = *ptrToInitialFrame;
+            if (frame == this)
+            {
+                // The current frame that was just popped was the bottom frame used
+                // as an initial frame to scan stack frames.
+                // Update the bottom frame pointer to point to the first valid frame.
+                *ptrToInitialFrame = m_pCurThread->m_pFrame;
+            }
+        }
+#endif // FEATURE_EH_FUNCLETS
+
+        if (frame != NULL)
+        {
+            // There is an initial explicit frame, so we need to scan the explicit frame chain starting at
+            // that frame to see if the current frame that is being destroyed was on the chain.
+
+            while ((frame != FRAME_TOP) && (frame != this))
+            {
+                PTR_Frame nextFrame = frame->PtrNextFrame();
+                if (nextFrame == this)
+                {
+                    // Repair frame chain from the initial explicit frame to the current frame,
+                    // skipping the current GCFrame that was destroyed
+                    frame->m_Next = m_pCurThread->m_pFrame;
+                    break;
+                }
+                frame = nextFrame;
+                _ASSERTE(frame != NULL);
+            }
+        }
+#endif // !FEATURE_PAL
+
+        if (!wasCoop)
+        {
+            m_pCurThread->EnablePreemptiveGC();
+        }
+    }
+}
+
+ExceptionFilterFrame::~ExceptionFilterFrame()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    if (m_Next != NULL)
+    {
+        GCX_COOP();
+        // When the frame is destroyed, make sure it is no longer in the
+        // frame chain managed by the Thread.
+        Pop();
+    }
+}
+
+#endif // !CROSSGEN_COMPILE
+
 #ifdef FEATURE_INTERPRETER
 // Methods of IntepreterFrame.
 InterpreterFrame::InterpreterFrame(Interpreter* interp) 

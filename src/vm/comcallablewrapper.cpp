@@ -1687,15 +1687,15 @@ IUnknown* SimpleComCallWrapper::QIStandardInterface(Enum_StdInterfaces index)
 #include <optsmallperfcritical.h>   // improves CCW QI perf by ~10%
 
 #define IS_EQUAL_GUID(refguid,data1,data2,data3, data4,data5,data6,data7,data8,data9,data10,data11) \
-    ((((DWORD*)&refguid)[0] == (data1)) &&                                     \
-     (((DWORD*)&refguid)[1] == ((data3<<16)|data2)) &&                         \
-     (((DWORD*)&refguid)[2] == ((data7<<24)|(data6<<16)|(data5<<8)|data4)) &&  \
-     (((DWORD*)&refguid)[3] == ((data11<<24)|(data10<<16)|(data9<<8)|data8)))  \
+    ((((DWORD*)&refguid)[0] == (data1)) &&                                             \
+     (((DWORD*)&refguid)[1] == (((data3)<<16)|(data2))) &&                             \
+     (((DWORD*)&refguid)[2] == (((data7)<<24)|((data6)<<16)|((data5)<<8)|(data4))) &&  \
+     (((DWORD*)&refguid)[3] == (((data11)<<24)|((data10)<<16)|((data9)<<8)|(data8))))  \
 
 #define IS_EQUAL_GUID_LOW_12_BYTES(refguid,data1,data2,data3, data4,data5,data6,data7,data8,data9,data10,data11) \
-    ((((DWORD*)&refguid)[1] == ((data3<<16)|data2)) &&                         \
-     (((DWORD*)&refguid)[2] == ((data7<<24)|(data6<<16)|(data5<<8)|data4)) &&  \
-     (((DWORD*)&refguid)[3] == ((data11<<24)|(data10<<16)|(data9<<8)|data8)))  \
+    ((((DWORD*)&refguid)[1] == (((data3)<<16)|(data2))) &&                             \
+     (((DWORD*)&refguid)[2] == (((data7)<<24)|((data6)<<16)|((data5)<<8)|(data4))) &&  \
+     (((DWORD*)&refguid)[3] == (((data11)<<24)|((data10)<<16)|((data9)<<8)|(data8))))  \
 
 #define HANDLE_IID_INLINE(itfEnum,data1,data2,data3, data4,data5,data6,data7,data8,data9,data10,data11)     \
     CASE_IID_INLINE(itfEnum,data1,data2,data3, data4,data5,data6,data7,data8,data9,data10,data11)           \
@@ -2221,7 +2221,7 @@ ComCallWrapper* ComCallWrapper::CopyFromTemplate(ComCallWrapperTemplate* pTempla
     // alloc wrapper, aligned to cache line
     NewCCWHolder pStartWrapper(pWrapperCache);
     pStartWrapper = (ComCallWrapper*)pWrapperCache->GetCacheLineAllocator()->
-#ifdef _WIN64
+#ifdef BIT64
                                     GetCacheLine64();
     _ASSERTE(sizeof(ComCallWrapper) <= 64);
 #else
@@ -2262,7 +2262,7 @@ ComCallWrapper* ComCallWrapper::CopyFromTemplate(ComCallWrapperTemplate* pTempla
         {
             // alloc wrapper, aligned 32 bytes
             ComCallWrapper* pNewWrapper = (ComCallWrapper*)pWrapperCache->GetCacheLineAllocator()->
-#ifdef _WIN64
+#ifdef BIT64
                                           GetCacheLine64();
             _ASSERTE(sizeof(ComCallWrapper) <= 64);
 #else
@@ -2541,18 +2541,18 @@ void ComCallWrapper::FreeWrapper(ComCallWrapperCache *pWrapperCache)
         while (pWrap2 != NULL)
         {           
             ComCallWrapper* pTempWrap = GetNext(pWrap2);
-    #ifdef _WIN64
+    #ifdef BIT64
             pWrapperCache->GetCacheLineAllocator()->FreeCacheLine64(pWrap2);
-    #else //_WIN64
+    #else //BIT64
             pWrapperCache->GetCacheLineAllocator()->FreeCacheLine32(pWrap2);
-    #endif //_WIN64
+    #endif //BIT64
             pWrap2 = pTempWrap;
         }
-    #ifdef _WIN64
+    #ifdef BIT64
         pWrapperCache->GetCacheLineAllocator()->FreeCacheLine64(this);
-    #else //_WIN64
+    #else //BIT64
         pWrapperCache->GetCacheLineAllocator()->FreeCacheLine32(this);
-    #endif //_WIN64
+    #endif //BIT64
     }
 
     // release ccw mgr

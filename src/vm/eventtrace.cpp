@@ -4269,6 +4269,12 @@ VOID EtwCallbackCommon(
 #endif // !defined(FEATURE_PAL)
         ETW::GCLog::ForceGC(l64ClientSequenceNumber);
     }
+    // TypeSystemLog needs a notification when certain keywords are modified, so
+    // give it a hook here.
+    if (g_fEEStarted && !g_fEEShutDown && bIsPublicTraceHandle)
+    {
+        ETW::TypeSystemLog::OnKeywordsChanged();
+    }
 }
 
 // Individual callbacks for each EventPipe provider.
@@ -4488,13 +4494,6 @@ extern "C"
 
         EtwCallbackCommon(providerIndex, ControlCode, Level, MatchAnyKeyword, FilterData, false);
 
-        // TypeSystemLog needs a notification when certain keywords are modified, so
-        // give it a hook here.
-        if (g_fEEStarted && !g_fEEShutDown && bIsPublicTraceHandle)
-        {
-            ETW::TypeSystemLog::OnKeywordsChanged();
-        }
-
         // A manifest based provider can be enabled to multiple event tracing sessions
         // As long as there is atleast 1 enabled session, IsEnabled will be TRUE
         // Since classic providers can be enabled to only a single session, 
@@ -4599,11 +4598,11 @@ VOID ETW::ExceptionLog::ExceptionThrown(CrawlFrame  *pCf, BOOL bIsReThrownExcept
         gc.innerExceptionObj = ((EXCEPTIONREF)gc.exceptionObj)->GetInnerException();
 
         ThreadExceptionState *pExState = pThread->GetExceptionState();
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
         PTR_ExInfo pExInfo = NULL;
 #else
         PTR_ExceptionTracker pExInfo = NULL;
-#endif //!WIN64EXCEPTIONS
+#endif //!FEATURE_EH_FUNCLETS
         pExInfo = pExState->GetCurrentExceptionTracker();
         _ASSERTE(pExInfo != NULL);
         bIsNestedException = (pExInfo->GetPreviousExceptionTracker() != NULL);
@@ -4627,11 +4626,11 @@ VOID ETW::ExceptionLog::ExceptionThrown(CrawlFrame  *pCf, BOOL bIsReThrownExcept
 
         if (pCf->IsFrameless())
         {
-#ifndef _WIN64
+#ifndef BIT64
             exceptionEIP = (PVOID)pCf->GetRegisterSet()->ControlPC;
 #else
             exceptionEIP = (PVOID)GetIP(pCf->GetRegisterSet()->pContext);
-#endif //!_WIN64
+#endif //!BIT64
         }
         else
         {
@@ -6901,7 +6900,7 @@ VOID ETW::MethodLog::SendEventsForJitMethodsHelper(LoaderAllocator *pLoaderAlloc
         ReJITID ilCodeId = 0;
         NativeCodeVersion nativeCodeVersion;
 #ifdef FEATURE_CODE_VERSIONING
-        if (fGetCodeIds)
+        if (fGetCodeIds && pMD->IsVersionable())
         {
             CodeVersionManager *pCodeVersionManager = pMD->GetCodeVersionManager();
             _ASSERTE(pCodeVersionManager->LockOwnedByCurrentThread());

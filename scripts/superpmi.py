@@ -69,23 +69,27 @@ subparsers = parser.add_subparsers(dest='mode')
 collect_parser = subparsers.add_parser("collect")
 
 # Add required arguments
-collect_parser.add_argument("collection_command", nargs=1, help=superpmi_collect_help)
-collect_parser.add_argument("collection_args", nargs=1, help="Arguments to pass to the SuperPMI collect command.")
+collect_parser.add_argument("collection_command", nargs='?', help=superpmi_collect_help)
+collect_parser.add_argument("collection_args", nargs='?', help="Arguments to pass to the SuperPMI collect command.")
 
-collect_parser.add_argument("--break_on_assert", dest="break_on_assert", default=False, action="store_true")
-collect_parser.add_argument("--break_on_error", dest="break_on_error", default=False, action="store_true")
+collect_parser.add_argument("--break_on_assert", dest="break_on_assert", default=False, action="store_true", help="While verifying a clean superpmi collection enable break on assert.")
+collect_parser.add_argument("--break_on_error", dest="break_on_error", default=False, action="store_true", help="While verifying a clean superpmi collection enable break on assert.")
 
-collect_parser.add_argument("-log_file", dest="log_file", default=None)
+collect_parser.add_argument("-log_file", dest="log_file", default=None, help="Write output to a log file")
 
-collect_parser.add_argument("-arch", dest="arch", nargs='?', default="x64") 
-collect_parser.add_argument("-build_type", dest="build_type", nargs='?', default="Checked")
-collect_parser.add_argument("-test_location", dest="test_location", nargs="?", default=None)
-collect_parser.add_argument("-core_root", dest="core_root", nargs='?', default=None)
-collect_parser.add_argument("-product_location", dest="product_location", nargs='?', default=None)
-collect_parser.add_argument("-coreclr_repo_location", dest="coreclr_repo_location", default=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-collect_parser.add_argument("-test_env", dest="test_env", default=None)
-collect_parser.add_argument("-output_mch_path", dest="output_mch_path", default=None)
-collect_parser.add_argument("-run_from_coreclr_dir", dest="run_from_coreclr_dir", default=False)
+collect_parser.add_argument("-arch", dest="arch", nargs='?', default="x64", help="Arch, default is x64") 
+collect_parser.add_argument("-build_type", dest="build_type", nargs='?', default="Checked", help="Build type, Checked is default")
+collect_parser.add_argument("-test_location", dest="test_location", nargs="?", default=None, help="Test location. This is optional")
+collect_parser.add_argument("-pmi_assemblies", dest="pmi_assemblies", nargs="+", default=[], help="Pass a sequence of managed dlls or directories to recurisvely run pmi over while collecting.")
+collect_parser.add_argument("-core_root", dest="core_root", nargs='?', default=None, help="Location of the Core_Root location. If not passed it will be deduced if possible.")
+collect_parser.add_argument("-product_location", dest="product_location", nargs='?', default=None, help="Location of the built product, this is optional.")
+collect_parser.add_argument("-coreclr_repo_location", dest="coreclr_repo_location", default=os.path.dirname(os.path.dirname(os.path.abspath(__file__))), help="Location of the coreclr repo. Optional.")
+collect_parser.add_argument("-test_env", dest="test_env", default=None, help="Test env to pass to the coreclr tests if collecting over the tests.")
+collect_parser.add_argument("-output_mch_path", dest="output_mch_path", default=None, help="Location to drop the final mch file. By default it will drop to bin/mch/$(buildType).$(arch).$(config)/$(buildType).$(arch).$(config).mch")
+
+collect_parser.add_argument("--pmi", dest="pmi", default=False, action="store_true", help="Use pmi on a set of directories or assemblies")
+collect_parser.add_argument("-mch_files", dest="mch_files", nargs='+', default=None, help="Pass a sequence of mch files which will be merged.")
+collect_parser.add_argument("--merge_mch_files", dest="merge_mch_files", default=False, action="store_true", help="Merge multiple mch files. Please use the mch_files flag to pass a list of mch files to merge.")
 
 collect_parser.add_argument("--use_zapdisable", dest="use_zapdisable", default=False, action="store_true", help="Allow redundant calls to the systems libraries for more coverage.")
 
@@ -104,8 +108,9 @@ collect_parser.add_argument("--skip_cleanup", dest="skip_cleanup", default=False
 replay_parser = subparsers.add_parser("replay")
 
 # Add required arguments
-replay_parser.add_argument("jit_path", nargs=1, help="Path to clrjit.")
+replay_parser.add_argument("collection", nargs='?', default="default", help="Which collection type to run. Default is to run everything. Use superpmi list to find potential collections")
 
+replay_parser.add_argument("-jit_path", nargs='?', help="Path to clrjit. defaults to core_root jit.")
 replay_parser.add_argument("-mch_file", nargs=1, help=superpmi_replay_help)
 replay_parser.add_argument("-log_file", dest="log_file", default=None)
 
@@ -119,10 +124,7 @@ replay_parser.add_argument("-core_root", dest="core_root", nargs='?', default=No
 replay_parser.add_argument("-product_location", dest="product_location", nargs='?', default=None)
 replay_parser.add_argument("-coreclr_repo_location", dest="coreclr_repo_location", default=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 replay_parser.add_argument("-test_env", dest="test_env", default=None)
-replay_parser.add_argument("-output_mch_path", dest="output_mch_path", default=None)
-replay_parser.add_argument("-run_from_coreclr_dir", dest="run_from_coreclr_dir", default=False)
 
-replay_parser.add_argument("--skip_collect_mc_files", dest="skip_collect_mc_files", default=False, action="store_true")
 replay_parser.add_argument("--skip_cleanup", dest="skip_cleanup", default=False, action="store_true")
 replay_parser.add_argument("--force_download", dest="force_download", default=False, action="store_true")
 
@@ -132,6 +134,8 @@ asm_diff_parser = subparsers.add_parser("asmdiffs")
 # Add required arguments
 asm_diff_parser.add_argument("base_jit_path", nargs=1, help="Path to baseline clrjit.")
 asm_diff_parser.add_argument("diff_jit_path", nargs=1, help="Path to diff clrjit.")
+asm_diff_parser.add_argument("collection", nargs='?', default="default", help="Which collection type to run. Default is to run everything. Use superpmi list to find potential collections")
+
 
 asm_diff_parser.add_argument("-mch_file", nargs=1, help=superpmi_replay_help)
 
@@ -146,11 +150,7 @@ asm_diff_parser.add_argument("-core_root", dest="core_root", nargs='?', default=
 asm_diff_parser.add_argument("-product_location", dest="product_location", nargs='?', default=None)
 asm_diff_parser.add_argument("-coreclr_repo_location", dest="coreclr_repo_location", default=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 asm_diff_parser.add_argument("-test_env", dest="test_env", default=None)
-asm_diff_parser.add_argument("-output_mch_path", dest="output_mch_path", default=None)
-asm_diff_parser.add_argument("-run_from_coreclr_dir", dest="run_from_coreclr_dir", default=False)
-asm_diff_parser.add_argument("-previous_temp_location", dest="previous_temp_location", default=None, help="Reuse the existing temp dir location. This is useful if the previous run failed or was canceled.")
 
-asm_diff_parser.add_argument("--skip_collect_mc_files", dest="skip_collect_mc_files", default=False, action="store_true")
 asm_diff_parser.add_argument("--skip_cleanup", dest="skip_cleanup", default=False, action="store_true")
 asm_diff_parser.add_argument("--force_download", dest="force_download", default=False, action="store_true")
 
@@ -159,6 +159,27 @@ asm_diff_parser.add_argument("--diff_with_code_only", dest="diff_with_code_only"
 
 asm_diff_parser.add_argument("--diff_jit_dump", dest="diff_jit_dump", default=False, action="store_true")
 asm_diff_parser.add_argument("--diff_jit_dump_only", dest="diff_jit_dump_only", default=False, action="store_true", help="Only diff jitdumps, not asm.")
+
+# subparser for upload
+upload_parser = subparsers.add_parser("upload")
+
+asm_diff_parser.add_argument("az_storage_key", nargs='?', help="Key for the clrjit az storage location.")
+
+upload_parser.add_argument("-mch_files", nargs='+', help="mch files to pass")
+upload_parser.add_argument("-jit_location", nargs=1, default=None, help="Location for the base clrjit. If not passed this will be assumed to be from the core root.")
+
+upload_parser.add_argument("-arch", dest="arch", nargs='?', default="x64")
+upload_parser.add_argument("-build_type", dest="build_type", nargs='?', default="Checked")
+upload_parser.add_argument("-coreclr_repo_location", dest="coreclr_repo_location", default=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+upload_parser.add_argument("--skip_cleanup", dest="skip_cleanup", default=False, action="store_true")
+
+# subparser for list-collections
+list_parser = subparsers.add_parser("list-collections")
+
+list_parser.add_argument("-arch", dest="arch", nargs='?', default="x64")
+list_parser.add_argument("-build_type", dest="build_type", nargs='?', default="Checked")
+list_parser.add_argument("-coreclr_repo_location", dest="coreclr_repo_location", default=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 ################################################################################
 # Helper classes
@@ -248,11 +269,12 @@ class AsyncSubprocessHelper:
 
         self.subproc_count_queue = subproc_count_queue
         tasks = []
+        size = diff_queue.qsize()
 
         count = 1
         item = diff_queue.get_nowait() if not diff_queue.empty() else None
         while item is not None:
-            tasks.append(self.__get_item__(item, count, diff_queue.qsize(), async_callback, *extra_args))
+            tasks.append(self.__get_item__(item, count, size, async_callback, *extra_args))
             count += 1
 
             item = diff_queue.get_nowait() if not diff_queue.empty() else None
@@ -320,8 +342,15 @@ class SuperPMICollect:
 
         self.coreclr_args = args
 
+        self.core_root = self.coreclr_args.core_root
+
         self.command = self.coreclr_args.collection_command
         self.args = self.coreclr_args.collection_args
+
+        if self.coreclr_args.pmi:
+            self.pmi_location = determine_pmi_location(self.coreclr_args)
+            self.pmi_assemblies = self.coreclr_args.pmi_assemblies
+            self.corerun = os.path.join(self.core_root, "corerun" if self.coreclr_args.host_os != "Windows_NT" else "corerun.exe")
 
     ############################################################################
     # Instance Methods
@@ -389,20 +418,21 @@ class SuperPMICollect:
                     self.final_mch_file = os.path.join(default_coreclr_bin_mch_location, "{}.{}.{}.mch".format(self.coreclr_args.host_os, self.coreclr_args.arch, self.coreclr_args.build_type))
                     self.toc_file = "{}.mct".format(self.final_mch_file)
 
-
                 # If we have passed existing_temp_dir, then we have a few flags we need
                 # to check to see where we are in the collection process. Note that this
                 # functionality exists to help not lose progress during a SuperPMI collection.
-
 
                 # It is not unreasonable for the SuperPMI collection to take many hours
                 # therefore allow re-use of a collection in progress
 
                 if not self.coreclr_args.has_run_collection_command:
-                    self.__collect_mc_files__(self.command, self.args)
+                    self.__collect_mc_files__()
                 
                 if not self.coreclr_args.has_merged_mch:
-                    self.__merge_mc_files__()
+                    if not self.coreclr_args.merge_mch_files:
+                        self.__merge_mc_files__()
+                    else:
+                        self.__merge_mch_files__()
 
                 if not self.coreclr_args.has_verified_clean_mch:
                     self.__create_clean_mch_file__()
@@ -421,12 +451,8 @@ class SuperPMICollect:
     # Helper Methods
     ############################################################################
 
-    def __collect_mc_files__(self, command, args):
+    def __collect_mc_files__(self):
         """ Do the actual SuperPMI collection for a command
-
-        Args:
-            command (str)   : script/executable to run
-            args ([str])    : arguments to pass
         
         Returns:
             None
@@ -452,18 +478,71 @@ class SuperPMICollect:
             print_platform_specific_environment_vars(self.coreclr_args, "COMPlus_AltJit", "*")
             print_platform_specific_environment_vars(self.coreclr_args, "COMPlus_AltJitName", self.collection_shim_name)
             print("")
-            print("%s %s" % (command, " ".join(args)))
 
-            assert isinstance(command, str)
-            assert isinstance(args, list)
+            if self.command != None:
+                print("%s %s" % (self.command, " ".join(self.args)))
 
-            return_code = 1
+                assert isinstance(self.command, str)
+                assert isinstance(self.args, list)
 
-            command = [command] + args 
-            proc = subprocess.Popen(command, env=env_copy)
+                return_code = 1
 
-            proc.communicate()
-            return_code = proc.returncode
+                self.command = [self.command,] + self.args
+                proc = subprocess.Popen(self.command, env=env_copy)
+
+                proc.communicate()
+                return_code = proc.returncode
+
+            if self.coreclr_args.pmi is True:
+                def get_all_assemblies(location, root=True):
+                    """ Return all potential managed assemblies in a directory
+                    """
+
+                    assert os.path.isdir(location) or os.path.isfile(location)
+
+                    valid_extensions = [".dll", ".exe"]
+
+                    assemblies = []
+
+                    if os.path.isdir(location):
+                        for item in os.listdir(location):
+                            assemblies += get_all_assemblies(os.path.join(location, item), False)
+                    else:
+                        for item in valid_extensions:
+                            if location.endswith(item):
+                                assemblies.append(location)
+                    
+                    return assemblies
+
+                async def run_pmi(print_prefix, assembly, self):
+                    """ Run pmi over all dlls
+                    """
+
+                    command = [self.corerun, self.pmi_location, "DRIVEALL", assembly]
+                    print("{}{}".format(print_prefix, " ".join(command)))
+                    
+                    proc = await asyncio.create_subprocess_shell(
+                        " ".join(command),
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE)
+
+                    await proc.communicate()
+
+                assemblies = []
+                for item in self.pmi_assemblies:
+                    if os.path.isdir(item):
+                        assemblies += get_all_assemblies(item)
+                    else:
+                        assemblies.append(item)
+
+                # Set environment variables.
+                old_env = os.environ.copy()
+                os.environ.update(env_copy)
+
+                helper = AsyncSubprocessHelper(assemblies, verbose=True)
+                helper.run_to_completion(run_pmi, self)
+
+                os.environ.update(old_env)
 
         contents = os.listdir(self.temp_location)
         mc_contents = [os.path.join(self.temp_location, item) for item in contents if ".mc" in item]
@@ -500,6 +579,26 @@ class SuperPMICollect:
         if not self.coreclr_args.skip_cleanup:
             for item in mc_contents:
                 os.remove(item)
+
+    def __merge_mch_files__(self):
+        """ Merge the mch files that were passed
+
+        Notes:
+            mcs -concat <s_baseMchFile> [self.coreclr_args.mch_files]
+
+        """
+
+        mch_files = self.coreclr_args.mch_files
+
+        for item in mch_files:
+            command = [self.mcs_path, "-concat", self.base_mch_file, item]
+            print("Invoking: " + " ".join(command))
+            proc = subprocess.Popen(command)
+
+            proc.communicate()
+
+        if not os.path.isfile(self.mcs_path):
+            raise RuntimeError("mch file failed to be generated at: %s" % self.mcs_path)
     
     def __create_clean_mch_file__(self):
         """ Create a clean mch file based on the original
@@ -538,12 +637,6 @@ class SuperPMICollect:
             if os.path.isfile(self.base_fail_mcl_file):
                 os.remove(self.base_fail_mcl_file)
                 self.base_fail_mcl_file = None
-
-            # The base file is no longer used (unless there was no cleaning done, in which case
-            # self.base_mch_file has been set to None and clean_mch_File is the base file).
-            if os.path.isfile(self.base_mch_file):
-                os.remove(self.base_mch_file)
-                self.base_mch_file = None
 
     def __create_thin_unique_mch__(self):
         """  Create a thin unique MCH
@@ -1369,7 +1462,7 @@ def determine_coredis_tools(coreclr_args):
         coredistools_location (str)     : path of libcoredistools.dylib|so|dll
 
     Notes:
-        If unable to find libcoredist tools, download it from azure storage.
+        If unable to find libcoredis tools, download it from azure storage.
     """
 
     coredistools_dll_name = None
@@ -1390,6 +1483,43 @@ def determine_coredis_tools(coreclr_args):
 
     assert os.path.isfile(coredistools_location)
     return coredistools_location
+
+def determine_pmi_location(coreclr_args):
+    """ Determine pmi location
+
+    Args:
+        coreclr_args (CoreclrArguments) : parsed args
+
+    Returns:
+        pmi_location (str)     : path of pmi.dll
+
+    Notes:
+        If unable to find pmi tools, download it from azure storage.
+    """
+    pmi_dll_name = "pmi.dll"
+    pmi_uri = "https://clrjit.blob.core.windows.net/superpmi/pmi/pmi.dll"
+
+    pmi_location = os.path.join(coreclr_args.core_root, pmi_dll_name)
+    if not os.path.isfile(pmi_location):
+        urllib.request.urlretrieve(pmi_uri, pmi_location)
+
+    assert os.path.isfile(pmi_location)
+    return pmi_location
+
+def determine_remote_mch_location(coreclr_args):
+    """ Determine where the azure storage location for the mch files is
+
+    Args:
+        coreclr_args (CoreclrArguments): parsed_args
+
+    Returns:
+        mch_remote_uri (str):   uri for the mch files
+
+    """
+
+    location = "https://clrjit.blob.core.windows.net/superpmi/{}/{}/{}/".format(coreclr_args.host_os, coreclr_args.arch, coreclr_args.build_type)
+
+    return location
 
 def determine_jit_name(coreclr_args):
     """ Determine the jit based on the os
@@ -1424,6 +1554,186 @@ def print_platform_specific_environment_vars(coreclr_args, var, value):
     else:
         print("export {}={}".format(var, value))
 
+def list_superpmi_container_via_rest_api(coreclr_args, filter=lambda unused: True):
+    """ List the superpmi using the azure storage rest api
+
+    Args:
+        filter (lambda: string): filter to apply to the list
+    
+    Notes:
+        This method does not require installing the azure storage python
+        package.
+    """
+
+    list_superpmi_container_uri = "https://clrjit.blob.core.windows.net/superpmi?restype=container&comp=list"
+
+    contents = urllib.request.urlopen(list_superpmi_container_uri).read().decode('utf-8')
+    urls_split = contents.split("<Url>")[1:]
+    urls = []
+    for item in urls_split:
+        url = item.split("</Url>")[0].strip()
+        
+        if "{}/{}/{}".format(coreclr_args.host_os, coreclr_args.arch, coreclr_args.build_type) in url and filter(url):
+            urls.append(url)
+
+    return urls
+
+def download_index(coreclr_args):
+    """ Download the index.json for the collection.
+
+    Args:
+        coreclr_args (CoreclrArguments): parsed args
+
+    Notes:
+        The index.json file includes a dictionary of all of the different
+        collections that were done.
+
+        The index.json file is a simply a dictionary mapping the a name of a
+        collection to the file name that will be stored on disk.
+
+        Example:
+
+        {
+            "frameworks": "Windows_NT.x64.Checked.frameworks.mch", 
+            "default": "Windows_NT.x64.Checked.mch", 
+            "tests": "Windows_NT.x64.Checked.tests.mch"
+        }
+    """
+
+    urls = list_superpmi_container_via_rest_api(coreclr_args, lambda url: "index.json" in url)
+
+    assert(len(urls) == 1)
+    json_string = urllib.request.urlopen(urls[0]).read().decode('utf-8')
+
+    json_obj = json.loads(json_string)
+    return json_obj
+
+def download_mch(coreclr_args, specific_mch=None, include_baseline_jit=False):
+    """ Download the mch files
+
+    Args:
+        coreclr_args (CoreclrArguments): parsed args
+        specific_mch (str): Download a specific mch file
+        include_baseline_jit (bool): include downloading the baseline jit
+
+    Returns:
+        index (defaultdict(lambda: None)): collection type -> name
+    
+    """
+
+    urls = list_superpmi_container_via_rest_api(coreclr_args)
+    default_mch_dir = os.path.join(coreclr_args.bin_location, "mch", "{}.{}.{}".format(coreclr_args.host_os, coreclr_args.arch, coreclr_args.build_type))
+
+    if not os.path.isdir(default_mch_dir):
+        os.makedirs(default_mch_dir)
+
+    with TempDir() as temp_location:
+        for url in urls:
+            temp_location_jtems = [os.path.join(temp_location, item) for item in os.listdir(temp_location)]
+            for item in temp_location_jtems:
+                if os.path.isdir(item):
+                    shutil.rmtree(item)
+                else:
+                    os.remove(item)
+
+            if "clrjit" in url and not include_baseline_jit:
+                continue
+
+            if "index.json" in url:
+                continue
+
+            if specific_mch is not None:
+                if specific_mch not in url:
+                    continue
+
+            item_name = url.split("/")[-1]
+            download_path = os.path.join(temp_location, item_name)
+
+            print("Download: {} -> {}".format(url, download_path))
+            urllib.request.urlretrieve(url, download_path)
+
+            if url.endswith(".zip"):
+                print ("unzip {}".format(download_path))
+                with zipfile.ZipFile(download_path, "r") as file_handle:
+                    file_handle.extractall(temp_location)
+
+            print("")
+
+            items = [os.path.join(temp_location, item) for item in os.listdir(temp_location) if not item.endswith(".zip")]
+
+            for item in items:
+                shutil.copy2(item, default_mch_dir)
+    
+
+def upload_mch(coreclr_args):
+    """ Upload the mch files
+
+    Args:
+        coreclr_args (CoreclrArguments): parsed args
+    
+    """
+
+    try:
+        from azure.storage.blob import BlockBlobService, PublicAccess
+
+    except:
+        print("Please install:")
+        print("pip install azure-storage-blob")
+        print("pip install cffi")
+        
+        raise RuntimeError("Missing azure storage package.")
+
+    block_blob_service = BlockBlobService(account_name="clrjit", account_key=coreclr_args.az_storage_key)
+
+    container_name = "superpmi"
+    json_item = defaultdict(lambda: None)
+
+    with TempDir() as temp_location:
+        for item in coreclr_args.mch_files:
+            item_name = "{}/{}/{}/{}.zip".format(coreclr_args.host_os, coreclr_args.arch, coreclr_args.build_type, os.path.basename(item))
+            zip_name = os.path.join(temp_location, os.path.basename(item) + ".zip")
+
+            print ("zip {} {}".format(zip_name, item))
+
+            # Zip the file we will upload
+            with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                zip_file.write(item, os.path.basename(item))
+
+            print("")
+            print("Uploading: {} -> {}".format(item, "https://clrjit.blob.core.windows.net/superpmi/" + item_name))
+            block_blob_service.create_blob_from_path(container_name, item_name, zip_name)
+            print("")
+
+            item_basename = os.path.basename(item)
+
+            collection_name = item_basename.split(".")[3]
+            if collection_name == "mch":
+                collection_name = "default"
+
+            json_item[collection_name] = os.path.basename(item)
+
+        file_handle = tempfile.NamedTemporaryFile(delete=False, mode='w')
+        try:
+            json.dump(json_item, file_handle)
+            file_handle.close()
+
+            item_name = "{}/{}/{}/index.json".format(coreclr_args.host_os, coreclr_args.arch, coreclr_args.build_type)
+            print("Uploading: {} -> {}".format(file_handle.name, "https://clrjit.blob.core.windows.net/superpmi/" + item_name))
+            block_blob_service.create_blob_from_path(container_name, item_name, file_handle.name)
+        finally:
+            os.remove(file_handle.name)
+
+        jit_location = coreclr_args.jit_location
+        if jit_location is None:
+            jit_name = determine_jit_name(coreclr_args)
+            jit_location = os.path.join(coreclr_args.core_root, jit_name)
+
+        container_path = "{}/{}/{}/{}".format(coreclr_args.host_os, coreclr_args.arch, coreclr_args.build_type, os.path.basename(jit_location))
+
+        assert os.path.isfile(jit_location)
+        print("Uploading: {} -> {}".format(jit_location, "https://clrjit.blob.core.windows.net/superpmi/" + os.path.basename(jit_location)))
+        block_blob_service.create_blob_from_path(container_name, container_path, jit_location)
+    
 def setup_args(args):
     """ Setup the args for SuperPMI to use.
 
@@ -1443,52 +1753,27 @@ def setup_args(args):
 
     coreclr_args.verify(args,
                         "mode",
-                        lambda mode: mode in ["collect", "replay", "asmdiffs"],
-                        'Incorrect mode passed, please choose from ["collect", "replay", "asmdiffs"]')
-
-    coreclr_args.verify(args,
-                        "run_from_coreclr_dir",
-                        lambda unused: True,
-                        "Error setting run_from_coreclr_dir")
+                        lambda mode: mode in ["collect", "replay", "asmdiffs", "upload", "list-collections"],
+                        'Incorrect mode passed, please choose from ["collect", "replay", "asmdiffs", "upload", "list-collections"]')
 
     default_coreclr_bin_mch_location = os.path.join(coreclr_args.bin_location, "mch", "{}.{}.{}".format(coreclr_args.host_os, coreclr_args.arch, coreclr_args.build_type))
 
     def setup_mch_arg(arg):
         default_mch_location = os.path.join(coreclr_args.bin_location, "mch", "{}.{}.{}".format(coreclr_args.host_os, coreclr_args.arch, coreclr_args.build_type), "{}.{}.{}.mch".format(coreclr_args.host_os, coreclr_args.arch, coreclr_args.build_type))
 
-        if os.path.isfile(default_mch_location) and not args.force_download:
+        if os.path.isfile(default_mch_location) and not args.force_download and coreclr_args.collection is "default":
             return default_mch_location
 
         # Download the mch
         else:
-            uri_mch_location = "https://clrjit.blob.core.windows.net/superpmi/{}/{}/{}/{}.{}.{}.mch.zip".format(coreclr_args.host_os, coreclr_args.arch, coreclr_args.build_type, coreclr_args.host_os, coreclr_args.arch, coreclr_args.build_type)
+            index = download_index(coreclr_args)
+            
+            mch_location = os.path.join(coreclr_args.bin_location, "mch", "{}.{}.{}".format(coreclr_args.host_os, coreclr_args.arch, coreclr_args.build_type), index[coreclr_args.collection])
 
-            with TempDir() as temp_location:
-                zipfilename = os.path.join(temp_location, "temp.zip")
-                urllib.request.urlretrieve(uri_mch_location, zipfilename)
+            if not os.path.isfile(mch_location):
+                download_mch(coreclr_args, specific_mch=index[coreclr_args.collection], include_baseline_jit=True)
 
-                default_mch_dir = os.path.join(coreclr_args.bin_location, "mch", "{}.{}.{}".format(coreclr_args.host_os, coreclr_args.arch, coreclr_args.build_type))
-
-                # Clean all the files out of the default location.
-                default_mch_dir_items = [os.path.join(default_mch_dir, item) for item in os.listdir(default_mch_dir)]
-                for item in default_mch_dir_items:
-                    if os.path.isdir(item):
-                        shutil.rmtree(item)
-                    else:
-                        os.remove(item)
-
-                if not os.path.isdir(default_mch_dir):
-                    os.makedirs(default_mch_dir)
-
-                with zipfile.ZipFile(zipfilename, "r") as file_handle:
-                    file_handle.extractall(temp_location)
-
-                items = [os.path.join(temp_location, item) for item in os.listdir(temp_location) if not item.endswith(".zip")]
-
-                for item in items:
-                    shutil.copy2(item, default_mch_dir)
-
-            return default_mch_location
+            return mch_location
 
     if not os.path.isdir(default_coreclr_bin_mch_location):
         os.makedirs(default_coreclr_bin_mch_location)
@@ -1501,15 +1786,24 @@ def setup_args(args):
     if coreclr_args.mode == "collect":
         coreclr_args.verify(args,
                             "collection_command",
-                            lambda command_list: len(command_list) == 1,
-                            "Unable to find script.",
-                            modify_arg=lambda arg: arg[0],
-                            modify_after_validation=True)
+                            lambda command: command is None or os.path.isfile(command),
+                            "Unable to find script.")
         coreclr_args.verify(args,
                             "collection_args",
                             lambda unused: True,
                             "Unable to set collection_args",
-                            modify_arg=lambda collection_args: collection_args[0].split(" ") if collection_args is not None else collection_args)
+                            modify_arg=lambda collection_args: collection_args.split(" ") if collection_args is not None else collection_args)
+
+        coreclr_args.verify(args,
+                            "pmi",
+                            lambda unused: True,
+                            "Unable to set pmi")
+        
+        coreclr_args.verify(args,
+                            "pmi_assemblies",
+                            lambda items: args.pmi is False or len(items) > 0,
+                            "Unable to set pmi_assemblies",
+                            modify_arg=lambda items: [item for item in items if os.path.isdir(item) or os.path.isfile(item)])
 
         coreclr_args.verify(args,
                             "output_mch_path",
@@ -1520,6 +1814,16 @@ def setup_args(args):
                             "log_file",
                             lambda unused: True,
                             "Unable to set log_file.")
+
+        coreclr_args.verify(args,
+                            "merge_mch_files",
+                            lambda unused: True,
+                            "Unable to set merge_mch_files.")
+
+        coreclr_args.verify(args,
+                            "mch_files",
+                            lambda items: items is None or len(items) > 0,
+                            "Unable to set mch_files.")
 
         coreclr_args.verify(args,
                             "skip_collect_mc_files",
@@ -1568,8 +1872,23 @@ def setup_args(args):
 
         jit_location = os.path.join(coreclr_args.core_root, determine_jit_name(coreclr_args))
         assert(os.path.isfile(jit_location))
+
+        if args.collection_command is None and args.merge_mch_files is not True:
+            assert args.collection_args is None
+
+            assert args.pmi is True
+            assert len(args.pmi_assemblies) > 0
+
+        if coreclr_args.merge_mch_files:
+            assert len(coreclr_args.mch_files) > 0
+            coreclr_args.has_run_collection_command = True
     
     elif coreclr_args.mode == "replay":
+        coreclr_args.verify(args,
+                            "collection",
+                            lambda collection_name: collection_name in download_index(coreclr_args),
+                            "Invalid collection. Please run superpmi.py list-collections to see valid options.")
+
         coreclr_args.verify(args,
                             "mch_file",
                             lambda mch_file: os.path.isfile(mch_file),
@@ -1580,7 +1899,7 @@ def setup_args(args):
                             "jit_path",
                             lambda jit_path: os.path.isfile(jit_path),
                             "Unable to set jit_path",
-                            modify_arg=lambda arg: arg[0])
+                            modify_arg=lambda arg: os.path.join(coreclr_args.core_root, determine_jit_name(coreclr_args)) if arg is None else arg)
 
         coreclr_args.verify(args,
                             "log_file",
@@ -1647,6 +1966,11 @@ def setup_args(args):
                             lambda jit_path: True,
                             "Unable to set base_jit_path",
                             modify_arg=lambda arg: arg[0])
+
+        coreclr_args.verify(args,
+                            "collection",
+                            lambda collection_name: collection_name in download_index(coreclr_args),
+                            "Invalid collection. Please run superpmi.py list-collections to see valid options.")
 
         coreclr_args.verify(args,
                             "log_file",
@@ -1745,6 +2069,23 @@ def setup_args(args):
                             lambda mch_file: os.path.isfile(mch_file),
                             lambda mch_file: "Incorrect file path to mch_file: {}".format(mch_file),
                             modify_arg=lambda arg: arg[0] if arg is not None else setup_mch_arg(arg))
+
+    elif coreclr_args.mode == "upload":
+        coreclr_args.verify(args,
+                            "az_storage_key",
+                            lambda item: item is not None,
+                            "Unable to set az_storage_key.",
+                            modify_arg=lambda arg: os.environ["CLRJIT_AZ_KEY"] if arg is None else arg)
+
+        coreclr_args.verify(args,
+                            "mch_files",
+                            lambda mch_files: all(os.path.isfile(item) for item in mch_files),
+                            "Unable to set mch_files.")
+
+        coreclr_args.verify(args,
+                            "jit_location",
+                            lambda unused: True,
+                            "Unable to set jit_location.")
     
     return coreclr_args
 
@@ -1836,13 +2177,42 @@ def main(args):
         print("Diff Jit Path: {}".format(diff_jit_path))
 
         asm_diffs = SuperPMIReplayAsmDiffs(coreclr_args, mch_file, base_jit_path, diff_jit_path)
-        success = asm_diffs.replay_with_asm_diffs(args.previous_temp_location)
+        success = asm_diffs.replay_with_asm_diffs(coreclr_args.previous_temp_location)
 
         print("Finished SuperPMI replay")
 
         end_time = datetime.datetime.now()
 
         print("Finish time: {}".format(end_time.strftime("%H:%M:%S")))
+
+    elif coreclr_args.mode == "upload":
+        begin_time = datetime.datetime.now()
+
+        print("SuperPMI upload")
+        print("------------------------------------------------------------")
+        print("Start time: {}".format(begin_time.strftime("%H:%M:%S")))
+
+        upload_mch(coreclr_args)
+
+        print("Finished SuperPMI upload")
+
+        end_time = datetime.datetime.now()
+        print("Finish time: {}".format(end_time.strftime("%H:%M:%S")))
+    elif coreclr_args.mode == "list-collections":
+        index = download_index(coreclr_args)
+
+        index_count = len(index)
+        print("SuperPMI list-collections")
+        print("")
+        print("{} different collections".format(index_count))
+        print("")
+        
+        for item in index:
+            print(item)
+        
+        print("")
+    else:
+        raise NotImplementedError(coreclr_args.mode)
     
     return 0 if success else 1
 

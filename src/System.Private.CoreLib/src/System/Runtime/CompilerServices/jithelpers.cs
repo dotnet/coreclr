@@ -8,7 +8,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 using System.Threading;
-using System.Diagnostics;
 using Internal.Runtime.CompilerServices;
 using System.Diagnostics.CodeAnalysis;
 
@@ -95,9 +94,12 @@ namespace System.Runtime.CompilerServices
         public byte Data;
     }
 
-    internal class RawSzArrayData
+    internal class RawArrayData
     {
-        public IntPtr Count; // Array._numComponents padded to IntPtr
+        public uint Length; // Array._numComponents padded to IntPtr
+#if BIT64
+        public uint Padding;
+#endif
         public byte Data;
     }
 
@@ -156,6 +158,7 @@ namespace System.Runtime.CompilerServices
             return new StackCrawlMarkHandle((IntPtr)Unsafe.AsPointer(ref stackMark));
         }
 
+        [Intrinsic]
         internal static bool EnumEquals<T>(T x, T y) where T : struct, Enum
         {
             // The body of this function will be replaced by the EE with unsafe code
@@ -163,6 +166,7 @@ namespace System.Runtime.CompilerServices
             return x.Equals(y);
         }
 
+        [Intrinsic]
         internal static int EnumCompareTo<T>(T x, T y) where T : struct, Enum
         {
             // The body of this function will be replaced by the EE with unsafe code

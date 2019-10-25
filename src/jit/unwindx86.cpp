@@ -71,7 +71,7 @@ void Compiler::unwindSaveReg(regNumber reg, unsigned offset)
 //
 void Compiler::unwindReserve()
 {
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     assert(!compGeneratingProlog);
     assert(!compGeneratingEpilog);
 
@@ -92,7 +92,7 @@ void Compiler::unwindReserve()
 //
 void Compiler::unwindEmit(void* pHotCode, void* pColdCode)
 {
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     assert(!compGeneratingProlog);
     assert(!compGeneratingEpilog);
 
@@ -104,7 +104,7 @@ void Compiler::unwindEmit(void* pHotCode, void* pColdCode)
 #endif // FEATURE_EH_FUNCLETS
 }
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 //------------------------------------------------------------------------
 // Compiler::unwindReserveFunc: Reserve the unwind information from the VM for a
 // given main function or funclet.
@@ -192,7 +192,7 @@ void Compiler::unwindEmitFuncHelper(FuncInfoDsc* func, void* pHotCode, void* pCo
         }
         else
         {
-            startOffset = startLoc->CodeOffset(genEmitter);
+            startOffset = startLoc->CodeOffset(GetEmitter());
         }
 
         if (endLoc == nullptr)
@@ -201,7 +201,7 @@ void Compiler::unwindEmitFuncHelper(FuncInfoDsc* func, void* pHotCode, void* pCo
         }
         else
         {
-            endOffset = endLoc->CodeOffset(genEmitter);
+            endOffset = endLoc->CodeOffset(GetEmitter());
         }
     }
     else
@@ -220,7 +220,7 @@ void Compiler::unwindEmitFuncHelper(FuncInfoDsc* func, void* pHotCode, void* pCo
         }
         else
         {
-            startOffset = coldStartLoc->CodeOffset(genEmitter);
+            startOffset = coldStartLoc->CodeOffset(GetEmitter());
         }
 
         if (coldEndLoc == nullptr)
@@ -229,7 +229,7 @@ void Compiler::unwindEmitFuncHelper(FuncInfoDsc* func, void* pHotCode, void* pCo
         }
         else
         {
-            endOffset = coldEndLoc->CodeOffset(genEmitter);
+            endOffset = coldEndLoc->CodeOffset(GetEmitter());
         }
     }
 

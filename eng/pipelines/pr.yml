@@ -5,8 +5,14 @@ pr:
 - release/2.1
 - release/2.2
 - release/3.0
+- release/3.1
 
 jobs:
+#
+# Checkout repository
+#
+- template: /eng/checkout-job.yml
+
 #
 # Debug builds
 #
@@ -17,6 +23,8 @@ jobs:
     platforms:
     - Windows_NT_x64
     - Windows_NT_x86
+    jobParameters:
+      testGroup: innerloop
 
 #
 # Checked builds
@@ -35,6 +43,8 @@ jobs:
     - Windows_NT_arm64
     - Windows_NT_x64
     - Windows_NT_x86
+    jobParameters:
+      testGroup: innerloop
 
 #
 # Release builds
@@ -50,6 +60,8 @@ jobs:
     - Windows_NT_arm
     - Windows_NT_arm64
     - Windows_NT_x64
+    jobParameters:
+      testGroup: innerloop
 
 #
 # Checked test builds
@@ -107,6 +119,17 @@ jobs:
       displayNameArgs: CoreFX
 
 #
+# Crossgen-comparison jobs
+#
+- template: /eng/platform-matrix.yml
+  parameters:
+    jobTemplate: crossgen-comparison-job.yml
+    buildConfig: checked
+    platforms:
+    - Linux_arm
+    helixQueueGroup: pr
+
+#
 # Release test builds
 #
 - template: /eng/platform-matrix.yml
@@ -127,3 +150,4 @@ jobs:
     jobTemplate: format-job.yml
     platforms:
     - Linux_x64
+

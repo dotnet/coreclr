@@ -14,7 +14,6 @@ set(BINDER_COMMON_SOURCES
     assemblybinder.cpp
     stringlexer.cpp
     clrprivbindercoreclr.cpp
-    binderinterface.cpp
     debuglog.cpp
     bindinglog.cpp
     cdebuglog.cpp
@@ -38,7 +37,6 @@ set(BINDER_COMMON_HEADERS
     inc/assemblyname.inl
     inc/assemblyversion.hpp
     inc/assemblyversion.inl
-    inc/binderinterface.hpp
     inc/bindertypes.hpp
     inc/bindinglog.hpp
     inc/bindinglog.inl
@@ -91,9 +89,16 @@ endif(WIN32)
 convert_to_absolute_path(BINDER_SOURCES ${BINDER_SOURCES})
 convert_to_absolute_path(BINDER_CROSSGEN_SOURCES ${BINDER_CROSSGEN_SOURCES})
 
-if(CLR_CMAKE_PLATFORM_UNIX)
-    add_compile_options(-fPIC)
-endif(CLR_CMAKE_PLATFORM_UNIX)
+add_library_clr(v3binder
+    STATIC
+    ${BINDER_SOURCES}
+)
+add_dependencies(v3binder eventing_headers)
 
-add_subdirectory(v3binder)
-add_subdirectory(v3binder_crossgen)
+add_library_clr(v3binder_crossgen
+    STATIC
+    ${BINDER_CROSSGEN_SOURCES}
+)
+add_dependencies(v3binder_crossgen eventing_headers)
+set_target_properties(v3binder_crossgen PROPERTIES CROSSGEN_COMPONENT TRUE)
+

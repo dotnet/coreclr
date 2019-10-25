@@ -2611,6 +2611,10 @@ exclusive_sync* gc_heap::bgc_alloc_lock;
 
 oom_history gc_heap::oom_info;
 
+int         gc_heap::oomhist_index_per_heap = 0;
+
+oom_history gc_heap::oomhist_per_heap[max_oom_history_count];
+
 fgm_history gc_heap::fgm_result;
 
 size_t      gc_heap::allocated_since_last_gc = 0;
@@ -3941,7 +3945,7 @@ size_t gcard_of ( uint8_t*);
 
 //GC Flags
 #define GC_MARKED       (size_t)0x1
-#define slot(i, j) ((uint8_t**)(i))[j+1]
+#define slot(i, j) ((uint8_t**)(i))[(j)+1]
 
 #define free_object_base_size (plug_skew + sizeof(ArrayBase))
 
@@ -10917,6 +10921,8 @@ gc_heap::init_gc_heap (int  h_number)
 
     ephemeral_heap_segment = 0;
 
+    oomhist_index_per_heap = 0;
+
     freeable_large_heap_segment = 0;
 
     condemned_generation_num = 0;
@@ -12146,6 +12152,17 @@ size_t gc_heap::limit_from_size (size_t size, uint32_t flags, size_t physical_li
     return new_limit;
 }
 
+void gc_heap::add_to_oom_history_per_heap()
+{
+    oom_history* current_hist = &oomhist_per_heap[oomhist_index_per_heap];
+    memcpy (current_hist, &oom_info, sizeof (oom_info));
+    oomhist_index_per_heap++;
+    if (oomhist_index_per_heap == max_oom_history_count)
+    {
+        oomhist_index_per_heap = 0;
+    }
+}
+
 void gc_heap::handle_oom (int heap_num, oom_reason reason, size_t alloc_size, 
                           uint8_t* allocated, uint8_t* reserved)
 {
@@ -12175,6 +12192,7 @@ void gc_heap::handle_oom (int heap_num, oom_reason reason, size_t alloc_size,
     oom_info.available_pagefile_mb = fgm_result.available_pagefile_mb;
     oom_info.loh_p = fgm_result.loh_p;
 
+    add_to_oom_history_per_heap();
     fgm_result.fgm = fgm_no_failure;
 
     // Break early - before the more_space_lock is release so no other threads
@@ -13775,7 +13793,8 @@ exit:
     if (loh_alloc_state == a_state_cant_allocate)
     {
         assert (oom_r != oom_no_failure);
-        if (should_retry_other_heap (size))
+
+        if ((oom_r != oom_cant_commit) && should_retry_other_heap (size))
         {
             loh_alloc_state = a_state_retry_allocate;
         }
@@ -34781,7 +34800,11 @@ HRESULT GCHeap::Initialize()
         return CLR_E_GC_BAD_AFFINITY_CONFIG;
     }
 
-    if ((cpu_index_ranges_holder.Get() != nullptr) || (config_affinity_mask != 0))
+    if ((cpu_index_ranges_holder.Get() != nullptr)
+#ifdef PLATFORM_WINDOWS
+        || (config_affinity_mask != 0)
+#endif
+    )
     {
         affinity_config_specified_p = true;
     }
@@ -34801,12 +34824,7 @@ HRESULT GCHeap::Initialize()
 
     nhp = min (nhp, MAX_SUPPORTED_CPUS);
 #ifndef FEATURE_REDHAWK
-    gc_heap::gc_thread_no_affinitize_p = (gc_heap::heap_hard_limit ? false : (GCConfig::GetNoAffinitize() != 0));
-
-    if (gc_heap::heap_hard_limit)
-    {
-        gc_heap::gc_thread_no_affinitize_p = ((config_affinity_set.Count() == 0) && (config_affinity_mask == 0));
-    }
+    gc_heap::gc_thread_no_affinitize_p = (gc_heap::heap_hard_limit ? !affinity_config_specified_p : (GCConfig::GetNoAffinitize() != 0));
 
     if (!(gc_heap::gc_thread_no_affinitize_p))
     {
@@ -34816,10 +34834,10 @@ HRESULT GCHeap::Initialize()
         {
             nhp = min(nhp, num_affinitized_processors);
         }
-#ifdef FEATURE_PAL
+#ifndef PLATFORM_WINDOWS
         // Limit the GC heaps to the number of processors available in the system.
         nhp = min (nhp, GCToOSInterface::GetTotalProcessorCount());
-#endif // FEATURE_PAL
+#endif // !PLATFORM_WINDOWS
     }
 #endif //!FEATURE_REDHAWK
 #endif //MULTIPLE_HEAPS

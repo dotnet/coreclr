@@ -2126,10 +2126,6 @@ void SystemDomain::LoadBaseSystemClasses()
     g_pICastableInterface = MscorlibBinder::GetClass(CLASS__ICASTABLE);
 #endif // FEATURE_ICASTABLE
 
-    // Load a special marker method used to detect Constrained Execution Regions
-    // at jit time.
-    g_pExecuteBackoutCodeHelperMethod = MscorlibBinder::GetMethod(METHOD__RUNTIME_HELPERS__EXECUTE_BACKOUT_CODE_HELPER);
-
     // Make sure that FCall mapping for Monitor.Enter is initialized. We need it in case Monitor.Enter is used only as JIT helper. 
     // For more details, see comment in code:JITutil_MonEnterWorker around "__me = GetEEFuncEntryPointMacro(JIT_MonEnter)".
     ECall::GetFCallImpl(MscorlibBinder::GetMethod(METHOD__MONITOR__ENTER));
@@ -2239,36 +2235,6 @@ void SystemDomain::SetThreadAptState (Thread::ApartmentState state)
 }
 #endif // defined(FEATURE_COMINTEROP_APARTMENT_SUPPORT) && !defined(CROSSGEN_COMPILE)
 
-// Helper function to load an assembly. This is called from LoadCOMClass.
-/* static */
-
-Assembly *AppDomain::LoadAssemblyHelper(LPCWSTR wszAssembly,
-                                        LPCWSTR wszCodeBase)
-{
-    CONTRACT(Assembly *)
-    {
-        THROWS;
-        POSTCONDITION(CheckPointer(RETVAL));
-        PRECONDITION(wszAssembly || wszCodeBase);
-        INJECT_FAULT(COMPlusThrowOM(););
-    }
-    CONTRACT_END;
-
-    AssemblySpec spec;
-    if(wszAssembly) {
-        #define MAKE_TRANSLATIONFAILED  { ThrowOutOfMemory(); }
-        MAKE_UTF8PTR_FROMWIDE(szAssembly,wszAssembly);
-        #undef  MAKE_TRANSLATIONFAILED
-       
-        IfFailThrow(spec.Init(szAssembly));
-    }
-
-    if (wszCodeBase) {
-        spec.SetCodeBase(wszCodeBase);
-    }
-    RETURN spec.LoadAssembly(FILE_LOADED);
-}
-
 #if defined(FEATURE_CLASSIC_COMINTEROP) && !defined(CROSSGEN_COMPILE)
 
 MethodTable *AppDomain::LoadCOMClass(GUID clsid,
@@ -2325,17 +2291,10 @@ bool SystemDomain::IsReflectionInvocationMethod(MethodDesc* pMeth)
         CLASS__ASSEMBLY,
         CLASS__TYPE_DELEGATOR,
         CLASS__RUNTIME_HELPERS,
-        CLASS__LAZY_INITIALIZER,
         CLASS__DYNAMICMETHOD,
         CLASS__DELEGATE,
         CLASS__MULTICAST_DELEGATE
     };
-
-    static const BinderClassID genericReflectionInvocationTypes[] = {
-        CLASS__LAZY
-    };
-
-    static mdTypeDef genericReflectionInvocationTypeDefs[NumItems(genericReflectionInvocationTypes)];
 
     static bool fInited = false;
 
@@ -2347,26 +2306,10 @@ bool SystemDomain::IsReflectionInvocationMethod(MethodDesc* pMeth)
             MscorlibBinder::GetClass(reflectionInvocationTypes[i]);
         }
 
-        // Make sure all types are loaded so that we can use faster GetExistingClass()
-        for (unsigned i = 0; i < NumItems(genericReflectionInvocationTypes); i++)
-        {
-            genericReflectionInvocationTypeDefs[i] = MscorlibBinder::GetClass(genericReflectionInvocationTypes[i])->GetCl();
-        }
-
         VolatileStore(&fInited, true);
     }
 
-    if (pCaller->HasInstantiation())
-    {
-        // For generic types, pCaller will be an instantiated type and never equal to the type definition.
-        // So we compare their TypeDef tokens instead.
-        for (unsigned i = 0; i < NumItems(genericReflectionInvocationTypeDefs); i++)
-        {
-            if (pCaller->GetCl() == genericReflectionInvocationTypeDefs[i])
-                return true;
-        }
-    }
-    else
+    if (!pCaller->HasInstantiation())
     {
         for (unsigned i = 0; i < NumItems(reflectionInvocationTypes); i++)
         {
@@ -3392,7 +3335,6 @@ static const char *fileLoadLevelName[] =
     "DELIVER_EVENTS",                     // FILE_LOAD_DELIVER_EVENTS
     "VTABLE FIXUPS",                      // FILE_LOAD_VTABLE_FIXUPS
     "LOADED",                             // FILE_LOADED
-    "VERIFY_EXECUTION",                   // FILE_LOAD_VERIFY_EXECUTION
     "ACTIVE",                             // FILE_ACTIVE
 };
 #endif // !DACCESS_COMPILE && (LOGGING || STRESS_LOG)
@@ -3989,8 +3931,17 @@ DomainAssembly *AppDomain::LoadDomainAssemblyInternal(AssemblySpec* pIdentity,
 
     // Cache result in all cases, since found pFile could be from a different AssemblyRef than pIdentity
     // Do not cache WindowsRuntime assemblies, they are cached in code:CLRPrivTypeCacheWinRT
-    if ((pIdentity != NULL) && (pIdentity->CanUseWithBindingCache()) && (result->CanUseWithBindingCache()))
+    if (pIdentity == NULL)
+    {
+        AssemblySpec spec;
+        spec.InitializeSpec(result->GetFile());
+        if (spec.CanUseWithBindingCache() && result->CanUseWithBindingCache())
+            GetAppDomain()->AddAssemblyToCache(&spec, result);
+    }
+    else if (pIdentity->CanUseWithBindingCache() && result->CanUseWithBindingCache())
+    {
         GetAppDomain()->AddAssemblyToCache(pIdentity, result);
+    }
     
     RETURN result;
 } // AppDomain::LoadDomainAssembly
@@ -6501,53 +6452,6 @@ AppDomain::AssemblyIterator::Next_Unlocked(
     *pDomainAssemblyHolder = NULL;
     return FALSE;
 } // AppDomain::AssemblyIterator::Next_Unlocked
-
-#ifndef DACCESS_COMPILE
-
-//---------------------------------------------------------------------------------------
-// 
-// Can be called only from AppDomain shutdown code:AppDomain::ShutdownAssemblies.
-// Does not add-ref collectible assemblies (as the LoaderAllocator might not be reachable from the 
-// DomainAssembly anymore).
-// 
-BOOL 
-AppDomain::AssemblyIterator::Next_UnsafeNoAddRef(
-    DomainAssembly ** ppDomainAssembly)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-    } CONTRACTL_END;
-    
-    // Make sure we are iterating all assemblies (see the only caller code:AppDomain::ShutdownAssemblies)
-    _ASSERTE(m_assemblyIterationFlags == 
-        (kIncludeLoaded | kIncludeLoading | kIncludeExecution | kIncludeFailedToLoad | kIncludeCollected));
-    // It also means that we do not exclude anything
-    _ASSERTE((m_assemblyIterationFlags & kExcludeCollectible) == 0);
-    
-    // We are on shutdown path, so lock shouldn't be neccessary, but all _Unlocked methods on AssemblyList 
-    // have asserts that the lock is held, so why not to take it ...
-    CrstHolder ch(m_pAppDomain->GetAssemblyListLock());
-    
-    while (m_Iterator.Next())
-    {
-        // Get element from the list/iterator (without adding reference to the assembly)
-        *ppDomainAssembly = dac_cast<PTR_DomainAssembly>(m_Iterator.GetElement());
-        if (*ppDomainAssembly == NULL)
-        {
-            continue;
-        }
-        
-        return TRUE;
-    }
-    
-    *ppDomainAssembly = NULL;
-    return FALSE;
-} // AppDomain::AssemblyIterator::Next_UnsafeNoAddRef
-
-
-#endif //!DACCESS_COMPILE
 
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 

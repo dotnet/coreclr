@@ -5,10 +5,10 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using Internal.Runtime.CompilerServices;
 
+#pragma warning disable SA1121 // explicitly using type aliases instead of built-in types
 #if BIT64
 using nuint = System.UInt64;
 #else
@@ -18,7 +18,7 @@ using nuint = System.UInt32;
 namespace System
 {
     // Note that we make a T[] (single-dimensional w/ zero as the lower bound) implement both
-    // IList<U> and IReadOnlyList<U>, where T : U dynamically.  See the SZArrayHelper class for details.    
+    // IList<U> and IReadOnlyList<U>, where T : U dynamically.  See the SZArrayHelper class for details.
     public abstract partial class Array : ICloneable, IList, IStructuralComparable, IStructuralEquatable
     {
         // Create instance will create an array
@@ -88,9 +88,9 @@ namespace System
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_MustBeType, ExceptionArgument.elementType);
 
             // Check to make sure the lengths are all positive. Note that we check this here to give
-            // a good exception message if they are not; however we check this again inside the execution 
-            // engine's low level allocation function after having made a copy of the array to prevent a 
-            // malicious caller from mutating the array after this check.           
+            // a good exception message if they are not; however we check this again inside the execution
+            // engine's low level allocation function after having made a copy of the array to prevent a
+            // malicious caller from mutating the array after this check.
             for (int i = 0; i < lengths.Length; i++)
                 if (lengths[i] < 0)
                     ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.lengths, i, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
@@ -117,9 +117,9 @@ namespace System
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_MustBeType, ExceptionArgument.elementType);
 
             // Check to make sure the lenghts are all positive. Note that we check this here to give
-            // a good exception message if they are not; however we check this again inside the execution 
-            // engine's low level allocation function after having made a copy of the array to prevent a 
-            // malicious caller from mutating the array after this check.           
+            // a good exception message if they are not; however we check this again inside the execution
+            // engine's low level allocation function after having made a copy of the array to prevent a
+            // malicious caller from mutating the array after this check.
             for (int i = 0; i < lengths.Length; i++)
                 if (lengths[i] < 0)
                     ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.lengths, i, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
@@ -129,7 +129,7 @@ namespace System
                 return InternalCreate((void*)t.TypeHandle.Value, lengths.Length, pLengths, pLowerBounds);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern unsafe Array InternalCreate(void* elementType, int rank, int* pLengths, int* pLowerBounds);
 
         // Copies length elements from sourceArray, starting at index 0, to
@@ -153,16 +153,16 @@ namespace System
             Copy(sourceArray, sourceIndex, destinationArray, destinationIndex, length, false);
         }
 
-        // Reliability-wise, this method will either possibly corrupt your 
+        // Reliability-wise, this method will either possibly corrupt your
         // instance & might fail when called from within a CER, or if the
         // reliable flag is true, it will either always succeed or always
         // throw an exception with no side effects.
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void Copy(Array sourceArray, int sourceIndex, Array destinationArray, int destinationIndex, int length, bool reliable);
 
         // Provides a strong exception guarantee - either it succeeds, or
         // it throws an exception with no side effects.  The arrays must be
-        // compatible array types based on the array element type - this 
+        // compatible array types based on the array element type - this
         // method does not support casting, boxing, or primitive widening.
         // It will up-cast, assuming the array types are correct.
         public static void ConstrainedCopy(Array sourceArray, int sourceIndex, Array destinationArray, int destinationIndex, int length)
@@ -329,78 +329,67 @@ namespace System
             }
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         // reference to TypedReference is banned, so have to pass result as pointer
         private extern unsafe void InternalGetReference(void* elemRef, int rank, int* pIndices);
 
         // Ideally, we would like to use TypedReference.SetValue instead. Unfortunately, TypedReference.SetValue
         // always throws not-supported exception
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern unsafe void InternalSetValue(void* target, object? value);
 
-        public extern int Length
-        {
-            [MethodImpl(MethodImplOptions.InternalCall)]
-            get;
-        }
+        public int Length => checked((int)Unsafe.As<RawArrayData>(this).Length);
 
-        public extern long LongLength
-        {
-            [MethodImpl(MethodImplOptions.InternalCall)]
-            get;
-        }
+        public long LongLength => Unsafe.As<RawArrayData>(this).Length;
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern int GetLength(int dimension);
 
         public extern int Rank
         {
-            [MethodImplAttribute(MethodImplOptions.InternalCall)]
+            [MethodImpl(MethodImplOptions.InternalCall)]
             get;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern int GetUpperBound(int dimension);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern int GetLowerBound(int dimension);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern ref byte GetRawArrayData();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal extern int GetElementSize();
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool TrySZBinarySearch(Array sourceArray, int sourceIndex, int count, object? value, out int retVal);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool TrySZIndexOf(Array sourceArray, int sourceIndex, int count, object? value, out int retVal);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool TrySZLastIndexOf(Array sourceArray, int sourceIndex, int count, object? value, out int retVal);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool TrySZReverse(Array array, int index, int count);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool TrySZSort(Array keys, Array? items, int left, int right);
 
-        // if this is an array of value classes and that value class has a default constructor 
+        // if this is an array of value classes and that value class has a default constructor
         // then this calls this default constructor on every element in the value class array.
         // otherwise this is a no-op.  Generally this method is called automatically by the compiler
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public extern void Initialize();
     }
 
     //----------------------------------------------------------------------------------------
     // ! READ THIS BEFORE YOU WORK ON THIS CLASS.
-    // 
+    //
     // The methods on this class must be written VERY carefully to avoid introducing security holes.
     // That's because they are invoked with special "this"! The "this" object
     // for all of these methods are not SZArrayHelper objects. Rather, they are of type U[]
     // where U[] is castable to T[]. No actual SZArrayHelper object is ever instantiated. Thus, you will
-    // see a lot of expressions that cast "this" "T[]". 
+    // see a lot of expressions that cast "this" "T[]".
     //
     // This class is needed to allow an SZ array of type T[] to expose IList<T>,
     // IList<T.BaseType>, etc., etc. all the way up to IList<Object>. When the following call is
@@ -410,7 +399,7 @@ namespace System
     //
     // the interface stub dispatcher treats this as a special case, loads up SZArrayHelper,
     // finds the corresponding generic method (matched simply by method name), instantiates
-    // it for type <T> and executes it. 
+    // it for type <T> and executes it.
     //
     // The "T" will reflect the interface used to invoke the method. The actual runtime "this" will be
     // array that is castable to "T[]" (i.e. for primitivs and valuetypes, it will be exactly
@@ -426,16 +415,16 @@ namespace System
 
         internal IEnumerator<T> GetEnumerator<T>()
         {
-            //! Warning: "this" is an array, not an SZArrayHelper. See comments above
-            //! or you may introduce a security hole!
+            // ! Warning: "this" is an array, not an SZArrayHelper. See comments above
+            // ! or you may introduce a security hole!
             T[] _this = Unsafe.As<T[]>(this);
             return _this.Length == 0 ? SZGenericArrayEnumerator<T>.Empty : new SZGenericArrayEnumerator<T>(_this);
         }
 
         private void CopyTo<T>(T[] array, int index)
         {
-            //! Warning: "this" is an array, not an SZArrayHelper. See comments above
-            //! or you may introduce a security hole!
+            // ! Warning: "this" is an array, not an SZArrayHelper. See comments above
+            // ! or you may introduce a security hole!
 
             T[] _this = Unsafe.As<T[]>(this);
             Array.Copy(_this, 0, array, index, _this.Length);
@@ -443,16 +432,16 @@ namespace System
 
         internal int get_Count<T>()
         {
-            //! Warning: "this" is an array, not an SZArrayHelper. See comments above
-            //! or you may introduce a security hole!
+            // ! Warning: "this" is an array, not an SZArrayHelper. See comments above
+            // ! or you may introduce a security hole!
             T[] _this = Unsafe.As<T[]>(this);
             return _this.Length;
         }
 
         internal T get_Item<T>(int index)
         {
-            //! Warning: "this" is an array, not an SZArrayHelper. See comments above
-            //! or you may introduce a security hole!
+            // ! Warning: "this" is an array, not an SZArrayHelper. See comments above
+            // ! or you may introduce a security hole!
             T[] _this = Unsafe.As<T[]>(this);
             if ((uint)index >= (uint)_this.Length)
             {
@@ -464,8 +453,8 @@ namespace System
 
         internal void set_Item<T>(int index, T value)
         {
-            //! Warning: "this" is an array, not an SZArrayHelper. See comments above
-            //! or you may introduce a security hole!
+            // ! Warning: "this" is an array, not an SZArrayHelper. See comments above
+            // ! or you may introduce a security hole!
             T[] _this = Unsafe.As<T[]>(this);
             if ((uint)index >= (uint)_this.Length)
             {
@@ -483,8 +472,8 @@ namespace System
 
         private bool Contains<T>(T value)
         {
-            //! Warning: "this" is an array, not an SZArrayHelper. See comments above
-            //! or you may introduce a security hole!
+            // ! Warning: "this" is an array, not an SZArrayHelper. See comments above
+            // ! or you may introduce a security hole!
             T[] _this = Unsafe.As<T[]>(this);
             return Array.IndexOf(_this, value, 0, _this.Length) >= 0;
         }
@@ -496,16 +485,16 @@ namespace System
 
         private void Clear<T>()
         {
-            //! Warning: "this" is an array, not an SZArrayHelper. See comments above
-            //! or you may introduce a security hole!
+            // ! Warning: "this" is an array, not an SZArrayHelper. See comments above
+            // ! or you may introduce a security hole!
 
             ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_ReadOnlyCollection);
         }
 
         private int IndexOf<T>(T value)
         {
-            //! Warning: "this" is an array, not an SZArrayHelper. See comments above
-            //! or you may introduce a security hole!
+            // ! Warning: "this" is an array, not an SZArrayHelper. See comments above
+            // ! or you may introduce a security hole!
             T[] _this = Unsafe.As<T[]>(this);
             return Array.IndexOf(_this, value, 0, _this.Length);
         }

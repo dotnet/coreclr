@@ -45,6 +45,10 @@
     IMPORT  g_sw_ww_table
 #endif
 
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+    IMPORT g_card_bundle_table
+#endif
+
     IMPORT  g_ephemeral_low
     IMPORT  g_ephemeral_high
     IMPORT  g_lowest_address
@@ -514,19 +518,30 @@ SkipEphemeralCheck
         ; Check if we need to update the card table
         ldr      x12, wbs_card_table
 
-        ; x15 := offset within card table
-        lsr      x15, x14, #11
+        ; x15 := pointer into card table
+        add      x15, x12, x14, lsr #11
 
-        ldrb     w16, [x12, x15]
-        cmp      w16, 0xFF
+        ldrb     w12, [x15]
+        cmp      x12, 0xFF
         beq      Exit
 
 UpdateCardTable
-        mov      x16, 0xFF
-        strb     w16, [x12, x15]
+        mov      x12, 0xFF
+        strb     w12, [x15]
 
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
-#error Need to implement for ARM64
+        ; Check if we need to update the card bundle table
+        ldr      x12, wbs_card_bundle_table
+
+        ; x15 := pointer into card bundle table
+        add      x15, x12, x14, lsr #21
+
+        ldrb     w12, [x15]
+        cmp      x12, 0xFF
+        beq      Exit
+
+        mov      x12, 0xFF
+        strb     w12, [x15]
 #endif
 
 Exit
@@ -1600,7 +1615,69 @@ DoWrite
     ; Branch to the write barrier (which is already correctly overwritten with
     ; single or multi-proc code based on the current CPU
     b       JIT_WriteBarrier
-    LEAF_END 
-	
+    LEAF_END
+
+#ifdef PROFILING_SUPPORTED
+
+; ------------------------------------------------------------------
+; void JIT_ProfilerEnterLeaveTailcallStub(UINT_PTR ProfilerHandle)
+   LEAF_ENTRY  JIT_ProfilerEnterLeaveTailcallStub
+   ret      lr
+   LEAF_END
+
+ #define PROFILE_ENTER    1
+ #define PROFILE_LEAVE    2
+ #define PROFILE_TAILCALL 4
+ #define SIZEOF__PROFILE_PLATFORM_SPECIFIC_DATA 256
+
+; ------------------------------------------------------------------
+    MACRO
+    GenerateProfileHelper $helper, $flags
+
+    LCLS __HelperNakedFuncName
+__HelperNakedFuncName SETS "$helper":CC:"Naked"
+    IMPORT $helper
+
+    NESTED_ENTRY $__HelperNakedFuncName
+        ; On entry:
+        ;   x10 = functionIDOrClientID
+        ;   x11 = profiledSp
+        ;   x12 = throwable
+        ;
+        ; On exit:
+        ;   Values of x0-x8, q0-q7, fp are preserved.
+        ;   Values of other volatile registers are not preserved.
+
+        PROLOG_SAVE_REG_PAIR fp, lr, -SIZEOF__PROFILE_PLATFORM_SPECIFIC_DATA! ; Allocate space and save Fp, Pc.
+        SAVE_ARGUMENT_REGISTERS sp, 16          ; Save x8 and argument registers (x0-x7).
+        str     xzr, [sp, #88]                  ; Clear functionId.
+        SAVE_FLOAT_ARGUMENT_REGISTERS sp, 96    ; Save floating-point/SIMD registers (q0-q7).
+        add     x12, fp, SIZEOF__PROFILE_PLATFORM_SPECIFIC_DATA ; Compute probeSp - initial value of Sp on entry to the helper.
+        stp     x12, x11, [sp, #224]            ; Save probeSp, profiledSp.
+        str     xzr, [sp, #240]                 ; Clear hiddenArg.
+        mov     w12, $flags
+        stp     w12, wzr, [sp, #248]            ; Save flags and clear unused field.
+
+        mov     x0, x10
+        mov     x1, sp
+        bl $helper
+
+        RESTORE_ARGUMENT_REGISTERS sp, 16       ; Restore x8 and argument registers.
+        RESTORE_FLOAT_ARGUMENT_REGISTERS sp, 96 ; Restore floating-point/SIMD registers.
+
+        EPILOG_RESTORE_REG_PAIR fp, lr, SIZEOF__PROFILE_PLATFORM_SPECIFIC_DATA!
+        EPILOG_RETURN
+
+    NESTED_END
+0
+
+    MEND
+
+    GenerateProfileHelper ProfileEnter, PROFILE_ENTER
+    GenerateProfileHelper ProfileLeave, PROFILE_LEAVE
+    GenerateProfileHelper ProfileTailcall, PROFILE_TAILCALL
+
+#endif
+
 ; Must be at very end of file
     END

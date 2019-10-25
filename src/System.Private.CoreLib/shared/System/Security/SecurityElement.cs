@@ -4,15 +4,10 @@
 
 using System.Collections;
 using System.Diagnostics;
-using System.Globalization;
-using System.IO;
 using System.Text;
 
 namespace System.Security
 {
-#if PROJECTN
-    [Internal.Runtime.CompilerServices.RelocatedType("System.Runtime.Extensions")]
-#endif
     internal interface ISecurityElementFactory
     {
         SecurityElement CreateSecurityElement();
@@ -24,9 +19,6 @@ namespace System.Security
         string? Attribute(string attributeName);
     }
 
-#if PROJECTN
-    [Internal.Runtime.CompilerServices.RelocatedType("System.Runtime.Extensions")]
-#endif
     public sealed class SecurityElement : ISecurityElementFactory
     {
         internal string _tag = null!;
@@ -36,7 +28,6 @@ namespace System.Security
 
         private const int AttributesTypical = 4 * 2;  // 4 attributes, times 2 strings per attribute
         private const int ChildrenTypical = 1;
-        private const string Indent = "   ";
 
         private static readonly char[] s_tagIllegalCharacters = new char[] { ' ', '<', '>' };
         private static readonly char[] s_textIllegalCharacters = new char[] { '<', '>' };
@@ -89,11 +80,7 @@ namespace System.Security
 
         public string Tag
         {
-            get
-            {
-                return _tag;
-            }
-
+            get => _tag;
             set
             {
                 if (value == null)
@@ -163,11 +150,7 @@ namespace System.Security
 
         public string? Text
         {
-            get
-            {
-                return Unescape(_text);
-            }
-
+            get => Unescape(_text);
             set
             {
                 if (value == null)
@@ -209,8 +192,7 @@ namespace System.Security
 
             for (int i = 0; i < _children.Count; ++i)
             {
-                ISecurityElementFactory? iseFactory = _children[i] as ISecurityElementFactory;
-                if (iseFactory != null && !(_children[i] is SecurityElement))
+                if (_children[i] is ISecurityElementFactory iseFactory && !(_children[i] is SecurityElement))
                     _children[i] = iseFactory.CreateSecurityElement();
             }
         }
@@ -263,8 +245,7 @@ namespace System.Security
             if (child == null)
                 throw new ArgumentNullException(nameof(child));
 
-            if (_children == null)
-                _children = new ArrayList(ChildrenTypical);
+            _children ??= new ArrayList(ChildrenTypical);
 
             _children.Add(child);
         }
@@ -423,8 +404,7 @@ namespace System.Security
                 }
                 else
                 {
-                    if (sb == null)
-                        sb = new StringBuilder();
+                    sb ??= new StringBuilder();
 
                     sb.Append(str, newIndex, index - newIndex);
                     sb.Append(GetEscapeSequence(str[index]));
@@ -472,7 +452,7 @@ namespace System.Security
             int index; // Pointer into the string that indicates the location of the current '&' character
             int newIndex = 0; // Pointer into the string that indicates the start index of the "remainging" string (that still needs to be processed).
 
-            do
+            while (true)
             {
                 index = str.IndexOf('&', newIndex);
 
@@ -488,27 +468,24 @@ namespace System.Security
                 }
                 else
                 {
-                    if (sb == null)
-                        sb = new StringBuilder();
+                    sb ??= new StringBuilder();
 
                     sb.Append(str, newIndex, index - newIndex);
                     sb.Append(GetUnescapeSequence(str, index, out newIndex)); // updates the newIndex too
-
                 }
             }
-            while (true);
         }
 
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
 
-            ToString("", sb, (obj, str) => ((StringBuilder)obj).Append(str));
+            ToString(sb, (obj, str) => ((StringBuilder)obj).Append(str));
 
             return sb.ToString();
         }
 
-        private void ToString(string indent, object obj, Action<object, string?> write)
+        private void ToString(object obj, Action<object, string?> write)
         {
             write(obj, "<");
             write(obj, _tag);
@@ -533,7 +510,7 @@ namespace System.Security
 
                     if (i != _attributes.Count - 2)
                     {
-                        write(obj, Environment.NewLine);
+                        write(obj, Environment.NewLineConst);
                     }
                 }
             }
@@ -542,7 +519,7 @@ namespace System.Security
             {
                 // If we are a single tag with no children, just add the end of tag text.
                 write(obj, "/>");
-                write(obj, Environment.NewLine);
+                write(obj, Environment.NewLineConst);
             }
             else
             {
@@ -557,11 +534,11 @@ namespace System.Security
                 {
                     ConvertSecurityElementFactories();
 
-                    write(obj, Environment.NewLine);
+                    write(obj, Environment.NewLineConst);
 
                     for (int i = 0; i < _children.Count; ++i)
                     {
-                        ((SecurityElement)_children[i]!).ToString(string.Empty, obj, write);
+                        ((SecurityElement)_children[i]!).ToString(obj, write);
                     }
                 }
 
@@ -569,7 +546,7 @@ namespace System.Security
                 write(obj, "</");
                 write(obj, _tag);
                 write(obj, ">");
-                write(obj, Environment.NewLine);
+                write(obj, Environment.NewLineConst);
             }
         }
 
@@ -652,7 +629,7 @@ namespace System.Security
             if (xml == null)
                 throw new ArgumentNullException(nameof(xml));
 
-            return default(SecurityElement);
+            return default;
         }
 
         //--------------- ISecurityElementFactory implementation -----------------
