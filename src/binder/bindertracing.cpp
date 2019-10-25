@@ -25,8 +25,6 @@ using namespace BINDER_SPACE;
 
 namespace
 {
-    thread_local bool s_trackingBind = false;
-    
     void FireAssemblyBindStart(const BinderTracing::AssemblyBindEvent::BindRequest &request)
     {
 #ifdef FEATURE_EVENT_TRACE
@@ -85,7 +83,6 @@ namespace BinderTracing
 {
     AssemblyBindEvent::AssemblyBindEvent(AssemblySpec *assemblySpec)
         : m_bindRequest { assemblySpec }
-        , m_prevTrackingBind { s_trackingBind }
         , m_success { false }
         , m_cached { false }
     {
@@ -93,8 +90,8 @@ namespace BinderTracing
 
         // ActivityTracker or EventSource may have triggered the system satellite load.
         // Don't track system satellite binding to avoid potential infinite recursion.
-        s_trackingBind = BinderTracing::IsEnabled() && !m_bindRequest.AssemblySpec->IsMscorlibSatellite();
-        if (s_trackingBind)
+        m_trackingBind = BinderTracing::IsEnabled() && !m_bindRequest.AssemblySpec->IsMscorlibSatellite();
+        if (m_trackingBind)
         {
             m_bindRequest.AssemblySpec->GetFileOrDisplayName(ASM_DISPLAYF_VERSION | ASM_DISPLAYF_CULTURE | ASM_DISPLAYF_PUBLIC_KEY_TOKEN, m_bindRequest.AssemblyName);
             FireAssemblyBindStart(m_bindRequest);
@@ -103,10 +100,8 @@ namespace BinderTracing
 
     AssemblyBindEvent::~AssemblyBindEvent()
     {
-        if (s_trackingBind)
+        if (m_trackingBind)
             FireAssemblyBindStop(m_bindRequest, m_success, m_resultName.GetUnicode(), m_resultPath.GetUnicode(), m_cached);
-
-        s_trackingBind = m_prevTrackingBind;
     }
 
     void AssemblyBindEvent::SetResult(PEAssembly *assembly)

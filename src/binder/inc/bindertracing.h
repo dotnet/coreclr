@@ -38,7 +38,7 @@ namespace BinderTracing
     private:
         BindRequest m_bindRequest;
 
-        bool m_prevTrackingBind;
+        bool m_trackingBind;
 
         bool m_success;
         SString m_resultName;

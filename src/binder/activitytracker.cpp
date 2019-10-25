@@ -20,7 +20,7 @@ void ActivityTracker::Start(/*out*/ GUID *activityId, /*out*/ GUID *relatedActiv
     GCX_COOP();
 
     PREPARE_NONVIRTUAL_CALLSITE(METHOD__ACTIVITY_TRACKER__START_ASSEMBLY_BIND);
-    DECLARE_ARGHOLDER_ARRAY(args, 1);
+    DECLARE_ARGHOLDER_ARRAY(args, 2);
     args[ARGNUM_0] = PTR_TO_ARGHOLDER(activityId);
     args[ARGNUM_1] = PTR_TO_ARGHOLDER(relatedActivityId);
 
