@@ -5702,7 +5702,7 @@ void Compiler::fgValueNumber()
             ValueNum      initVal = vnStore->VNForFunc(varDsc->TypeGet(), VNF_InitVal, vnStore->VNForIntCon(lclNum));
             LclSsaVarDsc* ssaDef  = varDsc->GetPerSsaData(SsaConfig::FIRST_SSA_NUM);
             ssaDef->m_vnPair.SetBoth(initVal);
-            ssaDef->m_defLoc.m_blk = fgFirstBB;
+            ssaDef->SetBlock(fgFirstBB);
         }
         else if (info.compInitMem || varDsc->lvMustInit ||
                  VarSetOps::IsMember(this, fgFirstBB->bbLiveIn, varDsc->lvVarIndex))
@@ -5761,7 +5761,7 @@ void Compiler::fgValueNumber()
 
             LclSsaVarDsc* ssaDef = varDsc->GetPerSsaData(SsaConfig::FIRST_SSA_NUM);
             ssaDef->m_vnPair.SetBoth(initVal);
-            ssaDef->m_defLoc.m_blk = fgFirstBB;
+            ssaDef->SetBlock(fgFirstBB);
         }
     }
     // Give memory an initial value number (about which we know nothing).

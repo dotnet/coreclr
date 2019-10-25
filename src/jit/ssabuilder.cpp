@@ -996,7 +996,7 @@ void SsaBuilder::TreeRenameVariables(GenTree* tree, BasicBlock* block, SsaRename
         // This should have been marked as defintion.
         assert((lclVar->gtFlags & GTF_VAR_DEF) != 0);
 
-        unsigned ssaNum = m_pCompiler->lvaGetDesc(lclNum)->lvPerSsaData.AllocSsaNum(m_allocator, block, lclVar);
+        unsigned ssaNum = m_pCompiler->lvaGetDesc(lclNum)->lvPerSsaData.AllocSsaNum(m_allocator, block, tree->AsOp());
 
         if (!isFullDef)
         {
