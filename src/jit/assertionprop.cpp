@@ -3005,7 +3005,7 @@ AssertionIndex Compiler::optGlobalAssertionIsEqualOrNotEqual(ASSERT_VALARG_TP as
             if (indirAddr->OperIs(GT_LCL_VAR) && (indirAddr->TypeGet() == TYP_REF))
             {
                 // op1 is accessing vtable of a ref type local var
-                if ((curAssertion->op1.vn == vnStore->VNConservativeNormalValue(indirBase->gtVNPair)) &&
+                if ((curAssertion->op1.vn == vnStore->VNConservativeNormalValue(indirAddr->gtVNPair)) &&
                     (curAssertion->op2.vn == vnStore->VNConservativeNormalValue(op2->gtVNPair)))
                 {
                     return assertionIndex;
