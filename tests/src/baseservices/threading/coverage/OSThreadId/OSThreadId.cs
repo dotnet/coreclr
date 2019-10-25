@@ -59,7 +59,7 @@ namespace Threading.Tests
                 }
             }
 
-            return 100;
+            return 1;
         }
 
         private static ulong GetCurrentThreadId()
