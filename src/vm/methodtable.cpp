@@ -2560,7 +2560,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
     // Should be in this method only doing a native layout classification.
     _ASSERTE(useNativeLayout);
     
-    EnsureNativeLayoutInfoInitialized();
+    EEClassNativeLayoutInfo const* pNativeLayoutInfo = GetNativeLayoutInfo();
 
 #ifdef DACCESS_COMPILE
     // No register classification for this case.
@@ -2573,8 +2573,8 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
         return ClassifyEightBytesWithManagedLayout(helperPtr, nestingLevel, startOffsetOfStruct, useNativeLayout);
     }
 
-    const NativeFieldDescriptor *pNativeFieldDescs = GetLayoutInfo()->GetNativeFieldDescriptors();
-    UINT  numIntroducedFields = GetLayoutInfo()->GetNumCTMFields();
+    const NativeFieldDescriptor *pNativeFieldDescs = pNativeLayoutInfo->GetNativeFieldDescriptors();
+    UINT  numIntroducedFields = pNativeLayoutInfo->GetNumFields();
 
     // No fields.
     if (numIntroducedFields == 0)
@@ -2595,7 +2595,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
                                     || firstFieldElementType == ELEMENT_TYPE_VALUETYPE)
                                 && (pNativeFieldDescs->GetExternalOffset() == 0)
                                 && IsValueType()
-                                && (GetLayoutInfo()->GetNativeSize() % pNativeFieldDescs->NativeSize() == 0);
+                                && (pNativeLayoutInfo->GetSize() % pNativeFieldDescs->NativeSize() == 0);
 
     if (isFixedBuffer)
     {
@@ -5579,12 +5579,14 @@ void MethodTable::DoFullyLoad(Generics::RecursionGraph * const pVisited,  const 
     {
         EnsureNativeLayoutInfoInitialized();
 
-        NativeFieldDescriptor* pNativeFieldDescriptors = this->GetLayoutInfo()->GetNativeFieldDescriptors();
-        UINT  numReferenceFields                       = this->GetLayoutInfo()->GetNumCTMFields();
+        EEClassNativeLayoutInfo const* pNativeLayoutInfo = this->GetNativeLayoutInfo();
+
+        NativeFieldDescriptor const* pNativeFieldDescriptors = pNativeLayoutInfo->GetNativeFieldDescriptors();
+        UINT numReferenceFields = pNativeLayoutInfo->GetNumFields();
 
         for (UINT i = 0; i < numReferenceFields; ++i)
         {
-            NativeFieldDescriptor* pFM = &pNativeFieldDescriptors[i];
+            NativeFieldDescriptor const* pFM = &pNativeFieldDescriptors[i];
             FieldDesc *pMarshalerField = pFM->GetFieldDesc();
 
             // If the fielddesc pointer here is a token tagged pointer, then the field marshaler that we are

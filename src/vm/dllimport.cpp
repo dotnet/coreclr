@@ -4337,7 +4337,9 @@ static void CreateStructStub(ILStubState* pss,
     }
 #endif // FEATURE_COMINTEROP
 
-    int numFields = pMT->GetNumInstanceFields();
+    pMT->EnsureNativeLayoutInfoInitialized();
+    EEClassNativeLayoutInfo* pNativeLayoutInfo = pMT->GetClass()->GetNativeLayoutInfo();
+    int numFields = pNativeLayoutInfo->GetNumFields();
     // Build up marshaling information for each of the method's parameters
     SIZE_T cbFieldMarshalInfo;
     if (!ClrSafeInt<SIZE_T>::multiply(sizeof(MarshalInfo), numFields, cbFieldMarshalInfo))
@@ -4346,7 +4348,8 @@ static void CreateStructStub(ILStubState* pss,
     }
 
     CorNativeLinkType nlType = GetLinkTypeOfMethodTable(pMT);
-    NativeFieldDescriptor* pFieldDescriptors = pMT->GetLayoutInfo()->GetNativeFieldDescriptors();
+
+    NativeFieldDescriptor* pFieldDescriptors = pNativeLayoutInfo->GetNativeFieldDescriptors();
 
     for (int i = 0; i < numFields; ++i)
     {

@@ -149,23 +149,7 @@ public:
         }
     }
 
-    UINT32 AlignmentRequirement() const
-    {
-        if (m_isNestedType)
-        {
-            MethodTable* pMT = GetNestedNativeMethodTable();
-            if (pMT->IsBlittable())
-            {
-                return pMT->GetLayoutInfo()->m_ManagedLargestAlignmentRequirementOfAllMembers;
-            }
-            pMT->EnsureNativeLayoutInfoInitialized();
-            return pMT->GetLayoutInfo()->GetLargestAlignmentRequirementOfAllMembers();
-        }
-        else
-        {
-            return m_alignmentRequirement;
-        }
-    }
+    UINT32 AlignmentRequirement() const;
 
     PTR_FieldDesc GetFieldDesc() const;
 
@@ -238,5 +222,134 @@ struct LayoutRawFieldInfo
     RawFieldPlacementInfo m_placement;
     NativeFieldDescriptor m_nfd;
 };
+
+
+class EEClassNativeLayoutInfo
+{
+private:
+    uint8_t m_alignmentRequirement;
+#ifdef UNIX_AMD64_ABI
+    bool m_passInRegisters;
+#endif
+#ifdef FEATURE_HFA
+    enum class HFAType : uint8_t
+    {
+        None,
+        R4,
+        R8,
+        R16
+    }
+    HFAType m_hfaType;
+#endif
+    uint32_t m_size;
+    uint32_t m_numFields;
+
+    // An array of NativeFieldDescriptors off the end of this object, used to drive call-time
+    // marshaling of NStruct reference parameters. The number of elements
+    // equals m_numFields.
+    NativeFieldDescriptor m_nativeFieldDescriptors[0];
+
+    static void CollectNativeLayoutFieldMetadataThrowing(MethodTable* pMT, PTR_EEClassNativeLayoutInfo* pNativeLayoutInfoOut);
+public:
+    static void InitializeNativeLayoutFieldMetadataThrowing(MethodTable* pMT);
+
+    uint32_t GetSize() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_size;
+    }
+
+    uint8_t GetLargestAlignmentRequirement() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_alignmentRequirement;
+    }
+
+    uint32_t GetNumFields() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_size;
+    }
+
+    NativeFieldDescriptor * GetNativeFieldDescriptors()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return &m_nativeFieldDescriptors[0];
+    }
+
+    NativeFieldDescriptor const* GetNativeFieldDescriptors() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return &m_nativeFieldDescriptors[0];
+    }
+
+    CorElementType GetNativeHFATypeRaw() const;
+
+#ifdef FEATURE_HFA
+    bool IsNativeHFA() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_hfaType != HFAType::None;
+    }
+
+    CorElementType GetNativeHFAType() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        switch (m_hfaType)
+        {
+        case HFAType::R4:
+            return ELEMENT_TYPE_R4;
+        case HFAType::R8:
+            return ELEMENT_TYPE_R8;
+        case HFAType::R16:
+            return ELEMENT_TYPE_VALUETYPE;
+        default:
+            return ELEMENT_TYPE_END;
+        }
+    }
+
+    void SetNativeHFAType(CorElementType hfaType)
+    {
+        LIMITED_METHOD_CONTRACT;
+        // We should call this at most once.
+        _ASSERTE(m_hfaType == 0);
+        switch (hfaType)
+        {
+        case ELEMENT_TYPE_R4: m_hfaType = HFAType::R4; break;
+        case ELEMENT_TYPE_R8: m_hfaType = HFAType::R8; break;
+        case ELEMENT_TYPE_VALUETYPE: m_hfaType = HFAType::R16; break;
+        default: _ASSERTE(!"Invalid HFA Type");
+        }
+    }
+#else
+    bool IsNativeHFA() const
+    {
+        return GetNativeHFATypeRaw() != ELEMENT_TYPE_END;
+    }
+    CorElementType GetNativeHFAType() const
+    {
+        return GetNativeHFATypeRaw();
+    }
+#endif
+
+#ifdef UNIX_AMD64_ABI
+    bool IsNativeStructPassedInRegisters() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_passInRegisters;
+    }
+    void SetNativeStructPassedInRegisters()
+    {
+        LIMITED_METHOD_CONTRACT;
+        m_passInRegisters = true;
+    }
+#else
+    bool IsNativeStructPassedInRegisters() const
+    {
+        return false;
+    }
+#endif
+};
+
 
 #endif // __FieldMarshaler_h__

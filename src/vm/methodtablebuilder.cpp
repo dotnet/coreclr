@@ -1198,7 +1198,6 @@ BOOL MethodTableBuilder::CheckIfSIMDAndUpdateSize()
                 bmtFP->NumInstanceFieldBytes     = intrinsicSIMDVectorLength;
                 if (HasLayout())
                 {
-                    GetLayoutInfo()->m_cbNativeSize = intrinsicSIMDVectorLength;
                     GetLayoutInfo()->m_cbManagedSize = intrinsicSIMDVectorLength;
                 }
                 return true;

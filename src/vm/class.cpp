@@ -1285,13 +1285,27 @@ CorElementType MethodTable::GetHFAType()
 bool MethodTable::IsNativeHFA()
 {
     LIMITED_METHOD_CONTRACT;
-    return HasLayout() ? GetLayoutInfo()->IsNativeHFA() : IsHFA();
+    if (!HasLayout() || IsBlittable())
+    {
+        return IsHFA();
+    }
+
+    EnsureNativeLayoutInfoInitialized();
+
+    return GetNativeLayoutInfo()->IsNativeHFA();
 }
 
 CorElementType MethodTable::GetNativeHFAType()
 {
     LIMITED_METHOD_CONTRACT;
-    return HasLayout() ? GetLayoutInfo()->GetNativeHFAType() : GetHFAType();
+    if (!HasLayout() || IsBlittable())
+    {
+        return GetHFAType();
+    }
+
+    EnsureNativeLayoutInfoInitialized();
+
+    return GetNativeLayoutInfo()->GetNativeHFAType();
 }
 
 //---------------------------------------------------------------------------------------
@@ -1463,103 +1477,6 @@ EEClass::CheckForHFA()
     return true;
 }
 
-CorElementType EEClassLayoutInfo::GetNativeHFATypeRaw()
-{
-    UINT  numReferenceFields = GetNumCTMFields();
-
-    CorElementType hfaType = ELEMENT_TYPE_END;
-
-#ifndef DACCESS_COMPILE
-    const NativeFieldDescriptor* pNativeFieldDescriptorsBegin = GetNativeFieldDescriptors();
-    const NativeFieldDescriptor* pNativeFieldDescriptorsEnd = pNativeFieldDescriptorsBegin + numReferenceFields;
-    for(const NativeFieldDescriptor* pCurrNFD = pNativeFieldDescriptorsBegin; pCurrNFD < pNativeFieldDescriptorsEnd; ++pCurrNFD)
-    {
-        CorElementType fieldType = ELEMENT_TYPE_END;
-
-        NativeFieldCategory category = pCurrNFD->GetNativeFieldFlags();
-
-        if (category == NativeFieldCategory::FLOAT)
-        {
-            if (pCurrNFD->NativeSize() == 4)
-            {
-                fieldType = ELEMENT_TYPE_R4;
-            }
-            else if (pCurrNFD->NativeSize() == 8)
-            {
-                fieldType = ELEMENT_TYPE_R8;
-            }
-            else
-            {
-                UNREACHABLE_MSG("Invalid NativeFieldCategory.");
-                fieldType = ELEMENT_TYPE_END;
-            }
-
-            // An HFA can only have aligned float and double fields.
-            if (pCurrNFD->GetExternalOffset() % pCurrNFD->AlignmentRequirement() != 0)
-            {
-                fieldType = ELEMENT_TYPE_END;
-            }
-        }
-        else if (category == NativeFieldCategory::NESTED)
-        {
-            fieldType = pCurrNFD->GetNestedNativeMethodTable()->GetNativeHFAType();
-        }
-        else
-        {
-            return ELEMENT_TYPE_END;
-        }
-
-        // Field type should be a valid HFA type.
-        if (fieldType == ELEMENT_TYPE_END)
-        {
-            return ELEMENT_TYPE_END;
-        }
-
-        // Initialize with a valid HFA type.
-        if (hfaType == ELEMENT_TYPE_END)
-        {
-            hfaType = fieldType;
-        }
-        // All field types should be equal.
-        else if (fieldType != hfaType)
-        {
-            return ELEMENT_TYPE_END;
-        }
-    }
-
-    if (hfaType == ELEMENT_TYPE_END)
-        return ELEMENT_TYPE_END;
-
-    int elemSize = 1;
-    switch (hfaType)
-    {
-    case ELEMENT_TYPE_R4: elemSize = sizeof(float); break;
-    case ELEMENT_TYPE_R8: elemSize = sizeof(double); break;
-#ifdef _TARGET_ARM64_
-    case ELEMENT_TYPE_VALUETYPE: elemSize = 16; break;
-#endif
-    default: _ASSERTE(!"Invalid HFA Type");
-    }
-
-    // Note that we check the total size, but do not perform any checks on number of fields:
-    // - Type of fields can be HFA valuetype itself
-    // - Managed C++ HFA valuetypes have just one <alignment member> of type float to signal that 
-    //   the valuetype is HFA and explicitly specified size
-
-    DWORD totalSize = GetNativeSize();
-
-    if (totalSize % elemSize != 0)
-        return ELEMENT_TYPE_END;
-
-    // On ARM, HFAs can have a maximum of four fields regardless of whether those are float or double.
-    if (totalSize / elemSize > 4)
-        return ELEMENT_TYPE_END;
-
-#endif // !DACCESS_COMPILE
-
-    return hfaType;
-}
-
 #ifdef FEATURE_HFA
 //
 // The managed and unmanaged views of the types can differ for non-blitable types. This method
@@ -1579,14 +1496,14 @@ VOID EEClass::CheckForNativeHFA()
     if (HasExplicitFieldOffsetLayout())
         return;
 
-    CorElementType hfaType = GetLayoutInfo()->GetNativeHFATypeRaw();
+    CorElementType hfaType = GetNativeLayoutInfo()->GetNativeHFATypeRaw();
     if (hfaType == ELEMENT_TYPE_END)
     {
         return;
     }
 
     // All the above tests passed. It's HFA!
-    GetLayoutInfo()->SetNativeHFAType(hfaType);
+    GetNativeLayoutInfo()->SetHFAType(hfaType);
 }
 #endif // FEATURE_HFA
 
@@ -3953,8 +3870,6 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
     // Set some defaults based on the parent type of this type (if one exists).
     _ASSERTE(!(fHasNonTrivialParent && !(pParentMT->HasLayout())));
 
-    pEEClassLayoutInfoOut->m_numCTMFields        = fHasNonTrivialParent ? pParentMT->GetLayoutInfo()->m_numCTMFields : 0;
-    pEEClassLayoutInfoOut->SetNativeFieldDescriptors(NULL);
     pEEClassLayoutInfoOut->SetIsBlittable(TRUE);
     if (fHasNonTrivialParent)
         pEEClassLayoutInfoOut->SetIsBlittable(pParentMT->IsBlittable());
@@ -4007,7 +3922,6 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
         );
 
     pEEClassLayoutInfoOut->SetIsBlittable(isBlittable);
-    pEEClassLayoutInfoOut->m_numCTMFields += cInstanceFields;
     
     S_UINT32 cbSortArraySize = S_UINT32(cTotalFields) * S_UINT32(sizeof(LayoutRawFieldInfo*));
     if (cbSortArraySize.IsOverflow())
@@ -4033,10 +3947,10 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
     BYTE parentAlignmentRequirement = 0;
     if (fParentHasLayout)
     {
-        parentAlignmentRequirement = pParentLayoutInfo->GetLargestAlignmentRequirementOfAllMembers();
+        parentAlignmentRequirement = pParentLayoutInfo->m_ManagedLargestAlignmentRequirementOfAllMembers;
     }
 
-    if (pEEClassLayoutInfoOut->m_numCTMFields == 0 && classSizeInMetadata == 0 && (!fParentHasLayout || pParentLayoutInfo->IsZeroSized()))
+    if (cInstanceFields == 0 && classSizeInMetadata == 0 && (!fParentHasLayout || pParentLayoutInfo->IsZeroSized()))
     {
         pEEClassLayoutInfoOut->SetIsZeroSized(TRUE);
     }
@@ -4078,7 +3992,7 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
 #pragma warning(pop)
 #endif // _PREFAST_
 
-void EEClassLayoutInfo::InitializeNativeLayoutFieldMetadataThrowing(MethodTable* pMT)
+void EEClassNativeLayoutInfo::InitializeNativeLayoutFieldMetadataThrowing(MethodTable* pMT)
 {
     CONTRACTL
     {
@@ -4090,11 +4004,12 @@ void EEClassLayoutInfo::InitializeNativeLayoutFieldMetadataThrowing(MethodTable*
     }
     CONTRACTL_END;
 
-    EEClassLayoutInfo* pLayoutInfo = pMT->GetLayoutInfo();
+    EEClass* pClass = pMT->GetClass();
+    EEClassLayoutInfo* pLayoutInfo = pClass->GetLayoutInfo();
 
     if (!pLayoutInfo->IsZeroSized())
     {
-        if (pLayoutInfo->m_pNativeFieldDescriptors.GetValueVolatile() == nullptr)
+        if (pClass->GetNativeLayoutInfo() == nullptr)
         {
             ListLockHolder nativeTypeLoadLock(pMT->GetDomain()->GetNativeTypeLoadLock());
             ListLockEntryHolder entry(ListLockEntry::Find(nativeTypeLoadLock, pMT->GetClass()));
@@ -4106,9 +4021,11 @@ void EEClassLayoutInfo::InitializeNativeLayoutFieldMetadataThrowing(MethodTable*
                 COMPlusThrow(kTypeLoadException, IDS_CANNOT_MARSHAL_RECURSIVE_DEF, GetFullyQualifiedNameForClassW(pMT));
             }
 
-            if (pLayoutInfo->m_pNativeFieldDescriptors.GetValueVolatile() == nullptr)
+            if (pClass->GetNativeLayoutInfo() == nullptr)
             {
-                CollectNativeLayoutFieldMetadataThrowing(pMT);
+                EEClassNativeLayoutInfo* pNativeLayoutInfoOut;
+                CollectNativeLayoutFieldMetadataThrowing(pMT, &pNativeLayoutInfoOut);
+                ((LayoutEEClass*)pClass)->m_nativeLayoutInfo.SetValue(pNativeLayoutInfoOut);
 #ifdef FEATURE_HFA
                 pMT->GetClass()->CheckForNativeHFA();
 #endif
@@ -4128,7 +4045,7 @@ void EEClassLayoutInfo::InitializeNativeLayoutFieldMetadataThrowing(MethodTable*
 #pragma warning(push)
 #pragma warning(disable:21000) // Suppress PREFast warning about overly large function
 #endif
-VOID EEClassLayoutInfo::CollectNativeLayoutFieldMetadataThrowing(MethodTable* pMT)
+VOID EEClassNativeLayoutInfo::CollectNativeLayoutFieldMetadataThrowing(MethodTable* pMT, PTR_EEClassNativeLayoutInfo* pNativeLayoutInfoOut)
 {
     CONTRACTL
     {
@@ -4137,7 +4054,6 @@ VOID EEClassLayoutInfo::CollectNativeLayoutFieldMetadataThrowing(MethodTable* pM
         MODE_ANY;
         PRECONDITION(CheckPointer(pMT));
         PRECONDITION(pMT->HasLayout());
-        PRECONDITION(pMT->GetLayoutInfo()->GetNumCTMFields() > 0);
     }
     CONTRACTL_END;
 
@@ -4168,16 +4084,16 @@ VOID EEClassLayoutInfo::CollectNativeLayoutFieldMetadataThrowing(MethodTable* pM
 
     BOOL fParentHasLayout = pParentMT && pParentMT->HasLayout();
     UINT32 cbAdjustedParentLayoutNativeSize = 0;
-    EEClassLayoutInfo* pParentLayoutInfo = NULL;
+    EEClassNativeLayoutInfo const* pParentLayoutInfo = NULL;
     if (fParentHasLayout)
     {
-        pParentLayoutInfo = pParentMT->GetLayoutInfo();
+        pParentLayoutInfo = pParentMT->GetNativeLayoutInfo();
         // Treat base class as an initial member.
-        cbAdjustedParentLayoutNativeSize = pParentLayoutInfo->GetNativeSize();
+        cbAdjustedParentLayoutNativeSize = pParentLayoutInfo->GetSize();
         // If the parent was originally a zero-sized explicit type but
         // got bumped up to a size of 1 for compatibility reasons, then
         // we need to remove the padding, but ONLY for inheritance situations.
-        if (pParentLayoutInfo->IsZeroSized()) {
+        if (pParentMT->GetLayoutInfo()->IsZeroSized()) {
             CONSISTENCY_CHECK(cbAdjustedParentLayoutNativeSize == 1);
             cbAdjustedParentLayoutNativeSize = 0;
         }
@@ -4220,6 +4136,11 @@ VOID EEClassLayoutInfo::CollectNativeLayoutFieldMetadataThrowing(MethodTable* pM
         DEBUGARG(szName)
     );
 
+    uint32_t numTotalInstanceFields = cInstanceFields + pParentLayoutInfo->GetNumFields();
+    LoaderAllocator* pAllocator = pMT->GetLoaderAllocator();
+    AllocMemHolder<EEClassNativeLayoutInfo> pNativeLayoutInfo =
+        pAllocator->GetLowFrequencyHeap()->AllocMem(S_SIZE_T(sizeof(EEClassNativeLayoutInfo)) + S_SIZE_T(sizeof(NativeFieldDescriptor)) * S_SIZE_T(numTotalInstanceFields));
+
     // Now compute the native size of each field
     for (LayoutRawFieldInfo* pfwalk = pInfoArray; pfwalk->m_MD != mdFieldDefNil; pfwalk++)
     {
@@ -4251,7 +4172,7 @@ VOID EEClassLayoutInfo::CollectNativeLayoutFieldMetadataThrowing(MethodTable* pM
     BYTE parentAlignmentRequirement = 0;
     if (fParentHasLayout)
     {
-        parentAlignmentRequirement = pParentLayoutInfo->GetLargestAlignmentRequirementOfAllMembers();
+        parentAlignmentRequirement = pParentLayoutInfo->GetLargestAlignmentRequirement();
     }
 
     CalculateSizeAndFieldOffsets(
@@ -4260,16 +4181,25 @@ VOID EEClassLayoutInfo::CollectNativeLayoutFieldMetadataThrowing(MethodTable* pM
         fExplicitOffsets,
         pSortArray,
         classSizeInMetadata,
-        pEEClassLayoutInfo->GetPackingSize(),
+        pMT->GetLayoutInfo()->GetPackingSize(),
         parentAlignmentRequirement,
         /*limitToMaxInteropSize*/ TRUE,
-        &pEEClassLayoutInfo->m_LargestAlignmentRequirementOfAllMembers,
-        &pEEClassLayoutInfo->m_cbNativeSize);
+        &pNativeLayoutInfo->m_alignmentRequirement,
+        &pNativeLayoutInfo->m_size);
 
-    if (pEEClassLayoutInfo->m_cbNativeSize == 0)
+    if (pNativeLayoutInfo->m_size == 0)
     {
         _ASSERTE(pEEClassLayoutInfo->IsZeroSized());
-        pEEClassLayoutInfo->m_cbNativeSize = 1; // Bump the managed size of the structure up to 1.
+        pNativeLayoutInfo->m_size = 1; // Bump the managed size of the structure up to 1.
+    }
+
+    // The intrinsic Vector<T> type has a special size. Copy the native size and alignment
+    // from the managed size and alignment.
+
+    if (strcmp(szName, "Vector`1") != 0 || strcmp(szNamespace, "System.Numerics") != 0)
+    {
+        pNativeLayoutInfo->m_size = pEEClassLayoutInfo->GetManagedSize();
+        pNativeLayoutInfo->m_alignmentRequirement = pEEClassLayoutInfo->m_ManagedLargestAlignmentRequirementOfAllMembers;
     }
 
     // The intrinsic Vector types have specialized alignment requirements. For these types,
@@ -4280,12 +4210,11 @@ VOID EEClassLayoutInfo::CollectNativeLayoutFieldMetadataThrowing(MethodTable* pM
             || strcmp(szName, g_Vector128Name) == 0
             || strcmp(szName, g_Vector256Name) == 0)
         {
-            pEEClassLayoutInfo->m_LargestAlignmentRequirementOfAllMembers = pEEClassLayoutInfo->m_ManagedLargestAlignmentRequirementOfAllMembers;
+            pNativeLayoutInfo->m_alignmentRequirement = pEEClassLayoutInfo->m_ManagedLargestAlignmentRequirementOfAllMembers;
         }
     }
 
-    LoaderAllocator* pAllocator = pMT->GetLoaderAllocator();
-    AllocMemHolder<NativeFieldDescriptor> pNativeFieldDescriptors = pAllocator->GetLowFrequencyHeap()->AllocMem(S_SIZE_T(sizeof(NativeFieldDescriptor)) * S_SIZE_T(pEEClassLayoutInfo->GetNumCTMFields()));
+    PTR_NativeFieldDescriptor pNativeFieldDescriptors = pNativeLayoutInfo->GetNativeFieldDescriptors();
 
     // Bring in the parent's fieldmarshalers
     if (fHasNonTrivialParent)
@@ -4293,14 +4222,12 @@ VOID EEClassLayoutInfo::CollectNativeLayoutFieldMetadataThrowing(MethodTable* pM
         CONSISTENCY_CHECK(fParentHasLayout);
         PREFAST_ASSUME(pParentLayoutInfo != NULL);  // See if (fParentHasLayout) branch above
 
-        UINT numChildCTMFields = pEEClassLayoutInfo->GetNumCTMFields() - pParentLayoutInfo->GetNumCTMFields();
+        UINT numChildCTMFields = cInstanceFields;
 
-        CONSISTENCY_CHECK(numChildCTMFields == cInstanceFields);
-
-        NativeFieldDescriptor* pParentCTMFieldSrcArray = pParentLayoutInfo->GetNativeFieldDescriptors();
+        NativeFieldDescriptor const* pParentCTMFieldSrcArray = pParentLayoutInfo->GetNativeFieldDescriptors();
         NativeFieldDescriptor* pParentCTMFieldDestArray = pNativeFieldDescriptors + numChildCTMFields;
 
-        for (UINT parentCTMFieldIndex = 0; parentCTMFieldIndex < pParentLayoutInfo->GetNumCTMFields(); parentCTMFieldIndex++)
+        for (UINT parentCTMFieldIndex = 0; parentCTMFieldIndex < pParentLayoutInfo->GetNumFields(); parentCTMFieldIndex++)
         {
             pParentCTMFieldDestArray[parentCTMFieldIndex] = pParentCTMFieldSrcArray[parentCTMFieldIndex];
         }
@@ -4312,9 +4239,8 @@ VOID EEClassLayoutInfo::CollectNativeLayoutFieldMetadataThrowing(MethodTable* pM
         pNativeFieldDescriptors[i] = pInfoArray[i].m_nfd;
     }
 
-    pEEClassLayoutInfo->SetNativeFieldDescriptors(pNativeFieldDescriptors);
-
-    pNativeFieldDescriptors.SuppressRelease();
+    pNativeLayoutInfo.SuppressRelease();
+    *pNativeLayoutInfoOut = pNativeLayoutInfo;
 
 #ifdef _DEBUG
     {
@@ -4325,8 +4251,8 @@ VOID EEClassLayoutInfo::CollectNativeLayoutFieldMetadataThrowing(MethodTable* pM
                 _ASSERTE(pNativeFieldDescriptors[i].GetExternalOffset() == pNativeFieldDescriptors[i].GetFieldDesc()->GetOffset_NoLogging());
                 _ASSERTE(pNativeFieldDescriptors[i].NativeSize() == pNativeFieldDescriptors[i].GetFieldDesc()->GetSize());
             }
-            _ASSERTE(pEEClassLayoutInfo->GetNativeSize() == pEEClassLayoutInfo->GetManagedSize());
-            _ASSERTE(pEEClassLayoutInfo->GetLargestAlignmentRequirementOfAllMembers() == pEEClassLayoutInfo->m_ManagedLargestAlignmentRequirementOfAllMembers);
+            _ASSERTE(pNativeLayoutInfo->GetSize() == pEEClassLayoutInfo->GetManagedSize());
+            _ASSERTE(pNativeLayoutInfo->GetLargestAlignmentRequirement() == pEEClassLayoutInfo->m_ManagedLargestAlignmentRequirementOfAllMembers);
         }
 
         BOOL illegalMarshaler = FALSE;
@@ -4334,7 +4260,7 @@ VOID EEClassLayoutInfo::CollectNativeLayoutFieldMetadataThrowing(MethodTable* pM
         LOG((LF_INTEROP, LL_INFO100000, "\n\n"));
         LOG((LF_INTEROP, LL_INFO100000, "%s.%s\n", szNamespace, szName));
         LOG((LF_INTEROP, LL_INFO100000, "Packsize      = %lu\n", (ULONG)pEEClassLayoutInfo->GetPackingSize()));
-        LOG((LF_INTEROP, LL_INFO100000, "Max align req = %lu\n", (ULONG)(pEEClassLayoutInfo->GetLargestAlignmentRequirementOfAllMembers())));
+        LOG((LF_INTEROP, LL_INFO100000, "Max align req = %lu\n", (ULONG)(pNativeLayoutInfo->GetLargestAlignmentRequirement())));
         LOG((LF_INTEROP, LL_INFO100000, "----------------------------\n"));
         for (LayoutRawFieldInfo* pfwalk = pInfoArray; pfwalk->m_MD != mdFieldDefNil; pfwalk++)
         {
@@ -4354,16 +4280,16 @@ VOID EEClassLayoutInfo::CollectNativeLayoutFieldMetadataThrowing(MethodTable* pM
         // If we are dealing with a non trivial parent, determine if it has any illegal marshallers.
         if (fHasNonTrivialParent)
         {
-            NativeFieldDescriptor* pParentNFD = pParentMT->GetLayoutInfo()->GetNativeFieldDescriptors();
-            for (UINT i = 0; i < pParentMT->GetLayoutInfo()->GetNumCTMFields(); i++)
+            NativeFieldDescriptor* pParentNFD = pNativeFieldDescriptors;
+            for (UINT i = 0; i < numTotalInstanceFields; i++)
             {
                 if (pParentNFD->IsUnmarshalable())
                     illegalMarshaler = TRUE;
             }
         }
 
-        LOG((LF_INTEROP, LL_INFO100000, "+%-5lu   EOS\n", (ULONG)(pEEClassLayoutInfo->GetNativeSize())));
-        LOG((LF_INTEROP, LL_INFO100000, "Allocated %d %s field marshallers for %s.%s\n", pEEClassLayoutInfo->GetNumCTMFields(), (illegalMarshaler ? "pointless" : "usable"), szNamespace, szName));
+        LOG((LF_INTEROP, LL_INFO100000, "+%-5lu   EOS\n", (ULONG)(pNativeLayoutInfo->GetSize())));
+        LOG((LF_INTEROP, LL_INFO100000, "Allocated %d %s field marshallers for %s.%s\n", numTotalInstanceFields, (illegalMarshaler ? "pointless" : "usable"), szNamespace, szName));
     }
 #endif
     return;

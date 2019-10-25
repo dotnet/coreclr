@@ -17,6 +17,7 @@
 #include "methodtable.h"
 #include "genericdict.h"
 #include "threadstatics.h"
+#include "fieldmarshaler.h"
 
 //==========================================================================================
 inline PTR_EEClass MethodTable::GetClass_NoLogging()
@@ -1105,8 +1106,7 @@ inline UINT32 MethodTable::GetNativeSize()
     {
         return GetClass()->GetLayoutInfo()->GetManagedSize();
     }
-    EnsureNativeLayoutInfoInitialized();
-    return GetClass()->GetNativeSize();
+    return GetNativeLayoutInfo()->GetSize();
 }
 
 //==========================================================================================
@@ -1243,12 +1243,21 @@ inline EEClassLayoutInfo *MethodTable::GetLayoutInfo()
     return GetClass()->GetLayoutInfo();
 }
 
+inline EEClassNativeLayoutInfo const* MethodTable::GetNativeLayoutInfo()
+{
+    LIMITED_METHOD_CONTRACT;
+    PRECONDITION(HasLayout());
+
+    EnsureNativeLayoutInfoInitialized();
+    return GetClass()->GetNativeLayoutInfo();
+}
+
 inline void MethodTable::EnsureNativeLayoutInfoInitialized()
 {
     LIMITED_METHOD_CONTRACT;
 #ifndef DACCESS_COMPILE
     PRECONDITION(HasLayout());
-    EEClassLayoutInfo::InitializeNativeLayoutFieldMetadataThrowing(this);
+    EEClassNativeLayoutInfo::InitializeNativeLayoutFieldMetadataThrowing(this);
 #endif
 }
 

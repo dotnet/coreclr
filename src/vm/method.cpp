@@ -103,7 +103,7 @@ class ArgIteratorBaseForPInvoke : public ArgIteratorBase
 protected:
     FORCEINLINE BOOL IsRegPassedStruct(MethodTable* pMT)
     {
-        return pMT->GetLayoutInfo()->IsNativeStructPassedInRegisters();
+        return pMT->GetNativeLayoutInfo()->IsNativeStructPassedInRegisters();
     }
 };
 

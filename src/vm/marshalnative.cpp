@@ -385,10 +385,10 @@ FCIMPL1(UINT32, MarshalNative::OffsetOfHelper, ReflectFieldObject *pFieldUNSAFE)
         HELPER_METHOD_FRAME_END();
     }
 
-    th.GetMethodTable()->EnsureNativeLayoutInfoInitialized();
+    EEClassNativeLayoutInfo const* pNativeLayoutInfo = th.GetMethodTable()->GetNativeLayoutInfo();
 
-    NativeFieldDescriptor *pNFD = th.GetMethodTable()->GetLayoutInfo()->GetNativeFieldDescriptors();
-    UINT  numReferenceFields = th.GetMethodTable()->GetLayoutInfo()->GetNumCTMFields();
+    NativeFieldDescriptor const*pNFD = pNativeLayoutInfo->GetNativeFieldDescriptors();
+    UINT  numReferenceFields = pNativeLayoutInfo->GetNumFields();
 
     while (numReferenceFields--) 
     {

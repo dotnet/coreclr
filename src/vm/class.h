@@ -77,6 +77,7 @@ class   EEClass;
 class   EnCFieldDesc;
 class   FieldDesc;
 class   NativeFieldDescriptor;
+class   EEClassNativeLayoutInfo;
 struct  LayoutRawFieldInfo;
 class   MetaSig;
 class   MethodDesc;
@@ -100,6 +101,8 @@ enum class ParseNativeTypeFlags : int;
 
 typedef DPTR(DictionaryLayout) PTR_DictionaryLayout;
 typedef DPTR(NativeFieldDescriptor) PTR_NativeFieldDescriptor;
+typedef DPTR(NativeFieldDescriptor const) PTR_ConstNativeFieldDescriptor;
+typedef DPTR(EEClassNativeLayoutInfo) PTR_EEClassNativeLayoutInfo;
 
 
 //---------------------------------------------------------------------------------
@@ -366,37 +369,16 @@ class EEClassLayoutInfo
        AllocMemTracker    *pamTracker
     );
 
-    static void CollectNativeLayoutFieldMetadataThrowing(
-        MethodTable* pMT
-    );
-
-public:
-    static VOID InitializeNativeLayoutFieldMetadataThrowing(
-        MethodTable* pMT
-    );
-
-private:
     friend class ClassLoader;
     friend class EEClass;
     friend class MethodTableBuilder;
 #ifdef DACCESS_COMPILE
     friend class NativeImageDumper;
 #endif
-
-        // size (in bytes) of fixed portion of NStruct.
-        UINT32      m_cbNativeSize; // Native
-        UINT32      m_cbManagedSize; // Managed
-
-        // this is equal to the largest of the alignment requirements
-        // of each of the EEClass's members. If the NStruct extends another NStruct,
-        // the base NStruct is treated as the first member for the purpose of
-        // this calculation.
-        BYTE        m_LargestAlignmentRequirementOfAllMembers; // Native
+        UINT32      m_cbManagedSize;
 
     public:
-        // Post V1.0 addition: This is the equivalent of m_LargestAlignmentRequirementOfAllMember
-        // for the managed layout.
-        BYTE        m_ManagedLargestAlignmentRequirementOfAllMembers; // Managed
+        BYTE        m_ManagedLargestAlignmentRequirementOfAllMembers;
 
     private:
         enum {
@@ -413,75 +395,20 @@ private:
             // explicit type inherits from this type.
             e_ZERO_SIZED                =   0x04,
             // The size of the struct is explicitly specified in the meta-data.
-            e_HAS_EXPLICIT_SIZE         = 0x08,
-#ifdef UNIX_AMD64_ABI
-#ifdef FEATURE_HFA
-#error "Can't have FEATURE_HFA and UNIX_AMD64_ABI defined at the same time."
-#endif // FEATURE_HFA
-            e_NATIVE_PASS_IN_REGISTERS  = 0x10, // Flag wheter a native struct is passed in registers.
-#endif // UNIX_AMD64_ABI
-#ifdef FEATURE_HFA
-            // HFA type of the unmanaged layout
-            // Note that these are not flags, they are discrete values.
-            e_R4_HFA                    = 0x10,
-            e_R8_HFA                    = 0x20,
-            e_16_HFA                    = 0x30,
-            e_HFATypeFlags              = 0x30,
-#endif
+            e_HAS_EXPLICIT_SIZE         = 0x08
         };
 
-        BYTE        m_bFlags; // Natve + Managed
+        BYTE        m_bFlags;
 
         // Packing size in bytes (1, 2, 4, 8 etc.)
-        BYTE        m_cbPackingSize; // Managed
-
-        // # of fields that are of the calltime-marshal variety.
-        UINT        m_numCTMFields; // Native
-
-        // An array of NativeFieldDescriptor data blocks, used to drive call-time
-        // marshaling of NStruct reference parameters. The number of elements
-        // equals m_numCTMFields.
-        RelativePointer<PTR_NativeFieldDescriptor> m_pNativeFieldDescriptors; // Native
+        BYTE        m_cbPackingSize;
 
     public:
-        BOOL GetNativeSize() const
-        {
-            LIMITED_METHOD_CONTRACT;
-            return m_cbNativeSize;
-        }
-
         UINT32 GetManagedSize() const
         {
             LIMITED_METHOD_CONTRACT;
             return m_cbManagedSize;
         }
-
-
-        BYTE GetLargestAlignmentRequirementOfAllMembers() const
-        {
-            LIMITED_METHOD_CONTRACT;
-            return m_LargestAlignmentRequirementOfAllMembers;
-        }
-
-        UINT GetNumCTMFields() const
-        {
-            LIMITED_METHOD_CONTRACT;
-            return m_numCTMFields;
-        }
-
-        PTR_NativeFieldDescriptor GetNativeFieldDescriptors() const
-        {
-            LIMITED_METHOD_CONTRACT;
-            return ReadPointerMaybeNull(this, &EEClassLayoutInfo::m_pNativeFieldDescriptors);
-        }
-
-#ifndef DACCESS_COMPILE
-        void SetNativeFieldDescriptors(NativeFieldDescriptor *pNativeFieldDescriptors)
-        {
-            LIMITED_METHOD_CONTRACT;
-            m_pNativeFieldDescriptors.SetValueVolatile(pNativeFieldDescriptors);
-        }
-#endif // DACCESS_COMPILE
 
         BOOL IsBlittable() const
         {
@@ -518,49 +445,6 @@ private:
             return m_cbPackingSize;
         }
 
-#ifdef UNIX_AMD64_ABI
-        bool IsNativeStructPassedInRegisters()
-        {
-            LIMITED_METHOD_CONTRACT;
-            return (m_bFlags & e_NATIVE_PASS_IN_REGISTERS) != 0;
-        }
-#else
-        bool IsNativeStructPassedInRegisters()
-        {
-            return false;
-        }
-#endif // UNIX_AMD64_ABI
-
-        CorElementType GetNativeHFATypeRaw();
-#ifdef FEATURE_HFA
-        bool IsNativeHFA()
-        {
-            LIMITED_METHOD_CONTRACT;
-            return (m_bFlags & e_HFATypeFlags) != 0;
-        }
-
-        CorElementType GetNativeHFAType()
-        {
-            LIMITED_METHOD_CONTRACT;
-            switch (m_bFlags & e_HFATypeFlags)
-            {
-            case e_R4_HFA: return ELEMENT_TYPE_R4;
-            case e_R8_HFA: return ELEMENT_TYPE_R8;
-            case e_16_HFA: return ELEMENT_TYPE_VALUETYPE;
-            default:       return ELEMENT_TYPE_END;
-            }
-        }
-#else // !FEATURE_HFA
-        bool IsNativeHFA()
-        {
-            return GetNativeHFATypeRaw() != ELEMENT_TYPE_END;
-        }
-        CorElementType GetNativeHFAType()
-        {
-            return GetNativeHFATypeRaw();
-        }
-#endif // !FEATURE_HFA
-
     private:
         void SetIsBlittable(BOOL isBlittable)
         {
@@ -589,30 +473,6 @@ private:
             m_bFlags = hasExplicitSize ? (m_bFlags | e_HAS_EXPLICIT_SIZE)
                                        : (m_bFlags & ~e_HAS_EXPLICIT_SIZE);
         }
-
-#ifdef FEATURE_HFA
-        void SetNativeHFAType(CorElementType hfaType)
-        {
-            LIMITED_METHOD_CONTRACT;
-            // We should call this at most once.
-            _ASSERTE((m_bFlags & e_HFATypeFlags) == 0);
-            switch (hfaType)
-            {
-            case ELEMENT_TYPE_R4: m_bFlags |= e_R4_HFA; break;
-            case ELEMENT_TYPE_R8: m_bFlags |= e_R8_HFA; break;
-            case ELEMENT_TYPE_VALUETYPE: m_bFlags |= e_16_HFA; break;
-            default: _ASSERTE(!"Invalid HFA Type");
-            }
-        }
-#endif
-#ifdef UNIX_AMD64_ABI
-        void SetNativeStructPassedInRegisters()
-        {
-            LIMITED_METHOD_CONTRACT;
-            m_bFlags |= e_NATIVE_PASS_IN_REGISTERS;
-        }
-#endif // UNIX_AMD64_ABI
-
 };
 
 //
@@ -943,6 +803,7 @@ public:
 #endif // FEATURE_PREJIT
 
     EEClassLayoutInfo *GetLayoutInfo();
+    PTR_EEClassNativeLayoutInfo GetNativeLayoutInfo();
 
 #ifdef DACCESS_COMPILE
     void EnumMemoryRegions(CLRDataEnumMemoryFlags flags, MethodTable *pMT);
@@ -1691,19 +1552,7 @@ public:
         _ASSERTE(index != WinMDAdapter::RedirectedTypeIndex_Invalid);
         GetOptionalFields()->m_WinRTRedirectedTypeIndex = index;
     }
-#endif // FEATURE_COMINTEROP
 
-    inline UINT32 GetNativeSize()
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        if (HasLayout() && m_cbNativeSize == 0)
-        {
-            m_cbNativeSize = GetLayoutInfo()->GetNativeSize();
-        }
-        return m_cbNativeSize;
-    }
-
-#ifdef FEATURE_COMINTEROP
     OBJECTHANDLE GetOHDelegate()
     {
         LIMITED_METHOD_CONTRACT;
@@ -2108,11 +1957,13 @@ class LayoutEEClass : public EEClass
 {
 public:
     EEClassLayoutInfo m_LayoutInfo;
+    RelativePointer<PTR_EEClassNativeLayoutInfo> m_nativeLayoutInfo;
 
 #ifndef DACCESS_COMPILE
     LayoutEEClass() : EEClass(sizeof(LayoutEEClass))
     {
         LIMITED_METHOD_CONTRACT;
+        m_nativeLayoutInfo.SetValueMaybeNull(nullptr);
     }
 #endif // !DACCESS_COMPILE
 };
@@ -2252,6 +2103,14 @@ inline EEClassLayoutInfo *EEClass::GetLayoutInfo()
     LIMITED_METHOD_CONTRACT;
     _ASSERTE(HasLayout());
     return &((LayoutEEClass *) this)->m_LayoutInfo;
+}
+
+inline PTR_EEClassNativeLayoutInfo EEClass::GetNativeLayoutInfo()
+{
+    LIMITED_METHOD_CONTRACT;
+    _ASSERTE(HasLayout());
+
+    return ((LayoutEEClass*)this)->m_nativeLayoutInfo.GetValue();
 }
 
 inline BOOL EEClass::IsBlittable()

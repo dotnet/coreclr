@@ -56,6 +56,7 @@ class   AllocMemTracker;
 class   SimpleRWLock;
 class   MethodDataCache;
 class   EEClassLayoutInfo;
+class   EEClassNativeLayoutInfo;
 #ifdef FEATURE_COMINTEROP
 class   ComCallWrapperTemplate;
 #endif
@@ -1709,7 +1710,9 @@ public:
 
     inline BOOL HasLayout();
 
-    inline EEClassLayoutInfo *GetLayoutInfo();
+    inline EEClassLayoutInfo* GetLayoutInfo();
+
+    inline EEClassNativeLayoutInfo const* GetNativeLayoutInfo();
 
     inline void EnsureNativeLayoutInfoInitialized();
 
