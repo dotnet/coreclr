@@ -119,7 +119,7 @@ private:
     // Requires "tree" (assumed to be a statement in "block") to be searched for defs and uses to assign ssa numbers.
     // Requires "pRenameState" to be non-NULL and be currently used for variables renaming.  Assumes that "isPhiDefn"
     // implies that any definition occurring within "tree" is a phi definition.
-    void TreeRenameVariables(GenTree* tree, BasicBlock* block, SsaRenameState* pRenameState, bool isPhiDefn);
+    void TreeRenameVariables(GenTree* tree, BasicBlock* block, SsaRenameState* pRenameState);
 
     // Assumes that "block" contains a definition for local var "lclNum", with SSA number "ssaNum".
     // IF "block" is within one or more try blocks,

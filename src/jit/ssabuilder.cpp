@@ -899,7 +899,7 @@ void SsaBuilder::InsertPhiFunctions(BasicBlock** postOrder, int count)
  * @remarks This method has to maintain parity with TreePopStacks corresponding to pushes
  *          it makes for defs.
  */
-void SsaBuilder::TreeRenameVariables(GenTree* tree, BasicBlock* block, SsaRenameState* pRenameState, bool isPhiDefn)
+void SsaBuilder::TreeRenameVariables(GenTree* tree, BasicBlock* block, SsaRenameState* pRenameState)
 {
     // This is perhaps temporary -- maybe should be done elsewhere.  Label GT_INDs on LHS of assignments, so we
     // can skip these during (at least) value numbering.
@@ -920,7 +920,7 @@ void SsaBuilder::TreeRenameVariables(GenTree* tree, BasicBlock* block, SsaRename
     // Figure out if "tree" may make a new GC heap state (if we care for this block).
     if ((block->bbMemoryHavoc & memoryKindSet(GcHeap)) == 0)
     {
-        if (tree->OperIs(GT_ASG) || tree->OperIsBlkOp())
+        if (tree->OperIs(GT_ASG))
         {
             if (m_pCompiler->ehBlockHasExnFlowDsc(block))
             {
@@ -978,36 +978,39 @@ void SsaBuilder::TreeRenameVariables(GenTree* tree, BasicBlock* block, SsaRename
         }
     }
 
-    if (!tree->IsLocal())
-    {
-        return;
-    }
+    GenTreeLclVarCommon* lclVar;
+    bool                 isFullDef;
 
-    unsigned lclNum = tree->AsLclVarCommon()->GetLclNum();
-    // Is this a variable we exclude from SSA?
-    if (!m_pCompiler->lvaInSsa(lclNum))
+    if (tree->OperIs(GT_ASG) && tree->DefinesLocal(m_pCompiler, &lclVar, &isFullDef))
     {
-        tree->AsLclVarCommon()->SetSsaNum(SsaConfig::RESERVED_SSA_NUM);
-        return;
-    }
+        unsigned lclNum = lclVar->GetLclNum();
 
-    if ((tree->gtFlags & GTF_VAR_DEF) != 0)
-    {
-        // Allocate a new SSA number for this definition tree.
-        unsigned ssaNum = m_pCompiler->lvaTable[lclNum].lvPerSsaData.AllocSsaNum(m_allocator, block, tree);
-
-        if ((tree->gtFlags & GTF_VAR_USEASG) != 0)
+        if (!m_pCompiler->lvaInSsa(lclNum))
         {
+            lclVar->SetSsaNum(SsaConfig::RESERVED_SSA_NUM);
+            return;
+        }
+
+        // Promoted variables are not in SSA, only their fields are.
+        assert(!m_pCompiler->lvaTable[lclNum].lvPromoted);
+        // This should have been marked as defintion.
+        assert((lclVar->gtFlags & GTF_VAR_DEF) != 0);
+
+        unsigned ssaNum = m_pCompiler->lvaGetDesc(lclNum)->lvPerSsaData.AllocSsaNum(m_allocator, block, lclVar);
+
+        if (!isFullDef)
+        {
+            assert((lclVar->gtFlags & GTF_VAR_USEASG) != 0);
+
             // This is a partial definition of a variable. The node records only the SSA number
             // of the use that is implied by this partial definition. The SSA number of the new
             // definition will be recorded in the m_opAsgnVarDefSsaNums map.
-            tree->AsLclVarCommon()->SetSsaNum(pRenameState->Top(lclNum));
-
-            m_pCompiler->GetOpAsgnVarDefSsaNums()->Set(tree, ssaNum);
+            lclVar->SetSsaNum(pRenameState->Top(lclNum));
+            m_pCompiler->GetOpAsgnVarDefSsaNums()->Set(lclVar, ssaNum);
         }
         else
         {
-            tree->AsLclVarCommon()->SetSsaNum(ssaNum);
+            lclVar->SetSsaNum(ssaNum);
         }
 
         pRenameState->Push(block, lclNum, ssaNum);
@@ -1015,33 +1018,36 @@ void SsaBuilder::TreeRenameVariables(GenTree* tree, BasicBlock* block, SsaRename
         // If necessary, add "lclNum/ssaNum" to the arg list of a phi def in any
         // handlers for try blocks that "block" is within.  (But only do this for "real" definitions,
         // not phi definitions.)
-        if (!isPhiDefn)
+        if (!tree->AsOp()->gtGetOp2()->OperIs(GT_PHI))
         {
             AddDefToHandlerPhis(block, lclNum, ssaNum);
         }
+
+        return;
     }
-    else if (!isPhiDefn) // Phi args already have ssa numbers.
+
+    // Note that PHI_ARG nodes already have SSA numbers so we only need to check LCL_VAR and LCL_FLD nodes.
+    if (tree->OperIs(GT_LCL_VAR, GT_LCL_FLD))
     {
-        // This case is obviated by the short-term "early-out" above...but it's in the right direction.
-        // Is it a promoted struct local?
-        if (m_pCompiler->lvaTable[lclNum].lvPromoted)
+        GenTreeLclVarCommon* lclVar = tree->AsLclVarCommon();
+        unsigned             lclNum = lclVar->GetLclNum();
+
+        if (!m_pCompiler->lvaInSsa(lclNum))
         {
-            assert(tree->TypeGet() == TYP_STRUCT);
-            LclVarDsc* varDsc = &m_pCompiler->lvaTable[lclNum];
-            // If has only a single field var, treat this as a use of that field var.
-            // Otherwise, we don't give SSA names to uses of promoted struct vars.
-            if (varDsc->lvFieldCnt == 1)
-            {
-                lclNum = varDsc->lvFieldLclStart;
-            }
-            else
-            {
-                tree->AsLclVarCommon()->SetSsaNum(SsaConfig::RESERVED_SSA_NUM);
-                return;
-            }
+            lclVar->SetSsaNum(SsaConfig::RESERVED_SSA_NUM);
+            return;
         }
 
-        tree->AsLclVarCommon()->SetSsaNum(pRenameState->Top(lclNum));
+        // Promoted variables are not in SSA, only their fields are.
+        assert(!m_pCompiler->lvaTable[lclNum].lvPromoted);
+
+        if ((lclVar->gtFlags & GTF_VAR_DEF) != 0)
+        {
+            return;
+        }
+
+        lclVar->SetSsaNum(pRenameState->Top(lclNum));
+        return;
     }
 }
 
@@ -1224,18 +1230,14 @@ void SsaBuilder::BlockRenameVariables(BasicBlock* block, SsaRenameState* pRename
     // We need to iterate over phi definitions, to give them SSA names, but we need
     // to know which are which, so we don't add phi definitions to handler phi arg lists.
     // Statements are phi defns until they aren't.
-    bool       isPhiDefn   = true;
-    Statement* firstNonPhi = block->FirstNonPhiDef();
     for (Statement* stmt : block->Statements())
     {
-        if (stmt == firstNonPhi)
+        for (GenTree* tree = stmt->GetTreeList(); tree != nullptr; tree = tree->gtNext)
         {
-            isPhiDefn = false;
-        }
-
-        for (GenTree* tree = stmt->GetTreeList(); tree; tree = tree->gtNext)
-        {
-            TreeRenameVariables(tree, block, pRenameState, isPhiDefn);
+            if (tree->OperIs(GT_ASG, GT_LCL_VAR, GT_LCL_FLD))
+            {
+                TreeRenameVariables(tree, block, pRenameState);
+            }
         }
     }
 
