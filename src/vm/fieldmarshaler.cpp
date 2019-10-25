@@ -95,15 +95,15 @@ VOID ParseNativeType(Module*                     pModule,
     {
         case MarshalInfo::MARSHAL_TYPE_GENERIC_1:
         case MarshalInfo::MARSHAL_TYPE_GENERIC_U1:
-            *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(INT8), alignof(INT8));
+            *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(INT8), sizeof(INT8));
             break;
         case MarshalInfo::MARSHAL_TYPE_GENERIC_2:
         case MarshalInfo::MARSHAL_TYPE_GENERIC_U2:
-            *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(INT16), alignof(INT16));
+            *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(INT16), sizeof(INT16));
             break;
         case MarshalInfo::MARSHAL_TYPE_GENERIC_4:
         case MarshalInfo::MARSHAL_TYPE_GENERIC_U4:
-            *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(INT32), alignof(INT32));
+            *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(INT32), sizeof(INT32));
             break;
         case MarshalInfo::MARSHAL_TYPE_GENERIC_8:
 #if defined(_TARGET_X86_) && defined(UNIX_X86_ABI)
@@ -162,7 +162,7 @@ VOID ParseNativeType(Module*                     pModule,
             *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(HSTRING), sizeof(HSTRING));
             break;
         case MarshalInfo::MARSHAL_TYPE_DATETIME:
-            *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(INT64), alignof(INT64));
+            *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(INT64), sizeof(INT64));
             break;
         case MarshalInfo::MARSHAL_TYPE_INTERFACE:
             *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(IUnknown*), sizeof(IUnknown*));
@@ -215,7 +215,7 @@ VOID ParseNativeType(Module*                     pModule,
             *pNFD = NativeFieldDescriptor(MscorlibBinder::GetClass(CLASS__TYPENAMENATIVE));
             break;
         case MarshalInfo::MARSHAL_TYPE_EXCEPTION:
-            *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(int), alignof(int));
+            *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(int), sizeof(int));
             break;
         case MarshalInfo::MARSHAL_TYPE_NULLABLE:
             *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(IUnknown*), sizeof(IUnknown*));
