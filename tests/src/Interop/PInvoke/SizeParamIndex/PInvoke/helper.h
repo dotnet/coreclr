@@ -107,6 +107,11 @@ BOOL CheckAndChangeArrayByRef(T ** ppActual, T* Actual_Array_Size, SIZE_T Expect
 template<typename T>
 BOOL CheckAndChangeArrayByOut(T ** ppActual, T* Actual_Array_Size, SIZE_T Array_Size)
 {
+    if (*ppActual != NULL)
+    {
+        return FALSE;
+    }
+
     *ppActual = (T*)CoreClrAlloc(sizeof(T)*Array_Size);
     *Actual_Array_Size = ((T)Array_Size);
 
