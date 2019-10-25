@@ -575,6 +575,7 @@ namespace Internal.JitInterface
                 case CorInfoHelpFunc.CORINFO_HELP_THROW_ARGUMENTEXCEPTION:
                 case CorInfoHelpFunc.CORINFO_HELP_THROW_ARGUMENTOUTOFRANGEEXCEPTION:
                 case CorInfoHelpFunc.CORINFO_HELP_THROW_PLATFORM_NOT_SUPPORTED:
+                case CorInfoHelpFunc.CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE_MAYBENULL:
                 case CorInfoHelpFunc.CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE_MAYBENULL:
                 case CorInfoHelpFunc.CORINFO_HELP_GETREFANY:
                     throw new RequiresRuntimeJitException(ftnNum.ToString());
@@ -1889,7 +1890,7 @@ namespace Internal.JitInterface
             pBlockCounts = (BlockCounts*)GetPin(_bbCounts = new byte[count * sizeof(BlockCounts)]);
             if (_profileDataNode == null)
             {
-                _profileDataNode = _compilation.NodeFactory.ProfileDataNode((MethodWithGCInfo)_methodCodeNode);
+                _profileDataNode = _compilation.NodeFactory.ProfileData((MethodWithGCInfo)_methodCodeNode);
             }
             return 0;
         }

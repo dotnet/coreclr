@@ -2202,7 +2202,7 @@ public:
                 cse                    = m_pCompiler->gtNewLclvNode(cseLclVarNum, cseLclVarTyp);
 
                 // Assign the ssa num for the use. Note it may be the reserved num.
-                cse->gtLclVarCommon.SetSsaNum(cseSsaNum);
+                cse->AsLclVarCommon()->SetSsaNum(cseSsaNum);
 
                 // assign the proper ValueNumber, A CSE use discards any exceptions
                 cse->gtVNPair = vnStore->VNPNormalPair(exp->gtVNPair);
@@ -2381,7 +2381,7 @@ public:
 
                     ssaVarDsc->m_vnPair        = val->gtVNPair;
                     ssaVarDsc->m_defLoc.m_blk  = blk;
-                    ssaVarDsc->m_defLoc.m_tree = asg;
+                    ssaVarDsc->m_defLoc.m_tree = asg->AsOp()->gtOp1;
                 }
 
                 /* Create a reference to the CSE temp */
@@ -2389,7 +2389,7 @@ public:
                 ref->gtVNPair = val->gtVNPair; // The new 'ref' is the same as 'val'
 
                 // Assign the ssa num for the ref use. Note it may be the reserved num.
-                ref->gtLclVarCommon.SetSsaNum(cseSsaNum);
+                ref->AsLclVarCommon()->SetSsaNum(cseSsaNum);
 
                 // If it has a zero-offset field seq, copy annotation to the ref
                 if (hasZeroMapAnnotation)

@@ -3575,11 +3575,11 @@ void Compiler::lvaMarkLclRefs(GenTree* tree, BasicBlock* block, Statement* stmt,
 
                     case GT_CNS_INT:
 
-                        if (op2->gtIntCon.gtIconVal == 0)
+                        if (op2->AsIntCon()->gtIconVal == 0)
                         {
                             break;
                         }
-                        if (op2->gtIntCon.gtIconVal == 1)
+                        if (op2->AsIntCon()->gtIconVal == 1)
                         {
                             break;
                         }
@@ -3596,7 +3596,7 @@ void Compiler::lvaMarkLclRefs(GenTree* tree, BasicBlock* block, Statement* stmt,
 
                     NOT_BOOL:
 
-                        lclNum = op1->gtLclVarCommon.GetLclNum();
+                        lclNum = op1->AsLclVarCommon()->GetLclNum();
                         noway_assert(lclNum < lvaCount);
 
                         lvaTable[lclNum].lvIsBoolean = false;
@@ -3615,7 +3615,7 @@ void Compiler::lvaMarkLclRefs(GenTree* tree, BasicBlock* block, Statement* stmt,
     /* This must be a local variable reference */
 
     assert((tree->gtOper == GT_LCL_VAR) || (tree->gtOper == GT_LCL_FLD));
-    unsigned lclNum = tree->gtLclVarCommon.GetLclNum();
+    unsigned lclNum = tree->AsLclVarCommon()->GetLclNum();
 
     noway_assert(lclNum < lvaCount);
     LclVarDsc* varDsc = lvaTable + lclNum;
@@ -7256,7 +7256,7 @@ Compiler::fgWalkResult Compiler::lvaStressLclFldCB(GenTree** pTree, fgWalkData* 
     Compiler* pComp      = ((lvaStressLclFldArgs*)data->pCallbackData)->m_pCompiler;
     bool      bFirstPass = ((lvaStressLclFldArgs*)data->pCallbackData)->m_bFirstPass;
     noway_assert(lcl->gtOper == GT_LCL_VAR);
-    unsigned   lclNum = lcl->gtLclVarCommon.GetLclNum();
+    unsigned   lclNum = lcl->AsLclVarCommon()->GetLclNum();
     var_types  type   = lcl->TypeGet();
     LclVarDsc* varDsc = &pComp->lvaTable[lclNum];
 
@@ -7340,7 +7340,7 @@ Compiler::fgWalkResult Compiler::lvaStressLclFldCB(GenTree** pTree, fgWalkData* 
             /* Change lclVar(lclNum) to lclFld(lclNum,padding) */
 
             tree->ChangeOper(GT_LCL_FLD);
-            tree->gtLclFld.gtLclOffs = padding;
+            tree->AsLclFld()->gtLclOffs = padding;
         }
         else
         {

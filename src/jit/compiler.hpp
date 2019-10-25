@@ -1186,7 +1186,7 @@ inline GenTree* Compiler::gtNewFieldRef(var_types typ, CORINFO_FIELD_HANDLE fldH
     if (obj != nullptr && obj->OperGet() == GT_ADDR && varTypeIsStruct(obj->AsOp()->gtOp1) &&
         obj->AsOp()->gtOp1->OperGet() == GT_LCL_VAR)
     {
-        unsigned lclNum                  = obj->AsOp()->gtOp1->gtLclVarCommon.GetLclNum();
+        unsigned lclNum                  = obj->AsOp()->gtOp1->AsLclVarCommon()->GetLclNum();
         lvaTable[lclNum].lvFieldAccessed = 1;
 #if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
         // These structs are passed by reference; we should probably be able to treat these
@@ -1338,7 +1338,7 @@ inline void GenTree::SetOper(genTreeOps oper, ValueNumberUpdate vnUpdate)
     {
         // When casting from LONG to INT, we need to force cast of the value,
         // if the host architecture represents INT and LONG with the same data size.
-        gtLngCon.gtLconVal = (INT64)(INT32)gtLngCon.gtLconVal;
+        AsLngCon()->gtLconVal = (INT64)(INT32)AsLngCon()->gtLconVal;
     }
 #endif // defined(_HOST_64BIT_) && !defined(_TARGET_64BIT_)
 
@@ -1363,15 +1363,15 @@ inline void GenTree::SetOper(genTreeOps oper, ValueNumberUpdate vnUpdate)
 
     if (oper == GT_CNS_INT)
     {
-        gtIntCon.gtFieldSeq = nullptr;
+        AsIntCon()->gtFieldSeq = nullptr;
     }
 
 #if defined(_TARGET_ARM_)
     if (oper == GT_MUL_LONG)
     {
         // We sometimes bash GT_MUL to GT_MUL_LONG, which converts it from GenTreeOp to GenTreeMultiRegOp.
-        gtMultiRegOp.gtOtherReg = REG_NA;
-        gtMultiRegOp.ClearOtherRegFlags();
+        AsMultiRegOp()->gtOtherReg = REG_NA;
+        AsMultiRegOp()->ClearOtherRegFlags();
     }
 #endif
 
@@ -1430,7 +1430,7 @@ inline void GenTree::ChangeOperConst(genTreeOps oper)
     // Some constant subtypes have additional fields that must be initialized.
     if (oper == GT_CNS_INT)
     {
-        gtIntCon.gtFieldSeq = FieldSeqStore::NotAField();
+        AsIntCon()->gtFieldSeq = FieldSeqStore::NotAField();
     }
 }
 
@@ -1456,13 +1456,13 @@ inline void GenTree::ChangeOper(genTreeOps oper, ValueNumberUpdate vnUpdate)
             Compiler*     compiler     = JitTls::GetCompiler();
             bool          isZeroOffset = compiler->GetZeroOffsetFieldMap()->Lookup(this, &zeroFieldSeq);
 
-            gtLclFld.gtLclOffs  = 0;
-            gtLclFld.gtFieldSeq = FieldSeqStore::NotAField();
+            AsLclFld()->gtLclOffs  = 0;
+            AsLclFld()->gtFieldSeq = FieldSeqStore::NotAField();
 
             if (zeroFieldSeq != nullptr)
             {
                 // Set the zeroFieldSeq in the GT_LCL_FLD node
-                gtLclFld.gtFieldSeq = zeroFieldSeq;
+                AsLclFld()->gtFieldSeq = zeroFieldSeq;
                 // and remove the annotation from the ZeroOffsetFieldMap
                 compiler->GetZeroOffsetFieldMap()->Remove(this);
             }
@@ -1852,7 +1852,7 @@ inline VARSET_VALRET_TP Compiler::lvaStmtLclMask(Statement* stmt)
             continue;
         }
 
-        varNum = tree->gtLclVarCommon.GetLclNum();
+        varNum = tree->AsLclVarCommon()->GetLclNum();
         assert(varNum < lvaCount);
         varDsc = lvaTable + varNum;
 
@@ -3351,7 +3351,7 @@ inline void Compiler::LoopDsc::VERIFY_lpIterTree()
 inline unsigned Compiler::LoopDsc::lpIterVar()
 {
     VERIFY_lpIterTree();
-    return lpIterTree->AsOp()->gtOp1->gtLclVarCommon.GetLclNum();
+    return lpIterTree->AsOp()->gtOp1->AsLclVarCommon()->GetLclNum();
 }
 
 //-----------------------------------------------------------------------------
@@ -3360,7 +3360,7 @@ inline int Compiler::LoopDsc::lpIterConst()
 {
     VERIFY_lpIterTree();
     GenTree* rhs = lpIterTree->AsOp()->gtOp2;
-    return (int)rhs->AsOp()->gtOp2->gtIntCon.gtIconVal;
+    return (int)rhs->AsOp()->gtOp2->AsIntCon()->gtIconVal;
 }
 
 //-----------------------------------------------------------------------------
@@ -3476,7 +3476,7 @@ inline int Compiler::LoopDsc::lpConstLimit()
 
     GenTree* limit = lpLimit();
     assert(limit->OperIsConst());
-    return (int)limit->gtIntCon.gtIconVal;
+    return (int)limit->AsIntCon()->gtIconVal;
 }
 
 //-----------------------------------------------------------------------------
@@ -3488,7 +3488,7 @@ inline unsigned Compiler::LoopDsc::lpVarLimit()
 
     GenTree* limit = lpLimit();
     assert(limit->OperGet() == GT_LCL_VAR);
-    return limit->gtLclVarCommon.GetLclNum();
+    return limit->AsLclVarCommon()->GetLclNum();
 }
 
 //-----------------------------------------------------------------------------
@@ -3504,7 +3504,7 @@ inline bool Compiler::LoopDsc::lpArrLenLimit(Compiler* comp, ArrIndex* index)
     // Check if we have a.length or a[i][j].length
     if (limit->AsArrLen()->ArrRef()->gtOper == GT_LCL_VAR)
     {
-        index->arrLcl = limit->AsArrLen()->ArrRef()->gtLclVarCommon.GetLclNum();
+        index->arrLcl = limit->AsArrLen()->ArrRef()->AsLclVarCommon()->GetLclNum();
         index->rank   = 0;
         return true;
     }
@@ -3803,7 +3803,7 @@ inline GenTree* Compiler::impCheckForNullPointer(GenTree* obj)
         assert(obj->gtType == TYP_REF || obj->gtType == TYP_BYREF);
 
         // We can see non-zero byrefs for RVA statics.
-        if (obj->gtIntCon.gtIconVal != 0)
+        if (obj->AsIntCon()->gtIconVal != 0)
         {
             assert(obj->gtType == TYP_BYREF);
             return obj;
@@ -3838,7 +3838,7 @@ inline bool Compiler::impIsThis(GenTree* obj)
     else
     {
         return ((obj != nullptr) && (obj->gtOper == GT_LCL_VAR) &&
-                lvaIsOriginalThisArg(obj->gtLclVarCommon.GetLclNum()));
+                lvaIsOriginalThisArg(obj->AsLclVarCommon()->GetLclNum()));
     }
 }
 

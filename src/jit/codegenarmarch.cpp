@@ -521,7 +521,7 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
 #ifdef _TARGET_ARM_
 
         case GT_CLS_VAR_ADDR:
-            emit->emitIns_R_C(INS_lea, EA_PTRSIZE, targetReg, treeNode->gtClsVar.gtClsVarHnd, 0);
+            emit->emitIns_R_C(INS_lea, EA_PTRSIZE, targetReg, treeNode->AsClsVar()->gtClsVarHnd, 0);
             genProduceReg(treeNode);
             break;
 
@@ -625,7 +625,7 @@ void CodeGen::genIntrinsic(GenTree* treeNode)
 
     // Right now only Abs/Ceiling/Floor/Round/Sqrt are treated as math intrinsics.
     //
-    switch (treeNode->gtIntrinsic.gtIntrinsicId)
+    switch (treeNode->AsIntrinsic()->gtIntrinsicId)
     {
         case CORINFO_INTRINSIC_Abs:
             genConsumeOperands(treeNode->AsOp());
@@ -1700,7 +1700,7 @@ void CodeGen::genCodeForShift(GenTree* tree)
     else
     {
         unsigned immWidth   = emitter::getBitWidth(size); // For ARM64, immWidth will be set to 32 or 64
-        unsigned shiftByImm = (unsigned)shiftBy->gtIntCon.gtIconVal & (immWidth - 1);
+        unsigned shiftByImm = (unsigned)shiftBy->AsIntCon()->gtIconVal & (immWidth - 1);
 
         GetEmitter()->emitIns_R_R_I(ins, size, tree->GetRegNum(), operand->GetRegNum(), shiftByImm);
     }
@@ -1927,11 +1927,11 @@ void CodeGen::genCodeForCpBlkHelper(GenTreeBlk* cpBlkNode)
 // genCodeForInitBlkUnroll: Generate unrolled block initialization code.
 //
 // Arguments:
-//    node - the GT_STORE_BLK or GT_STORE_OBJ node to generate code for
+//    node - the GT_STORE_BLK node to generate code for
 //
 void CodeGen::genCodeForInitBlkUnroll(GenTreeBlk* node)
 {
-    assert(node->OperIs(GT_STORE_BLK, GT_STORE_OBJ));
+    assert(node->OperIs(GT_STORE_BLK));
 
 #ifndef _TARGET_ARM64_
     NYI_ARM("genCodeForInitBlkUnroll");
@@ -3443,22 +3443,21 @@ void CodeGen::genCodeForStoreBlk(GenTreeBlk* blkOp)
 {
     assert(blkOp->OperIs(GT_STORE_OBJ, GT_STORE_DYN_BLK, GT_STORE_BLK));
 
-    if (blkOp->OperIs(GT_STORE_OBJ) && blkOp->OperIsCopyBlkOp())
+    if (blkOp->OperIs(GT_STORE_OBJ))
     {
+        assert(!blkOp->gtBlkOpGcUnsafe);
+        assert(blkOp->OperIsCopyBlkOp());
         assert(blkOp->AsObj()->GetLayout()->HasGCPtr());
         genCodeForCpObj(blkOp->AsObj());
         return;
     }
 
-    if (blkOp->gtBlkOpGcUnsafe)
-    {
-        GetEmitter()->emitDisableGC();
-    }
     bool isCopyBlk = blkOp->OperIsCopyBlkOp();
 
     switch (blkOp->gtBlkOpKind)
     {
         case GenTreeBlk::BlkOpKindHelper:
+            assert(!blkOp->gtBlkOpGcUnsafe);
             if (isCopyBlk)
             {
                 genCodeForCpBlkHelper(blkOp);
@@ -3472,21 +3471,25 @@ void CodeGen::genCodeForStoreBlk(GenTreeBlk* blkOp)
         case GenTreeBlk::BlkOpKindUnroll:
             if (isCopyBlk)
             {
+                if (blkOp->gtBlkOpGcUnsafe)
+                {
+                    GetEmitter()->emitDisableGC();
+                }
                 genCodeForCpBlkUnroll(blkOp);
+                if (blkOp->gtBlkOpGcUnsafe)
+                {
+                    GetEmitter()->emitEnableGC();
+                }
             }
             else
             {
+                assert(!blkOp->gtBlkOpGcUnsafe);
                 genCodeForInitBlkUnroll(blkOp);
             }
             break;
 
         default:
             unreached();
-    }
-
-    if (blkOp->gtBlkOpGcUnsafe)
-    {
-        GetEmitter()->emitEnableGC();
     }
 }
 

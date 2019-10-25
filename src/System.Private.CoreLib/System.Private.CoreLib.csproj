@@ -318,7 +318,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\XplatEventLogger.cs" Condition="'$(FeatureXplatEventSource)' == 'true'" />
-    <Compile Include="$(IntermediateOutputPath)../../../Eventing/$(Platform)/$(Configuration)/NativeRuntimeEventSource.cs" Condition="'$(FeaturePerfTracing)' == 'true' AND '$(BuildingInsideVisualStudio)' != 'true' " />
+    <Compile Include="$(IntermediateOutputPath)../../../Eventing/$(BuildArch)/$(Configuration)/NativeRuntimeEventSource.cs" Condition="'$(FeaturePerfTracing)' == 'true' AND '$(BuildingInsideVisualStudio)' != 'true' " />
   </ItemGroup>
   <ItemGroup Condition="'$(FeatureCominterop)' == 'true'">
     <Compile Include="$(BclSourcesRoot)\Internal\Runtime\InteropServices\WindowsRuntime\ExceptionSupport.cs" />
@@ -414,9 +414,6 @@
     <!-- These files are shared with other framework components and don't live the same folder as the rest of them-->
     <Compile Include="$(CommonPath)\NotImplemented.cs" />
     <Compile Include="$(CommonPath)\System\SR.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="src\System\Runtime\RuntimeImports.cs" />
   </ItemGroup>
   <Import Project="shared\System.Private.CoreLib.Shared.projitems" />
   <PropertyGroup>

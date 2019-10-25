@@ -3888,7 +3888,7 @@ ValueNum ValueNumStore::ExtendPtrVN(GenTree* opA, GenTree* opB)
 {
     if (opB->OperGet() == GT_CNS_INT)
     {
-        FieldSeqNode* fldSeq = opB->gtIntCon.gtFieldSeq;
+        FieldSeqNode* fldSeq = opB->AsIntCon()->gtFieldSeq;
         if (fldSeq != nullptr)
         {
             return ExtendPtrVN(opA, fldSeq);
@@ -6883,7 +6883,7 @@ void Compiler::fgValueNumberTree(GenTree* tree)
             case GT_FTN_ADDR:
                 // Use the value of the function pointer (actually, a method handle.)
                 tree->gtVNPair.SetBoth(
-                    vnStore->VNForHandle(ssize_t(tree->gtFptrVal.gtFptrMethod), GTF_ICON_METHOD_HDL));
+                    vnStore->VNForHandle(ssize_t(tree->AsFptrVal()->gtFptrMethod), GTF_ICON_METHOD_HDL));
                 break;
 
             // This group passes through a value from a child node.
@@ -6972,7 +6972,7 @@ void Compiler::fgValueNumberTree(GenTree* tree)
                         // We model statics as indices into GcHeap (which is a subset of ByrefExposed).
 
                         FieldSeqNode* fldSeqForStaticVar =
-                            GetFieldSeqStore()->CreateSingleton(tree->gtClsVar.gtClsVarHnd);
+                            GetFieldSeqStore()->CreateSingleton(tree->AsClsVar()->gtClsVarHnd);
                         size_t structSize = 0;
                         selectedStaticVar = vnStore->VNApplySelectors(VNK_Liberal, fgCurMemoryVN[GcHeap],
                                                                       fldSeqForStaticVar, &structSize);
@@ -7577,7 +7577,8 @@ void Compiler::fgValueNumberTree(GenTree* tree)
                     }
 
                     // We model statics as indices into GcHeap (which is a subset of ByrefExposed).
-                    FieldSeqNode* fldSeqForStaticVar = GetFieldSeqStore()->CreateSingleton(lhs->gtClsVar.gtClsVarHnd);
+                    FieldSeqNode* fldSeqForStaticVar =
+                        GetFieldSeqStore()->CreateSingleton(lhs->AsClsVar()->gtClsVarHnd);
                     assert(fldSeqForStaticVar != FieldSeqStore::NotAField());
 
                     ValueNum storeVal = rhsVNPair.GetLiberal(); // The value number from the rhs of the assignment
@@ -7617,7 +7618,7 @@ void Compiler::fgValueNumberTree(GenTree* tree)
             {
                 FieldSeqNode* fieldSeq = nullptr;
                 ValueNum      newVN    = ValueNumStore::NoVN;
-                if (!lvaInSsa(arg->gtLclVarCommon.GetLclNum()))
+                if (!lvaInSsa(arg->AsLclVarCommon()->GetLclNum()))
                 {
                     newVN = vnStore->VNForExpr(compCurBB, TYP_BYREF);
                 }
@@ -7632,9 +7633,9 @@ void Compiler::fgValueNumberTree(GenTree* tree)
                 }
                 if (newVN == ValueNumStore::NoVN)
                 {
-                    assert(arg->gtLclVarCommon.GetSsaNum() != ValueNumStore::NoVN);
+                    assert(arg->AsLclVarCommon()->GetSsaNum() != ValueNumStore::NoVN);
                     newVN = vnStore->VNForFunc(TYP_BYREF, VNF_PtrToLoc,
-                                               vnStore->VNForIntCon(arg->gtLclVarCommon.GetLclNum()),
+                                               vnStore->VNForIntCon(arg->AsLclVarCommon()->GetLclNum()),
                                                vnStore->VNForFieldSeq(fieldSeq));
                 }
                 tree->gtVNPair.SetBoth(newVN);
@@ -9462,15 +9463,15 @@ void Compiler::fgValueNumberAddExceptionSet(GenTree* tree)
                 break;
 
             case GT_ARR_ELEM:
-                fgValueNumberAddExceptionSetForIndirection(tree, tree->gtArrElem.gtArrObj);
+                fgValueNumberAddExceptionSetForIndirection(tree, tree->AsArrElem()->gtArrObj);
                 break;
 
             case GT_ARR_INDEX:
-                fgValueNumberAddExceptionSetForIndirection(tree, tree->gtArrIndex.ArrObj());
+                fgValueNumberAddExceptionSetForIndirection(tree, tree->AsArrIndex()->ArrObj());
                 break;
 
             case GT_ARR_OFFSET:
-                fgValueNumberAddExceptionSetForIndirection(tree, tree->gtArrOffs.gtArrObj);
+                fgValueNumberAddExceptionSetForIndirection(tree, tree->AsArrOffs()->gtArrObj);
                 break;
 
             case GT_DIV:

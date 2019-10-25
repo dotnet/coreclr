@@ -1423,8 +1423,14 @@ void ILCodeStream::EmitLDIND_T(LocalDesc* pType)
 
         case ELEMENT_TYPE_INTERNAL:
         {
-            CONSISTENCY_CHECK_MSG(!(pType->InternalToken.GetMethodTable()->IsValueType()), "don't know how to handle value types here");
-            EmitLDIND_REF();
+            if (pType->InternalToken.GetMethodTable()->IsValueType())
+            {
+                EmitLDOBJ(m_pOwner->GetToken(pType->InternalToken.GetMethodTable()));
+            }
+            else
+            {
+                EmitLDIND_REF();
+            }
             break;
         }
 
@@ -1630,8 +1636,14 @@ void ILCodeStream::EmitSTIND_T(LocalDesc* pType)
 
         case ELEMENT_TYPE_INTERNAL:
         {
-            CONSISTENCY_CHECK_MSG(!(pType->InternalToken.GetMethodTable()->IsValueType()), "don't know how to handle value types here");
-            EmitSTIND_REF();
+            if (pType->InternalToken.GetMethodTable()->IsValueType())
+            {
+                EmitSTOBJ(m_pOwner->GetToken(pType->InternalToken.GetMethodTable()));
+            }
+            else
+            {
+                EmitSTIND_REF();
+            }
             break;
         }
 
@@ -1669,6 +1681,12 @@ void ILCodeStream::EmitTHROW()
 {
     WRAPPER_NO_CONTRACT;
     Emit(CEE_THROW, -1, 0);
+}
+
+void ILCodeStream::EmitUNALIGNED(BYTE alignment)
+{
+    WRAPPER_NO_CONTRACT;
+    Emit(CEE_UNALIGNED, 0, alignment);
 }
 
 
@@ -2242,7 +2260,7 @@ ILStubLinker::ILStubLinker(Module* pStubSigModule, const Signature &signature, S
             uNativeCallingConv |= IMAGE_CEE_CS_CALLCONV_HASTHIS;
         }
 
-        if (fTargetHasThis)
+        if (fTargetHasThis && !fIsReverseStub)
         {
             m_iTargetStackDelta--;
         }
@@ -2252,7 +2270,21 @@ ILStubLinker::ILStubLinker(Module* pStubSigModule, const Signature &signature, S
         if (uStubCallingConvInfo & IMAGE_CEE_CS_CALLCONV_GENERIC)
             IfFailThrow(m_managedSigPtr.GetData(NULL));    // skip number of type parameters
 
-        IfFailThrow(m_managedSigPtr.GetData(NULL));        // skip number of parameters
+        ULONG numParams = 0;
+        IfFailThrow(m_managedSigPtr.GetData(&numParams));
+        // If we are a reverse stub, then the target signature called in the stub
+        // is the managed signature. In that case, we calculate the target IL stack delta
+        // here from the managed signature.
+        if (fIsReverseStub)
+        {
+            // As per ECMA 335, the max number of parameters is 0x1FFFFFFF (see section 11.23.2), which fits in a 32-bit signed integer 
+            // So this cast is safe.
+            m_iTargetStackDelta -= (INT)numParams;
+            if (!m_StubHasVoidReturnType)
+            {
+                m_iTargetStackDelta++;
+            }
+        }
         IfFailThrow(m_managedSigPtr.SkipExactlyOne()); // skip return type
     }
 }
@@ -2475,13 +2507,15 @@ void ILStubLinker::SetStubTargetReturnType(LocalDesc* pLoc)
 
     m_nativeFnSigBuilder.SetReturnType(pLoc);
 
-    // Update check for if a stub has a void return type based on the provided return type.
-    m_StubTargetHasVoidReturnType = ((1 == pLoc->cbType) && (ELEMENT_TYPE_VOID == pLoc->ElementType[0])) ? TRUE : FALSE;
-    if (!m_StubTargetHasVoidReturnType)
+    if (!m_fIsReverseStub)
     {
-        m_iTargetStackDelta++;
+        // Update check for if a stub has a void return type based on the provided return type.
+        m_StubTargetHasVoidReturnType = ((1 == pLoc->cbType) && (ELEMENT_TYPE_VOID == pLoc->ElementType[0])) ? TRUE : FALSE;
+        if (!m_StubTargetHasVoidReturnType)
+        {
+            m_iTargetStackDelta++;
+        }
     }
-
 }
 
 DWORD ILStubLinker::SetStubTargetArgType(CorElementType typ, bool fConsumeStubArg /*= true*/)
@@ -2495,7 +2529,17 @@ DWORD ILStubLinker::SetStubTargetArgType(CorElementType typ, bool fConsumeStubAr
 void ILStubLinker::SetStubTargetCallingConv(CorCallingConvention uNativeCallingConv)
 {
     LIMITED_METHOD_CONTRACT;
+    CorCallingConvention originalCallingConvention = m_nativeFnSigBuilder.GetCallingConv();
     m_nativeFnSigBuilder.SetCallingConv(uNativeCallingConv);
+    if (!m_fIsReverseStub)
+    {
+        if ( (originalCallingConvention & CORINFO_CALLCONV_HASTHIS) && !(uNativeCallingConv & CORINFO_CALLCONV_HASTHIS))
+        {
+            // Our calling convention had an implied-this beforehand and now it doesn't.
+            // Account for this in the target stack delta.
+            m_iTargetStackDelta++;
+        }
+    }
 }
 
 static size_t GetManagedTypeForMDArray(LocalDesc* pLoc, Module* pModule, PCCOR_SIGNATURE psigManagedArg, SigTypeContext *pTypeContext)
@@ -2770,7 +2814,16 @@ ILStubLinker::SetStubTargetArgType(
     TransformArgForJIT(pLoc);
 
     DWORD dwArgNum = m_nativeFnSigBuilder.NewArg(pLoc);
-    m_iTargetStackDelta--;
+
+    // If we are a reverse stub, then the native function signature is the signature of the
+    // stub instead of the signature of the target.
+    // Otherwise, the native signature is the signature of the target.
+    // So, we only want to modify the target IL stack delta here if we are calling the native
+    // function as our target signature.
+    if (!m_fIsReverseStub)
+    {
+        m_iTargetStackDelta--;
+    }
 
     return dwArgNum;
 } // ILStubLinker::SetStubTargetArgType

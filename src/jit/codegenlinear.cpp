@@ -807,7 +807,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 void CodeGen::genSpillVar(GenTree* tree)
 {
-    unsigned   varNum = tree->gtLclVarCommon.GetLclNum();
+    unsigned   varNum = tree->AsLclVarCommon()->GetLclNum();
     LclVarDsc* varDsc = &(compiler->lvaTable[varNum]);
 
     assert(varDsc->lvIsRegCandidate());
@@ -1850,7 +1850,7 @@ void CodeGen::genProduceReg(GenTree* tree)
         {
             // Store local variable to its home location.
             // Ensure that lclVar stores are typed correctly.
-            unsigned varNum = tree->gtLclVarCommon.GetLclNum();
+            unsigned varNum = tree->AsLclVarCommon()->GetLclNum();
             assert(!compiler->lvaTable[varNum].lvNormalizeOnStore() ||
                    (tree->TypeGet() == genActualType(compiler->lvaTable[varNum].TypeGet())));
             inst_TT_RV(ins_Store(tree->gtType, compiler->isSIMDTypeLocalAligned(varNum)), tree, tree->GetRegNum());
@@ -2304,12 +2304,26 @@ void CodeGen::genCodeForJumpTrue(GenTreeOp* jtrue)
     assert(compiler->compCurBB->bbJumpKind == BBJ_COND);
     assert(jtrue->OperIs(GT_JTRUE));
 
-    GenCondition condition = GenCondition::FromRelop(jtrue->gtGetOp1());
+    GenTreeOp*   relop     = jtrue->gtGetOp1()->AsOp();
+    GenCondition condition = GenCondition::FromRelop(relop);
 
     if (condition.PreferSwap())
     {
         condition = GenCondition::Swap(condition);
     }
+
+#if defined(_TARGET_XARCH_)
+    if ((condition.GetCode() == GenCondition::FNEU) &&
+        (relop->gtGetOp1()->GetRegNum() == relop->gtGetOp2()->GetRegNum()))
+    {
+        // For floating point, `x != x` is a common way of
+        // checking for NaN. So, in the case where both
+        // operands are the same, we can optimize codegen
+        // to only do a single check.
+
+        condition = GenCondition(GenCondition::P);
+    }
+#endif
 
     inst_JCC(condition, compiler->compCurBB->bbJumpDest);
 }
