@@ -7770,7 +7770,13 @@ private:
 
     bool isSIMDClass(CORINFO_CLASS_HANDLE clsHnd)
     {
-        return info.compCompHnd->isInSIMDModule(clsHnd);
+        if (isIntrinsicType(clsHnd))
+        {
+            const char* namespaceName = nullptr;
+            (void)getClassNameFromMetadata(clsHnd, &namespaceName);
+            return strcmp(namespaceName, "System.Numerics") == 0;
+        }
+        return false;
     }
 
     bool isIntrinsicType(CORINFO_CLASS_HANDLE clsHnd)
