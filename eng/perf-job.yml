@@ -28,7 +28,7 @@ jobs:
         pool: Hosted VS2017
         queue: BuildPool.Windows.10.Amd64.VS2017.Open
         osGroup: Windows_NT
-
+    osGroup: ${{ parameters.osGroup }}
     # Test job depends on the corresponding build job
     dependsOn: ${{ format('build_{0}{1}_{2}_{3}', parameters.osGroup, parameters.osSubgroup, parameters.archType, parameters.buildConfig) }}
       
