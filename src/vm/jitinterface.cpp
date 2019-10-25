@@ -8961,11 +8961,8 @@ CONTRACTL {
 
     TypeHandle VMClsHnd(classHnd);
     PTR_MethodTable methodTable = VMClsHnd.GetMethodTable();
-    if (methodTable->GetAssembly()->IsSIMDVectorAssembly())
-    {
-        result = true;
-    }
-    else if (methodTable->IsIntrinsicType())
+
+    if (methodTable->IsIntrinsicType())
     {
         LPCUTF8 namespaceName;
         LPCUTF8 className = methodTable->GetFullyQualifiedNameInfo(&namespaceName);
