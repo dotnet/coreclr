@@ -321,32 +321,29 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
 
             blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindUnroll;
         }
+        else if (blkNode->OperIs(GT_STORE_BLK) && (size <= CPBLK_UNROLL_LIMIT))
+        {
+            blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindUnroll;
+
+            if (src->OperIs(GT_IND))
+            {
+                GenTree* srcAddr = src->AsIndir()->Addr();
+                if (srcAddr->OperIsLocalAddr())
+                {
+                    srcAddr->SetContained();
+                }
+            }
+
+            if (dstAddr->OperIsLocalAddr())
+            {
+                dstAddr->SetContained();
+            }
+        }
         else
         {
             assert(blkNode->OperIs(GT_STORE_BLK, GT_STORE_DYN_BLK));
 
-            if (!blkNode->OperIs(GT_STORE_DYN_BLK) && (size <= CPBLK_UNROLL_LIMIT))
-            {
-                blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindUnroll;
-
-                if (src->OperIs(GT_IND))
-                {
-                    GenTree* srcAddr = src->AsIndir()->Addr();
-                    if (srcAddr->OperIsLocalAddr())
-                    {
-                        srcAddr->SetContained();
-                    }
-                }
-
-                if (dstAddr->OperIsLocalAddr())
-                {
-                    dstAddr->SetContained();
-                }
-            }
-            else
-            {
-                blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindHelper;
-            }
+            blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindHelper;
         }
     }
 }
