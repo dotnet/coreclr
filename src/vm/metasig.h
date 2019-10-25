@@ -561,9 +561,8 @@ DEFINE_METASIG_T(IM(RefGuid_OutIntPtr_RetCustomQueryInterfaceResult, r(g(GUID)) 
 #endif //FEATURE_COMINTEROP
 
 // Activity Tracker
-DEFINE_METASIG_T(SM(RetActivityTracker, _, C(ACTIVITY_TRACKER)))
-DEFINE_METASIG_T(IM(Str_Str_Int_RefGuid_RefGuid_EventActivityOptions_RetVoid, s s i r(g(GUID)) r(g(GUID)) g(EVENT_ACTIVITY_OPTIONS), v))
-DEFINE_METASIG_T(IM(Str_Str_Int_RefGuid_RetVoid, s s i r(g(GUID)), v))
+DEFINE_METASIG_T(SM(RefGuid_RefGuid_RetVoid, r(g(GUID)) r(g(GUID)) , v))
+DEFINE_METASIG_T(SM(RefGuid_RetVoid, r(g(GUID)), v))
 
 DEFINE_METASIG_T(SM(IntPtr_AssemblyName_RetAssemblyBase, I C(ASSEMBLY_NAME), C(ASSEMBLYBASE)))
 DEFINE_METASIG_T(SM(Str_AssemblyBase_IntPtr_RetIntPtr, s C(ASSEMBLYBASE) I, I))

@@ -25,8 +25,6 @@ using namespace BINDER_SPACE;
 
 namespace
 {
-    const WCHAR *s_activityName = W("AssemblyBind");
-
     thread_local bool s_trackingBind = false;
     
     void FireAssemblyBindStart(const BinderTracing::AssemblyBindEvent::BindRequest &request)
@@ -37,7 +35,7 @@ namespace
 
         GUID activityId = GUID_NULL;
         GUID relatedActivityId = GUID_NULL;
-        ActivityTracker::Start(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_EVENTPIPE_Context.Name, s_activityName, &activityId, &relatedActivityId);
+        ActivityTracker::Start(&activityId, &relatedActivityId);
 
         FireEtwAssemblyBindStart(
             GetClrInstanceId(),
@@ -57,7 +55,7 @@ namespace
             return;
 
         GUID activityId = GUID_NULL;
-        ActivityTracker::Stop(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_EVENTPIPE_Context.Name, s_activityName, &activityId);
+        ActivityTracker::Stop(&activityId);
         
         FireEtwAssemblyBindStop(
             GetClrInstanceId(), 
@@ -92,10 +90,10 @@ namespace BinderTracing
         , m_cached { false }
     {
         _ASSERTE(assemblySpec != nullptr);
-        
+
         // ActivityTracker or EventSource may have triggered the system satellite load.
         // Don't track system satellite binding to avoid potential infinite recursion.
-        s_trackingBind = !m_bindRequest.AssemblySpec->IsMscorlibSatellite() && BinderTracing::IsEnabled();
+        s_trackingBind = BinderTracing::IsEnabled() && !m_bindRequest.AssemblySpec->IsMscorlibSatellite();
         if (s_trackingBind)
         {
             m_bindRequest.AssemblySpec->GetFileOrDisplayName(ASM_DISPLAYF_VERSION | ASM_DISPLAYF_CULTURE | ASM_DISPLAYF_PUBLIC_KEY_TOKEN, m_bindRequest.AssemblyName);

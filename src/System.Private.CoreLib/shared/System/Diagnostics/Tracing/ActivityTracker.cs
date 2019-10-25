@@ -588,6 +588,25 @@ namespace System.Diagnostics.Tracing
             // currently we do nothing, as that seems better than setting to Guid.Emtpy.
         }
 
+        // Assembly bind runtime activity name
+        private const string AssemblyBindName = "AssemblyBind";
+
+        /// <summary>
+        /// Called by the runtime to start an assembly bind activity
+        /// </summary>
+        private static void StartAssemblyBind(ref Guid activityId, ref Guid relatedActivityId)
+        {
+            Instance.OnStart(NativeRuntimeEventSource.Log.Name, AssemblyBindName, 0, ref activityId, ref relatedActivityId, EventActivityOptions.Recursive);
+        }
+
+        /// <summary>
+        /// Called by the runtime to stop an assembly bind activity
+        /// </summary>
+        private static void StopAssemblyBind(ref Guid activityId)
+        {
+            Instance.OnStop(NativeRuntimeEventSource.Log.Name, AssemblyBindName, 0, ref activityId);
+        }
+
         /// <summary>
         /// Async local variables have the property that the are automatically copied whenever a task is created and used
         /// while that task is running.   Thus m_current 'flows' to any task that is caused by the current thread that

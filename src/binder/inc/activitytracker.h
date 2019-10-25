@@ -10,8 +10,8 @@
 
 namespace ActivityTracker
 {
-    void Start(const WCHAR *providerName, const WCHAR *activityName, /*out*/ GUID *activityId, /*out*/ GUID *relatedActivityId);
-    void Stop(const WCHAR *providerName, const WCHAR *activityName, /*out*/ GUID *activityId);
+    void Start(/*out*/ GUID *activityId, /*out*/ GUID *relatedActivityId);
+    void Stop(/*out*/ GUID *activityId);
 };
 
 #endif // __ACTIVITY_TRACKER_H__
