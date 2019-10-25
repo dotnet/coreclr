@@ -245,6 +245,84 @@ namespace System.Runtime.Intrinsics.Arm
             public static Vector128<ulong> CompareEqualZero(Vector128<ulong> value) { throw new PlatformNotSupportedException(); }
 
             // /// <summary>
+            // /// uint64x1_t vclez_f64 (float64x1_t a)
+            // ///   A64: FCMLE Dd, Dn, #0
+            // /// </summary>
+            // public static Vector64<ulong> CompareLessThanOrEqualZero(Vector64<double> value) { throw new PlatformNotSupportedException(); }
+
+            /// <summary>
+            /// uint16x4_t vclez_s16 (int16x4_t a)
+            ///   A64: CMLE Vd, Vn, #0
+            /// </summary>
+            public static Vector64<ushort> CompareLessThanOrEqualZero(Vector64<short> value) { throw new PlatformNotSupportedException(); }
+
+            /// <summary>
+            /// uint32x2_t vclez_s32 (int32x2_t a)
+            ///   A64: CMLE Vd, Vn, #0
+            /// </summary>
+            public static Vector64<uint> CompareLessThanOrEqualZero(Vector64<int> value) { throw new PlatformNotSupportedException(); }
+
+            // /// <summary>
+            // /// uint64x1_t vclez_s64 (int64x1_t a)
+            // ///   A64: CMLE Dd, Dn, #0
+            // /// </summary>
+            // public static Vector64<ulong> CompareLessThanOrEqualZero(Vector64<long> value) { throw new PlatformNotSupportedException(); }
+
+            /// <summary>
+            /// uint8x8_t vclez_s8 (int8x8_t a)
+            ///   A64: CMLE Vd, Vn, #0
+            /// </summary>
+            public static Vector64<byte> CompareLessThanOrEqualZero(Vector64<sbyte> value) { throw new PlatformNotSupportedException(); }
+
+            /// <summary>
+            /// uint32x2_t vclez_f32 (float32x2_t a)
+            ///   A64: FCMLE Vd, Vn, #0
+            /// </summary>
+            public static Vector64<uint> CompareLessThanOrEqualZero(Vector64<float> value) { throw new PlatformNotSupportedException(); }
+
+            // /// <summary>
+            // /// uint64x1_t vclez_u64 (uint64x1_t a)
+            // ///   A64: CMLE Dd, Dn, #0
+            // /// </summary>
+            // public static Vector64<ulong> CompareLessThanOrEqualZero(Vector64<ulong> value) { throw new PlatformNotSupportedException(); }
+
+            /// <summary>
+            /// uint64x2_t vclezq_f64 (float64x2_t a)
+            ///   A64: FCMLE Vd, Vn, #0
+            /// </summary>
+            public static Vector128<ulong> CompareLessThanOrEqualZero(Vector128<double> value) { throw new PlatformNotSupportedException(); }
+
+            /// <summary>
+            /// uint16x8_t vclezq_s16 (int16x8_t a)
+            ///   A64: CMLE Vd, Vn, #0
+            /// </summary>
+            public static Vector128<ushort> CompareLessThanOrEqualZero(Vector128<short> value) { throw new PlatformNotSupportedException(); }
+
+            /// <summary>
+            /// uint32x4_t vclezq_s32 (int32x4_t a)
+            ///   A64: CMLE Vd, Vn, #0
+            /// </summary>
+            public static Vector128<uint> CompareLessThanOrEqualZero(Vector128<int> value) { throw new PlatformNotSupportedException(); }
+
+            /// <summary>
+            /// uint64x2_t vclezq_s64 (int64x2_t a)
+            ///   A64: CMLE Vd, Vn, #0
+            /// </summary>
+            public static Vector128<ulong> CompareLessThanOrEqualZero(Vector128<long> value) { throw new PlatformNotSupportedException(); }
+
+            /// <summary>
+            /// uint8x16_t vclezq_s8 (int8x16_t a)
+            ///   A64: CMLE Vd, Vn, #0
+            /// </summary>
+            public static Vector128<byte> CompareLessThanOrEqualZero(Vector128<sbyte> value) { throw new PlatformNotSupportedException(); }
+
+            /// <summary>
+            /// uint32x4_t vclezq_f32 (float32x4_t a)
+            ///   A64: FCMLE Vd, Vn, #0
+            /// </summary>
+            public static Vector128<uint> CompareLessThanOrEqualZero(Vector128<float> value) { throw new PlatformNotSupportedException(); }
+
+            // /// <summary>
             // /// uint64x1_t vcltz_f64 (float64x1_t a)
             // ///   A64: FCMLT Dd, Dn, #0
             // /// </summary>
