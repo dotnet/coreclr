@@ -6653,10 +6653,6 @@ EXTERN_C void JIT_WriteBarrier_Debug();
 EXTERN_C void JIT_WriteBarrier_Debug_End();
 #endif
 
-#ifdef _TARGET_ARM_
-EXTERN_C void FCallMemcpy_End();
-#endif
-
 #ifdef VSD_STUB_CAN_THROW_AV
 //Return TRUE if pContext->Pc is in VirtualStub
 BOOL IsIPinVirtualStub(PCODE f_IP)
@@ -6715,10 +6711,6 @@ bool IsIPInMarkedJitHelper(UINT_PTR uControlPc)
 
 #if defined(_TARGET_AMD64_) && defined(_DEBUG)
     CHECK_RANGE(JIT_WriteBarrier_Debug)
-#endif
-
-#ifdef _TARGET_ARM_
-    CHECK_RANGE(FCallMemcpy)
 #endif
 
     return false;
@@ -7148,51 +7140,6 @@ LONG WINAPI CLRVectoredExceptionHandler(PEXCEPTION_POINTERS pExceptionInfo)
     {
         return EXCEPTION_CONTINUE_SEARCH;
     }
-
-    //
-    // For images ngen'd with FEATURE_LAZY_COW_PAGES, the .data section will be read-only.  Any writes to that data need to be 
-    // preceded by a call to EnsureWritablePages.  This code is here to catch the ones we forget.
-    //
-#ifdef FEATURE_LAZY_COW_PAGES
-    if (pExceptionInfo->ExceptionRecord->ExceptionCode == STATUS_ACCESS_VIOLATION && 
-        IsWellFormedAV(pExceptionInfo->ExceptionRecord) &&
-        pExceptionInfo->ExceptionRecord->ExceptionInformation[0] == 1 /* means this was a failed write */)
-    {
-        void* location = (void*)pExceptionInfo->ExceptionRecord->ExceptionInformation[1];
-
-        if (IsInReadOnlyLazyCOWPage(location))
-        {
-#ifdef _DEBUG
-            if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_DebugAssertOnMissedCOWPage))
-                _ASSERTE_MSG(false, "Writes to NGen'd data must be protected by EnsureWritablePages.");
-#endif
-
-#pragma push_macro("VirtualQuery")
-#undef VirtualQuery
-            MEMORY_BASIC_INFORMATION mbi;
-            if (!::VirtualQuery(location, &mbi, sizeof(mbi)))
-            {
-                EEPOLICY_HANDLE_FATAL_ERROR(COR_E_OUTOFMEMORY);
-            }
-#pragma pop_macro("VirtualQuery")
-
-            bool executable = (mbi.Protect == PAGE_EXECUTE_READ) || 
-                              (mbi.Protect == PAGE_EXECUTE_READWRITE) || 
-                              (mbi.Protect == PAGE_EXECUTE_READ) || 
-                              (mbi.Protect == PAGE_EXECUTE_WRITECOPY);
-
-            if (!(executable ? EnsureWritableExecutablePagesNoThrow(location, 1) : EnsureWritablePagesNoThrow(location, 1)))
-            {
-                // Note that this failfast is very rare. It will only be hit in the theoretical cases there is 
-                // missing EnsureWritablePages probe (there should be none when we ship), and the OS run into OOM 
-                // exactly at the point when we executed the code with the missing probe.
-                EEPOLICY_HANDLE_FATAL_ERROR(COR_E_OUTOFMEMORY);
-            }
-
-            return EXCEPTION_CONTINUE_EXECUTION;
-        }
-    }
-#endif //FEATURE_LAZY_COW_PAGES
 
 
     //
@@ -12773,7 +12720,7 @@ VOID DECLSPEC_NORETURN ThrowTypeLoadException(LPCWSTR pFullTypeName,
 // Used by the classloader to post illegal layout
 //==========================================================================
 VOID DECLSPEC_NORETURN ThrowFieldLayoutError(mdTypeDef cl,                // cl of the NStruct being loaded
-                           Module* pModule,             // Module that defines the scope, loader and heap (for allocate FieldMarshalers)
+                           Module* pModule,             // Module that defines the scope, loader and heap (for allocated NativeFieldDescriptors)
                            DWORD   dwOffset,            // Offset of field
                            DWORD   dwID)                // Message id
 {

@@ -724,10 +724,7 @@ FCFuncStart(gArrayFuncs)
     FCFuncElement("GetLowerBound", ArrayNative::GetLowerBound)
     FCFuncElement("GetUpperBound", ArrayNative::GetUpperBound)
     FCIntrinsicSig("GetLength", &gsig_IM_Int_RetInt, ArrayNative::GetLength, CORINFO_INTRINSIC_Array_GetDimLength)
-    FCFuncElement("get_Length", ArrayNative::GetLengthNoRank)
-    FCFuncElement("get_LongLength", ArrayNative::GetLongLengthNoRank)
     FCFuncElement("GetRawArrayData", ArrayNative::GetRawArrayData)
-    FCFuncElement("GetElementSize", ArrayNative::GetElementSize)
     FCFuncElement("Initialize", ArrayNative::Initialize)
     FCFuncElement("Copy", ArrayNative::ArrayCopy)
     FCFuncElement("GetRawArrayGeometry", ArrayNative::GetRawArrayGeometry)
@@ -742,12 +739,9 @@ FCFuncStart(gArrayFuncs)
 FCFuncEnd()
 
 FCFuncStart(gBufferFuncs)
-    FCFuncElement("BlockCopy", Buffer::BlockCopy)
     FCFuncElement("IsPrimitiveTypeArray", Buffer::IsPrimitiveTypeArray)
-    FCFuncElement("_ByteLength", Buffer::ByteLength)
-#ifdef _TARGET_ARM_
-    FCFuncElement("Memcpy", FCallMemcpy)
-#endif
+    QCFuncElement("__ZeroMemory", Buffer::Clear)
+    FCFuncElement("BulkMoveWithWriteBarrier", Buffer::BulkMoveWithWriteBarrier)
     QCFuncElement("__Memmove", Buffer::MemMove)
 FCFuncEnd()
 
@@ -929,7 +923,6 @@ FCFuncStart(gRuntimeHelpers)
     QCFuncElement("_CompileMethod", ReflectionInvocation::CompileMethod)
     FCFuncElement("_PrepareMethod", ReflectionInvocation::PrepareMethod)
     FCFuncElement("PrepareDelegate", ReflectionInvocation::PrepareDelegate)
-    FCFuncElement("ExecuteCodeWithGuaranteedCleanup", ReflectionInvocation::ExecuteCodeWithGuaranteedCleanup)
     FCFuncElement("GetHashCode", ObjectNative::GetHashCode)
     FCFuncElement("Equals", ObjectNative::Equals)
     FCFuncElement("EnsureSufficientExecutionStack", ReflectionInvocation::EnsureSufficientExecutionStack)
@@ -943,15 +936,13 @@ FCFuncStart(gContextSynchronizationFuncs)
 #endif
 FCFuncEnd()
 
-FCFuncStart(gDateMarshalerFuncs)
-    FCFuncElement("ConvertToNative", StubHelpers::DateMarshaler__ConvertToNative)
-    FCFuncElement("ConvertToManaged", StubHelpers::DateMarshaler__ConvertToManaged)
-FCFuncEnd()
-
-FCFuncStart(gValueClassMarshalerFuncs)
-    FCFuncElement("ConvertToNative", StubHelpers::ValueClassMarshaler__ConvertToNative)
-    FCFuncElement("ConvertToManaged", StubHelpers::ValueClassMarshaler__ConvertToManaged)
-    FCFuncElement("ClearNative", StubHelpers::ValueClassMarshaler__ClearNative)
+FCFuncStart(gMngdFixedArrayMarshalerFuncs)
+    FCFuncElement("CreateMarshaler", MngdFixedArrayMarshaler::CreateMarshaler)
+    FCFuncElement("ConvertSpaceToNative", MngdFixedArrayMarshaler::ConvertSpaceToNative)
+    FCFuncElement("ConvertContentsToNative", MngdFixedArrayMarshaler::ConvertContentsToNative)
+    FCFuncElement("ConvertSpaceToManaged", MngdFixedArrayMarshaler::ConvertSpaceToManaged)
+    FCFuncElement("ConvertContentsToManaged", MngdFixedArrayMarshaler::ConvertContentsToManaged)
+    FCFuncElement("ClearNativeContents", MngdFixedArrayMarshaler::ClearNativeContents)
 FCFuncEnd()
 
 FCFuncStart(gMngdNativeArrayMarshalerFuncs)
@@ -1115,11 +1106,6 @@ FCFuncStart(gRuntimeClassFuncs)
 FCFuncEnd()
 #endif // ifdef FEATURE_COMINTEROP
 
-FCFuncStart(gRuntimeImportsFuncs)
-    QCFuncElement("RhZeroMemory", MemoryNative::Clear)
-    FCFuncElement("RhBulkMoveWithWriteBarrier", MemoryNative::BulkMoveWithWriteBarrier)
-FCFuncEnd()
-
 FCFuncStart(gWeakReferenceFuncs)
     FCFuncElement("Create", WeakReferenceNative::Create)
     FCFuncElement("Finalize", WeakReferenceNative::Finalize)
@@ -1181,7 +1167,6 @@ FCFuncStart(gPalOleAut32Funcs)
     QCFuncElement("SysAllocStringByteLen", SysAllocStringByteLen)
     QCFuncElement("SysAllocStringLen", SysAllocStringLen)
     QCFuncElement("SysFreeString", SysFreeString)
-    QCFuncElement("SysStringLen", SysStringLen)
 FCFuncEnd()
 #endif
 
@@ -1237,7 +1222,6 @@ FCClassElement("CompatibilitySwitch", "System.Runtime.Versioning", gCompatibilit
 FCClassElement("CriticalHandle", "System.Runtime.InteropServices", gCriticalHandleFuncs)
 FCClassElement("CustomAttribute", "System.Reflection", gCOMCustomAttributeFuncs)
 FCClassElement("CustomAttributeEncodedArgument", "System.Reflection", gCustomAttributeEncodedArgument)
-FCClassElement("DateMarshaler", "System.StubHelpers", gDateMarshalerFuncs)
 FCClassElement("DateTime", "System", gDateTimeFuncs)
 FCClassElement("Debugger", "System.Diagnostics", gDiagnosticsDebugger)
 FCClassElement("Delegate", "System", gDelegateFuncs)
@@ -1270,6 +1254,7 @@ FCClassElement("MathF", "System", gMathFFuncs)
 FCClassElement("MdUtf8String", "System", gMdUtf8String)
 FCClassElement("MetadataImport", "System.Reflection", gMetaDataImport)
 FCClassElement("MissingMemberException", "System",  gMissingMemberExceptionFuncs)
+FCClassElement("MngdFixedArrayMarshaler", "System.StubHelpers", gMngdFixedArrayMarshalerFuncs)
 #ifdef FEATURE_COMINTEROP
 FCClassElement("MngdHiddenLengthArrayMarshaler", "System.StubHelpers", gMngdHiddenLengthArrayMarshalerFuncs)
 #endif // FEATURE_COMINTEROP
@@ -1305,7 +1290,6 @@ FCClassElement("RuntimeClass", "System.Runtime.InteropServices.WindowsRuntime", 
 #endif // FEATURE_COMINTEROP
 FCClassElement("RuntimeFieldHandle", "System", gCOMFieldHandleNewFuncs)
 FCClassElement("RuntimeHelpers", "System.Runtime.CompilerServices", gRuntimeHelpers)
-FCClassElement("RuntimeImports", "System.Runtime", gRuntimeImportsFuncs)
 FCClassElement("RuntimeMethodHandle", "System", gRuntimeMethodHandle)
 FCClassElement("RuntimeModule", "System.Reflection", gCOMModuleFuncs)
 FCClassElement("RuntimeType", "System", gSystem_RuntimeType)
@@ -1333,7 +1317,6 @@ FCClassElement("UriMarshaler", "System.StubHelpers", gUriMarshalerFuncs)
 #ifdef FEATURE_UTF8STRING
 FCClassElement("Utf8String", "System", gUtf8StringFuncs)
 #endif // FEATURE_UTF8STRING
-FCClassElement("ValueClassMarshaler", "System.StubHelpers", gValueClassMarshalerFuncs)
 FCClassElement("ValueType", "System", gValueTypeFuncs)
 #ifdef FEATURE_COMINTEROP
 FCClassElement("Variant", "System", gVariantFuncs)

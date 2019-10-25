@@ -452,9 +452,9 @@ int LinearScan::BuildNode(GenTree* tree)
 
             // Comparand is preferenced to RAX.
             // The remaining two operands can be in any reg other than RAX.
-            BuildUse(tree->gtCmpXchg.gtOpLocation, allRegs(TYP_INT) & ~RBM_RAX);
-            BuildUse(tree->gtCmpXchg.gtOpValue, allRegs(TYP_INT) & ~RBM_RAX);
-            BuildUse(tree->gtCmpXchg.gtOpComparand, RBM_RAX);
+            BuildUse(tree->AsCmpXchg()->gtOpLocation, allRegs(TYP_INT) & ~RBM_RAX);
+            BuildUse(tree->AsCmpXchg()->gtOpValue, allRegs(TYP_INT) & ~RBM_RAX);
+            BuildUse(tree->AsCmpXchg()->gtOpComparand, RBM_RAX);
             BuildDef(tree, RBM_RAX);
         }
         break;
@@ -578,7 +578,7 @@ int LinearScan::BuildNode(GenTree* tree)
             assert(dstCount == 1);
             srcCount                 = 0;
             RefPosition* internalDef = nullptr;
-            if (tree->gtArrOffs.gtOffset->isContained())
+            if (tree->AsArrOffs()->gtOffset->isContained())
             {
                 srcCount = 2;
             }
@@ -1066,7 +1066,7 @@ int LinearScan::BuildCall(GenTreeCall* call)
         // The return value will be on the X87 stack, and we will need to move it.
         dstCandidates = allRegs(registerType);
 #else  // !_TARGET_X86_
-        dstCandidates              = RBM_FLOATRET;
+        dstCandidates = RBM_FLOATRET;
 #endif // !_TARGET_X86_
     }
     else if (registerType == TYP_LONG)
@@ -1142,7 +1142,7 @@ int LinearScan::BuildCall(GenTreeCall* call)
         fgArgTabEntry* curArgTabEntry = compiler->gtArgEntryByNode(call, argNode);
         assert(curArgTabEntry);
 
-        if (curArgTabEntry->regNum == REG_STK)
+        if (curArgTabEntry->GetRegNum() == REG_STK)
         {
             // late arg that is not passed in a register
             assert(argNode->gtOper == GT_PUTARG_STK);
@@ -1170,7 +1170,7 @@ int LinearScan::BuildCall(GenTreeCall* call)
             unsigned regIndex = 0;
             for (GenTreeFieldList::Use& use : argNode->AsFieldList()->Uses())
             {
-                const regNumber argReg = curArgTabEntry->getRegNum(regIndex);
+                const regNumber argReg = curArgTabEntry->GetRegNum(regIndex);
                 assert(use.GetNode()->GetRegNum() == argReg);
                 regIndex++;
             }
@@ -1178,7 +1178,7 @@ int LinearScan::BuildCall(GenTreeCall* call)
         else
 #endif // UNIX_AMD64_ABI
         {
-            const regNumber argReg = curArgTabEntry->regNum;
+            const regNumber argReg = curArgTabEntry->GetRegNum();
             assert(argNode->GetRegNum() == argReg);
         }
 #endif // DEBUG
@@ -1257,83 +1257,67 @@ int LinearScan::BuildCall(GenTreeCall* call)
 }
 
 //------------------------------------------------------------------------
-// BuildBlockStore: Set the NodeInfo for a block store.
+// BuildBlockStore: Build the RefPositions for a block store node.
 //
 // Arguments:
-//    blkNode       - The block store node of interest
+//    blkNode - The block store node of interest
 //
 // Return Value:
 //    The number of sources consumed by this node.
 //
 int LinearScan::BuildBlockStore(GenTreeBlk* blkNode)
 {
-    GenTree* dstAddr  = blkNode->Addr();
-    unsigned size     = blkNode->Size();
-    GenTree* source   = blkNode->Data();
-    int      srcCount = 0;
+    GenTree* dstAddr = blkNode->Addr();
+    GenTree* src     = blkNode->Data();
+    unsigned size    = blkNode->Size();
 
     GenTree* srcAddrOrFill = nullptr;
-    bool     isInitBlk     = blkNode->OperIsInitBlkOp();
 
     regMaskTP dstAddrRegMask = RBM_NONE;
-    regMaskTP sourceRegMask  = RBM_NONE;
-    regMaskTP blkSizeRegMask = RBM_NONE;
+    regMaskTP srcRegMask     = RBM_NONE;
+    regMaskTP sizeRegMask    = RBM_NONE;
 
-    if (isInitBlk)
+    if (blkNode->OperIsInitBlkOp())
     {
-        GenTree* initVal = source;
-        if (initVal->OperIsInitVal())
+        if (src->OperIs(GT_INIT_VAL))
         {
-            assert(initVal->isContained());
-            initVal = initVal->gtGetOp1();
+            assert(src->isContained());
+            src = src->AsUnOp()->gtGetOp1();
         }
-        srcAddrOrFill = initVal;
+
+        srcAddrOrFill = src;
 
         switch (blkNode->gtBlkOpKind)
         {
             case GenTreeBlk::BlkOpKindUnroll:
-                assert(initVal->IsCnsIntOrI());
                 if (size >= XMM_REGSIZE_BYTES)
                 {
-                    // Reserve an XMM register to fill it with a pack of 16 init value constants.
                     buildInternalFloatRegisterDefForNode(blkNode, internalFloatRegCandidates());
-                    // use XMM register to fill with constants, it's AVX instruction and set the flag
                     SetContainsAVXFlags();
                 }
+
 #ifdef _TARGET_X86_
                 if ((size & 1) != 0)
                 {
-                    // On x86, you can't address the lower byte of ESI, EDI, ESP, or EBP when doing
-                    // a "mov byte ptr [dest], val". If the fill size is odd, we will try to do this
-                    // when unrolling, so only allow byteable registers as the source value. (We could
-                    // consider just using BlkOpKindRepInstr instead.)
-                    sourceRegMask = allByteRegs();
+                    // We'll need to store a byte so a byte register is needed on x86.
+                    srcRegMask = allByteRegs();
                 }
-#endif // _TARGET_X86_
+#endif
                 break;
 
             case GenTreeBlk::BlkOpKindRepInstr:
-                // rep stos has the following register requirements:
-                // a) The memory address to be in RDI.
-                // b) The fill value has to be in RAX.
-                // c) The buffer size will go in RCX.
                 dstAddrRegMask = RBM_RDI;
-                sourceRegMask  = RBM_RAX;
-                blkSizeRegMask = RBM_RCX;
+                srcRegMask     = RBM_RAX;
+                sizeRegMask    = RBM_RCX;
                 break;
 
-            case GenTreeBlk::BlkOpKindHelper:
 #ifdef _TARGET_AMD64_
-                // The helper follows the regular AMD64 ABI.
+            case GenTreeBlk::BlkOpKindHelper:
                 dstAddrRegMask = RBM_ARG_0;
-                sourceRegMask  = RBM_ARG_1;
-                blkSizeRegMask = RBM_ARG_2;
-#else  // !_TARGET_AMD64_
-                dstAddrRegMask     = RBM_RDI;
-                sourceRegMask      = RBM_RAX;
-                blkSizeRegMask     = RBM_RCX;
-#endif // !_TARGET_AMD64_
+                srcRegMask     = RBM_ARG_1;
+                sizeRegMask    = RBM_ARG_2;
                 break;
+#endif
 
             default:
                 unreached();
@@ -1341,42 +1325,38 @@ int LinearScan::BuildBlockStore(GenTreeBlk* blkNode)
     }
     else
     {
-        // CopyObj or CopyBlk
-        if (source->gtOper == GT_IND)
+        if (src->OperIs(GT_IND))
         {
-            assert(source->isContained());
-            srcAddrOrFill = source->gtGetOp1();
+            assert(src->isContained());
+            srcAddrOrFill = src->AsIndir()->Addr();
         }
-        if (blkNode->OperGet() == GT_STORE_OBJ)
+
+        if (blkNode->OperIs(GT_STORE_OBJ))
         {
             if (blkNode->gtBlkOpKind == GenTreeBlk::BlkOpKindRepInstr)
             {
                 // We need the size of the contiguous Non-GC-region to be in RCX to call rep movsq.
-                blkSizeRegMask = RBM_RCX;
+                sizeRegMask = RBM_RCX;
             }
+
             // The srcAddr must be in a register.  If it was under a GT_IND, we need to subsume all of its
             // sources.
-            sourceRegMask  = RBM_RSI;
             dstAddrRegMask = RBM_RDI;
+            srcRegMask     = RBM_RSI;
         }
         else
         {
             switch (blkNode->gtBlkOpKind)
             {
                 case GenTreeBlk::BlkOpKindUnroll:
-                    // If we have a remainder smaller than XMM_REGSIZE_BYTES, we need an integer temp reg.
-                    //
-                    // x86 specific note: if the size is odd, the last copy operation would be of size 1 byte.
-                    // But on x86 only RBM_BYTE_REGS could be used as byte registers.  Therefore, exclude
-                    // RBM_NON_BYTE_REGS from internal candidates.
-                    if ((size & (XMM_REGSIZE_BYTES - 1)) != 0)
+                    if ((size % XMM_REGSIZE_BYTES) != 0)
                     {
                         regMaskTP regMask = allRegs(TYP_INT);
-
 #ifdef _TARGET_X86_
                         if ((size & 1) != 0)
                         {
-                            regMask &= ~RBM_NON_BYTE_REGS;
+                            // We'll need to store a byte so a byte register is needed on x86.
+                            regMask = allByteRegs();
                         }
 #endif
                         buildInternalIntRegisterDefForNode(blkNode, regMask);
@@ -1384,80 +1364,68 @@ int LinearScan::BuildBlockStore(GenTreeBlk* blkNode)
 
                     if (size >= XMM_REGSIZE_BYTES)
                     {
-                        // If we have a buffer larger than XMM_REGSIZE_BYTES,
-                        // reserve an XMM register to use it for a
-                        // series of 16-byte loads and stores.
                         buildInternalFloatRegisterDefForNode(blkNode, internalFloatRegCandidates());
-                        // Uses XMM reg for load and store and hence check to see whether AVX instructions
-                        // are used for codegen, set ContainsAVX flag
                         SetContainsAVXFlags();
                     }
                     break;
 
                 case GenTreeBlk::BlkOpKindRepInstr:
-                    // rep stos has the following register requirements:
-                    // a) The dest address has to be in RDI.
-                    // b) The src address has to be in RSI.
-                    // c) The buffer size will go in RCX.
                     dstAddrRegMask = RBM_RDI;
-                    sourceRegMask  = RBM_RSI;
-                    blkSizeRegMask = RBM_RCX;
+                    srcRegMask     = RBM_RSI;
+                    sizeRegMask    = RBM_RCX;
                     break;
 
-                case GenTreeBlk::BlkOpKindHelper:
 #ifdef _TARGET_AMD64_
-                    // The helper follows the regular AMD64 ABI.
+                case GenTreeBlk::BlkOpKindHelper:
                     dstAddrRegMask = RBM_ARG_0;
-                    sourceRegMask  = RBM_ARG_1;
-                    blkSizeRegMask = RBM_ARG_2;
-#else  // !_TARGET_AMD64_
-                    dstAddrRegMask = RBM_RDI;
-                    sourceRegMask  = RBM_RAX;
-                    blkSizeRegMask = RBM_RCX;
-#endif // !_TARGET_AMD64_
+                    srcRegMask     = RBM_ARG_1;
+                    sizeRegMask    = RBM_ARG_2;
                     break;
+#endif
 
                 default:
                     unreached();
             }
         }
-        if ((srcAddrOrFill == nullptr) && (sourceRegMask != RBM_NONE))
+
+        if ((srcAddrOrFill == nullptr) && (srcRegMask != RBM_NONE))
         {
             // This is a local source; we'll use a temp register for its address.
-            assert(source->isContained() && source->OperIsLocal());
-            buildInternalIntRegisterDefForNode(blkNode, sourceRegMask);
+            assert(src->isContained() && src->OperIs(GT_LCL_VAR, GT_LCL_FLD));
+            buildInternalIntRegisterDefForNode(blkNode, srcRegMask);
         }
     }
 
-    if (!blkNode->OperIs(GT_STORE_DYN_BLK) && (blkSizeRegMask != RBM_NONE))
+    if (!blkNode->OperIs(GT_STORE_DYN_BLK) && (sizeRegMask != RBM_NONE))
     {
         // Reserve a temp register for the block size argument.
-        buildInternalIntRegisterDefForNode(blkNode, blkSizeRegMask);
+        buildInternalIntRegisterDefForNode(blkNode, sizeRegMask);
     }
+
+    int useCount = 0;
 
     if (!dstAddr->isContained())
     {
-        srcCount++;
+        useCount++;
         BuildUse(dstAddr, dstAddrRegMask);
     }
 
     if ((srcAddrOrFill != nullptr) && !srcAddrOrFill->isContained())
     {
-        srcCount++;
-        BuildUse(srcAddrOrFill, sourceRegMask);
+        useCount++;
+        BuildUse(srcAddrOrFill, srcRegMask);
     }
 
     if (blkNode->OperIs(GT_STORE_DYN_BLK))
     {
-        // The block size argument is a third argument to GT_STORE_DYN_BLK
-        srcCount++;
-        GenTree* blockSize = blkNode->AsDynBlk()->gtDynamicSize;
-        BuildUse(blockSize, blkSizeRegMask);
+        useCount++;
+        BuildUse(blkNode->AsDynBlk()->gtDynamicSize, sizeRegMask);
     }
+
     buildInternalRegisterUses();
     regMaskTP killMask = getKillSetForBlockStore(blkNode);
     BuildDefsWithKills(blkNode, 0, RBM_NONE, killMask);
-    return srcCount;
+    return useCount;
 }
 
 #ifdef FEATURE_PUT_STRUCT_ARG_STK
@@ -1562,9 +1530,6 @@ int LinearScan::BuildPutArgStk(GenTreePutArgStk* putArgStk)
 
     ClassLayout* layout = src->AsObj()->GetLayout();
 
-    // If we have a buffer between XMM_REGSIZE_BYTES and CPBLK_UNROLL_LIMIT bytes, we'll use SSE2.
-    // Structs and buffer with sizes <= CPBLK_UNROLL_LIMIT bytes are occurring in more than 95% of
-    // our framework assemblies, so this is the main code generation scheme we'll use.
     ssize_t size = putArgStk->gtNumSlots * TARGET_POINTER_SIZE;
     switch (putArgStk->gtPutArgStkKind)
     {
@@ -1653,7 +1618,7 @@ int LinearScan::BuildLclHeap(GenTree* tree)
     {
         assert(size->isContained());
         srcCount       = 0;
-        size_t sizeVal = size->gtIntCon.gtIconVal;
+        size_t sizeVal = size->AsIntCon()->gtIconVal;
 
         if (sizeVal == 0)
         {
@@ -1800,7 +1765,7 @@ int LinearScan::BuildIntrinsic(GenTree* tree)
     assert(op1->TypeGet() == tree->TypeGet());
     RefPosition* internalFloatDef = nullptr;
 
-    switch (tree->gtIntrinsic.gtIntrinsicId)
+    switch (tree->AsIntrinsic()->gtIntrinsicId)
     {
         case CORINFO_INTRINSIC_Abs:
             // Abs(float x) = x & 0x7fffffff
@@ -1815,7 +1780,7 @@ int LinearScan::BuildIntrinsic(GenTree* tree)
             // xmm register. When we add support in emitter to emit 128-bit
             // data constants and instructions that operate on 128-bit
             // memory operands we can avoid the need for an internal register.
-            if (tree->gtIntrinsic.gtIntrinsicId == CORINFO_INTRINSIC_Abs)
+            if (tree->AsIntrinsic()->gtIntrinsicId == CORINFO_INTRINSIC_Abs)
             {
                 internalFloatDef = buildInternalFloatRegisterDefForNode(tree, internalFloatRegCandidates());
             }
@@ -2132,7 +2097,7 @@ int LinearScan::BuildSIMD(GenTreeSIMD* simdTree)
                     unsigned baseSize           = genTypeSize(baseType);
                     if (baseSize == 1)
                     {
-                        if ((op2->gtIntCon.gtIconVal % 2) == 1)
+                        if ((op2->AsIntCon()->gtIconVal % 2) == 1)
                         {
                             ZeroOrSignExtnReqd = (baseType == TYP_BYTE);
                         }
@@ -2794,8 +2759,6 @@ int LinearScan::BuildIndir(GenTreeIndir* indirTree)
             // Because 'source' is contained, we haven't yet determined its special register requirements, if any.
             // As it happens, the Shift or Rotate cases are the only ones with special requirements.
             assert(source->isContained() && source->OperIsRMWMemOp());
-            GenTree*      nonMemSource = nullptr;
-            GenTreeIndir* otherIndir   = nullptr;
 
             if (source->OperIsShiftOrRotate())
             {
@@ -2810,7 +2773,8 @@ int LinearScan::BuildIndir(GenTreeIndir* indirTree)
                 // Note that BuildShiftRotate (above) will handle the byte requirement as needed,
                 // but STOREIND isn't itself an RMW op, so we have to explicitly set it for that case.
 
-                GenTree* nonMemSource = nullptr;
+                GenTree*      nonMemSource = nullptr;
+                GenTreeIndir* otherIndir   = nullptr;
 
                 if (indirTree->AsStoreInd()->IsRMWDstOp1())
                 {
@@ -2829,7 +2793,6 @@ int LinearScan::BuildIndir(GenTreeIndir* indirTree)
                 {
                     srcCandidates = RBM_BYTE_REGS;
                 }
-#endif
                 if (otherIndir != nullptr)
                 {
                     // Any lclVars in the addressing mode of this indirection are contained.
@@ -2841,6 +2804,8 @@ int LinearScan::BuildIndir(GenTreeIndir* indirTree)
                     GenTree* dstIndex = indirTree->Index();
                     CheckAndMoveRMWLastUse(index, dstIndex);
                 }
+#endif // _TARGET_X86_
+
                 srcCount += BuildBinaryUses(source->AsOp(), srcCandidates);
             }
         }

@@ -484,7 +484,7 @@ void CodeGen::genCodeForBBlist()
         GenTree* blockLastNode = block->lastNode();
         if ((blockLastNode != nullptr) && (blockLastNode->gtOper == GT_RETURN) &&
             (varTypeIsGC(compiler->info.compRetType) ||
-             (blockLastNode->gtOp.gtOp1 != nullptr && varTypeIsGC(blockLastNode->gtOp.gtOp1->TypeGet()))))
+             (blockLastNode->AsOp()->gtOp1 != nullptr && varTypeIsGC(blockLastNode->AsOp()->gtOp1->TypeGet()))))
         {
             nonVarPtrRegs &= ~RBM_INTRET;
         }
@@ -703,7 +703,7 @@ void CodeGen::genCodeForBBlist()
 
                     if ((call != nullptr) && (call->gtOper == GT_CALL))
                     {
-                        if ((call->gtCall.gtCallMoreFlags & GTF_CALL_M_DOES_NOT_RETURN) != 0)
+                        if ((call->AsCall()->gtCallMoreFlags & GTF_CALL_M_DOES_NOT_RETURN) != 0)
                         {
                             instGen(INS_BREAKPOINT); // This should never get executed
                         }
@@ -807,7 +807,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 void CodeGen::genSpillVar(GenTree* tree)
 {
-    unsigned   varNum = tree->gtLclVarCommon.GetLclNum();
+    unsigned   varNum = tree->AsLclVarCommon()->GetLclNum();
     LclVarDsc* varDsc = &(compiler->lvaTable[varNum]);
 
     assert(varDsc->lvIsRegCandidate());
@@ -897,8 +897,8 @@ GenTree* sameRegAsDst(GenTree* tree, GenTree*& other /*out*/)
         return nullptr;
     }
 
-    GenTree* op1 = tree->gtOp.gtOp1;
-    GenTree* op2 = tree->gtOp.gtOp2;
+    GenTree* op1 = tree->AsOp()->gtOp1;
+    GenTree* op2 = tree->AsOp()->gtOp2;
     if (op1->GetRegNum() == tree->GetRegNum())
     {
         other = op2;
@@ -936,7 +936,7 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
 
     if (tree->gtOper == GT_RELOAD)
     {
-        unspillTree = tree->gtOp.gtOp1;
+        unspillTree = tree->AsOp()->gtOp1;
     }
 
     if ((unspillTree->gtFlags & GTF_SPILLED) != 0)
@@ -1413,10 +1413,6 @@ void CodeGen::genConsumeRegs(GenTree* tree)
         }
 #endif // FEATURE_HW_INTRINSICS
 #endif // _TARGET_XARCH_
-        else if (tree->OperIsInitVal())
-        {
-            genConsumeReg(tree->gtGetOp1());
-        }
         else
         {
 #ifdef FEATURE_SIMD
@@ -1726,7 +1722,7 @@ void CodeGen::genConsumeBlockSrc(GenTreeBlk* blkNode)
         assert(src->isContained());
         if (src->OperGet() == GT_IND)
         {
-            src = src->gtOp.gtOp1;
+            src = src->AsOp()->gtOp1;
         }
         else
         {
@@ -1762,7 +1758,7 @@ void CodeGen::genSetBlockSrc(GenTreeBlk* blkNode, regNumber srcReg)
         // For a CopyBlk we need the address of the source.
         if (src->OperGet() == GT_IND)
         {
-            src = src->gtOp.gtOp1;
+            src = src->AsOp()->gtOp1;
         }
         else
         {
@@ -1854,7 +1850,7 @@ void CodeGen::genProduceReg(GenTree* tree)
         {
             // Store local variable to its home location.
             // Ensure that lclVar stores are typed correctly.
-            unsigned varNum = tree->gtLclVarCommon.GetLclNum();
+            unsigned varNum = tree->AsLclVarCommon()->GetLclNum();
             assert(!compiler->lvaTable[varNum].lvNormalizeOnStore() ||
                    (tree->TypeGet() == genActualType(compiler->lvaTable[varNum].TypeGet())));
             inst_TT_RV(ins_Store(tree->gtType, compiler->isSIMDTypeLocalAligned(varNum)), tree, tree->GetRegNum());
@@ -2266,7 +2262,7 @@ void CodeGen::genStoreLongLclVar(GenTree* treeNode)
     LclVarDsc*           varDsc  = &(compiler->lvaTable[lclNum]);
     assert(varDsc->TypeGet() == TYP_LONG);
     assert(!varDsc->lvPromoted);
-    GenTree* op1 = treeNode->gtOp.gtOp1;
+    GenTree* op1 = treeNode->AsOp()->gtOp1;
 
     // A GT_LONG is always contained, so it cannot have RELOAD or COPY inserted between it and its consumer,
     // but a MUL_LONG may.
@@ -2308,12 +2304,26 @@ void CodeGen::genCodeForJumpTrue(GenTreeOp* jtrue)
     assert(compiler->compCurBB->bbJumpKind == BBJ_COND);
     assert(jtrue->OperIs(GT_JTRUE));
 
-    GenCondition condition = GenCondition::FromRelop(jtrue->gtGetOp1());
+    GenTreeOp*   relop     = jtrue->gtGetOp1()->AsOp();
+    GenCondition condition = GenCondition::FromRelop(relop);
 
     if (condition.PreferSwap())
     {
         condition = GenCondition::Swap(condition);
     }
+
+#if defined(_TARGET_XARCH_)
+    if ((condition.GetCode() == GenCondition::FNEU) &&
+        (relop->gtGetOp1()->GetRegNum() == relop->gtGetOp2()->GetRegNum()))
+    {
+        // For floating point, `x != x` is a common way of
+        // checking for NaN. So, in the case where both
+        // operands are the same, we can optimize codegen
+        // to only do a single check.
+
+        condition = GenCondition(GenCondition::P);
+    }
+#endif
 
     inst_JCC(condition, compiler->compCurBB->bbJumpDest);
 }

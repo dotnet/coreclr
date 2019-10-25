@@ -200,6 +200,7 @@ BOOL is_induced_blocking (gc_reason reason)
 
 #ifndef DACCESS_COMPILE
 int64_t qpf;
+size_t start_time;
 
 size_t GetHighPrecisionTimeStamp()
 {
@@ -352,6 +353,53 @@ void GCStatistics::DisplayAndUpdate()
 }
 
 #endif // GC_STATS
+
+#ifdef BGC_SERVO_TUNING
+bool gc_heap::bgc_tuning::enable_fl_tuning = false;
+uint32_t gc_heap::bgc_tuning::memory_load_goal = 0;
+uint32_t gc_heap::bgc_tuning::memory_load_goal_slack = 0;
+uint64_t gc_heap::bgc_tuning::available_memory_goal = 0;
+bool gc_heap::bgc_tuning::panic_activated_p = false;
+double gc_heap::bgc_tuning::accu_error_panic = 0.0;
+double gc_heap::bgc_tuning::above_goal_kp = 0.0;
+double gc_heap::bgc_tuning::above_goal_ki = 0.0;
+bool gc_heap::bgc_tuning::enable_kd = false;
+bool gc_heap::bgc_tuning::enable_ki = false;
+bool gc_heap::bgc_tuning::enable_smooth = false;
+bool gc_heap::bgc_tuning::enable_tbh = false;
+bool gc_heap::bgc_tuning::enable_ff = false;
+bool gc_heap::bgc_tuning::enable_gradual_d = false;
+double gc_heap::bgc_tuning::above_goal_kd = 0.0;
+double gc_heap::bgc_tuning::above_goal_ff = 0.0;
+double gc_heap::bgc_tuning::num_gen1s_smooth_factor = 0.0;
+double gc_heap::bgc_tuning::ml_kp = 0.0;
+double gc_heap::bgc_tuning::ml_ki = 0.0;
+double gc_heap::bgc_tuning::accu_error = 0.0;
+
+bool gc_heap::bgc_tuning::fl_tuning_triggered = false;
+
+size_t gc_heap::bgc_tuning::num_bgcs_since_tuning_trigger = 0;
+
+bool gc_heap::bgc_tuning::next_bgc_p = false;
+
+size_t gc_heap::bgc_tuning::gen1_index_last_bgc_end;
+size_t gc_heap::bgc_tuning::gen1_index_last_bgc_start;
+size_t gc_heap::bgc_tuning::gen1_index_last_bgc_sweep;
+size_t gc_heap::bgc_tuning::actual_num_gen1s_to_trigger;
+
+gc_heap::bgc_tuning::tuning_calculation gc_heap::bgc_tuning::gen_calc[2];
+gc_heap::bgc_tuning::tuning_stats gc_heap::bgc_tuning::gen_stats[2];
+gc_heap::bgc_tuning::bgc_size_data gc_heap::bgc_tuning::current_bgc_end_data[2];
+
+size_t gc_heap::bgc_tuning::last_stepping_bgc_count = 0;
+uint32_t gc_heap::bgc_tuning::last_stepping_mem_load = 0;
+uint32_t gc_heap::bgc_tuning::stepping_interval = 0;
+bool gc_heap::bgc_tuning::use_stepping_trigger_p = true;
+double gc_heap::bgc_tuning::gen2_ratio_correction = 0.0;
+double gc_heap::bgc_tuning::ratio_correction_step = 0.0;
+
+int gc_heap::saved_bgc_tuning_reason = -1;
+#endif //BGC_SERVO_TUNING
 
 inline
 size_t round_up_power2 (size_t size)
@@ -2721,6 +2769,16 @@ size_t      gc_heap::bgc_overflow_count = 0;
 size_t      gc_heap::bgc_begin_loh_size = 0;
 size_t      gc_heap::end_loh_size = 0;
 
+#ifdef BGC_SERVO_TUNING
+uint64_t    gc_heap::loh_a_no_bgc = 0;
+
+uint64_t    gc_heap::loh_a_bgc_marking = 0;
+
+uint64_t    gc_heap::loh_a_bgc_planning = 0;
+
+size_t      gc_heap::bgc_maxgen_end_fl_size = 0;
+#endif //BGC_SERVO_TUNING
+
 uint32_t    gc_heap::bgc_alloc_spin_loh = 0;
 
 size_t      gc_heap::bgc_loh_size_increased = 0;
@@ -2847,6 +2905,10 @@ no_gc_region_info gc_heap::current_no_gc_region_info;
 BOOL gc_heap::proceed_with_gc_p = FALSE;
 GCSpinLock gc_heap::gc_lock;
 
+#ifdef BGC_SERVO_TUNING
+uint64_t gc_heap::total_loh_a_last_bgc = 0;
+#endif //BGC_SERVO_TUNING
+
 size_t gc_heap::eph_gen_starts_size = 0;
 heap_segment* gc_heap::segment_standby_list;
 bool          gc_heap::use_large_pages_p = 0;
@@ -2948,6 +3010,13 @@ int         gc_heap::gen0_must_clear_bricks = 0;
 #ifdef FEATURE_PREMORTEM_FINALIZATION
 CFinalize*  gc_heap::finalize_queue = 0;
 #endif // FEATURE_PREMORTEM_FINALIZATION
+
+#ifdef FEATURE_CARD_MARKING_STEALING
+VOLATILE(uint32_t) gc_heap::card_mark_chunk_index_soh;
+VOLATILE(bool) gc_heap::card_mark_done_soh;
+VOLATILE(uint32_t) gc_heap::card_mark_chunk_index_loh;
+VOLATILE(bool) gc_heap::card_mark_done_loh;
+#endif // FEATURE_CARD_MARKING_STEALING
 
 generation gc_heap::generation_table [NUMBERGENERATIONS + 1];
 
@@ -6261,6 +6330,7 @@ void gc_mechanisms::init_mechanisms()
 #endif //BACKGROUND_GC
 
     entry_memory_load = 0;
+    entry_available_physical_mem = 0;
     exit_memory_load = 0;
 
 #ifdef STRESS_HEAP
@@ -6959,7 +7029,12 @@ size_t card_bundle_cardw (size_t cardb)
 // Clear the specified card bundle
 void gc_heap::card_bundle_clear (size_t cardb)
 {
-    card_bundle_table [card_bundle_word (cardb)] &= ~(1 << card_bundle_bit (cardb));
+#ifdef FEATURE_CARD_MARKING_STEALING
+    // with card marking stealing, we may have multiple threads trying to clear bits in the same card bundle word
+    Interlocked::And((volatile uint32_t*)& card_bundle_table[card_bundle_word(cardb)], (uint32_t)~(1 << card_bundle_bit(cardb)));
+#else
+    card_bundle_table[card_bundle_word(cardb)] &= ~(1 << card_bundle_bit(cardb));
+#endif
     dprintf (2, ("Cleared card bundle %Ix [%Ix, %Ix[", cardb, (size_t)card_bundle_cardw (cardb),
               (size_t)card_bundle_cardw (cardb+1)));
 }
@@ -10272,6 +10347,7 @@ void gc_heap::make_generation (generation& gen, heap_segment* seg, uint8_t* star
     gen.free_list_allocated = 0; 
     gen.end_seg_allocated = 0;
     gen.condemned_allocated = 0; 
+    gen.sweep_allocated = 0; 
     gen.free_obj_space = 0;
     gen.allocation_size = 0;
     gen.pinned_allocation_sweep_size = 0;
@@ -10292,7 +10368,7 @@ void gc_heap::adjust_ephemeral_limits ()
     ephemeral_high = heap_segment_reserved (ephemeral_heap_segment);
 
     dprintf (3, ("new ephemeral low: %Ix new ephemeral high: %Ix",
-                 (size_t)ephemeral_low, (size_t)ephemeral_high))
+        (size_t)ephemeral_low, (size_t)ephemeral_high))
 
 #ifndef MULTIPLE_HEAPS
     // This updates the write barrier helpers with the new info.
@@ -10589,6 +10665,12 @@ gc_heap::init_semi_shared()
 {
     int ret = 0;
 
+#ifdef BGC_SERVO_TUNING
+    uint32_t current_memory_load = 0;
+    uint32_t sweep_flr_goal = 0;
+    uint32_t sweep_flr_goal_loh = 0;
+#endif //BGC_SERVO_TUNING
+
     // This is used for heap expansion - it's to fix exactly the start for gen 0
     // through (max_generation-1). When we expand the heap we allocate all these
     // gen starts at the beginning of the new ephemeral seg. 
@@ -10661,6 +10743,86 @@ gc_heap::init_semi_shared()
 
     loh_size_threshold = (size_t)GCConfig::GetLOHThreshold();
     assert (loh_size_threshold >= LARGE_OBJECT_SIZE);
+
+#ifdef BGC_SERVO_TUNING
+    memset (bgc_tuning::gen_calc, 0, sizeof (bgc_tuning::gen_calc));
+    memset (bgc_tuning::gen_stats, 0, sizeof (bgc_tuning::gen_stats));
+    memset (bgc_tuning::current_bgc_end_data, 0, sizeof (bgc_tuning::current_bgc_end_data));
+
+    // for the outer loop - the ML (memory load) loop
+    bgc_tuning::enable_fl_tuning = (GCConfig::GetBGCFLTuningEnabled() != 0);
+    bgc_tuning::memory_load_goal = (uint32_t)GCConfig::GetBGCMemGoal();
+    bgc_tuning::memory_load_goal_slack = (uint32_t)GCConfig::GetBGCMemGoalSlack();
+    bgc_tuning::ml_kp = (double)GCConfig::GetBGCMLkp() / 1000.0;
+    bgc_tuning::ml_ki = (double)GCConfig::GetBGCMLki() / 1000.0;
+    bgc_tuning::ratio_correction_step = (double)GCConfig::GetBGCG2RatioStep() / 100.0;
+
+    // for the inner loop - the alloc loop which calculates the allocated bytes in gen2 before
+    // triggering the next BGC.
+    bgc_tuning::above_goal_kp = (double)GCConfig::GetBGCFLkp() / 1000000.0;
+    bgc_tuning::enable_ki = (GCConfig::GetBGCFLEnableKi() != 0);
+    bgc_tuning::above_goal_ki = (double)GCConfig::GetBGCFLki() / 1000000.0;
+    bgc_tuning::enable_kd = (GCConfig::GetBGCFLEnableKd() != 0);
+    bgc_tuning::above_goal_kd = (double)GCConfig::GetBGCFLkd() / 100.0;
+    bgc_tuning::enable_smooth = (GCConfig::GetBGCFLEnableSmooth() != 0);
+    bgc_tuning::num_gen1s_smooth_factor = (double)GCConfig::GetBGCFLSmoothFactor() / 100.0;
+    bgc_tuning::enable_tbh = (GCConfig::GetBGCFLEnableTBH() != 0);
+    bgc_tuning::enable_ff = (GCConfig::GetBGCFLEnableFF() != 0);
+    bgc_tuning::above_goal_ff = (double)GCConfig::GetBGCFLff() / 100.0;
+    bgc_tuning::enable_gradual_d = (GCConfig::GetBGCFLGradualD() != 0);
+    sweep_flr_goal = (uint32_t)GCConfig::GetBGCFLSweepGoal();
+    sweep_flr_goal_loh = (uint32_t)GCConfig::GetBGCFLSweepGoalLOH();
+
+    bgc_tuning::gen_calc[0].sweep_flr_goal = ((sweep_flr_goal == 0) ? 20.0 : (double)sweep_flr_goal);
+    bgc_tuning::gen_calc[1].sweep_flr_goal = ((sweep_flr_goal_loh == 0) ? 20.0 : (double)sweep_flr_goal_loh);
+
+    bgc_tuning::available_memory_goal = (uint64_t)((double)gc_heap::total_physical_mem * (double)(100 - bgc_tuning::memory_load_goal) / 100);
+    get_memory_info (&current_memory_load);
+
+    dprintf (BGC_TUNING_LOG, ("BTL tuning %s!!!",
+        (bgc_tuning::enable_fl_tuning ? "enabled" : "disabled")));
+
+#ifdef SIMPLE_DPRINTF
+    dprintf (BGC_TUNING_LOG, ("BTL tuning parameters: mem goal: %d%%(%I64d), +/-%d%%, gen2 correction factor: %.2f, sweep flr goal: %d%%, smooth factor: %.3f(%s), TBH: %s, FF: %.3f(%s), ml: kp %.5f, ki %.10f",
+        bgc_tuning::memory_load_goal,
+        bgc_tuning::available_memory_goal,
+        bgc_tuning::memory_load_goal_slack,
+        bgc_tuning::ratio_correction_step,
+        (int)bgc_tuning::gen_calc[0].sweep_flr_goal,
+        bgc_tuning::num_gen1s_smooth_factor,
+        (bgc_tuning::enable_smooth ? "enabled" : "disabled"),
+        (bgc_tuning::enable_tbh ? "enabled" : "disabled"),
+        bgc_tuning::above_goal_ff,
+        (bgc_tuning::enable_ff ? "enabled" : "disabled"),
+        bgc_tuning::ml_kp,
+        bgc_tuning::ml_ki));
+
+    dprintf (BGC_TUNING_LOG, ("BTL tuning parameters: kp: %.5f, ki: %.5f (%s), kd: %.3f (kd-%s, gd-%s), ff: %.3f",
+        bgc_tuning::above_goal_kp,
+        bgc_tuning::above_goal_ki,
+        (bgc_tuning::enable_ki ? "enabled" : "disabled"),
+        bgc_tuning::above_goal_kd,
+        (bgc_tuning::enable_kd ? "enabled" : "disabled"),
+        (bgc_tuning::enable_gradual_d ? "enabled" : "disabled"),
+        bgc_tuning::above_goal_ff));
+#endif //SIMPLE_DPRINTF
+
+    if (bgc_tuning::enable_fl_tuning && (current_memory_load < bgc_tuning::memory_load_goal))
+    {
+        uint32_t distance_to_goal = bgc_tuning::memory_load_goal - current_memory_load;
+        bgc_tuning::stepping_interval = max (distance_to_goal / 10, 1);
+        bgc_tuning::last_stepping_mem_load = current_memory_load;
+        bgc_tuning::last_stepping_bgc_count = 0;
+        dprintf (BGC_TUNING_LOG, ("current ml: %d, %d to goal, interval: %d",
+            current_memory_load, distance_to_goal, bgc_tuning::stepping_interval));
+    }
+    else
+    {
+        dprintf (BGC_TUNING_LOG, ("current ml: %d, >= goal: %d, disable stepping",
+            current_memory_load, bgc_tuning::memory_load_goal));
+        bgc_tuning::use_stepping_trigger_p = false;
+    }
+#endif //BGC_SERVO_TUNING
 
 #ifdef BACKGROUND_GC
     memset (ephemeral_fgc_counts, 0, sizeof (ephemeral_fgc_counts));
@@ -11155,6 +11317,12 @@ gc_heap::init_gc_heap (int  h_number)
     make_mark_stack(arr);
 
 #ifdef BACKGROUND_GC
+#ifdef BGC_SERVO_TUNING
+    loh_a_no_bgc = 0;
+    loh_a_bgc_marking = 0;
+    loh_a_bgc_planning = 0;
+    bgc_maxgen_end_fl_size = 0;
+#endif //BGC_SERVO_TUNING
     freeable_small_heap_segment = 0;
     gchist_index_per_heap = 0;
     uint8_t** b_arr = new (nothrow) (uint8_t* [MARK_STACK_INITIAL_LENGTH]);
@@ -13565,9 +13733,24 @@ allocation_state gc_heap::allocate_large (int gen_number,
 #ifdef BACKGROUND_GC
     if (recursive_gc_sync::background_running_p())
     {
+#ifdef BGC_SERVO_TUNING
+        bool planning_p = (current_c_gc_state == c_gc_state_planning);
+#endif //BGC_SERVO_TUNING
+
         background_loh_alloc_count++;
         //if ((background_loh_alloc_count % bgc_alloc_spin_count_loh) == 0)
         {
+#ifdef BGC_SERVO_TUNING
+            if (planning_p)
+            {
+                loh_a_bgc_planning += size;
+            }
+            else
+            {
+                loh_a_bgc_marking += size;
+            }
+#endif //BGC_SERVO_TUNING
+
             if (bgc_loh_should_allocate())
             {
                 if (!bgc_alloc_spin_loh)
@@ -13588,6 +13771,12 @@ allocation_state gc_heap::allocate_large (int gen_number,
             }
         }
     }
+#ifdef BGC_SERVO_TUNING
+    else
+    {
+        loh_a_no_bgc += size;
+    }
+#endif //BGC_SERVO_TUNING
 #endif //BACKGROUND_GC
 
     gc_reason gr = reason_oos_loh;
@@ -13912,27 +14101,49 @@ allocation_state gc_heap::try_allocate_more_space (alloc_context* acontext, size
         check_for_full_gc (gen_number, size);
     }
 
-    if (!(new_allocation_allowed (gen_number)))
+#ifdef BGC_SERVO_TUNING
+    if ((gen_number != 0) && bgc_tuning::should_trigger_bgc_loh())
     {
-        if (fgn_maxgen_percent && (gen_number == 0))
+        trigger_gc_for_alloc (max_generation, reason_bgc_tuning_loh, msl, loh_p, mt_try_servo_budget);
+    }
+    else
+#endif //BGC_SERVO_TUNING
+    {
+        bool trigger_on_budget_loh_p = 
+#ifdef BGC_SERVO_TUNING
+            !bgc_tuning::enable_fl_tuning;
+#else
+            true;
+#endif //BGC_SERVO_TUNING
+
+        bool check_budget_p = true;
+        if (gen_number != 0)
         {
-            // We only check gen0 every so often, so take this opportunity to check again.
-            check_for_full_gc (gen_number, size);
+            check_budget_p = trigger_on_budget_loh_p;
         }
 
+        if (check_budget_p && !(new_allocation_allowed (gen_number)))
+        {
+            if (fgn_maxgen_percent && (gen_number == 0))
+            {
+                // We only check gen0 every so often, so take this opportunity to check again.
+                check_for_full_gc (gen_number, size);
+            }
+
 #ifdef BACKGROUND_GC
-        wait_for_bgc_high_memory (awr_gen0_alloc, loh_p);
+            wait_for_bgc_high_memory (awr_gen0_alloc, loh_p);
 #endif //BACKGROUND_GC
 
 #ifdef SYNCHRONIZATION_STATS
-        bad_suspension++;
+            bad_suspension++;
 #endif //SYNCHRONIZATION_STATS
-        dprintf (2, ("h%d running out of budget on gen%d, gc", heap_number, gen_number));
+            dprintf (2, ("h%d running out of budget on gen%d, gc", heap_number, gen_number));
 
-        if (!settings.concurrent || (gen_number == 0))
-        {
-            trigger_gc_for_alloc (0, ((gen_number == 0) ? reason_alloc_soh : reason_alloc_loh),
-                                  msl, loh_p, mt_try_budget);
+            if (!settings.concurrent || (gen_number == 0))
+            {
+                trigger_gc_for_alloc (0, ((gen_number == 0) ? reason_alloc_soh : reason_alloc_loh),
+                                    msl, loh_p, mt_try_budget);
+            }
         }
     }
 
@@ -15304,6 +15515,18 @@ int gc_heap::joined_generation_to_condemn (BOOL should_evaluate_elevation,
                                            BOOL* blocking_collection_p
                                            STRESS_HEAP_ARG(int n_original))
 {
+#ifdef BGC_SERVO_TUNING
+    if (settings.entry_memory_load == 0)
+    {
+        uint32_t current_memory_load = 0;
+        uint64_t current_available_physical = 0;
+        get_memory_info (&current_memory_load, &current_available_physical);
+
+        settings.entry_memory_load = current_memory_load;
+        settings.entry_available_physical_mem = current_available_physical;
+    }
+#endif //BGC_SERVO_TUNING
+
     int n = current_gen;
 #ifdef MULTIPLE_HEAPS
     BOOL joined_last_gc_before_oom = FALSE;
@@ -15426,6 +15649,34 @@ int gc_heap::joined_generation_to_condemn (BOOL should_evaluate_elevation,
             dprintf (GTC_LOG, ("compacting LOH due to hard limit"));
         }
     }
+
+#ifdef BGC_SERVO_TUNING
+    if (bgc_tuning::should_trigger_ngc2())
+    {
+        n = max_generation;
+        *blocking_collection_p = TRUE;
+    }
+
+    if ((n < max_generation) && !recursive_gc_sync::background_running_p() && 
+        bgc_tuning::stepping_trigger (settings.entry_memory_load, get_current_gc_index (max_generation)))
+    {
+        n = max_generation;
+        saved_bgc_tuning_reason = reason_bgc_stepping;
+    }
+
+    if ((n < max_generation) && bgc_tuning::should_trigger_bgc())
+    {
+        n = max_generation;
+    }
+
+    if (n == (max_generation - 1))
+    {
+        if (bgc_tuning::should_delay_alloc (max_generation))
+        {
+            n -= 1;
+        }
+    }
+#endif //BGC_SERVO_TUNING
 
     if ((n == max_generation) && (*blocking_collection_p == FALSE))
     {
@@ -15561,6 +15812,127 @@ size_t gc_heap::get_total_allocated()
     return total_current_allocated;
 }
 
+#ifdef BGC_SERVO_TUNING
+size_t gc_heap::get_total_generation_size (int gen_number)
+{
+    size_t total_generation_size = 0;
+#ifdef MULTIPLE_HEAPS
+    for (int i = 0; i < gc_heap::n_heaps; i++)
+    {
+        gc_heap* hp = gc_heap::g_heaps[i];
+#else //MULTIPLE_HEAPS
+    {
+        gc_heap* hp = pGenGCHeap;
+#endif //MULTIPLE_HEAPS
+
+        total_generation_size += hp->generation_size (gen_number);
+    }
+    return total_generation_size;
+}
+
+// gets all that's allocated into the gen. This is only used for gen2/3 
+// for servo tuning.
+size_t gc_heap::get_total_servo_alloc (int gen_number)
+{
+    size_t total_alloc = 0; 
+    bool loh_p = (gen_number == (max_generation + 1));
+
+#ifdef MULTIPLE_HEAPS
+    for (int i = 0; i < gc_heap::n_heaps; i++)
+    {
+        gc_heap* hp = gc_heap::g_heaps[i];
+#else //MULTIPLE_HEAPS
+    {
+        gc_heap* hp = pGenGCHeap;
+#endif //MULTIPLE_HEAPS
+        generation* gen = hp->generation_of (gen_number);
+        total_alloc += generation_free_list_allocated (gen);
+        total_alloc += generation_end_seg_allocated (gen);
+        total_alloc += generation_condemned_allocated (gen);
+        total_alloc += generation_sweep_allocated (gen);
+    }
+
+    return total_alloc;    
+}
+
+size_t gc_heap::get_total_bgc_promoted()
+{
+    size_t total_bgc_promoted = 0;
+#ifdef MULTIPLE_HEAPS
+    int num_heaps = gc_heap::n_heaps;
+#else //MULTIPLE_HEAPS
+    int num_heaps = 1;
+#endif //MULTIPLE_HEAPS
+
+    for (int i = 0; i < num_heaps; i++)
+    {
+        total_bgc_promoted += bpromoted_bytes (i);
+    }
+    return total_bgc_promoted;
+}
+
+// This is called after compute_new_dynamic_data is called, at which point
+// dd_current_size is calculated.
+size_t gc_heap::get_total_surv_size (int gen_number)
+{
+    size_t total_surv_size = 0;
+#ifdef MULTIPLE_HEAPS
+    for (int i = 0; i < gc_heap::n_heaps; i++)
+    {
+        gc_heap* hp = gc_heap::g_heaps[i];
+#else //MULTIPLE_HEAPS
+    {
+        gc_heap* hp = pGenGCHeap;
+#endif //MULTIPLE_HEAPS
+        total_surv_size += dd_current_size (hp->dynamic_data_of (gen_number));
+    }
+    return total_surv_size;
+}
+
+size_t gc_heap::get_total_begin_data_size (int gen_number)
+{
+    size_t total_begin_data_size = 0;
+#ifdef MULTIPLE_HEAPS
+    for (int i = 0; i < gc_heap::n_heaps; i++)
+    {
+        gc_heap* hp = gc_heap::g_heaps[i];
+#else //MULTIPLE_HEAPS
+    {
+        gc_heap* hp = pGenGCHeap;
+#endif //MULTIPLE_HEAPS
+
+        total_begin_data_size += dd_begin_data_size (hp->dynamic_data_of (gen_number));
+    }
+    return total_begin_data_size;
+}
+
+size_t gc_heap::get_total_generation_fl_size (int gen_number)
+{
+    size_t total_generation_fl_size = 0;
+#ifdef MULTIPLE_HEAPS
+    for (int i = 0; i < gc_heap::n_heaps; i++)
+    {
+        gc_heap* hp = gc_heap::g_heaps[i];
+#else //MULTIPLE_HEAPS
+    {
+        gc_heap* hp = pGenGCHeap;
+#endif //MULTIPLE_HEAPS
+        total_generation_fl_size += generation_free_list_space (hp->generation_of (gen_number));
+    }
+    return total_generation_fl_size;
+}
+
+size_t gc_heap::get_current_gc_index (int gen_number)
+{
+#ifdef MULTIPLE_HEAPS
+    gc_heap* hp = gc_heap::g_heaps[0];
+    return dd_collection_count (hp->dynamic_data_of (gen_number));
+#else
+    return dd_collection_count (dynamic_data_of (gen_number));
+#endif //MULTIPLE_HEAPS
+}
+#endif //BGC_SERVO_TUNING
+
 size_t gc_heap::current_generation_size (int gen_number)
 {
     dynamic_data* dd = dynamic_data_of (gen_number);
@@ -15658,9 +16030,13 @@ int gc_heap::generation_to_condemn (int n_initial,
         temp_gen = n;
 
 #ifdef BACKGROUND_GC
-        if (recursive_gc_sync::background_running_p())
+        if (recursive_gc_sync::background_running_p()
+#ifdef BGC_SERVO_TUNING
+            || bgc_tuning::fl_tuning_triggered
+            || (bgc_tuning::enable_fl_tuning && bgc_tuning::use_stepping_trigger_p)
+#endif //BGC_SERVO_TUNING
+            )
         {
-            dprintf (GTC_LOG, ("bgc in prog, 1"));
             check_max_gen_alloc = FALSE;
         }
 #endif //BACKGROUND_GC
@@ -15672,6 +16048,9 @@ int gc_heap::generation_to_condemn (int n_initial,
             {
                 n = max_generation;
                 local_condemn_reasons->set_gen (gen_alloc_budget, n);
+                dprintf (BGC_TUNING_LOG, ("BTL[GTC]: trigger based on gen%d b: %Id",
+                         (max_generation + 1), 
+                         get_new_allocation (max_generation+1)));
             }
         }
 
@@ -15681,6 +16060,11 @@ int gc_heap::generation_to_condemn (int n_initial,
             if (get_new_allocation (i) <= 0)
             {
                 n = i;
+                if (n == max_generation)
+                {
+                    dprintf (BGC_TUNING_LOG, ("BTL[GTC]: trigger based on gen2 b: %Id",
+                            get_new_allocation (max_generation)));
+                }
             }
             else
                 break;
@@ -15705,7 +16089,7 @@ int gc_heap::generation_to_condemn (int n_initial,
 
     if (!check_only_p)
     {
-        if (recursive_gc_sync::background_running_p())
+        if (!check_max_gen_alloc)
         {
             n_time_max = max_generation - 1;
         }
@@ -15731,6 +16115,10 @@ int gc_heap::generation_to_condemn (int n_initial,
         if (n > temp_gen)
         {
             local_condemn_reasons->set_gen (gen_time_tuning, n);
+            if (n == max_generation)
+            {
+                dprintf (BGC_TUNING_LOG, ("BTL[GTC]: trigger based on time"));
+            }
         }
     }
 
@@ -15844,7 +16232,7 @@ int gc_heap::generation_to_condemn (int n_initial,
         }
         
         // Need to get it early enough for all heaps to use.
-        entry_available_physical_mem = available_physical;
+        local_settings->entry_available_physical_mem = available_physical;
         local_settings->entry_memory_load = memory_load;
 
         // @TODO: Force compaction more often under GCSTRESS
@@ -16000,18 +16388,27 @@ int gc_heap::generation_to_condemn (int n_initial,
 
     if (!provisional_mode_triggered && (n == (max_generation - 1)) && (n_alloc < (max_generation -1)))
     {
-        dprintf (GTC_LOG, ("h%d: budget %d, check 2",
-                      heap_number, n_alloc));
-        if (get_new_allocation (max_generation) <= 0)
+#ifdef BGC_SERVO_TUNING
+        if (!bgc_tuning::enable_fl_tuning)
+#endif //BGC_SERVO_TUNING
         {
-            dprintf (GTC_LOG, ("h%d: budget alloc", heap_number));
-            n = max_generation;
-            local_condemn_reasons->set_condition (gen_max_gen1);
+            dprintf (GTC_LOG, ("h%d: budget %d, check 2",
+                        heap_number, n_alloc));
+            if (get_new_allocation (max_generation) <= 0)
+            {
+                dprintf (GTC_LOG, ("h%d: budget alloc", heap_number));
+                n = max_generation;
+                local_condemn_reasons->set_condition (gen_max_gen1);
+            }
         }
     }
 
     //figure out if max_generation is too fragmented -> blocking collection
-    if (!provisional_mode_triggered && (n == max_generation))
+    if (!provisional_mode_triggered 
+#ifdef BGC_SERVO_TUNING
+        && !bgc_tuning::enable_fl_tuning
+#endif //BGC_SERVO_TUNING
+        && (n == max_generation))
     {
         if (dt_high_frag_p (tuning_deciding_condemned_gen, n))
         {
@@ -16025,7 +16422,7 @@ int gc_heap::generation_to_condemn (int n_initial,
     }
 
 #ifdef BACKGROUND_GC
-    if (n == max_generation)
+    if ((n == max_generation) && !(*blocking_collection_p))
     {
         if (heap_number == 0)
         {
@@ -17785,7 +18182,7 @@ void gc_heap::garbage_collect (int n)
 #endif //MULTIPLE_HEAPS
     }
 
-        descr_generations (TRUE);
+    descr_generations (TRUE);
 
 #ifdef VERIFY_HEAP
     if ((GCConfig::GetHeapVerifyLevel() & GCConfig::HEAPVERIFY_GC) &&
@@ -19683,8 +20080,6 @@ void gc_heap::background_promote (Object** ppObject, ScanContext* sc, uint32_t f
     ((CObjectHeader*)o)->Validate();
 #endif //_DEBUG
 
-    dprintf (BGC_LOG, ("Background Promote %Ix", (size_t)o));
-
     //needs to be called before the marking because it is possible for a foreground
     //gc to take place during the mark and move the object
     STRESS_LOG3(LF_GC|LF_GCROOTS, LL_INFO1000000, "    GCHeap::Promote: Promote GC Root *%p = %p MT = %pT", ppObject, o, o ? ((Object*) o)->GetGCSafeMethodTable() : NULL);
@@ -20632,6 +21027,10 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
 #ifdef MH_SC_MARK
     static BOOL do_mark_steal_p = FALSE;
 #endif //MH_SC_MARK
+    
+#ifdef FEATURE_CARD_MARKING_STEALING
+    reset_card_marking_enumerators();
+#endif // FEATURE_CARD_MARKING_STEALING
 
 #ifdef MULTIPLE_HEAPS
     gc_t_join.join(this, gc_join_begin_mark_phase);
@@ -20788,11 +21187,49 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
             }
 #endif //HEAP_ANALYZE
 
-            dprintf(3,("Marking cross generation pointers"));
-            mark_through_cards_for_segments (mark_object_fn, FALSE);
+#if defined(MULTIPLE_HEAPS) && defined(FEATURE_CARD_MARKING_STEALING)
+            if (!card_mark_done_soh)
+#endif // MULTIPLE_HEAPS && FEATURE_CARD_MARKING_STEALING
+            {
+                dprintf (3, ("Marking cross generation pointers on heap %d", heap_number));
+                mark_through_cards_for_segments(mark_object_fn, FALSE THIS_ARG);
+#if defined(MULTIPLE_HEAPS) && defined(FEATURE_CARD_MARKING_STEALING)
+                card_mark_done_soh = true;
+#endif // MULTIPLE_HEAPS && FEATURE_CARD_MARKING_STEALING
+            }
 
-            dprintf(3,("Marking cross generation pointers for large objects"));
-            mark_through_cards_for_large_objects (mark_object_fn, FALSE);
+#if defined(MULTIPLE_HEAPS) && defined(FEATURE_CARD_MARKING_STEALING)
+            if (!card_mark_done_loh)
+#endif // MULTIPLE_HEAPS && FEATURE_CARD_MARKING_STEALING
+            {
+                dprintf (3, ("Marking cross generation pointers for large objects on heap %d", heap_number));
+                mark_through_cards_for_large_objects(mark_object_fn, FALSE THIS_ARG);
+#if defined(MULTIPLE_HEAPS) && defined(FEATURE_CARD_MARKING_STEALING)
+                card_mark_done_loh = true;
+#endif // MULTIPLE_HEAPS && FEATURE_CARD_MARKING_STEALING
+            }
+
+#if defined(MULTIPLE_HEAPS) && defined(FEATURE_CARD_MARKING_STEALING)
+            // check the other heaps cyclically and try to help out where the marking isn't done
+            for (int i = 0; i < gc_heap::n_heaps; i++)
+            {
+                int heap_number_to_look_at = (i + heap_number) % gc_heap::n_heaps;
+                gc_heap* hp = gc_heap::g_heaps[heap_number_to_look_at];
+                if (!hp->card_mark_done_soh)
+                {
+                    dprintf(3, ("Marking cross generation pointers on heap %d", hp->heap_number));
+                    hp->mark_through_cards_for_segments(mark_object_fn, FALSE THIS_ARG);
+                    hp->card_mark_done_soh = true;
+                }
+
+                if (!hp->card_mark_done_loh)
+                {
+                    dprintf(3, ("Marking cross generation pointers for large objects on heap %d", hp->heap_number));
+                    hp->mark_through_cards_for_large_objects(mark_object_fn, FALSE THIS_ARG);
+                    hp->card_mark_done_loh = true;
+                }
+            }
+#endif // MULTIPLE_HEAPS && FEATURE_CARD_MARKING_STEALING
 
             dprintf (3, ("marked by cards: %Id", 
                 (promoted_bytes (heap_number) - promoted_before_cards)));
@@ -20843,6 +21280,10 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
 #endif //MULTIPLE_HEAPS
 
     }
+
+#ifdef FEATURE_CARD_MARKING_STEALING
+    reset_card_marking_enumerators();
+#endif // FEATURE_CARD_MARKING_STEALING
 
     // null out the target of short weakref that were not promoted.
     GCScan::GcShortWeakPtrScan(GCHeap::Promote, condemned_gen_number, max_generation,&sc);
@@ -22758,6 +23199,7 @@ void gc_heap::plan_phase (int condemned_gen_number)
         generation_free_obj_space (condemned_gen2) = 0;
         generation_allocation_size (condemned_gen2) = 0;
         generation_condemned_allocated (condemned_gen2) = 0; 
+        generation_sweep_allocated (condemned_gen2) = 0;
         generation_pinned_allocated (condemned_gen2) = 0; 
         generation_free_list_allocated(condemned_gen2) = 0; 
         generation_end_seg_allocated (condemned_gen2) = 0; 
@@ -23395,14 +23837,13 @@ void gc_heap::plan_phase (int condemned_gen_number)
 
     if (settings.condemned_generation == (max_generation - 1 ))
     {
-        size_t plan_gen2_size = generation_plan_size (max_generation);
-        size_t growth = plan_gen2_size - old_gen2_size;
-
         generation* older_gen = generation_of (settings.condemned_generation + 1);
         size_t rejected_free_space = generation_free_obj_space (older_gen) - r_free_obj_space;
         size_t free_list_allocated = generation_free_list_allocated (older_gen) - r_older_gen_free_list_allocated;
         size_t end_seg_allocated = generation_end_seg_allocated (older_gen) - r_older_gen_end_seg_allocated;
         size_t condemned_allocated = generation_condemned_allocated (older_gen) - r_older_gen_condemned_allocated;
+
+        size_t growth = end_seg_allocated + condemned_allocated;
 
         if (growth > 0)
         {
@@ -23413,8 +23854,8 @@ void gc_heap::plan_phase (int condemned_gen_number)
         }
         else
         {
-            dprintf (2, ("gen2 shrank %Id (end seg alloc: %Id, , condemned alloc: %Id, gen1 c alloc: %Id", 
-                         (old_gen2_size - plan_gen2_size), end_seg_allocated, condemned_allocated,
+            dprintf (2, ("gen2 didn't grow (end seg alloc: %Id, , condemned alloc: %Id, gen1 c alloc: %Id", 
+                         end_seg_allocated, condemned_allocated,
                          generation_condemned_allocated (generation_of (max_generation - 1))));
         }
 
@@ -23984,6 +24425,7 @@ void gc_heap::plan_phase (int condemned_gen_number)
             generation_free_list_allocated (older_gen) = r_older_gen_free_list_allocated;
             generation_end_seg_allocated (older_gen) = r_older_gen_end_seg_allocated;
             generation_condemned_allocated (older_gen) = r_older_gen_condemned_allocated;
+            generation_sweep_allocated (older_gen) += dd_survived_size (dynamic_data_of (condemned_gen_number));
             generation_allocation_limit (older_gen) = r_allocation_limit;
             generation_allocation_pointer (older_gen) = r_allocation_pointer;
             generation_allocation_context_start_region (older_gen) = r_allocation_start_region;
@@ -24434,8 +24876,15 @@ void gc_heap::make_unused_array (uint8_t* x, size_t size, BOOL clearp, BOOL rese
 //#endif //VERIFY_HEAP && BACKGROUND_GC
 
     if (resetp)
-        reset_memory (x, size);
-
+    {
+#ifdef BGC_SERVO_TUNING
+        // Don't do this for servo tuning because it makes it even harder to regulate WS.
+        if (!(bgc_tuning::enable_fl_tuning && bgc_tuning::fl_tuning_triggered))
+#endif //BGC_SERVO_TUNING
+        {
+            reset_memory (x, size);
+        }
+    }
     ((CObjectHeader*)x)->SetFree(size);
 
 #ifdef BIT64
@@ -25489,16 +25938,55 @@ void gc_heap::relocate_phase (int condemned_gen_number,
     }
 #endif //BACKGROUND_GC
 
+#ifdef FEATURE_CARD_MARKING_STEALING
+    // for card marking stealing, do the other relocations *before* we scan the older generations
+    // this gives us a chance to make up for imbalance in these phases later
+    {
+        dprintf(3, ("Relocating survivors"));
+        relocate_survivors(condemned_gen_number,
+            first_condemned_address);
+    }
+
+#ifdef FEATURE_PREMORTEM_FINALIZATION
+    dprintf(3, ("Relocating finalization data"));
+    finalize_queue->RelocateFinalizationData(condemned_gen_number,
+        __this);
+#endif // FEATURE_PREMORTEM_FINALIZATION
+
+
+    {
+        dprintf(3, ("Relocating handle table"));
+        GCScan::GcScanHandles(GCHeap::Relocate,
+            condemned_gen_number, max_generation, &sc);
+    }
+#endif // FEATURE_CARD_MARKING_STEALING
+
     if (condemned_gen_number != max_generation)
     {
-        dprintf(3,("Relocating cross generation pointers"));
-        mark_through_cards_for_segments (&gc_heap::relocate_address, TRUE);
-        verify_pins_with_post_plug_info("after reloc cards");
+#if defined(MULTIPLE_HEAPS) && defined(FEATURE_CARD_MARKING_STEALING)
+        if (!card_mark_done_soh)
+#endif // MULTIPLE_HEAPS && FEATURE_CARD_MARKING_STEALING
+        {
+            dprintf (3, ("Relocating cross generation pointers on heap %d", heap_number));
+            mark_through_cards_for_segments(&gc_heap::relocate_address, TRUE THIS_ARG);
+            verify_pins_with_post_plug_info("after reloc cards");
+#if defined(MULTIPLE_HEAPS) && defined(FEATURE_CARD_MARKING_STEALING)
+            card_mark_done_soh = true;
+#endif // MULTIPLE_HEAPS && FEATURE_CARD_MARKING_STEALING
+        }
     }
     if (condemned_gen_number != max_generation)
     {
-        dprintf(3,("Relocating cross generation pointers for large objects"));
-        mark_through_cards_for_large_objects (&gc_heap::relocate_address, TRUE);
+#if defined(MULTIPLE_HEAPS) && defined(FEATURE_CARD_MARKING_STEALING)
+        if (!card_mark_done_loh)
+#endif // MULTIPLE_HEAPS && FEATURE_CARD_MARKING_STEALING
+        {
+            dprintf (3, ("Relocating cross generation pointers for large objects on heap %d", heap_number));
+            mark_through_cards_for_large_objects(&gc_heap::relocate_address, TRUE THIS_ARG);
+#if defined(MULTIPLE_HEAPS) && defined(FEATURE_CARD_MARKING_STEALING)
+            card_mark_done_loh = true;
+#endif // MULTIPLE_HEAPS && FEATURE_CARD_MARKING_STEALING
+        }
     }
     else
     {
@@ -25514,6 +26002,9 @@ void gc_heap::relocate_phase (int condemned_gen_number,
             relocate_in_large_objects ();
         }
     }
+#ifndef FEATURE_CARD_MARKING_STEALING
+    // moved this code *before* we scan the older generations via mark_through_cards_xxx
+    // this gives us a chance to have mark_through_cards_xxx make up for imbalance in the other relocations
     {
         dprintf(3,("Relocating survivors"));
         relocate_survivors (condemned_gen_number,
@@ -25533,6 +26024,33 @@ void gc_heap::relocate_phase (int condemned_gen_number,
         GCScan::GcScanHandles(GCHeap::Relocate,
                                   condemned_gen_number, max_generation, &sc);
     }
+#endif // !FEATURE_CARD_MARKING_STEALING
+
+
+#if defined(MULTIPLE_HEAPS) && defined(FEATURE_CARD_MARKING_STEALING)
+    if (condemned_gen_number != max_generation)
+    {
+        // check the other heaps cyclically and try to help out where the relocation isn't done
+        for (int i = 0; i < gc_heap::n_heaps; i++)
+        {
+            int heap_number_to_look_at = (i + heap_number) % gc_heap::n_heaps;
+            gc_heap* hp = gc_heap::g_heaps[heap_number_to_look_at];
+            if (!hp->card_mark_done_soh)
+            {
+                dprintf(3, ("Relocating cross generation pointers on heap %d", hp->heap_number));
+                hp->mark_through_cards_for_segments(&gc_heap::relocate_address, TRUE THIS_ARG);
+                hp->card_mark_done_soh = true;
+            }
+
+            if (!hp->card_mark_done_loh)
+            {
+                dprintf(3, ("Relocating cross generation pointers for large objects on heap %d", hp->heap_number));
+                hp->mark_through_cards_for_large_objects(&gc_heap::relocate_address, TRUE THIS_ARG);
+                hp->card_mark_done_loh = true;
+            }
+        }
+    }
+#endif // MULTIPLE_HEAPS && FEATURE_CARD_MARKING_STEALING
 
 #ifdef MULTIPLE_HEAPS
     //join all threads to make sure they are synchronized
@@ -26839,7 +27357,7 @@ void gc_heap::background_mark_phase ()
             // this c_write is not really necessary because restart_vm
             // has an instruction that will flush the cpu cache (interlocked
             // or whatever) but we don't want to rely on that.
-            dprintf (BGC_LOG, ("setting cm_in_progress"));
+            dprintf (GTC_LOG, ("setting cm_in_progress"));
             c_write (cm_in_progress, TRUE);
 
             //restart all thread, doing the marking from the array
@@ -27047,6 +27565,10 @@ void gc_heap::background_mark_phase ()
         bgc_t_join.join(this, gc_join_after_absorb);
         if (bgc_t_join.joined())
         {
+#ifdef BGC_SERVO_TUNING
+            bgc_tuning::record_bgc_sweep_start();
+#endif //BGC_SERVO_TUNING
+
             dprintf(3, ("Joining BGC threads after absorb"));
             bgc_t_join.restart();
         }
@@ -28003,6 +28525,11 @@ void gc_heap::do_background_gc()
 #else
     init_background_gc();
 #endif //MULTIPLE_HEAPS
+
+#ifdef BGC_SERVO_TUNING
+    bgc_tuning::record_bgc_start();
+#endif //BGC_SERVO_TUNING
+
     //start the background gc
     start_c_gc ();
 
@@ -28179,6 +28706,1070 @@ void gc_heap::bgc_thread_function()
     return;
 }
 
+#ifdef BGC_SERVO_TUNING
+bool gc_heap::bgc_tuning::stepping_trigger (uint32_t current_memory_load, size_t current_gen2_count)
+{
+    if (!bgc_tuning::enable_fl_tuning)
+    {
+        return false;
+    }
+
+    bool stepping_trigger_p = false;
+    if (use_stepping_trigger_p)
+    {
+        dprintf (BGC_TUNING_LOG, ("current ml: %d, goal: %d", 
+            current_memory_load, memory_load_goal));
+        // We don't go all the way up to mem goal because if we do we could end up with every 
+        // BGC being triggered by stepping all the way up to goal, and when we actually reach
+        // goal we have no time to react 'cause the next BGC could already be over goal.
+        if ((current_memory_load <= (memory_load_goal * 2 / 3)) ||
+            ((memory_load_goal > current_memory_load) && 
+             ((memory_load_goal - current_memory_load) > (stepping_interval * 3))))
+        {
+            int memory_load_delta = (int)current_memory_load - (int)last_stepping_mem_load;
+            if (memory_load_delta >= (int)stepping_interval)
+            {
+                stepping_trigger_p = (current_gen2_count == last_stepping_bgc_count);
+                if (stepping_trigger_p)
+                {
+                    current_gen2_count++;
+                }
+
+                dprintf (BGC_TUNING_LOG, ("current ml: %d - %d = %d (>= %d), gen2 count: %d->%d, stepping trigger: %s ",
+                    current_memory_load, last_stepping_mem_load, memory_load_delta, stepping_interval,
+                    last_stepping_bgc_count, current_gen2_count,
+                    (stepping_trigger_p ? "yes" : "no")));
+                last_stepping_mem_load = current_memory_load;
+                last_stepping_bgc_count = current_gen2_count;
+            }
+        }
+        else
+        {
+            use_stepping_trigger_p = false;
+        }
+    }
+
+    return stepping_trigger_p;
+}
+
+// Note that I am doing this per heap but as we are in this calculation other
+// heaps could increase their fl alloc. We are okay with that inaccurancy.
+bool gc_heap::bgc_tuning::should_trigger_bgc_loh()
+{
+    if (fl_tuning_triggered)
+    {
+#ifdef MULTIPLE_HEAPS
+        gc_heap* hp = g_heaps[0];
+#else
+        gc_heap* hp = pGenGCHeap;
+#endif //MULTIPLE_HEAPS
+
+        if (!(recursive_gc_sync::background_running_p()))
+        {
+            int loh_gen_number = max_generation + 1;
+            size_t current_alloc = get_total_servo_alloc (loh_gen_number);
+            tuning_calculation* current_gen_calc = &gen_calc[loh_gen_number - max_generation];
+
+            if (current_alloc < current_gen_calc->last_bgc_end_alloc)
+            {
+                dprintf (BGC_TUNING_LOG, ("BTL: current alloc: %Id, last alloc: %Id?",
+                    current_alloc, current_gen_calc->last_bgc_end_alloc));
+            }
+
+            bool trigger_p = ((current_alloc - current_gen_calc->last_bgc_end_alloc) >= current_gen_calc->alloc_to_trigger);
+            dprintf (2, ("BTL3: LOH a %Id, la: %Id(%Id), %Id",
+                    current_alloc, current_gen_calc->last_bgc_end_alloc,
+                    (current_alloc - current_gen_calc->last_bgc_end_alloc),
+                    current_gen_calc->alloc_to_trigger));
+    
+            if (trigger_p)
+            {
+                dprintf (BGC_TUNING_LOG, ("BTL3: LOH detected (%Id - %Id) >= %Id, TRIGGER",
+                        current_alloc, current_gen_calc->last_bgc_end_alloc, current_gen_calc->alloc_to_trigger));
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+bool gc_heap::bgc_tuning::should_trigger_bgc()
+{
+    if (!bgc_tuning::enable_fl_tuning || recursive_gc_sync::background_running_p())
+    {
+        return false;
+    }
+
+    if (settings.reason == reason_bgc_tuning_loh)
+    {
+        // TODO: this should be an assert because if the reason was reason_bgc_tuning_loh,
+        // we should have already set to condemn max_generation but I'm keeping it
+        // for now in case we are reverting it for other reasons. 
+        bgc_tuning::next_bgc_p = true;
+        dprintf (BGC_TUNING_LOG, ("BTL LOH triggered"));
+        return true;
+    }
+
+    if (!bgc_tuning::next_bgc_p && 
+        !fl_tuning_triggered && 
+        (gc_heap::settings.entry_memory_load >= (memory_load_goal * 2 / 3)) &&
+        (gc_heap::full_gc_counts[gc_type_background] >= 2))
+    {
+        next_bgc_p = true;
+
+        gen_calc[0].first_alloc_to_trigger = gc_heap::get_total_servo_alloc (max_generation);
+        gen_calc[1].first_alloc_to_trigger = gc_heap::get_total_servo_alloc (max_generation + 1);
+        dprintf (BGC_TUNING_LOG, ("BTL[GTC] mem high enough: %d(goal: %d), %Id BGCs done, g2a=%Id, g3a=%Id, trigger FL tuning!", 
+            gc_heap::settings.entry_memory_load, memory_load_goal,
+            gc_heap::full_gc_counts[gc_type_background],
+            gen_calc[0].first_alloc_to_trigger,
+            gen_calc[1].first_alloc_to_trigger));
+    }
+
+    if (bgc_tuning::next_bgc_p)
+    {
+        dprintf (BGC_TUNING_LOG, ("BTL started FL tuning"));
+        return true;
+    }
+
+    if (!fl_tuning_triggered)
+    {
+        return false;
+    }
+
+    // If the tuning started, we need to check if we've exceeded the alloc.
+    int index = 0;
+    bgc_tuning::tuning_calculation* current_gen_calc = 0;
+
+    index = 0;
+    current_gen_calc = &bgc_tuning::gen_calc[index];
+
+#ifdef MULTIPLE_HEAPS
+    gc_heap* hp = g_heaps[0];
+#else
+    gc_heap* hp = pGenGCHeap;
+#endif //MULTIPLE_HEAPS
+
+    size_t current_gen1_index = dd_collection_count (hp->dynamic_data_of (max_generation - 1));
+    size_t gen1_so_far = current_gen1_index - gen1_index_last_bgc_end;
+
+    if (current_gen_calc->alloc_to_trigger > 0)
+    {
+        // We are specifically checking for gen2 here. LOH is covered by should_trigger_bgc_loh.
+        size_t current_alloc = get_total_servo_alloc (max_generation);
+        if ((current_alloc - current_gen_calc->last_bgc_end_alloc) >= current_gen_calc->alloc_to_trigger)
+        {
+            dprintf (BGC_TUNING_LOG, ("BTL2: SOH detected (%Id - %Id) >= %Id, TRIGGER",
+                    current_alloc, current_gen_calc->last_bgc_end_alloc, current_gen_calc->alloc_to_trigger));
+            settings.reason = reason_bgc_tuning_soh;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool gc_heap::bgc_tuning::should_delay_alloc (int gen_number)
+{
+    if ((gen_number != max_generation) || !bgc_tuning::enable_fl_tuning)
+        return false;
+
+    if (current_c_gc_state == c_gc_state_planning)
+    {
+        int i = 0;
+#ifdef MULTIPLE_HEAPS
+        for (; i < gc_heap::n_heaps; i++)
+        {
+            gc_heap* hp = gc_heap::g_heaps[i];
+            size_t current_fl_size = generation_free_list_space (hp->generation_of (max_generation));
+            size_t last_bgc_fl_size = hp->bgc_maxgen_end_fl_size;
+#else
+        {
+            size_t current_fl_size = generation_free_list_space (generation_of (max_generation));
+            size_t last_bgc_fl_size = bgc_maxgen_end_fl_size;
+#endif //MULTIPLE_HEAPS
+
+            if (last_bgc_fl_size)
+            {
+                float current_flr = (float) current_fl_size / (float)last_bgc_fl_size;
+                if (current_flr < 0.4)
+                {
+                    dprintf (BGC_TUNING_LOG, ("BTL%d h%d last fl %Id, curr fl %Id (%.3f) d1",
+                            gen_number, i, last_bgc_fl_size, current_fl_size, current_flr));
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
+void gc_heap::bgc_tuning::update_bgc_start (int gen_number, size_t num_gen1s_since_end)
+{
+    int tuning_data_index = gen_number - max_generation;
+    tuning_calculation* current_gen_calc = &gen_calc[tuning_data_index];
+    tuning_stats* current_gen_stats = &gen_stats[tuning_data_index];
+
+    size_t total_generation_size = get_total_generation_size (gen_number);
+    ptrdiff_t current_bgc_fl_size = get_total_generation_fl_size (gen_number);
+
+    double physical_gen_flr = (double)current_bgc_fl_size * 100.0 / (double)total_generation_size;
+
+    ptrdiff_t artificial_additional_fl = 0;
+    
+    if (fl_tuning_triggered)
+    {
+        artificial_additional_fl = ((current_gen_calc->end_gen_size_goal > total_generation_size) ? (current_gen_calc->end_gen_size_goal - total_generation_size) : 0);
+        total_generation_size += artificial_additional_fl;
+        current_bgc_fl_size += artificial_additional_fl;
+    }
+
+    current_gen_calc->current_bgc_start_flr = (double)current_bgc_fl_size * 100.0 / (double)total_generation_size;
+
+    size_t current_alloc = get_total_servo_alloc (gen_number);
+    dprintf (BGC_TUNING_LOG, ("BTL%d: st a: %Id, la: %Id", 
+        gen_number, current_alloc, current_gen_stats->last_alloc));
+    current_gen_stats->last_alloc_end_to_start = current_alloc - current_gen_stats->last_alloc;
+    current_gen_stats->last_alloc = current_alloc;
+
+    current_gen_calc->actual_alloc_to_trigger = current_alloc - current_gen_calc->last_bgc_end_alloc;
+
+    dprintf (BGC_TUNING_LOG, ("BTL%d: st: %Id g1s (%Id->%Id/gen1) since end, flr: %.3f(afl: %Id, %.3f)",
+             gen_number, actual_num_gen1s_to_trigger, 
+             current_gen_stats->last_alloc_end_to_start, 
+             (num_gen1s_since_end ? (current_gen_stats->last_alloc_end_to_start / num_gen1s_since_end) : 0),
+             current_gen_calc->current_bgc_start_flr, artificial_additional_fl, physical_gen_flr));
+}
+
+void gc_heap::bgc_tuning::record_bgc_start()
+{
+    if (!bgc_tuning::enable_fl_tuning)
+        return;
+
+    size_t elapsed_time_so_far = GetHighPrecisionTimeStamp() - start_time;
+
+    // Note that younger gen's collection count is always updated with older gen's collections.
+    // So to calcuate the actual # of gen1 occurred we really should take the # of gen2s into 
+    // acccount (and deduct from gen1's collection count). But right now I am using it for stats.
+    size_t current_gen1_index = get_current_gc_index (max_generation - 1);
+
+    dprintf (BGC_TUNING_LOG, ("BTL: g2t[st][g1 %Id]: %0.3f minutes", 
+        current_gen1_index,
+        (double)elapsed_time_so_far / (double)1000 / (double)60));
+
+    actual_num_gen1s_to_trigger = current_gen1_index - gen1_index_last_bgc_end;
+    gen1_index_last_bgc_start = current_gen1_index;
+
+    update_bgc_start (max_generation, actual_num_gen1s_to_trigger);
+    update_bgc_start ((max_generation + 1), actual_num_gen1s_to_trigger);
+}
+
+double convert_range (double lower, double upper, double num, double percentage)
+{
+    double d = num - lower;
+    if (d < 0.0)
+        return 0.0;
+    else
+    {
+        d = min ((upper - lower), d);
+        return (d * percentage);
+    }
+}
+
+double calculate_gradual_d (double delta_double, double step)
+{
+    bool changed_sign = false;
+    if (delta_double < 0.0)
+    {
+        delta_double = -delta_double;
+        changed_sign = true;
+    }
+    double res = 0;
+    double current_lower_limit = 0;
+    double current_ratio = 1.0;
+    // Given a step, we will gradually reduce the weight of the portion
+    // in each step.
+    // We reduce by *0.6 each time so there will be 3 iterations:
+    // 1->0.6->0.36 (next one would be 0.216 and terminate the loop)
+    // This will produce a result that's between 0 and 0.098.
+    while (current_ratio > 0.22)
+    {
+        res += convert_range (current_lower_limit, (current_lower_limit + step), delta_double, current_ratio);
+        current_lower_limit += step;
+        current_ratio *= 0.6;
+    }
+
+    if (changed_sign)
+        res = -res;
+
+    return res;
+}
+
+void gc_heap::bgc_tuning::update_bgc_sweep_start (int gen_number, size_t num_gen1s_since_start)
+{
+    int tuning_data_index = gen_number - max_generation;
+    tuning_calculation* current_gen_calc = &gen_calc[tuning_data_index];
+    tuning_stats* current_gen_stats = &gen_stats[tuning_data_index];
+
+    size_t total_generation_size = 0;
+    ptrdiff_t current_bgc_fl_size = 0;
+
+    total_generation_size = get_total_generation_size (gen_number);
+    current_bgc_fl_size = get_total_generation_fl_size (gen_number);
+
+    double physical_gen_flr = (double)current_bgc_fl_size * 100.0 / (double)total_generation_size;
+
+    ptrdiff_t artificial_additional_fl = 0;
+    if (fl_tuning_triggered)
+    {
+        artificial_additional_fl = ((current_gen_calc->end_gen_size_goal > total_generation_size) ? (current_gen_calc->end_gen_size_goal - total_generation_size) : 0);
+        total_generation_size += artificial_additional_fl;
+        current_bgc_fl_size += artificial_additional_fl;
+    }
+
+    current_gen_calc->current_bgc_sweep_flr = (double)current_bgc_fl_size * 100.0 / (double)total_generation_size;
+
+    size_t current_alloc = get_total_servo_alloc (gen_number);
+    dprintf (BGC_TUNING_LOG, ("BTL%d: sw a: %Id, la: %Id", 
+        gen_number, current_alloc, current_gen_stats->last_alloc));
+    current_gen_stats->last_alloc_start_to_sweep = current_alloc - current_gen_stats->last_alloc;
+    // We are resetting gen2 alloc at sweep start.
+    current_gen_stats->last_alloc = 0; 
+
+#ifdef SIMPLE_DPRINTF
+    dprintf (BGC_TUNING_LOG, ("BTL%d: sflr: %.3f%%->%.3f%% (%Id->%Id, %Id->%Id) (%Id:%Id-%Id/gen1) since start (afl: %Id, %.3f)",
+             gen_number,
+             current_gen_calc->last_bgc_flr, current_gen_calc->current_bgc_sweep_flr,
+             current_gen_calc->last_bgc_size, total_generation_size, 
+             current_gen_stats->last_bgc_fl_size, current_bgc_fl_size,
+             num_gen1s_since_start, current_gen_stats->last_alloc_start_to_sweep, 
+             (num_gen1s_since_start? (current_gen_stats->last_alloc_start_to_sweep / num_gen1s_since_start) : 0),
+             artificial_additional_fl, physical_gen_flr));
+#endif //SIMPLE_DPRINTF
+}
+
+void gc_heap::bgc_tuning::record_bgc_sweep_start()
+{
+    if (!bgc_tuning::enable_fl_tuning)
+        return;
+
+    size_t current_gen1_index = get_current_gc_index (max_generation - 1);
+    size_t num_gen1s_since_start = current_gen1_index - gen1_index_last_bgc_start;
+    gen1_index_last_bgc_sweep = current_gen1_index;
+
+    size_t elapsed_time_so_far = GetHighPrecisionTimeStamp() - start_time;
+    dprintf (BGC_TUNING_LOG, ("BTL: g2t[sw][g1 %Id]: %0.3f minutes", 
+        current_gen1_index,
+        (double)elapsed_time_so_far / (double)1000 / (double)60));
+
+    update_bgc_sweep_start (max_generation, num_gen1s_since_start);
+    update_bgc_sweep_start ((max_generation + 1), num_gen1s_since_start);
+}
+
+void gc_heap::bgc_tuning::calculate_tuning (int gen_number, bool use_this_loop_p)
+{
+    BOOL use_kd_p = enable_kd;
+    BOOL use_ki_p = enable_ki;
+    BOOL use_smooth_p = enable_smooth;
+    BOOL use_tbh_p = enable_tbh;
+    BOOL use_ff_p = enable_ff;
+
+    int tuning_data_index = gen_number - max_generation;
+    tuning_calculation* current_gen_calc = &gen_calc[tuning_data_index];
+    tuning_stats* current_gen_stats = &gen_stats[tuning_data_index];
+    bgc_size_data* data = &current_bgc_end_data[tuning_data_index];
+
+    size_t total_generation_size = data->gen_size;
+    size_t current_bgc_fl = data->gen_fl_size;
+
+    size_t current_bgc_surv_size = get_total_surv_size (gen_number);
+    size_t current_bgc_begin_data_size = get_total_begin_data_size (gen_number);
+
+    // This is usually 0 unless a GC happened where we joined at the end of sweep
+    size_t current_alloc = get_total_servo_alloc (gen_number);
+    //dprintf (BGC_TUNING_LOG, ("BTL%d: current fl alloc: %Id, last recorded alloc: %Id, last_bgc_end_alloc: %Id", 
+    dprintf (BGC_TUNING_LOG, ("BTL%d: en a: %Id, la: %Id, lbgca: %Id", 
+        gen_number, current_alloc, current_gen_stats->last_alloc, current_gen_calc->last_bgc_end_alloc));
+
+    double current_bgc_surv_rate = (current_bgc_begin_data_size == 0) ? 
+                                    0 : ((double)current_bgc_surv_size * 100.0 / (double)current_bgc_begin_data_size);
+
+    current_gen_stats->last_alloc_sweep_to_end = current_alloc - current_gen_stats->last_alloc;
+
+    size_t gen1_index = get_current_gc_index (max_generation - 1);
+    size_t gen2_index = get_current_gc_index (max_generation);
+
+    size_t num_gen1s_since_sweep = gen1_index - gen1_index_last_bgc_sweep;
+    size_t num_gen1s_bgc_end = gen1_index - gen1_index_last_bgc_end;
+
+    size_t gen_end_size_goal = current_gen_calc->end_gen_size_goal;
+    double gen_sweep_flr_goal = current_gen_calc->sweep_flr_goal;
+    size_t last_gen_alloc_to_trigger = current_gen_calc->alloc_to_trigger;
+    size_t gen_actual_alloc_to_trigger = current_gen_calc->actual_alloc_to_trigger;
+    size_t last_gen_alloc_to_trigger_0 = current_gen_calc->alloc_to_trigger_0;
+
+    double current_end_to_sweep_flr = current_gen_calc->last_bgc_flr - current_gen_calc->current_bgc_sweep_flr;
+    bool current_sweep_above_p = (current_gen_calc->current_bgc_sweep_flr > gen_sweep_flr_goal);
+
+#ifdef SIMPLE_DPRINTF
+    dprintf (BGC_TUNING_LOG, ("BTL%d: sflr: c %.3f (%s), p %s, palloc: %Id, aalloc %Id(%s)",
+        gen_number,
+        current_gen_calc->current_bgc_sweep_flr,
+        (current_sweep_above_p ? "above" : "below"),
+        (current_gen_calc->last_sweep_above_p ? "above" : "below"),
+        last_gen_alloc_to_trigger,
+        current_gen_calc->actual_alloc_to_trigger,
+        (use_this_loop_p ? "this" : "last")));
+
+    dprintf (BGC_TUNING_LOG, ("BTL%d-en[g1: %Id, g2: %Id]: end fl: %Id (%Id: S-%Id, %.3f%%->%.3f%%)",
+            gen_number,
+            gen1_index, gen2_index, current_bgc_fl, 
+            total_generation_size, current_bgc_surv_size,
+            current_gen_stats->last_bgc_surv_rate, current_bgc_surv_rate));
+
+    dprintf (BGC_TUNING_LOG, ("BTLS%d sflr: %.3f, end-start: %Id(%Id), start-sweep: %Id(%Id), sweep-end: %Id(%Id)",
+            gen_number,
+            current_gen_calc->current_bgc_sweep_flr, 
+            (gen1_index_last_bgc_start - gen1_index_last_bgc_end), current_gen_stats->last_alloc_end_to_start,
+            (gen1_index_last_bgc_sweep - gen1_index_last_bgc_start), current_gen_stats->last_alloc_start_to_sweep,
+            num_gen1s_since_sweep, current_gen_stats->last_alloc_sweep_to_end));
+#endif //SIMPLE_DPRINTF
+
+    size_t saved_alloc_to_trigger = 0;
+
+    // during our calculation alloc can be negative so use double here.
+    double current_alloc_to_trigger = 0.0;
+
+    if (!fl_tuning_triggered && use_tbh_p)
+    {
+        current_gen_calc->alloc_to_trigger_0 = current_gen_calc->actual_alloc_to_trigger;
+        dprintf (BGC_TUNING_LOG, ("BTL%d[g1: %Id]: not in FL tuning yet, setting alloc_to_trigger_0 to %Id",
+                 gen_number,
+                 gen1_index, current_gen_calc->alloc_to_trigger_0));
+    }
+
+    if (fl_tuning_triggered)
+    {
+        BOOL tuning_kd_finished_p = FALSE;
+
+        // We shouldn't have an alloc_to_trigger that's > what's consumed before sweep happens.
+        double max_alloc_to_trigger = ((double)current_bgc_fl * (100 - gen_sweep_flr_goal) / 100.0);
+        double min_alloc_to_trigger = (double)current_bgc_fl * 0.05;
+
+        {
+            if (current_gen_calc->current_bgc_sweep_flr < 0.0)
+            {
+                dprintf (BGC_TUNING_LOG, ("BTL%d: sflr is %.3f!!! < 0, make it 0", gen_number, current_gen_calc->current_bgc_sweep_flr));
+                current_gen_calc->current_bgc_sweep_flr = 0.0;
+            }
+
+            double adjusted_above_goal_kp = above_goal_kp;
+            double above_goal_distance = current_gen_calc->current_bgc_sweep_flr - gen_sweep_flr_goal;
+            if (use_ki_p)
+            {
+                if (current_gen_calc->above_goal_accu_error > max_alloc_to_trigger)
+                {
+                    dprintf (BGC_TUNING_LOG, ("g%d: ae TB! %.1f->%.1f", gen_number, current_gen_calc->above_goal_accu_error, max_alloc_to_trigger)); 
+                }
+                else if (current_gen_calc->above_goal_accu_error < min_alloc_to_trigger)
+                {
+                    dprintf (BGC_TUNING_LOG, ("g%d: ae TS! %.1f->%.1f", gen_number, current_gen_calc->above_goal_accu_error, min_alloc_to_trigger)); 
+                }
+
+                current_gen_calc->above_goal_accu_error = min (max_alloc_to_trigger, current_gen_calc->above_goal_accu_error);
+                current_gen_calc->above_goal_accu_error = max (min_alloc_to_trigger, current_gen_calc->above_goal_accu_error);
+
+                double above_goal_ki_gain = above_goal_ki * above_goal_distance * current_bgc_fl;
+                double temp_accu_error = current_gen_calc->above_goal_accu_error + above_goal_ki_gain;
+                // anti-windup
+                if ((temp_accu_error > min_alloc_to_trigger) && 
+                    (temp_accu_error < max_alloc_to_trigger))
+                {
+                    current_gen_calc->above_goal_accu_error = temp_accu_error;
+                }
+                else
+                {
+                    //dprintf (BGC_TUNING_LOG, ("alloc accu err + %.1f=%.1f, exc",
+                    dprintf (BGC_TUNING_LOG, ("g%d: aae + %.1f=%.1f, exc", gen_number, 
+                            above_goal_ki_gain, 
+                            temp_accu_error));
+                }
+            }
+
+            // First we do the PI loop.
+            {
+                saved_alloc_to_trigger = current_gen_calc->alloc_to_trigger;
+                current_alloc_to_trigger = adjusted_above_goal_kp * above_goal_distance * current_bgc_fl;
+                // la is last alloc_to_trigger, +%Id is the diff between la and the new alloc.
+                // laa is the last actual alloc (gen_actual_alloc_to_trigger), +%Id is the diff between la and laa.
+                dprintf (BGC_TUNING_LOG, ("BTL%d: sflr %.3f above * %.4f * %Id = %Id bytes in alloc, la: %Id(+%Id), laa: %Id(+%Id)",
+                        gen_number, 
+                        (current_gen_calc->current_bgc_sweep_flr - (double)gen_sweep_flr_goal),
+                        adjusted_above_goal_kp,
+                        current_bgc_fl,
+                        (size_t)current_alloc_to_trigger,
+                        saved_alloc_to_trigger, 
+                        (size_t)(current_alloc_to_trigger - (double)saved_alloc_to_trigger),
+                        gen_actual_alloc_to_trigger,
+                        (gen_actual_alloc_to_trigger - saved_alloc_to_trigger)));
+
+                if (use_ki_p)
+                {
+                    current_alloc_to_trigger += current_gen_calc->above_goal_accu_error;
+                    dprintf (BGC_TUNING_LOG, ("BTL%d: +accu err %Id=%Id",
+                            gen_number, 
+                            (size_t)(current_gen_calc->above_goal_accu_error),
+                            (size_t)current_alloc_to_trigger));
+                }
+            }
+
+            if (use_tbh_p)
+            {
+                if (current_gen_calc->last_sweep_above_p != current_sweep_above_p)
+                {
+                    size_t new_alloc_to_trigger_0 = (last_gen_alloc_to_trigger + last_gen_alloc_to_trigger_0) / 2;
+                    dprintf (BGC_TUNING_LOG, ("BTL%d: tbh crossed SP, setting both to %Id", gen_number, new_alloc_to_trigger_0));
+                    current_gen_calc->alloc_to_trigger_0 = new_alloc_to_trigger_0;
+                    current_gen_calc->alloc_to_trigger = new_alloc_to_trigger_0;
+                }
+
+                tuning_kd_finished_p = TRUE;
+            }
+        }
+
+        if (!tuning_kd_finished_p)
+        {
+            if (use_kd_p)
+            {
+                saved_alloc_to_trigger = last_gen_alloc_to_trigger;
+                size_t alloc_delta = saved_alloc_to_trigger - gen_actual_alloc_to_trigger;
+                double adjust_ratio = (double)alloc_delta / (double)gen_actual_alloc_to_trigger;
+                double saved_adjust_ratio = adjust_ratio;
+                if (enable_gradual_d)
+                {
+                    adjust_ratio = calculate_gradual_d (adjust_ratio, above_goal_kd);
+                    dprintf (BGC_TUNING_LOG, ("BTL%d: gradual kd - reduced from %.3f to %.3f",
+                            gen_number, saved_adjust_ratio, adjust_ratio));
+                }
+                else
+                {
+                    double kd = above_goal_kd;
+                    double neg_kd = 0 - kd;
+                    if (adjust_ratio > kd) adjust_ratio = kd;
+                    if (adjust_ratio < neg_kd) adjust_ratio = neg_kd;
+                    dprintf (BGC_TUNING_LOG, ("BTL%d: kd - reduced from %.3f to %.3f",
+                            gen_number, saved_adjust_ratio, adjust_ratio));
+                }
+
+                current_gen_calc->alloc_to_trigger = (size_t)((double)gen_actual_alloc_to_trigger * (1 + adjust_ratio));
+
+                dprintf (BGC_TUNING_LOG, ("BTL%d: kd %.3f, reduced it to %.3f * %Id, adjust %Id->%Id",
+                        gen_number, saved_adjust_ratio, 
+                        adjust_ratio, gen_actual_alloc_to_trigger,
+                        saved_alloc_to_trigger, current_gen_calc->alloc_to_trigger));
+            }
+
+            if (use_smooth_p && use_this_loop_p)
+            {
+                saved_alloc_to_trigger = current_gen_calc->alloc_to_trigger;
+                size_t gen_smoothed_alloc_to_trigger = current_gen_calc->smoothed_alloc_to_trigger;
+                double current_num_gen1s_smooth_factor = (num_gen1s_smooth_factor > (double)num_bgcs_since_tuning_trigger) ? 
+                                                        (double)num_bgcs_since_tuning_trigger : num_gen1s_smooth_factor;
+                current_gen_calc->smoothed_alloc_to_trigger = (size_t)((double)saved_alloc_to_trigger / current_num_gen1s_smooth_factor + 
+                    ((double)gen_smoothed_alloc_to_trigger / current_num_gen1s_smooth_factor) * (current_num_gen1s_smooth_factor - 1.0));
+
+                dprintf (BGC_TUNING_LOG, ("BTL%d: smoothed %Id / %.3f + %Id / %.3f * %.3f adjust %Id->%Id", 
+                    gen_number, saved_alloc_to_trigger, current_num_gen1s_smooth_factor,
+                    gen_smoothed_alloc_to_trigger, current_num_gen1s_smooth_factor, 
+                    (current_num_gen1s_smooth_factor - 1.0),
+                    saved_alloc_to_trigger, current_gen_calc->smoothed_alloc_to_trigger));
+                current_gen_calc->alloc_to_trigger = current_gen_calc->smoothed_alloc_to_trigger;
+            }
+        }
+
+        if (use_ff_p)
+        {
+            double next_end_to_sweep_flr = data->gen_flr - gen_sweep_flr_goal;
+
+            if (next_end_to_sweep_flr > 0.0)
+            {
+                saved_alloc_to_trigger = current_gen_calc->alloc_to_trigger;
+                double ff_ratio = next_end_to_sweep_flr / current_end_to_sweep_flr - 1;
+
+                if (use_this_loop_p)
+                {
+                    // if we adjust down we want ff to be bigger, so the alloc will be even smaller; 
+                    // if we adjust up want ff to be smaller, so the alloc will also be smaller;
+                    // the idea is we want to be slower at increase than decrease
+                    double ff_step = above_goal_ff * 0.5;
+                    double adjusted_above_goal_ff = above_goal_ff;
+                    if (ff_ratio > 0)
+                        adjusted_above_goal_ff -= ff_step;
+                    else
+                        adjusted_above_goal_ff += ff_step;
+
+                    double adjusted_ff_ratio = ff_ratio * adjusted_above_goal_ff;
+                    current_gen_calc->alloc_to_trigger = saved_alloc_to_trigger + (size_t)((double)saved_alloc_to_trigger * adjusted_ff_ratio);
+                    dprintf (BGC_TUNING_LOG, ("BTL%d: ff (%.3f / %.3f - 1) * %.3f = %.3f adjust %Id->%Id", 
+                        gen_number, next_end_to_sweep_flr, current_end_to_sweep_flr, adjusted_above_goal_ff, adjusted_ff_ratio, 
+                        saved_alloc_to_trigger, current_gen_calc->alloc_to_trigger));
+                }
+            }
+        }
+
+        if (use_this_loop_p)
+        {
+            // apply low/high caps.
+            if (current_alloc_to_trigger > max_alloc_to_trigger)
+            {
+                dprintf (BGC_TUNING_LOG, ("BTL%d: TB! %.1f -> %.1f",
+                    gen_number, current_alloc_to_trigger, max_alloc_to_trigger));
+                current_alloc_to_trigger = max_alloc_to_trigger;
+            }
+
+            if (current_alloc_to_trigger < min_alloc_to_trigger)
+            {
+                dprintf (BGC_TUNING_LOG, ("BTL%d: TS! %Id -> %Id",
+                        gen_number, (ptrdiff_t)current_alloc_to_trigger, (size_t)min_alloc_to_trigger));
+                current_alloc_to_trigger = min_alloc_to_trigger;
+            }
+
+            current_gen_calc->alloc_to_trigger = (size_t)current_alloc_to_trigger;
+        }
+        else
+        {
+            // we can't do the above comparison - we could be in the situation where
+            // we haven't done any alloc.
+            dprintf (BGC_TUNING_LOG, ("BTL%d: ag, revert %Id->%Id", 
+                gen_number, current_gen_calc->alloc_to_trigger, last_gen_alloc_to_trigger));
+            current_gen_calc->alloc_to_trigger = last_gen_alloc_to_trigger;
+        }
+    }
+
+    // This is only executed once to get the tuning started.
+    if (next_bgc_p)
+    {
+        size_t first_alloc = (size_t)((double)current_gen_calc->first_alloc_to_trigger * 0.75);
+        // The initial conditions can be quite erratic so check to see if the first alloc we set was reasonable - take 5% of the FL
+        size_t min_first_alloc = current_bgc_fl / 20;
+
+        current_gen_calc->alloc_to_trigger = max (first_alloc, min_first_alloc);
+
+        dprintf (BGC_TUNING_LOG, ("BTL%d[g1: %Id]: BGC end, trigger FL, set gen%d alloc to max (0.75 of first: %Id, 5%% fl: %Id), actual alloc: %Id", 
+            gen_number, gen1_index, gen_number, 
+            first_alloc, min_first_alloc, 
+            current_gen_calc->actual_alloc_to_trigger));
+    }
+
+    dprintf (BGC_TUNING_LOG, ("BTL%d* %Id, %.3f, %.3f, %.3f, %.3f, %.3f, %Id, %Id, %Id, %Id",
+                              gen_number,
+                              total_generation_size,
+                              current_gen_calc->current_bgc_start_flr,
+                              current_gen_calc->current_bgc_sweep_flr,
+                              current_bgc_end_data[tuning_data_index].gen_flr,
+                              current_gen_stats->last_gen_increase_flr,
+                              current_bgc_surv_rate,
+                              actual_num_gen1s_to_trigger, 
+                              num_gen1s_bgc_end,
+                              gen_actual_alloc_to_trigger,
+                              current_gen_calc->alloc_to_trigger));
+
+    gen1_index_last_bgc_end = gen1_index;
+
+    current_gen_calc->last_bgc_size = total_generation_size;
+    current_gen_calc->last_bgc_flr = current_bgc_end_data[tuning_data_index].gen_flr;
+    current_gen_calc->last_sweep_above_p = current_sweep_above_p;
+    current_gen_calc->last_bgc_end_alloc = current_alloc;
+
+    current_gen_stats->last_bgc_physical_size = data->gen_physical_size;
+    current_gen_stats->last_alloc_end_to_start = 0;
+    current_gen_stats->last_alloc_start_to_sweep = 0; 
+    current_gen_stats->last_alloc_sweep_to_end = 0;
+    current_gen_stats->last_alloc = current_alloc;
+    current_gen_stats->last_bgc_fl_size = current_bgc_end_data[tuning_data_index].gen_fl_size;
+    current_gen_stats->last_bgc_surv_rate = current_bgc_surv_rate;
+    current_gen_stats->last_gen_increase_flr = 0;
+}
+
+// Note that in this method for the !use_this_loop_p generation we will adjust
+// its sweep_flr accordingly. And the inner loop will not need to know about this.
+void gc_heap::bgc_tuning::init_bgc_end_data (int gen_number, bool use_this_loop_p)
+{
+    int index = gen_number - max_generation;
+    bgc_size_data* data = &current_bgc_end_data[index];
+
+    size_t physical_size = get_total_generation_size (gen_number);
+    ptrdiff_t physical_fl_size = get_total_generation_fl_size (gen_number);
+    data->gen_actual_phys_fl_size = physical_fl_size;
+
+    if (fl_tuning_triggered && !use_this_loop_p)
+    {
+        tuning_calculation* current_gen_calc = &gen_calc[gen_number - max_generation];
+
+        if (current_gen_calc->actual_alloc_to_trigger > current_gen_calc->alloc_to_trigger)
+        {
+            dprintf (BGC_TUNING_LOG, ("BTL%d: gen alloc also exceeded %Id (la: %Id), no action", 
+                gen_number, current_gen_calc->actual_alloc_to_trigger, current_gen_calc->alloc_to_trigger));
+        }
+        else
+        {
+            // We will deduct the missing portion from alloc to fl, simulating that we consumed it.
+            size_t remaining_alloc = current_gen_calc->alloc_to_trigger - 
+                                     current_gen_calc->actual_alloc_to_trigger;
+
+            // now re-calc current_bgc_sweep_flr
+            // TODO: note that I am assuming the physical size at sweep was <= end_gen_size_goal which
+            // not have been the case.
+            size_t gen_size = current_gen_calc->end_gen_size_goal;
+            double sweep_flr = current_gen_calc->current_bgc_sweep_flr;
+            size_t sweep_fl_size = (size_t)((double)gen_size * sweep_flr / 100.0);
+
+            if (sweep_fl_size < remaining_alloc)
+            {
+                dprintf (BGC_TUNING_LOG, ("BTL%d: sweep fl %Id < remain alloc %Id", gen_number, sweep_fl_size, remaining_alloc));
+                // TODO: this is saying that we didn't have enough fl to accommodate the 
+                // remaining alloc which is suspicious. To set remaining_alloc to
+                // something slightly smaller is only so that we could continue with
+                // our calculation but this is something we should look into.
+                remaining_alloc = sweep_fl_size - (10 * 1024);
+            }
+
+            size_t new_sweep_fl_size = sweep_fl_size - remaining_alloc;
+            ptrdiff_t signed_new_sweep_fl_size = sweep_fl_size - remaining_alloc;
+
+            double new_current_bgc_sweep_flr = (double)new_sweep_fl_size * 100.0 / (double)gen_size;
+            double signed_new_current_bgc_sweep_flr = (double)signed_new_sweep_fl_size * 100.0 / (double)gen_size;
+
+            dprintf (BGC_TUNING_LOG, ("BTL%d: sg: %Id(%Id), sfl: %Id->%Id(%Id)(%.3f->%.3f(%.3f)), la: %Id, aa: %Id",
+                gen_number, gen_size, physical_size, sweep_fl_size, 
+                new_sweep_fl_size, signed_new_sweep_fl_size,
+                sweep_flr, new_current_bgc_sweep_flr, signed_new_current_bgc_sweep_flr,
+                current_gen_calc->alloc_to_trigger, current_gen_calc->actual_alloc_to_trigger));
+
+            current_gen_calc->actual_alloc_to_trigger = current_gen_calc->alloc_to_trigger;
+            current_gen_calc->current_bgc_sweep_flr = new_current_bgc_sweep_flr;
+
+            // TODO: NOTE this is duplicated in calculate_tuning except I am not * 100.0 here.
+            size_t current_bgc_surv_size = get_total_surv_size (gen_number);
+            size_t current_bgc_begin_data_size = get_total_begin_data_size (gen_number);
+            double current_bgc_surv_rate = (current_bgc_begin_data_size == 0) ? 
+                                            0 : ((double)current_bgc_surv_size / (double)current_bgc_begin_data_size);
+
+            size_t remaining_alloc_surv = (size_t)((double)remaining_alloc * current_bgc_surv_rate);
+            physical_fl_size -= remaining_alloc_surv;
+            dprintf (BGC_TUNING_LOG, ("BTL%d: asfl %Id-%Id=%Id, flr %.3f->%.3f, %.3f%% s, fl %Id-%Id->%Id",
+                gen_number, sweep_fl_size, remaining_alloc, new_sweep_fl_size,
+                sweep_flr, current_gen_calc->current_bgc_sweep_flr,
+                (current_bgc_surv_rate * 100.0),
+                (physical_fl_size + remaining_alloc_surv),
+                remaining_alloc_surv, physical_fl_size));
+        }
+    }
+
+    double physical_gen_flr = (double)physical_fl_size * 100.0 / (double)physical_size;
+    data->gen_physical_size = physical_size;
+    data->gen_physical_fl_size = physical_fl_size;
+    data->gen_physical_flr = physical_gen_flr;
+}
+
+void gc_heap::bgc_tuning::calc_end_bgc_fl (int gen_number)
+{
+    int index = gen_number - max_generation;
+    bgc_size_data* data = &current_bgc_end_data[index];
+    
+    tuning_calculation* current_gen_calc = &gen_calc[gen_number - max_generation];
+
+    size_t virtual_size = current_gen_calc->end_gen_size_goal;
+    size_t physical_size = data->gen_physical_size;
+    ptrdiff_t physical_fl_size = data->gen_physical_fl_size;
+    ptrdiff_t virtual_fl_size = (ptrdiff_t)virtual_size - (ptrdiff_t)physical_size;
+    ptrdiff_t end_gen_fl_size = physical_fl_size + virtual_fl_size;
+
+    if (end_gen_fl_size < 0)
+    {
+        end_gen_fl_size = 0;
+    }
+
+    data->gen_size = virtual_size;
+    data->gen_fl_size = end_gen_fl_size;
+    data->gen_flr = (double)(data->gen_fl_size) * 100.0 / (double)(data->gen_size);
+
+    dprintf (BGC_TUNING_LOG, ("BTL%d: vfl: %Id, size %Id->%Id, fl %Id->%Id, flr %.3f->%.3f", 
+        gen_number, virtual_fl_size, 
+        data->gen_physical_size, data->gen_size,
+        data->gen_physical_fl_size, data->gen_fl_size,
+        data->gen_physical_flr, data->gen_flr));
+}
+
+// reduce_p is for NGC2s. we want to reduce the ki so we don't overshoot.
+double gc_heap::bgc_tuning::calculate_ml_tuning (uint64_t current_available_physical, bool reduce_p, ptrdiff_t* _vfl_from_kp, ptrdiff_t* _vfl_from_ki)
+{
+    ptrdiff_t error = (ptrdiff_t)(current_available_physical - available_memory_goal);
+
+    // This is questionable as gen0/1 and other processes are consuming memory 
+    // too
+    size_t gen2_physical_size = current_bgc_end_data[0].gen_physical_size;
+    size_t gen3_physical_size = current_bgc_end_data[1].gen_physical_size;
+
+    double max_output = (double)(total_physical_mem - available_memory_goal -
+                                 gen2_physical_size - gen3_physical_size);
+
+    double error_ratio = (double)error / (double)total_physical_mem;
+
+    // do we want this to contribute to the integral term?
+    bool include_in_i_p = ((error_ratio > 0.005) || (error_ratio < -0.005));
+
+    dprintf (BGC_TUNING_LOG, ("total phy %Id, mem goal: %Id, curr phy: %Id, g2 phy: %Id, g3 phy: %Id",
+            (size_t)total_physical_mem, (size_t)available_memory_goal, 
+            (size_t)current_available_physical,
+            gen2_physical_size - gen3_physical_size));
+    dprintf (BGC_TUNING_LOG, ("BTL: Max output: %Id, ER %Id / %Id = %.3f, %s", 
+            (size_t)max_output,
+            error, available_memory_goal, error_ratio, 
+            (include_in_i_p ? "inc" : "exc")));
+
+    if (include_in_i_p)
+    {
+        double error_ki = ml_ki * (double)error;
+        double temp_accu_error = accu_error + error_ki;
+        // anti-windup
+        if ((temp_accu_error > 0) && (temp_accu_error < max_output))
+            accu_error = temp_accu_error;
+        else
+        {
+            //dprintf (BGC_TUNING_LOG, ("ml accu err + %Id=%Id, exc",
+            dprintf (BGC_TUNING_LOG, ("mae + %Id=%Id, exc",
+                    (size_t)error_ki, (size_t)temp_accu_error));
+        }
+    }
+
+    if (reduce_p)
+    {
+        double saved_accu_error = accu_error;
+        accu_error = accu_error * 2.0 / 3.0;
+        panic_activated_p = false;
+        accu_error_panic = 0;
+        dprintf (BGC_TUNING_LOG, ("BTL reduced accu ki %Id->%Id", (ptrdiff_t)saved_accu_error, (ptrdiff_t)accu_error));
+    }
+
+    if (panic_activated_p)
+        accu_error_panic += (double)error;
+    else
+        accu_error_panic = 0.0;
+
+    double vfl_from_kp = (double)error * ml_kp;
+    double total_virtual_fl_size = vfl_from_kp + accu_error;
+    // limit output
+    if (total_virtual_fl_size < 0)
+    {
+        dprintf (BGC_TUNING_LOG, ("BTL vfl %Id < 0", (size_t)total_virtual_fl_size));
+        total_virtual_fl_size = 0;
+    }
+    else if (total_virtual_fl_size > max_output)
+    {
+        dprintf (BGC_TUNING_LOG, ("BTL vfl %Id > max", (size_t)total_virtual_fl_size));
+        total_virtual_fl_size = max_output;
+    }
+
+    *_vfl_from_kp = (ptrdiff_t)vfl_from_kp;
+    *_vfl_from_ki = (ptrdiff_t)accu_error;
+    return total_virtual_fl_size;
+}
+
+void gc_heap::bgc_tuning::set_total_gen_sizes (bool use_gen2_loop_p, bool use_gen3_loop_p)
+{
+    size_t gen2_physical_size = current_bgc_end_data[0].gen_physical_size;
+    size_t gen3_physical_size = 0;
+    ptrdiff_t gen3_virtual_fl_size = 0;
+    gen3_physical_size = current_bgc_end_data[1].gen_physical_size;
+    double gen2_size_ratio = (double)gen2_physical_size / ((double)gen2_physical_size + (double)gen3_physical_size);
+
+    // We know how far we are from the memory load goal, assuming that the memory is only
+    // used by gen2/3 (which is obviously not the case, but that's why we are not setting the
+    // memory goal at 90+%. Assign the memory proportionally to them.
+    //
+    // We use entry memory load info because that seems to be more closedly correlated to what the VMM decides
+    // in memory load.
+    uint32_t current_memory_load = settings.entry_memory_load;
+    uint64_t current_available_physical = settings.entry_available_physical_mem;
+
+    panic_activated_p = (current_memory_load >= (memory_load_goal + memory_load_goal_slack));
+
+    if (panic_activated_p)
+    {
+        dprintf (BGC_TUNING_LOG, ("BTL: exceeded slack %Id >= (%Id + %Id)", 
+            (size_t)current_memory_load, (size_t)memory_load_goal, 
+            (size_t)memory_load_goal_slack));
+    }
+
+    ptrdiff_t vfl_from_kp = 0;
+    ptrdiff_t vfl_from_ki = 0;
+    double total_virtual_fl_size = calculate_ml_tuning (current_available_physical, false, &vfl_from_kp, &vfl_from_ki);
+
+    if (use_gen2_loop_p || use_gen3_loop_p)
+    {
+        if (use_gen2_loop_p)
+        {
+            gen2_ratio_correction += ratio_correction_step;
+        }
+        else
+        {
+            gen2_ratio_correction -= ratio_correction_step;
+        }
+
+        dprintf (BGC_TUNING_LOG, ("BTL: rc: g2 ratio %.3f%% + %d%% = %.3f%%", 
+            (gen2_size_ratio * 100.0), (int)(gen2_ratio_correction * 100.0), ((gen2_size_ratio + gen2_ratio_correction) * 100.0)));
+
+        gen2_ratio_correction = min (0.99, gen2_ratio_correction);
+        gen2_ratio_correction = max (-0.99, gen2_ratio_correction);
+
+        dprintf (BGC_TUNING_LOG, ("BTL: rc again: g2 ratio %.3f%% + %d%% = %.3f%%", 
+            (gen2_size_ratio * 100.0), (int)(gen2_ratio_correction * 100.0), ((gen2_size_ratio + gen2_ratio_correction) * 100.0)));
+
+        gen2_size_ratio += gen2_ratio_correction;
+
+        if (gen2_size_ratio <= 0.0)
+        {
+            gen2_size_ratio = 0.01;
+            dprintf (BGC_TUNING_LOG, ("BTL: rc: g2 ratio->0.01"));
+        }
+
+        if (gen2_size_ratio >= 1.0)
+        {
+            gen2_size_ratio = 0.99;
+            dprintf (BGC_TUNING_LOG, ("BTL: rc: g2 ratio->0.99"));
+        }
+    }
+
+    ptrdiff_t gen2_virtual_fl_size = (ptrdiff_t)(total_virtual_fl_size * gen2_size_ratio);
+    gen3_virtual_fl_size = (ptrdiff_t)(total_virtual_fl_size * (1.0 - gen2_size_ratio));
+    if (gen2_virtual_fl_size < 0)
+    {
+        ptrdiff_t saved_gen2_virtual_fl_size = gen2_virtual_fl_size;
+        ptrdiff_t half_gen2_physical_size = (ptrdiff_t)((double)gen2_physical_size * 0.5);
+        if (-gen2_virtual_fl_size > half_gen2_physical_size)
+        {
+            gen2_virtual_fl_size = -half_gen2_physical_size;
+        }
+
+        dprintf (BGC_TUNING_LOG, ("BTL2: n_vfl %Id(%Id)->%Id", saved_gen2_virtual_fl_size, half_gen2_physical_size, gen2_virtual_fl_size));
+        gen2_virtual_fl_size = 0;
+    }
+
+    if (gen3_virtual_fl_size < 0)
+    {
+        ptrdiff_t saved_gen3_virtual_fl_size = gen3_virtual_fl_size;
+        ptrdiff_t half_gen3_physical_size = (ptrdiff_t)((double)gen3_physical_size * 0.5);
+        if (-gen3_virtual_fl_size > half_gen3_physical_size)
+        {
+            gen3_virtual_fl_size = -half_gen3_physical_size;
+        }
+
+        dprintf (BGC_TUNING_LOG, ("BTL3: n_vfl %Id(%Id)->%Id", saved_gen3_virtual_fl_size, half_gen3_physical_size, gen3_virtual_fl_size));
+        gen3_virtual_fl_size = 0;
+    }
+
+    gen_calc[0].end_gen_size_goal = gen2_physical_size + gen2_virtual_fl_size;
+    gen_calc[1].end_gen_size_goal = gen3_physical_size + gen3_virtual_fl_size;
+
+    // We calculate the end info here because the ff in fl servo loop is using this.
+    calc_end_bgc_fl (max_generation);
+    calc_end_bgc_fl (max_generation + 1);
+
+#ifdef SIMPLE_DPRINTF
+    dprintf (BGC_TUNING_LOG, ("BTL: ml: %d (g: %d)(%s), a: %I64d (g: %I64d, elg: %Id+%Id=%Id, %Id+%Id=%Id, pi=%Id), vfl: %Id=%Id+%Id", 
+        current_memory_load, memory_load_goal, 
+        ((current_available_physical > available_memory_goal) ? "above" : "below"),
+        current_available_physical, available_memory_goal,
+        gen2_physical_size, gen2_virtual_fl_size, gen_calc[0].end_gen_size_goal,
+        gen3_physical_size, gen3_virtual_fl_size, gen_calc[1].end_gen_size_goal,
+        (ptrdiff_t)accu_error_panic,
+        (ptrdiff_t)total_virtual_fl_size, vfl_from_kp, vfl_from_ki));
+#endif //SIMPLE_DPRINTF
+}
+
+bool gc_heap::bgc_tuning::should_trigger_ngc2()
+{
+    return panic_activated_p;
+}
+
+// This is our outer ml servo loop where we calculate the control for the inner fl servo loop.
+void gc_heap::bgc_tuning::convert_to_fl (bool use_gen2_loop_p, bool use_gen3_loop_p)
+{
+    size_t current_bgc_count = full_gc_counts[gc_type_background];
+
+#ifdef MULTIPLE_HEAPS
+    for (int i = 0; i < gc_heap::n_heaps; i++)
+    {
+        gc_heap* hp = gc_heap::g_heaps[i];
+        hp->bgc_maxgen_end_fl_size = generation_free_list_space (hp->generation_of (max_generation));
+    }
+#else
+    bgc_maxgen_end_fl_size = generation_free_list_space (generation_of (max_generation));
+#endif //MULTIPLE_HEAPS
+
+    init_bgc_end_data (max_generation, use_gen2_loop_p);
+    init_bgc_end_data ((max_generation + 1), use_gen3_loop_p);
+    set_total_gen_sizes (use_gen2_loop_p, use_gen3_loop_p);
+
+    dprintf (BGC_TUNING_LOG, ("BTL: gen2 %Id, fl %Id(%.3f)->%Id; gen3 %Id, fl %Id(%.3f)->%Id, %Id BGCs",
+        current_bgc_end_data[0].gen_size, current_bgc_end_data[0].gen_fl_size, 
+        current_bgc_end_data[0].gen_flr, gen_calc[0].end_gen_size_goal,
+        current_bgc_end_data[1].gen_size, current_bgc_end_data[1].gen_fl_size, 
+        current_bgc_end_data[1].gen_flr, gen_calc[1].end_gen_size_goal,
+        current_bgc_count));
+}
+
+void gc_heap::bgc_tuning::record_and_adjust_bgc_end()
+{
+    if (!bgc_tuning::enable_fl_tuning)
+        return;
+
+    size_t elapsed_time_so_far = GetHighPrecisionTimeStamp() - start_time;
+    size_t current_gen1_index = get_current_gc_index (max_generation - 1);
+    dprintf (BGC_TUNING_LOG, ("BTL: g2t[en][g1 %Id]: %0.3f minutes", 
+        current_gen1_index,
+        (double)elapsed_time_so_far / (double)1000 / (double)60));
+
+    if (fl_tuning_triggered)
+    {
+        num_bgcs_since_tuning_trigger++;
+    }
+
+    bool use_gen2_loop_p = (settings.reason == reason_bgc_tuning_soh);
+    bool use_gen3_loop_p = (settings.reason == reason_bgc_tuning_loh);
+    dprintf (BGC_TUNING_LOG, ("BTL: reason: %d, gen2 loop: %s; gen3 loop: %s, promoted %Id bytes", 
+        (((settings.reason != reason_bgc_tuning_soh) && (settings.reason != reason_bgc_tuning_loh)) ? 
+            saved_bgc_tuning_reason : settings.reason),
+        (use_gen2_loop_p ? "yes" : "no"),
+        (use_gen3_loop_p ? "yes" : "no"),
+        get_total_bgc_promoted()));
+
+    convert_to_fl (use_gen2_loop_p, use_gen3_loop_p);
+
+    calculate_tuning (max_generation, true);
+
+    if (total_loh_a_last_bgc > 0)
+    {
+        calculate_tuning ((max_generation + 1), true);
+    }
+    else
+    {
+        dprintf (BGC_TUNING_LOG, ("BTL: gen3 not allocated"));
+    }
+
+    if (next_bgc_p)
+    {
+        next_bgc_p = false;
+        fl_tuning_triggered = true;
+        dprintf (BGC_TUNING_LOG, ("BTL: FL tuning ENABLED!!!"));
+    }
+
+    saved_bgc_tuning_reason = -1;
+}
+#endif //BGC_SERVO_TUNING
 #endif //BACKGROUND_GC
 
 //Clear the cards [start_card, end_card[
@@ -28593,6 +30184,9 @@ BOOL gc_heap::find_card(uint32_t* card_table,
     uint32_t card_word_value;
     uint32_t bit_position;
     
+    if (card_word (card) >= card_word_end)
+        return FALSE;
+
     // Find the first card which is set
     last_card_word = &card_table [card_word (card)];
     bit_position = card_bit (card);
@@ -28658,12 +30252,12 @@ BOOL gc_heap::find_card(uint32_t* card_table,
         // If we reach the end of the card word and haven't hit a 0 yet, start going
         // card word by card word until we get to one that's not fully set (0xFFFF...)
         // or we reach card_word_end.
-        if ((bit_position == card_word_width) && (last_card_word < &card_table [card_word_end]))
+        if ((bit_position == card_word_width) && (last_card_word < &card_table [card_word_end-1]))
         {
             do
             {
                 card_word_value = *(++last_card_word);
-            } while ((last_card_word < &card_table [card_word_end]) &&
+            } while ((last_card_word < &card_table [card_word_end-1]) &&
                      (card_word_value == ~0u /* (1 << card_word_width)-1 */));
             bit_position = 0;
         }
@@ -28741,13 +30335,18 @@ inline void
 gc_heap::mark_through_cards_helper (uint8_t** poo, size_t& n_gen,
                                     size_t& cg_pointers_found,
                                     card_fn fn, uint8_t* nhigh,
-                                    uint8_t* next_boundary)
+                                    uint8_t* next_boundary
+                                    CARD_MARKING_STEALING_ARG(gc_heap* hpt))
 {
+#if defined(FEATURE_CARD_MARKING_STEALING) && defined(MULTIPLE_HEAPS)
+    int thread = hpt->heap_number;
+#else
     THREAD_FROM_HEAP;
+#endif
     if ((gc_low <= *poo) && (gc_high > *poo))
     {
         n_gen++;
-        call_fn(fn) (poo THREAD_NUMBER_ARG);
+        call_fn(hpt,fn) (poo THREAD_NUMBER_ARG);
     }
 #ifdef MULTIPLE_HEAPS
     else if (*poo)
@@ -28759,7 +30358,7 @@ gc_heap::mark_through_cards_helper (uint8_t** poo, size_t& n_gen,
                 (hp->gc_high > *poo))
             {
                 n_gen++;
-                call_fn(fn) (poo THREAD_NUMBER_ARG);
+                call_fn(hpt,fn) (poo THREAD_NUMBER_ARG);
             }
             if ((fn == &gc_heap::relocate_address) ||
                 ((hp->ephemeral_low <= *poo) &&
@@ -28784,7 +30383,8 @@ BOOL gc_heap::card_transition (uint8_t* po, uint8_t* end, size_t card_word_end,
                                size_t& n_eph, size_t& n_card_set,
                                size_t& card, size_t& end_card,
                                BOOL& foundp, uint8_t*& start_address,
-                               uint8_t*& limit, size_t& n_cards_cleared)
+                               uint8_t*& limit, size_t& n_cards_cleared
+                               CARD_MARKING_STEALING_ARGS(card_marking_enumerator& card_mark_enumerator, heap_segment* seg, size_t &card_word_end_out))
 {
     dprintf (3, ("pointer %Ix past card %Ix", (size_t)po, (size_t)card));
     dprintf (3, ("ct: %Id cg", cg_pointers_found));
@@ -28820,14 +30420,114 @@ BOOL gc_heap::card_transition (uint8_t* po, uint8_t* end, size_t card_word_end,
         }
         limit = min (end, card_address (end_card));
 
-        assert (!((limit == card_address (end_card))&&
+#ifdef FEATURE_CARD_MARKING_STEALING
+        // the card bit @ end_card should not be set
+        // if end_card is still shy of the limit set by card_word_end
+        assert(!((card_word(end_card) < card_word_end) &&
+            card_set_p(end_card)));
+        if (!foundp)
+        {
+            card_word_end_out = 0;
+            foundp = find_next_chunk(card_mark_enumerator, seg, n_card_set, start_address, limit, card, end_card, card_word_end_out);
+        }
+#else
+        // the card bit @ end_card should not be set -
+        // find_card is supposed to terminate only when it finds a 0 bit
+        // or the end of the segment
+        assert (!((limit < end) &&
                 card_set_p (end_card)));
+#endif
     }
 
     return passed_end_card_p;
 }
 
-void gc_heap::mark_through_cards_for_segments (card_fn fn, BOOL relocating)
+#ifdef FEATURE_CARD_MARKING_STEALING
+bool card_marking_enumerator::move_next(heap_segment* seg, uint8_t*& low, uint8_t*& high)
+{
+    if (segment == nullptr)
+        return false;
+
+    uint32_t chunk_index = old_chunk_index;
+    old_chunk_index = INVALID_CHUNK_INDEX;
+    if (chunk_index == INVALID_CHUNK_INDEX)
+        chunk_index = Interlocked::Increment((volatile int32_t *)chunk_index_counter);
+
+    while (true)
+    {
+        uint32_t chunk_index_within_seg = chunk_index - segment_start_chunk_index;
+
+        uint8_t* start = heap_segment_mem(segment);
+        uint8_t* end = compute_next_end(segment, gc_low);
+
+        uint8_t* aligned_start = (uint8_t*)((size_t)start & ~(CARD_MARKING_STEALING_GRANULARITY - 1));
+        size_t seg_size = end - aligned_start;
+        uint32_t chunk_count_within_seg = (uint32_t)((seg_size + (CARD_MARKING_STEALING_GRANULARITY - 1)) / CARD_MARKING_STEALING_GRANULARITY);
+        if (chunk_index_within_seg < chunk_count_within_seg)
+        {
+            if (seg == segment)
+            {
+                low = (chunk_index_within_seg == 0) ? start : (aligned_start + (size_t)chunk_index_within_seg * CARD_MARKING_STEALING_GRANULARITY);
+                high = (chunk_index_within_seg + 1 == chunk_count_within_seg) ? end : (aligned_start + (size_t)(chunk_index_within_seg + 1) * CARD_MARKING_STEALING_GRANULARITY);
+                chunk_high = high;
+                return true;
+            }
+            else
+            {
+                // we found the correct segment, but it's not the segment our caller is in
+
+                // our caller should still be in the previous segment
+                assert(heap_segment_next_in_range(seg) == segment);
+
+                // keep the chunk index for later
+                old_chunk_index = chunk_index;
+                return false;
+            }
+        }
+
+        segment = heap_segment_next_in_range(segment);
+        if (segment == nullptr)
+        {
+            return false;
+        }
+        segment_start_chunk_index += chunk_count_within_seg;
+    }
+}
+
+bool gc_heap::find_next_chunk(card_marking_enumerator& card_mark_enumerator, heap_segment* seg, size_t& n_card_set,
+    uint8_t*& start_address, uint8_t*& limit,
+    size_t& card, size_t& end_card, size_t& card_word_end)
+{
+    while (true)
+    {
+        if (card_word_end != 0 && find_card(card_table, card, card_word_end, end_card))
+        {
+            assert(end_card <= card_word_end * card_word_width);
+            n_card_set += end_card - card;
+            start_address = card_address(card);
+            dprintf(3, ("NewC: %Ix, start: %Ix, end: %Ix",
+                (size_t)card, (size_t)start_address,
+                (size_t)card_address(end_card)));
+            limit = min(card_mark_enumerator.get_chunk_high(), card_address(end_card));
+            dprintf (3, ("New run of cards on heap %d: [%Ix,%Ix[", heap_number, (size_t)start_address, (size_t)limit));
+            return true;
+        }
+        // we have exhausted this chunk, get the next one
+        uint8_t* chunk_low = nullptr;
+        uint8_t* chunk_high = nullptr;
+        if (!card_mark_enumerator.move_next(seg, chunk_low, chunk_high))
+        {
+            dprintf (3, ("No more chunks on heap %d\n", heap_number));
+            return false;
+        }
+        card = card_of (chunk_low);
+        card_word_end = (card_of(align_on_card_word(chunk_high)) / card_word_width);
+        dprintf (3, ("Moved to next chunk on heap %d: [%Ix,%Ix[", heap_number, (size_t)chunk_low, (size_t)chunk_high));
+    }
+}
+#endif // FEATURE_CARD_MARKING_STEALING
+
+void gc_heap::mark_through_cards_for_segments (card_fn fn, BOOL relocating CARD_MARKING_STEALING_ARG(gc_heap* hpt))
 {
 #ifdef BACKGROUND_GC
     dprintf (3, ("current_sweep_pos is %Ix, saved_sweep_ephemeral_seg is %Ix(%Ix)",
@@ -28887,6 +30587,11 @@ void gc_heap::mark_through_cards_for_segments (card_fn fn, BOOL relocating)
     dprintf(3, ("CMs: %Ix->%Ix", (size_t)beg, (size_t)end));
     size_t total_cards_cleared = 0;
 
+#ifdef FEATURE_CARD_MARKING_STEALING
+    card_marking_enumerator card_mark_enumerator (seg, low, (VOLATILE(uint32_t)*)&card_mark_chunk_index_soh);
+    card_word_end = 0;
+#endif // FEATURE_CARD_MARKING_STEALING
+
     while (1)
     {
         if (card_of(last_object) > card)
@@ -28894,10 +30599,14 @@ void gc_heap::mark_through_cards_for_segments (card_fn fn, BOOL relocating)
             dprintf (3, ("Found %Id cg pointers", cg_pointers_found));
             if (cg_pointers_found == 0)
             {
-                dprintf(3,(" Clearing cards [%Ix, %Ix[ ", (size_t)card_address(card), (size_t)last_object));
-                clear_cards (card, card_of(last_object));
-                n_card_set -= (card_of (last_object) - card);
-                total_cards_cleared += (card_of (last_object) - card);
+                uint8_t* last_object_processed = last_object;
+#ifdef FEATURE_CARD_MARKING_STEALING
+                last_object_processed = min(limit, last_object);
+#endif // FEATURE_CARD_MARKING_STEALING
+                dprintf (3, (" Clearing cards [%Ix, %Ix[ ", (size_t)card_address(card), (size_t)last_object_processed));
+                clear_cards(card, card_of(last_object_processed));
+                n_card_set -= (card_of(last_object_processed) - card);
+                total_cards_cleared += (card_of(last_object_processed) - card);
             }
 
             n_eph += cg_pointers_found;
@@ -28907,13 +30616,18 @@ void gc_heap::mark_through_cards_for_segments (card_fn fn, BOOL relocating)
 
         if (card >= end_card)
         {
-            foundp = find_card (card_table, card, card_word_end, end_card);
+#ifdef FEATURE_CARD_MARKING_STEALING
+            // find another chunk with some cards set
+            foundp = find_next_chunk(card_mark_enumerator, seg, n_card_set, start_address, limit, card, end_card, card_word_end);
+#else // FEATURE_CARD_MARKING_STEALING
+            foundp = find_card(card_table, card, card_word_end, end_card);
             if (foundp)
             {
                 n_card_set += end_card - card;
                 start_address = max (beg, card_address (card));
             }
             limit = min (end, card_address (end_card));
+#endif // FEATURE_CARD_MARKING_STEALING
         }
         if (!foundp || (last_object >= end) || (card_address (card) >= end))
         {
@@ -28927,6 +30641,10 @@ void gc_heap::mark_through_cards_for_segments (card_fn fn, BOOL relocating)
             }
             n_eph += cg_pointers_found;
             cg_pointers_found = 0;
+#ifdef FEATURE_CARD_MARKING_STEALING
+            // we have decided to move to the next segment - make sure we exhaust the chunk enumerator for this segment
+            card_mark_enumerator.exhaust_segment(seg);
+#endif // FEATURE_CARD_MARKING_STEALING
             if ((seg = heap_segment_next_in_range (seg)) != 0)
             {
 #ifdef BACKGROUND_GC
@@ -28934,7 +30652,11 @@ void gc_heap::mark_through_cards_for_segments (card_fn fn, BOOL relocating)
 #endif //BACKGROUND_GC
                 beg = heap_segment_mem (seg);
                 end = compute_next_end (seg, low);
+#ifdef FEATURE_CARD_MARKING_STEALING
+                card_word_end = 0;
+#else // FEATURE_CARD_MARKING_STEALING
                 card_word_end = card_of (align_on_card_word (end)) / card_word_width;
+#endif // FEATURE_CARD_MARKING_STEALING
                 card = card_of (beg);
                 last_object = beg;
                 end_card = 0;
@@ -28963,7 +30685,12 @@ void gc_heap::mark_through_cards_for_segments (card_fn fn, BOOL relocating)
                 assert (Align (size (o)) >= Align (min_obj_size));
                 size_t s = size (o);
 
+                // next_o is the next object in the heap walk
                 uint8_t* next_o =  o + Align (s);
+
+                // while cont_o is the object we should continue with at the end_object label
+                uint8_t* cont_o = next_o;
+
                 Prefetch (next_o);
 
                 if ((o >= gen_boundary) &&
@@ -29004,7 +30731,8 @@ void gc_heap::mark_through_cards_for_segments (card_fn fn, BOOL relocating)
                             n_eph, n_card_set,
                             card, end_card,
                             foundp, start_address,
-                            limit, total_cards_cleared);
+                            limit, total_cards_cleared
+                            CARD_MARKING_STEALING_ARGS(card_mark_enumerator, seg, card_word_end));
                     }
 
                     if ((!passed_end_card_p || foundp) && (card_of (o) == card))
@@ -29018,8 +30746,8 @@ void gc_heap::mark_through_cards_for_segments (card_fn fn, BOOL relocating)
                         {
                             uint8_t* class_obj = get_class_object (o);
                             mark_through_cards_helper (&class_obj, n_gen,
-                                                    cg_pointers_found, fn,
-                                                    nhigh, next_boundary);
+                                                       cg_pointers_found, fn,
+                                                       nhigh, next_boundary CARD_MARKING_STEALING_ARG(hpt));
                         }
                     }
 
@@ -29031,7 +30759,7 @@ void gc_heap::mark_through_cards_for_segments (card_fn fn, BOOL relocating)
                         }
                         else if (foundp && (start_address < limit))
                         {
-                            next_o = find_first_object (start_address, o);
+                            cont_o = find_first_object (start_address, o);
                             goto end_object;
                         }
                         else
@@ -29055,18 +30783,19 @@ go_through_refs:
                                  dprintf (4, ("<%Ix>:%Ix", (size_t)poo, (size_t)*poo));
                                  if (card_of ((uint8_t*)poo) > card)
                                  {
-                                    BOOL passed_end_card_p  = card_transition ((uint8_t*)poo, end,
+                                     BOOL passed_end_card_p  = card_transition ((uint8_t*)poo, end,
                                             card_word_end,
                                             cg_pointers_found, 
                                             n_eph, n_card_set,
                                             card, end_card,
                                             foundp, start_address,
-                                            limit, total_cards_cleared);
-
+                                            limit, total_cards_cleared
+                                            CARD_MARKING_STEALING_ARGS(card_mark_enumerator, seg, card_word_end));
+                                    
                                      if (passed_end_card_p)
                                      {
-                                        if (foundp && (card_address (card) < next_o))
-                                        {
+                                         if (foundp && (card_address (card) < next_o))
+                                         {
                                              //new_start();
                                              {
                                                  if (ppstop <= (uint8_t**)start_address)
@@ -29074,20 +30803,20 @@ go_through_refs:
                                                  else if (poo < (uint8_t**)start_address)
                                                      {poo = (uint8_t**)start_address;}
                                              }
-                                        }
-                                        else if (foundp && (start_address < limit))
-                                        {
-                                            next_o = find_first_object (start_address, o);
-                                            goto end_object;
-                                        }
+                                         }
+                                         else if (foundp && (start_address < limit))
+                                         {
+                                             cont_o = find_first_object (start_address, o);
+                                             goto end_object;
+                                         }
                                          else
-                                            goto end_limit;
+                                             goto end_limit;
                                      }
                                  }
 
                                  mark_through_cards_helper (poo, n_gen,
                                                             cg_pointers_found, fn,
-                                                            nhigh, next_boundary);
+                                                            nhigh, next_boundary CARD_MARKING_STEALING_ARG(hpt));
                              }
                             );
                     }
@@ -29099,7 +30828,7 @@ go_through_refs:
                     if (brick_table [brick_of (o)] <0)
                         fix_brick_to_highest (o, next_o);
                 }
-                o = next_o;
+                o = cont_o;
             }
         end_limit:
             last_object = o;
@@ -30776,6 +32505,7 @@ size_t gc_heap::desired_new_allocation (dynamic_data* dd,
         size_t    max_size = dd_max_size (dd);
         size_t    new_allocation = 0;
         float allocation_fraction = (float) (dd_desired_allocation (dd) - dd_gc_new_allocation (dd)) / (float) (dd_desired_allocation (dd));
+
         if (gen_number >= max_generation)
         {
             size_t    new_size = 0;
@@ -30802,7 +32532,11 @@ size_t gc_heap::desired_new_allocation (dynamic_data* dd,
                 new_allocation = linear_allocation_model (allocation_fraction, new_allocation, 
                                                           dd_desired_allocation (dd), dd_collection_count (dd));
 
-                if ((dd_fragmentation (dd) > ((size_t)((f-1)*current_size))))
+                if (
+#ifdef BGC_SERVO_TUNING
+                    !bgc_tuning::fl_tuning_triggered &&
+#endif //BGC_SERVO_TUNING
+                    (dd_fragmentation (dd) > ((size_t)((f-1)*current_size))))
                 {
                     //reducing allocation in case of fragmentation
                     size_t new_allocation1 = max (min_gc_size,
@@ -31923,12 +33657,6 @@ void reset_memory (uint8_t* o, size_t sizeo)
     }
 }
 
-void gc_heap::reset_large_object (uint8_t* o)
-{
-    // If it's a large object, allow the O/S to discard the backing store for these pages.
-    reset_memory (o, size(o));
-}
-
 BOOL gc_heap::large_object_marked (uint8_t* o, BOOL clearp)
 {
     BOOL m = FALSE;
@@ -32503,6 +34231,7 @@ void gc_heap::background_sweep()
         generation_free_list_allocated (gen_to_reset) = 0;
         generation_end_seg_allocated (gen_to_reset) = 0;
         generation_condemned_allocated (gen_to_reset) = 0; 
+        generation_sweep_allocated (gen_to_reset) = 0; 
         //reset the allocation so foreground gc can allocate into older generation
         generation_allocation_pointer (gen_to_reset)= 0;
         generation_allocation_limit (gen_to_reset) = 0;
@@ -32553,6 +34282,9 @@ void gc_heap::background_sweep()
 
     if (heap_number == 0)
     {
+#ifdef BGC_SERVO_TUNING
+        get_and_reset_loh_alloc_info();
+#endif //BGC_SERVO_TUNING
         restart_EE ();
     }
 
@@ -32835,6 +34567,15 @@ void gc_heap::background_sweep()
         // this state can live with per heap state like should_check_bgc_mark.
         current_c_gc_state = c_gc_state_free;
 
+#ifdef BGC_SERVO_TUNING
+        if (bgc_tuning::enable_fl_tuning)
+        {
+            enter_spin_lock (&gc_lock);
+            bgc_tuning::record_and_adjust_bgc_end();
+            leave_spin_lock (&gc_lock);
+        }
+#endif //BGC_SERVO_TUNING
+
 #ifdef MULTIPLE_HEAPS
         dprintf(2, ("Starting BGC threads after background sweep phase"));
         bgc_t_join.restart();
@@ -33004,7 +34745,8 @@ void gc_heap::relocate_in_large_objects ()
 }
 
 void gc_heap::mark_through_cards_for_large_objects (card_fn fn,
-                                                    BOOL relocating)
+                                                    BOOL relocating
+                                                    CARD_MARKING_STEALING_ARG(gc_heap* hpt))
 {
     uint8_t*      low               = gc_low;
     size_t        end_card          = 0;
@@ -33046,6 +34788,11 @@ void gc_heap::mark_through_cards_for_large_objects (card_fn fn,
 
     size_t total_cards_cleared = 0;
 
+#ifdef FEATURE_CARD_MARKING_STEALING
+    card_marking_enumerator card_mark_enumerator(seg, low, (VOLATILE(uint32_t)*) & card_mark_chunk_index_loh);
+    card_word_end = 0;
+#endif // FEATURE_CARD_MARKING_STEALING
+
     //dprintf(3,( "scanning large objects from %Ix to %Ix", (size_t)beg, (size_t)end));
     dprintf(3, ("CMl: %Ix->%Ix", (size_t)beg, (size_t)end));
     while (1)
@@ -33055,9 +34802,13 @@ void gc_heap::mark_through_cards_for_large_objects (card_fn fn,
             dprintf (3, ("Found %Id cg pointers", cg_pointers_found));
             if (cg_pointers_found == 0)
             {
-                dprintf(3,(" Clearing cards [%Ix, %Ix[ ", (size_t)card_address(card), (size_t)o));
-                clear_cards (card, card_of((uint8_t*)o));
-                total_cards_cleared += (card_of((uint8_t*)o) - card);
+                uint8_t* last_object_processed = o;
+#ifdef FEATURE_CARD_MARKING_STEALING
+                last_object_processed = min(limit, o);
+#endif // FEATURE_CARD_MARKING_STEALING
+                dprintf (3, (" Clearing cards [%Ix, %Ix[ ", (size_t)card_address(card), (size_t)last_object_processed));
+                clear_cards (card, card_of((uint8_t*)last_object_processed));
+                total_cards_cleared += (card_of((uint8_t*)last_object_processed) - card);
             }
             n_eph +=cg_pointers_found;
             cg_pointers_found = 0;
@@ -33065,6 +34816,10 @@ void gc_heap::mark_through_cards_for_large_objects (card_fn fn,
         }
         if ((o < end) &&(card >= end_card))
         {
+#ifdef FEATURE_CARD_MARKING_STEALING
+            // find another chunk with some cards set
+            foundp = find_next_chunk(card_mark_enumerator, seg, n_card_set, start_address, limit, card, end_card, card_word_end);
+#else // FEATURE_CARD_MARKING_STEALING
             foundp = find_card (card_table, card, card_word_end, end_card);
             if (foundp)
             {
@@ -33072,6 +34827,7 @@ void gc_heap::mark_through_cards_for_large_objects (card_fn fn,
                 start_address = max (beg, card_address (card));
             }
             limit = min (end, card_address (end_card));
+#endif  // FEATURE_CARD_MARKING_STEALING
         }
         if ((!foundp) || (o >= end) || (card_address (card) >= end))
         {
@@ -33084,6 +34840,10 @@ void gc_heap::mark_through_cards_for_large_objects (card_fn fn,
             }
             n_eph +=cg_pointers_found;
             cg_pointers_found = 0;
+#ifdef FEATURE_CARD_MARKING_STEALING
+            // we have decided to move to the next segment - make sure we exhaust the chunk enumerator for this segment
+            card_mark_enumerator.exhaust_segment(seg);
+#endif // FEATURE_CARD_MARKING_STEALING
             if ((seg = heap_segment_next_rw (seg)) != 0)
             {
 #ifdef BACKGROUND_GC
@@ -33091,7 +34851,11 @@ void gc_heap::mark_through_cards_for_large_objects (card_fn fn,
 #endif //BACKGROUND_GC
                 beg = heap_segment_mem (seg);
                 end = compute_next_end (seg, low);
+#ifdef FEATURE_CARD_MARKING_STEALING
+                card_word_end = 0;
+#else // FEATURE_CARD_MARKING_STEALING
                 card_word_end = card_of (align_on_card_word (end)) / card_word_width;
+#endif // FEATURE_CARD_MARKING_STEALING
                 card = card_of (beg);
                 o  = beg;
                 end_card = 0;
@@ -33145,7 +34909,8 @@ void gc_heap::mark_through_cards_for_large_objects (card_fn fn,
                             n_eph, n_card_set,
                             card, end_card,
                             foundp, start_address,
-                            limit, total_cards_cleared);
+                            limit, total_cards_cleared
+                            CARD_MARKING_STEALING_ARGS(card_mark_enumerator, seg, card_word_end));
                     }
 
                     if ((!passed_end_card_p || foundp) && (card_of (o) == card))
@@ -33159,8 +34924,8 @@ void gc_heap::mark_through_cards_for_large_objects (card_fn fn,
                         {
                             uint8_t* class_obj = get_class_object (o);
                             mark_through_cards_helper (&class_obj, n_gen,
-                                                    cg_pointers_found, fn,
-                                                    nhigh, next_boundary);
+                                                       cg_pointers_found, fn,
+                                                       nhigh, next_boundary CARD_MARKING_STEALING_ARG(hpt));
                         }
                     }
 
@@ -33195,7 +34960,8 @@ go_through_refs:
                                         n_eph, n_card_set,
                                         card, end_card,
                                         foundp, start_address,
-                                        limit, total_cards_cleared);
+                                        limit, total_cards_cleared
+                                        CARD_MARKING_STEALING_ARGS(card_mark_enumerator, seg, card_word_end));
 
                                 if (passed_end_card_p)
                                 {
@@ -33218,7 +34984,7 @@ go_through_refs:
 
                            mark_through_cards_helper (poo, n_gen,
                                                       cg_pointers_found, fn,
-                                                      nhigh, next_boundary);
+                                                      nhigh, next_boundary CARD_MARKING_STEALING_ARG(hpt));
                        }
                         );
                 }
@@ -34737,6 +36503,7 @@ HRESULT GCHeap::Initialize()
     HRESULT hr = S_OK;
 
     qpf = GCToOSInterface::QueryPerformanceFrequency();
+    start_time = GetHighPrecisionTimeStamp();
 
     g_gc_pFreeObjectMethodTable = GCToEEInterface::GetFreeObjectMethodTable();
     g_num_processors = GCToOSInterface::GetTotalProcessorCount();
@@ -35771,9 +37538,9 @@ GCHeap::AllocLHeap( size_t size, uint32_t flags REQD_ALIGN_DCL)
     finish = GetCycleCount32();
 #elif defined(ENABLE_INSTRUMENTATION)
     finish = GetInstLogTime();
-#endif //COUNT_CYCLES
     AllocDuration += finish - AllocStart;
     AllocCount++;
+#endif //COUNT_CYCLES
 #endif //TRACE_GC
     return newAlloc;
 }
@@ -36290,6 +38057,147 @@ BOOL gc_heap::should_do_sweeping_gc (BOOL compact_p)
 }
 #endif //GC_CONFIG_DRIVEN
 
+#ifdef BGC_SERVO_TUNING
+// virtual_fl_size is only used for NGC2
+void gc_heap::check_and_adjust_bgc_tuning (int gen_number, size_t physical_size, ptrdiff_t virtual_fl_size)
+{
+    // For LOH we need to check more often to catch things like when the size grows too much.
+    int min_gen_to_check = ((gen_number == max_generation) ? (max_generation - 1) : 0);
+
+    if (settings.condemned_generation >= min_gen_to_check)
+    {
+#ifdef MULTIPLE_HEAPS
+        gc_heap* hp = g_heaps[0];
+#else
+        gc_heap* hp = pGenGCHeap;
+#endif //MULTIPLE_HEAPS
+
+        size_t total_gen_size = physical_size;
+        size_t total_generation_fl_size = get_total_generation_fl_size (gen_number);
+        double gen_flr = (double)total_generation_fl_size * 100.0 / (double)total_gen_size;
+        size_t gen1_index = dd_collection_count (hp->dynamic_data_of (max_generation - 1));
+        size_t gen2_index = dd_collection_count (hp->dynamic_data_of (max_generation));
+
+        bgc_tuning::tuning_calculation* current_gen_calc = &bgc_tuning::gen_calc[gen_number - max_generation];
+        bgc_tuning::tuning_stats* current_gen_stats = &bgc_tuning::gen_stats[gen_number - max_generation];
+
+        bool gen_size_inc_p = (total_gen_size > current_gen_calc->last_bgc_size);
+        
+        if ((settings.condemned_generation >= min_gen_to_check) && 
+            (settings.condemned_generation != max_generation))
+        {
+            if (gen_size_inc_p)
+            {
+                current_gen_stats->last_gen_increase_flr = gen_flr;
+                dprintf (BGC_TUNING_LOG, ("BTLp[g1: %Id, g2: %Id]: gen%d size inc %s %Id->%Id, flr: %.3f",
+                        gen1_index, gen2_index, gen_number,
+                        (recursive_gc_sync::background_running_p() ? "during bgc" : ""),
+                        current_gen_stats->last_bgc_physical_size, total_gen_size, gen_flr));
+            }
+
+            if (!bgc_tuning::fl_tuning_triggered)
+            {
+                if (bgc_tuning::enable_fl_tuning)
+                {
+                    if (!((recursive_gc_sync::background_running_p() || (hp->current_bgc_state == bgc_initialized))))
+                    {
+                        assert (settings.entry_memory_load);
+
+                        // We start when we are 2/3 way there so we don't overshoot.
+                        if ((settings.entry_memory_load >= (bgc_tuning::memory_load_goal * 2 / 3)) &&
+                            (full_gc_counts[gc_type_background] >= 2))
+                        {
+                            bgc_tuning::next_bgc_p = true;
+                            current_gen_calc->first_alloc_to_trigger = get_total_servo_alloc (gen_number);
+                            dprintf (BGC_TUNING_LOG, ("BTL[g1: %Id] mem high enough: %d(goal: %d), gen%d fl alloc: %Id, trigger BGC!", 
+                                gen1_index, settings.entry_memory_load, bgc_tuning::memory_load_goal,
+                                gen_number, current_gen_calc->first_alloc_to_trigger));
+                        }
+                    }
+                }
+            }
+        }
+        
+        if ((settings.condemned_generation == max_generation) && !(settings.concurrent))
+        {
+            size_t total_survived = get_total_surv_size (gen_number);
+            size_t total_begin = get_total_begin_data_size (gen_number);
+            double current_gc_surv_rate = (double)total_survived * 100.0 / (double)total_begin;
+
+            // calculate the adjusted gen_flr.
+            double total_virtual_size = (double)physical_size + (double)virtual_fl_size;
+            double total_fl_size = (double)total_generation_fl_size + (double)virtual_fl_size;
+            double new_gen_flr = total_fl_size * 100.0 / total_virtual_size;
+
+            dprintf (BGC_TUNING_LOG, ("BTL%d NGC2 size %Id->%Id, fl %Id(%.3f)->%Id(%.3f)",
+                gen_number, physical_size, (size_t)total_virtual_size,
+                total_generation_fl_size, gen_flr,
+                (size_t)total_fl_size, new_gen_flr));
+
+            dprintf (BGC_TUNING_LOG, ("BTL%d* %Id, %.3f, %.3f, %.3f, %.3f, %.3f, %Id, %Id, %Id, %Id",
+                                    gen_number,
+                                    (size_t)total_virtual_size,
+                                    0.0,
+                                    0.0,
+                                    new_gen_flr,
+                                    current_gen_stats->last_gen_increase_flr,
+                                    current_gc_surv_rate,
+                                    0, 
+                                    0,
+                                    0,
+                                    current_gen_calc->alloc_to_trigger));
+
+            bgc_tuning::gen1_index_last_bgc_end = gen1_index;
+
+            current_gen_calc->last_bgc_size = total_gen_size;
+            current_gen_calc->last_bgc_flr = new_gen_flr;
+            current_gen_calc->last_sweep_above_p = false;
+            current_gen_calc->last_bgc_end_alloc = 0;
+
+            current_gen_stats->last_alloc_end_to_start = 0;
+            current_gen_stats->last_alloc_start_to_sweep = 0; 
+            current_gen_stats->last_alloc_sweep_to_end = 0;
+            current_gen_stats->last_bgc_fl_size = total_generation_fl_size;
+            current_gen_stats->last_bgc_surv_rate = current_gc_surv_rate;
+            current_gen_stats->last_gen_increase_flr = 0;
+        }
+    }
+}
+
+void gc_heap::get_and_reset_loh_alloc_info()
+{
+    if (!bgc_tuning::enable_fl_tuning)
+        return;
+
+    total_loh_a_last_bgc = 0;
+
+    uint64_t total_loh_a_no_bgc = 0;
+    uint64_t total_loh_a_bgc_marking = 0; 
+    uint64_t total_loh_a_bgc_planning = 0;
+#ifdef MULTIPLE_HEAPS
+    for (int i = 0; i < gc_heap::n_heaps; i++)
+    {
+        gc_heap* hp = gc_heap::g_heaps[i];
+#else //MULTIPLE_HEAPS
+    {
+        gc_heap* hp = pGenGCHeap;
+#endif //MULTIPLE_HEAPS
+        total_loh_a_no_bgc += hp->loh_a_no_bgc;
+        hp->loh_a_no_bgc = 0;
+        total_loh_a_bgc_marking += hp->loh_a_bgc_marking;
+        hp->loh_a_bgc_marking = 0;
+        total_loh_a_bgc_planning += hp->loh_a_bgc_planning;
+        hp->loh_a_bgc_planning = 0;
+    }
+    dprintf (2, ("LOH alloc: outside bgc: %I64d; bm: %I64d; bp: %I64d", 
+        total_loh_a_no_bgc,
+        total_loh_a_bgc_marking,
+        total_loh_a_bgc_planning));
+
+    total_loh_a_last_bgc = total_loh_a_no_bgc + total_loh_a_bgc_marking + total_loh_a_bgc_planning;
+}
+#endif //BGC_SERVO_TUNING
+
 bool gc_heap::is_pm_ratio_exceeded()
 {
     size_t maxgen_frag = 0;
@@ -36356,12 +38264,59 @@ void gc_heap::do_post_gc()
                          (uint32_t)settings.reason,
                          !!settings.concurrent);
 
-    //dprintf (1, (" ****end of Garbage Collection**** %d(gen0:%d)(%d)", 
-    dprintf (1, ("*EGC* %d(gen0:%d)(%d)(%s)", 
+    uint32_t current_memory_load = 0;
+
+#ifdef BGC_SERVO_TUNING
+    if (bgc_tuning::enable_fl_tuning)
+    {
+        uint64_t current_available_physical = 0;
+        size_t gen2_physical_size = 0;
+        size_t gen3_physical_size = 0; 
+        ptrdiff_t gen2_virtual_fl_size = 0;
+        ptrdiff_t gen3_virtual_fl_size = 0;
+        ptrdiff_t vfl_from_kp = 0;
+        ptrdiff_t vfl_from_ki = 0;
+
+        gen2_physical_size = get_total_generation_size (max_generation);
+        gen3_physical_size = get_total_generation_size (max_generation + 1);
+
+        get_memory_info (&current_memory_load, &current_available_physical);
+        if ((settings.condemned_generation == max_generation) && !settings.concurrent)
+        {
+            double gen2_size_ratio = (double)gen2_physical_size / ((double)gen2_physical_size + (double)gen3_physical_size);
+
+            double total_virtual_fl_size = bgc_tuning::calculate_ml_tuning (current_available_physical, true, &vfl_from_kp, &vfl_from_ki);
+            gen2_virtual_fl_size = (ptrdiff_t)(total_virtual_fl_size * gen2_size_ratio);
+            gen3_virtual_fl_size = (ptrdiff_t)(total_virtual_fl_size * (1.0 - gen2_size_ratio));
+
+#ifdef SIMPLE_DPRINTF
+            dprintf (BGC_TUNING_LOG, ("BTL: ml: %d (g: %d)(%s), a: %I64d (g: %I64d, elg: %Id+%Id=%Id, %Id+%Id=%Id), vfl: %Id=%Id+%Id(NGC2)", 
+                current_memory_load, bgc_tuning::memory_load_goal, 
+                ((current_available_physical > bgc_tuning::available_memory_goal) ? "above" : "below"),
+                current_available_physical, bgc_tuning::available_memory_goal,
+                gen2_physical_size, gen2_virtual_fl_size, (gen2_physical_size + gen2_virtual_fl_size),
+                gen3_physical_size, gen3_virtual_fl_size, (gen3_physical_size + gen3_virtual_fl_size),
+                (ptrdiff_t)total_virtual_fl_size, vfl_from_kp, vfl_from_ki));
+#endif //SIMPLE_DPRINTF
+        }
+
+        check_and_adjust_bgc_tuning (max_generation, gen2_physical_size, gen2_virtual_fl_size);
+        check_and_adjust_bgc_tuning ((max_generation + 1), gen3_physical_size, gen3_virtual_fl_size);
+    }
+#endif //BGC_SERVO_TUNING
+
+#ifdef SIMPLE_DPRINTF
+    dprintf (1, ("*EGC* %Id(gen0:%Id)(%Id)(%d)(%s)(%s)(%s)(ml: %d->%d)", 
         VolatileLoad(&settings.gc_index), 
         dd_collection_count(hp->dynamic_data_of(0)),
+        GetHighPrecisionTimeStamp(),
         settings.condemned_generation,
-        (settings.concurrent ? "BGC" : "GC")));
+        (settings.concurrent ? "BGC" : (recursive_gc_sync::background_running_p() ? "FGC" : "NGC")),
+        (settings.compaction ? "C" : "S"),
+        (settings.promotion ? "P" : "S"),
+        settings.entry_memory_load,
+        current_memory_load));
+#endif //SIMPLE_DPRINTF
 
     if (settings.exit_memory_load != 0)
         last_gc_memory_load = settings.exit_memory_load;

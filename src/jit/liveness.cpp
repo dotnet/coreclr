@@ -266,7 +266,7 @@ void Compiler::fgPerNodeLocalVarLiveness(GenTree* tree)
             {
                 GenTreeLclVarCommon* dummyLclVarTree = nullptr;
                 bool                 dummyIsEntire   = false;
-                GenTree*             addrArg         = tree->gtOp.gtOp1->gtEffectiveVal(/*commaOnly*/ true);
+                GenTree*             addrArg         = tree->AsOp()->gtOp1->gtEffectiveVal(/*commaOnly*/ true);
                 if (!addrArg->DefinesLocalAddr(this, /*width doesn't matter*/ 0, &dummyLclVarTree, &dummyIsEntire))
                 {
                     fgCurMemoryUse |= memoryKindSet(GcHeap, ByrefExposed);
@@ -351,7 +351,7 @@ void Compiler::fgPerNodeLocalVarLiveness(GenTree* tree)
             // This ensures that the block->bbVarUse will contain
             // the FrameRoot local var if is it a tracked variable.
 
-            if ((tree->gtCall.IsUnmanaged() || (tree->gtCall.IsTailCall() && info.compCallUnmanaged)))
+            if ((tree->AsCall()->IsUnmanaged() || tree->AsCall()->IsTailCall()) && compMethodRequiresPInvokeFrame())
             {
                 assert((!opts.ShouldUsePInvokeHelpers()) || (info.compLvFrameListRoot == BAD_VAR_NUM));
                 if (!opts.ShouldUsePInvokeHelpers())
@@ -506,7 +506,7 @@ void Compiler::fgPerBlockLocalVarLiveness()
 
         /* Get the TCB local and mark it as used */
 
-        if (block->bbJumpKind == BBJ_RETURN && info.compCallUnmanaged)
+        if (block->bbJumpKind == BBJ_RETURN && compMethodRequiresPInvokeFrame())
         {
             assert((!opts.ShouldUsePInvokeHelpers()) || (info.compLvFrameListRoot == BAD_VAR_NUM));
             if (!opts.ShouldUsePInvokeHelpers())
@@ -999,8 +999,8 @@ void Compiler::fgExtendDbgLifetimes()
                 }
                 else
                 {
-                    GenTree* store    = new (this, GT_STORE_LCL_VAR) GenTreeLclVar(GT_STORE_LCL_VAR, type, varNum);
-                    store->gtOp.gtOp1 = zero;
+                    GenTree* store       = new (this, GT_STORE_LCL_VAR) GenTreeLclVar(GT_STORE_LCL_VAR, type, varNum);
+                    store->AsOp()->gtOp1 = zero;
                     store->gtFlags |= (GTF_VAR_DEF | GTF_ASG);
 
                     LIR::Range initRange = LIR::EmptyRange();
@@ -1425,60 +1425,6 @@ void Compiler::fgLiveVarAnalysis(bool updateInternalOnly)
 #endif // DEBUG
 }
 
-/*****************************************************************************
- * For updating liveset during traversal AFTER fgComputeLife has completed
- */
-
-VARSET_VALRET_TP Compiler::fgUpdateLiveSet(VARSET_VALARG_TP liveSet, GenTree* tree)
-{
-    VARSET_TP newLiveSet(VarSetOps::MakeCopy(this, liveSet));
-    assert(fgLocalVarLivenessDone == true);
-    GenTree* lclVarTree = tree; // After the tests below, "lclVarTree" will be the local variable.
-    if (tree->gtOper == GT_LCL_VAR || tree->gtOper == GT_LCL_FLD ||
-        (lclVarTree = fgIsIndirOfAddrOfLocal(tree)) != nullptr)
-    {
-        const VARSET_TP& varBits(fgGetVarBits(lclVarTree));
-
-        if (!VarSetOps::IsEmpty(this, varBits))
-        {
-            if (tree->gtFlags & GTF_VAR_DEATH)
-            {
-                // We'd like to be able to assert the following, however if we are walking
-                // through a qmark/colon tree, we may encounter multiple last-use nodes.
-                // assert (VarSetOps::IsSubset(this, varBits, newLiveSet));
-
-                // We maintain the invariant that if the lclVarTree is a promoted struct, but the
-                // the lookup fails, then all the field vars (i.e., "varBits") are dying.
-                VARSET_TP* deadVarBits = nullptr;
-                if (varTypeIsStruct(lclVarTree) && LookupPromotedStructDeathVars(lclVarTree, &deadVarBits))
-                {
-                    VarSetOps::DiffD(this, newLiveSet, *deadVarBits);
-                }
-                else
-                {
-                    VarSetOps::DiffD(this, newLiveSet, varBits);
-                }
-            }
-            else if ((tree->gtFlags & GTF_VAR_DEF) != 0 && (tree->gtFlags & GTF_VAR_USEASG) == 0)
-            {
-                assert(tree == lclVarTree); // LDOBJ case should only be a use.
-
-                // This shouldn't be in newLiveSet, unless this is debug code, in which
-                // case we keep vars live everywhere, OR it is address-exposed, OR this block
-                // is part of a try block, in which case it may be live at the handler
-                // Could add a check that, if it's in the newLiveSet, that it's also in
-                // fgGetHandlerLiveVars(compCurBB), but seems excessive
-                //
-                assert(VarSetOps::IsEmptyIntersection(this, newLiveSet, varBits) || opts.compDbgCode ||
-                       lvaTable[tree->gtLclVarCommon.GetLclNum()].lvAddrExposed ||
-                       (compCurBB != nullptr && ehBlockHasExnFlowDsc(compCurBB)));
-                VarSetOps::UnionD(this, newLiveSet, varBits);
-            }
-        }
-    }
-    return newLiveSet;
-}
-
 //------------------------------------------------------------------------
 // Compiler::fgComputeLifeCall: compute the changes to local var liveness
 //                              due to a GT_CALL node.
@@ -1495,7 +1441,7 @@ void Compiler::fgComputeLifeCall(VARSET_TP& life, GenTreeCall* call)
     // the method then we're going to run the p/invoke epilog
     // So we mark the FrameRoot as used by this instruction.
     // This ensure that this variable is kept alive at the tail-call
-    if (call->IsTailCall() && info.compCallUnmanaged)
+    if (call->IsTailCall() && compMethodRequiresPInvokeFrame())
     {
         assert((!opts.ShouldUsePInvokeHelpers()) || (info.compLvFrameListRoot == BAD_VAR_NUM));
         if (!opts.ShouldUsePInvokeHelpers())
@@ -1517,7 +1463,7 @@ void Compiler::fgComputeLifeCall(VARSET_TP& life, GenTreeCall* call)
     //       from the inlined N/Direct frame instead.
 
     /* Is this call to unmanaged code? */
-    if (call->IsUnmanaged())
+    if (call->IsUnmanaged() && compMethodRequiresPInvokeFrame())
     {
         /* Get the TCB local and make it live */
         assert((!opts.ShouldUsePInvokeHelpers()) || (info.compLvFrameListRoot == BAD_VAR_NUM));
@@ -1756,7 +1702,7 @@ void Compiler::fgComputeLifeUntrackedLocal(VARSET_TP&           life,
 //    `true` if the local var node corresponds to a dead store; `false` otherwise.
 bool Compiler::fgComputeLifeLocal(VARSET_TP& life, VARSET_VALARG_TP keepAliveVars, GenTree* lclVarNode)
 {
-    unsigned lclNum = lclVarNode->gtLclVarCommon.GetLclNum();
+    unsigned lclNum = lclVarNode->AsLclVarCommon()->GetLclNum();
 
     assert(lclNum < lvaCount);
     LclVarDsc& varDsc = lvaTable[lclNum];
@@ -1815,7 +1761,7 @@ void Compiler::fgComputeLife(VARSET_TP&       life,
             bool isDeadStore = fgComputeLifeLocal(life, keepAliveVars, tree);
             if (isDeadStore)
             {
-                LclVarDsc* varDsc = &lvaTable[tree->gtLclVarCommon.GetLclNum()];
+                LclVarDsc* varDsc = &lvaTable[tree->AsLclVarCommon()->GetLclNum()];
 
                 bool doAgain = false;
                 if (fgRemoveDeadStore(&tree, varDsc, life, &doAgain, pStmtInfoDirty DEBUGARG(treeModf)))
@@ -1884,7 +1830,7 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
                     // Removing a call does not affect liveness unless it is a tail call in a nethod with P/Invokes or
                     // is itself a P/Invoke, in which case it may affect the liveness of the frame root variable.
                     if (!opts.MinOpts() && !opts.ShouldUsePInvokeHelpers() &&
-                        ((call->IsTailCall() && info.compCallUnmanaged) || call->IsUnmanaged()) &&
+                        ((call->IsTailCall() && compMethodRequiresPInvokeFrame()) || call->IsUnmanaged()) &&
                         lvaTable[info.compLvFrameListRoot].lvTracked)
                     {
                         fgStmtRemoved = true;
@@ -2143,7 +2089,7 @@ bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
     // First, characterize the lclVarTree and see if we are taking its address.
     if (tree->OperIsLocalStore())
     {
-        rhsNode = tree->gtOp.gtOp1;
+        rhsNode = tree->AsOp()->gtOp1;
         asgNode = tree;
     }
     else if (tree->OperIsLocal())
@@ -2343,9 +2289,9 @@ bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
 #ifdef DEBUG
                     *treeModf = true;
 #endif // DEBUG
-                    asgNode->gtOp.gtOp1 = sideEffList->gtOp.gtOp1;
-                    asgNode->gtOp.gtOp2 = sideEffList->gtOp.gtOp2;
-                    asgNode->gtType     = sideEffList->gtType;
+                    asgNode->AsOp()->gtOp1 = sideEffList->AsOp()->gtOp1;
+                    asgNode->AsOp()->gtOp2 = sideEffList->AsOp()->gtOp2;
+                    asgNode->gtType        = sideEffList->gtType;
                 }
                 else
                 {
@@ -2360,13 +2306,13 @@ bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
 
                     if (sideEffList->gtOper == GT_COMMA)
                     {
-                        asgNode->gtOp.gtOp1 = sideEffList->gtOp.gtOp1;
-                        asgNode->gtOp.gtOp2 = sideEffList->gtOp.gtOp2;
+                        asgNode->AsOp()->gtOp1 = sideEffList->AsOp()->gtOp1;
+                        asgNode->AsOp()->gtOp2 = sideEffList->AsOp()->gtOp2;
                     }
                     else
                     {
-                        asgNode->gtOp.gtOp1 = sideEffList;
-                        asgNode->gtOp.gtOp2 = gtNewNothingNode();
+                        asgNode->AsOp()->gtOp1 = sideEffList;
+                        asgNode->AsOp()->gtOp2 = gtNewNothingNode();
                     }
                 }
             }

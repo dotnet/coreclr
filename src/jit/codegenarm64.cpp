@@ -2063,7 +2063,7 @@ void CodeGen::genLclHeap(GenTree* tree)
     assert(tree->OperGet() == GT_LCLHEAP);
     assert(compiler->compLocallocUsed);
 
-    GenTree* size = tree->gtOp.gtOp1;
+    GenTree* size = tree->AsOp()->gtOp1;
     noway_assert((genActualType(size->gtType) == TYP_INT) || (genActualType(size->gtType) == TYP_I_IMPL));
 
     regNumber            targetReg                = tree->GetRegNum();
@@ -2089,7 +2089,7 @@ void CodeGen::genLclHeap(GenTree* tree)
         assert(size->isContained());
 
         // If amount is zero then return null in targetReg
-        amount = size->gtIntCon.gtIconVal;
+        amount = size->AsIntCon()->gtIconVal;
         if (amount == 0)
         {
             instGen_Set_Reg_To_Zero(EA_PTRSIZE, targetReg);
@@ -2485,120 +2485,6 @@ void CodeGen::genCodeForDivMod(GenTreeOp* tree)
     }
 }
 
-// Generate code for InitBlk by performing a loop unroll
-// Preconditions:
-//   a) Both the size and fill byte value are integer constants.
-//   b) The size of the struct to initialize is smaller than INITBLK_UNROLL_LIMIT bytes.
-void CodeGen::genCodeForInitBlkUnroll(GenTreeBlk* initBlkNode)
-{
-    // Make sure we got the arguments of the initblk/initobj operation in the right registers
-    unsigned size    = initBlkNode->Size();
-    GenTree* dstAddr = initBlkNode->Addr();
-    GenTree* initVal = initBlkNode->Data();
-    if (initVal->OperIsInitVal())
-    {
-        initVal = initVal->gtGetOp1();
-    }
-
-    assert(dstAddr->isUsedFromReg());
-    assert((initVal->isUsedFromReg() && !initVal->IsIntegralConst(0)) || initVal->IsIntegralConst(0));
-    assert(size != 0);
-    assert(size <= INITBLK_UNROLL_LIMIT);
-
-    emitter* emit = GetEmitter();
-
-    genConsumeOperands(initBlkNode);
-
-    if (initBlkNode->gtFlags & GTF_BLK_VOLATILE)
-    {
-        // issue a full memory barrier before a volatile initBlockUnroll operation
-        instGen_MemoryBarrier();
-    }
-
-    regNumber valReg = initVal->IsIntegralConst(0) ? REG_ZR : initVal->GetRegNum();
-
-    assert(!initVal->IsIntegralConst(0) || (valReg == REG_ZR));
-
-    unsigned offset = 0;
-
-    // Perform an unroll using stp.
-    if (size >= 2 * REGSIZE_BYTES)
-    {
-        // Determine how many 16 byte slots
-        size_t slots = size / (2 * REGSIZE_BYTES);
-
-        while (slots-- > 0)
-        {
-            emit->emitIns_R_R_R_I(INS_stp, EA_8BYTE, valReg, valReg, dstAddr->GetRegNum(), offset);
-            offset += (2 * REGSIZE_BYTES);
-        }
-    }
-
-    // Fill the remainder (15 bytes or less) if there's any.
-    if ((size & 0xf) != 0)
-    {
-        if ((size & 8) != 0)
-        {
-            emit->emitIns_R_R_I(INS_str, EA_8BYTE, valReg, dstAddr->GetRegNum(), offset);
-            offset += 8;
-        }
-        if ((size & 4) != 0)
-        {
-            emit->emitIns_R_R_I(INS_str, EA_4BYTE, valReg, dstAddr->GetRegNum(), offset);
-            offset += 4;
-        }
-        if ((size & 2) != 0)
-        {
-            emit->emitIns_R_R_I(INS_strh, EA_2BYTE, valReg, dstAddr->GetRegNum(), offset);
-            offset += 2;
-        }
-        if ((size & 1) != 0)
-        {
-            emit->emitIns_R_R_I(INS_strb, EA_1BYTE, valReg, dstAddr->GetRegNum(), offset);
-        }
-    }
-}
-
-// Generate code for a load pair from some address + offset
-//   base: tree node which can be either a local address or arbitrary node
-//   offset: distance from the base from which to load
-void CodeGen::genCodeForLoadPairOffset(regNumber dst, regNumber dst2, GenTree* base, unsigned offset)
-{
-    emitter* emit = GetEmitter();
-
-    if (base->OperIsLocalAddr())
-    {
-        if (base->gtOper == GT_LCL_FLD_ADDR)
-            offset += base->gtLclFld.gtLclOffs;
-
-        emit->emitIns_R_R_S_S(INS_ldp, EA_8BYTE, EA_8BYTE, dst, dst2, base->gtLclVarCommon.GetLclNum(), offset);
-    }
-    else
-    {
-        emit->emitIns_R_R_R_I(INS_ldp, EA_8BYTE, dst, dst2, base->GetRegNum(), offset);
-    }
-}
-
-// Generate code for a store pair to some address + offset
-//   base: tree node which can be either a local address or arbitrary node
-//   offset: distance from the base from which to load
-void CodeGen::genCodeForStorePairOffset(regNumber src, regNumber src2, GenTree* base, unsigned offset)
-{
-    emitter* emit = GetEmitter();
-
-    if (base->OperIsLocalAddr())
-    {
-        if (base->gtOper == GT_LCL_FLD_ADDR)
-            offset += base->gtLclFld.gtLclOffs;
-
-        emit->emitIns_S_S_R_R(INS_stp, EA_8BYTE, EA_8BYTE, src, src2, base->gtLclVarCommon.GetLclNum(), offset);
-    }
-    else
-    {
-        emit->emitIns_R_R_R_I(INS_stp, EA_8BYTE, src, src2, base->GetRegNum(), offset);
-    }
-}
-
 // Generate code for CpObj nodes wich copy structs that have interleaved
 // GC pointers.
 // For this case we'll generate a sequence of loads/stores in the case of struct
@@ -2765,8 +2651,8 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
 void CodeGen::genTableBasedSwitch(GenTree* treeNode)
 {
     genConsumeOperands(treeNode->AsOp());
-    regNumber idxReg  = treeNode->gtOp.gtOp1->GetRegNum();
-    regNumber baseReg = treeNode->gtOp.gtOp2->GetRegNum();
+    regNumber idxReg  = treeNode->AsOp()->gtOp1->GetRegNum();
+    regNumber baseReg = treeNode->AsOp()->gtOp2->GetRegNum();
 
     regNumber tmpReg = treeNode->GetSingleTempReg();
 
@@ -2827,8 +2713,8 @@ void CodeGen::genJumpTable(GenTree* treeNode)
 //
 void CodeGen::genLockedInstructions(GenTreeOp* treeNode)
 {
-    GenTree*  data      = treeNode->gtOp.gtOp2;
-    GenTree*  addr      = treeNode->gtOp.gtOp1;
+    GenTree*  data      = treeNode->AsOp()->gtOp2;
+    GenTree*  addr      = treeNode->AsOp()->gtOp1;
     regNumber targetReg = treeNode->GetRegNum();
     regNumber dataReg   = data->GetRegNum();
     regNumber addrReg   = addr->GetRegNum();
@@ -3368,7 +3254,7 @@ void CodeGen::genIntToFloatCast(GenTree* treeNode)
     regNumber targetReg = treeNode->GetRegNum();
     assert(genIsValidFloatReg(targetReg));
 
-    GenTree* op1 = treeNode->gtOp.gtOp1;
+    GenTree* op1 = treeNode->AsOp()->gtOp1;
     assert(!op1->isContained());                // Cannot be contained
     assert(genIsValidIntReg(op1->GetRegNum())); // Must be a valid int reg.
 
@@ -3446,7 +3332,7 @@ void CodeGen::genFloatToIntCast(GenTree* treeNode)
     regNumber targetReg = treeNode->GetRegNum();
     assert(genIsValidIntReg(targetReg)); // Must be a valid int reg.
 
-    GenTree* op1 = treeNode->gtOp.gtOp1;
+    GenTree* op1 = treeNode->AsOp()->gtOp1;
     assert(!op1->isContained());                  // Cannot be contained
     assert(genIsValidFloatReg(op1->GetRegNum())); // Must be a valid float reg.
 
@@ -3518,7 +3404,7 @@ void CodeGen::genCkfinite(GenTree* treeNode)
 {
     assert(treeNode->OperGet() == GT_CKFINITE);
 
-    GenTree*  op1         = treeNode->gtOp.gtOp1;
+    GenTree*  op1         = treeNode->AsOp()->gtOp1;
     var_types targetType  = treeNode->TypeGet();
     int       expMask     = (targetType == TYP_FLOAT) ? 0x7F8 : 0x7FF; // Bit mask to extract exponent.
     int       shiftAmount = targetType == TYP_FLOAT ? 20 : 52;
@@ -3671,7 +3557,7 @@ void CodeGen::genCodeForJumpCompare(GenTreeOp* tree)
 
     if (tree->gtFlags & GTF_JCMP_TST)
     {
-        ssize_t compareImm = op2->gtIntCon.IconValue();
+        ssize_t compareImm = op2->AsIntCon()->IconValue();
 
         assert(isPow2(compareImm));
 
@@ -4697,7 +4583,7 @@ void CodeGen::genSIMDIntrinsicGetItem(GenTreeSIMD* simdNode)
     {
         assert(op2->isContained());
 
-        ssize_t index = op2->gtIntCon.gtIconVal;
+        ssize_t index = op2->AsIntCon()->gtIconVal;
 
         // We only need to generate code for the get if the index is valid
         // If the index is invalid, previously generated for the range check will throw
@@ -4712,7 +4598,7 @@ void CodeGen::genSIMDIntrinsicGetItem(GenTreeSIMD* simdNode)
 
                 if (op1->OperIsLocal())
                 {
-                    unsigned varNum = op1->gtLclVarCommon.GetLclNum();
+                    unsigned varNum = op1->AsLclVarCommon()->GetLclNum();
 
                     GetEmitter()->emitIns_R_S(ins, emitActualTypeSize(baseType), targetReg, varNum, offset);
                 }
@@ -4771,7 +4657,7 @@ void CodeGen::genSIMDIntrinsicGetItem(GenTreeSIMD* simdNode)
             assert(!op1->isUsedFromReg());
             if (op1->OperIsLocal())
             {
-                unsigned varNum = op1->gtLclVarCommon.GetLclNum();
+                unsigned varNum = op1->AsLclVarCommon()->GetLclNum();
 
                 baseReg = simdNode->ExtractTempReg();
 
@@ -5000,8 +4886,8 @@ void CodeGen::genStoreIndTypeSIMD12(GenTree* treeNode)
 {
     assert(treeNode->OperGet() == GT_STOREIND);
 
-    GenTree* addr = treeNode->gtOp.gtOp1;
-    GenTree* data = treeNode->gtOp.gtOp2;
+    GenTree* addr = treeNode->AsOp()->gtOp1;
+    GenTree* data = treeNode->AsOp()->gtOp2;
 
     // addr and data should not be contained.
     assert(!data->isContained());
@@ -5045,7 +4931,7 @@ void CodeGen::genLoadIndTypeSIMD12(GenTree* treeNode)
 {
     assert(treeNode->OperGet() == GT_IND);
 
-    GenTree*  addr      = treeNode->gtOp.gtOp1;
+    GenTree*  addr      = treeNode->AsOp()->gtOp1;
     regNumber targetReg = treeNode->GetRegNum();
 
     assert(!addr->isContained());
@@ -5083,15 +4969,15 @@ void CodeGen::genStoreLclTypeSIMD12(GenTree* treeNode)
     assert((treeNode->OperGet() == GT_STORE_LCL_FLD) || (treeNode->OperGet() == GT_STORE_LCL_VAR));
 
     unsigned offs   = 0;
-    unsigned varNum = treeNode->gtLclVarCommon.GetLclNum();
+    unsigned varNum = treeNode->AsLclVarCommon()->GetLclNum();
     assert(varNum < compiler->lvaCount);
 
     if (treeNode->OperGet() == GT_STORE_LCL_FLD)
     {
-        offs = treeNode->gtLclFld.gtLclOffs;
+        offs = treeNode->AsLclFld()->gtLclOffs;
     }
 
-    GenTree* op1 = treeNode->gtOp.gtOp1;
+    GenTree* op1 = treeNode->AsOp()->gtOp1;
     assert(!op1->isContained());
     regNumber operandReg = genConsumeReg(op1);
 

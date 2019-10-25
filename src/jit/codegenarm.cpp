@@ -248,7 +248,7 @@ void CodeGen::genSetRegToConst(regNumber targetReg, var_types targetType, GenTre
         case GT_CNS_DBL:
         {
             GenTreeDblCon* dblConst   = tree->AsDblCon();
-            double         constValue = dblConst->gtDblCon.gtDconVal;
+            double         constValue = dblConst->AsDblCon()->gtDconVal;
             // TODO-ARM-CQ: Do we have a faster/smaller way to generate 0.0 in thumb2 ISA ?
             if (targetType == TYP_FLOAT)
             {
@@ -355,7 +355,7 @@ void CodeGen::genLclHeap(GenTree* tree)
     assert(tree->OperGet() == GT_LCLHEAP);
     assert(compiler->compLocallocUsed);
 
-    GenTree* size = tree->gtOp.gtOp1;
+    GenTree* size = tree->AsOp()->gtOp1;
     noway_assert((genActualType(size->gtType) == TYP_INT) || (genActualType(size->gtType) == TYP_I_IMPL));
 
     // Result of localloc will be returned in regCnt.
@@ -382,7 +382,7 @@ void CodeGen::genLclHeap(GenTree* tree)
         assert(size->isContained());
 
         // If amount is zero then return null in regCnt
-        size_t amount = size->gtIntCon.gtIconVal;
+        size_t amount = size->AsIntCon()->gtIconVal;
         if (amount == 0)
         {
             instGen_Set_Reg_To_Zero(EA_PTRSIZE, regCnt);
@@ -421,7 +421,7 @@ void CodeGen::genLclHeap(GenTree* tree)
     if (size->IsCnsIntOrI())
     {
         // 'amount' is the total number of bytes to localloc to properly STACK_ALIGN
-        target_size_t amount = (target_size_t)size->gtIntCon.gtIconVal;
+        target_size_t amount = (target_size_t)size->AsIntCon()->gtIconVal;
         amount               = AlignUp(amount, STACK_ALIGN);
 
         // For small allocations we will generate up to four push instructions (either 2 or 4, exactly,
@@ -604,8 +604,8 @@ BAILOUT:
 void CodeGen::genTableBasedSwitch(GenTree* treeNode)
 {
     genConsumeOperands(treeNode->AsOp());
-    regNumber idxReg  = treeNode->gtOp.gtOp1->GetRegNum();
-    regNumber baseReg = treeNode->gtOp.gtOp2->GetRegNum();
+    regNumber idxReg  = treeNode->AsOp()->gtOp1->GetRegNum();
+    regNumber baseReg = treeNode->AsOp()->gtOp2->GetRegNum();
 
     GetEmitter()->emitIns_R_ARX(INS_ldr, EA_4BYTE, REG_PC, baseReg, idxReg, TARGET_POINTER_SIZE, 0);
 }
@@ -719,16 +719,6 @@ instruction CodeGen::genGetInsForOper(genTreeOps oper, var_types type)
             break;
     }
     return ins;
-}
-
-// Generate code for InitBlk by performing a loop unroll
-// Preconditions:
-//   a) Both the size and fill byte value are integer constants.
-//   b) The size of the struct to initialize is smaller than INITBLK_UNROLL_LIMIT bytes.
-void CodeGen::genCodeForInitBlkUnroll(GenTreeBlk* initBlkNode)
-{
-    // TODO: Generate memory barrier instructions for GTF_BLK_VOLATILE flag
-    NYI_ARM("genCodeForInitBlkUnroll");
 }
 
 //------------------------------------------------------------------------
@@ -901,7 +891,7 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
 //
 // Assumptions:
 //    a) All GenTrees are register allocated.
-//    b) The shift-by-amount in tree->gtOp.gtOp2 is a contained constant
+//    b) The shift-by-amount in tree->AsOp()->gtOp2 is a contained constant
 //
 void CodeGen::genCodeForShiftLong(GenTree* tree)
 {
@@ -909,10 +899,10 @@ void CodeGen::genCodeForShiftLong(GenTree* tree)
     genTreeOps oper = tree->OperGet();
     assert(oper == GT_LSH_HI || oper == GT_RSH_LO);
 
-    GenTree* operand = tree->gtOp.gtOp1;
+    GenTree* operand = tree->AsOp()->gtOp1;
     assert(operand->OperGet() == GT_LONG);
-    assert(operand->gtOp.gtOp1->isUsedFromReg());
-    assert(operand->gtOp.gtOp2->isUsedFromReg());
+    assert(operand->AsOp()->gtOp1->isUsedFromReg());
+    assert(operand->AsOp()->gtOp2->isUsedFromReg());
 
     GenTree* operandLo = operand->gtGetOp1();
     GenTree* operandHi = operand->gtGetOp2();
@@ -1159,7 +1149,7 @@ void CodeGen::genCkfinite(GenTree* treeNode)
     emitter*  emit       = GetEmitter();
     var_types targetType = treeNode->TypeGet();
     regNumber intReg     = treeNode->GetSingleTempReg();
-    regNumber fpReg      = genConsumeReg(treeNode->gtOp.gtOp1);
+    regNumber fpReg      = genConsumeReg(treeNode->AsOp()->gtOp1);
     regNumber targetReg  = treeNode->GetRegNum();
 
     // Extract and sign-extend the exponent into an integer register
@@ -1433,7 +1423,7 @@ void CodeGen::genIntToFloatCast(GenTree* treeNode)
     regNumber targetReg = treeNode->GetRegNum();
     assert(genIsValidFloatReg(targetReg));
 
-    GenTree* op1 = treeNode->gtOp.gtOp1;
+    GenTree* op1 = treeNode->AsOp()->gtOp1;
     assert(!op1->isContained());                // Cannot be contained
     assert(genIsValidIntReg(op1->GetRegNum())); // Must be a valid int reg.
 
@@ -1498,7 +1488,7 @@ void CodeGen::genFloatToIntCast(GenTree* treeNode)
     regNumber targetReg = treeNode->GetRegNum();
     assert(genIsValidIntReg(targetReg)); // Must be a valid int reg.
 
-    GenTree* op1 = treeNode->gtOp.gtOp1;
+    GenTree* op1 = treeNode->AsOp()->gtOp1;
     assert(!op1->isContained());                  // Cannot be contained
     assert(genIsValidFloatReg(op1->GetRegNum())); // Must be a valid float reg.
 

@@ -609,7 +609,7 @@ RefPosition* LinearScan::newRefPosition(Interval*    theInterval,
 #ifndef _TARGET_AMD64_
     // We don't need this for AMD because the PInvoke method epilog code is explicit
     // at register allocation time.
-    if (theInterval != nullptr && theInterval->isLocalVar && compiler->info.compCallUnmanaged &&
+    if (theInterval != nullptr && theInterval->isLocalVar && compiler->compMethodRequiresPInvokeFrame() &&
         theInterval->varNum == compiler->genReturnLocal)
     {
         mask &= ~(RBM_PINVOKE_TCB | RBM_PINVOKE_FRAME);
@@ -914,6 +914,7 @@ regMaskTP LinearScan::getKillSetForBlockStore(GenTreeBlk* blkNode)
         bool isCopyBlk = varTypeIsStruct(blkNode->Data());
         switch (blkNode->gtBlkOpKind)
         {
+#ifndef _TARGET_X86_
             case GenTreeBlk::BlkOpKindHelper:
                 if (isCopyBlk)
                 {
@@ -924,7 +925,7 @@ regMaskTP LinearScan::getKillSetForBlockStore(GenTreeBlk* blkNode)
                     killMask = compiler->compHelperCallKillSet(CORINFO_HELP_MEMSET);
                 }
                 break;
-
+#endif
 #ifdef _TARGET_XARCH_
             case GenTreeBlk::BlkOpKindRepInstr:
                 if (isCopyBlk)
@@ -941,8 +942,6 @@ regMaskTP LinearScan::getKillSetForBlockStore(GenTreeBlk* blkNode)
                     killMask = RBM_RDI | RBM_RCX;
                 }
                 break;
-#else
-            case GenTreeBlk::BlkOpKindRepInstr:
 #endif
             case GenTreeBlk::BlkOpKindUnroll:
             case GenTreeBlk::BlkOpKindInvalid:

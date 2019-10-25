@@ -685,91 +685,7 @@ void QCALLTYPE ExceptionNative::GetMessageFromNativeResources(ExceptionMessageKi
     END_QCALL;
 }
 
-// BlockCopy
-// This method from one primitive array to another based
-//  upon an offset into each an a byte count.
-FCIMPL5(VOID, Buffer::BlockCopy, ArrayBase *src, int srcOffset, ArrayBase *dst, int dstOffset, int count)
-{
-    FCALL_CONTRACT;
-
-    // Verify that both the src and dst are Arrays of primitive
-    //  types.
-    // <TODO>@TODO: We need to check for booleans</TODO>
-    if (src==NULL || dst==NULL)
-        FCThrowArgumentNullVoid((src==NULL) ? W("src") : W("dst"));
-
-    SIZE_T srcLen, dstLen;
-
-    //
-    // Use specialized fast path for byte arrays because of it is what Buffer::BlockCopy is 
-    // typically used for.
-    //
-
-    MethodTable * pByteArrayMT = g_pByteArrayMT;
-    _ASSERTE(pByteArrayMT != NULL);
-    
-    // Optimization: If src is a byte array, we can
-    // simply set srcLen to GetNumComponents, without having
-    // to call GetComponentSize or verifying GetArrayElementType
-    if (src->GetMethodTable() == pByteArrayMT)
-    {
-        srcLen = src->GetNumComponents();
-    }
-    else
-    {
-        srcLen = src->GetNumComponents() * src->GetComponentSize();
-
-        // We only want to allow arrays of primitives, no Objects.
-        const CorElementType srcET = src->GetArrayElementType();
-        if (!CorTypeInfo::IsPrimitiveType_NoThrow(srcET))
-            FCThrowArgumentVoid(W("src"), W("Arg_MustBePrimArray"));
-    }
-    
-    // Optimization: If copying to/from the same array, then
-    // we know that dstLen and srcLen must be the same.
-    if (src == dst)
-    {
-        dstLen = srcLen;
-    }
-    else if (dst->GetMethodTable() == pByteArrayMT)
-    {
-        dstLen = dst->GetNumComponents();
-    }
-    else
-    {
-        dstLen = dst->GetNumComponents() * dst->GetComponentSize();
-        if (dst->GetMethodTable() != src->GetMethodTable())
-        {
-            const CorElementType dstET = dst->GetArrayElementType();
-            if (!CorTypeInfo::IsPrimitiveType_NoThrow(dstET))
-                FCThrowArgumentVoid(W("dst"), W("Arg_MustBePrimArray"));
-        }
-    }
-
-    if (srcOffset < 0 || dstOffset < 0 || count < 0) {
-        const WCHAR* str = W("srcOffset");
-        if (dstOffset < 0) str = W("dstOffset");
-        if (count < 0) str = W("count");
-        FCThrowArgumentOutOfRangeVoid(str, W("ArgumentOutOfRange_NeedNonNegNum"));
-    }
-
-    if (srcLen < (SIZE_T)srcOffset + (SIZE_T)count || dstLen < (SIZE_T)dstOffset + (SIZE_T)count) {
-        FCThrowArgumentVoid(NULL, W("Argument_InvalidOffLen"));
-    }
-    
-    PTR_BYTE srcPtr = src->GetDataPtr() + srcOffset;
-    PTR_BYTE dstPtr = dst->GetDataPtr() + dstOffset;
-
-    if ((srcPtr != dstPtr) && (count > 0)) {
-        memmove(dstPtr, srcPtr, count);
-    }
-
-    FC_GC_POLL();
-}
-FCIMPLEND
-
-
-void QCALLTYPE MemoryNative::Clear(void *dst, size_t length)
+void QCALLTYPE Buffer::Clear(void *dst, size_t length)
 {
     QCALL_CONTRACT;
 
@@ -798,11 +714,12 @@ void QCALLTYPE MemoryNative::Clear(void *dst, size_t length)
     memset(dst, 0, length);
 }
 
-FCIMPL3(VOID, MemoryNative::BulkMoveWithWriteBarrier, void *dst, void *src, size_t byteCount)
+FCIMPL3(VOID, Buffer::BulkMoveWithWriteBarrier, void *dst, void *src, size_t byteCount)
 {
     FCALL_CONTRACT;
 
-    InlinedMemmoveGCRefsHelper(dst, src, byteCount);
+    if (dst != src && byteCount != 0)
+        InlinedMemmoveGCRefsHelper(dst, src, byteCount);
 
     FC_GC_POLL();
 }
@@ -831,34 +748,9 @@ FCIMPL1(FC_BOOL_RET, Buffer::IsPrimitiveTypeArray, ArrayBase *arrayUNSAFE)
 }
 FCIMPLEND
 
-// Returns the length in bytes of an array containing
-// primitive type elements
-FCIMPL1(INT32, Buffer::ByteLength, ArrayBase* arrayUNSAFE)
-{
-    FCALL_CONTRACT;
-
-    _ASSERTE(arrayUNSAFE != NULL);
-
-    SIZE_T iRetVal = arrayUNSAFE->GetNumComponents() * arrayUNSAFE->GetComponentSize();
-
-    // This API is explosed both as Buffer.ByteLength and also used indirectly in argument
-    // checks for Buffer.GetByte/SetByte.
-    //
-    // If somebody called Get/SetByte on 2GB+ arrays, there is a decent chance that 
-    // the computation of the index has overflowed. Thus we intentionally always 
-    // throw on 2GB+ arrays in Get/SetByte argument checks (even for indicies <2GB)
-    // to prevent people from running into a trap silently.
-    if (iRetVal > INT32_MAX)
-        FCThrow(kOverflowException);
-
-    return (INT32)iRetVal;
-}
-FCIMPLEND
-
 //
 // GCInterface
 //
-MethodDesc *GCInterface::m_pCacheMethod=NULL;
 
 UINT64   GCInterface::m_ulMemPressure = 0;
 UINT64   GCInterface::m_ulThreshold = MIN_GC_MEMORYPRESSURE_THRESHOLD;
@@ -1239,7 +1131,6 @@ FCIMPL3(Object*, GCInterface::AllocateNewArray, void* arrayTypeHandle, INT32 len
 {
     CONTRACTL {
         FCALL_CHECK;
-        PRECONDITION(length >= 0);
     } CONTRACTL_END;
 
     OBJECTREF pRet = NULL;

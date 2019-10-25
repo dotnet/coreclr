@@ -76,7 +76,7 @@ class   FCallMethodDesc;
 class   EEClass;
 class   EnCFieldDesc;
 class   FieldDesc;
-class   FieldMarshaler;
+class   NativeFieldDescriptor;
 struct  LayoutRawFieldInfo;
 class   MetaSig;
 class   MethodDesc;
@@ -99,7 +99,7 @@ class ComCallWrapperTemplate;
 enum class ParseNativeTypeFlags : int;
 
 typedef DPTR(DictionaryLayout) PTR_DictionaryLayout;
-typedef DPTR(FieldMarshaler) PTR_FieldMarshaler;
+typedef DPTR(NativeFieldDescriptor) PTR_NativeFieldDescriptor;
 
 
 //---------------------------------------------------------------------------------
@@ -471,10 +471,10 @@ class EEClassLayoutInfo
         // # of fields that are of the calltime-marshal variety.
         UINT        m_numCTMFields;
 
-        // An array of FieldMarshaler data blocks, used to drive call-time
+        // An array of NativeFieldDescriptor data blocks, used to drive call-time
         // marshaling of NStruct reference parameters. The number of elements
         // equals m_numCTMFields.
-        RelativePointer<PTR_FieldMarshaler> m_pFieldMarshalers;
+        RelativePointer<PTR_NativeFieldDescriptor> m_pNativeFieldDescriptors;
 
 
     public:
@@ -503,17 +503,17 @@ class EEClassLayoutInfo
             return m_numCTMFields;
         }
 
-        PTR_FieldMarshaler GetFieldMarshalers() const
+        PTR_NativeFieldDescriptor GetNativeFieldDescriptors() const
         {
             LIMITED_METHOD_CONTRACT;
-            return ReadPointerMaybeNull(this, &EEClassLayoutInfo::m_pFieldMarshalers);
+            return ReadPointerMaybeNull(this, &EEClassLayoutInfo::m_pNativeFieldDescriptors);
         }
 
 #ifndef DACCESS_COMPILE
-        void SetFieldMarshalers(FieldMarshaler *pFieldMarshallers)
+        void SetNativeFieldDescriptors(NativeFieldDescriptor *pNativeFieldDescriptors)
         {
             LIMITED_METHOD_CONTRACT;
-            m_pFieldMarshalers.SetValueMaybeNull(pFieldMarshallers);
+            m_pNativeFieldDescriptors.SetValueMaybeNull(pNativeFieldDescriptors);
         }
 #endif // DACCESS_COMPILE
 
@@ -1379,7 +1379,7 @@ public:
     inline void SetHasNoGuid()
     {
         WRAPPER_NO_CONTRACT;
-        FastInterlockOr(EnsureWritablePages(&m_VMFlags), VMFLAG_NO_GUID);
+        FastInterlockOr(&m_VMFlags, VMFLAG_NO_GUID);
     }
 
 public:
@@ -1647,7 +1647,7 @@ public:
     {
         WRAPPER_NO_CONTRACT;
         #ifndef DACCESS_COMPILE
-        EnsureWritablePages(&m_pGuidInfo)->SetValueMaybeNull(pGuidInfo);
+        m_pGuidInfo.SetValueMaybeNull(pGuidInfo);
         #endif // DACCESS_COMPILE
     }
 
@@ -1710,7 +1710,7 @@ public:
     {
         WRAPPER_NO_CONTRACT;
         _ASSERTE(HasOptionalFields());
-        *EnsureWritablePages(&GetOptionalFields()->m_pCoClassForIntf) = th;
+        GetOptionalFields()->m_pCoClassForIntf = th;
     }
 
     inline WinMDAdapter::RedirectedTypeIndex GetWinRTRedirectedTypeIndex()
@@ -1766,7 +1766,6 @@ public:
     {
         WRAPPER_NO_CONTRACT;
         _ASSERTE(IsInterface());
-        EnsureWritablePages(this);
         m_ComInterfaceType = ItfType;
     }
 
@@ -1778,7 +1777,7 @@ public:
     inline BOOL SetComCallWrapperTemplate(ComCallWrapperTemplate *pTemplate)
     {
         WRAPPER_NO_CONTRACT;
-        return (InterlockedCompareExchangeT(EnsureWritablePages(&m_pccwTemplate), pTemplate, NULL) == NULL);
+        return (InterlockedCompareExchangeT(&m_pccwTemplate, pTemplate, NULL) == NULL);
     }
 
 #ifdef FEATURE_COMINTEROP_UNMANAGED_ACTIVATION
@@ -1791,7 +1790,7 @@ public:
     {
         WRAPPER_NO_CONTRACT;
         _ASSERTE(HasOptionalFields());
-        return (InterlockedCompareExchangeT(EnsureWritablePages(&GetOptionalFields()->m_pClassFactory), pFactory, NULL) == NULL);
+        return (InterlockedCompareExchangeT(&GetOptionalFields()->m_pClassFactory, pFactory, NULL) == NULL);
     }
 #endif // FEATURE_COMINTEROP_UNMANAGED_ACTIVATION
 #endif // FEATURE_COMINTEROP

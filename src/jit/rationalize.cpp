@@ -157,7 +157,7 @@ void Rationalizer::RewriteNodeAsCall(GenTree**             use,
 #endif // DEBUG
 
 #ifdef FEATURE_READYTORUN_COMPILER
-    call->gtCall.setEntryPoint(entryPoint);
+    call->AsCall()->setEntryPoint(entryPoint);
 #endif
 
     call = comp->fgMorphArgs(call);
@@ -210,7 +210,7 @@ void Rationalizer::RewriteIntrinsicAsUserCall(GenTree** use, ArrayStack<GenTree*
     GenTreeIntrinsic* intrinsic = (*use)->AsIntrinsic();
 
     GenTreeCall::Use* args;
-    if (intrinsic->gtOp.gtOp2 == nullptr)
+    if (intrinsic->AsOp()->gtOp2 == nullptr)
     {
         args = comp->gtNewCallArgs(intrinsic->gtGetOp1());
     }
@@ -299,8 +299,8 @@ static void RewriteAssignmentIntoStoreLclCore(GenTreeOp* assignment,
 
     if (locationOp == GT_LCL_FLD)
     {
-        store->gtLclFld.gtLclOffs  = var->gtLclFld.gtLclOffs;
-        store->gtLclFld.gtFieldSeq = var->gtLclFld.gtFieldSeq;
+        store->AsLclFld()->gtLclOffs  = var->AsLclFld()->gtLclOffs;
+        store->AsLclFld()->gtFieldSeq = var->AsLclFld()->gtFieldSeq;
     }
 
     copyFlags(store, var, GTF_LIVENESS_MASK);
@@ -344,16 +344,16 @@ void Rationalizer::RewriteAssignment(LIR::Use& use)
             if (location->OperGet() == GT_LCL_VAR)
             {
                 var_types simdType = location->TypeGet();
-                GenTree*  initVal  = assignment->gtOp.gtOp2;
+                GenTree*  initVal  = assignment->AsOp()->gtOp2;
                 var_types baseType = comp->getBaseTypeOfSIMDLocal(location);
                 if (baseType != TYP_UNKNOWN)
                 {
                     GenTreeSIMD* simdTree = new (comp, GT_SIMD)
                         GenTreeSIMD(simdType, initVal, SIMDIntrinsicInit, baseType, genTypeSize(simdType));
-                    assignment->gtOp.gtOp2 = simdTree;
-                    value                  = simdTree;
-                    initVal->gtNext        = simdTree;
-                    simdTree->gtPrev       = initVal;
+                    assignment->AsOp()->gtOp2 = simdTree;
+                    value                     = simdTree;
+                    initVal->gtNext           = simdTree;
+                    simdTree->gtPrev          = initVal;
 
                     simdTree->gtNext = location;
                     location->gtPrev = simdTree;
@@ -379,7 +379,6 @@ void Rationalizer::RewriteAssignment(LIR::Use& use)
                     GenTreeObj*          objNode   = comp->gtNewObjNode(structHnd, location)->AsObj();
                     objNode->ChangeOper(GT_STORE_OBJ);
                     objNode->SetData(value);
-                    comp->fgMorphUnsafeBlk(objNode);
                     storeBlk = objNode;
                 }
                 else
@@ -473,7 +472,7 @@ void Rationalizer::RewriteAssignment(LIR::Use& use)
             storeBlk->gtFlags &= ~GTF_DONT_CSE;
             storeBlk->gtFlags |=
                 (assignment->gtFlags & (GTF_ALL_EFFECT | GTF_BLK_VOLATILE | GTF_BLK_UNALIGNED | GTF_DONT_CSE));
-            storeBlk->gtBlk.Data() = value;
+            storeBlk->AsBlk()->Data() = value;
 
             // Remove the block node from its current position and replace the assignment node with it
             // (now in its store form).
@@ -745,7 +744,7 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, Compiler::Ge
 
         case GT_INTRINSIC:
             // Non-target intrinsics should have already been rewritten back into user calls.
-            assert(comp->IsTargetIntrinsic(node->gtIntrinsic.gtIntrinsicId));
+            assert(comp->IsTargetIntrinsic(node->AsIntrinsic()->gtIntrinsicId));
             break;
 
         case GT_BLK:
@@ -781,7 +780,7 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, Compiler::Ge
                 simdNode->gtType = TYP_SIMD8;
             }
             // Certain SIMD trees require rationalizing.
-            if (simdNode->gtSIMD.gtSIMDIntrinsicID == SIMDIntrinsicInitArray)
+            if (simdNode->AsSIMD()->gtSIMDIntrinsicID == SIMDIntrinsicInitArray)
             {
                 // Rewrite this as an explicit load.
                 JITDUMP("Rewriting GT_SIMD array init as an explicit load:\n");
@@ -896,7 +895,7 @@ void Rationalizer::DoPhase()
         {
             GenTree* const node = *use;
             if (node->OperGet() == GT_INTRINSIC &&
-                m_rationalizer.comp->IsIntrinsicImplementedByUserCall(node->gtIntrinsic.gtIntrinsicId))
+                m_rationalizer.comp->IsIntrinsicImplementedByUserCall(node->AsIntrinsic()->gtIntrinsicId))
             {
                 m_rationalizer.RewriteIntrinsicAsUserCall(use, this->m_ancestors);
             }

@@ -414,7 +414,7 @@ bool ObjectAllocator::MorphAllocObjNodes()
                 }
 
                 // Propagate flags of op2 to its parent.
-                stmtExpr->gtOp.gtOp2 = op2;
+                stmtExpr->AsOp()->gtOp2 = op2;
                 stmtExpr->gtFlags |= op2->gtFlags & GTF_ALL_EFFECT;
             }
 
@@ -470,14 +470,14 @@ GenTree* ObjectAllocator::MorphAllocObjNodeIntoHelperCall(GenTreeAllocObj* alloc
     GenTree*   helperCall = comp->fgMorphIntoHelperCall(allocObj, allocObj->gtNewHelper, args, morphArgs);
     if (helperHasSideEffects)
     {
-        helperCall->gtCall.gtCallMoreFlags |= GTF_CALL_M_ALLOC_SIDE_EFFECTS;
+        helperCall->AsCall()->gtCallMoreFlags |= GTF_CALL_M_ALLOC_SIDE_EFFECTS;
     }
 
 #ifdef FEATURE_READYTORUN_COMPILER
     if (entryPoint.addr != nullptr)
     {
         assert(comp->opts.IsReadyToRun());
-        helperCall->gtCall.setEntryPoint(entryPoint);
+        helperCall->AsCall()->setEntryPoint(entryPoint);
     }
 #endif
 

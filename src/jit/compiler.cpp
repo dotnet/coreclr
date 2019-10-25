@@ -2156,7 +2156,7 @@ void Compiler::compSetProcessor()
 #if defined(_TARGET_ARM_)
     info.genCPU = CPU_ARM;
 #elif defined(_TARGET_ARM64_)
-    info.genCPU       = CPU_ARM64;
+    info.genCPU      = CPU_ARM64;
 #elif defined(_TARGET_AMD64_)
     info.genCPU                   = CPU_X64;
 #elif defined(_TARGET_X86_)
@@ -2172,15 +2172,10 @@ void Compiler::compSetProcessor()
     CLANG_FORMAT_COMMENT_ANCHOR;
 
 #ifdef _TARGET_AMD64_
-    opts.compUseFCOMI = false;
-    opts.compUseCMOV  = true;
+    opts.compUseCMOV = true;
 #elif defined(_TARGET_X86_)
-    opts.compUseFCOMI = jitFlags.IsSet(JitFlags::JIT_FLAG_USE_FCOMI);
-    opts.compUseCMOV  = jitFlags.IsSet(JitFlags::JIT_FLAG_USE_CMOV);
-
+    opts.compUseCMOV = jitFlags.IsSet(JitFlags::JIT_FLAG_USE_CMOV);
 #ifdef DEBUG
-    if (opts.compUseFCOMI)
-        opts.compUseFCOMI = !compStressCompile(STRESS_USE_FCOMI, 50);
     if (opts.compUseCMOV)
         opts.compUseCMOV = !compStressCompile(STRESS_USE_CMOV, 50);
 #endif // DEBUG
@@ -2350,6 +2345,11 @@ void Compiler::compSetProcessor()
         opts.setSupportedISA(InstructionSet_ArmBase_Arm64);
         opts.setSupportedISA(InstructionSet_Vector64);
         opts.setSupportedISA(InstructionSet_Vector128);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_AES) && JitConfig.EnableArm64Aes())
+    {
+        opts.setSupportedISA(InstructionSet_Aes);
     }
 
     if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_ATOMICS) && JitConfig.EnableArm64Atomics())
@@ -3419,10 +3419,11 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
         compProfilerMethHndIndirected = false;
     }
 
-    // Honour COMPlus_JitELTHookEnabled only if VM has not asked us to generate profiler
-    // hooks in the first place. That is, override VM only if it hasn't asked for a
-    // profiler callback for this method.
-    if (!compProfilerHookNeeded && (JitConfig.JitELTHookEnabled() != 0))
+    // Honour COMPlus_JitELTHookEnabled or STRESS_PROFILER_CALLBACKS stress mode
+    // only if VM has not asked us to generate profiler hooks in the first place.
+    // That is, override VM only if it hasn't asked for a profiler callback for this method.
+    if (!compProfilerHookNeeded &&
+        ((JitConfig.JitELTHookEnabled() != 0) || compStressCompile(STRESS_PROFILER_CALLBACKS, 5)))
     {
         opts.compJitELTHookEnabled = true;
     }
@@ -3572,6 +3573,14 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
         if (jitFlags->IsSet(JitFlags::JIT_FLAG_TIER1))
         {
             printf("OPTIONS: Tier-1 compilation\n");
+        }
+        if (compSwitchedToOptimized)
+        {
+            printf("OPTIONS: Tier-0 compilation, switched to FullOpts");
+        }
+        if (compSwitchedToMinOpts)
+        {
+            printf("OPTIONS: Tier-1/FullOpts compilation, switched to MinOpts");
         }
 
         printf("OPTIONS: compCodeOpt = %s\n",
@@ -4101,6 +4110,7 @@ _SetMinOpts:
         !opts.jitFlags->IsSet(JitFlags::JIT_FLAG_MIN_OPT) && !opts.compDbgCode)
     {
         info.compCompHnd->setMethodAttribs(info.compMethodHnd, CORINFO_FLG_SWITCHED_TO_MIN_OPT);
+        compSwitchedToMinOpts = true;
     }
 
 #ifdef DEBUG
@@ -4342,9 +4352,42 @@ const char* Compiler::compGetTieringName() const
     {
         return "Tier-1";
     }
+    else if (opts.OptimizationEnabled())
+    {
+        if (compSwitchedToOptimized)
+        {
+            return "Tier-0 switched to FullOpts";
+        }
+        else
+        {
+            return "FullOpts";
+        }
+    }
+    else if (opts.MinOpts())
+    {
+        if (compSwitchedToMinOpts)
+        {
+            if (compSwitchedToOptimized)
+            {
+                return "Tier-0 switched to FullOpts, then to MinOpts";
+            }
+            else
+            {
+                return "Tier-1/FullOpts switched to MinOpts";
+            }
+        }
+        else
+        {
+            return "MinOpts";
+        }
+    }
+    else if (opts.compDbgCode)
+    {
+        return "Debug";
+    }
     else
     {
-        return "No-Tier";
+        return "Unknown optimization level";
     }
 }
 
@@ -5875,7 +5918,9 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
     info.compTotalHotCodeSize  = 0;
     info.compTotalColdCodeSize = 0;
 
-    compHasBackwardJump = false;
+    compHasBackwardJump     = false;
+    compSwitchedToOptimized = false;
+    compSwitchedToMinOpts   = false;
 
 #ifdef DEBUG
     compCurBB = nullptr;
@@ -5914,8 +5959,8 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
     }
     info.compRetNativeType = info.compRetType = JITtype2varType(methodInfo->args.retType);
 
-    info.compCallUnmanaged   = 0;
-    info.compLvFrameListRoot = BAD_VAR_NUM;
+    info.compUnmanagedCallCountWithGCTransition = 0;
+    info.compLvFrameListRoot                    = BAD_VAR_NUM;
 
     info.compInitMem = ((methodInfo->options & CORINFO_OPT_INIT_LOCALS) != 0);
 
@@ -7135,7 +7180,7 @@ void Compiler::compCallArgStats()
 
                 if (call->AsCall()->gtCallThisArg == nullptr)
                 {
-                    if (call->gtCall.gtCallType == CT_HELPER)
+                    if (call->AsCall()->gtCallType == CT_HELPER)
                     {
                         argHelperCalls++;
                     }
@@ -9567,16 +9612,16 @@ int cSsaNumIR(Compiler* comp, GenTree* tree)
 {
     int chars = 0;
 
-    if (tree->gtLclVarCommon.HasSsaName())
+    if (tree->AsLclVarCommon()->HasSsaName())
     {
         if (tree->gtFlags & GTF_VAR_USEASG)
         {
             assert(tree->gtFlags & GTF_VAR_DEF);
-            chars += printf("<u:%d><d:%d>", tree->gtLclVarCommon.GetSsaNum(), comp->GetSsaNumForLocalVarDef(tree));
+            chars += printf("<u:%d><d:%d>", tree->AsLclVarCommon()->GetSsaNum(), comp->GetSsaNumForLocalVarDef(tree));
         }
         else
         {
-            chars += printf("<%s:%d>", (tree->gtFlags & GTF_VAR_DEF) ? "d" : "u", tree->gtLclVarCommon.GetSsaNum());
+            chars += printf("<%s:%d>", (tree->gtFlags & GTF_VAR_DEF) ? "d" : "u", tree->AsLclVarCommon()->GetSsaNum());
         }
     }
 
@@ -9677,7 +9722,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
         case GT_LCL_VAR:
         case GT_LCL_VAR_ADDR:
         case GT_STORE_LCL_VAR:
-            lclNum = tree->gtLclVarCommon.GetLclNum();
+            lclNum = tree->AsLclVarCommon()->GetLclNum();
             comp->gtGetLclVarNameInfo(lclNum, &ilKind, &ilName, &ilNum);
             if (ilName != nullptr)
             {
@@ -9741,15 +9786,15 @@ int cLeafIR(Compiler* comp, GenTree* tree)
         case GT_LCL_FLD_ADDR:
         case GT_STORE_LCL_FLD:
 
-            lclNum = tree->gtLclVarCommon.GetLclNum();
+            lclNum = tree->AsLclVarCommon()->GetLclNum();
             comp->gtGetLclVarNameInfo(lclNum, &ilKind, &ilName, &ilNum);
             if (ilName != nullptr)
             {
-                chars += printf("%s+%u", ilName, tree->gtLclFld.gtLclOffs);
+                chars += printf("%s+%u", ilName, tree->AsLclFld()->gtLclOffs);
             }
             else
             {
-                chars += printf("%s%d+%u", ilKind, ilNum, tree->gtLclFld.gtLclOffs);
+                chars += printf("%s%d+%u", ilKind, ilNum, tree->AsLclFld()->gtLclOffs);
                 LclVarDsc* varDsc = comp->lvaTable + lclNum;
                 if (comp->dumpIRLocals)
                 {
@@ -9799,7 +9844,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
             }
 
             // TODO: We probably want to expand field sequence.
-            // gtDispFieldSeq(tree->gtLclFld.gtFieldSeq);
+            // gtDispFieldSeq(tree->AsLclFld()->gtFieldSeq);
 
             hasSsa = true;
             break;
@@ -9828,34 +9873,34 @@ int cLeafIR(Compiler* comp, GenTree* tree)
 
             case GTF_ICON_CLASS_HDL:
 
-                className = comp->eeGetClassName((CORINFO_CLASS_HANDLE)tree->gtIntCon.gtIconVal);
+                className = comp->eeGetClassName((CORINFO_CLASS_HANDLE)tree->AsIntCon()->gtIconVal);
                 chars += printf("CLASS(%s)", className);
                 break;
 
             case GTF_ICON_METHOD_HDL:
 
-                methodName = comp->eeGetMethodName((CORINFO_METHOD_HANDLE)tree->gtIntCon.gtIconVal,
+                methodName = comp->eeGetMethodName((CORINFO_METHOD_HANDLE)tree->AsIntCon()->gtIconVal,
                     &className);
                 chars += printf("METHOD(%s.%s)", className, methodName);
                 break;
 
             case GTF_ICON_FIELD_HDL:
 
-                fieldName = comp->eeGetFieldName((CORINFO_FIELD_HANDLE)tree->gtIntCon.gtIconVal,
+                fieldName = comp->eeGetFieldName((CORINFO_FIELD_HANDLE)tree->AsIntCon()->gtIconVal,
                     &className);
                 chars += printf("FIELD(%s.%s) ", className, fieldName);
                 break;
 
             case GTF_ICON_STATIC_HDL:
 
-                fieldName = comp->eeGetFieldName((CORINFO_FIELD_HANDLE)tree->gtIntCon.gtIconVal,
+                fieldName = comp->eeGetFieldName((CORINFO_FIELD_HANDLE)tree->AsIntCon()->gtIconVal,
                     &className);
                 chars += printf("STATIC_FIELD(%s.%s)", className, fieldName);
                 break;
 
             case GTF_ICON_STR_HDL:
 
-                str = comp->eeGetCPString(tree->gtIntCon.gtIconVal);
+                str = comp->eeGetCPString(tree->AsIntCon()->gtIconVal);
                 chars += printf("\"%S\"", str);
                 break;
 
@@ -9881,7 +9926,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
 
             case GTF_ICON_TOKEN_HDL:
 
-                chars += printf("TOKEN(%08X)", tree->gtIntCon.gtIconVal);
+                chars += printf("TOKEN(%08X)", tree->AsIntCon()->gtIconVal);
                 break;
 
             case GTF_ICON_TLS_HDL:
@@ -9911,14 +9956,14 @@ int cLeafIR(Compiler* comp, GenTree* tree)
             }
 #else
 #ifdef _TARGET_64BIT_
-                if ((tree->gtIntCon.gtIconVal & 0xFFFFFFFF00000000LL) != 0)
+                if ((tree->AsIntCon()->gtIconVal & 0xFFFFFFFF00000000LL) != 0)
                 {
-                    chars += printf("HANDLE(0x%llx)", dspPtr(tree->gtIntCon.gtIconVal));
+                    chars += printf("HANDLE(0x%llx)", dspPtr(tree->AsIntCon()->gtIconVal));
                 }
                 else
 #endif
                 {
-                    chars += printf("HANDLE(0x%0x)", dspPtr(tree->gtIntCon.gtIconVal));
+                    chars += printf("HANDLE(0x%0x)", dspPtr(tree->AsIntCon()->gtIconVal));
                 }
 #endif
             }
@@ -9926,18 +9971,18 @@ int cLeafIR(Compiler* comp, GenTree* tree)
             {
                 if (tree->TypeGet() == TYP_REF)
                 {
-                    assert(tree->gtIntCon.gtIconVal == 0);
+                    assert(tree->AsIntCon()->gtIconVal == 0);
                     chars += printf("null");
                 }
 #ifdef _TARGET_64BIT_
-                else if ((tree->gtIntCon.gtIconVal & 0xFFFFFFFF00000000LL) != 0)
+                else if ((tree->AsIntCon()->gtIconVal & 0xFFFFFFFF00000000LL) != 0)
                 {
-                    chars += printf("0x%llx", tree->gtIntCon.gtIconVal);
+                    chars += printf("0x%llx", tree->AsIntCon()->gtIconVal);
                 }
                 else
 #endif
                 {
-                    chars += printf("%ld(0x%x)", tree->gtIntCon.gtIconVal, tree->gtIntCon.gtIconVal);
+                    chars += printf("%ld(0x%x)", tree->AsIntCon()->gtIconVal, tree->AsIntCon()->gtIconVal);
                 }
             }
             break;
@@ -9963,7 +10008,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
             const char* methodName;
             const char* className;
 
-            methodName = comp->eeGetMethodName((CORINFO_METHOD_HANDLE)tree->gtVal.gtVal1, &className);
+            methodName = comp->eeGetMethodName((CORINFO_METHOD_HANDLE)tree->AsVal()->gtVal1, &className);
             chars += printf(" %s.%s", className, methodName);
         }
         break;
@@ -9982,12 +10027,12 @@ int cLeafIR(Compiler* comp, GenTree* tree)
 
         case GT_RET_EXPR:
 
-            chars += printf("t%d", tree->gtRetExpr.gtInlineCandidate->gtTreeID);
+            chars += printf("t%d", tree->AsRetExpr()->gtInlineCandidate->gtTreeID);
             break;
 
         case GT_PHYSREG:
 
-            chars += printf("%s", getRegName(tree->gtPhysReg.gtSrcReg, varTypeIsFloating(tree)));
+            chars += printf("%s", getRegName(tree->AsPhysReg()->gtSrcReg, varTypeIsFloating(tree)));
             break;
 
         case GT_LABEL:
@@ -9995,13 +10040,13 @@ int cLeafIR(Compiler* comp, GenTree* tree)
 
         case GT_IL_OFFSET:
 
-            if (tree->gtILOffset.gtStmtILoffsx == BAD_IL_OFFSET)
+            if (tree->AsILOffset()->gtStmtILoffsx == BAD_IL_OFFSET)
             {
                 chars += printf("?");
             }
             else
             {
-                chars += printf("0x%x", jitGetILoffs(tree->gtILOffset.gtStmtILoffsx));
+                chars += printf("0x%x", jitGetILoffs(tree->AsILOffset()->gtStmtILoffsx));
             }
             break;
 
@@ -10489,7 +10534,7 @@ void cNodeIR(Compiler* comp, GenTree* tree)
     }
     else if (op == GT_INTRINSIC)
     {
-        CorInfoIntrinsics intrin = tree->gtIntrinsic.gtIntrinsicId;
+        CorInfoIntrinsics intrin = tree->AsIntrinsic()->gtIntrinsicId;
 
         chars += printf(":");
         switch (intrin)
@@ -10574,7 +10619,7 @@ void cNodeIR(Compiler* comp, GenTree* tree)
 
         {
             const char* className = nullptr;
-            const char* fieldName = comp->eeGetFieldName(tree->gtField.gtFldHnd, &className);
+            const char* fieldName = comp->eeGetFieldName(tree->AsField()->gtFldHnd, &className);
 
             chars += printf(" %s.%s", className, fieldName);
         }
@@ -10582,12 +10627,12 @@ void cNodeIR(Compiler* comp, GenTree* tree)
 
         case GT_CALL:
 
-            if (tree->gtCall.gtCallType != CT_INDIRECT)
+            if (tree->AsCall()->gtCallType != CT_INDIRECT)
             {
                 const char* methodName;
                 const char* className;
 
-                methodName = comp->eeGetMethodName(tree->gtCall.gtCallMethHnd, &className);
+                methodName = comp->eeGetMethodName(tree->AsCall()->gtCallMethHnd, &className);
 
                 chars += printf(" %s.%s", className, methodName);
             }

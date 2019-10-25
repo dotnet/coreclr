@@ -19,9 +19,9 @@ namespace JIT.HardwareIntrinsics.Arm
 {
     public static partial class Program
     {
-        private static void {Method}{RetBaseType}()
+        private static void {TestName}()
         {
-            var test = new {TemplateName}UnaryOpTest__{Method}{RetBaseType}();
+            var test = new {TemplateName}UnaryOpTest__{TestName}();
 
             if (test.IsSupported)
             {
@@ -110,7 +110,7 @@ namespace JIT.HardwareIntrinsics.Arm
         }
     }
 
-    public sealed unsafe class {TemplateName}UnaryOpTest__{Method}{RetBaseType}
+    public sealed unsafe class {TemplateName}UnaryOpTest__{TestName}
     {
         private struct DataTable
         {
@@ -171,7 +171,7 @@ namespace JIT.HardwareIntrinsics.Arm
                 return testStruct;
             }
 
-            public void RunStructFldScenario({TemplateName}UnaryOpTest__{Method}{RetBaseType} testClass)
+            public void RunStructFldScenario({TemplateName}UnaryOpTest__{TestName} testClass)
             {
                 var result = {Isa}.{Method}(_fld1);
 
@@ -179,7 +179,7 @@ namespace JIT.HardwareIntrinsics.Arm
                 testClass.ValidateResult(_fld1, testClass._dataTable.outArrayPtr);
             }
 
-            public void RunStructFldScenario_Load({TemplateName}UnaryOpTest__{Method}{RetBaseType} testClass)
+            public void RunStructFldScenario_Load({TemplateName}UnaryOpTest__{TestName} testClass)
             {
                 fixed ({Op1VectorType}<{Op1BaseType}>* pFld1 = &_fld1)
                 {
@@ -206,13 +206,13 @@ namespace JIT.HardwareIntrinsics.Arm
 
         private DataTable _dataTable;
 
-        static {TemplateName}UnaryOpTest__{Method}{RetBaseType}()
+        static {TemplateName}UnaryOpTest__{TestName}()
         {
             for (var i = 0; i < Op1ElementCount; i++) { _data1[i] = {NextValueOp1}; }
             Unsafe.CopyBlockUnaligned(ref Unsafe.As<{Op1VectorType}<{Op1BaseType}>, byte>(ref _clsVar1), ref Unsafe.As<{Op1BaseType}, byte>(ref _data1[0]), (uint)Unsafe.SizeOf<{Op1VectorType}<{Op1BaseType}>>());
         }
 
-        public {TemplateName}UnaryOpTest__{Method}{RetBaseType}()
+        public {TemplateName}UnaryOpTest__{TestName}()
         {
             Succeeded = true;
 
@@ -330,7 +330,7 @@ namespace JIT.HardwareIntrinsics.Arm
         {
             TestLibrary.TestFramework.BeginScenario(nameof(RunClassLclFldScenario));
 
-            var test = new {TemplateName}UnaryOpTest__{Method}{RetBaseType}();
+            var test = new {TemplateName}UnaryOpTest__{TestName}();
             var result = {Isa}.{Method}(test._fld1);
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
@@ -341,7 +341,7 @@ namespace JIT.HardwareIntrinsics.Arm
         {
             TestLibrary.TestFramework.BeginScenario(nameof(RunClassLclFldScenario_Load));
 
-            var test = new {TemplateName}UnaryOpTest__{Method}{RetBaseType}();
+            var test = new {TemplateName}UnaryOpTest__{TestName}();
 
             fixed ({Op1VectorType}<{Op1BaseType}>* pFld1 = &test._fld1)
             {

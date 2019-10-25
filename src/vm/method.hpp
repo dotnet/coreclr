@@ -669,6 +669,7 @@ public:
     }
 
     BOOL HasNativeCallableAttribute();
+    BOOL ShouldSuppressGCTransition();
 
 #ifdef FEATURE_COMINTEROP 
     inline DWORD IsComPlusCall()
@@ -2609,7 +2610,7 @@ protected:
         // mdStatic               = 0x0010,
         nomdCALLIStub             = 0x0020,
         nomdDelegateStub          = 0x0040,
-        // unused                 = 0x0080
+        nomdStructMarshalStub     = 0x0080,
         nomdUnbreakable           = 0x0100,
         nomdDelegateCOMStub       = 0x0200,  // CLR->COM or COM->CLR call via a delegate (WinRT specific)
         nomdSignatureNeedsRestore = 0x0400,
@@ -2711,13 +2712,14 @@ public:
     bool IsReverseStub()     { LIMITED_METHOD_DAC_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdReverseStub));  }
     bool IsCALLIStub()       { LIMITED_METHOD_DAC_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdCALLIStub));    }
     bool IsDelegateStub()    { LIMITED_METHOD_DAC_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdDelegateStub)); }
-    bool IsCLRToCOMStub()    { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return ((0 == (m_dwExtendedFlags & mdStatic)) && !IsReverseStub() && !IsDelegateStub()); }
+    bool IsCLRToCOMStub()    { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return ((0 == (m_dwExtendedFlags & mdStatic)) && !IsReverseStub() && !IsDelegateStub() && !IsStructMarshalStub()); }
     bool IsCOMToCLRStub()    { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return ((0 == (m_dwExtendedFlags & mdStatic)) &&  IsReverseStub()); }
-    bool IsPInvokeStub()     { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return ((0 != (m_dwExtendedFlags & mdStatic)) && !IsReverseStub() && !IsCALLIStub()); }
+    bool IsPInvokeStub()     { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return ((0 != (m_dwExtendedFlags & mdStatic)) && !IsReverseStub() && !IsCALLIStub() && !IsStructMarshalStub()); }
     bool IsUnbreakable()     { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdUnbreakable));  }
     bool IsDelegateCOMStub() { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdDelegateCOMStub));  }
     bool IsSignatureNeedsRestore() { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdSignatureNeedsRestore)); }
     bool IsStubNeedsCOMStarted()   { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdStubNeedsCOMStarted)); }
+    bool IsStructMarshalStub()   { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdStructMarshalStub)); }
 #ifdef FEATURE_MULTICASTSTUB_AS_IL
     bool IsMulticastStub() {
         LIMITED_METHOD_DAC_CONTRACT;
@@ -2933,6 +2935,12 @@ public:
         kStdCallWithRetBuf              = 0x8000,   // Call returns large structure, only valid if kStdCall is also set
 
     };
+
+    // Resolve the import to the NDirect target and set it on the NDirectMethodDesc.
+    static void *ResolveAndSetNDirectTarget(_In_ NDirectMethodDesc *pMD);
+
+    // Attempt to import the NDirect target if a GC transition is suppressed.
+    static BOOL TryResolveNDirectTargetForNoGCTransition(_In_ MethodDesc* pMD, _Out_ void** ndirectTarget);
 
     // Retrieves the cached result of marshaling required computation, or performs the computation
     // if the result is not cached yet.

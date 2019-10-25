@@ -63,7 +63,7 @@ build_test_wrappers()
         __MsbuildErr="/fileloggerparameters2:\"ErrorsOnly;LogFile=${__BuildErr}\""
         __Logging="$__MsbuildLog $__MsbuildWrn $__MsbuildErr /consoleloggerparameters:$buildVerbosity"
 
-        nextCommand="\"${__DotNetCli}\" msbuild \"${__ProjectDir}/tests/runtest.proj\" /p:RestoreAdditionalProjectSources=https://dotnet.myget.org/F/dotnet-core/ /p:BuildWrappers=true /p:TargetsWindows=false $__Logging /p:__BuildOS=$__BuildOS /p:__BuildType=$__BuildType /p:__BuildArch=$__BuildArch"
+        nextCommand="\"${__DotNetCli}\" msbuild \"${__ProjectDir}/tests/src/runtest.proj\" /nodereuse:false /p:BuildWrappers=true /p:TargetsWindows=false $__Logging /p:__BuildOS=$__BuildOS /p:__BuildType=$__BuildType /p:__BuildArch=$__BuildArch"
         eval $nextCommand
 
         if [ $? -ne 0 ]; then
@@ -147,7 +147,7 @@ generate_layout()
 
     mkdir -p $CORE_ROOT
 
-    build_MSBuild_projects "Tests_Overlay_Managed" "${__ProjectDir}/tests/runtest.proj" "Creating test overlay" "/t:CreateTestOverlay"
+    build_MSBuild_projects "Tests_Overlay_Managed" "${__ProjectDir}/tests/src/runtest.proj" "Creating test overlay" "/t:CreateTestOverlay"
 
     chmod +x $__BinDir/corerun
     chmod +x $__CrossgenExe
@@ -247,7 +247,7 @@ generate_testhost()
 
     mkdir -p $TEST_HOST
 
-    build_MSBuild_projects "Tests_Generate_TestHost" "${__ProjectDir}/tests/runtest.proj" "Creating test host" "/t:CreateTestHost"
+    build_MSBuild_projects "Tests_Generate_TestHost" "${__ProjectDir}/tests/src/runtest.proj" "Creating test host" "/t:CreateTestHost"
 }
 
 
@@ -340,7 +340,7 @@ build_Tests()
         else
             echo "Checking the Managed Tests Build..."
 
-            build_MSBuild_projects "Check_Test_Build" "${__ProjectDir}/tests/runtest.proj" "Check Test Build" "/t:CheckTestBuild"
+            build_MSBuild_projects "Check_Test_Build" "${__ProjectDir}/tests/src/runtest.proj" "Check Test Build" "/t:CheckTestBuild"
 
             if [ $? -ne 0 ]; then
                 echo "${__ErrMsgPrefix}${__MsgPrefix}Error: Check Test Build failed."
@@ -476,18 +476,15 @@ build_native_projects()
     platformArch="$1"
     intermediatesForBuild="$2"
 
-    extraCmakeArguments="-DCLR_CMAKE_TARGET_OS=${__BuildOS} -DCLR_CMAKE_HOST_ARCH=${platformArch}"
+    extraCmakeArguments=""
     message="native tests assets"
 
     # All set to commence the build
     echo "Commencing build of $message for $__BuildOS.$__BuildArch.$__BuildType in $intermediatesForBuild"
 
     generator=""
-    buildFile="Makefile"
-    buildTool="make"
     if [ $__UseNinja == 1 ]; then
         generator="ninja"
-        buildFile="build.ninja"
         if ! buildTool=$(command -v ninja || command -v ninja-build); then
            echo "Unable to locate ninja!" 1>&2
            exit 1
@@ -503,7 +500,7 @@ build_native_projects()
             pwd
             $__ProjectRoot/eng/common/msbuild.sh $__ProjectRoot/eng/empty.csproj \
                                                  /p:NativeVersionFile=$__versionSourceFile \
-                                                 /p:ArcadeBuild=true /t:GenerateNativeVersionFile /restore \
+                                                 /t:GenerateNativeVersionFile /restore \
                                                  $__CommonMSBuildArgs $__UnprocessedBuildArgs
             if [ $? -ne 0 ]; then
                 echo "${__ErrMsgPrefix}Failed to generate native version file."
@@ -520,22 +517,31 @@ build_native_projects()
             fi
         fi
 
-        pushd "$intermediatesForBuild"
-        # Regenerate the CMake solution
-        # Force cross dir to point to project root cross dir, in case there is a cross build.
         scriptDir="$__ProjectRoot/src/pal/tools"
         if [[ $__GccBuild == 0 ]]; then
-            nextCommand="CONFIG_DIR=\"$__ProjectRoot/cross\" \"$scriptDir/gen-buildsys-clang.sh\" \"$__TestDir\" $__ClangMajorVersion $__ClangMinorVersion $platformArch $scriptDir $__BuildType $__CodeCoverage $generator $extraCmakeArguments $__cmakeargs"
+            echo "Invoking \"$scriptDir/find-clang.sh\" $__ClangMajorVersion \"$__ClangMinorVersion\""
+            source "$scriptDir/find-clang.sh" $__ClangMajorVersion "$__ClangMinorVersion"
         else
-            nextCommand="CONFIG_DIR=\"$__ProjectRoot/cross\" \"$scriptDir/gen-buildsys-gcc.sh\" \"$__TestDir\" \"$__GccMajorVersion\" \"$__GccMinorVersion\" $platformArch $scriptDir $__BuildType $__CodeCoverage $generator $extraCmakeArguments $__cmakeargs"
+            echo "Invoking \"$scriptDir/find-gcc.sh\" \"$__GccMajorVersion\" \"$__GccMinorVersion\""
+            source "$scriptDir/find-gcc.sh" "$__GccMajorVersion" "$__GccMinorVersion"
         fi
+
+        if [[ -n "$__CodeCoverage" ]]; then
+            extraCmakeArguments="$extraCmakeArguments -DCLR_CMAKE_ENABLE_CODE_COVERAGE=1"
+        fi
+
+        nextCommand="CONFIG_DIR=\"$__ProjectRoot/cross\" \"$scriptDir/gen-buildsys.sh\" \"$__TestDir\" \"$intermediatesForBuild\" $platformArch $__BuildType $generator $extraCmakeArguments $__cmakeargs"
         echo "Invoking $nextCommand"
         eval $nextCommand
-        popd
+        
+        if [ $? != 0  ]; then
+            echo "${__ErrMsgPrefix}Failed to generate $message build project!"
+            exit 1
+        fi
     fi
 
-    if [ ! -f "$intermediatesForBuild/$buildFile" ]; then
-        echo "${__ErrMsgPrefix}Failed to generate $message build project!"
+    if [ ! -f "$intermediatesForBuild/CMakeCache.txt" ]; then
+        echo "${__ErrMsgPrefix}Unable to find generated build files for $message project!"
         exit 1
     fi
 
@@ -545,17 +551,16 @@ build_native_projects()
         return
     fi
 
-    pushd "$intermediatesForBuild"
+    echo "Executing cmake --build \"$intermediatesForBuild\" --target install -j $__NumProc"
 
-    echo "Executing $buildTool install -j $__NumProc"
-
-    $buildTool install -j $__NumProc
-    if [ $? != 0 ]; then
+    cmake --build "$intermediatesForBuild" --target install -j $__NumProc
+    
+    local exit_code=$?
+    if [ $exit_code != 0 ]; then
         echo "${__ErrMsgPrefix}Failed to build $message."
-        exit 1
+        exit $exit_code
     fi
 
-    popd
     echo "Native tests build success!"
 }
 
