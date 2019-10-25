@@ -174,8 +174,11 @@ namespace Internal.TypeSystem.Interop
         {
             elementMarshallerKind = MarshallerKind.Invalid;
 
+            bool isByRef = false;
             if (type.IsByRef)
             {
+                isByRef = true;
+
                 type = type.GetParameterType();
 
                 // Compat note: CLR allows ref returning blittable structs for IJW
@@ -357,6 +360,14 @@ namespace Internal.TypeSystem.Interop
             }
             else if (type.IsSzArray)
             {
+#if READYTORUN
+                // We don't want the additional test/maintenance cost of this in R2R.
+                if (isByRef)
+                    return MarshallerKind.Invalid;
+#else
+                _ = isByRef;
+#endif
+
                 if (nativeType == NativeTypeKind.Default)
                     nativeType = NativeTypeKind.Array;
 
