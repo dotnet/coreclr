@@ -9,7 +9,8 @@ namespace Internal.TypeSystem.Interop
     public static class MarshalUtils
     {
         /// <summary>
-        /// Returns true if this is a type that doesn't require marshalling.
+        /// Returns true if this type has a common representation in both managed and unmanaged memory
+        /// and does not require special handling by the interop marshaler.
         /// </summary>
         public static bool IsBlittableType(TypeDesc type)
         {
