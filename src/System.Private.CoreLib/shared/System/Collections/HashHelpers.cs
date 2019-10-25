@@ -108,7 +108,7 @@ namespace System.Collections
             => ulong.MaxValue / divisor + 1;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe uint FastMod(uint value, uint divisor, ulong multiplier)
+        public static uint FastMod(uint value, uint divisor, ulong multiplier)
         {
             // Using fastmod from Daniel Lemire https://lemire.me/blog/2019/02/08/faster-remainders-when-the-divisor-is-a-constant-beating-compilers-and-libdivide/
 
