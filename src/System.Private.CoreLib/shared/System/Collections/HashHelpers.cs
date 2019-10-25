@@ -90,27 +90,35 @@ namespace System.Collections
         }
 
 #if BIT64
+        public static int GetPrime(int capacity, out ulong fastModMultiplier)
+        {
+            int prime = GetPrime(capacity);
+            fastModMultiplier = GetFastModMultiplier((uint)prime);
+            return prime;
+        }
+
+        public static int ExpandPrime(int currentPrime, out ulong fastModMultiplier)
+        {
+            int prime = ExpandPrime(currentPrime);
+            fastModMultiplier = GetFastModMultiplier((uint)prime);
+            return prime;
+        }
+
         public static ulong GetFastModMultiplier(uint divisor)
             => ulong.MaxValue / divisor + 1;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe uint FastMod(uint value, uint divisor, ulong multiplier)
         {
-            // 64bit * 64bit => 128bit isn't currently supported by Math https://github.com/dotnet/corefx/issues/41822
-            if (Bmi2.X64.IsSupported)
-            {
-                // Using fastmod from Daniel Lemire https://lemire.me/blog/2019/02/08/faster-remainders-when-the-divisor-is-a-constant-beating-compilers-and-libdivide/
+            // Using fastmod from Daniel Lemire https://lemire.me/blog/2019/02/08/faster-remainders-when-the-divisor-is-a-constant-beating-compilers-and-libdivide/
 
-                ulong lowbits = multiplier * value;
-                ulong low;
-                ulong high = Bmi2.X64.MultiplyNoFlags(lowbits, divisor, &low);
-                return (uint)high;
-            }
-            else
-            {
-                // 64bit * 64bit => 128bit isn't supported so we will use the slower modulo.
-                return value % divisor;
-            }
+            ulong lowbits = multiplier * value;
+            // 64bit * 64bit => 128bit isn't currently supported by Math https://github.com/dotnet/corefx/issues/41822
+            // otherwise we'd want this to be (uint)Math.MultiplyHigh(lowbits, divisor)
+            uint high = (uint)((((ulong)(uint)lowbits * divisor >> 32) + (lowbits >> 32) * divisor) >> 32);
+
+            Debug.Assert(high == value % divisor);
+            return high;
         }
 #endif
     }

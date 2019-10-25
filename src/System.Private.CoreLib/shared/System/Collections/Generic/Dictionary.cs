@@ -454,11 +454,11 @@ namespace System.Collections.Generic
 
         private int Initialize(int capacity)
         {
-            int size = HashHelpers.GetPrime(capacity);
 #if BIT64
-            _fastModMultiplier = HashHelpers.GetFastModMultiplier((uint)size);
+            int size = HashHelpers.GetPrime(capacity, out _fastModMultiplier);
+#else
+            int size = HashHelpers.GetPrime(capacity);
 #endif
-
             _freeList = -1;
             _buckets = new int[size];
             _entries = new Entry[size];
@@ -713,9 +713,10 @@ namespace System.Collections.Generic
 
         private void Resize()
         {
-            int size = HashHelpers.ExpandPrime(_count);
 #if BIT64
-            _fastModMultiplier = HashHelpers.GetFastModMultiplier((uint)size);
+            int size = HashHelpers.ExpandPrime(_count, out _fastModMultiplier);
+#else
+            int size = HashHelpers.ExpandPrime(_count);
 #endif
             Resize(size, false);
         }
@@ -770,13 +771,13 @@ namespace System.Collections.Generic
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }
 
-            Entry[]? entries = _entries;
             if (_buckets != null)
             {
-                Debug.Assert(entries != null, "entries should be non-null");
+                Debug.Assert(_entries != null, "entries should be non-null");
                 uint collisionCount = 0;
                 uint hashCode = (uint)(_comparer?.GetHashCode(key) ?? key.GetHashCode());
                 ref int bucket = ref GetBucket(hashCode);
+                Entry[]? entries = _entries;
                 int last = -1;
                 // Value in buckets is 1-based
                 int i = bucket - 1;
@@ -838,13 +839,13 @@ namespace System.Collections.Generic
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }
 
-            Entry[]? entries = _entries;
             if (_buckets != null)
             {
-                Debug.Assert(entries != null, "entries should be non-null");
+                Debug.Assert(_entries != null, "entries should be non-null");
                 uint collisionCount = 0;
                 uint hashCode = (uint)(_comparer?.GetHashCode(key) ?? key.GetHashCode());
                 ref int bucket = ref GetBucket(hashCode);
+                Entry[]? entries = _entries;
                 int last = -1;
                 // Value in buckets is 1-based
                 int i = bucket - 1;
@@ -990,9 +991,10 @@ namespace System.Collections.Generic
             _version++;
             if (_buckets == null)
                 return Initialize(capacity);
-            int newSize = HashHelpers.GetPrime(capacity);
 #if BIT64
-            _fastModMultiplier = HashHelpers.GetFastModMultiplier((uint)newSize);
+            int newSize = HashHelpers.GetPrime(capacity, out _fastModMultiplier);
+#else
+            int newSize = HashHelpers.GetPrime(capacity);
 #endif
             Resize(newSize, forceNewHashCodes: false);
             return newSize;
@@ -1022,11 +1024,11 @@ namespace System.Collections.Generic
         {
             if (capacity < Count)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.capacity);
-            int newSize = HashHelpers.GetPrime(capacity);
 #if BIT64
-            _fastModMultiplier = HashHelpers.GetFastModMultiplier((uint)newSize);
+            int newSize = HashHelpers.GetPrime(capacity, out _fastModMultiplier);
+#else
+            int newSize = HashHelpers.GetPrime(capacity);
 #endif
-
             Entry[]? oldEntries = _entries;
             int currentCapacity = oldEntries == null ? 0 : oldEntries.Length;
             if (newSize >= currentCapacity)
@@ -1046,7 +1048,7 @@ namespace System.Collections.Generic
                     entry = oldEntries[i];
                     ref int bucket = ref GetBucket(hashCode);
                     // Value in _buckets is 1-based
-                    entry.next = bucket - 1; // If we get here, we have entries, therefore buckets is not null.
+                    entry.next = bucket - 1;
                     // Value in _buckets is 1-based
                     bucket = count + 1;
                     count++;
@@ -1173,7 +1175,7 @@ namespace System.Collections.Generic
 #if BIT64
             return ref buckets[HashHelpers.FastMod(hashCode, (uint)buckets.Length, _fastModMultiplier)];
 #else
-            return ref buckets![hashCode % (uint)buckets.Length];
+            return ref buckets[hashCode % (uint)buckets.Length];
 #endif
         }
 
