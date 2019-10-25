@@ -48,6 +48,84 @@ namespace System.Runtime.Intrinsics.Arm
             /// </summary>
             public static Vector128<double> Add(Vector128<double> left, Vector128<double> right) => Add(left, right);
 
+            // /// <summary>
+            // /// uint64x1_t vcgez_f64 (float64x1_t a)
+            // ///   A64: FCMGE Dd, Dn, #0
+            // /// </summary>
+            // public static Vector64<ulong> CompareGreaterThanOrEqualZero(Vector64<double> value) => CompareGreaterThanOrEqualZero(value);
+
+            /// <summary>
+            /// uint16x4_t vcgez_s16 (int16x4_t a)
+            ///   A64: CMGE Vd, Vn, #0
+            /// </summary>
+            public static Vector64<ushort> CompareGreaterThanOrEqualZero(Vector64<short> value) => CompareGreaterThanOrEqualZero(value);
+
+            /// <summary>
+            /// uint32x2_t vcgez_s32 (int32x2_t a)
+            ///   A64: CMGE Vd, Vn, #0
+            /// </summary>
+            public static Vector64<uint> CompareGreaterThanOrEqualZero(Vector64<int> value) => CompareGreaterThanOrEqualZero(value);
+
+            // /// <summary>
+            // /// uint64x1_t vcgez_s64 (int64x1_t a)
+            // ///   A64: CMGE Dd, Dn, #0
+            // /// </summary>
+            // public static Vector64<ulong> CompareGreaterThanOrEqualZero(Vector64<long> value) => CompareGreaterThanOrEqualZero(value);
+
+            /// <summary>
+            /// uint8x8_t vcgez_s8 (int8x8_t a)
+            ///   A64: CMGE Vd, Vn, #0
+            /// </summary>
+            public static Vector64<byte> CompareGreaterThanOrEqualZero(Vector64<sbyte> value) => CompareGreaterThanOrEqualZero(value);
+
+            /// <summary>
+            /// uint32x2_t vcgez_f32 (float32x2_t a)
+            ///   A64: FCMGE Vd, Vn, #0
+            /// </summary>
+            public static Vector64<uint> CompareGreaterThanOrEqualZero(Vector64<float> value) => CompareGreaterThanOrEqualZero(value);
+
+            // /// <summary>
+            // /// uint64x1_t vcgez_u64 (uint64x1_t a)
+            // ///   A64: CMGE Dd, Dn, #0
+            // /// </summary>
+            // public static Vector64<ulong> CompareGreaterThanOrEqualZero(Vector64<ulong> value) => CompareGreaterThanOrEqualZero(value);
+
+            /// <summary>
+            /// uint64x2_t vcgezq_f64 (float64x2_t a)
+            ///   A64: FCMGE Vd, Vn, #0
+            /// </summary>
+            public static Vector128<ulong> CompareGreaterThanOrEqualZero(Vector128<double> value) => CompareGreaterThanOrEqualZero(value);
+
+            /// <summary>
+            /// uint16x8_t vcgezq_s16 (int16x8_t a)
+            ///   A64: CMGE Vd, Vn, #0
+            /// </summary>
+            public static Vector128<ushort> CompareGreaterThanOrEqualZero(Vector128<short> value) => CompareGreaterThanOrEqualZero(value);
+
+            /// <summary>
+            /// uint32x4_t vcgezq_s32 (int32x4_t a)
+            ///   A64: CMGE Vd, Vn, #0
+            /// </summary>
+            public static Vector128<uint> CompareGreaterThanOrEqualZero(Vector128<int> value) => CompareGreaterThanOrEqualZero(value);
+
+            /// <summary>
+            /// uint64x2_t vcgezq_s64 (int64x2_t a)
+            ///   A64: CMGE Vd, Vn, #0
+            /// </summary>
+            public static Vector128<ulong> CompareGreaterThanOrEqualZero(Vector128<long> value) => CompareGreaterThanOrEqualZero(value);
+
+            /// <summary>
+            /// uint8x16_t vcgezq_s8 (int8x16_t a)
+            ///   A64: CMGE Vd, Vn, #0
+            /// </summary>
+            public static Vector128<byte> CompareGreaterThanOrEqualZero(Vector128<sbyte> value) => CompareGreaterThanOrEqualZero(value);
+
+            /// <summary>
+            /// uint32x4_t vcgezq_f32 (float32x4_t a)
+            ///   A64: FCMGE Vd, Vn, #0
+            /// </summary>
+            public static Vector128<uint> CompareGreaterThanOrEqualZero(Vector128<float> value) => CompareGreaterThanOrEqualZero(value);
+
             /// <summary>
             /// uint8x8_t vceqz_u8 (uint8x8_t a)
             ///   A64: CMEQ Vd, Vn, #0
