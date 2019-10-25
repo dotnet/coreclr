@@ -244,6 +244,84 @@ namespace System.Runtime.Intrinsics.Arm
             /// </summary>
             public static Vector128<ulong> CompareEqualZero(Vector128<ulong> value) { throw new PlatformNotSupportedException(); }
 
+            // /// <summary>
+            // /// uint64x1_t vcltz_f64 (float64x1_t a)
+            // ///   A64: FCMLT Dd, Dn, #0
+            // /// </summary>
+            // public static Vector64<ulong> CompareLessThanZero(Vector64<double> value) { throw new PlatformNotSupportedException(); }
+
+            /// <summary>
+            /// uint16x4_t vcltz_s16 (int16x4_t a)
+            ///   A64: CMLT Vd, Vn, #0
+            /// </summary>
+            public static Vector64<ushort> CompareLessThanZero(Vector64<short> value) { throw new PlatformNotSupportedException(); }
+
+            /// <summary>
+            /// uint32x2_t vcltz_s32 (int32x2_t a)
+            ///   A64: CMLT Vd, Vn, #0
+            /// </summary>
+            public static Vector64<uint> CompareLessThanZero(Vector64<int> value) { throw new PlatformNotSupportedException(); }
+
+            // /// <summary>
+            // /// uint64x1_t vcltz_s64 (int64x1_t a)
+            // ///   A64: CMLT Dd, Dn, #0
+            // /// </summary>
+            // public static Vector64<ulong> CompareLessThanZero(Vector64<long> value) { throw new PlatformNotSupportedException(); }
+
+            /// <summary>
+            /// uint8x8_t vcltz_s8 (int8x8_t a)
+            ///   A64: CMLT Vd, Vn, #0
+            /// </summary>
+            public static Vector64<byte> CompareLessThanZero(Vector64<sbyte> value) { throw new PlatformNotSupportedException(); }
+
+            /// <summary>
+            /// uint32x2_t vcltz_f32 (float32x2_t a)
+            ///   A64: FCMLT Vd, Vn, #0
+            /// </summary>
+            public static Vector64<uint> CompareLessThanZero(Vector64<float> value) { throw new PlatformNotSupportedException(); }
+
+            // /// <summary>
+            // /// uint64x1_t vcltz_u64 (uint64x1_t a)
+            // ///   A64: CMLT Dd, Dn, #0
+            // /// </summary>
+            // public static Vector64<ulong> CompareLessThanZero(Vector64<ulong> value) { throw new PlatformNotSupportedException(); }
+
+            /// <summary>
+            /// uint64x2_t vcltzq_f64 (float64x2_t a)
+            ///   A64: FCMLT Vd, Vn, #0
+            /// </summary>
+            public static Vector128<ulong> CompareLessThanZero(Vector128<double> value) { throw new PlatformNotSupportedException(); }
+
+            /// <summary>
+            /// uint16x8_t vcltzq_s16 (int16x8_t a)
+            ///   A64: CMLT Vd, Vn, #0
+            /// </summary>
+            public static Vector128<ushort> CompareLessThanZero(Vector128<short> value) { throw new PlatformNotSupportedException(); }
+
+            /// <summary>
+            /// uint32x4_t vcltzq_s32 (int32x4_t a)
+            ///   A64: CMLT Vd, Vn, #0
+            /// </summary>
+            public static Vector128<uint> CompareLessThanZero(Vector128<int> value) { throw new PlatformNotSupportedException(); }
+
+            /// <summary>
+            /// uint64x2_t vcltzq_s64 (int64x2_t a)
+            ///   A64: CMLT Vd, Vn, #0
+            /// </summary>
+            public static Vector128<ulong> CompareLessThanZero(Vector128<long> value) { throw new PlatformNotSupportedException(); }
+
+            /// <summary>
+            /// uint8x16_t vcltzq_s8 (int8x16_t a)
+            ///   A64: CMLT Vd, Vn, #0
+            /// </summary>
+            public static Vector128<byte> CompareLessThanZero(Vector128<sbyte> value) { throw new PlatformNotSupportedException(); }
+
+            /// <summary>
+            /// uint32x4_t vcltzq_f32 (float32x4_t a)
+            ///   A64: FCMLT Vd, Vn, #0
+            /// </summary>
+            public static Vector128<uint> CompareLessThanZero(Vector128<float> value) { throw new PlatformNotSupportedException(); }
+
             /// <summary>
             /// float64x2_t vsubq_f64 (float64x2_t a, float64x2_t b)
             ///   A64: FSUB Vd.2D, Vn.2D, Vm.2D
