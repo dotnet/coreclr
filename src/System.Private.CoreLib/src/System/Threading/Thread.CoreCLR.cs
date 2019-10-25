@@ -276,7 +276,6 @@ namespace System.Threading
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static Thread InitializeCurrentThread() => t_currentThread = GetCurrentThreadNative();
 
-        [MethodImpl(MethodImplOptions.InternalCall), ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         private static extern Thread GetCurrentThreadNative();
 
         private void SetStartHelper(Delegate start, int maxStackSize)
