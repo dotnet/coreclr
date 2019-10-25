@@ -806,6 +806,89 @@ void Lowering::LowerHWIntrinsicCC(GenTreeHWIntrinsic* node, NamedIntrinsic newIn
 }
 
 //----------------------------------------------------------------------------------------------
+// LowerFusedMultiplyAdd: Changes NI_FMA_MultiplyAddScalar produced by Math(F).FusedMultiplyAdd
+//     to a better FMA intrinsics if there are GT_NEG around in order to eliminate them.
+//
+//  Arguments:
+//     node - The hardware intrinsic node
+//
+//  Notes:
+//     Math(F).FusedMultiplyAdd is expanded into NI_FMA_MultiplyAddScalar and
+//     depending on additional GT_NEG nodes around it can be:
+//
+//      x *  y + z -> NI_FMA_MultiplyAddScalar
+//      x * -y + z -> NI_FMA_MultiplyAddNegatedScalar
+//     -x *  y + z -> NI_FMA_MultiplyAddNegatedScalar
+//     -x * -y + z -> NI_FMA_MultiplyAddScalar
+//      x *  y - z -> NI_FMA_MultiplySubtractScalar
+//      x * -y - z -> NI_FMA_MultiplySubtractNegatedScalar
+//     -x *  y - z -> NI_FMA_MultiplySubtractNegatedScalar
+//     -x * -y - z -> NI_FMA_MultiplySubtractScalar
+//
+void Lowering::LowerFusedMultiplyAdd(GenTreeHWIntrinsic* node)
+{
+    GenTreeHWIntrinsic* createScalarOpX = nullptr;
+    GenTreeHWIntrinsic* createScalarOpY = nullptr;
+    GenTreeHWIntrinsic* createScalarOpZ = nullptr;
+    GenTreeArgList*     argList         = node->gtGetOp1()->AsArgList();
+
+    for (size_t i = 0; i < 3; i++)
+    {
+        assert(argList->Current() != nullptr);
+        if (argList->Current()->OperIsHWIntrinsic())
+        {
+            GenTreeHWIntrinsic* hwArg = argList->Current()->AsHWIntrinsic();
+            if (hwArg->gtHWIntrinsicId == NI_Vector128_CreateScalarUnsafe)
+            {
+                if (i == 0)
+                {
+                    createScalarOpX = hwArg;
+                }
+                else if (i == 1)
+                {
+                    createScalarOpY = hwArg;
+                }
+                else
+                {
+                    createScalarOpZ = hwArg;
+                }
+                argList = argList->Rest();
+                continue;
+            }
+        }
+        return; // Math(F).FusedMultiplyAdd is expected to emit three NI_Vector128_CreateScalarUnsafe
+                // but it's also possible to use NI_FMA_MultiplyAddScalar directly
+    }
+
+    GenTree* argX = createScalarOpX->gtGetOp1();
+    GenTree* argY = createScalarOpY->gtGetOp1();
+    GenTree* argZ = createScalarOpZ->gtGetOp1();
+
+    const bool negMul = argX->OperIs(GT_NEG) != argY->OperIs(GT_NEG);
+    if (argX->OperIs(GT_NEG))
+    {
+        BlockRange().Remove(argX);
+        createScalarOpX->gtOp1 = argX->gtGetOp1();
+    }
+    if (argY->OperIs(GT_NEG))
+    {
+        BlockRange().Remove(argY);
+        createScalarOpY->gtOp1 = argY->gtGetOp1();
+    }
+    if (argZ->OperIs(GT_NEG))
+    {
+        BlockRange().Remove(argZ);
+        createScalarOpZ->gtOp1 = argZ->gtGetOp1();
+        node->gtHWIntrinsicId =
+            negMul ? NI_FMA_MultiplySubtractNegatedScalar : NI_FMA_MultiplySubtractScalar;
+    }
+    else
+    {
+        node->gtHWIntrinsicId = negMul ? NI_FMA_MultiplyAddNegatedScalar : NI_FMA_MultiplyAddScalar;
+    }
+}
+
+//----------------------------------------------------------------------------------------------
 // Lowering::LowerHWIntrinsic: Perform containment analysis for a hardware intrinsic node.
 //
 //  Arguments:
@@ -912,61 +995,8 @@ void Lowering::LowerHWIntrinsic(GenTreeHWIntrinsic* node)
             break;
 
         case NI_FMA_MultiplyAddScalar:
-        {
-            // Math(F).FusedMultiplyAdd is expanded into NI_FMA_MultiplyAddScalar but
-            // depending on additional GT_NEG nodes it can be:
-            //
-            //    x *  y + z -> NI_FMA_MultiplyAddScalar
-            //    x * -y + z -> NI_FMA_MultiplyAddNegatedScalar
-            //   -x *  y + z -> NI_FMA_MultiplyAddNegatedScalar
-            //   -x * -y + z -> NI_FMA_MultiplyAddScalar
-            //    x *  y - z -> NI_FMA_MultiplySubtractScalar
-            //    x * -y - z -> NI_FMA_MultiplySubtractNegatedScalar
-            //   -x *  y - z -> NI_FMA_MultiplySubtractNegatedScalar
-            //   -x * -y - z -> NI_FMA_MultiplySubtractScalar
-            //
-            GenTreeArgList* argList = node->gtGetOp1()->AsArgList();
-            if (argList->Current()->OperIsHWIntrinsic()) // CreateScalarUnsafe is expected
-            {
-                GenTreeUnOp* createScalarOpX = argList->Current()->AsUnOp();
-                GenTree*     argX            = createScalarOpX->gtGetOp1();
-                argList                      = argList->Rest();
-                if (argList->Current()->OperIsHWIntrinsic()) // CreateScalarUnsafe is expected
-                {
-                    GenTreeUnOp* createScalarOpY = argList->Current()->AsUnOp();
-                    GenTree*     argY            = createScalarOpY->gtGetOp1();
-                    argList                      = argList->Rest();
-                    if (argList->Current()->OperIsHWIntrinsic()) // CreateScalarUnsafe is expected
-                    {
-                        GenTreeUnOp* createScalarOpZ = argList->Current()->AsUnOp();
-                        GenTree*     argZ            = createScalarOpZ->gtGetOp1();
-                        bool         negMul          = argX->OperIs(GT_NEG) ^ argY->OperIs(GT_NEG);
-                        if (argX->OperIs(GT_NEG))
-                        {
-                            BlockRange().Remove(argX);
-                            createScalarOpX->gtOp1 = argX->gtGetOp1();
-                        }
-                        if (argY->OperIs(GT_NEG))
-                        {
-                            BlockRange().Remove(argY);
-                            createScalarOpY->gtOp1 = argY->gtGetOp1();
-                        }
-                        if (argZ->OperIs(GT_NEG))
-                        {
-                            BlockRange().Remove(argZ);
-                            createScalarOpZ->gtOp1 = argZ->gtGetOp1();
-                            node->gtHWIntrinsicId =
-                                negMul ? NI_FMA_MultiplySubtractNegatedScalar : NI_FMA_MultiplySubtractScalar;
-                        }
-                        else
-                        {
-                            node->gtHWIntrinsicId = negMul ? NI_FMA_MultiplyAddNegatedScalar : NI_FMA_MultiplyAddScalar;
-                        }
-                    }
-                }
-            }
+            LowerFusedMultiplyAdd(node);
             break;
-        }
 
         default:
             break;
