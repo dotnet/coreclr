@@ -19,6 +19,8 @@
 #define __RPC_USER
 #define __RPC_FAR
 
+#define __uuidof(type)      IID_##type
+
 #define DECLSPEC_UUID(x) __declspec(uuid(x))
 #define MIDL_INTERFACE(x)   struct DECLSPEC_UUID(x) DECLSPEC_NOVTABLE
 
