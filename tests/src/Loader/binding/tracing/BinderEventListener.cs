@@ -78,10 +78,10 @@ namespace BinderTracingTests
 
             switch (data.EventName)
             {
-                case "AssemblyBindStart":
+                case "AssemblyLoadStart":
                     lock (eventsLock)
                     {
-                        Assert.True(!bindEvents.ContainsKey(data.ActivityId), "AssemblyBindStart should not exist for same activity ID ");
+                        Assert.True(!bindEvents.ContainsKey(data.ActivityId), "AssemblyLoadStart should not exist for same activity ID ");
                         var bindEvent = new BindEvent()
                         {
                             AssemblyName = new AssemblyName(GetDataString("AssemblyName")),
@@ -92,10 +92,10 @@ namespace BinderTracingTests
                         bindEvents.Add(data.ActivityId, bindEvent);
                     }
                     break;
-                case "AssemblyBindStop":
+                case "AssemblyLoadStop":
                     lock (eventsLock)
                     {
-                        Assert.True(bindEvents.ContainsKey(data.ActivityId), "AssemblyBindStop should have a matching AssemblyBindStart");
+                        Assert.True(bindEvents.ContainsKey(data.ActivityId), "AssemblyLoadStop should have a matching AssemblyLoadStart");
                         bindEvents[data.ActivityId].Success = (bool)GetData("Success");
                         bindEvents[data.ActivityId].Completed = true;
                     }

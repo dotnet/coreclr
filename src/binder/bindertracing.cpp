@@ -25,17 +25,17 @@ using namespace BINDER_SPACE;
 
 namespace
 {
-    void FireAssemblyBindStart(const BinderTracing::AssemblyBindEvent::BindRequest &request)
+    void FireAssemblyLoadStart(const BinderTracing::AssemblyBindEvent::BindRequest &request)
     {
 #ifdef FEATURE_EVENT_TRACE
-        if (!EventEnabledAssemblyBindStart())
+        if (!EventEnabledAssemblyLoadStart())
             return;
 
         GUID activityId = GUID_NULL;
         GUID relatedActivityId = GUID_NULL;
         ActivityTracker::Start(&activityId, &relatedActivityId);
 
-        FireEtwAssemblyBindStart(
+        FireEtwAssemblyLoadStart(
             GetClrInstanceId(),
             request.AssemblyName,
             request.AssemblyPath,
@@ -46,16 +46,16 @@ namespace
 #endif // FEATURE_EVENT_TRACE
     }
 
-    void FireAssemblyBindStop(const BinderTracing::AssemblyBindEvent::BindRequest &request, bool success, const WCHAR *resultName, const WCHAR *resultPath, bool cached)
+    void FireAssemblyLoadStop(const BinderTracing::AssemblyBindEvent::BindRequest &request, bool success, const WCHAR *resultName, const WCHAR *resultPath, bool cached)
     {
 #ifdef FEATURE_EVENT_TRACE
-        if (!EventEnabledAssemblyBindStop())
+        if (!EventEnabledAssemblyLoadStop())
             return;
 
         GUID activityId = GUID_NULL;
         ActivityTracker::Stop(&activityId);
         
-        FireEtwAssemblyBindStop(
+        FireEtwAssemblyLoadStop(
             GetClrInstanceId(), 
             request.AssemblyName,
             request.AssemblyPath,
@@ -73,8 +73,8 @@ namespace
 bool BinderTracing::IsEnabled()
 {
 #ifdef FEATURE_EVENT_TRACE
-    // Just check for the AssemblyBindStart event being enabled.
-    return EventEnabledAssemblyBindStart();
+    // Just check for the AssemblyLoadStart event being enabled.
+    return EventEnabledAssemblyLoadStart();
 #endif // FEATURE_EVENT_TRACE
     return false;
 }
@@ -94,14 +94,14 @@ namespace BinderTracing
         if (m_trackingBind)
         {
             m_bindRequest.AssemblySpec->GetFileOrDisplayName(ASM_DISPLAYF_VERSION | ASM_DISPLAYF_CULTURE | ASM_DISPLAYF_PUBLIC_KEY_TOKEN, m_bindRequest.AssemblyName);
-            FireAssemblyBindStart(m_bindRequest);
+            FireAssemblyLoadStart(m_bindRequest);
         }
     }
 
     AssemblyBindEvent::~AssemblyBindEvent()
     {
         if (m_trackingBind)
-            FireAssemblyBindStop(m_bindRequest, m_success, m_resultName.GetUnicode(), m_resultPath.GetUnicode(), m_cached);
+            FireAssemblyLoadStop(m_bindRequest, m_success, m_resultName.GetUnicode(), m_resultPath.GetUnicode(), m_cached);
     }
 
     void AssemblyBindEvent::SetResult(PEAssembly *assembly)

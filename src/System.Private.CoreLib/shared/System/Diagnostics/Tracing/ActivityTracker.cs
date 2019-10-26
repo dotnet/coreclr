@@ -588,23 +588,23 @@ namespace System.Diagnostics.Tracing
             // currently we do nothing, as that seems better than setting to Guid.Emtpy.
         }
 
-        // Assembly bind runtime activity name
-        private const string AssemblyBindName = "AssemblyBind";
+        // Assembly load runtime activity name
+        private const string AssemblyLoadName = "AssemblyLoad";
 
         /// <summary>
-        /// Called by the runtime to start an assembly bind activity
+        /// Called by the runtime to start an assembly load activity
         /// </summary>
-        private static void StartAssemblyBind(ref Guid activityId, ref Guid relatedActivityId)
+        private static void StartAssemblyLoad(ref Guid activityId, ref Guid relatedActivityId)
         {
-            Instance.OnStart(NativeRuntimeEventSource.Log.Name, AssemblyBindName, 0, ref activityId, ref relatedActivityId, EventActivityOptions.Recursive);
+            Instance.OnStart(NativeRuntimeEventSource.Log.Name, AssemblyLoadName, 0, ref activityId, ref relatedActivityId, EventActivityOptions.Recursive);
         }
 
         /// <summary>
-        /// Called by the runtime to stop an assembly bind activity
+        /// Called by the runtime to stop an assembly load activity
         /// </summary>
-        private static void StopAssemblyBind(ref Guid activityId)
+        private static void StopAssemblyLoad(ref Guid activityId)
         {
-            Instance.OnStop(NativeRuntimeEventSource.Log.Name, AssemblyBindName, 0, ref activityId);
+            Instance.OnStop(NativeRuntimeEventSource.Log.Name, AssemblyLoadName, 0, ref activityId);
         }
 
         /// <summary>

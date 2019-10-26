@@ -1365,8 +1365,8 @@ DEFINE_FIELD_U(_userMessage,        ContractExceptionObject,    _UserMessage)
 DEFINE_FIELD_U(_condition,          ContractExceptionObject,    _Condition)
 
 DEFINE_CLASS(ACTIVITY_TRACKER,      Tracing,                ActivityTracker)
-DEFINE_METHOD(ACTIVITY_TRACKER,     START_ASSEMBLY_BIND,    StartAssemblyBind,    SM_RefGuid_RefGuid_RetVoid)
-DEFINE_METHOD(ACTIVITY_TRACKER,     STOP_ASSEMBLY_BIND,     StopAssemblyBind,     SM_RefGuid_RetVoid)
+DEFINE_METHOD(ACTIVITY_TRACKER,     START_ASSEMBLY_LOAD,    StartAssemblyLoad,    SM_RefGuid_RefGuid_RetVoid)
+DEFINE_METHOD(ACTIVITY_TRACKER,     STOP_ASSEMBLY_LOAD,     StopAssemblyLoad,     SM_RefGuid_RetVoid)
 
 #ifdef FEATURE_COMINTEROP
 DEFINE_CLASS(CAUSALITY_TRACE_LEVEL, WindowsFoundationDiag,   CausalityTraceLevel)
