@@ -1,0 +1,3 @@
+# Add 'area-CodeGen' to any changes within 'src/jit' folder or any subfolders
+area-CodeGen:
+  - src/jit/**/*
