@@ -76,8 +76,6 @@ namespace BINDER_SPACE
                 IAssemblyName * pIAssemblyName,
                 ICLRPrivAssembly ** ppAssembly);
 
-        STDMETHOD(IsShareable)(BOOL * pbIsShareable);
-
         STDMETHOD(GetAvailableImageTypes)(PDWORD pdwImageTypes);
 
         STDMETHOD(GetImageResource)(
@@ -108,8 +106,6 @@ namespace BINDER_SPACE
         inline void SetIsDynamicBind(BOOL fIsDynamicBind);
         inline BOOL GetIsByteArray();
         inline void SetIsByteArray(BOOL fIsByteArray);
-        inline BOOL GetIsSharable();
-        inline void SetIsSharable(BOOL fIsSharable);
         inline SString &GetPath();
 
         inline PEImage *GetPEImage(BOOL fAddRef = FALSE);
@@ -136,7 +132,6 @@ namespace BINDER_SPACE
             FLAG_IS_IN_GAC = 0x02,
             FLAG_IS_DYNAMIC_BIND = 0x04,
             FLAG_IS_BYTE_ARRAY = 0x08,
-            FLAG_IS_SHARABLE = 0x10
         };
 
         inline void SetPEImage(PEImage *pPEImage);
