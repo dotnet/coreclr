@@ -17,7 +17,6 @@
 #include "methodtable.h"
 #include "genericdict.h"
 #include "threadstatics.h"
-#include "fieldmarshaler.h"
 
 //==========================================================================================
 inline PTR_EEClass MethodTable::GetClass_NoLogging()
@@ -1098,18 +1097,6 @@ inline BOOL MethodTable::IsWinRTDelegate()
 #endif // FEATURE_COMINTEROP
 
 //==========================================================================================
-inline UINT32 MethodTable::GetNativeSize()
-{
-    LIMITED_METHOD_CONTRACT;
-    _ASSERTE(GetClass());
-    if (IsBlittable())
-    {
-        return GetClass()->GetLayoutInfo()->GetManagedSize();
-    }
-    return GetNativeLayoutInfo()->GetSize();
-}
-
-//==========================================================================================
 inline PTR_MethodTable MethodTable::GetCanonicalMethodTable()
 {
     LIMITED_METHOD_DAC_CONTRACT;
@@ -1241,24 +1228,6 @@ inline EEClassLayoutInfo *MethodTable::GetLayoutInfo()
     LIMITED_METHOD_CONTRACT;
     PRECONDITION(HasLayout());
     return GetClass()->GetLayoutInfo();
-}
-
-inline EEClassNativeLayoutInfo const* MethodTable::GetNativeLayoutInfo()
-{
-    LIMITED_METHOD_CONTRACT;
-    PRECONDITION(HasLayout());
-
-    EnsureNativeLayoutInfoInitialized();
-    return GetClass()->GetNativeLayoutInfo();
-}
-
-inline void MethodTable::EnsureNativeLayoutInfoInitialized()
-{
-    LIMITED_METHOD_CONTRACT;
-#ifndef DACCESS_COMPILE
-    PRECONDITION(HasLayout());
-    EEClassNativeLayoutInfo::InitializeNativeLayoutFieldMetadataThrowing(this);
-#endif
 }
 
 //==========================================================================================

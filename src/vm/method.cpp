@@ -29,6 +29,7 @@
 #include "interoputil.h"
 #include "prettyprintsig.h"
 #include "formattype.h"
+#include "fieldmarshaler.h"
 
 #ifdef FEATURE_PREJIT
 #include "compile.h"

@@ -2654,17 +2654,17 @@ void EEClass::Save(DataImage *image, MethodTable *pMT)
 
     if (HasLayout())
     {
-        EEClassLayoutInfo *pInfo = &((LayoutEEClass*)this)->m_LayoutInfo;
+        EEClassNativeLayoutInfo const* pLayoutInfo = pMT->GetNativeLayoutInfo();
 
-        if (pInfo->m_numCTMFields > 0)
+        ZapStoredStructure* pNode = image->StoreStructure(pLayoutInfo,
+            sizeof(EEClassNativeLayoutInfo) + pLayoutInfo->GetNumFields() * sizeof(NativeFieldDescriptor),
+            DataImage::ITEM_NATIVE_LAYOUT_INFO);
+
+        if (pLayoutInfo->GetNumFields() > 0)
         {
-            ZapStoredStructure * pNode = image->StoreStructure(pInfo->GetNativeFieldDescriptors(),
-                                            pInfo->m_numCTMFields * sizeof(NativeFieldDescriptor),
-                                            DataImage::ITEM_FIELD_MARSHALERS);
-
-            for (UINT iField = 0; iField < pInfo->m_numCTMFields; iField++)
+            for (UINT iField = 0; iField < pLayoutInfo->GetNumFields(); iField++)
             {
-                NativeFieldDescriptor *pFM = &pInfo->GetNativeFieldDescriptors()[iField];
+                NativeFieldDescriptor const*pFM = &pLayoutInfo->GetNativeFieldDescriptors()[iField];
                 pFM->Save(image);
 
                 if (iField > 0)
@@ -2869,12 +2869,12 @@ void EEClass::Fixup(DataImage *image, MethodTable *pMT)
 
     if (HasLayout())
     {
-        image->FixupRelativePointerField(this, offsetof(LayoutEEClass, m_LayoutInfo.m_pNativeFieldDescriptors));
+        image->FixupRelativePointerField(this, offsetof(LayoutEEClass, m_nativeLayoutInfo));
 
-        EEClassLayoutInfo *pInfo = &((LayoutEEClass*)this)->m_LayoutInfo;
+        EEClassNativeLayoutInfo *pInfo = this->GetNativeLayoutInfo();
 
         NativeFieldDescriptor* pFMBegin = pInfo->GetNativeFieldDescriptors();
-        NativeFieldDescriptor* pFMEnd = pFMBegin + pInfo->m_numCTMFields;
+        NativeFieldDescriptor* pFMEnd = pFMBegin + pInfo->GetNumFields();
         for (NativeFieldDescriptor* pCurr = pFMBegin; pCurr < pFMEnd; ++pCurr)
         {
             pCurr->Fixup(image);

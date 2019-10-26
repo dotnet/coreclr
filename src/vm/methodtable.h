@@ -1712,9 +1712,9 @@ public:
 
     inline EEClassLayoutInfo* GetLayoutInfo();
 
-    inline EEClassNativeLayoutInfo const* GetNativeLayoutInfo();
+    EEClassNativeLayoutInfo const* GetNativeLayoutInfo();
 
-    inline void EnsureNativeLayoutInfoInitialized();
+    void EnsureNativeLayoutInfoInitialized();
 
     inline BOOL IsBlittable();
 

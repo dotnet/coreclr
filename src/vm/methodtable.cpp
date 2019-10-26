@@ -9921,6 +9921,35 @@ NOINLINE BYTE *MethodTable::GetLoaderAllocatorObjectForGC()
     return retVal;
 }
 
+UINT32 MethodTable::GetNativeSize()
+{
+    LIMITED_METHOD_CONTRACT;
+    _ASSERTE(GetClass());
+    if (IsBlittable())
+    {
+        return GetClass()->GetLayoutInfo()->GetManagedSize();
+    }
+    return GetNativeLayoutInfo()->GetSize();
+}
+
+EEClassNativeLayoutInfo const* MethodTable::GetNativeLayoutInfo()
+{
+    LIMITED_METHOD_CONTRACT;
+    PRECONDITION(HasLayout());
+
+    EnsureNativeLayoutInfoInitialized();
+    return GetClass()->GetNativeLayoutInfo();
+}
+
+void MethodTable::EnsureNativeLayoutInfoInitialized()
+{
+    LIMITED_METHOD_CONTRACT;
+#ifndef DACCESS_COMPILE
+    PRECONDITION(HasLayout());
+    EEClassNativeLayoutInfo::InitializeNativeLayoutFieldMetadataThrowing(this);
+#endif
+}
+
 #ifdef FEATURE_COMINTEROP
 //==========================================================================================
 BOOL MethodTable::IsWinRTRedirectedDelegate()

@@ -48,6 +48,7 @@
 #include "runtimehandles.h"
 #include "sigbuilder.h"
 #include "openum.h"
+#include "fieldmarshaler.h"
 #ifdef HAVE_GCCOVER
 #include "gccover.h"
 #endif // HAVE_GCCOVER
