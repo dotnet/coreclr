@@ -809,7 +809,7 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(s));
             }
-            if (index < 0 || index >= s.Length)
+            if ((uint)index >= (uint)s.Length)
             {
                 throw new ArgumentOutOfRangeException(nameof(index));
             }
@@ -830,7 +830,7 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(s));
             }
-            if (index < 0 || index >= s.Length)
+            if ((uint)index >= (uint)s.Length)
             {
                 throw new ArgumentOutOfRangeException(nameof(index));
             }
@@ -846,7 +846,7 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(s));
             }
-            if (index < 0 || index >= s.Length)
+            if ((uint)index >= (uint)s.Length)
             {
                 throw new ArgumentOutOfRangeException(nameof(index));
             }
@@ -951,7 +951,7 @@ namespace System
                 throw new ArgumentNullException(nameof(s));
             }
 
-            if (index < 0 || index >= s.Length)
+            if ((uint)index >= (uint)s.Length)
             {
                 throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_Index);
             }

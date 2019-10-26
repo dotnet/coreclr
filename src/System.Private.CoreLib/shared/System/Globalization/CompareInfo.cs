@@ -906,7 +906,7 @@ namespace System.Globalization
             {
                 throw new ArgumentNullException(nameof(source));
             }
-            if (startIndex < 0 || startIndex > source.Length)
+            if ((uint)startIndex > (uint)source.Length)
             {
                 throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
             }
@@ -1246,7 +1246,7 @@ namespace System.Globalization
             }
 
             // Make sure we're not out of range
-            if (startIndex < 0 || startIndex > source.Length)
+            if ((uint)startIndex > (uint)source.Length)
             {
                 throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
             }
@@ -1305,7 +1305,7 @@ namespace System.Globalization
             }
 
             // Make sure we're not out of range
-            if (startIndex < 0 || startIndex > source.Length)
+            if ((uint)startIndex > (uint)source.Length)
             {
                 throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
             }

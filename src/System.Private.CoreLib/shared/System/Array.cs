@@ -657,7 +657,7 @@ namespace System
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
-            if (startIndex < 0 || startIndex > array.Length)
+            if ((uint)startIndex > (uint)array.Length)
             {
                 ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
             }
@@ -746,7 +746,7 @@ namespace System
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
-            if (startIndex < 0 || startIndex > array.Length)
+            if ((uint)startIndex > (uint)array.Length)
             {
                 ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
             }
@@ -836,7 +836,7 @@ namespace System
             else
             {
                 // Make sure we're not out of range
-                if (startIndex < 0 || startIndex >= array.Length)
+                if ((uint)startIndex >= (uint)array.Length)
                 {
                     ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
                 }
@@ -918,7 +918,7 @@ namespace System
             int lb = array.GetLowerBound(0);
             if (startIndex < lb || startIndex > array.Length + lb)
                 ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
-            if (count < 0 || count > array.Length - startIndex + lb)
+            if ((uint)count > (uint)(array.Length - startIndex + lb))
                 ThrowHelper.ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count();
 
 #if !CORERT

@@ -210,7 +210,7 @@ namespace System.Globalization
             }
 
             int len = str.Length;
-            if (index < 0 || index >= len)
+            if ((uint)index >= (uint)len)
             {
                 if (index == len)
                 {
@@ -238,7 +238,7 @@ namespace System.Globalization
             }
 
             int len = str.Length;
-            if (index < 0 || index > len)
+            if ((uint)index > (uint)len)
             {
                 throw new ArgumentOutOfRangeException(nameof(index), index, SR.ArgumentOutOfRange_Index);
             }

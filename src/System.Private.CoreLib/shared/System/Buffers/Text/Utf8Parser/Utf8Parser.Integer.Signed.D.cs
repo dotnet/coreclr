@@ -374,7 +374,7 @@ namespace System.Buffers.Text
 
             // Parse the first digit separately. If invalid here, we need to return false.
             long firstDigit = source[indexOfFirstDigit] - 48; // '0'
-            if (firstDigit < 0 || firstDigit > 9)
+            if ((ulong)firstDigit > 9)
             {
                 bytesConsumed = 0;
                 value = default;
@@ -388,7 +388,7 @@ namespace System.Buffers.Text
                 for (int index = indexOfFirstDigit + 1; index < source.Length; index++)
                 {
                     long nextDigit = source[index] - 48; // '0'
-                    if (nextDigit < 0 || nextDigit > 9)
+                    if ((ulong)nextDigit > 9)
                     {
                         bytesConsumed = index;
                         value = ((long)parsedValue) * sign;
@@ -404,7 +404,7 @@ namespace System.Buffers.Text
                 for (int index = indexOfFirstDigit + 1; index < overflowLength - 1; index++)
                 {
                     long nextDigit = source[index] - 48; // '0'
-                    if (nextDigit < 0 || nextDigit > 9)
+                    if ((ulong)nextDigit > 9)
                     {
                         bytesConsumed = index;
                         value = ((long)parsedValue) * sign;
@@ -415,7 +415,7 @@ namespace System.Buffers.Text
                 for (int index = overflowLength - 1; index < source.Length; index++)
                 {
                     long nextDigit = source[index] - 48; // '0'
-                    if (nextDigit < 0 || nextDigit > 9)
+                    if ((ulong)nextDigit > 9)
                     {
                         bytesConsumed = index;
                         value = ((long)parsedValue) * sign;

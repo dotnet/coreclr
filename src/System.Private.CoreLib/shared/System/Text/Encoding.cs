@@ -234,7 +234,7 @@ namespace System.Text
                     throw new ArgumentException(SR.Format(SR.Argument_CodepageNotSupported, codepage), nameof(codepage));
             }
 
-            if (codepage < 0 || codepage > 65535)
+            if ((uint)codepage > 65535)
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(codepage), SR.Format(SR.ArgumentOutOfRange_Range, 0, 65535));

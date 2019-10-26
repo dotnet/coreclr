@@ -175,7 +175,7 @@ namespace System
             get
             {
                 ThrowInvalidOperationIfDefault();
-                if (index < 0 || index >= _count)
+                if ((uint)index >= (uint)_count)
                     ThrowHelper.ThrowArgumentOutOfRange_IndexException();
 
                 return _array![_offset + index];
@@ -184,7 +184,7 @@ namespace System
             set
             {
                 ThrowInvalidOperationIfDefault();
-                if (index < 0 || index >= _count)
+                if ((uint)index >= (uint)_count)
                     ThrowHelper.ThrowArgumentOutOfRange_IndexException();
 
                 _array![_offset + index] = value;
@@ -214,7 +214,7 @@ namespace System
             get
             {
                 ThrowInvalidOperationIfDefault();
-                if (index < 0 || index >= _count)
+                if ((uint)index >= (uint)_count)
                     ThrowHelper.ThrowArgumentOutOfRange_IndexException();
 
                 return _array![_offset + index];

@@ -600,7 +600,7 @@ namespace System.IO
         //
         public override void SetLength(long value)
         {
-            if (value < 0 || value > int.MaxValue)
+            if ((ulong)value > int.MaxValue)
                 throw new ArgumentOutOfRangeException(nameof(value), SR.ArgumentOutOfRange_StreamLength);
 
             EnsureWriteable();

@@ -708,11 +708,11 @@ namespace System.Globalization
         /// </summary>
         internal static long TimeToTicks(int hour, int minute, int second, int millisecond)
         {
-            if (hour < 0 || hour >= 24 || minute < 0 || minute >= 60 || second < 0 || second >= 60)
+            if ((uint)hour >= 24 || (uint)minute >= 60 || (uint)second >= 60)
             {
                 throw new ArgumentOutOfRangeException(null, SR.ArgumentOutOfRange_BadHourMinuteSecond);
             }
-            if (millisecond < 0 || millisecond >= MillisPerSecond)
+            if ((uint)millisecond >= MillisPerSecond)
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(millisecond),

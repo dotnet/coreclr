@@ -48,7 +48,7 @@ namespace System
 
             int length = s.Length;
 
-            if (i < 0 || i >= length)
+            if ((uint)i >= (uint)length)
                 throw new ArgumentOutOfRangeException(SR.ArgumentOutOfRange_Index);
 
             // Get rid of the whitespace and then check that we've still got some digits to parse.
@@ -136,7 +136,7 @@ namespace System
 
             int length = s.Length;
 
-            if (i < 0 || i >= length)
+            if ((uint)i >= (uint)length)
                 throw new ArgumentOutOfRangeException(SR.ArgumentOutOfRange_Index);
 
             // Get rid of the whitespace and then check that we've still got some digits to parse.

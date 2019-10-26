@@ -984,7 +984,7 @@ namespace System.Reflection.Emit
             {
                 token &= 0x00FFFFFF;
 
-                if (token < 0 || token > m_tokens.Count)
+                if ((uint)token > (uint)m_tokens.Count)
                     return null;
 
                 return m_tokens[token];

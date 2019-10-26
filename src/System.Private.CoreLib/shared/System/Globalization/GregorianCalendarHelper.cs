@@ -307,20 +307,21 @@ namespace System.Globalization
         {
             // TimeSpan.TimeToTicks is a family access function which does no error checking, so
             // we need to put some error checking out here.
-            if (hour >= 0 && hour < 24 && minute >= 0 && minute < 60 && second >= 0 && second < 60)
+            if ((uint)hour >= 24 || (uint)minute >= 60 || (uint)second >= 60)
             {
-                if (millisecond < 0 || millisecond >= MillisPerSecond)
-                {
-                    throw new ArgumentOutOfRangeException(
-                                nameof(millisecond),
-                                SR.Format(
-                                    SR.ArgumentOutOfRange_Range,
-                                    0,
-                                    MillisPerSecond - 1));
-                }
-                return InternalGlobalizationHelper.TimeToTicks(hour, minute, second) + millisecond * TicksPerMillisecond;
+                throw new ArgumentOutOfRangeException(null, SR.ArgumentOutOfRange_BadHourMinuteSecond);
             }
-            throw new ArgumentOutOfRangeException(null, SR.ArgumentOutOfRange_BadHourMinuteSecond);
+            if ((uint)millisecond >= MillisPerSecond)
+            {
+                throw new ArgumentOutOfRangeException(
+                            nameof(millisecond),
+                            SR.Format(
+                                SR.ArgumentOutOfRange_Range,
+                                0,
+                                MillisPerSecond - 1));
+            }
+
+            return InternalGlobalizationHelper.TimeToTicks(hour, minute, second) + millisecond * TicksPerMillisecond;
         }
 
         internal void CheckTicksRange(long ticks)

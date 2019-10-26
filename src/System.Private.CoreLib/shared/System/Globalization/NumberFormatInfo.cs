@@ -225,7 +225,7 @@ namespace System.Globalization
             get => _currencyDecimalDigits;
             set
             {
-                if (value < 0 || value > 99)
+                if ((uint)value > 99)
                 {
                     throw new ArgumentOutOfRangeException(
                         nameof(value),
@@ -397,7 +397,7 @@ namespace System.Globalization
             get => _currencyNegativePattern;
             set
             {
-                if (value < 0 || value > 15)
+                if ((uint)value > 15)
                 {
                     throw new ArgumentOutOfRangeException(
                         nameof(value),
@@ -416,7 +416,7 @@ namespace System.Globalization
             set
             {
                 // NOTENOTE: the range of value should correspond to negNumberFormats[] in vm\COMNumber.cpp.
-                if (value < 0 || value > 4)
+                if ((uint)value > 4)
                 {
                     throw new ArgumentOutOfRangeException(
                         nameof(value),
@@ -435,7 +435,7 @@ namespace System.Globalization
             set
             {
                 // NOTENOTE: the range of value should correspond to posPercentFormats[] in vm\COMNumber.cpp.
-                if (value < 0 || value > 3)
+                if ((uint)value > 3)
                 {
                     throw new ArgumentOutOfRangeException(
                         nameof(value),
@@ -454,7 +454,7 @@ namespace System.Globalization
             set
             {
                 // NOTENOTE: the range of value should correspond to posPercentFormats[] in vm\COMNumber.cpp.
-                if (value < 0 || value > 11)
+                if ((uint)value > 11)
                 {
                     throw new ArgumentOutOfRangeException(
                         nameof(value),
@@ -503,7 +503,7 @@ namespace System.Globalization
             get => _numberDecimalDigits;
             set
             {
-                if (value < 0 || value > 99)
+                if ((uint)value > 99)
                 {
                     throw new ArgumentOutOfRangeException(
                         nameof(value),
@@ -543,7 +543,7 @@ namespace System.Globalization
             get => _currencyPositivePattern;
             set
             {
-                if (value < 0 || value > 3)
+                if ((uint)value > 3)
                 {
                     throw new ArgumentOutOfRangeException(
                         nameof(value),
@@ -592,7 +592,7 @@ namespace System.Globalization
             get => _percentDecimalDigits;
             set
             {
-                if (value < 0 || value > 99)
+                if ((uint)value > 99)
                 {
                     throw new ArgumentOutOfRangeException(
                         nameof(value),

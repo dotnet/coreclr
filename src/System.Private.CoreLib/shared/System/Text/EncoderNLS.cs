@@ -100,7 +100,7 @@ namespace System.Text
                 throw new ArgumentOutOfRangeException(nameof(chars),
                       SR.ArgumentOutOfRange_IndexCountBuffer);
 
-            if (byteIndex < 0 || byteIndex > bytes.Length)
+            if ((uint)byteIndex > (uint)bytes.Length)
                 throw new ArgumentOutOfRangeException(nameof(byteIndex),
                      SR.ArgumentOutOfRange_Index);
 

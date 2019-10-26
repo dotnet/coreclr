@@ -548,7 +548,7 @@ namespace System.IO
         // reasons. More about the subject in: https://github.com/dotnet/coreclr/pull/22102
         protected virtual void FillBuffer(int numBytes)
         {
-            if (numBytes < 0 || numBytes > _buffer.Length)
+            if ((uint)numBytes > (uint)_buffer.Length)
             {
                 throw new ArgumentOutOfRangeException(nameof(numBytes), SR.ArgumentOutOfRange_BinaryReaderFillBuffer);
             }

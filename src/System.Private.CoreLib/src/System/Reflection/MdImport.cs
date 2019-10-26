@@ -118,7 +118,7 @@ namespace System.Reflection
         {
             get
             {
-                if (index < 0 || index >= m_length)
+                if ((uint)index >= (uint)m_length)
                     throw new IndexOutOfRangeException();
 
                 unsafe

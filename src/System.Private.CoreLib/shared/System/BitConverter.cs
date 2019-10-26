@@ -363,7 +363,7 @@ namespace System
         {
             if (value == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
-            if (startIndex < 0 || startIndex >= value.Length && startIndex > 0)
+            if ((uint)startIndex >= (uint)value.Length && startIndex != 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);
             if (length < 0)
                 throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_GenericPositive);

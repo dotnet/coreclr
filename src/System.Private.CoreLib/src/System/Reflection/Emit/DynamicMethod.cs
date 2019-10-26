@@ -493,7 +493,7 @@ namespace System.Reflection.Emit
 
         public ParameterBuilder? DefineParameter(int position, ParameterAttributes attributes, string? parameterName)
         {
-            if (position < 0 || position > m_parameterTypes.Length)
+            if ((uint)position > (uint)m_parameterTypes.Length)
                 throw new ArgumentOutOfRangeException(SR.ArgumentOutOfRange_ParamSequence);
             position--; // it's 1 based. 0 is the return value
 

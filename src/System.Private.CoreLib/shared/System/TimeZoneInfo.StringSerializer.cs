@@ -192,7 +192,7 @@ namespace System
             /// </summary>
             private void SkipVersionNextDataFields(int depth /* starting depth in the nested brackets ('[', ']')*/)
             {
-                if (_currentTokenStartIndex < 0 || _currentTokenStartIndex >= _serializedText.Length)
+                if ((uint)_currentTokenStartIndex >= (uint)_serializedText.Length)
                 {
                     throw new SerializationException(SR.Serialization_InvalidData);
                 }
@@ -260,7 +260,7 @@ namespace System
                 {
                     throw new SerializationException(SR.Serialization_InvalidData);
                 }
-                if (_currentTokenStartIndex < 0 || _currentTokenStartIndex >= _serializedText.Length)
+                if ((uint)_currentTokenStartIndex >= (uint)_serializedText.Length)
                 {
                     throw new SerializationException(SR.Serialization_InvalidData);
                 }
@@ -393,7 +393,7 @@ namespace System
                 {
                     throw new SerializationException(SR.Serialization_InvalidData);
                 }
-                if (_currentTokenStartIndex < 0 || _currentTokenStartIndex >= _serializedText.Length)
+                if ((uint)_currentTokenStartIndex >= (uint)_serializedText.Length)
                 {
                     throw new SerializationException(SR.Serialization_InvalidData);
                 }
@@ -412,7 +412,7 @@ namespace System
                     return null;
                 }
 
-                if (_currentTokenStartIndex < 0 || _currentTokenStartIndex >= _serializedText.Length)
+                if ((uint)_currentTokenStartIndex >= (uint)_serializedText.Length)
                 {
                     throw new SerializationException(SR.Serialization_InvalidData);
                 }
@@ -517,7 +517,7 @@ namespace System
                     throw new SerializationException(SR.Serialization_InvalidData);
                 }
 
-                if (_currentTokenStartIndex < 0 || _currentTokenStartIndex >= _serializedText.Length)
+                if ((uint)_currentTokenStartIndex >= (uint)_serializedText.Length)
                 {
                     throw new SerializationException(SR.Serialization_InvalidData);
                 }

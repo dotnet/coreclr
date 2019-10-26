@@ -390,7 +390,7 @@ namespace System.Globalization
             // Get the offset into the LunarMonthLen array and the lunar day
             //  for January 1st.
             int index = gregorianYear - FirstGregorianTableYear;
-            if (index < 0 || index > TableSize)
+            if ((uint)index > (uint)TableSize)
             {
                 throw new ArgumentOutOfRangeException(nameof(gregorianYear));
             }

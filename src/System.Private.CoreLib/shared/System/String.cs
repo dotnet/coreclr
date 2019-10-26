@@ -412,7 +412,7 @@ namespace System
         public unsafe char[] ToCharArray(int startIndex, int length)
         {
             // Range check everything.
-            if (startIndex < 0 || startIndex > Length || startIndex > Length - length)
+            if ((uint)startIndex > (uint)Length || startIndex > Length - length)
                 throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
 
             if (length <= 0)

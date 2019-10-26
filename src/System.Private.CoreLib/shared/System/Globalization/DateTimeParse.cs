@@ -552,7 +552,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
             }
             Debug.Assert(hourOffset >= 0 && hourOffset <= 99, "hourOffset >= 0 && hourOffset <= 99");
             Debug.Assert(minuteOffset >= 0 && minuteOffset <= 99, "minuteOffset >= 0 && minuteOffset <= 99");
-            if (minuteOffset < 0 || minuteOffset >= 60)
+            if ((uint)minuteOffset >= 60)
             {
                 return false;
             }
@@ -2009,7 +2009,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
             {
                 if (timeMark == TM.AM)
                 {
-                    if (hour < 0 || hour > 12)
+                    if ((uint)hour > 12)
                     {
                         return false;
                     }
@@ -2017,7 +2017,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
                 }
                 else
                 {
-                    if (hour < 0 || hour > 23)
+                    if ((uint)hour > 23)
                     {
                         return false;
                     }
@@ -3284,7 +3284,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
                     }
                     break;
             }
-            if (minuteOffset < 0 || minuteOffset >= 60)
+            if ((uint)minuteOffset >= 60)
             {
                 return false;
             }

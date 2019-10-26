@@ -288,7 +288,7 @@ namespace System.Reflection.Emit
 
             int index = lbl.GetLabelValue();
 
-            if (index < 0 || index >= m_labelCount)
+            if ((uint)index >= (uint)m_labelCount)
                 throw new ArgumentException(SR.Argument_BadLabel);
 
             if (m_labelList[index] < 0)
@@ -1032,7 +1032,7 @@ namespace System.Reflection.Emit
             int labelIndex = loc.GetLabelValue();
 
             // This should never happen.
-            if (labelIndex < 0 || labelIndex >= m_labelList.Length)
+            if ((uint)labelIndex >= (uint)m_labelList.Length)
             {
                 throw new ArgumentException(SR.Argument_InvalidLabel);
             }

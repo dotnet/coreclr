@@ -254,7 +254,7 @@ namespace System
         //
         public DateTime(int year, int month, int day, int hour, int minute, int second, int millisecond)
         {
-            if (millisecond < 0 || millisecond >= MillisPerSecond)
+            if ((uint)millisecond >= MillisPerSecond)
             {
                 throw new ArgumentOutOfRangeException(nameof(millisecond), SR.Format(SR.ArgumentOutOfRange_Range, 0, MillisPerSecond - 1));
             }
@@ -277,7 +277,7 @@ namespace System
 
         public DateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, DateTimeKind kind)
         {
-            if (millisecond < 0 || millisecond >= MillisPerSecond)
+            if ((uint)millisecond >= MillisPerSecond)
             {
                 throw new ArgumentOutOfRangeException(nameof(millisecond), SR.Format(SR.ArgumentOutOfRange_Range, 0, MillisPerSecond - 1));
             }
@@ -309,7 +309,7 @@ namespace System
         {
             if (calendar == null)
                 throw new ArgumentNullException(nameof(calendar));
-            if (millisecond < 0 || millisecond >= MillisPerSecond)
+            if ((uint)millisecond >= MillisPerSecond)
             {
                 throw new ArgumentOutOfRangeException(nameof(millisecond), SR.Format(SR.ArgumentOutOfRange_Range, 0, MillisPerSecond - 1));
             }
@@ -341,7 +341,7 @@ namespace System
         {
             if (calendar == null)
                 throw new ArgumentNullException(nameof(calendar));
-            if (millisecond < 0 || millisecond >= MillisPerSecond)
+            if ((uint)millisecond >= MillisPerSecond)
             {
                 throw new ArgumentOutOfRangeException(nameof(millisecond), SR.Format(SR.ArgumentOutOfRange_Range, 0, MillisPerSecond - 1));
             }
@@ -688,7 +688,7 @@ namespace System
 
             millis += DoubleDateOffset / TicksPerMillisecond;
 
-            if (millis < 0 || millis >= MaxMillis) throw new ArgumentException(SR.Arg_OleAutDateScale);
+            if ((ulong)millis >= MaxMillis) throw new ArgumentException(SR.Arg_OleAutDateScale);
             return millis * TicksPerMillisecond;
         }
 
@@ -794,7 +794,7 @@ namespace System
 
         public static DateTime FromFileTimeUtc(long fileTime)
         {
-            if (fileTime < 0 || fileTime > MaxTicks - FileTimeOffset)
+            if ((ulong)fileTime > (MaxTicks - FileTimeOffset))
             {
                 throw new ArgumentOutOfRangeException(nameof(fileTime), SR.ArgumentOutOfRange_FileTimeInvalid);
             }
@@ -1562,11 +1562,11 @@ namespace System
             {
                 return false;
             }
-            if (hour < 0 || hour >= 24 || minute < 0 || minute >= 60 || second < 0 || second > 60)
+            if ((uint)hour >= 24 || (uint)minute >= 60 || (uint)second > 60)
             {
                 return false;
             }
-            if (millisecond < 0 || millisecond >= MillisPerSecond)
+            if ((uint)millisecond >= MillisPerSecond)
             {
                 return false;
             }

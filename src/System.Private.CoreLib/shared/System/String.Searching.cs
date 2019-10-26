@@ -231,12 +231,12 @@ namespace System
 
         public int IndexOf(string value, int startIndex, int count)
         {
-            if (startIndex < 0 || startIndex > this.Length)
+            if ((uint)startIndex > (uint)this.Length)
             {
                 throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
             }
 
-            if (count < 0 || count > this.Length - startIndex)
+            if ((uint)count > (uint)(this.Length - startIndex))
             {
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Count);
             }
@@ -260,10 +260,10 @@ namespace System
             if (value == null)
                 throw new ArgumentNullException(nameof(value));
 
-            if (startIndex < 0 || startIndex > this.Length)
+            if ((uint)startIndex > (uint)this.Length)
                 throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
 
-            if (count < 0 || startIndex > this.Length - count)
+            if ((uint)startIndex > (uint)(this.Length - count))
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Count);
 
             if (comparisonType == StringComparison.Ordinal)
@@ -447,7 +447,7 @@ namespace System
                 return (value.Length == 0) ? 0 : -1;
 
             // Now after handling empty strings, make sure we're not out of range
-            if (startIndex < 0 || startIndex > this.Length)
+            if ((uint)startIndex > (uint)this.Length)
                 throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
 
             // Make sure that we allow startIndex == this.Length

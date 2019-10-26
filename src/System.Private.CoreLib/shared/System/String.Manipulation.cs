@@ -533,7 +533,7 @@ namespace System
         {
             if (value == null)
                 throw new ArgumentNullException(nameof(value));
-            if (startIndex < 0 || startIndex > this.Length)
+            if ((uint)startIndex > (uint)this.Length)
                 throw new ArgumentOutOfRangeException(nameof(startIndex));
 
             int oldLength = Length;

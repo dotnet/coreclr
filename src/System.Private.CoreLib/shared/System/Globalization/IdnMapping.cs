@@ -590,7 +590,7 @@ namespace System.Globalization
             {
                 // Find end of this segment
                 iNextDot = ascii.IndexOf('.', iAfterLastDot);
-                if (iNextDot < 0 || iNextDot > ascii.Length)
+                if ((uint)iNextDot > (uint)ascii.Length)
                     iNextDot = ascii.Length;
 
                 // Only allowed to have empty . section at end (www.microsoft.com.)
@@ -707,7 +707,7 @@ namespace System.Globalization
                         i %= (output.Length - iOutputAfterLastDot - numSurrogatePairs + 1);
 
                         // Make sure n is legal
-                        if (n < 0 || n > 0x10ffff || (n >= 0xD800 && n <= 0xDFFF))
+                        if ((uint)n > 0x10ffff || (n >= 0xD800 && n <= 0xDFFF))
                             throw new ArgumentException(SR.Argument_IdnBadPunycode, nameof(ascii));
 
                         // insert n at position i of the output:  Really tricky if we have surrogates
