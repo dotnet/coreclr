@@ -715,10 +715,7 @@ namespace System.Collections.Generic
         }
 
         private void Resize()
-        {
-            int size = HashHelpers.ExpandPrime(_count);
-            Resize(size, false);
-        }
+            => Resize(HashHelpers.ExpandPrime(_count), false);
 
         private void Resize(int newSize, bool forceNewHashCodes)
         {
