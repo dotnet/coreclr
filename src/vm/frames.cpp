@@ -1022,8 +1022,6 @@ void GCFrame::Push(Thread *pThread)
     }
     CONTRACTL_END;
 
-    _ASSERTE(*GetGSCookiePtr() == GetProcessGSCookie());
-
     m_Next = pThread->GetGCFrame();
 
     // GetOsPageSize() is used to relax the assert for cases where two Frames are
@@ -1034,15 +1032,6 @@ void GCFrame::Push(Thread *pThread)
     _ASSERTE(((m_Next == NULL) ||
               (PBYTE(m_Next) + (2 * GetOsPageSize())) > PBYTE(this)) &&
              "Pushing a GCFrame out of order ?");
-
-    _ASSERTE(// If AssertOnFailFast is set, the test expects to do stack overrun
-             // corruptions. In that case, the Frame chain may be corrupted,
-             // and the rest of the assert is not valid.
-             // Note that the corrupted Frame chain will be detected
-             // during stack-walking.
-             !g_pConfig->fAssertOnFailFast() ||
-             (m_Next == NULL) ||
-             (*m_Next->GetGSCookiePtr() == GetProcessGSCookie()));
 
     pThread->SetGCFrame(this);
 }
@@ -1055,15 +1044,6 @@ VOID GCFrame::Pop()
     WRAPPER_NO_CONTRACT;
 
     _ASSERTE(m_pCurThread->GetGCFrame() == this && "Popping a GCFrame out of order ?");
-    _ASSERTE(*GetGSCookiePtr() == GetProcessGSCookie());
-    _ASSERTE(// If AssertOnFailFast is set, the test expects to do stack overrun
-             // corruptions. In that case, the Frame chain may be corrupted,
-             // and the rest of the assert is not valid.
-             // Note that the corrupted Frame chain will be detected
-             // during stack-walking.
-             !g_pConfig->fAssertOnFailFast() ||
-             (m_Next == NULL) ||
-             (*m_Next->GetGSCookiePtr() == GetProcessGSCookie()));
 
     m_pCurThread->SetGCFrame(m_Next);
     m_Next = NULL;

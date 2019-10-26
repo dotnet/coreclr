@@ -1509,7 +1509,6 @@ public:
     Volatile<ULONG>      m_fPreemptiveGCDisabled;
 
     PTR_Frame            m_pFrame;  // The Current Frame
-    PTR_GCFrame          m_pGCFrame; // The topmost GC Frame
 
     //-----------------------------------------------------------
     // If the thread has wandered in from the outside this is
@@ -4931,6 +4930,9 @@ public:
     void SetGCSpecial(bool fGCSpecial);
 
 private:
+
+    PTR_GCFrame m_pGCFrame; // The topmost GC Frame
+
 #ifndef FEATURE_PAL
     WORD m_wCPUGroup;
     DWORD_PTR m_pAffinityMask;

@@ -25,7 +25,7 @@
 #define NO_MAPPING ((BYTE) -1)
 
 #define GCPROTECT_BEGIN_VARIANTDATA(/*VARIANTDATA*/vd) do {             \
-                FrameWithCookie<GCFrame> __gcframe(vd.GetObjRefPtr(), 1, FALSE);   \
+                GCFrame __gcframe(vd.GetObjRefPtr(), 1, FALSE);         \
                 /* work around unreachable code warning */              \
                 if (true) { DEBUG_ASSURE_NO_RETURN_BEGIN(GCPROTECT);
 

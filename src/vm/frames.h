@@ -2519,18 +2519,6 @@ public:
     }
 #endif
 
-    PTR_GSCookie GetGSCookiePtr()
-    {
-        WRAPPER_NO_CONTRACT;
-        return dac_cast<PTR_GSCookie>(dac_cast<TADDR>(this) + GetOffsetOfGSCookie());
-    }
-
-    static int GetOffsetOfGSCookie()
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        return -(int)sizeof(GSCookie);
-    }
-
     PTR_GCFrame PtrNextFrame()
     {
         WRAPPER_NO_CONTRACT;
@@ -3548,7 +3536,7 @@ public:
 #endif /*_PREFAST_ */
 
 #define GCPROTECT_BEGIN(ObjRefStruct)                           do {    \
-                FrameWithCookie<GCFrame> __gcframe(                     \
+                GCFrame __gcframe(                                      \
                         (OBJECTREF*)&(ObjRefStruct),                    \
                         sizeof(ObjRefStruct)/sizeof(OBJECTREF),         \
                         FALSE);                                         \
@@ -3556,7 +3544,7 @@ public:
                 if (true) { DEBUG_ASSURE_NO_RETURN_BEGIN(GCPROTECT)
 
 #define GCPROTECT_BEGIN_THREAD(pThread, ObjRefStruct)           do {    \
-                FrameWithCookie<GCFrame> __gcframe(                     \
+                GCFrame __gcframe(                                      \
                         pThread,                                        \
                         (OBJECTREF*)&(ObjRefStruct),                    \
                         sizeof(ObjRefStruct)/sizeof(OBJECTREF),         \
@@ -3565,7 +3553,7 @@ public:
                 if (true) { DEBUG_ASSURE_NO_RETURN_BEGIN(GCPROTECT)
 
 #define GCPROTECT_ARRAY_BEGIN(ObjRefArray,cnt) do {                     \
-                FrameWithCookie<GCFrame> __gcframe(                     \
+                GCFrame __gcframe(                                      \
                         (OBJECTREF*)&(ObjRefArray),                     \
                         cnt * sizeof(ObjRefArray) / sizeof(OBJECTREF),  \
                         FALSE);                                         \
@@ -3576,7 +3564,7 @@ public:
                 /* work around Wsizeof-pointer-div warning as we */     \
                 /* mean to capture pointer or object size */            \
                 UINT subjectSize = sizeof(ObjRefStruct);                \
-                FrameWithCookie<GCFrame> __gcframe(                     \
+                GCFrame __gcframe(                                      \
                         (OBJECTREF*)&(ObjRefStruct),                    \
                         subjectSize/sizeof(OBJECTREF),                  \
                         TRUE);                                          \
@@ -3584,7 +3572,7 @@ public:
                 if (true) { DEBUG_ASSURE_NO_RETURN_BEGIN(GCPROTECT)
 
 #define GCPROTECT_BEGININTERIOR_ARRAY(ObjRefArray,cnt) do {             \
-                FrameWithCookie<GCFrame> __gcframe(                     \
+                GCFrame __gcframe(                                      \
                         (OBJECTREF*)&(ObjRefArray),                     \
                         cnt,                                            \
                         TRUE);                                          \

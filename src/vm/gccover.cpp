@@ -1769,7 +1769,7 @@ void DoGcStress (PCONTEXT regs, NativeCodeVersion nativeCodeVersion)
 #endif // !_TARGET_AMD64_ || !PLATFORM_UNIX
     }
 
-    FrameWithCookie<GCFrame> gcFrame;
+    GCFrame gcFrame;
     if (numberOfRegs != 0)
     {
         _ASSERTE(sizeof(OBJECTREF) == sizeof(DWORD_PTR));
