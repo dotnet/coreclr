@@ -2596,17 +2596,6 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
 
         for (;;)
         {
-            // We might be interrupted during the wait (Thread.Interrupt), so we need an
-            // exception handler round the call.
-            struct Param
-            {
-                AwareLock *pThis;
-                INT32 timeOut;
-                DWORD ret;
-            } param;
-            param.pThis = this;
-            param.timeOut = timeOut;
-
             // Measure the time we wait so that, in the case where we wake up
             // and fail to acquire the mutex, we can adjust remaining timeout
             // accordingly.
@@ -2618,7 +2607,7 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
             // exception, a thread that is woken by an exception would not observe the signal, and the signal would wake
             // another thread as necessary.
 
-            // We must decrement the waiter count.
+            // We must decrement the waiter count in the case an exception happened. This holder takes care of that
             class UnregisterWaiterHolder
             {
                 LockState* m_pLockState;
@@ -2634,6 +2623,7 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
                         m_pLockState->InterlockedUnregisterWaiter();
                     }
                 }
+
                 void SuppressRelease()
                 {
                     m_pLockState = NULL;

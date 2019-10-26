@@ -91,8 +91,6 @@ static void ScanStackRoots(Thread * pThread, promote_func* fn, ScanContext* sc)
                 IsGCSpecialThread() ||
                 (GetThread() == ThreadSuspend::GetSuspensionThread() && ThreadStore::HoldingThreadStore()));
 
-    pThread->SetHasPromotedBytes();
-
     Frame* pTopFrame = pThread->GetFrame();
     Object ** topStack = (Object **)pTopFrame;
     if ((pTopFrame != ((Frame*)-1))
@@ -147,39 +145,12 @@ static void ScanStackRoots(Thread * pThread, promote_func* fn, ScanContext* sc)
 #endif // defined(FEATURE_EH_FUNCLETS)
         pThread->StackWalkFrames( GcStackCrawlCallBack, &gcctx, flagsStackWalk);
     }
-}
 
-/*
- * Scan all GC Frames
- */
-
-static void ScanGCFrames(Thread * pThread, promote_func* fn, ScanContext* sc)
-{
-    GCCONTEXT   gcctx;
-
-    gcctx.f  = fn;
-    gcctx.sc = sc;
-    gcctx.cf = NULL;
-
-    ENABLE_FORBID_GC_LOADER_USE_IN_THIS_SCOPE();
-
-    // Either we are in a concurrent situation (in which case the thread is unknown to
-    // us), or we are performing a synchronous GC and we are the GC thread, holding
-    // the threadstore lock.
-
-    _ASSERTE(dbgOnly_IsSpecialEEThread() ||
-                GetThread() == NULL ||
-                // this is for background GC threads which always call this when EE is suspended.
-                IsGCSpecialThread() ||
-                (GetThread() == ThreadSuspend::GetSuspensionThread() && ThreadStore::HoldingThreadStore()));
-
-    pThread->SetHasPromotedBytes();
-
-    GCFrame* pTopFrame = pThread->GetGCFrame();
-    while (pTopFrame != NULL)
+    GCFrame* pGCFrame = pThread->GetGCFrame();
+    while (pGCFrame != NULL)
     {
-        pTopFrame->GcScanRoots(fn, sc);
-        pTopFrame = pTopFrame->PtrNextFrame();
+        pGCFrame->GcScanRoots(fn, sc);
+        pGCFrame = pGCFrame->PtrNextFrame();
     }
 }
 
@@ -209,7 +180,6 @@ void GCToEEInterface::GcScanRoots(promote_func* fn, int condemned, int max_gen, 
             sc->dwEtwRootKind = kEtwGCRootKindStack;
 #endif // FEATURE_EVENT_TRACE
             ScanStackRoots(pThread, fn, sc);
-            ScanGCFrames(pThread, fn, sc);
 #ifdef FEATURE_EVENT_TRACE
             sc->dwEtwRootKind = kEtwGCRootKindOther;
 #endif // FEATURE_EVENT_TRACE
@@ -542,7 +512,6 @@ void GcScanRootsForProfilerAndETW(promote_func* fn, int condemned, int max_gen, 
         sc->dwEtwRootKind = kEtwGCRootKindStack;
 #endif // FEATURE_EVENT_TRACE
         ScanStackRoots(pThread, fn, sc);
-        ScanGCFrames(pThread, fn, sc);
 #ifdef FEATURE_EVENT_TRACE
         sc->dwEtwRootKind = kEtwGCRootKindOther;
 #endif // FEATURE_EVENT_TRACE

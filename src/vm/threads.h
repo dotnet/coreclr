@@ -1887,7 +1887,6 @@ public:
     {
         SUPPORTS_DAC;
 
-#ifndef DACCESS_COMPILE
 #ifdef _DEBUG_IMPL
         WRAPPER_NO_CONTRACT;
         if (this == GetThreadNULLOk())
@@ -1896,11 +1895,8 @@ public:
             curSP = (void *)GetCurrentSP();
             _ASSERTE((curSP <= m_pFrame && m_pFrame < m_CacheStackBase) || m_pFrame == (Frame*) -1);
         }
-#else
-        LIMITED_METHOD_CONTRACT;
-        _ASSERTE(!"NYI");
 #endif
-#endif // #ifndef DACCESS_COMPILE
+
         return m_pFrame;
     }
 
@@ -1911,7 +1907,6 @@ public:
     {
         SUPPORTS_DAC;
 
-#ifndef DACCESS_COMPILE
 #ifdef _DEBUG_IMPL
         WRAPPER_NO_CONTRACT;
         if (this == GetThreadNULLOk())
@@ -1920,11 +1915,8 @@ public:
             curSP = (void *)GetCurrentSP();
             _ASSERTE((m_pGCFrame == NULL) || (curSP <= m_pGCFrame && m_pGCFrame < m_CacheStackBase));
         }
-#else
-        LIMITED_METHOD_CONTRACT;
-        _ASSERTE(!"NYI");
 #endif
-#endif // #ifndef DACCESS_COMPILE
+
         return m_pGCFrame;
     }
 
@@ -3726,18 +3718,6 @@ private:
     ULONG           m_UnmanagedRefCount;
 
     LONG            m_TraceCallCount;
-
-    //-----------------------------------------------------------
-    // Bytes promoted on this thread since the last GC?
-    //-----------------------------------------------------------
-    DWORD           m_fPromoted;
-public:
-    void SetHasPromotedBytes ();
-    DWORD GetHasPromotedBytes ()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_fPromoted;
-    }
 
 private:
     //-----------------------------------------------------------
