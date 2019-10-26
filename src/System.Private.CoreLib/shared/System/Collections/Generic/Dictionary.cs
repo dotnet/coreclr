@@ -459,9 +459,12 @@ namespace System.Collections.Generic
 #else
             int size = HashHelpers.GetPrime(capacity);
 #endif
+            int[] buckets = new int[size];
+            Entry[] entries = new Entry[size];
+            // Assign after both allocated to guard against corruption from OOM if second fails
             _freeList = -1;
-            _buckets = new int[size];
-            _entries = new Entry[size];
+            _buckets = buckets;
+            _entries = entries;
 
             return size;
         }
@@ -728,7 +731,6 @@ namespace System.Collections.Generic
             Debug.Assert(_entries != null, "_entries should be non-null");
             Debug.Assert(newSize >= _entries.Length);
 
-            _buckets = new int[newSize];
             Entry[] entries = new Entry[newSize];
 
             int count = _count;
@@ -746,6 +748,7 @@ namespace System.Collections.Generic
                 }
             }
 
+            _buckets = new int[newSize];
             for (int i = 0; i < count; i++)
             {
                 if (entries[i].next >= -1)
