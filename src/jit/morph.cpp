@@ -18360,7 +18360,7 @@ void Compiler::fgAddFieldSeqForZeroOffset(GenTree* addr, FieldSeqNode* fieldSeqZ
             fieldSeqUpdate = GetFieldSeqStore()->Append(existingFieldSeq, fieldSeqZero);
         }
         // Overwrite the field sequence annotation for op1
-        GetZeroOffsetFieldMap()->Set(addr, fieldSeqUpdate, NodeToFieldSeqMap::Overwrite);
+        GetZeroOffsetFieldMap()->Set(addr, fieldSeqUpdate DEBUGARG(JitHashSetKind::Overwrite));
         fieldSeqRecorded = true;
     }
 

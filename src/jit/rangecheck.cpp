@@ -362,7 +362,7 @@ bool RangeCheck::IsMonotonicallyIncreasing(GenTree* expr, bool rejectNegativeCon
     JITDUMP("[RangeCheck::IsMonotonicallyIncreasing] [%06d]\n", Compiler::dspTreeID(expr));
 
     // Add hashtable entry for expr.
-    bool alreadyPresent = !m_pSearchPath->Set(expr, nullptr, SearchPath::Overwrite);
+    bool alreadyPresent = !m_pSearchPath->Set(expr, nullptr DEBUGARG(JitHashSetKind::Overwrite));
     if (alreadyPresent)
     {
         return true;
@@ -1014,7 +1014,7 @@ bool RangeCheck::DoesOverflow(BasicBlock* block, GenTree* expr)
 bool RangeCheck::ComputeDoesOverflow(BasicBlock* block, GenTree* expr)
 {
     JITDUMP("Does overflow [%06d]?\n", Compiler::dspTreeID(expr));
-    m_pSearchPath->Set(expr, block, SearchPath::Overwrite);
+    m_pSearchPath->Set(expr, block DEBUGARG(JitHashSetKind::Overwrite));
 
     bool overflows = true;
 
@@ -1050,7 +1050,7 @@ bool RangeCheck::ComputeDoesOverflow(BasicBlock* block, GenTree* expr)
     {
         overflows = DoesPhiOverflow(block, expr);
     }
-    GetOverflowMap()->Set(expr, overflows, OverflowMap::Overwrite);
+    GetOverflowMap()->Set(expr, overflows DEBUGARG(JitHashSetKind::Overwrite));
     m_pSearchPath->Remove(expr);
     return overflows;
 }
@@ -1064,8 +1064,8 @@ bool RangeCheck::ComputeDoesOverflow(BasicBlock* block, GenTree* expr)
 // eg.: merge((0, dep), (dep, dep)) = (0, dep)
 Range RangeCheck::ComputeRange(BasicBlock* block, GenTree* expr, bool monotonic DEBUGARG(int indent))
 {
-    bool  newlyAdded = !m_pSearchPath->Set(expr, block, SearchPath::Overwrite);
-    Range range      = Limit(Limit::keUndef);
+    bool newlyAdded = !m_pSearchPath->Set(expr, block DEBUGARG(JitHashSetKind::Overwrite));
+    Range range     = Limit(Limit::keUndef);
 
     ValueNum vn = m_pCompiler->vnStore->VNConservativeNormalValue(expr->gtVNPair);
 
@@ -1173,7 +1173,7 @@ Range RangeCheck::ComputeRange(BasicBlock* block, GenTree* expr, bool monotonic 
         range = Range(Limit(Limit::keUnknown));
     }
 
-    GetRangeMap()->Set(expr, new (m_alloc) Range(range), RangeMap::Overwrite);
+    GetRangeMap()->Set(expr, new (m_alloc) Range(range) DEBUGARG(JitHashSetKind::Overwrite));
     m_pSearchPath->Remove(expr);
     return range;
 }

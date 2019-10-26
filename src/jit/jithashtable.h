@@ -4,6 +4,14 @@
 
 #pragma once
 
+#ifdef DEBUG
+enum class JitHashSetKind
+{
+    None,
+    Overwrite
+};
+#endif
+
 // JitHashTable implements a mapping from a Key type to a Value type,
 // via a hash table.
 
@@ -246,13 +254,7 @@ public:
     //    If the key already exists and kind is Normal
     //    this method will assert
     //
-    enum SetKind
-    {
-        None,
-        Overwrite
-    };
-
-    bool Set(Key k, Value v, SetKind kind = None)
+    bool Set(Key k, Value v DEBUGARG(JitHashSetKind kind = JitHashSetKind::None))
     {
         CheckGrowth();
 
@@ -267,7 +269,7 @@ public:
         }
         if (pN != nullptr)
         {
-            assert(kind == Overwrite);
+            assert(kind == JitHashSetKind::Overwrite);
             pN->m_val = v;
             return true;
         }

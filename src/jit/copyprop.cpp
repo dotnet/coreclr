@@ -394,7 +394,7 @@ void CopyPropogation::optBlockCopyProp(BasicBlock* block)
                     stack = new (m_memAllocator) GenTreePtrStack(m_memAllocator);
                 }
                 stack->Push(tree);
-                m_liveLclVarDefs.Set(lclNum, stack, LclNumToGenTreePtrStack::Overwrite);
+                m_liveLclVarDefs.Set(lclNum, stack DEBUGARG(JitHashSetKind::Overwrite));
             }
             // If we encounter first use of a param or this pointer add it as a live definition.
             // Since they are always live, do it only once.

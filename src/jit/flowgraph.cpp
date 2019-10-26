@@ -1473,7 +1473,7 @@ void Compiler::fgChangeSwitchBlock(BasicBlock* oldSwitchBlock, BasicBlock* newSw
         // update those for the new block.
         if (m_switchDescMap->Lookup(oldSwitchBlock, &uniqueSuccSet))
         {
-            m_switchDescMap->Set(newSwitchBlock, uniqueSuccSet, BlockToSwitchDescMap::Overwrite);
+            m_switchDescMap->Set(newSwitchBlock, uniqueSuccSet DEBUGARG(JitHashSetKind::Overwrite));
         }
         else
         {
