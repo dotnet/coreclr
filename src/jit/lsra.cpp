@@ -2643,8 +2643,7 @@ bool LinearScan::isMatchingConstant(RegRecord* physRegRecord, RefPosition* refPo
         switch (otherTreeNode->OperGet())
         {
             case GT_CNS_INT:
-                if ((refPosition->treeNode->AsIntCon()->IconValue() == otherTreeNode->AsIntCon()->IconValue()) &&
-                    (varTypeGCtype(refPosition->treeNode) == varTypeGCtype(otherTreeNode)))
+                if (refPosition->treeNode->AsIntCon()->IconValue() == otherTreeNode->AsIntCon()->IconValue())
                 {
 #ifdef _TARGET_64BIT_
                     // If the constant is negative, only reuse registers of the same type.
