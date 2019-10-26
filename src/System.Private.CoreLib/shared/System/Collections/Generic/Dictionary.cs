@@ -454,15 +454,15 @@ namespace System.Collections.Generic
 
         private int Initialize(int capacity)
         {
-#if BIT64
-            int size = HashHelpers.GetPrime(capacity, out _fastModMultiplier);
-#else
             int size = HashHelpers.GetPrime(capacity);
-#endif
             int[] buckets = new int[size];
             Entry[] entries = new Entry[size];
-            // Assign after both allocated to guard against corruption from OOM if second fails
+
+            // Assign member varables after both arrays allocated to guard against corruption from OOM if second fails
             _freeList = -1;
+#if BIT64
+            _fastModMultiplier = HashHelpers.GetFastModMultiplier((uint)size);
+#endif
             _buckets = buckets;
             _entries = entries;
 
@@ -716,11 +716,7 @@ namespace System.Collections.Generic
 
         private void Resize()
         {
-#if BIT64
-            int size = HashHelpers.ExpandPrime(_count, out _fastModMultiplier);
-#else
             int size = HashHelpers.ExpandPrime(_count);
-#endif
             Resize(size, false);
         }
 
@@ -748,7 +744,11 @@ namespace System.Collections.Generic
                 }
             }
 
+            // Assign member varables after both arrays allocated to guard against corruption from OOM if second fails
             _buckets = new int[newSize];
+#if BIT64
+            _fastModMultiplier = HashHelpers.GetFastModMultiplier((uint)newSize);
+#endif
             for (int i = 0; i < count; i++)
             {
                 if (entries[i].next >= -1)
@@ -994,11 +994,8 @@ namespace System.Collections.Generic
             _version++;
             if (_buckets == null)
                 return Initialize(capacity);
-#if BIT64
-            int newSize = HashHelpers.GetPrime(capacity, out _fastModMultiplier);
-#else
+
             int newSize = HashHelpers.GetPrime(capacity);
-#endif
             Resize(newSize, forceNewHashCodes: false);
             return newSize;
         }
@@ -1027,11 +1024,8 @@ namespace System.Collections.Generic
         {
             if (capacity < Count)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.capacity);
-#if BIT64
-            int newSize = HashHelpers.GetPrime(capacity, out _fastModMultiplier);
-#else
+
             int newSize = HashHelpers.GetPrime(capacity);
-#endif
             Entry[]? oldEntries = _entries;
             int currentCapacity = oldEntries == null ? 0 : oldEntries.Length;
             if (newSize >= currentCapacity)

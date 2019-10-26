@@ -58,9 +58,8 @@ namespace System.Collections
             if (min < 0)
                 throw new ArgumentException(SR.Arg_HTCapacityOverflow);
 
-            for (int i = 0; i < s_primes.Length; i++)
+            foreach (int prime in s_primes)
             {
-                int prime = s_primes[i];
                 if (prime >= min)
                     return prime;
             }
@@ -91,20 +90,6 @@ namespace System.Collections
         }
 
 #if BIT64
-        public static int GetPrime(int capacity, out ulong fastModMultiplier)
-        {
-            int prime = GetPrime(capacity);
-            fastModMultiplier = GetFastModMultiplier((uint)prime);
-            return prime;
-        }
-
-        public static int ExpandPrime(int currentPrime, out ulong fastModMultiplier)
-        {
-            int prime = ExpandPrime(currentPrime);
-            fastModMultiplier = GetFastModMultiplier((uint)prime);
-            return prime;
-        }
-
         public static ulong GetFastModMultiplier(uint divisor)
             => ulong.MaxValue / divisor + 1;
 
