@@ -458,7 +458,7 @@ namespace System.Collections.Generic
             int[] buckets = new int[size];
             Entry[] entries = new Entry[size];
 
-            // Assign member varables after both arrays allocated to guard against corruption from OOM if second fails
+            // Assign member variables after both arrays allocated to guard against corruption from OOM if second fails
             _freeList = -1;
 #if BIT64
             _fastModMultiplier = HashHelpers.GetFastModMultiplier((uint)size);
@@ -741,7 +741,7 @@ namespace System.Collections.Generic
                 }
             }
 
-            // Assign member varables after both arrays allocated to guard against corruption from OOM if second fails
+            // Assign member variables after both arrays allocated to guard against corruption from OOM if second fails
             _buckets = new int[newSize];
 #if BIT64
             _fastModMultiplier = HashHelpers.GetFastModMultiplier((uint)newSize);
