@@ -8795,9 +8795,37 @@ GenTree* Compiler::optIsBoolCond(GenTree* condBranch, GenTree** compPtr, bool* b
     return opr1;
 }
 
-void Compiler::myTest()
+//---------------------------------------------------------------------------------------------------------------
+//  optOptimizeRangeChecksWithUnsigned: optimize simple range checks to an unsigned condition
+//
+//  Note:
+//      This optimization handles two kind of range checks:
+//      1)    if (startIndex < 0 || startIndex > array.Length)
+//                ThrowException();
+//
+//      Optimized into:
+//
+//            if ((uint)startIndex >= (uint)array.Length)
+//                ThrowException();
+//
+//      As a side effect it helps bounds check elimination phase which currently is not able to handle the signed check.
+//      This optimization makes sense only when the true-branch is unlikely to be executed.
+//
+//
+//      2)    if (startIndex < icon1 || startIndex > icon2)
+//                ThrowException();
+//
+//      Optimized into:
+//
+//            if ((uint)startIndex - icon1 > icon2 - icon1)
+//                ThrowException();
+//
+//      This optimization should happen after CSE (or check for IsCSECandidate).
+//
+void Compiler::optOptimizeRangeChecksWithUnsigned(bool afterCse)
 {
-/*  We are looking for two BBs which both jump to the same Exception BB
+/*  We are looking for two conditional single-statement basic blocks
+ *  both jump to the same rarely executed block (e.g. `throw Exception`)
 
 BB01:
     *  JTRUE
@@ -8815,7 +8843,6 @@ BB02:
 
     for (BasicBlock* block = fgFirstBB; block; block = block->bbNext)
     {
-        // first bb:
         GenTreeLclVar* variable = nullptr;
         ssize_t        icon1    = 0;
         genTreeOps     bb1Cond  = GT_NONE;
@@ -8826,41 +8853,42 @@ BB02:
             GenTree* rootNode = block->firstStmt()->GetRootNode();
             if (rootNode->OperIs(GT_JTRUE) && rootNode->gtGetOp1()->OperIs(GT_LT, GT_LE))
             {
-                bb1Cond             = rootNode->gtGetOp1()->OperGet();
-                GenTreeOp* rootCond = rootNode->gtGetOp1()->AsOp();
-                if (rootCond->gtGetOp1()->OperIs(GT_LCL_VAR) && rootCond->gtGetOp2()->IsCnsIntOrI())
+                bb1Cond           = rootNode->gtGetOp1()->OperGet();
+                GenTreeOp* b1Cond = rootNode->gtGetOp1()->AsOp();
+                if (b1Cond->gtGetOp1()->OperIs(GT_LCL_VAR) && b1Cond->gtGetOp2()->IsCnsIntOrI() &&
+                    ((b1Cond->gtFlags & GTF_GLOB_EFFECT) == 0)) // make sure B1 doesn't have global side effects
                 {
-                    icon1    = rootCond->gtGetOp2()->AsIntCon()->IconValue();
-                    variable = rootCond->gtGetOp1()->AsLclVar();
+                    icon1    = b1Cond->gtGetOp2()->AsIntCon()->IconValue();
+                    variable = b1Cond->gtGetOp1()->AsLclVar();
                 }
             }
         }
 
         BasicBlock* nextBlock = block->bbNext;
 
-        // second bb:
         if (variable != nullptr && nextBlock != nullptr && nextBlock->bbJumpKind == BBJ_COND &&
-            // both block jump to a block with weight = 0 (e.g. an exception)
-            nextBlock->bbJumpDest == block->bbJumpDest && block->bbJumpDest->bbWeight == BB_ZERO_WEIGHT)
+            (nextBlock->bbJumpDest == block->bbJumpDest) &&  // both block must have the same target
+            (block->bbJumpDest->bbWeight == BB_ZERO_WEIGHT)) // the optimization makes sense only when the target block
+                                                             // has low weight (unlikely to execute) e.g. `throw Exception`
         {
             if (nextBlock->firstStmt() == nextBlock->lastStmt()) // single statement
             {
                 GenTree* rootNode = nextBlock->firstStmt()->GetRootNode();
                 if (rootNode->OperIs(GT_JTRUE) && rootNode->gtGetOp1()->OperIsCompare())
                 {
-                    GenTreeOp*     rootCond = rootNode->gtGetOp1()->AsOp();
+                    GenTreeOp*     b2Cond     = rootNode->gtGetOp1()->AsOp();
                     GenTreeLclVar* variableB2;
                     GenTree*       otherOp;
 
-                    if (rootCond->gtGetOp1()->OperIs(GT_LCL_VAR))
+                    if (b2Cond->gtGetOp1()->OperIs(GT_LCL_VAR))
                     {
-                        variableB2 = rootCond->gtGetOp1()->AsLclVar();
-                        otherOp    = rootCond->gtGetOp2();
+                        variableB2 = b2Cond->gtGetOp1()->AsLclVar();
+                        otherOp    = b2Cond->gtGetOp2();
                     }
-                    else if (rootCond->gtGetOp2()->OperIs(GT_LCL_VAR))
+                    else if (b2Cond->gtGetOp2()->OperIs(GT_LCL_VAR))
                     {
-                        variableB2 = rootCond->gtGetOp2()->AsLclVar();
-                        otherOp    = rootCond->gtGetOp1();
+                        variableB2 = b2Cond->gtGetOp2()->AsLclVar();
+                        otherOp    = b2Cond->gtGetOp1();
                     }
                     else
                     {
@@ -8871,25 +8899,26 @@ BB02:
                     if (variable->GetVN(VNK_Conservative) == variableB2->GetVN(VNK_Conservative))
                     {
                         bool canBeOptimized = false;
-                        if (otherOp->OperIs(GT_ARR_LENGTH) && rootNode->gtGetOp1()->OperIs(GT_LE, GT_LT)) // GT_LT should not be used in such checks but is allowed
+                        if (otherOp->OperIs(GT_ARR_LENGTH) && rootNode->gtGetOp1()->OperIs(GT_LE, GT_LT)) 
                         {
                             if ((bb1Cond == GT_LE && icon1 == -1) ||
                                 (bb1Cond == GT_LT && icon1 == 0))
                             {
                                 // Handles cases like:
-                                // if (startIndex < 0 || startIndex > array.Length)
-                                //    ThrowException();
+                                // if (startIndex < 0 || startIndex > array.Length)  // NOTE: GT_ARR_LENGTH will be op1 always, so it's `<` actually
+                                //     ThrowException();
                                 //
                                 // Or
                                 //
                                 // if (startIndex <= -1 || startIndex > array.Length)
-                                //    ThrowException();
+                                //     ThrowException();
                                 //
                                 canBeOptimized = true;
                             }
 
                         }
-                        else if (otherOp->IsCnsIntOrI() && 
+                        else if (afterCse && // we run this opt twice before and after CSE. BeforeCSE run makes sense only for GT_ARR_LENGTH
+                                 otherOp->IsCnsIntOrI() &&
                                  otherOp->AsIntCon()->IconValue() >= 0 && otherOp->AsIntCon()->IconValue() >= icon1 &&
                                  rootNode->gtGetOp1()->OperIs(GT_GT, GT_GE))
                         {
@@ -8899,54 +8928,54 @@ BB02:
                             {
                                 // Handles cases like:
                                 // if (startIndex < 0 || startIndex > icon2)
-                                //    ThrowException();
+                                //     ThrowException();
                                 //
                                 // Or
                                 //
                                 // if (startIndex <= -1 || startIndex >= icon2)
-                                //    ThrowException();
+                                //     ThrowException();
                                 //
                                 canBeOptimized = true;
                             }
-#if FALSE
                             else if (icon1 >= 0)
                             {
-                                assert(rootCond->gtGetOp1() == variableB2);
+                                assert(b2Cond->gtGetOp1() == variableB2);
 
                                 // handle any icon1 here, e.g.:
                                 //
                                 // if (startIndex < icon1 || startIndex > icon2)
-                                //    ThrowException();
+                                //     ThrowException();
                                 //
                                 // To
                                 //
-                                // if (startIndex - icon1 > icon2)
-                                //    ThrowException();
+                                // if (startIndex - icon1 > icon2 - icon1)
+                                //     ThrowException();
                                 //
-                                ssize_t to_sub  = icon1 - ((bb1Cond == GT_LT) ? 0 : 1);
-                                otherOp->AsIntCon()->gtIconVal -= to_sub;
+                                ssize_t toSub              = icon1 - ((bb1Cond == GT_LT) ? 0 : 1);
+                                GenTreeIntCon* subIconNode = gtNewIconNode(-toSub, variableB2->TypeGet());
+                                GenTree* subNode           = gtNewOperNode(GT_ADD, variableB2->TypeGet(), variableB2, subIconNode); // GT_ADD -icon1
 
-                                // TODO: how to properly emit GT_SUB here?
-                                GenTree* subNode = gtNewOperNode(GT_SUB, variableB2->TypeGet(), variableB2, gtNewIconNode(to_sub, variableB2->TypeGet()));
-                                rootCond->gtOp1 = subNode;
-                                // update vn?
+                                subNode->CopyCosts(b2Cond); // not sure in this one, what costs should I set to the GT_ADD node I've just added?
+                                gtReplaceTree(nextBlock->firstStmt(), b2Cond->gtGetOp1(), subNode);
+                                gtPrepareCost(b2Cond);
 
-                                canBeOptimized = true;
+                                otherOp->AsIntCon()->gtIconVal -= toSub; // icon2 - icon1
+                                canBeOptimized                  = true;
                             }
-#endif
                         }
 
                         if (canBeOptimized)
                         {
-                            rootCond->gtFlags |= GTF_UNSIGNED;
-                            // now we can delete the first block
-                            // I am just converting it to an empty bb (will be removed later)
-                            //
-                            // probably need to check ops for side-effects
+                            // make second block's condition unsigned and remove the first block
+                            b2Cond->gtFlags |= GTF_UNSIGNED;
+
                             fgRemoveRefPred(block->bbJumpDest, block);
                             block->bbJumpDest = nullptr;
                             block->bbJumpKind = BBJ_NONE;
                             fgRemoveStmt(block, block->firstStmt());
+
+                            // no need to inspect nextBlock in the next iteration
+                            block = nextBlock;
                         }
                     }
                 }

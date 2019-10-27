@@ -55,6 +55,7 @@ CompPhaseNameMacro(PHASE_MARK_LOCAL_VARS,        "Mark local vars",             
 CompPhaseNameMacro(PHASE_OPTIMIZE_BOOLS,         "Optimize bools",                 "OPT-BOOL", false, -1, false)
 CompPhaseNameMacro(PHASE_FIND_OPER_ORDER,        "Find oper order",                "OPER-ORD", false, -1, false)
 CompPhaseNameMacro(PHASE_SET_BLOCK_ORDER,        "Set block order",                "BLK-ORD",  false, -1, true)
+CompPhaseNameMacro(PHASE_OPTIMIZE_SIMPLE_RANGECHECKS, "Optimize simple range checks", "SMP-RNG", false, -1, false) 
 CompPhaseNameMacro(PHASE_BUILD_SSA,              "Build SSA representation",       "SSA",      true,  -1, false)
 CompPhaseNameMacro(PHASE_BUILD_SSA_TOPOSORT,     "SSA: topological sort",          "SSA-SORT", false, PHASE_BUILD_SSA, false)
 CompPhaseNameMacro(PHASE_BUILD_SSA_DOMS,         "SSA: Doms1",                     "SSA-DOMS", false, PHASE_BUILD_SSA, false)

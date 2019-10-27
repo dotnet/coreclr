@@ -5715,7 +5715,11 @@ private:
     void optPerformHoistExpr(GenTree* expr, unsigned lnum);
 
 public:
-    void myTest();
+    // Merge simple range checks to an unsigned expression, e.g.:
+    // if (x < 10 || x > 99)           -> if ((uint)x - 10 > 89)
+    // if (x < 0 || x >= array.Length) -> if ((uint)x > (uint)array.Length)
+    void optOptimizeRangeChecksWithUnsigned(bool afterCse);
+
     void optOptimizeBools();
 
 private:
