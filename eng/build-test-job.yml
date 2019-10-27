@@ -5,7 +5,6 @@ parameters:
   osSubgroup: ''
   container: ''
   testGroup: ''
-  crossrootfsDir: ''
   displayNameArgs: ''
   condition: true
   stagedBuild: false

@@ -32,7 +32,6 @@ jobs:
       osSubgroup: ${{ parameters.managedTestBuildOsSubgroup }}
       container: ${{ parameters.container }}
       testGroup: ${{ parameters.testGroup }}
-      crossrootfsDir: ${{ parameters.crossrootfsDir }}
       displayNameArgs: ${{ parameters.displayNameArgs }}
       condition: ${{ parameters.condition }}
       stagedBuild: ${{ parameters.stagedBuild }}
@@ -47,6 +46,7 @@ jobs:
     managedTestBuildOsSubgroup: ${{ parameters.managedTestBuildOsSubgroup }}
     container: ${{ parameters.container }}
     testGroup: ${{ parameters.testGroup }}
+    crossrootfsDir: ${{ parameters.crossrootfsDir }}
     readyToRun: ${{ parameters.readyToRun }}
     helixQueues: ${{ parameters.helixQueues }}
     corefxTests: ${{ parameters.coreFxTests }}
