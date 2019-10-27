@@ -8844,8 +8844,8 @@ BB02:
     for (BasicBlock* block = fgFirstBB; block; block = block->bbNext)
     {
         GenTreeLclVar* variable = nullptr;
+        GenTreeOp*     b1Cond   = nullptr;
         ssize_t        icon1    = 0;
-        genTreeOps     bb1Cond  = GT_NONE;
 
         if ((block->bbJumpKind == BBJ_COND) && ((block->bbFlags & BBF_DONT_REMOVE) == 0) &&
             (block->firstStmt() == block->lastStmt())) // single statement
@@ -8853,8 +8853,7 @@ BB02:
             GenTree* rootNode = block->firstStmt()->GetRootNode();
             if (rootNode->OperIs(GT_JTRUE) && rootNode->gtGetOp1()->OperIs(GT_LT, GT_LE))
             {
-                bb1Cond           = rootNode->gtGetOp1()->OperGet();
-                GenTreeOp* b1Cond = rootNode->gtGetOp1()->AsOp();
+                b1Cond = rootNode->gtGetOp1()->AsOp();
                 if (b1Cond->gtGetOp1()->OperIs(GT_LCL_VAR) && b1Cond->gtGetOp2()->IsCnsIntOrI() &&
                     ((b1Cond->gtFlags & GTF_GLOB_EFFECT) == 0)) // make sure B1 doesn't have global side effects
                 {
@@ -8901,8 +8900,8 @@ BB02:
                         bool canBeOptimized = false;
                         if (otherOp->OperIs(GT_ARR_LENGTH) && rootNode->gtGetOp1()->OperIs(GT_LE, GT_LT)) 
                         {
-                            if ((bb1Cond == GT_LE && icon1 == -1) ||
-                                (bb1Cond == GT_LT && icon1 == 0))
+                            if ((b1Cond->OperIs(GT_LE) && icon1 == -1) ||
+                                (b1Cond->OperIs(GT_LT) && icon1 == 0))
                             {
                                 // Handles cases like:
                                 // if (startIndex < 0 || startIndex > array.Length)  // NOTE: GT_ARR_LENGTH will be op1 always, so it's `<` actually
@@ -8922,9 +8921,8 @@ BB02:
                                  otherOp->AsIntCon()->IconValue() >= 0 && otherOp->AsIntCon()->IconValue() >= icon1 &&
                                  rootNode->gtGetOp1()->OperIs(GT_GT, GT_GE))
                         {
-
-                            if ((bb1Cond == GT_LE && icon1 == -1) ||
-                                (bb1Cond == GT_LT && icon1 == 0))
+                            if ((b1Cond->OperIs(GT_LE) && icon1 == -1) ||
+                                (b1Cond->OperIs(GT_LT) && icon1 == 0))
                             {
                                 // Handles cases like:
                                 // if (startIndex < 0 || startIndex > icon2)
@@ -8951,7 +8949,7 @@ BB02:
                                 // if (startIndex - icon1 > icon2 - icon1)
                                 //     ThrowException();
                                 //
-                                ssize_t toSub              = icon1 - ((bb1Cond == GT_LT) ? 0 : 1);
+                                ssize_t toSub              = icon1 - (b1Cond->OperIs(GT_LT) ? 0 : 1);
                                 GenTreeIntCon* subIconNode = gtNewIconNode(-toSub, variableB2->TypeGet());
                                 GenTree* subNode           = gtNewOperNode(GT_ADD, variableB2->TypeGet(), variableB2, subIconNode); // GT_ADD -icon1
 
