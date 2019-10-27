@@ -12330,7 +12330,7 @@ VOID ThrowBadFormatWorker(UINT resID, LPCWSTR imageName DEBUGARG(__in_z const ch
     SString resStr;
     if (resID == 0 || !resStr.LoadResource(CCompRC::Optional, resID))
     {
-        resStr.LoadResource(CCompRC::Error, MSG_FOR_URT_HR(BFA_BAD_IL)); // "Bad IL format."
+        resStr.LoadResource(CCompRC::Error, BFA_BAD_IL); // "Bad IL format."
     }
     msgStr += resStr;
 
