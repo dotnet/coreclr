@@ -7781,7 +7781,7 @@ private:
 
     bool isIntrinsicType(CORINFO_CLASS_HANDLE clsHnd)
     {
-        return (info.compCompHnd->getClassAttribs(clsHnd) & CORINFO_FLG_INTRINSIC_TYPE) != 0;
+        return info.compCompHnd->isIntrinsicType(clsHnd);
     }
 
     const char* getClassNameFromMetadata(CORINFO_CLASS_HANDLE cls, const char** namespaceName)

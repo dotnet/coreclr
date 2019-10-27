@@ -887,8 +887,8 @@ namespace Internal.JitInterface
 
         private bool isIntrinsicType(CORINFO_CLASS_STRUCT_* classHnd)
         {
-            Debug.Fail("CorInfoImpl.isIntrinsicType is obsolete and should not be called");
-            throw new NotSupportedException("isIntrinsicType");
+            TypeDesc type = HandleToObject(classHnd);
+            return type.IsIntrinsic;
         }
 
         private CorInfoUnmanagedCallConv getUnmanagedCallConv(CORINFO_METHOD_STRUCT_* method)

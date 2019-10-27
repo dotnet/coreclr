@@ -8949,8 +8949,21 @@ CorInfoIntrinsics CEEInfo::getIntrinsicID(CORINFO_METHOD_HANDLE methodHnd,
 /*********************************************************************/
 bool CEEInfo::isIntrinsicType(CORINFO_CLASS_HANDLE classHnd)
 {
-    UNREACHABLE(); // OBSOLETE
-    return false;
+    CONTRACTL {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_PREEMPTIVE;
+    } CONTRACTL_END;
+
+    bool result = false;
+    JIT_TO_EE_TRANSITION_LEAF();
+
+    TypeHandle VMClsHnd(classHnd);
+    PTR_MethodTable methodTable = VMClsHnd.GetMethodTable();
+    result = methodTable->IsIntrinsicType();
+
+    EE_TO_JIT_TRANSITION_LEAF();
+    return result;
 }
 
 /*********************************************************************/

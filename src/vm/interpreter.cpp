@@ -9050,7 +9050,7 @@ void Interpreter::DoCallWork(bool virtualCall, void* thisArg, CORINFO_RESOLVED_T
             // Check for the simd class...
             assert(exactClass != NULL);
             GCX_PREEMP();
-            bool isIntrinsicType = GetMethodTableFromClsHnd(exactClass)->IsIntrinsicType();
+            bool isIntrinsicType = m_interpCeeInfo.isIntrinsicType(exactClass);
 
             if (isIntrinsicType)
             {
