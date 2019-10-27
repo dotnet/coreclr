@@ -3858,7 +3858,7 @@ void Compiler::fgCreateGCPolls()
  *  a basic block.
  */
 
-bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block, Statement *stmt)
+bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block, Statement* stmt)
 {
     bool createdPollBlocks;
 
