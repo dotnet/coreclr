@@ -899,7 +899,7 @@ void SsaBuilder::InsertPhiFunctions(BasicBlock** postOrder, int count)
  * @remarks This method has to maintain parity with TreePopStacks corresponding to pushes
  *          it makes for defs.
  */
-void SsaBuilder::TreeRenameVariables(GenTree* tree, BasicBlock* block, SsaRenameState* pRenameState)
+void SsaBuilder::RenameDef(GenTreeOp* tree, BasicBlock* block, SsaRenameState* pRenameState)
 {
     // This is perhaps temporary -- maybe should be done elsewhere.  Label GT_INDs on LHS of assignments, so we
     // can skip these during (at least) value numbering.
@@ -1022,33 +1022,25 @@ void SsaBuilder::TreeRenameVariables(GenTree* tree, BasicBlock* block, SsaRename
         {
             AddDefToHandlerPhis(block, lclNum, ssaNum);
         }
-
-        return;
     }
+}
 
-    // Note that PHI_ARG nodes already have SSA numbers so we only need to check LCL_VAR and LCL_FLD nodes.
-    if (tree->OperIs(GT_LCL_VAR, GT_LCL_FLD))
+void SsaBuilder::RenameUse(GenTreeLclVarCommon* lclVar, BasicBlock* block, SsaRenameState* pRenameState)
+{
+    assert((lclVar->gtFlags & GTF_VAR_DEF) == 0);
+
+    unsigned lclNum = lclVar->GetLclNum();
+
+    if (!m_pCompiler->lvaInSsa(lclNum))
     {
-        GenTreeLclVarCommon* lclVar = tree->AsLclVarCommon();
-        unsigned             lclNum = lclVar->GetLclNum();
-
-        if (!m_pCompiler->lvaInSsa(lclNum))
-        {
-            lclVar->SetSsaNum(SsaConfig::RESERVED_SSA_NUM);
-            return;
-        }
-
-        // Promoted variables are not in SSA, only their fields are.
-        assert(!m_pCompiler->lvaTable[lclNum].lvPromoted);
-
-        if ((lclVar->gtFlags & GTF_VAR_DEF) != 0)
-        {
-            return;
-        }
-
-        lclVar->SetSsaNum(pRenameState->Top(lclNum));
+        lclVar->SetSsaNum(SsaConfig::RESERVED_SSA_NUM);
         return;
     }
+
+    // Promoted variables are not in SSA, only their fields are.
+    assert(!m_pCompiler->lvaTable[lclNum].lvPromoted);
+
+    lclVar->SetSsaNum(pRenameState->Top(lclNum));
 }
 
 void SsaBuilder::AddDefToHandlerPhis(BasicBlock* block, unsigned lclNum, unsigned ssaNum)
@@ -1234,9 +1226,14 @@ void SsaBuilder::BlockRenameVariables(BasicBlock* block, SsaRenameState* pRename
     {
         for (GenTree* tree = stmt->GetTreeList(); tree != nullptr; tree = tree->gtNext)
         {
-            if (tree->OperIs(GT_ASG, GT_LCL_VAR, GT_LCL_FLD))
+            if (tree->OperIs(GT_ASG))
             {
-                TreeRenameVariables(tree, block, pRenameState);
+                RenameDef(tree->AsOp(), block, pRenameState);
+            }
+            // PHI_ARG nodes already have SSA numbers so we only need to check LCL_VAR and LCL_FLD nodes.
+            else if (tree->OperIs(GT_LCL_VAR, GT_LCL_FLD) && ((tree->gtFlags & GTF_VAR_DEF) == 0))
+            {
+                RenameUse(tree->AsLclVarCommon(), block, pRenameState);
             }
         }
     }
