@@ -8825,22 +8825,22 @@ GenTree* Compiler::optIsBoolCond(GenTree* condBranch, GenTree** compPtr, bool* b
 //
 void Compiler::optOptimizeRangeChecksWithUnsigned(bool afterCse)
 {
-/*  We are looking for two conditional single-statement basic blocks
- *  both jump to the same rarely executed block (e.g. `throw Exception`)
+    /*  We are looking for two conditional single-statement basic blocks
+     *  both jump to the same rarely executed block (e.g. `throw Exception`)
 
-BB01:
-    *  JTRUE
-    \--*  LT/LE
-       +--*  LCL_VAR
-       \--*  CNS_INT  (anyCNS)
+    BB01:
+        *  JTRUE
+        \--*  LT/LE
+           +--*  LCL_VAR
+           \--*  CNS_INT  (anyCNS)
 
-BB02:
-    *  JTRUE     void  
-    \--*  (GT/GE)
-       +--*  LCL_VAR  (same var as above ^)
-       \--*  (CNS or ARR_LENGHT)   NOTE: ARR_LENGTH will be op1 + reversed op (e.g. GT -> LT)
+    BB02:
+        *  JTRUE     void  
+        \--*  (GT/GE)
+           +--*  LCL_VAR  (same var as above ^)
+           \--*  (CNS or ARR_LENGHT)   NOTE: ARR_LENGTH will be op1 + reversed op (e.g. GT -> LT)
 
-*/
+    */
 
     for (BasicBlock* block = fgFirstBB; block; block = block->bbNext)
     {
@@ -8867,7 +8867,7 @@ BB02:
         BasicBlock* nextBlock = block->bbNext;
 
         if (variable != nullptr && nextBlock != nullptr && nextBlock->bbJumpKind == BBJ_COND &&
-            (nextBlock->bbJumpDest == block->bbJumpDest) &&  // both block must have the same target
+            (nextBlock->bbJumpDest == block->bbJumpDest) &&  // both blocks must have the same target
             (block->bbJumpDest->bbWeight == BB_ZERO_WEIGHT)) // the optimization makes sense only when the target block
                                                              // has low weight (unlikely to execute) e.g. `throw Exception`
         {
@@ -8901,8 +8901,7 @@ BB02:
                         bool canBeOptimized = false;
                         if (otherOp->OperIs(GT_ARR_LENGTH) && rootNode->gtGetOp1()->OperIs(GT_LE, GT_LT)) 
                         {
-                            if ((b1Cond->OperIs(GT_LE) && icon1 == -1) ||
-                                (b1Cond->OperIs(GT_LT) && icon1 == 0))
+                            if ((b1Cond->OperIs(GT_LE) && icon1 == -1) || (b1Cond->OperIs(GT_LT) && icon1 == 0))
                             {
                                 // Handles cases like:
                                 // if (startIndex < 0 || startIndex > array.Length)  // NOTE: GT_ARR_LENGTH will be op1 always, so it's `<` actually
@@ -8922,8 +8921,7 @@ BB02:
                                  otherOp->AsIntCon()->IconValue() >= 0 && otherOp->AsIntCon()->IconValue() >= icon1 &&
                                  rootNode->gtGetOp1()->OperIs(GT_GT, GT_GE))
                         {
-                            if ((b1Cond->OperIs(GT_LE) && icon1 == -1) ||
-                                (b1Cond->OperIs(GT_LT) && icon1 == 0))
+                            if ((b1Cond->OperIs(GT_LE) && icon1 == -1) || (b1Cond->OperIs(GT_LT) && icon1 == 0))
                             {
                                 // Handles cases like:
                                 // if (startIndex < 0 || startIndex > icon2)
@@ -8955,13 +8953,15 @@ BB02:
                                 if (toSub != 0)
                                 {
                                     GenTreeIntCon* subIconNode = gtNewIconNode(-toSub, variableB2->TypeGet());
-                                    GenTree* subNode = gtNewOperNode(GT_ADD, variableB2->TypeGet(), variableB2, subIconNode); // GT_ADD -icon1
+                                    GenTree* subNode           = gtNewOperNode(GT_ADD, variableB2->TypeGet(), variableB2,
+                                                                         subIconNode); // GT_ADD -icon1
 
-                                    subNode->CopyCosts(b2Cond); // not sure in this one, what costs should I set to the GT_ADD node I've just added?
+                                    subNode->CopyCosts(b2Cond); // Not sure in this one, what costs should I set to the
+                                                                // GT_ADD node I've just added?
                                     gtReplaceTree(nextBlock->firstStmt(), b2Cond->gtGetOp1(), subNode);
                                     gtPrepareCost(b2Cond);
+                                    otherOp->AsIntCon()->gtIconVal -= toSub;
                                 }
-                                otherOp->AsIntCon()->gtIconVal -= toSub;
                                 canBeOptimized = true;
                             }
                         }
