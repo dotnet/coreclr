@@ -1832,7 +1832,7 @@ OBJECTREF EEFileLoadException::CreateThrowable()
     gc.pNewException = AllocateObject(MscorlibBinder::GetException(m_kind));
 
     MethodDesc* pMD = MemberLoader::FindMethod(gc.pNewException->GetMethodTable(),
-                            COR_CTOR_METHOD_NAME, &gsig_IM_Str_Str_Int_RetVoid);
+                            COR_CTOR_METHOD_NAME, &gsig_IM_Str_Int_RetVoid);
 
     if (!pMD)
     {
@@ -1845,7 +1845,6 @@ OBJECTREF EEFileLoadException::CreateThrowable()
     ARG_SLOT args[] = {
         ObjToArgSlot(gc.pNewException),
         ObjToArgSlot(gc.pNewFileString),
-        NULL,
         (ARG_SLOT) m_hr
     };
 
