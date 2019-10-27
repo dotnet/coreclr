@@ -917,7 +917,53 @@ void SsaBuilder::RenameDef(GenTreeOp* asgNode, BasicBlock* block, SsaRenameState
     bool                 isFullDef;
     bool                 isLocal = asgNode->DefinesLocal(m_pCompiler, &lclNode, &isFullDef);
 
-    // Figure out if "tree" may make a new GC heap state (if we care for this block).
+    if (isLocal)
+    {
+        unsigned lclNum = lclNode->GetLclNum();
+
+        if (m_pCompiler->lvaInSsa(lclNum))
+        {
+            // Promoted variables are not in SSA, only their fields are.
+            assert(!m_pCompiler->lvaGetDesc(lclNum)->lvPromoted);
+            // This should have been marked as defintion.
+            assert((lclNode->gtFlags & GTF_VAR_DEF) != 0);
+
+            unsigned ssaNum = m_pCompiler->lvaGetDesc(lclNum)->lvPerSsaData.AllocSsaNum(m_allocator, block, asgNode);
+
+            if (!isFullDef)
+            {
+                assert((lclNode->gtFlags & GTF_VAR_USEASG) != 0);
+
+                // This is a partial definition of a variable. The node records only the SSA number
+                // of the use that is implied by this partial definition. The SSA number of the new
+                // definition will be recorded in the m_opAsgnVarDefSsaNums map.
+                lclNode->SetSsaNum(pRenameState->Top(lclNum));
+                m_pCompiler->GetOpAsgnVarDefSsaNums()->Set(lclNode, ssaNum);
+            }
+            else
+            {
+                lclNode->SetSsaNum(ssaNum);
+            }
+
+            pRenameState->Push(block, lclNum, ssaNum);
+
+            // If necessary, add "lclNum/ssaNum" to the arg list of a phi def in any
+            // handlers for try blocks that "block" is within.  (But only do this for "real" definitions,
+            // not phi definitions.)
+            if (!asgNode->gtGetOp2()->OperIs(GT_PHI))
+            {
+                AddDefToHandlerPhis(block, lclNum, ssaNum);
+            }
+
+            // If it's a SSA local then it cannot be address exposed and thus does not define SSA memory.
+            assert(!m_pCompiler->lvaVarAddrExposed(lclNode->GetLclNum()));
+            return;
+        }
+
+        lclNode->SetSsaNum(SsaConfig::RESERVED_SSA_NUM);
+    }
+
+    // Figure out if "asgNode" may make a new GC heap state (if we care for this block).
     if (((block->bbMemoryHavoc & memoryKindSet(GcHeap)) == 0) && m_pCompiler->ehBlockHasExnFlowDsc(block))
     {
         bool isAddrExposedLocal = isLocal && m_pCompiler->lvaVarAddrExposed(lclNode->GetLclNum());
@@ -966,49 +1012,6 @@ void SsaBuilder::RenameDef(GenTreeOp* asgNode, BasicBlock* block, SsaRenameState
                     AddMemoryDefToHandlerPhis(GcHeap, block, ssaNum);
                 }
             }
-        }
-    }
-
-    if (isLocal)
-    {
-        unsigned lclNum = lclNode->GetLclNum();
-
-        if (!m_pCompiler->lvaInSsa(lclNum))
-        {
-            lclNode->SetSsaNum(SsaConfig::RESERVED_SSA_NUM);
-            return;
-        }
-
-        // Promoted variables are not in SSA, only their fields are.
-        assert(!m_pCompiler->lvaGetDesc(lclNum)->lvPromoted);
-        // This should have been marked as defintion.
-        assert((lclNode->gtFlags & GTF_VAR_DEF) != 0);
-
-        unsigned ssaNum = m_pCompiler->lvaGetDesc(lclNum)->lvPerSsaData.AllocSsaNum(m_allocator, block, asgNode);
-
-        if (!isFullDef)
-        {
-            assert((lclNode->gtFlags & GTF_VAR_USEASG) != 0);
-
-            // This is a partial definition of a variable. The node records only the SSA number
-            // of the use that is implied by this partial definition. The SSA number of the new
-            // definition will be recorded in the m_opAsgnVarDefSsaNums map.
-            lclNode->SetSsaNum(pRenameState->Top(lclNum));
-            m_pCompiler->GetOpAsgnVarDefSsaNums()->Set(lclNode, ssaNum);
-        }
-        else
-        {
-            lclNode->SetSsaNum(ssaNum);
-        }
-
-        pRenameState->Push(block, lclNum, ssaNum);
-
-        // If necessary, add "lclNum/ssaNum" to the arg list of a phi def in any
-        // handlers for try blocks that "block" is within.  (But only do this for "real" definitions,
-        // not phi definitions.)
-        if (!asgNode->gtGetOp2()->OperIs(GT_PHI))
-        {
-            AddDefToHandlerPhis(block, lclNum, ssaNum);
         }
     }
 }
