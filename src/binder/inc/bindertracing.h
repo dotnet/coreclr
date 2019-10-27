@@ -17,12 +17,12 @@ namespace BinderTracing
 
     // If tracing is enabled, this class fires an assembly bind start event on construction
     // and the corresponding stop event on destruction
-    class AssemblyBindEvent
+    class AssemblyBindOperation
     {
     public:
         // This class assumes the assembly spec will have a longer lifetime than itself
-        AssemblyBindEvent(AssemblySpec *assemblySpec);
-        ~AssemblyBindEvent();
+        AssemblyBindOperation(AssemblySpec *assemblySpec);
+        ~AssemblyBindOperation();
 
         void SetResult(PEAssembly *assembly);
 
@@ -31,7 +31,7 @@ namespace BinderTracing
             AssemblySpec *AssemblySpec;
             SString AssemblyName;
             SString AssemblyPath;
-            SString ParentAssembly;
+            SString RequestingAssembly;
             SString AssemblyLoadContext;
         };
 

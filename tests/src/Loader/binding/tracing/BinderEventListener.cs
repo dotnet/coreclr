@@ -14,7 +14,7 @@ using Assert = Xunit.Assert;
 
 namespace BinderTracingTests
 {
-    internal class BindEvent
+    internal class BindOperation
     {
         internal AssemblyName AssemblyName;
         internal bool Success;
@@ -29,12 +29,12 @@ namespace BinderTracingTests
     internal sealed class BinderEventListener : EventListener
     {
         private const EventKeywords TasksFlowActivityIds = (EventKeywords)0x80;
-        private const EventKeywords BinderKeyword = (EventKeywords)0x4;
+        private const EventKeywords AssemblyLoaderKeyword = (EventKeywords)0x4;
 
         private readonly object eventsLock = new object();
-        private readonly Dictionary<Guid, BindEvent> bindEvents = new Dictionary<Guid, BindEvent>();
+        private readonly Dictionary<Guid, BindOperation> bindOperations = new Dictionary<Guid, BindOperation>();
 
-        public BindEvent[] WaitAndGetEventsForAssembly(string simpleName, int waitTimeoutInMs = 10000)
+        public BindOperation[] WaitAndGetEventsForAssembly(string simpleName, int waitTimeoutInMs = 10000)
         {
             const int waitIntervalInMs = 50;
             int timeWaitedInMs = 0;
@@ -42,7 +42,7 @@ namespace BinderTracingTests
             {
                 lock (eventsLock)
                 {
-                    var events = bindEvents.Values.Where(e => e.Completed && e.AssemblyName.Name == simpleName && !e.Nested);
+                    var events = bindOperations.Values.Where(e => e.Completed && e.AssemblyName.Name == simpleName && !e.Nested);
                     if (events.Any())
                     {
                         return events.ToArray();
@@ -60,7 +60,7 @@ namespace BinderTracingTests
         {
             if (eventSource.Name == "Microsoft-Windows-DotNETRuntime")
             {
-                EnableEvents(eventSource, EventLevel.Verbose, BinderKeyword);
+                EnableEvents(eventSource, EventLevel.Verbose, AssemblyLoaderKeyword);
             }
             else if (eventSource.Name == "System.Threading.Tasks.TplEventSource")
             {
@@ -81,23 +81,23 @@ namespace BinderTracingTests
                 case "AssemblyLoadStart":
                     lock (eventsLock)
                     {
-                        Assert.True(!bindEvents.ContainsKey(data.ActivityId), "AssemblyLoadStart should not exist for same activity ID ");
-                        var bindEvent = new BindEvent()
+                        Assert.True(!bindOperations.ContainsKey(data.ActivityId), "AssemblyLoadStart should not exist for same activity ID ");
+                        var bindOperation = new BindOperation()
                         {
                             AssemblyName = new AssemblyName(GetDataString("AssemblyName")),
                             ActivityId = data.ActivityId,
                             ParentActivityId = data.RelatedActivityId,
-                            Nested = bindEvents.ContainsKey(data.RelatedActivityId)
+                            Nested = bindOperations.ContainsKey(data.RelatedActivityId)
                         };
-                        bindEvents.Add(data.ActivityId, bindEvent);
+                        bindOperations.Add(data.ActivityId, bindOperation);
                     }
                     break;
                 case "AssemblyLoadStop":
                     lock (eventsLock)
                     {
-                        Assert.True(bindEvents.ContainsKey(data.ActivityId), "AssemblyLoadStop should have a matching AssemblyLoadStart");
-                        bindEvents[data.ActivityId].Success = (bool)GetData("Success");
-                        bindEvents[data.ActivityId].Completed = true;
+                        Assert.True(bindOperations.ContainsKey(data.ActivityId), "AssemblyLoadStop should have a matching AssemblyLoadStart");
+                        bindOperations[data.ActivityId].Success = (bool)GetData("Success");
+                        bindOperations[data.ActivityId].Completed = true;
                     }
                     break;
             }

@@ -5041,7 +5041,7 @@ PEAssembly * AppDomain::BindAssemblySpec(
 
     BOOL fForceReThrow = FALSE;
 
-    BinderTracing::AssemblyBindEvent bindEvent(pSpec);
+    BinderTracing::AssemblyBindOperation bindOperation(pSpec);
 
 #if defined(FEATURE_COMINTEROP)
     // Handle WinRT assemblies in the classic/hybrid scenario. If this is an AppX process,
@@ -5113,7 +5113,7 @@ EndTry2:;
         }
         _ASSERTE((FAILED(hr) && !fThrowOnFileNotFound) || pAssembly != nullptr);
 
-        bindEvent.SetResult(pAssembly.GetValue());
+        bindOperation.SetResult(pAssembly.GetValue());
         return pAssembly.Extract();
     }
     else
@@ -5286,7 +5286,7 @@ EndTry2:;
                 result->AddRef();
         }
 
-        bindEvent.SetResult(result.GetValue());
+        bindOperation.SetResult(result.GetValue());
         return result.Extract();
     }
     else

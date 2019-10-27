@@ -17,8 +17,8 @@
                              message="$(string.RuntimePublisher.GCKeywordMessage)" symbol="CLR_GC_KEYWORD"/>
                     <keyword name="GCHandleKeyword" mask="0x2"
                              message="$(string.RuntimePublisher.GCHandleKeywordMessage)" symbol="CLR_GCHANDLE_KEYWORD"/>
-                    <keyword name="AssemblyLoaderTracingKeyword" mask="0x4"
-                             message="$(string.RuntimePublisher.AssemblyLoaderTracingKeywordMessage)" symbol="CLR_ASSEMBLY_LOADER_TRACING_KEYWORD"/>
+                    <keyword name="AssemblyLoaderKeyword" mask="0x4"
+                             message="$(string.RuntimePublisher.AssemblyLoaderKeywordMessage)" symbol="CLR_ASSEMBLY_LOADER_KEYWORD"/>
                     <keyword name="LoaderKeyword" mask="0x8"
                              message="$(string.RuntimePublisher.LoaderKeywordMessage)" symbol="CLR_LOADER_KEYWORD"/>
                     <keyword name="JitKeyword" mask="0x10"
@@ -1635,14 +1635,14 @@
                         <data name="ClrInstanceID" inType="win:UInt16" />
                         <data name="AssemblyName" inType="win:UnicodeString" />
                         <data name="AssemblyPath" inType="win:UnicodeString" />
-                        <data name="ParentAssembly" inType="win:UnicodeString" />
+                        <data name="RequestingAssembly" inType="win:UnicodeString" />
                         <data name="AssemblyLoadContext" inType="win:UnicodeString" />
                         <UserData>
                             <AssemblyLoadStart xmlns="myNs">
                                 <ClrInstanceID> %1 </ClrInstanceID>
                                 <AssemblyName> %2 </AssemblyName>
                                 <AssemblyPath> %3 </AssemblyPath>
-                                <ParentAssembly> %4 </ParentAssembly>
+                                <RequestingAssembly> %4 </RequestingAssembly>
                                 <AssemblyLoadContext> %5 </AssemblyLoadContext>
                             </AssemblyLoadStart>
                         </UserData>
@@ -1652,7 +1652,7 @@
                         <data name="ClrInstanceID" inType="win:UInt16" />
                         <data name="AssemblyName" inType="win:UnicodeString" />
                         <data name="AssemblyPath" inType="win:UnicodeString" />
-                        <data name="ParentAssembly" inType="win:UnicodeString" />
+                        <data name="RequestingAssembly" inType="win:UnicodeString" />
                         <data name="AssemblyLoadContext" inType="win:UnicodeString" />
                         <data name="Success" inType="win:Boolean" />
                         <data name="ResultAssemblyName" inType="win:UnicodeString" />
@@ -1663,7 +1663,7 @@
                                 <ClrInstanceID> %1 </ClrInstanceID>
                                 <AssemblyName> %2 </AssemblyName>
                                 <AssemblyPath> %3 </AssemblyPath>
-                                <ParentAssembly> %4 </ParentAssembly>
+                                <RequestingAssembly> %4 </RequestingAssembly>
                                 <AssemblyLoadContext> %5 </AssemblyLoadContext>
                                 <Success> %6 </Success>
                                 <ResultAssemblyName> %7 </ResultAssemblyName>
@@ -3453,14 +3453,14 @@
                            keywords="CompilationKeyword" task="TieredCompilation" opcode="win:Stop"
                            symbol="TieredCompilationBackgroundJitStop" message="$(string.RuntimePublisher.TieredCompilationBackgroundJitStopEventMessage)"/>
 
-                    <!-- Assembly loader tracing events 290-299 -->
+                    <!-- Assembly loader events 290-299 -->
                     <event value="290" version="0" level="win:Informational"  template="AssemblyLoadStart"
-                           keywords ="AssemblyLoaderTracingKeyword" opcode="win:Start"
+                           keywords ="AssemblyLoaderKeyword" opcode="win:Start"
                            task="AssemblyLoader"
                            symbol="AssemblyLoadStart" message="$(string.RuntimePublisher.AssemblyLoadStartEventMessage)"/>
 
                     <event value="291" version="0" level="win:Informational"  template="AssemblyLoadStop"
-                           keywords ="AssemblyLoaderTracingKeyword" opcode="win:Stop"
+                           keywords ="AssemblyLoaderKeyword" opcode="win:Stop"
                            task="AssemblyLoader"
                            symbol="AssemblyLoadStop" message="$(string.RuntimePublisher.AssemblyLoadStopEventMessage)"/>
 
@@ -6658,8 +6658,8 @@
                 <string id="RuntimePublisher.AppDomainLoad_V1EventMessage" value="AppDomainID=%1;%nAppDomainFlags=%2;%nAppDomainName=%3;%nAppDomainIndex=%4;%nClrInstanceID=%5" />
                 <string id="RuntimePublisher.AppDomainUnloadEventMessage" value="AppDomainID=%1;%nAppDomainFlags=%2;%nAppDomainName=%3" />
                 <string id="RuntimePublisher.AppDomainUnload_V1EventMessage" value="AppDomainID=%1;%nAppDomainFlags=%2;%nAppDomainName=%3;%nAppDomainIndex=%4;%nClrInstanceID=%5" />
-                <string id="RuntimePublisher.AssemblyLoadStartEventMessage" value="ClrInstanceID=%1;%nAssemblyName=%2;%nAssemblyPath=%3;%nParentAssembly=%4;%nAssemblyLoadContext=%5" />
-                <string id="RuntimePublisher.AssemblyLoadStopEventMessage" value="ClrInstanceID=%1;%nAssemblyName=%2;%nAssemblyPath=%3;%nParentAssembly=%4;%nAssemblyLoadContext=%5;%nSuccess=%6;%nResultAssemblyName=%7;%nResultAssemblyPath=%8;%nCached=%9" />
+                <string id="RuntimePublisher.AssemblyLoadStartEventMessage" value="ClrInstanceID=%1;%nAssemblyName=%2;%nAssemblyPath=%3;%nRequestingAssembly=%4;%nAssemblyLoadContext=%5" />
+                <string id="RuntimePublisher.AssemblyLoadStopEventMessage" value="ClrInstanceID=%1;%nAssemblyName=%2;%nAssemblyPath=%3;%nRequestingAssembly=%4;%nAssemblyLoadContext=%5;%nSuccess=%6;%nResultAssemblyName=%7;%nResultAssemblyPath=%8;%nCached=%9" />
                 <string id="RuntimePublisher.StackEventMessage" value="ClrInstanceID=%1;%nReserved1=%2;%nReserved2=%3;%nFrameCount=%4;%nStack=%5" />
                 <string id="RuntimePublisher.AppDomainMemAllocatedEventMessage" value="AppDomainID=%1;%nAllocated=%2;%nClrInstanceID=%3" />
                 <string id="RuntimePublisher.AppDomainMemSurvivedEventMessage" value="AppDomainID=%1;%nSurvived=%2;%nProcessSurvived=%3;%nClrInstanceID=%4" />
@@ -7121,7 +7121,7 @@
                 <!-- Keyword Messages -->
                 <string id="RuntimePublisher.GCKeywordMessage" value="GC" />
                 <string id="RuntimePublisher.ThreadingKeywordMessage" value="Threading" />
-                <string id="RuntimePublisher.AssemblyLoaderTracingKeywordMessage" value="AssemblyLoaderTracing" />
+                <string id="RuntimePublisher.AssemblyLoaderKeywordMessage" value="AssemblyLoader" />
                 <string id="RuntimePublisher.LoaderKeywordMessage" value="Loader" />
                 <string id="RuntimePublisher.JitKeywordMessage" value="Jit" />
                 <string id="RuntimePublisher.JittedMethodILToNativeMapKeywordMessage" value="JittedMethodILToNativeMap" />

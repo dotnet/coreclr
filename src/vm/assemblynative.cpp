@@ -189,7 +189,7 @@ Assembly* AssemblyNative::LoadFromPEImage(ICLRPrivBinder* pBinderContext, PEImag
     spec.InitializeSpec(TokenFromRid(1, mdtAssembly), pImage->GetMDImport(), pCallersAssembly);
     spec.SetBindingContext(pBinderContext);
     
-    BinderTracing::AssemblyBindEvent bindEvent(&spec);
+    BinderTracing::AssemblyBindOperation bindOperation(&spec);
 
     HRESULT hr = S_OK;
     PTR_AppDomain pCurDomain = GetAppDomain();
@@ -223,7 +223,7 @@ Assembly* AssemblyNative::LoadFromPEImage(ICLRPrivBinder* pBinderContext, PEImag
     assem = BINDER_SPACE::GetAssemblyFromPrivAssemblyFast(pAssembly);
     
     PEAssemblyHolder pPEAssembly(PEAssembly::Open(pParentAssembly, assem->GetPEImage(), assem->GetNativePEImage(), pAssembly));
-    bindEvent.SetResult(pPEAssembly.GetValue());
+    bindOperation.SetResult(pPEAssembly.GetValue());
 
     DomainAssembly *pDomainAssembly = pCurDomain->LoadDomainAssembly(&spec, pPEAssembly, FILE_LOADED);
     RETURN pDomainAssembly->GetAssembly();

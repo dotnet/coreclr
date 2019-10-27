@@ -25,7 +25,7 @@ using namespace BINDER_SPACE;
 
 namespace
 {
-    void FireAssemblyLoadStart(const BinderTracing::AssemblyBindEvent::BindRequest &request)
+    void FireAssemblyLoadStart(const BinderTracing::AssemblyBindOperation::BindRequest &request)
     {
 #ifdef FEATURE_EVENT_TRACE
         if (!EventEnabledAssemblyLoadStart())
@@ -39,14 +39,14 @@ namespace
             GetClrInstanceId(),
             request.AssemblyName,
             request.AssemblyPath,
-            request.ParentAssembly,
+            request.RequestingAssembly,
             request.AssemblyLoadContext,
             &activityId,
             &relatedActivityId);
 #endif // FEATURE_EVENT_TRACE
     }
 
-    void FireAssemblyLoadStop(const BinderTracing::AssemblyBindEvent::BindRequest &request, bool success, const WCHAR *resultName, const WCHAR *resultPath, bool cached)
+    void FireAssemblyLoadStop(const BinderTracing::AssemblyBindOperation::BindRequest &request, bool success, const WCHAR *resultName, const WCHAR *resultPath, bool cached)
     {
 #ifdef FEATURE_EVENT_TRACE
         if (!EventEnabledAssemblyLoadStop())
@@ -59,7 +59,7 @@ namespace
             GetClrInstanceId(), 
             request.AssemblyName,
             request.AssemblyPath,
-            request.ParentAssembly,
+            request.RequestingAssembly,
             request.AssemblyLoadContext,
             success,
             resultName,
@@ -81,7 +81,7 @@ bool BinderTracing::IsEnabled()
 
 namespace BinderTracing
 {
-    AssemblyBindEvent::AssemblyBindEvent(AssemblySpec *assemblySpec)
+    AssemblyBindOperation::AssemblyBindOperation(AssemblySpec *assemblySpec)
         : m_bindRequest { assemblySpec }
         , m_success { false }
         , m_cached { false }
@@ -98,13 +98,13 @@ namespace BinderTracing
         }
     }
 
-    AssemblyBindEvent::~AssemblyBindEvent()
+    AssemblyBindOperation::~AssemblyBindOperation()
     {
         if (m_trackingBind)
             FireAssemblyLoadStop(m_bindRequest, m_success, m_resultName.GetUnicode(), m_resultPath.GetUnicode(), m_cached);
     }
 
-    void AssemblyBindEvent::SetResult(PEAssembly *assembly)
+    void AssemblyBindOperation::SetResult(PEAssembly *assembly)
     {
         m_success = assembly != nullptr;
     }

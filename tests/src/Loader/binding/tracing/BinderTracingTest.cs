@@ -21,10 +21,10 @@ namespace BinderTracingTests
                 string assemblyName = "System.Xml";
                 Assembly asm = Assembly.Load(assemblyName);
 
-                BindEvent[] events = listener.WaitAndGetEventsForAssembly(assemblyName);
-                Assert.True(events.Length == 1, $"Bind event count for {assemblyName} - expected: 1, actual: {events.Length}");
-                BindEvent bindEvent = events[0];
-                Assert.True(bindEvent.Success, $"Expected bind for {assemblyName} to succeed");
+                BindOperation[] binds = listener.WaitAndGetEventsForAssembly(assemblyName);
+                Assert.True(binds.Length == 1, $"Bind count for {assemblyName} - expected: 1, actual: {binds.Length}");
+                BindOperation bind = binds[0];
+                Assert.True(bind.Success, $"Expected bind for {assemblyName} to succeed");
             }
         }
 
@@ -40,10 +40,10 @@ namespace BinderTracingTests
                 }
                 catch { }
 
-                BindEvent[] events = listener.WaitAndGetEventsForAssembly(assemblyName);
-                Assert.True(events.Length == 1, $"Bind event count for {assemblyName} - expected: 1, actual: {events.Length}");
-                BindEvent bindEvent = events[0];
-                Assert.False(bindEvent.Success, $"Expected bind for {assemblyName} to fail");
+                BindOperation[] binds = listener.WaitAndGetEventsForAssembly(assemblyName);
+                Assert.True(binds.Length == 1, $"Bind event count for {assemblyName} - expected: 1, actual: {binds.Length}");
+                BindOperation bind = binds[0];
+                Assert.False(bind.Success, $"Expected bind for {assemblyName} to fail");
             }
         }
 
