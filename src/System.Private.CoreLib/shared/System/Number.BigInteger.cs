@@ -825,7 +825,7 @@ namespace System
                 Debug.Assert(unchecked((uint)result._length) <= MaxBlockCount);
                 if (blocksToShift > 0)
                 {
-                    Buffer.ZeroMemory((byte*)(result.GetBlocksPointer()), ((blocksToShift) * sizeof(uint)));
+                    Buffer.ZeroMemory((byte*)result.GetBlocksPointer(), blocksToShift * sizeof(uint));
                 }
                 result._blocks[blocksToShift] = 1U << (int)(remainingBitsToShift);
             }
@@ -898,7 +898,7 @@ namespace System
                 result.SetValue(ref lhs);
             }
 
-            private static unsafe uint AddDivisor(ref BigInteger lhs, int lhsStartIndex, ref BigInteger rhs)
+            private static uint AddDivisor(ref BigInteger lhs, int lhsStartIndex, ref BigInteger rhs)
             {
                 int lhsLength = lhs._length;
                 int rhsLength = rhs._length;
@@ -996,21 +996,19 @@ namespace System
                     return;
                 }
 
-                uint block0 = _blocks[0];
-                _blocks[0] = block0 + value;
-                if (block0 <= uint.MaxValue - value)
+                _blocks[0] += value;
+                if (_blocks[0] >= value)
                 {
-                    // No bit to carry
+                    // No carry
                     return;
                 }
 
                 for (int index = 1; index < length; index++)
                 {
-                    uint blockN = _blocks[index];
-                    _blocks[index] = blockN + 1;
-                    if (blockN <= uint.MaxValue - 1)
+                    _blocks[index]++;
+                    if (_blocks[index] > 0)
                     {
-                        // No bit to carry
+                        // No carry
                         return;
                     }
                 }
