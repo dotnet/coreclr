@@ -8950,15 +8950,19 @@ BB02:
                                 //     ThrowException();
                                 //
                                 ssize_t toSub              = icon1 - (b1Cond->OperIs(GT_LT) ? 0 : 1);
-                                GenTreeIntCon* subIconNode = gtNewIconNode(-toSub, variableB2->TypeGet());
-                                GenTree* subNode           = gtNewOperNode(GT_ADD, variableB2->TypeGet(), variableB2, subIconNode); // GT_ADD -icon1
 
-                                subNode->CopyCosts(b2Cond); // not sure in this one, what costs should I set to the GT_ADD node I've just added?
-                                gtReplaceTree(nextBlock->firstStmt(), b2Cond->gtGetOp1(), subNode);
-                                gtPrepareCost(b2Cond);
+                                if (toSub != 0)
+                                {
+                                    GenTreeIntCon* subIconNode = gtNewIconNode(-toSub, variableB2->TypeGet());
+                                    GenTree* subNode = gtNewOperNode(GT_ADD, variableB2->TypeGet(), variableB2, subIconNode); // GT_ADD -icon1
 
-                                otherOp->AsIntCon()->gtIconVal -= toSub; // icon2 - icon1
-                                canBeOptimized                  = true;
+                                    subNode->CopyCosts(b2Cond); // not sure in this one, what costs should I set to the GT_ADD node I've just added?
+                                    gtReplaceTree(nextBlock->firstStmt(), b2Cond->gtGetOp1(), subNode);
+                                    gtPrepareCost(b2Cond);
+
+                                    otherOp->AsIntCon()->gtIconVal -= toSub; // icon2 - icon1
+                                }
+                                canBeOptimized = true;
                             }
                         }
 
