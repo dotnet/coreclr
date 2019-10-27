@@ -99,7 +99,7 @@ jobs:
       osSubgroup: _musl
       managedTestBuildOsGroup: Linux
       container:
-        image: ubuntu-16.04-cross-arm64-alpine-406629a-20190923200213
+        image: ubuntu-16.04-cross-arm64-alpine-406629a-20191023143847
         registry: mcr
       helixQueues:
       - ${{ if eq(variables['System.TeamProject'], 'public') }}:
