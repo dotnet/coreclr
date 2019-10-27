@@ -4721,6 +4721,9 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
     fgSetBlockOrder();
     EndPhase(PHASE_SET_BLOCK_ORDER);
 
+    // no idea where to put it but it has to be after fgSetBlockOrder
+    myTest();
+
     // IMPORTANT, after this point, every place where tree topology changes must redo evaluation
     // order (gtSetStmtInfo) and relink nodes (fgSetStmtSeq) if required.
     CLANG_FORMAT_COMMENT_ANCHOR;

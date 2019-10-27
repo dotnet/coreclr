@@ -5715,6 +5715,7 @@ private:
     void optPerformHoistExpr(GenTree* expr, unsigned lnum);
 
 public:
+    void myTest();
     void optOptimizeBools();
 
 private:
