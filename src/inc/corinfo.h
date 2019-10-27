@@ -2171,9 +2171,9 @@ public:
             bool*                       pMustExpand = NULL      /* OUT */
             ) = 0;
 
-    // Is the given module the System.Numerics.Vectors module?
+    // Is the given type in System.Private.Corelib and marked with IntrinsicAttribute?
     // This defaults to false.
-    virtual bool isInSIMDModule(
+    virtual bool isIntrinsicType(
             CORINFO_CLASS_HANDLE        classHnd
             ) { return false; }
 

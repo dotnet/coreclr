@@ -885,10 +885,10 @@ namespace Internal.JitInterface
             return comparer != null ? ObjectToHandle(comparer) : null;
         }
 
-        private bool isInSIMDModule(CORINFO_CLASS_STRUCT_* classHnd)
+        private bool isIntrinsicType(CORINFO_CLASS_STRUCT_* classHnd)
         {
-            Debug.Fail("CorInfoImpl.isInSIMDModule is obsolete and should not be called");
-            throw new NotSupportedException("isInSIMDModule");
+            Debug.Fail("CorInfoImpl.isIntrinsicType is obsolete and should not be called");
+            throw new NotSupportedException("isIntrinsicType");
         }
 
         private CorInfoUnmanagedCallConv getUnmanagedCallConv(CORINFO_METHOD_STRUCT_* method)

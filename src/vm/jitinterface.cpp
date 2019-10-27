@@ -8947,7 +8947,7 @@ CorInfoIntrinsics CEEInfo::getIntrinsicID(CORINFO_METHOD_HANDLE methodHnd,
 }
 
 /*********************************************************************/
-bool CEEInfo::isInSIMDModule(CORINFO_CLASS_HANDLE classHnd)
+bool CEEInfo::isIntrinsicType(CORINFO_CLASS_HANDLE classHnd)
 {
     UNREACHABLE(); // OBSOLETE
     return false;
