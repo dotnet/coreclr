@@ -914,11 +914,12 @@ void SsaBuilder::RenameDef(GenTreeOp* asgNode, BasicBlock* block, SsaRenameState
     }
 
     GenTreeLclVarCommon* lclNode;
+    bool                 isFullDef;
+    bool                 isLocal = asgNode->DefinesLocal(m_pCompiler, &lclNode, &isFullDef);
 
     // Figure out if "tree" may make a new GC heap state (if we care for this block).
     if (((block->bbMemoryHavoc & memoryKindSet(GcHeap)) == 0) && m_pCompiler->ehBlockHasExnFlowDsc(block))
     {
-        bool isLocal            = asgNode->DefinesLocal(m_pCompiler, &lclNode);
         bool isAddrExposedLocal = isLocal && m_pCompiler->lvaVarAddrExposed(lclNode->GetLclNum());
         bool hasByrefHavoc      = ((block->bbMemoryHavoc & memoryKindSet(ByrefExposed)) != 0);
         if (!isLocal || (isAddrExposedLocal && !hasByrefHavoc))
@@ -968,9 +969,7 @@ void SsaBuilder::RenameDef(GenTreeOp* asgNode, BasicBlock* block, SsaRenameState
         }
     }
 
-    bool isFullDef;
-
-    if (asgNode->DefinesLocal(m_pCompiler, &lclNode, &isFullDef))
+    if (isLocal)
     {
         unsigned lclNum = lclNode->GetLclNum();
 
