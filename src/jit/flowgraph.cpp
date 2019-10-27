@@ -3858,7 +3858,7 @@ void Compiler::fgCreateGCPolls()
  *  a basic block.
  */
 
-bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block)
+bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block, Statement *stmt)
 {
     bool createdPollBlocks;
 
@@ -3883,15 +3883,38 @@ bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block)
         pollType = GCPOLL_CALL;
     }
 
+#ifdef DEBUG
+    // If a statment was supplied it should be contained in the block.
+    if (stmt != nullptr)
+    {
+        bool containsStmt = false;
+        for (Statement* stmtMaybe : block->Statements())
+        {
+            containsStmt = (stmtMaybe == stmt);
+            if (containsStmt)
+            {
+                break;
+            }
+        }
+
+        noway_assert(containsStmt);
+    }
+#endif
+
     if (GCPOLL_CALL == pollType)
     {
         createdPollBlocks = false;
         GenTreeCall* call = gtNewHelperCallNode(CORINFO_HELP_POLL_GC, TYP_VOID);
         GenTree*     temp = fgMorphCall(call);
 
-        // for BBJ_ALWAYS I don't need to insert it before the condition.  Just append it.
-        if (block->bbJumpKind == BBJ_ALWAYS)
+        if (stmt != nullptr)
         {
+            Statement* newStmt = gtNewStmt(temp);
+            fgInsertStmtAfter(block, stmt, newStmt);
+        }
+        else if (block->bbJumpKind == BBJ_ALWAYS)
+        {
+            // for BBJ_ALWAYS I don't need to insert it before the condition.  Just append it.
             fgNewStmtAtEnd(block, temp);
         }
         else
