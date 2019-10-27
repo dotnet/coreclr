@@ -25,6 +25,8 @@ public static class Bisect
 
     private static double xi, error;
 
+    private const double MAX_ERROR = 0.000001;
+
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void Escape(object obj)
     {
@@ -47,7 +49,7 @@ public static class Bisect
             {
                 a = 1.0;
                 b = 2.0;
-                p1 = 0.000001;
+                p1 = MAX_ERROR;
                 Inner(ref a, ref b, ref p1, out iflag);
                 if (iflag > 1)
                 {
@@ -154,9 +156,14 @@ public static class Bisect
 
     private static bool VerifyResult()
     {
-        const float DIFF = 0.0000001f;
-        bool result = Math.Abs(xi - 1.3247175216674805) < DIFF;
-        return result & Math.Abs(error - 0.00000095367431640625) < DIFF;
+        // This should class finds x when y = 0 for the function FF [((-1.0 - (x * (1.0 - (x * x)))))]. 
+        // This is 1.32471796... The method exits once it's within MAX_ERROR of the result.
+
+        // Check the result is within error value reported by the method.
+        bool result = Math.Abs(xi - 1.32471796) <= error;
+
+        // Check the method has correctly continued until reaching within the error range we specified.
+        return result && error < MAX_ERROR;
     }
 
     private static bool TestBase()
