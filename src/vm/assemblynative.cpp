@@ -1420,7 +1420,7 @@ BOOL QCALLTYPE AssemblyNative::InternalTryGetRawMetadata(
 }
 
 // static
-FCIMPL0(FC_BOOL_RET, AssemblyNative::IsBinderTracingEnabled)
+FCIMPL0(FC_BOOL_RET, AssemblyNative::IsTracingEnabled)
 {
     FCALL_CONTRACT;
 

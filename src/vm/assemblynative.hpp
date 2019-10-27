@@ -39,7 +39,7 @@ public:
                                                                 CLR_BOOL fThrowOnFileNotFound,
                                                                 AssemblyLoadContextBaseObject *assemblyLoadContextUNSAFE);
 
-    static FCDECL0(FC_BOOL_RET, IsBinderTracingEnabled);
+    static FCDECL0(FC_BOOL_RET, IsTracingEnabled);
 
     //
     // instance FCALLs
