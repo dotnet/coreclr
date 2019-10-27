@@ -29,15 +29,14 @@ jobs:
       osGroup: Linux
       managedTestBuildOsGroup: Linux
       container:
-        image: ubuntu-16.04-cross-14.04-23cacb0-20190923200213
+        image: ubuntu-16.04-cross-14.04-23cacb0-20191023143847
         registry: mcr
       helixQueues:
       - ${{ if eq(variables['System.TeamProject'], 'public') }}:
         - (Ubuntu.1804.Arm32.Open)Ubuntu.1804.Armarch.Open@mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-18.04-helix-arm32v7-30f6673-20190814153226
       - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
-        - (Debian.9.Arm32)Ubuntu.1604.Arm32@mcr.microsoft.com/dotnet-buildtools/prereqs:debian-9-helix-arm32v7-74c9941-20190620155841
-        - (Ubuntu.1604.Arm32)Ubuntu.1604.Arm32@mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-16.04-helix-arm32v7-30f6673-20190814153219
-        - (Ubuntu.1804.Arm32)Ubuntu.1604.Arm32@mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-18.04-helix-arm32v7-30f6673-20190814153226
+        - (Debian.9.Arm32)Ubuntu.1804.Armarch@mcr.microsoft.com/dotnet-buildtools/prereqs:debian-9-helix-arm32v7-74c9941-20190620155841
+        - (Ubuntu.1804.Arm32)Ubuntu.1804.Armarch@mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-18.04-helix-arm32v7-30f6673-20190814153226
       crossrootfsDir: '/crossrootfs/arm'
       ${{ insert }}: ${{ parameters.jobParameters }}
 
@@ -52,7 +51,7 @@ jobs:
       osGroup: Linux
       managedTestBuildOsGroup: Linux
       container:
-        image: ubuntu-16.04-cross-arm64-cfdd435-20190923200213
+        image: ubuntu-16.04-cross-arm64-cfdd435-20191023143847
         registry: mcr
       helixQueues:
       - ${{ if eq(variables['System.TeamProject'], 'public') }}:
@@ -81,7 +80,7 @@ jobs:
         registry: mcr
       helixQueues:
       - ${{ if eq(variables['System.TeamProject'], 'public') }}:
-        - (Alpine.38.Amd64.Open)Ubuntu.1604.Amd64.Open@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.8-helix-09ca40b-20190508143246
+        - (Alpine.310.Amd64.Open)Ubuntu.1604.Amd64.Open@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.10-helix-3043688-20190918214010
       - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
         - (Alpine.38.Amd64)ubuntu.1604.amd64@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.8-helix-09ca40b-20190508143246
         - (Alpine.39.Amd64)ubuntu.1604.amd64@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.9-helix-09ca40b-20190508143246
@@ -122,7 +121,7 @@ jobs:
       osSubgroup: _rhel6
       managedTestBuildOsGroup: OSX
       container:
-        image: centos-6-50f0d02-20190918213956
+        image: centos-6-f39df28-20191023143802
         registry: mcr
       helixQueues:
       # TODO: enable RedHat.6.Amd64.Open once https://github.com/dotnet/coreclr/issues/23580 is resolved
@@ -141,7 +140,7 @@ jobs:
       osGroup: Linux
       managedTestBuildOsGroup: OSX
       container:
-        image: centos-7-50f0d02-20190918214028
+        image: centos-7-f39df28-20191023143754
         registry: mcr
       helixQueues:
       - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(parameters.helixQueueGroup, 'pr', 'ci', 'corefx')) }}:
