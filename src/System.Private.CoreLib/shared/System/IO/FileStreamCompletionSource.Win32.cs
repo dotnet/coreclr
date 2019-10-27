@@ -187,8 +187,21 @@ namespace System.IO
                     }
                     else
                     {
-                        Exception e = Win32Marshal.GetExceptionForWin32Error(errorCode);
-                        e.SetCurrentStackTrace();
+                        Exception e = null;
+                        try
+                        {
+                            e = Win32Marshal.GetExceptionForWin32Error(errorCode);
+                            e.SetCurrentStackTrace();
+                        }
+                        catch (Exception e2)
+                        {
+                            // If we can't create a new exception, send the reason why (OutOfMemoryException unless there's
+                            // a bug) to avoid deadlock. Completion port handlers must not fail.
+                            if (ReferenceEquals(e, null))
+                            {
+                                e = e2;
+                            }
+                        }
                         TrySetException(e);
                     }
                 }
