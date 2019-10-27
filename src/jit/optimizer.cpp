@@ -8798,8 +8798,11 @@ GenTree* Compiler::optIsBoolCond(GenTree* condBranch, GenTree** compPtr, bool* b
 //---------------------------------------------------------------------------------------------------------------
 //  optOptimizeRangeChecksWithUnsigned: optimize simple range checks to an unsigned condition
 //
+// Arguments:
+//     afterCse  -  Is CSE phase already happened?
+//
 //  Note:
-//      This optimization handles two kind of range checks:
+//      This optimization handles two kinds of range checks:
 //      1)    if (startIndex < 0 || startIndex > array.Length)
 //                ThrowException();
 //
@@ -8820,8 +8823,6 @@ GenTree* Compiler::optIsBoolCond(GenTree* condBranch, GenTree** compPtr, bool* b
 //            if ((uint)startIndex - icon1 > icon2 - icon1)
 //                ThrowException();
 //
-//      This optimization should happen after CSE (or check for IsCSECandidate).
-//
 void Compiler::optOptimizeRangeChecksWithUnsigned(bool afterCse)
 {
 /*  We are looking for two conditional single-statement basic blocks
@@ -8836,8 +8837,8 @@ BB01:
 BB02:
     *  JTRUE     void  
     \--*  (GT/GE)
-       +--*  LCL_VAR (same var ^)
-       \--*  (CNS or ARR_LENGHT)   NOTE: ARR_LENGTH will be op1 + LT
+       +--*  LCL_VAR  (same var as above ^)
+       \--*  (CNS or ARR_LENGHT)   NOTE: ARR_LENGTH will be op1 + reversed op (e.g. GT -> LT)
 
 */
 
