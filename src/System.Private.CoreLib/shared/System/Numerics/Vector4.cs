@@ -4,6 +4,9 @@
 
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.Arm;
+using System.Runtime.Intrinsics.X86;
 using System.Text;
 
 namespace System.Numerics
@@ -20,9 +23,13 @@ namespace System.Numerics
         /// </summary>
         public static Vector4 Zero
         {
-            [Intrinsic]
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
+                if (Sse.IsSupported || AdvSimd.IsSupported)
+                {
+                    return Vector128<float>.Zero.AsVector4();
+                }
                 return new Vector4();
             }
         }
@@ -31,9 +38,16 @@ namespace System.Numerics
         /// </summary>
         public static Vector4 One
         {
+#if ARM64
             [Intrinsic]
+#endif
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
+                if (Sse.IsSupported)
+                {
+                    return Vector128.Create(1.0f).AsVector4();
+                }
                 return new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
             }
         }
@@ -53,9 +67,9 @@ namespace System.Numerics
         /// Returns the vector (0,0,0,1).
         /// </summary>
         public static Vector4 UnitW { get { return new Vector4(0.0f, 0.0f, 0.0f, 1.0f); } }
-        #endregion Public Static Properties
+#endregion Public Static Properties
 
-        #region Public instance methods
+#region Public instance methods
         /// <summary>
         /// Returns the hash code for this instance.
         /// </summary>
@@ -73,9 +87,7 @@ namespace System.Numerics
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override readonly bool Equals(object? obj)
         {
-            if (!(obj is Vector4))
-                return false;
-            return Equals((Vector4)obj);
+            return (obj is Vector4 other) && Equals(other);
         }
 
         /// <summary>
@@ -159,9 +171,9 @@ namespace System.Numerics
                 return X * X + Y * Y + Z * Z + W * W;
             }
         }
-        #endregion Public Instance Methods
+#endregion Public Instance Methods
 
-        #region Public Static Methods
+#region Public Static Methods
         /// <summary>
         /// Returns the Euclidean distance between the two given points.
         /// </summary>
@@ -426,9 +438,9 @@ namespace System.Numerics
                 value.X * (xz2 - wy2) + value.Y * (yz2 + wx2) + value.Z * (1.0f - xx2 - yy2),
                 value.W);
         }
-        #endregion Public Static Methods
+#endregion Public Static Methods
 
-        #region Public operator methods
+#region Public operator methods
         // All these methods should be inlines as they are implemented
         // over JIT intrinsics
 
@@ -526,6 +538,6 @@ namespace System.Numerics
         {
             return -value;
         }
-        #endregion Public operator methods
+#endregion Public operator methods
     }
 }

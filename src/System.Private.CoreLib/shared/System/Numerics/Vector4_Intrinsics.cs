@@ -3,6 +3,9 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.Arm;
+using System.Runtime.Intrinsics.X86;
 
 namespace System.Numerics
 {
@@ -36,10 +39,22 @@ namespace System.Numerics
         /// Constructs a vector whose elements are all the single specified value.
         /// </summary>
         /// <param name="value">The element to fill the vector with.</param>
+#if ARM64
         [Intrinsic]
+#endif
         public Vector4(float value)
-            : this(value, value, value, value)
         {
+            if (Sse.IsSupported)
+            {
+                this = Vector128.Create(value).AsVector4();
+            }
+            else
+            {
+                X = value;
+                Y = value;
+                Z = value;
+                W = value;
+            }
         }
         /// <summary>
         /// Constructs a vector with the given individual elements.
@@ -48,13 +63,22 @@ namespace System.Numerics
         /// <param name="x">X component.</param>
         /// <param name="y">Y component.</param>
         /// <param name="z">Z component.</param>
+#if ARM64
         [Intrinsic]
+#endif
         public Vector4(float x, float y, float z, float w)
         {
-            W = w;
-            X = x;
-            Y = y;
-            Z = z;
+            if (Sse.IsSupported)
+            {
+                this = Vector128.Create(x, y, z, w).AsVector4();
+            }
+            else
+            {
+                X = x;
+                Y = y;
+                Z = z;
+                W = w;
+            }
         }
 
         /// <summary>
@@ -133,9 +157,15 @@ namespace System.Numerics
         /// </summary>
         /// <param name="other">The Vector4 to compare this instance to.</param>
         /// <returns>True if the other Vector4 is equal to this instance; False otherwise.</returns>
+#if ARM64
         [Intrinsic]
+#endif
         public readonly bool Equals(Vector4 other)
         {
+            if (Sse.IsSupported)
+            {
+                return Sse.MoveMask(Sse.CompareEqual(this.AsVector128(), other.AsVector128())) == 0b1111;
+            }
             return this.X == other.X
                 && this.Y == other.Y
                 && this.Z == other.Z
@@ -150,10 +180,35 @@ namespace System.Numerics
         /// <param name="vector1">The first vector.</param>
         /// <param name="vector2">The second vector.</param>
         /// <returns>The dot product.</returns>
+#if ARM64
         [Intrinsic]
+#endif
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Dot(Vector4 vector1, Vector4 vector2)
         {
+            if (Sse41.IsSupported)
+            {
+                return Sse41.DotProduct(vector1.AsVector128(), vector2.AsVector128(), 0xFF).ToScalar();
+            }
+            else if (Sse.IsSupported)
+            {
+                Vector128<float> tmp = Sse.Multiply(vector1.AsVector128(), vector2.AsVector128());
+
+                if (Sse3.IsSupported)
+                {
+                    tmp = Sse3.HorizontalAdd(tmp, tmp);
+                    return Sse3.HorizontalAdd(tmp, tmp).ToScalar();
+                }
+                else
+                {
+                    Vector128<float> tmp2 = Sse.Shuffle(vector2.AsVector128(), tmp, 0x40);
+                    tmp2 = Sse.Add(tmp2, tmp);
+                    tmp = Sse.Shuffle(tmp, tmp2, 0x30);
+                    tmp = Sse.Add(tmp, tmp2);
+                    return Sse.Shuffle(tmp, tmp, 0xAA).ToScalar();
+                }
+            }
+
             return vector1.X * vector2.X +
                    vector1.Y * vector2.Y +
                    vector1.Z * vector2.Z +
@@ -166,10 +221,16 @@ namespace System.Numerics
         /// <param name="value1">The first source vector.</param>
         /// <param name="value2">The second source vector.</param>
         /// <returns>The minimized vector.</returns>
+#if ARM64
         [Intrinsic]
+#endif
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector4 Min(Vector4 value1, Vector4 value2)
         {
+            if (Sse.IsSupported)
+            {
+                return Sse.Min(value1.AsVector128(), value2.AsVector128()).AsVector4();
+            }
             return new Vector4(
                 (value1.X < value2.X) ? value1.X : value2.X,
                 (value1.Y < value2.Y) ? value1.Y : value2.Y,
@@ -183,10 +244,16 @@ namespace System.Numerics
         /// <param name="value1">The first source vector.</param>
         /// <param name="value2">The second source vector.</param>
         /// <returns>The maximized vector.</returns>
+#if ARM64
         [Intrinsic]
+#endif
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector4 Max(Vector4 value1, Vector4 value2)
         {
+            if (Sse.IsSupported)
+            {
+                return Sse.Max(value1.AsVector128(), value2.AsVector128()).AsVector4();
+            }
             return new Vector4(
                 (value1.X > value2.X) ? value1.X : value2.X,
                 (value1.Y > value2.Y) ? value1.Y : value2.Y,
@@ -199,10 +266,16 @@ namespace System.Numerics
         /// </summary>
         /// <param name="value">The source vector.</param>
         /// <returns>The absolute value vector.</returns>
+#if ARM64
         [Intrinsic]
+#endif
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector4 Abs(Vector4 value)
         {
+            if (Sse.IsSupported)
+            {
+                return Sse.And(value.AsVector128(), Vector128.Create(0x7FFFFFFF).AsSingle()).AsVector4();
+            }
             return new Vector4(MathF.Abs(value.X), MathF.Abs(value.Y), MathF.Abs(value.Z), MathF.Abs(value.W));
         }
 
@@ -211,10 +284,16 @@ namespace System.Numerics
         /// </summary>
         /// <param name="value">The source vector.</param>
         /// <returns>The square root vector.</returns>
+#if ARM64
         [Intrinsic]
+#endif
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector4 SquareRoot(Vector4 value)
         {
+            if (Sse.IsSupported)
+            {
+                return Sse.Sqrt(value.AsVector128()).AsVector4();
+            }
             return new Vector4(MathF.Sqrt(value.X), MathF.Sqrt(value.Y), MathF.Sqrt(value.Z), MathF.Sqrt(value.W));
         }
         #endregion Public Static Methods
@@ -226,10 +305,17 @@ namespace System.Numerics
         /// <param name="left">The first source vector.</param>
         /// <param name="right">The second source vector.</param>
         /// <returns>The summed vector.</returns>
-        [Intrinsic]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector4 operator +(Vector4 left, Vector4 right)
         {
+            if (Sse.IsSupported)
+            {
+                return Sse.Add(left.AsVector128(), right.AsVector128()).AsVector4();
+            }
+            else if (AdvSimd.IsSupported)
+            {
+                return AdvSimd.Add(left.AsVector128(), right.AsVector128()).AsVector4();
+            }
             return new Vector4(left.X + right.X, left.Y + right.Y, left.Z + right.Z, left.W + right.W);
         }
 
@@ -239,10 +325,17 @@ namespace System.Numerics
         /// <param name="left">The first source vector.</param>
         /// <param name="right">The second source vector.</param>
         /// <returns>The difference vector.</returns>
-        [Intrinsic]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector4 operator -(Vector4 left, Vector4 right)
         {
+            if (Sse.IsSupported)
+            {
+                return Sse.Subtract(left.AsVector128(), right.AsVector128()).AsVector4();
+            }
+            else if (AdvSimd.IsSupported)
+            {
+                return AdvSimd.Subtract(left.AsVector128(), right.AsVector128()).AsVector4();
+            }
             return new Vector4(left.X - right.X, left.Y - right.Y, left.Z - right.Z, left.W - right.W);
         }
 
@@ -252,10 +345,16 @@ namespace System.Numerics
         /// <param name="left">The first source vector.</param>
         /// <param name="right">The second source vector.</param>
         /// <returns>The product vector.</returns>
+#if ARM64
         [Intrinsic]
+#endif
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector4 operator *(Vector4 left, Vector4 right)
         {
+            if (Sse.IsSupported)
+            {
+                return Sse.Multiply(left.AsVector128(), right.AsVector128()).AsVector4();
+            }
             return new Vector4(left.X * right.X, left.Y * right.Y, left.Z * right.Z, left.W * right.W);
         }
 
@@ -265,10 +364,16 @@ namespace System.Numerics
         /// <param name="left">The source vector.</param>
         /// <param name="right">The scalar value.</param>
         /// <returns>The scaled vector.</returns>
+#if ARM64
         [Intrinsic]
+#endif
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector4 operator *(Vector4 left, float right)
         {
+            if (Sse.IsSupported)
+            {
+                return Sse.Add(left.AsVector128(), Vector128.Create(right)).AsVector4();
+            }
             return left * new Vector4(right);
         }
 
@@ -278,10 +383,16 @@ namespace System.Numerics
         /// <param name="left">The scalar value.</param>
         /// <param name="right">The source vector.</param>
         /// <returns>The scaled vector.</returns>
+#if ARM64
         [Intrinsic]
+#endif
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector4 operator *(float left, Vector4 right)
         {
+            if (Sse.IsSupported)
+            {
+                return Sse.Add(Vector128.Create(left), right.AsVector128()).AsVector4();
+            }
             return new Vector4(left) * right;
         }
 
@@ -291,10 +402,16 @@ namespace System.Numerics
         /// <param name="left">The first source vector.</param>
         /// <param name="right">The second source vector.</param>
         /// <returns>The vector resulting from the division.</returns>
+#if ARM64
         [Intrinsic]
+#endif
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector4 operator /(Vector4 left, Vector4 right)
         {
+            if (Sse.IsSupported)
+            {
+                return Sse.Divide(left.AsVector128(), right.AsVector128()).AsVector4();
+            }
             return new Vector4(left.X / right.X, left.Y / right.Y, left.Z / right.Z, left.W / right.W);
         }
 
@@ -307,6 +424,10 @@ namespace System.Numerics
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector4 operator /(Vector4 value1, float value2)
         {
+            if (Sse.IsSupported)
+            {
+                return Sse.Divide(value1.AsVector128(), Vector128.Create(value2)).AsVector4();
+            }
             return value1 / new Vector4(value2);
         }
 
@@ -318,6 +439,10 @@ namespace System.Numerics
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector4 operator -(Vector4 value)
         {
+            if (Sse.IsSupported)
+            {
+                return Sse.Subtract(Vector128<float>.Zero, value.AsVector128()).AsVector4();
+            }
             return Zero - value;
         }
 
@@ -327,10 +452,16 @@ namespace System.Numerics
         /// <param name="left">The first vector to compare.</param>
         /// <param name="right">The second vector to compare.</param>
         /// <returns>True if the vectors are equal; False otherwise.</returns>
+#if ARM64
         [Intrinsic]
+#endif
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool operator ==(Vector4 left, Vector4 right)
         {
+            if (Sse.IsSupported)
+            {
+                return Sse.MoveMask(Sse.CompareEqual(left.AsVector128(), right.AsVector128())) == 0b1111;
+            }
             return left.Equals(right);
         }
 
@@ -340,10 +471,16 @@ namespace System.Numerics
         /// <param name="left">The first vector to compare.</param>
         /// <param name="right">The second vector to compare.</param>
         /// <returns>True if the vectors are not equal; False if they are equal.</returns>
+#if ARM64
         [Intrinsic]
+#endif
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool operator !=(Vector4 left, Vector4 right)
         {
+            if (Sse.IsSupported)
+            {
+                return Sse.MoveMask(Sse.CompareNotEqual(left.AsVector128(), right.AsVector128())) == 0b1111;
+            }
             return !(left == right);
         }
         #endregion Public static operators
