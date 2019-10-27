@@ -33,17 +33,21 @@ void CodeGen::genSetRegToIcon(regNumber reg, ssize_t val, var_types type, insFla
     // Reg cannot be a FP reg
     assert(!genIsValidFloatReg(reg));
 
-    // The only TYP_REF constant that can come this path is a managed 'null' since it is not
-    // relocatable.  Other ref type constants (e.g. string objects) go through a different
-    // code path.
-    noway_assert(type != TYP_REF || val == 0);
-
     if (val == 0)
     {
-        instGen_Set_Reg_To_Zero(emitActualTypeSize(type), reg, flags);
+        // EA_4BYTE covers all needs:
+        //  - on x64 the entire 64 bit register is zeroed anyway
+        //  - TYP_REF/TYP_BYREF null does not need to be reported to the GC
+        instGen_Set_Reg_To_Zero(EA_4BYTE, reg, flags);
     }
     else
     {
+        // The null case was handled above and a non-null TYP_REF constant is invalid.
+        // This is not true for TYP_BYREF. Since a byref can be a native pointer, a
+        // non-null byref constant is not invalid (though it probably does not need
+        // to be reported to the GC as it definitely points outside the GC heap).
+        noway_assert(type != TYP_REF);
+
         // TODO-XArch-CQ: needs all the optimized cases
         GetEmitter()->emitIns_R_I(INS_mov, emitActualTypeSize(type), reg, val);
     }
