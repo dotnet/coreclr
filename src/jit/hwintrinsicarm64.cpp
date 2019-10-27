@@ -307,6 +307,7 @@ GenTree* Compiler::impSpecialIntrinsic(NamedIntrinsic        intrinsic,
         case NI_Vector64_AsUInt16:
         case NI_Vector64_AsUInt32:
         case NI_Vector128_As:
+        case NI_Vector128_AsVector4:
         case NI_Vector128_AsByte:
         case NI_Vector128_AsDouble:
         case NI_Vector128_AsInt16:
@@ -333,6 +334,25 @@ GenTree* Compiler::impSpecialIntrinsic(NamedIntrinsic        intrinsic,
             retNode = impSIMDPopStack(retType, /* expectAddr: */ false, sig->retTypeClass);
             SetOpLclRelatedToSIMDIntrinsic(retNode);
             assert(retNode->gtType == getSIMDTypeForSize(getSIMDTypeSizeInBytes(sig->retTypeSigClass)));
+            break;
+        }
+
+        case NI_Vector128_AsVector128:
+        {
+            assert(!sig->hasThis());
+            assert(sig->numArgs == 1);
+
+            if (featureSIMD && (simdSize == 16))
+            {
+                // We fold away the cast here, as it only exists to satisfy
+                // the type system. It is safe to do this here since the retNode type
+                // and the signature return type are both the same TYP_SIMD.
+
+                retNode = impSIMDPopStack(retType, /* expectAddr: */ false, sig->retTypeClass);
+                SetOpLclRelatedToSIMDIntrinsic(retNode);
+                assert(retNode->gtType == getSIMDTypeForSize(getSIMDTypeSizeInBytes(sig->retTypeSigClass)));
+            }
+
             break;
         }
 

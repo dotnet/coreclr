@@ -192,6 +192,7 @@ namespace System.Runtime.Intrinsics
         /// <summary>Reinterprets a <see cref="Vector4" /> as a new <see cref="Vector128{Single}" />.</summary>
         /// <param name="value">The vector to reinterpret.</param>
         /// <returns><paramref name="value" /> reinterpreted as a new <see cref="Vector128{Single}" />.</returns>
+        [Intrinsic]
         public static Vector128<float> AsVector128(this Vector4 value)
         {
             return Unsafe.As<Vector4, Vector128<float>>(ref value);
@@ -229,6 +230,7 @@ namespace System.Runtime.Intrinsics
         /// <summary>Reinterprets a <see cref="Vector128{Single}" /> as a new <see cref="Vector4" />.</summary>
         /// <param name="value">The vector to reinterpret.</param>
         /// <returns><paramref name="value" /> reinterpreted as a new <see cref="Vector4" />.</returns>
+        [Intrinsic]
         public static Vector4 AsVector4(this Vector128<float> value)
         {
             return Unsafe.As<Vector128<float>, Vector4>(ref value);
