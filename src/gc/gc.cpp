@@ -2786,7 +2786,7 @@ uint64_t    gc_heap::loh_a_bgc_planning = 0;
 size_t      gc_heap::bgc_maxgen_end_fl_size = 0;
 #endif //BGC_SERVO_TUNING
 
-uint32_t    gc_heap::bgc_alloc_spin_loh = 0;
+uint32_t    gc_heap::bgc_alloc_spin_ploh = 0;
 
 size_t      gc_heap::bgc_loh_size_increased = 0;
 
@@ -26172,7 +26172,11 @@ void gc_heap::relocate_phase (int condemned_gen_number,
             if (!hp->card_mark_done_loh)
             {
                 dprintf(3, ("Relocating cross generation pointers for large objects on heap %d", hp->heap_number));
-                hp->mark_through_cards_for_large_objects(&gc_heap::relocate_address, TRUE THIS_ARG);
+                hp->mark_through_cards_for_large_objects(&gc_heap::relocate_address, loh_generation, TRUE THIS_ARG);
+
+                //TODO: VS once we disallow references in POH, this can be removed.
+                hp->mark_through_cards_for_large_objects(&gc_heap::relocate_address, poh_generation, TRUE THIS_ARG);
+
                 hp->card_mark_done_loh = true;
             }
         }
