@@ -19,6 +19,7 @@ namespace ILCompiler
     public sealed class ReadyToRunCodegenCompilationBuilder : CompilationBuilder
     {
         private readonly string _inputFilePath;
+        private readonly string _outputFilePath;
         private readonly EcmaModule _inputModule;
         private readonly bool _ibcTuning;
         private readonly bool _resilient;
@@ -29,10 +30,11 @@ namespace ILCompiler
         private KeyValuePair<string, string>[] _ryujitOptions = Array.Empty<KeyValuePair<string, string>>();
         private ILProvider _ilProvider = new ReadyToRunILProvider();
 
-        public ReadyToRunCodegenCompilationBuilder(CompilerTypeSystemContext context, CompilationModuleGroup group, string inputFilePath, bool ibcTuning, bool resilient)
+        public ReadyToRunCodegenCompilationBuilder(CompilerTypeSystemContext context, CompilationModuleGroup group, string inputFilePath, string outputFilePath, bool ibcTuning, bool resilient)
             : base(context, group, new CoreRTNameMangler())
         {
             _inputFilePath = inputFilePath;
+            _outputFilePath = outputFilePath;
             _ibcTuning = ibcTuning;
             _resilient = resilient;
 
@@ -165,6 +167,7 @@ namespace ILCompiler
                 new DependencyAnalysis.ReadyToRun.DevirtualizationManager(_compilationGroup),
                 jitConfig,
                 _inputFilePath,
+                _outputFilePath,
                 new ModuleDesc[] { _inputModule },
                 _resilient);
         }

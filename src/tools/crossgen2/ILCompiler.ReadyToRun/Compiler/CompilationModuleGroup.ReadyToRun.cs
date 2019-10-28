@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using Internal.TypeSystem;
+using System.Collections.Generic;
 
 namespace ILCompiler
 {
@@ -28,5 +29,7 @@ namespace ILCompiler
         /// <param name="methodDesc">Method to check</param>
         /// <returns>True if the given method versions with the current compilation module group</returns>
         public virtual bool VersionsWithMethodBody(MethodDesc methodDesc) => ContainsMethodBody(methodDesc, unboxingStub: false);
+
+        public abstract IList<ModuleDesc> CompilationModules { get; }
     }
 }

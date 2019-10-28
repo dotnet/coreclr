@@ -212,6 +212,11 @@ namespace ILCompiler.PEWriter
         TargetDetails _target;
 
         /// <summary>
+        /// Generate stable, unique names for various type system entities in the graph.
+        /// </summary>
+        NameMangler _nameMangler;
+
+        /// <summary>
         /// Map from symbols to their target sections and offsets.
         /// </summary>
         Dictionary<ISymbolNode, SymbolTarget> _symbolMap;
@@ -275,9 +280,10 @@ namespace ILCompiler.PEWriter
         /// <summary>
         /// Construct an empty section builder without any sections or blocks.
         /// </summary>
-        public SectionBuilder(TargetDetails target)
+        public SectionBuilder(TargetDetails target, NameMangler nameMangler)
         {
             _target = target;
+            _nameMangler = nameMangler;
             _symbolMap = new Dictionary<ISymbolNode, SymbolTarget>();
             _sections = new List<Section>();
             _exportSymbols = new List<ExportSymbol>();
@@ -388,19 +394,6 @@ namespace ILCompiler.PEWriter
             _win32ResourcesSize = resourcesSize;
         }
 
-        private CoreRTNameMangler _nameMangler;
-        
-        private NameMangler GetNameMangler()
-        {
-            if (_nameMangler == null)
-            {
-                // TODO-REFACTOR: why do we have two name manglers?
-                _nameMangler = new CoreRTNameMangler();
-                _nameMangler.CompilationUnitPrefix = "";
-            }
-            return _nameMangler;
-        }
-
         /// <summary>
         /// Add an ObjectData block to a given section.
         /// </summary>
@@ -459,7 +452,7 @@ namespace ILCompiler.PEWriter
                     if (mapFile != null)
                     {
                         Utf8StringBuilder sb = new Utf8StringBuilder();
-                        symbol.AppendMangledName(GetNameMangler(), sb);
+                        symbol.AppendMangledName(_nameMangler, sb);
                         int sectionRelativeOffset = alignedOffset + symbol.Offset;
                         mapFile.WriteLine($@"  +0x{sectionRelativeOffset:X4}: {sb.ToString()}");
                     }

@@ -55,7 +55,7 @@ namespace ILCompiler.DependencyAnalysis
         public NodeFactory(CompilerTypeSystemContext context,
             CompilationModuleGroup compilationModuleGroup,
             NameMangler nameMangler,
-            MetadataManager metadataManager)
+            ReadyToRunTableManager metadataManager)
         {
             TypeSystemContext = context;
             CompilationModuleGroup = compilationModuleGroup;
@@ -74,7 +74,7 @@ namespace ILCompiler.DependencyAnalysis
 
         public NameMangler NameMangler { get; }
 
-        public MetadataManager MetadataManager { get; }
+        public ReadyToRunTableManager MetadataManager { get; }
 
         public bool MarkingComplete => _markingComplete;
 
@@ -215,7 +215,7 @@ namespace ILCompiler.DependencyAnalysis
             : base(context,
                   compilationModuleGroup,
                   nameMangler,
-                  new ReadyToRunTableManager(context))
+                  new ReadyToRunTableManager(compilationModuleGroup))
         {
             Resolver = moduleTokenResolver;
             InputModuleContext = signatureContext;
@@ -851,15 +851,16 @@ namespace ILCompiler.DependencyAnalysis
             Debug.Assert(field.HasRva);
             EcmaField ecmaField = (EcmaField)field.GetTypicalFieldDefinition();
 
-            if (!CompilationModuleGroup.ContainsType(ecmaField.OwningType))
+            if (!CompilationModuleGroup.ContainsType(ecmaField.OwningType) &&
+                !(CompilationModuleGroup is SingleMethodCompilationModuleGroup))
             {
                 // TODO: cross-bubble RVA field
                 throw new NotSupportedException($"{ecmaField} ... {ecmaField.Module.Assembly}");
             }
-            if (TypeSystemContext.InputFilePaths.Count > 1)
+            if (CompilationModuleGroup.CompilationModules.Count > 1)
             {
                 // TODO: RVA fields in merged multi-file compilation
-                throw new NotSupportedException($"{ecmaField} ... {string.Join("; ", TypeSystemContext.InputFilePaths.Keys)}");
+                throw new NotSupportedException($"{ecmaField} ... {string.Join("; ", CompilationModuleGroup.CompilationModules)}");
             }
 
             return _copiedFieldRvas.GetOrAdd(ecmaField);

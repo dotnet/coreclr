@@ -13,6 +13,7 @@ namespace ILCompiler
         public FileInfo[] InputFilePaths { get; set; }
         public string[] Reference { get; set; }
         public FileInfo OutputFilePath { get; set; }
+        public DirectoryInfo OutputDirectory { get; set; }
         public bool Optimize { get; set; }
         public bool OptimizeSpace { get; set; }
         public bool OptimizeTime { get; set; }
@@ -20,7 +21,7 @@ namespace ILCompiler
         public bool CompileBubbleGenerics { get; set; }
         public bool Verbose { get; set; }
 
-        public FileInfo DgmlLogFileName { get; set; }
+        public bool GenerateDgmlLog { get; set; }
         public bool GenerateFullDgmlLog { get; set; }
 
         public string TargetArch { get; set; }
@@ -43,7 +44,7 @@ namespace ILCompiler
             // For some reason, arity caps at 255 by default
             ArgumentArity arbitraryArity = new ArgumentArity(0, 100000);
 
-            return new Command("Crossgen2Compilation")
+            return new Command("Crossgen2")
             {
                 new Argument<FileInfo[]>() 
                 { 
@@ -61,6 +62,10 @@ namespace ILCompiler
                 new Option(new[] { "--outputfilepath", "--out", "-o" }, "Output file path")
                 {
                     Argument = new Argument<FileInfo>()
+                },
+                new Option(new[] { "--output-directory" ,"--od" }, "Output directory (required if compiling multiple assemblies at once)")
+                {
+                    Argument = new Argument<DirectoryInfo>()
                 },
                 new Option(new[] { "--optimize", "-O" }, "Enable optimizations") 
                 { 
@@ -84,11 +89,11 @@ namespace ILCompiler
                 { 
                     Argument = new Argument<bool>() 
                 },
-                new Option(new[] { "--dgml-log-file-name", "--dmgllog" }, "Save result of dependency analysis as DGML") 
+                new Option(new[] { "--generate-dgml-log", "--dgmllog" }, "Save result of dependency analysis as DGML adjacent to output binaries") 
                 { 
                     Argument = new Argument<FileInfo>() 
                 },
-                new Option(new[] { "--generate-full-dmgl-log", "--fulllog" }, "Save detailed log of dependency analysis") 
+                new Option(new[] { "--generate-full-dgml-log", "--fulllog" }, "Save detailed log of dependency analysis") 
                 { 
                     Argument = new Argument<bool>() 
                 },

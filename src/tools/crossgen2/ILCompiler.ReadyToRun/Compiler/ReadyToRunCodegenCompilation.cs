@@ -59,8 +59,8 @@ namespace ILCompiler
             _methodILCache = new ILCache(ilProvider);
         }
 
-        public abstract void Compile(string outputFileName);
-        public abstract void WriteDependencyLog(string outputFileName);
+        public abstract void Compile();
+        public abstract void WriteDependencyLog();
 
         protected abstract void ComputeDependencyNodeDependencies(List<DependencyNodeCore<NodeFactory>> obj);
 
@@ -171,8 +171,8 @@ namespace ILCompiler
 
     public interface ICompilation
     {
-        void Compile(string outputFileName);
-        void WriteDependencyLog(string outputFileName);
+        void Compile();
+        void WriteDependencyLog();
     }
 
     public sealed class ReadyToRunCodegenCompilation : Compilation
@@ -186,6 +186,11 @@ namespace ILCompiler
         /// Name of the compilation input MSIL file.
         /// </summary>
         private readonly string _inputFilePath;
+
+        /// <summary>
+        /// Name of the output ready-to-run file.
+        /// </summary>
+        private readonly string _outputFilePath;
 
         private bool _resilient;
 
@@ -202,6 +207,7 @@ namespace ILCompiler
             DevirtualizationManager devirtualizationManager,
             JitConfigProvider configProvider,
             string inputFilePath,
+            string outputFilePath,
             IEnumerable<ModuleDesc> modulesBeingInstrumented,
             bool resilient)
             : base(dependencyGraph, nodeFactory, roots, ilProvider, devirtualizationManager, modulesBeingInstrumented, logger)
@@ -210,11 +216,11 @@ namespace ILCompiler
             NodeFactory = nodeFactory;
             SymbolNodeFactory = new ReadyToRunSymbolNodeFactory(nodeFactory);
             _jitConfigProvider = configProvider;
-
             _inputFilePath = inputFilePath;
+            _outputFilePath = outputFilePath;
         }
 
-        public override void Compile(string outputFile)
+        public override void Compile()
         {
             using (FileStream inputFile = File.OpenRead(_inputFilePath))
             {
@@ -226,14 +232,15 @@ namespace ILCompiler
                 using (PerfEventSource.StartStopEvents.EmittingEvents())
                 {
                     NodeFactory.SetMarkingComplete();
-                    ReadyToRunObjectWriter.EmitObject(inputPeReader, outputFile, nodes, NodeFactory);
+                    ReadyToRunObjectWriter.EmitObject(inputPeReader, _outputFilePath, nodes, NodeFactory);
                 }
             }
         }
 
-        public override void WriteDependencyLog(string outputFileName)
+        public override void WriteDependencyLog()
         {
-            using (FileStream dgmlOutput = new FileStream(outputFileName, FileMode.Create))
+            string dgmlFileName = Path.ChangeExtension(_outputFilePath, ".dgml");
+            using (FileStream dgmlOutput = new FileStream(dgmlFileName, FileMode.Create))
             {
                 DgmlWriter.WriteDependencyGraphToStream(dgmlOutput, _dependencyGraph, _nodeFactory);
                 dgmlOutput.Flush();

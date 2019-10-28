@@ -5,10 +5,8 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection.Metadata;
-using System.Reflection.Metadata.Ecma335;
 
 using ILCompiler.DependencyAnalysis;
-using ILCompiler.DependencyAnalysis.ReadyToRun;
 using ILCompiler.DependencyAnalysisFramework;
 
 using Internal.TypeSystem;
@@ -30,23 +28,25 @@ namespace ILCompiler
         }
     }
 
-    // TODO-REFACTOR: merge with the table manager
-    public class MetadataManager
+    /// <summary>
+    /// Hooks into the de
+    /// </summary>
+    public class ReadyToRunTableManager
     {
-        protected readonly CompilerTypeSystemContext _typeSystemContext;
+        CompilationModuleGroup _compilationModuleGroup;
         private HashSet<MethodDesc> _methodsGenerated = new HashSet<MethodDesc>();
 
-        public MetadataManager(CompilerTypeSystemContext context)
+        public ReadyToRunTableManager(CompilationModuleGroup compilationModuleGroup)
         {
-            _typeSystemContext = context;
+            _compilationModuleGroup = compilationModuleGroup;
         }
 
         public void AttachToDependencyGraph(DependencyAnalyzerBase<NodeFactory> graph)
         {
-            graph.NewMarkedNode += Graph_NewMarkedNode;
+            graph.NewMarkedNode += GraphNewMarkedNode;
         }
 
-        protected virtual void Graph_NewMarkedNode(DependencyNodeCore<NodeFactory> obj)
+        protected virtual void GraphNewMarkedNode(DependencyNodeCore<NodeFactory> obj)
         {
             IMethodBodyNode methodBodyNode = obj as IMethodBodyNode;
             var methodNode = methodBodyNode as IMethodNode;
@@ -56,22 +56,11 @@ namespace ILCompiler
                 _methodsGenerated.Add(methodNode.Method);
             }
         }
-        public IEnumerable<MethodDesc> GetCompiledMethods()
-        {
-            return _methodsGenerated;
-        }
-    }
-
-    public class ReadyToRunTableManager : MetadataManager
-    {
-        public ReadyToRunTableManager(CompilerTypeSystemContext typeSystemContext)
-            : base(typeSystemContext) {}
 
         public IEnumerable<TypeInfo<TypeDefinitionHandle>> GetDefinedTypes()
         {
-            foreach (string inputFile in _typeSystemContext.InputFilePaths.Values)
+            foreach (EcmaModule module in _compilationModuleGroup.CompilationModules)
             {
-                EcmaModule module = _typeSystemContext.GetModuleFromPath(inputFile);
                 foreach (TypeDefinitionHandle typeDefHandle in module.MetadataReader.TypeDefinitions)
                 {
                     yield return new TypeInfo<TypeDefinitionHandle>(module.MetadataReader, typeDefHandle);
@@ -79,16 +68,20 @@ namespace ILCompiler
             }
         }
 
-            public IEnumerable<TypeInfo<ExportedTypeHandle>> GetExportedTypes()
+        public IEnumerable<TypeInfo<ExportedTypeHandle>> GetExportedTypes()
         {
-            foreach (string inputFile in _typeSystemContext.InputFilePaths.Values)
+            foreach (EcmaModule module in _compilationModuleGroup.CompilationModules)
             {
-                EcmaModule module = _typeSystemContext.GetModuleFromPath(inputFile);
                 foreach (ExportedTypeHandle exportedTypeHandle in module.MetadataReader.ExportedTypes)
                 {
                     yield return new TypeInfo<ExportedTypeHandle>(module.MetadataReader, exportedTypeHandle);
                 }
             }
+        }
+
+        public IEnumerable<MethodDesc> GetCompiledMethods()
+        {
+            return _methodsGenerated;
         }
     }
 }

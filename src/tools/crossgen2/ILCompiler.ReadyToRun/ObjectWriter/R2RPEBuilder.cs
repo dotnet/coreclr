@@ -169,7 +169,8 @@ namespace ILCompiler.PEWriter
         public R2RPEBuilder(
             TargetDetails target,
             PEReader peReader,
-            Func<RuntimeFunctionsTableNode> getRuntimeFunctionsTable)
+            Func<RuntimeFunctionsTableNode> getRuntimeFunctionsTable,
+            NameMangler nameMangler)
             : base(PEHeaderCopier.Copy(peReader.PEHeaders, target), deterministicIdProvider: null)
         {
             _target = target;
@@ -177,7 +178,7 @@ namespace ILCompiler.PEWriter
             _getRuntimeFunctionsTable = getRuntimeFunctionsTable;
             _sectionRvaDeltas = new List<SectionRVADelta>();
 
-            _sectionBuilder = new SectionBuilder(target);
+            _sectionBuilder = new SectionBuilder(target, nameMangler);
 
             _textSectionIndex = _sectionBuilder.AddSection(TextSectionName, SectionCharacteristics.ContainsCode | SectionCharacteristics.MemExecute | SectionCharacteristics.MemRead, 512);
             _dataSectionIndex = _sectionBuilder.AddSection(DataSectionName, SectionCharacteristics.ContainsInitializedData | SectionCharacteristics.MemWrite | SectionCharacteristics.MemRead, 512);

@@ -12,7 +12,7 @@ namespace ILCompiler
 {
     public class ReadyToRunSingleAssemblyCompilationModuleGroup : CompilationModuleGroup
     {
-        private HashSet<ModuleDesc> _compilationModuleSet;
+        private ModuleDesc _compilationModule;
         private HashSet<ModuleDesc> _versionBubbleModuleSet;
         private ProfileDataManager _profileGuidedCompileRestriction;
 
@@ -20,16 +20,13 @@ namespace ILCompiler
 
         public ReadyToRunSingleAssemblyCompilationModuleGroup(
             TypeSystemContext context, 
-            IEnumerable<ModuleDesc> compilationModuleSet,
+            ModuleDesc compilationModule,
             IEnumerable<ModuleDesc> versionBubbleModuleSet,
             bool compileGenericDependenciesFromVersionBubbleModuleSet,
             ProfileDataManager profileGuidedCompileRestriction)
         {
-            _compilationModuleSet = new HashSet<ModuleDesc>(compilationModuleSet);
-
+            _compilationModule = compilationModule;
             _versionBubbleModuleSet = new HashSet<ModuleDesc>(versionBubbleModuleSet);
-            _versionBubbleModuleSet.UnionWith(_compilationModuleSet);
-
             _compileGenericDependenciesFromVersionBubbleModuleSet = compileGenericDependenciesFromVersionBubbleModuleSet;
             _profileGuidedCompileRestriction = profileGuidedCompileRestriction;
         }
@@ -60,13 +57,9 @@ namespace ILCompiler
                 else
                 {
                     // For generics look in the profile data of all modules being compiled
-                    foreach (ModuleDesc module in _compilationModuleSet)
+                    if (_profileGuidedCompileRestriction.GetDataForModuleDesc(_compilationModule).GetMethodProfileData(method) != null)
                     {
-                        if (_profileGuidedCompileRestriction.GetDataForModuleDesc(module).GetMethodProfileData(method) != null)
-                        {
-                            found = true;
-                            break;
-                        }
+                        found = true;
                     }
                 }
 
@@ -85,10 +78,7 @@ namespace ILCompiler
 
         }
 
-        private bool IsModuleInCompilationGroup(EcmaModule module)
-        {
-            return _compilationModuleSet.Contains(module);
-        }
+        private bool IsModuleInCompilationGroup(EcmaModule module) => _compilationModule == module;
 
         private bool CompileVersionBubbleGenericsIntoCurrentModule(MethodDesc method)
         {
@@ -169,6 +159,8 @@ namespace ILCompiler
         {
             return VersionsWithType(method.OwningType);
         }
+
+        public override IList<ModuleDesc> CompilationModules => new[] { _compilationModule };
 
         public override bool CanInline(MethodDesc callerMethod, MethodDesc calleeMethod)
         {

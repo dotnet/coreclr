@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using Internal.TypeSystem;
+using System.Collections.Generic;
 
 namespace ILCompiler
 {
@@ -12,16 +13,20 @@ namespace ILCompiler
     /// </summary>
     public class SingleMethodCompilationModuleGroup : CompilationModuleGroup
     {
+        private ModuleDesc _module;
         private MethodDesc _method;
 
-        public SingleMethodCompilationModuleGroup(MethodDesc method)
+        public SingleMethodCompilationModuleGroup(ModuleDesc module, MethodDesc method)
         {
+            _module = module;
             _method = method;
         }
 
+        public override IList<ModuleDesc> CompilationModules => new[] { _module };
+
         public override bool ContainsMethodBody(MethodDesc method, bool unboxingStub)
         {
-            return method == _method;
+            return method == _method || method == _method.GetTypicalMethodDefinition();
         }
 
         public override bool ContainsType(TypeDesc type)
