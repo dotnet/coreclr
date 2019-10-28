@@ -8924,7 +8924,18 @@ void Compiler::optOptimizeRangeChecksWithUnsigned(bool afterCse)
 
         ssize_t icon1              = cnsRangeStart->IconValue();
         bool    canBeOptimized     = false;
-        bool    dependsOnBbWeights = false;
+        
+        // Optimize only if both blocks jump to a rarely executed block
+        // E.g.
+        //
+        // if (i < 10 || i > 100)
+        //    Foo();
+        //
+        // if `i < 10` is mostly `true` then it's cheaper to leave this range check as is
+        // because `i < 10` is better than `(uint)i - 10 < 90`
+        //
+        // NOTE: ideally we should just check weight of that first condition and skip if it has some big value (hot)
+        bool targetHasLowWeight = bbRangeStart->bbJumpDest->bbWeight == BB_ZERO_WEIGHT;
 
         if (varRangeEnd->OperIs(GT_ARR_LENGTH) && condRangeEnd->OperIs(GT_LE, GT_LT))
         {
@@ -8939,8 +8950,11 @@ void Compiler::optOptimizeRangeChecksWithUnsigned(bool afterCse)
                 // if (startIndex <= -1 || startIndex > array.Length)
                 //     ThrowException();
                 //
-                canBeOptimized     = true;
-                dependsOnBbWeights = true;
+                if (!targetHasLowWeight)
+                {
+                    continue;
+                }
+                canBeOptimized = true;
             }
 
         }
@@ -8958,8 +8972,11 @@ void Compiler::optOptimizeRangeChecksWithUnsigned(bool afterCse)
                 // if (startIndex <= -1 || startIndex > span.Length)
                 //     ThrowException();
                 //
-                canBeOptimized     = true;
-                dependsOnBbWeights = true;
+                if (!targetHasLowWeight)
+                {
+                    continue;
+                }
+                canBeOptimized = true;
             }
         }
         else if (afterCse && // we run this opt twice before and after CSE. BeforeCSE run makes sense only for GT_ARR_LENGTH
@@ -8978,8 +8995,7 @@ void Compiler::optOptimizeRangeChecksWithUnsigned(bool afterCse)
                 // if (startIndex <= -1 || startIndex >= icon2)
                 //     ThrowException();
                 //
-                canBeOptimized     = true;
-                dependsOnBbWeights = false;
+                canBeOptimized = true;
             }
             else if (icon1 >= 0)
             {
@@ -8996,8 +9012,13 @@ void Compiler::optOptimizeRangeChecksWithUnsigned(bool afterCse)
                 // if (startIndex - icon1 > icon2 - icon1)
                 //     ThrowException();
                 //
-                ssize_t toSub = icon1 + (condRangeStart->OperIs(GT_LT) ? 0 : 1);
 
+                if (!targetHasLowWeight)
+                {
+                    continue;
+                }
+
+                const ssize_t toSub = icon1 + (condRangeStart->OperIs(GT_LT) ? 0 : 1);
                 if (toSub != 0)
                 {
                     GenTreeIntCon* subIconNode = gtNewIconNode(-toSub, variableEnd->TypeGet());
@@ -9010,25 +9031,8 @@ void Compiler::optOptimizeRangeChecksWithUnsigned(bool afterCse)
                     gtPrepareCost(condRangeEnd);
                     varRangeEnd->AsIntCon()->gtIconVal -= toSub;
                 }
-                canBeOptimized     = true;
-                dependsOnBbWeights = true;
+                canBeOptimized = true;
             }
-        }
-
-
-        if (dependsOnBbWeights && bbRangeStart->bbJumpDest->bbWeight > BB_ZERO_WEIGHT)
-        {
-            // Optimize only if both blocks jump to a rarely executed block
-            // E.g.
-            //
-            // if (i < 10 || i > 100)
-            //    Foo();
-            //
-            // if `i < 10` is mostly `true` then it's cheaper to leave this range check as is
-            // because `i < 10` is better than `(uint)i - 10 < 90`
-            //
-            // NOTE: ideally we should just check weight of that first condition and skip if it has some big value (hot)
-            continue;
         }
 
         if (canBeOptimized)
