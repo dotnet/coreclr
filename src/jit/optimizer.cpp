@@ -8796,12 +8796,12 @@ GenTree* Compiler::optIsBoolCond(GenTree* condBranch, GenTree** compPtr, bool* b
 }
 
 //---------------------------------------------------------------------------------------------------------------
-//  optOptimizeRangeChecksWithUnsigned: optimize simple range checks to an unsigned condition
+// optOptimizeRangeChecksWithUnsigned: optimize simple range checks with an unsigned condition
 //
 // Arguments:
 //     afterCse  -  Is CSE phase already happened?
 //
-//  Note:
+// Notes:
 //      This optimization handles two kinds of range checks:
 //      1)    if (startIndex < 0 || startIndex > array.Length)
 //                ThrowException();
@@ -8920,9 +8920,9 @@ void Compiler::optOptimizeRangeChecksWithUnsigned(bool afterCse)
             continue;
         }
 
-        ssize_t        icon1 = cnsRangeStart->IconValue();
+        ssize_t icon1          = cnsRangeStart->IconValue();
+        bool    canBeOptimized = false;
 
-        bool canBeOptimized = false;
         if (varRangeEnd->OperIs(GT_ARR_LENGTH) && condRangeEnd->OperIs(GT_LE, GT_LT))
         {
             if ((condRangeStart->OperIs(GT_LE) && icon1 == -1) || (condRangeStart->OperIs(GT_LT) && icon1 == 0))
