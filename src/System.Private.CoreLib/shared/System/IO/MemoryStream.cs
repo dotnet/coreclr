@@ -628,6 +628,14 @@ namespace System.IO
             Buffer.BlockCopy(_buffer, _origin, copy, 0, count);
             return copy;
         }
+        
+        public ReadOnlySpan<byte> ToReadOnlySpan()
+        {
+            int count = _length - _origin;
+            if (count == 0)
+                return ReadOnlySpan<byte>.Empty;
+            return new ReadOnlySpan<byte>(_buffer, _origin, count);
+        }
 
         public override void Write(byte[] buffer, int offset, int count)
         {
