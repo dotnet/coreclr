@@ -372,7 +372,7 @@ namespace System.Numerics
         {
             if (Sse.IsSupported)
             {
-                return Sse.Add(left.AsVector128(), Vector128.Create(right)).AsVector4();
+                return Sse.Multiply(left.AsVector128(), Vector128.Create(right)).AsVector4();
             }
             return left * new Vector4(right);
         }
@@ -391,7 +391,7 @@ namespace System.Numerics
         {
             if (Sse.IsSupported)
             {
-                return Sse.Add(Vector128.Create(left), right.AsVector128()).AsVector4();
+                return Sse.Multiply(Vector128.Create(left), right.AsVector128()).AsVector4();
             }
             return new Vector4(left) * right;
         }
