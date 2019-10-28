@@ -41,10 +41,10 @@ namespace ILCompiler.DependencyAnalysis
         public ReadyToRunSymbolNodeFactory(ReadyToRunCodegenNodeFactory codegenNodeFactory)
         {
             _codegenNodeFactory = codegenNodeFactory;
-            CreateSymbolNodeCaches();
+            CreateNodeCaches();
         }
 
-        private void CreateSymbolNodeCaches()
+        private void CreateNodeCaches()
         {
             _importStrings = new NodeCache<ModuleTokenAndSignatureContext, ISymbolNode>(key =>
             {

@@ -24,10 +24,8 @@ set CoreRT_DeterminismSeed=2
 ]]></CLRTestBatchPreCommands>
     <BashCLRTestPreCommands><![CDATA[
 $(BashCLRTestPreCommands)
-export CoreRT_DeterminismSeed=1
-$CORE_ROOT/crossgen2/crossgen2 -r:$CORE_ROOT/*.dll -o:crossgen2smoke1.ildll ../../crossgen2/crossgen2smoke/crossgen2smoke.ildll
-export CoreRT_DeterminismSeed=2
-$CORE_ROOT/crossgen2/crossgen2 -r:$CORE_ROOT/*.dll -o:crossgen2smoke2.ildll ../../crossgen2/crossgen2smoke/crossgen2smoke.ildll
+CoreRT_DeterminismSeed=1 $CORE_ROOT/crossgen2/crossgen2 -r:$CORE_ROOT/*.dll -o:crossgen2smoke1.ildll ../../crossgen2/crossgen2smoke/crossgen2smoke.ildll
+CoreRT_DeterminismSeed=2 $CORE_ROOT/crossgen2/crossgen2 -r:$CORE_ROOT/*.dll -o:crossgen2smoke2.ildll ../../crossgen2/crossgen2smoke/crossgen2smoke.ildll
 ]]></BashCLRTestPreCommands>
   </PropertyGroup>
 </Project>
