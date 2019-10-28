@@ -4721,11 +4721,14 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
     fgSetBlockOrder();
     EndPhase(PHASE_SET_BLOCK_ORDER);
 
-    // Merge simple range checks to an unsigned expression, e.g.:
-    // if (x < 10 || x > 99)           -> if ((uint)x - 10 > 89)
-    // if (x < 0 || x >= array.Length) -> if ((uint)x > (uint)array.Length)
-    optOptimizeRangeChecksWithUnsigned(false);
-    EndPhase(PHASE_OPTIMIZE_SIMPLE_RANGECHECKS);
+    if (opts.OptimizationEnabled())
+    {
+        // Merge simple range checks to an unsigned expression, e.g.:
+        // if (x < 10 || x > 99)           -> if ((uint)x - 10 > 89)
+        // if (x < 0 || x >= array.Length) -> if ((uint)x > (uint)array.Length)
+        optOptimizeRangeChecksWithUnsigned(false);
+        EndPhase(PHASE_OPTIMIZE_SIMPLE_RANGECHECKS);
+    }
 
     // IMPORTANT, after this point, every place where tree topology changes must redo evaluation
     // order (gtSetStmtInfo) and relink nodes (fgSetStmtSeq) if required.

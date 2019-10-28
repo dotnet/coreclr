@@ -8844,144 +8844,182 @@ void Compiler::optOptimizeRangeChecksWithUnsigned(bool afterCse)
 
     for (BasicBlock* block = fgFirstBB; block; block = block->bbNext)
     {
-        GenTreeLclVar* variable = nullptr;
-        GenTreeOp*     b1Cond   = nullptr;
-        ssize_t        icon1    = 0;
+        GenTreeLclVar* variableStart  = nullptr;
+        GenTreeLclVar* variableEnd    = nullptr;
+        GenTreeIntCon* cnsRangeStart  = nullptr;
+        GenTree*       varRangeEnd    = nullptr;
+        BasicBlock*    bbRangeStart   = nullptr;
+        BasicBlock*    bbRangeEnd     = nullptr;
+        GenTreeOp*     condRangeStart = nullptr;
+        GenTreeOp*     condRangeEnd   = nullptr;
 
-        if ((block->bbJumpKind == BBJ_COND) && ((block->bbFlags & BBF_DONT_REMOVE) == 0) &&
-            (block->firstStmt() == block->lastStmt())) // single statement
+        BasicBlock* currentBlock = block;
+
+    FindRangeStartEndBBs:
+        if ((currentBlock->bbJumpKind == BBJ_COND) && (currentBlock->firstStmt() == currentBlock->lastStmt()))
         {
-            GenTree* rootNode = block->firstStmt()->GetRootNode();
-            if (rootNode->OperIs(GT_JTRUE) && rootNode->gtGetOp1()->OperIs(GT_LT, GT_LE))
+            GenTree* rootNode = currentBlock->firstStmt()->GetRootNode();
+            if (rootNode->OperIs(GT_JTRUE))
             {
-                b1Cond = rootNode->gtGetOp1()->AsOp();
-                if (b1Cond->gtGetOp1()->OperIs(GT_LCL_VAR) && b1Cond->gtGetOp2()->IsCnsIntOrI() &&
-                    ((b1Cond->gtFlags & GTF_GLOB_EFFECT) == 0)) // make sure B1 doesn't have global side effects
+                GenTreeOp* opCond = rootNode->gtGetOp1()->AsOp();
+
+                // case 1:  BB(i) range starts. BB(i+1) range ends.
+                if (opCond->gtGetOp1()->OperIs(GT_LCL_VAR) && opCond->gtGetOp2()->IsCnsIntOrI() &&
+                    opCond->OperIs(GT_LT, GT_LE) && bbRangeStart == nullptr)
                 {
-                    icon1    = b1Cond->gtGetOp2()->AsIntCon()->IconValue();
-                    variable = b1Cond->gtGetOp1()->AsLclVar();
+                    cnsRangeStart  = opCond->gtGetOp2()->AsIntCon();
+                    bbRangeStart   = currentBlock;
+                    condRangeStart = opCond;
+                    variableStart  = opCond->gtGetOp1()->AsLclVar();
+                }
+                // case 2:  BB(i) range ends. BB(i+1) range starts  [array.Length]
+                else if (opCond->gtGetOp1()->OperIs(GT_ARR_LENGTH) && opCond->gtGetOp2()->OperIs(GT_LCL_VAR) &&
+                         opCond->OperIs(GT_LT, GT_LE) && bbRangeEnd == nullptr)
+                {
+                    varRangeEnd  = opCond->gtGetOp1();
+                    bbRangeEnd   = currentBlock;
+                    condRangeEnd = opCond;
+                    variableEnd  = opCond->gtGetOp2()->AsLclVar();
+                }
+                // case 3:  BB(i) range ends. BB(i+1) range starts. [constant range]
+                else if (opCond->gtGetOp1()->OperIs(GT_LCL_VAR) && opCond->gtGetOp2()->IsCnsIntOrI() &&
+                         opCond->OperIs(GT_GE, GT_GT) && bbRangeEnd == nullptr)
+                {
+                    varRangeEnd  = opCond->gtGetOp2();
+                    bbRangeEnd   = currentBlock;
+                    condRangeEnd = opCond;
+                    variableEnd  = opCond->gtGetOp1()->AsLclVar();
+                }
+                else
+                {
+                    continue;
+                }
+
+                if ((bbRangeStart == nullptr) || (bbRangeEnd == nullptr))
+                {
+                    // check the next block, it should also be a condition with the same variable
+                    if (currentBlock->bbNext != nullptr && currentBlock->bbNext->bbJumpKind == BBJ_COND &&
+                        currentBlock->bbJumpDest == currentBlock->bbNext->bbJumpDest && 
+                        currentBlock->bbJumpDest->bbWeight == BB_ZERO_WEIGHT)
+                    {
+                        currentBlock = currentBlock->bbNext;
+                        goto FindRangeStartEndBBs;
+                    }
                 }
             }
         }
 
-        BasicBlock* nextBlock = block->bbNext;
-
-        if (variable != nullptr && nextBlock != nullptr && nextBlock->bbJumpKind == BBJ_COND &&
-            (nextBlock->bbJumpDest == block->bbJumpDest) &&  // both blocks must have the same target
-            (block->bbJumpDest->bbWeight == BB_ZERO_WEIGHT)) // the optimization makes sense only when the target block
-                                                             // has low weight (unlikely to execute) e.g. `throw Exception`
+        if ((variableStart == nullptr) || (variableEnd == nullptr) ||
+            (variableStart->GetVN(VNK_Conservative) != variableEnd->GetVN(VNK_Conservative)))
         {
-            if (nextBlock->firstStmt() == nextBlock->lastStmt()) // single statement
+            continue;
+        }
+
+        if (((bbRangeStart->bbFlags & BBF_DONT_REMOVE) != 0) ||((condRangeStart->gtFlags & GTF_GLOB_EFFECT) != 0))
+        {
+            continue;
+        }
+
+        ssize_t        icon1 = cnsRangeStart->IconValue();
+
+        bool canBeOptimized = false;
+        if (varRangeEnd->OperIs(GT_ARR_LENGTH) && condRangeEnd->OperIs(GT_LE, GT_LT))
+        {
+            if ((condRangeStart->OperIs(GT_LE) && icon1 == -1) || (condRangeStart->OperIs(GT_LT) && icon1 == 0))
             {
-                GenTree* rootNode = nextBlock->firstStmt()->GetRootNode();
-                if (rootNode->OperIs(GT_JTRUE) && rootNode->gtGetOp1()->OperIsCompare())
-                {
-                    GenTreeOp*     b2Cond     = rootNode->gtGetOp1()->AsOp();
-                    GenTreeLclVar* variableB2;
-                    GenTree*       otherOp;
-
-                    if (b2Cond->gtGetOp1()->OperIs(GT_LCL_VAR))
-                    {
-                        variableB2 = b2Cond->gtGetOp1()->AsLclVar();
-                        otherOp    = b2Cond->gtGetOp2();
-                    }
-                    else if (b2Cond->gtGetOp2()->OperIs(GT_LCL_VAR))
-                    {
-                        variableB2 = b2Cond->gtGetOp2()->AsLclVar();
-                        otherOp    = b2Cond->gtGetOp1();
-                    }
-                    else
-                    {
-                        continue;
-                    }
-
-                    // make sure we use the same lcl var:
-                    if (variable->GetVN(VNK_Conservative) == variableB2->GetVN(VNK_Conservative))
-                    {
-                        bool canBeOptimized = false;
-                        if (otherOp->OperIs(GT_ARR_LENGTH) && rootNode->gtGetOp1()->OperIs(GT_LE, GT_LT)) 
-                        {
-                            if ((b1Cond->OperIs(GT_LE) && icon1 == -1) || (b1Cond->OperIs(GT_LT) && icon1 == 0))
-                            {
-                                // Handles cases like:
-                                // if (startIndex < 0 || startIndex > array.Length)  // NOTE: GT_ARR_LENGTH will be op1 always, so it's `<` actually
-                                //     ThrowException();
-                                //
-                                // Or
-                                //
-                                // if (startIndex <= -1 || startIndex > array.Length)
-                                //     ThrowException();
-                                //
-                                canBeOptimized = true;
-                            }
-
-                        }
-                        else if (afterCse && // we run this opt twice before and after CSE. BeforeCSE run makes sense only for GT_ARR_LENGTH
-                                 otherOp->IsCnsIntOrI() &&
-                                 otherOp->AsIntCon()->IconValue() >= 0 && otherOp->AsIntCon()->IconValue() >= icon1 &&
-                                 rootNode->gtGetOp1()->OperIs(GT_GT, GT_GE))
-                        {
-                            if ((b1Cond->OperIs(GT_LE) && icon1 == -1) || (b1Cond->OperIs(GT_LT) && icon1 == 0))
-                            {
-                                // Handles cases like:
-                                // if (startIndex < 0 || startIndex > icon2)
-                                //     ThrowException();
-                                //
-                                // Or
-                                //
-                                // if (startIndex <= -1 || startIndex >= icon2)
-                                //     ThrowException();
-                                //
-                                canBeOptimized = true;
-                            }
-                            else if (icon1 >= 0)
-                            {
-                                assert(b2Cond->gtGetOp1() == variableB2);
-
-                                // handle any icon1 here, e.g.:
-                                //
-                                // if (startIndex < icon1 || startIndex > icon2)
-                                //     ThrowException();
-                                //
-                                // To
-                                //
-                                // if (startIndex - icon1 > icon2 - icon1)
-                                //     ThrowException();
-                                //
-                                ssize_t toSub = icon1 + (b1Cond->OperIs(GT_LT) ? 0 : 1);
-
-                                if (toSub != 0)
-                                {
-                                    GenTreeIntCon* subIconNode = gtNewIconNode(-toSub, variableB2->TypeGet());
-                                    GenTree* subNode           = gtNewOperNode(GT_ADD, variableB2->TypeGet(), variableB2,
-                                                                         subIconNode); // GT_ADD -icon1
-
-                                    subNode->CopyCosts(b2Cond); // Not sure in this one, what costs should I set to the
-                                                                // GT_ADD node I've just added?
-                                    gtReplaceTree(nextBlock->firstStmt(), b2Cond->gtGetOp1(), subNode);
-                                    gtPrepareCost(b2Cond);
-                                    otherOp->AsIntCon()->gtIconVal -= toSub;
-                                }
-                                canBeOptimized = true;
-                            }
-                        }
-
-                        if (canBeOptimized)
-                        {
-                            // make second block's condition unsigned and remove the first block
-                            b2Cond->gtFlags |= GTF_UNSIGNED;
-
-                            fgRemoveRefPred(block->bbJumpDest, block);
-                            block->bbJumpDest = nullptr;
-                            block->bbJumpKind = BBJ_NONE;
-                            fgRemoveStmt(block, block->firstStmt());
-
-                            // no need to inspect nextBlock in the next iteration
-                            block = nextBlock;
-                        }
-                    }
-                }
+                // Handles cases like:
+                // if (startIndex < 0 || startIndex > array.Length)  // NOTE: GT_ARR_LENGTH will be op1 always, so it's `<` actually
+                //     ThrowException();
+                //
+                // Or
+                //
+                // if (startIndex <= -1 || startIndex > array.Length)
+                //     ThrowException();
+                //
+                canBeOptimized = true;
             }
+
+        }
+        if (varRangeEnd->OperIs(GT_LCL_VAR) && condRangeEnd->OperIs(GT_GT, GT_GE) &&
+            vnStore->IsVNCompareCheckedBound(condRangeEnd->GetVN(VNK_Conservative)))
+        {
+            if ((condRangeStart->OperIs(GT_LE) && icon1 == -1) || (condRangeStart->OperIs(GT_LT) && icon1 == 0))
+            {
+                // Handles cases like:
+                // if (startIndex < 0 || startIndex > span.Length)
+                //     ThrowException();
+                //
+                // Or
+                //
+                // if (startIndex <= -1 || startIndex > span.Length)
+                //     ThrowException();
+                //
+                canBeOptimized = true;
+            }
+        }
+        else if (afterCse && // we run this opt twice before and after CSE. BeforeCSE run makes sense only for GT_ARR_LENGTH
+                 varRangeEnd->IsCnsIntOrI() &&
+                 varRangeEnd->AsIntCon()->IconValue() >= 0 && varRangeEnd->AsIntCon()->IconValue() >= icon1 &&
+                 condRangeEnd->OperIs(GT_GT, GT_GE))
+        {
+            if ((condRangeStart->OperIs(GT_LE) && icon1 == -1) || (condRangeStart->OperIs(GT_LT) && icon1 == 0))
+            {
+                // Handles cases like:
+                // if (startIndex < 0 || startIndex > icon2)
+                //     ThrowException();
+                //
+                // Or
+                //
+                // if (startIndex <= -1 || startIndex >= icon2)
+                //     ThrowException();
+                //
+                canBeOptimized = true;
+            }
+            else if (icon1 >= 0)
+            {
+                assert(condRangeEnd->gtGetOp1()->OperIs(GT_LCL_VAR));
+                assert(condRangeEnd->gtGetOp2()->IsCnsIntOrI());
+
+                // handle any icon1 here, e.g.:
+                //
+                // if (startIndex < icon1 || startIndex > icon2)
+                //     ThrowException();
+                //
+                // To
+                //
+                // if (startIndex - icon1 > icon2 - icon1)
+                //     ThrowException();
+                //
+                ssize_t toSub = icon1 + (condRangeStart->OperIs(GT_LT) ? 0 : 1);
+
+                if (toSub != 0)
+                {
+                    GenTreeIntCon* subIconNode = gtNewIconNode(-toSub, variableEnd->TypeGet());
+                    GenTree* subNode           = gtNewOperNode(GT_ADD, variableEnd->TypeGet(), variableEnd,
+                                                         subIconNode); // GT_ADD -icon1
+
+                    subNode->CopyCosts(condRangeEnd); // Not sure in this one, what costs should I set to the
+                                                      // GT_ADD node I've just added?
+                    gtReplaceTree(bbRangeEnd->firstStmt(), condRangeEnd->gtGetOp1(), subNode);
+                    gtPrepareCost(condRangeEnd);
+                    varRangeEnd->AsIntCon()->gtIconVal -= toSub;
+                }
+                canBeOptimized = true;
+            }
+        }
+
+        if (canBeOptimized)
+        {
+            // make second block's condition unsigned and remove the first block
+            condRangeEnd->gtFlags |= GTF_UNSIGNED;
+
+            fgRemoveRefPred(bbRangeStart->bbJumpDest, bbRangeStart);
+            bbRangeStart->bbJumpDest = nullptr;
+            bbRangeStart->bbJumpKind = BBJ_NONE;
+            fgRemoveStmt(bbRangeStart, bbRangeStart->firstStmt());
+
+            // no need to inspect nextBlock in the next iteration
+            block = block->bbNext;
         }
     }
 }
