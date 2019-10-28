@@ -8899,8 +8899,7 @@ void Compiler::optOptimizeRangeChecksWithUnsigned(bool afterCse)
                 {
                     // check the next block, it should also be a condition with the same variable
                     if (currentBlock->bbNext != nullptr && currentBlock->bbNext->bbJumpKind == BBJ_COND &&
-                        currentBlock->bbJumpDest == currentBlock->bbNext->bbJumpDest && 
-                        currentBlock->bbJumpDest->bbWeight == BB_ZERO_WEIGHT)
+                        currentBlock->bbJumpDest == currentBlock->bbNext->bbJumpDest)
                     {
                         currentBlock = currentBlock->bbNext;
                         goto FindRangeStartEndBBs;
@@ -8917,6 +8916,21 @@ void Compiler::optOptimizeRangeChecksWithUnsigned(bool afterCse)
 
         if (((bbRangeStart->bbFlags & BBF_DONT_REMOVE) != 0) ||((condRangeStart->gtFlags & GTF_GLOB_EFFECT) != 0))
         {
+            continue;
+        }
+
+        if (bbRangeStart->bbJumpDest->bbWeight > BB_ZERO_WEIGHT)
+        {
+            // Optimize only if both blocks jump to a rarely executed block
+            // E.g.
+            //
+            // if (i < 10 || i > 100)
+            //    Foo();
+            //
+            // if `i < 10` is mostly `true` then it's cheaper to leave this range check as is
+            // because `i < 10` is better than `(uint)i - 10 < 90`
+            //
+            // NOTE: ideally we should just check weight of that first condition and skip if it has some big value (hot)
             continue;
         }
 
