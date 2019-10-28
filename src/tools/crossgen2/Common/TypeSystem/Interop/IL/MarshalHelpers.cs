@@ -336,7 +336,8 @@ namespace Internal.TypeSystem.Interop
 
                 if (type.HasInstantiation)
                 {
-                    throw new InvalidProgramException("Generic types cannot be marshaled.");
+                    // Generic types cannot be marshaled.
+                    return MarshallerKind.Invalid;
                 }
 
                 if (MarshalUtils.IsBlittableType(type))
@@ -430,7 +431,8 @@ namespace Internal.TypeSystem.Interop
                     && !MarshalUtils.IsBlittableType(parameterType))
                     || parameterType.IsGCPointer)
                 {
-                    throw new InvalidProgramException("Pointers cannot reference marshaled structures.  Use ByRef instead.");
+                    // Pointers cannot reference marshaled structures.  Use ByRef instead.
+                    return MarshallerKind.Invalid;
                 }
 
                 if (nativeType == NativeTypeKind.Default)
@@ -449,7 +451,8 @@ namespace Internal.TypeSystem.Interop
             {
                 if (type.HasInstantiation)
                 {
-                    throw new InvalidProgramException("Generic types cannot be marshaled.");
+                    // Generic types cannot be marshaled.
+                    return MarshallerKind.Invalid;
                 }
 
                 if (nativeType == NativeTypeKind.Default || nativeType == NativeTypeKind.Func)
@@ -543,7 +546,8 @@ namespace Internal.TypeSystem.Interop
             {
                 if (type.HasInstantiation)
                 {
-                    throw new InvalidProgramException("Generic types cannot be marshaled.");
+                    // Generic types cannot be marshaled.
+                    return MarshallerKind.Invalid;
                 }
 
                 if (!isField && nativeType == NativeTypeKind.Default || nativeType == NativeTypeKind.LPStruct)
