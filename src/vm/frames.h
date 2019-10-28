@@ -2466,23 +2466,18 @@ private:
 //------------------------------------------------------------------------
 class GCFrame
 {
-    void Init(Thread *pThread, OBJECTREF *pObjRefs, UINT numObjRefs, BOOL maybeInterior);
-    void Push(Thread *pThread);
-
-    //--------------------------------------------------------------------
-    // Pops the GCFrame and cancels the GC protection. Also
-    // trashes the contents of pObjRef's in _DEBUG.
-    //--------------------------------------------------------------------
-    VOID Pop();
-
 public:
 
-
+#ifndef DACCESS_COMPILE
     //--------------------------------------------------------------------
     // This constructor pushes a new GCFrame on the GC frame chain.
     //--------------------------------------------------------------------
-#ifndef DACCESS_COMPILE
-    GCFrame(OBJECTREF *pObjRefs, UINT numObjRefs, BOOL maybeInterior);
+    GCFrame(OBJECTREF *pObjRefs, UINT numObjRefs, BOOL maybeInterior)
+        : GCFrame(GetThread(), pObjRefs, numObjRefs, maybeInterior)
+    {
+        WRAPPER_NO_CONTRACT;
+    }
+
     GCFrame(Thread *pThread, OBJECTREF *pObjRefs, UINT numObjRefs, BOOL maybeInterior);
 #ifndef CROSSGEN_COMPILE
     ~GCFrame();
