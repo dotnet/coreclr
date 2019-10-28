@@ -1765,7 +1765,7 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper)
 #endif // PROFILING_SUPPORTED
 
 //------------------------------------------------------------------------
-// genAllocLclFrame: Probe the stack and allocate the local stack frame: subtract from SP.
+// genAllocLclFrame: Probe the stack and allocate the local stack frame - subtract from SP.
 //
 // Notes:
 //      The first instruction of the prolog is always a push (which touches the lowest address
@@ -1774,6 +1774,16 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper)
 //      address hijacking (see the comment in CodeGen::genPushCalleeSavedRegisters()). These pushes
 //      happen immediately before calling this function, so the SP at the current location has already
 //      been touched.
+//
+// Arguments:
+//      frameSize         - the size of the stack frame being allocated.
+//      initReg           - register to use as a scratch register.
+//      pInitRegZeroed    - OUT parameter. *pInitRegZeroed is set to 'false' if and only if
+//                          this call sets 'initReg' to a non-zero value.
+//      maskArgRegsLiveIn - incoming argument registers that are currently live.
+//
+// Return value:
+//      None
 //
 void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pInitRegZeroed, regMaskTP maskArgRegsLiveIn)
 {

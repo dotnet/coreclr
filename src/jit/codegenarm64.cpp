@@ -7788,7 +7788,7 @@ void CodeGen::genArm64EmitterUnitTests()
 #endif // defined(DEBUG)
 
 //------------------------------------------------------------------------
-// genAllocLclFrame: Probe the stack and allocate the local stack frame: subtract from SP.
+// genAllocLclFrame: Probe the stack.
 //
 // Notes:
 //      This only does the probing; allocating the frame is done when callee-saved registers are saved.
@@ -7799,6 +7799,16 @@ void CodeGen::genArm64EmitterUnitTests()
 //      page by default, so we need to be more careful. We do an extra probe if we might not have probed
 //      recently enough. That is, if a call and prolog establishment might lead to missing a page. We do this
 //      on Windows as well just to be consistent, even though it should not be necessary.
+//
+// Arguments:
+//      frameSize         - the size of the stack frame being allocated.
+//      initReg           - register to use as a scratch register.
+//      pInitRegZeroed    - OUT parameter. *pInitRegZeroed is set to 'false' if and only if
+//                          this call sets 'initReg' to a non-zero value.
+//      maskArgRegsLiveIn - incoming argument registers that are currently live.
+//
+// Return value:
+//      None
 //
 void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pInitRegZeroed, regMaskTP maskArgRegsLiveIn)
 {
