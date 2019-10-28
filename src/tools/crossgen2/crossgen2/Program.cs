@@ -118,8 +118,8 @@ namespace ILCompiler
             foreach (var input in _commandLineOptions.InputFilePaths ?? Enumerable.Empty<FileInfo>())
                 Helpers.AppendExpandedPaths(_inputFilePaths, input.FullName, true);
 
-            foreach (var reference in _commandLineOptions.Reference ?? Enumerable.Empty<FileInfo>())
-                Helpers.AppendExpandedPaths(_referenceFilePaths, reference.FullName, false);
+            foreach (var reference in _commandLineOptions.Reference ?? Enumerable.Empty<string>())
+                Helpers.AppendExpandedPaths(_referenceFilePaths, reference, false);
         }
 
         private int Run()
