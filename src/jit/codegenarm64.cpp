@@ -7836,17 +7836,16 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
     }
     else if (frameSize < compiler->getVeryLargeFrameSize())
     {
-        regNumber rTemp = REG_ZR; // We don't need a register for the target of the dummy load
-        lastTouchDelta  = frameSize;
+        lastTouchDelta = frameSize;
 
         for (target_size_t probeOffset = pageSize; probeOffset <= frameSize; probeOffset += pageSize)
         {
             // Generate:
             //    movw initReg, -probeOffset
-            //    ldr rTemp, [SP + initReg]  // load into initReg on arm32, wzr on ARM64
+            //    ldr wzr, [sp + initReg]
 
             instGen_Set_Reg_To_Imm(EA_PTRSIZE, initReg, -(ssize_t)probeOffset);
-            GetEmitter()->emitIns_R_R_R(INS_ldr, EA_4BYTE, rTemp, REG_SPBASE, initReg);
+            GetEmitter()->emitIns_R_R_R(INS_ldr, EA_4BYTE, REG_ZR, REG_SPBASE, initReg);
             regSet.verifyRegUsed(initReg);
             *pInitRegZeroed = false; // The initReg does not contain zero
 
@@ -7872,13 +7871,10 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         regNumber rLimit;
         regMaskTP tempMask;
 
-        regNumber rTemp = REG_ZR; // We don't need a register for the target of the dummy load
-
         // We pick the next lowest register number for rLimit
         noway_assert(availMask != RBM_NONE);
         tempMask = genFindLowestBit(availMask);
         rLimit   = genRegNumFromMask(tempMask);
-        availMask &= ~tempMask;
 
         // Generate:
         //
@@ -7887,9 +7883,8 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         //                                // runtime expense of running a useless first loop iteration.
         //      mov rLimit, -frameSize
         // loop:
-        //      ldr rTemp, [sp + rOffset] // rTemp = wzr on ARM64
-        //      sub rOffset, pageSize     // Note that 0x1000 (normal ARM32 pageSize) on ARM32 uses the funky
-        //                                // Thumb immediate encoding
+        //      ldr wzr, [sp + rOffset]
+        //      sub rOffset, pageSize
         //      cmp rLimit, rOffset
         //      b.ls loop                 // If rLimit is lower or same, we need to probe this rOffset. Note
         //                                // especially that if it is the same, we haven't probed this page.
@@ -7907,7 +7902,7 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         // There's a "virtual" label here. But we can't create a label in the prolog, so we use the magic
         // `emitIns_J` with a negative `instrCount` to branch back a specific number of instructions.
 
-        GetEmitter()->emitIns_R_R_R(INS_ldr, EA_4BYTE, rTemp, REG_SPBASE, rOffset);
+        GetEmitter()->emitIns_R_R_R(INS_ldr, EA_4BYTE, REG_ZR, REG_SPBASE, rOffset);
         GetEmitter()->emitIns_R_R_I(INS_sub, EA_PTRSIZE, rOffset, rOffset, pageSize);
         GetEmitter()->emitIns_R_R(INS_cmp, EA_PTRSIZE, rLimit, rOffset); // If equal, we need to probe again
         GetEmitter()->emitIns_J(INS_bls, NULL, -4);
