@@ -460,7 +460,7 @@ namespace System.Numerics
         {
             if (Sse.IsSupported)
             {
-                return Sse.MoveMask(Sse.CompareEqual(left.AsVector128(), right.AsVector128())) == 0b1111;
+                return Sse.MoveMask(Sse.CompareNotEqual(left.AsVector128(), right.AsVector128())) == 0;
             }
             return left.Equals(right);
         }
@@ -479,7 +479,7 @@ namespace System.Numerics
         {
             if (Sse.IsSupported)
             {
-                return Sse.MoveMask(Sse.CompareNotEqual(left.AsVector128(), right.AsVector128())) == 0b1111;
+                return Sse.MoveMask(Sse.CompareNotEqual(left.AsVector128(), right.AsVector128())) != 0;
             }
             return !(left == right);
         }
