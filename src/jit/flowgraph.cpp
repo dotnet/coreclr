@@ -3897,7 +3897,7 @@ bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block, Statement*
             }
         }
 
-        noway_assert(containsStmt);
+        assert(containsStmt);
     }
 #endif
 
@@ -3909,8 +3909,14 @@ bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block, Statement*
 
         if (stmt != nullptr)
         {
+            // The GC_POLL should be inserted relative to the supplied statement. The safer
+            // location for the insertion is prior to the current statement since the supplied
+            // statement could be a GT_JTRUE (see fgNewStmtNearEnd() for more details).
             Statement* newStmt = gtNewStmt(temp);
-            fgInsertStmtAfter(block, stmt, newStmt);
+
+            // Set the GC_POLL statement to have the same IL offset at the subsequent one.
+            newStmt->SetILOffsetX(stmt->GetILOffsetX());
+            fgInsertStmtBefore(block, stmt, newStmt);
         }
         else if (block->bbJumpKind == BBJ_ALWAYS)
         {
