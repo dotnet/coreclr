@@ -323,6 +323,9 @@ bool IsFieldBlittable(
                 isBlittable = !valueTypeHandle.GetMethodTable()->HasInstantiation() && valueTypeHandle.GetMethodTable()->IsBlittable();
             }
             break;
+        default:
+            isBlittable = false;
+            break;
         }
     }
     EX_CATCH

@@ -2110,7 +2110,7 @@ inline PTR_EEClassNativeLayoutInfo EEClass::GetNativeLayoutInfo()
     LIMITED_METHOD_CONTRACT;
     _ASSERTE(HasLayout());
 
-    return ((LayoutEEClass*)this)->m_nativeLayoutInfo.GetValue();
+    return ((LayoutEEClass*)this)->m_nativeLayoutInfo.GetValueMaybeNull();
 }
 
 inline BOOL EEClass::IsBlittable()

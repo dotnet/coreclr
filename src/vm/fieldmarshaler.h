@@ -46,9 +46,7 @@ enum class ParseNativeTypeFlags : int
 {
     None    = 0x00,
     IsAnsi  = 0x01,
-#ifdef FEATURE_COMINTEROP
     IsWinRT = 0x02,
-#endif // FEATURE_COMINTEROP
 };
 
 //=======================================================================
@@ -268,7 +266,7 @@ public:
     uint32_t GetNumFields() const
     {
         LIMITED_METHOD_CONTRACT;
-        return m_size;
+        return m_numFields;
     }
 
     NativeFieldDescriptor * GetNativeFieldDescriptors()

@@ -2342,7 +2342,7 @@ bool CEEInfo::getSystemVAmd64PassStructInRegisterDescriptor(
         // MethodTable construction. Otherwise, we are just building in the interface, and we haven't
         // computed or cached anything, so we need to compute it now.
 #if defined(UNIX_AMD64_ABI)
-        bool canPassInRegisters = useNativeLayout ? methodTablePtr->GetLayoutInfo()->IsNativeStructPassedInRegisters()
+        bool canPassInRegisters = useNativeLayout ? methodTablePtr->GetNativeLayoutInfo()->IsNativeStructPassedInRegisters()
                                                   : methodTablePtr->IsRegPassedStruct();
 #else // !defined(UNIX_AMD64_ABI)
         bool canPassInRegisters = false;

@@ -3578,7 +3578,7 @@ namespace
     }
 
 #ifdef UNIX_AMD64_ABI
-    void SystemVAmd64CheckForPassNativeStructInRegister(MethodTable* pMT)
+    void SystemVAmd64CheckForPassNativeStructInRegister(MethodTable* pMT, EEClassNativeLayoutInfo* pNativeLayoutInfo)
     {
         STANDARD_VM_CONTRACT;
         DWORD totalStructSize = 0;
@@ -3589,7 +3589,7 @@ namespace
             return;
         }
 
-        totalStructSize = pMT->GetLayoutInfo()->GetNativeSize();
+        totalStructSize = pNativeLayoutInfo->GetSize();
 
         // If num of bytes for the fields is bigger than CLR_SYSTEMV_MAX_STRUCT_BYTES_TO_PASS_IN_REGISTERS
         // pass through stack
@@ -3608,7 +3608,7 @@ namespace
         SystemVStructRegisterPassingHelper helper((unsigned int)totalStructSize);
         if (pMT->ClassifyEightBytes(&helper, 0, 0, useNativeLayout))
         {
-            pMT->GetLayoutInfo()->SetNativeStructPassedInRegisters();
+            pNativeLayoutInfo->SetNativeStructPassedInRegisters();
         }
     }
 #endif // UNIX_AMD64_ABI
@@ -4007,35 +4007,32 @@ void EEClassNativeLayoutInfo::InitializeNativeLayoutFieldMetadataThrowing(Method
     EEClass* pClass = pMT->GetClass();
     EEClassLayoutInfo* pLayoutInfo = pClass->GetLayoutInfo();
 
-    if (!pLayoutInfo->IsZeroSized())
+    if (pClass->GetNativeLayoutInfo() == nullptr)
     {
+        ListLockHolder nativeTypeLoadLock(pMT->GetDomain()->GetNativeTypeLoadLock());
+        ListLockEntryHolder entry(ListLockEntry::Find(nativeTypeLoadLock, pMT->GetClass()));
+        ListLockEntryLockHolder pEntryLock(entry, FALSE);
+        nativeTypeLoadLock.Release();
+        if (!pEntryLock.DeadlockAwareAcquire())
+        {
+            DefineFullyQualifiedNameForClassW()
+            COMPlusThrow(kTypeLoadException, IDS_CANNOT_MARSHAL_RECURSIVE_DEF, GetFullyQualifiedNameForClassW(pMT));
+        }
+
         if (pClass->GetNativeLayoutInfo() == nullptr)
         {
-            ListLockHolder nativeTypeLoadLock(pMT->GetDomain()->GetNativeTypeLoadLock());
-            ListLockEntryHolder entry(ListLockEntry::Find(nativeTypeLoadLock, pMT->GetClass()));
-            ListLockEntryLockHolder pEntryLock(entry, FALSE);
-            nativeTypeLoadLock.Release();
-            if (!pEntryLock.DeadlockAwareAcquire())
-            {
-                DefineFullyQualifiedNameForClassW()
-                COMPlusThrow(kTypeLoadException, IDS_CANNOT_MARSHAL_RECURSIVE_DEF, GetFullyQualifiedNameForClassW(pMT));
-            }
-
-            if (pClass->GetNativeLayoutInfo() == nullptr)
-            {
-                EEClassNativeLayoutInfo* pNativeLayoutInfoOut;
-                CollectNativeLayoutFieldMetadataThrowing(pMT, &pNativeLayoutInfoOut);
-                ((LayoutEEClass*)pClass)->m_nativeLayoutInfo.SetValue(pNativeLayoutInfoOut);
+            EEClassNativeLayoutInfo* pNativeLayoutInfo;
+            CollectNativeLayoutFieldMetadataThrowing(pMT, &pNativeLayoutInfo);
+            ((LayoutEEClass*)pClass)->m_nativeLayoutInfo.SetValue(pNativeLayoutInfo);
 #ifdef FEATURE_HFA
-                pMT->GetClass()->CheckForNativeHFA();
+            pMT->GetClass()->CheckForNativeHFA();
 #endif
 #ifdef UNIX_AMD64_ABI
-                SystemVAmd64CheckForPassNativeStructInRegister(pMT);
+            SystemVAmd64CheckForPassNativeStructInRegister(pMT, pNativeLayoutInfo);
 #endif
-                if(IsStructMarshalable(pMT))
-                {
-                    pMT->SetStructMarshalable();
-                }
+            if(IsStructMarshalable(pMT))
+            {
+                pMT->SetStructMarshalable();
             }
         }
     }
@@ -4136,10 +4133,13 @@ VOID EEClassNativeLayoutInfo::CollectNativeLayoutFieldMetadataThrowing(MethodTab
         DEBUGARG(szName)
     );
 
-    uint32_t numTotalInstanceFields = cInstanceFields + pParentLayoutInfo->GetNumFields();
+    uint32_t numTotalInstanceFields = cInstanceFields + (pParentLayoutInfo != nullptr ? pParentLayoutInfo->GetNumFields() : 0);
     LoaderAllocator* pAllocator = pMT->GetLoaderAllocator();
-    AllocMemHolder<EEClassNativeLayoutInfo> pNativeLayoutInfo =
-        pAllocator->GetLowFrequencyHeap()->AllocMem(S_SIZE_T(sizeof(EEClassNativeLayoutInfo)) + S_SIZE_T(sizeof(NativeFieldDescriptor)) * S_SIZE_T(numTotalInstanceFields));
+    AllocMemHolder<EEClassNativeLayoutInfo> pNativeLayoutInfo(
+        pAllocator->GetLowFrequencyHeap()->AllocMem(
+            S_SIZE_T(sizeof(EEClassNativeLayoutInfo)) + S_SIZE_T(sizeof(NativeFieldDescriptor)) * S_SIZE_T(numTotalInstanceFields)));
+            
+    pNativeLayoutInfo->m_numFields = numTotalInstanceFields;
 
     // Now compute the native size of each field
     for (LayoutRawFieldInfo* pfwalk = pInfoArray; pfwalk->m_MD != mdFieldDefNil; pfwalk++)
@@ -4196,7 +4196,7 @@ VOID EEClassNativeLayoutInfo::CollectNativeLayoutFieldMetadataThrowing(MethodTab
     // The intrinsic Vector<T> type has a special size. Copy the native size and alignment
     // from the managed size and alignment.
 
-    if (strcmp(szName, "Vector`1") != 0 || strcmp(szNamespace, "System.Numerics") != 0)
+    if (strcmp(szName, "Vector`1") == 0 && strcmp(szNamespace, "System.Numerics") == 0)
     {
         pNativeLayoutInfo->m_size = pEEClassLayoutInfo->GetManagedSize();
         pNativeLayoutInfo->m_alignmentRequirement = pEEClassLayoutInfo->m_ManagedLargestAlignmentRequirementOfAllMembers;
