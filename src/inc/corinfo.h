@@ -1860,11 +1860,6 @@ enum { LCL_FINALLY_MARK = 0xFC }; // FC = "Finally Call"
  * when it generates code
  **********************************************************************************/
 
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wpragma-pack"
-#endif
-
 #include <pshpack4.h>
 
 typedef void* CORINFO_MethodPtr;            // a generic method pointer
@@ -1953,10 +1948,6 @@ struct CORINFO_VarArgInfo
 };
 
 #include <poppack.h>
-
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
 
 #define SIZEOF__CORINFO_Object                            TARGET_POINTER_SIZE /* methTable */
 

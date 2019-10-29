@@ -35,4 +35,6 @@ Abstract:
 #else
 #pragma pack(1)
 #endif
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wpragma-pack"
 #endif // ! (defined(lint) || defined(RC_INVOKED))

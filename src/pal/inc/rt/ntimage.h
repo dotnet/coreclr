@@ -37,11 +37,6 @@
 // begin_winnt
 
 
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wpragma-pack"
-#endif
-
 //
 // Image Format
 //
@@ -1742,10 +1737,6 @@ typedef struct _ImageArchitectureEntry {
 } IMAGE_ARCHITECTURE_ENTRY, *PIMAGE_ARCHITECTURE_ENTRY;
 
 #include "poppack.h"                // Back to the initial value
-
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
 
 // The following structure defines the new import object.  Note the values of the first two fields,
 // which must be set as stated in order to differentiate old and new import members.

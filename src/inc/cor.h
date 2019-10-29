@@ -1941,11 +1941,6 @@ DECLARE_INTERFACE_(IMetaDataWinMDImport, IUnknown)
 // count of chars for COR_NATIVE_LINK_CUSTOM_VALUE(_ANSI)
 #define COR_NATIVE_LINK_CUSTOM_VALUE_CC     18
 
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wpragma-pack"
-#endif
-
 #include <pshpack1.h>
 typedef struct 
 {
@@ -1954,10 +1949,6 @@ typedef struct
     mdMemberRef m_entryPoint;     // member ref token giving entry point, format is lib:entrypoint
 } COR_NATIVE_LINK;
 #include <poppack.h>
-
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
 
 typedef enum 
 {
