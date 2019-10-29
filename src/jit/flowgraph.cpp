@@ -25809,16 +25809,22 @@ void Compiler::fgTailMergeThrows()
     CallToBlockMap  callMap(allocator);
     BlockToBlockMap blockMap(allocator);
 
-    // We will run two passes here.
+    // We run two passes here.
     //
-    // The first pass finds candidate blocks and builds the mapping
-    // from candidates to canonical blocks, the second pass modifies flow.
+    // The first pass finds candidate blocks. The first candidate for
+    // each unique kind of throw is chosen as the canonical example of
+    // that kind of throw.  Subsequent matching candidates are mapped
+    // to that throw.
+    //
+    // The second pass modifies flow so that predecessors of
+    // non-canonical throw blocks now transfer control to the
+    // appropriate canonical block.
     int numCandidates = 0;
 
     // First pass
     //
     // Scan for THROW blocks. Note early on in compilation (before morph)
-    // noretrurn blocks are not marked as BBJ_THROW.
+    // noreturn blocks are not marked as BBJ_THROW.
     //
     // Walk blocks from last to first so that any branches we
     // introduce to the canonical blocks end up lexically forward

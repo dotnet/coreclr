@@ -34,7 +34,6 @@ CompPhaseNameMacro(PHASE_EMPTY_TRY,              "Remove empty try",            
 CompPhaseNameMacro(PHASE_EMPTY_FINALLY,          "Remove empty finally",           "EMPTYFIN", false, -1, false)
 CompPhaseNameMacro(PHASE_MERGE_FINALLY_CHAINS,   "Merge callfinally chains",       "MRGCFCHN", false, -1, false)
 CompPhaseNameMacro(PHASE_CLONE_FINALLY,          "Clone finally",                  "CLONEFIN", false, -1, false)
-CompPhaseNameMacro(PHASE_MERGE_THROWS,           "Merge throw blocks",             "MRGTHROW", false, -1, false)
 CompPhaseNameMacro(PHASE_STR_ADRLCL,             "Morph - Structs/AddrExp",        "MOR-STRAL",false, -1, false)
 CompPhaseNameMacro(PHASE_MORPH_IMPBYREF,         "Morph - ByRefs",                 "MOR-BYREF",false, -1, false)
 CompPhaseNameMacro(PHASE_MORPH_GLOBAL,           "Morph - Global",                 "MOR-GLOB", false, -1, false)
@@ -46,6 +45,7 @@ CompPhaseNameMacro(PHASE_COMPUTE_EDGE_WEIGHTS,   "Compute edge weights (1, false
 #if defined(FEATURE_EH_FUNCLETS)
 CompPhaseNameMacro(PHASE_CREATE_FUNCLETS,        "Create EH funclets",             "EH-FUNC",  false, -1, false)
 #endif // FEATURE_EH_FUNCLETS
+CompPhaseNameMacro(PHASE_MERGE_THROWS,           "Merge throw blocks",             "MRGTHROW", false, -1, false)
 CompPhaseNameMacro(PHASE_OPTIMIZE_LAYOUT,        "Optimize layout",                "LAYOUT",   false, -1, false)
 CompPhaseNameMacro(PHASE_COMPUTE_REACHABILITY,   "Compute blocks reachability",    "BL_REACH", false, -1, false)
 CompPhaseNameMacro(PHASE_OPTIMIZE_LOOPS,         "Optimize loops",                 "LOOP-OPT", false, -1, false)
