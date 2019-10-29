@@ -18,7 +18,7 @@ jobs:
     jobName: ${{ format('perfbuild_{0}{1}_{2}_{3}', parameters.osGroup, parameters.osSubgroup, parameters.archType, parameters.buildConfig) }}
     displayName: ${{ format('Performance {0}{1} {2} {3}', parameters.osGroup, parameters.osSubgroup, parameters.archType, parameters.buildConfig) }}
     pool: 
-       # Hosted Linux Build Pool
+      # Hosted Linux Build Pool
       ${{ if eq(parameters.osGroup, 'Linux') }}:
         name:  NetCoreInternal-Pool
         queue: BuildPool.Ubuntu.1604.Amd64
