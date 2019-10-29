@@ -5574,28 +5574,22 @@ void MethodTable::DoFullyLoad(Generics::RecursionGraph * const pVisited,  const 
     }
 
 #ifdef FEATURE_NATIVE_IMAGE_GENERATION
-    // Fully load the types of fields associated with a field marshaler when ngenning
+    // Fully load the types of instance fields in types with layout when ngenning
     if (HasLayout() && GetAppDomain()->IsCompilationDomain() && !IsZapped())
     {
-        EnsureNativeLayoutInfoInitialized();
+        ApproxFieldDescIterator fieldDescs(this, ApproxFieldDescIterator::INSTANCE_FIELDS);
 
-        EEClassNativeLayoutInfo const* pNativeLayoutInfo = this->GetNativeLayoutInfo();
-
-        NativeFieldDescriptor const* pNativeFieldDescriptors = pNativeLayoutInfo->GetNativeFieldDescriptors();
-        UINT numReferenceFields = pNativeLayoutInfo->GetNumFields();
-
-        for (UINT i = 0; i < numReferenceFields; ++i)
+        for (int i = 0; i < fieldDescs.Count(); i++)
         {
-            NativeFieldDescriptor const* pFM = &pNativeFieldDescriptors[i];
-            FieldDesc *pMarshalerField = pFM->GetFieldDesc();
-
-            // If the fielddesc pointer here is a token tagged pointer, then the field marshaler that we are
+            FieldDesc* pFieldDesc = fieldDescs.Next();
+            
+            // If the fielddesc pointer here is a token tagged pointer, then the field that we are
             // working with will not need to be saved into this ngen image. And as that was the reason that we 
             // needed to load this type, thus we will not need to fully load the type associated with this field desc.
             //
-            if (!CORCOMPILE_IS_POINTER_TAGGED(pMarshalerField))
+            if (!CORCOMPILE_IS_POINTER_TAGGED(pFieldDesc))
             {
-                TypeHandle th = pMarshalerField->GetFieldTypeHandleThrowing((ClassLoadLevel) (level-1));
+                TypeHandle th = pFieldDesc->GetFieldTypeHandleThrowing((ClassLoadLevel) (level-1));
                 CONSISTENCY_CHECK(!th.IsNull());
                 
                 th.DoFullyLoad(&locals.newVisited, level, pPending, &locals.fBailed, pInstContext);
