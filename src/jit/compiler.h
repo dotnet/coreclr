@@ -8107,7 +8107,7 @@ public:
     {
 #ifdef FEATURE_SIMD
         unsigned vectorRegSize = getSIMDVectorRegisterByteLength();
-        assert(vectorRegSize > TARGET_POINTER_SIZE);
+        assert(vectorRegSize >= TARGET_POINTER_SIZE);
         return vectorRegSize;
 #else  // !FEATURE_SIMD
         return TARGET_POINTER_SIZE;
