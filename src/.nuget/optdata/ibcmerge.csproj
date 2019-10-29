@@ -24,7 +24,7 @@
     <Error Condition="'$(IbcMergePackagePathOutputFile)'==''" Text="IbcMergePackagePathOutputFile must be passed as a property." />
 
     <PropertyGroup>
-      <IbcMergePath>$(NuGetPackageRoot)microsoft.dotnet.ibcmerge\$(MicrosoftDOtNetIBCMergeVersion)</IbcMergePath>
+      <IbcMergePath>$(NuGetPackageRoot)microsoft.dotnet.ibcmerge\$(MicrosoftDotNetIBCMergeVersion)</IbcMergePath>
     </PropertyGroup>
 
     <!-- Cleanup old path file -->
