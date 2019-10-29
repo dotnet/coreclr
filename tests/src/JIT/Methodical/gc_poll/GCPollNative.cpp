@@ -7,16 +7,24 @@
 #include <atomic>
 
 #if defined(_MSC_VER)
-    #define STDMETHODCALLTYPE __stdcall
-    #define EXPORT(type) extern "C" type __declspec(dllexport)
+
+#define STDMETHODCALLTYPE __stdcall
+#define EXPORT(type) extern "C" type __declspec(dllexport)
+
+#else // !defined(_MSC_VER)
+
+#ifdef __i386__
+#define STDMETHODCALLTYPE __attribute__((stdcall))
 #else
-    #define STDMETHODCALLTYPE __attribute__((stdcall))
-    #define EXPORT(type) extern "C" __attribute__((visibility("default"))) type
+#define STDMETHODCALLTYPE 
 #endif
+#define EXPORT(type) extern "C" __attribute__((visibility("default"))) type
+
+#endif // defined(_MSC_VER)
 
 namespace
 {
-    std::atomic<uint64_t> _n = 0;
+    std::atomic<uint64_t> _n{ 0 };
 
     template<typename T>
     T NextUInt(T t)
