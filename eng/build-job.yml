@@ -53,6 +53,8 @@ jobs:
     - ${{ if and(eq(parameters.osGroup, 'Linux'), eq(parameters.osSubgroup, '_rhel6')) }}:
       - name: portableBuildArg
         value: '-portablebuild=false'
+    - name: gccArg
+      value: '-gcc'
     - name: clangArg
       value: '-clang9'
     # Our FreeBSD doesn't yet detect available clang versions, so pass it explicitly.
@@ -171,6 +173,9 @@ jobs:
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
       - script: ./build.sh $(buildConfig) $(archType) $(crossArg) -ci -skipnuget $(clangArg) $(stripSymbolsArg) $(officialBuildIdArg)
         displayName: Build product
+    - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+      - script: ./build.sh $(buildConfig) $(archType) $(crossArg) -ci -skipnuget $(gccArg) $(stripSymbolsArg) $(officialBuildIdArg)
+        displayName: Build gcc product
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) -ci -skiptests -skipbuildpackages $(officialBuildIdArg) $(ibcOptimizeArg) $(enforcePgoArg)
         displayName: Build product
@@ -179,6 +184,9 @@ jobs:
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
       - script: ./build-test.sh skipmanaged $(buildConfig) $(archType) $(crossArg) $(priorityArg) $(clangArg)
         displayName: Build native test components
+    - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+      - script: ./build-test.sh skipmanaged $(buildConfig) $(archType) $(crossArg) $(priorityArg) $(gccArg)
+        displayName: Build native gcc test components
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       - script: build-test.cmd skipmanaged $(buildConfig) $(archType) $(priorityArg)
         displayName: Build native test components
