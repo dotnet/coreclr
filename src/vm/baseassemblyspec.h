@@ -175,6 +175,7 @@ public:
     static BOOL VerifyBindingString(LPCWSTR pwStr);
 
     void GetFileOrDisplayName(DWORD flags, SString &result) const;
+    void GetDisplayName(DWORD flags, SString &result) const;
 
     inline void GetPublicKey(
         PBYTE * ppbPublicKey,
@@ -213,7 +214,6 @@ public:
         LIMITED_METHOD_CONTRACT;
         return IsAfRetargetable(m_dwFlags);
     }
-
 
 protected:
     static BOOL CompareRefToDef(const BaseAssemblySpec *pRef, const BaseAssemblySpec *pDef);

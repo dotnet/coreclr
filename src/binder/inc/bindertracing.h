@@ -21,10 +21,10 @@ namespace BinderTracing
     {
     public:
         // This class assumes the assembly spec will have a longer lifetime than itself
-        AssemblyBindOperation(AssemblySpec *assemblySpec);
+        AssemblyBindOperation(AssemblySpec *assemblySpec, const WCHAR *assemblyPath = nullptr);
         ~AssemblyBindOperation();
 
-        void SetResult(PEAssembly *assembly);
+        void SetResult(PEAssembly *assembly, bool cached = false);
 
         struct BindRequest
         {
@@ -36,13 +36,16 @@ namespace BinderTracing
         };
 
     private:
+        bool ShouldIgnoreBind();
+
+    private:
         BindRequest m_bindRequest;
+        bool m_populatedBindRequest;
 
-        bool m_trackingBind;
+        bool m_checkedIgnoreBind;
+        bool m_ignoreBind;
 
-        bool m_success;
-        SString m_resultName;
-        SString m_resultPath;
+        ReleaseHolder<PEAssembly> m_resultAssembly;
         bool m_cached;
     };
 };
