@@ -3053,11 +3053,7 @@ protected:
     void EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit) override;
 };
 
-class ILLayoutClassMarshalerBase : public ILMarshaler
-{
-};
-
-class ILLayoutClassPtrMarshalerBase : public ILLayoutClassMarshalerBase
+class ILLayoutClassPtrMarshalerBase : public ILMarshaler
 {
 public:
     enum
@@ -3108,7 +3104,7 @@ private:
     bool CanUsePinnedLayoutClass();
 };
 
-class ILLayoutClassMarshaler : public ILLayoutClassMarshalerBase
+class ILLayoutClassMarshaler : public ILMarshaler
 {
 public:
     enum
