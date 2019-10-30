@@ -4678,7 +4678,9 @@ FCIMPL3(void, MngdFixedArrayMarshaler::ConvertSpaceToManaged, MngdFixedArrayMars
     //
     // Allocate array
     //
-    SetObjectReference(pManagedHome, AllocateSzArray(pThis->m_Array, pThis->m_cElements));
+
+    OBJECTREF arrayRef = AllocateSzArray(pThis->m_Array, pThis->m_cElements);
+    SetObjectReference(pManagedHome, arrayRef);
 
     GCPROTECT_END();
 
@@ -4960,11 +4962,12 @@ FCIMPL3(void, MngdSafeArrayMarshaler::ConvertSpaceToManaged, MngdSafeArrayMarsha
                 COMPlusThrow(kSafeArrayRankMismatchException, IDS_EE_SAFEARRAYSZARRAYMISMATCH);
             }
         }
-    
-        SetObjectReference(pManagedHome,
-            (OBJECTREF) OleVariant::CreateArrayRefForSafeArray((SAFEARRAY*) *pNativeHome,
+
+        OBJECTREF arrayRef = (OBJECTREF) OleVariant::CreateArrayRefForSafeArray((SAFEARRAY*) *pNativeHome,
                                                             pThis->m_vt,
-                                                            pThis->m_pElementMT));
+                                                            pThis->m_pElementMT);
+    
+        SetObjectReference(pManagedHome, arrayRef);
     }
     else
     {
