@@ -4854,8 +4854,10 @@ FCIMPL3(void, MngdSafeArrayMarshaler::ConvertSpaceToNative, MngdSafeArrayMarshal
 
     if (pThis->m_fStatic & SCSF_IsStatic)
         return;
+
+    BASEARRAYREF arrayRef = (BASEARRAYREF)*pManagedHome;
     
-    HELPER_METHOD_FRAME_BEGIN_0();
+    HELPER_METHOD_FRAME_BEGIN_1(arrayRef);
 
     CONTRACTL
     {
@@ -4869,7 +4871,7 @@ FCIMPL3(void, MngdSafeArrayMarshaler::ConvertSpaceToNative, MngdSafeArrayMarshal
     
     if (*pManagedHome != NULL)
     {
-        *pNativeHome = (void *) OleVariant::CreateSafeArrayForArrayRef((BASEARRAYREF*) pManagedHome, pThis->m_vt, pThis->m_pElementMT);
+        *pNativeHome = (void *) OleVariant::CreateSafeArrayForArrayRef(&arrayRef, pThis->m_vt, pThis->m_pElementMT);
     }
     else
     {
@@ -4891,7 +4893,8 @@ FCIMPL4(void, MngdSafeArrayMarshaler::ConvertContentsToNative, MngdSafeArrayMars
     CONTRACTL_END;
 
     OBJECTREF pOriginalManaged = ObjectToOBJECTREF(pOriginalManagedUNSAFE);
-    HELPER_METHOD_FRAME_BEGIN_1(pOriginalManaged);
+    BASEARRAYREF arrayRef = (BASEARRAYREF)*pManagedHome;
+    HELPER_METHOD_FRAME_BEGIN_2(arrayRef, pOriginalManaged);
 
     if ((pThis->m_fStatic & SCSF_IsStatic) &&
         (*pManagedHome != pOriginalManaged))
@@ -4901,7 +4904,7 @@ FCIMPL4(void, MngdSafeArrayMarshaler::ConvertContentsToNative, MngdSafeArrayMars
    
     if (*pManagedHome != NULL)
     {
-        OleVariant::MarshalSafeArrayForArrayRef((BASEARRAYREF *) pManagedHome,
+        OleVariant::MarshalSafeArrayForArrayRef(&arrayRef,
                                                 (SAFEARRAY*)*pNativeHome,
                                                 pThis->m_vt,
                                                 pThis->m_pElementMT,
@@ -4985,7 +4988,8 @@ FCIMPL3(void, MngdSafeArrayMarshaler::ConvertContentsToManaged, MngdSafeArrayMar
     CONTRACTL_END;
 
     SAFEARRAY* pNative = *(SAFEARRAY**)pNativeHome;
-    HELPER_METHOD_FRAME_BEGIN_0();
+    BASEARRAYREF arrayRef = (BASEARRAYREF)*pManagedHome;
+    HELPER_METHOD_FRAME_BEGIN_1(arrayRef);
 
     if (pNative && pNative->fFeatures & FADF_STATIC)
     {
@@ -4995,7 +4999,7 @@ FCIMPL3(void, MngdSafeArrayMarshaler::ConvertContentsToManaged, MngdSafeArrayMar
     if (*pNativeHome != NULL)
     {
         OleVariant::MarshalArrayRefForSafeArray((SAFEARRAY*)*pNativeHome,
-                                                (BASEARRAYREF *) pManagedHome,
+                                                &arrayRef,
                                                 pThis->m_vt,
                                                 pThis->m_pManagedMarshaler,
                                                 pThis->m_pElementMT);
