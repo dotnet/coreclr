@@ -449,6 +449,10 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
         case GT_NOP:
             break;
 
+        case GT_KEEPALIVE:
+            genConsumeRegs(treeNode->AsOp()->gtOp1);
+            break;
+
         case GT_NO_OP:
             instGen(INS_nop);
             break;
