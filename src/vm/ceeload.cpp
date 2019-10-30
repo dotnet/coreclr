@@ -13241,8 +13241,12 @@ void ReflectionModule::ReleaseILData()
 
 TypeHandle* AllocateNewMethodDictionaryForExpansion(InstantiatedMethodDesc* pIMD, DWORD cbSize)
 {
-    TypeHandle* pInstOrPerInstInfo = (TypeHandle*)(void*)pIMD->GetLoaderAllocator()->GetHighFrequencyHeap()->AllocMem(S_SIZE_T(cbSize));
-    ZeroMemory(pInstOrPerInstInfo, cbSize);
+    TypeHandle* pInstOrPerInstInfo = (TypeHandle*)(void*)pIMD->GetLoaderAllocator()->GetHighFrequencyHeap()->AllocMem(S_SIZE_T(cbSize + sizeof(void*)));
+    ZeroMemory(pInstOrPerInstInfo, cbSize + sizeof(void*));
+
+    // Slot[-1] points at previous dictionary to help with diagnostics when investigating crashes
+    *(byte**)pInstOrPerInstInfo = (byte*)pIMD->m_pPerInstInfo.GetValue() + 1;
+    pInstOrPerInstInfo++;
 
     // Copy old dictionary entry contents
     memcpy(pInstOrPerInstInfo, (const void*)pIMD->m_pPerInstInfo.GetValue(), pIMD->GetDictionarySlotsSize());
@@ -13250,29 +13254,23 @@ TypeHandle* AllocateNewMethodDictionaryForExpansion(InstantiatedMethodDesc* pIMD
     ULONG_PTR* pSizeSlot = ((ULONG_PTR*)pInstOrPerInstInfo) + pIMD->GetNumGenericMethodArgs();
     *pSizeSlot = cbSize;
 
-#ifdef _DEBUG
-    TypeHandle** ppOldDictSlot = (TypeHandle**)pInstOrPerInstInfo + pIMD->GetNumGenericMethodArgs() + 1;
-    *ppOldDictSlot = (TypeHandle*)pIMD->m_pPerInstInfo.GetValue();
-#endif
-
     return pInstOrPerInstInfo;
 }
 
 TypeHandle* AllocateNewTypeDictionaryForExpansion(MethodTable* pMT, DWORD cbSize)
 {
-    TypeHandle* pInstOrPerInstInfo = (TypeHandle*)(void*)pMT->GetLoaderAllocator()->GetHighFrequencyHeap()->AllocMem(S_SIZE_T(cbSize));
-    ZeroMemory(pInstOrPerInstInfo, cbSize);
+    TypeHandle* pInstOrPerInstInfo = (TypeHandle*)(void*)pMT->GetLoaderAllocator()->GetHighFrequencyHeap()->AllocMem(S_SIZE_T(cbSize + sizeof(void*)));
+    ZeroMemory(pInstOrPerInstInfo, cbSize + sizeof(void*));
+
+    // Slot[-1] points at previous dictionary to help with diagnostics when investigating crashes
+    *(byte**)pInstOrPerInstInfo = (byte*)pMT->GetPerInstInfo()[pMT->GetNumDicts() - 1].GetValue() + 1;
+    pInstOrPerInstInfo++;
 
     // Copy old dictionary entry contents
     memcpy(pInstOrPerInstInfo, (const void*)pMT->GetPerInstInfo()[pMT->GetNumDicts() - 1].GetValue(), pMT->GetDictionarySlotsSize());
 
     ULONG_PTR* pSizeSlot = ((ULONG_PTR*)pInstOrPerInstInfo) + pMT->GetNumGenericArgs();
     *pSizeSlot = cbSize;
-
-#ifdef _DEBUG
-    TypeHandle** ppOldDictSlot = (TypeHandle**)pInstOrPerInstInfo + pMT->GetNumGenericArgs() + 1;
-    *ppOldDictSlot = (TypeHandle*)pMT->GetPerInstInfo()[pMT->GetNumDicts() - 1].GetValue();
-#endif
 
     return pInstOrPerInstInfo;
 }

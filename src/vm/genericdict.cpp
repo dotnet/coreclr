@@ -32,12 +32,6 @@
 #include "sigbuilder.h"
 #include "compile.h"
 
-#ifdef _DEBUG
-#define NUM_DEBUG_SLOTS 1
-#else
-#define NUM_DEBUG_SLOTS 0
-#endif 
-
 #ifndef DACCESS_COMPILE 
 
 //---------------------------------------------------------------------------------------
@@ -95,7 +89,6 @@ DictionaryLayout::GetDictionarySizeFromLayout(
     if (pDictLayout != NULL)
     {
         bytes += sizeof(ULONG_PTR*);                            // Slot for dictionary size
-        bytes += (sizeof(void*) * NUM_DEBUG_SLOTS);             // Slots for debug purposes
         bytes += pDictLayout->m_numSlots * sizeof(void*);       // Slots for dictionary slots based on a dictionary layout
     }
 
@@ -143,8 +136,8 @@ BOOL DictionaryLayout::FindTokenWorker(LoaderAllocator*                 pAllocat
     CONTRACTL_END
 
     // First slots contain the type parameters
-    _ASSERTE(FitsIn<WORD>(numGenericArgs + 1 + NUM_DEBUG_SLOTS + scanFromSlot));
-    WORD slot = static_cast<WORD>(numGenericArgs + 1 + NUM_DEBUG_SLOTS + scanFromSlot);
+    _ASSERTE(FitsIn<WORD>(numGenericArgs + 1 + scanFromSlot));
+    WORD slot = static_cast<WORD>(numGenericArgs + 1 + scanFromSlot);
 
 #if _DEBUG
     if (scanFromSlot > 0)
@@ -293,7 +286,7 @@ DictionaryLayout* DictionaryLayout::ExpandDictionaryLayout(LoaderAllocator*     
         pNewDictionaryLayout->m_slots[iSlot] = pCurrentDictLayout->m_slots[iSlot];
 
     WORD layoutSlotIndex = pCurrentDictLayout->m_numSlots;
-    WORD slot = static_cast<WORD>(numGenericArgs) + 1 + NUM_DEBUG_SLOTS + layoutSlotIndex;
+    WORD slot = static_cast<WORD>(numGenericArgs) + 1 + layoutSlotIndex;
 
     PVOID pResultSignature = pSigBuilder == NULL ? pSig : CreateSignatureWithSlotData(pSigBuilder, pAllocator, slot);
     *EnsureWritablePages(&(pNewDictionaryLayout->m_slots[layoutSlotIndex].m_signature)) = pResultSignature;
