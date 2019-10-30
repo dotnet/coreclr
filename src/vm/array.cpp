@@ -250,17 +250,6 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
     // Shared EEClass if there is one
     MethodTable * pCanonMT = NULL;
 
-    // Strictly speaking no method table should be needed for
-    // arrays of the faked up TypeDescs for variable types that are
-    // used when verfifying generic code.
-    // However verification is tied in with some codegen in the JITs, so give these
-    // the shared MT just in case.
-    // This checks match precisely one in ParamTypeDesc::OwnsTemplateMethodTable
-    if (CorTypeInfo::IsGenericVariable(elemType)) {
-        // This is loading the canonical version of the array so we can override
-        OVERRIDE_TYPE_LOAD_LEVEL_LIMIT(CLASS_LOADED);
-        return(ClassLoader::LoadArrayTypeThrowing(TypeHandle(g_pObjectClass), arrayKind, Rank).GetMethodTable());
-    }
 
     // Arrays of reference types all share the same EEClass.
     //
@@ -432,7 +421,11 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
 
     pMT->SetParentMethodTable(pParentClass);
 
-    DWORD dwComponentSize = elemTypeHnd.GetSize();
+    // Method tables for arrays of generic type parameters are needed for type analysis. 
+    // No instances will be created, so we can use 0 as element size.
+    DWORD dwComponentSize = CorTypeInfo::IsGenericVariable(elemType) ?
+                                0 :
+                                elemTypeHnd.GetSize();
 
     if (elemType == ELEMENT_TYPE_VALUETYPE || elemType == ELEMENT_TYPE_VOID)
     {
@@ -456,7 +449,7 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
         pMT->SetCanonicalMethodTable(pCanonMT);
     }
 
-    pMT->SetIsArray(arrayKind, elemType);
+    pMT->SetIsArray(arrayKind);
 
     pMT->SetApproxArrayElementTypeHandle(elemTypeHnd);
 

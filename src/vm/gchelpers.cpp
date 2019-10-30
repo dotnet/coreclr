@@ -913,13 +913,13 @@ OBJECTREF   DupArrayForCloning(BASEARRAYREF pRef)
         MODE_COOPERATIVE; // returns an objref without pinning it => cooperative
     } CONTRACTL_END;
 
-    ArrayTypeDesc arrayType(pRef->GetMethodTable(), pRef->GetArrayElementTypeHandle());
-    unsigned rank = arrayType.GetRank();
+    MethodTable *pArrayMT = pRef->GetMethodTable();
+    unsigned rank = pArrayMT->GetRank();
 
     DWORD numArgs =  rank*2;
     INT32* args = (INT32*) _alloca(sizeof(INT32)*numArgs);
 
-    if (arrayType.GetInternalCorElementType() == ELEMENT_TYPE_ARRAY)
+    if (pArrayMT->GetInternalCorElementType() == ELEMENT_TYPE_ARRAY)
     {
         const INT32* bounds = pRef->GetBoundsPtr();
         const INT32* lowerBounds = pRef->GetLowerBoundsPtr();
@@ -934,7 +934,7 @@ OBJECTREF   DupArrayForCloning(BASEARRAYREF pRef)
         numArgs = 1;
         args[0] = pRef->GetNumComponents();
     }
-    return AllocateArrayEx(TypeHandle(&arrayType), args, numArgs, GC_ALLOC_ZEROING_OPTIONAL);
+    return AllocateArrayEx(pArrayMT, args, numArgs, GC_ALLOC_ZEROING_OPTIONAL);
 }
 
 
@@ -954,13 +954,14 @@ OBJECTREF AllocateObjectArray(DWORD cElements, TypeHandle elementType, BOOL bAll
     // The object array class is loaded at startup.
     _ASSERTE(g_pPredefinedArrayTypes[ELEMENT_TYPE_OBJECT] != NULL);
 
+    TypeHandle arrayType = ClassLoader::LoadArrayTypeThrowing(elementType);
+
 #ifdef _DEBUG
-    ArrayTypeDesc arrayType(g_pPredefinedArrayTypes[ELEMENT_TYPE_OBJECT]->GetMethodTable(), elementType);
-    _ASSERTE(arrayType.GetRank() == 1);
+    _ASSERTE(arrayType.AsArray()->GetRank() == 1);
     _ASSERTE(arrayType.GetInternalCorElementType() == ELEMENT_TYPE_SZARRAY);
 #endif //_DEBUG
 
-    return AllocateSzArray(ClassLoader::LoadArrayTypeThrowing(elementType), (INT32) cElements, GC_ALLOC_NO_FLAGS, bAllocateInLargeHeap);
+    return AllocateSzArray(arrayType, (INT32) cElements, GC_ALLOC_NO_FLAGS, bAllocateInLargeHeap);
 }
 
 STRINGREF AllocateString( DWORD cchStringLength )

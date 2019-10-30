@@ -902,8 +902,8 @@ public:
     }
 
     // Init the m_dwFlags field for an array
-    void SetIsArray(CorElementType arrayType, CorElementType elementType);
-
+    void SetIsArray(CorElementType arrayType);
+        
     BOOL IsClassPreInited();
 
     // mark the class as having its cctor run.
@@ -1778,8 +1778,7 @@ public:
         // or an array, but how do we know.
         //
         // it would also be nice to assert that the component size is > 0,
-        // but it turns out that for array's of System.Void we cannot do
-        // that b/c the component size is 0 (?)
+        // but that would not hold for array's of System.Void and generic type parameters
         SetFlag(enum_flag_HasComponentSize);
         m_dwFlags = (m_dwFlags & ~0xFFFF) | wComponentSize;
     }
@@ -2766,17 +2765,9 @@ public:
         PRECONDITION(!IsInterface());
         SetFlag(enum_flag_IfNotInterfaceThenMarshalable);
     }
-
-    // The following methods are only valid for the
-    // method tables for array types.  These MTs may
-    // be shared between array types and thus GetArrayElementTypeHandle
-    // may only be approximate.  If you need the exact element type handle then
-    // you should probably be calling GetArrayElementTypeHandle on a TypeHandle,
-    // or an ArrayTypeDesc, or on an object reference that is known to be an array,
-    // e.g. a BASEARRAYREF.
-    //
-    // At the moment only the object[] MethodTable is shared between array types.
-    // In the future the amount of sharing of method tables is likely to be increased.
+    
+    // The following methods are only valid for the method tables for array types.  
+    // REVIEW: We should probably remove "Approx" from the names.
     CorElementType GetArrayElementType();
     DWORD GetRank();
 

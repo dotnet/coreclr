@@ -343,8 +343,8 @@ class ArrayTypeDesc : public ParamTypeDesc
 #endif
 public:
 #ifndef DACCESS_COMPILE
-    ArrayTypeDesc(MethodTable* arrayMT, TypeHandle elementType) :
-        ParamTypeDesc(arrayMT->IsMultiDimArray() ? ELEMENT_TYPE_ARRAY : ELEMENT_TYPE_SZARRAY, arrayMT, elementType)
+    ArrayTypeDesc(MethodTable* arrayMT) :
+        ParamTypeDesc(arrayMT->IsMultiDimArray() ? ELEMENT_TYPE_ARRAY : ELEMENT_TYPE_SZARRAY, arrayMT, arrayMT->GetApproxArrayElementTypeHandle())
 #ifdef FEATURE_COMINTEROP
       , m_pCCWTemplate(NULL)
 #endif // FEATURE_COMINTEROP
@@ -361,6 +361,8 @@ public:
     TypeHandle GetArrayElementTypeHandle() {
         WRAPPER_NO_CONTRACT;
         SUPPORTS_DAC;
+
+        _ASSERTE(GetMethodTable()->GetApproxArrayElementTypeHandle() == GetTypeParam());
         return GetTypeParam();
     }
 

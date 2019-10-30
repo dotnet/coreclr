@@ -184,19 +184,6 @@ BOOL ParamTypeDesc::OwnsTemplateMethodTable()
         return FALSE;
     }
 
-    CorElementType elemType = m_Arg.GetSignatureCorElementType();
-
-    // This check matches precisely one in Module::CreateArrayMethodTable
-    //
-    // They indicate if an array TypeDesc is non-canonical (in much the same a a generic
-    // method table being non-canonical), i.e. it is not the primary
-    // owner of the m_TemplateMT (the primary owner is the TypeDesc for object[])
-
-    if (CorTypeInfo::IsGenericVariable_NoThrow(elemType))
-    {
-        return FALSE;
-    }
-
     return TRUE;
 }
 
@@ -1035,12 +1022,11 @@ void ParamTypeDesc::Save(DataImage *image)
         image->StoreStructure(this, sizeof(ParamTypeDesc), DataImage::ITEM_PARAM_TYPEDESC);
     }
 
-    // This set of checks matches precisely those in Module::CreateArrayMethodTable
-    // and ParamTypeDesc::ComputeNeedsRestore
+    // This set of checks matches precisely those in ParamTypeDesc::ComputeNeedsRestore
     //
     // They indicate if an array TypeDesc is non-canonical (in much the same a a generic
     // method table being non-canonical), i.e. it is not the primary
-    // owner of the m_TemplateMT (the primary owner is the TypeDesc for object[])
+    // owner of the m_TemplateMT 
     //
     if (OwnsTemplateMethodTable())
     {
@@ -1125,7 +1111,7 @@ BOOL ParamTypeDesc::ComputeNeedsRestore(DataImage *image, TypeHandleList *pVisit
         res = TRUE;
     }
 
-    // This set of checks matches precisely those in Module::CreateArrayMethodTable and ParamTypeDesc::Fixup
+    // This set of checks matches precisely those in ParamTypeDesc::Fixup
     //
     if (!m_TemplateMT.IsNull())
     {
