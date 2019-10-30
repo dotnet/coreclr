@@ -225,8 +225,8 @@ BOOL DictionaryLayout::FindTokenWorker(LoaderAllocator*                 pAllocat
             _ASSERT(SystemDomain::SystemModule()->m_DictionaryCrst.OwnedByCurrentThread());
 
             PVOID pResultSignature = pSigBuilder == NULL ? pSig : CreateSignatureWithSlotData(pSigBuilder, pAllocator, slot);
-            *EnsureWritablePages(&(pDictLayout->m_slots[iSlot].m_signature)) = pResultSignature;
-            *EnsureWritablePages(&(pDictLayout->m_slots[iSlot].m_signatureSource)) = signatureSource;
+            pDictLayout->m_slots[iSlot].m_signature = pResultSignature;
+            pDictLayout->m_slots[iSlot].m_signatureSource = signatureSource;
 
             pResult->signature = pDictLayout->m_slots[iSlot].m_signature;
 
@@ -268,9 +268,6 @@ DictionaryLayout* DictionaryLayout::ExpandDictionaryLayout(LoaderAllocator*     
     // There shouldn't be any empty slots remaining in the current dictionary.
     _ASSERTE(pCurrentDictLayout->m_slots[pCurrentDictLayout->m_numSlots - 1].m_signature != NULL);
 
-    // Expand the dictionary layout to add more slots
-    DWORD newNumSlots = (DWORD)pCurrentDictLayout->m_numSlots * 2;
-
 #ifdef _DEBUG
     // Stress debug mode by increasing size by only 1 slot
     if (!FitsIn<WORD>((DWORD)pCurrentDictLayout->m_numSlots + 1))
@@ -289,8 +286,8 @@ DictionaryLayout* DictionaryLayout::ExpandDictionaryLayout(LoaderAllocator*     
     WORD slot = static_cast<WORD>(numGenericArgs) + 1 + layoutSlotIndex;
 
     PVOID pResultSignature = pSigBuilder == NULL ? pSig : CreateSignatureWithSlotData(pSigBuilder, pAllocator, slot);
-    *EnsureWritablePages(&(pNewDictionaryLayout->m_slots[layoutSlotIndex].m_signature)) = pResultSignature;
-    *EnsureWritablePages(&(pNewDictionaryLayout->m_slots[layoutSlotIndex].m_signatureSource)) = signatureSource;
+    pNewDictionaryLayout->m_slots[layoutSlotIndex].m_signature = pResultSignature;
+    pNewDictionaryLayout->m_slots[layoutSlotIndex].m_signatureSource = signatureSource;
 
     pResult->signature = pNewDictionaryLayout->m_slots[layoutSlotIndex].m_signature;
 
@@ -527,7 +524,7 @@ DictionaryLayout::Trim()
     // Trim down the size to what's actually used
     DWORD dwSlots = GetNumUsedSlots();
     _ASSERTE(FitsIn<WORD>(dwSlots));
-    *EnsureWritablePages(&m_numSlots) = static_cast<WORD>(dwSlots);
+    m_numSlots = static_cast<WORD>(dwSlots);
 
 }
 
@@ -1391,7 +1388,7 @@ Dictionary::PopulateEntry(
 
             Dictionary* pDictionary = pMT != NULL ? pMT->GetDictionary() : pMD->GetMethodDictionary();
 
-            *EnsureWritablePages(pDictionary->GetSlotAddr(0, slotIndex)) = result;
+            *(pDictionary->GetSlotAddr(0, slotIndex)) = result;
             *ppSlot = pDictionary->GetSlotAddr(0, slotIndex);
         }
     }

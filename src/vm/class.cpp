@@ -1026,7 +1026,6 @@ void ClassLoader::RecordDependenciesForDictionaryExpansion(MethodTable* pMT)
             {
                 if (pMT->GetPerInstInfo()[iDict].GetValueMaybeNull() != pParentMT->GetPerInstInfo()[iDict].GetValueMaybeNull())
                 {
-                    EnsureWritablePages(&pMT->GetPerInstInfo()[iDict]);
                     pMT->GetPerInstInfo()[iDict].SetValueMaybeNull(pParentMT->GetPerInstInfo()[iDict].GetValueMaybeNull());
                 }
             }
