@@ -173,7 +173,7 @@ jobs:
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
       - script: ./build.sh $(buildConfig) $(archType) $(crossArg) -ci -skipnuget $(clangArg) $(stripSymbolsArg) $(officialBuildIdArg)
         displayName: Build product
-    - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+    - ${{ if containsValue(parameters.platforms, 'Linux_gcc_x64') }}:
       - script: ./build.sh $(buildConfig) $(archType) $(crossArg) -ci -skipnuget $(gccArg) $(stripSymbolsArg) $(officialBuildIdArg)
         displayName: Build gcc product
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
@@ -184,7 +184,7 @@ jobs:
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
       - script: ./build-test.sh skipmanaged $(buildConfig) $(archType) $(crossArg) $(priorityArg) $(clangArg)
         displayName: Build native test components
-    - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+    - ${{ if containsValue(parameters.platforms, 'Linux_gcc_x64') }}:
       - script: ./build-test.sh skipmanaged $(buildConfig) $(archType) $(crossArg) $(priorityArg) $(gccArg)
         displayName: Build native gcc test components
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
