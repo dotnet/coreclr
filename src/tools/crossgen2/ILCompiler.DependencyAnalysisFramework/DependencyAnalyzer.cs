@@ -29,7 +29,7 @@ namespace ILCompiler.DependencyAnalysisFramework
         private DependencyContextType _dependencyContext;
         private IComparer<DependencyNodeCore<DependencyContextType>> _resultSorter = null;
 
-        private Stack<DependencyNodeCore<DependencyContextType>> _markStack = new Stack<DependencyNodeCore<DependencyContextType>>();
+        private RandomInsertStack _markStack = new RandomInsertStack();
         private List<DependencyNodeCore<DependencyContextType>> _markedNodes = new List<DependencyNodeCore<DependencyContextType>>();
         private ImmutableArray<DependencyNodeCore<DependencyContextType>> _markedNodesFinal;
         private List<DependencyNodeCore<DependencyContextType>> _rootNodes = new List<DependencyNodeCore<DependencyContextType>>();
@@ -41,6 +41,31 @@ namespace ILCompiler.DependencyAnalysisFramework
         private Dictionary<DependencyNodeCore<DependencyContextType>, HashSet<DependencyNodeCore<DependencyContextType>.CombinedDependencyListEntry>> _conditional_dependency_store = new Dictionary<DependencyNodeCore<DependencyContextType>, HashSet<DependencyNodeCore<DependencyContextType>.CombinedDependencyListEntry>>();
         private bool _markingCompleted = false;
         private Random _stackPopRandomizer = null;
+
+        private class RandomInsertStack
+        {
+            List<DependencyNodeCore<DependencyContextType>> _nodes = new List<DependencyNodeCore<DependencyContextType>>();
+
+            public DependencyNodeCore<DependencyContextType> Pop()
+            {
+                DependencyNodeCore<DependencyContextType> node = _nodes[_nodes.Count - 1];
+                _nodes.RemoveAt(_nodes.Count - 1);
+                return node;
+            }
+
+            public int Count => _nodes.Count;
+
+            public void Push(DependencyNodeCore<DependencyContextType> node)
+            {
+                _nodes.Add(node);
+            }
+
+            public void InsertAtRandom(Random randomizer, DependencyNodeCore<DependencyContextType> node)
+            {
+                int index = randomizer.Next(_nodes.Count);
+                _nodes.Insert(index, node);
+            }
+        }
 
         private struct DynamicDependencyNode
         {
@@ -297,24 +322,9 @@ namespace ILCompiler.DependencyAnalysisFramework
                 }
                 else
                 {
-                    //
                     // Expose output file determinism bugs in our system by randomizing the order nodes are pushed
-                    // on to the mark stack.
-                    //
-                    int randomNodeIndex = _stackPopRandomizer.Next(_markStack.Count);
-                    var tempStack = new Stack<DependencyNodeCore<DependencyContextType>>();
-
-                    for (int i = 0; i < randomNodeIndex; i++)
-                    {
-                        tempStack.Push(_markStack.Pop());
-                    }
-
-                    _markStack.Push(node);
-
-                    while (tempStack.Count > 0)
-                    {
-                        _markStack.Push(tempStack.Pop());
-                    }
+                    // onto the mark stack.
+                    _markStack.InsertAtRandom(_stackPopRandomizer, node);
                 }
                 
                 _markedNodes.Add(node);
