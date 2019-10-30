@@ -376,19 +376,21 @@ public:
             return dac_cast<PTR_ArrayClass>(GetMethodTable()->GetClass())->GetRank();
     }
 
+    MethodTable* GetMethodTable()
+    {
+        return GetTemplateMethodTableInternal();
+    }
+    
     MethodTable* GetParent()
     {
         WRAPPER_NO_CONTRACT;
 
         _ASSERTE(!m_TemplateMT.IsNull());
-        _ASSERTE(GetTemplateMethodTableInternal()->IsArray());
-        _ASSERTE(GetTemplateMethodTableInternal()->ParentEquals(g_pArrayClass));
+        _ASSERTE(GetMethodTable()->IsArray());
+        _ASSERTE(GetMethodTable()->ParentEquals(g_pArrayClass));
 
         return g_pArrayClass;
     }
-
-    BOOL ArrayIsInstanceOf(ArrayTypeDesc* toArrayType, TypeHandlePairList* pVisited);
-    BOOL ArraySupportsBizarreInterface(MethodTable* pInterfaceMT, TypeHandlePairList* pVisited);
 
 #ifdef FEATURE_COMINTEROP
     ComCallWrapperTemplate *GetComCallWrapperTemplate()

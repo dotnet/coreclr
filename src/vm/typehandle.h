@@ -419,8 +419,8 @@ public:
 #endif
 
     // Unlike AsMethodTable, GetMethodTable will get the method table
-    // of the type, regardless of whether it is an array etc. Note, however
-    // this method table may be shared, and some types (like TypeByRef), have
+    // of the type, regardless of whether it is an array etc. 
+    // Note, however some types (like TypeByRef), have
     // no method table (and this function returns NULL for them)
     inline PTR_MethodTable GetMethodTable() const;
 
