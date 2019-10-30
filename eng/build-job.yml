@@ -171,7 +171,7 @@ jobs:
             externalFeedCredentials: 'dotnet-core-internal-tooling'
 
     # Build
-    - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+    - ${{ if and(ne(parameters.osGroup, 'Windows_NT'), ne(parameters.osSubgroup, '_gcc')) }}:
       - script: ./build.sh $(buildConfig) $(archType) $(crossArg) -ci -skipnuget $(clangArg) $(stripSymbolsArg) $(officialBuildIdArg)
         displayName: Build product
     - ${{ if eq(parameters.osSubgroup, '_gcc') }}:
@@ -182,7 +182,7 @@ jobs:
         displayName: Build product
 
     # Build native test components
-    - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+    - ${{ if and(ne(parameters.osGroup, 'Windows_NT'), ne(parameters.osSubgroup, '_gcc')) }}:
       - script: ./build-test.sh skipmanaged $(buildConfig) $(archType) $(crossArg) $(priorityArg) $(clangArg)
         displayName: Build native test components
     - ${{ if eq(parameters.osSubgroup, '_gcc') }}:
