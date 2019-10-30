@@ -115,7 +115,6 @@ jobs:
     buildConfig: checked
     platforms:
     - Linux_x64
-    - Linux_gcc_x64
     - OSX_x64
     - Windows_NT_x64
     - Windows_NT_x86
