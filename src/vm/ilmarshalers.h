@@ -3055,21 +3055,6 @@ protected:
 
 class ILLayoutClassMarshalerBase : public ILMarshaler
 {
-protected:
-    void EmitLoadReferenceToFirstManagedObjectField(ILCodeStream* pslILEmit)
-    {
-        LocalDesc byteByref(ELEMENT_TYPE_I1);
-        byteByref.MakeByRef();
-
-        DWORD managedObjectFieldLocal = pslILEmit->NewLocal(byteByref);
-
-        // Get "ref byte" value that points to first field in the managed object.
-        EmitLoadManagedValue(pslILEmit);
-        pslILEmit->EmitSTLOC(managedObjectFieldLocal);
-        pslILEmit->EmitLDLOC(managedObjectFieldLocal);
-        pslILEmit->EmitLDC(Object::GetOffsetOfFirstField());
-        pslILEmit->EmitADD();
-    }
 };
 
 class ILLayoutClassPtrMarshalerBase : public ILLayoutClassMarshalerBase
