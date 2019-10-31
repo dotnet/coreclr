@@ -2,13 +2,12 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using Internal.TypeSystem;
 using System;
-using System.Net;
+using System.Diagnostics;
 
 namespace Internal.TypeSystem
 {
-    public class ExplicitLayoutValidator
+    public struct ExplicitLayoutValidator
     {
         private enum FieldLayoutTag : byte
         {
@@ -50,8 +49,18 @@ namespace Internal.TypeSystem
                 }
                 SetFieldLayout(offset, _pointerSize, FieldLayoutTag.ORef);
             }
+            else if (fieldType.IsPointer)
+            {
+                SetFieldLayout(offset, _pointerSize, FieldLayoutTag.NonORef);
+            }
             else if (fieldType.IsValueType)
             {
+                if (fieldType.IsByRefLike && offset % _pointerSize != 0)
+                {
+                    // Misaligned ByRefLike
+                    ThrowFieldLayoutError(offset);
+                }
+
                 MetadataType mdType = (MetadataType)fieldType;
                 int fieldSize = mdType.InstanceByteCountUnaligned.AsInt;
                 if (!mdType.ContainsGCPointers)
@@ -75,7 +84,7 @@ namespace Internal.TypeSystem
                     }
                 }
             }
-            else if (fieldType.IsPointer || fieldType.IsByRef || fieldType.IsByRefLike)
+            else if (fieldType.IsByRef)
             {
                 if (offset % _pointerSize != 0)
                 {
@@ -86,7 +95,7 @@ namespace Internal.TypeSystem
             }
             else
             {
-                throw new NotImplementedException();
+                Debug.Assert(false, fieldType.ToString());
             }
         }
 
