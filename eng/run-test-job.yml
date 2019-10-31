@@ -22,7 +22,7 @@ parameters:
 ### buildConfig and archType.
 
 jobs:
-- template: xplat-test-job.yml
+- template: xplat-pipeline-job.yml
   parameters:
     buildConfig: ${{ parameters.buildConfig }}
     archType: ${{ parameters.archType }}

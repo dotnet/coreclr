@@ -18,7 +18,7 @@ parameters:
 ### run managed test builds in parallel with the product build job.
 
 jobs:
-- template: xplat-test-job.yml
+- template: xplat-pipeline-job.yml
   parameters:
     buildConfig: ${{ parameters.buildConfig }}
     archType: ${{ parameters.archType }}
