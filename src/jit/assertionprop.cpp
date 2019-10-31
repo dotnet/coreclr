@@ -2965,7 +2965,7 @@ AssertionIndex Compiler::optLocalAssertionIsEqualOrNotEqual(
 
 //------------------------------------------------------------------------
 // optGlobalAssertionIsEqualOrNotEqual: Look for an assertion in the specified
-//        set that is one of op1 == op1, op1 != op2, *op1 == op2, *op1 != op2,
+//        set that is one of op1 == op1, op1 != op2, or *op1 == op2,
 //        where equality is based on value numbers.
 //
 // Arguments:
@@ -2979,7 +2979,7 @@ AssertionIndex Compiler::optLocalAssertionIsEqualOrNotEqual(
 // Notes:
 //      Assertions based on *op1 are the result of exact type tests and are
 //      only returned when op1 is a local var with ref type and the assertion
-//      is an exact type (in)equality.
+//      is an exact type equality.
 //
 AssertionIndex Compiler::optGlobalAssertionIsEqualOrNotEqual(ASSERT_VALARG_TP assertions, GenTree* op1, GenTree* op2)
 {
