@@ -179,115 +179,118 @@ namespace Tracing.Tests.Common
 
             var processId = Process.GetCurrentProcess().Id;
             Logger.logger.Log("Connecting to EventPipe...");
-            var binaryReader = EventPipeClient.CollectTracing(processId, _sessionConfiguration, out var eventpipeSessionId);
-            if (eventpipeSessionId == 0)
+            using (var eventPipeStream = new StreamProxy(EventPipeClient.CollectTracing(processId, _sessionConfiguration, out var eventpipeSessionId)))
             {
-                Logger.logger.Log("Failed to connect to EventPipe!");
-                return -1;
-            }
-            Logger.logger.Log($"Connected to EventPipe with sessionID '0x{eventpipeSessionId:x}'");
-            
-            // CollectTracing returns before EventPipe::Enable has returned, so the
-            // the sources we want to listen for may not have been enabled yet.
-            // We'll use this sentinel EventSource to check if Enable has finished
-            ManualResetEvent sentinelEventReceived = new ManualResetEvent(false);
-            var sentinelTask = new Task(() =>
-            {
-                Logger.logger.Log("Started sending sentinel events...");
-                while (!sentinelEventReceived.WaitOne(50))
+                if (eventpipeSessionId == 0)
                 {
-                    SentinelEventSource.Log.SentinelEvent();
+                    Logger.logger.Log("Failed to connect to EventPipe!");
+                    return -1;
                 }
-                Logger.logger.Log("Stopped sending sentinel events");
-            });
-            sentinelTask.Start();
-
-            EventPipeEventSource source = null;
-            Func<int> optionalTraceValidationCallback = null;
-            var readerTask = new Task(() =>
-            {
-                Logger.logger.Log("Creating EventPipeEventSource...");
-                source = new EventPipeEventSource(binaryReader);
-                Logger.logger.Log("EventPipeEventSource created");
-
-                source.Dynamic.All += (eventData) =>
+                Logger.logger.Log($"Connected to EventPipe with sessionID '0x{eventpipeSessionId:x}'");
+                
+                // CollectTracing returns before EventPipe::Enable has returned, so the
+                // the sources we want to listen for may not have been enabled yet.
+                // We'll use this sentinel EventSource to check if Enable has finished
+                ManualResetEvent sentinelEventReceived = new ManualResetEvent(false);
+                var sentinelTask = new Task(() =>
                 {
-                    try
+                    Logger.logger.Log("Started sending sentinel events...");
+                    while (!sentinelEventReceived.WaitOne(50))
                     {
-                        if (eventData.ProviderName == "SentinelEventSource")
+                        SentinelEventSource.Log.SentinelEvent();
+                    }
+                    Logger.logger.Log("Stopped sending sentinel events");
+                });
+                sentinelTask.Start();
+
+                Func<int> optionalTraceValidationCallback = null;
+                var readerTask = new Task(() =>
+                {
+                    Logger.logger.Log("Creating EventPipeEventSource...");
+                    using (EventPipeEventSource source = new EventPipeEventSource(eventPipeStream))
+                    {
+                        Logger.logger.Log("EventPipeEventSource created");
+
+                        source.Dynamic.All += (eventData) =>
                         {
-                            if (!sentinelEventReceived.WaitOne(0))
-                                Logger.logger.Log("Saw sentinel event");
-                            sentinelEventReceived.Set();
+                            try
+                            {
+                                if (eventData.ProviderName == "SentinelEventSource")
+                                {
+                                    if (!sentinelEventReceived.WaitOne(0))
+                                        Logger.logger.Log("Saw sentinel event");
+                                    sentinelEventReceived.Set();
+                                }
+
+                                else if (_actualEventCounts.TryGetValue(eventData.ProviderName, out _))
+                                {
+                                    _actualEventCounts[eventData.ProviderName]++;
+                                }
+                                else
+                                {
+                                    Logger.logger.Log($"Saw new provider '{eventData.ProviderName}'");
+                                    _actualEventCounts[eventData.ProviderName] = 1;
+                                }
+                            }
+                            catch (Exception e)
+                            {
+                                Logger.logger.Log("Exception in Dynamic.All callback " + e.ToString());
+                            }
+                        };
+                        Logger.logger.Log("Dynamic.All callback registered");
+
+                        if (_optionalTraceValidator != null)
+                        {
+                            Logger.logger.Log("Running optional trace validator");
+                            optionalTraceValidationCallback = _optionalTraceValidator(source);
+                            Logger.logger.Log("Finished running optional trace validator");
                         }
 
-                        else if (_actualEventCounts.TryGetValue(eventData.ProviderName, out _))
+                        Logger.logger.Log("Starting stream processing...");
+                        source.Process();
+                        Logger.logger.Log("Stopping stream processing");
+                        Logger.logger.Log($"Dropped {source.EventsLost} events");
+                    }
+                });
+
+                readerTask.Start();
+                sentinelEventReceived.WaitOne();
+
+                Logger.logger.Log("Starting event generating action...");
+                _eventGeneratingAction();
+                Logger.logger.Log("Stopping event generating action");
+
+                Logger.logger.Log("Sending StopTracing command...");
+                EventPipeClient.StopTracing(processId, eventpipeSessionId);
+                Logger.logger.Log("Finished StopTracing command");
+
+                readerTask.Wait();
+                Logger.logger.Log("Reader task finished");
+
+                foreach (var (provider, expectedCount) in _expectedEventCounts)
+                {
+                    if (_actualEventCounts.TryGetValue(provider, out var actualCount))
+                    {
+                        if (!expectedCount.Validate(actualCount))
                         {
-                            _actualEventCounts[eventData.ProviderName]++;
-                        }
-                        else
-                        {
-                            Logger.logger.Log($"Saw new provider '{eventData.ProviderName}'");
-                            _actualEventCounts[eventData.ProviderName] = 1;
+                            return Fail($"Event count mismatch for provider \"{provider}\": expected {expectedCount}, but saw {actualCount}");
                         }
                     }
-                    catch (Exception e)
+                    else
                     {
-                        Logger.logger.Log("Exception in Dynamic.All callback " + e.ToString());
+                        return Fail($"No events for provider \"{provider}\"");
                     }
-                };
-                Logger.logger.Log("Dynamic.All callback registered");
-
-                if (_optionalTraceValidator != null)
-                {
-                    Logger.logger.Log("Running optional trace validator");
-                    optionalTraceValidationCallback = _optionalTraceValidator(source);
-                    Logger.logger.Log("Finished running optional trace validator");
                 }
 
-                Logger.logger.Log("Starting stream processing...");
-                source.Process();
-                Logger.logger.Log("Stopping stream processing");
-                Logger.logger.Log($"Dropped {source.EventsLost} events");
-            });
-
-            readerTask.Start();
-            sentinelEventReceived.WaitOne();
-
-            Logger.logger.Log("Starting event generating action...");
-            _eventGeneratingAction();
-            Logger.logger.Log("Stopping event generating action");
-
-            Logger.logger.Log("Sending StopTracing command...");
-            EventPipeClient.StopTracing(processId, eventpipeSessionId);
-            Logger.logger.Log("Finished StopTracing command");
-
-            readerTask.Wait();
-            Logger.logger.Log("Reader task finished");
-
-            foreach (var (provider, expectedCount) in _expectedEventCounts)
-            {
-                if (_actualEventCounts.TryGetValue(provider, out var actualCount))
+                if (optionalTraceValidationCallback != null)
                 {
-                    if (!expectedCount.Validate(actualCount))
-                    {
-                        return Fail($"Event count mismatch for provider \"{provider}\": expected {expectedCount}, but saw {actualCount}");
-                    }
+                    Logger.logger.Log("Validating optional callback...");
+                    return optionalTraceValidationCallback();
                 }
                 else
                 {
-                    return Fail($"No events for provider \"{provider}\"");
+                    return 100;
                 }
-            }
-
-            if (optionalTraceValidationCallback != null)
-            {
-                Logger.logger.Log("Validating optional callback...");
-                return optionalTraceValidationCallback();
-            }
-            else
-            {
-                return 100;
             }
         }
 
