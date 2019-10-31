@@ -207,7 +207,7 @@ namespace Tracing.Tests.Common
                     }
                     Logger.logger.Log($"Connected to EventPipe with sessionID '0x{sessionId:x}'");
 
-                    lock(threadSync)
+                    lock (threadSync)
                     {
                         eventpipeSessionId = sessionId;
                     }
@@ -280,7 +280,7 @@ namespace Tracing.Tests.Common
             var stopTask = Task.Run(() => 
             {
                 Logger.logger.Log("Sending StopTracing command...");
-                lock(threadSync) // eventpipeSessionId
+                lock (threadSync) // eventpipeSessionId
                 {
                     EventPipeClient.StopTracing(processId, eventpipeSessionId);
                 }
