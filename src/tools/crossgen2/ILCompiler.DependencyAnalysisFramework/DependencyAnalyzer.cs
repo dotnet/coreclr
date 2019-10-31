@@ -29,7 +29,7 @@ namespace ILCompiler.DependencyAnalysisFramework
         private DependencyContextType _dependencyContext;
         private IComparer<DependencyNodeCore<DependencyContextType>> _resultSorter = null;
 
-        private RandomInsertStack _markStack = new RandomInsertStack();
+        private RandomInsertStack<DependencyNodeCore<DependencyContextType>> _markStack;
         private List<DependencyNodeCore<DependencyContextType>> _markedNodes = new List<DependencyNodeCore<DependencyContextType>>();
         private ImmutableArray<DependencyNodeCore<DependencyContextType>> _markedNodesFinal;
         private List<DependencyNodeCore<DependencyContextType>> _rootNodes = new List<DependencyNodeCore<DependencyContextType>>();
@@ -40,30 +40,37 @@ namespace ILCompiler.DependencyAnalysisFramework
 
         private Dictionary<DependencyNodeCore<DependencyContextType>, HashSet<DependencyNodeCore<DependencyContextType>.CombinedDependencyListEntry>> _conditional_dependency_store = new Dictionary<DependencyNodeCore<DependencyContextType>, HashSet<DependencyNodeCore<DependencyContextType>.CombinedDependencyListEntry>>();
         private bool _markingCompleted = false;
-        private Random _stackPopRandomizer = null;
 
-        private class RandomInsertStack
+        private class RandomInsertStack<T>
         {
-            List<DependencyNodeCore<DependencyContextType>> _nodes = new List<DependencyNodeCore<DependencyContextType>>();
+            private List<T> _nodes = new List<T>();
+            private readonly Random _randomizer;
 
-            public DependencyNodeCore<DependencyContextType> Pop()
+            public RandomInsertStack(Random randomizer = null)
             {
-                DependencyNodeCore<DependencyContextType> node = _nodes[_nodes.Count - 1];
+                _randomizer = randomizer;
+            }
+
+            public T Pop()
+            {
+                T node = _nodes[_nodes.Count - 1];
                 _nodes.RemoveAt(_nodes.Count - 1);
                 return node;
             }
 
             public int Count => _nodes.Count;
 
-            public void Push(DependencyNodeCore<DependencyContextType> node)
+            public void Push(T node)
             {
-                _nodes.Add(node);
-            }
-
-            public void InsertAtRandom(Random randomizer, DependencyNodeCore<DependencyContextType> node)
-            {
-                int index = randomizer.Next(_nodes.Count);
-                _nodes.Insert(index, node);
+                if (_randomizer == null)
+                {
+                    _nodes.Add(node);
+                }
+                else
+                {
+                    int index = _randomizer.Next(_nodes.Count);
+                    _nodes.Insert(index, node);
+                }
             }
         }
 
@@ -96,10 +103,14 @@ namespace ILCompiler.DependencyAnalysisFramework
             _resultSorter = resultSorter;
             _marker.AttachContext(dependencyContext);
 
+            Random stackPopRandomizer = null;
             if (int.TryParse(Environment.GetEnvironmentVariable("CoreRT_DeterminismSeed"), out int seed))
             {
-                _stackPopRandomizer = new Random(seed);
+                // Expose output file determinism bugs in our system by randomizing the order nodes are pushed
+                // onto the mark stack.
+                stackPopRandomizer = new Random(seed);
             }
+            _markStack = new RandomInsertStack<DependencyNodeCore<DependencyContextType>>(stackPopRandomizer);
         }
 
         /// <summary>
@@ -315,18 +326,7 @@ namespace ILCompiler.DependencyAnalysisFramework
                 if (PerfEventSource.Log.IsEnabled())
                     PerfEventSource.Log.AddedNodeToMarkStack();
 
-                // Pop the top node of the mark stack
-                if (_stackPopRandomizer == null)
-                {
-                    _markStack.Push(node);
-                }
-                else
-                {
-                    // Expose output file determinism bugs in our system by randomizing the order nodes are pushed
-                    // onto the mark stack.
-                    _markStack.InsertAtRandom(_stackPopRandomizer, node);
-                }
-                
+                _markStack.Push(node);
                 _markedNodes.Add(node);
 
                 node.CallOnMarked(_dependencyContext);

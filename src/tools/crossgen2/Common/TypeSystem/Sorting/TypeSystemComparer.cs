@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using Internal.TypeSystem.Ecma;
-using System.Collections;
 using System.Collections.Generic;
 using Debug = System.Diagnostics.Debug;
 

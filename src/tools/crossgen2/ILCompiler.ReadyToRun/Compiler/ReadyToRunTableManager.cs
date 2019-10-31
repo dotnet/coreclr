@@ -57,6 +57,7 @@ namespace ILCompiler
             {
                 lock (_methodsGenerated)
                 {
+                    Debug.Assert(_methodsGenerated != null);
                     _methodsGenerated.Add(methodNode.Method);
                 }
             }
@@ -68,6 +69,7 @@ namespace ILCompiler
                 if (_sortedMethods == null)
                 {
                     _sortedMethods = new List<MethodDesc>(_methodsGenerated.OrderBy(method => method, new TypeSystemComparer()));
+                    _methodsGenerated = null;
                 }
             }
             return _sortedMethods;

@@ -78,12 +78,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             int result = _thunkKind.CompareTo(otherNode._thunkKind);
             if (result != 0) return result;
 
-            // Need to make sure _instanceCell and otherNode._instanceCell are the same type before calling CompareToImpl
-            if (_instanceCell == otherNode._instanceCell) return 0;
-            result = _instanceCell.ClassCode - otherNode._instanceCell.ClassCode;
-            if (result != 0) return result > 0 ? -1 : 1;
-
-            return _instanceCell.CompareToImpl(otherNode._instanceCell, comparer);
+            return comparer.Compare(_instanceCell, otherNode._instanceCell);
         }
     }
 }

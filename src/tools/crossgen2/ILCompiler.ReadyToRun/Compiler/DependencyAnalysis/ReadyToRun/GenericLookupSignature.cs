@@ -180,7 +180,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             if (_typeArgument != null || otherNode._typeArgument != null)
             {
                 if (_typeArgument == null) return -1;
-                else if (otherNode._typeArgument == null) return 1;
+                if (otherNode._typeArgument == null) return 1;
 
                 result = comparer.Compare(_typeArgument, otherNode._typeArgument);
                 if (result != 0) return result;
@@ -189,7 +189,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             if (_fieldArgument != null || otherNode._fieldArgument != null)
             {
                 if (_fieldArgument == null) return -1;
-                else if (otherNode._fieldArgument == null) return 1;
+                if (otherNode._fieldArgument == null) return 1;
 
                 result = comparer.Compare(_fieldArgument, otherNode._fieldArgument);
                 if (result != 0) return result;
@@ -198,7 +198,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             if (_methodArgument != null || otherNode._methodArgument != null)
             {
                 if (_methodArgument == null) return -1;
-                else if (otherNode._methodArgument == null) return 1;
+                if (otherNode._methodArgument == null) return 1;
 
                 result = _methodArgument.CompareTo(otherNode._methodArgument, comparer);
                 if (result != 0) return result;

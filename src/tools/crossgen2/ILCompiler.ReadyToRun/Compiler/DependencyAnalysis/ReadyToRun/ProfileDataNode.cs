@@ -128,14 +128,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
 
         public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
         {
-            ProfileDataNode otherNode = (ProfileDataNode)other;
-            int result = _ilSize.CompareTo(otherNode._ilSize);
-            if (result != 0) return result;
-
-            result = _blockCount.CompareTo(otherNode._blockCount);
-            if (result != 0) return result;
-
-            return _methodNode.CompareToImpl(otherNode, comparer);
+            return comparer.Compare(_methodNode, ((ProfileDataNode)other)._methodNode);
         }
     }
 }

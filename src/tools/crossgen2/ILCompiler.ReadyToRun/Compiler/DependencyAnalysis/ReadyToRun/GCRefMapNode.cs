@@ -114,7 +114,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
 
         public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
         {
-            return _importSection.CompareToImpl(((GCRefMapNode)other)._importSection, comparer);
+            return comparer.Compare(_importSection, ((GCRefMapNode)other)._importSection);
         }
     }
 }
