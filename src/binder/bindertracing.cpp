@@ -78,6 +78,61 @@ namespace
 #endif // FEATURE_EVENT_TRACE
     }
 
+    void GetAssemblyLoadContextNameFromSpec(AssemblySpec *spec, /*out*/ SString &alcName)
+    {
+        _ASSERTE(spec != nullptr);
+
+        AppDomain *domain = spec->GetAppDomain();
+        ICLRPrivBinder* bindContext = spec->GetBindingContext();
+        if (bindContext == nullptr)
+            bindContext = spec->GetBindingContextFromParentAssembly(domain);
+
+        _ASSERTE(bindContext != nullptr);
+
+        UINT_PTR binderID = 0;
+        HRESULT hr = bindContext->GetBinderID(&binderID);
+        _ASSERTE(SUCCEEDED(hr));
+        if (FAILED(hr))
+            return;
+
+        ICLRPrivBinder *binder = reinterpret_cast<ICLRPrivBinder *>(binderID);
+        if (AreSameBinderInstance(binder, domain->GetTPABinderContext()))
+        {
+            alcName.Set(W("Default"));
+        }
+#ifdef FEATURE_COMINTEROP
+        else if (AreSameBinderInstance(binder, domain->GetWinRtBinder()))
+        {
+            alcName.Set(W("WinRT"));
+        }
+#endif // FEATURE_COMINTEROP
+        else
+        {
+#if !defined(CROSSGEN_COMPILE)
+            CLRPrivBinderAssemblyLoadContext * alcBinder = static_cast<CLRPrivBinderAssemblyLoadContext *>(binder);
+            OBJECTREF *alc = reinterpret_cast<OBJECTREF *>(alcBinder->GetManagedAssemblyLoadContext());
+
+            GCX_COOP();
+            struct _gc {
+                STRINGREF alcName;
+            } gc;
+            ZeroMemory(&gc, sizeof(gc));
+
+            GCPROTECT_BEGIN(gc);
+
+            PREPARE_VIRTUAL_CALLSITE(METHOD__OBJECT__TO_STRING, *alc);
+            DECLARE_ARGHOLDER_ARRAY(args, 1);
+            args[ARGNUM_0] = OBJECTREF_TO_ARGHOLDER(*alc);
+            CALL_MANAGED_METHOD_RETREF(gc.alcName, STRINGREF, args);
+            gc.alcName->GetSString(alcName);
+
+            GCPROTECT_END();
+#else // !defined(CROSSGEN_COMPILE)
+            alcName.Set(W("Custom"));
+#endif // !defined(CROSSGEN_COMPILE)
+        }
+    }
+
     void PopulateBindRequest(/*inout*/ BinderTracing::AssemblyBindOperation::BindRequest &request)
     {
         AssemblySpec *spec = request.AssemblySpec;
@@ -91,56 +146,12 @@ namespace
 
         DomainAssembly *parentAssembly = spec->GetParentAssembly();
         if (parentAssembly != nullptr)
-            parentAssembly->GetFile()->GetDisplayName(request.RequestingAssembly);
-
-        AppDomain *domain = spec->GetAppDomain();
-        ICLRPrivBinder* bindContext = spec->GetBindingContext();
-        if (bindContext == nullptr)
-            bindContext = spec->GetBindingContextFromParentAssembly(domain);
-
-        _ASSERTE(bindContext != nullptr);
-
-        UINT_PTR binderID = 0;
-        HRESULT hr = bindContext->GetBinderID(&binderID);
-        if (SUCCEEDED(hr))
         {
-            ICLRPrivBinder *binder = reinterpret_cast<ICLRPrivBinder *>(binderID);
-            if (AreSameBinderInstance(binder, domain->GetTPABinderContext()))
-            {
-                request.AssemblyLoadContext = W("Default");
-            }
-#ifdef FEATURE_COMINTEROP
-            else if (AreSameBinderInstance(binder, domain->GetWinRtBinder()))
-            {
-                request.AssemblyLoadContext = W("WinRT");
-            }
-#endif // FEATURE_COMINTEROP
-            else
-            {
-#if !defined(CROSSGEN_COMPILE)
-                CLRPrivBinderAssemblyLoadContext * alcBinder = static_cast<CLRPrivBinderAssemblyLoadContext *>(binder);
-                OBJECTREF *alc = reinterpret_cast<OBJECTREF *>(alcBinder->GetManagedAssemblyLoadContext());
-
-                GCX_COOP();
-                struct _gc {
-                    STRINGREF alcName;
-                } gc;
-                ZeroMemory(&gc, sizeof(gc));
-
-                GCPROTECT_BEGIN(gc);
-
-                PREPARE_VIRTUAL_CALLSITE(METHOD__OBJECT__TO_STRING, *alc);
-                DECLARE_ARGHOLDER_ARRAY(args, 1);
-                args[ARGNUM_0] = OBJECTREF_TO_ARGHOLDER(*alc);
-                CALL_MANAGED_METHOD_RETREF(gc.alcName, STRINGREF, args);
-                gc.alcName->GetSString(request.AssemblyLoadContext);
-
-                GCPROTECT_END();
-#else // !defined(CROSSGEN_COMPILE)
-                request.AssemblyLoadContext = W("Custom");
-#endif // !defined(CROSSGEN_COMPILE)
-            }
+            _ASSERTE(parentAssembly->GetFile() != nullptr);
+            parentAssembly->GetFile()->GetDisplayName(request.RequestingAssembly);
         }
+
+        GetAssemblyLoadContextNameFromSpec(spec, request.AssemblyLoadContext);
     }
 }
 

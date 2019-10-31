@@ -122,17 +122,6 @@ namespace BinderTracingTests
                     }
                     break;
             }
-
-            // System.Text.StringBuilder sb = new System.Text.StringBuilder($"  {data.EventName}{Environment.NewLine}");
-            // sb.AppendLine("    Payload:");
-            // for (int i = 0; i < data.Payload.Count; i++)
-            // {
-            //     string payloadString = data.Payload[i] != null ? data.Payload[i].ToString() : string.Empty;
-            //     sb.AppendLine($"      {data.PayloadNames[i]} = {payloadString}");
-            // }
-            // sb.AppendLine($"    Activity: {data.ActivityId}");
-            // sb.AppendLine($"    Related Activity: {data.RelatedActivityId}");
-            // Console.WriteLine(sb.ToString());
         }
     }
 }
