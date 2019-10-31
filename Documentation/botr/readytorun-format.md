@@ -469,7 +469,7 @@ Each bucket is a sequence of entries. An entry has a hash code and an offset to 
 Physically, the header is a single byte. The most significant six bits is used to store the number of buckets in its base-2 logarithm. The remaining two bits are used for storing the entry size, as explained below:
 
 Because the offsets to the bucket lists are often small numbers, the table cells are variable sized. 
-It could be either 1 byte, 2 bytes or 4 bytes. The three cases are described with two bits. `00` means it is one byte, `01` means it is two bytes and `02` means it is four bytes.
+It could be either 1 byte, 2 bytes or 4 bytes. The three cases are described with two bits. `00` means it is one byte, `01` means it is two bytes and `10` means it is four bytes.
 
 The remaining data are the entries. The entries has only the least significant byte of the hash code, followed by the offset to the actual object stored in the hash table.
 
