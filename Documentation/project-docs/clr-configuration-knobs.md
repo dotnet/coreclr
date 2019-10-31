@@ -229,11 +229,11 @@ Name | Description | Type | Class | Default Value | Flags
 `GcCoverage` | Specify a method or regular expression of method names to run with GCStress | `STRING` | `INTERNAL` | |
 `GCCpuGroup` | Specifies if to enable GC to support CPU groups | `DWORD` | `EXTERNAL` | `0` |
 `gcForceCompact` | When set to true, always do compacting GC | `DWORD` | `UNSUPPORTED` | |
-`GCGen0MaxBudget` | Specifies the largest gen0 allocation budget | `DWORD` | `UNSUPPORTED` | |
-`GCgen0size` | Specifies the smallest gen0 size | `DWORD` | `UNSUPPORTED` | |
+`GCGen0MaxBudget` | Specifies the largest gen0 allocation budget (per heap) | `DWORD` | `UNSUPPORTED` | |
+`GCgen0size` | Specifies the smallest gen0 size (per heap) | `DWORD` | `UNSUPPORTED` | |
 `GCHeapAffinitizeMask` | Specifies processor mask for Server GC threads | `DWORD` | `EXTERNAL` | |
 `GCHeapAffinitizeRanges` | Specifies list of processors for Server GC threads. The format is a comma separated list of processor numbers or ranges of processor numbers. Example: 1,3,5,7-9,12 | `STRING` | `EXTERNAL` | |
-`GCHeapCount` |  | `DWORD` | `EXTERNAL` | `0` |
+`GCHeapCount` | Specifies the number of heaps to use | `DWORD` | `EXTERNAL` | `0` |
 `GCHeapHardLimit` | Specifies the maximum commit size for the GC heap | `DWORD` | `EXTERNAL` | |
 `GCHeapHardLimitPercent` | Specifies the GC heap usage as a percentage of the total memory | `DWORD` | `EXTERNAL` | |
 `GCHighMemPercent` | Specifies the percent for GC to consider as high memory | `DWORD` | `EXTERNAL` | `0` |
@@ -247,7 +247,7 @@ Name | Description | Type | Class | Default Value | Flags
 `GCLOHThreshold` | Specifies the size that will make objects go on LOH | `DWORD` | `EXTERNAL` | `0` |
 `GCMixLog` | Specifies the name of the log file for GC mix statistics | `STRING` | `UNSUPPORTED` | |
 `GCName` |  | `STRING` | `EXTERNAL` | |
-`GCNoAffinitize` |  | `DWORD` | `EXTERNAL` | `0` |
+`GCNoAffinitize` | If set, do not affinitize server GC threads | `DWORD` | `EXTERNAL` | `0` |
 `GCNumaAware` | Specifies if to enable GC NUMA aware | `DWORD` | `UNSUPPORTED` | `1` |
 `GCPollType` |  | `DWORD` | `EXTERNAL` | |
 `GCProvModeStress` | Stress the provisional modes | `DWORD` | `UNSUPPORTED` | `0` |
