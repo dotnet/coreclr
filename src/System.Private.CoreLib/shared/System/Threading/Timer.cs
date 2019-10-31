@@ -41,6 +41,14 @@ namespace System.Threading
 
         public static TimerQueue[] Instances { get; } = CreateTimerQueues();
 
+        public static TimerQueue GetQueueForProcessor()
+        {
+            int index = Thread.GetCurrentProcessorId();
+            Debug.Assert(Environment.ProcessorCount == Instances.Length);
+            Debug.Assert(index >= 0 && index < Instances.Length);
+            return Instances[index];
+        }
+
         private static TimerQueue[] CreateTimerQueues()
         {
             var queues = new TimerQueue[Environment.ProcessorCount];
@@ -437,7 +445,7 @@ namespace System.Threading
             {
                 _executionContext = ExecutionContext.Capture();
             }
-            _associatedTimerQueue = TimerQueue.Instances[Thread.GetCurrentProcessorId() % TimerQueue.Instances.Length];
+            _associatedTimerQueue = TimerQueue.GetQueueForProcessor();
 
             // After the following statement, the timer may fire.  No more manipulation of timer state outside of
             // the lock is permitted beyond this point!

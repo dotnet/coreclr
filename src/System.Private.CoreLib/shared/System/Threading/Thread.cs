@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Runtime.ConstrainedExecution;
 using System.Security.Principal;
 
@@ -209,6 +210,55 @@ namespace System.Threading
         public static void EndCriticalRegion() { }
         public static void BeginThreadAffinity() { }
         public static void EndThreadAffinity() { }
+
+        // The upper bits of t_currentProcessorIdCache are the currentProcessorId. The lower bits of
+        // the t_currentProcessorIdCache are counting down to get it periodically refreshed.
+        // TODO: Consider flushing the currentProcessorIdCache on Wait operations or similar
+        // actions that are likely to result in changing the executing core
+        [ThreadStatic]
+        private static int t_currentProcessorIdCache;
+
+        private const int ProcessorIdCacheShift = 16;
+        private const int ProcessorIdCacheCountDownMask = (1 << ProcessorIdCacheShift) - 1;
+        private const int ProcessorIdRefreshRate = 5000;
+
+        private static int RefreshCurrentProcessorId()
+        {
+            int currentProcessorId = GetCurrentProcessorNumber();
+
+            // If GetCurrentProcessorNumber() is not fully implemented it will return -1.
+            // On Unix, GetCurrentProcessorNumber() is implemented in terms of sched_getcpu, which
+            // doesn't exist on all platforms.  On those it doesn't exist on, GetCurrentProcessorNumber()
+            // returns -1.  As a fallback in that case and to spread the threads across the buckets
+            // by default, we use the current managed thread ID as a proxy.
+            if (currentProcessorId < 0) currentProcessorId = Environment.CurrentManagedThreadId;
+
+            // Ensure the Id is in range of the ProcessorCount
+            currentProcessorId = (int)((uint)currentProcessorId % (uint)Environment.ProcessorCount);
+
+            Debug.Assert(ProcessorIdRefreshRate <= ProcessorIdCacheCountDownMask);
+
+            // Mask with int.MaxValue to ensure the execution Id is not negative
+            t_currentProcessorIdCache = ((currentProcessorId << ProcessorIdCacheShift) & int.MaxValue) | ProcessorIdRefreshRate;
+
+            return currentProcessorId;
+        }
+
+        // Cached processor id used as a hint for which per-core stack to access. It is periodically
+        // refreshed to trail the actual thread core affinity.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int GetCurrentProcessorId()
+        {
+            int currentProcessorIdCache = t_currentProcessorIdCache--;
+            if ((currentProcessorIdCache & ProcessorIdCacheCountDownMask) == 0)
+            {
+                return RefreshCurrentProcessorId();
+            }
+
+            int processorId = currentProcessorIdCache >> ProcessorIdCacheShift;
+            Debug.Assert(processorId >= 0 && processorId < Environment.ProcessorCount);
+            return processorId;
+        }
 
         public static LocalDataStoreSlot AllocateDataSlot() => LocalDataStore.AllocateSlot();
         public static LocalDataStoreSlot AllocateNamedDataSlot(string name) => LocalDataStore.AllocateNamedSlot(name);

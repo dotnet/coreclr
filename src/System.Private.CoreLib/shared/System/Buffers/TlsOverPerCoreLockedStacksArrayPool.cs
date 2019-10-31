@@ -32,10 +32,8 @@ namespace System.Buffers
         /// <summary>The number of buckets (array sizes) in the pool, one for each array length, starting from length 16.</summary>
         private const int NumBuckets = 17; // Utilities.SelectBucketIndex(2*1024*1024)
         /// <summary>Maximum number of per-core stacks to use per array size.</summary>
-        private const int MaxPerCorePerArraySizeStacks = 64; // selected to avoid needing to worry about processor groups
         /// <summary>The maximum number of buffers to store in a bucket's global queue.</summary>
         private const int MaxBuffersPerArraySizePerCore = 8;
-
         /// <summary>The length of arrays stored in the corresponding indices in <see cref="_buckets"/> and <see cref="t_tlsBuckets"/>.</summary>
         private readonly int[] _bucketArraySizes;
         /// <summary>
@@ -335,7 +333,7 @@ namespace System.Buffers
             public PerCoreLockedStacks()
             {
                 // Create the stacks.  We create as many as there are processors, limited by our max.
-                var stacks = new LockedStack[Math.Min(Environment.ProcessorCount, MaxPerCorePerArraySizeStacks)];
+                var stacks = new LockedStack[PerCoreLockedStacksHelpers.StackCount];
                 for (int i = 0; i < stacks.Length; i++)
                 {
                     stacks[i] = new LockedStack();
@@ -350,7 +348,8 @@ namespace System.Buffers
                 // Try to push on to the associated stack first.  If that fails,
                 // round-robin through the other stacks.
                 LockedStack[] stacks = _perCoreStacks;
-                int index = Thread.GetCurrentProcessorId() % stacks.Length;
+                Debug.Assert(stacks.Length == PerCoreLockedStacksHelpers.StackCount);
+                int index = PerCoreLockedStacksHelpers.GetStackIndexForCurrentProcessor();
                 for (int i = 0; i < stacks.Length; i++)
                 {
                     if (stacks[index].TryPush(array)) return;
@@ -366,7 +365,8 @@ namespace System.Buffers
                 // round-robin through the other stacks.
                 T[]? arr;
                 LockedStack[] stacks = _perCoreStacks;
-                int index = Thread.GetCurrentProcessorId() % stacks.Length;
+                Debug.Assert(stacks.Length == PerCoreLockedStacksHelpers.StackCount);
+                int index = PerCoreLockedStacksHelpers.GetStackIndexForCurrentProcessor();
                 for (int i = 0; i < stacks.Length; i++)
                 {
                     if ((arr = stacks[index].TryPop()) != null) return arr;
@@ -495,6 +495,28 @@ namespace System.Buffers
                         }
                     }
                 }
+            }
+        }
+    }
+
+    internal static class PerCoreLockedStacksHelpers
+    {
+        private const int MaxPerCorePerArraySizeStacks = 64; // selected to avoid needing to worry about processor groups
+        public static int StackCount { get; } = Math.Min(Environment.ProcessorCount, MaxPerCorePerArraySizeStacks);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int GetStackIndexForCurrentProcessor()
+        {
+            int procId = Thread.GetCurrentProcessorId();
+            // As ProcessorCount will be a constant at Tier1; this if will be elided.
+            if (Environment.ProcessorCount < MaxPerCorePerArraySizeStacks)
+            {
+                return procId;
+            }
+            else
+            {
+                // As StackCount will be a constant at Tier1; the Jit will drop the mod and use a faster approach.
+                return procId % StackCount;
             }
         }
     }
