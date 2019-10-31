@@ -55,10 +55,9 @@ namespace Tracing.Tests.Common
             {
                 // This is the error that EventPipeEventSource is causing,
                 // so this is when we should throw an exception, just like
-                // System.IO.PipeStream, but dump the InternalStream
-                // to a file first!
+                // System.IO.PipeStream. This will result in the dispose method
+                // being called and the culprit stream data being dumped to disk
                 Logger.logger.Log($"[Error] Attempted to read {count} bytes into a buffer of length {buffer.Length} at offset {offset}");
-                DumpStreamToDisk();
 
                 // Throw the exception like what would have happened in System.IO.PipeStream
                 throw new ArgumentException($"Attempted to read {count} bytes into a buffer of length {buffer.Length} at offset {offset}");
@@ -96,12 +95,12 @@ namespace Tracing.Tests.Common
             }
         }
 
-        private void DumpStreamToDisk()
+        public void DumpStreamToDisk()
         {
-            var helixDumpDirectory = System.Environment.GetEnvironmentVariable("HELIX_DUMP_FOLDER");
-            if (helixDumpDirectory != null && Directory.Exists(helixDumpDirectory))
+            var helixWorkItemDirectory = System.Environment.GetEnvironmentVariable("HELIX_WORKITEM_UPLOAD_ROOT");
+            if (helixWorkItemDirectory != null && Directory.Exists(helixWorkItemDirectory))
             {
-                using (var streamDumpFile = File.Create(Path.Combine(helixDumpDirectory, "streamdump.nettrace")))
+                using (var streamDumpFile = File.Create(Path.Combine(helixWorkItemDirectory, "streamdump.nettrace")))
                 {
                     Logger.logger.Log($"\t Writing stream read to this point to file");
                     InternalStream.Seek(0, SeekOrigin.Begin);
