@@ -117,7 +117,6 @@ enum generation_num
     soh_gen1 = 1,
     soh_gen2 = 2,
 
-    // TODO: VS maybe rename "max_soh_generation" ?
     max_generation = soh_gen2,
 
     soh_generation_count = soh_gen2 + 1,
@@ -209,7 +208,7 @@ enum bgc_state
     bgc_revisit_soh,
     bgc_revisit_ploh,
     bgc_overflow_soh,
-    bgc_overflow_loh,
+    bgc_overflow_ploh,
     bgc_final_marking,
     bgc_sweep_soh,
     bgc_sweep_loh,

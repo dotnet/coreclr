@@ -708,7 +708,9 @@ ClrDataAccess::GetThreadAllocData(CLRDATA_ADDRESS addr, struct DacpAllocData *da
     Thread* thread = PTR_Thread(TO_TADDR(addr));
 
     data->allocBytes = TO_CDADDR(thread->m_alloc_context.alloc_bytes);
-    data->allocBytesLoh = TO_CDADDR(thread->m_alloc_context.alloc_bytes_loh);
+
+    // POH allocations are always via API and do not get recorded on the thread's context.
+    data->allocBytesLoh = TO_CDADDR(thread->m_alloc_context.alloc_bytes_ploh);
 
     SOSDacLeave();
     return hr;
@@ -739,7 +741,7 @@ ClrDataAccess::GetHeapAllocData(unsigned int count, struct DacpGenerationAllocDa
             {
                 dac_generation entry = *GenerationTableIndex(table, i);
                 data[0].allocData[i].allocBytes = (CLRDATA_ADDRESS)(ULONG_PTR) entry.allocation_context.alloc_bytes;
-                data[0].allocData[i].allocBytesLoh = (CLRDATA_ADDRESS)(ULONG_PTR) entry.allocation_context.alloc_bytes_loh;
+                data[0].allocData[i].allocBytesLoh = (CLRDATA_ADDRESS)(ULONG_PTR) entry.allocation_context.alloc_bytes_ploh;
             }
         }
     }

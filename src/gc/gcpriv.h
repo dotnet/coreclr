@@ -1280,7 +1280,7 @@ public:
     void gc_thread_stub (void* arg);
 #endif //MULTIPLE_HEAPS
 
-    // For LOH allocations we only update the alloc_bytes_loh in allocation
+    // For LOH allocations we only update the alloc_bytes_ploh in allocation
     // context - we don't actually use the ptr/limit from it so I am
     // making this explicit by not passing in the alloc_context.
     // Note: This is an instance method, but the heap instance is only used for
@@ -1289,7 +1289,7 @@ public:
     CObjectHeader* allocate_large_object (size_t size, uint32_t flags, int64_t& alloc_bytes);
 
 
-    // For POH allocations we only update the alloc_bytes_loh in allocation
+    // For POH allocations we only update the alloc_bytes_ploh in allocation
     // context - we don't actually use the ptr/limit from it so I am
     // making this explicit by not passing in the alloc_context.
     // Note: This is an instance method, but the heap instance is only used for
@@ -1618,7 +1618,7 @@ protected:
                           oom_reason* oom_r);
 
     PER_HEAP_ISOLATED
-    size_t get_large_seg_size (size_t size);
+    size_t get_ploh_seg_size (size_t size);
 
     PER_HEAP
     BOOL retry_full_compact_gc (size_t size);
@@ -3212,9 +3212,8 @@ public:
     BOOL heap_analyze_success;
 
     // The generation table. Must always be last.
-    // TODO: VS +1 for finalizer segment?  why not +2 for critical finalizer?
     PER_HEAP
-    generation generation_table [total_generation_count + 1];
+    generation generation_table [total_generation_count];
 
     // End DAC zone
 
@@ -3312,7 +3311,6 @@ public:
     PER_HEAP
     uint32_t fgn_maxgen_percent;
 
-    //TODO: VS need a separate one for pinned?
     PER_HEAP_ISOLATED
     uint32_t fgn_ploh_percent;
 
@@ -3542,10 +3540,7 @@ public:
     size_t soh_segment_size;
 
     PER_HEAP_ISOLATED
-    size_t min_loh_segment_size;
-
-    PER_HEAP_ISOLATED
-    size_t min_poh_segment_size;
+    size_t min_ploh_segment_size;
 
     PER_HEAP_ISOLATED
     size_t segment_info_size;
@@ -3760,7 +3755,6 @@ protected:
     size_t     bgc_begin_poh_size;
     PER_HEAP
     size_t     end_loh_size;
-    //TODO: VS used?
     PER_HEAP
     size_t     end_poh_size;
 
@@ -4035,8 +4029,7 @@ protected:
 //------------------------------------------    
 
     PER_HEAP
-    // TODO: VS why + 1
-    dynamic_data dynamic_data_table [total_generation_count + 1];
+    dynamic_data dynamic_data_table [total_generation_count];
 
     PER_HEAP
     gc_history_per_heap gc_data_per_heap;
@@ -4823,7 +4816,6 @@ struct loh_padding_obj
 #define heap_segment_flags_ma_pcommitted 128
 #define heap_segment_flags_ploh_delete   256
 
-// TODO: VS reorder, make enum
 #define heap_segment_flags_poh          512
 #endif //BACKGROUND_GC
 
