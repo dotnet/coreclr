@@ -130,7 +130,7 @@ try {
     . $configureToolsetScript
   }
 
-  if (($restore) -and ($null -eq $env:DisableNativeToolsetInstalls)) {
+  if ($restore) {
     InitializeNativeTools
   }
 
