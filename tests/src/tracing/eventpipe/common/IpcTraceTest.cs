@@ -175,7 +175,7 @@ namespace Tracing.Tests.Common
         {
             var isClean = EnsureCleanEnvironment();
             if (!isClean)
-            return -1;
+                return -1;
             // CollectTracing returns before EventPipe::Enable has returned, so the
             // the sources we want to listen for may not have been enabled yet.
             // We'll use this sentinel EventSource to check if Enable has finished
