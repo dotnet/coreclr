@@ -477,6 +477,34 @@ To perform a lookup, one starts with reading the header, computing the hash code
 
 To enumerate all the values, simply walk from the first entry and go all the way to the end of the hash table. 
 
+To see this in action, we can take a look at the following example, with these objects placed in the native hash table.
+
+| Object | HashCode |
+|:-------|:--------:|
+| P      | 0x1231   |
+| Q      | 0x1232   |
+| R      | 0x1234   |
+| S      | 0x1238   |
+
+Suppose we decided to have only two buckets, then only the least signficant digit will be used to index the table, the whole hash table will look like this:
+
+| Part    | Offset | Content  | Meaning                                                                                                                                                                                   |
+|:--------|:-------|:--------:|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Header  | 0      | 0x04     | This is the header, the least signficant bit is `00`, therefore the table cell is just one byte. The most significant six bit represents 1, which means the number of buckets is 2^1 = 2. |
+| Table   | 1      | 0x08     | This is the representation of the unsigned integer 4, which correspond to the offset of the bucket correspond to hash code `0`.                                                           |
+| Table   | 2      | 0x14     | This is the representation of the unsigned integer 10, which correspond to the offset of the bucket correspond to hash code `1`.                                                          |
+| Table   | 3      | 0x18     | This is the representation of the unsigned integer 12, which correspond to the offset of the end of the whole hash table.                                                                 |
+| Bucket1 | 4      | 0x32     | This is the least significant byte of the hash code of P                                                                                                                                  |
+| Bucket1 | 5      | P        | This should be the offset to the object P                                                                                                                                                 |
+| Bucket1 | 6      | 0x34     | This is the least significant byte of the hash code of Q                                                                                                                                  |
+| Bucket1 | 7      | Q        | This should be the offset to the object Q                                                                                                                                                 |
+| Bucket1 | 8      | 0x38     | This is the least significant byte of the hash code of R                                                                                                                                  |
+| Bucket1 | 9      | R        | This should be the offset to the object R                                                                                                                                                 |
+| Bucket2 | 10     | 0x31     | This is the least significant byte of the hash code of S                                                                                                                                  |
+| Bucket2 | 11     | S        | This should be the offset to the object S                                                                                                                                                 |
+
+
+
 # Helper calls
 
 List of helper calls supported by READYTORUN_FIXUP_Helper:
