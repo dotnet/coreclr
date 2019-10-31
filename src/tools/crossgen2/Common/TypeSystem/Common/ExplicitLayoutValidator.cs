@@ -49,7 +49,7 @@ namespace Internal.TypeSystem
                 }
                 SetFieldLayout(offset, _pointerSize, FieldLayoutTag.ORef);
             }
-            else if (fieldType.IsPointer)
+            else if (fieldType.IsPointer || fieldType.IsFunctionPointer)
             {
                 SetFieldLayout(offset, _pointerSize, FieldLayoutTag.NonORef);
             }
