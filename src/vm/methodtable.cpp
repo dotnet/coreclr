@@ -1631,29 +1631,6 @@ BOOL MethodTable::CanCastToClass(MethodTable *pTargetMT, TypeHandlePairList *pVi
 }
 
 #include <optsmallperfcritical.h>
-//==========================================================================================
-BOOL MethodTable::CanCastToNonVariantInterface(MethodTable *pTargetMT)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        INSTANCE_CHECK;
-        PRECONDITION(CheckPointer(pTargetMT));
-        PRECONDITION(pTargetMT->IsInterface());
-        PRECONDITION(!pTargetMT->HasVariance());
-        PRECONDITION(IsRestored_NoLogging());
-    }
-    CONTRACTL_END
-
-    // Check to see if the current class is for the interface passed in.
-    if (this == pTargetMT)
-        return TRUE;
-
-    // Check to see if the static class definition indicates we implement the interface.
-    return ImplementsInterfaceInline(pTargetMT);
-}
 
 //==========================================================================================
 BOOL MethodTable::CanCastToClassOrInterface(MethodTable* pTargetMT, TypeHandlePairList* pVisited)

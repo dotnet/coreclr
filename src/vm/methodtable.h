@@ -1978,7 +1978,6 @@ public:
     BOOL ArrayIsInstanceOf(TypeHandle toTypeHnd, TypeHandlePairList* pVisited);
 
     BOOL CanCastByVarianceToInterfaceOrDelegate(MethodTable* pTargetMT, TypeHandlePairList* pVisited);
-    BOOL CanCastToNonVariantInterface(MethodTable* pTargetMT);
 
     // The inline part of equivalence check.
 #ifndef DACCESS_COMPILE
