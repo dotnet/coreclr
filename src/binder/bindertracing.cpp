@@ -80,16 +80,33 @@ namespace
 #endif // FEATURE_EVENT_TRACE
     }
 
-    void GetAssemblyLoadContextNameFromBindContext(ICLRPrivBinder *bindContext, AppDomain *domain, /*out*/ SString &alcName)
+    void GetAssemblyLoadContextNameFromManagedALC(INT_PTR managedALC, /* out */ SString &alcName)
     {
-        _ASSERTE(bindContext != nullptr);
+#ifdef CROSSGEN_COMPILE
+        alcName.Set(W("Custom"));
+#else // CROSSGEN_COMPILE
+        OBJECTREF *alc = reinterpret_cast<OBJECTREF *>(managedALC);
 
-        UINT_PTR binderID = 0;
-        HRESULT hr = bindContext->GetBinderID(&binderID);
-        _ASSERTE(SUCCEEDED(hr));
-        if (FAILED(hr))
-            return;
+        GCX_COOP();
+        struct _gc {
+            STRINGREF alcName;
+        } gc;
+        ZeroMemory(&gc, sizeof(gc));
 
+        GCPROTECT_BEGIN(gc);
+
+        PREPARE_VIRTUAL_CALLSITE(METHOD__OBJECT__TO_STRING, *alc);
+        DECLARE_ARGHOLDER_ARRAY(args, 1);
+        args[ARGNUM_0] = OBJECTREF_TO_ARGHOLDER(*alc);
+        CALL_MANAGED_METHOD_RETREF(gc.alcName, STRINGREF, args);
+        gc.alcName->GetSString(alcName);
+
+        GCPROTECT_END();
+#endif // CROSSGEN_COMPILE
+    }
+
+    void GetAssemblyLoadContextNameFromBinderID(UINT_PTR binderID, AppDomain *domain, /*out*/ SString &alcName)
+    {
         ICLRPrivBinder *binder = reinterpret_cast<ICLRPrivBinder *>(binderID);
 #ifdef FEATURE_COMINTEROP
         if (AreSameBinderInstance(binder, domain->GetTPABinderContext()) || AreSameBinderInstance(binder, domain->GetWinRtBinder()))
@@ -102,28 +119,24 @@ namespace
         else
         {
 #ifdef CROSSGEN_COMPILE
-            alcName.Set(W("Custom"));
+            GetAssemblyLoadContextNameFromManagedALC(0, alcName);
 #else // CROSSGEN_COMPILE
-            CLRPrivBinderAssemblyLoadContext * alcBinder = static_cast<CLRPrivBinderAssemblyLoadContext *>(binder);
-            OBJECTREF *alc = reinterpret_cast<OBJECTREF *>(alcBinder->GetManagedAssemblyLoadContext());
+            CLRPrivBinderAssemblyLoadContext *alcBinder = static_cast<CLRPrivBinderAssemblyLoadContext *>(binder);
 
-            GCX_COOP();
-            struct _gc {
-                STRINGREF alcName;
-            } gc;
-            ZeroMemory(&gc, sizeof(gc));
-
-            GCPROTECT_BEGIN(gc);
-
-            PREPARE_VIRTUAL_CALLSITE(METHOD__OBJECT__TO_STRING, *alc);
-            DECLARE_ARGHOLDER_ARRAY(args, 1);
-            args[ARGNUM_0] = OBJECTREF_TO_ARGHOLDER(*alc);
-            CALL_MANAGED_METHOD_RETREF(gc.alcName, STRINGREF, args);
-            gc.alcName->GetSString(alcName);
-
-            GCPROTECT_END();
+            GetAssemblyLoadContextNameFromManagedALC(alcBinder->GetManagedAssemblyLoadContext(), alcName);
 #endif // CROSSGEN_COMPILE
         }
+    }
+
+    void GetAssemblyLoadContextNameFromBindContext(ICLRPrivBinder *bindContext, AppDomain *domain, /*out*/ SString &alcName)
+    {
+        _ASSERTE(bindContext != nullptr);
+
+        UINT_PTR binderID = 0;
+        HRESULT hr = bindContext->GetBinderID(&binderID);
+        _ASSERTE(SUCCEEDED(hr));
+        if (SUCCEEDED(hr))
+            GetAssemblyLoadContextNameFromBinderID(binderID, domain, alcName);
     }
 
     void GetAssemblyLoadContextNameFromSpec(AssemblySpec *spec, /*out*/ SString &alcName)
@@ -165,6 +178,24 @@ namespace
         }
 
         GetAssemblyLoadContextNameFromSpec(spec, request.AssemblyLoadContext);
+    }
+
+    void FireResolutionAttempted(const BinderTracing::ResolutionAttemptedOperation::ResolutionAttempt& attempt)
+    {
+#ifdef FEATURE_EVENT_TRACE
+        if (!EventEnabledResolutionAttempted())
+            return;
+
+        FireEtwResolutionAttempted(
+            GetClrInstanceId(),
+            attempt.AssemblyName,
+            attempt.Stage,
+            attempt.AssemblyLoadContext,
+            attempt.Result,
+            attempt.ResultAssemblyName,
+            attempt.ResultAssemblyPath,
+            attempt.ErrorMessage);
+#endif // FEATURE_EVENT_TRACE
     }
 }
 
@@ -229,5 +260,125 @@ namespace BinderTracing
         m_ignoreBind = m_bindRequest.AssemblySpec->IsMscorlibSatellite();
         m_checkedIgnoreBind = true;
         return m_ignoreBind;
+    }
+}
+
+namespace BinderTracing
+{
+    ResolutionAttemptedOperation::ResolutionAttemptedOperation(BINDER_SPACE::AssemblyName *assemblyName)
+        : m_pAssemblyName{assemblyName}
+    {
+    }
+
+    ResolutionAttemptedOperation::~ResolutionAttemptedOperation()
+    {
+        TraceCurrentStage();
+    }
+
+    void ResolutionAttemptedOperation::SetResult(HRESULT hr, BINDER_SPACE::Assembly *assembly)
+    {
+        if (SUCCEEDED(hr))
+        {
+            m_result = Result::Success;
+        }
+        else if (hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+        {
+            m_result = Result::AssemblyNotFound;
+        }
+        else if (hr == FUSION_E_APP_DOMAIN_LOCKED)
+        {
+            m_result = Result::IncompatibleVersion;
+        }
+        else if (hr == FUSION_E_REF_DEF_MISMATCH)
+        {
+            m_result = Result::MismatchedAssemblyName;
+        }
+        else
+        {
+            m_result = Result::Unknown;
+            UNREACHABLE();
+        }
+
+        m_pFoundAssembly = assembly;
+    }
+
+    void ResolutionAttemptedOperation::Trace(Stage stage, INT_PTR managedALC, AssemblySpec *assemblySpec)
+    {
+        m_pAssemblySpec = assemblySpec;
+        m_pManagedALC = managedALC;
+        m_stage = stage;
+        TraceCurrentStage();
+    }
+
+    void ResolutionAttemptedOperation::TraceCurrentStage()
+    {
+        if (m_stage == Stage::NotYetStarted)
+        {
+            return;
+        }
+
+        ResolutionAttempt attempt;
+
+        attempt.AssemblyName = m_pAssemblyName->GetSimpleName();
+        attempt.Stage = static_cast<uint16_t>(m_stage);
+        attempt.Result = static_cast<uint16_t>(m_result);
+
+        if (m_pManagedALC != 0)
+        {
+            GetAssemblyLoadContextNameFromManagedALC(m_pManagedALC, attempt.AssemblyLoadContext);
+        }
+        else if (m_pAssemblySpec != nullptr)
+        {
+            GetAssemblyLoadContextNameFromSpec(m_pAssemblySpec, attempt.AssemblyLoadContext);
+        }
+        else
+        {
+            attempt.AssemblyLoadContext.Set(W("Default"));
+        }
+
+        if (m_pFoundAssembly)
+        {
+            attempt.ResultAssemblyName = m_pFoundAssembly->GetAssemblyName()->GetSimpleName();
+            attempt.ResultAssemblyPath = m_pFoundAssembly->GetPath();
+        }
+
+        StackSString errorMsg;
+        switch (m_result)
+        {
+            case Result::Success:
+                // No need to write any error message for success.
+                break;
+            case Result::Attempt:
+                // No error yet.
+                break;
+            case Result::Unknown:
+                errorMsg.Set(W("Unknown"));
+                break;
+            case Result::AssemblyNotFound:
+                errorMsg.Printf(W("Could not locate assembly %s"),
+                                m_pAssemblyName->GetSimpleName().GetUnicode());
+                break;
+            case Result::MismatchedAssemblyName:
+                errorMsg.Printf(W("Name mismatch while trying to resolve assembly %s: found %s instead"),
+                                m_pAssemblyName->GetSimpleName().GetUnicode(),
+                                m_pFoundAssembly->GetAssemblyName()->GetSimpleName().GetUnicode());
+                break;
+            case Result::IncompatibleVersion:
+                errorMsg.Printf(W("Assembly %s has been found, but requested version %d.%d.%d.%d is incompatible with found version %d.%d.%d.%d"),
+                                m_pAssemblyName->GetSimpleName().GetUnicode(),
+                                m_pAssemblyName->GetVersion()->GetMajor(),
+                                m_pAssemblyName->GetVersion()->GetMinor(),
+                                m_pAssemblyName->GetVersion()->GetBuild(),
+                                m_pAssemblyName->GetVersion()->GetRevision(),
+                                m_pFoundAssembly->GetAssemblyName()->GetVersion()->GetMajor(),
+                                m_pFoundAssembly->GetAssemblyName()->GetVersion()->GetMinor(),
+                                m_pFoundAssembly->GetAssemblyName()->GetVersion()->GetBuild(),
+                                m_pFoundAssembly->GetAssemblyName()->GetVersion()->GetRevision());
+                break;
+        }
+
+        attempt.ErrorMessage = errorMsg;
+
+        FireResolutionAttempted(attempt);
     }
 }

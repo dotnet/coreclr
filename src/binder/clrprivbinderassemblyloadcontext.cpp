@@ -4,6 +4,7 @@
 
 #include "common.h"
 #include "assemblybinder.hpp"
+#include "bindertracing.h"
 #include "clrprivbindercoreclr.h"
 #include "clrprivbinderassemblyloadcontext.h"
 
@@ -57,24 +58,37 @@ HRESULT CLRPrivBinderAssemblyLoadContext::BindAssemblyByName(IAssemblyName     *
     SAFE_NEW(pAssemblyName, AssemblyName);
     IF_FAIL_GO(pAssemblyName->Init(pIAssemblyName));
 
-    // When LoadContext needs to resolve an assembly reference, it will go through the following lookup order:
-    //
-    // 1) Lookup the assembly within the LoadContext itself. If assembly is found, use it.
-    // 2) Invoke the LoadContext's Load method implementation. If assembly is found, use it.
-    // 3) Lookup the assembly within TPABinder (except for satellite requests). If assembly is found, use it.
-    // 4) Invoke the LoadContext's ResolveSatelliteAssembly method (for satellite requests). If assembly is found, use it.
-    // 5) Invoke the LoadContext's Resolving event. If assembly is found, use it.
-    // 6) Raise exception.
-    //
-    // This approach enables a LoadContext to override assemblies that have been loaded in TPA context by loading
-    // a different (or even the same!) version.
-
     {
+        // When LoadContext needs to resolve an assembly reference, it will go through the following lookup order:
+        //
+        // 1) Lookup the assembly within the LoadContext itself. If assembly is found, use it.
+        // 2) Invoke the LoadContext's Load method implementation. If assembly is found, use it.
+        // 3) Lookup the assembly within TPABinder (except for satellite requests). If assembly is found, use it.
+        // 4) Invoke the LoadContext's ResolveSatelliteAssembly method (for satellite requests). If assembly is found, use it.
+        // 5) Invoke the LoadContext's Resolving event. If assembly is found, use it.
+        // 6) Raise exception.
+        //
+        // This approach enables a LoadContext to override assemblies that have been loaded in TPA context by loading
+        // a different (or even the same!) version.
+
         // Step 1 - Try to find the assembly within the LoadContext.
+        BinderTracing::ResolutionAttemptedOperation tracer{pAssemblyName};
+
+        tracer.Trace(BinderTracing::ResolutionAttemptedOperation::Stage::FindInLoadContext);
+
         hr = BindAssemblyByNameWorker(pAssemblyName, &pCoreCLRFoundAssembly);
-        if ((hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)) ||
-            (hr == FUSION_E_APP_DOMAIN_LOCKED) || (hr == FUSION_E_REF_DEF_MISMATCH))
+        if (SUCCEEDED(hr))
         {
+            tracer.SetResult(hr, pCoreCLRFoundAssembly);
+        }
+        else if ((hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)) ||
+                 (hr == FUSION_E_APP_DOMAIN_LOCKED) || (hr == FUSION_E_REF_DEF_MISMATCH))
+        {
+            INT_PTR managedAssemblyLoadContext = GetManagedAssemblyLoadContext();
+
+            tracer.Trace(BinderTracing::ResolutionAttemptedOperation::Stage::FindInLoadContext,
+                         managedAssemblyLoadContext);
+
             // If we are here, one of the following is possible:
             //
             // 1) The assembly has not been found in the current binder's application context (i.e. it has not already been loaded), OR
@@ -85,7 +99,9 @@ HRESULT CLRPrivBinderAssemblyLoadContext::BindAssemblyByName(IAssemblyName     *
             // of what to do next. The host-overridden binder can either fail the bind or return reference to an existing assembly
             // that has been loaded.
             //
-            hr = AssemblyBinder::BindUsingHostAssemblyResolver(GetManagedAssemblyLoadContext(), pAssemblyName, pIAssemblyName, m_pTPABinder, &pCoreCLRFoundAssembly);
+            hr = AssemblyBinder::BindUsingHostAssemblyResolver(managedAssemblyLoadContext,
+                                                               pAssemblyName, pIAssemblyName, m_pTPABinder,
+                                                               &pCoreCLRFoundAssembly);
             if (SUCCEEDED(hr))
             {
                 // We maybe returned an assembly that was bound to a different AssemblyLoadContext instance.
@@ -97,16 +113,19 @@ HRESULT CLRPrivBinderAssemblyLoadContext::BindAssemblyByName(IAssemblyName     *
                 }
             }
         }
+
+        IF_FAIL_GO(hr);
+
+        // Extract the assembly reference.
+        //
+        // For TPA assemblies that were bound, TPABinder
+        // would have already set the binder reference for the assembly, so we just need to
+        // extract the reference now.
+        *ppAssembly = pCoreCLRFoundAssembly.Extract();
+
+        tracer.SetResult(hr, pCoreCLRFoundAssembly);
     }
 
-    IF_FAIL_GO(hr);
-
-    // Extract the assembly reference.
-    //
-    // For TPA assemblies that were bound, TPABinder
-    // would have already set the binder reference for the assembly, so we just need to
-    // extract the reference now.
-    *ppAssembly = pCoreCLRFoundAssembly.Extract();
 Exit:;
 
     return hr;
