@@ -6957,6 +6957,14 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
         return nullptr;
     }
 
+    // Heuristic: regular calls to noreturn methods can sometimes be
+    // merged, so if we have multiple such calls, we defer tail calling.
+    if (call->IsNoReturn() && (optNoReturnCallCount > 1))
+    {
+        failTailCall("Defer tail calling throw helper; anticipating merge");
+        return nullptr;
+    }
+
 #ifdef _TARGET_AMD64_
     // Needed for Jit64 compat.
     // In future, enabling tail calls from methods that need GS cookie check
@@ -7404,6 +7412,42 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, void* pfnCopyArgs)
     if (call->IsVirtualStub())
     {
         call->gtFlags |= GTF_CALL_NULLCHECK;
+
+#if defined(_TARGET_AMD64_)
+        // If we already inited arg info here then we will have added the VSD
+        // arg on AMD64. So we remove it here as we will handle this case
+        // specially below.
+        fgArgInfo* argInfo = call->fgArgInfo;
+        assert(argInfo != nullptr);
+
+        GenTreeCall::Use* vsdArg = nullptr;
+
+        for (unsigned index = 0; index < argInfo->ArgCount(); ++index)
+        {
+            fgArgTabEntry* arg = argInfo->GetArgEntry(index, false);
+            if (arg->isNonStandard)
+            {
+                // The only supported nonstandard arg for slow tailcalls is
+                // VSD arg.
+                assert(vsdArg == nullptr);
+                vsdArg = arg->use;
+#ifndef DEBUG
+                break;
+#endif
+            }
+        }
+
+        assert(vsdArg != nullptr);
+        // Find the arg in the linked list keeping track of the pointer to it so
+        // we can unlink it.
+        GenTreeCall::Use** ptr = &call->gtCallArgs;
+        while ((*ptr) != vsdArg)
+        {
+            ptr = &(*ptr)->NextRef();
+        }
+
+        *ptr = vsdArg->GetNext();
+#endif
     }
 
 #if defined(_TARGET_ARM_)
@@ -14940,8 +14984,8 @@ bool Compiler::fgFoldConditional(BasicBlock* block)
                 if (block->hasProfileWeight())
                 {
                     // The edge weights for (block -> bTaken) are 100% of block's weight
-                    edgeTaken->flEdgeWeightMin = block->bbWeight;
-                    edgeTaken->flEdgeWeightMax = block->bbWeight;
+
+                    edgeTaken->setEdgeWeights(block->bbWeight, block->bbWeight);
 
                     if (!bTaken->hasProfileWeight())
                     {
@@ -14958,8 +15002,7 @@ bool Compiler::fgFoldConditional(BasicBlock* block)
                     if (bTaken->countOfInEdges() == 1)
                     {
                         // There is only one in edge to bTaken
-                        edgeTaken->flEdgeWeightMin = bTaken->bbWeight;
-                        edgeTaken->flEdgeWeightMax = bTaken->bbWeight;
+                        edgeTaken->setEdgeWeights(bTaken->bbWeight, bTaken->bbWeight);
 
                         // Update the weight of block
                         block->inheritWeight(bTaken);
@@ -14969,22 +15012,34 @@ bool Compiler::fgFoldConditional(BasicBlock* block)
 
                 if (bUpdated != nullptr)
                 {
+                    BasicBlock::weight_t newMinWeight;
+                    BasicBlock::weight_t newMaxWeight;
+
                     flowList* edge;
                     // Now fix the weights of the edges out of 'bUpdated'
                     switch (bUpdated->bbJumpKind)
                     {
                         case BBJ_NONE:
-                            edge                  = fgGetPredForBlock(bUpdated->bbNext, bUpdated);
-                            edge->flEdgeWeightMax = bUpdated->bbWeight;
+                            edge         = fgGetPredForBlock(bUpdated->bbNext, bUpdated);
+                            newMaxWeight = bUpdated->bbWeight;
+                            newMinWeight = min(edge->edgeWeightMin(), newMaxWeight);
+                            edge->setEdgeWeights(newMinWeight, newMaxWeight);
                             break;
+
                         case BBJ_COND:
-                            edge                  = fgGetPredForBlock(bUpdated->bbNext, bUpdated);
-                            edge->flEdgeWeightMax = bUpdated->bbWeight;
+                            edge         = fgGetPredForBlock(bUpdated->bbNext, bUpdated);
+                            newMaxWeight = bUpdated->bbWeight;
+                            newMinWeight = min(edge->edgeWeightMin(), newMaxWeight);
+                            edge->setEdgeWeights(newMinWeight, newMaxWeight);
                             __fallthrough;
+
                         case BBJ_ALWAYS:
-                            edge                  = fgGetPredForBlock(bUpdated->bbJumpDest, bUpdated);
-                            edge->flEdgeWeightMax = bUpdated->bbWeight;
+                            edge         = fgGetPredForBlock(bUpdated->bbJumpDest, bUpdated);
+                            newMaxWeight = bUpdated->bbWeight;
+                            newMinWeight = min(edge->edgeWeightMin(), newMaxWeight);
+                            edge->setEdgeWeights(newMinWeight, newMaxWeight);
                             break;
+
                         default:
                             // We don't handle BBJ_SWITCH
                             break;
@@ -16605,10 +16660,9 @@ void Compiler::fgMorph()
     EndPhase(PHASE_MERGE_FINALLY_CHAINS);
 
     fgCloneFinally();
+    fgUpdateFinallyTargetFlags();
 
     EndPhase(PHASE_CLONE_FINALLY);
-
-    fgUpdateFinallyTargetFlags();
 
     /* For x64 and ARM64 we need to mark irregular parameters */
     lvaRefCountState = RCS_EARLY;
