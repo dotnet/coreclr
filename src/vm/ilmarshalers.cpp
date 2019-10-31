@@ -4937,11 +4937,13 @@ FCIMPL3(void, MngdSafeArrayMarshaler::ConvertSpaceToManaged, MngdSafeArrayMarsha
 
     if (*pNativeHome != NULL)
     {
+        SAFEARRAY* nativeSafeArray = (SAFEARRAY*) *pNativeHome;
+
         // If the managed array has a rank defined then make sure the rank of the
         // SafeArray matches the defined rank.
         if (pThis->m_iRank != -1)
         {
-            int iSafeArrayRank = SafeArrayGetDim((SAFEARRAY*) *pNativeHome);
+            int iSafeArrayRank = SafeArrayGetDim(nativeSafeArray);
             if (pThis->m_iRank != iSafeArrayRank)
             {                    
                 WCHAR strExpectedRank[64];
@@ -4955,15 +4957,15 @@ FCIMPL3(void, MngdSafeArrayMarshaler::ConvertSpaceToManaged, MngdSafeArrayMarsha
         if (pThis->m_nolowerbounds)
         {
             LONG lowerbound;
-            if ( (SafeArrayGetDim( (SAFEARRAY*)*pNativeHome ) != 1) ||
-                 (FAILED(SafeArrayGetLBound( (SAFEARRAY*)*pNativeHome, 1, &lowerbound))) ||
+            if ( (SafeArrayGetDim(nativeSafeArray) != 1) ||
+                 (FAILED(SafeArrayGetLBound(nativeSafeArray, 1, &lowerbound))) ||
                  lowerbound != 0 )
             {
                 COMPlusThrow(kSafeArrayRankMismatchException, IDS_EE_SAFEARRAYSZARRAYMISMATCH);
             }
         }
 
-        OBJECTREF arrayRef = (OBJECTREF) OleVariant::CreateArrayRefForSafeArray((SAFEARRAY*) *pNativeHome,
+        OBJECTREF arrayRef = (OBJECTREF) OleVariant::CreateArrayRefForSafeArray(nativeSafeArray,
                                                             pThis->m_vt,
                                                             pThis->m_pElementMT);
     
