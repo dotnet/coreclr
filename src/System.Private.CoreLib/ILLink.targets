@@ -79,12 +79,22 @@
           Condition="'$(ILLinkRewritePDBs)' == 'true' AND Exists('$(ILLinkTrimAssemblySymbols)')"
     />
 
+    <!-- When running from Desktop MSBuild, DOTNET_HOST_PATH is not set.
+         In this case, explicitly specify the path to the dotnet host. -->
+    <PropertyGroup Condition=" '$(DOTNET_HOST_PATH)' == '' ">
+      <_DotNetHostDirectory>$(NetCoreRoot)</_DotNetHostDirectory>
+      <_DotNetHostFileName>dotnet</_DotNetHostFileName>
+      <_DotNetHostFileName Condition=" '$(OS)' == 'Windows_NT' ">dotnet.exe</_DotNetHostFileName>
+    </PropertyGroup>
+
     <ILLink AssemblyPaths="$(ILLinkTrimInputAssembly)"
             RootAssemblyNames=""
             OutputDirectory="$(ILLinkTrimOutputPath)"
             ClearInitLocals="true"
             ClearInitLocalsAssemblies="$(TargetName)"
-            ExtraArgs="$(ILLinkArgs)" />
+            ExtraArgs="$(ILLinkArgs)"
+            ToolExe="$(_DotNetHostFileName)"
+            ToolPath="$(_DotNetHostDirectory)" />
 
   </Target>
 
