@@ -2715,7 +2715,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
         pField->GetName_NoThrow(&fieldName);
 #endif // _DEBUG
 
-        NativeFieldCategory nfc = pNFD->GetNativeFieldFlags();
+        NativeFieldCategory nfc = pNFD->GetCategory();
 
         if (nfc == NativeFieldCategory::NESTED)
         {

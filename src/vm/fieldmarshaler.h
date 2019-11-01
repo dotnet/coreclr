@@ -116,9 +116,9 @@ public:
 
     void Restore();
 
-    NativeFieldCategory GetNativeFieldFlags() const
+    NativeFieldCategory GetCategory() const
     {
-        return m_flags;
+        return m_category;
     }
 
     PTR_MethodTable GetNestedNativeMethodTable() const;
@@ -165,7 +165,7 @@ public:
 
     BOOL IsUnmarshalable() const
     {
-        return m_flags == NativeFieldCategory::ILLEGAL ? TRUE : FALSE;
+        return m_category == NativeFieldCategory::ILLEGAL ? TRUE : FALSE;
     }
 
 private:
@@ -184,7 +184,7 @@ private:
         } nativeSizeAndAlignment;
     };
     UINT32 m_offset;
-    NativeFieldCategory m_flags;
+    NativeFieldCategory m_category;
     bool m_isNestedType;
 };
 
@@ -362,7 +362,7 @@ inline CorElementType EEClassNativeLayoutInfo::GetNativeHFATypeRaw() const
     {
         CorElementType fieldType = ELEMENT_TYPE_END;
 
-        NativeFieldCategory category = pCurrNFD->GetNativeFieldFlags();
+        NativeFieldCategory category = pCurrNFD->GetCategory();
 
         if (category == NativeFieldCategory::FLOAT)
         {
