@@ -100,9 +100,11 @@ namespace Tracing.Tests.Common
             var helixWorkItemDirectory = System.Environment.GetEnvironmentVariable("HELIX_WORKITEM_UPLOAD_ROOT");
             if (helixWorkItemDirectory != null && Directory.Exists(helixWorkItemDirectory))
             {
-                using (var streamDumpFile = File.Create(Path.Combine(helixWorkItemDirectory, "streamdump.nettrace")))
+                Logger.logger.Log($"\t HELIX_WORKITEM_UPLOAD_ROOT = {helixWorkItemDirectory}");
+                var filePath = Path.Combine(helixWorkItemDirectory, "streamdump.nettrace");
+                using (var streamDumpFile = File.Create(filePath))
                 {
-                    Logger.logger.Log($"\t Writing stream read to this point to file");
+                    Logger.logger.Log($"\t Writing stream to {filePath}");
                     InternalStream.Seek(0, SeekOrigin.Begin);
                     InternalStream.CopyTo(streamDumpFile);
                 }
