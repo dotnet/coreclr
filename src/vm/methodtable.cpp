@@ -9949,7 +9949,12 @@ NOINLINE BYTE *MethodTable::GetLoaderAllocatorObjectForGC()
 
 UINT32 MethodTable::GetNativeSize()
 {
-    LIMITED_METHOD_CONTRACT;
+    CONTRACTL
+    {
+        THROWS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
     _ASSERTE(GetClass());
     if (IsBlittable())
     {
@@ -9960,7 +9965,12 @@ UINT32 MethodTable::GetNativeSize()
 
 EEClassNativeLayoutInfo const* MethodTable::GetNativeLayoutInfo()
 {
-    LIMITED_METHOD_CONTRACT;
+    CONTRACTL
+    {
+        THROWS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
     PRECONDITION(HasLayout());
 
     EnsureNativeLayoutInfoInitialized();
@@ -9969,7 +9979,12 @@ EEClassNativeLayoutInfo const* MethodTable::GetNativeLayoutInfo()
 
 void MethodTable::EnsureNativeLayoutInfoInitialized()
 {
-    LIMITED_METHOD_CONTRACT;
+    CONTRACTL
+    {
+        THROWS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
 #ifndef DACCESS_COMPILE
     PRECONDITION(HasLayout());
     EEClassNativeLayoutInfo::InitializeNativeLayoutFieldMetadataThrowing(this);
