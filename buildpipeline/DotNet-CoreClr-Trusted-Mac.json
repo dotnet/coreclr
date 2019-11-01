@@ -292,9 +292,7 @@
       "value": "$(Build.BuildNumber)"
     }
   },
-  "demands": [
-    "Configuration -equals VSTSAgent_Mac_v3.0.0"
-  ],
+  "demands": [],
   "retentionRules": [
     {
       "branches": [
