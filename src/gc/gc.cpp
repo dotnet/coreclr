@@ -496,7 +496,7 @@ void c_write (uint32_t& place, uint32_t value)
 
 // If every heap's gen2 or gen3 size is less than this threshold we will do a blocking GC.
 // TODO: VS reverse this to 4Mb. this is to trigger bg
-const size_t bgc_min_per_heap = 1*1024*1024;
+const size_t bgc_min_per_heap = 4*1024*1024;
 
 int gc_heap::gchist_index = 0;
 gc_mechanisms_store gc_heap::gchist[max_history_count];

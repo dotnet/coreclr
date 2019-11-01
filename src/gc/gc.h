@@ -108,7 +108,7 @@ class IGCHeapInternal;
 
 /* misc defines */
 //TODO: VS, undo this. Lowered limit temporarily to test POH
-#define LARGE_OBJECT_SIZE ((size_t)(512))
+#define LARGE_OBJECT_SIZE ((size_t)(85000))
 
 enum generation_num
 {
