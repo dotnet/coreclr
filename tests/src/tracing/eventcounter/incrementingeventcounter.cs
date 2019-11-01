@@ -15,7 +15,7 @@ namespace BasicEventSourceTests
 {
     public partial class TestIncrementingEventCounter
     {
-        ManualResetEvent evnt = new ManualResetEvent(false);
+        private static ManualResetEvent evnt = new ManualResetEvent(false);
 
         [EventSource(Name = "SimpleEventSource")]
         private sealed class SimpleEventSource : EventSource
@@ -94,7 +94,7 @@ namespace BasicEventSourceTests
                             }
                         }
                     }
-                    if (incrementSum == iter)
+                    if (incrementSum == _iter)
                     {
                         evnt.Set();
                     }
