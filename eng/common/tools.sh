@@ -261,6 +261,9 @@ function GetNuGetPackageCachePath {
 }
 
 function InitializeNativeTools() {
+  if [[ -n "${DisableNativeToolsetInstalls:-}" ]]; then
+    return
+  fi
   if grep -Fq "native-tools" $global_json_file
   then
     local nativeArgs=""
