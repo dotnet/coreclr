@@ -47,11 +47,13 @@ namespace System.Buffers
 
         private int _callbackCreated;
 
+        private static readonly bool s_trimBuffers = PerCoreLockedStacksHelpers.s_trimBuffers;
+
         /// <summary>
         /// Used to keep track of all thread local buckets for trimming if needed
         /// </summary>
         private static readonly ConditionalWeakTable<T[]?[], object?>? s_allTlsBuckets =
-            PerCoreLockedStacksHelpers.s_trimBuffers ? new ConditionalWeakTable<T[]?[], object?>() : null;
+            s_trimBuffers ? new ConditionalWeakTable<T[]?[], object?>() : null;
 
         /// <summary>Initialize the pool.</summary>
         public TlsOverPerCoreLockedStacksArrayPool()
