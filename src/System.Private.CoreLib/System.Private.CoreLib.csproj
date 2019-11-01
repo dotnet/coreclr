@@ -442,7 +442,7 @@
 
   <!-- Setup ILLink.targets -->
   <ItemGroup>
-    <PackageReference Include="ILLink.Tasks" Version="$(ILLinkTasksVersion)" ExcludeAssets="build" GeneratePackagePath="True" />
+    <PackageReference Include="ILLink.Tasks" Version="$(ILLinkTasksVersion)" ExcludeAssets="build" GeneratePathProperty="True" />
   </ItemGroup>
 
   <!-- Analyzers -->
