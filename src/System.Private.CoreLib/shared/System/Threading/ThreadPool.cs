@@ -73,8 +73,7 @@ namespace System.Threading
             internal const int MaxSegmentLength = 1024 * 1024;
 
             /// <summary>
-            /// Lock used to protect cross-segment operations"/>
-            /// and any operations that need to get a consistent view of them.
+            /// Lock used to make sure only one thread allocate the new segment.
             /// </summary>
             internal object _addSegmentLock = new object();
 
@@ -1370,7 +1369,8 @@ namespace System.Threading
                 return true;
             }
 
-            for (int i = 0; i < _localQueues.Length; ++i)
+            LocalQueue[] queues = _localQueues;
+            for (int i = 0; i < queues.Length; ++i)
             {
                 if (i == localQueueIndex)
                 {
@@ -1383,7 +1383,7 @@ namespace System.Threading
                     return false;
                 }
 
-                localQueue = _localQueues[i];
+                localQueue = queues[i];
                 if (localQueue != null && localQueue.TryRemove(callback))
                 {
                     return true;
