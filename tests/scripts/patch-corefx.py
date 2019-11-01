@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Licensed to the .NET Foundation under one or more agreements.
 # The .NET Foundation licenses this file to you under the MIT license.
@@ -30,8 +30,6 @@ import sys
 ##########################################################################
 
 testing = False
-
-Corefx_url = 'https://github.com/dotnet/corefx.git'
 
 # This should be factored out of build.sh
 Unix_name_map = {
@@ -134,24 +132,6 @@ def validate_args(args):
 
     return args
 
-def nth_dirname(path, n):
-    """ Find the Nth parent directory of the given path
-    Args:
-        path (str): path name containing at least N components
-        n (int): num of basenames to remove
-    Returns:
-        outpath (str): path with the last n components removed
-    Notes:
-        If n is 0, path is returned unmodified
-    """
-
-    assert n >= 0
-
-    for i in range(0, n):
-        path = os.path.dirname(path)
-
-    return path
-
 def log(message):
     """ Print logging information
     Args:
@@ -191,15 +171,16 @@ def copy_files(source_dir, target_dir):
             if not testing:
                 shutil.copy2(source_pathname, target_pathname)
 
-def walk_core_root(core_root):
-    """ Walk through the core root and return an array of dll names,
-        excluding any coreclr binaries.
+def patch_coreclr_root(core_root, fx_bin):
+    """ Walk through the fx bin and patch corefx dlls to the core root.
     Args:
-        core_root (str): the core root path
+        core_root       (str):       the core root path
+        fx_bin          (str):       the runtime folder from a corefx build
     Returns:
-        an array of dll names
+        nothing
     """
-    dll_names = []
+    test_log('Patching coreclr core_root')
+
     forbidden_names = ['coreclr.dll', 
                        'system.private.corelib.dll',
                        'r2rdump.dll',
@@ -223,37 +204,14 @@ def walk_core_root(core_root):
 
     test_log('forbidden_names = %s' % forbidden_names)
 
-    for file in os.listdir(core_root):
-        test_log('considering file %s' % file)
-
-        filename = os.path.basename(file)
-        comparename = filename.lower()
-        
-        if (    comparename.endswith('.dll') and  
-                comparename not in forbidden_names and
-                not comparename.startswith('api-ms-core')   ):
-            dll_names.append(filename)
-            test_log('adding file %s to list of patchable files' % filename)
-
-    return dll_names
-
-def patch_coreclr_root(core_root, fx_bin, corefx_binaries):
-    """ Walk through the fx bin and patch any dlls listed in
-        corefx_binaries to the core root.
-    Args:
-        core_root       (str):       the core root path
-        fx_bin          (str):       the runtime folder from a corefx build
-        corefx_binaries (list(str)): the list of binaries to patch
-    Returns:
-        nothing
-    """
-    test_log('Patching coreclr core_root')
-
     for file in os.listdir(fx_bin):
         test_log('considering file %s' % file)
 
         filename = os.path.basename(file)
-        if filename in corefx_binaries:
+        comparename = filename.lower()
+        if (    comparename.endswith('.dll') and  
+                comparename not in forbidden_names and
+                not comparename.startswith('api-ms-core')   ):
             source_pathname = os.path.join(fx_bin, filename)
             target_pathname = os.path.join(core_root, filename)
 
@@ -283,8 +241,6 @@ def main(args):
     if not os.path.exists(clr_core_root):
         raise Exception('Core root path %s does not exist.' % (core_root))
 
-    corefx_binaries = walk_core_root(clr_core_root)
-
     fx_bin = os.path.join(fx_root,
                           'artifacts',
                           'bin',
@@ -294,7 +250,7 @@ def main(args):
     if not os.path.exists(fx_bin):
         raise Exception('CoreFX bin path %s does not exist.' % (core_root))
 
-    patch_coreclr_root(clr_core_root, fx_bin, corefx_binaries)
+    patch_coreclr_root(clr_core_root, fx_bin)
 
 
 ##########################################################################
