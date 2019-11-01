@@ -4337,8 +4337,12 @@ static void CreateStructStub(ILStubState* pss,
     }
 #endif // FEATURE_COMINTEROP
 
+    // We need to manually initialize the native layout info here
+    // since we need to access the non-const pointer to be able to call Restore
+    // on the native field descriptors.
     pMT->EnsureNativeLayoutInfoInitialized();
     EEClassNativeLayoutInfo* pNativeLayoutInfo = pMT->GetClass()->GetNativeLayoutInfo();
+
     int numFields = pNativeLayoutInfo->GetNumFields();
     // Build up marshaling information for each of the method's parameters
     SIZE_T cbFieldMarshalInfo;

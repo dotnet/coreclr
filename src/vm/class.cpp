@@ -1290,8 +1290,6 @@ bool MethodTable::IsNativeHFA()
         return IsHFA();
     }
 
-    EnsureNativeLayoutInfoInitialized();
-
     return GetNativeLayoutInfo()->IsNativeHFA();
 }
 
@@ -1302,8 +1300,6 @@ CorElementType MethodTable::GetNativeHFAType()
     {
         return GetHFAType();
     }
-
-    EnsureNativeLayoutInfoInitialized();
 
     return GetNativeLayoutInfo()->GetNativeHFAType();
 }

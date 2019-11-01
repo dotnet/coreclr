@@ -373,10 +373,10 @@ BOOL IsStructMarshalable(TypeHandle th)
     if (pMT->IsStructMarshalable())
         return TRUE;
 
-    pMT->EnsureNativeLayoutInfoInitialized();
+    EEClassNativeLayoutInfo const* pNativeLayoutInfo = pMT->GetNativeLayoutInfo();
 
-    const NativeFieldDescriptor *pNativeFieldDescriptors = pMT->GetNativeLayoutInfo()->GetNativeFieldDescriptors();
-    UINT  numReferenceFields              = pMT->GetNativeLayoutInfo()->GetNumFields();
+    const NativeFieldDescriptor *pNativeFieldDescriptors = pNativeLayoutInfo->GetNativeFieldDescriptors();
+    UINT  numReferenceFields = pNativeLayoutInfo->GetNumFields();
 
     for (UINT i = 0; i < numReferenceFields; ++i)
     {
@@ -419,10 +419,6 @@ NativeFieldDescriptor::NativeFieldDescriptor(PTR_MethodTable pMT, int numElement
 
     m_pFD.SetValueMaybeNull(nullptr);
     m_pNestedType.SetValue(pMT);
-    if (!pMT->IsBlittable())
-    {
-        pMT->EnsureNativeLayoutInfoInitialized();
-    }
     m_numElements = numElements;
     m_flags = NativeFieldCategory::NESTED;
     m_isNestedType = true;
@@ -476,7 +472,6 @@ UINT32 NativeFieldDescriptor::AlignmentRequirement() const
         {
             return pMT->GetLayoutInfo()->m_ManagedLargestAlignmentRequirementOfAllMembers;
         }
-        pMT->EnsureNativeLayoutInfoInitialized();
         return pMT->GetNativeLayoutInfo()->GetLargestAlignmentRequirement();
     }
     else
