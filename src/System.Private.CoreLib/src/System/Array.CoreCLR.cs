@@ -377,7 +377,7 @@ namespace System
         {
             int rank = RuntimeHelpers.GetMultiDimensionalArrayRank(this);
             if (rank == 0 && dimension == 0)
-                return Length;
+                return Length - 1;
 
             if ((uint)dimension >= (uint)rank)
                 throw new IndexOutOfRangeException(SR.IndexOutOfRange_ArrayRankIndex);
