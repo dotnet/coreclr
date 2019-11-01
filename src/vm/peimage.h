@@ -134,8 +134,6 @@ public:
     void   LoadNoMetaData();
     void   LoadNoFile();
     void   LoadFromMapped();
-
-    void AllocateLazyCOWPages();
 #endif
     
     BOOL   HasID();
@@ -292,9 +290,6 @@ private:
     SString     m_sModuleFileNameHintUsedByDac; // This is only used by DAC
 private:
     BOOL        m_bIsTrustedNativeImage;
-#ifdef FEATURE_LAZY_COW_PAGES
-    BOOL        m_bAllocatedLazyCOWPages;
-#endif // FEATURE_LAZY_COW_PAGES
 
 protected:
 

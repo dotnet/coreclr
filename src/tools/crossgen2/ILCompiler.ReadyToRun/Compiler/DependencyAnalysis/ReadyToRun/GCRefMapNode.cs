@@ -19,12 +19,12 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
         public const int GCREFMAP_LOOKUP_STRIDE = 1024;
 
         private readonly ImportSectionNode _importSection;
-        private readonly List<MethodWithGCInfo> _methods;
+        private readonly List<IMethodNode> _methods;
 
         public GCRefMapNode(ImportSectionNode importSection)
         {
             _importSection = importSection;
-            _methods = new List<MethodWithGCInfo>();
+            _methods = new List<IMethodNode>();
         }
 
         public override ObjectNodeSection Section => ObjectNodeSection.ReadOnlyDataSection;
@@ -39,7 +39,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
 
         public void AddImport(Import import)
         {
-            _methods.Add(import as IMethodNode as MethodWithGCInfo);
+            _methods.Add(import as IMethodNode);
         }
 
         public void AppendMangledName(NameMangler nameMangler, Utf8StringBuilder sb)
@@ -59,7 +59,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
                     definedSymbols: new ISymbolDefinitionNode[] { this });
             }
 
-            GCRefMapBuilder builder = new GCRefMapBuilder(factory, relocsOnly);
+            GCRefMapBuilder builder = new GCRefMapBuilder(factory.Target, relocsOnly);
             builder.Builder.RequireInitialAlignment(4);
             builder.Builder.AddSymbol(this);
 
@@ -78,14 +78,8 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             int nextMethodIndex = GCREFMAP_LOOKUP_STRIDE - 1;
             for (int methodIndex = 0; methodIndex < _methods.Count; methodIndex++)
             {
-                if (methodIndex >= nextMethodIndex)
-                {
-                    builder.Builder.EmitInt(offsets[nextOffsetIndex], builder.Builder.CountBytes);
-                    nextOffsetIndex++;
-                    nextMethodIndex += GCREFMAP_LOOKUP_STRIDE;
-                }
-                MethodWithGCInfo methodNode = _methods[methodIndex];
-                if (methodNode == null || methodNode.IsEmpty)
+                IMethodNode methodNode = _methods[methodIndex];
+                if (methodNode == null || (methodNode is MethodWithGCInfo methodWithGCInfo && methodWithGCInfo.IsEmpty))
                 {
                     // Flush an empty GC ref map block to prevent
                     // the indexed records from falling out of sync with methods
@@ -94,6 +88,12 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
                 else
                 {
                     builder.GetCallRefMap(methodNode.Method);
+                }
+                if (methodIndex >= nextMethodIndex)
+                {
+                    builder.Builder.EmitInt(offsets[nextOffsetIndex], builder.Builder.CountBytes);
+                    nextOffsetIndex++;
+                    nextMethodIndex += GCREFMAP_LOOKUP_STRIDE;
                 }
             }
             Debug.Assert(nextOffsetIndex == offsets.Length);

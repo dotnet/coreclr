@@ -106,6 +106,13 @@ check_prereqs()
     # Check presence of CMake on the path
     hash cmake 2>/dev/null || { echo >&2 "Please install cmake before running this script"; exit 1; }
 
+    function version { echo "$@" | awk -F. '{ printf("%d%02d%02d\n", $1,$2,$3); }'; } 
+
+    local cmake_version=$(cmake --version | grep -Eo "[0-9]+\.[0-9]+\.[0-9]+")
+
+    if [[ $(version $cmake_version) -lt $(version 3.14.0) ]]; then
+        echo "Please install CMake 3.14 or newer from http://www.cmake.org/download/ or https://apt.kitware.com and ensure it is on your path."; exit 1;
+    fi
 
     # Minimum required version of clang is version 4.0 for arm/armel cross build
     if [[ $__CrossBuild == 1 && $__GccBuild == 0 &&  ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") ]]; then
@@ -133,9 +140,6 @@ check_prereqs()
 
 restore_optdata()
 {
-    # we only need optdata on a Release build
-    if [[ "$__BuildType" != "Release" ]]; then __SkipRestoreOptData=1; fi
-
     local OptDataProjectFilePath="$__ProjectRoot/src/.nuget/optdata/optdata.csproj"
     if [[ ( $__SkipRestoreOptData == 0 ) && ( $__isMSBuildOnNETCoreSupported == 1 ) ]]; then
         echo "Restoring the OptimizationData package"
@@ -152,28 +156,28 @@ restore_optdata()
     if [ $__isMSBuildOnNETCoreSupported == 1 ]; then
         # Parse the optdata package versions out of msbuild so that we can pass them on to CMake
 
-        local PgoDataPackageVersionOutputFile="${__IntermediatesDir}/optdataversion.txt"
-        local IbcDataPackageVersionOutputFile="${__IntermediatesDir}/ibcoptdataversion.txt"
+        local PgoDataPackagePathOutputFile="${__IntermediatesDir}/optdatapath.txt"
+        local IbcDataPackagePathOutputFile="${__IntermediatesDir}/ibcoptdatapath.txt"
 
-        # Writes into ${PgoDataPackageVersionOutputFile}
-        "$__ProjectRoot/eng/common/msbuild.sh" $__ArcadeScriptArgs $OptDataProjectFilePath /t:DumpPgoDataPackageVersion ${__CommonMSBuildArgs} /p:PgoDataPackageVersionOutputFile=${PgoDataPackageVersionOutputFile} 2>&1 > /dev/null
+        # Writes into ${PgoDataPackagePathOutputFile}
+        "$__ProjectRoot/eng/common/msbuild.sh" $__ArcadeScriptArgs $OptDataProjectFilePath /t:DumpPgoDataPackagePath ${__CommonMSBuildArgs} /p:PgoDataPackagePathOutputFile=${PgoDataPackagePathOutputFile} 2>&1 > /dev/null
         local exit_code=$?
-        if [ $exit_code != 0 ] || [ ! -f "${PgoDataPackageVersionOutputFile}" ]; then
-            echo "${__ErrMsgPrefix}Failed to get PGO data package version."
+        if [ $exit_code != 0 ] || [ ! -f "${PgoDataPackagePathOutputFile}" ]; then
+            echo "${__ErrMsgPrefix}Failed to get PGO data package path."
             exit $exit_code
         fi
 
-        __PgoOptDataVersion=$(<"${PgoDataPackageVersionOutputFile}")
+        __PgoOptDataPath=$(<"${PgoDataPackagePathOutputFile}")
 
-        # Writes into ${IbcDataPackageVersionOutputFile}
-        "$__ProjectRoot/eng/common/msbuild.sh" $__ArcadeScriptArgs $OptDataProjectFilePath /t:DumpIbcDataPackageVersion ${__CommonMSBuildArgs} /p:IbcDataPackageVersionOutputFile=${IbcDataPackageVersionOutputFile} 2>&1 > /dev/null
+        # Writes into ${IbcDataPackagePathOutputFile}
+        "$__ProjectRoot/eng/common/msbuild.sh" $__ArcadeScriptArgs $OptDataProjectFilePath /t:DumpIbcDataPackagePath ${__CommonMSBuildArgs} /p:IbcDataPackagePathOutputFile=${IbcDataPackagePathOutputFile} 2>&1 > /dev/null
         local exit_code=$?
-        if [ $exit_code != 0 ] || [ ! -f "${IbcDataPackageVersionOutputFile}" ]; then
-            echo "${__ErrMsgPrefix}Failed to get IBC data package version."
+        if [ $exit_code != 0 ] || [ ! -f "${IbcDataPackagePathOutputFile}" ]; then
+            echo "${__ErrMsgPrefix}Failed to get IBC data package path."
             exit $exit_code
         fi
 
-        __IbcOptDataVersion=$(<"${IbcDataPackageVersionOutputFile}")
+        __IbcOptDataPath=$(<"${IbcDataPackagePathOutputFile}")
     fi
 }
 
@@ -215,11 +219,9 @@ build_native()
     echo "Commencing build of $message for $__BuildOS.$__BuildArch.$__BuildType in $intermediatesForBuild"
 
     generator=""
-    buildFile="Makefile"
     buildTool="make"
     if [ $__UseNinja == 1 ]; then
         generator="ninja"
-        buildFile="build.ninja"
         if ! buildTool=$(command -v ninja || command -v ninja-build); then
            echo "Unable to locate ninja!" 1>&2
            exit 1
@@ -253,27 +255,35 @@ build_native()
             fi
         fi
 
-
-        pushd "$intermediatesForBuild"
         # Regenerate the CMake solution
 
         scriptDir="$__ProjectRoot/src/pal/tools"
         if [[ $__GccBuild == 0 ]]; then
-            scan_build=
+            echo "Invoking \"$scriptDir/find-clang.sh\" $__ClangMajorVersion \"$__ClangMinorVersion\""
+            source "$scriptDir/find-clang.sh" $__ClangMajorVersion "$__ClangMinorVersion"
             if [[ $__StaticAnalyzer == 1 ]]; then
                 scan_build=scan-build
             fi
-            echo "Invoking \"$scriptDir/gen-buildsys-clang.sh\" \"$__ProjectRoot\" $__ClangMajorVersion \"$__ClangMinorVersion\" $platformArch "$scriptDir" $__BuildType $__CodeCoverage $scan_build $generator $extraCmakeArguments $__cmakeargs"
-            source "$scriptDir/gen-buildsys-clang.sh" "$__ProjectRoot" $__ClangMajorVersion "$__ClangMinorVersion" $platformArch "$scriptDir" $__BuildType $__CodeCoverage $scan_build $generator "$extraCmakeArguments" "$__cmakeargs"
         else
-            echo "Invoking \"$scriptDir/gen-buildsys-gcc.sh\" \"$__ProjectRoot\" $__GccMajorVersion \"$__GccMinorVersion\" $platformArch "$scriptDir" $__BuildType $__CodeCoverage $generator $extraCmakeArguments $__cmakeargs"
-            source "$scriptDir/gen-buildsys-gcc.sh" "$__ProjectRoot" "$__GccMajorVersion" "$__CGccMinorVersion" $platformArch "$scriptDir" $__BuildType $__CodeCoverage $generator "$extraCmakeArguments" "$__cmakeargs"
+            echo "Invoking \"$scriptDir/find-gcc.sh\" \"$__GccMajorVersion\" \"$__GccMinorVersion\""
+            source "$scriptDir/find-gcc.sh" "$__GccMajorVersion" "$__GccMinorVersion"
         fi
-        popd
+        
+        if [[ -n "$__CodeCoverage" ]]; then
+            extraCmakeArguments="$extraCmakeArguments -DCLR_CMAKE_ENABLE_CODE_COVERAGE=1"
+        fi
+
+        echo "Invoking \"$scriptDir/gen-buildsys.sh\" \"$__ProjectRoot\" \"$intermediatesForBuild\" $platformArch $__BuildType $generator $scan_build $extraCmakeArguments $__cmakeargs"
+        source "$scriptDir/gen-buildsys.sh" "$__ProjectRoot" "$intermediatesForBuild" $platformArch $__BuildType $generator $scan_build "$extraCmakeArguments" "$__cmakeargs"
+    
+        if [ $? != 0  ]; then
+            echo "${__ErrMsgPrefix}Failed to generate $message build project!"
+            exit 1
+        fi
     fi
 
-    if [ ! -f "$intermediatesForBuild/$buildFile" ]; then
-        echo "${__ErrMsgPrefix}Failed to generate $message build project!"
+    if [ ! -f "$intermediatesForBuild/CMakeCache.txt" ]; then
+        echo "${__ErrMsgPrefix}Unable to find generated build files for $message project!"
         exit 1
     fi
 
@@ -284,22 +294,27 @@ build_native()
     fi
 
     # Check that the makefiles were created.
-    pushd "$intermediatesForBuild"
 
     if [ $__StaticAnalyzer == 1 ]; then
+        pushd "$intermediatesForBuild"
+
         buildTool="$SCAN_BUILD_COMMAND $buildTool"
+        echo "Executing $buildTool install -j $__NumProc"
+        $buildTool install -j $__NumProc
+
+        popd
+    else
+        echo "Executing cmake --build \"$intermediatesForBuild\" --target install -j $__NumProc"
+
+        cmake --build "$intermediatesForBuild" --target install -j $__NumProc
     fi
-
-    echo "Executing $buildTool install -j $__NumProc"
-
-    $buildTool install -j $__NumProc
+    
     local exit_code=$?
     if [ $exit_code != 0 ]; then
         echo "${__ErrMsgPrefix}Failed to build $message."
         exit $exit_code
     fi
 
-    popd
 }
 
 build_cross_architecture_components()
@@ -326,7 +341,7 @@ build_cross_architecture_components()
     export __CMakeBinDir="$crossArchBinDir"
     export CROSSCOMPILE=0
 
-    __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_ARCH=$__BuildArch -DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument -DCLR_CMAKE_OPTDATA_VERSION=$__PgoOptDataVersion -DCLR_CMAKE_PGO_OPTIMIZE=$__PgoOptimize -DCLR_CROSS_COMPONENTS_BUILD=1"
+    __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_ARCH=$__BuildArch -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument -DCLR_CMAKE_OPTDATA_PATH=$__PgoOptDataPath -DCLR_CMAKE_PGO_OPTIMIZE=$__PgoOptimize -DCLR_CROSS_COMPONENTS_BUILD=1"
     build_native $__SkipCrossArchBuild "$__CrossArch" "$intermediatesForBuild" "$__ExtraCmakeArgs" "cross-architecture components"
 
     export CROSSCOMPILE=1
@@ -408,7 +423,7 @@ build_CoreLib()
     # Invoke MSBuild
     __ExtraBuildArgs=""
     if [[ "$__IbcTuning" == "" ]]; then
-        __ExtraBuildArgs="$__ExtraBuildArgs /p:OptimizationDataDir=\"$__PackagesDir/optimization.$__BuildOS-$__BuildArch.IBC.CoreCLR/$__IbcOptDataVersion/data\""
+        __ExtraBuildArgs="$__ExtraBuildArgs /p:OptimizationDataDir=\"$__IbcOptDataPath/data\""
         __ExtraBuildArgs="$__ExtraBuildArgs /p:EnableProfileGuidedOptimization=true"
     fi
 
@@ -444,11 +459,21 @@ build_CoreLib()
 
     if [[ "$__BuildManagedTools" -eq "1" ]]; then
         echo "Publishing crossgen2 for $__DistroRid"
-        "$__ProjectRoot/dotnet.sh" publish --self-contained -r $__DistroRid -c $__BuildType -o "$__BinDir/crossgen2" "$__ProjectRoot/src/tools/crossgen2/crossgen2/crossgen2.csproj"
+        "$__ProjectRoot/dotnet.sh" publish --self-contained -r $__DistroRid -c $__BuildType -o "$__BinDir/crossgen2" "$__ProjectRoot/src/tools/crossgen2/crossgen2/crossgen2.csproj" /p:BuildArch=$__BuildArch
+        local exit_code=$?
+        if [ $exit_code != 0 ]; then
+            echo "${__ErrMsgPrefix}Failed to build crossgen2."
+            exit $exit_code
+        fi
         rm $__BinDir/crossgen2/crossgen2.runtimeconfig.json
 
         echo "Publishing tibcmgr for $__DistroRid"
         "$__ProjectRoot/dotnet.sh" publish --self-contained -r $__DistroRid -c $__BuildType -o "$__BinDir/tibcmgr" "$__ProjectRoot/src/tools/crossgen2/tibcmgr/tibcmgr.csproj"
+        local exit_code=$?
+        if [ $exit_code != 0 ]; then
+            echo "${__ErrMsgPrefix}Failed to build tibcmgr."
+            exit $exit_code
+        fi
         rm $__BinDir/tibcmgr/tibcmgr.runtimeconfig.json
 
         if [ "$__HostOS" == "OSX" ]; then
@@ -635,7 +660,6 @@ __IgnoreWarnings=0
 # Set the various build properties here so that CMake and MSBuild can pick them up
 __ProjectDir="$__ProjectRoot"
 __SourceDir="$__ProjectDir/src"
-__PackagesDir="${DotNetRestorePackagesPath:-${__ProjectDir}/.packages}"
 __RootBinDir="$__ProjectDir/bin"
 __UnprocessedBuildArgs=
 __CommonMSBuildArgs=
@@ -664,14 +688,13 @@ __ClangMinorVersion=0
 __GccBuild=0
 __GccMajorVersion=0
 __GccMinorVersion=0
-__NuGetPath="$__PackagesDir/NuGet.exe"
 __DistroRid=""
 __cmakeargs=""
 __SkipGenerateVersion=0
 __PortableBuild=1
 __msbuildonunsupportedplatform=0
-__PgoOptDataVersion=""
-__IbcOptDataVersion=""
+__PgoOptDataPath=""
+__IbcOptDataPath=""
 __BuildManagedTools=1
 __SkipRestoreArg="/p:RestoreDuringBuild=true"
 __SignTypeArg=""
@@ -802,6 +825,16 @@ while :; do
 
         clang7|-clang7)
             __ClangMajorVersion=7
+            __ClangMinorVersion=
+            ;;
+
+        clang8|-clang8)
+            __ClangMajorVersion=8
+            __ClangMinorVersion=
+            ;;
+
+        clang9|-clang9)
+            __ClangMajorVersion=9
             __ClangMinorVersion=
             ;;
 
@@ -1087,7 +1120,7 @@ restore_optdata
 generate_event_logging
 
 # Build the coreclr (native) components.
-__ExtraCmakeArgs="-DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument -DCLR_CMAKE_OPTDATA_VERSION=$__PgoOptDataVersion -DCLR_CMAKE_PGO_OPTIMIZE=$__PgoOptimize"
+__ExtraCmakeArgs="-DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument -DCLR_CMAKE_OPTDATA_PATH=$__PgoOptDataPath -DCLR_CMAKE_PGO_OPTIMIZE=$__PgoOptimize"
 
 # Restore packages used for building corebundle
 if [[ $__SkipCoreBundle != 1 && $__isMSBuildOnNETCoreSupported == 1 && "$__BuildArch" == "x64" ]]; then

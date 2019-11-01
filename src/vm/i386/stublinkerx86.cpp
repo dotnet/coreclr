@@ -5020,7 +5020,7 @@ VOID StubLinkerCPU::EmitArrayOpStub(const ArrayOpScript* pArrayOpScript)
             X86EmitOp(0x3b, kEAX, kArrayMTReg, MethodTable::GetOffsetOfArrayElementTypeHandle() AMD64_ARG(k64BitOp));
             X86EmitCondJump(CheckPassed, X86CondCode::kJZ);             // Assigning to array of object is OK
 
-            // Try to call the fast helper first ( ObjIsInstanceOfNoGC ).
+            // Try to call the fast helper first ( ObjIsInstanceOfCached ).
             // If that fails we will fall back to calling the slow helper ( ArrayStoreCheck ) that erects a frame.
             // See also JitInterfaceX86::JIT_Stelem_Ref  
                                    
@@ -5060,8 +5060,8 @@ VOID StubLinkerCPU::EmitArrayOpStub(const ArrayOpScript* pArrayOpScript)
             // it in the fast path anyway. the reason for that is that it makes
             // the cleanup code much easier ( we have only 1 place to cleanup the stack and
             // restore it to the original state )
-            X86EmitCall(NewExternalCodeLabel((LPVOID)ObjIsInstanceOfNoGC), 0);
-            X86EmitCmpRegImm32( kEAX, TypeHandle::CanCast); // CMP EAX, CanCast ; if ObjIsInstanceOfNoGC returns CanCast, we will go the fast path
+            X86EmitCall(NewExternalCodeLabel((LPVOID)ObjIsInstanceOfCached), 0);
+            X86EmitCmpRegImm32( kEAX, TypeHandle::CanCast); // CMP EAX, CanCast ; if ObjIsInstanceOfCached returns CanCast, we will go the fast path
             CodeLabel * Cleanup = NewCodeLabel();
             X86EmitCondJump(Cleanup, X86CondCode::kJZ);
                                                
@@ -6682,7 +6682,6 @@ void FixupPrecode::ResetTargetInterlocked()
     newValue.m_rel32 = rel32UsingJumpStub(&m_rel32, target, pMD);
 
     _ASSERTE(IS_ALIGNED(this, sizeof(INT64)));
-    EnsureWritableExecutablePages(this, sizeof(INT64));
     FastInterlockExchangeLong((INT64*)this, *(INT64*)&newValue);
 }
 
@@ -6739,7 +6738,6 @@ BOOL FixupPrecode::SetTargetInterlocked(TADDR target, TADDR expected)
             rel32UsingJumpStub(&m_rel32, target, pMD);
 
     _ASSERTE(IS_ALIGNED(this, sizeof(INT64)));
-    EnsureWritableExecutablePages(this, sizeof(INT64));
     return FastInterlockCompareExchangeLong((INT64*) this, newValue, oldValue) == oldValue;
 }
 

@@ -50,6 +50,18 @@ BOOL g_fEEHostedStartup = FALSE;
 
 #include "eventtracepriv.h"
 
+#ifndef FEATURE_PAL
+DOTNET_TRACE_CONTEXT MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context = { &MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_EVENTPIPE_Context };
+DOTNET_TRACE_CONTEXT MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_DOTNET_Context = { &MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_EVENTPIPE_Context };
+DOTNET_TRACE_CONTEXT MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_DOTNET_Context = { &MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_Context, MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_EVENTPIPE_Context };
+DOTNET_TRACE_CONTEXT MICROSOFT_WINDOWS_DOTNETRUNTIME_STRESS_PROVIDER_DOTNET_Context = { &MICROSOFT_WINDOWS_DOTNETRUNTIME_STRESS_PROVIDER_Context, MICROSOFT_WINDOWS_DOTNETRUNTIME_STRESS_PROVIDER_EVENTPIPE_Context };
+#else
+DOTNET_TRACE_CONTEXT MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context = { MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_EVENTPIPE_Context, &MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_LTTNG_Context };
+DOTNET_TRACE_CONTEXT MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_DOTNET_Context = { MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_EVENTPIPE_Context, &MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_LTTNG_Context };
+DOTNET_TRACE_CONTEXT MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_DOTNET_Context = { MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_EVENTPIPE_Context, &MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_LTTNG_Context };
+DOTNET_TRACE_CONTEXT MICROSOFT_WINDOWS_DOTNETRUNTIME_STRESS_PROVIDER_DOTNET_Context = { MICROSOFT_WINDOWS_DOTNETRUNTIME_STRESS_PROVIDER_EVENTPIPE_Context, &MICROSOFT_WINDOWS_DOTNETRUNTIME_STRESS_PROVIDER_LTTNG_Context };
+#endif // FEATURE_PAL
+
 #ifdef FEATURE_REDHAWK
 volatile LONGLONG ETW::GCLog::s_l64LastClientSequenceNumber = 0;
 #else // FEATURE_REDHAWK
@@ -1135,6 +1147,7 @@ void BulkComLogger::FlushRcw()
 #else
     ULONG result = FireEtXplatGCBulkRCW(m_currRcw, instance, sizeof(EventRCWEntry) * m_currRcw, m_etwRcwData);
 #endif // !defined(FEATURE_PAL)
+    result |= EventPipeWriteEventGCBulkRCW(m_currRcw, instance, sizeof(EventRCWEntry) * m_currRcw, m_etwRcwData);
 
     _ASSERTE(result == ERROR_SUCCESS);
 
@@ -1224,6 +1237,7 @@ void BulkComLogger::FlushCcw()
 #else
     ULONG result = FireEtXplatGCBulkRootCCW(m_currCcw, instance, sizeof(EventCCWEntry) * m_currCcw, m_etwCcwData);
 #endif //!defined(FEATURE_PAL)
+    result |= EventPipeWriteEventGCBulkRootCCW(m_currCcw, instance, sizeof(EventCCWEntry) * m_currCcw, m_etwCcwData);
 
     _ASSERTE(result == ERROR_SUCCESS);
 
@@ -1428,6 +1442,7 @@ void BulkStaticsLogger::FireBulkStaticsEvent()
 #else
     ULONG result = FireEtXplatGCBulkRootStaticVar(m_count, appDomain, instance, m_used, m_buffer);
 #endif //!defined(FEATURE_PAL)
+    result |= EventPipeWriteEventGCBulkRootStaticVar(m_count, appDomain, instance, m_used, m_buffer);
 
     _ASSERTE(result == ERROR_SUCCESS);
 
@@ -2829,7 +2844,7 @@ void ETW::TypeSystemLog::PostRegistrationInit()
             10          // Base 10 conversion
             );
 
-        if (dwCustomObjectAllocationEventsPerTypePerSec == ULONG_MAX)
+        if (dwCustomObjectAllocationEventsPerTypePerSec == UINT32_MAX)
             dwCustomObjectAllocationEventsPerTypePerSec = 0;
         if (dwCustomObjectAllocationEventsPerTypePerSec != 0)
         {
@@ -7540,3 +7555,11 @@ bool EventPipeHelper::IsEnabled(DOTNET_TRACE_CONTEXT Context, UCHAR Level, ULONG
     return false;
 }
 #endif // FEATURE_PERFTRACING
+
+#if defined(FEATURE_PAL)  && defined(FEATURE_PERFTRACING)
+// This is a wrapper method for LTTng. See https://github.com/dotnet/coreclr/pull/27273 for details.
+extern "C" bool XplatEventLoggerIsEnabled()
+{
+    return XplatEventLogger::IsEventLoggingEnabled();
+}
+#endif // FEATURE_PAL && FEATURE_PERFTRACING

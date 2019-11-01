@@ -131,7 +131,6 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
     }
 #endif // DEBUG
 
-#ifdef _TARGET_ARM64_ // TODO-ARM: is this applicable to ARM32?
     // Is this a node whose value is already in a register?  LSRA denotes this by
     // setting the GTF_REUSE_REG_VAL flag.
     if (treeNode->IsReuseRegVal())
@@ -141,7 +140,6 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
         JITDUMP("  TreeNode is marked ReuseReg\n");
         return;
     }
-#endif // _TARGET_ARM64_
 
     // contained nodes are part of their parents for codegen purposes
     // ex : immediates, most LEAs
@@ -354,7 +352,7 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
 #endif // FEATURE_SIMD
 
 #ifdef FEATURE_HW_INTRINSICS
-        case GT_HWIntrinsic:
+        case GT_HWINTRINSIC:
             genHWIntrinsic(treeNode->AsHWIntrinsic());
             break;
 #endif // FEATURE_HW_INTRINSICS
@@ -521,7 +519,7 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
 #ifdef _TARGET_ARM_
 
         case GT_CLS_VAR_ADDR:
-            emit->emitIns_R_C(INS_lea, EA_PTRSIZE, targetReg, treeNode->gtClsVar.gtClsVarHnd, 0);
+            emit->emitIns_R_C(INS_lea, EA_PTRSIZE, targetReg, treeNode->AsClsVar()->gtClsVarHnd, 0);
             genProduceReg(treeNode);
             break;
 
@@ -625,7 +623,7 @@ void CodeGen::genIntrinsic(GenTree* treeNode)
 
     // Right now only Abs/Ceiling/Floor/Round/Sqrt are treated as math intrinsics.
     //
-    switch (treeNode->gtIntrinsic.gtIntrinsicId)
+    switch (treeNode->AsIntrinsic()->gtIntrinsicId)
     {
         case CORINFO_INTRINSIC_Abs:
             genConsumeOperands(treeNode->AsOp());
@@ -1700,7 +1698,7 @@ void CodeGen::genCodeForShift(GenTree* tree)
     else
     {
         unsigned immWidth   = emitter::getBitWidth(size); // For ARM64, immWidth will be set to 32 or 64
-        unsigned shiftByImm = (unsigned)shiftBy->gtIntCon.gtIconVal & (immWidth - 1);
+        unsigned shiftByImm = (unsigned)shiftBy->AsIntCon()->gtIconVal & (immWidth - 1);
 
         GetEmitter()->emitIns_R_R_I(ins, size, tree->GetRegNum(), operand->GetRegNum(), shiftByImm);
     }
@@ -1927,15 +1925,12 @@ void CodeGen::genCodeForCpBlkHelper(GenTreeBlk* cpBlkNode)
 // genCodeForInitBlkUnroll: Generate unrolled block initialization code.
 //
 // Arguments:
-//    node - the GT_STORE_BLK or GT_STORE_OBJ node to generate code for
+//    node - the GT_STORE_BLK node to generate code for
 //
 void CodeGen::genCodeForInitBlkUnroll(GenTreeBlk* node)
 {
-    assert(node->OperIs(GT_STORE_BLK, GT_STORE_OBJ));
+    assert(node->OperIs(GT_STORE_BLK));
 
-#ifndef _TARGET_ARM64_
-    NYI_ARM("genCodeForInitBlkUnroll");
-#else
     regNumber dstAddrBaseReg = genConsumeReg(node->Addr());
     unsigned  dstOffset      = 0;
 
@@ -1954,8 +1949,12 @@ void CodeGen::genCodeForInitBlkUnroll(GenTreeBlk* node)
     }
     else
     {
+#ifdef _TARGET_ARM64_
         assert(src->IsIntegralConst(0));
         srcReg = REG_ZR;
+#else
+        unreached();
+#endif
     }
 
     if (node->IsVolatile())
@@ -1966,10 +1965,12 @@ void CodeGen::genCodeForInitBlkUnroll(GenTreeBlk* node)
     emitter* emit = GetEmitter();
     unsigned size = node->GetLayout()->GetSize();
 
+#ifdef _TARGET_ARM64_
     for (unsigned regSize = 2 * REGSIZE_BYTES; size >= regSize; size -= regSize, dstOffset += regSize)
     {
         emit->emitIns_R_R_R_I(INS_stp, EA_8BYTE, srcReg, srcReg, dstAddrBaseReg, dstOffset);
     }
+#endif
 
     for (unsigned regSize = REGSIZE_BYTES; size > 0; size -= regSize, dstOffset += regSize)
     {
@@ -1979,26 +1980,37 @@ void CodeGen::genCodeForInitBlkUnroll(GenTreeBlk* node)
         }
 
         instruction storeIns;
+        emitAttr    attr;
 
         switch (regSize)
         {
             case 1:
                 storeIns = INS_strb;
+#ifdef _TARGET_ARM64_
+                attr = EA_1BYTE;
+#else
+                attr = EA_4BYTE;
+#endif
                 break;
             case 2:
                 storeIns = INS_strh;
+#ifdef _TARGET_ARM64_
+                attr = EA_2BYTE;
+#else
+                attr = EA_4BYTE;
+#endif
                 break;
             case 4:
             case 8:
                 storeIns = INS_str;
+                attr     = EA_ATTR(regSize);
                 break;
             default:
                 unreached();
         }
 
-        emit->emitIns_R_R_I(storeIns, EA_ATTR(regSize), srcReg, dstAddrBaseReg, dstOffset);
+        emit->emitIns_R_R_I(storeIns, attr, srcReg, dstAddrBaseReg, dstOffset);
     }
-#endif // _TARGET_ARM64_
 }
 
 //----------------------------------------------------------------------------------
@@ -2019,19 +2031,18 @@ void CodeGen::genCodeForCpBlkUnroll(GenTreeBlk* node)
     if (!dstAddr->isContained())
     {
         dstAddrBaseReg = genConsumeReg(dstAddr);
-
-        // TODO-Cleanup: This matches the old code behavior in order to get 0 diffs. It's otherwise
-        // messed up - lowering does not mark a local address node contained even if it's possible
-        // and then the old code consumed the register but ignored it and generated code that accesses
-        // the local variable directly.
-        if (dstAddr->OperIsLocalAddr())
-        {
-            dstLclNum = dstAddr->AsLclVarCommon()->GetLclNum();
-            dstOffset = dstAddr->OperIs(GT_LCL_FLD_ADDR) ? dstAddr->AsLclFld()->gtLclOffs : 0;
-        }
     }
     else
     {
+        // TODO-ARM-CQ: If the local frame offset is too large to be encoded, the emitter automatically
+        // loads the offset into a reserved register (see CodeGen::rsGetRsvdReg()). If we generate
+        // multiple store instructions we'll also generate multiple offset loading instructions.
+        // We could try to detect such cases, compute the base destination address in this reserved
+        // and use it in all store instructions we generate. This would effectively undo the effect
+        // of local address containment done by lowering.
+        //
+        // The same issue also occurs in source address case below and in genCodeForInitBlkUnroll.
+
         assert(dstAddr->OperIsLocalAddr());
         dstLclNum = dstAddr->AsLclVarCommon()->GetLclNum();
         dstOffset = dstAddr->OperIs(GT_LCL_FLD_ADDR) ? dstAddr->AsLclFld()->gtLclOffs : 0;
@@ -2057,16 +2068,6 @@ void CodeGen::genCodeForCpBlkUnroll(GenTreeBlk* node)
         if (!srcAddr->isContained())
         {
             srcAddrBaseReg = genConsumeReg(srcAddr);
-
-            // TODO-Cleanup: This matches the old code behavior in order to get 0 diffs. It's otherwise
-            // messed up - lowering does not mark a local address node contained even if it's possible
-            // and then the old code consumed the register but ignored it and generated code that accesses
-            // the local variable directly.
-            if (srcAddr->OperIsLocalAddr())
-            {
-                srcLclNum = srcAddr->AsLclVarCommon()->GetLclNum();
-                srcOffset = srcAddr->OperIs(GT_LCL_FLD_ADDR) ? srcAddr->AsLclFld()->gtLclOffs : 0;
-            }
         }
         else
         {
@@ -3443,22 +3444,21 @@ void CodeGen::genCodeForStoreBlk(GenTreeBlk* blkOp)
 {
     assert(blkOp->OperIs(GT_STORE_OBJ, GT_STORE_DYN_BLK, GT_STORE_BLK));
 
-    if (blkOp->OperIs(GT_STORE_OBJ) && blkOp->OperIsCopyBlkOp())
+    if (blkOp->OperIs(GT_STORE_OBJ))
     {
+        assert(!blkOp->gtBlkOpGcUnsafe);
+        assert(blkOp->OperIsCopyBlkOp());
         assert(blkOp->AsObj()->GetLayout()->HasGCPtr());
         genCodeForCpObj(blkOp->AsObj());
         return;
     }
 
-    if (blkOp->gtBlkOpGcUnsafe)
-    {
-        GetEmitter()->emitDisableGC();
-    }
     bool isCopyBlk = blkOp->OperIsCopyBlkOp();
 
     switch (blkOp->gtBlkOpKind)
     {
         case GenTreeBlk::BlkOpKindHelper:
+            assert(!blkOp->gtBlkOpGcUnsafe);
             if (isCopyBlk)
             {
                 genCodeForCpBlkHelper(blkOp);
@@ -3472,21 +3472,25 @@ void CodeGen::genCodeForStoreBlk(GenTreeBlk* blkOp)
         case GenTreeBlk::BlkOpKindUnroll:
             if (isCopyBlk)
             {
+                if (blkOp->gtBlkOpGcUnsafe)
+                {
+                    GetEmitter()->emitDisableGC();
+                }
                 genCodeForCpBlkUnroll(blkOp);
+                if (blkOp->gtBlkOpGcUnsafe)
+                {
+                    GetEmitter()->emitEnableGC();
+                }
             }
             else
             {
+                assert(!blkOp->gtBlkOpGcUnsafe);
                 genCodeForInitBlkUnroll(blkOp);
             }
             break;
 
         default:
             unreached();
-    }
-
-    if (blkOp->gtBlkOpGcUnsafe)
-    {
-        GetEmitter()->emitEnableGC();
     }
 }
 
@@ -3894,207 +3898,6 @@ void CodeGen::genStructReturn(GenTree* treeNode)
         } // (needToShuffleRegs)
 
     } // op1 must be multi-reg GT_CALL
-}
-
-//------------------------------------------------------------------------
-// genAllocLclFrame: Probe the stack and allocate the local stack frame: subtract from SP.
-//
-// Notes:
-//      On ARM64, this only does the probing; allocating the frame is done when callee-saved registers are saved.
-//      This is done before anything has been pushed. The previous frame might have a large outgoing argument
-//      space that has been allocated, but the lowest addresses have not been touched. Our frame setup might
-//      not touch up to the first 504 bytes. This means we could miss a guard page. On Windows, however,
-//      there are always three guard pages, so we will not miss them all. On Linux, there is only one guard
-//      page by default, so we need to be more careful. We do an extra probe if we might not have probed
-//      recently enough. That is, if a call and prolog establishment might lead to missing a page. We do this
-//      on Windows as well just to be consistent, even though it should not be necessary.
-//
-//      On ARM32, the first instruction of the prolog is always a push (which touches the lowest address
-//      of the stack), either of the LR register or of some argument registers, e.g., in the case of
-//      pre-spilling. The LR register is always pushed because we require it to allow for GC return
-//      address hijacking (see the comment in CodeGen::genPushCalleeSavedRegisters()). These pushes
-//      happen immediately before calling this function, so the SP at the current location has already
-//      been touched.
-//
-void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pInitRegZeroed, regMaskTP maskArgRegsLiveIn)
-{
-    assert(compiler->compGeneratingProlog);
-
-    if (frameSize == 0)
-    {
-        return;
-    }
-
-    const target_size_t pageSize = compiler->eeGetPageSize();
-
-#ifdef _TARGET_ARM64_
-    // What offset from the final SP was the last probe? If we haven't probed almost a complete page, and
-    // if the next action on the stack might subtract from SP first, before touching the current SP, then
-    // we do one more probe at the very bottom. This can happen if we call a function on arm64 that does
-    // a "STP fp, lr, [sp-504]!", that is, pre-decrement SP then store. Note that we probe here for arm64,
-    // but we don't alter SP.
-    target_size_t lastTouchDelta = 0;
-#endif // _TARGET_ARM64_
-
-    assert(!compiler->info.compPublishStubParam || (REG_SECRET_STUB_PARAM != initReg));
-
-    if (frameSize < pageSize)
-    {
-#ifdef _TARGET_ARM_
-        inst_RV_IV(INS_sub, REG_SPBASE, frameSize, EA_PTRSIZE);
-#endif // _TARGET_ARM_
-
-#ifdef _TARGET_ARM64_
-        lastTouchDelta = frameSize;
-#endif // _TARGET_ARM64_
-    }
-    else if (frameSize < compiler->getVeryLargeFrameSize())
-    {
-#if defined(_TARGET_ARM64_)
-        regNumber rTemp = REG_ZR; // We don't need a register for the target of the dummy load
-        lastTouchDelta  = frameSize;
-#else
-        regNumber rTemp = initReg;
-#endif
-
-        for (target_size_t probeOffset = pageSize; probeOffset <= frameSize; probeOffset += pageSize)
-        {
-            // Generate:
-            //    movw initReg, -probeOffset
-            //    ldr rTemp, [SP + initReg]  // load into initReg on arm32, wzr on ARM64
-
-            instGen_Set_Reg_To_Imm(EA_PTRSIZE, initReg, -(ssize_t)probeOffset);
-            GetEmitter()->emitIns_R_R_R(INS_ldr, EA_4BYTE, rTemp, REG_SPBASE, initReg);
-            regSet.verifyRegUsed(initReg);
-            *pInitRegZeroed = false; // The initReg does not contain zero
-
-#ifdef _TARGET_ARM64_
-            lastTouchDelta -= pageSize;
-#endif // _TARGET_ARM64_
-        }
-
-#ifdef _TARGET_ARM64_
-        assert(lastTouchDelta == frameSize % pageSize);
-        compiler->unwindPadding();
-#else  // !_TARGET_ARM64_
-        instGen_Set_Reg_To_Imm(EA_PTRSIZE, initReg, frameSize);
-        compiler->unwindPadding();
-        GetEmitter()->emitIns_R_R_R(INS_sub, EA_4BYTE, REG_SPBASE, REG_SPBASE, initReg);
-#endif // !_TARGET_ARM64_
-    }
-    else
-    {
-        assert(frameSize >= compiler->getVeryLargeFrameSize());
-
-        // Emit the following sequence to 'tickle' the pages. Note it is important that stack pointer not change
-        // until this is complete since the tickles could cause a stack overflow, and we need to be able to crawl
-        // the stack afterward (which means the stack pointer needs to be known).
-        //
-        // ARM64 needs 2 registers. ARM32 needs 3 registers. See VERY_LARGE_FRAME_SIZE_REG_MASK for how these
-        // are reserved.
-
-        regMaskTP availMask = RBM_ALLINT & (regSet.rsGetModifiedRegsMask() | ~RBM_INT_CALLEE_SAVED);
-        availMask &= ~maskArgRegsLiveIn;   // Remove all of the incoming argument registers as they are currently live
-        availMask &= ~genRegMask(initReg); // Remove the pre-calculated initReg
-
-        regNumber rOffset = initReg;
-        regNumber rLimit;
-        regMaskTP tempMask;
-
-#if defined(_TARGET_ARM64_)
-
-        regNumber rTemp = REG_ZR; // We don't need a register for the target of the dummy load
-
-#else // _TARGET_ARM_
-
-        regNumber rTemp;
-
-        // We pick the next lowest register number for rTemp
-        noway_assert(availMask != RBM_NONE);
-        tempMask = genFindLowestBit(availMask);
-        rTemp    = genRegNumFromMask(tempMask);
-        availMask &= ~tempMask;
-
-#endif // _TARGET_ARM_
-
-        // We pick the next lowest register number for rLimit
-        noway_assert(availMask != RBM_NONE);
-        tempMask = genFindLowestBit(availMask);
-        rLimit   = genRegNumFromMask(tempMask);
-        availMask &= ~tempMask;
-
-        // Generate:
-        //
-        //      mov rOffset, -pageSize    // On arm, this turns out to be "movw r1, 0xf000; sxth r1, r1".
-        //                                // We could save 4 bytes in the prolog by using "movs r1, 0" at the
-        //                                // runtime expense of running a useless first loop iteration.
-        //      mov rLimit, -frameSize
-        // loop:
-        //      ldr rTemp, [sp + rOffset] // rTemp = wzr on ARM64
-        //      sub rOffset, pageSize     // Note that 0x1000 (normal ARM32 pageSize) on ARM32 uses the funky
-        //                                // Thumb immediate encoding
-        //      cmp rLimit, rOffset
-        //      b.ls loop                 // If rLimit is lower or same, we need to probe this rOffset. Note
-        //                                // especially that if it is the same, we haven't probed this page.
-
-        noway_assert((ssize_t)(int)frameSize == (ssize_t)frameSize); // make sure framesize safely fits within an int
-
-        instGen_Set_Reg_To_Imm(EA_PTRSIZE, rOffset, -(ssize_t)pageSize);
-        instGen_Set_Reg_To_Imm(EA_PTRSIZE, rLimit, -(ssize_t)frameSize);
-
-        //
-        // Can't have a label inside the ReJIT padding area
-        //
-        genPrologPadForReJit();
-
-        // There's a "virtual" label here. But we can't create a label in the prolog, so we use the magic
-        // `emitIns_J` with a negative `instrCount` to branch back a specific number of instructions.
-
-        GetEmitter()->emitIns_R_R_R(INS_ldr, EA_4BYTE, rTemp, REG_SPBASE, rOffset);
-#if defined(_TARGET_ARM_)
-        regSet.verifyRegUsed(rTemp);
-        GetEmitter()->emitIns_R_I(INS_sub, EA_PTRSIZE, rOffset, pageSize);
-#elif defined(_TARGET_ARM64_)
-        GetEmitter()->emitIns_R_R_I(INS_sub, EA_PTRSIZE, rOffset, rOffset, pageSize);
-#endif
-        GetEmitter()->emitIns_R_R(INS_cmp, EA_PTRSIZE, rLimit, rOffset); // If equal, we need to probe again
-        GetEmitter()->emitIns_J(INS_bls, NULL, -4);
-
-        *pInitRegZeroed = false; // The initReg does not contain zero
-
-        compiler->unwindPadding();
-
-#ifdef _TARGET_ARM64_
-        lastTouchDelta = frameSize % pageSize;
-#endif // _TARGET_ARM64_
-
-#ifdef _TARGET_ARM_
-        inst_RV_RV(INS_add, REG_SPBASE, rLimit, TYP_I_IMPL);
-#endif // _TARGET_ARM_
-    }
-
-#ifdef _TARGET_ARM64_
-    if (lastTouchDelta + STACK_PROBE_BOUNDARY_THRESHOLD_BYTES > pageSize)
-    {
-        assert(lastTouchDelta + STACK_PROBE_BOUNDARY_THRESHOLD_BYTES < 2 * pageSize);
-        instGen_Set_Reg_To_Imm(EA_PTRSIZE, initReg, -(ssize_t)frameSize);
-        GetEmitter()->emitIns_R_R_R(INS_ldr, EA_4BYTE, REG_ZR, REG_SPBASE, initReg);
-        compiler->unwindPadding();
-
-        regSet.verifyRegUsed(initReg);
-        *pInitRegZeroed = false; // The initReg does not contain zero
-    }
-#endif // _TARGET_ARM64_
-
-#ifdef _TARGET_ARM_
-    compiler->unwindAllocStack(frameSize);
-#ifdef USING_SCOPE_INFO
-    if (!doubleAlignOrFramePointerUsed())
-    {
-        psiAdjustStackLevel(frameSize);
-    }
-#endif // USING_SCOPE_INFO
-#endif // _TARGET_ARM_
 }
 
 #endif // _TARGET_ARMARCH_

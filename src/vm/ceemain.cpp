@@ -166,6 +166,7 @@
 #include "threadsuspend.h"
 #include "disassembler.h"
 #include "jithost.h"
+#include "castcache.h"
 
 #ifndef FEATURE_PAL
 #include "dwreport.h"
@@ -508,7 +509,7 @@ void InitGSCookie()
     }
     CONTRACTL_END;
 
-    GSCookie * pGSCookiePtr = GetProcessGSCookiePtr();
+    volatile GSCookie * pGSCookiePtr = GetProcessGSCookiePtr();
 
 #ifdef FEATURE_PAL
     // On Unix, the GS cookie is stored in a read only data segment
@@ -749,8 +750,7 @@ void EEStartupHelper(COINITIEE fFlags)
         InitEventStore();
 #endif
 
-        // Fusion
-        // Initialize the general Assembly Binder infrastructure
+        // Initialize the default Assembly Binder and the binder infrastructure
         IfFailGoLog(CCoreCLRBinderHelper::Init());
 
         if (g_pConfig != NULL)
@@ -960,6 +960,9 @@ void EEStartupHelper(COINITIEE fFlags)
 
         // Now we really have fully initialized the garbage collector
         SetGarbageCollectorFullyInitialized();
+
+        // This will allocate a handle, so do this after GC is initialized.
+        CastCache::Initialize();
 
 #ifdef DEBUGGING_SUPPORTED
         // Make a call to publish the DefaultDomain for the debugger
@@ -1321,18 +1324,15 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
     // Used later for a callback.
     CEEInfo ceeInf;
 
-    if (fIsDllUnloading)
-    {
-        ETW::EnumerationLog::ProcessShutdown();
-    }
-
-#ifdef FEATURE_PERFTRACING
     if (!fIsDllUnloading)
     {
+        ETW::EnumerationLog::ProcessShutdown();
+
+#ifdef FEATURE_PERFTRACING
         EventPipe::Shutdown();
         DiagnosticServer::Shutdown();
-    }
 #endif // FEATURE_PERFTRACING
+    }
 
 #if defined(FEATURE_COMINTEROP)
     // Get the current thread.

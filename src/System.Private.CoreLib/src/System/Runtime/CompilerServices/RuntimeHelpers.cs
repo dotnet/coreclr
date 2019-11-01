@@ -7,6 +7,13 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using Internal.Runtime.CompilerServices;
 
+#pragma warning disable SA1121 // explicitly using type aliases instead of built-in types
+#if BIT64
+using nuint = System.UInt64;
+#else
+using nuint = System.UInt32;
+#endif
+
 namespace System.Runtime.CompilerServices
 {
     public static partial class RuntimeHelpers
@@ -164,12 +171,23 @@ namespace System.Runtime.CompilerServices
         internal static ref byte GetRawSzArrayData(this Array array) =>
             ref Unsafe.As<RawArrayData>(array).Data;
 
+        // CLR arrays are laid out in memory as follows (multidimensional array bounds are optional):
+        // [ sync block || pMethodTable || num components || MD array bounds || array data .. ]
+        //                 ^               ^                                    ^ returned reference
+        //                 |               \-- ref Unsafe.As<RawData>(array).Data
+        //                 \-- array
+        // The BaseSize of an array includes all the fields before the array data,
+        // including the sync block and method table. The reference to RawData.Data
+        // points at the number of components, skipping over these two pointer-sized fields.
+        // So substrate those from BaseSize before adding to the RawData.Data reference.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static unsafe ref byte GetRawArrayData(this Array array) =>
+            ref Unsafe.AddByteOffset(ref Unsafe.As<RawData>(array).Data, (nuint)GetObjectMethodTablePointer(array)->BaseSize - (nuint)(2 * sizeof(IntPtr)));
+
         internal static unsafe ushort GetElementSize(this Array array)
         {
             Debug.Assert(ObjectHasComponentSize(array));
-
-            // The first UINT16 of the method table is component size.
-            return *(ushort*)GetObjectMethodTablePointer(array);
+            return GetObjectMethodTablePointer(array)->ComponentSize;
         }
 
         // Returns true iff the object has a component size;
@@ -177,24 +195,27 @@ namespace System.Runtime.CompilerServices
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static unsafe bool ObjectHasComponentSize(object obj)
         {
-            // CLR objects are laid out in memory as follows.
-            // [ pMethodTable || .. object data .. ]
-            //   ^-- the object reference points here
-            //
-            // The first DWORD of the method table class will have its high bit set if the
+            // The Flags field of the method table class will have its high bit set if the
             // method table has component size info stored somewhere. See member
             // MethodTable:IsStringOrArray in src\vm\methodtable.h for full details.
-            //
-            // So in effect this method is the equivalent of
-            // return ((MethodTable*)(*obj))->IsStringOrArray();
-
-            Debug.Assert(obj != null);
-            return *(int*)GetObjectMethodTablePointer(obj) < 0;
+            return (int)GetObjectMethodTablePointer(obj)->Flags < 0;
         }
 
-        // Given an object reference, returns its MethodTable* as an IntPtr.
+        // Subset of src\vm\methodtable.h
+        [StructLayout(LayoutKind.Explicit)]
+        private struct MethodTable
+        {
+            [FieldOffset(0)]
+            public ushort ComponentSize;
+            [FieldOffset(0)]
+            public uint Flags;
+            [FieldOffset(4)]
+            public uint BaseSize;
+        }
+
+        // Given an object reference, returns its MethodTable*.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static IntPtr GetObjectMethodTablePointer(object obj)
+        private static unsafe MethodTable* GetObjectMethodTablePointer(object obj)
         {
             Debug.Assert(obj != null);
 
@@ -202,7 +223,7 @@ namespace System.Runtime.CompilerServices
             // method table pointer, so just back up one pointer and immediately deref.
             // This is not ideal in terms of minimizing instruction count but is the best we can do at the moment.
 
-            return Unsafe.Add(ref Unsafe.As<byte, IntPtr>(ref obj.GetRawData()), -1);
+            return (MethodTable *)Unsafe.Add(ref Unsafe.As<byte, IntPtr>(ref obj.GetRawData()), -1);
 
             // The JIT currently implements this as:
             // lea tmp, [rax + 8h] ; assume rax contains the object reference, tmp is type IntPtr&

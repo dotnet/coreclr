@@ -4356,6 +4356,16 @@ public:
 
     void fgAddFinallyTargetFlags();
 
+    void fgTailMergeThrows();
+    void fgTailMergeThrowsFallThroughHelper(BasicBlock* predBlock,
+                                            BasicBlock* nonCanonicalBlock,
+                                            BasicBlock* canonicalBlock,
+                                            flowList*   predEdge);
+    void fgTailMergeThrowsJumpToHelper(BasicBlock* predBlock,
+                                       BasicBlock* nonCanonicalBlock,
+                                       BasicBlock* canonicalBlock,
+                                       flowList*   predEdge);
+
 #if defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
     // Sometimes we need to defer updating the BBF_FINALLY_TARGET bit. fgNeedToAddFinallyTargetBits signals
     // when this is necessary.
@@ -4475,27 +4485,6 @@ public:
                            VARSET_VALARG_TP life,
                            bool*            doAgain,
                            bool* pStmtInfoDirty DEBUGARG(bool* treeModf));
-
-    // For updating liveset during traversal AFTER fgComputeLife has completed
-    VARSET_VALRET_TP fgGetVarBits(GenTree* tree);
-    VARSET_VALRET_TP fgUpdateLiveSet(VARSET_VALARG_TP liveSet, GenTree* tree);
-
-    // Returns the set of live variables after endTree,
-    // assuming that liveSet is the set of live variables BEFORE tree.
-    // Requires that fgComputeLife has completed, and that tree is in the same
-    // statement as endTree, and that it comes before endTree in execution order
-
-    VARSET_VALRET_TP fgUpdateLiveSet(VARSET_VALARG_TP liveSet, GenTree* tree, GenTree* endTree)
-    {
-        VARSET_TP newLiveSet(VarSetOps::MakeCopy(this, liveSet));
-        while (tree != nullptr && tree != endTree->gtNext)
-        {
-            VarSetOps::AssignNoCopy(this, newLiveSet, fgUpdateLiveSet(newLiveSet, tree));
-            tree = tree->gtNext;
-        }
-        assert(tree == endTree->gtNext);
-        return newLiveSet;
-    }
 
     void fgInterBlockLocalVarLiveness();
 
@@ -4848,7 +4837,7 @@ public:
     bool fgGCPollsCreated;
     void fgMarkGCPollBlocks();
     void fgCreateGCPolls();
-    bool fgCreateGCPoll(GCPollType pollType, BasicBlock* block);
+    bool fgCreateGCPoll(GCPollType pollType, BasicBlock* block, Statement* stmt = nullptr);
 
     // Requires that "block" is a block that returns from
     // a finally.  Returns the number of successors (jump targets of
@@ -5444,7 +5433,6 @@ private:
     GenTree* fgMorphGetStructAddr(GenTree** pTree, CORINFO_CLASS_HANDLE clsHnd, bool isRValue = false);
     GenTree* fgMorphBlkNode(GenTree* tree, bool isDest);
     GenTree* fgMorphBlockOperand(GenTree* tree, var_types asgType, unsigned blockWidth, bool isDest);
-    void fgMorphUnsafeBlk(GenTreeObj* obj);
     GenTree* fgMorphCopyBlock(GenTree* tree);
     GenTree* fgMorphForRegisterFP(GenTree* tree);
     GenTree* fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac = nullptr);
@@ -6367,6 +6355,18 @@ public:
 
     unsigned optMethodFlags;
 
+    bool doesMethodHaveNoReturnCalls()
+    {
+        return optNoReturnCallCount > 0;
+    }
+
+    void setMethodHasNoReturnCalls()
+    {
+        optNoReturnCallCount++;
+    }
+
+    unsigned optNoReturnCallCount;
+
     // Recursion bound controls how far we can go backwards tracking for a SSA value.
     // No throughput diff was found with backward walk bound between 3-8.
     static const int optEarlyPropRecurBound = 5;
@@ -6950,6 +6950,7 @@ public:
 
     var_types eeGetArgType(CORINFO_ARG_LIST_HANDLE list, CORINFO_SIG_INFO* sig);
     var_types eeGetArgType(CORINFO_ARG_LIST_HANDLE list, CORINFO_SIG_INFO* sig, bool* isPinned);
+    CORINFO_CLASS_HANDLE eeGetArgClass(CORINFO_SIG_INFO* sig, CORINFO_ARG_LIST_HANDLE list);
     unsigned eeGetArgSize(CORINFO_ARG_LIST_HANDLE list, CORINFO_SIG_INFO* sig);
 
     // VOM info, method sigs
@@ -7792,12 +7793,18 @@ private:
 
     bool isSIMDClass(CORINFO_CLASS_HANDLE clsHnd)
     {
-        return info.compCompHnd->isInSIMDModule(clsHnd);
+        if (isIntrinsicType(clsHnd))
+        {
+            const char* namespaceName = nullptr;
+            (void)getClassNameFromMetadata(clsHnd, &namespaceName);
+            return strcmp(namespaceName, "System.Numerics") == 0;
+        }
+        return false;
     }
 
     bool isIntrinsicType(CORINFO_CLASS_HANDLE clsHnd)
     {
-        return (info.compCompHnd->getClassAttribs(clsHnd) & CORINFO_FLG_INTRINSIC_TYPE) != 0;
+        return info.compCompHnd->isIntrinsicType(clsHnd);
     }
 
     const char* getClassNameFromMetadata(CORINFO_CLASS_HANDLE cls, const char** namespaceName)
@@ -8108,15 +8115,11 @@ public:
     {
 #ifdef FEATURE_SIMD
         unsigned vectorRegSize = getSIMDVectorRegisterByteLength();
-        if (vectorRegSize > TARGET_POINTER_SIZE)
-        {
-            return vectorRegSize;
-        }
-        else
-#endif // FEATURE_SIMD
-        {
-            return TARGET_POINTER_SIZE;
-        }
+        assert(vectorRegSize >= TARGET_POINTER_SIZE);
+        return vectorRegSize;
+#else  // !FEATURE_SIMD
+        return TARGET_POINTER_SIZE;
+#endif // !FEATURE_SIMD
     }
 
 private:
@@ -8237,6 +8240,8 @@ public:
     bool compQmarkRationalized;    // Is it allowed to use a GT_QMARK/GT_COLON node.
     bool compUnsafeCastUsed;       // Does the method use LDIND/STIND to cast between scalar/refernce types
     bool compHasBackwardJump;      // Does the method (or some inlinee) have a lexically backwards jump?
+    bool compSwitchedToOptimized;  // Codegen initially was Tier0 but jit switched to FullOpts
+    bool compSwitchedToMinOpts;    // Codegen initially was Tier1/FullOpts but jit switched to MinOpts
 
 // NOTE: These values are only reliable after
 //       the importing is completely finished.
@@ -8292,13 +8297,7 @@ public:
 
     struct Options
     {
-        JitFlags* jitFlags;  // all flags passed from the EE
-        unsigned  compFlags; // method attributes
-
-        codeOptimize compCodeOpt; // what type of code optimizations
-
-        bool compUseFCOMI;
-        bool compUseCMOV;
+        JitFlags* jitFlags; // all flags passed from the EE
 
 #if defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)
         uint64_t compSupportsISA;
@@ -8307,6 +8306,14 @@ public:
             compSupportsISA |= 1ULL << isa;
         }
 #endif
+
+        unsigned compFlags; // method attributes
+        unsigned instrCount;
+        unsigned lvRefCount;
+
+        codeOptimize compCodeOpt; // what type of code optimizations
+
+        bool compUseCMOV;
 
 // optimize maximally and/or favor speed over size?
 
@@ -8319,14 +8326,12 @@ public:
 // Maximun number of locals before turning off the inlining
 #define MAX_LV_NUM_COUNT_FOR_INLINING 512
 
-        bool     compMinOpts;
-        unsigned instrCount;
-        unsigned lvRefCount;
-        bool     compMinOptsIsSet;
+        bool compMinOpts;
+        bool compMinOptsIsSet;
 #ifdef DEBUG
-        bool compMinOptsIsUsed;
+        mutable bool compMinOptsIsUsed;
 
-        bool MinOpts()
+        bool MinOpts() const
         {
             assert(compMinOptsIsSet);
             compMinOptsIsUsed = true;
@@ -8337,7 +8342,7 @@ public:
             return compMinOptsIsSet;
         }
 #else  // !DEBUG
-        bool MinOpts()
+        bool MinOpts() const
         {
             return compMinOpts;
         }
@@ -8347,11 +8352,11 @@ public:
         }
 #endif // !DEBUG
 
-        bool OptimizationDisabled()
+        bool OptimizationDisabled() const
         {
             return MinOpts() || compDbgCode;
         }
-        bool OptimizationEnabled()
+        bool OptimizationEnabled() const
         {
             return !OptimizationDisabled();
         }
@@ -8622,7 +8627,6 @@ public:
         STRESS_MODE(MAKE_CSE)                                                                   \
         STRESS_MODE(LEGACY_INLINE)                                                              \
         STRESS_MODE(CLONE_EXPR)                                                                 \
-        STRESS_MODE(USE_FCOMI)                                                                  \
         STRESS_MODE(USE_CMOV)                                                                   \
         STRESS_MODE(FOLD)                                                                       \
         STRESS_MODE(BB_PROFILE)                                                                 \
@@ -10523,20 +10527,6 @@ extern const BYTE genTypeSizes[];
 extern const BYTE genTypeAlignments[];
 extern const BYTE genTypeStSzs[];
 extern const BYTE genActualTypes[];
-
-/*****************************************************************************/
-
-// VERY_LARGE_FRAME_SIZE_REG_MASK is the set of registers we need to use for
-// the probing loop generated for very large stack frames (see `getVeryLargeFrameSize`).
-// We only use this to ensure that if we need to reserve a callee-saved register,
-// it will be reserved. For ARM32, only R12 and LR are non-callee-saved, non-argument
-// registers, so we save at least one more callee-saved register. For ARM64, however,
-// we already know we have at least three non-callee-saved, non-argument integer registers,
-// so we don't need to save any more.
-
-#ifdef _TARGET_ARM_
-#define VERY_LARGE_FRAME_SIZE_REG_MASK (RBM_R4)
-#endif
 
 /*****************************************************************************/
 

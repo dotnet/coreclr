@@ -256,8 +256,6 @@ inline void BaseAssemblySpec::CopyFrom(const BaseAssemblySpec *pSpec)
     
     m_context = pSpec->m_context;
 
-    m_pHostBinder = pSpec->m_pHostBinder;
-
     if ((pSpec->m_ownedFlags & BAD_NAME_OWNED) != 0)
     {
         m_ownedFlags |= BAD_NAME_OWNED;
@@ -546,7 +544,7 @@ inline void BaseAssemblySpec::SetCodeBase(LPCWSTR szCodeBase)
     m_wszCodeBase=szCodeBase;
 }
 
-inline LPCWSTR BaseAssemblySpec::GetCodeBase()
+inline LPCWSTR BaseAssemblySpec::GetCodeBase() const
 {
     LIMITED_METHOD_CONTRACT;
     return m_wszCodeBase;

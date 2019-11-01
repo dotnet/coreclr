@@ -72,24 +72,23 @@ public:
     // There are two variants of the "CanCastTo" method:
     //
     // CanCastTo
-    // - restore encoded pointers on demand
     // - might throw, might trigger GC
     // - return type is boolean (FALSE = cannot cast, TRUE = can cast)
     //
-    // CanCastToNoGC
-    // - do not restore encoded pointers on demand
+    // CanCastToCached
     // - does not throw, does not trigger GC
     // - return type is three-valued (CanCast, CannotCast, MaybeCast)
-    // - MaybeCast indicates that the test tripped on an encoded pointer
+    //
+    // MaybeCast indicates an inconclusive result
+    // - the test result could not be obtained from a cache
     //   so the caller should now call CanCastTo if it cares
     // 
 
     BOOL CanCastTo(TypeHandle type, TypeHandlePairList *pVisited);
-    TypeHandle::CastResult CanCastToNoGC(TypeHandle type);
+    TypeHandle::CastResult CanCastToCached(TypeHandle type);
 
     static BOOL CanCastParam(TypeHandle fromParam, TypeHandle toParam, TypeHandlePairList *pVisited);
-    static TypeHandle::CastResult CanCastParamNoGC(TypeHandle fromParam, TypeHandle toParam);
-
+       
 #ifndef DACCESS_COMPILE
     BOOL IsEquivalentTo(TypeHandle type COMMA_INDEBUG(TypeHandlePairList *pVisited));
 #endif
@@ -354,9 +353,6 @@ public:
         INDEBUG(Verify());
     }
 
-//private:    TypeHandle      m_Arg;              // The type that is being modified
-
-
     // placement new operator
     void* operator new(size_t size, void* spot) {   return (spot); }
 
@@ -389,6 +385,9 @@ public:
         return g_pArrayClass;
     }
 
+    BOOL ArrayIsInstanceOf(ArrayTypeDesc* toArrayType, TypeHandlePairList* pVisited);
+    BOOL ArraySupportsBizarreInterface(MethodTable* pInterfaceMT, TypeHandlePairList* pVisited);
+
 #ifdef FEATURE_COMINTEROP
     ComCallWrapperTemplate *GetComCallWrapperTemplate()
     {
@@ -409,7 +408,7 @@ public:
         TypeHandle th(this);
         g_IBCLogger.LogTypeMethodTableWriteableAccess(&th);
 
-        return (InterlockedCompareExchangeT(EnsureWritablePages(&m_pCCWTemplate), pTemplate, NULL) == NULL);
+        return (InterlockedCompareExchangeT(&m_pCCWTemplate, pTemplate, NULL) == NULL);
     }
 #endif // FEATURE_COMINTEROP
 

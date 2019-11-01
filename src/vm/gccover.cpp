@@ -1769,12 +1769,8 @@ void DoGcStress (PCONTEXT regs, NativeCodeVersion nativeCodeVersion)
 #endif // !_TARGET_AMD64_ || !PLATFORM_UNIX
     }
 
-    FrameWithCookie<GCFrame> gcFrame;
-    if (numberOfRegs != 0)
-    {
-        _ASSERTE(sizeof(OBJECTREF) == sizeof(DWORD_PTR));
-        gcFrame.Init(pThread, (OBJECTREF*)retValRegs, numberOfRegs, TRUE);
-    }
+    _ASSERTE(sizeof(OBJECTREF) == sizeof(DWORD_PTR));
+    GCFrame gcFrame(pThread, (OBJECTREF*)retValRegs, numberOfRegs, TRUE);
 
     MethodDesc *pMD = nativeCodeVersion.GetMethodDesc();
     LOG((LF_GCROOTS, LL_EVERYTHING, "GCCOVER: Doing GC at method %s::%s offset 0x%x\n",
@@ -1825,8 +1821,6 @@ void DoGcStress (PCONTEXT regs, NativeCodeVersion nativeCodeVersion)
             _ASSERTE(!"Not expected multi reg return with pointers.");
 #endif // !_TARGET_AMD64_ || !PLATFORM_UNIX   
         }
-
-        gcFrame.Pop();
     }
 
 #if !defined(USE_REDIRECT_FOR_GCSTRESS)

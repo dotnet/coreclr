@@ -27,7 +27,6 @@
 #include "../binder/inc/applicationcontext.hpp"
 #include "../binder/inc/assemblybinder.hpp"
 #include "../binder/inc/assembly.hpp"
-#include "../binder/inc/debuglog.hpp"
 #include "../binder/inc/utils.hpp"
 #include "../binder/inc/fusionassemblyname.hpp"
 
@@ -204,8 +203,7 @@ STDAPI
 CreateAssemblyNameObjectFromMetaData(
     LPASSEMBLYNAME    *ppAssemblyName,
     LPCOLESTR          szAssemblyName,
-    ASSEMBLYMETADATA  *pamd,
-    LPVOID             pvReserved);
+    ASSEMBLYMETADATA  *pamd);
 
 //=====================================================================================================================
 HRESULT CLRPrivBinderWinRT::BindWinRTAssemblyByName(
@@ -217,9 +215,6 @@ HRESULT CLRPrivBinderWinRT::BindWinRTAssemblyByName(
     ReleaseHolder<CLRPrivAssemblyWinRT> pAssembly;
     LPWSTR wszFullTypeName = nullptr;
 
-#ifndef CROSSGEN_COMPILE
-    BINDER_SPACE::BINDER_LOG_ENTER(W("CLRPrivBinderWinRT_CoreCLR::BindWinRTAssemblyByName"));
-#endif
     VALIDATE_ARG_RET(pAssemblyName != nullptr);
     VALIDATE_ARG_RET(ppAssembly != nullptr);
     
@@ -315,7 +310,7 @@ HRESULT CLRPrivBinderWinRT::BindWinRTAssemblyByName(
                 // assembly def row.
                 // See comment on CLRPrivBinderWinRT::PreBind for further details about NGEN binding and WinMDs.
                 ASSEMBLYMETADATA asmd = { 0 };
-                IfFailGo(CreateAssemblyNameObjectFromMetaData(&pAssemblyDefName, wszFileNameStripped, &asmd, NULL));
+                IfFailGo(CreateAssemblyNameObjectFromMetaData(&pAssemblyDefName, wszFileNameStripped, &asmd));
                 DWORD dwAsmContentType = AssemblyContentType_WindowsRuntime;
                 IfFailGo(pAssemblyDefName->SetProperty(ASM_NAME_CONTENT_TYPE, (LPBYTE)&dwAsmContentType, sizeof(dwAsmContentType)));
 
@@ -365,9 +360,6 @@ HRESULT CLRPrivBinderWinRT::BindWinRTAssemblyByName(
             IfFailGo(hr = m_pTypeCache->ContainsType(pAssembly, wszFullTypeName));
             if (hr == S_OK)
             {   // The type we are looking for has been found in this assembly
-#ifndef CROSSGEN_COMPILE
-                BINDER_SPACE::BINDER_LOG_LEAVE_HR(W("CLRPrivBinderWinRT_CoreCLR::BindWinRTAssemblyByName"), hr);
-#endif
                 *ppAssembly = pAssembly.Extract();
                 return (hr = S_OK);
             }
@@ -379,7 +371,6 @@ HRESULT CLRPrivBinderWinRT::BindWinRTAssemblyByName(
     hr = CLR_E_BIND_TYPE_NOT_FOUND;
  ErrExit:
 
-    BINDER_SPACE::BINDER_LOG_LEAVE_HR(W("CLRPrivBinderWinRT_CoreCLR::BindWinRTAssemblyByName"), hr);
     return hr;
 } // CLRPrivBinderWinRT::BindWinRTAssemblyByName
 
@@ -979,7 +970,6 @@ CLRPrivAssemblyWinRT::CLRPrivAssemblyWinRT(
       m_pResourceIL(nullptr),
       m_pIResourceNI(nullptr),
       m_pIBindResult(nullptr),
-      m_fShareable(fShareable),
       m_dwImageTypes(0),
       m_FallbackBinder(nullptr)
 {
@@ -1035,20 +1025,6 @@ ULONG CLRPrivAssemblyWinRT::Release()
     
     return cRef;
 } // CLRPrivAssemblyWinRT::Release
-
-//=====================================================================================================================
-// Implements interface method code:ICLRPrivAssembly::IsShareable.
-// 
-HRESULT CLRPrivAssemblyWinRT::IsShareable(
-    BOOL * pbIsShareable)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    VALIDATE_ARG_RET(pbIsShareable != nullptr);
-
-    *pbIsShareable = m_fShareable;
-    return S_OK;
-}
 
 //=====================================================================================================================
 // Implements interface method code:ICLRPrivAssembly::GetAvailableImageTypes.

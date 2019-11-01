@@ -457,7 +457,7 @@ regMaskTP CodeGenInterface::genGetRegMask(GenTree* tree)
     assert(tree->gtOper == GT_LCL_VAR);
 
     regMaskTP        regMask = RBM_NONE;
-    const LclVarDsc* varDsc  = compiler->lvaTable + tree->gtLclVarCommon.GetLclNum();
+    const LclVarDsc* varDsc  = compiler->lvaTable + tree->AsLclVarCommon()->GetLclNum();
     if (varDsc->lvPromoted)
     {
         for (unsigned i = varDsc->lvFieldLclStart; i < varDsc->lvFieldLclStart + varDsc->lvFieldCnt; ++i)
@@ -1142,7 +1142,7 @@ unsigned CodeGenInterface::InferStructOpSizeAlign(GenTree* op, unsigned* alignme
     }
     else if (op->gtOper == GT_LCL_VAR)
     {
-        unsigned   varNum = op->gtLclVarCommon.GetLclNum();
+        unsigned   varNum = op->AsLclVarCommon()->GetLclNum();
         LclVarDsc* varDsc = compiler->lvaTable + varNum;
         assert(varDsc->lvType == TYP_STRUCT);
         opSize = varDsc->lvSize();
@@ -1165,14 +1165,14 @@ unsigned CodeGenInterface::InferStructOpSizeAlign(GenTree* op, unsigned* alignme
         {
             if (op2->IsIconHandle(GTF_ICON_CLASS_HDL))
             {
-                CORINFO_CLASS_HANDLE clsHnd = (CORINFO_CLASS_HANDLE)op2->gtIntCon.gtIconVal;
+                CORINFO_CLASS_HANDLE clsHnd = (CORINFO_CLASS_HANDLE)op2->AsIntCon()->gtIconVal;
                 opSize = roundUp(compiler->info.compCompHnd->getClassSize(clsHnd), TARGET_POINTER_SIZE);
                 alignment =
                     roundUp(compiler->info.compCompHnd->getClassAlignmentRequirement(clsHnd), TARGET_POINTER_SIZE);
             }
             else
             {
-                opSize       = (unsigned)op2->gtIntCon.gtIconVal;
+                opSize       = (unsigned)op2->AsIntCon()->gtIconVal;
                 GenTree* op1 = op->AsOp()->gtOp1;
                 assert(op1->OperGet() == GT_LIST);
                 GenTree* dstAddr = op1->AsOp()->gtOp1;
@@ -1201,7 +1201,7 @@ unsigned CodeGenInterface::InferStructOpSizeAlign(GenTree* op, unsigned* alignme
     }
     else if (op->IsArgPlaceHolderNode())
     {
-        CORINFO_CLASS_HANDLE clsHnd = op->gtArgPlace.gtArgPlaceClsHnd;
+        CORINFO_CLASS_HANDLE clsHnd = op->AsArgPlace()->gtArgPlaceClsHnd;
         assert(clsHnd != 0);
         opSize    = roundUp(compiler->info.compCompHnd->getClassSize(clsHnd), TARGET_POINTER_SIZE);
         alignment = roundUp(compiler->info.compCompHnd->getClassAlignmentRequirement(clsHnd), TARGET_POINTER_SIZE);
@@ -1452,9 +1452,10 @@ AGAIN:
                 break;
             }
 
-            if (op1->AsOp()->gtOp2->IsIntCnsFitsInI32() && FitsIn<INT32>(cns + op1->AsOp()->gtOp2->gtIntCon.gtIconVal))
+            if (op1->AsOp()->gtOp2->IsIntCnsFitsInI32() &&
+                FitsIn<INT32>(cns + op1->AsOp()->gtOp2->AsIntCon()->gtIconVal))
             {
-                cns += op1->AsOp()->gtOp2->gtIntCon.gtIconVal;
+                cns += op1->AsOp()->gtOp2->AsIntCon()->gtIconVal;
                 op1 = op1->AsOp()->gtOp1;
 
                 goto AGAIN;
@@ -1533,9 +1534,10 @@ AGAIN:
                 break;
             }
 
-            if (op2->AsOp()->gtOp2->IsIntCnsFitsInI32() && FitsIn<INT32>(cns + op2->AsOp()->gtOp2->gtIntCon.gtIconVal))
+            if (op2->AsOp()->gtOp2->IsIntCnsFitsInI32() &&
+                FitsIn<INT32>(cns + op2->AsOp()->gtOp2->AsIntCon()->gtIconVal))
             {
-                cns += op2->AsOp()->gtOp2->gtIntCon.gtIconVal;
+                cns += op2->AsOp()->gtOp2->AsIntCon()->gtIconVal;
                 op2 = op2->AsOp()->gtOp1;
 
                 goto AGAIN;
@@ -2296,8 +2298,10 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 
 #if defined(DEBUG) || defined(LATE_DISASM)
     // Add code size information into the Perf Score
-    compiler->info.compPerfScore += (compiler->info.compTotalHotCodeSize * PERFSCORE_CODESIZE_COST_HOT);
-    compiler->info.compPerfScore += (compiler->info.compTotalColdCodeSize * PERFSCORE_CODESIZE_COST_COLD);
+    // All compPerfScore calculations must be performed using doubles
+    compiler->info.compPerfScore += ((double)compiler->info.compTotalHotCodeSize * (double)PERFSCORE_CODESIZE_COST_HOT);
+    compiler->info.compPerfScore +=
+        ((double)compiler->info.compTotalColdCodeSize * (double)PERFSCORE_CODESIZE_COST_COLD);
 #endif // DEBUG || LATE_DISASM
 
 #ifdef DEBUG
@@ -6821,12 +6825,14 @@ void CodeGen::genFinalizeFrame()
     }
 #endif // _TARGET_X86_
 
-#if defined(_TARGET_ARM_)
-    // We need to determine if we will change SP larger than a specific amount to determine if we want to use a loop
-    // to touch stack pages, that will require multiple registers. See genAllocLclFrame() for details.
+#ifdef _TARGET_ARM_
+    // Make sure that callee-saved registers used by call to a stack probing helper generated for very large stack
+    // frames
+    // (see `getVeryLargeFrameSize`) are pushed on stack.
     if (compiler->compLclFrameSize >= compiler->getVeryLargeFrameSize())
     {
-        regSet.rsSetRegsModified(VERY_LARGE_FRAME_SIZE_REG_MASK);
+        regSet.rsSetRegsModified(RBM_STACK_PROBE_HELPER_ARG | RBM_STACK_PROBE_HELPER_CALL_TARGET |
+                                 RBM_STACK_PROBE_HELPER_TRASH);
     }
 
     // If there are any reserved registers, add them to the modified set.
@@ -7903,7 +7909,7 @@ void CodeGen::genFnEpilog(BasicBlock* block)
 
     if (jmpEpilog && lastNode->gtOper == GT_JMP)
     {
-        methHnd = (CORINFO_METHOD_HANDLE)lastNode->gtVal.gtVal1;
+        methHnd = (CORINFO_METHOD_HANDLE)lastNode->AsVal()->gtVal1;
         compiler->info.compCompHnd->getFunctionEntryPoint(methHnd, &addrInfo);
     }
 
@@ -8418,7 +8424,7 @@ void CodeGen::genFnEpilog(BasicBlock* block)
         {
             // Simply emit a jump to the methodHnd. This is similar to a call so we can use
             // the same descriptor with some minor adjustments.
-            CORINFO_METHOD_HANDLE methHnd = (CORINFO_METHOD_HANDLE)jmpNode->gtVal.gtVal1;
+            CORINFO_METHOD_HANDLE methHnd = (CORINFO_METHOD_HANDLE)jmpNode->AsVal()->gtVal1;
 
             CORINFO_CONST_LOOKUP addrInfo;
             compiler->info.compCompHnd->getFunctionEntryPoint(methHnd, &addrInfo);
@@ -10177,8 +10183,8 @@ void CodeGen::genSetScopeInfoUsingsiScope()
         LclVarDsc* varDsc = compiler->lvaGetDesc(scopeL->scVarNum);
         siVarLoc   varLoc = getSiVarLoc(varDsc, scopeL);
 
-        genSetScopeInfo(psiScopeCnt + i, startOffs, endOffs - startOffs, scopeL->scVarNum, scopeL->scLVnum,
-                        scopeL->scAvailable, &varLoc);
+        genSetScopeInfo(psiScopeCnt + i, startOffs, endOffs - startOffs, scopeL->scVarNum, scopeL->scLVnum, false,
+                        &varLoc);
     }
 }
 #endif // USING_SCOPE_INFO
