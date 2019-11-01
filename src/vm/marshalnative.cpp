@@ -385,6 +385,11 @@ FCIMPL1(UINT32, MarshalNative::OffsetOfHelper, ReflectFieldObject *pFieldUNSAFE)
         HELPER_METHOD_FRAME_END();
     }
 
+    if (th.IsBlittable())
+    {
+        return pField->GetOffset();
+    }
+
     EEClassNativeLayoutInfo const* pNativeLayoutInfo = th.GetMethodTable()->GetNativeLayoutInfo();
 
     NativeFieldDescriptor const*pNFD = pNativeLayoutInfo->GetNativeFieldDescriptors();
