@@ -426,7 +426,6 @@ namespace System.Threading
         private volatile bool _canceled;
         private volatile object? _notifyWhenNoCallbacksRunning; // may be either WaitHandle or Task<bool>
 
-
         internal TimerQueueTimer(TimerCallback timerCallback, object? state, uint dueTime, uint period, bool flowExecutionContext)
         {
             _timerCallback = timerCallback;
@@ -437,7 +436,13 @@ namespace System.Threading
             {
                 _executionContext = ExecutionContext.Capture();
             }
-            _associatedTimerQueue = TimerQueue.Instances[Thread.GetCurrentProcessorId() % TimerQueue.Instances.Length];
+            TimerQueue[] instances = TimerQueue.Instances;
+            // As ProcessorCount will be a constant at Tier1 the Jit will drop the mod and use a faster approach.
+            int index = Thread.GetCurrentProcessorId() % Environment.ProcessorCount;
+            Debug.Assert(Environment.ProcessorCount == instances.Length);
+            Debug.Assert(index >= 0 && index < instances.Length);
+
+            _associatedTimerQueue = instances[index];
 
             // After the following statement, the timer may fire.  No more manipulation of timer state outside of
             // the lock is permitted beyond this point!

@@ -32,10 +32,8 @@ namespace System.Buffers
         /// <summary>The number of buckets (array sizes) in the pool, one for each array length, starting from length 16.</summary>
         private const int NumBuckets = 17; // Utilities.SelectBucketIndex(2*1024*1024)
         /// <summary>Maximum number of per-core stacks to use per array size.</summary>
-        private const int MaxPerCorePerArraySizeStacks = 64; // selected to avoid needing to worry about processor groups
         /// <summary>The maximum number of buffers to store in a bucket's global queue.</summary>
         private const int MaxBuffersPerArraySizePerCore = 8;
-
         /// <summary>The length of arrays stored in the corresponding indices in <see cref="_buckets"/> and <see cref="t_tlsBuckets"/>.</summary>
         private readonly int[] _bucketArraySizes;
         /// <summary>
@@ -49,13 +47,11 @@ namespace System.Buffers
 
         private int _callbackCreated;
 
-        private static readonly bool s_trimBuffers = GetTrimBuffers();
-
         /// <summary>
         /// Used to keep track of all thread local buckets for trimming if needed
         /// </summary>
         private static readonly ConditionalWeakTable<T[]?[], object?>? s_allTlsBuckets =
-            s_trimBuffers ? new ConditionalWeakTable<T[]?[], object?>() : null;
+            PerCoreLockedStacksHelpers.s_trimBuffers ? new ConditionalWeakTable<T[]?[], object?>() : null;
 
         /// <summary>Initialize the pool.</summary>
         public TlsOverPerCoreLockedStacksArrayPool()
@@ -85,7 +81,7 @@ namespace System.Buffers
             // to be usable in general instead of using `new`, even for computed lengths.
             if (minimumLength < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(minimumLength));
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.minimumLength);
             }
             else if (minimumLength == 0)
             {
@@ -160,7 +156,7 @@ namespace System.Buffers
         {
             if (array == null)
             {
-                throw new ArgumentNullException(nameof(array));
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
             // Determine with what bucket this array length is associated
@@ -178,7 +174,7 @@ namespace System.Buffers
                 // Check to see if the buffer is the correct size for this bucket
                 if (array.Length != _bucketArraySizes[bucketIndex])
                 {
-                    throw new ArgumentException(SR.ArgumentException_BufferNotFromPool, nameof(array));
+                    ThrowHelper.ThrowArgumentException(ExceptionResource.ArgumentException_BufferNotFromPool, ExceptionArgument.array);
                 }
 
                 // Write through the TLS bucket.  If there weren't any buckets, create them
@@ -191,7 +187,7 @@ namespace System.Buffers
                 {
                     t_tlsBuckets = tlsBuckets = new T[NumBuckets][];
                     tlsBuckets[bucketIndex] = array;
-                    if (s_trimBuffers)
+                    if (PerCoreLockedStacksHelpers.s_trimBuffers)
                     {
                         Debug.Assert(s_allTlsBuckets != null, "Should be non-null iff s_trimBuffers is true");
                         s_allTlsBuckets.Add(tlsBuckets, null);
@@ -224,11 +220,11 @@ namespace System.Buffers
 
         public bool Trim()
         {
-            Debug.Assert(s_trimBuffers);
+            Debug.Assert(PerCoreLockedStacksHelpers.s_trimBuffers);
             Debug.Assert(s_allTlsBuckets != null);
 
             int milliseconds = Environment.TickCount;
-            MemoryPressure pressure = GetMemoryPressure();
+            MemoryPressure pressure = PerCoreLockedStacksHelpers.GetMemoryPressure();
 
             ArrayPoolEventSource log = ArrayPoolEventSource.Log;
             if (log.IsEnabled())
@@ -287,42 +283,6 @@ namespace System.Buffers
             return ((TlsOverPerCoreLockedStacksArrayPool<T>)(target)).Trim();
         }
 
-        private enum MemoryPressure
-        {
-            Low,
-            Medium,
-            High
-        }
-
-        private static MemoryPressure GetMemoryPressure()
-        {
-            const double HighPressureThreshold = .90;       // Percent of GC memory pressure threshold we consider "high"
-            const double MediumPressureThreshold = .70;     // Percent of GC memory pressure threshold we consider "medium"
-
-            GCMemoryInfo memoryInfo = GC.GetGCMemoryInfo();
-            if (memoryInfo.MemoryLoadBytes >= memoryInfo.HighMemoryLoadThresholdBytes * HighPressureThreshold)
-            {
-                return MemoryPressure.High;
-            }
-            else if (memoryInfo.MemoryLoadBytes >= memoryInfo.HighMemoryLoadThresholdBytes * MediumPressureThreshold)
-            {
-                return MemoryPressure.Medium;
-            }
-            return MemoryPressure.Low;
-        }
-
-        private static bool GetTrimBuffers()
-        {
-            // Environment uses ArrayPool, so we have to hit the API directly.
-#if !CORECLR
-            // P/Invokes are different for CoreCLR/RT- for RT we'll not allow
-            // enabling/disabling for now.
-            return true;
-#else
-            return CLRConfig.GetBoolValueWithFallbacks("System.Buffers.ArrayPool.TrimShared", "DOTNET_SYSTEM_BUFFERS_ARRAYPOOL_TRIMSHARED", defaultValue: true);
-#endif
-        }
-
         /// <summary>
         /// Stores a set of stacks of arrays, with one stack per core.
         /// </summary>
@@ -335,7 +295,7 @@ namespace System.Buffers
             public PerCoreLockedStacks()
             {
                 // Create the stacks.  We create as many as there are processors, limited by our max.
-                var stacks = new LockedStack[Math.Min(Environment.ProcessorCount, MaxPerCorePerArraySizeStacks)];
+                var stacks = new LockedStack[PerCoreLockedStacksHelpers.s_stackCount];
                 for (int i = 0; i < stacks.Length; i++)
                 {
                     stacks[i] = new LockedStack();
@@ -350,7 +310,10 @@ namespace System.Buffers
                 // Try to push on to the associated stack first.  If that fails,
                 // round-robin through the other stacks.
                 LockedStack[] stacks = _perCoreStacks;
-                int index = Thread.GetCurrentProcessorId() % stacks.Length;
+                Debug.Assert(stacks.Length == PerCoreLockedStacksHelpers.s_stackCount);
+                // As s_stackCount will be a constant at Tier1 the Jit will drop the mod and use a faster approach.
+                int index = Thread.GetCurrentProcessorId() % PerCoreLockedStacksHelpers.s_stackCount;
+
                 for (int i = 0; i < stacks.Length; i++)
                 {
                     if (stacks[index].TryPush(array)) return;
@@ -364,15 +327,18 @@ namespace System.Buffers
             {
                 // Try to pop from the associated stack first.  If that fails,
                 // round-robin through the other stacks.
-                T[]? arr;
+                T[]? arr = null;
                 LockedStack[] stacks = _perCoreStacks;
-                int index = Thread.GetCurrentProcessorId() % stacks.Length;
+                Debug.Assert(stacks.Length == PerCoreLockedStacksHelpers.s_stackCount);
+                // As s_stackCount will be a constant at Tier1 the Jit will drop the mod and use a faster approach.
+                int index = Thread.GetCurrentProcessorId() % PerCoreLockedStacksHelpers.s_stackCount;
+
                 for (int i = 0; i < stacks.Length; i++)
                 {
-                    if ((arr = stacks[index].TryPop()) != null) return arr;
+                    if ((arr = stacks[index].TryPop()) != null) break;
                     if (++index == stacks.Length) index = 0;
                 }
-                return null;
+                return arr;
             }
 
             public void Trim(uint tickCount, int id, MemoryPressure pressure, int bucketSize)
@@ -397,15 +363,18 @@ namespace System.Buffers
             {
                 bool enqueued = false;
                 Monitor.Enter(this);
-                if (_count < MaxBuffersPerArraySizePerCore)
+                T[]?[] arrays = _arrays;
+                int count = _count;
+                if ((uint)count < (uint)arrays.Length)
                 {
-                    if (s_trimBuffers && _count == 0)
+                    if (PerCoreLockedStacksHelpers.s_trimBuffers && count == 0)
                     {
                         // Stash the time the bottom of the stack was filled
                         _firstStackItemMS = (uint)Environment.TickCount;
                     }
 
-                    _arrays[_count++] = array;
+                    _count = count + 1;
+                    arrays[count] = array;
                     enqueued = true;
                 }
                 Monitor.Exit(this);
@@ -416,11 +385,14 @@ namespace System.Buffers
             public T[]? TryPop()
             {
                 T[]? arr = null;
+                T[]?[] arrays = _arrays;
                 Monitor.Enter(this);
-                if (_count > 0)
+                int count = _count - 1;
+                if ((uint)count < (uint)arrays.Length)
                 {
-                    arr = _arrays[--_count];
-                    _arrays[_count] = null;
+                    _count = count;
+                    arr = arrays[count];
+                    arrays[count] = null;
                 }
                 Monitor.Exit(this);
                 return arr;
@@ -497,5 +469,48 @@ namespace System.Buffers
                 }
             }
         }
+    }
+
+    internal static class PerCoreLockedStacksHelpers
+    {
+        private const int MaxPerCorePerArraySizeStacks = 64; // selected to avoid needing to worry about processor groups
+        public static int s_stackCount = Math.Min(Environment.ProcessorCount, MaxPerCorePerArraySizeStacks);
+        public static bool s_trimBuffers = GetTrimBuffers();
+
+        public static bool GetTrimBuffers()
+        {
+            // Environment uses ArrayPool, so we have to hit the API directly.
+#if !CORECLR
+            // P/Invokes are different for CoreCLR/RT- for RT we'll not allow
+            // enabling/disabling for now.
+            return true;
+#else
+            return CLRConfig.GetBoolValueWithFallbacks("System.Buffers.ArrayPool.TrimShared", "DOTNET_SYSTEM_BUFFERS_ARRAYPOOL_TRIMSHARED", defaultValue: true);
+#endif
+        }
+
+        public static MemoryPressure GetMemoryPressure()
+        {
+            const double HighPressureThreshold = .90;       // Percent of GC memory pressure threshold we consider "high"
+            const double MediumPressureThreshold = .70;     // Percent of GC memory pressure threshold we consider "medium"
+
+            GCMemoryInfo memoryInfo = GC.GetGCMemoryInfo();
+            if (memoryInfo.MemoryLoadBytes >= memoryInfo.HighMemoryLoadThresholdBytes * HighPressureThreshold)
+            {
+                return MemoryPressure.High;
+            }
+            else if (memoryInfo.MemoryLoadBytes >= memoryInfo.HighMemoryLoadThresholdBytes * MediumPressureThreshold)
+            {
+                return MemoryPressure.Medium;
+            }
+            return MemoryPressure.Low;
+        }
+    }
+
+    internal enum MemoryPressure
+    {
+        Low,
+        Medium,
+        High
     }
 }

@@ -684,6 +684,8 @@ namespace System
                     return "arrayIndex";
                 case ExceptionArgument.year:
                     return "year";
+                case ExceptionArgument.minimumLength:
+                    return "minimumLength";
                 default:
                     Debug.Fail("The enum value is not defined, please check the ExceptionArgument Enum.");
                     return "";
@@ -834,6 +836,8 @@ namespace System
                     return SR.Rank_MultiDimNotSupported;
                 case ExceptionResource.Arg_TypeNotSupported:
                     return SR.Arg_TypeNotSupported;
+                case ExceptionResource.ArgumentException_BufferNotFromPool:
+                    return SR.ArgumentException_BufferNotFromPool;
                 default:
                     Debug.Fail("The enum value is not defined, please check the ExceptionResource Enum.");
                     return "";
@@ -931,6 +935,7 @@ namespace System
         elementType,
         arrayIndex,
         year,
+        minimumLength,
     }
 
     //
@@ -1002,5 +1007,6 @@ namespace System
         NotSupported_FixedSizeCollection,
         Rank_MultiDimNotSupported,
         Arg_TypeNotSupported,
+        ArgumentException_BufferNotFromPool,
     }
 }
