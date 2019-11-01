@@ -219,7 +219,7 @@ namespace System.Runtime.CompilerServices
 
         // Given an object reference, returns its MethodTable*.
         //
-        // WARNING: The caller has to ensure that MethodTable* does not get unloaded. The most robust way 
+        // WARNING: The caller has to ensure that MethodTable* does not get unloaded. The most robust way
         // to achieve this is by using GC.KeepAlive on the object that the MethodTable* was fetched from, e.g.:
         //
         // MethodTable* pMT = GetMethodTable(o);
