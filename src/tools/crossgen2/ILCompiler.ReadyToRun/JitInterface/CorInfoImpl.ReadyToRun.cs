@@ -150,20 +150,38 @@ namespace Internal.JitInterface
 
         private bool ShouldSkipCompilation(IMethodNode methodCodeNodeNeedingCode)
         {
-            return methodCodeNodeNeedingCode.Method.IsAggressiveOptimization;
+            MethodDesc method = methodCodeNodeNeedingCode.Method;
+            if (method.IsAggressiveOptimization)
+            {
+                return true;
+            }
+            if (HardwareIntrinsicHelpers.IsHardwareIntrinsic(method))
+            {
+                return true;
+            }
+            return false;
         }
 
         public void CompileMethod(IReadyToRunMethodCodeNode methodCodeNodeNeedingCode)
         {
+            bool codeGotPublished = false;
             _methodCodeNode = methodCodeNodeNeedingCode;
 
-            if (!ShouldSkipCompilation(methodCodeNodeNeedingCode))
+            try
             {
-                CompileMethodInternal(methodCodeNodeNeedingCode);
+                if (!ShouldSkipCompilation(methodCodeNodeNeedingCode))
+                {
+                    CompileMethodInternal(methodCodeNodeNeedingCode);
+                    codeGotPublished = true;
+                }
             }
-            else
+            finally
             {
-                PublishEmptyCode();
+                if (!codeGotPublished)
+                {
+                    PublishEmptyCode();
+                }
+                CompileMethodCleanup();
             }
         }
 
@@ -548,9 +566,16 @@ namespace Internal.JitInterface
                     id = ReadyToRunHelper.LogMethodEnter;
                     break;
 
+                case CorInfoHelpFunc.CORINFO_HELP_STACK_PROBE:
+                    id = ReadyToRunHelper.StackProbe;
+                    break;
+
                 case CorInfoHelpFunc.CORINFO_HELP_INITCLASS:
                 case CorInfoHelpFunc.CORINFO_HELP_INITINSTCLASS:
+                case CorInfoHelpFunc.CORINFO_HELP_THROW_ARGUMENTEXCEPTION:
+                case CorInfoHelpFunc.CORINFO_HELP_THROW_ARGUMENTOUTOFRANGEEXCEPTION:
                 case CorInfoHelpFunc.CORINFO_HELP_THROW_PLATFORM_NOT_SUPPORTED:
+                case CorInfoHelpFunc.CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE_MAYBENULL:
                 case CorInfoHelpFunc.CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE_MAYBENULL:
                 case CorInfoHelpFunc.CORINFO_HELP_GETREFANY:
                     throw new RequiresRuntimeJitException(ftnNum.ToString());
@@ -577,6 +602,20 @@ namespace Internal.JitInterface
             return false;
         }
 
+        private ModuleToken HandleToModuleToken(ref CORINFO_RESOLVED_TOKEN pResolvedToken, MethodDesc methodDesc)
+        {
+            if (methodDesc != null && (_compilation.NodeFactory.CompilationModuleGroup.VersionsWithMethodBody(methodDesc) || methodDesc.IsPInvoke))
+            {
+                if ((CorTokenType)(unchecked((uint)pResolvedToken.token) & 0xFF000000u) == CorTokenType.mdtMethodDef &&
+                    methodDesc?.GetTypicalMethodDefinition() is EcmaMethod ecmaMethod)
+                {
+                    mdToken token = (mdToken)MetadataTokens.GetToken(ecmaMethod.Handle);
+                    return new ModuleToken(ecmaMethod.Module, token);
+                }
+            }
+
+            return HandleToModuleToken(ref pResolvedToken);
+        }
         private ModuleToken HandleToModuleToken(ref CORINFO_RESOLVED_TOKEN pResolvedToken)
         {
             mdToken token = pResolvedToken.token;
@@ -760,6 +799,8 @@ namespace Internal.JitInterface
             {
                 if (field.IsStatic &&
                     !field.IsLiteral &&
+                    !field.HasRva &&
+                    !field.IsThreadStatic &&
                     field.FieldType.IsValueType &&
                     !field.FieldType.UnderlyingType.IsPrimitive)
                 {
@@ -1002,13 +1043,8 @@ namespace Internal.JitInterface
                 }
             }
 
-            if (constrainedType != null)
-            {
-                targetMethod = originalMethod;
-            }
             methodToCall = targetMethod;
             MethodDesc canonMethod = targetMethod.GetCanonMethodTarget(CanonicalFormKind.Specific);
-            MethodDesc methodToDescribe = methodToCall;
 
             if (directCall)
             {
@@ -1057,7 +1093,7 @@ namespace Internal.JitInterface
                             ? DictionaryEntryKind.ConstrainedMethodEntrySlot
                             : DictionaryEntryKind.MethodEntrySlot);
 
-                        ComputeRuntimeLookupForSharedGenericToken(entryKind, ref pResolvedToken, pConstrainedResolvedToken, targetMethod, ref pResult->codePointerOrStubLookup);
+                        ComputeRuntimeLookupForSharedGenericToken(entryKind, ref pResolvedToken, pConstrainedResolvedToken, originalMethod, ref pResult->codePointerOrStubLookup);
                     }
                 }
                 else
@@ -1065,7 +1101,7 @@ namespace Internal.JitInterface
                     if (allowInstParam)
                     {
                         useInstantiatingStub = false;
-                        methodToDescribe = canonMethod;
+                        methodToCall = canonMethod;
                     }
 
                     pResult->kind = CORINFO_CALL_KIND.CORINFO_CALL;
@@ -1120,7 +1156,7 @@ namespace Internal.JitInterface
                     // Handle invalid IL - see comment in code:CEEInfo::ComputeRuntimeLookupForSharedGenericToken
                     && entityFromContext(pResolvedToken.tokenContext) is MethodDesc methodDesc && methodDesc.IsSharedByGenericInstantiations)
                 {
-                    ComputeRuntimeLookupForSharedGenericToken(DictionaryEntryKind.DispatchStubAddrSlot, ref pResolvedToken, null, targetMethod, ref pResult->codePointerOrStubLookup);
+                    ComputeRuntimeLookupForSharedGenericToken(DictionaryEntryKind.DispatchStubAddrSlot, ref pResolvedToken, null, originalMethod, ref pResult->codePointerOrStubLookup);
                 }
                 else
                 {
@@ -1130,17 +1166,121 @@ namespace Internal.JitInterface
                 }
             }
 
-            pResult->hMethod = ObjectToHandle(methodToDescribe);
+            pResult->hMethod = ObjectToHandle(methodToCall);
 
             // TODO: access checks
             pResult->accessAllowed = CorInfoIsAccessAllowedResult.CORINFO_ACCESS_ALLOWED;
 
             // We're pretty much done at this point.  Let's grab the rest of the information that the jit is going to
             // need.
-            pResult->classFlags = getClassAttribsInternal(methodToDescribe.OwningType);
+            pResult->classFlags = getClassAttribsInternal(type);
 
-            pResult->methodFlags = getMethodAttribsInternal(methodToDescribe);
-            Get_CORINFO_SIG_INFO(methodToDescribe, &pResult->sig, useInstantiatingStub);
+            pResult->methodFlags = getMethodAttribsInternal(methodToCall);
+
+            Get_CORINFO_SIG_INFO(methodToCall, &pResult->sig, useInstantiatingStub);
+        }
+
+        private uint getMethodAttribs(CORINFO_METHOD_STRUCT_* ftn)
+        {
+            MethodDesc method = HandleToObject(ftn);
+            uint attribs = getMethodAttribsInternal(method);
+            attribs = FilterNamedIntrinsicMethodAttribs(attribs, method);
+            return attribs;
+        }
+
+        private uint FilterNamedIntrinsicMethodAttribs(uint attribs, MethodDesc method)
+        {
+            bool _TARGET_X86_ = _compilation.TypeSystemContext.Target.Architecture == TargetArchitecture.X86;
+            bool _TARGET_AMD64_ = _compilation.TypeSystemContext.Target.Architecture == TargetArchitecture.X64;
+            bool _TARGET_ARM64_ = _compilation.TypeSystemContext.Target.Architecture == TargetArchitecture.ARM64;
+
+            if ((attribs & (uint)CorInfoFlag.CORINFO_FLG_JIT_INTRINSIC) != 0)
+            {
+                // Figure out which intrinsic we are dealing with.
+                string namespaceName;
+                string className;
+                string enclosingClassName;
+                string methodName = this.getMethodNameFromMetadataImpl(method, out className, out namespaceName, out enclosingClassName);
+
+                // Is this the get_IsSupported method that checks whether intrinsic is supported?
+                bool fIsGetIsSupportedMethod = string.Equals(methodName, "get_IsSupported");
+                bool fIsPlatformHWIntrinsic = false;
+                bool fIsHWIntrinsic = false;
+                bool fTreatAsRegularMethodCall = false;
+
+                if (_TARGET_X86_ || _TARGET_AMD64_)
+                {
+                    fIsPlatformHWIntrinsic = (namespaceName == "System.Runtime.Intrinsics.X86");
+                }
+                else if (_TARGET_ARM64_)
+                {
+                    fIsPlatformHWIntrinsic = (namespaceName == "System.Runtime.Intrinsics.Arm.Arm64");
+                }
+
+                fIsHWIntrinsic = fIsPlatformHWIntrinsic || (namespaceName == "System.Runtime.Intrinsics");
+
+                // By default, we want to treat the get_IsSupported method for platform specific HWIntrinsic ISAs as
+                // method calls. This will be modified as needed below based on what ISAs are considered baseline.
+                //
+                // We also want to treat the non-platform specific hardware intrinsics as regular method calls. This
+                // is because they often change the code they emit based on what ISAs are supported by the compiler,
+                // but we don't know what the target machine will support.
+                //
+                // Additionally, we make sure none of the hardware intrinsic method bodies get pregenerated in crossgen
+                // (see ShouldSkipCompilation) but get JITted instead. The JITted method will have the correct
+                // answer for the CPU the code is running on.
+                fTreatAsRegularMethodCall = (fIsGetIsSupportedMethod && fIsPlatformHWIntrinsic) || (!fIsPlatformHWIntrinsic && fIsHWIntrinsic);
+
+                if (_TARGET_X86_ || _TARGET_AMD64_)
+                {
+                    if (fIsPlatformHWIntrinsic)
+                    {
+                        // Simplify the comparison logic by grabbing the name of the ISA
+                        string isaName = (enclosingClassName == null) ? className : enclosingClassName;
+                        if ((isaName == "Sse") || (isaName == "Sse2"))
+                        {
+                            if ((enclosingClassName == null) || (className == "X64"))
+                            {
+                                // If it's anything related to Sse/Sse2, we can expand unconditionally since this is
+                                // a baseline requirement of CoreCLR.
+                                fTreatAsRegularMethodCall = false;
+                            }
+                        }
+                        else if ((className == "Avx") || (className == "Fma") || (className == "Avx2") || (className == "Bmi1") || (className == "Bmi2"))
+                        {
+                            if ((enclosingClassName == null) || (string.Equals(className, "X64")))
+                            {
+                                // If it is the get_IsSupported method for an ISA which requires the VEX
+                                // encoding we want to expand unconditionally. This will force those code
+                                // paths to be treated as dead code and dropped from the compilation.
+                                //
+                                // For all of the other intrinsics in an ISA which requires the VEX encoding
+                                // we need to treat them as regular method calls. This is done because RyuJIT
+                                // doesn't currently support emitting both VEX and non-VEX encoded instructions
+                                // for a single method.
+                                fTreatAsRegularMethodCall = !fIsGetIsSupportedMethod;
+                            }
+                        }
+                    }
+                    else if (namespaceName == "System")
+                    {
+                        if ((className == "Math") || (className == "MathF"))
+                        {
+                            // These are normally handled via the SSE4.1 instructions ROUNDSS/ROUNDSD.
+                            // However, we don't know the ISAs the target machine supports so we should
+                            // fallback to the method call implementation instead.
+                            fTreatAsRegularMethodCall = (methodName == "Round");
+                        }
+                    }
+                }
+
+                if (fTreatAsRegularMethodCall)
+                {
+                    // Treat as a regular method call (into a JITted method).
+                    attribs = (attribs & ~(uint)CorInfoFlag.CORINFO_FLG_JIT_INTRINSIC) | (uint)CorInfoFlag.CORINFO_FLG_DONT_INLINE;
+                }
+            }
+            return attribs;
         }
 
         private void getCallInfo(ref CORINFO_RESOLVED_TOKEN pResolvedToken, CORINFO_RESOLVED_TOKEN* pConstrainedResolvedToken, CORINFO_METHOD_STRUCT_* callerHandle, CORINFO_CALLINFO_FLAGS flags, CORINFO_CALL_INFO* pResult)
@@ -1167,6 +1307,8 @@ namespace Internal.JitInterface
                 out callerMethod,
                 out callerModule,
                 out useInstantiatingStub);
+
+            pResult->methodFlags = FilterNamedIntrinsicMethodAttribs(pResult->methodFlags, methodToCall);
 
             if (pResult->thisTransform == CORINFO_THIS_TRANSFORM.CORINFO_BOX_THIS)
             {
@@ -1195,7 +1337,7 @@ namespace Internal.JitInterface
 
                         pResult->codePointerOrStubLookup.constLookup = CreateConstLookupToSymbol(
                             _compilation.SymbolNodeFactory.InterfaceDispatchCell(
-                                new MethodWithToken(targetMethod, HandleToModuleToken(ref pResolvedToken), constrainedType: null),
+                                new MethodWithToken(targetMethod, HandleToModuleToken(ref pResolvedToken, targetMethod), constrainedType: null),
                                 GetSignatureContext(),
                                 isUnboxingStub: false,
                                 _compilation.NameMangler.GetMangledMethodName(MethodBeingCompiled).ToString()));
@@ -1227,7 +1369,7 @@ namespace Internal.JitInterface
                         // READYTORUN: FUTURE: Direct calls if possible
                         pResult->codePointerOrStubLookup.constLookup = CreateConstLookupToSymbol(
                             _compilation.NodeFactory.MethodEntrypoint(
-                                new MethodWithToken(nonUnboxingMethod, HandleToModuleToken(ref pResolvedToken), constrainedType),
+                                new MethodWithToken(nonUnboxingMethod, HandleToModuleToken(ref pResolvedToken, nonUnboxingMethod), constrainedType),
                                 isUnboxingStub,
                                 isInstantiatingStub: useInstantiatingStub,
                                 isPrecodeImportRequired: (flags & CORINFO_CALLINFO_FLAGS.CORINFO_CALLINFO_LDFTN) != 0,
@@ -1246,7 +1388,7 @@ namespace Internal.JitInterface
                         bool atypicalCallsite = (flags & CORINFO_CALLINFO_FLAGS.CORINFO_CALLINFO_ATYPICAL_CALLSITE) != 0;
                         pResult->codePointerOrStubLookup.constLookup = CreateConstLookupToSymbol(
                             _compilation.NodeFactory.DynamicHelperCell(
-                                new MethodWithToken(targetMethod, HandleToModuleToken(ref pResolvedToken), constrainedType: null),
+                                new MethodWithToken(targetMethod, HandleToModuleToken(ref pResolvedToken, targetMethod), constrainedType: null),
                                 useInstantiatingStub,
                                 GetSignatureContext()));
 
@@ -1275,7 +1417,7 @@ namespace Internal.JitInterface
                     {
                         pResult->instParamLookup = CreateConstLookupToSymbol(_compilation.SymbolNodeFactory.ReadyToRunHelper(
                             ReadyToRunHelperId.MethodDictionary,
-                            new MethodWithToken(targetMethod, HandleToModuleToken(ref pResolvedToken), constrainedType),
+                            new MethodWithToken(targetMethod, HandleToModuleToken(ref pResolvedToken, targetMethod), constrainedType),
                             signatureContext: GetSignatureContext()));
                     }
                     else
@@ -1589,20 +1731,8 @@ namespace Internal.JitInterface
                 // Sequential layout
                 return true;
             }
-            else
-            {
-                // <BUGNUM>workaround for B#104780 - VC fails to set SequentialLayout on some classes
-                // with ClassSize. Too late to fix compiler for V1.
-                //
-                // To compensate, we treat AutoLayout classes as Sequential if they
-                // meet all of the following criteria:
-                //
-                //    - ClassSize present and nonzero.
-                //    - No instance fields declared
-                //    - Base class is System.ValueType.
-                //</BUGNUM>
-                return type.BaseType.IsValueType && !type.GetFields().GetEnumerator().MoveNext();
-            }
+
+            return false;
         }
 
         /// <summary>
@@ -1748,7 +1878,7 @@ namespace Internal.JitInterface
             pBlockCounts = (BlockCounts*)GetPin(_bbCounts = new byte[count * sizeof(BlockCounts)]);
             if (_profileDataNode == null)
             {
-                _profileDataNode = _compilation.NodeFactory.ProfileDataNode((MethodWithGCInfo)_methodCodeNode);
+                _profileDataNode = _compilation.NodeFactory.ProfileData((MethodWithGCInfo)_methodCodeNode);
             }
             return 0;
         }
@@ -1781,13 +1911,21 @@ namespace Internal.JitInterface
             }
             else
             {
-                throw new NotImplementedException();
+                var sig = (MethodSignature)HandleToObject((IntPtr)callSiteSig->pSig);
+                return SignatureRequiresMarshaling(sig);
             }
         }
 
         private bool convertPInvokeCalliToCall(ref CORINFO_RESOLVED_TOKEN pResolvedToken, bool mustConvert)
         {
             throw new NotImplementedException();
+        }
+
+        private bool canGetCookieForPInvokeCalliSig(CORINFO_SIG_INFO* szMetaSig)
+        {
+            // If we answer "true" here, RyuJIT is going to ask for the cookie and for the CORINFO_HELP_PINVOKE_CALLI
+            // helper. The helper doesn't exist in ReadyToRun, so let's just throw right here.
+            throw new RequiresRuntimeJitException($"{MethodBeingCompiled} -> {nameof(canGetCookieForPInvokeCalliSig)}");
         }
 
         private bool MethodRequiresMarshaling(EcmaMethod method)
@@ -1804,12 +1942,17 @@ namespace Internal.JitInterface
                 return true;
             }
 
-            if (TypeRequiresMarshaling(method.Signature.ReturnType, isReturnType: true))
+            return SignatureRequiresMarshaling(method.Signature);
+        }
+
+        private bool SignatureRequiresMarshaling(MethodSignature sig)
+        {
+            if (TypeRequiresMarshaling(sig.ReturnType, isReturnType: true))
             {
                 return true;
             }
 
-            foreach (TypeDesc argType in method.Signature)
+            foreach (TypeDesc argType in sig)
             {
                 if (TypeRequiresMarshaling(argType, isReturnType: false))
                 {

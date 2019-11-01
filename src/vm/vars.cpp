@@ -83,8 +83,6 @@ GPTR_IMPL(MethodTable,      g_pOverlappedDataClass);
 
 GPTR_IMPL(MethodTable,      g_TypedReferenceMT);
 
-GPTR_IMPL(MethodTable,      g_pByteArrayMT);
-
 #ifdef FEATURE_COMINTEROP
 GPTR_IMPL(MethodTable,      g_pBaseCOMObject);
 GPTR_IMPL(MethodTable,      g_pBaseRuntimeClass);
@@ -93,9 +91,6 @@ GPTR_IMPL(MethodTable,      g_pBaseRuntimeClass);
 #ifdef FEATURE_ICASTABLE
 GPTR_IMPL(MethodTable,      g_pICastableInterface);
 #endif // FEATURE_ICASTABLE
-
-
-GPTR_IMPL(MethodDesc,       g_pExecuteBackoutCodeHelperMethod);
 
 GPTR_IMPL(MethodDesc,       g_pObjectFinalizerMD);
 

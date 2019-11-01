@@ -27,6 +27,10 @@ EXTERN  g_lowest_address:QWORD
 EXTERN  g_highest_address:QWORD
 EXTERN  g_card_table:QWORD
 
+ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+EXTERN g_card_bundle_table:QWORD
+endif
+
 ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 EXTERN  g_sw_ww_table:QWORD
 EXTERN  g_sw_ww_enabled_for_gc_heap:BYTE
@@ -225,7 +229,7 @@ endm
 
 ; PERF TODO: consider prefetching the entire interface map into the cache
 
-; For all bizarre castes this quickly fails and falls back onto the JITutil_IsInstanceOfAny
+; For all bizarre castes this quickly fails and falls back onto the JITutil_IsInstanceOfInterface
 ; helper, this means that all failure cases take the slow path as well.
 ;
 ; This can trash r10/r11
@@ -524,6 +528,16 @@ ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 
     UpdateCardTable:
         mov     byte ptr [rcx + rax], 0FFh
+ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+        mov     rax, 0F0F0F0F0F0F0F0F0h
+        shr     rcx, 0Ah
+        cmp     byte ptr [rcx + rax], 0FFh
+        jne     UpdateCardBundleTable
+        REPRET
+
+    UpdateCardBundleTable:
+        mov     byte ptr [rcx + rax], 0FFh
+endif
         ret
 
     align 16
@@ -571,6 +585,16 @@ else
 
     UpdateCardTable:
         mov     byte ptr [rcx + rax], 0FFh
+ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+        mov     rax, 0F0F0F0F0F0F0F0F0h
+        shr     rcx, 0Ah
+        cmp     byte ptr [rcx + rax], 0FFh
+        jne     UpdateCardBundleTable
+        REPRET
+
+    UpdateCardBundleTable:
+        mov     byte ptr [rcx + rax], 0FFh
+endif
         ret
 
     align 16
@@ -706,6 +730,19 @@ endif
 
     UpdateCardTable:
         mov     byte ptr [rcx], 0FFh
+ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+        ; check if we need to update the card bundle table
+        ; restore destination address from rdi - rdi has been incremented by 8 already
+        lea     rcx, [rdi-8]
+        shr     rcx, 15h
+        add     rcx, [g_card_bundle_table]
+        cmp     byte ptr [rcx], 0FFh
+        jne     UpdateCardBundleTable
+        REPRET
+
+    UpdateCardBundleTable:
+        mov     byte ptr [rcx], 0FFh
+endif
         ret
 
     align 16
@@ -729,7 +766,7 @@ g_pObjectClass      equ     ?g_pObjectClass@@3PEAVMethodTable@@EA
 
 EXTERN  g_pObjectClass:qword
 extern ArrayStoreCheck:proc
-extern ObjIsInstanceOfNoGC:proc
+extern ObjIsInstanceOfCached:proc
 
 ; TODO: put definition for this in asmconstants.h
 CanCast equ     1
@@ -776,7 +813,7 @@ LEAF_ENTRY JIT_Stelem_Ref, _TEXT
         cmp     r9, [g_pObjectClass]
         je      DoWrite
 
-        jmp     JIT_Stelem_Ref__ObjIsInstanceOfNoGC_Helper
+        jmp     JIT_Stelem_Ref__ObjIsInstanceOfCached_Helper
                                 
     ThrowNullReferenceException:
         mov     rcx, CORINFO_NullReferenceException_ASM
@@ -787,7 +824,7 @@ LEAF_ENTRY JIT_Stelem_Ref, _TEXT
         jmp     JIT_InternalThrow        
 LEAF_END JIT_Stelem_Ref, _TEXT
 
-NESTED_ENTRY JIT_Stelem_Ref__ObjIsInstanceOfNoGC_Helper, _TEXT
+NESTED_ENTRY JIT_Stelem_Ref__ObjIsInstanceOfCached_Helper, _TEXT
         alloc_stack         MIN_SIZE
         save_reg_postrsp    rcx, MIN_SIZE + 8h
         save_reg_postrsp    rdx, MIN_SIZE + 10h
@@ -798,8 +835,8 @@ NESTED_ENTRY JIT_Stelem_Ref__ObjIsInstanceOfNoGC_Helper, _TEXT
         mov     rdx, r9
         mov     rcx, r8
 
-        ; TypeHandle::CastResult ObjIsInstanceOfNoGC(Object *pElement, TypeHandle toTypeHnd)
-        call    ObjIsInstanceOfNoGC
+        ; TypeHandle::CastResult ObjIsInstanceOfCached(Object *pElement, TypeHandle toTypeHnd)
+        call    ObjIsInstanceOfCached
 
         mov     rcx, [rsp + MIN_SIZE + 8h]
         mov     rdx, [rsp + MIN_SIZE + 10h]
@@ -818,7 +855,7 @@ NESTED_ENTRY JIT_Stelem_Ref__ObjIsInstanceOfNoGC_Helper, _TEXT
     NeedCheck:
         add     rsp, MIN_SIZE
         jmp     JIT_Stelem_Ref__ArrayStoreCheck_Helper
-NESTED_END JIT_Stelem_Ref__ObjIsInstanceOfNoGC_Helper, _TEXT
+NESTED_END JIT_Stelem_Ref__ObjIsInstanceOfCached_Helper, _TEXT
 
 ; Need to save r8 to provide a stack address for the Object*
 NESTED_ENTRY JIT_Stelem_Ref__ArrayStoreCheck_Helper, _TEXT
@@ -955,5 +992,37 @@ endif ; _DEBUG
 
 NESTED_END TailCallHelperStub, _TEXT
 
-        end
+; The following helper will access ("probe") a word on each page of the stack
+; starting with the page right beneath rsp down to the one pointed to by r11.
+; The procedure is needed to make sure that the "guard" page is pushed down below the allocated stack frame.
+; The call to the helper will be emitted by JIT in the function/funclet prolog when large (larger than 0x3000 bytes) stack frame is required.
+;
+; NOTE: this helper will NOT modify a value of rsp and can be defined as a leaf function.
 
+PAGE_SIZE equ 1000h
+
+LEAF_ENTRY JIT_StackProbe, _TEXT
+        ; On entry:
+        ;   r11 - points to the lowest address on the stack frame being allocated (i.e. [InitialSp - FrameSize])
+        ;   rsp - points to some byte on the last probed page
+        ; On exit:
+        ;   rax - is not preserved
+        ;   r11 - is preserved
+        ;
+        ; NOTE: this helper will probe at least one page below the one pointed by rsp.
+
+        mov     rax, rsp               ; rax points to some byte on the last probed page
+        and     rax, -PAGE_SIZE        ; rax points to the **lowest address** on the last probed page
+                                       ; This is done to make the following loop end condition simpler.
+
+ProbeLoop:
+        sub     rax, PAGE_SIZE         ; rax points to the lowest address of the **next page** to probe
+        test    dword ptr [rax], eax   ; rax points to the lowest address on the **last probed** page
+        cmp     rax, r11
+        jg      ProbeLoop              ; If (rax > r11), then we need to probe at least one more page.
+
+        ret
+
+LEAF_END JIT_StackProbe, _TEXT
+
+        end

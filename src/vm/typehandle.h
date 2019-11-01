@@ -125,7 +125,6 @@ public:
         LIMITED_METHOD_DAC_CONTRACT;
 
         m_asTAddr = dac_cast<TADDR>(aPtr);
-        // NormalizeUnsharedArrayMT();
         INDEBUGIMPL(Verify());
     }
 
@@ -133,7 +132,6 @@ public:
         LIMITED_METHOD_DAC_CONTRACT;
 
         m_asTAddr = dac_cast<TADDR>(aMT); 
-        // NormalizeUnsharedArrayMT();
         INDEBUGIMPL(Verify());
     }
 
@@ -156,7 +154,6 @@ private:
     { 
         LIMITED_METHOD_DAC_CONTRACT;
         m_asTAddr = aTAddr;
-        // NormalizeUnsharedArrayMT();
         INDEBUGIMPL(Verify());
     }
 
@@ -269,15 +266,15 @@ public:
     // There are two variants of the "CanCastTo" method:
     //
     // CanCastTo
-    // - restore encoded pointers on demand
     // - might throw, might trigger GC
     // - return type is boolean (FALSE = cannot cast, TRUE = can cast)
     //
-    // CanCastToNoGC
-    // - do not restore encoded pointers on demand
+    // CanCastToCached
     // - does not throw, does not trigger GC
     // - return type is three-valued (CanCast, CannotCast, MaybeCast)
-    // - MaybeCast indicates that the test tripped on an encoded pointer
+    //
+    // MaybeCast indicates an inconclusive result
+    // - the test result could not be obtained from a cache
     //   so the caller should now call CanCastTo if it cares
     //
     // Note that if the TypeHandle is a valuetype, the caller is responsible
@@ -287,7 +284,7 @@ public:
 
     BOOL CanCastTo(TypeHandle type, TypeHandlePairList *pVisited = NULL) const;
     BOOL IsBoxedAndCanCastTo(TypeHandle type, TypeHandlePairList *pVisited) const;
-    CastResult CanCastToNoGC(TypeHandle type) const;
+    CastResult CanCastToCached(TypeHandle type) const;
 
 #ifndef DACCESS_COMPILE
     // Type equivalence based on Guid and TypeIdentifier attributes
@@ -481,11 +478,6 @@ public:
     // Also see IsArrayType()
     BOOL IsArray() const;
 
-    // See comment of IsArrayType() for the explanation of this method
-#if 0
-    void NormalizeUnsharedArrayMT();
-#endif
-
     // ARRAY or SZARRAY
     // Note that this does not imply that it is OK to call AsArray(). See IsArray()
     //
@@ -497,8 +489,7 @@ public:
     // still is an array type.
     //
     // @TODO: Change all the constructors of TypeHandle which take a MethodTable 
-    // to call NormalizeUnsharedArrayMT(). TypeHandle::Verify() can then enforce
-    // that IsArray() is fully correct.
+    // to call TypeHandle::Verify() that can then enforce that IsArray() is fully correct.
     BOOL IsArrayType() const;
 
     // VAR or MVAR

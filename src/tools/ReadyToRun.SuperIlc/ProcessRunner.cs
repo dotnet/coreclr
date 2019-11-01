@@ -12,14 +12,14 @@ using System.Threading.Tasks;
 public class ProcessParameters
 {
     /// <summary>
-    /// 2 minutes should be plenty for a CPAOT / Crossgen compilation.
+    /// Maximum time for CPAOT / Crossgen compilation.
     /// </summary>
-    public const int DefaultIlcTimeout = 2 * 60 * 1000;
+    public const int DefaultIlcTimeout = 10 * 60 * 1000;
 
     /// <summary>
     /// Test execution timeout.
     /// </summary>
-    public const int DefaultExeTimeout = 200 * 1000;
+    public const int DefaultExeTimeout = 5 * 60 * 1000;
 
     /// <summary>
     /// Test execution timeout under GC stress mode.
@@ -57,6 +57,8 @@ public class ProcessInfo
     public int ExitCode;
     public Dictionary<string, HashSet<string>> JittedMethods;
 
+    public bool IsEmpty => Parameters == null;
+
     public bool Crashed => ExitCode < -1000 * 1000;
 
     public ProcessInfo(ProcessConstructor constructor)
@@ -64,10 +66,11 @@ public class ProcessInfo
         Constructor = constructor;
     }
 
-    public void Construct()
+    public bool Construct()
     {
         Parameters = Constructor.Construct();
         Constructor = null;
+        return Parameters != null;
     }
 }
 
@@ -101,6 +104,10 @@ public class ProcessRunner : IDisposable
     private TextWriter _logWriter;
 
     private CancellationTokenSource _cancellationTokenSource;
+
+    private readonly DataReceivedEventHandler _outputHandler;
+    
+    private readonly DataReceivedEventHandler _errorHandler;
 
     public ProcessRunner(ProcessInfo processInfo, int processIndex, int processCount, ReadyToRunJittedMethods jittedMethods, AutoResetEvent processExitEvent)
     {
@@ -157,10 +164,12 @@ public class ProcessRunner : IDisposable
             _jittedMethods.AddProcessMapping(_processInfo, _process);
         }
 
-        _process.OutputDataReceived += new DataReceivedEventHandler(StandardOutputEventHandler);
+        _outputHandler = new DataReceivedEventHandler(StandardOutputEventHandler);
+        _process.OutputDataReceived += _outputHandler;
         _process.BeginOutputReadLine();
 
-        _process.ErrorDataReceived += new DataReceivedEventHandler(StandardErrorEventHandler);
+        _errorHandler = new DataReceivedEventHandler(StandardErrorEventHandler);
+        _process.ErrorDataReceived += _errorHandler;
         _process.BeginErrorReadLine();
 
         Task.Run(TimeoutWatchdog);
@@ -203,6 +212,12 @@ public class ProcessRunner : IDisposable
         // them into the logical process executions.
         if (_process != null && !_processInfo.Parameters.CollectJittedMethods)
         {
+            _process.CancelOutputRead();
+            _process.CancelErrorRead();
+
+            _process.OutputDataReceived -= _outputHandler;
+            _process.ErrorDataReceived -= _errorHandler;
+
             _process.Dispose();
             _process = null;
         }
@@ -210,10 +225,14 @@ public class ProcessRunner : IDisposable
 
     private void CleanupLogWriter()
     {
-        if (_logWriter != null)
+        TextWriter logWriter = _logWriter;
+        if (logWriter != null)
         {
-            _logWriter.Dispose();
-            _logWriter = null;
+            lock (logWriter)
+            {
+                _logWriter = null;
+                logWriter.Dispose();
+            }            
         }
     }
 
@@ -236,11 +255,16 @@ public class ProcessRunner : IDisposable
     private void StandardOutputEventHandler(object sender, DataReceivedEventArgs eventArgs)
     {
         string data = eventArgs?.Data;
-        if (!string.IsNullOrEmpty(data))
+        TextWriter logWriter = _logWriter;
+        if (!string.IsNullOrEmpty(data) && logWriter != null)
         {
-            lock (_logWriter)
+            lock (logWriter)
             {
-                _logWriter.WriteLine(data);
+                if (_logWriter != null)
+                {
+                    // The logWriter was not disposed yet
+                    logWriter.WriteLine(data);
+                }
             }
         }
     }
@@ -248,11 +272,16 @@ public class ProcessRunner : IDisposable
     private void StandardErrorEventHandler(object sender, DataReceivedEventArgs eventArgs)
     {
         string data = eventArgs?.Data;
-        if (!string.IsNullOrEmpty(data))
+        TextWriter logWriter = _logWriter;
+        if (!string.IsNullOrEmpty(data) && logWriter != null)
         {
-            lock (_logWriter)
+            lock (logWriter)
             {
-                _logWriter.WriteLine(data);
+                if (_logWriter != null)
+                {
+                    // The logWriter was not disposed yet
+                    logWriter.WriteLine(data);
+                }
             }
         }
     }
@@ -323,7 +352,6 @@ public class ProcessRunner : IDisposable
         _processInfo.Finished = true;
 
         _logWriter.Flush();
-        _logWriter.Close();
 
         CleanupLogWriter();
 

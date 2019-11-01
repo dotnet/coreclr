@@ -19,17 +19,17 @@
       <Uri>https://github.com/dotnet/arcade</Uri>
       <Sha>d2d8d9f5c14e353acc7dfcf69c5fa5a8c368af40</Sha>
     </Dependency>
-    <Dependency Name="Microsoft.Private.CoreFx.NETCoreApp" Version="5.0.0-alpha1.19467.6">
+    <Dependency Name="Microsoft.Private.CoreFx.NETCoreApp" Version="5.0.0-alpha.1.19531.1">
       <Uri>https://github.com/dotnet/corefx</Uri>
-      <Sha>4ca1feeeb484e8a7089ce8a9d377703ad5b8a53e</Sha>
+      <Sha>18e82cabc1d2cddad8ff07ae96edb7296d9fad9d</Sha>
     </Dependency>
-    <Dependency Name="Microsoft.NETCore.Platforms" Version="5.0.0-alpha1.19467.6">
+    <Dependency Name="Microsoft.NETCore.Platforms" Version="5.0.0-alpha.1.19531.1">
       <Uri>https://github.com/dotnet/corefx</Uri>
-      <Sha>4ca1feeeb484e8a7089ce8a9d377703ad5b8a53e</Sha>
+      <Sha>18e82cabc1d2cddad8ff07ae96edb7296d9fad9d</Sha>
     </Dependency>
-    <Dependency Name="Microsoft.NETCore.App" Version="5.0.0-alpha1.19466.2">
+    <Dependency Name="Microsoft.NETCore.App" Version="5.0.0-alpha1.19527.2">
       <Uri>https://github.com/dotnet/core-setup</Uri>
-      <Sha>9042fe6c81aa3b47f58ccd94ff02e42f9f7a4e46</Sha>
+      <Sha>b3749864f47f38599a94070497225c665124fe82</Sha>
     </Dependency>
     <Dependency Name="optimization.IBC.CoreCLR" Version="99.99.99-master-20190716.1">
       <Uri>https://dev.azure.com/dnceng/internal/_git/dotnet-optimization</Uri>

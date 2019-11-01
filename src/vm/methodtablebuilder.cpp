@@ -1163,7 +1163,7 @@ BOOL MethodTableBuilder::CheckIfSIMDAndUpdateSize()
     STANDARD_VM_CONTRACT;
 
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
-    if (!(GetAssembly()->IsSIMDVectorAssembly() || bmtProp->fIsIntrinsicType))
+    if (!bmtProp->fIsIntrinsicType)
         return false;
 
     if (bmtFP->NumInstanceFieldBytes != 16)
@@ -1485,7 +1485,7 @@ MethodTableBuilder::BuildMethodTableThrowing(
     // SIMD types have [Intrinsic] attribute, for example
     //
     // We check this here fairly early to ensure other downstream checks on these types can be slightly more efficient.
-    if (GetModule()->IsSystem() || GetAssembly()->IsSIMDVectorAssembly())
+    if (GetModule()->IsSystem())
     {
         HRESULT hr = GetCustomAttribute(bmtInternal->pType->GetTypeDefToken(),
             WellKnownAttribute::Intrinsic,
@@ -1505,16 +1505,16 @@ MethodTableBuilder::BuildMethodTableThrowing(
         LPCUTF8 nameSpace;
         HRESULT hr = GetMDImport()->GetNameOfTypeDef(bmtInternal->pType->GetTypeDefToken(), &className, &nameSpace);
 
-#if defined(_TARGET_ARM64_)
-        // All the funtions in System.Runtime.Intrinsics.Arm.Arm64 are hardware intrinsics.
-        if (hr == S_OK && strcmp(nameSpace, "System.Runtime.Intrinsics.Arm.Arm64") == 0)
-#else
-        // All the funtions in System.Runtime.Intrinsics.X86 are hardware intrinsics.
         if (bmtInternal->pType->IsNested())
         {
             IfFailThrow(GetMDImport()->GetNameOfTypeDef(bmtInternal->pType->GetEnclosingTypeToken(), NULL, &nameSpace));
         }
-        
+
+#if defined(_TARGET_ARM64_)
+        // All the funtions in System.Runtime.Intrinsics.Arm are hardware intrinsics.
+        if (hr == S_OK && strcmp(nameSpace, "System.Runtime.Intrinsics.Arm") == 0)
+#else
+        // All the funtions in System.Runtime.Intrinsics.X86 are hardware intrinsics.
         if (hr == S_OK && (strcmp(nameSpace, "System.Runtime.Intrinsics.X86") == 0))
 #endif
         {
@@ -3724,10 +3724,10 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
     DWORD i;
     IMDInternalImport * pInternalImport = GetMDImport(); // to avoid multiple dereferencings
 
-    FieldMarshaler * pNextFieldMarshaler = NULL;
+    NativeFieldDescriptor * pNextNativeFieldDescriptor = NULL;
     if (HasLayout())
     {
-        pNextFieldMarshaler = (FieldMarshaler*)(GetLayoutInfo()->GetFieldMarshalers());
+        pNextNativeFieldDescriptor = GetLayoutInfo()->GetNativeFieldDescriptors();
     }
 
 
@@ -4189,14 +4189,14 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
                 {
                     pLayoutFieldInfo = pwalk;
 
-                    const FieldMarshaler *pSrcFieldMarshaler = (const FieldMarshaler *) &pwalk->m_FieldMarshaler;
+                    const NativeFieldDescriptor *pSrcFieldDescriptor = &pwalk->m_nfd;
 
-                    pSrcFieldMarshaler->CopyTo(pNextFieldMarshaler, MAXFIELDMARSHALERSIZE);
+                    *pNextNativeFieldDescriptor = *pSrcFieldDescriptor;
 
-                    pNextFieldMarshaler->SetFieldDesc(pFD);
-                    pNextFieldMarshaler->SetExternalOffset(pwalk->m_nativePlacement.m_offset);
+                    pNextNativeFieldDescriptor->SetFieldDesc(pFD);
+                    pNextNativeFieldDescriptor->SetExternalOffset(pwalk->m_nativePlacement.m_offset);
 
-                    ((BYTE*&)pNextFieldMarshaler) += MAXFIELDMARSHALERSIZE;
+                    pNextNativeFieldDescriptor++;
                     break;
                 }
                 pwalk++;
@@ -5134,7 +5134,7 @@ MethodTableBuilder::InitNewMethodDesc(
     }
 
     // Check for methods marked as [Intrinsic]
-    if (GetModule()->IsSystem() || GetAssembly()->IsSIMDVectorAssembly())
+    if (GetModule()->IsSystem())
     {
         if (bmtProp->fIsHardwareIntrinsic || (S_OK == GetCustomAttribute(pMethod->GetMethodSignature().GetToken(),
                                                     WellKnownAttribute::Intrinsic,
@@ -6962,13 +6962,27 @@ MethodTableBuilder::NeedsNativeCodeSlot(bmtMDMethod * pMDMethod)
 
 #ifdef FEATURE_TIERED_COMPILATION
     // Keep in-sync with MethodDesc::DetermineAndSetIsEligibleForTieredCompilation()
-    if (g_pConfig->TieredCompilation() &&
+    if ((g_pConfig->TieredCompilation() &&
 
         // Policy - If QuickJit is disabled and the module does not have any pregenerated code, the method would be ineligible
         // for tiering currently to avoid some unnecessary overhead
         (g_pConfig->TieredCompilation_QuickJit() || GetModule()->HasNativeOrReadyToRunImage()) &&
 
         (pMDMethod->GetMethodType() == METHOD_TYPE_NORMAL || pMDMethod->GetMethodType() == METHOD_TYPE_INSTANTIATED))
+
+#ifdef FEATURE_REJIT
+        ||
+
+        // Methods that are R2R need precode if ReJIT is enabled. Keep this in sync with MethodDesc::IsEligibleForReJIT()
+        (ReJitManager::IsReJITEnabled() &&
+
+            GetMethodClassification(pMDMethod->GetMethodType()) == mcIL &&
+
+            !GetModule()->IsCollectible() &&
+
+            !GetModule()->IsEditAndContinueEnabled())
+#endif // FEATURE_REJIT
+        )
     {
         return TRUE;
     }

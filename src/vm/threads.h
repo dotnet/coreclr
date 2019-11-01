@@ -429,11 +429,6 @@ public:
 
 inline BOOL dbgOnly_IsSpecialEEThread() { return FALSE; }
 
-#define INCTHREADLOCKCOUNT() { }
-#define DECTHREADLOCKCOUNT() { }
-#define INCTHREADLOCKCOUNTTHREAD(thread) { }
-#define DECTHREADLOCKCOUNTTHREAD(thread) { }
-
 #define FORBIDGC_LOADER_USE_ENABLED() false
 #define ENABLE_FORBID_GC_LOADER_USE_IN_THIS_SCOPE()    ;
 
@@ -1678,6 +1673,7 @@ private:
     // or StressLog which may waits on a spinlock.  It is unsafe to suspend a thread while it
     // is in this state.
     Volatile<LONG> m_dwForbidSuspendThread;
+
 public:
 
     static void IncForbidSuspendThread()
@@ -1891,7 +1887,6 @@ public:
     {
         SUPPORTS_DAC;
 
-#ifndef DACCESS_COMPILE
 #ifdef _DEBUG_IMPL
         WRAPPER_NO_CONTRACT;
         if (this == GetThreadNULLOk())
@@ -1900,12 +1895,29 @@ public:
             curSP = (void *)GetCurrentSP();
             _ASSERTE((curSP <= m_pFrame && m_pFrame < m_CacheStackBase) || m_pFrame == (Frame*) -1);
         }
-#else
-        LIMITED_METHOD_CONTRACT;
-        _ASSERTE(!"NYI");
 #endif
-#endif // #ifndef DACCESS_COMPILE
+
         return m_pFrame;
+    }
+
+    //--------------------------------------------------------------
+    // Returns innermost active GCFrame.
+    //--------------------------------------------------------------
+    PTR_GCFrame GetGCFrame()
+    {
+        SUPPORTS_DAC;
+
+#ifdef _DEBUG_IMPL
+        WRAPPER_NO_CONTRACT;
+        if (this == GetThreadNULLOk())
+        {
+            void* curSP;
+            curSP = (void *)GetCurrentSP();
+            _ASSERTE((m_pGCFrame == NULL) || (curSP <= m_pGCFrame && m_pGCFrame < m_CacheStackBase));
+        }
+#endif
+
+        return m_pGCFrame;
     }
 
     //--------------------------------------------------------------
@@ -1923,6 +1935,18 @@ public:
 #endif
     ;
 #endif
+
+    //--------------------------------------------------------------
+    // Replaces innermost active GCFrame.
+    //--------------------------------------------------------------
+#ifndef DACCESS_COMPILE
+    void  SetGCFrame(GCFrame *pFrame)
+    {
+        LIMITED_METHOD_CONTRACT;
+        m_pGCFrame = pFrame;
+    }
+#endif
+
     inline Frame* FindFrame(SIZE_T StackPointer);
 
     bool DetectHandleILStubsForDebugger();
@@ -3695,18 +3719,6 @@ private:
 
     LONG            m_TraceCallCount;
 
-    //-----------------------------------------------------------
-    // Bytes promoted on this thread since the last GC?
-    //-----------------------------------------------------------
-    DWORD           m_fPromoted;
-public:
-    void SetHasPromotedBytes ();
-    DWORD GetHasPromotedBytes ()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_fPromoted;
-    }
-
 private:
     //-----------------------------------------------------------
     // Last exception to be thrown.
@@ -4898,6 +4910,9 @@ public:
     void SetGCSpecial(bool fGCSpecial);
 
 private:
+
+    PTR_GCFrame m_pGCFrame; // The topmost GC Frame
+
 #ifndef FEATURE_PAL
     WORD m_wCPUGroup;
     DWORD_PTR m_pAffinityMask;
@@ -5549,13 +5564,6 @@ struct PendingSync
     }
     void Restore(BOOL bRemoveFromSB);
 };
-
-
-#define INCTHREADLOCKCOUNT() { }
-#define DECTHREADLOCKCOUNT() { }
-#define INCTHREADLOCKCOUNTTHREAD(thread) { }
-#define DECTHREADLOCKCOUNTTHREAD(thread) { }
-
 
 // --------------------------------------------------------------------------------
 // GCHolder is used to implement the normal GCX_ macros.

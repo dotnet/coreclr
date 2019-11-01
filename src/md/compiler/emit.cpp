@@ -228,7 +228,7 @@ STDMETHODIMP RegMeta::SetMethodImplFlags(     // [IN] S_OK or error.
     START_MD_PERF();
     LOCKWRITE();
 
-    _ASSERTE(TypeFromToken(md) == mdtMethodDef && dwImplFlags != ULONG_MAX);
+    _ASSERTE(TypeFromToken(md) == mdtMethodDef && dwImplFlags != UINT32_MAX);
 
     // Get the record.
     IfFailGo(m_pStgdb->m_MiniMd.GetMethodRecord(RidFromToken(md), &pMethodRec));
@@ -332,14 +332,14 @@ HRESULT RegMeta::_SetRVA(               // [IN] S_OK or error.
         pMethodRec->SetRVA(ulCodeRVA);
 
         // Do not set the flag value unless its valid.
-        if (dwImplFlags != ULONG_MAX)
+        if (dwImplFlags != UINT32_MAX)
             pMethodRec->SetImplFlags(static_cast<USHORT>(dwImplFlags));
 
         IfFailGo(UpdateENCLog(tk));
     }
     else            // TypeFromToken(tk) == mdtFieldDef
     {
-        _ASSERTE(dwImplFlags==0 || dwImplFlags==ULONG_MAX);
+        _ASSERTE(dwImplFlags==0 || dwImplFlags==UINT32_MAX);
 
         FieldRVARec     *pFieldRVARec;
         RID             iFieldRVA;
@@ -792,7 +792,7 @@ STDMETHODIMP RegMeta::SetClassLayout(
         // Iterate the list of fields...
         for (index = 0; rFieldOffsets[index].ridOfField != mdFieldDefNil; index++)
         {
-            if (rFieldOffsets[index].ulOffset != ULONG_MAX)
+            if (rFieldOffsets[index].ulOffset != UINT32_MAX)
             {
                 tkfd = TokenFromRid(rFieldOffsets[index].ridOfField, mdtFieldDef);
                 
@@ -843,9 +843,9 @@ HRESULT RegMeta::_SetClassLayout(       // S_OK or error.
     }
 
     // Set the data.
-    if (dwPackSize != ULONG_MAX)
+    if (dwPackSize != UINT32_MAX)
         pClassLayout->SetPackingSize(static_cast<USHORT>(dwPackSize));
-    if (ulClassSize != ULONG_MAX)
+    if (ulClassSize != UINT32_MAX)
         pClassLayout->SetClassSize(ulClassSize);
 
     // Create the log record for the non-token record.
@@ -1265,7 +1265,7 @@ STDMETHODIMP RegMeta::SetRVA(                 // [IN] S_OK or error.
     LOCKWRITE();
     
     IfFailGo(m_pStgdb->m_MiniMd.PreUpdate());
-    IfFailGo(_SetRVA(md, ulRVA, ULONG_MAX));    // 0xbaad
+    IfFailGo(_SetRVA(md, ulRVA, UINT32_MAX));    // 0xbaad
     
 ErrExit:
     STOP_MD_PERF(SetRVA);
@@ -1524,11 +1524,8 @@ STDMETHODIMP RegMeta::DefineUserString(       // S_OK or error.
 
     UINT32      nIndex;                 // Index into the user string heap.
     CQuickBytes qb;                     // For storing the string with the byte prefix.
-    ULONG       i;                      // Loop counter.
-    BOOL        bIs80Plus = false;      // Is there an 80+ WCHAR.
     ULONG       ulMemSize;              // Size of memory taken by the string passed in.
     PBYTE       pb;                     // Pointer into memory allocated by qb.
-    WCHAR       c;                      // Temporary used during comparison;
 
     
 
@@ -1539,23 +1536,8 @@ STDMETHODIMP RegMeta::DefineUserString(       // S_OK or error.
     
     IfFailGo(m_pStgdb->m_MiniMd.PreUpdate());
     
-    _ASSERTE(pstk && szString && cchString != ULONG_MAX);
+    _ASSERTE(pstk && szString && cchString != UINT32_MAX);
 
-    //
-    // Walk the entire string looking for characters that would block us from doing
-    // a fast comparison of the string.  These characters include anything greater than
-    // 0x80 or an apostrophe or a hyphen.  Apostrophe and hyphen are excluded because
-    // they would prevent words like coop and co-op from sorting together in a culture-aware
-    // comparison.  We also need to exclude some set of the control characters.  This check
-    // is more restrictive 
-    //
-    for (i=0; i<cchString; i++) {
-        c = szString[i];
-        if (c>=0x80 || HighCharHelper::IsHighChar((int)c)) {
-            bIs80Plus = true;
-            break;
-        }
-    }
 
     // Copy over the string to memory.
     ulMemSize = cchString * sizeof(WCHAR);
@@ -1563,8 +1545,9 @@ STDMETHODIMP RegMeta::DefineUserString(       // S_OK or error.
     pb = reinterpret_cast<PBYTE>(qb.Ptr());
     memcpy(pb, szString, ulMemSize);
     SwapStringLength((WCHAR *) pb, cchString);
-    // Set the last byte of memory to indicate whether there is a 80+ character.
-    *(pb + ulMemSize) = bIs80Plus ? 1 : 0;
+    // Always set the last byte of memory to indicate that there may be a 80+ or special character.
+    // This byte is not used by the runtime.
+    *(pb + ulMemSize) = 1;
 
     IfFailGo(m_pStgdb->m_MiniMd.PutUserString(
         MetaData::DataBlob(pb, ulMemSize + 1), 
@@ -2173,7 +2156,7 @@ STDMETHODIMP RegMeta::SetMethodProps(         // S_OK or error.
     START_MD_PERF();
     LOCKWRITE();
     
-    if (dwMethodFlags != ULONG_MAX)
+    if (dwMethodFlags != UINT32_MAX)
     {
         // Make sure no one sets the reserved bits on the way in.
         _ASSERTE((dwMethodFlags & (mdReservedMask&~mdRTSpecialName)) == 0);
@@ -2256,7 +2239,7 @@ STDMETHODIMP RegMeta::SetPermissionSetProps(  // S_OK or error.
              TypeFromToken(tk) == mdtAssembly);
 
     // Check for valid Action.
-    if (dwAction == ULONG_MAX || dwAction == 0 || dwAction > dclMaximumValue)
+    if (dwAction == UINT32_MAX || dwAction == 0 || dwAction > dclMaximumValue)
         IfFailGo(E_INVALIDARG);
 
     IfFailGo(ImportHelper::FindPermission(&(m_pStgdb->m_MiniMd), tk, sAction, &tkPerm));
@@ -2383,7 +2366,7 @@ HRESULT RegMeta::_DefinePinvokeMap(     // Return hresult.
     }
     
     // Set the data.
-    if (dwMappingFlags != ULONG_MAX)
+    if (dwMappingFlags != UINT32_MAX)
         pRecord->SetMappingFlags(static_cast<USHORT>(dwMappingFlags));
     IfFailGo(m_pStgdb->m_MiniMd.PutStringW(TBL_ImplMap, ImplMapRec::COL_ImportName,
                                            pRecord, szImportName));
@@ -2435,7 +2418,7 @@ STDMETHODIMP RegMeta::SetPinvokeMap(          // Return code.
         IfFailGo(m_pStgdb->m_MiniMd.GetImplMapRecord(iRecord, &pRecord));
 
     // Set the data.
-    if (dwMappingFlags != ULONG_MAX)
+    if (dwMappingFlags != UINT32_MAX)
         pRecord->SetMappingFlags(static_cast<USHORT>(dwMappingFlags));
     if (szImportName)
         IfFailGo(m_pStgdb->m_MiniMd.PutStringW(TBL_ImplMap, ImplMapRec::COL_ImportName,
@@ -2558,7 +2541,7 @@ HRESULT RegMeta::DefineField(           // S_OK or error.
     IsGlobalMethodParent(&td);
     
     // Validate flags.
-    if (dwFieldFlags != ULONG_MAX)
+    if (dwFieldFlags != UINT32_MAX)
     {
         // fdHasFieldRVA is settable, but not re-settable by applications.
         _ASSERTE((dwFieldFlags & (fdReservedMask&~(fdHasFieldRVA|fdRTSpecialName))) == 0);
@@ -2790,7 +2773,7 @@ HRESULT RegMeta::DefineParam(
     LOCKWRITE();
 
     _ASSERTE(TypeFromToken(md) == mdtMethodDef && md != mdMethodDefNil &&
-             ulParamSeq != ULONG_MAX && ppd);
+             ulParamSeq != UINT32_MAX && ppd);
     
     IfFailGo(m_pStgdb->m_MiniMd.PreUpdate());
     
@@ -2869,7 +2852,7 @@ HRESULT RegMeta::SetFieldProps(           // S_OK or error.
     IfFailGo(m_pStgdb->m_MiniMd.PreUpdate());
     
     // Validate flags.
-    if (dwFieldFlags != ULONG_MAX)
+    if (dwFieldFlags != UINT32_MAX)
     {
         // fdHasFieldRVA is settable, but not re-settable by applications.
         _ASSERTE((dwFieldFlags & (fdReservedMask&~(fdHasFieldRVA|fdRTSpecialName))) == 0);

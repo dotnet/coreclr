@@ -8,23 +8,69 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
+using Microsoft.Diagnostics.Tracing.Parsers;
 using Microsoft.Diagnostics.Tracing.Parsers.Clr;
 
 namespace ReadyToRun.SuperIlc
 {
     public class BuildFolderSet
     {
-        private IEnumerable<BuildFolder> _buildFolders;
+        class FrameworkExclusion
+        {
+            public readonly string SimpleName;
+            public readonly string Reason;
+            public readonly bool Crossgen2Only;
 
-        private IEnumerable<CompilerRunner> _compilerRunners;
+            public FrameworkExclusion(string simpleName, string reason, bool crossgen2Only = false)
+            {
+                SimpleName = simpleName;
+                Reason = reason;
+                Crossgen2Only = crossgen2Only;
+            }
+        }
 
-        private BuildOptions _options;
+        private static readonly FrameworkExclusion[] s_frameworkExclusions =
+        {
+            new FrameworkExclusion("CommandLine", "Not a framework assembly"),
+            new FrameworkExclusion("R2RDump", "Not a framework assembly"),
+            new FrameworkExclusion("System.Runtime.WindowsRuntime", "WinRT is currently not supported"),
+            new FrameworkExclusion("xunit.performance.api", "Not a framework assembly"),
 
-        private Buckets _frameworkCompilationFailureBuckets;
+            // TODO (DavidWr): IBC-related failures
+            new FrameworkExclusion("Microsoft.CodeAnalysis.CSharp", "Ibc TypeToken 6200019a has type token which resolves to a nil token", crossgen2Only: true),
+            new FrameworkExclusion("Microsoft.CodeAnalysis", "Ibc TypeToken 620001af unable to find external typedef", crossgen2Only: true),
+            new FrameworkExclusion("Microsoft.CodeAnalysis.VisualBasic", "Ibc TypeToken 620002ce unable to find external typedef", crossgen2Only: true),
 
-        private Buckets _compilationFailureBuckets;
+            // TODO (TRylek): problem related to devirtualization of method without IL - System.Enum.Equals(object)
+            new FrameworkExclusion("System.ComponentModel.TypeConverter", "TODO trylek - devirtualization of method without IL", crossgen2Only: true),
 
-        private Buckets _executionFailureBuckets;
+            // TODO: additional framework build failures
+            new FrameworkExclusion("Microsoft.Diagnostics.Tracing.TraceEvent", "Assert failure in JIT", crossgen2Only: true),
+            new FrameworkExclusion("System.Private.CoreLib", "Assert failure in JIT", crossgen2Only: true),
+        };
+
+        private readonly IEnumerable<BuildFolder> _buildFolders;
+
+        private readonly IEnumerable<CompilerRunner> _compilerRunners;
+
+        private readonly BuildOptions _options;
+
+        private readonly Buckets _frameworkCompilationFailureBuckets;
+
+        private readonly Buckets _compilationFailureBuckets;
+
+        private readonly Buckets _executionFailureBuckets;
+
+        private readonly Dictionary<string, byte> _cpaotManagedSequentialResults;
+
+        private readonly Dictionary<string, byte> _crossgenManagedSequentialResults;
+
+        private readonly Dictionary<string, byte> _cpaotRequiresMarshalingResults;
+
+        private readonly Dictionary<string, byte> _crossgenRequiresMarshalingResults;
+
+        private readonly Dictionary<string, string> _frameworkExclusions;
 
         private long _frameworkCompilationMilliseconds;
 
@@ -33,14 +79,6 @@ namespace ReadyToRun.SuperIlc
         private long _executionMilliseconds;
 
         private long _buildMilliseconds;
-
-        private Dictionary<string, byte> _cpaotManagedSequentialResults;
-
-        private Dictionary<string, byte> _crossgenManagedSequentialResults;
-
-        private Dictionary<string, byte> _cpaotRequiresMarshalingResults;
-
-        private Dictionary<string, byte> _crossgenRequiresMarshalingResults;
 
         public BuildFolderSet(
             IEnumerable<BuildFolder> buildFolders,
@@ -61,6 +99,7 @@ namespace ReadyToRun.SuperIlc
             _cpaotRequiresMarshalingResults = new Dictionary<string, byte>();
             _crossgenRequiresMarshalingResults = new Dictionary<string, byte>();
 
+            _frameworkExclusions = new Dictionary<string, string>();
         }
 
         private void WriteJittedMethodSummary(StreamWriter logWriter)
@@ -92,7 +131,10 @@ namespace ReadyToRun.SuperIlc
 
         public bool Compile()
         {
-            CompileFramework();
+            if (!CompileFramework())
+            {
+                return false;
+            }
 
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
@@ -133,7 +175,7 @@ namespace ReadyToRun.SuperIlc
                     foreach (CompilerRunner runner in _compilerRunners)
                     {
                         ProcessInfo runnerProcess = compilation[(int)runner.Index];
-                        if (runnerProcess == null)
+                        if (runnerProcess == null || runnerProcess.IsEmpty)
                         {
                             // No runner process
                         }
@@ -235,12 +277,21 @@ namespace ReadyToRun.SuperIlc
 
             List<ProcessInfo> compilationsToRun = new List<ProcessInfo>();
             List<KeyValuePair<string, ProcessInfo[]>> compilationsPerRunner = new List<KeyValuePair<string, ProcessInfo[]>>();
+            List<string> excludedAssemblies = new List<string>();
             foreach (string frameworkDll in ComputeManagedAssemblies.GetManagedAssembliesInFolder(_options.CoreRootDirectory.FullName))
             {
+                string simpleName = Path.GetFileNameWithoutExtension(frameworkDll);
+                FrameworkExclusion exclusion = s_frameworkExclusions.FirstOrDefault(asm => asm.SimpleName.Equals(simpleName, StringComparison.OrdinalIgnoreCase));
+
                 ProcessInfo[] processes = new ProcessInfo[(int)CompilerIndex.Count];
                 compilationsPerRunner.Add(new KeyValuePair<string, ProcessInfo[]>(frameworkDll, processes));
                 foreach (CompilerRunner runner in frameworkRunners)
                 {
+                    if (exclusion != null && (!exclusion.Crossgen2Only || runner.Index == CompilerIndex.CPAOT))
+                    {
+                        _frameworkExclusions[exclusion.SimpleName] = exclusion.Reason;
+                        continue;
+                    }
                     ProcessInfo compilationProcess = new ProcessInfo(new CompilationProcessConstructor(runner, _options.CoreRootDirectory.FullName, frameworkDll));
                     compilationsToRun.Add(compilationProcess);
                     processes[(int)runner.Index] = compilationProcess;
@@ -249,7 +300,11 @@ namespace ReadyToRun.SuperIlc
 
             ParallelRunner.Run(compilationsToRun, _options.DegreeOfParallelism);
 
-            HashSet<string> skipCopying = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            HashSet<string>[] skipCopying = new HashSet<string>[(int)CompilerIndex.Count];
+            foreach (CompilerRunner runner in frameworkRunners)
+            {
+                skipCopying[(int)runner.Index] = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            }
             int[] failedCompilationsPerBuilder = new int[(int)CompilerIndex.Count];
             int successfulCompileCount = 0;
             int failedCompileCount = 0;
@@ -259,9 +314,13 @@ namespace ReadyToRun.SuperIlc
                 foreach (CompilerRunner runner in frameworkRunners)
                 {
                     ProcessInfo compilationProcess = kvp.Value[(int)runner.Index];
-                    if (compilationProcess.Succeeded)
+                    if (compilationProcess == null)
                     {
-                        skipCopying.Add(compilationProcess.Parameters.InputFileName);
+                        // No compilation process (e.g. there's no real compilation phase for the JIT mode)
+                    }
+                    else if (compilationProcess.Succeeded)
+                    {
+                        skipCopying[(int)runner.Index].Add(compilationProcess.Parameters.InputFileName);
                         AnalyzeCompilationLog(compilationProcess, runner.Index);
                     }
                     else
@@ -286,7 +345,7 @@ namespace ReadyToRun.SuperIlc
                 string outputPath = runner.GetOutputPath(coreRoot);
                 foreach (string file in frameworkFolderFiles)
                 {
-                    if (!skipCopying.Contains(file))
+                    if (!skipCopying[(int)runner.Index].Contains(file))
                     {
                         string targetFile = Path.Combine(outputPath, Path.GetFileName(file));
                         File.Copy(file, targetFile, overwrite: true);
@@ -434,7 +493,7 @@ namespace ReadyToRun.SuperIlc
             return success;
         }
 
-        public bool Build(IEnumerable<CompilerRunner> runners)
+        public bool Build()
         {
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
@@ -504,7 +563,7 @@ namespace ReadyToRun.SuperIlc
         {
             const int TopAppCount = 10;
 
-            IEnumerable<ProcessInfo> selection = processes.OrderByDescending(process => process.DurationMilliseconds).Take(TopAppCount);
+            IEnumerable<ProcessInfo> selection = processes.Where(process => !process.IsEmpty).OrderByDescending(process => process.DurationMilliseconds).Take(TopAppCount);
             int count = selection.Count();
             if (count == 0)
             {
@@ -538,6 +597,7 @@ namespace ReadyToRun.SuperIlc
             EXIT_CODE = 1,
             CRASHED = 2,
             TIMED_OUT = 3,
+            BUILD_FAILED = 4,
 
             Count
         }
@@ -620,24 +680,35 @@ namespace ReadyToRun.SuperIlc
                                 executionOutcomes[(int)outcome, (int)runner.Index]++;
                                 executionFailureOutcomeMask |= 1 << (int)outcome;
                             }
-                            if (!compilationFailed && !executionFailed)
+                            else if (compilationFailed)
+                            {
+                                executionOutcomes[(int)ExecutionOutcome.BUILD_FAILED, (int)runner.Index]++;
+                            }
+                            else
                             {
                                 executionOutcomes[(int)ExecutionOutcome.PASS, (int)runner.Index]++;
                             }
                         }
-                        if (executionFailureOutcomeMask != 0)
+                        if (!anyCompilationFailed)
                         {
-                            for (int outcomeIndex = 0; outcomeIndex < (int)ExecutionOutcome.Count; outcomeIndex++)
+                            if (executionFailureOutcomeMask != 0)
                             {
-                                if ((executionFailureOutcomeMask & (1 << outcomeIndex)) != 0)
+                                for (int outcomeIndex = 0; outcomeIndex < (int)ExecutionOutcome.Count; outcomeIndex++)
                                 {
-                                    executionOutcomes[outcomeIndex, (int)CompilerIndex.Count]++;
+                                    if ((executionFailureOutcomeMask & (1 << outcomeIndex)) != 0)
+                                    {
+                                        executionOutcomes[outcomeIndex, (int)CompilerIndex.Count]++;
+                                    }
                                 }
+                            }
+                            else
+                            {
+                                executionOutcomes[(int)ExecutionOutcome.PASS, (int)CompilerIndex.Count]++;
                             }
                         }
                         else
                         {
-                            executionOutcomes[(int)ExecutionOutcome.PASS, (int)CompilerIndex.Count]++;
+                            executionOutcomes[(int)ExecutionOutcome.BUILD_FAILED, (int)CompilerIndex.Count]++;
                         }
                     }
                 }
@@ -674,7 +745,7 @@ namespace ReadyToRun.SuperIlc
                 if (!_options.Exe)
                 {
                     logWriter.WriteLine();
-                    logWriter.Write($"{totalCompilations,7} ILC |");
+                    logWriter.Write($"{totalCompilations,8} ILC |");
                     foreach (CompilerRunner runner in _compilerRunners)
                     {
                         logWriter.Write($"{runner.CompilerName,8} |");
@@ -683,7 +754,7 @@ namespace ReadyToRun.SuperIlc
                     logWriter.WriteLine(separator);
                     for (int outcomeIndex = 0; outcomeIndex < (int)CompilationOutcome.Count; outcomeIndex++)
                     {
-                        logWriter.Write($"{((CompilationOutcome)outcomeIndex).ToString(),11} |");
+                        logWriter.Write($"{((CompilationOutcome)outcomeIndex).ToString(),12} |");
                         foreach (CompilerRunner runner in _compilerRunners)
                         {
                             logWriter.Write($"{compilationOutcomes[outcomeIndex, (int)runner.Index],8} |");
@@ -695,7 +766,7 @@ namespace ReadyToRun.SuperIlc
                 if (!_options.NoExe)
                 {
                     logWriter.WriteLine();
-                    logWriter.Write($"{totalExecutions,7} EXE |");
+                    logWriter.Write($"{totalExecutions,8} EXE |");
                     foreach (CompilerRunner runner in _compilerRunners)
                     {
                         logWriter.Write($"{runner.CompilerName,8} |");
@@ -704,7 +775,7 @@ namespace ReadyToRun.SuperIlc
                     logWriter.WriteLine(separator);
                     for (int outcomeIndex = 0; outcomeIndex < (int)ExecutionOutcome.Count; outcomeIndex++)
                     {
-                        logWriter.Write($"{((ExecutionOutcome)outcomeIndex).ToString(),11} |");
+                        logWriter.Write($"{((ExecutionOutcome)outcomeIndex).ToString(),12} |");
                         foreach (CompilerRunner runner in _compilerRunners)
                         {
                             logWriter.Write($"{executionOutcomes[outcomeIndex, (int)runner.Index],8} |");
@@ -734,6 +805,10 @@ namespace ReadyToRun.SuperIlc
                 logWriter.WriteLine();
                 logWriter.WriteLine("Framework compilation failures:");
                 FrameworkCompilationFailureBuckets.WriteToStream(logWriter, detailed: false);
+
+                logWriter.WriteLine();
+                logWriter.WriteLine("Framework exclusions:");
+                WriteFrameworkExclusions(logWriter);
             }
 
             if (foldersToBuild != 0)
@@ -753,7 +828,32 @@ namespace ReadyToRun.SuperIlc
                 }
             }
 
-            WriteFoldersBlockedWithIssues(logWriter);
+            if (_buildFolders.Count() != 0)
+            {
+                WriteFoldersBlockedWithIssues(logWriter);
+            }
+        }
+
+        private void WriteFrameworkExclusions(StreamWriter logWriter)
+        {
+            int keyLength = _frameworkExclusions.Keys.Max(key => key.Length);
+            const string SimpleNameTitle = "SIMPLE_NAME";
+            keyLength = Math.Max(keyLength, SimpleNameTitle.Length);
+            StringBuilder title = new StringBuilder();
+            title.Append(SimpleNameTitle);
+            title.Append(' ', keyLength - SimpleNameTitle.Length);
+            title.Append(" | REASON");
+            logWriter.WriteLine(title.ToString());
+            logWriter.WriteLine(new string('-', title.Length));
+            foreach (KeyValuePair<string, string> exclusion in _frameworkExclusions.OrderBy(kvp => kvp.Key, StringComparer.OrdinalIgnoreCase))
+            {
+                StringBuilder line = new StringBuilder();
+                line.Append(exclusion.Key);
+                line.Append(' ', keyLength - exclusion.Key.Length);
+                line.Append(" | ");
+                line.Append(exclusion.Value);
+                logWriter.WriteLine(line.ToString());
+            }
         }
 
         private void WritePerFolderStatistics(StreamWriter logWriter)
@@ -1109,7 +1209,7 @@ namespace ReadyToRun.SuperIlc
                             foreach (CompilerRunner runner in _compilerRunners)
                             {
                                 ProcessInfo compilationProcess = compilation[(int)runner.Index];
-                                if (compilationProcess != null)
+                                if (compilationProcess != null && !compilationProcess.IsEmpty)
                                 {
                                     string log = $"\nCOMPILE {runner.CompilerName}:{compilationProcess.Parameters.InputFileName}";
                                     StreamWriter runnerLog = perRunnerLog[(int)runner.Index];
@@ -1205,6 +1305,15 @@ namespace ReadyToRun.SuperIlc
 
             string combinedSetLogPath = Path.Combine(_options.OutputDirectory.FullName, "combined-" + suffix);
             WriteCombinedLog(combinedSetLogPath);
+
+            if (_options.Framework)
+            {
+                string frameworkExclusionsFile = Path.Combine(_options.OutputDirectory.FullName, "framework-exclusions-" + suffix);
+                using (StreamWriter writer = new StreamWriter(frameworkExclusionsFile))
+                {
+                    WriteFrameworkExclusions(writer);
+                }
+            }
 
             if (!_options.Exe && _options.Framework)
             {

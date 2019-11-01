@@ -52,7 +52,7 @@ struct MachineInfo;
 #include "eventchannel.h"
 
 #undef ASSERT
-#define CRASH(x)  _ASSERTE(!x)
+#define CRASH(x)  _ASSERTE(!(x))
 #define ASSERT(x) _ASSERTE(x)
 
 // We want to keep the 'worst' HRESULT - if one has failed (..._E_...) & the
@@ -1583,7 +1583,7 @@ _____Neuter_Status_Already_Marked = 0;
 //--------------------------------------------------------------------------------
 template< typename ElemType,
           typename ElemPublicType,
-          typename EnumInterfaceType,
+          typename EnumInterfaceType, REFIID IID_EnumInterfaceType,
           ElemPublicType (*GetPublicType)(ElemType)>
 class CordbEnumerator : public CordbBase, public EnumInterfaceType
 {
@@ -1622,7 +1622,7 @@ public:
 };
 
 // Converts T to U* by using QueryInterface
-template<typename T, typename U>
+template<typename T, typename U, REFIID iid>
 U* QueryInterfaceConvert(T obj);
 
 // No conversion, just returns the argument
@@ -1652,12 +1652,12 @@ CorDebugGuidToTypeMapping GuidToTypeMappingConvert(RsGuidToTypeMapping m)
 //
 typedef CordbEnumerator<RSSmartPtr<CordbThread>,
                         ICorDebugThread*,
-                        ICorDebugThreadEnum,
-                        QueryInterfaceConvert<RSSmartPtr<CordbThread>, ICorDebugThread> > CordbThreadEnumerator;
+                        ICorDebugThreadEnum, IID_ICorDebugThreadEnum,
+                        QueryInterfaceConvert<RSSmartPtr<CordbThread>, ICorDebugThread, IID_ICorDebugThread> > CordbThreadEnumerator;
 
 typedef CordbEnumerator<CorDebugBlockingObject,
                         CorDebugBlockingObject,
-                        ICorDebugBlockingObjectEnum,
+                        ICorDebugBlockingObjectEnum, IID_ICorDebugBlockingObjectEnum,
                         IdentityConvert<CorDebugBlockingObject> > CordbBlockingObjectEnumerator;
 
 // Template classes must be fully defined rather than just declared in the header
@@ -1666,23 +1666,23 @@ typedef CordbEnumerator<CorDebugBlockingObject,
 
 typedef CordbEnumerator<COR_SEGMENT,
                         COR_SEGMENT,
-                        ICorDebugHeapSegmentEnum,
+                        ICorDebugHeapSegmentEnum, IID_ICorDebugHeapSegmentEnum,
                         IdentityConvert<COR_SEGMENT> > CordbHeapSegmentEnumerator;
 
 typedef CordbEnumerator<CorDebugExceptionObjectStackFrame,
                         CorDebugExceptionObjectStackFrame,
-                        ICorDebugExceptionObjectCallStackEnum,
+                        ICorDebugExceptionObjectCallStackEnum, IID_ICorDebugExceptionObjectCallStackEnum,
                         IdentityConvert<CorDebugExceptionObjectStackFrame> > CordbExceptionObjectCallStackEnumerator;
 
 typedef CordbEnumerator<RsGuidToTypeMapping,
                         CorDebugGuidToTypeMapping,
-                        ICorDebugGuidToTypeEnum,
+                        ICorDebugGuidToTypeEnum, IID_ICorDebugGuidToTypeEnum,
                         GuidToTypeMappingConvert > CordbGuidToTypeEnumerator;
 
 typedef CordbEnumerator<RSSmartPtr<CordbVariableHome>,
                         ICorDebugVariableHome*,
-                        ICorDebugVariableHomeEnum,
-                        QueryInterfaceConvert<RSSmartPtr<CordbVariableHome>, ICorDebugVariableHome> > CordbVariableHomeEnumerator;
+                        ICorDebugVariableHomeEnum, IID_ICorDebugVariableHomeEnum,
+                        QueryInterfaceConvert<RSSmartPtr<CordbVariableHome>, ICorDebugVariableHome, IID_ICorDebugVariableHome> > CordbVariableHomeEnumerator;
 
 // ----------------------------------------------------------------------------
 // Hash table for CordbBase objects.
@@ -3973,7 +3973,7 @@ public:
 #if defined(DBG_TARGET_64BIT)
 #define MAX_ADDRESS     (_UI64_MAX)
 #else
-#define MAX_ADDRESS     (ULONG_MAX)
+#define MAX_ADDRESS     (_UI32_MAX)
 #endif
 #define MIN_ADDRESS     (0x0)
     CORDB_ADDRESS       m_minPatchAddr; //smallest patch in table
@@ -5537,7 +5537,7 @@ private:
     RSSmartPtr<CordbNativeCode> m_nativeCode;
 
     // Metadata Token for the IL function. Scoped to m_module.
-    mdMethodDef              m_MDToken;
+    const mdMethodDef        m_MDToken;
 
     // EnC version number of this instance
     SIZE_T                   m_dwEnCVersionNumber; 
@@ -8684,9 +8684,9 @@ public:
         FAIL_IF_NEUTERED(this);
         VALIDATE_POINTER_TO_OBJECT(pSize, ULONG32 *);
 
-        if (m_size > ULONG_MAX)
+        if (m_size > UINT32_MAX)
         {
-            *pSize = ULONG_MAX;
+            *pSize = UINT32_MAX;
             return (COR_E_OVERFLOW);
         }
 

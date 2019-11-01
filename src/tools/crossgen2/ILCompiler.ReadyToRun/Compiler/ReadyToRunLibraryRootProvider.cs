@@ -2,6 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System;
+
 using Internal.TypeSystem.Ecma;
 using Internal.TypeSystem;
 
@@ -38,7 +40,7 @@ namespace ILCompiler
                             continue;
                         }
 
-                        if (method.IsMethodDefinition)
+                        if (method.IsGenericMethodDefinition)
                         {
                             continue;
                         }
@@ -75,7 +77,7 @@ namespace ILCompiler
 
             if (!_profileData.PartialNGen)
             {
-                foreach (TypeDesc type in _module.GetAllTypes())
+                foreach (MetadataType type in _module.GetAllTypes())
                 {
                     try
                     {
@@ -87,11 +89,15 @@ namespace ILCompiler
                         continue;
                     }
 
-                    // If this is not a generic definition, root all methods
-                    if (!type.HasInstantiation)
+                    MetadataType typeWithMethods = type;
+                    if (type.HasInstantiation)
                     {
-                        RootMethods(type, "Library module method", rootProvider);
+                        typeWithMethods = InstantiateIfPossible(type);
+                        if (typeWithMethods == null)
+                            continue;
                     }
+
+                    RootMethods(typeWithMethods, "Library module method", rootProvider);
                 }
             }
         }
@@ -100,17 +106,26 @@ namespace ILCompiler
         {
             foreach (MethodDesc method in type.GetAllMethods())
             {
-                // Skip methods with no IL and uninstantiated generic methods
-                if (method.IsAbstract || method.HasInstantiation)
+                // Skip methods with no IL
+                if (method.IsAbstract)
                     continue;
 
                 if (method.IsInternalCall)
                     continue;
 
+                MethodDesc methodToRoot = method;
+                if (method.HasInstantiation)
+                {
+                    methodToRoot = InstantiateIfPossible(method);
+
+                    if (methodToRoot == null)
+                        continue;
+                }
+
                 try
                 {
-                    CheckCanGenerateMethod(method);
-                    rootProvider.AddCompilationRoot(method, reason);
+                    CheckCanGenerateMethod(methodToRoot);
+                    rootProvider.AddCompilationRoot(methodToRoot, reason);
                 }
                 catch (TypeSystemException)
                 {
@@ -122,7 +137,7 @@ namespace ILCompiler
         }
 
         /// <summary>
-        /// Validates that it will be possible to generate '<paramref name="method"/>' based on the types 
+        /// Validates that it will be possible to generate '<paramref name="method"/>' based on the types
         /// in its signature. Unresolvable types in a method's signature prevent RyuJIT from generating
         /// even a stubbed out throwing implementation.
         /// </summary>
@@ -144,12 +159,64 @@ namespace ILCompiler
 
         private static void CheckTypeCanBeUsedInSignature(TypeDesc type)
         {
-            MetadataType defType = type as MetadataType;
+            DefType defType = type as DefType;
 
             if (defType != null)
             {
                 defType.ComputeTypeContainsGCPointers();
+                if (defType.InstanceFieldSize.IsIndeterminate)
+                {
+                    //
+                    // If a method's signature refers to a type with an indeterminate size,
+                    // the compilation will eventually fail when we generate the GCRefMap.
+                    //
+                    // Therefore we need to avoid adding these method into the graph
+                    //
+                    ThrowHelper.ThrowTypeLoadException(ExceptionStringID.ClassLoadGeneral, type);
+                }
             }
+        }
+
+        private static Instantiation GetInstantiationThatMeetsConstraints(Instantiation definition)
+        {
+            TypeDesc[] args = new TypeDesc[definition.Length];
+
+            for (int i = 0; i < definition.Length; i++)
+            {
+                GenericParameterDesc genericParameter = (GenericParameterDesc)definition[i];
+
+                // If the parameter is not constrained to be a valuetype, we can instantiate over __Canon
+                if (genericParameter.HasNotNullableValueTypeConstraint)
+                {
+                    return default;
+                }
+
+                args[i] = genericParameter.Context.CanonType;
+            }
+
+            return new Instantiation(args);
+        }
+
+        private static InstantiatedType InstantiateIfPossible(MetadataType type)
+        {
+            Instantiation inst = GetInstantiationThatMeetsConstraints(type.Instantiation);
+            if (inst.IsNull)
+            {
+                return null;
+            }
+
+            return type.MakeInstantiatedType(inst);
+        }
+
+        private static MethodDesc InstantiateIfPossible(MethodDesc method)
+        {
+            Instantiation inst = GetInstantiationThatMeetsConstraints(method.Instantiation);
+            if (inst.IsNull)
+            {
+                return null;
+            }
+
+            return method.MakeInstantiatedMethod(inst);
         }
     }
 }

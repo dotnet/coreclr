@@ -25,8 +25,6 @@ namespace System.Threading
 {
     internal static class ThreadPoolGlobals
     {
-        public static readonly int processorCount = Environment.ProcessorCount;
-
         public static volatile bool threadPoolInitialized;
         public static bool enableWorkerTracking;
 
@@ -251,9 +249,9 @@ namespace System.Threading
                             // the edge).  If we can't, we just leave nulls in the array and they'll
                             // get filtered out eventually (but may lead to superfluous resizing).
                             if (i == m_tailIndex)
-                                m_tailIndex -= 1;
+                                m_tailIndex--;
                             else if (i == m_headIndex)
-                                m_headIndex += 1;
+                                m_headIndex++;
 
                             return true;
                         }
@@ -281,7 +279,7 @@ namespace System.Threading
                     }
 
                     // Decrement the tail using a fence to ensure subsequent read doesn't come before.
-                    tail -= 1;
+                    tail--;
                     Interlocked.Exchange(ref m_tailIndex, tail);
 
                     // If there is no interaction with a take, we can head down the fast path.
@@ -424,7 +422,7 @@ namespace System.Threading
         {
             Debug.Assert(ThreadPoolWorkQueueThreadLocals.threadLocals == null);
 
-            return (ThreadPoolWorkQueueThreadLocals.threadLocals = new ThreadPoolWorkQueueThreadLocals(this));
+            return ThreadPoolWorkQueueThreadLocals.threadLocals = new ThreadPoolWorkQueueThreadLocals(this);
         }
 
         internal void EnsureThreadRequested()
@@ -436,7 +434,7 @@ namespace System.Threading
             // by the VM by the time we reach this point.
             //
             int count = numOutstandingThreadRequests;
-            while (count < ThreadPoolGlobals.processorCount)
+            while (count < Environment.ProcessorCount)
             {
                 int prev = Interlocked.CompareExchange(ref numOutstandingThreadRequests, count + 1, count);
                 if (prev == count)

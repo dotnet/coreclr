@@ -29,16 +29,12 @@ namespace BINDER_SPACE
         inline IUnknown *GetAssembly(BOOL fAddRef = FALSE);
         inline Assembly *GetAsAssembly(BOOL fAddRef = FALSE);
 
-        inline BOOL GetIsDynamicBind();
-        inline void SetIsDynamicBind(BOOL fIsDynamicBind);
         inline BOOL GetIsInGAC();
         inline void SetIsInGAC(BOOL fIsInGAC);
         inline BOOL GetIsContextBound();
         inline void SetIsContextBound(BOOL fIsContextBound);
         inline BOOL GetIsFirstRequest();
         inline void SetIsFirstRequest(BOOL fIsFirstRequest);
-        inline BOOL GetIsSharable();
-        inline void SetIsSharable(BOOL fIsSharable);
 
         inline void SetResult(ContextEntry *pContextEntry, BOOL fIsContextBound = TRUE);
         inline void SetResult(Assembly *pAssembly);

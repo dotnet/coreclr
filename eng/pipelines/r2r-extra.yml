@@ -21,6 +21,8 @@ jobs:
     jobTemplate: build-job.yml
     buildConfig: checked
     platformGroup: gcstress
+    jobParameters:
+      testGroup: r2r-extra
 
 - template: /eng/platform-matrix.yml
   parameters:
@@ -28,7 +30,7 @@ jobs:
     buildConfig: checked
     platformGroup: gcstress # r2r-extra testGroup runs gcstress15 scenario
     helixQueueGroup: ci
+    testGroup: r2r-extra
     jobParameters:
-      testGroup: r2r-extra
       readyToRun: true
       displayNameArgs: R2R

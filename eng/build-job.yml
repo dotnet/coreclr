@@ -4,6 +4,7 @@ parameters:
   osGroup: ''
   osSubgroup: ''
   container: ''
+  testGroup: ''
   crossrootfsDir: ''
   timeoutInMinutes: ''
   signBinaries: false
@@ -12,7 +13,7 @@ parameters:
 
 ### Product build
 jobs:
-- template: xplat-job.yml
+- template: xplat-pipeline-job.yml
   parameters:
     buildConfig: ${{ parameters.buildConfig }}
     archType: ${{ parameters.archType }}
@@ -53,14 +54,15 @@ jobs:
       - name: portableBuildArg
         value: '-portablebuild=false'
     - name: clangArg
-      value: ''
+      value: '-clang9'
     # Our FreeBSD doesn't yet detect available clang versions, so pass it explicitly.
     - ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
       - name: clangArg
         value: '-clang6.0'
-    - ${{ if eq(parameters.archType, 'arm64') }}:
+    # Building for x64 MUSL happens on Alpine Linux and we need to use the stable version available there
+    - ${{ if and(eq(parameters.osGroup, 'Linux'), eq(parameters.osSubgroup, '_musl'), eq(parameters.archType, 'x64')) }}:
       - name: clangArg
-        value: '-clang5.0'
+        value: ''
     - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
       # Variables used to publish packages to blob feed
       - name: dotnetfeedUrl
@@ -130,6 +132,14 @@ jobs:
       - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) -ci -skiptests -skipbuildpackages $(officialBuildIdArg) $(ibcOptimizeArg) $(enforcePgoArg)
         displayName: Build product
 
+    # Build native test components
+    - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+      - script: ./build-test.sh skipmanaged $(buildConfig) $(archType) $(crossArg) $(priorityArg) $(clangArg)
+        displayName: Build native test components
+    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+      - script: build-test.cmd skipmanaged $(buildConfig) $(archType) $(priorityArg)
+        displayName: Build native test components
+
     # Sign on Windows
     - ${{ if and(eq(parameters.osGroup, 'Windows_NT'), eq(parameters.signBinaries, 'true')) }}:
       - powershell: eng\common\build.ps1 -ci -sign -restore -configuration:$(buildConfig) -warnaserror:0 /p:ArcadeBuild=true /p:OfficialBuild=true /p:BuildOS=$(osGroup) /p:BuildArch=$(archType) /p:BuildType=$(_BuildConfig) /p:DotNetSignType=$env:_SignType -projects $(Build.SourcesDirectory)\eng\empty.csproj
@@ -145,11 +155,37 @@ jobs:
         condition: always()
 
     # Publish product output directory for consumption by tests.
-    - task: PublishBuildArtifacts@1
-      displayName: Publish product build
-      inputs:
-        pathtoPublish: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(_BuildConfig)
-        artifactName: ${{ format('BinDir_{0}{1}_{2}_{3}', parameters.osGroup, parameters.osSubgroup, parameters.archType, parameters.buildConfig) }}
+    - template: /eng/upload-artifact-step.yml
+      parameters:
+        rootFolder: $(buildProductRootFolderPath)
+        includeRootFolder: false
+        archiveFile: $(Build.StagingDirectory)/$(buildProductArtifactName)$(archiveExtension)
+        archiveType: $(archiveType)
+        tarCompression: $(tarCompression)
+        artifactName: $(buildProductArtifactName)
+        displayName: 'product build'
+
+    # Publish test native components for consumption by test execution.
+    - template: /eng/upload-artifact-step.yml
+      parameters:
+        rootFolder: $(testNativeRootFolderPath)
+        includeRootFolder: false
+        archiveFile: $(Build.StagingDirectory)/$(testNativeArtifactName)$(archiveExtension)
+        archiveType: $(archiveType)
+        tarCompression: $(tarCompression)
+        artifactName: $(testNativeArtifactName)
+        displayName: 'native test components'
+
+    # Publish test build root for consumption by test execution.
+    - template: /eng/upload-artifact-step.yml
+      parameters:
+        rootFolder: $(testBuildRootFolderPath)
+        includeRootFolder: false
+        archiveFile: $(Build.StagingDirectory)/$(testBuildArtifactName)$(archiveExtension)
+        archiveType: $(archiveType)
+        tarCompression: $(tarCompression)
+        artifactName: $(testBuildArtifactName)
+        displayName: 'test build tree'
 
     # Get key vault secrets for publishing
     - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:

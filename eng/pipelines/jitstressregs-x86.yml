@@ -11,6 +11,11 @@ schedules:
   always: true
 
 jobs:
+#
+# Checkout repository
+#
+- template: /eng/checkout-job.yml
+
 - template: /eng/platform-matrix.yml
   parameters:
     jobTemplate: build-job.yml
@@ -19,6 +24,8 @@ jobs:
     - Linux_x64
     - Windows_NT_x64
     - Windows_NT_x86
+    jobParameters:
+      testGroup: jitstressregs-x86
 
 - template: /eng/platform-matrix.yml
   parameters:

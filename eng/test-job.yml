@@ -3,6 +3,8 @@ parameters:
   archType: ''
   osGroup: ''
   osSubgroup: ''
+  managedTestBuildOsGroup: ''
+  managedTestBuildOsSubgroup: ''
   container: ''
   testGroup: ''
   readyToRun: false
@@ -21,32 +23,33 @@ parameters:
 ### buildConfig and archType.
 
 jobs:
-- template: build-test-job.yml
-  parameters:
-    buildConfig:                 ${{ parameters.buildConfig }}
-    archType:                    ${{ parameters.archType }}
-    osGroup:                     ${{ parameters.osGroup }}
-    osSubgroup:                  ${{ parameters.osSubgroup }}
-    container:                   ${{ parameters.container }}
-    testGroup:                   ${{ parameters.testGroup }}
-    readyToRun:                  ${{ parameters.readyToRun }}
-    crossrootfsDir:              ${{ parameters.crossrootfsDir }}
-    corefxTests:                 ${{ parameters.coreFxTests }}
-    displayNameArgs:             ${{ parameters.displayNameArgs }}
-    condition:                   ${{ parameters.condition }}
-    stagedBuild:                 ${{ parameters.stagedBuild }}
+- ${{ if and(ne(parameters.corefxTests, true), eq(parameters.osSubgroup, parameters.managedTestBuildOsSubgroup), eq(parameters.osGroup, parameters.managedTestBuildOsGroup)) }}:
+  - template: build-test-job.yml
+    parameters:
+      buildConfig: ${{ parameters.buildConfig }}
+      archType: ${{ parameters.archType }}
+      osGroup: ${{ parameters.managedTestBuildOsGroup }}
+      osSubgroup: ${{ parameters.managedTestBuildOsSubgroup }}
+      container: ${{ parameters.container }}
+      testGroup: ${{ parameters.testGroup }}
+      displayNameArgs: ${{ parameters.displayNameArgs }}
+      condition: ${{ parameters.condition }}
+      stagedBuild: ${{ parameters.stagedBuild }}
 
 - template: run-test-job.yml
   parameters:
-    buildConfig:            ${{ parameters.buildConfig }}
-    archType:               ${{ parameters.archType }}
-    osGroup:                ${{ parameters.osGroup }}
-    osSubgroup:             ${{ parameters.osSubgroup }}
-    container:              ${{ parameters.container }}
-    testGroup:              ${{ parameters.testGroup }}
-    readyToRun:             ${{ parameters.readyToRun }}
-    helixQueues:            ${{ parameters.helixQueues }}
-    corefxTests:            ${{ parameters.coreFxTests }}
-    displayNameArgs:        ${{ parameters.displayNameArgs }}
-    stagedBuild:            ${{ parameters.stagedBuild }}
+    buildConfig: ${{ parameters.buildConfig }}
+    archType: ${{ parameters.archType }}
+    osGroup: ${{ parameters.osGroup }}
+    osSubgroup: ${{ parameters.osSubgroup }}
+    managedTestBuildOsGroup: ${{ parameters.managedTestBuildOsGroup }}
+    managedTestBuildOsSubgroup: ${{ parameters.managedTestBuildOsSubgroup }}
+    container: ${{ parameters.container }}
+    testGroup: ${{ parameters.testGroup }}
+    crossrootfsDir: ${{ parameters.crossrootfsDir }}
+    readyToRun: ${{ parameters.readyToRun }}
+    helixQueues: ${{ parameters.helixQueues }}
+    corefxTests: ${{ parameters.coreFxTests }}
+    displayNameArgs: ${{ parameters.displayNameArgs }}
+    stagedBuild: ${{ parameters.stagedBuild }}
     runInUnloadableContext: ${{ parameters.runInUnloadableContext }}

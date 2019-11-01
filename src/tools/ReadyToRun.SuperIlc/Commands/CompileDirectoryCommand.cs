@@ -41,7 +41,7 @@ namespace ReadyToRun.SuperIlc
 
             if (!options.Exe)
             {
-                PathExtensions.DeleteOutputFolders(options.OutputDirectory.FullName, options.CoreRootDirectory.FullName, recursive: false);
+                PathExtensions.DeleteOutputFolders(options.OutputDirectory.FullName, options.CoreRootDirectory.FullName, runners, recursive: false);
             }
 
             BuildFolder folder = BuildFolder.FromDirectory(options.InputDirectory.FullName, runners, options.OutputDirectory.FullName, options);
@@ -51,12 +51,12 @@ namespace ReadyToRun.SuperIlc
             }
 
             BuildFolderSet folderSet = new BuildFolderSet(new BuildFolder[] { folder }, runners, options);
-            bool success = folderSet.Build(runners);
+            bool success = folderSet.Build();
             folderSet.WriteLogs();
 
             if (!options.NoCleanup && !options.Exe)
             {
-                PathExtensions.DeleteOutputFolders(options.OutputDirectory.FullName, options.CoreRootDirectory.FullName, recursive: false);
+                PathExtensions.DeleteOutputFolders(options.OutputDirectory.FullName, options.CoreRootDirectory.FullName, runners, recursive: false);
             }
 
             return success ? 0 : 1;

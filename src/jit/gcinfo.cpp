@@ -98,11 +98,11 @@ void GCInfo::gcDspGCrefSetChanges(regMaskTP gcRegGCrefSetNew DEBUGARG(bool force
             else
             {
                 printRegMaskInt(gcRegGCrefSetCur);
-                compiler->getEmitter()->emitDispRegSet(gcRegGCrefSetCur);
+                compiler->GetEmitter()->emitDispRegSet(gcRegGCrefSetCur);
                 printf(" => ");
             }
             printRegMaskInt(gcRegGCrefSetNew);
-            compiler->getEmitter()->emitDispRegSet(gcRegGCrefSetNew);
+            compiler->GetEmitter()->emitDispRegSet(gcRegGCrefSetNew);
             printf("\n");
         }
     }
@@ -127,11 +127,11 @@ void GCInfo::gcDspByrefSetChanges(regMaskTP gcRegByrefSetNew DEBUGARG(bool force
             else
             {
                 printRegMaskInt(gcRegByrefSetCur);
-                compiler->getEmitter()->emitDispRegSet(gcRegByrefSetCur);
+                compiler->GetEmitter()->emitDispRegSet(gcRegByrefSetCur);
                 printf(" => ");
             }
             printRegMaskInt(gcRegByrefSetNew);
-            compiler->getEmitter()->emitDispRegSet(gcRegByrefSetNew);
+            compiler->GetEmitter()->emitDispRegSet(gcRegByrefSetNew);
             printf("\n");
         }
     }
@@ -194,8 +194,8 @@ void GCInfo::gcMarkRegSetNpt(regMaskTP regMask DEBUGARG(bool forceOutput))
 {
     /* NOTE: don't unmark any live register variables */
 
-    regMaskTP gcRegByrefSetNew = gcRegByrefSetCur & ~(regMask & ~regSet->rsMaskVars);
-    regMaskTP gcRegGCrefSetNew = gcRegGCrefSetCur & ~(regMask & ~regSet->rsMaskVars);
+    regMaskTP gcRegByrefSetNew = gcRegByrefSetCur & ~(regMask & ~regSet->GetMaskVars());
+    regMaskTP gcRegGCrefSetNew = gcRegGCrefSetCur & ~(regMask & ~regSet->GetMaskVars());
 
     INDEBUG(gcDspGCrefSetChanges(gcRegGCrefSetNew, forceOutput));
     INDEBUG(gcDspByrefSetChanges(gcRegByrefSetNew, forceOutput));
@@ -247,7 +247,7 @@ GCInfo::WriteBarrierForm GCInfo::gcIsWriteBarrierCandidate(GenTree* tgt, GenTree
         return WBF_NoBarrier;
     }
 
-    if (assignVal->gtOper == GT_CNS_INT && assignVal->gtIntCon.gtIconVal == 0)
+    if (assignVal->gtOper == GT_CNS_INT && assignVal->AsIntCon()->gtIconVal == 0)
     {
         return WBF_NoBarrier;
     }
@@ -273,7 +273,7 @@ GCInfo::WriteBarrierForm GCInfo::gcIsWriteBarrierCandidate(GenTree* tgt, GenTree
                 // This case occurs for stack-allocated objects.
                 return WBF_NoBarrier;
             }
-            return gcWriteBarrierFormFromTargetAddress(tgt->gtOp.gtOp1);
+            return gcWriteBarrierFormFromTargetAddress(tgt->AsOp()->gtOp1);
 
         case GT_LEA:
             return gcWriteBarrierFormFromTargetAddress(tgt->AsAddrMode()->Base());
@@ -301,7 +301,7 @@ bool GCInfo::gcIsWriteBarrierStoreIndNode(GenTree* op)
 {
     assert(op->OperIs(GT_STOREIND));
 
-    return gcIsWriteBarrierCandidate(op, op->gtOp.gtOp2) != WBF_NoBarrier;
+    return gcIsWriteBarrierCandidate(op, op->AsOp()->gtOp2) != WBF_NoBarrier;
 }
 
 /*****************************************************************************/
@@ -328,7 +328,7 @@ GCInfo::regPtrDsc* GCInfo::gcRegPtrAllocDsc()
 {
     regPtrDsc* regPtrNext;
 
-    assert(compiler->genFullPtrRegMap);
+    assert(compiler->IsFullPtrRegMapRequired());
 
     /* Allocate a new entry and initialize it */
 
@@ -398,7 +398,7 @@ void GCInfo::gcCountForHeader(UNALIGNED unsigned int* pUntrackedCount, UNALIGNED
                 int offs = varDsc->lvStkOffs;
 
                 printf("GCINFO: untrckd %s lcl at [%s", varTypeGCstring(varDsc->TypeGet()),
-                       compiler->genEmitter->emitGetFrameReg());
+                       compiler->GetEmitter()->emitGetFrameReg());
 
                 if (offs < 0)
                 {
@@ -437,7 +437,7 @@ void GCInfo::gcCountForHeader(UNALIGNED unsigned int* pUntrackedCount, UNALIGNED
             int offs = tempThis->tdTempOffs();
 
             printf("GCINFO: untrck %s Temp at [%s", varTypeGCstring(varDsc->TypeGet()),
-                   compiler->genEmitter->emitGetFrameReg());
+                   compiler->GetEmitter()->emitGetFrameReg());
 
             if (offs < 0)
             {
@@ -605,7 +605,7 @@ void GCInfo::gcRegPtrSetInit()
 {
     gcRegGCrefSetCur = gcRegByrefSetCur = 0;
 
-    if (compiler->genFullPtrRegMap)
+    if (compiler->IsFullPtrRegMapRequired())
     {
         gcRegPtrList = gcRegPtrLast = nullptr;
     }
@@ -659,27 +659,31 @@ GCInfo::WriteBarrierForm GCInfo::gcWriteBarrierFormFromTargetAddress(GenTree* tg
 
         tgtAddr = tgtAddr->gtSkipReloadOrCopy();
 
-        while (tgtAddr->OperGet() == GT_ADDR && tgtAddr->gtOp.gtOp1->OperGet() == GT_IND)
+        while (tgtAddr->OperGet() == GT_ADDR && tgtAddr->AsOp()->gtOp1->OperGet() == GT_IND)
         {
-            tgtAddr        = tgtAddr->gtOp.gtOp1->gtOp.gtOp1;
+            tgtAddr        = tgtAddr->AsOp()->gtOp1->AsOp()->gtOp1;
             simplifiedExpr = true;
             assert(tgtAddr->TypeGet() == TYP_BYREF);
         }
         // For additions, one of the operands is a byref or a ref (and the other is not).  Follow this down to its
         // source.
-        while (tgtAddr->OperGet() == GT_ADD || tgtAddr->OperGet() == GT_LEA)
+        while (tgtAddr->OperIs(GT_ADD, GT_LEA))
         {
             if (tgtAddr->OperGet() == GT_ADD)
             {
-                if (tgtAddr->gtOp.gtOp1->TypeGet() == TYP_BYREF || tgtAddr->gtOp.gtOp1->TypeGet() == TYP_REF)
+                GenTree*  addOp1     = tgtAddr->AsOp()->gtGetOp1();
+                GenTree*  addOp2     = tgtAddr->AsOp()->gtGetOp2();
+                var_types addOp1Type = addOp1->TypeGet();
+                var_types addOp2Type = addOp2->TypeGet();
+                if (addOp1Type == TYP_BYREF || addOp1Type == TYP_REF)
                 {
-                    assert(!(tgtAddr->gtOp.gtOp2->TypeGet() == TYP_BYREF || tgtAddr->gtOp.gtOp2->TypeGet() == TYP_REF));
-                    tgtAddr        = tgtAddr->gtOp.gtOp1;
+                    assert(addOp2Type != TYP_BYREF && addOp2Type != TYP_REF);
+                    tgtAddr        = addOp1;
                     simplifiedExpr = true;
                 }
-                else if (tgtAddr->gtOp.gtOp2->TypeGet() == TYP_BYREF || tgtAddr->gtOp.gtOp2->TypeGet() == TYP_REF)
+                else if (addOp2Type == TYP_BYREF || addOp2Type == TYP_REF)
                 {
-                    tgtAddr        = tgtAddr->gtOp.gtOp2;
+                    tgtAddr        = addOp2;
                     simplifiedExpr = true;
                 }
                 else

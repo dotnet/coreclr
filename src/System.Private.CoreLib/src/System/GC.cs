@@ -17,9 +17,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
 using System.Collections.Generic;
-#if !DEBUG
 using Internal.Runtime.CompilerServices;
-#endif
 
 namespace System
 {
@@ -55,7 +53,7 @@ namespace System
 
     public static class GC
     {
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void GetMemoryInfo(out ulong highMemLoadThresholdBytes,
                                                   out ulong totalAvailableMemoryBytes,
                                                   out ulong lastRecordedMemLoadBytes,
@@ -86,10 +84,10 @@ namespace System
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern int _EndNoGCRegion();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern Array AllocateNewArray(IntPtr typeHandle, int length, bool zeroingOptional);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int GetGenerationWR(IntPtr handle);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
@@ -98,19 +96,19 @@ namespace System
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void _Collect(int generation, int mode);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int GetMaxGeneration();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int _CollectionCount(int generation, int getSpecialGCCount);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern ulong GetSegmentSize();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int GetLastGCPercentTimeInGC();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern ulong GetGenerationSize(int gen);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
@@ -156,7 +154,7 @@ namespace System
 
         // Returns the generation that obj is currently in.
         //
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern int GetGeneration(object obj);
 
 
@@ -264,7 +262,7 @@ namespace System
         //
         // If we insert a call to GC.KeepAlive(this) at the end of Problem(), then
         // Foo doesn't get finalized and the stream stays open.
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
         public static void KeepAlive(object? obj)
         {
         }
@@ -293,7 +291,7 @@ namespace System
 
         // Indicates that the system should not call the Finalize() method on
         // an object that would normally require this call.
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _SuppressFinalize(object o);
 
         public static void SuppressFinalize(object obj)
@@ -307,7 +305,7 @@ namespace System
         // for which SuppressFinalize has already been called. The other situation
         // where calling ReRegisterForFinalize is useful is inside a finalizer that
         // needs to resurrect itself or an object that it references.
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _ReRegisterForFinalize(object o);
 
         public static void ReRegisterForFinalize(object obj)
@@ -351,7 +349,7 @@ namespace System
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void _UnregisterFrozenSegment(IntPtr segmentHandle);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern long GetAllocatedBytesForCurrentThread();
 
 
@@ -359,19 +357,19 @@ namespace System
         /// Get a count of the bytes allocated over the lifetime of the process.
         /// <param name="precise">If true, gather a precise number, otherwise gather a fairly count. Gathering a precise value triggers at a significant performance penalty.</param>
         /// </summary>
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern long GetTotalAllocatedBytes(bool precise = false);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool _RegisterForFullGCNotification(int maxGenerationPercentage, int largeObjectHeapPercentage);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool _CancelFullGCNotification();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int _WaitForFullGCApproach(int millisecondsTimeout);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int _WaitForFullGCComplete(int millisecondsTimeout);
 
         public static void RegisterForFullGCNotification(int maxGenerationThreshold, int largeObjectHeapThreshold)
@@ -505,7 +503,7 @@ namespace System
             return StartNoGCRegionWorker(totalSize, true, lohSize, disallowFullBlockingGC);
         }
 
-        private static EndNoGCRegionStatus EndNoGCRegionWorker()
+        public static void EndNoGCRegion()
         {
             EndNoGCRegionStatus status = (EndNoGCRegionStatus)_EndNoGCRegion();
             if (status == EndNoGCRegionStatus.NotInProgress)
@@ -514,13 +512,6 @@ namespace System
                 throw new InvalidOperationException("Garbage collection was induced in NoGCRegion mode");
             else if (status == EndNoGCRegionStatus.AllocationExceeded)
                 throw new InvalidOperationException("Allocated memory exceeds specified memory for NoGCRegion mode");
-
-            return EndNoGCRegionStatus.Succeeded;
-        }
-
-        public static void EndNoGCRegion()
-        {
-            EndNoGCRegionWorker();
         }
 
         private readonly struct MemoryLoadChangeNotification
@@ -658,8 +649,11 @@ namespace System
             }
         }
 
-        // Skips zero-initialization of the array if possible. If T contains object references,
-        // the array is always zero-initialized.
+        /// <summary>
+        /// Skips zero-initialization of the array if possible.
+        /// If T contains object references, the array is always zero-initialized.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] // forced to ensure no perf drop for small memory buffers (hot path)
         internal static T[] AllocateUninitializedArray<T>(int length)
         {
             if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
@@ -667,23 +661,20 @@ namespace System
                 return new T[length];
             }
 
-            if (length < 0)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.lengths, 0, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
-#if DEBUG
-            // in DEBUG arrays of any length can be created uninitialized
-#else
-            // otherwise small arrays are allocated using `new[]` as that is generally faster.
-            //
-            // The threshold was derived from various simulations.
-            // As it turned out the threshold depends on overal pattern of all allocations and is typically in 200-300 byte range.
-            // The gradient around the number is shallow (there is no perf cliff) and the exact value of the threshold does not matter a lot.
-            // So it is 256 bytes including array header.
-            if (Unsafe.SizeOf<T>() * length < 256 - 3 * IntPtr.Size)
+            // for debug builds we always want to call AllocateNewArray to detect AllocateNewArray bugs
+#if !DEBUG
+            // small arrays are allocated using `new[]` as that is generally faster.
+            if (length < 2048 / Unsafe.SizeOf<T>())
             {
                 return new T[length];
             }
 #endif
-            return (T[])AllocateNewArray(typeof(T[]).TypeHandle.Value, length, zeroingOptional: true);
+            // kept outside of the small arrays hot path to have inlining without big size growth
+            return AllocateNewUninitializedArray(length);
+
+            // remove the local function when https://github.com/dotnet/coreclr/issues/5329 is implemented
+            T[] AllocateNewUninitializedArray(int length)
+                => Unsafe.As<T[]>(AllocateNewArray(typeof(T[]).TypeHandle.Value, length, zeroingOptional: true));
         }
     }
 }

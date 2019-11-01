@@ -219,7 +219,12 @@ protected:
 
     BasicBlock* genCreateTempLabel();
 
+private:
+    void genLogLabel(BasicBlock* bb);
+
+protected:
     void genDefineTempLabel(BasicBlock* label);
+    void genDefineInlineTempLabel(BasicBlock* label);
 
     void genAdjustSP(target_ssize_t delta);
 
@@ -414,7 +419,7 @@ protected:
 
 #ifdef PROFILING_SUPPORTED
     void genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed);
-    void genProfilingLeaveCallback(unsigned helper = CORINFO_HELP_PROF_FCN_LEAVE);
+    void genProfilingLeaveCallback(unsigned helper);
 #endif // PROFILING_SUPPORTED
 
     void genPrologPadForReJit();
@@ -642,7 +647,6 @@ protected:
         unsigned scLVnum;  // 'which' in eeGetLVinfo()
 
         unsigned scStackLevel; // Only for stk-vars
-        bool scAvailable : 1;  // It has a home / Home recycled - TODO-Cleanup: it appears this is unused (always true)
 
         siScope* scPrev;
         siScope* scNext;
@@ -979,7 +983,7 @@ protected:
 #ifdef FEATURE_HW_INTRINSICS
     void genHWIntrinsic(GenTreeHWIntrinsic* node);
 #if defined(_TARGET_XARCH_)
-    void genHWIntrinsic_R_RM(GenTreeHWIntrinsic* node, instruction ins, emitAttr attr);
+    void genHWIntrinsic_R_RM(GenTreeHWIntrinsic* node, instruction ins, emitAttr attr, regNumber reg, GenTree* rmOp);
     void genHWIntrinsic_R_RM_I(GenTreeHWIntrinsic* node, instruction ins, int8_t ival);
     void genHWIntrinsic_R_R_RM(GenTreeHWIntrinsic* node, instruction ins, emitAttr attr);
     void genHWIntrinsic_R_R_RM(
@@ -1009,21 +1013,7 @@ protected:
                                          HWIntrinsicSwitchCaseBody emitSwCase);
 #endif // defined(_TARGET_XARCH_)
 #if defined(_TARGET_ARM64_)
-    instruction getOpForHWIntrinsic(GenTreeHWIntrinsic* node, var_types instrType);
-    void genHWIntrinsicUnaryOp(GenTreeHWIntrinsic* node);
-    void genHWIntrinsicCrcOp(GenTreeHWIntrinsic* node);
-    void genHWIntrinsicSimdBinaryOp(GenTreeHWIntrinsic* node);
-    void genHWIntrinsicSimdExtractOp(GenTreeHWIntrinsic* node);
-    void genHWIntrinsicSimdInsertOp(GenTreeHWIntrinsic* node);
-    void genHWIntrinsicSimdSelectOp(GenTreeHWIntrinsic* node);
-    void genHWIntrinsicSimdSetAllOp(GenTreeHWIntrinsic* node);
-    void genHWIntrinsicSimdUnaryOp(GenTreeHWIntrinsic* node);
-    void genHWIntrinsicSimdBinaryRMWOp(GenTreeHWIntrinsic* node);
-    void genHWIntrinsicSimdTernaryRMWOp(GenTreeHWIntrinsic* node);
-    void genHWIntrinsicShaHashOp(GenTreeHWIntrinsic* node);
-    void genHWIntrinsicShaRotateOp(GenTreeHWIntrinsic* node);
-    template <typename HWIntrinsicSwitchCaseBody>
-    void genHWIntrinsicSwitchTable(regNumber swReg, regNumber tmpReg, int swMax, HWIntrinsicSwitchCaseBody emitSwCase);
+    void genSpecialIntrinsic(GenTreeHWIntrinsic* node);
 #endif // defined(_TARGET_XARCH_)
 #endif // FEATURE_HW_INTRINSICS
 
@@ -1168,18 +1158,11 @@ protected:
     unsigned genMove4IfNeeded(unsigned size, regNumber tmpReg, GenTree* srcAddr, unsigned offset);
     unsigned genMove2IfNeeded(unsigned size, regNumber tmpReg, GenTree* srcAddr, unsigned offset);
     unsigned genMove1IfNeeded(unsigned size, regNumber tmpReg, GenTree* srcAddr, unsigned offset);
+    void genCodeForLoadOffset(instruction ins, emitAttr size, regNumber dst, GenTree* base, unsigned offset);
     void genStructPutArgRepMovs(GenTreePutArgStk* putArgStkNode);
     void genStructPutArgUnroll(GenTreePutArgStk* putArgStkNode);
     void genStoreRegToStackArg(var_types type, regNumber reg, int offset);
 #endif // FEATURE_PUT_STRUCT_ARG_STK
-
-    void genCodeForLoadOffset(instruction ins, emitAttr size, regNumber dst, GenTree* base, unsigned offset);
-    void genCodeForStoreOffset(instruction ins, emitAttr size, regNumber src, GenTree* base, unsigned offset);
-
-#ifdef _TARGET_ARM64_
-    void genCodeForLoadPairOffset(regNumber dst, regNumber dst2, GenTree* base, unsigned offset);
-    void genCodeForStorePairOffset(regNumber src, regNumber src2, GenTree* base, unsigned offset);
-#endif // _TARGET_ARM64_
 
     void genCodeForStoreBlk(GenTreeBlk* storeBlkNode);
 #ifndef _TARGET_X86_
@@ -1248,7 +1231,7 @@ protected:
         {
             return false;
         }
-        const LclVarDsc* varDsc = &compiler->lvaTable[tree->gtLclVarCommon.gtLclNum];
+        const LclVarDsc* varDsc = &compiler->lvaTable[tree->AsLclVarCommon()->GetLclNum()];
         return (varDsc->lvIsRegCandidate());
     }
 

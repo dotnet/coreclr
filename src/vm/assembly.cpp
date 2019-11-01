@@ -190,22 +190,6 @@ void Assembly::Init(AllocMemTracker *pamTracker, LoaderAllocator *pLoaderAllocat
     if (!m_pManifest->IsReadyToRun())
         CacheManifestExportedTypes(pamTracker);
 
-
-    // Check for the assemblies that contain SIMD Vector types.
-    // If we encounter a non-trusted assembly with these names, we will simply not recognize any of its
-    // methods as intrinsics.
-    LPCUTF8 assemblyName = GetSimpleName();
-    const int length = sizeof("System.Numerics") - 1;
-    if ((strncmp(assemblyName, "System.Numerics", length) == 0) &&
-        ((assemblyName[length] == '\0') || (strcmp(assemblyName+length, ".Vectors") == 0)))
-    {
-        m_fIsSIMDVectorAssembly = true;
-    }
-    else
-    {
-        m_fIsSIMDVectorAssembly = false;
-    }
-
     // We'll load the friend assembly information lazily.  For the ngen case we should avoid
     //  loading it entirely.
     //CacheFriendAssemblyInfo();
@@ -1462,6 +1446,62 @@ void ValidateMainMethod(MethodDesc * pFD, CorEntryPointType *pType)
     }
 }
 
+struct Param
+{
+    MethodDesc *pFD;
+    short numSkipArgs;
+    INT32 *piRetVal;
+    PTRARRAYREF *stringArgs;
+    CorEntryPointType EntryType;
+    DWORD cCommandArgs;
+    LPWSTR *wzArgs;
+} param;
+
+static void RunMainInternal(Param* pParam)
+{
+    MethodDescCallSite  threadStart(pParam->pFD);
+
+    PTRARRAYREF StrArgArray = NULL;
+    GCPROTECT_BEGIN(StrArgArray);
+
+    // Build the parameter array and invoke the method.
+    if (pParam->EntryType == EntryManagedMain) {
+        if (pParam->stringArgs == NULL) {
+            // Allocate a COM Array object with enough slots for cCommandArgs - 1
+            StrArgArray = (PTRARRAYREF) AllocateObjectArray((pParam->cCommandArgs - pParam->numSkipArgs), g_pStringClass);
+
+            // Create Stringrefs for each of the args
+            for (DWORD arg = pParam->numSkipArgs; arg < pParam->cCommandArgs; arg++) {
+                STRINGREF sref = StringObject::NewString(pParam->wzArgs[arg]);
+                StrArgArray->SetAt(arg - pParam->numSkipArgs, (OBJECTREF) sref);
+            }
+        }
+        else
+            StrArgArray = *pParam->stringArgs;
+    }
+
+    ARG_SLOT stackVar = ObjToArgSlot(StrArgArray);
+
+    if (pParam->pFD->IsVoid())
+    {
+        // Set the return value to 0 instead of returning random junk
+        *pParam->piRetVal = 0;
+        threadStart.Call(&stackVar);
+    }
+    else
+    {
+        *pParam->piRetVal = (INT32)threadStart.Call_RetArgSlot(&stackVar);
+        SetLatchedExitCode(*pParam->piRetVal);
+    }
+
+    GCPROTECT_END();
+
+    //<TODO>
+    // When we get mainCRTStartup from the C++ then this should be able to go away.</TODO>
+    fflush(stdout);
+    fflush(stderr);
+}
+
 /* static */
 HRESULT RunMain(MethodDesc *pFD ,
                 short numSkipArgs,
@@ -1506,16 +1546,8 @@ HRESULT RunMain(MethodDesc *pFD ,
 
     ETWFireEvent(Main_V1);
 
-    struct Param
-    {
-        MethodDesc *pFD;
-        short numSkipArgs;
-        INT32 *piRetVal;
-        PTRARRAYREF *stringArgs;
-        CorEntryPointType EntryType;
-        DWORD cCommandArgs;
-        LPWSTR *wzArgs;
-    } param;
+    Param param;
+
     param.pFD = pFD;
     param.numSkipArgs = numSkipArgs;
     param.piRetVal = piRetVal;
@@ -1526,47 +1558,7 @@ HRESULT RunMain(MethodDesc *pFD ,
 
     EX_TRY_NOCATCH(Param *, pParam, &param)
     {
-        MethodDescCallSite  threadStart(pParam->pFD);
-        
-        PTRARRAYREF StrArgArray = NULL;
-        GCPROTECT_BEGIN(StrArgArray);
-
-        // Build the parameter array and invoke the method.
-        if (pParam->EntryType == EntryManagedMain) {
-            if (pParam->stringArgs == NULL) {
-                // Allocate a COM Array object with enough slots for cCommandArgs - 1
-                StrArgArray = (PTRARRAYREF) AllocateObjectArray((pParam->cCommandArgs - pParam->numSkipArgs), g_pStringClass);
-
-                // Create Stringrefs for each of the args
-                for (DWORD arg = pParam->numSkipArgs; arg < pParam->cCommandArgs; arg++) {
-                    STRINGREF sref = StringObject::NewString(pParam->wzArgs[arg]);
-                    StrArgArray->SetAt(arg - pParam->numSkipArgs, (OBJECTREF) sref);
-                }
-            }
-            else
-                StrArgArray = *pParam->stringArgs;
-        }
-
-        ARG_SLOT stackVar = ObjToArgSlot(StrArgArray);
-
-        if (pParam->pFD->IsVoid()) 
-        {
-            // Set the return value to 0 instead of returning random junk
-            *pParam->piRetVal = 0;
-            threadStart.Call(&stackVar);
-        }
-        else 
-        {
-            *pParam->piRetVal = (INT32)threadStart.Call_RetArgSlot(&stackVar);
-            SetLatchedExitCode(*pParam->piRetVal);
-        }
-
-        GCPROTECT_END();
-
-        //<TODO>
-        // When we get mainCRTStartup from the C++ then this should be able to go away.</TODO>
-        fflush(stdout);
-        fflush(stderr);
+        RunMainInternal(pParam);
     }
     EX_END_NOCATCH
 

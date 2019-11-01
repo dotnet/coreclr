@@ -138,6 +138,7 @@ typedef VPTR(class EEDbgInterfaceImpl)  PTR_EEDbgInterfaceImpl;
 typedef VPTR(class DebugInfoManager)    PTR_DebugInfoManager;
 typedef DPTR(class FieldDesc)           PTR_FieldDesc;
 typedef VPTR(class Frame)               PTR_Frame;
+typedef VPTR(class GCFrame)             PTR_GCFrame;
 typedef VPTR(class ICodeManager)        PTR_ICodeManager;
 typedef VPTR(class IJitManager)         PTR_IJitManager;
 typedef VPTR(struct IUnknown)           PTR_IUnknown;
@@ -288,7 +289,6 @@ namespace Loader
 #include "log.h"
 #include "loaderheap.h"
 #include "fixuppointer.h"
-#include "lazycow.h"
 
 // src/vm
 #include "gcenv.interlocked.h"
@@ -373,43 +373,6 @@ namespace Loader
 #include "dynamicmethod.h"
 
 #include "gcstress.h"
-
-#ifndef DACCESS_COMPILE 
-
-inline VOID UnsafeEEEnterCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
-{
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_CAN_TAKE_LOCK;
-
-    EnterCriticalSection(lpCriticalSection);
-    INCTHREADLOCKCOUNT();
-}
-
-inline VOID UnsafeEELeaveCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
-{
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_GC_NOTRIGGER;
-
-    LeaveCriticalSection(lpCriticalSection);
-    DECTHREADLOCKCOUNT();
-}
-
-inline BOOL UnsafeEETryEnterCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
-{
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_CAN_TAKE_LOCK;
-
-    BOOL fEnteredCriticalSection = TryEnterCriticalSection(lpCriticalSection);
-    if(fEnteredCriticalSection)
-    {
-        INCTHREADLOCKCOUNT();
-    }
-    return fEnteredCriticalSection;
-}
-
-#endif // !DACCESS_COMPILE
 
 HRESULT EnsureRtlFunctions();
 HINSTANCE GetModuleInst();

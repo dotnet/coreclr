@@ -9,17 +9,6 @@ namespace System
 {
     public partial class String
     {
-        //
-        // These fields map directly onto the fields in an EE StringObject.  See object.h for the layout.
-        //
-        [NonSerialized]
-        private int _stringLength;
-
-        // For empty strings, this will be '\0' since
-        // strings are both null-terminated and length prefixed
-        [NonSerialized]
-        private char _firstChar;
-
         // The Empty constant holds the empty string value. It is initialized by the EE during startup.
         // It is treated as intrinsic by the JIT as so the static constructor would never run.
         // Leaving it uninitialized would confuse debuggers.
@@ -50,23 +39,18 @@ namespace System
         //
         public extern int Length
         {
-            [MethodImplAttribute(MethodImplOptions.InternalCall)]
+            [MethodImpl(MethodImplOptions.InternalCall)]
             get;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern string FastAllocateString(int length);
 
-        // Is this a string that can be compared quickly (that is it has only characters > 0x80
-        // and not a - or '
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal extern bool IsFastSort();
-
         // Set extra byte for odd-sized strings that came from interop as BSTR.
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern void SetTrailByte(byte data);
         // Try to retrieve the extra byte - returns false if not present.
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern bool TryGetTrailByte(out byte data);
 
         [MethodImpl(MethodImplOptions.InternalCall)]

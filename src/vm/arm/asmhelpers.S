@@ -561,6 +561,15 @@ ThePreStubPatchLabel:
 
         .endm
 
+#ifdef PROFILING_SUPPORTED
+
+//
+// EXTERN_C void JIT_ProfilerEnterLeaveTailcallStub(UINT_PTR ProfilerHandle)
+//
+LEAF_ENTRY JIT_ProfilerEnterLeaveTailcallStub, _TEXT
+    bx lr
+LEAF_END JIT_ProfilerEnterLeaveTailcallStub, _TEXT
+
 //
 // EXTERN_C void ProfileEnterNaked(FunctionIDOrClientID functionIDOrClientID);
 //
@@ -689,6 +698,8 @@ NESTED_ENTRY ProfileTailcallNaked, _TEXT, NoHandler
     EPILOG_STACK_RESTORE_OFFSET r7, #16
     EPILOG_POP "{r1, r2, r4, r5, r7, r11, pc}"
 NESTED_END ProfileTailcallNaked, _TEXT
+
+#endif
 
 // EXTERN_C int __fastcall HelperMethodFrameRestoreState(
 //         INDEBUG_COMMA(HelperMethodFrame *pFrame)
@@ -1109,10 +1120,10 @@ LOCAL_LABEL(ThrowIndexOutOfRangeException):
     CHECK_STACK_ALIGNMENT 
 
     // allow in case val can be casted to array element type
-    // call ObjIsInstanceOfNoGC(val, array->GetArrayElementTypeHandle())
+    // call ObjIsInstanceOfCached(val, array->GetArrayElementTypeHandle())
     mov     r1, r12 // array->GetArrayElementTypeHandle()
     mov     r0, r2
-    bl      C_FUNC(ObjIsInstanceOfNoGC)
+    bl      C_FUNC(ObjIsInstanceOfCached)
     cmp     r0, TypeHandle_CanCast 
     beq     LOCAL_LABEL(DoWrite)             // ObjIsInstance returned TypeHandle::CanCast
 
@@ -1439,3 +1450,38 @@ DelayLoad_Helper\suffix:
         NESTED_END OnHijackTripThread, _TEXT
 #endif
 
+// ------------------------------------------------------------------
+// The following helper will access ("probe") a word on each page of the stack
+// starting with the page right beneath sp down to the one pointed to by r4.
+// The procedure is needed to make sure that the "guard" page is pushed down below the allocated stack frame.
+// The call to the helper will be emitted by JIT in the function/funclet prolog when large (larger than 0x3000 bytes) stack frame is required.
+// On entry:
+//   r4 - points to the lowest address on the stack frame being allocated (i.e. [InitialSp - FrameSize])
+//   sp - points to some byte on the last probed page
+// On exit:
+//   r4 - is preserved
+//   r5 - is not preserved
+//
+// NOTE: this helper will probe at least one page below the one pointed to by sp.
+#define PAGE_SIZE      0x1000
+#define PAGE_SIZE_LOG2 12
+
+        NESTED_ENTRY JIT_StackProbe, _TEXT, NoHandler
+        PROLOG_PUSH "{r7}"
+        PROLOG_STACK_SAVE r7
+
+        mov r5, sp                       // r5 points to some byte on the last probed page
+        bfc r5, #0, #PAGE_SIZE_LOG2      // r5 points to the **lowest address** on the last probed page
+        mov sp, r5
+
+ProbeLoop:
+                                         // Immediate operand for the following instruction can not be greater than 4095.
+        sub sp, #(PAGE_SIZE - 4)         // sp points to the **fourth** byte on the **next page** to probe
+        ldr r5, [sp, #-4]!               // sp points to the lowest address on the **last probed** page
+        cmp sp, r4
+        bhi ProbeLoop                    // If (sp > r4), then we need to probe at least one more page.
+
+        EPILOG_STACK_RESTORE r7
+        EPILOG_POP "{r7}"
+        EPILOG_BRANCH_REG lr
+        NESTED_END JIT_StackProbe, _TEXT

@@ -15,7 +15,7 @@ namespace Internal.Runtime
     {
         public const uint Signature = 0x00525452; // 'RTR'
 
-        public const ushort CurrentMajorVersion = 3;
+        public const ushort CurrentMajorVersion = 4;
         public const ushort CurrentMinorVersion = 0;
     }
 
@@ -62,6 +62,7 @@ namespace Internal.Runtime
         InliningInfo = 110, // Added in v2.1
         ProfileDataInfo = 111, // Added in v2.2
         ManifestMetadata = 112, // Added in v2.3
+        AttributePresence = 113, // Added in V3.1
 
         //
         // CoreRT ReadyToRun sections

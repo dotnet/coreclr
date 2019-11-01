@@ -14,6 +14,7 @@
 
 #include <comcallablewrapper.h>
 #include <gcdump.h>
+#include <fieldmarshaler.h>
 
 #if !defined(FEATURE_CORESYSTEM)
 #include <algorithm>
@@ -2194,6 +2195,10 @@ DataToTokenCore:
         buf.Append( W("Indirect P/Invoke target for ") );
         break;
 
+    case ENCODE_PINVOKE_TARGET:
+        buf.Append( W("P/Invoke target for ") );
+        break;
+
     case ENCODE_PROFILING_HANDLE:
         buf.Append( W("Profiling handle for ") );
         goto EncodeMethod;
@@ -2838,16 +2843,11 @@ IMetaDataImport2 * NativeImageDumper::TypeToString(PTR_CCOR_SIGNATURE &sig,
                 {   
                     if (sizes[i] != 0 && lowerBounds[i] != 0)   
                     {   
-                        if (lowerBounds[i] == 0)    
-                            buf.AppendPrintf( W("%s"), sizes[i] );
-                        else    
-                        {   
-                            buf.AppendPrintf( W("%d ..."), lowerBounds[i] );
-                            if (sizes[i] != 0)  
-                                buf.AppendPrintf( W("%d"),
-                                                  lowerBounds[i] + sizes[i]
-                                                  + 1 );
-                        }   
+                        buf.AppendPrintf( W("%d ..."), lowerBounds[i] );
+                        if (sizes[i] != 0)  
+                            buf.AppendPrintf( W("%d"),
+                                              lowerBounds[i] + sizes[i]
+                                              + 1 );
                     }   
                     if (i < rank-1) 
                         buf.Append( W(",") );
@@ -8384,36 +8384,36 @@ NativeImageDumper::DumpEEClassForMethodTable( PTR_MethodTable mt )
                                      VERBOSE_TYPES );
         DisplayWriteFieldInt( m_numCTMFields, eecli->m_numCTMFields,
                               EEClassLayoutInfo, VERBOSE_TYPES );
-        PTR_FieldMarshaler fmArray = eecli->GetFieldMarshalers();
-        DisplayWriteFieldAddress( m_pFieldMarshalers,
+        PTR_NativeFieldDescriptor fmArray = eecli->GetNativeFieldDescriptors();
+        DisplayWriteFieldAddress( m_pNativeFieldDescriptors,
                                   DPtrToPreferredAddr(fmArray),
                                   eecli->m_numCTMFields
-                                  * MAXFIELDMARSHALERSIZE,
+                                  * sizeof(NativeFieldDescriptor),
                                   EEClassLayoutInfo, VERBOSE_TYPES );
         /* REVISIT_TODO Wed 03/22/2006
-         * Dump the various types of FieldMarshalers.
+         * Dump the various types of NativeFieldDescriptors.
          */
 #if 0
-        DisplayStartArrayWithOffset( m_pFieldMarshalers, NULL,
+        DisplayStartArrayWithOffset( m_pNativeFieldDescriptors, NULL,
                                      EEClassLayoutInfo, VERBOSE_TYPES );
         for( unsigned i = 0; i < eecli->m_numCTMFields; ++i )
         {
             /* REVISIT_TODO Wed 03/22/2006
              * Try to display the type of the field marshaler in the future.
              */
-            PTR_FieldMarshaler current = fmArray + i;
-            DisplayStartStructure( "FieldMarshaler",
+            PTR_NativeFieldDescriptor current = fmArray + i;
+            DisplayStartStructure( "NativeFieldDescriptor",
                                    DPtrToPreferredAddr(current),
                                    sizeof(*current), VERBOSE_TYPES );
             WriteFieldFieldDesc( m_pFD, PTR_FieldDesc(TO_TADDR(current->m_pFD)),
-                                 FieldMarshaler, VERBOSE_TYPES );
-            DisplayWriteFieldInt( m_dwExternalOffset,
-                                  current->m_dwExternalOffset, FieldMarshaler,
+                                 NativeFieldDescriptor, VERBOSE_TYPES );
+            DisplayWriteFieldInt( m_offset,
+                                  current->m_offset, NativeFieldDescriptor,
                                   VERBOSE_TYPES );
             DisplayEndStructure( VERBOSE_TYPES ); //FieldMarshaler
         }
         
-        DisplayEndArray( "Number of FieldMarshalers", VERBOSE_TYPES ); //m_pFieldMarshalers
+        DisplayEndArray( "Number of NativeFieldDescriptors", VERBOSE_TYPES ); //m_pNativeFieldDescriptors
 #endif
         
         DisplayEndStructure( EECLASSES ); //LayoutInfo

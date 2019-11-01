@@ -569,6 +569,7 @@ class CEEPreloader : public ICorCompilePreloader
     void MethodReferencedByCompiledCode(CORINFO_METHOD_HANDLE handle);
 
     BOOL IsUncompiledMethod(CORINFO_METHOD_HANDLE handle);
+    BOOL ShouldSuppressGCTransition(CORINFO_METHOD_HANDLE handle);
 
 private:
     void AddToUncompiledMethods(MethodDesc *pMethod, BOOL fForStubs);
@@ -788,8 +789,7 @@ class CompilationDomain : public AppDomain,
 
     PEAssembly *BindAssemblySpec(
         AssemblySpec *pSpec,
-        BOOL fThrowOnFileNotFound,
-        BOOL fUseHostBinderIfAvailable = TRUE) DAC_EMPTY_RET(NULL);
+        BOOL fThrowOnFileNotFound) DAC_EMPTY_RET(NULL);
 
     BOOL CanEagerBindToZapFile(Module *targetModule, BOOL limitToHardBindList = TRUE);
 

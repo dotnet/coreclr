@@ -81,10 +81,6 @@ VALUE *NgenHashTable<NGEN_HASH_ARGS>::BaseAllocateEntry(AllocMemTracker *pamTrac
     }
     CONTRACTL_END;
 
-    // Faults are forbidden in BaseInsertEntry. Make the table writeable now that the faults are still allowed.
-    EnsureWritablePages(this);
-    EnsureWritablePages(this->GetWarmBuckets(), m_cWarmBuckets * sizeof(PTR_VolatileEntry));
-
     TaggedMemAllocPtr pMemory = GetHeap()->AllocMem(S_SIZE_T(sizeof(VolatileEntry)));
 
     VolatileEntry *pEntry;
@@ -1263,8 +1259,11 @@ DPTR(VALUE) NgenHashTable<NGEN_HASH_ARGS>::FindVolatileEntryByHash(NgenHashValue
     // Since there is at least one entry there must be at least one bucket.
     _ASSERTE(m_cWarmBuckets > 0);
 
+    // Compute which bucket the entry belongs in based on the hash.
+    DWORD dwBucket = iHash % VolatileLoad(&m_cWarmBuckets);
+
     // Point at the first entry in the bucket chain which would contain any entries with the given hash code.
-    PTR_VolatileEntry pEntry = (GetWarmBuckets())[iHash % m_cWarmBuckets];
+    PTR_VolatileEntry pEntry = (GetWarmBuckets())[dwBucket];
 
     // Walk the bucket chain one entry at a time.
     while (pEntry)

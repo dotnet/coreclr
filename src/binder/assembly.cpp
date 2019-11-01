@@ -12,7 +12,6 @@
 //
 // ============================================================
 #include "common.h"
-#include "clrprivbinderutil.h"
 #include "assembly.hpp"
 #include "utils.hpp"
 
@@ -23,49 +22,6 @@ namespace BINDER_SPACE
         BOOL IsPlatformArchitecture(PEKIND kArchitecture)
         {
             return ((kArchitecture != peMSIL) && (kArchitecture != peNone));
-        }
-
-        HRESULT GetAssemblyRefTokens(IMDInternalImport        *pMDImport,
-                                     mdAssembly              **ppAssemblyRefTokens,
-                                     DWORD                    *pdwCAssemblyRefTokens)
-        {
-            HRESULT hr = S_OK;
-
-            _ASSERTE(pMDImport != NULL);
-            _ASSERTE(ppAssemblyRefTokens != NULL);
-            _ASSERTE(pdwCAssemblyRefTokens != NULL);
-
-            mdAssembly *pAssemblyRefTokens = NULL;
-            COUNT_T assemblyRefCount;
-            
-            HENUMInternalHolder hEnumAssemblyRef(pMDImport);
-            IF_FAIL_GO(hEnumAssemblyRef.EnumInitNoThrow(mdtAssemblyRef, mdTokenNil));
-            
-            assemblyRefCount = hEnumAssemblyRef.EnumGetCount();
-
-            pAssemblyRefTokens = new (nothrow) mdAssemblyRef[assemblyRefCount];
-            if (pAssemblyRefTokens == NULL)
-            {
-                IF_FAIL_GO(E_OUTOFMEMORY);
-            }
-            ZeroMemory(pAssemblyRefTokens, assemblyRefCount * sizeof(mdAssemblyRef));
-
-            for (COUNT_T i = 0; i < assemblyRefCount; i++)
-            {
-                bool ret = hEnumAssemblyRef.EnumNext(&(pAssemblyRefTokens[i]));
-                _ASSERTE(ret);
-            }
-
-            *ppAssemblyRefTokens = pAssemblyRefTokens;
-            pAssemblyRefTokens = NULL;
-
-            *pdwCAssemblyRefTokens= assemblyRefCount;
-            hr = S_OK;
-    
-Exit:
-            SAFE_DELETE_ARRAY(pAssemblyRefTokens);    
-
-            return hr;
         }
     };
 
@@ -119,16 +75,12 @@ Exit:
         m_pNativePEImage = NULL;
         m_pAssemblyName = NULL;
         m_pMDImport = NULL;
-        m_pAssemblyRefTokens = NULL;
-        m_dwCAssemblyRefTokens = static_cast<DWORD>(-1);
         m_dwAssemblyFlags = FLAG_NONE;
         m_pBinder = NULL;
     }
 
     Assembly::~Assembly()
     {
-        BINDER_LOG_ASSEMBLY_NAME(L"destructing assembly", m_pAssemblyName);
-
         if (m_pPEImage != NULL)
         {
             BinderReleasePEImage(m_pPEImage);
@@ -145,7 +97,6 @@ Exit:
 
         SAFE_RELEASE(m_pAssemblyName);
         SAFE_RELEASE(m_pMDImport);
-        SAFE_DELETE_ARRAY(m_pAssemblyRefTokens);
     }
 
     HRESULT Assembly::Init(IMDInternalImport       *pIMetaDataAssemblyImport,
@@ -156,7 +107,6 @@ Exit:
                            BOOL                     fIsInGAC)
     {
         HRESULT hr = S_OK;
-        BINDER_LOG_ENTER(L"Assembly::Init");
 
         ReleaseHolder<AssemblyName> pAssemblyName;
         SAFE_NEW(pAssemblyName, AssemblyName);
@@ -168,10 +118,6 @@ Exit:
         {
             GetPath().Set(assemblyPath);
         }
-
-        BINDER_LOG_ASSEMBLY_NAME(L"AssemblyNameDef", pAssemblyName);
-        BINDER_LOG_STRING(L"System Architecture",
-                          AssemblyName::ArchitectureToString(GetSystemArchitecture()));
 
         // Safe architecture for validation
         PEKIND kAssemblyArchitecture;
@@ -192,7 +138,6 @@ Exit:
         }
 
     Exit:
-        BINDER_LOG_LEAVE_HR(L"Assembly::Init", hr);
         return hr;
     }
 
@@ -251,16 +196,6 @@ Exit:
     HRESULT Assembly::GetLoaderAllocator(LPVOID* pLoaderAllocator)
     {
         return (m_pBinder == NULL) ? E_FAIL : m_pBinder->GetLoaderAllocator(pLoaderAllocator);
-    }
-
-    HRESULT Assembly::IsShareable(
-        BOOL * pbIsShareable)
-    {
-        if(pbIsShareable == nullptr)
-            return E_INVALIDARG;
-
-        *pbIsShareable = GetIsSharable();
-        return S_OK;
     }
 
     HRESULT Assembly::GetAvailableImageTypes(

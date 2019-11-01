@@ -3,8 +3,11 @@ parameters:
   archType: ''
   osGroup: ''
   osSubgroup: ''
+  managedTestBuildOsGroup: ''
+  managedTestBuildOsSubgroup: ''
   container: ''
   testGroup: ''
+  crossrootfsDir: ''
   readyToRun: false
   helixQueues: ''
   # If true, run the corefx tests instead of the coreclr ones
@@ -19,13 +22,17 @@ parameters:
 ### buildConfig and archType.
 
 jobs:
-- template: xplat-test-job.yml
+- template: xplat-pipeline-job.yml
   parameters:
     buildConfig: ${{ parameters.buildConfig }}
     archType: ${{ parameters.archType }}
     osGroup: ${{ parameters.osGroup }}
     osSubgroup: ${{ parameters.osSubgroup }}
-    readyToRun: ${{ parameters.readyToRun }}
+    managedTestBuildOsGroup: ${{ parameters.managedTestBuildOsGroup }}
+    managedTestBuildOsSubgroup: ${{ parameters.managedTestBuildOsSubgroup }}
+    container: ${{ parameters.container }}
+    testGroup: ${{ parameters.testGroup }}
+    crossrootfsDir: ${{ parameters.crossrootfsDir }}
     corefxTests: ${{ parameters.corefxTests }}
     stagedBuild: ${{ parameters.stagedBuild }}
     helixType: 'build/tests/'
@@ -34,28 +41,37 @@ jobs:
     ${{ if eq(variables['System.TeamProject'], 'internal') }}:
       continueOnError: true
 
+    dependsOn:
+    - ${{ if ne(parameters.corefxTests, true) }}:
+      - ${{ if eq(parameters.testGroup, 'innerloop') }}:
+        - 'build_test_p0_${{ parameters.managedTestBuildOsGroup }}${{ parameters.managedTestBuildOsSubgroup }}_${{ parameters.archType }}_${{parameters.buildConfig }}'
+      - ${{ if ne(parameters.testGroup, 'innerloop') }}:
+        - 'build_test_p1_${{ parameters.managedTestBuildOsGroup }}${{ parameters.managedTestBuildOsSubgroup }}_${{ parameters.archType }}_${{parameters.buildConfig }}'
+    - ${{ if ne(parameters.stagedBuild, true) }}:
+      - ${{ format('build_{0}{1}_{2}_{3}', parameters.osGroup, parameters.osSubgroup, parameters.archType, parameters.buildConfig) }}
+
     # Compute job name from template parameters
-    ${{ if and(eq(parameters.testGroup, 'innerloop'), eq(parameters.displayNameArgs, '')) }}:
-      name: 'run_test_p0_${{ parameters.osGroup }}${{ parameters.osSubgroup }}_${{ parameters.archType }}_${{ parameters.buildConfig }}'
-      dependsOn: 'build_test_p0_${{ parameters.osGroup }}${{ parameters.osSubgroup }}_${{ parameters.archType }}_${{parameters.buildConfig }}'      
-      displayName: 'Run Test Pri0 ${{ parameters.osGroup }}${{ parameters.osSubgroup }} ${{ parameters.archType }} ${{ parameters.buildConfig }}'
-
-    ${{ if and(ne(parameters.testGroup, 'innerloop'), eq(parameters.displayNameArgs, '')) }}:
-      name: 'run_test_p1_${{ parameters.osGroup }}${{ parameters.osSubgroup }}_${{ parameters.archType }}_${{ parameters.buildConfig }}'
-      dependsOn: 'build_test_p1_${{ parameters.osGroup }}${{ parameters.osSubgroup }}_${{ parameters.archType }}_${{parameters.buildConfig }}'      
-      displayName: 'Run Test Pri1 ${{ parameters.osGroup }}${{ parameters.osSubgroup }} ${{ parameters.archType }} ${{ parameters.buildConfig }}'
-
-    ${{ if and(eq(parameters.testGroup, 'innerloop'), ne(parameters.displayNameArgs, '')) }}:
+    ${{ if eq(parameters.testGroup, 'innerloop') }}:
       name: 'run_test_p0_${{ parameters.displayNameArgs }}_${{ parameters.osGroup }}${{ parameters.osSubgroup }}_${{ parameters.archType }}_${{ parameters.buildConfig }}'
-      dependsOn: 'build_test_p0_${{ parameters.displayNameArgs }}_${{ parameters.osGroup }}${{ parameters.osSubgroup }}_${{ parameters.archType }}_${{parameters.buildConfig }}'      
       displayName: 'Run Test Pri0 ${{ parameters.displayNameArgs }} ${{ parameters.osGroup }}${{ parameters.osSubgroup }} ${{ parameters.archType }} ${{ parameters.buildConfig }}'
 
-    ${{ if and(ne(parameters.testGroup, 'innerloop'), ne(parameters.displayNameArgs, '')) }}:
+    ${{ if ne(parameters.testGroup, 'innerloop') }}:
       name: 'run_test_p1_${{ parameters.displayNameArgs }}_${{ parameters.osGroup }}${{ parameters.osSubgroup }}_${{ parameters.archType }}_${{ parameters.buildConfig }}'
-      dependsOn: 'build_test_p1_${{ parameters.displayNameArgs }}_${{ parameters.osGroup }}${{ parameters.osSubgroup }}_${{ parameters.archType }}_${{parameters.buildConfig }}'      
       displayName: 'Run Test Pri1 ${{ parameters.displayNameArgs }} ${{ parameters.osGroup }}${{ parameters.osSubgroup }} ${{ parameters.archType }} ${{ parameters.buildConfig }}'
 
     variables:
+    - name: testhostArg
+      value: 'generatetesthostonly'
+    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+      - name: testhostArg
+        value: 'buildtesthostonly'
+
+    - name: crossgenArg
+      value: ''
+    - ${{ if eq(parameters.readyToRun, true) }}:
+      - name: crossgenArg
+        value: 'crossgen'
+
     - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
       - group: DotNet-HelixApi-Access
 
@@ -64,7 +80,7 @@ jobs:
       timeoutInMinutes: 150
     ${{ if in(parameters.testGroup, 'outerloop') }}:
       timeoutInMinutes: 270
-    ${{ if in(parameters.testGroup, 'gc-longrunning') }}:
+    ${{ if in(parameters.testGroup, 'gc-longrunning', 'gc-simulator') }}:
       timeoutInMinutes: 480
     ${{ if in(parameters.testGroup, 'jitstress', 'jitstress-isas-arm', 'jitstressregs-x86', 'jitstressregs', 'jitstress2-jitstressregs', 'gcstress0x3-gcstress0xc') }}:
       timeoutInMinutes: 390
@@ -73,13 +89,94 @@ jobs:
 
     steps:
 
-    # Download and unzip tests    
+    # Download and unzip managed test artifacts
+    - ${{ if ne(parameters.corefxTests, true) }}:
+      - template: /eng/download-artifact-step.yml
+        parameters:
+          downloadFolder: '$(binTestsPath)/tmp'
+          unpackFolder: '$(testRootFolderPath)'
+          artifactFileName: '$(testArtifactName)$(archiveExtension)'
+          artifactName: '$(testArtifactName)'
+          displayName: 'managed test artifacts (built on ${{ parameters.managedTestBuildOsGroup }}${{ parameters.managedTestBuildOsSubgroup }})'
+
+
+    # Download and unzip test build tree
+    - ${{ if ne(parameters.corefxTests, true) }}:
+      - template: /eng/download-artifact-step.yml
+        parameters:
+          downloadFolder: '$(binTestsPath)/tmp'
+          unpackFolder: '$(testBuildRootFolderPath)'
+          cleanUnpackFolder: false
+          artifactFileName: '$(testBuildArtifactName)$(archiveExtension)'
+          artifactName: '$(testBuildArtifactName)'
+          displayName: 'test build tree'
+
+
+    # Download product binaries directory
     - template: /eng/download-artifact-step.yml
       parameters:
-        downloadFolder: $(binTestsPath)
-        unpackFolder: $(testRootFolderPath)
-        artifactFileName: $(osGroup).$(archType).$(buildConfigUpper)$(archiveExtension)
-        artifactName: $(testArtifactName)
+        downloadFolder: $(binTestsPath)/tmp
+        unpackFolder: $(buildProductRootFolderPath)
+        artifactFileName: '$(buildProductArtifactName)$(archiveExtension)'
+        artifactName: '$(buildProductArtifactName)'
+        displayName: 'product build'
+
+
+    # Download and unzip the Microsoft.NET.Sdk.IL package needed for traversing
+    # ilproj test projects during copynativeonly.
+    - ${{ if ne(parameters.corefxTests, true) }}:
+      - template: /eng/download-artifact-step.yml
+        parameters:
+          downloadFolder: '$(binTestsPath)/tmp'
+          unpackFolder: '$(microsoftNetSdkIlFolderPath)'
+          artifactFileName: '$(microsoftNetSdkIlArtifactName)$(archiveExtension)'
+          artifactName: '$(microsoftNetSdkIlArtifactName)'
+          displayName: 'Microsoft.NET.Sdk.IL package'
+
+
+    # Download and unzip native test artifacts
+    - ${{ if ne(parameters.corefxTests, true) }}:
+      - template: /eng/download-artifact-step.yml
+        parameters:
+          downloadFolder: '$(binTestsPath)/tmp'
+          unpackFolder: '$(testNativeRootFolderPath)'
+          artifactFileName: '$(testNativeArtifactName)$(archiveExtension)'
+          artifactName: '$(testNativeArtifactName)'
+          displayName: 'native test artifacts'
+
+
+    # Publish native test components to test output folder. Sadly we cannot do this
+    # during product build (so that we could zip up the files in their final test location
+    # and directly unzip them there after download). Unfortunately the logic to copy
+    # the native artifacts to the final test folders is dependent on availability of the
+    # managed test artifacts.
+    - ${{ if ne(parameters.corefxTests, true) }}:
+      - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+        - script: ./build-test.sh copynativeonly $(buildConfig) $(archType) $(priorityArg)
+          displayName: Copy native test components to test output folder
+      - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+        - script: build-test.cmd copynativeonly $(buildConfig) $(archType) $(priorityArg)
+          displayName: Copy native test components to test output folder
+
+
+    # Generate test host
+    - ${{ if eq(parameters.corefxTests, true) }}:
+      - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+        - script: ./build-test.sh skipmanaged skipnative $(testhostArg) $(buildConfig) $(archType) $(crossArg) $(priorityArg)
+          displayName: Generate test host
+      - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+        - script: build-test.cmd skipmanaged skipnative $(testhostArg) $(buildConfig) $(archType) $(priorityArg)
+          displayName: Generate test host
+
+
+    # Crossgen framework assemblies prior to triggering readyToRun execution runs.
+    - ${{ if eq(parameters.readyToRun, true) }}:
+      - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+        - script: ./build-test.sh skipmanaged skipnative $(crossgenArg) $(buildConfig) $(archType) $(crossArg) $(priorityArg)
+          displayName: Crossgen framework assemblies
+      - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+        - script: build-test.cmd skipmanaged skipnative $(crossgenArg) $(buildConfig) $(archType) $(priorityArg)
+          displayName: Crossgen framework assemblies
 
 
     # Send tests to Helix
@@ -131,12 +228,12 @@ jobs:
           timeoutPerTestInMinutes: 10
         ${{ if in(parameters.testGroup, 'outerloop') }}:
           timeoutPerTestCollectionInMinutes: 120
-          timeoutPerTestInMinutes: 10          
-        ${{ if in(parameters.testGroup, 'gc-longrunning') }}:
+          timeoutPerTestInMinutes: 10
+        ${{ if in(parameters.testGroup, 'gc-longrunning', 'gc-simulator') }}:
           timeoutPerTestCollectionInMinutes: 360
           # gc reliability may take up to 2 hours to shutdown. Some scenarios have very long iteration times.
           timeoutPerTestInMinutes: 240
-        ${{ if in(parameters.testGroup, 'jitstress', 'jitstress-isas-arm', 'jitstress-isas-x86', 'jitstressregs-x86', 'jitstressregs', 'jitstress2-jitstressregs' ) }}:
+        ${{ if in(parameters.testGroup, 'jitstress', 'jitstress-isas-arm', 'jitstress-isas-x86', 'jitstressregs-x86', 'jitstressregs', 'jitstress2-jitstressregs', 'jitelthookenabled' ) }}:
           timeoutPerTestCollectionInMinutes: 120
           timeoutPerTestInMinutes: 30
         ${{ if in(parameters.testGroup, 'gcstress0x3-gcstress0xc') }}:
@@ -158,7 +255,7 @@ jobs:
         ${{ if eq(parameters.corefxTests, true) }}:
           helixProjectArguments: 'eng/helixcorefxtests.proj'
         ${{ if ne(parameters.corefxTests, true) }}:
-          helixProjectArguments: 'tests/helixpublishwitharcade.proj'
+          helixProjectArguments: 'tests/src/helixpublishwitharcade.proj'
 
         ${{ if in(parameters.testGroup, 'innerloop', 'outerloop') }}:
           scenarios:
@@ -266,3 +363,20 @@ jobs:
           longRunningGcTests: true
           scenarios:
           - normal
+        ${{ if in(parameters.testGroup, 'gc-simulator') }}:
+          gcSimulatorTests: true
+          scenarios:
+          - normal
+        ${{ if in(parameters.testGroup, 'jitelthookenabled') }}:
+          scenarios:
+          - jitelthookenabled
+          - jitelthookenabled_tiered
+
+    # Publish Logs
+    - task: PublishBuildArtifacts@1
+      displayName: Publish Logs
+      inputs:
+        pathtoPublish: $(Build.SourcesDirectory)/bin/Logs
+        artifactName: ${{ format('TestRunLogs_{0}{1}_{2}_{3}_{4}_{5}_{6}', parameters.osGroup, parameters.osSubgroup, parameters.archType, parameters.buildConfig, parameters.managedTestBuildOsGroup, parameters.managedTestBuildOsSubgroup, parameters.testGroup) }}
+      continueOnError: true
+      condition: always()

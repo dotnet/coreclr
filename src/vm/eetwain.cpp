@@ -1653,7 +1653,7 @@ PTR_CBYTE skipToArgReg(const hdrInfo& info, PTR_CBYTE table)
 
 /*****************************************************************************/
 
-#define regNumToMask(regNum) RegMask(1<<regNum)
+#define regNumToMask(regNum) RegMask(1<<(regNum))
 
 /*****************************************************************************
  Helper for scanArgRegTable() and scanArgRegTableI() for regMasks
@@ -3203,7 +3203,7 @@ void EECodeManager::QuickUnwindStackFrame(PREGDISPLAY pRD, StackwalkCacheEntry *
     if (pCacheEntry->fUseEbpAsFrameReg)
     {
         _ASSERTE(pCacheEntry->fUseEbp);
-        TADDR curEBP = (TADDR)*pRD->GetEbpLocation();
+        TADDR curEBP = GetRegdisplayFP(pRD);
 
         // EBP frame, update ESP through EBP, since ESPOffset may vary
         pRD->SetEbpLocation(PTR_DWORD(curEBP));
@@ -3479,7 +3479,7 @@ void UnwindEbpDoubleAlignFrameEpilog(
             unsigned calleeSavedRegsSize = info->savedRegsCountExclFP * sizeof(void*); 
 
             if (!InstructionAlreadyExecuted(offset, info->epilogOffs))
-                ESP = *pContext->GetEbpLocation() - calleeSavedRegsSize;
+                ESP = GetRegdisplayFP(pContext) - calleeSavedRegsSize;
             
             offset = SKIP_LEA_ESP_EBP(-int(calleeSavedRegsSize), epilogBase, offset);
         }
@@ -3508,7 +3508,7 @@ void UnwindEbpDoubleAlignFrameEpilog(
     if (needMovEspEbp)
     {
         if (!InstructionAlreadyExecuted(offset, info->epilogOffs))
-            ESP = *pContext->GetEbpLocation();
+            ESP = GetRegdisplayFP(pContext);
             
         offset = SKIP_MOV_REG_REG(epilogBase, offset);
     }
@@ -3802,7 +3802,7 @@ void UnwindEbpDoubleAlignFrameProlog(
        can be determined using EBP. Since we are still in the prolog,
        we need to know our exact location to determine the callee-saved registers */
        
-    const unsigned curEBP = *pContext->GetEbpLocation();
+    const unsigned curEBP = GetRegdisplayFP(pContext);
     
     if (flags & UpdateAllRegs)
     {        
@@ -3873,8 +3873,8 @@ bool UnwindEbpDoubleAlignFrame(
 
     _ASSERTE(info->ebpFrame || info->doubleAlign);
 
-    const unsigned curESP =  pContext->SP;
-    const unsigned curEBP = *pContext->GetEbpLocation();
+    const unsigned curESP = pContext->SP;
+    const unsigned curEBP = GetRegdisplayFP(pContext);
 
     /* First check if we are in a filter (which is obviously after the prolog) */
 
@@ -4015,7 +4015,6 @@ bool UnwindEbpDoubleAlignFrame(
     /* The caller's saved EBP is pointed to by our EBP */
 
     pContext->SetEbpLocation(PTR_DWORD((TADDR)curEBP));
-
     return true;
 }
 
@@ -4310,8 +4309,8 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pContext,
     GCInfoToken gcInfoToken = pCodeInfo->GetGCInfoToken();
     unsigned  curOffs = pCodeInfo->GetRelOffset();
 
-    unsigned  EBP     = *pContext->GetEbpLocation();
-    unsigned  ESP     =  pContext->SP;
+    unsigned  EBP     = GetRegdisplayFP(pContext);
+    unsigned  ESP     = pContext->SP;
 
     unsigned  ptrOffs;
 
@@ -4457,13 +4456,24 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pContext,
 
     if  (info.interruptible)
     {
-        // If we are not on the active stack frame, we need to report gc registers
-        // that are live before the call. The reason is that the liveness of gc registers
-        // may change across a call to a method that does not return. In this case the instruction
-        // after the call may be a jump target and a register that didn't have a live gc pointer
-        // before the call may have a live gc pointer after the jump. To make sure we report the
-        // registers that have live gc pointers before the call we subtract 1 from curOffs.
-        unsigned curOffsRegs = (flags & ActiveStackFrame) != 0 ? curOffs : curOffs - 1;
+        unsigned curOffsRegs = curOffs;
+
+        // Don't decrement curOffsRegs when it is 0, as it is an unsigned and will wrap to MAX_UINT
+        //
+        if (curOffsRegs > 0)
+        {
+            // If we are not on the active stack frame, we need to report gc registers
+            // that are live before the call. The reason is that the liveness of gc registers
+            // may change across a call to a method that does not return. In this case the instruction
+            // after the call may be a jump target and a register that didn't have a live gc pointer
+            // before the call may have a live gc pointer after the jump. To make sure we report the
+            // registers that have live gc pointers before the call we subtract 1 from curOffs.
+            if ((flags & ActiveStackFrame) == 0)
+            {
+                // We are not the top most stack frame (i.e. the ActiveStackFrame)
+                curOffsRegs--;   // decrement curOffsRegs
+            }
+        }
 
         pushedSize = scanArgRegTableI(skipToArgReg(info, table), curOffsRegs, curOffs, &info);
 
@@ -5243,7 +5253,7 @@ OBJECTREF* EECodeManager::GetAddrOfSecurityObjectFromCachedInfo(PREGDISPLAY pRD,
     // We pretend that filters are ESP-based methods in UnwindEbpDoubleAlignFrame().
     // Hence we cannot enforce this assert.
     // _ASSERTE(stackwalkCacheUnwindInfo->fUseEbpAsFrameReg);
-    return (OBJECTREF *) (size_t) (*pRD->GetEbpLocation() - (securityObjectOffset * sizeof(void*)));
+    return (OBJECTREF *) (size_t) (GetRegdisplayFP(pRD) - (securityObjectOffset * sizeof(void*)));
 }
 #endif // _TARGET_X86_
 
@@ -5280,7 +5290,7 @@ OBJECTREF* EECodeManager::GetAddrOfSecurityObject(CrawlFrame *pCF)
         if(stateBuf->hdrInfoBody.prologOffs == hdrInfo::NOT_IN_PROLOG &&
                 stateBuf->hdrInfoBody.epilogOffs == hdrInfo::NOT_IN_EPILOG)
         {
-            return (OBJECTREF *)(size_t)(*pRD->GetEbpLocation() - GetSecurityObjectOffset(&stateBuf->hdrInfoBody));
+            return (OBJECTREF *)(size_t)(GetRegdisplayFP(pRD) - GetSecurityObjectOffset(&stateBuf->hdrInfoBody));
         }
     }
 #else // !USE_GC_INFO_DECODER

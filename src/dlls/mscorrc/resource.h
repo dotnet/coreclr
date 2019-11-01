@@ -12,9 +12,9 @@
 #define MSG_FOR_URT_HR(hr) (0x6000 + (HRESULT_CODE(hr)))
 #define MAX_URT_HRESULT_CODE 0x3000
 
-#define HR_FOR_URT_MSG(code) ((code >=0x6000 && code <= 0x6000+MAX_URT_HRESULT_CODE) ? \
-                                 MAKE_HRESULT(SEVERITY_ERROR, FACILITY_URT, code - 0x6000) : \
-                                 code)
+#define HR_FOR_URT_MSG(code) (((code) >=0x6000 && (code) <= 0x6000+MAX_URT_HRESULT_CODE) ? \
+                                 MAKE_HRESULT(SEVERITY_ERROR, FACILITY_URT, (code) - 0x6000) : \
+                                 (code))
 
 #ifndef HRESULT_CODE
 #define HRESULT_CODE(hr)    ((hr) & 0xFFFF)
@@ -179,6 +179,7 @@
 #define IDS_EE_ADUNLOAD_CANT_UNWIND_THREAD      0x1769
 
 #define IDS_CANNOT_MARSHAL                      0x1770
+#define IDS_CANNOT_MARSHAL_RECURSIVE_DEF        0x1771
 #define IDS_EE_HASH_VAL_FAILED                  0x1772
 
 

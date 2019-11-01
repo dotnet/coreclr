@@ -26,7 +26,6 @@
 #include "jitinterface.h"
 #include "eeconfig.h"
 #include "log.h"
-#include "fieldmarshaler.h"
 #include "cgensys.h"
 #include "array.h"
 #include "typestring.h"
@@ -256,7 +255,7 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
     // used when verfifying generic code.
     // However verification is tied in with some codegen in the JITs, so give these
     // the shared MT just in case.
-    // This checks match precisely one in ParamTypeDesc::OwnsMethodTable
+    // This checks match precisely one in ParamTypeDesc::OwnsTemplateMethodTable
     if (CorTypeInfo::IsGenericVariable(elemType)) {
         // This is loading the canonical version of the array so we can override
         OVERRIDE_TYPE_LOAD_LEVEL_LIMIT(CLASS_LOADED);
@@ -1290,6 +1289,7 @@ BOOL IsImplicitInterfaceOfSZArray(MethodTable *pInterfaceMT)
 {
     LIMITED_METHOD_CONTRACT;
     PRECONDITION(pInterfaceMT->IsInterface());
+    PRECONDITION(pInterfaceMT->HasInstantiation());
 
     // Is target interface Anything<T> in mscorlib?
     if (!pInterfaceMT->HasInstantiation() || !pInterfaceMT->GetModule()->IsSystem())
@@ -1303,42 +1303,6 @@ BOOL IsImplicitInterfaceOfSZArray(MethodTable *pInterfaceMT)
             rid == MscorlibBinder::GetExistingClass(CLASS__IENUMERABLEGENERIC)->GetTypeDefRid() ||
             rid == MscorlibBinder::GetExistingClass(CLASS__IREADONLYCOLLECTIONGENERIC)->GetTypeDefRid() ||
             rid == MscorlibBinder::GetExistingClass(CLASS__IREADONLYLISTGENERIC)->GetTypeDefRid());
-}
-
-//---------------------------------------------------------------------
-// Check if arrays supports certain interfaces that don't appear in the base interface
-// list. It does not check the base interfaces themselves - you must do that
-// separately.
-//---------------------------------------------------------------------
-BOOL ArraySupportsBizarreInterface(ArrayTypeDesc *pArrayTypeDesc, MethodTable *pInterfaceMT)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        INJECT_FAULT(COMPlusThrowOM(););
-
-        PRECONDITION(pInterfaceMT->IsInterface());
-        PRECONDITION(pArrayTypeDesc->IsArray());
-    }
-    CONTRACTL_END
-
-#ifdef _DEBUG
-    MethodTable *pArrayMT = pArrayTypeDesc->GetMethodTable();
-    _ASSERTE(pArrayMT->IsArray());
-    _ASSERTE(pArrayMT->IsRestored());
-#endif
-
-    // IList<T> & IReadOnlyList<T> only supported for SZ_ARRAYS
-    if (pArrayTypeDesc->GetInternalCorElementType() != ELEMENT_TYPE_SZARRAY)
-        return FALSE;
-
-    ClassLoader::EnsureLoaded(pInterfaceMT, CLASS_DEPENDENCIES_LOADED);
-
-    if (!IsImplicitInterfaceOfSZArray(pInterfaceMT))
-        return FALSE;
-
-    return TypeDesc::CanCastParam(pArrayTypeDesc->GetTypeParam(), pInterfaceMT->GetInstantiation()[0], NULL);
 }
 
 //----------------------------------------------------------------------------------

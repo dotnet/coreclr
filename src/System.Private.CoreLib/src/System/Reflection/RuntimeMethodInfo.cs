@@ -63,7 +63,7 @@ namespace System.Reflection
             }
         }
 
-        private bool IsDisallowedByRefType(Type type)
+        private static bool IsDisallowedByRefType(Type type)
         {
             if (!type.IsByRef)
                 return false;
@@ -291,23 +291,19 @@ namespace System.Reflection
         #endregion
 
         #region MethodBase Overrides
-        internal override ParameterInfo[] GetParametersNoCopy()
-        {
+        internal override ParameterInfo[] GetParametersNoCopy() =>
             FetchNonReturnParameters();
-
-            return m_parameters!;
-        }
 
         public override ParameterInfo[] GetParameters()
         {
-            FetchNonReturnParameters();
+            ParameterInfo[] parameters = FetchNonReturnParameters();
 
-            if (m_parameters!.Length == 0)
-                return m_parameters;
+            if (parameters.Length == 0)
+                return parameters;
 
-            ParameterInfo[] ret = new ParameterInfo[m_parameters.Length];
+            ParameterInfo[] ret = new ParameterInfo[parameters.Length];
 
-            Array.Copy(m_parameters, 0, ret, 0, m_parameters.Length);
+            Array.Copy(parameters, 0, ret, 0, parameters.Length);
 
             return ret;
         }
@@ -445,7 +441,7 @@ namespace System.Reflection
 
         public override ParameterInfo ReturnParameter => FetchReturnParameter();
 
-        public override bool IsCollectible => (RuntimeMethodHandle.GetIsCollectible(new RuntimeMethodHandleInternal(m_handle)) != Interop.BOOL.FALSE);
+        public override bool IsCollectible => RuntimeMethodHandle.GetIsCollectible(new RuntimeMethodHandleInternal(m_handle)) != Interop.BOOL.FALSE;
 
         public override MethodInfo GetBaseDefinition()
         {
@@ -579,21 +575,11 @@ namespace System.Reflection
             return ret!;
         }
 
-        internal RuntimeType[] GetGenericArgumentsInternal()
-        {
-            return RuntimeMethodHandle.GetMethodInstantiationInternal(this);
-        }
+        internal RuntimeType[] GetGenericArgumentsInternal() =>
+            RuntimeMethodHandle.GetMethodInstantiationInternal(this);
 
-        public override Type[] GetGenericArguments()
-        {
-            Type[] types = RuntimeMethodHandle.GetMethodInstantiationPublic(this);
-
-            if (types == null)
-            {
-                types = Array.Empty<Type>();
-            }
-            return types;
-        }
+        public override Type[] GetGenericArguments() =>
+            RuntimeMethodHandle.GetMethodInstantiationPublic(this) ?? Array.Empty<Type>();
 
         public override MethodInfo GetGenericMethodDefinition()
         {

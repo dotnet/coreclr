@@ -24,14 +24,14 @@ public:
         corJitFlags = other.corJitFlags;
     }
 private:
-    unsigned __int64 corJitFlags;
+    uint64_t corJitFlags;
 };
 
-static const GUID JITEEVersionIdentifier = { /* d609bed1-7831-49fc-bd49-b6f054dd4d46 */
-    0xe2ae5b32,
-    0xa9ab,
-    0x426e,
-    {0xbc, 0x2a, 0xae, 0x1a, 0x88, 0x3e, 0x03, 0x67}
+static const GUID JITEEVersionIdentifier = { /* aec2498a-ca70-408e-903e-1e6d84e90bd2 */
+    0xaec2498a,
+    0xca70,
+    0x408e,
+    {0x90, 0x3e, 0x1e, 0x6d, 0x84, 0xe9, 0x0b, 0xd2}
 };
 
 class Jit

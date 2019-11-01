@@ -108,9 +108,11 @@ public sealed class ParallelRunner
         collectEtwTraces |= measurePerf;
         foreach (ProcessInfo process in processesToRun)
         {
-            process.Construct();
-            processList.Add(process);
-            collectEtwTraces |= process.Parameters.CollectJittedMethods;
+            if (process.Construct())
+            {
+                processList.Add(process);
+                collectEtwTraces |= process.Parameters.CollectJittedMethods;
+            }
         }
 
         processList.Sort((a, b) => b.Parameters.CompilationCostHeuristic.CompareTo(a.Parameters.CompilationCostHeuristic));
@@ -268,7 +270,7 @@ public sealed class ParallelRunner
                 }
                 while (freeSlot == null);
 
-                freeSlot.Launch(processInfo, jittedMethods, index, totalCount, progressIndex, failureCount);
+                freeSlot.Launch(processInfo, jittedMethods, index + 1, totalCount, progressIndex, failureCount);
             }
 
             // We have launched all the commands, now wait for all processes to finish

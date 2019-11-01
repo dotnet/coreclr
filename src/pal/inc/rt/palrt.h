@@ -223,24 +223,8 @@ inline void *__cdecl operator new(size_t, void *_P)
 #define THIS_
 #define THIS                void
 
-#ifndef _DECLSPEC_DEFINED_
-#define _DECLSPEC_DEFINED_
-
-#if  defined(_MSC_VER)
-#define DECLSPEC_NOVTABLE   __declspec(novtable)
-#define DECLSPEC_IMPORT     __declspec(dllimport)
-#define DECLSPEC_SELECTANY  __declspec(selectany)
-#elif defined(__GNUC__)
 #define DECLSPEC_NOVTABLE
-#define DECLSPEC_IMPORT     
 #define DECLSPEC_SELECTANY  __attribute__((weak))
-#else
-#define DECLSPEC_NOVTABLE
-#define DECLSPEC_IMPORT
-#define DECLSPEC_SELECTANY
-#endif
-
-#endif // !_DECLSPEC_DEFINED_
 
 #define DECLARE_INTERFACE(iface)    interface DECLSPEC_NOVTABLE iface
 #define DECLARE_INTERFACE_(iface, baseiface)    interface DECLSPEC_NOVTABLE iface : public baseiface
@@ -714,34 +698,8 @@ typedef unsigned int ALG_ID;
 
 /******************* NLS ****************************************/
 
-typedef 
-enum tagMIMECONTF {
-    MIMECONTF_MAILNEWS  = 0x1,
-    MIMECONTF_BROWSER   = 0x2,
-    MIMECONTF_MINIMAL   = 0x4,
-    MIMECONTF_IMPORT    = 0x8,
-    MIMECONTF_SAVABLE_MAILNEWS  = 0x100,
-    MIMECONTF_SAVABLE_BROWSER   = 0x200,
-    MIMECONTF_EXPORT    = 0x400,
-    MIMECONTF_PRIVCONVERTER = 0x10000,
-    MIMECONTF_VALID = 0x20000,
-    MIMECONTF_VALID_NLS = 0x40000,
-    MIMECONTF_MIME_IE4  = 0x10000000,
-    MIMECONTF_MIME_LATEST   = 0x20000000,
-    MIMECONTF_MIME_REGISTRY = 0x40000000
-    }   MIMECONTF;
-
 #define LCMAP_LOWERCASE           0x00000100
 #define LCMAP_UPPERCASE           0x00000200
-#define LCMAP_SORTKEY             0x00000400
-#define LCMAP_BYTEREV             0x00000800
-
-#define LCMAP_HIRAGANA            0x00100000
-#define LCMAP_KATAKANA            0x00200000
-#define LCMAP_HALFWIDTH           0x00400000
-#define LCMAP_FULLWIDTH           0x00800000
-
-#define LCMAP_LINGUISTIC_CASING   0x01000000
 
 // 8 characters for language
 // 8 characters for region
@@ -751,22 +709,9 @@ enum tagMIMECONTF {
 // 1 null termination
 #define LOCALE_NAME_MAX_LENGTH   85
 
-#define LOCALE_SCOUNTRY           0x00000006
-#define LOCALE_SENGCOUNTRY        0x00001002
-
-#define LOCALE_SLANGUAGE          0x00000002
-#define LOCALE_SENGLANGUAGE       0x00001001
-
-#define LOCALE_SDATE              0x0000001D
-#define LOCALE_STIME              0x0000001E
-
 #define CSTR_LESS_THAN            1
 #define CSTR_EQUAL                2
 #define CSTR_GREATER_THAN         3
-
-#define NORM_IGNORENONSPACE       0x00000002
-
-#define WC_COMPOSITECHECK         0x00000000 // NOTE: diff from winnls.h
 
 /******************* shlwapi ************************************/
 

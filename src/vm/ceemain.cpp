@@ -166,6 +166,7 @@
 #include "threadsuspend.h"
 #include "disassembler.h"
 #include "jithost.h"
+#include "castcache.h"
 
 #ifndef FEATURE_PAL
 #include "dwreport.h"
@@ -508,7 +509,7 @@ void InitGSCookie()
     }
     CONTRACTL_END;
 
-    GSCookie * pGSCookiePtr = GetProcessGSCookiePtr();
+    volatile GSCookie * pGSCookiePtr = GetProcessGSCookiePtr();
 
 #ifdef FEATURE_PAL
     // On Unix, the GS cookie is stored in a read only data segment
@@ -749,8 +750,7 @@ void EEStartupHelper(COINITIEE fFlags)
         InitEventStore();
 #endif
 
-        // Fusion
-        // Initialize the general Assembly Binder infrastructure
+        // Initialize the default Assembly Binder and the binder infrastructure
         IfFailGoLog(CCoreCLRBinderHelper::Init());
 
         if (g_pConfig != NULL)
@@ -960,6 +960,9 @@ void EEStartupHelper(COINITIEE fFlags)
 
         // Now we really have fully initialized the garbage collector
         SetGarbageCollectorFullyInitialized();
+
+        // This will allocate a handle, so do this after GC is initialized.
+        CastCache::Initialize();
 
 #ifdef DEBUGGING_SUPPORTED
         // Make a call to publish the DefaultDomain for the debugger
@@ -1321,18 +1324,15 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
     // Used later for a callback.
     CEEInfo ceeInf;
 
-    if (fIsDllUnloading)
-    {
-        ETW::EnumerationLog::ProcessShutdown();
-    }
-
-#ifdef FEATURE_PERFTRACING
     if (!fIsDllUnloading)
     {
+        ETW::EnumerationLog::ProcessShutdown();
+
+#ifdef FEATURE_PERFTRACING
         EventPipe::Shutdown();
         DiagnosticServer::Shutdown();
-    }
 #endif // FEATURE_PERFTRACING
+    }
 
 #if defined(FEATURE_COMINTEROP)
     // Get the current thread.
@@ -1493,16 +1493,14 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
         // callbacks from coming into the profiler even after Shutdown() has been called.
         // See https://github.com/dotnet/coreclr/issues/22176 for an example of how that
         // happens.
-        // Callbacks will be prevented when ProfilingAPIUtility::Terminate() changes the state
-        // to detached, which occurs shortly afterwards. It might be kinder to make the detaching
-        // transition before calling Shutdown(), but if we do we'd have to be very careful not
-        // to break profilers that were relying on being able to call various APIs during
-        // Shutdown(). I suspect this isn't something we'll ever do unless we get complaints.
+        //
+        // To prevent issues when profilers are attached we intentionally skip freeing the
+        // profiler here. Since there is no guarantee that the profiler won't be accessed after
+        // we free it (e.g. through callbacks or ELT hooks), we can't safely free the profiler.
         if (CORProfilerPresent())
         {
-            // If EEShutdown is not being called due to a ProcessDetach event, so
-            // the profiler should still be present
-            if (!g_fProcessDetach)
+            // Don't call back in to the profiler if we are being torn down, it might be unloaded
+            if (!fIsDllUnloading)
             {
                 BEGIN_PIN_PROFILER(CORProfilerPresent());
                 GCX_PREEMP();
@@ -1511,9 +1509,6 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
             }
 
             g_fEEShutDown |= ShutDown_Profiler;
-
-            // Free the interface objects.
-            ProfilingAPIUtility::TerminateProfiling();
         }
 #endif // PROFILING_SUPPORTED
 

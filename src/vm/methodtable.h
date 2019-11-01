@@ -431,7 +431,7 @@ public:
         CONTRACTL_END;
 
         if ((m_dwFlags & enum_flag_NGEN_OverridingInterface) != 0) return;
-        FastInterlockOr(EnsureWritablePages((ULONG *) &m_dwFlags), enum_flag_NGEN_OverridingInterface);
+        FastInterlockOr((ULONG *) &m_dwFlags, enum_flag_NGEN_OverridingInterface);
     }
 
     inline BOOL IsOverridingInterface() const
@@ -1076,7 +1076,7 @@ public:
         PRECONDITION(!HasApproxParent());
         PRECONDITION(IsRestored_NoLogging());
 
-        FastInterlockAnd(EnsureWritablePages(&GetWriteableDataForWrite()->m_dwFlags), ~MethodTableWriteableData::enum_flag_IsNotFullyLoaded);
+        FastInterlockAnd(&GetWriteableDataForWrite()->m_dwFlags, ~MethodTableWriteableData::enum_flag_IsNotFullyLoaded);
     }
 
     // Equivalent to GetLoadLevel() == CLASS_LOADED
@@ -1097,7 +1097,7 @@ public:
     inline void SetSkipWinRTOverride()
     {
         WRAPPER_NO_CONTRACT;
-        FastInterlockOr(EnsureWritablePages(&GetWriteableDataForWrite_NoLogging()->m_dwFlags), MethodTableWriteableData::enum_flag_SkipWinRTOverride);
+        FastInterlockOr(&GetWriteableDataForWrite_NoLogging()->m_dwFlags, MethodTableWriteableData::enum_flag_SkipWinRTOverride);
     }
 
     inline BOOL CanCompareBitsOrUseFastGetHashCode()
@@ -1114,7 +1114,7 @@ public:
         if (canCompare)
         {
             // Set checked and canCompare flags in one interlocked operation.
-            FastInterlockOr(EnsureWritablePages(&GetWriteableDataForWrite_NoLogging()->m_dwFlags),
+            FastInterlockOr(&GetWriteableDataForWrite_NoLogging()->m_dwFlags,
                 MethodTableWriteableData::enum_flag_HasCheckedCanCompareBitsOrUseFastGetHashCode | MethodTableWriteableData::enum_flag_CanCompareBitsOrUseFastGetHashCode);
         }
         else
@@ -1132,7 +1132,7 @@ public:
     inline void SetHasCheckedCanCompareBitsOrUseFastGetHashCode()
     {
         WRAPPER_NO_CONTRACT;
-        FastInterlockOr(EnsureWritablePages(&GetWriteableDataForWrite_NoLogging()->m_dwFlags), MethodTableWriteableData::enum_flag_HasCheckedCanCompareBitsOrUseFastGetHashCode);
+        FastInterlockOr(&GetWriteableDataForWrite_NoLogging()->m_dwFlags, MethodTableWriteableData::enum_flag_HasCheckedCanCompareBitsOrUseFastGetHashCode);
     }
     
     inline void SetIsDependenciesLoaded()
@@ -1148,7 +1148,7 @@ public:
         PRECONDITION(!HasApproxParent());
         PRECONDITION(IsRestored_NoLogging());
 
-        FastInterlockOr(EnsureWritablePages(&GetWriteableDataForWrite()->m_dwFlags), MethodTableWriteableData::enum_flag_DependenciesLoaded);
+        FastInterlockOr(&GetWriteableDataForWrite()->m_dwFlags, MethodTableWriteableData::enum_flag_DependenciesLoaded);
     }
 
     inline ClassLoadLevel GetLoadLevel()
@@ -1874,16 +1874,6 @@ public:
 
     DWORD GetIndexForFieldDesc(FieldDesc *pField);
 
-    BOOL IsMarshaledByRef()
-    {
-        return FALSE;
-    }
-
-    BOOL IsContextful()
-    {
-        return FALSE;
-    }
-    
     inline bool RequiresFatDispatchTokens()
     {
         LIMITED_METHOD_CONTRACT;
@@ -1982,30 +1972,14 @@ public:
     //-------------------------------------------------------------------
     // CASTING
     // 
-    // There are two variants of each of these methods:
-    //
-    // CanCastToX
-    // - restore encoded pointers on demand
-    // - might throw, might trigger GC
-    // - return type is boolean (FALSE = cannot cast, TRUE = can cast)
-    //
-    // CanCastToXNoGC
-    // - do not restore encoded pointers on demand
-    // - does not throw, does not trigger GC
-    // - return type is three-valued (CanCast, CannotCast, MaybeCast)
-    // - MaybeCast indicates that the test tripped on an encoded pointer
-    //   so the caller should now call CanCastToXRestoring if it cares
-    // 
     BOOL CanCastToInterface(MethodTable *pTargetMT, TypeHandlePairList *pVisited = NULL);
     BOOL CanCastToClass(MethodTable *pTargetMT, TypeHandlePairList *pVisited = NULL);
-    BOOL CanCastToClassOrInterface(MethodTable *pTargetMT, TypeHandlePairList *pVisited);
-    BOOL CanCastByVarianceToInterfaceOrDelegate(MethodTable *pTargetMT, TypeHandlePairList *pVisited);
+    BOOL CanCastToClassOrInterface(MethodTable *pTargetMT, TypeHandlePairList *pVisited);  
+    BOOL ArraySupportsBizarreInterface(MethodTable* pInterfaceMT, TypeHandlePairList* pVisited);
+    BOOL ArrayIsInstanceOf(TypeHandle toTypeHnd, TypeHandlePairList* pVisited);
 
-    BOOL CanCastToNonVariantInterface(MethodTable *pTargetMT);
-
-    TypeHandle::CastResult CanCastToInterfaceNoGC(MethodTable *pTargetMT);
-    TypeHandle::CastResult CanCastToClassNoGC(MethodTable *pTargetMT);
-    TypeHandle::CastResult CanCastToClassOrInterfaceNoGC(MethodTable *pTargetMT);
+    BOOL CanCastByVarianceToInterfaceOrDelegate(MethodTable* pTargetMT, TypeHandlePairList* pVisited);
+    BOOL CanCastToNonVariantInterface(MethodTable* pTargetMT);
 
     // The inline part of equivalence check.
 #ifndef DACCESS_COMPILE
@@ -3037,7 +3011,11 @@ public:
     {
         LIMITED_METHOD_DAC_CONTRACT;
 
+#ifdef FEATURE_PREJIT
         return GetFlag(enum_flag_IsPreRestored);
+#else
+        return FALSE;
+#endif
     }
 
     //-------------------------------------------------------------------
@@ -3676,8 +3654,8 @@ private:
         enum_flag_UNUSED_ComponentSize_6    = 0x00004000,
         enum_flag_UNUSED_ComponentSize_7    = 0x00008000,
 
-#define SET_FALSE(flag)     (flag & 0)
-#define SET_TRUE(flag)      (flag & 0xffff)
+#define SET_FALSE(flag)     ((flag) & 0)
+#define SET_TRUE(flag)      ((flag) & 0xffff)
 
         // IMPORTANT! IMPORTANT! IMPORTANT!
         //

@@ -302,7 +302,7 @@ public:
         //
         // In particular, methods versionable with vtable slot backpatch should not have a precode (in the sense HasPrecode()
         // must return false) even if they will not have native code.
-        bool result = IsVersionableWithoutJumpStamp() ? IsVersionableWithPrecode() : !MayHaveNativeCode();
+        bool result = IsVersionable() ? IsVersionableWithPrecode() : !MayHaveNativeCode();
         _ASSERTE(!result || !IsVersionableWithVtableSlotBackpatch());
         return result;
     }
@@ -669,6 +669,7 @@ public:
     }
 
     BOOL HasNativeCallableAttribute();
+    BOOL ShouldSuppressGCTransition();
 
 #ifdef FEATURE_COMINTEROP 
     inline DWORD IsComPlusCall()
@@ -1168,19 +1169,7 @@ public:
     bool IsVersionable()
     {
         WRAPPER_NO_CONTRACT;
-        return IsVersionableWithoutJumpStamp() || IsVersionableWithJumpStamp();
-    }
-
-    // True iff this method's code may be versioned using a technique other than JumpStamp
-    bool IsVersionableWithoutJumpStamp()
-    {
-        WRAPPER_NO_CONTRACT;
-
-#ifdef FEATURE_CODE_VERSIONING
-        return IsEligibleForTieredCompilation();
-#else
-        return false;
-#endif
+        return IsEligibleForTieredCompilation() || IsEligibleForReJIT();
     }
 
     // True iff all calls to the method should funnel through a Precode which can be updated to point to the current method
@@ -1189,7 +1178,7 @@ public:
     bool IsVersionableWithPrecode()
     {
         WRAPPER_NO_CONTRACT;
-        return IsVersionableWithoutJumpStamp() && !Helper_IsEligibleForVersioningWithVtableSlotBackpatch();
+        return IsVersionable() && !Helper_IsEligibleForVersioningWithVtableSlotBackpatch();
     }
 
     // True iff all calls to the method should go through a backpatchable vtable slot or through a FuncPtrStub. This versioning
@@ -1198,39 +1187,25 @@ public:
     bool IsVersionableWithVtableSlotBackpatch()
     {
         WRAPPER_NO_CONTRACT;
-        return IsVersionableWithoutJumpStamp() && Helper_IsEligibleForVersioningWithVtableSlotBackpatch();
+        return IsVersionable() && Helper_IsEligibleForVersioningWithVtableSlotBackpatch();
     }
 
-    // True iff All calls to the method go to the default code and the prologue of that code will be overwritten with a jmp to
-    // other code if necessary. This is the only technique that can handle NGEN'ed code that embeds untracked direct calls
-    // between methods. It has much higher update overhead than other approaches because it needs runtime suspension to evacuate
-    // all threads from method prologues before a prologue can be patched. The patching is also not compatible with a debugger
-    // that may be trying to rewrite the same code bytes to add/remove a breakpoint.
-    bool IsVersionableWithJumpStamp()
+    bool IsEligibleForReJIT()
     {
         WRAPPER_NO_CONTRACT;
 
-#if defined(FEATURE_CODE_VERSIONING) && defined(FEATURE_JUMPSTAMP)
+#ifdef FEATURE_REJIT
         return
-            // Functional requirement / policy - Only one versioning technique may be used for a method, and versioning without
-            // a jump stamp is preferred
-            !IsVersionableWithoutJumpStamp() &&
-
-            // Functional requirement - If we aren't doing tiered compilation, ReJIT is currently the only other reason to make
-            // methods versionable. ReJIT is required to work even in NGEN images where the other versioning techniques aren't
-            // supported. If both ReJIT and tiered compilation are enabled then we prefer using the Precode or
-            // EntryPointSlotBackpatch techniques because they offer lower overhead method update performance and don't
-            // interfere with the debugger.
             ReJitManager::IsReJITEnabled() &&
 
-            // Functional requirement - We must be able to evacuate the prolog and the prolog must be big enough, both of which
-            // are only designed to work on jitted code
-            (IsIL() || IsNoMetadata()) &&
+            // Previously we didn't support these methods because of functional requirements for
+            // jumpstamps, keeping this in for back compat.
+            IsIL() &&
             !IsWrapperStub() &&
 
             // Functional requirement
             CodeVersionManager::IsMethodSupported(PTR_MethodDesc(this));
-#else
+#else // FEATURE_REJIT
         return false;
 #endif
     }
@@ -1259,7 +1234,7 @@ private:
     bool Helper_IsEligibleForVersioningWithVtableSlotBackpatch()
     {
         WRAPPER_NO_CONTRACT;
-        _ASSERTE(IsVersionableWithoutJumpStamp());
+        _ASSERTE(IsVersionable());
         _ASSERTE(IsIL() || IsDynamicMethod());
 
 #if defined(FEATURE_CODE_VERSIONING) && !defined(CROSSGEN_COMPILE)
@@ -1344,11 +1319,7 @@ public:
 #ifndef CROSSGEN_COMPILE
         // This is the only case currently. In the future, a method that does not have a vtable slot may still record entry
         // point slots that need to be backpatched on entry point change, and in such cases the conditions here may be changed.
-        bool result = IsVersionableWithVtableSlotBackpatch();
-
-        // Cases where this function returns true are not expected to need to handle JumpStamp versioning in the future
-        _ASSERTE(!result || !IsVersionableWithJumpStamp());
-        return result;
+        return IsVersionableWithVtableSlotBackpatch();
 #else
         // Entry point slot backpatch is disabled for CrossGen
         return false;
@@ -1437,7 +1408,7 @@ private:
     bool TryBackpatchEntryPointSlots(PCODE entryPoint, bool isPrestubEntryPoint, bool onlyFromPrestubEntryPoint);
 
 public:
-    void TrySetInitialCodeEntryPointForNonJumpStampVersionableMethod(PCODE entryPoint, bool mayHaveEntryPointSlotsToBackpatch);
+    void TrySetInitialCodeEntryPointForVersionableMethod(PCODE entryPoint, bool mayHaveEntryPointSlotsToBackpatch);
     void SetCodeEntryPoint(PCODE entryPoint);
     void ResetCodeEntryPoint();
 
@@ -1470,7 +1441,7 @@ public:
             return false;
 #endif
 
-        return !IsVersionableWithoutJumpStamp() && !IsEnCMethod();
+        return !IsVersionable() && !IsEnCMethod();
     }
 
     //Is this method currently pointing to native code that will never change?
@@ -2639,7 +2610,7 @@ protected:
         // mdStatic               = 0x0010,
         nomdCALLIStub             = 0x0020,
         nomdDelegateStub          = 0x0040,
-        // unused                 = 0x0080
+        nomdStructMarshalStub     = 0x0080,
         nomdUnbreakable           = 0x0100,
         nomdDelegateCOMStub       = 0x0200,  // CLR->COM or COM->CLR call via a delegate (WinRT specific)
         nomdSignatureNeedsRestore = 0x0400,
@@ -2741,13 +2712,14 @@ public:
     bool IsReverseStub()     { LIMITED_METHOD_DAC_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdReverseStub));  }
     bool IsCALLIStub()       { LIMITED_METHOD_DAC_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdCALLIStub));    }
     bool IsDelegateStub()    { LIMITED_METHOD_DAC_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdDelegateStub)); }
-    bool IsCLRToCOMStub()    { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return ((0 == (m_dwExtendedFlags & mdStatic)) && !IsReverseStub() && !IsDelegateStub()); }
+    bool IsCLRToCOMStub()    { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return ((0 == (m_dwExtendedFlags & mdStatic)) && !IsReverseStub() && !IsDelegateStub() && !IsStructMarshalStub()); }
     bool IsCOMToCLRStub()    { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return ((0 == (m_dwExtendedFlags & mdStatic)) &&  IsReverseStub()); }
-    bool IsPInvokeStub()     { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return ((0 != (m_dwExtendedFlags & mdStatic)) && !IsReverseStub() && !IsCALLIStub()); }
+    bool IsPInvokeStub()     { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return ((0 != (m_dwExtendedFlags & mdStatic)) && !IsReverseStub() && !IsCALLIStub() && !IsStructMarshalStub()); }
     bool IsUnbreakable()     { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdUnbreakable));  }
     bool IsDelegateCOMStub() { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdDelegateCOMStub));  }
     bool IsSignatureNeedsRestore() { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdSignatureNeedsRestore)); }
     bool IsStubNeedsCOMStarted()   { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdStubNeedsCOMStarted)); }
+    bool IsStructMarshalStub()   { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdStructMarshalStub)); }
 #ifdef FEATURE_MULTICASTSTUB_AS_IL
     bool IsMulticastStub() {
         LIMITED_METHOD_DAC_CONTRACT;
@@ -2963,6 +2935,12 @@ public:
         kStdCallWithRetBuf              = 0x8000,   // Call returns large structure, only valid if kStdCall is also set
 
     };
+
+    // Resolve the import to the NDirect target and set it on the NDirectMethodDesc.
+    static void *ResolveAndSetNDirectTarget(_In_ NDirectMethodDesc *pMD);
+
+    // Attempt to import the NDirect target if a GC transition is suppressed.
+    static BOOL TryResolveNDirectTargetForNoGCTransition(_In_ MethodDesc* pMD, _Out_ void** ndirectTarget);
 
     // Retrieves the cached result of marshaling required computation, or performs the computation
     // if the result is not cached yet.

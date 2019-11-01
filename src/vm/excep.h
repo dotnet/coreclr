@@ -592,14 +592,13 @@ VOID DECLSPEC_NORETURN ThrowTypeLoadException(LPCWSTR pFullTypeName,
                                               UINT resIDWhy);
 
 VOID DECLSPEC_NORETURN ThrowFieldLayoutError(mdTypeDef cl,                // cl of the NStruct being loaded
-                           Module* pModule,             // Module that defines the scope, loader and heap (for allocate FieldMarshalers)
+                           Module* pModule,             // Module that defines the scope, loader and heap (for allocated NativeFieldDescriptors)
                            DWORD   dwOffset,            // Field offset
                            DWORD   dwID);
 
 UINT GetResourceIDForFileLoadExceptionHR(HRESULT hr);
 
 FCDECL1(Object*, MissingMemberException_FormatSignature, I1Array* pPersistedSigUNSAFE);
-FCDECL1(Object*, GetResourceFromDefault, StringObject* key);
 
 #define EXCEPTION_NONCONTINUABLE 0x1    // Noncontinuable exception
 #define EXCEPTION_UNWINDING 0x2         // Unwind is in progress
