@@ -345,9 +345,7 @@ BOOL IsStructMarshalable(TypeHandle th)
 {
     CONTRACTL
     {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
+        STANDARD_VM_CHECK;
         PRECONDITION(!th.IsNull());
     }
     CONTRACTL_END;
@@ -382,8 +380,7 @@ BOOL IsStructMarshalable(TypeHandle th)
     {
         if (pNativeFieldDescriptors[i].IsUnmarshalable())
             return FALSE;
-    }
-
+    } 
     return TRUE;
 }
 

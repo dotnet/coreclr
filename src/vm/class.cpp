@@ -4005,6 +4005,7 @@ void EEClassNativeLayoutInfo::InitializeNativeLayoutFieldMetadataThrowing(Method
 
     if (pClass->GetNativeLayoutInfo() == nullptr)
     {
+        GCX_PREEMP();
         ListLockHolder nativeTypeLoadLock(pMT->GetDomain()->GetNativeTypeLoadLock());
         ListLockEntryHolder entry(ListLockEntry::Find(nativeTypeLoadLock, pMT->GetClass()));
         ListLockEntryLockHolder pEntryLock(entry, FALSE);

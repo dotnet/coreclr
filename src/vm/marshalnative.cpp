@@ -335,8 +335,9 @@ FCIMPL2(UINT32, MarshalNative::SizeOfClass, ReflectClassBaseObject* refClassUNSA
     // refClass is validated to be non-NULL RuntimeType by callers
     TypeHandle th = refClass->GetType();
 
-    if (throwIfNotMarshalable)
+    if (throwIfNotMarshalable && !th.IsBlittable())
     {
+        GCX_PREEMP();
         // Determine if the type is marshalable
         if (!IsStructMarshalable(th))
         {
@@ -371,40 +372,42 @@ FCIMPL1(UINT32, MarshalNative::OffsetOfHelper, ReflectFieldObject *pFieldUNSAFE)
 
     FieldDesc *pField = refField->GetField();
     TypeHandle th = TypeHandle(pField->GetApproxEnclosingMethodTable());
-
-    // Determine if the type is marshalable.
-    if (!IsStructMarshalable(th))
-    {
-        // It isn't marshalable so throw an ArgumentException.
-        HELPER_METHOD_FRAME_BEGIN_RET_1(refField);       
-
-        StackSString strTypeName;
-        TypeString::AppendType(strTypeName, th);                
-        COMPlusThrow(kArgumentException, IDS_CANNOT_MARSHAL, strTypeName.GetUnicode(), NULL, NULL);       
-
-        HELPER_METHOD_FRAME_END();
-    }
-
+    
     if (th.IsBlittable())
     {
         return pField->GetOffset();
     }
 
-    EEClassNativeLayoutInfo const* pNativeLayoutInfo = th.GetMethodTable()->GetNativeLayoutInfo();
-
-    NativeFieldDescriptor const*pNFD = pNativeLayoutInfo->GetNativeFieldDescriptors();
-    UINT  numReferenceFields = pNativeLayoutInfo->GetNumFields();
-
-    while (numReferenceFields--) 
     {
-        if (pNFD->GetFieldDesc() == pField) 
+        GCX_PREEMP();
+        // Determine if the type is marshalable.
+        if (!IsStructMarshalable(th))
         {
-            return pNFD->GetExternalOffset();
-        }
-        pNFD++;
-    }
+            // It isn't marshalable so throw an ArgumentException.
+            HELPER_METHOD_FRAME_BEGIN_RET_1(refField);       
 
-    UNREACHABLE_MSG("We should never hit this point since we already verified that the requested field was present from managed code");   
+            StackSString strTypeName;
+            TypeString::AppendType(strTypeName, th);                
+            COMPlusThrow(kArgumentException, IDS_CANNOT_MARSHAL, strTypeName.GetUnicode(), NULL, NULL);       
+
+            HELPER_METHOD_FRAME_END();
+        }
+        EEClassNativeLayoutInfo const* pNativeLayoutInfo = th.GetMethodTable()->GetNativeLayoutInfo();
+
+        NativeFieldDescriptor const*pNFD = pNativeLayoutInfo->GetNativeFieldDescriptors();
+        UINT  numReferenceFields = pNativeLayoutInfo->GetNumFields();
+
+        while (numReferenceFields--) 
+        {
+            if (pNFD->GetFieldDesc() == pField) 
+            {
+                return pNFD->GetExternalOffset();
+            }
+            pNFD++;
+        }
+
+        UNREACHABLE_MSG("We should never hit this point since we already verified that the requested field was present from managed code");   
+    }
 }
 FCIMPLEND
 
