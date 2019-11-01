@@ -29,6 +29,7 @@ namespace ILCompiler
         public string SystemModule { get; set; }
         public bool WaitForDebugger { get; set; }
         public bool Tuning { get; set; }
+        public bool NonLocalGenericsFromProfileData { get; set; }
         public bool Partial { get; set; }
         public bool Resilient { get; set; }
 
@@ -37,6 +38,7 @@ namespace ILCompiler
         public string[] SingleMethodGenericArgs { get; set; }
 
         public string[] CodegenOptions { get; set; }
+        public string[] TibcFiles { get; set; }
 
         public static Command RootCommand()
         {
@@ -79,6 +81,10 @@ namespace ILCompiler
                 new Option(new[] { "--partial" }, "Generate partial image driven by profile") 
                 { 
                     Argument = new Argument<bool>() 
+                },
+                new Option(new[] { "--nonlocalgenerics-fromprofiledata", "--nlg" }, "")
+                {
+                    Argument = new Argument<bool>()
                 },
                 new Option(new[] { "--compilebubblegenerics" }, "Compile instantiations from reference modules used in the current module") 
                 { 
@@ -140,6 +146,13 @@ namespace ILCompiler
                     // We don't need to override arity here as 255 is the maximum number of generic arguments
                     Argument = new Argument<string[]>()
                 },
+                new Option(new[] { "--tibc-files", "--tibc", "-t" }, "Tibc file(s) for compilation")
+                {
+                    Argument = new Argument<string[]>()
+                    {
+                        Arity = arbitraryArity
+                    }
+                }
             };
         }
     }

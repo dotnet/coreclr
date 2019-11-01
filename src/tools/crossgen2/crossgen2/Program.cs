@@ -30,7 +30,6 @@ namespace ILCompiler
         public OptimizationMode _optimizationMode;
         private Dictionary<string, string> _inputFilePaths = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private Dictionary<string, string> _referenceFilePaths = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        IReadOnlyList<string> _tibcFiles = Array.Empty<string>();
 
         private Program(CommandLineOptions commandLineOptions)
         {
@@ -239,7 +238,7 @@ namespace ILCompiler
                         catch { } // Ignore non-managed pe files
                     }
 
-                    ProfileDataManager profileDataManager = new ProfileDataManager(logger, referenceableModules, inputModulesForProfileData, _tibcFiles, context:typeSystemContext, nonLocalizedGenerics: _nonlocalizedGenericsIbc);
+                    ProfileDataManager profileDataManager = new ProfileDataManager(logger, referenceableModules, inputModulesForProfileData, _commandLineOptions.TibcFiles ?? new string[0], context:typeSystemContext, nonLocalizedGenerics: _commandLineOptions.NonLocalGenericsFromProfileData);
 
                     CompilationModuleGroup compilationGroup;
                     List<ICompilationRootProvider> compilationRoots = new List<ICompilationRootProvider>();

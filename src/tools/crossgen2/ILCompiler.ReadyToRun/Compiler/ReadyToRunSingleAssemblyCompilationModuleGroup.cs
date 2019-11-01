@@ -8,6 +8,8 @@ using System.Collections.Generic;
 using Internal.TypeSystem;
 using Internal.TypeSystem.Ecma;
 
+using Debug = System.Diagnostics.Debug;
+
 namespace ILCompiler
 {
     public class ReadyToRunSingleAssemblyCompilationModuleGroup : CompilationModuleGroup
