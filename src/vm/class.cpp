@@ -1509,9 +1509,9 @@ bool MethodTable::NativeRequiresAlign8()
 {
     LIMITED_METHOD_CONTRACT;
 
-    if (HasLayout())
+    if (HasLayout() && !IsBlittable())
     {
-        return (GetLayoutInfo()->GetLargestAlignmentRequirementOfAllMembers() >= 8);
+        return (GetNativeLayoutInfo()->GetLargestAlignmentRequirement() >= 8);
     }
     return RequiresAlign8();
 }

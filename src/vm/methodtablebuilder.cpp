@@ -9698,7 +9698,6 @@ void MethodTableBuilder::CheckForSystemTypes()
             // data misalignent exceptions if Decimal is embedded in another type.
 
             EEClassLayoutInfo* pLayout = pClass->GetLayoutInfo();
-            pLayout->m_LargestAlignmentRequirementOfAllMembers        = sizeof(ULONGLONG);
             pLayout->m_ManagedLargestAlignmentRequirementOfAllMembers = sizeof(ULONGLONG);
 
 #ifdef FEATURE_64BIT_ALIGNMENT
