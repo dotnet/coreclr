@@ -427,7 +427,7 @@ function GetSdkTaskProject([string]$taskName) {
 }
 
 function InitializeNativeTools() {
-  if ($env:DisableNativeToolsetInstalls) {
+  if (Test-Path variable:DisableNativeToolsetInstalls) {
     return
   }
   if (Get-Member -InputObject $GlobalJson -Name "native-tools") {
