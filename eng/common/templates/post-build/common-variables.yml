@@ -1,7 +1,9 @@
 variables:
-  - group: Publish-Build-Assets
+  - group: AzureDevOps-Artifact-Feeds-Pats
+  - group: DotNet-Blob-Feed
   - group: DotNet-DotNetCli-Storage
   - group: DotNet-MSRC-Storage
+  - group: Publish-Build-Assets
 
   # .NET Core 3.1 Dev
   - name: PublicDevRelease_31_Channel_Id
@@ -17,7 +19,7 @@ variables:
 
   # .NET Tools - Latest
   - name: NetCore_Tools_Latest_Channel_Id
-    value: 2
+    value: 530
 
   # .NET 3 Tools - Validation
   - name: NETCore_3_Tools_Validation_Channel_Id
