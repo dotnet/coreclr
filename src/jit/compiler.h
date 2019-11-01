@@ -210,8 +210,16 @@ struct VarScopeDsc
 // This class stores information associated with a LclVar SSA definition.
 class LclSsaVarDsc
 {
+    // The basic block where the definition occurs. Definitions of uninitialized variables
+    // are considered to occur at the start of the first basic block (fgFirstBB).
+    //
+    // TODO-Cleanup: In the case of uninitialized variables the block is set to nullptr by
+    // SsaBuilder and changed to fgFirstBB during value numbering. It would be useful to
+    // investigate and perhaps eliminate this rather unexpected behavior.
     BasicBlock* m_block;
-    GenTreeOp*  m_asg;
+    // The GT_ASG node that generates the definition, or nullptr for definitions
+    // of uninitialized variables.
+    GenTreeOp* m_asg;
 
 public:
     LclSsaVarDsc() : m_block(nullptr), m_asg(nullptr)
