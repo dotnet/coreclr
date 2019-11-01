@@ -450,7 +450,15 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
             break;
 
         case GT_KEEPALIVE:
-            genConsumeRegs(treeNode->AsOp()->gtOp1);
+            if (treeNode->AsOp()->gtOp1->isContained())
+            {
+                // For this case we simply need to update the lifetime of the local.
+                genUpdateLife(treeNode->AsOp()->gtOp1);
+            }
+            else
+            {
+                genConsumeReg(treeNode->AsOp()->gtOp1);
+            }
             break;
 
         case GT_NO_OP:
