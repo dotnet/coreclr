@@ -6270,10 +6270,6 @@ VOID ETW::MethodLog::SendMethodDetailsEvent(MethodDesc *pMethodDesc)
             ETW::TypeSystemLog::LogTypeAndParametersIfNecessary(&typeLogger, typeID, ETW::TypeSystemLog::kTypeLogBehaviorTakeLockAndLogIfFirstTime);
             ULONGLONG loaderModuleID = (ULONGLONG)pMethodDesc->GetLoaderModule();
 
-            // We're about to recursively call ourselves for the type parameters, so make a
-            // local copy of their type handles first (else, as we log them we could flush
-            // and clear out m_rgBulkTypeValues, thus trashing pVal)
-            
             StackSArray<ULONGLONG> rgTypeParameters;
             DWORD cParams = inst.GetNumArgs();
 
