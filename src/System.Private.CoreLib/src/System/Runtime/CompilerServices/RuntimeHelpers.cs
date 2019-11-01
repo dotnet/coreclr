@@ -174,17 +174,9 @@ namespace System.Runtime.CompilerServices
         internal static ref byte GetRawSzArrayData(this Array array) =>
             ref Unsafe.As<RawArrayData>(array).Data;
 
-        // CLR arrays are laid out in memory as follows (multidimensional array bounds are optional):
-        // [ sync block || pMethodTable || num components || MD array bounds || array data .. ]
-        //                 ^               ^                                    ^ returned reference
-        //                 |               \-- ref Unsafe.As<RawData>(array).Data
-        //                 \-- array
-        // The BaseSize of an array includes all the fields before the array data,
-        // including the sync block and method table. The reference to RawData.Data
-        // points at the number of components, skipping over these two pointer-sized fields.
-        // So substrate those from BaseSize before adding to the RawData.Data reference.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static unsafe ref byte GetRawArrayData(this Array array) =>
+            // See comment on RawArrayData for details
             ref Unsafe.AddByteOffset(ref Unsafe.As<RawData>(array).Data, (nuint)GetMethodTable(array)->BaseSize - (nuint)(2 * sizeof(IntPtr)));
 
         internal static unsafe ushort GetElementSize(this Array array)
@@ -198,6 +190,7 @@ namespace System.Runtime.CompilerServices
         internal static unsafe ref int GetMultiDimensionalArrayBounds(Array array)
         {
             Debug.Assert(GetMultiDimensionalArrayRank(array) > 0);
+            // See comment on RawArrayData for details
             return ref Unsafe.As<byte, int>(ref Unsafe.As<RawArrayData>(array).Data);
         }
 
@@ -219,7 +212,7 @@ namespace System.Runtime.CompilerServices
 
         // Given an object reference, returns its MethodTable*.
         //
-        // WARNING: The caller has to ensure that MethodTable* does not get unloaded. The most robust way 
+        // WARNING: The caller has to ensure that MethodTable* does not get unloaded. The most robust way
         // to achieve this is by using GC.KeepAlive on the object that the MethodTable* was fetched from, e.g.:
         //
         // MethodTable* pMT = GetMethodTable(o);
@@ -255,6 +248,14 @@ namespace System.Runtime.CompilerServices
         public byte Data;
     }
 
+    // CLR arrays are laid out in memory as follows (multidimensional array bounds are optional):
+    // [ sync block || pMethodTable || num components || MD array bounds || array data .. ]
+    //                 ^               ^                                    ^ returned reference
+    //                 |               \-- ref Unsafe.As<RawData>(array).Data
+    //                 \-- array
+    // The BaseSize of an array includes all the fields before the array data,
+    // including the sync block and method table. The reference to RawData.Data
+    // points at the number of components, skipping over these two pointer-sized fields.
     internal class RawArrayData
     {
         public uint Length; // Array._numComponents padded to IntPtr
@@ -277,18 +278,13 @@ namespace System.Runtime.CompilerServices
 
         // WFLAGS_HIGH_ENUM
         private const uint enum_flag_ContainsPointers = 0x01000000;
-        // private const uint enum_flag_HasComponentSize = 0x80000000;
+        private const uint enum_flag_HasComponentSize = 0x80000000;
 
         public bool HasComponentSize
         {
             get
             {
-                // return (Flags & enum_flag_HasComponentSize) != 0;
-
-                // The MethodTable::Flags field will have its high bit set if the
-                // type has component size. See member
-                // MethodTable:IsStringOrArray in src\vm\methodtable.h for full details.
-                return (int)Flags < 0;
+                return (Flags & enum_flag_HasComponentSize) != 0;
             }
         }
 
@@ -306,6 +302,7 @@ namespace System.Runtime.CompilerServices
             get
             {
                 Debug.Assert(HasComponentSize);
+                // See comment on RawArrayData for details
                 return BaseSize > (uint)(3 * sizeof(IntPtr));
             }
         }
@@ -317,6 +314,7 @@ namespace System.Runtime.CompilerServices
             get
             {
                 Debug.Assert(HasComponentSize);
+                // See comment on RawArrayData for details
                 return (int)((BaseSize - (uint)(3 * sizeof(IntPtr))) / (uint)(2 * sizeof(int)));
             }
         }
