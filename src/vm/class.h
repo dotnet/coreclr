@@ -1518,7 +1518,6 @@ public:
 
 #if defined(FEATURE_HFA)
     bool CheckForHFA(MethodTable ** pByValueClassCache);
-    VOID CheckForNativeHFA();
 #else // !FEATURE_HFA
     bool CheckForHFA();
 #endif // FEATURE_HFA
