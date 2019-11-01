@@ -105,7 +105,7 @@ public:
 
         if (m_isNestedType)
         {
-            image->FixupMethodTablePointer(this, &m_pNestedType);
+            image->FixupMethodTablePointer(this, &nestedTypeAndCount.m_pNestedType);
         }
     }
 #endif // defined(FEATURE_PREJIT) && !defined(DACCESS_COMPILE)
@@ -131,7 +131,7 @@ public:
         }
         CONTRACTL_END;
 
-        return m_numElements;
+        return nestedTypeAndCount.m_numElements;
     }
 
     UINT32 NativeSize() const
@@ -143,7 +143,7 @@ public:
         }
         else
         {
-            return m_nativeSize;
+            return nativeSizeAndAlignment.m_nativeSize;
         }
     }
 
@@ -176,12 +176,12 @@ private:
         {
             RelativeFixupPointer<PTR_MethodTable> m_pNestedType;
             ULONG m_numElements;
-        };
+        } nestedTypeAndCount;
         struct
         {
             UINT32 m_nativeSize;
             UINT32 m_alignmentRequirement;
-        };
+        } nativeSizeAndAlignment;
     };
     UINT32 m_offset;
     NativeFieldCategory m_flags;

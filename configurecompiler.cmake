@@ -256,7 +256,7 @@ if (MSVC)
   add_link_options($<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:/SUBSYSTEM:WINDOWS,${WINDOWS_SUBSYSTEM_VERSION}>)
 
   set(CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS} /IGNORE:4221")
-  
+
   add_link_options($<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:/DEBUG>)
   add_link_options($<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:/PDBCOMPRESS>)
   add_link_options($<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:/STACK:1572864>)
@@ -312,7 +312,7 @@ elseif (CLR_CMAKE_PLATFORM_UNIX)
       endif ()
       if (${__UBSAN_POS} GREATER -1)
         # all sanitizier flags are enabled except alignment (due to heavy use of __unaligned modifier)
-        list(APPEND CLR_CXX_SANITIZERS 
+        list(APPEND CLR_CXX_SANITIZERS
           "bool"
           bounds
           enum
@@ -454,7 +454,7 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   add_compile_options(-fno-omit-frame-pointer)
 
   # The -fms-extensions enable the stuff like __if_exists, __declspec(uuid()), etc.
-  add_compile_options(-fms-extensions )
+  add_compile_options(-fms-extensions)
   #-fms-compatibility      Enable full Microsoft Visual C++ compatibility
   #-fms-extensions         Accept some non-standard constructs supported by the Microsoft compiler
 
@@ -511,13 +511,8 @@ if (CLR_CMAKE_PLATFORM_UNIX)
     # may not generate the same object layout as MSVC.
     add_compile_options(-Wno-incompatible-ms-struct)
   else()
-    add_compile_options(-Wno-unused-variable)
     add_compile_options(-Wno-unused-but-set-variable)
-    add_compile_options(-fms-extensions)
     add_compile_options(-Wno-unknown-pragmas)
-    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0)
-      add_compile_options(-Wno-nonnull-compare)
-    endif()
     if (COMPILER_SUPPORTS_F_ALIGNED_NEW)
       add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-faligned-new>)
     endif()

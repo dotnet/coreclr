@@ -29,6 +29,7 @@
 #include "peimagelayout.inl"
 #include "eventtrace.h"
 #include "invokeutil.h"
+#include "castcache.h"
 
 BOOL QCALLTYPE MdUtf8String::EqualsCaseInsensitive(LPCUTF8 szLhs, LPCUTF8 szRhs, INT32 stringNumBytes)
 {
@@ -133,6 +134,21 @@ BOOL QCALLTYPE RuntimeMethodHandle::IsCAVisibleFromDecoratedType(
         targetHandle.IsNull() || 
         targetHandle.IsTypeDesc())
         COMPlusThrowArgumentNull(NULL, W("Arg_InvalidHandle"));
+
+    if (pTargetCtor == NULL)
+    {
+        MethodTable* pTargetMT = targetHandle.AsMethodTable();
+
+        if (pTargetMT->HasDefaultConstructor())
+        {
+            pTargetCtor = pTargetMT->GetDefaultConstructor();
+        }
+        else
+        {
+            if (!pTargetMT->IsValueType())
+                COMPlusThrowNonLocalized(kMissingMethodException, COR_CTOR_METHOD_NAME_W);
+        }
+    }
 
     bResult = CheckCAVisibilityFromDecoratedType(targetHandle.AsMethodTable(), pTargetCtor, sourceHandle.AsMethodTable(), sourceModuleHandle);
     END_QCALL;
@@ -1157,45 +1173,18 @@ MethodDesc* QCALLTYPE RuntimeTypeHandle::GetInterfaceMethodImplementation(QCall:
     TypeHandle typeHandle = pTypeHandle.AsTypeHandle();
     TypeHandle thOwnerOfMD = pOwner.AsTypeHandle();
 
-        // Ok to have INVALID_SLOT in the case where abstract class does not implement an interface method.
-        // This case can not be reproed using C# "implements" all interface methods
-        // with at least an abstract method. b19897_GetInterfaceMap_Abstract.exe tests this case.
-        //@TODO:STUBDISPATCH: Don't need to track down the implementation, just the declaration, and this can
-        //@TODO:              be done faster - just need to make a function FindDispatchDecl.
-        DispatchSlot slot(typeHandle.GetMethodTable()->FindDispatchSlotForInterfaceMD(thOwnerOfMD, pMD, FALSE /* throwOnConflict */));
+    // Ok to have INVALID_SLOT in the case where abstract class does not implement an interface method.
+    // This case can not be reproed using C# "implements" all interface methods
+    // with at least an abstract method. b19897_GetInterfaceMap_Abstract.exe tests this case.
+    //@TODO:STUBDISPATCH: Don't need to track down the implementation, just the declaration, and this can
+    //@TODO:              be done faster - just need to make a function FindDispatchDecl.
+    DispatchSlot slot(typeHandle.GetMethodTable()->FindDispatchSlotForInterfaceMD(thOwnerOfMD, pMD, FALSE /* throwOnConflict */));
     if (!slot.IsNull())
-            pResult = slot.GetMethodDesc();
+        pResult = slot.GetMethodDesc();
 
     END_QCALL;
     
     return pResult;
-    }
-    
-void QCALLTYPE RuntimeTypeHandle::GetDefaultConstructor(QCall::TypeHandle pTypeHandle, QCall::ObjectHandleOnStack retMethod)
-{
-    QCALL_CONTRACT;
-
-    BEGIN_QCALL;
-    
-    MethodDesc* pCtor = NULL;
-    
-    TypeHandle typeHandle = pTypeHandle.AsTypeHandle();
-
-    if (!typeHandle.IsTypeDesc())
-    {
-        MethodTable* pMethodTable = typeHandle.AsMethodTable();
-        if (pMethodTable->HasDefaultConstructor())
-            pCtor = pMethodTable->GetDefaultConstructor();
-    }
-
-    if (pCtor != NULL)
-    {
-        GCX_COOP();
-        retMethod.Set(pCtor->GetStubMethodInfo());
-    }
-    END_QCALL;
-
-    return;
 }
 
 FCIMPL1(ReflectMethodObject*, RuntimeTypeHandle::GetDeclaringMethod, ReflectClassBaseObject *pTypeUNSAFE) {
@@ -1360,31 +1349,40 @@ FCIMPL2(FC_BOOL_RET, RuntimeTypeHandle::CanCastTo, ReflectClassBaseObject *pType
     TypeHandle fromHandle = refType->GetType();
     TypeHandle toHandle = refTarget->GetType();
 
-    BOOL iRetVal = 0;
-
-    TypeHandle::CastResult r = fromHandle.CanCastToNoGC(toHandle);
-    if (r == TypeHandle::MaybeCast)
+    TypeHandle::CastResult r = fromHandle.CanCastToCached(toHandle);
+    if (r != TypeHandle::MaybeCast)
     {
-        HELPER_METHOD_FRAME_BEGIN_RET_2(refType, refTarget);
-        iRetVal = fromHandle.CanCastTo(toHandle);
-        HELPER_METHOD_FRAME_END();
-    }
-    else
-    {
-        iRetVal = (r == TypeHandle::CanCast);
+        FC_RETURN_BOOL((BOOL)r);
     }
 
-    // We allow T to be cast to Nullable<T>
-    if (!iRetVal && Nullable::IsNullableType(toHandle) && !fromHandle.IsTypeDesc())
+    BOOL iRetVal;
+    HELPER_METHOD_FRAME_BEGIN_RET_2(refType, refTarget);
     {
-        HELPER_METHOD_FRAME_BEGIN_RET_2(refType, refTarget);
-        if (Nullable::IsNullableForType(toHandle, fromHandle.AsMethodTable())) 
+        // We allow T to be cast to Nullable<T>
+        if (!fromHandle.IsTypeDesc() && Nullable::IsNullableForType(toHandle, fromHandle.AsMethodTable()))
         {
+            // do not put this in the cache (see TypeHandle::CanCastTo and ObjIsInstanceOfCore). 
             iRetVal = TRUE;
         }
-        HELPER_METHOD_FRAME_END();
+        else
+        {
+            if (fromHandle.IsTypeDesc())
+            {
+                iRetVal = fromHandle.AsTypeDesc()->CanCastTo(toHandle, /* pVisited */ NULL);
+            }
+            else if (toHandle.IsTypeDesc())
+            {
+                iRetVal = FALSE;
+                CastCache::TryAddToCache(fromHandle, toHandle, FALSE);
+            }
+            else
+            {
+                iRetVal = fromHandle.AsMethodTable()->CanCastToClassOrInterface(toHandle.AsMethodTable(), /* pVisited */ NULL);
+            }
+        }
     }
-        
+    HELPER_METHOD_FRAME_END();
+
     FC_RETURN_BOOL(iRetVal);
 }
 FCIMPLEND

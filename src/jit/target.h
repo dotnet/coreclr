@@ -893,7 +893,7 @@ typedef unsigned char   regNumberSmall;
   #define CPU_HAS_BYTE_REGS        0
 
   #define CPBLK_UNROLL_LIMIT       32      // Upper bound to let the code generator to loop unroll CpBlk.
-  #define INITBLK_UNROLL_LIMIT     32      // Upper bound to let the code generator to loop unroll InitBlk.
+  #define INITBLK_UNROLL_LIMIT     16      // Upper bound to let the code generator to loop unroll InitBlk.
 
   #define FEATURE_FIXED_OUT_ARGS   1       // Preallocate the outgoing arg area in the prolog
   #define FEATURE_STRUCTPROMOTE    1       // JIT Optimization to promote fields of structs into registers
@@ -1186,6 +1186,12 @@ typedef unsigned char   regNumberSmall;
 
   // The first thing in an ARM32 prolog pushes LR to the stack, so this can be 0.
   #define STACK_PROBE_BOUNDARY_THRESHOLD_BYTES 0
+
+  #define REG_STACK_PROBE_HELPER_ARG         REG_R4
+  #define RBM_STACK_PROBE_HELPER_ARG         RBM_R4
+  #define REG_STACK_PROBE_HELPER_CALL_TARGET REG_R5
+  #define RBM_STACK_PROBE_HELPER_CALL_TARGET RBM_R5
+  #define RBM_STACK_PROBE_HELPER_TRASH       (RBM_R5 | RBM_LR)
 
 #elif defined(_TARGET_ARM64_)
 

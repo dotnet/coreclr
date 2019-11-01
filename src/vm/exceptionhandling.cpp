@@ -4020,13 +4020,6 @@ void ExceptionTracker::ResetLimitFrame()
     m_pLimitFrame = m_pThread->GetFrame();
 }
 
-void ExceptionTracker::ResetInitialExplicitFrame()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    m_pInitialExplicitFrame = m_pThread->GetFrame();
-}
-
 //
 // static
 void ExceptionTracker::ResumeExecution(
@@ -5845,6 +5838,16 @@ void CleanUpForSecondPass(Thread* pThread, bool fIsSO, LPVOID MemoryStackFpForFr
 }
 
 #ifdef FEATURE_PAL
+
+typedef enum
+{
+    _URC_FATAL_PHASE1_ERROR = 3,
+} _Unwind_Reason_Code;
+typedef enum
+{
+} _Unwind_Action;
+struct _Unwind_Context;
+struct _Unwind_Exception;
 
 // This is a personality routine for TheUMEntryPrestub and UMThunkStub Unix asm stubs.
 // An exception propagating through these stubs is an unhandled exception.

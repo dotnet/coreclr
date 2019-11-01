@@ -224,7 +224,7 @@ DEFINE_METASIG(SM(Byte_RetChar, b, u))
 DEFINE_METASIG(SM(Str_Bool_Bool_RefInt_RetIntPtr, s F F r(i), I))
 DEFINE_METASIG(SM(IntPtr_Int_RetStr, I i, s))
 DEFINE_METASIG_T(SM(Obj_PtrByte_RefCleanupWorkListElement_RetVoid, j P(b) r(C(CLEANUP_WORK_LIST_ELEMENT)), v))
-DEFINE_METASIG_T(SM(SafeHandle_Bool_RefCleanupWorkListElement_RetIntPtr, C(SAFE_HANDLE) F r(C(CLEANUP_WORK_LIST_ELEMENT)), I))
+DEFINE_METASIG_T(SM(SafeHandle_RefCleanupWorkListElement_RetIntPtr, C(SAFE_HANDLE) r(C(CLEANUP_WORK_LIST_ELEMENT)), I))
 DEFINE_METASIG(SM(Obj_PtrByte_RetVoid, j P(b), v))
 DEFINE_METASIG(SM(PtrByte_IntPtr_RetVoid, P(b) I, v))
 DEFINE_METASIG(SM(Str_Bool_Bool_RefInt_RetArrByte, s F F r(i), a(b) ))
@@ -559,6 +559,10 @@ DEFINE_METASIG_T(SM(SyncCtx_ArrIntPtr_Bool_Int_RetInt, C(SYNCHRONIZATION_CONTEXT
 // The signature of the method System.Runtime.InteropServices.ICustomQueryInterface.GetInterface
 DEFINE_METASIG_T(IM(RefGuid_OutIntPtr_RetCustomQueryInterfaceResult, r(g(GUID)) r(I), g(CUSTOMQUERYINTERFACERESULT)))
 #endif //FEATURE_COMINTEROP
+
+// Assembly Load Context
+DEFINE_METASIG_T(SM(RefGuid_RefGuid_RetVoid, r(g(GUID)) r(g(GUID)) , v))
+DEFINE_METASIG_T(SM(RefGuid_RetVoid, r(g(GUID)), v))
 
 DEFINE_METASIG_T(SM(IntPtr_AssemblyName_RetAssemblyBase, I C(ASSEMBLY_NAME), C(ASSEMBLYBASE)))
 DEFINE_METASIG_T(SM(Str_AssemblyBase_IntPtr_RetIntPtr, s C(ASSEMBLYBASE) I, I))

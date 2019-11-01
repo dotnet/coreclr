@@ -26,14 +26,14 @@
 #define NO_MAPPING ((BYTE) -1)
 
 #define GCPROTECT_BEGIN_VARIANTDATA(/*VARIANTDATA*/vd) do {             \
-                FrameWithCookie<GCFrame> __gcframe(vd.GetObjRefPtr(), 1, FALSE);   \
+                GCFrame __gcframe(vd.GetObjRefPtr(), 1, FALSE);         \
                 /* work around unreachable code warning */              \
                 if (true) { DEBUG_ASSURE_NO_RETURN_BEGIN(GCPROTECT);
 
 
 #define GCPROTECT_END_VARIANTDATA()                                     \
                 DEBUG_ASSURE_NO_RETURN_END(GCPROTECT); }                \
-                __gcframe.Pop(); } while(0)
+                } while(0)
 
 
 //Mapping from CVType to type handle. Used for conversion between the two internally.
@@ -2134,7 +2134,7 @@ void OleVariant::ClearNonBlittableRecordArray(BASEARRAYREF* pComArray, void *ole
     SIZE_T elemSize     = pInterfaceMT->GetNativeSize();
     BYTE *pOle = (BYTE *) oleArray;
     BYTE *pOleEnd = pOle + elemSize * cElements;
-    SIZE_T srcofs = ArrayBase::GetDataPtrOffset((*pComArray)->GetMethodTable());
+    SIZE_T srcofs = *pComArray != NULL ? ArrayBase::GetDataPtrOffset((*pComArray)->GetMethodTable()) : 0;
     while (pOle < pOleEnd)
     {
         BYTE* managedData = (BYTE*)(*(LPVOID*)pComArray) + srcofs;

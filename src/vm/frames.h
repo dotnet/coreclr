@@ -26,10 +26,6 @@
 //    Frame                     - the root class. There are no actual instances
 //    |                           of Frames.
 //    |
-//    +-GCFrame                 - this frame doesn't represent a method call.
-//    |                           it's sole purpose is to let the EE gc-protect
-//    |                           object references that it is manipulating.
-//    |
 //    +- FaultingExceptionFrame - this frame was placed on a method which faulted
 //    |                           to save additional state information
 //    |
@@ -238,7 +234,6 @@ FRAME_TYPE_NAME(DynamicHelperFrame)
 #if !defined(_TARGET_X86_)
 FRAME_TYPE_NAME(StubHelperFrame)
 #endif
-FRAME_TYPE_NAME(GCFrame)
 #ifdef FEATURE_INTERPRETER
 FRAME_TYPE_NAME(InterpreterFrame)
 #endif // FEATURE_INTERPRETER
@@ -408,7 +403,6 @@ public:
 class Frame : public FrameBase
 {
     friend class CheckAsmOffsets;
-    friend class GCFrame;
 #ifdef DACCESS_COMPILE
     friend void Thread::EnumMemoryRegions(CLRDataEnumMemoryFlags flags);
 #endif
@@ -2464,42 +2458,37 @@ private:
 
 #endif // FEATURE_COMINTEROP
 
-
 //------------------------------------------------------------------------
 // This frame protects object references for the EE's convenience.
 // This frame type actually is created from C++.
+// There is a chain of GCFrames on a Thread, separate from the
+// explicit frames derived from the Frame class.
 //------------------------------------------------------------------------
-class GCFrame : public Frame
+class GCFrame
 {
-    VPTR_VTABLE_CLASS(GCFrame, Frame)
-
 public:
 
-
-    //--------------------------------------------------------------------
-    // This constructor pushes a new GCFrame on the frame chain.
-    //--------------------------------------------------------------------
 #ifndef DACCESS_COMPILE
-    GCFrame() {
-        LIMITED_METHOD_CONTRACT;
-    };
+    //--------------------------------------------------------------------
+    // This constructor pushes a new GCFrame on the GC frame chain.
+    //--------------------------------------------------------------------
+    GCFrame(OBJECTREF *pObjRefs, UINT numObjRefs, BOOL maybeInterior)
+        : GCFrame(GetThread(), pObjRefs, numObjRefs, maybeInterior)
+    {
+        WRAPPER_NO_CONTRACT;
+    }
 
-    GCFrame(OBJECTREF *pObjRefs, UINT numObjRefs, BOOL maybeInterior);
     GCFrame(Thread *pThread, OBJECTREF *pObjRefs, UINT numObjRefs, BOOL maybeInterior);
-#endif
-    void Init(Thread *pThread, OBJECTREF *pObjRefs, UINT numObjRefs, BOOL maybeInterior);
+#ifndef CROSSGEN_COMPILE
+    ~GCFrame();
+#endif // CROSSGEN_COMPILE
 
+#endif // DACCESS_COMPILE
 
-    //--------------------------------------------------------------------
-    // Pops the GCFrame and cancels the GC protection. Also
-    // trashes the contents of pObjRef's in _DEBUG.
-    //--------------------------------------------------------------------
-    VOID Pop();
-
-    virtual void GcScanRoots(promote_func *fn, ScanContext* sc);
+    void GcScanRoots(promote_func *fn, ScanContext* sc);
 
 #ifdef _DEBUG
-    virtual BOOL Protects(OBJECTREF *ppORef)
+    BOOL Protects(OBJECTREF *ppORef)
     {
         LIMITED_METHOD_CONTRACT;
         for (UINT i = 0; i < m_numObjRefs; i++) {
@@ -2511,30 +2500,18 @@ public:
     }
 #endif
 
-#ifndef DACCESS_COMPILE
-    void *operator new (size_t sz, void* p)
+    PTR_GCFrame PtrNextFrame()
     {
-        LIMITED_METHOD_CONTRACT;
-        return p ;
+        WRAPPER_NO_CONTRACT;
+        return m_Next;
     }
-#endif
-
-#if defined(_DEBUG_IMPL)
-    const char* GetFrameTypeName() { LIMITED_METHOD_CONTRACT; return "GCFrame"; }
-#endif
 
 private:
+    PTR_GCFrame   m_Next;
     PTR_OBJECTREF m_pObjRefs;
     UINT          m_numObjRefs;
     PTR_Thread    m_pCurThread;
     BOOL          m_MaybeInterior;
-
-    // Keep as last entry in class
-    DEFINE_VTABLE_GETTER(GCFrame)
-
-#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
-    ~GCFrame();
-#endif
 };
 
 #ifdef FEATURE_INTERPRETER
@@ -3264,16 +3241,11 @@ public:
             *m_pShadowSP |= ICodeManager::SHADOW_SP_FILTER_DONE;
         }
     }
-
-#ifndef CROSSGEN_COMPILE
-    ~ExceptionFilterFrame();
-#endif
-
 #endif
 
 private:
     // Keep as last entry in class
-    DEFINE_VTABLE_GETTER_AND_CTOR(ExceptionFilterFrame)
+    DEFINE_VTABLE_GETTER_AND_CTOR_AND_DTOR(ExceptionFilterFrame)
 };
 
 #ifdef _DEBUG
@@ -3545,7 +3517,7 @@ public:
 #endif /*_PREFAST_ */
 
 #define GCPROTECT_BEGIN(ObjRefStruct)                           do {    \
-                FrameWithCookie<GCFrame> __gcframe(                     \
+                GCFrame __gcframe(                                      \
                         (OBJECTREF*)&(ObjRefStruct),                    \
                         sizeof(ObjRefStruct)/sizeof(OBJECTREF),         \
                         FALSE);                                         \
@@ -3553,7 +3525,7 @@ public:
                 if (true) { DEBUG_ASSURE_NO_RETURN_BEGIN(GCPROTECT)
 
 #define GCPROTECT_BEGIN_THREAD(pThread, ObjRefStruct)           do {    \
-                FrameWithCookie<GCFrame> __gcframe(                     \
+                GCFrame __gcframe(                                      \
                         pThread,                                        \
                         (OBJECTREF*)&(ObjRefStruct),                    \
                         sizeof(ObjRefStruct)/sizeof(OBJECTREF),         \
@@ -3562,7 +3534,7 @@ public:
                 if (true) { DEBUG_ASSURE_NO_RETURN_BEGIN(GCPROTECT)
 
 #define GCPROTECT_ARRAY_BEGIN(ObjRefArray,cnt) do {                     \
-                FrameWithCookie<GCFrame> __gcframe(                     \
+                GCFrame __gcframe(                                      \
                         (OBJECTREF*)&(ObjRefArray),                     \
                         cnt * sizeof(ObjRefArray) / sizeof(OBJECTREF),  \
                         FALSE);                                         \
@@ -3573,7 +3545,7 @@ public:
                 /* work around Wsizeof-pointer-div warning as we */     \
                 /* mean to capture pointer or object size */            \
                 UINT subjectSize = sizeof(ObjRefStruct);                \
-                FrameWithCookie<GCFrame> __gcframe(                     \
+                GCFrame __gcframe(                                      \
                         (OBJECTREF*)&(ObjRefStruct),                    \
                         subjectSize/sizeof(OBJECTREF),                  \
                         TRUE);                                          \
@@ -3581,7 +3553,7 @@ public:
                 if (true) { DEBUG_ASSURE_NO_RETURN_BEGIN(GCPROTECT)
 
 #define GCPROTECT_BEGININTERIOR_ARRAY(ObjRefArray,cnt) do {             \
-                FrameWithCookie<GCFrame> __gcframe(                     \
+                GCFrame __gcframe(                                      \
                         (OBJECTREF*)&(ObjRefArray),                     \
                         cnt,                                            \
                         TRUE);                                          \

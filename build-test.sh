@@ -177,10 +177,11 @@ precompile_coreroot_fx()
 
     # Read the exclusion file for this platform
     skipCrossGenFiles=($(read_array "$(dirname "$0")/tests/skipCrossGenFiles.${__BuildArch}.txt"))
+    skipCrossGenFiles+=('System.Runtime.WindowsRuntime.dll')
 
     local overlayDir=$CORE_ROOT
 
-    filesToPrecompile=$(find -L $overlayDir -iname \*.dll -not -iname \*.ni.dll -not -iname \*-ms-win-\* -not -iname xunit.\* -type f -maxdepth 0)
+    filesToPrecompile=$(find -L $overlayDir -maxdepth 1 -iname \*.dll -not -iname \*.ni.dll -not -iname \*-ms-win-\* -not -iname xunit.\* -type f)
     for fileToPrecompile in ${filesToPrecompile}
     do
         local filename=${fileToPrecompile}
@@ -684,7 +685,6 @@ __IncludeTests=INCLUDE_TESTS
 # Set the various build properties here so that CMake and MSBuild can pick them up
 export __ProjectDir="$__ProjectRoot"
 __SourceDir="$__ProjectDir/src"
-__PackagesDir="$__ProjectDir/.packages"
 __RootBinDir="$__ProjectDir/bin"
 __DotNetCli="$__ProjectDir/dotnet.sh"
 __UnprocessedBuildArgs=
@@ -704,7 +704,6 @@ __ClangMinorVersion=0
 __GccBuild=0
 __GccMajorVersion=0
 __GccMinorVersion=0
-__NuGetPath="$__PackagesDir/NuGet.exe"
 __SkipRestorePackages=0
 __DistroRid=""
 __cmakeargs=""
@@ -836,6 +835,21 @@ while :; do
         clang6.0|-clang6.0)
             __ClangMajorVersion=6
             __ClangMinorVersion=0
+            ;;
+
+        clang7|-clang7)
+            __ClangMajorVersion=7
+            __ClangMinorVersion=
+            ;;
+
+        clang8|-clang8)
+            __ClangMajorVersion=8
+            __ClangMinorVersion=
+            ;;
+
+        clang9|-clang9)
+            __ClangMajorVersion=9
+            __ClangMinorVersion=
             ;;
 
         gcc5|-gcc5)
