@@ -370,8 +370,7 @@ namespace System
             if ((uint)dimension >= (uint)rank)
                 throw new IndexOutOfRangeException(SR.IndexOutOfRange_ArrayRankIndex);
 
-            ref int bounds = ref RuntimeHelpers.GetMultiDimensionalArrayBounds(this);
-            return Unsafe.Add(ref bounds, dimension) - Unsafe.Add(ref bounds, rank + dimension);
+            return Unsafe.Add(ref RuntimeHelpers.GetMultiDimensionalArrayBounds(this), dimension);
         }
 
         public unsafe int GetUpperBound(int dimension)
@@ -383,7 +382,8 @@ namespace System
             if ((uint)dimension >= (uint)rank)
                 throw new IndexOutOfRangeException(SR.IndexOutOfRange_ArrayRankIndex);
 
-            return Unsafe.Add(ref RuntimeHelpers.GetMultiDimensionalArrayBounds(this), dimension);
+            ref int bounds = ref RuntimeHelpers.GetMultiDimensionalArrayBounds(this);
+            return Unsafe.Add(ref bounds, dimension) + Unsafe.Add(ref bounds, rank + dimension) - 1;
         }
 
         public unsafe int GetLowerBound(int dimension)
