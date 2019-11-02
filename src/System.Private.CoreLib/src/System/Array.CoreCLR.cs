@@ -144,8 +144,8 @@ namespace System
 
             MethodTable* pMT = RuntimeHelpers.GetMethodTable(sourceArray);
             if (pMT == RuntimeHelpers.GetMethodTable(destinationArray) &&
-                !pMT->IsMultiDimensionalArray && 
-                (uint)length < (uint)sourceArray.Length && 
+                !pMT->IsMultiDimensionalArray &&
+                (uint)length < (uint)sourceArray.Length &&
                 (uint)length < (uint)destinationArray.Length)
             {
                 nuint byteCount = (uint)length * (nuint)pMT->ComponentSize;
@@ -162,7 +162,7 @@ namespace System
             }
 
             // Less common
-            Copy(sourceArray, sourceArray.GetLowerBound(), destinationArray, destinationArray.GetLowerBound(), length, reliable: false);
+            Copy(sourceArray, sourceArray.GetLowerBound(0), destinationArray, destinationArray.GetLowerBound(0), length, reliable: false);
         }
 
         // Copies length elements from sourceArray, starting at sourceIndex, to
@@ -173,7 +173,7 @@ namespace System
             if (sourceArray != null && destinationArray != null)
             {
                 MethodTable* pMT = RuntimeHelpers.GetMethodTable(sourceArray);
-                if (pMT == RuntimeHelpers.GetMethodTable(destinationArray) && 
+                if (pMT == RuntimeHelpers.GetMethodTable(destinationArray) &&
                     !pMT->IsMultiDimensionalArray &&
                     length >= 0 && sourceIndex >= 0 && destinationIndex >= 0 &&
                     (uint)(sourceIndex + length) <= (uint)sourceArray.Length &&
@@ -211,12 +211,12 @@ namespace System
             if (length < 0)
                 throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_NeedNonNegNum);
 
-            int srcLB = sourceArray.GetLowerBound();
+            int srcLB = sourceArray.GetLowerBound(0);
             if (sourceIndex < srcLB || sourceIndex - srcLB < 0)
                 throw new ArgumentOutOfRangeException(nameof(sourceIndex), SR.ArgumentOutOfRange_ArrayLB);
             sourceIndex -= srcLB;
 
-            int dstLB = destinationArray.GetLowerBound();
+            int dstLB = destinationArray.GetLowerBound(0);
             if (destinationIndex < dstLB || destinationIndex - dstLB < 0)
                 throw new ArgumentOutOfRangeException(nameof(destinationIndex), SR.ArgumentOutOfRange_ArrayLB);
             destinationIndex -= dstLB;
