@@ -138,7 +138,7 @@ FCIMPL2(FC_BOOL_RET, ArrayNative::IsSimpleCopy, ArrayBase* pSrc, ArrayBase* pDst
     _ASSERTE(pDst != NULL);
 
     // This case is expected to be handled by the fast path
-    _ASSERTE(pSrc->GetMethodTable() != pSrc->GetMethodTable());
+    _ASSERTE(pSrc->GetMethodTable() != pDst->GetMethodTable());
 
     TypeHandle srcTH = pSrc->GetMethodTable()->GetApproxArrayElementTypeHandle();
     TypeHandle destTH = pDst->GetMethodTable()->GetApproxArrayElementTypeHandle();
