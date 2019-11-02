@@ -749,7 +749,7 @@ FCIMPL5(void, ArrayNative::CopySlow, ArrayBase* pSrc, INT32 iSrcIndex, ArrayBase
     gc.pDst = (BASEARRAYREF)pDst;
 
     // cannot pass null for source or destination
-    _ASSERTE(gc.pSrc == NULL && gc.pDst == NULL);
+    _ASSERTE(gc.pSrc != NULL && gc.pDst != NULL);
 
     // source and destination must be arrays
     _ASSERTE(gc.pSrc->GetMethodTable()->IsArray());
