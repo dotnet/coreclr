@@ -145,8 +145,8 @@ namespace System
             MethodTable* pMT = RuntimeHelpers.GetMethodTable(sourceArray);
             if (pMT == RuntimeHelpers.GetMethodTable(destinationArray) &&
                 !pMT->IsMultiDimensionalArray &&
-                (uint)length < (uint)sourceArray.Length &&
-                (uint)length < (uint)destinationArray.Length)
+                (uint)length <= (uint)sourceArray.Length &&
+                (uint)length <= (uint)destinationArray.Length)
             {
                 nuint byteCount = (uint)length * (nuint)pMT->ComponentSize;
                 ref byte src = ref sourceArray.GetRawSzArrayData();
