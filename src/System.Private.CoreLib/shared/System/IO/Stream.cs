@@ -189,6 +189,65 @@ namespace System.IO
             return bufferSize;
         }
 
+        public virtual void CopyTo(ReadOnlySpanAction<byte, object> callback, object state, int bufferSize) =>
+            CopyTo(new WriteCallbackStream(callback, state), bufferSize);
+
+        public virtual Task CopyToAsync(Func<object, ReadOnlyMemory<byte>, CancellationToken, Task> callback, object state, int bufferSize, CancellationToken cancellationToken) =>
+            CopyToAsync(new WriteCallbackStream(callback, state), bufferSize, cancellationToken);
+
+        private sealed class WriteCallbackStream : Stream
+        {
+            private readonly ReadOnlySpanAction<byte, object>? _action;
+            private readonly Func<object, ReadOnlyMemory<byte>, CancellationToken, Task>? _func;
+            private readonly object _state;
+
+            public WriteCallbackStream(ReadOnlySpanAction<byte, object> action, object state)
+            {
+                _action = action ?? throw new ArgumentNullException(nameof(action));
+                _state = state;
+            }
+
+            public WriteCallbackStream(Func<object, ReadOnlyMemory<byte>, CancellationToken, Task> func, object state)
+            {
+                _func = func ?? throw new ArgumentNullException(nameof(func));
+                _state = state;
+            }
+
+            public override void Write(byte[] buffer, int offset, int count)
+            {
+                if (_action == null) throw new NotSupportedException();
+                _action(new ReadOnlySpan<byte>(buffer, offset, count), _state);
+            }
+
+            public override void Write(ReadOnlySpan<byte> span)
+            {
+                if (_action == null) throw new NotSupportedException();
+                _action(span, _state);
+            }
+
+            public override Task WriteAsync(byte[] buffer, int offset, int length, CancellationToken cancellationToken)
+            {
+                if (_func == null) throw new NotSupportedException();
+                return _func(_state, new ReadOnlyMemory<byte>(buffer, offset, length), cancellationToken);
+            }
+
+            public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
+            {
+                if (_func == null) throw new NotSupportedException();
+                return new ValueTask(_func(_state, buffer, cancellationToken));
+            }
+
+            public override bool CanRead => false;
+            public override bool CanSeek => false;
+            public override bool CanWrite => true;
+            public override void Flush() => throw new NotSupportedException();
+            public override long Length => throw new NotSupportedException();
+            public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+            public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+            public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+            public override void SetLength(long value) => throw new NotSupportedException();
+        }
+
         // Stream used to require that all cleanup logic went into Close(),
         // which was thought up before we invented IDisposable.  However, we
         // need to follow the IDisposable pattern so that users can write
