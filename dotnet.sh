@@ -1,13 +1,6 @@
 #!/usr/bin/env bash
 
 working_tree_root="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-__RepoRootDir=${working_tree_root}/../..
-
-# BEGIN SECTION to remove after repo consolidation
-if [ ! -f "${__RepoRootDir}/.dotnet-runtime-placeholder" ]; then
-  __RepoRootDir=${__ProjectRoot}
-fi
-# END SECTION to remove after repo consolidation
 
 # Don't resolve runtime, shared framework, or SDK from other locations to ensure build determinism
 export DOTNET_MULTILEVEL_LOOKUP=0
@@ -20,13 +13,11 @@ source $working_tree_root/init-dotnet.sh
 
 dotnet=${_InitializeDotNetCli}/dotnet
 
-dotnetPath=${__RepoRootDir}/$dotnet
-
-echo "Running: ${dotnetPath} $@"
-${dotnetPath} "$@"
+echo "Running: $dotnet $@"
+$dotnet "$@"
 if [ $? -ne 0 ]
 then
-    echo "ERROR: An error occurred in ${dotnetPath} $@. Check logs under $working_tree_root."
+    echo "ERROR: An error occurred in $dotnet $@. Check logs under $working_tree_root."
     exit 1
 fi
 
