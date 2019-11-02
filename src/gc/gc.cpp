@@ -20797,7 +20797,7 @@ void gc_heap::process_mark_overflow_internal (int condemned_gen_number,
 
 #endif //MULTIPLE_HEAPS
         int align_const = get_alignment_constant (TRUE);
-        int up_to_generation = full_p ? total_generation_count : max_generation + 1;
+        int up_to_generation = full_p ? total_generation_count : condemned_gen_number + 1;
 
         for (int i = condemned_gen_number; i < up_to_generation; i++)
         {
@@ -21135,7 +21135,7 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
         //dont use the mark list for full gc
         //because multiple segments are more complex to handle and the list
         //is likely to overflow
-        if (condemned_gen_number <= max_generation)
+        if (condemned_gen_number < max_generation)
             mark_list_end = &mark_list [mark_list_size-1];
         else
             mark_list_end = &mark_list [0];
@@ -25157,19 +25157,31 @@ void gc_heap::relocate_address (uint8_t** pold_address THREAD_NUMBER_DCL)
     }
 
 #ifdef FEATURE_LOH_COMPACTION
-    if (loh_compacted_p
+    if (loh_compacted_p)
+    {
+#ifdef MULTIPLE_HEAPS
+#ifdef SEG_MAPPING_TABLE
+        heap_segment* pSegment = seg_mapping_table_segment_of((uint8_t*)old_address);
+#else
+        ptrdiff_t delta = 0;
+        heap_segment* pSegment = segment_of ((uint8_t*)old_address, delta);
+#endif
+#else //MULTIPLE_HEAPS
+        heap_segment* pSegment = gc_heap::find_segment ((uint8_t*)old_address, FALSE);
+        _ASSERTE(pSegment);
+#endif //MULTIPLE_HEAPS
+
+        size_t flags = pSegment->flags;
+        if ((flags & heap_segment_flags_loh)
 #ifdef FEATURE_BASICFREEZE
-        && !frozen_object_p((Object*)old_address)
-#endif // FEATURE_BASICFREEZE
-        )
-    {
-        *pold_address = old_address + loh_node_relocation_distance (old_address);
+            && !(flags & heap_segment_flags_readonly)
+#endif
+            )
+        {
+            *pold_address = old_address + loh_node_relocation_distance (old_address);
+        }
     }
-    else
 #endif //FEATURE_LOH_COMPACTION
-    {
-        *pold_address = new_address;
-    }
 }
 
 inline void
