@@ -20,6 +20,7 @@ endif()
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 check_cxx_compiler_flag(-faligned-new COMPILER_SUPPORTS_F_ALIGNED_NEW)
+check_cxx_compiler_flag(-fstack-protector-strong COMPILER_SUPPORTS_F_STACK_PROTECTOR_STRONG)
 
 #----------------------------------------
 # Detect and set platform variable names
@@ -466,7 +467,9 @@ if (CLR_CMAKE_PLATFORM_UNIX)
     # We cannot enable "stack-protector-strong" on OS X due to a bug in clang compiler (current version 7.0.2)
     add_compile_options(-fstack-protector)
   else()
-    add_compile_options(-fstack-protector-strong)
+    if (COMPILER_SUPPORTS_F_STACK_PROTECTOR_STRONG)
+      add_compile_options(-fstack-protector-strong)
+    endif()
   endif(CLR_CMAKE_PLATFORM_DARWIN)
 
   # Contracts are disabled on UNIX.
