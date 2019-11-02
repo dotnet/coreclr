@@ -2,6 +2,10 @@
 setlocal
 
 set "__ProjectDir=%~dp0"
+set "__RepoRootDir=%~dp0..\..\"
+
+rem Remove after repo consolidation
+if not exist "%__RepoRootDir%\.dotnet-runtime-placeholder" ( set "__RepoRootDir=!__ProjectDir!" )
 
 :: Clear the 'Platform' env variable for this session, as it's a per-project setting within the build, and
 :: misleading value (such as 'MCD' in HP PCs) may lead to build breakage (issue: #69).
@@ -22,7 +26,7 @@ if NOT [%ERRORLEVEL%]==[0] (
 
 pushd %~dp0
 echo Running: dotnet %*
-call "%~dp0\.dotnet\dotnet.exe" %*
+call "%__RepoRootDir%.dotnet\dotnet.exe" %*
 popd
 if NOT [%ERRORLEVEL%]==[0] (
   exit /b 1
