@@ -19,9 +19,6 @@ if(NOT MSVC AND NOT CMAKE_CXX_LINK_PIE_SUPPORTED)
 endif()
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-check_cxx_compiler_flag(-faligned-new COMPILER_SUPPORTS_F_ALIGNED_NEW)
-check_cxx_compiler_flag(-fstack-protector-strong COMPILER_SUPPORTS_F_STACK_PROTECTOR_STRONG)
-
 #----------------------------------------
 # Detect and set platform variable names
 #     - for non-windows build platform & architecture is detected using inbuilt CMAKE variables and cross target component configure
@@ -467,6 +464,7 @@ if (CLR_CMAKE_PLATFORM_UNIX)
     # We cannot enable "stack-protector-strong" on OS X due to a bug in clang compiler (current version 7.0.2)
     add_compile_options(-fstack-protector)
   else()
+    check_cxx_compiler_flag(-fstack-protector-strong COMPILER_SUPPORTS_F_STACK_PROTECTOR_STRONG)
     if (COMPILER_SUPPORTS_F_STACK_PROTECTOR_STRONG)
       add_compile_options(-fstack-protector-strong)
     endif()
@@ -516,6 +514,7 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   else()
     add_compile_options(-Wno-unused-but-set-variable)
     add_compile_options(-Wno-unknown-pragmas)
+    check_cxx_compiler_flag(-faligned-new COMPILER_SUPPORTS_F_ALIGNED_NEW)
     if (COMPILER_SUPPORTS_F_ALIGNED_NEW)
       add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-faligned-new>)
     endif()
