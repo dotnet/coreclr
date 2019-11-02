@@ -2766,24 +2766,23 @@ public:
     }
     
     // The following methods are only valid for the method tables for array types.  
-    // REVIEW: We should probably remove "Approx" from the names.
     CorElementType GetArrayElementType();
     DWORD GetRank();
 
-    TypeHandle GetApproxArrayElementTypeHandle()
+    TypeHandle GetArrayElementTypeHandle()
     {
         LIMITED_METHOD_DAC_CONTRACT;
         _ASSERTE (IsArray());
         return TypeHandle::FromTAddr(m_ElementTypeHnd);
     }
 
-    void SetApproxArrayElementTypeHandle(TypeHandle th)
+    void SetArrayElementTypeHandle(TypeHandle th)
     {
         LIMITED_METHOD_DAC_CONTRACT;
         m_ElementTypeHnd = th.AsTAddr();
     }
 
-    TypeHandle * GetApproxArrayElementTypeHandlePtr()
+    TypeHandle * GetArrayElementTypeHandlePtr()
     {
         LIMITED_METHOD_CONTRACT;
         return (TypeHandle *)&m_ElementTypeHnd;

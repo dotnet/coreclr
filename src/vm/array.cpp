@@ -451,7 +451,7 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
 
     pMT->SetIsArray(arrayKind);
 
-    pMT->SetApproxArrayElementTypeHandle(elemTypeHnd);
+    pMT->SetArrayElementTypeHandle(elemTypeHnd);
 
     _ASSERTE(FitsIn<WORD>(dwComponentSize));
     pMT->SetComponentSize(static_cast<WORD>(dwComponentSize));
@@ -951,7 +951,7 @@ public:
         }
         m_pCode->EmitADD();
 
-        LocalDesc elemType(pMT->GetApproxArrayElementTypeHandle().GetInternalCorElementType());
+        LocalDesc elemType(pMT->GetArrayElementTypeHandle().GetInternalCorElementType());
 
         switch (m_pMD->GetArrayFuncIndex())
         {
@@ -959,7 +959,7 @@ public:
         case ArrayMethodDesc::ARRAY_FUNC_GET:
             if(elemType.ElementType[0]==ELEMENT_TYPE_VALUETYPE)
             {
-                m_pCode->EmitLDOBJ(GetToken(pMT->GetApproxArrayElementTypeHandle()));
+                m_pCode->EmitLDOBJ(GetToken(pMT->GetArrayElementTypeHandle()));
             }
             else
                 m_pCode->EmitLDIND_T(&elemType);
@@ -971,7 +971,7 @@ public:
 
             if(elemType.ElementType[0]==ELEMENT_TYPE_VALUETYPE)
             {
-                m_pCode->EmitSTOBJ(GetToken(pMT->GetApproxArrayElementTypeHandle()));
+                m_pCode->EmitSTOBJ(GetToken(pMT->GetArrayElementTypeHandle()));
             }
             else
                 m_pCode->EmitSTIND_T(&elemType);
@@ -1094,7 +1094,7 @@ void GenerateArrayOpScript(ArrayMethodDesc *pMD, ArrayOpScript *paos)
     MetaSig msig(pMD);
     _ASSERTE(!msig.IsVarArg());     // No array signature is varargs, code below does not expect it.
 
-    switch (pMT->GetApproxArrayElementTypeHandle().GetInternalCorElementType())
+    switch (pMT->GetArrayElementTypeHandle().GetInternalCorElementType())
     {
         // These are all different because of sign extension
 

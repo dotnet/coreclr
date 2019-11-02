@@ -489,7 +489,7 @@ OBJECTREF AllocateSzArray(MethodTable* pArrayMT, INT32 cElements, GC_ALLOC_FLAGS
     else
     {
 #ifdef FEATURE_64BIT_ALIGNMENT
-        MethodTable* pElementMT = pArrayMT->GetApproxArrayElementTypeHandle().GetMethodTable();
+        MethodTable* pElementMT = pArrayMT->GetArrayElementTypeHandle().GetMethodTable();
         if (pElementMT->RequiresAlign8() && pElementMT->IsValueType())
         {
             // This platform requires that certain fields are 8-byte aligned (and the runtime doesn't provide
@@ -677,7 +677,7 @@ OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, 
         // Morph a ARRAY rank 1 with 0 lower bound into an SZARRAY
         if (rank == 1 && (dwNumArgs == 1 || pArgs[0] == 0))
         {
-            TypeHandle szArrayType = ClassLoader::LoadArrayTypeThrowing(pArrayMT->GetApproxArrayElementTypeHandle(), ELEMENT_TYPE_SZARRAY, 1);
+            TypeHandle szArrayType = ClassLoader::LoadArrayTypeThrowing(pArrayMT->GetArrayElementTypeHandle(), ELEMENT_TYPE_SZARRAY, 1);
             return AllocateSzArray(szArrayType, pArgs[dwNumArgs - 1], flags, bAllocateInLargeHeap);
         }
 
@@ -759,7 +759,7 @@ OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, 
     else
     {
 #ifdef FEATURE_64BIT_ALIGNMENT
-        MethodTable *pElementMT = pArrayMT->GetApproxArrayElementTypeHandle().GetMethodTable();
+        MethodTable *pElementMT = pArrayMT->GetArrayElementTypeHandle().GetMethodTable();
         if (pElementMT->RequiresAlign8() && pElementMT->IsValueType())
         {
             // This platform requires that certain fields are 8-byte aligned (and the runtime doesn't provide
@@ -845,13 +845,13 @@ OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, 
                 GCStressPolicy::InhibitHolder iholder;
 
                 // Allocate dwProvidedBounds arrays
-                if (!pArrayMT->GetApproxArrayElementTypeHandle().IsArray())
+                if (!pArrayMT->GetArrayElementTypeHandle().IsArray())
                 {
                     orArray = NULL;
                 }
                 else
                 {
-                    TypeHandle subArrayType = pArrayMT->GetApproxArrayElementTypeHandle();
+                    TypeHandle subArrayType = pArrayMT->GetArrayElementTypeHandle();
                     for (UINT32 i = 0; i < cElements; i++)
                     {
                         OBJECTREF obj = AllocateArrayEx(subArrayType, &pArgs[1], dwNumArgs-1, flags, bAllocateInLargeHeap);
