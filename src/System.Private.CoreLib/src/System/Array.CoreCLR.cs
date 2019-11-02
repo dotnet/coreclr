@@ -162,7 +162,7 @@ namespace System
             }
 
             // Less common
-            Copy(sourceArray, sourceArray.GetLowerBound(0), destinationArray, destinationArray.GetLowerBound(0), length, reliable: false);
+            Copy(sourceArray, sourceArray.GetLowerBound(), destinationArray, destinationArray.GetLowerBound(), length, reliable: false);
         }
 
         // Copies length elements from sourceArray, starting at sourceIndex, to
@@ -211,12 +211,12 @@ namespace System
             if (length < 0)
                 throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_NeedNonNegNum);
 
-            int srcLB = sourceArray.GetLowerBound(0);
+            int srcLB = sourceArray.GetLowerBound();
             if (sourceIndex < srcLB || sourceIndex - srcLB < 0)
                 throw new ArgumentOutOfRangeException(nameof(sourceIndex), SR.ArgumentOutOfRange_ArrayLB);
             sourceIndex -= srcLB;
 
-            int dstLB = destinationArray.GetLowerBound(0);
+            int dstLB = destinationArray.GetLowerBound();
             if (destinationIndex < dstLB || destinationIndex - dstLB < 0)
                 throw new ArgumentOutOfRangeException(nameof(destinationIndex), SR.ArgumentOutOfRange_ArrayLB);
             destinationIndex -= dstLB;
@@ -240,6 +240,7 @@ namespace System
                 else
                     Buffer.Memmove(ref dst, ref src, byteCount);
 
+                // GC.KeepAlive(sourceArray) not required. pMT kept alive via sourceArray
                 return;
             }
 
@@ -498,16 +499,6 @@ namespace System
                 throw new IndexOutOfRangeException(SR.IndexOutOfRange_ArrayRankIndex);
 
             return Unsafe.Add(ref RuntimeHelpers.GetMultiDimensionalArrayBounds(this), rank + dimension);
-        }
-
-        internal unsafe int GetLowerBound()
-        {
-            // TODO: Optimize?
-            int rank = RuntimeHelpers.GetMethodTable(this)->MultiDimensionalArrayRank;
-            if (rank == 0)
-                return 0;
-
-            return Unsafe.Add(ref RuntimeHelpers.GetMultiDimensionalArrayBounds(this), rank);
         }
 
         [MethodImpl(MethodImplOptions.InternalCall)]
