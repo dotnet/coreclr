@@ -109,7 +109,7 @@ void DumpDiagnosticProtocolHelper::GenerateCoreDump(DiagnosticsIpc::IpcMessage& 
     }
 
     DiagnosticsIpc::IpcMessage successResponse;
-    if (successResponse.Initialize(DiagnosticsIpc::GenericSuccessHeader, S_OK))
+    if (successResponse.InitializePayload(DiagnosticsIpc::GenericSuccessHeader, S_OK))
         successResponse.Send(pStream);
     delete pStream;
 }

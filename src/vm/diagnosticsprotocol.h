@@ -210,7 +210,7 @@ namespace DiagnosticsIpc
 
         // Initialize an outgoing IpcMessage with a header and payload
         template <typename T>
-        bool Initialize(IpcHeader header, T&& payload)
+        bool InitializePayload(IpcHeader header, T&& payload)
         {
             CONTRACTL
             {
