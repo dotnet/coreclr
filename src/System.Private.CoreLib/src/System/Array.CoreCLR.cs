@@ -222,9 +222,9 @@ namespace System
             destinationIndex -= dstLB;
 
             if ((uint)(sourceIndex + length) > (uint)sourceArray.Length)
-                throw new ArgumentException(nameof(sourceArray), SR.Arg_LongerThanSrcArray);
+                throw new ArgumentException(SR.Arg_LongerThanSrcArray, nameof(sourceArray));
             if ((uint)(destinationIndex + length) > (uint)destinationArray.Length)
-                throw new ArgumentException(nameof(destinationArray), SR.Arg_LongerThanDestArray);
+                throw new ArgumentException(SR.Arg_LongerThanDestArray, nameof(destinationArray));
 
             if (sourceArray.GetType() == destinationArray.GetType() || IsSimpleCopy(sourceArray, destinationArray))
             {
