@@ -245,25 +245,6 @@ namespace System.IO
             return span;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal ReadOnlyMemory<byte> InternalReadMemory(int count)
-        {
-            EnsureNotClosed();
-
-            int origPos = _position;
-            int newPos = origPos + count;
-
-            if ((uint)newPos > (uint)_length)
-            {
-                _position = _length;
-                throw Error.GetEndOfFile();
-            }
-
-            var span = new ReadOnlyMemory<byte>(_buffer, origPos, count);
-            _position = newPos;
-            return span;
-        }
-
         // PERF: Get actual length of bytes available for read; do sanity checks; shift position - i.e. everything except actual copying bytes
         internal int InternalEmulateRead(int count)
         {
@@ -581,7 +562,8 @@ namespace System.IO
             }
 
             // Retrieve a span until the end of the MemoryStream.
-            ReadOnlySpan<byte> span = InternalReadSpan(_length - _position);
+            ReadOnlySpan<byte> span = new ReadOnlySpan<byte>(_buffer, _position, _length - _position);
+            _position = _length;
 
             // Invoke the callback, using our internal span and avoiding any
             // intermediary allocations.
@@ -603,10 +585,9 @@ namespace System.IO
             if (cancellationToken.IsCancellationRequested)
                 return new ValueTask(Task.FromCanceled(cancellationToken));
 
-            // Avoid copying data from this buffer into a temp buffer:
-            // (require that InternalReadMemory does not throw,
-            // otherwise it needs to be wrapped into try-catch-Task.FromException like below)
-            ReadOnlyMemory<byte> memory = InternalReadMemory(_length - _position);
+            // Avoid copying data from this buffer into a temp buffer
+            ReadOnlyMemory<byte> memory = new ReadOnlyMemory<byte>(_buffer, _position, _length - _position);
+            _position = _length;
 
             return callback(memory, state, cancellationToken);
         }
