@@ -25,13 +25,16 @@
 #include "copyprop.h"
 #include "ssabuilder.h"
 
-CopyPropogation::CopyPropogation(Compiler* compiler) : Phase(compiler, "VnCopyPropogation", PHASE_VN_COPY_PROP)
+CopyPropogation::CopyPropogation(Compiler* compiler)
+    : Phase(compiler, "VnCopyPropogation", PHASE_VN_COPY_PROP)
+    , memAllocator(compiler->getAllocator(CMK_CopyProp))
+    , optCopyPropKillSet(VarSetOps::MakeEmpty(compiler))
 {
 }
 
 void CopyPropogation::DoPhase()
 {
-    comp->optVnCopyProp();
+    optVnCopyProp();
 }
 
 /**************************************************************************************
@@ -40,7 +43,7 @@ void CopyPropogation::DoPhase()
  * of the graph originating from the block. Refer SSA renaming for any additional info.
  * "curSsaName" tracks the currently live definitions.
  */
-void Compiler::optBlockCopyPropPopStacks(BasicBlock* block, LclNumToGenTreePtrStack* curSsaName)
+void CopyPropogation::optBlockCopyPropPopStacks(BasicBlock* block, LclNumToGenTreePtrStack* curSsaName)
 {
     for (Statement* stmt : block->Statements())
     {
@@ -51,11 +54,11 @@ void Compiler::optBlockCopyPropPopStacks(BasicBlock* block, LclNumToGenTreePtrSt
                 continue;
             }
             unsigned lclNum = tree->AsLclVarCommon()->GetLclNum();
-            if (!lvaInSsa(lclNum))
+            if (!comp->lvaInSsa(lclNum))
             {
                 continue;
             }
-            if (tree->gtFlags & GTF_VAR_DEF)
+            if ((tree->gtFlags & GTF_VAR_DEF) != 0)
             {
                 GenTreePtrStack* stack = nullptr;
                 curSsaName->Lookup(lclNum, &stack);
@@ -70,13 +73,13 @@ void Compiler::optBlockCopyPropPopStacks(BasicBlock* block, LclNumToGenTreePtrSt
 }
 
 #ifdef DEBUG
-void Compiler::optDumpCopyPropStack(LclNumToGenTreePtrStack* curSsaName)
+void CopyPropogation::optDumpCopyPropStack(LclNumToGenTreePtrStack* curSsaName)
 {
     JITDUMP("{ ");
     for (LclNumToGenTreePtrStack::KeyIterator iter = curSsaName->Begin(); !iter.Equal(curSsaName->End()); ++iter)
     {
         GenTree* node = iter.GetValue()->Top();
-        JITDUMP("%d-[%06d]:V%02u ", iter.Get(), dspTreeID(node), node->AsLclVarCommon()->GetLclNum());
+        JITDUMP("%d-[%06d]:V%02u ", iter.Get(), comp->dspTreeID(node), node->AsLclVarCommon()->GetLclNum());
     }
     JITDUMP("}\n\n");
 }
@@ -86,7 +89,8 @@ void Compiler::optDumpCopyPropStack(LclNumToGenTreePtrStack* curSsaName)
  * Given the "lclVar" and "copyVar" compute if the copy prop will be beneficial.
  *
  */
-int Compiler::optCopyProp_LclVarScore(LclVarDsc* lclVarDsc, LclVarDsc* copyVarDsc, bool preferOp2)
+// static
+int CopyPropogation::optCopyProp_LclVarScore(LclVarDsc* lclVarDsc, LclVarDsc* copyVarDsc, bool preferOp2)
 {
     int score = 0;
 
@@ -141,10 +145,13 @@ int Compiler::optCopyProp_LclVarScore(LclVarDsc* lclVarDsc, LclVarDsc* copyVarDs
 //    tree        -  The tree to perform copy propagation on
 //    curSsaName  -  The map from lclNum to its recently live definitions as a stack
 
-void Compiler::optCopyProp(BasicBlock* block, Statement* stmt, GenTree* tree, LclNumToGenTreePtrStack* curSsaName)
+void CopyPropogation::optCopyProp(BasicBlock*              block,
+                                  Statement*               stmt,
+                                  GenTree*                 tree,
+                                  LclNumToGenTreePtrStack* curSsaName)
 {
     // TODO-Review: EH successor/predecessor iteration seems broken.
-    if (block->bbCatchTyp == BBCT_FINALLY || block->bbCatchTyp == BBCT_FAULT)
+    if ((block->bbCatchTyp == BBCT_FINALLY) || (block->bbCatchTyp == BBCT_FAULT))
     {
         return;
     }
@@ -154,20 +161,20 @@ void Compiler::optCopyProp(BasicBlock* block, Statement* stmt, GenTree* tree, Lc
     {
         return;
     }
-    if (tree->OperGet() == GT_PHI_ARG || tree->OperGet() == GT_LCL_FLD)
+    if ((tree->OperGet() == GT_PHI_ARG) || (tree->OperGet() == GT_LCL_FLD))
     {
         return;
     }
 
     // Propagate only on uses.
-    if (tree->gtFlags & GTF_VAR_DEF)
+    if ((tree->gtFlags & GTF_VAR_DEF) != 0)
     {
         return;
     }
     unsigned lclNum = tree->AsLclVarCommon()->GetLclNum();
 
     // Skip non-SSA variables.
-    if (!lvaInSsa(lclNum))
+    if (!comp->lvaInSsa(lclNum))
     {
         return;
     }
@@ -186,9 +193,12 @@ void Compiler::optCopyProp(BasicBlock* block, Statement* stmt, GenTree* tree, Lc
             continue;
         }
 
+        LclVarDsc* lclVar    = comp->lvaGetDesc(lclNum);
+        LclVarDsc* newLclVar = comp->lvaGetDesc(newLclNum);
+
         // Skip variables with assignments embedded in the statement (i.e., with a comma). Because we
         // are not currently updating their SSA names as live in the copy-prop pass of the stmt.
-        if (VarSetOps::IsMember(this, optCopyPropKillSet, lvaTable[newLclNum].lvVarIndex))
+        if (VarSetOps::IsMember(comp, optCopyPropKillSet, newLclVar->lvVarIndex))
         {
             continue;
         }
@@ -199,21 +209,21 @@ void Compiler::optCopyProp(BasicBlock* block, Statement* stmt, GenTree* tree, Lc
         // However, in addition, it may not be profitable to propagate a 'doNotEnregister' lclVar to an
         // existing use of an enregisterable lclVar.
 
-        if (lvaTable[lclNum].lvDoNotEnregister != lvaTable[newLclNum].lvDoNotEnregister)
+        if (lclVar->lvDoNotEnregister != newLclVar->lvDoNotEnregister)
         {
             continue;
         }
 
-        if (op->gtFlags & GTF_VAR_CAST)
+        if ((op->gtFlags & GTF_VAR_CAST) != 0)
         {
             continue;
         }
-        if (gsShadowVarInfo != nullptr && lvaTable[newLclNum].lvIsParam &&
-            gsShadowVarInfo[newLclNum].shadowCopy == lclNum)
+        if ((comp->gsShadowVarInfo != nullptr) && newLclVar->lvIsParam &&
+            (comp->gsShadowVarInfo[newLclNum].shadowCopy == lclNum))
         {
             continue;
         }
-        ValueNum opVN = GetUseAsgDefVNOrTreeVN(op);
+        ValueNum opVN = comp->GetUseAsgDefVNOrTreeVN(op);
         if (opVN == ValueNumStore::NoVN)
         {
             continue;
@@ -226,7 +236,7 @@ void Compiler::optCopyProp(BasicBlock* block, Statement* stmt, GenTree* tree, Lc
         {
             continue;
         }
-        if (optCopyProp_LclVarScore(&lvaTable[lclNum], &lvaTable[newLclNum], true) <= 0)
+        if (optCopyProp_LclVarScore(lclVar, newLclVar, true) <= 0)
         {
             continue;
         }
@@ -243,30 +253,30 @@ void Compiler::optCopyProp(BasicBlock* block, Statement* stmt, GenTree* tree, Lc
         // node x2 = phi(x0, x1) which can then be used to substitute 'c' with. But because of pruning
         // there would be no such phi node. To solve this we'll check if 'x' is live, before replacing
         // 'c' with 'x.'
-        if (!lvaTable[newLclNum].lvVerTypeInfo.IsThisPtr())
+        if (!newLclVar->lvVerTypeInfo.IsThisPtr())
         {
-            if (lvaTable[newLclNum].lvAddrExposed)
+            if (newLclVar->lvAddrExposed)
             {
                 continue;
             }
 
             // We compute liveness only on tracked variables. So skip untracked locals.
-            if (!lvaTable[newLclNum].lvTracked)
+            if (!newLclVar->lvTracked)
             {
                 continue;
             }
 
             // Because of this dependence on live variable analysis, CopyProp phase is immediately
             // after Liveness, SSA and VN.
-            if (!VarSetOps::IsMember(this, compCurLife, lvaTable[newLclNum].lvVarIndex))
+            if (!VarSetOps::IsMember(comp, comp->compCurLife, newLclVar->lvVarIndex))
             {
                 continue;
             }
         }
         unsigned newSsaNum = SsaConfig::RESERVED_SSA_NUM;
-        if (op->gtFlags & GTF_VAR_DEF)
+        if ((op->gtFlags & GTF_VAR_DEF) != 0)
         {
-            newSsaNum = GetSsaNumForLocalVarDef(op);
+            newSsaNum = comp->GetSsaNumForLocalVarDef(op);
         }
         else // parameters, this pointer etc.
         {
@@ -279,25 +289,25 @@ void Compiler::optCopyProp(BasicBlock* block, Statement* stmt, GenTree* tree, Lc
         }
 
 #ifdef DEBUG
-        if (verbose)
+        if (VERBOSE)
         {
             JITDUMP("VN based copy assertion for ");
-            printTreeID(tree);
+            comp->printTreeID(tree);
             printf(" V%02d @%08X by ", lclNum, tree->GetVN(VNK_Conservative));
-            printTreeID(op);
+            comp->printTreeID(op);
             printf(" V%02d @%08X.\n", newLclNum, op->GetVN(VNK_Conservative));
-            gtDispTree(tree, nullptr, nullptr, true);
+            comp->gtDispTree(tree, nullptr, nullptr, true);
         }
 #endif
 
         tree->AsLclVarCommon()->SetLclNum(newLclNum);
         tree->AsLclVarCommon()->SetSsaNum(newSsaNum);
-        gtUpdateSideEffects(stmt, tree);
+        comp->gtUpdateSideEffects(stmt, tree);
 #ifdef DEBUG
-        if (verbose)
+        if (VERBOSE)
         {
             printf("copy propagated to:\n");
-            gtDispTree(tree, nullptr, nullptr, true);
+            comp->gtDispTree(tree, nullptr, nullptr, true);
         }
 #endif
         break;
@@ -309,9 +319,9 @@ void Compiler::optCopyProp(BasicBlock* block, Statement* stmt, GenTree* tree, Lc
  *
  * Helper to check if tree is a local that participates in SSA numbering.
  */
-bool Compiler::optIsSsaLocal(GenTree* tree)
+bool CopyPropogation::optIsSsaLocal(GenTree* tree)
 {
-    return tree->IsLocal() && lvaInSsa(tree->AsLclVarCommon()->GetLclNum());
+    return tree->IsLocal() && comp->lvaInSsa(tree->AsLclVarCommon()->GetLclNum());
 }
 
 //------------------------------------------------------------------------------
@@ -323,26 +333,21 @@ bool Compiler::optIsSsaLocal(GenTree* tree)
 //    block       -  Block the tree belongs to
 //    curSsaName  -  The map from lclNum to its recently live definitions as a stack
 
-void Compiler::optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curSsaName)
+void CopyPropogation::optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curSsaName)
 {
-#ifdef DEBUG
     JITDUMP("Copy Assertion for " FMT_BB "\n", block->bbNum);
-    if (verbose)
-    {
-        printf("  curSsaName stack: ");
-        optDumpCopyPropStack(curSsaName);
-    }
-#endif
+    JITDUMP("  curSsaName stack: ");
+    DBEXEC(VERBOSE, optDumpCopyPropStack(curSsaName));
 
     // We are not generating code so we don't need to deal with liveness change
-    TreeLifeUpdater<false> treeLifeUpdater(this);
+    TreeLifeUpdater<false> treeLifeUpdater(comp);
 
     // There are no definitions at the start of the block. So clear it.
-    compCurLifeTree = nullptr;
-    VarSetOps::Assign(this, compCurLife, block->bbLiveIn);
+    comp->compCurLifeTree = nullptr;
+    VarSetOps::Assign(comp, comp->compCurLife, block->bbLiveIn);
     for (Statement* stmt : block->Statements())
     {
-        VarSetOps::ClearD(this, optCopyPropKillSet);
+        VarSetOps::ClearD(comp, optCopyPropKillSet);
 
         // Walk the tree to find if any local variable can be replaced with current live definitions.
         for (GenTree* tree = stmt->GetTreeList(); tree != nullptr; tree = tree->gtNext)
@@ -367,7 +372,8 @@ void Compiler::optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curS
             //
             if (optIsSsaLocal(tree) && (tree->gtFlags & GTF_VAR_DEF))
             {
-                VarSetOps::AddElemD(this, optCopyPropKillSet, lvaTable[tree->AsLclVarCommon()->GetLclNum()].lvVarIndex);
+                unsigned lclNum = tree->AsLclVarCommon()->GetLclNum();
+                VarSetOps::AddElemD(comp, optCopyPropKillSet, comp->lvaGetDesc(lclNum)->lvVarIndex);
             }
         }
 
@@ -382,7 +388,7 @@ void Compiler::optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curS
             unsigned lclNum = tree->AsLclVarCommon()->GetLclNum();
 
             // As we encounter a definition add it to the stack as a live definition.
-            if (tree->gtFlags & GTF_VAR_DEF)
+            if ((tree->gtFlags & GTF_VAR_DEF) != 0)
             {
                 GenTreePtrStack* stack;
                 if (!curSsaName->Lookup(lclNum, &stack))
@@ -395,7 +401,7 @@ void Compiler::optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curS
             // If we encounter first use of a param or this pointer add it as a live definition.
             // Since they are always live, do it only once.
             else if ((tree->gtOper == GT_LCL_VAR) && !(tree->gtFlags & GTF_VAR_USEASG) &&
-                     (lvaTable[lclNum].lvIsParam || lvaTable[lclNum].lvVerTypeInfo.IsThisPtr()))
+                     (comp->lvaGetDesc(lclNum)->lvIsParam || comp->lvaGetDesc(lclNum)->lvVerTypeInfo.IsThisPtr()))
             {
                 GenTreePtrStack* stack;
                 if (!curSsaName->Lookup(lclNum, &stack))
@@ -434,26 +440,19 @@ void Compiler::optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curS
  * substituted x0 with a0, then we'd be in general SSA form.
  *
  */
-void Compiler::optVnCopyProp()
+void CopyPropogation::optVnCopyProp()
 {
-#ifdef DEBUG
-    if (verbose)
-    {
-        printf("*************** In optVnCopyProp()\n");
-    }
-#endif
+    JITDUMP("*************** In optVnCopyProp()\n");
 
-    if (fgSsaPassesCompleted == 0)
+    if (comp->fgSsaPassesCompleted == 0)
     {
         return;
     }
 
-    CompAllocator allocator(getAllocator(CMK_CopyProp));
-
     // Compute the domTree to use.
-    BlkToBlkVectorMap* domTree = new (allocator) BlkToBlkVectorMap(allocator);
-    domTree->Reallocate(fgBBcount * 3 / 2); // Prime the allocation
-    SsaBuilder::ComputeDominators(this, domTree);
+    BlkToBlkVectorMap* domTree = new (memAllocator) BlkToBlkVectorMap(memAllocator);
+    domTree->Reallocate(comp->fgBBcount * 3 / 2); // Prime the allocation
+    SsaBuilder::ComputeDominators(comp, domTree);
 
     struct BlockWork
     {
@@ -466,15 +465,14 @@ void Compiler::optVnCopyProp()
     };
     typedef jitstd::vector<BlockWork> BlockWorkStack;
 
-    VarSetOps::AssignNoCopy(this, compCurLife, VarSetOps::MakeEmpty(this));
-    VarSetOps::AssignNoCopy(this, optCopyPropKillSet, VarSetOps::MakeEmpty(this));
+    VarSetOps::AssignNoCopy(comp, comp->compCurLife, VarSetOps::MakeEmpty(comp));
 
     // The map from lclNum to its recently live definitions as a stack.
-    LclNumToGenTreePtrStack curSsaName(allocator);
+    LclNumToGenTreePtrStack curSsaName(memAllocator);
 
-    BlockWorkStack* worklist = new (allocator) BlockWorkStack(allocator);
+    BlockWorkStack* worklist = new (memAllocator) BlockWorkStack(memAllocator);
 
-    worklist->push_back(BlockWork(fgFirstBB));
+    worklist->push_back(BlockWork(comp->fgFirstBB));
     while (!worklist->empty())
     {
         BlockWork work = worklist->back();
@@ -506,5 +504,5 @@ void Compiler::optVnCopyProp()
 
     // Tracked variable count increases after CopyProp, so don't keep a shorter array around.
     // Destroy (release) the varset.
-    VarSetOps::AssignNoCopy(this, compCurLife, VarSetOps::UninitVal());
+    VarSetOps::AssignNoCopy(comp, comp->compCurLife, VarSetOps::UninitVal());
 }

@@ -16,6 +16,8 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #pragma hdrstop
 #endif
 
+#include "copyprop.h"
+
 /*****************************************************************************
  *
  *  Helper passed to Compiler::fgWalkTreePre() to find the Asgn node for optAddCopies()
@@ -2817,7 +2819,7 @@ GenTree* Compiler::optCopyAssertionProp(AssertionDsc* curAssertion,
     }
 
     // Make sure we can perform this copy prop.
-    if (optCopyProp_LclVarScore(lclVarDsc, copyVarDsc, curAssertion->op1.lcl.lclNum == lclNum) <= 0)
+    if (CopyPropogation::optCopyProp_LclVarScore(lclVarDsc, copyVarDsc, curAssertion->op1.lcl.lclNum == lclNum) <= 0)
     {
         return nullptr;
     }

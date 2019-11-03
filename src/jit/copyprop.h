@@ -14,5 +14,21 @@ public:
 
     virtual void DoPhase() override;
 
+    static int optCopyProp_LclVarScore(LclVarDsc* lclVarDsc, LclVarDsc* copyVarDsc, bool preferOp2);
+
 private:
+    typedef JitHashTable<unsigned, JitSmallPrimitiveKeyFuncs<unsigned>, GenTreePtrStack*> LclNumToGenTreePtrStack;
+
+    void optVnCopyProp();
+    void optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curSsaName);
+    void optBlockCopyPropPopStacks(BasicBlock* block, LclNumToGenTreePtrStack* curSsaName);
+    INDEBUG(void optDumpCopyPropStack(LclNumToGenTreePtrStack* curSsaName));
+    void optCopyProp(BasicBlock* block, Statement* stmt, GenTree* tree, LclNumToGenTreePtrStack* curSsaName);
+    bool optIsSsaLocal(GenTree* tree);
+
+private:
+    CompAllocator memAllocator;
+
+    // Kill set to track variables with intervening definitions.
+    VARSET_TP optCopyPropKillSet;
 };
