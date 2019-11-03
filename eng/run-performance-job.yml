@@ -5,7 +5,10 @@ parameters:
   displayName: ''                 # optional -- display name for the job. Will use jobName if not passed
   pool: ''                        # required -- name of the Build pool
   container: ''                   # required -- name of the container
+  buildConfig: ''                 # required -- build configuration
+  archType: ''                    # required -- targeting CPU architecture
   osGroup: ''                     # required -- operating system for the job
+  osSubgroup: ''                  # optional -- operating system subgroup
   extraSetupParameters: ''        # optional -- extra arguments to pass to the setup script
   frameworks: ['netcoreapp3.0']   # optional -- list of frameworks to run against
   continueOnError: 'false'        # optional -- determines whether to continue the build if the step errors
@@ -14,9 +17,13 @@ parameters:
   enableTelemetry: false          # optional -- enable for telemetry
 
 jobs:
-- template: ../jobs/jobs.yml
+- template: xplat-pipeline-job.yml
   parameters:
     dependsOn: ${{ parameters.dependsOn }}
+    buildConfig: ${{ parameters.buildConfig }}
+    archType: ${{ parameters.archType }}
+    osGroup: ${{ parameters.osGroup }}
+    osSubgroup: ${{ parameters.osSubgroup }}
     enableTelemetry: ${{ parameters.enableTelemetry }}
     enablePublishBuildArtifacts: true
     continueOnError: ${{ parameters.continueOnError }}
@@ -75,7 +82,7 @@ jobs:
           displayName: Performance Setup (Windows)
           condition: and(succeeded(), eq(variables['Agent.Os'], 'Windows_NT'))
           continueOnError: ${{ parameters.continueOnError }}
-        - script: $(Build.SourcesDirectory)/eng/common/performance/performance-setup.sh $(IsInternal) --framework $(_Framework) ${{ parameters.extraSetupParameters }}
+        - script: $(coreClrRepoRoot)/eng/common/performance/performance-setup.sh $(IsInternal) --framework $(_Framework) ${{ parameters.extraSetupParameters }}
           displayName: Performance Setup (Unix)
           condition: and(succeeded(), ne(variables['Agent.Os'], 'Windows_NT'))
           continueOnError: ${{ parameters.continueOnError }}
