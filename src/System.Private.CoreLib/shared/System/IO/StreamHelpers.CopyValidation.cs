@@ -47,7 +47,7 @@ namespace System.IO
             }
         }
 
-        public static void ValidateCopyToArgs(Stream source, ReadOnlySpanAction<byte, object> callback, int bufferSize)
+        public static void ValidateCopyToArgs(Stream source, ReadOnlySpanAction<byte, object?> callback, int bufferSize)
         {
             if (callback == null)
             {
@@ -57,7 +57,7 @@ namespace System.IO
             ValidateCopyToArgsCore(source, bufferSize);
         }
 
-        public static void ValidateCopyToArgs(Stream source, Func<ReadOnlyMemory<byte>, object, CancellationToken, Task> callback, int bufferSize)
+        public static void ValidateCopyToArgs(Stream source, Func<ReadOnlyMemory<byte>, object?, CancellationToken, ValueTask> callback, int bufferSize)
         {
             if (callback == null)
             {

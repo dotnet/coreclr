@@ -535,13 +535,13 @@ namespace System.IO
             if (GetType() != typeof(MemoryStream))
                 return base.CopyToAsync(destination, bufferSize, cancellationToken);
 
-            // If cancelled - return fast:
+            // If canceled - return fast:
             if (cancellationToken.IsCancellationRequested)
                 return Task.FromCanceled(cancellationToken);
 
             // Avoid copying data from this buffer into a temp buffer:
-            //   (require that InternalEmulateRead does not throw,
-            //    otherwise it needs to be wrapped into try-catch-Task.FromException like memStrDest.Write below)
+            // (require that InternalEmulateRead does not throw,
+            // otherwise it needs to be wrapped into try-catch-Task.FromException like memStrDest.Write below)
 
             int pos = _position;
             int n = InternalEmulateRead(_length - _position);
@@ -566,7 +566,7 @@ namespace System.IO
             }
         }
 
-        public override void CopyTo(Buffers.ReadOnlySpanAction<byte, object> callback, object state, int bufferSize)
+        public override void CopyTo(Buffers.ReadOnlySpanAction<byte, object?> callback, object? state, int bufferSize)
         {
             StreamHelpers.ValidateCopyToArgs(this, callback, bufferSize);
 
@@ -581,18 +581,14 @@ namespace System.IO
             }
 
             // Retrieve a span until the end of the MemoryStream.
-            var span = InternalReadSpan(_length - _position);
+            ReadOnlySpan<byte> span = InternalReadSpan(_length - _position);
 
-            // If we were already at or past the end, there's no copying to do so just quit.
-            if (!span.IsEmpty)
-            {
-                // Invoke the callback, using our internal span and avoiding any
-                // intermediary allocations.
-                callback(span, state);
-            }
+            // Invoke the callback, using our internal span and avoiding any
+            // intermediary allocations.
+            callback(span, state);
         }
 
-        public override Task CopyToAsync(Func<ReadOnlyMemory<byte>, object, CancellationToken, Task> callback, object state, int bufferSize, CancellationToken cancellationToken)
+        public override ValueTask CopyToAsync(Func<ReadOnlyMemory<byte>, object?, CancellationToken, ValueTask> callback, object? state, int bufferSize, CancellationToken cancellationToken)
         {
             StreamHelpers.ValidateCopyToArgs(this, callback, bufferSize);
 
@@ -603,18 +599,14 @@ namespace System.IO
             if (GetType() != typeof(MemoryStream))
                 return base.CopyToAsync(callback, state, bufferSize, cancellationToken);
 
-            // If cancelled - return fast:
+            // If canceled - return fast:
             if (cancellationToken.IsCancellationRequested)
-                return Task.FromCanceled(cancellationToken);
+                return new ValueTask(Task.FromCanceled(cancellationToken));
 
             // Avoid copying data from this buffer into a temp buffer:
-            //   (require that InternalReadSpan does not throw,
-            //    otherwise it needs to be wrapped into try-catch-Task.FromException like below)
-            var memory = InternalReadMemory(_length - _position);
-
-            // If we were already at or past the end, there's no copying to do so just quit.
-            if (memory.IsEmpty)
-                return Task.CompletedTask;
+            // (require that InternalReadMemory does not throw,
+            // otherwise it needs to be wrapped into try-catch-Task.FromException like below)
+            ReadOnlyMemory<byte> memory = InternalReadMemory(_length - _position);
 
             return callback(memory, state, cancellationToken);
         }
