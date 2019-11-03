@@ -191,14 +191,14 @@ namespace System.IO
 
         public virtual void CopyTo(ReadOnlySpanAction<byte, object> callback, object state, int bufferSize)
         {
-            if (callback == null) throw new ArgumentNullException(nameof(callback));
+            StreamHelpers.ValidateCopyToArgs(this, callback, bufferSize);
 
             CopyTo(new WriteCallbackStream(callback, state), bufferSize);
         }
 
         public virtual Task CopyToAsync(Func<ReadOnlyMemory<byte>, object, CancellationToken, Task> callback, object state, int bufferSize, CancellationToken cancellationToken)
         {
-            if (callback == null) throw new ArgumentNullException(nameof(callback));
+            StreamHelpers.ValidateCopyToArgs(this, callback, bufferSize);
 
             return CopyToAsync(new WriteCallbackStream(callback, state), bufferSize, cancellationToken);
         }

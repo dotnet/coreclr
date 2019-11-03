@@ -2,6 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Buffers;
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace System.IO
 {
     /// <summary>Provides methods to help in the implementation of Stream-derived types.</summary>
@@ -40,6 +44,45 @@ namespace System.IO
             if (!destinationCanWrite)
             {
                 throw new NotSupportedException(SR.NotSupported_UnwritableStream);
+            }
+        }
+
+        public static void ValidateCopyToArgs(Stream source, ReadOnlySpanAction<byte, object> callback, int bufferSize)
+        {
+            if (callback == null)
+            {
+                throw new ArgumentNullException(nameof(callback));
+            }
+
+            ValidateCopyToArgsCore(source, bufferSize);
+        }
+
+        public static void ValidateCopyToArgs(Stream source, Func<ReadOnlyMemory<byte>, object, CancellationToken, Task> callback, int bufferSize)
+        {
+            if (callback == null)
+            {
+                throw new ArgumentNullException(nameof(callback));
+            }
+
+            ValidateCopyToArgsCore(source, bufferSize);
+        }
+
+        private static void ValidateCopyToArgsCore(Stream source, int bufferSize)
+        {
+            if (bufferSize <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(bufferSize), bufferSize, SR.ArgumentOutOfRange_NeedPosNum);
+            }
+
+            bool sourceCanRead = source.CanRead;
+            if (!sourceCanRead && !source.CanWrite)
+            {
+                throw new ObjectDisposedException(null, SR.ObjectDisposed_StreamClosed);
+            }
+
+            if (!sourceCanRead)
+            {
+                throw new NotSupportedException(SR.NotSupported_UnreadableStream);
             }
         }
     }

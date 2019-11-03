@@ -568,9 +568,7 @@ namespace System.IO
 
         public override void CopyTo(Buffers.ReadOnlySpanAction<byte, object> callback, object state, int bufferSize)
         {
-            // Arguments validation
-            if (callback == null) throw new ArgumentNullException(nameof(callback));
-            if (bufferSize <= 0) throw new ArgumentOutOfRangeException(nameof(bufferSize), bufferSize, SR.ArgumentOutOfRange_NeedPosNum);
+            StreamHelpers.ValidateCopyToArgs(this, callback, bufferSize);
 
             // If we have been inherited into a subclass, the following implementation could be incorrect
             // since it does not call through to Read() which a subclass might have overridden.
@@ -596,9 +594,7 @@ namespace System.IO
 
         public override Task CopyToAsync(Func<ReadOnlyMemory<byte>, object, CancellationToken, Task> callback, object state, int bufferSize, CancellationToken cancellationToken)
         {
-            // Arguments validation
-            if (callback == null) throw new ArgumentNullException(nameof(callback));
-            if (bufferSize <= 0) throw new ArgumentOutOfRangeException(nameof(bufferSize), bufferSize, SR.ArgumentOutOfRange_NeedPosNum);
+            StreamHelpers.ValidateCopyToArgs(this, callback, bufferSize);
 
             // If we have been inherited into a subclass, the following implementation could be incorrect
             // since it does not call through to ReadAsync() which a subclass might have overridden.
