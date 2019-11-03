@@ -189,27 +189,35 @@ namespace System.IO
             return bufferSize;
         }
 
-        public virtual void CopyTo(ReadOnlySpanAction<byte, object> callback, object state, int bufferSize) =>
-            CopyTo(new WriteCallbackStream(callback, state), bufferSize);
+        public virtual void CopyTo(ReadOnlySpanAction<byte, object> callback, object state, int bufferSize)
+        {
+            if (callback == null) throw new ArgumentNullException(nameof(callback));
 
-        public virtual Task CopyToAsync(Func<object, ReadOnlyMemory<byte>, CancellationToken, Task> callback, object state, int bufferSize, CancellationToken cancellationToken) =>
-            CopyToAsync(new WriteCallbackStream(callback, state), bufferSize, cancellationToken);
+            CopyTo(new WriteCallbackStream(callback, state), bufferSize);
+        }
+
+        public virtual Task CopyToAsync(Func<ReadOnlyMemory<byte>, object, CancellationToken, Task> callback, object state, int bufferSize, CancellationToken cancellationToken)
+        {
+            if (callback == null) throw new ArgumentNullException(nameof(callback));
+
+            return CopyToAsync(new WriteCallbackStream(callback, state), bufferSize, cancellationToken);
+        }
 
         private sealed class WriteCallbackStream : Stream
         {
             private readonly ReadOnlySpanAction<byte, object>? _action;
-            private readonly Func<object, ReadOnlyMemory<byte>, CancellationToken, Task>? _func;
+            private readonly Func<ReadOnlyMemory<byte>, object, CancellationToken, Task>? _func;
             private readonly object _state;
 
             public WriteCallbackStream(ReadOnlySpanAction<byte, object> action, object state)
             {
-                _action = action ?? throw new ArgumentNullException(nameof(action));
+                _action = action;
                 _state = state;
             }
 
-            public WriteCallbackStream(Func<object, ReadOnlyMemory<byte>, CancellationToken, Task> func, object state)
+            public WriteCallbackStream(Func<ReadOnlyMemory<byte>, object, CancellationToken, Task> func, object state)
             {
-                _func = func ?? throw new ArgumentNullException(nameof(func));
+                _func = func;
                 _state = state;
             }
 
@@ -228,19 +236,19 @@ namespace System.IO
             public override Task WriteAsync(byte[] buffer, int offset, int length, CancellationToken cancellationToken)
             {
                 if (_func == null) throw new NotSupportedException();
-                return _func(_state, new ReadOnlyMemory<byte>(buffer, offset, length), cancellationToken);
+                return _func(new ReadOnlyMemory<byte>(buffer, offset, length), _state, cancellationToken);
             }
 
             public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
             {
                 if (_func == null) throw new NotSupportedException();
-                return new ValueTask(_func(_state, buffer, cancellationToken));
+                return new ValueTask(_func(buffer, _state, cancellationToken));
             }
 
             public override bool CanRead => false;
             public override bool CanSeek => false;
             public override bool CanWrite => true;
-            public override void Flush() => throw new NotSupportedException();
+            public override void Flush() { }
             public override long Length => throw new NotSupportedException();
             public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
             public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
