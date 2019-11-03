@@ -20,10 +20,10 @@ private:
     typedef JitHashTable<unsigned, JitSmallPrimitiveKeyFuncs<unsigned>, GenTreePtrStack*> LclNumToGenTreePtrStack;
 
     void optVnCopyProp();
-    void optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curSsaName);
-    void optBlockCopyPropPopStacks(BasicBlock* block, LclNumToGenTreePtrStack* curSsaName);
-    INDEBUG(void optDumpCopyPropStack(LclNumToGenTreePtrStack* curSsaName));
-    void optCopyProp(BasicBlock* block, Statement* stmt, GenTree* tree, LclNumToGenTreePtrStack* curSsaName);
+    void optBlockCopyProp(BasicBlock* block);
+    void optBlockCopyPropPopStacks(BasicBlock* block);
+    INDEBUG(void optDumpCopyPropStack());
+    void optCopyProp(BasicBlock* block, Statement* stmt, GenTree* tree);
     bool optIsSsaLocal(GenTree* tree);
 
 private:
@@ -31,4 +31,7 @@ private:
 
     // Kill set to track variables with intervening definitions.
     VARSET_TP optCopyPropKillSet;
+
+    // The map from lclNum to its recently live definitions as a stack.
+    LclNumToGenTreePtrStack curSsaName;
 };
