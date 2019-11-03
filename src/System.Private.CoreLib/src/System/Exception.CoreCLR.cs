@@ -248,7 +248,7 @@ namespace System
         private static extern void PrepareForForeignExceptionRaise();
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern void GetStackTracesDeepCopy(Exception exception, out byte[] currentStackTrace, out object[] dynamicMethodArray);
+        private static extern void GetStackTracesDeepCopy(Exception exception, out byte[]? currentStackTrace, out object[]? dynamicMethodArray);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void SaveStackTracesFromDeepCopy(Exception exception, byte[]? currentStackTrace, object[]? dynamicMethodArray);
@@ -260,9 +260,8 @@ namespace System
         // exception, just before the exception is "rethrown".
         internal void RestoreDispatchState(in DispatchState dispatchState)
         {
-            bool fCanProcessException = !IsImmutableAgileException(this);
             // Restore only for non-preallocated exceptions
-            if (fCanProcessException)
+            if (!IsImmutableAgileException(this))
             {
                 // When restoring back the fields, we again create a copy and set reference to them
                 // in the exception object. This will ensure that when this exception is thrown and these
