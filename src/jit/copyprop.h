@@ -27,11 +27,11 @@ private:
     bool optIsSsaLocal(GenTree* tree);
 
 private:
-    CompAllocator memAllocator;
+    CompAllocator m_memAllocator;
 
     // Kill set to track variables with intervening definitions.
-    VARSET_TP optCopyPropKillSet;
+    VARSET_TP m_currKillSet;
 
     // The map from lclNum to its recently live definitions as a stack.
-    LclNumToGenTreePtrStack curSsaName;
+    LclNumToGenTreePtrStack m_liveLclVarDefs;
 };

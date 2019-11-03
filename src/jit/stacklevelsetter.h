@@ -33,7 +33,7 @@ private:
     unsigned currentStackLevel; // current number of stack slots used by arguments.
     unsigned maxStackLevel;     // max number of stack slots for arguments.
 
-    CompAllocator memAllocator;
+    CompAllocator m_memAllocator;
 
     typedef JitHashTable<GenTreePutArgStk*, JitPtrKeyFuncs<GenTreePutArgStk>, unsigned> PutArgNumSlotsMap;
     PutArgNumSlotsMap putArgNumSlots; // The hash table keeps stack slot sizes for active GT_PUTARG_STK nodes.
