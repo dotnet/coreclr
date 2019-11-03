@@ -762,7 +762,7 @@ FCIMPL5(void, ArrayNative::CopySlow, ArrayBase* pSrc, INT32 iSrcIndex, ArrayBase
     _ASSERTE(iSrcIndex >= 0);
     _ASSERTE(iDstIndex >= 0);
     _ASSERTE((DWORD)(iSrcIndex + iLength) <= gc.pSrc->GetNumComponents());
-    _ASSERTE((DWORD)(iDstIndex + iLength) > gc.pDst->GetNumComponents());
+    _ASSERTE((DWORD)(iDstIndex + iLength) <= gc.pDst->GetNumComponents());
 
     HELPER_METHOD_FRAME_BEGIN_PROTECT(gc);
 
