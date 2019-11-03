@@ -18,8 +18,21 @@
 ///////////////////////////////////////////////////////////////////////////////////////
 
 #include "jitpch.h"
+#ifdef _MSC_VER
+#pragma hdrstop
+#endif
+
+#include "copyprop.h"
 #include "ssabuilder.h"
-#include "treelifeupdater.h"
+
+CopyPropogation::CopyPropogation(Compiler* compiler) : Phase(compiler, "VnCopyPropogation", PHASE_VN_COPY_PROP)
+{
+}
+
+void CopyPropogation::DoPhase()
+{
+    comp->optVnCopyProp();
+}
 
 /**************************************************************************************
  *

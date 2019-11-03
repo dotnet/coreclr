@@ -22,6 +22,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #include "lower.h"
 #include "stacklevelsetter.h"
 #include "jittelemetry.h"
+#include "copyprop.h"
 
 #if defined(DEBUG)
 // Column settings for COMPlus_JitDumpIR.  We could(should) make these programmable.
@@ -4794,8 +4795,8 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
             if (doCopyProp)
             {
                 /* Perform VN based copy propagation */
-                optVnCopyProp();
-                EndPhase(PHASE_VN_COPY_PROP);
+                CopyPropogation copyPropogation(this); // PHASE_VN_COPY_PROP
+                copyPropogation.Run();
             }
 
 #if FEATURE_ANYCSE
