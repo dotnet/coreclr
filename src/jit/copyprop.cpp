@@ -46,9 +46,12 @@ void CopyPropogation::DoPhase()
  */
 void CopyPropogation::optBlockCopyPropPopStacks(BasicBlock* block)
 {
-    for (Statement* stmt : block->Statements())
+    Statement* lastStmt = block->lastStmt();
+    Statement* stmt     = block->lastStmt();
+    while (stmt != nullptr)
     {
-        for (GenTree* tree = stmt->GetTreeList(); tree != nullptr; tree = tree->gtNext)
+        GenTree* lastTree = stmt->GetRootNode();
+        for (GenTree* tree = lastTree; tree != nullptr; tree = tree->gtPrev)
         {
             if (!tree->IsLocal())
             {
@@ -69,6 +72,11 @@ void CopyPropogation::optBlockCopyPropPopStacks(BasicBlock* block)
                     m_liveLclVarDefs.Remove(lclNum);
                 }
             }
+        }
+        stmt = stmt->GetPrevStmt();
+        if (stmt == lastStmt)
+        {
+            break;
         }
     }
 }
