@@ -245,6 +245,25 @@ namespace System.IO
             return span;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal ReadOnlyMemory<byte> InternalReadMemory(int count)
+        {
+            EnsureNotClosed();
+
+            int origPos = _position;
+            int newPos = origPos + count;
+
+            if ((uint)newPos > (uint)_length)
+            {
+                _position = _length;
+                throw Error.GetEndOfFile();
+            }
+
+            var span = new ReadOnlyMemory<byte>(_buffer, origPos, count);
+            _position = newPos;
+            return span;
+        }
+
         // PERF: Get actual length of bytes available for read; do sanity checks; shift position - i.e. everything except actual copying bytes
         internal int InternalEmulateRead(int count)
         {
@@ -545,6 +564,63 @@ namespace System.IO
             {
                 return Task.FromException(ex);
             }
+        }
+
+        public override void CopyTo(Buffers.ReadOnlySpanAction<byte, object> callback, object state, int bufferSize)
+        {
+            // Arguments validation
+            if (callback == null) throw new ArgumentNullException(nameof(callback));
+            if (bufferSize <= 0) throw new ArgumentOutOfRangeException(nameof(bufferSize), bufferSize, SR.ArgumentOutOfRange_NeedPosNum);
+
+            // If we have been inherited into a subclass, the following implementation could be incorrect
+            // since it does not call through to Read() which a subclass might have overridden.
+            // To be safe we will only use this implementation in cases where we know it is safe to do so,
+            // and delegate to our base class (which will call into Read) when we are not sure.
+            if (GetType() != typeof(MemoryStream))
+            {
+                base.CopyTo(callback, state, bufferSize);
+                return;
+            }
+
+            // Retrieve a span until the end of the MemoryStream.
+            var span = InternalReadSpan(_length - _position);
+
+            // If we were already at or past the end, there's no copying to do so just quit.
+            if (!span.IsEmpty)
+            {
+                // Invoke the callback, using our internal span and avoiding any
+                // intermediary allocations.
+                callback(span, state);
+            }
+        }
+
+        public override Task CopyToAsync(Func<ReadOnlyMemory<byte>, object, CancellationToken, Task> callback, object state, int bufferSize, CancellationToken cancellationToken)
+        {
+            // Arguments validation
+            if (callback == null) throw new ArgumentNullException(nameof(callback));
+            if (bufferSize <= 0) throw new ArgumentOutOfRangeException(nameof(bufferSize), bufferSize, SR.ArgumentOutOfRange_NeedPosNum);
+
+            // If we have been inherited into a subclass, the following implementation could be incorrect
+            // since it does not call through to ReadAsync() which a subclass might have overridden.
+            // To be safe we will only use this implementation in cases where we know it is safe to do so,
+            // and delegate to our base class (which will call into ReadAsync) when we are not sure.
+            if (GetType() != typeof(MemoryStream))
+                return base.CopyToAsync(callback, state, bufferSize, cancellationToken);
+
+            // If cancelled - return fast:
+            if (cancellationToken.IsCancellationRequested)
+                return Task.FromCanceled(cancellationToken);
+
+            // Avoid copying data from this buffer into a temp buffer:
+            //   (require that InternalReadSpan does not throw,
+            //    otherwise it needs to be wrapped into try-catch-Task.FromException like below)
+            var memory = InternalReadMemory(_length - _position);
+
+            // If we were already at or past the end, there's no copying to do so just quit.
+            if (memory.IsEmpty)
+                return Task.CompletedTask;
+
+            return callback(memory, state, cancellationToken);
         }
 
         public override long Seek(long offset, SeekOrigin loc)
