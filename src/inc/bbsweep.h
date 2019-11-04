@@ -344,13 +344,13 @@ cleanup:
         // 2. From bbsweepclr.exe
         //
         // When called from process init code, processID is always INVALID_PID.
-        // In case it is a Win8-AppContainer/WP8 process, we need to add the AppContainerNamedObjectPath to prefix.
+        // In case it is a AppContainer process, we need to add the AppContainerNamedObjectPath to prefix.
         // And if it is a non-AppContainer process, we will continue to use the default prefix (Global).
         // We use IsAppContainerProcess(CurrentProcessId) to make this decision.
         //
         //
-        // When called from bbsweepclr, processID is valid when sweeping a AppContainer or WP8 process.
-        // We use this valid processID to determine if the process being swept is AppContainer/WP8 indeed and then
+        // When called from bbsweepclr, processID is valid when sweeping a AppContainer process.
+        // We use this valid processID to determine if the process being swept is AppContainer indeed and then
         // add AppContainerNamedObjectPath to prefix. This is done by IsAppContainerProcess(processID).
         //
         // In case INVALID_PID is passed(non-AppContainer process), we have to use default prefix. To handle this
