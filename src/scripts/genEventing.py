@@ -273,8 +273,12 @@ def generateClrallEvents(eventNodes,allTemplates):
         clrallEvents.append("inline BOOL EventEnabled")
         clrallEvents.append(eventName)
         clrallEvents.append("() {return ")
-        clrallEvents.append("EventPipeEventEnabled" + eventName + "() || ")
-        clrallEvents.append("(XplatEventLogger::IsEventLoggingEnabled() && EventXplatEnabled" + eventName + "());}\n\n")
+        clrallEvents.append("EventPipeEventEnabled" + eventName + "()")
+
+        if os.name == 'posix':
+            clrallEvents.append("|| (XplatEventLogger::IsEventLoggingEnabled() && EventXplatEnabled" + eventName + "());}\n\n")
+        else:
+            clrallEvents.append(";}\n\n")
         #generate FireEtw functions
         fnptype     = []
         fnbody      = []
@@ -502,6 +506,30 @@ def generateEtmDummyHeader(sClrEtwAllMan,clretwdummy):
             #pal: create etmdummy.h
             Clretwdummy.write(generateclrEtwDummy(eventNodes, allTemplates) + "\n")
 
+def convertToLevelId(level):
+    if level == "win:LogAlways":
+       return 0
+    if level == "win:Critical":
+       return 1
+    if level == "win:Error":
+       return 2
+    if level == "win:Warning":
+       return 3
+    if level == "win:Informational":
+       return 4
+    if level == "win:Verbose":
+       return 5
+    raise Exception("unknown level " + level)
+
+def getKeywordsMaskCombined(keywords, keywordsToMask):
+    mask = 0
+    for keyword in keywords.split(" "):
+       if keyword == "":
+          continue
+       mask |= keywordsToMask[keyword]
+
+    return mask
+
 def generatePlatformIndependentFiles(sClrEtwAllMan, incDir, etmDummyFile, extern, write_xplatheader):
 
     generateEtmDummyHeader(sClrEtwAllMan,etmDummyFile)
@@ -513,8 +541,77 @@ def generatePlatformIndependentFiles(sClrEtwAllMan, incDir, etmDummyFile, extern
     if not os.path.exists(incDir):
         os.makedirs(incDir)
 
+    eventpipe_trace_context_typedef = """
+#if !defined(EVENTPIPE_TRACE_CONTEXT_DEF)
+#define EVENTPIPE_TRACE_CONTEXT_DEF
+typedef struct _EVENTPIPE_TRACE_CONTEXT
+{
+    WCHAR const * Name;
+    UCHAR Level;
+    bool IsEnabled;
+    ULONGLONG EnabledKeywordsBitmask;
+} EVENTPIPE_TRACE_CONTEXT, *PEVENTPIPE_TRACE_CONTEXT;
+#endif // EVENTPIPE_TRACE_CONTEXT_DEF
+"""
+
+    lttng_trace_context_typedef = """
+#if !defined(LTTNG_TRACE_CONTEXT_DEF)
+#define LTTNG_TRACE_CONTEXT_DEF
+typedef struct _LTTNG_TRACE_CONTEXT
+{
+    WCHAR const * Name;
+    UCHAR Level;
+    bool IsEnabled;
+    ULONGLONG EnabledKeywordsBitmask;
+} LTTNG_TRACE_CONTEXT, *PLTTNG_TRACE_CONTEXT;
+#endif // LTTNG_TRACE_CONTEXT_DEF
+"""
+
+    dotnet_trace_context_typedef_windows = """
+#if !defined(DOTNET_TRACE_CONTEXT_DEF)
+#define DOTNET_TRACE_CONTEXT_DEF
+typedef struct _DOTNET_TRACE_CONTEXT
+{
+    PMCGEN_TRACE_CONTEXT EtwProvider;
+    EVENTPIPE_TRACE_CONTEXT EventPipeProvider;
+} DOTNET_TRACE_CONTEXT, *PDOTNET_TRACE_CONTEXT;
+#endif // DOTNET_TRACE_CONTEXT_DEF
+"""
+
+    dotnet_trace_context_typedef_unix = """
+#if !defined(DOTNET_TRACE_CONTEXT_DEF)
+#define DOTNET_TRACE_CONTEXT_DEF
+typedef struct _DOTNET_TRACE_CONTEXT
+{
+    EVENTPIPE_TRACE_CONTEXT EventPipeProvider;
+    PLTTNG_TRACE_CONTEXT LttngProvider;
+} DOTNET_TRACE_CONTEXT, *PDOTNET_TRACE_CONTEXT;
+#endif // DOTNET_TRACE_CONTEXT_DEF
+"""
+
+    trace_context_instdef_windows = """
+EXTERN_C __declspec(selectany) DOTNET_TRACE_CONTEXT MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context = { &MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_EVENTPIPE_Context };
+
+EXTERN_C __declspec(selectany) DOTNET_TRACE_CONTEXT MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_DOTNET_Context = { &MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_EVENTPIPE_Context };
+
+EXTERN_C __declspec(selectany) DOTNET_TRACE_CONTEXT MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_DOTNET_Context = { &MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_Context, MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_EVENTPIPE_Context };
+
+EXTERN_C __declspec(selectany) DOTNET_TRACE_CONTEXT MICROSOFT_WINDOWS_DOTNETRUNTIME_STRESS_PROVIDER_DOTNET_Context = { &MICROSOFT_WINDOWS_DOTNETRUNTIME_STRESS_PROVIDER_Context, MICROSOFT_WINDOWS_DOTNETRUNTIME_STRESS_PROVIDER_EVENTPIPE_Context };
+"""
+
+    trace_context_instdef_unix = """
+EXTERN_C __declspec(selectany) DOTNET_TRACE_CONTEXT MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context = { MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_EVENTPIPE_Context, &MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_LTTNG_Context };
+
+EXTERN_C __declspec(selectany) DOTNET_TRACE_CONTEXT MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_DOTNET_Context = { MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_EVENTPIPE_Context, &MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_LTTNG_Context };
+
+EXTERN_C __declspec(selectany) DOTNET_TRACE_CONTEXT MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_DOTNET_Context = { MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_EVENTPIPE_Context, &MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_LTTNG_Context };
+
+EXTERN_C __declspec(selectany) DOTNET_TRACE_CONTEXT MICROSOFT_WINDOWS_DOTNETRUNTIME_STRESS_PROVIDER_DOTNET_Context = { MICROSOFT_WINDOWS_DOTNETRUNTIME_STRESS_PROVIDER_EVENTPIPE_Context, &MICROSOFT_WINDOWS_DOTNETRUNTIME_STRESS_PROVIDER_LTTNG_Context };
+"""
+
     # Write the main header for FireETW* functions
     clrallevents = os.path.join(incDir, "clretwallmain.h")
+    is_windows = os.name == 'nt'
     with open_for_update(clrallevents) as Clrallevents:
         Clrallevents.write(stdprolog)
         Clrallevents.write("""
@@ -522,6 +619,12 @@ def generatePlatformIndependentFiles(sClrEtwAllMan, incDir, etmDummyFile, extern
 #include "clreventpipewriteevents.h"
 
 """)
+
+        # define DOTNET_TRACE_CONTEXT depending on the platform
+        if is_windows:
+            Clrallevents.write(eventpipe_trace_context_typedef)  # define EVENTPIPE_TRACE_CONTEXT
+            Clrallevents.write(dotnet_trace_context_typedef_windows)
+
         for providerNode in tree.getElementsByTagName('provider'):
             templateNodes = providerNode.getElementsByTagName('template')
             allTemplates  = parseTemplateNodes(templateNodes)
@@ -529,6 +632,76 @@ def generatePlatformIndependentFiles(sClrEtwAllMan, incDir, etmDummyFile, extern
 
             #vm header:
             Clrallevents.write(generateClrallEvents(eventNodes, allTemplates) + "\n")
+
+            providerName = providerNode.getAttribute('name')
+            providerSymbol = providerNode.getAttribute('symbol')
+
+            if is_windows:
+                eventpipeProviderCtxName = providerSymbol + "_EVENTPIPE_Context"
+                Clrallevents.write('EXTERN_C __declspec(selectany) EVENTPIPE_TRACE_CONTEXT ' + eventpipeProviderCtxName + ' = { W("' + providerName + '"), 0, false, 0 };\n')
+
+        # define and initialize runtime providers' DOTNET_TRACE_CONTEXT depending on the platform
+        if is_windows:
+            Clrallevents.write(trace_context_instdef_windows)
+
+    if write_xplatheader:
+        clrproviders = os.path.join(incDir, "clrproviders.h")
+        with open_for_update(clrproviders) as Clrproviders:
+            Clrproviders.write("""
+    typedef struct _EVENT_DESCRIPTOR
+    {
+        int const Level;
+        ULONGLONG const Keyword;
+    } EVENT_DESCRIPTOR;
+    """)
+
+            if not is_windows:
+                Clrproviders.write(eventpipe_trace_context_typedef)  # define EVENTPIPE_TRACE_CONTEXT
+                Clrproviders.write(lttng_trace_context_typedef)  # define LTTNG_TRACE_CONTEXT
+                Clrproviders.write(dotnet_trace_context_typedef_unix)
+
+            allProviders = []
+            nbProviders = 0
+            for providerNode in tree.getElementsByTagName('provider'):
+                keywords = []
+                keywordsToMask = {}
+                providerName = str(providerNode.getAttribute('name'))
+                providerSymbol = str(providerNode.getAttribute('symbol'))
+                nbProviders += 1
+                nbKeywords = 0
+                if not is_windows:
+                    eventpipeProviderCtxName = providerSymbol + "_EVENTPIPE_Context"
+                    Clrproviders.write('EXTERN_C __declspec(selectany) EVENTPIPE_TRACE_CONTEXT ' + eventpipeProviderCtxName + ' = { W("' + providerName + '"), 0, false, 0 };\n')
+                    lttngProviderCtxName = providerSymbol + "_LTTNG_Context"
+                    Clrproviders.write('EXTERN_C __declspec(selectany) LTTNG_TRACE_CONTEXT ' + lttngProviderCtxName + ' = { W("' + providerName + '"), 0, false, 0 };\n')
+
+                Clrproviders.write("// Keywords\n");
+                for keywordNode in providerNode.getElementsByTagName('keyword'):
+                    keywordName = keywordNode.getAttribute('name')
+                    keywordMask = keywordNode.getAttribute('mask')
+                    keywordSymbol = keywordNode.getAttribute('symbol')
+                    Clrproviders.write("#define " + keywordSymbol + " " + keywordMask + "\n")
+
+                    keywords.append("{ \"" + keywordName + "\", " + keywordMask + " }")
+                    keywordsToMask[keywordName] = int(keywordMask, 16)
+                    nbKeywords += 1
+
+                for eventNode in providerNode.getElementsByTagName('event'):
+                    levelName = eventNode.getAttribute('level')
+                    symbolName = eventNode.getAttribute('symbol')
+                    keywords = eventNode.getAttribute('keywords')
+                    level = convertToLevelId(levelName)
+                    Clrproviders.write("EXTERN_C __declspec(selectany) EVENT_DESCRIPTOR const " + symbolName + " = { " + str(level) + ", " + hex(getKeywordsMaskCombined(keywords, keywordsToMask)) + " };\n")
+
+                allProviders.append("&" + providerSymbol + "_LTTNG_Context")
+
+            # define and initialize runtime providers' DOTNET_TRACE_CONTEXT depending on the platform
+            if not is_windows:
+                Clrproviders.write('#define NB_PROVIDERS ' + str(nbProviders) + '\n')
+                Clrproviders.write('EXTERN_C __declspec(selectany) LTTNG_TRACE_CONTEXT * const ALL_LTTNG_PROVIDERS_CONTEXT[NB_PROVIDERS] = { ')
+                Clrproviders.write(', '.join(allProviders))
+                Clrproviders.write(' };\n')
+                Clrproviders.write(trace_context_instdef_unix)
 
 
     clreventpipewriteevents = os.path.join(incDir, "clreventpipewriteevents.h")

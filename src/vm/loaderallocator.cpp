@@ -1120,7 +1120,7 @@ void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory)
 
     dwTotalReserveMemSize = (DWORD) ALIGN_UP(dwTotalReserveMemSize, VIRTUAL_ALLOC_RESERVE_GRANULARITY);
 
-#if !defined(_WIN64)
+#if !defined(BIT64)
     // Make sure that we reserve as little as possible on 32-bit to save address space
     _ASSERTE(dwTotalReserveMemSize <= VIRTUAL_ALLOC_RESERVE_GRANULARITY);
 #endif
@@ -1534,53 +1534,6 @@ DispatchToken LoaderAllocator::GetDispatchToken(
 #endif // FAT_DISPATCH_TOKENS
 
     return DispatchToken::CreateDispatchToken(typeId, slotNumber);
-}
-
-DispatchToken LoaderAllocator::TryLookupDispatchToken(UINT32 typeId, UINT32 slotNumber)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    } CONTRACTL_END;
-
-#ifdef FAT_DISPATCH_TOKENS
-
-    if (DispatchToken::RequiresDispatchTokenFat(typeId, slotNumber))
-    {
-        if (m_pFatTokenSetLock != NULL)
-        {
-            DispatchTokenFat * pFat = NULL;
-            // Stack probes and locking operations are throwing. Catch all
-            // exceptions and just return an invalid token, since this is
-            EX_TRY
-            {
-                SimpleReadLockHolder rlock(m_pFatTokenSetLock);
-                if (m_pFatTokenSet != NULL)
-                {
-                    DispatchTokenFat key(typeId, slotNumber);
-                    pFat = m_pFatTokenSet->Lookup(&key);
-                }
-            }
-            EX_CATCH
-            {
-                pFat = NULL;
-            }
-            EX_END_CATCH(SwallowAllExceptions);
-
-            if (pFat != NULL)
-            {
-                return DispatchToken(pFat);
-            }
-        }
-        // Return invalid token when not found.
-        return DispatchToken();
-    }
-    else
-#endif // FAT_DISPATCH_TOKENS
-    {
-        return DispatchToken::CreateDispatchToken(typeId, slotNumber);
-    }
 }
 
 void LoaderAllocator::InitVirtualCallStubManager(BaseDomain * pDomain)

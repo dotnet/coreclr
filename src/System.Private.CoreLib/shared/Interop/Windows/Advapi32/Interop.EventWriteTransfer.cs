@@ -10,12 +10,12 @@ using Microsoft.Diagnostics.Tracing;
 using System.Diagnostics.Tracing;
 #endif
 
-internal partial class Interop
+internal static partial class Interop
 {
-    internal partial class Advapi32
+    internal static partial class Advapi32
     {
         /// <summary>
-        ///  Call the ETW native API EventWriteTransfer and checks for invalid argument error. 
+        ///  Call the ETW native API EventWriteTransfer and checks for invalid argument error.
         ///  The implementation of EventWriteTransfer on some older OSes (Windows 2008) does not accept null relatedActivityId.
         ///  So, for these cases we will retry the call with an empty Guid.
         /// </summary>
@@ -38,7 +38,7 @@ internal partial class Interop
         }
 
         [DllImport(Interop.Libraries.Advapi32, ExactSpelling = true, EntryPoint = "EventWriteTransfer")]
-        private static unsafe extern int EventWriteTransfer_PInvoke(
+        private static extern unsafe int EventWriteTransfer_PInvoke(
             long registrationHandle,
             in EventDescriptor eventDescriptor,
             Guid* activityId,

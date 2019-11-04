@@ -9,11 +9,6 @@ set(MSCORPE_SOURCES
   ceefilegenwritertokens.cpp
 )
 
-if(WIN32)
-else()
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-delete-non-virtual-dtor")
-endif(WIN32)
-
 add_library_clr(mscorpe STATIC
   ${MSCORPE_SOURCES}
 )

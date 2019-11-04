@@ -15,7 +15,7 @@
 
 #define READYTORUN_SIGNATURE 0x00525452 // 'RTR'
 
-#define READYTORUN_MAJOR_VERSION 0x0003
+#define READYTORUN_MAJOR_VERSION 0x0004
 #define READYTORUN_MINOR_VERSION 0x0001
 #define MINIMUM_READYTORUN_MAJOR_VERSION 0x003
 // R2R Version 2.1 adds the READYTORUN_SECTION_INLINING_INFO section
@@ -305,11 +305,15 @@ enum ReadyToRunHelper
     READYTORUN_HELPER_DblRound                  = 0xE2,
     READYTORUN_HELPER_FltRound                  = 0xE3,
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     // Personality rountines
     READYTORUN_HELPER_PersonalityRoutine        = 0xF0,
     READYTORUN_HELPER_PersonalityRoutineFilterFunclet = 0xF1,
 #endif
+
+    // Synchronized methods
+    READYTORUN_HELPER_MonitorEnter              = 0xF8,
+    READYTORUN_HELPER_MonitorExit               = 0xF9,
 
     //
     // Deprecated/legacy
@@ -331,6 +335,9 @@ enum ReadyToRunHelper
 
     // JIT32 x86-specific exception handling
     READYTORUN_HELPER_EndCatch                  = 0x110,
+
+    // Stack probing helper
+    READYTORUN_HELPER_StackProbe                = 0x111,
 };
 
 //
@@ -354,6 +361,11 @@ struct READYTORUN_EXCEPTION_CLAUSE
         mdToken         ClassToken;
         DWORD           FilterOffset;
     };  
+};
+
+enum ReadyToRunRuntimeConstants : DWORD
+{
+    READYTORUN_PInvokeTransitionFrameSizeInPointerUnits = 11
 };
 
 #endif // __READYTORUN_H__

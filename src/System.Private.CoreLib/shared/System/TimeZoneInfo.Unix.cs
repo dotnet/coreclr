@@ -396,7 +396,7 @@ namespace System
             if (symlinkPath != null)
             {
                 // symlinkPath can be relative path, use Path to get the full absolute path.
-                symlinkPath = Path.GetFullPath(symlinkPath, Path.GetDirectoryName(tzFilePath)!); // TODO-NULLABLE: Remove ! when nullable attributes are respected
+                symlinkPath = Path.GetFullPath(symlinkPath, Path.GetDirectoryName(tzFilePath)!);
 
                 string timeZoneDirectory = GetTimeZoneDirectory();
                 if (symlinkPath.StartsWith(timeZoneDirectory, StringComparison.Ordinal))
@@ -436,7 +436,7 @@ namespace System
 
                 fixed (byte* dirBufferPtr = dirBuffer)
                 {
-                    for(;;)
+                    while (true)
                     {
                         IntPtr dirHandle = Interop.Sys.OpenDir(currentPath);
                         if (dirHandle == IntPtr.Zero)
@@ -488,10 +488,7 @@ namespace System
                                 // we're returning directories.
                                 if (isDir)
                                 {
-                                    if (toExplore == null)
-                                    {
-                                        toExplore = new List<string>();
-                                    }
+                                    toExplore ??= new List<string>();
                                     toExplore.Add(fullPath);
                                 }
                                 else if (condition(fullPath))
@@ -537,7 +534,7 @@ namespace System
             try
             {
                 EnumerateFilesRecursively(timeZoneDirectory, (string filePath) =>
-                {                
+                {
                     // skip the localtime and posixrules file, since they won't give us the correct id
                     if (!string.Equals(filePath, localtimeFilePath, StringComparison.OrdinalIgnoreCase)
                         && !string.Equals(filePath, posixrulesFilePath, StringComparison.OrdinalIgnoreCase))
@@ -618,7 +615,7 @@ namespace System
             string? id;
             if (TryGetLocalTzFile(out rawData, out id))
             {
-                TimeZoneInfo? result = GetTimeZoneFromTzData(rawData!, id!); // TODO-NULLABLE: Remove ! when nullable attributes are respected
+                TimeZoneInfo? result = GetTimeZoneFromTzData(rawData, id);
                 if (result != null)
                 {
                     return result;
@@ -629,7 +626,7 @@ namespace System
             return Utc;
         }
 
-        private static TimeZoneInfo? GetTimeZoneFromTzData(byte[] rawData, string id)
+        private static TimeZoneInfo? GetTimeZoneFromTzData(byte[]? rawData, string id)
         {
             if (rawData != null)
             {
@@ -660,7 +657,7 @@ namespace System
             }
             else if (!tzDirectory.EndsWith(Path.DirectorySeparatorChar))
             {
-                tzDirectory += Path.DirectorySeparatorChar;
+                tzDirectory += PathInternal.DirectorySeparatorCharAsString;
             }
 
             return tzDirectory;
@@ -993,7 +990,7 @@ namespace System
                     {
                         if (!IsValidAdjustmentRuleOffest(timeZoneBaseUtcOffset, r))
                         {
-                            NormalizeAdjustmentRuleOffset(timeZoneBaseUtcOffset, ref r!); // TODO-NULLABLE: Remove ! when nullable attributes are respected
+                            NormalizeAdjustmentRuleOffset(timeZoneBaseUtcOffset, ref r);
                         }
 
                         rulesList.Add(r);
@@ -1218,7 +1215,7 @@ namespace System
         {
             if (date.IsEmpty)
             {
-                return default(TransitionTime);
+                return default;
             }
 
             if (date[0] == 'M')
@@ -1241,27 +1238,27 @@ namespace System
             {
                 if (date[0] != 'J')
                 {
-                    // should be n Julian day format which we don't support. 
-                    // 
+                    // should be n Julian day format which we don't support.
+                    //
                     // This specifies the Julian day, with n between 0 and 365. February 29 is counted in leap years.
                     //
-                    // n would be a relative number from the begining of the year. which should handle if the 
+                    // n would be a relative number from the begining of the year. which should handle if the
                     // the year is a leap year or not.
-                    // 
+                    //
                     // In leap year, n would be counted as:
-                    // 
+                    //
                     // 0                30 31              59 60              90      335            365
                     // |-------Jan--------|-------Feb--------|-------Mar--------|....|-------Dec--------|
                     //
-                    // while in non leap year we'll have 
-                    // 
+                    // while in non leap year we'll have
+                    //
                     // 0                30 31              58 59              89      334            364
                     // |-------Jan--------|-------Feb--------|-------Mar--------|....|-------Dec--------|
                     //
-                    // 
+                    //
                     // For example if n is specified as 60, this means in leap year the rule will start at Mar 1,
                     // while in non leap year the rule will start at Mar 2.
-                    // 
+                    //
                     // If we need to support n format, we'll have to have a floating adjustment rule support this case.
 
                     throw new InvalidTimeZoneException(SR.InvalidTimeZone_NJulianDayNotSupported);
@@ -1276,9 +1273,6 @@ namespace System
         /// <summary>
         /// Parses a string like Jn or n into month and day values.
         /// </summary>
-        /// <returns>
-        /// true if the parsing succeeded; otherwise, false.
-        /// </returns>
         private static void TZif_ParseJulianDay(ReadOnlySpan<char> date, out int month, out int day)
         {
             // Jn
@@ -1558,7 +1552,7 @@ namespace System
             for (int i = 0; i < t.TimeCount; i++)
             {
                 typeOfLocalTime[i] = data[index];
-                index += 1;
+                index++;
             }
 
             // read in the Type table.  Each 6-byte entry represents
@@ -1615,6 +1609,58 @@ namespace System
                 {
                     futureTransitionsPosixFormat = enc.GetString(data, index, data.Length - index - 1);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Normalize adjustment rule offset so that it is within valid range
+        /// This method should not be called at all but is here in case something changes in the future
+        /// or if really old time zones are present on the OS (no combination is known at the moment)
+        /// </summary>
+        private static void NormalizeAdjustmentRuleOffset(TimeSpan baseUtcOffset, [NotNull] ref AdjustmentRule adjustmentRule)
+        {
+            // Certain time zones such as:
+            //       Time Zone  start date  end date    offset
+            // -----------------------------------------------------
+            // America/Yakutat  0001-01-01  1867-10-18   14:41:00
+            // America/Yakutat  1867-10-18  1900-08-20   14:41:00
+            // America/Sitka    0001-01-01  1867-10-18   14:58:00
+            // America/Sitka    1867-10-18  1900-08-20   14:58:00
+            // Asia/Manila      0001-01-01  1844-12-31  -15:56:00
+            // Pacific/Guam     0001-01-01  1845-01-01  -14:21:00
+            // Pacific/Saipan   0001-01-01  1845-01-01  -14:21:00
+            //
+            // have larger offset than currently supported by framework.
+            // If for whatever reason we find that time zone exceeding max
+            // offset of 14h this function will truncate it to the max valid offset.
+            // Updating max offset may cause problems with interacting with SQL server
+            // which uses SQL DATETIMEOFFSET field type which was originally designed to be
+            // bit-for-bit compatible with DateTimeOffset.
+
+            TimeSpan utcOffset = GetUtcOffset(baseUtcOffset, adjustmentRule);
+
+            // utc base offset delta increment
+            TimeSpan adjustment = TimeSpan.Zero;
+
+            if (utcOffset > MaxOffset)
+            {
+                adjustment = MaxOffset - utcOffset;
+            }
+            else if (utcOffset < MinOffset)
+            {
+                adjustment = MinOffset - utcOffset;
+            }
+
+            if (adjustment != TimeSpan.Zero)
+            {
+                adjustmentRule = AdjustmentRule.CreateAdjustmentRule(
+                    adjustmentRule.DateStart,
+                    adjustmentRule.DateEnd,
+                    adjustmentRule.DaylightDelta,
+                    adjustmentRule.DaylightTransitionStart,
+                    adjustmentRule.DaylightTransitionEnd,
+                    adjustmentRule.BaseUtcOffsetDelta + adjustment,
+                    adjustmentRule.NoDaylightTransitions);
             }
         }
 

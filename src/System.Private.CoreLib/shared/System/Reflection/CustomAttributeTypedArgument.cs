@@ -41,29 +41,24 @@ namespace System.Reflection
         internal string ToString(bool typed)
         {
             if (m_argumentType == null)
-                return base.ToString();
+                return base.ToString()!;
 
             if (ArgumentType.IsEnum)
                 return string.Format(typed ? "{0}" : "({1}){0}", Value, ArgumentType.FullName);
-
             else if (Value == null)
                 return string.Format(typed ? "null" : "({0})null", ArgumentType.Name);
-
             else if (ArgumentType == typeof(string))
                 return string.Format("\"{0}\"", Value);
-
             else if (ArgumentType == typeof(char))
                 return string.Format("'{0}'", Value);
-
             else if (ArgumentType == typeof(Type))
                 return string.Format("typeof({0})", ((Type)Value!).FullName);
-
             else if (ArgumentType.IsArray)
             {
                 IList<CustomAttributeTypedArgument> array = (IList<CustomAttributeTypedArgument>)Value!;
 
                 Type elementType = ArgumentType.GetElementType()!;
-                string result = string.Format(@"new {0}[{1}] {{ ", elementType.IsEnum ? elementType.FullName : elementType.Name, array.Count);
+                string result = string.Format("new {0}[{1}] {{ ", elementType.IsEnum ? elementType.FullName : elementType.Name, array.Count);
 
                 for (int i = 0; i < array.Count; i++)
                 {

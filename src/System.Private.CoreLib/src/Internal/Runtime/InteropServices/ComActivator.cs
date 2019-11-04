@@ -91,7 +91,7 @@ namespace Internal.Runtime.InteropServices
         public string TypeName;
 
         [CLSCompliant(false)]
-        public unsafe static ComActivationContext Create(ref ComActivationContextInternal cxtInt)
+        public static unsafe ComActivationContext Create(ref ComActivationContextInternal cxtInt)
         {
             return new ComActivationContext()
             {
@@ -108,7 +108,7 @@ namespace Internal.Runtime.InteropServices
     {
         // Collection of all ALCs used for COM activation. In the event we want to support
         // unloadable COM server ALCs, this will need to be changed.
-        private static readonly Dictionary<string, AssemblyLoadContext> s_AssemblyLoadContexts = new Dictionary<string, AssemblyLoadContext>(StringComparer.InvariantCultureIgnoreCase);
+        private static readonly Dictionary<string, AssemblyLoadContext> s_assemblyLoadContexts = new Dictionary<string, AssemblyLoadContext>(StringComparer.InvariantCultureIgnoreCase);
 
         /// <summary>
         /// Entry point for unmanaged COM activation API from managed code
@@ -223,7 +223,7 @@ namespace Internal.Runtime.InteropServices
         /// </summary>
         /// <param name="cxtInt">Reference to a <see cref="ComActivationContextInternal"/> instance</param>
         [CLSCompliant(false)]
-        public unsafe static int GetClassFactoryForTypeInternal(ref ComActivationContextInternal cxtInt)
+        public static unsafe int GetClassFactoryForTypeInternal(ref ComActivationContextInternal cxtInt)
         {
             if (IsLoggingEnabled())
             {
@@ -257,7 +257,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
         /// </summary>
         /// <param name="cxtInt">Reference to a <see cref="ComActivationContextInternal"/> instance</param>
         [CLSCompliant(false)]
-        public unsafe static int RegisterClassForTypeInternal(ref ComActivationContextInternal cxtInt)
+        public static unsafe int RegisterClassForTypeInternal(ref ComActivationContextInternal cxtInt)
         {
             if (IsLoggingEnabled())
             {
@@ -294,7 +294,7 @@ $@"{nameof(RegisterClassForTypeInternal)} arguments:
         /// Internal entry point for unregistering a managed COM server API from native code
         /// </summary>
         [CLSCompliant(false)]
-        public unsafe static int UnregisterClassForTypeInternal(ref ComActivationContextInternal cxtInt)
+        public static unsafe int UnregisterClassForTypeInternal(ref ComActivationContextInternal cxtInt)
         {
             if (IsLoggingEnabled())
             {
@@ -341,7 +341,7 @@ $@"{nameof(UnregisterClassForTypeInternal)} arguments:
             // [TODO] Use FrameworkEventSource in release builds
 
             Debug.WriteLine(fmt, args);
-         }
+        }
 
         private static Type FindClassType(Guid clsid, string assemblyPath, string assemblyName, string typeName)
         {
@@ -350,7 +350,7 @@ $@"{nameof(UnregisterClassForTypeInternal)} arguments:
                 AssemblyLoadContext alc = GetALC(assemblyPath);
                 var assemblyNameLocal = new AssemblyName(assemblyName);
                 Assembly assem = alc.LoadFromAssemblyName(assemblyNameLocal);
-                Type t = assem.GetType(typeName);
+                Type? t = assem.GetType(typeName);
                 if (t != null)
                 {
                     return t;
@@ -370,14 +370,14 @@ $@"{nameof(UnregisterClassForTypeInternal)} arguments:
 
         private static AssemblyLoadContext GetALC(string assemblyPath)
         {
-            AssemblyLoadContext alc;
+            AssemblyLoadContext? alc;
 
-            lock (s_AssemblyLoadContexts)
+            lock (s_assemblyLoadContexts)
             {
-                if (!s_AssemblyLoadContexts.TryGetValue(assemblyPath, out alc))
+                if (!s_assemblyLoadContexts.TryGetValue(assemblyPath, out alc))
                 {
                     alc = new IsolatedComponentLoadContext(assemblyPath);
-                    s_AssemblyLoadContexts.Add(assemblyPath, alc);
+                    s_assemblyLoadContexts.Add(assemblyPath, alc);
                 }
             }
 
@@ -569,35 +569,29 @@ $@"{nameof(UnregisterClassForTypeInternal)} arguments:
     // license context and instantiate the object.
     internal sealed class LicenseInteropProxy
     {
-        private static readonly Type? s_licenseAttrType;
-        private static readonly Type? s_licenseExceptionType;
+        private static readonly Type? s_licenseAttrType = Type.GetType("System.ComponentModel.LicenseProviderAttribute, System.ComponentModel.TypeConverter", throwOnError: false);
+        private static readonly Type? s_licenseExceptionType = Type.GetType("System.ComponentModel.LicenseException, System.ComponentModel.TypeConverter", throwOnError: false);
 
         // LicenseManager
-        private MethodInfo _createWithContext;
+        private readonly MethodInfo _createWithContext;
 
         // LicenseInteropHelper
-        private MethodInfo _validateTypeAndReturnDetails;
-        private MethodInfo _getCurrentContextInfo;
+        private readonly MethodInfo _validateTypeAndReturnDetails;
+        private readonly MethodInfo _getCurrentContextInfo;
 
         // CLRLicenseContext
-        private MethodInfo _createDesignContext;
-        private MethodInfo _createRuntimeContext;
+        private readonly MethodInfo _createDesignContext;
+        private readonly MethodInfo _createRuntimeContext;
 
         // LicenseContext
-        private MethodInfo _setSavedLicenseKey;
+        private readonly MethodInfo _setSavedLicenseKey;
 
-        private Type _licInfoHelper;
-        private MethodInfo _licInfoHelperContains;
+        private readonly Type _licInfoHelper;
+        private readonly MethodInfo _licInfoHelperContains;
 
         // RCW Activation
         private object? _licContext;
         private Type? _targetRcwType;
-
-        static LicenseInteropProxy()
-        {
-            s_licenseAttrType = Type.GetType("System.ComponentModel.LicenseProviderAttribute, System.ComponentModel.TypeConverter", throwOnError: false);
-            s_licenseExceptionType = Type.GetType("System.ComponentModel.LicenseException, System.ComponentModel.TypeConverter", throwOnError: false);
-        }
 
         public LicenseInteropProxy()
         {
@@ -686,7 +680,7 @@ $@"{nameof(UnregisterClassForTypeInternal)} arguments:
             bool isValid = (bool)_validateTypeAndReturnDetails.Invoke(null, BindingFlags.DoNotWrapExceptions, binder: null, parameters: parameters, culture: null)!;
             if (!isValid)
             {
-                throw new COMException(); //E_FAIL
+                throw new COMException(); // E_FAIL
             }
 
             var license = (IDisposable?)parameters[2];
@@ -698,7 +692,7 @@ $@"{nameof(UnregisterClassForTypeInternal)} arguments:
             var licenseKey = (string?)parameters[3];
             if (licenseKey == null)
             {
-                throw new COMException(); //E_FAIL
+                throw new COMException(); // E_FAIL
             }
 
             return licenseKey;

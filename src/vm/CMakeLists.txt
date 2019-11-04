@@ -7,6 +7,9 @@ include_directories(${ARCH_SOURCES_DIR})
 add_definitions(-DUNICODE)
 add_definitions(-D_UNICODE)
 
+if(FEATURE_AUTO_TRACE)
+  add_definitions(-DFEATURE_AUTO_TRACE)
+endif(FEATURE_AUTO_TRACE)
 
 if(CMAKE_CONFIGURATION_TYPES) # multi-configuration generator?
   foreach (Config DEBUG CHECKED)
@@ -14,13 +17,9 @@ if(CMAKE_CONFIGURATION_TYPES) # multi-configuration generator?
   endforeach (Config)
 else()
   if(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
-    add_definitions(-DWRITE_BARRIER_CHECK=1)
+    add_definitions(-DWRITE_BARRIER_CHECK)
   endif(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
 endif(CMAKE_CONFIGURATION_TYPES)
-
-if(CLR_CMAKE_PLATFORM_UNIX)
-    add_compile_options(-fPIC)
-endif(CLR_CMAKE_PLATFORM_UNIX)
 
 if(FEATURE_GDBJIT)
     set(VM_SOURCES_GDBJIT
@@ -174,6 +173,7 @@ set(VM_HEADERS_DAC_AND_WKS_COMMON
     field.h
     fptrstubs.h
     frames.h
+    gccover.h
     gctoclreventsink.h
     gcheaputilities.h
     generics.h
@@ -308,6 +308,7 @@ set(VM_SOURCES_WKS
     comwaithandle.cpp
     customattribute.cpp
     custommarshalerinfo.cpp
+    autotrace.cpp
     diagnosticserver.cpp
     dllimportcallback.cpp
     eeconfig.cpp
@@ -319,14 +320,17 @@ set(VM_SOURCES_WKS
     eventpipeconfiguration.cpp
     eventpipeevent.cpp
     eventpipeeventinstance.cpp
+    eventpipeeventpayload.cpp
     eventpipeeventsource.cpp
     eventpipeblock.cpp
+    eventpipecommontypes.cpp
     eventpipefile.cpp
     eventpipeinternal.cpp
     eventpipejsonfile.cpp
     eventpipemetadatagenerator.cpp
     eventpipeprotocolhelper.cpp
     eventpipeprovider.cpp
+    eventpipethread.cpp
     eventpipebuffer.cpp
     eventpipebuffermanager.cpp
     eventpipesession.cpp
@@ -375,7 +379,6 @@ set(VM_SOURCES_WKS
     runtimehandles.cpp
     safehandle.cpp
     sampleprofiler.cpp
-    sha1.cpp
     simplerwlock.cpp
     sourceline.cpp
     stackingallocator.cpp
@@ -422,6 +425,7 @@ set(VM_HEADERS_WKS
     comwaithandle.h
     customattribute.h
     custommarshalerinfo.h
+    autotrace.h
     diagnosticserver.h
     diagnosticsprotocol.h
     dllimportcallback.h
@@ -437,9 +441,11 @@ set(VM_HEADERS_WKS
     eventpipeblock.h
     eventpipebuffer.h
     eventpipebuffermanager.h
+    eventpipecommontypes.h
     eventpipeconfiguration.h
     eventpipeevent.h
     eventpipeeventinstance.h
+    eventpipeeventpayload.h
     eventpipeeventsource.h
     eventpipefile.h
     eventpipeinternal.h
@@ -455,7 +461,6 @@ set(VM_HEADERS_WKS
     fieldmarshaler.h
     finalizerthread.h
     frameworkexceptionloader.h
-    gccover.h
     gcenv.h
     gcenv.ee.h
     gcenv.os.h
@@ -493,9 +498,9 @@ set(VM_HEADERS_WKS
     reflectioninvocation.h
     runtimehandles.h
     sampleprofiler.h
-    sha1.h
     simplerwlock.hpp
     sourceline.h
+    stackcontents.h
     stackingallocator.h
     stringliteralmap.h
     stubcache.h
@@ -841,6 +846,16 @@ elseif(CLR_CMAKE_TARGET_ARCH_ARM64)
         ${ARCH_SOURCES_DIR}/virtualcallstubcpu.hpp
         exceptionhandling.h
     )
+
+    set(VM_SOURCES_WKS_ARCH
+        ${ARCH_SOURCES_DIR}/profiler.cpp
+    )
+
+    if(CLR_CMAKE_PLATFORM_UNIX)
+        list(APPEND VM_SOURCES_DAC_AND_WKS_ARCH
+            ${ARCH_SOURCES_DIR}/arm64singlestepper.cpp
+        )
+    endif(CLR_CMAKE_PLATFORM_UNIX)
 endif()
 
 if(CLR_CMAKE_PLATFORM_UNIX)
@@ -905,7 +920,11 @@ convert_to_absolute_path(VM_SOURCES_WKS ${VM_SOURCES_WKS})
 convert_to_absolute_path(VM_SOURCES_WKS_ARCH_ASM ${VM_SOURCES_WKS_ARCH_ASM})
 convert_to_absolute_path(VM_SOURCES_DAC ${VM_SOURCES_DAC})
 
-add_subdirectory(dac)
+add_library_clr(cee_dac ${VM_SOURCES_DAC})
+add_dependencies(cee_dac eventing_headers)
+set_target_properties(cee_dac PROPERTIES DAC_COMPONENT TRUE)
+target_precompile_header(TARGET cee_dac HEADER common.h)
+
 add_subdirectory(wks)
 
 if(FEATURE_PERFTRACING)

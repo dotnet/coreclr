@@ -2,16 +2,24 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#pragma warning disable IDE0060 // implementations provided by the JIT
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
 
+#pragma warning disable SA1121 // explicitly using type aliases instead of built-in types
 #if BIT64
 using nuint = System.UInt64;
-using nint = System.Int64;
 #else
 using nuint = System.UInt32;
+#endif
+#if !CORECLR
+#if BIT64
+using nint = System.Int64;
+#else
 using nint = System.Int32;
+#endif
 #endif
 
 //
@@ -31,7 +39,7 @@ namespace Internal.Runtime.CompilerServices
     /// For internal use only. Contains generic, low-level functionality for manipulating pointers.
     /// </summary>
     [CLSCompliant(false)]
-    public static unsafe class Unsafe
+    public static unsafe partial class Unsafe
     {
         /// <summary>
         /// Returns a pointer to the given by-ref parameter.
@@ -71,6 +79,7 @@ namespace Internal.Runtime.CompilerServices
         [Intrinsic]
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [return: NotNullIfNotNull("value")]
         public static T As<T>(object? value) where T : class?
         {
             throw new PlatformNotSupportedException();
@@ -209,7 +218,7 @@ namespace Internal.Runtime.CompilerServices
         }
 
         /// <summary>
-        /// Initializes a block of memory at the given location with a given initial value 
+        /// Initializes a block of memory at the given location with a given initial value
         /// without assuming architecture dependent alignment of the address.
         /// </summary>
         [Intrinsic]

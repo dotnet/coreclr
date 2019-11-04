@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 // TypeDelegator
-// 
+//
 // This class wraps a Type object and delegates all methods to that Type.
 
 using CultureInfo = System.Globalization.CultureInfo;
@@ -35,7 +35,7 @@ namespace System.Reflection
         public override int MetadataToken => typeImpl.MetadataToken;
 
         public override object? InvokeMember(string name, BindingFlags invokeAttr, Binder? binder, object? target,
-            object[]? args, ParameterModifier[]? modifiers, CultureInfo? culture, string[]? namedParameters)
+            object?[]? args, ParameterModifier[]? modifiers, CultureInfo? culture, string[]? namedParameters)
         {
             return typeImpl.InvokeMember(name, invokeAttr, binder, target, args, modifiers, culture, namedParameters);
         }

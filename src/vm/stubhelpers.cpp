@@ -279,11 +279,6 @@ FORCEINLINE static void *GetCOMIPFromRCW_GetTargetNoInterception(IUnknown *pUnk,
 {
     LIMITED_METHOD_CONTRACT;
 
-#ifdef _TARGET_X86_
-    _ASSERTE(pComInfo->m_pInterceptStub == NULL || pComInfo->m_pInterceptStub == (LPVOID)-1);
-    _ASSERTE(!pComInfo->HasCopyCtorArgs());
-#endif // _TARGET_X86_
-
     LPVOID *lpVtbl = *(LPVOID **)pUnk;
     return lpVtbl[pComInfo->m_cachedComSlot];
 }
@@ -1092,7 +1087,7 @@ FCIMPL2(void*, StubHelpers::GetDelegateTarget, DelegateObject *pThisUNSAFE, UINT
     }
 #endif // _TARGET_X86_
 
-#if defined(_WIN64)
+#if defined(BIT64)
     UINT_PTR target = (UINT_PTR)orefThis->GetMethodPtrAux();
 
     // See code:GenericPInvokeCalliHelper
@@ -1105,7 +1100,7 @@ FCIMPL2(void*, StubHelpers::GetDelegateTarget, DelegateObject *pThisUNSAFE, UINT
 
 #elif defined(_TARGET_ARM_)
     // @ARMTODO: Nothing to do for ARM yet since we don't support the hosted path.
-#endif // _WIN64, _TARGET_ARM_
+#endif // BIT64, _TARGET_ARM_
 
     if (pEntryPoint == NULL)
     {

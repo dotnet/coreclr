@@ -23,9 +23,9 @@ namespace System.Reflection
         public bool IsOut => (Attributes & ParameterAttributes.Out) != 0;
         public bool IsRetval => (Attributes & ParameterAttributes.Retval) != 0;
 
-        public virtual object? DefaultValue { get { throw NotImplemented.ByDesign; } }
-        public virtual object? RawDefaultValue { get { throw NotImplemented.ByDesign; } }
-        public virtual bool HasDefaultValue { get { throw NotImplemented.ByDesign; } }
+        public virtual object? DefaultValue => throw NotImplemented.ByDesign;
+        public virtual object? RawDefaultValue => throw NotImplemented.ByDesign;
+        public virtual bool HasDefaultValue => throw NotImplemented.ByDesign;
 
         public virtual bool IsDefined(Type attributeType, bool inherit)
         {
@@ -69,7 +69,7 @@ namespace System.Reflection
                     if (PositionImpl == -1)
                     {
                         if (MemberImpl.MemberType == MemberTypes.Method)
-                            return ((MethodInfo)MemberImpl).ReturnParameter!;
+                            return ((MethodInfo)MemberImpl).ReturnParameter;
                         else
                             throw new SerializationException(SR.Serialization_BadParameterInfo);
                     }

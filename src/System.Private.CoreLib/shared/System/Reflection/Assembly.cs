@@ -15,8 +15,8 @@ namespace System.Reflection
 {
     public abstract partial class Assembly : ICustomAttributeProvider, ISerializable
     {
-        private readonly static Dictionary<string, Assembly> s_loadfile = new Dictionary<string, Assembly>();
-        private readonly static List<string> s_loadFromAssemblyList = new List<string>();
+        private static readonly Dictionary<string, Assembly> s_loadfile = new Dictionary<string, Assembly>();
+        private static readonly List<string> s_loadFromAssemblyList = new List<string>();
         private static bool s_loadFromHandlerSet;
         private static int s_cachedSerializationSwitch;
 
@@ -73,13 +73,13 @@ namespace System.Reflection
         public virtual Type[] GetExportedTypes() { throw NotImplemented.ByDesign; }
         public virtual Type[] GetForwardedTypes() { throw NotImplemented.ByDesign; }
 
-        public virtual string? CodeBase { get { throw NotImplemented.ByDesign; } }
-        public virtual MethodInfo? EntryPoint { get { throw NotImplemented.ByDesign; } }
-        public virtual string? FullName { get { throw NotImplemented.ByDesign; } }
-        public virtual string ImageRuntimeVersion { get { throw NotImplemented.ByDesign; } }
+        public virtual string? CodeBase => throw NotImplemented.ByDesign;
+        public virtual MethodInfo? EntryPoint => throw NotImplemented.ByDesign;
+        public virtual string? FullName => throw NotImplemented.ByDesign;
+        public virtual string ImageRuntimeVersion => throw NotImplemented.ByDesign;
         public virtual bool IsDynamic => false;
-        public virtual string Location { get { throw NotImplemented.ByDesign; } }
-        public virtual bool ReflectionOnly { get { throw NotImplemented.ByDesign; } }
+        public virtual string Location => throw NotImplemented.ByDesign;
+        public virtual bool ReflectionOnly => throw NotImplemented.ByDesign;
         public virtual bool IsCollectible => true;
 
         public virtual ManifestResourceInfo? GetManifestResourceInfo(string resourceName) { throw NotImplemented.ByDesign; }
@@ -92,9 +92,9 @@ namespace System.Reflection
         public virtual AssemblyName GetName() => GetName(copiedName: false);
         public virtual AssemblyName GetName(bool copiedName) { throw NotImplemented.ByDesign; }
 
-        public virtual Type GetType(string name) => GetType(name, throwOnError: false, ignoreCase: false);
-        public virtual Type GetType(string name, bool throwOnError) => GetType(name, throwOnError: throwOnError, ignoreCase: false);
-        public virtual Type GetType(string name, bool throwOnError, bool ignoreCase) { throw NotImplemented.ByDesign; }
+        public virtual Type? GetType(string name) => GetType(name, throwOnError: false, ignoreCase: false);
+        public virtual Type? GetType(string name, bool throwOnError) => GetType(name, throwOnError: throwOnError, ignoreCase: false);
+        public virtual Type? GetType(string name, bool throwOnError, bool ignoreCase) { throw NotImplemented.ByDesign; }
 
         public virtual bool IsDefined(Type attributeType, bool inherit) { throw NotImplemented.ByDesign; }
 
@@ -110,17 +110,17 @@ namespace System.Reflection
         public object? CreateInstance(string typeName, bool ignoreCase) => CreateInstance(typeName, ignoreCase, BindingFlags.Public | BindingFlags.Instance, binder: null, args: null, culture: null, activationAttributes: null);
         public virtual object? CreateInstance(string typeName, bool ignoreCase, BindingFlags bindingAttr, Binder? binder, object[]? args, CultureInfo? culture, object[]? activationAttributes)
         {
-            Type t = GetType(typeName, throwOnError: false, ignoreCase: ignoreCase);
+            Type? t = GetType(typeName, throwOnError: false, ignoreCase: ignoreCase);
             if (t == null)
                 return null;
 
             return Activator.CreateInstance(t, bindingAttr, binder, args, culture, activationAttributes);
         }
 
-        public virtual event ModuleResolveEventHandler ModuleResolve { add { throw NotImplemented.ByDesign; } remove { throw NotImplemented.ByDesign; } }
+        public virtual event ModuleResolveEventHandler? ModuleResolve { add { throw NotImplemented.ByDesign; } remove { throw NotImplemented.ByDesign; } }
 
-        public virtual Module? ManifestModule { get { throw NotImplemented.ByDesign; } }
-        public virtual Module GetModule(string name) { throw NotImplemented.ByDesign; }
+        public virtual Module ManifestModule => throw NotImplemented.ByDesign;
+        public virtual Module? GetModule(string name) { throw NotImplemented.ByDesign; }
 
         public Module[] GetModules() => GetModules(getResourceModules: false);
         public virtual Module[] GetModules(bool getResourceModules) { throw NotImplemented.ByDesign; }
@@ -148,8 +148,8 @@ namespace System.Reflection
         /*
           Returns true if the assembly was loaded from the global assembly cache.
         */
-        public virtual bool GlobalAssemblyCache { get { throw NotImplemented.ByDesign; } }
-        public virtual long HostContext { get { throw NotImplemented.ByDesign; } }
+        public virtual bool GlobalAssemblyCache => throw NotImplemented.ByDesign;
+        public virtual long HostContext => throw NotImplemented.ByDesign;
 
         public override bool Equals(object? o) => base.Equals(o);
         public override int GetHashCode() => base.GetHashCode();
@@ -174,10 +174,7 @@ namespace System.Reflection
             return (left is null) ? false : left.Equals(right);
         }
 
-        public static bool operator !=(Assembly? left, Assembly? right)
-        {
-            return !(left == right);
-        }
+        public static bool operator !=(Assembly? left, Assembly? right) => !(left == right);
 
         public static string CreateQualifiedName(string? assemblyName, string? typeName) => typeName + ", " + assemblyName;
 
@@ -235,7 +232,7 @@ namespace System.Reflection
 
             string normalizedPath = Path.GetFullPath(path);
 
-            Assembly result;
+            Assembly? result;
             lock (s_loadfile)
             {
                 if (s_loadfile.TryGetValue(normalizedPath, out result))
@@ -296,7 +293,7 @@ namespace System.Reflection
         {
             if (assemblyFile == null)
                 throw new ArgumentNullException(nameof(assemblyFile));
-            
+
             string fullPath = Path.GetFullPath(assemblyFile);
 
             if (!s_loadFromHandlerSet)
@@ -313,7 +310,7 @@ namespace System.Reflection
 
             // Add the path to the LoadFrom path list which we will consult
             // before handling the resolves in our handler.
-            lock(s_loadFromAssemblyList)
+            lock (s_loadFromAssemblyList)
             {
                 if (!s_loadFromAssemblyList.Contains(fullPath))
                 {
@@ -324,19 +321,19 @@ namespace System.Reflection
             return AssemblyLoadContext.Default.LoadFromAssemblyPath(fullPath);
         }
 
-        public static Assembly LoadFrom(string? assemblyFile, byte[]? hashValue, AssemblyHashAlgorithm hashAlgorithm)
+        public static Assembly LoadFrom(string assemblyFile, byte[]? hashValue, AssemblyHashAlgorithm hashAlgorithm)
         {
             throw new NotSupportedException(SR.NotSupported_AssemblyLoadFromHash);
         }
 
         public static Assembly UnsafeLoadFrom(string assemblyFile) => LoadFrom(assemblyFile);
 
-        public Module LoadModule(string? moduleName, byte[]? rawModule) => LoadModule(moduleName, rawModule, null);
-        public virtual Module LoadModule(string? moduleName, byte[]? rawModule, byte[]? rawSymbolStore) { throw NotImplemented.ByDesign; }
+        public Module LoadModule(string moduleName, byte[]? rawModule) => LoadModule(moduleName, rawModule, null);
+        public virtual Module LoadModule(string moduleName, byte[]? rawModule, byte[]? rawSymbolStore) { throw NotImplemented.ByDesign; }
 
-        public static Assembly ReflectionOnlyLoad(byte[]? rawAssembly) { throw new PlatformNotSupportedException(SR.PlatformNotSupported_ReflectionOnly); }
-        public static Assembly ReflectionOnlyLoad(string? assemblyString) { throw new PlatformNotSupportedException(SR.PlatformNotSupported_ReflectionOnly); }
-        public static Assembly ReflectionOnlyLoadFrom(string? assemblyFile) { throw new PlatformNotSupportedException(SR.PlatformNotSupported_ReflectionOnly); }
+        public static Assembly ReflectionOnlyLoad(byte[] rawAssembly) { throw new PlatformNotSupportedException(SR.PlatformNotSupported_ReflectionOnly); }
+        public static Assembly ReflectionOnlyLoad(string assemblyString) { throw new PlatformNotSupportedException(SR.PlatformNotSupported_ReflectionOnly); }
+        public static Assembly ReflectionOnlyLoadFrom(string assemblyFile) { throw new PlatformNotSupportedException(SR.PlatformNotSupported_ReflectionOnly); }
 
         public virtual SecurityRuleSet SecurityRuleSet => SecurityRuleSet.None;
     }

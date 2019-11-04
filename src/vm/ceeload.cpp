@@ -368,7 +368,7 @@ void Module::NotifyEtwLoadFinished(HRESULT hr)
 
     // we report only successful loads
     if (SUCCEEDED(hr) &&
-        ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
+        ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, 
                                      TRACE_LEVEL_INFORMATION, 
                                      KEYWORDZERO))
     {
@@ -589,7 +589,17 @@ void Module::Initialize(AllocMemTracker *pamTracker, LPCWSTR szName)
 
 #ifdef FEATURE_READYTORUN
     if (!HasNativeImage() && !IsResource())
-        m_pReadyToRunInfo = ReadyToRunInfo::Initialize(this, pamTracker);
+    {
+        if ((m_pReadyToRunInfo = ReadyToRunInfo::Initialize(this, pamTracker)) != NULL)
+        {
+            COUNT_T cMeta = 0;
+            if (GetFile()->GetOpenedILimage()->GetNativeManifestMetadata(&cMeta) != NULL)
+            {
+                // Load the native assembly import
+                GetNativeAssemblyImport(TRUE /* loadAllowed */);
+            }
+        }
+    }
 #endif
 
     // Initialize the instance fields that we need for all non-Resource Modules
@@ -3319,7 +3329,7 @@ void Module::StartUnload()
         END_PIN_PROFILER();
     }
 #endif // PROFILING_SUPPORTED
-#ifdef FEATURE_PREJIT 
+
     if (g_IBCLogger.InstrEnabled())
     {
         Thread * pThread = GetThread();
@@ -3335,7 +3345,7 @@ void Module::StartUnload()
             /*hr=*/WriteMethodProfileDataLogFile(true);
         }
     }
-#endif // FEATURE_PREJIT
+
     SetBeingUnloaded();
 }
 #endif // CROSSGEN_COMPILE
@@ -3405,6 +3415,61 @@ BOOL Module::IsInCurrentVersionBubble()
     return TRUE;
 #endif // FEATURE_NATIVE_IMAGE_GENERATION
 }
+
+#if defined(FEATURE_READYTORUN) && !defined(FEATURE_READYTORUN_COMPILER)
+//---------------------------------------------------------------------------------------
+// Check if the target module is in the same version bubble as this one
+// The current implementation uses the presence of an AssemblyRef for the target module's assembly in
+// the native manifest metadata.
+//
+// Arguments:
+//      * target - target module to check
+//
+// Return Value:
+//      TRUE if the target module is in the same version bubble as this one
+//
+BOOL Module::IsInSameVersionBubble(Module *target)
+{
+    STANDARD_VM_CONTRACT;
+
+    if (this == target)
+    {
+        return TRUE;
+    }
+
+    if (!HasNativeOrReadyToRunImage())
+    {
+        return FALSE;
+    }
+
+    // Check if the current module's image has native manifest metadata, otherwise the current->GetNativeAssemblyImport() asserts.
+    COUNT_T cMeta=0;
+    const void* pMeta = GetFile()->GetOpenedILimage()->GetNativeManifestMetadata(&cMeta);
+    if (pMeta == NULL)
+    {
+        return FALSE;
+    }
+
+    IMDInternalImport* pMdImport = GetNativeAssemblyImport();
+
+    LPCUTF8 targetName = target->GetAssembly()->GetSimpleName();
+
+    HENUMInternal assemblyEnum;
+    HRESULT hr = pMdImport->EnumAllInit(mdtAssemblyRef, &assemblyEnum);
+    mdAssemblyRef assemblyRef;
+    while (pMdImport->EnumNext(&assemblyEnum, &assemblyRef))
+    {
+        LPCSTR assemblyName;
+        hr = pMdImport->GetAssemblyRefProps(assemblyRef, NULL, NULL, &assemblyName, NULL, NULL, NULL, NULL);
+        if (strcmp(assemblyName, targetName) == 0)
+        {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+#endif // FEATURE_READYTORUN && !FEATURE_READYTORUN_COMPILER
 
 //---------------------------------------------------------------------------------------
 //
@@ -7524,7 +7589,7 @@ void Module::ExpandAll(DataImage *image)
         HENUMInternalHolder hEnum(pInternalImport);
         hEnum.EnumTypeDefInit();
         
-        while (pInternalImport->EnumTypeDefNext(&hEnum, &tk))
+        while (pInternalImport->EnumNext(&hEnum, &tk))
         {
 #ifdef FEATURE_COMINTEROP            
             // Skip the non-managed WinRT types since they're only used by Javascript and C++
@@ -9829,7 +9894,7 @@ void Module::RestoreMethodTablePointerRaw(MethodTable ** ppMT,
 
     if (CORCOMPILE_IS_POINTER_TAGGED(fixup))
     {
-#ifdef _WIN64 
+#ifdef BIT64 
         CONSISTENCY_CHECK((CORCOMPILE_UNTAG_TOKEN(fixup)>>32) == 0);
 #endif
 
@@ -10043,7 +10108,7 @@ PTR_Module Module::RestoreModulePointerIfLoaded(DPTR(RelativeFixupPointer<PTR_Mo
     if (CORCOMPILE_IS_POINTER_TAGGED(fixup))
     {
 
-#ifdef _WIN64 
+#ifdef BIT64 
         CONSISTENCY_CHECK((CORCOMPILE_UNTAG_TOKEN(fixup)>>32) == 0);
 #endif
 
@@ -10095,7 +10160,7 @@ void Module::RestoreModulePointer(RelativeFixupPointer<PTR_Module> * ppModule, M
 
     if (CORCOMPILE_IS_POINTER_TAGGED(fixup))
     {
-#ifdef _WIN64 
+#ifdef BIT64 
         CONSISTENCY_CHECK((CORCOMPILE_UNTAG_TOKEN(fixup)>>32) == 0);
 #endif
 
@@ -10156,7 +10221,7 @@ void Module::RestoreTypeHandlePointerRaw(TypeHandle *pHandle, Module* pContainin
 
     if (CORCOMPILE_IS_POINTER_TAGGED(fixup))
     {
-#ifdef _WIN64 
+#ifdef BIT64 
         CONSISTENCY_CHECK((CORCOMPILE_UNTAG_TOKEN(fixup)>>32) == 0);
 #endif
 
@@ -10276,7 +10341,7 @@ void Module::RestoreMethodDescPointerRaw(PTR_MethodDesc * ppMD, Module *pContain
     {
         GCX_PREEMP();
 
-#ifdef _WIN64 
+#ifdef BIT64 
         CONSISTENCY_CHECK((CORCOMPILE_UNTAG_TOKEN(fixup)>>32) == 0);
 #endif
 
@@ -10373,7 +10438,7 @@ void Module::RestoreFieldDescPointer(RelativeFixupPointer<PTR_FieldDesc> * ppFD)
 
     if (CORCOMPILE_IS_POINTER_TAGGED(fixup))
     {
-#ifdef _WIN64 
+#ifdef BIT64 
         CONSISTENCY_CHECK((CORCOMPILE_UNTAG_TOKEN(fixup)>>32) == 0);
 #endif
 
@@ -12791,6 +12856,16 @@ idMethodSpec Module::LogInstantiatedMethod(const MethodDesc * md, ULONG flagNum)
     {
         CONTRACT_VIOLATION(ThrowsViolation|FaultViolation|GCViolation);
 
+        if (!m_tokenProfileData) 
+        { 
+            CreateProfilingData(); 
+        } 
+
+        if (!m_tokenProfileData) 
+        { 
+            return idMethodSpecNil; 
+        } 
+
         // get data
         SigBuilder sigBuilder;
 
@@ -14075,7 +14150,7 @@ void Module::ExpandAll()
         //jit everything in the MT.
         Local::CompileMethodsForTypeDefRefSpec(this, COR_GLOBAL_PARENT_TOKEN);
     }
-    while (pMDI->EnumTypeDefNext(&hEnum, &td))
+    while (pMDI->EnumNext(&hEnum, &td))
     {
         //jit everything
         Local::CompileMethodsForTypeDefRefSpec(this, td);

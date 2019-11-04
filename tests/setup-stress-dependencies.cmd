@@ -36,10 +36,15 @@ if not defined __OutputDir goto Usage
 if not defined __Arch goto Usage 
 
 REM Check if the platform is supported
-if /i %__Arch% == "arm" (
+if /i "%__Arch%" == "arm" (
     echo No runtime dependencies for Arm32.
     exit /b 0
-    )
+)
+
+if /i "%__Arch%" == "arm64" (
+    echo No runtime dependencies for Arm64.
+    exit /b 0
+)
 
 REM =========================================================================================
 REM ===
@@ -47,16 +52,10 @@ REM === Check if dotnet CLI and necessary directories exist
 REM ===
 REM =========================================================================================
 
-set __DotNetToolDir=%__ThisScriptPath%..\Tools
 set __DotNetCmd=%__ThisScriptPath%..\dotnet.cmd
-set __PackageDir=%__ThisScriptPath%..\Packages
+set __PackageDir=%__ThisScriptPath%..\.packages
 set __CsprojPath=%__ThisScriptPath%\src\Common\stress_dependencies\stress_dependencies.csproj
 
-REM Check if dotnet cli exists
-if not exist "%__DotNetToolDir%" (
-    echo Directory containing dotnet CLI does not exist: %__DotNetToolDir%
-    goto Fail
-)
 if not exist "%__DotNetCmd%" (
     echo dotnet.exe does not exist: %__DotNetCmd%
     goto Fail
@@ -74,7 +73,7 @@ REM ============================================================================
 
 REM Download the package
 echo Downloading CoreDisTools package
-set DOTNETCMD="%__DotNetCmd%" restore "%__CsprojPath%" --source https://dotnet.myget.org/F/dotnet-core/ --packages "%__PackageDir%"
+set DOTNETCMD="%__DotNetCmd%" restore "%__CsprojPath%" --packages "%__PackageDir%"
 echo %DOTNETCMD%
 call %DOTNETCMD%
 if errorlevel 1 goto Fail

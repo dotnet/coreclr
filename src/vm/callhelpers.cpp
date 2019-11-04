@@ -46,7 +46,7 @@ void AssertMulticoreJitAllowedModule(PCODE pTarget)
 // and get the platform-appropriate exception handling.  A few places try to optimize by calling direct
 // to managed methods (see ArrayInitializeWorker or FastCallFinalize).  This sort of thing is
 // dangerous.  You have to worry about marking yourself as a legal managed caller and you have to
-// worry about how exceptions will be handled on a WIN64EXCEPTIONS plan.  It is generally only suitable
+// worry about how exceptions will be handled on a FEATURE_EH_FUNCLETS plan.  It is generally only suitable
 // for X86.
 
 //*******************************************************************************
@@ -73,7 +73,7 @@ void CallDescrWorkerWithHandler(
 }
 
 
-#if !defined(_WIN64) && defined(_DEBUG) 
+#if !defined(BIT64) && defined(_DEBUG) 
 
 //*******************************************************************************
 // assembly code, in i386/asmhelpers.asm
@@ -132,11 +132,10 @@ void CallDescrWorker(CallDescrData * pCallDescrData)
 
     ENABLESTRESSHEAP();
 }
-#endif // !defined(_WIN64) && defined(_DEBUG)
+#endif // !defined(BIT64) && defined(_DEBUG)
 
 void DispatchCallDebuggerWrapper(
     CallDescrData *   pCallDescrData,
-    ContextTransitionFrame* pFrame,
     BOOL fCriticalCall
 )
 {
@@ -151,7 +150,7 @@ void DispatchCallDebuggerWrapper(
         BOOL fCriticalCall;
     } param;
 
-    param.pFrame = pFrame;
+    param.pFrame = NULL;
     param.pCallDescrData = pCallDescrData;
     param.fCriticalCall = fCriticalCall;
 
@@ -218,7 +217,6 @@ void * DispatchCallSimple(
     {
         DispatchCallDebuggerWrapper(
             &callDescrData,
-            NULL,
             dwDispatchCallSimpleFlags & DispatchCallSimple_CriticalCall);
     }
     else
@@ -227,62 +225,6 @@ void * DispatchCallSimple(
     }
 
     return *(void **)(&callDescrData.returnValue);
-}
-
-// This method performs the proper profiler and debugger callbacks before dispatching the
-// call. The caller has the responsibility of furnishing the target address, register and stack arguments.
-// Stack arguments should be in reverse order, and pSrc should point to past the last argument
-// Returns the return value or the exception object if one was thrown.
-void DispatchCall(
-                    CallDescrData * pCallDescrData,
-                    OBJECTREF *pRefException,
-                    ContextTransitionFrame* pFrame /* = NULL */
-#ifdef FEATURE_CORRUPTING_EXCEPTIONS
-                    , CorruptionSeverity *pSeverity /*= NULL*/
-#endif // FEATURE_CORRUPTING_EXCEPTIONS
-                    )
-{
-    CONTRACTL
-    {
-        GC_TRIGGERS;
-        THROWS;
-        MODE_COOPERATIVE;
-    }
-    CONTRACTL_END;
-
-#ifdef DEBUGGING_SUPPORTED 
-    if (CORDebuggerTraceCall())
-        g_pDebugInterface->TraceCall((const BYTE *)pCallDescrData->pTarget);
-#endif // DEBUGGING_SUPPORTED
-
-#ifdef FEATURE_CORRUPTING_EXCEPTIONS
-    if (pSeverity != NULL)
-    {
-        // By default, assume any exception that comes out is NotCorrupting
-        *pSeverity = NotCorrupting;
-    }
-#endif // FEATURE_CORRUPTING_EXCEPTIONS
-
-    EX_TRY
-    {
-        DispatchCallDebuggerWrapper(pCallDescrData,
-                                    pFrame,
-                                    FALSE);
-    }
-    EX_CATCH
-    {
-        *pRefException = GET_THROWABLE();
-
-#ifdef FEATURE_CORRUPTING_EXCEPTIONS
-        if (pSeverity != NULL)
-        {
-            // By default, assume any exception that comes out is NotCorrupting
-            *pSeverity = GetThread()->GetExceptionState()->GetLastActiveExceptionCorruptionSeverity();
-        }
-#endif // FEATURE_CORRUPTING_EXCEPTIONS
-
-    }
-    EX_END_CATCH(RethrowTransientExceptions);
 }
 
 #ifdef CALLDESCR_REGTYPEMAP
@@ -614,7 +556,7 @@ void MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments, ARG_SLOT *
         _ASSERTE((DWORD)cbReturnValue <= sizeof(callDescrData.returnValue));
         memcpyNoGCRefs(pReturnValue, &callDescrData.returnValue, cbReturnValue);
 
-#if !defined(_WIN64) && BIGENDIAN
+#if !defined(BIT64) && BIGENDIAN
         {
             GCX_FORBID();
 
@@ -623,7 +565,7 @@ void MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments, ARG_SLOT *
                 pReturnValue[0] >>= 32;
             }
         }
-#endif // !defined(_WIN64) && BIGENDIAN
+#endif // !defined(BIT64) && BIGENDIAN
     }
 }
 

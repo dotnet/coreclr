@@ -38,7 +38,7 @@ ZapInfo::ZapInfo(ZapImage * pImage, mdMethodDef md, CORINFO_METHOD_HANDLE handle
     m_pCode(NULL),
     m_pColdCode(NULL),
     m_pROData(NULL),
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     // Unwind info of the main method body. It will get merged with GC info.
     m_pMainUnwindInfo(NULL),
     m_cbMainUnwindInfo(0),
@@ -48,7 +48,7 @@ ZapInfo::ZapInfo(ZapImage * pImage, mdMethodDef md, CORINFO_METHOD_HANDLE handle
 #if defined(_TARGET_AMD64_)
     m_pChainedColdUnwindInfo(NULL),
 #endif
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
     m_pExceptionInfo(NULL),
     m_pProfileData(NULL),
     m_pProfilingHandle(NULL),
@@ -72,7 +72,7 @@ ZapInfo::~ZapInfo()
     delete [] m_pOffsetMapping;
 
     delete [] m_pGCInfo;
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     delete [] m_pMainUnwindInfo;
 #endif
 }
@@ -96,12 +96,12 @@ void ZapInfo::ResetForJitRetry()
 
     m_cbGCInfo = 0;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     delete [] m_pMainUnwindInfo;
     m_pMainUnwindInfo = NULL;
 
     m_cbMainUnwindInfo = 0;
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
     // The rest of these pointers are in the ZapWriter's ZapHeap, and will go away when the ZapWriter
     // goes away. That's ok for altjit fallback; we'll use extra memory until the ZapWriter goes away,
@@ -111,13 +111,13 @@ void ZapInfo::ResetForJitRetry()
     m_pColdCode = NULL;
     m_pROData = NULL;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     m_pUnwindInfoFragments = NULL;
     m_pUnwindInfo = NULL;
 #if defined(_TARGET_AMD64_)
     m_pChainedColdUnwindInfo = NULL;
 #endif
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
     m_pExceptionInfo = NULL;
     m_pProfileData = NULL;
@@ -198,19 +198,11 @@ CORJIT_FLAGS ZapInfo::ComputeJitFlags(CORINFO_METHOD_HANDLE handle)
         jitFlags.Clear(CORJIT_FLAGS::CORJIT_FLAG_PROCSPLIT);
     }
 
-    // Rejit is now enabled by default for NGEN'ed code. This costs us
-    // some size in exchange for diagnostic functionality, but we've got
-    // further work planned that should mitigate the size increase.
-    jitFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_PROF_REJIT_NOPS);
-
 #ifdef FEATURE_READYTORUN_COMPILER
     if (IsReadyToRunCompilation())
     {
         jitFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_READYTORUN);
-#ifndef PLATFORM_UNIX
-        // PInvoke Helpers are not yet implemented on non-Windows platforms
         jitFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_PINVOKE_HELPERS);
-#endif
     }
 #endif  // FEATURE_READYTORUN_COMPILER
 
@@ -243,11 +235,11 @@ ZapGCInfo * ZapInfo::EmitGCInfo()
 {    
     _ASSERTE(m_pGCInfo != NULL);
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     return m_pImage->m_pGCInfoTable->GetGCInfo(m_pGCInfo, m_cbGCInfo, m_pMainUnwindInfo, m_cbMainUnwindInfo);
 #else
     return m_pImage->m_pGCInfoTable->GetGCInfo(m_pGCInfo, m_cbGCInfo);
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 }
 
 ZapImport ** ZapInfo::EmitFixupList()
@@ -430,7 +422,11 @@ void ZapInfo::CompileMethod()
 
     // If we are doing partial ngen, only compile methods with profile data
     if (!CurrentMethodHasProfileData() && m_zapper->m_pOpt->m_fPartialNGen)
+    {
+        if (m_zapper->m_pOpt->m_verbose)
+            m_zapper->Info(W("Skipped because of no profile data\n"));
         return;
+    }
 
     // During ngen we look for a hint attribute on the method that indicates
     // the method should be preprocessed for early
@@ -441,14 +437,39 @@ void ZapInfo::CompileMethod()
     // this they can add the hint and reduce the perf cost at runtime.
     m_pImage->m_pPreloader->PrePrepareMethodIfNecessary(m_currentMethodHandle);
 
-    DWORD methodAttribs = getMethodAttribs(m_currentMethodHandle);
+    // Retrieve method attributes from EEJitInfo - the ZapInfo's version updates
+    // some of the flags related to hardware intrinsics but we don't want that.
+    DWORD methodAttribs = m_pEEJitInfo->getMethodAttribs(m_currentMethodHandle);
     if (methodAttribs & CORINFO_FLG_AGGRESSIVE_OPT)
     {
         // Skip methods marked with MethodImplOptions.AggressiveOptimization, they will be jitted instead. In the future,
         // consider letting the JIT determine whether aggressively optimized code can/should be pregenerated for the method
         // instead of this check.
+        if (m_zapper->m_pOpt->m_verbose)
+            m_zapper->Info(W("Skipped because of aggressive optimization flag\n"));
         return;
     }
+
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+    if (methodAttribs & CORINFO_FLG_JIT_INTRINSIC)
+    {
+        // Skip generating hardware intrinsic method bodies.
+        //
+        // We don't know what the implementation should do (whether it can do the actual intrinsic thing, or whether
+        // it should throw a PlatformNotSupportedException).
+
+        const char* namespaceName;
+        getMethodNameFromMetadata(m_currentMethodHandle, nullptr, &namespaceName, nullptr);
+        if (strcmp(namespaceName, "System.Runtime.Intrinsics.X86") == 0
+            || strcmp(namespaceName, "System.Runtime.Intrinsics.Arm.Arm64") == 0
+            || strcmp(namespaceName, "System.Runtime.Intrinsics") == 0)
+        {
+            if (m_zapper->m_pOpt->m_verbose)
+                m_zapper->Info(W("Skipped due to being a hardware intrinsic\n"));
+            return;
+        }
+    }
+#endif
 
     m_jitFlags = ComputeJitFlags(m_currentMethodHandle);
 
@@ -671,7 +692,7 @@ public:
         if (!UnwindInfoEquals(k1->m_pColdUnwindInfo, k2->m_pColdUnwindInfo, equivalentNodes))
             return FALSE;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
         if (!UnwindInfoFragmentsEquals(k1->m_pUnwindInfoFragments, k2->m_pUnwindInfoFragments, equivalentNodes))
             return FALSE;
 #endif
@@ -786,7 +807,7 @@ void ZapInfo::PublishCompiledMethod()
     pMethod->m_pDebugInfo = EmitDebugInfo();
     pMethod->m_pGCInfo = EmitGCInfo();
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     pMethod->m_pUnwindInfoFragments = m_pUnwindInfoFragments;
 
     // Set the combined GCInfo + UnwindInfo blob
@@ -800,7 +821,7 @@ void ZapInfo::PublishCompiledMethod()
     }
 #endif // _TARGET_AMD64_
 
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 #ifndef FEATURE_FULL_NGEN
     //
@@ -1133,12 +1154,12 @@ void * ZapInfo::allocGCInfo(size_t size)
 {
     _ASSERTE(m_pGCInfo == NULL);
 
-#ifdef _WIN64
+#ifdef BIT64
     if (size & 0xFFFFFFFF80000000LL)
     {
         IfFailThrow(CORJIT_OUTOFMEM);
     }
-#endif // _WIN64
+#endif // BIT64
 
     m_pGCInfo = new BYTE[size];
     m_cbGCInfo = size;
@@ -1309,7 +1330,7 @@ void ZapInfo::allocUnwindInfo (
         CorJitFuncKind      funcKind               /* IN */
         )
 {
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     _ASSERTE(pHotCode == m_pCode->GetData());
     _ASSERTE(pColdCode == NULL || pColdCode == m_pColdCode->GetData());
 
@@ -1365,7 +1386,7 @@ void ZapInfo::allocUnwindInfo (
         ZapUnwindData * pUnwindData = m_pImage->m_pUnwindDataTable->GetUnwindData(pUnwindBlock, unwindSize, funcKind == CORJIT_FUNC_FILTER);
         pUnwindInfo->SetUnwindData(pUnwindData);
     }     
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 }
 
 BOOL ZapInfo::logMsg(unsigned level, const char *fmt, va_list args)
@@ -2086,6 +2107,98 @@ void ZapInfo::GetProfilingHandle(BOOL                      *pbHookFunction,
     *pbIndirectedHandles = TRUE;
 }
 
+//
+// This strips the CORINFO_FLG_JIT_INTRINSIC flag from some of the named intrinsic methods.
+//
+DWORD FilterNamedIntrinsicMethodAttribs(DWORD attribs, CORINFO_METHOD_HANDLE ftn, ICorDynamicInfo* pJitInfo)
+{
+    if (attribs & CORINFO_FLG_JIT_INTRINSIC)
+    {
+        // Figure out which intrinsic we are dealing with.
+        const char* namespaceName;
+        const char* className;
+        const char* enclosingClassName;
+        const char* methodName = pJitInfo->getMethodNameFromMetadata(ftn, &className, &namespaceName, &enclosingClassName);
+
+        // Is this the get_IsSupported method that checks whether intrinsic is supported?
+        bool fIsGetIsSupportedMethod   = strcmp(methodName, "get_IsSupported") == 0;
+        bool fIsPlatformHWIntrinsic    = false;
+        bool fIsHWIntrinsic            = false;
+        bool fTreatAsRegularMethodCall = false;
+
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+        fIsPlatformHWIntrinsic = strcmp(namespaceName, "System.Runtime.Intrinsics.X86") == 0;
+#elif _TARGET_ARM64_
+        fIsPlatformHWIntrinsic = strcmp(namespaceName, "System.Runtime.Intrinsics.Arm.Arm64") == 0;
+#endif
+
+        fIsHWIntrinsic = fIsPlatformHWIntrinsic || (strcmp(namespaceName, "System.Runtime.Intrinsics") == 0);
+
+        // By default, we want to treat the get_IsSupported method for platform specific HWIntrinsic ISAs as
+        // method calls. This will be modified as needed below based on what ISAs are considered baseline.
+        //
+        // We also want to treat the non-platform specific hardware intrinsics as regular method calls. This
+        // is because they often change the code they emit based on what ISAs are supported by the compiler,
+        // but we don't know what the target machine will support.
+        //
+        // Additionally, we make sure none of the hardware intrinsic method bodies get pregenerated in crossgen
+        // (see ZapInfo::CompileMethod) but get JITted instead. The JITted method will have the correct
+        // answer for the CPU the code is running on.
+        fTreatAsRegularMethodCall = (fIsGetIsSupportedMethod && fIsPlatformHWIntrinsic) || (!fIsPlatformHWIntrinsic && fIsHWIntrinsic);
+
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+        if (fIsPlatformHWIntrinsic)
+        {
+            // Simplify the comparison logic by grabbing the name of the ISA
+            const char* isaName = (enclosingClassName == nullptr) ? className : enclosingClassName;
+
+            if ((strcmp(isaName, "Sse") == 0) || (strcmp(isaName, "Sse2") == 0))
+            {
+                if ((enclosingClassName == nullptr) || (strcmp(className, "X64") == 0))
+                {
+                    // If it's anything related to Sse/Sse2, we can expand unconditionally since this is
+                    // a baseline requirement of CoreCLR.
+                    fTreatAsRegularMethodCall = false;
+                }
+            }
+            else if ((strcmp(className, "Avx") == 0) || (strcmp(className, "Fma") == 0) || (strcmp(className, "Avx2") == 0) || (strcmp(className, "Bmi1") == 0) || (strcmp(className, "Bmi2") == 0))
+            {
+                if ((enclosingClassName == nullptr) || (strcmp(className, "X64") == 0))
+                {
+                    // If it is the get_IsSupported method for an ISA which requires the VEX
+                    // encoding we want to expand unconditionally. This will force those code
+                    // paths to be treated as dead code and dropped from the compilation.
+                    //
+                    // For all of the other intrinsics in an ISA which requires the VEX encoding
+                    // we need to treat them as regular method calls. This is done because RyuJIT
+                    // doesn't currently support emitting both VEX and non-VEX encoded instructions
+                    // for a single method.
+                    fTreatAsRegularMethodCall = !fIsGetIsSupportedMethod;
+                }
+            }
+        }
+        else if (strcmp(namespaceName, "System") == 0)
+        {
+            if ((strcmp(className, "Math") == 0) || (strcmp(className, "MathF") == 0))
+            {
+                // These are normally handled via the SSE4.1 instructions ROUNDSS/ROUNDSD.
+                // However, we don't know the ISAs the target machine supports so we should
+                // fallback to the method call implementation instead.
+                fTreatAsRegularMethodCall = strcmp(methodName, "Round") == 0;
+            }
+        }
+#endif // defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+
+        if (fTreatAsRegularMethodCall)
+        {
+            // Treat as a regular method call (into a JITted method).
+            attribs = (attribs & ~CORINFO_FLG_JIT_INTRINSIC) | CORINFO_FLG_DONT_INLINE;
+        }
+    }
+
+    return attribs;
+}
+
 //return a callable stub that will do the virtual or interface call
 
 
@@ -2110,6 +2223,8 @@ void ZapInfo::getCallInfo(CORINFO_RESOLVED_TOKEN * pResolvedToken,
                                */
                               (CORINFO_CALLINFO_FLAGS)(flags | CORINFO_CALLINFO_KINDONLY),
                               pResult);
+
+    pResult->methodFlags = FilterNamedIntrinsicMethodAttribs(pResult->methodFlags, pResult->hMethod, m_pEEJitInfo);
 
 #ifdef FEATURE_READYTORUN_COMPILER
     if (IsReadyToRunCompilation())
@@ -2231,6 +2346,18 @@ void ZapInfo::getCallInfo(CORINFO_RESOLVED_TOKEN * pResolvedToken,
             }
             else
             {
+                if (pResult->methodFlags & CORINFO_FLG_INTRINSIC)
+                {
+                    bool unused;
+                    CorInfoIntrinsics intrinsic = getIntrinsicID(pResult->hMethod, &unused);
+                    if ((intrinsic == CORINFO_INTRINSIC_StubHelpers_GetStubContext)
+                     || (intrinsic == CORINFO_INTRINSIC_StubHelpers_GetStubContextAddr)
+                     )
+                    {
+                        // These intrinsics are always expanded directly in the jit and do not correspond to external methods
+                        return;
+                    }
+                }
                 pImport = m_pImage->GetImportTable()->GetExternalMethodCell(pResult->hMethod, pResolvedToken, pConstrainedResolvedToken);
             }
 
@@ -3681,7 +3808,8 @@ unsigned ZapInfo::getMethodHash(CORINFO_METHOD_HANDLE ftn)
 
 DWORD ZapInfo::getMethodAttribs(CORINFO_METHOD_HANDLE ftn)
 {
-    return m_pEEJitInfo->getMethodAttribs(ftn);
+    DWORD result = m_pEEJitInfo->getMethodAttribs(ftn);
+    return FilterNamedIntrinsicMethodAttribs(result, ftn, m_pEEJitInfo);
 }
 
 void ZapInfo::setMethodAttribs(CORINFO_METHOD_HANDLE ftn, CorInfoMethodRuntimeFlags attribs)
@@ -3851,7 +3979,19 @@ void ZapInfo::expandRawHandleIntrinsic(
 CorInfoIntrinsics ZapInfo::getIntrinsicID(CORINFO_METHOD_HANDLE method,
                                           bool * pMustExpand)
 {
-    return m_pEEJitInfo->getIntrinsicID(method, pMustExpand);
+    CorInfoIntrinsics intrinsicID = m_pEEJitInfo->getIntrinsicID(method, pMustExpand);
+
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+    if ((intrinsicID == CORINFO_INTRINSIC_Ceiling) || (intrinsicID == CORINFO_INTRINSIC_Floor))
+    {
+        // These are normally handled via the SSE4.1 instructions ROUNDSS/ROUNDSD.
+        // However, we don't know the ISAs the target machine supports so we should
+        // fallback to the method call implementation instead.
+        intrinsicID = CORINFO_INTRINSIC_Illegal;
+    }
+#endif // defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+
+    return intrinsicID;
 }
 
 bool ZapInfo::isInSIMDModule(CORINFO_CLASS_HANDLE classHnd)
@@ -3867,8 +4007,8 @@ CorInfoUnmanagedCallConv ZapInfo::getUnmanagedCallConv(CORINFO_METHOD_HANDLE met
 BOOL ZapInfo::pInvokeMarshalingRequired(CORINFO_METHOD_HANDLE method,
                                                        CORINFO_SIG_INFO* sig)
 {
-#ifdef PLATFORM_UNIX
-    // TODO: Support for pinvoke helpers on non-Windows platforms
+#if defined(_TARGET_X86_) && defined(PLATFORM_UNIX)
+    // FUTURE ReadyToRun: x86 pinvoke stubs on Unix platforms
     if (IsReadyToRunCompilation())
         return TRUE; 
 #endif

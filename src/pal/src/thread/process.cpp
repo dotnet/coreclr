@@ -480,7 +480,6 @@ CreateProcessA(
         CommandLineW,
         lpProcessAttributes,
         lpThreadAttributes,
-        bInheritHandles,
         dwCreationFlags,
         lpEnvironment,
         CurrentDirectoryW,
@@ -551,7 +550,6 @@ CreateProcessW(
         lpCommandLine,
         lpProcessAttributes,
         lpThreadAttributes,
-        bInheritHandles,
         dwCreationFlags,
         lpEnvironment,
         lpCurrentDirectory,
@@ -588,7 +586,6 @@ PrepareStandardHandle(
         pThread,
         hFile,
         &aotFile,
-        0,
         &pobjFile
         );
 
@@ -663,7 +660,6 @@ CorUnix::InternalCreateProcess(
     LPWSTR lpCommandLine,
     LPSECURITY_ATTRIBUTES lpProcessAttributes,
     LPSECURITY_ATTRIBUTES lpThreadAttributes,
-    BOOL bInheritHandles,
     DWORD dwCreationFlags,
     LPVOID lpEnvironment,
     LPCWSTR lpCurrentDirectory,
@@ -897,7 +893,6 @@ CorUnix::InternalCreateProcess(
         pThread,
         pobjProcess,
         &aotProcess,
-        PROCESS_ALL_ACCESS,
         &hProcess,
         &pobjProcessRegistered
         );
@@ -1465,12 +1460,6 @@ static BOOL PROCEndProcess(HANDLE hProcess, UINT uExitCode, BOOL bTerminateUncon
 
         LOGEXIT("PROCEndProcess will not return\n");
 
-        // exit() runs atexit handlers possibly registered by foreign code.
-        // The right thing to do here is to leave the PAL.  If our client
-        // registered our own PAL_Terminate with atexit(), the latter will
-        // explicitly re-enter us.
-        PAL_Leave(PAL_BoundaryBottom);
-
         if (bTerminateUnconditionally)
         {
             // abort() has the semantics that
@@ -1674,6 +1663,7 @@ public:
         PAL_ERROR pe = NO_ERROR;
         BOOL ret;
         UnambiguousProcessDescriptor unambiguousProcessDescriptor;
+        SIZE_T osThreadId = 0;
 
 #ifdef __APPLE__
         if (lpApplicationGroupId != NULL)
@@ -1734,7 +1724,6 @@ public:
 
         // Add a reference for the thread handler
         AddRef();
-
         pe = InternalCreateThread(
             pThread,
             NULL,
@@ -1743,7 +1732,7 @@ public:
             this,
             0,
             UserCreatedThread,
-            &m_threadId,
+            &osThreadId,
             &m_threadHandle);
 
         if (NO_ERROR != pe)
@@ -1752,7 +1741,7 @@ public:
             Release();
             goto exit;
         }
-
+        m_threadId = (DWORD)osThreadId;
     exit:
         return pe;
     }
@@ -2558,12 +2547,6 @@ PAL_GetCPUBusyTime(
         {
             return 0;
         }
-
-        UINT cpuLimit;
-        if (PAL_GetCpuLimit(&cpuLimit) && cpuLimit < dwNumberOfProcessors)
-        {
-            dwNumberOfProcessors = cpuLimit;
-        }
     }
 
     if (getrusage(RUSAGE_SELF, &resUsage) == -1)
@@ -2733,7 +2716,6 @@ OpenProcess(
         pThread,
         pobjProcess,
         &aotProcess,
-        dwDesiredAccess,
         &hProcess,
         &pobjProcessRegistered
         );
@@ -2908,7 +2890,6 @@ GetProcessModulesFromHandle(
             pThread,
             hProcess,
             &aotProcess,
-            0,
             &pobjProcess);
 
         if (NO_ERROR != palError)
@@ -3337,8 +3318,9 @@ PROCCreateCrashDump(char** argv)
         // Gives the child process permission to use /proc/<pid>/mem and ptrace
         if (prctl(PR_SET_PTRACER, childpid, 0, 0, 0) == -1)
         {
+            // Ignore any error because on some CentOS and OpenSUSE distros, it isn't
+            // supported but createdump works just fine.
             ERROR("PPROCCreateCrashDump: prctl() FAILED %d (%s)\n", errno, strerror(errno));
-            return false;
         }
         // Parent waits until the child process is done
         int wstatus = 0;
@@ -3625,7 +3607,6 @@ PROCGetProcessIDFromHandle(
         pThread,
         hProcess,
         &aotProcess,
-        0,
         &pobjProcess
         );
 
@@ -3830,7 +3811,6 @@ CorUnix::CreateInitialProcessAndThreadObjects(
         pThread,
         pobjProcess,
         &aotProcess,
-        PROCESS_ALL_ACCESS,
         &hProcess,
         &g_pobjProcess
         );
@@ -4202,7 +4182,6 @@ PROCGetProcessStatus(
         pThread,
         hProcess,
         &aotProcess,
-        0,
         &pobjProcess
         );
 

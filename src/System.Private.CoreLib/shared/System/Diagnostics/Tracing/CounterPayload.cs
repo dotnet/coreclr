@@ -2,14 +2,12 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#if ES_BUILD_STANDALONE
 using System;
 using System.Diagnostics;
+#endif
 using System.Collections;
 using System.Collections.Generic;
-using System.Threading;
-#if ES_BUILD_PCL
-    using System.Threading.Tasks;
-#endif
 
 #if ES_BUILD_STANDALONE
 namespace Microsoft.Diagnostics.Tracing
@@ -42,7 +40,9 @@ namespace System.Diagnostics.Tracing
 
         public string? Metadata { get; set; }
 
-        #region Implementation of the IEnumerable interface
+        public string? DisplayUnits { get; set; }
+
+#region Implementation of the IEnumerable interface
 
         public IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
         {
@@ -60,6 +60,7 @@ namespace System.Diagnostics.Tracing
             {
                 yield return new KeyValuePair<string, object?>("Name", Name);
                 yield return new KeyValuePair<string, object?>("DisplayName", DisplayName);
+                yield return new KeyValuePair<string, object?>("DisplayUnits", DisplayUnits);
                 yield return new KeyValuePair<string, object?>("Mean", Mean);
                 yield return new KeyValuePair<string, object?>("StandardDeviation", StandardDeviation);
                 yield return new KeyValuePair<string, object?>("Count", Count);
@@ -72,7 +73,7 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        #endregion // Implementation of the IEnumerable interface
+#endregion // Implementation of the IEnumerable interface
     }
 
     [EventData]
@@ -94,7 +95,9 @@ namespace System.Diagnostics.Tracing
 
         public string? CounterType { get; set; }
 
-        #region Implementation of the IEnumerable interface
+        public string? DisplayUnits { get; set; }
+
+#region Implementation of the IEnumerable interface
 
         public IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
         {
@@ -118,9 +121,10 @@ namespace System.Diagnostics.Tracing
                 yield return new KeyValuePair<string, object?>("Series", $"Interval={IntervalSec}");
                 yield return new KeyValuePair<string, object?>("CounterType", "Sum");
                 yield return new KeyValuePair<string, object?>("Metadata", Metadata);
+                yield return new KeyValuePair<string, object?>("DisplayUnits", DisplayUnits);
             }
         }
 
-        #endregion // Implementation of the IEnumerable interface
+#endregion // Implementation of the IEnumerable interface
     }
 }

@@ -180,7 +180,7 @@ inline void *__cdecl operator new(size_t, void *_P)
 #define ARGUMENT_PRESENT(ArgumentPointer)    (\
     (CHAR *)(ArgumentPointer) != (CHAR *)(NULL) )
 
-#if defined(_WIN64)
+#if defined(BIT64)
 #define MAX_NATURAL_ALIGNMENT sizeof(ULONGLONG)
 #else
 #define MAX_NATURAL_ALIGNMENT sizeof(ULONG)
@@ -629,7 +629,7 @@ STDAPI_(HRESULT) VariantClear(VARIANT * pvarg);
 #define V_UINTREF(X)     V_UNION(X, puintVal)
 #define V_ARRAY(X)       V_UNION(X, parray)
 
-#ifdef _WIN64
+#ifdef BIT64
 #define V_INT_PTR(X)        V_UNION(X, llVal)
 #define V_UINT_PTR(X)       V_UNION(X, ullVal)
 #define V_INT_PTRREF(X)     V_UNION(X, pllVal)
@@ -836,8 +836,6 @@ Remember to fix the errcode defintion in safecrt.h.
 #define _wfopen_s _wfopen_unsafe
 #define fopen_s _fopen_unsafe
 
-#define _strlwr_s _strlwr_unsafe
-
 #define _vscprintf _vscprintf_unsafe
 
 extern "C++" {
@@ -861,24 +859,6 @@ inline errno_t __cdecl _wcslwr_unsafe(WCHAR *str, size_t sz)
 
     _wcslwr(copy);
     wcscpy_s(str, sz, copy);
-    free(copy);
-	
-    return 0;
-}
-inline errno_t __cdecl _strlwr_unsafe(char *str, size_t sz)
-{
-    char *copy = (char *)malloc(sz);
-    if(copy == nullptr)
-        return 1;
-
-    errno_t retCode = strcpy_s(copy, sz, str);
-    if(retCode) {
-        free(copy);
-        return 1;
-    }
-
-    _strlwr(copy);
-    strcpy_s(str, sz, copy);
     free(copy);
 	
     return 0;
@@ -1301,8 +1281,6 @@ typedef OUT_OF_PROCESS_FUNCTION_TABLE_CALLBACK *POUT_OF_PROCESS_FUNCTION_TABLE_C
 #define OUT_OF_PROCESS_FUNCTION_TABLE_CALLBACK_EXPORT_NAME \
     "OutOfProcessFunctionTableCallback"
 
-#if defined(FEATURE_PAL_SXS)
-
 // #if !defined(_TARGET_MAC64)
 // typedef LONG (*PEXCEPTION_ROUTINE)(
     // IN PEXCEPTION_POINTERS pExceptionPointers,
@@ -1422,8 +1400,6 @@ typedef DISPATCHER_CONTEXT *PDISPATCHER_CONTEXT;
 #define ExceptionContinueSearch     EXCEPTION_CONTINUE_SEARCH
 #define ExceptionStackUnwind        EXCEPTION_EXECUTE_HANDLER
 #define ExceptionContinueExecution  EXCEPTION_CONTINUE_EXECUTION
-
-#endif // FEATURE_PAL_SXS
 
 typedef struct _EXCEPTION_REGISTRATION_RECORD EXCEPTION_REGISTRATION_RECORD;
 typedef EXCEPTION_REGISTRATION_RECORD *PEXCEPTION_REGISTRATION_RECORD;

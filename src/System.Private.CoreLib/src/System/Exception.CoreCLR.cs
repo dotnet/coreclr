@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
+using System.Text;
 
 namespace System
 {
@@ -19,7 +20,7 @@ namespace System
 
             // Get the WatsonBuckets that were serialized - this is particularly
             // done to support exceptions going across AD transitions.
-            // 
+            //
             // We use the no throw version since we could be deserializing a pre-V4
             // exception object that may not have this entry. In such a case, we would
             // get null.
@@ -28,18 +29,18 @@ namespace System
             // If we are constructing a new exception after a cross-appdomain call...
             if (context.State == StreamingContextStates.CrossAppDomain)
             {
-                // ...this new exception may get thrown.  It is logically a re-throw, but 
-                //  physically a brand-new exception.  Since the stack trace is cleared 
-                //  on a new exception, the "_remoteStackTraceString" is provided to 
+                // ...this new exception may get thrown.  It is logically a re-throw, but
+                //  physically a brand-new exception.  Since the stack trace is cleared
+                //  on a new exception, the "_remoteStackTraceString" is provided to
                 //  effectively import a stack trace from a "remote" exception.  So,
                 //  move the _stackTraceString into the _remoteStackTraceString.  Note
-                //  that if there is an existing _remoteStackTraceString, it will be 
-                //  preserved at the head of the new string, so everything works as 
+                //  that if there is an existing _remoteStackTraceString, it will be
+                //  preserved at the head of the new string, so everything works as
                 //  expected.
                 // Even if this exception is NOT thrown, things will still work as expected
                 //  because the StackTrace property returns the concatenation of the
                 //  _remoteStackTraceString and the _stackTraceString.
-                _remoteStackTraceString = _remoteStackTraceString + _stackTraceString;
+                _remoteStackTraceString += _stackTraceString;
                 _stackTraceString = null;
             }
         }
@@ -50,17 +51,16 @@ namespace System
                 return new EmptyReadOnlyDictionaryInternal();
             else
                 return new ListDictionaryInternal();
-
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool IsImmutableAgileException(Exception e);
 
 #if FEATURE_COMINTEROP
         //
         // Exception requires anything to be added into Data dictionary is serializable
-        // This wrapper is made serializable to satisfy this requirement but does NOT serialize 
-        // the object and simply ignores it during serialization, because we only need 
+        // This wrapper is made serializable to satisfy this requirement but does NOT serialize
+        // the object and simply ignores it during serialization, because we only need
         // the exception instance in the app to hold the error object alive.
         // Once the exception is serialized to debugger, debugger only needs the error reference string
         //
@@ -69,7 +69,7 @@ namespace System
         {
             // Hold the error object instance but don't serialize/deserialize it
             [NonSerialized]
-            private object _realErrorObject;
+            private readonly object _realErrorObject;
 
             internal __RestrictedErrorObject(object errorObject)
             {
@@ -101,7 +101,7 @@ namespace System
 
                 // Keep the error object alive so that user could retrieve error information
                 // using Data["RestrictedErrorReference"]
-                dict.Add("__RestrictedErrorObject", (restrictedErrorObject == null ? null : new __RestrictedErrorObject(restrictedErrorObject)));
+                dict.Add("__RestrictedErrorObject", restrictedErrorObject == null ? null : new __RestrictedErrorObject(restrictedErrorObject));
                 dict.Add("__HasRestrictedLanguageErrorObject", hasrestrictedLanguageErrorObject);
             }
         }
@@ -123,8 +123,8 @@ namespace System
         }
 #endif // FEATURE_COMINTEROP
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static private extern IRuntimeMethodInfo GetMethodFromStackTrace(object stackTrace);
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        private static extern IRuntimeMethodInfo GetMethodFromStackTrace(object stackTrace);
 
         private MethodBase? GetExceptionMethodFromStackTrace()
         {
@@ -221,7 +221,7 @@ namespace System
             // Using it across process or an AppDomain could be invalid and result
             // in AV in the runtime.
             //
-            // Hence, we set it to zero when deserialization takes place. 
+            // Hence, we set it to zero when deserialization takes place.
             _ipForWatsonBuckets = UIntPtr.Zero;
         }
 
@@ -231,47 +231,38 @@ namespace System
         {
             // Make sure that the _source field is initialized if Source is not overriden.
             // We want it to contain the original faulting point.
-            string? source = Source;
+            _ = Source;
 
             string? tmpStackTraceString = StackTrace;
 
-            if (tmpStackTraceString != null && tmpStackTraceString.Length > 0)
+            if (!string.IsNullOrEmpty(tmpStackTraceString))
             {
-                _remoteStackTraceString = tmpStackTraceString + Environment.NewLine;
+                _remoteStackTraceString = tmpStackTraceString + Environment.NewLineConst;
             }
 
             _stackTrace = null;
             _stackTraceString = null;
         }
 
-
-        // This is the object against which a lock will be taken
-        // when attempt to restore the EDI. Since its static, its possible
-        // that unrelated exception object restorations could get blocked
-        // for a small duration but that sounds reasonable considering
-        // such scenarios are going to be extremely rare, where timing
-        // matches precisely.
-        private static readonly object s_DispatchStateLock = new object();
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void PrepareForForeignExceptionRaise();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void GetStackTracesDeepCopy(Exception exception, out object currentStackTrace, out object dynamicMethodArray);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void SaveStackTracesFromDeepCopy(Exception exception, object? currentStackTrace, object? dynamicMethodArray);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern object CopyStackTrace(object currentStackTrace);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern object CopyDynamicMethods(object currentDynamicMethods);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern uint GetExceptionCount();
 
-        internal object? DeepCopyStackTrace(object? currentStackTrace)
+        internal static object? DeepCopyStackTrace(object? currentStackTrace)
         {
             if (currentStackTrace != null)
             {
@@ -283,7 +274,7 @@ namespace System
             }
         }
 
-        internal object? DeepCopyDynamicMethods(object? currentDynamicMethods)
+        internal static object? DeepCopyDynamicMethods(object? currentDynamicMethods)
         {
             if (currentDynamicMethods != null)
             {
@@ -299,86 +290,60 @@ namespace System
         // exception, just before the exception is "rethrown".
         internal void RestoreDispatchState(in DispatchState dispatchState)
         {
-            bool fCanProcessException = !(IsImmutableAgileException(this));
+            bool fCanProcessException = !IsImmutableAgileException(this);
             // Restore only for non-preallocated exceptions
             if (fCanProcessException)
             {
-                // Take a lock to ensure only one thread can restore the details
-                // at a time against this exception object that could have
-                // multiple ExceptionDispatchInfo instances associated with it.
+                // When restoring back the fields, we again create a copy and set reference to them
+                // in the exception object. This will ensure that when this exception is thrown and these
+                // fields are modified, then EDI's references remain intact.
                 //
-                // We do this inside a finally clause to ensure ThreadAbort cannot
-                // be injected while we have taken the lock. This is to prevent
-                // unrelated exception restorations from getting blocked due to TAE.
-                try { }
-                finally
-                {
-                    // When restoring back the fields, we again create a copy and set reference to them
-                    // in the exception object. This will ensure that when this exception is thrown and these
-                    // fields are modified, then EDI's references remain intact.
-                    //
-                    // Since deep copying can throw on OOM, try to get the copies
-                    // outside the lock.
-                    object? _stackTraceCopy = (dispatchState.StackTrace == null) ? null : DeepCopyStackTrace(dispatchState.StackTrace);
-                    object? _dynamicMethodsCopy = (dispatchState.DynamicMethods == null) ? null : DeepCopyDynamicMethods(dispatchState.DynamicMethods);
+                object? stackTraceCopy = (dispatchState.StackTrace == null) ? null : DeepCopyStackTrace(dispatchState.StackTrace);
+                object? dynamicMethodsCopy = (dispatchState.DynamicMethods == null) ? null : DeepCopyDynamicMethods(dispatchState.DynamicMethods);
 
-                    // Finally, restore the information. 
-                    //
-                    // Since EDI can be created at various points during exception dispatch (e.g. at various frames on the stack) for the same exception instance,
-                    // they can have different data to be restored. Thus, to ensure atomicity of restoration from each EDI, perform the restore under a lock.
-                    lock (s_DispatchStateLock)
-                    {
-                        _watsonBuckets = dispatchState.WatsonBuckets;
-                        _ipForWatsonBuckets = dispatchState.IpForWatsonBuckets;
-                        _remoteStackTraceString = dispatchState.RemoteStackTrace;
-                        SaveStackTracesFromDeepCopy(this, _stackTraceCopy, _dynamicMethodsCopy);
-                    }
-                    _stackTraceString = null;
+                // Watson buckets and remoteStackTraceString fields are captured and restored without any locks. It is possible for them to
+                // get out of sync without violating overall integrity of the system.
+                _watsonBuckets = dispatchState.WatsonBuckets;
+                _ipForWatsonBuckets = dispatchState.IpForWatsonBuckets;
+                _remoteStackTraceString = dispatchState.RemoteStackTrace;
 
-                    // Marks the TES state to indicate we have restored foreign exception
-                    // dispatch information.
-                    PrepareForForeignExceptionRaise();
-                }
+                // The binary stack trace and references to dynamic methods have to be restored under a lock to guarantee integrity of the system.
+                SaveStackTracesFromDeepCopy(this, stackTraceCopy, dynamicMethodsCopy);
+
+                _stackTraceString = null;
+
+                // Marks the TES state to indicate we have restored foreign exception
+                // dispatch information.
+                PrepareForForeignExceptionRaise();
             }
         }
 
-        private MethodBase? _exceptionMethod;  //Needed for serialization.  
+        private MethodBase? _exceptionMethod;  // Needed for serialization.
         internal string? _message;
         private IDictionary? _data;
-        private Exception? _innerException;
+        private readonly Exception? _innerException;
         private string? _helpURL;
         private object? _stackTrace;
         private object? _watsonBuckets;
-        private string? _stackTraceString; //Needed for serialization.  
+        private string? _stackTraceString; // Needed for serialization.
         private string? _remoteStackTraceString;
-#pragma warning disable 414  // Field is not used from managed.        
+#pragma warning disable CA1823, 414  // Fields are not used from managed.
         // _dynamicMethods is an array of System.Resolver objects, used to keep
         // DynamicMethodDescs alive for the lifetime of the exception. We do this because
         // the _stackTrace field holds MethodDescs, and a DynamicMethodDesc can be destroyed
         // unless a System.Resolver object roots it.
-        private object? _dynamicMethods;
-#pragma warning restore 414
-
+        private readonly object? _dynamicMethods;
         private string? _source;         // Mainly used by VB.
         private UIntPtr _ipForWatsonBuckets; // Used to persist the IP for Watson Bucketing
-        private IntPtr _xptrs;             // Internal EE stuff 
-#pragma warning disable 414  // Field is not used from managed.
-        private int _xcode = _COMPlusExceptionCode;             // Internal EE stuff 
-#pragma warning restore 414
+        private readonly IntPtr _xptrs;             // Internal EE stuff
+        private readonly int _xcode = _COMPlusExceptionCode;             // Internal EE stuff
+#pragma warning restore CA1823, 414
 
         // @MANAGED: HResult is used from within the EE!  Rename with care - check VM directory
         private int _HResult;       // HResult
 
         // See src\inc\corexcep.h's EXCEPTION_COMPLUS definition:
         private const int _COMPlusExceptionCode = unchecked((int)0xe0434352);   // Win32 exception code for COM+ exceptions
-
-        internal bool IsTransient
-        {
-            get
-            {
-                return nIsTransient(HResult);
-            }
-        }
 
         private string? SerializationRemoteStackTraceString => _remoteStackTraceString;
 
@@ -399,15 +364,12 @@ namespace System
             }
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern bool nIsTransient(int hr);
-
-        // This piece of infrastructure exists to help avoid deadlocks 
-        // between parts of mscorlib that might throw an exception while 
+        // This piece of infrastructure exists to help avoid deadlocks
+        // between parts of mscorlib that might throw an exception while
         // holding a lock that are also used by mscorlib's ResourceManager
         // instance.  As a special case of code that may throw while holding
         // a lock, we also need to fix our asynchronous exceptions to use
-        // Win32 resources as well (assuming we ever call a managed 
+        // Win32 resources as well (assuming we ever call a managed
         // constructor on instances of them).  We should grow this set of
         // exception messages as we discover problems, then move the resources
         // involved to native code.
@@ -458,6 +420,31 @@ namespace System
 
             return new DispatchState(stackTrace, dynamicMethods,
                 _remoteStackTraceString, _ipForWatsonBuckets, _watsonBuckets);
+        }
+
+        [StackTraceHidden]
+        internal void SetCurrentStackTrace()
+        {
+            // If this is a preallocated singleton exception, silently skip the operation,
+            // regardless of the value of throwIfHasExistingStack.
+            if (IsImmutableAgileException(this))
+            {
+                return;
+            }
+
+            // Check to see if the exception already has a stack set in it.
+            if (_stackTrace != null || _stackTraceString != null || _remoteStackTraceString != null)
+            {
+                ThrowHelper.ThrowInvalidOperationException();
+            }
+
+            // Store the current stack trace into the "remote" stack trace, which was originally introduced to support
+            // remoting of exceptions cross app-domain boundaries, and is thus concatenated into Exception.StackTrace
+            // when it's retrieved.
+            var sb = new StringBuilder(256);
+            new StackTrace(fNeedFileInfo: true).ToString(System.Diagnostics.StackTrace.TraceFormat.TrailingNewLine, sb);
+            sb.AppendLine(SR.Exception_EndStackTraceFromPreviousThrow);
+            _remoteStackTraceString = sb.ToString();
         }
     }
 }

@@ -267,12 +267,6 @@ typedef unsigned char   regNumberSmall;
   #define FEATURE_EH               1       // To aid platform bring-up, eliminate exceptional EH clauses (catch, filter,
                                            // filter-handler, fault) and directly execute 'finally' clauses.
 
-#if defined(FEATURE_PAL)
-  #define FEATURE_EH_FUNCLETS      1
-#else  // !FEATURE_PAL
-  #define FEATURE_EH_FUNCLETS      0
-#endif // !FEATURE_PAL
-
   #define FEATURE_EH_CALLFINALLY_THUNKS 0  // Generate call-to-finally code in "thunks" in the enclosing EH region,
                                            // protected by "cloned finally" clauses.
   #define ETW_EBP_FRAMED           1       // if 1 we cannot use EBP as a scratch register and must create EBP based
@@ -498,6 +492,11 @@ typedef unsigned char   regNumberSmall;
   // on the stack guard page, and must be touched before any further "SUB SP".
   #define STACK_PROBE_BOUNDARY_THRESHOLD_BYTES ARG_STACK_PROBE_THRESHOLD_BYTES
 
+  #define REG_STACK_PROBE_HELPER_ARG   REG_EAX
+  #define RBM_STACK_PROBE_HELPER_ARG   RBM_EAX
+
+  #define RBM_STACK_PROBE_HELPER_TRASH RBM_NONE
+
 #elif defined(_TARGET_AMD64_)
   // TODO-AMD64-CQ: Fine tune the following xxBlk threshold values:
  
@@ -567,7 +566,6 @@ typedef unsigned char   regNumberSmall;
   #define EMIT_TRACK_STACK_DEPTH   1
   #define TARGET_POINTER_SIZE      8       // equal to sizeof(void*) and the managed pointer size in bytes for this target
   #define FEATURE_EH               1       // To aid platform bring-up, eliminate exceptional EH clauses (catch, filter, filter-handler, fault) and directly execute 'finally' clauses.
-  #define FEATURE_EH_FUNCLETS      1
   #define FEATURE_EH_CALLFINALLY_THUNKS 1  // Generate call-to-finally code in "thunks" in the enclosing EH region, protected by "cloned finally" clauses.
 #ifdef    UNIX_AMD64_ABI
   #define ETW_EBP_FRAMED           1       // if 1 we cannot use EBP as a scratch register and must create EBP based frames for most methods
@@ -903,6 +901,15 @@ typedef unsigned char   regNumberSmall;
   // AMD64 uses FEATURE_FIXED_OUT_ARGS so this can be zero.
   #define STACK_PROBE_BOUNDARY_THRESHOLD_BYTES 0
 
+  #define REG_STACK_PROBE_HELPER_ARG   REG_R11
+  #define RBM_STACK_PROBE_HELPER_ARG   RBM_R11
+
+#ifdef _TARGET_UNIX_
+  #define RBM_STACK_PROBE_HELPER_TRASH RBM_NONE
+#else // !_TARGET_UNIX_
+  #define RBM_STACK_PROBE_HELPER_TRASH RBM_RAX
+#endif // !_TARGET_UNIX_
+
 #elif defined(_TARGET_ARM_)
 
   // TODO-ARM-CQ: Use shift for division by power of 2
@@ -938,7 +945,6 @@ typedef unsigned char   regNumberSmall;
                                            // need to track stack depth, but this is currently necessary to get GC information reported at call sites.
   #define TARGET_POINTER_SIZE      4       // equal to sizeof(void*) and the managed pointer size in bytes for this target
   #define FEATURE_EH               1       // To aid platform bring-up, eliminate exceptional EH clauses (catch, filter, filter-handler, fault) and directly execute 'finally' clauses.
-  #define FEATURE_EH_FUNCLETS      1
   #define FEATURE_EH_CALLFINALLY_THUNKS 0  // Generate call-to-finally code in "thunks" in the enclosing EH region, protected by "cloned finally" clauses.
   #define ETW_EBP_FRAMED           1       // if 1 we cannot use REG_FP as a scratch register and must setup the frame pointer for most methods
   #define CSE_CONSTS               1       // Enable if we want to CSE constants 
@@ -1024,6 +1030,7 @@ typedef unsigned char   regNumberSmall;
   #define RBM_OPT_RSVD             RBM_R10
 
   // We reserve R9 to store SP on entry for stack unwinding when localloc is used
+  // This needs to stay in sync with the ARM version of InlinedCallFrame::UpdateRegDisplay code.
   #define REG_SAVED_LOCALLOC_SP    REG_R9
   #define RBM_SAVED_LOCALLOC_SP    RBM_R9
 
@@ -1113,10 +1120,6 @@ typedef unsigned char   regNumberSmall;
   #define RBM_PROFILER_ENTER_ARG           RBM_R0
   #define REG_PROFILER_RET_SCRATCH         REG_R2
   #define RBM_PROFILER_RET_SCRATCH         RBM_R2
-  #define RBM_PROFILER_RET_USED            (RBM_R0 | RBM_R1 | RBM_R2)
-  #define REG_PROFILER_JMP_ARG             REG_R0
-  #define RBM_PROFILER_JMP_USED            RBM_R0
-  #define RBM_PROFILER_TAIL_USED           (RBM_R0 | RBM_R12 | RBM_LR)
   
   // The registers trashed by profiler enter/leave/tailcall hook
   // See vm\arm\asmhelpers.asm for more details.
@@ -1249,7 +1252,6 @@ typedef unsigned char   regNumberSmall;
                                            // need to track stack depth, but this is currently necessary to get GC information reported at call sites.
   #define TARGET_POINTER_SIZE      8       // equal to sizeof(void*) and the managed pointer size in bytes for this target
   #define FEATURE_EH               1       // To aid platform bring-up, eliminate exceptional EH clauses (catch, filter, filter-handler, fault) and directly execute 'finally' clauses.
-  #define FEATURE_EH_FUNCLETS      1
   #define FEATURE_EH_CALLFINALLY_THUNKS 1  // Generate call-to-finally code in "thunks" in the enclosing EH region, protected by "cloned finally" clauses.
   #define ETW_EBP_FRAMED           1       // if 1 we cannot use REG_FP as a scratch register and must setup the frame pointer for most methods
   #define CSE_CONSTS               1       // Enable if we want to CSE constants 
@@ -1428,14 +1430,19 @@ typedef unsigned char   regNumberSmall;
   #define REG_PREV(reg)           ((regNumber)((unsigned)(reg) - 1))
 
   // The following registers are used in emitting Enter/Leave/Tailcall profiler callbacks
-  #define REG_PROFILER_ENTER_ARG           REG_R0
-  #define RBM_PROFILER_ENTER_ARG           RBM_R0
-  #define REG_PROFILER_RET_SCRATCH         REG_R2
-  #define RBM_PROFILER_RET_SCRATCH         RBM_R2
-  #define RBM_PROFILER_RET_USED            (RBM_R0 | RBM_R1 | RBM_R2)
-  #define REG_PROFILER_JMP_ARG             REG_R0
-  #define RBM_PROFILER_JMP_USED            RBM_R0
-  #define RBM_PROFILER_TAIL_USED           (RBM_R0 | RBM_R12 | RBM_LR)
+  #define REG_PROFILER_ENTER_ARG_FUNC_ID    REG_R10
+  #define RBM_PROFILER_ENTER_ARG_FUNC_ID    RBM_R10
+  #define REG_PROFILER_ENTER_ARG_CALLER_SP  REG_R11
+  #define RBM_PROFILER_ENTER_ARG_CALLER_SP  RBM_R11
+  #define REG_PROFILER_LEAVE_ARG_FUNC_ID    REG_R10
+  #define RBM_PROFILER_LEAVE_ARG_FUNC_ID    RBM_R10
+  #define REG_PROFILER_LEAVE_ARG_CALLER_SP  REG_R11
+  #define RBM_PROFILER_LEAVE_ARG_CALLER_SP  RBM_R11
+
+  // The registers trashed by profiler enter/leave/tailcall hook
+  #define RBM_PROFILER_ENTER_TRASH     (RBM_CALLEE_TRASH & ~(RBM_ARG_REGS|RBM_ARG_RET_BUFF|RBM_FLTARG_REGS|RBM_FP))
+  #define RBM_PROFILER_LEAVE_TRASH     (RBM_CALLEE_TRASH & ~(RBM_ARG_REGS|RBM_ARG_RET_BUFF|RBM_FLTARG_REGS|RBM_FP))
+  #define RBM_PROFILER_TAILCALL_TRASH  RBM_PROFILER_LEAVE_TRASH
 
   // Which register are int and long values returned in ?
   #define REG_INTRET               REG_R0

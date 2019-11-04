@@ -1,6 +1,3 @@
-
-include(${CLR_DIR}/dac.cmake)
-
 add_definitions(-DFEATURE_NO_HOST)
 
 include_directories(BEFORE ${VM_DIR})
@@ -11,7 +8,6 @@ include_directories(${CLR_DIR}/src/gcdump)
 
 if(CLR_CMAKE_PLATFORM_UNIX)
   include_directories(${GENERATED_INCLUDE_DIR})
-  add_compile_options(-fPIC)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 set(DACCESS_SOURCES
@@ -39,9 +35,9 @@ include_directories(${ARCH_SOURCES_DIR})
 
 convert_to_absolute_path(DACCESS_SOURCES ${DACCESS_SOURCES})
 
-add_precompiled_header(stdafx.h stdafx.cpp DACCESS_SOURCES)
-
 add_library_clr(daccess ${DACCESS_SOURCES})
+set_target_properties(daccess PROPERTIES DAC_COMPONENT TRUE)
+target_precompile_header(TARGET daccess HEADER stdafx.h)
 
 add_dependencies(daccess eventing_headers)
 

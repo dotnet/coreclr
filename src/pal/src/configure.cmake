@@ -77,6 +77,7 @@ int main(int argc, char **argv) {
 set(CMAKE_REQUIRED_LIBRARIES)
 
 check_include_files(sys/sysctl.h HAVE_SYS_SYSCTL_H)
+check_function_exists(sysctlbyname HAVE_SYSCTLBYNAME)
 check_include_files(gnu/lib-names.h HAVE_GNU_LIBNAMES_H)
 
 check_function_exists(kqueue HAVE_KQUEUE)
@@ -114,7 +115,6 @@ check_function_exists(utimes HAVE_UTIMES)
 check_function_exists(sysctl HAVE_SYSCTL)
 check_function_exists(sysinfo HAVE_SYSINFO)
 check_function_exists(sysconf HAVE_SYSCONF)
-check_function_exists(localtime_r HAVE_LOCALTIME_R)
 check_function_exists(gmtime_r HAVE_GMTIME_R)
 check_function_exists(timegm HAVE_TIMEGM)
 check_function_exists(poll HAVE_POLL)
@@ -538,9 +538,10 @@ check_cxx_source_runs("
 #include <string.h>
 #include <sys/types.h>
 #include <sys/mman.h>
+#include <algorithm>
 
 #define MEM_SIZE 1024
-
+#define TEMP_FILE_TEMPLATE \"${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/CMakeTmp/multiplemaptestXXXXXX\"
 int main(void)
 {
   char * fname;
@@ -548,10 +549,10 @@ int main(void)
   int ret;
   void * pAddr0, * pAddr1;
 
-  fname = (char *)malloc(MEM_SIZE);
+  fname = (char *)malloc(std::max((size_t)MEM_SIZE, sizeof(TEMP_FILE_TEMPLATE)));
   if (!fname)
     exit(1);
-  strcpy(fname, \"/tmp/name/multiplemaptestXXXXXX\");
+  strcpy(fname, TEMP_FILE_TEMPLATE);
 
   fd = mkstemp(fname);
   if (fd < 0)
@@ -1335,7 +1336,6 @@ if(NOT CLR_CMAKE_PLATFORM_ARCH_ARM AND NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
-  set(HAVE_COREFOUNDATION 1)
   set(HAVE__NSGETENVIRON 1)
   set(DEADLOCK_WHEN_THREAD_IS_SUSPENDED_WHILE_BLOCKED_ON_MUTEX 1)
   set(PAL_PTRACE "ptrace((cmd), (pid), (caddr_t)(addr), (data))")

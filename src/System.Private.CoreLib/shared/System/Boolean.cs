@@ -9,7 +9,7 @@
 ** Purpose: The boolean class serves as a wrapper for the primitive
 ** type boolean.
 **
-** 
+**
 ===========================================================*/
 
 using System.Runtime.CompilerServices;
@@ -34,30 +34,28 @@ namespace System
         //
         internal const int False = 0;
 
-
         //
         // Internal Constants are real consts for performance.
         //
 
         // The internal string representation of true.
-        // 
+        //
         internal const string TrueLiteral = "True";
 
         // The internal string representation of false.
-        // 
+        //
         internal const string FalseLiteral = "False";
-
 
         //
         // Public Constants
         //
 
         // The public string representation of true.
-        // 
+        //
         public static readonly string TrueString = TrueLiteral;
 
         // The public string representation of false.
-        // 
+        //
         public static readonly string FalseString = FalseLiteral;
 
         //
@@ -130,13 +128,13 @@ namespace System
         // Determines whether two Boolean objects are equal.
         public override bool Equals(object? obj)
         {
-            //If it's not a boolean, we're definitely not equal
+            // If it's not a boolean, we're definitely not equal
             if (!(obj is bool))
             {
                 return false;
             }
 
-            return (m_value == ((bool)obj).m_value);
+            return m_value == ((bool)obj).m_value;
         }
 
         [NonVersionable]
@@ -149,9 +147,9 @@ namespace System
         // indicates the relationship. For booleans, false sorts before true.
         // null is considered to be less than any instance.
         // If object is not of type boolean, this method throws an ArgumentException.
-        // 
+        //
         // Returns a value less than zero if this  object
-        // 
+        //
         public int CompareTo(object? obj)
         {
             if (obj == null)
@@ -189,31 +187,31 @@ namespace System
 
         //
         // Static Methods
-        // 
+        //
 
         // Custom string compares for early application use by config switches, etc
-        // 
+        //
         internal static bool IsTrueStringIgnoreCase(ReadOnlySpan<char> value)
         {
-            return (value.Length == 4 &&
+            return value.Length == 4 &&
                     (value[0] == 't' || value[0] == 'T') &&
                     (value[1] == 'r' || value[1] == 'R') &&
                     (value[2] == 'u' || value[2] == 'U') &&
-                    (value[3] == 'e' || value[3] == 'E'));
+                    (value[3] == 'e' || value[3] == 'E');
         }
 
         internal static bool IsFalseStringIgnoreCase(ReadOnlySpan<char> value)
         {
-            return (value.Length == 5 &&
+            return value.Length == 5 &&
                     (value[0] == 'f' || value[0] == 'F') &&
                     (value[1] == 'a' || value[1] == 'A') &&
                     (value[2] == 'l' || value[2] == 'L') &&
                     (value[3] == 's' || value[3] == 'S') &&
-                    (value[4] == 'e' || value[4] == 'E'));
+                    (value[4] == 'e' || value[4] == 'E');
         }
 
         // Determines whether a String represents true or false.
-        // 
+        //
         public static bool Parse(string value)
         {
             if (value == null) throw new ArgumentNullException(nameof(value));
@@ -224,7 +222,7 @@ namespace System
             TryParse(value, out bool result) ? result : throw new FormatException(SR.Format(SR.Format_BadBoolean, new string(value)));
 
         // Determines whether a String represents true or false.
-        // 
+        //
         public static bool TryParse(string? value, out bool result)
         {
             if (value == null)
@@ -298,13 +296,12 @@ namespace System
 
         //
         // IConvertible implementation
-        // 
+        //
 
         public TypeCode GetTypeCode()
         {
             return TypeCode.Boolean;
         }
-
 
         bool IConvertible.ToBoolean(IFormatProvider? provider)
         {

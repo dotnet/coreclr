@@ -72,6 +72,8 @@ inline void ProfControlBlock::Init()
     ResetPerSessionStatus();
 
     fProfControlBlockInitialized = TRUE;
+
+    fProfilerRequestedRuntimeSuspend = FALSE;
 }
 
 // Reset those variables that is only for the current attach session
@@ -307,20 +309,6 @@ inline BOOL CORProfilerTrackExceptions()
 
     return (CORProfilerPresent() &&
             ((&g_profControlBlock)->dwEventMask & COR_PRF_MONITOR_EXCEPTIONS));
-}
-
-inline BOOL CORProfilerTrackCLRExceptions()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        CANNOT_TAKE_LOCK;
-    }
-    CONTRACTL_END;
-
-    return (CORProfilerPresent() &&
-            ((&g_profControlBlock)->dwEventMask & COR_PRF_MONITOR_CLR_EXCEPTIONS));
 }
 
 inline BOOL CORProfilerTrackTransitions()

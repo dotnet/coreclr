@@ -237,14 +237,18 @@ namespace R2RDump
         READYTORUN_HELPER_Dbl2ULngOvf = 0xD7,
 
         // Floating point ops
-        READYTORUN_HELPER_FltRem = 0xE0,
-        READYTORUN_HELPER_DblRem = 0xE1,
-        READYTORUN_HELPER_FltRound = 0xE2,
-        READYTORUN_HELPER_DblRound = 0xE3,
+        READYTORUN_HELPER_DblRem = 0xE0,
+        READYTORUN_HELPER_FltRem = 0xE1,
+        READYTORUN_HELPER_DblRound = 0xE2,
+        READYTORUN_HELPER_FltRound = 0xE3,
 
         // Personality rountines
         READYTORUN_HELPER_PersonalityRoutine = 0xF0,
         READYTORUN_HELPER_PersonalityRoutineFilterFunclet = 0xF1,
+
+        // Synchronized methods
+        READYTORUN_HELPER_MonitorEnter = 0xF8,
+        READYTORUN_HELPER_MonitorExit = 0xF9,
 
         //
         // Deprecated/legacy
@@ -267,8 +271,7 @@ namespace R2RDump
         // JIT32 x86-specific exception handling
         READYTORUN_HELPER_EndCatch = 0x110,
 
-        // A flag to indicate that a helper call uses VSD
-        READYTORUN_HELPER_FLAG_VSD = 0x10000000,
+        READYTORUN_HELPER_StackProbe = 0x111,
     }
 
     public enum CorElementType : byte

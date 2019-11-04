@@ -14,7 +14,6 @@
 #include "holder.h"
 #include "internalunknownimpl.h"
 #include "clrprivbinding.h"
-#include "clrprivruntimebinders.h"
 #include "clrprivbinderutil.h"
 #include "clrprivtypecachewinrt.h"
 #include "clr_std/utility"
@@ -141,9 +140,8 @@ public:
         CLRPrivTypeCacheWinRT * pWinRtTypeCache,
         LPCWSTR *               rgwzAltPath, 
         UINT                    cAltPaths, 
-        NamespaceResolutionKind fNamespaceResolutionKind,
-        BOOL                    fCanUseNativeImages);
-    
+        NamespaceResolutionKind fNamespaceResolutionKind);
+
     static 
     CLRPrivBinderWinRT * GetOrCreateBinder(
         CLRPrivTypeCacheWinRT * pWinRtTypeCache, 

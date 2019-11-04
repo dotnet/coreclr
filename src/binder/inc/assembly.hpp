@@ -100,12 +100,7 @@ namespace BINDER_SPACE
                      /* in */ PEImage                 *pPEImage,
                      /* in */ PEImage                 *pPENativeImage,
                      /* in */ SString                 &assemblyPath,
-                     /* in */ BOOL                     fInspectionOnly,
                      /* in */ BOOL                     fIsInGAC);
-
-        // Enumerates dependent assemblies
-        HRESULT GetNextAssemblyNameRef(/* in  */ DWORD          nIndex,
-                                       /* out */ AssemblyName **ppAssemblyName);
 
         inline AssemblyName *GetAssemblyName(BOOL fAddRef = FALSE);
         inline BOOL GetIsInGAC();
@@ -138,7 +133,6 @@ namespace BINDER_SPACE
         enum
         {
             FLAG_NONE = 0x00,
-            FLAG_INSPECTION_ONLY = 0x01,
             FLAG_IS_IN_GAC = 0x02,
             FLAG_IS_DYNAMIC_BIND = 0x04,
             FLAG_IS_BYTE_ARRAY = 0x08,
@@ -150,23 +144,15 @@ namespace BINDER_SPACE
 
         inline void SetAssemblyName(AssemblyName *pAssemblyName,
                                     BOOL          fAddRef = TRUE);
-        inline BOOL GetInspectionOnly();
-        inline void SetInspectionOnly(BOOL fInspectionOnly);
         inline void SetIsInGAC(BOOL fIsInGAC);
 
         inline IMDInternalImport *GetMDImport();
         inline void SetMDImport(IMDInternalImport *pMDImport);
-        inline mdAssembly *GetAssemblyRefTokens();
-
-        inline DWORD GetNbAssemblyRefTokens();
-        inline void SetNbAsssemblyRefTokens(DWORD dwCAssemblyRefTokens);
 
         LONG                     m_cRef;
         PEImage                 *m_pPEImage;
         PEImage                 *m_pNativePEImage;
         IMDInternalImport       *m_pMDImport;
-        mdAssembly              *m_pAssemblyRefTokens;
-        DWORD                    m_dwCAssemblyRefTokens;
         AssemblyName            *m_pAssemblyName;
         SString                  m_assemblyPath;
         DWORD                    m_dwAssemblyFlags;

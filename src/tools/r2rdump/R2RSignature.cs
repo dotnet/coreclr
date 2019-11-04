@@ -502,6 +502,11 @@ namespace R2RDump
             return (CorElementType)(ReadByte() & 0x7F);
         }
 
+        public CorElementType PeekElementType()
+        {
+            return (CorElementType)(_image[_offset] & 0x7F);
+        }
+
         /// <summary>
         /// Decode a R2R import signature. The signature starts with the fixup type followed
         /// by custom encoding per fixup type.
@@ -953,7 +958,7 @@ namespace R2RDump
                                 sizes[sizeIndex] = ReadUIntAndEmitInlineSignatureBinary(builder);
                             }
                             uint lowerBoundCount = ReadUIntAndEmitInlineSignatureBinary(builder); // number of lower bounds
-                            int[] lowerBounds = new int[sizeCount];
+                            int[] lowerBounds = new int[lowerBoundCount];
                             for (uint lowerBoundIndex = 0; lowerBoundIndex < lowerBoundCount; lowerBoundIndex++)
                             {
                                 lowerBounds[lowerBoundIndex] = ReadIntAndEmitInlineSignatureBinary(builder);
@@ -1072,6 +1077,24 @@ namespace R2RDump
                     throw new NotImplementedException();
             }
         }
+
+        public MetadataReader GetMetadataReaderFromModuleOverride()
+        {
+            if (PeekElementType() == CorElementType.ELEMENT_TYPE_MODULE_ZAPSIG)
+            {
+                var currentOffset = _offset;
+
+                ReadElementType();
+                int moduleIndex = (int)ReadUInt();
+                EcmaMetadataReader refAsmReader = _contextReader.OpenReferenceAssembly(moduleIndex);
+
+                _offset = currentOffset;
+
+                return refAsmReader.MetadataReader;
+            }
+            return null;
+        }
+
         private void ParseGenericTypeInstance(StringBuilder builder)
         {
             ParseType(builder);
@@ -1230,12 +1253,8 @@ namespace R2RDump
         private void ParseHelper(StringBuilder builder)
         {
             uint helperType = ReadUIntAndEmitInlineSignatureBinary(builder);
-            if ((helperType & (uint)ReadyToRunHelper.READYTORUN_HELPER_FLAG_VSD) != 0)
-            {
-                builder.Append("VSD_");
-            }
 
-            switch ((ReadyToRunHelper)(helperType & ~(uint)ReadyToRunHelper.READYTORUN_HELPER_FLAG_VSD))
+            switch ((ReadyToRunHelper)helperType)
             {
                 case ReadyToRunHelper.READYTORUN_HELPER_Invalid:
                     builder.Append("INVALID");
@@ -1594,6 +1613,10 @@ namespace R2RDump
                 // JIT32 x86-specific exception handling
                 case ReadyToRunHelper.READYTORUN_HELPER_EndCatch:
                     builder.Append("END_CATCH");
+                    break;
+
+                case ReadyToRunHelper.READYTORUN_HELPER_StackProbe:
+                    builder.Append("STACK_PROBE");
                     break;
 
                 default:

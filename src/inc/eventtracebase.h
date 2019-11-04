@@ -72,21 +72,21 @@ enum EtwThreadFlags
 //
 
 #define ETW_TRACING_INITIALIZED(RegHandle) \
-    ((g_pEtwTracer && RegHandle) || EVENT_PIPE_ENABLED())
+    ((g_pEtwTracer && (RegHandle)) || EVENT_PIPE_ENABLED())
 
 //
 // Use this macro to check if an event is enabled
 // if the fields in the event are not cheap to calculate
 //
 #define ETW_EVENT_ENABLED(Context, EventDescriptor) \
-    ((MCGEN_ENABLE_CHECK(Context, EventDescriptor)) || EVENT_PIPE_ENABLED())
+    ((Context.EtwProvider->IsEnabled && McGenEventXplatEnabled(Context.EtwProvider, &EventDescriptor)) || EventPipeHelper::IsEnabled(Context, EventDescriptor.Level, EventDescriptor.Keyword))
 
 //
 // Use this macro to check if a category of events is enabled
 //
 
 #define ETW_CATEGORY_ENABLED(Context, Level, Keyword) \
-    ((Context.IsEnabled && McGenEventProviderEnabled(&Context, Level, Keyword)) || EVENT_PIPE_ENABLED())
+    ((Context.EtwProvider->IsEnabled && McGenEventProviderEnabled(Context.EtwProvider, Level, Keyword)) || EventPipeHelper::IsEnabled(Context, Level, Keyword))
 
 
 // This macro only checks if a provider is enabled
@@ -95,17 +95,20 @@ enum EtwThreadFlags
         ((ProviderSymbol##_Context.IsEnabled) || EVENT_PIPE_ENABLED())
 
 
-#else //defined(FEATURE_PAL)
+#else //!defined(FEATURE_PAL)
 #if defined(FEATURE_PERFTRACING)
 #define ETW_INLINE
 #define ETWOnStartup(StartEventName, EndEventName)
 #define ETWFireEvent(EventName)
 
 #define ETW_TRACING_INITIALIZED(RegHandle) (TRUE)
-#define ETW_EVENT_ENABLED(Context, EventDescriptor) (EventPipeHelper::Enabled() || XplatEventLogger::IsEventLoggingEnabled())
-#define ETW_CATEGORY_ENABLED(Context, Level, Keyword) (EventPipeHelper::Enabled() || XplatEventLogger::IsEventLoggingEnabled())
+#define ETW_EVENT_ENABLED(Context, EventDescriptor) (EventPipeHelper::IsEnabled(Context, EventDescriptor.Level, EventDescriptor.Keyword) || \
+        (XplatEventLogger::IsKeywordEnabled(Context, EventDescriptor.Level, EventDescriptor.Keyword)))
+#define ETW_CATEGORY_ENABLED(Context, Level, Keyword) (EventPipeHelper::IsEnabled(Context, Level, Keyword) || \
+        (XplatEventLogger::IsKeywordEnabled(Context, Level, Keyword)))
 #define ETW_TRACING_ENABLED(Context, EventDescriptor) (EventEnabled##EventDescriptor())
-#define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) (EventPipeHelper::Enabled() || XplatEventLogger::IsEventLoggingEnabled())
+#define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) (EventPipeHelper::IsEnabled(Context, Level, Keyword) || \
+        (XplatEventLogger::IsKeywordEnabled(Context, Level, Keyword)))
 #define ETW_PROVIDER_ENABLED(ProviderSymbol) (TRUE)
 #else //defined(FEATURE_PERFTRACING)
 #define ETW_INLINE
@@ -113,11 +116,11 @@ enum EtwThreadFlags
 #define ETWFireEvent(EventName)
 
 #define ETW_TRACING_INITIALIZED(RegHandle) (TRUE)
-#define ETW_EVENT_ENABLED(Context, EventDescriptor) (XplatEventLogger::IsEventLoggingEnabled())
-#define ETW_CATEGORY_ENABLED(Context, Level, Keyword) (XplatEventLogger::IsEventLoggingEnabled())
-#define ETW_TRACING_ENABLED(Context, EventDescriptor) (EventEnabled##EventDescriptor())
-#define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) (XplatEventLogger::IsEventLoggingEnabled())
-#define ETW_PROVIDER_ENABLED(ProviderSymbol) (TRUE)
+#define ETW_CATEGORY_ENABLED(Context, Level, Keyword) (XplatEventLogger::IsKeywordEnabled(Context, Level, Keyword))
+#define ETW_EVENT_ENABLED(Context, EventDescriptor) (XplatEventLogger::IsKeywordEnabled(Context, EventDescriptor.Level, EventDescriptor.KeywordsBitmask))
+#define ETW_TRACING_ENABLED(Context, EventDescriptor) (ETW_EVENT_ENABLED(Context, EventDescriptor) && EventEnabled##EventDescriptor())
+#define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) (ETW_CATEGORY_ENABLED(Context, Level, Keyword))
+#define ETW_PROVIDER_ENABLED(ProviderSymbol) (XplatEventLogger::IsProviderEnabled(Context))
 #endif // defined(FEATURE_PERFTRACING)
 #endif // !defined(FEATURE_PAL)
 
@@ -163,7 +166,6 @@ class Object;
 /* Tracing levels supported by CLR ETW */
 /***************************************/
 #define ETWMAX_TRACE_LEVEL 6        // Maximum Number of Trace Levels supported
-#define TRACE_LEVEL_NONE        0   // Tracing is not on
 #define TRACE_LEVEL_FATAL       1   // Abnormal exit or termination
 #define TRACE_LEVEL_ERROR       2   // Severe errors that need logging
 #define TRACE_LEVEL_WARNING     3   // Warnings such as allocation failure
@@ -176,7 +178,8 @@ struct ProfilingScanContext;
 // Use this macro to check if ETW is initialized and the event is enabled
 //
 #define ETW_TRACING_ENABLED(Context, EventDescriptor) \
-    ((Context.IsEnabled && ETW_TRACING_INITIALIZED(Context.RegistrationHandle) && ETW_EVENT_ENABLED(Context, EventDescriptor)) || EVENT_PIPE_ENABLED())
+    ((Context.EtwProvider->IsEnabled && ETW_TRACING_INITIALIZED(Context.EtwProvider->RegistrationHandle) && ETW_EVENT_ENABLED(Context, EventDescriptor))|| \
+        EventPipeHelper::IsEnabled(Context, EventDescriptor.Level, EventDescriptor.Keyword))
 
 //
 // Using KEYWORDZERO means when checking the events category ignore the keyword
@@ -187,12 +190,12 @@ struct ProfilingScanContext;
 // Use this macro to check if ETW is initialized and the category is enabled
 //
 #define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) \
-    ((ETW_TRACING_INITIALIZED(Context.RegistrationHandle) && ETW_CATEGORY_ENABLED(Context, Level, Keyword)) || EVENT_PIPE_ENABLED())
+    (ETW_TRACING_INITIALIZED(Context.EtwProvider->RegistrationHandle) && ETW_CATEGORY_ENABLED(Context, Level, Keyword))
 
-    #define ETWOnStartup(StartEventName, EndEventName) \
-        ETWTraceStartup trace##StartEventName##(Microsoft_Windows_DotNETRuntimePrivateHandle, &StartEventName, &StartupId, &EndEventName, &StartupId);
-    #define ETWFireEvent(EventName) \
-        ETWTraceStartup::StartupTraceEvent(Microsoft_Windows_DotNETRuntimePrivateHandle, &EventName, &StartupId);
+#define ETWOnStartup(StartEventName, EndEventName) \
+    ETWTraceStartup trace##StartEventName##(Microsoft_Windows_DotNETRuntimePrivateHandle, &StartEventName, &StartupId, &EndEventName, &StartupId);
+#define ETWFireEvent(EventName) \
+    ETWTraceStartup::StartupTraceEvent(Microsoft_Windows_DotNETRuntimePrivateHandle, &EventName, &StartupId);
 
 #ifndef FEATURE_REDHAWK
 // Headers
@@ -218,29 +221,279 @@ struct ProfilingScanContext;
 extern UINT32 g_nClrInstanceId;
 
 #define GetClrInstanceId()  (static_cast<UINT16>(g_nClrInstanceId))
+#if defined(FEATURE_PAL) && (defined(FEATURE_EVENT_TRACE) || defined(FEATURE_EVENTSOURCE_XPLAT))
+#define KEYWORDZERO 0x0
 
-#if defined(FEATURE_PERFTRACING)
-class EventPipeHelper
+/***************************************/
+/* Tracing levels supported by CLR ETW */
+/***************************************/
+#define MAX_TRACE_LEVEL         6   // Maximum Number of Trace Levels supported
+#define TRACE_LEVEL_FATAL       1   // Abnormal exit or termination
+#define TRACE_LEVEL_ERROR       2   // Severe errors that need logging
+#define TRACE_LEVEL_WARNING     3   // Warnings such as allocation failure
+#define TRACE_LEVEL_INFORMATION 4   // Includes non-error cases such as Entry-Exit
+#define TRACE_LEVEL_VERBOSE     5   // Detailed traces from intermediate steps
+
+#define DEF_LTTNG_KEYWORD_ENABLED 1
+#include "clrproviders.h"
+#include "clrconfig.h"
+
+class XplatEventLoggerConfiguration
 {
 public:
-    static bool Enabled();
-};
-#endif // defined(FEATURE_PERFTRACING)
+    XplatEventLoggerConfiguration() = default;
 
-#if defined(FEATURE_EVENT_TRACE) || defined(FEATURE_EVENTSOURCE_XPLAT)
+    XplatEventLoggerConfiguration(XplatEventLoggerConfiguration const & other) = delete;
+    XplatEventLoggerConfiguration(XplatEventLoggerConfiguration && other)
+    {
+        _provider = std::move(other._provider);
+        _isValid = other._isValid;
+        _enabledKeywords = other._enabledKeywords;
+        _level = other._level;
+    }
 
-#include "clrconfig.h"
- class XplatEventLogger
-{
-    public:
-        inline static BOOL  IsEventLoggingEnabled()
+    ~XplatEventLoggerConfiguration()
+    {
+        _provider = nullptr;
+    }
+
+    void Parse(LPWSTR configString)
+    {
+        auto providerComponent = GetNextComponentString(configString);
+        _provider = ParseProviderName(providerComponent);
+        if (_provider == nullptr)
         {
-            static ConfigDWORD configEventLogging;
-            return configEventLogging.val(CLRConfig::EXTERNAL_EnableEventLog);
+            _isValid = false;
+            return;
         }
+
+        auto keywordsComponent = GetNextComponentString(providerComponent.End + 1);
+        _enabledKeywords = ParseEnabledKeywordsMask(keywordsComponent);
+
+        auto levelComponent = GetNextComponentString(keywordsComponent.End + 1);
+        _level = ParseEnabledKeywordsMask(levelComponent);
+        _isValid = true;
+    }
+
+    bool IsValid() const
+    {
+        return _isValid;
+    }
+
+    LPCWSTR GetProviderName() const
+    {
+        return _provider;
+    }
+
+    ULONGLONG GetEnabledKeywordsMask() const
+    {
+        return _enabledKeywords;
+    }
+
+    UINT GetLevel() const
+    {
+        return _level;
+    }
+
+private:
+    struct ComponentSpan
+    {
+    public:
+        ComponentSpan(LPCWSTR start, LPCWSTR end)
+        : Start(start), End(end)
+        {
+        }
+
+        LPCWSTR Start;
+        LPCWSTR End;
+    };
+
+    ComponentSpan GetNextComponentString(LPCWSTR start) const
+    {
+        static WCHAR ComponentDelimiter = W(':');
+
+        auto end = wcschr(start, ComponentDelimiter);
+        if (end == nullptr)
+        {
+            end = start + wcslen(start);
+        }
+
+        return ComponentSpan(start, end);
+    }
+
+    LPCWSTR ParseProviderName(ComponentSpan const & component) const
+    {
+        auto providerName = (WCHAR*)nullptr;
+        if ((component.End - component.Start) != 0)
+        {
+            auto const length = component.End - component.Start;
+            providerName = new WCHAR[length + 1];
+            memset(providerName, '\0', (length + 1) * sizeof(WCHAR));
+            wcsncpy(providerName, component.Start, length);
+        }
+        return providerName;
+    }
+
+    ULONGLONG ParseEnabledKeywordsMask(ComponentSpan const & component) const
+    {
+        auto enabledKeywordsMask = (ULONGLONG)(-1);
+        if ((component.End - component.Start) != 0)
+        {
+            enabledKeywordsMask = _wcstoui64(component.Start, nullptr, 16);
+        }
+        return enabledKeywordsMask;
+    }
+
+    UINT ParseLevel(ComponentSpan const & component) const
+    {
+        auto level = TRACE_LEVEL_VERBOSE;
+        if ((component.End - component.Start) != 0)
+        {
+            level = _wtoi(component.Start);
+        }
+        return level;
+    }
+
+    LPCWSTR _provider;
+    ULONGLONG _enabledKeywords;
+    UINT _level;
+    bool _isValid;
 };
 
-#endif //defined(FEATURE_EVENT_TRACE)
+class XplatEventLoggerController
+{
+public:
+
+    static void UpdateProviderContext(XplatEventLoggerConfiguration const &config)
+    {
+        if (!config.IsValid())
+        {
+            return;
+        }
+
+        auto providerName = config.GetProviderName();
+        auto enabledKeywordsMask = config.GetEnabledKeywordsMask();
+        auto level = config.GetLevel();
+        if (_wcsicmp(providerName, W("*")) == 0 && enabledKeywordsMask == (ULONGLONG)(-1) && level == TRACE_LEVEL_VERBOSE)
+        {
+            ActivateAllKeywordsOfAllProviders();
+        }
+        else
+        {
+            auto provider = GetProvider(providerName);
+            if (provider == nullptr)
+            {
+                return;
+            }
+            provider->EnabledKeywordsBitmask = enabledKeywordsMask;
+            provider->Level = level;
+            provider->IsEnabled = true;
+        }
+    }
+
+    static void ActivateAllKeywordsOfAllProviders()
+    {
+        for (LTTNG_TRACE_CONTEXT * const provider : ALL_LTTNG_PROVIDERS_CONTEXT)
+        {
+            provider->EnabledKeywordsBitmask = (ULONGLONG)(-1);
+            provider->Level = TRACE_LEVEL_VERBOSE;
+            provider->IsEnabled = true;
+        }
+    }
+
+private:
+
+    static LTTNG_TRACE_CONTEXT * const GetProvider(LPCWSTR providerName)
+    {
+        auto length = wcslen(providerName);
+        for (auto provider : ALL_LTTNG_PROVIDERS_CONTEXT)
+        {
+            if (_wcsicmp(provider->Name, providerName) == 0)
+            {
+                return provider;
+            }
+        }
+        return nullptr;
+    }
+};
+
+class XplatEventLogger
+{
+public:
+
+    inline static BOOL IsEventLoggingEnabled()
+    {
+        static ConfigDWORD configEventLogging;
+        return configEventLogging.val(CLRConfig::EXTERNAL_EnableEventLog);
+    }
+
+    inline static bool IsProviderEnabled(DOTNET_TRACE_CONTEXT providerCtx)
+    {
+        return providerCtx.LttngProvider->IsEnabled;
+    }
+
+    inline static bool IsKeywordEnabled(DOTNET_TRACE_CONTEXT providerCtx, UCHAR level, ULONGLONG keyword)
+    {
+        if (!providerCtx.LttngProvider->IsEnabled)
+        {
+            return false;
+        }
+
+        if ((level <= providerCtx.LttngProvider->Level) || (providerCtx.LttngProvider->Level == 0))
+        {
+            if ((keyword == 0) || ((keyword & providerCtx.LttngProvider->EnabledKeywordsBitmask) != 0))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+    /*
+    This method is where COMPlus_LTTngConfig environment variable is parsed and is registered with the runtime provider
+    context structs generated by src/scripts/genEventing.py.
+    It expects the environment variable to look like:
+    provider:keywords:level,provider:keywords:level
+    (Notice the "arguments" part is missing compared to EventPipe configuration)
+
+    Ex)
+    Microsoft-Windows-DotNETRuntime:deadbeefdeadbeef:4,Microsoft-Windows-DotNETRuntimePrivate:deafbeefdeadbeef:5
+    */
+    static void InitializeLogger()
+    {
+        if (!IsEventLoggingEnabled())
+        {
+            return;
+        }
+
+        LPWSTR xplatEventConfig = NULL;
+        CLRConfig::GetConfigValue(CLRConfig::INTERNAL_LTTngConfig, &xplatEventConfig);
+        auto configuration = XplatEventLoggerConfiguration();
+        auto configToParse = xplatEventConfig;
+
+        if (configToParse == nullptr || *configToParse == L'\0')
+        {
+            XplatEventLoggerController::ActivateAllKeywordsOfAllProviders();
+            return;
+        }
+        while (configToParse != nullptr)
+        {
+            static WCHAR comma = W(',');
+            auto end = wcschr(configToParse, comma);
+            configuration.Parse(configToParse);
+            XplatEventLoggerController::UpdateProviderContext(configuration);
+            if (end == nullptr)
+            {
+                break;
+            }
+            configToParse = end + 1;
+        }
+    }
+};
+
+
+#endif  // defined(FEATURE_PAL) && (defined(FEATURE_EVENT_TRACE) || defined(FEATURE_EVENTSOURCE_XPLAT))
 
 #if defined(FEATURE_EVENT_TRACE)
 
@@ -305,7 +558,7 @@ extern "C" {
 // User defined callback
 //
 #define MCGEN_PRIVATE_ENABLE_CALLBACK(RequestCode, Context, InOutBufferSize, Buffer) \
-        EtwCallback(NULL /* SourceId */, (RequestCode==WMI_ENABLE_EVENTS) ? EVENT_CONTROL_CODE_ENABLE_PROVIDER : EVENT_CONTROL_CODE_DISABLE_PROVIDER, 0 /* Level */, 0 /* MatchAnyKeyword */, 0 /* MatchAllKeyword */, NULL /* FilterData */, Context)
+        EtwCallback(NULL /* SourceId */, ((RequestCode)==WMI_ENABLE_EVENTS) ? EVENT_CONTROL_CODE_ENABLE_PROVIDER : EVENT_CONTROL_CODE_DISABLE_PROVIDER, 0 /* Level */, 0 /* MatchAnyKeyword */, 0 /* MatchAllKeyword */, NULL /* FilterData */, Context)
 
 //
 // User defined callback2
@@ -333,8 +586,16 @@ extern "C" {
 #endif //!DONOT_DEFINE_ETW_CALLBACK && !DACCESS_COMPILE
 
 #endif //!FEATURE_PAL
-
 #include "clretwallmain.h"
+
+#if defined(FEATURE_PERFTRACING)
+class EventPipeHelper
+{
+public:
+    static bool Enabled();
+    static bool IsEnabled(DOTNET_TRACE_CONTEXT Context, UCHAR Level, ULONGLONG Keyword);
+};
+#endif // defined(FEATURE_PERFTRACING)
 
 #endif // FEATURE_EVENT_TRACE
 
@@ -461,6 +722,7 @@ namespace ETW
 
         static VOID ProcessShutdown();
         static VOID ModuleRangeRundown();
+        static VOID SendOneTimeRundownEvents();
         static VOID StartRundown();
         static VOID EndRundown();
         static VOID EnumerateForCaptureState();
@@ -606,17 +868,6 @@ namespace ETW
             }MethodExtent;
 
         }MethodStructs;
-
-        enum class JitOptimizationTier
-        {
-            Unknown, // to identify older runtimes that would send this value
-            MinOptJitted,
-            Optimized,
-            QuickJitted,
-            OptimizedTier1,
-
-            Count
-        };
 
         static const UINT8 MethodFlagsJitOptimizationTierShift = 7;
         static const unsigned int MethodFlagsJitOptimizationTierLowMask = 0x7;
@@ -1054,7 +1305,7 @@ public:
     }
     static void StartupTraceEvent(REGHANDLE _TraceHandle, PCEVENT_DESCRIPTOR _EventDescriptor, LPCGUID _EventGuid) {
         EVENT_DESCRIPTOR desc = *_EventDescriptor;
-        if(ETW_TRACING_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, desc))
+        if(ETW_TRACING_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_DOTNET_Context, desc))
         {
             CoMofTemplate_h(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context.RegistrationHandle, _EventDescriptor, _EventGuid, GetClrInstanceId());
         }

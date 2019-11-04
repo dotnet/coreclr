@@ -192,6 +192,14 @@ FCIMPL0(UINT32, SystemNative::GetTickCount)
 }
 FCIMPLEND;
 
+FCIMPL0(UINT64, SystemNative::GetTickCount64)
+{
+    FCALL_CONTRACT;
+
+    return ::GetTickCount64();
+}
+FCIMPLEND;
+
 
 
 
@@ -343,13 +351,6 @@ INT32 QCALLTYPE SystemNative::GetProcessorCount()
 
         processorCount = systemInfo.dwNumberOfProcessors;
     }
-
-#ifdef FEATURE_PAL
-    uint32_t cpuLimit;
-
-    if (PAL_GetCpuLimit(&cpuLimit) && cpuLimit < (uint32_t)processorCount)
-        processorCount = cpuLimit;
-#endif
 
     END_QCALL;
 

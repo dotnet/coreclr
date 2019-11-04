@@ -10,7 +10,7 @@ namespace System
     {
         // This is a port of the `Grisu3` implementation here: https://github.com/google/double-conversion/blob/a711666ddd063eb1e4b181a6cb981d39a1fc8bac/double-conversion/fast-dtoa.cc
         // The backing algorithm and the proofs behind it are described in more detail here: http://www.cs.tufts.edu/~nr/cs257/archive/florian-loitsch/printf.pdf
-        // ======================================================================================================================================== 
+        // ========================================================================================================================================
         //
         // Overview:
         //
@@ -329,9 +329,9 @@ namespace System
                 Debug.Assert(v > 0);
                 Debug.Assert(double.IsFinite(v));
 
-                int length = 0;
-                int decimalExponent = 0;
-                bool result = false;
+                int length;
+                int decimalExponent;
+                bool result;
 
                 if (requestedDigits == -1)
                 {
@@ -363,9 +363,9 @@ namespace System
                 Debug.Assert(v > 0);
                 Debug.Assert(float.IsFinite(v));
 
-                int length = 0;
-                int decimalExponent = 0;
-                bool result = false;
+                int length;
+                int decimalExponent;
+                bool result;
 
                 if (requestedDigits == -1)
                 {
@@ -500,7 +500,7 @@ namespace System
             //      number < (1 << (numberBits + 1))
             private static uint BiggestPowerTen(uint number, int numberBits, out int exponentPlusOne)
             {
-                // Inspired by the method for finding an integer log base 10 from here: 
+                // Inspired by the method for finding an integer log base 10 from here:
                 // http://graphics.stanford.edu/~seander/bithacks.html#IntegerLog10
 
                 Debug.Assert(number < (1U << (numberBits + 1)));
@@ -514,7 +514,7 @@ namespace System
                 // We don't have any guarantees that 2^numberBits <= number
                 if (number < power)
                 {
-                    exponentGuess -= 1;
+                    exponentGuess--;
                     power = s_SmallPowersOfTen[exponentGuess];
                 }
 
@@ -558,7 +558,7 @@ namespace System
                 // We cut the input number into two parts: the integral digits and the fractional digits.
                 // We don't emit any decimal separator, but adapt kapp instead.
                 // For example: instead of writing "1.2", we put "12" into the buffer and increase kappa by 1.
-                var one = new DiyFp((1UL << -w.e), w.e);
+                var one = new DiyFp(1UL << -w.e, w.e);
 
                 // Division by one is a shift.
                 uint integrals = (uint)(w.f >> -one.e);
@@ -581,7 +581,7 @@ namespace System
                     return false;
                 }
 
-                uint divisor = BiggestPowerTen(integrals, (DiyFp.SignificandSize - (-one.e)), out kappa);
+                uint divisor = BiggestPowerTen(integrals, DiyFp.SignificandSize - (-one.e), out kappa);
                 length = 0;
 
                 // Loop invariant:
@@ -735,8 +735,8 @@ namespace System
 
                 ulong unit = 1;
 
-                var tooLow = new DiyFp((low.f - unit), low.e);
-                var tooHigh = new DiyFp((high.f + unit), high.e);
+                var tooLow = new DiyFp(low.f - unit, low.e);
+                var tooHigh = new DiyFp(high.f + unit, high.e);
 
                 // tooLow and tooHigh are guaranteed to lie outside the interval we want the generated number in.
 
@@ -751,7 +751,7 @@ namespace System
                 // We use tooHigh for the digitGeneration and stop as soon as possible.
                 // If we stop early, we effectively round down.
 
-                var one = new DiyFp((1UL << -w.e), w.e);
+                var one = new DiyFp(1UL << -w.e, w.e);
 
                 // Division by one is a shift.
                 uint integrals = (uint)(tooHigh.f >> -one.e);
@@ -759,7 +759,7 @@ namespace System
                 // Modulo by one is an and.
                 ulong fractionals = tooHigh.f & (one.f - 1);
 
-                uint divisor = BiggestPowerTen(integrals, (DiyFp.SignificandSize - (-one.e)), out kappa);
+                uint divisor = BiggestPowerTen(integrals, DiyFp.SignificandSize - (-one.e), out kappa);
                 length = 0;
 
                 // Loop invariant:
@@ -818,7 +818,7 @@ namespace System
                     fractionals *= 10;
                     unit *= 10;
 
-                    unsafeInterval = new DiyFp((unsafeInterval.f * 10), unsafeInterval.e);
+                    unsafeInterval = new DiyFp(unsafeInterval.f * 10, unsafeInterval.e);
 
                     // Integer division by one.
                     uint digit = (uint)(fractionals >> -one.e);

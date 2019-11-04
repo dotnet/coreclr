@@ -114,12 +114,6 @@ if [ $OS = "Linux" -o $OS = "FreeBSD" -o $OS = "OpenBSD" -o $OS = "NetBSD" -o $O
 fi
 
 cmake_extra_defines=
-if [[ -n "$LLDB_LIB_DIR" ]]; then
-    cmake_extra_defines="$cmake_extra_defines -DWITH_LLDB_LIBS=$LLDB_LIB_DIR"
-fi
-if [[ -n "$LLDB_INCLUDE_DIR" ]]; then
-    cmake_extra_defines="$cmake_extra_defines -DWITH_LLDB_INCLUDES=$LLDB_INCLUDE_DIR"
-fi
 if [ "$CROSSCOMPILE" == "1" ]; then
     if ! [[ -n "$ROOTFS_DIR" ]]; then
         echo "ROOTFS_DIR not set for crosscompile"
@@ -147,19 +141,9 @@ if [ "$build_arch" == "armel" ]; then
     cmake_extra_defines="$cmake_extra_defines -DARM_SOFTFP=1"
 fi
 
-clang_version=$( $CC --version | head -1 | sed 's/[^0-9]*\([0-9]*\.[0-9]*\).*/\1/' )
-# Use O1 option when the clang version is smaller than 3.9
-# Otherwise use O3 option in release build
-if [[ ( ${clang_version%.*} -eq 3  &&  ${clang_version#*.} -lt 9 ) &&
-      (  "$build_arch" == "arm" || "$build_arch" == "armel" ) ]]; then
-    overridefile=clang-compiler-override-arm.txt
-else
-    overridefile=clang-compiler-override.txt
-fi
-
 __currentScriptDir="$script_dir"
 
-cmake_command=cmake
+cmake_command=$(command -v cmake3 || command -v cmake)
 
 if [[ "$scan_build" == "ON" ]]; then
     export CCC_CC=$CC
@@ -168,17 +152,17 @@ if [[ "$scan_build" == "ON" ]]; then
     cmake_command="$SCAN_BUILD_COMMAND $cmake_command"
 fi
 
+# Include CMAKE_USER_MAKE_RULES_OVERRIDE as uninitialized since it will hold its value in the CMake cache otherwise can cause issues when branch switching
 $cmake_command \
   -G "$generator" \
-  "-DCMAKE_USER_MAKE_RULES_OVERRIDE=${__currentScriptDir}/$overridefile" \
   "-DCMAKE_AR=$llvm_ar" \
   "-DCMAKE_LINKER=$llvm_link" \
   "-DCMAKE_NM=$llvm_nm" \
   "-DCMAKE_OBJDUMP=$llvm_objdump" \
   "-DCMAKE_BUILD_TYPE=$buildtype" \
-  "-DCMAKE_EXPORT_COMPILE_COMMANDS=1 " \
   "-DCLR_CMAKE_ENABLE_CODE_COVERAGE=$code_coverage" \
-  "-DCLR_CMAKE_COMPILER=Clang" \
+  "-DCMAKE_INSTALL_PREFIX=$__CMakeBinDir" \
+  "-DCMAKE_USER_MAKE_RULES_OVERRIDE=" \
   $cmake_extra_defines \
   $__UnprocessedCMakeArgs \
   "$1"

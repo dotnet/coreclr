@@ -13,6 +13,7 @@ IpcStream::DiagnosticsIpc::DiagnosticsIpc(const char(&namedPipeName)[MaxNamedPip
 
 IpcStream::DiagnosticsIpc::~DiagnosticsIpc()
 {
+    Close();
 }
 
 IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const pIpcName, ErrorCallback callback)
@@ -62,18 +63,29 @@ IpcStream *IpcStream::DiagnosticsIpc::Accept(ErrorCallback callback) const
     }
 
     const BOOL fSuccess = ::ConnectNamedPipe(hPipe, NULL) != 0;
-    const DWORD errorCode = ::GetLastError();
-    if (!fSuccess && (errorCode != ERROR_PIPE_CONNECTED))
+    if (!fSuccess)
     {
-        if (callback != nullptr)
-            callback("Failed to wait for a client process to connect.", errorCode);
-        return nullptr;
+        const DWORD errorCode = ::GetLastError();
+        switch (errorCode)
+        {
+            case ERROR_PIPE_CONNECTED:
+                // Occurs when a client connects before the function is called.
+                // In this case, there is a connection between client and
+                // server, even though the function returned zero.
+                break;
+
+            default:
+                if (callback != nullptr)
+                    callback("A client process failed to connect.", errorCode);
+                ::CloseHandle(hPipe);
+                return nullptr;
+        }
     }
 
     return new IpcStream(hPipe);
 }
 
-void IpcStream::DiagnosticsIpc::Unlink(ErrorCallback)
+void IpcStream::DiagnosticsIpc::Close(ErrorCallback)
 {
 }
 

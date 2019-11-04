@@ -48,7 +48,7 @@ namespace System.Runtime.InteropServices
         public override string ToString()
         {
             StringBuilder s = new StringBuilder();
-            
+
             string className = GetType().ToString();
             s.Append(className).Append(" (0x").Append(HResult.ToString("X8", CultureInfo.InvariantCulture)).Append(')');
 
@@ -61,12 +61,12 @@ namespace System.Runtime.InteropServices
             Exception? innerException = InnerException;
             if (innerException != null)
             {
-                s.Append(" ---> ").Append(innerException.ToString());
+                s.Append(Environment.NewLineConst + InnerExceptionPrefix).Append(innerException.ToString());
             }
 
             string? stackTrace = StackTrace;
             if (stackTrace != null)
-                s.Append(Environment.NewLine).Append(stackTrace);
+                s.AppendLine().Append(stackTrace);
 
             return s.ToString();
         }

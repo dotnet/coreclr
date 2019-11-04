@@ -4,7 +4,7 @@
 
 namespace System.Runtime.CompilerServices
 {
-    //=========================================================================================
+    // =========================================================================================
     // This struct collects all operations on native DependentHandles. The DependentHandle
     // merely wraps an IntPtr so this struct serves mainly as a "managed typedef."
     //
@@ -19,7 +19,7 @@ namespace System.Runtime.CompilerServices
     //        (! Right now, we get this guarantee for free because (IntPtr)0 == NULL unmanaged handle.
     //         ! If that assertion ever becomes false, we'll have to add an _isAllocated field
     //         ! to compensate.)
-    //        
+    //
     //
     //    IsAllocated == true
     //        There's a handle allocated underneath. You must call Free() on this eventually
@@ -27,7 +27,7 @@ namespace System.Runtime.CompilerServices
     //
     // This struct intentionally does no self-synchronization. It's up to the caller to
     // to use DependentHandles in a thread-safe way.
-    //=========================================================================================
+    // =========================================================================================
     internal struct DependentHandle
     {
         private IntPtr _handle;

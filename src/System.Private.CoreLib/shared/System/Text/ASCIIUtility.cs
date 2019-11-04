@@ -9,6 +9,7 @@ using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 using Internal.Runtime.CompilerServices;
 
+#pragma warning disable SA1121 // explicitly using type aliases instead of built-in types
 #if BIT64
 using nint = System.Int64;
 using nuint = System.UInt64;
@@ -34,7 +35,7 @@ namespace System.Text
         {
             // If the high bit of any byte is set, that byte is non-ASCII.
 
-            return ((value & UInt64HighBitsOnlyMask) == 0);
+            return (value & UInt64HighBitsOnlyMask) == 0;
         }
 
         /// <summary>
@@ -43,7 +44,7 @@ namespace System.Text
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool AllCharsInUInt32AreAscii(uint value)
         {
-            return ((value & ~0x007F007Fu) == 0);
+            return (value & ~0x007F007Fu) == 0;
         }
 
         /// <summary>
@@ -52,7 +53,7 @@ namespace System.Text
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool AllCharsInUInt64AreAscii(ulong value)
         {
-            return ((value & ~0x007F007F_007F007Ful) == 0);
+            return (value & ~0x007F007F_007F007Ful) == 0;
         }
 
         /// <summary>
@@ -228,7 +229,6 @@ namespace System.Text
             goto Finish;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         private static unsafe nuint GetIndexOfFirstNonAsciiByte_Sse2(byte* pBuffer, nuint bufferLength)
         {
             // JIT turns the below into constants
@@ -642,7 +642,6 @@ namespace System.Text
             goto Finish;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         private static unsafe nuint GetIndexOfFirstNonAsciiChar_Sse2(char* pBuffer, nuint bufferLength /* in chars */)
         {
             // This method contains logic optimized for both SSE2 and SSE41. Much of the logic in this method
@@ -1006,7 +1005,7 @@ namespace System.Text
         /// narrows each WORD to a BYTE, then writes the 4-byte result to the output buffer
         /// also in machine-endian order.
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void NarrowFourUtf16CharsToAsciiAndWriteToBuffer(ref byte outputBuffer, ulong value)
         {
             Debug.Assert(AllCharsInUInt64AreAscii(value));
@@ -1046,7 +1045,7 @@ namespace System.Text
         /// narrows each WORD to a BYTE, then writes the 2-byte result to the output buffer also in
         /// machine-endian order.
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void NarrowTwoUtf16CharsToAsciiAndWriteToBuffer(ref byte outputBuffer, uint value)
         {
             Debug.Assert(AllCharsInUInt32AreAscii(value));
@@ -1069,7 +1068,6 @@ namespace System.Text
         /// or once <paramref name="elementCount"/> elements have been converted. Returns the total number
         /// of elements that were able to be converted.
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static unsafe nuint NarrowUtf16ToAscii(char* pUtf16Buffer, byte* pAsciiBuffer, nuint elementCount)
         {
             nuint currentOffset = 0;
@@ -1298,7 +1296,6 @@ namespace System.Text
             goto Finish;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         private static unsafe nuint NarrowUtf16ToAscii_Sse2(char* pUtf16Buffer, byte* pAsciiBuffer, nuint elementCount)
         {
             // This method contains logic optimized for both SSE2 and SSE41. Much of the logic in this method
@@ -1578,7 +1575,7 @@ namespace System.Text
                 }
 
                 pUtf16Buffer[currentOffset] = (char)asciiData;
-                currentOffset += 1;
+                currentOffset++;
             }
 
         Finish:
@@ -1594,14 +1591,13 @@ namespace System.Text
             while (((byte)asciiData & 0x80) == 0)
             {
                 pUtf16Buffer[currentOffset] = (char)(byte)asciiData;
-                currentOffset += 1;
+                currentOffset++;
                 asciiData >>= 8;
             }
 
             goto Finish;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         private static unsafe nuint WidenAsciiToUtf16_Sse2(byte* pAsciiBuffer, char* pUtf16Buffer, nuint elementCount)
         {
             // JIT turns the below into constants
@@ -1698,7 +1694,7 @@ namespace System.Text
         /// Given a DWORD which represents a buffer of 4 bytes, widens the buffer into 4 WORDs and
         /// writes them to the output buffer with machine endianness.
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void WidenFourAsciiBytesToUtf16AndWriteToBuffer(ref char outputBuffer, uint value)
         {
             Debug.Assert(AllBytesInUInt32AreAscii(value));

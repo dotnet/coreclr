@@ -24,7 +24,7 @@ namespace System.Text
     {
         // Need a place for the last left over character, most of our encodings use this
         internal char _charLeftOver;
-        private Encoding _encoding;
+        private readonly Encoding _encoding;
         private bool _mustFlush;
         internal bool _throwOnOverflow;
         internal int _charsUsed;
@@ -51,7 +51,7 @@ namespace System.Text
                       SR.ArgumentNull_Array);
 
             if (index < 0 || count < 0)
-                throw new ArgumentOutOfRangeException((index < 0 ? nameof(index) : nameof(count)),
+                throw new ArgumentOutOfRangeException(index < 0 ? nameof(index) : nameof(count),
                       SR.ArgumentOutOfRange_NeedNonNegNum);
 
             if (chars.Length - index < count)
@@ -67,7 +67,7 @@ namespace System.Text
             return result;
         }
 
-        public unsafe override int GetByteCount(char* chars, int count, bool flush)
+        public override unsafe int GetByteCount(char* chars, int count, bool flush)
         {
             // Validate input parameters
             if (chars == null)
@@ -89,11 +89,11 @@ namespace System.Text
         {
             // Validate parameters
             if (chars == null || bytes == null)
-                throw new ArgumentNullException((chars == null ? nameof(chars) : nameof(bytes)),
+                throw new ArgumentNullException(chars == null ? nameof(chars) : nameof(bytes),
                       SR.ArgumentNull_Array);
 
             if (charIndex < 0 || charCount < 0)
-                throw new ArgumentOutOfRangeException((charIndex < 0 ? nameof(charIndex) : nameof(charCount)),
+                throw new ArgumentOutOfRangeException(charIndex < 0 ? nameof(charIndex) : nameof(charCount),
                       SR.ArgumentOutOfRange_NeedNonNegNum);
 
             if (chars.Length - charIndex < charCount)
@@ -115,15 +115,15 @@ namespace System.Text
                                 pBytes + byteIndex, byteCount, flush);
         }
 
-        public unsafe override int GetBytes(char* chars, int charCount, byte* bytes, int byteCount, bool flush)
+        public override unsafe int GetBytes(char* chars, int charCount, byte* bytes, int byteCount, bool flush)
         {
             // Validate parameters
             if (chars == null || bytes == null)
-                throw new ArgumentNullException((chars == null ? nameof(chars) : nameof(bytes)),
+                throw new ArgumentNullException(chars == null ? nameof(chars) : nameof(bytes),
                       SR.ArgumentNull_Array);
 
             if (byteCount < 0 || charCount < 0)
-                throw new ArgumentOutOfRangeException((byteCount < 0 ? nameof(byteCount) : nameof(charCount)),
+                throw new ArgumentOutOfRangeException(byteCount < 0 ? nameof(byteCount) : nameof(charCount),
                       SR.ArgumentOutOfRange_NeedNonNegNum);
 
             _mustFlush = flush;
@@ -140,15 +140,15 @@ namespace System.Text
         {
             // Validate parameters
             if (chars == null || bytes == null)
-                throw new ArgumentNullException((chars == null ? nameof(chars) : nameof(bytes)),
+                throw new ArgumentNullException(chars == null ? nameof(chars) : nameof(bytes),
                       SR.ArgumentNull_Array);
 
             if (charIndex < 0 || charCount < 0)
-                throw new ArgumentOutOfRangeException((charIndex < 0 ? nameof(charIndex) : nameof(charCount)),
+                throw new ArgumentOutOfRangeException(charIndex < 0 ? nameof(charIndex) : nameof(charCount),
                       SR.ArgumentOutOfRange_NeedNonNegNum);
 
             if (byteIndex < 0 || byteCount < 0)
-                throw new ArgumentOutOfRangeException((byteIndex < 0 ? nameof(byteIndex) : nameof(byteCount)),
+                throw new ArgumentOutOfRangeException(byteIndex < 0 ? nameof(byteIndex) : nameof(byteCount),
                       SR.ArgumentOutOfRange_NeedNonNegNum);
 
             if (chars.Length - charIndex < charCount)
@@ -181,7 +181,7 @@ namespace System.Text
                 throw new ArgumentNullException(bytes == null ? nameof(bytes) : nameof(chars),
                     SR.ArgumentNull_Array);
             if (charCount < 0 || byteCount < 0)
-                throw new ArgumentOutOfRangeException((charCount < 0 ? nameof(charCount) : nameof(byteCount)),
+                throw new ArgumentOutOfRangeException(charCount < 0 ? nameof(charCount) : nameof(byteCount),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
 
             // We don't want to throw
@@ -214,13 +214,7 @@ namespace System.Text
             }
         }
 
-        public bool MustFlush
-        {
-            get
-            {
-                return _mustFlush;
-            }
-        }
+        public bool MustFlush => _mustFlush;
 
         /// <summary>
         /// States whether a call to <see cref="Encoding.GetBytes(char*, int, byte*, int, EncoderNLS)"/> must first drain data on this <see cref="EncoderNLS"/> instance.
@@ -228,13 +222,7 @@ namespace System.Text
         internal bool HasLeftoverData => _charLeftOver != default || (_fallbackBuffer != null && _fallbackBuffer.Remaining > 0);
 
         // Anything left in our encoder?
-        internal virtual bool HasState
-        {
-            get
-            {
-                return (_charLeftOver != (char)0);
-            }
-        }
+        internal virtual bool HasState => _charLeftOver != (char)0;
 
         // Allow encoding to clear our must flush instead of throwing (in ThrowBytesOverflow)
         internal void ClearMustFlush()
@@ -302,12 +290,18 @@ namespace System.Text
                     }
                     else
                     {
-                        didFallback = FallbackBuffer.Fallback(_charLeftOver, secondChar, index: 0);
+                        // The fallback mechanism relies on a negative index to convey "the start of the invalid
+                        // sequence was some number of chars back before the current buffer." In this block and
+                        // in the block immediately thereafter, we know we have a single leftover high surrogate
+                        // character from a previous operation, so we provide an index of -1 to convey that the
+                        // char immediately before the current buffer was the start of the invalid sequence.
+
+                        didFallback = FallbackBuffer.Fallback(_charLeftOver, secondChar, index: -1);
                     }
                 }
                 else
                 {
-                    didFallback = FallbackBuffer.Fallback(_charLeftOver, index: 0);
+                    didFallback = FallbackBuffer.Fallback(_charLeftOver, index: -1);
                 }
 
                 // Now tally the number of bytes that would've been emitted as part of fallback.
@@ -367,7 +361,7 @@ namespace System.Text
                             break;
 
                         case OperationStatus.InvalidData:
-                            FallbackBuffer.Fallback(_charLeftOver, secondChar, index: 0);
+                            FallbackBuffer.Fallback(_charLeftOver, secondChar, index: -1); // see comment in DrainLeftoverDataForGetByteCount
                             break;
 
                         default:
@@ -377,7 +371,7 @@ namespace System.Text
                 }
                 else
                 {
-                    FallbackBuffer.Fallback(_charLeftOver, index: 0);
+                    FallbackBuffer.Fallback(_charLeftOver, index: -1); // see comment in DrainLeftoverDataForGetByteCount
                 }
             }
 

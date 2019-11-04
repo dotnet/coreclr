@@ -2,15 +2,12 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
-using System.Runtime.Versioning;
-using System.Security;
 using System.Text;
 using System.Threading;
 using Microsoft.Win32.SafeHandles;
@@ -89,7 +86,7 @@ namespace System
         #endregion
 
         #region Private Data Members
-        private SafeTypeNameParserHandle m_NativeParser;
+        private readonly SafeTypeNameParserHandle m_NativeParser;
         private static readonly char[] SPECIAL_CHARS = { ',', '[', ']', '&', '*', '+', '\\' }; /* see typeparse.h */
         #endregion
 
@@ -146,7 +143,7 @@ namespace System
             if (baseType == null)
             {
                 // Cannot resolve the type. If throwOnError is true we should have already thrown.
-                Debug.Assert(throwOnError == false);
+                Debug.Assert(!throwOnError);
                 return null;
             }
 
@@ -168,7 +165,7 @@ namespace System
                     if (types[i] == null)
                     {
                         // If throwOnError is true argParser.ConstructType should have already thrown.
-                        Debug.Assert(throwOnError == false);
+                        Debug.Assert(!throwOnError);
                         return null;
                     }
                 }
@@ -185,7 +182,7 @@ namespace System
 
         private static Assembly? ResolveAssembly(string asmName, Func<AssemblyName, Assembly?>? assemblyResolver, bool throwOnError, ref StackCrawlMark stackMark)
         {
-            Debug.Assert(asmName != null && asmName.Length > 0);
+            Debug.Assert(!string.IsNullOrEmpty(asmName));
 
             Assembly? assembly = null;
 
@@ -238,7 +235,7 @@ namespace System
                 if (type == null && throwOnError)
                 {
                     string errorString = assembly == null ?
-                        SR.Format(SR.TypeLoad_ResolveType, OuterMostTypeName):
+                        SR.Format(SR.TypeLoad_ResolveType, OuterMostTypeName) :
                         SR.Format(SR.TypeLoad_ResolveTypeFromAssembly, OuterMostTypeName, assembly.FullName);
 
                     throw new TypeLoadException(errorString);

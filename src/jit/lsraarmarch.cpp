@@ -225,24 +225,22 @@ int LinearScan::BuildCall(GenTreeCall* call)
     // Each register argument corresponds to one source.
     bool callHasFloatRegArgs = false;
 
-    for (GenTree* list = call->gtCallLateArgs; list; list = list->MoveNext())
+    for (GenTreeCall::Use& arg : call->LateArgs())
     {
-        assert(list->OperIsList());
-
-        GenTree* argNode = list->Current();
+        GenTree* argNode = arg.GetNode();
 
 #ifdef DEBUG
         // During Build, we only use the ArgTabEntry for validation,
         // as getting it is rather expensive.
         fgArgTabEntry* curArgTabEntry = compiler->gtArgEntryByNode(call, argNode);
-        regNumber      argReg         = curArgTabEntry->regNum;
-        assert(curArgTabEntry);
+        regNumber      argReg         = curArgTabEntry->GetRegNum();
+        assert(curArgTabEntry != nullptr);
 #endif
 
         if (argNode->gtOper == GT_PUTARG_STK)
         {
             // late arg that is not passed in a register
-            assert(curArgTabEntry->regNum == REG_STK);
+            assert(curArgTabEntry->GetRegNum() == REG_STK);
             // These should never be contained.
             assert(!argNode->isContained());
             continue;
@@ -254,23 +252,23 @@ int LinearScan::BuildCall(GenTreeCall* call)
             assert(argNode->isContained());
 
             // There could be up to 2-4 PUTARG_REGs in the list (3 or 4 can only occur for HFAs)
-            for (GenTreeFieldList* entry = argNode->AsFieldList(); entry != nullptr; entry = entry->Rest())
+            for (GenTreeFieldList::Use& use : argNode->AsFieldList()->Uses())
             {
 #ifdef DEBUG
-                assert(entry->Current()->OperIs(GT_PUTARG_REG));
-                assert(entry->Current()->gtRegNum == argReg);
+                assert(use.GetNode()->OperIs(GT_PUTARG_REG));
+                assert(use.GetNode()->GetRegNum() == argReg);
                 // Update argReg for the next putarg_reg (if any)
                 argReg = genRegArgNext(argReg);
 
 #if defined(_TARGET_ARM_)
                 // A double register is modelled as an even-numbered single one
-                if (entry->Current()->TypeGet() == TYP_DOUBLE)
+                if (use.GetNode()->TypeGet() == TYP_DOUBLE)
                 {
                     argReg = genRegArgNext(argReg);
                 }
 #endif // _TARGET_ARM_
 #endif
-                BuildUse(entry->Current(), genRegMask(entry->Current()->gtRegNum));
+                BuildUse(use.GetNode(), genRegMask(use.GetNode()->GetRegNum()));
                 srcCount++;
             }
         }
@@ -289,7 +287,7 @@ int LinearScan::BuildCall(GenTreeCall* call)
         else
         {
             assert(argNode->OperIs(GT_PUTARG_REG));
-            assert(argNode->gtRegNum == argReg);
+            assert(argNode->GetRegNum() == argReg);
             HandleFloatVarArgs(call, argNode, &callHasFloatRegArgs);
 #ifdef _TARGET_ARM_
             // The `double` types have been transformed to `long` on armel,
@@ -298,19 +296,20 @@ int LinearScan::BuildCall(GenTreeCall* call)
             if (argNode->TypeGet() == TYP_LONG)
             {
                 assert(argNode->IsMultiRegNode());
-                BuildUse(argNode, genRegMask(argNode->gtRegNum), 0);
-                BuildUse(argNode, genRegMask(genRegArgNext(argNode->gtRegNum)), 1);
+                BuildUse(argNode, genRegMask(argNode->GetRegNum()), 0);
+                BuildUse(argNode, genRegMask(genRegArgNext(argNode->GetRegNum())), 1);
                 srcCount += 2;
             }
             else
 #endif // _TARGET_ARM_
             {
-                BuildUse(argNode, genRegMask(argNode->gtRegNum));
+                BuildUse(argNode, genRegMask(argNode->GetRegNum()));
                 srcCount++;
             }
         }
     }
 
+#ifdef DEBUG
     // Now, count stack args
     // Note that these need to be computed into a register, but then
     // they're just stored to the stack - so the reg doesn't
@@ -318,18 +317,15 @@ int LinearScan::BuildCall(GenTreeCall* call)
     // because the code generator doesn't actually consider it live,
     // so it can't be spilled.
 
-    GenTree* args = call->gtCallArgs;
-    while (args)
+    for (GenTreeCall::Use& use : call->Args())
     {
-        GenTree* arg = args->gtGetOp1();
+        GenTree* arg = use.GetNode();
 
         // Skip arguments that have been moved to the Late Arg list
-        if (!(args->gtFlags & GTF_LATE_ARG))
+        if ((arg->gtFlags & GTF_LATE_ARG) == 0)
         {
-#ifdef DEBUG
             fgArgTabEntry* curArgTabEntry = compiler->gtArgEntryByNode(call, arg);
-            assert(curArgTabEntry);
-#endif
+            assert(curArgTabEntry != nullptr);
 #if FEATURE_ARG_SPLIT
             // PUTARG_SPLIT nodes must be in the gtCallLateArgs list, since they
             // define registers used by the call.
@@ -337,15 +333,15 @@ int LinearScan::BuildCall(GenTreeCall* call)
 #endif // FEATURE_ARG_SPLIT
             if (arg->gtOper == GT_PUTARG_STK)
             {
-                assert(curArgTabEntry->regNum == REG_STK);
+                assert(curArgTabEntry->GetRegNum() == REG_STK);
             }
             else
             {
                 assert(!arg->IsValue() || arg->IsUnusedValue());
             }
         }
-        args = args->gtGetOp2();
     }
+#endif // DEBUG
 
     // If it is a fast tail call, it is already preferenced to use IP0.
     // Therefore, no need set src candidates on call tgt again.
@@ -402,9 +398,9 @@ int LinearScan::BuildPutArgStk(GenTreePutArgStk* argNode)
         {
             assert(putArgChild->isContained());
             // We consume all of the items in the GT_FIELD_LIST
-            for (GenTreeFieldList* current = putArgChild->AsFieldList(); current != nullptr; current = current->Rest())
+            for (GenTreeFieldList::Use& use : putArgChild->AsFieldList()->Uses())
             {
-                BuildUse(current->Current());
+                BuildUse(use.GetNode());
                 srcCount++;
             }
         }
@@ -474,7 +470,7 @@ int LinearScan::BuildPutArgSplit(GenTreePutArgSplit* argNode)
     // Registers for split argument corresponds to source
     int dstCount = argNode->gtNumRegs;
 
-    regNumber argReg  = argNode->gtRegNum;
+    regNumber argReg  = argNode->GetRegNum();
     regMaskTP argMask = RBM_NONE;
     for (unsigned i = 0; i < argNode->gtNumRegs; i++)
     {
@@ -494,10 +490,9 @@ int LinearScan::BuildPutArgSplit(GenTreePutArgSplit* argNode)
         // To avoid redundant moves, have the argument operand computed in the
         // register in which the argument is passed to the call.
 
-        for (GenTreeFieldList* fieldListPtr = putArgChild->AsFieldList(); fieldListPtr != nullptr;
-             fieldListPtr                   = fieldListPtr->Rest())
+        for (GenTreeFieldList::Use& use : putArgChild->AsFieldList()->Uses())
         {
-            GenTree* node = fieldListPtr->gtGetOp1();
+            GenTree* node = use.GetNode();
             assert(!node->isContained());
             // The only multi-reg nodes we should see are OperIsMultiRegOp()
             unsigned currentRegCount;
@@ -568,7 +563,7 @@ int LinearScan::BuildPutArgSplit(GenTreePutArgSplit* argNode)
 int LinearScan::BuildBlockStore(GenTreeBlk* blkNode)
 {
     GenTree* dstAddr  = blkNode->Addr();
-    unsigned size     = blkNode->gtBlkSize;
+    unsigned size     = blkNode->Size();
     GenTree* source   = blkNode->Data();
     int      srcCount = 0;
 
@@ -679,31 +674,26 @@ int LinearScan::BuildBlockStore(GenTreeBlk* blkNode)
         }
     }
 
-    if ((size != 0) && (blkSizeRegMask != RBM_NONE))
+    if (!blkNode->OperIs(GT_STORE_DYN_BLK) && (blkSizeRegMask != RBM_NONE))
     {
         // Reserve a temp register for the block size argument.
         buildInternalIntRegisterDefForNode(blkNode, blkSizeRegMask);
     }
 
-    if (!dstAddr->isContained() && !blkNode->IsReverseOp())
-    {
-        srcCount++;
-        BuildUse(dstAddr, dstAddrRegMask);
-    }
-    if ((srcAddrOrFill != nullptr) && !srcAddrOrFill->isContained())
-    {
-        srcCount++;
-        BuildUse(srcAddrOrFill, sourceRegMask);
-    }
-    if (!dstAddr->isContained() && blkNode->IsReverseOp())
+    if (!dstAddr->isContained())
     {
         srcCount++;
         BuildUse(dstAddr, dstAddrRegMask);
     }
 
-    if (size == 0)
+    if ((srcAddrOrFill != nullptr) && !srcAddrOrFill->isContained())
     {
-        assert(blkNode->OperIs(GT_STORE_DYN_BLK));
+        srcCount++;
+        BuildUse(srcAddrOrFill, sourceRegMask);
+    }
+
+    if (blkNode->OperIs(GT_STORE_DYN_BLK))
+    {
         // The block size argument is a third argument to GT_STORE_DYN_BLK
         srcCount++;
         GenTree* blockSize = blkNode->AsDynBlk()->gtDynamicSize;

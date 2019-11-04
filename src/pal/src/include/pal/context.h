@@ -277,6 +277,44 @@ inline void *FPREG_Xstate_Ymmh(const ucontext_t *uc)
 #define MCREG_Sp(mc)      ((mc).sp)
 #define MCREG_Pc(mc)      ((mc).pc)
 #define MCREG_Cpsr(mc)    ((mc).pstate)
+
+
+inline
+fpsimd_context* GetNativeSigSimdContext(native_context_t *mc)
+{
+    size_t size = 0;
+
+    do
+    {
+        fpsimd_context* fp = reinterpret_cast<fpsimd_context *>(&mc->uc_mcontext.__reserved[size]);
+
+        if(fp->head.magic == FPSIMD_MAGIC)
+        {
+            _ASSERTE(fp->head.size >= sizeof(fpsimd_context));
+            _ASSERTE(size + fp->head.size <= sizeof(mc->uc_mcontext.__reserved));
+
+            return fp;
+        }
+
+        if (fp->head.size == 0)
+        {
+            break;
+        }
+
+        size += fp->head.size;
+    } while (size + sizeof(fpsimd_context) <= sizeof(mc->uc_mcontext.__reserved));
+
+    _ASSERTE(false);
+
+    return nullptr;
+}
+
+inline
+const fpsimd_context* GetConstNativeSigSimdContext(const native_context_t *mc)
+{
+    return GetNativeSigSimdContext(const_cast<native_context_t*>(mc));
+}
+
 #else
     // For FreeBSD, as found in x86/ucontext.h
 #define MCREG_Rbp(mc)	    ((mc).mc_rbp)
@@ -336,6 +374,59 @@ inline void *FPREG_Xstate_Ymmh(const ucontext_t *uc)
 #define MCREG_Lr(mc)        ((mc).arm_lr)
 #define MCREG_Pc(mc)        ((mc).arm_pc)
 #define MCREG_Cpsr(mc)      ((mc).arm_cpsr)
+
+
+// Flatterned layout of the arm kernel struct vfp_sigframe
+struct VfpSigFrame
+{
+    DWORD   magic;
+    DWORD   size;
+    DWORD64 D[32]; // Some arm cpus have 16 D registers.  The kernel will ignore the extra.
+    DWORD   Fpscr;
+    DWORD   Padding;
+    DWORD   Fpexc;
+    DWORD   Fpinst;
+    DWORD   Fpinst2;
+    DWORD   Padding2;
+};
+
+inline
+VfpSigFrame* GetNativeSigSimdContext(native_context_t *mc)
+{
+    size_t size = 0;
+
+    const DWORD VfpMagic = 0x56465001; // VFP_MAGIC from arm kernel
+
+    do
+    {
+        VfpSigFrame* fp = reinterpret_cast<VfpSigFrame *>(&mc->uc_regspace[size]);
+
+        if (fp->magic == VfpMagic)
+        {
+            _ASSERTE(fp->size == sizeof(VfpSigFrame));
+            _ASSERTE(size + fp->size <= sizeof(mc->uc_regspace));
+
+            return fp;
+        }
+
+        if (fp->size == 0)
+        {
+            break;
+        }
+
+        size += fp->size;
+    } while (size + sizeof(VfpSigFrame) <= sizeof(mc->uc_regspace));
+
+    // VFP is not required on all armv7 processors, this structure may not be present
+
+    return nullptr;
+}
+
+inline
+const VfpSigFrame* GetConstNativeSigSimdContext(const native_context_t *mc)
+{
+    return GetNativeSigSimdContext(const_cast<native_context_t*>(mc));
+}
 
 #elif defined(_X86_)
 

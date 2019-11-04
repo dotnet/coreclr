@@ -459,7 +459,6 @@ void InitializeStartupFlags()
 #endif // CROSSGEN_COMPILE
 
 
-#ifdef FEATURE_PREJIT
 // BBSweepStartFunction is the first function to execute in the BBT sweeper thread.
 // It calls WatchForSweepEvent where we wait until a sweep occurs.
 DWORD __stdcall BBSweepStartFunction(LPVOID lpArgs)
@@ -495,7 +494,6 @@ DWORD __stdcall BBSweepStartFunction(LPVOID lpArgs)
 
     return 0;
 }
-#endif // FEATURE_PREJIT
 
 
 //-----------------------------------------------------------------------------
@@ -512,11 +510,23 @@ void InitGSCookie()
 
     GSCookie * pGSCookiePtr = GetProcessGSCookiePtr();
 
+#ifdef FEATURE_PAL
+    // On Unix, the GS cookie is stored in a read only data segment
+    DWORD newProtection = PAGE_READWRITE;
+#else // FEATURE_PAL
+    DWORD newProtection = PAGE_EXECUTE_READWRITE;
+#endif // !FEATURE_PAL
+
     DWORD oldProtection;
-    if(!ClrVirtualProtect((LPVOID)pGSCookiePtr, sizeof(GSCookie), PAGE_EXECUTE_READWRITE, &oldProtection))
+    if(!ClrVirtualProtect((LPVOID)pGSCookiePtr, sizeof(GSCookie), newProtection, &oldProtection))
     {
         ThrowLastError();
     }
+
+#ifdef FEATURE_PAL
+    // PAL layer is unable to extract old protection for regions that were not allocated using VirtualAlloc
+    oldProtection = PAGE_READONLY;
+#endif // FEATURE_PAL
 
 #ifndef FEATURE_PAL
     // The GSCookie cannot be in a writeable page
@@ -535,7 +545,7 @@ void InitGSCookie()
 
 #ifdef _DEBUG
     // In _DEBUG, always use the same value to make it easier to search for the cookie
-    val = (GSCookie) WIN64_ONLY(0x9ABCDEF012345678) NOT_WIN64(0x12345678);
+    val = (GSCookie) BIT64_ONLY(0x9ABCDEF012345678) NOT_BIT64(0x12345678);
 #endif
 
     // To test if it is initialized. Also for ICorMethodInfo::getGSCookie()
@@ -598,6 +608,31 @@ do { \
 #define IfFailGoLog(EXPR) IfFailGotoLog(EXPR, ErrExit)
 #endif
 
+
+#ifndef CROSSGEN_COMPILE
+#ifdef FEATURE_PAL
+void EESocketCleanupHelper()
+{
+    CONTRACTL
+    {
+        GC_NOTRIGGER;
+        MODE_ANY;
+    } CONTRACTL_END;
+
+    // Close the debugger transport socket first
+    if (g_pDebugInterface != NULL)
+    {
+        g_pDebugInterface->CleanupTransportSocket();
+    }
+
+    // Close the diagnostic server socket.
+#ifdef FEATURE_PERFTRACING
+    DiagnosticServer::Shutdown();
+#endif // FEATURE_PERFTRACING
+}
+#endif // FEATURE_PAL
+#endif // CROSSGEN_COMPILE
+
 void EEStartupHelper(COINITIEE fFlags)
 {
     CONTRACTL
@@ -632,11 +667,7 @@ void EEStartupHelper(COINITIEE fFlags)
         // This needs to be done before config because config uses SString::Empty()
         SString::Startup();
 
-        // Initialize EEConfig
-        if (!g_pConfig)
-        {
-            IfFailGo(EEConfig::Setup());
-        }
+        IfFailGo(EEConfig::Setup());
 
 #ifndef CROSSGEN_COMPILE
         // Initialize Numa and CPU group information
@@ -659,7 +690,12 @@ void EEStartupHelper(COINITIEE fFlags)
 #ifdef FEATURE_PERFTRACING
         // Initialize the event pipe.
         EventPipe::Initialize();
+
 #endif // FEATURE_PERFTRACING
+
+#ifdef FEATURE_PAL
+        PAL_SetShutdownCallback(EESocketCleanupHelper);
+#endif // FEATURE_PAL
 
 #ifdef FEATURE_GDBJIT
         // Initialize gdbjit
@@ -762,7 +798,7 @@ void EEStartupHelper(COINITIEE fFlags)
 
         // Cross-process named objects are not supported in PAL
         // (see CorUnix::InternalCreateEvent - src/pal/src/synchobj/event.cpp.272)
-#if defined(FEATURE_PREJIT) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_PAL)
         // Initialize the sweeper thread.
         if (g_pConfig->GetZapBBInstr() != NULL)
         {
@@ -776,7 +812,7 @@ void EEStartupHelper(COINITIEE fFlags)
             _ASSERTE(hBBSweepThread);
             g_BBSweep.SetBBSweepThreadHandle(hBBSweepThread);
         }
-#endif // FEATURE_PREJIT && FEATURE_PAL
+#endif // FEATURE_PAL
 
 #ifdef FEATURE_INTERPRETER
         Interpreter::Initialize();
@@ -899,7 +935,6 @@ void EEStartupHelper(COINITIEE fFlags)
 #endif // FEATURE_COMINTEROP
 
         StubHelpers::Init();
-        NDirect::Init();
 
         // Before setting up the execution manager initialize the first part
         // of the JIT helpers.
@@ -1181,120 +1216,6 @@ void ForceEEShutdown(ShutdownCompleteAction sca)
     EEPolicy::HandleExitProcess(sca);
 }
 
-//---------------------------------------------------------------------------
-// %%Function: ExternalShutdownHelper
-//
-// Parameters:
-//  int exitCode :: process exit code
-//  ShutdownCompleteAction sca :: indicates whether ::ExitProcess() is
-//                                called or if the function returns.
-//
-// Returns:
-//  Nothing
-//
-// Description:
-// This is a helper shared by CorExitProcess and ShutdownRuntimeWithoutExiting 
-// which causes the runtime to shutdown after the appropriate checks. 
-// ---------------------------------------------------------------------------
-static void ExternalShutdownHelper(int exitCode, ShutdownCompleteAction sca)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-        ENTRY_POINT;
-    } CONTRACTL_END;
-
-    CONTRACT_VIOLATION(GCViolation | ModeViolation);
-
-    if (g_fEEShutDown || !g_fEEStarted)
-        return;
-
-    if (!CanRunManagedCode())
-    {
-        return;
-    }
-
-    // The exit code for the process is communicated in one of two ways.  If the
-    // entrypoint returns an 'int' we take that.  Otherwise we take a latched
-    // process exit code.  This can be modified by the app via System.SetExitCode().
-    SetLatchedExitCode(exitCode);
-
-
-    ForceEEShutdown(sca);
-
-    // @TODO: If we cannot run ManagedCode, BEGIN_EXTERNAL_ENTRYPOINT will skip
-    // the shutdown.  We could call ::ExitProcess in that failure case, but that
-    // would violate our hosting agreement.  We are supposed to go through EEPolicy::
-    // HandleExitProcess().  Is this legal if !CanRunManagedCode()?
-
-}
-
-//---------------------------------------------------------------------------
-// %%Function: void STDMETHODCALLTYPE CorExitProcess(int exitCode)
-//
-// Parameters:
-//  int exitCode :: process exit code
-//
-// Returns:
-//  Nothing
-//
-// Description:
-//  COM Objects shutdown stuff should be done here
-// ---------------------------------------------------------------------------
-extern "C" void STDMETHODCALLTYPE CorExitProcess(int exitCode)
-{
-    WRAPPER_NO_CONTRACT;
-
-    ExternalShutdownHelper(exitCode, SCA_ExitProcessWhenShutdownComplete);
-}
-
-//---------------------------------------------------------------------------
-// %%Function: ShutdownRuntimeWithoutExiting
-//
-// Parameters:
-//  int exitCode :: process exit code
-//
-// Returns:
-//  Nothing
-//
-// Description:
-// This is a helper used only by the v4+ Shim to shutdown this runtime and
-// and return when the work has completed. It is exposed to the Shim via
-// GetCLRFunction.
-// ---------------------------------------------------------------------------
-void ShutdownRuntimeWithoutExiting(int exitCode)
-{
-    WRAPPER_NO_CONTRACT;
-
-    ExternalShutdownHelper(exitCode, SCA_ReturnWhenShutdownComplete);
-}
-
-//---------------------------------------------------------------------------
-// %%Function: IsRuntimeStarted
-//
-// Parameters:
-//  pdwStartupFlags: out parameter that is set to the startup flags if the
-//                   runtime is started.
-//
-// Returns:
-//  TRUE if the runtime has been started, FALSE otherwise.
-//
-// Description:
-// This is a helper used only by the v4+ Shim to determine if this runtime
-// has ever been started. It is exposed ot the Shim via GetCLRFunction.
-// ---------------------------------------------------------------------------
-BOOL IsRuntimeStarted(DWORD *pdwStartupFlags)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    if (pdwStartupFlags != NULL) // this parameter is optional
-    {
-        *pdwStartupFlags = 0;
-    }
-    return g_fEEStarted;
-}
-
 static bool WaitForEndOfShutdown_OneIteration()
 {
     CONTRACTL{
@@ -1406,9 +1327,11 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
     }
 
 #ifdef FEATURE_PERFTRACING
-    // Shutdown the event pipe.
-    EventPipe::Shutdown();
-    DiagnosticServer::Shutdown();
+    if (!fIsDllUnloading)
+    {
+        EventPipe::Shutdown();
+        DiagnosticServer::Shutdown();
+    }
 #endif // FEATURE_PERFTRACING
 
 #if defined(FEATURE_COMINTEROP)
@@ -1519,17 +1442,26 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
         PerfMap::Destroy();
 #endif
 
-#ifdef FEATURE_PREJIT
         {
             // If we're doing basic block profiling, we need to write the log files to disk.
-
             static BOOL fIBCLoggingDone = FALSE;
             if (!fIBCLoggingDone)
             {
                 if (g_IBCLogger.InstrEnabled())
                 {
-                    Thread * pThread = GetThread();
-                    ThreadLocalIBCInfo* pInfo = pThread->GetIBCInfo();
+                    Thread * pThread = GetThreadNULLOk();
+                    ThreadLocalIBCInfo* pInfo = NULL;
+
+                    if (pThread != NULL)
+                    {
+                        pInfo = pThread->GetIBCInfo();
+                        if (pInfo == NULL) 
+                        { 
+                            CONTRACT_VIOLATION( ThrowsViolation | FaultViolation); 
+                            pInfo = new ThreadLocalIBCInfo(); 
+                            pThread->SetIBCInfo(pInfo); 
+                        } 
+                    }
 
                     // Acquire the Crst lock before creating the IBCLoggingDisabler object.
                     // Only one thread at a time can be processing an IBC logging event.
@@ -1544,8 +1476,6 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
                 fIBCLoggingDone = TRUE;
             }
         }
-
-#endif // FEATURE_PREJIT
 
         ceeInf.JitProcessShutdownWork();  // Do anything JIT-related that needs to happen at shutdown.
 
@@ -1563,16 +1493,14 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
         // callbacks from coming into the profiler even after Shutdown() has been called.
         // See https://github.com/dotnet/coreclr/issues/22176 for an example of how that
         // happens.
-        // Callbacks will be prevented when ProfilingAPIUtility::Terminate() changes the state
-        // to detached, which occurs shortly afterwards. It might be kinder to make the detaching
-        // transition before calling Shutdown(), but if we do we'd have to be very careful not
-        // to break profilers that were relying on being able to call various APIs during
-        // Shutdown(). I suspect this isn't something we'll ever do unless we get complaints.
+        //
+        // To prevent issues when profilers are attached we intentionally skip freeing the
+        // profiler here. Since there is no guarantee that the profiler won't be accessed after
+        // we free it (e.g. through callbacks or ELT hooks), we can't safely free the profiler.
         if (CORProfilerPresent())
         {
-            // If EEShutdown is not being called due to a ProcessDetach event, so
-            // the profiler should still be present
-            if (!g_fProcessDetach)
+            // Don't call back in to the profiler if we are being torn down, it might be unloaded
+            if (!fIsDllUnloading)
             {
                 BEGIN_PIN_PROFILER(CORProfilerPresent());
                 GCX_PREEMP();
@@ -1581,9 +1509,6 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
             }
 
             g_fEEShutDown |= ShutDown_Profiler;
-
-            // Free the interface objects.
-            ProfilingAPIUtility::TerminateProfiling();
         }
 #endif // PROFILING_SUPPORTED
 
@@ -1912,85 +1837,12 @@ void STDMETHODCALLTYPE EEShutDown(BOOL fIsDllUnloading)
 //
 // Description: Indicates if the runtime is active or not. "Active" implies
 //              that the runtime has started and is in a position to run
-//              managed code. If either of these conditions are false, the
-//              function return FALSE.
-//          
-//              Why couldnt we add !g_fEEStarted check in CanRunManagedCode?
-//
-// 
-//              ExecuteDLL in ceemain.cpp could start the runtime 
-//             (due to DLL_PROCESS_ATTACH) after invoking CanRunManagedCode. 
-//              If the function were to be modified, then this scenario could fail. 
-//              Hence, I have built over CanRunManagedCode in IsRuntimeActive.
-
+//              managed code.
 // ---------------------------------------------------------------------------
 BOOL IsRuntimeActive()
 {
-    // If the runtime has started AND we can run managed code,
-    // then runtime is considered "active".
-    BOOL fCanRunManagedCode = CanRunManagedCode();
-    return (g_fEEStarted && fCanRunManagedCode);
+    return (g_fEEStarted);
 }
-
-// ---------------------------------------------------------------------------
-// %%Function: CanRunManagedCode()
-//
-// Parameters:
-//  none
-//
-// Returns:
-//  true or false
-//
-// Description: Indicates if one is currently allowed to run managed code.
-// ---------------------------------------------------------------------------
-NOINLINE BOOL CanRunManagedCodeRare(LoaderLockCheck::kind checkKind, HINSTANCE hInst /*= 0*/)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    } CONTRACTL_END;
-
-    // If we are shutting down the runtime, then we cannot run code.
-    if (g_fForbidEnterEE)
-        return FALSE;
-
-    // If pre-loaded objects are not present, then no way.
-    if (g_pPreallocatedOutOfMemoryException == NULL)
-        return FALSE;
-
-    // If we are finaling live objects or processing ExitProcess event,
-    // we can not allow managed method to run unless the current thread
-    // is the finalizer thread
-    if ((g_fEEShutDown & ShutDown_Finalize2) && !FinalizerThread::IsCurrentThreadFinalizer())
-        return FALSE;
-
-    return TRUE;
-}
-
-#include <optsmallperfcritical.h>
-BOOL CanRunManagedCode(LoaderLockCheck::kind checkKind, HINSTANCE hInst /*= 0*/)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    } CONTRACTL_END;
-
-    // Special-case the common success cases
-    //  (Try not to make any calls here so that we don't have to spill our incoming arg regs)
-    if (!g_fForbidEnterEE 
-        && (g_pPreallocatedOutOfMemoryException != NULL)
-        && !(g_fEEShutDown & ShutDown_Finalize2)
-        && ((checkKind == LoaderLockCheck::None)))
-    {
-        return TRUE;
-    }
-
-    // Then call a helper for everything else.
-    return CanRunManagedCodeRare(checkKind, hInst);
-}
-#include <optdefault.h>
 
 //*****************************************************************************
 BOOL ExecuteDLL_ReturnOrThrow(HRESULT hr, BOOL fFromThunk)

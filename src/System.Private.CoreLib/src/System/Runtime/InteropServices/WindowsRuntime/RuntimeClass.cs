@@ -8,7 +8,7 @@
 **
 ** RuntimeClass is the base class of all WinRT types
 **
-** 
+**
 ===========================================================*/
 
 using System.Runtime.CompilerServices;
@@ -24,7 +24,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         string ToString();
     }
 
-    internal class IStringableHelper
+    internal static class IStringableHelper
     {
         internal static string? ToString(object obj)
         {
@@ -50,7 +50,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         //
         // Support for ToString/GetHashCode/Equals override
-        //        
+        //
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern IntPtr GetRedirectedGetHashCodeMD();
 

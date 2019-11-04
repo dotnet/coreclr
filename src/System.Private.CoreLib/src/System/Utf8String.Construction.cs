@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -34,9 +35,6 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         public extern Utf8String(ReadOnlySpan<byte> value);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -49,7 +47,7 @@ namespace System
 
             Utf8String newString = FastAllocate(value.Length);
             Buffer.Memmove(ref newString.DangerousGetMutableReference(), ref MemoryMarshal.GetReference(value), (uint)value.Length);
-            return Utf8Utility.ValidateAndFixupUtf8String(newString)!; // TODO-NULLABLE: Remove ! when nullable attributes are respected
+            return Utf8Utility.ValidateAndFixupUtf8String(newString);
         }
 
         /// <summary>
@@ -62,9 +60,6 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         public extern Utf8String(byte[]? value, int startIndex, int length);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -79,11 +74,8 @@ namespace System
         /// </remarks>
         [MethodImpl(MethodImplOptions.InternalCall)]
         [CLSCompliant(false)]
-        public unsafe extern Utf8String(byte* value);
+        public extern unsafe Utf8String(byte* value);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -107,9 +99,6 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         public extern Utf8String(ReadOnlySpan<char> value);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -137,9 +126,6 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         public extern Utf8String(char[]? value, int startIndex, int length);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -154,11 +140,8 @@ namespace System
         /// </remarks>
         [MethodImpl(MethodImplOptions.InternalCall)]
         [CLSCompliant(false)]
-        public unsafe extern Utf8String(char* value);
+        public extern unsafe Utf8String(char* value);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -182,13 +165,20 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         public extern Utf8String(string? value);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
         private Utf8String Ctor(string? value) => Ctor(value.AsSpan());
+
+        internal static Utf8String CreateFromRune(Rune value)
+        {
+            Utf8String newString = FastAllocate(value.Utf8SequenceLength);
+            int bytesWritten = value.EncodeToUtf8(new Span<byte>(ref newString.DangerousGetMutableReference(), newString.Length));
+
+            Debug.Assert(bytesWritten == value.Utf8SequenceLength);
+
+            return newString;
+        }
 
         /*
          * HELPER METHODS

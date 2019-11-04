@@ -13,6 +13,7 @@ using System.Runtime.InteropServices;
 
 using Internal.Runtime.CompilerServices;
 
+#pragma warning disable SA1121 // explicitly using type aliases instead of built-in types
 #if BIT64
 using nint = System.Int64;
 using nuint = System.UInt64;
@@ -85,9 +86,9 @@ namespace System
             SpanHelpers.ClearWithoutReferences(ref *dest, len);
         }
 
-        // The attributes on this method are chosen for best JIT performance. 
+        // The attributes on this method are chosen for best JIT performance.
         // Please do not edit unless intentional.
-        [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
         public static unsafe void MemoryCopy(void* source, void* destination, long destinationSizeInBytes, long sourceBytesToCopy)
         {
@@ -98,9 +99,9 @@ namespace System
             Memmove((byte*)destination, (byte*)source, checked((nuint)sourceBytesToCopy));
         }
 
-        // The attributes on this method are chosen for best JIT performance. 
+        // The attributes on this method are chosen for best JIT performance.
         // Please do not edit unless intentional.
-        [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
         public static unsafe void MemoryCopy(void* source, void* destination, ulong destinationSizeInBytes, ulong sourceBytesToCopy)
         {
@@ -109,34 +110,6 @@ namespace System
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.sourceBytesToCopy);
             }
             Memmove((byte*)destination, (byte*)source, checked((nuint)sourceBytesToCopy));
-        }
-
-        internal static unsafe void Memcpy(byte[] dest, int destIndex, byte* src, int srcIndex, int len)
-        {
-            Debug.Assert((srcIndex >= 0) && (destIndex >= 0) && (len >= 0), "Index and length must be non-negative!");
-            Debug.Assert(dest.Length - destIndex >= len, "not enough bytes in dest");
-            // If dest has 0 elements, the fixed statement will throw an 
-            // IndexOutOfRangeException.  Special-case 0-byte copies.
-            if (len == 0)
-                return;
-            fixed (byte* pDest = dest)
-            {
-                Memcpy(pDest + destIndex, src + srcIndex, len);
-            }
-        }
-
-        internal static unsafe void Memcpy(byte* pDest, int destIndex, byte[] src, int srcIndex, int len)
-        {
-            Debug.Assert((srcIndex >= 0) && (destIndex >= 0) && (len >= 0), "Index and length must be non-negative!");
-            Debug.Assert(src.Length - srcIndex >= len, "not enough bytes in src");
-            // If dest has 0 elements, the fixed statement will throw an 
-            // IndexOutOfRangeException.  Special-case 0-byte copies.
-            if (len == 0)
-                return;
-            fixed (byte* pSrc = src)
-            {
-                Memcpy(pDest + destIndex, pSrc + srcIndex, len);
-            }
         }
 
         // This method has different signature for x64 and other platforms and is done for performance reasons.
@@ -525,7 +498,7 @@ namespace System
 
         // Non-inlinable wrapper around the QCall that avoids polluting the fast path
         // with P/Invoke prolog/epilog.
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         private static unsafe void _Memmove(byte* dest, byte* src, nuint len)
         {
             __Memmove(dest, src, len);
@@ -533,7 +506,7 @@ namespace System
 
         // Non-inlinable wrapper around the QCall that avoids polluting the fast path
         // with P/Invoke prolog/epilog.
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         private static unsafe void _Memmove(ref byte dest, ref byte src, nuint len)
         {
             fixed (byte* pDest = &dest)

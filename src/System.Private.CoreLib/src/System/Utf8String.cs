@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using Internal.Runtime.CompilerServices;
 
@@ -14,8 +15,14 @@ namespace System
     /// <summary>
     /// Represents an immutable string of UTF-8 code units.
     /// </summary>
-    public sealed partial class Utf8String : IEquatable<Utf8String>
+    public sealed partial class Utf8String :
+#nullable disable // see comment on String
+        IEquatable<Utf8String>
+#nullable restore
     {
+        // For values beyond U+FFFF, it's 4 UTF-8 bytes per 2 UTF-16 chars (2:1 ratio)
+        private const int MAX_UTF8_BYTES_PER_UTF16_CHAR = 3;
+
         /*
          * STATIC FIELDS
          */
@@ -52,7 +59,12 @@ namespace System
         /// <summary>
         /// Projects a <see cref="Utf8String"/> instance as a <see cref="ReadOnlySpan{Char8}"/>.
         /// </summary>
-        public static implicit operator ReadOnlySpan<Char8>(Utf8String? value) => value.AsSpan();
+        public static implicit operator ReadOnlySpan<Char8>(Utf8String? value) => MemoryMarshal.Cast<byte, Char8>(value.AsSpan().Bytes);
+
+        /// <summary>
+        /// Projects a <see cref="Utf8String"/> instance as a <see cref="Utf8Span"/>.
+        /// </summary>
+        public static implicit operator Utf8Span(Utf8String? value) => new Utf8Span(value);
 
         /*
          * INSTANCE PROPERTIES
@@ -119,9 +131,7 @@ namespace System
         /// <summary>
         /// Performs an equality comparison using a <see cref="StringComparison.Ordinal"/> comparer.
         /// </summary>
-#pragma warning disable CS8614 // TODO-NULLABLE: Covariant interface arguments (https://github.com/dotnet/roslyn/issues/35817)
         public bool Equals(Utf8String? value)
-#pragma warning restore CS8614
         {
             // First, a very quick check for referential equality.
 
@@ -231,6 +241,13 @@ namespace System
             // TODO_UTF8STRING: Call into optimized transcoding routine when it's available.
 
             return Encoding.UTF8.GetString(new ReadOnlySpan<byte>(ref DangerousGetMutableReference(), Length));
+        }
+
+        [StackTraceHidden]
+        internal static void ThrowImproperStringSplit()
+        {
+            throw new InvalidOperationException(
+                message: SR.Utf8String_CannotSplitMultibyteSubsequence);
         }
     }
 }

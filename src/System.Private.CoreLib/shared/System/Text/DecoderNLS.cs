@@ -22,7 +22,7 @@ namespace System.Text
     internal class DecoderNLS : Decoder
     {
         // Remember our encoding
-        private Encoding _encoding;
+        private readonly Encoding _encoding;
         private bool _mustFlush;
         internal bool _throwOnOverflow;
         internal int _bytesUsed;
@@ -55,7 +55,7 @@ namespace System.Text
                     SR.ArgumentNull_Array);
 
             if (index < 0 || count < 0)
-                throw new ArgumentOutOfRangeException((index < 0 ? nameof(index) : nameof(count)),
+                throw new ArgumentOutOfRangeException(index < 0 ? nameof(index) : nameof(count),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
 
             if (bytes.Length - index < count)
@@ -67,7 +67,7 @@ namespace System.Text
                 return GetCharCount(pBytes + index, count, flush);
         }
 
-        public unsafe override int GetCharCount(byte* bytes, int count, bool flush)
+        public override unsafe int GetCharCount(byte* bytes, int count, bool flush)
         {
             // Validate parameters
             if (bytes == null)
@@ -102,7 +102,7 @@ namespace System.Text
                     SR.ArgumentNull_Array);
 
             if (byteIndex < 0 || byteCount < 0)
-                throw new ArgumentOutOfRangeException((byteIndex < 0 ? nameof(byteIndex) : nameof(byteCount)),
+                throw new ArgumentOutOfRangeException(byteIndex < 0 ? nameof(byteIndex) : nameof(byteCount),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
 
             if (bytes.Length - byteIndex < byteCount)
@@ -123,16 +123,16 @@ namespace System.Text
                                 pChars + charIndex, charCount, flush);
         }
 
-        public unsafe override int GetChars(byte* bytes, int byteCount,
+        public override unsafe int GetChars(byte* bytes, int byteCount,
                                               char* chars, int charCount, bool flush)
         {
             // Validate parameters
             if (chars == null || bytes == null)
-                throw new ArgumentNullException((chars == null ? nameof(chars) : nameof(bytes)),
+                throw new ArgumentNullException(chars == null ? nameof(chars) : nameof(bytes),
                       SR.ArgumentNull_Array);
 
             if (byteCount < 0 || charCount < 0)
-                throw new ArgumentOutOfRangeException((byteCount < 0 ? nameof(byteCount) : nameof(charCount)),
+                throw new ArgumentOutOfRangeException(byteCount < 0 ? nameof(byteCount) : nameof(charCount),
                       SR.ArgumentOutOfRange_NeedNonNegNum);
 
             // Remember our flush
@@ -152,15 +152,15 @@ namespace System.Text
         {
             // Validate parameters
             if (bytes == null || chars == null)
-                throw new ArgumentNullException((bytes == null ? nameof(bytes) : nameof(chars)),
+                throw new ArgumentNullException(bytes == null ? nameof(bytes) : nameof(chars),
                       SR.ArgumentNull_Array);
 
             if (byteIndex < 0 || byteCount < 0)
-                throw new ArgumentOutOfRangeException((byteIndex < 0 ? nameof(byteIndex) : nameof(byteCount)),
+                throw new ArgumentOutOfRangeException(byteIndex < 0 ? nameof(byteIndex) : nameof(byteCount),
                       SR.ArgumentOutOfRange_NeedNonNegNum);
 
             if (charIndex < 0 || charCount < 0)
-                throw new ArgumentOutOfRangeException((charIndex < 0 ? nameof(charIndex) : nameof(charCount)),
+                throw new ArgumentOutOfRangeException(charIndex < 0 ? nameof(charIndex) : nameof(charCount),
                       SR.ArgumentOutOfRange_NeedNonNegNum);
 
             if (bytes.Length - byteIndex < byteCount)
@@ -184,7 +184,7 @@ namespace System.Text
 
         // This is the version that used pointers.  We call the base encoding worker function
         // after setting our appropriate internal variables.  This is getting chars
-        public unsafe override void Convert(byte* bytes, int byteCount,
+        public override unsafe void Convert(byte* bytes, int byteCount,
                                               char* chars, int charCount, bool flush,
                                               out int bytesUsed, out int charsUsed, out bool completed)
         {
@@ -194,7 +194,7 @@ namespace System.Text
                     SR.ArgumentNull_Array);
 
             if (byteCount < 0 || charCount < 0)
-                throw new ArgumentOutOfRangeException((byteCount < 0 ? nameof(byteCount) : nameof(charCount)),
+                throw new ArgumentOutOfRangeException(byteCount < 0 ? nameof(byteCount) : nameof(charCount),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
 
             // We don't want to throw
@@ -214,22 +214,10 @@ namespace System.Text
             // Our data thingy are now full, we can return
         }
 
-        public bool MustFlush
-        {
-            get
-            {
-                return _mustFlush;
-            }
-        }
+        public bool MustFlush => _mustFlush;
 
         // Anything left in our decoder?
-        internal virtual bool HasState
-        {
-            get
-            {
-                return false;
-            }
-        }
+        internal virtual bool HasState => _leftoverByteCount != 0;
 
         // Allow encoding to clear our must flush instead of throwing (in ThrowCharsOverflow)
         internal void ClearMustFlush()
@@ -237,10 +225,8 @@ namespace System.Text
             _mustFlush = false;
         }
 
-        internal ReadOnlySpan<byte> GetLeftoverData()
-        {
-            return MemoryMarshal.AsBytes(new ReadOnlySpan<int>(ref _leftoverBytes, 1)).Slice(0, _leftoverByteCount);
-        }
+        internal ReadOnlySpan<byte> GetLeftoverData() =>
+            MemoryMarshal.AsBytes(new ReadOnlySpan<int>(ref _leftoverBytes, 1)).Slice(0, _leftoverByteCount);
 
         internal void SetLeftoverData(ReadOnlySpan<byte> bytes)
         {
@@ -296,9 +282,10 @@ namespace System.Text
                     break;
             }
 
-            // Couldn't decode the buffer. Fallback the buffer instead.
+            // Couldn't decode the buffer. Fallback the buffer instead. See comment in DrainLeftoverDataForGetChars
+            // for more information on why a negative index is provided.
 
-            if (FallbackBuffer.Fallback(combinedBuffer.Slice(0, combinedBufferBytesConsumed).ToArray(), index: 0))
+            if (FallbackBuffer.Fallback(combinedBuffer.Slice(0, combinedBufferBytesConsumed).ToArray(), index: -_leftoverByteCount))
             {
                 charCount = _fallbackBuffer!.DrainRemainingDataForGetCharCount();
                 Debug.Assert(charCount >= 0, "Fallback buffer shouldn't have returned a negative char count.");
@@ -360,9 +347,13 @@ namespace System.Text
                     break;
             }
 
-            // Couldn't decode the buffer. Fallback the buffer instead.
+            // Couldn't decode the buffer. Fallback the buffer instead. The fallback mechanism relies
+            // on a negative index to convey "the start of the invalid sequence was some number of
+            // bytes back before the current buffer." Since we know the invalid sequence must have
+            // started at the beginning of our leftover byte buffer, we can signal to our caller that
+            // they must backtrack that many bytes to find the real start of the invalid sequence.
 
-            if (FallbackBuffer.Fallback(combinedBuffer.Slice(0, combinedBufferBytesConsumed).ToArray(), index: 0)
+            if (FallbackBuffer.Fallback(combinedBuffer.Slice(0, combinedBufferBytesConsumed).ToArray(), index: -_leftoverByteCount)
                 && !_fallbackBuffer!.TryDrainRemainingDataForGetChars(chars, out charsWritten))
             {
                 goto DestinationTooSmall;

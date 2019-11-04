@@ -7,10 +7,8 @@
 
 #ifdef FEATURE_PERFTRACING // This macro should change to something more generic than performance.
 
-#include <stdint.h>
 #include "diagnosticsipc.h"
 
-//! TODO: Temp class.
 enum class DiagnosticMessageType : uint32_t
 {
     ///////////////////////////////////////////////////////////////////////////
@@ -28,7 +26,6 @@ enum class DiagnosticMessageType : uint32_t
     AttachProfiler = 2048,
 };
 
-//! TODO: Temp class.
 struct MessageHeader
 {
     DiagnosticMessageType RequestType;
@@ -45,8 +42,12 @@ public:
     //! Shutdown the event pipe.
     static bool Shutdown();
 
+    //! Diagnostics server thread.
+    static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter);
+
 private:
     static IpcStream::DiagnosticsIpc *s_pIpc;
+    static Volatile<bool> s_shuttingDown;
 };
 
 #endif // FEATURE_PERFTRACING

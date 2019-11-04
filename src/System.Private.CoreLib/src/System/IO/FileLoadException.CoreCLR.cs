@@ -27,10 +27,10 @@ namespace System.IO
             string? message = null;
             if (hResult == System.HResults.COR_E_BADEXEFORMAT)
                 message = SR.Arg_BadImageFormatException;
-            else 
+            else
                 GetMessageForHR(hResult, JitHelpers.GetStringHandleOnStack(ref message));
 
-            return string.Format(format!, fileName, message!); // TODO-NULLABLE: Remove ! when nullable attributes are respected
+            return string.Format(format, fileName, message);
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]

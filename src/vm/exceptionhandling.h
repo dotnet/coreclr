@@ -8,7 +8,7 @@
 #ifndef __EXCEPTION_HANDLING_h__
 #define __EXCEPTION_HANDLING_h__
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
 
 #include "eexcp.h"
 #include "exstatecommon.h"
@@ -23,8 +23,8 @@
 
 EXTERN_C EXCEPTION_DISPOSITION
 ProcessCLRException(IN     PEXCEPTION_RECORD     pExceptionRecord
-          WIN64_ARG(IN     ULONG64               MemoryStackFp)
-      NOT_WIN64_ARG(IN     ULONG                 MemoryStackFp),
+          BIT64_ARG(IN     ULONG64               MemoryStackFp)
+      NOT_BIT64_ARG(IN     ULONG                 MemoryStackFp),
                     IN OUT PT_CONTEXT            pContextRecord,
                     IN OUT PT_DISPATCHER_CONTEXT pDispatcherContext);
 
@@ -298,6 +298,8 @@ public:
 
         return m_pInitialExplicitFrame;
     }
+
+    void ResetInitialExplicitFrame();
 
 #ifdef FEATURE_PAL
     // Reset the range of explicit frames, the limit frame and the scanned
@@ -819,6 +821,6 @@ private:
     Crst* m_pCrst;
 };
 
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 #endif  // __EXCEPTION_HANDLING_h__

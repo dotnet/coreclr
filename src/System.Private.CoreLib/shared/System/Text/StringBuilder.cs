@@ -2,16 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Text;
-using System.Runtime;
 using System.Runtime.Serialization;
-using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
-using System.Security;
-using System.Threading;
-using System.Globalization;
 using System.Diagnostics;
 using System.Collections.Generic;
 
@@ -278,7 +271,7 @@ namespace System.Text
 
             StringBuilder currentBlock = this;
             int maxCapacity = this.m_MaxCapacity;
-            for (;;)
+            while (true)
             {
                 // All blocks have the same max capacity.
                 Debug.Assert(currentBlock.m_MaxCapacity == maxCapacity);
@@ -302,7 +295,7 @@ namespace System.Text
 
         public int Capacity
         {
-            get { return m_ChunkChars.Length + m_ChunkOffset; }
+            get => m_ChunkChars.Length + m_ChunkOffset;
             set
             {
                 if (value < 0)
@@ -349,7 +342,9 @@ namespace System.Text
             }
 
             if (Capacity < capacity)
+            {
                 Capacity = capacity;
+            }
             return Capacity;
         }
 
@@ -445,13 +440,10 @@ namespace System.Text
         /// </summary>
         public int Length
         {
-            get
-            {
-                return m_ChunkOffset + m_ChunkLength;
-            }
+            get => m_ChunkOffset + m_ChunkLength;
             set
             {
-                //If the new length is less than 0 or greater than our Maximum capacity, bail.
+                // If the new length is less than 0 or greater than our Maximum capacity, bail.
                 if (value < 0)
                 {
                     throw new ArgumentOutOfRangeException(nameof(value), SR.ArgumentOutOfRange_NegativeLength);
@@ -515,7 +507,7 @@ namespace System.Text
             get
             {
                 StringBuilder? chunk = this;
-                for (;;)
+                while (true)
                 {
                     int indexInBlock = index - chunk.m_ChunkOffset;
                     if (indexInBlock >= 0)
@@ -536,7 +528,7 @@ namespace System.Text
             set
             {
                 StringBuilder? chunk = this;
-                for (;;)
+                while (true)
                 {
                     int indexInBlock = index - chunk.m_ChunkOffset;
                     if (indexInBlock >= 0)
@@ -559,50 +551,50 @@ namespace System.Text
 
         /// <summary>
         /// GetChunks returns ChunkEnumerator that follows the IEnumerable pattern and
-        /// thus can be used in a C# 'foreach' statements to retreive the data in the StringBuilder
+        /// thus can be used in a C# 'foreach' statements to retrieve the data in the StringBuilder
         /// as chunks (ReadOnlyMemory) of characters.  An example use is:
-        /// 
+        ///
         ///      foreach (ReadOnlyMemory&lt;char&gt; chunk in sb.GetChunks())
-        ///         foreach(char c in chunk.Span)
+        ///         foreach (char c in chunk.Span)
         ///             { /* operation on c }
         ///
         /// It is undefined what happens if the StringBuilder is modified while the chunk
         /// enumeration is incomplete.  StringBuilder is also not thread-safe, so operating
-        /// on it with concurrent threads is illegal.  Finally the ReadOnlyMemory chunks returned 
-        /// are NOT guarenteed to remain unchanged if the StringBuilder is modified, so do 
+        /// on it with concurrent threads is illegal.  Finally the ReadOnlyMemory chunks returned
+        /// are NOT guarenteed to remain unchanged if the StringBuilder is modified, so do
         /// not cache them for later use either.  This API's purpose is efficiently extracting
-        /// the data of a CONSTANT StringBuilder.  
-        /// 
-        /// Creating a ReadOnlySpan from a ReadOnlyMemory  (the .Span property) is expensive 
-        /// compared to the fetching of the character, so create a local variable for the SPAN 
-        /// if you need to use it in a nested for statement.  For example 
-        /// 
+        /// the data of a CONSTANT StringBuilder.
+        ///
+        /// Creating a ReadOnlySpan from a ReadOnlyMemory  (the .Span property) is expensive
+        /// compared to the fetching of the character, so create a local variable for the SPAN
+        /// if you need to use it in a nested for statement.  For example
+        ///
         ///    foreach (ReadOnlyMemory&lt;char&gt; chunk in sb.GetChunks())
         ///    {
         ///         var span = chunk.Span;
-        ///         for(int i = 0; i &lt; span.Length; i++)
+        ///         for (int i = 0; i &lt; span.Length; i++)
         ///             { /* operation on span[i] */ }
         ///    }
         /// </summary>
         public ChunkEnumerator GetChunks() => new ChunkEnumerator(this);
 
         /// <summary>
-        /// ChunkEnumerator supports both the IEnumerable and IEnumerator pattern so foreach 
-        /// works (see GetChunks).  It needs to be public (so the compiler can use it 
+        /// ChunkEnumerator supports both the IEnumerable and IEnumerator pattern so foreach
+        /// works (see GetChunks).  It needs to be public (so the compiler can use it
         /// when building a foreach statement) but users typically don't use it explicitly.
-        /// (which is why it is a nested type). 
+        /// (which is why it is a nested type).
         /// </summary>
         public struct ChunkEnumerator
         {
             private readonly StringBuilder _firstChunk; // The first Stringbuilder chunk (which is the end of the logical string)
-            private StringBuilder? _currentChunk;        // The chunk that this enumerator is currently returning (Current).  
+            private StringBuilder? _currentChunk;        // The chunk that this enumerator is currently returning (Current).
             private readonly ManyChunkInfo? _manyChunks; // Only used for long string builders with many chunks (see constructor)
 
             /// <summary>
-            /// Implement IEnumerable.GetEnumerator() to return  'this' as the IEnumerator  
+            /// Implement IEnumerable.GetEnumerator() to return  'this' as the IEnumerator
             /// </summary>
             [ComponentModel.EditorBrowsable(ComponentModel.EditorBrowsableState.Never)] // Only here to make foreach work
-            public ChunkEnumerator GetEnumerator() { return this;  }
+            public ChunkEnumerator GetEnumerator() { return this; }
 
             /// <summary>
             /// Implements the IEnumerator pattern.
@@ -610,10 +602,15 @@ namespace System.Text
             public bool MoveNext()
             {
                 if (_currentChunk == _firstChunk)
+                {
                     return false;
+                }
+
 
                 if (_manyChunks != null)
+                {
                     return _manyChunks.MoveNext(ref _currentChunk);
+                }
 
                 StringBuilder next = _firstChunk;
                 while (next.m_ChunkPrevious != _currentChunk)
@@ -637,7 +634,7 @@ namespace System.Text
                         ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumOpCantHappen();
                     }
 
-                    return new ReadOnlyMemory<char>(_currentChunk!.m_ChunkChars, 0, _currentChunk.m_ChunkLength); // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+                    return new ReadOnlyMemory<char>(_currentChunk.m_ChunkChars, 0, _currentChunk.m_ChunkLength);
                 }
             }
 
@@ -646,18 +643,20 @@ namespace System.Text
             {
                 Debug.Assert(stringBuilder != null);
                 _firstChunk = stringBuilder;
-                _currentChunk = null;   // MoveNext will find the last chunk if we do this.  
+                _currentChunk = null;   // MoveNext will find the last chunk if we do this.
                 _manyChunks = null;
 
                 // There is a performance-vs-allocation tradeoff.   Because the chunks
                 // are a linked list with each chunk pointing to its PREDECESSOR, walking
                 // the list FORWARD is not efficient.   If there are few chunks (< 8) we
-                // simply scan from the start each time, and tolerate the N*N behavior. 
+                // simply scan from the start each time, and tolerate the N*N behavior.
                 // However above this size, we allocate an array to hold pointers to all
-                // the chunks and we can be efficient for large N.    
+                // the chunks and we can be efficient for large N.
                 int chunkCount = ChunkCount(stringBuilder);
                 if (8 < chunkCount)
+                {
                     _manyChunks = new ManyChunkInfo(stringBuilder, chunkCount);
+                }
             }
 
             private static int ChunkCount(StringBuilder? stringBuilder)
@@ -672,18 +671,20 @@ namespace System.Text
             }
 
             /// <summary>
-            /// Used to hold all the chunks indexes when you have many chunks. 
+            /// Used to hold all the chunks indexes when you have many chunks.
             /// </summary>
             private class ManyChunkInfo
             {
-                private readonly StringBuilder[] _chunks;    // These are in normal order (first chunk first) 
+                private readonly StringBuilder[] _chunks;    // These are in normal order (first chunk first)
                 private int _chunkPos;
 
                 public bool MoveNext(ref StringBuilder? current)
                 {
                     int pos = ++_chunkPos;
                     if (_chunks.Length <= pos)
+                    {
                         return false;
+                    }
                     current = _chunks[pos];
                     return true;
                 }
@@ -816,9 +817,13 @@ namespace System.Text
                     if (valueLen <= 2)
                     {
                         if (valueLen > 0)
+                        {
                             chunkChars[chunkLength] = value[0];
+                        }
                         if (valueLen > 1)
+                        {
                             chunkChars[chunkLength + 1] = value[1];
+                        }
                     }
                     else
                     {
@@ -948,7 +953,9 @@ namespace System.Text
         private StringBuilder AppendCore(StringBuilder value, int startIndex, int count)
         {
             if (value == this)
+            {
                 return Append(value.ToString(startIndex, count));
+            }
 
             int newLength = Length + count;
 
@@ -975,12 +982,12 @@ namespace System.Text
             return this;
         }
 
-        public StringBuilder AppendLine() => Append(Environment.NewLine);
+        public StringBuilder AppendLine() => Append(Environment.NewLineConst);
 
         public StringBuilder AppendLine(string? value)
         {
             Append(value);
-            return Append(Environment.NewLine);
+            return Append(Environment.NewLineConst);
         }
 
         public void CopyTo(int sourceIndex, char[] destination, int destinationIndex, int count)
@@ -1243,7 +1250,7 @@ namespace System.Text
 
         public unsafe StringBuilder AppendJoin(string? separator, params object?[] values)
         {
-            separator = separator ?? string.Empty;
+            separator ??= string.Empty;
             fixed (char* pSeparator = separator)
             {
                 return AppendJoinCore(pSeparator, separator.Length, values);
@@ -1252,7 +1259,7 @@ namespace System.Text
 
         public unsafe StringBuilder AppendJoin<T>(string? separator, IEnumerable<T> values)
         {
-            separator = separator ?? string.Empty;
+            separator ??= string.Empty;
             fixed (char* pSeparator = separator)
             {
                 return AppendJoinCore(pSeparator, separator.Length, values);
@@ -1261,7 +1268,7 @@ namespace System.Text
 
         public unsafe StringBuilder AppendJoin(string? separator, params string?[] values)
         {
-            separator = separator ?? string.Empty;
+            separator ??= string.Empty;
             fixed (char* pSeparator = separator)
             {
                 return AppendJoinCore(pSeparator, separator.Length, values);
@@ -1301,7 +1308,7 @@ namespace System.Text
                     return this;
                 }
 
-                var value = en.Current;
+                T value = en.Current;
                 if (value != null)
                 {
                     Append(value.ToString());
@@ -1395,7 +1402,9 @@ namespace System.Text
             }
 
             if (value != null)
+            {
                 Insert(index, value, 0, value.Length);
+            }
             return this;
         }
 
@@ -1500,13 +1509,13 @@ namespace System.Text
             return AppendFormatHelper(null, format, new ParamsArray(args));
         }
 
-        public StringBuilder AppendFormat(IFormatProvider provider, string format, object? arg0) => AppendFormatHelper(provider, format, new ParamsArray(arg0));
+        public StringBuilder AppendFormat(IFormatProvider? provider, string format, object? arg0) => AppendFormatHelper(provider, format, new ParamsArray(arg0));
 
-        public StringBuilder AppendFormat(IFormatProvider provider, string format, object? arg0, object? arg1) => AppendFormatHelper(provider, format, new ParamsArray(arg0, arg1));
+        public StringBuilder AppendFormat(IFormatProvider? provider, string format, object? arg0, object? arg1) => AppendFormatHelper(provider, format, new ParamsArray(arg0, arg1));
 
-        public StringBuilder AppendFormat(IFormatProvider provider, string format, object? arg0, object? arg1, object? arg2) => AppendFormatHelper(provider, format, new ParamsArray(arg0, arg1, arg2));
+        public StringBuilder AppendFormat(IFormatProvider? provider, string format, object? arg0, object? arg1, object? arg2) => AppendFormatHelper(provider, format, new ParamsArray(arg0, arg1, arg2));
 
-        public StringBuilder AppendFormat(IFormatProvider provider, string format, params object?[] args)
+        public StringBuilder AppendFormat(IFormatProvider? provider, string format, params object?[] args)
         {
             if (args == null)
             {
@@ -1557,17 +1566,23 @@ namespace System.Text
                     {
                         // Check next character (if there is one) to see if it is escaped. eg }}
                         if (pos < len && format[pos] == '}')
+                        {
                             pos++;
+                        }
                         else
+                        {
                             // Otherwise treat it as an error (Mismatched closing brace)
                             FormatError();
+                        }
                     }
                     // Is it a opening brace?
                     if (ch == '{')
                     {
                         // Check next character (if there is one) to see if it is escaped. eg {{
                         if (pos < len && format[pos] == '{')
+                        {
                             pos++;
+                        }
                         else
                         {
                             // Otherwise treat it as the opening brace of an Argument Hole.
@@ -1583,7 +1598,10 @@ namespace System.Text
                 // Start of parsing of Argument Hole.
                 // Argument Hole ::= { Index (, WS* Alignment WS*)? (: Formatting)? }
                 //
-                if (pos == len) break;
+                if (pos == len)
+                {
+                    break;
+                }
 
                 //
                 //  Start of parsing required Index parameter.
@@ -1599,14 +1617,20 @@ namespace System.Text
                     index = index * 10 + ch - '0';
                     pos++;
                     // If reached end of text then error (Unexpected end of text)
-                    if (pos == len) FormatError();
+                    if (pos == len)
+                    {
+                        FormatError();
+                    }
                     ch = format[pos];
                     // so long as character is digit and value of the index is less than 1000000 ( index limit )
                 }
                 while (ch >= '0' && ch <= '9' && index < IndexLimit);
 
                 // If value of index is not within the range of the arguments passed in then error (Index out of range)
-                if (index >= args.Length) throw new FormatException(SR.Format_IndexOutOfRange);
+                if (index >= args.Length)
+                {
+                    throw new FormatException(SR.Format_IndexOutOfRange);
+                }
 
                 // Consume optional whitespace.
                 while (pos < len && (ch = format[pos]) == ' ') pos++;
@@ -1627,7 +1651,10 @@ namespace System.Text
                     while (pos < len && format[pos] == ' ') pos++;
 
                     // If reached the end of the text then error (Unexpected end of text)
-                    if (pos == len) FormatError();
+                    if (pos == len)
+                    {
+                        FormatError();
+                    }
 
                     // Is there a minus sign?
                     ch = format[pos];
@@ -1637,19 +1664,28 @@ namespace System.Text
                         leftJustify = true;
                         pos++;
                         // If reached end of text then error (Unexpected end of text)
-                        if (pos == len) FormatError();
+                        if (pos == len)
+                        {
+                            FormatError();
+                        }
                         ch = format[pos];
                     }
 
                     // If current character is not a digit then error (Unexpected character)
-                    if (ch < '0' || ch > '9') FormatError();
+                    if (ch < '0' || ch > '9')
+                    {
+                        FormatError();
+                    }
                     // Parse alignment digits.
                     do
                     {
                         width = width * 10 + ch - '0';
                         pos++;
                         // If reached end of text then error. (Unexpected end of text)
-                        if (pos == len) FormatError();
+                        if (pos == len)
+                        {
+                            FormatError();
+                        }
                         ch = format[pos];
                         // So long a current character is a digit and the value of width is less than 100000 ( width limit )
                     }
@@ -1675,7 +1711,10 @@ namespace System.Text
                     while (true)
                     {
                         // If reached end of text then error. (Unexpected end of text)
-                        if (pos == len) FormatError();
+                        if (pos == len)
+                        {
+                            FormatError();
+                        }
                         ch = format[pos];
 
                         if (ch == '}')
@@ -1707,7 +1746,7 @@ namespace System.Text
                 pos++;
                 string? s = null;
                 string? itemFormat = null;
-                
+
                 if (cf != null)
                 {
                     if (itemFormatSpan.Length != 0)
@@ -1729,7 +1768,10 @@ namespace System.Text
 
                         // Pad the end, if needed.
                         int padding = width - charsWritten;
-                        if (leftJustify && padding > 0) Append(' ', padding);
+                        if (leftJustify && padding > 0)
+                        {
+                            Append(' ', padding);
+                        }
 
                         // Continue to parse other characters.
                         continue;
@@ -1738,9 +1780,9 @@ namespace System.Text
                     // Otherwise, fallback to trying IFormattable or calling ToString.
                     if (arg is IFormattable formattableArg)
                     {
-                        if (itemFormatSpan.Length != 0 && itemFormat == null)
+                        if (itemFormatSpan.Length != 0)
                         {
-                            itemFormat = new string(itemFormatSpan);
+                            itemFormat ??= new string(itemFormatSpan);
                         }
                         s = formattableArg.ToString(itemFormat, provider);
                     }
@@ -1750,11 +1792,21 @@ namespace System.Text
                     }
                 }
                 // Append it to the final output of the Format String.
-                if (s == null) s = string.Empty;
+                if (s == null)
+                {
+                    s = string.Empty;
+                }
                 int pad = width - s.Length;
-                if (!leftJustify && pad > 0) Append(' ', pad);
+                if (!leftJustify && pad > 0)
+                {
+                    Append(' ', pad);
+                }
+
                 Append(s);
-                if (leftJustify && pad > 0) Append(' ', pad);
+                if (leftJustify && pad > 0)
+                {
+                    Append(' ', pad);
+                }
                 // Continue to parse other characters.
             }
             return this;
@@ -1778,17 +1830,22 @@ namespace System.Text
         public bool Equals(StringBuilder? sb)
         {
             if (sb == null)
+            {
                 return false;
+            }
             if (Length != sb.Length)
+            {
                 return false;
+            }
             if (sb == this)
+            {
                 return true;
-
+            }
             StringBuilder? thisChunk = this;
             int thisChunkIndex = thisChunk.m_ChunkLength;
             StringBuilder? sbChunk = sb;
             int sbChunkIndex = sbChunk.m_ChunkLength;
-            for (;;)
+            while (true)
             {
                 --thisChunkIndex;
                 --sbChunkIndex;
@@ -1797,7 +1854,9 @@ namespace System.Text
                 {
                     thisChunk = thisChunk.m_ChunkPrevious;
                     if (thisChunk == null)
+                    {
                         break;
+                    }
                     thisChunkIndex = thisChunk.m_ChunkLength + thisChunkIndex;
                 }
 
@@ -1805,18 +1864,26 @@ namespace System.Text
                 {
                     sbChunk = sbChunk.m_ChunkPrevious;
                     if (sbChunk == null)
+                    {
                         break;
+                    }
                     sbChunkIndex = sbChunk.m_ChunkLength + sbChunkIndex;
                 }
 
                 if (thisChunkIndex < 0)
+                {
                     return sbChunkIndex < 0;
+                }
                 if (sbChunkIndex < 0)
+                {
                     return false;
+                }
 
                 Debug.Assert(thisChunk != null && sbChunk != null);
                 if (thisChunk.m_ChunkChars[thisChunkIndex] != sbChunk.m_ChunkChars[sbChunkIndex])
+                {
                     return false;
+                }
             }
         }
 
@@ -1827,7 +1894,9 @@ namespace System.Text
         public bool Equals(ReadOnlySpan<char> span)
         {
             if (span.Length != Length)
+            {
                 return false;
+            }
 
             StringBuilder? sbChunk = this;
             int offset = 0;
@@ -1840,7 +1909,9 @@ namespace System.Text
                 ReadOnlySpan<char> chunk = new ReadOnlySpan<char>(sbChunk.m_ChunkChars, 0, chunk_length);
 
                 if (!chunk.EqualsOrdinal(span.Slice(span.Length - offset, chunk_length)))
+                {
                     return false;
+                }
 
                 sbChunk = sbChunk.m_ChunkPrevious;
             } while (sbChunk != null);
@@ -1880,9 +1951,7 @@ namespace System.Text
                 throw new ArgumentException(SR.Argument_EmptyName, nameof(oldValue));
             }
 
-            newValue = newValue ?? string.Empty;
-
-            int deltaLength = newValue.Length - oldValue.Length;
+            newValue ??= string.Empty;
 
             int[]? replacements = null; // A list of replacement positions in a chunk to apply
             int replacementsCount = 0;
@@ -1905,9 +1974,9 @@ namespace System.Text
                     }
                     else if (replacementsCount >= replacements.Length)
                     {
-                        Array.Resize(ref replacements!, replacements.Length * 3 / 2 + 4); // Grow by ~1.5x, but more in the begining // TODO-NULLABLE: Remove ! when nullable attributes are respected
+                        Array.Resize(ref replacements, replacements.Length * 3 / 2 + 4); // Grow by ~1.5x, but more in the begining
                     }
-                    replacements![replacementsCount++] = indexInChunk; // TODO-NULLABLE: Remove ! when nullable attributes are respected
+                    replacements[replacementsCount++] = indexInChunk;
                     indexInChunk += oldValue.Length;
                     count -= oldValue.Length;
                 }
@@ -1921,7 +1990,6 @@ namespace System.Text
                 {
                     // Replacing mutates the blocks, so we need to convert to a logical index and back afterwards.
                     int index = indexInChunk + chunk.m_ChunkOffset;
-                    int indexBeforeAdjustment = index;
 
                     // See if we accumulated any replacements, if so apply them.
                     Debug.Assert(replacements != null || replacementsCount == 0, "replacements was null and replacementsCount != 0");
@@ -1973,7 +2041,7 @@ namespace System.Text
             int endIndex = startIndex + count;
             StringBuilder chunk = this;
 
-            for (;;)
+            while (true)
             {
                 int endIndexInChunk = endIndex - chunk.m_ChunkOffset;
                 int startIndexInChunk = startIndex - chunk.m_ChunkOffset;
@@ -1989,7 +2057,9 @@ namespace System.Text
                     }
                 }
                 if (startIndexInChunk >= 0)
+                {
                     break;
+                }
 
                 Debug.Assert(chunk.m_ChunkPrevious != null);
                 chunk = chunk.m_ChunkPrevious;
@@ -2100,17 +2170,22 @@ namespace System.Text
                     long longDelta = (value.Length - removeCount) * (long)replacementsCount;
                     int delta = (int)longDelta;
                     if (delta != longDelta)
+                    {
                         throw new OutOfMemoryException();
+                    }
 
                     StringBuilder targetChunk = sourceChunk;        // the target as we copy chars down
                     int targetIndexInChunk = replacements[0];
 
                     // Make the room needed for all the new characters if needed.
                     if (delta > 0)
+                    {
                         MakeRoom(targetChunk.m_ChunkOffset + targetIndexInChunk, delta, out targetChunk, out targetIndexInChunk, true);
+                    }
+
                     // We made certain that characters after the insertion point are not moved,
                     int i = 0;
-                    for (;;)
+                    while (true)
                     {
                         // Copy in the new string for the ith replacement
                         ReplaceInPlaceAtChunk(ref targetChunk!, ref targetIndexInChunk, valuePtr, value.Length);
@@ -2140,7 +2215,9 @@ namespace System.Text
 
                     // Remove extra space if necessary.
                     if (delta < 0)
+                    {
                         Remove(targetChunk.m_ChunkOffset + targetIndexInChunk, -delta, out targetChunk, out targetIndexInChunk);
+                    }
                 }
             }
         }
@@ -2165,7 +2242,9 @@ namespace System.Text
                 {
                     chunk = Next(chunk)!;
                     if (chunk == null)
+                    {
                         return false;
+                    }
                     indexInChunk = 0;
                 }
 
@@ -2199,7 +2278,7 @@ namespace System.Text
         {
             if (count != 0)
             {
-                for (;;)
+                while (true)
                 {
                     Debug.Assert(chunk != null, "chunk should not be null at this point");
                     int lengthInChunk = chunk.m_ChunkLength - indexInChunk;
@@ -2260,8 +2339,8 @@ namespace System.Text
                 }
 
                 fixed (char* sourcePtr = &source[sourceIndex])
-                    fixed (char* destinationPtr = &MemoryMarshal.GetReference(destination))
-                        string.wstrcpy(destinationPtr + destinationIndex, sourcePtr, count);
+                fixed (char* destinationPtr = &MemoryMarshal.GetReference(destination))
+                    string.wstrcpy(destinationPtr + destinationIndex, sourcePtr, count);
             }
         }
 
@@ -2354,7 +2433,9 @@ namespace System.Text
 
             // Check for integer overflow (logical buffer size > int.MaxValue)
             if (m_ChunkOffset + m_ChunkLength + newBlockLength < newBlockLength)
+            {
                 throw new OutOfMemoryException();
+            }
 
             // Allocate the array before updating any state to avoid leaving inconsistent state behind in case of out of memory exception
             char[] chunkChars = new char[newBlockLength];
@@ -2446,7 +2527,7 @@ namespace System.Text
             // This typically happens when someone repeatedly inserts small strings at a spot (usually the absolute front) of the buffer.
             if (!doNotMoveFollowingChars && chunk.m_ChunkLength <= DefaultCapacity * 2 && chunk.m_ChunkChars.Length - chunk.m_ChunkLength >= count)
             {
-                for (int i = chunk.m_ChunkLength; i > indexInChunk; )
+                for (int i = chunk.m_ChunkLength; i > indexInChunk;)
                 {
                     --i;
                     chunk.m_ChunkChars[i + count] = chunk.m_ChunkChars[i];
@@ -2534,7 +2615,7 @@ namespace System.Text
             chunk = this;
             StringBuilder? endChunk = null;
             int endIndexInChunk = 0;
-            for (;;)
+            while (true)
             {
                 if (endIndex - chunk.m_ChunkOffset >= 0)
                 {

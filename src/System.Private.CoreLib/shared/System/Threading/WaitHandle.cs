@@ -52,17 +52,14 @@ namespace System.Threading
         [Obsolete("Use the SafeWaitHandle property instead.")]
         public virtual IntPtr Handle
         {
-            get
-            {
-                return _waitHandle == null ? InvalidHandle : _waitHandle.DangerousGetHandle();
-            }
+            get => _waitHandle == null ? InvalidHandle : _waitHandle.DangerousGetHandle();
             set
             {
                 if (value == InvalidHandle)
                 {
                     // This line leaks a handle.  However, it's currently
-                    // not perfectly clear what the right behavior is here 
-                    // anyways.  This preserves Everett behavior.  We should 
+                    // not perfectly clear what the right behavior is here
+                    // anyways.  This preserves Everett behavior.  We should
                     // ideally do these things:
                     // *) Expose a settable SafeHandle property on WaitHandle.
                     // *) Expose a settable OwnsHandle property on SafeHandle.
@@ -82,23 +79,13 @@ namespace System.Threading
         [AllowNull]
         public SafeWaitHandle SafeWaitHandle
         {
-            get
-            {
-                if (_waitHandle == null)
-                {
-                    _waitHandle = new SafeWaitHandle(InvalidHandle, false);
-                }
-                return _waitHandle;
-            }
-            set
-            {
-                _waitHandle = value;
-            }
+            get => _waitHandle ??= new SafeWaitHandle(InvalidHandle, false);
+            set => _waitHandle = value;
         }
 
         internal static int ToTimeoutMilliseconds(TimeSpan timeout)
         {
-            var timeoutMilliseconds = (long)timeout.TotalMilliseconds;
+            long timeoutMilliseconds = (long)timeout.TotalMilliseconds;
             if (timeoutMilliseconds < -1)
             {
                 throw new ArgumentOutOfRangeException(nameof(timeout), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
@@ -183,13 +170,14 @@ namespace System.Threading
             // t_safeWaitHandlesForRent can be null when it was not initialized yet or
             // if a re-entrant wait is performed and the array is already rented. In
             // that case we just allocate a new one and reuse it as necessary.
-            if (safeWaitHandles == null || safeWaitHandles.Length < capacity)
+            int currentLength = (safeWaitHandles != null) ? safeWaitHandles.Length : 0;
+            if (currentLength < capacity)
             {
-                // Always allocate at least 4 slots to prevent unnecessary reallocations
-                safeWaitHandles = new SafeWaitHandle[Math.Max(capacity, 4)];
+                safeWaitHandles = new SafeWaitHandle[Math.Max(capacity,
+                    Math.Min(MaxWaitHandles, 2 * currentLength))];
             }
 
-            return safeWaitHandles;
+            return safeWaitHandles!;
         }
 
         private static void ReturnSafeWaitHandleArray(SafeWaitHandle?[]? safeWaitHandles)
@@ -205,7 +193,6 @@ namespace System.Threading
             Span<SafeWaitHandle?> safeWaitHandles,
             Span<IntPtr> unsafeWaitHandles)
         {
-            Debug.Assert(waitHandles != null);
             Debug.Assert(waitHandles.Length > 0);
             Debug.Assert(waitHandles.Length <= MaxWaitHandles);
 

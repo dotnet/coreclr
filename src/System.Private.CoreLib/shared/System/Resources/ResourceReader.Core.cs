@@ -11,7 +11,7 @@ using System.Threading;
 
 namespace System.Resources
 {
-    partial class ResourceReader
+    public partial class ResourceReader
     {
         private readonly bool _permitDeserialization;  // can deserialize BinaryFormatted resources
         private object? _binaryFormatter; // binary formatter instance to use for deserializing
@@ -67,10 +67,9 @@ namespace System.Resources
 
         private void InitializeBinaryFormatter()
         {
-#pragma warning disable CS8634 // TODO-NULLABLE: Remove warning disable when nullable attributes are respected
             LazyInitializer.EnsureInitialized(ref s_binaryFormatterType, () =>
                 Type.GetType("System.Runtime.Serialization.Formatters.Binary.BinaryFormatter, System.Runtime.Serialization.Formatters, Version=0.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
-                throwOnError: true));
+                throwOnError: true)!);
 
             LazyInitializer.EnsureInitialized(ref s_deserializeMethod, () =>
             {
@@ -79,10 +78,9 @@ namespace System.Resources
                 // create an unbound delegate that can accept a BinaryFormatter instance as object
                 return (Func<object?, Stream, object>)typeof(ResourceReader)
                         .GetMethod(nameof(CreateUntypedDelegate), BindingFlags.NonPublic | BindingFlags.Static)!
-                        .MakeGenericMethod(s_binaryFormatterType)!
+                        .MakeGenericMethod(s_binaryFormatterType)
                         .Invoke(null, new object[] { binaryFormatterDeserialize })!;
             });
-#pragma warning restore CS8634
 
             _binaryFormatter = Activator.CreateInstance(s_binaryFormatterType!)!;
         }
@@ -97,7 +95,7 @@ namespace System.Resources
             return (obj, stream) => typedDelegate((TInstance)obj, stream);
         }
 
-        private bool ValidateReaderType(string readerType)
+        private static bool ValidateReaderType(string readerType)
         {
             return ResourceManager.IsDefaultType(readerType, ResourceManager.ResReaderTypeName);
         }

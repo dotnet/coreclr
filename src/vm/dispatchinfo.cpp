@@ -61,7 +61,7 @@ inline UPTR DispID2HashKey(DISPID DispID)
 }
 
 // Typedef for string comparition functions.
-typedef int (__cdecl *UnicodeStringCompareFuncPtr)(const wchar_t *, const wchar_t *);
+typedef int (__cdecl *UnicodeStringCompareFuncPtr)(const WCHAR *, const WCHAR *);
 
 //--------------------------------------------------------------------------------
 // The DispatchMemberInfo class implementation.
@@ -2095,6 +2095,11 @@ HRESULT DispatchInfo::InvokeMember(SimpleComCallWrapper *pSimpleWrap, DISPID id,
         // DISPATCH_CONSTRUCT only works when calling InvokeMember.
         if (wFlags & DISPATCH_CONSTRUCT)
             return E_INVALIDARG;
+
+        if ((!(wFlags & (DISPATCH_METHOD | DISPATCH_PROPERTYGET))) && pDispMemberInfo->GetMemberType() == EnumMemberTypes::Method)
+        {
+            return DISP_E_MEMBERNOTFOUND;
+        }
 
         // We have the member so retrieve the number of formal parameters.
         NumParams = pDispMemberInfo->GetNumParameters();

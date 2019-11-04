@@ -323,7 +323,6 @@ QueueUserAPC(
     palErr = InternalGetThreadDataFromHandle(
         pCurrentThread,
         hThread,
-        0, // THREAD_SET_CONTEXT
         &pTargetThread,
         &pTargetThreadObject
         );
@@ -407,7 +406,6 @@ DWORD CorUnix::InternalWaitForMultipleObjectsEx(
                                                                      (VOID **)lpHandles, 
                                                                      nCount,
                                                                      &sg_aotWaitObject,
-                                                                     SYNCHRONIZE,
                                                                      ppIPalObjs);
     if (NO_ERROR != palErr)
     {
@@ -531,14 +529,18 @@ DWORD CorUnix::InternalWaitForMultipleObjectsEx(
     iSignaledObjIndex = -1;
     for (i=0;i<(int)nCount;i++)
     {
-        bool fValue;
-        palErr = ppISyncWaitCtrlrs[i]->CanThreadWaitWithoutBlocking(&fValue, &fAbandoned);
+        bool fValue, fWaitObjectAbandoned = false;
+        palErr = ppISyncWaitCtrlrs[i]->CanThreadWaitWithoutBlocking(&fValue, &fWaitObjectAbandoned);
         if (NO_ERROR != palErr)
         {
             ERROR("ISynchWaitController::CanThreadWaitWithoutBlocking() failed for "
                   "%d-th object [handle=%p error=%u]\n", i, lpHandles[i], palErr);
             pThread->SetLastError(ERROR_INTERNAL_ERROR);
             goto WFMOExIntReleaseControllers;            
+        }
+        if (fWaitObjectAbandoned)
+        {
+            fAbandoned = true;
         }
         if (fValue)
         {
@@ -731,7 +733,6 @@ DWORD CorUnix::InternalSignalObjectAndWait(
             thread,
             hObjectToSignal,
             &sg_aotSignalableObject,
-            0, // should be MUTEX_MODIFY_STATE or equivalent for a signalable object, currently ignored (no Win32 security)
             &objectToSignal);
     if (palError != NO_ERROR)
     {
@@ -745,7 +746,6 @@ DWORD CorUnix::InternalSignalObjectAndWait(
             thread,
             hObjectToWaitOn,
             &sg_aotWaitObject,
-            SYNCHRONIZE,
             &objectToWaitOn);
     if (palError != NO_ERROR)
     {

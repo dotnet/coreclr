@@ -1,13 +1,14 @@
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include_directories("./jitstd")
 include_directories("../inc")
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  add_compile_options(-fpermissive)
+  add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fpermissive>)
   add_compile_options(-Wno-error)
 endif()
+
+add_compile_options($<$<CXX_COMPILER_ID:MSVC>:-W4>)
 
 if (CLR_CMAKE_TARGET_ARCH_AMD64 OR CLR_CMAKE_TARGET_ARCH_ARM64 OR (CLR_CMAKE_TARGET_ARCH_I386 AND NOT CLR_CMAKE_PLATFORM_UNIX))
   add_definitions(-DFEATURE_SIMD)
@@ -15,7 +16,7 @@ if (CLR_CMAKE_TARGET_ARCH_AMD64 OR CLR_CMAKE_TARGET_ARCH_ARM64 OR (CLR_CMAKE_TAR
 endif ()
 
 # JIT_BUILD disables certain PAL_TRY debugging features
-add_definitions(-DJIT_BUILD=1)
+add_definitions(-DJIT_BUILD)
 
 if(WIN32)
   set(JIT_RESOURCES Native.rc)
@@ -26,6 +27,7 @@ set( JIT_SOURCES
   assertionprop.cpp
   bitset.cpp
   block.cpp
+  layout.cpp
   codegencommon.cpp
   codegenlinear.cpp
   compiler.cpp
@@ -96,6 +98,7 @@ if (WIN32)
     alloc.h
     arraystack.h
     bitset.h
+    layout.h
     bitsetasshortlong.h
     bitsetasuint64.h
     bitsetasuint64inclass.h
@@ -192,8 +195,8 @@ if (WIN32)
       emitarm64.h
       emitfmtsarm.h
       emitfmtsarm64.h
-      hwintrinsicArm64.h
-      hwintrinsiclistArm64.h
+      hwintrinsic.h
+      hwintrinsiclistarm64.h
       instrsarm.h
       instrsarm64.h
       registerarm.h
@@ -203,7 +206,7 @@ if (WIN32)
       emitfmtsxarch.h
       emitxarch.h
       hwintrinsiclistxarch.h
-      hwintrinsicxarch.h
+      hwintrinsic.h
       instrsxarch.h)
   endif ()
 endif(WIN32)
@@ -260,7 +263,8 @@ set( JIT_ARM64_SOURCES
   targetarm64.cpp
   unwindarm.cpp
   unwindarm64.cpp
-  hwintrinsicArm64.cpp
+  hwintrinsicarm64.cpp
+  hwintrinsiccodegenarm64.cpp
 )
 
 if(CLR_CMAKE_TARGET_ARCH_AMD64)
@@ -293,10 +297,9 @@ convert_to_absolute_path(JIT_ARM64_SOURCES ${JIT_ARM64_SOURCES})
 
 
 if(WIN32)
-  add_precompiled_header(jitpch.h ../jitpch.cpp SOURCES)
   set(CLRJIT_EXPORTS ${CMAKE_CURRENT_LIST_DIR}/ClrJit.exports)
   set(JIT_EXPORTS_FILE ${CMAKE_CURRENT_BINARY_DIR}/ClrJit.exports.def)
-  preprocess_def_file (${CLRJIT_EXPORTS} ${JIT_EXPORTS_FILE})
+  preprocess_file (${CLRJIT_EXPORTS} ${JIT_EXPORTS_FILE})
 
   set(SHARED_LIB_SOURCES ${SOURCES} ${JIT_EXPORTS_FILE})
 else()
@@ -347,6 +350,8 @@ else()
        RuntimeObject.lib
     )
 endif(CLR_CMAKE_PLATFORM_UNIX)
+
+set(JIT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 if (FEATURE_MERGE_JIT_AND_ENGINE)
   # Despite the directory being named "dll", it creates a static library "clrjit_static" to link into the VM.

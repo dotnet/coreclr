@@ -22,8 +22,6 @@
 #include "ComCallUnmarshal.h"
 #endif // FEATURE_COMINTEROP
 
-#include "clrprivhosting.h"
-
 #include <dbgenginemetrics.h>
 
 // Locals.
@@ -85,7 +83,6 @@ BOOL WINAPI CoreDllMain(HANDLE hInstance, DWORD dwReason, LPVOID lpReserved)
             cccallbacks.m_hmodCoreCLR               = (HINSTANCE)hInstance;
             cccallbacks.m_pfnIEE                    = IEE;
             cccallbacks.m_pfnGetCORSystemDirectory  = GetCORSystemDirectoryInternaL;
-            cccallbacks.m_pfnGetCLRFunction         = GetCLRFunction;
             InitUtilcode(cccallbacks);
 
             if (!(result = _CRT_INIT(hInstance, dwReason, lpReserved)))

@@ -8,14 +8,6 @@
     <MSBuildEnableAllPropertyFunctions>1</MSBuildEnableAllPropertyFunctions>
   </PropertyGroup>
 
-  <!-- TestHost destinations -->
-  <PropertyGroup>
-    <NETCoreAppTestSharedFxVersion>9.9.9</NETCoreAppTestSharedFxVersion>
-    <TestHostRootPath>$(BinDir)testhost\</TestHostRootPath>
-    <NETCoreAppTestHostFxrPath>$(TestHostRootPath)host\fxr\$(NETCoreAppTestSharedFxVersion)\</NETCoreAppTestHostFxrPath>
-    <NETCoreAppTestSharedFrameworkPath>$(TestHostRootPath)shared\Microsoft.NETCore.App\$(NETCoreAppTestSharedFxVersion)\</NETCoreAppTestSharedFrameworkPath>
-  </PropertyGroup>
-
   <ItemGroup>
     <DisabledTestDir Include="Common" />
     <_SkipTestDir Include="@(DisabledTestDir)" />
@@ -171,6 +163,7 @@ using System%3B
 using System.Collections.Generic%3B
 using System.Diagnostics%3B
 using System.Reflection%3B
+using System.Text.RegularExpressions%3B
 using CoreclrTestLib%3B
 
 namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").Replace("-","_"))
@@ -290,45 +283,55 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
                 {
                     Assert.True(false, "Test Infrastructure Failure: " + infraEx.Message)%3B
                 }
-                else if (ret != CoreclrTestWrapperLib.EXIT_SUCCESS_CODE)
+                else
                 {
-                    List<string> allOutput = new List<string>()%3B
+                    List<string> testOutput = new List<string>()%3B
 
                     try
                     {
-                        allOutput.AddRange(System.IO.File.ReadAllLines(errorFile))%3B
+                        testOutput.AddRange(System.IO.File.ReadAllLines(errorFile))%3B
                     }
                     catch (Exception ex)
                     {
-                        allOutput.Add("Unable to read error file: " + errorFile)%3B
-                        allOutput.Add(ex.Message)%3B
+                        testOutput.Add("Unable to read error file: " + errorFile)%3B
+                        testOutput.Add(ex.Message)%3B
                     }
 
-                    allOutput.Add(string.Empty)%3B
-                    allOutput.Add("Return code:      " + ret)%3B
-                    allOutput.Add("Raw output file:      " + outputFile)%3B
-                    allOutput.Add("Raw output:")%3B
+                    testOutput.Add(string.Empty)%3B
+                    testOutput.Add("Return code:      " + ret)%3B
+                    testOutput.Add("Raw output file:      " + outputFile)%3B
+                    testOutput.Add("Raw output:")%3B
 
                     try
                     {
-                        allOutput.AddRange(System.IO.File.ReadAllLines(outputFile))%3B
+                        testOutput.AddRange(System.IO.File.ReadAllLines(outputFile))%3B
                     }
                     catch(Exception ex)
                     {
-                        allOutput.Add("Unable to read output file: " + outputFile)%3B
-                        allOutput.Add(ex.Message)%3B
+                        testOutput.Add("Unable to read output file: " + outputFile)%3B
+                        testOutput.Add(ex.Message)%3B
                     }
 
-                    allOutput.Add("To run the test:")%3B
-                    allOutput.Add("> set CORE_ROOT=" + _Global.coreRoot)%3B
-                    allOutput.Add("> " + testExecutable)%3B
+                    testOutput.Add("To run the test:")%3B
+                    testOutput.Add("> set CORE_ROOT=" + _Global.coreRoot)%3B
+                    testOutput.Add("> " + testExecutable)%3B
 
-                    foreach (string line in allOutput)
+                    var unicodeControlCharsRegex = new Regex("%5C%5Cp{C}+")%3B
+
+                    // Remove all characters that have no visual or spatial representation.
+                    for (int i = 0%3B i < testOutput.Count%3B i++)
+                    {
+                        string line = testOutput[i]%3B
+                        line = unicodeControlCharsRegex.Replace(line, string.Empty)%3B
+                        testOutput[i] = line%3B
+                    }
+
+                    foreach (string line in testOutput)
                     {
                         output.WriteLine(line)%3B
                     }
 
-                    Assert.True(false, string.Join(Environment.NewLine, allOutput))%3B
+                    Assert.True(ret == CoreclrTestWrapperLib.EXIT_SUCCESS_CODE, string.Join(Environment.NewLine, testOutput))%3B
                 }
             }
         }
@@ -370,99 +373,17 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
   <Target Name="CreateTestOverlay">
     <MSBuild Projects="$(MSBuildProjectFile)"
              Targets="CopyDependencyToCoreRoot"
-             Properties="Language=C#;TargetRid=$(TargetRid)" />
+             Properties="Language=C#;TargetRid=$(TargetRid);RuntimeIdentifier=$(TargetRid)" />
   </Target>
 
-  <Target Name="ResolveTestHostDependencies">
-    <MSBuild Projects="$(MSBuildThisFileDirectory)src\Common\CoreFX\CoreFX.depproj"
-            Properties="OutputPath=$(NETCoreAppTestSharedFrameworkPath);" />
-  </Target>
+  <!--
+       Targets and properties for creating the testhost directory used to run corefx tests.
+   -->
 
-  <Target Name="CreateTestHost" DependsOnTargets="ResolveTestHostDependencies">
-    <MSBuild Projects="$(MSBuildProjectFile)"
-            Targets="SetupTestingHost"/>
-
-    <MSBuild Projects="$(MSBuildProjectFile)"
-            Targets="GenerateTestSharedFrameworkDepsFile"/>
-  </Target>
-
-  <UsingTask TaskName="GenerateDepsJson" AssemblyFile="$(BuildToolsTaskDir)Microsoft.DotNet.Build.Tasks.dll"/>
-  <!-- After we copied all the framework libraries we need to generate a deps.json file for the shared test framework -->
-  <Target Name="GenerateTestSharedFrameworkDepsFile" AfterTargets="SetupTestingHost">
-    <ItemGroup>
-      <!-- This is for HostPolicy, CoreCLR and Jit dependencies to continue to remain inside of the dep.json -->
-      <ExceptionForDepsJson Include="microsoft.netcore.app" />
-
-      <!-- TODO: We should see about generating this from scratch instead of relying on a previous deps file as a template -->
-      <_sharedFrameworkDepsJson Include="$(DotnetCliPath)\shared\Microsoft.NETCore.App\*\Microsoft.NETCore.App.deps.json" />
-    </ItemGroup>
-
-    <PropertyGroup>
-      <_OriginalDepsJsonPath>%(_sharedFrameworkDepsJson.FullPath)</_OriginalDepsJsonPath>
-      <_OutputTestSharedFrameworkDepsPath>$(NETCoreAppTestSharedFrameworkPath)\Microsoft.NETCore.App.deps.json</_OutputTestSharedFrameworkDepsPath>
-    </PropertyGroup>
-
-    <GenerateDepsJson DepsJsonPath="$(_OriginalDepsJsonPath)"
-                      GenerateNewDepsJson="true"
-                      RuntimeDirectory="$(NETCoreAppTestSharedFrameworkPath)"
-                      DepsExceptions="@(ExceptionForDepsJson)"
-                      OutputPath="$(_OutputTestSharedFrameworkDepsPath)"/>
-  </Target>
-
-  <Target Name="SetupTestingHost"  AfterTargets="CreateTestOverlay" Condition="'$(CreateTestHost)' != 'false'">
-
-    <PropertyGroup Condition="'$(OSGroup)'=='Windows_NT'">
-      <HostFxrFileName>hostfxr</HostFxrFileName>
-      <HostFxrFileExtension>dll</HostFxrFileExtension>
-      <DotnetExecutableName>dotnet.exe</DotnetExecutableName>
-      <HostPolicyFileName>hostpolicy</HostPolicyFileName>
-      <HostPolicyExtension>dll</HostPolicyExtension>
-    </PropertyGroup>
-
-    <PropertyGroup Condition="'$(OSGroup)'!='Windows_NT'">
-      <HostFxrFileName>libhostfxr</HostFxrFileName>
-      <HostFxrFileExtension Condition="'$(OSGroup)' == 'Linux' Or '$(OSGroup)' == 'FreeBSD'">so</HostFxrFileExtension>
-      <HostFxrFileExtension Condition="$(OSGroup) =='OSX'">dylib</HostFxrFileExtension>
-      <HostPolicyFileName>libhostpolicy</HostPolicyFileName>
-      <HostPolicyExtension>$(HostFxrFileExtension)</HostPolicyExtension>
-      <DotnetExecutableName>dotnet</DotnetExecutableName>
-    </PropertyGroup>
-
-    <ItemGroup>
-      <!-- Workaround for packages on which Microsoft.NetCoreApp expresses a dependency
-      The <PackageToInclude> element doesn't allow a version to be specified and we end up with clashing assembly versions in Core_Root-->
-      <NetCoreAppPackagedAssemblies Include="System.Text.Encoding.CodePages.dll"/>
-      <!-- Use xunit dependencies defined in CoreFX.depproj instead of conflicting versions from test dependencies. -->
-      <TestDependenciesToExclude Include="$(CORE_ROOT)\**\xunit*"/>
-      <CoreCLRBinariesToExclude Include="@(NetCoreAppPackagedAssemblies);@(TestDependenciesToExclude -> '%(Identity)')" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <CoreCLRBinaries Include="$(CORE_ROOT)\**\*.*" Exclude="$(CORE_ROOT)\**\@(CoreCLRBinariesToExclude -> '%(Identity)' )" />
-      <HostFxFile Include="$(DotnetCliPath)\**\$(HostFxrFileName).$(HostFxrFileExtension)" />
-      <DotnetExe Include="$(DotnetCliPath)\$(DotnetExecutableName)" />
-      <HostPolicyFile Include="$(DotnetCliPath)\**\$(HostPolicyFileName).$(HostPolicyExtension)" />
-    </ItemGroup>
-
-    <Copy SourceFiles="@(HostFxFile)"
-          DestinationFolder="$(NETCoreAppTestHostFxrPath)"
-          SkipUnchangedFiles="true"
-          UseHardlinksIfPossible="true" />
-
-    <!-- Should this be referenced from a NuGet package? -->
-    <Copy SourceFiles="@(HostPolicyFile)"
-          DestinationFolder="$(NETCoreAppTestSharedFrameworkPath)"
-          SkipUnchangedFiles="true"
-          UseHardlinksIfPossible="true" />
-
-    <Copy SourceFiles="@(DotnetExe)"
-          DestinationFolder="$(TestHostRootPath)"
-          SkipUnchangedFiles="true"
-          UseHardlinksIfPossible="true"  />
-
-    <Copy SourceFiles="@(CoreCLRBinaries)"
-          DestinationFolder="$(NETCoreAppTestSharedFrameworkPath)"
-          SkipUnchangedFiles="true" />
+  <Target Name="CreateTestHost">
+    <MSBuild Projects="$(MSBuildThisFileDirectory)src\Common\CoreFX\CoreFX.csproj"
+             Targets="SetupTestingHost"
+             Properties="OutputPath=$(NETCoreAppTestSharedFrameworkPath)" />
   </Target>
 
   <Target Name="Build">

@@ -232,8 +232,7 @@ void CurrentProfilerStatus::Set(ProfilerStatus newProfStatus)
             break;
 
         case kProfStatusNone:
-            _ASSERTE((newProfStatus == kProfStatusInitializingForStartupLoad) ||
-                (newProfStatus == kProfStatusInitializingForAttachLoad));
+            _ASSERTE(newProfStatus == kProfStatusPreInitialize);
             break;
 
         case kProfStatusDetaching:
@@ -249,6 +248,12 @@ void CurrentProfilerStatus::Set(ProfilerStatus newProfStatus)
         case kProfStatusActive:
             _ASSERTE((newProfStatus == kProfStatusNone) ||
                 (newProfStatus == kProfStatusDetaching));
+            break;
+
+        case kProfStatusPreInitialize:
+            _ASSERTE((newProfStatus == kProfStatusNone) ||
+                (newProfStatus == kProfStatusInitializingForStartupLoad) ||
+                (newProfStatus == kProfStatusInitializingForAttachLoad));
             break;
         }
 
@@ -279,12 +284,8 @@ void CurrentProfilerStatus::Set(ProfilerStatus newProfStatus)
 //---------------------------------------------------------------------------------------
 // ProfilingAPIUtility members
 
-
 // See code:#LoadUnloadCallbackSynchronization.
 CRITSEC_COOKIE ProfilingAPIUtility::s_csStatus = NULL;
-
-
-SidBuffer * ProfilingAPIUtility::s_pSidBuffer = NULL;
 
 // ----------------------------------------------------------------------------
 // ProfilingAPIUtility::AppendSupplementaryInformation
@@ -818,38 +819,13 @@ HRESULT ProfilingAPIUtility::PerformDeferredInit()
     return S_OK;
 }
 
-// ----------------------------------------------------------------------------
-// ProfilingAPIUtility::LoadProfiler
-//
-// Description: 
-//    Outermost common code for loading the profiler DLL.  Both startup and attach code
-//    paths use this.
-//
-// Arguments:
-//    * loadType - Startup load or attach load?
-//    * pClsid - Profiler's CLSID
-//    * wszClsid - Profiler's CLSID (or progid) in string form, for event log messages
-//    * wszProfilerDLL - Profiler's DLL path
-//    * pvClientData - For attach loads, this is the client data the trigger wants to
-//        pass to the profiler DLL
-//    * cbClientData - For attach loads, size of client data in bytes
-//    * dwConcurrentGCWaitTimeoutInMs - Time out for wait operation on concurrent GC. Attach scenario only
-//
-// Return Value:
-//    HRESULT indicating success or failure of the load
-//
-// Notes:
-//    * On failure, this function or a callee will have logged an event
-//
-
 // static
-HRESULT ProfilingAPIUtility::LoadProfiler(
-        LoadType loadType,
-        const CLSID * pClsid,
-        LPCWSTR wszClsid, 
+HRESULT ProfilingAPIUtility::DoPreInitialization(
+        EEToProfInterfaceImpl *pEEProf,
+        const CLSID *pClsid,
+        LPCWSTR wszClsid,
         LPCWSTR wszProfilerDLL,
-        LPVOID pvClientData,
-        UINT cbClientData,
+        LoadType loadType,
         DWORD dwConcurrentGCWaitTimeoutInMs)
 {
     CONTRACTL
@@ -862,25 +838,14 @@ HRESULT ProfilingAPIUtility::LoadProfiler(
         CAN_TAKE_LOCK;
 
         MODE_ANY;
+        PRECONDITION(pEEProf != NULL);
+        PRECONDITION(pClsid != NULL);
+        PRECONDITION(wszClsid != NULL);
+        PRECONDITION(wszProfilerDLL != NULL);
     }
     CONTRACTL_END;
 
-    if (g_fEEShutDown)
-    {
-        return CORPROF_E_RUNTIME_UNINITIALIZED;            
-    }
-    
-    enum ProfilerCompatibilityFlag
-    {
-        // Default: disable V2 profiler
-        kDisableV2Profiler = 0x0,
-
-        // Enable V2 profilers
-        kEnableV2Profiler  = 0x1,
-
-        // Disable Profiling
-        kPreventLoad       = 0x2,
-    };
+    _ASSERTE(s_csStatus != NULL);
 
     ProfilerCompatibilityFlag profilerCompatibilityFlag = kDisableV2Profiler;
     NewArrayHolder<WCHAR> wszProfilerCompatibilitySetting(NULL);
@@ -914,33 +879,8 @@ HRESULT ProfilingAPIUtility::LoadProfiler(
         }
     }
 
-    HRESULT hr;
+    HRESULT hr = S_OK;
 
-    hr = PerformDeferredInit();
-    if (FAILED(hr))
-    {
-        LOG((
-            LF_CORPROF, 
-            LL_ERROR, 
-            "**PROF: ProfilingAPIUtility::PerformDeferredInit failed. hr=0x%x.\n",
-            hr));
-        LogProfError(IDS_E_PROF_INTERNAL_INIT, wszClsid, hr);
-        return hr;
-    }
-
-    // Valid loadType?
-    _ASSERTE((loadType == kStartupLoad) || (loadType == kAttachLoad));
-
-    // If a nonzero client data size is reported, there'd better be client data!
-    _ASSERTE((cbClientData == 0) || (pvClientData != NULL));
-
-    // Client data is currently only specified on attach
-    _ASSERTE((pvClientData == NULL) || (loadType == kAttachLoad));
-
-    // Don't be telling me to load a profiler if there already is one.
-    _ASSERTE(g_profControlBlock.curProfStatus.Get() == kProfStatusNone);
-
-    // Create the ProfToEE interface to provide to the profiling services
     NewHolder<ProfToEEInterfaceImpl> pProfEE(new (nothrow) ProfToEEInterfaceImpl());
     if (pProfEE == NULL)
     {
@@ -960,15 +900,6 @@ HRESULT ProfilingAPIUtility::LoadProfiler(
 
     // Provide the newly created and inited interface
     LOG((LF_CORPROF, LL_INFO10, "**PROF: Profiling code being provided with EE interface.\n"));
-
-    // Create a new EEToProf object
-    NewHolder<EEToProfInterfaceImpl> pEEProf(new (nothrow) EEToProfInterfaceImpl());
-    if (pEEProf == NULL)
-    {
-        LOG((LF_CORPROF, LL_ERROR, "**PROF: Unable to allocate EEToProfInterfaceImpl.\n"));
-        LogProfError(IDS_E_PROF_INTERNAL_INIT, wszClsid, E_OUTOFMEMORY);
-        return E_OUTOFMEMORY;
-    }
 
 #ifdef FEATURE_PROFAPI_ATTACH_DETACH
     // We're about to load the profiler, so first make sure we successfully create the
@@ -1035,7 +966,115 @@ HRESULT ProfilingAPIUtility::LoadProfiler(
                     wszClsid);
     }
 
-    _ASSERTE(s_csStatus != NULL);
+    return hr;
+}
+
+// ----------------------------------------------------------------------------
+// ProfilingAPIUtility::LoadProfiler
+//
+// Description: 
+//    Outermost common code for loading the profiler DLL.  Both startup and attach code
+//    paths use this.
+//
+// Arguments:
+//    * loadType - Startup load or attach load?
+//    * pClsid - Profiler's CLSID
+//    * wszClsid - Profiler's CLSID (or progid) in string form, for event log messages
+//    * wszProfilerDLL - Profiler's DLL path
+//    * pvClientData - For attach loads, this is the client data the trigger wants to
+//        pass to the profiler DLL
+//    * cbClientData - For attach loads, size of client data in bytes
+//    * dwConcurrentGCWaitTimeoutInMs - Time out for wait operation on concurrent GC. Attach scenario only
+//
+// Return Value:
+//    HRESULT indicating success or failure of the load
+//
+// Notes:
+//    * On failure, this function or a callee will have logged an event
+//
+
+// static
+HRESULT ProfilingAPIUtility::LoadProfiler(
+        LoadType loadType,
+        const CLSID * pClsid,
+        LPCWSTR wszClsid, 
+        LPCWSTR wszProfilerDLL,
+        LPVOID pvClientData,
+        UINT cbClientData,
+        DWORD dwConcurrentGCWaitTimeoutInMs)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+
+        // This causes events to be logged, which loads resource strings,
+        // which takes locks.
+        CAN_TAKE_LOCK;
+
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    if (g_fEEShutDown)
+    {
+        return CORPROF_E_RUNTIME_UNINITIALIZED;            
+    }
+    
+    // Valid loadType?
+    _ASSERTE((loadType == kStartupLoad) || (loadType == kAttachLoad));
+
+    // If a nonzero client data size is reported, there'd better be client data!
+    _ASSERTE((cbClientData == 0) || (pvClientData != NULL));
+
+    // Client data is currently only specified on attach
+    _ASSERTE((pvClientData == NULL) || (loadType == kAttachLoad));
+    
+    HRESULT hr = PerformDeferredInit();
+    if (FAILED(hr))
+    {
+        LOG((
+            LF_CORPROF, 
+            LL_ERROR, 
+            "**PROF: ProfilingAPIUtility::PerformDeferredInit failed. hr=0x%x.\n",
+            hr));
+        LogProfError(IDS_E_PROF_INTERNAL_INIT, wszClsid, hr);
+        return hr;
+    }
+
+    {
+        // To prevent race conditions we need to signal that a load is already happening.
+        // The diagnostics server is single threaded, but it can potentially be
+        // racing with the startup path, or theoretically in the future it could be
+        // racing with another attach request if the diagnostic server becomes 
+        // multithreaded.
+        CRITSEC_Holder csh(s_csStatus);
+
+        if (g_profControlBlock.curProfStatus.Get() != kProfStatusNone)
+        {
+            return CORPROF_E_PROFILER_ALREADY_ACTIVE;
+        }
+
+        g_profControlBlock.curProfStatus.Set(kProfStatusPreInitialize);
+    }
+
+    NewHolder<EEToProfInterfaceImpl> pEEProf(new (nothrow) EEToProfInterfaceImpl());
+    if (pEEProf == NULL)
+    {
+        LOG((LF_CORPROF, LL_ERROR, "**PROF: Unable to allocate EEToProfInterfaceImpl.\n"));
+        LogProfError(IDS_E_PROF_INTERNAL_INIT, wszClsid, E_OUTOFMEMORY);
+        return E_OUTOFMEMORY;
+    }
+
+    // Create the ProfToEE interface to provide to the profiling services
+    hr = DoPreInitialization(pEEProf, pClsid, wszClsid, wszProfilerDLL, loadType, dwConcurrentGCWaitTimeoutInMs);
+    if (FAILED(hr))
+    {
+        CRITSEC_Holder csh(s_csStatus);
+        g_profControlBlock.curProfStatus.Set(kProfStatusNone);
+        return hr;
+    }
+
     {
         // All modification of the profiler's status and
         // g_profControlBlock.pProfInterface need to be serialized against each other,
@@ -1421,14 +1460,7 @@ void ProfilingAPIUtility::TerminateProfiling()
             g_profControlBlock.pProfInterface.Store(NULL);
         }
 
-        // NOTE: Intentionally not deleting s_pSidBuffer. Doing so can cause annoying races
-        // with other threads that lazily create and initialize it when needed. (Example:
-        // it's used to fill out the "User" field of profiler event log entries.) Keeping
-        // s_pSidBuffer around after a profiler detaches and before a new one attaches
-        // consumes a bit more memory unnecessarily, but it'll get paged out if another
-        // profiler doesn't attach.
-
-        // NOTE: Similarly, intentionally not destroying / NULLing s_csStatus. If
+        // NOTE: Intentionally not destroying / NULLing s_csStatus. If
         // s_csStatus is already initialized, we can reuse it each time we do another
         // attach / detach, so no need to destroy it.
 
@@ -1450,68 +1482,5 @@ void ProfilingAPIUtility::TerminateProfiling()
         g_profControlBlock.curProfStatus.Set(kProfStatusNone);
     }
 }
-
-#ifndef FEATURE_PAL
-
-// ----------------------------------------------------------------------------
-// ProfilingAPIUtility::GetCurrentProcessUserSid
-// 
-// Description:
-//    Generates a SID of the current user from the current process's token. SID is
-//    returned in an [out] param, and is also cached for future use. The SID is used for
-//    two purposes: event log entries (for filling out the User field) and the ACL used
-//    on the globally named pipe object for attaching profilers.
-//    
-// Arguments:
-//    * ppsid - [out] Generated (or cached) SID
-//        
-// Return Value:
-//    HRESULT indicating success or failure.
-//    
-
-// static
-HRESULT ProfilingAPIUtility::GetCurrentProcessUserSid(PSID * ppsid)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    if (s_pSidBuffer == NULL)
-    {
-        HRESULT hr;
-        NewHolder<SidBuffer> pSidBuffer(new (nothrow) SidBuffer);
-        if (pSidBuffer == NULL)
-        {
-            return E_OUTOFMEMORY;
-        }
-
-        // This gets the SID of the user from the process token
-        hr = pSidBuffer->InitFromProcessUserNoThrow(GetCurrentProcessId());
-        if (FAILED(hr))
-        {
-            return hr;
-        }
-
-        if (FastInterlockCompareExchangePointer(
-            &s_pSidBuffer, 
-            pSidBuffer.GetValue(), 
-            NULL) == NULL)
-        {
-            // Lifetime successfully transferred to s_pSidBuffer, so don't delete it here
-            pSidBuffer.SuppressRelease();
-        }
-    }
-
-    _ASSERTE(s_pSidBuffer != NULL);
-    _ASSERTE(s_pSidBuffer->GetSid().RawSid() != NULL);
-    *ppsid = s_pSidBuffer->GetSid().RawSid();
-    return S_OK;
-}
-
-#endif // !FEATURE_PAL
 
 #endif // PROFILING_SUPPORTED

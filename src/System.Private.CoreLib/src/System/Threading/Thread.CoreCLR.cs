@@ -21,7 +21,7 @@ namespace System.Threading
 
         internal ThreadHelper(Delegate start)
         {
-            _start = start; 
+            _start = start;
         }
 
         internal void SetExecutionContextHelper(ExecutionContext? ec)
@@ -131,7 +131,7 @@ namespace System.Threading
         ** space so the thread object may be allocated.  DON'T CHANGE THESE UNLESS
         ** YOU MODIFY ThreadBaseObject in vm\object.h
         =========================================================================*/
-#pragma warning disable 169 // These fields are not used from managed.
+#pragma warning disable CA1823, 169 // These fields are not used from managed.
         // IntPtrs need to be together, and before ints, because IntPtrs are 64-bit
         // fields on 64-bit platforms, where they will be sorted together.
 
@@ -139,11 +139,11 @@ namespace System.Threading
         private int _priority; // INT32
 
         // The following field is required for interop with the VS Debugger
-        // Prior to making any changes to this field, please reach out to the VS Debugger 
+        // Prior to making any changes to this field, please reach out to the VS Debugger
         // team to make sure that your changes are not going to prevent the debugger
         // from working.
         private int _managedThreadId; // INT32
-#pragma warning restore 169
+#pragma warning restore CA1823, 169
 
         private Thread() { }
 
@@ -156,7 +156,7 @@ namespace System.Threading
         private void Create(ParameterizedThreadStart start) =>
             SetStartHelper((Delegate)start, 0);
 
-        private void Create(ParameterizedThreadStart start, int maxStackSize) => 
+        private void Create(ParameterizedThreadStart start, int maxStackSize) =>
             SetStartHelper((Delegate)start, maxStackSize);
 
         public extern int ManagedThreadId
@@ -245,7 +245,7 @@ namespace System.Threading
         // Invoked by VM. Helper method to get a logical thread ID for StringBuilder (for
         // correctness) and for FileStream's async code path (for perf, to avoid creating
         // a Thread instance).
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern IntPtr InternalGetCurrentThread();
 
         /// <summary>
@@ -274,7 +274,7 @@ namespace System.Threading
         public static bool Yield() => YieldInternal() != Interop.BOOL.FALSE;
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static Thread InitializeCurrentThread() => (t_currentThread = GetCurrentThreadNative());
+        private static Thread InitializeCurrentThread() => t_currentThread = GetCurrentThreadNative();
 
         [MethodImpl(MethodImplOptions.InternalCall), ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         private static extern Thread GetCurrentThreadNative();
@@ -317,7 +317,7 @@ namespace System.Threading
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void InformThreadNameChange(ThreadHandle t, string? name, int len);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern DeserializationTracker GetThreadDeserializationTracker(ref StackCrawlMark stackMark);
 
         /// <summary>Returns true if the thread has been started and is not dead.</summary>
@@ -468,18 +468,20 @@ namespace System.Threading
         {
             get
             {
-                if (s_optimalMaxSpinWaitsPerSpinIteration != 0)
-                {
-                    return s_optimalMaxSpinWaitsPerSpinIteration;
-                }
-
-                // This is done lazily because the first call to the function below in the process triggers a measurement that
-                // takes a nontrivial amount of time if the measurement has not already been done in the backgorund.
-                // See Thread::InitializeYieldProcessorNormalized(), which describes and calculates this value.
-                s_optimalMaxSpinWaitsPerSpinIteration = GetOptimalMaxSpinWaitsPerSpinIterationInternal();
-                Debug.Assert(s_optimalMaxSpinWaitsPerSpinIteration > 0);
-                return s_optimalMaxSpinWaitsPerSpinIteration;
+                int optimalMaxSpinWaitsPerSpinIteration = s_optimalMaxSpinWaitsPerSpinIteration;
+                return optimalMaxSpinWaitsPerSpinIteration != 0 ? optimalMaxSpinWaitsPerSpinIteration : CalculateOptimalMaxSpinWaitsPerSpinIteration();
             }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static int CalculateOptimalMaxSpinWaitsPerSpinIteration()
+        {
+            // This is done lazily because the first call to the function below in the process triggers a measurement that
+            // takes a nontrivial amount of time if the measurement has not already been done in the backgorund.
+            // See Thread::InitializeYieldProcessorNormalized(), which describes and calculates this value.
+            s_optimalMaxSpinWaitsPerSpinIteration = GetOptimalMaxSpinWaitsPerSpinIterationInternal();
+            Debug.Assert(s_optimalMaxSpinWaitsPerSpinIteration > 0);
+            return s_optimalMaxSpinWaitsPerSpinIteration;
         }
 
         [MethodImpl(MethodImplOptions.InternalCall)]
@@ -487,7 +489,7 @@ namespace System.Threading
 
         // The upper bits of t_currentProcessorIdCache are the currentProcessorId. The lower bits of
         // the t_currentProcessorIdCache are counting down to get it periodically refreshed.
-        // TODO: Consider flushing the currentProcessorIdCache on Wait operations or similar 
+        // TODO: Consider flushing the currentProcessorIdCache on Wait operations or similar
         // actions that are likely to result in changing the executing core
         [ThreadStatic]
         private static int t_currentProcessorIdCache;
@@ -528,7 +530,7 @@ namespace System.Threading
                 return RefreshCurrentProcessorId();
             }
 
-            return (currentProcessorIdCache >> ProcessorIdCacheShift);
+            return currentProcessorIdCache >> ProcessorIdCacheShift;
         }
 
         internal void ResetThreadPoolThread()

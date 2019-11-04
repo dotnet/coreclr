@@ -1065,10 +1065,10 @@ GenTree* Compiler::impSIMDPopStack(var_types type, bool expectAddr, CORINFO_CLAS
     //
     if (tree->OperGet() == GT_OBJ)
     {
-        if ((structHandle != NO_CLASS_HANDLE) && (tree->AsObj()->gtClass != structHandle))
+        if ((structHandle != NO_CLASS_HANDLE) && (tree->AsObj()->GetLayout()->GetClassHandle() != structHandle))
         {
             // In this case we need to retain the GT_OBJ to retype the value.
-            tree->AsObj()->gtClass = structHandle;
+            tree->AsObj()->SetLayout(typGetObjLayout(structHandle));
         }
         else
         {
@@ -1630,7 +1630,7 @@ GenTree* Compiler::impSIMDAbs(CORINFO_CLASS_HANDLE typeHnd, var_types baseType, 
 
         if (op1->OperGet() == GT_LCL_VAR)
         {
-            op1LclNum = op1->gtLclVarCommon.gtLclNum;
+            op1LclNum = op1->gtLclVarCommon.GetLclNum();
             op1Assign = nullptr;
         }
         else
@@ -2007,7 +2007,7 @@ GenTree* Compiler::getOp1ForConstructor(OPCODE opcode, GenTree* newobjThis, CORI
         assert(newobjThis->gtOper == GT_ADDR && newobjThis->gtOp.gtOp1->gtOper == GT_LCL_VAR);
 
         // push newobj result on type stack
-        unsigned tmp = op1->gtOp.gtOp1->gtLclVarCommon.gtLclNum;
+        unsigned tmp = op1->gtOp.gtOp1->gtLclVarCommon.GetLclNum();
         impPushOnStack(gtNewLclvNode(tmp, lvaGetRealType(tmp)), verMakeTypeInfo(clsHnd).NormaliseForStack());
     }
     else
@@ -2274,13 +2274,13 @@ GenTree* Compiler::createAddressNodeForSIMDInit(GenTree* tree, unsigned simdSize
 // Arguments:
 //      stmt - GenTree*. Input statement node.
 
-void Compiler::impMarkContiguousSIMDFieldAssignments(GenTreeStmt* stmt)
+void Compiler::impMarkContiguousSIMDFieldAssignments(Statement* stmt)
 {
     if (!featureSIMD || opts.OptimizationDisabled())
     {
         return;
     }
-    GenTree* expr = stmt->gtStmtExpr;
+    GenTree* expr = stmt->GetRootNode();
     if (expr->OperGet() == GT_ASG && expr->TypeGet() == TYP_FLOAT)
     {
         GenTree*  curDst            = expr->gtOp.gtOp1;
@@ -2300,7 +2300,7 @@ void Compiler::impMarkContiguousSIMDFieldAssignments(GenTreeStmt* stmt)
         else if (fgPreviousCandidateSIMDFieldAsgStmt != nullptr)
         {
             assert(index > 0);
-            GenTree* prevAsgExpr = fgPreviousCandidateSIMDFieldAsgStmt->gtStmtExpr;
+            GenTree* prevAsgExpr = fgPreviousCandidateSIMDFieldAsgStmt->GetRootNode();
             GenTree* prevDst     = prevAsgExpr->gtOp.gtOp1;
             GenTree* prevSrc     = prevAsgExpr->gtOp.gtOp2;
             if (!areArgumentsContiguous(prevDst, curDst) || !areArgumentsContiguous(prevSrc, curSrc))
@@ -3128,17 +3128,19 @@ GenTree* Compiler::impSIMDIntrinsic(OPCODE                opcode,
 
             // Widen the lower half and assign it to dstAddrLo.
             simdTree = gtNewSIMDNode(simdType, op1, nullptr, SIMDIntrinsicWidenLo, baseType, size);
-            GenTree* loDest =
-                new (this, GT_BLK) GenTreeBlk(GT_BLK, simdType, dstAddrLo, getSIMDTypeSizeInBytes(clsHnd));
+            // TODO-1stClassStructs: With the introduction of ClassLayout it would be preferrable to use
+            // GT_OBJ instead of GT_BLK nodes to avoid losing information about the actual vector type.
+            GenTree* loDest = new (this, GT_BLK)
+                GenTreeBlk(GT_BLK, simdType, dstAddrLo, typGetBlkLayout(getSIMDTypeSizeInBytes(clsHnd)));
             GenTree* loAsg = gtNewBlkOpNode(loDest, simdTree, getSIMDTypeSizeInBytes(clsHnd),
                                             false, // not volatile
                                             true); // copyBlock
             loAsg->gtFlags |= ((simdTree->gtFlags | dstAddrLo->gtFlags) & GTF_ALL_EFFECT);
 
             // Widen the upper half and assign it to dstAddrHi.
-            simdTree = gtNewSIMDNode(simdType, dupOp1, nullptr, SIMDIntrinsicWidenHi, baseType, size);
-            GenTree* hiDest =
-                new (this, GT_BLK) GenTreeBlk(GT_BLK, simdType, dstAddrHi, getSIMDTypeSizeInBytes(clsHnd));
+            simdTree        = gtNewSIMDNode(simdType, dupOp1, nullptr, SIMDIntrinsicWidenHi, baseType, size);
+            GenTree* hiDest = new (this, GT_BLK)
+                GenTreeBlk(GT_BLK, simdType, dstAddrHi, typGetBlkLayout(getSIMDTypeSizeInBytes(clsHnd)));
             GenTree* hiAsg = gtNewBlkOpNode(hiDest, simdTree, getSIMDTypeSizeInBytes(clsHnd),
                                             false, // not volatile
                                             true); // copyBlock
@@ -3176,7 +3178,8 @@ GenTree* Compiler::impSIMDIntrinsic(OPCODE                opcode,
     // block ops.
     if (doCopyBlk)
     {
-        GenTree* dest = new (this, GT_BLK) GenTreeBlk(GT_BLK, simdType, copyBlkDst, getSIMDTypeSizeInBytes(clsHnd));
+        GenTree* dest = new (this, GT_BLK)
+            GenTreeBlk(GT_BLK, simdType, copyBlkDst, typGetBlkLayout(getSIMDTypeSizeInBytes(clsHnd)));
         dest->gtFlags |= GTF_GLOB_REF;
         retVal = gtNewBlkOpNode(dest, simdTree, getSIMDTypeSizeInBytes(clsHnd),
                                 false, // not volatile

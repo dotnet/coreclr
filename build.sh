@@ -25,7 +25,7 @@ export PYTHON
 
 usage()
 {
-    echo "Usage: $0 [BuildArch] [BuildType] [-verbose] [-coverage] [-cross] [-gccx.y] [-clangx.y] [-ninja] [-configureonly] [-skipconfigure] [-skipnative] [-skipcrossarchnative] [-skipmanaged] [-skipmscorlib] [-skiptests] [-stripsymbols] [-ignorewarnings] [-cmakeargs] [-bindir]"
+    echo "Usage: $0 [BuildArch] [BuildType] [-verbose] [-coverage] [-cross] [-gccx.y] [-clangx.y] [-ninja] [-configureonly] [-skipconfigure] [-skipnative] [-skipcrossarchnative] [-skipmanaged] [-skipmscorlib] [-stripsymbols] [-ignorewarnings] [-cmakeargs] [-bindir]"
     echo "BuildArch can be: -x64, -x86, -arm, -armel, -arm64"
     echo "BuildType can be: -debug, -checked, -release"
     echo "-coverage - optional argument to enable code coverage build (currently supported only for Linux and OSX)."
@@ -43,10 +43,10 @@ usage()
     echo "-skipcrossarchnative - do not build cross-architecture native components."
     echo "-skipmanaged - do not build managed components."
     echo "-skipmscorlib - do not build mscorlib.dll."
-    echo "-skiptests - skip the tests in the 'tests' subdirectory."
     echo "-skipnuget - skip building nuget packages."
     echo "-skiprestoreoptdata - skip restoring optimization data used by profile-based optimizations."
     echo "-skipcrossgen - skip native image generation"
+    echo "-skipmanagedtools -- skip build tools such as R2Rdump and RunInContext"
     echo "-crossgenonly - only run native image generation"
     echo "-partialngen - build CoreLib as PartialNGen"
     echo "-verbose - optional argument to enable verbose build output."
@@ -136,42 +136,44 @@ restore_optdata()
     # we only need optdata on a Release build
     if [[ "$__BuildType" != "Release" ]]; then __SkipRestoreOptData=1; fi
 
+    local OptDataProjectFilePath="$__ProjectRoot/src/.nuget/optdata/optdata.csproj"
     if [[ ( $__SkipRestoreOptData == 0 ) && ( $__isMSBuildOnNETCoreSupported == 1 ) ]]; then
         echo "Restoring the OptimizationData package"
-        "$__ProjectRoot/dotnet.sh" msbuild /nologo /verbosity:minimal /clp:Summary \
-                                   /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
-                                   /p:UsePartialNGENOptimization=false /maxcpucount \
-                                   /t:RestoreOptData ./build.proj \
-                                   $__CommonMSBuildArgs $__UnprocessedBuildArgs
-        if [ $? != 0 ]; then
-            echo "Failed to restore the optimization data package."
-            exit 1
+        "$__ProjectRoot/eng/common/msbuild.sh" $__ArcadeScriptArgs \
+                                               $OptDataProjectFilePath /t:Restore /m \
+                                               $__CommonMSBuildArgs $__UnprocessedBuildArgs
+        local exit_code=$?
+        if [ $exit_code != 0 ]; then
+            echo "${__ErrMsgPrefix}Failed to restore the optimization data package."
+            exit $exit_code
         fi
     fi
 
     if [ $__isMSBuildOnNETCoreSupported == 1 ]; then
         # Parse the optdata package versions out of msbuild so that we can pass them on to CMake
-        local DotNetCli="$__ProjectRoot/.dotnet/dotnet"
-        if [ ! -f $DotNetCli ]; then
-            source "$__ProjectRoot/init-tools.sh"
-            if [ $? != 0 ]; then
-                echo "Failed to restore buildtools."
-                exit 1
-            fi
+
+        local PgoDataPackageVersionOutputFile="${__IntermediatesDir}/optdataversion.txt"
+        local IbcDataPackageVersionOutputFile="${__IntermediatesDir}/ibcoptdataversion.txt"
+
+        # Writes into ${PgoDataPackageVersionOutputFile}
+        "$__ProjectRoot/eng/common/msbuild.sh" $__ArcadeScriptArgs $OptDataProjectFilePath /t:DumpPgoDataPackageVersion ${__CommonMSBuildArgs} /p:PgoDataPackageVersionOutputFile=${PgoDataPackageVersionOutputFile} 2>&1 > /dev/null
+        local exit_code=$?
+        if [ $exit_code != 0 ] || [ ! -f "${PgoDataPackageVersionOutputFile}" ]; then
+            echo "${__ErrMsgPrefix}Failed to get PGO data package version."
+            exit $exit_code
         fi
-        local OptDataProjectFilePath="$__ProjectRoot/src/.nuget/optdata/optdata.csproj"
-        __PgoOptDataVersion=$(DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 $DotNetCli msbuild $OptDataProjectFilePath /t:DumpPgoDataPackageVersion /nologo)
-        if [ $? != 0 ]; then
-            echo "Failed to get PGO data package version."
-            exit $?
+
+        __PgoOptDataVersion=$(<"${PgoDataPackageVersionOutputFile}")
+
+        # Writes into ${IbcDataPackageVersionOutputFile}
+        "$__ProjectRoot/eng/common/msbuild.sh" $__ArcadeScriptArgs $OptDataProjectFilePath /t:DumpIbcDataPackageVersion ${__CommonMSBuildArgs} /p:IbcDataPackageVersionOutputFile=${IbcDataPackageVersionOutputFile} 2>&1 > /dev/null
+        local exit_code=$?
+        if [ $exit_code != 0 ] || [ ! -f "${IbcDataPackageVersionOutputFile}" ]; then
+            echo "${__ErrMsgPrefix}Failed to get IBC data package version."
+            exit $exit_code
         fi
-        __PgoOptDataVersion=$(echo $__PgoOptDataVersion | sed 's/^\s*//')
-        __IbcOptDataVersion=$(DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 $DotNetCli msbuild $OptDataProjectFilePath /t:DumpIbcDataPackageVersion /nologo)
-        if [ $? != 0 ]; then
-            echo "Failed to get IBC data package version."
-            exit $?
-        fi
-        __IbcOptDataVersion=$(echo $__IbcOptDataVersion | sed 's/^[[:blank:]]*//')
+
+        __IbcOptDataVersion=$(<"${IbcDataPackageVersionOutputFile}")
     fi
 }
 
@@ -232,12 +234,15 @@ build_native()
         __versionSourceFile="$intermediatesForBuild/version.c"
         if [ $__SkipGenerateVersion == 0 ]; then
             pwd
-            "$__ProjectRoot/dotnet.sh" msbuild /nologo /verbosity:minimal /clp:Summary \
-                                       /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log \
-                                       /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
-                                       /p:UsePartialNGENOptimization=false /maxcpucount \
-                                       "$__ProjectDir/build.proj" /p:GenerateVersionSourceFile=true /t:GenerateVersionSourceFile /p:NativeVersionSourceFile=$__versionSourceFile \
-                                       $__CommonMSBuildArgs $__UnprocessedBuildArgs
+            "$__ProjectRoot/eng/common/msbuild.sh" $__ArcadeScriptArgs $__ProjectRoot/eng/empty.csproj \
+                                                   /p:NativeVersionFile=$__versionSourceFile \
+                                                   /p:ArcadeBuild=true /t:GenerateNativeVersionFile /restore \
+                                                   $__CommonMSBuildArgs $__UnprocessedBuildArgs
+        local exit_code=$?
+        if [ $exit_code != 0 ]; then
+                echo "${__ErrMsgPrefix}Failed to generate native version file."
+                exit $exit_code
+            fi
         else
             # Generate the dummy version.c, but only if it didn't exist to make sure we don't trigger unnecessary rebuild
             __versionSourceLine="static char sccsid[] __attribute__((used)) = \"@(#)No version information produced\";"
@@ -269,7 +274,7 @@ build_native()
     fi
 
     if [ ! -f "$intermediatesForBuild/$buildFile" ]; then
-        echo "Failed to generate $message build project!"
+        echo "${__ErrMsgPrefix}Failed to generate $message build project!"
         exit 1
     fi
 
@@ -289,9 +294,10 @@ build_native()
     echo "Executing $buildTool install -j $__NumProc"
 
     $buildTool install -j $__NumProc
-    if [ $? != 0 ]; then
-        echo "Failed to build $message."
-        exit 1
+    local exit_code=$?
+    if [ $exit_code != 0 ]; then
+        echo "${__ErrMsgPrefix}Failed to build $message."
+        exit $exit_code
     fi
 
     popd
@@ -340,19 +346,11 @@ isMSBuildOnNETCoreSupported()
         return
     fi
 
+    if [[ ("$__HostOS" == "Linux") && ("$__HostArch" == "x64" || "$__HostArch" == "arm" || "$__HostArch" == "arm64") ]]; then
+         __isMSBuildOnNETCoreSupported=1
+    fi
     if [ "$__HostArch" == "x64" ]; then
-        if [ "$__HostOS" == "Linux" ]; then
-            __isMSBuildOnNETCoreSupported=1
-            # note: the RIDs below can use globbing patterns
-            UNSUPPORTED_RIDS=("ubuntu.17.04-x64")
-            for UNSUPPORTED_RID in "${UNSUPPORTED_RIDS[@]}"
-            do
-                if [[ ${__DistroRid} == $UNSUPPORTED_RID ]]; then
-                    __isMSBuildOnNETCoreSupported=0
-                    break
-                fi
-            done
-        elif [ "$__HostOS" == "OSX" ]; then
+        if [ "$__HostOS" == "OSX" ]; then
             __isMSBuildOnNETCoreSupported=1
         elif [ "$__HostOS" == "FreeBSD" ]; then
             __isMSBuildOnNETCoreSupported=1
@@ -376,18 +374,20 @@ build_CoreLib_ni()
     echo "Generating native image of System.Private.CoreLib.dll for $__BuildOS.$__BuildArch.$__BuildType. Logging to \"$__CrossGenCoreLibLog\"."
     echo "$__CrossGenExec /Platform_Assemblies_Paths $__CoreLibILDir $__IbcTuning /out $__BinDir/System.Private.CoreLib.dll $__CoreLibILDir/System.Private.CoreLib.dll"
     $__CrossGenExec /Platform_Assemblies_Paths $__CoreLibILDir $__IbcTuning /out $__BinDir/System.Private.CoreLib.dll $__CoreLibILDir/System.Private.CoreLib.dll >> $__CrossGenCoreLibLog 2>&1
-    if [ $? -ne 0 ]; then
-        echo "Failed to generate native image for System.Private.CoreLib. Refer to $__CrossGenCoreLibLog"
-        exit 1
+    local exit_code=$?
+    if [ $exit_code != 0 ]; then
+        echo "${__ErrMsgPrefix}Failed to generate native image for System.Private.CoreLib. Refer to $__CrossGenCoreLibLog"
+        exit $exit_code
     fi
 
     if [ "$__BuildOS" == "Linux" ]; then
         echo "Generating symbol file for System.Private.CoreLib.dll"
         echo "$__CrossGenExec /Platform_Assemblies_Paths $__BinDir /CreatePerfMap $__BinDir $__BinDir/System.Private.CoreLib.dll"
         $__CrossGenExec /Platform_Assemblies_Paths $__BinDir /CreatePerfMap $__BinDir $__BinDir/System.Private.CoreLib.dll >> $__CrossGenCoreLibLog 2>&1
-        if [ $? -ne 0 ]; then
-            echo "Failed to generate symbol file for System.Private.CoreLib. Refer to $__CrossGenCoreLibLog"
-            exit 1
+        local exit_code=$?
+        if [ $exit_code != 0 ]; then
+            echo "${__ErrMsgPrefix}Failed to generate symbol file for System.Private.CoreLib. Refer to $__CrossGenCoreLibLog"
+            exit $exit_code
         fi
     fi
 }
@@ -417,40 +417,57 @@ build_CoreLib()
         __ExtraBuildArgs="$__ExtraBuildArgs /p:BuildManagedTools=true"
     fi
 
-    $__ProjectRoot/dotnet.sh restore /nologo /verbosity:minimal /clp:Summary \
-                             /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log \
-                             /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
-                             /p:UsePartialNGENOptimization=false /maxcpucount /p:IncludeRestoreOnlyProjects=true /p:ArcadeBuild=true\
-                             $__ProjectDir/src/build.proj \
-                             /flp:Verbosity=normal\;LogFile=$__LogsDir/System.Private.CoreLib_$__BuildOS__$__BuildArch__$__BuildType.log \
-                             /p:__IntermediatesDir=$__IntermediatesDir /p:__RootBinDir=$__RootBinDir \
-                             $__CommonMSBuildArgs $__ExtraBuildArgs $__UnprocessedBuildArgs
+    "$__ProjectRoot/eng/common/msbuild.sh" $__ArcadeScriptArgs \
+                                           $__ProjectDir/src/build.proj /t:Restore \
+                                           /p:PortableBuild=true /maxcpucount /p:IncludeRestoreOnlyProjects=true /p:ArcadeBuild=true\
+                                           /flp:Verbosity=normal\;LogFile=$__LogsDir/System.Private.CoreLib_$__BuildOS__$__BuildArch__$__BuildType.log \
+                                           /p:__IntermediatesDir=$__IntermediatesDir /p:__RootBinDir=$__RootBinDir \
+                                           $__CommonMSBuildArgs $__ExtraBuildArgs $__UnprocessedBuildArgs
 
-    if [ $? -ne 0 ]; then
-        echo "Failed to restore managed components."
-        exit 1
+    local exit_code=$?
+    if [ $exit_code != 0 ]; then
+        echo "${__ErrMsgPrefix}Failed to restore managed components."
+        exit $exit_code
     fi
 
-    $__ProjectRoot/dotnet.sh msbuild /nologo /verbosity:minimal /clp:Summary \
-                             /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log \
-                             /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
-                             /p:UsePartialNGENOptimization=false /maxcpucount /p:ArcadeBuild=true\
-                             $__ProjectDir/src/build.proj \
-                             /flp:Verbosity=normal\;LogFile=$__LogsDir/System.Private.CoreLib_$__BuildOS__$__BuildArch__$__BuildType.log \
-                             /p:__IntermediatesDir=$__IntermediatesDir /p:__RootBinDir=$__RootBinDir \
-                             $__CommonMSBuildArgs $__ExtraBuildArgs $__UnprocessedBuildArgs
+    "$__ProjectRoot/eng/common/msbuild.sh" $__ArcadeScriptArgs \
+                                           $__ProjectDir/src/build.proj \
+                                           /p:PortableBuild=true /maxcpucount /p:ArcadeBuild=true\
+                                           /flp:Verbosity=normal\;LogFile=$__LogsDir/System.Private.CoreLib_$__BuildOS__$__BuildArch__$__BuildType.log \
+                                           /p:__IntermediatesDir=$__IntermediatesDir /p:__RootBinDir=$__RootBinDir \
+                                           $__CommonMSBuildArgs $__ExtraBuildArgs $__UnprocessedBuildArgs
 
-    if [ $? -ne 0 ]; then
-        echo "Failed to build managed components."
-        exit 1
+    local exit_code=$?
+        if [ $exit_code != 0 ]; then
+        echo "${__ErrMsgPrefix}Failed to build managed components."
+        exit $exit_code
     fi
 
-    if [ $__SkipCrossgen == 1 ]; then
-        echo "Skipping generating native image"
-        return
+    if [[ "$__BuildManagedTools" -eq "1" ]]; then
+        echo "Publishing crossgen2 for $__DistroRid"
+        "$__ProjectRoot/dotnet.sh" publish --self-contained -r $__DistroRid -c $__BuildType -o "$__BinDir/crossgen2" "$__ProjectRoot/src/tools/crossgen2/crossgen2/crossgen2.csproj"
+
+        if [ "$__HostOS" == "OSX" ]; then
+            cp "$__BinDir/libclrjit.dylib" "$__BinDir/crossgen2/libclrjitilc.dylib"
+            cp "$__BinDir/libjitinterface.dylib" "$__BinDir/crossgen2/libjitinterface.dylib"
+        else
+            cp "$__BinDir/libclrjit.so" "$__BinDir/crossgen2/libclrjitilc.so"
+            cp "$__BinDir/libjitinterface.so" "$__BinDir/crossgen2/libjitinterface.so"
+        fi
     fi
 
     local __CoreLibILDir=$__BinDir/IL
+
+    if [ $__SkipCrossgen == 1 ]; then
+        echo "Skipping generating native image"
+
+        if [ $__CrossBuild == 1 ]; then
+            # Crossgen not performed, so treat the IL version as the final version
+            cp $__CoreLibILDir/System.Private.CoreLib.dll $__BinDir/System.Private.CoreLib.dll
+        fi
+
+        return
+    fi
 
     # The cross build generates a crossgen with the target architecture.
     if [ $__CrossBuild == 0 ]; then
@@ -503,14 +520,14 @@ generate_NugetPackages()
     # Package build uses the Arcade system and scripts, relying on it to restore required toolsets as part of build
     $__ProjectRoot/eng/common/build.sh -r -b -projects $__SourceDir/.nuget/packages.builds \
                                        -verbosity minimal -bl:$__LogsDir/Nuget_$__BuildOS__$__BuildArch__$__BuildType.binlog \
-                                       /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
-                                       /p:UsePartialNGENOptimization=false /p:ArcadeBuild=true \
+                                       /p:PortableBuild=true /p:ArcadeBuild=true \
                                        /p:__IntermediatesDir=$__IntermediatesDir /p:__RootBinDir=$__RootBinDir /p:__DoCrossArchBuild=$__CrossBuild \
                                        $__CommonMSBuildArgs $__UnprocessedBuildArgs
 
-    if [ $? -ne 0 ]; then
-        echo "Failed to generate Nuget packages."
-        exit 1
+    local exit_code=$?
+    if [ $exit_code != 0 ]; then
+        echo "${__ErrMsgPrefix}Failed to generate Nuget packages."
+        exit $exit_code
     fi
 }
 
@@ -636,7 +653,6 @@ __SkipRestoreOptData=0
 __SkipCrossgen=0
 __CrossgenOnly=0
 __PartialNgen=0
-__SkipTests=0
 __CrossBuild=0
 __ClangMajorVersion=0
 __ClangMinorVersion=0
@@ -712,6 +728,11 @@ while :; do
 
         release|-release)
             __BuildType=Release
+            ;;
+
+        ci|-ci)
+            __ArcadeScriptArgs="--ci"
+            __ErrMsgPrefix="##vso[task.logissue type=error]"
             ;;
 
         coverage|-coverage)
@@ -870,6 +891,10 @@ while :; do
             __SkipCrossgen=1
             ;;
 
+        skipmanagedtools | -skipmanagedtools)
+            __BuildManagedTools=0
+            ;;
+
         crossgenonly|-crossgenonly)
             __SkipMSCorLib=1
             __SkipCoreCLR=1
@@ -877,10 +902,6 @@ while :; do
             ;;
         partialngen|-partialngen)
             __PartialNgen=1
-            ;;
-
-        skiptests|-skiptests)
-            __SkipTests=1
             ;;
 
         skipnuget|-skipnuget|skipbuildpackages|-skipbuildpackages)
@@ -972,7 +993,7 @@ while :; do
     shift
 done
 
-__CommonMSBuildArgs="/p:__BuildArch=$__BuildArch /p:__BuildType=$__BuildType /p:__BuildOS=$__BuildOS $__OfficialBuildIdArg $__SignTypeArg $__SkipRestoreArg"
+__CommonMSBuildArgs="/p:__BuildArch=$__BuildArch /p:__BuildType=$__BuildType /p:__BuildOS=$__BuildOS /nodeReuse:false $__OfficialBuildIdArg $__SignTypeArg $__SkipRestoreArg"
 
 # Configure environment if we are doing a verbose build
 if [ $__VerboseBuild == 1 ]; then
@@ -991,15 +1012,6 @@ if [[ $__ClangMajorVersion == 0 && $__ClangMinorVersion == 0 ]]; then
     fi
 fi
 
-if [[ "$__BuildArch" == "armel" ]]; then
-    # Armel cross build is Tizen specific and does not support Portable RID build
-    __PortableBuild=0
-fi
-
-if [ $__PortableBuild == 0 ]; then
-    __CommonMSBuildArgs="$__CommonMSBuildArgs /p:PortableBuild=false"
-fi
-
 # Set dependent variables
 __LogsDir="$__RootBinDir/Logs"
 __MsbuildDebugLogsDir="$__LogsDir/MsbuildDebugLogs"
@@ -1007,10 +1019,7 @@ __MsbuildDebugLogsDir="$__LogsDir/MsbuildDebugLogs"
 # Set the remaining variables based upon the determined build configuration
 __BinDir="$__RootBinDir/Product/$__BuildOS.$__BuildArch.$__BuildType"
 __PackagesBinDir="$__BinDir/.nuget"
-__ToolsDir="$__RootBinDir/tools"
-__TestWorkingDir="$__RootBinDir/tests/$__BuildOS.$__BuildArch.$__BuildType"
 export __IntermediatesDir="$__RootBinDir/obj/$__BuildOS.$__BuildArch.$__BuildType"
-__TestIntermediatesDir="$__RootBinDir/tests/obj/$__BuildOS.$__BuildArch.$__BuildType"
 __isMSBuildOnNETCoreSupported=0
 __CrossComponentBinDir="$__BinDir"
 
@@ -1020,8 +1029,20 @@ if [ $__CrossBuild == 1 ]; then
 fi
 __CrossGenCoreLibLog="$__LogsDir/CrossgenCoreLib_$__BuildOS.$__BuildArch.$__BuildType.log"
 
+# Configure environment if we are doing a cross compile.
+if [ $__CrossBuild == 1 ]; then
+    export CROSSCOMPILE=1
+    if ! [[ -n "$ROOTFS_DIR" ]]; then
+        export ROOTFS_DIR="$__ProjectRoot/cross/rootfs/$__BuildArch"
+    fi
+fi
+
 # init the target distro name
 initTargetDistroRid
+
+if [ $__PortableBuild == 0 ]; then
+    __CommonMSBuildArgs="$__CommonMSBuildArgs /p:PortableBuild=false"
+fi
 
 # Init if MSBuild for .NET Core is supported for this platform
 isMSBuildOnNETCoreSupported
@@ -1040,14 +1061,6 @@ fi
 # This is where all built CoreClr libraries will copied to.
 export __CMakeBinDir="$__BinDir"
 
-# Configure environment if we are doing a cross compile.
-if [ $__CrossBuild == 1 ]; then
-    export CROSSCOMPILE=1
-    if ! [[ -n "$ROOTFS_DIR" ]]; then
-        export ROOTFS_DIR="$__ProjectRoot/cross/rootfs/$__BuildArch"
-    fi
-fi
-
 # Make the directories necessary for build if they don't exist
 setup_dirs
 
@@ -1065,12 +1078,6 @@ generate_event_logging
 
 # Build the coreclr (native) components.
 __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument -DCLR_CMAKE_OPTDATA_VERSION=$__PgoOptDataVersion -DCLR_CMAKE_PGO_OPTIMIZE=$__PgoOptimize"
-
-# [TODO] Remove this when the `build-test.sh` script properly builds and deploys test assets.
-if [ $__SkipTests != 1 ]; then
-    echo "Adding CMake flags to build native tests for $__BuildOS.$__BuildArch.$__BuildType"
-    __ExtraCmakeArgs="$__ExtraCmakeArgs -DCLR_CMAKE_BUILD_TESTS=ON"
-fi
 
 build_native $__SkipCoreCLR "$__BuildArch" "$__IntermediatesDir" "$__ExtraCmakeArgs" "CoreCLR component"
 

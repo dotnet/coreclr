@@ -8,7 +8,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 using System.Threading;
-using System.Diagnostics;
 using Internal.Runtime.CompilerServices;
 using System.Diagnostics.CodeAnalysis;
 
@@ -156,6 +155,7 @@ namespace System.Runtime.CompilerServices
             return new StackCrawlMarkHandle((IntPtr)Unsafe.AsPointer(ref stackMark));
         }
 
+        [Intrinsic]
         internal static bool EnumEquals<T>(T x, T y) where T : struct, Enum
         {
             // The body of this function will be replaced by the EE with unsafe code
@@ -163,17 +163,12 @@ namespace System.Runtime.CompilerServices
             return x.Equals(y);
         }
 
+        [Intrinsic]
         internal static int EnumCompareTo<T>(T x, T y) where T : struct, Enum
         {
             // The body of this function will be replaced by the EE with unsafe code
             // See getILIntrinsicImplementation for how this happens.
             return x.CompareTo(y);
         }
-
-        internal static ref byte GetRawData(this object obj) =>
-            ref Unsafe.As<RawData>(obj).Data;
-
-        internal static ref byte GetRawSzArrayData(this Array array) =>
-            ref Unsafe.As<RawSzArrayData>(array).Data;
     }
 }

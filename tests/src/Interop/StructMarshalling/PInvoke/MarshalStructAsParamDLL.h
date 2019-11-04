@@ -174,7 +174,7 @@ union InnerArrayExplicit
 
 
 #ifdef WINDOWS
-#ifdef _WIN64
+#ifdef BIT64
 #pragma warning(push) 
 #pragma warning(disable: 4201) // nonstandard extension used: nameless struct/union
 union OUTER3
@@ -956,4 +956,10 @@ union OverlappingMultipleEightbyteMultiple
         float padding;
         int i[3];
     };
+};
+
+struct UnicodeCharArrayClassification
+{
+    WCHAR arr[6];
+    float f;
 };

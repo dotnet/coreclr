@@ -11,14 +11,18 @@ using System.Diagnostics.CodeAnalysis;
 namespace System
 {
     // A Version object contains four hierarchical numeric components: major, minor,
-    // build and revision.  Build and revision may be unspecified, which is represented 
-    // internally as a -1.  By definition, an unspecified component matches anything 
+    // build and revision.  Build and revision may be unspecified, which is represented
+    // internally as a -1.  By definition, an unspecified component matches anything
     // (both unspecified and specified), and an unspecified component is "less than" any
     // specified component.
 
     [Serializable]
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
-    public sealed class Version : ICloneable, IComparable, IComparable<Version?>, IEquatable<Version>, ISpanFormattable
+    public sealed class Version : ICloneable, IComparable, IComparable<Version?>,
+#nullable disable // see comment on String
+        IEquatable<Version>,
+#nullable restore
+        ISpanFormattable
     {
         // AssemblyName depends on the order staying the same
         private readonly int _Major; // Do not rename (binary serialization)
@@ -56,7 +60,6 @@ namespace System
 
             if (build < 0)
                 throw new ArgumentOutOfRangeException(nameof(build), SR.ArgumentOutOfRange_Version);
-
 
             _Major = major;
             _Minor = minor;
@@ -106,35 +109,17 @@ namespace System
         }
 
         // Properties for setting and getting version numbers
-        public int Major
-        {
-            get { return _Major; }
-        }
+        public int Major => _Major;
 
-        public int Minor
-        {
-            get { return _Minor; }
-        }
+        public int Minor => _Minor;
 
-        public int Build
-        {
-            get { return _Build; }
-        }
+        public int Build => _Build;
 
-        public int Revision
-        {
-            get { return _Revision; }
-        }
+        public int Revision => _Revision;
 
-        public short MajorRevision
-        {
-            get { return (short)(_Revision >> 16); }
-        }
+        public short MajorRevision => (short)(_Revision >> 16);
 
-        public short MinorRevision
-        {
-            get { return (short)(_Revision & 0xFFFF); }
-        }
+        public short MinorRevision => (short)(_Revision & 0xFFFF);
 
         public int CompareTo(object? version)
         {
@@ -168,9 +153,7 @@ namespace System
             return Equals(obj as Version);
         }
 
-#pragma warning disable CS8614 // TODO-NULLABLE: Covariant interface arguments (https://github.com/dotnet/roslyn/issues/35817)
         public bool Equals(Version? obj)
-#pragma warning restore CS8614
         {
             return object.ReferenceEquals(obj, this) ||
                 (!(obj is null) &&
@@ -424,10 +407,7 @@ namespace System
             return ReferenceEquals(v2, v1) ? true : v2.Equals(v1);
         }
 
-        public static bool operator !=(Version? v1, Version? v2)
-        {
-            return !(v1 == v2);
-        }
+        public static bool operator !=(Version? v1, Version? v2) => !(v1 == v2);
 
         public static bool operator <(Version? v1, Version? v2)
         {
@@ -436,7 +416,7 @@ namespace System
                 return !(v2 is null);
             }
 
-            return (v1.CompareTo(v2) < 0);
+            return v1.CompareTo(v2) < 0;
         }
 
         public static bool operator <=(Version? v1, Version? v2)
@@ -446,17 +426,11 @@ namespace System
                 return true;
             }
 
-            return (v1.CompareTo(v2) <= 0);
+            return v1.CompareTo(v2) <= 0;
         }
 
-        public static bool operator >(Version? v1, Version? v2)
-        {
-            return (v2 < v1);
-        }
+        public static bool operator >(Version? v1, Version? v2) => v2 < v1;
 
-        public static bool operator >=(Version? v1, Version? v2)
-        {
-            return (v2 <= v1);
-        }
+        public static bool operator >=(Version? v1, Version? v2) => v2 <= v1;
     }
 }

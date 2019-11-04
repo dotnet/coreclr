@@ -1,18 +1,12 @@
-# Verify minimum required version
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.14)
 
-if(CMAKE_VERSION VERSION_EQUAL 3.0 OR CMAKE_VERSION VERSION_GREATER 3.0)
-    cmake_policy(SET CMP0042 NEW)
-endif()
+cmake_policy(SET CMP0042 NEW)
 
 # Set the project name
 project(CoreCLR)
 
 # Include cmake functions
 include(functions.cmake)
-
-# Include global configure settings
-include(configure.cmake)
 
 if (WIN32)
   message(STATUS "VS_PLATFORM_TOOLSET is ${CMAKE_VS_PLATFORM_TOOLSET}")
@@ -160,10 +154,8 @@ if(CLR_CMAKE_PLATFORM_UNIX AND NOT DEFINED CLR_CROSS_COMPONENTS_BUILD)
 endif()
 
 if(CLR_CMAKE_PLATFORM_UNIX)
-    add_subdirectory(src/ToolBox/SOS/lldbplugin)
     add_subdirectory(src/pal)
     add_subdirectory(src/coreclr/hosts)
-    add_subdirectory(src/ildasm/unixcoreclrloader)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 # Add this subdir. We install the headers for the jit.
@@ -175,6 +167,8 @@ if(WIN32)
   add_subdirectory(src/gc/sample)
 endif()
 
+add_subdirectory(src/tools/crossgen2/jitinterface)
+
 # Above projects do not build with these compile options
 # All of the compiler options are specified in file compileoptions.cmake
 # Do not add any new options here. They should be added in compileoptions.cmake
@@ -182,13 +176,6 @@ if(WIN32)
   add_compile_options(/FIWarningControl.h) # force include of WarningControl.h
   add_compile_options(/Zl) # omit default library name in .OBJ
 endif(WIN32)
-
-#------------------------------
-# Add Test Directory
-#------------------------------
-if(CLR_CMAKE_BUILD_TESTS)
-  add_subdirectory(tests)
-endif(CLR_CMAKE_BUILD_TESTS)
 
 #--------------------------------
 # Definition directives

@@ -2838,16 +2838,11 @@ IMetaDataImport2 * NativeImageDumper::TypeToString(PTR_CCOR_SIGNATURE &sig,
                 {   
                     if (sizes[i] != 0 && lowerBounds[i] != 0)   
                     {   
-                        if (lowerBounds[i] == 0)    
-                            buf.AppendPrintf( W("%s"), sizes[i] );
-                        else    
-                        {   
-                            buf.AppendPrintf( W("%d ..."), lowerBounds[i] );
-                            if (sizes[i] != 0)  
-                                buf.AppendPrintf( W("%d"),
-                                                  lowerBounds[i] + sizes[i]
-                                                  + 1 );
-                        }   
+                        buf.AppendPrintf( W("%d ..."), lowerBounds[i] );
+                        if (sizes[i] != 0)  
+                            buf.AppendPrintf( W("%d"),
+                                              lowerBounds[i] + sizes[i]
+                                              + 1 );
                     }   
                     if (i < rank-1) 
                         buf.Append( W(",") );
@@ -3025,7 +3020,7 @@ void NativeImageDumper::DumpCompleteMethod(PTR_Module module, MethodIterator& mi
 {
     PTR_MethodDesc md = mi.GetMethodDesc();
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     PTR_RUNTIME_FUNCTION pRuntimeFunction = mi.GetRuntimeFunction();
 #endif 
 
@@ -3351,7 +3346,7 @@ SIZE_T NativeImageDumper::TranslateFixupCallback(IXCLRDisassemblySupport *dis,
     case sizeof(void*):
         targetOffset = *PTR_SIZE_T(taddr);
         break;
-#ifdef _WIN64
+#ifdef BIT64
     case sizeof(INT32):
         targetOffset = *PTR_INT32(taddr);
         break;
@@ -3419,7 +3414,7 @@ size_t NativeImageDumper::TranslateSymbol(IXCLRDisassemblySupport *dis,
                 int MethodIndex = NativeUnwindInfoLookupTable::LookupUnwindInfoForMethod(rva, pNgenLayout->m_pRuntimeFunctions[iRange], 0, pNgenLayout->m_nRuntimeFunctions[iRange] - 1);
                 if (MethodIndex >= 0)
                 {
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
                     while (pNgenLayout->m_MethodDescs[iRange][MethodIndex] == 0)
                         MethodIndex--;
 #endif
@@ -3445,7 +3440,7 @@ size_t NativeImageDumper::TranslateSymbol(IXCLRDisassemblySupport *dis,
 
                 PTR_CORCOMPILE_COLD_METHOD_ENTRY pColdCodeMap = pNgenLayout->m_ColdCodeMap;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
                 while (pColdCodeMap[ColdMethodIndex].mainFunctionEntryRVA == 0)
                     ColdMethodIndex--;
 
@@ -6452,7 +6447,7 @@ void NativeImageDumper::EntryPointToString( TADDR pEntryPoint,
                 int MethodIndex = NativeUnwindInfoLookupTable::LookupUnwindInfoForMethod(rva, pNgenLayout->m_pRuntimeFunctions[iRange], 0, pNgenLayout->m_nRuntimeFunctions[iRange] - 1);
                 if (MethodIndex >= 0)
                 {
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
                     while (pNgenLayout->m_MethodDescs[iRange][MethodIndex] == 0)
                         MethodIndex--;
 #endif
@@ -7447,7 +7442,6 @@ static NativeImageDumper::EnumMnemonics g_NDirectFlags[] =
         NDF_ENTRY(kStdCall),
         NDF_ENTRY(kThisCall),
         NDF_ENTRY(kIsQCall),
-        NDF_ENTRY(kHasCopyCtorArgs),
         NDF_ENTRY(kStdCallWithRetBuf),
 #undef NDF_ENTRY
 };
@@ -7759,7 +7753,7 @@ void NativeImageDumper::DumpMethodDesc( PTR_MethodDesc md, PTR_Module module )
         CoverageRead(TO_TADDR(ssmd->GetSigRVA()), ssmd->m_cSig);
         DisplayWriteFieldInt( m_cSig, ssmd->m_cSig,
                               StoredSigMethodDesc, METHODDESCS );
-#ifdef _WIN64
+#ifdef BIT64
         DisplayWriteFieldEnumerated( m_dwExtendedFlags,
                                      ssmd->m_dwExtendedFlags,
                                      StoredSigMethodDesc,
@@ -7779,7 +7773,7 @@ void NativeImageDumper::DumpMethodDesc( PTR_MethodDesc md, PTR_Module module )
         DisplayWriteFieldPointer( m_pResolver,
                                   DPtrToPreferredAddr(dmd->m_pResolver),
                                   DynamicMethodDesc, METHODDESCS );
-#ifndef _WIN64
+#ifndef BIT64
         DisplayWriteFieldEnumerated( m_dwExtendedFlags,
                                      dmd->m_dwExtendedFlags,
                                      DynamicMethodDesc,

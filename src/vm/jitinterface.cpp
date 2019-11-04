@@ -478,14 +478,14 @@ CEEInfo::ConvToJitSig(
         IfFailThrow(sig.GetCallingConvInfo(&data));
         sigRet->callConv = (CorInfoCallConv) data;
 
-#ifdef PLATFORM_UNIX
+#if defined(PLATFORM_UNIX) || defined(_TARGET_ARM_)
         if ((isCallConv(sigRet->callConv, IMAGE_CEE_CS_CALLCONV_VARARG)) ||
             (isCallConv(sigRet->callConv, IMAGE_CEE_CS_CALLCONV_NATIVEVARARG)))
         {
             // This signature corresponds to a method that uses varargs, which are not supported.
              COMPlusThrow(kInvalidProgramException, IDS_EE_VARARG_NOT_SUPPORTED);
         }
-#endif // PLATFORM_UNIX
+#endif // defined(PLATFORM_UNIX) || defined(_TARGET_ARM_)
 
         // Skip number of type arguments
         if (sigRet->callConv & IMAGE_CEE_CS_CALLCONV_GENERIC)
@@ -7000,8 +7000,7 @@ bool getILIntrinsicImplementation(MethodDesc * ftn,
 {
     STANDARD_VM_CONTRACT;
 
-    // Precondition: ftn is a method in mscorlib 
-    _ASSERTE(ftn->GetModule()->IsSystem());
+    _ASSERTE(MscorlibBinder::IsClass(ftn->GetMethodTable(), CLASS__JIT_HELPERS));
 
     mdMethodDef tk = ftn->GetMemberDef();
 
@@ -7100,26 +7099,6 @@ bool getILIntrinsicImplementation(MethodDesc * ftn,
             return true;
         }
     }
-    else if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__GET_RAW_SZ_ARRAY_DATA)->GetMemberDef())
-    {
-        mdToken tokRawSzArrayData = MscorlibBinder::GetField(FIELD__RAW_SZARRAY_DATA__DATA)->GetMemberDef();
-
-        static BYTE ilcode[] = { CEE_LDARG_0,
-                                 CEE_LDFLDA,0,0,0,0,
-                                 CEE_RET };
-
-        ilcode[2] = (BYTE)(tokRawSzArrayData);
-        ilcode[3] = (BYTE)(tokRawSzArrayData >> 8);
-        ilcode[4] = (BYTE)(tokRawSzArrayData >> 16);
-        ilcode[5] = (BYTE)(tokRawSzArrayData >> 24);
-
-        methInfo->ILCode = const_cast<BYTE*>(ilcode);
-        methInfo->ILCodeSize = sizeof(ilcode);
-        methInfo->maxStack = 1;
-        methInfo->EHcount = 0;
-        methInfo->options = (CorInfoOptions)0;
-        return true;
-    }
 
     return false;
 }
@@ -7129,8 +7108,7 @@ bool getILIntrinsicImplementationForUnsafe(MethodDesc * ftn,
 {
     STANDARD_VM_CONTRACT;
 
-    // Precondition: ftn is a method in mscorlib 
-    _ASSERTE(ftn->GetModule()->IsSystem());
+    _ASSERTE(MscorlibBinder::IsClass(ftn->GetMethodTable(), CLASS__UNSAFE));
 
     mdMethodDef tk = ftn->GetMemberDef();
 
@@ -7371,10 +7349,7 @@ bool getILIntrinsicImplementationForVolatile(MethodDesc * ftn,
     // we substitute raw IL bodies for these methods that use the correct volatile instructions.
     //
 
-    // Precondition: ftn is a method in mscorlib in the System.Threading.Volatile class
-    _ASSERTE(ftn->GetModule()->IsSystem());
     _ASSERTE(MscorlibBinder::IsClass(ftn->GetMethodTable(), CLASS__VOLATILE));
-    _ASSERTE(strcmp(ftn->GetMethodTable()->GetClass()->GetDebugClassName(), "System.Threading.Volatile") == 0);
 
     const size_t VolatileMethodBodySize = 6;
 
@@ -7453,20 +7428,14 @@ bool getILIntrinsicImplementationForInterlocked(MethodDesc * ftn,
 {
     STANDARD_VM_CONTRACT;
 
-    // Precondition: ftn is a method in mscorlib in the System.Threading.Interlocked class
-    _ASSERTE(ftn->GetModule()->IsSystem());
     _ASSERTE(MscorlibBinder::IsClass(ftn->GetMethodTable(), CLASS__INTERLOCKED));
 
     // We are only interested if ftn's token and CompareExchange<T> token match
     if (ftn->GetMemberDef() != MscorlibBinder::GetMethod(METHOD__INTERLOCKED__COMPARE_EXCHANGE_T)->GetMemberDef())
-        return false;       
+        return false;
 
-    // Get MethodDesc for System.Threading.Interlocked.CompareExchangeFast()
-    MethodDesc* cmpxchgFast = MscorlibBinder::GetMethod(METHOD__INTERLOCKED__COMPARE_EXCHANGE_OBJECT);
-
-    // The MethodDesc lookup must not fail, and it should have the name "CompareExchangeFast"
-    _ASSERTE(cmpxchgFast != NULL);
-    _ASSERTE(strcmp(cmpxchgFast->GetName(), "CompareExchange") == 0);
+    // Get MethodDesc for non-generic System.Threading.Interlocked.CompareExchange()
+    MethodDesc* cmpxchgObject = MscorlibBinder::GetMethod(METHOD__INTERLOCKED__COMPARE_EXCHANGE_OBJECT);
 
     // Setup up the body of the method
     static BYTE il[] = {
@@ -7477,12 +7446,12 @@ bool getILIntrinsicImplementationForInterlocked(MethodDesc * ftn,
                           CEE_RET
                         };
 
-    // Get the token for System.Threading.Interlocked.CompareExchangeFast(), and patch [target]
-    mdMethodDef cmpxchgFastToken = cmpxchgFast->GetMemberDef();
-    il[4] = (BYTE)((int)cmpxchgFastToken >> 0);
-    il[5] = (BYTE)((int)cmpxchgFastToken >> 8);
-    il[6] = (BYTE)((int)cmpxchgFastToken >> 16);
-    il[7] = (BYTE)((int)cmpxchgFastToken >> 24);
+    // Get the token for non-generic System.Threading.Interlocked.CompareExchange(), and patch [target]
+    mdMethodDef cmpxchgObjectToken = cmpxchgObject->GetMemberDef();
+    il[4] = (BYTE)((int)cmpxchgObjectToken >> 0);
+    il[5] = (BYTE)((int)cmpxchgObjectToken >> 8);
+    il[6] = (BYTE)((int)cmpxchgObjectToken >> 16);
+    il[7] = (BYTE)((int)cmpxchgObjectToken >> 24);
 
     // Initialize methInfo
     methInfo->ILCode = const_cast<BYTE*>(il);
@@ -7499,8 +7468,7 @@ bool getILIntrinsicImplementationForRuntimeHelpers(MethodDesc * ftn,
 {
     STANDARD_VM_CONTRACT;
 
-    // Precondition: ftn is a method in mscorlib 
-    _ASSERTE(ftn->GetModule()->IsSystem());
+    _ASSERTE(MscorlibBinder::IsClass(ftn->GetMethodTable(), CLASS__RUNTIME_HELPERS));
 
     mdMethodDef tk = ftn->GetMemberDef();
 
@@ -7582,7 +7550,59 @@ bool getILIntrinsicImplementationForRuntimeHelpers(MethodDesc * ftn,
         return true;
     }
 
+    if (tk == MscorlibBinder::GetMethod(METHOD__RUNTIME_HELPERS__GET_RAW_SZ_ARRAY_DATA)->GetMemberDef())
+    {
+        mdToken tokRawSzArrayData = MscorlibBinder::GetField(FIELD__RAW_SZARRAY_DATA__DATA)->GetMemberDef();
+
+        static BYTE ilcode[] = { CEE_LDARG_0,
+                                 CEE_LDFLDA,0,0,0,0,
+                                 CEE_RET };
+
+        ilcode[2] = (BYTE)(tokRawSzArrayData);
+        ilcode[3] = (BYTE)(tokRawSzArrayData >> 8);
+        ilcode[4] = (BYTE)(tokRawSzArrayData >> 16);
+        ilcode[5] = (BYTE)(tokRawSzArrayData >> 24);
+
+        methInfo->ILCode = const_cast<BYTE*>(ilcode);
+        methInfo->ILCodeSize = sizeof(ilcode);
+        methInfo->maxStack = 1;
+        methInfo->EHcount = 0;
+        methInfo->options = (CorInfoOptions)0;
+        return true;
+    }
+
     return false;
+}
+
+bool getILIntrinsicImplementationForActivator(MethodDesc* ftn,
+    CORINFO_METHOD_INFO* methInfo,
+    SigPointer* pSig)
+{
+    STANDARD_VM_CONTRACT;
+
+    _ASSERTE(MscorlibBinder::IsClass(ftn->GetMethodTable(), CLASS__ACTIVATOR));
+
+    // We are only interested if ftn's token and CreateInstance<T> token match
+    if (ftn->GetMemberDef() != MscorlibBinder::GetMethod(METHOD__ACTIVATOR__CREATE_INSTANCE_OF_T)->GetMemberDef())
+        return false;
+
+    _ASSERTE(ftn->HasMethodInstantiation());
+    Instantiation inst = ftn->GetMethodInstantiation();
+
+    _ASSERTE(ftn->GetNumGenericMethodArgs() == 1);
+    TypeHandle typeHandle = inst[0];
+    MethodTable* methodTable = typeHandle.GetMethodTable();
+
+    if (!methodTable->IsValueType() || methodTable->HasDefaultConstructor())
+        return false;
+
+    // Replace the body with implementation that just returns "default"
+    MethodDesc* createDefaultInstance = MscorlibBinder::GetMethod(METHOD__ACTIVATOR__CREATE_DEFAULT_INSTANCE_OF_T);
+    COR_ILMETHOD_DECODER header(createDefaultInstance->GetILHeader(FALSE), createDefaultInstance->GetMDImport(), NULL);
+    getMethodInfoILMethodHeaderHelper(&header, methInfo);
+    *pSig = SigPointer(header.LocalVarSig, header.cbLocalVarSig);
+
+    return true;
 }
 
 //---------------------------------------------------------------------------------------
@@ -7618,7 +7638,7 @@ getMethodInfoHelper(
 
         MethodTable * pMT  = ftn->GetMethodTable();
 
-        if (pMT->GetModule()->IsSystem())
+        if (ftn->IsJitIntrinsic())
         {
             if (MscorlibBinder::IsClass(pMT, CLASS__JIT_HELPERS))
             {
@@ -7640,6 +7660,15 @@ getMethodInfoHelper(
             {
                 fILIntrinsic = getILIntrinsicImplementationForRuntimeHelpers(ftn, methInfo);
             }
+            else if (MscorlibBinder::IsClass(pMT, CLASS__ACTIVATOR))
+            {
+                SigPointer localSig;
+                fILIntrinsic = getILIntrinsicImplementationForActivator(ftn, methInfo, &localSig);
+                if (fILIntrinsic)
+                {
+                    localSig.GetSignature(&pLocalSig, &cbLocalSig);
+                }
+            }
         }
 
         if (!fILIntrinsic)
@@ -7653,7 +7682,7 @@ getMethodInfoHelper(
     {
         _ASSERTE(ftn->IsDynamicMethod());
 
-        DynamicResolver * pResolver = ftn->AsDynamicMethodDesc()->GetResolver();        
+        DynamicResolver * pResolver = ftn->AsDynamicMethodDesc()->GetResolver();
         unsigned int EHCount;
         methInfo->ILCode = pResolver->GetCodeInfo(&methInfo->ILCodeSize,
                                                   &methInfo->maxStack,
@@ -8195,7 +8224,7 @@ void CEEInfo::reportInliningDecision (CORINFO_METHOD_HANDLE inlinerHnd,
 #endif //_DEBUG
 
     //I'm gonna duplicate this code because the format is slightly different.  And LoggingOn is debug only.
-    if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
+    if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, 
                                      TRACE_LEVEL_VERBOSE,
                                      CLR_JITTRACING_KEYWORD))
     {
@@ -8547,7 +8576,7 @@ void CEEInfo::reportTailCallDecision (CORINFO_METHOD_HANDLE callerHnd,
 #endif //_DEBUG
 
     // I'm gonna duplicate this code because the format is slightly different.  And LoggingOn is debug only.
-    if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
+    if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, 
                                      TRACE_LEVEL_VERBOSE,
                                      CLR_JITTRACING_KEYWORD))
     {
@@ -10235,6 +10264,9 @@ void InlinedCallFrame::GetEEInfo(CORINFO_EE_INFO::InlinedCallFrameInfo *pInfo)
     pInfo->offsetOfCalleeSavedFP         = sizeof(GSCookie) + offsetof(InlinedCallFrame, m_pCalleeSavedFP);
     pInfo->offsetOfCallTarget            = sizeof(GSCookie) + offsetof(InlinedCallFrame, m_Datum);
     pInfo->offsetOfReturnAddress         = sizeof(GSCookie) + offsetof(InlinedCallFrame, m_pCallerReturnAddress);
+#ifdef _TARGET_ARM_
+    pInfo->offsetOfSPAfterProlog         = sizeof(GSCookie) + offsetof(InlinedCallFrame, m_pSPAfterProlog);
+#endif // _TARGET_ARM_
 }
 
 /*********************************************************************/
@@ -10269,7 +10301,7 @@ void CEEInfo::getEEInfo(CORINFO_EE_INFO *pEEInfoOut)
         // ** IMPORTANT ** If you ever need to change the value of this fixed size, make sure to change the R2R
         // version number, otherwise older R2R images will probably crash when used.
 
-        const int r2rInlinedCallFrameSize = TARGET_POINTER_SIZE * 11;
+        const int r2rInlinedCallFrameSize = TARGET_POINTER_SIZE * READYTORUN_PInvokeTransitionFrameSizeInPointerUnits;
 
 #if defined(_DEBUG) && !defined(CROSSBITNESS_COMPILE)
         InlinedCallFrame::GetEEInfo(&pEEInfoOut->inlinedCallFrameInfo);
@@ -11247,7 +11279,7 @@ void reservePersonalityRoutineSpace(ULONG &unwindSize)
 //
 void CEEJitInfo::reserveUnwindInfo(BOOL isFunclet, BOOL isColdCode, ULONG unwindSize)
 {
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
@@ -11272,10 +11304,10 @@ void CEEJitInfo::reserveUnwindInfo(BOOL isFunclet, BOOL isColdCode, ULONG unwind
     m_totalUnwindInfos++;
 
     EE_TO_JIT_TRANSITION_LEAF();
-#else // WIN64EXCEPTIONS
+#else // FEATURE_EH_FUNCLETS
     LIMITED_METHOD_CONTRACT;
     // Dummy implementation to make cross-platform altjit work
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 }
 
 // Allocate and initialize the .rdata and .pdata for this method or
@@ -11308,7 +11340,7 @@ void CEEJitInfo::allocUnwindInfo (
         CorJitFuncKind      funcKind               /* IN */
         )
 {
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     CONTRACTL {
         THROWS;
         GC_TRIGGERS;
@@ -11449,10 +11481,10 @@ void CEEJitInfo::allocUnwindInfo (
 #endif // defined(_TARGET_AMD64_)
 
     EE_TO_JIT_TRANSITION();
-#else // WIN64EXCEPTIONS
+#else // FEATURE_EH_FUNCLETS
     LIMITED_METHOD_CONTRACT;
     // Dummy implementation to make cross-platform altjit work
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 }
 
 void CEEJitInfo::recordCallSite(ULONG                 instrOffset,
@@ -11482,7 +11514,7 @@ void CEEJitInfo::recordRelocation(void * location,
         MODE_PREEMPTIVE;
     } CONTRACTL_END;
 
-#ifdef _WIN64
+#ifdef BIT64
     JIT_TO_EE_TRANSITION();
 
     INT64 delta;
@@ -11660,13 +11692,13 @@ void CEEJitInfo::recordRelocation(void * location,
     }
 
     EE_TO_JIT_TRANSITION();
-#else // _WIN64
+#else // BIT64
     JIT_TO_EE_TRANSITION_LEAF();
 
     // Nothing to do on 32-bit
 
     EE_TO_JIT_TRANSITION_LEAF();
-#endif // _WIN64
+#endif // BIT64
 }
 
 WORD CEEJitInfo::getRelocTypeHint(void * target)
@@ -12076,7 +12108,7 @@ void CEEJitInfo::allocMem (
         totalSize += roDataSize;
     }
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     totalSize.AlignUp(sizeof(DWORD));
     totalSize += m_totalUnwindSize;
 #endif
@@ -12095,7 +12127,7 @@ void CEEJitInfo::allocMem (
     }
 
     m_CodeHeader = m_jitManager->allocCode(m_pMethodBeingCompiled, totalSize.Value(), GetReserveForJumpStubs(), flag
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
                                            , m_totalUnwindInfos
                                            , &m_moduleBase
 #endif
@@ -12117,7 +12149,7 @@ void CEEJitInfo::allocMem (
         *roDataBlock = NULL;
     }
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     current = (BYTE *)ALIGN_UP(current, sizeof(DWORD));
 
     m_theUnwindBlock = current;
@@ -12149,12 +12181,12 @@ void * CEEJitInfo::allocGCInfo (size_t size)
     _ASSERTE(m_CodeHeader != 0);
     _ASSERTE(m_CodeHeader->GetGCInfo() == 0);
 
-#ifdef _WIN64
+#ifdef BIT64
     if (size & 0xFFFFFFFF80000000LL)
     {
         COMPlusThrowHR(CORJIT_OUTOFMEM);
     }
-#endif // _WIN64
+#endif // BIT64
 
     block = m_jitManager->allocGCInfo(m_CodeHeader,(DWORD)size, &m_GCinfo_len);
     if (!block)
@@ -12570,8 +12602,6 @@ CorJitResult CallCompileMethodWithSEHWrapper(EEJitManager *jitMgr,
         flags.Set(CORJIT_FLAGS::CORJIT_FLAG_FRAMED);
     if (g_pConfig->JitAlignLoops())
         flags.Set(CORJIT_FLAGS::CORJIT_FLAG_ALIGN_LOOPS);
-    if (ftn->IsVersionableWithJumpStamp() || g_pConfig->AddRejitNops())
-        flags.Set(CORJIT_FLAGS::CORJIT_FLAG_PROF_REJIT_NOPS);
 #ifdef _TARGET_X86_
     if (g_pConfig->PInvokeRestoreEsp(ftn->GetModule()->IsPreV4Assembly()))
         flags.Set(CORJIT_FLAGS::CORJIT_FLAG_PINVOKE_RESTORE_ESP);
@@ -14151,7 +14181,7 @@ EECodeInfo::EECodeInfo()
     m_pMD = NULL;
     m_relOffset = 0;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     m_pFunctionEntry = NULL;
 #endif
 }
@@ -14190,7 +14220,7 @@ Invalid:
     m_pMD = NULL;
     m_relOffset = 0;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     m_pFunctionEntry = NULL;
 #endif
 }
@@ -14205,7 +14235,7 @@ TADDR EECodeInfo::GetSavedMethodCode()
         HOST_NOCALLS;
         SUPPORTS_DAC;
     } CONTRACTL_END;
-#ifndef _WIN64
+#ifndef BIT64
 #if defined(HAVE_GCCOVER)
     _ASSERTE (!m_pMD->m_GcCover || GCStress<cfg_instr>::IsEnabled());
     if (GCStress<cfg_instr>::IsEnabled()
@@ -14235,7 +14265,33 @@ TADDR EECodeInfo::GetStartAddress()
     return m_pJM->JitTokenToStartAddress(m_methodToken);
 }
 
-#if defined(WIN64EXCEPTIONS)
+NativeCodeVersion EECodeInfo::GetNativeCodeVersion()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+    }
+    CONTRACTL_END;
+
+    PTR_MethodDesc pMD = PTR_MethodDesc(GetMethodDesc());
+    if (pMD == NULL)
+    {
+        return NativeCodeVersion();
+    }
+
+#ifdef FEATURE_CODE_VERSIONING
+    if (pMD->IsVersionable())
+    {
+        CodeVersionManager *pCodeVersionManager = pMD->GetCodeVersionManager();
+        CodeVersionManager::TableLockHolder lockHolder(pCodeVersionManager);
+        return pCodeVersionManager->GetNativeCodeVersion(pMD, PINSTRToPCODE(GetStartAddress()));
+    }
+#endif
+    return NativeCodeVersion(pMD);
+}
+
+#if defined(FEATURE_EH_FUNCLETS)
 
 // ----------------------------------------------------------------------------
 // EECodeInfo::GetMainFunctionInfo
@@ -14291,7 +14347,7 @@ BOOL EECodeInfo::HasFrameRegister()
 }
 #endif // defined(_TARGET_AMD64_)
 
-#endif // defined(WIN64EXCEPTIONS)
+#endif // defined(FEATURE_EH_FUNCLETS)
 
 
 #if defined(_TARGET_AMD64_)

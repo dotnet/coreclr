@@ -2,10 +2,11 @@ parameters:
   buildConfig: ''
   archType: ''
   osGroup: ''
-  osIdentifier: ''
-  containerName: ''
+  osSubgroup: ''
+  container: ''
   crossrootfsDir: ''
   timeoutInMinutes: ''
+  stagedBuild: false
 
 ### Format job
 jobs:
@@ -14,12 +15,13 @@ jobs:
     buildConfig: ${{ parameters.buildConfig }}
     archType: ${{ parameters.archType }}
     osGroup: ${{ parameters.osGroup }}
-    osIdentifier: ${{ parameters.osIdentifier }}
-    containerName: ${{ parameters.containerName }}
+    osSubgroup: ${{ parameters.osSubgroup }}
+    container: ${{ parameters.container }}
     crossrootfsDir: ${{ parameters.crossrootfsDir }}
+    stagedBuild: ${{ parameters.stagedBuild }}
     timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
-    name: ${{ format('format_{0}_{1}', parameters.osIdentifier, parameters.archType) }}
-    displayName: ${{ format('Formatting {0} {1}', parameters.osIdentifier, parameters.archType) }}
+    name: ${{ format('format_{0}{1}_{2}', parameters.osGroup, parameters.osSubgroup, parameters.archType) }}
+    displayName: ${{ format('Formatting {0}{1} {2}', parameters.osGroup, parameters.osSubgroup, parameters.archType) }}
     helixType: 'format'
     steps:
     - task: DotNetCoreInstaller@0

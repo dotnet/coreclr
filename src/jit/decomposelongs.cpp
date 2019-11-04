@@ -130,7 +130,7 @@ GenTree* DecomposeLongs::DecomposeNode(GenTree* tree)
     // Handle the case where we are implicitly using the lower half of a long lclVar.
     if ((tree->TypeGet() == TYP_INT) && tree->OperIsLocal())
     {
-        LclVarDsc* varDsc = m_compiler->lvaTable + tree->AsLclVarCommon()->gtLclNum;
+        LclVarDsc* varDsc = m_compiler->lvaTable + tree->AsLclVarCommon()->GetLclNum();
         if (varTypeIsLong(varDsc) && varDsc->lvPromoted)
         {
 #ifdef DEBUG
@@ -342,7 +342,7 @@ GenTree* DecomposeLongs::DecomposeLclVar(LIR::Use& use)
     assert(use.Def()->OperGet() == GT_LCL_VAR);
 
     GenTree*   tree     = use.Def();
-    unsigned   varNum   = tree->AsLclVarCommon()->gtLclNum;
+    unsigned   varNum   = tree->AsLclVarCommon()->GetLclNum();
     LclVarDsc* varDsc   = m_compiler->lvaTable + varNum;
     GenTree*   loResult = tree;
     loResult->gtType    = TYP_INT;
@@ -390,7 +390,7 @@ GenTree* DecomposeLongs::DecomposeLclFld(LIR::Use& use)
     GenTreeLclFld* loResult = tree->AsLclFld();
     loResult->gtType        = TYP_INT;
 
-    GenTree* hiResult = m_compiler->gtNewLclFldNode(loResult->gtLclNum, TYP_INT, loResult->gtLclOffs + 4);
+    GenTree* hiResult = m_compiler->gtNewLclFldNode(loResult->GetLclNum(), TYP_INT, loResult->gtLclOffs + 4);
     Range().InsertAfter(loResult, hiResult);
 
     return FinalizeDecomposition(use, loResult, hiResult, hiResult);
@@ -423,7 +423,7 @@ GenTree* DecomposeLongs::DecomposeStoreLclVar(LIR::Use& use)
 
     noway_assert(rhs->OperGet() == GT_LONG);
 
-    unsigned   varNum = tree->AsLclVarCommon()->gtLclNum;
+    unsigned   varNum = tree->AsLclVarCommon()->GetLclNum();
     LclVarDsc* varDsc = m_compiler->lvaTable + varNum;
     if (!varDsc->lvPromoted)
     {
@@ -510,7 +510,7 @@ GenTree* DecomposeLongs::DecomposeStoreLclFld(LIR::Use& use)
     loStore->gtFlags |= GTF_VAR_USEASG;
 
     // Create the store for the upper half of the GT_LONG and insert it after the low store.
-    GenTreeLclFld* hiStore = m_compiler->gtNewLclFldNode(loStore->gtLclNum, TYP_INT, loStore->gtLclOffs + 4);
+    GenTreeLclFld* hiStore = m_compiler->gtNewLclFldNode(loStore->GetLclNum(), TYP_INT, loStore->gtLclOffs + 4);
     hiStore->SetOper(GT_STORE_LCL_FLD);
     hiStore->gtOp1 = value->gtOp2;
     hiStore->gtFlags |= (GTF_VAR_DEF | GTF_VAR_USEASG);
@@ -684,7 +684,7 @@ GenTree* DecomposeLongs::DecomposeCnsLng(LIR::Use& use)
 // DecomposeFieldList: Decompose GT_FIELD_LIST.
 //
 // Arguments:
-//    listNode - the head of the FIELD_LIST that contains the given GT_LONG.
+//    fieldList - the GT_FIELD_LIST node that uses the given GT_LONG node.
 //    longNode - the node to decompose
 //
 // Return Value:
@@ -693,34 +693,29 @@ GenTree* DecomposeLongs::DecomposeCnsLng(LIR::Use& use)
 // Notes:
 //    Split a LONG field list element into two elements: one for each half of the GT_LONG.
 //
-GenTree* DecomposeLongs::DecomposeFieldList(GenTreeFieldList* listNode, GenTreeOp* longNode)
+GenTree* DecomposeLongs::DecomposeFieldList(GenTreeFieldList* fieldList, GenTreeOp* longNode)
 {
     assert(longNode->OperGet() == GT_LONG);
-    // We are given the head of the field list. We need to find the actual node that uses
-    // the `GT_LONG` so that we can split it.
-    for (; listNode != nullptr; listNode = listNode->Rest())
+
+    GenTreeFieldList::Use* loUse = nullptr;
+    for (GenTreeFieldList::Use& use : fieldList->Uses())
     {
-        if (listNode->Current() == longNode)
+        if (use.GetNode() == longNode)
         {
+            loUse = &use;
             break;
         }
     }
-    assert(listNode != nullptr);
+    assert(loUse != nullptr);
 
     Range().Remove(longNode);
 
-    GenTree* rest = listNode->gtOp2;
+    loUse->SetNode(longNode->gtGetOp1());
+    loUse->SetType(TYP_INT);
 
-    GenTreeFieldList* loNode = listNode;
-    loNode->gtType           = TYP_INT;
-    loNode->gtOp1            = longNode->gtOp1;
-    loNode->gtFieldType      = TYP_INT;
+    fieldList->InsertFieldLIR(m_compiler, loUse, longNode->gtGetOp2(), loUse->GetOffset() + 4, TYP_INT);
 
-    GenTreeFieldList* hiNode =
-        new (m_compiler, GT_FIELD_LIST) GenTreeFieldList(longNode->gtOp2, loNode->gtFieldOffset + 4, TYP_INT, loNode);
-    hiNode->gtOp2 = rest;
-
-    return listNode->gtNext;
+    return fieldList->gtNext;
 }
 
 //------------------------------------------------------------------------
@@ -1112,7 +1107,7 @@ GenTree* DecomposeLongs::DecomposeShift(LIR::Use& use)
                     Range().Remove(gtLong);
 
                     loOp1                = RepresentOpAsLocalVar(loOp1, gtLong, &gtLong->gtOp.gtOp1);
-                    unsigned loOp1LclNum = loOp1->AsLclVarCommon()->gtLclNum;
+                    unsigned loOp1LclNum = loOp1->AsLclVarCommon()->GetLclNum();
                     Range().Remove(loOp1);
 
                     GenTree* shiftByHi = m_compiler->gtNewIconNode(count, TYP_INT);
@@ -1195,7 +1190,7 @@ GenTree* DecomposeLongs::DecomposeShift(LIR::Use& use)
                     // shr hi, shift
 
                     hiOp1                = RepresentOpAsLocalVar(hiOp1, gtLong, &gtLong->gtOp.gtOp2);
-                    unsigned hiOp1LclNum = hiOp1->AsLclVarCommon()->gtLclNum;
+                    unsigned hiOp1LclNum = hiOp1->AsLclVarCommon()->GetLclNum();
                     GenTree* hiCopy      = m_compiler->gtNewLclvNode(hiOp1LclNum, TYP_INT);
 
                     GenTree* shiftByHi = m_compiler->gtNewIconNode(count, TYP_INT);
@@ -1258,7 +1253,7 @@ GenTree* DecomposeLongs::DecomposeShift(LIR::Use& use)
                 Range().Remove(gtLong);
 
                 hiOp1                = RepresentOpAsLocalVar(hiOp1, gtLong, &gtLong->gtOp.gtOp2);
-                unsigned hiOp1LclNum = hiOp1->AsLclVarCommon()->gtLclNum;
+                unsigned hiOp1LclNum = hiOp1->AsLclVarCommon()->GetLclNum();
                 GenTree* hiCopy      = m_compiler->gtNewLclvNode(hiOp1LclNum, TYP_INT);
                 Range().Remove(hiOp1);
 
@@ -1365,7 +1360,7 @@ GenTree* DecomposeLongs::DecomposeShift(LIR::Use& use)
                 unreached();
         }
 
-        GenTreeArgList* argList = m_compiler->gtNewArgList(loOp1, hiOp1, shiftByOp);
+        GenTreeCall::Use* argList = m_compiler->gtNewCallArgs(loOp1, hiOp1, shiftByOp);
 
         GenTree* call = m_compiler->gtNewHelperCallNode(helper, TYP_LONG, argList);
         call->gtFlags |= shift->gtFlags & GTF_ALL_EFFECT;
@@ -1492,8 +1487,8 @@ GenTree* DecomposeLongs::DecomposeRotate(LIR::Use& use)
             hiOp1 = RepresentOpAsLocalVar(hiOp1, gtLong, &gtLong->gtOp.gtOp2);
         }
 
-        unsigned loOp1LclNum = loOp1->AsLclVarCommon()->gtLclNum;
-        unsigned hiOp1LclNum = hiOp1->AsLclVarCommon()->gtLclNum;
+        unsigned loOp1LclNum = loOp1->AsLclVarCommon()->GetLclNum();
+        unsigned hiOp1LclNum = hiOp1->AsLclVarCommon()->GetLclNum();
 
         Range().Remove(loOp1);
         Range().Remove(hiOp1);
@@ -1717,7 +1712,7 @@ GenTree* DecomposeLongs::DecomposeSimdGetItem(LIR::Use& use)
     }
 
     GenTree* simdTmpVar    = RepresentOpAsLocalVar(simdTree->gtOp.gtOp1, simdTree, &simdTree->gtOp.gtOp1);
-    unsigned simdTmpVarNum = simdTmpVar->AsLclVarCommon()->gtLclNum;
+    unsigned simdTmpVarNum = simdTmpVar->AsLclVarCommon()->GetLclNum();
     JITDUMP("[DecomposeSimdGetItem]: Saving op1 tree to a temp var:\n");
     DISPTREERANGE(Range(), simdTmpVar);
     Range().Remove(simdTmpVar);
@@ -1727,7 +1722,7 @@ GenTree* DecomposeLongs::DecomposeSimdGetItem(LIR::Use& use)
     if (!indexIsConst)
     {
         indexTmpVar    = RepresentOpAsLocalVar(simdTree->gtOp.gtOp2, simdTree, &simdTree->gtOp.gtOp2);
-        indexTmpVarNum = indexTmpVar->AsLclVarCommon()->gtLclNum;
+        indexTmpVarNum = indexTmpVar->AsLclVarCommon()->GetLclNum();
         JITDUMP("[DecomposeSimdGetItem]: Saving op2 tree to a temp var:\n");
         DISPTREERANGE(Range(), indexTmpVar);
         Range().Remove(indexTmpVar);
@@ -1817,7 +1812,7 @@ GenTree* DecomposeLongs::StoreNodeToVar(LIR::Use& use)
     {
         // If parent is already a STORE_LCL_VAR, we can skip it if
         // it is already marked as lvIsMultiRegRet.
-        unsigned varNum = user->AsLclVarCommon()->gtLclNum;
+        unsigned varNum = user->AsLclVarCommon()->GetLclNum();
         if (m_compiler->lvaTable[varNum].lvIsMultiRegRet)
         {
             return tree->gtNext;
@@ -1884,7 +1879,7 @@ GenTree* DecomposeLongs::EnsureIntSized(GenTree* node, bool signExtend)
         return node;
     }
 
-    if (node->OperIs(GT_LCL_VAR) && !m_compiler->lvaTable[node->AsLclVarCommon()->gtLclNum].lvNormalizeOnLoad())
+    if (node->OperIs(GT_LCL_VAR) && !m_compiler->lvaTable[node->AsLclVarCommon()->GetLclNum()].lvNormalizeOnLoad())
     {
         node->gtType = TYP_INT;
         return node;

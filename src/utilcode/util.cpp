@@ -738,6 +738,35 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
 {
     return ::GetNumaProcessorNodeEx(proc_no, node_no);
 }
+/*static*/ bool NumaNodeInfo::GetNumaInfo(PUSHORT total_nodes, DWORD* max_procs_per_node)
+{
+    if (m_enableGCNumaAware)
+    {
+        DWORD currentProcsOnNode = 0;
+        for (int i = 0; i < m_nNodes; i++)
+        {
+            GROUP_AFFINITY processorMask;
+            if (GetNumaNodeProcessorMaskEx(i, &processorMask))
+            {
+                DWORD procsOnNode = 0;
+                uintptr_t mask = (uintptr_t)processorMask.Mask;
+                while (mask)
+                {
+                    procsOnNode++;
+                    mask &= mask - 1;
+                }
+
+                currentProcsOnNode = max(currentProcsOnNode, procsOnNode);
+            }
+        }
+
+        *max_procs_per_node = currentProcsOnNode;
+        *total_nodes = m_nNodes;
+        return true;
+    }
+
+    return false;
+}
 #else // !FEATURE_PAL
 /*static*/ BOOL NumaNodeInfo::GetNumaProcessorNodeEx(USHORT proc_no, PUSHORT node_no)
 {
@@ -747,6 +776,7 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
 #endif
 
 /*static*/ BOOL NumaNodeInfo::m_enableGCNumaAware = FALSE;
+/*static*/ uint16_t NumaNodeInfo::m_nNodes = 0;
 /*static*/ BOOL NumaNodeInfo::InitNumaNodeInfoAPI()
 {
 #if !defined(FEATURE_REDHAWK)
@@ -759,6 +789,8 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
     // fail to get the highest numa node number
     if (!::GetNumaHighestNodeNumber(&highest) || (highest == 0))
         return FALSE;
+
+    m_nNodes = (USHORT)(highest + 1);
 
     return TRUE;
 #else
@@ -792,7 +824,7 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
 }
 
 /*static*/ BOOL CPUGroupInfo::SetThreadGroupAffinity(HANDLE h, 
-                        GROUP_AFFINITY *groupAffinity, GROUP_AFFINITY *previousGroupAffinity)
+                        const GROUP_AFFINITY *groupAffinity, GROUP_AFFINITY *previousGroupAffinity)
 {
     LIMITED_METHOD_CONTRACT;
     return ::SetThreadGroupAffinity(h, groupAffinity, previousGroupAffinity);
@@ -1058,6 +1090,7 @@ retry:
         {
             *group_number = i;
             *group_processor_number = bDiff;
+
             break;
         }
         bDiff = processor_number - bTemp;
@@ -1096,6 +1129,24 @@ retry:
 #else
     return 0;
 #endif
+}
+
+// There can be different numbers of procs in groups. We take the max.
+/*static*/ bool CPUGroupInfo::GetCPUGroupInfo(PUSHORT total_groups, DWORD* max_procs_per_group)
+{
+    if (m_enableGCCPUGroups)
+    {
+        *total_groups = m_nGroups;
+        DWORD currentProcsInGroup = 0;
+        for (WORD i = 0; i < m_nGroups; i++)
+        {
+            currentProcsInGroup = max(currentProcsInGroup, m_CPUGroupInfoArray[i].nr_active);
+        }
+        *max_procs_per_group = currentProcsInGroup;
+        return true;
+    }
+
+    return false;
 }
 
 #if !defined(FEATURE_REDHAWK)
@@ -1238,10 +1289,6 @@ int GetCurrentProcessCpuCount()
 
 #else // !FEATURE_PAL
     count = PAL_GetLogicalCpuCountFromOS();
-
-    uint32_t cpuLimit;
-    if (PAL_GetCpuLimit(&cpuLimit) && cpuLimit < count)
-        count = cpuLimit;
 #endif // !FEATURE_PAL
 
     cCPUs = count;
@@ -3045,91 +3092,6 @@ namespace Util
     static BOOL g_fLocalAppDataDirectoryInitted = FALSE;
     static WCHAR *g_wszLocalAppDataDirectory = NULL;
 
-// This api returns a pointer to a null-terminated string that contains the local appdata directory
-// or it returns NULL in the case that the directory could not be found. The return value from this function
-// is not actually checked for existence. 
-    HRESULT GetLocalAppDataDirectory(LPCWSTR *ppwzLocalAppDataDirectory)
-    {
-        CONTRACTL {
-            NOTHROW;
-            GC_NOTRIGGER;
-        } CONTRACTL_END;
-
-        HRESULT hr = S_OK;
-        *ppwzLocalAppDataDirectory = NULL;
-
-        EX_TRY
-        {
-            if (!g_fLocalAppDataDirectoryInitted)
-            {
-                WCHAR *wszLocalAppData = NULL;
-
-                DWORD cCharsNeeded;
-                cCharsNeeded = GetEnvironmentVariableW(W("LOCALAPPDATA"), NULL, 0);
-
-                if ((cCharsNeeded != 0) && (cCharsNeeded < MAX_LONGPATH))
-                {
-                    wszLocalAppData = new WCHAR[cCharsNeeded];
-                    cCharsNeeded = GetEnvironmentVariableW(W("LOCALAPPDATA"), wszLocalAppData, cCharsNeeded);
-                    if (cCharsNeeded != 0)
-                    {
-                        // We've collected the appropriate app data directory into a local. Now publish it.
-                        if (InterlockedCompareExchangeT(&g_wszLocalAppDataDirectory, wszLocalAppData, NULL) == NULL)
-                        {
-                            // This variable doesn't need to be freed, as it has been stored in the global
-                            wszLocalAppData = NULL;
-                        }
-                    }
-                }
-
-                g_fLocalAppDataDirectoryInitted = TRUE;
-                delete[] wszLocalAppData;
-            }
-        }
-        EX_CATCH_HRESULT(hr);
-
-        if (SUCCEEDED(hr))
-            *ppwzLocalAppDataDirectory = g_wszLocalAppDataDirectory;
-
-        return hr;
-    }
-
-    HRESULT SetLocalAppDataDirectory(LPCWSTR pwzLocalAppDataDirectory)
-    {
-        CONTRACTL {
-            NOTHROW;
-            GC_NOTRIGGER;
-        } CONTRACTL_END;
-
-        if (pwzLocalAppDataDirectory == NULL || *pwzLocalAppDataDirectory == W('\0'))
-            return E_INVALIDARG;
-
-        if (g_fLocalAppDataDirectoryInitted)
-            return E_UNEXPECTED;
-
-        HRESULT hr = S_OK;
-
-        EX_TRY
-        {
-            size_t size = wcslen(pwzLocalAppDataDirectory) + 1;
-            WCHAR *wszLocalAppData = new WCHAR[size];
-            wcscpy_s(wszLocalAppData, size, pwzLocalAppDataDirectory);
-
-            // We've collected the appropriate app data directory into a local. Now publish it.
-            if (InterlockedCompareExchangeT(&g_wszLocalAppDataDirectory, wszLocalAppData, NULL) != NULL)
-            {
-                // Someone else already set LocalAppData. Free our copy and return an error.
-                delete[] wszLocalAppData;
-                hr = E_UNEXPECTED;
-            }
-
-            g_fLocalAppDataDirectoryInitted = TRUE;
-        }
-        EX_CATCH_HRESULT(hr);
-
-        return hr;
-    }
-
 #ifndef FEATURE_PAL
     // Struct used to scope suspension of client impersonation for the current thread.
     // https://docs.microsoft.com/en-us/windows/desktop/secauthz/client-impersonation
@@ -3372,88 +3334,6 @@ namespace Com
     }
 } // namespace Com
 #endif //  FEATURE_PAL
-
-namespace Win32
-{
-    void GetModuleFileName(
-        HMODULE hModule,
-        SString & ssFileName,
-        bool fAllowLongFileNames)
-    {
-        STANDARD_VM_CONTRACT;
-
-        // Try to use what the SString already has allocated. If it does not have anything allocated
-        // or it has < 20 characters allocated, then bump the size requested to _MAX_PATH.
-        
-        DWORD dwResult = WszGetModuleFileName(hModule, ssFileName);
-
-
-        if (dwResult == 0)
-            ThrowHR(HRESULT_FROM_GetLastError());
-
-        _ASSERTE(dwResult != 0 );
-    }
-
-    // Returns heap-allocated string in *pwszFileName
-    HRESULT GetModuleFileName(
-        HMODULE hModule,
-        __deref_out_z LPWSTR * pwszFileName,
-        bool fAllowLongFileNames)
-    {
-        CONTRACTL {
-            NOTHROW;
-            GC_NOTRIGGER;
-            PRECONDITION(CheckPointer(pwszFileName));
-        } CONTRACTL_END;
-
-        HRESULT hr = S_OK;
-        EX_TRY
-        {
-            InlineSString<_MAX_PATH> ssFileName;
-            GetModuleFileName(hModule, ssFileName);
-            *pwszFileName = DuplicateStringThrowing(ssFileName.GetUnicode());
-        }
-        EX_CATCH_HRESULT(hr);
-
-        return hr;
-    }
-
-    void GetFullPathName(
-        SString const & ssFileName,
-        SString & ssPathName,
-        DWORD * pdwFilePartIdx,
-        bool fAllowLongFileNames)
-    {
-        STANDARD_VM_CONTRACT;
-
-        // Get the required buffer length (including terminating NULL).
-        DWORD dwLengthRequired = WszGetFullPathName(ssFileName.GetUnicode(), 0, NULL, NULL);
-
-        if (dwLengthRequired == 0)
-            ThrowHR(HRESULT_FROM_GetLastError());
-
-        LPWSTR wszPathName = ssPathName.OpenUnicodeBuffer(dwLengthRequired - 1);
-        LPWSTR wszFileName = NULL;
-        DWORD dwLengthWritten = WszGetFullPathName(
-            ssFileName.GetUnicode(),
-            dwLengthRequired,
-            wszPathName,
-            &wszFileName);
-
-        // Calculate the index while the buffer is open and the string pointer is stable.
-        if (dwLengthWritten != 0 && dwLengthWritten < dwLengthRequired && pdwFilePartIdx != NULL)
-            *pdwFilePartIdx = static_cast<DWORD>(wszFileName - wszPathName);
-
-        ssPathName.CloseBuffer(dwLengthWritten < dwLengthRequired ? dwLengthWritten : 0);
-
-        if (dwLengthRequired == 0)
-            ThrowHR(HRESULT_FROM_GetLastError());
-
-        // Overly defensive? Perhaps.
-        if (!(dwLengthWritten < dwLengthRequired))
-            ThrowHR(E_UNEXPECTED);
-    }
-} // namespace Win32
 
 } // namespace Util
 } // namespace Clr

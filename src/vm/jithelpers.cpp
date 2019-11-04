@@ -3128,7 +3128,7 @@ HCIMPL2(Object*, JIT_NewArr1, CORINFO_CLASS_HANDLE arrayMT, INT_PTR size)
     if (size < 0)
         COMPlusThrow(kOverflowException);
 
-#ifdef _WIN64
+#ifdef BIT64
     // Even though ECMA allows using a native int as the argument to newarr instruction
     // (therefore size is INT_PTR), ArrayBase::m_NumComponents is 32-bit, so even on 64-bit
     // platforms we can't create an array whose size exceeds 32 bits.
@@ -4058,20 +4058,6 @@ NOINLINE HCIMPL3(CORINFO_MethodPtr, JIT_VirtualFunctionPointer_Framed, Object * 
 }
 HCIMPLEND
 
-HCIMPL2(VOID, JIT_GetRuntimeFieldHandle, Object ** destPtr, CORINFO_FIELD_HANDLE field)
-{
-    FCALL_CONTRACT;
-
-    HELPER_METHOD_FRAME_BEGIN_0();
-
-    FieldDesc *pField = (FieldDesc *)field;
-    SetObjectReference((OBJECTREF*) destPtr,
-                       pField->GetStubFieldInfo());
-
-    HELPER_METHOD_FRAME_END();
-}
-HCIMPLEND
-
 HCIMPL1(Object*, JIT_GetRuntimeFieldStub, CORINFO_FIELD_HANDLE field)
 {
     FCALL_CONTRACT;
@@ -4086,20 +4072,6 @@ HCIMPL1(Object*, JIT_GetRuntimeFieldStub, CORINFO_FIELD_HANDLE field)
     HELPER_METHOD_FRAME_END();
 
     return (OBJECTREFToObject(stubRuntimeField));
-}
-HCIMPLEND
-
-HCIMPL2(VOID, JIT_GetRuntimeMethodHandle, Object ** destPtr, CORINFO_METHOD_HANDLE method)
-{
-    FCALL_CONTRACT;
-
-    HELPER_METHOD_FRAME_BEGIN_0();
-
-    MethodDesc *pMethod = (MethodDesc *)method;
-    SetObjectReference((OBJECTREF*) destPtr,
-                       pMethod->GetStubMethodInfo());
-
-    HELPER_METHOD_FRAME_END();
 }
 HCIMPLEND
 
@@ -5100,7 +5072,7 @@ void DoJITFailFast ()
     __report_gsfailure((ULONG_PTR)0);
 #endif // defined(_TARGET_X86_)
 #else // FEATURE_PAL
-    if(ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, FailFast))
+    if(ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_DOTNET_Context, FailFast))
     {
         // Fire an ETW FailFast event
         FireEtwFailFast(W("Unsafe buffer security check failure: Buffer overrun detected"),
@@ -5306,13 +5278,6 @@ HCIMPL0(void, JIT_DbgIsJustMyCode)
     return;
 }
 HCIMPLEND
-
-#if !(defined(_TARGET_X86_) || defined(_WIN64))
-void JIT_ProfilerEnterLeaveTailcallStub(UINT_PTR ProfilerHandle)
-{
-    return;
-}
-#endif // !(_TARGET_X86_ || _WIN64)
 
 #ifdef PROFILING_SUPPORTED
 
@@ -5635,7 +5600,7 @@ HCIMPLEND
 //
 //========================================================================
 
-#ifdef _WIN64
+#ifdef BIT64
 
 /**********************************************************************/
 /* Fills out portions of an InlinedCallFrame for JIT64    */
@@ -5661,7 +5626,7 @@ Thread * __stdcall JIT_InitPInvokeFrame(InlinedCallFrame *pFrame, PTR_VOID StubS
     return pThread;
 }
 
-#endif // _WIN64
+#endif // BIT64
 
 EXTERN_C void JIT_PInvokeBegin(InlinedCallFrame* pFrame);
 EXTERN_C void JIT_PInvokeEnd(InlinedCallFrame* pFrame);
@@ -6159,7 +6124,7 @@ void InitJitHelperLogging()
         _ASSERTE(pDOS->e_magic == VAL16(IMAGE_DOS_SIGNATURE) && pDOS->e_lfanew != 0);
         
         IMAGE_NT_HEADERS *pNT = (IMAGE_NT_HEADERS*)((LPBYTE)g_pMSCorEE + VAL32(pDOS->e_lfanew));
-#ifdef _WIN64
+#ifdef BIT64
         _ASSERTE(pNT->Signature == VAL32(IMAGE_NT_SIGNATURE) 
             && pNT->FileHeader.SizeOfOptionalHeader == VAL16(sizeof(IMAGE_OPTIONAL_HEADER64))
             && pNT->OptionalHeader.Magic == VAL16(IMAGE_NT_OPTIONAL_HDR_MAGIC) );

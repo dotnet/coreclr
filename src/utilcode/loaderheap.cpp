@@ -323,8 +323,8 @@ RangeList::RangeListBlock::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
         return;
     }
 
-    WIN64_ONLY( BADFOOD = 0xbaadf00dbaadf00d; );
-    NOT_WIN64(  BADFOOD = 0xbaadf00d;         );
+    BIT64_ONLY( BADFOOD = 0xbaadf00dbaadf00d; );
+    NOT_BIT64(  BADFOOD = 0xbaadf00d;         );
 
     for (i=0; i<RANGE_COUNT; i++)
     {
@@ -856,14 +856,13 @@ inline size_t AllocMem_TotalSize(size_t dwRequestedSize, UnlockedLoaderHeap *pHe
 #ifdef _DEBUG
     dwSize += LOADER_HEAP_DEBUG_BOUNDARY;
     dwSize = ((dwSize + ALLOC_ALIGN_CONSTANT) & (~ALLOC_ALIGN_CONSTANT));
+#endif
 
     if (!pHeap->m_fExplicitControl)
     {
+#ifdef _DEBUG
         dwSize += sizeof(LoaderHeapValidationTag);
-    }
 #endif
-    if (!pHeap->m_fExplicitControl)
-    {
         if (dwSize < sizeof(LoaderHeapFreeBlock))
         {
             dwSize = sizeof(LoaderHeapFreeBlock);

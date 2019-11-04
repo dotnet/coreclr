@@ -1168,7 +1168,7 @@ bool HeapWalkHelper(Object * pBO, void * pvContext)
 
 #ifdef FEATURE_EVENT_TRACE
     if (s_forcedGCInProgress &&
-        ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
+        ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, 
                                      TRACE_LEVEL_INFORMATION, 
                                      CLR_GCHEAPDUMP_KEYWORD))
     {
@@ -1320,7 +1320,7 @@ void ScanRootsHelper(Object* pObj, Object ** ppRoot, ScanContext *pSC, uint32_t 
 #ifdef FEATURE_EVENT_TRACE
     // Notify ETW of the root
     if (s_forcedGCInProgress &&
-        ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
+        ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, 
                                      TRACE_LEVEL_INFORMATION, 
                                      CLR_GCHEAPDUMP_KEYWORD))
     {
@@ -6805,6 +6805,12 @@ HRESULT ProfToEEInterfaceImpl::RequestReJITWithInliners(
 
     // Remember the profiler is doing this, as that means we must never detach it!
     g_profControlBlock.pProfInterface->SetUnrevertiblyModifiedILFlag();
+
+    HRESULT hr = SetupThreadForReJIT();
+    if (FAILED(hr))
+    {
+        return hr;
+    }
     
     GCX_PREEMP();
     return ReJitManager::RequestReJIT(cFunctions, moduleIds, methodIds, static_cast<COR_PRF_REJIT_FLAGS>(dwRejitFlags));
@@ -6935,6 +6941,71 @@ HRESULT ProfToEEInterfaceImpl::GetLOHObjectSizeThreshold(DWORD *pThreshold)
 
     *pThreshold = g_pConfig->GetGCLOHThreshold();
 
+    return S_OK;
+}
+
+HRESULT ProfToEEInterfaceImpl::SuspendRuntime()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_ANY;
+        CAN_TAKE_LOCK;
+        EE_THREAD_NOT_REQUIRED;
+    }
+    CONTRACTL_END;
+
+    PROFILER_TO_CLR_ENTRYPOINT_SYNC_EX(
+        kP2EEAllowableAfterAttach | kP2EETriggers,
+        (LF_CORPROF,
+        LL_INFO1000,
+        "**PROF: SuspendRuntime\n"));
+
+    if (!g_fEEStarted)
+    {
+        return CORPROF_E_RUNTIME_UNINITIALIZED;
+    }
+
+    if (ThreadSuspend::SysIsSuspendInProgress() || (ThreadSuspend::GetSuspensionThread() != 0))
+    {
+        return CORPROF_E_SUSPENSION_IN_PROGRESS;
+    }
+    
+    g_profControlBlock.fProfilerRequestedRuntimeSuspend = TRUE;
+    ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_REASON::SUSPEND_FOR_PROFILER);
+    return S_OK;
+}
+
+HRESULT ProfToEEInterfaceImpl::ResumeRuntime()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_ANY;
+        CAN_TAKE_LOCK;
+    }
+    CONTRACTL_END;
+
+    PROFILER_TO_CLR_ENTRYPOINT_SYNC_EX(
+        kP2EEAllowableAfterAttach | kP2EETriggers,
+        (LF_CORPROF,
+        LL_INFO1000,
+        "**PROF: ResumeRuntime\n"));
+    
+    if (!g_fEEStarted)
+    {
+        return CORPROF_E_RUNTIME_UNINITIALIZED;
+    }
+
+    if (!g_profControlBlock.fProfilerRequestedRuntimeSuspend)
+    {
+        return CORPROF_E_UNSUPPORTED_CALL_SEQUENCE;
+    }
+
+    ThreadSuspend::RestartEE(FALSE /* bFinishedGC */, TRUE /* SuspendSucceeded */);
+    g_profControlBlock.fProfilerRequestedRuntimeSuspend = FALSE;
     return S_OK;
 }
 
@@ -7272,7 +7343,7 @@ typedef struct _PROFILER_STACK_WALK_DATA
     ULONG32 contextFlags;
     void *clientData;
     
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     StackFrame sfParent;
 #endif
 } PROFILER_STACK_WALK_DATA;
@@ -7676,7 +7747,7 @@ Loop:
                 CodeManState codeManState;
                 codeManState.dwIsSet = 0;
                 REGDISPLAY rd;
-                ZeroMemory(&rd, sizeof(rd));
+                FillRegDisplay(&rd, &ctxCur);
 
                 rd.SetEbpLocation(&ctxCur.Ebp);
                 rd.SP = ctxCur.Esp;
@@ -7796,15 +7867,6 @@ HRESULT ProfToEEInterfaceImpl::DoStackSnapshot(ThreadID thread,
                                                BYTE * pbContext,
                                               ULONG32 contextSize)
 {
-
-#if !defined(FEATURE_HIJACK)
-
-    // DoStackSnapshot needs Thread::Suspend/ResumeThread functionality.
-    // On platforms w/o support for these APIs return E_NOTIMPL.
-    return E_NOTIMPL;
-
-#else // !defined(FEATURE_HIJACK)
-
     CONTRACTL
     {
         // Yay!  (Note: NOTHROW is vital.  The throw at minimum allocates
@@ -7968,7 +8030,7 @@ HRESULT ProfToEEInterfaceImpl::DoStackSnapshot(ThreadID thread,
     HostCallPreference hostCallPreference;
     
     // First, check "1) Target thread to walk == current thread OR Target thread is suspended"
-    if (pThreadToSnapshot != pCurrentThread)
+    if (pThreadToSnapshot != pCurrentThread && !g_profControlBlock.fProfilerRequestedRuntimeSuspend)
     {
 #ifndef PLATFORM_SUPPORTS_SAFE_THREADSUSPEND
         hr = E_NOTIMPL;
@@ -8151,7 +8213,7 @@ HRESULT ProfToEEInterfaceImpl::DoStackSnapshot(ThreadID thread,
     // inlined P/Invoke.  In this case, the InlinedCallFrame will be used to help start off our
     // stackwalk at the top of the stack.
     //
-    if (pThreadToSnapshot != pCurrentThread)
+    if (pThreadToSnapshot != pCurrentThread && !g_profControlBlock.fProfilerRequestedRuntimeSuspend)
     {
 #ifndef PLATFORM_SUPPORTS_SAFE_THREADSUSPEND
         hr = E_NOTIMPL;
@@ -8206,7 +8268,7 @@ HRESULT ProfToEEInterfaceImpl::DoStackSnapshot(ThreadID thread,
     data.infoFlags = infoFlags;
     data.contextFlags = 0;
     data.clientData = clientData;
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     data.sfParent.Clear();
 #endif
 
@@ -8253,8 +8315,6 @@ Cleanup:
     }
 
     return hr;
-
-#endif // !defined(FEATURE_HIJACK)
 }
 
 
@@ -8601,6 +8661,27 @@ HRESULT ProfToEEInterfaceImpl::GetReJITIDs(
     return ReJitManager::GetReJITIDs(pMD, cReJitIds, pcReJitIds, reJitIds);
 }
 
+
+HRESULT ProfToEEInterfaceImpl::SetupThreadForReJIT()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    HRESULT hr = S_OK;
+    EX_TRY
+    {
+        if (GetThread() == NULL)
+        {
+            SetupThread();
+        }
+
+        Thread *pThread = GetThread();
+        pThread->SetProfilerCallbackStateFlags(COR_PRF_CALLBACKSTATE_REJIT_WAS_CALLED);
+    }
+    EX_CATCH_HRESULT(hr);
+
+    return hr;
+}
+
 HRESULT ProfToEEInterfaceImpl::RequestReJIT(ULONG       cFunctions,   // in
                                             ModuleID    moduleIds[],  // in
                                             mdMethodDef methodIds[])  // in
@@ -8649,6 +8730,12 @@ HRESULT ProfToEEInterfaceImpl::RequestReJIT(ULONG       cFunctions,   // in
 
     // Remember the profiler is doing this, as that means we must never detach it!
     g_profControlBlock.pProfInterface->SetUnrevertiblyModifiedILFlag();
+    
+    HRESULT hr = SetupThreadForReJIT();
+    if (FAILED(hr))
+    {
+        return hr;
+    }
     
     GCX_PREEMP();
     return ReJitManager::RequestReJIT(cFunctions, moduleIds, methodIds, static_cast<COR_PRF_REJIT_FLAGS>(0));
@@ -8706,6 +8793,12 @@ HRESULT ProfToEEInterfaceImpl::RequestRevert(ULONG       cFunctions,  // in
     {
         memset(rgHrStatuses, 0, sizeof(HRESULT) * cFunctions);
         _ASSERTE(S_OK == rgHrStatuses[0]);
+    }
+    
+    HRESULT hr = SetupThreadForReJIT();
+    if (FAILED(hr))
+    {
+        return hr;
     }
 
     GCX_PREEMP();

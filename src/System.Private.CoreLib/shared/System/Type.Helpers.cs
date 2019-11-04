@@ -113,7 +113,7 @@ namespace System
             }
         }
 
-        public virtual Type[] FindInterfaces(TypeFilter filter, object filterCriteria)
+        public virtual Type[] FindInterfaces(TypeFilter filter, object? filterCriteria)
         {
             if (filter == null)
                 throw new ArgumentNullException(nameof(filter));
@@ -140,7 +140,7 @@ namespace System
             return ret;
         }
 
-        public virtual MemberInfo[] FindMembers(MemberTypes memberType, BindingFlags bindingAttr, MemberFilter? filter, object filterCriteria)
+        public virtual MemberInfo[] FindMembers(MemberTypes memberType, BindingFlags bindingAttr, MemberFilter? filter, object? filterCriteria)
         {
             // Define the work arrays
             MethodInfo?[]? m = null;
@@ -150,7 +150,7 @@ namespace System
             EventInfo?[]? e = null;
             Type?[]? t = null;
 
-            int i = 0;
+            int i;
             int cnt = 0;            // Total Matchs
 
             // Check the methods
@@ -339,7 +339,7 @@ namespace System
                 return true;
 
             // For backward-compatibility, we need to special case for the types
-            // whose UnderlyingSystemType are runtime implemented. 
+            // whose UnderlyingSystemType are runtime implemented.
             Type toType = this.UnderlyingSystemType;
             if (toType?.IsRuntimeImplemented() == true)
                 return toType.IsAssignableFrom(c);
@@ -500,4 +500,3 @@ namespace System
         }
     }
 }
-

@@ -418,11 +418,11 @@ IMDInternalImport * CordbProcess::LookupMetaDataFromDebugger(
 #if defined(FEATURE_CORESYSTEM)
             size_t pathLen = wcslen(mutableFilePath);
 
-            const wchar_t *nidll = W(".ni.dll");
-            const wchar_t *niexe = W(".ni.exe");
+            const WCHAR *nidll = W(".ni.dll");
+            const WCHAR *niexe = W(".ni.exe");
             const size_t dllLen = wcslen(nidll);  // used for ni.exe as well
 
-            const wchar_t *niwinmd = W(".ni.winmd");
+            const WCHAR *niwinmd = W(".ni.winmd");
             const size_t winmdLen = wcslen(niwinmd);
 
             if (pathLen > dllLen && _wcsicmp(mutableFilePath+pathLen-dllLen, nidll) == 0)
@@ -11246,7 +11246,7 @@ const EXCEPTION_RECORD * CordbProcess::ValidateExceptionRecord(
     //
 
     // @dbgtodo - , cross-plat: Once we do cross-plat, these should be based off target-architecture not host's.
-#if defined(_WIN64)
+#if defined(BIT64)
     if (format != FORMAT_WINDOWS_EXCEPTIONRECORD64)
     {
         ThrowHR(E_INVALIDARG);

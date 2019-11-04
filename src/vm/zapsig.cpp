@@ -913,11 +913,13 @@ MethodDesc *ZapSig::DecodeMethod(Module *pReferencingModule,
     if (ppTH != NULL)
         *ppTH = thOwner;
 
+#ifndef CROSSGEN_COMPILE
     // Ensure that the methoddescs dependencies have been walked sufficiently for type forwarders to be resolved.
     // This method is actually basically a nop for dependencies which are ngen'd, but is real work for jitted
     // dependencies. (However, this shouldn't be meaningful work that wouldn't happen in any case very soon.)
     pMethod->PrepareForUseAsADependencyOfANativeImage();
-
+#endif // CROSSGEN_COMPILE
+    
     Instantiation inst;
 
     // Instantiate the method if needed, or create a stub to a static method in a generic class.
@@ -1324,9 +1326,11 @@ BOOL ZapSig::EncodeMethod(
     {
         Module * pReferencingModule = pMethod->IsNDirect() ?
             pMethod->GetModule() :
-            (Module *)pResolvedToken->tokenScope;
+            IsDynamicScope(pResolvedToken->tokenScope) ? NULL: GetModule(pResolvedToken->tokenScope);
 
-        if (!pReferencingModule->IsInCurrentVersionBubble())
+        // pReferencingModule may be NULL if the method is a dynamic method.
+
+        if (pReferencingModule != NULL && !pReferencingModule->IsInCurrentVersionBubble())
         {
             // FUTURE: Encoding of new cross-module references for ReadyToRun
             // This warning is hit for recursive cross-module inlining. It is commented out to avoid noise.
@@ -1334,9 +1338,54 @@ BOOL ZapSig::EncodeMethod(
             ThrowHR(E_FAIL);
         }
 
-        methodToken = pMethod->IsNDirect() ?
-            pMethod->GetMemberDef_NoLogging() :
-            pResolvedToken->token;
+        if (pMethod->IsNDirect())
+        {
+            methodToken = pMethod->GetMemberDef_NoLogging();
+        }
+        else if (!IsDynamicScope(pResolvedToken->tokenScope))
+        {
+            // Normal case for IL code
+            methodToken = pResolvedToken->token;
+        }
+        else
+        {
+            // Dynamic scope case. IL Stubs only
+            if (!pMethod->GetModule()->IsSystem())
+            {
+                _ASSERTE(FALSE); // IL stubs are expected to only have references to System.
+                ThrowHR(E_FAIL);
+            }
+
+            if (pInfoModule == pMethod->GetModule())
+            {
+                // This is assuming that the current module being compiled is the same as the module
+                // associated with the method being called. If so, we can identify the method by a MethodDef
+                // token. Otherwise, a more complex operation would be necessary.
+                methodToken = pMethod->GetMemberDef_NoLogging();
+            }
+            else
+            {
+                // Attempt to compile IL stub with use of helper function outside of CoreLib
+                _ASSERTE(FALSE);
+                ThrowHR(E_FAIL); 
+            }
+
+            if (!ownerType.IsTypicalTypeDefinition() || pMethod->HasMethodInstantiation())
+            {
+                _ASSERTE(FALSE); // IL Stubs are not expected to have use of generic functions
+                ThrowHR(E_FAIL); // Attempt to compile IL stub with use of generic function. This encoding does not support that.
+            }
+        }
+
+        if (TypeFromToken(methodToken) != mdtMethodDef)
+        {
+            if (pReferencingModule == NULL)
+            {
+                // Invalid situation. Null pReferencingModule can only happen with a dynamic scope,
+                // and in that case the reference can only be a methoddef.
+                ThrowHR(E_FAIL);
+            }
+        }
 
         if (TypeFromToken(methodToken) == mdtMethodSpec)
         {
@@ -1447,9 +1496,14 @@ BOOL ZapSig::EncodeMethod(
             _ASSERTE(pResolvedToken->cbTypeSpec > 0);
 
             DWORD moduleIndex = MODULE_INDEX_NONE;
-            if ((IsReadyToRunCompilation() && pMethod->GetModule()->IsInCurrentVersionBubble() && pInfoModule != (Module *) pResolvedToken->tokenScope))
+            if ((IsReadyToRunCompilation() && pMethod->GetModule()->IsInCurrentVersionBubble() && pInfoModule != GetModule(pResolvedToken->tokenScope)))
             {
-                moduleIndex = (*((EncodeModuleCallback)pfnEncodeModule))(pEncodeModuleContext, (Module *) pResolvedToken->tokenScope);
+                if (IsDynamicScope(pResolvedToken->tokenScope))
+                {
+                    _ASSERTE(FALSE); // IL stubs aren't expected to call methods which need this
+                    ThrowHR(E_FAIL);
+                }
+                moduleIndex = (*((EncodeModuleCallback)pfnEncodeModule))(pEncodeModuleContext, (Module *) GetModule(pResolvedToken->tokenScope));
             }
 
             SigParser sigParser(pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
@@ -1492,10 +1546,16 @@ BOOL ZapSig::EncodeMethod(
             IfFailThrow(sigParser.GetData(&numGenArgs));
             pSigBuilder->AppendData(numGenArgs);
 
-            DWORD moduleIndex = MODULE_INDEX_NONE;
-            if ((IsReadyToRunCompilation() && pMethod->GetModule()->IsInCurrentVersionBubble() && pInfoModule != (Module *) pResolvedToken->tokenScope))
+            if (IsDynamicScope(pResolvedToken->tokenScope))
             {
-                moduleIndex = (*((EncodeModuleCallback)pfnEncodeModule))(pEncodeModuleContext, (Module *) pResolvedToken->tokenScope);
+                _ASSERTE(FALSE); // IL stubs aren't expected to call methods which need this
+                ThrowHR(E_FAIL);
+            }
+
+            DWORD moduleIndex = MODULE_INDEX_NONE;
+            if (IsReadyToRunCompilation() && pMethod->GetModule()->IsInCurrentVersionBubble() && pInfoModule != GetModule(pResolvedToken->tokenScope))
+            {
+                moduleIndex = (*((EncodeModuleCallback)pfnEncodeModule))(pEncodeModuleContext, GetModule(pResolvedToken->tokenScope));
             }
 
             while (numGenArgs != 0)
@@ -1530,10 +1590,15 @@ BOOL ZapSig::EncodeMethod(
         {
             _ASSERTE(pConstrainedResolvedToken->cbTypeSpec > 0);
 
-            DWORD moduleIndex = (DWORD)-1;
-            if (IsReadyToRunCompilation() && pMethod->GetModule()->IsInCurrentVersionBubble() && pInfoModule != (Module *) pConstrainedResolvedToken->tokenScope)
+            DWORD moduleIndex = MODULE_INDEX_NONE;
+            if (IsReadyToRunCompilation() && pMethod->GetModule()->IsInCurrentVersionBubble() && pInfoModule != GetModule(pConstrainedResolvedToken->tokenScope))
             {
-                moduleIndex = (*((EncodeModuleCallback)pfnEncodeModule))(pEncodeModuleContext, (Module *) pConstrainedResolvedToken->tokenScope);
+                if (IsDynamicScope(pConstrainedResolvedToken->tokenScope))
+                {
+                    _ASSERTE(FALSE); // IL stubs aren't expected to call methods which need this
+                    ThrowHR(E_FAIL);
+                }
+                moduleIndex = (*((EncodeModuleCallback)pfnEncodeModule))(pEncodeModuleContext, GetModule(pConstrainedResolvedToken->tokenScope));
             }
 
             SigParser sigParser(pConstrainedResolvedToken->pTypeSpec, pConstrainedResolvedToken->cbTypeSpec);
@@ -1584,7 +1649,13 @@ void ZapSig::EncodeField(
         // Encode the referencing field type
         pMT = (MethodTable *)(pResolvedToken->hClass);
 
-        Module * pReferencingModule = (Module *)pResolvedToken->tokenScope;
+        if (IsDynamicScope(pResolvedToken->tokenScope))
+        {
+            _ASSERTE(FALSE); // IL stubs aren't expected to need to access this sort of field
+            ThrowHR(E_FAIL);
+        }
+
+        Module * pReferencingModule = GetModule(pResolvedToken->tokenScope);
 
         if (!pReferencingModule->IsInCurrentVersionBubble())
         {

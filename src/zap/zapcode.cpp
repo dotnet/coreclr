@@ -50,7 +50,7 @@ ZapVirtualSection * ZapImage::GetCodeSection(CodeType codeType)
     UNREACHABLE();
 }
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
 ZapVirtualSection * ZapImage::GetUnwindDataSection(CodeType codeType)
 {
 #ifdef REDHAWK
@@ -69,7 +69,7 @@ ZapVirtualSection * ZapImage::GetUnwindDataSection(CodeType codeType)
 #endif // REDHAWK
     UNREACHABLE();
 }
-#endif // defined(WIN64EXCEPTIONS)
+#endif // defined(FEATURE_EH_FUNCLETS)
 
 ZapVirtualSection * ZapImage::GetRuntimeFunctionSection(CodeType codeType)
 {
@@ -152,9 +152,9 @@ void ZapImage::OutputCode(CodeType codeType)
     ZapVirtualSection * pCodeSection = GetCodeSection(codeType);
     ZapVirtualSection * pRuntimeFunctionSection = GetRuntimeFunctionSection(codeType);
 
-#if defined (WIN64EXCEPTIONS)
+#if defined (FEATURE_EH_FUNCLETS)
     ZapVirtualSection * pUnwindDataSection = GetUnwindDataSection(codeType);
-#endif // defined (WIN64EXCEPTIONS)
+#endif // defined (FEATURE_EH_FUNCLETS)
 
     DWORD codeSize = 0;
 
@@ -293,7 +293,7 @@ void ZapImage::OutputCode(CodeType codeType)
             }
         }
 
-#if defined (WIN64EXCEPTIONS)
+#if defined (FEATURE_EH_FUNCLETS)
         //
         // Place unwind data
         //
@@ -346,7 +346,7 @@ void ZapImage::OutputCode(CodeType codeType)
             }
         }
 
-#else // defined (WIN64EXCEPTIONS)
+#else // defined (FEATURE_EH_FUNCLETS)
 
         ZapUnwindInfo * pUnwindInfo;
         if (fCold)
@@ -362,7 +362,7 @@ void ZapImage::OutputCode(CodeType codeType)
         }
         pRuntimeFunctionSection->Place(pUnwindInfo);
 
-#endif // defined (WIN64EXCEPTIONS)
+#endif // defined (FEATURE_EH_FUNCLETS)
 
         if (m_stats != NULL)
         {
@@ -800,8 +800,7 @@ void ZapImage::AddRelocsForEHClauses(ZapExceptionInfo * pExceptionInfo)
 // ZapMethodHeader
 //
 
-#if defined(_TARGET_X86_)
-
+#ifdef _TARGET_X86_
 DWORD ZapCodeBlob::ComputeRVA(ZapWriter * pZapWriter, DWORD dwPos)
 {
     void * pData = GetData();
@@ -810,7 +809,6 @@ DWORD ZapCodeBlob::ComputeRVA(ZapWriter * pZapWriter, DWORD dwPos)
 
     dwPos = AlignUp(dwPos, dwAlignment);
 
-#ifdef _TARGET_X86_
     //
     // Padding for straddler relocations.
     //
@@ -839,7 +837,6 @@ DWORD ZapCodeBlob::ComputeRVA(ZapWriter * pZapWriter, DWORD dwPos)
     SetRVA(dwPaddedPos);
 
     return dwPaddedPos + size;
-#endif // _TARGET_X86_
 }
 
 template <DWORD alignment>
@@ -894,9 +891,7 @@ ZapCodeBlob * ZapCodeBlob::NewAlignedBlob(ZapWriter * pWriter, PVOID pData, SIZE
         return NULL;
     }
 }
-
-#endif
-
+#endif // _TARGET_X86_
 
 // See function prototype for details on why this iterator is "partial"
 BOOL ZapMethodHeader::PartialTargetMethodIterator::GetNext(CORINFO_METHOD_HANDLE *pHnd)
@@ -948,7 +943,7 @@ void ZapCodeMethodDescs::Save(ZapWriter * pZapWriter)
         pImage->Write(&dwRVA, sizeof(dwRVA));
         nUnwindInfos++;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
         ZapUnwindInfo * pFragment = pMethod->m_pUnwindInfoFragments;
         while (pFragment != NULL)
         {
@@ -1044,7 +1039,7 @@ ZapNode * ZapMethodEntryPointTable::CanDirectCall(ZapMethodEntryPoint * pMethodE
     }
 }
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
 ZapGCInfo * ZapGCInfoTable::GetGCInfo(PVOID pGCInfo, SIZE_T cbGCInfo, PVOID pUnwindInfo, SIZE_T cbUnwindInfo)
 {
     ZapGCInfo * pNode = m_blobs.Lookup(GCInfoKey(pGCInfo, cbGCInfo, pUnwindInfo, cbUnwindInfo));
@@ -1125,7 +1120,7 @@ void ZapUnwindInfo::Save(ZapWriter * pZapWriter)
     pZapWriter->Write(&runtimeFunction, sizeof(runtimeFunction));
 }
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
 // Compare the unwind infos by their offset
 int __cdecl ZapUnwindInfo::CompareUnwindInfo(const void* a_, const void* b_)
 {
@@ -1324,7 +1319,7 @@ ZapUnwindData * ZapUnwindDataTable::GetUnwindData(PVOID pBlob, SIZE_T cbBlob, BO
     m_blobs.Add(pNode);
     return pNode;
 }
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 //
 // ZapDebugInfo
@@ -1637,7 +1632,7 @@ void ZapColdCodeMap::Save(ZapWriter* pZapWriter)
 
         ZapUnwindInfo* pUnwindInfo = (ZapUnwindInfo*)m_pRuntimeFunctionSection->GetNode(i);
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
         if (pUnwindInfo->GetCode() == pPendingCode)
         {
             entry.mainFunctionEntryRVA = 0;
@@ -1658,7 +1653,7 @@ void ZapColdCodeMap::Save(ZapWriter* pZapWriter)
                 curMethod++;
             }
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
             entry.mainFunctionEntryRVA = pMethod->m_pUnwindInfo->GetRVA();
 #endif
 

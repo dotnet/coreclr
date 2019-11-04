@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -50,7 +49,7 @@ namespace System.Buffers
 
         private int _callbackCreated;
 
-        private readonly static bool s_trimBuffers = GetTrimBuffers();
+        private static readonly bool s_trimBuffers = GetTrimBuffers();
 
         /// <summary>
         /// Used to keep track of all thread local buckets for trimming if needed
@@ -136,13 +135,13 @@ namespace System.Buffers
                 }
 
                 // No buffer available.  Allocate a new buffer with a size corresponding to the appropriate bucket.
-                buffer = new T[_bucketArraySizes[bucketIndex]];
+                buffer = GC.AllocateUninitializedArray<T>(_bucketArraySizes[bucketIndex]);
             }
             else
             {
                 // The request was for a size too large for the pool.  Allocate an array of exactly the requested length.
                 // When it's returned to the pool, we'll simply throw it away.
-                buffer = new T[minimumLength];
+                buffer = GC.AllocateUninitializedArray<T>(minimumLength);
             }
 
             if (log.IsEnabled())

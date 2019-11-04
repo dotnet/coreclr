@@ -1326,6 +1326,7 @@ Stub *GenerateInitPInvokeFrameHelper()
     ThumbReg regFrame   = ThumbReg(4);
     ThumbReg regThread  = ThumbReg(5);
     ThumbReg regScratch = ThumbReg(6);
+    ThumbReg regR9 = ThumbReg(9);
 
 #ifdef FEATURE_PAL
     // Erect frame to perform call to GetThread
@@ -1356,8 +1357,11 @@ Stub *GenerateInitPInvokeFrameHelper()
     psl->ThumbEmitLoadRegIndirect(regScratch, regThread, offsetof(Thread, m_pFrame));
     psl->ThumbEmitStoreRegIndirect(regScratch, regFrame, FrameInfo.offsetOfFrameLink - negSpace);
 
-    // str FP, [regFrame + FrameInfo.offsetOfCalleeSavedEbp]
+    // str FP, [regFrame + FrameInfo.offsetOfCalleeSavedFP]
     psl->ThumbEmitStoreRegIndirect(thumbRegFp, regFrame, FrameInfo.offsetOfCalleeSavedFP - negSpace);
+
+    // str R9, [regFrame + FrameInfo.offsetOfSPAfterProlog]
+    psl->ThumbEmitStoreRegIndirect(regR9, regFrame, FrameInfo.offsetOfSPAfterProlog - negSpace);
 
     // mov [regFrame + FrameInfo.offsetOfReturnAddress], 0
     psl->ThumbEmitMovConstant(regScratch, 0);
@@ -1824,33 +1828,42 @@ void StubLinkerCPU::ThumbEmitCallWithGenericInstantiationParameter(MethodDesc *p
     if (cArgDescriptors > 1)
     {
         // Start by assuming we have all four register destination descriptors.
-        DWORD idxLastRegDesc = min(3, cArgDescriptors - 1);
+        int idxLastRegDesc = min(3, cArgDescriptors - 1);
 
         // Adjust that count to match reality.
-        while (!rgArgDescs[idxLastRegDesc].m_fDstIsReg)
+        while (idxLastRegDesc >= 0 && !rgArgDescs[idxLastRegDesc].m_fDstIsReg)
         {
-            _ASSERTE(idxLastRegDesc > 0);
             idxLastRegDesc--;
         }
-
-        // First move to stack location happens after the last move to register location
-        idxFirstMoveToStack = idxLastRegDesc+1;
-
-        // Calculate how many descriptors we'll need to swap.
-        DWORD cSwaps = (idxLastRegDesc + 1) / 2;
-
-        // Finally we can swap the descriptors.
-        DWORD idxFirstRegDesc = 0;
-        while (cSwaps)
+        
+        if (idxLastRegDesc < 0)
         {
-            ArgDesc sTempDesc = rgArgDescs[idxLastRegDesc];
-            rgArgDescs[idxLastRegDesc] = rgArgDescs[idxFirstRegDesc];
-            rgArgDescs[idxFirstRegDesc] = sTempDesc;
+            // No register is used to pass any of the parameters. No need to reverse the order of the descriptors
+            idxFirstMoveToStack = 0;
+        }
+        else
+        {
+            _ASSERTE(idxLastRegDesc >= 0 && ((DWORD)idxLastRegDesc) < cArgDescriptors);
+            
+            // First move to stack location happens after the last move to register location
+            idxFirstMoveToStack = idxLastRegDesc+1;
 
-            _ASSERTE(idxFirstRegDesc < idxLastRegDesc);
-            idxFirstRegDesc++;
-            idxLastRegDesc--;
-            cSwaps--;
+            // Calculate how many descriptors we'll need to swap.
+            DWORD cSwaps = (idxLastRegDesc + 1) / 2;
+
+            // Finally we can swap the descriptors.
+            int idxFirstRegDesc = 0;
+            while (cSwaps)
+            {
+                ArgDesc sTempDesc = rgArgDescs[idxLastRegDesc];
+                rgArgDescs[idxLastRegDesc] = rgArgDescs[idxFirstRegDesc];
+                rgArgDescs[idxFirstRegDesc] = sTempDesc;
+
+                _ASSERTE(idxFirstRegDesc < idxLastRegDesc);
+                idxFirstRegDesc++;
+                idxLastRegDesc--;
+                cSwaps--;
+            }
         }
     }
 
@@ -2365,8 +2378,8 @@ void InlinedCallFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 
     // This is necessary to unwind methods with alloca. This needs to stay 
     // in sync with definition of REG_SAVED_LOCALLOC_SP in the JIT.
-    pRD->pCurrentContext->R9 = (DWORD) dac_cast<TADDR>(m_pCallSiteSP);
-    pRD->pCurrentContextPointers->R9 = (DWORD *)&m_pCallSiteSP;
+    pRD->pCurrentContext->R9 = (DWORD) dac_cast<TADDR>(m_pSPAfterProlog);
+    pRD->pCurrentContextPointers->R9 = (DWORD *)&m_pSPAfterProlog;
 
     RETURN;
 }

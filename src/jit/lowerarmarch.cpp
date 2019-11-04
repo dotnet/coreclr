@@ -93,8 +93,12 @@ bool Lowering::IsContainableImmed(GenTree* parentNode, GenTree* childNode)
             case GT_GE:
             case GT_GT:
             case GT_ARR_BOUNDS_CHECK:
+#ifdef FEATURE_SIMD
             case GT_SIMD_CHK:
+#endif
+#ifdef FEATURE_HW_INTRINSICS
             case GT_HW_INTRINSIC_CHK:
+#endif
                 return emitter::emitIns_valid_imm_for_cmp(immVal, size);
             case GT_AND:
             case GT_OR:
@@ -153,7 +157,7 @@ void Lowering::LowerStoreLoc(GenTreeLclVarCommon* storeLoc)
     {
         GenTreeIntCon* con    = op1->AsIntCon();
         ssize_t        ival   = con->gtIconVal;
-        unsigned       varNum = storeLoc->gtLclNum;
+        unsigned       varNum = storeLoc->GetLclNum();
         LclVarDsc*     varDsc = comp->lvaTable + varNum;
 
         if (varDsc->lvIsSIMDType())
@@ -198,7 +202,7 @@ void Lowering::LowerStoreLoc(GenTreeLclVarCommon* storeLoc)
     if (storeLoc->OperIs(GT_STORE_LCL_FLD))
     {
         // We should only encounter this for lclVars that are lvDoNotEnregister.
-        verifyLclFldDoNotEnregister(storeLoc->gtLclNum);
+        verifyLclFldDoNotEnregister(storeLoc->GetLclNum());
     }
     ContainCheckStoreLoc(storeLoc);
 }
@@ -229,7 +233,7 @@ void Lowering::LowerStoreIndir(GenTreeIndir* node)
 void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
 {
     GenTree*  dstAddr  = blkNode->Addr();
-    unsigned  size     = blkNode->gtBlkSize;
+    unsigned  size     = blkNode->Size();
     GenTree*  source   = blkNode->Data();
     Compiler* compiler = comp;
 
@@ -240,7 +244,7 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
     if (!isInitBlk)
     {
         // CopyObj or CopyBlk
-        if ((blkNode->OperGet() == GT_STORE_OBJ) && ((blkNode->AsObj()->gtGcPtrCount == 0) || blkNode->gtBlkOpGcUnsafe))
+        if (blkNode->OperIs(GT_STORE_OBJ) && (!blkNode->AsObj()->GetLayout()->HasGCPtr() || blkNode->gtBlkOpGcUnsafe))
         {
             blkNode->SetOper(GT_STORE_BLK);
         }
@@ -308,17 +312,16 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
             // CopyObj
             GenTreeObj* objNode = blkNode->AsObj();
 
-            unsigned slots = objNode->gtSlots;
+            unsigned slots = objNode->GetLayout()->GetSlotCount();
 
 #ifdef DEBUG
             // CpObj must always have at least one GC-Pointer as a member.
-            assert(objNode->gtGcPtrCount > 0);
+            assert(objNode->GetLayout()->HasGCPtr());
 
             assert(dstAddr->gtType == TYP_BYREF || dstAddr->gtType == TYP_I_IMPL);
 
-            CORINFO_CLASS_HANDLE clsHnd    = objNode->gtClass;
-            size_t               classSize = compiler->info.compCompHnd->getClassSize(clsHnd);
-            size_t               blkSize   = roundUp(classSize, TARGET_POINTER_SIZE);
+            size_t classSize = objNode->GetLayout()->GetSize();
+            size_t blkSize   = roundUp(classSize, TARGET_POINTER_SIZE);
 
             // Currently, the EE always round up a class data structure so
             // we are not handling the case where we have a non multiple of pointer sized
@@ -327,7 +330,6 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
             // handle this case.
             assert(classSize == blkSize);
             assert((blkSize / TARGET_POINTER_SIZE) == slots);
-            assert(objNode->HasGCPtr());
 #endif
 
             blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindUnroll;
@@ -490,56 +492,6 @@ void Lowering::LowerSIMD(GenTreeSIMD* simdNode)
 //
 void Lowering::LowerHWIntrinsic(GenTreeHWIntrinsic* node)
 {
-    auto intrinsicID   = node->gtHWIntrinsicId;
-    auto intrinsicInfo = HWIntrinsicInfo::lookup(node->gtHWIntrinsicId);
-
-    //
-    // Lower unsupported Unsigned Compare Zero intrinsics to their trivial transformations
-    //
-    // ARM64 does not support most forms of compare zero for Unsigned values
-    // This is because some are non-sensical, and the rest are trivial transformations of other operators
-    //
-    if ((intrinsicInfo.flags & HWIntrinsicInfo::LowerCmpUZero) && varTypeIsUnsigned(node->gtSIMDBaseType))
-    {
-        auto setAllVector = node->gtSIMDSize > 8 ? NI_ARM64_SIMD_SetAllVector128 : NI_ARM64_SIMD_SetAllVector64;
-
-        auto origOp1 = node->gtOp.gtOp1;
-
-        switch (intrinsicID)
-        {
-            case NI_ARM64_SIMD_GT_ZERO:
-                // Unsigned > 0 ==> !(Unsigned == 0)
-                node->gtOp.gtOp1 =
-                    comp->gtNewSimdHWIntrinsicNode(node->TypeGet(), node->gtOp.gtOp1, NI_ARM64_SIMD_EQ_ZERO,
-                                                   node->gtSIMDBaseType, node->gtSIMDSize);
-                node->gtHWIntrinsicId = NI_ARM64_SIMD_BitwiseNot;
-                BlockRange().InsertBefore(node, node->gtOp.gtOp1);
-                break;
-            case NI_ARM64_SIMD_LE_ZERO:
-                // Unsigned <= 0 ==> Unsigned == 0
-                node->gtHWIntrinsicId = NI_ARM64_SIMD_EQ_ZERO;
-                break;
-            case NI_ARM64_SIMD_GE_ZERO:
-            case NI_ARM64_SIMD_LT_ZERO:
-                // Unsigned >= 0 ==> Always true
-                // Unsigned < 0 ==> Always false
-                node->gtHWIntrinsicId = setAllVector;
-                node->gtOp.gtOp1      = comp->gtNewLconNode((intrinsicID == NI_ARM64_SIMD_GE_ZERO) ? ~0ULL : 0ULL);
-                BlockRange().InsertBefore(node, node->gtOp.gtOp1);
-                if ((origOp1->gtFlags & GTF_ALL_EFFECT) == 0)
-                {
-                    BlockRange().Remove(origOp1, true);
-                }
-                else
-                {
-                    origOp1->SetUnusedValue();
-                }
-                break;
-            default:
-                assert(!"Unhandled LowerCmpUZero case");
-        }
-    }
-
     ContainCheckHWIntrinsic(node);
 }
 #endif // FEATURE_HW_INTRINSICS
@@ -870,59 +822,19 @@ void Lowering::ContainCheckSIMD(GenTreeSIMD* simdNode)
 //
 void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
 {
-    GenTreeArgList* argList = nullptr;
-    GenTree*        op1     = node->gtOp.gtOp1;
-    GenTree*        op2     = node->gtOp.gtOp2;
+    NamedIntrinsic      intrinsicId = node->gtHWIntrinsicId;
+    HWIntrinsicCategory category    = HWIntrinsicInfo::lookupCategory(intrinsicId);
+    int                 numArgs     = HWIntrinsicInfo::lookupNumArgs(node);
+    var_types           baseType    = node->gtSIMDBaseType;
 
-    if (op1->OperIs(GT_LIST))
+    GenTree* op1 = node->gtGetOp1();
+    GenTree* op2 = node->gtGetOp2();
+    GenTree* op3 = nullptr;
+
+    if (!HWIntrinsicInfo::SupportsContainment(intrinsicId))
     {
-        argList = op1->AsArgList();
-        op1     = argList->Current();
-        op2     = argList->Rest()->Current();
-    }
-
-    switch (HWIntrinsicInfo::lookup(node->gtHWIntrinsicId).form)
-    {
-        case HWIntrinsicInfo::SimdExtractOp:
-            if (op2->IsCnsIntOrI())
-            {
-                MakeSrcContained(node, op2);
-            }
-            break;
-
-        case HWIntrinsicInfo::SimdInsertOp:
-            if (op2->IsCnsIntOrI())
-            {
-                MakeSrcContained(node, op2);
-
-#if 0
-                // This is currently not supported downstream. The following (at least) need to be modifed:
-                //   GenTree::isContainableHWIntrinsic() needs to handle this.
-                //   CodeGen::genConsumRegs()
-                // 
-                GenTree* op3 = argList->Rest()->Rest()->Current();
-
-                // In the HW intrinsics C# API there is no direct way to specify a vector element to element mov
-                //   VX[a] = VY[b]
-                // In C# this would naturally be expressed by
-                //   Insert(VX, a, Extract(VY, b))
-                // If both a & b are immediate constants contain the extract/getItem so that we can emit
-                //   the single instruction mov Vx[a], Vy[b]
-                if (op3->OperIs(GT_HWIntrinsic) && (op3->AsHWIntrinsic()->gtHWIntrinsicId == NI_ARM64_SIMD_GetItem))
-                {
-                    ContainCheckHWIntrinsic(op3->AsHWIntrinsic());
-
-                    if (op3->gtOp.gtOp2->isContained())
-                    {
-                        MakeSrcContained(node, op3);
-                    }
-                }
-#endif
-            }
-            break;
-
-        default:
-            break;
+        // Exit early if containment isn't supported
+        return;
     }
 }
 #endif // FEATURE_HW_INTRINSICS

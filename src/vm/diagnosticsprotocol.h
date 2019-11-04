@@ -34,8 +34,8 @@ template <typename T>
 bool TryParseString(uint8_t *&bufferCursor, uint32_t &bufferLen, const T *&result)
 {
     static_assert(
-        std::is_same<T, char>::value || std::is_same<T, wchar_t>::value,
-        "Can only be instantiated with char and wchar_t types.");
+        std::is_same<T, char>::value || std::is_same<T, WCHAR>::value,
+        "Can only be instantiated with char and WCHAR types.");
 
     uint32_t stringLen = 0;
     if (!TryParse(bufferCursor, bufferLen, stringLen))
@@ -203,6 +203,8 @@ namespace DiagnosticsIpc
             }
             CONTRACTL_END;
 
+            m_Header = header;
+
             return FlattenImpl<T>(payload);
         };
 
@@ -217,6 +219,8 @@ namespace DiagnosticsIpc
                 MODE_PREEMPTIVE;
             }
             CONTRACTL_END;
+
+            m_Header = header;
 
             return FlattenImpl<T>(payload);
         };
@@ -371,6 +375,11 @@ namespace DiagnosticsIpc
             uint32_t nBytesRead;
             bool success = pStream->Read(&m_Header, sizeof(IpcHeader), nBytesRead);
             if (!success || nBytesRead < sizeof(IpcHeader))
+            {
+                return false;
+            }
+
+            if (m_Header.Size < sizeof(IpcHeader))
             {
                 return false;
             }

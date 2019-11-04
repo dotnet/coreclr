@@ -2,18 +2,14 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+// TypedReference is basically only ever seen on the call stack, and in param arrays.
+//  These are blob that must be dealt with by the compiler.
+
+using System.Reflection;
+using System.Runtime.CompilerServices;
+
 namespace System
 {
-    // TypedReference is basically only ever seen on the call stack, and in param arrays.
-    //  These are blob that must be dealt with by the compiler.
-
-    using System;
-    using System.Reflection;
-    using System.Runtime.CompilerServices;
-    using CultureInfo = System.Globalization.CultureInfo;
-    using FieldInfo = System.Reflection.FieldInfo;
-    using System.Runtime.Versioning;
-
     [CLSCompliant(false)]
     [System.Runtime.Versioning.NonVersionable] // This only applies to field layout
     public ref struct TypedReference
@@ -33,7 +29,7 @@ namespace System
 
             IntPtr[] fields = new IntPtr[flds.Length];
             // For proper handling of Nullable<T> don't change GetType() to something like 'IsAssignableFrom'
-            // Currently we can't make a TypedReference to fields of Nullable<T>, which is fine.  
+            // Currently we can't make a TypedReference to fields of Nullable<T>, which is fine.
             RuntimeType targetType = (RuntimeType)target.GetType();
             for (int i = 0; i < flds.Length; i++)
             {
@@ -68,7 +64,7 @@ namespace System
             return result;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         // reference to TypedReference is banned, so have to pass result as pointer
         private static extern unsafe void InternalMakeTypedReference(void* result, object target, IntPtr[] flds, RuntimeType lastFieldType);
 
@@ -90,16 +86,10 @@ namespace System
             return InternalToObject(&value);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern unsafe object InternalToObject(void* value);
 
-        internal bool IsNull
-        {
-            get
-            {
-                return Value == IntPtr.Zero && Type == IntPtr.Zero;
-            }
-        }
+        internal bool IsNull => Value == IntPtr.Zero && Type == IntPtr.Zero;
 
         public static Type GetTargetType(TypedReference value)
         {
@@ -111,14 +101,9 @@ namespace System
             return __reftype(value).TypeHandle;
         }
 
-        //  This may cause the type to be changed.
-        [CLSCompliant(false)]
-        public static unsafe void SetTypedReference(TypedReference target, object? value)
+        public static void SetTypedReference(TypedReference target, object? value)
         {
-            InternalSetTypedReference(&target, value);
+            throw new NotSupportedException();
         }
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern unsafe void InternalSetTypedReference(void* target, object? value);
     }
 }

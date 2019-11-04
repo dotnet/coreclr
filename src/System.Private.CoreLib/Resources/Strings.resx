@@ -668,7 +668,7 @@
     <value>Insufficient memory to continue the execution of the program.</value>
   </data>
   <data name="Arg_ParamName_Name" xml:space="preserve">
-    <value>Parameter name: {0}</value>
+    <value>(Parameter '{0}')</value>
   </data>
   <data name="Arg_ParmArraySize" xml:space="preserve">
     <value>Must specify one or more parameters.</value>
@@ -2222,13 +2222,13 @@
     <value>Event {0} specifies an illegal or unsupported formatting message ("{1}").</value>
   </data>
   <data name="EventSource_VarArgsParameterMismatch" xml:space="preserve">
-    <value>The parameters to the Event method do not match the parameters to the WriteEvent method. This may cause the event to be displayed incorrectly.</value>
+    <value>Event {0} was called with a different type as defined (argument "{1}"). This may cause the event to be displayed incorrectly.</value>
   </data>
   <data name="Exception_EndOfInnerExceptionStack" xml:space="preserve">
     <value>--- End of inner exception stack trace ---</value>
   </data>
   <data name="Exception_EndStackTraceFromPreviousThrow" xml:space="preserve">
-    <value>--- End of stack trace from previous location where exception was thrown ---</value>
+    <value>--- End of stack trace from previous location ---</value>
   </data>
   <data name="Exception_WasThrown" xml:space="preserve">
     <value>Exception of type '{0}' was thrown.</value>
@@ -2956,6 +2956,9 @@
   <data name="NotSupported_GlobalMethodSerialization" xml:space="preserve">
     <value>Serialization of global methods (including implicit serialization via the use of asynchronous delegates) is not supported.</value>
   </data>
+    <data name="InvalidOperation_SpanOverlappedOperation" xml:space="preserve">
+    <value>This operation is invalid on overlapping buffers.</value>
+  </data>
   <data name="NotSupported_IDispInvokeDefaultMemberWithNamedArgs" xml:space="preserve">
     <value>Invoking default method with named arguments is not supported.</value>
   </data>
@@ -3382,9 +3385,6 @@
   <data name="Serialization_MissingValues" xml:space="preserve">
     <value>The values for this dictionary are missing.</value>
   </data>
-  <data name="Serialization_NonSerType" xml:space="preserve">
-    <value>Type '{0}' in Assembly '{1}' is not marked as serializable.</value>
-  </data>
   <data name="Serialization_NoParameterInfo" xml:space="preserve">
     <value>Serialized member does not have a ParameterInfo.</value>
   </data>
@@ -3765,5 +3765,17 @@
   </data>
   <data name="InvalidOperation_MultipleComUnRegFunctions" xml:space="preserve">
     <value>Type '{0}' has more than one COM unregistration function.</value>
+  </data>
+  <data name="Utf8String_CannotSplitMultibyteSubsequence" xml:space="preserve">
+    <value>Cannot create the desired substring because it would split a multi-byte UTF-8 subsequence.</value>
+  </data>
+  <data name="Utf8Span_CannotCallEqualsObject" xml:space="preserve">
+    <value>Cannot call Utf8Span.Equals(object). Use Equals(Utf8Span) or operator == instead.</value>
+  </data>
+  <data name="ArgumentOutOfRange_Utf16SurrogatesDisallowed" xml:space="preserve">
+    <value>UTF-16 surrogate code points (U+D800..U+DFFF) are disallowed.</value>
+  </data>
+  <data name="Argument_CannotBeEmptySpan" xml:space="preserve">
+    <value>Argument cannot be an empty span.</value>
   </data>
 </root>

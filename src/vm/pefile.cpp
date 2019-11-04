@@ -49,7 +49,7 @@ SVAL_IMPL_INIT(DWORD, PEFile, s_NGENDebugFlags, 0);
 // <TODO>@todo: rename TargetFile</TODO>
 // ================================================================================
 
-PEFile::PEFile(PEImage *identity, BOOL fCheckAuthenticodeSignature/*=TRUE*/) :
+PEFile::PEFile(PEImage *identity) :
 #if _DEBUG
     m_pDebugName(NULL),
 #endif
@@ -57,7 +57,6 @@ PEFile::PEFile(PEImage *identity, BOOL fCheckAuthenticodeSignature/*=TRUE*/) :
     m_openedILimage(NULL),
 #ifdef FEATURE_PREJIT    
     m_nativeImage(NULL),
-    m_fCanUseNativeImage(TRUE),
 #endif
     m_MDImportIsRW_Debugger_Use_Only(FALSE),
     m_bHasPersistentMDImport(FALSE),
@@ -168,7 +167,7 @@ PEFile *PEFile::Open(PEImage *image)
     }
     CONTRACT_END;
 
-    PEFile *pFile = new PEFile(image, FALSE);
+    PEFile *pFile = new PEFile(image);
 
     if (image->HasNTHeaders() && image->HasCorHeader())
         pFile->OpenMDImport_Unsafe(); //no one else can see the object yet
@@ -181,24 +180,6 @@ PEFile *PEFile::Open(PEImage *image)
 
     RETURN pFile;
 }
-
-// ------------------------------------------------------------
-// Loader support routines
-// ------------------------------------------------------------
-
-template<class T> void CoTaskFree(T *p)
-{
-    if (p != NULL)
-    {
-        p->T::~T();
-
-        CoTaskMemFree(p);
-    }
-}
-
-
-NEW_WRAPPER_TEMPLATE1(CoTaskNewHolder, CoTaskFree<_TYPE>);
-
 
 //-----------------------------------------------------------------------------------------------------
 // Catch attempts to load x64 assemblies on x86, etc.
@@ -233,7 +214,7 @@ static void ValidatePEFileMachineType(PEFile *peFile)
         // Or to put it another way, this #ifdef makes the (4.5 only) ValidatePEFileMachineType() a NOP for x64, hence preserving 4.0 compatibility.
         if (actualMachineType == IMAGE_FILE_MACHINE_I386 || actualMachineType == IMAGE_FILE_MACHINE_IA64)
             return;
-#endif // _WIN64_
+#endif // BIT64_
 
         // Image has required machine that doesn't match the CLR.
         StackSString name;
@@ -1885,7 +1866,7 @@ PEAssembly::PEAssembly(
 
   : PEFile(pBindResultInfo ? (pBindResultInfo->GetPEImage() ? pBindResultInfo->GetPEImage() : 
                                                               (pBindResultInfo->HasNativeImage() ? pBindResultInfo->GetNativeImage() : NULL)
-                              ): pPEImageIL? pPEImageIL:(pPEImageNI? pPEImageNI:NULL), FALSE),
+                              ): pPEImageIL? pPEImageIL:(pPEImageNI? pPEImageNI:NULL)),
     m_creator(clr::SafeAddRef(creator))
 {
     CONTRACTL
@@ -2083,95 +2064,6 @@ PEAssembly *PEAssembly::DoOpenSystem(IUnknown * pAppCtx)
 
     RETURN new PEAssembly(&bindResult, NULL, NULL, TRUE, FALSE);
 }
-
-
-#ifndef CROSSGEN_COMPILE
-/* static */
-PEAssembly *PEAssembly::OpenMemory(PEAssembly *pParentAssembly,
-                                   const void *flat, COUNT_T size)
-{
-    STANDARD_VM_CONTRACT;
-
-    PEAssembly *result = NULL;
-
-    EX_TRY
-    {
-        result = DoOpenMemory(pParentAssembly, flat, size);
-    }
-    EX_HOOK
-    {
-        Exception *ex = GET_EXCEPTION();
-
-        // Rethrow non-transient exceptions as file load exceptions with proper
-        // context
-
-        if (!ex->IsTransient())
-            EEFileLoadException::Throw(pParentAssembly, flat, size, ex->GetHR(), ex);
-    }
-    EX_END_HOOK;
-
-    return result;
-}
-
-
-// Thread stress
-
-class DoOpenFlatStress : APIThreadStress
-{
-public:
-    PEAssembly *pParentAssembly;
-    const void *flat;
-    COUNT_T size;
-    DoOpenFlatStress(PEAssembly *pParentAssembly, const void *flat, COUNT_T size)
-        : pParentAssembly(pParentAssembly), flat(flat), size(size) {LIMITED_METHOD_CONTRACT;}
-    void Invoke()
-    {
-        WRAPPER_NO_CONTRACT;
-        PEAssemblyHolder result(PEAssembly::OpenMemory(pParentAssembly, flat, size));
-    }
-};
-
-/* static */
-PEAssembly *PEAssembly::DoOpenMemory(
-    PEAssembly *pParentAssembly,
-    const void *flat,
-    COUNT_T size)
-{
-    CONTRACT(PEAssembly *)
-    {
-        PRECONDITION(CheckPointer(flat));
-        PRECONDITION(CheckOverflow(flat, size));
-        PRECONDITION(CheckPointer(pParentAssembly));
-        STANDARD_VM_CHECK;
-        POSTCONDITION(CheckPointer(RETVAL));
-    }
-    CONTRACT_END;
-
-    // Thread stress
-    DoOpenFlatStress ts(pParentAssembly, flat, size);
-
-    // Note that we must have a flat image stashed away for two reasons.
-    // First, we need a private copy of the data which we can verify
-    // before doing the mapping.  And secondly, we can only compute
-    // the strong name hash on a flat image.
-
-    PEImageHolder image(PEImage::LoadFlat(flat, size));
-
-    // Need to verify that this is a CLR assembly
-    if (!image->CheckILFormat())
-        ThrowHR(COR_E_BADIMAGEFORMAT, BFA_BAD_IL);
-
-
-    CoreBindResult bindResult;
-    ReleaseHolder<ICLRPrivAssembly> assembly;
-    IfFailThrow(CCoreCLRBinderHelper::GetAssemblyFromImage(image, NULL, &assembly));
-    bindResult.Init(assembly);
-
-    RETURN new PEAssembly(&bindResult, NULL, pParentAssembly, FALSE);
-}
-#endif // !CROSSGEN_COMPILE
-
-
 
 PEAssembly* PEAssembly::Open(CoreBindResult* pBindResult,
                                    BOOL isSystem)

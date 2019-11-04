@@ -16,18 +16,18 @@ namespace Internal.Runtime.InteropServices.WindowsRuntime
         // Since each of the assemblies that act as the "key" here are WinRT assemblies
         // we don't need to share this dictionary with the COM activation dictionary
         // since there will be no overlap.
-        private static Dictionary<string, AssemblyLoadContext> s_AssemblyLoadContexts = new Dictionary<string, AssemblyLoadContext>(StringComparer.InvariantCultureIgnoreCase);
-        
+        private static readonly Dictionary<string, AssemblyLoadContext> s_assemblyLoadContexts = new Dictionary<string, AssemblyLoadContext>(StringComparer.InvariantCultureIgnoreCase);
+
         private static AssemblyLoadContext GetALC(string assemblyPath)
         {
-            AssemblyLoadContext alc;
+            AssemblyLoadContext? alc;
 
-            lock (s_AssemblyLoadContexts)
+            lock (s_assemblyLoadContexts)
             {
-                if (!s_AssemblyLoadContexts.TryGetValue(assemblyPath, out alc))
+                if (!s_assemblyLoadContexts.TryGetValue(assemblyPath, out alc))
                 {
                     alc = new IsolatedComponentLoadContext(assemblyPath);
-                    s_AssemblyLoadContexts.Add(assemblyPath, alc);
+                    s_assemblyLoadContexts.Add(assemblyPath, alc);
                 }
             }
 
@@ -38,7 +38,7 @@ namespace Internal.Runtime.InteropServices.WindowsRuntime
         /// <param name="componentPath">The path to the WinRT component that the type is expected to be defined in.</param>
         /// <param name="typeName">The name of the component type to activate</param>
         /// <param name="activationFactory">The activation factory</param>
-        public unsafe static int GetActivationFactory(
+        public static unsafe int GetActivationFactory(
             char* componentPath,
             [MarshalAs(UnmanagedType.HString)] string typeName,
             [MarshalAs(UnmanagedType.Interface)] out IActivationFactory? activationFactory)
@@ -52,7 +52,7 @@ namespace Internal.Runtime.InteropServices.WindowsRuntime
                 }
 
                 AssemblyLoadContext context = GetALC(Marshal.PtrToStringUni((IntPtr)componentPath)!);
-                
+
                 Type winRTType = context.LoadTypeForWinRTTypeNameInContext(typeName);
 
                 if (winRTType is null || !winRTType.IsExportedToWindowsRuntime)

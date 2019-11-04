@@ -6,25 +6,17 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Runtime.Loader;
 
 namespace Internal.Runtime.InteropServices
 {
     public static class ComponentActivator
     {
-        private static readonly Dictionary<string, IsolatedComponentLoadContext> s_AssemblyLoadContexts;
-        private static readonly Dictionary<IntPtr, Delegate> s_Delegates = new Dictionary<IntPtr, Delegate>();
+        private static readonly Dictionary<string, IsolatedComponentLoadContext> s_assemblyLoadContexts = new Dictionary<string, IsolatedComponentLoadContext>(StringComparer.InvariantCulture);
+        private static readonly Dictionary<IntPtr, Delegate> s_delegates = new Dictionary<IntPtr, Delegate>();
 
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate int ComponentEntryPoint(IntPtr args, int sizeBytes);
-
-        static ComponentActivator()
-        {
-            s_AssemblyLoadContexts = new Dictionary<string, IsolatedComponentLoadContext>(StringComparer.InvariantCulture);
-        }
 
         private static string MarshalToString(IntPtr arg, string argName)
         {
@@ -53,20 +45,20 @@ namespace Internal.Runtime.InteropServices
         /// <param name="typeNameNative">Assembly qualified type name</param>
         /// <param name="methodNameNative">Public static method name compatible with delegateType</param>
         /// <param name="delegateTypeNative">Assembly qualified delegate type name</param>
-        /// <param name="flags">Extensibility flags (currently unused)</param>
+        /// <param name="reserved">Extensibility parameter (currently unused)</param>
         /// <param name="functionHandle">Pointer where to store the function pointer result</param>
-        public static int CreateNativeDelegate(IntPtr assemblyPathNative,
-                                               IntPtr typeNameNative,
-                                               IntPtr methodNameNative,
-                                               IntPtr delegateTypeNative,
-                                               int flags,
-                                               IntPtr functionHandle)
+        public static int LoadAssemblyAndGetFunctionPointer(IntPtr assemblyPathNative,
+                                                            IntPtr typeNameNative,
+                                                            IntPtr methodNameNative,
+                                                            IntPtr delegateTypeNative,
+                                                            IntPtr reserved,
+                                                            IntPtr functionHandle)
         {
             try
             {
                 string assemblyPath = MarshalToString(assemblyPathNative, nameof(assemblyPathNative));
-                string typeName     = MarshalToString(typeNameNative, nameof(typeNameNative));
-                string methodName   = MarshalToString(methodNameNative, nameof(methodNameNative));
+                string typeName = MarshalToString(typeNameNative, nameof(typeNameNative));
+                string methodName = MarshalToString(methodNameNative, nameof(methodNameNative));
 
                 string delegateType;
                 if (delegateTypeNative == IntPtr.Zero)
@@ -78,9 +70,9 @@ namespace Internal.Runtime.InteropServices
                     delegateType = MarshalToString(delegateTypeNative, nameof(delegateTypeNative));
                 }
 
-                if (flags != 0)
+                if (reserved != IntPtr.Zero)
                 {
-                    throw new ArgumentOutOfRangeException(nameof(flags));
+                    throw new ArgumentOutOfRangeException(nameof(reserved));
                 }
 
                 if (functionHandle == IntPtr.Zero)
@@ -92,10 +84,10 @@ namespace Internal.Runtime.InteropServices
 
                 IntPtr functionPtr = Marshal.GetFunctionPointerForDelegate(d);
 
-                lock(s_Delegates)
+                lock (s_delegates)
                 {
                     // Keep a reference to the delegate to prevent it from being garbage collected
-                    s_Delegates[functionPtr] = d;
+                    s_delegates[functionPtr] = d;
                 }
 
                 Marshal.WriteIntPtr(functionHandle, functionPtr);
@@ -113,7 +105,7 @@ namespace Internal.Runtime.InteropServices
             // Throws
             IsolatedComponentLoadContext alc = GetIsolatedComponentLoadContext(assemblyPath);
 
-            Func<AssemblyName,Assembly> resolver = name => alc.LoadFromAssemblyName(name);
+            Func<AssemblyName, Assembly> resolver = name => alc.LoadFromAssemblyName(name);
 
             // Throws
             Type type = Type.GetType(typeName, resolver, null, throwOnError: true)!;
@@ -127,14 +119,14 @@ namespace Internal.Runtime.InteropServices
 
         private static IsolatedComponentLoadContext GetIsolatedComponentLoadContext(string assemblyPath)
         {
-            IsolatedComponentLoadContext alc;
+            IsolatedComponentLoadContext? alc;
 
-            lock (s_AssemblyLoadContexts)
+            lock (s_assemblyLoadContexts)
             {
-                if (!s_AssemblyLoadContexts.TryGetValue(assemblyPath, out alc))
+                if (!s_assemblyLoadContexts.TryGetValue(assemblyPath, out alc))
                 {
                     alc = new IsolatedComponentLoadContext(assemblyPath);
-                    s_AssemblyLoadContexts.Add(assemblyPath, alc);
+                    s_assemblyLoadContexts.Add(assemblyPath, alc);
                 }
             }
 
