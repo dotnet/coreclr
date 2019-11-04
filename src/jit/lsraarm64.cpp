@@ -216,6 +216,11 @@ int LinearScan::BuildNode(GenTree* tree)
             }
             break;
 
+        case GT_KEEPALIVE:
+            assert(dstCount == 0);
+            srcCount = BuildOperandUses(tree->gtGetOp1());
+            break;
+
         case GT_JTRUE:
             srcCount = 0;
             assert(dstCount == 0);
@@ -340,7 +345,7 @@ int LinearScan::BuildNode(GenTree* tree)
 #endif // FEATURE_SIMD
 
 #ifdef FEATURE_HW_INTRINSICS
-        case GT_HWIntrinsic:
+        case GT_HWINTRINSIC:
             srcCount = BuildHWIntrinsic(tree->AsHWIntrinsic());
             break;
 #endif // FEATURE_HW_INTRINSICS
@@ -977,10 +982,10 @@ int LinearScan::BuildSIMD(GenTreeSIMD* simdTree)
 #ifdef FEATURE_HW_INTRINSICS
 #include "hwintrinsic.h"
 //------------------------------------------------------------------------
-// BuildHWIntrinsic: Set the NodeInfo for a GT_HWIntrinsic tree.
+// BuildHWIntrinsic: Set the NodeInfo for a GT_HWINTRINSIC tree.
 //
 // Arguments:
-//    tree       - The GT_HWIntrinsic node of interest
+//    tree       - The GT_HWINTRINSIC node of interest
 //
 // Return Value:
 //    The number of sources consumed by this node.
@@ -1157,7 +1162,7 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
 
             if (op2 != nullptr)
             {
-                if (op2->OperIs(GT_HWIntrinsic) && op2->AsHWIntrinsic()->OperIsMemoryLoad() && op2->isContained())
+                if (op2->OperIs(GT_HWINTRINSIC) && op2->AsHWIntrinsic()->OperIsMemoryLoad() && op2->isContained())
                 {
                     srcCount += BuildAddrUses(op2->gtGetOp1());
                 }

@@ -1459,14 +1459,14 @@ const CodeGen::GenConditionDesc CodeGen::GenConditionDesc::map[32]
     { EJ_ja  }, // UGT
     { EJ_jb  }, // C
     { EJ_jae }, // NC
-                        
+
     // Floating point compare instructions (UCOMISS, UCOMISD etc.) set the condition flags as follows:
-    //    ZF PF CF  Meaning   
+    //    ZF PF CF  Meaning
     //   ---------------------
-    //    1  1  1   Unordered 
-    //    0  0  0   Greater   
-    //    0  0  1   Less Than 
-    //    1  0  0   Equal     
+    //    1  1  1   Unordered
+    //    0  0  0   Greater
+    //    0  0  1   Less Than
+    //    1  0  0   Equal
     //
     // Since ZF and CF are also set when the result is unordered, in some cases we first need to check
     // PF before checking ZF/CF. In general, ordered conditions will result in a jump only if PF is not
@@ -1480,7 +1480,7 @@ const CodeGen::GenConditionDesc CodeGen::GenConditionDesc::map[32]
     { EJ_ja                  }, // FGT
     { EJ_jo                  }, // O
     { EJ_jno                 }, // NO
-                        
+
     { EJ_je                }, // FEQU
     { EJ_jp, GT_OR, EJ_jne }, // FNEU
     { EJ_jb                }, // FLTU
@@ -1814,7 +1814,7 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
 #endif // FEATURE_SIMD
 
 #ifdef FEATURE_HW_INTRINSICS
-        case GT_HWIntrinsic:
+        case GT_HWINTRINSIC:
             genHWIntrinsic(treeNode->AsHWIntrinsic());
             break;
 #endif // FEATURE_HW_INTRINSICS
@@ -1913,6 +1913,10 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
             break;
 
         case GT_NOP:
+            break;
+
+        case GT_KEEPALIVE:
+            genConsumeRegs(treeNode->AsOp()->gtOp1);
             break;
 
         case GT_NO_OP:
@@ -2215,7 +2219,17 @@ void CodeGen::genMultiRegCallStoreToLocal(GenTree* treeNode)
 }
 
 //------------------------------------------------------------------------
-// genAllocLclFrame: Probe the stack and allocate the local stack frame: subtract from SP.
+// genAllocLclFrame: Probe the stack and allocate the local stack frame - subtract from SP.
+//
+// Arguments:
+//      frameSize         - the size of the stack frame being allocated.
+//      initReg           - register to use as a scratch register.
+//      pInitRegZeroed    - OUT parameter. *pInitRegZeroed is set to 'false' if and only if
+//                          this call sets 'initReg' to a non-zero value.
+//      maskArgRegsLiveIn - incoming argument registers that are currently live.
+//
+// Return value:
+//      None
 //
 void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pInitRegZeroed, regMaskTP maskArgRegsLiveIn)
 {

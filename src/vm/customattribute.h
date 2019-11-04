@@ -39,7 +39,7 @@ struct CustomAttributeType
     STRINGREF m_enumName;
     CorSerializationType m_tag;
     CorSerializationType m_enumType;
-    CorSerializationType m_arrayType;    
+    CorSerializationType m_arrayType;
     CorSerializationType m_padding;
 };
 
@@ -98,10 +98,10 @@ typedef Factory< SArray<CaValue> > CaValueArrayFactory;
 class Attribute
 {
 public:
-    static FCDECL5(VOID, ParseAttributeArguments, 
-        void* pCa, 
-        INT32 cCa, 
-        CaArgArrayREF* ppCustomAttributeArguments, 
+    static FCDECL5(VOID, ParseAttributeArguments,
+        void* pCa,
+        INT32 cCa,
+        CaArgArrayREF* ppCustomAttributeArguments,
         CaNamedArgArrayREF* ppCustomAttributeNamedArguments,
         AssemblyBaseObject* pAssemblyUNSAFE);
 
@@ -174,33 +174,32 @@ public:
     static FCDECL5(VOID, ParseAttributeUsageAttribute, PVOID pData, ULONG cData, ULONG* pTargets, CLR_BOOL* pInherited, CLR_BOOL* pAllowMultiple);
     static FCDECL6(LPVOID, CreateCaObject, ReflectModuleBaseObject* pAttributedModuleUNSAFE, ReflectClassBaseObject* pCaTypeUNSAFE, ReflectMethodObject *pMethodUNSAFE, BYTE** ppBlob, BYTE* pEndBlob, INT32* pcNamedArgs);
     static FCDECL7(void, GetPropertyOrFieldData, ReflectModuleBaseObject *pModuleUNSAFE, BYTE** ppBlobStart, BYTE* pBlobEnd, STRINGREF* pName, CLR_BOOL* pbIsProperty, OBJECTREF* pType, OBJECTREF* value);
-    static FCDECL4(VOID, GetSecurityAttributes, ReflectModuleBaseObject *pModuleUNSAFE, DWORD tkToken, CLR_BOOL fAssembly, PTRARRAYREF* ppArray);
 
 private:
 
     static TypeHandle GetTypeHandleFromBlob(
         Assembly *pCtorAssembly,
-        CorSerializationType objType, 
-        BYTE **pBlob, 
+        CorSerializationType objType,
+        BYTE **pBlob,
         const BYTE *endBlob,
         Module *pModule);
 
     static ARG_SLOT GetDataFromBlob(
         Assembly *pCtorAssembly,
-        CorSerializationType type, 
-        TypeHandle th, 
-        BYTE **pBlob, 
-        const BYTE *endBlob, 
-        Module *pModule, 
+        CorSerializationType type,
+        TypeHandle th,
+        BYTE **pBlob,
+        const BYTE *endBlob,
+        Module *pModule,
         BOOL *bObjectCreated);
 
     static void ReadArray(
         Assembly *pCtorAssembly,
-        CorSerializationType arrayType, 
-        int size, 
+        CorSerializationType arrayType,
+        int size,
         TypeHandle th,
-        BYTE **pBlob, 
-        const BYTE *endBlob, 
+        BYTE **pBlob,
+        const BYTE *endBlob,
         Module *pModule,
         BASEARRAYREF *pArray);
 

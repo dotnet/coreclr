@@ -118,7 +118,7 @@ namespace System.Reflection.Emit
             if (parameterTypes != null)
             {
                 m_parameterTypes = new Type[parameterTypes.Length];
-                Array.Copy(parameterTypes, 0, m_parameterTypes, 0, parameterTypes.Length);
+                Array.Copy(parameterTypes, m_parameterTypes, parameterTypes.Length);
             }
             else
             {
@@ -668,14 +668,14 @@ namespace System.Reflection.Emit
             byte[] sigBytes = GetMethodSignature().InternalGetSignature(out sigLength);
             ModuleBuilder module = m_module;
 
-            int token = TypeBuilder.DefineMethod(JitHelpers.GetQCallModuleOnStack(ref module), m_containingType.MetadataTokenInternal, m_strName, sigBytes, sigLength, Attributes);
+            int token = TypeBuilder.DefineMethod(new QCallModule(ref module), m_containingType.MetadataTokenInternal, m_strName, sigBytes, sigLength, Attributes);
             m_tkMethod = new MethodToken(token);
 
             if (m_inst != null)
                 foreach (GenericTypeParameterBuilder tb in m_inst)
                     if (!tb.m_type.IsCreated()) tb.m_type.CreateType();
 
-            TypeBuilder.SetMethodImpl(JitHelpers.GetQCallModuleOnStack(ref module), token, m_dwMethodImplFlags);
+            TypeBuilder.SetMethodImpl(new QCallModule(ref module), token, m_dwMethodImplFlags);
 
             return m_tkMethod;
         }
@@ -718,7 +718,7 @@ namespace System.Reflection.Emit
             if (parameterTypes != null)
             {
                 m_parameterTypes = new Type[parameterTypes.Length];
-                Array.Copy(parameterTypes, 0, m_parameterTypes, 0, parameterTypes.Length);
+                Array.Copy(parameterTypes, m_parameterTypes, parameterTypes.Length);
             }
 
             m_returnTypeRequiredCustomModifiers = returnTypeRequiredCustomModifiers;
@@ -760,7 +760,7 @@ namespace System.Reflection.Emit
             m_canBeRuntimeImpl = true;
 
             ModuleBuilder module = m_module;
-            TypeBuilder.SetMethodImpl(JitHelpers.GetQCallModuleOnStack(ref module), MetadataTokenInternal, attributes);
+            TypeBuilder.SetMethodImpl(new QCallModule(ref module), MetadataTokenInternal, attributes);
         }
 
         public ILGenerator GetILGenerator()
@@ -906,7 +906,7 @@ namespace System.Reflection.Emit
             else if (m_iNameSpaceCount == m_namespace.Length)
             {
                 string[] strTemp = new string[checked(m_iNameSpaceCount * 2)];
-                Array.Copy(m_namespace, 0, strTemp, 0, m_iNameSpaceCount);
+                Array.Copy(m_namespace, strTemp, m_iNameSpaceCount);
                 m_namespace = strTemp;
             }
         }
@@ -928,23 +928,23 @@ namespace System.Reflection.Emit
                 // why aren't we just using lists here?
                 int newSize = checked(m_iLocalSymCount * 2);
                 int[] temp = new int[newSize];
-                Array.Copy(m_iLocalSlot, 0, temp, 0, m_iLocalSymCount);
+                Array.Copy(m_iLocalSlot, temp, m_iLocalSymCount);
                 m_iLocalSlot = temp;
 
                 temp = new int[newSize];
-                Array.Copy(m_iStartOffset, 0, temp, 0, m_iLocalSymCount);
+                Array.Copy(m_iStartOffset, temp, m_iLocalSymCount);
                 m_iStartOffset = temp;
 
                 temp = new int[newSize];
-                Array.Copy(m_iEndOffset, 0, temp, 0, m_iLocalSymCount);
+                Array.Copy(m_iEndOffset, temp, m_iLocalSymCount);
                 m_iEndOffset = temp;
 
                 string[] strTemp = new string[newSize];
-                Array.Copy(m_strName, 0, strTemp, 0, m_iLocalSymCount);
+                Array.Copy(m_strName, strTemp, m_iLocalSymCount);
                 m_strName = strTemp;
 
                 byte[][] ubTemp = new byte[newSize][];
-                Array.Copy(m_ubSignature, 0, ubTemp, 0, m_iLocalSymCount);
+                Array.Copy(m_ubSignature, ubTemp, m_iLocalSymCount);
                 m_ubSignature = ubTemp;
             }
         }

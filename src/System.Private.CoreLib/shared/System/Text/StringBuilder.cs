@@ -315,7 +315,7 @@ namespace System.Text
                 {
                     int newLen = value - m_ChunkOffset;
                     char[] newArray = GC.AllocateUninitializedArray<char>(newLen);
-                    Array.Copy(m_ChunkChars, 0, newArray, 0, m_ChunkLength);
+                    Array.Copy(m_ChunkChars, newArray, m_ChunkLength);
                     m_ChunkChars = newArray;
                 }
             }
@@ -480,7 +480,7 @@ namespace System.Text
                             // We crossed a chunk boundary when reducing the Length. We must replace this middle-chunk with a new larger chunk,
                             // to ensure the capacity we want is preserved.
                             char[] newArray = GC.AllocateUninitializedArray<char>(newLen);
-                            Array.Copy(chunk.m_ChunkChars, 0, newArray, 0, chunk.m_ChunkLength);
+                            Array.Copy(chunk.m_ChunkChars, newArray, chunk.m_ChunkLength);
                             m_ChunkChars = newArray;
                         }
                         else
@@ -1579,8 +1579,8 @@ namespace System.Text
                             FormatError();
                         }
                     }
-                    // Is it a opening brace?
-                    if (ch == '{')
+                    // Is it an opening brace?
+                    else if (ch == '{')
                     {
                         // Check next character (if there is one) to see if it is escaped. eg {{
                         if (pos < len && format[pos] == '{')
@@ -1594,7 +1594,7 @@ namespace System.Text
                             break;
                         }
                     }
-                    // If it neither then treat the character as just text.
+                    // If it's neither then treat the character as just text.
                     Append(ch);
                 }
 

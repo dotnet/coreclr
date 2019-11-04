@@ -34,7 +34,6 @@ if %__ProjectDir:~-1%==\ set "__ProjectDir=%__ProjectDir:~0,-1%"
 set "__TestDir=%__ProjectDir%\tests"
 set "__ProjectFilesDir=%__TestDir%"
 set "__SourceDir=%__ProjectDir%\src"
-set "__PackagesDir=%__ProjectDir%\.packages"
 set "__RootBinDir=%__ProjectDir%\bin"
 set "__LogsDir=%__RootBinDir%\Logs"
 set "__MsbuildDebugLogsDir=%__LogsDir%\MsbuildDebugLogs"
@@ -290,6 +289,14 @@ powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -Command "%__ProjectDir%\e
   /p:UsePartialNGENOptimization=false /maxcpucount^
   !__Logging! %__CommonMSBuildArgs% %__PriorityArg% %__UnprocessedBuildArgs%
 
+if errorlevel 1 (
+    echo %__ErrMsgPrefix%%__MsgPrefix%Error: Package restoration failed. Refer to the build log files for details:
+    echo     %__BuildLog%
+    echo     %__BuildWrn%
+    echo     %__BuildErr%
+    exit /b 1
+)
+
 :SkipRestoreProduct
 
 REM =========================================================================================
@@ -335,7 +342,16 @@ for /l %%G in (1, 1, %__NumberOfTestGroups%) do (
 
     if not "%__CopyNativeTestBinaries%" == "1" (
         REM Disable warnAsError - coreclr issue 19922
-        set __MSBuildBuildArgs=!__ProjectDir!\tests\build.proj -warnAsError:0 /nodeReuse:false !__Logging! !TargetsWindowsMsbuildArg! !__msbuildArgs! !__PriorityArg! !__UnprocessedBuildArgs! /p:CopyNativeProjectBinaries=!__CopyNativeProjectsAfterCombinedTestBuild!
+        set __MSBuildBuildArgs=!__ProjectDir!\tests\build.proj
+        set __MSBuildBuildArgs=!__MSBuildBuildArgs! -warnAsError:0
+        set __MSBuildBuildArgs=!__MSBuildBuildArgs! /nodeReuse:false
+        set __MSBuildBuildArgs=!__MSBuildBuildArgs! !__Logging!
+        set __MSBuildBuildArgs=!__MSBuildBuildArgs! !TargetsWindowsMsbuildArg!
+        set __MSBuildBuildArgs=!__MSBuildBuildArgs! !__msbuildArgs!
+        set __MSBuildBuildArgs=!__MSBuildBuildArgs! !__PriorityArg!
+        set __MSBuildBuildArgs=!__MSBuildBuildArgs! !__UnprocessedBuildArgs!
+        set __MSBuildBuildArgs=!__MSBuildBuildArgs! /p:CopyNativeProjectBinaries=!__CopyNativeProjectsAfterCombinedTestBuild!
+        set __MSBuildBuildArgs=!__MSBuildBuildArgs! /p:__SkipPackageRestore=true
         echo Running: msbuild !__MSBuildBuildArgs!
         !__CommonMSBuildCmdPrefix! !__MSBuildBuildArgs!
 

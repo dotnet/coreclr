@@ -34,34 +34,15 @@ namespace BINDER_SPACE
     class AssemblyVersion;
     class AssemblyName;
     class Assembly;
-    
-    class GACEntry;
-    class GACVersionIterator;
-    class GAC;
 
     class ContextEntry;
     class ExecutionContext;
 
-    class PropertyMap;
     class ApplicationContext;
 
     class BindResult;
     class FailureCache;
     class AssemblyBinder;
-
-#if defined(BINDER_DEBUG_LOG)
-    class DebugLog;
-#endif
-
-#if defined(FEATURE_VERSIONING_LOG)
-    class BindingLog;
-    class CDebugLog;
-#endif // FEATURE_VERSIONING_LOG
-
-    namespace Tests
-    {
-        HRESULT Run();
-    };
 };
 
 #define IF_FAIL_GO(expr)                        \
@@ -125,7 +106,5 @@ namespace BINDER_SPACE
 
 #define LENGTH_OF(x)                            \
     (sizeof(x) / sizeof(x[0]))
-
-#include "debuglog.hpp"
 
 #endif

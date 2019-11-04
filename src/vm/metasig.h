@@ -6,7 +6,7 @@
 
 //
 // All literal MetaData signatures should be defined here.
-// 
+//
 
 
 // Generic sig's based on types.
@@ -50,10 +50,10 @@
 //   B  -- SByt -- signed byte
 //   F  -- Bool -- boolean
 //   j  -- Obj  -- System.Object
-//   s  -- Str  -- System.String 
+//   s  -- Str  -- System.String
 //   C  --      -- class
 //   g  --      -- struct
-//   T  -- TypedReference -- TypedReference 
+//   T  -- TypedReference -- TypedReference
 //   G  --      -- Generic type variable
 //   M  --      -- Generic method variable
 //   GI --      -- Generic type instantiation
@@ -64,11 +64,11 @@
 // Use DEFINE_METASIG_T for signatures that reference other types (contains C or g)
 
 
-// This part of the file is included multiple times with different macro definitions 
+// This part of the file is included multiple times with different macro definitions
 // to generate the hardcoded metasigs.
 
 
-// SM, IM and Fld macros have often a very similar definitions. METASIG_BODY is 
+// SM, IM and Fld macros have often a very similar definitions. METASIG_BODY is
 // a helper to avoid these redundant SM, IM and Fld definitions.
 #ifdef METASIG_BODY
 #ifndef DEFINE_METASIG
@@ -92,7 +92,7 @@
 
 // One letter shortcuts are defined for all types that can occur in the signature.
 // The shortcuts are defined indirectly through METASIG_ATOM. METASIG_ATOM is
-// designed to control whether to generate the initializer for the signature or 
+// designed to control whether to generate the initializer for the signature or
 // just compute the size of the signature.
 
 #define b METASIG_ATOM(ELEMENT_TYPE_U1)
@@ -115,9 +115,9 @@
 #define T METASIG_ATOM(ELEMENT_TYPE_TYPEDBYREF)
 
 
-// METASIG_RECURSE controls whether to recurse into the complex types 
-// in the macro expansion. METASIG_RECURSE is designed to control 
-// whether to compute the byte size of the signature or just compute 
+// METASIG_RECURSE controls whether to recurse into the complex types
+// in the macro expansion. METASIG_RECURSE is designed to control
+// whether to compute the byte size of the signature or just compute
 // the number of arguments in the signature.
 
 #if METASIG_RECURSE
@@ -224,7 +224,7 @@ DEFINE_METASIG(SM(Byte_RetChar, b, u))
 DEFINE_METASIG(SM(Str_Bool_Bool_RefInt_RetIntPtr, s F F r(i), I))
 DEFINE_METASIG(SM(IntPtr_Int_RetStr, I i, s))
 DEFINE_METASIG_T(SM(Obj_PtrByte_RefCleanupWorkListElement_RetVoid, j P(b) r(C(CLEANUP_WORK_LIST_ELEMENT)), v))
-DEFINE_METASIG_T(SM(SafeHandle_Bool_RefCleanupWorkListElement_RetIntPtr, C(SAFE_HANDLE) F r(C(CLEANUP_WORK_LIST_ELEMENT)), I))
+DEFINE_METASIG_T(SM(SafeHandle_RefCleanupWorkListElement_RetIntPtr, C(SAFE_HANDLE) r(C(CLEANUP_WORK_LIST_ELEMENT)), I))
 DEFINE_METASIG(SM(Obj_PtrByte_RetVoid, j P(b), v))
 DEFINE_METASIG(SM(PtrByte_IntPtr_RetVoid, P(b) I, v))
 DEFINE_METASIG(SM(Str_Bool_Bool_RefInt_RetArrByte, s F F r(i), a(b) ))
@@ -559,6 +559,10 @@ DEFINE_METASIG_T(SM(SyncCtx_ArrIntPtr_Bool_Int_RetInt, C(SYNCHRONIZATION_CONTEXT
 // The signature of the method System.Runtime.InteropServices.ICustomQueryInterface.GetInterface
 DEFINE_METASIG_T(IM(RefGuid_OutIntPtr_RetCustomQueryInterfaceResult, r(g(GUID)) r(I), g(CUSTOMQUERYINTERFACERESULT)))
 #endif //FEATURE_COMINTEROP
+
+// Assembly Load Context
+DEFINE_METASIG_T(SM(RefGuid_RefGuid_RetVoid, r(g(GUID)) r(g(GUID)) , v))
+DEFINE_METASIG_T(SM(RefGuid_RetVoid, r(g(GUID)), v))
 
 DEFINE_METASIG_T(SM(IntPtr_AssemblyName_RetAssemblyBase, I C(ASSEMBLY_NAME), C(ASSEMBLYBASE)))
 DEFINE_METASIG_T(SM(Str_AssemblyBase_IntPtr_RetIntPtr, s C(ASSEMBLYBASE) I, I))

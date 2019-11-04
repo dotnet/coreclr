@@ -1125,31 +1125,29 @@ flowList* Compiler::fgAddRefPred(BasicBlock* block,
                 // If our caller has given us the old edge weights
                 // then we will use them.
                 //
-                flow->flEdgeWeightMin = oldEdge->flEdgeWeightMin;
-                flow->flEdgeWeightMax = oldEdge->flEdgeWeightMax;
+                flow->setEdgeWeights(oldEdge->edgeWeightMin(), oldEdge->edgeWeightMax());
             }
             else
             {
                 // Set the max edge weight to be the minimum of block's or blockPred's weight
                 //
-                flow->flEdgeWeightMax = min(block->bbWeight, blockPred->bbWeight);
+                BasicBlock::weight_t newWeightMax = min(block->bbWeight, blockPred->bbWeight);
 
                 // If we are inserting a conditional block the minimum weight is zero,
                 // otherwise it is the same as the edge's max weight.
                 if (blockPred->NumSucc() > 1)
                 {
-                    flow->flEdgeWeightMin = BB_ZERO_WEIGHT;
+                    flow->setEdgeWeights(BB_ZERO_WEIGHT, newWeightMax);
                 }
                 else
                 {
-                    flow->flEdgeWeightMin = flow->flEdgeWeightMax;
+                    flow->setEdgeWeights(flow->edgeWeightMax(), newWeightMax);
                 }
             }
         }
         else
         {
-            flow->flEdgeWeightMin = BB_ZERO_WEIGHT;
-            flow->flEdgeWeightMax = BB_MAX_WEIGHT;
+            flow->setEdgeWeights(BB_ZERO_WEIGHT, BB_MAX_WEIGHT);
         }
     }
     return flow;
@@ -3858,7 +3856,7 @@ void Compiler::fgCreateGCPolls()
  *  a basic block.
  */
 
-bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block)
+bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block, Statement* stmt)
 {
     bool createdPollBlocks;
 
@@ -3883,15 +3881,44 @@ bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block)
         pollType = GCPOLL_CALL;
     }
 
+#ifdef DEBUG
+    // If a statment was supplied it should be contained in the block.
+    if (stmt != nullptr)
+    {
+        bool containsStmt = false;
+        for (Statement* stmtMaybe : block->Statements())
+        {
+            containsStmt = (stmtMaybe == stmt);
+            if (containsStmt)
+            {
+                break;
+            }
+        }
+
+        assert(containsStmt);
+    }
+#endif
+
     if (GCPOLL_CALL == pollType)
     {
         createdPollBlocks = false;
         GenTreeCall* call = gtNewHelperCallNode(CORINFO_HELP_POLL_GC, TYP_VOID);
         GenTree*     temp = fgMorphCall(call);
 
-        // for BBJ_ALWAYS I don't need to insert it before the condition.  Just append it.
-        if (block->bbJumpKind == BBJ_ALWAYS)
+        if (stmt != nullptr)
         {
+            // The GC_POLL should be inserted relative to the supplied statement. The safer
+            // location for the insertion is prior to the current statement since the supplied
+            // statement could be a GT_JTRUE (see fgNewStmtNearEnd() for more details).
+            Statement* newStmt = gtNewStmt(temp);
+
+            // Set the GC_POLL statement to have the same IL offset at the subsequent one.
+            newStmt->SetILOffsetX(stmt->GetILOffsetX());
+            fgInsertStmtBefore(block, stmt, newStmt);
+        }
+        else if (block->bbJumpKind == BBJ_ALWAYS)
+        {
+            // for BBJ_ALWAYS I don't need to insert it before the condition.  Just append it.
             fgNewStmtAtEnd(block, temp);
         }
         else
@@ -5014,6 +5041,8 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, Fixed
         {
             // Mark the call node as "no return" as it can impact caller's code quality.
             impInlineInfo->iciCall->gtCallMoreFlags |= GTF_CALL_M_DOES_NOT_RETURN;
+            // Mark root method as containing a noreturn call.
+            impInlineRoot()->setMethodHasNoReturnCalls();
         }
 
         // If the inline is viable and discretionary, do the
@@ -10433,10 +10462,8 @@ void Compiler::fgCompactBlocks(BasicBlock* block, BasicBlock* bNext)
             block->bbWeight = bNext->bbWeight;
 
             block->bbFlags |= (bNext->bbFlags & BBF_PROF_WEIGHT); // Set the profile weight flag (if necessary)
-            if (block->bbWeight != 0)
-            {
-                block->bbFlags &= ~BBF_RUN_RARELY; // Clear any RarelyRun flag
-            }
+            assert(block->bbWeight != 0);
+            block->bbFlags &= ~BBF_RUN_RARELY; // Clear any RarelyRun flag
         }
     }
     // otherwise if either block has a zero weight we select the zero weight
@@ -11409,7 +11436,7 @@ BasicBlock* Compiler::fgConnectFallThrough(BasicBlock* bSrc, BasicBlock* bDst)
 
                         flowList* newEdge = fgGetPredForBlock(jmpBlk, bSrc);
 
-                        jmpBlk->bbWeight = (newEdge->flEdgeWeightMin + newEdge->flEdgeWeightMax) / 2;
+                        jmpBlk->bbWeight = (newEdge->edgeWeightMin() + newEdge->edgeWeightMax()) / 2;
                         if (bSrc->bbWeight == 0)
                         {
                             jmpBlk->bbWeight = 0;
@@ -11420,7 +11447,7 @@ BasicBlock* Compiler::fgConnectFallThrough(BasicBlock* bSrc, BasicBlock* bDst)
                             jmpBlk->bbFlags |= BBF_RUN_RARELY;
                         }
 
-                        BasicBlock::weight_t weightDiff = (newEdge->flEdgeWeightMax - newEdge->flEdgeWeightMin);
+                        BasicBlock::weight_t weightDiff = (newEdge->edgeWeightMax() - newEdge->edgeWeightMin());
                         BasicBlock::weight_t slop       = BasicBlock::GetSlopFraction(bSrc, bDst);
 
                         //
@@ -13062,6 +13089,23 @@ bool flowList::setEdgeWeightMaxChecked(BasicBlock::weight_t newWeight, BasicBloc
     return result;
 }
 
+//------------------------------------------------------------------------
+// setEdgeWeights: Sets the minimum lower (flEdgeWeightMin) value
+//                  and the maximum upper (flEdgeWeightMax) value
+//                 Asserts that the max value is greater or equal to the min value
+//
+// Arguments:
+//    theMinWeight - the new minimum lower (flEdgeWeightMin)
+//    theMaxWeight - the new maximum upper (flEdgeWeightMin)
+//
+void flowList::setEdgeWeights(BasicBlock::weight_t theMinWeight, BasicBlock::weight_t theMaxWeight)
+{
+    assert(theMinWeight <= theMaxWeight);
+
+    flEdgeWeightMin = theMinWeight;
+    flEdgeWeightMax = theMaxWeight;
+}
+
 #ifdef DEBUG
 void Compiler::fgPrintEdgeWeights()
 {
@@ -13082,19 +13126,19 @@ void Compiler::fgPrintEdgeWeights()
 
                 printf(FMT_BB " ", bSrc->bbNum);
 
-                if (edge->flEdgeWeightMin < BB_MAX_WEIGHT)
+                if (edge->edgeWeightMin() < BB_MAX_WEIGHT)
                 {
-                    printf("(%u", edge->flEdgeWeightMin);
+                    printf("(%u", edge->edgeWeightMin());
                 }
                 else
                 {
                     printf("(MAX");
                 }
-                if (edge->flEdgeWeightMin != edge->flEdgeWeightMax)
+                if (edge->edgeWeightMin() != edge->edgeWeightMax())
                 {
-                    if (edge->flEdgeWeightMax < BB_MAX_WEIGHT)
+                    if (edge->edgeWeightMax() < BB_MAX_WEIGHT)
                     {
-                        printf("..%u", edge->flEdgeWeightMax);
+                        printf("..%u", edge->edgeWeightMax());
                     }
                     else
                     {
@@ -13421,8 +13465,7 @@ void Compiler::fgComputeEdgeWeights()
 
             if (!bSrc->hasProfileWeight() || !bDst->hasProfileWeight())
             {
-                edge->flEdgeWeightMin = BB_ZERO_WEIGHT;
-                edge->flEdgeWeightMax = BB_MAX_WEIGHT;
+                edge->setEdgeWeights(BB_ZERO_WEIGHT, BB_MAX_WEIGHT);
             }
 
             slop = BasicBlock::GetSlopFraction(bSrc, bDst) + 1;
@@ -13441,7 +13484,7 @@ void Compiler::fgComputeEdgeWeights()
                 case BBJ_SWITCH:
                 case BBJ_EHFINALLYRET:
                 case BBJ_EHFILTERRET:
-                    if (edge->flEdgeWeightMax > bSrc->bbWeight)
+                    if (edge->edgeWeightMax() > bSrc->bbWeight)
                     {
                         // The maximum edge weight to block can't be greater than the weight of bSrc
                         assignOK &= edge->setEdgeWeightMaxChecked(bSrc->bbWeight, slop, &usedSlop);
@@ -13455,7 +13498,7 @@ void Compiler::fgComputeEdgeWeights()
             }
 
             // The maximum edge weight to block can't be greater than the weight of bDst
-            if (edge->flEdgeWeightMax > bDstWeight)
+            if (edge->edgeWeightMax() > bDstWeight)
             {
                 assignOK &= edge->setEdgeWeightMaxChecked(bDstWeight, slop, &usedSlop);
             }
@@ -13503,31 +13546,31 @@ void Compiler::fgComputeEdgeWeights()
                     {
                         otherEdge = fgGetPredForBlock(bSrc->bbNext, bSrc);
                     }
-                    noway_assert(edge->flEdgeWeightMin <= edge->flEdgeWeightMax);
-                    noway_assert(otherEdge->flEdgeWeightMin <= otherEdge->flEdgeWeightMax);
+                    noway_assert(edge->edgeWeightMin() <= edge->edgeWeightMax());
+                    noway_assert(otherEdge->edgeWeightMin() <= otherEdge->edgeWeightMax());
 
                     // Adjust edge->flEdgeWeightMin up or adjust otherEdge->flEdgeWeightMax down
-                    diff = ((int)bSrc->bbWeight) - ((int)edge->flEdgeWeightMin + (int)otherEdge->flEdgeWeightMax);
+                    diff = ((int)bSrc->bbWeight) - ((int)edge->edgeWeightMin() + (int)otherEdge->edgeWeightMax());
                     if (diff > 0)
                     {
-                        assignOK &= edge->setEdgeWeightMinChecked(edge->flEdgeWeightMin + diff, slop, &usedSlop);
+                        assignOK &= edge->setEdgeWeightMinChecked(edge->edgeWeightMin() + diff, slop, &usedSlop);
                     }
                     else if (diff < 0)
                     {
                         assignOK &=
-                            otherEdge->setEdgeWeightMaxChecked(otherEdge->flEdgeWeightMax + diff, slop, &usedSlop);
+                            otherEdge->setEdgeWeightMaxChecked(otherEdge->edgeWeightMax() + diff, slop, &usedSlop);
                     }
 
                     // Adjust otherEdge->flEdgeWeightMin up or adjust edge->flEdgeWeightMax down
-                    diff = ((int)bSrc->bbWeight) - ((int)otherEdge->flEdgeWeightMin + (int)edge->flEdgeWeightMax);
+                    diff = ((int)bSrc->bbWeight) - ((int)otherEdge->edgeWeightMin() + (int)edge->edgeWeightMax());
                     if (diff > 0)
                     {
                         assignOK &=
-                            otherEdge->setEdgeWeightMinChecked(otherEdge->flEdgeWeightMin + diff, slop, &usedSlop);
+                            otherEdge->setEdgeWeightMinChecked(otherEdge->edgeWeightMin() + diff, slop, &usedSlop);
                     }
                     else if (diff < 0)
                     {
-                        assignOK &= edge->setEdgeWeightMaxChecked(edge->flEdgeWeightMax + diff, slop, &usedSlop);
+                        assignOK &= edge->setEdgeWeightMaxChecked(edge->edgeWeightMax() + diff, slop, &usedSlop);
                     }
 
                     if (!assignOK)
@@ -13539,11 +13582,11 @@ void Compiler::fgComputeEdgeWeights()
                     }
 #ifdef DEBUG
                     // Now edge->flEdgeWeightMin and otherEdge->flEdgeWeightMax) should add up to bSrc->bbWeight
-                    diff = ((int)bSrc->bbWeight) - ((int)edge->flEdgeWeightMin + (int)otherEdge->flEdgeWeightMax);
+                    diff = ((int)bSrc->bbWeight) - ((int)edge->edgeWeightMin() + (int)otherEdge->edgeWeightMax());
                     noway_assert((-((int)slop) <= diff) && (diff <= ((int)slop)));
 
                     // Now otherEdge->flEdgeWeightMin and edge->flEdgeWeightMax) should add up to bSrc->bbWeight
-                    diff = ((int)bSrc->bbWeight) - ((int)otherEdge->flEdgeWeightMin + (int)edge->flEdgeWeightMax);
+                    diff = ((int)bSrc->bbWeight) - ((int)otherEdge->edgeWeightMin() + (int)edge->edgeWeightMax());
                     noway_assert((-((int)slop) <= diff) && (diff <= ((int)slop)));
 #endif // DEBUG
                 }
@@ -13579,8 +13622,8 @@ void Compiler::fgComputeEdgeWeights()
                     // We are processing the control flow edge (bSrc -> bDst)
                     bSrc = edge->flBlock;
 
-                    maxEdgeWeightSum += edge->flEdgeWeightMax;
-                    minEdgeWeightSum += edge->flEdgeWeightMin;
+                    maxEdgeWeightSum += edge->edgeWeightMax();
+                    minEdgeWeightSum += edge->edgeWeightMin();
                 }
 
                 // maxEdgeWeightSum is the sum of all flEdgeWeightMax values into bDst
@@ -13596,20 +13639,20 @@ void Compiler::fgComputeEdgeWeights()
 
                     // otherMaxEdgesWeightSum is the sum of all of the other edges flEdgeWeightMax values
                     // This can be used to compute a lower bound for our minimum edge weight
-                    noway_assert(maxEdgeWeightSum >= edge->flEdgeWeightMax);
-                    UINT64 otherMaxEdgesWeightSum = maxEdgeWeightSum - edge->flEdgeWeightMax;
+                    noway_assert(maxEdgeWeightSum >= edge->edgeWeightMax());
+                    UINT64 otherMaxEdgesWeightSum = maxEdgeWeightSum - edge->edgeWeightMax();
 
                     // otherMinEdgesWeightSum is the sum of all of the other edges flEdgeWeightMin values
                     // This can be used to compute an upper bound for our maximum edge weight
-                    noway_assert(minEdgeWeightSum >= edge->flEdgeWeightMin);
-                    UINT64 otherMinEdgesWeightSum = minEdgeWeightSum - edge->flEdgeWeightMin;
+                    noway_assert(minEdgeWeightSum >= edge->edgeWeightMin());
+                    UINT64 otherMinEdgesWeightSum = minEdgeWeightSum - edge->edgeWeightMin();
 
                     if (bDstWeight >= otherMaxEdgesWeightSum)
                     {
                         // minWeightCalc is our minWeight when every other path to bDst takes it's flEdgeWeightMax value
                         BasicBlock::weight_t minWeightCalc =
                             (BasicBlock::weight_t)(bDstWeight - otherMaxEdgesWeightSum);
-                        if (minWeightCalc > edge->flEdgeWeightMin)
+                        if (minWeightCalc > edge->edgeWeightMin())
                         {
                             assignOK &= edge->setEdgeWeightMinChecked(minWeightCalc, slop, &usedSlop);
                         }
@@ -13620,7 +13663,7 @@ void Compiler::fgComputeEdgeWeights()
                         // maxWeightCalc is our maxWeight when every other path to bDst takes it's flEdgeWeightMin value
                         BasicBlock::weight_t maxWeightCalc =
                             (BasicBlock::weight_t)(bDstWeight - otherMinEdgesWeightSum);
-                        if (maxWeightCalc < edge->flEdgeWeightMax)
+                        if (maxWeightCalc < edge->edgeWeightMax())
                         {
                             assignOK &= edge->setEdgeWeightMaxChecked(maxWeightCalc, slop, &usedSlop);
                         }
@@ -13635,7 +13678,7 @@ void Compiler::fgComputeEdgeWeights()
                     }
 
                     // When flEdgeWeightMin equals flEdgeWeightMax we have a "good" edge weight
-                    if (edge->flEdgeWeightMin == edge->flEdgeWeightMax)
+                    if (edge->edgeWeightMin() == edge->edgeWeightMax())
                     {
                         // Count how many "good" edge weights we have
                         // Each time through we should have more "good" weights
@@ -13652,11 +13695,7 @@ void Compiler::fgComputeEdgeWeights()
             }
         }
 
-        if (inconsistentProfileData)
-        {
-            hasIncompleteEdgeWeights = true;
-            break;
-        }
+        assert(!inconsistentProfileData); // Should use EARLY_EXIT when it is false.
 
         if (numEdges == goodEdgeCountCurrent)
         {
@@ -13709,7 +13748,7 @@ EARLY_EXIT:;
                 bSrc = edge->flBlock;
                 // This is the control flow edge (bSrc -> bDst)
 
-                if (edge->flEdgeWeightMin != edge->flEdgeWeightMax)
+                if (edge->edgeWeightMin() != edge->edgeWeightMax())
                 {
                     fgRangeUsedInEdgeWeights = true;
                     break;
@@ -13810,12 +13849,12 @@ bool Compiler::fgOptimizeBranchToEmptyUnconditional(BasicBlock* block, BasicBloc
 
             BasicBlock::weight_t edgeWeight;
 
-            if (edge1->flEdgeWeightMin != edge1->flEdgeWeightMax)
+            if (edge1->edgeWeightMin() != edge1->edgeWeightMax())
             {
                 //
                 // We only have an estimate for the edge weight
                 //
-                edgeWeight = (edge1->flEdgeWeightMin + edge1->flEdgeWeightMax) / 2;
+                edgeWeight = (edge1->edgeWeightMin() + edge1->edgeWeightMax()) / 2;
                 //
                 //  Clear the profile weight flag
                 //
@@ -13826,7 +13865,7 @@ bool Compiler::fgOptimizeBranchToEmptyUnconditional(BasicBlock* block, BasicBloc
                 //
                 // We only have the exact edge weight
                 //
-                edgeWeight = edge1->flEdgeWeightMin;
+                edgeWeight = edge1->edgeWeightMin();
             }
 
             //
@@ -13849,23 +13888,27 @@ bool Compiler::fgOptimizeBranchToEmptyUnconditional(BasicBlock* block, BasicBloc
                 //
                 // Update the edge2 min/max weights
                 //
-                if (edge2->flEdgeWeightMin > edge1->flEdgeWeightMin)
+                BasicBlock::weight_t newEdge2Min;
+                BasicBlock::weight_t newEdge2Max;
+
+                if (edge2->edgeWeightMin() > edge1->edgeWeightMin())
                 {
-                    edge2->flEdgeWeightMin -= edge1->flEdgeWeightMin;
+                    newEdge2Min = edge2->edgeWeightMin() - edge1->edgeWeightMin();
                 }
                 else
                 {
-                    edge2->flEdgeWeightMin = BB_ZERO_WEIGHT;
+                    newEdge2Min = BB_ZERO_WEIGHT;
                 }
 
-                if (edge2->flEdgeWeightMax > edge1->flEdgeWeightMin)
+                if (edge2->edgeWeightMax() > edge1->edgeWeightMin())
                 {
-                    edge2->flEdgeWeightMax -= edge1->flEdgeWeightMin;
+                    newEdge2Max = edge2->edgeWeightMax() - edge1->edgeWeightMin();
                 }
                 else
                 {
-                    edge2->flEdgeWeightMax = BB_ZERO_WEIGHT;
+                    newEdge2Max = BB_ZERO_WEIGHT;
                 }
+                edge2->setEdgeWeights(newEdge2Min, newEdge2Max);
             }
         }
 
@@ -14170,7 +14213,7 @@ bool Compiler::fgOptimizeSwitchBranches(BasicBlock* block)
                 if (fgHaveValidEdgeWeights)
                 {
                     flowList*            edge                = fgGetPredForBlock(bDest, block);
-                    BasicBlock::weight_t branchThroughWeight = edge->flEdgeWeightMin;
+                    BasicBlock::weight_t branchThroughWeight = edge->edgeWeightMin();
 
                     if (bDest->bbWeight > branchThroughWeight)
                     {
@@ -15011,8 +15054,7 @@ bool Compiler::fgOptimizeBranch(BasicBlock* bJump)
         }
         else
         {
-            BasicBlock::weight_t newWeightDest    = 0;
-            BasicBlock::weight_t unloopWeightDest = 0;
+            BasicBlock::weight_t newWeightDest = 0;
 
             if (weightDest > weightJump)
             {
@@ -15022,9 +15064,9 @@ bool Compiler::fgOptimizeBranch(BasicBlock* bJump)
             {
                 newWeightDest = (weightDest * 2) / (BB_LOOP_WEIGHT * BB_UNITY_WEIGHT);
             }
-            if ((newWeightDest > 0) || (unloopWeightDest > 0))
+            if (newWeightDest > 0)
             {
-                bDest->bbWeight = Max(newWeightDest, unloopWeightDest);
+                bDest->bbWeight = newWeightDest;
             }
         }
     }
@@ -15077,7 +15119,7 @@ bool Compiler::fgOptimizeSwitchJumps()
             {
                 BasicBlock*   bDst       = *jumpTab;
                 flowList*     edgeToDst  = fgGetPredForBlock(bDst, bSrc);
-                double        outRatio   = (double) edgeToDst->flEdgeWeightMin  / (double) bSrc->bbWeight;
+                double        outRatio   = (double) edgeToDst->edgeWeightMin()  / (double) bSrc->bbWeight;
 
                 if (outRatio >= 0.60)
                 {
@@ -15247,7 +15289,7 @@ void Compiler::fgReorderBlocks()
                             {
                                 if (edge != edgeFromPrev)
                                 {
-                                    if (edge->flEdgeWeightMax >= edgeFromPrev->flEdgeWeightMin)
+                                    if (edge->edgeWeightMax() >= edgeFromPrev->edgeWeightMin())
                                     {
                                         moveDestUp = false;
                                         break;
@@ -15344,9 +15386,9 @@ void Compiler::fgReorderBlocks()
                         //   A takenRation of 0.90 means taken 90% of the time, not taken 10% of the time
                         //
                         double takenCount =
-                            ((double)edgeToDest->flEdgeWeightMin + (double)edgeToDest->flEdgeWeightMax) / 2.0;
+                            ((double)edgeToDest->edgeWeightMin() + (double)edgeToDest->edgeWeightMax()) / 2.0;
                         double notTakenCount =
-                            ((double)edgeToBlock->flEdgeWeightMin + (double)edgeToBlock->flEdgeWeightMax) / 2.0;
+                            ((double)edgeToBlock->edgeWeightMin() + (double)edgeToBlock->edgeWeightMax()) / 2.0;
                         double totalCount = takenCount + notTakenCount;
                         double takenRatio = takenCount / totalCount;
 
@@ -15358,7 +15400,7 @@ void Compiler::fgReorderBlocks()
                         else
                         {
                             // set profHotWeight
-                            profHotWeight = (edgeToBlock->flEdgeWeightMin + edgeToBlock->flEdgeWeightMax) / 2 - 1;
+                            profHotWeight = (edgeToBlock->edgeWeightMin() + edgeToBlock->edgeWeightMax()) / 2 - 1;
                         }
                     }
                     else
@@ -17399,7 +17441,7 @@ bool Compiler::fgIsBetterFallThrough(BasicBlock* bCur, BasicBlock* bAlt)
         noway_assert(edgeFromCur != nullptr);
         noway_assert(edgeFromAlt != nullptr);
 
-        result = (edgeFromAlt->flEdgeWeightMin > edgeFromCur->flEdgeWeightMax);
+        result = (edgeFromAlt->edgeWeightMin() > edgeFromCur->edgeWeightMax());
     }
     else
     {
@@ -19240,16 +19282,7 @@ unsigned Compiler::fgGetCodeEstimate(BasicBlock* block)
     for (Statement* stmt : StatementList(block->FirstNonPhiDef()))
     {
         unsigned char cost = stmt->GetCostSz();
-        if (cost < MAX_COST)
-        {
-            costSz += cost;
-        }
-        else
-        {
-            // We could walk the tree to find out the real GetCostSz(),
-            // but just using MAX_COST for this trees code size works OK
-            costSz += cost;
-        }
+        costSz += cost;
     }
 
     return costSz;
@@ -19932,16 +19965,16 @@ bool Compiler::fgDumpFlowGraph(Phases phase)
                 }
                 if (validWeights)
                 {
-                    unsigned edgeWeight = (edge->flEdgeWeightMin + edge->flEdgeWeightMax) / 2;
+                    unsigned edgeWeight = (edge->edgeWeightMin() + edge->edgeWeightMax()) / 2;
                     fprintf(fgxFile, "\n            weight=");
                     fprintfDouble(fgxFile, ((double)edgeWeight) / weightDivisor);
 
-                    if (edge->flEdgeWeightMin != edge->flEdgeWeightMax)
+                    if (edge->edgeWeightMin() != edge->edgeWeightMax())
                     {
                         fprintf(fgxFile, "\n            minWeight=");
-                        fprintfDouble(fgxFile, ((double)edge->flEdgeWeightMin) / weightDivisor);
+                        fprintfDouble(fgxFile, ((double)edge->edgeWeightMin()) / weightDivisor);
                         fprintf(fgxFile, "\n            maxWeight=");
-                        fprintfDouble(fgxFile, ((double)edge->flEdgeWeightMax) / weightDivisor);
+                        fprintfDouble(fgxFile, ((double)edge->edgeWeightMax()) / weightDivisor);
                     }
 
                     if (edgeWeight > 0)
@@ -25688,4 +25721,340 @@ bool Compiler::fgNeedReturnSpillTemp()
 bool Compiler::fgUseThrowHelperBlocks()
 {
     return !opts.compDbgCode;
+}
+
+//------------------------------------------------------------------------
+// fgTailMergeThrows: Tail merge throw blocks and blocks with no return calls.
+//
+// Notes:
+//    Scans the flow graph for throw blocks and blocks with no return calls
+//    that can be merged, and opportunistically merges them.
+//
+//    Does not handle throws yet as the analysis is more costly and less
+//    likely to pay off. So analysis is restricted to blocks with just one
+//    statement.
+//
+//    For throw helper call merging, we are looking for examples like
+//    the below. Here BB17 and BB21 have identical trees that call noreturn
+//    methods, so we can modify BB16 to branch to BB21 and delete BB17.
+//
+//    Also note as a quirk of how we model flow that both BB17 and BB21
+//    have successor blocks. We don't turn these into true throw blocks
+//    until morph.
+//
+//    BB16 [005..006) -> BB18 (cond), preds={} succs={BB17,BB18}
+//
+//    *  JTRUE     void
+//    \--*  NE        int
+//       ...
+//
+//    BB17 [005..006), preds={} succs={BB19}
+//
+//    *  CALL      void   ThrowHelper.ThrowArgumentOutOfRangeException
+//    \--*  CNS_INT   int    33
+//
+//    BB20 [005..006) -> BB22 (cond), preds={} succs={BB21,BB22}
+//
+//    *  JTRUE     void
+//    \--*  LE        int
+//       ...
+//
+//    BB21 [005..006), preds={} succs={BB22}
+//
+//    *  CALL      void   ThrowHelper.ThrowArgumentOutOfRangeException
+//    \--*  CNS_INT   int    33
+//
+void Compiler::fgTailMergeThrows()
+{
+    noway_assert(opts.OptimizationEnabled());
+
+    JITDUMP("\n*************** In fgTailMergeThrows\n");
+
+    // Early out case for most methods. Throw helpers are rare.
+    if (optNoReturnCallCount < 2)
+    {
+        JITDUMP("Method does not have multiple noreturn calls.\n");
+        return;
+    }
+
+    // This transformation requires block pred lists to be built
+    // so that flow can be safely updated.
+    assert(fgComputePredsDone);
+
+    struct ThrowHelper
+    {
+        BasicBlock*  m_block;
+        GenTreeCall* m_call;
+
+        ThrowHelper() : m_block(nullptr), m_call(nullptr)
+        {
+        }
+
+        ThrowHelper(BasicBlock* block, GenTreeCall* call) : m_block(block), m_call(call)
+        {
+        }
+
+        static bool Equals(const ThrowHelper x, const ThrowHelper& y)
+        {
+            return BasicBlock::sameEHRegion(x.m_block, y.m_block) && GenTreeCall::Equals(x.m_call, y.m_call);
+        }
+
+        static unsigned GetHashCode(const ThrowHelper& x)
+        {
+            return static_cast<unsigned>(reinterpret_cast<uintptr_t>(x.m_call->gtCallMethHnd));
+        }
+    };
+
+    typedef JitHashTable<ThrowHelper, ThrowHelper, BasicBlock*> CallToBlockMap;
+
+    CompAllocator   allocator(getAllocator(CMK_TailMergeThrows));
+    CallToBlockMap  callMap(allocator);
+    BlockToBlockMap blockMap(allocator);
+
+    // We run two passes here.
+    //
+    // The first pass finds candidate blocks. The first candidate for
+    // each unique kind of throw is chosen as the canonical example of
+    // that kind of throw.  Subsequent matching candidates are mapped
+    // to that throw.
+    //
+    // The second pass modifies flow so that predecessors of
+    // non-canonical throw blocks now transfer control to the
+    // appropriate canonical block.
+    int numCandidates = 0;
+
+    // First pass
+    //
+    // Scan for THROW blocks. Note early on in compilation (before morph)
+    // noreturn blocks are not marked as BBJ_THROW.
+    //
+    // Walk blocks from last to first so that any branches we
+    // introduce to the canonical blocks end up lexically forward
+    // and there is less jumbled flow to sort out later.
+    for (BasicBlock* block = fgLastBB; block != nullptr; block = block->bbPrev)
+    {
+        // For throw helpers the block should have exactly one statement....
+        // (this isn't guaranteed, but seems likely)
+        Statement* stmt = block->firstStmt();
+
+        if ((stmt == nullptr) || (stmt->GetNextStmt() != nullptr))
+        {
+            continue;
+        }
+
+        // ...that is a call
+        GenTree* const tree = stmt->GetRootNode();
+
+        if (!tree->IsCall())
+        {
+            continue;
+        }
+
+        // ...that does not return
+        GenTreeCall* const call = tree->AsCall();
+
+        if (!call->IsNoReturn())
+        {
+            continue;
+        }
+
+        // Sanity check -- only user funcs should be marked do not return
+        assert(call->gtCallType == CT_USER_FUNC);
+
+        // Ok, we've found a suitable call. See if this is one we know
+        // about already, or something new.
+        BasicBlock* canonicalBlock = nullptr;
+
+        JITDUMP("\n*** Does not return call\n");
+        DISPTREE(call);
+
+        // Have we found an equivalent call already?
+        ThrowHelper key(block, call);
+        if (callMap.Lookup(key, &canonicalBlock))
+        {
+            // Yes, this one can be optimized away...
+            JITDUMP("    in " FMT_BB " can be dup'd to canonical " FMT_BB "\n", block->bbNum, canonicalBlock->bbNum);
+            blockMap.Set(block, canonicalBlock);
+            numCandidates++;
+        }
+        else
+        {
+            // No, add this as the canonical example
+            JITDUMP("    in " FMT_BB " is unique, marking it as canonical\n", block->bbNum);
+            callMap.Set(key, block);
+        }
+    }
+
+    // Bail if no candidates were found
+    if (numCandidates == 0)
+    {
+        JITDUMP("\n*************** no throws can be tail merged, sorry\n");
+        return;
+    }
+
+    JITDUMP("\n*** found %d merge candidates, rewriting flow\n\n", numCandidates);
+
+    // Second pass.
+    //
+    // We walk the map rather than the block list, to save a bit of time.
+    BlockToBlockMap::KeyIterator iter(blockMap.Begin());
+    BlockToBlockMap::KeyIterator end(blockMap.End());
+    int                          updateCount = 0;
+
+    for (; !iter.Equal(end); iter++)
+    {
+        BasicBlock* const nonCanonicalBlock = iter.Get();
+        BasicBlock* const canonicalBlock    = iter.GetValue();
+        flowList*         nextPredEdge      = nullptr;
+
+        // Walk pred list of the non canonical block, updating flow to target
+        // the canonical block instead.
+        for (flowList* predEdge = nonCanonicalBlock->bbPreds; predEdge != nullptr; predEdge = nextPredEdge)
+        {
+            BasicBlock* const predBlock = predEdge->flBlock;
+            nextPredEdge                = predEdge->flNext;
+
+            switch (predBlock->bbJumpKind)
+            {
+                case BBJ_NONE:
+                {
+                    fgTailMergeThrowsFallThroughHelper(predBlock, nonCanonicalBlock, canonicalBlock, predEdge);
+                    updateCount++;
+                }
+                break;
+
+                case BBJ_ALWAYS:
+                {
+                    fgTailMergeThrowsJumpToHelper(predBlock, nonCanonicalBlock, canonicalBlock, predEdge);
+                    updateCount++;
+                }
+                break;
+
+                case BBJ_COND:
+                {
+                    // Flow to non canonical block could be via fall through or jump or both.
+                    if (predBlock->bbNext == nonCanonicalBlock)
+                    {
+                        fgTailMergeThrowsFallThroughHelper(predBlock, nonCanonicalBlock, canonicalBlock, predEdge);
+                    }
+
+                    if (predBlock->bbJumpDest == nonCanonicalBlock)
+                    {
+                        fgTailMergeThrowsJumpToHelper(predBlock, nonCanonicalBlock, canonicalBlock, predEdge);
+                    }
+                    updateCount++;
+                }
+                break;
+
+                case BBJ_SWITCH:
+                {
+                    JITDUMP("*** " FMT_BB " now branching to " FMT_BB "\n", predBlock->bbNum, canonicalBlock->bbNum);
+                    fgReplaceSwitchJumpTarget(predBlock, canonicalBlock, nonCanonicalBlock);
+                    updateCount++;
+                }
+                break;
+
+                default:
+                    // We don't expect other kinds of preds, and it is safe to ignore them
+                    // as flow is still correct, just not as optimized as it could be.
+                    break;
+            }
+        }
+    }
+
+    // If we altered flow, reset fgModified. Given where we sit in the
+    // phase list, flow-dependent side data hasn't been built yet, so
+    // nothing needs invalidation.
+    //
+    // Note we could invoke a cleanup pass here, but optOptimizeFlow
+    // seems to be missing some safety checks and doesn't expect to
+    // see an already cleaned-up flow graph.
+    if (updateCount > 0)
+    {
+        assert(fgModified);
+        fgModified = false;
+    }
+
+#if DEBUG
+    if (verbose)
+    {
+        printf("\n*************** After fgTailMergeThrows(%d updates)\n", updateCount);
+        fgDispBasicBlocks();
+        fgVerifyHandlerTab();
+        fgDebugCheckBBlist();
+    }
+#endif // DEBUG
+}
+
+//------------------------------------------------------------------------
+// fgTailMergeThrowsFallThroughHelper: fixup flow for fall throughs to mergable throws
+//
+// Arguments:
+//    predBlock - block falling through to the throw helper
+//    nonCanonicalBlock - original fall through target
+//    canonicalBlock - new (jump) target
+//    predEdge - original flow edge
+//
+// Notes:
+//    Alters fall through flow of predBlock so it jumps to the
+//    canonicalBlock via a new basic block.  Does not try and fix
+//    jump-around flow; we leave that to optOptimizeFlow which runs
+//    just afterwards.
+//
+void Compiler::fgTailMergeThrowsFallThroughHelper(BasicBlock* predBlock,
+                                                  BasicBlock* nonCanonicalBlock,
+                                                  BasicBlock* canonicalBlock,
+                                                  flowList*   predEdge)
+{
+    assert(predBlock->bbNext == nonCanonicalBlock);
+
+    BasicBlock* const newBlock = fgNewBBafter(BBJ_ALWAYS, predBlock, true);
+
+    JITDUMP("*** " FMT_BB " now falling through to empty " FMT_BB " and then to " FMT_BB "\n", predBlock->bbNum,
+            newBlock->bbNum, canonicalBlock->bbNum);
+
+    // Remove the old flow
+    fgRemoveRefPred(nonCanonicalBlock, predBlock);
+
+    // Wire up the new flow
+    predBlock->bbNext = newBlock;
+    fgAddRefPred(newBlock, predBlock, predEdge);
+
+    newBlock->bbJumpDest = canonicalBlock;
+    fgAddRefPred(canonicalBlock, newBlock, predEdge);
+
+    // Note there is now a jump to the canonical block
+    canonicalBlock->bbFlags |= (BBF_JMP_TARGET | BBF_HAS_LABEL);
+}
+
+//------------------------------------------------------------------------
+// fgTailMergeThrowsJumpToHelper: fixup flow for jumps to mergable throws
+//
+// Arguments:
+//    predBlock - block jumping to the throw helper
+//    nonCanonicalBlock - original jump target
+//    canonicalBlock - new jump target
+//    predEdge - original flow edge
+//
+// Notes:
+//    Alters jumpDest of predBlock so it jumps to the canonicalBlock.
+//
+void Compiler::fgTailMergeThrowsJumpToHelper(BasicBlock* predBlock,
+                                             BasicBlock* nonCanonicalBlock,
+                                             BasicBlock* canonicalBlock,
+                                             flowList*   predEdge)
+{
+    assert(predBlock->bbJumpDest == nonCanonicalBlock);
+
+    JITDUMP("*** " FMT_BB " now branching to " FMT_BB "\n", predBlock->bbNum, canonicalBlock->bbNum);
+
+    // Remove the old flow
+    fgRemoveRefPred(nonCanonicalBlock, predBlock);
+
+    // Wire up the new flow
+    predBlock->bbJumpDest = canonicalBlock;
+    fgAddRefPred(canonicalBlock, predBlock, predEdge);
+
+    // Note there is now a jump to the canonical block
+    canonicalBlock->bbFlags |= (BBF_JMP_TARGET | BBF_HAS_LABEL);
 }

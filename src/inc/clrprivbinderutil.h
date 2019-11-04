@@ -48,27 +48,9 @@ typedef DPTR(ICLRPrivBinder) PTR_ICLRPrivBinder;
 //=====================================================================================================================
 namespace CLRPrivBinderUtil
 {
-    //=================================================================================================
-    template <typename ItfT>
-    struct CLRPrivResourceBase :
-        public IUnknownCommon<ICLRPrivResource>
-    {
-        //---------------------------------------------------------------------------------------------
-        STDMETHOD(GetResourceType)(
-            IID *pIID)
-        {
-            LIMITED_METHOD_CONTRACT;
-            if (pIID == nullptr)
-                return E_INVALIDARG;
-            *pIID = __uuidof(ItfT);
-            return S_OK;
-        }
-    };
-
     //=================================================================================================================
     class CLRPrivResourcePathImpl :
-        public IUnknownCommon< ItfBase< CLRPrivResourceBase< ICLRPrivResourcePath > >,
-                               ICLRPrivResourcePath >
+        public IUnknownCommon2<ICLRPrivResource, IID_ICLRPrivResource, ICLRPrivResourcePath, IID_ICLRPrivResourcePath>
     {
     public:
         //---------------------------------------------------------------------------------------------
@@ -78,9 +60,16 @@ namespace CLRPrivBinderUtil
         LPCWSTR GetPath()
         { return m_wzPath; }
 
-        //
-        // ICLRPrivResourcePath methods
-        //
+        //---------------------------------------------------------------------------------------------
+        STDMETHOD(GetResourceType)(
+            IID* pIID)
+        {
+            LIMITED_METHOD_CONTRACT;
+            if (pIID == nullptr)
+                return E_INVALIDARG;
+            *pIID = __uuidof(ICLRPrivResourcePath);
+            return S_OK;
+        }
 
         //---------------------------------------------------------------------------------------------
         STDMETHOD(GetPath)(
@@ -94,35 +83,16 @@ namespace CLRPrivBinderUtil
     };
 
     //=================================================================================================================
-    class CLRPrivResourceStreamImpl :
-        public IUnknownCommon< ItfBase< CLRPrivResourceBase<ICLRPrivResourceStream > >,
-                               ICLRPrivResourceStream>
-    {
-    public:
-        //---------------------------------------------------------------------------------------------
-        CLRPrivResourceStreamImpl(IStream * pStream);
-
-        //---------------------------------------------------------------------------------------------
-        STDMETHOD(GetStream)(
-            REFIID riid,
-            LPVOID * ppvStream);
-
-    private:
-        //---------------------------------------------------------------------------------------------
-        ReleaseHolder<IStream> m_pStream;
-    };
-    
-    //=================================================================================================================
     // Types for WStringList (used in WinRT binders)
-    
+
     typedef SListElem< PTR_WSTR > WStringListElem;
     typedef DPTR(WStringListElem) PTR_WStringListElem;
     typedef SList< WStringListElem, false /* = fHead default value */, PTR_WStringListElem > WStringList;
     typedef DPTR(WStringList)     PTR_WStringList;
-    
+
     // Destroys list of strings (code:WStringList).
     void WStringList_Delete(WStringList * pList);
-    
+
 #ifndef DACCESS_COMPILE
     //=====================================================================================================================
     // Holder of allocated code:WStringList (helper class for WinRT binders - e.g. code:CLRPrivBinderWinRT::GetFileNameListForNamespace).
@@ -139,7 +109,7 @@ namespace CLRPrivBinderUtil
             LIMITED_METHOD_CONTRACT;
             Destroy();
         }
-        
+
         void InsertTail(LPCWSTR wszValue)
         {
             CONTRACTL
@@ -149,52 +119,52 @@ namespace CLRPrivBinderUtil
                 MODE_ANY;
             }
             CONTRACTL_END;
-            
+
             NewArrayHolder<WCHAR> wszElemValue = DuplicateStringThrowing(wszValue);
             NewHolder<WStringListElem> pElem = new WStringListElem(wszElemValue);
-            
+
             if (m_pList == nullptr)
             {
                 m_pList = new WStringList();
             }
-            
+
             m_pList->InsertTail(pElem.Extract());
             // The string is now owned by the list
             wszElemValue.SuppressRelease();
         }
-        
+
         WStringList * GetValue()
         {
             LIMITED_METHOD_CONTRACT;
             return m_pList;
         }
-        
+
         WStringList * Extract()
         {
             LIMITED_METHOD_CONTRACT;
-            
+
             WStringList * pList = m_pList;
             m_pList = nullptr;
             return pList;
         }
-        
+
     private:
         void Destroy()
         {
             LIMITED_METHOD_CONTRACT;
-            
+
             if (m_pList != nullptr)
             {
                 WStringList_Delete(m_pList);
                 m_pList = nullptr;
             }
         }
-        
+
     private:
         WStringList * m_pList;
     };  // class WStringListHolder
 #endif //!DACCESS_COMPILE
-    
+
 #ifdef FEATURE_COMINTEROP
     //=====================================================================================================================
     // Holder of allocated array of HSTRINGs (helper class for WinRT binders - e.g. code:CLRPrivBinderWinRT::m_rgAltPaths).
@@ -204,7 +174,7 @@ namespace CLRPrivBinderUtil
         HSTRINGArrayHolder()
         {
             LIMITED_METHOD_CONTRACT;
-        
+
             m_cValues = 0;
             m_rgValues = nullptr;
         }
@@ -214,20 +184,20 @@ namespace CLRPrivBinderUtil
             LIMITED_METHOD_CONTRACT;
             Destroy();
         }
-        
+
         // Destroys current array and allocates a new one with cValues elements.
         void Allocate(DWORD cValues)
         {
             STANDARD_VM_CONTRACT;
-        
+
             Destroy();
             _ASSERTE(m_cValues == 0);
-        
+
             if (cValues > 0)
             {
                 m_rgValues = new HSTRING[cValues];
                 m_cValues = cValues;
-            
+
                 // Initialize the array values
                 for (DWORD i = 0; i < cValues; i++)
                 {
@@ -242,25 +212,25 @@ namespace CLRPrivBinderUtil
             LIMITED_METHOD_CONTRACT;
             return m_rgValues[index];
         }
-    
+
         HSTRING * GetRawArray()
         {
             LIMITED_METHOD_CONTRACT;
             return m_rgValues;
         }
-    
+
         DWORD GetCount()
         {
             LIMITED_METHOD_CONTRACT;
             return m_cValues;
         }
-    
+
     private:
 #ifndef DACCESS_COMPILE
         void Destroy()
         {
             LIMITED_METHOD_CONTRACT;
-        
+
             for (DWORD i = 0; i < m_cValues; i++)
             {
                 if (m_rgValues[i] != nullptr)
@@ -269,7 +239,7 @@ namespace CLRPrivBinderUtil
                 }
             }
             m_cValues = 0;
-        
+
             if (m_rgValues != nullptr)
             {
                 delete [] m_rgValues;
@@ -277,12 +247,12 @@ namespace CLRPrivBinderUtil
             }
         }
 #endif //!DACCESS_COMPILE
-    
+
     private:
         DWORD     m_cValues;
         HSTRING * m_rgValues;
     };  // class HSTRINGArrayHolder
-    
+
 #endif // FEATURE_COMINTEROP
 } // namespace CLRPrivBinderUtil
 

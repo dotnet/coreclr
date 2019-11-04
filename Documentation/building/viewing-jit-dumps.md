@@ -43,7 +43,7 @@ The first thing to do is setup the .NET Core app we want to dump. Here are the s
             {
                 Console.WriteLine(InefficientJoin(args));
             }
-            
+
             // Add NoInlining to prevent this from getting
             // mixed up with the rest of the code in Main
             [MethodImpl(MethodImplOptions.NoInlining)]
@@ -106,7 +106,7 @@ These can be set in one of three ways:
    ```shell
    # Windows
    set COMPlus_JitDump=Main
-   
+
    # Powershell
    $env:COMPlus_JitDump="Main"
 
@@ -155,8 +155,6 @@ Below are some of the most useful `COMPlus` variables. Where {method-list} is sp
 * `COMPlus_JitEHDump`={method-list} – dump the exception handling tables.
 * `COMPlus_JitTimeLogFile`={file name} – this specifies a log file to which timing information is written.
 * `COMPlus_JitTimeLogCsv`={file name} – this specifies a log file to which summary timing information can be written, in CSV form.
-
-See also: [CLR Configuration Knobs](../project-docs/clr-configuration-knobs.md)
 
 ## Dumping native images
 

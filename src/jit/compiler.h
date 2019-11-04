@@ -4356,6 +4356,16 @@ public:
 
     void fgAddFinallyTargetFlags();
 
+    void fgTailMergeThrows();
+    void fgTailMergeThrowsFallThroughHelper(BasicBlock* predBlock,
+                                            BasicBlock* nonCanonicalBlock,
+                                            BasicBlock* canonicalBlock,
+                                            flowList*   predEdge);
+    void fgTailMergeThrowsJumpToHelper(BasicBlock* predBlock,
+                                       BasicBlock* nonCanonicalBlock,
+                                       BasicBlock* canonicalBlock,
+                                       flowList*   predEdge);
+
 #if defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
     // Sometimes we need to defer updating the BBF_FINALLY_TARGET bit. fgNeedToAddFinallyTargetBits signals
     // when this is necessary.
@@ -4827,7 +4837,7 @@ public:
     bool fgGCPollsCreated;
     void fgMarkGCPollBlocks();
     void fgCreateGCPolls();
-    bool fgCreateGCPoll(GCPollType pollType, BasicBlock* block);
+    bool fgCreateGCPoll(GCPollType pollType, BasicBlock* block, Statement* stmt = nullptr);
 
     // Requires that "block" is a block that returns from
     // a finally.  Returns the number of successors (jump targets of
@@ -6345,6 +6355,18 @@ public:
 
     unsigned optMethodFlags;
 
+    bool doesMethodHaveNoReturnCalls()
+    {
+        return optNoReturnCallCount > 0;
+    }
+
+    void setMethodHasNoReturnCalls()
+    {
+        optNoReturnCallCount++;
+    }
+
+    unsigned optNoReturnCallCount;
+
     // Recursion bound controls how far we can go backwards tracking for a SSA value.
     // No throughput diff was found with backward walk bound between 3-8.
     static const int optEarlyPropRecurBound = 5;
@@ -6928,6 +6950,7 @@ public:
 
     var_types eeGetArgType(CORINFO_ARG_LIST_HANDLE list, CORINFO_SIG_INFO* sig);
     var_types eeGetArgType(CORINFO_ARG_LIST_HANDLE list, CORINFO_SIG_INFO* sig, bool* isPinned);
+    CORINFO_CLASS_HANDLE eeGetArgClass(CORINFO_SIG_INFO* sig, CORINFO_ARG_LIST_HANDLE list);
     unsigned eeGetArgSize(CORINFO_ARG_LIST_HANDLE list, CORINFO_SIG_INFO* sig);
 
     // VOM info, method sigs
@@ -7770,12 +7793,18 @@ private:
 
     bool isSIMDClass(CORINFO_CLASS_HANDLE clsHnd)
     {
-        return info.compCompHnd->isInSIMDModule(clsHnd);
+        if (isIntrinsicType(clsHnd))
+        {
+            const char* namespaceName = nullptr;
+            (void)getClassNameFromMetadata(clsHnd, &namespaceName);
+            return strcmp(namespaceName, "System.Numerics") == 0;
+        }
+        return false;
     }
 
     bool isIntrinsicType(CORINFO_CLASS_HANDLE clsHnd)
     {
-        return (info.compCompHnd->getClassAttribs(clsHnd) & CORINFO_FLG_INTRINSIC_TYPE) != 0;
+        return info.compCompHnd->isIntrinsicType(clsHnd);
     }
 
     const char* getClassNameFromMetadata(CORINFO_CLASS_HANDLE cls, const char** namespaceName)
@@ -8086,15 +8115,11 @@ public:
     {
 #ifdef FEATURE_SIMD
         unsigned vectorRegSize = getSIMDVectorRegisterByteLength();
-        if (vectorRegSize > TARGET_POINTER_SIZE)
-        {
-            return vectorRegSize;
-        }
-        else
-#endif // FEATURE_SIMD
-        {
-            return TARGET_POINTER_SIZE;
-        }
+        assert(vectorRegSize >= TARGET_POINTER_SIZE);
+        return vectorRegSize;
+#else  // !FEATURE_SIMD
+        return TARGET_POINTER_SIZE;
+#endif // !FEATURE_SIMD
     }
 
 private:
@@ -9934,6 +9959,7 @@ public:
             case GT_RETURN:
             case GT_RETFILT:
             case GT_RUNTIMELOOKUP:
+            case GT_KEEPALIVE:
             {
                 GenTreeUnOp* const unOp = node->AsUnOp();
                 if (unOp->gtOp1 != nullptr)
@@ -10502,20 +10528,6 @@ extern const BYTE genTypeSizes[];
 extern const BYTE genTypeAlignments[];
 extern const BYTE genTypeStSzs[];
 extern const BYTE genActualTypes[];
-
-/*****************************************************************************/
-
-// VERY_LARGE_FRAME_SIZE_REG_MASK is the set of registers we need to use for
-// the probing loop generated for very large stack frames (see `getVeryLargeFrameSize`).
-// We only use this to ensure that if we need to reserve a callee-saved register,
-// it will be reserved. For ARM32, only R12 and LR are non-callee-saved, non-argument
-// registers, so we save at least one more callee-saved register. For ARM64, however,
-// we already know we have at least three non-callee-saved, non-argument integer registers,
-// so we don't need to save any more.
-
-#ifdef _TARGET_ARM_
-#define VERY_LARGE_FRAME_SIZE_REG_MASK (RBM_R4)
-#endif
 
 /*****************************************************************************/
 
