@@ -226,7 +226,6 @@ FRAME_TYPE_NAME(ExternalMethodFrame)
 #ifdef FEATURE_READYTORUN
 FRAME_TYPE_NAME(DynamicHelperFrame)
 #endif
-FRAME_TYPE_NAME(GCFrame)
 #ifdef FEATURE_INTERPRETER
 FRAME_TYPE_NAME(InterpreterFrame)
 #endif // FEATURE_INTERPRETER
