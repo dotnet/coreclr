@@ -309,7 +309,6 @@ void CopyPropogation::optCopyProp(BasicBlock* block, Statement* stmt, GenTree* t
 
         tree->AsLclVarCommon()->SetLclNum(newLclNum);
         tree->AsLclVarCommon()->SetSsaNum(newSsaNum);
-        comp->gtUpdateSideEffects(stmt, tree);
 #ifdef DEBUG
         if (VERBOSE)
         {
