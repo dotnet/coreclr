@@ -2590,8 +2590,8 @@ namespace System
                     // but the following code just saves a half of the vector, then appends `\r\n` manually
                     // and the second part of the vector is ignored (this is why 'i' is decremented)
                     charcount = 0;
-                    var shuffleResult = result.AsUInt64();
-                    Sse2.StoreLow((ulong*)(outputBytes + j), shuffleResult);
+                    Vector128<ulong> shuffleResult = result.AsUInt64();
+                    Sse2.StoreScalar((ulong*)(outputBytes + j), shuffleResult);
                     j += Vector128<byte>.Count / 2;
                     outputBytes[j++] = (byte)'\r';
                     outputBytes[j++] = 0;
