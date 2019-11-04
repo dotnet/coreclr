@@ -196,7 +196,7 @@ private:
             if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken))
                 goto cleanup;
 
-            // don't set pSecurityAttributes for Windows Store processes
+            // don't set pSecurityAttributes for AppContainer processes
             if(!IsAppContainerProcess(hToken))
             {
                 SECURITY_ATTRIBUTES securityAttributes;
@@ -344,23 +344,23 @@ cleanup:
         // 2. From bbsweepclr.exe
         //
         // When called from process init code, processID is always INVALID_PID.
-        // In case it is a Win8-Windows Store/WP8 process, we need to add the AppContainerNamedObjectPath to prefix.
-        // And if it is a non-Windows Store process, we will continue to use the default prefix (Global).
+        // In case it is a Win8-AppContainer/WP8 process, we need to add the AppContainerNamedObjectPath to prefix.
+        // And if it is a non-AppContainer process, we will continue to use the default prefix (Global).
         // We use IsAppContainerProcess(CurrentProcessId) to make this decision.
         //
         //
-        // When called from bbsweepclr, processID is valid when sweeping a Windows Store or WP8 process.
-        // We use this valid processID to determine if the process being swept is Windows Store/WP8 indeed and then
+        // When called from bbsweepclr, processID is valid when sweeping a AppContainer or WP8 process.
+        // We use this valid processID to determine if the process being swept is AppContainer/WP8 indeed and then
         // add AppContainerNamedObjectPath to prefix. This is done by IsAppContainerProcess(processID).
         //
-        // In case INVALID_PID is passed(non-Windows Store process), we have to use default prefix. To handle this
-        // case we use IsAppContainerProcess(CurrentProcessId) and since bbsweepclr is a non-Windows Store process,
+        // In case INVALID_PID is passed(non-AppContainer process), we have to use default prefix. To handle this
+        // case we use IsAppContainerProcess(CurrentProcessId) and since bbsweepclr is a non-AppContainer process,
         // this check always returns false and we end up using the intended(default) prefix.
         //
         if(processID == INVALID_PID) {
             // we reach here when:
             // * called from process init code:
-            // * called from bbsweepclr.exe and no processID has been passed as argument, that is, when sweeping a non-Windows Store process
+            // * called from bbsweepclr.exe and no processID has been passed as argument, that is, when sweeping a non-AppContainer process
             processID = GetCurrentProcessId();
         }
 
@@ -368,7 +368,7 @@ cleanup:
         if (hProcess  != INVALID_HANDLE_VALUE)
         {
             HandleHolder hToken = NULL;
-            // if in the process init code of a Windows Store app or if bbsweepclr is used to sweep a Windows Store app,
+            // if in the process init code of a AppContainer app or if bbsweepclr is used to sweep a AppContainer app,
             // construct the object name prefix using AppContainerNamedObjectPath
             if (OpenProcessToken(hProcess, TOKEN_QUERY, &hToken) && IsAppContainerProcess(hToken))
             {
@@ -377,7 +377,7 @@ cleanup:
 
                 if (fromRuntime)
                 {
-                    // for Windows Store apps, create the object in the "default" object path, i.e. do not provide any prefix
+                    // for AppContainer apps, create the object in the "default" object path, i.e. do not provide any prefix
                     objectNamePrefix[0] = W('\0');
                 }
                 else
@@ -394,7 +394,7 @@ cleanup:
                         GetProcAddress(WszGetModuleHandle(MODULE_NAME), "GetAppContainerNamedObjectPath");
                     if (pfnGetAppContainerNamedObjectPath)
                     {
-                        // for bbsweepclr sweeping a Windows Store app, create the object specifying the AppContainer's path
+                        // for bbsweepclr sweeping a AppContainer app, create the object specifying the AppContainer's path
                         DWORD sessionId = 0;
                         ProcessIdToSessionId(processID, &sessionId);
                         pfnGetAppContainerNamedObjectPath(hToken, NULL, sizeof (appxNamedObjPath) / sizeof (WCHAR), appxNamedObjPath, &appxNamedObjPathBufLen);
