@@ -641,7 +641,7 @@ def call_msbuild(coreclr_repo_location,
 
     command =   [dotnetcli_location,
                  "msbuild",
-                 os.path.join(coreclr_repo_location, "tests", "runtest.proj"),
+                 os.path.join(coreclr_repo_location, "tests", "src", "runtest.proj"),
                  "/p:Runtests=true",
                  "/clp:showcommandline"]
 
@@ -1530,7 +1530,7 @@ def setup_core_root(host_os,
                 "/p:PortableBuild=true",
                 "/p:UsePartialNGENOptimization=false",
                 "/maxcpucount",
-                os.path.join(coreclr_repo_location, "tests", "runtest.proj")]
+                os.path.join(coreclr_repo_location, "tests", "src", "runtest.proj")]
 
     logs_dir = os.path.join(coreclr_repo_location, "bin", "Logs")
     if not os.path.isdir(logs_dir):
@@ -1593,7 +1593,7 @@ def setup_core_root(host_os,
 
                 if host_os != "Windows_NT":
                     # Set executable bit
-                    os.chmod(os.path.join(dest, item), 0o774)
+                    os.chmod(os.path.join(dest, os.path.basename(item)), 0o774)
             else:
                 new_dir = os.path.join(dest, os.path.basename(item))
                 if os.path.isdir(new_dir):

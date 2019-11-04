@@ -15,25 +15,28 @@
     <UsingToolXliff>false</UsingToolXliff>
     <!-- Package versions -->
     <!-- arcade -->
-    <MicrosoftDotNetBuildTasksFeedVersion>2.2.0-beta.19463.3</MicrosoftDotNetBuildTasksFeedVersion>
-    <MicrosoftDotNetBuildTasksPackagingVersion>1.0.0-beta.19463.3</MicrosoftDotNetBuildTasksPackagingVersion>
+    <MicrosoftDotNetBuildTasksFeedVersion>5.0.0-beta.19552.1</MicrosoftDotNetBuildTasksFeedVersion>
+    <MicrosoftDotNetBuildTasksPackagingVersion>5.0.0-beta.19552.1</MicrosoftDotNetBuildTasksPackagingVersion>
     <MicrosoftDotNetXUnitConsoleRunnerVersion>2.5.1-beta.19278.1</MicrosoftDotNetXUnitConsoleRunnerVersion>
-    <MicrosoftDotNetVersionToolsTasksVersion>1.0.0-beta.19463.3</MicrosoftDotNetVersionToolsTasksVersion>
+    <MicrosoftDotNetVersionToolsTasksVersion>5.0.0-beta.19552.1</MicrosoftDotNetVersionToolsTasksVersion>
+    <MicrosoftDotNetHelixSdkVersion>5.0.0-beta.19552.1</MicrosoftDotNetHelixSdkVersion>
     <!-- corefx -->
-    <MicrosoftPrivateCoreFxNETCoreAppVersion>5.0.0-alpha1.19508.1</MicrosoftPrivateCoreFxNETCoreAppVersion>
-    <MicrosoftNETCorePlatformsVersion>5.0.0-alpha1.19508.1</MicrosoftNETCorePlatformsVersion>
-    <MicrosoftBclAsyncInterfacesVersion>1.0.0-preview7.19326.2</MicrosoftBclAsyncInterfacesVersion>
+    <MicrosoftPrivateCoreFxNETCoreAppVersion>5.0.0-alpha.1.19553.8</MicrosoftPrivateCoreFxNETCoreAppVersion>
+    <MicrosoftNETCorePlatformsVersion>5.0.0-alpha.1.19553.8</MicrosoftNETCorePlatformsVersion>
     <!-- core-setup -->
-    <MicrosoftNETCoreAppVersion>5.0.0-alpha1.19510.2</MicrosoftNETCoreAppVersion>
+    <MicrosoftNETCoreAppVersion>5.0.0-alpha.1.19554.1</MicrosoftNETCoreAppVersion>
     <!-- dotnet-optimization -->
     <optimizationIBCCoreCLRVersion>99.99.99-master-20190716.1</optimizationIBCCoreCLRVersion>
     <optimizationPGOCoreCLRVersion>99.99.99-master-20190716.1</optimizationPGOCoreCLRVersion>
     <!-- ilasm -->
-    <MicrosoftNETCoreILAsmPackageVersion>5.0.0-alpha1.19413.7</MicrosoftNETCoreILAsmPackageVersion>
+    <MicrosoftNETCoreILAsmVersion>5.0.0-alpha1.19413.7</MicrosoftNETCoreILAsmVersion>
+    <MicrosoftNETCoreILAsmPackageVersion>$(MicrosoftNETCoreILAsmVersion)</MicrosoftNETCoreILAsmPackageVersion>
+    <!-- IL linker -->
+    <ILLinkTasksVersion>0.1.6-prerelease.19523.1</ILLinkTasksVersion>
   </PropertyGroup>
   <!--Package names-->
   <PropertyGroup>
-    <MicrosoftDotNetXUnitConsoleRunnerPackage>Microsoft.DotNet.XUnitConsoleRunner</MicrosoftDotNetXUnitConsoleRunnerPackage>
+    <MicrosoftDotNetXUnitConsoleRunnerPackage>microsoft.dotnet.xunitconsolerunner</MicrosoftDotNetXUnitConsoleRunnerPackage>
     <MicrosoftPrivateCoreFxNETCoreAppPackage>Microsoft.Private.CoreFx.NETCoreApp</MicrosoftPrivateCoreFxNETCoreAppPackage>
     <MicrosoftNETCorePlatformsPackage>Microsoft.NETCore.Platforms</MicrosoftNETCorePlatformsPackage>
     <MicrosoftNETCoreAppPackage>Microsoft.NETCore.App</MicrosoftNETCoreAppPackage>

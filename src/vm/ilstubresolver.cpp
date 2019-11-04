@@ -1,9 +1,9 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
-// 
+//
 // File: ILStubResolver.cpp
-// 
+//
 
 //
 
@@ -28,14 +28,14 @@ BYTE* ILStubResolver::GetCodeInfo(unsigned* pCodeSize, unsigned* pStackSize, Cor
     CONTRACT_END;
 
 #ifndef DACCESS_COMPILE
-    CORINFO_METHOD_INFO methodInfo;    
+    CORINFO_METHOD_INFO methodInfo;
     getMethodInfoILMethodHeaderHelper(&m_pCompileTimeState->m_ILHeader, &methodInfo);
 
     *pCodeSize = methodInfo.ILCodeSize;
     *pStackSize = methodInfo.maxStack;
     *pOptions = methodInfo.options;
     *pEHSize = methodInfo.EHcount;
-    
+
     RETURN methodInfo.ILCode;
 #else // DACCESS_COMPILE
     DacNotImpl();
@@ -77,6 +77,7 @@ LPCUTF8 ILStubResolver::GetStubMethodName()
         case NativeToCLRInteropStub: return "IL_STUB_ReversePInvoke";
         case COMToCLRInteropStub:    return "IL_STUB_COMtoCLR";
         case WinRTToCLRInteropStub:  return "IL_STUB_WinRTtoCLR";
+        case StructMarshalInteropStub: return "IL_STUB_StructMarshal";
 #ifdef FEATURE_ARRAYSTUB_AS_IL
         case ArrayOpStub:            return "IL_STUB_Array";
 #endif
@@ -115,13 +116,13 @@ ChunkAllocator* ILStubResolver::GetJitMetaHeap()
     return NULL;
 }
 
-SigPointer 
+SigPointer
 ILStubResolver::GetLocalSig()
 {
     STANDARD_VM_CONTRACT;
 
     return SigPointer(
-        m_pCompileTimeState->m_ILHeader.LocalVarSig, 
+        m_pCompileTimeState->m_ILHeader.LocalVarSig,
         m_pCompileTimeState->m_ILHeader.cbLocalVarSig);
 }
 
@@ -140,7 +141,7 @@ BOOL ILStubResolver::IsValidStringRef(mdToken metaTok)
 }
 
 void ILStubResolver::ResolveToken(mdToken token, TypeHandle * pTH, MethodDesc ** ppMD, FieldDesc ** ppFD)
-{        
+{
     STANDARD_VM_CONTRACT;
 
     *pTH = NULL;
@@ -181,8 +182,8 @@ void ILStubResolver::ResolveToken(mdToken token, TypeHandle * pTH, MethodDesc **
 }
 
 //---------------------------------------------------------------------------------------
-// 
-SigPointer 
+//
+SigPointer
 ILStubResolver::ResolveSignature(
     mdToken token)
 {
@@ -193,8 +194,8 @@ ILStubResolver::ResolveSignature(
 }
 
 //---------------------------------------------------------------------------------------
-// 
-SigPointer 
+//
+SigPointer
 ILStubResolver::ResolveSignatureForVarArg(
     mdToken token)
 {
@@ -204,7 +205,7 @@ ILStubResolver::ResolveSignatureForVarArg(
 }
 
 //---------------------------------------------------------------------------------------
-// 
+//
 void ILStubResolver::GetEHInfo(unsigned EHnumber, CORINFO_EH_CLAUSE* clause)
 {
     CONTRACTL
@@ -215,7 +216,7 @@ void ILStubResolver::GetEHInfo(unsigned EHnumber, CORINFO_EH_CLAUSE* clause)
         PRECONDITION(EHnumber < m_pCompileTimeState->m_ILHeader.EH->EHCount());
     }
     CONTRACTL_END;
-   
+
     COR_ILMETHOD_SECT_EH_CLAUSE_FAT ehClause;
     const COR_ILMETHOD_SECT_EH_CLAUSE_FAT* ehInfo;
     ehInfo = (COR_ILMETHOD_SECT_EH_CLAUSE_FAT*)m_pCompileTimeState->m_ILHeader.EH->EHClause(EHnumber, &ehClause);
@@ -258,10 +259,10 @@ void ILStubResolver::SetStubTargetMethodDesc(MethodDesc* pStubTargetMD)
 
 
 //---------------------------------------------------------------------------------------
-// 
-void 
+//
+void
 ILStubResolver::SetStubTargetMethodSig(
-    PCCOR_SIGNATURE pStubTargetMethodSig, 
+    PCCOR_SIGNATURE pStubTargetMethodSig,
     DWORD           cbStubTargetSigLength)
 {
     CONTRACTL
@@ -272,16 +273,16 @@ ILStubResolver::SetStubTargetMethodSig(
     CONTRACTL_END;
 
     NewArrayHolder<BYTE> pNewSig = new BYTE[cbStubTargetSigLength];
-    
+
     memcpyNoGCRefs((void *)pNewSig, pStubTargetMethodSig, cbStubTargetSigLength);
-    
+
     m_pCompileTimeState->m_StubTargetMethodSig = SigPointer(pNewSig, cbStubTargetSigLength);
     pNewSig.SuppressRelease();
 }
 
 //---------------------------------------------------------------------------------------
-// 
-MethodDesc * 
+//
+MethodDesc *
 ILStubResolver::GetStubTargetMethodDesc()
 {
     LIMITED_METHOD_CONTRACT;
@@ -294,23 +295,41 @@ MethodDesc* ILStubResolver::GetStubMethodDesc()
     return m_pStubMD;
 }
 
-ILStubResolver::ILStubResolver() : 
+ILStubResolver::ILStubResolver() :
     m_pCompileTimeState(dac_cast<PTR_CompileTimeState>(ILNotYetGenerated)),
     m_pStubMD(dac_cast<PTR_MethodDesc>(nullptr)),
     m_pStubTargetMD(dac_cast<PTR_MethodDesc>(nullptr)),
     m_type(Unassigned),
-    m_jitFlags()
+    m_jitFlags(),
+    m_loaderHeap(dac_cast<PTR_LoaderHeap>(nullptr))
 {
     LIMITED_METHOD_CONTRACT;
-    
+
+}
+
+void ILStubResolver::SetLoaderHeap(PTR_LoaderHeap pLoaderHeap)
+{
+    m_loaderHeap = pLoaderHeap;
+}
+
+void ILStubResolver::CreateILHeader(COR_ILMETHOD_DECODER* pILHeader, size_t cbCode, UINT maxStack, BYTE* pNewILCodeBuffer, BYTE* pNewLocalSig, DWORD cbLocalSig)
+{
+    pILHeader->Flags = 0;
+    pILHeader->CodeSize = (DWORD)cbCode;
+    pILHeader->MaxStack = maxStack;
+    pILHeader->EH = 0;
+    pILHeader->Sect = 0;
+    pILHeader->Code = pNewILCodeBuffer;
+    pILHeader->LocalVarSig = pNewLocalSig;
+    pILHeader->cbLocalVarSig = cbLocalSig;
 }
 
 //---------------------------------------------------------------------------------------
-// 
-COR_ILMETHOD_DECODER * 
+//
+COR_ILMETHOD_DECODER *
 ILStubResolver::AllocGeneratedIL(
-    size_t cbCode, 
-    DWORD  cbLocalSig, 
+    size_t cbCode,
+    DWORD  cbLocalSig,
     UINT   maxStack)
 {
     STANDARD_VM_CONTRACT;
@@ -318,42 +337,62 @@ ILStubResolver::AllocGeneratedIL(
 #if !defined(DACCESS_COMPILE)
     _ASSERTE(0 != cbCode);
 
-    NewArrayHolder<BYTE>             pNewILCodeBuffer        = NULL;
-    NewArrayHolder<BYTE>             pNewLocalSig            = NULL;
-    NewArrayHolder<CompileTimeState> pNewCompileTimeState    = NULL;
-
-    pNewCompileTimeState = (CompileTimeState *)new BYTE[sizeof(CompileTimeState)];
-    memset(pNewCompileTimeState, 0, sizeof(CompileTimeState));
-
-    pNewILCodeBuffer = new BYTE[cbCode];
-
-    if (0 != cbLocalSig)
+    if (!UseLoaderHeap())
     {
-        pNewLocalSig = new BYTE[cbLocalSig];
-    }
+        NewArrayHolder<BYTE>             pNewILCodeBuffer = new BYTE[cbCode];
+        NewArrayHolder<CompileTimeState> pNewCompileTimeState = (CompileTimeState*)new BYTE[sizeof(CompileTimeState)];
+        memset(pNewCompileTimeState, 0, sizeof(CompileTimeState));
+        NewArrayHolder<BYTE>             pNewLocalSig = NULL;
 
-    COR_ILMETHOD_DECODER* pILHeader = &pNewCompileTimeState->m_ILHeader;    
+        if (0 != cbLocalSig)
+        {
+            pNewLocalSig = new BYTE[cbLocalSig];
+        }
 
-    pILHeader->Flags         = 0;
-    pILHeader->CodeSize      = (DWORD)cbCode;
-    pILHeader->MaxStack      = maxStack;
-    pILHeader->EH            = 0;
-    pILHeader->Sect          = 0;
-    pILHeader->Code          = pNewILCodeBuffer;
-    pILHeader->LocalVarSig   = pNewLocalSig;
-    pILHeader->cbLocalVarSig = cbLocalSig;
+        COR_ILMETHOD_DECODER* pILHeader = &pNewCompileTimeState->m_ILHeader;
+
+        CreateILHeader(pILHeader, cbCode, maxStack, pNewILCodeBuffer, pNewLocalSig, cbLocalSig);
 
 #ifdef _DEBUG
-    LPVOID pPrevCompileTimeState =
+        LPVOID pPrevCompileTimeState =
 #endif // _DEBUG
-    FastInterlockExchangePointer(&m_pCompileTimeState, pNewCompileTimeState.GetValue());
-    CONSISTENCY_CHECK(ILNotYetGenerated == (UINT_PTR)pPrevCompileTimeState);
+            FastInterlockExchangePointer(&m_pCompileTimeState, pNewCompileTimeState.GetValue());
+        CONSISTENCY_CHECK(ILNotYetGenerated == (UINT_PTR)pPrevCompileTimeState);
 
-    pNewLocalSig.SuppressRelease();
-    pNewILCodeBuffer.SuppressRelease();
-    pNewCompileTimeState.SuppressRelease();
+        pNewLocalSig.SuppressRelease();
+        pNewILCodeBuffer.SuppressRelease();
+        pNewCompileTimeState.SuppressRelease();
+        return pILHeader;
+    }
+    else
+    {
+        CONSISTENCY_CHECK(m_loaderHeap != dac_cast<PTR_LoaderHeap>(nullptr));
 
-    return pILHeader;
+        AllocMemHolder<BYTE>             pNewILCodeBuffer(m_loaderHeap->AllocMem(S_SIZE_T(cbCode)));
+        AllocMemHolder<CompileTimeState> pNewCompileTimeState(m_loaderHeap->AllocMem(S_SIZE_T(sizeof(CompileTimeState))));
+        memset(pNewCompileTimeState, 0, sizeof(CompileTimeState));
+        AllocMemHolder<BYTE>             pNewLocalSig;
+
+        if (0 != cbLocalSig)
+        {
+            pNewLocalSig = m_loaderHeap->AllocMem(S_SIZE_T(cbLocalSig));
+        }
+
+        COR_ILMETHOD_DECODER* pILHeader = &pNewCompileTimeState->m_ILHeader;
+
+        CreateILHeader(pILHeader, cbCode, maxStack, pNewILCodeBuffer, pNewLocalSig, cbLocalSig);
+
+#ifdef _DEBUG
+        LPVOID pPrevCompileTimeState =
+#endif // _DEBUG
+            FastInterlockExchangePointer(&m_pCompileTimeState, (CompileTimeState*)pNewCompileTimeState);
+        CONSISTENCY_CHECK(ILNotYetGenerated == (UINT_PTR)pPrevCompileTimeState);
+
+        pNewLocalSig.SuppressRelease();
+        pNewILCodeBuffer.SuppressRelease();
+        pNewCompileTimeState.SuppressRelease();
+        return pILHeader;
+    }
 
 #else  // DACCESS_COMPILE
     DacNotImpl();
@@ -363,7 +402,7 @@ ILStubResolver::AllocGeneratedIL(
 } // ILStubResolver::AllocGeneratedIL
 
 //---------------------------------------------------------------------------------------
-// 
+//
 COR_ILMETHOD_DECODER* ILStubResolver::GetILHeader()
 {
     CONTRACTL
@@ -398,6 +437,13 @@ COR_ILMETHOD_SECT_EH* ILStubResolver::AllocEHSect(size_t nClauses)
     }
 }
 
+bool ILStubResolver::UseLoaderHeap()
+{
+    // Struct marshal stub MethodDescs might be directly called from `call` IL instructions
+    // so we want to keep their compile time data alive as long as the LoaderAllocator in case they're used again.
+    return m_type == StructMarshalInteropStub;
+}
+
 void ILStubResolver::FreeCompileTimeState()
 {
     CONTRACTL
@@ -408,18 +454,22 @@ void ILStubResolver::FreeCompileTimeState()
     }
     CONTRACTL_END;
 
-    if ((ILNotYetGenerated == dac_cast<TADDR>(m_pCompileTimeState)) || 
+    if ((ILNotYetGenerated == dac_cast<TADDR>(m_pCompileTimeState)) ||
         (ILGeneratedAndFreed == dac_cast<TADDR>(m_pCompileTimeState)))
     {
         return;
     }
 
-    ClearCompileTimeState(ILGeneratedAndFreed);
+    if (!UseLoaderHeap())
+    {
+        ClearCompileTimeState(ILGeneratedAndFreed);
+    }
+
 }
 
 //---------------------------------------------------------------------------------------
-// 
-void 
+//
+void
 ILStubResolver::ClearCompileTimeState(CompileTimeStatePtrSpecialValues newState)
 {
     CONTRACTL
@@ -427,14 +477,15 @@ ILStubResolver::ClearCompileTimeState(CompileTimeStatePtrSpecialValues newState)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
+        PRECONDITION(!UseLoaderHeap());
     }
     CONTRACTL_END;
 
     //
     // See allocations in AllocGeneratedIL and SetStubTargetMethodSig
     //
-    
-    COR_ILMETHOD_DECODER * pILHeader = &m_pCompileTimeState->m_ILHeader;    
+
+    COR_ILMETHOD_DECODER * pILHeader = &m_pCompileTimeState->m_ILHeader;
 
     CONSISTENCY_CHECK(NULL != pILHeader->Code);
     delete[] pILHeader->Code;
@@ -460,8 +511,8 @@ ILStubResolver::ClearCompileTimeState(CompileTimeStatePtrSpecialValues newState)
 } // ILStubResolver::ClearCompileTimeState
 
 //---------------------------------------------------------------------------------------
-// 
-void 
+//
+void
 ILStubResolver::SetTokenLookupMap(
     TokenLookupMap * pMap)
 {
@@ -510,7 +561,7 @@ void ILStubResolver::StubGenFailed(ILStubResolver* pResolver)
     }
     CONTRACTL_END;
 
-    if ((ILNotYetGenerated == dac_cast<TADDR>(pResolver->m_pCompileTimeState)) || 
+    if ((ILNotYetGenerated == dac_cast<TADDR>(pResolver->m_pCompileTimeState)) ||
         (ILGeneratedAndFreed == dac_cast<TADDR>(pResolver->m_pCompileTimeState)))
     {
         return;

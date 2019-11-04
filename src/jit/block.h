@@ -95,8 +95,8 @@ struct EHblkDsc;
  */
 struct BBswtDesc
 {
-    unsigned     bbsCount;  // count of cases (includes 'default' if bbsHasDefault)
     BasicBlock** bbsDstTab; // case label table address
+    unsigned     bbsCount;  // count of cases (includes 'default' if bbsHasDefault)
     bool         bbsHasDefault;
 
     BBswtDesc() : bbsHasDefault(true)
@@ -517,9 +517,9 @@ struct BasicBlock : private LIR::Range
 #define BB_UNITY_WEIGHT 100 // how much a normal execute once block weights
 #define BB_LOOP_WEIGHT 8    // how much more loops are weighted
 #define BB_ZERO_WEIGHT 0
-#define BB_MAX_WEIGHT ULONG_MAX // we're using an 'unsigned' for the weight
-#define BB_VERY_HOT_WEIGHT 256  // how many average hits a BB has (per BBT scenario run) for this block
-                                // to be considered as very hot
+#define BB_MAX_WEIGHT UINT32_MAX // we're using an 'unsigned' for the weight
+#define BB_VERY_HOT_WEIGHT 256   // how many average hits a BB has (per BBT scenario run) for this block
+                                 // to be considered as very hot
 
     weight_t bbWeight; // The dynamic execution weight of this block
 
@@ -861,6 +861,9 @@ struct BasicBlock : private LIR::Range
     {
         return sameTryRegion(blk1, blk2) && sameHndRegion(blk1, blk2);
     }
+
+    bool hasEHBoundaryIn();
+    bool hasEHBoundaryOut();
 
 // Some non-zero value that will not collide with real tokens for bbCatchTyp
 #define BBCT_NONE 0x00000000
@@ -1274,13 +1277,23 @@ struct BasicBlockList
 
 struct flowList
 {
-    flowList*   flNext;  // The next BasicBlock in the list, nullptr for end of list.
-    BasicBlock* flBlock; // The BasicBlock of interest.
+    flowList*   flNext;     // The next BasicBlock in the list, nullptr for end of list.
+    BasicBlock* flBlock;    // The BasicBlock of interest.
+    unsigned    flDupCount; // The count of duplicate "edges" (use only for switch stmts)
 
+private:
     BasicBlock::weight_t flEdgeWeightMin;
     BasicBlock::weight_t flEdgeWeightMax;
 
-    unsigned flDupCount; // The count of duplicate "edges" (use only for switch stmts)
+public:
+    BasicBlock::weight_t edgeWeightMin() const
+    {
+        return flEdgeWeightMin;
+    }
+    BasicBlock::weight_t edgeWeightMax() const
+    {
+        return flEdgeWeightMax;
+    }
 
     // These two methods are used to set new values for flEdgeWeightMin and flEdgeWeightMax
     // they are used only during the computation of the edge weights
@@ -1289,13 +1302,14 @@ struct flowList
     //
     bool setEdgeWeightMinChecked(BasicBlock::weight_t newWeight, BasicBlock::weight_t slop, bool* wbUsedSlop);
     bool setEdgeWeightMaxChecked(BasicBlock::weight_t newWeight, BasicBlock::weight_t slop, bool* wbUsedSlop);
+    void setEdgeWeights(BasicBlock::weight_t newMinWeight, BasicBlock::weight_t newMaxWeight);
 
-    flowList() : flNext(nullptr), flBlock(nullptr), flEdgeWeightMin(0), flEdgeWeightMax(0), flDupCount(0)
+    flowList() : flNext(nullptr), flBlock(nullptr), flDupCount(0), flEdgeWeightMin(0), flEdgeWeightMax(0)
     {
     }
 
     flowList(BasicBlock* blk, flowList* rest)
-        : flNext(rest), flBlock(blk), flEdgeWeightMin(0), flEdgeWeightMax(0), flDupCount(0)
+        : flNext(rest), flBlock(blk), flDupCount(0), flEdgeWeightMin(0), flEdgeWeightMax(0)
     {
     }
 };

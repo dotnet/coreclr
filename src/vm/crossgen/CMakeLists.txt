@@ -5,6 +5,7 @@ set(VM_CROSSGEN_SOURCES
   ../assemblyspec.cpp
   ../baseassemblyspec.cpp
   ../binder.cpp
+  ../castcache.cpp
   ../ceeload.cpp
   ../ceemain.cpp
   ../class.cpp
@@ -275,7 +276,6 @@ target_compile_definitions(mscorlib_crossgen
         EnC_SUPPORTED
         FEATURE_EVENT_TRACE
         FEATURE_MULTICOREJIT
-        FEATURE_VERSIONING_LOG
         CROSSGEN_MSCORLIB)
 
 set_target_properties(mscorlib_crossgen PROPERTIES CROSSGEN_COMPONENT TRUE)

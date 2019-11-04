@@ -243,7 +243,7 @@ GenTree* Compiler::optEarlyPropRewriteTree(GenTree* tree)
 
     if (tree->OperGet() == GT_ARR_LENGTH)
     {
-        objectRefPtr = tree->gtOp.gtOp1;
+        objectRefPtr = tree->AsOp()->gtOp1;
         propKind     = optPropKind::OPK_ARRAYLEN;
     }
     else if (tree->OperIsIndir())
@@ -573,12 +573,12 @@ void Compiler::optFoldNullCheck(GenTree* tree)
                                 {
                                     GenTree* additionNode = defRHS->gtGetOp2();
                                     if ((additionNode->gtGetOp1()->OperGet() == GT_LCL_VAR) &&
-                                        (additionNode->gtGetOp1()->gtLclVarCommon.GetLclNum() == nullCheckLclNum))
+                                        (additionNode->gtGetOp1()->AsLclVarCommon()->GetLclNum() == nullCheckLclNum))
                                     {
                                         GenTree* offset = additionNode->gtGetOp2();
                                         if (offset->IsCnsIntOrI())
                                         {
-                                            if (!fgIsBigOffset(offset->gtIntConCommon.IconValue()))
+                                            if (!fgIsBigOffset(offset->AsIntConCommon()->IconValue()))
                                             {
                                                 // Walk from the use to the def in reverse execution order to see
                                                 // if any nodes have unsafe side effects.

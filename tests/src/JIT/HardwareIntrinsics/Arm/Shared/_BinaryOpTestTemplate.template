@@ -19,9 +19,9 @@ namespace JIT.HardwareIntrinsics.Arm
 {
     public static partial class Program
     {
-        private static void {Method}{RetBaseType}()
+        private static void {TestName}()
         {
-            var test = new {TemplateName}BinaryOpTest__{Method}{RetBaseType}();
+            var test = new {TemplateName}BinaryOpTest__{TestName}();
 
             if (test.IsSupported)
             {
@@ -110,7 +110,7 @@ namespace JIT.HardwareIntrinsics.Arm
         }
     }
 
-    public sealed unsafe class {TemplateName}BinaryOpTest__{Method}{RetBaseType}
+    public sealed unsafe class {TemplateName}BinaryOpTest__{TestName}
     {
         private struct DataTable
         {
@@ -182,7 +182,7 @@ namespace JIT.HardwareIntrinsics.Arm
                 return testStruct;
             }
 
-            public void RunStructFldScenario({TemplateName}BinaryOpTest__{Method}{RetBaseType} testClass)
+            public void RunStructFldScenario({TemplateName}BinaryOpTest__{TestName} testClass)
             {
                 var result = {Isa}.{Method}(_fld1, _fld2);
 
@@ -190,7 +190,7 @@ namespace JIT.HardwareIntrinsics.Arm
                 testClass.ValidateResult(_fld1, _fld2, testClass._dataTable.outArrayPtr);
             }
 
-            public void RunStructFldScenario_Load({TemplateName}BinaryOpTest__{Method}{RetBaseType} testClass)
+            public void RunStructFldScenario_Load({TemplateName}BinaryOpTest__{TestName} testClass)
             {
                 fixed ({Op1VectorType}<{Op1BaseType}>* pFld1 = &_fld1)
                 fixed ({Op2VectorType}<{Op2BaseType}>* pFld2 = &_fld2)
@@ -223,7 +223,7 @@ namespace JIT.HardwareIntrinsics.Arm
 
         private DataTable _dataTable;
 
-        static {TemplateName}BinaryOpTest__{Method}{RetBaseType}()
+        static {TemplateName}BinaryOpTest__{TestName}()
         {
             for (var i = 0; i < Op1ElementCount; i++) { _data1[i] = {NextValueOp1}; }
             Unsafe.CopyBlockUnaligned(ref Unsafe.As<{Op1VectorType}<{Op1BaseType}>, byte>(ref _clsVar1), ref Unsafe.As<{Op1BaseType}, byte>(ref _data1[0]), (uint)Unsafe.SizeOf<{Op1VectorType}<{Op1BaseType}>>());
@@ -231,7 +231,7 @@ namespace JIT.HardwareIntrinsics.Arm
             Unsafe.CopyBlockUnaligned(ref Unsafe.As<{Op2VectorType}<{Op2BaseType}>, byte>(ref _clsVar2), ref Unsafe.As<{Op2BaseType}, byte>(ref _data2[0]), (uint)Unsafe.SizeOf<{Op2VectorType}<{Op2BaseType}>>());
         }
 
-        public {TemplateName}BinaryOpTest__{Method}{RetBaseType}()
+        public {TemplateName}BinaryOpTest__{TestName}()
         {
             Succeeded = true;
 
@@ -361,7 +361,7 @@ namespace JIT.HardwareIntrinsics.Arm
         {
             TestLibrary.TestFramework.BeginScenario(nameof(RunClassLclFldScenario));
 
-            var test = new {TemplateName}BinaryOpTest__{Method}{RetBaseType}();
+            var test = new {TemplateName}BinaryOpTest__{TestName}();
             var result = {Isa}.{Method}(test._fld1, test._fld2);
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
@@ -372,7 +372,7 @@ namespace JIT.HardwareIntrinsics.Arm
         {
             TestLibrary.TestFramework.BeginScenario(nameof(RunClassLclFldScenario_Load));
 
-            var test = new {TemplateName}BinaryOpTest__{Method}{RetBaseType}();
+            var test = new {TemplateName}BinaryOpTest__{TestName}();
 
             fixed ({Op1VectorType}<{Op1BaseType}>* pFld1 = &test._fld1)
             fixed ({Op2VectorType}<{Op2BaseType}>* pFld2 = &test._fld2)

@@ -213,24 +213,11 @@ typedef unsigned char   regNumberSmall;
 
   // TODO-CQ: Fine tune the following xxBlk threshold values:
 
-  #define CPBLK_MOVS_LIMIT         16      // When generating code for CpBlk, this is the buffer size 
-                                           // threshold to stop generating rep movs and switch to the helper call.
-                                           // NOTE: Using rep movs is currently disabled since we found it has bad performance
-                                           //       on pre-Ivy Bridge hardware.
-                                           
   #define CPBLK_UNROLL_LIMIT       64      // Upper bound to let the code generator to loop unroll CpBlk.
-  #define INITBLK_STOS_LIMIT       64      // When generating code for InitBlk, this is the buffer size 
-                                           // NOTE: Using rep stos is currently disabled since we found it has bad performance
-                                           //       on pre-Ivy Bridge hardware.
-                                           // threshold to stop generating rep movs and switch to the helper call.
   #define INITBLK_UNROLL_LIMIT     128     // Upper bound to let the code generator to loop unroll InitBlk.
-  #define CPOBJ_NONGC_SLOTS_LIMIT  4       // For CpObj code generation, this is the the threshold of the number 
-                                           // of contiguous non-gc slots that trigger generating rep movsq instead of 
+  #define CPOBJ_NONGC_SLOTS_LIMIT  4       // For CpObj code generation, this is the the threshold of the number
+                                           // of contiguous non-gc slots that trigger generating rep movsq instead of
                                            // sequences of movsq instructions
-                                           // The way we're currently disabling rep movs/stos is by setting a limit less than
-                                           // its unrolling counterparts.  When lower takes the decision on which one to make it
-                                           // always asks for the unrolling limit first so you can say the JIT 'favors' unrolling.
-                                           // Setting the limit to something lower than that makes lower to never consider it.
 
 #ifdef FEATURE_SIMD
   #define ALIGN_SIMD_TYPES         1       // whether SIMD type locals are to be aligned
@@ -244,7 +231,7 @@ typedef unsigned char   regNumberSmall;
   #define FEATURE_SET_FLAGS        0       // Set to true to force the JIT to mark the trees with GTF_SET_FLAGS when
                                            // the flags need to be set
   #define FEATURE_MULTIREG_ARGS_OR_RET  1  // Support for passing and/or returning single values in more than one register
-  #define FEATURE_MULTIREG_ARGS         0  // Support for passing a single argument in more than one register  
+  #define FEATURE_MULTIREG_ARGS         0  // Support for passing a single argument in more than one register
   #define FEATURE_MULTIREG_RET          1  // Support for returning a single value in more than one register
   #define MAX_PASS_SINGLEREG_BYTES      8  // Maximum size of a struct passed in a single register (double).
   #define MAX_PASS_MULTIREG_BYTES       0  // No multireg arguments (note this seems wrong as MAX_ARG_REG_COUNT is 2)
@@ -359,11 +346,11 @@ typedef unsigned char   regNumberSmall;
   // register to hold shift amount
   #define REG_SHIFT                REG_ECX
   #define RBM_SHIFT                RBM_ECX
-  
+
   // register to hold shift amount when shifting 64-bit values
   #define REG_SHIFT_LNG            REG_ECX
   #define RBM_SHIFT_LNG            RBM_ECX
-  
+
   // This is a general scratch register that does not conflict with the argument registers
   #define REG_SCRATCH              REG_EAX
 
@@ -469,7 +456,7 @@ typedef unsigned char   regNumberSmall;
   // See vm\i386\asmhelpers.asm for more details.
   #define RBM_PROFILER_ENTER_TRASH     RBM_NONE
   #define RBM_PROFILER_LEAVE_TRASH     RBM_NONE
-  #define RBM_PROFILER_TAILCALL_TRASH  (RBM_ALLINT & ~RBM_ARG_REGS)
+  #define RBM_PROFILER_TAILCALL_TRASH  (RBM_CALLEE_TRASH & ~RBM_ARG_REGS)
 
   // What sort of reloc do we use for [disp32] address mode
   #define IMAGE_REL_BASED_DISP32   IMAGE_REL_BASED_HIGHLOW
@@ -499,32 +486,17 @@ typedef unsigned char   regNumberSmall;
 
 #elif defined(_TARGET_AMD64_)
   // TODO-AMD64-CQ: Fine tune the following xxBlk threshold values:
- 
+
   #define CPU_LOAD_STORE_ARCH      0
   #define CPU_HAS_FP_SUPPORT       1
   #define ROUND_FLOAT              0       // Do not round intermed float expression results
   #define CPU_HAS_BYTE_REGS        0
 
-  #define CPBLK_MOVS_LIMIT         16      // When generating code for CpBlk, this is the buffer size 
-                                           // threshold to stop generating rep movs and switch to the helper call.
-                                           // NOTE: Using rep movs is currently disabled since we found it has bad performance
-                                           //       on pre-Ivy Bridge hardware.
-                                           
   #define CPBLK_UNROLL_LIMIT       64      // Upper bound to let the code generator to loop unroll CpBlk.
-  #define INITBLK_STOS_LIMIT       64      // When generating code for InitBlk, this is the buffer size 
-                                           // NOTE: Using rep stos is currently disabled since we found it has bad performance
-                                           //       on pre-Ivy Bridge hardware.
-                                           // threshold to stop generating rep movs and switch to the helper call.
   #define INITBLK_UNROLL_LIMIT     128     // Upper bound to let the code generator to loop unroll InitBlk.
-  #define CPOBJ_NONGC_SLOTS_LIMIT  4       // For CpObj code generation, this is the the threshold of the number 
-                                           // of contiguous non-gc slots that trigger generating rep movsq instead of 
+  #define CPOBJ_NONGC_SLOTS_LIMIT  4       // For CpObj code generation, this is the the threshold of the number
+                                           // of contiguous non-gc slots that trigger generating rep movsq instead of
                                            // sequences of movsq instructions
-
-                                           // The way we're currently disabling rep movs/stos is by setting a limit less than
-                                           // its unrolling counterparts.  When lower takes the decision on which one to make it
-                                           // always asks for the unrolling limit first so you can say the JIT 'favors' unrolling.
-                                           // Setting the limit to something lower than that makes lower to never consider it.
-
 
 #ifdef FEATURE_SIMD
   #define ALIGN_SIMD_TYPES         1       // whether SIMD type locals are to be aligned
@@ -543,7 +515,7 @@ typedef unsigned char   regNumberSmall;
   #define MAX_PASS_SINGLEREG_BYTES      8  // Maximum size of a struct passed in a single register (double).
 #ifdef    UNIX_AMD64_ABI
   #define FEATURE_MULTIREG_ARGS_OR_RET  1  // Support for passing and/or returning single values in more than one register
-  #define FEATURE_MULTIREG_ARGS         1  // Support for passing a single argument in more than one register  
+  #define FEATURE_MULTIREG_ARGS         1  // Support for passing a single argument in more than one register
   #define FEATURE_MULTIREG_RET          1  // Support for returning a single value in more than one register
   #define FEATURE_STRUCT_CLASSIFIER     1  // Uses a classifier function to determine if structs are passed/returned in more than one register
   #define MAX_PASS_MULTIREG_BYTES      32  // Maximum size of a struct that could be passed in more than one register (Max is two SIMD16s)
@@ -553,10 +525,10 @@ typedef unsigned char   regNumberSmall;
 #else // !UNIX_AMD64_ABI
   #define WINDOWS_AMD64_ABI                // Uses the Windows ABI for AMD64
   #define FEATURE_MULTIREG_ARGS_OR_RET  0  // Support for passing and/or returning single values in more than one register
-  #define FEATURE_MULTIREG_ARGS         0  // Support for passing a single argument in more than one register  
+  #define FEATURE_MULTIREG_ARGS         0  // Support for passing a single argument in more than one register
   #define FEATURE_MULTIREG_RET          0  // Support for returning a single value in more than one register
-  #define MAX_PASS_MULTIREG_BYTES       0  // No multireg arguments 
-  #define MAX_RET_MULTIREG_BYTES        0  // No multireg return values 
+  #define MAX_PASS_MULTIREG_BYTES       0  // No multireg arguments
+  #define MAX_RET_MULTIREG_BYTES        0  // No multireg return values
   #define MAX_ARG_REG_COUNT             1  // Maximum registers used to pass a single argument (no arguments are passed using multiple registers)
   #define MAX_RET_REG_COUNT             1  // Maximum registers used to return a value.
 #endif // !UNIX_AMD64_ABI
@@ -631,12 +603,12 @@ typedef unsigned char   regNumberSmall;
   #define RBM_FLT_CALLEE_SAVED    (RBM_XMM6|RBM_XMM7|RBM_XMM8|RBM_XMM9|RBM_XMM10|RBM_XMM11|RBM_XMM12|RBM_XMM13|RBM_XMM14|RBM_XMM15)
   #define RBM_FLT_CALLEE_TRASH    (RBM_XMM0|RBM_XMM1|RBM_XMM2|RBM_XMM3|RBM_XMM4|RBM_XMM5)
 #endif // !UNIX_AMD64_ABI
-  
+
   #define REG_FLT_CALLEE_SAVED_FIRST   REG_XMM6
   #define REG_FLT_CALLEE_SAVED_LAST    REG_XMM15
 
   #define RBM_CALLEE_TRASH        (RBM_INT_CALLEE_TRASH | RBM_FLT_CALLEE_TRASH)
-  #define RBM_CALLEE_SAVED        (RBM_INT_CALLEE_SAVED | RBM_FLT_CALLEE_SAVED)      
+  #define RBM_CALLEE_SAVED        (RBM_INT_CALLEE_SAVED | RBM_FLT_CALLEE_SAVED)
 
   #define RBM_CALLEE_TRASH_NOGC   RBM_CALLEE_TRASH
 
@@ -689,11 +661,11 @@ typedef unsigned char   regNumberSmall;
   #define CALLEE_SAVED_FLOAT_MAXSZ (CNT_CALLEE_SAVED_FLOAT*16)
 
   #define REG_TMP_0                REG_EAX
-  
+
   // register to hold shift amount
   #define REG_SHIFT                REG_ECX
   #define RBM_SHIFT                RBM_ECX
-  
+
   // This is a general scratch register that does not conflict with the argument registers
   #define REG_SCRATCH              REG_EAX
 
@@ -715,7 +687,7 @@ typedef unsigned char   regNumberSmall;
   //
   // Notes:
   // 1) that RAX is callee trash register that is not used for passing parameter and
-  //    also results in smaller instruction encoding.  
+  //    also results in smaller instruction encoding.
   // 2) Profiler Leave callback requires the return value to be preserved
   //    in some form.  We can use custom calling convention for Leave callback.
   //    For e.g return value could be preserved in rcx so that it is available for
@@ -727,7 +699,7 @@ typedef unsigned char   regNumberSmall;
   #define REG_PINVOKE_COOKIE_PARAM          REG_R11
   #define RBM_PINVOKE_COOKIE_PARAM          RBM_R11
 
-  // GenericPInvokeCalliHelper unmanaged target Parameter 
+  // GenericPInvokeCalliHelper unmanaged target Parameter
   #define REG_PINVOKE_TARGET_PARAM          REG_R10
   #define RBM_PINVOKE_TARGET_PARAM          RBM_R10
 
@@ -921,7 +893,7 @@ typedef unsigned char   regNumberSmall;
   #define CPU_HAS_BYTE_REGS        0
 
   #define CPBLK_UNROLL_LIMIT       32      // Upper bound to let the code generator to loop unroll CpBlk.
-  #define INITBLK_UNROLL_LIMIT     32      // Upper bound to let the code generator to loop unroll InitBlk.
+  #define INITBLK_UNROLL_LIMIT     16      // Upper bound to let the code generator to loop unroll InitBlk.
 
   #define FEATURE_FIXED_OUT_ARGS   1       // Preallocate the outgoing arg area in the prolog
   #define FEATURE_STRUCTPROMOTE    1       // JIT Optimization to promote fields of structs into registers
@@ -947,7 +919,7 @@ typedef unsigned char   regNumberSmall;
   #define FEATURE_EH               1       // To aid platform bring-up, eliminate exceptional EH clauses (catch, filter, filter-handler, fault) and directly execute 'finally' clauses.
   #define FEATURE_EH_CALLFINALLY_THUNKS 0  // Generate call-to-finally code in "thunks" in the enclosing EH region, protected by "cloned finally" clauses.
   #define ETW_EBP_FRAMED           1       // if 1 we cannot use REG_FP as a scratch register and must setup the frame pointer for most methods
-  #define CSE_CONSTS               1       // Enable if we want to CSE constants 
+  #define CSE_CONSTS               1       // Enable if we want to CSE constants
 
   #define REG_FP_FIRST             REG_F0
   #define REG_FP_LAST              REG_F31
@@ -1021,7 +993,7 @@ typedef unsigned char   regNumberSmall;
   // register to hold shift amount when shifting 64-bit values (this uses a helper call)
   #define REG_SHIFT_LNG            REG_R2            // REG_ARG_2
   #define RBM_SHIFT_LNG            RBM_R2            // RBM_ARG_2
-  
+
   // This is a general scratch register that does not conflict with the argument registers
   #define REG_SCRATCH              REG_LR
 
@@ -1080,11 +1052,11 @@ typedef unsigned char   regNumberSmall;
   // Note that r0 and r1 are still valid byref pointers after this helper call, despite their value being changed.
   #define RBM_CALLEE_GCTRASH_WRITEBARRIER_BYREF RBM_CALLEE_TRASH_NOGC
 
-  // GenericPInvokeCalliHelper VASigCookie Parameter 
+  // GenericPInvokeCalliHelper VASigCookie Parameter
   #define REG_PINVOKE_COOKIE_PARAM          REG_R4
   #define RBM_PINVOKE_COOKIE_PARAM          RBM_R4
 
-  // GenericPInvokeCalliHelper unmanaged target Parameter 
+  // GenericPInvokeCalliHelper unmanaged target Parameter
   #define REG_PINVOKE_TARGET_PARAM          REG_R12
   #define RBM_PINVOKE_TARGET_PARAM          RBM_R12
 
@@ -1120,7 +1092,7 @@ typedef unsigned char   regNumberSmall;
   #define RBM_PROFILER_ENTER_ARG           RBM_R0
   #define REG_PROFILER_RET_SCRATCH         REG_R2
   #define RBM_PROFILER_RET_SCRATCH         RBM_R2
-  
+
   // The registers trashed by profiler enter/leave/tailcall hook
   // See vm\arm\asmhelpers.asm for more details.
   #define RBM_PROFILER_ENTER_TRASH     RBM_NONE
@@ -1215,6 +1187,12 @@ typedef unsigned char   regNumberSmall;
   // The first thing in an ARM32 prolog pushes LR to the stack, so this can be 0.
   #define STACK_PROBE_BOUNDARY_THRESHOLD_BYTES 0
 
+  #define REG_STACK_PROBE_HELPER_ARG         REG_R4
+  #define RBM_STACK_PROBE_HELPER_ARG         RBM_R4
+  #define REG_STACK_PROBE_HELPER_CALL_TARGET REG_R5
+  #define RBM_STACK_PROBE_HELPER_CALL_TARGET RBM_R5
+  #define RBM_STACK_PROBE_HELPER_TRASH       (RBM_R5 | RBM_LR)
+
 #elif defined(_TARGET_ARM64_)
 
   #define CPU_LOAD_STORE_ARCH      1
@@ -1236,9 +1214,9 @@ typedef unsigned char   regNumberSmall;
   #define FEATURE_FASTTAILCALL     1       // Tail calls made as epilog+jmp
   #define FEATURE_TAILCALL_OPT     1       // opportunistic Tail calls (i.e. without ".tail" prefix) made as fast tail calls.
   #define FEATURE_SET_FLAGS        0       // Set to true to force the JIT to mark the trees with GTF_SET_FLAGS when the flags need to be set
-  #define FEATURE_MULTIREG_ARGS_OR_RET  1  // Support for passing and/or returning single values in more than one register  
-  #define FEATURE_MULTIREG_ARGS         1  // Support for passing a single argument in more than one register  
-  #define FEATURE_MULTIREG_RET          1  // Support for returning a single value in more than one register  
+  #define FEATURE_MULTIREG_ARGS_OR_RET  1  // Support for passing and/or returning single values in more than one register
+  #define FEATURE_MULTIREG_ARGS         1  // Support for passing a single argument in more than one register
+  #define FEATURE_MULTIREG_RET          1  // Support for returning a single value in more than one register
   #define FEATURE_STRUCT_CLASSIFIER     0  // Uses a classifier function to determine is structs are passed/returned in more than one register
   #define MAX_PASS_SINGLEREG_BYTES     16  // Maximum size of a struct passed in a single register (16-byte vector).
   #define MAX_PASS_MULTIREG_BYTES      64  // Maximum size of a struct that could be passed in more than one register (max is 4 16-byte vectors using an HVA)
@@ -1254,7 +1232,7 @@ typedef unsigned char   regNumberSmall;
   #define FEATURE_EH               1       // To aid platform bring-up, eliminate exceptional EH clauses (catch, filter, filter-handler, fault) and directly execute 'finally' clauses.
   #define FEATURE_EH_CALLFINALLY_THUNKS 1  // Generate call-to-finally code in "thunks" in the enclosing EH region, protected by "cloned finally" clauses.
   #define ETW_EBP_FRAMED           1       // if 1 we cannot use REG_FP as a scratch register and must setup the frame pointer for most methods
-  #define CSE_CONSTS               1       // Enable if we want to CSE constants 
+  #define CSE_CONSTS               1       // Enable if we want to CSE constants
 
   #define REG_FP_FIRST             REG_V0
   #define REG_FP_LAST              REG_V31
@@ -1304,7 +1282,7 @@ typedef unsigned char   regNumberSmall;
                                    REG_V7,  REG_V6,  REG_V5,  REG_V4,  \
                                    REG_V8,  REG_V9,  REG_V10, REG_V11, \
                                    REG_V12, REG_V13, REG_V14, REG_V15, \
-                                   REG_V3,  REG_V2, REG_V1,  REG_V0 
+                                   REG_V3,  REG_V2, REG_V1,  REG_V0
 
   #define REG_CALLEE_SAVED_ORDER   REG_R19,REG_R20,REG_R21,REG_R22,REG_R23,REG_R24,REG_R25,REG_R26,REG_R27,REG_R28
   #define RBM_CALLEE_SAVED_ORDER   RBM_R19,RBM_R20,RBM_R21,RBM_R22,RBM_R23,RBM_R24,RBM_R25,RBM_R26,RBM_R27,RBM_R28
@@ -1394,11 +1372,11 @@ typedef unsigned char   regNumberSmall;
   // Note that x13 and x14 are still valid byref pointers after this helper call, despite their value being changed.
   #define RBM_CALLEE_GCTRASH_WRITEBARRIER_BYREF RBM_CALLEE_TRASH_NOGC
 
-  // GenericPInvokeCalliHelper VASigCookie Parameter 
+  // GenericPInvokeCalliHelper VASigCookie Parameter
   #define REG_PINVOKE_COOKIE_PARAM          REG_R15
   #define RBM_PINVOKE_COOKIE_PARAM          RBM_R15
 
-  // GenericPInvokeCalliHelper unmanaged target Parameter 
+  // GenericPInvokeCalliHelper unmanaged target Parameter
   #define REG_PINVOKE_TARGET_PARAM          REG_R12
   #define RBM_PINVOKE_TARGET_PARAM          RBM_R12
 
@@ -1449,7 +1427,7 @@ typedef unsigned char   regNumberSmall;
   #define RBM_INTRET               RBM_R0
   #define RBM_LNGRET               RBM_R0
   // second return register for 16-byte structs
-  #define REG_INTRET_1             REG_R1 
+  #define REG_INTRET_1             REG_R1
   #define RBM_INTRET_1             RBM_R1
 
   #define REG_FLOATRET             REG_V0
@@ -1588,7 +1566,7 @@ C_ASSERT(REG_FIRST == 0);
 C_ASSERT(REG_INT_FIRST < REG_INT_LAST);
 C_ASSERT(REG_FP_FIRST  < REG_FP_LAST);
 
-// Opportunistic tail call feature converts non-tail prefixed calls into 
+// Opportunistic tail call feature converts non-tail prefixed calls into
 // tail calls where possible. It requires fast tail calling mechanism for
 // performance. Otherwise, we are better off not converting non-tail prefixed
 // calls into tail calls.
@@ -1596,7 +1574,7 @@ C_ASSERT((FEATURE_TAILCALL_OPT == 0) || (FEATURE_FASTTAILCALL == 1));
 
 /*****************************************************************************/
 
-#define BITS_PER_BYTE              8 
+#define BITS_PER_BYTE              8
 #define REGNUM_MASK              ((1 << REGNUM_BITS) - 1)     // a n-bit mask use to encode multiple REGNUMs into a unsigned int
 #define RBM_ALL(type) (varTypeIsFloating(type) ? RBM_ALLFLOAT : RBM_ALLINT)
 

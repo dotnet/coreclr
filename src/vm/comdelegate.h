@@ -1,11 +1,11 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
-// 
+//
 // File: COMDelegate.h
-// 
+//
 // This module contains the native methods for the Delegate class.
-// 
+//
 
 
 #ifndef _COMDELEGATE_H_
@@ -39,7 +39,7 @@ private:
     // friend VOID CPUSTUBLINKER::EmitShuffleThunk(...);
     friend class CPUSTUBLINKER;
     friend class DelegateInvokeStubManager;
-    friend BOOL MulticastFrame::TraceFrame(Thread *thread, BOOL fromPatch, 
+    friend BOOL MulticastFrame::TraceFrame(Thread *thread, BOOL fromPatch,
                                 TraceDestination *trace, REGDISPLAY *regs);
 
 #ifndef FEATURE_MULTICASTSTUB_AS_IL
@@ -61,7 +61,7 @@ public:
     static FCDECL1(Object*, InternalAlloc, ReflectClassBaseObject* target);
     static FCDECL1(Object*, InternalAllocLike, Object* pThis);
     static FCDECL2(FC_BOOL_RET, InternalEqualTypes, Object* pThis, Object *pThat);
-    
+
     static FCDECL3(PCODE, AdjustTarget, Object* refThis, Object* target, PCODE method);
     static FCDECL2(PCODE, GetCallStub, Object* refThis, PCODE method);
 
@@ -84,8 +84,8 @@ public:
 
     // Marshals a delegate to a unmanaged callback.
     static LPVOID ConvertToCallback(OBJECTREF pDelegate);
-    
-    // Marshals a managed method to an unmanaged callback , provided the method is static and uses only 
+
+    // Marshals a managed method to an unmanaged callback , provided the method is static and uses only
     // blittable parameter types.
     static PCODE ConvertToCallback(MethodDesc* pMD);
 
@@ -108,13 +108,13 @@ public:
     static void ValidateDelegatePInvoke(MethodDesc* pMD);
 
     static void RemoveEntryFromFPtrHash(UPTR key);
-    
+
     // Decides if pcls derives from Delegate.
     static BOOL IsDelegate(MethodTable *pMT);
 
     // Decides if this is a secure delegate
     static BOOL IsSecureDelegate(DELEGATEREF dRef);
-   
+
     // Get the cpu stub for a delegate invoke.
     static PCODE GetInvokeMethodStub(EEImplMethodDesc* pMD);
 

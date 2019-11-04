@@ -26,10 +26,6 @@
 //    Frame                     - the root class. There are no actual instances
 //    |                           of Frames.
 //    |
-//    +-GCFrame                 - this frame doesn't represent a method call.
-//    |                           it's sole purpose is to let the EE gc-protect
-//    |                           object references that it is manipulating.
-//    |
 //    +- FaultingExceptionFrame - this frame was placed on a method which faulted
 //    |                           to save additional state information
 //    |
@@ -123,7 +119,7 @@
 //    |
 //    +-DebuggerExitFrame - marker frame to indicate that a "break" IL instruction is being executed
 //    |
-//    +-DebuggerU2MCatchHandlerFrame - marker frame to indicate that native code is going to catch and 
+//    +-DebuggerU2MCatchHandlerFrame - marker frame to indicate that native code is going to catch and
 //    |                                swallow a managed exception
 //    |
 #ifdef DEBUGGING_SUPPORTED
@@ -258,7 +254,7 @@ FRAME_TYPE_NAME(AssumeByrefFromJITStack)
 #ifndef __frames_h__
 #define __frames_h__
 #if defined(_MSC_VER) && defined(_TARGET_X86_) && !defined(FPO_ON)
-#pragma optimize("y", on)   // Small critical routines, don't put in EBP frame 
+#pragma optimize("y", on)   // Small critical routines, don't put in EBP frame
 #define FPO_ON 1
 #define FRAMES_TURNED_FPO_ON 1
 #endif
@@ -278,7 +274,6 @@ FRAME_TYPE_NAME(AssumeByrefFromJITStack)
 
 // Forward references
 class Frame;
-class FieldMarshaler;
 class FramedMethodFrame;
 typedef VPTR(class FramedMethodFrame) PTR_FramedMethodFrame;
 struct HijackArgs;
@@ -297,9 +292,9 @@ class ComCallMethodDesc;
 // Note: the value (-1) is used to generate the largest possible pointer value: this keeps frame addresses
 // increasing upward. Because we want to ensure that we don't accidentally change this, we have a C_ASSERT
 // in stackwalk.cpp. Since it requires constant values as args, we need to define FRAME_TOP in two steps.
-// First we define FRAME_TOP_VALUE which we'll use when we do the compile-time check, then we'll define 
+// First we define FRAME_TOP_VALUE which we'll use when we do the compile-time check, then we'll define
 // FRAME_TOP in terms of FRAME_TOP_VALUE. Defining FRAME_TOP as a PTR_Frame means we don't have to type cast
-// whenever we compare it to a PTR_Frame value (the usual use of the value). 
+// whenever we compare it to a PTR_Frame value (the usual use of the value).
 #define FRAME_TOP_VALUE  ~0     // we want to say -1 here, but gcc has trouble with the signed value
 #define FRAME_TOP (PTR_Frame(FRAME_TOP_VALUE))
 
@@ -362,11 +357,11 @@ class ComCallMethodDesc;
 
 //-----------------------------------------------------------------------------
 // For reporting on types of frames at runtime.
-class FrameTypeName 
-{ 
+class FrameTypeName
+{
 public:
-    TADDR vtbl; 
-    PTR_CSTR name; 
+    TADDR vtbl;
+    PTR_CSTR name;
 };
 typedef DPTR(FrameTypeName) PTR_FrameTypeName;
 
@@ -387,7 +382,7 @@ public:
         LIMITED_METHOD_CONTRACT;
         // Nothing to protect
     }
-    
+
 #ifdef DACCESS_COMPILE
     virtual void EnumMemoryRegions(CLRDataEnumMemoryFlags flags) = 0;
 #endif
@@ -401,7 +396,6 @@ public:
 class Frame : public FrameBase
 {
     friend class CheckAsmOffsets;
-    friend class GCFrame;
 #ifdef DACCESS_COMPILE
     friend void Thread::EnumMemoryRegions(CLRDataEnumMemoryFlags flags);
 #endif
@@ -577,7 +571,7 @@ public:
         TYPE_CALL,
         TYPE_FUNC_EVAL,
         TYPE_MULTICAST,
-        
+
         // HMFs and derived classes should use this so the profiling API knows it needs
         // to ensure HMF-specific lazy initialization gets done w/out re-entering to the host.
         TYPE_HELPER_METHOD_FRAME,
@@ -779,7 +773,7 @@ protected:
     // causes any attempt to instantiate one to fail at compile-time.
     Frame()
     : m_Next(dac_cast<PTR_Frame>(nullptr))
-    { 
+    {
         LIMITED_METHOD_CONTRACT;
     }
 
@@ -1197,7 +1191,7 @@ typedef VPTR(FuncEvalFrame) PTR_FuncEvalFrame;
 
 //----------------------------------------------------------------------------------------------
 // A HelperMethodFrame is created by jit helper (Modified slightly it could be used
-// for native routines).   This frame just does the callee saved register fixup. 
+// for native routines).   This frame just does the callee saved register fixup.
 // It does NOT protect arguments; you must use GCPROTECT or one of the HelperMethodFrame
 // subclases. (see JitInterface for sample use, YOU CAN'T RETURN WHILE IN THE PROTECTED STATE!)
 //----------------------------------------------------------------------------------------------
@@ -1389,7 +1383,7 @@ public:
     HelperMethodFrame_1OBJ(void* fCallFtnEntry, unsigned attribs, OBJECTREF* aGCPtr1)
         : HelperMethodFrame(fCallFtnEntry, attribs)
     {
-            LIMITED_METHOD_CONTRACT;            
+            LIMITED_METHOD_CONTRACT;
             gcPtrs[0] = aGCPtr1;
             INDEBUG(Thread::ObjectRefProtected(aGCPtr1);)
             INDEBUG((*aGCPtr1).Validate ();)
@@ -1447,9 +1441,9 @@ class HelperMethodFrame_2OBJ : public HelperMethodFrame
 public:
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
     HelperMethodFrame_2OBJ(
-            void* fCallFtnEntry, 
-            unsigned attribs, 
-            OBJECTREF* aGCPtr1, 
+            void* fCallFtnEntry,
+            unsigned attribs,
+            OBJECTREF* aGCPtr1,
             OBJECTREF* aGCPtr2)
         : HelperMethodFrame(fCallFtnEntry, attribs)
     {
@@ -1507,9 +1501,9 @@ class HelperMethodFrame_3OBJ : public HelperMethodFrame
 public:
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
     HelperMethodFrame_3OBJ(
-            void* fCallFtnEntry, 
-            unsigned attribs, 
-            OBJECTREF* aGCPtr1, 
+            void* fCallFtnEntry,
+            unsigned attribs,
+            OBJECTREF* aGCPtr1,
             OBJECTREF* aGCPtr2,
             OBJECTREF* aGCPtr3)
         : HelperMethodFrame(fCallFtnEntry, attribs)
@@ -1697,8 +1691,8 @@ public:
 #endif
 
     //
-    // GetReturnObjectPtr and GetReturnValuePtr are only valid on frames 
-    // that allocate 
+    // GetReturnObjectPtr and GetReturnValuePtr are only valid on frames
+    // that allocate
     //
     PTR_PTR_Object GetReturnObjectPtr()
     {
@@ -1954,7 +1948,7 @@ class ComPlusMethodFrame : public FramedMethodFrame
     VPTR_VTABLE_CLASS(ComPlusMethodFrame, FramedMethodFrame)
 
 public:
-    ComPlusMethodFrame(TransitionBlock * pTransitionBlock, MethodDesc * pMethodDesc); 
+    ComPlusMethodFrame(TransitionBlock * pTransitionBlock, MethodDesc * pMethodDesc);
 
     virtual void GcScanRoots(promote_func *fn, ScanContext* sc);
 
@@ -2080,7 +2074,7 @@ public:
     virtual void GcScanRoots(promote_func *fn, ScanContext* sc);
 
     // HijackFrames are created by trip functions. See OnHijackTripThread()
-    // They are real C++ objects on the stack. 
+    // They are real C++ objects on the stack.
     // So, it's a public function -- but that doesn't mean you should make some.
     HijackFrame(LPVOID returnAddress, Thread *thread, HijackArgs *args);
 
@@ -2291,7 +2285,7 @@ public:
 #ifdef _TARGET_X86_
     virtual void UpdateRegDisplay(const PREGDISPLAY pRD);
 #endif
-    
+
     // Keep as last entry in class
     DEFINE_VTABLE_GETTER_AND_CTOR_AND_DTOR(ExternalMethodFrame)
 };
@@ -2319,7 +2313,7 @@ public:
         LIMITED_METHOD_DAC_CONTRACT;
         return TT_InternalCall;
     }
-    
+
     // Keep as last entry in class
     DEFINE_VTABLE_GETTER_AND_CTOR_AND_DTOR(DynamicHelperFrame)
 };
@@ -2353,7 +2347,7 @@ public:
         return TYPE_INTERCEPTION;
     }
 
-    // ComPrestubMethodFrame should return the same interception type as 
+    // ComPrestubMethodFrame should return the same interception type as
     // code:PrestubMethodFrame.GetInterception.
     virtual Interception GetInterception()
     {
@@ -2379,42 +2373,37 @@ private:
 
 #endif // FEATURE_COMINTEROP
 
-
 //------------------------------------------------------------------------
 // This frame protects object references for the EE's convenience.
 // This frame type actually is created from C++.
+// There is a chain of GCFrames on a Thread, separate from the
+// explicit frames derived from the Frame class.
 //------------------------------------------------------------------------
-class GCFrame : public Frame
+class GCFrame
 {
-    VPTR_VTABLE_CLASS(GCFrame, Frame)
-
 public:
 
-
-    //--------------------------------------------------------------------
-    // This constructor pushes a new GCFrame on the frame chain.
-    //--------------------------------------------------------------------
 #ifndef DACCESS_COMPILE
-    GCFrame() {
-        LIMITED_METHOD_CONTRACT;
-    };
+    //--------------------------------------------------------------------
+    // This constructor pushes a new GCFrame on the GC frame chain.
+    //--------------------------------------------------------------------
+    GCFrame(OBJECTREF *pObjRefs, UINT numObjRefs, BOOL maybeInterior)
+        : GCFrame(GetThread(), pObjRefs, numObjRefs, maybeInterior)
+    {
+        WRAPPER_NO_CONTRACT;
+    }
 
-    GCFrame(OBJECTREF *pObjRefs, UINT numObjRefs, BOOL maybeInterior);
     GCFrame(Thread *pThread, OBJECTREF *pObjRefs, UINT numObjRefs, BOOL maybeInterior);
-#endif
-    void Init(Thread *pThread, OBJECTREF *pObjRefs, UINT numObjRefs, BOOL maybeInterior);
+#ifndef CROSSGEN_COMPILE
+    ~GCFrame();
+#endif // CROSSGEN_COMPILE
 
+#endif // DACCESS_COMPILE
 
-    //--------------------------------------------------------------------
-    // Pops the GCFrame and cancels the GC protection. Also
-    // trashes the contents of pObjRef's in _DEBUG.
-    //--------------------------------------------------------------------
-    VOID Pop();
-
-    virtual void GcScanRoots(promote_func *fn, ScanContext* sc);
+    void GcScanRoots(promote_func *fn, ScanContext* sc);
 
 #ifdef _DEBUG
-    virtual BOOL Protects(OBJECTREF *ppORef)
+    BOOL Protects(OBJECTREF *ppORef)
     {
         LIMITED_METHOD_CONTRACT;
         for (UINT i = 0; i < m_numObjRefs; i++) {
@@ -2426,30 +2415,18 @@ public:
     }
 #endif
 
-#ifndef DACCESS_COMPILE
-    void *operator new (size_t sz, void* p)
+    PTR_GCFrame PtrNextFrame()
     {
-        LIMITED_METHOD_CONTRACT;
-        return p ;
+        WRAPPER_NO_CONTRACT;
+        return m_Next;
     }
-#endif
-
-#if defined(_DEBUG_IMPL)
-    const char* GetFrameTypeName() { LIMITED_METHOD_CONTRACT; return "GCFrame"; }
-#endif
 
 private:
+    PTR_GCFrame   m_Next;
     PTR_OBJECTREF m_pObjRefs;
     UINT          m_numObjRefs;
     PTR_Thread    m_pCurThread;
     BOOL          m_MaybeInterior;
-
-    // Keep as last entry in class
-    DEFINE_VTABLE_GETTER(GCFrame)
-
-#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
-    ~GCFrame();
-#endif
 };
 
 #ifdef FEATURE_INTERPRETER
@@ -2718,8 +2695,8 @@ public:
 
 //---------------------------------------------------------------------------------------
 //
-// DebuggerU2MCatchHandlerFrame is a small frame whose only purpose in life is to mark for the debugger 
-// that there is catch handler inside the runtime which may catch and swallow managed exceptions.  The 
+// DebuggerU2MCatchHandlerFrame is a small frame whose only purpose in life is to mark for the debugger
+// that there is catch handler inside the runtime which may catch and swallow managed exceptions.  The
 // debugger needs this frame to send a CatchHandlerFound (CHF) notification.  Without this frame, the
 // debugger doesn't know where a managed exception is caught.
 //
@@ -2879,7 +2856,7 @@ public:
         // with code:Compiler.lvaAssignFrameOffsets.
         //
         // |        ...         |
-        // +--------------------+                                       
+        // +--------------------+
         // | lvaStubArgumentVar | <= filled with EAX in prolog          |
         // +--------------------+                                       |
         // |                    |                                       |
@@ -2970,7 +2947,7 @@ public:
     {
         m_pCallerReturnAddress = NULL;
     }
-    
+
     int GetFrameType()
     {
         LIMITED_METHOD_DAC_CONTRACT;
@@ -3018,11 +2995,11 @@ bool isRetAddr(TADDR retAddr, TADDR* whereCalled);
 // than just jumping to it).
 // To do a tail call, A calls JIT_TailCall, which unwinds A's frame
 // and sets up a TailCallFrame. It then calls the stub dispatch stub
-// which disassembles the caller (JIT_TailCall, in this case) to get some information, 
+// which disassembles the caller (JIT_TailCall, in this case) to get some information,
 // resolves the target code for B, and then jumps to B.
 // If B also does a virtual stub dispatch tail call, then we reuse the
 // existing TailCallFrame instead of setting up a second one.
-// 
+//
 // We could eliminate TailCallFrame if we factor the VSD stub to return
 // the target code address. This is currently not a very important scenario
 // as tail calls on interface calls are uncommon.
@@ -3033,7 +3010,7 @@ bool isRetAddr(TADDR retAddr, TADDR* whereCalled);
 // and sets up a TailCallFrame and the arguments. It then jumps to B.
 // If B also does a tail call, then we reuse the
 // existing TailCallFrame instead of setting up a second one.
-// 
+//
 // This is also used whenever value types that aren't enregisterable are
 // passed by value instead of ref. This is currently not a very important
 // scenario as tail calls are uncommon.
@@ -3072,7 +3049,7 @@ public:
 #if !defined(_TARGET_X86_)
 
 #ifndef DACCESS_COMPILE
-    TailCallFrame(T_CONTEXT * pContext, Thread * pThread) 
+    TailCallFrame(T_CONTEXT * pContext, Thread * pThread)
     {
         InitFromContext(pContext);
         m_Next = pThread->GetFrame();
@@ -3179,22 +3156,17 @@ public:
             *m_pShadowSP |= ICodeManager::SHADOW_SP_FILTER_DONE;
         }
     }
-
-#ifndef CROSSGEN_COMPILE
-    ~ExceptionFilterFrame();
-#endif
-
 #endif
 
 private:
     // Keep as last entry in class
-    DEFINE_VTABLE_GETTER_AND_CTOR(ExceptionFilterFrame)
+    DEFINE_VTABLE_GETTER_AND_CTOR_AND_DTOR(ExceptionFilterFrame)
 };
 
 #ifdef _DEBUG
-// We use IsProtectedByGCFrame to check if some OBJECTREF pointers are protected 
+// We use IsProtectedByGCFrame to check if some OBJECTREF pointers are protected
 // against GC. That function doesn't know if a byref is from managed stack thus
-// protected by JIT. AssumeByrefFromJITStack is used to bypass that check if an 
+// protected by JIT. AssumeByrefFromJITStack is used to bypass that check if an
 // OBJECTRef pointer is passed from managed code to an FCall and it's in stack.
 class AssumeByrefFromJITStack : public Frame
 {
@@ -3231,7 +3203,7 @@ private:
 // the GSCookie.
 //
 // Note that we have to play all these games for the GSCookie as the GSCookie
-// needs to precede the vtable pointer, so that the GSCookie is guaranteed to 
+// needs to precede the vtable pointer, so that the GSCookie is guaranteed to
 // catch any stack-buffer-overrun corruptions that overwrite the Frame data.
 //
 //-----------------------------------------------------------------------------
@@ -3259,7 +3231,7 @@ public:
 
     FrameWithCookie(Thread * pThread) :
         m_gsCookie(GetProcessGSCookie()), m_frame(pThread) { WRAPPER_NO_CONTRACT; }
-        
+
     FrameWithCookie(T_CONTEXT * pContext) :
         m_gsCookie(GetProcessGSCookie()), m_frame(pContext) { WRAPPER_NO_CONTRACT; }
 
@@ -3343,7 +3315,7 @@ public:
     // ExceptionFilterFrame
     FrameWithCookie(size_t* pShadowSP) :
         m_gsCookie(GetProcessGSCookie()), m_frame(pShadowSP) { WRAPPER_NO_CONTRACT; }
-        
+
 #ifdef _DEBUG
     // AssumeByrefFromJITStack
     FrameWithCookie(OBJECTREF *pObjRef) :
@@ -3460,7 +3432,7 @@ public:
 #endif /*_PREFAST_ */
 
 #define GCPROTECT_BEGIN(ObjRefStruct)                           do {    \
-                FrameWithCookie<GCFrame> __gcframe(                     \
+                GCFrame __gcframe(                                      \
                         (OBJECTREF*)&(ObjRefStruct),                    \
                         sizeof(ObjRefStruct)/sizeof(OBJECTREF),         \
                         FALSE);                                         \
@@ -3468,7 +3440,7 @@ public:
                 if (true) { DEBUG_ASSURE_NO_RETURN_BEGIN(GCPROTECT)
 
 #define GCPROTECT_BEGIN_THREAD(pThread, ObjRefStruct)           do {    \
-                FrameWithCookie<GCFrame> __gcframe(                     \
+                GCFrame __gcframe(                                      \
                         pThread,                                        \
                         (OBJECTREF*)&(ObjRefStruct),                    \
                         sizeof(ObjRefStruct)/sizeof(OBJECTREF),         \
@@ -3477,7 +3449,7 @@ public:
                 if (true) { DEBUG_ASSURE_NO_RETURN_BEGIN(GCPROTECT)
 
 #define GCPROTECT_ARRAY_BEGIN(ObjRefArray,cnt) do {                     \
-                FrameWithCookie<GCFrame> __gcframe(                     \
+                GCFrame __gcframe(                                      \
                         (OBJECTREF*)&(ObjRefArray),                     \
                         cnt * sizeof(ObjRefArray) / sizeof(OBJECTREF),  \
                         FALSE);                                         \
@@ -3488,7 +3460,7 @@ public:
                 /* work around Wsizeof-pointer-div warning as we */     \
                 /* mean to capture pointer or object size */            \
                 UINT subjectSize = sizeof(ObjRefStruct);                \
-                FrameWithCookie<GCFrame> __gcframe(                     \
+                GCFrame __gcframe(                                      \
                         (OBJECTREF*)&(ObjRefStruct),                    \
                         subjectSize/sizeof(OBJECTREF),                  \
                         TRUE);                                          \
@@ -3496,7 +3468,7 @@ public:
                 if (true) { DEBUG_ASSURE_NO_RETURN_BEGIN(GCPROTECT)
 
 #define GCPROTECT_BEGININTERIOR_ARRAY(ObjRefArray,cnt) do {             \
-                FrameWithCookie<GCFrame> __gcframe(                     \
+                GCFrame __gcframe(                                      \
                         (OBJECTREF*)&(ObjRefArray),                     \
                         cnt,                                            \
                         TRUE);                                          \
@@ -3539,7 +3511,7 @@ public:
                 __dummyAssumeByrefFromJITStack.Pop(); } while(0)
 #else //defined (_DEBUG) && !defined (DACCESS_COMPILE)
 #define ASSUME_BYREF_FROM_JIT_STACK_BEGIN(__objRef)
-#define ASSUME_BYREF_FROM_JIT_STACK_END()    
+#define ASSUME_BYREF_FROM_JIT_STACK_END()
 #endif //defined (_DEBUG) && !defined (DACCESS_COMPILE)
 
 //------------------------------------------------------------------------
