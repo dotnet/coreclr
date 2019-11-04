@@ -173,10 +173,10 @@ jobs:
     # Crossgen framework assemblies prior to triggering readyToRun execution runs.
     - ${{ if eq(parameters.readyToRun, true) }}:
       - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-        - script: $(coreClrRepoRootDir)build-test${scriptExt} skipmanaged skipnative $(crossgenArg) $(buildConfig) $(archType) $(crossArg) $(priorityArg)
+        - script: $(coreClrRepoRootDir)build-test$(scriptExt) skipmanaged skipnative $(crossgenArg) $(buildConfig) $(archType) $(crossArg) $(priorityArg)
           displayName: Crossgen framework assemblies
       - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-        - script: $(coreClrRepoRootDir)build-test${scriptExt} skipmanaged skipnative $(crossgenArg) $(buildConfig) $(archType) $(priorityArg)
+        - script: $(coreClrRepoRootDir)build-test$(scriptExt) skipmanaged skipnative $(crossgenArg) $(buildConfig) $(archType) $(priorityArg)
           displayName: Crossgen framework assemblies
 
 
