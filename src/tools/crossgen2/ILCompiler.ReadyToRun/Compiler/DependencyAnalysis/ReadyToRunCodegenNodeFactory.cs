@@ -367,12 +367,6 @@ namespace ILCompiler.DependencyAnalysis
             return _constructedHelpers.GetOrAdd(helperId);
         }
 
-        private ISymbolNode CreateReadyToRunHelperCell(ReadyToRunHelper helperId)
-        {
-            return new Import(EagerImports, new ReadyToRunHelperSignature(helperId));
-        }
-
-
         private NodeCache<TypeAndMethod, IMethodNode> _importMethods;
 
         private IMethodNode CreateMethodEntrypoint(TypeAndMethod key)
