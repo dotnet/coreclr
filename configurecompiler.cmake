@@ -19,8 +19,6 @@ if(NOT MSVC AND NOT CMAKE_CXX_LINK_PIE_SUPPORTED)
 endif()
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-check_cxx_compiler_flag(-faligned-new COMPILER_SUPPORTS_F_ALIGNED_NEW)
-
 #----------------------------------------
 # Detect and set platform variable names
 #     - for non-windows build platform & architecture is detected using inbuilt CMAKE variables and cross target component configure
@@ -256,7 +254,7 @@ if (MSVC)
   add_link_options($<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:/SUBSYSTEM:WINDOWS,${WINDOWS_SUBSYSTEM_VERSION}>)
 
   set(CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS} /IGNORE:4221")
-  
+
   add_link_options($<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:/DEBUG>)
   add_link_options($<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:/PDBCOMPRESS>)
   add_link_options($<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:/STACK:1572864>)
@@ -312,7 +310,7 @@ elseif (CLR_CMAKE_PLATFORM_UNIX)
       endif ()
       if (${__UBSAN_POS} GREATER -1)
         # all sanitizier flags are enabled except alignment (due to heavy use of __unaligned modifier)
-        list(APPEND CLR_CXX_SANITIZERS 
+        list(APPEND CLR_CXX_SANITIZERS
           "bool"
           bounds
           enum
@@ -466,7 +464,10 @@ if (CLR_CMAKE_PLATFORM_UNIX)
     # We cannot enable "stack-protector-strong" on OS X due to a bug in clang compiler (current version 7.0.2)
     add_compile_options(-fstack-protector)
   else()
-    add_compile_options(-fstack-protector-strong)
+    check_cxx_compiler_flag(-fstack-protector-strong COMPILER_SUPPORTS_F_STACK_PROTECTOR_STRONG)
+    if (COMPILER_SUPPORTS_F_STACK_PROTECTOR_STRONG)
+      add_compile_options(-fstack-protector-strong)
+    endif()
   endif(CLR_CMAKE_PLATFORM_DARWIN)
 
   # Contracts are disabled on UNIX.
@@ -513,9 +514,7 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   else()
     add_compile_options(-Wno-unused-but-set-variable)
     add_compile_options(-Wno-unknown-pragmas)
-    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0)
-      add_compile_options(-Wno-nonnull-compare)
-    endif()
+    check_cxx_compiler_flag(-faligned-new COMPILER_SUPPORTS_F_ALIGNED_NEW)
     if (COMPILER_SUPPORTS_F_ALIGNED_NEW)
       add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-faligned-new>)
     endif()

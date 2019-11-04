@@ -14,7 +14,7 @@ public class ProcessParameters
     /// <summary>
     /// Maximum time for CPAOT / Crossgen compilation.
     /// </summary>
-    public const int DefaultIlcTimeout = 5 * 60 * 1000;
+    public const int DefaultIlcTimeout = 10 * 60 * 1000;
 
     /// <summary>
     /// Test execution timeout.
@@ -106,7 +106,7 @@ public class ProcessRunner : IDisposable
     private CancellationTokenSource _cancellationTokenSource;
 
     private readonly DataReceivedEventHandler _outputHandler;
-    
+
     private readonly DataReceivedEventHandler _errorHandler;
 
     public ProcessRunner(ProcessInfo processInfo, int processIndex, int processCount, ReadyToRunJittedMethods jittedMethods, AutoResetEvent processExitEvent)
@@ -232,7 +232,7 @@ public class ProcessRunner : IDisposable
             {
                 _logWriter = null;
                 logWriter.Dispose();
-            }            
+            }
         }
     }
 

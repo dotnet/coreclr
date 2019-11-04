@@ -2,13 +2,21 @@ trigger: none
 
 pr: none
 
+schedules:
+- cron: "0 11 * * *"
+  displayName: Mon through Sun at 3:00 AM (UTC-8:00)
+  branches:
+    include:
+    - master
+  always: true
+
 jobs:
 #
 # Checkout repository
 #
-- template: /eng/checkout-job.yml
+- template: ../checkout-job.yml
 
-- template: /eng/platform-matrix.yml
+- template: ../platform-matrix.yml
   parameters:
     jobTemplate: build-job.yml
     buildConfig: release
@@ -21,7 +29,7 @@ jobs:
     jobParameters:
       testGroup: gc-simulator
 
-- template: /eng/platform-matrix.yml
+- template: ../platform-matrix.yml
   parameters:
     jobTemplate: test-job.yml
     buildConfig: release

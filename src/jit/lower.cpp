@@ -264,7 +264,7 @@ GenTree* Lowering::LowerNode(GenTree* node)
 #endif // FEATURE_SIMD
 
 #ifdef FEATURE_HW_INTRINSICS
-        case GT_HWIntrinsic:
+        case GT_HWINTRINSIC:
             LowerHWIntrinsic(node->AsHWIntrinsic());
             break;
 #endif // FEATURE_HW_INTRINSICS
@@ -345,6 +345,10 @@ GenTree* Lowering::LowerNode(GenTree* node)
             }
             break;
 #endif // !_TARGET_ARMARCH_
+
+        case GT_KEEPALIVE:
+            node->gtGetOp1()->SetRegOptional();
+            break;
 
         default:
             break;
@@ -1008,8 +1012,7 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
 
     GenTree* putArg = nullptr;
 
-    bool isOnStack = true;
-    isOnStack      = info->GetRegNum() == REG_STK;
+    bool isOnStack = (info->GetRegNum() == REG_STK);
 
 #ifdef _TARGET_ARMARCH_
     // Mark contained when we pass struct
@@ -5699,7 +5702,7 @@ void Lowering::ContainCheckNode(GenTree* node)
             break;
 #endif // FEATURE_SIMD
 #ifdef FEATURE_HW_INTRINSICS
-        case GT_HWIntrinsic:
+        case GT_HWINTRINSIC:
             ContainCheckHWIntrinsic(node->AsHWIntrinsic());
             break;
 #endif // FEATURE_HW_INTRINSICS

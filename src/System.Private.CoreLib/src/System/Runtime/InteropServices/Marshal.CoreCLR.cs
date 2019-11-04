@@ -179,7 +179,7 @@ namespace System.Runtime.InteropServices
             GC.KeepAlive(rmi);
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void InternalPrelink(RuntimeMethodHandleInternal m);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
@@ -193,7 +193,7 @@ namespace System.Runtime.InteropServices
         /// structure contains pointers to allocated blocks and "fDeleteOld" is
         /// true, this routine will call DestroyStructure() first.
         /// </summary>
-        [MethodImpl(MethodImplOptions.InternalCall), ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void StructureToPtr(object structure, IntPtr ptr, bool fDeleteOld);
 
         private static object PtrToStructureHelper(IntPtr ptr, Type structureType)
@@ -234,13 +234,13 @@ namespace System.Runtime.InteropServices
 
             if (m is RuntimeModule rtModule)
             {
-                return GetHINSTANCE(JitHelpers.GetQCallModuleOnStack(ref rtModule));
+                return GetHINSTANCE(new QCallModule(ref rtModule));
             }
 
             return (IntPtr)(-1);
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern IntPtr GetHINSTANCE(QCallModule m);
 
 #endif // FEATURE_COMINTEROP
@@ -687,7 +687,7 @@ namespace System.Runtime.InteropServices
             object?[] objects = GetObjectsForNativeVariants(aSrcNativeVariant, cVars);
 
             T[] result = new T[objects.Length];
-            Array.Copy(objects, 0, result, 0, objects.Length);
+            Array.Copy(objects, result, objects.Length);
 
             return result;
         }

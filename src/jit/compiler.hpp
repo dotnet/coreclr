@@ -3592,7 +3592,7 @@ inline CORINFO_METHOD_HANDLE Compiler::eeFindHelper(unsigned helper)
     /* Helpers are marked by the fact that they are odd numbers
      * force this to be an odd number (will shift it back to extract) */
 
-    return ((CORINFO_METHOD_HANDLE)(size_t)((helper << 2) + 1));
+    return ((CORINFO_METHOD_HANDLE)((((size_t)helper) << 2) + 1));
 }
 
 inline CorInfoHelpFunc Compiler::eeGetHelperNum(CORINFO_METHOD_HANDLE method)
@@ -4275,6 +4275,7 @@ void GenTree::VisitOperands(TVisitor visitor)
         case GT_PUTARG_SPLIT:
 #endif // FEATURE_ARG_SPLIT
         case GT_RETURNTRAP:
+        case GT_KEEPALIVE:
             visitor(this->AsUnOp()->gtOp1);
             return;
 
@@ -4294,7 +4295,7 @@ void GenTree::VisitOperands(TVisitor visitor)
 #endif // FEATURE_SIMD
 
 #ifdef FEATURE_HW_INTRINSICS
-        case GT_HWIntrinsic:
+        case GT_HWINTRINSIC:
             if ((this->AsHWIntrinsic()->gtOp1 != nullptr) && this->AsHWIntrinsic()->gtOp1->OperIsList())
             {
                 this->AsHWIntrinsic()->gtOp1->VisitListOperands(visitor);

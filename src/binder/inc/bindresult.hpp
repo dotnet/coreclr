@@ -16,7 +16,7 @@
 #define __BINDER__BIND_RESULT_HPP__
 
 #include "bindertypes.hpp"
- 
+
 namespace BINDER_SPACE
 {
     class BindResult
@@ -43,7 +43,6 @@ namespace BINDER_SPACE
         inline void SetNoResult();
         inline BOOL HaveResult();
 
-        inline IUnknown *ExtractAssembly();
         inline void Reset();
 
     protected:

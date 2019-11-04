@@ -12,7 +12,7 @@ parameters:
 ### buildConfig and archType.
 
 jobs:
-- template: /eng/common/templates/job/performance.yml
+- template: run-performance-job.yml
   parameters:
     # Compute job name from template parameters
     jobName: ${{ format('perfbuild_{0}{1}_{2}_{3}', parameters.osGroup, parameters.osSubgroup, parameters.archType, parameters.buildConfig) }}
@@ -20,15 +20,16 @@ jobs:
     pool: 
       # Hosted Linux Build Pool
       ${{ if eq(parameters.osGroup, 'Linux') }}:
-        pool:  Hosted Ubuntu 1604
-        queue: Ubuntu.1804.Amd64.Open
-        osGroup: Linux
+        name:  NetCoreInternal-Pool
+        queue: BuildPool.Ubuntu.1604.Amd64
       # Hosted Windows Build Pool
       ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-        pool: Hosted VS2017
-        queue: BuildPool.Windows.10.Amd64.VS2017.Open
-        osGroup: Windows_NT
-
+        name: NetCoreInternal-Pool
+        queue: BuildPool.Windows.10.Amd64.VS2019
+    buildConfig: ${{ parameters.buildConfig }}
+    archType: ${{ parameters.archType }}
+    osGroup: ${{ parameters.osGroup }}
+    osSubgroup: ${{ parameters.osSubgroup }}
     # Test job depends on the corresponding build job
     dependsOn: ${{ format('build_{0}{1}_{2}_{3}', parameters.osGroup, parameters.osSubgroup, parameters.archType, parameters.buildConfig) }}
       
@@ -42,23 +43,16 @@ jobs:
     steps:
     # Extra steps that will be passed to the performance template and run before sending the job to helix (all of which is done in the template)
 
+
     # Download product binaries directory
-    - task: DownloadBuildArtifacts@0
-      displayName: Download product build
-      inputs:
-        buildType: current
-        downloadType: single
-        artifactName: ${{ format('BinDir_{0}{1}_{2}_{3}', parameters.osGroup, parameters.osSubgroup, parameters.archType, parameters.buildConfig) }}
-        downloadPath: $(System.ArtifactsDirectory)
+    - template: download-artifact-step.yml
+      parameters:
+        downloadFolder: $(binTestsPath)/tmp
+        unpackFolder: $(buildProductRootFolderPath)
+        artifactFileName: '$(buildProductArtifactName)$(archiveExtension)'
+        artifactName: '$(buildProductArtifactName)'
+        displayName: 'product build'
 
-
-    # Populate Product directory
-    - task: CopyFiles@2
-      displayName: Populate Product directory
-      inputs:
-        sourceFolder: $(System.ArtifactsDirectory)/${{ format('BinDir_{0}{1}_{2}_{3}', parameters.osGroup, parameters.osSubgroup, parameters.archType, parameters.buildConfig) }}
-        contents: '**'
-        targetFolder: $(Build.SourcesDirectory)/bin/Product/${{ parameters.osGroup }}.${{ parameters.archType }}.Release
 
     # Create Core_Root
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
