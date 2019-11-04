@@ -19,7 +19,7 @@ string Func<T>()
 ```
 
 Without shared generics, the code for instantiations like `Func<object>` or `Func<string>` would look identical except for one single instruction: the one that loads the correct TypeHandle of type `List<T>`:
-```
+``` asm
     mov rcx, type handle of List<string> or List<object>
     call ToString()
     ret
