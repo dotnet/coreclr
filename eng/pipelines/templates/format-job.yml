@@ -29,10 +29,10 @@ jobs:
         packageType: 'sdk'
         version: '2.1.402'
     - task: PythonScript@0
-      displayName: Run tests/scripts/format.py
+      displayName: Run tests/templates/format.py
       inputs:
         scriptSource: 'filePath'
-        scriptPath: $(Build.SourcesDirectory)/tests/scripts/format.py
+        scriptPath: $(Build.SourcesDirectory)/tests/templates/format.py
         arguments: '-c $(Build.SourcesDirectory) -o $(osGroup) -a $(archType)'
     - task: PublishBuildArtifacts@1
       displayName: Publish format.patch
