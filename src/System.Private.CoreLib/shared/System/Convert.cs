@@ -2492,7 +2492,7 @@ namespace System
                 charsWritten = ConvertToBase64Array(outChars, inData, 0, bytes.Length, insertLineBreaks);
                 return true;
             }
-        }      
+        }
 
         internal static readonly Vector128<byte> s_base64ShuffleMask = Vector128.Create((byte)
             1, 0, 2, 1, 4, 3, 5, 4, 7, 6, 8, 7, 10, 9, 11, 10);
@@ -2581,12 +2581,12 @@ namespace System
                 // Do it for the second part of the vector (rotate it first in order to re-use asciiToStringMaskLo)
                 result = Sse2.Shuffle(result.AsUInt32(), 0x4E /*_MM_SHUFFLE(1,0,3,2)*/).AsByte();
                 result = Ssse3.Shuffle(result, localTwoBytesStringMaskLo);
-                    
+
                 if (insertLineBreaks && (charcount += 16) >= base64LineBreakPosition)
                 {
-                    // Normally we save 32 bytes per iteration 
+                    // Normally we save 32 bytes per iteration
                     // but `insertLineBreaks` needs `\r\n` (4 bytes) between each 76*2=152 bytes. 152/32 = 4.75 (means not a multiply of 32)
-                    // we need to insert `\r\n` in the middle of Vector128<byte> somehow 
+                    // we need to insert `\r\n` in the middle of Vector128<byte> somehow
                     // but the following code just saves a half of the vector, then appends `\r\n` manually
                     // and the second part of the vector is ignored (this is why 'i' is decremented)
                     charcount = 0;
