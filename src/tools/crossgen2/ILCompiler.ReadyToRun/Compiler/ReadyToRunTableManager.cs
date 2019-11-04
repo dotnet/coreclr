@@ -51,9 +51,9 @@ namespace ILCompiler
 
             if (methodNode != null)
             {
-                Debug.Assert(_methodsGenerated != null);
                 lock (_methodsGenerated)
                 {
+                    Debug.Assert(!_sortedMethods);
                     _methodsGenerated.Add(methodNode.Method);
                 }
             }

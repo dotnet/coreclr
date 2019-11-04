@@ -22,7 +22,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             VirtualStubDispatch,
         }
 
-        private readonly ISortableSymbolNode _helperCell;
+        private readonly Import _helperCell;
 
         private readonly Import _instanceCell;
 
@@ -33,7 +33,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
         public ImportThunk(ReadyToRunHelper helperId, ReadyToRunCodegenNodeFactory factory, Import instanceCell, bool useVirtualCall)
         {
             // These are all imports
-            _helperCell = (ISortableSymbolNode)factory.GetReadyToRunHelperCell(helperId);
+            _helperCell = factory.GetReadyToRunHelperCell(helperId);
             _instanceCell = instanceCell;
             _moduleImport = factory.ModuleImport;
 
