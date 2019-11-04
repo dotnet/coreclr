@@ -8,6 +8,6 @@
     <Optimize />
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="FusedMultiplyAdd.cs" />
+    <Compile Include="MathFusedMultiplyAdd.cs" />
   </ItemGroup>
 </Project>
