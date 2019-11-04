@@ -47,42 +47,23 @@ namespace System.IO
             }
         }
 
-        public static void ValidateCopyToArgs(Stream source, ReadOnlySpanAction<byte, object?> callback, int bufferSize)
+        public static void ValidateCopyToArgs(Stream source, Delegate callback, int bufferSize)
         {
             if (callback == null)
             {
                 throw new ArgumentNullException(nameof(callback));
             }
 
-            ValidateCopyToArgsCore(source, bufferSize);
-        }
-
-        public static void ValidateCopyToArgs(Stream source, Func<ReadOnlyMemory<byte>, object?, CancellationToken, ValueTask> callback, int bufferSize)
-        {
-            if (callback == null)
-            {
-                throw new ArgumentNullException(nameof(callback));
-            }
-
-            ValidateCopyToArgsCore(source, bufferSize);
-        }
-
-        private static void ValidateCopyToArgsCore(Stream source, int bufferSize)
-        {
             if (bufferSize <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(bufferSize), bufferSize, SR.ArgumentOutOfRange_NeedPosNum);
             }
 
-            bool sourceCanRead = source.CanRead;
-            if (!sourceCanRead && !source.CanWrite)
+            if (!source.CanRead)
             {
-                throw new ObjectDisposedException(null, SR.ObjectDisposed_StreamClosed);
-            }
-
-            if (!sourceCanRead)
-            {
-                throw new NotSupportedException(SR.NotSupported_UnreadableStream);
+                throw source.CanWrite ? (Exception)
+                    new NotSupportedException(SR.NotSupported_UnreadableStream) :
+                    new ObjectDisposedException(null, SR.ObjectDisposed_StreamClosed);
             }
         }
     }
