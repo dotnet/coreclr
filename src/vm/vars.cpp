@@ -43,7 +43,7 @@ const char *         g_ExceptionFile;   // Source of the last thrown exception (
 DWORD                g_ExceptionLine;   // ... ditto ...
 void *               g_ExceptionEIP;    // Managed EIP of the last guy to call JITThrow.
 #endif // _DEBUG
-void *               g_LastAccessViolationEIP;  // The EIP of the place we last threw an AV.   Used to diagnose stress issues.  
+void *               g_LastAccessViolationEIP;  // The EIP of the place we last threw an AV.   Used to diagnose stress issues.
 
 #endif // #ifndef DACCESS_COMPILE
 GPTR_IMPL(IdDispenser,       g_pThinLockThreadIdDispenser);
@@ -83,8 +83,6 @@ GPTR_IMPL(MethodTable,      g_pOverlappedDataClass);
 
 GPTR_IMPL(MethodTable,      g_TypedReferenceMT);
 
-GPTR_IMPL(MethodTable,      g_pByteArrayMT);
-
 #ifdef FEATURE_COMINTEROP
 GPTR_IMPL(MethodTable,      g_pBaseCOMObject);
 GPTR_IMPL(MethodTable,      g_pBaseRuntimeClass);
@@ -93,9 +91,6 @@ GPTR_IMPL(MethodTable,      g_pBaseRuntimeClass);
 #ifdef FEATURE_ICASTABLE
 GPTR_IMPL(MethodTable,      g_pICastableInterface);
 #endif // FEATURE_ICASTABLE
-
-
-GPTR_IMPL(MethodDesc,       g_pExecuteBackoutCodeHelperMethod);
 
 GPTR_IMPL(MethodDesc,       g_pObjectFinalizerMD);
 
@@ -130,7 +125,7 @@ OBJECTHANDLE         g_pPreallocatedThreadAbortException;
 OBJECTHANDLE         g_pPreallocatedSentinelObject;
 OBJECTHANDLE         g_pPreallocatedBaseException;
 
-// 
+//
 //
 // Global System Info
 //
@@ -139,8 +134,8 @@ SYSTEM_INFO g_SystemInfo;
 // Configurable constants used across our spin locks
 // Initialization here is necessary so that we have meaningful values before the runtime is started
 // These initial values were selected to match the defaults, but anything reasonable is close enough
-SpinConstants g_SpinConstants = { 
-    50,        // dwInitialDuration 
+SpinConstants g_SpinConstants = {
+    50,        // dwInitialDuration
     40000,     // dwMaximumDuration - ideally (20000 * max(2, numProc))
     3,         // dwBackoffFactor
     10,        // dwRepetitions
@@ -246,7 +241,7 @@ void OBJECTHANDLE_EnumMemoryRegions(OBJECTHANDLE handle)
     if (ref.IsValid())
     {
         ref.EnumMem();
-        
+
         PTR_Object obj = PTR_Object(*ref);
         if (obj.IsValid())
         {

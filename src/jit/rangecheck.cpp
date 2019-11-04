@@ -197,7 +197,7 @@ void RangeCheck::OptimizeRangeCheck(BasicBlock* block, Statement* stmt, GenTree*
     }
 
     // If we are not looking at array bounds check, bail.
-    GenTree* tree = treeParent->gtOp.gtOp1;
+    GenTree* tree = treeParent->AsOp()->gtOp1;
     if (!tree->OperIsBoundsCheck())
     {
         return;
@@ -714,19 +714,13 @@ void RangeCheck::MergeEdgeAssertions(GenTreeLclVarCommon* lcl, ASSERT_VALARG_TP 
         switch (cmpOper)
         {
             case GT_LT:
+            case GT_LE:
                 pRange->uLimit = limit;
                 break;
 
             case GT_GT:
-                pRange->lLimit = limit;
-                break;
-
             case GT_GE:
                 pRange->lLimit = limit;
-                break;
-
-            case GT_LE:
-                pRange->uLimit = limit;
                 break;
 
             default:

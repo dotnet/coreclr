@@ -19,8 +19,6 @@ if(NOT MSVC AND NOT CMAKE_CXX_LINK_PIE_SUPPORTED)
 endif()
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-check_cxx_compiler_flag(-faligned-new COMPILER_SUPPORTS_F_ALIGNED_NEW)
-
 #----------------------------------------
 # Detect and set platform variable names
 #     - for non-windows build platform & architecture is detected using inbuilt CMAKE variables and cross target component configure
@@ -32,7 +30,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
         # CMAKE_HOST_SYSTEM_PROCESSOR returns the value of `uname -p` on host.
         if(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL x86_64 OR CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL amd64)
             if(CLR_CMAKE_TARGET_ARCH STREQUAL "arm" OR CLR_CMAKE_TARGET_ARCH STREQUAL "armel")
-                if($ENV{CROSSCOMPILE} STREQUAL "1")
+                if(CMAKE_CROSSCOMPILING)
                     set(CLR_CMAKE_PLATFORM_UNIX_X86 1)
                 else()
                     set(CLR_CMAKE_PLATFORM_UNIX_AMD64 1)
@@ -67,6 +65,16 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
     set(CLR_CMAKE_PLATFORM_LINUX 1)
 
     # Detect Linux ID
+    set(LINUX_ID_FILE "/etc/os-release")
+    if(CMAKE_CROSSCOMPILING)
+        set(LINUX_ID_FILE "${CMAKE_SYSROOT}${LINUX_ID_FILE}")
+    endif()
+
+    execute_process(
+        COMMAND bash -c "source ${LINUX_ID_FILE} && echo \$ID"
+        OUTPUT_VARIABLE CLR_CMAKE_LINUX_ID
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
+
     if(DEFINED CLR_CMAKE_LINUX_ID)
         if(CLR_CMAKE_LINUX_ID STREQUAL tizen)
             set(CLR_CMAKE_TARGET_TIZEN_LINUX 1)
@@ -246,7 +254,7 @@ if (MSVC)
   add_link_options($<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,SHARED_LIBRARY>:/SUBSYSTEM:WINDOWS,${WINDOWS_SUBSYSTEM_VERSION}>)
 
   set(CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS} /IGNORE:4221")
-  
+
   add_link_options($<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:/DEBUG>)
   add_link_options($<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:/PDBCOMPRESS>)
   add_link_options($<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:/STACK:1572864>)
@@ -302,7 +310,7 @@ elseif (CLR_CMAKE_PLATFORM_UNIX)
       endif ()
       if (${__UBSAN_POS} GREATER -1)
         # all sanitizier flags are enabled except alignment (due to heavy use of __unaligned modifier)
-        list(APPEND CLR_CXX_SANITIZERS 
+        list(APPEND CLR_CXX_SANITIZERS
           "bool"
           bounds
           enum
@@ -444,7 +452,7 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   add_compile_options(-fno-omit-frame-pointer)
 
   # The -fms-extensions enable the stuff like __if_exists, __declspec(uuid()), etc.
-  add_compile_options(-fms-extensions )
+  add_compile_options(-fms-extensions)
   #-fms-compatibility      Enable full Microsoft Visual C++ compatibility
   #-fms-extensions         Accept some non-standard constructs supported by the Microsoft compiler
 
@@ -456,7 +464,10 @@ if (CLR_CMAKE_PLATFORM_UNIX)
     # We cannot enable "stack-protector-strong" on OS X due to a bug in clang compiler (current version 7.0.2)
     add_compile_options(-fstack-protector)
   else()
-    add_compile_options(-fstack-protector-strong)
+    check_cxx_compiler_flag(-fstack-protector-strong COMPILER_SUPPORTS_F_STACK_PROTECTOR_STRONG)
+    if (COMPILER_SUPPORTS_F_STACK_PROTECTOR_STRONG)
+      add_compile_options(-fstack-protector-strong)
+    endif()
   endif(CLR_CMAKE_PLATFORM_DARWIN)
 
   # Contracts are disabled on UNIX.
@@ -501,13 +512,9 @@ if (CLR_CMAKE_PLATFORM_UNIX)
     # may not generate the same object layout as MSVC.
     add_compile_options(-Wno-incompatible-ms-struct)
   else()
-    add_compile_options(-Wno-unused-variable)
     add_compile_options(-Wno-unused-but-set-variable)
-    add_compile_options(-fms-extensions)
     add_compile_options(-Wno-unknown-pragmas)
-    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0)
-      add_compile_options(-Wno-nonnull-compare)
-    endif()
+    check_cxx_compiler_flag(-faligned-new COMPILER_SUPPORTS_F_ALIGNED_NEW)
     if (COMPILER_SUPPORTS_F_ALIGNED_NEW)
       add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-faligned-new>)
     endif()

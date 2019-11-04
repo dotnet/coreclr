@@ -136,7 +136,7 @@ Compiler::fgWalkResult Compiler::gsMarkPtrsAndAssignGroups(GenTree** pTree, fgWa
         // local vars and param uses
         case GT_LCL_VAR:
         case GT_LCL_FLD:
-            lclNum = tree->gtLclVarCommon.GetLclNum();
+            lclNum = tree->AsLclVarCommon()->GetLclNum();
 
             if (pState->isUnderIndir)
             {
@@ -206,14 +206,14 @@ Compiler::fgWalkResult Compiler::gsMarkPtrsAndAssignGroups(GenTree** pTree, fgWa
                     comp->fgWalkTreePre(&use.NodeRef(), gsMarkPtrsAndAssignGroups, (void*)&newState);
                 }
 
-                if (tree->gtCall.gtCallType == CT_INDIRECT)
+                if (tree->AsCall()->gtCallType == CT_INDIRECT)
                 {
                     newState.isUnderIndir = true;
 
                     // A function pointer is treated like a write-through pointer since
                     // it controls what code gets executed, and so indirectly can cause
                     // a write to memory.
-                    comp->fgWalkTreePre(&tree->gtCall.gtCallAddr, gsMarkPtrsAndAssignGroups, (void*)&newState);
+                    comp->fgWalkTreePre(&tree->AsCall()->gtCallAddr, gsMarkPtrsAndAssignGroups, (void*)&newState);
                 }
             }
             return WALK_SKIP_SUBTREES;
@@ -223,7 +223,7 @@ Compiler::fgWalkResult Compiler::gsMarkPtrsAndAssignGroups(GenTree** pTree, fgWa
             // We'll assume p in "**p = " can be vulnerable because by changing 'p', someone
             // could control where **p stores to.
             {
-                comp->fgWalkTreePre(&tree->gtOp.gtOp1, comp->gsMarkPtrsAndAssignGroups, (void*)&newState);
+                comp->fgWalkTreePre(&tree->AsOp()->gtOp1, comp->gsMarkPtrsAndAssignGroups, (void*)&newState);
             }
             return WALK_SKIP_SUBTREES;
 
@@ -239,31 +239,31 @@ Compiler::fgWalkResult Compiler::gsMarkPtrsAndAssignGroups(GenTree** pTree, fgWa
                     // Blk assignments are always handled as if they have implicit indirections.
                     // TODO-1stClassStructs: improve this.
                     newState.isUnderIndir = true;
-                    comp->fgWalkTreePre(&tree->gtOp.gtOp1, comp->gsMarkPtrsAndAssignGroups, (void*)&newState);
+                    comp->fgWalkTreePre(&tree->AsOp()->gtOp1, comp->gsMarkPtrsAndAssignGroups, (void*)&newState);
 
                     if (tree->OperIsInitBlkOp())
                     {
                         newState.isUnderIndir = false;
                     }
-                    comp->fgWalkTreePre(&tree->gtOp.gtOp2, comp->gsMarkPtrsAndAssignGroups, (void*)&newState);
+                    comp->fgWalkTreePre(&tree->AsOp()->gtOp2, comp->gsMarkPtrsAndAssignGroups, (void*)&newState);
                 }
                 else
                 {
                     // Walk dst side
-                    comp->fgWalkTreePre(&tree->gtOp.gtOp1, comp->gsMarkPtrsAndAssignGroups, (void*)&newState);
+                    comp->fgWalkTreePre(&tree->AsOp()->gtOp1, comp->gsMarkPtrsAndAssignGroups, (void*)&newState);
 
                     // Now handle src side
-                    isLocVar = tree->gtOp.gtOp1->OperGet() == GT_LCL_VAR;
-                    isLocFld = tree->gtOp.gtOp1->OperGet() == GT_LCL_FLD;
+                    isLocVar = tree->AsOp()->gtOp1->OperGet() == GT_LCL_VAR;
+                    isLocFld = tree->AsOp()->gtOp1->OperGet() == GT_LCL_FLD;
 
-                    if ((isLocVar || isLocFld) && tree->gtOp.gtOp2)
+                    if ((isLocVar || isLocFld) && tree->AsOp()->gtOp2)
                     {
-                        lclNum               = tree->gtOp.gtOp1->gtLclVarCommon.GetLclNum();
+                        lclNum               = tree->AsOp()->gtOp1->AsLclVarCommon()->GetLclNum();
                         newState.lvAssignDef = lclNum;
                         newState.isAssignSrc = true;
                     }
 
-                    comp->fgWalkTreePre(&tree->gtOp.gtOp2, comp->gsMarkPtrsAndAssignGroups, (void*)&newState);
+                    comp->fgWalkTreePre(&tree->AsOp()->gtOp2, comp->gsMarkPtrsAndAssignGroups, (void*)&newState);
                 }
 
                 return WALK_SKIP_SUBTREES;

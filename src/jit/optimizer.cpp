@@ -719,10 +719,10 @@ bool Compiler::optPopulateInitInfo(unsigned loopInd, GenTree* init, unsigned ite
         return false;
     }
 
-    GenTree* lhs = init->gtOp.gtOp1;
-    GenTree* rhs = init->gtOp.gtOp2;
+    GenTree* lhs = init->AsOp()->gtOp1;
+    GenTree* rhs = init->AsOp()->gtOp2;
     // LHS has to be local and should equal iterVar.
-    if (lhs->gtOper != GT_LCL_VAR || lhs->gtLclVarCommon.GetLclNum() != iterVar)
+    if (lhs->gtOper != GT_LCL_VAR || lhs->AsLclVarCommon()->GetLclNum() != iterVar)
     {
         return false;
     }
@@ -732,12 +732,12 @@ bool Compiler::optPopulateInitInfo(unsigned loopInd, GenTree* init, unsigned ite
     if (rhs->gtOper == GT_CNS_INT && rhs->TypeGet() == TYP_INT)
     {
         optLoopTable[loopInd].lpFlags |= LPFLG_CONST_INIT;
-        optLoopTable[loopInd].lpConstInit = (int)rhs->gtIntCon.gtIconVal;
+        optLoopTable[loopInd].lpConstInit = (int)rhs->AsIntCon()->gtIconVal;
     }
     else if (rhs->gtOper == GT_LCL_VAR)
     {
         optLoopTable[loopInd].lpFlags |= LPFLG_VAR_INIT;
-        optLoopTable[loopInd].lpVarInit = rhs->gtLclVarCommon.GetLclNum();
+        optLoopTable[loopInd].lpVarInit = rhs->AsLclVarCommon()->GetLclNum();
     }
     else
     {
@@ -781,19 +781,19 @@ bool Compiler::optCheckIterInLoopTest(
 
     noway_assert(relop->OperKind() & GTK_RELOP);
 
-    GenTree* opr1 = relop->gtOp.gtOp1;
-    GenTree* opr2 = relop->gtOp.gtOp2;
+    GenTree* opr1 = relop->AsOp()->gtOp1;
+    GenTree* opr2 = relop->AsOp()->gtOp2;
 
     GenTree* iterOp;
     GenTree* limitOp;
 
     // Make sure op1 or op2 is the iterVar.
-    if (opr1->gtOper == GT_LCL_VAR && opr1->gtLclVarCommon.GetLclNum() == iterVar)
+    if (opr1->gtOper == GT_LCL_VAR && opr1->AsLclVarCommon()->GetLclNum() == iterVar)
     {
         iterOp  = opr1;
         limitOp = opr2;
     }
-    else if (opr2->gtOper == GT_LCL_VAR && opr2->gtLclVarCommon.GetLclNum() == iterVar)
+    else if (opr2->gtOper == GT_LCL_VAR && opr2->AsLclVarCommon()->GetLclNum() == iterVar)
     {
         iterOp  = opr2;
         limitOp = opr1;
@@ -820,7 +820,8 @@ bool Compiler::optCheckIterInLoopTest(
             optLoopTable[loopInd].lpFlags |= LPFLG_SIMD_LIMIT;
         }
     }
-    else if (limitOp->gtOper == GT_LCL_VAR && !optIsVarAssigned(from, to, nullptr, limitOp->gtLclVarCommon.GetLclNum()))
+    else if (limitOp->gtOper == GT_LCL_VAR &&
+             !optIsVarAssigned(from, to, nullptr, limitOp->AsLclVarCommon()->GetLclNum()))
     {
         optLoopTable[loopInd].lpFlags |= LPFLG_VAR_LIMIT;
     }
@@ -951,8 +952,8 @@ bool Compiler::optIsLoopTestEvalIntoTemp(Statement* testStmt, Statement** newTes
     GenTree* relop = test->gtGetOp1();
     noway_assert(relop->OperIsCompare());
 
-    GenTree* opr1 = relop->gtOp.gtOp1;
-    GenTree* opr2 = relop->gtOp.gtOp2;
+    GenTree* opr1 = relop->AsOp()->gtOp1;
+    GenTree* opr2 = relop->AsOp()->gtOp2;
 
     // Make sure we have jtrue (vtmp != 0)
     if ((relop->OperGet() == GT_NE) && (opr1->OperGet() == GT_LCL_VAR) && (opr2->OperGet() == GT_CNS_INT) &&
@@ -969,8 +970,8 @@ bool Compiler::optIsLoopTestEvalIntoTemp(Statement* testStmt, Statement** newTes
         GenTree* tree = prevStmt->GetRootNode();
         if (tree->OperGet() == GT_ASG)
         {
-            GenTree* lhs = tree->gtOp.gtOp1;
-            GenTree* rhs = tree->gtOp.gtOp2;
+            GenTree* lhs = tree->AsOp()->gtOp1;
+            GenTree* rhs = tree->AsOp()->gtOp2;
 
             // Return as the new test node.
             if (lhs->gtOper == GT_LCL_VAR && lhs->AsLclVarCommon()->GetLclNum() == opr1->AsLclVarCommon()->GetLclNum())
@@ -2294,9 +2295,9 @@ private:
 
                 if (test->OperGet() == GT_JTRUE)
                 {
-                    GenTree* cond = comp->gtReverseCond(test->gtOp.gtOp1);
-                    assert(cond == test->gtOp.gtOp1); // Ensure `gtReverseCond` did not create a new node.
-                    test->gtOp.gtOp1 = cond;
+                    GenTree* cond = comp->gtReverseCond(test->AsOp()->gtOp1);
+                    assert(cond == test->AsOp()->gtOp1); // Ensure `gtReverseCond` did not create a new node.
+                    test->AsOp()->gtOp1 = cond;
                 }
                 else
                 {
@@ -3648,19 +3649,19 @@ void Compiler::optUnrollLoops()
         {
             continue;
         }
-        incr = incr->gtOp.gtOp2;
+        incr = incr->AsOp()->gtOp2;
 
         GenTree* init = initStmt->GetRootNode();
         GenTree* test = testStmt->GetRootNode();
 
         /* Make sure everything looks ok */
-        if ((init->gtOper != GT_ASG) || (init->gtOp.gtOp1->gtOper != GT_LCL_VAR) ||
-            (init->gtOp.gtOp1->gtLclVarCommon.GetLclNum() != lvar) || (init->gtOp.gtOp2->gtOper != GT_CNS_INT) ||
-            (init->gtOp.gtOp2->gtIntCon.gtIconVal != lbeg) ||
+        if ((init->gtOper != GT_ASG) || (init->AsOp()->gtOp1->gtOper != GT_LCL_VAR) ||
+            (init->AsOp()->gtOp1->AsLclVarCommon()->GetLclNum() != lvar) ||
+            (init->AsOp()->gtOp2->gtOper != GT_CNS_INT) || (init->AsOp()->gtOp2->AsIntCon()->gtIconVal != lbeg) ||
 
-            !((incr->gtOper == GT_ADD) || (incr->gtOper == GT_SUB)) || (incr->gtOp.gtOp1->gtOper != GT_LCL_VAR) ||
-            (incr->gtOp.gtOp1->gtLclVarCommon.GetLclNum() != lvar) || (incr->gtOp.gtOp2->gtOper != GT_CNS_INT) ||
-            (incr->gtOp.gtOp2->gtIntCon.gtIconVal != iterInc) ||
+            !((incr->gtOper == GT_ADD) || (incr->gtOper == GT_SUB)) || (incr->AsOp()->gtOp1->gtOper != GT_LCL_VAR) ||
+            (incr->AsOp()->gtOp1->AsLclVarCommon()->GetLclNum() != lvar) ||
+            (incr->AsOp()->gtOp2->gtOper != GT_CNS_INT) || (incr->AsOp()->gtOp2->AsIntCon()->gtIconVal != iterInc) ||
 
             (testStmt->GetRootNode()->gtOper != GT_JTRUE))
         {
@@ -4129,7 +4130,7 @@ void Compiler::fgOptWhileLoop(BasicBlock* block)
     GenTree* condTree = condStmt->GetRootNode();
     noway_assert(condTree->gtOper == GT_JTRUE);
 
-    condTree = condTree->gtOp.gtOp1;
+    condTree = condTree->AsOp()->gtOp1;
 
     // The condTree has to be a RelOp comparison
     //  TODO-CQ: Check if we can also optimize the backwards jump as well.
@@ -4288,18 +4289,14 @@ void Compiler::fgOptWhileLoop(BasicBlock* block)
             {
                 bTest->bbFlags |= BBF_RUN_RARELY;
                 // All out edge weights are set to zero
-                edgeToNext->flEdgeWeightMin = BB_ZERO_WEIGHT;
-                edgeToNext->flEdgeWeightMax = BB_ZERO_WEIGHT;
-                edgeToJump->flEdgeWeightMin = BB_ZERO_WEIGHT;
-                edgeToJump->flEdgeWeightMax = BB_ZERO_WEIGHT;
+                edgeToNext->setEdgeWeights(BB_ZERO_WEIGHT, BB_ZERO_WEIGHT);
+                edgeToJump->setEdgeWeights(BB_ZERO_WEIGHT, BB_ZERO_WEIGHT);
             }
             else
             {
                 // Update the our edge weights
-                edgeToNext->flEdgeWeightMin = BB_ZERO_WEIGHT;
-                edgeToNext->flEdgeWeightMax = min(edgeToNext->flEdgeWeightMax, newWeightTest);
-                edgeToJump->flEdgeWeightMin = BB_ZERO_WEIGHT;
-                edgeToJump->flEdgeWeightMax = min(edgeToJump->flEdgeWeightMax, newWeightTest);
+                edgeToNext->setEdgeWeights(BB_ZERO_WEIGHT, min(edgeToNext->edgeWeightMax(), newWeightTest));
+                edgeToJump->setEdgeWeights(BB_ZERO_WEIGHT, min(edgeToJump->edgeWeightMax(), newWeightTest));
             }
         }
     }
@@ -5094,14 +5091,14 @@ void Compiler::optCloneLoops()
     unsigned methHash = info.compMethodHash();
     char* lostr = getenv("loopclonehashlo");
     unsigned methHashLo = 0;
-    if (lostr != NULL) 
+    if (lostr != NULL)
     {
         sscanf_s(lostr, "%x", &methHashLo);
         // methHashLo = (unsigned(atoi(lostr)) << 2);  // So we don't have to use negative numbers.
     }
     char* histr = getenv("loopclonehashhi");
     unsigned methHashHi = UINT32_MAX;
-    if (histr != NULL) 
+    if (histr != NULL)
     {
         sscanf_s(histr, "%x", &methHashHi);
         // methHashHi = (unsigned(atoi(histr)) << 2);  // So we don't have to use negative numbers.
@@ -5561,7 +5558,7 @@ bool Compiler::optNarrowTree(GenTree* tree, var_types srct, var_types dstt, Valu
             __int64 lmask;
 
             case GT_CNS_LNG:
-                lval  = tree->gtIntConCommon.LngValue();
+                lval  = tree->AsIntConCommon()->LngValue();
                 lmask = 0;
 
                 switch (dstt)
@@ -5596,8 +5593,8 @@ bool Compiler::optNarrowTree(GenTree* tree, var_types srct, var_types dstt, Valu
                 if (doit)
                 {
                     tree->ChangeOperConst(GT_CNS_INT);
-                    tree->gtType             = TYP_INT;
-                    tree->gtIntCon.gtIconVal = (int)lval;
+                    tree->gtType                = TYP_INT;
+                    tree->AsIntCon()->gtIconVal = (int)lval;
                     if (vnStore != nullptr)
                     {
                         fgValueNumberTreeConst(tree);
@@ -5610,7 +5607,7 @@ bool Compiler::optNarrowTree(GenTree* tree, var_types srct, var_types dstt, Valu
             case GT_CNS_INT:
 
                 ssize_t ival;
-                ival = tree->gtIntCon.gtIconVal;
+                ival = tree->AsIntCon()->gtIconVal;
                 ssize_t imask;
                 imask = 0;
 
@@ -5649,8 +5646,8 @@ bool Compiler::optNarrowTree(GenTree* tree, var_types srct, var_types dstt, Valu
 #ifdef _TARGET_64BIT_
                 if (doit)
                 {
-                    tree->gtType             = TYP_INT;
-                    tree->gtIntCon.gtIconVal = (int)ival;
+                    tree->gtType                = TYP_INT;
+                    tree->AsIntCon()->gtIconVal = (int)ival;
                     if (vnStore != nullptr)
                     {
                         fgValueNumberTreeConst(tree);
@@ -5685,9 +5682,9 @@ bool Compiler::optNarrowTree(GenTree* tree, var_types srct, var_types dstt, Valu
     if (kind & (GTK_BINOP | GTK_UNOP))
     {
         GenTree* op1;
-        op1 = tree->gtOp.gtOp1;
+        op1 = tree->AsOp()->gtOp1;
         GenTree* op2;
-        op2 = tree->gtOp.gtOp2;
+        op2 = tree->AsOp()->gtOp2;
 
         switch (tree->gtOper)
         {
@@ -5710,7 +5707,7 @@ bool Compiler::optNarrowTree(GenTree* tree, var_types srct, var_types dstt, Valu
                     if (optNarrowTree(op2, srct, dstt, NoVNPair, false))
                     {
                         opToNarrow = op2;
-                        otherOpPtr = &tree->gtOp.gtOp1;
+                        otherOpPtr = &tree->AsOp()->gtOp1;
                     }
                     else
                     {
@@ -5724,7 +5721,7 @@ bool Compiler::optNarrowTree(GenTree* tree, var_types srct, var_types dstt, Valu
                     if (optNarrowTree(op1, srct, dstt, NoVNPair, false))
                     {
                         opToNarrow = op1;
-                        otherOpPtr = &tree->gtOp.gtOp2;
+                        otherOpPtr = &tree->AsOp()->gtOp2;
                     }
                     else
                     {
@@ -5881,8 +5878,8 @@ bool Compiler::optNarrowTree(GenTree* tree, var_types srct, var_types dstt, Valu
                             tree->gtType = dstt;
                             // Clear the GTF_UNSIGNED flag, as it may have been set on the cast node
                             tree->gtFlags &= ~GTF_UNSIGNED;
-                            tree->gtOp.gtOp2 = nullptr;
-                            tree->gtVNPair   = op1->gtVNPair; // Set to op1's ValueNumber
+                            tree->AsOp()->gtOp2 = nullptr;
+                            tree->gtVNPair      = op1->gtVNPair; // Set to op1's ValueNumber
                         }
                         else
                         {
@@ -5938,7 +5935,7 @@ Compiler::fgWalkResult Compiler::optIsVarAssgCB(GenTree** pTree, fgWalkData* dat
 
     if (tree->OperIs(GT_ASG))
     {
-        GenTree*   dest     = tree->gtOp.gtOp1;
+        GenTree*   dest     = tree->AsOp()->gtOp1;
         genTreeOps destOper = dest->OperGet();
 
         isVarAssgDsc* desc = (isVarAssgDsc*)data->pCallbackData;
@@ -5946,7 +5943,7 @@ Compiler::fgWalkResult Compiler::optIsVarAssgCB(GenTree** pTree, fgWalkData* dat
 
         if (destOper == GT_LCL_VAR)
         {
-            unsigned tvar = dest->gtLclVarCommon.GetLclNum();
+            unsigned tvar = dest->AsLclVarCommon()->GetLclNum();
             if (tvar < lclMAX_ALLSET_TRACKED)
             {
                 AllVarSetOps::AddElemD(data->compiler, desc->ivaMaskVal, tvar);
@@ -5970,7 +5967,7 @@ Compiler::fgWalkResult Compiler::optIsVarAssgCB(GenTree** pTree, fgWalkData* dat
                may access different parts of the var as different (but
                overlapping) fields. So just treat them as indirect accesses */
 
-            // unsigned    lclNum = dest->gtLclFld.GetLclNum();
+            // unsigned    lclNum = dest->AsLclFld()->GetLclNum();
             // noway_assert(lvaTable[lclNum].lvAddrTaken);
 
             varRefKinds refs = varTypeIsGC(tree->TypeGet()) ? VR_IND_REF : VR_IND_SCL;
@@ -6020,7 +6017,7 @@ bool Compiler::optIsVarAssigned(BasicBlock* beg, BasicBlock* end, GenTree* skip,
 
         for (Statement* stmt : beg->Statements())
         {
-            if (fgWalkTreePre(stmt->GetRootNodePointer(), optIsVarAssgCB, &desc))
+            if (fgWalkTreePre(stmt->GetRootNodePointer(), optIsVarAssgCB, &desc) != WALK_CONTINUE)
             {
                 result = true;
                 goto DONE;
@@ -6339,14 +6336,14 @@ void Compiler::optHoistLoopCode()
     unsigned methHash = info.compMethodHash();
     char* lostr = getenv("loophoisthashlo");
     unsigned methHashLo = 0;
-    if (lostr != NULL) 
+    if (lostr != NULL)
     {
         sscanf_s(lostr, "%x", &methHashLo);
         // methHashLo = (unsigned(atoi(lostr)) << 2);  // So we don't have to use negative numbers.
     }
     char* histr = getenv("loophoisthashhi");
     unsigned methHashHi = UINT32_MAX;
-    if (histr != NULL) 
+    if (histr != NULL)
     {
         sscanf_s(histr, "%x", &methHashHi);
         // methHashHi = (unsigned(atoi(histr)) << 2);  // So we don't have to use negative numbers.
@@ -7085,7 +7082,7 @@ void Compiler::optHoistLoopBlocks(unsigned loopNum, ArrayStack<BasicBlock*>* blo
                 else if (tree->OperIs(GT_ASG))
                 {
                     // If the LHS of the assignment has a global reference, then assume it's a global side effect.
-                    GenTree* lhs = tree->gtOp.gtOp1;
+                    GenTree* lhs = tree->AsOp()->gtOp1;
                     if (lhs->gtFlags & GTF_GLOB_REF)
                     {
                         m_beforeSideEffect = false;
@@ -7398,9 +7395,9 @@ void Compiler::fgCreateLoopPreHeader(unsigned lnum)
                     noway_assert(edgeToJump != nullptr);
 
                     loopEnteredCount =
-                        ((double)edgeToNext->flEdgeWeightMin + (double)edgeToNext->flEdgeWeightMax) / 2.0;
+                        ((double)edgeToNext->edgeWeightMin() + (double)edgeToNext->edgeWeightMax()) / 2.0;
                     loopSkippedCount =
-                        ((double)edgeToJump->flEdgeWeightMin + (double)edgeToJump->flEdgeWeightMax) / 2.0;
+                        ((double)edgeToJump->edgeWeightMin() + (double)edgeToJump->edgeWeightMax()) / 2.0;
                 }
                 else
                 {
@@ -7703,11 +7700,11 @@ void Compiler::optComputeLoopSideEffectsOfBlock(BasicBlock* blk)
 
             if (oper == GT_ASG)
             {
-                GenTree* lhs = tree->gtOp.gtOp1->gtEffectiveVal(/*commaOnly*/ true);
+                GenTree* lhs = tree->AsOp()->gtOp1->gtEffectiveVal(/*commaOnly*/ true);
 
                 if (lhs->OperGet() == GT_IND)
                 {
-                    GenTree*      arg           = lhs->gtOp.gtOp1->gtEffectiveVal(/*commaOnly*/ true);
+                    GenTree*      arg           = lhs->AsOp()->gtOp1->gtEffectiveVal(/*commaOnly*/ true);
                     FieldSeqNode* fldSeqArrElem = nullptr;
 
                     if ((tree->gtFlags & GTF_IND_VOLATILE) != 0)
@@ -7798,7 +7795,7 @@ void Compiler::optComputeLoopSideEffectsOfBlock(BasicBlock* blk)
                 }
                 else if (lhs->OperGet() == GT_CLS_VAR)
                 {
-                    AddModifiedFieldAllContainingLoops(mostNestedLoop, lhs->gtClsVar.gtClsVarHnd);
+                    AddModifiedFieldAllContainingLoops(mostNestedLoop, lhs->AsClsVar()->gtClsVarHnd);
                     // Conservatively assume byrefs may alias this static field
                     memoryHavoc |= memoryKindSet(ByrefExposed);
                 }
@@ -7806,7 +7803,7 @@ void Compiler::optComputeLoopSideEffectsOfBlock(BasicBlock* blk)
                 else if (lhs->OperGet() == GT_LCL_VAR)
                 {
                     GenTreeLclVar* lhsLcl = lhs->AsLclVar();
-                    GenTree*       rhs    = tree->gtOp.gtOp2;
+                    GenTree*       rhs    = tree->AsOp()->gtOp2;
                     ValueNum       rhsVN  = rhs->gtVNPair.GetLiberal();
                     // If we gave the RHS a value number, propagate it.
                     if (rhsVN != ValueNumStore::NoVN)
@@ -7831,13 +7828,13 @@ void Compiler::optComputeLoopSideEffectsOfBlock(BasicBlock* blk)
                 switch (oper)
                 {
                     case GT_COMMA:
-                        tree->gtVNPair = tree->gtOp.gtOp2->gtVNPair;
+                        tree->gtVNPair = tree->AsOp()->gtOp2->gtVNPair;
                         break;
 
                     case GT_ADDR:
                         // Is it an addr of a array index expression?
                         {
-                            GenTree* addrArg = tree->gtOp.gtOp1;
+                            GenTree* addrArg = tree->AsOp()->gtOp1;
                             if (addrArg->OperGet() == GT_IND)
                             {
                                 // Is the LHS an array index expression?
@@ -7999,7 +7996,7 @@ void Compiler::optRemoveRangeCheck(GenTree* tree, Statement* stmt)
 
     noway_assert(tree->gtOper == GT_COMMA);
 
-    GenTree* bndsChkTree = tree->gtOp.gtOp1;
+    GenTree* bndsChkTree = tree->AsOp()->gtOp1;
 
     noway_assert(bndsChkTree->OperIsBoundsCheck());
 
@@ -8016,7 +8013,7 @@ void Compiler::optRemoveRangeCheck(GenTree* tree, Statement* stmt)
     gtExtractSideEffList(bndsChkTree, &sideEffList, GTF_ASG);
 
     // Just replace the bndsChk with a NOP as an operand to the GT_COMMA, if there are no side effects.
-    tree->gtOp.gtOp1 = (sideEffList != nullptr) ? sideEffList : gtNewNothingNode();
+    tree->AsOp()->gtOp1 = (sideEffList != nullptr) ? sideEffList : gtNewNothingNode();
     // TODO-CQ: We should also remove the GT_COMMA, but in any case we can no longer CSE the GT_COMMA.
     tree->gtFlags |= GTF_DONT_CSE;
 
@@ -8049,25 +8046,25 @@ ssize_t Compiler::optGetArrayRefScaleAndIndex(GenTree* mul, GenTree** pIndex DEB
 {
     assert(mul);
     assert(mul->gtOper == GT_MUL || mul->gtOper == GT_LSH);
-    assert(mul->gtOp.gtOp2->IsCnsIntOrI());
+    assert(mul->AsOp()->gtOp2->IsCnsIntOrI());
 
-    ssize_t scale = mul->gtOp.gtOp2->gtIntConCommon.IconValue();
+    ssize_t scale = mul->AsOp()->gtOp2->AsIntConCommon()->IconValue();
 
     if (mul->gtOper == GT_LSH)
     {
         scale = ((ssize_t)1) << scale;
     }
 
-    GenTree* index = mul->gtOp.gtOp1;
+    GenTree* index = mul->AsOp()->gtOp1;
 
-    if (index->gtOper == GT_MUL && index->gtOp.gtOp2->IsCnsIntOrI())
+    if (index->gtOper == GT_MUL && index->AsOp()->gtOp2->IsCnsIntOrI())
     {
         // case of two cascading multiplications for constant int (e.g.  * 20 morphed to * 5 * 4):
-        // When index->gtOper is GT_MUL and index->gtOp.gtOp2->gtOper is GT_CNS_INT (i.e. * 5),
-        //     we can bump up the scale from 4 to 5*4, and then change index to index->gtOp.gtOp1.
+        // When index->gtOper is GT_MUL and index->AsOp()->gtOp2->gtOper is GT_CNS_INT (i.e. * 5),
+        //     we can bump up the scale from 4 to 5*4, and then change index to index->AsOp()->gtOp1.
         // Otherwise, we cannot optimize it. We will simply keep the original scale and index.
-        scale *= index->gtOp.gtOp2->gtIntConCommon.IconValue();
-        index = index->gtOp.gtOp1;
+        scale *= index->AsOp()->gtOp2->AsIntConCommon()->IconValue();
+        index = index->AsOp()->gtOp1;
     }
 
     assert(!bRngChk || index->gtOper != GT_COMMA);
@@ -8191,7 +8188,7 @@ bool Compiler::optIdentifyLoopOptInfo(unsigned loopNum, LoopCloneContext* contex
 
 #ifdef DEBUG
     GenTree* op1 = pLoop->lpIterator();
-    noway_assert((op1->gtOper == GT_LCL_VAR) && (op1->gtLclVarCommon.GetLclNum() == ivLclNum));
+    noway_assert((op1->gtOper == GT_LCL_VAR) && (op1->AsLclVarCommon()->GetLclNum() == ivLclNum));
 #endif
 
     JITDUMP("Checking blocks " FMT_BB ".." FMT_BB " for optimization candidates\n", beg->bbNum,
@@ -8282,13 +8279,13 @@ bool Compiler::optExtractArrIndex(GenTree* tree, ArrIndex* result, unsigned lhsN
     {
         return false;
     }
-    unsigned arrLcl = arrBndsChk->gtArrLen->gtGetOp1()->gtLclVarCommon.GetLclNum();
+    unsigned arrLcl = arrBndsChk->gtArrLen->gtGetOp1()->AsLclVarCommon()->GetLclNum();
     if (lhsNum != BAD_VAR_NUM && arrLcl != lhsNum)
     {
         return false;
     }
 
-    unsigned indLcl = arrBndsChk->gtIndex->gtLclVarCommon.GetLclNum();
+    unsigned indLcl = arrBndsChk->gtIndex->AsLclVarCommon()->GetLclNum();
 
     GenTree* after = tree->gtGetOp2();
 
@@ -8314,7 +8311,7 @@ bool Compiler::optExtractArrIndex(GenTree* tree, ArrIndex* result, unsigned lhsN
     }
     GenTree* base = sibo->gtGetOp1();
     GenTree* sio  = sibo->gtGetOp2(); // sio == scale*index + offset
-    if (base->OperGet() != GT_LCL_VAR || base->gtLclVarCommon.GetLclNum() != arrLcl)
+    if (base->OperGet() != GT_LCL_VAR || base->AsLclVarCommon()->GetLclNum() != arrLcl)
     {
         return false;
     }
@@ -8347,7 +8344,7 @@ bool Compiler::optExtractArrIndex(GenTree* tree, ArrIndex* result, unsigned lhsN
 #else
     GenTree* indexVar = index;
 #endif
-    if (indexVar->gtOper != GT_LCL_VAR || indexVar->gtLclVarCommon.GetLclNum() != indLcl)
+    if (indexVar->gtOper != GT_LCL_VAR || indexVar->AsLclVarCommon()->GetLclNum() != indLcl)
     {
         return false;
     }
@@ -8424,7 +8421,7 @@ bool Compiler::optReconstructArrIndex(GenTree* tree, ArrIndex* result, unsigned 
         {
             return false;
         }
-        unsigned lhsNum = lhs->gtLclVarCommon.GetLclNum();
+        unsigned lhsNum = lhs->AsLclVarCommon()->GetLclNum();
         GenTree* after  = tree->gtGetOp2();
         // Pass the "lhsNum", so we can verify if indeed it is used as the array base.
         return optExtractArrIndex(after, result, lhsNum);
@@ -8567,7 +8564,7 @@ Compiler::fgWalkResult Compiler::optValidRangeCheckIndex(GenTree** pTree, fgWalk
 
     if (tree->gtOper == GT_LCL_VAR)
     {
-        if (pData->pCompiler->lvaTable[tree->gtLclVarCommon.GetLclNum()].lvAddrExposed)
+        if (pData->pCompiler->lvaTable[tree->AsLclVarCommon()->GetLclNum()].lvAddrExposed)
         {
             pData->bValidIndex = false;
             return WALK_ABORT;
@@ -8612,9 +8609,9 @@ bool Compiler::optIsRangeCheckRemovable(GenTree* tree)
         else
         {
             noway_assert(pArray->gtType == TYP_REF);
-            noway_assert(pArray->gtLclVarCommon.GetLclNum() < lvaCount);
+            noway_assert(pArray->AsLclVarCommon()->GetLclNum() < lvaCount);
 
-            if (lvaTable[pArray->gtLclVarCommon.GetLclNum()].lvAddrExposed)
+            if (lvaTable[pArray->AsLclVarCommon()->GetLclNum()].lvAddrExposed)
             {
                 // If the array address has been taken, don't do the optimization
                 // (this restriction can be lowered a bit, but i don't think it's worth it)
@@ -8690,14 +8687,14 @@ void Compiler::optOptimizeBoolsGcStress(BasicBlock* condBlock)
 
     GenTree* comparandClone = gtCloneExpr(comparand);
 
-    noway_assert(relop->gtOp.gtOp1 == comparand);
-    genTreeOps oper   = compStressCompile(STRESS_OPT_BOOLS_GC, 50) ? GT_OR : GT_AND;
-    relop->gtOp.gtOp1 = gtNewOperNode(oper, TYP_I_IMPL, comparand, comparandClone);
+    noway_assert(relop->AsOp()->gtOp1 == comparand);
+    genTreeOps oper      = compStressCompile(STRESS_OPT_BOOLS_GC, 50) ? GT_OR : GT_AND;
+    relop->AsOp()->gtOp1 = gtNewOperNode(oper, TYP_I_IMPL, comparand, comparandClone);
 
     // Comparand type is already checked, and we have const int, there is no harm
     // morphing it into a TYP_I_IMPL.
-    noway_assert(relop->gtOp.gtOp2->gtOper == GT_CNS_INT);
-    relop->gtOp.gtOp2->gtType = TYP_I_IMPL;
+    noway_assert(relop->AsOp()->gtOp2->gtOper == GT_CNS_INT);
+    relop->AsOp()->gtOp2->gtType = TYP_I_IMPL;
 }
 
 #endif
@@ -8719,7 +8716,7 @@ GenTree* Compiler::optIsBoolCond(GenTree* condBranch, GenTree** compPtr, bool* b
     bool isBool = false;
 
     noway_assert(condBranch->gtOper == GT_JTRUE);
-    GenTree* cond = condBranch->gtOp.gtOp1;
+    GenTree* cond = condBranch->AsOp()->gtOp1;
 
     /* The condition must be "!= 0" or "== 0" */
 
@@ -8734,8 +8731,8 @@ GenTree* Compiler::optIsBoolCond(GenTree* condBranch, GenTree** compPtr, bool* b
 
     /* Get hold of the comparands */
 
-    GenTree* opr1 = cond->gtOp.gtOp1;
-    GenTree* opr2 = cond->gtOp.gtOp2;
+    GenTree* opr1 = cond->AsOp()->gtOp1;
+    GenTree* opr2 = cond->AsOp()->gtOp2;
 
     if (opr2->gtOper != GT_CNS_INT)
     {
@@ -8747,7 +8744,7 @@ GenTree* Compiler::optIsBoolCond(GenTree* condBranch, GenTree** compPtr, bool* b
         return nullptr;
     }
 
-    ssize_t ival2 = opr2->gtIntCon.gtIconVal;
+    ssize_t ival2 = opr2->AsIntCon()->gtIconVal;
 
     /* Is the value a boolean?
      * We can either have a boolean expression (marked GTF_BOOLEAN) or
@@ -8765,7 +8762,7 @@ GenTree* Compiler::optIsBoolCond(GenTree* condBranch, GenTree** compPtr, bool* b
     {
         /* is it a boolean local variable */
 
-        unsigned lclNum = opr1->gtLclVarCommon.GetLclNum();
+        unsigned lclNum = opr1->AsLclVarCommon()->GetLclNum();
         noway_assert(lclNum < lvaCount);
 
         if (lvaTable[lclNum].lvIsBoolean)
@@ -8782,7 +8779,7 @@ GenTree* Compiler::optIsBoolCond(GenTree* condBranch, GenTree** compPtr, bool* b
         if (isBool)
         {
             gtReverseCond(cond);
-            opr2->gtIntCon.gtIconVal = 0;
+            opr2->AsIntCon()->gtIconVal = 0;
         }
         else
         {
@@ -8918,8 +8915,8 @@ void Compiler::optOptimizeBools()
                 continue;
             }
 
-            noway_assert(t1->gtOper == GT_EQ || t1->gtOper == GT_NE && t1->gtOp.gtOp1 == c1);
-            noway_assert(t2->gtOper == GT_EQ || t2->gtOper == GT_NE && t2->gtOp.gtOp1 == c2);
+            noway_assert(t1->OperIs(GT_EQ, GT_NE) && t1->AsOp()->gtOp1 == c1);
+            noway_assert(t2->OperIs(GT_EQ, GT_NE) && t2->AsOp()->gtOp1 == c2);
 
             // Leave out floats where the bit-representation is more complicated
             // - there are two representations for 0.
@@ -9038,8 +9035,8 @@ void Compiler::optOptimizeBools()
             }
 
             t1->SetOper(cmpOp);
-            t1->gtOp.gtOp1         = cmpOp1;
-            t1->gtOp.gtOp2->gtType = foldType; // Could have been varTypeIsGC()
+            t1->AsOp()->gtOp1         = cmpOp1;
+            t1->AsOp()->gtOp2->gtType = foldType; // Could have been varTypeIsGC()
 
 #if FEATURE_SET_FLAGS
             // For comparisons against zero we will have the GTF_SET_FLAGS set
@@ -9088,17 +9085,15 @@ void Compiler::optOptimizeBools()
             noway_assert(edge1 != nullptr);
             noway_assert(edge2 != nullptr);
 
-            BasicBlock::weight_t edgeSumMin = edge1->flEdgeWeightMin + edge2->flEdgeWeightMin;
-            BasicBlock::weight_t edgeSumMax = edge1->flEdgeWeightMax + edge2->flEdgeWeightMax;
-            if ((edgeSumMax >= edge1->flEdgeWeightMax) && (edgeSumMax >= edge2->flEdgeWeightMax))
+            BasicBlock::weight_t edgeSumMin = edge1->edgeWeightMin() + edge2->edgeWeightMin();
+            BasicBlock::weight_t edgeSumMax = edge1->edgeWeightMax() + edge2->edgeWeightMax();
+            if ((edgeSumMax >= edge1->edgeWeightMax()) && (edgeSumMax >= edge2->edgeWeightMax()))
             {
-                edge1->flEdgeWeightMin = edgeSumMin;
-                edge1->flEdgeWeightMax = edgeSumMax;
+                edge1->setEdgeWeights(edgeSumMin, edgeSumMax);
             }
             else
             {
-                edge1->flEdgeWeightMin = BB_ZERO_WEIGHT;
-                edge1->flEdgeWeightMax = BB_MAX_WEIGHT;
+                edge1->setEdgeWeights(BB_ZERO_WEIGHT, BB_MAX_WEIGHT);
             }
 
             /* Get rid of the second block (which is a BBJ_COND) */

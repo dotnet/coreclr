@@ -147,7 +147,7 @@ int LinearScan::BuildNode(GenTree* tree)
         case GT_CNS_DBL:
         {
             GenTreeDblCon* dblConst   = tree->AsDblCon();
-            double         constValue = dblConst->gtDblCon.gtDconVal;
+            double         constValue = dblConst->AsDblCon()->gtDconVal;
 
             if (emitter::emitIns_valid_imm_for_fmov(constValue))
             {
@@ -214,6 +214,11 @@ int LinearScan::BuildNode(GenTree* tree)
             {
                 assert(dstCount == 0);
             }
+            break;
+
+        case GT_KEEPALIVE:
+            assert(dstCount == 0);
+            srcCount = BuildOperandUses(tree->gtGetOp1());
             break;
 
         case GT_JTRUE:
@@ -315,11 +320,11 @@ int LinearScan::BuildNode(GenTree* tree)
 
         case GT_INTRINSIC:
         {
-            noway_assert((tree->gtIntrinsic.gtIntrinsicId == CORINFO_INTRINSIC_Abs) ||
-                         (tree->gtIntrinsic.gtIntrinsicId == CORINFO_INTRINSIC_Ceiling) ||
-                         (tree->gtIntrinsic.gtIntrinsicId == CORINFO_INTRINSIC_Floor) ||
-                         (tree->gtIntrinsic.gtIntrinsicId == CORINFO_INTRINSIC_Round) ||
-                         (tree->gtIntrinsic.gtIntrinsicId == CORINFO_INTRINSIC_Sqrt));
+            noway_assert((tree->AsIntrinsic()->gtIntrinsicId == CORINFO_INTRINSIC_Abs) ||
+                         (tree->AsIntrinsic()->gtIntrinsicId == CORINFO_INTRINSIC_Ceiling) ||
+                         (tree->AsIntrinsic()->gtIntrinsicId == CORINFO_INTRINSIC_Floor) ||
+                         (tree->AsIntrinsic()->gtIntrinsicId == CORINFO_INTRINSIC_Round) ||
+                         (tree->AsIntrinsic()->gtIntrinsicId == CORINFO_INTRINSIC_Sqrt));
 
             // Both operand and its result must be of the same floating point type.
             GenTree* op1 = tree->gtGetOp1();
@@ -340,7 +345,7 @@ int LinearScan::BuildNode(GenTree* tree)
 #endif // FEATURE_SIMD
 
 #ifdef FEATURE_HW_INTRINSICS
-        case GT_HWIntrinsic:
+        case GT_HWINTRINSIC:
             srcCount = BuildHWIntrinsic(tree->AsHWIntrinsic());
             break;
 #endif // FEATURE_HW_INTRINSICS
@@ -397,13 +402,13 @@ int LinearScan::BuildNode(GenTree* tree)
             // For ARMv8.1 atomic cas the lifetime of the addr and data must be extended to prevent
             // them being reused as the target register which must be destroyed early
 
-            RefPosition* locationUse = BuildUse(tree->gtCmpXchg.gtOpLocation);
+            RefPosition* locationUse = BuildUse(tree->AsCmpXchg()->gtOpLocation);
             setDelayFree(locationUse);
-            RefPosition* valueUse = BuildUse(tree->gtCmpXchg.gtOpValue);
+            RefPosition* valueUse = BuildUse(tree->AsCmpXchg()->gtOpValue);
             setDelayFree(valueUse);
             if (!cmpXchgNode->gtOpComparand->isContained())
             {
-                RefPosition* comparandUse = BuildUse(tree->gtCmpXchg.gtOpComparand);
+                RefPosition* comparandUse = BuildUse(tree->AsCmpXchg()->gtOpComparand);
 
                 // For ARMv8 exclusives the lifetime of the comparand must be extended because
                 // it may be used used multiple during retries
@@ -544,7 +549,7 @@ int LinearScan::BuildNode(GenTree* tree)
                 assert(size->isContained());
                 srcCount = 0;
 
-                size_t sizeVal = size->gtIntCon.gtIconVal;
+                size_t sizeVal = size->AsIntCon()->gtIconVal;
 
                 if (sizeVal != 0)
                 {
@@ -640,7 +645,7 @@ int LinearScan::BuildNode(GenTree* tree)
             // This consumes the offset, if any, the arrObj and the effective index,
             // and produces the flattened offset for this dimension.
             srcCount = 2;
-            if (!tree->gtArrOffs.gtOffset->isContained())
+            if (!tree->AsArrOffs()->gtOffset->isContained())
             {
                 BuildUse(tree->AsArrOffs()->gtOffset);
                 srcCount++;
@@ -977,10 +982,10 @@ int LinearScan::BuildSIMD(GenTreeSIMD* simdTree)
 #ifdef FEATURE_HW_INTRINSICS
 #include "hwintrinsic.h"
 //------------------------------------------------------------------------
-// BuildHWIntrinsic: Set the NodeInfo for a GT_HWIntrinsic tree.
+// BuildHWIntrinsic: Set the NodeInfo for a GT_HWINTRINSIC tree.
 //
 // Arguments:
-//    tree       - The GT_HWIntrinsic node of interest
+//    tree       - The GT_HWINTRINSIC node of interest
 //
 // Return Value:
 //    The number of sources consumed by this node.
@@ -1072,6 +1077,20 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
         // must be handled within the case.
         switch (intrinsicId)
         {
+            case NI_Aes_Decrypt:
+            case NI_Aes_Encrypt:
+            {
+                assert((numArgs == 2) && (op1 != nullptr) && (op2 != nullptr));
+
+                buildUses = false;
+
+                tgtPrefUse = BuildUse(op1);
+                srcCount += 1;
+                srcCount += BuildDelayFreeUses(op2);
+
+                break;
+            }
+
             case NI_Sha1_HashUpdateChoose:
             case NI_Sha1_HashUpdateMajority:
             case NI_Sha1_HashUpdateParity:
@@ -1143,7 +1162,7 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
 
             if (op2 != nullptr)
             {
-                if (op2->OperIs(GT_HWIntrinsic) && op2->AsHWIntrinsic()->OperIsMemoryLoad() && op2->isContained())
+                if (op2->OperIs(GT_HWINTRINSIC) && op2->AsHWIntrinsic()->OperIsMemoryLoad() && op2->isContained())
                 {
                     srcCount += BuildAddrUses(op2->gtGetOp1());
                 }

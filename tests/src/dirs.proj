@@ -1,5 +1,5 @@
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="dir.props" />
+  <Import Project="Directory.Build.props" />
 
   <Target Name="ResolveDisabledProjects" BeforeTargets="BuildAllProjects;CopyAllNativeTestProjectBinaries" >
     <ItemGroup>
@@ -11,7 +11,6 @@
       <DisabledProjects Include="Common\CoreFX\TestFileSetup\CoreFX.TestUtils.TestFileSetup.csproj" />      
       <DisabledProjects Include="Common\build_against_pkg_dependencies\build_against_pkg_dependencies.csproj" />
       <DisabledProjects Include="Common\targeting_pack_ref\targeting_pack_ref.csproj" />
-      <DisabledProjects Include="Common\external\external.csproj" />
       <DisabledProjects Include="Common\PerfHarness\PerfHarness.csproj" />
       <DisabledProjects Include="Common\stress_dependencies\stress_dependencies.csproj" />
       <DisabledProjects Include="GC\Performance\Framework\GCPerfTestFramework.csproj" />

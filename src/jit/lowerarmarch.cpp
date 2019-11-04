@@ -59,11 +59,11 @@ bool Lowering::IsContainableImmed(GenTree* parentNode, GenTree* childNode)
         // Make sure we have an actual immediate
         if (!childNode->IsCnsIntOrI())
             return false;
-        if (childNode->gtIntCon.ImmedValNeedsReloc(comp))
+        if (childNode->AsIntCon()->ImmedValNeedsReloc(comp))
             return false;
 
         // TODO-CrossBitness: we wouldn't need the cast below if GenTreeIntCon::gtIconVal had target_ssize_t type.
-        target_ssize_t immVal = (target_ssize_t)childNode->gtIntCon.gtIconVal;
+        target_ssize_t immVal = (target_ssize_t)childNode->AsIntCon()->gtIconVal;
         emitAttr       attr   = emitActualTypeSize(childNode->TypeGet());
         emitAttr       size   = EA_SIZE(attr);
 #ifdef _TARGET_ARM_
@@ -222,56 +222,33 @@ void Lowering::LowerStoreIndir(GenTreeIndir* node)
 }
 
 //------------------------------------------------------------------------
-// LowerBlockStore: Set block store type
+// LowerBlockStore: Lower a block store node
 //
 // Arguments:
-//    blkNode       - The block store node of interest
-//
-// Return Value:
-//    None.
+//    blkNode - The block store node to lower
 //
 void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
 {
-    GenTree*  dstAddr  = blkNode->Addr();
-    unsigned  size     = blkNode->Size();
-    GenTree*  source   = blkNode->Data();
-    Compiler* compiler = comp;
+    GenTree* dstAddr = blkNode->Addr();
+    GenTree* src     = blkNode->Data();
+    unsigned size    = blkNode->Size();
 
-    // Sources are dest address and initVal or source.
-    GenTree* srcAddrOrFill = nullptr;
-    bool     isInitBlk     = blkNode->OperIsInitBlkOp();
-
-    if (!isInitBlk)
+    if (blkNode->OperIsInitBlkOp())
     {
-        // CopyObj or CopyBlk
-        if (blkNode->OperIs(GT_STORE_OBJ) && (!blkNode->AsObj()->GetLayout()->HasGCPtr() || blkNode->gtBlkOpGcUnsafe))
+        if (src->OperIs(GT_INIT_VAL))
+        {
+            src->SetContained();
+            src = src->AsUnOp()->gtGetOp1();
+        }
+
+        if (blkNode->OperIs(GT_STORE_OBJ))
         {
             blkNode->SetOper(GT_STORE_BLK);
         }
-        if (source->gtOper == GT_IND)
-        {
-            srcAddrOrFill = blkNode->Data()->gtGetOp1();
-        }
-    }
 
-    if (isInitBlk)
-    {
-        GenTree* initVal = source;
-        if (initVal->OperIsInitVal())
+        if (!blkNode->OperIs(GT_STORE_DYN_BLK) && (size <= INITBLK_UNROLL_LIMIT) && src->OperIs(GT_CNS_INT))
         {
-            initVal->SetContained();
-            initVal = initVal->gtGetOp1();
-        }
-        srcAddrOrFill = initVal;
-
-#ifdef _TARGET_ARM64_
-        if ((size != 0) && (size <= INITBLK_UNROLL_LIMIT) && initVal->IsCnsIntOrI())
-        {
-            // TODO-ARM-CQ: Currently we generate a helper call for every
-            // initblk we encounter.  Later on we should implement loop unrolling
-            // code sequences to improve CQ.
-            // For reference see the code in LowerXArch.cpp.
-            NYI_ARM("initblk loop unrolling is currently not implemented.");
+            blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindUnroll;
 
             // The fill value of an initblk is interpreted to hold a
             // value of (unsigned int8) however a constant of any size
@@ -280,92 +257,93 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
             // it to a larger constant whose size is sufficient to support
             // the largest width store of the desired inline expansion.
 
-            ssize_t fill = initVal->gtIntCon.gtIconVal & 0xFF;
+            ssize_t fill = src->AsIntCon()->IconValue() & 0xFF;
+
             if (fill == 0)
             {
-                MakeSrcContained(blkNode, source);
+#ifdef _TARGET_ARM64_
+                // On ARM64 we can just use REG_ZR instead of having to load
+                // the constant into a real register like on ARM32.
+                src->SetContained();
+#endif
             }
-            else if (size < REGSIZE_BYTES)
+#ifdef _TARGET_ARM64_
+            else if (size >= REGSIZE_BYTES)
             {
-                initVal->gtIntCon.gtIconVal = 0x01010101 * fill;
+                fill *= 0x0101010101010101LL;
+                src->gtType = TYP_LONG;
             }
+#endif
             else
             {
-                initVal->gtIntCon.gtIconVal = 0x0101010101010101LL * fill;
-                initVal->gtType             = TYP_LONG;
+                fill *= 0x01010101;
             }
-            blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindUnroll;
+
+            src->AsIntCon()->SetIconValue(fill);
         }
         else
-#endif // _TARGET_ARM64_
         {
             blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindHelper;
         }
     }
     else
     {
-        // CopyObj or CopyBlk
-        // Sources are src and dest and size if not constant.
+        assert(src->OperIs(GT_IND, GT_LCL_VAR, GT_LCL_FLD));
+        src->SetContained();
 
-        if (blkNode->OperGet() == GT_STORE_OBJ)
+        if (src->OperIs(GT_IND))
         {
-            // CopyObj
-            GenTreeObj* objNode = blkNode->AsObj();
+            // TODO-Cleanup: Make sure that GT_IND lowering didn't mark the source address as contained.
+            // Sometimes the GT_IND type is a non-struct type and then GT_IND lowering may contain the
+            // address, not knowing that GT_IND is part of a block op that has containment restrictions.
+            src->AsIndir()->Addr()->ClearContained();
+        }
 
-            unsigned slots = objNode->GetLayout()->GetSlotCount();
+        if (blkNode->OperIs(GT_STORE_OBJ))
+        {
+            if (!blkNode->AsObj()->GetLayout()->HasGCPtr())
+            {
+                blkNode->SetOper(GT_STORE_BLK);
+            }
+            else if (dstAddr->OperIsLocalAddr() && (size <= CPBLK_UNROLL_LIMIT))
+            {
+                // If the size is small enough to unroll then we need to mark the block as non-interruptible
+                // to actually allow unrolling. The generated code does not report GC references loaded in the
+                // temporary register(s) used for copying.
+                blkNode->SetOper(GT_STORE_BLK);
+                blkNode->gtBlkOpGcUnsafe = true;
+            }
+        }
 
-#ifdef DEBUG
-            // CpObj must always have at least one GC-Pointer as a member.
-            assert(objNode->GetLayout()->HasGCPtr());
-
-            assert(dstAddr->gtType == TYP_BYREF || dstAddr->gtType == TYP_I_IMPL);
-
-            size_t classSize = objNode->GetLayout()->GetSize();
-            size_t blkSize   = roundUp(classSize, TARGET_POINTER_SIZE);
-
-            // Currently, the EE always round up a class data structure so
-            // we are not handling the case where we have a non multiple of pointer sized
-            // struct. This behavior may change in the future so in order to keeps things correct
-            // let's assert it just to be safe. Going forward we should simply
-            // handle this case.
-            assert(classSize == blkSize);
-            assert((blkSize / TARGET_POINTER_SIZE) == slots);
-#endif
+        if (blkNode->OperIs(GT_STORE_OBJ))
+        {
+            assert((dstAddr->TypeGet() == TYP_BYREF) || (dstAddr->TypeGet() == TYP_I_IMPL));
 
             blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindUnroll;
         }
-        else // CopyBlk
+        else if (blkNode->OperIs(GT_STORE_BLK) && (size <= CPBLK_UNROLL_LIMIT))
         {
-            // In case of a CpBlk with a constant size and less than CPBLK_UNROLL_LIMIT size
-            // we should unroll the loop to improve CQ.
-            // For reference see the code in lowerxarch.cpp.
+            blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindUnroll;
 
-            if ((size != 0) && (size <= CPBLK_UNROLL_LIMIT))
+            if (src->OperIs(GT_IND))
             {
-                blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindUnroll;
+                GenTree* srcAddr = src->AsIndir()->Addr();
+                if (srcAddr->OperIsLocalAddr())
+                {
+                    srcAddr->SetContained();
+                }
             }
-            else
+
+            if (dstAddr->OperIsLocalAddr())
             {
-                // In case we have a constant integer this means we went beyond
-                // CPBLK_UNROLL_LIMIT bytes of size, still we should never have the case of
-                // any GC-Pointers in the src struct.
-                blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindHelper;
-            }
-        }
-        // CopyObj or CopyBlk
-        if (source->gtOper == GT_IND)
-        {
-            MakeSrcContained(blkNode, source);
-            GenTree* addr = source->AsIndir()->Addr();
-            if (!addr->OperIsLocalAddr())
-            {
-                addr->ClearContained();
+                dstAddr->SetContained();
             }
         }
-        else if (!source->IsMultiRegCall() && !source->OperIsSimdOrHWintrinsic())
+        else
         {
-            assert(source->IsLocal());
-            MakeSrcContained(blkNode, source);
+            assert(blkNode->OperIs(GT_STORE_BLK, GT_STORE_DYN_BLK));
+
+            blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindHelper;
         }
     }
 }
@@ -398,7 +376,7 @@ void Lowering::LowerCast(GenTree* tree)
     DISPNODE(tree);
     JITDUMP("\n");
 
-    GenTree*  op1     = tree->gtOp.gtOp1;
+    GenTree*  op1     = tree->AsOp()->gtOp1;
     var_types dstType = tree->CastToType();
     var_types srcType = genActualType(op1->TypeGet());
     var_types tmpType = TYP_UNDEF;
@@ -418,7 +396,7 @@ void Lowering::LowerCast(GenTree* tree)
         tmp->gtFlags |= (tree->gtFlags & (GTF_OVERFLOW | GTF_EXCEPT));
 
         tree->gtFlags &= ~GTF_UNSIGNED;
-        tree->gtOp.gtOp1 = tmp;
+        tree->AsOp()->gtOp1 = tmp;
         BlockRange().InsertAfter(op1, tmp);
     }
 
@@ -440,21 +418,21 @@ void Lowering::LowerRotate(GenTree* tree)
     if (tree->OperGet() == GT_ROL)
     {
         // There is no ROL instruction on ARM. Convert ROL into ROR.
-        GenTree* rotatedValue        = tree->gtOp.gtOp1;
+        GenTree* rotatedValue        = tree->AsOp()->gtOp1;
         unsigned rotatedValueBitSize = genTypeSize(rotatedValue->gtType) * 8;
-        GenTree* rotateLeftIndexNode = tree->gtOp.gtOp2;
+        GenTree* rotateLeftIndexNode = tree->AsOp()->gtOp2;
 
         if (rotateLeftIndexNode->IsCnsIntOrI())
         {
-            ssize_t rotateLeftIndex                 = rotateLeftIndexNode->gtIntCon.gtIconVal;
-            ssize_t rotateRightIndex                = rotatedValueBitSize - rotateLeftIndex;
-            rotateLeftIndexNode->gtIntCon.gtIconVal = rotateRightIndex;
+            ssize_t rotateLeftIndex                    = rotateLeftIndexNode->AsIntCon()->gtIconVal;
+            ssize_t rotateRightIndex                   = rotatedValueBitSize - rotateLeftIndex;
+            rotateLeftIndexNode->AsIntCon()->gtIconVal = rotateRightIndex;
         }
         else
         {
             GenTree* tmp = comp->gtNewOperNode(GT_NEG, genActualType(rotateLeftIndexNode->gtType), rotateLeftIndexNode);
             BlockRange().InsertAfter(rotateLeftIndexNode, tmp);
-            tree->gtOp.gtOp2 = tmp;
+            tree->AsOp()->gtOp2 = tmp;
         }
         tree->ChangeOper(GT_ROR);
     }
@@ -523,7 +501,7 @@ void Lowering::ContainCheckCallOperands(GenTreeCall* call)
 void Lowering::ContainCheckStoreIndir(GenTreeIndir* node)
 {
 #ifdef _TARGET_ARM64_
-    GenTree* src = node->gtOp.gtOp2;
+    GenTree* src = node->AsOp()->gtOp2;
     if (!varTypeIsFloating(src->TypeGet()) && src->IsIntegralConst(0))
     {
         // an integer zero for 'src' can be contained.
@@ -764,7 +742,7 @@ void Lowering::ContainCheckSIMD(GenTreeSIMD* simdNode)
         GenTree* op2;
 
         case SIMDIntrinsicInit:
-            op1 = simdNode->gtOp.gtOp1;
+            op1 = simdNode->AsOp()->gtOp1;
             if (op1->IsIntegralConst(0))
             {
                 MakeSrcContained(simdNode, op1);
@@ -787,8 +765,8 @@ void Lowering::ContainCheckSIMD(GenTreeSIMD* simdNode)
             //  - the source SIMD struct
             //  - index (which element to get)
             // The result is baseType of SIMD struct.
-            op1 = simdNode->gtOp.gtOp1;
-            op2 = simdNode->gtOp.gtOp2;
+            op1 = simdNode->AsOp()->gtOp1;
+            op2 = simdNode->AsOp()->gtOp2;
 
             // If the index is a constant, mark it as contained.
             if (op2->IsCnsIntOrI())

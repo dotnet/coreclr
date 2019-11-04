@@ -52,7 +52,7 @@ EventPipeBufferManager::EventPipeBufferManager(EventPipeSession* pSession, size_
     m_pCurrentBuffer = nullptr;
     m_pCurrentBufferList = nullptr;
 
-    m_maxSizeOfAllBuffers = Clamp((size_t)100 * 1024, maxSizeOfAllBuffers, (size_t)ULONG_MAX);
+    m_maxSizeOfAllBuffers = Clamp((size_t)100 * 1024, maxSizeOfAllBuffers, (size_t)UINT32_MAX);
 
     if (sequencePointAllocationBudget == 0)
     {
@@ -419,10 +419,10 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
         }
     }
 
-    // allocNewBuffer is reused below to detect if overflow happened, so cache it here to see if we should 
+    // allocNewBuffer is reused below to detect if overflow happened, so cache it here to see if we should
     // signal the reader thread
     bool shouldSignalReaderThread = allocNewBuffer;
-    
+
     // Check to see if we need to allocate a new buffer, and if so, do it here.
     if (allocNewBuffer)
     {

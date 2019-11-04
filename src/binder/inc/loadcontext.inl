@@ -45,7 +45,7 @@ ULONG LoadContext<dwIncludeFlags>::Release()
 {
     ULONG ulRef = InterlockedDecrement(&m_cRef);
 
-    if (ulRef == 0) 
+    if (ulRef == 0)
     {
         delete this;
     }
@@ -70,9 +70,7 @@ HRESULT LoadContext<dwIncludeFlags>::Register(BindResult *pBindResult)
 
     SAFE_NEW(pContextEntry, ContextEntry);
 
-    pContextEntry->SetIsDynamicBind(pBindResult->GetIsDynamicBind());
     pContextEntry->SetIsInGAC(pBindResult->GetIsInGAC());
-    pContextEntry->SetIsSharable(pBindResult->GetIsSharable());
     pContextEntry->SetAssemblyName(pBindResult->GetAssemblyName(), TRUE /* fAddRef */);
     pContextEntry->SetAssembly(pBindResult->GetAssembly());
 
