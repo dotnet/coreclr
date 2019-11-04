@@ -60,7 +60,8 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
         public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
         {
             int result = comparer.Compare(_localMethod, ((PrecodeMethodImport)other)._localMethod);
-            if (result != 0) return result;
+            if (result != 0)
+                return result;
 
             return base.CompareToImpl(other, comparer);
         }

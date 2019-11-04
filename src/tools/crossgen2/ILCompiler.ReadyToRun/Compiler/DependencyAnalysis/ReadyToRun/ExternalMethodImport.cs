@@ -12,8 +12,6 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
     {
         private readonly MethodWithToken _method;
 
-        private readonly SignatureContext _signatureContext;
-
         public ExternalMethodImport(
             ReadyToRunCodegenNodeFactory factory,
             ReadyToRunFixupKind fixupKind,
@@ -33,14 +31,13 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
                       signatureContext))
         {
             _method = method;
-            _signatureContext = signatureContext;
         }
 
         public MethodDesc Method => _method.Method;
 
         public override int ClassCode => 458823351;
 
-        // This is just here in case of future extension (everything is already compared in the base CompareToImpl)
+        // This is just here in case of future extension (_method is already compared in the base CompareToImpl)
         public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
         {
             return base.CompareToImpl(other, comparer);

@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System;
 using System.Collections.Generic;
 using Internal.Text;
 
@@ -65,16 +66,13 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
         public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
         {
             Import otherNode = (Import)other;
-            int result;
-            if (CallSite != null || otherNode.CallSite != null)
-            {
-                if (CallSite == null) return -1;
-                result = CallSite.CompareTo(otherNode.CallSite);
-                if (result != 0) return result;
-            }
+            int result = string.Compare(CallSite, otherNode.CallSite);
+            if (result != 0)
+                return result;
 
             result = comparer.Compare(ImportSignature.Target, otherNode.ImportSignature.Target);
-            if (result != 0) return result;
+            if (result != 0)
+                return result;
 
             return Table.CompareToImpl(otherNode.Table, comparer);
         }

@@ -33,7 +33,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
         }
 
 
-        // This is just here in case of future extension (everything is already compared in the base CompareToImpl)
+        // This is just here in case of future extension (there are no fields specific to this class)
         public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
         {
             return base.CompareToImpl(other, comparer);

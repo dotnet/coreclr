@@ -68,7 +68,12 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
 
             _imports.AddEmbeddedObject(import);
             _signatures.AddEmbeddedObject(import.ImportSignature);
-            _signatureList.Add(import.ImportSignature.Target);
+
+            lock (_signatureList)
+            {
+                _signatureList.Add(import.ImportSignature.Target);
+            }
+
             if (_emitGCRefMap)
             {
                 _gcRefMap.AddImport(import);

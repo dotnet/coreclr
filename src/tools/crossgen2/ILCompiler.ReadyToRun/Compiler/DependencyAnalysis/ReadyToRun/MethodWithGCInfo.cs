@@ -247,7 +247,8 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
         {
             MethodWithGCInfo otherNode = (MethodWithGCInfo)other;
             int result = comparer.Compare(_method, otherNode._method);
-            if (result != 0) return result;
+            if (result != 0)
+                return result;
 
             return SignatureContext.CompareTo(otherNode.SignatureContext, comparer);
         }

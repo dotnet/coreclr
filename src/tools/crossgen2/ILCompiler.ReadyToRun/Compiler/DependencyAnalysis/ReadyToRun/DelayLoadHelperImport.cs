@@ -72,10 +72,12 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
         {
             DelayLoadHelperImport otherNode = (DelayLoadHelperImport)other;
             int result = _useVirtualCall.CompareTo(otherNode._useVirtualCall);
-            if (result != 0) return result;
+            if (result != 0)
+                return result;
 
             result = _helper.CompareTo(otherNode._helper);
-            if (result != 0) return result;
+            if (result != 0)
+                return result;
 
             return base.CompareToImpl(other, comparer);
         }

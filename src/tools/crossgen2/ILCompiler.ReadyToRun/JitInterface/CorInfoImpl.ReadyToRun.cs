@@ -70,17 +70,21 @@ namespace Internal.JitInterface
             int result;
             if (ConstrainedType != null || other.ConstrainedType != null)
             {
-                if (ConstrainedType == null) return -1;
-                else if (other.ConstrainedType == null) return 1;
+                if (ConstrainedType == null)
+                    return -1;
+                else if (other.ConstrainedType == null)
+                    return 1;
 
                 result = comparer.Compare(ConstrainedType, other.ConstrainedType);
-                if (result != 0) return result;
+                if (result != 0)
+                    return result;
             }
 
             result = comparer.Compare(Method, other.Method);
-            if (result != 0) return result;
+            if (result != 0)
+                return result;
 
-            return Token.CompareTo(other.Token, comparer);
+            return Token.CompareTo(other.Token);
         }
     }
 

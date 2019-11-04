@@ -87,13 +87,16 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
         {
             DelegateCtorSignature otherNode = (DelegateCtorSignature)other;
             int result = comparer.Compare(_delegateType, otherNode._delegateType);
-            if (result != 0) return result;
+            if (result != 0)
+                return result;
 
             result = comparer.Compare(_targetMethod.Method, otherNode._targetMethod.Method);
-            if (result != 0) return result;
+            if (result != 0)
+                return result;
 
-            result = _methodToken.CompareTo(otherNode._methodToken, comparer);
-            if (result != 0) return result;
+            result = _methodToken.CompareTo(otherNode._methodToken);
+            if (result != 0)
+                return result;
 
             return _signatureContext.CompareTo(otherNode._signatureContext, comparer);
         }

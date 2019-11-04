@@ -52,7 +52,8 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
         {
             NewObjectFixupSignature otherNode = (NewObjectFixupSignature)other;
             int result = comparer.Compare(_typeDesc, otherNode._typeDesc);
-            if (result != 0) return result;
+            if (result != 0)
+                return result;
 
             return _signatureContext.CompareTo(otherNode._signatureContext, comparer);
         }

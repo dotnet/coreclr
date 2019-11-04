@@ -65,12 +65,13 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             return Module == moduleToken.Module && Token == moduleToken.Token;
         }
 
-        public int CompareTo(ModuleToken other, TypeSystemComparer comparer)
+        public int CompareTo(ModuleToken other)
         {
-            int result = Module.CompareTo(other.Module);
-            if (result != 0) return result;
+            int result = Token.CompareTo(other.Token);
+            if (result != 0)
+                return result;
 
-            return Token.CompareTo(other.Token);
+            return Module.CompareTo(other.Module);
         }
 
         public SignatureContext SignatureContext(ModuleTokenResolver resolver)

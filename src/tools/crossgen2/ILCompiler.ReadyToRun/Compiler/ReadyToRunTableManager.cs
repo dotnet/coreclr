@@ -35,8 +35,8 @@ namespace ILCompiler
     public class MetadataManager
     {
         protected readonly CompilerTypeSystemContext _typeSystemContext;
-        private HashSet<MethodDesc> _methodsGenerated = new HashSet<MethodDesc>();
-        private List<MethodDesc> _sortedMethods;
+        private List<MethodDesc> _methodsGenerated = new List<MethodDesc>();
+        private bool _sortedMethods = false;
 
         public MetadataManager(CompilerTypeSystemContext context)
         {
@@ -55,24 +55,25 @@ namespace ILCompiler
 
             if (methodNode != null)
             {
+                Debug.Assert(_methodsGenerated != null);
                 lock (_methodsGenerated)
                 {
-                    Debug.Assert(_methodsGenerated != null);
                     _methodsGenerated.Add(methodNode.Method);
                 }
             }
         }
         public IEnumerable<MethodDesc> GetCompiledMethods()
         {
-            lock (this)
+            lock (_methodsGenerated)
             {
-                if (_sortedMethods == null)
+                if (!_sortedMethods)
                 {
-                    _sortedMethods = new List<MethodDesc>(_methodsGenerated.OrderBy(method => method, new TypeSystemComparer()));
-                    _methodsGenerated = null;
+                    TypeSystemComparer comparer = new TypeSystemComparer();
+                    _methodsGenerated.Sort((x, y) => comparer.Compare(x, y));
+                    _sortedMethods = true;
                 }
             }
-            return _sortedMethods;
+            return _methodsGenerated;
         }
     }
 

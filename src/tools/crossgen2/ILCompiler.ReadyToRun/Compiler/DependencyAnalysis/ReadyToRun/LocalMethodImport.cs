@@ -13,8 +13,6 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
 {
     public class LocalMethodImport : DelayLoadHelperImport, IMethodNode
     {
-        private readonly SignatureContext _signatureContext;
-
         private readonly MethodWithGCInfo _localMethod;
 
         public LocalMethodImport(
@@ -36,7 +34,6 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
                       isInstantiatingStub,
                       signatureContext))
         {
-            _signatureContext = signatureContext;
             _localMethod = localMethod;
         }
 
@@ -57,7 +54,8 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
         public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
         {
             int result = comparer.Compare(_localMethod, ((LocalMethodImport)other)._localMethod);
-            if (result != 0) return result;
+            if (result != 0)
+                return result;
 
             return base.CompareToImpl(other, comparer);
         }

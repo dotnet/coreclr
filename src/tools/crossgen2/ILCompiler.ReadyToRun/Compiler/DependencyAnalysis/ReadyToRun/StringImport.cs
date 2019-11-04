@@ -32,7 +32,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             return "StringCell: " + _token.ToString();
         }
 
-        // This is just here in case of future extension (everything is already compared in the base CompareToImpl)
+        // This is just here in case of future extension (_token is already compared in the base CompareToImpl)
         public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
         {
             return base.CompareToImpl(other, comparer);

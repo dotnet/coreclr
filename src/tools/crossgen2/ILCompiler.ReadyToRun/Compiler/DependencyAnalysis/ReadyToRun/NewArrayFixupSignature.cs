@@ -47,7 +47,8 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
         {
             NewArrayFixupSignature otherNode = (NewArrayFixupSignature)other;
             int result = comparer.Compare(_arrayType, otherNode._arrayType);
-            if (result != 0) return result;
+            if (result != 0)
+                return result;
 
             return _signatureContext.CompareTo(otherNode._signatureContext, comparer);
         }
