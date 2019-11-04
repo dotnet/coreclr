@@ -191,16 +191,16 @@ namespace System.IO
 
         public virtual void CopyTo(ReadOnlySpanAction<byte, object?> callback, object? state, int bufferSize)
         {
-            StreamHelpers.ValidateCopyToArgs(this, callback, bufferSize);
+            if (callback == null) throw new NotSupportedException();
 
             CopyTo(new WriteCallbackStream(callback, state), bufferSize);
         }
 
-        public virtual ValueTask CopyToAsync(Func<ReadOnlyMemory<byte>, object?, CancellationToken, ValueTask> callback, object? state, int bufferSize, CancellationToken cancellationToken)
+        public virtual Task CopyToAsync(Func<ReadOnlyMemory<byte>, object?, CancellationToken, ValueTask> callback, object? state, int bufferSize, CancellationToken cancellationToken)
         {
-            StreamHelpers.ValidateCopyToArgs(this, callback, bufferSize);
+            if (callback == null) throw new NotSupportedException();
 
-            return new ValueTask(CopyToAsync(new WriteCallbackStream(callback, state), bufferSize, cancellationToken));
+            return CopyToAsync(new WriteCallbackStream(callback, state), bufferSize, cancellationToken);
         }
 
         private sealed class WriteCallbackStream : Stream
@@ -223,8 +223,7 @@ namespace System.IO
 
             public override void Write(byte[] buffer, int offset, int count)
             {
-                if (_action == null) throw new NotSupportedException();
-                _action(new ReadOnlySpan<byte>(buffer, offset, count), _state);
+                Write(new ReadOnlySpan<byte>(buffer, offset, count));
             }
 
             public override void Write(ReadOnlySpan<byte> span)
@@ -235,8 +234,7 @@ namespace System.IO
 
             public override Task WriteAsync(byte[] buffer, int offset, int length, CancellationToken cancellationToken)
             {
-                if (_func == null) throw new NotSupportedException();
-                return _func(new ReadOnlyMemory<byte>(buffer, offset, length), _state, cancellationToken).AsTask();
+                return WriteAsync(new ReadOnlyMemory<byte>(buffer, offset, length), cancellationToken).AsTask();
             }
 
             public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
