@@ -119,7 +119,8 @@ jobs:
         itemPattern: ${{ coalesce(parameters.artifacts.download.pattern, '**') }}
 
   - ${{ each step in parameters.steps }}:
-    - ${{ step }}
+    - ${{ if ne(step, '') }}:
+      - ${{ step }}
 
   - ${{ if eq(parameters.enableMicrobuild, 'true') }}:
     - ${{ if and(eq(parameters.runAsPublic, 'false'), ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
