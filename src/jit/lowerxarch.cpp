@@ -864,7 +864,7 @@ void Lowering::LowerFusedMultiplyAdd(GenTreeHWIntrinsic* node)
     {
         createScalarOps[2]->gtOp1 = argZ->gtGetOp1();
         BlockRange().Remove(argZ);
-        node->gtHWIntrinsicId     = negMul ? NI_FMA_MultiplySubtractNegatedScalar : NI_FMA_MultiplySubtractScalar;
+        node->gtHWIntrinsicId = negMul ? NI_FMA_MultiplySubtractNegatedScalar : NI_FMA_MultiplySubtractScalar;
     }
     else
     {
