@@ -97,7 +97,7 @@ jobs:
       displayName: Create cross-platform crossgen baseline
       inputs:
         scriptSource: 'filePath'
-        scriptPath: $(Build.SourcesDirectory)/tests/templates/crossgen_comparison.py
+        scriptPath: $(Build.SourcesDirectory)/tests/scripts/crossgen_comparison.py
         ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
           arguments:
             crossgen_framework
