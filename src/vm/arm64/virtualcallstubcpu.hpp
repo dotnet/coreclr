@@ -476,7 +476,7 @@ struct VTableCallHolder
         return 8 + indirectionsCodeSize + indirectionsDataSize + 4;
     }
 
-    static VTableCallHolder* VTableCallHolder::FromVTableCallEntry(PCODE entry) { LIMITED_METHOD_CONTRACT; return (VTableCallHolder*)entry; }
+    static VTableCallHolder* FromVTableCallEntry(PCODE entry) { LIMITED_METHOD_CONTRACT; return (VTableCallHolder*)entry; }
 
 private:
     // VTableCallStub follows here. It is dynamically sized on allocation because it could
