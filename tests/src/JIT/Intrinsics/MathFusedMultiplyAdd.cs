@@ -5,6 +5,8 @@
 
 using System;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
 
 namespace MathFusedMultiplyAddTest
 {
@@ -42,6 +44,16 @@ namespace MathFusedMultiplyAddTest
                         Check6(a, b, c);
                         Check7(a, b, c);
                         Check8(a, b, c);
+
+                        if (Fma.IsSupported)
+                        {
+                            Vector128<float> vecA = Vector128.Create(42f);
+                            TestExplicitFmaUsage1(ref vecA, 9f);
+                            TestExplicitFmaUsage2(ref vecA, 9f);
+                            TestExplicitFmaUsage3(ref vecA, 9f);
+                            TestExplicitFmaUsage4(ref vecA, 9f);
+                            TestExplicitFmaUsage5(ref vecA, 9f);
+                        }
                     }
                 }
             }
@@ -99,9 +111,65 @@ namespace MathFusedMultiplyAddTest
                 _returnCode--;
             }
         }
-#endregion
 
-#region Math.FusedMultiplyAdd
+        // FMA intrinsics can be used explicitly, make sure nothing asserts
+        // with various types of arguments (fields, local variables, constants and refs)
+
+        static Vector128<float> _c32 = Vector128.CreateScalarUnsafe(MathF.PI);
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static void TestExplicitFmaUsage1(ref Vector128<float> a, float b)
+        {
+            CompareFloats(ReferenceMultiplyAdd(a.ToScalar(), b, _c32.ToScalar()),
+                Fma.MultiplyAdd(a, Vector128.CreateScalarUnsafe(b), _c32).ToScalar());
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static void TestExplicitFmaUsage2(ref Vector128<float> a, float b)
+        {
+            CompareFloats(ReferenceMultiplyAdd(a.ToScalar(), a.ToScalar(), a.ToScalar()),
+                Fma.MultiplyAdd(a, a, a).ToScalar());
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static void TestExplicitFmaUsage3(ref Vector128<float> a, float b)
+        {
+            CompareFloats(ReferenceMultiplyAdd(_c32.ToScalar(), _c32.ToScalar(), _c32.ToScalar()),
+                Fma.MultiplyAdd(_c32, _c32, _c32).ToScalar());
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static void TestExplicitFmaUsage4(ref Vector128<float> a, float b)
+        {
+            CompareFloats(ReferenceMultiplyAdd(b, b, 333f), 
+                Fma.MultiplyAdd(
+                    Vector128.CreateScalarUnsafe(b),
+                    Vector128.CreateScalarUnsafe(b), 
+                    Vector128.CreateScalarUnsafe(333f)).ToScalar());
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static void TestExplicitFmaUsage5(ref Vector128<float> a, float b)
+        {
+            CompareDoubles(ReferenceMultiplyAdd(-b, -b, -333f),
+                Fma.MultiplyAdd(
+                    Vector128.CreateScalarUnsafe(-b),
+                    Vector128.CreateScalarUnsafe(-b),
+                    Vector128.CreateScalarUnsafe(-333f)).ToScalar());
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static void TestExplicitFmaUsage6(ref Vector128<float> a, float b)
+        {
+            CompareFloats(ReferenceMultiplyAdd(b, b, b),
+                Fma.MultiplyAdd(
+                    Vector128.CreateScalarUnsafe(b),
+                    Vector128.CreateScalar(b),
+                    Vector128.Create(b)).ToScalar());
+        }
+        #endregion
+
+        #region Math.FusedMultiplyAdd
         static void TestDoubles()
         {
             double[] testValues =
@@ -124,6 +192,16 @@ namespace MathFusedMultiplyAddTest
                         Check6(a, b, c);
                         Check7(a, b, c);
                         Check8(a, b, c);
+
+                        if (Fma.IsSupported)
+                        {
+                            Vector128<double> vecA = Vector128.Create(42.0);
+                            TestExplicitFmaUsage1(ref vecA, 9f);
+                            TestExplicitFmaUsage2(ref vecA, 9f);
+                            TestExplicitFmaUsage3(ref vecA, 9f);
+                            TestExplicitFmaUsage4(ref vecA, 9f);
+                            TestExplicitFmaUsage5(ref vecA, 9f);
+                        }
                     }
                 }
             }
@@ -180,6 +258,62 @@ namespace MathFusedMultiplyAddTest
                 Console.WriteLine($"{a} != {b}");
                 _returnCode--;
             }
+        }
+
+        // FMA intrinsics can be used explicitly, make sure nothing asserts
+        // with various types of arguments (fields, local variables, constants and refs)
+
+        static Vector128<double> _c64 = Vector128.CreateScalarUnsafe(Math.PI);
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static void TestExplicitFmaUsage1(ref Vector128<double> a, double b)
+        {
+            CompareDoubles(ReferenceMultiplyAdd(a.ToScalar(), b, _c64.ToScalar()),
+                Fma.MultiplyAdd(a, Vector128.CreateScalarUnsafe(b), _c64).ToScalar());
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static void TestExplicitFmaUsage2(ref Vector128<double> a, double b)
+        {
+            CompareDoubles(ReferenceMultiplyAdd(a.ToScalar(), a.ToScalar(), a.ToScalar()),
+                Fma.MultiplyAdd(a, a, a).ToScalar());
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static void TestExplicitFmaUsage3(ref Vector128<double> a, double b)
+        {
+            CompareDoubles(ReferenceMultiplyAdd(_c64.ToScalar(), _c64.ToScalar(), _c64.ToScalar()),
+                Fma.MultiplyAdd(_c64, _c64, _c64).ToScalar());
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static void TestExplicitFmaUsage4(ref Vector128<double> a, double b)
+        {
+            CompareDoubles(ReferenceMultiplyAdd(b, b, b), 
+                Fma.MultiplyAdd(
+                    Vector128.CreateScalarUnsafe(b),
+                    Vector128.CreateScalarUnsafe(b), 
+                    Vector128.CreateScalarUnsafe(b)).ToScalar());
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static void TestExplicitFmaUsage5(ref Vector128<double> a, double b)
+        {
+            CompareDoubles(ReferenceMultiplyAdd(-b, -b, -333.0),
+                Fma.MultiplyAdd(
+                    Vector128.CreateScalarUnsafe(-b),
+                    Vector128.CreateScalarUnsafe(-b),
+                    Vector128.CreateScalarUnsafe(-333.0)).ToScalar());
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static void TestExplicitFmaUsage6(ref Vector128<double> a, double b)
+        {
+            CompareDoubles(ReferenceMultiplyAdd(b, b, b),
+                Fma.MultiplyAdd(
+                    Vector128.CreateScalarUnsafe(b),
+                    Vector128.CreateScalar(b),
+                    Vector128.Create(b)).ToScalar());
         }
 #endregion
     }
