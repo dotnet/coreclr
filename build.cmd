@@ -35,7 +35,7 @@ set ghprbCommentBody=
 ::      __ProjectDir        -- default: directory of the dir.props file
 ::      __RepoRootDir       -- default: directory two levels above the dir.props file
 ::      __SourceDir         -- default: %__ProjectDir%\src\
-::      __RootBinDir        -- default: %__RepoRootDir%\artifacts\
+::      __RootBinDir        -- default: %__ProjectDir%\artifacts\
 ::      __BinDir            -- default: %__RootBinDir%\%__BuildOS%.%__BuildArch.%__BuildType%\
 ::      __IntermediatesDir
 ::      __PackagesBinDir    -- default: %__BinDir%\.nuget
@@ -308,7 +308,7 @@ if %__PgoOptimize%==0 (
 
 set "__BinDir=%__RootBinDir%\Product\%__BuildOS%.%__BuildArch%.%__BuildType%"
 set "__IntermediatesDir=%__RootBinDir%\obj\%__BuildOS%.%__BuildArch%.%__BuildType%"
-set "__ArtifactsIntermediatesDir=%__RepoRootDir%\artifacts\obj\"
+set "__ArtifactsIntermediatesDir=%__ProjectDir%\artifacts\obj\"
 if "%__NMakeMakefiles%"=="1" (set "__IntermediatesDir=%__RootBinDir%\nmakeobj\%__BuildOS%.%__BuildArch%.%__BuildType%")
 set "__PackagesBinDir=%__BinDir%\.nuget"
 set "__CrossComponentBinDir=%__BinDir%"
