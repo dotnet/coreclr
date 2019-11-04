@@ -795,11 +795,10 @@ __SkipGenerateLayout=0
 __LocalCoreFXPath=""
 CORE_ROOT=
 
-# Default to python3
-__Python=python3
- if command -v python3 &>/dev/null; then
-    echo "python3 is required but not installed"
-    exit 1
+# Default to python3 if it is installed
+__Python=python
+if command -v python3 &>/dev/null; then
+    __Python=python3
 fi
 
 while :; do
