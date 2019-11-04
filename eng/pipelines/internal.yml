@@ -43,7 +43,7 @@ stages:
     #
     - template: ../platform-matrix.yml
       parameters:
-        jobTemplate: ../build-job.yml
+        jobTemplate: build-job.yml
         buildConfig: release
         platformGroup: all
         stagedBuild: true
@@ -93,7 +93,7 @@ stages:
     #
     - template: ../platform-matrix.yml
       parameters:
-        jobTemplate: ../build-test-job.yml
+        jobTemplate: build-test-job.yml
         buildConfig: release
         platforms:
         - Linux_arm
@@ -114,7 +114,7 @@ stages:
     #
     - template: ../platform-matrix.yml
       parameters:
-        jobTemplate: ../run-test-job.yml
+        jobTemplate: run-test-job.yml
         buildConfig: release
         platformGroup: all
         helixQueueGroup: all
@@ -128,7 +128,7 @@ stages:
     #
     - template: ../platform-matrix.yml
       parameters:
-        jobTemplate: ../run-test-job.yml
+        jobTemplate: run-test-job.yml
         buildConfig: release
         platformGroup: all
         helixQueueGroup: all
