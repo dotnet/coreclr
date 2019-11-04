@@ -1126,12 +1126,12 @@ __ExtraCmakeArgs="-DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument -DCLR_CMAKE_OPTDAT
 if [[ $__SkipCoreBundle != 1 && $__isMSBuildOnNETCoreSupported == 1 && "$__BuildArch" == "x64" ]]; then
     echo "Restoring packages for corebundle."
 
-    __CoreFxPackageVersionOutputFile="${__IntermediatesDir}/corefxversion.txt"
+    __CoreFxPackagePathOutputFile="${__IntermediatesDir}/corefxpackagepath.txt"
     "$__ProjectRoot/eng/common/msbuild.sh" $__ArcadeScriptArgs \
                                            $__ProjectRoot/src/tools/bundle/bundle.csproj \
                                            /t:Restore /p:RestoreOnly=true /m \
                                            /p:RuntimeIdentifier=$__DistroRid \
-                                           /p:CoreFxPackageVersionOutputFile=$__CoreFxPackageVersionOutputFile \
+                                           /p:CoreFxPackagePathOutputFile=$__CoreFxPackagePathOutputFile \
                                            $__CommonMSBuildArgs $__UnprocessedBuildArgs
     exit_code=$?
     if [ $exit_code != 0 ]; then
@@ -1139,8 +1139,8 @@ if [[ $__SkipCoreBundle != 1 && $__isMSBuildOnNETCoreSupported == 1 && "$__Build
         exit $exit_code
     fi
 
-    __CoreFxPackageVersion=$(<"${__CoreFxPackageVersionOutputFile}")
-    __ExtraCmakeArgs="$__ExtraCmakeArgs -DFEATURE_MERGE_JIT_AND_ENGINE=1 -DCLR_CMAKE_BUILD_COREBUNDLE=1 -DCLR_CMAKE_DISTRORID=$__DistroRid -DCLR_CMAKE_COREFXPACKAGE_VERSION=$__CoreFxPackageVersion"
+    __CoreFxPackagePath=$(<"${__CoreFxPackagePathOutputFile}")
+    __ExtraCmakeArgs="$__ExtraCmakeArgs -DFEATURE_MERGE_JIT_AND_ENGINE=1 -DCLR_CMAKE_BUILD_COREBUNDLE=1 -DCLR_CMAKE_DISTRORID=$__DistroRid -DCLR_CMAKE_COREFXPACKAGE_PATH=$__CoreFxPackagePath"
 else
     __ExtraCmakeArgs="$__ExtraCmakeArgs -DCLR_CMAKE_BUILD_COREBUNDLE=0"
 fi

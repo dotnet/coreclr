@@ -14,11 +14,15 @@
     <PackageReference Include="Microsoft.Private.CoreFx.NETCoreApp" Version="$(MicrosoftPrivateCoreFxNETCoreAppVersion)" />
   </ItemGroup>
 
-  <Target Name="DumpCoreFxPackageVersion" Condition="'$(RestoreOnly)' == 'true'" BeforeTargets="Restore">
-    <Error Condition="'$(CoreFxPackageVersionOutputFile)'==''" Text="CoreFxPackageVersionOutputFile must be passed as a property." />
+  <Target Name="DumpCoreFxPackagePath" Condition="'$(RestoreOnly)' == 'true'" BeforeTargets="Restore">
+    <Error Condition="'$(CoreFxPackagePathOutputFile)'==''" Text="CoreFxPackagePathOutputFile must be passed as a property." />
 
-    <Delete Files="$(CoreFxPackageVersionOutputFile)" Condition="Exists('$(CoreFxPackageVersionOutputFile)')" />
-    <WriteLinesToFile File="$(CoreFxPackageVersionOutputFile)" Lines="$(MicrosoftPrivateCoreFxNETCoreAppVersion)" Overwrite="true"/>
-    <Message Text="MicrosoftPrivateCoreFxNETCoreAppVersion: $(MicrosoftPrivateCoreFxNETCoreAppVersion) written to: $(CoreFxPackageVersionOutputFile)" Importance="High" />
+    <PropertyGroup>
+      <CoreFxPackagePath>$(NuGetPackageRoot)\runtime.$(RuntimeIdentifier).microsoft.private.corefx.netcoreapp\$(MicrosoftPrivateCoreFxNETCoreAppVersion)</CoreFxPackagePath>
+    </PropertyGroup>
+
+    <Delete Files="$(CoreFxPackagePathOutputFile)" Condition="Exists('$(CoreFxPackagePathOutputFile)')" />
+    <WriteLinesToFile File="$(CoreFxPackagePathOutputFile)" Lines="$(CoreFxPackagePath)" Overwrite="true"/>
+    <Message Text="CoreFxPackagePath: $(CoreFxPackagePath) written to: $(CoreFxPackagePathOutputFile)" Importance="High" />
   </Target>
 </Project>
