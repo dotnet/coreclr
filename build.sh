@@ -468,7 +468,7 @@ build_CoreLib()
         rm $__BinDir/crossgen2/crossgen2.runtimeconfig.json
 
         echo "Publishing tibcmgr for $__DistroRid"
-        "$__ProjectRoot/dotnet.sh" publish --self-contained -r $__DistroRid -c $__BuildType -o "$__BinDir/tibcmgr" "$__ProjectRoot/src/tools/crossgen2/tibcmgr/tibcmgr.csproj"
+        "$__ProjectRoot/dotnet.sh" publish --self-contained -r $__DistroRid -c $__BuildType -o "$__BinDir/tibcmgr" "$__ProjectRoot/src/tools/crossgen2/tibcmgr/tibcmgr.csproj" /p:BuildArch=$__BuildArch
         local exit_code=$?
         if [ $exit_code != 0 ]; then
             echo "${__ErrMsgPrefix}Failed to build tibcmgr."
