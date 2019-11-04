@@ -158,7 +158,7 @@ CONFIG_DWORD_INFO_EX(INTERNAL_BreakOnUncaughtException, W("BreakOnUncaughtExcept
 
 /// Debugger
 ///
-RETAIL_CONFIG_DWORD_INFO_EX(EXTERNAL_EnableDiagnostics, W("EnableDiagnostics"), 1, "Allows the debugger and profiler diagnostics to be disabled", CLRConfig::REGUTIL_default)
+RETAIL_CONFIG_DWORD_INFO_EX(EXTERNAL_EnableDiagnostics, W("EnableDiagnostics"), 1, "Allows the debugger, profiler, and EventPipe diagnostics to be disabled", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_D__FCE, W("D::FCE"), 0, "Allows an assert when crawling the managed stack for an exception handler", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_DbgBreakIfLocksUnavailable, W("DbgBreakIfLocksUnavailable"), 0, "Allows an assert when the debugger can't take a lock ", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_DbgBreakOnErr, W("DbgBreakOnErr"), 0, "Allows an assert when we get a failing hresult", CLRConfig::REGUTIL_default)
@@ -439,8 +439,6 @@ RETAIL_CONFIG_DWORD_INFO(INTERNAL_InterpreterFallback, W("InterpreterFallback"),
 /// Loader
 ///
 CONFIG_DWORD_INFO_DIRECT_ACCESS(INTERNAL_APIThreadStress, W("APIThreadStress"), "Used to test Loader for race conditions")
-RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_ForceLog, W("ForceLog"), "Fusion flag to enforce assembly binding log. Heavily used and documented in MSDN and BLOGS.")
-RETAIL_CONFIG_STRING_INFO(INTERNAL_CoreClrBinderLog, W("CoreClrBinderLog"), "Debug flag that enabled detailed log for new binder (similar to stress logging).")
 RETAIL_CONFIG_STRING_INFO(INTERNAL_WinMDPath, W("WinMDPath"), "Path for Windows WinMD files")
 
 ///
@@ -462,7 +460,6 @@ CONFIG_STRING_INFO_EX(INTERNAL_LogFile, W("LogFile"), "Specifies a file name for
 CONFIG_DWORD_INFO_DIRECT_ACCESS(INTERNAL_LogFileAppend, W("LogFileAppend"), "Specifies whether to append to or replace the CLR log file.")
 CONFIG_DWORD_INFO_DIRECT_ACCESS(INTERNAL_LogFlushFile, W("LogFlushFile"), "Specifies whether to flush the CLR log file on each write.")
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_LogLevel, W("LogLevel"), "4=10 msgs, 9=1000000, 10=everything")
-RETAIL_CONFIG_STRING_INFO_DIRECT_ACCESS(INTERNAL_LogPath, W("LogPath"), "?Fusion debug log path.")
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(INTERNAL_LogToConsole, W("LogToConsole"), "Writes the CLR log to console.")
 CONFIG_DWORD_INFO_DIRECT_ACCESS(INTERNAL_LogToDebugger, W("LogToDebugger"), "Writes the CLR log to debugger (OutputDebugStringA).")
 CONFIG_DWORD_INFO_DIRECT_ACCESS(INTERNAL_LogToFile, W("LogToFile"), "Writes the CLR log to a file.")
@@ -683,11 +680,6 @@ RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_ZapRequire, W("ZapRequire"), "")
 RETAIL_CONFIG_STRING_INFO(EXTERNAL_ZapRequireExcludeList, W("ZapRequireExcludeList"), "")
 RETAIL_CONFIG_STRING_INFO(EXTERNAL_ZapRequireList, W("ZapRequireList"), "")
 RETAIL_CONFIG_STRING_INFO_EX(EXTERNAL_ZapSet, W("ZapSet"), "", CLRConfig::REGUTIL_default)
-
-#ifdef FEATURE_LAZY_COW_PAGES
-RETAIL_CONFIG_DWORD_INFO(INTERNAL_ZapLazyCOWPagesEnabled, W("ZapLazyCOWPagesEnabled"), 1, "");
-CONFIG_DWORD_INFO(INTERNAL_DebugAssertOnMissedCOWPage, W("DebugAssertOnMissedCOWPage"), 1, "");
-#endif //FEATURE_LAZY_COW_PAGES
 
 RETAIL_CONFIG_DWORD_INFO(EXTERNAL_ReadyToRun, W("ReadyToRun"), 1, "Enable/disable use of ReadyToRun native code") // On by default for CoreCLR
 RETAIL_CONFIG_STRING_INFO(EXTERNAL_ReadyToRunExcludeList, W("ReadyToRunExcludeList"), "List of assemblies that cannot use Ready to Run images")

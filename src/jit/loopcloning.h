@@ -194,9 +194,9 @@ struct LcMdArrayOptInfo : public LcOptInfo
             index->rank = arrElem->gtArrRank;
             for (unsigned i = 0; i < dim; ++i)
             {
-                index->indLcls.Push(arrElem->gtArrInds[i]->gtLclVarCommon.GetLclNum());
+                index->indLcls.Push(arrElem->gtArrInds[i]->AsLclVarCommon()->GetLclNum());
             }
-            index->arrLcl = arrElem->gtArrObj->gtLclVarCommon.GetLclNum();
+            index->arrLcl = arrElem->gtArrObj->AsLclVarCommon()->GetLclNum();
         }
         return index;
     }
@@ -327,8 +327,8 @@ struct LC_Ident
         Null,
     };
 
-    unsigned  constant; // The constant value if this node is of type "Const", or the lcl num if "Var"
     LC_Array  arrLen;   // The LC_Array if the type is "ArrLen"
+    unsigned  constant; // The constant value if this node is of type "Const", or the lcl num if "Var"
     IdentType type;     // The type of this object
 
     // Equality operator

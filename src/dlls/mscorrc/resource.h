@@ -8,7 +8,7 @@
 
 // For (failing) hresults of facility FACILITY_URT, we store
 // unparameterized description strings in the range
-// 0x6000..0x9000. 
+// 0x6000..0x9000.
 #define MSG_FOR_URT_HR(hr) (0x6000 + (HRESULT_CODE(hr)))
 #define MAX_URT_HRESULT_CODE 0x3000
 
@@ -179,6 +179,7 @@
 #define IDS_EE_ADUNLOAD_CANT_UNWIND_THREAD      0x1769
 
 #define IDS_CANNOT_MARSHAL                      0x1770
+#define IDS_CANNOT_MARSHAL_RECURSIVE_DEF        0x1771
 #define IDS_EE_HASH_VAL_FAILED                  0x1772
 
 
@@ -651,7 +652,7 @@
 
 
 #define IDS_EE_LINK_FOR_ERROR_MESSAGES          0x2600
-#define IDS_EE_LINK_FOR_DEBUGGING_MESSAGES      0x2601          
+#define IDS_EE_LINK_FOR_DEBUGGING_MESSAGES      0x2601
 
 #ifdef FEATURE_COMINTEROP
 #define IDS_EE_BADMARSHALFIELD_NULL_HSTRING     0x2605

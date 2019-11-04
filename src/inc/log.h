@@ -26,7 +26,7 @@ enum {
 };
 
 
-#define LL_EVERYTHING  10   
+#define LL_EVERYTHING  10
 #define LL_INFO1000000  9       // can be expected to generate 1,000,000 logs per small but not trival run
 #define LL_INFO100000   8       // can be expected to generate 100,000 logs per small but not trival run
 #define LL_INFO10000    7       // can be expected to generate 10,000 logs per small but not trival run
@@ -52,6 +52,7 @@ enum {
 
 #define LOG(x)
 #define LOG2(x)
+#define LOGALWAYS(x)
 
 #define InitializeLogging()
 #define InitLogging()
@@ -89,6 +90,8 @@ bool Logging2On(DWORD facility, DWORD level);
 #define LOG(x)      do { if (LoggingEnabled()) { LogSpew x; } } while (0)
 
 #define LOG2(x)     do { if (LoggingEnabled()) { LogSpew2 x; } } while (0)
+
+#define LOGALWAYS(x)   LogSpewAlways x
 
 #endif
 

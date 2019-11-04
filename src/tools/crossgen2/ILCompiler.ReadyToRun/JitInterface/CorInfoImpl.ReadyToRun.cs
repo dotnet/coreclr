@@ -164,15 +164,24 @@ namespace Internal.JitInterface
 
         public void CompileMethod(IReadyToRunMethodCodeNode methodCodeNodeNeedingCode)
         {
+            bool codeGotPublished = false;
             _methodCodeNode = methodCodeNodeNeedingCode;
 
-            if (!ShouldSkipCompilation(methodCodeNodeNeedingCode))
+            try
             {
-                CompileMethodInternal(methodCodeNodeNeedingCode);
+                if (!ShouldSkipCompilation(methodCodeNodeNeedingCode))
+                {
+                    CompileMethodInternal(methodCodeNodeNeedingCode);
+                    codeGotPublished = true;
+                }
             }
-            else
+            finally
             {
-                PublishEmptyCode();
+                if (!codeGotPublished)
+                {
+                    PublishEmptyCode();
+                }
+                CompileMethodCleanup();
             }
         }
 
@@ -566,6 +575,7 @@ namespace Internal.JitInterface
                 case CorInfoHelpFunc.CORINFO_HELP_THROW_ARGUMENTEXCEPTION:
                 case CorInfoHelpFunc.CORINFO_HELP_THROW_ARGUMENTOUTOFRANGEEXCEPTION:
                 case CorInfoHelpFunc.CORINFO_HELP_THROW_PLATFORM_NOT_SUPPORTED:
+                case CorInfoHelpFunc.CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE_MAYBENULL:
                 case CorInfoHelpFunc.CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE_MAYBENULL:
                 case CorInfoHelpFunc.CORINFO_HELP_GETREFANY:
                     throw new RequiresRuntimeJitException(ftnNum.ToString());
@@ -1721,20 +1731,8 @@ namespace Internal.JitInterface
                 // Sequential layout
                 return true;
             }
-            else
-            {
-                // <BUGNUM>workaround for B#104780 - VC fails to set SequentialLayout on some classes
-                // with ClassSize. Too late to fix compiler for V1.
-                //
-                // To compensate, we treat AutoLayout classes as Sequential if they
-                // meet all of the following criteria:
-                //
-                //    - ClassSize present and nonzero.
-                //    - No instance fields declared
-                //    - Base class is System.ValueType.
-                //</BUGNUM>
-                return type.BaseType.IsValueType && !type.GetFields().GetEnumerator().MoveNext();
-            }
+
+            return false;
         }
 
         /// <summary>
@@ -1880,7 +1878,7 @@ namespace Internal.JitInterface
             pBlockCounts = (BlockCounts*)GetPin(_bbCounts = new byte[count * sizeof(BlockCounts)]);
             if (_profileDataNode == null)
             {
-                _profileDataNode = _compilation.NodeFactory.ProfileDataNode((MethodWithGCInfo)_methodCodeNode);
+                _profileDataNode = _compilation.NodeFactory.ProfileData((MethodWithGCInfo)_methodCodeNode);
             }
             return 0;
         }

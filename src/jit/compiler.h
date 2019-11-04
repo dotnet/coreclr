@@ -193,18 +193,18 @@ inline HfaElemKind HfaElemKindFromType(var_types type)
 typedef const char* VarName; // Actual ASCII string
 struct VarScopeDsc
 {
+    unsigned vsdVarNum; // (remapped) LclVarDsc number
+    unsigned vsdLVnum;  // 'which' in eeGetLVinfo().
+                        // Also, it is the index of this entry in the info.compVarScopes array,
+                        // which is useful since the array is also accessed via the
+                        // compEnterScopeList and compExitScopeList sorted arrays.
+
     IL_OFFSET vsdLifeBeg; // instr offset of beg of life
     IL_OFFSET vsdLifeEnd; // instr offset of end of life
-    unsigned  vsdVarNum;  // (remapped) LclVarDsc number
 
 #ifdef DEBUG
     VarName vsdName; // name of the var
 #endif
-
-    unsigned vsdLVnum; // 'which' in eeGetLVinfo().
-                       // Also, it is the index of this entry in the info.compVarScopes array,
-                       // which is useful since the array is also accessed via the
-                       // compEnterScopeList and compExitScopeList sorted arrays.
 };
 
 // This is the location of a SSA definition.
@@ -517,7 +517,7 @@ public:
     {
         if (slotNum == 0)
         {
-            return lvArgReg;
+            return (regNumber)_lvArgReg;
         }
         else if (slotNum == 1)
         {
@@ -666,8 +666,6 @@ public:
 #endif // !_TARGET_64BIT_
 
     /////////////////////
-
-    __declspec(property(get = GetArgReg, put = SetArgReg)) regNumber lvArgReg;
 
     regNumber GetArgReg() const
     {
@@ -1401,8 +1399,7 @@ public:
     {
         _lateArgInx = inx;
     }
-    __declspec(property(get = getRegNum)) regNumber regNum;
-    regNumber getRegNum()
+    regNumber GetRegNum()
     {
         return (regNumber)regNums[0];
     }
@@ -1421,7 +1418,7 @@ public:
         assert(i < MAX_ARG_REG_COUNT);
         regNums[i] = (regNumberSmall)regNum;
     }
-    regNumber getRegNum(unsigned int i)
+    regNumber GetRegNum(unsigned int i)
     {
         assert(i < MAX_ARG_REG_COUNT);
         return (regNumber)regNums[i];
@@ -1597,7 +1594,7 @@ public:
 #ifdef _TARGET_X86
         return false;
 #else
-        return isValidFloatArgReg(regNum);
+        return isValidFloatArgReg(GetRegNum());
 #endif
     }
 
@@ -1615,7 +1612,7 @@ public:
             assert(isPassedInRegisters());
             assert(numRegs == 1);
         }
-        else if (regNum == REG_STK)
+        else if (GetRegNum() == REG_STK)
         {
             assert(!isPassedInRegisters());
             assert(numRegs == 0);
@@ -1673,7 +1670,7 @@ public:
             return;
         }
 
-        regNumber argReg = getRegNum(0);
+        regNumber argReg = GetRegNum(0);
 #ifdef _TARGET_ARM_
         unsigned int regSize = (GetHfaType() == TYP_DOUBLE) ? 2 : 1;
 #else
@@ -2647,8 +2644,8 @@ public:
 
     Statement* gtCloneStmt(Statement* stmt)
     {
-        GenTree* exprClone = gtCloneExpr(stmt->gtStmtExpr);
-        return gtNewStmt(exprClone, stmt->gtStmtILoffsx);
+        GenTree* exprClone = gtCloneExpr(stmt->GetRootNode());
+        return gtNewStmt(exprClone, stmt->GetILOffsetX());
     }
 
     // Internal helper for cloning a call
@@ -3622,6 +3619,16 @@ protected:
 protected:
     bool compSupportsHWIntrinsic(InstructionSet isa);
 
+    GenTree* impSpecialIntrinsic(NamedIntrinsic        intrinsic,
+                                 CORINFO_CLASS_HANDLE  clsHnd,
+                                 CORINFO_METHOD_HANDLE method,
+                                 CORINFO_SIG_INFO*     sig,
+                                 bool                  mustExpand);
+
+    GenTree* getArgForHWIntrinsic(var_types argType, CORINFO_CLASS_HANDLE argClass);
+    GenTree* impNonConstFallback(NamedIntrinsic intrinsic, var_types simdType, var_types baseType);
+    GenTree* addRangeCheckIfNeeded(NamedIntrinsic intrinsic, GenTree* lastOp, bool mustExpand);
+
 #ifdef _TARGET_XARCH_
     GenTree* impBaseIntrinsic(NamedIntrinsic        intrinsic,
                               CORINFO_CLASS_HANDLE  clsHnd,
@@ -3668,17 +3675,7 @@ protected:
                                 CORINFO_METHOD_HANDLE method,
                                 CORINFO_SIG_INFO*     sig,
                                 bool                  mustExpand);
-
-protected:
-    GenTree* getArgForHWIntrinsic(var_types argType, CORINFO_CLASS_HANDLE argClass);
-    GenTree* impNonConstFallback(NamedIntrinsic intrinsic, var_types simdType, var_types baseType);
-    GenTree* addRangeCheckIfNeeded(NamedIntrinsic intrinsic, GenTree* lastOp, bool mustExpand);
 #endif // _TARGET_XARCH_
-#ifdef _TARGET_ARM64_
-    InstructionSet lookupHWIntrinsicISA(const char* className);
-    NamedIntrinsic lookupHWIntrinsic(const char* className, const char* methodName);
-    GenTree* addRangeCheckIfNeeded(GenTree* lastOp, unsigned int max, bool mustExpand);
-#endif // _TARGET_ARM64_
 #endif // FEATURE_HW_INTRINSICS
     GenTree* impArrayAccessIntrinsic(CORINFO_CLASS_HANDLE clsHnd,
                                      CORINFO_SIG_INFO*    sig,
@@ -3815,7 +3812,7 @@ private:
     bool        impNestedStackSpill;
 
     // For displaying instrs with generated native code (-n:B)
-    Statement* impLastILoffsStmt; // oldest stmt added for which we did not gtStmtLastILoffs
+    Statement* impLastILoffsStmt; // oldest stmt added for which we did not call SetLastILOffset().
     void       impNoteLastILoffs();
 #endif
 
@@ -4012,7 +4009,7 @@ private:
     void impSpillCliqueSetMember(SpillCliqueDir predOrSucc, BasicBlock* blk, BYTE val);
 
     void impPushVar(GenTree* op, typeInfo tiRetVal);
-    void impLoadVar(unsigned lclNum, IL_OFFSET offset, typeInfo tiRetVal);
+    void impLoadVar(unsigned lclNum, IL_OFFSET offset, const typeInfo& tiRetVal);
     void impLoadVar(unsigned lclNum, IL_OFFSET offset)
     {
         impLoadVar(lclNum, offset, lvaTable[lclNum].lvVerTypeInfo);
@@ -4115,7 +4112,7 @@ private:
     bool impIsImplicitTailCallCandidate(
         OPCODE curOpcode, const BYTE* codeAddrOfNextOpcode, const BYTE* codeEnd, int prefixFlags, bool isRecursive);
 
-    CORINFO_RESOLVED_TOKEN* impAllocateToken(CORINFO_RESOLVED_TOKEN token);
+    CORINFO_RESOLVED_TOKEN* impAllocateToken(const CORINFO_RESOLVED_TOKEN& token);
 
     /*
     XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -4359,6 +4356,16 @@ public:
 
     void fgAddFinallyTargetFlags();
 
+    void fgTailMergeThrows();
+    void fgTailMergeThrowsFallThroughHelper(BasicBlock* predBlock,
+                                            BasicBlock* nonCanonicalBlock,
+                                            BasicBlock* canonicalBlock,
+                                            flowList*   predEdge);
+    void fgTailMergeThrowsJumpToHelper(BasicBlock* predBlock,
+                                       BasicBlock* nonCanonicalBlock,
+                                       BasicBlock* canonicalBlock,
+                                       flowList*   predEdge);
+
 #if defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
     // Sometimes we need to defer updating the BBF_FINALLY_TARGET bit. fgNeedToAddFinallyTargetBits signals
     // when this is necessary.
@@ -4478,27 +4485,6 @@ public:
                            VARSET_VALARG_TP life,
                            bool*            doAgain,
                            bool* pStmtInfoDirty DEBUGARG(bool* treeModf));
-
-    // For updating liveset during traversal AFTER fgComputeLife has completed
-    VARSET_VALRET_TP fgGetVarBits(GenTree* tree);
-    VARSET_VALRET_TP fgUpdateLiveSet(VARSET_VALARG_TP liveSet, GenTree* tree);
-
-    // Returns the set of live variables after endTree,
-    // assuming that liveSet is the set of live variables BEFORE tree.
-    // Requires that fgComputeLife has completed, and that tree is in the same
-    // statement as endTree, and that it comes before endTree in execution order
-
-    VARSET_VALRET_TP fgUpdateLiveSet(VARSET_VALARG_TP liveSet, GenTree* tree, GenTree* endTree)
-    {
-        VARSET_TP newLiveSet(VarSetOps::MakeCopy(this, liveSet));
-        while (tree != nullptr && tree != endTree->gtNext)
-        {
-            VarSetOps::AssignNoCopy(this, newLiveSet, fgUpdateLiveSet(newLiveSet, tree));
-            tree = tree->gtNext;
-        }
-        assert(tree == endTree->gtNext);
-        return newLiveSet;
-    }
 
     void fgInterBlockLocalVarLiveness();
 
@@ -4851,7 +4837,7 @@ public:
     bool fgGCPollsCreated;
     void fgMarkGCPollBlocks();
     void fgCreateGCPolls();
-    bool fgCreateGCPoll(GCPollType pollType, BasicBlock* block);
+    bool fgCreateGCPoll(GCPollType pollType, BasicBlock* block, Statement* stmt = nullptr);
 
     // Requires that "block" is a block that returns from
     // a finally.  Returns the number of successors (jump targets of
@@ -5130,9 +5116,9 @@ public:
         fgWalkPreFn*  wtprVisitorFn;
         fgWalkPostFn* wtpoVisitorFn;
         void*         pCallbackData; // user-provided data
-        bool          wtprLclsOnly;  // whether to only visit lclvar nodes
         GenTree*      parent;        // parent of current node, provided to callback
         GenTreeStack* parentStack;   // stack of parent nodes, if asked for
+        bool          wtprLclsOnly;  // whether to only visit lclvar nodes
 #ifdef DEBUG
         bool printModified; // callback can use this
 #endif
@@ -5182,8 +5168,6 @@ protected:
 
     void        fgInitBBLookup();
     BasicBlock* fgLookupBB(unsigned addr);
-
-    bool fgHasBackwardJump;
 
     bool fgCanSwitchToOptimized();
     void fgSwitchToOptimized();
@@ -5449,7 +5433,6 @@ private:
     GenTree* fgMorphGetStructAddr(GenTree** pTree, CORINFO_CLASS_HANDLE clsHnd, bool isRValue = false);
     GenTree* fgMorphBlkNode(GenTree* tree, bool isDest);
     GenTree* fgMorphBlockOperand(GenTree* tree, var_types asgType, unsigned blockWidth, bool isDest);
-    void fgMorphUnsafeBlk(GenTreeObj* obj);
     GenTree* fgMorphCopyBlock(GenTree* tree);
     GenTree* fgMorphForRegisterFP(GenTree* tree);
     GenTree* fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac = nullptr);
@@ -6270,15 +6253,15 @@ protected:
 
     struct isVarAssgDsc
     {
-        GenTree* ivaSkip;
+        GenTree*     ivaSkip;
+        ALLVARSET_TP ivaMaskVal; // Set of variables assigned to.  This is a set of all vars, not tracked vars.
 #ifdef DEBUG
         void* ivaSelf;
 #endif
-        unsigned     ivaVar;            // Variable we are interested in, or -1
-        ALLVARSET_TP ivaMaskVal;        // Set of variables assigned to.  This is a set of all vars, not tracked vars.
-        bool         ivaMaskIncomplete; // Variables not representable in ivaMaskVal were assigned to.
-        varRefKinds  ivaMaskInd;        // What kind of indirect assignments are there?
-        callInterf   ivaMaskCall;       // What kind of calls are there?
+        unsigned    ivaVar;            // Variable we are interested in, or -1
+        varRefKinds ivaMaskInd;        // What kind of indirect assignments are there?
+        callInterf  ivaMaskCall;       // What kind of calls are there?
+        bool        ivaMaskIncomplete; // Variables not representable in ivaMaskVal were assigned to.
     };
 
     static callInterf optCallInterf(GenTreeCall* call);
@@ -6371,6 +6354,18 @@ public:
                                              unsigned              classAttr);
 
     unsigned optMethodFlags;
+
+    bool doesMethodHaveNoReturnCalls()
+    {
+        return optNoReturnCallCount > 0;
+    }
+
+    void setMethodHasNoReturnCalls()
+    {
+        optNoReturnCallCount++;
+    }
+
+    unsigned optNoReturnCallCount;
 
     // Recursion bound controls how far we can go backwards tracking for a SSA value.
     // No throughput diff was found with backward walk bound between 3-8.
@@ -6955,6 +6950,7 @@ public:
 
     var_types eeGetArgType(CORINFO_ARG_LIST_HANDLE list, CORINFO_SIG_INFO* sig);
     var_types eeGetArgType(CORINFO_ARG_LIST_HANDLE list, CORINFO_SIG_INFO* sig, bool* isPinned);
+    CORINFO_CLASS_HANDLE eeGetArgClass(CORINFO_SIG_INFO* sig, CORINFO_ARG_LIST_HANDLE list);
     unsigned eeGetArgSize(CORINFO_ARG_LIST_HANDLE list, CORINFO_SIG_INFO* sig);
 
     // VOM info, method sigs
@@ -7212,8 +7208,8 @@ public:
     struct IPmappingDsc
     {
         IPmappingDsc* ipmdNext;      // next line# record
-        IL_OFFSETX    ipmdILoffsx;   // the instr offset
         emitLocation  ipmdNativeLoc; // the emitter location of the native code corresponding to the IL offset
+        IL_OFFSETX    ipmdILoffsx;   // the instr offset
         bool          ipmdIsLabel;   // Can this code be a branch label?
     };
 
@@ -7797,12 +7793,18 @@ private:
 
     bool isSIMDClass(CORINFO_CLASS_HANDLE clsHnd)
     {
-        return info.compCompHnd->isInSIMDModule(clsHnd);
+        if (isIntrinsicType(clsHnd))
+        {
+            const char* namespaceName = nullptr;
+            (void)getClassNameFromMetadata(clsHnd, &namespaceName);
+            return strcmp(namespaceName, "System.Numerics") == 0;
+        }
+        return false;
     }
 
     bool isIntrinsicType(CORINFO_CLASS_HANDLE clsHnd)
     {
-        return (info.compCompHnd->getClassAttribs(clsHnd) & CORINFO_FLG_INTRINSIC_TYPE) != 0;
+        return info.compCompHnd->isIntrinsicType(clsHnd);
     }
 
     const char* getClassNameFromMetadata(CORINFO_CLASS_HANDLE cls, const char** namespaceName)
@@ -8113,15 +8115,11 @@ public:
     {
 #ifdef FEATURE_SIMD
         unsigned vectorRegSize = getSIMDVectorRegisterByteLength();
-        if (vectorRegSize > TARGET_POINTER_SIZE)
-        {
-            return vectorRegSize;
-        }
-        else
-#endif // FEATURE_SIMD
-        {
-            return TARGET_POINTER_SIZE;
-        }
+        assert(vectorRegSize >= TARGET_POINTER_SIZE);
+        return vectorRegSize;
+#else  // !FEATURE_SIMD
+        return TARGET_POINTER_SIZE;
+#endif // !FEATURE_SIMD
     }
 
 private:
@@ -8241,6 +8239,9 @@ public:
     bool compQmarkUsed;            // Does the method use GT_QMARK/GT_COLON
     bool compQmarkRationalized;    // Is it allowed to use a GT_QMARK/GT_COLON node.
     bool compUnsafeCastUsed;       // Does the method use LDIND/STIND to cast between scalar/refernce types
+    bool compHasBackwardJump;      // Does the method (or some inlinee) have a lexically backwards jump?
+    bool compSwitchedToOptimized;  // Codegen initially was Tier0 but jit switched to FullOpts
+    bool compSwitchedToMinOpts;    // Codegen initially was Tier1/FullOpts but jit switched to MinOpts
 
 // NOTE: These values are only reliable after
 //       the importing is completely finished.
@@ -8262,7 +8263,7 @@ public:
     bool compLSRADone;
     bool compRationalIRForm;
 
-    bool compUsesThrowHelper; // There is a call to a THOROW_HELPER for the compiled method.
+    bool compUsesThrowHelper; // There is a call to a THROW_HELPER for the compiled method.
 
     bool compGeneratingProlog;
     bool compGeneratingEpilog;
@@ -8296,13 +8297,7 @@ public:
 
     struct Options
     {
-        JitFlags* jitFlags;  // all flags passed from the EE
-        unsigned  compFlags; // method attributes
-
-        codeOptimize compCodeOpt; // what type of code optimizations
-
-        bool compUseFCOMI;
-        bool compUseCMOV;
+        JitFlags* jitFlags; // all flags passed from the EE
 
 #if defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)
         uint64_t compSupportsISA;
@@ -8311,6 +8306,14 @@ public:
             compSupportsISA |= 1ULL << isa;
         }
 #endif
+
+        unsigned compFlags; // method attributes
+        unsigned instrCount;
+        unsigned lvRefCount;
+
+        codeOptimize compCodeOpt; // what type of code optimizations
+
+        bool compUseCMOV;
 
 // optimize maximally and/or favor speed over size?
 
@@ -8323,14 +8326,12 @@ public:
 // Maximun number of locals before turning off the inlining
 #define MAX_LV_NUM_COUNT_FOR_INLINING 512
 
-        bool     compMinOpts;
-        unsigned instrCount;
-        unsigned lvRefCount;
-        bool     compMinOptsIsSet;
+        bool compMinOpts;
+        bool compMinOptsIsSet;
 #ifdef DEBUG
-        bool compMinOptsIsUsed;
+        mutable bool compMinOptsIsUsed;
 
-        bool MinOpts()
+        bool MinOpts() const
         {
             assert(compMinOptsIsSet);
             compMinOptsIsUsed = true;
@@ -8341,7 +8342,7 @@ public:
             return compMinOptsIsSet;
         }
 #else  // !DEBUG
-        bool MinOpts()
+        bool MinOpts() const
         {
             return compMinOpts;
         }
@@ -8351,11 +8352,11 @@ public:
         }
 #endif // !DEBUG
 
-        bool OptimizationDisabled()
+        bool OptimizationDisabled() const
         {
             return MinOpts() || compDbgCode;
         }
-        bool OptimizationEnabled()
+        bool OptimizationEnabled() const
         {
             return !OptimizationDisabled();
         }
@@ -8626,7 +8627,6 @@ public:
         STRESS_MODE(MAKE_CSE)                                                                   \
         STRESS_MODE(LEGACY_INLINE)                                                              \
         STRESS_MODE(CLONE_EXPR)                                                                 \
-        STRESS_MODE(USE_FCOMI)                                                                  \
         STRESS_MODE(USE_CMOV)                                                                   \
         STRESS_MODE(FOLD)                                                                       \
         STRESS_MODE(BB_PROFILE)                                                                 \
@@ -8645,6 +8645,7 @@ public:
         STRESS_MODE(RANDOM_INLINE)                                                              \
         STRESS_MODE(SWITCH_CMP_BR_EXPANSION)                                                    \
         STRESS_MODE(GENERIC_VARN)                                                               \
+        STRESS_MODE(PROFILER_CALLBACKS) /* Will generate profiler hooks for ELT callbacks */    \
                                                                                                 \
         /* After COUNT_VARN, stress level 2 does all of these all the time */                   \
                                                                                                 \
@@ -8794,12 +8795,13 @@ public:
         UNATIVE_OFFSET compTotalHotCodeSize;  // Total number of bytes of Hot Code in the method
         UNATIVE_OFFSET compTotalColdCodeSize; // Total number of bytes of Cold Code in the method
 
-        unsigned compCallUnmanaged;   // count of unmanaged calls
+        unsigned compUnmanagedCallCountWithGCTransition; // count of unmanaged calls with GC transition.
+
         unsigned compLvFrameListRoot; // lclNum for the Frame root
         unsigned compXcptnsCount;     // Number of exception-handling clauses read in the method's IL.
                                       // You should generally use compHndBBtabCount instead: it is the
                                       // current number of EH clauses (after additions like synchronized
-                                      // methods and funclets, and removals like unreachable code deletion).
+        // methods and funclets, and removals like unreachable code deletion).
 
         bool compMatchedVM; // true if the VM is "matched": either the JIT is a cross-compiler
                             // and the VM expects that, or the JIT is a "self-host" compiler
@@ -8898,6 +8900,12 @@ public:
     {
         return compMethodReturnsNativeScalarType() || compMethodReturnsRetBufAddr() ||
                compMethodReturnsMultiRegRetType();
+    }
+
+    // Returns true if the method requires a PInvoke prolog and epilog
+    bool compMethodRequiresPInvokeFrame()
+    {
+        return (info.compUnmanagedCallCountWithGCTransition > 0);
     }
 
 #if defined(DEBUG)
@@ -9324,8 +9332,8 @@ public:
                              bool bashStructToRef = false); // converts from jit type representation to typeInfo
     typeInfo verMakeTypeInfo(CorInfoType          ciType,
                              CORINFO_CLASS_HANDLE clsHnd); // converts from jit type representation to typeInfo
-    BOOL verIsSDArray(typeInfo ti);
-    typeInfo verGetArrayElemType(typeInfo ti);
+    BOOL verIsSDArray(const typeInfo& ti);
+    typeInfo verGetArrayElemType(const typeInfo& ti);
 
     typeInfo verParseArgSigToTypeInfo(CORINFO_SIG_INFO* sig, CORINFO_ARG_LIST_HANDLE args);
     BOOL verNeedsVerification();
@@ -9347,7 +9355,7 @@ public:
                                                      // return false to the caller.
                                                      // If false, it will throw.
                                     );
-    bool verIsBoxedValueType(typeInfo ti);
+    bool verIsBoxedValueType(const typeInfo& ti);
 
     void verVerifyCall(OPCODE                  opcode,
                        CORINFO_RESOLVED_TOKEN* pResolvedToken,
@@ -9951,6 +9959,7 @@ public:
             case GT_RETURN:
             case GT_RETFILT:
             case GT_RUNTIMELOOKUP:
+            case GT_KEEPALIVE:
             {
                 GenTreeUnOp* const unOp = node->AsUnOp();
                 if (unOp->gtOp1 != nullptr)
@@ -10519,20 +10528,6 @@ extern const BYTE genTypeSizes[];
 extern const BYTE genTypeAlignments[];
 extern const BYTE genTypeStSzs[];
 extern const BYTE genActualTypes[];
-
-/*****************************************************************************/
-
-// VERY_LARGE_FRAME_SIZE_REG_MASK is the set of registers we need to use for
-// the probing loop generated for very large stack frames (see `getVeryLargeFrameSize`).
-// We only use this to ensure that if we need to reserve a callee-saved register,
-// it will be reserved. For ARM32, only R12 and LR are non-callee-saved, non-argument
-// registers, so we save at least one more callee-saved register. For ARM64, however,
-// we already know we have at least three non-callee-saved, non-argument integer registers,
-// so we don't need to save any more.
-
-#ifdef _TARGET_ARM_
-#define VERY_LARGE_FRAME_SIZE_REG_MASK (RBM_R4)
-#endif
 
 /*****************************************************************************/
 
