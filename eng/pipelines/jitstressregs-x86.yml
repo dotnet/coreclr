@@ -35,6 +35,8 @@ jobs:
     - Linux_x64
     - Windows_NT_x64
     - Windows_NT_x86
+    managedOsxBuild: false
     helixQueueGroup: ci
     jobParameters:
       testGroup: jitstressregs-x86
+

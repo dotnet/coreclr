@@ -21,6 +21,7 @@ jobs:
     jobTemplate: build-job.yml
     buildConfig: checked
     platformGroup: gcstress
+    managedOsxBuild: false
     jobParameters:
       testGroup: gcstress-extra
 
@@ -30,5 +31,6 @@ jobs:
     buildConfig: checked
     platformGroup: gcstress
     helixQueueGroup: ci
+    managedOsxBuild: false
     jobParameters:
       testGroup: gcstress-extra
