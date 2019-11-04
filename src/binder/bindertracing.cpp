@@ -96,16 +96,14 @@ namespace
             return;
 
         ICLRPrivBinder *binder = reinterpret_cast<ICLRPrivBinder *>(binderID);
+#ifdef FEATURE_COMINTEROP
+        if (AreSameBinderInstance(binder, domain->GetTPABinderContext()) || AreSameBinderInstance(binder, domain->GetWinRtBinder()))
+#else
         if (AreSameBinderInstance(binder, domain->GetTPABinderContext()))
+#endif // FEATURE_COMINTEROP
         {
             alcName.Set(W("Default"));
         }
-#ifdef FEATURE_COMINTEROP
-        else if (AreSameBinderInstance(binder, domain->GetWinRtBinder()))
-        {
-            alcName.Set(W("WinRT"));
-        }
-#endif // FEATURE_COMINTEROP
         else
         {
 #if !defined(CROSSGEN_COMPILE)
