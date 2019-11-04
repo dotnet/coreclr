@@ -169,6 +169,8 @@ Resizing of the dictionary layouts takes place in `DictionaryLayout::ExpandDicti
 
 Resizing of the dictionaries of all related types or methods takes place in `Module::ExpandTypeDictionaries_Locked` and `Module::ExpandMethodDictionaries_Locked`. New dictionaries are allocated for each affected type or method, and the contents of their old dictionaries are copied over. These new dictionaries then get published on the corresponding `MethodTable` or `InstantiatedMethodDesc` structures (the "PerInstInfo" field). Great care is taken to perform all the dictionary allocations and initializations first before publishing them, with a call to `FlushProcessWriteBuffers()` in the middle to ensure correct ordering of read/write operations in multi-threading.
 
+One thing to note is that old dictionaries are not deallocated, but once a new dictionary gets published on a MethodTable or MethodDesc, any subsequent dictionary lookup by generic code will make use of that newly allocated dictionary. Deallocating old dictionaries would be extremely complicated, especially in a multi-threaded environment, and won't give any useful benefit.
+
 Finally, after resizing all generic dictionaries, the last step is to publish the newly allocated `DictionaryLayout` structure by associating it with the canonical instantiation.
 
 ### Diagnostics
