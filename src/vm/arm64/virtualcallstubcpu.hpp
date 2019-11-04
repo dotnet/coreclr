@@ -229,7 +229,8 @@ struct ResolveHolder
          _stub._resolveEntryPoint[n++] = 0x8B4C3189;
 
          //;;adr x10, #Dataregionbase of ResolveStub
-         _stub._resolveEntryPoint[n++] = 0x1000000A | ARM64EncodeHelpers::ADR_PATCH(PC_REL_OFFSET(Dataregionbase));
+         _stub._resolveEntryPoint[n] = 0x1000000A | ARM64EncodeHelpers::ADR_PATCH(PC_REL_OFFSET(Dataregionbase));
+         n++;
 
          //w13- this._hashedToken
          //ldr w13, [x10 + DATA_OFFSET(_hashedToken)]
@@ -323,7 +324,8 @@ struct ResolveHolder
          // ;;fall through to the slow case
 
          //;;adr x10, #Dataregionbase
-         _stub._slowEntryPoint[n++] = 0x1000000A | ARM64EncodeHelpers::ADR_PATCH(PC_REL_OFFSET(Dataregionbase));
+         _stub._slowEntryPoint[n] = 0x1000000A | ARM64EncodeHelpers::ADR_PATCH(PC_REL_OFFSET(Dataregionbase));
+         n++;
 
          //ldr x12, [x10 , DATA_OFFSET(_token)]
          offset=DATA_OFFSET(_token);
@@ -352,7 +354,8 @@ struct ResolveHolder
 
          //;;failEntryPoint
          //;;adr x10, #Dataregionbase
-         _stub._failEntryPoint[n++] = 0x1000000A | ARM64EncodeHelpers::ADR_PATCH(PC_REL_OFFSET(Dataregionbase));
+         _stub._failEntryPoint[n] = 0x1000000A | ARM64EncodeHelpers::ADR_PATCH(PC_REL_OFFSET(Dataregionbase));
+         n++;
 
          //
          //ldr x13, [x10]
