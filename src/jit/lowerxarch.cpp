@@ -827,21 +827,21 @@ void Lowering::LowerFusedMultiplyAdd(GenTreeHWIntrinsic* node)
     GenTreeArgList*     argList = node->gtGetOp1()->AsArgList();
     GenTreeHWIntrinsic* createScalarOps[3];
 
-    for (auto& createScalarOp : createScalarOps)
+    for (GenTreeHWIntrinsic*& createScalarOp : createScalarOps)
     {
-        assert(argList->Current() != nullptr);
-        if (argList->Current()->OperIsHWIntrinsic())
+        GenTree*& current = argList->Current();
+        assert(current != nullptr);
+        if (current->OperIsHWIntrinsic())
         {
-            GenTreeHWIntrinsic* hwArg = argList->Current()->AsHWIntrinsic();
+            GenTreeHWIntrinsic* hwArg = current->AsHWIntrinsic();
             if (hwArg->gtHWIntrinsicId != NI_Vector128_CreateScalarUnsafe)
             {
                 return; // Math(F).FusedMultiplyAdd is expected to emit three NI_Vector128_CreateScalarUnsafe
-                        // but it's also possible to use NI_FMA_MultiplyAddScalar directly with any 
+                        // but it's also possible to use NI_FMA_MultiplyAddScalar directly with any operands
             }
             createScalarOp = hwArg;
             argList        = argList->Rest();
         }
-
     }
     assert(argList == nullptr);
 
