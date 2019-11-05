@@ -63,13 +63,20 @@ extern PCODE GetPreStubEntryPoint();
 // this is the offset by which it should be decremented to arrive at the callsite.
 #define STACKWALK_CONTROLPC_ADJUST_OFFSET 4
 
-//=======================================================================
-// IMPORTANT: This value is used to figure out how much to allocate
-// for a fixed array of FieldMarshaler's. That means it must be at least
-// as large as the largest FieldMarshaler subclass. This requirement
-// is guarded by an assert.
-//=======================================================================
-#define MAXFIELDMARSHALERSIZE               40
+inline
+ARG_SLOT FPSpillToR8(void* pSpillSlot)
+{
+    LIMITED_METHOD_CONTRACT;
+    return *(SIZE_T*)pSpillSlot;
+}
+
+inline
+void     R8ToFPSpill(void* pSpillSlot, SIZE_T  srcDoubleAsSIZE_T)
+{
+    LIMITED_METHOD_CONTRACT;
+    *(SIZE_T*)pSpillSlot = srcDoubleAsSIZE_T;
+    *((SIZE_T*)pSpillSlot + 1) = 0;
+}
 
 //**********************************************************************
 // Parameter size
@@ -272,7 +279,7 @@ inline void emitJump(LPBYTE pBuffer, LPVOID target)
     // +0:   ldr x16, [pc, #8]
     // +4:   br  x16
     // +8:   [target address]
-    
+
     pCode[0] = 0x58000050UL;   // ldr x16, [pc, #8]
     pCode[1] = 0xD61F0200UL;   // br  x16
 
@@ -329,7 +336,7 @@ inline PCODE decodeBackToBackJump(PCODE pBuffer)
 
 // SEH info forward declarations
 
-inline BOOL IsUnmanagedValueTypeReturnedByRef(UINT sizeofvaluetype) 
+inline BOOL IsUnmanagedValueTypeReturnedByRef(UINT sizeofvaluetype)
 {
     // ARM64TODO: Does this need to care about HFA. It does not for ARM32
     return (sizeofvaluetype > ENREGISTERED_RETURNTYPE_INTEGER_MAXSIZE);
@@ -379,7 +386,7 @@ struct CondCode
 const IntReg RegTeb = IntReg(18);
 const IntReg RegFp  = IntReg(29);
 const IntReg RegLr  = IntReg(30);
-// Note that stack pointer and zero register share the same encoding, 31 
+// Note that stack pointer and zero register share the same encoding, 31
 const IntReg RegSp  = IntReg(31);
 
 const CondCode CondEq = CondCode(0);
@@ -438,8 +445,8 @@ public:
     };
 
 
-    static void Init(); 
-    
+    static void Init();
+
     void EmitUnboxMethodStub(MethodDesc* pRealMD);
     void EmitCallManagedMethod(MethodDesc *pMD, BOOL fTailCall);
     void EmitCallLabel(CodeLabel *target, BOOL fTailCall, BOOL fIndirect);
@@ -469,10 +476,10 @@ public:
     void EmitLoadRegReg(IntReg Xt, IntReg Xn, IntReg Xm, DWORD option);
 
     void EmitCallRegister(IntReg reg);
-    void EmitProlog(unsigned short cIntRegArgs, 
-                    unsigned short cVecRegArgs, 
+    void EmitProlog(unsigned short cIntRegArgs,
+                    unsigned short cVecRegArgs,
                     unsigned short cCalleeSavedRegs,
-                    unsigned short cbStackSpace = 0); 
+                    unsigned short cbStackSpace = 0);
 
     void EmitEpilog();
 
@@ -523,20 +530,20 @@ struct HijackArgs
     DWORD64 X19, X20, X21, X22, X23, X24, X25, X26, X27, X28;
     union
     {
-        struct {  
-             DWORD64 X0;  
-             DWORD64 X1;  
-         }; 
+        struct {
+             DWORD64 X0;
+             DWORD64 X1;
+         };
         size_t ReturnValue[2];
     };
     union
     {
-        struct {  
-             NEON128 Q0;  
-             NEON128 Q1;  
-             NEON128 Q2;  
-             NEON128 Q3;  
-         }; 
+        struct {
+             NEON128 Q0;
+             NEON128 Q1;
+             NEON128 Q2;
+             NEON128 Q3;
+         };
         NEON128 FPReturnValue[4];
     };
 };
@@ -552,7 +559,7 @@ struct StubPrecode {
 
     static const int Type = 0x89;
 
-    // adr x9, #16   
+    // adr x9, #16
     // ldp x10,x12,[x9]      ; =m_pTarget,m_pMethodDesc
     // br x10
     // 4 byte padding for 8 byte allignement
@@ -566,13 +573,13 @@ struct StubPrecode {
 
     TADDR GetMethodDesc()
     {
-        LIMITED_METHOD_DAC_CONTRACT; 
+        LIMITED_METHOD_DAC_CONTRACT;
         return m_pMethodDesc;
     }
 
     PCODE GetTarget()
     {
-        LIMITED_METHOD_DAC_CONTRACT; 
+        LIMITED_METHOD_DAC_CONTRACT;
         return m_pTarget;
     }
 
@@ -585,7 +592,6 @@ struct StubPrecode {
         }
         CONTRACTL_END;
 
-        EnsureWritableExecutablePages(&m_pTarget);
         InterlockedExchange64((LONGLONG*)&m_pTarget, (TADDR)GetPreStubEntryPoint());
     }
 
@@ -598,7 +604,6 @@ struct StubPrecode {
         }
         CONTRACTL_END;
 
-        EnsureWritableExecutablePages(&m_pTarget);
         return (TADDR)InterlockedCompareExchange64(
             (LONGLONG*)&m_pTarget, (TADDR)target, (TADDR)expected) == expected;
     }
@@ -628,13 +633,13 @@ struct NDirectImportPrecode {
 
     TADDR GetMethodDesc()
     {
-        LIMITED_METHOD_DAC_CONTRACT; 
+        LIMITED_METHOD_DAC_CONTRACT;
         return m_pMethodDesc;
     }
 
     PCODE GetTarget()
     {
-        LIMITED_METHOD_DAC_CONTRACT; 
+        LIMITED_METHOD_DAC_CONTRACT;
         return m_pTarget;
     }
 
@@ -655,7 +660,7 @@ struct FixupPrecode {
 
     static const int Type = 0x0C;
 
-    // adr x12, #0 
+    // adr x12, #0
     // ldr x11, [pc, #12]     ; =m_pTarget
     // br  x11
     // dcb m_MethodDescChunkIndex
@@ -711,7 +716,6 @@ struct FixupPrecode {
         }
         CONTRACTL_END;
 
-        EnsureWritableExecutablePages(&m_pTarget);
         InterlockedExchange64((LONGLONG*)&m_pTarget, (TADDR)GetEEFuncEntryPoint(PrecodeFixupThunk));
     }
 
@@ -724,7 +728,6 @@ struct FixupPrecode {
         }
         CONTRACTL_END;
 
-        EnsureWritableExecutablePages(&m_pTarget);
         return (TADDR)InterlockedCompareExchange64(
             (LONGLONG*)&m_pTarget, (TADDR)target, (TADDR)expected) == expected;
     }
@@ -771,7 +774,7 @@ struct ThisPtrRetBufPrecode {
     }
 
     PCODE GetTarget()
-    { 
+    {
         LIMITED_METHOD_DAC_CONTRACT;
         return m_pTarget;
     }
@@ -785,7 +788,6 @@ struct ThisPtrRetBufPrecode {
         }
         CONTRACTL_END;
 
-        EnsureWritableExecutablePages(&m_pTarget);
         return (TADDR)InterlockedCompareExchange64(
             (LONGLONG*)&m_pTarget, (TADDR)target, (TADDR)expected) == expected;
     }

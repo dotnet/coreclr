@@ -77,7 +77,7 @@
 
 // ------------------------------------------------------------------
 // IN:
-// InlinedCallFrame (r0) = pointer to the InlinedCallFrame data, including the GS cookie slot (GS cookie right 
+// InlinedCallFrame (r0) = pointer to the InlinedCallFrame data, including the GS cookie slot (GS cookie right
 //                          before actual InlinedCallFrame data)
 //
 //
@@ -89,20 +89,21 @@
         ldr     r1, [r1]
         str     r1, [r0]
         add     r4, r0, SIZEOF__GSCookie
-                    
+
         // r4 = pFrame
-        
+
         // set first slot to the value of InlinedCallFrame::`vftable' (checked by runtime code)
         ldr     r1, .L12
         str     r1, [r4]
 
         mov     r1, 0
         str     r1, [r4, #InlinedCallFrame__m_Datum]
-    
+
         add     r1, sp, 8
         str     r1, [r4, #InlinedCallFrame__m_pCallSiteSP]
         str     r11, [r4, #InlinedCallFrame__m_pCalleeSavedFP]
         str     lr, [r4, #InlinedCallFrame__m_pCallerReturnAddress]
+        str     r9, [r4, #InlinedCallFrame__m_pSPAfterProlog]
 
         ;; r0 = GetThread()
         bl      C_FUNC(GetThread)
@@ -128,7 +129,7 @@
 
 // ------------------------------------------------------------------
 // IN:
-// InlinedCallFrame (r0) = pointer to the InlinedCallFrame data, including the GS cookie slot (GS cookie right 
+// InlinedCallFrame (r0) = pointer to the InlinedCallFrame data, including the GS cookie slot (GS cookie right
 //                          before actual InlinedCallFrame data)
 //
 //
@@ -139,7 +140,7 @@
 
         // r0 = pFrame
         // r1 = pThread
-        
+
         // pThread->m_fPreemptiveGCDisabled = 1
         mov     r2, 1
         str     r2, [r1, #Thread_m_fPreemptiveGCDisabled]

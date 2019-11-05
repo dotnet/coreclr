@@ -10,6 +10,7 @@ using System.Runtime.Intrinsics.X86;
 
 using Internal.Runtime.CompilerServices;
 
+#pragma warning disable SA1121 // explicitly using type aliases instead of built-in types
 #if BIT64
 using nuint = System.UInt64;
 using nint = System.Int64;
@@ -167,12 +168,12 @@ namespace System
 
                 while (length > 0)
                 {
-                    length -= 1;
+                    length--;
 
                     if (value == *pCh)
                         goto Found;
 
-                    pCh += 1;
+                    pCh++;
                 }
 
                 // We get past SequentialScan only if IsHardwareAccelerated is true. However, we still have the redundant check to allow
@@ -249,7 +250,7 @@ namespace System
         SequentialScan:
             // In the non-vector case lengthToExamine is the total length.
             // In the vector case lengthToExamine first aligns to Vector,
-            // then in a second pass after the Vector lengths is the 
+            // then in a second pass after the Vector lengths is the
             // remaining data that is shorter than a Vector length.
             while (lengthToExamine >= 4)
             {
@@ -273,8 +274,8 @@ namespace System
                 if (value == Add(ref searchSpace, offset))
                     goto Found;
 
-                offset += 1;
-                lengthToExamine -= 1;
+                offset++;
+                lengthToExamine--;
             }
 
             // We get past SequentialScan only if IsHardwareAccelerated or intrinsic .IsSupported is true. However, we still have the redundant check to allow
@@ -287,19 +288,19 @@ namespace System
                     if (((nint)Unsafe.AsPointer(ref Unsafe.Add(ref searchSpace, (IntPtr)offset)) & (nint)(Vector256<byte>.Count - 1)) != 0)
                     {
                         // Not currently aligned to Vector256 (is aligned to Vector128); this can cause a problem for searches
-                        // with no upper bound e.g. String.wcslen. Start with a check on Vector128 to align to Vector256, 
+                        // with no upper bound e.g. String.wcslen. Start with a check on Vector128 to align to Vector256,
                         // before moving to processing Vector256.
 
-                        // If the input searchSpan has been fixed or pinned, this ensures we do not fault across memory pages 
-                        // while searching for an end of string. Specifically that this assumes that the length is either correct 
-                        // or that the data is pinned otherwise it may cause an AccessViolation from crossing a page boundary into an 
+                        // If the input searchSpan has been fixed or pinned, this ensures we do not fault across memory pages
+                        // while searching for an end of string. Specifically that this assumes that the length is either correct
+                        // or that the data is pinned otherwise it may cause an AccessViolation from crossing a page boundary into an
                         // unowned page. If the search is unbounded (e.g. null terminator in wcslen) and the search value is not found,
-                        // again this will likely cause an AccessViolation. However, correctly bounded searches will return -1 rather 
+                        // again this will likely cause an AccessViolation. However, correctly bounded searches will return -1 rather
                         // than ever causing an AV.
 
-                        // If the searchSpan has not been fixed or pinned the GC can relocate it during the execution of this 
+                        // If the searchSpan has not been fixed or pinned the GC can relocate it during the execution of this
                         // method, so the alignment only acts as best endeavour. The GC cost is likely to dominate over
-                        // the misalignment that may occur after; to we default to giving the GC a free hand to relocate and 
+                        // the misalignment that may occur after; to we default to giving the GC a free hand to relocate and
                         // its up to the caller whether they are operating over fixed data.
                         Vector128<ushort> values = Vector128.Create((ushort)value);
                         Vector128<ushort> search = LoadVector128(ref searchSpace, offset);
@@ -314,7 +315,7 @@ namespace System
                         else
                         {
                             // Find bitflag offset of first match and add to current offset
-                            return (int)(offset + (BitOperations.TrailingZeroCount(matches) / sizeof(char)));
+                            return (int)(offset + ((uint)BitOperations.TrailingZeroCount(matches) / sizeof(char)));
                         }
                     }
 
@@ -338,9 +339,9 @@ namespace System
                                 continue;
                             }
 
-                            // Find bitflag offset of first match and add to current offset, 
+                            // Find bitflag offset of first match and add to current offset,
                             // flags are in bytes so divide for chars
-                            return (int)(offset + (BitOperations.TrailingZeroCount(matches) / sizeof(char)));
+                            return (int)(offset + ((uint)BitOperations.TrailingZeroCount(matches) / sizeof(char)));
                         } while (lengthToExamine > 0);
                     }
 
@@ -362,9 +363,9 @@ namespace System
                         }
                         else
                         {
-                            // Find bitflag offset of first match and add to current offset, 
+                            // Find bitflag offset of first match and add to current offset,
                             // flags are in bytes so divide for chars
-                            return (int)(offset + (BitOperations.TrailingZeroCount(matches) / sizeof(char)));
+                            return (int)(offset + ((uint)BitOperations.TrailingZeroCount(matches) / sizeof(char)));
                         }
                     }
 
@@ -401,9 +402,9 @@ namespace System
                                 continue;
                             }
 
-                            // Find bitflag offset of first match and add to current offset, 
+                            // Find bitflag offset of first match and add to current offset,
                             // flags are in bytes so divide for chars
-                            return (int)(offset + (BitOperations.TrailingZeroCount(matches) / sizeof(char)));
+                            return (int)(offset + ((uint)BitOperations.TrailingZeroCount(matches) / sizeof(char)));
                         } while (lengthToExamine > 0);
                     }
 
@@ -904,8 +905,8 @@ namespace System
 
                 while (length > 0)
                 {
-                    length -= 1;
-                    pCh -= 1;
+                    length--;
+                    pCh--;
 
                     if (*pCh == value)
                         goto Found;
@@ -992,7 +993,7 @@ namespace System
                 unchecked
                 {
                     // Flag least significant power of two bit
-                    var powerOfTwoFlag = match ^ (match - 1);
+                    ulong powerOfTwoFlag = match ^ (match - 1);
                     // Shift all powers of two into the high byte and extract
                     return (int)((powerOfTwoFlag * XorPowerOfTwoToHighChar) >> 49);
                 }
@@ -1047,20 +1048,16 @@ namespace System
             => Unsafe.ReadUnaligned<Vector256<ushort>>(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref start, (IntPtr)offset)));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe UIntPtr LoadUIntPtr(ref char start, nint offset)
-            => Unsafe.ReadUnaligned<UIntPtr>(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref start, (IntPtr)offset)));
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static unsafe nint GetCharVectorSpanLength(nint offset, nint length)
-            => ((length - offset) & ~(Vector<ushort>.Count - 1));
+            => (length - offset) & ~(Vector<ushort>.Count - 1);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static unsafe nint GetCharVector128SpanLength(nint offset, nint length)
-            => ((length - offset) & ~(Vector128<ushort>.Count - 1));
+            => (length - offset) & ~(Vector128<ushort>.Count - 1);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static nint GetCharVector256SpanLength(nint offset, nint length)
-            => ((length - offset) & ~(Vector256<ushort>.Count - 1));
+            => (length - offset) & ~(Vector256<ushort>.Count - 1);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static unsafe nint UnalignedCountVector(ref char searchSpace)
@@ -1068,13 +1065,13 @@ namespace System
             const int ElementsPerByte = sizeof(ushort) / sizeof(byte);
             // Figure out how many characters to read sequentially until we are vector aligned
             // This is equivalent to:
-            //         unaligned = ((int)pCh % Unsafe.SizeOf<Vector<ushort>>()) / ElementsPerByte 
+            //         unaligned = ((int)pCh % Unsafe.SizeOf<Vector<ushort>>()) / ElementsPerByte
             //         length = (Vector<ushort>.Count - unaligned) % Vector<ushort>.Count
 
             // This alignment is only valid if the GC does not relocate; so we use ReadUnaligned to get the data.
             // If a GC does occur and alignment is lost, the GC cost will outweigh any gains from alignment so it
             // isn't too important to pin to maintain the alignment.
-            return (nint)(uint)(-(int)Unsafe.AsPointer(ref searchSpace) / ElementsPerByte ) & (Vector<ushort>.Count - 1);
+            return (nint)(uint)(-(int)Unsafe.AsPointer(ref searchSpace) / ElementsPerByte) & (Vector<ushort>.Count - 1);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1084,7 +1081,7 @@ namespace System
             // This alignment is only valid if the GC does not relocate; so we use ReadUnaligned to get the data.
             // If a GC does occur and alignment is lost, the GC cost will outweigh any gains from alignment so it
             // isn't too important to pin to maintain the alignment.
-            return (nint)(uint)(-(int)Unsafe.AsPointer(ref searchSpace) / ElementsPerByte ) & (Vector128<ushort>.Count - 1);
+            return (nint)(uint)(-(int)Unsafe.AsPointer(ref searchSpace) / ElementsPerByte) & (Vector128<ushort>.Count - 1);
         }
     }
 }

@@ -34,8 +34,8 @@ using namespace clr;
 #ifdef STRESS_HEAP
 // Global counter to disable GCStress. This is needed so we can inhibit
 // GC stres collections without resetting the global GCStressLevel, which
-// is relied on by the EH code and the JIT code (for handling patched  
-// managed code, and GC stress exception) after GC stress is dynamically 
+// is relied on by the EH code and the JIT code (for handling patched
+// managed code, and GC stress exception) after GC stress is dynamically
 // turned off.
 Volatile<DWORD> GCStressPolicy::InhibitHolder::s_nGcStressDisabled = 0;
 #endif // STRESS_HEAP
@@ -49,7 +49,7 @@ ConfigSource::ConfigSource()
         MODE_ANY;
         FORBID_FAULT;
     } CONTRACTL_END;
-        
+
     m_pNext = this;
     m_pPrev = this;
 }// ConfigSource::ConfigSource
@@ -73,7 +73,7 @@ ConfigSource::~ConfigSource()
 }// ConfigSource::~ConfigSource
 
 ConfigStringHashtable * ConfigSource::Table()
-{   
+{
     LIMITED_METHOD_CONTRACT;
     return &(m_Table);
 }// ConfigSource::Table
@@ -87,7 +87,7 @@ void ConfigSource::Add(ConfigSource* prev)
         PRECONDITION(CheckPointer(prev));
         PRECONDITION(CheckPointer(prev->m_pNext));
     } CONTRACTL_END;
-    
+
     m_pPrev = prev;
     m_pNext = prev->m_pNext;
 
@@ -110,7 +110,7 @@ LPUTF8 NarrowWideChar(__inout_z LPWSTR str)
         POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
     } CONTRACT_END;
 
-    if (str != 0) { 
+    if (str != 0) {
         LPWSTR fromPtr = str;
         LPUTF8 toPtr = (LPUTF8) str;
         LPUTF8 result = toPtr;
@@ -122,44 +122,27 @@ LPUTF8 NarrowWideChar(__inout_z LPWSTR str)
     RETURN NULL;
 }
 
+/**************************************************************/
+static EEConfig g_EEConfig;
+
 HRESULT EEConfig::Setup()
 {
     STANDARD_VM_CONTRACT;
 
     ETWOnStartup (EEConfigSetup_V1,EEConfigSetupEnd_V1);
-        
-    // This 'new' uses EEConfig's overloaded new, which uses a static memory buffer and will
-    // not fail
-    EEConfig *pConfig = new EEConfig();
+
+    _ASSERTE(g_pConfig == NULL && "EEConfig::Setup called multiple times!");
+
+    EEConfig *pConfig = &g_EEConfig;
 
     HRESULT hr = pConfig->Init();
 
     if (FAILED(hr))
         return hr;
 
-    EEConfig *pConfigOld = NULL;
-    pConfigOld = InterlockedCompareExchangeT(&g_pConfig, pConfig, NULL);
+    g_pConfig = pConfig;
 
-    _ASSERTE(pConfigOld == NULL && "EEConfig::Setup called multiple times!");
-    
     return S_OK;
-}
-
-/**************************************************************/
-// For in-place constructor
-BYTE g_EEConfigMemory[sizeof(EEConfig)];
-
-void *EEConfig::operator new(size_t size)
-{
-    CONTRACT(void*) {
-        FORBID_FAULT;
-        GC_NOTRIGGER;
-        NOTHROW;
-        MODE_ANY;
-        POSTCONDITION(CheckPointer(RETVAL));
-    } CONTRACT_END;
-
-    RETURN g_EEConfigMemory;
 }
 
 /**************************************************************/
@@ -216,7 +199,6 @@ HRESULT EEConfig::Init()
     iJitOptimizeType = OPT_DEFAULT;
     fJitFramed = false;
     fJitAlignLoops = false;
-    fAddRejitNops = false;
     fJitMinOpts = false;
     fPInvokeRestoreEsp = (DWORD)-1;
 
@@ -231,7 +213,7 @@ HRESULT EEConfig::Init()
     fNgenBindOptimizeNonGac = false;
     fStressLog = false;
     fProbeForStackOverflow = true;
-    
+
     INDEBUG(fStressLog = true;)
 
 #ifdef _DEBUG
@@ -334,7 +316,7 @@ HRESULT EEConfig::Init()
     fStubLinkerUnwindInfoVerificationOn = FALSE;
 #endif
 
-#if defined(_DEBUG) && defined(WIN64EXCEPTIONS)
+#if defined(_DEBUG) && defined(FEATURE_EH_FUNCLETS)
     fSuppressLockViolationsOnReentryFromOS = false;
 #endif
 
@@ -404,24 +386,24 @@ HRESULT EEConfig::Cleanup()
         GC_NOTRIGGER;
         MODE_ANY;
     } CONTRACTL_END;
-    
+
 #ifdef _DEBUG
     if (g_pConfig) {
-        // TODO: Do we even need this? CLRConfig::GetConfigValue has FORBID_FAULT in its contract. 
-        FAULT_NOT_FATAL();  // If GetConfigValue fails the alloc, that's ok. 
-        
+        // TODO: Do we even need this? CLRConfig::GetConfigValue has FORBID_FAULT in its contract.
+        FAULT_NOT_FATAL();  // If GetConfigValue fails the alloc, that's ok.
+
         DWORD setting = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_DumpConfiguration);
-        if (setting != 0) 
+        if (setting != 0)
        {
             ConfigList::ConfigIter iter(&m_Configuration);
             int count = 0;
-            for(ConfigStringHashtable* table = iter.Next();table; table = iter.Next()) 
+            for(ConfigStringHashtable* table = iter.Next();table; table = iter.Next())
             {
                 count = DumpConfigTable(table, "\nSystem Configuration Table: %d\n", count);
             }
             ConfigList::ConfigIter iter2(&m_Configuration);
             count = 0;
-            for (ConfigStringHashtable* table = iter2.Previous();table; table = iter2.Previous()) 
+            for (ConfigStringHashtable* table = iter2.Previous();table; table = iter2.Previous())
             {
                 count = DumpConfigTable(table, "\nApplication Configuration Table: %d\n", count);
             }
@@ -432,10 +414,10 @@ HRESULT EEConfig::Cleanup()
     if (m_fFreepZapSet)
         delete[] pZapSet;
     delete[] szZapBBInstr;
-    
+
     if (pRequireZapsList)
         delete pRequireZapsList;
-    
+
     if (pRequireZapsExcludeList)
         delete pRequireZapsExcludeList;
 
@@ -445,7 +427,7 @@ HRESULT EEConfig::Cleanup()
 #ifdef _DEBUG
     if (pForbidZapsList)
         delete pForbidZapsList;
-    
+
     if (pForbidZapsExcludeList)
         delete pForbidZapsExcludeList;
 #endif
@@ -471,7 +453,7 @@ HRESULT EEConfig::Cleanup()
         delete pSkipGCCoverageList;
         pSkipGCCoverageList = NULL;
     }
-    
+
     delete [] pszBreakOnClassLoad;
     delete [] pszBreakOnClassBuild;
     delete [] pszBreakOnInstantiation;
@@ -495,11 +477,11 @@ HRESULT EEConfig::Cleanup()
 
 
 //
-// NOTE: This function is deprecated; use the CLRConfig class instead. 
+// NOTE: This function is deprecated; use the CLRConfig class instead.
 // To use the CLRConfig class, add an entry in file:../inc/CLRConfigValues.h.
-// 
+//
 HRESULT EEConfig::GetConfigString_DontUse_(__in_z LPCWSTR name, __deref_out_z LPWSTR *outVal, BOOL fPrependCOMPLUS, ConfigSearch direction)
-{ 
+{
     CONTRACT(HRESULT) {
         NOTHROW;
         GC_NOTRIGGER;
@@ -509,7 +491,7 @@ HRESULT EEConfig::GetConfigString_DontUse_(__in_z LPCWSTR name, __deref_out_z LP
         POSTCONDITION(CheckPointer(outVal, NULL_OK));
     } CONTRACT_END;
 
-    LPWSTR pvalue = REGUTIL::GetConfigString_DontUse_(name, fPrependCOMPLUS); 
+    LPWSTR pvalue = REGUTIL::GetConfigString_DontUse_(name, fPrependCOMPLUS);
     if(pvalue == NULL && g_pConfig != NULL)
     {
         LPCWSTR pResult;
@@ -521,23 +503,23 @@ HRESULT EEConfig::GetConfigString_DontUse_(__in_z LPCWSTR name, __deref_out_z LP
             {
                 RETURN E_OUTOFMEMORY;
             }
-            
+
             wcscpy_s(pvalue,len,pResult);
         }
     }
 
     *outVal = pvalue;
-        
+
     RETURN S_OK;
 }
 
 
 //
-// NOTE: This function is deprecated; use the CLRConfig class instead. 
+// NOTE: This function is deprecated; use the CLRConfig class instead.
 // To use the CLRConfig class, add an entry in file:../inc/CLRConfigValues.h.
-// 
+//
 DWORD EEConfig::GetConfigDWORD_DontUse_(__in_z LPCWSTR name, DWORD defValue, DWORD level, BOOL fPrependCOMPLUS, ConfigSearch direction)
-{    
+{
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
@@ -546,7 +528,7 @@ DWORD EEConfig::GetConfigDWORD_DontUse_(__in_z LPCWSTR name, DWORD defValue, DWO
     } CONTRACTL_END;
 
     // <TODO>@TODO: After everyone has moved off registry, key remove the following line in golden</TODO>
-    DWORD result = REGUTIL::GetConfigDWORD_DontUse_(name, defValue, (REGUTIL::CORConfigLevel)level, fPrependCOMPLUS); 
+    DWORD result = REGUTIL::GetConfigDWORD_DontUse_(name, defValue, (REGUTIL::CORConfigLevel)level, fPrependCOMPLUS);
     if(result == defValue && g_pConfig != NULL)
     {
         LPCWSTR pvalue;
@@ -568,10 +550,10 @@ DWORD EEConfig::GetConfigDWORD_DontUse_(__in_z LPCWSTR name, DWORD defValue, DWO
 }
 
 //
-// NOTE: This function is deprecated; use the CLRConfig class instead. 
+// NOTE: This function is deprecated; use the CLRConfig class instead.
 // To use the CLRConfig class, add an entry in file:../inc/CLRConfigValues.h.
 //
-// Note for PAL: right now PAL does not have a _wcstoui64 API, so I am temporarily reading in all numbers as 
+// Note for PAL: right now PAL does not have a _wcstoui64 API, so I am temporarily reading in all numbers as
 // a 32-bit number. When we have the _wcstoui64 API on MAC we will use that instead of wcstoul.
 ULONGLONG EEConfig::GetConfigULONGLONG_DontUse_(__in_z LPCWSTR name, ULONGLONG defValue, DWORD level, BOOL fPrependCOMPLUS, ConfigSearch direction)
 {
@@ -583,7 +565,7 @@ ULONGLONG EEConfig::GetConfigULONGLONG_DontUse_(__in_z LPCWSTR name, ULONGLONG d
     } CONTRACTL_END;
 
     // <TODO>@TODO: After everyone has moved off registry, key remove the following line in golden</TODO>
-    ULONGLONG result = REGUTIL::GetConfigULONGLONG_DontUse_(name, defValue, (REGUTIL::CORConfigLevel)level, fPrependCOMPLUS); 
+    ULONGLONG result = REGUTIL::GetConfigULONGLONG_DontUse_(name, defValue, (REGUTIL::CORConfigLevel)level, fPrependCOMPLUS);
     if(result == defValue && g_pConfig != NULL)
     {
         LPCWSTR pvalue;
@@ -605,9 +587,9 @@ ULONGLONG EEConfig::GetConfigULONGLONG_DontUse_(__in_z LPCWSTR name, ULONGLONG d
 }
 
 //
-// NOTE: This function is deprecated; use the CLRConfig class instead. 
+// NOTE: This function is deprecated; use the CLRConfig class instead.
 // To use the CLRConfig class, add an entry in file:../inc/CLRConfigValues.h.
-// 
+//
 // This is very similar to GetConfigDWORD, except that it favors the settings in config files over those in the
 // registry. This is the Shim's policy with configuration flags, and there are a few flags in EEConfig that adhere
 // to this policy.
@@ -617,7 +599,7 @@ DWORD EEConfig::GetConfigDWORDFavoringConfigFile_DontUse_(__in_z LPCWSTR name,
                                                  DWORD level,
                                                  BOOL fPrependCOMPLUS,
                                                  ConfigSearch direction)
-{    
+{
     CONTRACTL
     {
         NOTHROW;
@@ -653,11 +635,11 @@ DWORD EEConfig::GetConfigDWORDFavoringConfigFile_DontUse_(__in_z LPCWSTR name,
 }
 
 //
-// NOTE: This function is deprecated; use the CLRConfig class instead. 
+// NOTE: This function is deprecated; use the CLRConfig class instead.
 // To use the CLRConfig class, add an entry in file:../inc/CLRConfigValues.h.
-// 
+//
 DWORD EEConfig::GetConfigDWORDInternal_DontUse_(__in_z LPCWSTR name, DWORD defValue, DWORD level, BOOL fPrependCOMPLUS, ConfigSearch direction)
-{    
+{
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
@@ -666,7 +648,7 @@ DWORD EEConfig::GetConfigDWORDInternal_DontUse_(__in_z LPCWSTR name, DWORD defVa
     } CONTRACTL_END;
 
     // <TODO>@TODO: After everyone has moved off registry, key remove the following line in golden</TODO>
-    DWORD result = REGUTIL::GetConfigDWORD_DontUse_(name, defValue, (REGUTIL::CORConfigLevel)level, fPrependCOMPLUS); 
+    DWORD result = REGUTIL::GetConfigDWORD_DontUse_(name, defValue, (REGUTIL::CORConfigLevel)level, fPrependCOMPLUS);
     if(result == defValue)
     {
         LPCWSTR pvalue;
@@ -735,7 +717,7 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
     // Disable concurrent GC during ngen for the rare case a GC gets triggered, causing problems
     if (IsCompilationProcess())
         iGCconcurrent = FALSE;
-    
+
 #if defined(STRESS_HEAP) || defined(_DEBUG)
     iGCStress           =  CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_GCStress);
 #endif
@@ -764,20 +746,20 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
             if (*pszGCStressExe != W('\0'))
             {
                 bGCStressAndHeapVerifyAllowed = false;
-                
+
                 PathString wszFileName;
                 if (WszGetModuleFileName(NULL, wszFileName) != 0)
                 {
                     // just keep the name
                     LPCWSTR pwszName = wcsrchr(wszFileName, W('\\'));
                     pwszName = (pwszName == NULL) ? wszFileName.GetUnicode() : (pwszName + 1);
-                    
+
                     if (SString::_wcsicmp(pwszName,pszGCStressExe) == 0)
                     {
                         bGCStressAndHeapVerifyAllowed = true;
                     }
                 }
-            }    
+            }
             delete [] pszGCStressExe;
         }
 
@@ -792,7 +774,7 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
             }
             else
             {
-                // If GCStress was enabled, and 
+                // If GCStress was enabled, and
                 // If GcConcurrent was NOT explicitly specified in the environment, and
                 // If GSCtressMix was NOT specified
                 // Then let's turn off concurrent GC since it make objects move less
@@ -820,7 +802,7 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
 
 #endif //STRESS_HEAP
 
-#ifdef _WIN64
+#ifdef BIT64
     iGCAffinityMask = GetConfigULONGLONG_DontUse_(CLRConfig::EXTERNAL_GCHeapAffinitizeMask, iGCAffinityMask);
     if (!iGCAffinityMask) iGCAffinityMask =  Configuration::GetKnobULONGLONGValue(W("System.GC.HeapAffinitizeMask"));
     if (!iGCSegmentSize) iGCSegmentSize =  GetConfigULONGLONG_DontUse_(CLRConfig::UNSUPPORTED_GCSegmentSize, iGCSegmentSize);
@@ -830,7 +812,13 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
     if (!iGCAffinityMask) iGCAffinityMask = Configuration::GetKnobDWORDValue(W("System.GC.HeapAffinitizeMask"), 0);
     if (!iGCSegmentSize) iGCSegmentSize =  GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_GCSegmentSize, iGCSegmentSize);
     if (!iGCgen0size) iGCgen0size = GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_GCgen0size, iGCgen0size);
-#endif //_WIN64
+#endif //BIT64
+
+    const ULONGLONG ullHeapHardLimit = Configuration::GetKnobULONGLONGValue(W("System.GC.HeapHardLimit"));
+    iGCHeapHardLimit = FitsIn<size_t, ULONGLONG>(ullHeapHardLimit)
+        ? static_cast<size_t>(ullHeapHardLimit)
+        : ClrSafeInt<size_t>::MaxInt();
+    iGCHeapHardLimitPercent = Configuration::GetKnobDWORDValue(W("System.GC.HeapHardLimitPercent"), 0);
 
     iGCCpuGroup = Configuration::GetKnobBooleanValue(W("System.GC.CpuGroup"), CLRConfig::EXTERNAL_GCCpuGroup);
     iGCHighMemoryPercent = Configuration::GetKnobDWORDValue(W("System.GC.HighMemoryPercent"), 0);
@@ -863,7 +851,7 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
     iGCConservative =  (CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_gcConservative) != 0);
 #endif // FEATURE_CONSERVATIVE_GC
 
-#ifdef _WIN64
+#ifdef BIT64
     iGCAllowVeryLargeObjects = (CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_gcAllowVeryLargeObjects) != 0);
 #endif
 
@@ -882,7 +870,7 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
     fSaveThreadInfo     =  (GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_SaveThreadInfo, fSaveThreadInfo) != 0);
 
     dwSaveThreadInfoMask     =  GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_SaveThreadInfoMask, dwSaveThreadInfoMask);
-    
+
     {
         LPWSTR wszSkipGCCoverageList = NULL;
         IfFailRet(CLRConfig::GetConfigValue(CLRConfig::INTERNAL_SkipGCCoverage, &wszSkipGCCoverageList));
@@ -898,7 +886,7 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
 #endif
 
     iGCForceCompact     =  GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_gcForceCompact, iGCForceCompact);
-    iGCNoAffinitize = Configuration::GetKnobBooleanValue(W("System.GC.NoAffinitize"), 
+    iGCNoAffinitize = Configuration::GetKnobBooleanValue(W("System.GC.NoAffinitize"),
                                                          CLRConfig::EXTERNAL_GCNoAffinitize);
     iGCHeapCount = Configuration::GetKnobDWORDValue(W("System.GC.HeapCount"), CLRConfig::EXTERNAL_GCHeapCount);
 
@@ -908,7 +896,7 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
     iRequireZaps        = RequireZapsType(GetConfigDWORD_DontUse_(CLRConfig::EXTERNAL_ZapRequire, iRequireZaps));
     if (IsCompilationProcess() || iRequireZaps >= REQUIRE_ZAPS_COUNT)
         iRequireZaps = REQUIRE_ZAPS_NONE;
-    
+
     if (iRequireZaps != REQUIRE_ZAPS_NONE)
     {
         {
@@ -979,7 +967,7 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
         IfFailRet(CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_ZapBBInstrDir, &szZapBBInstrDir));
         g_IBCLogger.EnableAllInstr();
     }
-    else 
+    else
         g_IBCLogger.DisableAllInstr();
 
 
@@ -1015,15 +1003,11 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
     iJitOptimizeType      =  GetConfigDWORD_DontUse_(CLRConfig::EXTERNAL_JitOptimizeType, iJitOptimizeType);
     if (iJitOptimizeType > OPT_RANDOM)     iJitOptimizeType = OPT_DEFAULT;
 
-#ifdef FEATURE_REJIT
-    fAddRejitNops = (GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_AddRejitNops, fAddRejitNops) != 0);
-#endif
-
 #ifdef _TARGET_X86_
     fPInvokeRestoreEsp = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_Jit_NetFx40PInvokeStackResilience);
 #endif
 
-    
+
 #ifdef _DEBUG
     fDebuggable         = (GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_JitDebuggable,      fDebuggable)         != 0);
     fStressOn           = (GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_StressOn,           fStressOn)           != 0);
@@ -1036,11 +1020,11 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
 
     LPWSTR wszInvokeStuff = NULL;
     IfFailRet(CLRConfig::GetConfigValue(CLRConfig::INTERNAL_InvokeHalt, &wszInvokeStuff));
-    IfFailRet(ParseMethList(wszInvokeStuff, &pInvokeHalt));    
-    
+    IfFailRet(ParseMethList(wszInvokeStuff, &pInvokeHalt));
+
     IfFailRet(CLRConfig::GetConfigValue(CLRConfig::INTERNAL_PrestubGC, &wszPreStubStuff));
     IfFailRet(ParseMethList(wszPreStubStuff, &pPrestubGC));
-    
+
     IfFailRet(CLRConfig::GetConfigValue(CLRConfig::INTERNAL_BreakOnClassBuild, (LPWSTR*)&pszBreakOnClassBuild));
     pszBreakOnClassBuild = NarrowWideChar((LPWSTR)pszBreakOnClassBuild);
 
@@ -1054,17 +1038,17 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
     pszDumpOnClassLoad = NarrowWideChar((LPWSTR)pszDumpOnClassLoad);
 
     IfFailRet(CLRConfig::GetConfigValue(CLRConfig::INTERNAL_BreakOnInteropStubSetup, (LPWSTR*)&pszBreakOnInteropStubSetup));
-    pszBreakOnInteropStubSetup = NarrowWideChar((LPWSTR)pszBreakOnInteropStubSetup);    
+    pszBreakOnInteropStubSetup = NarrowWideChar((LPWSTR)pszBreakOnInteropStubSetup);
 
     IfFailRet(CLRConfig::GetConfigValue(CLRConfig::INTERNAL_BreakOnComToClrNativeInfoInit, (LPWSTR*)&pszBreakOnComToClrNativeInfoInit));
-    pszBreakOnComToClrNativeInfoInit = NarrowWideChar((LPWSTR)pszBreakOnComToClrNativeInfoInit);    
+    pszBreakOnComToClrNativeInfoInit = NarrowWideChar((LPWSTR)pszBreakOnComToClrNativeInfoInit);
 
     IfFailRet(CLRConfig::GetConfigValue(CLRConfig::INTERNAL_BreakOnStructMarshalSetup, (LPWSTR*)&pszBreakOnStructMarshalSetup));
-    pszBreakOnStructMarshalSetup = NarrowWideChar((LPWSTR)pszBreakOnStructMarshalSetup);    
+    pszBreakOnStructMarshalSetup = NarrowWideChar((LPWSTR)pszBreakOnStructMarshalSetup);
 
     m_fAssertOnBadImageFormat = (GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_AssertOnBadImageFormat, m_fAssertOnBadImageFormat) != 0);
     m_fAssertOnFailFast = (GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_AssertOnFailFast, m_fAssertOnFailFast) != 0);
-   
+
     fSuppressChecks = (GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_SuppressChecks, fSuppressChecks) != 0);
     CHECK::SetAssertEnforcement(!fSuppressChecks);
 
@@ -1073,7 +1057,7 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
 #ifdef ENABLE_CONTRACTS_IMPL
     Contract::SetUnconditionalContractEnforcement(!fConditionalContracts);
 #endif
-   
+
     fEnableFullDebug = (GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_EnableFullDebug, fEnableFullDebug) != 0);
 
     fVerifierOff    = (GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_VerifierOff, fVerifierOff) != 0);
@@ -1169,7 +1153,7 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
 
 #ifndef FEATURE_HIJACK
     // Platforms that do not support hijacking MUST support GC polling.
-    // Reject attempts by the user to configure the GC polling type as 
+    // Reject attempts by the user to configure the GC polling type as
     // GCPOLL_TYPE_HIJACK.
     _ASSERTE(EEConfig::GCPOLL_TYPE_HIJACK != iGCPollTypeOverride);
     if (EEConfig::GCPOLL_TYPE_HIJACK == iGCPollTypeOverride)
@@ -1180,7 +1164,7 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
     if (iGCPollTypeOverride < GCPOLL_TYPE_COUNT)
         iGCPollType = GCPollType(iGCPollTypeOverride);
 
-#if defined(_DEBUG) && defined(WIN64EXCEPTIONS)
+#if defined(_DEBUG) && defined(FEATURE_EH_FUNCLETS)
     fSuppressLockViolationsOnReentryFromOS = (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_SuppressLockViolationsOnReentryFromOS) != 0);
 #endif
 
@@ -1284,7 +1268,7 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
 //
 // #GetConfigValueCallback
 // Provides a way for code:CLRConfig to access configuration file values.
-// 
+//
 // static
 HRESULT EEConfig::GetConfigValueCallback(__in_z LPCWSTR pKey, __deref_out_opt LPCWSTR* pValue, BOOL systemOnly, BOOL applicationFirst)
 {
@@ -1292,15 +1276,15 @@ HRESULT EEConfig::GetConfigValueCallback(__in_z LPCWSTR pKey, __deref_out_opt LP
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(CheckPointer(pValue)); 
-        PRECONDITION(CheckPointer(pKey)); 
+        PRECONDITION(CheckPointer(pValue));
+        PRECONDITION(CheckPointer(pKey));
     } CONTRACT_END;
-    
+
     // Ensure that both options aren't set.
     _ASSERTE(!(systemOnly && applicationFirst));
 
     if(g_pConfig != NULL)
-    {        
+    {
         ConfigSearch direction = CONFIG_SYSTEM;
         if(systemOnly)
         {
@@ -1325,8 +1309,8 @@ HRESULT EEConfig::GetConfiguration_DontUse_(__in_z LPCWSTR pKey, ConfigSearch di
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(CheckPointer(pValue)); 
-        PRECONDITION(CheckPointer(pKey)); 
+        PRECONDITION(CheckPointer(pValue));
+        PRECONDITION(CheckPointer(pKey));
     } CONTRACT_END;
 
     Thread *pThread = GetThread();
@@ -1334,7 +1318,7 @@ HRESULT EEConfig::GetConfiguration_DontUse_(__in_z LPCWSTR pKey, ConfigSearch di
 
     *pValue = NULL;
     ConfigList::ConfigIter iter(&m_Configuration);
-    
+
     switch(direction) {
     case CONFIG_SYSTEMONLY:
     {
@@ -1383,7 +1367,7 @@ HRESULT EEConfig::GetConfiguration_DontUse_(__in_z LPCWSTR pKey, ConfigSearch di
     default:
         RETURN E_FAIL;
     }
-}        
+}
 
 bool EEConfig::RequireZap(LPCUTF8 assemblyName) const
 {
@@ -1442,10 +1426,10 @@ HRESULT EEConfig::ParseMethList(__in_z LPWSTR str, MethodNamesList** out) {
         INJECT_FAULT(return E_OUTOFMEMORY);
         PRECONDITION(CheckPointer(str, NULL_OK));
         PRECONDITION(CheckPointer(out));
-    } CONTRACTL_END;   
+    } CONTRACTL_END;
 
     HRESULT hr = S_OK;
-    
+
     *out = NULL;
 
         // we are now done with the string passed in
@@ -1458,7 +1442,7 @@ HRESULT EEConfig::ParseMethList(__in_z LPWSTR str, MethodNamesList** out) {
     {
         *out = new MethodNamesList(str);
     } EX_CATCH_HRESULT(hr);
-    
+
     delete [] str;
 
     return hr;
@@ -1527,7 +1511,7 @@ HRESULT EEConfig::ParseTypeList(__in_z LPWSTR str, TypeNamesList** out)
     } CONTRACTL_END;
 
     HRESULT hr = S_OK;
-    
+
     *out = NULL;
 
     if (str == NULL)
@@ -1541,7 +1525,7 @@ HRESULT EEConfig::ParseTypeList(__in_z LPWSTR str, TypeNamesList** out)
 
     newTypeNameList.SuppressRelease();
     *out = newTypeNameList;
-    
+
     return (*out != NULL)?S_OK:E_OUTOFMEMORY;
 }
 
@@ -1553,7 +1537,7 @@ void EEConfig::DestroyTypeList(TypeNamesList* list) {
         MODE_ANY;
         PRECONDITION(CheckPointer(list));
     } CONTRACTL_END;
-    
+
     if (list == 0)
         return;
     delete list;
@@ -1624,7 +1608,7 @@ HRESULT TypeNamesList::Init(__in_z LPCWSTR str)
                 NewHolder<TypeName> tn(new (nothrow) TypeName());
                 if (tn == NULL)
                     return E_OUTOFMEMORY;
-                
+
                 tn->typeName = new (nothrow) char[length + 1];
                 if (tn->typeName == NULL)
                     return E_OUTOFMEMORY;
@@ -1661,7 +1645,7 @@ HRESULT TypeNamesList::Init(__in_z LPCWSTR str)
         NewHolder<TypeName> tn(new (nothrow) TypeName());
         if (tn == NULL)
             return E_OUTOFMEMORY;
-        
+
         tn->typeName = new (nothrow) char[length + 1];
 
         if (tn->typeName == NULL)
@@ -1729,13 +1713,13 @@ bool TypeNamesList::IsInList(LPCUTF8 typeName)
 void EEConfig::SetLogCCWRefCountChangeEnabled(bool newVal)
 {
     LIMITED_METHOD_CONTRACT;
-    
-    // logically we want pszLogCCWRefCountChange != NULL to force bLogCCWRefCountChange to be true 
+
+    // logically we want pszLogCCWRefCountChange != NULL to force bLogCCWRefCountChange to be true
     bLogCCWRefCountChange = (newVal || pszLogCCWRefCountChange != NULL);
 }
 
 bool EEConfig::ShouldLogCCWRefCountChange(LPCUTF8 pszClassName, LPCUTF8 pszNamespace) const
-{ 
+{
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;

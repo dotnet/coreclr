@@ -50,7 +50,7 @@ FCIMPL5(FC_BOOL_RET, ArrayHelper::TrySZIndexOf, ArrayBase * array, UINT32 index,
 	_ASSERTE(array->GetNumComponents() >= index + count);
     *retVal = 0xdeadbeef;  // Initialize the return value.
     // value can be NULL, but of course, will not be in primitive arrays.
-    
+
     TypeHandle arrayTH = array->GetArrayElementTypeHandle();
     const CorElementType arrayElType = arrayTH.GetVerifierCorElementType();
     if (!CorTypeInfo::IsPrimitiveType_NoThrow(arrayElType))
@@ -64,7 +64,7 @@ FCIMPL5(FC_BOOL_RET, ArrayHelper::TrySZIndexOf, ArrayBase * array, UINT32 index,
     if (arrayTH != valueTH)
         FC_RETURN_BOOL(FALSE);
 
-    
+
     switch(arrayElType) {
     case ELEMENT_TYPE_I1:
     case ELEMENT_TYPE_U1:
@@ -75,22 +75,22 @@ FCIMPL5(FC_BOOL_RET, ArrayHelper::TrySZIndexOf, ArrayBase * array, UINT32 index,
     case ELEMENT_TYPE_I2:
     case ELEMENT_TYPE_U2:
     case ELEMENT_TYPE_CHAR:
-        *retVal = ArrayHelpers<U2>::IndexOf((U2*) array->GetDataPtr(), index, count, *(U2*)value->UnBox());		
+        *retVal = ArrayHelpers<U2>::IndexOf((U2*) array->GetDataPtr(), index, count, *(U2*)value->UnBox());
         break;
 
     case ELEMENT_TYPE_I4:
     case ELEMENT_TYPE_U4:
     case ELEMENT_TYPE_R4:
-    IN_WIN32(case ELEMENT_TYPE_I:)
-    IN_WIN32(case ELEMENT_TYPE_U:)
+    IN_TARGET_32BIT(case ELEMENT_TYPE_I:)
+    IN_TARGET_32BIT(case ELEMENT_TYPE_U:)
         *retVal = ArrayHelpers<U4>::IndexOf((U4*) array->GetDataPtr(), index, count, *(U4*)value->UnBox());
         break;
 
     case ELEMENT_TYPE_I8:
     case ELEMENT_TYPE_U8:
     case ELEMENT_TYPE_R8:
-    IN_WIN64(case ELEMENT_TYPE_I:)
-    IN_WIN64(case ELEMENT_TYPE_U:)
+    IN_TARGET_64BIT(case ELEMENT_TYPE_I:)
+    IN_TARGET_64BIT(case ELEMENT_TYPE_U:)
         *retVal = ArrayHelpers<U8>::IndexOf((U8*) array->GetDataPtr(), index, count, *(U8*)value->UnBox());
         break;
 
@@ -118,7 +118,7 @@ FCIMPL5(FC_BOOL_RET, ArrayHelper::TrySZLastIndexOf, ArrayBase * array, UINT32 in
     _ASSERTE(retVal != NULL);
     *retVal = 0xdeadbeef;  // Initialize the return value.
     // value can be NULL, but of course, will not be in primitive arrays.
-    
+
     TypeHandle arrayTH = array->GetArrayElementTypeHandle();
     const CorElementType arrayElType = arrayTH.GetVerifierCorElementType();
     if (!CorTypeInfo::IsPrimitiveType_NoThrow(arrayElType))
@@ -138,7 +138,7 @@ FCIMPL5(FC_BOOL_RET, ArrayHelper::TrySZLastIndexOf, ArrayBase * array, UINT32 in
     if (arrayTH != valueTH)
         FC_RETURN_BOOL(FALSE);
 
-    
+
     switch(arrayElType) {
     case ELEMENT_TYPE_I1:
     case ELEMENT_TYPE_U1:
@@ -155,16 +155,16 @@ FCIMPL5(FC_BOOL_RET, ArrayHelper::TrySZLastIndexOf, ArrayBase * array, UINT32 in
     case ELEMENT_TYPE_I4:
     case ELEMENT_TYPE_U4:
     case ELEMENT_TYPE_R4:
-    IN_WIN32(case ELEMENT_TYPE_I:)
-    IN_WIN32(case ELEMENT_TYPE_U:)
+    IN_TARGET_32BIT(case ELEMENT_TYPE_I:)
+    IN_TARGET_32BIT(case ELEMENT_TYPE_U:)
         *retVal = ArrayHelpers<U4>::LastIndexOf((U4*) array->GetDataPtr(), index, count, *(U4*)value->UnBox());
         break;
 
     case ELEMENT_TYPE_I8:
     case ELEMENT_TYPE_U8:
     case ELEMENT_TYPE_R8:
-    IN_WIN64(case ELEMENT_TYPE_I:)
-    IN_WIN64(case ELEMENT_TYPE_U:)
+    IN_TARGET_64BIT(case ELEMENT_TYPE_I:)
+    IN_TARGET_64BIT(case ELEMENT_TYPE_U:)
         *retVal = ArrayHelpers<U8>::LastIndexOf((U8*) array->GetDataPtr(), index, count, *(U8*)value->UnBox());
         break;
 
@@ -253,9 +253,9 @@ FCIMPL5(FC_BOOL_RET, ArrayHelper::TrySZBinarySearch, ArrayBase * array, UINT32 i
 
     case ELEMENT_TYPE_I:
     case ELEMENT_TYPE_U:
-        // In V1.0, IntPtr & UIntPtr are not fully supported types.  They do 
+        // In V1.0, IntPtr & UIntPtr are not fully supported types.  They do
         // not implement IComparable, so searching & sorting for them should
-        // fail.  In V1.1 or V2.0, this should change.  
+        // fail.  In V1.1 or V2.0, this should change.
         FC_RETURN_BOOL(FALSE);
 
     default:
@@ -321,13 +321,13 @@ FCIMPL4(FC_BOOL_RET, ArrayHelper::TrySZSort, ArrayBase * keys, ArrayBase * items
     case ELEMENT_TYPE_U4:
         ArrayHelpers<U4>::IntrospectiveSort((U4*) keys->GetDataPtr(), (U4*) (items == NULL ? NULL : items->GetDataPtr()), left, right);
         break;
-        
+
     case ELEMENT_TYPE_R4:
     {
         R4 * R4Keys = (R4*) keys->GetDataPtr();
         R4 * R4Items = (R4*) (items == NULL ? NULL : items->GetDataPtr());
 
-        // Comparison to NaN is always false, so do a linear pass 
+        // Comparison to NaN is always false, so do a linear pass
         // and swap all NaNs to the front of the array
         left = ArrayHelpers<R4>::NaNPrepass(R4Keys, R4Items, left, right);
         if(left != right) ArrayHelpers<R4>::IntrospectiveSort(R4Keys, R4Items, left, right);
@@ -347,7 +347,7 @@ FCIMPL4(FC_BOOL_RET, ArrayHelper::TrySZSort, ArrayBase * keys, ArrayBase * items
         R8 * R8Keys = (R8*) keys->GetDataPtr();
         R8 * R8Items = (R8*) (items == NULL ? NULL : items->GetDataPtr());
 
-        // Comparison to NaN is always false, so do a linear pass 
+        // Comparison to NaN is always false, so do a linear pass
         // and swap all NaNs to the front of the array
         left = ArrayHelpers<R8>::NaNPrepass(R8Keys, R8Items, left, right);
         if(left != right) ArrayHelpers<R8>::IntrospectiveSort(R8Keys, R8Items, left, right);
@@ -356,9 +356,9 @@ FCIMPL4(FC_BOOL_RET, ArrayHelper::TrySZSort, ArrayBase * keys, ArrayBase * items
 
     case ELEMENT_TYPE_I:
     case ELEMENT_TYPE_U:
-        // In V1.0, IntPtr & UIntPtr are not fully supported types.  They do 
+        // In V1.0, IntPtr & UIntPtr are not fully supported types.  They do
         // not implement IComparable, so searching & sorting for them should
-        // fail.  In V1.1 or V2.0, this should change.  
+        // fail.  In V1.1 or V2.0, this should change.
         FC_RETURN_BOOL(FALSE);
 
     default:
@@ -405,16 +405,16 @@ FCIMPL3(FC_BOOL_RET, ArrayHelper::TrySZReverse, ArrayBase * array, UINT32 index,
     case ELEMENT_TYPE_I4:
     case ELEMENT_TYPE_U4:
     case ELEMENT_TYPE_R4:
-    IN_WIN32(case ELEMENT_TYPE_I:)
-    IN_WIN32(case ELEMENT_TYPE_U:)
+    IN_TARGET_32BIT(case ELEMENT_TYPE_I:)
+    IN_TARGET_32BIT(case ELEMENT_TYPE_U:)
         ArrayHelpers<U4>::Reverse((U4*) array->GetDataPtr(), index, count);
         break;
 
     case ELEMENT_TYPE_I8:
     case ELEMENT_TYPE_U8:
     case ELEMENT_TYPE_R8:
-    IN_WIN64(case ELEMENT_TYPE_I:)
-    IN_WIN64(case ELEMENT_TYPE_U:)
+    IN_TARGET_64BIT(case ELEMENT_TYPE_I:)
+    IN_TARGET_64BIT(case ELEMENT_TYPE_U:)
         ArrayHelpers<U8>::Reverse((U8*) array->GetDataPtr(), index, count);
         break;
 

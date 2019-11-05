@@ -15,23 +15,9 @@
 #include "jitgcinfo.h"
 
 /*****************************************************************************/
-#ifdef TRANSLATE_PDB
-#ifndef _ADDRMAP_INCLUDED_
-#include "addrmap.h"
-#endif
-#ifndef _LOCALMAP_INCLUDED_
-#include "localmap.h"
-#endif
-#ifndef _PDBREWRITE_H_
-#include "pdbrewrite.h"
-#endif
-#endif // TRANSLATE_PDB
-
-/*****************************************************************************/
 #ifdef _MSC_VER
 #pragma warning(disable : 4200) // allow arrays of 0 size inside structs
 #endif
-#define TRACK_GC_TEMP_LIFETIMES 0
 
 /*****************************************************************************/
 
@@ -229,7 +215,7 @@ enum insGroupPlaceholderType : unsigned char
 {
     IGPT_PROLOG, // currently unused
     IGPT_EPILOG,
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     IGPT_FUNCLET_PROLOG,
     IGPT_FUNCLET_EPILOG,
 #endif // FEATURE_EH_FUNCLETS
@@ -262,6 +248,9 @@ struct insGroup
 #ifdef DEBUG
     insGroup* igSelf; // for consistency checking
 #endif
+#if defined(DEBUG) || defined(LATE_DISASM)
+    BasicBlock::weight_t igWeight; // the block weight used for this insGroup
+#endif
 
     UNATIVE_OFFSET igNum;     // for ordering (and display) purposes
     UNATIVE_OFFSET igOffs;    // offset of this group within method
@@ -271,31 +260,30 @@ struct insGroup
 
 #define IGF_GC_VARS 0x0001    // new set of live GC ref variables
 #define IGF_BYREF_REGS 0x0002 // new set of live by-ref registers
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
 #define IGF_FINALLY_TARGET 0x0004 // this group is the start of a basic block that is returned to after a finally.
-#endif                            // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif                            // defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
 #define IGF_FUNCLET_PROLOG 0x0008 // this group belongs to a funclet prolog
 #define IGF_FUNCLET_EPILOG 0x0010 // this group belongs to a funclet epilog.
 #define IGF_EPILOG 0x0020         // this group belongs to a main function epilog
 #define IGF_NOGCINTERRUPT 0x0040  // this IG is is a no-interrupt region (prolog, epilog, etc.)
 #define IGF_UPD_ISZ 0x0080        // some instruction sizes updated
 #define IGF_PLACEHOLDER 0x0100    // this is a placeholder group, to be filled in later
-#define IGF_EMIT_ADD 0x0200       // this is a block added by the emitter
-                                  // because the codegen block was too big. Also used for
-                                  // placeholder IGs that aren't also labels.
+#define IGF_EXTEND 0x0200         // this block is conceptually an extension of the previous block
+                                  // and the emitter should continue to track GC info as if there was no new block.
 
 // Mask of IGF_* flags that should be propagated to new blocks when they are created.
 // This allows prologs and epilogs to be any number of IGs, but still be
 // automatically marked properly.
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 #ifdef DEBUG
 #define IGF_PROPAGATE_MASK (IGF_EPILOG | IGF_FUNCLET_PROLOG | IGF_FUNCLET_EPILOG)
 #else // DEBUG
 #define IGF_PROPAGATE_MASK (IGF_EPILOG | IGF_FUNCLET_PROLOG)
 #endif // DEBUG
-#else  // FEATURE_EH_FUNCLETS
+#else  // !FEATURE_EH_FUNCLETS
 #define IGF_PROPAGATE_MASK (IGF_EPILOG)
-#endif // FEATURE_EH_FUNCLETS
+#endif // !FEATURE_EH_FUNCLETS
 
     // Try to do better packing based on how large regMaskSmall is (8, 16, or 64 bits).
     CLANG_FORMAT_COMMENT_ANCHOR;
@@ -490,7 +478,7 @@ protected:
         return (ig != nullptr) && ((ig->igFlags & IGF_EPILOG) != 0);
     }
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 
     bool emitIGisInFuncletProlog(const insGroup* ig)
     {
@@ -542,13 +530,10 @@ protected:
 
     struct instrDescDebugInfo
     {
-        unsigned idNum;
-        size_t   idSize;       // size of the instruction descriptor
-        unsigned idVarRefOffs; // IL offset for LclVar reference
-        size_t   idMemCookie;  // for display of method name  (also used by switch table)
-#ifdef TRANSLATE_PDB
-        unsigned int idilStart; // instruction descriptor source information for PDB translation
-#endif
+        unsigned          idNum;
+        size_t            idSize;        // size of the instruction descriptor
+        unsigned          idVarRefOffs;  // IL offset for LclVar reference
+        size_t            idMemCookie;   // for display of method name  (also used by switch table)
         bool              idFinallyCall; // Branch instruction is a call to finally
         bool              idCatchRet;    // Instruction is for a catch 'return'
         CORINFO_SIG_INFO* idCallSig;     // Used to report native call site signatures to the EE
@@ -1226,6 +1211,102 @@ protected:
         }
     }; // End of  struct instrDesc
 
+#if defined(_TARGET_XARCH_)
+    insFormat getMemoryOperation(instrDesc* id);
+#elif defined(_TARGET_ARM64_)
+    void getMemoryOperation(instrDesc* id, unsigned* pMemAccessKind, bool* pIsLocalAccess);
+#endif
+
+#if defined(DEBUG) || defined(LATE_DISASM)
+
+#define PERFSCORE_THROUGHPUT_ILLEGAL -1024.0f
+
+#define PERFSCORE_THROUGHPUT_4X 0.25f         // Fastest - Quad issue
+#define PERFSCORE_THROUGHPUT_3X (1.0f / 3.0f) // Faster - Three issue
+#define PERFSCORE_THROUGHPUT_2X 0.5f          // Faster - Dual issue
+
+#define PERFSCORE_THROUGHPUT_1C 1.0f // Single Issue
+
+#define PERFSCORE_THROUGHPUT_2C 2.0f   // slower - 2 cycles
+#define PERFSCORE_THROUGHPUT_3C 3.0f   // slower - 3 cycles
+#define PERFSCORE_THROUGHPUT_4C 4.0f   // slower - 4 cycles
+#define PERFSCORE_THROUGHPUT_5C 5.0f   // slower - 5 cycles
+#define PERFSCORE_THROUGHPUT_6C 6.0f   // slower - 6 cycles
+#define PERFSCORE_THROUGHPUT_10C 10.0f // slower - 10 cycles
+#define PERFSCORE_THROUGHPUT_13C 13.0f // slower - 13 cycles
+#define PERFSCORE_THROUGHPUT_25C 25.0f // slower - 25 cycles
+#define PERFSCORE_THROUGHPUT_52C 52.0f // slower - 52 cycles
+#define PERFSCORE_THROUGHPUT_57C 57.0f // slower - 57 cycles
+
+#define PERFSCORE_THROUGHPUT_DEFAULT PERFSCORE_THROUGHPUT_1C
+
+#define PERFSCORE_LATENCY_ILLEGAL -1024.0f
+
+#define PERFSCORE_LATENCY_DEFAULT 1.0f
+
+#define PERFSCORE_LATENCY_ZERO 0.0f
+#define PERFSCORE_LATENCY_1C 1.0f
+#define PERFSCORE_LATENCY_2C 2.0f
+#define PERFSCORE_LATENCY_3C 3.0f
+#define PERFSCORE_LATENCY_4C 4.0f
+#define PERFSCORE_LATENCY_5C 5.0f
+#define PERFSCORE_LATENCY_6C 6.0f
+#define PERFSCORE_LATENCY_7C 7.0f
+#define PERFSCORE_LATENCY_8C 8.0f
+#define PERFSCORE_LATENCY_11C 11.0f
+#define PERFSCORE_LATENCY_12C 12.0f
+#define PERFSCORE_LATENCY_13C 13.0f
+#define PERFSCORE_LATENCY_16C 16.0f
+#define PERFSCORE_LATENCY_23C 23.0f
+#define PERFSCORE_LATENCY_26C 26.0f
+#define PERFSCORE_LATENCY_62C 62.0f
+#define PERFSCORE_LATENCY_69C 69.0f
+
+#define PERFSCORE_LATENCY_BRANCH_DIRECT 1.0f   // cost of an unconditional branch
+#define PERFSCORE_LATENCY_BRANCH_COND 2.0f     // includes cost of a possible misprediction
+#define PERFSCORE_LATENCY_BRANCH_INDIRECT 2.0f // includes cost of a possible misprediction
+
+// a read,write or modify from stack location, possible def to use latency from L0 cache
+#define PERFSCORE_LATENCY_RD_STACK 2.0f
+#define PERFSCORE_LATENCY_WR_STACK 2.0f
+#define PERFSCORE_LATENCY_RD_WR_STACK 5.0f
+
+// a read, write or modify from constant location, possible def to use latency from L0 cache
+#define PERFSCORE_LATENCY_RD_CONST_ADDR 2.0f
+#define PERFSCORE_LATENCY_WR_CONST_ADDR 2.0f
+#define PERFSCORE_LATENCY_RD_WR_CONST_ADDR 5.0f
+
+// a read, write or modify from memory location, possible def to use latency from L0 or L1 cache
+// plus an extra cost  (of 1.0) for a increased chance  of a cache miss
+#define PERFSCORE_LATENCY_RD_GENERAL 3.0f
+#define PERFSCORE_LATENCY_WR_GENERAL 3.0f
+#define PERFSCORE_LATENCY_RD_WR_GENERAL 6.0f
+
+#define PERFSCORE_MEMORY_NONE 0
+#define PERFSCORE_MEMORY_READ 1
+#define PERFSCORE_MEMORY_WRITE 2
+#define PERFSCORE_MEMORY_READ_WRITE 3
+
+#define PERFSCORE_CODESIZE_COST_HOT 0.10f
+#define PERFSCORE_CODESIZE_COST_COLD 0.01f
+
+#define PERFSCORE_CALLEE_SPILL_COST                                                                                    \
+    0.75f // heuristicly derived - actual cost is one push and one pop, in the prolog/epilog
+
+    struct insExecutionCharacteristics
+    {
+        float    insThroughput;
+        float    insLatency;
+        unsigned insMemoryAccessKind;
+    };
+
+    insExecutionCharacteristics getInsExecutionCharacteristics(instrDesc* id);
+    float insEvaluateExecutionCost(instrDesc* id);
+
+#endif // defined(DEBUG) || defined(LATE_DISASM)
+
+    BasicBlock::weight_t getCurrentBlockWeight();
+
     void dispIns(instrDesc* id);
 
     void appendToCurIG(instrDesc* id);
@@ -1444,7 +1525,7 @@ public:
     void emitBegFnEpilog(insGroup* igPh);
     void emitEndFnEpilog();
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 
     void emitBegFuncletProlog(insGroup* igPh);
     void emitEndFuncletProlog();
@@ -1453,36 +1534,6 @@ public:
     void emitEndFuncletEpilog();
 
 #endif // FEATURE_EH_FUNCLETS
-
-/************************************************************************/
-/*           Members and methods used in PDB translation                */
-/************************************************************************/
-
-#ifdef TRANSLATE_PDB
-
-    void MapCode(int ilOffset, BYTE* imgDest);
-    void MapFunc(int                imgOff,
-                 int                procLen,
-                 int                dbgStart,
-                 int                dbgEnd,
-                 short              frameReg,
-                 int                stkAdjust,
-                 int                lvaCount,
-                 OptJit::LclVarDsc* lvaTable,
-                 bool               framePtr);
-
-private:
-    int              emitInstrDescILBase; // code offset of IL that produced this instruction desctriptor
-    int              emitInstrDescILBase; // code offset of IL that produced this instruction desctriptor
-    static AddrMap*  emitPDBOffsetTable;  // translation table for mapping IL addresses to native addresses
-    static LocalMap* emitPDBLocalTable;   // local symbol translation table
-    static bool      emitIsPDBEnabled;    // flag to disable PDB translation code when a PDB is not found
-    static BYTE*     emitILBaseOfCode;    // start of IL .text section
-    static BYTE*     emitILMethodBase;    // beginning of IL method (start of header)
-    static BYTE*     emitILMethodStart;   // beginning of IL method code (right after the header)
-    static BYTE*     emitImgBaseOfCode;   // start of the image .text section
-
-#endif
 
     /************************************************************************/
     /*    Methods to record a code position and later convert to offset     */
@@ -1739,7 +1790,7 @@ private:
 
     void emitGenIG(insGroup* ig);
     insGroup* emitSavIG(bool emitAdd = false);
-    void emitNxtIG(bool emitAdd = false);
+    void emitNxtIG(bool extend = false);
 
     bool emitCurIGnonEmpty()
     {
@@ -1758,6 +1809,10 @@ private:
     // and registers.  The "isFinallyTarget" parameter indicates that the current location is
     // the start of a basic block that is returned to after a finally clause in non-exceptional execution.
     void* emitAddLabel(VARSET_VALARG_TP GCvars, regMaskTP gcrefRegs, regMaskTP byrefRegs, BOOL isFinallyTarget = FALSE);
+    // Same as above, except the label is added and is conceptually "inline" in
+    // the current block. Thus it extends the previous block and the emitter
+    // continues to track GC info as if there was no label.
+    void* emitAddInlineLabel();
 
 #ifdef _TARGET_ARMARCH_
 
@@ -2157,8 +2212,8 @@ public:
     static unsigned emitTotalPhIGcnt; // total number of insPlaceholderGroupData allocated
     static unsigned emitTotalIGicnt;
     static size_t   emitTotalIGsize;
-    static unsigned emitTotalIGmcnt;    // total method count
-    static unsigned emitTotalIGEmitAdd; // total number of 'emitAdd' (overflow) groups
+    static unsigned emitTotalIGmcnt;   // total method count
+    static unsigned emitTotalIGExtend; // total number of 'emitExtend' (typically overflow) groups
     static unsigned emitTotalIGjmps;
     static unsigned emitTotalIGptrs;
 

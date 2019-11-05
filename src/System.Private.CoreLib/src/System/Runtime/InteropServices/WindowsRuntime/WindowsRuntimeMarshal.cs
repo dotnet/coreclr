@@ -118,7 +118,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         //
         internal struct EventRegistrationTokenList
         {
-            private EventRegistrationToken firstToken;     // Optimization for common case where there is only one token
+            private readonly EventRegistrationToken firstToken;     // Optimization for common case where there is only one token
             private List<EventRegistrationToken>? restTokens;     // Rest of the tokens
 
             internal EventRegistrationTokenList(EventRegistrationToken token)
@@ -200,7 +200,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             //     If the delegates aren't alive, it means either they have been unsubscribed, or the object itself is gone,
             //     and in either case, they've been already taken care of.
             //
-            internal volatile static
+            internal static volatile
                 ConditionalWeakTable<object, Dictionary<MethodInfo, Dictionary<object, EventRegistrationTokenList>>> s_eventRegistrations =
                     new ConditionalWeakTable<object, Dictionary<MethodInfo, Dictionary<object, EventRegistrationTokenList>>>();
 
@@ -363,7 +363,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
                 public bool Equals(EventCacheKey other)
                 {
-                    return (object.Equals(target, other.target) && object.Equals(method, other.method));
+                    return object.Equals(target, other.target) && object.Equals(method, other.method);
                 }
 
                 public int GetHashCode(EventCacheKey key)
@@ -384,7 +384,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             //
             internal class EventRegistrationTokenListWithCount
             {
-                private TokenListCount _tokenListCount;
+                private readonly TokenListCount _tokenListCount;
                 private EventRegistrationTokenList _tokenList;
 
                 internal EventRegistrationTokenListWithCount(TokenListCount tokenListCount, EventRegistrationToken token)
@@ -440,10 +440,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                     _key = key;
                 }
 
-                internal EventCacheKey Key
-                {
-                    get { return _key; }
-                }
+                internal EventCacheKey Key => _key;
 
                 internal void Inc()
                 {
@@ -475,7 +472,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                     // because the total token list count has dropped to 0 and we don't have any events subscribed
                     Debug.Assert(s_eventRegistrations != null);
 
-                    Log("[WinRT_Eventing] Removing " + _key + " from cache" + "\n");
+                    Log("[WinRT_Eventing] Removing " + _key + " from cache\n");
                     s_eventRegistrations.Remove(_key);
                     Log("[WinRT_Eventing] s_eventRegistrations size = " + s_eventRegistrations.Count + "\n");
                 }
@@ -513,11 +510,11 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             //   b. The same delegate is subscribed then unsubscribed. We need to make sure give
             //   them the latest token in this case. This is guaranteed by always giving the last token and always use equality to
             //   add/remove event handlers
-            internal volatile static Dictionary<EventCacheKey, EventCacheEntry> s_eventRegistrations =
+            internal static volatile Dictionary<EventCacheKey, EventCacheEntry> s_eventRegistrations =
                 new Dictionary<EventCacheKey, EventCacheEntry>();
 
             // Prevent add/remove handler code to run at the same with with cache cleanup code
-            private volatile static MyReaderWriterLock s_eventCacheRWLock = new MyReaderWriterLock();
+            private static readonly MyReaderWriterLock s_eventCacheRWLock = new MyReaderWriterLock();
 
             // Get InstanceKey to use in the cache
             private static object GetInstanceKey(Action<EventRegistrationToken> removeMethod)
@@ -622,7 +619,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                         removeMethod(token);
                     }
 
-
                     throw;
                 }
             }
@@ -666,7 +662,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                             return null;
                         }
 
-                        Log("[WinRT_Eventing] Adding (" + instance + "," + removeMethod.Method + ") into cache" + "\n");
+                        Log("[WinRT_Eventing] Adding (" + instance + "," + removeMethod.Method + ") into cache\n");
 
                         eventCacheEntry = new EventCacheEntry();
                         eventCacheEntry.registrationTable = new ConditionalWeakTable<object, EventRegistrationTokenListWithCount>();
@@ -808,7 +804,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 Log("[WinRT_Eventing] Finished removing all events for instance = " + instanceKey + "\n");
             }
 
-
             internal class ReaderWriterLockTimedOutException : ApplicationException
             {
             }
@@ -852,7 +847,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 internal void AcquireReaderLock(int millisecondsTimeout)
                 {
                     EnterMyLock();
-                    for (;;)
+                    while (true)
                     {
                         // We can enter a read lock if there are only read-locks have been given out
                         // and a writer is not trying to get in.
@@ -878,7 +873,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 internal void AcquireWriterLock(int millisecondsTimeout)
                 {
                     EnterMyLock();
-                    for (;;)
+                    while (true)
                     {
                         if (owners == 0)
                         {
@@ -1013,7 +1008,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                     Debug.Assert(myLock != 0, "Exiting spin lock that is not held");
                     myLock = 0;
                 }
-            };
+            }
         }
 
         //
@@ -1051,17 +1046,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 return string.Empty;
             }
 
-            unsafe
-            {
-                uint length;
-                char* rawBuffer = UnsafeNativeMethods.WindowsGetStringRawBuffer(hstring, &length);
-                return new string(rawBuffer, 0, checked((int)length));
-            }
+            uint length;
+            char* rawBuffer = UnsafeNativeMethods.WindowsGetStringRawBuffer(hstring, &length);
+            return new string(rawBuffer, 0, checked((int)length));
         }
 
         internal static Exception GetExceptionForHR(int hresult, Exception? innerException, string? messageResource)
         {
-            Exception? e = null;
+            Exception? e;
             if (innerException != null)
             {
                 string? message = innerException.Message;
@@ -1073,7 +1065,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             else
             {
-                string? message = (messageResource != null ? SR.GetResourceString(messageResource): null);
+                string? message = messageResource != null ? SR.GetResourceString(messageResource) : null;
                 e = new Exception(message);
             }
 
@@ -1208,7 +1200,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             return activationFactory;
         }
 
-
 #endif // FEATURE_COMINTEROP_WINRT_MANAGED_ACTIVATION
 
         //
@@ -1283,10 +1274,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern object GetUniqueObjectForIUnknownWithoutUnboxing(IntPtr unknown);
-        
+
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void InitializeWrapper(object o, ref IntPtr pUnk);
-        
+
         /// <summary>
         /// Converts the CLR exception to an HRESULT. This function also sets
         /// up an IErrorInfo for the exception.
@@ -1296,7 +1287,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int GetHRForException(Exception e);
 
-        
 #if FEATURE_COMINTEROP_WINRT_MANAGED_ACTIVATION
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void InitializeManagedWinRTFactoryObject(object o, RuntimeType runtimeClassType);

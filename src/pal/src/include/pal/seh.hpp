@@ -42,7 +42,7 @@ Return value:
     FALSE otherwise
 
 --*/
-BOOL 
+BOOL
 SEHInitialize(CorUnix::CPalThread *pthrCurrent, DWORD flags);
 
 /*++
@@ -56,7 +56,7 @@ Parameters:
 
     (no return value)
 --*/
-VOID 
+VOID
 SEHCleanup();
 
 /*++
@@ -69,12 +69,12 @@ Parameters:
     PAL_SEHException* exception
 
 Return value:
-    Returns TRUE if the exception happened in managed code and the execution should 
+    Returns TRUE if the exception happened in managed code and the execution should
     continue (with possibly modified context).
     Returns FALSE if the exception happened in managed code and it was not handled.
     In case the exception was handled by calling a catch handler, it doesn't return at all.
 --*/
-BOOL 
+BOOL
 SEHProcessException(PAL_SEHException* exception);
 
 /*++
@@ -94,59 +94,26 @@ AllocateExceptionRecords(EXCEPTION_RECORD** exceptionRecord, CONTEXT** contextRe
 Function :
     SEHHandleControlEvent
 
-    handle Control-C and Control-Break events (call handler routines, 
+    handle Control-C and Control-Break events (call handler routines,
     notify debugger)
 
 Parameters :
     DWORD event : event that occurred
-    LPVOID eip  : instruction pointer when exception occurred                                 
+    LPVOID eip  : instruction pointer when exception occurred
 
 (no return value)
 
 Notes :
-    Handlers are called on a last-installed, first called basis, until a 
-    handler returns TRUE. If no handler returns TRUE (or no hanlder is 
+    Handlers are called on a last-installed, first called basis, until a
+    handler returns TRUE. If no handler returns TRUE (or no hanlder is
     installed), the default behavior is to call ExitProcess
 --*/
 void SEHHandleControlEvent(DWORD event, LPVOID eip);
 #endif // !HAVE_MACH_EXCEPTIONS
 
-#if !HAVE_MACH_EXCEPTIONS
-/*++
-Function :
-    SEHSetSafeState
-
-    specify whether the current thread is in a state where exception handling 
-    of signals can be done safely
-
-Parameters:
-    CPalThread * pthrCurrent : reference to the current thread.
-    BOOL state : TRUE if the thread is safe, FALSE otherwise
-
-(no return value)
---*/
-void SEHSetSafeState(CorUnix::CPalThread *pthrCurrent, BOOL state);
-
-/*++
-Function :
-    SEHGetSafeState
-
-    determine whether the current thread is in a state where exception handling 
-    of signals can be done safely
-
-Parameters:
-    CPalThread * pthrCurrent : reference to the current thread.
-
-Return value :
-    TRUE if the thread is in a safe state, FALSE otherwise
---*/
-BOOL SEHGetSafeState(CorUnix::CPalThread *pthrCurrent);
-#endif // !HAVE_MACH_EXCEPTIONS
-
 extern "C"
 {
 
-#ifdef FEATURE_PAL_SXS
 /*++
 Function :
     SEHEnable
@@ -176,8 +143,6 @@ Return value :
     an error code, otherwise
 --*/
 CorUnix::PAL_ERROR SEHDisable(CorUnix::CPalThread *pthrCurrent);
-
-#endif // FEATURE_PAL_SXS
 
 }
 

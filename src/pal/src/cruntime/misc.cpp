@@ -48,12 +48,12 @@ Function:
 
 See MSDN doc.
 --*/
-char * 
-__cdecl 
+char *
+__cdecl
 _gcvt_s( char * buffer, int iSize, double value, int digits )
 {
     PERF_ENTRY(_gcvt);
-    ENTRY( "_gcvt( value:%f digits=%d, buffer=%p )\n", value, digits, buffer );    
+    ENTRY( "_gcvt( value:%f digits=%d, buffer=%p )\n", value, digits, buffer );
 
     if ( !buffer )
     {
@@ -69,20 +69,20 @@ _gcvt_s( char * buffer, int iSize, double value, int digits )
     case 15 :
         /* Fall through */
     case 17 :
-        
+
         sprintf_s( buffer, iSize, "%.*g", digits, value );
         break;
-    
+
     default :
         ASSERT( "Only the digits 7, 8, 15, and 17 are valid.\n" );
         *buffer = '\0';
     }
-    
+
     LOGEXIT( "_gcvt returns %p (%s)\n", buffer , buffer );
     PERF_EXIT(_gcvt);
     return buffer;
 }
-    
+
 
 /*++
 Function :
@@ -92,7 +92,7 @@ Function :
 See MSDN for more details.
 --*/
 int
-__cdecl 
+__cdecl
 __iscsym( int c )
 {
     PERF_ENTRY(__iscsym);
@@ -116,7 +116,7 @@ __iscsym( int c )
 Function :
 
     PAL_errno
-    
+
     Returns the address of the errno.
 
 --*/
@@ -131,40 +131,6 @@ int * __cdecl PAL_errno( int caller )
     return retval;
 }
 
-/*++
-Function:
-
-    mktime
-
-See MSDN for more details.
---*/
-PAL_time_t 
-__cdecl
-PAL_mktime(struct PAL_tm *tm)
-{
-    time_t result;
-    struct tm tmpTm;
-
-    PERF_ENTRY(mktime);
-    ENTRY( "mktime( tm=%p )\n",tm );
-
-    /*copy the value of Windows struct into BSD struct*/
-    tmpTm.tm_sec = tm->tm_sec;
-    tmpTm.tm_min = tm->tm_min;
-    tmpTm.tm_hour = tm->tm_hour;
-    tmpTm.tm_mday = tm->tm_mday;
-    tmpTm.tm_mon  = tm->tm_mon;
-    tmpTm.tm_year = tm->tm_year;
-    tmpTm.tm_wday = tm->tm_wday;
-    tmpTm.tm_yday = tm->tm_yday;
-    tmpTm.tm_isdst = tm->tm_isdst;
-
-    result = mktime(&tmpTm);
-
-    LOGEXIT( "mktime returned %#lx\n",result );
-    PERF_EXIT(mktime);
-    return result;
-}
 
 /*++
 Function:
@@ -176,7 +142,7 @@ Function:
 See MSDN for more details.
 --*/
 int
-__cdecl 
+__cdecl
 PAL_rand(void)
 {
     int ret;
@@ -214,16 +180,16 @@ PAL_time(PAL_time_t *tloc)
     return result;
 }
 
-PALIMPORT 
-void __cdecl 
-PAL_qsort(void *base, size_t nmemb, size_t size, 
+PALIMPORT
+void __cdecl
+PAL_qsort(void *base, size_t nmemb, size_t size,
           int (__cdecl *compar )(const void *, const void *))
 {
     PERF_ENTRY(qsort);
     ENTRY("qsort(base=%p, nmemb=%lu, size=%lu, compar=%p\n",
           base,(unsigned long) nmemb,(unsigned long) size, compar);
 
-/* reset ENTRY nesting level back to zero, qsort will invoke app-defined 
+/* reset ENTRY nesting level back to zero, qsort will invoke app-defined
    callbacks and we want their entry traces... */
 #if _ENABLE_DEBUG_MESSAGES_
 {
@@ -243,18 +209,18 @@ PAL_qsort(void *base, size_t nmemb, size_t size,
     PERF_EXIT(qsort);
 }
 
-PALIMPORT 
-void * __cdecl 
+PALIMPORT
+void * __cdecl
 PAL_bsearch(const void *key, const void *base, size_t nmemb, size_t size,
             int (__cdecl *compar)(const void *, const void *))
 {
     void *retval;
 
     PERF_ENTRY(bsearch);
-    ENTRY("bsearch(key=%p, base=%p, nmemb=%lu, size=%lu, compar=%p\n", 
+    ENTRY("bsearch(key=%p, base=%p, nmemb=%lu, size=%lu, compar=%p\n",
           key, base, (unsigned long) nmemb, (unsigned long) size, compar);
 
-/* reset ENTRY nesting level back to zero, bsearch will invoke app-defined 
+/* reset ENTRY nesting level back to zero, bsearch will invoke app-defined
    callbacks and we want their entry traces... */
 #if _ENABLE_DEBUG_MESSAGES_
 {
@@ -275,7 +241,7 @@ PAL_bsearch(const void *key, const void *base, size_t nmemb, size_t size,
     return retval;
 }
 
-#ifdef _AMD64_ 
+#ifdef _AMD64_
 
 PALIMPORT
 unsigned int PAL__mm_getcsr(void)
@@ -289,7 +255,7 @@ void PAL__mm_setcsr(unsigned int i)
     _mm_setcsr(i);
 }
 
-#endif // _AMD64_ 
+#endif // _AMD64_
 
 /*++
 Function:
@@ -304,7 +270,7 @@ void *PAL_memcpy (void *dest, const void *src, size_t count)
 {
     UINT_PTR x = (UINT_PTR)dest, y = (UINT_PTR)src;
     _ASSERTE((x + count <= y) || (y + count <= x));
-    
+
     void *ret;
     #undef memcpy
     ret = memcpy(dest, src, count);

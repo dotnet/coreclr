@@ -179,21 +179,21 @@ extern "C" {
 // LLP64 => longs = 32 bits, long long = 64 bits)
 //
 // To handle this difference, we #define long to be int (and thus 32 bits) when
-// compiling those files.  (See the bottom of this file or search for 
-// #define long to see where we do this.)  
+// compiling those files.  (See the bottom of this file or search for
+// #define long to see where we do this.)
 //
-// But this fix is more complicated than it seems, because we also use the 
+// But this fix is more complicated than it seems, because we also use the
 // preprocessor to #define __int64 to long for LP64 architectures (__int64
-// isn't a builtin in gcc).   We don't want __int64 to be an int (by cascading 
-// macro rules).  So we play this little trick below where we add 
-// __cppmungestrip before "long", which is what we're really #defining __int64 
-// to.  The preprocessor sees __cppmungestriplong as something different than 
-// long, so it doesn't replace it with int.  The during the cppmunge phase, we 
+// isn't a builtin in gcc).   We don't want __int64 to be an int (by cascading
+// macro rules).  So we play this little trick below where we add
+// __cppmungestrip before "long", which is what we're really #defining __int64
+// to.  The preprocessor sees __cppmungestriplong as something different than
+// long, so it doesn't replace it with int.  The during the cppmunge phase, we
 // remove the __cppmungestrip part, leaving long for the compiler to see.
 //
-// Note that we can't just use a typedef to define __int64 as long before 
-// #defining long because typedefed types can't be signedness-agnostic (i.e. 
-// they must be either signed or unsigned) and we want to be able to use 
+// Note that we can't just use a typedef to define __int64 as long before
+// #defining long because typedefed types can't be signedness-agnostic (i.e.
+// they must be either signed or unsigned) and we want to be able to use
 // __int64 as though it were intrinsic
 
 #ifdef BIT64
@@ -229,7 +229,7 @@ typedef unsigned __int8 uint8_t;
 
 #ifndef _MSC_VER
 
-#if _WIN64
+#if BIT64
 typedef long double LONG_DOUBLE;
 #endif
 
@@ -587,14 +587,11 @@ typedef LONG_PTR LPARAM;
 #define _PTRDIFF_T
 #endif
 
-#ifdef PAL_STDCPP_COMPAT
-
 typedef char16_t WCHAR;
 
-#else // PAL_STDCPP_COMPAT
+#ifndef PAL_STDCPP_COMPAT
 
-typedef wchar_t WCHAR;
-#if defined(__linux__) 
+#if defined(__linux__)
 #ifdef BIT64
 typedef long int intptr_t;
 typedef unsigned long int uintptr_t;
@@ -700,13 +697,6 @@ typedef struct _FILETIME {
 
 /* Code Page Default Values */
 #define CP_ACP          0   /* default to ANSI code page */
-#define CP_OEMCP        1   /* default to OEM code page */
-#define CP_MACCP        2   /* default to MAC code page */
-#define CP_THREAD_ACP   3   /* current thread's ANSI code page */
-#define CP_WINUNICODE   1200
-#define CP_UNICODE      1200 /* Unicode */
-#define CP_UNICODESWAP  1201 /* Unicode Big-Endian */
-#define CP_UTF7     65000   /* UTF-7 translation */
 #define CP_UTF8     65001   /* UTF-8 translation */
 
 typedef PVOID PSID;

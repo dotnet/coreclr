@@ -33,9 +33,9 @@ set ghprbCommentBody=
 ::      __BuildType         -- default: Debug
 ::      __BuildOS           -- default: Windows_NT
 ::      __ProjectDir        -- default: directory of the dir.props file
+::      __RepoRootDir       -- default: directory two levels above the dir.props file
 ::      __SourceDir         -- default: %__ProjectDir%\src\
-::      __PackagesDir       -- default: %__ProjectDir%\.packages\
-::      __RootBinDir        -- default: %__ProjectDir%\bin\
+::      __RootBinDir        -- default: %__ProjectDir%\artifacts\
 ::      __BinDir            -- default: %__RootBinDir%\%__BuildOS%.%__BuildArch.%__BuildType%\
 ::      __IntermediatesDir
 ::      __PackagesBinDir    -- default: %__BinDir%\.nuget
@@ -51,10 +51,13 @@ set __BuildOS=Windows_NT
 set "__ProjectDir=%~dp0"
 :: remove trailing slash
 if %__ProjectDir:~-1%==\ set "__ProjectDir=%__ProjectDir:~0,-1%"
+set "__RepoRootDir=%__ProjectDir%\..\.."
+
+rem Remove after repo consolidation
+if not exist "%__RepoRootDir%\.dotnet-runtime-placeholder" ( set "__RepoRootDir=!__ProjectDir!" )
+
 set "__ProjectFilesDir=%__ProjectDir%"
 set "__SourceDir=%__ProjectDir%\src"
-set "__PackagesDir=%DotNetRestorePackagesPath%"
-if [%__PackagesDir%]==[] set "__PackagesDir=%__ProjectDir%\.packages"
 set "__RootBinDir=%__ProjectDir%\bin"
 set "__LogsDir=%__RootBinDir%\Logs"
 set "__MsbuildDebugLogsDir=%__LogsDir%\MsbuildDebugLogs"
@@ -101,9 +104,9 @@ set __CrossgenAltJit=
 set __SkipRestoreArg=/p:RestoreDuringBuild=true
 set __OfficialBuildIdArg=
 set __CrossArch=
-set __PgoOptDataVersion=
-set __IbcOptDataVersion=
-set __IbcMergeVersion=
+set __PgoOptDataPath=
+set __IbcOptDataPath=
+set __IbcMergePath=
 
 @REM CMD has a nasty habit of eating "=" on the argument list, so passing:
 @REM    -priority=1
@@ -131,6 +134,8 @@ if /i "%1" == "-arm64"               (set __BuildArchArm64=1&set processedArgs=!
 if /i "%1" == "-debug"               (set __BuildTypeDebug=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "-checked"             (set __BuildTypeChecked=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "-release"             (set __BuildTypeRelease=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+
+if /i "%1" == "-ci"                  (set __ArcadeScriptArgs="-ci"&set __ErrMsgPrefix=##vso[task.logissue type=error]&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 
 REM TODO these are deprecated remove them eventually
 REM don't add more, use the - syntax instead
@@ -295,11 +300,15 @@ if %__SkipCrossArchNative% EQU 0 (
 
 REM Set the remaining variables based upon the determined build configuration
 
-if %__PgoOptimize%==0 set __RestoreOptData=0
-if /i %__BuildType% NEQ Release set __RestoreOptData=0
+if %__PgoOptimize%==0 (
+    if %__IbcOptimize% == 0 (
+        set __RestoreOptData=0
+    )
+)
 
 set "__BinDir=%__RootBinDir%\Product\%__BuildOS%.%__BuildArch%.%__BuildType%"
 set "__IntermediatesDir=%__RootBinDir%\obj\%__BuildOS%.%__BuildArch%.%__BuildType%"
+set "__ArtifactsIntermediatesDir=%__ProjectDir%\artifacts\obj\"
 if "%__NMakeMakefiles%"=="1" (set "__IntermediatesDir=%__RootBinDir%\nmakeobj\%__BuildOS%.%__BuildArch%.%__BuildType%")
 set "__PackagesBinDir=%__BinDir%\.nuget"
 set "__CrossComponentBinDir=%__BinDir%"
@@ -318,6 +327,9 @@ if not exist "%__BinDir%"              md "%__BinDir%"
 if not exist "%__IntermediatesDir%"    md "%__IntermediatesDir%"
 if not exist "%__LogsDir%"             md "%__LogsDir%"
 if not exist "%__MsbuildDebugLogsDir%" md "%__MsbuildDebugLogsDir%"
+
+if not exist "%__RootBinDir%\Directory.Build.props" copy %__ProjectDir%\EmptyProps.props %__RootBinDir%\Directory.Build.props
+if not exist "%__RootBinDir%\Directory.Build.targets" copy %__ProjectDir%\EmptyProps.props %__RootBinDir%\Directory.Build.targets
 
 REM Set up the directory for MSBuild debug logs.
 set MSBUILDDEBUGPATH=%__MsbuildDebugLogsDir%
@@ -361,12 +373,12 @@ REM ============================================================================
 
 @if defined _echo @echo on
 
-powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__ProjectDir%\eng\common\msbuild.ps1"^
+powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__RepoRootDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
     %__ProjectDir%\eng\empty.csproj /p:NativeVersionFile="%__RootBinDir%\obj\_version.h"^
-    /p:ArcadeBuild=true /t:GenerateNativeVersionFile /restore^
+    /t:GenerateNativeVersionFile /restore^
     %__CommonMSBuildArgs% %__UnprocessedBuildArgs%
 if not !errorlevel! == 0 (
-    echo %__MsgPrefix%Error: Failed to generate version headers.
+    echo %__ErrMsgPrefix%%__MsgPrefix%Error: Failed to generate version headers.
     exit /b !errorlevel!
 )
 
@@ -379,46 +391,47 @@ REM ============================================================================
 set OptDataProjectFilePath=%__ProjectDir%\src\.nuget\optdata\optdata.csproj
 if %__RestoreOptData% EQU 1 (
     echo %__MsgPrefix%Restoring the OptimizationData Package
-    call %__ProjectDir%\dotnet.cmd restore /nologo /verbosity:minimal^
-      /nodeReuse:false /maxcpucount^
-      %OptDataProjectFilePath%^
-      %__CommonMSBuildArgs% %__UnprocessedBuildArgs%
+    powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__RepoRootDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
+        %OptDataProjectFilePath% /t:Restore^
+        %__CommonMSBuildArgs% %__UnprocessedBuildArgs%
     if not !errorlevel! == 0 (
-        echo %__MsgPrefix%Error: Failed to restore the optimization data package.
-        exit /b 1
+        echo %__ErrMsgPrefix%%__MsgPrefix%Error: Failed to restore the optimization data package.
+        exit /b !errorlevel!
     )
 )
 
-set PgoDataPackageVersionOutputFile="%__IntermediatesDir%\optdataversion.txt"
-set IbcDataPackageVersionOutputFile="%__IntermediatesDir%\ibcoptdataversion.txt"
+set PgoDataPackagePathOutputFile="%__IntermediatesDir%\optdatapath.txt"
+set IbcDataPackagePathOutputFile="%__IntermediatesDir%\ibcoptdatapath.txt"
 
 REM Parse the optdata package versions out of msbuild so that we can pass them on to CMake
-call "%__ProjectDir%\dotnet.cmd" msbuild "%OptDataProjectFilePath%" /t:DumpPgoDataPackageVersion /nologo %__CommonMSBuildArgs% /p:PgoDataPackageVersionOutputFile="!PgoDataPackageVersionOutputFile!"
+powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__RepoRootDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
+    "%OptDataProjectFilePath%" /t:DumpPgoDataPackagePath %__CommonMSBuildArgs% /p:PgoDataPackagePathOutputFile="!PgoDataPackagePathOutputFile!"
 
  if not !errorlevel! == 0 (
-    echo "Failed to get PGO data package version."
+    echo %__ErrMsgPrefix%Failed to get PGO data package path.
     exit /b !errorlevel!
 )
-if not exist "!PgoDataPackageVersionOutputFile!" (
-    echo "Failed to get PGO data package version."
+if not exist "!PgoDataPackagePathOutputFile!" (
+    echo %__ErrMsgPrefix%Failed to get PGO data package path.
     exit /b 1
 )
 
-set /p __PgoOptDataVersion=<"!PgoDataPackageVersionOutputFile!"
+set /p __PgoOptDataPath=<"!PgoDataPackagePathOutputFile!"
 
-call "%__ProjectDir%\dotnet.cmd" msbuild "%OptDataProjectFilePath%" /t:DumpIbcDataPackageVersion /nologo %__CommonMSBuildArgs% /p:IbcDataPackageVersionOutputFile="!IbcDataPackageVersionOutputFile!"
+powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__RepoRootDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
+    "%OptDataProjectFilePath%" /t:DumpIbcDataPackagePath /nologo %__CommonMSBuildArgs% /p:IbcDataPackagePathOutputFile="!IbcDataPackagePathOutputFile!"
 
  if not !errorlevel! == 0 (
-    echo "Failed to get IBC data package version."
+    echo %__ErrMsgPrefix%Failed to get IBC data package path.
     exit /b !errorlevel!
 )
 
-if not exist "!IbcDataPackageVersionOutputFile!" (
-    echo "Failed to get IBC data package version."
+if not exist "!IbcDataPackagePathOutputFile!" (
+    echo %__ErrMsgPrefix%Failed to get IBC data package path.
     exit /b 1
 )
 
-set /p __IbcOptDataVersion=<"!IbcDataPackageVersionOutputFile!"
+set /p __IbcOptDataPath=<"!IbcDataPackagePathOutputFile!"
 
 REM =========================================================================================
 REM ===
@@ -427,7 +440,7 @@ REM ===
 REM =========================================================================================
 
 set __IntermediatesIncDir=%__IntermediatesDir%\src\inc
-set __IntermediatesEventingDir=%__IntermediatesDir%\Eventing
+set __IntermediatesEventingDir=%__ArtifactsIntermediatesDir%\Eventing\%__BuildArch%\%__BuildType%
 
 REM Find python and set it to the variable PYTHON
 set _C=-c "import sys; sys.stdout.write(sys.executable)"
@@ -436,7 +449,7 @@ set _C=
 set /p PYTHON=<%TEMP%\pythonlocation.txt
 
 if NOT DEFINED PYTHON (
-    echo %__MsgPrefix%Error: Could not find a python installation
+    echo %__ErrMsgPrefix%%__MsgPrefix%Error: Could not find a python installation
     exit /b 1
 )
 
@@ -468,17 +481,20 @@ if %__BuildCrossArchNative% EQU 1 (
     if not exist "%__CrossCompIntermediatesDir%" md "%__CrossCompIntermediatesDir%"
     if defined __SkipConfigure goto SkipConfigureCrossBuild
 
-    pushd "%__CrossCompIntermediatesDir%"
     set __CMakeBinDir=%__CrossComponentBinDir%
     set "__CMakeBinDir=!__CMakeBinDir:\=/!"
-    set __ExtraCmakeArgs="-DCLR_CROSS_COMPONENTS_BUILD=1" "-DCLR_CMAKE_TARGET_ARCH=%__BuildArch%" "-DCLR_CMAKE_TARGET_OS=%__BuildOS%" "-DCLR_CMAKE_PACKAGES_DIR=%__PackagesDir%" "-DCLR_CMAKE_PGO_INSTRUMENT=%__PgoInstrument%" "-DCLR_CMAKE_OPTDATA_VERSION=%__PgoOptDataVersion%" "-DCLR_CMAKE_PGO_OPTIMIZE=%__PgoOptimize%" "-DCMAKE_SYSTEM_VERSION=10.0"
-    call "%__SourceDir%\pal\tools\gen-buildsys-win.bat" "%__ProjectDir%" %__VSVersion% %__CrossArch% !__ExtraCmakeArgs!
+    set __ExtraCmakeArgs="-DCLR_CROSS_COMPONENTS_BUILD=1" "-DCLR_CMAKE_TARGET_ARCH=%__BuildArch%" "-DCLR_CMAKE_PGO_INSTRUMENT=%__PgoInstrument%" "-DCLR_CMAKE_OPTDATA_PATH=%__PgoOptDataPath%" "-DCLR_CMAKE_PGO_OPTIMIZE=%__PgoOptimize%" "-DCMAKE_SYSTEM_VERSION=10.0"
+    call "%__SourceDir%\pal\tools\gen-buildsys.cmd" "%__ProjectDir%" "%__CrossCompIntermediatesDir%" %__VSVersion% %__CrossArch% !__ExtraCmakeArgs!
+    
+    if not !errorlevel! == 0 (
+        echo %__ErrMsgPrefix%%__MsgPrefix%Error: failed to generate native component build project!
+        exit /b 1
+    )
     @if defined _echo @echo on
-    popd
 
 :SkipConfigureCrossBuild
-    if not exist "%__CrossCompIntermediatesDir%\install.vcxproj" (
-        echo %__MsgPrefix%Error: failed to generate cross-arch components build project!
+    if not exist "%__CrossCompIntermediatesDir%\CMakeCache.txt" (
+        echo %__ErrMsgPrefix%%__MsgPrefix%Error: unable to find generated native component build project!
         exit /b 1
     )
 
@@ -491,19 +507,14 @@ if %__BuildCrossArchNative% EQU 1 (
     set __MsbuildLog=/flp:Verbosity=normal;LogFile=!__BuildLog!
     set __MsbuildWrn=/flp1:WarningsOnly;LogFile=!__BuildWrn!
     set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
-    set __Logging=!_MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
+    set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-    call %__ProjectDir%\cmake_msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
-      /p:PortableBuild=true /maxcpucount^
-      %__CrossCompIntermediatesDir%\install.vcxproj^
-      !__Logging! /p:Configuration=%__BuildType% /p:Platform=%__CrossArch% %__CommonMSBuildArgs% %__UnprocessedBuildArgs%
+    REM We pass the /m flag directly to MSBuild so that we can get both MSBuild and CL parallelism, which is fastest for our builds.
+    "%CMakePath%" --build %__CrossCompIntermediatesDir% --target install --config %__BuildType% -- /m !__Logging!
 
     if not !errorlevel! == 0 (
-        echo %__MsgPrefix%Error: cross-arch components build failed. Refer to the build log files for details:
-        echo     !__BuildLog!
-        echo     !__BuildWrn!
-        echo     !__BuildErr!
-        exit /b 1
+        echo %__ErrMsgPrefix%%__MsgPrefix%Error: cross-arch components build failed.
+        exit /b !errorlevel!
     )
 
 :SkipCrossCompBuild
@@ -545,7 +556,7 @@ if %__BuildNative% EQU 1 (
     @if defined _echo @echo on
 
     if not defined VSINSTALLDIR (
-        echo %__MsgPrefix%Error: VSINSTALLDIR variable not defined.
+        echo %__ErrMsgPrefix%%__MsgPrefix%Error: VSINSTALLDIR variable not defined.
         exit /b 1
     )
     if not exist "!VSINSTALLDIR!DIA SDK" goto NoDIA
@@ -554,17 +565,18 @@ if %__BuildNative% EQU 1 (
 
     echo %__MsgPrefix%Regenerating the Visual Studio solution
 
-    echo Cross Arch Defines !___CrossBuildDefine!
-
-    pushd "%__IntermediatesDir%"
-    set __ExtraCmakeArgs=!___SDKVersion! !___CrossBuildDefine! "-DCLR_CMAKE_TARGET_OS=%__BuildOS%" "-DCLR_CMAKE_PACKAGES_DIR=%__PackagesDir%" "-DCLR_CMAKE_PGO_INSTRUMENT=%__PgoInstrument%" "-DCLR_CMAKE_OPTDATA_VERSION=%__PgoOptDataVersion%" "-DCLR_CMAKE_PGO_OPTIMIZE=%__PgoOptimize%"
-    call "%__SourceDir%\pal\tools\gen-buildsys-win.bat" "%__ProjectDir%" %__VSVersion% %__BuildArch% !__ExtraCmakeArgs!
+    set __ExtraCmakeArgs=!___SDKVersion! !___CrossBuildDefine! "-DCLR_CMAKE_PGO_INSTRUMENT=%__PgoInstrument%" "-DCLR_CMAKE_OPTDATA_PATH=%__PgoOptDataPath%" "-DCLR_CMAKE_PGO_OPTIMIZE=%__PgoOptimize%"
+    call "%__SourceDir%\pal\tools\gen-buildsys.cmd" "%__ProjectDir%" "%__IntermediatesDir%" %__VSVersion% %__BuildArch% !__ExtraCmakeArgs!
+    if not !errorlevel! == 0 (
+        echo %__ErrMsgPrefix%%__MsgPrefix%Error: failed to generate native component build project!
+        exit /b 1
+    )
+    
     @if defined _echo @echo on
-    popd
 
 :SkipConfigure
-    if not exist "%__IntermediatesDir%\install.vcxproj" (
-        echo %__MsgPrefix%Error: failed to generate native component build project!
+    if not exist "%__IntermediatesDir%\CMakeCache.txt" (
+        echo %__ErrMsgPrefix%%__MsgPrefix%Error: unable to find generated native component build project!
         exit /b 1
     )
 
@@ -579,16 +591,12 @@ if %__BuildNative% EQU 1 (
     set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
     set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-    call %__ProjectDir%\cmake_msbuild.cmd /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
-      /p:PortableBuild=true /maxcpucount %__IntermediatesDir%\install.vcxproj^
-      !__Logging! /p:Configuration=%__BuildType% /p:Platform=%__BuildArch% %__CommonMSBuildArgs% %__UnprocessedBuildArgs%
+    REM We pass the /m flag directly to MSBuild so that we can get both MSBuild and CL parallelism, which is fastest for our builds.
+    "%CMakePath%" --build %__IntermediatesDir% --target install --config %__BuildType% -- /m !__Logging!
 
     if not !errorlevel! == 0 (
-        echo %__MsgPrefix%Error: native component build failed. Refer to the build log files for details:
-        echo     !__BuildLog!
-        echo     !__BuildWrn!
-        echo     !__BuildErr!
-        exit /b 1
+        echo %__ErrMsgPrefix%%__MsgPrefix%Error: native component build failed.
+        exit /b !errorlevel!
     )
 
 :SkipNativeBuild
@@ -626,51 +634,69 @@ if %__BuildCoreLib% EQU 1 (
         set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
         set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-        call %__ProjectDir%\dotnet.cmd restore /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
-          /p:PortableBuild=true /maxcpucount /p:IncludeRestoreOnlyProjects=true /p:ArcadeBuild=true^
-          %__ProjectDir%\src\build.proj^
-          !__Logging! %__CommonMSBuildArgs% !__ExtraBuildArgs! %__UnprocessedBuildArgs%
+        powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__RepoRootDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
+            %__ProjectDir%\src\build.proj /t:Restore^
+            /nodeReuse:false /p:PortableBuild=true /maxcpucount /p:IncludeRestoreOnlyProjects=true^
+            !__Logging! %__CommonMSBuildArgs% !__ExtraBuildArgs! %__UnprocessedBuildArgs%
         if not !errorlevel! == 0 (
-            echo %__MsgPrefix%Error: Managed Product assemblies restore failed. Refer to the build log files for details:
+            echo %__ErrMsgPrefix%%__MsgPrefix%Error: Managed Product assemblies restore failed. Refer to the build log files for details.
             echo     !__BuildLog!
             echo     !__BuildWrn!
             echo     !__BuildErr!
-            exit /b 1
+            exit /b !errorlevel!
         )
 
-        call %__ProjectDir%\dotnet.cmd msbuild /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
-          /p:PortableBuild=true /maxcpucount /p:ArcadeBuild=true^
-          %__ProjectDir%\src\build.proj^
-          !__Logging! %__CommonMSBuildArgs% !__ExtraBuildArgs! %__UnprocessedBuildArgs%
+        REM Disable warnAsError to work around VS bug (948084) where ucrt lib path is not set properly, resulting in CS1668
+        powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -Command "%__RepoRootDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
+            %__ProjectDir%\src\build.proj -warnAsError:0^
+            /nodeReuse:false /p:PortableBuild=true /maxcpucount^
+            '!__MsbuildLog!' '!__MsbuildWrn!' '!__MsbuildErr!' %__CommonMSBuildArgs% !__ExtraBuildArgs! %__UnprocessedBuildArgs%
         if not !errorlevel! == 0 (
-            echo %__MsgPrefix%Error: Managed Product assemblies build failed. Refer to the build log files for details:
+            echo %__ErrMsgPrefix%%__MsgPrefix%Error: Managed Product assemblies build failed. Refer to the build log files for details.
             echo     !__BuildLog!
             echo     !__BuildWrn!
             echo     !__BuildErr!
-            exit /b 1
+            exit /b !errorlevel!
+        )
+
+        if "%__BuildManagedTools%" == "1" (
+            echo %__MsgPrefix%Publishing crossgen2...
+            call %__ProjectDir%\dotnet.cmd publish --self-contained -r win-%__BuildArch% -c %__BuildType% -o "%__BinDir%\crossgen2" "%__ProjectDir%\src\tools\crossgen2\crossgen2\crossgen2.csproj" /p:BuildArch=%__BuildArch%
+            
+            if not !errorlevel! == 0 (
+                echo %__ErrMsgPrefix%%__MsgPrefix%Error: Failed to build crossgen2.
+                echo     !__BuildLog!
+                echo     !__BuildWrn!
+                echo     !__BuildErr!
+                exit /b !errorlevel!
+            )
+
+            copy /Y "%__BinDir%\clrjit.dll" "%__BinDir%\crossgen2\clrjitilc.dll"
+            copy /Y "%__BinDir%\jitinterface.dll" "%__BinDir%\crossgen2\jitinterface.dll"
         )
     )
     if %__IbcOptimize% EQU 1 (
         echo %__MsgPrefix%Commencing IBCMerge of System.Private.CoreLib for %__BuildOS%.%__BuildArch%.%__BuildType%
         set IbcMergeProjectFilePath=%__ProjectDir%\src\.nuget\optdata\ibcmerge.csproj
-        set IbcMergePackageVersionOutputFile="%__IntermediatesDir%\ibcmergeversion.txt"
-        call "%__ProjectDir%\dotnet.cmd" msbuild "!IbcMergeProjectFilePath!" /t:DumpIbcMergePackageVersion /nologo %__CommonMSBuildArgs% /p:IbcMergePackageVersionOutputFile="!IbcMergePackageVersionOutputFile!"
+        set IbcMergePackagePathOutputFile="%__IntermediatesDir%\ibcmergepath.txt"
+        powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__RepoRootDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
+            "!IbcMergeProjectFilePath!" /t:DumpIbcMergePackagePath /nologo %__CommonMSBuildArgs% /p:IbcMergePackagePathOutputFile="!IbcMergePackagePathOutputFile!"
 
         if not !errorlevel! == 0 (
-            echo "Failed to determine IBC Merge version."
+            echo %__ErrMsgPrefix%Failed to determine IBC Merge path.
             exit /b !errorlevel!
         )
-        if not exist "!IbcMergePackageVersionOutputFile!" (
-            echo "Failed to determine IBC Merge version."
+        if not exist "!IbcMergePackagePathOutputFile!" (
+            echo %__ErrMsgPrefix%Failed to determine IBC Merge path.
             exit /b 1
         )
-        
-        set /p __IbcMergeVersion=<"!IbcMergePackageVersionOutputFile!"
 
-        set IbcMergePath=%__PackagesDir%\microsoft.dotnet.ibcmerge\!__IbcMergeVersion!\tools\netcoreapp2.0\ibcmerge.dll
+        set /p __IbcMergePath=<"!IbcMergePackagePathOutputFile!"
+
+        set IbcMergePath=!__IbcMergePath!\tools\netcoreapp2.0\ibcmerge.dll
         if exist !IbcMergePath! (
             echo %__MsgPrefix%Optimizing using IBC training data
-            set OptimizationDataDir=%__PackagesDir%\optimization.%__BuildOS%-%__BuildArch%.IBC.CoreCLR\!__IbcOptDataVersion!\data\System.Private.CoreLib.dll\
+            set OptimizationDataDir=!__IbcOptDataPath!\data\System.Private.CoreLib.dll\
             set InputAssemblyFile=!OptimizationDataDir!System.Private.CoreLib.dll
             set TargetOptimizationDataFile=!OptimizationDataDir!System.Private.CoreLib.pgo
 
@@ -692,7 +718,7 @@ if %__BuildCoreLib% EQU 1 (
                 echo %__MsgPrefix%!NEXTCMD! >> "%__CrossGenCoreLibLog%"
                 call !NEXTCMD! >> "%__CrossGenCoreLibLog%" 2>&1
                 if NOT !errorlevel! == 0 (
-                    echo %__MsgPrefix%Error: IbcMerge of System.Private.CoreLib build failed. Refer to %__CrossGenCoreLibLog%
+                    echo %__ErrMsgPrefix%%__MsgPrefix%Error: IbcMerge of System.Private.CoreLib build failed. Refer to %__CrossGenCoreLibLog%
                     REM Put it in the same log, helpful for Jenkins
                     type %__CrossGenCoreLibLog%
                     goto CrossgenFailure
@@ -703,7 +729,7 @@ if %__BuildCoreLib% EQU 1 (
                 echo %__MsgPrefix%!NEXTCMD! >> "%__CrossGenCoreLibLog%"
                 call !NEXTCMD! >> "%__CrossGenCoreLibLog%" 2>&1
                 if NOT !errorlevel! == 0 (
-                    echo %__MsgPrefix%Error: IbcMerge of System.Private.CoreLib build failed. Refer to %__CrossGenCoreLibLog%
+                    echo %__ErrMsgPrefix%%__MsgPrefix%Error: IbcMerge of System.Private.CoreLib build failed. Refer to %__CrossGenCoreLibLog%
                     REM Put it in the same log, helpful for Jenkins
                     type %__CrossGenCoreLibLog%
                     goto CrossgenFailure
@@ -722,7 +748,7 @@ if %__BuildCoreLib% EQU 1 (
                 echo %__MsgPrefix%!NEXTCMD! >> "%__CrossGenCoreLibLog%"
                 call !NEXTCMD! >> "%__CrossGenCoreLibLog%" 2>&1
                 if NOT !errorlevel! == 0 (
-                    echo %__MsgPrefix%Error: IbcMerge of System.Private.CoreLib build failed. Refer to %__CrossGenCoreLibLog%
+                    echo %__ErrMsgPrefix%%__MsgPrefix%Error: IbcMerge of System.Private.CoreLib build failed. Refer to %__CrossGenCoreLibLog%
                     REM Put it in the same log, helpful for Jenkins
                     type %__CrossGenCoreLibLog%
                     goto CrossgenFailure
@@ -733,14 +759,14 @@ if %__BuildCoreLib% EQU 1 (
                 echo %__MsgPrefix%!NEXTCMD! >> "%__CrossGenCoreLibLog%"
                 call !NEXTCMD! >> "%__CrossGenCoreLibLog%" 2>&1
                 if NOT !errorlevel! == 0 (
-                    echo %__MsgPrefix%Error: IbcMerge of System.Private.CoreLib build failed. Refer to %__CrossGenCoreLibLog%
+                    echo %__ErrMsgPrefix%%__MsgPrefix%Error: IbcMerge of System.Private.CoreLib build failed. Refer to %__CrossGenCoreLibLog%
                     REM Put it in the same log, helpful for Jenkins
                     type %__CrossGenCoreLibLog%
                     goto CrossgenFailure
                 )
             ) else (
                 echo %__MsgPrefix%!TargetOptimizationDataFile! does not exist >> %__CrossGenCoreLibLog%
-                echo %__MsgPrefix%Error: IbcMerge of System.Private.CoreLib build failed. Refer to %__CrossGenCoreLibLog%
+                echo %__ErrMsgPrefix%%__MsgPrefix%Error: IbcMerge of System.Private.CoreLib build failed. Refer to %__CrossGenCoreLibLog%
                 REM Put it in the same log, helpful for Jenkins
                 type %__CrossGenCoreLibLog%
                 goto CrossgenFailure
@@ -779,7 +805,7 @@ if %__BuildNativeCoreLib% EQU 1 (
         call                                 "%__VCToolsRoot%\vcvarsall.bat" !__VCExecArch!
         @if defined _echo @echo on
         if NOT !errorlevel! == 0 (
-            echo %__MsgPrefix%Error: Failed to load native tools environment for !__VCExecArch!
+            echo %__ErrMsgPrefix%%__MsgPrefix%Error: Failed to load native tools environment for !__VCExecArch!
             goto CrossgenFailure
         )
 
@@ -790,7 +816,7 @@ if %__BuildNativeCoreLib% EQU 1 (
         )
         echo %__MsgPrefix%Copying "!__PgoRtPath!" into "%__BinDir%"
         copy /y "!__PgoRtPath!" "%__BinDir%" || (
-            echo %__MsgPrefix%Error: copy failed
+            echo %__ErrMsgPrefix%%__MsgPrefix%Error: copy failed
             goto CrossgenFailure
         )
         REM End HACK
@@ -814,7 +840,7 @@ if %__BuildNativeCoreLib% EQU 1 (
     echo %__MsgPrefix%!NEXTCMD! >> "%__CrossGenCoreLibLog%"
     !NEXTCMD! >> "%__CrossGenCoreLibLog%" 2>&1
     if NOT !errorlevel! == 0 (
-        echo %__MsgPrefix%Error: CrossGen System.Private.CoreLib build failed. Refer to %__CrossGenCoreLibLog%
+        echo %__ErrMsgPrefix%%__MsgPrefix%Error: CrossGen System.Private.CoreLib build failed. Refer to %__CrossGenCoreLibLog%
         REM Put it in the same log, helpful for Jenkins
         type %__CrossGenCoreLibLog%
         goto CrossgenFailure
@@ -825,7 +851,7 @@ if %__BuildNativeCoreLib% EQU 1 (
     echo %__MsgPrefix%!NEXTCMD! >> "%__CrossGenCoreLibLog%"
     !NEXTCMD! >> "%__CrossGenCoreLibLog%" 2>&1
     if NOT !errorlevel! == 0 (
-        echo %__MsgPrefix%Error: CrossGen /CreatePdb System.Private.CoreLib build failed. Refer to %__CrossGenCoreLibLog%
+        echo %__ErrMsgPrefix%%__MsgPrefix%Error: CrossGen /CreatePdb System.Private.CoreLib build failed. Refer to %__CrossGenCoreLibLog%
         REM Put it in the same log, helpful for Jenkins
         type %__CrossGenCoreLibLog%
         goto CrossgenFailure
@@ -851,13 +877,13 @@ if %__BuildPackages% EQU 1 (
 
     REM The conditions as to what to build are captured in the builds file.
     REM Package build uses the Arcade system and scripts, relying on it to restore required toolsets as part of build
-    powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__ProjectDir%\eng\common\build.ps1"^
+    powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__RepoRootDir%\eng\common\build.ps1"^
         -r -b -projects %__SourceDir%\.nuget\packages.builds^
         -verbosity minimal /nodeReuse:false /bl:!__BuildLog!^
-        /p:PortableBuild=true /p:ArcadeBuild=true^
+        /p:PortableBuild=true^
         /p:Platform=%__BuildArch% %__CommonMSBuildArgs% %__UnprocessedBuildArgs%
     if not !errorlevel! == 0 (
-        echo %__MsgPrefix%Error: Nuget package generation failed. Refer to the build log file for details:
+        echo %__ErrMsgPrefix%%__MsgPrefix%Error: Nuget package generation failed. Refer to the build log file for details.
         echo     !__BuildLog!
         exit /b !errorlevel!
     )

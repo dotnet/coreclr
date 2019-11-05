@@ -7,6 +7,7 @@ using System.Runtime;
 
 using Internal.Runtime.CompilerServices;
 
+#pragma warning disable SA1121 // explicitly using type aliases instead of built-in types
 #if BIT64
 using nuint = System.UInt64;
 #else
@@ -22,8 +23,8 @@ namespace System
             if (byteLength == 0)
                 return;
 
-#if !PROJECTN && (AMD64 || ARM64)
-            // The exact matrix on when RhZeroMemory is faster than InitBlockUnaligned is very complex. The factors to consider include
+#if AMD64 || ARM64
+            // The exact matrix on when ZeroMemory is faster than InitBlockUnaligned is very complex. The factors to consider include
             // type of hardware and memory aligment. This threshold was chosen as a good balance accross different configurations.
             if (byteLength > 768)
                 goto PInvoke;
@@ -335,7 +336,7 @@ namespace System
 #endif
 
         PInvoke:
-            RuntimeImports.RhZeroMemory(ref b, byteLength);
+            Buffer._ZeroMemory(ref b, byteLength);
         }
 
         public static unsafe void ClearWithReferences(ref IntPtr ip, nuint pointerSizeLength)
@@ -364,7 +365,7 @@ namespace System
             // given range of lengths. For example, the lengths [ 4 .. 7 ] are handled by a single
             // branch, [ 2 .. 3 ] are handled by a single branch, and [ 1 ] is handled by a single
             // branch.
-            // 
+            //
             // We can write both forward and backward as a perf improvement. For example,
             // the lengths [ 4 .. 7 ] can be handled by zeroing out the first four natural
             // words and the last 3 natural words. In the best case (length = 7), there are

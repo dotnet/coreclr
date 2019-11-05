@@ -12,8 +12,6 @@
 //
 // ============================================================
 
-#define DISABLE_BINDER_DEBUG_LOGGING
-
 #include "assemblyname.hpp"
 #include "assembly.hpp"
 #include "utils.hpp"
@@ -57,20 +55,16 @@ namespace BINDER_SPACE
         DWORD dwRefOrDefFlags = 0;
         DWORD dwHashAlgId = 0;
 
-        BINDER_LOG_ENTER(L"AssemblyName::Init(IMetaDataAssemblyImport)");
-
         if (fIsDefinition)
         {
             // Get the assembly token
             IF_FAIL_GO(pIMetaDataAssemblyImport->GetAssemblyFromScope(&mda));
         }
 
-        BINDER_LOG(L"Have mda scope!");
-
         // Get name and metadata
         if (fIsDefinition)
         {
-            IF_FAIL_GO(pIMetaDataAssemblyImport->GetAssemblyProps(             
+            IF_FAIL_GO(pIMetaDataAssemblyImport->GetAssemblyProps(
                             mda,            // [IN] The Assembly for which to get the properties.
                             &pvPublicKeyToken,  // [OUT] Pointer to the PublicKeyToken blob.
                             &dwPublicKeyToken,  // [OUT] Count of bytes in the PublicKeyToken Blob.
@@ -82,7 +76,7 @@ namespace BINDER_SPACE
         }
         else
         {
-            IF_FAIL_GO(pIMetaDataAssemblyImport->GetAssemblyRefProps(             
+            IF_FAIL_GO(pIMetaDataAssemblyImport->GetAssemblyRefProps(
                             mdar,            // [IN] The Assembly for which to get the properties.
                             &pvPublicKeyToken,  // [OUT] Pointer to the PublicKeyToken blob.
                             &dwPublicKeyToken,  // [OUT] Count of bytes in the PublicKeyToken Blob.
@@ -93,8 +87,6 @@ namespace BINDER_SPACE
                             &dwRefOrDefFlags // [OUT] Flags.
                             ));
         }
-
-        BINDER_LOG(L"Have props!");
 
         {
             StackSString culture;
@@ -129,7 +121,7 @@ namespace BINDER_SPACE
         {
             SetIsRetargetable(TRUE);
         }
-        
+
         // Set ContentType
         if (IsAfContentType_Default(dwRefOrDefFlags))
         {
@@ -143,7 +135,7 @@ namespace BINDER_SPACE
         {
             IF_FAIL_GO(FUSION_E_INVALID_NAME);
         }
-        
+
         // Set the assembly version
         {
             AssemblyVersion *pAssemblyVersion = GetVersion();
@@ -169,37 +161,27 @@ namespace BINDER_SPACE
             {
                 GetPublicKeyTokenBLOB().Set(publicKeyOrTokenBLOB);
             }
-            
+
             SetHave(AssemblyIdentity::IDENTITY_FLAG_PUBLIC_KEY_TOKEN);
         }
 
         SetArchitecture(PeKind);
 
     Exit:
-        BINDER_LOG_LEAVE_HR(L"AssemblyName::Init(IMetaDataAssemblyImport)", hr);
         return hr;
     }
 
     HRESULT AssemblyName::Init(SString &assemblyDisplayName)
     {
-        HRESULT hr = S_OK;
-        BINDER_LOG_ENTER(L"AssemblyName::Init(assemblyDisplayName)");
-
-        BINDER_LOG_STRING(L"assemblyDisplayName", assemblyDisplayName);
-
-        IF_FAIL_GO(TextualIdentityParser::Parse(assemblyDisplayName, this));
-        
-    Exit:
-        BINDER_LOG_LEAVE_HR(L"AssemblyName::Init(assemblyDisplayName)", hr);
-        return hr;
+        return TextualIdentityParser::Parse(assemblyDisplayName, this);
     }
 
     HRESULT AssemblyName::Init(IAssemblyName *pIAssemblyName)
     {
         HRESULT hr = S_OK;
-        
+
         _ASSERTE(pIAssemblyName != NULL);
-        
+
         EX_TRY
         {
             {
@@ -219,7 +201,7 @@ namespace BINDER_SPACE
             if ((hr == S_OK) && (cbVersionSize != 0))
             {
                 // Property is present - loop to get the individual version details
-                for(DWORD i = 0; i < 4; i++) 
+                for(DWORD i = 0; i < 4; i++)
                 {
                     cbVersionSize = sizeof(dwVersionParts[i]);
                     hr = fusion::util::GetProperty(pIAssemblyName, ASM_NAME_MAJOR_VERSION+i, static_cast<PVOID>(&dwVersionParts[i]), &cbVersionSize);
@@ -268,7 +250,7 @@ namespace BINDER_SPACE
             if ((hr == S_OK) && (cbPeKind != 0))
             {
                 PEKIND PeKind = (PEKIND)peKind;
-                if (PeKind != peNone) 
+                if (PeKind != peNone)
                 {
                     SetArchitecture(PeKind);
                     SetHave(BINDER_SPACE::AssemblyIdentity::IDENTITY_FLAG_PROCESSOR_ARCHITECTURE);
@@ -319,74 +301,7 @@ namespace BINDER_SPACE
             }
         }
         EX_CATCH_HRESULT(hr);
-Exit:        
-        return hr;
-    }
-    
-    HRESULT AssemblyName::CreateFusionName(IAssemblyName **ppIAssemblyName)
-    {
-        HRESULT hr = S_OK;
-        ReleaseHolder<IAssemblyName> pIAssemblyName;
-
-        IF_FAIL_GO(CreateAssemblyNameObject(&pIAssemblyName, NULL, 0, NULL));
-
-        IF_FAIL_GO(LegacyFusion::SetStringProperty(pIAssemblyName, ASM_NAME_NAME, GetSimpleName()));
-
-        if (Have(AssemblyIdentity::IDENTITY_FLAG_VERSION))
-        {
-            AssemblyVersion *pAssemblyVersion = GetVersion();
-
-            IF_FAIL_GO(LegacyFusion::SetWordProperty(pIAssemblyName,
-                                       ASM_NAME_MAJOR_VERSION,
-                                       pAssemblyVersion->GetMajor()));
-            IF_FAIL_GO(LegacyFusion::SetWordProperty(pIAssemblyName,
-                                       ASM_NAME_MINOR_VERSION,
-                                       pAssemblyVersion->GetMinor()));
-            IF_FAIL_GO(LegacyFusion::SetWordProperty(pIAssemblyName,
-                                       ASM_NAME_BUILD_NUMBER,
-                                       pAssemblyVersion->GetBuild()));
-            IF_FAIL_GO(LegacyFusion::SetWordProperty(pIAssemblyName,
-                                       ASM_NAME_REVISION_NUMBER,
-                                       pAssemblyVersion->GetRevision()));
-        }
-
-        if (Have(AssemblyIdentity::IDENTITY_FLAG_CULTURE))
-        {
-            IF_FAIL_GO(LegacyFusion::SetStringProperty(pIAssemblyName, ASM_NAME_CULTURE, GetCulture()));
-        }
-
-        if (Have(AssemblyIdentity::IDENTITY_FLAG_PUBLIC_KEY))
-        {
-            // GetPublicKeyTokenBLOB contains either PK or PKT.
-            IF_FAIL_GO(LegacyFusion::SetBufferProperty(pIAssemblyName,
-                                         ASM_NAME_PUBLIC_KEY,
-                                         GetPublicKeyTokenBLOB()));
-        }
-        else if (Have(AssemblyIdentity::IDENTITY_FLAG_PUBLIC_KEY_TOKEN))
-        {
-            // GetPublicKeyTokenBLOB contains either PK or PKT.
-            IF_FAIL_GO(LegacyFusion::SetBufferProperty(pIAssemblyName,
-                                         ASM_NAME_PUBLIC_KEY_TOKEN,
-                                         GetPublicKeyTokenBLOB()));
-        }
-
-        if (Have(AssemblyIdentity::IDENTITY_FLAG_PROCESSOR_ARCHITECTURE))
-        {
-            IF_FAIL_GO(LegacyFusion::SetDwordProperty(pIAssemblyName,
-                                        ASM_NAME_ARCHITECTURE,
-                                        static_cast<DWORD>(GetArchitecture())));
-        }
-
-        if (Have(AssemblyIdentity::IDENTITY_FLAG_CONTENT_TYPE))
-        {
-            IF_FAIL_GO(LegacyFusion::SetDwordProperty(pIAssemblyName,
-                                        ASM_NAME_CONTENT_TYPE,
-                                        GetContentType()));
-        }
-        
-        *ppIAssemblyName = pIAssemblyName.Extract();
-
-    Exit:
+Exit:
         return hr;
     }
 
@@ -398,70 +313,17 @@ Exit:
     ULONG AssemblyName::Release()
     {
         ULONG ulRef = InterlockedDecrement(&m_cRef);
-        if (ulRef == 0) 
+        if (ulRef == 0)
         {
             delete this;
         }
         return ulRef;
     }
 
-    SString &AssemblyName::GetDeNormalizedCulture()
-    {
-        SString &culture = GetCulture();
-
-        if (EqualsCaseInsensitive(culture, g_BinderVariables->cultureNeutral))
-        {
-            culture = g_BinderVariables->emptyString;
-        }
-
-        return culture;
-    }
-
-    BOOL AssemblyName::IsStronglyNamed()
-    {
-        return Have(AssemblyIdentity::IDENTITY_FLAG_PUBLIC_KEY_TOKEN);
-    }
-    
     BOOL AssemblyName::IsMscorlib()
     {
         // TODO: Is this simple comparison enough?
         return EqualsCaseInsensitive(GetSimpleName(), g_BinderVariables->mscorlib);
-    }
-
-    HRESULT AssemblyName::SetArchitecture(SString &architecture)
-    {
-        HRESULT hr = S_OK;
-
-        if (architecture.IsEmpty())
-        {
-            SetArchitecture(peNone);
-        }
-        else if (EqualsCaseInsensitive(architecture, g_BinderVariables->architectureMSIL))
-        {
-            SetArchitecture(peMSIL);
-        }
-        else if (EqualsCaseInsensitive(architecture, g_BinderVariables->architectureX86))
-        {
-            SetArchitecture(peI386);
-        }
-        else if (EqualsCaseInsensitive(architecture, g_BinderVariables->architectureAMD64))
-        {
-            SetArchitecture(peAMD64);
-        }
-        else if (EqualsCaseInsensitive(architecture, g_BinderVariables->architectureARM))
-        {
-            SetArchitecture(peARM);
-        }
-        else if (EqualsCaseInsensitive(architecture, g_BinderVariables->architectureARM64))
-        {
-            SetArchitecture(peARM64);
-        }
-        else
-        {
-            hr = FUSION_E_MANIFEST_PARSE_ERROR;
-        }
-
-        return hr;
     }
 
     ULONG AssemblyName::Hash(DWORD dwIncludeFlags)
@@ -566,7 +428,7 @@ Exit:
         {   // Assembly is meaningless for WinRT, all assemblies form one joint type namespace
             return (GetContentType() == pAssemblyName->GetContentType());
         }
-        
+
         if (EqualsCaseInsensitive(GetSimpleName(), pAssemblyName->GetSimpleName()) &&
             (GetContentType() == pAssemblyName->GetContentType()))
         {
@@ -581,7 +443,7 @@ Exit:
             {
                 fEquals = (GetPublicKeyTokenBLOB().Equals(pAssemblyName->GetPublicKeyTokenBLOB()));
             }
-            
+
             if (fEquals && ((dwIncludeFlags & INCLUDE_ARCHITECTURE) != 0))
             {
                 fEquals = (GetArchitecture() == pAssemblyName->GetArchitecture());
@@ -599,56 +461,6 @@ Exit:
         }
 
         return fEquals;
-    }
-
-    BOOL AssemblyName::RefEqualsDef(AssemblyName *pAssemblyNameDef,
-                                    BOOL          fInspectionOnly)
-    {
-        BOOL fEquals = FALSE;
-        
-        if (GetContentType() == AssemblyContentType_WindowsRuntime)
-        {   // Assembly is meaningless for WinRT, all assemblies form one joint type namespace
-            return (GetContentType() == pAssemblyNameDef->GetContentType());
-        }
-        
-        if (EqualsCaseInsensitive(GetSimpleName(), pAssemblyNameDef->GetSimpleName()) &&
-            EqualsCaseInsensitive(GetNormalizedCulture(),
-                                  pAssemblyNameDef->GetNormalizedCulture()) &&
-            GetPublicKeyTokenBLOB().Equals(pAssemblyNameDef->GetPublicKeyTokenBLOB()) && 
-            (GetContentType() == pAssemblyNameDef->GetContentType()))
-        {
-            PEKIND kRefArchitecture = GetArchitecture();
-            PEKIND kDefArchitecture = pAssemblyNameDef->GetArchitecture();
-
-            if (kRefArchitecture == peNone)
-            {
-                fEquals = (fInspectionOnly || 
-                           (kDefArchitecture == peNone) ||
-                           (kDefArchitecture == peMSIL) ||
-                           (kDefArchitecture == Assembly::GetSystemArchitecture()));
-            }
-            else
-            {
-                fEquals = (kRefArchitecture == kDefArchitecture);
-            }
-        }
-
-        return fEquals;
-    }
-
-    HRESULT AssemblyName::Clone(AssemblyName **ppAssemblyName)
-    {
-        HRESULT hr = S_OK;
-        AssemblyName *pClonedAssemblyName = NULL;
-
-        SAFE_NEW(pClonedAssemblyName, AssemblyName);
-        CloneInto(pClonedAssemblyName);
-        pClonedAssemblyName->m_dwNameFlags = m_dwNameFlags;
-
-        *ppAssemblyName = pClonedAssemblyName;
-
-    Exit:
-        return hr;
     }
 
     void AssemblyName::GetDisplayName(PathString &displayName,
@@ -675,28 +487,6 @@ Exit:
         }
 
         TextualIdentityParser::ToString(this, dwUseIdentityFlags, displayName);
-    }
-
-    SString &AssemblyName::ArchitectureToString(PEKIND kArchitecture)
-    {
-            switch (kArchitecture)
-            {
-            case peNone:
-                return g_BinderVariables->emptyString;
-            case peMSIL:
-                return g_BinderVariables->architectureMSIL;
-            case peI386:
-                return g_BinderVariables->architectureX86;
-            case peAMD64:
-                return g_BinderVariables->architectureAMD64;
-            case peARM:
-                return g_BinderVariables->architectureARM;
-            case peARM64:
-                return g_BinderVariables->architectureARM64;
-            default:
-                _ASSERTE(0);
-                return g_BinderVariables->emptyString;
-            }
     }
 
     SString &AssemblyName::GetNormalizedCulture()

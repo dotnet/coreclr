@@ -1,7 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
-// 
+//
 // File: MarshalNative.cpp
 //
 
@@ -124,7 +124,7 @@ VOID QCALLTYPE MarshalNative::Prelink(MethodDesc * pMD)
 
 
 FCIMPL3(VOID, MarshalNative::StructureToPtr, Object* pObjUNSAFE, LPVOID ptr, CLR_BOOL fDeleteOld)
-{    
+{
     CONTRACTL
     {
         FCALL_CHECK;
@@ -138,7 +138,7 @@ FCIMPL3(VOID, MarshalNative::StructureToPtr, Object* pObjUNSAFE, LPVOID ptr, CLR
 
     if (ptr == NULL)
         COMPlusThrowArgumentNull(W("ptr"));
-    if (pObj == NULL) 
+    if (pObj == NULL)
         COMPlusThrowArgumentNull(W("structure"));
 
     // Code path will accept both regular layout objects and boxed value classes
@@ -148,17 +148,26 @@ FCIMPL3(VOID, MarshalNative::StructureToPtr, Object* pObjUNSAFE, LPVOID ptr, CLR
 
     if (pMT->HasInstantiation())
         COMPlusThrowArgumentException(W("structure"), W("Argument_NeedNonGenericObject"));
-    
+
     if (pMT->IsBlittable())
     {
         memcpyNoGCRefs(ptr, pObj->GetData(), pMT->GetNativeSize());
     }
     else if (pMT->HasLayout())
     {
-        if (fDeleteOld)
-            LayoutDestroyNative(ptr, pMT);
+        MethodDesc* structMarshalStub;
 
-        FmtClassUpdateNative( &(pObj), (LPBYTE)(ptr), NULL );
+        {
+            GCX_PREEMP();
+            structMarshalStub = NDirect::CreateStructMarshalILStub(pMT);
+        }
+
+        if (fDeleteOld)
+        {
+            MarshalStructViaILStub(structMarshalStub, pObj->GetData(), ptr, StructMarshalStubs::MarshalOperation::Cleanup);
+        }
+
+        MarshalStructViaILStub(structMarshalStub, pObj->GetData(), ptr, StructMarshalStubs::MarshalOperation::Marshal);
     }
     else
     {
@@ -179,12 +188,12 @@ FCIMPL3(VOID, MarshalNative::PtrToStructureHelper, LPVOID ptr, Object* pObjIn, C
     CONTRACTL_END;
 
     OBJECTREF  pObj = ObjectToOBJECTREF(pObjIn);
-    
+
     HELPER_METHOD_FRAME_BEGIN_1(pObj);
 
     if (ptr == NULL)
         COMPlusThrowArgumentNull(W("ptr"));
-    if (pObj == NULL) 
+    if (pObj == NULL)
         COMPlusThrowArgumentNull(W("structure"));
 
     // Code path will accept regular layout objects.
@@ -201,14 +210,21 @@ FCIMPL3(VOID, MarshalNative::PtrToStructureHelper, LPVOID ptr, Object* pObjIn, C
     }
     else if (pMT->HasLayout())
     {
-        LayoutUpdateCLR((LPVOID*) &(pObj), Object::GetOffsetOfFirstField(), pMT, (LPBYTE)(ptr));
+        MethodDesc* structMarshalStub;
+
+        {
+            GCX_PREEMP();
+            structMarshalStub = NDirect::CreateStructMarshalILStub(pMT);
+        }
+
+        MarshalStructViaILStub(structMarshalStub, pObj->GetData(), ptr, StructMarshalStubs::MarshalOperation::Unmarshal);
     }
     else
     {
         COMPlusThrowArgumentException(W("structure"), W("Argument_MustHaveLayoutOrBeBlittable"));
-    }   
-    
-    HELPER_METHOD_FRAME_END();  
+    }
+
+    HELPER_METHOD_FRAME_END();
 }
 FCIMPLEND
 
@@ -243,7 +259,14 @@ FCIMPL2(VOID, MarshalNative::DestroyStructure, LPVOID ptr, ReflectClassBaseObjec
     }
     else if (th.HasLayout())
     {
-        LayoutDestroyNative(ptr, th.GetMethodTable());
+        MethodDesc* structMarshalStub;
+
+        {
+            GCX_PREEMP();
+            structMarshalStub = NDirect::CreateStructMarshalILStub(th.GetMethodTable());
+        }
+
+        MarshalStructViaILStub(structMarshalStub, nullptr, ptr, StructMarshalStubs::MarshalOperation::Cleanup);
     }
     else
     {
@@ -306,9 +329,9 @@ FCIMPL2(UINT32, MarshalNative::SizeOfClass, ReflectClassBaseObject* refClassUNSA
 
     UINT32 rv = 0;
     REFLECTCLASSBASEREF refClass = (REFLECTCLASSBASEREF)refClassUNSAFE;
-    
+
     HELPER_METHOD_FRAME_BEGIN_RET_1(refClass);
-    
+
     // refClass is validated to be non-NULL RuntimeType by callers
     TypeHandle th = refClass->GetType();
 
@@ -319,7 +342,7 @@ FCIMPL2(UINT32, MarshalNative::SizeOfClass, ReflectClassBaseObject* refClassUNSA
         {
             // It isn't marshalable so throw an ArgumentException.
             StackSString strTypeName;
-            TypeString::AppendType(strTypeName, th);                
+            TypeString::AppendType(strTypeName, th);
             COMPlusThrow(kArgumentException, IDS_CANNOT_MARSHAL, strTypeName.GetUnicode(), NULL, NULL);
         }
     }
@@ -327,7 +350,7 @@ FCIMPL2(UINT32, MarshalNative::SizeOfClass, ReflectClassBaseObject* refClassUNSA
     // The type is marshalable or we don't care so return its size.
     rv = th.GetMethodTable()->GetNativeSize();
     HELPER_METHOD_FRAME_END();
-    return rv;   
+    return rv;
 }
 FCIMPLEND
 
@@ -353,28 +376,28 @@ FCIMPL1(UINT32, MarshalNative::OffsetOfHelper, ReflectFieldObject *pFieldUNSAFE)
     if (!IsStructMarshalable(th))
     {
         // It isn't marshalable so throw an ArgumentException.
-        HELPER_METHOD_FRAME_BEGIN_RET_1(refField);       
+        HELPER_METHOD_FRAME_BEGIN_RET_1(refField);
 
         StackSString strTypeName;
-        TypeString::AppendType(strTypeName, th);                
-        COMPlusThrow(kArgumentException, IDS_CANNOT_MARSHAL, strTypeName.GetUnicode(), NULL, NULL);       
+        TypeString::AppendType(strTypeName, th);
+        COMPlusThrow(kArgumentException, IDS_CANNOT_MARSHAL, strTypeName.GetUnicode(), NULL, NULL);
 
         HELPER_METHOD_FRAME_END();
     }
 
-    FieldMarshaler *pFM = th.GetMethodTable()->GetLayoutInfo()->GetFieldMarshalers();
+    NativeFieldDescriptor *pNFD = th.GetMethodTable()->GetLayoutInfo()->GetNativeFieldDescriptors();
     UINT  numReferenceFields = th.GetMethodTable()->GetLayoutInfo()->GetNumCTMFields();
 
-    while (numReferenceFields--) 
+    while (numReferenceFields--)
     {
-        if (pFM->GetFieldDesc() == pField) 
+        if (pNFD->GetFieldDesc() == pField)
         {
-            return pFM->GetExternalOffset();
+            return pNFD->GetExternalOffset();
         }
-        ((BYTE*&)pFM) += MAXFIELDMARSHALERSIZE;
+        pNFD++;
     }
 
-    UNREACHABLE_MSG("We should never hit this point since we already verified that the requested field was present from managed code");   
+    UNREACHABLE_MSG("We should never hit this point since we already verified that the requested field was present from managed code");
 }
 FCIMPLEND
 
@@ -388,14 +411,14 @@ FCIMPL2(Object*, MarshalNative::GetDelegateForFunctionPointerInternal, LPVOID FP
     CONTRACTL_END;
 
     OBJECTREF refDelegate = NULL;
-    
+
     REFLECTCLASSBASEREF refType = (REFLECTCLASSBASEREF) refTypeUNSAFE;
     HELPER_METHOD_FRAME_BEGIN_RET_2(refType, refDelegate);
 
     // Retrieve the method table from the RuntimeType. We already verified in managed
     // code that the type was a RuntimeType that represented a delegate. Because type handles
     // for delegates must have a method table, we are safe in telling prefix to assume it below.
-    MethodTable* pMT = refType->GetType().GetMethodTable();   
+    MethodTable* pMT = refType->GetType().GetMethodTable();
     PREFIX_ASSUME(pMT != NULL);
     refDelegate = COMDelegate::ConvertToDelegate(FPtr, pMT);
 
@@ -410,78 +433,15 @@ FCIMPL1(LPVOID, MarshalNative::GetFunctionPointerForDelegateInternal, Object* re
     FCALL_CONTRACT;
 
     LPVOID pFPtr = NULL;
-    
+
     OBJECTREF refDelegate = (OBJECTREF) refDelegateUNSAFE;
     HELPER_METHOD_FRAME_BEGIN_RET_1(refDelegate);
 
     pFPtr = COMDelegate::ConvertToCallback(refDelegate);
-    
+
     HELPER_METHOD_FRAME_END();
 
     return pFPtr;
-}
-FCIMPLEND
-
-//====================================================================
-// map a fiber cookie from the hosting APIs into a managed Thread object
-//====================================================================
-FCIMPL1(THREADBASEREF, MarshalNative::GetThreadFromFiberCookie, int cookie)
-{
-    FCALL_CONTRACT;
-
-    _ASSERTE(cookie);
-
-    THREADBASEREF ret = 0;
-    
-    // Set up a frame
-    HELPER_METHOD_FRAME_BEGIN_RET_0();
-
-    // Any host who is sophisticated enough to correctly schedule fibers
-    // had better be sophisticated enough to give us a real fiber cookie.
-    Thread  *pThread = *((Thread **) &cookie);
-    
-    // Minimal check that it smells like a thread:
-    _ASSERTE(pThread->m_fPreemptiveGCDisabled.Load() == 0 || pThread->m_fPreemptiveGCDisabled.Load() == 1);
-    
-    ret = (THREADBASEREF)(pThread->GetExposedObject()); 
-    HELPER_METHOD_FRAME_END();
-
-    return ret;
-}
-FCIMPLEND
-
-FCIMPL3(LPVOID, MarshalNative::GetUnmanagedThunkForManagedMethodPtr, LPVOID pfnMethodToWrap, PCCOR_SIGNATURE pbSignature, ULONG cbSignature)
-{
-    CONTRACTL
-    {
-        FCALL_CHECK;
-        INJECT_FAULT(FCThrow(kOutOfMemoryException););
-        PRECONDITION(CheckPointer(pfnMethodToWrap, NULL_OK));
-        PRECONDITION(CheckPointer(pbSignature, NULL_OK));
-    }
-    CONTRACTL_END;
-
-    LPVOID pThunk = NULL;
-    return pThunk;
-}
-FCIMPLEND
-
-
-/************************************************************************
- * PInvoke.GetManagedThunkForUnmanagedMethodPtr()
- */
-FCIMPL3(LPVOID, MarshalNative::GetManagedThunkForUnmanagedMethodPtr, LPVOID pfnMethodToWrap, PCCOR_SIGNATURE pbSignature, ULONG cbSignature)
-{
-    CONTRACTL
-    {
-        FCALL_CHECK;
-        PRECONDITION(CheckPointer(pfnMethodToWrap, NULL_OK));
-        PRECONDITION(CheckPointer(pbSignature, NULL_OK));
-    }
-    CONTRACTL_END;
-
-    LPVOID pThunk = NULL;
-    return pThunk;
 }
 FCIMPLEND
 
@@ -540,7 +500,7 @@ void ValidatePinnedObject(OBJECTREF obj)
     if (obj->GetMethodTable()->IsArray())
     {
         BASEARRAYREF asArray = (BASEARRAYREF) obj;
-        if (CorTypeInfo::IsPrimitiveType(asArray->GetArrayElementType())) 
+        if (CorTypeInfo::IsPrimitiveType(asArray->GetArrayElementType()))
             return;
 
         TypeHandle th = asArray->GetArrayElementTypeHandle();
@@ -549,8 +509,8 @@ void ValidatePinnedObject(OBJECTREF obj)
             MethodTable *pMT = th.AsMethodTable();
             if (pMT->IsValueType() && pMT->IsBlittable())
                 return;
-        }        
-    } 
+        }
+    }
     else if (obj->GetMethodTable()->IsBlittable())
     {
         return;
@@ -675,7 +635,7 @@ FCIMPL2(Object *, MarshalNative::GetExceptionForHR, INT32 errorCode, LPVOID erro
     CONTRACTL_END;
 
     OBJECTREF RetExceptionObj = NULL;
-    
+
     HELPER_METHOD_FRAME_BEGIN_RET_1(RetExceptionObj);
 
     // Retrieve the IErrorInfo to use.
@@ -740,7 +700,7 @@ FCIMPLEND
 
 //====================================================================
 // map GUID to Type
-//====================================================================  
+//====================================================================
 
 /*OBJECTREF */
 FCIMPL1(Object*, MarshalNative::GetLoadedTypeForGUID, GUID* pGuid)
@@ -784,7 +744,7 @@ FCIMPL1(ITypeInfo*, MarshalNative::GetITypeInfoForType, ReflectClassBaseObject* 
     // Check for null arguments.
     if(!refClass)
         COMPlusThrowArgumentNull(W("t"));
-        
+
     MethodTable *pRefMT = refClass->GetMethodTable();
     if (pRefMT != g_pRuntimeTypeClass)
         COMPlusThrowArgumentException(W("t"), W("Argument_MustBeRuntimeType"));
@@ -802,7 +762,7 @@ FCIMPL1(ITypeInfo*, MarshalNative::GetITypeInfoForType, ReflectClassBaseObject* 
         COMPlusThrowArgumentException(W("t"), W("Argument_TypeMustBeVisibleFromCom"));
 
     // Retrieve the EE class from the reflection type.
-    MethodTable* pMT = th.GetMethodTable();          
+    MethodTable* pMT = th.GetMethodTable();
     _ASSERTE(pMT);
 
     // Retrieve the ITypeInfo for the class.
@@ -844,7 +804,7 @@ FCIMPL2(IUnknown*, MarshalNative::GetIUnknownForObjectNative, Object* orefUNSAFE
 FCIMPLEND
 
 //====================================================================
-// return the raw IUnknown* for a COM Object not related to current 
+// return the raw IUnknown* for a COM Object not related to current
 // context.
 // Does not AddRef the returned pointer
 //====================================================================
@@ -862,10 +822,10 @@ FCIMPL1(IUnknown*, MarshalNative::GetRawIUnknownForComObjectNoAddRef, Object* or
         COMPlusThrowArgumentNull(W("o"));
 
     MethodTable* pMT = oref->GetMethodTable();
-    PREFIX_ASSUME(pMT != NULL);    
+    PREFIX_ASSUME(pMT != NULL);
     if(!pMT->IsComObjectType())
         COMPlusThrow(kArgumentException, IDS_EE_SRC_OBJ_NOT_COMOBJECT);
-    
+
     // Ensure COM is started up.
     EnsureComStarted();
 
@@ -874,7 +834,7 @@ FCIMPL1(IUnknown*, MarshalNative::GetRawIUnknownForComObjectNoAddRef, Object* or
 
     // Retrieve raw IUnknown * without AddRef for better performance
     retVal = pRCW->GetRawIUnknown_NoAddRef();
-    
+
     HELPER_METHOD_FRAME_END();
     return retVal;
 }
@@ -1020,7 +980,7 @@ FCIMPL1(Object*, MarshalNative::GetUniqueObjectForIUnknown, IUnknown* pUnk)
     GetObjectRefFromComIP(&oref, pUnk, NULL, NULL, ObjFromComIP::UNIQUE_OBJECT);
 
     HELPER_METHOD_FRAME_END();
-    return OBJECTREFToObject(oref);    
+    return OBJECTREFToObject(oref);
 }
 FCIMPLEND
 
@@ -1042,13 +1002,13 @@ FCIMPL1(Object*, MarshalNative::GetUniqueObjectForIUnknownWithoutUnboxing, IUnkn
     GetObjectRefFromComIP(&oref, pUnk, NULL, NULL, ObjFromComIP::UNIQUE_OBJECT | ObjFromComIP::IGNORE_WINRT_AND_SKIP_UNBOXING);
 
     HELPER_METHOD_FRAME_END();
-    return OBJECTREFToObject(oref);    
+    return OBJECTREFToObject(oref);
 }
 FCIMPLEND
 
 //====================================================================
-// return an Object for IUnknown, using the Type T, 
-//  NOTE: 
+// return an Object for IUnknown, using the Type T,
+//  NOTE:
 //  Type T should be either a COM imported Type or a sub-type of COM imported Type
 //====================================================================
 FCIMPL2(Object*, MarshalNative::GetTypedObjectForIUnknown, IUnknown* pUnk, ReflectClassBaseObject* refClassUNSAFE)
@@ -1077,7 +1037,7 @@ FCIMPL2(Object*, MarshalNative::GetTypedObjectForIUnknown, IUnknown* pUnk, Refle
             COMPlusThrowArgumentException(W("t"), W("Argument_MustBeRuntimeType"));
 
         TypeHandle th = refClass->GetType();
-        
+
         if (th.GetMethodTable() != NULL && (th.IsProjectedFromWinRT() || th.IsExportedToWinRT()))
             COMPlusThrowArgumentException(W("t"), W("Argument_ObjIsWinRTObject"));
 
@@ -1086,7 +1046,7 @@ FCIMPL2(Object*, MarshalNative::GetTypedObjectForIUnknown, IUnknown* pUnk, Refle
 
         pMTClass = th.GetMethodTable();
     }
-    else 
+    else
         COMPlusThrowArgumentNull(W("t"));
 
 
@@ -1110,7 +1070,7 @@ FCIMPL2(IUnknown*, MarshalNative::CreateAggregatedObject, IUnknown* pOuter, Obje
     CONTRACTL_END;
 
     IUnknown* pInner = NULL;
-    
+
     OBJECTREF oref =  (OBJECTREF)refObjUNSAFE;
     HELPER_METHOD_FRAME_BEGIN_RET_1(oref);
 
@@ -1133,11 +1093,11 @@ FCIMPL2(IUnknown*, MarshalNative::CreateAggregatedObject, IUnknown* pOuter, Obje
         COMPlusThrowArgumentException(W("o"), W("Argument_AlreadyACCW"));
 
     //get wrapper for the object, this could enable GC
-    CCWHolder pWrap =  ComCallWrapper::InlineGetWrapper(&oref); 
+    CCWHolder pWrap =  ComCallWrapper::InlineGetWrapper(&oref);
 
-    // Aggregation support, 
-    pWrap->InitializeOuter(pOuter);                                             
-    IfFailThrow(pWrap->GetInnerUnknown((LPVOID*)&pInner));           
+    // Aggregation support,
+    pWrap->InitializeOuter(pOuter);
+    IfFailThrow(pWrap->GetInnerUnknown((LPVOID*)&pInner));
 
     HELPER_METHOD_FRAME_END();
     return pInner;
@@ -1209,7 +1169,7 @@ FCIMPLEND
 
 //====================================================================
 // free the COM component and zombie this object if the ref count hits 0
-// further usage of this Object might throw an exception, 
+// further usage of this Object might throw an exception,
 //====================================================================
 FCIMPL1(INT32, MarshalNative::ReleaseComObject, Object* objUNSAFE)
 {
@@ -1223,7 +1183,7 @@ FCIMPL1(INT32, MarshalNative::ReleaseComObject, Object* objUNSAFE)
         COMPlusThrowArgumentNull(W("o"));
 
     MethodTable* pMT = obj->GetMethodTable();
-    PREFIX_ASSUME(pMT != NULL);    
+    PREFIX_ASSUME(pMT != NULL);
     if(!pMT->IsComObjectType())
         COMPlusThrow(kArgumentException, IDS_EE_SRC_OBJ_NOT_COMOBJECT);
 
@@ -1237,7 +1197,7 @@ FCIMPLEND
 
 //====================================================================
 // free the COM component and zombie this object
-// further usage of this Object might throw an exception, 
+// further usage of this Object might throw an exception,
 //====================================================================
 FCIMPL1(void, MarshalNative::FinalReleaseComObject, Object* objUNSAFE)
 {
@@ -1250,7 +1210,7 @@ FCIMPL1(void, MarshalNative::FinalReleaseComObject, Object* objUNSAFE)
         COMPlusThrowArgumentNull(W("o"));
 
     MethodTable* pMT = obj->GetMethodTable();
-    PREFIX_ASSUME(pMT != NULL);    
+    PREFIX_ASSUME(pMT != NULL);
     if(!pMT->IsComObjectType())
         COMPlusThrow(kArgumentException, IDS_EE_SRC_OBJ_NOT_COMOBJECT);
 
@@ -1286,7 +1246,7 @@ FCIMPL2(Object*, MarshalNative::InternalCreateWrapperOfType, Object* objUNSAFE, 
     gc.refRetVal = NULL;
     gc.obj = (OBJECTREF) objUNSAFE;
     gc.refClass = (REFLECTCLASSBASEREF) refClassUNSAFE;
-    
+
     HELPER_METHOD_FRAME_BEGIN_RET_PROTECT(gc);
 
     // Validate the arguments.
@@ -1303,7 +1263,7 @@ FCIMPL2(Object*, MarshalNative::InternalCreateWrapperOfType, Object* objUNSAFE, 
     _ASSERTE(pNewWrapMT->IsComObjectType());
 
     BOOL fSet = FALSE;
-    
+
     // Start by checking if we can cast the obj to the wrapper type.
     if (TypeHandle(pObjMT).CanCastTo(TypeHandle(pNewWrapMT)))
     {
@@ -1319,8 +1279,8 @@ FCIMPL2(Object*, MarshalNative::InternalCreateWrapperOfType, Object* objUNSAFE, 
         RCWHolder pRCW(GetThread());
 
         RCWPROTECT_BEGIN(pRCW, gc.obj);
-        
-        // Make sure the COM object supports all the COM imported interfaces that the new 
+
+        // Make sure the COM object supports all the COM imported interfaces that the new
         // wrapper class implements.
         MethodTable::InterfaceMapIterator it = pNewWrapMT->IterateInterfaceMap();
         while (it.Next())
@@ -1332,18 +1292,18 @@ FCIMPL2(Object*, MarshalNative::InternalCreateWrapperOfType, Object* objUNSAFE, 
                     COMPlusThrow(kInvalidCastException, IDS_EE_CANNOT_COERCE_COMOBJECT);
             }
         }
-        
+
         // Create the duplicate wrapper object.
         {
             RCWHolder pNewRCW(GetThread());
             pRCW->CreateDuplicateWrapper(pNewWrapMT, &pNewRCW);
-            
+
             gc.refRetVal = pNewRCW->GetExposedObject();
         }
 
         RCWPROTECT_END(pRCW);
     }
-    
+
     HELPER_METHOD_FRAME_END();
     return OBJECTREFToObject(gc.refRetVal);
 }
@@ -1362,9 +1322,9 @@ FCIMPL1(FC_BOOL_RET, MarshalNative::IsTypeVisibleFromCom, ReflectClassBaseObject
     HELPER_METHOD_FRAME_BEGIN_RET_1(refClass);
 
     // Validate the arguments.
-    if (refClass == NULL) 
+    if (refClass == NULL)
         COMPlusThrowArgumentNull(W("t"));
-        
+
     MethodTable *pRefMT = refClass->GetMethodTable();
     if (pRefMT != g_pRuntimeTypeClass)
         COMPlusThrowArgumentException(W("t"), W("Argument_MustBeRuntimeType"));
@@ -1432,7 +1392,7 @@ FCIMPLEND
 
 //IUnknown::Release
 FCIMPL1(ULONG, MarshalNative::Release, IUnknown* pUnk)
-{   
+{
     CONTRACTL
     {
         FCALL_CHECK;
@@ -1468,7 +1428,7 @@ FCIMPL2(void, MarshalNative::GetNativeVariantForObject, Object* ObjUNSAFE, LPVOI
 
     if (pDestNativeVariant == NULL)
         COMPlusThrowArgumentNull(W("pDstNativeVariant"));
-    
+
     if (Obj == NULL)
     {
         // Will return empty variant in MarshalOleVariantForObject
@@ -1558,7 +1518,7 @@ FCIMPL2(void, MarshalNative::DoGenerateGuidForType, GUID * result, ReflectClassB
     // Validate the arguments.
     if (refType == NULL)
         COMPlusThrowArgumentNull(W("type"));
-        
+
     MethodTable *pRefMT = refType->GetMethodTable();
     if (pRefMT != g_pRuntimeTypeClass)
         COMPlusThrowArgumentException(W("type"), W("Argument_MustBeRuntimeType"));
@@ -1566,7 +1526,7 @@ FCIMPL2(void, MarshalNative::DoGenerateGuidForType, GUID * result, ReflectClassB
         COMPlusThrow(kArgumentNullException, W("ArgumentNull_GUID"));
 
     // Check to see if the type is a COM object or not.
-    if (IsComObjectClass(refType->GetType())) 
+    if (IsComObjectClass(refType->GetType()))
     {
 #ifdef FEATURE_COMINTEROP_UNMANAGED_ACTIVATION
         // The type is a COM object then we get the GUID from the class factory.
@@ -1584,7 +1544,7 @@ FCIMPL2(void, MarshalNative::DoGenerateGuidForType, GUID * result, ReflectClassB
         TypeHandle classTH = refType->GetType();
         classTH.GetMethodTable()->GetGuid(result, TRUE);
     }
-    
+
     GCPROTECT_END ();
     HELPER_METHOD_FRAME_END();
 }
@@ -1765,7 +1725,7 @@ FCIMPL1(int, MarshalNative::GetStartComSlot, ReflectClassBaseObject* tUNSAFE)
 
     if (!(t))
         COMPlusThrow(kArgumentNullException);
-    
+
     MethodTable *pTMT = t->GetMethodTable();
     if (pTMT != g_pRuntimeTypeClass)
         COMPlusThrowArgumentException(W("t"), W("Argument_MustBeRuntimeType"));
@@ -1798,7 +1758,7 @@ FCIMPL1(int, MarshalNative::GetEndComSlot, ReflectClassBaseObject* tUNSAFE)
 
     if (!(t))
         COMPlusThrow(kArgumentNullException);
-    
+
     MethodTable *pTMT = t->GetMethodTable();
     if (pTMT != g_pRuntimeTypeClass)
         COMPlusThrowArgumentException(W("t"), W("Argument_MustBeRuntimeType"));
@@ -1849,7 +1809,7 @@ FCIMPL1(int, MarshalNative::GetComSlotForMethodInfo, ReflectMethodObject* pMetho
     int retVal = 0;
     HELPER_METHOD_FRAME_BEGIN_RET_1(refMethod);
 
-    retVal = pMeth->GetComSlot();    
+    retVal = pMeth->GetComSlot();
 
     HELPER_METHOD_FRAME_END();
     return retVal;
@@ -1868,7 +1828,7 @@ FCIMPL3(Object*, MarshalNative::GetMethodInfoForComSlot, ReflectClassBaseObject*
     OBJECTREF refRetVal = NULL;
     REFLECTCLASSBASEREF t = (REFLECTCLASSBASEREF) tUNSAFE;
     REFLECTCLASSBASEREF tInterface = NULL;
-    
+
     HELPER_METHOD_FRAME_BEGIN_RET_2(t, tInterface);
 
     int StartSlot = -1;
@@ -1876,7 +1836,7 @@ FCIMPL3(Object*, MarshalNative::GetMethodInfoForComSlot, ReflectClassBaseObject*
 
     if (!(t))
         COMPlusThrow(kArgumentNullException);
-    
+
     MethodTable *pTMT = t->GetMethodTable();
     if (pTMT != g_pRuntimeTypeClass)
         COMPlusThrowArgumentException(W("t"), W("Argument_MustBeRuntimeType"));
@@ -1924,7 +1884,7 @@ FCIMPL3(Object*, MarshalNative::GetMethodInfoForComSlot, ReflectClassBaseObject*
             ObjToArgSlot(tInterface),
             (ARG_SLOT)pField
         };
-        
+
         MemberInfoObj = getFieldInfo.Call_RetOBJECTREF(args);
 
         *(pMemberType) = (pProps->semantic == (FieldSemanticOffset + msGetter)) ? CMT_PropGet : CMT_PropSet;
@@ -1935,14 +1895,14 @@ FCIMPL3(Object*, MarshalNative::GetMethodInfoForComSlot, ReflectClassBaseObject*
 
         // call the managed code to get the MethodInfo
         MethodDescCallSite getMethodBase(METHOD__CLASS__GET_METHOD_BASE);
-        ARG_SLOT args[] = 
+        ARG_SLOT args[] =
         {
             ObjToArgSlot(tInterface),
             (ARG_SLOT)pProps->pMeth
         };
-        
+
         MemberInfoObj = getMethodBase.Call_RetOBJECTREF(args);
-        
+
         *(pMemberType) = CMT_Method;
     }
     else
@@ -1961,7 +1921,7 @@ FCIMPL3(Object*, MarshalNative::GetMethodInfoForComSlot, ReflectClassBaseObject*
             ObjToArgSlot(tInterface),
             tkProp
         };
-        
+
         MemberInfoObj = getPropertyInfo.Call_RetOBJECTREF(args);
 
         *(pMemberType) = (pProps->semantic == msGetter) ? CMT_PropGet : CMT_PropSet;
@@ -1996,17 +1956,17 @@ FCIMPL1(Object*, MarshalNative::WrapIUnknownWithComObject, IUnknown* pUnk)
 
     if(pUnk == NULL)
         COMPlusThrowArgumentNull(W("punk"));
-        
+
     EnsureComStarted();
 
     COMInterfaceMarshaler marshaler;
     marshaler.Init(pUnk, g_pBaseCOMObject, GET_THREAD());
-    
+
     cref = marshaler.WrapWithComObject();
-    
+
     if (cref == NULL)
         COMPlusThrowOM();
-        
+
     HELPER_METHOD_FRAME_END();
     return OBJECTREFToObject(cref);
 }
@@ -2021,19 +1981,19 @@ FCIMPL2(void, MarshalNative::ChangeWrapperHandleStrength, Object* orefUNSAFE, CL
 
     if(oref == NULL)
         COMPlusThrowArgumentNull(W("otp"));
-    
+
     if (
         !oref->GetMethodTable()->IsComImport())
     {
         CCWHolder pWrap = ComCallWrapper::InlineGetWrapper(&oref);
-        
+
         if (pWrap == NULL)
             COMPlusThrowOM();
         if (fIsWeak != 0)
             pWrap->MarkHandleWeak();
         else
             pWrap->ResetHandleStrength();
-    }        
+    }
 
     HELPER_METHOD_FRAME_END();
 }
@@ -2066,7 +2026,7 @@ FCIMPL2(void, MarshalNative::InitializeWrapperForWinRT, Object *unsafe_pThis, IU
 FCIMPLEND
 
 FCIMPL2(void, MarshalNative::InitializeManagedWinRTFactoryObject, Object *unsafe_pThis, ReflectClassBaseObject *unsafe_pType)
-{                                             
+{
     FCALL_CONTRACT;
 
     OBJECTREF orefThis = ObjectToOBJECTREF(unsafe_pThis);
@@ -2091,8 +2051,8 @@ FCIMPLEND
 //
 // Create activation factory and wraps it with a unique RCW
 //
-// This is necessary because WinRT factories are often implemented as a singleton, 
-// and getting back a RCW for such WinRT factory would usually get back a RCW from 
+// This is necessary because WinRT factories are often implemented as a singleton,
+// and getting back a RCW for such WinRT factory would usually get back a RCW from
 // another apartment, even if the interface pointe returned from GetActivationFactory
 // is a raw pointer. As a result, user would randomly get back RCWs for activation
 // factories from other apartments and make transiton to those apartments and cause
@@ -2101,7 +2061,7 @@ FCIMPLEND
 // The solution here is to always create a unique RCW
 //
 FCIMPL1(Object *, MarshalNative::GetNativeActivationFactory, ReflectClassBaseObject *unsafe_pType)
-{                                             
+{
     FCALL_CONTRACT;
 
     REFLECTCLASSBASEREF orefType = (REFLECTCLASSBASEREF)ObjectToOBJECTREF(unsafe_pType);
@@ -2117,8 +2077,8 @@ FCIMPL1(Object *, MarshalNative::GetNativeActivationFactory, ReflectClassBaseObj
     // Get the activation factory instance for this WinRT type and create a RCW for it
     //
     GetNativeWinRTFactoryObject(
-        pMT,                
-        GET_THREAD(),       
+        pMT,
+        GET_THREAD(),
         NULL,               // No factory interface available at this point
         TRUE,               // Create unique RCW - See comments for this function for more details
         NULL,               // No callback necessary
@@ -2132,7 +2092,7 @@ FCIMPL1(Object *, MarshalNative::GetNativeActivationFactory, ReflectClassBaseObj
 FCIMPLEND
 
 void QCALLTYPE MarshalNative::GetInspectableIIDs(
-                        QCall::ObjectHandleOnStack hobj, 
+                        QCall::ObjectHandleOnStack hobj,
                         QCall::ObjectHandleOnStack retArrayGuids)
 {
     CONTRACTL
@@ -2197,7 +2157,7 @@ void QCALLTYPE MarshalNative::GetInspectableIIDs(
 
 //====================================================================
 // Helper function used in the COM slot to method info mapping.
-//====================================================================  
+//====================================================================
 
 int MarshalNative::GetComSlotInfo(MethodTable *pMT, MethodTable **ppDefItfMT)
 {
@@ -2210,7 +2170,7 @@ int MarshalNative::GetComSlotInfo(MethodTable *pMT, MethodTable **ppDefItfMT)
         PRECONDITION(CheckPointer(ppDefItfMT));
     }
     CONTRACTL_END;
-    
+
     *ppDefItfMT = NULL;
 
     // If a class was passed in then retrieve the default interface.
@@ -2218,7 +2178,7 @@ int MarshalNative::GetComSlotInfo(MethodTable *pMT, MethodTable **ppDefItfMT)
     {
         TypeHandle hndDefItfClass;
         DefaultInterfaceType DefItfType = GetDefaultInterfaceForClassWrapper(TypeHandle(pMT), &hndDefItfClass);
-        
+
         if (DefItfType == DefaultInterfaceType_AutoDual || DefItfType == DefaultInterfaceType_Explicit)
         {
             pMT = hndDefItfClass.GetMethodTable();
@@ -2262,10 +2222,10 @@ BOOL MarshalNative::IsObjectInContext(OBJECTREF *pObj)
     InteropSyncBlockInfo* pInteropInfo = pBlock->GetInteropInfo();
 
     ComCallWrapper* pCCW = pInteropInfo->GetCCW();
-    
+
     if((pCCW) || (!pInteropInfo->RCWWasUsed()))
     {
-        // We are dealing with a CCW. Since CCW's are agile, they are always in the 
+        // We are dealing with a CCW. Since CCW's are agile, they are always in the
         // correct context.
         return TRUE;
     }
@@ -2273,8 +2233,8 @@ BOOL MarshalNative::IsObjectInContext(OBJECTREF *pObj)
     {
         RCWHolder pRCW(GetThread());
         pRCW.Init(pBlock);
-        
-        // We are dealing with an RCW, we need to check to see if the current 
+
+        // We are dealing with an RCW, we need to check to see if the current
         // context is the one it was first seen in.
         LPVOID pCtxCookie = GetCurrentCtxCookie();
         _ASSERTE(pCtxCookie != NULL);

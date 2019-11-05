@@ -382,6 +382,8 @@ struct LsraBlockInfo
     BasicBlock::weight_t weight;
     bool                 hasCriticalInEdge;
     bool                 hasCriticalOutEdge;
+    bool                 hasEHBoundaryIn;
+    bool                 hasEHBoundaryOut;
 
 #if TRACK_LSRA_STATS
     // Per block maintained LSRA statistics.
@@ -544,11 +546,11 @@ inline bool leafInRange(GenTree* leaf, int lower, int upper)
     {
         return false;
     }
-    if (leaf->gtIntCon.gtIconVal < lower)
+    if (leaf->AsIntCon()->gtIconVal < lower)
     {
         return false;
     }
-    if (leaf->gtIntCon.gtIconVal > upper)
+    if (leaf->AsIntCon()->gtIconVal > upper)
     {
         return false;
     }
@@ -562,7 +564,7 @@ inline bool leafInRange(GenTree* leaf, int lower, int upper, int multiple)
     {
         return false;
     }
-    if (leaf->gtIntCon.gtIconVal % multiple)
+    if (leaf->AsIntCon()->gtIconVal % multiple)
     {
         return false;
     }
@@ -885,7 +887,6 @@ private:
     }
 
     // Dump support
-    void dumpNodeInfo(GenTree* node, regMaskTP dstCandidates, int srcCount, int dstCount);
     void dumpDefList();
     void lsraDumpIntervals(const char* msg);
     void dumpRefPositions(const char* msg);
@@ -1017,9 +1018,9 @@ private:
     {
         if (tree->IsLocal())
         {
-            unsigned int lclNum = tree->gtLclVarCommon.gtLclNum;
+            unsigned int lclNum = tree->AsLclVarCommon()->GetLclNum();
             assert(lclNum < compiler->lvaCount);
-            LclVarDsc* varDsc = compiler->lvaTable + tree->gtLclVarCommon.gtLclNum;
+            LclVarDsc* varDsc = compiler->lvaTable + tree->AsLclVarCommon()->GetLclNum();
 
             return isCandidateVar(varDsc);
         }
@@ -1081,28 +1082,6 @@ private:
     void insertSwap(
         BasicBlock* block, GenTree* insertionPoint, unsigned lclNum1, regNumber reg1, unsigned lclNum2, regNumber reg2);
 
-public:
-    // TODO-Cleanup: unused?
-    class PhysRegIntervalIterator
-    {
-    public:
-        PhysRegIntervalIterator(LinearScan* theLinearScan)
-        {
-            nextRegNumber = (regNumber)0;
-            linearScan    = theLinearScan;
-        }
-        RegRecord* GetNext()
-        {
-            return &linearScan->physRegs[nextRegNumber];
-        }
-
-    private:
-        // This assumes that the physical registers are contiguous, starting
-        // with a register number of 0
-        regNumber   nextRegNumber;
-        LinearScan* linearScan;
-    };
-
 private:
     Interval* newInterval(RegisterType regType);
 
@@ -1115,7 +1094,7 @@ private:
 
     Interval* getIntervalForLocalVarNode(GenTreeLclVarCommon* tree)
     {
-        LclVarDsc* varDsc = &compiler->lvaTable[tree->gtLclNum];
+        LclVarDsc* varDsc = &compiler->lvaTable[tree->GetLclNum()];
         assert(varDsc->lvTracked);
         return getIntervalForLocalVar(varDsc->lvVarIndex);
     }
@@ -1182,7 +1161,7 @@ private:
 
     void setIntervalAsSpilled(Interval* interval);
     void setIntervalAsSplit(Interval* interval);
-    void spillInterval(Interval* interval, RefPosition* fromRefPosition, RefPosition* toRefPosition);
+    void spillInterval(Interval* interval, RefPosition* fromRefPosition DEBUGARG(RefPosition* toRefPosition));
 
     void spillGCRefs(RefPosition* killRefPosition);
 
@@ -1465,6 +1444,9 @@ private:
     VARSET_TP splitOrSpilledVars;
     // Set of floating point variables to consider for callee-save registers.
     VARSET_TP fpCalleeSaveCandidateVars;
+    // Set of variables exposed on EH flow edges.
+    VARSET_TP exceptVars;
+
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
 #if defined(_TARGET_AMD64_)
     static bool varTypeNeedsPartialCalleeSave(var_types type)
@@ -1584,6 +1566,9 @@ private:
     bool isRMWRegOper(GenTree* tree);
     int BuildMul(GenTree* tree);
     void SetContainsAVXFlags(unsigned sizeOfSIMDVector = 0);
+#endif // defined(_TARGET_XARCH_)
+
+#if defined(_TARGET_X86_)
     // Move the last use bit, if any, from 'fromTree' to 'toTree'; 'fromTree' must be contained.
     void CheckAndMoveRMWLastUse(GenTree* fromTree, GenTree* toTree)
     {
@@ -1594,19 +1579,16 @@ private:
         }
         // If 'fromTree' was a lclVar, it must be contained and 'toTree' must match.
         if (!fromTree->isContained() || (toTree == nullptr) || !toTree->OperIs(GT_LCL_VAR) ||
-            (toTree->AsLclVarCommon()->gtLclNum != toTree->AsLclVarCommon()->gtLclNum))
+            (fromTree->AsLclVarCommon()->GetLclNum() != toTree->AsLclVarCommon()->GetLclNum()))
         {
             assert(!"Unmatched RMW indirections");
             return;
         }
         // This is probably not necessary, but keeps things consistent.
         fromTree->gtFlags &= ~GTF_VAR_DEATH;
-        if (toTree != nullptr) // Just to be conservative
-        {
-            toTree->gtFlags |= GTF_VAR_DEATH;
-        }
+        toTree->gtFlags |= GTF_VAR_DEATH;
     }
-#endif // defined(_TARGET_XARCH_)
+#endif // _TARGET_X86_
 
 #ifdef FEATURE_SIMD
     int BuildSIMD(GenTreeSIMD* tree);

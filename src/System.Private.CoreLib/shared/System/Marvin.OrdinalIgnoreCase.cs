@@ -8,6 +8,7 @@ using System.Runtime.InteropServices;
 using System.Text.Unicode;
 using Internal.Runtime.CompilerServices;
 
+#pragma warning disable SA1121 // explicitly using type aliases instead of built-in types
 #if BIT64
 using nuint = System.UInt64;
 #else
@@ -66,7 +67,7 @@ namespace System
             return (int)(p1 ^ p0);
 
         NotAscii:
-            Debug.Assert(0 <= ucount && ucount <= Int32.MaxValue); // this should fit into a signed int
+            Debug.Assert(ucount <= int.MaxValue); // this should fit into a signed int
             return ComputeHash32OrdinalIgnoreCaseSlow(ref Unsafe.AddByteOffset(ref data, byteOffset), (int)ucount, p0, p1);
         }
 

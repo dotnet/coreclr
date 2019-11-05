@@ -117,31 +117,23 @@ public:
         ReadyToRunInfo * m_pInfo;
         int m_methodDefIndex;
 
-    public:
-        MethodIterator(ReadyToRunInfo * pInfo) : 
-            m_pInfo(pInfo), 
-            m_methodDefIndex(-1)
-        {
-        }
+        NativeFormat::NativeHashtable::AllEntriesEnumerator m_genericEnum;
+        NativeFormat::NativeParser m_genericParser;
+        uint m_genericCurrentOffset;
+        RID m_genericCurrentRid;
+        PCCOR_SIGNATURE m_genericCurrentSig;
 
-        BOOL Next();
-
-        MethodDesc * GetMethodDesc();
-        MethodDesc * GetMethodDesc_NoRestore();
-        PCODE GetMethodStartAddress();
-    };
-
-    class GenericMethodIterator
-    {
-        ReadyToRunInfo *m_pInfo;
-        NativeFormat::NativeHashtable::AllEntriesEnumerator m_enum;
-        NativeFormat::NativeParser m_current;
+        void ParseGenericMethodSignatureAndRid(uint *offset, RID *rid);
 
     public:
-        GenericMethodIterator(ReadyToRunInfo *pInfo) :
-            m_pInfo(pInfo), 
-            m_enum(),
-            m_current()
+        MethodIterator(ReadyToRunInfo * pInfo) :
+            m_pInfo(pInfo),
+            m_methodDefIndex(-1),
+            m_genericEnum(),
+            m_genericParser(),
+            m_genericCurrentOffset(-1),
+            m_genericCurrentRid(-1),
+            m_genericCurrentSig(NULL)
         {
             NativeFormat::PTR_NativeHashtable pHash = NULL;
             if (!pInfo->m_instMethodEntryPoints.IsNull())
@@ -149,11 +141,14 @@ public:
                 pHash = NativeFormat::PTR_NativeHashtable(&pInfo->m_instMethodEntryPoints);
             }
 
-            m_enum = NativeFormat::NativeHashtable::AllEntriesEnumerator(pHash);
+            m_genericEnum = NativeFormat::NativeHashtable::AllEntriesEnumerator(pHash);
         }
 
         BOOL Next();
+
+        MethodDesc * GetMethodDesc();
         MethodDesc * GetMethodDesc_NoRestore();
+        PCODE GetMethodStartAddress();
     };
 
     static DWORD GetFieldBaseOffset(MethodTable * pMT);

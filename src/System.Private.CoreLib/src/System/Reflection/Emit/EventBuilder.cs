@@ -4,32 +4,32 @@
 
 /*============================================================
 **
-** 
-** 
+**
+**
 **
 **
 ** Eventbuilder is for client to define eevnts for a class
 **
-** 
+**
 ===========================================================*/
 
 using System.Runtime.CompilerServices;
 
 namespace System.Reflection.Emit
 {
-    // 
+    //
     // A EventBuilder is always associated with a TypeBuilder.  The TypeBuilder.DefineEvent
     // method will return a new EventBuilder to a client.
-    // 
+    //
     public sealed class EventBuilder
     {
-        // Constructs a EventBuilder.  
+        // Constructs a EventBuilder.
         //
         internal EventBuilder(
-            ModuleBuilder mod,                    // the module containing this EventBuilder        
+            ModuleBuilder mod,                    // the module containing this EventBuilder
             string name,                    // Event name
             EventAttributes attr,                    // event attribute such as Public, Private, and Protected defined above
-                                                     //int            eventType,                // event type
+                                                     // int            eventType,                // event type
             TypeBuilder type,                    // containing type
             EventToken evToken)
         {
@@ -57,7 +57,7 @@ namespace System.Reflection.Emit
             m_type.ThrowIfCreated();
             ModuleBuilder module = m_module;
             TypeBuilder.DefineMethodSemantics(
-                JitHelpers.GetQCallModuleOnStack(ref module),
+                new QCallModule(ref module),
                 m_evToken.Token,
                 semantics,
                 mdBuilder.GetToken().Token);

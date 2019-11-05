@@ -42,8 +42,12 @@ public:
     //! Shutdown the event pipe.
     static bool Shutdown();
 
+    //! Diagnostics server thread.
+    static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter);
+
 private:
     static IpcStream::DiagnosticsIpc *s_pIpc;
+    static Volatile<bool> s_shuttingDown;
 };
 
 #endif // FEATURE_PERFTRACING

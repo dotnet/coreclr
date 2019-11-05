@@ -85,7 +85,7 @@ GenTree* Compiler::getArrayLengthFromAllocation(GenTree* tree)
                 call->gtCallMethHnd == eeFindHelper(CORINFO_HELP_NEWARR_1_ALIGN8))
             {
                 // This is an array allocation site. Grab the array length node.
-                return gtArgEntryByArgNum(call, 1)->node;
+                return gtArgEntryByArgNum(call, 1)->GetNode();
             }
         }
     }
@@ -127,7 +127,7 @@ GenTree* Compiler::getObjectHandleNodeFromAllocation(GenTree* tree)
             {
                 // This is an object allocation site. Return the runtime type handle node.
                 fgArgTabEntry* argTabEntry = gtArgEntryByArgNum(call, 0);
-                return argTabEntry->node;
+                return argTabEntry->GetNode();
             }
         }
     }
@@ -185,17 +185,17 @@ void Compiler::optEarlyProp()
 
         compCurBB = block;
 
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr;)
+        for (Statement* stmt = block->firstStmt(); stmt != nullptr;)
         {
             // Preserve the next link before the propagation and morph.
-            GenTreeStmt* next = stmt->gtNextStmt;
+            Statement* next = stmt->GetNextStmt();
 
             compCurStmt = stmt;
 
             // Walk the stmt tree in linear order to rewrite any array length reference with a
             // constant array length.
             bool isRewritten = false;
-            for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
+            for (GenTree* tree = stmt->GetTreeList(); tree != nullptr; tree = tree->gtNext)
             {
                 GenTree* rewrittenTree = optEarlyPropRewriteTree(tree);
                 if (rewrittenTree != nullptr)
@@ -243,7 +243,7 @@ GenTree* Compiler::optEarlyPropRewriteTree(GenTree* tree)
 
     if (tree->OperGet() == GT_ARR_LENGTH)
     {
-        objectRefPtr = tree->gtOp.gtOp1;
+        objectRefPtr = tree->AsOp()->gtOp1;
         propKind     = optPropKind::OPK_ARRAYLEN;
     }
     else if (tree->OperIsIndir())
@@ -258,7 +258,7 @@ GenTree* Compiler::optEarlyPropRewriteTree(GenTree* tree)
             //      *  stmtExpr  void  (top level)
             //      \--*  indir     int
             //          \--*  lclVar    ref    V02 loc0
-            if (compCurStmt->gtStmtExpr == tree)
+            if (compCurStmt->GetRootNode() == tree)
             {
                 return nullptr;
             }
@@ -336,7 +336,7 @@ GenTree* Compiler::optEarlyPropRewriteTree(GenTree* tree)
         if (verbose)
         {
             printf("optEarlyProp Rewriting " FMT_BB "\n", compCurBB->bbNum);
-            gtDispTree(compCurStmt);
+            gtDispStmt(compCurStmt);
             printf("\n");
         }
 #endif
@@ -368,7 +368,7 @@ GenTree* Compiler::optEarlyPropRewriteTree(GenTree* tree)
         if (verbose)
         {
             printf("to\n");
-            gtDispTree(compCurStmt);
+            gtDispStmt(compCurStmt);
             printf("\n");
         }
 #endif
@@ -573,12 +573,12 @@ void Compiler::optFoldNullCheck(GenTree* tree)
                                 {
                                     GenTree* additionNode = defRHS->gtGetOp2();
                                     if ((additionNode->gtGetOp1()->OperGet() == GT_LCL_VAR) &&
-                                        (additionNode->gtGetOp1()->gtLclVarCommon.gtLclNum == nullCheckLclNum))
+                                        (additionNode->gtGetOp1()->AsLclVarCommon()->GetLclNum() == nullCheckLclNum))
                                     {
                                         GenTree* offset = additionNode->gtGetOp2();
                                         if (offset->IsCnsIntOrI())
                                         {
-                                            if (!fgIsBigOffset(offset->gtIntConCommon.IconValue()))
+                                            if (!fgIsBigOffset(offset->AsIntConCommon()->IconValue()))
                                             {
                                                 // Walk from the use to the def in reverse execution order to see
                                                 // if any nodes have unsafe side effects.
@@ -607,8 +607,8 @@ void Compiler::optFoldNullCheck(GenTree* tree)
                                                 // Then walk the statement list in reverse execution order
                                                 // until we get to the statement containing the null check.
                                                 // We only need to check the side effects at the root of each statement.
-                                                GenTree* curStmt = compCurStmt->gtPrev;
-                                                currentTree      = curStmt->gtStmt.gtStmtExpr;
+                                                Statement* curStmt = compCurStmt->GetPrevStmt();
+                                                currentTree        = curStmt->GetRootNode();
                                                 while (canRemoveNullCheck && (currentTree != defParent))
                                                 {
                                                     if ((nodesWalked++ > maxNodesWalked) ||
@@ -618,9 +618,9 @@ void Compiler::optFoldNullCheck(GenTree* tree)
                                                     }
                                                     else
                                                     {
-                                                        curStmt = curStmt->gtStmt.gtPrevStmt;
+                                                        curStmt = curStmt->GetPrevStmt();
                                                         assert(curStmt != nullptr);
-                                                        currentTree = curStmt->gtStmt.gtStmtExpr;
+                                                        currentTree = curStmt->GetRootNode();
                                                     }
                                                 }
 
@@ -638,8 +638,7 @@ void Compiler::optFoldNullCheck(GenTree* tree)
                                                         additionNode->gtFlags & (GTF_EXCEPT | GTF_DONT_CSE);
 
                                                     // Re-morph the statement.
-                                                    fgMorphBlockStmt(compCurBB,
-                                                                     curStmt->AsStmt() DEBUGARG("optFoldNullCheck"));
+                                                    fgMorphBlockStmt(compCurBB, curStmt DEBUGARG("optFoldNullCheck"));
                                                 }
                                             }
                                         }

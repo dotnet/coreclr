@@ -11,7 +11,12 @@ schedules:
   always: true
 
 jobs:
-- template: /eng/platform-matrix.yml
+#
+# Checkout repository
+#
+- template: ../checkout-job.yml
+
+- template: ../platform-matrix.yml
   parameters:
     jobTemplate: build-job.yml
     buildConfig: checked
@@ -19,8 +24,10 @@ jobs:
     - Linux_x64
     - Windows_NT_x64
     - Windows_NT_x86
+    jobParameters:
+      testGroup: outerloop
 
-- template: /eng/platform-matrix.yml
+- template: ../platform-matrix.yml
   parameters:
     jobTemplate: test-job.yml
     buildConfig: checked

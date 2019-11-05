@@ -29,7 +29,7 @@ GTNODE(STORE_LCL_FLD    , GenTreeLclFld      ,0,(GTK_UNOP|GTK_LOCAL|GTK_NOVALUE)
 GTNODE(CATCH_ARG        , GenTree            ,0,GTK_LEAF)               // Exception object in a catch block
 GTNODE(LABEL            , GenTree            ,0,GTK_LEAF)               // Jump-target
 GTNODE(FTN_ADDR         , GenTreeFptrVal     ,0,GTK_LEAF)               // Address of a function
-GTNODE(RET_EXPR         , GenTreeRetExpr     ,0,GTK_LEAF)               // Place holder for the return expression from an inline candidate
+GTNODE(RET_EXPR         , GenTreeRetExpr     ,0,GTK_LEAF|GTK_NOTLIR)    // Place holder for the return expression from an inline candidate
 
 //-----------------------------------------------------------------------------
 //  Constant nodes:
@@ -59,6 +59,8 @@ GTNODE(XCHG             , GenTreeOp          ,0,GTK_BINOP)
 GTNODE(CMPXCHG          , GenTreeCmpXchg     ,0,GTK_SPECIAL)
 GTNODE(MEMORYBARRIER    , GenTree            ,0,(GTK_LEAF|GTK_NOVALUE))
 
+GTNODE(KEEPALIVE        , GenTree            ,0,(GTK_UNOP|GTK_NOVALUE)) // keep operand alive, generate no code, produce no result
+
 GTNODE(CAST             , GenTreeCast        ,0,(GTK_UNOP|GTK_EXOP))      // conversion to another type
 #if defined(_TARGET_ARM_)
 GTNODE(BITCAST          , GenTreeMultiRegOp  ,0,GTK_UNOP)               // reinterpretation of bits as another type
@@ -70,17 +72,20 @@ GTNODE(LCLHEAP          , GenTreeOp          ,0,(GTK_UNOP|GTK_NOCONTAIN)) // all
 GTNODE(JMP              , GenTreeVal         ,0,(GTK_LEAF|GTK_NOVALUE))   // Jump to another function
 
 GTNODE(ADDR             , GenTreeOp          ,0,GTK_UNOP)               // address of
-GTNODE(IND              , GenTreeOp          ,0,GTK_UNOP)               // load indirection
-GTNODE(STOREIND         , GenTreeStoreInd    ,0,(GTK_BINOP|GTK_NOVALUE))  // store indirection
+
+GTNODE(IND              , GenTreeIndir       ,0,GTK_UNOP)                // load indirection
+GTNODE(STOREIND         , GenTreeStoreInd    ,0,(GTK_BINOP|GTK_NOVALUE)) // store indirection
 
                                                                         // TODO-Cleanup: GT_ARR_BOUNDS_CHECK should be made a GTK_BINOP now that it has only two child nodes
 GTNODE(ARR_BOUNDS_CHECK , GenTreeBoundsChk   ,0,(GTK_SPECIAL|GTK_NOVALUE))// array bounds check
-GTNODE(OBJ              , GenTreeObj         ,0,(GTK_UNOP|GTK_EXOP))      // Object that MAY have gc pointers, and thus includes the relevant gc layout info.
-GTNODE(STORE_OBJ        , GenTreeBlk         ,0,(GTK_BINOP|GTK_EXOP|GTK_NOVALUE)) // Object that MAY have gc pointers, and thus includes the relevant gc layout info.
-GTNODE(BLK              , GenTreeBlk         ,0,GTK_UNOP)               // Block/object with no gc pointers, and with a known size (e.g. a struct with no gc fields)
-GTNODE(STORE_BLK        , GenTreeBlk         ,0,(GTK_BINOP|GTK_NOVALUE))  // Block/object with no gc pointers, and with a known size (e.g. a struct with no gc fields)
-GTNODE(DYN_BLK          , GenTreeBlk         ,0,GTK_SPECIAL)            // Dynamically sized block object
-GTNODE(STORE_DYN_BLK    , GenTreeBlk         ,0,(GTK_SPECIAL|GTK_NOVALUE))// Dynamically sized block object
+
+GTNODE(OBJ              , GenTreeObj         ,0,(GTK_UNOP|GTK_EXOP))              // Object that MAY have gc pointers, and thus includes the relevant gc layout info.
+GTNODE(STORE_OBJ        , GenTreeObj         ,0,(GTK_BINOP|GTK_EXOP|GTK_NOVALUE)) // Object that MAY have gc pointers, and thus includes the relevant gc layout info.
+GTNODE(BLK              , GenTreeBlk         ,0,(GTK_UNOP|GTK_EXOP))              // Block/object with no gc pointers, and with a known size (e.g. a struct with no gc fields)
+GTNODE(STORE_BLK        , GenTreeBlk         ,0,(GTK_BINOP|GTK_EXOP|GTK_NOVALUE)) // Block/object with no gc pointers, and with a known size (e.g. a struct with no gc fields)
+GTNODE(DYN_BLK          , GenTreeDynBlk      ,0,GTK_SPECIAL)               // Dynamically sized block object
+GTNODE(STORE_DYN_BLK    , GenTreeDynBlk      ,0,(GTK_SPECIAL|GTK_NOVALUE)) // Dynamically sized block object
+
 GTNODE(BOX              , GenTreeBox         ,0,(GTK_UNOP|GTK_EXOP|GTK_NOTLIR))
 
 #ifdef FEATURE_SIMD
@@ -140,11 +145,11 @@ GTNODE(GE               , GenTreeOp          ,0,(GTK_BINOP|GTK_RELOP))
 GTNODE(GT               , GenTreeOp          ,0,(GTK_BINOP|GTK_RELOP))
 
 // These are similar to GT_EQ/GT_NE but they generate "test" instead of "cmp" instructions.
-// Currently these are generated during lowering for code like ((x & y) eq|ne 0) only on 
+// Currently these are generated during lowering for code like ((x & y) eq|ne 0) only on
 // XArch but ARM could too use these for the same purpose as there is a "tst" instruction.
-// Note that the general case of comparing a register against 0 is handled directly by 
+// Note that the general case of comparing a register against 0 is handled directly by
 // codegen which emits a "test reg, reg" instruction, that would be more difficult to do
-// during lowering because the source operand is used twice so it has to be a lclvar. 
+// during lowering because the source operand is used twice so it has to be a lclvar.
 // Because of this there is no need to also add GT_TEST_LT/LE/GE/GT opers.
 GTNODE(TEST_EQ          , GenTreeOp          ,0,(GTK_BINOP|GTK_RELOP))
 GTNODE(TEST_NE          , GenTreeOp          ,0,(GTK_BINOP|GTK_RELOP))
@@ -155,10 +160,10 @@ GTNODE(QMARK            , GenTreeQmark       ,0,(GTK_BINOP|GTK_EXOP|GTK_NOTLIR))
 GTNODE(COLON            , GenTreeColon       ,0,(GTK_BINOP|GTK_NOTLIR))
 
 GTNODE(INDEX            , GenTreeIndex       ,0,(GTK_BINOP|GTK_EXOP|GTK_NOTLIR))   // SZ-array-element
-GTNODE(INDEX_ADDR       , GenTreeIndexAddr   ,0,(GTK_BINOP|GTK_EXOP)) // addr of SZ-array-element; 
+GTNODE(INDEX_ADDR       , GenTreeIndexAddr   ,0,(GTK_BINOP|GTK_EXOP)) // addr of SZ-array-element;
                                                                       // used when aiming to minimize compile times.
 
-GTNODE(MKREFANY         , GenTreeOp          ,0,GTK_BINOP)
+GTNODE(MKREFANY         , GenTreeOp          ,0,GTK_BINOP|GTK_NOTLIR)
 
 GTNODE(LEA              , GenTreeAddrMode    ,0,(GTK_BINOP|GTK_EXOP))
 
@@ -204,19 +209,19 @@ GTNODE(SIMD             , GenTreeSIMD        ,0,(GTK_BINOP|GTK_EXOP))     // SIM
 #endif // FEATURE_SIMD
 
 #ifdef FEATURE_HW_INTRINSICS
-GTNODE(HWIntrinsic      , GenTreeHWIntrinsic ,0,(GTK_BINOP|GTK_EXOP))               // hardware intrinsics
+GTNODE(HWINTRINSIC      , GenTreeHWIntrinsic ,0,(GTK_BINOP|GTK_EXOP))               // hardware intrinsics
 #endif // FEATURE_HW_INTRINSICS
 
 //-----------------------------------------------------------------------------
 //  LIR specific compare and conditional branch/set nodes:
 //-----------------------------------------------------------------------------
 
-GTNODE(CMP              , GenTreeOp          ,0,(GTK_BINOP|GTK_NOVALUE))  // Sets the condition flags according to the compare result. 
+GTNODE(CMP              , GenTreeOp          ,0,(GTK_BINOP|GTK_NOVALUE))  // Sets the condition flags according to the compare result.
                                                                         // N.B. Not a relop, it does not produce a value and it cannot be reversed.
 GTNODE(JCMP             , GenTreeOp          ,0,(GTK_BINOP|GTK_NOVALUE))  // Makes a comparison and jump if the condition specified.  Does not set flags
 GTNODE(JCC              , GenTreeCC          ,0,(GTK_LEAF|GTK_NOVALUE))   // Checks the condition flags and branch if the condition specified
                                                                         // by GenTreeCC::gtCondition is true.
-GTNODE(SETCC            , GenTreeCC          ,0,GTK_LEAF)               // Checks the condition flags and produces 1 if the condition specified 
+GTNODE(SETCC            , GenTreeCC          ,0,GTK_LEAF)               // Checks the condition flags and produces 1 if the condition specified
                                                                         // by GenTreeCC::gtCondition is true and 0 otherwise.
 #ifdef _TARGET_XARCH_
 GTNODE(BT               , GenTreeOp          ,0,(GTK_BINOP|GTK_NOVALUE))  // The XARCH BT instruction. Like CMP, this sets the condition flags (CF
@@ -229,7 +234,6 @@ GTNODE(BT               , GenTreeOp          ,0,(GTK_BINOP|GTK_NOVALUE))  // The
 GTNODE(JTRUE            , GenTreeOp          ,0,(GTK_UNOP|GTK_NOVALUE))
 
 GTNODE(LIST             , GenTreeArgList     ,0,(GTK_BINOP|GTK_NOVALUE))
-GTNODE(FIELD_LIST       , GenTreeFieldList   ,0,GTK_BINOP) // List of fields of a struct, when passed as an argument
 
 //-----------------------------------------------------------------------------
 //  Other nodes that have special structure:
@@ -240,11 +244,7 @@ GTNODE(ARR_ELEM         , GenTreeArrElem     ,0,GTK_SPECIAL)            // Multi
 GTNODE(ARR_INDEX        , GenTreeArrIndex    ,0,(GTK_BINOP|GTK_EXOP))     // Effective, bounds-checked index for one dimension of a multi-dimensional array element
 GTNODE(ARR_OFFSET       , GenTreeArrOffs     ,0,GTK_SPECIAL)            // Flattened offset of multi-dimensional array element
 GTNODE(CALL             , GenTreeCall        ,0,(GTK_SPECIAL|GTK_NOCONTAIN))
-
-//-----------------------------------------------------------------------------
-//  Statement operator nodes:
-//-----------------------------------------------------------------------------
-GTNODE(STMT             , GenTreeStmt        ,0,(GTK_SPECIAL|GTK_NOVALUE))// top-level list nodes in bbTreeList
+GTNODE(FIELD_LIST       , GenTreeFieldList   ,0,GTK_SPECIAL)            // List of fields of a struct, when passed as an argument
 
 GTNODE(RETURN           , GenTreeOp          ,0,(GTK_UNOP|GTK_NOVALUE))   // return from current function
 GTNODE(SWITCH           , GenTreeOp          ,0,(GTK_UNOP|GTK_NOVALUE))   // switch
@@ -258,7 +258,7 @@ GTNODE(START_PREEMPTGC  , GenTree            ,0,(GTK_LEAF|GTK_NOVALUE))   // sta
 GTNODE(PROF_HOOK        , GenTree            ,0,(GTK_LEAF|GTK_NOVALUE))   // profiler Enter/Leave/TailCall hook
 
 GTNODE(RETFILT          , GenTreeOp          ,0,(GTK_UNOP|GTK_NOVALUE))   // end filter with TYP_I_IMPL return value
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
 GTNODE(END_LFIN         , GenTreeVal         ,0,(GTK_LEAF|GTK_NOVALUE))   // end locally-invoked finally
 #endif // !FEATURE_EH_FUNCLETS
 
@@ -266,7 +266,7 @@ GTNODE(END_LFIN         , GenTreeVal         ,0,(GTK_LEAF|GTK_NOVALUE))   // end
 //  Nodes used for optimizations.
 //-----------------------------------------------------------------------------
 
-GTNODE(PHI              , GenTreeOp          ,0,GTK_UNOP)               // phi node for ssa.
+GTNODE(PHI              , GenTreePhi         ,0,GTK_SPECIAL)              // phi node for ssa.
 GTNODE(PHI_ARG          , GenTreePhiArg      ,0,(GTK_LEAF|GTK_LOCAL))     // phi(phiarg, phiarg, phiarg)
 
 //-----------------------------------------------------------------------------
@@ -299,7 +299,7 @@ GTNODE(PUTARG_SPLIT     , GenTreePutArgSplit ,0,GTK_UNOP)                       
 #endif // FEATURE_ARG_SPLIT
 GTNODE(RETURNTRAP       , GenTreeOp          ,0,GTK_UNOP|GTK_NOVALUE)            // a conditional call to wait on gc
 GTNODE(SWAP             , GenTreeOp          ,0,GTK_BINOP|GTK_NOVALUE)           // op1 and op2 swap (registers)
-GTNODE(IL_OFFSET        , GenTreeStmt        ,0,GTK_LEAF|GTK_NOVALUE)            // marks an IL offset for debugging purposes
+GTNODE(IL_OFFSET        , Statement        ,0,GTK_LEAF|GTK_NOVALUE)            // marks an IL offset for debugging purposes
 
 /*****************************************************************************/
 #undef  GTNODE

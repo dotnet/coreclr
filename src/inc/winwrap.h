@@ -228,21 +228,15 @@
 #define WszLoadLibrary         LoadLibraryExWrapper
 #define WszLoadLibraryEx       LoadLibraryExWrapper
 #define WszCreateFile          CreateFileWrapper
-#define WszSetFileAttributes   SetFileAttributesWrapper  
 #define WszGetFileAttributes   GetFileAttributesWrapper
 #define WszGetFileAttributesEx GetFileAttributesExWrapper
 #define WszDeleteFile          DeleteFileWrapper
 #define WszFindFirstFileEx     FindFirstFileExWrapper
 #define WszFindNextFile        FindNextFileW
-#define WszCopyFile            CopyFileWrapper
-#define WszCopyFileEx          CopyFileExWrapper
 #define WszMoveFileEx          MoveFileExWrapper
-#define WszMoveFile(lpExistingFileName, lpNewFileName) WszMoveFileEx(lpExistingFileName, lpNewFileName, 0)
-#define WszCreateDirectory     CreateDirectoryWrapper 
-#define WszRemoveDirectory     RemoveDirectoryWrapper
-#define WszCreateHardLink      CreateHardLinkWrapper
+#define WszCreateDirectory     CreateDirectoryWrapper
 
-//Can not use extended syntax 
+//Can not use extended syntax
 #define WszGetFullPathName     GetFullPathNameW
 
 //Long Files will not work on these till redstone
@@ -253,8 +247,6 @@
 //APIS which have a buffer as an out parameter
 #define WszGetEnvironmentVariable GetEnvironmentVariableWrapper
 #define WszSearchPath          SearchPathWrapper
-#define WszGetShortPathName    GetShortPathNameWrapper
-#define WszGetLongPathName     GetLongPathNameWrapper
 #define WszGetModuleFileName   GetModuleFileNameWrapper
 
 //NOTE: IF the following API's are enabled ensure that they can work with LongFile Names

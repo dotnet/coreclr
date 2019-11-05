@@ -40,7 +40,6 @@ SET_DEFAULT_DEBUG_CHANNEL(PAL); // some headers have code with asserts, so do th
 #include "pal/environ.h"
 #include "pal/utils.h"
 #include "pal/debug.h"
-#include "pal/locale.h"
 #include "pal/init.h"
 #include "pal/numa.h"
 #include "pal/stackstring.hpp"
@@ -212,7 +211,7 @@ Abstract:
   This sets the global PAL_INITIALIZE flags that PAL_InitializeDLL
   will use. It needs to be called before any PAL_InitializeDLL call
   is made so typical it is used in a __attribute__((constructor))
-  function to make sure. 
+  function to make sure.
 
 Return:
   none
@@ -234,8 +233,8 @@ Function:
 Abstract:
   This fixes a problem on MUSL where the initial stack size reported by the
   pthread_attr_getstack is about 128kB, but this limit is not fixed and
-  the stack can grow dynamically. The problem is that it makes the 
-  functions ReflectionInvocation::[Try]EnsureSufficientExecutionStack 
+  the stack can grow dynamically. The problem is that it makes the
+  functions ReflectionInvocation::[Try]EnsureSufficientExecutionStack
   to fail for real life scenarios like e.g. compilation of corefx.
   Since there is no real fixed limit for the stack, the code below
   ensures moving the stack limit to a value that makes reasonable
@@ -256,7 +255,7 @@ Function:
   InitializeDefaultStackSize
 
 Abstract:
-  Initializes the default stack size. 
+  Initializes the default stack size.
 
 --*/
 void
@@ -266,7 +265,7 @@ InitializeDefaultStackSize()
     if (defaultStackSizeStr != NULL)
     {
         errno = 0;
-        // Like all numeric values specific by the COMPlus_xxx variables, it is a 
+        // Like all numeric values specific by the COMPlus_xxx variables, it is a
         // hexadecimal string without any prefix.
         long int size = strtol(defaultStackSizeStr, NULL, 16);
 
@@ -332,7 +331,7 @@ Initialize(
 
     if(NULL == init_critsec)
     {
-        pthread_mutex_lock(&init_critsec_mutex); // prevents race condition of two threads 
+        pthread_mutex_lock(&init_critsec_mutex); // prevents race condition of two threads
                                                  // initializing the critical section.
         if(NULL == init_critsec)
         {
@@ -344,7 +343,7 @@ Initialize(
             if(NULL != InterlockedCompareExchangePointer(&init_critsec, &temp_critsec, NULL))
             {
                 // Another thread got in before us! shouldn't happen, if the PAL
-                // isn't initialized there shouldn't be any other threads 
+                // isn't initialized there shouldn't be any other threads
                 WARN("Another thread initialized the critical section\n");
                 InternalDeleteCriticalSection(&temp_critsec);
             }
@@ -360,7 +359,7 @@ Initialize(
         gPID = getpid();
         gSID = getsid(gPID);
 
-        // The gSharedFilesPath is allocated dynamically so its destructor does not get 
+        // The gSharedFilesPath is allocated dynamically so its destructor does not get
         // called unexpectedly during cleanup
         gSharedFilesPath = InternalNew<PathCharString>();
         if (gSharedFilesPath == nullptr)
@@ -479,17 +478,6 @@ Initialize(
         PROCAddThread(pThread, pThread);
 
         //
-        // Initialize mutex and condition variable used to synchronize the ending threads count
-        //
-
-        palError = InitializeEndingThreadsData();
-        if (NO_ERROR != palError)
-        {
-            ERROR("Unable to create ending threads data\n");
-            goto CLEANUP1b;
-        }
-
-        //
         // It's now safe to access our thread data
         //
 
@@ -574,7 +562,7 @@ Initialize(
         palError = InitializeProcessCommandLine(
             command_line,
             exe_path);
-        
+
         if (NO_ERROR != palError)
         {
             ERROR("Unable to initialize command line\n");
@@ -586,11 +574,11 @@ Initialize(
 
 #ifdef PAL_PERF
         // Initialize the Profiling structure
-        if(FALSE == PERFInitialize(command_line, exe_path)) 
+        if(FALSE == PERFInitialize(command_line, exe_path))
         {
             ERROR("Performance profiling initial failed\n");
             goto CLEANUP2;
-        }    
+        }
         PERFAllocThreadInfo();
 #endif
 
@@ -682,7 +670,7 @@ Initialize(
         }
 
         TRACE("First-time PAL initialization complete.\n");
-        init_count++;        
+        init_count++;
 
         /* Set LastError to a non-good value - functions within the
            PAL startup may set lasterror to a nonzero value. */
@@ -693,12 +681,6 @@ Initialize(
     {
         init_count++;
 
-        // Behave the same wrt entering the PAL independent of whether this
-        // is the first call to PAL_Initialize or not.  The first call implied
-        // PAL_Enter by virtue of creating the CPalThread for the current
-        // thread, and its starting state is to be in the PAL.
-        (void)PAL_Enter(PAL_BoundaryTop);
-
         TRACE("Initialization count increases to %d\n", init_count.Load());
 
         SetLastError(NO_ERROR);
@@ -707,7 +689,7 @@ Initialize(
     goto done;
 
     NUMASupportCleanup();
-    /* No cleanup required for CRTInitStdStreams */ 
+    /* No cleanup required for CRTInitStdStreams */
 CLEANUP15:
     FILECleanupStdHandles();
 CLEANUP14:
@@ -738,7 +720,7 @@ CLEANUP0:
     ERROR("PAL_Initialize failed\n");
     SetLastError(palError);
 done:
-#ifdef PAL_PERF 
+#ifdef PAL_PERF
     if( retval == 0)
     {
          PERFEnableProcessProfile();
@@ -787,7 +769,7 @@ Return:
 PAL_ERROR
 PALAPI
 PAL_InitializeCoreCLR(const char *szExePath)
-{    
+{
     // Fake up a command line to call PAL initialization with.
     int result = Initialize(1, &szExePath, PAL_INITIALIZE_CORECLR);
     if (result != 0)
@@ -798,7 +780,6 @@ PAL_InitializeCoreCLR(const char *szExePath)
     // Check for a repeated call (this is a no-op).
     if (InterlockedIncrement(&g_coreclrInitialized) > 1)
     {
-        PAL_Enter(PAL_BoundaryTop);
         return ERROR_SUCCESS;
     }
 
@@ -905,40 +886,6 @@ PAL_IsDebuggerPresent()
 
 /*++
 Function:
-  PAL_EntryPoint
-
-Abstract:
-  This function should be used to wrap code that uses PAL library on thread that was not created by PAL.
---*/
-PALIMPORT
-DWORD_PTR
-PALAPI
-PAL_EntryPoint(
-    IN LPTHREAD_START_ROUTINE lpStartAddress,
-    IN LPVOID lpParameter)
-{
-    CPalThread *pThread;
-    DWORD_PTR retval = (DWORD) -1;
-
-    ENTRY("PAL_EntryPoint(lpStartAddress=%p, lpParameter=%p)\n", lpStartAddress, lpParameter);
-
-    pThread = InternalGetCurrentThread();
-    if (NULL == pThread)
-    {
-        /* This function works only for thread that called PAL_Initialize for now. */
-        ERROR( "Unable to get the thread object.\n" );
-        goto done;
-    }
-
-    retval = (*lpStartAddress)(lpParameter);
-
-done:
-    LOGEXIT("PAL_EntryPoint returns int %d\n", retval);
-    return retval;
-}
-
-/*++
-Function:
   PAL_Shutdown
 
 Abstract:
@@ -992,32 +939,11 @@ PAL_TerminateEx(
         LOGEXIT("PAL_Terminate returns.\n");
     }
 
-    // Declare the beginning of shutdown 
+    // Declare the beginning of shutdown
     PALSetShutdownIntent();
 
     LOGEXIT("PAL_TerminateEx is exiting the current process.\n");
     exit(exitCode);
-}
-
-/*++
-Function:
-  PAL_InitializeDebug
-
-Abstract:
-  This function is the called when cordbg attaches to the process.
---*/
-void
-PALAPI
-PAL_InitializeDebug(
-    void)
-{
-    PERF_ENTRY(PAL_InitializeDebug);
-    ENTRY("PAL_InitializeDebug()\n");
-#if HAVE_MACH_EXCEPTIONS
-    MachExceptionInitializeDebug();
-#endif
-    LOGEXIT("PAL_InitializeDebug returns\n");
-    PERF_EXIT(PAL_InitializeDebug);
 }
 
 /*++
@@ -1038,7 +964,7 @@ Function:
   Utility function to prepare for shutdown.
 
 --*/
-void 
+void
 PALCommonCleanup()
 {
     static bool cleanupDone = false;
@@ -1066,10 +992,10 @@ PALCommonCleanup()
 BOOL PALIsShuttingDown()
 {
     /* TODO: This function may be used to provide a reader/writer-like
-       mechanism (or a ref counting one) to prevent PAL APIs that need to access 
-       PAL runtime data, from working when PAL is shutting down. Each of those API 
+       mechanism (or a ref counting one) to prevent PAL APIs that need to access
+       PAL runtime data, from working when PAL is shutting down. Each of those API
        should acquire a read access while executing. The shutting down code would
-       acquire a write lock, i.e. suspending any new incoming reader, and waiting 
+       acquire a write lock, i.e. suspending any new incoming reader, and waiting
        for the current readers to be done. That would allow us to get rid of the
        dangerous suspend-all-other-threads at shutdown time */
     return shutdown_intent;
@@ -1085,7 +1011,7 @@ void PALSetShutdownIntent()
 Function:
   PALInitLock
 
-Take the initializaiton critical section (init_critsec). necessary to serialize 
+Take the initializaiton critical section (init_critsec). necessary to serialize
 TerminateProcess along with PAL_Terminate and PAL_Initialize
 
 (no parameters)
@@ -1100,10 +1026,10 @@ BOOL PALInitLock(void)
     {
         return FALSE;
     }
-    
-    CPalThread * pThread = 
+
+    CPalThread * pThread =
         (PALIsThreadDataInitialized() ? InternalGetCurrentThread() : NULL);
-    
+
     InternalEnterCriticalSection(pThread, init_critsec);
     return TRUE;
 }
@@ -1112,7 +1038,7 @@ BOOL PALInitLock(void)
 Function:
   PALInitUnlock
 
-Release the initialization critical section (init_critsec). 
+Release the initialization critical section (init_critsec).
 
 (no parameters, no return value)
 --*/
@@ -1123,7 +1049,7 @@ void PALInitUnlock(void)
         return;
     }
 
-    CPalThread * pThread = 
+    CPalThread * pThread =
         (PALIsThreadDataInitialized() ? InternalGetCurrentThread() : NULL);
 
     InternalLeaveCriticalSection(pThread, init_critsec);
@@ -1147,7 +1073,7 @@ static BOOL INIT_IncreaseDescriptorLimit(void)
 #ifndef DONT_SET_RLIMIT_NOFILE
     struct rlimit rlp;
     int result;
-    
+
     result = getrlimit(RLIMIT_NOFILE, &rlp);
     if (result != 0)
     {
@@ -1189,7 +1115,7 @@ Return value :
     pointer to Unicode command line. This is a buffer allocated with malloc;
     caller is responsible for freeing it with free()
 
-Note : not all peculiarities of Windows command-line processing are supported; 
+Note : not all peculiarities of Windows command-line processing are supported;
 
 -what is supported :
     -arguments with white-space must be double quoted (we'll just double-quote
@@ -1197,11 +1123,11 @@ Note : not all peculiarities of Windows command-line processing are supported;
     -some characters must be escaped with \ : particularly, the double-quote,
      to avoid confusion with the double-quotes at the start and end of
      arguments, and \ itself, to avoid confusion with escape sequences.
--what is not supported:    
+-what is not supported:
     -under Windows, \\ is interpreted as an escaped \ ONLY if it's followed by
      an escaped double-quote \". \\\" is passed to argv as \", but \\a is
      passed to argv as \\a... there may be other similar cases
-    -there may be other characters which must be escaped 
+    -there may be other characters which must be escaped
 --*/
 static LPWSTR INIT_FormatCommandLine (int argc, const char * const *argv)
 {

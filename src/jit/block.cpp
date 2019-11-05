@@ -333,12 +333,12 @@ void BasicBlock::dspFlags()
     {
         printf("newobj ");
     }
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
     if (bbFlags & BBF_FINALLY_TARGET)
     {
         printf("ftarget ");
     }
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
     if (bbFlags & BBF_BACKWARD_JUMP)
     {
         printf("bwd ");
@@ -611,7 +611,7 @@ void* BasicBlock::MemoryPhiArg::operator new(size_t sz, Compiler* comp)
 bool BasicBlock::CloneBlockState(
     Compiler* compiler, BasicBlock* to, const BasicBlock* from, unsigned varNum, int varVal)
 {
-    assert(to->bbTreeList == nullptr);
+    assert(to->bbStmtList == nullptr);
 
     to->bbFlags  = from->bbFlags;
     to->bbWeight = from->bbWeight;
@@ -631,9 +631,9 @@ bool BasicBlock::CloneBlockState(
     to->bbTgtStkDepth = from->bbTgtStkDepth;
 #endif // DEBUG
 
-    for (GenTreeStmt* fromStmt = from->firstStmt(); fromStmt != nullptr; fromStmt = fromStmt->getNextStmt())
+    for (Statement* fromStmt : from->Statements())
     {
-        auto newExpr = compiler->gtCloneExpr(fromStmt->gtStmtExpr, 0, varNum, varVal);
+        auto newExpr = compiler->gtCloneExpr(fromStmt->GetRootNode(), 0, varNum, varVal);
         if (!newExpr)
         {
             // gtCloneExpr doesn't handle all opcodes, so may fail to clone a statement.
@@ -660,8 +660,8 @@ void BasicBlock::MakeLIR(GenTree* firstNode, GenTree* lastNode)
 
 bool BasicBlock::IsLIR()
 {
-    const bool isLIR = (bbFlags & BBF_IS_LIR) != 0;
-    assert((bbTreeList == nullptr) || ((isLIR) == !bbTreeList->IsStatement()));
+    assert(isValid());
+    const bool isLIR = ((bbFlags & BBF_IS_LIR) != 0);
     return isLIR;
 }
 
@@ -672,16 +672,11 @@ bool BasicBlock::IsLIR()
 //    None.
 //
 // Return Value:
-//    The first statement in the block's bbTreeList.
+//    The first statement in the block's bbStmtList.
 //
-GenTreeStmt* BasicBlock::firstStmt() const
+Statement* BasicBlock::firstStmt() const
 {
-    if (bbTreeList == nullptr)
-    {
-        return nullptr;
-    }
-
-    return bbTreeList->AsStmt();
+    return bbStmtList;
 }
 
 //------------------------------------------------------------------------
@@ -691,18 +686,18 @@ GenTreeStmt* BasicBlock::firstStmt() const
 //    None.
 //
 // Return Value:
-//    The last statement in the block's bbTreeList.
+//    The last statement in the block's bbStmtList.
 //
-GenTreeStmt* BasicBlock::lastStmt() const
+Statement* BasicBlock::lastStmt() const
 {
-    if (bbTreeList == nullptr)
+    if (bbStmtList == nullptr)
     {
         return nullptr;
     }
 
-    GenTree* result = bbTreeList->gtPrev;
-    assert(result && result->gtNext == nullptr);
-    return result->AsStmt();
+    Statement* result = bbStmtList->GetPrevStmt();
+    assert(result != nullptr && result->GetNextStmt() == nullptr);
+    return result;
 }
 
 //------------------------------------------------------------------------
@@ -710,7 +705,7 @@ GenTreeStmt* BasicBlock::lastStmt() const
 //
 GenTree* BasicBlock::firstNode()
 {
-    return IsLIR() ? bbTreeList : Compiler::fgGetFirstNode(firstStmt()->gtStmtExpr);
+    return IsLIR() ? GetFirstLIRNode() : Compiler::fgGetFirstNode(firstStmt()->GetRootNode());
 }
 
 //------------------------------------------------------------------------
@@ -718,7 +713,7 @@ GenTree* BasicBlock::firstNode()
 //
 GenTree* BasicBlock::lastNode()
 {
-    return IsLIR() ? m_lastNode : lastStmt()->gtStmtExpr;
+    return IsLIR() ? m_lastNode : lastStmt()->GetRootNode();
 }
 
 //------------------------------------------------------------------------
@@ -807,39 +802,60 @@ bool BasicBlock::isEmpty()
     return true;
 }
 
-GenTreeStmt* BasicBlock::FirstNonPhiDef()
+//------------------------------------------------------------------------
+// isValid: Checks that the basic block doesn't mix statements and LIR lists.
+//
+// Return Value:
+//    True if it a valid basic block.
+//
+bool BasicBlock::isValid()
 {
-    GenTreeStmt* stmt = firstStmt();
+    const bool isLIR = ((bbFlags & BBF_IS_LIR) != 0);
+    if (isLIR)
+    {
+        // Should not have statements in LIR.
+        return (bbStmtList == nullptr);
+    }
+    else
+    {
+        // Should not have tree list before LIR.
+        return (GetFirstLIRNode() == nullptr);
+    }
+}
+
+Statement* BasicBlock::FirstNonPhiDef()
+{
+    Statement* stmt = firstStmt();
     if (stmt == nullptr)
     {
         return nullptr;
     }
-    GenTree* tree = stmt->gtStmtExpr;
-    while ((tree->OperGet() == GT_ASG && tree->gtOp.gtOp2->OperGet() == GT_PHI) ||
-           (tree->OperGet() == GT_STORE_LCL_VAR && tree->gtOp.gtOp1->OperGet() == GT_PHI))
+    GenTree* tree = stmt->GetRootNode();
+    while ((tree->OperGet() == GT_ASG && tree->AsOp()->gtOp2->OperGet() == GT_PHI) ||
+           (tree->OperGet() == GT_STORE_LCL_VAR && tree->AsOp()->gtOp1->OperGet() == GT_PHI))
     {
-        stmt = stmt->getNextStmt();
+        stmt = stmt->GetNextStmt();
         if (stmt == nullptr)
         {
             return nullptr;
         }
-        tree = stmt->gtStmtExpr;
+        tree = stmt->GetRootNode();
     }
     return stmt;
 }
 
-GenTreeStmt* BasicBlock::FirstNonPhiDefOrCatchArgAsg()
+Statement* BasicBlock::FirstNonPhiDefOrCatchArgAsg()
 {
-    GenTreeStmt* stmt = FirstNonPhiDef();
+    Statement* stmt = FirstNonPhiDef();
     if (stmt == nullptr)
     {
         return nullptr;
     }
-    GenTree* tree = stmt->gtStmtExpr;
-    if ((tree->OperGet() == GT_ASG && tree->gtOp.gtOp2->OperGet() == GT_CATCH_ARG) ||
-        (tree->OperGet() == GT_STORE_LCL_VAR && tree->gtOp.gtOp1->OperGet() == GT_CATCH_ARG))
+    GenTree* tree = stmt->GetRootNode();
+    if ((tree->OperGet() == GT_ASG && tree->AsOp()->gtOp2->OperGet() == GT_CATCH_ARG) ||
+        (tree->OperGet() == GT_STORE_LCL_VAR && tree->AsOp()->gtOp1->OperGet() == GT_CATCH_ARG))
     {
-        stmt = stmt->getNextStmt();
+        stmt = stmt->GetNextStmt();
     }
     return stmt;
 }
@@ -1358,6 +1374,77 @@ BasicBlock* Compiler::bbNewBasicBlock(BBjumpKinds jumpKind)
     return block;
 }
 
+//------------------------------------------------------------------------
+// hasEHBoundaryIn: Determine if this block begins at an EH boundary.
+//
+// Return Value:
+//    True iff the block is the target of an EH edge; false otherwise.
+//
+// Notes:
+//    For the purposes of this method (and its callers), an EH edge is one on
+//    which the EH flow model requires that all lclVars must be reloaded from
+//    the stack before use, since control flow may transfer to this block through
+//    control flow that is not reflected in the flowgraph.
+//    Note that having a predecessor in a different EH region doesn't require
+//    that lclVars must be reloaded from the stack. That's only required when
+//    this block might be entered via flow that is not represented by an edge
+//    in the flowgraph.
+//
+bool BasicBlock::hasEHBoundaryIn()
+{
+    bool returnVal = (bbCatchTyp != BBCT_NONE);
+    if (!returnVal)
+    {
+#if FEATURE_EH_FUNCLETS
+        assert((bbFlags & BBF_FUNCLET_BEG) == 0);
+#endif // FEATURE_EH_FUNCLETS
+    }
+    return returnVal;
+}
+
+//------------------------------------------------------------------------
+// hasEHBoundaryOut: Determine if this block ends in an EH boundary.
+//
+// Return Value:
+//    True iff the block ends in an exception boundary that requires that no lclVars
+//    are live in registers; false otherwise.
+//
+// Notes:
+//    We may have a successor in a different EH region, but it is OK to have lclVars
+//    live in registers if any successor is a normal flow edge. That's because the
+//    EH write-thru semantics ensure that we always have an up-to-date value on the stack.
+//
+bool BasicBlock::hasEHBoundaryOut()
+{
+    bool returnVal = false;
+    // If a block is marked BBF_KEEP_BBJ_ALWAYS, it is always paired with its predecessor which is an
+    // EH boundary block. It must remain empty, and we must not have any live incoming vars in registers,
+    // in particular because we can't perform resolution if there are mismatches across edges.
+    if ((bbFlags & BBF_KEEP_BBJ_ALWAYS) != 0)
+    {
+        returnVal = true;
+    }
+
+    if (bbJumpKind == BBJ_EHFILTERRET)
+    {
+        returnVal = true;
+    }
+
+    if (bbJumpKind == BBJ_EHFINALLYRET)
+    {
+        returnVal = true;
+    }
+
+#if FEATURE_EH_FUNCLETS
+    if (bbJumpKind == BBJ_EHCATCHRET)
+    {
+        returnVal = true;
+    }
+#endif // FEATURE_EH_FUNCLETS
+
+    return returnVal;
+}
+
 //------------------------------------------------------------------------------
 // DisplayStaticSizes: display various static sizes of the BasicBlock data structure.
 //
@@ -1468,10 +1555,10 @@ void BasicBlock::DisplayStaticSizes(FILE* fout)
     fprintf(fout, "Offset / size of bbEmitCookie          = %3u / %3u\n", offsetof(BasicBlock, bbEmitCookie),
             sizeof(bbDummy->bbEmitCookie));
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
     fprintf(fout, "Offset / size of bbUnwindNopEmitCookie = %3u / %3u\n", offsetof(BasicBlock, bbUnwindNopEmitCookie),
             sizeof(bbDummy->bbUnwindNopEmitCookie));
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
 
 #ifdef VERIFIER
     fprintf(fout, "Offset / size of bbStackIn             = %3u / %3u\n", offsetof(BasicBlock, bbStackIn),

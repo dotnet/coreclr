@@ -29,15 +29,7 @@ namespace BINDER_SPACE
         return string.HashCaseInsensitive();
     }
 
-    HRESULT FileOrDirectoryExists(PathString &path);
-    HRESULT FileOrDirectoryExistsLog(PathString &path);
-
     void MutateUrlToPath(SString &urlOrPath);
-    void MutatePathToUrl(SString &pathOrUrl);
-
-    // Mutates path
-    void PlatformPath(SString &path);
-    void CanonicalizePath(SString &path, BOOL fAppendPathSeparator = FALSE);
 
     // It is safe to use either A or B as CombinedPath.
     void CombinePath(SString &pathA,

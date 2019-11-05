@@ -29,7 +29,7 @@ namespace System
     }
 
     // !!!!!!!!!!!!!!!!!!!!!!!
-    // make sure you change the def in vm\gc.h 
+    // make sure you change the def in vm\gc.h
     // if you change this!
     internal enum InternalGCCollectionMode
     {
@@ -40,7 +40,7 @@ namespace System
     }
 
     // !!!!!!!!!!!!!!!!!!!!!!!
-    // make sure you change the def in vm\gc.h 
+    // make sure you change the def in vm\gc.h
     // if you change this!
     public enum GCNotificationStatus
     {
@@ -53,77 +53,79 @@ namespace System
 
     public static class GC
     {
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void GetMemoryInfo(out uint highMemLoadThreshold,
-                                                  out ulong totalPhysicalMem,
-                                                  out uint lastRecordedMemLoad,
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        internal static extern void GetMemoryInfo(out ulong highMemLoadThresholdBytes,
+                                                  out ulong totalAvailableMemoryBytes,
+                                                  out ulong lastRecordedMemLoadBytes,
+                                                  out uint lastRecordedMemLoadPct,
                                                   // The next two are size_t
-                                                  out UIntPtr lastRecordedHeapSize,
-                                                  out UIntPtr lastRecordedFragmentation);
+                                                  out UIntPtr lastRecordedHeapSizeBytes,
+                                                  out UIntPtr lastRecordedFragmentationBytes);
 
         public static GCMemoryInfo GetGCMemoryInfo()
         {
-            GetMemoryInfo(out uint highMemLoadThreshold,
-                          out ulong totalPhysicalMem,
-                          out uint lastRecordedMemLoad,
-                          out UIntPtr lastRecordedHeapSize,
-                          out UIntPtr lastRecordedFragmentation);
+            GetMemoryInfo(out ulong highMemLoadThresholdBytes,
+                          out ulong totalAvailableMemoryBytes,
+                          out ulong lastRecordedMemLoadBytes,
+                          out uint _,
+                          out UIntPtr lastRecordedHeapSizeBytes,
+                          out UIntPtr lastRecordedFragmentationBytes);
 
-            return new GCMemoryInfo((long)((double)highMemLoadThreshold / 100 * totalPhysicalMem),
-                                    (long)((double)lastRecordedMemLoad / 100 * totalPhysicalMem),
-                                    (long)totalPhysicalMem,
-                                    (long)(ulong)lastRecordedHeapSize,
-                                    (long)(ulong)lastRecordedFragmentation);
+            return new GCMemoryInfo(highMemoryLoadThresholdBytes: (long)highMemLoadThresholdBytes,
+                                    memoryLoadBytes: (long)lastRecordedMemLoadBytes,
+                                    totalAvailableMemoryBytes: (long)totalAvailableMemoryBytes,
+                                    heapSizeBytes: (long)(ulong)lastRecordedHeapSizeBytes,
+                                    fragmentedBytes: (long)(ulong)lastRecordedFragmentationBytes);
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern void GetGCConfigValue(string name, StringHandleOnStack retString);
 
         // internal for now, for testing that configuration works
         internal static string GetConfigValue(string name)
         {
             string result = "";
-            GetGCConfigValue(name, JitHelpers.GetStringHandleOnStack(ref result));
+            GetGCConfigValue(name, new StringHandleOnStack(ref result));
             return result;
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern int _StartNoGCRegion(long totalSize, bool lohSizeKnown, long lohSize, bool disallowFullBlockingGC);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern int _EndNoGCRegion();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern Array AllocateNewArray(IntPtr typeHandle, int length, bool zeroingOptional);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int GetGenerationWR(IntPtr handle);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern long GetTotalMemory();
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void _Collect(int generation, int mode);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int GetMaxGeneration();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int _CollectionCount(int generation, int getSpecialGCCount);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern ulong GetSegmentSize();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int GetLastGCPercentTimeInGC();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern ulong GetGenerationSize(int gen);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void _AddMemoryPressure(ulong bytesAllocated);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void _RemoveMemoryPressure(ulong bytesAllocated);
 
         public static void AddMemoryPressure(long bytesAllocated)
@@ -163,7 +165,7 @@ namespace System
 
         // Returns the generation that obj is currently in.
         //
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern int GetGeneration(object obj);
 
 
@@ -178,7 +180,7 @@ namespace System
         //
         public static void Collect()
         {
-            //-1 says to GC all generations.
+            // -1 says to GC all generations.
             _Collect(-1, (int)InternalGCCollectionMode.Blocking);
         }
 
@@ -236,15 +238,15 @@ namespace System
             return _CollectionCount(generation, 0);
         }
 
-        // This method DOES NOT DO ANYTHING in and of itself.  It's used to 
-        // prevent a finalizable object from losing any outstanding references 
-        // a touch too early.  The JIT is very aggressive about keeping an 
+        // This method DOES NOT DO ANYTHING in and of itself.  It's used to
+        // prevent a finalizable object from losing any outstanding references
+        // a touch too early.  The JIT is very aggressive about keeping an
         // object's lifetime to as small a window as possible, to the point
         // where a 'this' pointer isn't considered live in an instance method
-        // unless you read a value from the instance.  So for finalizable 
-        // objects that store a handle or pointer and provide a finalizer that 
-        // cleans them up, this can cause subtle race conditions with the finalizer 
-        // thread.  This isn't just about handles - it can happen with just 
+        // unless you read a value from the instance.  So for finalizable
+        // objects that store a handle or pointer and provide a finalizer that
+        // cleans them up, this can cause subtle race conditions with the finalizer
+        // thread.  This isn't just about handles - it can happen with just
         // about any finalizable resource.
         //
         // Users should insert a call to this method right after the last line
@@ -253,9 +255,9 @@ namespace System
         // be eligible for collection until the call to this method happens.
         // Once the call to this method has happened the object may immediately
         // become eligible for collection. Here is an example:
-        // 
-        // "...all you really need is one object with a Finalize method, and a 
-        // second object with a Close/Dispose/Done method.  Such as the following 
+        //
+        // "...all you really need is one object with a Finalize method, and a
+        // second object with a Close/Dispose/Done method.  Such as the following
         // contrived example:
         //
         // class Foo {
@@ -264,14 +266,15 @@ namespace System
         //    void Problem() { stream.MethodThatSpansGCs(); }
         //    static void Main() { new Foo().Problem(); }
         // }
-        // 
         //
-        // In this code, Foo will be finalized in the middle of 
+        //
+        // In this code, Foo will be finalized in the middle of
         // stream.MethodThatSpansGCs, thus closing a stream still in use."
         //
         // If we insert a call to GC.KeepAlive(this) at the end of Problem(), then
         // Foo doesn't get finalized and the stream stays open.
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
+        [Intrinsic]
         public static void KeepAlive(object? obj)
         {
         }
@@ -287,12 +290,9 @@ namespace System
 
         // Returns the maximum GC generation.  Currently assumes only 1 heap.
         //
-        public static int MaxGeneration
-        {
-            get { return GetMaxGeneration(); }
-        }
+        public static int MaxGeneration => GetMaxGeneration();
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void _WaitForPendingFinalizers();
 
         public static void WaitForPendingFinalizers()
@@ -303,7 +303,7 @@ namespace System
 
         // Indicates that the system should not call the Finalize() method on
         // an object that would normally require this call.
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _SuppressFinalize(object o);
 
         public static void SuppressFinalize(object obj)
@@ -314,10 +314,10 @@ namespace System
         }
 
         // Indicates that the system should call the Finalize() method on an object
-        // for which SuppressFinalize has already been called. The other situation 
-        // where calling ReRegisterForFinalize is useful is inside a finalizer that 
+        // for which SuppressFinalize has already been called. The other situation
+        // where calling ReRegisterForFinalize is useful is inside a finalizer that
         // needs to resurrect itself or an object that it references.
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _ReRegisterForFinalize(object o);
 
         public static void ReRegisterForFinalize(object obj)
@@ -336,9 +336,9 @@ namespace System
             long size = GetTotalMemory();
             if (!forceFullCollection)
                 return size;
-            // If we force a full collection, we will run the finalizers on all 
+            // If we force a full collection, we will run the finalizers on all
             // existing objects and do a collection until the value stabilizes.
-            // The value is "stable" when either the value is within 5% of the 
+            // The value is "stable" when either the value is within 5% of the
             // previous call to GetTotalMemory, or if we have been sitting
             // here for more than x times (we don't want to loop forever here).
             int reps = 20;  // Number of iterations
@@ -355,13 +355,13 @@ namespace System
             return newSize;
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern IntPtr _RegisterFrozenSegment(IntPtr sectionAddress, IntPtr sectionSize);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void _UnregisterFrozenSegment(IntPtr segmentHandle);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern long GetAllocatedBytesForCurrentThread();
 
 
@@ -369,19 +369,19 @@ namespace System
         /// Get a count of the bytes allocated over the lifetime of the process.
         /// <param name="precise">If true, gather a precise number, otherwise gather a fairly count. Gathering a precise value triggers at a significant performance penalty.</param>
         /// </summary>
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern long GetTotalAllocatedBytes(bool precise = false);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool _RegisterForFullGCNotification(int maxGenerationPercentage, int largeObjectHeapPercentage);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool _CancelFullGCNotification();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int _WaitForFullGCApproach(int millisecondsTimeout);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int _WaitForFullGCComplete(int millisecondsTimeout);
 
         public static void RegisterForFullGCNotification(int maxGenerationThreshold, int largeObjectHeapThreshold)
@@ -515,7 +515,7 @@ namespace System
             return StartNoGCRegionWorker(totalSize, true, lohSize, disallowFullBlockingGC);
         }
 
-        private static EndNoGCRegionStatus EndNoGCRegionWorker()
+        public static void EndNoGCRegion()
         {
             EndNoGCRegionStatus status = (EndNoGCRegionStatus)_EndNoGCRegion();
             if (status == EndNoGCRegionStatus.NotInProgress)
@@ -524,13 +524,6 @@ namespace System
                 throw new InvalidOperationException("Garbage collection was induced in NoGCRegion mode");
             else if (status == EndNoGCRegionStatus.AllocationExceeded)
                 throw new InvalidOperationException("Allocated memory exceeds specified memory for NoGCRegion mode");
-
-            return EndNoGCRegionStatus.Succeeded;
-        }
-
-        public static void EndNoGCRegion()
-        {
-            EndNoGCRegionWorker();
         }
 
         private readonly struct MemoryLoadChangeNotification
@@ -552,13 +545,14 @@ namespace System
 
         private static float GetMemoryLoad()
         {
-            GetMemoryInfo(out uint _,
+            GetMemoryInfo(out ulong _,
                           out ulong _,
-                          out uint lastRecordedMemLoad,
+                          out ulong _,
+                          out uint lastRecordedMemLoadPct,
                           out UIntPtr _,
                           out UIntPtr _);
 
-            return (float)lastRecordedMemLoad / 100;
+            return (float)lastRecordedMemLoadPct;
         }
 
         private static bool InvokeMemoryLoadChangeNotifications()
@@ -635,7 +629,7 @@ namespace System
 
             lock (s_notifications)
             {
-                s_notifications.Add (new MemoryLoadChangeNotification(lowMemoryPercent, highMemoryPercent, notification));
+                s_notifications.Add(new MemoryLoadChangeNotification(lowMemoryPercent, highMemoryPercent, notification));
 
                 if (s_notifications.Count == 1)
                 {
@@ -667,8 +661,11 @@ namespace System
             }
         }
 
-        // Skips zero-initialization of the array if possible. If T contains object references, 
-        // the array is always zero-initialized.
+        /// <summary>
+        /// Skips zero-initialization of the array if possible.
+        /// If T contains object references, the array is always zero-initialized.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] // forced to ensure no perf drop for small memory buffers (hot path)
         internal static T[] AllocateUninitializedArray<T>(int length)
         {
             if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
@@ -676,23 +673,20 @@ namespace System
                 return new T[length];
             }
 
-            if (length < 0)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.lengths, 0, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
-#if DEBUG
-            // in DEBUG arrays of any length can be created uninitialized
-#else
-            // otherwise small arrays are allocated using `new[]` as that is generally faster.
-            //
-            // The threshold was derived from various simulations. 
-            // As it turned out the threshold depends on overal pattern of all allocations and is typically in 200-300 byte range.
-            // The gradient around the number is shallow (there is no perf cliff) and the exact value of the threshold does not matter a lot.
-            // So it is 256 bytes including array header.
-            if (Unsafe.SizeOf<T>() * length < 256 - 3 * IntPtr.Size)
+            // for debug builds we always want to call AllocateNewArray to detect AllocateNewArray bugs
+#if !DEBUG
+            // small arrays are allocated using `new[]` as that is generally faster.
+            if (length < 2048 / Unsafe.SizeOf<T>())
             {
                 return new T[length];
             }
 #endif
-            return (T[])AllocateNewArray(typeof(T[]).TypeHandle.Value, length, zeroingOptional: true);
+            // kept outside of the small arrays hot path to have inlining without big size growth
+            return AllocateNewUninitializedArray(length);
+
+            // remove the local function when https://github.com/dotnet/coreclr/issues/5329 is implemented
+            T[] AllocateNewUninitializedArray(int length)
+                => Unsafe.As<T[]>(AllocateNewArray(typeof(T[]).TypeHandle.Value, length, zeroingOptional: true));
         }
     }
 }

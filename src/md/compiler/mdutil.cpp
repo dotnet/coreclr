@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // MDUtil.cpp
-// 
+//
 
 //
 // contains utility code to MD directory. This is only used for the full version.
@@ -36,14 +36,14 @@ ULONG LOADEDMODULES::HashFileName(
 } // LOADEDMODULES::HashFileName
 
 //---------------------------------------------------------------------------------------
-// 
+//
 // Initialize the static instance and lock.
-// 
-HRESULT 
+//
+HRESULT
 LOADEDMODULES::InitializeStatics()
 {
     HRESULT hr = S_OK;
-    
+
     if (VolatileLoad(&s_pLoadedModules) == NULL)
     {
         // Initialize global read-write lock
@@ -51,21 +51,21 @@ LOADEDMODULES::InitializeStatics()
             NewHolder<UTSemReadWrite> pSemReadWrite = new (nothrow) UTSemReadWrite();
             IfNullGo(pSemReadWrite);
             IfFailGo(pSemReadWrite->Init());
-            
+
             if (InterlockedCompareExchangeT<UTSemReadWrite *>(&m_pSemReadWrite, pSemReadWrite, NULL) == NULL)
             {   // We won the initialization race
                 pSemReadWrite.SuppressRelease();
             }
         }
-        
+
         // Initialize the global instance
         {
             NewHolder<LOADEDMODULES> pLoadedModules = new (nothrow) LOADEDMODULES();
             IfNullGo(pLoadedModules);
-            
+
             {
                 LOCKWRITE();
-                
+
                 if (VolatileLoad(&s_pLoadedModules) == NULL)
                 {
                     VolatileStore(&s_pLoadedModules, pLoadedModules.Extract());
@@ -73,20 +73,20 @@ LOADEDMODULES::InitializeStatics()
             }
         }
     }
-    
+
 ErrExit:
     return hr;
 } // LOADEDMODULES::InitializeStatics
 
 //---------------------------------------------------------------------------------------
-// 
+//
 // Destroy the static instance and lock.
-// 
-void 
+//
+void
 LOADEDMODULES::DeleteStatics()
 {
     HRESULT hr = S_OK;
-    
+
     if (s_pLoadedModules != NULL)
     {
         delete s_pLoadedModules;
@@ -106,20 +106,20 @@ HRESULT LOADEDMODULES::AddModuleToLoadedList(RegMeta * pRegMeta)
 {
     HRESULT    hr = NOERROR;
     RegMeta ** ppRegMeta;
-    
+
     IfFailGo(InitializeStatics());
-    
+
     {
         LOCKWRITE();
-    
+
         ppRegMeta = s_pLoadedModules->Append();
         IfNullGo(ppRegMeta);
-    
+
         // The cache holds a copy of the pointer, but no ref-count.  There is no
         //  point to the ref-count, because it just changes comparisons against 0
         //  to comparisons against 1.
         *ppRegMeta = pRegMeta;
-    
+
         // If the module is read-only, hash it.
         if (pRegMeta->IsReadOnly())
         {
@@ -127,8 +127,8 @@ HRESULT LOADEDMODULES::AddModuleToLoadedList(RegMeta * pRegMeta)
             m_HashedModules[ixHash] = pRegMeta;
         }
     }
-    
-ErrExit:    
+
+ErrExit:
     return hr;
 } // LOADEDMODULES::AddModuleToLoadedList
 
@@ -140,17 +140,17 @@ BOOL LOADEDMODULES::RemoveModuleFromLoadedList(RegMeta * pRegMeta)
     BOOL  bRemoved = FALSE;     // Was this module removed from the cache?
     int   iFound = -1;          // Index at which it was found.
     ULONG cRef;                 // Ref count of the module.
-    
-    // Lock the cache for write, so that no other thread will find what this 
+
+    // Lock the cache for write, so that no other thread will find what this
     //  thread is about to delete, and so that no other thread will delete
     //  what this thread is about to try to find.
     HRESULT hr = S_OK;
-    
+
     IfFailGo(InitializeStatics());
-    
+
     {
         LOCKWRITE();
-    
+
         // Search for this module in list of loaded modules.
         int count = s_pLoadedModules->Count();
         for (int index = 0; index < count; index++)
@@ -161,7 +161,7 @@ BOOL LOADEDMODULES::RemoveModuleFromLoadedList(RegMeta * pRegMeta)
                 break;
             }
         }
-    
+
         // If the module is still in the cache, it hasn't been deleted yet.
         if (iFound >= 0)
         {
@@ -173,13 +173,13 @@ BOOL LOADEDMODULES::RemoveModuleFromLoadedList(RegMeta * pRegMeta)
             //  the lock.
 
             // OTOH, if the cRef is not zero, this thread can just return, because the
-            //  other thread will eventually take the ref count to zero, and will then 
-            //  come through here to clean up the module. And this thread must not 
+            //  other thread will eventually take the ref count to zero, and will then
+            //  come through here to clean up the module. And this thread must not
             //  delete the module out from under other threads.
 
             // It is possible that the cRef is zero, yet another thread has a pointer that
             //  it discovered before this thread took the lock.  (And that thread has
-            //  released the ref-counts.)  In such a case, this thread can still remove the 
+            //  released the ref-counts.)  In such a case, this thread can still remove the
             //  module from the cache, and tell the caller to delete it, because the
             //  other thread will wait on the lock, then discover that the module
             //  is not in the cache, and it won't try to delete the module.
@@ -207,7 +207,7 @@ BOOL LOADEDMODULES::RemoveModuleFromLoadedList(RegMeta * pRegMeta)
             }
         }
     }
-    
+
 ErrExit:
     return bRemoved;
 }  // LOADEDMODULES::RemoveModuleFromLoadedList
@@ -227,9 +227,9 @@ HRESULT LOADEDMODULES::FindCachedReadOnlyEntry(
     DWORD     dwLowFileTime;        // Low butes of this file's last write time
     HRESULT   hr;
     ULONG     ixHash = 0;
-    
+
     IfFailGo(InitializeStatics());
-    
+
     {
         LOCKREAD();
 
@@ -237,11 +237,11 @@ HRESULT LOADEDMODULES::FindCachedReadOnlyEntry(
 
         // Avoid confusion.
         *ppMeta = NULL;
-    
+
         bWillBeCopyMemory = IsOfCopyMemory(dwOpenFlags);
 
         // The cache is locked for read, so the list will not change.
-    
+
         // Figure out the size and timestamp of this file
         WIN32_FILE_ATTRIBUTE_DATA faData;
         if (!WszGetFileAttributesEx(szName, GetFileExInfoStandard, &faData))
@@ -273,13 +273,13 @@ HRESULT LOADEDMODULES::FindCachedReadOnlyEntry(
     #endif
                 {
                     ULONG cRefs;
-                
+
                     // Found it.  Add a reference, and return it.
                     *ppMeta = pRegMeta;
                     cRefs = pRegMeta->AddRef();
-                
+
                     LOG((LF_METADATA, LL_INFO10, "Disp::OpenScope found cached RegMeta in hash: %#8x, crefs: %d\n", pRegMeta, cRefs));
-                
+
                     return S_OK;
                 }
             }
@@ -293,7 +293,7 @@ HRESULT LOADEDMODULES::FindCachedReadOnlyEntry(
 
             // If the module is read-only, and the CopyMemory bit matches, and the date
             // and size are the same....
-            if (pRegMeta->IsReadOnly() && 
+            if (pRegMeta->IsReadOnly() &&
                 pRegMeta->IsCopyMemory() == bWillBeCopyMemory &&
                 pRegMeta->GetLowFileTimeOfDBFile() == dwLowFileTime &&
                 pRegMeta->GetLowFileSizeOfDBFile() == dwLowFileSize)
@@ -316,7 +316,7 @@ HRESULT LOADEDMODULES::FindCachedReadOnlyEntry(
                     m_HashedModules[ixHash] = pRegMeta;
 
                     LOG((LF_METADATA, LL_INFO10, "Disp::OpenScope found cached RegMeta by search: %#8x, crefs: %d\n", pRegMeta, cRefs));
-                
+
                     return S_OK;
                 }
             }
@@ -340,12 +340,12 @@ BOOL LOADEDMODULES::IsEntryInList(
     RegMeta * pRegMeta)
 {
     HRESULT hr = S_OK;
-    
+
     IfFailGo(InitializeStatics());
-    
+
     {
         LOCKREAD();
-    
+
         // Loop through each loaded modules
         int count = s_pLoadedModules->Count();
         for (int index = 0; index < count; index++)
@@ -363,7 +363,7 @@ ErrExit:
 
 #endif //_DEBUG
 
-#endif //FEATURE_METADATA_IN_VM 
+#endif //FEATURE_METADATA_IN_VM
 
 #ifdef FEATURE_METADATA_IN_VM
 
@@ -371,7 +371,7 @@ ErrExit:
 // Remove a RegMeta pointer from the loaded module list
 //*****************************************************************************
 // static
-HRESULT 
+HRESULT
 LOADEDMODULES::ResolveTypeRefWithLoadedModules(
     mdTypeRef          tkTypeRef,       // [IN] TypeRef to be resolved.
     RegMeta *          pTypeRefRegMeta, // [IN] Scope in which the TypeRef is defined.
@@ -385,38 +385,38 @@ LOADEDMODULES::ResolveTypeRefWithLoadedModules(
     CQuickArray<mdTypeRef> cqaNesters;
     CQuickArray<LPCUTF8>   cqaNesterNamespaces;
     CQuickArray<LPCUTF8>   cqaNesterNames;
-    
+
     IfFailGo(InitializeStatics());
-    
+
     {
         LOCKREAD();
-    
+
         // Get the Nesting hierarchy.
         IfFailGo(ImportHelper::GetNesterHierarchy(
-            pTypeRefScope, 
-            tkTypeRef, 
-            cqaNesters, 
-            cqaNesterNamespaces, 
+            pTypeRefScope,
+            tkTypeRef,
+            cqaNesters,
+            cqaNesterNamespaces,
             cqaNesterNames));
 
         int count = s_pLoadedModules->Count();
         for (int index = 0; index < count; index++)
         {
             pRegMeta = (*s_pLoadedModules)[index];
-        
+
             {
                 // Do not lock the TypeRef RegMeta (again), as it is already locked for read by the caller.
-                // The code:UTSemReadWrite will block ReadLock even for thread holding already the read lock if 
-                // some other thread is waiting for WriteLock on the same lock. That would cause dead-lock if we 
+                // The code:UTSemReadWrite will block ReadLock even for thread holding already the read lock if
+                // some other thread is waiting for WriteLock on the same lock. That would cause dead-lock if we
                 // try to lock for read again here.
                 CMDSemReadWrite cSemRegMeta((pRegMeta == pTypeRefRegMeta) ? NULL : pRegMeta->GetReaderWriterLock());
                 IfFailGo(cSemRegMeta.LockRead());
-            
+
                 hr = ImportHelper::FindNestedTypeDef(
-                    pRegMeta->GetMiniMd(), 
-                    cqaNesterNamespaces, 
-                    cqaNesterNames, 
-                    mdTokenNil, 
+                    pRegMeta->GetMiniMd(),
+                    cqaNesterNamespaces,
+                    cqaNesterNames,
+                    mdTokenNil,
                     ptd);
             }
             if (hr == CLDB_E_RECORD_NOTFOUND)
@@ -424,7 +424,7 @@ LOADEDMODULES::ResolveTypeRefWithLoadedModules(
                 continue;
             }
             IfFailGo(hr);
-        
+
             // Found a loaded module containing the TypeDef.
             IfFailGo(pRegMeta->QueryInterface(riid, (void **)ppIScope));
             break;
@@ -438,273 +438,6 @@ LOADEDMODULES::ResolveTypeRefWithLoadedModules(
 ErrExit:
     return hr;
 }    // LOADEDMODULES::ResolveTypeRefWithLoadedModules
-
-#endif //FEATURE_METADATA_IN_VM
-
-#if defined(FEATURE_METADATA_IN_VM)
-
-//*****************************************************************************
-// This is a routine to try to find a class implementation given its fully
-// qualified name by using the CORPATH environment variable.  CORPATH is a list
-// of directories (like PATH).  Before checking CORPATH, this checks the current
-// directory, then the directory that the exe lives in.  The search is
-// performed by parsing off one element at a time from the class name,
-// appending it to the directory and looking for a subdirectory or image with
-// that name.  If the subdirectory exists, it drills down into that subdirectory
-// and tries the next element of the class name.  When it finally bottoms out
-// but can't find the image it takes the rest of the fully qualified class name
-// and appends them with intervening '.'s trying to find a matching DLL.
-// Example:
-//
-// CORPATH=c:\bin;c:\prog
-// classname = namespace.class
-//
-// checks the following things in order:
-// c:\bin\namespace, (if <-exists) c:\bin\namespace\class.dll,
-//        c:\bin\namespace.dll, c:\bin\namespace.class.dll
-// c:\prog\namespace, (if <-exists) c:\prog\namespace\class.dll,
-//        c:\prog\namespace.dll, c:\prog\namespace.class.dll
-//*****************************************************************************
-HRESULT CORPATHService::GetClassFromCORPath(
-    __in __in_z LPWSTR        wzClassname,            // [IN] fully qualified class name
-    mdTypeRef   tr,                     // [IN] TypeRef to be resolved.
-    IMetaModelCommon *pCommon,          // [IN] Scope in which the TypeRef is defined.
-    REFIID        riid,                   // [IN] Interface type to be returned.
-    IUnknown    **ppIScope,             // [OUT] Scope in which the TypeRef resolves.
-    mdTypeDef    *ptd)                    // [OUT] typedef corresponding the typeref
-{
-    PathString    rcCorPath;  // The CORPATH environment variable.
-    LPWSTR        szCorPath;  // Used to parse CORPATH.
-    int            iLen;                   // Length of the directory.
-    PathString     rcCorDir;    // Buffer for the directory.
-    WCHAR        *temp;                  // Used as a parsing temp.
-    WCHAR        *szSemiCol;
-
-    // Get the CORPATH environment variable.
-    if (WszGetEnvironmentVariable(W("CORPATH"), rcCorPath))
-    {
-        NewArrayHolder<WCHAR> szCorPathHolder = rcCorPath.GetCopyOfUnicodeString();
-        szCorPath = szCorPathHolder.GetValue();
-        // Try each directory in the path.
-        for(;*szCorPath != W('\0');)
-        {
-            // Get the next directory off the path.
-            if ((szSemiCol = wcschr(szCorPath, W(';'))))
-            {
-                temp = szCorPath;
-                *szSemiCol = W('\0');
-                szCorPath = szSemiCol + 1;
-            }
-            else 
-            {
-                temp = szCorPath;
-                szCorPath += wcslen(temp);
-            }
-
-            rcCorDir.Set(temp);
-
-            // Check if we can find the class in the directory.
-            if (CORPATHService::GetClassFromDir(wzClassname, rcCorDir, tr, pCommon, riid, ppIScope, ptd) == S_OK)
-                return S_OK;
-        }
-    }
-
-    //<TODO>These should go before the path search, but it will cause test
-    // some headaches right now, so we'll give them a little time to transition.</TODO>
-
-    // Try the current directory first.
-    if ((iLen = WszGetCurrentDirectory( rcCorDir)) > 0 &&
-        CORPATHService::GetClassFromDir(wzClassname, rcCorDir, tr, pCommon, riid, ppIScope, ptd) == S_OK)
-    {
-        return S_OK;
-    }
-    
-    // Try the app directory next.
-    if ((iLen = WszGetModuleFileName(NULL, rcCorDir)) > 0)
-    {
-        
-        if(SUCCEEDED(CopySystemDirectory(rcCorDir, rcCorDir)) && 
-           CORPATHService::GetClassFromDir(
-                    wzClassname, 
-                    rcCorDir, 
-                    tr, 
-                    pCommon, 
-                    riid, 
-                    ppIScope, 
-                    ptd) == S_OK)
-        {
-            return (S_OK);
-        }
-    }
-
-    // Couldn't find the class.
-    return S_FALSE;
-} // CORPATHService::GetClassFromCORPath
-
-//*****************************************************************************
-// This is used in conjunction with GetClassFromCORPath.  See it for details
-// of the algorithm.
-//*****************************************************************************
-HRESULT CORPATHService::GetClassFromDir(
-    __in __in_z LPWSTR        wzClassname,            // Fully qualified class name.
-    __in SString&             directory,             // Directory to try. at most appended with a '\\'
-    mdTypeRef   tr,                     // TypeRef to resolve.
-    IMetaModelCommon *pCommon,          // Scope in which the TypeRef is defined.
-    REFIID        riid, 
-    IUnknown    **ppIScope,
-    mdTypeDef    *ptd)                    // [OUT] typedef
-{
-    WCHAR    *temp;                        // Used as a parsing temp.
-    int        iTmp;
-    bool    bContinue;                    // Flag to check if the for loop should end.
-    LPWSTR    wzSaveClassname = NULL;     // Saved offset into the class name string.
-    
-    // Process the class name appending each segment of the name to the
-    // directory until we find a DLL.
-    PathString dir;
-    if (!directory.EndsWith(DIRECTORY_SEPARATOR_CHAR_W))
-    {
-        directory.Append(DIRECTORY_SEPARATOR_CHAR_W);
-    }
-
-    for(;;)
-    {
-        bContinue = false;
-        dir.Set(directory);
-
-        if ((temp = wcschr(wzClassname, NAMESPACE_SEPARATOR_WCHAR)) != NULL)
-        {
-            *temp = W('\0');  //terminate with null so that it can be appended
-            dir.Append(wzClassname);
-            *temp = NAMESPACE_SEPARATOR_WCHAR;   //recover the '.'
-
-            wzClassname = temp+1;
-            // Check if a directory by this name exists.
-            DWORD iAttrs = WszGetFileAttributes(dir);
-            if (iAttrs != 0xffffffff && (iAttrs & FILE_ATTRIBUTE_DIRECTORY))
-            {
-                // Next element in the class spec.
-                bContinue = true;
-                wzSaveClassname = wzClassname;
-            }
-        }
-        else
-        {
-            dir.Append(wzClassname);
-
-            // Advance past the class name.
-            iTmp = (int)wcslen(wzClassname);
-            wzClassname += iTmp;
-        }
-
-        // Try to load the image.
-        dir.Append(W(".dll"));
-       
-        // OpenScope given the dll name and make sure that the class is defined in the module.
-        if ( SUCCEEDED( CORPATHService::FindTypeDef(dir, tr, pCommon, riid, ppIScope, ptd) ) )
-        {
-            return (S_OK);
-        }
-
-        // If we didn't find the dll, try some more.
-        while (*wzClassname != W('\0'))
-        {
-            // Find the length of the next class name element.
-            if ((temp = wcschr(wzClassname, NAMESPACE_SEPARATOR_WCHAR)) == NULL)
-            {
-                temp = wzClassname + wcslen(wzClassname);
-            }
-
-            // Tack on ".element.dll"
-            SString::Iterator iter = dir.End();
-            BOOL findperiod = dir.FindBack(iter, NAMESPACE_SEPARATOR_WCHAR);
-            _ASSERTE(findperiod);
-            iter++;
-            dir.Truncate(iter);
-            
-            WCHAR save = *temp;
-            *temp      = W('\0');
-            dir.Append(wzClassname);  //element
-            *temp = save;
-            
-            // Try to load the image.
-            dir.Append(W(".dll"));
-           
-            // OpenScope given the dll name and make sure that the class is defined in the module.
-            if ( SUCCEEDED( CORPATHService::FindTypeDef(dir, tr, pCommon, riid, ppIScope, ptd) ) )
-            {
-                return (S_OK);
-            }
-
-            // Advance to the next class name element.
-            wzClassname = temp;
-            if (*wzClassname != '\0')
-                ++wzClassname;
-        }
-        if (bContinue)
-        {
-            
-            wzClassname = wzSaveClassname;
-        }
-        else
-        {
-            break;
-        }
-    }
-    return S_FALSE;
-} // CORPATHService::GetClassFromDir
-
-//*************************************************************
-//
-// Open the file with name wzModule and check to see if there is a type 
-// with namespace/class of wzNamespace/wzType. If so, return the RegMeta
-// corresponding to the file and the mdTypeDef of the typedef
-//
-//*************************************************************
-HRESULT CORPATHService::FindTypeDef(
-    __in __in_z LPCWSTR wzModule,    // name of the module that we are going to open
-    mdTypeRef          tr,          // TypeRef to resolve.
-    IMetaModelCommon * pCommon,     // Scope in which the TypeRef is defined.
-    REFIID             riid, 
-    IUnknown **        ppIScope,
-    mdTypeDef *        ptd)         // [OUT] the type that we resolve to
-{
-    HRESULT                         hr = NOERROR;
-    NewHolder<Disp>                 pDisp;
-    ReleaseHolder<IMetaDataImport2> pImport = NULL;
-    CQuickArray<mdTypeRef>          cqaNesters;
-    CQuickArray<LPCUTF8>            cqaNesterNamespaces;
-    CQuickArray<LPCUTF8>            cqaNesterNames;
-    RegMeta *                       pRegMeta;
-    
-    _ASSERTE((ppIScope != NULL) && (ptd != NULL));
-    
-    *ppIScope = NULL;
-    
-    pDisp = new (nothrow) Disp;
-    IfNullGo(pDisp);
-    
-    IfFailGo(pDisp->OpenScope(wzModule, 0, IID_IMetaDataImport2, (IUnknown **)&pImport));
-    pRegMeta = static_cast<RegMeta *>(pImport.GetValue());
-    
-    // Get the Nesting hierarchy.
-    IfFailGo(ImportHelper::GetNesterHierarchy(pCommon, tr, cqaNesters,
-                                cqaNesterNamespaces, cqaNesterNames));
-
-    hr = ImportHelper::FindNestedTypeDef(
-                                pRegMeta->GetMiniMd(),
-                                cqaNesterNamespaces,
-                                cqaNesterNames,
-                                mdTokenNil,
-                                ptd);
-    if (SUCCEEDED(hr))
-    {
-        *ppIScope = pImport.Extract();
-    }
-    
-ErrExit:
-    return hr;
-} // CORPATHService::FindTypeDef
 
 #endif //FEATURE_METADATA_IN_VM
 
@@ -740,9 +473,9 @@ ULONG _GetSizeOfConstantBlob(
     case ELEMENT_TYPE_U4:
     case ELEMENT_TYPE_R4:
         ulSize = sizeof(LONG);
- 
+
         break;
-        
+
     case ELEMENT_TYPE_I8:
     case ELEMENT_TYPE_U8:
     case ELEMENT_TYPE_R8:

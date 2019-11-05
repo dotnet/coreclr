@@ -35,7 +35,6 @@
 #endif
 
 #ifdef FEATURE_PAL
-#include "coreclrloader.h"
 #include "resourcestring.h"
 #define NATIVE_STRING_RESOURCE_NAME dasm_rc
 DECLARE_NATIVE_STRING_RESOURCE_TABLE(NATIVE_STRING_RESOURCE_NAME);
@@ -155,10 +154,10 @@ ULONG                   g_ulMetaInfoFilter = MDInfo::dumpDefault;
 // Validator module type.
 DWORD g_ValModuleType = ValidatorModuleTypeInvalid;
 IMetaDataDispenserEx *g_pDisp = NULL;
-void DisplayFile(__in __nullterminated wchar_t* szFile, 
-                 BOOL isFile, 
-                 ULONG DumpFilter, 
-                 __in_opt __nullterminated wchar_t* szObjFile, 
+void DisplayFile(__in __nullterminated WCHAR* szFile,
+                 BOOL isFile,
+                 ULONG DumpFilter,
+                 __in_opt __nullterminated WCHAR* szObjFile,
                  strPassBackFn pDisplayString);
 extern mdMethodDef      g_tkEntryPoint; // integration with MetaInfo
 
@@ -308,33 +307,8 @@ extern CQuickBytes *        g_szBuf_JUMPPT;
 extern CQuickBytes *        g_szBuf_UnquotedProperName;
 extern CQuickBytes *        g_szBuf_ProperName;
 
-#ifdef FEATURE_PAL
-CoreCLRLoader *g_loader;
-#endif
-MetaDataGetDispenserFunc metaDataGetDispenser;
-GetMetaDataInternalInterfaceFunc getMetaDataInternalInterface;
-GetMetaDataInternalInterfaceFromPublicFunc getMetaDataInternalInterfaceFromPublic;
-GetMetaDataPublicInterfaceFromInternalFunc getMetaDataPublicInterfaceFromInternal;
-
 BOOL Init()
 {
-#ifdef FEATURE_PAL
-    g_loader = CoreCLRLoader::Create(g_pszExeFile);
-    if (g_loader == NULL)
-    {
-        return FALSE;
-    }
-    metaDataGetDispenser = (MetaDataGetDispenserFunc)g_loader->LoadFunction("MetaDataGetDispenser");
-    getMetaDataInternalInterface = (GetMetaDataInternalInterfaceFunc)g_loader->LoadFunction("GetMetaDataInternalInterface");
-    getMetaDataInternalInterfaceFromPublic = (GetMetaDataInternalInterfaceFromPublicFunc)g_loader->LoadFunction("GetMetaDataInternalInterfaceFromPublic");
-    getMetaDataPublicInterfaceFromInternal = (GetMetaDataPublicInterfaceFromInternalFunc)g_loader->LoadFunction("GetMetaDataPublicInterfaceFromInternal");
-#else // FEATURE_PAL
-    metaDataGetDispenser = (MetaDataGetDispenserFunc)MetaDataGetDispenser;
-    getMetaDataInternalInterface = (GetMetaDataInternalInterfaceFunc)GetMetaDataInternalInterface;
-    getMetaDataInternalInterfaceFromPublic = (GetMetaDataInternalInterfaceFromPublicFunc)GetMetaDataInternalInterfaceFromPublic;
-    getMetaDataPublicInterfaceFromInternal = (GetMetaDataPublicInterfaceFromInternalFunc)GetMetaDataPublicInterfaceFromInternal;
-#endif // FEATURE_PAL
-
     g_szBuf_KEYWORD = new CQuickBytes();
     g_szBuf_COMMENT = new CQuickBytes();
     g_szBuf_ERRORMSG = new CQuickBytes();
@@ -397,9 +371,9 @@ void Cleanup()
     g_NumMI = 0;
     g_LocalComTypeNum = 0;
     g_nEATableRef = 0;
-    
+
     g_fCustomInstructionEncodingSystem = FALSE;
-    
+
     if (rAsmRefName != NULL)
     {
         for (int i = 0; (unsigned)i < ulNumAsmRefs; i++)
@@ -409,10 +383,10 @@ void Cleanup()
         VDELETE(rAsmRefName);
         ulNumAsmRefs = 0;
     }
-    
+
     if (g_rchCA != NULL)
         VDELETE(g_rchCA);
-    
+
     if (g_cl_list != NULL) VDELETE(g_cl_list);
     if (g_cl_enclosing != NULL) VDELETE(g_cl_enclosing);
     if (g_pmi_list != NULL) SDELETE(g_pmi_list);
@@ -487,13 +461,6 @@ void Uninit()
     {
         SDELETE(g_szBuf_ProperName);
     }
-    
-#ifdef FEATURE_PAL
-    if (g_loader != NULL)
-    {
-        g_loader->Finish();
-    }
-#endif
 } // Uninit
 
 HRESULT IsClassRefInScope(mdTypeRef classref)
@@ -507,7 +474,7 @@ HRESULT IsClassRefInScope(mdTypeRef classref)
     IfFailRet(g_pImport->GetNameOfTypeRef(classref, &pszNameSpace, &pszClassName));
     MAKE_NAME_IF_NONE(pszClassName,classref);
     IfFailRet(g_pImport->GetResolutionScopeOfTypeRef(classref, &tkRes));
-    
+
     hr = g_pImport->FindTypeDef(pszNameSpace, pszClassName,
         (TypeFromToken(tkRes) == mdtTypeRef) ? tkRes : mdTokenNil, &classdef);
 
@@ -533,7 +500,7 @@ BOOL EnumClasses()
     if (g_dups) SDELETE(g_dups);
     if (g_enum_td_type) VDELETE(g_enum_td_type);
     if (g_enum_tr_type) VDELETE(g_enum_tr_type);
-    if (g_asmref_import) 
+    if (g_asmref_import)
     {
         for (DWORD nIndex = 0; nIndex < g_NumAsmRefs; nIndex++)
         {
@@ -580,20 +547,20 @@ BOOL EnumClasses()
         printError(g_pFile,RstrUTF(IDS_E_CLSENUM));
         return FALSE;
     }
-    
-    g_NumClasses = g_pImport->EnumTypeDefGetCount(&hEnum);
+
+    g_NumClasses = g_pImport->EnumGetCount(&hEnum);
 
     g_tkClassToDump = 0;
 
     g_NumMI = 0;
     g_NumDups = 0;
-    
+
     if(g_NumClasses == 0) return TRUE;
-    
+
     g_enum_td_type = new BYTE[g_NumClasses+1];
     if(g_enum_td_type == NULL) return FALSE;
     memset(g_enum_td_type,0xFF,g_NumClasses+1);
-    
+
     g_cl_list = new mdToken[g_NumClasses];
     if(g_cl_list == NULL) return FALSE;
 
@@ -622,10 +589,10 @@ BOOL EnumClasses()
     }
 
     // fill the list of typedef tokens
-    while(g_pImport->EnumTypeDefNext(&hEnum, &g_cl_list[i]))
+    while(g_pImport->EnumNext(&hEnum, &g_cl_list[i]))
     {
         mdToken     tkEnclosing;
-        
+
         if (g_Mode == MODE_DUMP_CLASS || g_Mode == MODE_DUMP_CLASS_METHOD || g_Mode == MODE_DUMP_CLASS_METHOD_SIG)
         {
             CQuickBytes out;
@@ -676,7 +643,7 @@ BOOL EnumClasses()
         }
         i++;
     }
-    g_pImport->EnumTypeDefClose(&hEnum);
+    g_pImport->EnumClose(&hEnum);
     // check nesting consistency (circular nesting, invalid enclosers)
     for(i = 0; i < g_NumClasses; i++)
     {
@@ -719,8 +686,8 @@ BOOL EnumClasses()
     const char *pszNamespace1;
 
     if (FAILED(g_pImport->GetNameOfTypeDef(
-        g_cl_list[0], 
-        &pszClassName, 
+        g_cl_list[0],
+        &pszClassName,
         &pszNamespace)))
     {
         char sz[2048];
@@ -737,8 +704,8 @@ BOOL EnumClasses()
     for(i = 1; i < g_NumClasses; i++)
     {
         if (FAILED(g_pImport->GetNameOfTypeDef(
-            g_cl_list[i], 
-            &pszClassName, 
+            g_cl_list[i],
+            &pszClassName,
             &pszNamespace)))
         {
             char sz[2048];
@@ -746,12 +713,12 @@ BOOL EnumClasses()
             printLine(g_pFile, sz);
             return FALSE;
         }
-        
+
         for(j = 0; j < i; j++)
         {
             if (FAILED(g_pImport->GetNameOfTypeDef(
-                g_cl_list[j], 
-                &pszClassName1, 
+                g_cl_list[j],
+                &pszClassName1,
                 &pszNamespace1)))
             {
                 char sz[2048];
@@ -759,7 +726,7 @@ BOOL EnumClasses()
                 printLine(g_pFile, sz);
                 return FALSE;
             }
-            
+
             if((g_cl_enclosing[i]==g_cl_enclosing[j])
               &&(0==strcmp(pszClassName,pszClassName1))
               &&(0==strcmp(pszNamespace,pszNamespace1)))
@@ -801,7 +768,7 @@ BOOL EnumClasses()
             const char *pszName;
             ULONG cSig;
             PCCOR_SIGNATURE pSig;
-            if (FAILED(g_pImport->GetNameOfMethodDef(pMemberList[j], &pszName)) || 
+            if (FAILED(g_pImport->GetNameOfMethodDef(pMemberList[j], &pszName)) ||
                 FAILED(g_pImport->GetSigOfMethodDef(pMemberList[j], &cSig, &pSig)))
             {
                 char sz[2048];
@@ -864,7 +831,7 @@ BOOL EnumClasses()
             const char *pszName;
             ULONG cSig;
             PCCOR_SIGNATURE pSig;
-            if (FAILED(g_pImport->GetNameOfFieldDef(pMemberList[j], &pszName)) || 
+            if (FAILED(g_pImport->GetNameOfFieldDef(pMemberList[j], &pszName)) ||
                 FAILED(g_pImport->GetSigOfFieldDef(pMemberList[j], &cSig, &pSig)))
             {
                 char sz[2048];
@@ -928,50 +895,51 @@ bool HasSuppressingAttribute()
 #endif
 void DumpMscorlib(void* GUICookie)
 {
-    if(g_pAssemblyImport==NULL) g_pAssemblyImport = GetAssemblyImport(GUICookie);
-    if(g_pAssemblyImport!=NULL)
+    // In the CoreCLR with reference assemblies and redirection it is more difficult to determine if
+    // a particular Assembly is the System assembly, like mscorlib.dll is for the Desktop CLR.
+    // In the CoreCLR runtimes, the System assembly can be System.Private.CoreLib.dll, System.Runtime.dll
+    // or netstandard.dll and in the future a different Assembly name could be used.
+    // We now determine the identity of the System assembly by querying if the Assembly defines the
+    // well known type System.Object as that type must be defined by the System assembly
+    // If this type is defined then we will output the ".mscorlib" directive to indicate that this
+    // assembly is the System assembly.
+    //
+    mdTypeDef tkObjectTypeDef = mdTypeDefNil;
+
+    // Lookup the type System.Object and see it it has a type definition in this assembly
+    if (SUCCEEDED(g_pPubImport->FindTypeDefByName(W("System.Object"), mdTypeDefNil, &tkObjectTypeDef)))
     {
-        mdAssembly  tkAsm;
-        if(SUCCEEDED(g_pAssemblyImport->GetAssemblyFromScope(&tkAsm))&&(tkAsm != mdAssemblyNil))
+        if (tkObjectTypeDef != mdTypeDefNil)
         {
-            const void* pPublicKey;
-            ULONG       cbPublicKey = 0;
-            ULONG       ulHashAlgId;
-            WCHAR       wzName[1024];
-            ULONG       ulNameLen=0;
-            ASSEMBLYMETADATA    md;
-            WCHAR       wzLocale[1024];
-            DWORD       dwFlags;
-            //char        szString[4096];
-            
-            md.szLocale = wzLocale;
-            md.cbLocale = 1024;
-            md.rProcessor = NULL;
-            md.ulProcessor = 0;
-            md.rOS = NULL;
-            md.ulOS = 0;
-    
-            if(SUCCEEDED(g_pAssemblyImport->GetAssemblyProps(            // S_OK or error.
-                                                            tkAsm,       // [IN] The Assembly for which to get the properties.
-                                                            &pPublicKey, // [OUT] Pointer to the public key.
-                                                            &cbPublicKey,// [OUT] Count of bytes in the public key.
-                                                            &ulHashAlgId,// [OUT] Hash Algorithm.
-                                                            wzName,      // [OUT] Buffer to fill with name.
-                                                            1024,        // [IN] Size of buffer in wide chars.
-                                                            &ulNameLen,  // [OUT] Actual # of wide chars in name.
-                                                            &md,         // [OUT] Assembly MetaData.
-                                                            &dwFlags)))  // [OUT] Flags.
+            // We do have a type definition for System.Object in this assembly
+            //
+            DWORD dwClassAttrs = 0;
+            mdToken tkExtends = mdTypeDefNil;
+
+            // Retrieve the type def properties as well, so that we can check a few more things about
+            // the System.Object type
+            //
+            if (SUCCEEDED(g_pPubImport->GetTypeDefProps(tkObjectTypeDef, NULL, NULL, 0, &dwClassAttrs, &tkExtends)))
             {
-                if(wcscmp(wzName,W("mscorlib")) == 0)
+                bool bExtends = g_pPubImport->IsValidToken(tkExtends);
+                bool isClass = ((dwClassAttrs & tdClassSemanticsMask) == tdClass);
+
+                // We also check the type properties to make sure that we have a class and not a Value type definition
+                // and that this type definition isn't extending another type.
+                //
+                if (isClass & !bExtends)
                 {
-                    printLine(GUICookie,"");
-                    sprintf_s(szString,SZSTRING_SIZE,"%s%s ",g_szAsmCodeIndent,KEYWORD(".mscorlib"));
-                    printLine(GUICookie,szString);
-                    printLine(GUICookie,"");
+                    // We will mark this assembly with the System assembly directive: .mscorlib
+                    //
+                    printLine(GUICookie, "");
+                    sprintf_s(szString, SZSTRING_SIZE, "%s%s ", g_szAsmCodeIndent, KEYWORD(".mscorlib"));
+                    printLine(GUICookie, szString);
+                    printLine(GUICookie, "");
                 }
             }
         }
     }
+
 }
 void DumpTypelist(void* GUICookie)
 {
@@ -999,7 +967,7 @@ void DumpTypelist(void* GUICookie)
     }
 
 }
-#define ELEMENT_TYPE_TYPEDEF ELEMENT_TYPE_MAX+1
+#define ELEMENT_TYPE_TYPEDEF (ELEMENT_TYPE_MAX+1)
 BOOL EnumTypedefs()
 {
     HENUMInternal   hEnum;
@@ -1064,9 +1032,9 @@ void DumpTypedefs(void* GUICookie)
         szptr = &szString[0];
         szString[0] = 0;
         szptr+=sprintf_s(szptr,SZSTRING_SIZE,"%s%s ",g_szAsmCodeIndent,ANCHORPT(KEYWORD(".typedef"),pTDD->tkSelf));
-        if(g_fDumpTokens)               
+        if(g_fDumpTokens)
             szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),COMMENT("/*%08X*/ "),pTDD->tkSelf);
-        
+
         {
             ULONG n = g_NumTypedefs;
             DWORD tk = pTDD->tkTypeSpec;
@@ -1092,9 +1060,9 @@ void DumpTypedefs(void* GUICookie)
                         }
                         DumpCustomAttributeProps(0,tkType,tkOwner,pBlob,uLen,GUICookie,
                                                  (RidFromToken(tkOwner)!=0));
-    
+
                     }
-                    sprintf_s(szString,SZSTRING_SIZE,"%s %s %s", g_szAsmCodeIndent,KEYWORD("as"), 
+                    sprintf_s(szString,SZSTRING_SIZE,"%s %s %s", g_szAsmCodeIndent,KEYWORD("as"),
                             ProperName((*g_typedefs)[i].szName));
                     printLine(GUICookie,szString);
                     g_szAsmCodeIndent[strlen(g_szAsmCodeIndent)-8]=0;
@@ -1117,7 +1085,7 @@ void DumpTypedefs(void* GUICookie)
                         if (FAILED(g_pImport->GetNameAndSigOfMemberRef(
                             tk,
                             &typePtr,
-                            &cComSig, 
+                            &cComSig,
                             &pszMemberName)))
                         {
                             szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),"ERROR ");
@@ -1160,10 +1128,10 @@ BOOL PrintClassList()
             const char *pszNamespace;
             DWORD   dwClassAttrs;
             mdTypeRef crExtends;
-            
+
             if (FAILED(g_pImport->GetNameOfTypeDef(
-                g_cl_list[i], 
-                &pszClassName, 
+                g_cl_list[i],
+                &pszClassName,
                 &pszNamespace)))
             {
                 printLine(g_pFile, COMMENT("// Invalid TypeDef record"));
@@ -1266,12 +1234,12 @@ char* DumpPinvokeMap(DWORD   dwMappingFlags, const char  *szImportName,
     }
     if(strlen(szImportDLLName) != 0)
     {
-        szptr = DumpQString(GUICookie, 
+        szptr = DumpQString(GUICookie,
             (char*)szImportDLLName,
             g_szAsmCodeIndent,
             80);
     }
-    
+
     //if(strlen(szImportDLLName))                   szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),"\"%s\"",szImportDLLName);
     //if(szImportName && strlen(szImportName))    szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr)," as \"%s\"",szImportName);
     if(szImportName && strlen(szImportName))
@@ -1346,7 +1314,7 @@ void DumpByteArray(__inout __nullterminated char* szString, const BYTE* pBlob, U
 
         if (bBreak)
             break;
-        
+
         szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),"%2.2X ",byt);
         if(isprint(byt))
         {
@@ -1376,8 +1344,8 @@ void DumpByteArray(__inout __nullterminated char* szString, const BYTE* pBlob, U
 }
 
 mdToken ResolveTypeDefReflectionNotation(IMDInternalImport *pIMDI,
-                                         LPCUTF8 szNamespace, 
-                                         __inout LPUTF8 szName, 
+                                         LPCUTF8 szNamespace,
+                                         __inout LPUTF8 szName,
                                          mdToken tkEncloser)
 {
     mdToken tk = 0;
@@ -1396,8 +1364,8 @@ mdToken ResolveTypeDefReflectionNotation(IMDInternalImport *pIMDI,
 }
 
 mdToken ResolveTypeRefReflectionNotation(IMDInternalImport *pIMDI,
-                                         __in __nullterminated const char* szNamespace, 
-                                         __inout __nullterminated char* szName, 
+                                         __in __nullterminated const char* szNamespace,
+                                         __inout __nullterminated char* szName,
                                          mdToken tkResScope)
 {
     mdToken tk = 0;
@@ -1416,7 +1384,7 @@ mdToken ResolveTypeRefReflectionNotation(IMDInternalImport *pIMDI,
 }
 mdToken ResolveReflectionNotation(BYTE* dataPtr,
                                   unsigned Lstr,
-                                  IMDInternalImport *pIMDI, 
+                                  IMDInternalImport *pIMDI,
                                   void* GUICookie)
 {
     char* str = new char[Lstr+1];
@@ -1427,7 +1395,7 @@ mdToken ResolveReflectionNotation(BYTE* dataPtr,
         char* szNamespace = szNamespaceDefault;
         char* szName = str;
         char* szAssembly = NULL;
-        char  szAssemblyMscorlib[] = "mscorlib"; 
+        char  szAssemblyMscorlib[] = "mscorlib";
         char* pch;
         memcpy(str,dataPtr,Lstr);
         str[Lstr] = 0;
@@ -1474,7 +1442,7 @@ mdToken ResolveReflectionNotation(BYTE* dataPtr,
                 AssemblyMetaDataInternal MD;
                 DWORD dwFlags;
 
-                for (;tk <= tkmax; tk++) 
+                for (;tk <= tkmax; tk++)
                 {
                     if (FAILED(pIMDI->GetAssemblyRefProps(tk,&pPKT,&ulPKT,&szAsmRefName,&MD,&pHash,&ulHash,&dwFlags)))
                     {
@@ -1501,7 +1469,7 @@ unsigned UnderlyingTypeOfEnumTypeDef(mdToken tk, IMDInternalImport *pIMDI)
 {
     // make sure it's a TypeDef
     if(TypeFromToken(tk) != mdtTypeDef) return 0;
-    
+
     // make sure it's an enum
     mdToken tkParent;
     DWORD dwAttr;
@@ -1519,14 +1487,14 @@ unsigned UnderlyingTypeOfEnumTypeDef(mdToken tk, IMDInternalImport *pIMDI)
                 return 0;
             }
             break;
-            
+
         case mdtTypeRef:
             if (FAILED(pIMDI->GetNameOfTypeRef(tkParent, &szNamespace, &szName)))
             {
                 return 0;
             }
             break;
-    
+
         default:
             return 0;
     }
@@ -1536,7 +1504,7 @@ unsigned UnderlyingTypeOfEnumTypeDef(mdToken tk, IMDInternalImport *pIMDI)
         // the parent type is not System.Enum so this type has no underlying type
         return 0;
     }
-    
+
     // OK, it's an enum; find its instance field and get its type
     HENUMInternal hEnum;
     mdToken tkField;
@@ -1589,7 +1557,7 @@ mdToken TypeRefToTypeDef(mdToken tk, IMDInternalImport *pIMDI, IMDInternalImport
             IMetaDataAssemblyImport* pAssemblyImport;
             if (FAILED(g_pPubImport->QueryInterface(IID_IMetaDataAssemblyImport, (void**) &pAssemblyImport)))
                 goto AssignAndReturn;
-            
+
             const void *pPKT, *pHash;
             ULONG cHash,cName;
             WCHAR wzName[2048];
@@ -1625,10 +1593,10 @@ mdToken TypeRefToTypeDef(mdToken tk, IMDInternalImport *pIMDI, IMDInternalImport
             if(param.cPKT == 0) goto AssignAndReturn;
             _ASSERTE(pIAMDI[0] != NULL);
 
-            IUnknown *pUnk; 
+            IUnknown *pUnk;
             if(FAILED(pIAMDI[0]->QueryInterface(IID_IUnknown, (void**)&pUnk))) goto AssignAndReturn;
 
-            if (FAILED(getMetaDataInternalInterfaceFromPublic(
+            if (FAILED(GetMetaDataInternalInterfaceFromPublic(
                 pUnk,
                 IID_IMDInternalImport,
                 (LPVOID *)ppIMDInew)))
@@ -1650,7 +1618,7 @@ mdToken TypeRefToTypeDef(mdToken tk, IMDInternalImport *pIMDI, IMDInternalImport
             tkTypeDef = mdTypeDefNil;
             goto AssignAndReturn;
         }
-        
+
         if (FAILED((*ppIMDInew)->FindTypeDef(szNamespace,szName,tkEncloser,&tkTypeDef)))
         {
             tkTypeDef = mdTypeDefNil;
@@ -1691,7 +1659,7 @@ unsigned UnderlyingTypeOfEnum(mdToken tk, IMDInternalImport *pIMDI)
 /**************************************************************************/
 /* move 'ptr past the exactly one type description */
 
-BYTE* skipType(BYTE* ptr) 
+BYTE* skipType(BYTE* ptr)
 {
     mdToken  tk;
 AGAIN:
@@ -1773,8 +1741,8 @@ AGAIN:
         case ELEMENT_TYPE_MVAR:
                 CorSigUncompressData((PCCOR_SIGNATURE&) ptr);  // bound
                 break;
-        
-        case ELEMENT_TYPE_FNPTR: 
+
+        case ELEMENT_TYPE_FNPTR:
                 {
                     CorSigUncompressData((PCCOR_SIGNATURE&) ptr);    // calling convention
                     unsigned argCnt = CorSigUncompressData((PCCOR_SIGNATURE&) ptr);    // arg count
@@ -1787,7 +1755,7 @@ AGAIN:
                 }
                 break;
 
-        case ELEMENT_TYPE_GENERICINST: 
+        case ELEMENT_TYPE_GENERICINST:
                {
                    ptr = skipType(ptr);                 // type constructor
                    unsigned argCnt = CorSigUncompressData((PCCOR_SIGNATURE&)ptr);               // arg count
@@ -1796,7 +1764,7 @@ AGAIN:
                        --argCnt;
                    }
                }
-               break;                        
+               break;
 
         default:
         case ELEMENT_TYPE_END                   :
@@ -1811,10 +1779,10 @@ AGAIN:
 #pragma warning(push)
 #pragma warning(disable:21000) // Suppress PREFast warning about overly large function
 #endif
-BYTE* PrettyPrintCABlobValue(PCCOR_SIGNATURE &typePtr, 
-                             BYTE* dataPtr, 
-                             BYTE* dataEnd, 
-                             CQuickBytes* out, 
+BYTE* PrettyPrintCABlobValue(PCCOR_SIGNATURE &typePtr,
+                             BYTE* dataPtr,
+                             BYTE* dataEnd,
+                             CQuickBytes* out,
                              IMDInternalImport *pIMDI,
                              void* GUICookie)
 {
@@ -1837,9 +1805,9 @@ BYTE* PrettyPrintCABlobValue(PCCOR_SIGNATURE &typePtr,
         }
         Reiterate = FALSE;
         CloseParenthesis = TRUE;
-        switch(typ = *typePtr++) {    
-            case ELEMENT_TYPE_VOID          :   
-                return NULL;  
+        switch(typ = *typePtr++) {
+            case ELEMENT_TYPE_VOID          :
+                return NULL;
             case ELEMENT_TYPE_BOOLEAN       :
                 appendStr(out,KEYWORD("bool"));
                 appendStr(out,appendix);
@@ -1850,8 +1818,8 @@ BYTE* PrettyPrintCABlobValue(PCCOR_SIGNATURE &typePtr,
                     appendStr(out,(*dataPtr)? KEYWORD("true"):KEYWORD("false"));
                     dataPtr++;
                 }
-                break;  
-            case ELEMENT_TYPE_CHAR          :   
+                break;
+            case ELEMENT_TYPE_CHAR          :
                 appendStr(out,KEYWORD("char"));
                 appendStr(out,appendix);
                 appendStr(out,"(");
@@ -1862,8 +1830,8 @@ BYTE* PrettyPrintCABlobValue(PCCOR_SIGNATURE &typePtr,
                     appendStr(out,str);
                     dataPtr += 2;
                 }
-                break;  
-            case ELEMENT_TYPE_I1            :   
+                break;
+            case ELEMENT_TYPE_I1            :
                 appendStr(out,KEYWORD("int8"));
                 appendStr(out,appendix);
                 appendStr(out,"(");
@@ -1874,8 +1842,8 @@ BYTE* PrettyPrintCABlobValue(PCCOR_SIGNATURE &typePtr,
                     appendStr(out,str);
                     dataPtr ++;
                 }
-                break;  
-            case ELEMENT_TYPE_U1            :   
+                break;
+            case ELEMENT_TYPE_U1            :
                 appendStr(out,KEYWORD("uint8"));
                 appendStr(out,appendix);
                 appendStr(out,"(");
@@ -1886,8 +1854,8 @@ BYTE* PrettyPrintCABlobValue(PCCOR_SIGNATURE &typePtr,
                     appendStr(out,str);
                     dataPtr ++;
                 }
-                break;  
-            case ELEMENT_TYPE_I2            :   
+                break;
+            case ELEMENT_TYPE_I2            :
                 appendStr(out,KEYWORD("int16"));
                 appendStr(out,appendix);
                 appendStr(out,"(");
@@ -1898,8 +1866,8 @@ BYTE* PrettyPrintCABlobValue(PCCOR_SIGNATURE &typePtr,
                     appendStr(out,str);
                     dataPtr +=2;
                 }
-                break;  
-            case ELEMENT_TYPE_U2            :   
+                break;
+            case ELEMENT_TYPE_U2            :
                 appendStr(out,KEYWORD("uint16"));
                 appendStr(out,appendix);
                 appendStr(out,"(");
@@ -1910,8 +1878,8 @@ BYTE* PrettyPrintCABlobValue(PCCOR_SIGNATURE &typePtr,
                     appendStr(out,str);
                     dataPtr +=2;
                 }
-                break;  
-            case ELEMENT_TYPE_I4            :   
+                break;
+            case ELEMENT_TYPE_I4            :
                 appendStr(out,KEYWORD("int32"));
                 appendStr(out,appendix);
                 appendStr(out,"(");
@@ -1922,8 +1890,8 @@ BYTE* PrettyPrintCABlobValue(PCCOR_SIGNATURE &typePtr,
                     appendStr(out,str);
                     dataPtr +=4;
                 }
-                break;  
-            case ELEMENT_TYPE_U4            :   
+                break;
+            case ELEMENT_TYPE_U4            :
                 appendStr(out,KEYWORD("uint32"));
                 appendStr(out,appendix);
                 appendStr(out,"(");
@@ -1934,8 +1902,8 @@ BYTE* PrettyPrintCABlobValue(PCCOR_SIGNATURE &typePtr,
                     appendStr(out,str);
                     dataPtr +=4;
                 }
-                break;  
-            case ELEMENT_TYPE_I8            :   
+                break;
+            case ELEMENT_TYPE_I8            :
                 appendStr(out,KEYWORD("int64"));
                 appendStr(out,appendix);
                 appendStr(out,"(");
@@ -1946,8 +1914,8 @@ BYTE* PrettyPrintCABlobValue(PCCOR_SIGNATURE &typePtr,
                     appendStr(out,str);
                     dataPtr +=8;
                 }
-                break;  
-            case ELEMENT_TYPE_U8            :   
+                break;
+            case ELEMENT_TYPE_U8            :
                 appendStr(out,KEYWORD("uint64"));
                 appendStr(out,appendix);
                 appendStr(out,"(");
@@ -1958,8 +1926,8 @@ BYTE* PrettyPrintCABlobValue(PCCOR_SIGNATURE &typePtr,
                     appendStr(out,str);
                     dataPtr +=8;
                 }
-                break;  
-            case ELEMENT_TYPE_R4            :   
+                break;
+            case ELEMENT_TYPE_R4            :
                 appendStr(out,KEYWORD("float32"));
                 appendStr(out,appendix);
                 appendStr(out,"(");
@@ -1977,7 +1945,7 @@ BYTE* PrettyPrintCABlobValue(PCCOR_SIGNATURE &typePtr,
                 }
                 break;
 
-            case ELEMENT_TYPE_R8            :   
+            case ELEMENT_TYPE_R8            :
                 appendStr(out,KEYWORD("float64"));
                 appendStr(out,appendix);
                 appendStr(out,"(");
@@ -1995,10 +1963,10 @@ BYTE* PrettyPrintCABlobValue(PCCOR_SIGNATURE &typePtr,
                     dataPtr +=8;
                 }
                 break;
-            case ELEMENT_TYPE_U             :   
-            case ELEMENT_TYPE_I             :   
-                return NULL;   
-            
+            case ELEMENT_TYPE_U             :
+            case ELEMENT_TYPE_I             :
+                return NULL;
+
             case ELEMENT_TYPE_OBJECT        :
             case SERIALIZATION_TYPE_TAGGED_OBJECT:
                 appendStr(out,KEYWORD("object"));
@@ -2008,12 +1976,12 @@ BYTE* PrettyPrintCABlobValue(PCCOR_SIGNATURE &typePtr,
                 {
                     BYTE* dataPtr1 = skipType(dataPtr);
                     if(n) appendStr(out," ");
-                    
+
                     dataPtr = PrettyPrintCABlobValue((PCCOR_SIGNATURE&)dataPtr, dataPtr1, dataEnd, out, pIMDI,GUICookie);
                     if (dataPtr == NULL) return NULL;
                 }
-                break;  
-            case ELEMENT_TYPE_STRING        :   
+                break;
+            case ELEMENT_TYPE_STRING        :
                 appendStr(out,KEYWORD("string"));
                 appendStr(out,appendix);
                 appendStr(out,"(");
@@ -2035,7 +2003,7 @@ BYTE* PrettyPrintCABlobValue(PCCOR_SIGNATURE &typePtr,
                     }
                     dataPtr += Lstr;
                 }
-                break;  
+                break;
             case ELEMENT_TYPE_CLASS        :
                 typePtr += CorSigUncompressToken(typePtr, &tk); //skip the following token
             case SERIALIZATION_TYPE_TYPE   :
@@ -2069,9 +2037,9 @@ BYTE* PrettyPrintCABlobValue(PCCOR_SIGNATURE &typePtr,
                     }
                     dataPtr += Lstr;
                 }
-                break;  
+                break;
 
-            
+
             case ELEMENT_TYPE_VALUETYPE    :
                 typePtr += CorSigUncompressToken(typePtr, &tk);
                 _ASSERTE(pIMDI->IsValidToken(tk));
@@ -2114,14 +2082,14 @@ BYTE* PrettyPrintCABlobValue(PCCOR_SIGNATURE &typePtr,
                     //_ASSERTE(!"Failed to find underlying type for S_T_ENUM");
                 }
                 {
-                    PCCOR_SIGNATURE ps = (PCCOR_SIGNATURE)&underType; 
+                    PCCOR_SIGNATURE ps = (PCCOR_SIGNATURE)&underType;
                     dataPtr = PrettyPrintCABlobValue(ps, dataPtr, dataEnd, out, pIMDI,GUICookie);
                 }
                 CloseParenthesis = FALSE;
                 break;
 
-        
-            case ELEMENT_TYPE_SZARRAY    : 
+
+            case ELEMENT_TYPE_SZARRAY    :
                 numElements *= (unsigned)GET_UNALIGNED_VAL32(dataPtr);
                 Reiterate = TRUE;
                 sprintf_s(appendix,64,"[%d]",numElements);
@@ -2129,34 +2097,34 @@ BYTE* PrettyPrintCABlobValue(PCCOR_SIGNATURE &typePtr,
                     numElements = 0;
                 dataPtr += 4;
                 break;
-            
-            case ELEMENT_TYPE_ARRAY       :   
-            case ELEMENT_TYPE_VAR        :   
-            case ELEMENT_TYPE_MVAR        :   
-            case ELEMENT_TYPE_FNPTR :   
+
+            case ELEMENT_TYPE_ARRAY       :
+            case ELEMENT_TYPE_VAR        :
+            case ELEMENT_TYPE_MVAR        :
+            case ELEMENT_TYPE_FNPTR :
             case ELEMENT_TYPE_GENERICINST :
-            case ELEMENT_TYPE_TYPEDBYREF        :   
+            case ELEMENT_TYPE_TYPEDBYREF        :
 
 #ifdef LOGGING
             case ELEMENT_TYPE_INTERNAL :
-#endif // LOGGING                
+#endif // LOGGING
                 return NULL;
 
 
-                // Modifiers or depedent types  
+                // Modifiers or depedent types
             case ELEMENT_TYPE_CMOD_OPT  :
             case ELEMENT_TYPE_CMOD_REQD :
             case ELEMENT_TYPE_PINNED    :
                 Reiterate = TRUE;
                 break;
 
-            case ELEMENT_TYPE_PTR           :   
-            case ELEMENT_TYPE_BYREF         :   
+            case ELEMENT_TYPE_PTR           :
+            case ELEMENT_TYPE_BYREF         :
                 return NULL;
 
-            default:    
-            case ELEMENT_TYPE_SENTINEL      :   
-            case ELEMENT_TYPE_END           :   
+            default:
+            case ELEMENT_TYPE_SENTINEL      :
+            case ELEMENT_TYPE_END           :
                 _ASSERTE(!"Unknown Type");
                 return NULL;
         } // end switch
@@ -2200,12 +2168,12 @@ BOOL PrettyPrintCustomAttributeNVPairs(unsigned nPairs, BYTE* dataPtr, BYTE* dat
             szAppend = "[]";
             dataPtr++;
         }
-        if(*dataPtr == SERIALIZATION_TYPE_TYPE) 
+        if(*dataPtr == SERIALIZATION_TYPE_TYPE)
         {
             appendStr(out,KEYWORD("type"));
             dataPtr++;
         }
-        else if(*dataPtr == SERIALIZATION_TYPE_TAGGED_OBJECT) 
+        else if(*dataPtr == SERIALIZATION_TYPE_TAGGED_OBJECT)
         {
             appendStr(out,KEYWORD("object"));
             dataPtr++;
@@ -2233,7 +2201,7 @@ BOOL PrettyPrintCustomAttributeNVPairs(unsigned nPairs, BYTE* dataPtr, BYTE* dat
         else
         {
             szAppend = "";
-            dataPtr = (BYTE*)PrettyPrintType(dataTypePtr, out, pIMDI); 
+            dataPtr = (BYTE*)PrettyPrintType(dataTypePtr, out, pIMDI);
         }
         if(*szAppend != 0)
             appendStr(out,szAppend);
@@ -2258,7 +2226,7 @@ BOOL PrettyPrintCustomAttributeNVPairs(unsigned nPairs, BYTE* dataPtr, BYTE* dat
         dataPtr = PrettyPrintCABlobValue(dataTypePtr, dataPtr, dataEnd, out, pIMDI,GUICookie);
         if(NULL == dataPtr) return FALSE;
         appendStr(out,"\n");
-        
+
         nPairs--;
     }
     _ASSERTE(nPairs == 0);
@@ -2267,9 +2235,9 @@ BOOL PrettyPrintCustomAttributeNVPairs(unsigned nPairs, BYTE* dataPtr, BYTE* dat
 BOOL PrettyPrintCustomAttributeBlob(mdToken tkType, BYTE* pBlob, ULONG ulLen, void* GUICookie, __inout __nullterminated char* szString)
 {
     char* initszptr = szString + strlen(szString);
-    PCCOR_SIGNATURE typePtr;            // type to convert,     
-    ULONG typeLen;                  // the lenght of 'typePtr' 
-    CHECK_LOCAL_STATIC_VAR(static CQuickBytes out); // where to put the pretty printed string   
+    PCCOR_SIGNATURE typePtr;            // type to convert,
+    ULONG typeLen;                  // the lenght of 'typePtr'
+    CHECK_LOCAL_STATIC_VAR(static CQuickBytes out); // where to put the pretty printed string
 
     IMDInternalImport *pIMDI = g_pImport; // ptr to IMDInternalImport class with ComSig
     unsigned numArgs = 0;
@@ -2280,7 +2248,7 @@ BOOL PrettyPrintCustomAttributeBlob(mdToken tkType, BYTE* pBlob, ULONG ulLen, vo
     BYTE* dataEnd = dataPtr + ulLen;
     WORD  wNumNVPairs = 0;
     unsigned numElements = 0;
-    
+
     if(TypeFromToken(tkType) == mdtMemberRef)
     {
         const char *szName_Ignore;
@@ -2299,8 +2267,8 @@ BOOL PrettyPrintCustomAttributeBlob(mdToken tkType, BYTE* pBlob, ULONG ulLen, vo
     else
         return FALSE;
     typeEnd = typePtr + typeLen;
-    
-    callConv = CorSigUncompressData(typePtr);  
+
+    callConv = CorSigUncompressData(typePtr);
 
     if (callConv & IMAGE_CEE_CS_CALLCONV_GENERIC)
     {
@@ -2311,27 +2279,27 @@ BOOL PrettyPrintCustomAttributeBlob(mdToken tkType, BYTE* pBlob, ULONG ulLen, vo
     out.Shrink(0);
     if (!isCallConv(callConv, IMAGE_CEE_CS_CALLCONV_GENERICINST))
     {
-            // skip return type   
+            // skip return type
         typePtr = PrettyPrintType(typePtr, &out, pIMDI);
         out.Shrink(0);
     }
     appendStr(&out," = {");
     dataPtr += 2; // skip blob prolog 0x0001
     // dump the arguments
-    while(typePtr < typeEnd) 
+    while(typePtr < typeEnd)
     {
-        if (*typePtr == ELEMENT_TYPE_SENTINEL) 
+        if (*typePtr == ELEMENT_TYPE_SENTINEL)
         {
             typePtr++;
         }
-        else 
+        else
         {
             if (numArgs <= 0)
                 break;
             dataPtr = PrettyPrintCABlobValue(typePtr, dataPtr, dataEnd-2, &out, pIMDI,GUICookie);
             if(NULL == dataPtr) return FALSE;
             appendStr(&out,"\n");
-            --numArgs;  
+            --numArgs;
         }
     }
     _ASSERTE(numArgs == 0);
@@ -2460,9 +2428,9 @@ void DumpCustomAttributeProps(mdToken tkCA, mdToken tkType, mdToken tkOwner, BYT
                     ULONG           cComSig;
 
                     if (FAILED(g_pImport->GetNameAndSigOfMemberRef(
-                        tkOwner, 
-                        &typePtr, 
-                        &cComSig, 
+                        tkOwner,
+                        &typePtr,
+                        &cComSig,
                         &pszMemberName)))
                     {
                         szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),"ERROR ");
@@ -2509,7 +2477,7 @@ void DumpCustomAttributeProps(mdToken tkCA, mdToken tkType, mdToken tkOwner, BYT
             break;
     }
     szptr = &szString[strlen(szString)];
-    
+
     if(pBlob && ulLen)
     {
         if(!g_fCAVerbal || !PrettyPrintCustomAttributeBlob(tkType, pBlob, ulLen, GUICookie, szString))
@@ -2548,9 +2516,9 @@ void DumpCustomAttribute(mdCustomAttribute tkCA, void *GUICookie, bool bWithOwne
     {
         return;
     }
-    
+
     if(!RidFromToken(tkOwner)) return;
-    
+
     DWORD i;
     for(i = 0; i < g_NumTypedefs; i++)
     {
@@ -2575,7 +2543,7 @@ void DumpCustomAttribute(mdCustomAttribute tkCA, void *GUICookie, bool bWithOwne
             char* szptr = &szString[0];
             szString[0] = 0;
             szptr += sprintf_s(szString,SZSTRING_SIZE,"%s%s", g_szAsmCodeIndent,JUMPPT(ProperName(pTDD->szName),pTDD->tkSelf));
-            if(g_fDumpTokens)               
+            if(g_fDumpTokens)
                 szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),COMMENT("/*%08X*/ "),tkCA);
             printLine(GUICookie,szString);
             break;
@@ -2611,7 +2579,7 @@ void DumpDefaultValue(mdToken tok, __inout __nullterminated char* szString, void
 {
     MDDefaultValue  MDDV;
     char*           szptr = &szString[strlen(szString)];
-    
+
     if (FAILED(g_pImport->GetDefaultValue(tok, &MDDV)))
     {
         szptr += sprintf_s(szptr, SZSTRING_REMAINING_SIZE(szptr), ERRORMSG(" /* Invalid default value for %08X: */"), tok);
@@ -3017,8 +2985,8 @@ BOOL DisassembleWrapper(IMDInternalImport *pImport, BYTE *ILHeader,
 
 BOOL PrettyPrintGP(                     // prints name of generic param, or returns FALSE
     mdToken tkOwner,                    // Class, method or 0
-    CQuickBytes *out,                   // where to put the pretty printed generic param   
-    int n)                              // Index of generic param 
+    CQuickBytes *out,                   // where to put the pretty printed generic param
+    int n)                              // Index of generic param
 {
     BOOL ret = FALSE;
     if(tkOwner && ((TypeFromToken(tkOwner)==mdtTypeDef)||(TypeFromToken(tkOwner)==mdtMethodDef)))
@@ -3090,7 +3058,9 @@ char *DumpGenericPars(__inout_ecount(SZSTRING_SIZE) char* szString, mdToken tok,
     DWORD           NumTyPars;
     DWORD           NumConstrs;
     mdGenericParam  tkTyPar;
+    ULONG           ulSequence;
     DWORD           attr;
+    mdToken         tkOwner;
     HCORENUM        hEnumTyPar = NULL;
     HCORENUM        hEnumTyParConstr = NULL;
     char*           szptr = &szString[strlen(szString)];
@@ -3103,10 +3073,10 @@ char *DumpGenericPars(__inout_ecount(SZSTRING_SIZE) char* szString, mdToken tok,
     {
       szptr += sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),LTN());
       szbegin = szptr;
-      
+
       for (i = 1; NumTyPars != 0; i++)
       {
-        g_pPubImport->GetGenericParamProps(tkTyPar, NULL, &attr, NULL, NULL, wzArgName, UNIBUF_SIZE/2, &chName);
+        g_pPubImport->GetGenericParamProps(tkTyPar, &ulSequence, &attr, &tkOwner, NULL, wzArgName, UNIBUF_SIZE/2, &chName);
         //if(wcslen(wzArgName) >= MAX_CLASSNAME_LENGTH)
         //    wzArgName[MAX_CLASSNAME_LENGTH-1] = 0;
         hEnumTyParConstr = NULL;
@@ -3120,7 +3090,7 @@ char *DumpGenericPars(__inout_ecount(SZSTRING_SIZE) char* szString, mdToken tok,
         switch (attr & gpVarianceMask)
         {
             case gpCovariant : szptr += sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr), "+ "); break;
-            case gpContravariant : szptr += sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr), "- "); break; 
+            case gpContravariant : szptr += sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr), "- "); break;
         }
         CHECK_REMAINING_SIZE;
         if ((attr & gpReferenceTypeConstraint) != 0)
@@ -3128,9 +3098,9 @@ char *DumpGenericPars(__inout_ecount(SZSTRING_SIZE) char* szString, mdToken tok,
         CHECK_REMAINING_SIZE;
         if ((attr & gpNotNullableValueTypeConstraint) != 0)
             szptr += sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr), "valuetype ");
-        CHECK_REMAINING_SIZE;    
+        CHECK_REMAINING_SIZE;
         if ((attr & gpDefaultConstructorConstraint) != 0)
-            szptr += sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr), ".ctor "); 
+            szptr += sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr), ".ctor ");
         CHECK_REMAINING_SIZE;
         if (NumConstrs)
         {
@@ -3138,7 +3108,7 @@ char *DumpGenericPars(__inout_ecount(SZSTRING_SIZE) char* szString, mdToken tok,
             mdToken tkConstrType,tkOwner;
             szptr += sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),"(");
             DWORD ix;
-            for (ix=0; ix<NumConstrs; ix++) 
+            for (ix=0; ix<NumConstrs; ix++)
             {
                 if (FAILED(g_pPubImport->GetGenericParamConstraintProps(tkConstr[ix], &tkOwner, &tkConstrType)))
                     return NULL;
@@ -3201,7 +3171,7 @@ void DumpGenericParsCA(mdToken tok, void* GUICookie/*=NULL*/)
     WCHAR *wzArgName = wzUniBuf;
     ULONG chName;
     DWORD           attr;
-    
+
     if(g_fShowCA)
     {
         for(i=0; SUCCEEDED(g_pPubImport->EnumGenericParams(&hEnumTyPar, tok, &tkTyPar, 1, &NumTyPars))
@@ -3235,12 +3205,95 @@ void DumpGenericParsCA(mdToken tok, void* GUICookie/*=NULL*/)
                     szptr += sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),"[%d] ",i+1);
                 if(g_fDumpTokens) szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),COMMENT("/*%08X*/ "),tkTyPar);
                 printLine(GUICookie, szString);
+
+                strcat_s(g_szAsmCodeIndent, MAX_MEMBER_LENGTH, "  ");
                 while(g_pImport->EnumNext(&hEnum,&tkCA) && RidFromToken(tkCA))
                 {
                     DumpCustomAttribute(tkCA,GUICookie,false);
                 }
+                g_szAsmCodeIndent[strlen(g_szAsmCodeIndent) - 2] = 0;
             }
-            g_pImport->EnumClose( &hEnum);
+            g_pImport->EnumClose( &hEnum);  // mdtCustomAttribute
+
+            ULONG    ulSequence;
+            DWORD    attr;
+            mdToken  tkOwner;
+            HCORENUM hEnumTyParConstraint;
+            mdToken  tkConstraint[2048];
+            DWORD    NumConstraints;
+
+            g_pPubImport->GetGenericParamProps(tkTyPar, &ulSequence, &attr, &tkOwner, NULL, wzArgName, UNIBUF_SIZE / 2, &chName);
+            hEnumTyParConstraint = NULL;
+            if (FAILED(g_pPubImport->EnumGenericParamConstraints(&hEnumTyParConstraint, tkTyPar, tkConstraint, 2048, &NumConstraints)))
+            {
+                g_pPubImport->CloseEnum(hEnumTyPar);
+                return;
+            }
+            if (NumConstraints > 0)
+            {
+                CQuickBytes out;
+                mdToken tkConstraintType;
+                mdToken tkGenericParam;
+                ULONG ulSequence;
+
+                for (DWORD ix = 0; ix < NumConstraints; ix++)
+                {
+                    mdGenericParamConstraint  tkParamConstraint = tkConstraint[ix];
+                    if (FAILED(g_pPubImport->GetGenericParamConstraintProps(tkParamConstraint, &tkGenericParam, &tkConstraintType)))
+                    {
+                        sprintf_s(szString, SZSTRING_SIZE, "%sERROR: MetaData error in GetGenericParamConstraintProps for %08X", g_szAsmCodeIndent, tkParamConstraint);
+                        return;
+                    }
+                    if (FAILED(g_pImport->EnumInit(mdtCustomAttribute, tkParamConstraint, &hEnum)))
+                    {
+                        sprintf_s(szString, SZSTRING_SIZE, "%sERROR: MetaData error enumerating CustomAttribute for mdGenericParamConstraint %08X", g_szAsmCodeIndent, tkParamConstraint);
+                        printLine(GUICookie, szString);
+                        return;
+                    }
+
+                    ulCAs = g_pImport->EnumGetCount(&hEnum);
+                    if (ulCAs)
+                    {
+                        char    *szptr = &szString[0];
+                        szptr += sprintf_s(szptr, SZSTRING_SIZE, "%s%s ", g_szAsmCodeIndent, KEYWORD(".param constraint"));
+
+                        if (FAILED(g_pPubImport->GetGenericParamProps(tkGenericParam, &ulSequence, &attr, NULL, NULL, wzArgName, UNIBUF_SIZE / 2, &chName)))
+                        {
+                            sprintf_s(szString, SZSTRING_SIZE, "%sERROR: MetaData error in GetGenericParamProps for %08X", g_szAsmCodeIndent, tkGenericParam);
+                            printLine(GUICookie, szString);
+                            return;
+                        }
+                        if (chName > 0)
+                        {
+                            char* sz = (char*)(&wzUniBuf[UNIBUF_SIZE / 2]);
+                            WszWideCharToMultiByte(CP_UTF8, 0, wzArgName, -1, sz, UNIBUF_SIZE, NULL, NULL);
+                            szptr += sprintf_s(szptr, SZSTRING_REMAINING_SIZE(szptr), "  %s", ProperName(sz));
+                        }
+                        else
+                        {
+                            szptr += sprintf_s(szptr, SZSTRING_REMAINING_SIZE(szptr), "  [%d]", ulSequence + 1);
+                        }
+                        if (g_fDumpTokens)
+                        {
+                            szptr += sprintf_s(szptr, SZSTRING_REMAINING_SIZE(szptr), COMMENT("/*%08X*/ "), tkGenericParam);
+                        }
+
+                        szptr += sprintf_s(szptr, SZSTRING_REMAINING_SIZE(szptr), ", ");
+
+                        out.Shrink(0);
+                        szptr += sprintf_s(szptr, SZSTRING_REMAINING_SIZE(szptr), "%s", PrettyPrintClass(&out, tkConstraintType, g_pImport));
+                        printLine(GUICookie, szString);
+
+                        strcat_s(g_szAsmCodeIndent, MAX_MEMBER_LENGTH, "  ");
+                        while (g_pImport->EnumNext(&hEnum, &tkCA) && RidFromToken(tkCA))
+                        {
+                            DumpCustomAttribute(tkCA, GUICookie, false);
+                        }
+                        g_szAsmCodeIndent[strlen(g_szAsmCodeIndent) - 2] = 0;
+                    }
+                    g_pImport->EnumClose(&hEnum);  // mdtCustomAttribute
+                }
+            }
         } //end for(i=0;...
     } //end if(g_fShowCA)
 }
@@ -3304,7 +3357,7 @@ void PrettyPrintOverrideDecl(ULONG i, __inout __nullterminated char* szString, v
                 pSig = NULL;
                 cSig = 0;
             }
-            
+
             if (pSig && cSig)
             {
               qbInstSig.Shrink(0);
@@ -3326,9 +3379,9 @@ void PrettyPrintOverrideDecl(ULONG i, __inout __nullterminated char* szString, v
             ULONG       cComSig;
 
             if (FAILED(g_pImport->GetNameAndSigOfMemberRef(
-                tkDecl, 
-                &pComSig, 
-                &cComSig, 
+                tkDecl,
+                &pComSig,
+                &cComSig,
                 &pszMemberName)))
             {
                 sprintf_s(szBadToken,256,ERRORMSG("INVALID RECORD: 0x%8.8X"),tkDecl);
@@ -3409,7 +3462,7 @@ BOOL DumpMethod(mdToken FuncToken, const char *pszClassName, DWORD dwEntryPointT
     {
         pComSig = NULL;
     }
-    
+
     if (cComSig == NULL)
     {
         sprintf_s(szString, SZSTRING_SIZE, "%sERROR: method '%s' has no signature", g_szAsmCodeIndent, pszMemberName);
@@ -3426,7 +3479,7 @@ BOOL DumpMethod(mdToken FuncToken, const char *pszClassName, DWORD dwEntryPointT
             bRet = TRUE;
             goto lDone;
         }
-    
+
         g_tkMVarOwner = FuncToken;
         szString[0] = 0;
         DumpGenericPars(szString,FuncToken); //,NULL,FALSE);
@@ -3540,7 +3593,7 @@ lDone: ;
             sprintf_s(buff,SZSTRING_SIZE,"%s$PST%08X", pszMemberName,FuncToken );
         else
             strcpy_s(buff,SZSTRING_SIZE, pszMemberName );
-        
+
         psz = ProperName(buff);
         if(psz != buff)
         {
@@ -3653,7 +3706,7 @@ lDone: ;
     VDELETE(buff);
 
     if(!DumpBody)
-    { 
+    {
         g_tkMVarOwner = tkMVarOwner;
         return TRUE;
     }
@@ -3672,7 +3725,7 @@ lDone: ;
             szptr = &szString[0];
             szptr+=sprintf_s(szptr,SZSTRING_SIZE,"%s// %s", g_szAsmCodeIndent, szt);
             while(i<cComSig)
-            { 
+            {
                 szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr)," %02X",pComSig[i]);
                 i++;
                 if((i & 0x1F)==0) break;  // print only 32 per line
@@ -3900,11 +3953,11 @@ BOOL DumpField(mdToken FuncToken, const char *pszClassName,void *GUICookie, BOOL
         return FALSE;
     }
     g_tkRefUser = FuncToken;
-    
+
     bool bRet = FALSE;
     PAL_CPP_TRY {
         szStr = PrettyPrintSig(pComSig, cComSig, (DumpBody ? pszMemberName : ""), &qbMemberSig, g_pImport,NULL);
-    } 
+    }
     PAL_CPP_CATCH_ALL
     {
         printError(GUICookie,"INVALID ADDRESS IN FIELD SIGNATURE");
@@ -3941,7 +3994,7 @@ BOOL DumpField(mdToken FuncToken, const char *pszClassName,void *GUICookie, BOOL
                 pszPlainSig = "";
             }
             PAL_CPP_ENDTRY;
-            
+
             g_fDumpTokens = fDumpTokens;
 
             if (strcmp(pszPlainSig, g_pszSigToDump) != 0)
@@ -3952,7 +4005,7 @@ BOOL DumpField(mdToken FuncToken, const char *pszClassName,void *GUICookie, BOOL
         }
     }
     VDELETE(pszMemberName);
-    
+
     szptr = &szString[0];
     if(DumpBody)
     {
@@ -3969,7 +4022,7 @@ BOOL DumpField(mdToken FuncToken, const char *pszClassName,void *GUICookie, BOOL
             break;
         }
     }
-    
+
     szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),KEYWORD((char*)0));
     if(IsFdPublic(dwAttrs))         szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),"public ");
     if(IsFdPrivate(dwAttrs))        szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),"private ");
@@ -4021,7 +4074,7 @@ BOOL DumpField(mdToken FuncToken, const char *pszClassName,void *GUICookie, BOOL
     // dump default value (if any):
     if(IsFdHasDefault(dwAttrs) && DumpBody)  DumpDefaultValue(FuncToken,szString,GUICookie);
     printLine(GUICookie, szString);
-    
+
     if(DumpBody)
     {
         DumpCustomAttributes(FuncToken,GUICookie);
@@ -4063,7 +4116,7 @@ BOOL DumpEvent(mdToken FuncToken, const char *pszClassName, DWORD dwClassAttrs, 
         printError(GUICookie, sz);
         return FALSE;
     }
-    
+
     if ((nAssoc = hAssoc.m_ulCount))
     {
         memset(rAssoc,0,sizeof(rAssoc));
@@ -4074,7 +4127,7 @@ BOOL DumpEvent(mdToken FuncToken, const char *pszClassName, DWORD dwClassAttrs, 
             printError(GUICookie, sz);
             return FALSE;
         }
-        
+
         if (g_fLimitedVisibility)
         {
             unsigned i;
@@ -4228,7 +4281,7 @@ BOOL DumpProp(mdToken FuncToken, const char *pszClassName, DWORD dwClassAttrs, v
             printError(GUICookie, sz);
             return FALSE;
         }
-        
+
         if (g_fLimitedVisibility)
         {
             unsigned i;
@@ -4254,7 +4307,7 @@ BOOL DumpProp(mdToken FuncToken, const char *pszClassName, DWORD dwClassAttrs, v
             if( i >= nAssoc) return FALSE;
         }
     }
-    
+
     szptr = &szString[0];
     if (DumpBody)
     {
@@ -4432,7 +4485,7 @@ BOOL GetClassLayout(mdTypeDef cl, ULONG* pulPackSize, ULONG* pulClassSize)
     HENUMInternal   hEnumField;
     BOOL ret = FALSE;
 
-    if(g_rFieldOffset) 
+    if(g_rFieldOffset)
         VDELETE(g_rFieldOffset);
     g_cFieldOffsets = 0;
     g_cFieldsMax = 0;
@@ -4516,12 +4569,12 @@ BOOL DumpClass(mdTypeDef cl, DWORD dwEntryPointToken, void* GUICookie, ULONG Wha
     HENUMInternal   hEnumII;            // enumerator for interface impl
     //char            *szString;
     char*           szptr;
-    
+
     mdToken         tkVarOwner = g_tkVarOwner;
     ULONG           WhatToDumpOrig = WhatToDump;
-    
+
     if (FAILED(g_pImport->GetNameOfTypeDef(
-        cl, 
+        cl,
         &pc1,   //&pszClassName,
         &pc2))) //&pszNamespace
     {
@@ -4532,7 +4585,7 @@ BOOL DumpClass(mdTypeDef cl, DWORD dwEntryPointToken, void* GUICookie, ULONG Wha
         return FALSE;
     }
     MAKE_NAME_IF_NONE(pc1,cl);
-    
+
     if (g_Mode == MODE_DUMP_CLASS || g_Mode == MODE_DUMP_CLASS_METHOD || g_Mode == MODE_DUMP_CLASS_METHOD_SIG)
     {
         if(cl != g_tkClassToDump)
@@ -4545,8 +4598,8 @@ BOOL DumpClass(mdTypeDef cl, DWORD dwEntryPointToken, void* GUICookie, ULONG Wha
     }
 
     if (FAILED(g_pImport->GetTypeDefProps(
-        cl, 
-        &dwClassAttrs, 
+        cl,
+        &dwClassAttrs,
         &crExtends)))
     {
         char sz[2048];
@@ -4555,7 +4608,7 @@ BOOL DumpClass(mdTypeDef cl, DWORD dwEntryPointToken, void* GUICookie, ULONG Wha
         g_tkVarOwner = tkVarOwner;
         return FALSE;
     }
-    
+
     if(g_fLimitedVisibility)
     {
             if(g_fHidePub && (IsTdPublic(dwClassAttrs)||IsTdNestedPublic(dwClassAttrs))) return FALSE;
@@ -4567,7 +4620,7 @@ BOOL DumpClass(mdTypeDef cl, DWORD dwEntryPointToken, void* GUICookie, ULONG Wha
     }
 
     g_tkVarOwner = cl;
-    
+
     pszClassName = (char*)(pc1 ? pc1 : "");
     pszNamespace = (char*)(pc2 ? pc2 : "");
 
@@ -4771,7 +4824,7 @@ BOOL DumpClass(mdTypeDef cl, DWORD dwEntryPointToken, void* GUICookie, ULONG Wha
                 BOOL bOverridingTypeSpec;
                 PrettyPrintOverrideDecl(i,szString,GUICookie,cl,&bOverridingTypeSpec);
                 strcat_s(szString, SZSTRING_SIZE,KEYWORD(" with "));
-                
+
                 if (bOverridingTypeSpec)
                 {
                     // If PrettyPrintOverrideDecl printed the 'method' keyword, we need it here as well
@@ -4789,7 +4842,7 @@ BOOL DumpClass(mdTypeDef cl, DWORD dwEntryPointToken, void* GUICookie, ULONG Wha
     {
         BOOL    fRegetClassLayout=FALSE;
         DWORD dwMode = g_Mode;
-        
+
         if(g_Mode == MODE_DUMP_CLASS)
             g_Mode = MODE_DUMP_ALL;
 
@@ -5156,7 +5209,7 @@ void DumpBaseReloc(const char *szName, IMAGE_DATA_DIRECTORY *pDir, void* GUICook
         printLine(GUICookie,RstrUTF(IDS_E_NODATA));
         return;
     }
-    char *pBegin, *pEnd; 
+    char *pBegin, *pEnd;
     DWORD *pdw, i, Nentries;
     WORD  *pw;
     if (g_pPELoader->getVAforRVA(VAL32(pDir->VirtualAddress), (void **) &pBegin) == FALSE)
@@ -5176,7 +5229,7 @@ void DumpBaseReloc(const char *szName, IMAGE_DATA_DIRECTORY *pDir, void* GUICook
         pdw++;
         sprintf_s(szString,SZSTRING_SIZE,"//              0x%08x Number of Entries", Nentries);
         printLine(GUICookie,szStr);
-        
+
         for(i = 1, pw = (WORD*)pdw; i <= Nentries; i++, pw++)
         {
             sprintf_s(szString,SZSTRING_SIZE,"//              Entry %d: Type 0x%x Offset 0x%08x", i, ((*pw)>>12), ((*pw)&0x0FFF));
@@ -5378,11 +5431,11 @@ void DumpEntryPoint(DWORD dwAddrOfEntryPoint,DWORD dwEntryPointSize,void* GUICoo
         printLine(GUICookie,"Bad RVA of entry point");
         return;
     }
-    if(dwEntryPointSize == 48) pB -= 32; 
+    if(dwEntryPointSize == 48) pB -= 32;
     // on IA64, AddressOfEntryPoint points at PLabelDescriptor, not at the stub itself
     for(i=0; i<dwEntryPointSize; i++)
     {
-        szptr += sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),"%2.2X ",pB[i]);    
+        szptr += sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),"%2.2X ",pB[i]);
     }
     printLine(GUICookie,szStr);
 }
@@ -5440,12 +5493,12 @@ void DumpHeader(IMAGE_COR20_HEADER *CORHeader, void* GUICookie)
     printLine(GUICookie,szStr);
     sprintf_s(szString,SZSTRING_SIZE,"// File addr. of COFF header:  0x%04x", VAL16(pDOSHeader->e_lfanew));
     printLine(GUICookie,szStr);
-    
+
     strcpy_s(szString,SZSTRING_SIZE,"// ----- COFF/PE Headers:");
     printLine(GUICookie,szStr);
     sprintf_s(szString,SZSTRING_SIZE,"// Signature:                  0x%08x", VAL32(g_pPELoader->Signature()));
     printLine(GUICookie,szStr);
-    
+
     strcpy_s(szString,SZSTRING_SIZE,"// ----- COFF Header:");
     printLine(GUICookie,szStr);
 
@@ -5550,7 +5603,7 @@ void DumpHeader(IMAGE_COR20_HEADER *CORHeader, void* GUICookie)
         DUMP_DIRECTORY("Delay Load IAT:            ", pOptHeader->DataDirectory[IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT]);
         DUMP_DIRECTORY("CLR Header:                ", pOptHeader->DataDirectory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR]);
         printLine(GUICookie,"");
-        
+
         DumpSectionHeaders((IMAGE_SECTION_HEADER*)(pOptHeader+1),pNTHeader->FileHeader.NumberOfSections,GUICookie);
         DumpBaseReloc("Base Relocation Table",&pOptHeader->DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC],GUICookie);
         DumpIAT("Import Address Table", &pOptHeader->DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT],GUICookie);
@@ -5638,7 +5691,7 @@ void DumpHeader(IMAGE_COR20_HEADER *CORHeader, void* GUICookie)
         DUMP_DIRECTORY("Delay Load IAT:            ", pOptHeader->DataDirectory[IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT]);
         DUMP_DIRECTORY("CLR Header:                ", pOptHeader->DataDirectory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR]);
         printLine(GUICookie,"");
-    
+
         DumpSectionHeaders((IMAGE_SECTION_HEADER*)(pOptHeader+1),pNTHeader->FileHeader.NumberOfSections,GUICookie);
         DumpBaseReloc("Base Relocation Table",&pOptHeader->DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC],GUICookie);
         DumpIAT("Import Address Table", &pOptHeader->DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT],GUICookie);
@@ -5665,7 +5718,7 @@ void DumpHeader(IMAGE_COR20_HEADER *CORHeader, void* GUICookie)
     DUMP_DIRECTORY("Metadata Directory:        ", CORHeader->MetaData);
     sprintf_s(szString,SZSTRING_SIZE,"// Flags:                              0x%08x", VAL32(CORHeader->Flags));
     printLine(GUICookie,szStr);
-    sprintf_s(szString,SZSTRING_SIZE,"// Entry point token:                  0x%08x", 
+    sprintf_s(szString,SZSTRING_SIZE,"// Entry point token:                  0x%08x",
         VAL32(IMAGE_COR20_HEADER_FIELD(*CORHeader, EntryPointToken)));
     printLine(GUICookie,szStr);
     // Binding
@@ -6400,7 +6453,7 @@ void DumpHexbytes(__inout __nullterminated char* szptr,BYTE *pb, DWORD fromPtr, 
             PAL_CPP_TRY
             {
                 sz[k] = *pb; // check the ptr validity
-            } 
+            }
             PAL_CPP_CATCH_ALL
             {
                 pb = &zero;
@@ -6577,7 +6630,7 @@ void DumpEATEntries(void* GUICookie,
                             }
                             if(g_pPELoader->getVAforRVA(dwTokRVA,(void**)&pTok))
                                 (*g_prEATableRef)[j].tkTok = VAL32(*pTok);
-                            
+
                             (*g_prEATableRef)[j].pszName = NULL;
 
                         }
@@ -6646,7 +6699,7 @@ void DumpVtable(void* GUICookie)
 
     IMAGE_NT_HEADERS64 *pNTHeader64 = NULL;
     IMAGE_OPTIONAL_HEADER64 *pOptHeader64 = NULL;
-    
+
     if (g_pPELoader->IsPE32())
     {
         pNTHeader32 = g_pPELoader->ntHeaders32();
@@ -6847,13 +6900,13 @@ void DumpMI(__in __nullterminated const char *str)
 void DumpMetaInfo(__in __nullterminated const WCHAR* pwzFileName, __in_opt __nullterminated const char* pszObjFileName, void* GUICookie)
 {
     const WCHAR* pch = wcsrchr(pwzFileName,L'.');
-        
+
     DumpMI((char*)GUICookie); // initialize the print function for DumpMetaInfo
 
     if(pch && (!_wcsicmp(pch+1,W("lib")) || !_wcsicmp(pch+1,W("obj"))))
     {   // This works only when all the rest does not
         // Init and run.
-        if (metaDataGetDispenser(CLSID_CorMetaDataDispenser,
+        if (MetaDataGetDispenser(CLSID_CorMetaDataDispenser,
             IID_IMetaDataDispenserEx, (void **)&g_pDisp))
                 {
                     WCHAR *pwzObjFileName=NULL;
@@ -6864,7 +6917,7 @@ void DumpMetaInfo(__in __nullterminated const WCHAR* pwzFileName, __in_opt __nul
                         memset(pwzObjFileName,0,sizeof(WCHAR)*nLength);
                         WszMultiByteToWideChar(CP_UTF8,0,pszObjFileName,-1,pwzObjFileName,nLength);
                     }
-                    DisplayFile((wchar_t*)pwzFileName, true, g_ulMetaInfoFilter, pwzObjFileName, DumpMI);
+                    DisplayFile((WCHAR*)pwzFileName, true, g_ulMetaInfoFilter, pwzObjFileName, DumpMI);
                     g_pDisp->Release();
                     g_pDisp = NULL;
                     if (pwzObjFileName) VDELETE(pwzObjFileName);
@@ -6875,7 +6928,7 @@ void DumpMetaInfo(__in __nullterminated const WCHAR* pwzFileName, __in_opt __nul
         HRESULT hr = S_OK;
         if(g_pDisp == NULL)
         {
-            hr = metaDataGetDispenser(CLSID_CorMetaDataDispenser,
+            hr = MetaDataGetDispenser(CLSID_CorMetaDataDispenser,
                 IID_IMetaDataDispenserEx, (void **)&g_pDisp);
         }
         if(SUCCEEDED(hr))
@@ -6951,7 +7004,7 @@ void DumpSummary()
     {
         while(g_pImport->EnumNext(&hEnum, &tkMember))
         {
-            if (FAILED(g_pImport->GetNameOfMethodDef(tkMember, &pcMember)) || 
+            if (FAILED(g_pImport->GetNameOfMethodDef(tkMember, &pcMember)) ||
                 FAILED(g_pImport->GetSigOfMethodDef(tkMember, &cComSig, &pComSig)))
             {
                 sprintf_s(szString, SZSTRING_SIZE, "// ERROR in the method record %08X", tkMember);
@@ -6970,7 +7023,7 @@ void DumpSummary()
     {
         while(g_pImport->EnumNext(&hEnum, &tkMember))
         {
-            if (FAILED(g_pImport->GetNameOfFieldDef(tkMember, &pcMember)) || 
+            if (FAILED(g_pImport->GetNameOfFieldDef(tkMember, &pcMember)) ||
                 FAILED(g_pImport->GetSigOfFieldDef(tkMember, &cComSig, &pComSig)))
             {
                 sprintf_s(szString, SZSTRING_SIZE, "// ERROR in the field record %08X", tkMember);
@@ -7003,7 +7056,7 @@ void DumpSummary()
         {
             while(g_pImport->EnumNext(&hEnum, &tkMember))
             {
-                if (FAILED(g_pImport->GetNameOfMethodDef(tkMember, &pcMember)) || 
+                if (FAILED(g_pImport->GetNameOfMethodDef(tkMember, &pcMember)) ||
                     FAILED(g_pImport->GetSigOfMethodDef(tkMember, &cComSig, &pComSig)))
                 {
                     sprintf_s(szString, SZSTRING_SIZE, "// ERROR in the method record %08X", tkMember);
@@ -7022,7 +7075,7 @@ void DumpSummary()
         {
             while(g_pImport->EnumNext(&hEnum, &tkMember))
             {
-                if (FAILED(g_pImport->GetNameOfFieldDef(tkMember, &pcMember)) || 
+                if (FAILED(g_pImport->GetNameOfFieldDef(tkMember, &pcMember)) ||
                     FAILED(g_pImport->GetSigOfFieldDef(tkMember, &cComSig, &pComSig)))
                 {
                     sprintf_s(szString, SZSTRING_SIZE, "// ERROR in the field record %08X", tkMember);
@@ -7363,7 +7416,7 @@ BOOL DumpFile()
         g_cbMetaData = VAL32(g_CORHeader->MetaData.Size);
     }
 
-    if (FAILED(getMetaDataInternalInterface(
+    if (FAILED(GetMetaDataInternalInterface(
         (BYTE *)g_pMetaData,
         g_cbMetaData,
         openFlags,
@@ -7377,7 +7430,7 @@ BOOL DumpFile()
     }
 
     TokenSigInit(g_pImport);
-    if (FAILED(metaDataGetDispenser(CLSID_CorMetaDataDispenser, IID_IMetaDataDispenser, (LPVOID*)&pMetaDataDispenser)))
+    if (FAILED(MetaDataGetDispenser(CLSID_CorMetaDataDispenser, IID_IMetaDataDispenser, (LPVOID*)&pMetaDataDispenser)))
     {
         if (g_fDumpHeader)
             DumpHeader(g_CORHeader, g_pFile);
@@ -7405,14 +7458,14 @@ DoneInitialization:
     if(g_uNCA)
     {
         _ASSERTE(g_rchCA);
-        memset(g_rchCA,0,g_uNCA+1);                                          
+        memset(g_rchCA,0,g_uNCA+1);
     }
 #ifndef _DEBUG
     if(HasSuppressingAttribute())
     {
         if (g_fDumpHeader)
             DumpHeader(g_CORHeader,g_pFile);
-        if(g_fDumpMetaInfo) 
+        if(g_fDumpMetaInfo)
             DumpMetaInfo(g_wszFullInputFile,NULL,g_pFile);
         printError(g_pFile,RstrUTF(IDS_E_SUPPRESSED));
         goto CloseFileAndExit;
@@ -7550,7 +7603,7 @@ DoneInitialization:
                     pSecHdr = IMAGE_FIRST_SECTION(g_pPELoader->ntHeaders32());
                 else
                     pSecHdr = IMAGE_FIRST_SECTION(g_pPELoader->ntHeaders64());
-                    
+
                 DWORD dwNumberOfSections;
                 if(g_pPELoader->IsPE32())
                     dwNumberOfSections = VAL16(g_pPELoader->ntHeaders32()->FileHeader.NumberOfSections);
@@ -7654,15 +7707,15 @@ ReportAndExit:
             switch(ret)
             {
                 case 0: szString[0] = 0; break;
-                case 1: sprintf_s(szString,SZSTRING_SIZE,RstrUTF(IDS_W_CREATEDW32RES)/*"// WARNING: Created Win32 resource file %ls"*/, 
+                case 1: sprintf_s(szString,SZSTRING_SIZE,RstrUTF(IDS_W_CREATEDW32RES)/*"// WARNING: Created Win32 resource file %ls"*/,
                                 UnicodeToUtf(wzResFileName)); break;
                 case 0xDFFFFFFF: sprintf_s(szString,SZSTRING_SIZE,RstrUTF(IDS_E_CORRUPTW32RES)/*"// ERROR: Corrupt Win32 resources"*/); break;
-                case 0xEFFFFFFF: sprintf_s(szString,SZSTRING_SIZE,RstrUTF(IDS_E_CANTOPENW32RES)/*"// ERROR: Unable to open file %ls"*/, 
+                case 0xEFFFFFFF: sprintf_s(szString,SZSTRING_SIZE,RstrUTF(IDS_E_CANTOPENW32RES)/*"// ERROR: Unable to open file %ls"*/,
                                          UnicodeToUtf(wzResFileName)); break;
                 case 0xFFFFFFFF: sprintf_s(szString,SZSTRING_SIZE,RstrUTF(IDS_E_CANTACCESSW32RES)/*"// ERROR: Unable to access Win32 resources"*/); break;
             }
             if(szString[0])
-            { 
+            {
                 if(ret == 1) printLine(g_pFile,COMMENT(szString));
                 else printError(g_pFile,szString);
             }
@@ -7702,5 +7755,3 @@ exit:
 #ifdef _MSC_VER
 #pragma warning(default : 4640)
 #endif
-
-

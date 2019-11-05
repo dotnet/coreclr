@@ -6,28 +6,41 @@
 // along with the impact of EH.
 
 using System;
+using System.Threading;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 
 namespace PInvokeTest
 {
+    static class PInvokeExampleNative
+    {
+        public static int GetConstant()
+        {
+            return GetConstantInternal();
+        }
+
+        [DllImport(nameof(PInvokeExampleNative))]
+        private extern static int GetConstantInternal();
+    }
+
     internal class Test
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         static int AsForceInline()
         {
-            return Environment.ProcessorCount;
+            return PInvokeExampleNative.GetConstant();
         }
 
         static int AsNormalInline()
         {
-            return Environment.ProcessorCount;
+            return PInvokeExampleNative.GetConstant();
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         static int AsNoInline()
         {
-            return Environment.ProcessorCount;
+            return PInvokeExampleNative.GetConstant();
         }
 
         static bool FromTryCatch()
@@ -36,7 +49,7 @@ namespace PInvokeTest
             try 
             {
                 // All pinvokes should be inline, except on x64
-                result = (Environment.ProcessorCount == AsNormalInline());
+                result = (PInvokeExampleNative.GetConstant() == AsNormalInline());
             }
             catch (Exception)
             {
@@ -53,8 +66,8 @@ namespace PInvokeTest
             try 
             {
                 // All pinvokes should be inline, except on x64
-                result1 = (Environment.ProcessorCount == AsNormalInline());
-                result2 = (Environment.ProcessorCount == AsNormalInline());
+                result1 = (PInvokeExampleNative.GetConstant() == AsNormalInline());
+                result2 = (PInvokeExampleNative.GetConstant() == AsNormalInline());
             }
             finally
             {
@@ -72,12 +85,12 @@ namespace PInvokeTest
             try 
             {
                 // These two pinvokes should be inline, except on x64
-                result1 = (Environment.ProcessorCount == AsNormalInline());
+                result1 = (PInvokeExampleNative.GetConstant() == AsNormalInline());
             }
             finally
             {
                 // These two pinvokes should *not* be inline (finally)
-                result2 = (Environment.ProcessorCount == AsNormalInline());
+                result2 = (PInvokeExampleNative.GetConstant() == AsNormalInline());
                 result = result1 && result2;
             }
 
@@ -93,14 +106,14 @@ namespace PInvokeTest
             try 
             {
                 // These two pinvokes should be inline, except on x64
-                result1 = (Environment.ProcessorCount == AsNormalInline());
+                result1 = (PInvokeExampleNative.GetConstant() == AsNormalInline());
             }
             finally
             {
                 try 
                 {
                     // These two pinvokes should *not* be inline (finally)
-                    result2 = (Environment.ProcessorCount == AsNormalInline());
+                    result2 = (PInvokeExampleNative.GetConstant() == AsNormalInline());
                 }
                 catch (Exception)
                 {
@@ -117,7 +130,7 @@ namespace PInvokeTest
         static bool FromInline()
         {
             // These two pinvokes should be inline
-            bool result = (Environment.ProcessorCount == AsForceInline());
+            bool result = (PInvokeExampleNative.GetConstant() == AsForceInline());
             return result;
         }
 
@@ -125,8 +138,8 @@ namespace PInvokeTest
         static bool FromInline2()
         {
             // These four pinvokes should be inline
-            bool result1 = (Environment.ProcessorCount == AsNormalInline());
-            bool result2 = (Environment.ProcessorCount == AsForceInline());
+            bool result1 = (PInvokeExampleNative.GetConstant() == AsNormalInline());
+            bool result2 = (PInvokeExampleNative.GetConstant() == AsForceInline());
             return result1 && result2;
         }
 
@@ -134,7 +147,7 @@ namespace PInvokeTest
         static bool FromNoInline()
         {
             // The only pinvoke should be inline
-            bool result = (Environment.ProcessorCount == AsNoInline());
+            bool result = (PInvokeExampleNative.GetConstant() == AsNoInline());
             return result;
         }
 
@@ -142,8 +155,8 @@ namespace PInvokeTest
         static bool FromNoInline2()
         {
             // Three pinvokes should be inline
-            bool result1 = (Environment.ProcessorCount == AsNormalInline());
-            bool result2 = (Environment.ProcessorCount == AsNoInline());
+            bool result1 = (PInvokeExampleNative.GetConstant() == AsNormalInline());
+            bool result2 = (PInvokeExampleNative.GetConstant() == AsNoInline());
             return result1 && result2;
         }
 
@@ -158,13 +171,13 @@ namespace PInvokeTest
             // These two pinvokes should *not* be inline (filter)
             //
             // For the first call the jit won't inline the wrapper, so
-            // it just calls get_ProcessorCount.
+            // it just calls GetConstant().
             //
             // For the second call, the force inline works, and the
-            // subsequent inline of get_ProcessorCount exposes a call
-            // to the pinvoke GetProcessorCount.  This pinvoke will
+            // subsequent inline of GetConstant() exposes a call
+            // to the pinvoke GetConstantInternal().  This pinvoke will
             // not be inline.
-            catch (Exception) when (Environment.ProcessorCount == AsForceInline())
+            catch (Exception) when (PInvokeExampleNative.GetConstant() == AsForceInline())
             {
                 result = true;
             }
@@ -174,14 +187,14 @@ namespace PInvokeTest
 
         static bool FromColdCode()
         {
-            int pc = 0;
+            int yield = -1;
             bool result1 = false;
             bool result2 = false;
 
             try
             {
                 // This pinvoke should not be inline (cold)
-                pc = Environment.ProcessorCount;
+                yield = PInvokeExampleNative.GetConstant();
                 throw new Exception("expected");
             }
             catch (Exception)
@@ -189,14 +202,14 @@ namespace PInvokeTest
                 // These two pinvokes should not be inline (catch)
                 //
                 // For the first call the jit won't inline the
-                // wrapper, so it just calls get_ProcessorCount.
+                // wrapper, so it just calls GetConstant().
                 //
                 // For the second call, the force inline works, and
-                // the subsequent inline of get_ProcessorCount exposes
-                // a call to the pinvoke GetProcessorCount.  This
+                // the subsequent inline of GetConstant() exposes
+                // a call to the pinvoke GetConstantInternal().  This
                 // pinvoke will not be inline.
-                result1 = (pc == Environment.ProcessorCount);
-                result2 = (pc == AsForceInline());
+                result1 = (yield == PInvokeExampleNative.GetConstant());
+                result2 = (yield == AsForceInline());
             }
 
             return result1 && result2;

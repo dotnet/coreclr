@@ -24,11 +24,7 @@ Abstract:
 #include "pal/dbgmsg.h"
 #include "pal/modulename.h"
 
-#if NEED_DLCOMPAT
-#include "dlcompat.h"
-#else   // NEED_DLCOMPAT
 #include <dlfcn.h>
-#endif  // NEED_DLCOMPAT
 
 using namespace CorUnix;
 
@@ -48,7 +44,7 @@ Return value:
 
     NULL if error occurred.
 
-Notes: 
+Notes:
     The string returned by this function is owned by the OS.
     If you need to keep it, strdup() it, because it is unknown how long
     this ptr will point at the string you want (over the lifetime of
@@ -64,9 +60,9 @@ const char *PAL_dladdr(LPVOID ProcAddress)
         /* If we get an error, return NULL */
         return (NULL);
     }
-    else 
+    else
     {
-        /* Return the module name */ 
+        /* Return the module name */
         return dl_info.dli_fname;
     }
 }

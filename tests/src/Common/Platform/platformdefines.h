@@ -66,10 +66,6 @@ typedef unsigned int ULONG, *PULONG;
 #define SUCCEEDED(_hr)          ((HRESULT)(_hr) >= 0)
 #define FAILED(_hr)             ((HRESULT)(_hr) < 0)
 
-#ifdef ULONG_MAX
-#undef ULONG_MAX
-#endif
-#define ULONG_MAX     0xffffffffUL
 #define CCH_BSTRMAX 0x7FFFFFFF  // 4 + (0x7ffffffb + 1 ) * 2 ==> 0xFFFFFFFC
 #define CB_BSTRMAX 0xFFFFFFFa   // 4 + (0xfffffff6 + 2) ==> 0xFFFFFFFC
 
@@ -106,6 +102,10 @@ typedef unsigned int ULONG, *PULONG;
 #define STDMETHODCALLTYPE
 #endif
 
+#ifndef STDMETHODVCALLTYPE
+#define STDMETHODVCALLTYPE
+#endif
+
 #ifndef _MSC_VER
 #if __i386__
 #define __stdcall __attribute__((stdcall))
@@ -131,6 +131,7 @@ LPWSTR HackyConvertToWSTR(const char* pszInput);
 #define L(t) HackyConvertToWSTR(t)
 #define W(str)  u##str
 #define MAX_PATH 260
+#define __FUNCTIONW__ HackyConvertToWSTR(__func__)
 
 typedef pthread_t THREAD_ID;
 typedef void* (*MacWorker)(void*);
@@ -206,7 +207,7 @@ inline void CoreClrBStrFree(void* p)
 
 size_t TP_SysStringByteLen(BSTR bstr);
 BSTR TP_SysAllocString(LPCWSTR psz);
-DWORD TP_SysStringLen(BSTR bstr);
+size_t TP_SysStringLen(BSTR bstr);
 
 
 inline void *CoreClrAlloc(size_t cb)

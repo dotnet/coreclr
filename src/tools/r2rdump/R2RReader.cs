@@ -217,7 +217,7 @@ namespace R2RDump
         public int PointerSize { get; set; }
 
         /// <summary>
-        /// The preferred address of the first byte of image when loaded into memory; 
+        /// The preferred address of the first byte of image when loaded into memory;
         /// must be a multiple of 64K.
         /// </summary>
         public ulong ImageBase { get; set; }
@@ -438,7 +438,7 @@ namespace R2RDump
                     int runtimeFunctionId;
                     FixupCell[] fixups;
                     GetRuntimeFunctionIndexFromOffset(offset, out runtimeFunctionId, out fixups);
-                    R2RMethod method = new R2RMethod(R2RMethods.Count, this, methodHandle, runtimeFunctionId, owningType: null, constrainedType: null, instanceArgs: null, fixups: fixups);
+                    R2RMethod method = new R2RMethod(R2RMethods.Count, this.MetadataReader, methodHandle, runtimeFunctionId, owningType: null, constrainedType: null, instanceArgs: null, fixups: fixups);
 
                     if (method.EntryPointRuntimeFunctionId < 0 || method.EntryPointRuntimeFunctionId >= isEntryPoint.Length)
                     {
@@ -468,12 +468,14 @@ namespace R2RDump
             while (!curParser.IsNull())
             {
                 SignatureDecoder decoder = new SignatureDecoder(Options, this, (int)curParser.Offset);
+                MetadataReader mdReader = MetadataReader;
 
                 string owningType = null;
 
                 uint methodFlags = decoder.ReadUInt();
                 if ((methodFlags & (uint)ReadyToRunMethodSigFlags.READYTORUN_METHOD_SIG_OwnerType) != 0)
                 {
+                    mdReader = decoder.GetMetadataReaderFromModuleOverride();
                     owningType = decoder.ReadTypeSignatureNoEmit();
                 }
                 if ((methodFlags & (uint)ReadyToRunMethodSigFlags.READYTORUN_METHOD_SIG_SlotInsteadOfToken) != 0)
@@ -510,7 +512,15 @@ namespace R2RDump
                 int runtimeFunctionId;
                 FixupCell[] fixups;
                 GetRuntimeFunctionIndexFromOffset((int)decoder.Offset, out runtimeFunctionId, out fixups);
-                R2RMethod method = new R2RMethod(R2RMethods.Count, this, methodHandle, runtimeFunctionId, owningType, constrainedType, methodTypeArgs, fixups);
+                R2RMethod method = new R2RMethod(
+                    R2RMethods.Count,
+                    mdReader == null ? MetadataReader : mdReader,
+                    methodHandle,
+                    runtimeFunctionId,
+                    owningType,
+                    constrainedType,
+                    methodTypeArgs,
+                    fixups);
                 if (method.EntryPointRuntimeFunctionId >= 0 && method.EntryPointRuntimeFunctionId < isEntryPoint.Length)
                 {
                     isEntryPoint[method.EntryPointRuntimeFunctionId] = true;
@@ -757,7 +767,7 @@ namespace R2RDump
                     continue;
                 }
 
-                var debugInfo = new DebugInfo(Image, offset, Machine);
+                var debugInfo = new DebugInfo(Image, offset, Machine, Options.Normalize);
                 _runtimeFunctionToDebugInfo.Add((int)i, debugInfo);
             }
         }

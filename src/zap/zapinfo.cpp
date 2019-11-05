@@ -7,7 +7,7 @@
 
 //
 // JIT-EE interface for zapping
-// 
+//
 // ======================================================================================
 
 #include "common.h"
@@ -38,7 +38,7 @@ ZapInfo::ZapInfo(ZapImage * pImage, mdMethodDef md, CORINFO_METHOD_HANDLE handle
     m_pCode(NULL),
     m_pColdCode(NULL),
     m_pROData(NULL),
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     // Unwind info of the main method body. It will get merged with GC info.
     m_pMainUnwindInfo(NULL),
     m_cbMainUnwindInfo(0),
@@ -48,7 +48,7 @@ ZapInfo::ZapInfo(ZapImage * pImage, mdMethodDef md, CORINFO_METHOD_HANDLE handle
 #if defined(_TARGET_AMD64_)
     m_pChainedColdUnwindInfo(NULL),
 #endif
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
     m_pExceptionInfo(NULL),
     m_pProfileData(NULL),
     m_pProfilingHandle(NULL),
@@ -72,7 +72,7 @@ ZapInfo::~ZapInfo()
     delete [] m_pOffsetMapping;
 
     delete [] m_pGCInfo;
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     delete [] m_pMainUnwindInfo;
 #endif
 }
@@ -96,12 +96,12 @@ void ZapInfo::ResetForJitRetry()
 
     m_cbGCInfo = 0;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     delete [] m_pMainUnwindInfo;
     m_pMainUnwindInfo = NULL;
 
     m_cbMainUnwindInfo = 0;
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
     // The rest of these pointers are in the ZapWriter's ZapHeap, and will go away when the ZapWriter
     // goes away. That's ok for altjit fallback; we'll use extra memory until the ZapWriter goes away,
@@ -111,13 +111,13 @@ void ZapInfo::ResetForJitRetry()
     m_pColdCode = NULL;
     m_pROData = NULL;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     m_pUnwindInfoFragments = NULL;
     m_pUnwindInfo = NULL;
 #if defined(_TARGET_AMD64_)
     m_pChainedColdUnwindInfo = NULL;
 #endif
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
     m_pExceptionInfo = NULL;
     m_pProfileData = NULL;
@@ -153,12 +153,12 @@ CORJIT_FLAGS ZapInfo::ComputeJitFlags(CORINFO_METHOD_HANDLE handle)
     // You can override the behavior for NGened code using COMPlus_NGenFramed.
     static ConfigDWORD g_NGenFramed;
     DWORD dwNGenFramed = g_NGenFramed.val(CLRConfig::UNSUPPORTED_NGenFramed);
-    if (dwNGenFramed == 0) 
+    if (dwNGenFramed == 0)
     {
         // NGened code should enable fpo
         jitFlags.Clear(CORJIT_FLAGS::CORJIT_FLAG_FRAMED);
-    } 
-    else if (dwNGenFramed == 1) 
+    }
+    else if (dwNGenFramed == 1)
     {
         // NGened code should disable fpo
         jitFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_FRAMED);
@@ -169,13 +169,13 @@ CORJIT_FLAGS ZapInfo::ComputeJitFlags(CORINFO_METHOD_HANDLE handle)
         jitFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_SKIP_VERIFICATION);
     }
 
-    if (m_pImage->m_profileDataSections[MethodBlockCounts].pData && 
+    if (m_pImage->m_profileDataSections[MethodBlockCounts].pData &&
         !m_zapper->m_pOpt->m_ignoreProfileData)
     {
         jitFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_BBOPT);
     }
 
-    // 
+    //
     // By default we always enable Hot/Cold procedure splitting
     //
     jitFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_PROCSPLIT);
@@ -197,11 +197,6 @@ CORJIT_FLAGS ZapInfo::ComputeJitFlags(CORINFO_METHOD_HANDLE handle)
         jitFlags.Clear(CORJIT_FLAGS::CORJIT_FLAG_BBOPT);
         jitFlags.Clear(CORJIT_FLAGS::CORJIT_FLAG_PROCSPLIT);
     }
-
-    // Rejit is now enabled by default for NGEN'ed code. This costs us
-    // some size in exchange for diagnostic functionality, but we've got
-    // further work planned that should mitigate the size increase.
-    jitFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_PROF_REJIT_NOPS);
 
 #ifdef FEATURE_READYTORUN_COMPILER
     if (IsReadyToRunCompilation())
@@ -225,7 +220,7 @@ ZapDebugInfo * ZapInfo::EmitDebugInfo()
     // bigger than we need. We then copy the used portion into the ngen image.
 
     StackSBuffer debugInfoBuffer;
-    m_pEECompileInfo->CompressDebugInfo( 
+    m_pEECompileInfo->CompressDebugInfo(
             m_pOffsetMapping, m_iOffsetMapping,
             m_pNativeVarInfo, m_iNativeVarInfo,
             &debugInfoBuffer);
@@ -237,14 +232,14 @@ ZapDebugInfo * ZapInfo::EmitDebugInfo()
 }
 
 ZapGCInfo * ZapInfo::EmitGCInfo()
-{    
+{
     _ASSERTE(m_pGCInfo != NULL);
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     return m_pImage->m_pGCInfoTable->GetGCInfo(m_pGCInfo, m_cbGCInfo, m_pMainUnwindInfo, m_cbMainUnwindInfo);
 #else
     return m_pImage->m_pGCInfoTable->GetGCInfo(m_pGCInfo, m_cbGCInfo);
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 }
 
 ZapImport ** ZapInfo::EmitFixupList()
@@ -341,6 +336,7 @@ void ZapInfo::ProcessReferences()
         case ZapNodeType_Import_MethodHandle:
         case ZapNodeType_Import_FunctionEntry:
         case ZapNodeType_Import_IndirectPInvokeTarget:
+        case ZapNodeType_Import_PInvokeTarget:
             hMethod = (CORINFO_METHOD_HANDLE)(((ZapImport *)pTarget)->GetHandle());
             fMaybeConditionalImport = true;
             break;
@@ -445,7 +441,9 @@ void ZapInfo::CompileMethod()
     // Retrieve method attributes from EEJitInfo - the ZapInfo's version updates
     // some of the flags related to hardware intrinsics but we don't want that.
     DWORD methodAttribs = m_pEEJitInfo->getMethodAttribs(m_currentMethodHandle);
-    if (methodAttribs & CORINFO_FLG_AGGRESSIVE_OPT)
+
+#ifdef FEATURE_READYTORUN_COMPILER
+    if (IsReadyToRunCompilation() && (methodAttribs & CORINFO_FLG_AGGRESSIVE_OPT))
     {
         // Skip methods marked with MethodImplOptions.AggressiveOptimization, they will be jitted instead. In the future,
         // consider letting the JIT determine whether aggressively optimized code can/should be pregenerated for the method
@@ -454,6 +452,7 @@ void ZapInfo::CompileMethod()
             m_zapper->Info(W("Skipped because of aggressive optimization flag\n"));
         return;
     }
+#endif
 
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
     if (methodAttribs & CORINFO_FLG_JIT_INTRINSIC)
@@ -500,7 +499,7 @@ void ZapInfo::CompileMethod()
     }
 
     CorJitResult res = CORJIT_SKIPPED;
-    
+
     BYTE *pCode;
     ULONG cCode;
 
@@ -534,12 +533,12 @@ void ZapInfo::CompileMethod()
             ThrowExceptionForJitResult(res);
         }
     }
-    
+
     MethodCompileComplete(m_currentMethodInfo.ftn);
 
 #ifdef _TARGET_X86_
-    // The x86 JIT over estimates the code size. Trim the blob size down to 
-    // the actual size. 
+    // The x86 JIT over estimates the code size. Trim the blob size down to
+    // the actual size.
     // We can do this only for non-split code. Adjusting the code size for split
     // methods would hose offsets in GC info.
     if (m_pColdCode == NULL)
@@ -631,9 +630,9 @@ class MethodCodeComparer
         if (k1 == NULL || k2 == NULL)
             return FALSE;
 
-        return (k1->GetStartOffset() == k2->GetStartOffset()) && 
+        return (k1->GetStartOffset() == k2->GetStartOffset()) &&
                (k1->GetEndOffset() == k2->GetEndOffset()) &&
-               (k1->GetUnwindData() == k2->GetUnwindData()) && 
+               (k1->GetUnwindData() == k2->GetUnwindData()) &&
                EquivalentNode(k1->GetCode(), k2->GetCode(), equivalentNodes);
     }
 
@@ -697,7 +696,7 @@ public:
         if (!UnwindInfoEquals(k1->m_pColdUnwindInfo, k2->m_pColdUnwindInfo, equivalentNodes))
             return FALSE;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
         if (!UnwindInfoFragmentsEquals(k1->m_pUnwindInfoFragments, k2->m_pUnwindInfoFragments, equivalentNodes))
             return FALSE;
 #endif
@@ -756,7 +755,7 @@ COUNT_T ZapImage::MethodCodeTraits::Hash(key_t k)
                 type = pTarget->GetType();
             }
 
-            // The IL stubs code often differs by just a method call or class handle. Include 
+            // The IL stubs code often differs by just a method call or class handle. Include
             // these in the hash code.
             switch (type)
             {
@@ -784,7 +783,7 @@ void ZapInfo::PublishCompiledMethod()
 {
     EmitCodeRelocations();
 
-    // Go through all references in the code, make sure that we have fixups for them, 
+    // Go through all references in the code, make sure that we have fixups for them,
     // and ensure that they will be otherwise present in the image if necessary
     ProcessReferences();
 
@@ -812,7 +811,7 @@ void ZapInfo::PublishCompiledMethod()
     pMethod->m_pDebugInfo = EmitDebugInfo();
     pMethod->m_pGCInfo = EmitGCInfo();
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     pMethod->m_pUnwindInfoFragments = m_pUnwindInfoFragments;
 
     // Set the combined GCInfo + UnwindInfo blob
@@ -826,7 +825,7 @@ void ZapInfo::PublishCompiledMethod()
     }
 #endif // _TARGET_AMD64_
 
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 #ifndef FEATURE_FULL_NGEN
     //
@@ -896,7 +895,7 @@ IEEMemoryManager* ZapInfo::getMemoryManager()
 {
     return GetEEMemoryManager();
 }
-    
+
 bool ZapInfo::runWithErrorTrap(void (*function)(void*), void* param)
 {
     return m_pEEJitInfo->runWithErrorTrap(function, param);
@@ -1049,7 +1048,7 @@ HRESULT ZapInfo::getMethodBlockCounts (
     ProfileReader profileReader(DataSection_MethodBlockCounts->pData, DataSection_MethodBlockCounts->dataSize);
 
     // Locate the method in interest.
-    SEEK(foundEntry->pos);     
+    SEEK(foundEntry->pos);
     CORBBTPROF_METHOD_HEADER *  profileData;
     READ_SIZE(profileData, CORBBTPROF_METHOD_HEADER, foundEntry->size);
     _ASSERTE(profileData->method.token == foundEntry->md);  // We should be looking at the right method
@@ -1059,7 +1058,7 @@ HRESULT ZapInfo::getMethodBlockCounts (
     *pCount  = profileData->method.cBlock;
 
     // If the ILSize is non-zero the the ILCodeSize also must match
-    // 
+    //
     if ((profileData->method.ILSize != 0) && (profileData->method.ILSize != m_currentMethodInfo.ILCodeSize))
     {
         // IL code for this method does not match the IL code for the method when it was profiled
@@ -1075,7 +1074,7 @@ void ZapInfo::allocMem(
     ULONG               hotCodeSize,    /* IN */
     ULONG               coldCodeSize,   /* IN */
     ULONG               roDataSize,     /* IN */
-    ULONG               xcptnsCount,    /* IN */    
+    ULONG               xcptnsCount,    /* IN */
     CorJitAllocMemFlag  flag,           /* IN */
     void **             hotCodeBlock,   /* OUT */
     void **             coldCodeBlock,  /* OUT */
@@ -1159,12 +1158,12 @@ void * ZapInfo::allocGCInfo(size_t size)
 {
     _ASSERTE(m_pGCInfo == NULL);
 
-#ifdef _WIN64
+#ifdef BIT64
     if (size & 0xFFFFFFFF80000000LL)
     {
         IfFailThrow(CORJIT_OUTOFMEM);
     }
-#endif // _WIN64
+#endif // BIT64
 
     m_pGCInfo = new BYTE[size];
     m_cbGCInfo = size;
@@ -1188,7 +1187,7 @@ void ZapInfo::setEHcount(unsigned cEH)
     {
         _ASSERTE(!"Should not be called");
         return;
-    }    
+    }
 
     ULONG size = (sizeof(CORCOMPILE_EXCEPTION_CLAUSE) * cEH);
 
@@ -1289,9 +1288,9 @@ void ZapInfo::reportFatalError(CorJitResult result)
 
 // Reserve memory for the method/funclet's unwind information
 // Note that this must be called before allocMem, it should be
-// called once for the main method, once for every funclet region, and 
-// once for every non-funclet cold region for which we will call 
-// allocUnwindinfo. 
+// called once for the main method, once for every funclet region, and
+// once for every non-funclet cold region for which we will call
+// allocUnwindinfo.
 //
 // For prejitted code we need to count how many funclet regions
 // we have so that we can allocate and sort a contiguous .rdata block.
@@ -1316,7 +1315,7 @@ void ZapInfo::reserveUnwindInfo(BOOL isFunclet, BOOL isColdCode, ULONG unwindSiz
 // Parameters:
 //
 //    pHotCode        main method code buffer, always filled in
-//    pColdCode       cold code buffer, only filled in if this is cold code, 
+//    pColdCode       cold code buffer, only filled in if this is cold code,
 //                      null otherwise
 //    startOffset     start of code block, relative to appropriate code buffer
 //                      (e.g. pColdCode if cold, pHotCode if hot).
@@ -1335,13 +1334,13 @@ void ZapInfo::allocUnwindInfo (
         CorJitFuncKind      funcKind               /* IN */
         )
 {
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     _ASSERTE(pHotCode == m_pCode->GetData());
     _ASSERTE(pColdCode == NULL || pColdCode == m_pColdCode->GetData());
 
     ZapNode * pCode = (pColdCode != NULL) ? m_pColdCode : m_pCode;
 
-    ZapUnwindInfo * pUnwindInfo = new (m_pImage->GetHeap()) ZapUnwindInfo(pCode, startOffset, endOffset);    
+    ZapUnwindInfo * pUnwindInfo = new (m_pImage->GetHeap()) ZapUnwindInfo(pCode, startOffset, endOffset);
 
     // Prepend the new unwind info to the linked list of all fragments
     pUnwindInfo->SetNextFragment(m_pUnwindInfoFragments);
@@ -1373,7 +1372,7 @@ void ZapInfo::allocUnwindInfo (
         // Chained cold code unwind data
         //
 
-        _ASSERTE(unwindSize == 0);        
+        _ASSERTE(unwindSize == 0);
 
         // UnwindData Will be chained to the parent unwind info later as the compiled method is published
 
@@ -1390,8 +1389,8 @@ void ZapInfo::allocUnwindInfo (
 
         ZapUnwindData * pUnwindData = m_pImage->m_pUnwindDataTable->GetUnwindData(pUnwindBlock, unwindSize, funcKind == CORJIT_FUNC_FILTER);
         pUnwindInfo->SetUnwindData(pUnwindData);
-    }     
-#endif // WIN64EXCEPTIONS
+    }
+#endif // FEATURE_EH_FUNCLETS
 }
 
 BOOL ZapInfo::logMsg(unsigned level, const char *fmt, va_list args)
@@ -1443,8 +1442,13 @@ LONG * ZapInfo::getAddrOfCaptureThreadGlobal(void **ppIndirection)
 {
     _ASSERTE(ppIndirection != NULL);
 
-    *ppIndirection = (LONG *) m_pImage->GetInnerPtr(m_pImage->m_pEEInfoTable,
-        offsetof(CORCOMPILE_EE_INFO_TABLE, addrOfCaptureThreadGlobal));
+    *ppIndirection = NULL;
+    if (!IsReadyToRunCompilation())
+    {
+        *ppIndirection = (LONG*)m_pImage->GetInnerPtr(m_pImage->m_pEEInfoTable,
+            offsetof(CORCOMPILE_EE_INFO_TABLE, addrOfCaptureThreadGlobal));
+    }
+
     return NULL;
 }
 
@@ -1486,7 +1490,7 @@ CORINFO_MODULE_HANDLE ZapInfo::embedModuleHandle(CORINFO_MODULE_HANDLE handle,
     {
         ZapImport * pImport = m_pImage->GetImportTable()->GetModuleHandleImport(handle);
         AppendConditionalImport(pImport);
-        
+
         *ppIndirection = pImport;
     }
     return NULL;
@@ -1513,7 +1517,7 @@ CORINFO_CLASS_HANDLE ZapInfo::embedClassHandle(CORINFO_CLASS_HANDLE handle,
 
     m_pImage->m_pPreloader->AddTypeToTransitiveClosureOfInstantiations(handle);
 
-    BOOL fHardbound = m_pImage->m_pPreloader->CanEmbedClassHandle(handle); 
+    BOOL fHardbound = m_pImage->m_pPreloader->CanEmbedClassHandle(handle);
     if (fHardbound)
     {
         CORINFO_MODULE_HANDLE moduleHandle = m_pEECompileInfo->GetLoaderModuleForEmbeddableType(handle);
@@ -1552,7 +1556,7 @@ CORINFO_FIELD_HANDLE ZapInfo::embedFieldHandle(CORINFO_FIELD_HANDLE handle,
 
     m_pImage->m_pPreloader->AddTypeToTransitiveClosureOfInstantiations(m_pEEJitInfo->getFieldClass(handle));
 
-    BOOL fHardbound = m_pImage->m_pPreloader->CanEmbedFieldHandle(handle); 
+    BOOL fHardbound = m_pImage->m_pPreloader->CanEmbedFieldHandle(handle);
     if (fHardbound)
     {
         CORINFO_MODULE_HANDLE moduleHandle = m_pEECompileInfo->GetLoaderModuleForEmbeddableField(handle);
@@ -1587,7 +1591,7 @@ CORINFO_METHOD_HANDLE ZapInfo::embedMethodHandle(CORINFO_METHOD_HANDLE handle,
     }
 
     CORINFO_MODULE_HANDLE moduleHandle = m_pEECompileInfo->GetLoaderModuleForEmbeddableMethod(handle);
-    if (moduleHandle == m_pImage->m_hModule 
+    if (moduleHandle == m_pImage->m_hModule
         && m_pImage->m_pPreloader->CanEmbedMethodHandle(handle, m_currentMethodHandle))
     {
         // If the handle is the module we are currently ngening, we can
@@ -1599,7 +1603,7 @@ CORINFO_METHOD_HANDLE ZapInfo::embedMethodHandle(CORINFO_METHOD_HANDLE handle,
 
     ZapImport * pImport = m_pImage->GetImportTable()->GetMethodHandleImport(handle);
     AppendConditionalImport(pImport);
-    
+
     *ppIndirection = pImport;
     return NULL;
 }
@@ -1813,7 +1817,7 @@ void * ZapInfo::getHelperFtn (CorInfoHelpFunc ftnNum, void **ppIndirection)
 #ifdef _TARGET_AMD64_
     case CORINFO_HELP_STOP_FOR_GC:
         // Force all calls in ngen images for this helper to use an indirect call.
-        // We cannot use a jump stub to reach this helper because 
+        // We cannot use a jump stub to reach this helper because
         // the RAX register can contain a return value.
         dwHelper |= CORCOMPILE_HELPER_PTR;
    break;
@@ -1828,7 +1832,7 @@ void * ZapInfo::getHelperFtn (CorInfoHelpFunc ftnNum, void **ppIndirection)
         if (ftnNum == CORINFO_HELP_STRCNS_CURRENT_MODULE)
         {
             pHelperThunk = new (m_pImage->GetHeap()) ZapLazyHelperThunk(CORINFO_HELP_STRCNS);
-        }            
+        }
         else
         {
             pHelperThunk = new (m_pImage->GetHeap()) ZapHelperThunk(dwHelper);
@@ -1884,17 +1888,17 @@ void ZapInfo::AppendImport(ZapImport * pImport)
         m_ImportSet.Add(entry);
     }
 
-    m_Imports.Append(pImport);  
+    m_Imports.Append(pImport);
 }
 
 //
 // This function indicates whether a method entry point be directly embedded into
 // the code being compiled, or if we can use a (fixable) cross module thunk.
-// If we can't use either of these then we return NULL and we will use an 
+// If we can't use either of these then we return NULL and we will use an
 // (fixable) indirection cell to perform the call.
-// 
+//
 PVOID ZapInfo::embedDirectCall(CORINFO_METHOD_HANDLE ftn,
-                               CORINFO_ACCESS_FLAGS accessFlags, 
+                               CORINFO_ACCESS_FLAGS accessFlags,
                                BOOL fAllowThunk)
 {
     if (!m_pImage->m_pPreloader->CanEmbedFunctionEntryPoint(ftn, m_currentMethodHandle, accessFlags))
@@ -1908,7 +1912,7 @@ PVOID ZapInfo::embedDirectCall(CORINFO_METHOD_HANDLE ftn,
     // If it's in the same module then we can call it directly
     //
     CORINFO_MODULE_HANDLE moduleHandle = m_pEECompileInfo->GetLoaderModuleForEmbeddableMethod(ftn);
-    if (moduleHandle == m_pImage->m_hModule 
+    if (moduleHandle == m_pImage->m_hModule
         && m_pImage->m_pPreloader->CanEmbedMethodHandle(ftn, m_currentMethodHandle))
     {
         pEntryPointOrThunkToEmbed = m_pImage->m_pMethodEntryPoints->GetMethodEntryPoint(ftn, accessFlags);
@@ -1972,7 +1976,7 @@ void ZapInfo::getFunctionFixedEntryPoint(CORINFO_METHOD_HANDLE   ftn,
 
     m_pImage->m_pPreloader->AddMethodToTransitiveClosureOfInstantiations(ftn);
 
-    // We can only embed entrypoints from the module being NGened since we do not support mapping of external 
+    // We can only embed entrypoints from the module being NGened since we do not support mapping of external
     // import thunks to MethodDesc. It should be ok since the delegate targets are typically from the same module.
     void * entryPointToEmbed = embedDirectCall(ftn, CORINFO_ACCESS_ANY, FALSE);
 
@@ -1985,7 +1989,7 @@ void ZapInfo::getFunctionFixedEntryPoint(CORINFO_METHOD_HANDLE   ftn,
     {
         ZapImport * pImport = m_pImage->GetImportTable()->GetFunctionEntryImport(ftn);
         AppendConditionalImport(pImport);
-        
+
         pResult->accessType   = IAT_PVALUE;
         pResult->addr         = pImport;
     }
@@ -2017,6 +2021,7 @@ void * ZapInfo::getPInvokeUnmanagedTarget(CORINFO_METHOD_HANDLE method, void **p
 void * ZapInfo::getAddressOfPInvokeFixup(CORINFO_METHOD_HANDLE method,void **ppIndirection)
 {
     _ASSERTE(ppIndirection != NULL);
+    *ppIndirection = NULL;
 
     m_pImage->m_pPreloader->AddMethodToTransitiveClosureOfInstantiations(method);
 
@@ -2026,23 +2031,35 @@ void * ZapInfo::getAddressOfPInvokeFixup(CORINFO_METHOD_HANDLE method,void **ppI
         if (moduleHandle == m_pImage->m_hModule
             && m_pImage->m_pPreloader->CanEmbedMethodHandle(method, m_currentMethodHandle))
         {
-            *ppIndirection = NULL;
             return PVOID(m_pImage->GetWrappers()->GetAddrOfPInvokeFixup(method));
         }
     }
 
     //
-    // Note we could a fixup to a direct call site, rather than to
-    // the indirection.  This would saves us an extra indirection, but changes the
-    // semantics slightly (so that the pinvoke will be bound when the calling
-    // method is first run, not at the exact moment of the first pinvoke.)
+    // The indirect P/Invoke target enables the traditional semantics of
+    // resolving the P/Invoke target at the callsite. Providing a non-indirect
+    // fixup indicates the P/Invoke target will be resolved when the enclosing
+    // function is compiled. This subtle semantic difference is chosen for
+    // scenarios when resolution of the target must occur under a specific GC mode.
     //
 
-    ZapImport * pImport = m_pImage->GetImportTable()->GetIndirectPInvokeTargetImport(method);
+    void *fixup = NULL;
+    ZapImport *pImport = NULL;
+    if (m_pImage->m_pPreloader->ShouldSuppressGCTransition(method))
+    {
+        pImport = m_pImage->GetImportTable()->GetPInvokeTargetImport(method);
+        fixup = pImport;
+    }
+    else
+    {
+        pImport = m_pImage->GetImportTable()->GetIndirectPInvokeTargetImport(method);
+        *ppIndirection = pImport;
+    }
+
+    _ASSERTE(pImport != NULL);
     AppendConditionalImport(pImport);
 
-    *ppIndirection = pImport;
-    return NULL;
+    return fixup;
 }
 
 void ZapInfo::getAddressOfPInvokeTarget(CORINFO_METHOD_HANDLE method, CORINFO_CONST_LOOKUP *pLookup)
@@ -2058,6 +2075,7 @@ void ZapInfo::getAddressOfPInvokeTarget(CORINFO_METHOD_HANDLE method, CORINFO_CO
         return;
     }
 
+    _ASSERTE(pIndirection != NULL);
     pLookup->accessType = IAT_PPVALUE;
     pLookup->addr = pIndirection;
 }
@@ -2276,7 +2294,7 @@ void ZapInfo::getCallInfo(CORINFO_RESOLVED_TOKEN * pResolvedToken,
             // to box and do a virtual dispatch. If we were to allow the boxing to happen now, it could break future code
             // when the user adds a method to the valuetype that makes it possible to avoid boxing (if there is state
             // mutation in the method).
-            
+
             // We allow this at least for primitives and enums because we control them
             // and we know there's no state mutation.
             CorInfoType constrainedType = getTypeForPrimitiveValueClass(pConstrainedResolvedToken->hClass);
@@ -2373,7 +2391,7 @@ void ZapInfo::getCallInfo(CORINFO_RESOLVED_TOKEN * pResolvedToken,
         break;
 
     case CORINFO_VIRTUALCALL_VTABLE:
-        // Only calls within the CoreLib version bubble support fragile NI codegen with vtable based calls, for better performance (because 
+        // Only calls within the CoreLib version bubble support fragile NI codegen with vtable based calls, for better performance (because
         // CoreLib and the runtime will always be updated together anyways - this is a special case)
         break;
 
@@ -2418,7 +2436,7 @@ void ZapInfo::getCallInfo(CORINFO_RESOLVED_TOKEN * pResolvedToken,
             {
                 CORINFO_METHOD_HANDLE exactMethodHandle = (CORINFO_METHOD_HANDLE)((SIZE_T)pResult->contextHandle & ~CORINFO_CONTEXTFLAGS_MASK);
 
-                pImport = m_pImage->GetImportTable()->GetMethodImport(ENCODE_METHOD_DICTIONARY, exactMethodHandle, 
+                pImport = m_pImage->GetImportTable()->GetMethodImport(ENCODE_METHOD_DICTIONARY, exactMethodHandle,
                     pResolvedToken, pConstrainedResolvedToken);
             }
             else
@@ -2457,11 +2475,11 @@ unsigned ZapInfo::getClassDomainID (CORINFO_CLASS_HANDLE cls, void **ppIndirecti
         if (isRIDClassDomainID(cls))
         {
             // Token is invariant to loading order, so we can go ahead and use it
-            
+
             // Ensure that 'cls' gets added to CORCOMPILE_LOAD_TABLE, unless
             // someone else adds some other type of fixup for 'cls'.
             m_ClassLoadTable.Load(cls, FALSE);
-            
+
             return m_pEEJitInfo->getClassDomainID(cls, ppIndirection);
         }
 
@@ -2473,7 +2491,7 @@ unsigned ZapInfo::getClassDomainID (CORINFO_CLASS_HANDLE cls, void **ppIndirecti
             return m_pEEJitInfo->getClassDomainID(cls, ppIndirection);
         }
     }
-    
+
     // We will have to insert a fixup
     ZapImport * pImport = m_pImage->GetImportTable()->GetClassDomainIdImport(cls);
     AppendConditionalImport(pImport);
@@ -3850,7 +3868,7 @@ void ZapInfo::reportInliningDecision (CORINFO_METHOD_HANDLE inlinerHnd,
     if (!dontInline(inlineResult) && inlineeHnd != NULL)
     {
         // We deliberately report  m_currentMethodHandle (not inlinerHnd) as inliner, because
-        // if m_currentMethodHandle != inlinerHnd, it simply means that inlinerHnd is intermediate link 
+        // if m_currentMethodHandle != inlinerHnd, it simply means that inlinerHnd is intermediate link
         // in inlining into m_currentMethodHandle, and we have no interest to track those intermediate links now.
         m_pImage->m_pPreloader->ReportInlining(m_currentMethodHandle, inlineeHnd);
     }
@@ -3999,9 +4017,9 @@ CorInfoIntrinsics ZapInfo::getIntrinsicID(CORINFO_METHOD_HANDLE method,
     return intrinsicID;
 }
 
-bool ZapInfo::isInSIMDModule(CORINFO_CLASS_HANDLE classHnd)
+bool ZapInfo::isIntrinsicType(CORINFO_CLASS_HANDLE classHnd)
 {
-    return m_pEEJitInfo->isInSIMDModule(classHnd);
+    return m_pEEJitInfo->isIntrinsicType(classHnd);
 }
 
 CorInfoUnmanagedCallConv ZapInfo::getUnmanagedCallConv(CORINFO_METHOD_HANDLE method)
@@ -4015,7 +4033,7 @@ BOOL ZapInfo::pInvokeMarshalingRequired(CORINFO_METHOD_HANDLE method,
 #if defined(_TARGET_X86_) && defined(PLATFORM_UNIX)
     // FUTURE ReadyToRun: x86 pinvoke stubs on Unix platforms
     if (IsReadyToRunCompilation())
-        return TRUE; 
+        return TRUE;
 #endif
 
     if (IsReadyToRunCompilation() && method != NULL && !m_pImage->GetCompileInfo()->IsInCurrentVersionBubble(m_pEEJitInfo->getMethodModule(method)))

@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 // This program uses code hyperlinks available as part of the HyperAddin Visual Studio plug-in.
-// It is available from http://www.codeplex.com/hyperAddin 
+// It is available from http://www.codeplex.com/hyperAddin
 #if ES_BUILD_STANDALONE
 #define FEATURE_MANAGED_ETW_CHANNELS
 // #define FEATURE_ADVANCED_MANAGED_ETW_CHANNELS
@@ -17,8 +17,8 @@
 // Basic Model
 //
 // PRINCIPLE: EventSource - ETW decoupling
-// 
-// Conceptually an EventSouce is something that takes event logging data from the source methods 
+//
+// Conceptually an EventSouce is something that takes event logging data from the source methods
 // to the EventListener that can subscribe to them.  Note that CONCEPTUALLY EVENTSOURCES DON'T
 // KNOW ABOUT ETW!.   The MODEL of the system is that there is a special EventListener which
 // we will call the EtwEventListener, that forwards commands from ETW to EventSources and
@@ -26,89 +26,89 @@
 // be that you DON'T NEED ETW.
 //
 // Now in actual practice, EventSouce have rather intimate knowledge of ETW and send events
-// to it directly, but this can be VIEWED AS AN OPTIMIZATION.  
+// to it directly, but this can be VIEWED AS AN OPTIMIZATION.
 //
 // Basic Event Data Flow:
-// 
+//
 // There are two ways for event Data to enter the system
-//     1) WriteEvent* and friends.  This is called the 'contract' based approach because 
+//     1) WriteEvent* and friends.  This is called the 'contract' based approach because
 //        you write a method per event which forms a contract that is know at compile time.
 //        In this scheme each event is given an EVENTID (small integer), which is its identity
-//     2) Write<T> methods.   This is called the 'dynamic' approach because new events 
+//     2) Write<T> methods.   This is called the 'dynamic' approach because new events
 //        can be created on the fly.  Event identity is determined by the event NAME, and these
 //        are not quite as efficient at runtime since you have at least a hash table lookup
-//        on every event write.  
+//        on every event write.
 //
 // EventSource-EventListener transfer fully supports both ways of writing events (either contract
 // based (WriteEvent*) or dynamic (Write<T>)).   Both ways fully support the same set of data
-// types.   It is recommended, however, that you use the contract based approach when the event scheme 
+// types.   It is recommended, however, that you use the contract based approach when the event scheme
 // is known at compile time (that is whenever possible).  It is more efficient, but more importantly
-// it makes the contract very explicit, and centralizes all policy about logging.  These are good 
+// it makes the contract very explicit, and centralizes all policy about logging.  These are good
 // things.    The Write<T> API is really meant for more ad-hoc cases.
 //
 // Allowed Data:
-// 
+//
 // Note that EventSource-EventListeners have a conceptual serialization-deserialization that happens
-// during the transfer.   In particular object identity is not preserved, some objects are morphed, 
+// during the transfer.   In particular object identity is not preserved, some objects are morphed,
 // and not all data types are supported.   In particular you can pass
-// 
+//
 // A Valid type to log to an EventSource include
 //   * Primitive data types
 //   * IEnumerable<T> of valid types T (this include arrays)  (* New for V4.6)
 //   * Explicitly Opted in class or struct with public property Getters over Valid types.  (* New for V4.6)
-// 
-// This set of types is roughly a generalization of JSON support (basically primitives, bags, and arrays).  
+//
+// This set of types is roughly a generalization of JSON support (basically primitives, bags, and arrays).
 //
 // Explicitly allowed structs include (* New for V4.6)
 //   * Marked with the EventData attribute
 //   * implicitly defined (e.g the C# new {x = 3, y = 5} syntax)
 //   * KeyValuePair<K,V>  (thus dictionaries can be passed since they are an IEnumerable of KeyValuePair)
-//         
-// When classes are returned in an EventListener, what is returned is something that implements 
+//
+// When classes are returned in an EventListener, what is returned is something that implements
 // IDictionary<string, T>.  Thus when objects are passed to an EventSource they are transformed
-// into a key-value bag (the IDictionary<string, T>) for consumption in the listener.   These 
-// are obviously NOT the original objects.  
-// 
+// into a key-value bag (the IDictionary<string, T>) for consumption in the listener.   These
+// are obviously NOT the original objects.
+//
 // ETW serialization formats:
-// 
-// As mentioned, conceptually EventSources send data to EventListeners and there is a conceptual 
+//
+// As mentioned, conceptually EventSources send data to EventListeners and there is a conceptual
 // copy/morph of that data as described above.   In addition the .NET framework supports a conceptual
-// ETWListener that will send the data to the ETW stream.   If you use this feature, the data needs 
-// to be serialized in a way that ETW supports.  ETW supports the following serialization formats 
-// 
-//     1) Manifest Based serialization. 
+// ETWListener that will send the data to the ETW stream.   If you use this feature, the data needs
+// to be serialized in a way that ETW supports.  ETW supports the following serialization formats
+//
+//     1) Manifest Based serialization.
 //     2) SelfDescribing serialization (TraceLogging style in the TraceLogging directory)
 //
 // A key factor is that the Write<T> method, which supports on the fly definition of events, can't
-// support the manifest based serialization because the manifest needs the schema of all events 
+// support the manifest based serialization because the manifest needs the schema of all events
 // to be known before any events are emitted.  This implies the following:
 //
 // If you use Write<T> and the output goes to ETW it will use the SelfDescribing format.
 // If you use the EventSource(string) constructor for an eventSource (in which you don't
 // create a subclass), the default is also to use Self-Describing serialization.  In addition
 // you can use the EventSoruce(EventSourceSettings) constructor to also explicitly specify
-// Self-Describing serialization format.   These affect the WriteEvent* APIs going to ETW.  
+// Self-Describing serialization format.   These affect the WriteEvent* APIs going to ETW.
 //
-// Note that none of this ETW serialization logic affects EventListeners.   Only the ETW listener.  
-// 
+// Note that none of this ETW serialization logic affects EventListeners.   Only the ETW listener.
+//
 // *************************************************************************************
 // *** INTERNALS: Event Propagation
 //
 //   Data enters the system either though
 //
-// 1) A user defined method in the user defined subclass of EventSource which calls 
-//     A) A typesafe type specific overload of WriteEvent(ID, ...)  e.g. WriteEvent(ID, string, string) 
+// 1) A user defined method in the user defined subclass of EventSource which calls
+//     A) A typesafe type specific overload of WriteEvent(ID, ...)  e.g. WriteEvent(ID, string, string)
 //           * which calls into the unsafe WriteEventCore(ID COUNT EventData*) WriteEventWithRelatedActivityIdCore()
 //     B) The typesafe overload WriteEvent(ID, object[])  which calls the private helper WriteEventVarargs(ID, Guid* object[])
 //     C) Directly into the unsafe WriteEventCore(ID, COUNT EventData*) or WriteEventWithRelatedActivityIdCore()
 //
-//     All event data eventually flows to one of 
-//        * WriteEventWithRelatedActivityIdCore(ID, Guid*, COUNT, EventData*) 
+//     All event data eventually flows to one of
+//        * WriteEventWithRelatedActivityIdCore(ID, Guid*, COUNT, EventData*)
 //        * WriteEventVarargs(ID, Guid*, object[])
 //
-// 2) A call to one of the overloads of Write<T>.   All these overloads end up in 
+// 2) A call to one of the overloads of Write<T>.   All these overloads end up in
 //        * WriteImpl<T>(EventName, Options, Data, Guid*, Guid*)
-// 
+//
 // On output there are the following routines
 //    Writing to all listeners that are NOT ETW, we have the following routines
 //       * WriteToAllListeners(ID, Guid*, Guid*, COUNT, EventData*)
@@ -116,20 +116,20 @@
 //       * WriteToAllListeners(NAME, Guid*, Guid*, EventPayload)
 //
 //       EventPayload is the internal type that implements the IDictionary<string, object> interface
-//       The EventListeners will pass back for serialized classes for nested object, but  
+//       The EventListeners will pass back for serialized classes for nested object, but
 //       WriteToAllListeners(NAME, Guid*, Guid*, EventPayload) unpacks this and uses the fields as if they
-//       were parameters to a method.  
-// 
-//       The first two are used for the WriteEvent* case, and the later is used for the Write<T> case.  
-// 
-//    Writing to ETW, Manifest Based 
+//       were parameters to a method.
+//
+//       The first two are used for the WriteEvent* case, and the later is used for the Write<T> case.
+//
+//    Writing to ETW, Manifest Based
 //          EventProvider.WriteEvent(EventDescriptor, Guid*, COUNT, EventData*)
 //          EventProvider.WriteEvent(EventDescriptor, Guid*, object[])
 //    Writing to ETW, Self-Describing format
 //          WriteMultiMerge(NAME, Options, Types, EventData*)
 //          WriteMultiMerge(NAME, Options, Types, object[])
-//          WriteImpl<T> has logic that knows how to serialize (like WriteMultiMerge) but also knows 
-//             where it will write it to 
+//          WriteImpl<T> has logic that knows how to serialize (like WriteMultiMerge) but also knows
+//             where it will write it to
 //
 //    All ETW writes eventually call
 //      EventWriteTransfer
@@ -139,62 +139,50 @@
 //            WriteImpl<T>
 //         EventProvider.WriteEvent(EventDescriptor, Guid*, COUNT, EventData*)
 //         EventProvider.WriteEvent(EventDescriptor, Guid*, object[])
-// 
+//
 // Serialization:  We have a bit of a hodge-podge of serializers right now.   Only the one for ETW knows
 // how to deal with nested classes or arrays.   I will call this serializer the 'TypeInfo' serializer
 // since it is the TraceLoggingTypeInfo structure that knows how to do this.   Effectively for a type you
-// can call one of these 
+// can call one of these
 //      WriteMetadata - transforms the type T into serialization meta data blob for that type
 //      WriteObjectData - transforms an object of T into serialization data blob for that instance
-//      GetData - transforms an object of T into its deserialized form suitable for passing to EventListener. 
-// The first two are used to serialize something for ETW.   The second one is used to transform the object 
+//      GetData - transforms an object of T into its deserialized form suitable for passing to EventListener.
+// The first two are used to serialize something for ETW.   The second one is used to transform the object
 // for use by the EventListener.    We also have a 'DecodeObject' method that will take a EventData* and
-// deserialize to pass to an EventListener, but it only works on primitive types (types supported in version V4.5). 
-// 
-// It is an important observation that while EventSource does support users directly calling with EventData* 
-// blobs, we ONLY support that for the primitive types (V4.5 level support).   Thus while there is a EventData*
-// path through the system it is only for some types.  The object[] path is the more general (but less efficient) path.  
+// deserialize to pass to an EventListener, but it only works on primitive types (types supported in version V4.5).
 //
-// TODO There is cleanup needed There should be no divergence until WriteEventRaw.  
-// 
-// TODO: We should have a single choke point (right now we always have this parallel EventData* and object[] path.   This 
-// was historical (at one point we tried to pass object directly from EventSoruce to EventListener.  That was always 
+// It is an important observation that while EventSource does support users directly calling with EventData*
+// blobs, we ONLY support that for the primitive types (V4.5 level support).   Thus while there is a EventData*
+// path through the system it is only for some types.  The object[] path is the more general (but less efficient) path.
+//
+// TODO There is cleanup needed There should be no divergence until WriteEventRaw.
+//
+// TODO: We should have a single choke point (right now we always have this parallel EventData* and object[] path.   This
+// was historical (at one point we tried to pass object directly from EventSoruce to EventListener.  That was always
 // fragile and a compatibility headache, but we have finally been forced into the idea that there is always a transformation.
 // This allows us to use the EventData* form to be the canonical data format in the low level APIs.  This also gives us the
-// opportunity to expose this format to EventListeners in the future.   
-// 
+// opportunity to expose this format to EventListeners in the future.
+//
+
+#if ES_BUILD_STANDALONE
 using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
-using System.Numerics;
-using System.Reflection;
-using System.Resources;
-using System.Security;
-#if ES_BUILD_STANDALONE
 using System.Security.Permissions;
-#endif
-
-using System.Text;
-using System.Threading;
-using Microsoft.Win32;
-
-#if ES_BUILD_STANDALONE
 using EventDescriptor = Microsoft.Diagnostics.Tracing.EventDescriptor;
 using BitOperations = Microsoft.Diagnostics.Tracing.Internal.BitOperations;
 #else
 using System.Threading.Tasks;
 #endif
-
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.Numerics;
+using System.Reflection;
+using System.Resources;
+using System.Text;
+using System.Threading;
 using Microsoft.Reflection;
-
-#if !ES_BUILD_AGAINST_DOTNET_V35
-using Contract = System.Diagnostics.Contracts.Contract;
-#else
-using Contract = Microsoft.Diagnostics.Contracts.Internal.Contract;
-#endif
 
 #if ES_BUILD_STANDALONE
 namespace Microsoft.Diagnostics.Tracing
@@ -204,23 +192,23 @@ namespace System.Diagnostics.Tracing
 {
     /// <summary>
     /// This class is meant to be inherited by a user-defined event source in order to define a managed
-    /// ETW provider.   Please See DESIGN NOTES above for the internal architecture.  
+    /// ETW provider.   Please See DESIGN NOTES above for the internal architecture.
     /// The minimal definition of an EventSource simply specifies a number of ETW event methods that
-    /// call one of the EventSource.WriteEvent overloads, <see cref="EventSource.WriteEventCore"/>, 
-    /// or <see cref="EventSource.WriteEventWithRelatedActivityIdCore"/> to log them. This functionality 
+    /// call one of the EventSource.WriteEvent overloads, <see cref="EventSource.WriteEventCore"/>,
+    /// or <see cref="EventSource.WriteEventWithRelatedActivityIdCore"/> to log them. This functionality
     /// is sufficient for many users.
     /// <para>
-    /// To achieve more control over the ETW provider manifest exposed by the event source type, the 
+    /// To achieve more control over the ETW provider manifest exposed by the event source type, the
     /// [<see cref="EventAttribute"/>] attributes can be specified for the ETW event methods.
     /// </para><para>
     /// For very advanced EventSources, it is possible to intercept the commands being given to the
-    /// eventSource and change what filtering is done (see EventListener.EnableEvents and 
-    /// <see cref="EventListener.DisableEvents"/>) or cause actions to be performed by the eventSource, 
+    /// eventSource and change what filtering is done (see EventListener.EnableEvents and
+    /// <see cref="EventListener.DisableEvents"/>) or cause actions to be performed by the eventSource,
     /// e.g. dumping a data structure (see EventSource.SendCommand and
     /// <see cref="EventSource.OnEventCommand"/>).
     /// </para><para>
-    /// The eventSources can be turned on with Windows ETW controllers (e.g. logman), immediately. 
-    /// It is also possible to control and intercept the data dispatcher programmatically.  See 
+    /// The eventSources can be turned on with Windows ETW controllers (e.g. logman), immediately.
+    /// It is also possible to control and intercept the data dispatcher programmatically.  See
     /// <see cref="EventListener"/> for more.
     /// </para>
     /// </summary>
@@ -239,40 +227,39 @@ namespace System.Diagnostics.Tracing
     /// </remarks>
     public partial class EventSource : IDisposable
     {
-
 #if FEATURE_EVENTSOURCE_XPLAT
+#pragma warning disable CA1823 // field is used to keep listener alive
         private static readonly EventListener? persistent_Xplat_Listener = XplatEventLogger.InitializePersistentListener();
+#pragma warning restore CA1823
 #endif //FEATURE_EVENTSOURCE_XPLAT
 
         /// <summary>
         /// The human-friendly name of the eventSource.  It defaults to the simple name of the class
         /// </summary>
-        public string Name { get { return m_name; } }
+        public string Name => m_name;
         /// <summary>
-        /// Every eventSource is assigned a GUID to uniquely identify it to the system. 
+        /// Every eventSource is assigned a GUID to uniquely identify it to the system.
         /// </summary>
-        public Guid Guid { get { return m_guid; } }
+        public Guid Guid => m_guid;
 
         /// <summary>
         /// Returns true if the eventSource has been enabled at all. This is the preferred test
         /// to be performed before a relatively expensive EventSource operation.
         /// </summary>
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         public bool IsEnabled()
         {
             return m_eventSourceEnabled;
         }
 
         /// <summary>
-        /// Returns true if events with greater than or equal 'level' and have one of 'keywords' set are enabled. 
-        /// 
+        /// Returns true if events with greater than or equal 'level' and have one of 'keywords' set are enabled.
+        ///
         /// Note that the result of this function is only an approximation on whether a particular
         /// event is active or not. It is only meant to be used as way of avoiding expensive
         /// computation for logging when logging is not on, therefore it sometimes returns false
-        /// positives (but is always accurate when returning false).  EventSources are free to 
-        /// have additional filtering.    
+        /// positives (but is always accurate when returning false).  EventSources are free to
+        /// have additional filtering.
         /// </summary>
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         public bool IsEnabled(EventLevel level, EventKeywords keywords)
         {
             return IsEnabled(level, keywords, EventChannel.None);
@@ -281,14 +268,13 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// Returns true if events with greater than or equal 'level' and have one of 'keywords' set are enabled, or
         /// if 'keywords' specifies a channel bit for a channel that is enabled.
-        /// 
+        ///
         /// Note that the result of this function only an approximation on whether a particular
         /// event is active or not. It is only meant to be used as way of avoiding expensive
         /// computation for logging when logging is not on, therefore it sometimes returns false
-        /// positives (but is always accurate when returning false).  EventSources are free to 
-        /// have additional filtering.    
+        /// positives (but is always accurate when returning false).  EventSources are free to
+        /// have additional filtering.
         /// </summary>
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         public bool IsEnabled(EventLevel level, EventKeywords keywords, EventChannel channel)
         {
             if (!m_eventSourceEnabled)
@@ -303,16 +289,13 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// Returns the settings for the event source instance
         /// </summary>
-        public EventSourceSettings Settings
-        {
-            get { return m_config; }
-        }
+        public EventSourceSettings Settings => m_config;
 
-        // Manifest support 
+        // Manifest support
         /// <summary>
-        /// Returns the GUID that uniquely identifies the eventSource defined by 'eventSourceType'.  
-        /// This API allows you to compute this without actually creating an instance of the EventSource.   
-        /// It only needs to reflect over the type.  
+        /// Returns the GUID that uniquely identifies the eventSource defined by 'eventSourceType'.
+        /// This API allows you to compute this without actually creating an instance of the EventSource.
+        /// It only needs to reflect over the type.
         /// </summary>
         public static Guid GetGuid(Type eventSourceType)
         {
@@ -325,9 +308,8 @@ namespace System.Diagnostics.Tracing
             {
                 if (attrib.Guid != null)
                 {
-                    Guid g = Guid.Empty;
 #if !ES_BUILD_AGAINST_DOTNET_V35
-                    if (Guid.TryParse(attrib.Guid, out g))
+                    if (Guid.TryParse(attrib.Guid, out Guid g))
                         return g;
 #else
                     try { return new Guid(attrib.Guid); }
@@ -343,12 +325,12 @@ namespace System.Diagnostics.Tracing
             {
                 throw new ArgumentException(SR.Argument_InvalidTypeName, nameof(eventSourceType));
             }
-            return GenerateGuidFromName(name.ToUpperInvariant());       // Make it case insensitive.  
+            return GenerateGuidFromName(name.ToUpperInvariant());       // Make it case insensitive.
         }
         /// <summary>
-        /// Returns the official ETW Provider name for the eventSource defined by 'eventSourceType'.  
-        /// This API allows you to compute this without actually creating an instance of the EventSource.   
-        /// It only needs to reflect over the type.  
+        /// Returns the official ETW Provider name for the eventSource defined by 'eventSourceType'.
+        /// This API allows you to compute this without actually creating an instance of the EventSource.
+        /// It only needs to reflect over the type.
         /// </summary>
         public static string GetName(Type eventSourceType)
         {
@@ -392,7 +374,7 @@ namespace System.Diagnostics.Tracing
 
         // EventListener support
         /// <summary>
-        /// returns a list (IEnumerable) of all sources in the appdomain).  EventListeners typically need this.  
+        /// returns a list (IEnumerable) of all sources in the appdomain).  EventListeners typically need this.
         /// </summary>
         /// <returns></returns>
         public static IEnumerable<EventSource> GetSources()
@@ -402,9 +384,9 @@ namespace System.Diagnostics.Tracing
             {
                 Debug.Assert(EventListener.s_EventSources != null);
 
-                foreach (WeakReference eventSourceRef in EventListener.s_EventSources)
+                foreach (WeakReference<EventSource> eventSourceRef in EventListener.s_EventSources)
                 {
-                    if (eventSourceRef.Target is EventSource eventSource && !eventSource.IsDisposed)
+                    if (eventSourceRef.TryGetTarget(out EventSource? eventSource) && !eventSource.IsDisposed)
                         ret.Add(eventSource);
                 }
             }
@@ -414,8 +396,8 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// Send a command to a particular EventSource identified by 'eventSource'.
         /// Calling this routine simply forwards the command to the EventSource.OnEventCommand
-        /// callback.  What the EventSource does with the command and its arguments are from 
-        /// that point EventSource-specific.  
+        /// callback.  What the EventSource does with the command and its arguments are from
+        /// that point EventSource-specific.
         /// </summary>
         /// <param name="eventSource">The instance of EventSource to send the command to</param>
         /// <param name="command">A positive user-defined EventCommand, or EventCommand.SendManifest</param>
@@ -437,20 +419,20 @@ namespace System.Diagnostics.Tracing
         // Error APIs.  (We don't throw by default, but you can probe for status)
         /// <summary>
         /// Because
-        /// 
+        ///
         ///     1) Logging is often optional and thus should not generate fatal errors (exceptions)
         ///     2) EventSources are often initialized in class constructors (which propagate exceptions poorly)
-        ///     
-        /// The event source constructor does not throw exceptions.  Instead we remember any exception that 
+        ///
+        /// The event source constructor does not throw exceptions.  Instead we remember any exception that
         /// was generated (it is also logged to Trace.WriteLine).
         /// </summary>
-        public Exception? ConstructionException { get { return m_constructionException; } }
+        public Exception? ConstructionException => m_constructionException;
 
         /// <summary>
-        /// EventSources can have arbitrary string key-value pairs associated with them called Traits.  
+        /// EventSources can have arbitrary string key-value pairs associated with them called Traits.
         /// These traits are not interpreted by the EventSource but may be interpreted by EventListeners
-        /// (e.g. like the built in ETW listener).   These traits are specified at EventSource 
-        /// construction time and can be retrieved by using this GetTrait API.  
+        /// (e.g. like the built in ETW listener).   These traits are specified at EventSource
+        /// construction time and can be retrieved by using this GetTrait API.
         /// </summary>
         /// <param name="key">The key to look up in the set of key-value pairs passed to the EventSource constructor</param>
         /// <returns>The value string associated with key.  Will return null if there is no such key.</returns>
@@ -469,7 +451,7 @@ namespace System.Diagnostics.Tracing
         }
 
         /// <summary>
-        /// Displays the name and GUID for the eventSource for debugging purposes.  
+        /// Displays the name and GUID for the eventSource for debugging purposes.
         /// </summary>
         public override string ToString()
         {
@@ -477,12 +459,15 @@ namespace System.Diagnostics.Tracing
         }
 
         /// <summary>
-        /// Fires when a Command (e.g. Enable) comes from a an EventListener.  
+        /// Fires when a Command (e.g. Enable) comes from a an EventListener.
         /// </summary>
-        public event EventHandler<EventCommandEventArgs> EventCommandExecuted
+        public event EventHandler<EventCommandEventArgs>? EventCommandExecuted
         {
             add
             {
+                if (value == null)
+                    return;
+
                 m_eventCommandExecuted += value;
 
                 // If we have an EventHandler<EventCommandEventArgs> attached to the EventSource before the first command arrives
@@ -503,21 +488,21 @@ namespace System.Diagnostics.Tracing
 #region ActivityID
 
         /// <summary>
-        /// When a thread starts work that is on behalf of 'something else' (typically another 
+        /// When a thread starts work that is on behalf of 'something else' (typically another
         /// thread or network request) it should mark the thread as working on that other work.
         /// This API marks the current thread as working on activity 'activityID'. This API
         /// should be used when the caller knows the thread's current activity (the one being
         /// overwritten) has completed. Otherwise, callers should prefer the overload that
         /// return the oldActivityThatWillContinue (below).
-        /// 
-        /// All events created with the EventSource on this thread are also tagged with the 
-        /// activity ID of the thread. 
-        /// 
+        ///
+        /// All events created with the EventSource on this thread are also tagged with the
+        /// activity ID of the thread.
+        ///
         /// It is common, and good practice after setting the thread to an activity to log an event
-        /// with a 'start' opcode to indicate that precise time/thread where the new activity 
+        /// with a 'start' opcode to indicate that precise time/thread where the new activity
         /// started.
         /// </summary>
-        /// <param name="activityId">A Guid that represents the new activity with which to mark 
+        /// <param name="activityId">A Guid that represents the new activity with which to mark
         /// the current thread</param>
         public static void SetCurrentThreadActivityId(Guid activityId)
         {
@@ -525,7 +510,7 @@ namespace System.Diagnostics.Tracing
                 TplEventSource.Log.SetActivityId(activityId);
 
             // We ignore errors to keep with the convention that EventSources do not throw errors.
-            // Note we can't access m_throwOnWrites because this is a static method.  
+            // Note we can't access m_throwOnWrites because this is a static method.
 #if FEATURE_MANAGED_ETW
 #if FEATURE_PERFTRACING
             // Set the activity id via EventPipe.
@@ -549,7 +534,7 @@ namespace System.Diagnostics.Tracing
         {
             get
             {
-                // We ignore errors to keep with the convention that EventSources do not throw 
+                // We ignore errors to keep with the convention that EventSources do not throw
                 // errors. Note we can't access m_throwOnWrites because this is a static method.
                 Guid retVal = new Guid();
 #if FEATURE_MANAGED_ETW
@@ -568,30 +553,30 @@ namespace System.Diagnostics.Tracing
         }
 
         /// <summary>
-        /// When a thread starts work that is on behalf of 'something else' (typically another 
+        /// When a thread starts work that is on behalf of 'something else' (typically another
         /// thread or network request) it should mark the thread as working on that other work.
-        /// This API marks the current thread as working on activity 'activityID'. It returns 
+        /// This API marks the current thread as working on activity 'activityID'. It returns
         /// whatever activity the thread was previously marked with. There is a convention that
-        /// callers can assume that callees restore this activity mark before the callee returns. 
+        /// callers can assume that callees restore this activity mark before the callee returns.
         /// To encourage this, this API returns the old activity, so that it can be restored later.
-        /// 
-        /// All events created with the EventSource on this thread are also tagged with the 
-        /// activity ID of the thread. 
-        /// 
+        ///
+        /// All events created with the EventSource on this thread are also tagged with the
+        /// activity ID of the thread.
+        ///
         /// It is common, and good practice after setting the thread to an activity to log an event
-        /// with a 'start' opcode to indicate that precise time/thread where the new activity 
+        /// with a 'start' opcode to indicate that precise time/thread where the new activity
         /// started.
         /// </summary>
-        /// <param name="activityId">A Guid that represents the new activity with which to mark 
+        /// <param name="activityId">A Guid that represents the new activity with which to mark
         /// the current thread</param>
-        /// <param name="oldActivityThatWillContinue">The Guid that represents the current activity  
+        /// <param name="oldActivityThatWillContinue">The Guid that represents the current activity
         /// which will continue at some point in the future, on the current thread</param>
         public static void SetCurrentThreadActivityId(Guid activityId, out Guid oldActivityThatWillContinue)
         {
             oldActivityThatWillContinue = activityId;
 #if FEATURE_MANAGED_ETW
             // We ignore errors to keep with the convention that EventSources do not throw errors.
-            // Note we can't access m_throwOnWrites because this is a static method.  
+            // Note we can't access m_throwOnWrites because this is a static method.
 
 #if FEATURE_PERFTRACING && PLATFORM_WINDOWS
             EventPipeInternal.EventActivityIdControl(
@@ -611,7 +596,7 @@ namespace System.Diagnostics.Tracing
 #endif // FEATURE_MANAGED_ETW
 
             // We don't call the activityDying callback here because the caller has declared that
-            // it is not dying.  
+            // it is not dying.
             if (TplEventSource.Log != null)
                 TplEventSource.Log.SetActivityId(activityId);
         }
@@ -619,8 +604,8 @@ namespace System.Diagnostics.Tracing
 
 #region protected
         /// <summary>
-        /// This is the constructor that most users will use to create their eventSource.   It takes 
-        /// no parameters.  The ETW provider name and GUID of the EventSource are determined by the EventSource 
+        /// This is the constructor that most users will use to create their eventSource.   It takes
+        /// no parameters.  The ETW provider name and GUID of the EventSource are determined by the EventSource
         /// custom attribute (so you can determine these things declaratively).   If the GUID for the eventSource
         /// is not specified in the EventSourceAttribute (recommended), it is Generated by hashing the name.
         /// If the ETW provider name of the EventSource is not given, the name of the EventSource class is used as
@@ -632,14 +617,14 @@ namespace System.Diagnostics.Tracing
         }
 
         /// <summary>
-        /// By default calling the 'WriteEvent' methods do NOT throw on errors (they silently discard the event).  
+        /// By default calling the 'WriteEvent' methods do NOT throw on errors (they silently discard the event).
         /// This is because in most cases users assume logging is not 'precious' and do NOT wish to have logging failures
         /// crash the program. However for those applications where logging is 'precious' and if it fails the caller
         /// wishes to react, setting 'throwOnEventWriteErrors' will cause an exception to be thrown if WriteEvent
         /// fails. Note the fact that EventWrite succeeds does not necessarily mean that the event reached its destination
         /// only that operation of writing it did not fail. These EventSources will not generate self-describing ETW events.
-        /// 
-        /// For compatibility only use the EventSourceSettings.ThrowOnEventWriteErrors flag instead.  
+        ///
+        /// For compatibility only use the EventSourceSettings.ThrowOnEventWriteErrors flag instead.
         /// </summary>
         // [Obsolete("Use the EventSource(EventSourceSettings) overload")]
         protected EventSource(bool throwOnEventWriteErrors)
@@ -647,16 +632,16 @@ namespace System.Diagnostics.Tracing
         { }
 
         /// <summary>
-        /// Construct an EventSource with additional non-default settings (see EventSourceSettings for more)  
+        /// Construct an EventSource with additional non-default settings (see EventSourceSettings for more)
         /// </summary>
         protected EventSource(EventSourceSettings settings) : this(settings, null) { }
 
         /// <summary>
-        /// Construct an EventSource with additional non-default settings.  
-        /// 
-        /// Also specify a list of key-value pairs called traits (you must pass an even number of strings).   
+        /// Construct an EventSource with additional non-default settings.
+        ///
+        /// Also specify a list of key-value pairs called traits (you must pass an even number of strings).
         /// The first string is the key and the second is the value.   These are not interpreted by EventSource
-        /// itself but may be interpreted the listeners.  Can be fetched with GetTrait(string).   
+        /// itself but may be interpreted the listeners.  Can be fetched with GetTrait(string).
         /// </summary>
         /// <param name="settings">See EventSourceSettings for more.</param>
         /// <param name="traits">A collection of key-value strings (must be an even number).</param>
@@ -667,13 +652,11 @@ namespace System.Diagnostics.Tracing
             Guid eventSourceGuid;
             string? eventSourceName;
 
-            EventMetadata[]? eventDescriptors;
-            byte[]? manifest;
-            GetMetadata(out eventSourceGuid, out eventSourceName, out eventDescriptors, out manifest);
+            GetMetadata(out eventSourceGuid, out eventSourceName, out _, out _);
 
             if (eventSourceGuid.Equals(Guid.Empty) || eventSourceName == null)
             {
-                var myType = this.GetType();
+                Type myType = this.GetType();
                 eventSourceGuid = GetGuid(myType);
                 eventSourceName = GetName(myType);
             }
@@ -688,7 +671,7 @@ namespace System.Diagnostics.Tracing
         {
             // If the EventSource is set to emit all events as TraceLogging events, skip this initialization.
             // Events will be defined when they are emitted for the first time.
-            if(SelfDescribingEvents)
+            if (SelfDescribingEvents)
             {
                 return;
             }
@@ -710,7 +693,7 @@ namespace System.Diagnostics.Tracing
                 uint eventVersion = m_eventData[i].Descriptor.Version;
                 uint level = m_eventData[i].Descriptor.Level;
 
-                fixed (byte *pMetadata = metadata)
+                fixed (byte* pMetadata = metadata)
                 {
                     IntPtr eventHandle = m_eventPipeProvider.m_eventProvider.DefineEventHandle(
                         eventID,
@@ -748,20 +731,18 @@ namespace System.Diagnostics.Tracing
         }
 
         /// <summary>
-        /// This method is called when the eventSource is updated by the controller.  
+        /// This method is called when the eventSource is updated by the controller.
         /// </summary>
         protected virtual void OnEventCommand(EventCommandEventArgs command) { }
 
 #pragma warning disable 1591
         // optimized for common signatures (no args)
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId)
         {
             WriteEventCore(eventId, 0, null);
         }
 
         // optimized for common signatures (ints)
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, int arg1)
         {
             if (m_eventSourceEnabled)
@@ -774,7 +755,6 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, int arg1, int arg2)
         {
             if (m_eventSourceEnabled)
@@ -790,7 +770,6 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, int arg1, int arg2, int arg3)
         {
             if (m_eventSourceEnabled)
@@ -810,7 +789,6 @@ namespace System.Diagnostics.Tracing
         }
 
         // optimized for common signatures (longs)
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, long arg1)
         {
             if (m_eventSourceEnabled)
@@ -823,7 +801,6 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, long arg1, long arg2)
         {
             if (m_eventSourceEnabled)
@@ -839,7 +816,6 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, long arg1, long arg2, long arg3)
         {
             if (m_eventSourceEnabled)
@@ -859,12 +835,11 @@ namespace System.Diagnostics.Tracing
         }
 
         // optimized for common signatures (strings)
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, string? arg1)
         {
             if (m_eventSourceEnabled)
             {
-                if (arg1 == null) arg1 = "";
+                arg1 ??= "";
                 fixed (char* string1Bytes = arg1)
                 {
                     EventSource.EventData* descrs = stackalloc EventSource.EventData[1];
@@ -876,13 +851,12 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, string? arg1, string? arg2)
         {
             if (m_eventSourceEnabled)
             {
-                if (arg1 == null) arg1 = "";
-                if (arg2 == null) arg2 = "";
+                arg1 ??= "";
+                arg2 ??= "";
                 fixed (char* string1Bytes = arg1)
                 fixed (char* string2Bytes = arg2)
                 {
@@ -898,14 +872,13 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, string? arg1, string? arg2, string? arg3)
         {
             if (m_eventSourceEnabled)
             {
-                if (arg1 == null) arg1 = "";
-                if (arg2 == null) arg2 = "";
-                if (arg3 == null) arg3 = "";
+                arg1 ??= "";
+                arg2 ??= "";
+                arg3 ??= "";
                 fixed (char* string1Bytes = arg1)
                 fixed (char* string2Bytes = arg2)
                 fixed (char* string3Bytes = arg3)
@@ -926,12 +899,11 @@ namespace System.Diagnostics.Tracing
         }
 
         // optimized for common signatures (string and ints)
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, string? arg1, int arg2)
         {
             if (m_eventSourceEnabled)
             {
-                if (arg1 == null) arg1 = "";
+                arg1 ??= "";
                 fixed (char* string1Bytes = arg1)
                 {
                     EventSource.EventData* descrs = stackalloc EventSource.EventData[2];
@@ -946,12 +918,11 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, string? arg1, int arg2, int arg3)
         {
             if (m_eventSourceEnabled)
             {
-                if (arg1 == null) arg1 = "";
+                arg1 ??= "";
                 fixed (char* string1Bytes = arg1)
                 {
                     EventSource.EventData* descrs = stackalloc EventSource.EventData[3];
@@ -970,12 +941,11 @@ namespace System.Diagnostics.Tracing
         }
 
         // optimized for common signatures (string and longs)
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, string? arg1, long arg2)
         {
             if (m_eventSourceEnabled)
             {
-                if (arg1 == null) arg1 = "";
+                arg1 ??= "";
                 fixed (char* string1Bytes = arg1)
                 {
                     EventSource.EventData* descrs = stackalloc EventSource.EventData[2];
@@ -991,12 +961,11 @@ namespace System.Diagnostics.Tracing
         }
 
         // optimized for common signatures (long and string)
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, long arg1, string? arg2)
         {
             if (m_eventSourceEnabled)
             {
-                if (arg2 == null) arg2 = "";
+                arg2 ??= "";
                 fixed (char* string2Bytes = arg2)
                 {
                     EventSource.EventData* descrs = stackalloc EventSource.EventData[2];
@@ -1012,12 +981,11 @@ namespace System.Diagnostics.Tracing
         }
 
         // optimized for common signatures (int and string)
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, int arg1, string? arg2)
         {
             if (m_eventSourceEnabled)
             {
-                if (arg2 == null) arg2 = "";
+                arg2 ??= "";
                 fixed (char* string2Bytes = arg2)
                 {
                     EventSource.EventData* descrs = stackalloc EventSource.EventData[2];
@@ -1032,7 +1000,6 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, byte[]? arg1)
         {
             if (m_eventSourceEnabled)
@@ -1044,7 +1011,7 @@ namespace System.Diagnostics.Tracing
                     descrs[0].DataPointer = (IntPtr)(&blobSize);
                     descrs[0].Size = 4;
                     descrs[0].Reserved = 0;
-                    descrs[1].DataPointer = (IntPtr)(&blobSize); // valid address instead of empty content 
+                    descrs[1].DataPointer = (IntPtr)(&blobSize); // valid address instead of empty content
                     descrs[1].Size = 0;
                     descrs[1].Reserved = 0;
                     WriteEventCore(eventId, 2, descrs);
@@ -1066,7 +1033,6 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, long arg1, byte[]? arg2)
         {
             if (m_eventSourceEnabled)
@@ -1081,7 +1047,7 @@ namespace System.Diagnostics.Tracing
                     descrs[1].DataPointer = (IntPtr)(&blobSize);
                     descrs[1].Size = 4;
                     descrs[1].Reserved = 0;
-                    descrs[2].DataPointer = (IntPtr)(&blobSize); // valid address instead of empty contents 
+                    descrs[2].DataPointer = (IntPtr)(&blobSize); // valid address instead of empty contents
                     descrs[2].Size = 0;
                     descrs[2].Reserved = 0;
                     WriteEventCore(eventId, 3, descrs);
@@ -1114,18 +1080,30 @@ namespace System.Diagnostics.Tracing
             /// Address where the one argument lives (if this points to managed memory you must ensure the
             /// managed object is pinned.
             /// </summary>
-            public unsafe IntPtr DataPointer { get { return (IntPtr)(void*)m_Ptr; } set { m_Ptr = unchecked((ulong)(void*)value); } }
+            public unsafe IntPtr DataPointer
+            {
+                get => (IntPtr)(void*)m_Ptr;
+                set => m_Ptr = unchecked((ulong)(void*)value);
+            }
 
             /// <summary>
             /// Size of the argument referenced by DataPointer
             /// </summary>
-            public int Size { get { return m_Size; } set { m_Size = value; } }
+            public int Size
+            {
+                get => m_Size;
+                set => m_Size = value;
+            }
 
             /// <summary>
             /// Reserved by ETW.  This property is present to ensure that we can zero it
             /// since System.Private.CoreLib uses are not zero'd.
             /// </summary>
-            internal int Reserved { get { return m_Reserved; } set { m_Reserved = value; } }
+            internal int Reserved
+            {
+                get => m_Reserved;
+                set => m_Reserved = value;
+            }
 
 #region private
             /// <summary>
@@ -1142,8 +1120,8 @@ namespace System.Diagnostics.Tracing
                 this.m_Reserved = reserved; // Mark this descriptor as containing tracelogging-compatible metadata.
             }
 
-            //Important, we pass this structure directly to the Win32 EventWrite API, so this structure must be layed out exactly
-            // the way EventWrite wants it.  
+            // Important, we pass this structure directly to the Win32 EventWrite API, so this structure must
+            // be layed out exactly the way EventWrite wants it.
             internal ulong m_Ptr;
             internal int m_Size;
 #pragma warning disable 0649
@@ -1162,7 +1140,7 @@ namespace System.Diagnostics.Tracing
         ///    {
         ///        if (IsEnabled())
         ///        {
-        ///            if (arg2 == null) arg2 = "";
+        ///            arg2 ??= "";
         ///            fixed (char* string2Bytes = arg2)
         ///            {
         ///                EventSource.EventData* descrs = stackalloc EventSource.EventData[2];
@@ -1185,7 +1163,7 @@ namespace System.Diagnostics.Tracing
         }
 
         /// <summary>
-        /// This routine allows you to create efficient WriteEventWithRelatedActivityId helpers, however the code 
+        /// This routine allows you to create efficient WriteEventWithRelatedActivityId helpers, however the code
         /// that you use to do this, while straightforward, is unsafe. The only difference from
         /// <see cref="WriteEventCore"/> is that you pass the relatedActivityId from caller through to this API
         /// </summary>
@@ -1195,7 +1173,7 @@ namespace System.Diagnostics.Tracing
         ///    {
         ///        if (IsEnabled())
         ///        {
-        ///            if (arg2 == null) arg2 = "";
+        ///            arg2 ??= "";
         ///            fixed (char* string2Bytes = arg2)
         ///            {
         ///                EventSource.EventData* descrs = stackalloc EventSource.EventData[2];
@@ -1269,7 +1247,6 @@ namespace System.Diagnostics.Tracing
                                                                     m_eventData[eventId].Tags,
                                                                     m_eventData[eventId].Parameters);
                                 Interlocked.CompareExchange(ref m_eventData[eventId].TraceLoggingEventTypes, tlet, null);
-
                             }
                             EventSourceOptions opt = new EventSourceOptions
                             {
@@ -1296,15 +1273,14 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        // fallback varags helpers. 
+        // fallback varags helpers.
         /// <summary>
         /// This is the varargs helper for writing an event. It does create an array and box all the arguments so it is
         /// relatively inefficient and should only be used for relatively rare events (e.g. less than 100 / sec). If your
-        /// rates are faster than that you should use <see cref="WriteEventCore"/> to create fast helpers for your particular 
-        /// method signature. Even if you use this for rare events, this call should be guarded by an <see cref="IsEnabled()"/> 
-        /// check so that the varargs call is not made when the EventSource is not active.  
+        /// rates are faster than that you should use <see cref="WriteEventCore"/> to create fast helpers for your particular
+        /// method signature. Even if you use this for rare events, this call should be guarded by an <see cref="IsEnabled()"/>
+        /// check so that the varargs call is not made when the EventSource is not active.
         /// </summary>
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, params object?[] args)
         {
             WriteEventVarargs(eventId, null, args);
@@ -1314,7 +1290,7 @@ namespace System.Diagnostics.Tracing
         /// This is the varargs helper for writing an event which also specifies a related activity. It is completely analogous
         /// to corresponding WriteEvent (they share implementation). It does create an array and box all the arguments so it is
         /// relatively inefficient and should only be used for relatively rare events (e.g. less than 100 / sec).  If your
-        /// rates are faster than that you should use <see cref="WriteEventWithRelatedActivityIdCore"/> to create fast helpers for your 
+        /// rates are faster than that you should use <see cref="WriteEventWithRelatedActivityIdCore"/> to create fast helpers for your
         /// particular method signature. Even if you use this for rare events, this call should be guarded by an <see cref="IsEnabled()"/>
         /// check so that the varargs call is not made when the EventSource is not active.
         /// </summary>
@@ -1357,8 +1333,7 @@ namespace System.Diagnostics.Tracing
                     {
                         SendManifest(m_rawManifest);
                     }
-                    catch (Exception)
-                    { }           // If it fails, simply give up.   
+                    catch { } // If it fails, simply give up.
                     m_eventSourceEnabled = false;
                 }
                 if (m_etwProvider != null)
@@ -1437,11 +1412,10 @@ namespace System.Diagnostics.Tracing
 
         /// <summary>
         /// This method is responsible for the common initialization path from our constructors. It must
-        /// not leak any exceptions (otherwise, since most EventSource classes define a static member, 
+        /// not leak any exceptions (otherwise, since most EventSource classes define a static member,
         /// "Log", such an exception would become a cached exception for the initialization of the static
         /// member, and any future access to the "Log" would throw the cached exception).
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1720:IdentifiersShouldNotContainTypeNames", MessageId = "guid")]
         private unsafe void Initialize(Guid eventSourceGuid, string eventSourceName, string[]? traits)
         {
             try
@@ -1465,12 +1439,12 @@ namespace System.Diagnostics.Tracing
                 m_name = eventSourceName;
                 m_guid = eventSourceGuid;
 
-                //Enable Implicit Activity tracker
+                // Enable Implicit Activity tracker
                 m_activityTracker = ActivityTracker.Instance;
 
 #if FEATURE_MANAGED_ETW || FEATURE_PERFTRACING
-                // Create and register our provider traits.  We do this early because it is needed to log errors 
-                // In the self-describing event case. 
+                // Create and register our provider traits.  We do this early because it is needed to log errors
+                // In the self-describing event case.
                 this.InitializeProviderMetadata();
 #endif
 #if FEATURE_MANAGED_ETW
@@ -1486,13 +1460,13 @@ namespace System.Diagnostics.Tracing
                     eventPipeProvider.Register(this);
                 }
 #endif
-                // Add the eventSource to the global (weak) list.  
-                // This also sets m_id, which is the index in the list. 
+                // Add the eventSource to the global (weak) list.
+                // This also sets m_id, which is the index in the list.
                 EventListener.AddEventSource(this);
 
 #if FEATURE_MANAGED_ETW
-                // OK if we get this far without an exception, then we can at least write out error messages. 
-                // Set m_provider, which allows this.  
+                // OK if we get this far without an exception, then we can at least write out error messages.
+                // Set m_provider, which allows this.
                 m_etwProvider = etwProvider;
 
 #if PLATFORM_WINDOWS
@@ -1520,28 +1494,27 @@ namespace System.Diagnostics.Tracing
 #if FEATURE_PERFTRACING
                 m_eventPipeProvider = eventPipeProvider;
 #endif
-                Debug.Assert(!m_eventSourceEnabled);     // We can't be enabled until we are completely initted.  
-                // We are logically completely initialized at this point.  
+                Debug.Assert(!m_eventSourceEnabled);     // We can't be enabled until we are completely initted.
+                // We are logically completely initialized at this point.
                 m_completelyInited = true;
             }
             catch (Exception e)
             {
-                if (m_constructionException == null)
-                    m_constructionException = e;
-                ReportOutOfBandMessage("ERROR: Exception during construction of EventSource " + Name + ": " + e.Message, true);
+                m_constructionException ??= e;
+                ReportOutOfBandMessage("ERROR: Exception during construction of EventSource " + Name + ": " + e.Message);
             }
 
-            // Once m_completelyInited is set, you can have concurrency, so all work is under the lock.  
+            // Once m_completelyInited is set, you can have concurrency, so all work is under the lock.
             lock (EventListener.EventListenersLock)
             {
-                // If there are any deferred commands, we can do them now.   
-                // This is the most likely place for exceptions to happen.  
-                // Note that we are NOT resetting m_deferredCommands to NULL here, 
+                // If there are any deferred commands, we can do them now.
+                // This is the most likely place for exceptions to happen.
+                // Note that we are NOT resetting m_deferredCommands to NULL here,
                 // We are giving for EventHandler<EventCommandEventArgs> that will be attached later
                 EventCommandEventArgs? deferredCommands = m_deferredCommands;
                 while (deferredCommands != null)
                 {
-                    DoCommand(deferredCommands);      // This can never throw, it catches them and reports the errors.   
+                    DoCommand(deferredCommands);      // This can never throw, it catches them and reports the errors.
                     deferredCommands = deferredCommands.nextCommand;
                 }
             }
@@ -1576,10 +1549,7 @@ namespace System.Diagnostics.Tracing
             /// </summary>
             public void Start()
             {
-                if (this.w == null)
-                {
-                    this.w = new uint[85];
-                }
+                this.w ??= new uint[85];
 
                 this.length = 0;
                 this.pos = 0;
@@ -1611,7 +1581,7 @@ namespace System.Diagnostics.Tracing
             /// </param>
             public void Append(byte[] input)
             {
-                foreach (var b in input)
+                foreach (byte b in input)
                 {
                     this.Append(b);
                 }
@@ -1668,7 +1638,7 @@ namespace System.Diagnostics.Tracing
             {
                 for (int i = 16; i != 80; i++)
                 {
-                    this.w[i] = BitOperations.RotateLeft((this.w[i - 3] ^ this.w[i - 8] ^ this.w[i - 14] ^ this.w[i - 16]), 1);
+                    this.w[i] = BitOperations.RotateLeft(this.w[i - 3] ^ this.w[i - 8] ^ this.w[i - 14] ^ this.w[i - 16], 1);
                 }
 
                 unchecked
@@ -1744,7 +1714,7 @@ namespace System.Diagnostics.Tracing
         private unsafe object? DecodeObject(int eventId, int parameterId, ref EventSource.EventData* data)
         {
             // TODO FIX : We use reflection which in turn uses EventSource, right now we carefully avoid
-            // the recursion, but can we do this in a robust way?  
+            // the recursion, but can we do this in a robust way?
 
             IntPtr dataPointer = data->DataPointer;
             // advance to next EventData in array
@@ -1805,14 +1775,7 @@ namespace System.Diagnostics.Tracing
             else if (dataType == typeof(bool))
             {
                 // The manifest defines a bool as a 32bit type (WIN32 BOOL), not 1 bit as CLR Does.
-                if (*((int*)dataPointer) == 1)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                return *((int*)dataPointer) == 1;
             }
             else if (dataType == typeof(Guid))
             {
@@ -1870,13 +1833,12 @@ namespace System.Diagnostics.Tracing
                     // Everything else is marshaled as a string.
                     // ETW strings are NULL-terminated, so marshal everything up to the first
                     // null in the string.
-                    //return System.Runtime.InteropServices.Marshal.PtrToStringUni(dataPointer);
-                    if(dataPointer == IntPtr.Zero)
+                    if (dataPointer == IntPtr.Zero)
                     {
                         return null;
                     }
 
-                    return new string((char *)dataPointer);
+                    return new string((char*)dataPointer);
                 }
                 finally
                 {
@@ -1886,7 +1848,7 @@ namespace System.Diagnostics.Tracing
         }
 
         // Finds the Dispatcher (which holds the filtering state), for a given dispatcher for the current
-        // eventSource).  
+        // eventSource).
         private EventDispatcher? GetDispatcher(EventListener? listener)
         {
             EventDispatcher? dispatcher = m_Dispatchers;
@@ -1903,15 +1865,15 @@ namespace System.Diagnostics.Tracing
         {
             if (m_eventSourceEnabled)
             {
-                Debug.Assert(m_eventData != null);  // You must have initialized this if you enabled the source.  
+                Debug.Assert(m_eventData != null);  // You must have initialized this if you enabled the source.
                 try
                 {
                     if (childActivityID != null)
                     {
                         ValidateEventOpcodeForTransfer(ref m_eventData[eventId], m_eventData[eventId].Name);
 
-                        // If you use WriteEventWithRelatedActivityID you MUST declare the first argument to be a GUID 
-                        // with the name 'relatedActivityID, and NOT pass this argument to the WriteEvent method.  
+                        // If you use WriteEventWithRelatedActivityID you MUST declare the first argument to be a GUID
+                        // with the name 'relatedActivityID, and NOT pass this argument to the WriteEvent method.
                         // During manifest creation we modify the ParameterInfo[] that we store to strip out any
                         // first parameter that is of type Guid and named "relatedActivityId." Thus, if you call
                         // WriteEventWithRelatedActivityID from a method that doesn't name its first parameter correctly
@@ -1924,7 +1886,7 @@ namespace System.Diagnostics.Tracing
                         }
                     }
 
-                    LogEventArgsMismatches(m_eventData[eventId].Parameters, args);
+                    LogEventArgsMismatches(eventId, args);
 
                     Guid* pActivityId = null;
                     Guid activityId = Guid.Empty;
@@ -1975,7 +1937,6 @@ namespace System.Diagnostics.Tracing
                                                                     EventTags.None,
                                                                     m_eventData[eventId].Parameters);
                                 Interlocked.CompareExchange(ref m_eventData[eventId].TraceLoggingEventTypes, tlet, null);
-
                             }
                             // TODO: activity ID support
                             EventSourceOptions opt = new EventSourceOptions
@@ -1989,7 +1950,7 @@ namespace System.Diagnostics.Tracing
                         }
                     }
 #endif // FEATURE_MANAGED_ETW
-                            if (m_Dispatchers != null && m_eventData[eventId].EnabledForAnyListener)
+                    if (m_Dispatchers != null && m_eventData[eventId].EnabledForAnyListener)
                     {
 #if !ES_BUILD_STANDALONE
                         // Maintain old behavior - object identity is preserved
@@ -2038,8 +1999,9 @@ namespace System.Diagnostics.Tracing
                                                         m_eventData[eventId].Parameters);
                 Interlocked.CompareExchange(ref m_eventData[eventId].TraceLoggingEventTypes, eventTypes, null);
             }
+            int paramCount = Math.Min(eventTypes.typeInfos.Length, args.Length); // parameter count mismatch get logged in LogEventArgsMismatches
             var eventData = new object?[eventTypes.typeInfos.Length];
-            for (int i = 0; i < eventTypes.typeInfos.Length; i++)
+            for (int i = 0; i < paramCount; i++)
             {
                 eventData[i] = eventTypes.typeInfos[i].GetData(args[i]);
             }
@@ -2047,42 +2009,41 @@ namespace System.Diagnostics.Tracing
         }
 
         /// <summary>
-        /// We expect that the arguments to the Event method and the arguments to WriteEvent match. This function 
+        /// We expect that the arguments to the Event method and the arguments to WriteEvent match. This function
         /// checks that they in fact match and logs a warning to the debugger if they don't.
         /// </summary>
-        /// <param name="infos"></param>
+        /// <param name="eventId"></param>
         /// <param name="args"></param>
-        private void LogEventArgsMismatches(ParameterInfo[] infos, object?[] args)
+        private void LogEventArgsMismatches(int eventId, object?[] args)
         {
-#if (!ES_BUILD_PCL && !ES_BUILD_PN)
-            // It would be nice to have this on PCL builds, but it would be pointless since there isn't support for 
-            // writing to the debugger log on PCL.
-            bool typesMatch = args.Length == infos.Length;
+            Debug.Assert(m_eventData != null);
+            ParameterInfo[] infos = m_eventData[eventId].Parameters;
+
+            if (args.Length != infos.Length)
+            {
+                ReportOutOfBandMessage(SR.Format(SR.EventSource_EventParametersMismatch, eventId, args.Length, infos.Length));
+                return;
+            }
 
             int i = 0;
-            while (typesMatch && i < args.Length)
+            while (i < args.Length)
             {
                 Type pType = infos[i].ParameterType;
+                object? arg = args[i];
 
                 // Checking to see if the Parameter types (from the Event method) match the supplied argument types.
-                // Fail if one of two things hold : either the argument type is not equal to the parameter type, or the 
-                // argument is null and the parameter type is non-nullable.
-                if ((args[i] != null && (args[i]!.GetType() != pType)) // TODO-NULLABLE: Indexer nullability tracked (https://github.com/dotnet/roslyn/issues/34644)
-                    || (args[i] == null && (!(pType.IsGenericType && pType.GetGenericTypeDefinition() == typeof(Nullable<>))))
+                // Fail if one of two things hold : either the argument type is not equal or assignable to the parameter type, or the
+                // argument is null and the parameter type is a non-Nullable<T> value type.
+                if ((arg != null && !pType.IsAssignableFrom(arg.GetType()))
+                    || (arg == null && (pType.IsValueType && !(pType.IsGenericType && pType.GetGenericTypeDefinition() == typeof(Nullable<>))))
                     )
                 {
-                    typesMatch = false;
-                    break;
+                    ReportOutOfBandMessage(SR.Format(SR.EventSource_VarArgsParameterMismatch, eventId, infos[i].Name));
+                    return;
                 }
 
                 ++i;
             }
-
-            if (!typesMatch)
-            {
-                System.Diagnostics.Debugger.Log(0, null, SR.EventSource_VarArgsParameterMismatch + "\r\n");
-            }
-#endif //!ES_BUILD_PCL
         }
 
         private unsafe void WriteToAllListeners(int eventId, Guid* activityID, Guid* childActivityID, int eventDataCount, EventSource.EventData* data)
@@ -2108,7 +2069,7 @@ namespace System.Diagnostics.Tracing
             }
             if (eventDataCount != modifiedParamCount)
             {
-                ReportOutOfBandMessage(SR.Format(SR.EventSource_EventParametersMismatch, eventId, eventDataCount, paramCount), true);
+                ReportOutOfBandMessage(SR.Format(SR.EventSource_EventParametersMismatch, eventId, eventDataCount, paramCount));
                 paramCount = Math.Min(paramCount, eventDataCount);
             }
 
@@ -2126,7 +2087,7 @@ namespace System.Diagnostics.Tracing
                 args: args);
         }
 
-        // helper for writing to all EventListeners attached the current eventSource.  
+        // helper for writing to all EventListeners attached the current eventSource.
         internal unsafe void WriteToAllListeners(int eventId, uint* osThreadId, DateTime* timeStamp, Guid* activityID, Guid* childActivityID, params object?[] args)
         {
             EventWrittenEventArgs eventCallbackArgs = new EventWrittenEventArgs(this);
@@ -2145,10 +2106,10 @@ namespace System.Diagnostics.Tracing
             eventCallbackArgs.Message = m_eventData[eventId].Message;
             eventCallbackArgs.Payload = new ReadOnlyCollection<object?>(args);
 
-            DispatchToAllListeners(eventId, childActivityID, eventCallbackArgs);
+            DispatchToAllListeners(eventId, eventCallbackArgs);
         }
 
-        private unsafe void DispatchToAllListeners(int eventId, Guid* childActivityID, EventWrittenEventArgs eventCallbackArgs)
+        private unsafe void DispatchToAllListeners(int eventId, EventWrittenEventArgs eventCallbackArgs)
         {
             Exception? lastThrownException = null;
             for (EventDispatcher? dispatcher = m_Dispatchers; dispatcher != null; dispatcher = dispatcher.m_Next)
@@ -2164,7 +2125,7 @@ namespace System.Diagnostics.Tracing
                         catch (Exception e)
                         {
                             ReportOutOfBandMessage("ERROR: Exception during EventSource.OnEventWritten: "
-                                 + e.Message, false);
+                                 + e.Message);
                             lastThrownException = e;
                         }
                     }
@@ -2177,13 +2138,12 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         private unsafe void WriteEventString(EventLevel level, long keywords, string msgString)
         {
 #if FEATURE_MANAGED_ETW
             if (m_etwProvider != null)
             {
-                string eventName = "EventSourceMessage";
+                const string EventName = "EventSourceMessage";
                 if (SelfDescribingEvents)
                 {
                     EventSourceOptions opt = new EventSourceOptions
@@ -2192,23 +2152,23 @@ namespace System.Diagnostics.Tracing
                         Level = level
                     };
                     var msg = new { message = msgString };
-                    var tlet = new TraceLoggingEventTypes(eventName, EventTags.None, new Type[] { msg.GetType() });
-                    WriteMultiMergeInner(eventName, ref opt, tlet, null, null, msg);
+                    var tlet = new TraceLoggingEventTypes(EventName, EventTags.None, new Type[] { msg.GetType() });
+                    WriteMultiMergeInner(EventName, ref opt, tlet, null, null, msg);
                 }
                 else
                 {
-                    // We want the name of the provider to show up so if we don't have a manifest we create 
-                    // on that at least has the provider name (I don't define any events).   
+                    // We want the name of the provider to show up so if we don't have a manifest we create
+                    // on that at least has the provider name (I don't define any events).
                     if (m_rawManifest == null && m_outOfBandMessageCount == 1)
                     {
                         ManifestBuilder manifestBuilder = new ManifestBuilder(Name, Guid, Name, null, EventManifestOptions.None);
-                        manifestBuilder.StartEvent(eventName, new EventAttribute(0) { Level = EventLevel.LogAlways, Task = (EventTask)0xFFFE });
+                        manifestBuilder.StartEvent(EventName, new EventAttribute(0) { Level = EventLevel.LogAlways, Task = (EventTask)0xFFFE });
                         manifestBuilder.AddEventParameter(typeof(string), "message");
                         manifestBuilder.EndEvent();
                         SendManifest(manifestBuilder.CreateManifest());
                     }
 
-                    // We use this low level routine to bypass the enabled checking, since the eventSource itself is only partially inited. 
+                    // We use this low level routine to bypass the enabled checking, since the eventSource itself is only partially inited.
                     fixed (char* msgStringPtr = msgString)
                     {
                         EventDescriptor descr = new EventDescriptor(0, 0, 0, (byte)level, 0, 0, keywords);
@@ -2224,7 +2184,7 @@ namespace System.Diagnostics.Tracing
         }
 
         /// <summary>
-        /// Since this is a means of reporting errors (see ReportoutOfBandMessage) any failure encountered 
+        /// Since this is a means of reporting errors (see ReportoutOfBandMessage) any failure encountered
         /// while writing the message to any one of the listeners will be silently ignored.
         /// </summary>
         private void WriteStringToAllListeners(string eventName, string msg)
@@ -2242,7 +2202,7 @@ namespace System.Diagnostics.Tracing
                 if (dispatcher.m_EventEnabled == null)
                 {
                     // if the listeners that weren't correctly initialized, we will send to it
-                    // since this is an error message and we want to see it go out. 
+                    // since this is an error message and we want to see it go out.
                     dispatcherEnabled = true;
                 }
                 else
@@ -2272,7 +2232,7 @@ namespace System.Diagnostics.Tracing
 
         /// <summary>
         /// Returns true if 'eventNum' is enabled if you only consider the level and matchAnyKeyword filters.
-        /// It is possible that eventSources turn off the event based on additional filtering criteria.  
+        /// It is possible that eventSources turn off the event based on additional filtering criteria.
         /// </summary>
         private bool IsEnabledByDefault(int eventNum, bool enable, EventLevel currentLevel, EventKeywords currentMatchAnyKeyword)
         {
@@ -2321,13 +2281,12 @@ namespace System.Diagnostics.Tracing
                 }
             }
             return true;
-
         }
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
         private void ThrowEventSourceException(string? eventName, Exception? innerEx = null)
         {
-            // If we fail during out of band logging we may end up trying 
-            // to throw another EventSourceException, thus hitting a StackOverflowException. 
+            // If we fail during out of band logging we may end up trying
+            // to throw another EventSourceException, thus hitting a StackOverflowException.
             // Avoid StackOverflow by making sure we do not recursively call this method.
             if (m_EventSourceExceptionRecurenceCount > 0)
                 return;
@@ -2345,29 +2304,29 @@ namespace System.Diagnostics.Tracing
                 switch (EventProvider.GetLastWriteEventError())
                 {
                     case EventProvider.WriteEventErrorCode.EventTooBig:
-                        ReportOutOfBandMessage(errorPrefix + ": " + SR.EventSource_EventTooBig, true);
+                        ReportOutOfBandMessage(errorPrefix + ": " + SR.EventSource_EventTooBig);
                         if (ThrowOnEventWriteErrors) throw new EventSourceException(SR.EventSource_EventTooBig, innerEx);
                         break;
                     case EventProvider.WriteEventErrorCode.NoFreeBuffers:
-                        ReportOutOfBandMessage(errorPrefix + ": " + SR.EventSource_NoFreeBuffers, true);
+                        ReportOutOfBandMessage(errorPrefix + ": " + SR.EventSource_NoFreeBuffers);
                         if (ThrowOnEventWriteErrors) throw new EventSourceException(SR.EventSource_NoFreeBuffers, innerEx);
                         break;
                     case EventProvider.WriteEventErrorCode.NullInput:
-                        ReportOutOfBandMessage(errorPrefix + ": " + SR.EventSource_NullInput, true);
+                        ReportOutOfBandMessage(errorPrefix + ": " + SR.EventSource_NullInput);
                         if (ThrowOnEventWriteErrors) throw new EventSourceException(SR.EventSource_NullInput, innerEx);
                         break;
                     case EventProvider.WriteEventErrorCode.TooManyArgs:
-                        ReportOutOfBandMessage(errorPrefix + ": " + SR.EventSource_TooManyArgs, true);
+                        ReportOutOfBandMessage(errorPrefix + ": " + SR.EventSource_TooManyArgs);
                         if (ThrowOnEventWriteErrors) throw new EventSourceException(SR.EventSource_TooManyArgs, innerEx);
                         break;
                     default:
                         if (innerEx != null)
                         {
                             innerEx = innerEx.GetBaseException();
-                            ReportOutOfBandMessage(errorPrefix + ": " + innerEx.GetType() + ":" + innerEx.Message, true);
+                            ReportOutOfBandMessage(errorPrefix + ": " + innerEx.GetType() + ":" + innerEx.Message);
                         }
                         else
-                            ReportOutOfBandMessage(errorPrefix, true);
+                            ReportOutOfBandMessage(errorPrefix);
                         if (ThrowOnEventWriteErrors) throw new EventSourceException(innerEx);
                         break;
                 }
@@ -2407,7 +2366,7 @@ namespace System.Diagnostics.Tracing
 
 #if FEATURE_MANAGED_ETW
         /// <summary>
-        /// This class lets us hook the 'OnEventCommand' from the eventSource.  
+        /// This class lets us hook the 'OnEventCommand' from the eventSource.
         /// </summary>
         private class OverideEventProvider : EventProvider
         {
@@ -2420,28 +2379,28 @@ namespace System.Diagnostics.Tracing
             protected override void OnControllerCommand(ControllerCommand command, IDictionary<string, string?>? arguments,
                                                               int perEventSourceSessionId, int etwSessionId)
             {
-                // We use null to represent the ETW EventListener.  
+                // We use null to represent the ETW EventListener.
                 EventListener? listener = null;
                 m_eventSource.SendCommand(listener, m_eventProviderType, perEventSourceSessionId, etwSessionId,
                                           (EventCommand)command, IsEnabled(), Level, MatchAnyKeyword, arguments);
             }
-            private EventSource m_eventSource;
-            private EventProviderType m_eventProviderType;
+            private readonly EventSource m_eventSource;
+            private readonly EventProviderType m_eventProviderType;
         }
 #endif
 
         /// <summary>
         /// Used to hold all the static information about an event.  This includes everything in the event
         /// descriptor as well as some stuff we added specifically for EventSource. see the
-        /// code:m_eventData for where we use this.  
+        /// code:m_eventData for where we use this.
         /// </summary>
 
         /*
-         EventMetadata was public in the separate System.Diagnostics.Tracing assembly(pre NS2.0), 
+         EventMetadata was public in the separate System.Diagnostics.Tracing assembly(pre NS2.0),
          now the move to CoreLib marked them as private.
-         While they are technically private (it's a contract used between the library and the ILC toolchain), 
+         While they are technically private (it's a contract used between the library and the ILC toolchain),
          we need them to be rooted and exported from shared library for the system to work.
-         For now I'm simply marking them as public again.A cleaner solution might be to use.rd.xml to 
+         For now I'm simply marking them as public again.A cleaner solution might be to use.rd.xml to
          root them and modify shared library definition to force export them.
          */
 #if ES_BUILD_PN
@@ -2493,8 +2452,8 @@ namespace System.Diagnostics.Tracing
             public byte TriggersActivityTracking;   // count of listeners that marked this event as trigger for start of activity logging.
 #pragma warning restore 0649
             public string Name;                     // the name of the event
-            public string? Message;                  // If the event has a message associated with it, this is it.  
-            public ParameterInfo[] Parameters;      // TODO can we remove? 
+            public string? Message;                  // If the event has a message associated with it, this is it.
+            public ParameterInfo[] Parameters;      // TODO can we remove?
 
             public TraceLoggingEventTypes? TraceLoggingEventTypes;
             public EventActivityOptions ActivityOptions;
@@ -2502,25 +2461,25 @@ namespace System.Diagnostics.Tracing
 #if ES_BUILD_PN
             public EventParameterType[] ParameterTypes;
 #endif
-        };
+        }
 
 #if !ES_BUILD_PN
-        private int GetParameterCount(EventMetadata eventData)
+        private static int GetParameterCount(EventMetadata eventData)
         {
             return eventData.Parameters.Length;
         }
 
-        private Type GetDataType(EventMetadata eventData, int parameterId)
+        private static Type GetDataType(EventMetadata eventData, int parameterId)
         {
             return eventData.Parameters[parameterId].ParameterType;
         }
 
-        private static readonly bool m_EventSourcePreventRecursion = false;
+        private const bool m_EventSourcePreventRecursion = false;
 #else
-        private int GetParameterCount(EventMetadata eventData)
+        private static int GetParameterCount(EventMetadata eventData)
         {
             int paramCount;
-            if(eventData.Parameters == null)
+            if (eventData.Parameters == null)
             {
                 paramCount = eventData.ParameterTypes.Length;
             }
@@ -2532,10 +2491,10 @@ namespace System.Diagnostics.Tracing
             return paramCount;
         }
 
-        private Type GetDataType(EventMetadata eventData, int parameterId)
+        private static Type GetDataType(EventMetadata eventData, int parameterId)
         {
             Type dataType;
-            if(eventData.Parameters == null)
+            if (eventData.Parameters == null)
             {
                 dataType = EventTypeToType(eventData.ParameterTypes[parameterId]);
             }
@@ -2569,7 +2528,7 @@ namespace System.Diagnostics.Tracing
             String
         }
 
-        private Type EventTypeToType(EventParameterType type)
+        private static Type EventTypeToType(EventParameterType type)
         {
             switch (type)
             {
@@ -2614,29 +2573,29 @@ namespace System.Diagnostics.Tracing
 
         // This is the internal entry point that code:EventListeners call when wanting to send a command to a
         // eventSource. The logic is as follows
-        // 
+        //
         // * if Command == Update
-        //     * perEventSourceSessionId specifies the per-provider ETW session ID that the command applies 
+        //     * perEventSourceSessionId specifies the per-provider ETW session ID that the command applies
         //         to (if listener != null)
         //         perEventSourceSessionId = 0 - reserved for EventListeners
         //         perEventSourceSessionId = 1..SessionMask.MAX - reserved for activity tracing aware ETW sessions
-        //                  perEventSourceSessionId-1 represents the bit in the reserved field (bits 44..47) in 
+        //                  perEventSourceSessionId-1 represents the bit in the reserved field (bits 44..47) in
         //                  Keywords that identifies the session
-        //         perEventSourceSessionId = SessionMask.MAX+1 - reserved for legacy ETW sessions; these are 
+        //         perEventSourceSessionId = SessionMask.MAX+1 - reserved for legacy ETW sessions; these are
         //                  discriminated by etwSessionId
         //     * etwSessionId specifies a machine-wide ETW session ID; this allows correlation of
         //         activity tracing across different providers (which might have different sessionIds
         //         for the same ETW session)
         //     * enable, level, matchAnyKeywords are used to set a default for all events for the
         //         eventSource.  In particular, if 'enabled' is false, 'level' and
-        //         'matchAnyKeywords' are not used.  
+        //         'matchAnyKeywords' are not used.
         //     * OnEventCommand is invoked, which may cause calls to
         //         code:EventSource.EnableEventForDispatcher which may cause changes in the filtering
         //         depending on the logic in that routine.
         // * else (command != Update)
         //     * Simply call OnEventCommand. The expectation is that filtering is NOT changed.
-        //     * The 'enabled' 'level', matchAnyKeyword' arguments are ignored (must be true, 0, 0).  
-        // 
+        //     * The 'enabled' 'level', matchAnyKeyword' arguments are ignored (must be true, 0, 0).
+        //
         // dispatcher == null has special meaning. It is the 'ETW' dispatcher.
         internal void SendCommand(EventListener? listener, EventProviderType eventProviderType, int perEventSourceSessionId, int etwSessionId,
                                   EventCommand command, bool enable,
@@ -2650,17 +2609,19 @@ namespace System.Diagnostics.Tracing
                 {
                     // After the first command arrive after construction, we are ready to get rid of the deferred commands
                     this.m_deferredCommands = null;
-                    // We are fully initialized, do the command 
+                    // We are fully initialized, do the command
                     DoCommand(commandArgs);
                 }
                 else
                 {
-                    // We can't do the command, simply remember it and we do it when we are fully constructed.  
+                    // We can't do the command, simply remember it and we do it when we are fully constructed.
                     if (m_deferredCommands == null)
+                    {
                         m_deferredCommands = commandArgs;       // create the first entry
+                    }
                     else
                     {
-                        // We have one or more entries, find the last one and add it to that.  
+                        // We have one or more entries, find the last one and add it to that.
                         EventCommandEventArgs lastCommand = m_deferredCommands;
                         while (lastCommand.nextCommand != null)
                             lastCommand = lastCommand.nextCommand;
@@ -2671,15 +2632,15 @@ namespace System.Diagnostics.Tracing
         }
 
         /// <summary>
-        /// We want the eventSource to be fully initialized when we do commands because that way we can send 
+        /// We want the eventSource to be fully initialized when we do commands because that way we can send
         /// error messages and other logging directly to the event stream.   Unfortunately we can get callbacks
-        /// when we are not fully initialized.  In that case we store them in 'commandArgs' and do them later. 
-        /// This helper actually does all actual command logic. 
+        /// when we are not fully initialized.  In that case we store them in 'commandArgs' and do them later.
+        /// This helper actually does all actual command logic.
         /// </summary>
         internal void DoCommand(EventCommandEventArgs commandArgs)
         {
             // PRECONDITION: We should be holding the EventListener.EventListenersLock
-            // We defer commands until we are completely inited.  This allows error messages to be sent.  
+            // We defer commands until we are completely inited.  This allows error messages to be sent.
             Debug.Assert(m_completelyInited);
 
 #if FEATURE_MANAGED_ETW
@@ -2692,7 +2653,6 @@ namespace System.Diagnostics.Tracing
 #endif
 
             m_outOfBandMessageCount = 0;
-            bool shouldReport = (commandArgs.perEventSourceSessionId > 0) && (commandArgs.perEventSourceSessionId <= SessionMask.MAX);
             try
             {
                 EnsureDescriptorsInitialized();
@@ -2705,8 +2665,7 @@ namespace System.Diagnostics.Tracing
                     throw new ArgumentException(SR.EventSource_ListenerNotFound);
                 }
 
-                if (commandArgs.Arguments == null)
-                    commandArgs.Arguments = new Dictionary<string, string?>();
+                commandArgs.Arguments ??= new Dictionary<string, string?>();
 
                 if (commandArgs.Command == EventCommand.Update)
                 {
@@ -2718,7 +2677,7 @@ namespace System.Diagnostics.Tracing
                     {
                         if (!m_eventSourceEnabled)
                         {
-                            // EventSource turned on for the first time, simply copy the bits.  
+                            // EventSource turned on for the first time, simply copy the bits.
                             m_level = commandArgs.level;
                             m_matchAnyKeyword = commandArgs.matchAnyKeyword;
                         }
@@ -2734,10 +2693,10 @@ namespace System.Diagnostics.Tracing
                         }
                     }
 
-                    // interpret perEventSourceSessionId's sign, and adjust perEventSourceSessionId to 
+                    // interpret perEventSourceSessionId's sign, and adjust perEventSourceSessionId to
                     // represent 0-based positive values
                     bool bSessionEnable = (commandArgs.perEventSourceSessionId >= 0);
-                    if (commandArgs.perEventSourceSessionId == 0 && commandArgs.enable == false)
+                    if (commandArgs.perEventSourceSessionId == 0 && !commandArgs.enable)
                         bSessionEnable = false;
 
                     if (commandArgs.listener == null)
@@ -2764,13 +2723,13 @@ namespace System.Diagnostics.Tracing
 
                         // Note that we unconditionally send the manifest whenever we are enabled, even if
                         // we were already enabled.   This is because there may be multiple sessions active
-                        // and we can't know that all the sessions have seen the manifest.  
+                        // and we can't know that all the sessions have seen the manifest.
                         if (!SelfDescribingEvents)
                             SendManifest(m_rawManifest);
                     }
 
                     // Turn on the enable bit before making the OnEventCommand callback  This allows you to do useful
-                    // things like log messages, or test if keywords are enabled in the callback.  
+                    // things like log messages, or test if keywords are enabled in the callback.
                     if (commandArgs.enable)
                     {
                         Debug.Assert(m_eventData != null);
@@ -2778,9 +2737,7 @@ namespace System.Diagnostics.Tracing
                     }
 
                     this.OnEventCommand(commandArgs);
-                    var eventCommandCallback = this.m_eventCommandExecuted;
-                    if (eventCommandCallback != null)
-                        eventCommandCallback(this, commandArgs);
+                    this.m_eventCommandExecuted?.Invoke(this, commandArgs);
 
                     if (!commandArgs.enable)
                     {
@@ -2788,7 +2745,7 @@ namespace System.Diagnostics.Tracing
                         // quickly.  These are all just optimizations (since later checks will still filter)
 
                         // There is a good chance EnabledForAnyListener are not as accurate as
-                        // they could be, go ahead and get a better estimate.  
+                        // they could be, go ahead and get a better estimate.
                         for (int i = 0; i < m_eventData.Length; i++)
                         {
                             bool isEnabledForAnyListener = false;
@@ -2831,24 +2788,22 @@ namespace System.Diagnostics.Tracing
                     // Debug.Assert(matchAnyKeyword == EventKeywords.None);
 
                     this.OnEventCommand(commandArgs);
-                    var eventCommandCallback = m_eventCommandExecuted;
-                    if (eventCommandCallback != null)
-                        eventCommandCallback(this, commandArgs);
+                    m_eventCommandExecuted?.Invoke(this, commandArgs);
                 }
             }
             catch (Exception e)
             {
                 // When the ETW session is created after the EventSource has registered with the ETW system
                 // we can send any error messages here.
-                ReportOutOfBandMessage("ERROR: Exception in Command Processing for EventSource " + Name + ": " + e.Message, true);
-                // We never throw when doing a command.  
+                ReportOutOfBandMessage("ERROR: Exception in Command Processing for EventSource " + Name + ": " + e.Message);
+                // We never throw when doing a command.
             }
         }
 
         /// <summary>
         /// If 'value is 'true' then set the eventSource so that 'dispatcher' will receive event with the eventId
         /// of 'eventId.  If value is 'false' disable the event for that dispatcher.   If 'eventId' is out of
-        /// range return false, otherwise true.  
+        /// range return false, otherwise true.
         /// </summary>
         internal bool EnableEventForDispatcher(EventDispatcher? dispatcher, EventProviderType eventProviderType, int eventId, bool value)
         {
@@ -2880,7 +2835,7 @@ namespace System.Diagnostics.Tracing
         }
 
         /// <summary>
-        /// Returns true if any event at all is on.  
+        /// Returns true if any event at all is on.
         /// </summary>
         private bool AnyEventEnabled()
         {
@@ -2896,10 +2851,7 @@ namespace System.Diagnostics.Tracing
             return false;
         }
 
-        private bool IsDisposed
-        {
-            get { return m_eventSourceDisposed; }
-        }
+        private bool IsDisposed => m_eventSourceDisposed;
 
         private void EnsureDescriptorsInitialized()
         {
@@ -2933,11 +2885,11 @@ namespace System.Diagnostics.Tracing
                     m_eventData = eventData;
                     m_rawManifest = manifest;
                 }
-                // TODO Enforce singleton pattern 
+                // TODO Enforce singleton pattern
                 Debug.Assert(EventListener.s_EventSources != null, "should be called within lock on EventListener.EventListenersLock which ensures s_EventSources to be initialized");
-                foreach (WeakReference eventSourceRef in EventListener.s_EventSources)
+                foreach (WeakReference<EventSource> eventSourceRef in EventListener.s_EventSources)
                 {
-                    if (eventSourceRef.Target is EventSource eventSource && eventSource.Guid == m_guid && !eventSource.IsDisposed)
+                    if (eventSourceRef.TryGetTarget(out EventSource? eventSource) && eventSource.Guid == m_guid && !eventSource.IsDisposed)
                     {
                         if (eventSource != this)
                         {
@@ -2950,8 +2902,7 @@ namespace System.Diagnostics.Tracing
                 EventDispatcher? dispatcher = m_Dispatchers;
                 while (dispatcher != null)
                 {
-                    if (dispatcher.m_EventEnabled == null)
-                        dispatcher.m_EventEnabled = new bool[m_eventData.Length];
+                    dispatcher.m_EventEnabled ??= new bool[m_eventData.Length];
                     dispatcher = dispatcher.m_Next;
                 }
 #if FEATURE_PERFTRACING
@@ -2970,20 +2921,18 @@ namespace System.Diagnostics.Tracing
         }
 
         // Send out the ETW manifest XML out to ETW
-        // Today, we only send the manifest to ETW, custom listeners don't get it. 
-        private unsafe bool SendManifest(byte[]? rawManifest)
+        // Today, we only send the manifest to ETW, custom listeners don't get it.
+        private unsafe void SendManifest(byte[]? rawManifest)
         {
-            bool success = true;
-
             if (rawManifest == null)
-                return false;
+                return;
 
             Debug.Assert(!SelfDescribingEvents);
 
 #if FEATURE_MANAGED_ETW
             fixed (byte* dataPtr = rawManifest)
             {
-                // we don't want the manifest to show up in the event log channels so we specify as keywords 
+                // we don't want the manifest to show up in the event log channels so we specify as keywords
                 // everything but the first 8 bits (reserved for the 8 channels)
                 var manifestDescr = new EventDescriptor(0xFFFE, 1, 0, 0, 0xFE, 0xFFFE, 0x00ffFFFFffffFFFF);
                 ManifestEnvelope envelope = new ManifestEnvelope();
@@ -2991,7 +2940,7 @@ namespace System.Diagnostics.Tracing
                 envelope.Format = ManifestEnvelope.ManifestFormats.SimpleXmlFormat;
                 envelope.MajorVersion = 1;
                 envelope.MinorVersion = 0;
-                envelope.Magic = 0x5B;              // An unusual number that can be checked for consistency. 
+                envelope.Magic = 0x5B;              // An unusual number that can be checked for consistency.
                 int dataLeft = rawManifest.Length;
                 envelope.ChunkNumber = 0;
 
@@ -3016,16 +2965,16 @@ namespace System.Diagnostics.Tracing
                         {
                             // Turns out that if users set the BufferSize to something less than 64K then WriteEvent
                             // can fail.   If we get this failure on the first chunk try again with something smaller
-                            // The smallest BufferSize is 1K so if we get to 256 (to account for envelope overhead), we can give up making it smaller. 
+                            // The smallest BufferSize is 1K so if we get to 256 (to account for envelope overhead), we can give up making it smaller.
                             if (EventProvider.GetLastWriteEventError() == EventProvider.WriteEventErrorCode.EventTooBig)
                             {
                                 if (envelope.ChunkNumber == 0 && chunkSize > 256)
                                 {
-                                    chunkSize = chunkSize / 2;
+                                    chunkSize /= 2;
                                     goto TRY_AGAIN_WITH_SMALLER_CHUNK_SIZE;
                                 }
                             }
-                            success = false;
+
                             if (ThrowOnEventWriteErrors)
                                 ThrowEventSourceException("SendManifest");
                             break;
@@ -3044,7 +2993,6 @@ namespace System.Diagnostics.Tracing
                 }
             }
 #endif // FEATURE_MANAGED_ETW
-            return success;
         }
 
 #if (ES_BUILD_PCL)
@@ -3055,7 +3003,7 @@ namespace System.Diagnostics.Tracing
 #endif
 
         // Helper to deal with the fact that the type we are reflecting over might be loaded in the ReflectionOnly context.
-        // When that is the case, we have the build the custom assemblies on a member by hand.         
+        // When that is the case, we have the build the custom assemblies on a member by hand.
         internal static Attribute? GetCustomAttributeHelper(MemberInfo member, Type attributeType, EventManifestOptions flags = EventManifestOptions.None)
         {
 #if !ES_BUILD_PN
@@ -3066,7 +3014,7 @@ namespace System.Diagnostics.Tracing
             {
                 // Let the runtime to the work for us, since we can execute code in this context.
                 Attribute? firstAttribute = null;
-                foreach (var attribute in member.GetCustomAttributes(attributeType, false))
+                foreach (object attribute in member.GetCustomAttributes(attributeType, false))
                 {
                     firstAttribute = (Attribute)attribute;
                     break;
@@ -3075,13 +3023,6 @@ namespace System.Diagnostics.Tracing
             }
 
 #if (!ES_BUILD_PCL && !ES_BUILD_PN)
-            // In the reflection only context, we have to do things by hand.
-            string fullTypeNameToFind = attributeType.FullName!;
-
-#if EVENT_SOURCE_LEGACY_NAMESPACE_SUPPORT
-            fullTypeNameToFind = fullTypeNameToFind.Replace("System.Diagnostics.Eventing", "System.Diagnostics.Tracing");
-#endif
-
             foreach (CustomAttributeData data in CustomAttributeData.GetCustomAttributes(member))
             {
                 if (AttributeTypeNamesMatch(attributeType, data.Constructor.ReflectedType!))
@@ -3132,10 +3073,10 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// Evaluates if two related "EventSource"-domain types should be considered the same
         /// </summary>
-        /// <param name="attributeType">The attribute type in the load context - it's associated with the running 
+        /// <param name="attributeType">The attribute type in the load context - it's associated with the running
         /// EventSource type. This type may be different fromt he base type of the user-defined EventSource.</param>
         /// <param name="reflectedAttributeType">The attribute type in the reflection context - it's associated with
-        /// the user-defined EventSource, and is in the same assembly as the eventSourceType passed to 
+        /// the user-defined EventSource, and is in the same assembly as the eventSourceType passed to
         /// </param>
         /// <returns>True - if the types should be considered equivalent, False - otherwise</returns>
         private static bool AttributeTypeNamesMatch(Type attributeType, Type reflectedAttributeType)
@@ -3191,7 +3132,7 @@ namespace System.Diagnostics.Tracing
         // Use reflection to look at the attributes of a class, and generate a manifest for it (as UTF8) and
         // return the UTF8 bytes.  It also sets up the code:EventData structures needed to dispatch events
         // at run time.  'source' is the event source to place the descriptors.  If it is null,
-        // then the descriptors are not creaed, and just the manifest is generated.  
+        // then the descriptors are not creaed, and just the manifest is generated.
         private static byte[]? CreateManifestAndDescriptors(Type eventSourceType, string? eventSourceDllName, EventSource? source,
             EventManifestOptions flags = EventManifestOptions.None)
         {
@@ -3207,7 +3148,7 @@ namespace System.Diagnostics.Tracing
             {
                 MethodInfo[] methods = eventSourceType.GetMethods(BindingFlags.DeclaredOnly | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
                 EventAttribute defaultEventAttribute;
-                int eventId = 1;        // The number given to an event that does not have a explicitly given ID. 
+                int eventId = 1;        // The number given to an event that does not have a explicitly given ID.
                 EventMetadata[]? eventData = null;
                 Dictionary<string, string>? eventsByName = null;
                 if (source != null || (flags & EventManifestOptions.Strict) != 0)
@@ -3216,7 +3157,7 @@ namespace System.Diagnostics.Tracing
                     eventData[0].Name = "";         // Event 0 is the 'write messages string' event, and has an empty name.
                 }
 
-                // See if we have localization information.  
+                // See if we have localization information.
                 ResourceManager? resources = null;
                 EventSourceAttribute? eventSourceAttrib = (EventSourceAttribute?)GetCustomAttributeHelper(eventSourceType, typeof(EventSourceAttribute), flags);
                 if (eventSourceAttrib != null && eventSourceAttrib.LocalizationResources != null)
@@ -3225,7 +3166,7 @@ namespace System.Diagnostics.Tracing
                 manifest = new ManifestBuilder(GetName(eventSourceType, flags), GetGuid(eventSourceType), eventSourceDllName,
                                                resources, flags);
 
-                // Add an entry unconditionally for event ID 0 which will be for a string message.  
+                // Add an entry unconditionally for event ID 0 which will be for a string message.
                 manifest.StartEvent("EventSourceMessage", new EventAttribute(0) { Level = EventLevel.LogAlways, Task = (EventTask)0xFFFE });
                 manifest.AddEventParameter(typeof(string), "message");
                 manifest.EndEvent();
@@ -3249,7 +3190,7 @@ namespace System.Diagnostics.Tracing
 #if FEATURE_MANAGED_ETW_CHANNELS && FEATURE_ADVANCED_MANAGED_ETW_CHANNELS
                 foreach (var providerEnumKind in new string[] { "Keywords", "Tasks", "Opcodes", "Channels" })
 #else
-                foreach (var providerEnumKind in new string[] { "Keywords", "Tasks", "Opcodes" })
+                foreach (string providerEnumKind in new string[] { "Keywords", "Tasks", "Opcodes" })
 #endif
                 {
                     Type? nestedType = eventSourceType.GetNestedType(providerEnumKind);
@@ -3286,10 +3227,10 @@ namespace System.Diagnostics.Tracing
                         // Get the EventDescriptor (from the Custom attributes)
                         EventAttribute? eventAttribute = (EventAttribute?)GetCustomAttributeHelper(method, typeof(EventAttribute), flags);
 
-                        // Compat: until v4.5.1 we ignored any non-void returning methods as well as virtual methods for 
-                        // the only reason of limiting the number of methods considered to be events. This broke a common 
+                        // Compat: until v4.5.1 we ignored any non-void returning methods as well as virtual methods for
+                        // the only reason of limiting the number of methods considered to be events. This broke a common
                         // design of having event sources implement specific interfaces. To fix this in a compatible way
-                        // we will now allow both non-void returning and virtual methods to be Event methods, as long 
+                        // we will now allow both non-void returning and virtual methods to be Event methods, as long
                         // as they are marked with the [Event] attribute
                         if (/* method.IsVirtual || */ method.IsStatic)
                         {
@@ -3320,7 +3261,7 @@ namespace System.Diagnostics.Tracing
                                 continue;
                             }
 
-                            // If we explicitly mark the method as not being an event, then honor that.  
+                            // If we explicitly mark the method as not being an event, then honor that.
                             if (GetCustomAttributeHelper(method, typeof(NonEventAttribute), flags) != null)
                                 continue;
 
@@ -3340,15 +3281,15 @@ namespace System.Diagnostics.Tracing
                         eventId++;
                         string eventName = method.Name;
 
-                        if (eventAttribute.Opcode == EventOpcode.Info)      // We are still using the default opcode. 
+                        if (eventAttribute.Opcode == EventOpcode.Info)      // We are still using the default opcode.
                         {
-                            // By default pick a task ID derived from the EventID, starting with the highest task number and working back 
+                            // By default pick a task ID derived from the EventID, starting with the highest task number and working back
                             bool noTask = (eventAttribute.Task == EventTask.None);
                             if (noTask)
                                 eventAttribute.Task = (EventTask)(0xFFFE - eventAttribute.EventId);
 
-                            // Unless we explicitly set the opcode to Info (to override the auto-generate of Start or Stop opcodes, 
-                            // pick a default opcode based on the event name (either Info or start or stop if the name ends with that suffix).  
+                            // Unless we explicitly set the opcode to Info (to override the auto-generate of Start or Stop opcodes,
+                            // pick a default opcode based on the event name (either Info or start or stop if the name ends with that suffix).
                             if (!eventAttribute.IsOpcodeSet)
                                 eventAttribute.Opcode = GetOpcodeWithDefault(EventOpcode.Info, eventName);
 
@@ -3376,19 +3317,18 @@ namespace System.Diagnostics.Tracing
                                         EventMetadata startEventMetadata = eventData[startEventId];
 
                                         // If you remove the Stop and add a Start does that name match the Start Event's Name?
-                                        // Ideally we would throw an error 
+                                        // Ideally we would throw an error
                                         string taskName = eventName.Substring(0, eventName.Length - s_ActivityStopSuffix.Length); // Remove the Stop suffix to get the task name
                                         if (startEventMetadata.Descriptor.Opcode == (byte)EventOpcode.Start &&
                                             string.Compare(startEventMetadata.Name, 0, taskName, 0, taskName.Length) == 0 &&
                                             string.Compare(startEventMetadata.Name, taskName.Length, s_ActivityStartSuffix, 0, Math.Max(startEventMetadata.Name.Length - taskName.Length, s_ActivityStartSuffix.Length)) == 0)
                                         {
-
                                             // Make the stop event match the start event
                                             eventAttribute.Task = (EventTask)startEventMetadata.Descriptor.Task;
                                             noTask = false;
                                         }
                                     }
-                                    if (noTask && (flags & EventManifestOptions.Strict) != 0)        // Throw an error if we can compatibly.   
+                                    if (noTask && (flags & EventManifestOptions.Strict) != 0)        // Throw an error if we can compatibly.
                                     {
                                         throw new ArgumentException(SR.EventSource_StopsFollowStarts);
                                     }
@@ -3410,7 +3350,7 @@ namespace System.Diagnostics.Tracing
                         if (source != null || (flags & EventManifestOptions.Strict) != 0)
                         {
                             Debug.Assert(eventData != null);
-                            // Do checking for user errors (optional, but not a big deal so we do it).  
+                            // Do checking for user errors (optional, but not a big deal so we do it).
                             DebugCheckEvent(ref eventsByName, eventData, method, eventAttribute, manifest, flags);
 
 #if FEATURE_MANAGED_ETW_CHANNELS
@@ -3434,14 +3374,14 @@ namespace System.Diagnostics.Tracing
                     }
                 }
 
-                // Tell the TraceLogging stuff where to start allocating its own IDs.  
+                // Tell the TraceLogging stuff where to start allocating its own IDs.
                 NameInfo.ReserveEventIDsBelow(eventId);
 
                 if (source != null)
                 {
                     Debug.Assert(eventData != null);
                     TrimEventDescriptors(ref eventData);
-                    source.m_eventData = eventData;     // officially initialize it. We do this at most once (it is racy otherwise). 
+                    source.m_eventData = eventData;     // officially initialize it. We do this at most once (it is racy otherwise).
 #if FEATURE_MANAGED_ETW_CHANNELS
                     source.m_channelData = manifest.GetChannelData();
 #endif
@@ -3498,7 +3438,7 @@ namespace System.Diagnostics.Tracing
 
         private static bool RemoveFirstArgIfRelatedActivityId(ref ParameterInfo[] args)
         {
-            // If the first parameter is (case insensitive) 'relatedActivityId' then skip it.  
+            // If the first parameter is (case insensitive) 'relatedActivityId' then skip it.
             if (args.Length > 0 && args[0].ParameterType == typeof(Guid) &&
                 string.Equals(args[0].Name, "relatedActivityId", StringComparison.OrdinalIgnoreCase))
             {
@@ -3513,7 +3453,7 @@ namespace System.Diagnostics.Tracing
         }
 
         // adds a enumeration (keyword, opcode, task or channel) represented by 'staticField'
-        // to the manifest.  
+        // to the manifest.
         private static void AddProviderEnumKind(ManifestBuilder manifest, FieldInfo staticField, string providerEnumKind)
         {
             bool reflectionOnly = staticField.Module.Assembly.ReflectionOnly();
@@ -3562,7 +3502,7 @@ namespace System.Diagnostics.Tracing
             if (eventData.Length <= eventAttribute.EventId)
             {
                 EventMetadata[] newValues = new EventMetadata[Math.Max(eventData.Length + 16, eventAttribute.EventId + 1)];
-                Array.Copy(eventData, 0, newValues, 0, eventData.Length);
+                Array.Copy(eventData, newValues, eventData.Length);
                 eventData = newValues;
             }
 
@@ -3589,7 +3529,7 @@ namespace System.Diagnostics.Tracing
         }
 
         // Helper used by code:CreateManifestAndDescriptors that trims the m_eventData array to the correct
-        // size after all event descriptors have been added. 
+        // size after all event descriptors have been added.
         private static void TrimEventDescriptors(ref EventMetadata[] eventData)
         {
             int idx = eventData.Length;
@@ -3599,10 +3539,10 @@ namespace System.Diagnostics.Tracing
                 if (eventData[idx].Descriptor.EventId != 0)
                     break;
             }
-            if (eventData.Length - idx > 2)      // allow one wasted slot. 
+            if (eventData.Length - idx > 2)      // allow one wasted slot.
             {
                 EventMetadata[] newValues = new EventMetadata[idx + 1];
-                Array.Copy(eventData, 0, newValues, 0, newValues.Length);
+                Array.Copy(eventData, newValues, newValues.Length);
                 eventData = newValues;
             }
         }
@@ -3622,7 +3562,7 @@ namespace System.Diagnostics.Tracing
         }
 
         // Helper used by code:CreateManifestAndDescriptors to find user mistakes like reusing an event
-        // index for two distinct events etc.  Throws exceptions when it finds something wrong. 
+        // index for two distinct events etc.  Throws exceptions when it finds something wrong.
         private static void DebugCheckEvent(ref Dictionary<string, string>? eventsByName,
             EventMetadata[] eventData, MethodInfo method, EventAttribute eventAttribute,
             ManifestBuilder manifest, EventManifestOptions options)
@@ -3640,12 +3580,12 @@ namespace System.Diagnostics.Tracing
                 manifest.ManifestError(SR.Format(SR.EventSource_EventIdReused, evtName, evtId, eventData[evtId].Name), true);
             }
 
-            // We give a task to things if they don't have one.  
-            // TODO this is moderately expensive (N*N).   We probably should not even bother....   
+            // We give a task to things if they don't have one.
+            // TODO this is moderately expensive (N*N).   We probably should not even bother....
             Debug.Assert(eventAttribute.Task != EventTask.None || eventAttribute.Opcode != EventOpcode.Info);
             for (int idx = 0; idx < eventData.Length; ++idx)
             {
-                // skip unused Event IDs. 
+                // skip unused Event IDs.
                 if (eventData[idx].Name == null)
                     continue;
 
@@ -3653,7 +3593,7 @@ namespace System.Diagnostics.Tracing
                 {
                     manifest.ManifestError(SR.Format(SR.EventSource_TaskOpcodePairReused,
                                             evtName, evtId, eventData[idx].Name, idx));
-                    // If we are not strict stop on first error.   We have had problems with really large providers taking forever.  because of many errors.  
+                    // If we are not strict stop on first error.   We have had problems with really large providers taking forever.  because of many errors.
                     if ((options & EventManifestOptions.Strict) == 0)
                         break;
                 }
@@ -3667,11 +3607,11 @@ namespace System.Diagnostics.Tracing
                     failure = true;
                 else
                 {
-                    // If you have the auto-assigned Task, then you did not explicitly set one.  
+                    // If you have the auto-assigned Task, then you did not explicitly set one.
                     // This is OK for Start events because we have special logic to assign the task to a prefix derived from the event name
-                    // But all other cases we want to catch the omission.  
+                    // But all other cases we want to catch the omission.
                     var autoAssignedTask = (EventTask)(0xFFFE - evtId);
-                    if ((eventAttribute.Opcode != EventOpcode.Start && eventAttribute.Opcode != EventOpcode.Stop) && eventAttribute.Task == autoAssignedTask)
+                    if (eventAttribute.Opcode != EventOpcode.Start && eventAttribute.Opcode != EventOpcode.Stop && eventAttribute.Task == autoAssignedTask)
                         failure = true;
                 }
                 if (failure)
@@ -3689,8 +3629,7 @@ namespace System.Diagnostics.Tracing
             //     throw new WarningException(SR.EventSource_EventNameDoesNotEqualTaskPlusOpcode);
             // }
 
-            if (eventsByName == null)
-                eventsByName = new Dictionary<string, string>();
+            eventsByName ??= new Dictionary<string, string>();
 
             if (eventsByName.ContainsKey(evtName))
             {
@@ -3702,31 +3641,30 @@ namespace System.Diagnostics.Tracing
 
         /// <summary>
         /// This method looks at the IL and tries to pattern match against the standard
-        /// 'boilerplate' event body 
+        /// 'boilerplate' event body
         /// <code>
-        ///     { if (Enabled()) WriteEvent(#, ...) } 
+        ///     { if (Enabled()) WriteEvent(#, ...) }
         /// </code>
         /// If the pattern matches, it returns the literal number passed as the first parameter to
         /// the WriteEvent.  This is used to find common user errors (mismatching this
-        /// number with the EventAttribute ID).  It is only used for validation.   
+        /// number with the EventAttribute ID).  It is only used for validation.
         /// </summary>
         /// <param name="method">The method to probe.</param>
         /// <returns>The literal value or -1 if the value could not be determined. </returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity", Justification = "Switch statement is clearer than alternatives")]
         private static int GetHelperCallFirstArg(MethodInfo method)
         {
 #if (!ES_BUILD_PCL && !ES_BUILD_PN)
             // Currently searches for the following pattern
-            // 
+            //
             // ...     // CAN ONLY BE THE INSTRUCTIONS BELOW
             // LDARG0
             // LDC.I4 XXX
             // ...     // CAN ONLY BE THE INSTRUCTIONS BELOW CAN'T BE A BRANCH OR A CALL
-            // CALL 
+            // CALL
             // NOP     // 0 or more times
             // RET
-            // 
-            // If we find this pattern we return the XXX.  Otherwise we return -1.  
+            //
+            // If we find this pattern we return the XXX.  Otherwise we return -1.
 #if ES_BUILD_STANDALONE
             (new ReflectionPermission(ReflectionPermissionFlag.MemberAccess)).Assert();
 #endif
@@ -3785,7 +3723,7 @@ namespace System.Diagnostics.Tracing
 
                         if (retVal >= 0)
                         {
-                            // Is this call just before return?  
+                            // Is this call just before return?
                             for (int search = idx + 1; search < instrs.Length; search++)
                             {
                                 if (instrs[search] == 42)  // RET
@@ -3836,25 +3774,11 @@ namespace System.Diagnostics.Tracing
             return -1;
         }
 
-#if false // This routine is not needed at all, it was used for unit test debugging. 
-        [Conditional("DEBUG")]
-        private static void OutputDebugString(string msg)
-        {
-#if !ES_BUILD_PCL
-            msg = msg.TrimEnd('\r', '\n') +
-                    string.Format(CultureInfo.InvariantCulture, ", Thrd({0})" + Environment.NewLine, Environment.CurrentManagedThreadId);
-            System.Diagnostics.Debugger.Log(0, null, msg);
-#endif
-        }
-#endif
-
         /// <summary>
-        /// Sends an error message to the debugger (outputDebugString), as well as the EventListeners 
-        /// It will do this even if the EventSource is not enabled.  
-        /// TODO remove flush parameter it is not used.  
+        /// Sends an error message to the debugger (outputDebugString), as well as the EventListeners
+        /// It will do this even if the EventSource is not enabled.
         /// </summary>
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
-        internal void ReportOutOfBandMessage(string msg, bool flush)
+        internal void ReportOutOfBandMessage(string msg)
         {
             try
             {
@@ -3870,40 +3794,32 @@ namespace System.Diagnostics.Tracing
                 {
                     if (m_outOfBandMessageCount == 16)
                         return;
-                    m_outOfBandMessageCount = 16;    // Mark that we hit the limit.  Notify them that this is the case. 
+                    m_outOfBandMessageCount = 16;    // Mark that we hit the limit.  Notify them that this is the case.
                     msg = "Reached message limit.   End of EventSource error messages.";
                 }
 
                 WriteEventString(EventLevel.LogAlways, -1, msg);
                 WriteStringToAllListeners("EventSourceMessage", msg);
             }
-            catch (Exception) { }      // If we fail during last chance logging, well, we have to give up....
+            catch { }      // If we fail during last chance logging, well, we have to give up....
         }
 
         private EventSourceSettings ValidateSettings(EventSourceSettings settings)
         {
-            var evtFormatMask = EventSourceSettings.EtwManifestEventFormat |
+            const EventSourceSettings evtFormatMask = EventSourceSettings.EtwManifestEventFormat |
                                 EventSourceSettings.EtwSelfDescribingEventFormat;
             if ((settings & evtFormatMask) == evtFormatMask)
             {
                 throw new ArgumentException(SR.EventSource_InvalidEventFormat, nameof(settings));
             }
 
-            // If you did not explicitly ask for manifest, you get self-describing.  
+            // If you did not explicitly ask for manifest, you get self-describing.
             if ((settings & evtFormatMask) == 0)
                 settings |= EventSourceSettings.EtwSelfDescribingEventFormat;
             return settings;
         }
 
-        private bool ThrowOnEventWriteErrors
-        {
-            get { return (m_config & EventSourceSettings.ThrowOnEventWriteErrors) != 0; }
-            set
-            {
-                if (value) m_config |= EventSourceSettings.ThrowOnEventWriteErrors;
-                else m_config &= ~EventSourceSettings.ThrowOnEventWriteErrors;
-            }
-        }
+        private bool ThrowOnEventWriteErrors => (m_config & EventSourceSettings.ThrowOnEventWriteErrors) != 0;
 
         private bool SelfDescribingEvents
         {
@@ -3913,31 +3829,18 @@ namespace System.Diagnostics.Tracing
                                 ((m_config & EventSourceSettings.EtwSelfDescribingEventFormat) != 0));
                 return (m_config & EventSourceSettings.EtwSelfDescribingEventFormat) != 0;
             }
-            set
-            {
-                if (!value)
-                {
-                    m_config |= EventSourceSettings.EtwManifestEventFormat;
-                    m_config &= ~EventSourceSettings.EtwSelfDescribingEventFormat;
-                }
-                else
-                {
-                    m_config |= EventSourceSettings.EtwSelfDescribingEventFormat;
-                    m_config &= ~EventSourceSettings.EtwManifestEventFormat;
-                }
-            }
         }
 
-        // private instance state 
+        // private instance state
         private string m_name = null!;                  // My friendly name (privided in ctor)
-        internal int m_id;                              // A small integer that is unique to this instance.  
-        private Guid m_guid;                            // GUID representing the ETW eventSource to the OS.  
+        internal int m_id;                              // A small integer that is unique to this instance.
+        private Guid m_guid;                            // GUID representing the ETW eventSource to the OS.
         internal volatile EventMetadata[]? m_eventData; // None per-event data
         private volatile byte[]? m_rawManifest;          // Bytes to send out representing the event schema
 
         private EventHandler<EventCommandEventArgs>? m_eventCommandExecuted;
 
-        private EventSourceSettings m_config;      // configuration information
+        private readonly EventSourceSettings m_config;      // configuration information
 
         private bool m_eventSourceDisposed;              // has Dispose been called.
 
@@ -3946,7 +3849,7 @@ namespace System.Diagnostics.Tracing
         internal EventLevel m_level;                    // highest level enabled by any output dispatcher
         internal EventKeywords m_matchAnyKeyword;       // the logical OR of all levels enabled by any output dispatcher (zero is a special case) meaning 'all keywords'
 
-        // Dispatching state 
+        // Dispatching state
         internal volatile EventDispatcher? m_Dispatchers;    // Linked list of code:EventDispatchers we write the data to (we also do ETW specially)
 #if FEATURE_MANAGED_ETW
         private volatile OverideEventProvider m_etwProvider = null!;   // This hooks up ETW commands to our 'OnEventCommand' callback
@@ -3954,19 +3857,19 @@ namespace System.Diagnostics.Tracing
 #if FEATURE_PERFTRACING
         private volatile OverideEventProvider m_eventPipeProvider = null!;
 #endif
-        private bool m_completelyInited;                // The EventSource constructor has returned without exception.   
-        private Exception? m_constructionException;      // If there was an exception construction, this is it 
+        private bool m_completelyInited;                // The EventSource constructor has returned without exception.
+        private Exception? m_constructionException;      // If there was an exception construction, this is it
         private byte m_outOfBandMessageCount;           // The number of out of band messages sent (we throttle them
-        private EventCommandEventArgs? m_deferredCommands;// If we get commands before we are fully we store them here and run the when we are fully inited.  
+        private EventCommandEventArgs? m_deferredCommands; // If we get commands before we are fully we store them here and run the when we are fully inited.
 
         private string[]? m_traits;                      // Used to implement GetTraits
 
         internal static uint s_currentPid;              // current process id, used in synthesizing quasi-GUIDs
         [ThreadStatic]
-        private static byte m_EventSourceExceptionRecurenceCount = 0; // current recursion count inside ThrowEventSourceException
+        private static byte m_EventSourceExceptionRecurenceCount; // current recursion count inside ThrowEventSourceException
 
         [ThreadStatic]
-        private static bool m_EventSourceInDecodeObject = false;
+        private static bool m_EventSourceInDecodeObject;
 
 #if FEATURE_MANAGED_ETW_CHANNELS
         internal volatile ulong[]? m_channelData;
@@ -3974,7 +3877,7 @@ namespace System.Diagnostics.Tracing
 
         // We use a single instance of ActivityTracker for all EventSources instances to allow correlation between multiple event providers.
         // We have m_activityTracker field simply because instance field is more efficient than static field fetch.
-        ActivityTracker m_activityTracker = null!;
+        private ActivityTracker m_activityTracker = null!;
         internal const string s_ActivityStartSuffix = "Start";
         internal const string s_ActivityStopSuffix = "Stop";
 
@@ -3983,7 +3886,7 @@ namespace System.Diagnostics.Tracing
         // Rather than depending on initialized statics, use lazy initialization to ensure that the statics are initialized exactly when they are needed.
 
         // used for generating GUID from eventsource name
-        private static byte[] namespaceBytes;
+        private static byte[]? namespaceBytes;
 
 #endregion
     }
@@ -3999,12 +3902,12 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         Default = 0,
         /// <summary>
-        /// Normally an EventSource NEVER throws; setting this option will tell it to throw when it encounters errors.  
+        /// Normally an EventSource NEVER throws; setting this option will tell it to throw when it encounters errors.
         /// </summary>
         ThrowOnEventWriteErrors = 1,
         /// <summary>
         /// Setting this option is a directive to the ETW listener should use manifest-based format when
-        /// firing events. This is the default option when defining a type derived from EventSource 
+        /// firing events. This is the default option when defining a type derived from EventSource
         /// (using the protected EventSource constructors).
         /// Only one of EtwManifestEventFormat or EtwSelfDescribingEventFormat should be specified
         /// </summary>
@@ -4012,7 +3915,7 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// Setting this option is a directive to the ETW listener should use self-describing event format
         /// when firing events. This is the default option when creating a new instance of the EventSource
-        /// type (using the public EventSource constructors).  
+        /// type (using the public EventSource constructors).
         /// Only one of EtwManifestEventFormat or EtwSelfDescribingEventFormat should be specified
         /// </summary>
         EtwSelfDescribingEventFormat = 8,
@@ -4028,8 +3931,8 @@ namespace System.Diagnostics.Tracing
     /// longer needed.
     /// <para>
     /// Once created, EventListeners can enable or disable on a per-eventSource basis using verbosity levels
-    /// (<see cref="EventLevel"/>) and bitfields (<see cref="EventKeywords"/>) to further restrict the set of 
-    /// events to be sent to the dispatcher. The dispatcher can also send arbitrary commands to a particular 
+    /// (<see cref="EventLevel"/>) and bitfields (<see cref="EventKeywords"/>) to further restrict the set of
+    /// events to be sent to the dispatcher. The dispatcher can also send arbitrary commands to a particular
     /// eventSource using the 'SendCommand' method. The meaning of the commands are eventSource specific.
     /// </para><para>
     /// The Null Guid (that is (new Guid()) has special meaning as a wildcard for 'all current eventSources in
@@ -4065,14 +3968,14 @@ namespace System.Diagnostics.Tracing
         /// This can happen for all existing EventSources when the EventListener is created
         /// as well as for any EventSources that come into existence after the EventListener
         /// has been created.
-        /// 
+        ///
         /// These 'catch up' events are called during the construction of the EventListener.
         /// Subclasses need to be prepared for that.
-        /// 
-        /// In a multi-threaded environment, it is possible that 'EventSourceEventWrittenCallback' 
+        ///
+        /// In a multi-threaded environment, it is possible that 'EventSourceEventWrittenCallback'
         /// events for a particular eventSource to occur BEFORE the EventSourceCreatedCallback is issued.
         /// </summary>
-        public event EventHandler<EventSourceCreatedEventArgs> EventSourceCreated
+        public event EventHandler<EventSourceCreatedEventArgs>? EventSourceCreated
         {
             add
             {
@@ -4087,10 +3990,10 @@ namespace System.Diagnostics.Tracing
         }
 
         /// <summary>
-        /// This event is raised whenever an event has been written by a EventSource for which 
-        /// the EventListener has enabled events.  
+        /// This event is raised whenever an event has been written by a EventSource for which
+        /// the EventListener has enabled events.
         /// </summary>
-        public event EventHandler<EventWrittenEventArgs> EventWritten;
+        public event EventHandler<EventWrittenEventArgs>? EventWritten;
 
         static EventListener()
         {
@@ -4104,15 +4007,13 @@ namespace System.Diagnostics.Tracing
 
         /// <summary>
         /// Create a new EventListener in which all events start off turned off (use EnableEvents to turn
-        /// them on).  
+        /// them on).
         /// </summary>
         public EventListener()
         {
-            // This will cause the OnEventSourceCreated callback to fire. 
+            // This will cause the OnEventSourceCreated callback to fire.
             CallBackForExistingEventSources(true, (obj, args) =>
-            {
-                args.EventSource!.AddListener((EventListener)obj!);
-            });
+                args.EventSource!.AddListener((EventListener)obj!));
         }
 
         /// <summary>
@@ -4122,7 +4023,6 @@ namespace System.Diagnostics.Tracing
         /// call Dispose when they are done with their logging.
         /// </summary>
 #if ES_BUILD_STANDALONE
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1063:ImplementIDisposableCorrectly")]
 #endif
         public virtual void Dispose()
         {
@@ -4138,9 +4038,9 @@ namespace System.Diagnostics.Tracing
                     }
                     else
                     {
-                        // Find 'this' from the s_Listeners linked list.  
+                        // Find 'this' from the s_Listeners linked list.
                         EventListener prev = s_Listeners;
-                        for (;;)
+                        while (true)
                         {
                             EventListener? cur = prev.m_Next;
                             if (cur == null)
@@ -4148,7 +4048,7 @@ namespace System.Diagnostics.Tracing
                             if (cur == this)
                             {
                                 // Found our Listener, remove references to it in the eventSources
-                                prev.m_Next = cur.m_Next;       // Remove entry. 
+                                prev.m_Next = cur.m_Next;       // Remove entry.
                                 RemoveReferencesToListenerInEventSources(cur);
                                 break;
                             }
@@ -4163,12 +4063,12 @@ namespace System.Diagnostics.Tracing
         // 'cleanup' associated with this object
 
         /// <summary>
-        /// Enable all events from the eventSource identified by 'eventSource' to the current 
+        /// Enable all events from the eventSource identified by 'eventSource' to the current
         /// dispatcher that have a verbosity level of 'level' or lower.
-        ///   
-        /// This call can have the effect of REDUCING the number of events sent to the 
+        ///
+        /// This call can have the effect of REDUCING the number of events sent to the
         /// dispatcher if 'level' indicates a less verbose level than was previously enabled.
-        /// 
+        ///
         /// This call never has an effect on other EventListeners.
         ///
         /// </summary>
@@ -4180,11 +4080,11 @@ namespace System.Diagnostics.Tracing
         /// Enable all events from the eventSource identified by 'eventSource' to the current
         /// dispatcher that have a verbosity level of 'level' or lower and have a event keyword
         /// matching any of the bits in 'matchAnyKeyword'.
-        /// 
-        /// This call can have the effect of REDUCING the number of events sent to the 
+        ///
+        /// This call can have the effect of REDUCING the number of events sent to the
         /// dispatcher if 'level' indicates a less verbose level than was previously enabled or
         /// if 'matchAnyKeyword' has fewer keywords set than where previously set.
-        /// 
+        ///
         /// This call never has an effect on other EventListeners.
         /// </summary>
         public void EnableEvents(EventSource eventSource, EventLevel level, EventKeywords matchAnyKeyword)
@@ -4195,14 +4095,14 @@ namespace System.Diagnostics.Tracing
         /// Enable all events from the eventSource identified by 'eventSource' to the current
         /// dispatcher that have a verbosity level of 'level' or lower and have a event keyword
         /// matching any of the bits in 'matchAnyKeyword' as well as any (eventSource specific)
-        /// effect passing additional 'key-value' arguments 'arguments' might have.  
-        /// 
-        /// This call can have the effect of REDUCING the number of events sent to the 
+        /// effect passing additional 'key-value' arguments 'arguments' might have.
+        ///
+        /// This call can have the effect of REDUCING the number of events sent to the
         /// dispatcher if 'level' indicates a less verbose level than was previously enabled or
         /// if 'matchAnyKeyword' has fewer keywords set than where previously set.
-        /// 
+        ///
         /// This call never has an effect on other EventListeners.
-        /// </summary>       
+        /// </summary>
         public void EnableEvents(EventSource eventSource, EventLevel level, EventKeywords matchAnyKeyword, IDictionary<string, string?>? arguments)
         {
             if (eventSource == null)
@@ -4220,9 +4120,9 @@ namespace System.Diagnostics.Tracing
 #endif // FEATURE_PERFTRACING
         }
         /// <summary>
-        /// Disables all events coming from eventSource identified by 'eventSource'.  
-        /// 
-        /// This call never has an effect on other EventListeners.      
+        /// Disables all events coming from eventSource identified by 'eventSource'.
+        ///
+        /// This call never has an effect on other EventListeners.
         /// </summary>
         public void DisableEvents(EventSource eventSource)
         {
@@ -4255,15 +4155,15 @@ namespace System.Diagnostics.Tracing
         /// This can happen for all existing EventSources when the EventListener is created
         /// as well as for any EventSources that come into existence after the EventListener
         /// has been created.
-        /// 
+        ///
         /// These 'catch up' events are called during the construction of the EventListener.
         /// Subclasses need to be prepared for that.
-        /// 
+        ///
         /// In a multi-threaded environment, it is possible that 'OnEventWritten' callbacks
         /// for a particular eventSource to occur BEFORE the OnEventSourceCreated is issued.
         /// </summary>
         /// <param name="eventSource"></param>
-        internal protected virtual void OnEventSourceCreated(EventSource eventSource)
+        protected internal virtual void OnEventSourceCreated(EventSource eventSource)
         {
             EventHandler<EventSourceCreatedEventArgs>? callBack = this._EventSourceCreated;
             if (callBack != null)
@@ -4275,25 +4175,20 @@ namespace System.Diagnostics.Tracing
         }
 
         /// <summary>
-        /// This method is called whenever an event has been written by a EventSource for which 
-        /// the EventListener has enabled events.  
+        /// This method is called whenever an event has been written by a EventSource for which
+        /// the EventListener has enabled events.
         /// </summary>
         /// <param name="eventData"></param>
-        internal protected virtual void OnEventWritten(EventWrittenEventArgs eventData)
+        protected internal virtual void OnEventWritten(EventWrittenEventArgs eventData)
         {
-            EventHandler<EventWrittenEventArgs> callBack = this.EventWritten;
-            if (callBack != null)
-            {
-                callBack(this, eventData);
-            }
+            this.EventWritten?.Invoke(this, eventData);
         }
-
 
 #region private
         /// <summary>
         /// This routine adds newEventSource to the global list of eventSources, it also assigns the
         /// ID to the eventSource (which is simply the ordinal in the global list).
-        /// 
+        ///
         /// EventSources currently do not pro-actively remove themselves from this list. Instead
         /// when eventSources's are GCed, the weak handle in this list naturally gets nulled, and
         /// we will reuse the slot. Today this list never shrinks (but we do reuse entries
@@ -4306,8 +4201,7 @@ namespace System.Diagnostics.Tracing
         {
             lock (EventListenersLock)
             {
-                if (s_EventSources == null)
-                    s_EventSources = new List<WeakReference>(2);
+                s_EventSources ??= new List<WeakReference<EventSource>>(2);
 
                 if (!s_EventSourceShutdownRegistered)
                 {
@@ -4320,21 +4214,20 @@ namespace System.Diagnostics.Tracing
 #endif
                 }
 
-
                 // Periodically search the list for existing entries to reuse, this avoids
-                // unbounded memory use if we keep recycling eventSources (an unlikely thing). 
+                // unbounded memory use if we keep recycling eventSources (an unlikely thing).
                 int newIndex = -1;
                 if (s_EventSources.Count % 64 == 63)   // on every block of 64, fill up the block before continuing
                 {
-                    int i = s_EventSources.Count;      // Work from the top down. 
+                    int i = s_EventSources.Count;      // Work from the top down.
                     while (0 < i)
                     {
                         --i;
-                        WeakReference weakRef = s_EventSources[i];
-                        if (!weakRef.IsAlive)
+                        WeakReference<EventSource> weakRef = s_EventSources[i];
+                        if (!weakRef.TryGetTarget(out _))
                         {
                             newIndex = i;
-                            weakRef.Target = newEventSource;
+                            weakRef.SetTarget(newEventSource);
                             break;
                         }
                     }
@@ -4342,7 +4235,7 @@ namespace System.Diagnostics.Tracing
                 if (newIndex < 0)
                 {
                     newIndex = s_EventSources.Count;
-                    s_EventSources.Add(new WeakReference(newEventSource));
+                    s_EventSources.Add(new WeakReference<EventSource>(newEventSource));
                 }
                 newEventSource.m_id = newIndex;
 
@@ -4371,19 +4264,19 @@ namespace System.Diagnostics.Tracing
 
         // Whenver we have async callbacks from native code, there is an ugly issue where
         // during .NET shutdown native code could be calling the callback, but the CLR
-        // has already prohibited callbacks to managed code in the appdomain, causing the CLR 
+        // has already prohibited callbacks to managed code in the appdomain, causing the CLR
         // to throw a COMPLUS_BOOT_EXCEPTION.   The guideline we give is that you must unregister
-        // such callbacks on process shutdown or appdomain so that unmanaged code will never 
-        // do this.  This is what this callback is for.  
+        // such callbacks on process shutdown or appdomain so that unmanaged code will never
+        // do this.  This is what this callback is for.
         // See bug 724140 for more
         private static void DisposeOnShutdown(object? sender, EventArgs e)
         {
             lock (EventListenersLock)
             {
                 Debug.Assert(s_EventSources != null);
-                foreach (var esRef in s_EventSources)
+                foreach (WeakReference<EventSource> esRef in s_EventSources)
                 {
-                    if (esRef.Target is EventSource es)
+                    if (esRef.TryGetTarget(out EventSource? es))
                         es.Dispose();
                 }
             }
@@ -4391,9 +4284,9 @@ namespace System.Diagnostics.Tracing
 
         /// <summary>
         /// Helper used in code:Dispose that removes any references to 'listenerToRemove' in any of the
-        /// eventSources in the appdomain.  
-        /// 
-        /// The EventListenersLock must be held before calling this routine. 
+        /// eventSources in the appdomain.
+        ///
+        /// The EventListenersLock must be held before calling this routine.
         /// </summary>
         private static void RemoveReferencesToListenerInEventSources(EventListener listenerToRemove)
         {
@@ -4402,9 +4295,9 @@ namespace System.Diagnostics.Tracing
 #endif
             // Foreach existing EventSource in the appdomain
             Debug.Assert(s_EventSources != null);
-            foreach (WeakReference eventSourceRef in s_EventSources)
+            foreach (WeakReference<EventSource> eventSourceRef in s_EventSources)
             {
-                if (eventSourceRef.Target is EventSource eventSource)
+                if (eventSourceRef.TryGetTarget(out EventSource? eventSource))
                 {
                     Debug.Assert(eventSource.m_Dispatchers != null);
                     // Is the first output dispatcher the dispatcher we are removing?
@@ -4412,9 +4305,9 @@ namespace System.Diagnostics.Tracing
                         eventSource.m_Dispatchers = eventSource.m_Dispatchers.m_Next;
                     else
                     {
-                        // Remove 'listenerToRemove' from the eventSource.m_Dispatchers linked list.  
+                        // Remove 'listenerToRemove' from the eventSource.m_Dispatchers linked list.
                         EventDispatcher? prev = eventSource.m_Dispatchers;
-                        for (;;)
+                        while (true)
                         {
                             EventDispatcher? cur = prev.m_Next;
                             if (cur == null)
@@ -4424,7 +4317,7 @@ namespace System.Diagnostics.Tracing
                             }
                             if (cur.m_Listener == listenerToRemove)
                             {
-                                prev.m_Next = cur.m_Next;       // Remove entry. 
+                                prev.m_Next = cur.m_Next;       // Remove entry.
                                 break;
                             }
                             prev = cur;
@@ -4440,7 +4333,7 @@ namespace System.Diagnostics.Tracing
         }
 
         /// <summary>
-        /// Checks internal consistency of EventSources/Listeners. 
+        /// Checks internal consistency of EventSources/Listeners.
         /// </summary>
         [Conditional("DEBUG")]
         internal static void Validate()
@@ -4456,7 +4349,7 @@ namespace System.Diagnostics.Tracing
             lock (EventListenersLock)
             {
                 Debug.Assert(s_EventSources != null);
-                // Get all listeners 
+                // Get all listeners
                 Dictionary<EventListener, bool> allListeners = new Dictionary<EventListener, bool>();
                 EventListener? cur = s_Listeners;
                 while (cur != null)
@@ -4465,16 +4358,16 @@ namespace System.Diagnostics.Tracing
                     cur = cur.m_Next;
                 }
 
-                // For all eventSources 
+                // For all eventSources
                 int id = -1;
-                foreach (WeakReference eventSourceRef in s_EventSources)
+                foreach (WeakReference<EventSource> eventSourceRef in s_EventSources)
                 {
                     id++;
-                    if (!(eventSourceRef.Target is EventSource eventSource))
+                    if (!eventSourceRef.TryGetTarget(out EventSource? eventSource))
                         continue;
                     Debug.Assert(eventSource.m_id == id, "Unexpected event source ID.");
 
-                    // None listeners on eventSources exist in the dispatcher list.   
+                    // None listeners on eventSources exist in the dispatcher list.
                     EventDispatcher? dispatcher = eventSource.m_Dispatchers;
                     while (dispatcher != null)
                     {
@@ -4482,11 +4375,11 @@ namespace System.Diagnostics.Tracing
                         dispatcher = dispatcher.m_Next;
                     }
 
-                    // Every dispatcher is on Dispatcher List of every eventSource. 
+                    // Every dispatcher is on Dispatcher List of every eventSource.
                     foreach (EventListener listener in allListeners.Keys)
                     {
                         dispatcher = eventSource.m_Dispatchers;
-                        for (;;)
+                        while (true)
                         {
                             Debug.Assert(dispatcher != null, "Listener is not on all eventSources.");
                             if (dispatcher.m_Listener == listener)
@@ -4500,26 +4393,25 @@ namespace System.Diagnostics.Tracing
 
         /// <summary>
         /// Gets a global lock that is intended to protect the code:s_Listeners linked list and the
-        /// code:s_EventSources WeakReference list.  (We happen to use the s_EventSources list as
-        /// the lock object)
+        /// code:s_EventSources list.  (We happen to use the s_EventSources list as the lock object)
         /// </summary>
         internal static object EventListenersLock
         {
             get
             {
                 if (s_EventSources == null)
-                    Interlocked.CompareExchange(ref s_EventSources, new List<WeakReference>(2), null);
-                return s_EventSources!; // TODO-NULLABLE: Remove ! when compiler specially-recognizes CompareExchange for nullability
+                    Interlocked.CompareExchange(ref s_EventSources, new List<WeakReference<EventSource>>(2), null);
+                return s_EventSources;
             }
         }
 
-        private void CallBackForExistingEventSources(bool addToListenersList, EventHandler<EventSourceCreatedEventArgs> callback)
+        private void CallBackForExistingEventSources(bool addToListenersList, EventHandler<EventSourceCreatedEventArgs>? callback)
         {
             lock (EventListenersLock)
             {
                 Debug.Assert(s_EventSources != null);
 
-                // Disallow creating EventListener reentrancy. 
+                // Disallow creating EventListener reentrancy.
                 if (s_CreatingListener)
                 {
                     throw new InvalidOperationException(SR.EventSource_ListenerCreatedInsideCallback);
@@ -4531,42 +4423,46 @@ namespace System.Diagnostics.Tracing
 
                     if (addToListenersList)
                     {
-                        // Add to list of listeners in the system, do this BEFORE firing the 'OnEventSourceCreated' so that 
+                        // Add to list of listeners in the system, do this BEFORE firing the 'OnEventSourceCreated' so that
                         // Those added sources see this listener.
                         this.m_Next = s_Listeners;
                         s_Listeners = this;
                     }
 
-                    // Find all existing eventSources call OnEventSourceCreated to 'catchup'
-                    // Note that we DO have reentrancy here because 'AddListener' calls out to user code (via OnEventSourceCreated callback) 
-                    // We tolerate this by iterating over a copy of the list here. New event sources will take care of adding listeners themselves
-                    // EventSources are not guaranteed to be added at the end of the s_EventSource list -- We re-use slots when a new source
-                    // is created.
-                    WeakReference[] eventSourcesSnapshot = s_EventSources.ToArray();
+                    if (callback != null)
+                    {
+                        // Find all existing eventSources call OnEventSourceCreated to 'catchup'
+                        // Note that we DO have reentrancy here because 'AddListener' calls out to user code (via OnEventSourceCreated callback)
+                        // We tolerate this by iterating over a copy of the list here. New event sources will take care of adding listeners themselves
+                        // EventSources are not guaranteed to be added at the end of the s_EventSource list -- We re-use slots when a new source
+                        // is created.
+                        WeakReference<EventSource>[] eventSourcesSnapshot = s_EventSources.ToArray();
 
 #if DEBUG
-                    bool previousValue = s_ConnectingEventSourcesAndListener;
-                    s_ConnectingEventSourcesAndListener = true;
-                    try
-                    {
-#endif
-                        for (int i = 0; i < eventSourcesSnapshot.Length; i++)
+                        bool previousValue = s_ConnectingEventSourcesAndListener;
+                        s_ConnectingEventSourcesAndListener = true;
+                        try
                         {
-                            WeakReference eventSourceRef = eventSourcesSnapshot[i];
-                            if (eventSourceRef.Target is EventSource eventSource)
-                            {
-                                EventSourceCreatedEventArgs args = new EventSourceCreatedEventArgs();
-                                args.EventSource = eventSource;
-                                callback(this, args);
-                            }
-                        }
-#if DEBUG
-                    }
-                    finally
-                    {
-                        s_ConnectingEventSourcesAndListener = previousValue;
-                    }
 #endif
+                            for (int i = 0; i < eventSourcesSnapshot.Length; i++)
+                            {
+                                WeakReference<EventSource> eventSourceRef = eventSourcesSnapshot[i];
+                                if (eventSourceRef.TryGetTarget(out EventSource? eventSource))
+                                {
+                                    EventSourceCreatedEventArgs args = new EventSourceCreatedEventArgs();
+                                    args.EventSource = eventSource;
+                                    callback(this, args);
+                                }
+                            }
+#if DEBUG
+                        }
+                        finally
+                        {
+                            s_ConnectingEventSourcesAndListener = previousValue;
+                        }
+#endif
+                    }
+
                     Validate();
                 }
                 finally
@@ -4574,7 +4470,6 @@ namespace System.Diagnostics.Tracing
                     s_CreatingListener = false;
                 }
             }
-
         }
 
         // Instance fields
@@ -4583,20 +4478,20 @@ namespace System.Diagnostics.Tracing
         // static fields
 
         /// <summary>
-        /// The list of all listeners in the appdomain.  Listeners must be explicitly disposed to remove themselves 
-        /// from this list.   Note that EventSources point to their listener but NOT the reverse.  
+        /// The list of all listeners in the appdomain.  Listeners must be explicitly disposed to remove themselves
+        /// from this list.   Note that EventSources point to their listener but NOT the reverse.
         /// </summary>
         internal static EventListener? s_Listeners;
         /// <summary>
-        /// The list of all active eventSources in the appdomain.  Note that eventSources do NOT 
+        /// The list of all active eventSources in the appdomain.  Note that eventSources do NOT
         /// remove themselves from this list this is a weak list and the GC that removes them may
-        /// not have happened yet.  Thus it can contain event sources that are dead (thus you have 
-        /// to filter those out.  
+        /// not have happened yet.  Thus it can contain event sources that are dead (thus you have
+        /// to filter those out.
         /// </summary>
-        internal static List<WeakReference>? s_EventSources;
+        internal static List<WeakReference<EventSource>>? s_EventSources;
 
         /// <summary>
-        /// Used to disallow reentrancy.  
+        /// Used to disallow reentrancy.
         /// </summary>
         private static bool s_CreatingListener = false;
 
@@ -4607,7 +4502,7 @@ namespace System.Diagnostics.Tracing
         /// and another EventSource is created as part of the process.
         /// </summary>
         [ThreadStatic]
-        private static bool s_ConnectingEventSourcesAndListener = false;
+        private static bool s_ConnectingEventSourcesAndListener;
 #endif
 
         /// <summary>
@@ -4677,14 +4572,14 @@ namespace System.Diagnostics.Tracing
         internal EventDispatcher? dispatcher;
         internal EventProviderType eventProviderType;
 
-        // These are the arguments of sendCommand and are only used for deferring commands until after we are fully initialized. 
+        // These are the arguments of sendCommand and are only used for deferring commands until after we are fully initialized.
         internal EventListener? listener;
         internal int perEventSourceSessionId;
         internal int etwSessionId;
         internal bool enable;
         internal EventLevel level;
         internal EventKeywords matchAnyKeyword;
-        internal EventCommandEventArgs? nextCommand;     // We form a linked list of these deferred commands.      
+        internal EventCommandEventArgs? nextCommand;     // We form a linked list of these deferred commands.
 
 #endregion
     }
@@ -4711,7 +4606,7 @@ namespace System.Diagnostics.Tracing
     public class EventWrittenEventArgs : EventArgs
     {
         /// <summary>
-        /// The name of the event.   
+        /// The name of the event.
         /// </summary>
         public string? EventName
         {
@@ -4727,10 +4622,7 @@ namespace System.Diagnostics.Tracing
                     return m_eventSource.m_eventData[EventId].Name;
                 }
             }
-            internal set
-            {
-                m_eventName = value;
-            }
+            internal set => m_eventName = value;
         }
 
         /// <summary>
@@ -4753,10 +4645,7 @@ namespace System.Diagnostics.Tracing
 
                 return activityId;
             }
-            internal set
-            {
-                m_activityId = value;
-            }
+            internal set => m_activityId = value;
         }
 
         /// <summary>
@@ -4785,10 +4674,9 @@ namespace System.Diagnostics.Tracing
                 // do the lazy init if you know it is contract based (EventID >= 0)
                 if (EventId >= 0 && m_payloadNames == null)
                 {
-
                     var names = new List<string>();
                     Debug.Assert(m_eventSource.m_eventData != null);
-                    foreach (var parameter in m_eventSource.m_eventData[EventId].Parameters)
+                    foreach (ParameterInfo parameter in m_eventSource.m_eventData[EventId].Parameters)
                     {
                         names.Add(parameter.Name!);
                     }
@@ -4799,16 +4687,13 @@ namespace System.Diagnostics.Tracing
                 return m_payloadNames;
             }
 
-            internal set
-            {
-                m_payloadNames = value;
-            }
+            internal set => m_payloadNames = value;
         }
 
         /// <summary>
         /// Gets the event source object.
         /// </summary>
-        public EventSource EventSource { get { return m_eventSource; } }
+        public EventSource EventSource => m_eventSource;
 
         /// <summary>
         /// Gets the keywords for the event.
@@ -4856,7 +4741,7 @@ namespace System.Diagnostics.Tracing
         }
 
         /// <summary>
-        /// Any provider/user defined options associated with the event.  
+        /// Any provider/user defined options associated with the event.
         /// </summary>
         public EventTags Tags
         {
@@ -4871,7 +4756,7 @@ namespace System.Diagnostics.Tracing
         }
 
         /// <summary>
-        /// Gets the message for the event.  If the message has {N} parameters they are NOT substituted.  
+        /// Gets the message for the event.  If the message has {N} parameters they are NOT substituted.
         /// </summary>
         public string? Message
         {
@@ -4887,12 +4772,8 @@ namespace System.Diagnostics.Tracing
                     return m_eventSource.m_eventData[EventId].Message;
                 }
             }
-            internal set
-            {
-                m_message = value;
-            }
+            internal set => m_message = value;
         }
-
 
 #if FEATURE_MANAGED_ETW_CHANNELS
         /// <summary>
@@ -4959,10 +4840,7 @@ namespace System.Diagnostics.Tracing
 
                 return m_osThreadId.Value;
             }
-            internal set
-            {
-                m_osThreadId = value;
-            }
+            internal set => m_osThreadId = value;
         }
 
         /// <summary>
@@ -4982,7 +4860,7 @@ namespace System.Diagnostics.Tracing
         }
         private string? m_message;
         private string? m_eventName;
-        private EventSource m_eventSource;
+        private readonly EventSource m_eventSource;
         private ReadOnlyCollection<string>? m_payloadNames;
         private Guid m_activityId;
         private long? m_osThreadId;
@@ -4994,7 +4872,7 @@ namespace System.Diagnostics.Tracing
     }
 
     /// <summary>
-    /// Allows customizing defaults and specifying localization support for the event source class to which it is applied. 
+    /// Allows customizing defaults and specifying localization support for the event source class to which it is applied.
     /// </summary>
     [AttributeUsage(AttributeTargets.Class)]
     public sealed class EventSourceAttribute : Attribute
@@ -5005,20 +4883,20 @@ namespace System.Diagnostics.Tracing
         public string? Name { get; set; }
 
         /// <summary>
-        /// Overrides the default (calculated) Guid of an EventSource type. Explicitly defining a GUID is discouraged, 
+        /// Overrides the default (calculated) Guid of an EventSource type. Explicitly defining a GUID is discouraged,
         /// except when upgrading existing ETW providers to using event sources.
         /// </summary>
         public string? Guid { get; set; }
 
         /// <summary>
         /// <para>
-        /// EventSources support localization of events. The names used for events, opcodes, tasks, keywords and maps 
-        /// can be localized to several languages if desired. This works by creating a ResX style string table 
-        /// (by simply adding a 'Resource File' to your project). This resource file is given a name e.g. 
-        /// 'DefaultNameSpace.ResourceFileName' which can be passed to the ResourceManager constructor to read the 
-        /// resources. This name is the value of the LocalizationResources property. 
+        /// EventSources support localization of events. The names used for events, opcodes, tasks, keywords and maps
+        /// can be localized to several languages if desired. This works by creating a ResX style string table
+        /// (by simply adding a 'Resource File' to your project). This resource file is given a name e.g.
+        /// 'DefaultNameSpace.ResourceFileName' which can be passed to the ResourceManager constructor to read the
+        /// resources. This name is the value of the LocalizationResources property.
         /// </para><para>
-        /// If LocalizationResources property is non-null, then EventSource will look up the localized strings for events by 
+        /// If LocalizationResources property is non-null, then EventSource will look up the localized strings for events by
         /// using the following resource naming scheme
         /// </para>
         ///     <para>* event_EVENTNAME</para>
@@ -5026,9 +4904,9 @@ namespace System.Diagnostics.Tracing
         ///     <para>* keyword_KEYWORDNAME</para>
         ///     <para>* map_MAPNAME</para>
         /// <para>
-        /// where the capitalized name is the name of the event, task, keyword, or map value that should be localized.   
-        /// Note that the localized string for an event corresponds to the Message string, and can have {0} values 
-        /// which represent the payload values.  
+        /// where the capitalized name is the name of the event, task, keyword, or map value that should be localized.
+        /// Note that the localized string for an event corresponds to the Message string, and can have {0} values
+        /// which represent the payload values.
         /// </para>
         /// </summary>
         public string? LocalizationResources { get; set; }
@@ -5056,10 +4934,7 @@ namespace System.Diagnostics.Tracing
         /// <summary>Event's operation code: allows defining operations, generally used with Tasks</summary>
         public EventOpcode Opcode
         {
-            get
-            {
-                return m_opcode;
-            }
+            get => m_opcode;
             set
             {
                 this.m_opcode = value;
@@ -5067,13 +4942,7 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        internal bool IsOpcodeSet
-        {
-            get
-            {
-                return m_opcodeSet;
-            }
-        }
+        internal bool IsOpcodeSet => m_opcodeSet;
 
         /// <summary>Event's task: allows logical grouping of events</summary>
         public EventTask Task { get; set; }
@@ -5085,15 +4954,15 @@ namespace System.Diagnostics.Tracing
         public byte Version { get; set; }
 
         /// <summary>
-        /// This can be specified to enable formatting and localization of the event's payload. You can 
-        /// use standard .NET substitution operators (eg {1}) in the string and they will be replaced 
-        /// with the 'ToString()' of the corresponding part of the  event payload.   
+        /// This can be specified to enable formatting and localization of the event's payload. You can
+        /// use standard .NET substitution operators (eg {1}) in the string and they will be replaced
+        /// with the 'ToString()' of the corresponding part of the  event payload.
         /// </summary>
         public string? Message { get; set; }
 
         /// <summary>
         /// User defined options associated with the event.  These do not have meaning to the EventSource but
-        /// are passed through to listeners which given them semantics.  
+        /// are passed through to listeners which given them semantics.
         /// </summary>
         public EventTags Tags { get; set; }
 
@@ -5103,7 +4972,7 @@ namespace System.Diagnostics.Tracing
         public EventActivityOptions ActivityOptions { get; set; }
 
 #region private
-        EventOpcode m_opcode;
+        private EventOpcode m_opcode;
         private bool m_opcodeSet;
 #endregion
     }
@@ -5132,7 +5001,7 @@ namespace System.Diagnostics.Tracing
     ///     {
     ///         [Channel(Enabled = true, EventChannelType = EventChannelType.Admin)]
     ///         public const EventChannel Admin = (EventChannel)16;
-    ///     
+    ///
     ///         [Channel(Enabled = false, EventChannelType = EventChannelType.Operational)]
     ///         public const EventChannel Operational = (EventChannel)17;
     ///     }
@@ -5140,7 +5009,9 @@ namespace System.Diagnostics.Tracing
     /// </summary>
     [AttributeUsage(AttributeTargets.Field)]
 #if FEATURE_ADVANCED_MANAGED_ETW_CHANNELS
-    public 
+    public
+#else
+    internal
 #endif
     class EventChannelAttribute : Attribute
     {
@@ -5164,7 +5035,7 @@ namespace System.Diagnostics.Tracing
         /// Specifies an SDDL access descriptor that controls access to the log file that backs the channel.
         /// See MSDN (https://docs.microsoft.com/en-us/windows/desktop/WES/eventmanifestschema-channeltype-complextype) for details.
         /// </summary>
-        public string? Access { get; set; } 
+        public string? Access { get; set; }
 
         /// <summary>
         /// Allows importing channels defined in external manifests
@@ -5180,7 +5051,9 @@ namespace System.Diagnostics.Tracing
     /// Allowed channel types
     /// </summary>
 #if FEATURE_ADVANCED_MANAGED_ETW_CHANNELS
-    public 
+    public
+#else
+    internal
 #endif
     enum EventChannelType
     {
@@ -5196,11 +5069,11 @@ namespace System.Diagnostics.Tracing
 
 #if FEATURE_ADVANCED_MANAGED_ETW_CHANNELS
     /// <summary>
-    /// Allowed isolation levels. See MSDN (https://docs.microsoft.com/en-us/windows/desktop/WES/eventmanifestschema-channeltype-complextype) 
-    /// for the default permissions associated with each level. EventChannelIsolation and Access allows control over the 
+    /// Allowed isolation levels. See MSDN (https://docs.microsoft.com/en-us/windows/desktop/WES/eventmanifestschema-channeltype-complextype)
+    /// for the default permissions associated with each level. EventChannelIsolation and Access allows control over the
     /// access permissions for the channel and backing file.
     /// </summary>
-    public 
+    public
     enum EventChannelIsolation
     {
         /// <summary>
@@ -5242,8 +5115,7 @@ namespace System.Diagnostics.Tracing
         /// Disable event
         /// </summary>
         Disable = -3
-    };
-
+    }
 
 #region private classes
 
@@ -5267,10 +5139,7 @@ namespace System.Diagnostics.Tracing
             return (this.m_mask | m.m_mask) == this.m_mask;
         }
 
-        public static SessionMask All
-        {
-            get { return new SessionMask(MASK); }
-        }
+        public static SessionMask All => new SessionMask(MASK);
 
         public static SessionMask FromId(int perEventSourceSessionId)
         {
@@ -5303,31 +5172,21 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        public static SessionMask operator |(SessionMask m1, SessionMask m2)
-        {
-            return new SessionMask(m1.m_mask | m2.m_mask);
-        }
+        public static SessionMask operator |(SessionMask m1, SessionMask m2) =>
+            new SessionMask(m1.m_mask | m2.m_mask);
 
-        public static SessionMask operator &(SessionMask m1, SessionMask m2)
-        {
-            return new SessionMask(m1.m_mask & m2.m_mask);
-        }
+        public static SessionMask operator &(SessionMask m1, SessionMask m2) =>
+            new SessionMask(m1.m_mask & m2.m_mask);
 
-        public static SessionMask operator ^(SessionMask m1, SessionMask m2)
-        {
-            return new SessionMask(m1.m_mask ^ m2.m_mask);
-        }
+        public static SessionMask operator ^(SessionMask m1, SessionMask m2) =>
+            new SessionMask(m1.m_mask ^ m2.m_mask);
 
-        public static SessionMask operator ~(SessionMask m)
-        {
-            return new SessionMask(MASK & ~(m.m_mask));
-        }
+        public static SessionMask operator ~(SessionMask m) =>
+            new SessionMask(MASK & ~(m.m_mask));
 
-        public static explicit operator ulong(SessionMask m)
-        { return m.m_mask; }
+        public static explicit operator ulong(SessionMask m) => m.m_mask;
 
-        public static explicit operator uint(SessionMask m)
-        { return m.m_mask; }
+        public static explicit operator uint(SessionMask m) => m.m_mask;
 
         private uint m_mask;
 
@@ -5339,14 +5198,14 @@ namespace System.Diagnostics.Tracing
     /// <summary>
     /// code:EventDispatchers are a simple 'helper' structure that holds the filtering state
     /// (m_EventEnabled) for a particular EventSource X EventListener tuple
-    /// 
-    /// Thus a single EventListener may have many EventDispatchers (one for every EventSource 
+    ///
+    /// Thus a single EventListener may have many EventDispatchers (one for every EventSource
     /// that EventListener has activate) and a Single EventSource may also have many
-    /// event Dispatchers (one for every EventListener that has activated it). 
-    /// 
-    /// Logically a particular EventDispatcher belongs to exactly one EventSource and exactly  
+    /// event Dispatchers (one for every EventListener that has activated it).
+    ///
+    /// Logically a particular EventDispatcher belongs to exactly one EventSource and exactly
     /// one EventListener (although EventDispatcher does not 'remember' the EventSource it is
-    /// associated with. 
+    /// associated with.
     /// </summary>
     internal class EventDispatcher
     {
@@ -5358,12 +5217,12 @@ namespace System.Diagnostics.Tracing
         }
 
         // Instance fields
-        readonly internal EventListener m_Listener;   // The dispatcher this entry is for
+        internal readonly EventListener m_Listener;   // The dispatcher this entry is for
         internal bool[]? m_EventEnabled;              // For every event in a the eventSource, is it enabled?
 
         // Only guaranteed to exist after a InsureInit()
         internal EventDispatcher? m_Next;              // These form a linked list in code:EventSource.m_Dispatchers
-        // Of all listeners for that eventSource.  
+        // Of all listeners for that eventSource.
     }
 
     /// <summary>
@@ -5400,13 +5259,13 @@ namespace System.Diagnostics.Tracing
 
     /// <summary>
     /// ManifestBuilder is designed to isolate the details of the message of the event from the
-    /// rest of EventSource.  This one happens to create XML. 
+    /// rest of EventSource.  This one happens to create XML.
     /// </summary>
     internal class ManifestBuilder
     {
         /// <summary>
         /// Build a manifest for 'providerName' with the given GUID, which will be packaged into 'dllName'.
-        /// 'resources, is a resource manager.  If specified all messages are localized using that manager.  
+        /// 'resources, is a resource manager.  If specified all messages are localized using that manager.
         /// </summary>
         public ManifestBuilder(string providerName, Guid providerGuid, string? dllName, ResourceManager? resources,
                                EventManifestOptions flags)
@@ -5433,9 +5292,9 @@ namespace System.Diagnostics.Tracing
             if (dllName != null)
                 sb.Append("\" resourceFileName=\"").Append(dllName).Append("\" messageFileName=\"").Append(dllName);
 
-            var symbolsName = providerName.Replace("-", "").Replace('.', '_');  // Period and - are illegal replace them.
+            string symbolsName = providerName.Replace("-", "").Replace('.', '_');  // Period and - are illegal replace them.
             sb.Append("\" symbol=\"").Append(symbolsName);
-            sb.Append("\">").AppendLine();
+            sb.AppendLine("\">");
         }
 
         public void AddOpcode(string name, int value)
@@ -5452,8 +5311,10 @@ namespace System.Diagnostics.Tracing
                     ManifestError(SR.Format(SR.EventSource_OpcodeCollision, name, prevName, value));
                 }
             }
+
             opcodeTab[value] = name;
         }
+
         public void AddTask(string name, int value)
         {
             if ((flags & EventManifestOptions.Strict) != 0)
@@ -5468,10 +5329,11 @@ namespace System.Diagnostics.Tracing
                     ManifestError(SR.Format(SR.EventSource_TaskCollision, name, prevName, value));
                 }
             }
-            if (taskTab == null)
-                taskTab = new Dictionary<int, string>();
+
+            taskTab ??= new Dictionary<int, string>();
             taskTab[value] = name;
         }
+
         public void AddKeyword(string name, ulong value)
         {
             if ((value & (value - 1)) != 0)   // Is it a power of 2?
@@ -5490,8 +5352,8 @@ namespace System.Diagnostics.Tracing
                     ManifestError(SR.Format(SR.EventSource_KeywordCollision, name, prevName, "0x" + value.ToString("x", CultureInfo.CurrentCulture)));
                 }
             }
-            if (keywordTab == null)
-                keywordTab = new Dictionary<ulong, string>();
+
+            keywordTab ??= new Dictionary<ulong, string>();
             keywordTab[value] = name;
         }
 
@@ -5517,19 +5379,19 @@ namespace System.Diagnostics.Tracing
 
             ulong kwd = GetChannelKeyword(chValue);
 
-            if (channelTab == null)
-                channelTab = new Dictionary<int, ChannelInfo>(4);
+            channelTab ??= new Dictionary<int, ChannelInfo>(4);
             channelTab[value] = new ChannelInfo { Name = name, Keywords = kwd, Attribs = channelAttribute };
         }
 
-        private EventChannelType EventChannelToChannelType(EventChannel channel)
+        private static EventChannelType EventChannelToChannelType(EventChannel channel)
         {
 #if !ES_BUILD_STANDALONE
             Debug.Assert(channel >= EventChannel.Admin && channel <= EventChannel.Debug);
 #endif
             return (EventChannelType)((int)channel - (int)EventChannel.Admin + (int)EventChannelType.Admin);
         }
-        private EventChannelAttribute GetDefaultChannelAttribute(EventChannel channel)
+
+        private static EventChannelAttribute GetDefaultChannelAttribute(EventChannel channel)
         {
             EventChannelAttribute attrib = new EventChannelAttribute();
             attrib.EventChannelType = EventChannelToChannelType(channel);
@@ -5542,13 +5404,13 @@ namespace System.Diagnostics.Tracing
         {
             if (this.channelTab == null)
             {
-                return new ulong[0];
+                return Array.Empty<ulong>();
             }
 
             // We create an array indexed by the channel id for fast look up.
             // E.g. channelMask[Admin] will give you the bit mask for Admin channel.
             int maxkey = -1;
-            foreach (var item in this.channelTab.Keys)
+            foreach (int item in this.channelTab.Keys)
             {
                 if (item > maxkey)
                 {
@@ -5557,7 +5419,7 @@ namespace System.Diagnostics.Tracing
             }
 
             ulong[] channelMask = new ulong[maxkey + 1];
-            foreach (var item in this.channelTab)
+            foreach (KeyValuePair<int, ChannelInfo> item in this.channelTab)
             {
                 channelMask[item.Key] = item.Value.Keywords;
             }
@@ -5580,8 +5442,8 @@ namespace System.Diagnostics.Tracing
                  Append(" level=\"").Append(GetLevelName(eventAttribute.Level)).Append("\"").
                  Append(" symbol=\"").Append(eventName).Append("\"");
 
-            // at this point we add to the manifest's stringTab a message that is as-of-yet 
-            // "untranslated to manifest convention", b/c we don't have the number or position 
+            // at this point we add to the manifest's stringTab a message that is as-of-yet
+            // "untranslated to manifest convention", b/c we don't have the number or position
             // of any byte[] args (which require string format index updates)
             WriteMessageAttrib(events, "event", eventName, eventAttribute.Message);
 
@@ -5602,18 +5464,17 @@ namespace System.Diagnostics.Tracing
         public void AddEventParameter(Type type, string name)
         {
             if (numParams == 0)
-                templates.Append("  <template tid=\"").Append(eventName).Append("Args\">").AppendLine();
+                templates.Append("  <template tid=\"").Append(eventName).AppendLine("Args\">");
             if (type == typeof(byte[]))
             {
                 // mark this index as "extraneous" (it has no parallel in the managed signature)
                 // we use these values in TranslateToManifestConvention()
-                if (byteArrArgIndices == null)
-                    byteArrArgIndices = new List<int>(4);
+                byteArrArgIndices ??= new List<int>(4);
                 byteArrArgIndices.Add(numParams);
 
                 // add an extra field to the template representing the length of the binary blob
                 numParams++;
-                templates.Append("   <data name=\"").Append(name).Append("Size\" inType=\"win:UInt32\"/>").AppendLine();
+                templates.Append("   <data name=\"").Append(name).AppendLine("Size\" inType=\"win:UInt32\"/>");
             }
             numParams++;
             templates.Append("   <data name=\"").Append(name).Append("\" inType=\"").Append(GetTypeName(type)).Append("\"");
@@ -5628,13 +5489,12 @@ namespace System.Diagnostics.Tracing
             if (type.IsEnum() && Enum.GetUnderlyingType(type) != typeof(ulong) && Enum.GetUnderlyingType(type) != typeof(long))
             {
                 templates.Append(" map=\"").Append(type.Name).Append("\"");
-                if (mapsTab == null)
-                    mapsTab = new Dictionary<string, Type>();
+                mapsTab ??= new Dictionary<string, Type>();
                 if (!mapsTab.ContainsKey(type.Name))
-                    mapsTab.Add(type.Name, type);        // Remember that we need to dump the type enumeration  
+                    mapsTab.Add(type.Name, type);        // Remember that we need to dump the type enumeration
             }
 
-            templates.Append("/>").AppendLine();
+            templates.AppendLine("/>");
         }
         public void EndEvent()
         {
@@ -5642,10 +5502,10 @@ namespace System.Diagnostics.Tracing
 
             if (numParams > 0)
             {
-                templates.Append("  </template>").AppendLine();
+                templates.AppendLine("  </template>");
                 events.Append(" template=\"").Append(eventName).Append("Args\"");
             }
-            events.Append("/>").AppendLine();
+            events.AppendLine("/>");
 
             if (byteArrArgIndices != null)
                 perEventByteArrayArgIndices[eventName] = byteArrArgIndices;
@@ -5666,22 +5526,19 @@ namespace System.Diagnostics.Tracing
 #if FEATURE_MANAGED_ETW_CHANNELS
         // Channel keywords are generated one per channel to allow channel based filtering in event viewer. These keywords are autogenerated
         // by mc.exe for compiling a manifest and are based on the order of the channels (fields) in the Channels inner class (when advanced
-        // channel support is enabled), or based on the order the predefined channels appear in the EventAttribute properties (for simple 
+        // channel support is enabled), or based on the order the predefined channels appear in the EventAttribute properties (for simple
         // support). The manifest generated *MUST* have the channels specified in the same order (that's how our computed keywords are mapped
         // to channels by the OS infrastructure).
-        // If channelKeyworkds is present, and has keywords bits in the ValidPredefinedChannelKeywords then it is 
-        // assumed that the keyword for that channel should be that bit.   
-        // otherwise we allocate a channel bit for the channel.  
-        // explicit channel bits are only used by WCF to mimic an existing manifest, 
-        // so we don't dont do error checking.  
+        // If channelKeyworkds is present, and has keywords bits in the ValidPredefinedChannelKeywords then it is
+        // assumed that the keyword for that channel should be that bit.
+        // otherwise we allocate a channel bit for the channel.
+        // explicit channel bits are only used by WCF to mimic an existing manifest,
+        // so we don't dont do error checking.
         public ulong GetChannelKeyword(EventChannel channel, ulong channelKeyword = 0)
         {
-            // strip off any non-channel keywords, since we are only interested in channels here.  
+            // strip off any non-channel keywords, since we are only interested in channels here.
             channelKeyword &= ValidPredefinedChannelKeywords;
-            if (channelTab == null)
-            {
-                channelTab = new Dictionary<int, ChannelInfo>(4);
-            }
+            channelTab ??= new Dictionary<int, ChannelInfo>(4);
 
             if (channelTab.Count == MaxCountChannels)
                 ManifestError(SR.EventSource_MaxChannelExceeded);
@@ -5689,7 +5546,7 @@ namespace System.Diagnostics.Tracing
             ChannelInfo? info;
             if (!channelTab.TryGetValue((int)channel, out info))
             {
-                // If we were not given an explicit channel, allocate one.  
+                // If we were not given an explicit channel, allocate one.
                 if (channelKeyword != 0)
                 {
                     channelKeyword = nextChannelKeywordBit;
@@ -5711,7 +5568,7 @@ namespace System.Diagnostics.Tracing
             return Encoding.UTF8.GetBytes(str);
         }
 
-        public IList<string> Errors { get { return errors; } }
+        public IList<string> Errors => errors;
 
         /// <summary>
         /// When validating an event source it adds the error to the error collection.
@@ -5730,22 +5587,21 @@ namespace System.Diagnostics.Tracing
 
         private string CreateManifestString()
         {
-
 #if FEATURE_MANAGED_ETW_CHANNELS
             // Write out the channels
             if (channelTab != null)
             {
-                sb.Append(" <channels>").AppendLine();
+                sb.AppendLine(" <channels>");
                 var sortedChannels = new List<KeyValuePair<int, ChannelInfo>>();
                 foreach (KeyValuePair<int, ChannelInfo> p in channelTab) { sortedChannels.Add(p); }
                 sortedChannels.Sort((p1, p2) => -Comparer<ulong>.Default.Compare(p1.Value.Keywords, p2.Value.Keywords));
-                foreach (var kvpair in sortedChannels)
+                foreach (KeyValuePair<int, ChannelInfo> kvpair in sortedChannels)
                 {
                     int channel = kvpair.Key;
                     ChannelInfo channelInfo = kvpair.Value;
 
                     string? channelType = null;
-                    string elementName = "channel";
+                    const string ElementName = "channel";
                     bool enabled = false;
                     string? fullName = null;
 #if FEATURE_ADVANCED_MANAGED_ETW_CHANNELS
@@ -5754,7 +5610,7 @@ namespace System.Diagnostics.Tracing
 #endif
                     if (channelInfo.Attribs != null)
                     {
-                        var attribs = channelInfo.Attribs;
+                        EventChannelAttribute attribs = channelInfo.Attribs;
                         if (Enum.IsDefined(typeof(EventChannelType), attribs.EventChannelType))
                             channelType = attribs.EventChannelType.ToString();
                         enabled = attribs.Enabled;
@@ -5769,20 +5625,20 @@ namespace System.Diagnostics.Tracing
                         access = attribs.Access;
 #endif
                     }
-                    if (fullName == null)
-                        fullName = providerName + "/" + channelInfo.Name;
 
-                    sb.Append("  <").Append(elementName);
+                    fullName ??= providerName + "/" + channelInfo.Name;
+
+                    sb.Append("  <").Append(ElementName);
                     sb.Append(" chid=\"").Append(channelInfo.Name).Append("\"");
                     sb.Append(" name=\"").Append(fullName).Append("\"");
-                    if (elementName == "channel")   // not applicable to importChannels.
+                    if (ElementName == "channel")   // not applicable to importChannels.
                     {
                         Debug.Assert(channelInfo.Name != null);
                         WriteMessageAttrib(sb, "channel", channelInfo.Name, null);
                         sb.Append(" value=\"").Append(channel).Append("\"");
                         if (channelType != null)
                             sb.Append(" type=\"").Append(channelType).Append("\"");
-                        sb.Append(" enabled=\"").Append(enabled.ToString().ToLower()).Append("\"");
+                        sb.Append(" enabled=\"").Append(enabled ? "true" : "false").Append("\"");
 #if FEATURE_ADVANCED_MANAGED_ETW_CHANNELS
                         if (access != null)
                             sb.Append(" access=\"").Append(access).Append("\"");
@@ -5790,39 +5646,38 @@ namespace System.Diagnostics.Tracing
                             sb.Append(" isolation=\"").Append(isolation).Append("\"");
 #endif
                     }
-                    sb.Append("/>").AppendLine();
+                    sb.AppendLine("/>");
                 }
-                sb.Append(" </channels>").AppendLine();
+                sb.AppendLine(" </channels>");
             }
 #endif
 
             // Write out the tasks
             if (taskTab != null)
             {
-
-                sb.Append(" <tasks>").AppendLine();
+                sb.AppendLine(" <tasks>");
                 var sortedTasks = new List<int>(taskTab.Keys);
                 sortedTasks.Sort();
                 foreach (int task in sortedTasks)
                 {
                     sb.Append("  <task");
                     WriteNameAndMessageAttribs(sb, "task", taskTab[task]);
-                    sb.Append(" value=\"").Append(task).Append("\"/>").AppendLine();
+                    sb.Append(" value=\"").Append(task).AppendLine("\"/>");
                 }
-                sb.Append(" </tasks>").AppendLine();
+                sb.AppendLine(" </tasks>");
             }
 
             // Write out the maps
             if (mapsTab != null)
             {
-                sb.Append(" <maps>").AppendLine();
+                sb.AppendLine(" <maps>");
                 foreach (Type enumType in mapsTab.Values)
                 {
                     bool isbitmap = EventSource.GetCustomAttributeHelper(enumType, typeof(FlagsAttribute), flags) != null;
                     string mapKind = isbitmap ? "bitMap" : "valueMap";
-                    sb.Append("  <").Append(mapKind).Append(" name=\"").Append(enumType.Name).Append("\">").AppendLine();
+                    sb.Append("  <").Append(mapKind).Append(" name=\"").Append(enumType.Name).AppendLine("\">");
 
-                    // write out each enum value 
+                    // write out each enum value
                     FieldInfo[] staticFields = enumType.GetFields(BindingFlags.DeclaredOnly | BindingFlags.Public | BindingFlags.Static);
                     bool anyValuesWritten = false;
                     foreach (FieldInfo staticField in staticFields)
@@ -5833,114 +5688,107 @@ namespace System.Diagnostics.Tracing
                         {
                             ulong hexValue;
                             if (constantValObj is ulong)
-                                hexValue = (ulong)constantValObj;    // This is the only integer type that can't be represented by a long.  
-                            else 
-                                hexValue = (ulong) Convert.ToInt64(constantValObj); // Handles all integer types except ulong.  
+                                hexValue = (ulong)constantValObj;    // This is the only integer type that can't be represented by a long.
+                            else
+                                hexValue = (ulong)Convert.ToInt64(constantValObj); // Handles all integer types except ulong.
 
-                            // ETW requires all bitmap values to be powers of 2.  Skip the ones that are not. 
-                            // TODO: Warn people about the dropping of values. 
+                            // ETW requires all bitmap values to be powers of 2.  Skip the ones that are not.
+                            // TODO: Warn people about the dropping of values.
                             if (isbitmap && ((hexValue & (hexValue - 1)) != 0 || hexValue == 0))
                                 continue;
                             sb.Append("   <map value=\"0x").Append(hexValue.ToString("x", CultureInfo.InvariantCulture)).Append("\"");
                             WriteMessageAttrib(sb, "map", enumType.Name + "." + staticField.Name, staticField.Name);
-                            sb.Append("/>").AppendLine();
+                            sb.AppendLine("/>");
                             anyValuesWritten = true;
                         }
                     }
 
                     // the OS requires that bitmaps and valuemaps have at least one value or it reject the whole manifest.
-                    // To avoid that put a 'None' entry if there are no other values.  
+                    // To avoid that put a 'None' entry if there are no other values.
                     if (!anyValuesWritten)
                     {
                         sb.Append("   <map value=\"0x0\"");
-                        WriteMessageAttrib(sb, "map", enumType.Name + "." + "None", "None");
-                        sb.Append("/>").AppendLine();
+                        WriteMessageAttrib(sb, "map", enumType.Name + ".None", "None");
+                        sb.AppendLine("/>");
                     }
-                    sb.Append("  </").Append(mapKind).Append(">").AppendLine();
+                    sb.Append("  </").Append(mapKind).AppendLine(">");
                 }
-                sb.Append(" </maps>").AppendLine();
+                sb.AppendLine(" </maps>");
             }
 
             // Write out the opcodes
-            sb.Append(" <opcodes>").AppendLine();
+            sb.AppendLine(" <opcodes>");
             var sortedOpcodes = new List<int>(opcodeTab.Keys);
             sortedOpcodes.Sort();
             foreach (int opcode in sortedOpcodes)
             {
                 sb.Append("  <opcode");
                 WriteNameAndMessageAttribs(sb, "opcode", opcodeTab[opcode]);
-                sb.Append(" value=\"").Append(opcode).Append("\"/>").AppendLine();
+                sb.Append(" value=\"").Append(opcode).AppendLine("\"/>");
             }
-            sb.Append(" </opcodes>").AppendLine();
+            sb.AppendLine(" </opcodes>");
 
             // Write out the keywords
             if (keywordTab != null)
             {
-                sb.Append(" <keywords>").AppendLine();
+                sb.AppendLine(" <keywords>");
                 var sortedKeywords = new List<ulong>(keywordTab.Keys);
                 sortedKeywords.Sort();
                 foreach (ulong keyword in sortedKeywords)
                 {
                     sb.Append("  <keyword");
                     WriteNameAndMessageAttribs(sb, "keyword", keywordTab[keyword]);
-                    sb.Append(" mask=\"0x").Append(keyword.ToString("x", CultureInfo.InvariantCulture)).Append("\"/>").AppendLine();
+                    sb.Append(" mask=\"0x").Append(keyword.ToString("x", CultureInfo.InvariantCulture)).AppendLine("\"/>");
                 }
-                sb.Append(" </keywords>").AppendLine();
+                sb.AppendLine(" </keywords>");
             }
 
-            sb.Append(" <events>").AppendLine();
+            sb.AppendLine(" <events>");
             sb.Append(events);
-            sb.Append(" </events>").AppendLine();
+            sb.AppendLine(" </events>");
 
-            sb.Append(" <templates>").AppendLine();
+            sb.AppendLine(" <templates>");
             if (templates.Length > 0)
             {
                 sb.Append(templates);
             }
             else
             {
-                // Work around a cornercase ETW issue where a manifest with no templates causes 
+                // Work around a cornercase ETW issue where a manifest with no templates causes
                 // ETW events to not get sent to their associated channel.
-                sb.Append("    <template tid=\"_empty\"></template>").AppendLine();
+                sb.AppendLine("    <template tid=\"_empty\"></template>");
             }
-            sb.Append(" </templates>").AppendLine();
+            sb.AppendLine(" </templates>");
 
-            sb.Append("</provider>").AppendLine();
-            sb.Append("</events>").AppendLine();
-            sb.Append("</instrumentation>").AppendLine();
+            sb.AppendLine("</provider>");
+            sb.AppendLine("</events>");
+            sb.AppendLine("</instrumentation>");
 
-            // Output the localization information.  
-            sb.Append("<localization>").AppendLine();
+            // Output the localization information.
+            sb.AppendLine("<localization>");
 
-            List<CultureInfo>? cultures = null;
-            if (resources != null && (flags & EventManifestOptions.AllCultures) != 0)
-            {
-                cultures = GetSupportedCultures(resources);
-            }
-            else
-            {
-                cultures = new List<CultureInfo>();
-                cultures.Add(CultureInfo.CurrentUICulture);
-            }
+            List<CultureInfo> cultures = (resources != null && (flags & EventManifestOptions.AllCultures) != 0) ?
+                GetSupportedCultures() :
+                new List<CultureInfo>() { CultureInfo.CurrentUICulture };
 
             var sortedStrings = new string[stringTab.Keys.Count];
             stringTab.Keys.CopyTo(sortedStrings, 0);
             Array.Sort<string>(sortedStrings, 0, sortedStrings.Length);
 
-            foreach (var ci in cultures)
+            foreach (CultureInfo ci in cultures)
             {
-                sb.Append(" <resources culture=\"").Append(ci.Name).Append("\">").AppendLine();
-                sb.Append("  <stringTable>").AppendLine();
+                sb.Append(" <resources culture=\"").Append(ci.Name).AppendLine("\">");
+                sb.AppendLine("  <stringTable>");
 
-                foreach (var stringKey in sortedStrings)
+                foreach (string stringKey in sortedStrings)
                 {
                     string? val = GetLocalizedMessage(stringKey, ci, etwFormat: true);
-                    sb.Append("   <string id=\"").Append(stringKey).Append("\" value=\"").Append(val).Append("\"/>").AppendLine();
+                    sb.Append("   <string id=\"").Append(stringKey).Append("\" value=\"").Append(val).AppendLine("\"/>");
                 }
-                sb.Append("  </stringTable>").AppendLine();
-                sb.Append(" </resources>").AppendLine();
+                sb.AppendLine("  </stringTable>");
+                sb.AppendLine(" </resources>");
             }
-            sb.Append("</localization>").AppendLine();
+            sb.AppendLine("</localization>");
             sb.AppendLine("</instrumentationManifest>");
             return sb.ToString();
         }
@@ -5954,7 +5802,7 @@ namespace System.Diagnostics.Tracing
         private void WriteMessageAttrib(StringBuilder stringBuilder, string elementName, string name, string? value)
         {
             string key = elementName + "_" + name;
-            // See if the user wants things localized.  
+            // See if the user wants things localized.
             if (resources != null)
             {
                 // resource fallback: strings in the neutral culture will take precedence over inline strings
@@ -5986,7 +5834,7 @@ namespace System.Diagnostics.Tracing
                     value = localizedString;
                     if (etwFormat && key.StartsWith("event_", StringComparison.Ordinal))
                     {
-                        var evtName = key.Substring("event_".Length);
+                        string evtName = key.Substring("event_".Length);
                         value = TranslateToManifestConvention(value, evtName);
                     }
                 }
@@ -5999,12 +5847,11 @@ namespace System.Diagnostics.Tracing
 
         /// <summary>
         /// There's no API to enumerate all languages an assembly is localized into, so instead
-        /// we enumerate through all the "known" cultures and attempt to load a corresponding satellite 
+        /// we enumerate through all the "known" cultures and attempt to load a corresponding satellite
         /// assembly
         /// </summary>
-        /// <param name="resources"></param>
         /// <returns></returns>
-        private static List<CultureInfo> GetSupportedCultures(ResourceManager resources)
+        private static List<CultureInfo> GetSupportedCultures()
         {
             var cultures = new List<CultureInfo>();
 
@@ -6028,21 +5875,20 @@ namespace System.Diagnostics.Tracing
                     ManifestError(SR.Format(SR.EventSource_UndefinedChannel, channel, eventName));
 
                 // allow channels to be auto-defined.  The well known ones get their well known names, and the
-                // rest get names Channel<N>.  This allows users to modify the Manifest if they want more advanced features. 
-                if (channelTab == null)
-                    channelTab = new Dictionary<int, ChannelInfo>(4);
+                // rest get names Channel<N>.  This allows users to modify the Manifest if they want more advanced features.
+                channelTab ??= new Dictionary<int, ChannelInfo>(4);
 
-                string channelName = channel.ToString();        // For well know channels this is a nice name, otherwise a number 
+                string channelName = channel.ToString();        // For well know channels this is a nice name, otherwise a number
                 if (EventChannel.Debug < channel)
-                    channelName = "Channel" + channelName;      // Add a 'Channel' prefix for numbers.  
+                    channelName = "Channel" + channelName;      // Add a 'Channel' prefix for numbers.
 
                 AddChannel(channelName, (int)channel, GetDefaultChannelAttribute(channel));
                 if (!channelTab.TryGetValue((int)channel, out info))
                     ManifestError(SR.Format(SR.EventSource_UndefinedChannel, channel, eventName));
             }
             // events that specify admin channels *must* have non-null "Message" attributes
-            if (resources != null && eventMessage == null)
-                eventMessage = resources.GetString("event_" + eventName, CultureInfo.InvariantCulture);
+            if (resources != null)
+                eventMessage ??= resources.GetString("event_" + eventName, CultureInfo.InvariantCulture);
 
             Debug.Assert(info!.Attribs != null);
             if (info.Attribs.EventChannelType == EventChannelType.Admin && eventMessage == null)
@@ -6056,8 +5902,7 @@ namespace System.Diagnostics.Tracing
                 return "";
 
             string? ret;
-            if (taskTab == null)
-                taskTab = new Dictionary<int, string>();
+            taskTab ??= new Dictionary<int, string>();
             if (!taskTab.TryGetValue((int)task, out ret))
                 ret = taskTab[(int)task] = eventName;
             return ret;
@@ -6105,7 +5950,7 @@ namespace System.Diagnostics.Tracing
         {
 #if FEATURE_MANAGED_ETW_CHANNELS
             // ignore keywords associate with channels
-            // See ValidPredefinedChannelKeywords def for more. 
+            // See ValidPredefinedChannelKeywords def for more.
             keywords &= ~ValidPredefinedChannelKeywords;
 #endif
 
@@ -6128,8 +5973,8 @@ namespace System.Diagnostics.Tracing
                         keyword = string.Empty;
                     }
                     if (ret.Length != 0 && keyword.Length != 0)
-                        ret = ret + " ";
-                    ret = ret + keyword;
+                        ret += " ";
+                    ret += keyword;
                 }
             }
             return ret;
@@ -6140,8 +5985,8 @@ namespace System.Diagnostics.Tracing
             if (type.IsEnum())
             {
                 FieldInfo[] fields = type.GetFields(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
-                var typeName = GetTypeName(fields[0].FieldType);
-                return typeName.Replace("win:Int", "win:UInt"); // ETW requires enums to be unsigned.  
+                string typeName = GetTypeName(fields[0].FieldType);
+                return typeName.Replace("win:Int", "win:UInt"); // ETW requires enums to be unsigned.
             }
 
             switch (type.GetTypeCode())
@@ -6188,17 +6033,16 @@ namespace System.Diagnostics.Tracing
 
         private static void UpdateStringBuilder([NotNull] ref StringBuilder? stringBuilder, string eventMessage, int startIndex, int count)
         {
-            if (stringBuilder == null)
-                stringBuilder = new StringBuilder();
+            stringBuilder ??= new StringBuilder();
             stringBuilder.Append(eventMessage, startIndex, count);
         }
 
         private static readonly string[] s_escapes = { "&amp;", "&lt;", "&gt;", "&apos;", "&quot;", "%r", "%n", "%t" };
         // Manifest messages use %N conventions for their message substitutions.   Translate from
-        // .NET conventions.   We can't use RegEx for this (we are in mscorlib), so we do it 'by hand' 
+        // .NET conventions.   We can't use RegEx for this (we are in mscorlib), so we do it 'by hand'
         private string TranslateToManifestConvention(string eventMessage, string evtName)
         {
-            StringBuilder? stringBuilder = null;        // We lazily create this 
+            StringBuilder? stringBuilder = null;        // We lazily create this
             int writtenSoFar = 0;
             int chIdx = -1;
             for (int i = 0; ;)
@@ -6245,7 +6089,7 @@ namespace System.Diagnostics.Tracing
                         int manIndex = TranslateIndexToManifestConvention(argNum, evtName);
                         stringBuilder.Append('%').Append(manIndex);
                         // An '!' after the insert specifier {n} will be interpreted as a literal.
-                        // We'll escape it so that mc.exe does not attempt to consider it the 
+                        // We'll escape it so that mc.exe does not attempt to consider it the
                         // beginning of a format string.
                         if (i < eventMessage.Length && eventMessage[i] == '!')
                         {
@@ -6276,7 +6120,7 @@ namespace System.Diagnostics.Tracing
             List<int>? byteArrArgIndices;
             if (perEventByteArrayArgIndices.TryGetValue(evtName, out byteArrArgIndices))
             {
-                foreach (var byArrIdx in byteArrArgIndices)
+                foreach (int byArrIdx in byteArrArgIndices)
                 {
                     if (idx >= byArrIdx)
                         ++idx;
@@ -6288,7 +6132,7 @@ namespace System.Diagnostics.Tracing
         }
 
 #if FEATURE_MANAGED_ETW_CHANNELS
-        class ChannelInfo
+        private class ChannelInfo
         {
             public string? Name;
             public ulong Keywords;
@@ -6296,48 +6140,47 @@ namespace System.Diagnostics.Tracing
         }
 #endif
 
-        Dictionary<int, string> opcodeTab;
-        Dictionary<int, string>? taskTab;
+        private readonly Dictionary<int, string> opcodeTab;
+        private Dictionary<int, string>? taskTab;
 #if FEATURE_MANAGED_ETW_CHANNELS
-        Dictionary<int, ChannelInfo>? channelTab;
+        private Dictionary<int, ChannelInfo>? channelTab;
 #endif
-        Dictionary<ulong, string>? keywordTab;
-        Dictionary<string, Type>? mapsTab;
-
-        Dictionary<string, string> stringTab;       // Maps unlocalized strings to localized ones  
+        private Dictionary<ulong, string>? keywordTab;
+        private Dictionary<string, Type>? mapsTab;
+        private readonly Dictionary<string, string> stringTab;       // Maps unlocalized strings to localized ones
 
 #if FEATURE_MANAGED_ETW_CHANNELS
         // WCF used EventSource to mimic a existing ETW manifest.   To support this
-        // in just their case, we allowed them to specify the keywords associated 
-        // with their channels explicitly.   ValidPredefinedChannelKeywords is 
+        // in just their case, we allowed them to specify the keywords associated
+        // with their channels explicitly.   ValidPredefinedChannelKeywords is
         // this set of channel keywords that we allow to be explicitly set.  You
-        // can ignore these bits otherwise.  
+        // can ignore these bits otherwise.
         internal const ulong ValidPredefinedChannelKeywords = 0xF000000000000000;
-        ulong nextChannelKeywordBit = 0x8000000000000000;   // available Keyword bit to be used for next channel definition, grows down
-        const int MaxCountChannels = 8; // a manifest can defined at most 8 ETW channels
+        private ulong nextChannelKeywordBit = 0x8000000000000000;   // available Keyword bit to be used for next channel definition, grows down
+        private const int MaxCountChannels = 8; // a manifest can defined at most 8 ETW channels
 #endif
 
-        StringBuilder sb;               // Holds the provider information. 
-        StringBuilder events;           // Holds the events. 
-        StringBuilder templates;
+        private readonly StringBuilder sb;               // Holds the provider information.
+        private readonly StringBuilder events;           // Holds the events.
+        private readonly StringBuilder templates;
 
 #if FEATURE_MANAGED_ETW_CHANNELS
-        string providerName;
+        private readonly string providerName;
 #endif
-        ResourceManager? resources;      // Look up localized strings here.  
-        EventManifestOptions flags;
-        IList<string> errors;           // list of currently encountered errors
-        Dictionary<string, List<int>> perEventByteArrayArgIndices;  // "event_name" -> List_of_Indices_of_Byte[]_Arg
+        private readonly ResourceManager? resources;      // Look up localized strings here.
+        private readonly EventManifestOptions flags;
+        private readonly IList<string> errors;           // list of currently encountered errors
+        private readonly Dictionary<string, List<int>> perEventByteArrayArgIndices;  // "event_name" -> List_of_Indices_of_Byte[]_Arg
 
-        // State we track between StartEvent and EndEvent.  
-        string? eventName;               // Name of the event currently being processed. 
-        int numParams;                  // keeps track of the number of args the event has. 
-        List<int>? byteArrArgIndices;   // keeps track of the index of each byte[] argument
+        // State we track between StartEvent and EndEvent.
+        private string? eventName;               // Name of the event currently being processed.
+        private int numParams;                  // keeps track of the number of args the event has.
+        private List<int>? byteArrArgIndices;   // keeps track of the index of each byte[] argument
 #endregion
     }
 
     /// <summary>
-    /// Used to send the m_rawManifest into the event dispatcher as a series of events.  
+    /// Used to send the m_rawManifest into the event dispatcher as a series of events.
     /// </summary>
     internal struct ManifestEnvelope
     {
@@ -6355,7 +6198,7 @@ namespace System.Diagnostics.Tracing
         public ushort TotalChunks;
         public ushort ChunkNumber;
 #endif
-    };
+    }
 
 #endregion
 }

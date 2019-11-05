@@ -28,15 +28,13 @@
 
 #include "holder.h"
 
-#include "clrprivhosting.h"
+#include "clrprivbinding.h"
 
 #ifdef FEATURE_COMINTEROP
 #include "activation.h" // WinRT activation.
 #endif
 
 class DangerousNonHostedSpinLock;
-
-#define INVALID_STACK_BASE_MARKER_FOR_CHECK_STATE 2
 
 class AppDomain;
 class Assembly;
@@ -54,15 +52,6 @@ protected:
 
     // Starts the runtime. This is equivalent to CoInitializeCor()
     STDMETHODIMP Start();
-
-    STDMETHODIMP MapFile(                       // Return code.
-        HANDLE     hFile,                       // [in]  Handle for file
-        HMODULE   *hMapAddress                  // [out] HINSTANCE for mapped file
-        );
-
-    STDMETHODIMP LocksHeldByLogicalThread(      // Return code.
-        DWORD *pCount                           // [out] Number of locks that the current thread holds.
-        );
 
 protected:
     BOOL        m_Started;              // Has START been called?
@@ -86,26 +75,13 @@ public:
 
 };
 
-
-class ConnectionNameTable;
-typedef DPTR(class ConnectionNameTable) PTR_ConnectionNameTable;
-
 class CrstStatic;
-
-// Defines the precedence (in increading oder) of the two symbol reading knobs
-enum ESymbolReadingSetBy
-{
-    eSymbolReadingSetByDefault,
-    eSymbolReadingSetByConfig,  // EEConfig - config file, env var, etc.
-    eSymbolReadingSetByHost,    // Hosting API - highest precedence
-    eSymbolReadingSetBy_COUNT
-};
 
 class CorHost2 :
     public CorRuntimeHostBase
-#ifndef FEATURE_PAL    
+#ifndef FEATURE_PAL
     , public IPrivateManagedExceptionReporting /* This interface is for internal Watson testing only*/
-#endif // FEATURE_PAL    
+#endif // FEATURE_PAL
     , public ICLRRuntimeHost4
 {
     friend struct _DacGlobals;
@@ -126,10 +102,10 @@ public:
 
     // *** ICorRuntimeHost methods ***
 
-#ifndef FEATURE_PAL    
+#ifndef FEATURE_PAL
     // defined in IPrivateManagedExceptionReporting interface for internal Watson testing only
     STDMETHODIMP GetBucketParametersForCurrentException(BucketParameters *pParams);
-#endif // FEATURE_PAL    
+#endif // FEATURE_PAL
 
     // Starts the runtime. This is equivalent to CoInitializeCor().
     STDMETHODIMP Start();
@@ -139,25 +115,8 @@ public:
                                     FExecuteInAppDomainCallback pCallback,
                                     void * cookie);
 
-    STDMETHODIMP LocksHeldByLogicalThread(      // Return code.
-        DWORD *pCount                           // [out] Number of locks that the current thread holds.
-        )
-    {
-        WRAPPER_NO_CONTRACT;
-        return CorRuntimeHostBase::LocksHeldByLogicalThread(pCount);
-    }
-
     // Class factory hook-up.
     static HRESULT CreateObject(REFIID riid, void **ppUnk);
-
-    STDMETHODIMP MapFile(                       // Return code.
-        HANDLE     hFile,                       // [in]  Handle for file
-        HMODULE   *hMapAddress                  // [out] HINSTANCE for mapped file
-        )
-    {
-        WRAPPER_NO_CONTRACT;
-        return CorRuntimeHostBase::MapFile(hFile,hMapAddress);
-    }
 
     STDMETHODIMP STDMETHODCALLTYPE SetHostControl(
         IHostControl* pHostControl);
@@ -188,17 +147,17 @@ public:
     STDMETHODIMP CreateAppDomainWithManager(
         LPCWSTR wszFriendlyName,
         DWORD  dwSecurityFlags,
-        LPCWSTR wszAppDomainManagerAssemblyName, 
-        LPCWSTR wszAppDomainManagerTypeName, 
-        int nProperties, 
-        LPCWSTR* pPropertyNames, 
-        LPCWSTR* pPropertyValues, 
+        LPCWSTR wszAppDomainManagerAssemblyName,
+        LPCWSTR wszAppDomainManagerTypeName,
+        int nProperties,
+        LPCWSTR* pPropertyNames,
+        LPCWSTR* pPropertyValues,
         DWORD* pAppDomainID);
 
     STDMETHODIMP CreateDelegate(
         DWORD appDomainID,
-        LPCWSTR wszAssemblyName,     
-        LPCWSTR wszClassName,     
+        LPCWSTR wszAssemblyName,
+        LPCWSTR wszClassName,
         LPCWSTR wszMethodName,
         INT_PTR* fnPtr);
 
@@ -207,7 +166,7 @@ public:
     STDMETHODIMP RegisterMacEHPort();
     STDMETHODIMP SetStartupFlags(STARTUP_FLAGS flag);
     STDMETHODIMP DllGetActivationFactory(
-        DWORD appDomainID, 
+        DWORD appDomainID,
         LPCWSTR wszTypeName,
         IActivationFactory ** factory);
 
@@ -233,21 +192,21 @@ private:
     BOOL m_fStarted;
     BOOL m_fAppDomainCreated; // this flag is used when an appdomain can only create a single appdomain
 
-    // Helpers for both ICLRRuntimeHost2 and ICLRPrivRuntime
+    // Helpers for both ICLRRuntimeHost2
     HRESULT _CreateAppDomain(
         LPCWSTR wszFriendlyName,
         DWORD  dwFlags,
-        LPCWSTR wszAppDomainManagerAssemblyName, 
-        LPCWSTR wszAppDomainManagerTypeName, 
-        int nProperties, 
-        LPCWSTR* pPropertyNames, 
+        LPCWSTR wszAppDomainManagerAssemblyName,
+        LPCWSTR wszAppDomainManagerTypeName,
+        int nProperties,
+        LPCWSTR* pPropertyNames,
         LPCWSTR* pPropertyValues,
         DWORD* pAppDomainID);
 
     HRESULT _CreateDelegate(
         DWORD appDomainID,
-        LPCWSTR wszAssemblyName,     
-        LPCWSTR wszClassName,     
+        LPCWSTR wszAssemblyName,
+        LPCWSTR wszClassName,
         LPCWSTR wszMethodName,
         INT_PTR* fnPtr);
 
@@ -262,17 +221,11 @@ private:
 #ifdef FEATURE_COMINTEROP
 extern "C"
 HRESULT STDMETHODCALLTYPE DllGetActivationFactoryImpl(
-                                                      LPCWSTR wszAssemblyName, 
-                                                      LPCWSTR wszTypeName, 
+                                                      LPCWSTR wszAssemblyName,
+                                                      LPCWSTR wszTypeName,
                                                       LPCWSTR wszCodeBase,
                                                       IActivationFactory ** factory);
 
 #endif // defined(FEATURE_COMINTEROP)
 
-extern SIZE_T Host_SegmentSize;
-extern SIZE_T Host_MaxGen0Size;
-extern BOOL  Host_fSegmentSizeSet;
-extern BOOL  Host_fMaxGen0SizeSet;
-
-#define PARTIAL_TRUST_VISIBLE_ASSEMBLIES_PROPERTY W("PARTIAL_TRUST_VISIBLE_ASSEMBLIES")
 #endif // __CorHost__h__

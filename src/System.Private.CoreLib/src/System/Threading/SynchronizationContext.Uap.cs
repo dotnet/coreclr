@@ -59,7 +59,7 @@ namespace System.Threading
             if (createSynchronizationContextDelegate == null)
             {
                 Type factoryType = Type.GetType("System.Threading.WinRTSynchronizationContextFactory, System.Runtime.WindowsRuntime", throwOnError: true)!;
-                
+
                 // Create an instance delegate for the Create static method
                 MethodInfo createMethodInfo = factoryType.GetMethod("Create", BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public)!;
                 createSynchronizationContextDelegate = (Func<object, SynchronizationContext>)Delegate.CreateDelegate(typeof(Func<object, SynchronizationContext>), createMethodInfo);
@@ -70,7 +70,7 @@ namespace System.Threading
             return createSynchronizationContextDelegate(dispatcher);
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         [return: MarshalAs(UnmanagedType.Interface)]
         private static extern object? GetWinRTDispatcherForCurrentThread();
     }

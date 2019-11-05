@@ -14,6 +14,7 @@ if (CLR_CMAKE_PLATFORM_ARCH_I386)
     remove_definitions(-DFEATURE_SIMD)
     remove_definitions(-DFEATURE_HW_INTRINSICS)
     add_definitions(-D_TARGET_ARM_)
+    add_definitions(-DFEATURE_EH_FUNCLETS)
     set(JIT_ARCH_ALTJIT_SOURCES ${JIT_ARM_SOURCES})
     set(JIT_ARCH_LINK_LIBRARIES gcinfo_arm)
 elseif(CLR_CMAKE_PLATFORM_ARCH_AMD64)
@@ -46,6 +47,8 @@ add_library_clr(protononjit
    ${SHARED_LIB_SOURCES}
    ${JIT_ARCH_ALTJIT_SOURCES}
 )
+
+target_precompile_header(TARGET protononjit HEADER jitpch.h ADDITIONAL_INCLUDE_DIRECTORIES ${JIT_SOURCE_DIR})
 
 add_dependencies(protononjit jit_exports)
 

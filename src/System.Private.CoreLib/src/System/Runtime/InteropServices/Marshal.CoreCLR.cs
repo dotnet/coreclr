@@ -72,12 +72,11 @@ namespace System.Runtime.InteropServices
             return ReadValueSlow(ptr, ofs, (IntPtr nativeHome, int offset) => ReadInt64(nativeHome, offset));
         }
 
-        //====================================================================
-        // Read value from marshaled object (marshaled using AsAny)
-        // It's quite slow and can return back dangling pointers
-        // It's only there for backcompact
-        // People should instead use the IntPtr overloads
-        //====================================================================
+        /// <summary>Read value from marshaled object (marshaled using AsAny).</summary>
+        /// <remarks>
+        /// It's quite slow and can return back dangling pointers. It's only there for backcompat.
+        /// People should instead use the IntPtr overloads.
+        /// </remarks>
         private static unsafe T ReadValueSlow<T>(object ptr, int ofs, Func<IntPtr, int, T> readValueHelper)
         {
             // Consumers of this method are documented to throw AccessViolationException on any AV
@@ -86,9 +85,9 @@ namespace System.Runtime.InteropServices
                 throw new AccessViolationException();
             }
 
-            const int Flags = 
-                (int)AsAnyMarshaler.AsAnyFlags.In | 
-                (int)AsAnyMarshaler.AsAnyFlags.IsAnsi | 
+            const int Flags =
+                (int)AsAnyMarshaler.AsAnyFlags.In |
+                (int)AsAnyMarshaler.AsAnyFlags.IsAnsi |
                 (int)AsAnyMarshaler.AsAnyFlags.IsBestFit;
 
             MngdNativeArrayMarshaler.MarshalerState nativeArrayMarshalerState = new MngdNativeArrayMarshaler.MarshalerState();
@@ -140,10 +139,10 @@ namespace System.Runtime.InteropServices
                 throw new AccessViolationException();
             }
 
-            const int Flags = 
-                (int)AsAnyMarshaler.AsAnyFlags.In | 
-                (int)AsAnyMarshaler.AsAnyFlags.Out | 
-                (int)AsAnyMarshaler.AsAnyFlags.IsAnsi | 
+            const int Flags =
+                (int)AsAnyMarshaler.AsAnyFlags.In |
+                (int)AsAnyMarshaler.AsAnyFlags.Out |
+                (int)AsAnyMarshaler.AsAnyFlags.IsAnsi |
                 (int)AsAnyMarshaler.AsAnyFlags.IsBestFit;
 
             MngdNativeArrayMarshaler.MarshalerState nativeArrayMarshalerState = new MngdNativeArrayMarshaler.MarshalerState();
@@ -180,21 +179,21 @@ namespace System.Runtime.InteropServices
             GC.KeepAlive(rmi);
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void InternalPrelink(RuntimeMethodHandleInternal m);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern /* struct _EXCEPTION_POINTERS* */ IntPtr GetExceptionPointers();
-        
+
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern int GetExceptionCode();
 
         /// <summary>
         /// Marshals data from a structure class to a native memory block. If the
         /// structure contains pointers to allocated blocks and "fDeleteOld" is
-        /// true, this routine will call DestroyStructure() first. 
+        /// true, this routine will call DestroyStructure() first.
         /// </summary>
-        [MethodImpl(MethodImplOptions.InternalCall), ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void StructureToPtr(object structure, IntPtr ptr, bool fDeleteOld);
 
         private static object PtrToStructureHelper(IntPtr ptr, Type structureType)
@@ -235,13 +234,13 @@ namespace System.Runtime.InteropServices
 
             if (m is RuntimeModule rtModule)
             {
-                return GetHINSTANCE(JitHelpers.GetQCallModuleOnStack(ref rtModule));
+                return GetHINSTANCE(new QCallModule(ref rtModule));
             }
 
             return (IntPtr)(-1);
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern IntPtr GetHINSTANCE(QCallModule m);
 
 #endif // FEATURE_COMINTEROP
@@ -252,8 +251,8 @@ namespace System.Runtime.InteropServices
 
         public static IntPtr AllocHGlobal(IntPtr cb)
         {
-            // For backwards compatibility on 32 bit platforms, ensure we pass values between 
-            // int.MaxValue and uint.MaxValue to Windows.  If the binary has had the 
+            // For backwards compatibility on 32 bit platforms, ensure we pass values between
+            // int.MaxValue and uint.MaxValue to Windows.  If the binary has had the
             // LARGEADDRESSAWARE bit set in the PE header, it may get 3 or 4 GB of user mode
             // address space.  It is remotely that those allocations could have succeeded,
             // though I couldn't reproduce that.  In either case, that means we should continue
@@ -276,7 +275,7 @@ namespace System.Runtime.InteropServices
 
         public static void FreeHGlobal(IntPtr hglobal)
         {
-            if (!IsWin32Atom(hglobal))
+            if (!IsNullOrWin32Atom(hglobal))
             {
                 if (IntPtr.Zero != Interop.Kernel32.LocalFree(hglobal))
                 {
@@ -420,7 +419,7 @@ namespace System.Runtime.InteropServices
 
         public static void FreeCoTaskMem(IntPtr ptr)
         {
-            if (!IsWin32Atom(ptr))
+            if (!IsNullOrWin32Atom(ptr))
             {
                 Interop.Ole32.CoTaskMemFree(ptr);
             }
@@ -449,7 +448,7 @@ namespace System.Runtime.InteropServices
 
         public static void FreeBSTR(IntPtr ptr)
         {
-            if (!IsWin32Atom(ptr))
+            if (!IsNullOrWin32Atom(ptr))
             {
                 Interop.OleAut32.SysFreeString(ptr);
             }
@@ -460,12 +459,6 @@ namespace System.Runtime.InteropServices
             if (s is null)
             {
                 return IntPtr.Zero;
-            }
-
-            // Overflow checking
-            if (s.Length + 1 < s.Length)
-            {
-                throw new ArgumentOutOfRangeException(nameof(s));
             }
 
             IntPtr bstr = Interop.OleAut32.SysAllocStringLen(s, s.Length);
@@ -479,7 +472,12 @@ namespace System.Runtime.InteropServices
 
         public static string PtrToStringBSTR(IntPtr ptr)
         {
-            return PtrToStringUni(ptr, (int)Interop.OleAut32.SysStringLen(ptr));
+            if (ptr == IntPtr.Zero)
+            {
+                throw new ArgumentNullException(nameof(ptr));
+            }
+
+            return PtrToStringUni(ptr, (int)(SysStringByteLen(ptr) / sizeof(char)));
         }
 
 #if FEATURE_COMINTEROP
@@ -652,7 +650,7 @@ namespace System.Runtime.InteropServices
         /// <summary>
         /// check if the type is visible from COM.
         /// </summary>
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern bool IsTypeVisibleFromCom(Type t);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
@@ -689,7 +687,7 @@ namespace System.Runtime.InteropServices
             object?[] objects = GetObjectsForNativeVariants(aSrcNativeVariant, cVars);
 
             T[] result = new T[objects.Length];
-            Array.Copy(objects, 0, result, 0, objects.Length);
+            Array.Copy(objects, result, objects.Length);
 
             return result;
         }

@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 // --------------------------------------------------------------------------------
 // PEImageLayout.h
-// 
+//
 
 // --------------------------------------------------------------------------------
 
@@ -37,7 +37,7 @@ public:
     // ------------------------------------------------------------
     // Public constants
     // ------------------------------------------------------------
-    enum 
+    enum
     {
         LAYOUT_MAPPED =1,
         LAYOUT_FLAT =2,
@@ -50,19 +50,18 @@ public:
 public:
 #ifndef DACCESS_COMPILE
     static PEImageLayout* CreateFlat(const void *flat, COUNT_T size,PEImage* pOwner);
-    static PEImageLayout* CreateFromStream(IStream* pIStream, PEImage* pOwner);
     static PEImageLayout* CreateFromHMODULE(HMODULE mappedbase,PEImage* pOwner, BOOL bTakeOwnership);
     static PEImageLayout* LoadFromFlat(PEImageLayout* pflatimage);
     static PEImageLayout* Load(PEImage* pOwner, BOOL bNTSafeLoad, BOOL bThrowOnError = TRUE);
-    static PEImageLayout* LoadFlat(HANDLE hFile, PEImage* pOwner);
-    static PEImageLayout* Map (HANDLE hFile, PEImage* pOwner);
-#endif    
+    static PEImageLayout* LoadFlat(PEImage* pOwner);
+    static PEImageLayout* Map(PEImage* pOwner);
+#endif
     PEImageLayout();
     virtual ~PEImageLayout();
     static void Startup();
     static CHECK CheckStartup();
     static BOOL CompareBase(UPTR path, UPTR mapping);
-    
+
     // Refcount above images.
     void AddRef();
     ULONG Release();
@@ -77,7 +76,7 @@ public:
 
 private:
     Volatile<LONG> m_refCount;
-public:    
+public:
     PEImage* m_pOwner;
     DWORD m_Layout;
 };
@@ -94,10 +93,10 @@ protected:
 #ifndef FEATURE_PAL
     HModuleHolder m_LibraryHolder;
 #endif // !FEATURE_PAL
-    
+
 public:
-    RawImageLayout(const void *flat, COUNT_T size,PEImage* pOwner);    
-    RawImageLayout(const void *mapped, PEImage* pOwner, BOOL bTakeOwnerShip, BOOL bFixedUp);    
+    RawImageLayout(const void *flat, COUNT_T size,PEImage* pOwner);
+    RawImageLayout(const void *mapped, PEImage* pOwner, BOOL bTakeOwnerShip, BOOL bFixedUp);
 };
 
 // ConvertedImageView is for the case when we manually layout a flat image
@@ -105,11 +104,11 @@ class ConvertedImageLayout: public PEImageLayout
 {
     VPTR_VTABLE_CLASS(ConvertedImageLayout,PEImageLayout)
 protected:
-    HandleHolder m_FileMap;  
+    HandleHolder m_FileMap;
     CLRMapViewHolder m_FileView;
 public:
-#ifndef DACCESS_COMPILE    
-    ConvertedImageLayout(PEImageLayout* source);    
+#ifndef DACCESS_COMPILE
+    ConvertedImageLayout(PEImageLayout* source);
 #endif
 };
 
@@ -125,8 +124,8 @@ protected:
     PALPEFileHolder m_LoadedFile;
 #endif
 public:
-#ifndef DACCESS_COMPILE    
-    MappedImageLayout(HANDLE hFile, PEImage* pOwner);    
+#ifndef DACCESS_COMPILE
+    MappedImageLayout(PEImage* pOwner);
 #endif
 };
 
@@ -137,7 +136,7 @@ class LoadedImageLayout: public PEImageLayout
 protected:
     HINSTANCE m_Module;
 public:
-#ifndef DACCESS_COMPILE    
+#ifndef DACCESS_COMPILE
     LoadedImageLayout(PEImage* pOwner, BOOL bNTSafeLoad, BOOL bThrowOnError);
     ~LoadedImageLayout()
     {
@@ -163,8 +162,8 @@ protected:
     HandleHolder m_FileMap;
     CLRMapViewHolder m_FileView;
 public:
-#ifndef DACCESS_COMPILE    
-    FlatImageLayout(HANDLE hFile, PEImage* pOwner);   
+#ifndef DACCESS_COMPILE
+    FlatImageLayout(PEImage* pOwner);
 #endif
 
 };

@@ -9,8 +9,6 @@
 #include "gcenv.h"
 #include "gc.h"
 
-MethodTable * g_pFreeObjectMethodTable;
-
 EEConfig * g_pConfig;
 
 bool CLREventStatic::CreateManualEventNoThrow(bool bInitialState)
@@ -179,19 +177,14 @@ bool GCToEEInterface::IsPreemptiveGCDisabled()
 
 bool GCToEEInterface::EnablePreemptiveGC()
 {
-    bool bToggleGC = false;
     Thread* pThread = ::GetThread();
-
-    if (pThread)
+    if (pThread && pThread->PreemptiveGCDisabled())
     {
-        bToggleGC = !!pThread->PreemptiveGCDisabled();
-        if (bToggleGC)
-        {
-            pThread->EnablePreemptiveGC();
-        }
+        pThread->EnablePreemptiveGC();
+        return true;
     }
 
-    return bToggleGC;
+    return false;
 }
 
 void GCToEEInterface::DisablePreemptiveGC()
@@ -320,7 +313,7 @@ static MethodTable freeObjectMT;
 
 MethodTable* GCToEEInterface::GetFreeObjectMethodTable()
 {
-    // 
+    //
     // Initialize free object methodtable. The GC uses a special array-like methodtable as placeholder
     // for collected free space.
     //
@@ -353,5 +346,5 @@ inline bool GCToEEInterface::AnalyzeSurvivorsRequested(int condemnedGeneration)
 
 inline void GCToEEInterface::AnalyzeSurvivorsFinished(int condemnedGeneration)
 {
-    
+
 }

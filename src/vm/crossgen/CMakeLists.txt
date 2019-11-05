@@ -1,5 +1,3 @@
-include(${CLR_DIR}/crossgen.cmake)
-
 set(VM_CROSSGEN_SOURCES
   ../appdomain.cpp
   ../array.cpp
@@ -7,6 +5,7 @@ set(VM_CROSSGEN_SOURCES
   ../assemblyspec.cpp
   ../baseassemblyspec.cpp
   ../binder.cpp
+  ../castcache.cpp
   ../ceeload.cpp
   ../ceemain.cpp
   ../class.cpp
@@ -66,7 +65,6 @@ set(VM_CROSSGEN_SOURCES
   ../peimagelayout.cpp
   ../pendingload.cpp
   ../precode.cpp
-  ../sha1.cpp
   ../sigformat.cpp
   ../siginfo.cpp
   ../simplerwlock.cpp
@@ -162,7 +160,6 @@ set(VM_CROSSGEN_HEADERS
   ../peimagelayout.inl
   ../pendingload.h
   ../precode.h
-  ../sha1.h
   ../sigformat.h
   ../siginfo.hpp
   ../simplerwlock.hpp
@@ -253,9 +250,6 @@ if (WIN32)
     ../winrttypenameconverter.h
   )
 
-  add_precompiled_header(common.h ../common.cpp VM_CROSSGEN_SOURCES)
-  # mscorlib.cpp does not compile with precompiled header file
-  set_source_files_properties(../mscorlib.cpp PROPERTIES COMPILE_FLAGS "/Y-")
   list(APPEND VM_CROSSGEN_SOURCES ${VM_CROSSGEN_HEADERS})
 endif (WIN32)
 
@@ -268,3 +262,21 @@ endif (CLR_CMAKE_PLATFORM_LINUX)
 
 add_library_clr(cee_crossgen ${VM_CROSSGEN_SOURCES})
 add_dependencies(cee_crossgen eventing_headers)
+set_target_properties(cee_crossgen PROPERTIES CROSSGEN_COMPONENT TRUE)
+target_precompile_header(TARGET cee_crossgen HEADER common.h)
+if (MSVC)
+  # mscorlib.cpp does not compile with precompiled header file
+  set_source_files_properties(../mscorlib.cpp PROPERTIES COMPILE_FLAGS "/Y-")
+endif()
+
+add_library_clr(mscorlib_crossgen ../mscorlib.cpp)
+add_dependencies(mscorlib_crossgen eventing_headers)
+target_compile_definitions(mscorlib_crossgen
+    PRIVATE
+        EnC_SUPPORTED
+        FEATURE_EVENT_TRACE
+        FEATURE_MULTICOREJIT
+        CROSSGEN_MSCORLIB)
+
+set_target_properties(mscorlib_crossgen PROPERTIES CROSSGEN_COMPONENT TRUE)
+

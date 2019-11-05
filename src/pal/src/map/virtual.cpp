@@ -853,6 +853,11 @@ static LPVOID VIRTUALResetMemory(
     if (st == 0)
     {
         pRetVal = lpAddress;
+
+#ifdef MADV_DONTDUMP
+        // Do not include reset memory in coredump.
+        madvise((LPVOID)StartBoundary, MemSize, MADV_DONTDUMP);
+#endif
     }
 
     LogVaOperation(
@@ -916,6 +921,10 @@ static LPVOID VIRTUALReserveMemory(
     if (pRetVal == NULL)
     {
         // Try to reserve memory from the OS
+        if ((flProtect & 0xff) == PAGE_EXECUTE_READWRITE)
+        {
+             flAllocationType |= MEM_RESERVE_EXECUTABLE;
+        }
         pRetVal = ReserveVirtualMemory(pthrCurrent, (LPVOID)StartBoundary, MemSize, flAllocationType);
     }
 
@@ -969,24 +978,7 @@ static LPVOID ReserveVirtualMemory(
 
     // Most platforms will only commit memory if it is dirtied,
     // so this should not consume too much swap space.
-    int mmapFlags = 0;
-
-#if HAVE_VM_ALLOCATE
-    // Allocate with vm_allocate first, then map at the fixed address.
-    int result = vm_allocate(mach_task_self(),
-                             &StartBoundary,
-                             MemSize,
-                             ((LPVOID) StartBoundary != nullptr) ? FALSE : TRUE);
-
-    if (result != KERN_SUCCESS)
-    {
-        ERROR("vm_allocate failed to allocated the requested region!\n");
-        pthrCurrent->SetLastError(ERROR_INVALID_ADDRESS);
-        return nullptr;
-    }
-
-    mmapFlags |= MAP_FIXED;
-#endif // HAVE_VM_ALLOCATE
+    int mmapFlags = MAP_ANON | MAP_PRIVATE;
 
     if ((fAllocationType & MEM_LARGE_PAGES) != 0)
     {
@@ -1001,7 +993,12 @@ static LPVOID ReserveVirtualMemory(
 #endif
     }
 
-    mmapFlags |= MAP_ANON | MAP_PRIVATE;
+#ifdef __APPLE__
+    if ((fAllocationType & MEM_RESERVE_EXECUTABLE) && IsRunningOnMojaveHardenedRuntime())
+    {
+        mmapFlags |= MAP_JIT;
+    }
+#endif
 
     LPVOID pRetVal = mmap((LPVOID) StartBoundary,
                           MemSize,
@@ -1013,10 +1010,6 @@ static LPVOID ReserveVirtualMemory(
     if (pRetVal == MAP_FAILED)
     {
         ERROR( "Failed due to insufficient memory.\n" );
-
-#if HAVE_VM_ALLOCATE
-        vm_deallocate(mach_task_self(), StartBoundary, MemSize);
-#endif // HAVE_VM_ALLOCATE
 
         pthrCurrent->SetLastError(ERROR_NOT_ENOUGH_MEMORY);
         return nullptr;
@@ -1040,6 +1033,11 @@ static LPVOID ReserveVirtualMemory(
         return nullptr;
     }
 #endif  // MMAP_ANON_IGNORES_PROTECTION
+
+#ifdef MADV_DONTDUMP
+    // Do not include reserved memory in coredump.
+    madvise(pRetVal, MemSize, MADV_DONTDUMP);
+#endif
 
     return pRetVal;
 }
@@ -1183,6 +1181,11 @@ VIRTUALCommitMemory(
                 ERROR("mprotect() failed! Error(%d)=%s\n", errno, strerror(errno));
                 goto error;
             }
+
+#ifdef MADV_DODUMP
+            // Include committed memory in coredump.
+            madvise((void *) StartBoundary, MemSize, MADV_DODUMP);
+#endif
 
             VIRTUALSetAllocState(MEM_COMMIT, runStart, runLength, pInformation);
 
@@ -1541,6 +1544,11 @@ VirtualFree(
             }
 #endif  // MMAP_ANON_IGNORES_PROTECTION
 
+#ifdef MADV_DONTDUMP
+            // Do not include freed memory in coredump.
+            madvise((LPVOID) StartBoundary, MemSize, MADV_DONTDUMP);
+#endif
+
             SIZE_T index = 0;
             SIZE_T nNumOfPagesToChange = 0;
 
@@ -1721,6 +1729,13 @@ VirtualProtect(
         {
             *lpflOldProtect = PAGE_EXECUTE_READWRITE;
         }
+
+#ifdef MADV_DONTDUMP
+        // Include or exclude memory from coredump based on the protection.
+        int advise = flNewProtect == PAGE_NOACCESS ? MADV_DONTDUMP : MADV_DODUMP;
+        madvise((LPVOID)StartBoundary, MemSize, advise);
+#endif
+
         bRetVal = TRUE;
     }
     else
@@ -2160,7 +2175,7 @@ void ExecutableMemoryAllocator::TryReserveInitialMemory()
     // Do actual memory reservation.
     do
     {
-        m_startAddress = ReserveVirtualMemory(pthrCurrent, (void*)preferredStartAddress, sizeOfAllocation, 0 /* fAllocationType */);
+        m_startAddress = ReserveVirtualMemory(pthrCurrent, (void*)preferredStartAddress, sizeOfAllocation, MEM_RESERVE_EXECUTABLE);
         if (m_startAddress != nullptr)
         {
             break;
@@ -2190,7 +2205,7 @@ void ExecutableMemoryAllocator::TryReserveInitialMemory()
         //   - The code heap allocator for the JIT can allocate from this address space. Beyond this reservation, one can use
         //     the COMPlus_CodeHeapReserveForJumpStubs environment variable to reserve space for jump stubs.
         sizeOfAllocation = MaxExecutableMemorySize;
-        m_startAddress = ReserveVirtualMemory(pthrCurrent, nullptr, sizeOfAllocation, 0 /* fAllocationType */);
+        m_startAddress = ReserveVirtualMemory(pthrCurrent, nullptr, sizeOfAllocation, MEM_RESERVE_EXECUTABLE);
         if (m_startAddress == nullptr)
         {
             return;

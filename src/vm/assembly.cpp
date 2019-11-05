@@ -190,22 +190,6 @@ void Assembly::Init(AllocMemTracker *pamTracker, LoaderAllocator *pLoaderAllocat
     if (!m_pManifest->IsReadyToRun())
         CacheManifestExportedTypes(pamTracker);
 
-
-    // Check for the assemblies that contain SIMD Vector types.
-    // If we encounter a non-trusted assembly with these names, we will simply not recognize any of its
-    // methods as intrinsics.
-    LPCUTF8 assemblyName = GetSimpleName();
-    const int length = sizeof("System.Numerics") - 1;
-    if ((strncmp(assemblyName, "System.Numerics", length) == 0) &&
-        ((assemblyName[length] == '\0') || (strcmp(assemblyName+length, ".Vectors") == 0)))
-    {
-        m_fIsSIMDVectorAssembly = true;
-    }
-    else
-    {
-        m_fIsSIMDVectorAssembly = false;
-    }
-
     // We'll load the friend assembly information lazily.  For the ngen case we should avoid
     //  loading it entirely.
     //CacheFriendAssemblyInfo();
@@ -296,7 +280,7 @@ void Assembly::DeleteNativeCodeRanges()
     CONTRACTL_END
 
     ModuleIterator i = IterateModules();
-    while (i.Next()) 
+    while (i.Next())
             i.GetModule()->DeleteNativeCodeRanges();
 }
 #endif
@@ -362,7 +346,7 @@ void Assembly::Terminate( BOOL signalProfiler )
     if (CORProfilerTrackAssemblyLoads())
     {
         ProfilerCallAssemblyUnloadFinished(this);
-    }    
+    }
 #endif // PROFILING_SUPPORTED
 
     this->m_fTerminated = TRUE;
@@ -370,11 +354,11 @@ void Assembly::Terminate( BOOL signalProfiler )
 #endif // CROSSGEN_COMPILE
 
 Assembly * Assembly::Create(
-    BaseDomain *                 pDomain, 
-    PEAssembly *                 pFile, 
-    DebuggerAssemblyControlFlags debuggerFlags, 
-    BOOL                         fIsCollectible, 
-    AllocMemTracker *            pamTracker, 
+    BaseDomain *                 pDomain,
+    PEAssembly *                 pFile,
+    DebuggerAssemblyControlFlags debuggerFlags,
+    BOOL                         fIsCollectible,
+    AllocMemTracker *            pamTracker,
     LoaderAllocator *            pLoaderAllocator)
 {
     STANDARD_VM_CONTRACT;
@@ -391,7 +375,7 @@ Assembly * Assembly::Create(
 
     // Need TRY/HOOK instead of holder so we can get HR of exception thrown for profiler callback
     EX_TRY
-#endif    
+#endif
     {
         pAssembly->Init(pamTracker, pLoaderAllocator);
     }
@@ -409,7 +393,7 @@ Assembly * Assembly::Create(
     EX_END_HOOK;
 #endif
     pAssembly.SuppressRelease();
-    
+
     return pAssembly;
 } // Assembly::Create
 
@@ -427,7 +411,7 @@ Assembly *Assembly::CreateDynamic(AppDomain *pDomain, CreateDynamicAssemblyArgs 
         PRECONDITION(CheckPointer(args));
     }
     CONTRACT_END;
-    
+
     // This must be before creation of the AllocMemTracker so that the destructor for the AllocMemTracker happens before the destructor for pLoaderAllocator.
     // That is necessary as the allocation of Assembly objects and other related details is done on top of heaps located in
     // the loader allocator objects.
@@ -435,9 +419,9 @@ Assembly *Assembly::CreateDynamic(AppDomain *pDomain, CreateDynamicAssemblyArgs 
 
     AllocMemTracker amTracker;
     AllocMemTracker *pamTracker = &amTracker;
-    
+
     Assembly *pRetVal = NULL;
-    
+
     AppDomain  *pCallersDomain;
     MethodDesc *pmdEmitter = SystemDomain::GetCallersMethod(args->stackMark, &pCallersDomain);
 
@@ -447,22 +431,22 @@ Assembly *Assembly::CreateDynamic(AppDomain *pDomain, CreateDynamicAssemblyArgs 
         COMPlusThrow(kInvalidOperationException);
 
     Assembly   *pCallerAssembly = pmdEmitter->GetAssembly();
-    
+
     // First, we set up a pseudo-manifest file for the assembly.
-    
+
     // Set up the assembly name
-    
+
     STRINGREF strRefName = (STRINGREF) args->assemblyName->GetSimpleName();
-    
+
     if (strRefName == NULL)
         COMPlusThrow(kArgumentException, W("ArgumentNull_AssemblyNameName"));
-    
+
     StackSString name;
     strRefName->GetSString(name);
-    
+
     if (name.GetCount() == 0)
         COMPlusThrow(kArgumentException, W("ArgumentNull_AssemblyNameName"));
-    
+
     SString::Iterator i = name.Begin();
     if (COMCharacter::nativeIsWhiteSpace(*i)
         || name.Find(i, '\\')
@@ -471,7 +455,7 @@ Assembly *Assembly::CreateDynamic(AppDomain *pDomain, CreateDynamicAssemblyArgs 
     {
         COMPlusThrow(kArgumentException, W("Argument_InvalidAssemblyName"));
     }
-    
+
     // Set up the assembly manifest metadata
     // When we create dynamic assembly, we always use a working copy of IMetaDataAssemblyEmit
     // to store temporary runtime assembly information. This is to preserve the invariant that
@@ -480,20 +464,20 @@ Assembly *Assembly::CreateDynamic(AppDomain *pDomain, CreateDynamicAssemblyArgs 
     // reference as we must have an instance of Assembly(can be dynamic assembly) before we can
     // add such a reference. Also because the referenced assembly if dynamic strong name, it may
     // not be ready to be hashed!
-    
+
     SafeComHolder<IMetaDataAssemblyEmit> pAssemblyEmit;
     PEFile::DefineEmitScope(
-        IID_IMetaDataAssemblyEmit, 
+        IID_IMetaDataAssemblyEmit,
         &pAssemblyEmit);
-    
+
     // remember the hash algorithm
     ULONG ulHashAlgId = args->assemblyName->GetAssemblyHashAlgorithm();
     if (ulHashAlgId == 0)
         ulHashAlgId = CALG_SHA1;
-    
+
     ASSEMBLYMETADATA assemData;
     memset(&assemData, 0, sizeof(assemData));
-    
+
     // get the version info (default to 0.0.0.0 if none)
     VERSIONREF versionRef = (VERSIONREF) args->assemblyName->GetVersion();
     if (versionRef != NULL)
@@ -503,7 +487,7 @@ Assembly *Assembly::CreateDynamic(AppDomain *pDomain, CreateDynamicAssemblyArgs 
         assemData.usBuildNumber = (USHORT)versionRef->GetBuild();
         assemData.usRevisionNumber = (USHORT)versionRef->GetRevision();
     }
-    
+
     struct _gc
     {
         OBJECTREF cultureinfo;
@@ -513,39 +497,39 @@ Assembly *Assembly::CreateDynamic(AppDomain *pDomain, CreateDynamicAssemblyArgs 
         OBJECTREF strongNameKeyPair;
     } gc;
     ZeroMemory(&gc, sizeof(gc));
-    
+
     GCPROTECT_BEGIN(gc);
-    
+
     StackSString culture;
-    
+
     gc.cultureinfo = args->assemblyName->GetCultureInfo();
     if (gc.cultureinfo != NULL)
     {
         MethodDescCallSite getName(METHOD__CULTURE_INFO__GET_NAME, &gc.cultureinfo);
-        
-        ARG_SLOT args2[] = 
+
+        ARG_SLOT args2[] =
         {
             ObjToArgSlot(gc.cultureinfo)
         };
-        
+
         // convert culture info into a managed string form
         gc.pString = getName.Call_RetSTRINGREF(args2);
         gc.pString->GetSString(culture);
-        
+
         assemData.szLocale = (LPWSTR) (LPCWSTR) culture;
     }
-    
+
     SBuffer publicKey;
     if (args->assemblyName->GetPublicKey() != NULL)
     {
         publicKey.Set(args->assemblyName->GetPublicKey()->GetDataPtr(),
                       args->assemblyName->GetPublicKey()->GetNumComponents());
     }
-    
+
 
     // get flags
     DWORD dwFlags = args->assemblyName->GetFlags();
-    
+
     // Now create a dynamic PE file out of the name & metadata
     PEAssemblyHolder pFile;
 
@@ -565,7 +549,7 @@ Assembly *Assembly::CreateDynamic(AppDomain *pDomain, CreateDynamicAssemblyArgs 
         // If the creator assembly has a HostAssembly associated with it, then use it for binding. Otherwise, the creator is dynamic
         // and will have a fallback load context binder associated with it.
         ICLRPrivBinder *pFallbackLoadContextBinder = nullptr;
-        
+
         // There is always a manifest file - wehther working with static or dynamic assemblies.
         PEFile *pCallerAssemblyManifestFile = pCallerAssembly->GetManifestFile();
         _ASSERTE(pCallerAssemblyManifestFile != NULL);
@@ -595,7 +579,7 @@ Assembly *Assembly::CreateDynamic(AppDomain *pDomain, CreateDynamicAssemblyArgs 
         {
             // Creator assembly is dynamic too, so use its fallback load context for the one
             // we are creating.
-            pFallbackLoadContextBinder = pCallerAssemblyManifestFile->GetFallbackLoadContextBinder(); 
+            pFallbackLoadContextBinder = pCallerAssemblyManifestFile->GetFallbackLoadContextBinder();
         }
 
         // At this point, we should have a fallback load context binder to work with
@@ -647,12 +631,12 @@ Assembly *Assembly::CreateDynamic(AppDomain *pDomain, CreateDynamicAssemblyArgs 
         // Create a concrete assembly
         // (!Do not remove scoping brace: order is important here: the Assembly holder must destruct before the AllocMemTracker!)
         NewHolder<Assembly> pAssem;
-        
+
         {
             GCX_PREEMP();
             // Assembly::Create will call SuppressRelease on the NewHolder that holds the LoaderAllocator when it transfers ownership
             pAssem = Assembly::Create(pDomain, pFile, pDomainAssembly->GetDebuggerInfoBits(), args->access & ASSEMBLY_ACCESS_COLLECT ? TRUE : FALSE, pamTracker, pLoaderAllocator);
-            
+
             ReflectionModule* pModule = (ReflectionModule*) pAssem->GetManifestModule();
             pModule->SetCreatingAssembly( pCallerAssembly );
 
@@ -691,7 +675,7 @@ Assembly *Assembly::CreateDynamic(AppDomain *pDomain, CreateDynamicAssemblyArgs 
 
             //Cannot fail after this point
 
-            pDomainAssembly.SuppressRelease(); // This also effectively suppresses the release of the pAssem 
+            pDomainAssembly.SuppressRelease(); // This also effectively suppresses the release of the pAssem
             pamTracker->SuppressRelease();
 
             // Once we reach this point, the loader allocator lifetime is controlled by the Assembly object.
@@ -792,19 +776,19 @@ mdFile Assembly::GetManifestFileToken(IMDInternalImport *pImport, mdFile kFile)
     SUPPORTS_DAC;
 
     LPCSTR name;
-    if ((TypeFromToken(kFile) != mdtFile) || 
+    if ((TypeFromToken(kFile) != mdtFile) ||
         !pImport->IsValidToken(kFile))
     {
         BAD_FORMAT_NOTHROW_ASSERT(!"Invalid File token");
         return mdTokenNil;
     }
-    
+
     if (FAILED(pImport->GetFileProps(kFile, &name, NULL, NULL, NULL)))
     {
         BAD_FORMAT_NOTHROW_ASSERT(!"Invalid File token");
         return mdTokenNil;
     }
-    
+
     return GetManifestFileToken(name);
 }
 
@@ -823,20 +807,20 @@ Module *Assembly::FindModuleByExportedType(mdExportedType mdType,
         SUPPORTS_DAC;
     }
     CONTRACT_END
-    
+
     mdToken mdLinkRef;
     mdToken mdBinding;
-    
+
     IMDInternalImport *pManifestImport = GetManifestImport();
-    
+
     IfFailThrow(pManifestImport->GetExportedTypeProps(
-        mdType, 
-        NULL, 
-        NULL, 
+        mdType,
+        NULL,
+        NULL,
         &mdLinkRef,     // Impl
         &mdBinding,     // Hint
         NULL));         // dwflags
-    
+
     // Don't trust the returned tokens.
     if (!pManifestImport->IsValidToken(mdLinkRef))
     {
@@ -849,14 +833,14 @@ Module *Assembly::FindModuleByExportedType(mdExportedType mdType,
             ThrowHR(COR_E_BADIMAGEFORMAT, BFA_INVALID_TOKEN);
         }
     }
-    
+
     switch(TypeFromToken(mdLinkRef)) {
     case mdtAssemblyRef:
         {
             *pCL = mdTypeDefNil;  // We don't trust the mdBinding token
 
             Assembly *pAssembly = NULL;
-            switch(loadFlag) 
+            switch(loadFlag)
             {
                 case Loader::Load:
                 {
@@ -872,7 +856,7 @@ Module *Assembly::FindModuleByExportedType(mdExportedType mdType,
                     return NULL;
 #endif // !DACCESS_COMPILE
                 };
-                case Loader::DontLoad: 
+                case Loader::DontLoad:
                     pAssembly = GetManifestModule()->GetAssemblyIfLoaded(mdLinkRef);
                     break;
                 case Loader::SafeLookup:
@@ -880,8 +864,8 @@ Module *Assembly::FindModuleByExportedType(mdExportedType mdType,
                     break;
                 default:
                     _ASSERTE(FALSE);
-            }  
-            
+            }
+
             if (pAssembly)
                 RETURN pAssembly->GetManifestModule();
             else
@@ -946,9 +930,9 @@ Module *Assembly::FindModuleByExportedType(mdExportedType mdType,
 // The returned Module is non-NULL unless you prevented the load by setting loadFlag=Loader::DontLoad.
 /* static */
 Module * Assembly::FindModuleByTypeRef(
-    Module *         pModule, 
+    Module *         pModule,
     mdTypeRef        tkType,
-    Loader::LoadFlag loadFlag, 
+    Loader::LoadFlag loadFlag,
     BOOL *           pfNoResolutionScope)
 {
     CONTRACT(Module *)
@@ -978,11 +962,11 @@ Module * Assembly::FindModuleByTypeRef(
     {
         ThrowHR(COR_E_BADIMAGEFORMAT, BFA_INVALID_TOKEN_TYPE);
     }
-    
+
     {
         // Find the top level encloser
         GCX_NOTRIGGER();
-        
+
         // If nested, get top level encloser's impl
         int iter = 0;
         int maxIter = 1000;
@@ -990,14 +974,14 @@ Module * Assembly::FindModuleByTypeRef(
         {
             _ASSERTE(TypeFromToken(tkType) == mdtTypeRef);
             tkTopLevelEncloserTypeRef = tkType;
-            
+
             if (!pImport->IsValidToken(tkType) || iter >= maxIter)
             {
                 break;
             }
-            
+
             IfFailThrow(pImport->GetResolutionScopeOfTypeRef(tkType, &tkType));
-            
+
             // nil-scope TR okay if there's an ExportedType
             // Return manifest file
             if (IsNilToken(tkType))
@@ -1009,9 +993,9 @@ Module * Assembly::FindModuleByTypeRef(
         }
         while (TypeFromToken(tkType) == mdtTypeRef);
     }
-    
+
     *pfNoResolutionScope = FALSE;
-    
+
 #ifndef DACCESS_COMPILE
     if (!pImport->IsValidToken(tkType)) // redundant check only when invalid token already found.
     {
@@ -1038,7 +1022,7 @@ Module * Assembly::FindModuleByTypeRef(
                 // and return what we find.
                 RETURN(pModule->LookupModule(tkType,FALSE));
             }
-            
+
 #ifndef DACCESS_COMPILE
             DomainFile * pActualDomainFile = pModule->LoadModule(::GetAppDomain(), tkType, FALSE, loadFlag!=Loader::Load);
             if (pActualDomainFile == NULL)
@@ -1062,12 +1046,12 @@ Module * Assembly::FindModuleByTypeRef(
         {
             // Do this first because it has a strong contract
             Assembly * pAssembly = NULL;
-            
+
 #if defined(FEATURE_COMINTEROP) || !defined(DACCESS_COMPILE)
             LPCUTF8 szNamespace = NULL;
             LPCUTF8 szClassName = NULL;
 #endif
-            
+
 #ifdef FEATURE_COMINTEROP
             if (pModule->HasBindableIdentity(tkType))
 #endif// FEATURE_COMINTEROP
@@ -1085,23 +1069,23 @@ Module * Assembly::FindModuleByTypeRef(
             else
             {
                 _ASSERTE(IsAfContentType_WindowsRuntime(pModule->GetAssemblyRefFlags(tkType)));
-                
+
                 if (FAILED(pImport->GetNameOfTypeRef(
-                    tkTopLevelEncloserTypeRef, 
-                    &szNamespace, 
+                    tkTopLevelEncloserTypeRef,
+                    &szNamespace,
                     &szClassName)))
                 {
                     THROW_BAD_FORMAT(BFA_BAD_TYPEREF_TOKEN, pModule);
                 }
-                
+
                 pAssembly = pModule->GetAssemblyIfLoaded(
-                        tkType, 
-                        szNamespace, 
-                        szClassName, 
-                        NULL);  // pMDImportOverride                
+                        tkType,
+                        szNamespace,
+                        szClassName,
+                        NULL);  // pMDImportOverride
             }
 #endif // FEATURE_COMINTEROP
-            
+
             if (pAssembly != NULL)
             {
                 RETURN pAssembly->m_pManifest;
@@ -1115,16 +1099,16 @@ Module * Assembly::FindModuleByTypeRef(
                 RETURN NULL;
             }
 
-            
+
             DomainAssembly * pDomainAssembly = pModule->LoadAssembly(
-                    tkType, 
-                    szNamespace, 
+                    tkType,
+                    szNamespace,
                     szClassName);
 
 
             if (pDomainAssembly == NULL)
                 RETURN NULL;
-            
+
             pAssembly = pDomainAssembly->GetCurrentAssembly();
             if (pAssembly == NULL)
             {
@@ -1220,8 +1204,8 @@ void Assembly::PrepareModuleForAssembly(Module* module, AllocMemTracker *pamTrac
         PRECONDITION(CheckPointer(module));
     }
     CONTRACTL_END;
-    
-    if (module->m_pAvailableClasses != NULL && !module->IsPersistedObject(module->m_pAvailableClasses)) 
+
+    if (module->m_pAvailableClasses != NULL && !module->IsPersistedObject(module->m_pAvailableClasses))
     {
         // ! We intentionally do not take the AvailableClass lock here. It creates problems at
         // startup and we haven't yet published the module yet so nobody should be searching it.
@@ -1423,19 +1407,19 @@ void ValidateMainMethod(MethodDesc * pFD, CorEntryPointType *pType)
     ULONG nCallConv;
     if (FAILED(sig.GetData(&nCallConv)))
         ThrowMainMethodException(pFD, BFA_BAD_SIGNATURE);
-    
+
     if (nCallConv != IMAGE_CEE_CS_CALLCONV_DEFAULT)
         ThrowMainMethodException(pFD, IDS_EE_LOAD_BAD_MAIN_SIG);
 
     ULONG nParamCount;
     if (FAILED(sig.GetData(&nParamCount)))
         ThrowMainMethodException(pFD, BFA_BAD_SIGNATURE);
-    
+
 
     CorElementType nReturnType;
     if (FAILED(sig.GetElemType(&nReturnType)))
         ThrowMainMethodException(pFD, BFA_BAD_SIGNATURE);
-    
+
     if ((nReturnType != ELEMENT_TYPE_VOID) && (nReturnType != ELEMENT_TYPE_I4) && (nReturnType != ELEMENT_TYPE_U4))
          ThrowMainMethodException(pFD, IDS_EE_MAIN_METHOD_HAS_INVALID_RTN);
 
@@ -1456,10 +1440,66 @@ void ValidateMainMethod(MethodDesc * pFD, CorEntryPointType *pType)
         if (argType == ELEMENT_TYPE_SZARRAY)
             if (FAILED(sig.GetElemType(&argType2)))
                 ThrowMainMethodException(pFD, BFA_BAD_SIGNATURE);
-            
+
         if (argType != ELEMENT_TYPE_SZARRAY || argType2 != ELEMENT_TYPE_STRING)
             ThrowMainMethodException(pFD, IDS_EE_LOAD_BAD_MAIN_SIG);
     }
+}
+
+struct Param
+{
+    MethodDesc *pFD;
+    short numSkipArgs;
+    INT32 *piRetVal;
+    PTRARRAYREF *stringArgs;
+    CorEntryPointType EntryType;
+    DWORD cCommandArgs;
+    LPWSTR *wzArgs;
+} param;
+
+static void RunMainInternal(Param* pParam)
+{
+    MethodDescCallSite  threadStart(pParam->pFD);
+
+    PTRARRAYREF StrArgArray = NULL;
+    GCPROTECT_BEGIN(StrArgArray);
+
+    // Build the parameter array and invoke the method.
+    if (pParam->EntryType == EntryManagedMain) {
+        if (pParam->stringArgs == NULL) {
+            // Allocate a COM Array object with enough slots for cCommandArgs - 1
+            StrArgArray = (PTRARRAYREF) AllocateObjectArray((pParam->cCommandArgs - pParam->numSkipArgs), g_pStringClass);
+
+            // Create Stringrefs for each of the args
+            for (DWORD arg = pParam->numSkipArgs; arg < pParam->cCommandArgs; arg++) {
+                STRINGREF sref = StringObject::NewString(pParam->wzArgs[arg]);
+                StrArgArray->SetAt(arg - pParam->numSkipArgs, (OBJECTREF) sref);
+            }
+        }
+        else
+            StrArgArray = *pParam->stringArgs;
+    }
+
+    ARG_SLOT stackVar = ObjToArgSlot(StrArgArray);
+
+    if (pParam->pFD->IsVoid())
+    {
+        // Set the return value to 0 instead of returning random junk
+        *pParam->piRetVal = 0;
+        threadStart.Call(&stackVar);
+    }
+    else
+    {
+        *pParam->piRetVal = (INT32)threadStart.Call_RetArgSlot(&stackVar);
+        SetLatchedExitCode(*pParam->piRetVal);
+    }
+
+    GCPROTECT_END();
+
+    //<TODO>
+    // When we get mainCRTStartup from the C++ then this should be able to go away.</TODO>
+    fflush(stdout);
+    fflush(stderr);
 }
 
 /* static */
@@ -1482,8 +1522,8 @@ HRESULT RunMain(MethodDesc *pFD ,
     // process exit code.  This can be modified by the app via setting
     // Environment's ExitCode property.
     //
-    // When we're executing the default exe main in the default domain, set the latched exit code to 
-    // zero as a default.  If it gets set to something else by user code then that value will be returned. 
+    // When we're executing the default exe main in the default domain, set the latched exit code to
+    // zero as a default.  If it gets set to something else by user code then that value will be returned.
     //
     // StringArgs appears to be non-null only when the main method is explicitly invoked via the hosting api
     // or through creating a subsequent domain and running an exe within it.  In those cases we don't
@@ -1506,16 +1546,8 @@ HRESULT RunMain(MethodDesc *pFD ,
 
     ETWFireEvent(Main_V1);
 
-    struct Param
-    {
-        MethodDesc *pFD;
-        short numSkipArgs;
-        INT32 *piRetVal;
-        PTRARRAYREF *stringArgs;
-        CorEntryPointType EntryType;
-        DWORD cCommandArgs;
-        LPWSTR *wzArgs;
-    } param;
+    Param param;
+
     param.pFD = pFD;
     param.numSkipArgs = numSkipArgs;
     param.piRetVal = piRetVal;
@@ -1526,47 +1558,7 @@ HRESULT RunMain(MethodDesc *pFD ,
 
     EX_TRY_NOCATCH(Param *, pParam, &param)
     {
-        MethodDescCallSite  threadStart(pParam->pFD);
-        
-        PTRARRAYREF StrArgArray = NULL;
-        GCPROTECT_BEGIN(StrArgArray);
-
-        // Build the parameter array and invoke the method.
-        if (pParam->EntryType == EntryManagedMain) {
-            if (pParam->stringArgs == NULL) {
-                // Allocate a COM Array object with enough slots for cCommandArgs - 1
-                StrArgArray = (PTRARRAYREF) AllocateObjectArray((pParam->cCommandArgs - pParam->numSkipArgs), g_pStringClass);
-
-                // Create Stringrefs for each of the args
-                for (DWORD arg = pParam->numSkipArgs; arg < pParam->cCommandArgs; arg++) {
-                    STRINGREF sref = StringObject::NewString(pParam->wzArgs[arg]);
-                    StrArgArray->SetAt(arg - pParam->numSkipArgs, (OBJECTREF) sref);
-                }
-            }
-            else
-                StrArgArray = *pParam->stringArgs;
-        }
-
-        ARG_SLOT stackVar = ObjToArgSlot(StrArgArray);
-
-        if (pParam->pFD->IsVoid()) 
-        {
-            // Set the return value to 0 instead of returning random junk
-            *pParam->piRetVal = 0;
-            threadStart.Call(&stackVar);
-        }
-        else 
-        {
-            *pParam->piRetVal = (INT32)threadStart.Call_RetArgSlot(&stackVar);
-            SetLatchedExitCode(*pParam->piRetVal);
-        }
-
-        GCPROTECT_END();
-
-        //<TODO>
-        // When we get mainCRTStartup from the C++ then this should be able to go away.</TODO>
-        fflush(stdout);
-        fflush(stderr);
+        RunMainInternal(pParam);
     }
     EX_END_NOCATCH
 
@@ -1607,7 +1599,7 @@ static void RunMainPost()
     //
     if (dwSecondsToSleep != 0)
     {
-        ClrSleepEx(dwSecondsToSleep * 1000, FALSE);   
+        ClrSleepEx(dwSecondsToSleep * 1000, FALSE);
     }
 }
 
@@ -1640,7 +1632,7 @@ INT32 Assembly::ExecuteMainMethod(PTRARRAYREF *stringArgs, BOOL waitForOtherThre
     CONTRACTL_END;
 
     // reset the error code for std C
-    errno=0; 
+    errno=0;
 
     HRESULT hr = S_OK;
     INT32   iRetVal = 0;
@@ -1652,7 +1644,7 @@ INT32 Assembly::ExecuteMainMethod(PTRARRAYREF *stringArgs, BOOL waitForOtherThre
     {
         // This thread looks like it wandered in -- but actually we rely on it to keep the process alive.
         pThread->SetBackground(FALSE);
-    
+
         GCX_COOP();
 
         pMeth = GetEntryPoint();
@@ -1695,9 +1687,9 @@ INT32 Assembly::ExecuteMainMethod(PTRARRAYREF *stringArgs, BOOL waitForOtherThre
         GetDisplayName(displayName);
         COMPlusThrowHR(COR_E_MISSINGMETHOD, IDS_EE_FAILED_TO_FIND_MAIN, displayName);
     }
-    
+
     IfFailThrow(hr);
-    
+
     END_ENTRYPOINT_THROWS;
     return iRetVal;
 }
@@ -1727,13 +1719,13 @@ MethodDesc* Assembly::GetEntryPoint()
     switch(TypeFromToken(mdEntry)) {
     case mdtFile:
         pModule = m_pManifest->LoadModule(::GetAppDomain(), mdEntry, FALSE)->GetModule();
-        
+
         mdEntry = pModule->GetEntryPointToken();
         if ( (TypeFromToken(mdEntry) != mdtMethodDef) ||
              (!pModule->GetMDImport()->IsValidToken(mdEntry)) )
             pModule = NULL;
         break;
-        
+
     case mdtMethodDef:
         if (m_pManifestFile->GetPersistentMDImport()->IsValidToken(mdEntry))
             pModule = m_pManifest;
@@ -1753,10 +1745,10 @@ MethodDesc* Assembly::GetEntryPoint()
     }
 
     // For the entrypoint, also validate if the paramList is valid or not. We do this check
-    // by asking for the return-value  (sequence 0) parameter to MDInternalRO::FindParamOfMethod. 
-    // Incase the parameter list is invalid, CLDB_E_FILE_CORRUPT will be returned 
-    // byMDInternalRO::FindParamOfMethod and we will bail out. 
-    // 
+    // by asking for the return-value  (sequence 0) parameter to MDInternalRO::FindParamOfMethod.
+    // Incase the parameter list is invalid, CLDB_E_FILE_CORRUPT will be returned
+    // byMDInternalRO::FindParamOfMethod and we will bail out.
+    //
     // If it does not exist (return value CLDB_E_RECORD_NOTFOUND) or if it is found (S_OK),
     // we do not bother as the values would have come upon ensuring a valid parameter record
     // list.
@@ -1776,8 +1768,8 @@ MethodDesc* Assembly::GetEntryPoint()
         // debugger will assume any code that results from searching for a
         // type handle (ie, loading an assembly) is the first line of a program.
         FrameWithCookie<DebuggerClassInitMarkFrame> __dcimf;
-            
-        MethodTable * pInitialMT = ClassLoader::LoadTypeDefOrRefThrowing(pModule, mdParent, 
+
+        MethodTable * pInitialMT = ClassLoader::LoadTypeDefOrRefThrowing(pModule, mdParent,
                                                                        ClassLoader::ThrowIfNotFound,
                                                                        ClassLoader::FailIfUninstDefOrRef).GetMethodTable();
 
@@ -1789,7 +1781,7 @@ MethodDesc* Assembly::GetEntryPoint()
     {
         m_pEntryPoint = pModule->FindMethod(mdEntry);
     }
-    
+
     RETURN m_pEntryPoint;
 }
 
@@ -1813,9 +1805,9 @@ OBJECTREF Assembly::GetExposedObject()
 BOOL Assembly::FileNotFound(HRESULT hr)
 {
     LIMITED_METHOD_CONTRACT;
-    return IsHRESULTForExceptionKind(hr, kFileNotFoundException) || 
+    return IsHRESULTForExceptionKind(hr, kFileNotFoundException) ||
 #ifdef FEATURE_COMINTEROP
-           (hr == RO_E_METADATA_NAME_NOT_FOUND) || 
+           (hr == RO_E_METADATA_NAME_NOT_FOUND) ||
 #endif //FEATURE_COMINTEROP
            (hr == CLR_E_BIND_TYPE_NOT_FOUND);
 }
@@ -1833,7 +1825,7 @@ BOOL Assembly::GetResource(LPCSTR szName, DWORD *cbResource,
         INJECT_FAULT(COMPlusThrowOM(););
     }
     CONTRACTL_END;
-    
+
     DomainAssembly *pAssembly = NULL;
     BOOL result = GetDomainAssembly()->GetResource(szName, cbResource,
                                                    pbInMemoryResource, &pAssembly,
@@ -1898,7 +1890,7 @@ BOOL Assembly::IsInstrumentedHelper()
     // We must have a native image in order to perform IBC instrumentation
     if (!GetManifestFile()->HasNativeOrReadyToRunImage())
         return false;
-    
+
     // @Consider using the full name instead of the short form
     // (see GetFusionAssemblyName()->IsEqual).
 
@@ -1917,7 +1909,7 @@ BOOL Assembly::IsInstrumentedHelper()
     const WCHAR *wszInstrumentedAssemblyNamesList = instrumentedAssemblyNamesList.GetUnicode();
     const WCHAR *wszAssemblyName                  = assemblyName.GetUnicode();
 
-    // wszInstrumentedAssemblyNamesList is a space separated list of assembly names. 
+    // wszInstrumentedAssemblyNamesList is a space separated list of assembly names.
     // We need to determine if wszAssemblyName is in this list.
     // If there is a "*" in the list, then all assemblies match.
 
@@ -1928,12 +1920,12 @@ BOOL Assembly::IsInstrumentedHelper()
         _ASSERTE(pCur[0] != W('\0'));
         const WCHAR * pNextSpace = wcschr(pCur, W(' '));
         _ASSERTE(pNextSpace == NULL || pNextSpace[0] == W(' '));
-        
+
         if (pCur != pNextSpace)
         {
             // pCur is not pointing to a space
             _ASSERTE(pCur[0] != W(' '));
-            
+
             if (pCur[0] == W('*') && (pCur[1] == W(' ') || pCur[1] == W('\0')))
                 return true;
 
@@ -1953,7 +1945,7 @@ BOOL Assembly::IsInstrumentedHelper()
     }
     while (pCur[0] != W('\0'));
 
-    return false;    
+    return false;
 }
 #endif // FEATURE_PREJIT
 
@@ -2089,39 +2081,6 @@ void Assembly::AddExportedType(mdExportedType cl)
 
 
 
-
-HRESULT STDMETHODCALLTYPE
-GetAssembliesByName(LPCWSTR  szAppBase,
-                    LPCWSTR  szPrivateBin,
-                    LPCWSTR  szAssemblyName,
-                    IUnknown *ppIUnk[],
-                    ULONG    cMax,
-                    ULONG    *pcAssemblies)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        MODE_PREEMPTIVE;
-        GC_TRIGGERS;
-        INJECT_FAULT(return E_OUTOFMEMORY;);
-    }
-    CONTRACTL_END
-
-    HRESULT hr = S_OK;
-
-    if (g_fEEInit) {
-        // Cannot call this during EE startup
-        return MSEE_E_ASSEMBLYLOADINPROGRESS;
-    }
-
-    if (!(szAssemblyName && ppIUnk && pcAssemblies))
-        return E_POINTER;
-
-    hr = COR_E_NOTSUPPORTED;
-
-    return hr;
-}// Used by the IMetadata API's to access an assemblies metadata.
-
 void DECLSPEC_NORETURN Assembly::ThrowTypeLoadException(LPCUTF8 pszFullName, UINT resIDWhy)
 {
     WRAPPER_NO_CONTRACT;
@@ -2144,8 +2103,8 @@ void DECLSPEC_NORETURN Assembly::ThrowTypeLoadException(NameHandle *pName, UINT 
 
     if (pName->GetName()) {
         ThrowTypeLoadException(pName->GetNameSpace(),
-                               pName->GetName(), 
-                               NULL, 
+                               pName->GetName(),
+                               NULL,
                                resIDWhy);
     }
     else
@@ -2192,8 +2151,8 @@ void DECLSPEC_NORETURN Assembly::ThrowTypeLoadException(IMDInternalImport *pInte
 
             // If you see this assert, you need to make sure the message for
             // this resID is appropriate for TypeSpecs
-            _ASSERTE((resIDWhy == IDS_CLASSLOAD_GENERAL) || 
-                     (resIDWhy == IDS_CLASSLOAD_BADFORMAT) || 
+            _ASSERTE((resIDWhy == IDS_CLASSLOAD_GENERAL) ||
+                     (resIDWhy == IDS_CLASSLOAD_BADFORMAT) ||
                      (resIDWhy == IDS_CLASSLOAD_TYPESPEC));
 
             resIDWhy = IDS_CLASSLOAD_TYPESPEC;

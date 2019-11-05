@@ -11,15 +11,31 @@ schedules:
   always: true
 
 jobs:
-- template: /eng/platform-matrix.yml
+#
+# Checkout repository
+#
+- template: ../checkout-job.yml
+
+- template: ../platform-matrix.yml
   parameters:
     jobTemplate: build-job.yml
     buildConfig: checked
     platformGroup: all
+    jobParameters:
+      testGroup: jitstressregs
 
-- template: /eng/platform-matrix.yml
+- template: ../platform-matrix.yml
   parameters:
-    jobTemplate: test-job.yml
+    jobTemplate: build-test-job.yml
+    buildConfig: checked
+    platformGroup: all
+    helixQueueGroup: ci
+    jobParameters:
+      testGroup: jitstressregs
+
+- template: ../platform-matrix.yml
+  parameters:
+    jobTemplate: run-test-job.yml
     buildConfig: checked
     platformGroup: all
     helixQueueGroup: ci

@@ -4,24 +4,20 @@ include_directories(BEFORE "../vm")
 include_directories(BEFORE "inc")
 
 set(BINDER_COMMON_SOURCES
-    variables.cpp
-    utils.cpp
-    assemblyname.cpp
-    propertymap.cpp
     applicationcontext.cpp
     assembly.cpp
-    failurecache.cpp
     assemblybinder.cpp
-    stringlexer.cpp
-    clrprivbindercoreclr.cpp
-    binderinterface.cpp
-    debuglog.cpp
-    bindinglog.cpp
-    cdebuglog.cpp
-    textualidentityparser.cpp
     assemblyidentitycache.cpp
+    assemblyname.cpp
+    bindertracing.cpp
+    clrprivbindercoreclr.cpp
     coreclrbindercommon.cpp
+    failurecache.cpp
     fusionassemblyname.cpp
+    stringlexer.cpp
+    textualidentityparser.cpp
+    utils.cpp
+    variables.cpp
 )
 
 set(BINDER_COMMON_HEADERS
@@ -38,25 +34,18 @@ set(BINDER_COMMON_HEADERS
     inc/assemblyname.inl
     inc/assemblyversion.hpp
     inc/assemblyversion.inl
-    inc/binderinterface.hpp
     inc/bindertypes.hpp
-    inc/bindinglog.hpp
-    inc/bindinglog.inl
+    inc/bindertracing.h
     inc/bindresult.hpp
     inc/bindresult.inl
-    inc/cdebuglog.hpp
     inc/clrprivbindercoreclr.h
     inc/coreclrbindercommon.h
-    inc/debuglog.hpp
     inc/failurecache.hpp
     inc/failurecachehashtraits.hpp
     inc/fusionassemblyname.hpp
     inc/fusionhelpers.hpp
-    inc/list.hpp
     inc/loadcontext.hpp
     inc/loadcontext.inl
-    inc/propertyhashtraits.hpp
-    inc/propertymap.hpp
     inc/stringlexer.hpp
     inc/stringlexer.inl
     inc/textualidentityparser.hpp
@@ -66,11 +55,13 @@ set(BINDER_COMMON_HEADERS
 
 set(BINDER_SOURCES
     ${BINDER_COMMON_SOURCES}
+    activitytracker.cpp
     clrprivbinderassemblyloadcontext.cpp
 )
 
 set(BINDER_HEADERS
     ${BINDER_COMMON_HEADERS}
+    inc/activitytracker.h
     inc/clrprivbinderassemblyloadcontext.h
     inc/contextentry.hpp
 )
@@ -91,9 +82,16 @@ endif(WIN32)
 convert_to_absolute_path(BINDER_SOURCES ${BINDER_SOURCES})
 convert_to_absolute_path(BINDER_CROSSGEN_SOURCES ${BINDER_CROSSGEN_SOURCES})
 
-if(CLR_CMAKE_PLATFORM_UNIX)
-    add_compile_options(-fPIC)
-endif(CLR_CMAKE_PLATFORM_UNIX)
+add_library_clr(v3binder
+    STATIC
+    ${BINDER_SOURCES}
+)
+add_dependencies(v3binder eventing_headers)
 
-add_subdirectory(v3binder)
-add_subdirectory(v3binder_crossgen)
+add_library_clr(v3binder_crossgen
+    STATIC
+    ${BINDER_CROSSGEN_SOURCES}
+)
+add_dependencies(v3binder_crossgen eventing_headers)
+set_target_properties(v3binder_crossgen PROPERTIES CROSSGEN_COMPONENT TRUE)
+

@@ -30,7 +30,7 @@ namespace System.Reflection.Emit
             Debug.Assert(incoming != null);
 
             T[] temp = new T[requiredSize];
-            Array.Copy(incoming, 0, temp, 0, incoming.Length);
+            Array.Copy(incoming, temp, incoming.Length);
             return temp;
         }
 
@@ -52,8 +52,8 @@ namespace System.Reflection.Emit
 
         private int m_exceptionCount;
         private int m_currExcStackCount;
-        private __ExceptionInfo[] m_exceptions;           //This is the list of all of the exceptions in this ILStream.
-        private __ExceptionInfo[] m_currExcStack;         //This is the stack of exceptions which we're currently in.
+        private __ExceptionInfo[] m_exceptions;           // This is the list of all of the exceptions in this ILStream.
+        private __ExceptionInfo[] m_currExcStack;         // This is the stack of exceptions which we're currently in.
 
         internal ScopeTree m_ScopeTree;            // this variable tracks all debugging scope information
         internal LineNumberInfo m_LineNumberInfo;       // this variable tracks all line number information
@@ -204,36 +204,36 @@ namespace System.Reflection.Emit
             if (m_length == 0)
                 return null;
 
-            //Allocate space for the new array.
+            // Allocate space for the new array.
             byte[] newBytes = new byte[m_length];
 
-            //Copy the data from the old array
-            Array.Copy(m_ILStream, 0, newBytes, 0, m_length);
+            // Copy the data from the old array
+            Array.Copy(m_ILStream, newBytes, m_length);
 
-            //Do the fixups.
-            //This involves iterating over all of the labels and
-            //replacing them with their proper values.
+            // Do the fixups.
+            // This involves iterating over all of the labels and
+            // replacing them with their proper values.
             for (int i = 0; i < m_fixupCount; i++)
             {
                 __FixupData fixupData = m_fixupData[i];
                 int updateAddr = GetLabelPos(fixupData.m_fixupLabel) - (fixupData.m_fixupPos + fixupData.m_fixupInstSize);
 
-                //Handle single byte instructions
-                //Throw an exception if they're trying to store a jump in a single byte instruction that doesn't fit.
+                // Handle single byte instructions
+                // Throw an exception if they're trying to store a jump in a single byte instruction that doesn't fit.
                 if (fixupData.m_fixupInstSize == 1)
                 {
-                    //Verify that our one-byte arg will fit into a Signed Byte.
+                    // Verify that our one-byte arg will fit into a Signed Byte.
                     if (updateAddr < sbyte.MinValue || updateAddr > sbyte.MaxValue)
                     {
                         throw new NotSupportedException(SR.Format(SR.NotSupported_IllegalOneByteBranch, fixupData.m_fixupPos, updateAddr));
                     }
 
-                    //Place the one-byte arg
+                    // Place the one-byte arg
                     newBytes[fixupData.m_fixupPos] = (byte)updateAddr;
                 }
                 else
                 {
-                    //Place the four-byte arg
+                    // Place the four-byte arg
                     BinaryPrimitives.WriteInt32LittleEndian(newBytes.AsSpan(fixupData.m_fixupPos), updateAddr);
                 }
             }
@@ -253,7 +253,7 @@ namespace System.Reflection.Emit
             }
 
             var temp = new __ExceptionInfo[m_exceptionCount];
-            Array.Copy(m_exceptions, 0, temp, 0, m_exceptionCount);
+            Array.Copy(m_exceptions, temp, m_exceptionCount);
             SortExceptions(temp);
             return temp;
         }
@@ -270,7 +270,7 @@ namespace System.Reflection.Emit
         private void IncreaseCapacity(int size)
         {
             byte[] temp = new byte[Math.Max(m_ILStream.Length * 2, m_length + size)];
-            Array.Copy(m_ILStream, 0, temp, 0, m_ILStream.Length);
+            Array.Copy(m_ILStream, temp, m_ILStream.Length);
             m_ILStream = temp;
         }
 
@@ -355,7 +355,7 @@ namespace System.Reflection.Emit
             }
 
             int[] narrowTokens = new int[m_RelocFixupCount];
-            Array.Copy(m_RelocFixupList, 0, narrowTokens, 0, m_RelocFixupCount);
+            Array.Copy(m_RelocFixupList, narrowTokens, m_RelocFixupCount);
             return narrowTokens;
         }
         #endregion
@@ -522,7 +522,6 @@ namespace System.Reflection.Emit
             if (!(opcode.Equals(OpCodes.Call) || opcode.Equals(OpCodes.Callvirt) || opcode.Equals(OpCodes.Newobj)))
                 throw new ArgumentException(SR.Argument_NotMethodCallOpcode, nameof(opcode));
 
-
             int stackchange = 0;
             int tk = GetMethodToken(methodInfo, optionalParameterTypes, false);
 
@@ -539,7 +538,7 @@ namespace System.Reflection.Emit
 
             // Pop the this parameter if the method is non-static and the
             // instruction is not newobj.
-            if (!(methodInfo is SymbolMethod) && methodInfo.IsStatic == false && !(opcode.Equals(OpCodes.Newobj)))
+            if (!(methodInfo is SymbolMethod) && !methodInfo.IsStatic && !opcode.Equals(OpCodes.Newobj))
                 stackchange--;
             // Pop the optional parameters off the stack.
             if (optionalParameterTypes != null)
@@ -689,7 +688,6 @@ namespace System.Reflection.Emit
 
             EnsureCapacity(7);
 
-
             InternalEmit(opcode);
             if (OpCodes.TakesSingleByteArgument(opcode))
             {
@@ -825,7 +823,7 @@ namespace System.Reflection.Emit
             }
             else
             {
-                //Handle stloc_1, ldloc_1
+                // Handle stloc_1, ldloc_1
                 if (tempVal > byte.MaxValue)
                 {
                     throw new InvalidOperationException(SR.InvalidOperation_BadInstructionOrIndexOutOfBound);
@@ -851,15 +849,8 @@ namespace System.Reflection.Emit
             // EndExceptionBlock
 
             // Delay init
-            if (m_exceptions == null)
-            {
-                m_exceptions = new __ExceptionInfo[DefaultExceptionArraySize];
-            }
-
-            if (m_currExcStack == null)
-            {
-                m_currExcStack = new __ExceptionInfo[DefaultExceptionArraySize];
-            }
+            m_exceptions ??= new __ExceptionInfo[DefaultExceptionArraySize];
+            m_currExcStack ??= new __ExceptionInfo[DefaultExceptionArraySize];
 
             if (m_exceptionCount >= m_exceptions.Length)
             {
@@ -911,8 +902,8 @@ namespace System.Reflection.Emit
                 Emit(OpCodes.Endfinally);
             }
 
-            //Check if we've already set this label.
-            //The only reason why we might have set this is if we have a finally block.
+            // Check if we've already set this label.
+            // The only reason why we might have set this is if we have a finally block.
 
             Label label = m_labelList[endLabel.GetLabelValue()] != -1
                 ? current.m_finallyEndLabel
@@ -1003,7 +994,6 @@ namespace System.Reflection.Emit
 
             MarkLabel(endLabel);
 
-
             Label finallyEndLabel = DefineLabel();
             current.SetFinallyEndLabel(finallyEndLabel);
 
@@ -1024,10 +1014,7 @@ namespace System.Reflection.Emit
             // Mark Label.
 
             // Delay init the lable array in case we dont use it
-            if (m_labelList == null)
-            {
-                m_labelList = new int[DefaultLabelArraySize];
-            }
+            m_labelList ??= new int[DefaultLabelArraySize];
 
             if (m_labelCount >= m_labelList.Length)
             {
@@ -1044,7 +1031,7 @@ namespace System.Reflection.Emit
 
             int labelIndex = loc.GetLabelValue();
 
-            //This should never happen.
+            // This should never happen.
             if (labelIndex < 0 || labelIndex >= m_labelList.Length)
             {
                 throw new ArgumentException(SR.Argument_InvalidLabel);
@@ -1151,7 +1138,7 @@ namespace System.Reflection.Emit
             }
             else
             {
-                Emit(OpCodes.Ldarg, (short)0); //Load the this ref.
+                Emit(OpCodes.Ldarg, (short)0); // Load the this ref.
                 Emit(OpCodes.Ldfld, fld);
             }
             Type[] parameterTypes = new Type[1];
@@ -1275,11 +1262,11 @@ namespace System.Reflection.Emit
 
     internal sealed class __ExceptionInfo
     {
-        internal const int None = 0x0000;  //COR_ILEXCEPTION_CLAUSE_NONE
-        internal const int Filter = 0x0001;  //COR_ILEXCEPTION_CLAUSE_FILTER
-        internal const int Finally = 0x0002;  //COR_ILEXCEPTION_CLAUSE_FINALLY
-        internal const int Fault = 0x0004;  //COR_ILEXCEPTION_CLAUSE_FAULT
-        internal const int PreserveStack = 0x0004;  //COR_ILEXCEPTION_CLAUSE_PRESERVESTACK
+        internal const int None = 0x0000;  // COR_ILEXCEPTION_CLAUSE_NONE
+        internal const int Filter = 0x0001;  // COR_ILEXCEPTION_CLAUSE_FILTER
+        internal const int Finally = 0x0002;  // COR_ILEXCEPTION_CLAUSE_FINALLY
+        internal const int Fault = 0x0004;  // COR_ILEXCEPTION_CLAUSE_FAULT
+        internal const int PreserveStack = 0x0004;  // COR_ILEXCEPTION_CLAUSE_PRESERVESTACK
 
         internal const int State_Try = 0;
         internal const int State_Filter = 1;
@@ -1334,9 +1321,9 @@ namespace System.Reflection.Emit
             }
             if (type == Filter)
             {
-                m_type[currentCatch ] = type;
-                m_filterAddr[currentCatch ] = catchorfilterAddr;
-                m_catchAddr[currentCatch ] = -1;
+                m_type[currentCatch] = type;
+                m_filterAddr[currentCatch] = catchorfilterAddr;
+                m_catchAddr[currentCatch] = -1;
                 if (currentCatch > 0)
                 {
                     Debug.Assert(m_catchEndAddr[currentCatch - 1] == -1, "m_catchEndAddr[m_currentCatch-1] == -1");
@@ -1349,18 +1336,18 @@ namespace System.Reflection.Emit
                 m_catchClass[currentCatch] = catchClass!;
                 if (m_type[currentCatch] != Filter)
                 {
-                    m_type[currentCatch ] = type;
+                    m_type[currentCatch] = type;
                 }
-                m_catchAddr[currentCatch ] = catchorfilterAddr;
+                m_catchAddr[currentCatch] = catchorfilterAddr;
                 if (currentCatch > 0)
                 {
-                    if (m_type[currentCatch ] != Filter)
+                    if (m_type[currentCatch] != Filter)
                     {
                         Debug.Assert(m_catchEndAddr[currentCatch - 1] == -1, "m_catchEndAddr[m_currentCatch-1] == -1");
                         m_catchEndAddr[currentCatch - 1] = catchEndAddr;
                     }
                 }
-                m_catchEndAddr[currentCatch ] = -1;
+                m_catchEndAddr[currentCatch] = -1;
                 m_currentCatch++;
             }
 
@@ -1508,7 +1495,6 @@ namespace System.Reflection.Emit
         }
     }
 
-
     /// <summary>
     /// Scope Tree is a class that track the scope structure within a method body
     /// It keeps track two parallel array. m_ScopeAction keeps track the action. It can be
@@ -1560,22 +1546,15 @@ namespace System.Reflection.Emit
             int endOffset)
         {
             int i = GetCurrentActiveScopeIndex();
-            if (m_localSymInfos[i] == null)
-            {
-                m_localSymInfos[i] = new LocalSymInfo();
-            }
-            m_localSymInfos[i]!.AddLocalSymInfo(strName, signature, slot, startOffset, endOffset); // TODO-NULLABLE Indexer nullability tracked (https://github.com/dotnet/roslyn/issues/34644)
+            m_localSymInfos[i] ??= new LocalSymInfo();
+            m_localSymInfos[i]!.AddLocalSymInfo(strName, signature, slot, startOffset, endOffset); // TODO-NULLABLE: Indexer nullability tracked (https://github.com/dotnet/roslyn/issues/34644)
         }
 
-        internal void AddUsingNamespaceToCurrentScope(
-            string strNamespace)
+        internal void AddUsingNamespaceToCurrentScope(string strNamespace)
         {
             int i = GetCurrentActiveScopeIndex();
-            if (m_localSymInfos[i] == null)
-            {
-                m_localSymInfos[i] = new LocalSymInfo();
-            }
-            m_localSymInfos[i]!.AddUsingNamespace(strNamespace); // TODO-NULLABLE Indexer nullability tracked (https://github.com/dotnet/roslyn/issues/34644)
+            m_localSymInfos[i] ??= new LocalSymInfo();
+            m_localSymInfos[i]!.AddUsingNamespace(strNamespace); // TODO-NULLABLE: Indexer nullability tracked (https://github.com/dotnet/roslyn/issues/34644)
         }
 
         internal void AddScopeInfo(ScopeAction sa, int iOffset)
@@ -1587,7 +1566,6 @@ namespace System.Reflection.Emit
 
             // make sure that arrays are large enough to hold addition info
             EnsureCapacity();
-
 
             m_ScopeActions[m_iCount] = sa;
             m_iOffsets[m_iCount] = iOffset;
@@ -1615,15 +1593,15 @@ namespace System.Reflection.Emit
                 // It would probably be simpler to just use Lists here.
                 int newSize = checked(m_iCount * 2);
                 int[] temp = new int[newSize];
-                Array.Copy(m_iOffsets, 0, temp, 0, m_iCount);
+                Array.Copy(m_iOffsets, temp, m_iCount);
                 m_iOffsets = temp;
 
                 ScopeAction[] tempSA = new ScopeAction[newSize];
-                Array.Copy(m_ScopeActions, 0, tempSA, 0, m_iCount);
+                Array.Copy(m_ScopeActions, tempSA, m_iCount);
                 m_ScopeActions = tempSA;
 
                 LocalSymInfo[] tempLSI = new LocalSymInfo[newSize];
-                Array.Copy(m_localSymInfos, 0, tempLSI, 0, m_iCount);
+                Array.Copy(m_localSymInfos, tempLSI, m_iCount);
                 m_localSymInfos = tempLSI;
             }
         }
@@ -1642,7 +1620,7 @@ namespace System.Reflection.Emit
                 }
                 if (m_localSymInfos[i] != null)
                 {
-                    m_localSymInfos[i]!.EmitLocalSymInfo(symWriter); // TODO-NULLABLE Indexer nullability tracked (https://github.com/dotnet/roslyn/issues/34644)
+                    m_localSymInfos[i]!.EmitLocalSymInfo(symWriter); // TODO-NULLABLE: Indexer nullability tracked (https://github.com/dotnet/roslyn/issues/34644)
                 }
             }
         }
@@ -1654,7 +1632,6 @@ namespace System.Reflection.Emit
         internal const int InitialSize = 16;
         internal LocalSymInfo?[] m_localSymInfos = null!;            // keep track debugging local information
     }
-
 
     /// <summary>
     /// This class tracks the line number info
@@ -1723,7 +1700,7 @@ namespace System.Reflection.Emit
             {
                 // the arrays are full. Enlarge the arrays
                 REDocument[] temp = new REDocument[m_DocumentCount * 2];
-                Array.Copy(m_Documents, 0, temp, 0, m_DocumentCount);
+                Array.Copy(m_Documents, temp, m_DocumentCount);
                 m_Documents = temp;
             }
         }
@@ -1739,7 +1716,6 @@ namespace System.Reflection.Emit
         private const int InitialSize = 16;
         private int m_iLastFound;
     }
-
 
     /// <summary>
     /// This class tracks the line number info
@@ -1794,23 +1770,23 @@ namespace System.Reflection.Emit
                 // It would probably be simpler to just use Lists here
                 int newSize = checked(m_iLineNumberCount * 2);
                 int[] temp = new int[newSize];
-                Array.Copy(m_iOffsets, 0, temp, 0, m_iLineNumberCount);
+                Array.Copy(m_iOffsets, temp, m_iLineNumberCount);
                 m_iOffsets = temp;
 
                 temp = new int[newSize];
-                Array.Copy(m_iLines, 0, temp, 0, m_iLineNumberCount);
+                Array.Copy(m_iLines, temp, m_iLineNumberCount);
                 m_iLines = temp;
 
                 temp = new int[newSize];
-                Array.Copy(m_iColumns, 0, temp, 0, m_iLineNumberCount);
+                Array.Copy(m_iColumns, temp, m_iLineNumberCount);
                 m_iColumns = temp;
 
                 temp = new int[newSize];
-                Array.Copy(m_iEndLines, 0, temp, 0, m_iLineNumberCount);
+                Array.Copy(m_iEndLines, temp, m_iLineNumberCount);
                 m_iEndLines = temp;
 
                 temp = new int[newSize];
-                Array.Copy(m_iEndColumns, 0, temp, 0, m_iLineNumberCount);
+                Array.Copy(m_iEndColumns, temp, m_iLineNumberCount);
                 m_iEndColumns = temp;
             }
         }
@@ -1821,19 +1797,19 @@ namespace System.Reflection.Emit
                 return;
             // reduce the array size to be exact
             int[] iOffsetsTemp = new int[m_iLineNumberCount];
-            Array.Copy(m_iOffsets, 0, iOffsetsTemp, 0, m_iLineNumberCount);
+            Array.Copy(m_iOffsets, iOffsetsTemp, m_iLineNumberCount);
 
             int[] iLinesTemp = new int[m_iLineNumberCount];
-            Array.Copy(m_iLines, 0, iLinesTemp, 0, m_iLineNumberCount);
+            Array.Copy(m_iLines, iLinesTemp, m_iLineNumberCount);
 
             int[] iColumnsTemp = new int[m_iLineNumberCount];
-            Array.Copy(m_iColumns, 0, iColumnsTemp, 0, m_iLineNumberCount);
+            Array.Copy(m_iColumns, iColumnsTemp, m_iLineNumberCount);
 
             int[] iEndLinesTemp = new int[m_iLineNumberCount];
-            Array.Copy(m_iEndLines, 0, iEndLinesTemp, 0, m_iLineNumberCount);
+            Array.Copy(m_iEndLines, iEndLinesTemp, m_iLineNumberCount);
 
             int[] iEndColumnsTemp = new int[m_iLineNumberCount];
-            Array.Copy(m_iEndColumns, 0, iEndColumnsTemp, 0, m_iLineNumberCount);
+            Array.Copy(m_iEndColumns, iEndColumnsTemp, m_iLineNumberCount);
 
             symWriter.DefineSequencePoints(m_document, iOffsetsTemp, iLinesTemp, iColumnsTemp, iEndLinesTemp, iEndColumnsTemp);
         }

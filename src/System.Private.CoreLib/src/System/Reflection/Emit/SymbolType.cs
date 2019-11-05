@@ -26,10 +26,10 @@ namespace System.Reflection.Emit
         internal static Type? FormCompoundType(string? format, Type baseType, int curIndex)
         {
             // This function takes a string to describe the compound type, such as "[,][]", and a baseType.
-            // 
+            //
             // Example: [2..4]  - one dimension array with lower bound 2 and size of 3
             // Example: [3, 5, 6] - three dimension array with lower bound 3, 5, 6
-            // Example: [-3, ] [] - one dimensional array of two dimensional array (with lower bound -3 for 
+            // Example: [-3, ] [] - one dimensional array of two dimensional array (with lower bound -3 for
             //          the first dimension)
             // Example: []* - pointer to a one dimensional array
             // Example: *[] - one dimensional array. The element type is a pointer to the baseType
@@ -99,7 +99,7 @@ namespace System.Reflection.Emit
                         // lower bound is specified. Consume the low bound
                         while (format[curIndex] >= '0' && format[curIndex] <= '9')
                         {
-                            iLowerBound = iLowerBound * 10;
+                            iLowerBound *= 10;
                             iLowerBound += format[curIndex] - '0';
                             curIndex++;
                         }
@@ -139,7 +139,7 @@ namespace System.Reflection.Emit
                             // lower bound is specified. Consume the low bound
                             while (format[curIndex] >= '0' && format[curIndex] <= '9')
                             {
-                                iUpperBound = iUpperBound * 10;
+                                iUpperBound *= 10;
                                 iUpperBound += format[curIndex] - '0';
                                 curIndex++;
                             }
@@ -205,7 +205,7 @@ namespace System.Reflection.Emit
         internal TypeKind m_typeKind;
         internal Type m_baseType = null!;
         internal int m_cRank;        // count of dimension
-        // If LowerBound and UpperBound is equal, that means one element. 
+        // If LowerBound and UpperBound is equal, that means one element.
         // If UpperBound is less than LowerBound, then the size is not specified.
         internal int[] m_iaLowerBound;
         internal int[] m_iaUpperBound; // count of dimension
@@ -243,9 +243,9 @@ namespace System.Reflection.Emit
             {
                 // resize the bound array
                 int[] iaTemp = new int[m_cRank * 2];
-                Array.Copy(m_iaLowerBound, 0, iaTemp, 0, m_cRank);
+                Array.Copy(m_iaLowerBound, iaTemp, m_cRank);
                 m_iaLowerBound = iaTemp;
-                Array.Copy(m_iaUpperBound, 0, iaTemp, 0, m_cRank);
+                Array.Copy(m_iaUpperBound, iaTemp, m_cRank);
                 m_iaUpperBound = iaTemp;
             }
 
@@ -298,10 +298,7 @@ namespace System.Reflection.Emit
             return m_cRank;
         }
 
-        public override Guid GUID
-        {
-            get { throw new NotSupportedException(SR.NotSupported_NonReflectedType); }
-        }
+        public override Guid GUID => throw new NotSupportedException(SR.NotSupported_NonReflectedType);
 
         public override object InvokeMember(string name, BindingFlags invokeAttr, Binder? binder, object? target,
             object?[]? args, ParameterModifier[]? modifiers, CultureInfo? culture, string[]? namedParameters)
@@ -332,10 +329,7 @@ namespace System.Reflection.Emit
             }
         }
 
-        public override RuntimeTypeHandle TypeHandle
-        {
-            get { throw new NotSupportedException(SR.NotSupported_NonReflectedType); }
-        }
+        public override RuntimeTypeHandle TypeHandle => throw new NotSupportedException(SR.NotSupported_NonReflectedType);
 
         public override string Name
         {
@@ -351,36 +345,18 @@ namespace System.Reflection.Emit
             }
         }
 
-        public override string? FullName
-        {
-            get
-            {
-                return TypeNameBuilder.ToString(this, TypeNameBuilder.Format.FullName);
-            }
-        }
+        public override string? FullName => TypeNameBuilder.ToString(this, TypeNameBuilder.Format.FullName);
 
-        public override string? AssemblyQualifiedName
-        {
-            get
-            {
-                return TypeNameBuilder.ToString(this, TypeNameBuilder.Format.AssemblyQualifiedName);
-            }
-        }
+        public override string? AssemblyQualifiedName => TypeNameBuilder.ToString(this, TypeNameBuilder.Format.AssemblyQualifiedName);
 
         public override string ToString()
         {
             return TypeNameBuilder.ToString(this, TypeNameBuilder.Format.ToString)!;
         }
 
-        public override string? Namespace
-        {
-            get { return m_baseType.Namespace; }
-        }
+        public override string? Namespace => m_baseType.Namespace;
 
-        public override Type BaseType
-        {
-            get { return typeof(System.Array); }
-        }
+        public override Type BaseType => typeof(System.Array);
 
         protected override ConstructorInfo GetConstructorImpl(BindingFlags bindingAttr, Binder? binder,
                 CallingConventions callConvention, Type[] types, ParameterModifier[]? modifiers)
@@ -513,13 +489,7 @@ namespace System.Reflection.Emit
             return false;
         }
 
-        public override bool IsConstructedGenericType
-        {
-            get
-            {
-                return false;
-            }
-        }
+        public override bool IsConstructedGenericType => false;
 
         public override Type? GetElementType()
         {
@@ -531,10 +501,7 @@ namespace System.Reflection.Emit
             return m_baseType != null;
         }
 
-        public override Type UnderlyingSystemType
-        {
-            get { return this; }
-        }
+        public override Type UnderlyingSystemType => this;
 
         public override object[] GetCustomAttributes(bool inherit)
         {
@@ -553,20 +520,3 @@ namespace System.Reflection.Emit
         #endregion
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

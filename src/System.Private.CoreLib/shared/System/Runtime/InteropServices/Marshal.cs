@@ -10,6 +10,7 @@ using System.Text;
 using Internal.Runtime.CompilerServices;
 using System.Diagnostics.CodeAnalysis;
 
+#pragma warning disable SA1121 // explicitly using type aliases instead of built-in types
 #if BIT64
 using nuint = System.UInt64;
 #else
@@ -39,7 +40,7 @@ namespace System.Runtime.InteropServices
 
         public static unsafe string? PtrToStringAnsi(IntPtr ptr)
         {
-            if (ptr == IntPtr.Zero || IsWin32Atom(ptr))
+            if (IsNullOrWin32Atom(ptr))
             {
                 return null;
             }
@@ -63,7 +64,7 @@ namespace System.Runtime.InteropServices
 
         public static unsafe string? PtrToStringUni(IntPtr ptr)
         {
-            if (ptr == IntPtr.Zero || IsWin32Atom(ptr))
+            if (IsNullOrWin32Atom(ptr))
             {
                 return null;
             }
@@ -87,7 +88,7 @@ namespace System.Runtime.InteropServices
 
         public static unsafe string? PtrToStringUTF8(IntPtr ptr)
         {
-            if (ptr == IntPtr.Zero || IsWin32Atom(ptr))
+            if (IsNullOrWin32Atom(ptr))
             {
                 return null;
             }
@@ -661,7 +662,7 @@ namespace System.Runtime.InteropServices
                 throw new ArgumentNullException(nameof(s));
             }
 
-            return s.MarshalToString(globalAlloc: true, unicode: true); ;
+            return s.MarshalToString(globalAlloc: true, unicode: true);
         }
 
         public static unsafe IntPtr StringToHGlobalAnsi(string? s)
@@ -702,7 +703,7 @@ namespace System.Runtime.InteropServices
             }
 
             IntPtr hglobal = AllocHGlobal((IntPtr)nb);
-            
+
             fixed (char* firstChar = s)
             {
                 string.wstrcpy((char*)hglobal, firstChar, s.Length + 1);
@@ -914,17 +915,17 @@ namespace System.Runtime.InteropServices
 
         public static IntPtr /* IDispatch */ GetIDispatchForObject(object o) => throw new PlatformNotSupportedException();
 
-        public static void ZeroFreeBSTR(IntPtr s)
+        public static unsafe void ZeroFreeBSTR(IntPtr s)
         {
             if (s == IntPtr.Zero)
             {
                 return;
             }
-            RuntimeImports.RhZeroMemory(s, (UIntPtr)SysStringByteLen(s));
+            Buffer.ZeroMemory((byte*)s, SysStringByteLen(s));
             FreeBSTR(s);
         }
 
-        public unsafe static void ZeroFreeCoTaskMemAnsi(IntPtr s)
+        public static unsafe void ZeroFreeCoTaskMemAnsi(IntPtr s)
         {
             ZeroFreeCoTaskMemUTF8(s);
         }
@@ -935,7 +936,7 @@ namespace System.Runtime.InteropServices
             {
                 return;
             }
-            RuntimeImports.RhZeroMemory(s, (UIntPtr)(string.wcslen((char*)s) * 2));
+            Buffer.ZeroMemory((byte*)s, (nuint)string.wcslen((char*)s) * sizeof(char));
             FreeCoTaskMem(s);
         }
 
@@ -945,17 +946,17 @@ namespace System.Runtime.InteropServices
             {
                 return;
             }
-            RuntimeImports.RhZeroMemory(s, (UIntPtr)string.strlen((byte*)s));
+            Buffer.ZeroMemory((byte*)s, (nuint)string.strlen((byte*)s));
             FreeCoTaskMem(s);
         }
 
-        public unsafe static void ZeroFreeGlobalAllocAnsi(IntPtr s)
+        public static unsafe void ZeroFreeGlobalAllocAnsi(IntPtr s)
         {
             if (s == IntPtr.Zero)
             {
                 return;
             }
-            RuntimeImports.RhZeroMemory(s, (UIntPtr)string.strlen((byte*)s));
+            Buffer.ZeroMemory((byte*)s, (nuint)string.strlen((byte*)s));
             FreeHGlobal(s);
         }
 
@@ -965,7 +966,7 @@ namespace System.Runtime.InteropServices
             {
                 return;
             }
-            RuntimeImports.RhZeroMemory(s, (UIntPtr)(string.wcslen((char*)s) * 2));
+            Buffer.ZeroMemory((byte*)s, (nuint)string.wcslen((char*)s) * sizeof(char));
             FreeHGlobal(s);
         }
 

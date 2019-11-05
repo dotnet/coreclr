@@ -261,8 +261,6 @@ namespace System
 
         private const int DefaultPrecisionExponentialFormat = 6;
 
-        private const int ScaleNAN = unchecked((int)0x80000000);
-        private const int ScaleINF = 0x7FFFFFFF;
         private const int MaxUInt32DecDigits = 10;
         private const int CharStackBufferSize = 32;
         private const string PosNumberFormat = "#";
@@ -1207,10 +1205,8 @@ namespace System
         {
             while (--digits >= 0 || value != 0)
             {
-                // TODO https://github.com/dotnet/coreclr/issues/3439
-                uint newValue = value / 10;
-                *(--bufferEnd) = (byte)(value - (newValue * 10) + '0');
-                value = newValue;
+                value = Math.DivRem(value, 10, out uint remainder);
+                *(--bufferEnd) = (byte)(remainder + '0');
             }
             return bufferEnd;
         }
@@ -1219,15 +1215,13 @@ namespace System
         {
             while (--digits >= 0 || value != 0)
             {
-                // TODO https://github.com/dotnet/coreclr/issues/3439
-                uint newValue = value / 10;
-                *(--bufferEnd) = (char)(value - (newValue * 10) + '0');
-                value = newValue;
+                value = Math.DivRem(value, 10, out uint remainder);
+                *(--bufferEnd) = (char)(remainder + '0');
             }
             return bufferEnd;
         }
 
-        private static unsafe string UInt32ToDecStr(uint value, int digits)
+        internal static unsafe string UInt32ToDecStr(uint value, int digits)
         {
             int bufferLength = Math.Max(digits, FormattingHelpers.CountDigits(value));
 
@@ -1245,10 +1239,8 @@ namespace System
                 {
                     do
                     {
-                        // TODO https://github.com/dotnet/coreclr/issues/3439
-                        uint div = value / 10;
-                        *(--p) = (char)('0' + value - (div * 10));
-                        value = div;
+                        value = Math.DivRem(value, 10, out uint remainder);
+                        *(--p) = (char)(remainder + '0');
                     }
                     while (value != 0);
                 }
@@ -1278,10 +1270,8 @@ namespace System
                 {
                     do
                     {
-                        // TODO https://github.com/dotnet/coreclr/issues/3439
-                        uint div = value / 10;
-                        *(--p) = (char)('0' + value - (div * 10));
-                        value = div;
+                        value = Math.DivRem(value, 10, out uint remainder);
+                        *(--p) = (char)(remainder + '0');
                     }
                     while (value != 0);
                 }
@@ -1292,21 +1282,6 @@ namespace System
                 Debug.Assert(p == buffer);
             }
             return true;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe bool TryCopyTo(char* src, int length, Span<char> destination, out int charsWritten)
-        {
-            if (new ReadOnlySpan<char>(src, length).TryCopyTo(destination))
-            {
-                charsWritten = length;
-                return true;
-            }
-            else
-            {
-                charsWritten = 0;
-                return false;
-            }
         }
 
         private static unsafe void Int64ToNumber(long input, ref NumberBuffer number)
@@ -1483,7 +1458,7 @@ namespace System
             number.CheckConsistency();
         }
 
-        private static unsafe string UInt64ToDecStr(ulong value, int digits)
+        internal static unsafe string UInt64ToDecStr(ulong value, int digits)
         {
             if (digits < 1)
                 digits = 1;
@@ -1635,7 +1610,7 @@ namespace System
                     if (number.IsNegative)
                         sb.Append(info.NegativeSign);
 
-                    FormatFixed(ref sb, ref number, nMaxDigits, info, null, info.NumberDecimalSeparator, null);
+                    FormatFixed(ref sb, ref number, nMaxDigits, null, info.NumberDecimalSeparator, null);
 
                     break;
                 }
@@ -2117,7 +2092,7 @@ namespace System
                 switch (ch)
                 {
                     case '#':
-                        FormatFixed(ref sb, ref number, nMaxDigits, info, info._currencyGroupSizes, info.CurrencyDecimalSeparator, info.CurrencyGroupSeparator);
+                        FormatFixed(ref sb, ref number, nMaxDigits, info._currencyGroupSizes, info.CurrencyDecimalSeparator, info.CurrencyGroupSeparator);
                         break;
                     case '-':
                         sb.Append(info.NegativeSign);
@@ -2132,7 +2107,7 @@ namespace System
             }
         }
 
-        private static unsafe void FormatFixed(ref ValueStringBuilder sb, ref NumberBuffer number, int nMaxDigits, NumberFormatInfo? info, int[]? groupDigits, string? sDecimal, string? sGroup)
+        private static unsafe void FormatFixed(ref ValueStringBuilder sb, ref NumberBuffer number, int nMaxDigits, int[]? groupDigits, string? sDecimal, string? sGroup)
         {
             int digPos = number.Scale;
             byte* dig = number.GetDigitsPointer();
@@ -2247,7 +2222,7 @@ namespace System
                 switch (ch)
                 {
                     case '#':
-                        FormatFixed(ref sb, ref number, nMaxDigits, info, info._numberGroupSizes, info.NumberDecimalSeparator, info.NumberGroupSeparator);
+                        FormatFixed(ref sb, ref number, nMaxDigits, info._numberGroupSizes, info.NumberDecimalSeparator, info.NumberGroupSeparator);
                         break;
                     case '-':
                         sb.Append(info.NegativeSign);
@@ -2292,7 +2267,6 @@ namespace System
 
             char* digits = stackalloc char[MaxUInt32DecDigits];
             char* p = UInt32ToDecChars(digits + MaxUInt32DecDigits, (uint)value, minDigits);
-            int i = (int)(digits + MaxUInt32DecDigits - p);
             sb.Append(p, (int)(digits + MaxUInt32DecDigits - p));
         }
 
@@ -2354,7 +2328,7 @@ namespace System
                 switch (ch)
                 {
                     case '#':
-                        FormatFixed(ref sb, ref number, nMaxDigits, info, info._percentGroupSizes, info.PercentDecimalSeparator, info.PercentGroupSeparator);
+                        FormatFixed(ref sb, ref number, nMaxDigits, info._percentGroupSizes, info.PercentDecimalSeparator, info.PercentGroupSeparator);
                         break;
                     case '-':
                         sb.Append(info.NegativeSign);
@@ -2413,7 +2387,7 @@ namespace System
             number.DigitsCount = i;
             number.CheckConsistency();
 
-            bool ShouldRoundUp(byte* dig, int i, NumberBufferKind numberKind, bool isCorrectlyRounded)
+            static bool ShouldRoundUp(byte* dig, int i, NumberBufferKind numberKind, bool isCorrectlyRounded)
             {
                 // We only want to round up if the digit is greater than or equal to 5 and we are
                 // not rounding a floating-point number. If we are rounding a floating-point number
@@ -2428,7 +2402,7 @@ namespace System
                 // function to round correctly instead. This can unfortunately lead to double-rounding
                 // bugs but is the best we have right now due to back-compat concerns.
 
-                var digit = dig[i];
+                byte digit = dig[i];
 
                 if ((digit == '\0') || isCorrectlyRounded)
                 {
@@ -2442,7 +2416,7 @@ namespace System
                 // needs further thought for .NET 5 so that we can be spec compliant and so that users
                 // can get the desired rounding behavior for their needs.
 
-                return (digit >= '5');
+                return digit >= '5';
             }
         }
 
@@ -2457,7 +2431,7 @@ namespace System
             fixed (char* pFormat = &MemoryMarshal.GetReference(format))
             {
                 src = 0;
-                for (; ; )
+                while (true)
                 {
                     if (src >= format.Length)
                     {
@@ -2468,8 +2442,7 @@ namespace System
                     {
                         case '\'':
                         case '"':
-                            while (src < format.Length && pFormat[src] != 0 && pFormat[src++] != ch)
-                                ;
+                            while (src < format.Length && pFormat[src] != 0 && pFormat[src++] != ch) ;
                             break;
                         case '\\':
                             if (src < format.Length && pFormat[src] != 0)

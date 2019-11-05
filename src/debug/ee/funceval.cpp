@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 // ****************************************************************************
 // File: funceval.cpp
-// 
+//
 
 //
 // funceval.cpp - Debugger func-eval routines.
@@ -69,7 +69,7 @@
 // elaboration is needed on the first step.
 //
 // a) Protect all passed in args from a GC.  This must be done in a gc-forbid region,
-// and the code path to this function must not trigger a gc either.  In this function five 
+// and the code path to this function must not trigger a gc either.  In this function five
 // parallel arrays are used:  pObjectRefArray, pMaybeInteriorPtrArray, pByRefMaybeInteriorPtrArray,
 // pBufferForArgsArray, and pArguments.
 //   pObjectRefArray is used to gc-protect all arguments and results that are objects.
@@ -189,20 +189,20 @@ inline static void GetAndSetLiteralValue(LPVOID pDst, CorElementType dstType, LP
     case ELEMENT_TYPE_CHAR:
         *(UINT16*)pDst = (UINT16)srcValue;
         break;
-#if !defined(_WIN64)
+#if !defined(BIT64)
     case ELEMENT_TYPE_I:
 #endif
     case ELEMENT_TYPE_I4:
         *(int*)pDst = (int)srcValue;
         break;
-#if !defined(_WIN64)
+#if !defined(BIT64)
     case ELEMENT_TYPE_U:
 #endif
     case ELEMENT_TYPE_U4:
     case ELEMENT_TYPE_R4:
         *(unsigned*)pDst = (unsigned)srcValue;
         break;
-#if defined(_WIN64)
+#if defined(BIT64)
     case ELEMENT_TYPE_I:
 #endif
     case ELEMENT_TYPE_I8:
@@ -210,7 +210,7 @@ inline static void GetAndSetLiteralValue(LPVOID pDst, CorElementType dstType, LP
         *(INT64*)pDst = (INT64)srcValue;
         break;
 
-#if defined(_WIN64)
+#if defined(BIT64)
     case ELEMENT_TYPE_U:
 #endif
     case ELEMENT_TYPE_U8:
@@ -239,16 +239,16 @@ static void ValidateFuncEvalReturnType(DebuggerIPCE_FuncEvalType evalType, Metho
         GC_TRIGGERS;
     }
     CONTRACTL_END;
-    
-    if (pMT == g_pStringClass) 
+
+    if (pMT == g_pStringClass)
     {
-        if (evalType == DB_IPCE_FET_NEW_OBJECT || evalType == DB_IPCE_FET_NEW_OBJECT_NC) 
+        if (evalType == DB_IPCE_FET_NEW_OBJECT || evalType == DB_IPCE_FET_NEW_OBJECT_NC)
         {
             // Cannot call New object on String constructor.
             COMPlusThrow(kArgumentException,W("Argument_CannotCreateString"));
         }
     }
-    else if (g_pEEInterface->IsTypedReference(pMT)) 
+    else if (g_pEEInterface->IsTypedReference(pMT))
     {
         // Cannot create typed references through funceval.
         if (evalType == DB_IPCE_FET_NEW_OBJECT || evalType == DB_IPCE_FET_NEW_OBJECT_NC || evalType == DB_IPCE_FET_NORMAL)
@@ -267,9 +267,9 @@ static SIZE_T GetRegisterValue(DebuggerEval *pDE, CorDebugRegister reg, void *re
 
     SIZE_T ret = 0;
 
-    // Check whether the register address is the marker value for a register in a non-leaf frame.  
+    // Check whether the register address is the marker value for a register in a non-leaf frame.
     // This is related to the funceval breaking change.
-    // 
+    //
     if (regAddr == CORDB_ADDRESS_TO_PTR(kNonLeafFrameRegAddr))
     {
         ret = regValue;
@@ -388,7 +388,81 @@ static SIZE_T GetRegisterValue(DebuggerEval *pDE, CorDebugRegister reg, void *re
             ret = FPSpillToR8(&(pDE->m_context.Xmm0) + (reg - REGISTER_AMD64_XMM0));
             break;
 
-#endif // !_TARGET_X86_ && !_TARGET_AMD64_
+#elif defined(_TARGET_ARM64_)
+        // fall through
+        case REGISTER_ARM64_X0:
+        case REGISTER_ARM64_X1:
+        case REGISTER_ARM64_X2:
+        case REGISTER_ARM64_X3:
+        case REGISTER_ARM64_X4:
+        case REGISTER_ARM64_X5:
+        case REGISTER_ARM64_X6:
+        case REGISTER_ARM64_X7:
+        case REGISTER_ARM64_X8:
+        case REGISTER_ARM64_X9:
+        case REGISTER_ARM64_X10:
+        case REGISTER_ARM64_X11:
+        case REGISTER_ARM64_X12:
+        case REGISTER_ARM64_X13:
+        case REGISTER_ARM64_X14:
+        case REGISTER_ARM64_X15:
+        case REGISTER_ARM64_X16:
+        case REGISTER_ARM64_X17:
+        case REGISTER_ARM64_X18:
+        case REGISTER_ARM64_X19:
+        case REGISTER_ARM64_X20:
+        case REGISTER_ARM64_X21:
+        case REGISTER_ARM64_X22:
+        case REGISTER_ARM64_X23:
+        case REGISTER_ARM64_X24:
+        case REGISTER_ARM64_X25:
+        case REGISTER_ARM64_X26:
+        case REGISTER_ARM64_X27:
+        case REGISTER_ARM64_X28:
+            ret = pDE->m_context.X[reg - REGISTER_ARM64_X0];
+            break;
+
+        case REGISTER_ARM64_LR:
+            ret = pDE->m_context.Lr;
+            break;
+
+
+        case REGISTER_ARM64_V0:
+        case REGISTER_ARM64_V1:
+        case REGISTER_ARM64_V2:
+        case REGISTER_ARM64_V3:
+        case REGISTER_ARM64_V4:
+        case REGISTER_ARM64_V5:
+        case REGISTER_ARM64_V6:
+        case REGISTER_ARM64_V7:
+        case REGISTER_ARM64_V8:
+        case REGISTER_ARM64_V9:
+        case REGISTER_ARM64_V10:
+        case REGISTER_ARM64_V11:
+        case REGISTER_ARM64_V12:
+        case REGISTER_ARM64_V13:
+        case REGISTER_ARM64_V14:
+        case REGISTER_ARM64_V15:
+        case REGISTER_ARM64_V16:
+        case REGISTER_ARM64_V17:
+        case REGISTER_ARM64_V18:
+        case REGISTER_ARM64_V19:
+        case REGISTER_ARM64_V20:
+        case REGISTER_ARM64_V21:
+        case REGISTER_ARM64_V22:
+        case REGISTER_ARM64_V23:
+        case REGISTER_ARM64_V24:
+        case REGISTER_ARM64_V25:
+        case REGISTER_ARM64_V26:
+        case REGISTER_ARM64_V27:
+        case REGISTER_ARM64_V28:
+        case REGISTER_ARM64_V29:
+        case REGISTER_ARM64_V30:
+        case REGISTER_ARM64_V31:
+            ret = FPSpillToR8(&pDE->m_context.V[reg - REGISTER_ARM64_V0]);
+            break;
+
+#endif // !_TARGET_X86_ && !_TARGET_AMD64_ && !_TARGET_ARM64_
         default:
             _ASSERT(!"Invalid register number!");
 
@@ -409,7 +483,7 @@ static void SetRegisterValue(DebuggerEval *pDE, CorDebugRegister reg, void *regA
     }
     CONTRACTL_END;
 
-    // Check whether the register address is the marker value for a register in a non-leaf frame.  
+    // Check whether the register address is the marker value for a register in a non-leaf frame.
     // If so, then we can't update the register.  Throw an exception to communicate this error.
     if (regAddr == CORDB_ADDRESS_TO_PTR(kNonLeafFrameRegAddr))
     {
@@ -530,7 +604,81 @@ static void SetRegisterValue(DebuggerEval *pDE, CorDebugRegister reg, void *regA
             R8ToFPSpill(&(pDE->m_context.Xmm0) + (reg - REGISTER_AMD64_XMM0), newValue);
             break;
 
-#endif // !_TARGET_X86_ && !_TARGET_AMD64_
+#elif defined(_TARGET_ARM64_)
+        // fall through
+        case REGISTER_ARM64_X0:
+        case REGISTER_ARM64_X1:
+        case REGISTER_ARM64_X2:
+        case REGISTER_ARM64_X3:
+        case REGISTER_ARM64_X4:
+        case REGISTER_ARM64_X5:
+        case REGISTER_ARM64_X6:
+        case REGISTER_ARM64_X7:
+        case REGISTER_ARM64_X8:
+        case REGISTER_ARM64_X9:
+        case REGISTER_ARM64_X10:
+        case REGISTER_ARM64_X11:
+        case REGISTER_ARM64_X12:
+        case REGISTER_ARM64_X13:
+        case REGISTER_ARM64_X14:
+        case REGISTER_ARM64_X15:
+        case REGISTER_ARM64_X16:
+        case REGISTER_ARM64_X17:
+        case REGISTER_ARM64_X18:
+        case REGISTER_ARM64_X19:
+        case REGISTER_ARM64_X20:
+        case REGISTER_ARM64_X21:
+        case REGISTER_ARM64_X22:
+        case REGISTER_ARM64_X23:
+        case REGISTER_ARM64_X24:
+        case REGISTER_ARM64_X25:
+        case REGISTER_ARM64_X26:
+        case REGISTER_ARM64_X27:
+        case REGISTER_ARM64_X28:
+            pDE->m_context.X[reg - REGISTER_ARM64_X0] = newValue;
+            break;
+
+        case REGISTER_ARM64_LR:
+            pDE->m_context.Lr = newValue;
+            break;
+
+
+        case REGISTER_ARM64_V0:
+        case REGISTER_ARM64_V1:
+        case REGISTER_ARM64_V2:
+        case REGISTER_ARM64_V3:
+        case REGISTER_ARM64_V4:
+        case REGISTER_ARM64_V5:
+        case REGISTER_ARM64_V6:
+        case REGISTER_ARM64_V7:
+        case REGISTER_ARM64_V8:
+        case REGISTER_ARM64_V9:
+        case REGISTER_ARM64_V10:
+        case REGISTER_ARM64_V11:
+        case REGISTER_ARM64_V12:
+        case REGISTER_ARM64_V13:
+        case REGISTER_ARM64_V14:
+        case REGISTER_ARM64_V15:
+        case REGISTER_ARM64_V16:
+        case REGISTER_ARM64_V17:
+        case REGISTER_ARM64_V18:
+        case REGISTER_ARM64_V19:
+        case REGISTER_ARM64_V20:
+        case REGISTER_ARM64_V21:
+        case REGISTER_ARM64_V22:
+        case REGISTER_ARM64_V23:
+        case REGISTER_ARM64_V24:
+        case REGISTER_ARM64_V25:
+        case REGISTER_ARM64_V26:
+        case REGISTER_ARM64_V27:
+        case REGISTER_ARM64_V28:
+        case REGISTER_ARM64_V29:
+        case REGISTER_ARM64_V30:
+        case REGISTER_ARM64_V31:
+            R8ToFPSpill(&pDE->m_context.V[reg - REGISTER_ARM64_V0], newValue);
+            break;
+
+#endif // !_TARGET_X86_ && !_TARGET_AMD64_ && !_TARGET_ARM64_
         default:
             _ASSERT(!"Invalid register number!");
 
@@ -542,7 +690,7 @@ static void SetRegisterValue(DebuggerEval *pDE, CorDebugRegister reg, void *regA
 /*
  * GetRegsiterValueAndReturnAddress
  *
- * This routine takes out a value from a register, or set of registers, into one of 
+ * This routine takes out a value from a register, or set of registers, into one of
  * the given buffers (depending on size), and returns a pointer to the filled in
  * buffer, or NULL on error.
  *
@@ -566,15 +714,15 @@ static PVOID GetRegisterValueAndReturnAddress(DebuggerEval *pDE,
 
     PVOID pAddr;
 
-#if !defined(_WIN64)
+#if !defined(BIT64)
     pAddr = pInt64Buf;
     DWORD *pLow = (DWORD*)(pInt64Buf);
     DWORD *pHigh  = pLow + 1;
-#endif // _WIN64
+#endif // BIT64
 
     switch (pFEAD->argHome.kind)
     {
-#if !defined(_WIN64)
+#if !defined(BIT64)
     case RAK_REGREG:
         *pLow = GetRegisterValue(pDE, pFEAD->argHome.u.reg2, pFEAD->argHome.u.reg2Addr, pFEAD->argHome.u.reg2Value);
         *pHigh = GetRegisterValue(pDE, pFEAD->argHome.reg1, pFEAD->argHome.reg1Addr, pFEAD->argHome.reg1Value);
@@ -589,7 +737,7 @@ static PVOID GetRegisterValueAndReturnAddress(DebuggerEval *pDE,
         *pLow = *((DWORD*)CORDB_ADDRESS_TO_PTR(pFEAD->argHome.addr));
         *pHigh = GetRegisterValue(pDE, pFEAD->argHome.reg1, pFEAD->argHome.reg1Addr, pFEAD->argHome.reg1Value);
         break;
-#endif // _WIN64
+#endif // BIT64
 
     case RAK_REG:
         // Simply grab the value out of the proper register.
@@ -702,15 +850,15 @@ static void GetFuncEvalArgValue(DebuggerEval *pDE,
         {
             INT64 *pSource;
 
-#if defined(_WIN64)
+#if defined(BIT64)
             _ASSERTE(dataLocation & DL_MaybeInteriorPtrArray);
 
             pSource = (INT64 *)pMaybeInteriorPtrArg;
-#else  // !_WIN64
+#else  // !BIT64
             _ASSERTE(dataLocation & DL_BufferForArgsArray);
 
             pSource = pBufferArg;
-#endif // !_WIN64
+#endif // !BIT64
 
             if (!isByRef)
             {
@@ -768,8 +916,8 @@ static void GetFuncEvalArgValue(DebuggerEval *pDE,
                     {
                         // On X64, by-value value class arguments which are bigger than 8 bytes are passed by reference
                         // according to the native calling convention.  The same goes for value class arguments whose size
-                        // is smaller than 8 bytes but not a power of 2.  To avoid side effets, we need to allocate a 
-                        // temporary variable and pass that by reference instead. On ARM64, by-value value class 
+                        // is smaller than 8 bytes but not a power of 2.  To avoid side effets, we need to allocate a
+                        // temporary variable and pass that by reference instead. On ARM64, by-value value class
                         // arguments which are bigger than 16 bytes are passed by reference.
                         _ASSERTE(ppProtectedValueClasses != NULL);
 
@@ -808,7 +956,7 @@ static void GetFuncEvalArgValue(DebuggerEval *pDE,
                     else
                     {
                         // The argument is the address of where we're holding the primitive in the PrimitiveArg array. We
-                        // stick the real value from the register into the PrimitiveArg array.  It should be in a single 
+                        // stick the real value from the register into the PrimitiveArg array.  It should be in a single
                         // register since it is pointer-sized.
                         _ASSERTE( pFEAD->argHome.kind == RAK_REG );
                         *pArgument = PtrToArgSlot(pBufferArg);
@@ -948,11 +1096,11 @@ static void GetFuncEvalArgValue(DebuggerEval *pDE,
                     // did not know the data location until just now.  Fill it in with the data and use that
                     // to pass to the function.
 
-                    if (Nullable::IsNullableType(argTH)) 
+                    if (Nullable::IsNullableType(argTH))
                     {
                         _ASSERTE(*pObjectRefArg != 0);
                         _ASSERTE((*pObjectRefArg)->GetMethodTable() == argTH.GetMethodTable());
-                        if (o1 != *pObjectRefArg) 
+                        if (o1 != *pObjectRefArg)
                         {
                             Nullable::UnBoxNoCheck((*pObjectRefArg)->GetData(), o1, (*pObjectRefArg)->GetMethodTable());
                             o1 = *pObjectRefArg;
@@ -1006,10 +1154,10 @@ static void GetFuncEvalArgValue(DebuggerEval *pDE,
                     // did not know the data location until just now.  Fill it in with the data and use that
                     // to pass to the function.
 
-                    if (Nullable::IsNullableType(byrefArgTH)) 
+                    if (Nullable::IsNullableType(byrefArgTH))
                     {
                          _ASSERTE(*pObjectRefArg != 0 && (*pObjectRefArg)->GetMethodTable() == byrefArgTH.GetMethodTable());
-                        if (o1 != *pObjectRefArg) 
+                        if (o1 != *pObjectRefArg)
                         {
                             Nullable::UnBoxNoCheck((*pObjectRefArg)->GetData(), o1, (*pObjectRefArg)->GetMethodTable());
                             o1 = *pObjectRefArg;
@@ -1068,19 +1216,19 @@ static void GetFuncEvalArgValue(DebuggerEval *pDE,
 static CorDebugRegister GetArgAddrFromReg( DebuggerIPCE_FuncEvalArgData *pFEAD)
 {
     CorDebugRegister retval = REGISTER_INSTRUCTION_POINTER; // good as default as any
-#if defined(_WIN64)
+#if defined(BIT64)
     retval = (pFEAD->argHome.kind == RAK_REG ?
               pFEAD->argHome.reg1 :
               (CorDebugRegister)((int)REGISTER_IA64_F0 + pFEAD->argHome.floatIndex));
-#else  // !_WIN64
+#else  // !BIT64
     retval = pFEAD->argHome.reg1;
-#endif // !_WIN64
+#endif // !BIT64
     return retval;
 }
 
-// 
-// Given info about a byref argument, retrieve the current value from the pBufferForArgsArray, 
-// the pMaybeInteriorPtrArray, the pByRefMaybeInteriorPtrArray, or the pObjectRefArray.  Then 
+//
+// Given info about a byref argument, retrieve the current value from the pBufferForArgsArray,
+// the pMaybeInteriorPtrArray, the pByRefMaybeInteriorPtrArray, or the pObjectRefArray.  Then
 // place it back into the proper register or address.
 //
 // Note that we should never use the argAddr of the DebuggerIPCE_FuncEvalArgData in this function
@@ -1106,11 +1254,11 @@ static void SetFuncEvalByRefArgValue(DebuggerEval *pDE,
         {
             INT64 source;
 
-#if defined(_WIN64)
+#if defined(BIT64)
             source = (INT64)maybeInteriorPtrArg;
-#else  // !_WIN64
+#else  // !BIT64
             source = bufferByRefArg;
-#endif // !_WIN64
+#endif // !BIT64
 
             if (pFEAD->argIsLiteral)
             {
@@ -1124,7 +1272,7 @@ static void SetFuncEvalByRefArgValue(DebuggerEval *pDE,
             }
             else
             {
-#if !defined(_WIN64)
+#if !defined(BIT64)
                 // RAK_REG is the only 4 byte type, all others are 8 byte types.
                 _ASSERTE(pFEAD->argHome.kind != RAK_REG);
 
@@ -1151,12 +1299,12 @@ static void SetFuncEvalByRefArgValue(DebuggerEval *pDE,
                 default:
                     break;
                 }
-#else // _WIN64
+#else // BIT64
                 // The only types we use are RAK_REG and RAK_FLOAT, and both of them can be 4 or 8 bytes.
                 _ASSERTE((pFEAD->argHome.kind == RAK_REG) || (pFEAD->argHome.kind == RAK_FLOAT));
 
                 SetRegisterValue(pDE, pFEAD->argHome.reg1, pFEAD->argHome.reg1Addr, source);
-#endif // _WIN64
+#endif // BIT64
             }
         }
         break;
@@ -1206,7 +1354,7 @@ static void SetFuncEvalByRefArgValue(DebuggerEval *pDE,
                 // RAK_REG is the only valid 4 byte type on WIN32.  On WIN64, both RAK_REG and RAK_FLOAT can be
                 // 4 bytes or 8 bytes.
                 _ASSERTE((pFEAD->argHome.kind == RAK_REG)
-                         WIN64_ONLY(|| (pFEAD->argHome.kind == RAK_FLOAT)));
+                         BIT64_ONLY(|| (pFEAD->argHome.kind == RAK_FLOAT)));
 
                 CorDebugRegister regNum = GetArgAddrFromReg(pFEAD);
 
@@ -1223,7 +1371,7 @@ static void SetFuncEvalByRefArgValue(DebuggerEval *pDE,
             else
             {
                 // If the result was an object by ref, then copy back the new location of the object (in GC case).
-                if (pFEAD->argIsHandleValue) 
+                if (pFEAD->argIsHandleValue)
                 {
                     // do nothing.  The Handle was passed in the pArgument array directly
                 }
@@ -1295,7 +1443,7 @@ static void GCProtectAllPassedArgs(DebuggerEval *pDE,
     {
         DebuggerIPCE_FuncEvalArgData *pFEAD = &argData[currArgIndex];
 
-        // In case any of the arguments is a by ref argument and points into the GC heap, 
+        // In case any of the arguments is a by ref argument and points into the GC heap,
         // we need to GC protect their addresses as well.
         if (pFEAD->argAddr != NULL)
         {
@@ -1309,7 +1457,7 @@ static void GCProtectAllPassedArgs(DebuggerEval *pDE,
         case ELEMENT_TYPE_R8:
             // 64bit values
 
-#if defined(_WIN64)
+#if defined(BIT64)
             //
             // Only need to worry about protecting if a pointer is a 64 bit quantity.
             //
@@ -1358,7 +1506,7 @@ static void GCProtectAllPassedArgs(DebuggerEval *pDE,
                 }
 #endif
             }
-#endif // _WIN64
+#endif // BIT64
             break;
 
         case ELEMENT_TYPE_VALUETYPE:
@@ -1519,7 +1667,7 @@ void ResolveFuncEvalGenericArgInfo(DebuggerEval *pDE)
         GC_TRIGGERS;
     }
     CONTRACTL_END;
-    
+
     DebuggerIPCE_TypeArgData *firstdata = pDE->GetTypeArgData();
     unsigned int nGenericArgs = pDE->m_genericArgsCount;
     SIZE_T cbAllocSize;
@@ -1536,15 +1684,15 @@ void ResolveFuncEvalGenericArgInfo(DebuggerEval *pDE)
     //
     Debugger::TypeDataWalk walk(firstdata, pDE->m_genericArgsNodeCount);
     walk.ReadTypeHandles(nGenericArgs, pGenericArgs);
-    
+
     // <TODO>better error message</TODO>
     if (!walk.Finished())
     {
         COMPlusThrow(kArgumentException, W("Argument_InvalidGenericArg"));
     }
-    
+
     // Find the proper MethodDesc that we need to call.
-    // Since we're already in the target domain, it can't be unloaded so it's safe to 
+    // Since we're already in the target domain, it can't be unloaded so it's safe to
     // use domain specific structures like the Module*.
     _ASSERTE( GetAppDomain() == pDE->m_debuggerModule->GetAppDomain() );
     pDE->m_md = g_pEEInterface->LoadMethodDef(pDE->m_debuggerModule->GetRuntimeModule(),
@@ -1552,26 +1700,26 @@ void ResolveFuncEvalGenericArgInfo(DebuggerEval *pDE)
                                               nGenericArgs,
                                               pGenericArgs,
                                               &(pDE->m_ownerTypeHandle));
-    
-    
+
+
     // We better have a MethodDesc at this point.
     _ASSERTE(pDE->m_md != NULL);
 
     ValidateFuncEvalReturnType(pDE->m_evalType , pDE->m_md->GetMethodTable());
-    
+
     // If this is a new object operation, then we should have a .ctor.
     if ((pDE->m_evalType == DB_IPCE_FET_NEW_OBJECT) && !pDE->m_md->IsCtor())
     {
         COMPlusThrow(kArgumentException, W("Argument_MissingDefaultConstructor"));
     }
-    
+
     pDE->m_md->EnsureActive();
-    
+
     // Run the Class Init for this class, if necessary.
     MethodTable * pOwningMT = pDE->m_ownerTypeHandle.GetMethodTable();
     pOwningMT->EnsureInstanceActive();
     pOwningMT->CheckRunClassInitThrowing();
-    
+
     if (pDE->m_evalType == DB_IPCE_FET_NEW_OBJECT)
     {
         // Work out the exact type of the allocated object
@@ -1586,7 +1734,7 @@ void ResolveFuncEvalGenericArgInfo(DebuggerEval *pDE)
  * BoxFuncEvalThisParameter
  *
  * This function is a helper for DoNormalFuncEval.  It boxes the 'this' parameter if necessary.
- * For example, when  a method Object.ToString is called on a value class like System.DateTime 
+ * For example, when  a method Object.ToString is called on a value class like System.DateTime
  *
  * Parameters:
  *    pDE - pointer to the DebuggerEval object being processed.
@@ -1615,18 +1763,18 @@ void BoxFuncEvalThisParameter(DebuggerEval *pDE,
         !pDE->m_md->IsStatic() &&
         (pDE->m_argCount > 0))
     {
-        // Allocate the space for box nullables.  Nullable parameters need a unboxed 
+        // Allocate the space for box nullables.  Nullable parameters need a unboxed
         // nullable value to point at, where our current representation does not have
         // an unboxed value inside them. Thus we need another buffer to hold it (and
         // gcprotects it.  We used boxed values for this by converting them to 'true'
         // nullable form, calling the function, and in the case of byrefs, converting
-        // them back afterward. 
+        // them back afterward.
 
         MethodTable* pMT = pDE->m_md->GetMethodTable();
-        if (Nullable::IsNullableType(pMT)) 
+        if (Nullable::IsNullableType(pMT))
         {
             OBJECTREF obj = AllocateObject(pMT);
-            if (*pObjectRefArg != NULL) 
+            if (*pObjectRefArg != NULL)
             {
                 BOOL typesMatch = Nullable::UnBox(obj->GetData(), *pObjectRefArg, pMT);
                 (void)typesMatch; //prevent "unused variable" error from GCC
@@ -1649,7 +1797,7 @@ void BoxFuncEvalThisParameter(DebuggerEval *pDE,
 
                 {
                     GCX_FORBID();    //pAddr is unprotected from the time we initialize it
-                    
+
                     if (pFEAD->argAddr != NULL)
                     {
                         _ASSERTE(pDataLocationArray[0] & DL_MaybeInteriorPtrArray);
@@ -1669,7 +1817,7 @@ void BoxFuncEvalThisParameter(DebuggerEval *pDE,
 
                     _ASSERTE(pAddr != NULL);
                 } //GCX_FORBID
-                
+
                 GCPROTECT_BEGININTERIOR(pAddr); //ReadTypeHandle may trigger a GC and move the object that has the value type at pAddr as a field
 
                 //
@@ -1790,10 +1938,10 @@ void GatherFuncEvalArgInfo(DebuggerEval *pDE,
         pFEArgInfo[currArgIndex].argSigType = argSigType;
         pFEArgInfo[currArgIndex].byrefArgSigType = byrefArgSigType;
         pFEArgInfo[currArgIndex].byrefArgTypeHandle = byrefTypeHandle;
-        pFEArgInfo[currArgIndex].fNeedBoxOrUnbox = fNeedBoxOrUnbox; 
-        pFEArgInfo[currArgIndex].sigTypeHandle = mSig.GetLastTypeHandleThrowing(); 
-    } 
-} 
+        pFEArgInfo[currArgIndex].fNeedBoxOrUnbox = fNeedBoxOrUnbox;
+        pFEArgInfo[currArgIndex].sigTypeHandle = mSig.GetLastTypeHandleThrowing();
+    }
+}
 
 
 /*
@@ -1842,22 +1990,22 @@ void BoxFuncEvalArguments(DebuggerEval *pDE,
     {
         DebuggerIPCE_FuncEvalArgData *pFEAD = &argData[currArgIndex];
 
-        // Allocate the space for box nullables.  Nullable parameters need a unboxed 
+        // Allocate the space for box nullables.  Nullable parameters need a unboxed
         // nullable value to point at, where our current representation does not have
         // an unboxed value inside them. Thus we need another buffer to hold it (and
         // gcprotects it.  We used boxed values for this by converting them to 'true'
         // nullable form, calling the function, and in the case of byrefs, converting
-        // them back afterward. 
+        // them back afterward.
 
         TypeHandle th = pFEArgInfo[currArgIndex].sigTypeHandle;
         if (pFEArgInfo[currArgIndex].argSigType == ELEMENT_TYPE_BYREF)
             th = pFEArgInfo[currArgIndex].byrefArgTypeHandle;
 
-        if (!th.IsNull() && Nullable::IsNullableType(th)) 
+        if (!th.IsNull() && Nullable::IsNullableType(th))
         {
 
             OBJECTREF obj = AllocateObject(th.AsMethodTable());
-            if (pObjectRef[currArgIndex] != NULL) 
+            if (pObjectRef[currArgIndex] != NULL)
             {
                 BOOL typesMatch = Nullable::UnBox(obj->GetData(), pObjectRef[currArgIndex], th.AsMethodTable());
                 (void)typesMatch; //prevent "unused variable" error from GCC
@@ -2103,7 +2251,7 @@ void GatherFuncEvalMethodInfo(DebuggerEval *pDE,
      CorElementType retTypeNormalized = mSig.GetReturnTypeNormalized();
 
 
-    if (*pfHasRetBuffArg || *pfHasNonStdByValReturn 
+    if (*pfHasRetBuffArg || *pfHasNonStdByValReturn
         || ((retType == ELEMENT_TYPE_VALUETYPE) && (retType != retTypeNormalized)))
     {
         *pRetValueType  = mSig.GetRetTypeHandleThrowing();
@@ -2214,10 +2362,10 @@ void CopyArgsToBuffer(DebuggerEval *pDE,
             else
             {
 
-#if !defined(_WIN64)
+#if !defined(BIT64)
                 // RAK_REG is the only 4 byte type, all others are 8 byte types.
                 _ASSERTE(pFEAD->argHome.kind != RAK_REG);
-                
+
                 INT64 bigVal = 0;
                 SIZE_T v;
                 INT64 *pAddr;
@@ -2231,13 +2379,13 @@ void CopyArgsToBuffer(DebuggerEval *pDE,
 
                 *pDest = *pAddr;
 
-#else  // _WIN64
+#else  // BIT64
                 // Both RAK_REG and RAK_FLOAT can be either 4 bytes or 8 bytes.
                 _ASSERTE((pFEAD->argHome.kind == RAK_REG) || (pFEAD->argHome.kind == RAK_FLOAT));
 
                 CorDebugRegister regNum = GetArgAddrFromReg(pFEAD);
                 *pDest = GetRegisterValue(pDE, regNum, pFEAD->argHome.reg1Addr, pFEAD->argHome.reg1Value);
-#endif // _WIN64
+#endif // BIT64
 
 
 
@@ -2336,7 +2484,7 @@ void CopyArgsToBuffer(DebuggerEval *pDE,
                 // RAK_REG is the only valid 4 byte type on WIN32.  On WIN64, RAK_REG and RAK_FLOAT
                 // can both be either 4 bytes or 8 bytes;
                 _ASSERTE((pFEAD->argHome.kind == RAK_REG)
-                         WIN64_ONLY(|| (pFEAD->argHome.kind == RAK_FLOAT)));
+                         BIT64_ONLY(|| (pFEAD->argHome.kind == RAK_FLOAT)));
 
                 CorDebugRegister regNum = GetArgAddrFromReg(pFEAD);
 
@@ -2437,7 +2585,7 @@ void CopyArgsToBuffer(DebuggerEval *pDE,
                 // RAK_REG is the only valid 4 byte type on WIN32.  On WIN64, RAK_REG and RAK_FLOAT
                 // can both be either 4 bytes or 8 bytes;
                 _ASSERTE((pFEAD->argHome.kind == RAK_REG)
-                         WIN64_ONLY(|| (pFEAD->argHome.kind == RAK_FLOAT)));
+                         BIT64_ONLY(|| (pFEAD->argHome.kind == RAK_FLOAT)));
 
                 CorDebugRegister regNum = GetArgAddrFromReg(pFEAD);
 
@@ -2627,13 +2775,13 @@ void PackArgumentArray(DebuggerEval *pDE,
                 Object  *objPtr = OBJECTREFToObject(o1);
                 MethodTable *pMT = objPtr->GetMethodTable();
                 // <TODO> Do this check in the following cases as well... </TODO>
-                if (!pMT->IsArray() 
+                if (!pMT->IsArray()
                     && !pDE->m_md->IsSharedByGenericInstantiations())
                 {
                     TypeHandle thFrom = TypeHandle(pMT);
                     TypeHandle thTarget = TypeHandle(pDE->m_md->GetMethodTable());
                     //<TODO> What about MaybeCast?</TODO>
-                    if (thFrom.CanCastToNoGC(thTarget) == TypeHandle::CannotCast)
+                    if (thFrom.CanCastToCached(thTarget) == TypeHandle::CannotCast)
                     {
                         COMPlusThrow(kArgumentException, W("Argument_CORDBBadMethod"));
                     }
@@ -2752,7 +2900,7 @@ void UnpackFuncEvalResult(DebuggerEval *pDE,
     if (pDE->m_evalType == DB_IPCE_FET_NEW_OBJECT)
     {
         // We purposely do not morph nullables to be boxed Ts here because debugger EE's otherwise
-        // have no way of creating true nullables that they need for their own purposes. 
+        // have no way of creating true nullables that they need for their own purposes.
         pDE->m_result[0] = ObjToArgSlot(newObj);
         pDE->m_retValueBoxing = Debugger::AllBoxed;
     }
@@ -2913,8 +3061,8 @@ void FuncEvalWrapper(MethodDescCallSite* pMDCS, DebuggerEval *pDE, const ARG_SLO
         MethodDescCallSite* pMDCS;
         DebuggerEval *pDE;
         const ARG_SLOT *pArguments;
-    }; 
-    
+    };
+
     Param param;
     param.pFrame = pCatcherStackAddr; // Inherited from NotifyOfCHFFilterWrapperParam
     param.pMDCS = pMDCS;
@@ -3032,22 +3180,22 @@ static void RecordFuncEvalException(DebuggerEval *pDE,
  *
  * Does the main body of work (steps 1c onward) for the normal func-eval algorithm detailed at the
  * top of this file. The args have already been GC protected and we've transitioned into the appropriate
- * domain (steps 1a & 1b).  This has to be a seperate function from GCProtectArgsAndDoNormalFuncEval 
- * because otherwise we can't reliably find the right GCFrames to pop when unwinding the stack due to 
- * an exception on 64-bit platforms (we have some GCFrames outside of the TRY, and some inside, 
+ * domain (steps 1a & 1b).  This has to be a seperate function from GCProtectArgsAndDoNormalFuncEval
+ * because otherwise we can't reliably find the right GCFrames to pop when unwinding the stack due to
+ * an exception on 64-bit platforms (we have some GCFrames outside of the TRY, and some inside,
  * and they won't necesarily be layed out sequentially on the stack if they are all in the same function).
  *
  * Parameters:
  *    pDE - pointer to the DebuggerEval object being processed.
  *    pCatcherStackAddr - stack address to report as the Catch Handler Found location.
  *    pObjectRefArray - An array to hold object ref args. This array is protected from GC's.
- *    pMaybeInteriorPtrArray - An array to hold values that may be pointers into a managed object.  
+ *    pMaybeInteriorPtrArray - An array to hold values that may be pointers into a managed object.
  *           This array is protected from GCs.
- *    pByRefMaybeInteriorPtrArray - An array to hold values that may be pointers into a managed 
- *           object.  This array is protected from GCs.  This array protects the address of the arguments 
- *           while the pMaybeInteriorPtrArray protects the value of the arguments.  We need to do this 
+ *    pByRefMaybeInteriorPtrArray - An array to hold values that may be pointers into a managed
+ *           object.  This array is protected from GCs.  This array protects the address of the arguments
+ *           while the pMaybeInteriorPtrArray protects the value of the arguments.  We need to do this
  *           because of by ref arguments.
- *    pBufferForArgsArray - a buffer of temporary scratch space for things that do not need to be 
+ *    pBufferForArgsArray - a buffer of temporary scratch space for things that do not need to be
  *           protected, or are protected for free (e.g. Handles).
  *    pDataLocationArray - an array of tracking data for debug sanity checks
  *
@@ -3324,7 +3472,7 @@ static void DoNormalFuncEval( DebuggerEval *pDE,
 /*
  * GCProtectArgsAndDoNormalFuncEval
  *
- * This routine is the primary entrypoint for normal func-evals.  It implements the algorithm 
+ * This routine is the primary entrypoint for normal func-evals.  It implements the algorithm
  * described at the top of this file, doing steps 1a and 1b itself, then calling DoNormalFuncEval
  * to do the rest.
  *
@@ -3434,12 +3582,12 @@ static void GCProtectArgsAndDoNormalFuncEval(DebuggerEval *pDE,
     //
 
     // Wrap everything in a EX_TRY so we catch any exceptions that could be thrown.
-    // Note that we don't let any thrown exceptions cross the AppDomain boundary because we don't 
+    // Note that we don't let any thrown exceptions cross the AppDomain boundary because we don't
     // want them to get marshalled.
     EX_TRY
     {
-        DoNormalFuncEval( 
-            pDE, 
+        DoNormalFuncEval(
+            pDE,
             pCatcherStackAddr,
             pObjectRefArray,
             pMaybeInteriorPtrArray,
@@ -3482,12 +3630,12 @@ void FuncEvalHijackRealWorker(DebuggerEval *pDE, Thread* pThread, FuncEvalFrame*
         LOG((LF_CORDB, LL_EVERYTHING, "DoNormalFuncEval has returned.\n"));
         return;
     }
-    
+
     OBJECTREF newObj = NULL;
     GCPROTECT_BEGIN(newObj);
 
     // Wrap everything in a EX_TRY so we catch any exceptions that could be thrown.
-    // Note that we don't let any thrown exceptions cross the AppDomain boundary because we don't 
+    // Note that we don't let any thrown exceptions cross the AppDomain boundary because we don't
     // want them to get marshalled.
     EX_TRY
     {
@@ -3693,7 +3841,7 @@ void * STDCALL FuncEvalHijackWorker(DebuggerEval *pDE)
 #ifndef DACCESS_COMPILE
 #ifdef _DEBUG
         //
-        // Flush all debug tracking information for this thread on object refs as it 
+        // Flush all debug tracking information for this thread on object refs as it
         // only approximates proper tracking and may have stale data, resulting in false
         // positives.  We dont want that as func-eval runs a lot, so flush them now.
         //
@@ -3757,9 +3905,9 @@ void * STDCALL FuncEvalHijackWorker(DebuggerEval *pDE)
     FrameWithCookie<FuncEvalFrame> FEFrame(pDE, GetIP(&pDE->m_context), true);
     FEFrame.Push();
 
-    // On ARM the single step flag is per-thread and not per context.  We need to make sure that the SS flag is cleared
+    // On ARM/ARM64 the single step flag is per-thread and not per context.  We need to make sure that the SS flag is cleared
     // for the funceval, and that the state is back to what it should be after the funceval completes.
-#ifdef _TARGET_ARM_
+#ifdef FEATURE_EMULATE_SINGLESTEP
     bool ssEnabled = pDE->m_thread->IsSingleStepEnabled();
     if (ssEnabled)
         pDE->m_thread->DisableSingleStep();
@@ -3767,7 +3915,7 @@ void * STDCALL FuncEvalHijackWorker(DebuggerEval *pDE)
 
     FuncEvalHijackRealWorker(pDE, pThread, &FEFrame);
 
-#ifdef _TARGET_ARM_
+#ifdef FEATURE_EMULATE_SINGLESTEP
     if (ssEnabled)
         pDE->m_thread->EnableSingleStep();
 #endif
@@ -3786,7 +3934,7 @@ void * STDCALL FuncEvalHijackWorker(DebuggerEval *pDE)
         //
         // Check if an unmanaged thread tried to also abort this thread while we
         // were doing the func-eval, then that kind we want to rethrow. The check
-        // versus m_aborted is for the case where the FE was aborted, we caught that, 
+        // versus m_aborted is for the case where the FE was aborted, we caught that,
         // then cleared the FEAbort request, but there is still an outstanding abort
         // - then it must be a user abort.
         //
@@ -3794,7 +3942,7 @@ void * STDCALL FuncEvalHijackWorker(DebuggerEval *pDE)
         {
             pDE->m_rethrowAbortException = true;
         }
-        
+
         //
         // Reset the abort request if a func-eval abort was submitted, but the func-eval completed
         // before the abort could take place, we want to make sure we do not throw an abort exception
@@ -3875,7 +4023,7 @@ void * STDCALL FuncEvalHijackWorker(DebuggerEval *pDE)
             if ((pDE->m_thread->GetDomain() != NULL) && pDE->m_thread->GetDomain()->IsDebuggerAttached())
             {
 
-                if (CORDebuggerAttached()) 
+                if (CORDebuggerAttached())
                 {
                     g_pDebugger->FuncEvalComplete(pDE->m_thread, pDE);
 
@@ -3898,12 +4046,12 @@ void * STDCALL FuncEvalHijackWorker(DebuggerEval *pDE)
 }
 
 
-#if defined(WIN64EXCEPTIONS) && !defined(FEATURE_PAL)
+#if defined(FEATURE_EH_FUNCLETS) && !defined(FEATURE_PAL)
 
 EXTERN_C EXCEPTION_DISPOSITION
 FuncEvalHijackPersonalityRoutine(IN     PEXCEPTION_RECORD   pExceptionRecord
-                       WIN64_ARG(IN     ULONG64             MemoryStackFp)
-                   NOT_WIN64_ARG(IN     ULONG32             MemoryStackFp),
+                       BIT64_ARG(IN     ULONG64             MemoryStackFp)
+                   NOT_BIT64_ARG(IN     ULONG32             MemoryStackFp),
                                  IN OUT PCONTEXT            pContextRecord,
                                  IN OUT PDISPATCHER_CONTEXT pDispatcherContext
                                 )
@@ -3935,6 +4083,6 @@ FuncEvalHijackPersonalityRoutine(IN     PEXCEPTION_RECORD   pExceptionRecord
 }
 
 
-#endif // WIN64EXCEPTIONS && !FEATURE_PAL
+#endif // FEATURE_EH_FUNCLETS && !FEATURE_PAL
 
 #endif // ifndef DACCESS_COMPILE

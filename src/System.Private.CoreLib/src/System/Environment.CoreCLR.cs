@@ -2,13 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Buffers;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
-using Microsoft.Win32;
 
 namespace System
 {
@@ -17,7 +15,7 @@ namespace System
         public static int CurrentManagedThreadId => Thread.CurrentThread.ManagedThreadId;
 
         // Terminates this process with the given exit code.
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void _Exit(int exitCode);
 
         [DoesNotReturn]
@@ -32,7 +30,7 @@ namespace System
         }
 
         // Note: The CLR's Watson bucketization code looks at the caller of the FCALL method
-        // to assign blame for crashes.  Don't mess with this, such as by making it call 
+        // to assign blame for crashes.  Don't mess with this, such as by making it call
         // another managed helper method, unless you consult with some CLR Watson experts.
         [DoesNotReturn]
         [MethodImpl(MethodImplOptions.InternalCall)]
@@ -67,10 +65,10 @@ namespace System
             // There are multiple entry points to a hosted app. The host could
             // use ::ExecuteAssembly() or ::CreateDelegate option:
             //
-            // ::ExecuteAssembly() -> In this particular case, the runtime invokes the main 
+            // ::ExecuteAssembly() -> In this particular case, the runtime invokes the main
             // method based on the arguments set by the host, and we return those arguments
             //
-            // ::CreateDelegate() -> In this particular case, the host is asked to create a 
+            // ::CreateDelegate() -> In this particular case, the host is asked to create a
             // delegate based on the appDomain, assembly and methodDesc passed to it.
             // which the caller uses to invoke the method. In this particular case we do not have
             // any information on what arguments would be passed to the delegate.
@@ -82,12 +80,7 @@ namespace System
                 GetCommandLineArgsNative();
         }
 
-        // Unconditionally return false since .NET Core does not support object finalization during shutdown.
-        public static bool HasShutdownStarted => false;
-
-        public static int ProcessorCount => GetProcessorCount();
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern int GetProcessorCount();
 
         // If you change this method's signature then you must change the code that calls it
@@ -122,13 +115,13 @@ namespace System
         private static class WinRT
         {
             // Cache the value in readonly static that can be optimized out by the JIT
-            public readonly static bool IsSupported = WinRTSupported() != Interop.BOOL.FALSE;
+            public static readonly bool IsSupported = WinRTSupported() != Interop.BOOL.FALSE;
         }
 
         // Does the current version of Windows have Windows Runtime suppport?
         internal static bool IsWinRTSupported => WinRT.IsSupported;
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern Interop.BOOL WinRTSupported();
 #endif // FEATURE_COMINTEROP
     }

@@ -54,7 +54,7 @@ int LinearScan::BuildLclHeap(GenTree* tree)
         assert(size->isContained());
         srcCount = 0;
 
-        size_t sizeVal = size->gtIntCon.gtIconVal;
+        size_t sizeVal = size->AsIntCon()->gtIconVal;
         if (sizeVal == 0)
         {
             internalIntCount = 0;
@@ -135,7 +135,7 @@ int LinearScan::BuildShiftLongCarry(GenTree* tree)
     assert(tree->OperGet() == GT_LSH_HI || tree->OperGet() == GT_RSH_LO);
 
     int      srcCount = 2;
-    GenTree* source   = tree->gtOp.gtOp1;
+    GenTree* source   = tree->AsOp()->gtOp1;
     assert((source->OperGet() == GT_LONG) && source->isContained());
 
     GenTree* sourceLo = source->gtGetOp1();
@@ -230,10 +230,9 @@ int LinearScan::BuildNode(GenTree* tree)
             // is processed, unless this is marked "isLocalDefUse" because it is a stack-based argument
             // to a call or an orphaned dead node.
             //
-            LclVarDsc* const varDsc = &compiler->lvaTable[tree->AsLclVarCommon()->gtLclNum];
+            LclVarDsc* const varDsc = &compiler->lvaTable[tree->AsLclVarCommon()->GetLclNum()];
             if (isCandidateVar(varDsc))
             {
-                INDEBUG(dumpNodeInfo(tree, dstCandidates, 0, 1));
                 return 0;
             }
             srcCount = 0;
@@ -264,6 +263,11 @@ int LinearScan::BuildNode(GenTree* tree)
             }
             break;
 
+        case GT_KEEPALIVE:
+            assert(dstCount == 0);
+            srcCount = BuildOperandUses(tree->gtGetOp1());
+            break;
+
         case GT_INTRINSIC:
         {
             // TODO-ARM: Implement other type of intrinsics (round, sqrt and etc.)
@@ -274,7 +278,7 @@ int LinearScan::BuildNode(GenTree* tree)
             BuildUse(op1);
             srcCount = 1;
 
-            switch (tree->gtIntrinsic.gtIntrinsicId)
+            switch (tree->AsIntrinsic()->gtIntrinsicId)
             {
                 case CORINFO_INTRINSIC_Abs:
                 case CORINFO_INTRINSIC_Sqrt:
@@ -368,7 +372,7 @@ int LinearScan::BuildNode(GenTree* tree)
         case GT_RSH_LO:
             assert(dstCount == 1);
             srcCount = BuildShiftLongCarry(tree);
-            assert(srcCount == (tree->gtOp.gtOp2->isContained() ? 2 : 3));
+            assert(srcCount == (tree->AsOp()->gtOp2->isContained() ? 2 : 3));
             break;
 
         case GT_RETURNTRAP:
@@ -534,7 +538,7 @@ int LinearScan::BuildNode(GenTree* tree)
             // and produces the flattened offset for this dimension.
             assert(dstCount == 1);
 
-            if (tree->gtArrOffs.gtOffset->isContained())
+            if (tree->AsArrOffs()->gtOffset->isContained())
             {
                 srcCount = 2;
             }
@@ -595,12 +599,6 @@ int LinearScan::BuildNode(GenTree* tree)
         break;
 
         case GT_NEG:
-            srcCount = 1;
-            assert(dstCount == 1);
-            BuildUse(tree->gtGetOp1());
-            BuildDef(tree);
-            break;
-
         case GT_NOT:
             srcCount = 1;
             assert(dstCount == 1);
@@ -753,7 +751,7 @@ int LinearScan::BuildNode(GenTree* tree)
         {
             srcCount = 1;
             assert(dstCount == 1);
-            regNumber argReg  = tree->gtRegNum;
+            regNumber argReg  = tree->GetRegNum();
             regMaskTP argMask = genRegMask(argReg);
 
             // If type of node is `long` then it is actually `double`.
@@ -809,7 +807,6 @@ int LinearScan::BuildNode(GenTree* tree)
     assert(isLocalDefUse == (tree->IsValue() && tree->IsUnusedValue()));
     assert(!tree->IsUnusedValue() || (dstCount != 0));
     assert(dstCount == tree->GetRegisterDstCount());
-    INDEBUG(dumpNodeInfo(tree, dstCandidates, srcCount, dstCount));
     return srcCount;
 }
 

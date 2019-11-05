@@ -29,7 +29,7 @@ namespace BINDER_SPACE
     public:
         LoadContext();
         ~LoadContext();
-        
+
         ULONG AddRef();
         ULONG Release();
         ContextEntry *Lookup(/* in */ AssemblyName *pAssemblyName);
@@ -38,11 +38,9 @@ namespace BINDER_SPACE
     protected:
         LONG m_cRef;
     };
-    
+
 #include "loadcontext.inl"
 
-    class InspectionContext :
-        public LoadContext<AssemblyName::INCLUDE_VERSION | AssemblyName::INCLUDE_ARCHITECTURE> {};
     class ExecutionContext : public LoadContext<AssemblyName::INCLUDE_DEFAULT> {};
 };
 

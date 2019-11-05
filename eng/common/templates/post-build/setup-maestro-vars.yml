@@ -4,6 +4,8 @@ jobs:
   pool:
     vmImage: 'windows-2019'
   steps:
+    - checkout: none
+
     - task: DownloadBuildArtifacts@0
       displayName: Download Release Configs
       inputs:
@@ -16,20 +18,23 @@ jobs:
       inputs:
         targetType: inline
         script: |
-          # This is needed to make Write-PipelineSetVariable works in this context
-          $ci = $true
+          try {
+            $Content = Get-Content $(Build.StagingDirectory)/ReleaseConfigs/ReleaseConfigs.txt
 
-          . "$(Build.SourcesDirectory)/eng/common/tools.ps1"
+            $BarId = $Content | Select -Index 0
 
-          $Content = Get-Content "$(Build.StagingDirectory)/ReleaseConfigs/ReleaseConfigs.txt"
+            $Channels = ""
+            $Content | Select -Index 1 | ForEach-Object { $Channels += "$_ ," }
 
-          $BarId = $Content | Select -Index 0
+            $IsStableBuild = $Content | Select -Index 2
 
-          $Channels = ""            
-          $Content | Select -Index 1 | ForEach-Object { $Channels += "$_ ," }
-            
-          $IsStableBuild = $Content | Select -Index 2
-
-          Write-PipelineSetVariable -Name 'BARBuildId' -Value $BarId
-          Write-PipelineSetVariable -Name 'InitialChannels' -Value "$Channels"
-          Write-PipelineSetVariable -Name 'IsStableBuild' -Value $IsStableBuild
+            Write-Host "##vso[task.setvariable variable=BARBuildId;isOutput=true]$BarId"
+            Write-Host "##vso[task.setvariable variable=InitialChannels;isOutput=true]$Channels"
+            Write-Host "##vso[task.setvariable variable=IsStableBuild;isOutput=true]$IsStableBuild"
+          }
+          catch {
+            Write-Host $_
+            Write-Host $_.Exception
+            Write-Host $_.ScriptStackTrace
+            exit 1
+          }

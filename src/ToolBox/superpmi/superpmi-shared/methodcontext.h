@@ -769,9 +769,9 @@ public:
     void dmpIsSDArray(DWORDLONG key, DWORD value);
     BOOL repIsSDArray(CORINFO_CLASS_HANDLE cls);
 
-    void recIsInSIMDModule(CORINFO_CLASS_HANDLE cls, BOOL result);
-    void dmpIsInSIMDModule(DWORDLONG key, DWORD value);
-    BOOL repIsInSIMDModule(CORINFO_CLASS_HANDLE cls);
+    void recIsIntrinsicType(CORINFO_CLASS_HANDLE cls, BOOL result);
+    void dmpIsIntrinsicType(DWORDLONG key, DWORD value);
+    BOOL repIsIntrinsicType(CORINFO_CLASS_HANDLE cls);
 
     void recGetFieldClass(CORINFO_FIELD_HANDLE field, CORINFO_CLASS_HANDLE result);
     void dmpGetFieldClass(DWORDLONG key, DWORDLONG value);
@@ -1310,13 +1310,13 @@ public:
     void dmpIsFieldStatic(DWORDLONG key, DWORD value);
     bool repIsFieldStatic(CORINFO_FIELD_HANDLE fhld);
 
-    void recGetIntConfigValue(const wchar_t* name, int defaultValue, int result);
+    void recGetIntConfigValue(const WCHAR* name, int defaultValue, int result);
     void dmpGetIntConfigValue(const Agnostic_ConfigIntInfo& key, int value);
-    int repGetIntConfigValue(const wchar_t* name, int defaultValue);
+    int repGetIntConfigValue(const WCHAR* name, int defaultValue);
 
-    void recGetStringConfigValue(const wchar_t* name, const wchar_t* result);
+    void recGetStringConfigValue(const WCHAR* name, const WCHAR* result);
     void dmpGetStringConfigValue(DWORD nameIndex, DWORD result);
-    const wchar_t* repGetStringConfigValue(const wchar_t* name);
+    const WCHAR* repGetStringConfigValue(const WCHAR* name);
 
     struct Environment
     {
@@ -1488,7 +1488,7 @@ enum mcPackets
     Packet_IsCompatibleDelegate                          = 99,
     Packet_IsDelegateCreationAllowed                     = 155,
     Packet_IsFieldStatic                                 = 137, // Added 4/9/2013 - needed for 4.5.1
-    Packet_IsInSIMDModule                                = 148, // Added 6/18/2014 - SIMD support
+    Packet_IsIntrinsicType                               = 148, // Added 10/26/2019 - SIMD support
     Packet_IsInstantiationOfVerifiedGeneric              = 100,
     Packet_IsSDArray                                     = 101,
     Packet_IsStructRequiringStackAllocRetBuf             = 102,

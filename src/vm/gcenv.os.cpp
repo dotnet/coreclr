@@ -38,7 +38,7 @@ class GroupProcNo
 
 public:
 
-    static const uint16_t NoGroup = 0x3ff;
+    static const uint16_t NoGroup = 0;
 
     GroupProcNo(uint16_t groupProc) : m_groupProc(groupProc)
     {
@@ -46,7 +46,8 @@ public:
 
     GroupProcNo(uint16_t group, uint16_t procIndex) : m_groupProc((group << 6) | procIndex)
     {
-        assert(group <= 0x3ff);
+        // Making this the same as the # of NUMA node we support.
+        assert(group < 0x40);
         assert(procIndex <= 0x3f);
     }
 
@@ -162,7 +163,7 @@ void GCToOSInterface::Shutdown()
 // Get numeric id of the current thread if possible on the
 // current platform. It is indended for logging purposes only.
 // Return:
-//  Numeric id of the current thread or 0 if the 
+//  Numeric id of the current thread or 0 if the
 uint64_t GCToOSInterface::GetCurrentThreadIdForLogging()
 {
     LIMITED_METHOD_CONTRACT;
@@ -193,6 +194,8 @@ bool GCToOSInterface::SetCurrentThreadIdealAffinity(uint16_t srcProcNo, uint16_t
     GroupProcNo srcGroupProcNo(srcProcNo);
     GroupProcNo dstGroupProcNo(dstProcNo);
 
+    PROCESSOR_NUMBER proc;
+
     if (CPUGroupInfo::CanEnableGCCPUGroups())
     {
         if (srcGroupProcNo.GetGroup() != dstGroupProcNo.GetGroup())
@@ -201,20 +204,12 @@ bool GCToOSInterface::SetCurrentThreadIdealAffinity(uint16_t srcProcNo, uint16_t
             //group. DO NOT MOVE THREADS ACROSS CPU GROUPS
             return true;
         }
-    }
 
-#if !defined(FEATURE_CORESYSTEM)
-    SetThreadIdealProcessor(GetCurrentThread(), (DWORD)dstGroupProcNo.GetProcIndex());
-#else
-    PROCESSOR_NUMBER proc;
-
-    if (dstGroupProcNo.GetGroup() != GroupProcNo::NoGroup)
-    {
         proc.Group = (WORD)dstGroupProcNo.GetGroup();
         proc.Number = (BYTE)dstGroupProcNo.GetProcIndex();
         proc.Reserved = 0;
 
-        success = !!SetThreadIdealProcessorEx(GetCurrentThread(), &proc, NULL);
+        success = !!SetThreadIdealProcessorEx(GetCurrentThread (), &proc, NULL);
     }
     else
     {
@@ -224,7 +219,7 @@ bool GCToOSInterface::SetCurrentThreadIdealAffinity(uint16_t srcProcNo, uint16_t
             success = !!SetThreadIdealProcessorEx(GetCurrentThread(), &proc, &proc);
         }
     }
-#endif // !FEATURE_CORESYSTEM
+
     return success;
 
 #else // !FEATURE_PAL
@@ -235,13 +230,38 @@ bool GCToOSInterface::SetCurrentThreadIdealAffinity(uint16_t srcProcNo, uint16_t
 #endif // !FEATURE_PAL
 }
 
+bool GCToOSInterface::GetCurrentThreadIdealProc(uint16_t* procNo)
+{
+    LIMITED_METHOD_CONTRACT;
+    bool success = false;
+#ifndef FEATURE_PAL
+    PROCESSOR_NUMBER proc;
+    success = !!GetThreadIdealProcessorEx(GetCurrentThread(), &proc);
+    if (success)
+    {
+        GroupProcNo groupProcNo(proc.Group, proc.Number);
+        *procNo = groupProcNo.GetCombinedValue();
+    }
+#endif //FEATURE_PAL
+    return success;
+}
+
 // Get the number of the current processor
 uint32_t GCToOSInterface::GetCurrentProcessorNumber()
 {
     LIMITED_METHOD_CONTRACT;
 
     _ASSERTE(CanGetCurrentProcessorNumber());
+
+#ifndef FEATURE_PAL
+    PROCESSOR_NUMBER proc_no_cpu_group;
+    GetCurrentProcessorNumberEx(&proc_no_cpu_group);
+
+    GroupProcNo groupProcNo(proc_no_cpu_group.Group, proc_no_cpu_group.Number);
+    return groupProcNo.GetCombinedValue();
+#else
     return ::GetCurrentProcessorNumber();
+#endif //!FEATURE_PAL
 }
 
 // Check if the OS supports getting current processor number
@@ -295,25 +315,33 @@ void GCToOSInterface::YieldThread(uint32_t switchCount)
 //  size      - size of the virtual memory range
 //  alignment - requested memory alignment
 //  flags     - flags to control special settings like write watching
+//  node      - the NUMA node to reserve memory on
 // Return:
 //  Starting virtual address of the reserved range
-void* GCToOSInterface::VirtualReserve(size_t size, size_t alignment, uint32_t flags)
+void* GCToOSInterface::VirtualReserve(size_t size, size_t alignment, uint32_t flags, uint16_t node)
 {
     LIMITED_METHOD_CONTRACT;
 
-    DWORD memFlags = (flags & VirtualReserveFlags::WriteWatch) ? (MEM_RESERVE | MEM_WRITE_WATCH) : MEM_RESERVE;
-
-    // This is not strictly necessary for a correctness standpoint. Windows already guarantees
-    // allocation granularity alignment when using MEM_RESERVE, so aligning the size here has no effect.
-    // However, ClrVirtualAlloc does expect the size to be aligned to the allocation granularity.
-    size_t aligned_size = (size + g_SystemInfo.dwAllocationGranularity - 1) & ~static_cast<size_t>(g_SystemInfo.dwAllocationGranularity - 1);
-    if (alignment == 0)
+    if (node == NUMA_NODE_UNDEFINED)
     {
-        return ::ClrVirtualAlloc(0, aligned_size, memFlags, PAGE_READWRITE);
+        DWORD memFlags = (flags & VirtualReserveFlags::WriteWatch) ? (MEM_RESERVE | MEM_WRITE_WATCH) : MEM_RESERVE;
+
+        // This is not strictly necessary for a correctness standpoint. Windows already guarantees
+        // allocation granularity alignment when using MEM_RESERVE, so aligning the size here has no effect.
+        // However, ClrVirtualAlloc does expect the size to be aligned to the allocation granularity.
+        size_t aligned_size = (size + g_SystemInfo.dwAllocationGranularity - 1) & ~static_cast<size_t>(g_SystemInfo.dwAllocationGranularity - 1);
+        if (alignment == 0)
+        {
+            return ::ClrVirtualAlloc (0, aligned_size, memFlags, PAGE_READWRITE);
+        }
+        else
+        {
+            return ::ClrVirtualAllocAligned (0, aligned_size, memFlags, PAGE_READWRITE, alignment);
+        }
     }
     else
     {
-        return ::ClrVirtualAllocAligned(0, aligned_size, memFlags, PAGE_READWRITE, alignment);
+        return NumaNodeInfo::VirtualAllocExNuma (::GetCurrentProcess (), NULL, size, MEM_RESERVE, PAGE_READWRITE, node);
     }
 }
 
@@ -391,7 +419,7 @@ bool GCToOSInterface::VirtualDecommit(void* address, size_t size)
     return !!::ClrVirtualFree(address, size, MEM_DECOMMIT);
 }
 
-// Reset virtual memory range. Indicates that data in the memory range specified by address and size is no 
+// Reset virtual memory range. Indicates that data in the memory range specified by address and size is no
 // longer of interest, but it should not be decommitted.
 // Parameters:
 //  address - starting virtual address
@@ -422,10 +450,10 @@ bool GCToOSInterface::SupportsWriteWatch()
 
     bool writeWatchSupported = false;
 
-    // check if the OS supports write-watch. 
+    // check if the OS supports write-watch.
     // Drawbridge does not support write-watch so we still need to do the runtime detection for them.
     // Otherwise, all currently supported OSes do support write-watch.
-    void* mem = VirtualReserve (g_SystemInfo.dwAllocationGranularity, 0, VirtualReserveFlags::WriteWatch);
+    void* mem = VirtualReserve(g_SystemInfo.dwAllocationGranularity, 0, VirtualReserveFlags::WriteWatch);
     if (mem != NULL)
     {
         VirtualRelease (mem, g_SystemInfo.dwAllocationGranularity);
@@ -493,7 +521,7 @@ bool GCToOSInterface::SetThreadAffinity(uint16_t procNo)
 #ifndef FEATURE_PAL
     GroupProcNo groupProcNo(procNo);
 
-    if (groupProcNo.GetGroup() != GroupProcNo::NoGroup)
+    if (CPUGroupInfo::CanEnableGCCPUGroups())
     {
         GROUP_AFFINITY ga;
         ga.Group = (WORD)groupProcNo.GetGroup();
@@ -650,7 +678,7 @@ static size_t GetRestrictedPhysicalMemoryLimit()
             goto exit;
 
         JOBOBJECT_EXTENDED_LIMIT_INFORMATION limit_info;
-        if (GCQueryInformationJobObject (NULL, JobObjectExtendedLimitInformation, &limit_info, 
+        if (GCQueryInformationJobObject (NULL, JobObjectExtendedLimitInformation, &limit_info,
             sizeof(limit_info), NULL))
         {
             size_t job_memory_limit = (size_t)MAX_PTR;
@@ -659,13 +687,13 @@ static size_t GetRestrictedPhysicalMemoryLimit()
 
             // Notes on the NT job object:
             //
-            // You can specific a bigger process commit or working set limit than 
+            // You can specific a bigger process commit or working set limit than
             // job limit which is pointless so we use the smallest of all 3 as
             // to calculate our "physical memory load" or "available physical memory"
             // when running inside a job object, ie, we treat this as the amount of physical memory
             // our process is allowed to use.
-            // 
-            // The commit limit is already reflected by default when you run in a 
+            //
+            // The commit limit is already reflected by default when you run in a
             // job but the physical memory load is not.
             //
             if ((limit_info.BasicLimitInformation.LimitFlags & JOB_OBJECT_LIMIT_JOB_MEMORY) != 0)
@@ -749,7 +777,7 @@ static size_t GetRestrictedPhysicalMemoryLimit()
         return g_RestrictedPhysicalMemoryLimit;
 
     size_t memory_limit = PAL_GetRestrictedPhysicalMemoryLimit();
-    
+
     VolatileStore(&g_RestrictedPhysicalMemoryLimit, memory_limit);
     return g_RestrictedPhysicalMemoryLimit;
 }
@@ -760,7 +788,7 @@ static size_t GetRestrictedPhysicalMemoryLimit()
 // Return:
 //  non zero if it has succeeded, 0 if it has failed
 //
-// PERF TODO: Requires more work to not treat the restricted case to be special. 
+// PERF TODO: Requires more work to not treat the restricted case to be special.
 // To be removed before 3.0 ships.
 uint64_t GCToOSInterface::GetPhysicalMemoryLimit(bool* is_restricted)
 {
@@ -772,7 +800,7 @@ uint64_t GCToOSInterface::GetPhysicalMemoryLimit(bool* is_restricted)
     size_t restricted_limit = GetRestrictedPhysicalMemoryLimit();
     if (restricted_limit != 0)
     {
-        if (is_restricted 
+        if (is_restricted
 #ifndef FEATURE_PAL
             && !g_UseRestrictedVirtualMemory
 #endif
@@ -827,7 +855,7 @@ void GCToOSInterface::GetMemoryStatus(uint32_t* memory_load, uint64_t* available
                     *available_physical = restricted_limit - workingSetSize;
             }
             // Available page file doesn't mean much when physical memory is restricted since
-            // we don't know how much of it is available to this process so we are not going to 
+            // we don't know how much of it is available to this process so we are not going to
             // bother to make another OS call for it.
             if (available_page_file)
                 *available_page_file = 0;
@@ -838,7 +866,7 @@ void GCToOSInterface::GetMemoryStatus(uint32_t* memory_load, uint64_t* available
 
     MEMORYSTATUSEX ms;
     ::GetProcessMemoryLoad(&ms);
-    
+
 #ifndef FEATURE_PAL
     if (g_UseRestrictedVirtualMemory)
     {
@@ -878,7 +906,7 @@ int64_t GCToOSInterface::QueryPerformanceCounter()
     {
         DebugBreak();
         _ASSERTE(!"Fatal Error - cannot query performance counter.");
-        EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);        // TODO: fatal error        
+        EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);        // TODO: fatal error
     }
 
     return ts.QuadPart;
@@ -896,7 +924,7 @@ int64_t GCToOSInterface::QueryPerformanceFrequency()
     {
         DebugBreak();
         _ASSERTE(!"Fatal Error - cannot query performance counter.");
-        EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);        // TODO: fatal error        
+        EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);        // TODO: fatal error
     }
 
     return frequency.QuadPart;
@@ -935,6 +963,34 @@ bool GCToOSInterface::CanEnableGCNumaAware()
     LIMITED_METHOD_CONTRACT;
 
     return NumaNodeInfo::CanEnableGCNumaAware() != FALSE;
+}
+
+bool GCToOSInterface::GetNumaInfo(uint16_t* total_nodes, uint32_t* max_procs_per_node)
+{
+#ifndef FEATURE_PAL
+    return NumaNodeInfo::GetNumaInfo(total_nodes, (DWORD*)max_procs_per_node);
+#else
+    return false;
+#endif //!FEATURE_PAL
+}
+
+bool GCToOSInterface::GetCPUGroupInfo(uint16_t* total_groups, uint32_t* max_procs_per_group)
+{
+#ifndef FEATURE_PAL
+    return CPUGroupInfo::GetCPUGroupInfo(total_groups, (DWORD*)max_procs_per_group);
+#else
+    return false;
+#endif //!FEATURE_PAL
+}
+
+bool GCToOSInterface::CanEnableGCCPUGroups()
+{
+    LIMITED_METHOD_CONTRACT;
+#ifndef FEATURE_PAL
+    return CPUGroupInfo::CanEnableGCCPUGroups() != FALSE;
+#else
+    return false;
+#endif //!FEATURE_PAL
 }
 
 // Get processor number and optionally its NUMA node number for the specified heap number

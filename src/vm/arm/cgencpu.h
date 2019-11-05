@@ -96,18 +96,6 @@ EXTERN_C void setFPReturn(int fpSize, INT64 retVal);
 // Offset of pc register
 #define PC_REG_RELATIVE_OFFSET 4
 
-//=======================================================================
-// IMPORTANT: This value is used to figure out how much to allocate
-// for a fixed array of FieldMarshaler's. That means it must be at least
-// as large as the largest FieldMarshaler subclass. This requirement
-// is guarded by an assert.
-//=======================================================================
-#ifdef _WIN64
-#define MAXFIELDMARSHALERSIZE               40
-#else
-#define MAXFIELDMARSHALERSIZE               24
-#endif
-
 //**********************************************************************
 // Parameter size
 //**********************************************************************
@@ -516,7 +504,7 @@ public:
             wRegisters |= ThumbReg(i).Mask();
         ThumbEmitPush(wRegisters);
 
-        // 3) Reserve space on the stack for the rest of the frame. 
+        // 3) Reserve space on the stack for the rest of the frame.
         if (cbStackFrame)
         {
             // sub sp, #cbStackFrame
@@ -666,7 +654,7 @@ public:
 
     void ThumbEmitLoadOffsetScaledReg(ThumbReg dest, ThumbReg base, ThumbReg offset, int shift)
     {
-        _ASSERTE(shift >=0 && shift <=3);       
+        _ASSERTE(shift >=0 && shift <=3);
 
         Emit16((WORD)(0xf850 | base));
         Emit16((WORD)((dest << 12) | (shift << 4) | offset));
@@ -776,7 +764,7 @@ public:
         {
             // if immediate is more than 4096 only ADD (register) will work
             // move immediate to dest reg and call ADD(reg)
-            // this will not work if dest is same as source. 
+            // this will not work if dest is same as source.
             _ASSERTE(dest != source);
             ThumbEmitMovConstant(dest, value);
             ThumbEmitAddReg(dest, source);
@@ -801,13 +789,13 @@ public:
         {
             Emit16((WORD)(0x4280 | reg2 << 3 | reg1));
         }
-        else 
+        else
         {
             _ASSERTE(reg1 != ThumbReg(15) && reg2 != ThumbReg(15));
             Emit16((WORD)(0x4500 | reg2 << 3 | (reg1 & 0x7) | (reg1 & 0x8 ? 0x80 : 0x0)));
         }
     }
-    
+
     void ThumbEmitIncrement(ThumbReg dest, unsigned int value)
     {
         while (value)
@@ -963,7 +951,7 @@ public:
     void EmitMulticastInvoke(UINT_PTR hash);
     void EmitSecureDelegateInvoke(UINT_PTR hash);
     void EmitShuffleThunk(struct ShuffleEntry *pShuffleEntryArray);
-#if defined(FEATURE_SHARE_GENERIC_CODE)  
+#if defined(FEATURE_SHARE_GENERIC_CODE)
     void EmitInstantiatingMethodStub(MethodDesc* pSharedMD, void* extra);
 #endif // FEATURE_SHARE_GENERIC_CODE
 
@@ -980,7 +968,7 @@ extern "C" void SinglecastDelegateInvokeStub();
 
 // SEH info forward declarations
 
-inline BOOL IsUnmanagedValueTypeReturnedByRef(UINT sizeofvaluetype) 
+inline BOOL IsUnmanagedValueTypeReturnedByRef(UINT sizeofvaluetype)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -1028,8 +1016,8 @@ struct HijackArgs
     union
     {
         DWORD R0;
-        size_t ReturnValue[1]; // this may not be the return value when return is >32bits 
-                               // or return value is in VFP reg but it works for us as 
+        size_t ReturnValue[1]; // this may not be the return value when return is >32bits
+                               // or return value is in VFP reg but it works for us as
                                // this is only used by functions OnHijackWorker()
     };
 
@@ -1055,8 +1043,8 @@ struct HijackArgs
 // ClrFlushInstructionCache is used when we want to call FlushInstructionCache
 // for a specific architecture in the common code, but not for other architectures.
 // On IA64 ClrFlushInstructionCache calls the Kernel FlushInstructionCache function
-// to flush the instruction cache. 
-// We call ClrFlushInstructionCache whenever we create or modify code in the heap. 
+// to flush the instruction cache.
+// We call ClrFlushInstructionCache whenever we create or modify code in the heap.
 // Currently ClrFlushInstructionCache has no effect on X86
 //
 
@@ -1120,13 +1108,13 @@ struct StubPrecode {
 
     TADDR GetMethodDesc()
     {
-        LIMITED_METHOD_DAC_CONTRACT; 
+        LIMITED_METHOD_DAC_CONTRACT;
         return m_pMethodDesc;
     }
 
     PCODE GetTarget()
     {
-        LIMITED_METHOD_DAC_CONTRACT; 
+        LIMITED_METHOD_DAC_CONTRACT;
         return m_pTarget;
     }
 
@@ -1139,7 +1127,6 @@ struct StubPrecode {
         }
         CONTRACTL_END;
 
-        EnsureWritableExecutablePages(&m_pTarget);
         InterlockedExchange((LONG*)&m_pTarget, (LONG)GetPreStubEntryPoint());
     }
 
@@ -1152,7 +1139,6 @@ struct StubPrecode {
         }
         CONTRACTL_END;
 
-        EnsureWritableExecutablePages(&m_pTarget);
         return (TADDR)InterlockedCompareExchange(
             (LONG*)&m_pTarget, (LONG)target, (LONG)expected) == expected;
     }
@@ -1181,13 +1167,13 @@ struct NDirectImportPrecode {
 
     TADDR GetMethodDesc()
     {
-        LIMITED_METHOD_DAC_CONTRACT; 
+        LIMITED_METHOD_DAC_CONTRACT;
         return m_pMethodDesc;
     }
 
     PCODE GetTarget()
     {
-        LIMITED_METHOD_DAC_CONTRACT; 
+        LIMITED_METHOD_DAC_CONTRACT;
         return m_pTarget;
     }
 
@@ -1232,7 +1218,7 @@ struct FixupPrecode {
 
     PCODE GetTarget()
     {
-        LIMITED_METHOD_DAC_CONTRACT; 
+        LIMITED_METHOD_DAC_CONTRACT;
         return m_pTarget;
     }
 
@@ -1245,7 +1231,6 @@ struct FixupPrecode {
         }
         CONTRACTL_END;
 
-        EnsureWritableExecutablePages(&m_pTarget);
         InterlockedExchange((LONG*)&m_pTarget, (LONG)GetEEFuncEntryPoint(PrecodeFixupThunk));
     }
 
@@ -1258,7 +1243,6 @@ struct FixupPrecode {
         }
         CONTRACTL_END;
 
-        EnsureWritableExecutablePages(&m_pTarget);
         return (TADDR)InterlockedCompareExchange(
             (LONG*)&m_pTarget, (LONG)target, (LONG)expected) == expected;
     }
@@ -1267,7 +1251,7 @@ struct FixupPrecode {
     {
         PTR_WORD pInstr = dac_cast<PTR_WORD>(PCODEToPINSTR(addr));
 
-        return 
+        return
            (pInstr[0] == 0x46fc) &&
            (pInstr[1] == 0xf8df) &&
            (pInstr[2] == 0xf004);
@@ -1306,14 +1290,14 @@ struct ThisPtrRetBufPrecode {
 
     TADDR GetMethodDesc()
     {
-        LIMITED_METHOD_DAC_CONTRACT; 
+        LIMITED_METHOD_DAC_CONTRACT;
 
         return m_pMethodDesc;
     }
 
     PCODE GetTarget()
-    { 
-        LIMITED_METHOD_DAC_CONTRACT; 
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
         return m_pTarget;
     }
 
@@ -1326,7 +1310,6 @@ struct ThisPtrRetBufPrecode {
         }
         CONTRACTL_END;
 
-        EnsureWritableExecutablePages(&m_pTarget);
         return FastInterlockCompareExchange((LONG*)&m_pTarget, (LONG)target, (LONG)expected) == (LONG)expected;
     }
 };
@@ -1353,7 +1336,7 @@ inline size_t GetARMInstructionLength(WORD instr)
     {
         return 4;
     }
-    else 
+    else
     {
         return 2;
     }
@@ -1365,7 +1348,5 @@ inline size_t GetARMInstructionLength(PBYTE pInstr)
 {
     return GetARMInstructionLength(*(WORD*)pInstr);
 }
-
-EXTERN_C void FCallMemcpy(BYTE* dest, BYTE* src, int len);
 
 #endif // __cgencpu_h__

@@ -19,7 +19,7 @@
 #include "field.h"
 #include "ecall.h"
 
-#ifdef _WIN64
+#ifdef BIT64
 
 // These are the fastest(?) versions of JIT helpers as they have the code to GetThread patched into them
 // that does not make a call.
@@ -47,9 +47,9 @@ EXTERN_C Object* JIT_NewArr1VC_UP (CORINFO_CLASS_HANDLE arrayMT, INT_PTR size);
 extern WriteBarrierManager g_WriteBarrierManager;
 #endif // _TARGET_AMD64_
 
-#endif // _WIN64
+#endif // BIT64
 
-/*********************************************************************/ 
+/*********************************************************************/
 // Initialize the part of the JIT helpers that require very little of
 // EE infrastructure to be in place.
 /*********************************************************************/
@@ -66,9 +66,9 @@ void InitJITHelpers1()
     g_WriteBarrierManager.Initialize();
 
     // Allocation helpers, faster but non-logging
-    if (!((TrackAllocationsEnabled()) || 
+    if (!((TrackAllocationsEnabled()) ||
         (LoggingOn(LF_GCALLOC, LL_INFO10))
-#ifdef _DEBUG 
+#ifdef _DEBUG
         || (g_pConfig->ShouldInjectFault(INJECTFAULT_GCHEAP) != 0)
 #endif // _DEBUG
         ))
@@ -102,7 +102,7 @@ void InitJITHelpers1()
         {
             // Replace the 1p slow allocation helpers with faster version
             //
-            // When we're running Workstation GC on a single proc box we don't have 
+            // When we're running Workstation GC on a single proc box we don't have
             // InlineGetThread versions because there is no need to call GetThread
             SetJitHelperFunction(CORINFO_HELP_NEWSFAST, JIT_TrialAllocSFastSP);
             SetJitHelperFunction(CORINFO_HELP_NEWSFAST_ALIGN8, JIT_TrialAllocSFastSP);

@@ -2,14 +2,18 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#define _WITH_GETLINE
 #include <cstdint>
 #include <cstddef>
+#include <cstdio>
 #include <cassert>
+#define __STDC_FORMAT_MACROS
+#include <cinttypes>
 #include <memory>
 #include <pthread.h>
 #include <signal.h>
 
-#include "config.h"
+#include "config.gc.h"
 #include "common.h"
 
 #include "gcenv.structs.h"
@@ -18,17 +22,40 @@
 #include "gcenv.unix.inl"
 #include "volatile.h"
 
+#undef min
+#undef max
+
 #if HAVE_SYS_TIME_H
  #include <sys/time.h>
 #else
  #error "sys/time.h required by GC PAL for the time being"
-#endif // HAVE_SYS_TIME_
+#endif
 
 #if HAVE_SYS_MMAN_H
  #include <sys/mman.h>
 #else
  #error "sys/mman.h required by GC PAL"
-#endif // HAVE_SYS_MMAN_H
+#endif
+
+#if HAVE_SYSCTLBYNAME
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#endif
+
+#if HAVE_SYSINFO
+#include <sys/sysinfo.h>
+#endif
+
+#if HAVE_XSWDEV
+#include <vm/vm_param.h>
+#endif // HAVE_XSWDEV
+
+#ifdef __APPLE__
+#include <mach/vm_types.h>
+#include <mach/vm_param.h>
+#include <mach/mach_port.h>
+#include <mach/mach_host.h>
+#endif // __APPLE__
 
 #ifdef __linux__
 #include <sys/syscall.h> // __NR_membarrier
@@ -62,6 +89,16 @@ typedef cpuset_t cpu_set_t;
 #include <unistd.h> // sysconf
 #include "globals.h"
 #include "cgroup.h"
+
+#ifndef __APPLE__
+#if HAVE_SYSCONF && HAVE__SC_AVPHYS_PAGES
+#define SYSCONF_PAGES _SC_AVPHYS_PAGES
+#elif HAVE_SYSCONF && HAVE__SC_PHYS_PAGES
+#define SYSCONF_PAGES _SC_PHYS_PAGES
+#else
+#error Dont know how to get page-size on this architecture!
+#endif
+#endif // __APPLE__
 
 #if HAVE_NUMA_H
 
@@ -527,9 +564,10 @@ static void* VirtualReserveInner(size_t size, size_t alignment, uint32_t flags, 
 //  size      - size of the virtual memory range
 //  alignment - requested memory alignment, 0 means no specific alignment requested
 //  flags     - flags to control special settings like write watching
+//  node      - the NUMA node to reserve memory on
 // Return:
 //  Starting virtual address of the reserved range
-void* GCToOSInterface::VirtualReserve(size_t size, size_t alignment, uint32_t flags)
+void* GCToOSInterface::VirtualReserve(size_t size, size_t alignment, uint32_t flags, uint16_t node)
 {
     return VirtualReserveInner(size, alignment, flags);
 }
@@ -637,7 +675,7 @@ bool GCToOSInterface::VirtualReset(void * address, size_t size, bool unlock)
     // occurs.
     st = madvise(address, size, MADV_FREE);
     if (st != 0)
-#endif    
+#endif
     {
         // In case the MADV_FREE is not supported, use MADV_DONTNEED
         st = madvise(address, size, MADV_DONTNEED);
@@ -677,6 +715,94 @@ bool GCToOSInterface::GetWriteWatch(bool resetState, void* address, size_t size,
     return false;
 }
 
+static size_t GetLogicalProcessorCacheSizeFromOS()
+{
+    size_t cacheSize = 0;
+
+#ifdef _SC_LEVEL1_DCACHE_SIZE
+    cacheSize = std::max(cacheSize, ( size_t) sysconf(_SC_LEVEL1_DCACHE_SIZE));
+#endif
+#ifdef _SC_LEVEL2_CACHE_SIZE
+    cacheSize = std::max(cacheSize, ( size_t) sysconf(_SC_LEVEL2_CACHE_SIZE));
+#endif
+#ifdef _SC_LEVEL3_CACHE_SIZE
+    cacheSize = std::max(cacheSize, ( size_t) sysconf(_SC_LEVEL3_CACHE_SIZE));
+#endif
+#ifdef _SC_LEVEL4_CACHE_SIZE
+    cacheSize = std::max(cacheSize, ( size_t) sysconf(_SC_LEVEL4_CACHE_SIZE));
+#endif
+
+#if HAVE_SYSCTLBYNAME
+    if (cacheSize == 0)
+    {
+        int64_t cacheSizeFromSysctl = 0;
+        size_t sz = sizeof(cacheSizeFromSysctl);
+        const bool success = sysctlbyname("hw.l3cachesize", &cacheSizeFromSysctl, &sz, nullptr, 0) == 0
+            || sysctlbyname("hw.l2cachesize", &cacheSizeFromSysctl, &sz, nullptr, 0) == 0
+            || sysctlbyname("hw.l1dcachesize", &cacheSizeFromSysctl, &sz, nullptr, 0) == 0;
+        if (success)
+        {
+            assert(cacheSizeFromSysctl > 0);
+            cacheSize = ( size_t) cacheSizeFromSysctl;
+        }
+    }
+#endif
+
+    return cacheSize;
+}
+
+// Get memory size multiplier based on the passed in units (k = kilo, m = mega, g = giga)
+static uint64_t GetMemorySizeMultiplier(char units)
+{
+    switch(units)
+    {
+        case 'g':
+        case 'G': return 1024 * 1024 * 1024;
+        case 'm':
+        case 'M': return 1024 * 1024;
+        case 'k':
+        case 'K': return 1024;
+    }
+
+    // No units multiplier
+    return 1;
+}
+
+#ifndef __APPLE__
+// Try to read the MemAvailable entry from /proc/meminfo.
+// Return true if the /proc/meminfo existed, the entry was present and we were able to parse it.
+static bool ReadMemAvailable(uint64_t* memAvailable)
+{
+    bool foundMemAvailable = false;
+    FILE* memInfoFile = fopen("/proc/meminfo", "r");
+    if (memInfoFile != NULL)
+    {
+        char *line = nullptr;
+        size_t lineLen = 0;
+
+        while (getline(&line, &lineLen, memInfoFile) != -1)
+        {
+            char units = '\0';
+            uint64_t available;
+            int fieldsParsed = sscanf(line, "MemAvailable: %" SCNu64 " %cB", &available, &units);
+
+            if (fieldsParsed >= 1)
+            {
+                uint64_t multiplier = GetMemorySizeMultiplier(units);
+                *memAvailable = available * multiplier;
+                foundMemAvailable = true;
+                break;
+            }
+        }
+
+        free(line);
+        fclose(memInfoFile);
+    }
+
+    return foundMemAvailable;
+}
+#endif // __APPLE__
+
 // Get size of the largest cache on the processor die
 // Parameters:
 //  trueSize - true to return true cache size, false to return scaled up size based on
@@ -685,8 +811,26 @@ bool GCToOSInterface::GetWriteWatch(bool resetState, void* address, size_t size,
 //  Size of the cache
 size_t GCToOSInterface::GetCacheSizePerLogicalCpu(bool trueSize)
 {
-    // TODO(segilles) processor detection
-    return 0;
+    static volatile size_t s_maxSize;
+    static volatile size_t s_maxTrueSize;
+
+    size_t size = trueSize ? s_maxTrueSize : s_maxSize;
+    if (size != 0)
+        return size;
+
+    size_t maxSize, maxTrueSize;
+    maxSize = maxTrueSize = GetLogicalProcessorCacheSizeFromOS(); // Returns the size of the highest level processor cache
+
+#if defined(_ARM64_)
+    // Bigger gen0 size helps arm64 targets
+    maxSize = maxTrueSize * 3;
+#endif
+
+    s_maxSize = maxSize;
+    s_maxTrueSize = maxTrueSize;
+
+    //    printf("GetCacheSizePerLogicalCpu returns %d, adjusted size %d\n", maxSize, maxTrueSize);
+    return trueSize ? maxTrueSize : maxSize;
 }
 
 // Sets the calling thread's affinity to only run on the processor specified
@@ -775,7 +919,7 @@ size_t GCToOSInterface::GetVirtualMemoryLimit()
 // Return:
 //  non zero if it has succeeded, 0 if it has failed
 // Remarks:
-//  If a process runs with a restricted memory limit, it returns the limit. If there's no limit 
+//  If a process runs with a restricted memory limit, it returns the limit. If there's no limit
 //  specified, it returns amount of actual physical memory.
 uint64_t GCToOSInterface::GetPhysicalMemoryLimit(bool* is_restricted)
 {
@@ -798,8 +942,10 @@ uint64_t GCToOSInterface::GetPhysicalMemoryLimit(bool* is_restricted)
         return restricted_limit;
     }
 
+    // Get the physical memory size
+#if HAVE_SYSCONF && HAVE__SC_PHYS_PAGES
     long pages = sysconf(_SC_PHYS_PAGES);
-    if (pages == -1) 
+    if (pages == -1)
     {
         return 0;
     }
@@ -811,6 +957,124 @@ uint64_t GCToOSInterface::GetPhysicalMemoryLimit(bool* is_restricted)
     }
 
     return pages * pageSize;
+#elif HAVE_SYSCTL
+    int mib[3];
+    mib[0] = CTL_HW;
+    mib[1] = HW_MEMSIZE;
+    int64_t physical_memory = 0;
+    size_t length = sizeof(INT64);
+    int rc = sysctl(mib, 2, &physical_memory, &length, NULL, 0);
+    assert(rc == 0);
+
+    return physical_memory;
+#else // HAVE_SYSCTL
+#error "Don't know how to get total physical memory on this platform"
+#endif // HAVE_SYSCTL
+}
+
+// Get amount of physical memory available for use in the system
+uint64_t GetAvailablePhysicalMemory()
+{
+    uint64_t available = 0;
+
+    // Get the physical memory available.
+#ifndef __APPLE__
+    static volatile bool tryReadMemInfo = true;
+
+    if (tryReadMemInfo)
+    {
+        // Ensure that we don't try to read the /proc/meminfo in successive calls to the GlobalMemoryStatusEx
+        // if we have failed to access the file or the file didn't contain the MemAvailable value.
+        tryReadMemInfo = ReadMemAvailable(&available);
+    }
+
+    if (!tryReadMemInfo)
+    {
+        // The /proc/meminfo doesn't exist or it doesn't contain the MemAvailable row or the format of the row is invalid
+        // Fall back to getting the available pages using sysconf.
+        available = sysconf(SYSCONF_PAGES) * sysconf(_SC_PAGE_SIZE);
+    }
+#else // __APPLE__
+    vm_size_t page_size;
+    mach_port_t mach_port;
+    mach_msg_type_number_t count;
+    vm_statistics_data_t vm_stats;
+    mach_port = mach_host_self();
+    count = sizeof(vm_stats) / sizeof(natural_t);
+    if (KERN_SUCCESS == host_page_size(mach_port, &page_size))
+    {
+        if (KERN_SUCCESS == host_statistics(mach_port, HOST_VM_INFO, (host_info_t)&vm_stats, &count))
+        {
+            available = (int64_t)vm_stats.free_count * (int64_t)page_size;
+        }
+    }
+    mach_port_deallocate(mach_task_self(), mach_port);
+#endif // __APPLE__
+
+    return available;
+}
+
+// Get the amount of available swap space
+uint64_t GetAvailablePageFile()
+{
+    uint64_t available = 0;
+
+    int mib[3];
+    int rc;
+
+    // Get swap file size
+#if HAVE_XSW_USAGE
+    // This is available on OSX
+    struct xsw_usage xsu;
+    mib[0] = CTL_VM;
+    mib[1] = VM_SWAPUSAGE;
+    size_t length = sizeof(xsu);
+    rc = sysctl(mib, 2, &xsu, &length, NULL, 0);
+    if (rc == 0)
+    {
+        available = xsu.xsu_avail;
+    }
+#elif HAVE_XSWDEV
+    // E.g. FreeBSD
+    struct xswdev xsw;
+
+    size_t length = 2;
+    rc = sysctlnametomib("vm.swap_info", mib, &length);
+    if (rc == 0)
+    {
+        int pagesize = getpagesize();
+        // Aggregate the information for all swap files on the system
+        for (mib[2] = 0; ; mib[2]++)
+        {
+            length = sizeof(xsw);
+            rc = sysctl(mib, 3, &xsw, &length, NULL, 0);
+            if ((rc < 0) || (xsw.xsw_version != XSWDEV_VERSION))
+            {
+                // All the swap files were processed or coreclr was built against
+                // a version of headers not compatible with the current XSWDEV_VERSION.
+                break;
+            }
+
+            uint64_t avail = xsw.xsw_nblks - xsw.xsw_used;
+            available += avail * pagesize;
+        }
+    }
+#elif HAVE_SYSINFO
+    // Linux
+    struct sysinfo info;
+    rc = sysinfo(&info);
+    if (rc == 0)
+    {
+        available = info.freeswap;
+#if HAVE_SYSINFO_WITH_MEM_UNIT
+        // A newer version of the sysinfo structure represents all the sizes
+        // in mem_unit instead of bytes
+        available *= info.mem_unit;
+#endif // HAVE_SYSINFO_WITH_MEM_UNIT
+    }
+#endif // HAVE_SYSINFO
+
+    return available;
 }
 
 // Get memory status
@@ -821,30 +1085,49 @@ uint64_t GCToOSInterface::GetPhysicalMemoryLimit(bool* is_restricted)
 //  available_page_file - The maximum amount of memory the current process can commit, in bytes.
 void GCToOSInterface::GetMemoryStatus(uint32_t* memory_load, uint64_t* available_physical, uint64_t* available_page_file)
 {
+    uint64_t available = 0;
+    uint32_t load = 0;
+
     if (memory_load != nullptr || available_physical != nullptr)
     {
-        uint64_t total = GetPhysicalMemoryLimit();
-
-        uint64_t available = 0;
-        uint32_t load = 0;
         size_t used;
-
-        // Get the physical memory in use - from it, we can get the physical memory available.
-        // We do this only when we have the total physical memory available.
-        if (total > 0 && GetPhysicalMemoryUsed(&used))
+        bool isRestricted;
+        uint64_t total = GetPhysicalMemoryLimit(&isRestricted);
+        if (isRestricted)
         {
-            available = total > used ? total-used : 0; 
-            load = (uint32_t)(((float)used * 100) / (float)total);
+            // Get the physical memory in use - from it, we can get the physical memory available.
+            // We do this only when we have the total physical memory available.
+            if (GetPhysicalMemoryUsed(&used))
+            {
+                available = total > used ? total-used : 0;
+                load = (uint32_t)(((float)used * 100) / (float)total);
+            }
         }
+        else
+        {
+            available = GetAvailablePhysicalMemory();
 
-        if (memory_load != nullptr)
-            *memory_load = load;
-        if (available_physical != nullptr)
-            *available_physical = available;
+            if (memory_load != NULL)
+            {
+                uint32_t load = 0;
+                if (total > available)
+                {
+                    used = total - available;
+                    load = (uint32_t)(((float)used * 100) / (float)total);
+                }
+            }
+        }
     }
 
+    if (available_physical != NULL)
+        *available_physical = available;
+
+    if (memory_load != nullptr)
+        *memory_load = load;
+
     if (available_page_file != nullptr)
-        *available_page_file = 0;
+        *available_page_file = GetAvailablePageFile();
+
 }
 
 // Get a high precision performance counter
@@ -908,6 +1191,11 @@ uint32_t GCToOSInterface::GetTotalProcessorCount()
 bool GCToOSInterface::CanEnableGCNumaAware()
 {
     return g_numaAvailable;
+}
+
+bool GCToOSInterface::CanEnableGCCPUGroups()
+{
+    return false;
 }
 
 // Get processor number and optionally its NUMA node number for the specified heap number

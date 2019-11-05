@@ -12,7 +12,7 @@ namespace R2RDump
 {
     public class CoreDisTools
     {
-        private const string _dll = "coredistools.dll";
+        private const string _dll = "coredistools";
 
         public enum TargetArch
         {
@@ -156,7 +156,7 @@ namespace R2RDump
                             line[colon + 2] == ' ')
                         {
                             colon += 3;
-                        }   
+                        }
 
                         nakedInstruction.Append($"{(rtfOffset + rtf.CodeOffset),8:x4}:");
                         nakedInstruction.Append("  ");

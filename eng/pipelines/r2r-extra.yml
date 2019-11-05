@@ -11,19 +11,26 @@ schedules:
   always: true
 
 jobs:
-- template: /eng/platform-matrix.yml
+#
+# Checkout repository
+#
+- template: ../checkout-job.yml
+
+- template: ../platform-matrix.yml
   parameters:
     jobTemplate: build-job.yml
     buildConfig: checked
     platformGroup: gcstress
+    jobParameters:
+      testGroup: r2r-extra
 
-- template: /eng/platform-matrix.yml
+- template: ../platform-matrix.yml
   parameters:
     jobTemplate: test-job.yml
     buildConfig: checked
     platformGroup: gcstress # r2r-extra testGroup runs gcstress15 scenario
     helixQueueGroup: ci
+    testGroup: r2r-extra
     jobParameters:
-      testGroup: r2r-extra
       readyToRun: true
       displayNameArgs: R2R

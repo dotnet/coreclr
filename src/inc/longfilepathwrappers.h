@@ -1,6 +1,6 @@
-// Licensed to the .NET Foundation under one or more agreements. 
-// The .NET Foundation licenses this file to you under the MIT license. 
-// See the LICENSE file in the project root for more information. 
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #ifndef _WIN_PATH_APIS_WRAPPER_
 #define _WIN_PATH_APIS_WRAPPER_
@@ -22,12 +22,6 @@ CreateFileWrapper(
     _In_ DWORD dwCreationDisposition,
     _In_ DWORD dwFlagsAndAttributes,
     _In_opt_ HANDLE hTemplateFile
-    );
-
-BOOL
-SetFileAttributesWrapper(
-    _In_ LPCWSTR lpFileName,
-    _In_ DWORD dwFileAttributes
     );
 
 DWORD
@@ -56,13 +50,6 @@ FindFirstFileExWrapper(
     _In_ DWORD dwAdditionalFlags
     );
 
-BOOL
-CopyFileWrapper(
-    _In_ LPCWSTR lpExistingFileName,
-    _In_ LPCWSTR lpNewFileName,
-    _In_ BOOL bFailIfExists
-    );
-
 #ifndef FEATURE_PAL
 BOOL
 CopyFileExWrapper(
@@ -89,18 +76,6 @@ CreateDirectoryWrapper(
     _In_opt_ LPSECURITY_ATTRIBUTES lpSecurityAttributes
     );
 
-BOOL
-RemoveDirectoryWrapper(
-    _In_ LPCWSTR lpPathName
-    );
-
-BOOL
-CreateHardLinkWrapper(
-    _In_       LPCWSTR lpFileName,
-    _In_       LPCWSTR lpExistingFileName,
-    _Reserved_ LPSECURITY_ATTRIBUTES lpSecurityAttributes
-    );
-
 DWORD
 SearchPathWrapper(
     _In_opt_ LPCWSTR lpPath,
@@ -111,18 +86,6 @@ SearchPathWrapper(
     _Out_opt_ LPWSTR * lpFilePart
     );
 
-
-DWORD
-GetShortPathNameWrapper(
-    _In_ LPCWSTR lpszLongPath,
-    SString& lpszShortPath
-    );
-
-DWORD
-GetLongPathNameWrapper(
-    _In_ LPCWSTR lpszShortPath,
-    SString& lpszLongPath
-    );
 
 UINT WINAPI GetTempFileNameWrapper(
     _In_  LPCTSTR lpPathName,

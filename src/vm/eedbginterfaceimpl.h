@@ -134,15 +134,15 @@ public:
                                                   DebugOffsetToHandlerInfo *pOffsetToHandlerInfo,
                                                   unsigned offsetToHandlerInfoLength);
 
-    void GetMethodRegionInfo(const PCODE pStart, 
-                             PCODE     * pCold, 
+    void GetMethodRegionInfo(const PCODE pStart,
+                             PCODE     * pCold,
                              size_t *hotSize,
                              size_t *coldSize);
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
     DWORD GetFuncletStartOffsets(const BYTE *pStart, DWORD* pStartOffsets, DWORD dwLength);
     StackFrame FindParentStackFrame(CrawlFrame* pCF);
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
     size_t GetFunctionSize(MethodDesc *pFD) DAC_UNEXPECTED();
 
@@ -210,13 +210,13 @@ public:
                              DWORD ntypars);
 
     TypeHandle LoadElementType(CorElementType et);
-    
-    __checkReturn 
+
+    __checkReturn
     HRESULT GetMethodImplProps(Module *pModule,
                                mdToken tk,
                                DWORD *pRVA,
                                DWORD *pImplFlags);
-    
+
     HRESULT GetParentToken(Module *pModule,
                            mdToken tk,
                            mdToken *pParentToken);
@@ -335,9 +335,9 @@ public:
 #ifndef DACCESS_COMPILE
     virtual BOOL ObjIsInstanceOf(Object *pElement, TypeHandle toTypeHnd);
 #endif
-    
+
     virtual void ClearAllDebugInterfaceReferences(void);
-    
+
 #ifndef DACCESS_COMPILE
 #ifdef _DEBUG
     virtual void ObjectRefFlush(Thread *pThread);

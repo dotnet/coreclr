@@ -16,6 +16,7 @@ if (CLR_CMAKE_PLATFORM_ARCH_I386)
     remove_definitions(-D_TARGET_X86_)
     add_definitions(-D_TARGET_ARM_)
     add_definitions(-DARM_SOFTFP)
+    add_definitions(-DFEATURE_EH_FUNCLETS)
     set(JIT_ARCH_ALTJIT_SOURCES ${JIT_ARM_SOURCES})
     set(JIT_ARCH_LINK_LIBRARIES gcinfo_arm)
 elseif(CLR_CMAKE_PLATFORM_ARCH_AMD64)
@@ -48,6 +49,8 @@ add_library_clr(armelnonjit
    ${SHARED_LIB_SOURCES}
    ${JIT_ARCH_ALTJIT_SOURCES}
 )
+
+target_precompile_header(TARGET armelnonjit HEADER jitpch.h ADDITIONAL_INCLUDE_DIRECTORIES ${JIT_SOURCE_DIR})
 
 add_dependencies(armelnonjit jit_exports)
 

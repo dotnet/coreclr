@@ -55,6 +55,8 @@ CompMemKindMacro(CopyProp)
 CompMemKindMacro(SideEffects)
 CompMemKindMacro(ObjectAllocator)
 CompMemKindMacro(VariableLiveRanges)
+CompMemKindMacro(ClassLayout)
+CompMemKindMacro(TailMergeThrows)
 //clang-format on
 
 #undef CompMemKindMacro

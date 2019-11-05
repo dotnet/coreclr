@@ -2,13 +2,12 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Runtime;
 using System.Runtime.CompilerServices;
 using System.Diagnostics;
 
 namespace System.Collections.Generic
 {
-    [TypeDependencyAttribute("System.Collections.Generic.ObjectEqualityComparer`1")]
+    [TypeDependency("System.Collections.Generic.ObjectEqualityComparer`1")]
     public abstract partial class EqualityComparer<T> : IEqualityComparer, IEqualityComparer<T>
     {
         // To minimize generic instantiation overhead of creating the comparer per type, we keep the generic portion of the code as small
@@ -176,14 +175,14 @@ namespace System.Collections.Generic
 #if DEBUG
         internal override int IndexOf(byte[] array, byte value, int startIndex, int count)
         {
-             Debug.Fail("Should not get here.");
-             return -1;
+            Debug.Fail("Should not get here.");
+            return -1;
         }
 
         internal override int LastIndexOf(byte[] array, byte value, int startIndex, int count)
         {
-             Debug.Fail("Should not get here.");
-             return -1;
+            Debug.Fail("Should not get here.");
+            return -1;
         }
 #endif
     }
@@ -193,7 +192,7 @@ namespace System.Collections.Generic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override bool Equals(T x, T y)
         {
-            return System.Runtime.CompilerServices.JitHelpers.EnumEquals(x, y);
+            return System.Runtime.CompilerServices.RuntimeHelpers.EnumEquals(x, y);
         }
 
         internal override int IndexOf(T[] array, T value, int startIndex, int count)
@@ -201,7 +200,7 @@ namespace System.Collections.Generic
             int endIndex = startIndex + count;
             for (int i = startIndex; i < endIndex; i++)
             {
-                if (System.Runtime.CompilerServices.JitHelpers.EnumEquals(array[i], value)) return i;
+                if (System.Runtime.CompilerServices.RuntimeHelpers.EnumEquals(array[i], value)) return i;
             }
             return -1;
         }
@@ -211,7 +210,7 @@ namespace System.Collections.Generic
             int endIndex = startIndex - count + 1;
             for (int i = startIndex; i >= endIndex; i--)
             {
-                if (System.Runtime.CompilerServices.JitHelpers.EnumEquals(array[i], value)) return i;
+                if (System.Runtime.CompilerServices.RuntimeHelpers.EnumEquals(array[i], value)) return i;
             }
             return -1;
         }

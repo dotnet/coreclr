@@ -101,7 +101,7 @@ private:
     {
         int count = 0;
 
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+        for (Statement* stmt : block->Statements())
         {
             if (ContainsFatCalli(stmt))
             {
@@ -129,9 +129,9 @@ private:
     // Return Value:
     //    true if contains, false otherwise.
     //
-    bool ContainsFatCalli(GenTreeStmt* stmt)
+    bool ContainsFatCalli(Statement* stmt)
     {
-        GenTree* fatPointerCandidate = stmt->gtStmtExpr;
+        GenTree* fatPointerCandidate = stmt->GetRootNode();
         if (fatPointerCandidate->OperIs(GT_ASG))
         {
             fatPointerCandidate = fatPointerCandidate->gtGetOp2();
@@ -148,16 +148,16 @@ private:
     //
     // Notes:
     //    calls are hoisted to top level ... (we hope)
-    bool ContainsGuardedDevirtualizationCandidate(GenTreeStmt* stmt)
+    bool ContainsGuardedDevirtualizationCandidate(Statement* stmt)
     {
-        GenTree* candidate = stmt->gtStmtExpr;
+        GenTree* candidate = stmt->GetRootNode();
         return candidate->IsCall() && candidate->AsCall()->IsGuardedDevirtualizationCandidate();
     }
 
     class Transformer
     {
     public:
-        Transformer(Compiler* compiler, BasicBlock* block, GenTreeStmt* stmt)
+        Transformer(Compiler* compiler, BasicBlock* block, Statement* stmt)
             : compiler(compiler), currBlock(block), stmt(stmt)
         {
             remainderBlock = nullptr;
@@ -177,7 +177,7 @@ private:
 
         void Transform()
         {
-            JITDUMP("*** %s: transforming [%06u]\n", Name(), compiler->dspTreeID(stmt));
+            JITDUMP("*** %s: transforming" FMT_STMT "\n", Name(), stmt->GetID());
             FixupRetExpr();
             ClearFlag();
             CreateRemainder();
@@ -190,10 +190,10 @@ private:
         }
 
     protected:
-        virtual const char*  Name()                         = 0;
-        virtual void         ClearFlag()                    = 0;
-        virtual GenTreeCall* GetCall(GenTreeStmt* callStmt) = 0;
-        virtual void FixupRetExpr()                         = 0;
+        virtual const char*  Name()                       = 0;
+        virtual void         ClearFlag()                  = 0;
+        virtual GenTreeCall* GetCall(Statement* callStmt) = 0;
+        virtual void FixupRetExpr()                       = 0;
 
         //------------------------------------------------------------------------
         // CreateRemainder: split current block at the call stmt and
@@ -267,7 +267,7 @@ private:
         BasicBlock*  checkBlock;
         BasicBlock*  thenBlock;
         BasicBlock*  elseBlock;
-        GenTreeStmt* stmt;
+        Statement*   stmt;
         GenTreeCall* origCall;
 
         const int HIGH_PROBABILITY = 80;
@@ -276,10 +276,10 @@ private:
     class FatPointerCallTransformer final : public Transformer
     {
     public:
-        FatPointerCallTransformer(Compiler* compiler, BasicBlock* block, GenTreeStmt* stmt)
+        FatPointerCallTransformer(Compiler* compiler, BasicBlock* block, Statement* stmt)
             : Transformer(compiler, block, stmt)
         {
-            doesReturnValue = stmt->gtStmtExpr->OperIs(GT_ASG);
+            doesReturnValue = stmt->GetRootNode()->OperIs(GT_ASG);
             origCall        = GetCall(stmt);
             fptrAddress     = origCall->gtCallAddr;
             pointerType     = fptrAddress->TypeGet();
@@ -299,9 +299,9 @@ private:
         //
         // Return Value:
         //    call tree node pointer.
-        virtual GenTreeCall* GetCall(GenTreeStmt* callStmt)
+        virtual GenTreeCall* GetCall(Statement* callStmt)
         {
-            GenTree*     tree = callStmt->gtStmtExpr;
+            GenTree*     tree = callStmt->GetRootNode();
             GenTreeCall* call = nullptr;
             if (doesReturnValue)
             {
@@ -333,14 +333,14 @@ private:
         //
         virtual void CreateCheck()
         {
-            checkBlock                   = CreateAndInsertBasicBlock(BBJ_COND, currBlock);
-            GenTree*     fatPointerMask  = new (compiler, GT_CNS_INT) GenTreeIntCon(TYP_I_IMPL, FAT_POINTER_MASK);
-            GenTree*     fptrAddressCopy = compiler->gtCloneExpr(fptrAddress);
-            GenTree*     fatPointerAnd   = compiler->gtNewOperNode(GT_AND, TYP_I_IMPL, fptrAddressCopy, fatPointerMask);
-            GenTree*     zero            = new (compiler, GT_CNS_INT) GenTreeIntCon(TYP_I_IMPL, 0);
-            GenTree*     fatPointerCmp   = compiler->gtNewOperNode(GT_NE, TYP_INT, fatPointerAnd, zero);
-            GenTree*     jmpTree         = compiler->gtNewOperNode(GT_JTRUE, TYP_VOID, fatPointerCmp);
-            GenTreeStmt* jmpStmt         = compiler->fgNewStmtFromTree(jmpTree, stmt->gtStmtILoffsx);
+            checkBlock                 = CreateAndInsertBasicBlock(BBJ_COND, currBlock);
+            GenTree*   fatPointerMask  = new (compiler, GT_CNS_INT) GenTreeIntCon(TYP_I_IMPL, FAT_POINTER_MASK);
+            GenTree*   fptrAddressCopy = compiler->gtCloneExpr(fptrAddress);
+            GenTree*   fatPointerAnd   = compiler->gtNewOperNode(GT_AND, TYP_I_IMPL, fptrAddressCopy, fatPointerMask);
+            GenTree*   zero            = new (compiler, GT_CNS_INT) GenTreeIntCon(TYP_I_IMPL, 0);
+            GenTree*   fatPointerCmp   = compiler->gtNewOperNode(GT_NE, TYP_INT, fatPointerAnd, zero);
+            GenTree*   jmpTree         = compiler->gtNewOperNode(GT_JTRUE, TYP_VOID, fatPointerCmp);
+            Statement* jmpStmt         = compiler->fgNewStmtFromTree(jmpTree, stmt->GetILOffsetX());
             compiler->fgInsertStmtAtEnd(checkBlock, jmpStmt);
         }
 
@@ -350,8 +350,8 @@ private:
         //
         virtual void CreateThen()
         {
-            thenBlock                       = CreateAndInsertBasicBlock(BBJ_ALWAYS, checkBlock);
-            GenTreeStmt* copyOfOriginalStmt = compiler->gtCloneExpr(stmt)->AsStmt();
+            thenBlock                     = CreateAndInsertBasicBlock(BBJ_ALWAYS, checkBlock);
+            Statement* copyOfOriginalStmt = compiler->gtCloneStmt(stmt);
             compiler->fgInsertStmtAtEnd(thenBlock, copyOfOriginalStmt);
         }
 
@@ -366,7 +366,7 @@ private:
             GenTree* actualCallAddress = compiler->gtNewOperNode(GT_IND, pointerType, fixedFptrAddress);
             GenTree* hiddenArgument    = GetHiddenArgument(fixedFptrAddress);
 
-            GenTreeStmt* fatStmt = CreateFatCallStmt(actualCallAddress, hiddenArgument);
+            Statement* fatStmt = CreateFatCallStmt(actualCallAddress, hiddenArgument);
             compiler->fgInsertStmtAtEnd(elseBlock, fatStmt);
         }
 
@@ -409,10 +409,10 @@ private:
         //
         // Return Value:
         //    created call node.
-        GenTreeStmt* CreateFatCallStmt(GenTree* actualCallAddress, GenTree* hiddenArgument)
+        Statement* CreateFatCallStmt(GenTree* actualCallAddress, GenTree* hiddenArgument)
         {
-            GenTreeStmt* fatStmt = compiler->gtCloneExpr(stmt)->AsStmt();
-            GenTree*     fatTree = fatStmt->gtStmtExpr;
+            Statement*   fatStmt = compiler->gtCloneStmt(stmt);
+            GenTree*     fatTree = fatStmt->GetRootNode();
             GenTreeCall* fatCall = GetCall(fatStmt);
             fatCall->gtCallAddr  = actualCallAddress;
             AddHiddenArgument(fatCall, hiddenArgument);
@@ -428,25 +428,19 @@ private:
         //
         void AddHiddenArgument(GenTreeCall* fatCall, GenTree* hiddenArgument)
         {
-            GenTreeArgList* oldArgs = fatCall->gtCallArgs;
-            GenTreeArgList* newArgs;
 #if USER_ARGS_COME_LAST
             if (fatCall->HasRetBufArg())
             {
-                GenTree*        retBuffer = oldArgs->Current();
-                GenTreeArgList* rest      = oldArgs->Rest();
-                newArgs                   = compiler->gtNewListNode(hiddenArgument, rest);
-                newArgs                   = compiler->gtNewListNode(retBuffer, newArgs);
+                GenTreeCall::Use* retBufArg = fatCall->gtCallArgs;
+                compiler->gtInsertNewCallArgAfter(hiddenArgument, retBufArg);
             }
             else
             {
-                newArgs = compiler->gtNewListNode(hiddenArgument, oldArgs);
+                fatCall->gtCallArgs = compiler->gtPrependNewCallArg(hiddenArgument, fatCall->gtCallArgs);
             }
 #else
-            newArgs = oldArgs;
-            AddArgumentToTail(newArgs, hiddenArgument);
+            AddArgumentToTail(fatCall->gtCallArgs, hiddenArgument);
 #endif
-            fatCall->gtCallArgs = newArgs;
         }
 
         //------------------------------------------------------------------------
@@ -456,14 +450,14 @@ private:
         //    argList - fat call node
         //    hiddenArgument - generic context hidden argument
         //
-        void AddArgumentToTail(GenTreeArgList* argList, GenTree* hiddenArgument)
+        void AddArgumentToTail(GenTreeCall::Use* argList, GenTree* hiddenArgument)
         {
-            GenTreeArgList* iterator = argList;
-            while (iterator->Rest() != nullptr)
+            GenTreeCall::Use* iterator = argList;
+            while (iterator->GetNext() != nullptr)
             {
-                iterator = iterator->Rest();
+                iterator = iterator->GetNext();
             }
-            iterator->Rest() = compiler->gtNewArgList(hiddenArgument);
+            iterator->SetNext(compiler->gtNewCallArgs(hiddenArgument));
         }
 
     private:
@@ -477,7 +471,7 @@ private:
     class GuardedDevirtualizationTransformer final : public Transformer
     {
     public:
-        GuardedDevirtualizationTransformer(Compiler* compiler, BasicBlock* block, GenTreeStmt* stmt)
+        GuardedDevirtualizationTransformer(Compiler* compiler, BasicBlock* block, Statement* stmt)
             : Transformer(compiler, block, stmt), returnTemp(BAD_VAR_NUM)
         {
         }
@@ -535,9 +529,9 @@ private:
         //
         // Return Value:
         //    call tree node pointer.
-        virtual GenTreeCall* GetCall(GenTreeStmt* callStmt)
+        virtual GenTreeCall* GetCall(Statement* callStmt)
         {
-            GenTree* tree = callStmt->gtStmtExpr;
+            GenTree* tree = callStmt->GetRootNode();
             assert(tree->IsCall());
             GenTreeCall* call = tree->AsCall();
             return call;
@@ -559,22 +553,22 @@ private:
             checkBlock = CreateAndInsertBasicBlock(BBJ_COND, currBlock);
 
             // Fetch method table from object arg to call.
-            GenTree* thisTree = compiler->gtCloneExpr(origCall->gtCallObjp);
+            GenTree* thisTree = compiler->gtCloneExpr(origCall->gtCallThisArg->GetNode());
 
             // Create temp for this if the tree is costly.
             if (!thisTree->IsLocal())
             {
                 const unsigned thisTempNum = compiler->lvaGrabTemp(true DEBUGARG("guarded devirt this temp"));
                 // lvaSetClass(thisTempNum, ...);
-                GenTree*     asgTree = compiler->gtNewTempAssign(thisTempNum, thisTree);
-                GenTreeStmt* asgStmt = compiler->fgNewStmtFromTree(asgTree, stmt->gtStmtILoffsx);
+                GenTree*   asgTree = compiler->gtNewTempAssign(thisTempNum, thisTree);
+                Statement* asgStmt = compiler->fgNewStmtFromTree(asgTree, stmt->GetILOffsetX());
                 compiler->fgInsertStmtAtEnd(checkBlock, asgStmt);
 
                 thisTree = compiler->gtNewLclvNode(thisTempNum, TYP_REF);
 
                 // Propagate the new this to the call. Must be a new expr as the call
                 // will live on in the else block and thisTree is used below.
-                origCall->gtCallObjp = compiler->gtNewLclvNode(thisTempNum, TYP_REF);
+                origCall->gtCallThisArg = compiler->gtNewCallArgs(compiler->gtNewLclvNode(thisTempNum, TYP_REF));
             }
 
             GenTree* methodTable = compiler->gtNewIndir(TYP_I_IMPL, thisTree);
@@ -586,9 +580,9 @@ private:
             GenTree*                              targetMethodTable = compiler->gtNewIconEmbClsHndNode(clsHnd);
 
             // Compare and jump to else (which does the indirect call) if NOT equal
-            GenTree*     methodTableCompare = compiler->gtNewOperNode(GT_NE, TYP_INT, targetMethodTable, methodTable);
-            GenTree*     jmpTree            = compiler->gtNewOperNode(GT_JTRUE, TYP_VOID, methodTableCompare);
-            GenTreeStmt* jmpStmt            = compiler->fgNewStmtFromTree(jmpTree, stmt->gtStmtILoffsx);
+            GenTree*   methodTableCompare = compiler->gtNewOperNode(GT_NE, TYP_INT, targetMethodTable, methodTable);
+            GenTree*   jmpTree            = compiler->gtNewOperNode(GT_JTRUE, TYP_VOID, methodTableCompare);
+            Statement* jmpStmt            = compiler->fgNewStmtFromTree(jmpTree, stmt->GetILOffsetX());
             compiler->fgInsertStmtAtEnd(checkBlock, jmpStmt);
         }
 
@@ -612,7 +606,7 @@ private:
             // Sanity check the ret expr if non-null: it should refer to the original call.
             if (retExpr != nullptr)
             {
-                assert(retExpr->gtRetExpr.gtInlineCandidate == origCall);
+                assert(retExpr->AsRetExpr()->gtInlineCandidate == origCall);
             }
 
             if (origCall->TypeGet() != TYP_VOID)
@@ -629,7 +623,7 @@ private:
 
                 JITDUMP("Updating GT_RET_EXPR [%06u] to refer to temp V%02u\n", compiler->dspTreeID(retExpr),
                         returnTemp);
-                retExpr->gtRetExpr.gtInlineCandidate = tempTree;
+                retExpr->AsRetExpr()->gtInlineCandidate = tempTree;
             }
             else if (retExpr != nullptr)
             {
@@ -642,8 +636,8 @@ private:
                 // the benefit of a larger tree is unclear.
                 JITDUMP("Updating GT_RET_EXPR [%06u] for VOID return to refer to a NOP\n",
                         compiler->dspTreeID(retExpr));
-                GenTree* nopTree                     = compiler->gtNewNothingNode();
-                retExpr->gtRetExpr.gtInlineCandidate = nopTree;
+                GenTree* nopTree                        = compiler->gtNewNothingNode();
+                retExpr->AsRetExpr()->gtInlineCandidate = nopTree;
             }
             else
             {
@@ -663,15 +657,14 @@ private:
 
             // copy 'this' to temp with exact type.
             const unsigned thisTemp  = compiler->lvaGrabTemp(false DEBUGARG("guarded devirt this exact temp"));
-            GenTree*       clonedObj = compiler->gtCloneExpr(origCall->gtCallObjp);
+            GenTree*       clonedObj = compiler->gtCloneExpr(origCall->gtCallThisArg->GetNode());
             GenTree*       assign    = compiler->gtNewTempAssign(thisTemp, clonedObj);
             compiler->lvaSetClass(thisTemp, clsHnd, true);
-            GenTreeStmt* assignStmt = compiler->gtNewStmt(assign);
-            compiler->fgInsertStmtAtEnd(thenBlock, assignStmt);
+            compiler->fgNewStmtAtEnd(thenBlock, assign);
 
             // Clone call. Note we must use the special candidate helper.
-            GenTreeCall* call = compiler->gtCloneCandidateCall(origCall);
-            call->gtCallObjp  = compiler->gtNewLclvNode(thisTemp, TYP_REF);
+            GenTreeCall* call   = compiler->gtCloneCandidateCall(origCall);
+            call->gtCallThisArg = compiler->gtNewCallArgs(compiler->gtNewLclvNode(thisTemp, TYP_REF));
             call->SetIsGuarded();
 
             JITDUMP("Direct call [%06u] in block BB%02u\n", compiler->dspTreeID(call), thenBlock->bbNum);
@@ -683,7 +676,7 @@ private:
             unsigned               methodFlags            = inlineInfo->methAttr;
             CORINFO_CONTEXT_HANDLE context                = inlineInfo->exactContextHnd;
             const bool             isLateDevirtualization = true;
-            bool explicitTailCall = (call->gtCall.gtCallMoreFlags & GTF_CALL_M_EXPLICIT_TAILCALL) != 0;
+            bool explicitTailCall = (call->AsCall()->gtCallMoreFlags & GTF_CALL_M_EXPLICIT_TAILCALL) != 0;
             compiler->impDevirtualizeCall(call, &methodHnd, &methodFlags, &context, nullptr, isLateDevirtualization,
                                           explicitTailCall);
 
@@ -698,9 +691,8 @@ private:
             inlineInfo->exactContextHnd = context;
             call->gtInlineCandidateInfo = inlineInfo;
 
-            // Add the call
-            GenTreeStmt* callStmt = compiler->gtNewStmt(call);
-            compiler->fgInsertStmtAtEnd(thenBlock, callStmt);
+            // Add the call.
+            compiler->fgNewStmtAtEnd(thenBlock, call);
 
             // If there was a ret expr for this call, we need to create a new one
             // and append it just after the call.
@@ -722,9 +714,7 @@ private:
                     // We should always have a return temp if we return results by value
                     assert(origCall->TypeGet() == TYP_VOID);
                 }
-
-                GenTreeStmt* resultStmt = compiler->gtNewStmt(retExpr);
-                compiler->fgInsertStmtAtEnd(thenBlock, resultStmt);
+                compiler->fgNewStmtAtEnd(thenBlock, retExpr);
             }
         }
 
@@ -735,7 +725,7 @@ private:
         {
             elseBlock            = CreateAndInsertBasicBlock(BBJ_NONE, thenBlock);
             GenTreeCall* call    = origCall;
-            GenTreeStmt* newStmt = compiler->gtNewStmt(call);
+            Statement*   newStmt = compiler->gtNewStmt(call);
 
             call->gtFlags &= ~GTF_CALL_INLINE_CANDIDATE;
             call->SetIsGuarded();
@@ -744,8 +734,8 @@ private:
 
             if (returnTemp != BAD_VAR_NUM)
             {
-                GenTree* assign     = compiler->gtNewTempAssign(returnTemp, call);
-                newStmt->gtStmtExpr = assign;
+                GenTree* assign = compiler->gtNewTempAssign(returnTemp, call);
+                newStmt->SetRootNode(assign);
             }
 
             // For stub calls, restore the stub address. For everything else,
@@ -763,7 +753,7 @@ private:
             compiler->fgInsertStmtAtEnd(elseBlock, newStmt);
 
             // Set the original statement to a nop.
-            stmt->gtStmtExpr = compiler->gtNewNothingNode();
+            stmt->SetRootNode(compiler->gtNewNothingNode());
         }
 
     private:
@@ -802,9 +792,9 @@ void Compiler::CheckNoTransformableIndirectCallsRemain()
 
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = fgFirstBB->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+        for (Statement* stmt : block->Statements())
         {
-            fgWalkTreePre(&stmt->gtStmtExpr, fgDebugCheckForTransformableIndirectCalls);
+            fgWalkTreePre(stmt->GetRootNodePointer(), fgDebugCheckForTransformableIndirectCalls);
         }
     }
 }

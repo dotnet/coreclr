@@ -15,7 +15,7 @@
 
 #define READYTORUN_SIGNATURE 0x00525452 // 'RTR'
 
-#define READYTORUN_MAJOR_VERSION 0x0003
+#define READYTORUN_MAJOR_VERSION 0x0004
 #define READYTORUN_MINOR_VERSION 0x0001
 #define MINIMUM_READYTORUN_MAJOR_VERSION 0x003
 // R2R Version 2.1 adds the READYTORUN_SECTION_INLINING_INFO section
@@ -79,7 +79,7 @@ enum ReadyToRunSectionType
 //
 // READYTORUN_IMPORT_SECTION describes image range with references to code or runtime data structures
 //
-// There is number of different types of these ranges: eagerly initialized at image load vs. lazily initialized at method entry 
+// There is number of different types of these ranges: eagerly initialized at image load vs. lazily initialized at method entry
 // vs. lazily initialized on first use; handles vs. code pointers, etc.
 //
 struct READYTORUN_IMPORT_SECTION
@@ -185,7 +185,8 @@ enum ReadyToRunFixupKind
     READYTORUN_FIXUP_DelegateCtor               = 0x2C, /* optimized delegate ctor */
     READYTORUN_FIXUP_DeclaringTypeHandle        = 0x2D,
 
-    READYTORUN_FIXUP_IndirectPInvokeTarget      = 0x2E, /* Target of an inlined pinvoke */
+    READYTORUN_FIXUP_IndirectPInvokeTarget      = 0x2E, /* Target (indirect) of an inlined pinvoke */
+    READYTORUN_FIXUP_PInvokeTarget              = 0x2F, /* Target of an inlined pinvoke */
 };
 
 //
@@ -239,6 +240,7 @@ enum ReadyToRunHelper
     // PInvoke helpers
     READYTORUN_HELPER_PInvokeBegin              = 0x42,
     READYTORUN_HELPER_PInvokeEnd                = 0x43,
+    READYTORUN_HELPER_GCPoll                    = 0x44,
 
     // Get string handle lazily
     READYTORUN_HELPER_GetString                 = 0x50,
@@ -305,7 +307,7 @@ enum ReadyToRunHelper
     READYTORUN_HELPER_DblRound                  = 0xE2,
     READYTORUN_HELPER_FltRound                  = 0xE3,
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     // Personality rountines
     READYTORUN_HELPER_PersonalityRoutine        = 0xF0,
     READYTORUN_HELPER_PersonalityRoutineFilterFunclet = 0xF1,
@@ -335,6 +337,9 @@ enum ReadyToRunHelper
 
     // JIT32 x86-specific exception handling
     READYTORUN_HELPER_EndCatch                  = 0x110,
+
+    // Stack probing helper
+    READYTORUN_HELPER_StackProbe                = 0x111,
 };
 
 //
@@ -349,15 +354,20 @@ struct READYTORUN_EXCEPTION_LOOKUP_TABLE_ENTRY
 
 struct READYTORUN_EXCEPTION_CLAUSE
 {
-    CorExceptionFlag    Flags;  
-    DWORD               TryStartPC;    
+    CorExceptionFlag    Flags;
+    DWORD               TryStartPC;
     DWORD               TryEndPC;
-    DWORD               HandlerStartPC;  
-    DWORD               HandlerEndPC;  
+    DWORD               HandlerStartPC;
+    DWORD               HandlerEndPC;
     union {
         mdToken         ClassToken;
         DWORD           FilterOffset;
-    };  
+    };
+};
+
+enum ReadyToRunRuntimeConstants : DWORD
+{
+    READYTORUN_PInvokeTransitionFrameSizeInPointerUnits = 11
 };
 
 #endif // __READYTORUN_H__

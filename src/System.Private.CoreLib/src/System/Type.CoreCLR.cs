@@ -16,7 +16,7 @@ namespace System
             {
                 if (this is RuntimeType rt)
                     return RuntimeTypeHandle.IsInterface(rt);
-                return ((GetAttributeFlagsImpl() & TypeAttributes.ClassSemanticsMask) == TypeAttributes.Interface);
+                return (GetAttributeFlagsImpl() & TypeAttributes.ClassSemanticsMask) == TypeAttributes.Interface;
             }
         }
 
@@ -75,9 +75,9 @@ namespace System
         }
 
         ////////////////////////////////////////////////////////////////////////////////
-        // This will return a class based upon the progID.  This is provided for 
-        // COM classic support.  Program ID's are not used in COM+ because they 
-        // have been superceded by namespace.  (This routine is called this instead 
+        // This will return a class based upon the progID.  This is provided for
+        // COM classic support.  Program ID's are not used in COM+ because they
+        // have been superceded by namespace.  (This routine is called this instead
         // of getClass() because of the name conflict with the first method above.)
         //
         //   param progID:     the progID of the class to retrieve
@@ -89,8 +89,8 @@ namespace System
         }
 
         ////////////////////////////////////////////////////////////////////////////////
-        // This will return a class based upon the CLSID.  This is provided for 
-        // COM classic support.  
+        // This will return a class based upon the CLSID.  This is provided for
+        // COM classic support.
         //
         //   param CLSID:      the CLSID of the class to retrieve
         //   returns:          the class object associated to the CLSID
@@ -109,11 +109,9 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern RuntimeType GetTypeFromHandleUnsafe(IntPtr handle);
 
+        [Intrinsic]
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern Type GetTypeFromHandle(RuntimeTypeHandle handle);
-
-
-
 
 #if FEATURE_COMINTEROP
         internal bool IsWindowsRuntimeObject
@@ -126,30 +124,23 @@ namespace System
             get { return IsExportedToWindowsRuntimeImpl(); }
         }
 
-
         // Protected routine to determine if this class represents a Windows Runtime object
-        virtual internal bool IsWindowsRuntimeObjectImpl()
+        internal virtual bool IsWindowsRuntimeObjectImpl()
         {
             throw new NotImplementedException();
         }
 
         // Determines if this type is exported to WinRT (i.e. is an activatable class in a managed .winmd)
-        virtual internal bool IsExportedToWindowsRuntimeImpl()
+        internal virtual bool IsExportedToWindowsRuntimeImpl()
         {
             throw new NotImplementedException();
         }
 #endif // FEATURE_COMINTEROP
 
-        // This is only ever called on RuntimeType objects.
-        internal virtual string FormatTypeName()
-        {
-            throw new NotImplementedException();
-        }
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern bool operator ==(Type? left, Type? right);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern bool operator !=(Type? left, Type? right);
 
         // Exists to faciliate code sharing between CoreCLR and CoreRT.

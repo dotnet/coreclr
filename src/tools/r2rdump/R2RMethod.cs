@@ -32,6 +32,10 @@ namespace R2RDump
         }
     }
 
+    public abstract class BaseGcSlot
+    {
+    }
+
     public abstract class BaseGcInfo
     {
         public int Size { get; set; }
@@ -39,6 +43,7 @@ namespace R2RDump
         public int CodeLength { get; set; }
         [XmlIgnore]
         public Dictionary<int, List<BaseGcTransition>> Transitions { get; set; }
+        public List<List<BaseGcSlot>> LiveSlotsAtSafepoints { get; set; }
     }
 
     /// <summary>
@@ -90,14 +95,14 @@ namespace R2RDump
         public RuntimeFunction() { }
 
         public RuntimeFunction(
-            int id, 
-            int startRva, 
-            int endRva, 
-            int unwindRva, 
-            int codeOffset, 
-            R2RMethod method, 
-            BaseUnwindInfo unwindInfo, 
-            BaseGcInfo gcInfo, 
+            int id,
+            int startRva,
+            int endRva,
+            int unwindRva,
+            int codeOffset,
+            R2RMethod method,
+            BaseUnwindInfo unwindInfo,
+            BaseGcInfo gcInfo,
             EHInfo ehInfo,
             DebugInfo debugInfo)
         {
@@ -221,6 +226,8 @@ namespace R2RDump
                 foreach (Amd64.GcInfo.SafePointOffset safePoint in gcInfo.SafePointOffsets)
                 {
                     writer.WriteLine($@"        Index: {safePoint.Index,2}; Value: 0x{safePoint.Value:X4}");
+                    if (gcInfo.LiveSlotsAtSafepoints != null)
+                        writer.WriteLine($@"        Live slots: {String.Join(", ", gcInfo.LiveSlotsAtSafepoints[safePoint.Index])}");
                 }
 
                 writer.WriteLine($@"    InterruptibleRanges: {gcInfo.InterruptibleRanges.Count}");
@@ -261,9 +268,9 @@ namespace R2RDump
         private const int _mdtMethodDef = 0x06000000;
 
         /// <summary>
-        /// R2R reader representing the method module.
+        /// MetadataReader representing the method module.
         /// </summary>
-        public R2RReader R2RReader { get; }
+        public MetadataReader MetadataReader { get; private set; }
 
         /// <summary>
         /// An unique index for the method
@@ -319,12 +326,12 @@ namespace R2RDump
         /// Extracts the method signature from the metadata by rid
         /// </summary>
         public R2RMethod(
-            int index, 
-            R2RReader r2rReader, 
-            EntityHandle methodHandle, 
-            int entryPointId, 
-            string owningType, 
-            string constrainedType, 
+            int index,
+            MetadataReader metadataReader,
+            EntityHandle methodHandle,
+            int entryPointId,
+            string owningType,
+            string constrainedType,
             string[] instanceArgs,
             FixupCell[] fixups)
         {
@@ -332,7 +339,7 @@ namespace R2RDump
             MethodHandle = methodHandle;
             EntryPointRuntimeFunctionId = entryPointId;
 
-            R2RReader = r2rReader;
+            MetadataReader = metadataReader;
             RuntimeFunctions = new List<RuntimeFunction>();
 
             EntityHandle owningTypeHandle;
@@ -346,8 +353,8 @@ namespace R2RDump
             {
                 case HandleKind.MethodDefinition:
                     {
-                        MethodDefinition methodDef = R2RReader.MetadataReader.GetMethodDefinition((MethodDefinitionHandle)MethodHandle);
-                        Name = R2RReader.MetadataReader.GetString(methodDef.Name);
+                        MethodDefinition methodDef = MetadataReader.GetMethodDefinition((MethodDefinitionHandle)MethodHandle);
+                        Name = MetadataReader.GetString(methodDef.Name);
                         Signature = methodDef.DecodeSignature<string, DisassemblingGenericContext>(typeProvider, genericContext);
                         owningTypeHandle = methodDef.GetDeclaringType();
                         genericParams = methodDef.GetGenericParameters();
@@ -356,8 +363,8 @@ namespace R2RDump
 
                 case HandleKind.MemberReference:
                     {
-                        MemberReference memberRef = R2RReader.MetadataReader.GetMemberReference((MemberReferenceHandle)MethodHandle);
-                        Name = R2RReader.MetadataReader.GetString(memberRef.Name);
+                        MemberReference memberRef = MetadataReader.GetMemberReference((MemberReferenceHandle)MethodHandle);
+                        Name = MetadataReader.GetString(memberRef.Name);
                         Signature = memberRef.DecodeMethodSignature<string, DisassemblingGenericContext>(typeProvider, genericContext);
                         owningTypeHandle = memberRef.Parent;
                     }
@@ -373,7 +380,7 @@ namespace R2RDump
             }
             else
             {
-                DeclaringType = MetadataNameFormatter.FormatHandle(R2RReader.MetadataReader, owningTypeHandle);
+                DeclaringType = MetadataNameFormatter.FormatHandle(MetadataReader, owningTypeHandle);
             }
 
             Fixups = fixups;
@@ -425,8 +432,8 @@ namespace R2RDump
         {
             writer.WriteLine(SignatureString);
 
-            writer.WriteLine($"Handle: 0x{MetadataTokens.GetToken(R2RReader.MetadataReader, MethodHandle):X8}");
-            writer.WriteLine($"Rid: {MetadataTokens.GetRowNumber(R2RReader.MetadataReader, MethodHandle)}");
+            writer.WriteLine($"Handle: 0x{MetadataTokens.GetToken(MetadataReader, MethodHandle):X8}");
+            writer.WriteLine($"Rid: {MetadataTokens.GetRowNumber(MetadataReader, MethodHandle)}");
             if (!options.Naked)
             {
                 writer.WriteLine($"EntryPointRuntimeFunctionId: {EntryPointRuntimeFunctionId}");

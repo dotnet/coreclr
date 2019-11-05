@@ -6,7 +6,7 @@
 
 //
 // All literal MetaData signatures should be defined here.
-// 
+//
 
 
 // Generic sig's based on types.
@@ -50,10 +50,10 @@
 //   B  -- SByt -- signed byte
 //   F  -- Bool -- boolean
 //   j  -- Obj  -- System.Object
-//   s  -- Str  -- System.String 
+//   s  -- Str  -- System.String
 //   C  --      -- class
 //   g  --      -- struct
-//   T  -- TypedReference -- TypedReference 
+//   T  -- TypedReference -- TypedReference
 //   G  --      -- Generic type variable
 //   M  --      -- Generic method variable
 //   GI --      -- Generic type instantiation
@@ -64,11 +64,11 @@
 // Use DEFINE_METASIG_T for signatures that reference other types (contains C or g)
 
 
-// This part of the file is included multiple times with different macro definitions 
+// This part of the file is included multiple times with different macro definitions
 // to generate the hardcoded metasigs.
 
 
-// SM, IM and Fld macros have often a very similar definitions. METASIG_BODY is 
+// SM, IM and Fld macros have often a very similar definitions. METASIG_BODY is
 // a helper to avoid these redundant SM, IM and Fld definitions.
 #ifdef METASIG_BODY
 #ifndef DEFINE_METASIG
@@ -92,7 +92,7 @@
 
 // One letter shortcuts are defined for all types that can occur in the signature.
 // The shortcuts are defined indirectly through METASIG_ATOM. METASIG_ATOM is
-// designed to control whether to generate the initializer for the signature or 
+// designed to control whether to generate the initializer for the signature or
 // just compute the size of the signature.
 
 #define b METASIG_ATOM(ELEMENT_TYPE_U1)
@@ -115,9 +115,9 @@
 #define T METASIG_ATOM(ELEMENT_TYPE_TYPEDBYREF)
 
 
-// METASIG_RECURSE controls whether to recurse into the complex types 
-// in the macro expansion. METASIG_RECURSE is designed to control 
-// whether to compute the byte size of the signature or just compute 
+// METASIG_RECURSE controls whether to recurse into the complex types
+// in the macro expansion. METASIG_RECURSE is designed to control
+// whether to compute the byte size of the signature or just compute
 // the number of arguments in the signature.
 
 #if METASIG_RECURSE
@@ -205,7 +205,7 @@ DEFINE_METASIG(SM(IntPtr_IntPtr_RetVoid, I I, v))
 DEFINE_METASIG(SM(IntPtr_IntPtr_Obj_RetIntPtr, I I j, I))
 DEFINE_METASIG(SM(IntPtr_IntPtr_Int_Obj_RetIntPtr, I I i j, I))
 DEFINE_METASIG(SM(IntPtr_IntPtr_IntPtr_RetVoid, I I I, v))
-DEFINE_METASIG(SM(IntPtr_IntPtr_IntPtr_UShrt_RetVoid, I I I H, v))
+DEFINE_METASIG(SM(IntPtr_IntPtr_IntPtr_UShrt_IntPtr_RetVoid, I I I H I, v))
 DEFINE_METASIG(SM(IntPtr_Int_IntPtr_RetIntPtr, I i I, I))
 DEFINE_METASIG(SM(IntPtr_IntPtr_Int_IntPtr_RetVoid, I I i I, v))
 DEFINE_METASIG(SM(IntPtr_IntPtr_Obj_RetVoid, I I j, v))
@@ -216,8 +216,6 @@ DEFINE_METASIG(SM(RetIntPtr, _, I))
 DEFINE_METASIG(SM(RetBool, _, F))
 DEFINE_METASIG(SM(IntPtr_RetStr, I, s))
 DEFINE_METASIG(SM(IntPtr_RetBool, I, F))
-DEFINE_METASIG(SM(IntPtrIntPtrIntPtr_RetVoid, I I I, v))
-DEFINE_METASIG_T(SM(IntPtrIntPtrIntPtr_RefCleanupWorkListElement_RetVoid, I I I r(C(CLEANUP_WORK_LIST_ELEMENT)), v))
 DEFINE_METASIG_T(SM(RuntimeType_RuntimeMethodHandleInternal_RetMethodBase, C(CLASS) g(METHOD_HANDLE_INTERNAL), C(METHOD_BASE) ))
 DEFINE_METASIG_T(SM(RuntimeType_IRuntimeFieldInfo_RetFieldInfo, C(CLASS) C(I_RT_FIELD_INFO), C(FIELD_INFO) ))
 DEFINE_METASIG_T(SM(RuntimeType_Int_RetPropertyInfo, C(CLASS) i, C(PROPERTY_INFO) ))
@@ -226,6 +224,7 @@ DEFINE_METASIG(SM(Byte_RetChar, b, u))
 DEFINE_METASIG(SM(Str_Bool_Bool_RefInt_RetIntPtr, s F F r(i), I))
 DEFINE_METASIG(SM(IntPtr_Int_RetStr, I i, s))
 DEFINE_METASIG_T(SM(Obj_PtrByte_RefCleanupWorkListElement_RetVoid, j P(b) r(C(CLEANUP_WORK_LIST_ELEMENT)), v))
+DEFINE_METASIG_T(SM(SafeHandle_RefCleanupWorkListElement_RetIntPtr, C(SAFE_HANDLE) r(C(CLEANUP_WORK_LIST_ELEMENT)), I))
 DEFINE_METASIG(SM(Obj_PtrByte_RetVoid, j P(b), v))
 DEFINE_METASIG(SM(PtrByte_IntPtr_RetVoid, P(b) I, v))
 DEFINE_METASIG(SM(Str_Bool_Bool_RefInt_RetArrByte, s F F r(i), a(b) ))
@@ -241,7 +240,7 @@ DEFINE_METASIG(SM(RefObj_RefIntPtr_RetVoid, r(j) r(I), v))
 DEFINE_METASIG(SM(IntPtr_RefObj_IntPtr_RetVoid, I r(j) I, v))
 DEFINE_METASIG(SM(IntPtr_RefObj_IntPtr_Int_RetVoid, I r(j) I i,v))
 DEFINE_METASIG(SM(IntPtr_Int_IntPtr_Int_Int_Int_RetVoid, I i I i i i, v))
-DEFINE_METASIG(SM(IntPtr_IntPtr_Int_Int_RetVoid, I I i i, v))
+DEFINE_METASIG(SM(IntPtr_IntPtr_Int_Int_IntPtr_RetVoid, I I i i I, v))
 DEFINE_METASIG(SM(IntPtr_RefObj_IntPtr_Obj_RetVoid, I r(j) I j, v))
 DEFINE_METASIG(SM(Obj_Int_RetVoid, j i,v))
 
@@ -303,6 +302,7 @@ DEFINE_METASIG(GM(Obj_RetT, IMAGE_CEE_CS_CALLCONV_DEFAULT, 1, j, M(0)))
 DEFINE_METASIG(GM(RefT_Int_RetRefT, IMAGE_CEE_CS_CALLCONV_DEFAULT, 1, r(M(0)) i, r(M(0))))
 DEFINE_METASIG(GM(RefT_IntPtr_RetRefT, IMAGE_CEE_CS_CALLCONV_DEFAULT, 1, r(M(0)) I, r(M(0))))
 DEFINE_METASIG(GM(PtrVoid_Int_RetPtrVoid, IMAGE_CEE_CS_CALLCONV_DEFAULT, 1, P(v) i, P(v)))
+DEFINE_METASIG(GM(RefT_RetVoid, IMAGE_CEE_CS_CALLCONV_DEFAULT, 1, r(M(0)), v))
 
 DEFINE_METASIG_T(SM(SafeHandle_RefBool_RetIntPtr, C(SAFE_HANDLE) r(F), I ))
 DEFINE_METASIG_T(SM(SafeHandle_RetVoid, C(SAFE_HANDLE), v ))
@@ -356,6 +356,7 @@ DEFINE_METASIG(SM(Str_RetInt, s, i))
 DEFINE_METASIG_T(SM(Str_RetICustomMarshaler, s, C(ICUSTOM_MARSHALER)))
 DEFINE_METASIG(SM(Int_Str_RetIntPtr, i s, I))
 DEFINE_METASIG(SM(Int_Str_IntPtr_RetIntPtr, i s I, I))
+DEFINE_METASIG(SM(Int_Str_IntPtr_Int_RetVoid, i s I i, v))
 DEFINE_METASIG(SM(Str_IntPtr_RetIntPtr, s I, I))
 DEFINE_METASIG(SM(Str_Bool_Int_RetV, s F i, v))
 
@@ -559,6 +560,10 @@ DEFINE_METASIG_T(SM(SyncCtx_ArrIntPtr_Bool_Int_RetInt, C(SYNCHRONIZATION_CONTEXT
 DEFINE_METASIG_T(IM(RefGuid_OutIntPtr_RetCustomQueryInterfaceResult, r(g(GUID)) r(I), g(CUSTOMQUERYINTERFACERESULT)))
 #endif //FEATURE_COMINTEROP
 
+// Assembly Load Context
+DEFINE_METASIG_T(SM(RefGuid_RefGuid_RetVoid, r(g(GUID)) r(g(GUID)) , v))
+DEFINE_METASIG_T(SM(RefGuid_RetVoid, r(g(GUID)), v))
+
 DEFINE_METASIG_T(SM(IntPtr_AssemblyName_RetAssemblyBase, I C(ASSEMBLY_NAME), C(ASSEMBLYBASE)))
 DEFINE_METASIG_T(SM(Str_AssemblyBase_IntPtr_RetIntPtr, s C(ASSEMBLYBASE) I, I))
 DEFINE_METASIG_T(SM(Str_AssemblyBase_Bool_UInt_RetIntPtr, s C(ASSEMBLYBASE) F K, I))
@@ -587,7 +592,7 @@ DEFINE_METASIG(SM(RefObject_Object_Object_RetObject, r(j) j j, j))
 
 DEFINE_METASIG_T(SM(RefCleanupWorkListElement_RetVoid, r(C(CLEANUP_WORK_LIST_ELEMENT)), v))
 DEFINE_METASIG_T(SM(RefCleanupWorkListElement_SafeHandle_RetIntPtr, r(C(CLEANUP_WORK_LIST_ELEMENT)) C(SAFE_HANDLE), I))
-DEFINE_METASIG_T(SM(RefCleanupWorkListElement_Delegate_RetVoid, r(C(CLEANUP_WORK_LIST_ELEMENT)) C(DELEGATE), v))
+DEFINE_METASIG_T(SM(RefCleanupWorkListElement_Obj_RetVoid, r(C(CLEANUP_WORK_LIST_ELEMENT)) j, v))
 
 #ifdef FEATURE_ICASTABLE
 DEFINE_METASIG_T(SM(ICastable_RtType_RefException_RetBool, C(ICASTABLE) C(CLASS) r(C(EXCEPTION)), F))
@@ -602,6 +607,8 @@ DEFINE_METASIG(IM(Int_RetRefT, i, r(G(0))))
 DEFINE_METASIG_T(IM(Int_RetReadOnlyRefT, i, Q(INATTRIBUTE) r(G(0))))
 
 DEFINE_METASIG(GM(RetT, IMAGE_CEE_CS_CALLCONV_DEFAULT, 1, _, M(0)))
+
+DEFINE_METASIG_T(SM(Array_Int_Array_Int_Int_RetVoid, C(ARRAY) i C(ARRAY) i i, v))
 
 // Undefine macros in case we include the file again in the compilation unit
 

@@ -1,17 +1,16 @@
-# Require at least version 3.5.1 of CMake
-cmake_minimum_required(VERSION 3.5.1)
+cmake_minimum_required(VERSION 3.14)
 
 cmake_policy(SET CMP0042 NEW)
+project(Tests)
 
 set(INC_PLATFORM_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/Common/Platform)
 if (WIN32)
     add_definitions(-DWINDOWS)
 endif()
 
-# Verify that LTCG/LTO is available
-include(${CMAKE_CURRENT_SOURCE_DIR}/../configure.cmake)
 # Include global configure settings
 include(${CMAKE_CURRENT_SOURCE_DIR}/../configurecompiler.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/../configuretools.cmake)
 # Compile options
 
 if (WIN32)
@@ -31,10 +30,6 @@ if (WIN32)
     add_compile_options(-wd4100 -wd4514 -wd4625 -wd4626 -wd4668 -wd4710 -wd4711 -wd4774 -wd4820 -wd5025 -wd5026 -wd5027 -wd5039)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc")
 endif()
-
-if(CLR_CMAKE_PLATFORM_UNIX)
-    add_compile_options(-fPIC)
-endif(CLR_CMAKE_PLATFORM_UNIX)
 
 MACRO(SUBDIRLIST result curdir)
   FILE(GLOB children RELATIVE ${curdir} ${curdir}/*)

@@ -62,6 +62,7 @@ bool SigInfoFlagsAreValid (CORINFO_SIG_INFO *sig)
     LIMITED_METHOD_CONTRACT;
     return !(sig->flags & ~(  CORINFO_SIGFLAG_IS_LOCAL_SIG
                             | CORINFO_SIGFLAG_IL_STUB
+                            | CORINFO_SIGFLAG_SUPPRESS_GC_TRANSITION
                             ));
 }
 
@@ -150,7 +151,7 @@ EXTERN_C FCDECL_MONHELPER(JIT_MonExitWorker, Object *obj);
 EXTERN_C FCDECL_MONHELPER(JIT_MonExitWorker_Portable, Object *obj);
 
 #ifndef JIT_MonEnterStatic
-#define JIT_MonEnterStatic JIT_MonEnterStatic_Portable  
+#define JIT_MonEnterStatic JIT_MonEnterStatic_Portable
 #endif
 EXTERN_C FCDECL_MONHELPER(JIT_MonEnterStatic, AwareLock *lock);
 EXTERN_C FCDECL_MONHELPER(JIT_MonEnterStatic_Portable, AwareLock *lock);
@@ -282,6 +283,8 @@ extern "C" FCDECL2(Object*, JITutil_ChkCastInterface, MethodTable *pInterfaceMT,
 extern "C" FCDECL2(Object*, JITutil_IsInstanceOfInterface, MethodTable *pInterfaceMT, Object *obj);
 extern "C" FCDECL2(Object*, JITutil_ChkCastAny, CORINFO_CLASS_HANDLE type, Object *obj);
 extern "C" FCDECL2(Object*, JITutil_IsInstanceOfAny, CORINFO_CLASS_HANDLE type, Object *obj);
+extern "C" FCDECL2(Object*, JITutil_ChkCastAny_NoCacheLookup, CORINFO_CLASS_HANDLE type, Object* obj);
+extern "C" FCDECL2(Object*, JITutil_IsInstanceOfAny_NoCacheLookup, CORINFO_CLASS_HANDLE type, Object* obj);
 
 extern "C" FCDECL1(void, JIT_InternalThrow, unsigned exceptNum);
 extern "C" FCDECL1(void*, JIT_InternalThrowFromHelper, unsigned exceptNum);
@@ -312,7 +315,7 @@ public:
 
     WriteBarrierManager();
     void Initialize();
-    
+
     int UpdateEphemeralBounds(bool isRuntimeSuspended);
     int UpdateWriteWatchAndCardTableLocations(bool isRuntimeSuspended, bool bReqUpperBoundsCheck);
 
@@ -329,9 +332,9 @@ protected:
     int ChangeWriteBarrierTo(WriteBarrierType newWriteBarrier, bool isRuntimeSuspended);
     bool   NeedDifferentWriteBarrier(bool bReqUpperBoundsCheck, WriteBarrierType* pNewWriteBarrierType);
 
-private:    
+private:
     void Validate();
-    
+
     WriteBarrierType    m_currentWriteBarrier;
 
     PBYTE   m_pWriteWatchTableImmediate;    // PREGROW | POSTGROW | SVR | WRITE_WATCH |
@@ -343,13 +346,13 @@ private:
 
 #endif // _TARGET_AMD64_
 
-#ifdef _WIN64
+#ifdef BIT64
 EXTERN_C FCDECL1(Object*, JIT_TrialAllocSFastMP_InlineGetThread, CORINFO_CLASS_HANDLE typeHnd_);
 EXTERN_C FCDECL2(Object*, JIT_BoxFastMP_InlineGetThread, CORINFO_CLASS_HANDLE type, void* data);
 EXTERN_C FCDECL2(Object*, JIT_NewArr1VC_MP_InlineGetThread, CORINFO_CLASS_HANDLE arrayMT, INT_PTR size);
 EXTERN_C FCDECL2(Object*, JIT_NewArr1OBJ_MP_InlineGetThread, CORINFO_CLASS_HANDLE arrayMT, INT_PTR size);
 
-#endif // _WIN64
+#endif // BIT64
 
 EXTERN_C FCDECL2_VV(INT64, JIT_LMul, INT64 val1, INT64 val2);
 
@@ -415,7 +418,7 @@ void ValidateWriteBarrierHelpers();
 
 extern "C"
 {
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
     void STDCALL JIT_EndCatch();               // JIThelp.asm/JIThelp.s
 #endif // _TARGET_X86_
 
@@ -435,6 +438,9 @@ extern "C"
     void STDCALL JIT_MemCpy(void *dest, const void *src, SIZE_T count);
 
     void STDMETHODCALLTYPE JIT_ProfilerEnterLeaveTailcallStub(UINT_PTR ProfilerHandle);
+#ifndef _TARGET_ARM64_
+    void STDCALL JIT_StackProbe();
+#endif // _TARGET_ARM64_
 };
 
 
@@ -444,7 +450,7 @@ extern "C"
 class CEEInfo : public ICorJitInfo
 {
     friend class CEEDynamicCodeInfo;
-    
+
     const char * __stdcall ICorMethodInfo_Hack_getMethodName(CORINFO_METHOD_HANDLE ftnHnd, const char** scopeName)
     {
         WRAPPER_NO_CONTRACT;
@@ -456,7 +462,7 @@ class CEEInfo : public ICorJitInfo
         WRAPPER_NO_CONTRACT;
         return getMethodDefFromMethod(hMethod);
     }
-    
+
 public:
     // ICorClassInfo stuff
     CorInfoType asCorInfoType (CORINFO_CLASS_HANDLE cls);
@@ -464,7 +470,7 @@ public:
     //
     // If typeHnd contains exact type information, then *clsRet will contain
     // the normalized CORINFO_CLASS_HANDLE information on return.
-    static CorInfoType asCorInfoType (CorElementType cet, 
+    static CorInfoType asCorInfoType (CorElementType cet,
                                       TypeHandle typeHnd = TypeHandle() /* optional in */,
                                       CORINFO_CLASS_HANDLE *clsRet = NULL /* optional out */ );
 
@@ -518,7 +524,7 @@ public:
     // Check Visibility rules.
     // For Protected (family access) members, type of the instance is also
     // considered when checking visibility rules.
-    
+
 
     CorInfoHelpFunc getNewHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_METHOD_HANDLE callerHandle, bool * pHasSideEffects = NULL);
     static CorInfoHelpFunc getNewHelperStatic(MethodTable * pMT, bool * pHasSideEffects = NULL);
@@ -531,7 +537,7 @@ public:
 
     CorInfoHelpFunc getSharedCCtorHelper(CORINFO_CLASS_HANDLE clsHnd);
     CorInfoHelpFunc getSecurityPrologHelper(CORINFO_METHOD_HANDLE ftn);
-    CORINFO_CLASS_HANDLE getTypeForBox(CORINFO_CLASS_HANDLE  cls); 
+    CORINFO_CLASS_HANDLE getTypeForBox(CORINFO_CLASS_HANDLE  cls);
     CorInfoHelpFunc getBoxHelper(CORINFO_CLASS_HANDLE cls);
     CorInfoHelpFunc getUnBoxHelper(CORINFO_CLASS_HANDLE cls);
 
@@ -637,7 +643,7 @@ public:
             CORINFO_CLASS_HANDLE        cls
             );
 
-    // Get the number of dimensions in an array 
+    // Get the number of dimensions in an array
     unsigned getArrayRank(
             CORINFO_CLASS_HANDLE        cls
             );
@@ -695,7 +701,7 @@ public:
             CORINFO_MODULE_HANDLE       module,
             mdToken                    metaTOK);
 
-    static size_t findNameOfToken (Module* module, mdToken metaTOK, 
+    static size_t findNameOfToken (Module* module, mdToken metaTOK,
                             __out_ecount (FQNameCapacity) char * szFQName, size_t FQNameCapacity);
 
     // ICorMethodInfo stuff
@@ -752,7 +758,7 @@ public:
 
     CorInfoCanSkipVerificationResult canSkipMethodVerification(
         CORINFO_METHOD_HANDLE ftnHnd);
-    
+
     // Given a method descriptor ftnHnd, extract signature information into sigInfo
     // Obtain (representative) instantiation information from ftnHnd's owner class
     //@GENERICSVER: added explicit owner parameter
@@ -815,7 +821,7 @@ public:
     CorInfoIntrinsics getIntrinsicID(CORINFO_METHOD_HANDLE method,
                                      bool * pMustExpand = NULL);
 
-    bool isInSIMDModule(CORINFO_CLASS_HANDLE classHnd);
+    bool isIntrinsicType(CORINFO_CLASS_HANDLE classHnd);
 
     CorInfoUnmanagedCallConv getUnmanagedCallConv(CORINFO_METHOD_HANDLE method);
     BOOL pInvokeMarshalingRequired(CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* callSiteSig);
@@ -824,7 +830,7 @@ public:
     //  to the above generic stub
     LPVOID GetCookieForPInvokeCalliSig(CORINFO_SIG_INFO* szMetaSig, void ** ppIndirection);
     bool canGetCookieForPInvokeCalliSig(CORINFO_SIG_INFO* szMetaSig);
-    
+
     // Check Visibility rules.
 
     // should we enforce the new (for whidbey) restrictions on calling virtual methods?
@@ -983,7 +989,7 @@ public:
     void getFunctionFixedEntryPoint(CORINFO_METHOD_HANDLE   ftn,
                                     CORINFO_CONST_LOOKUP *  pResult);
 
-    // get slow lazy string literal helper to use (CORINFO_HELP_STRCNS*). 
+    // get slow lazy string literal helper to use (CORINFO_HELP_STRCNS*).
     // Returns CORINFO_HELP_UNDEF if lazy string literal helper cannot be used.
     CorInfoHelpFunc getLazyStringLiteralHelper(CORINFO_MODULE_HANDLE handle);
 
@@ -1082,10 +1088,10 @@ public:
     BOOL logMsg(unsigned level, const char* fmt, va_list args);
 
     int doAssert(const char* szFile, int iLine, const char* szExpr);
-    
+
     void reportFatalError(CorJitResult result);
 
-    void logSQMLongJitEvent(unsigned mcycles, unsigned msec, unsigned ilSize, unsigned numBasicBlocks, bool minOpts, 
+    void logSQMLongJitEvent(unsigned mcycles, unsigned msec, unsigned ilSize, unsigned numBasicBlocks, bool minOpts,
                             CORINFO_METHOD_HANDLE methodHnd);
 
     HRESULT allocMethodBlockCounts (
@@ -1173,16 +1179,16 @@ public:
     //@GENERICS:
     // The method handle is used to instantiate method and class type parameters
     // It's also used to determine whether an extra dictionary parameter is required
-    static 
-    void 
+    static
+    void
     ConvToJitSig(
-        PCCOR_SIGNATURE       pSig, 
-        DWORD                 cbSig, 
-        CORINFO_MODULE_HANDLE scopeHnd, 
-        mdToken               token, 
-        CORINFO_SIG_INFO *    sigRet, 
-        MethodDesc *          context, 
-        bool                  localSig, 
+        PCCOR_SIGNATURE       pSig,
+        DWORD                 cbSig,
+        CORINFO_MODULE_HANDLE scopeHnd,
+        mdToken               token,
+        CORINFO_SIG_INFO *    sigRet,
+        MethodDesc *          context,
+        bool                  localSig,
         TypeHandle            owner = TypeHandle());
 
     MethodDesc * GetMethodForSecurity(CORINFO_METHOD_HANDLE callerHandle);
@@ -1200,13 +1206,13 @@ public:
 #endif
 
 protected:
-    // NGen provides its own modifications to EE-JIT interface. From technical reason it cannot simply inherit 
+    // NGen provides its own modifications to EE-JIT interface. From technical reason it cannot simply inherit
     // from code:CEEInfo class (because it has dependencies on VM that NGen does not want).
-    // Therefore the "normal" EE-JIT interface has code:m_pOverride hook that is set either to 
-    //   * 'this' (code:CEEInfo) at runtime, or to 
+    // Therefore the "normal" EE-JIT interface has code:m_pOverride hook that is set either to
+    //   * 'this' (code:CEEInfo) at runtime, or to
     //   *  code:ZapInfo - the NGen specific implementation of the interface.
     ICorDynamicInfo * m_pOverride;
-    
+
     MethodDesc*             m_pMethodBeingCompiled;             // Top-level method being compiled
     bool                    m_fVerifyOnly;
     Thread *                m_pThread;                          // Cached current thread for faster JIT-EE transitions
@@ -1228,7 +1234,7 @@ protected:
 
     bool                    m_allowInlining;
 
-    // Tracking of module activation dependencies. We have two flavors: 
+    // Tracking of module activation dependencies. We have two flavors:
     // - Fast one that gathers generic arguments from EE handles, but does not work inside generic context.
     // - Slow one that operates on typespec and methodspecs from metadata.
     void ScanForModuleDependencies(Module* pModule, SigPointer psig);
@@ -1251,7 +1257,7 @@ typedef struct _hpCodeHdr CodeHeader;
 
 #ifndef CROSSGEN_COMPILE
 // CEEJitInfo is the concrete implementation of callbacks that the EE must provide for the JIT to do its
-// work.   See code:ICorJitInfo#JitToEEInterface for more on this interface. 
+// work.   See code:ICorJitInfo#JitToEEInterface for more on this interface.
 class CEEJitInfo : public CEEInfo
 {
 public:
@@ -1360,14 +1366,14 @@ public:
         m_iNativeVarInfo = 0;
         m_pNativeVarInfo = NULL;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
         m_moduleBase = NULL;
         m_totalUnwindSize = 0;
         m_usedUnwindSize = 0;
         m_theUnwindBlock = NULL;
         m_totalUnwindInfos = 0;
         m_usedUnwindInfos = 0;
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
     }
 
 #ifdef _TARGET_AMD64_
@@ -1422,13 +1428,13 @@ public:
     }
 #endif
 
-    CEEJitInfo(MethodDesc* fd,  COR_ILMETHOD_DECODER* header, 
+    CEEJitInfo(MethodDesc* fd,  COR_ILMETHOD_DECODER* header,
                EEJitManager* jm, bool fVerifyOnly, bool allowInlining = true)
         : CEEInfo(fd, fVerifyOnly, allowInlining),
           m_jitManager(jm),
           m_CodeHeader(NULL),
           m_ILHeader(header),
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
           m_moduleBase(NULL),
           m_totalUnwindSize(0),
           m_usedUnwindSize(0),
@@ -1514,7 +1520,7 @@ protected :
     EEJitManager*           m_jitManager;   // responsible for allocating memory
     CodeHeader*             m_CodeHeader;   // descriptor for JITTED code
     COR_ILMETHOD_DECODER *  m_ILHeader;     // the code header as exist in the file
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     TADDR                   m_moduleBase;       // Base for unwind Infos
     ULONG                   m_totalUnwindSize;  // Total reserved unwind space
     ULONG                   m_usedUnwindSize;   // used space in m_theUnwindBlock
@@ -1558,7 +1564,7 @@ protected :
         {
             LIMITED_METHOD_CONTRACT;
         }
-          
+
         bool                    m_bGphIsCacheValid : 1;        // Tells us whether below values are valid
         bool                    m_bGphHookFunction : 1;
         void*                   m_pvGphProfilerHandle;
@@ -1648,11 +1654,10 @@ EXTERN_C void JIT_TailCallHelperStub_ReturnAddress();
 void *GenFastGetSharedStaticBase(bool bCheckCCtor);
 
 #ifdef HAVE_GCCOVER
-void SetupGcCoverage(MethodDesc* pMD, BYTE* nativeCode);
+void SetupGcCoverage(NativeCodeVersion nativeCodeVersion, BYTE* nativeCode);
 void SetupGcCoverageForNativeImage(Module* module);
-bool IsGcCoverageInterrupt(LPVOID ip);
 BOOL OnGcCoverageInterrupt(PT_CONTEXT regs);
-void DoGcStress (PT_CONTEXT regs, MethodDesc *pMD);
+void DoGcStress (PT_CONTEXT regs, NativeCodeVersion nativeCodeVersion);
 #endif //HAVE_GCCOVER
 
 EXTERN_C FCDECL2(LPVOID, ArrayStoreCheck, Object** pElement, PtrArray** pArray);
@@ -1666,9 +1671,11 @@ EXTERN_C FCDECL0(VOID, JIT_PollGC_Nop);
 #endif
 
 BOOL ObjIsInstanceOf(Object *pObject, TypeHandle toTypeHnd, BOOL throwCastException = FALSE);
-EXTERN_C TypeHandle::CastResult STDCALL ObjIsInstanceOfNoGC(Object *pObject, TypeHandle toTypeHnd);
+BOOL ObjIsInstanceOfCore(Object* pObject, TypeHandle toTypeHnd, BOOL throwCastException = FALSE);
 
-#ifdef _WIN64
+EXTERN_C TypeHandle::CastResult STDCALL ObjIsInstanceOfCached(Object *pObject, TypeHandle toTypeHnd);
+
+#ifdef BIT64
 class InlinedCallFrame;
 Thread * __stdcall JIT_InitPInvokeFrame(InlinedCallFrame *pFrame, PTR_VOID StubSecretArg);
 #endif

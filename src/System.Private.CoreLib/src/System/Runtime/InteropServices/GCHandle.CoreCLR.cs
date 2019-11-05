@@ -3,12 +3,9 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Runtime.CompilerServices;
-#if BIT64
-using nint = System.Int64;
-#else
-using nint = System.Int32;
-#endif
+#if !DEBUG
 using Internal.Runtime.CompilerServices;
+#endif
 
 namespace System.Runtime.InteropServices
 {

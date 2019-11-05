@@ -41,7 +41,7 @@ ThreadInfo::~ThreadInfo()
 bool
 ThreadInfo::Initialize(ICLRDataTarget* pDataTarget)
 {
-    if (!CrashInfo::GetStatus(m_tid, &m_ppid, &m_tgid, nullptr)) 
+    if (!CrashInfo::GetStatus(m_tid, &m_ppid, &m_tgid, nullptr))
     {
         return false;
     }
@@ -101,7 +101,7 @@ GetFrameLocation(CONTEXT* pContext, uint64_t* ip, uint64_t* sp)
 }
 
 // Helper for UnwindNativeFrames
-static BOOL 
+static BOOL
 ReadMemoryAdapter(PVOID address, PVOID buffer, SIZE_T size)
 {
     return g_crashInfo->ReadMemory(address, buffer, size);
@@ -110,6 +110,8 @@ ReadMemoryAdapter(PVOID address, PVOID buffer, SIZE_T size)
 void
 ThreadInfo::UnwindNativeFrames(CrashInfo& crashInfo, CONTEXT* pContext)
 {
+    uint64_t previousSp = 0;
+
     // For each native frame
     while (true)
     {
@@ -117,9 +119,10 @@ ThreadInfo::UnwindNativeFrames(CrashInfo& crashInfo, CONTEXT* pContext)
         GetFrameLocation(pContext, &ip, &sp);
 
         TRACE("Unwind: sp %" PRIA PRIx64 " ip %" PRIA PRIx64 "\n", sp, ip);
-        if (ip == 0) {
+        if (ip == 0 || sp <= previousSp) {
             break;
         }
+
         // Add two pages around the instruction pointer to the core dump
         crashInfo.InsertMemoryRegion(ip - PAGE_SIZE, PAGE_SIZE * 2);
 
@@ -130,12 +133,13 @@ ThreadInfo::UnwindNativeFrames(CrashInfo& crashInfo, CONTEXT* pContext)
             break;
         }
 
-        // Unwind the native frame adding all the memory accessed to the 
+        // Unwind the native frame adding all the memory accessed to the
         // core dump via the read memory adapter.
         if (!PAL_VirtualUnwindOutOfProc(pContext, nullptr, baseAddress, ReadMemoryAdapter)) {
             TRACE("Unwind: PAL_VirtualUnwindOutOfProc returned false\n");
             break;
         }
+        previousSp = sp;
     }
 }
 
@@ -189,7 +193,7 @@ ThreadInfo::UnwindThread(CrashInfo& crashInfo, IXCLRDataProcess* pClrDataProcess
     return true;
 }
 
-bool 
+bool
 ThreadInfo::GetRegistersWithPTrace()
 {
 #if defined(__aarch64__)
@@ -241,7 +245,7 @@ ThreadInfo::GetRegistersWithPTrace()
     return true;
 }
 
-bool 
+bool
 ThreadInfo::GetRegistersWithDataTarget(ICLRDataTarget* pDataTarget)
 {
     CONTEXT context;
@@ -340,7 +344,7 @@ ThreadInfo::GetRegistersWithDataTarget(ICLRDataTarget* pDataTarget)
     assert(sizeof(context.D) == sizeof(m_vfpRegisters.fpregs));
     memcpy(m_vfpRegisters.fpregs, context.D, sizeof(context.D));
 #endif
-#else 
+#else
 #error Platform not supported
 #endif
     return true;
@@ -377,7 +381,7 @@ ThreadInfo::GetThreadStack(CrashInfo& crashInfo)
     crashInfo.InsertMemoryRegion(startAddress, size);
 }
 
-void 
+void
 ThreadInfo::GetThreadContext(uint32_t flags, CONTEXT* context) const
 {
     context->ContextFlags = flags;

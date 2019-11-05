@@ -14,19 +14,19 @@ namespace System.Reflection
         internal RuntimeModule() { throw new NotSupportedException(); }
 
         #region FCalls
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void GetType(QCallModule module, string className, bool throwOnError, bool ignoreCase, ObjectHandleOnStack type, ObjectHandleOnStack keepAlive);
 
-        [DllImport(JitHelpers.QCall)]
+        [DllImport(RuntimeHelpers.QCall)]
         private static extern bool nIsTransientInternal(QCallModule module);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void GetScopeName(QCallModule module, StringHandleOnStack retString);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void GetFullyQualifiedName(QCallModule module, StringHandleOnStack retString);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern RuntimeType[] GetTypes(RuntimeModule module);
 
         internal RuntimeType[] GetDefinedTypes()
@@ -34,7 +34,7 @@ namespace System.Reflection
             return GetTypes(GetNativeHandle());
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool IsResource(RuntimeModule module);
         #endregion
 
@@ -146,9 +146,7 @@ namespace System.Reflection
                     SR.Format(SR.Argument_InvalidToken, tk, this));
 
             int tkDeclaringType;
-            string fieldName;
-
-            fieldName = MetadataImport.GetName(tk).ToString();
+            string fieldName = MetadataImport.GetName(tk).ToString();
             tkDeclaringType = MetadataImport.GetParentToken(tk);
 
             Type declaringType = ResolveType(tkDeclaringType, genericTypeArguments, genericMethodArguments);
@@ -323,17 +321,11 @@ namespace System.Reflection
             ModuleHandle.GetPEKind(GetNativeHandle(), out peKind, out machine);
         }
 
-        public override int MDStreamVersion
-        {
-            get
-            {
-                return ModuleHandle.GetMDStreamVersion(GetNativeHandle());
-            }
-        }
+        public override int MDStreamVersion => ModuleHandle.GetMDStreamVersion(GetNativeHandle());
         #endregion
 
         #region Data Members
-#pragma warning disable 169
+#pragma warning disable CA1823, 169
         // If you add any data members, you need to update the native declaration ReflectModuleBaseObject.
         private RuntimeType m_runtimeType;
         private RuntimeAssembly m_runtimeAssembly;
@@ -341,7 +333,7 @@ namespace System.Reflection
         private IntPtr m_pData;
         private IntPtr m_pGlobals;
         private IntPtr m_pFields;
-#pragma warning restore 169
+#pragma warning restore CA1823, 169
         #endregion
 
         #region Protected Virtuals
@@ -369,33 +361,15 @@ namespace System.Reflection
         #endregion
 
         #region Internal Members
-        internal RuntimeType RuntimeType
-        {
-            get
-            {
-                if (m_runtimeType == null)
-                    m_runtimeType = ModuleHandle.GetModuleType(this);
-
-                return m_runtimeType;
-            }
-        }
+        internal RuntimeType RuntimeType => m_runtimeType ??= ModuleHandle.GetModuleType(this);
 
         internal bool IsTransientInternal()
         {
             RuntimeModule thisAsLocal = this;
-            return RuntimeModule.nIsTransientInternal(JitHelpers.GetQCallModuleOnStack(ref thisAsLocal));
+            return RuntimeModule.nIsTransientInternal(new QCallModule(ref thisAsLocal));
         }
 
-        internal MetadataImport MetadataImport
-        {
-            get
-            {
-                unsafe
-                {
-                    return ModuleHandle.GetMetadataImport(this);
-                }
-            }
-        }
+        internal MetadataImport MetadataImport => ModuleHandle.GetMetadataImport(this);
         #endregion
 
         #region ICustomAttributeProvider Members
@@ -451,7 +425,7 @@ namespace System.Reflection
             RuntimeType? retType = null;
             object? keepAlive = null;
             RuntimeModule thisAsLocal = this;
-            GetType(JitHelpers.GetQCallModuleOnStack(ref thisAsLocal), className, throwOnError, ignoreCase, JitHelpers.GetObjectHandleOnStack(ref retType), JitHelpers.GetObjectHandleOnStack(ref keepAlive));
+            GetType(new QCallModule(ref thisAsLocal), className, throwOnError, ignoreCase, ObjectHandleOnStack.Create(ref retType), ObjectHandleOnStack.Create(ref keepAlive));
             GC.KeepAlive(keepAlive);
             return retType;
         }
@@ -460,17 +434,11 @@ namespace System.Reflection
         {
             string? fullyQualifiedName = null;
             RuntimeModule thisAsLocal = this;
-            GetFullyQualifiedName(JitHelpers.GetQCallModuleOnStack(ref thisAsLocal), JitHelpers.GetStringHandleOnStack(ref fullyQualifiedName));
+            GetFullyQualifiedName(new QCallModule(ref thisAsLocal), new StringHandleOnStack(ref fullyQualifiedName));
             return fullyQualifiedName!;
         }
 
-        public override string FullyQualifiedName
-        {
-            get
-            {
-                return GetFullyQualifiedName();
-            }
-        }
+        public override string FullyQualifiedName => GetFullyQualifiedName();
 
         public override Type[] GetTypes()
         {
@@ -485,22 +453,12 @@ namespace System.Reflection
         {
             get
             {
-                unsafe
-                {
-                    Guid mvid;
-                    MetadataImport.GetScopeProps(out mvid);
-                    return mvid;
-                }
+                MetadataImport.GetScopeProps(out Guid mvid);
+                return mvid;
             }
         }
 
-        public override int MetadataToken
-        {
-            get
-            {
-                return ModuleHandle.GetToken(GetNativeHandle());
-            }
-        }
+        public override int MetadataToken => ModuleHandle.GetToken(GetNativeHandle());
 
         public override bool IsResource()
         {
@@ -510,7 +468,7 @@ namespace System.Reflection
         public override FieldInfo[] GetFields(BindingFlags bindingFlags)
         {
             if (RuntimeType == null)
-                return new FieldInfo[0];
+                return Array.Empty<FieldInfo>();
 
             return RuntimeType.GetFields(bindingFlags);
         }
@@ -529,7 +487,7 @@ namespace System.Reflection
         public override MethodInfo[] GetMethods(BindingFlags bindingFlags)
         {
             if (RuntimeType == null)
-                return new MethodInfo[0];
+                return Array.Empty<MethodInfo>();
 
             return RuntimeType.GetMethods(bindingFlags);
         }
@@ -540,7 +498,7 @@ namespace System.Reflection
             {
                 string? scopeName = null;
                 RuntimeModule thisAsLocal = this;
-                GetScopeName(JitHelpers.GetQCallModuleOnStack(ref thisAsLocal),JitHelpers.GetStringHandleOnStack(ref scopeName));
+                GetScopeName(new QCallModule(ref thisAsLocal), new StringHandleOnStack(ref scopeName));
                 return scopeName!;
             }
         }
@@ -563,13 +521,7 @@ namespace System.Reflection
             }
         }
 
-        public override Assembly Assembly
-        {
-            get
-            {
-                return GetRuntimeAssembly();
-            }
-        }
+        public override Assembly Assembly => GetRuntimeAssembly();
 
         internal RuntimeAssembly GetRuntimeAssembly()
         {

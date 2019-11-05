@@ -52,23 +52,15 @@ REM === Check if dotnet CLI and necessary directories exist
 REM ===
 REM =========================================================================================
 
-set __DotNetToolDir=%__ThisScriptPath%..\Tools
 set __DotNetCmd=%__ThisScriptPath%..\dotnet.cmd
-set __PackageDir=%__ThisScriptPath%..\Packages
-set __CsprojPath=%__ThisScriptPath%\src\Common\stress_dependencies\stress_dependencies.csproj
+set __CsprojPath=%__ThisScriptPath%\stress_dependencies\stress_dependencies.csproj
 
-REM Check if dotnet cli exists
-if not exist "%__DotNetToolDir%" (
-    echo Directory containing dotnet CLI does not exist: %__DotNetToolDir%
-    goto Fail
-)
 if not exist "%__DotNetCmd%" (
     echo dotnet.exe does not exist: %__DotNetCmd%
     goto Fail
 )
 
 REM Create directories needed
-if not exist "%__PackageDir%" md "%__PackageDir%"
 if not exist "%__OutputDir%" md "%__OutputDir%"
 
 REM =========================================================================================
@@ -79,14 +71,26 @@ REM ============================================================================
 
 REM Download the package
 echo Downloading CoreDisTools package
-set DOTNETCMD="%__DotNetCmd%" restore "%__CsprojPath%" --source https://dotnet.myget.org/F/dotnet-core/ --packages "%__PackageDir%"
+set CoreDisToolsPackagePathOutputFile="%__ThisScriptPath%\..\bin\obj\Windows_NT.%__Arch%\coredistoolspath.txt"
+set DOTNETCMD="%__DotNetCmd%" restore "%__CsprojPath%"
 echo %DOTNETCMD%
 call %DOTNETCMD%
 if errorlevel 1 goto Fail
+set DOTNETCMD="%__DotNetCmd%" msbuild "%__CsprojPath%" /t:DumpCoreDisToolsPackagePath /p:CoreDisToolsPackagePathOutputFile="%CoreDisToolsPackagePathOutputFile%" /p:RuntimeIdentifier="win-%__Arch%"
+call %DOTNETCMD%
+if errorlevel 1 goto Fail
+
+if not exist "%CoreDisToolsPackagePathOutputFile%" (
+    echo %__ErrMsgPrefix%Failed to get CoreDisTools package path.
+    exit /b 1
+)
+
+
+set /p __PkgDir=<"%CoreDisToolsPackagePathOutputFile%"
 
 REM Get downloaded dll path
 echo Locating coredistools.dll
-FOR /F "delims=" %%i IN ('dir %__PackageDir%\coredistools.dll /b/s ^| findstr /R "win-%__Arch%"') DO set __LibPath=%%i
+FOR /F "delims=" %%i IN ('dir %__PkgDir%\coredistools.dll /b/s ^| findstr /R "win-%__Arch%"') DO set __LibPath=%%i
 echo CoreDisTools library path: %__LibPath%
 if not exist "%__LibPath%" (
     echo Failed to locate the downloaded library: %__LibPath%

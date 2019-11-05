@@ -38,8 +38,6 @@ CRITICAL_SECTION g_dacCritSec;
 ClrDataAccess* g_dacImpl;
 HINSTANCE g_thisModule;
 
-extern VOID STDMETHODCALLTYPE TLS_FreeMasterSlotIndex();
-
 EXTERN_C
 #ifdef FEATURE_PAL
 DLLEXPORT // For Win32 PAL LoadLibrary emulation
@@ -86,9 +84,6 @@ BOOL WINAPI DllMain(HANDLE instance, DWORD reason, LPVOID reserved)
         {
             DeleteCriticalSection(&g_dacCritSec);
         }
-#ifndef FEATURE_PAL
-        TLS_FreeMasterSlotIndex();
-#endif
         g_procInitialized = false;
         break;
     }
@@ -469,8 +464,6 @@ MetaEnum::End(void)
     switch(m_kind)
     {
     case mdtTypeDef:
-        m_mdImport->EnumTypeDefClose(&m_enum);
-        break;
     case mdtMethodDef:
     case mdtFieldDef:
         m_mdImport->EnumClose(&m_enum);
@@ -494,7 +487,7 @@ MetaEnum::NextToken(mdToken* token,
     switch(m_kind)
     {
     case mdtTypeDef:
-        if (!m_mdImport->EnumTypeDefNext(&m_enum, token))
+        if (!m_mdImport->EnumNext(&m_enum, token))
         {
             return S_FALSE;
         }
@@ -866,7 +859,10 @@ SplitName::FindType(IMDInternalImport* mdInternal)
 
     ULONG32 length;
     WCHAR   wszName[MAX_CLASS_NAME];
-    ConvertUtf8(m_typeName, MAX_CLASS_NAME, &length, wszName);
+    if (ConvertUtf8(m_typeName, MAX_CLASS_NAME, &length, wszName) != S_OK)
+    {
+        return false;
+    }
 
     WCHAR *pHead;
 
@@ -3284,6 +3280,10 @@ ClrDataAccess::QueryInterface(THIS_
     else if (IsEqualIID(interfaceId, __uuidof(ISOSDacInterface6)))
     {
         ifaceRet = static_cast<ISOSDacInterface6*>(this);
+    }
+    else if (IsEqualIID(interfaceId, __uuidof(ISOSDacInterface7)))
+    {
+        ifaceRet = static_cast<ISOSDacInterface7*>(this);
     }
     else
     {
@@ -6321,9 +6321,9 @@ bool ClrDataAccess::ReportMem(TADDR addr, TSIZE_T size, bool fExpectSuccess /*= 
     while (size)
     {
         ULONG32 enumSize;
-        if (size > ULONG_MAX)
+        if (size > UINT32_MAX)
         {
-            enumSize = ULONG_MAX;
+            enumSize = UINT32_MAX;
         }
         else
         {
@@ -8477,12 +8477,12 @@ StackWalkAction DacStackReferenceWalker::Callback(CrawlFrame *pCF, VOID *pData)
     gcctx->cf = pCF;
 
     bool fReportGCReferences = true;
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
     // On Win64 and ARM, we may have unwound this crawlFrame and thus, shouldn't report the invalid
     // references it may contain.
     // todo.
     fReportGCReferences = pCF->ShouldCrawlframeReportGCReferences();
-#endif // defined(WIN64EXCEPTIONS)
+#endif // defined(FEATURE_EH_FUNCLETS)
 
     Frame *pFrame = ((DacScanContext*)gcctx->sc)->pFrame = pCF->GetFrame();
 

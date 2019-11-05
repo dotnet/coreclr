@@ -7,6 +7,7 @@ set "__MsgPrefix=BUILDTEST: "
 
 echo %__MsgPrefix%Starting Build at %TIME%
 
+
 set __ThisScriptDir="%~dp0"
 
 call "%__ThisScriptDir%"\setup_vs_tools.cmd
@@ -30,10 +31,14 @@ set __BuildOS=Windows_NT
 set "__ProjectDir=%~dp0"
 :: remove trailing slash
 if %__ProjectDir:~-1%==\ set "__ProjectDir=%__ProjectDir:~0,-1%"
+set "__RepoRootDir=%__ProjectDir%\..\.."
+
+rem Remove after repo consolidation
+if not exist "%__RepoRootDir%\.dotnet-runtime-placeholder" ( set "__RepoRootDir=!__ProjectDir!" )
+
 set "__TestDir=%__ProjectDir%\tests"
 set "__ProjectFilesDir=%__TestDir%"
 set "__SourceDir=%__ProjectDir%\src"
-set "__PackagesDir=%__ProjectDir%\.packages"
 set "__RootBinDir=%__ProjectDir%\bin"
 set "__LogsDir=%__RootBinDir%\Logs"
 set "__MsbuildDebugLogsDir=%__LogsDir%\MsbuildDebugLogs"
@@ -53,6 +58,9 @@ set __SkipNative=
 set __RuntimeId=
 set __TargetsWindows=1
 set __DoCrossgen=
+set __CopyNativeTestBinaries=0
+set __CopyNativeProjectsAfterCombinedTestBuild=true
+set __SkipGenerateLayout=0
 
 @REM CMD has a nasty habit of eating "=" on the argument list, so passing:
 @REM    -priority=1
@@ -81,8 +89,10 @@ if /i "%1" == "debug"                 (set __BuildType=Debug&set processedArgs=!
 if /i "%1" == "release"               (set __BuildType=Release&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "checked"               (set __BuildType=Checked&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 
+if /i "%1" == "ci"                    (set __ArcadeScriptArgs="-ci"&set __ErrMsgPrefix=##vso[task.logissue type=error]&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+
 if /i "%1" == "skipmanaged"           (set __SkipManaged=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
-if /i "%1" == "skipnative"            (set __SkipNative=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+if /i "%1" == "skipnative"            (set __SkipNative=1&set __CopyNativeProjectsAfterCombinedTestBuild=false&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "buildtesthostonly"     (set __SkipNative=1&set __SkipManaged=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "buildagainstpackages"  (echo error: Remove /BuildAgainstPackages switch&&exit /b1)
 if /i "%1" == "skiprestorepackages"   (set __SkipRestorePackages=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
@@ -91,6 +101,8 @@ if /i "%1" == "runtimeid"             (set __RuntimeId=%2&set processedArgs=!pro
 if /i "%1" == "targetsNonWindows"     (set __TargetsWindows=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "Exclude"               (set __Exclude=%2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
 if /i "%1" == "-priority"             (set __Priority=%2&shift&set processedArgs=!processedArgs! %1=%2&shift&goto Arg_Loop)
+if /i "%1" == "copynativeonly"        (set __CopyNativeTestBinaries=1&set __SkipNative=1&set __CopyNativeProjectsAfterCombinedTestBuild=false&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+if /i "%1" == "skipgeneratelayout"    (set __SkipGenerateLayout=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "--"                    (set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 
 if [!processedArgs!]==[] (
@@ -122,7 +134,6 @@ if "%__TargetsWindows%"=="1" (
 @if defined _echo @echo on
 
 set __CommonMSBuildArgs=/p:__BuildOS=%__BuildOS% /p:__BuildType=%__BuildType% /p:__BuildArch=%__BuildArch%
-REM As we move from buildtools to arcade, __RunArgs should be replaced with __msbuildArgs
 set __msbuildArgs=/p:__BuildOS=%__BuildOS% /p:__BuildType=%__BuildType% /p:__BuildArch=%__BuildArch% /nologo /verbosity:minimal /clp:Summary /maxcpucount
 
 echo %__MsgPrefix%Commencing CoreCLR test build
@@ -154,21 +165,12 @@ if not exist "%__MsbuildDebugLogsDir%"          md "%__MsbuildDebugLogsDir%"
 REM Set up the directory for MSBuild debug logs.
 set MSBUILDDEBUGPATH=%__MsbuildDebugLogsDir%
 
-echo %__MsgPrefix%Checking prerequisites
-
-REM Eval the output from set-cmake-path.ps1
-for /f "delims=" %%a in ('powershell -NoProfile -ExecutionPolicy ByPass "& ""%__SourceDir%\pal\tools\set-cmake-path.ps1"""') do %%a
-
 REM =========================================================================================
 REM ===
 REM === Restore Build Tools
 REM ===
 REM =========================================================================================
 
-call "%__ProjectDir%\init-tools.cmd"
-if NOT [%ERRORLEVEL%]==[0] (
-    exit /b %ERRORLEVEL%
-)
 @if defined _echo @echo on
 
 set "__ToolsDir=%__ProjectDir%\Tools"
@@ -181,7 +183,7 @@ REM ============================================================================
 
 call "%__TestDir%\setup-stress-dependencies.cmd" /arch %__BuildArch% /outputdir %__BinDir%
 if errorlevel 1 (
-    echo %__MsgPrefix%Error: setup-stress-dependencies failed.
+    echo %__ErrMsgPrefix%%__MsgPrefix%Error: setup-stress-dependencies failed.
     goto     :Exit_Failure
 )
 @if defined _echo @echo on
@@ -197,6 +199,23 @@ if defined __SkipNative goto skipnative
 echo %__MsgPrefix%Commencing build of native test components for %__BuildArch%/%__BuildType%
 
 REM Set the environment for the native build
+
+REM Eval the output from set-cmake-path.ps1
+for /f "delims=" %%a in ('powershell -NoProfile -ExecutionPolicy ByPass "& ""%__SourceDir%\pal\tools\set-cmake-path.ps1"""') do %%a
+REM echo Using CMake from %CMakePath%
+
+REM NumberOfCores is an WMI property providing number of physical cores on machine
+REM processor(s). It is used to set optimal level of CL parallelism during native build step
+if not defined NumberOfCores (
+    REM Determine number of physical processor cores available on machine
+    set TotalNumberOfCores=0
+    for /f "tokens=*" %%I in (
+        'wmic cpu get NumberOfCores /value ^| find "=" 2^>NUL'
+    ) do set %%I & set /a TotalNumberOfCores=TotalNumberOfCores+NumberOfCores
+    set NumberOfCores=!TotalNumberOfCores!
+)
+echo %__MsgPrefix%Number of processor cores %NumberOfCores%
+
 set __VCBuildArch=x86_amd64
 if /i "%__BuildArch%" == "x86" ( set __VCBuildArch=x86 )
 if /i "%__BuildArch%" == "arm" ( set __VCBuildArch=x86_arm )
@@ -207,42 +226,40 @@ call                                 "%__VCToolsRoot%\vcvarsall.bat" %__VCBuildA
 @if defined _echo @echo on
 
 if not defined VSINSTALLDIR (
-    echo %__MsgPrefix%Error: VSINSTALLDIR variable not defined.
+    echo %__ErrMsgPrefix%%__MsgPrefix%Error: VSINSTALLDIR variable not defined.
     exit /b 1
 )
 if not exist "%VSINSTALLDIR%DIA SDK" goto NoDIA
 
-pushd "%__NativeTestIntermediatesDir%"
 set __ExtraCmakeArgs="-DCMAKE_SYSTEM_VERSION=10.0"
-call "%__SourceDir%\pal\tools\gen-buildsys-win.bat" ""%__ProjectFilesDir%"" %__VSVersion% %__BuildArch% !__ExtraCmakeArgs!
-@if defined _echo @echo on
-popd
+call "%__SourceDir%\pal\tools\gen-buildsys.cmd" "%__ProjectFilesDir%" "%__NativeTestIntermediatesDir%" %__VSVersion% %__BuildArch% !__ExtraCmakeArgs!
+  
+if not !errorlevel! == 0 (
+    echo %__ErrMsgPrefix%%__MsgPrefix%Error: failed to generate native component build project!
+    exit /b 1
+)
 
-if not exist "%__NativeTestIntermediatesDir%\install.vcxproj" (
-    echo %__MsgPrefix%Failed to generate test native component build project!
+@if defined _echo @echo on
+
+if not exist "%__NativeTestIntermediatesDir%\CMakeCache.txt" (
+    echo %__ErrMsgPrefix%%__MsgPrefix%Error: unable to find generated native component build project!
     exit /b 1
 )
 
 set __BuildLogRootName=Tests_Native
-set __BuildLog=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.log
-set __BuildWrn=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn
-set __BuildErr=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.err
-set __MsbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
-set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
-set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
+set __BuildLog="%__LogsDir%\!__BuildLogRootName!_%__BuildOS%__%__BuildArch%__%__BuildType%.log"
+set __BuildWrn="%__LogsDir%\!__BuildLogRootName!_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn"
+set __BuildErr="%__LogsDir%\!__BuildLogRootName!_%__BuildOS%__%__BuildArch%__%__BuildType%.err"
+set __MsbuildLog=/flp:Verbosity=normal;LogFile=!__BuildLog!
+set __MsbuildWrn=/flp1:WarningsOnly;LogFile=!__BuildWrn!
+set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
 set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-call "%__ProjectDir%\cmake_msbuild.cmd" /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
-  /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
-  /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
-  /p:UsePartialNGENOptimization=false /maxcpucount^
-  "%__NativeTestIntermediatesDir%\install.vcxproj"^
-  !__Logging! /p:Configuration=%__BuildType% /p:Platform=%__BuildArch% %__CommonMSBuildArgs% %__PriorityArg% %__UnprocessedBuildArgs%
+REM We pass the /m flag directly to MSBuild so that we can get both MSBuild and CL parallelism, which is fastest for our builds.
+"%CMakePath%" --build %__NativeTestIntermediatesDir% --target install --config %__BuildType% -- /m !__Logging!
+
 if errorlevel 1 (
-    echo %__MsgPrefix%Error: build failed. Refer to the build log files for details:
-    echo     %__BuildLog%
-    echo     %__BuildWrn%
-    echo     %__BuildErr%
+    echo %__ErrMsgPrefix%%__MsgPrefix%Error: native test build failed.
     exit /b 1
 )
 
@@ -254,7 +271,7 @@ REM === Restore product binaries from packages
 REM ===
 REM =========================================================================================
 
-if "%__SkipRestorePackages%" == 1 goto SkipRestoreProduct
+if "%__SkipRestorePackages%" == "1" goto SkipRestoreProduct
 
 echo %__MsgPrefix%Restoring CoreCLR product from packages
 
@@ -268,14 +285,22 @@ set __BuildErr=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__B
 set __MsbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
 set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
-set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
+set __Logging='!__MsbuildLog!' '!__MsbuildWrn!' '!__MsbuildErr!'
 
-call "%__ProjectDir%\dotnet.cmd" msbuild /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
-  /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
+REM Disable warnAsError - coreclr issue 19922
+powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -Command "%__RepoRootDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
+  %__ProjectDir%\tests\build.proj -warnAsError:0 /t:BatchRestorePackages /nodeReuse:false^
   /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
   /p:UsePartialNGENOptimization=false /maxcpucount^
-  %__ProjectDir%\tests\build.proj /t:BatchRestorePackages^
   !__Logging! %__CommonMSBuildArgs% %__PriorityArg% %__UnprocessedBuildArgs%
+
+if errorlevel 1 (
+    echo %__ErrMsgPrefix%%__MsgPrefix%Error: Package restoration failed. Refer to the build log files for details:
+    echo     %__BuildLog%
+    echo     %__BuildWrn%
+    echo     %__BuildErr%
+    exit /b 1
+)
 
 :SkipRestoreProduct
 
@@ -290,7 +315,7 @@ if defined __SkipManaged goto SkipManagedBuild
 echo %__MsgPrefix%Starting the Managed Tests Build
 
 if not defined VSINSTALLDIR (
-    echo %__MsgPrefix%Error: build-test.cmd should be run from a Visual Studio Command Prompt.  Please see https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md for build instructions.
+    echo %__ErrMsgPrefix%%__MsgPrefix%Error: build-test.cmd should be run from a Visual Studio Command Prompt.  Please see https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md for build instructions.
     exit /b 1
 )
 set __AppendToLog=false
@@ -309,26 +334,58 @@ set __NumberOfTestGroups=3
 if %__Priority% GTR 0 (set __NumberOfTestGroups=10)
 echo %__MsgPrefix%Building tests divided into %__NumberOfTestGroups% test groups
 
+set __CommonMSBuildCmdPrefix=powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -Command "!__RepoRootDir!\eng\common\msbuild.ps1" !__ArcadeScriptArgs!
+
 for /l %%G in (1, 1, %__NumberOfTestGroups%) do (
 
     set __MsbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%";Append=!__AppendToLog!
     set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%";Append=!__AppendToLog!
     set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%";Append=!__AppendToLog!
+    set __Logging='!__MsbuildLog!' '!__MsbuildWrn!' '!__MsbuildErr!'
 
     set __TestGroupToBuild=%%G
-    echo Running: msbuild %__ProjectDir%\tests\build.proj !__MsbuildLog! !__MsbuildWrn! !__MsbuildErr! %TargetsWindowsMsbuildArg% %__msbuildArgs% !__PriorityArg! %__UnprocessedBuildArgs%
 
-    call "%__ProjectDir%\dotnet.cmd" msbuild %__ProjectDir%\tests\build.proj !__MsbuildLog! !__MsbuildWrn! !__MsbuildErr! %TargetsWindowsMsbuildArg% %__msbuildArgs% !__PriorityArg! %__UnprocessedBuildArgs%
+    if not "%__CopyNativeTestBinaries%" == "1" (
+        REM Disable warnAsError - coreclr issue 19922
+        set __MSBuildBuildArgs=!__ProjectDir!\tests\build.proj
+        set __MSBuildBuildArgs=!__MSBuildBuildArgs! -warnAsError:0
+        set __MSBuildBuildArgs=!__MSBuildBuildArgs! /nodeReuse:false
+        set __MSBuildBuildArgs=!__MSBuildBuildArgs! !__Logging!
+        set __MSBuildBuildArgs=!__MSBuildBuildArgs! !TargetsWindowsMsbuildArg!
+        set __MSBuildBuildArgs=!__MSBuildBuildArgs! !__msbuildArgs!
+        set __MSBuildBuildArgs=!__MSBuildBuildArgs! !__PriorityArg!
+        set __MSBuildBuildArgs=!__MSBuildBuildArgs! !__UnprocessedBuildArgs!
+        set __MSBuildBuildArgs=!__MSBuildBuildArgs! /p:CopyNativeProjectBinaries=!__CopyNativeProjectsAfterCombinedTestBuild!
+        set __MSBuildBuildArgs=!__MSBuildBuildArgs! /p:__SkipPackageRestore=true
+        echo Running: msbuild !__MSBuildBuildArgs!
+        !__CommonMSBuildCmdPrefix! !__MSBuildBuildArgs!
 
-    if errorlevel 1 (
-        echo %__MsgPrefix%Error: build failed. Refer to the build log files for details:
-        echo     %__BuildLog%
-        echo     %__BuildWrn%
-        echo     %__BuildErr%
-        REM This is necessary because of a(n apparent) bug in the FOR /L command.  Under certain circumstances,
-        REM such as when this script is invoke with CMD /C "build-test.cmd", a non-zero exit directly from
-        REM within the loop body will not propagate to the caller.  For some reason, goto works around it.
-        goto     :Exit_Failure
+        if errorlevel 1 (
+            echo %__ErrMsgPrefix%%__MsgPrefix%Error: managed test build failed. Refer to the build log files for details:
+            echo     %__BuildLog%
+            echo     %__BuildWrn%
+            echo     %__BuildErr%
+            REM This is necessary because of a(n apparent) bug in the FOR /L command.  Under certain circumstances,
+            REM such as when this script is invoke with CMD /C "build-test.cmd", a non-zero exit directly from
+            REM within the loop body will not propagate to the caller.  For some reason, goto works around it.
+            goto     :Exit_Failure
+        )
+    ) else (
+        REM Disable warnAsError - coreclr issue 19922
+        set __MSBuildBuildArgs=!__ProjectDir!\tests\build.proj -warnAsError:0 /nodeReuse:false !__Logging! !TargetsWindowsMsbuildArg! !__msbuildArgs! !__PriorityArg! !__UnprocessedBuildArgs! "/t:CopyAllNativeProjectReferenceBinaries"
+        echo Running: msbuild !__MSBuildBuildArgs!
+        !__CommonMSBuildCmdPrefix! !__MSBuildBuildArgs!
+
+        if errorlevel 1 (
+            echo %__ErrMsgPrefix%%__MsgPrefix%Error: copying native test binaries failed. Refer to the build log files for details:
+            echo     %__BuildLog%
+            echo     %__BuildWrn%
+            echo     %__BuildErr%
+            REM This is necessary because of a(n apparent) bug in the FOR /L command.  Under certain circumstances,
+            REM such as when this script is invoke with CMD /C "build-test.cmd", a non-zero exit directly from
+            REM within the loop body will not propagate to the caller.  For some reason, goto works around it.
+            goto     :Exit_Failure
+        )
     )
 
     set __SkipPackageRestore=true
@@ -336,17 +393,22 @@ for /l %%G in (1, 1, %__NumberOfTestGroups%) do (
     set __AppendToLog=true
 )
 
+if "%__CopyNativeTestBinaries%" == "1" goto :SkipManagedBuild
+
 REM Check that we've built about as many tests as we expect. This is primarily intended to prevent accidental changes that cause us to build
 REM drastically fewer Pri-1 tests than expected.
 echo %__MsgPrefix%Check the managed tests build
-echo Running: dotnet msbuild %__ProjectDir%\tests\runtest.proj /t:CheckTestBuild /p:CLRTestPriorityToBuild=%__Priority% %__msbuildArgs% %__unprocessedBuildArgs%
-call "%__ProjectDir%\dotnet.cmd" msbuild %__ProjectDir%\tests\runtest.proj /t:CheckTestBuild /p:CLRTestPriorityToBuild=%__Priority% %__msbuildArgs% %__unprocessedBuildArgs%
+echo Running: dotnet msbuild %__ProjectDir%\tests\src\runtest.proj /t:CheckTestBuild /nodeReuse:false /p:CLRTestPriorityToBuild=%__Priority% %__msbuildArgs% %__unprocessedBuildArgs%
+powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__RepoRootDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
+    %__ProjectDir%\tests\src\runtest.proj /t:CheckTestBuild /nodeReuse:false /p:CLRTestPriorityToBuild=%__Priority% %__msbuildArgs% %__unprocessedBuildArgs%
 if errorlevel 1 (
-    echo %__MsgPrefix%Error: build failed.
+    echo %__ErrMsgPrefix%%__MsgPrefix%Error: Check Test Build failed.
     exit /b 1
 )
 
 :SkipManagedBuild
+
+if "%__SkipGenerateLayout%" == "1" goto TestBuildDone
 
 REM =========================================================================================
 REM ===
@@ -390,14 +452,13 @@ set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-call %__ProjectDir%\dotnet.cmd msbuild /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
-  /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
+powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__RepoRootDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
+  %__ProjectDir%\tests\src\runtest.proj /t:CreateTestOverlay /nodeReuse:false^
   /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
   /p:UsePartialNGENOptimization=false /maxcpucount^
-  %__ProjectDir%\tests\runtest.proj /t:CreateTestOverlay^
   !__Logging! %__CommonMSBuildArgs% %RuntimeIdArg% %__PriorityArg% %__UnprocessedBuildArgs%
 if errorlevel 1 (
-    echo %__MsgPrefix%Error: build failed. Refer to the build log files for details:
+    echo %__ErrMsgPrefix%%__MsgPrefix%Error: Create Test Overlay failed. Refer to the build log files for details:
     echo     %__BuildLog%
     echo     %__BuildWrn%
     echo     %__BuildErr%
@@ -424,14 +485,13 @@ set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-call %__ProjectDir%\dotnet.cmd msbuild /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
-  /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
+powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__RepoRootDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
+  %__ProjectDir%\tests\src\runtest.proj /t:CreateTestHost /nodeReuse:false^
   /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
   /p:UsePartialNGENOptimization=false /maxcpucount^
-  %__ProjectDir%\tests\runtest.proj /t:CreateTestHost^
   !__Logging! %__CommonMSBuildArgs% %RuntimeIdArg% %__PriorityArg% %__UnprocessedBuildArgs%
 if errorlevel 1 (
-    echo %__MsgPrefix%Error: build failed. Refer to the build log files for details:
+    echo %__ErrMsgPrefix%%__MsgPrefix%Error: Create Test Host failed. Refer to the build log files for details:
     echo     %__BuildLog%
     echo     %__BuildWrn%
     echo     %__BuildErr%
@@ -458,9 +518,9 @@ set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
 REM Build wrappers using the local SDK's msbuild. As we move to arcade, the other builds should be moved away from run.exe as well.
-call "%__ProjectDir%\dotnet.cmd" msbuild %__ProjectDir%\tests\runtest.proj /p:RestoreAdditionalProjectSources=https://dotnet.myget.org/F/dotnet-core/  /p:BuildWrappers=true !__Logging! %__msbuildArgs% %TargetsWindowsMsbuildArg% %__UnprocessedBuildArgs%
+call "%__ProjectDir%\dotnet.cmd" msbuild %__ProjectDir%\tests\src\runtest.proj /nodereuse:false /p:BuildWrappers=true !__Logging! %__msbuildArgs% %TargetsWindowsMsbuildArg% %__UnprocessedBuildArgs%
 if errorlevel 1 (
-    echo %__MsgPrefix%Error: Xunit wrapper build failed. Refer to the build log files for details:
+    echo %__ErrMsgPrefix%%__MsgPrefix%Error: XUnit wrapper build failed. Refer to the build log files for details:
     echo     %__BuildLog%
     echo     %__BuildWrn%
     echo     %__BuildErr%
@@ -495,6 +555,7 @@ REM ===
 REM === All builds complete!
 REM ===
 REM =========================================================================================
+:TestBuildDone
 
 echo %__MsgPrefix%Test build succeeded.  Finished at %TIME%
 echo %__MsgPrefix%Test binaries are available at !__TestBinDir!
@@ -530,6 +591,8 @@ echo     ubuntu.16.10-x64: Builds overlay for Ubuntu 16.10
 echo     win-x64: Builds overlay for portable Windows
 echo     win7-x64: Builds overlay for Windows 7
 echo crossgen: Precompiles the framework managed assemblies
+echo copynativeonly: Only copy the native test binaries to the managed output. Do not build the native or managed tests.
+echo skipgeneratelayout: Do not generate the Core_Root layout or the CoreFX testhost.
 echo targetsNonWindows:
 echo Exclude- Optional parameter - specify location of default exclusion file ^(defaults to tests\issues.targets if not specified^)
 echo     Set to "" to disable default exclusion file.
@@ -589,7 +652,7 @@ if %__exitCode% neq 0 (
 REM Delete original .dll & replace it with the Crossgened .dll
 del %1
 ren "%CORE_ROOT%\temp.ni.dll" %2
-    
+
 echo Successfully precompiled %2
 exit /b 0
 

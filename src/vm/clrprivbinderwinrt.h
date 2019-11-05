@@ -1,12 +1,12 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
-// 
+//
 
 
-// 
+//
 // Contains the types that implement code:ICLRPrivBinder and code:ICLRPrivAssembly for WinRT binding.
-// 
+//
 //=============================================================================================
 
 #pragma once
@@ -14,7 +14,6 @@
 #include "holder.h"
 #include "internalunknownimpl.h"
 #include "clrprivbinding.h"
-#include "clrprivruntimebinders.h"
 #include "clrprivbinderutil.h"
 #include "clrprivtypecachewinrt.h"
 #include "clr_std/utility"
@@ -36,18 +35,17 @@ class BINDER_SPACE::Assembly;
 typedef DPTR(CLRPrivBinderWinRT)     PTR_CLRPrivBinderWinRT;
 typedef DPTR(CLRPrivAssemblyWinRT)   PTR_CLRPrivAssemblyWinRT;
 
-BOOL 
+BOOL
 IsWindowsNamespace(const char * wszNamespace);
 
 //=====================================================================================================================
 //=====================================================================================================================
 //=====================================================================================================================
-class CLRPrivBinderWinRT : 
-    public IUnknownCommon<ICLRPrivBinder
-    >
+class CLRPrivBinderWinRT :
+    public IUnknownCommon<ICLRPrivBinder, IID_ICLRPrivBinder>
 {
     friend class CLRPrivAssemblyWinRT;
-    
+
 public:
     //=============================================================================================
     // Options of namespace resolution
@@ -56,18 +54,18 @@ public:
         NamespaceResolutionKind_WindowsAPI,             // Using RoResolveNamespace Win8 API
         NamespaceResolutionKind_DesignerResolveEvent    // Using DesignerNamespaceResolve event
     };
-    
+
 private:
     //=============================================================================================
     // Data structures for Namespace -> FileNameList map (as returned by RoResolveNamespace API)
-    
+
     // Entry in SHash table that maps namespace to list of files
     struct NamespaceToFileNameListMapEntry
     {
         PTR_WSTR                           m_wszNamespace;
         CLRPrivBinderUtil::PTR_WStringList m_pFileNameList;
     };
-    
+
     // SHash traits for Namespace -> FileNameList hash
     class NamespaceToFileNameListMapTraits : public NoRemoveSHashTraits< DefaultSHashTraits< NamespaceToFileNameListMapEntry > >
     {
@@ -78,7 +76,7 @@ private:
         static PCWSTR GetKey(const NamespaceToFileNameListMapEntry & e) { return e.m_wszNamespace; }
         static count_t Hash(PCWSTR str) { return HashString(str); }
         static BOOL Equals(PCWSTR lhs, PCWSTR rhs) { LIMITED_METHOD_CONTRACT; return (wcscmp(lhs, rhs) == 0); }
-        
+
         void OnDestructPerEntryCleanupAction(const NamespaceToFileNameListMapEntry & e)
         {
             delete [] e.m_wszNamespace;
@@ -88,16 +86,16 @@ private:
     };
 
     typedef SHash<NamespaceToFileNameListMapTraits> NamespaceToFileNameListMap;
-    
+
     //=============================================================================================
     // Data structure for FileName -> CLRPrivAssemblyWinRT * map
-    
+
     struct FileNameToAssemblyWinRTMapEntry
     {
         PTR_CWSTR                m_wszFileName;   // File name (owned by m_pAssembly)
         PTR_CLRPrivAssemblyWinRT m_pAssembly;
     };
-    
+
     class FileNameToAssemblyWinRTMapTraits : public DefaultSHashTraits<FileNameToAssemblyWinRTMapEntry>
     {
     public:
@@ -110,9 +108,9 @@ private:
         static count_t Hash(PCWSTR str) { return HashString(str); }
         static BOOL Equals(PCWSTR lhs, PCWSTR rhs) { LIMITED_METHOD_CONTRACT; return (wcscmp(lhs, rhs) == 0); }
     };
-    
+
     typedef SHash<FileNameToAssemblyWinRTMapTraits> FileNameToAssemblyWinRTMap;
-    
+
 public:
     //=============================================================================================
     // ICLRPrivBinder interface methods
@@ -137,18 +135,17 @@ public:
     // Class methods
 
     CLRPrivBinderWinRT(
-        ICLRPrivBinder *        pParentBinder, 
+        ICLRPrivBinder *        pParentBinder,
         CLRPrivTypeCacheWinRT * pWinRtTypeCache,
-        LPCWSTR *               rgwzAltPath, 
-        UINT                    cAltPaths, 
-        NamespaceResolutionKind fNamespaceResolutionKind,
-        BOOL                    fCanUseNativeImages);
-    
-    static 
-    CLRPrivBinderWinRT * GetOrCreateBinder(
-        CLRPrivTypeCacheWinRT * pWinRtTypeCache, 
+        LPCWSTR *               rgwzAltPath,
+        UINT                    cAltPaths,
         NamespaceResolutionKind fNamespaceResolutionKind);
-    
+
+    static
+    CLRPrivBinderWinRT * GetOrCreateBinder(
+        CLRPrivTypeCacheWinRT * pWinRtTypeCache,
+        NamespaceResolutionKind fNamespaceResolutionKind);
+
     ~CLRPrivBinderWinRT();
 
     // Binds WinRT assemblies only.
@@ -172,44 +169,43 @@ public:
     // the app paths so the WinRT binder will find 3rd party WinMDs.
     HRESULT SetApplicationContext(BINDER_SPACE::ApplicationContext *pApplicationContext, LPCWSTR pwzAppLocalWinMD);
     // Finds assembly with WinRT type if it is already loaded
-    // Note: This method could implement interface code:ICLRPrivWinRtTypeBinder if it is ever needed
     PTR_Assembly FindAssemblyForTypeIfLoaded(
-        PTR_AppDomain pAppDomain, 
-        LPCUTF8       szNamespace, 
+        PTR_AppDomain pAppDomain,
+        LPCUTF8       szNamespace,
         LPCUTF8       szClassName);
 
 
 private:
     //=============================================================================================
     // Accessors for FileName -> CLRPrivAssemblyWinRT * map
-    
+
     ReleaseHolder<CLRPrivAssemblyWinRT> FindAssemblyByFileName(
         PCWSTR wzsFileName);
-    
+
     ReleaseHolder<CLRPrivAssemblyWinRT> AddFileNameToAssemblyMapping(
         PCWSTR                 wszFileName,
         CLRPrivAssemblyWinRT * pAssembly);
-    
+
     void RemoveFileNameToAssemblyMapping(
         PCWSTR wszFileName);
-    
+
     //=============================================================================================
     // Internal methods
-    
+
     // Returns list of file names from code:m_NamespaceToFileNameListMap for the namespace
     HRESULT GetFileNameListForNamespace(LPCWSTR wszNamespace, CLRPrivBinderUtil::WStringList ** ppFileNameList);
-    
+
     // Adds (thread-safe) list of file names to code:m_NamespaceToFileNameListMap for the namespace.
     // Returns TRUE if the list was added to the cache.
     BOOL AddFileNameListForNamespace(
-        LPCWSTR                           wszNamespace, 
-        CLRPrivBinderUtil::WStringList *  pFileNameList, 
+        LPCWSTR                           wszNamespace,
+        CLRPrivBinderUtil::WStringList *  pFileNameList,
         CLRPrivBinderUtil::WStringList ** ppFileNameList);
-    
+
 
 private:
     //=============================================================================================
-    
+
     // Namespace -> FileName list map ... items are never removed
     NamespaceToFileNameListMap m_NamespaceToFileNameListMap;
     // FileName -> CLRPrivAssemblyWinRT * map ... items can be removed when CLRPrivAssemblyWinRT dies
@@ -221,17 +217,17 @@ private:
     CrstExplicitInit m_MapsAddLock;
 
     //=============================================================================================
-    
+
     PTR_CLRPrivTypeCacheWinRT m_pTypeCache;
-    
+
     // The kind of namespace resolution (RoResolveNamespace Win8 API or DesignerNamespaceResolve event)
     NamespaceResolutionKind m_fNamespaceResolutionKind;
-    
+
     static CLRPrivBinderWinRT * s_pSingleton;
-    
+
     // Parent binder used to delegate bind requests up the binder hierarchy.
     ICLRPrivBinder * m_pParentBinder;
-    
+
 #ifndef CROSSGEN_COMPILE
     // Alternative paths for use with RoGetNamespace api
     CLRPrivBinderUtil::HSTRINGArrayHolder m_rgAltPaths;
@@ -250,39 +246,39 @@ private:
 //=====================================================================================================================
 //=====================================================================================================================
 class CLRPrivAssemblyWinRT :
-    public IUnknownCommon<ICLRPrivAssembly, ICLRPrivAssemblyID_WinRT>
+    public IUnknownCommon2<ICLRPrivAssembly, IID_ICLRPrivAssembly, ICLRPrivAssemblyID_WinRT, IID_ICLRPrivAssemblyID_WinRT>
 {
     friend class CLRPrivBinderWinRT;
-    
+
 public:
     //=============================================================================================
     // Class methods
-    
+
     CLRPrivAssemblyWinRT(
-        CLRPrivBinderWinRT *                         pBinder, 
+        CLRPrivBinderWinRT *                         pBinder,
         CLRPrivBinderUtil::CLRPrivResourcePathImpl * pResourceIL,
         IBindResult *                                pIBindResult,
         BOOL                                         fShareable);
-    
+
     ~CLRPrivAssemblyWinRT();
 
     HRESULT GetIBindResult(
         IBindResult ** ppIBindResult);
-    
+
     static HRESULT GetIBindResult(
-        ICLRPrivAssembly * pPrivAssembly, 
+        ICLRPrivAssembly * pPrivAssembly,
         IBindResult **     ppIBindResult);
-    
+
     //=============================================================================================
     // IUnknown interface methods
-    
+
     // Implements interface method code:IUnknown::Release.
     // Overridden to implement self-removal from assembly map code:CLRPrivBinderWinRT::m_FileNameToAssemblyMap.
     STDMETHOD_(ULONG, Release)();
-    
+
     //=============================================================================================
     // ICLRPrivBinder interface methods
-    
+
     // Implements interface method code:ICLRPrivBinder::BindAssemblyByName.
     STDMETHOD(BindAssemblyByName)(
         IAssemblyName * pAssemblyName,
@@ -291,7 +287,7 @@ public:
         STATIC_CONTRACT_WRAPPER;
         return m_pBinder->BindAssemblyByName(pAssemblyName, ppAssembly);
     }
-    
+
     // Implements interface method code:ICLRPrivBinder::GetBinderID.
     STDMETHOD(GetBinderID)(
         UINT_PTR * pBinderId)
@@ -299,7 +295,7 @@ public:
         STATIC_CONTRACT_WRAPPER;
         return m_pBinder->GetBinderID(pBinderId);
     }
-    
+
     STDMETHOD(GetLoaderAllocator)(
         LPVOID * pLoaderAllocator)
     {
@@ -309,19 +305,15 @@ public:
 
     //=============================================================================================
     // ICLRPrivAssembly interface methods
-    
-    // Implements interface method code:ICLRPrivAssembly::IsShareable.
-    STDMETHOD(IsShareable)(
-        BOOL * pbIsShareable);
-    
+
     // Implements interface method code:ICLRPrivAssembly::GetAvailableImageTypes.
     STDMETHOD(GetAvailableImageTypes)(
         LPDWORD pdwImageTypes);
-    
+
     // Implements interface method code:ICLRPrivAssembly::GetImageResource.
     STDMETHOD(GetImageResource)(
-        DWORD               dwImageType, 
-        DWORD *             pdwImageType, 
+        DWORD               dwImageType,
+        DWORD *             pdwImageType,
         ICLRPrivResource ** ppIResource);
 
     void SetFallbackBinder(ICLRPrivBinder* fallbackBinder)
@@ -333,10 +325,10 @@ public:
     {
         return m_FallbackBinder;
     }
-    
+
 private:
     //=============================================================================================
-    
+
     HRESULT EnsureAvailableImageTypes();
 
     ReleaseHolder<CLRPrivBinderWinRT> m_pBinder;
@@ -344,7 +336,6 @@ private:
     // This cannot be a holder as there can be a race to assign to it.
     ICLRPrivResource * m_pIResourceNI;
     ReleaseHolder<IBindResult> m_pIBindResult;
-    BOOL m_fShareable;
     Volatile<DWORD> m_dwImageTypes;
     ReleaseHolder<ICLRPrivBinder> m_FallbackBinder;
 };  // class CLRPrivAssemblyWinRT

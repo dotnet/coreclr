@@ -49,7 +49,7 @@ namespace System.Reflection.Emit
             byte[] signature = sigHelp.InternalGetSignature(out sigLength);
 
             ModuleBuilder module = m_typeBuilder.GetModuleBuilder();
-            m_fieldTok = TypeBuilder.DefineField(JitHelpers.GetQCallModuleOnStack(ref module),
+            m_fieldTok = TypeBuilder.DefineField(new QCallModule(ref module),
                 typeBuilder.TypeToken.Token, fieldName, signature, sigLength, m_Attributes);
 
             m_tkField = new FieldToken(m_fieldTok, type);
@@ -61,31 +61,22 @@ namespace System.Reflection.Emit
         internal void SetData(byte[]? data, int size)
         {
             ModuleBuilder module = m_typeBuilder.GetModuleBuilder();
-            ModuleBuilder.SetFieldRVAContent(JitHelpers.GetQCallModuleOnStack(ref module), m_tkField.Token, data, size);
+            ModuleBuilder.SetFieldRVAContent(new QCallModule(ref module), m_tkField.Token, data, size);
         }
         #endregion
 
         #region MemberInfo Overrides
-        internal int MetadataTokenInternal
-        {
-            get { return m_fieldTok; }
-        }
+        internal int MetadataTokenInternal => m_fieldTok;
 
-        public override Module Module
-        {
-            get { return m_typeBuilder.Module; }
-        }
+        public override Module Module => m_typeBuilder.Module;
 
-        public override string Name
-        {
-            get { return m_fieldName; }
-        }
+        public override string Name => m_fieldName;
 
         public override Type? DeclaringType
         {
             get
             {
-                if (m_typeBuilder.m_isHiddenGlobalType == true)
+                if (m_typeBuilder.m_isHiddenGlobalType)
                     return null;
 
                 return m_typeBuilder;
@@ -96,7 +87,7 @@ namespace System.Reflection.Emit
         {
             get
             {
-                if (m_typeBuilder.m_isHiddenGlobalType == true)
+                if (m_typeBuilder.m_isHiddenGlobalType)
                     return null;
 
                 return m_typeBuilder;
@@ -106,14 +97,11 @@ namespace System.Reflection.Emit
         #endregion
 
         #region FieldInfo Overrides
-        public override Type FieldType
-        {
-            get { return m_fieldType; }
-        }
+        public override Type FieldType => m_fieldType;
 
         public override object? GetValue(object? obj)
         {
-            // NOTE!!  If this is implemented, make sure that this throws 
+            // NOTE!!  If this is implemented, make sure that this throws
             // a NotSupportedException for Save-only dynamic assemblies.
             // Otherwise, it could cause the .cctor to be executed.
 
@@ -122,22 +110,16 @@ namespace System.Reflection.Emit
 
         public override void SetValue(object? obj, object? val, BindingFlags invokeAttr, Binder? binder, CultureInfo? culture)
         {
-            // NOTE!!  If this is implemented, make sure that this throws 
+            // NOTE!!  If this is implemented, make sure that this throws
             // a NotSupportedException for Save-only dynamic assemblies.
             // Otherwise, it could cause the .cctor to be executed.
 
             throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
-        public override RuntimeFieldHandle FieldHandle
-        {
-            get { throw new NotSupportedException(SR.NotSupported_DynamicModule); }
-        }
+        public override RuntimeFieldHandle FieldHandle => throw new NotSupportedException(SR.NotSupported_DynamicModule);
 
-        public override FieldAttributes Attributes
-        {
-            get { return m_Attributes; }
-        }
+        public override FieldAttributes Attributes => m_Attributes;
 
         #endregion
 
@@ -170,7 +152,7 @@ namespace System.Reflection.Emit
             m_typeBuilder.ThrowIfCreated();
 
             ModuleBuilder module = m_typeBuilder.GetModuleBuilder();
-            TypeBuilder.SetFieldLayoutOffset(JitHelpers.GetQCallModuleOnStack(ref module), GetToken().Token, iOffset);
+            TypeBuilder.SetFieldLayoutOffset(new QCallModule(ref module), GetToken().Token, iOffset);
         }
 
         public void SetConstant(object? defaultValue)
@@ -186,7 +168,6 @@ namespace System.Reflection.Emit
 
             TypeBuilder.SetConstantValue(m_typeBuilder.GetModuleBuilder(), GetToken().Token, m_fieldType, defaultValue);
         }
-
 
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
         {

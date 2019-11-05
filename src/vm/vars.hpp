@@ -20,7 +20,7 @@ typedef LPVOID  DictionaryEntry;
 /* Define the implementation dependent size types */
 
 #ifndef _INTPTR_T_DEFINED
-#ifdef  _WIN64
+#ifdef  BIT64
 typedef __int64             intptr_t;
 #else
 typedef int                 intptr_t;
@@ -29,7 +29,7 @@ typedef int                 intptr_t;
 #endif
 
 #ifndef _UINTPTR_T_DEFINED
-#ifdef  _WIN64
+#ifdef  BIT64
 typedef unsigned __int64    uintptr_t;
 #else
 typedef unsigned int        uintptr_t;
@@ -38,7 +38,7 @@ typedef unsigned int        uintptr_t;
 #endif
 
 #ifndef _PTRDIFF_T_DEFINED
-#ifdef  _WIN64
+#ifdef  BIT64
 typedef __int64             ptrdiff_t;
 #else
 typedef int                 ptrdiff_t;
@@ -48,7 +48,7 @@ typedef int                 ptrdiff_t;
 
 
 #ifndef _SIZE_T_DEFINED
-#ifdef  _WIN64
+#ifdef  BIT64
 typedef unsigned __int64 size_t;
 #else
 typedef unsigned int     size_t;
@@ -56,11 +56,6 @@ typedef unsigned int     size_t;
 #define _SIZE_T_DEFINED
 #endif
 
-
-#ifndef _WCHAR_T_DEFINED
-typedef unsigned short wchar_t;
-#define _WCHAR_T_DEFINED
-#endif
 
 #include "util.hpp"
 #include <corpriv.h>
@@ -396,8 +391,6 @@ GPTR_DECL(MethodTable,      g_pOverlappedDataClass);
 
 GPTR_DECL(MethodTable,      g_TypedReferenceMT);
 
-GPTR_DECL(MethodTable,      g_pByteArrayMT);
-
 #ifdef FEATURE_COMINTEROP
 GPTR_DECL(MethodTable,      g_pBaseCOMObject);
 GPTR_DECL(MethodTable,      g_pBaseRuntimeClass);
@@ -406,8 +399,6 @@ GPTR_DECL(MethodTable,      g_pBaseRuntimeClass);
 #ifdef FEATURE_ICASTABLE
 GPTR_DECL(MethodTable,      g_pICastableInterface);
 #endif // FEATURE_ICASTABLE
-
-GPTR_DECL(MethodDesc,       g_pExecuteBackoutCodeHelperMethod);
 
 GPTR_DECL(MethodDesc,       g_pObjectFinalizerMD);
 
@@ -484,7 +475,7 @@ extern int g_IGCTrimCommit;
 extern BOOL g_fEnableETW;
 
 // Returns a BOOL to indicate if the runtime is active or not
-BOOL IsRuntimeActive(); 
+BOOL IsRuntimeActive();
 
 //
 // Global state variable indicating if the EE is in its init phase.
@@ -635,7 +626,7 @@ inline bool CORDebuggerAttached()
 #else // DEBUGGING_SUPPORTED
 
 #define CORDisableJITOptimizations(dwDebuggerBits) FALSE
-         
+
 #endif// DEBUGGING_SUPPORTED
 
 #endif// defined(PROFILING_SUPPORTED) || defined(PROFILING_SUPPORTED_DATA)
@@ -767,8 +758,8 @@ inline BOOL NingenEnabled()
 #endif
 }
 
-// Passed to JitManager APIs to determine whether to avoid calling into the host. 
-// The profiling API stackwalking uses this to ensure to avoid re-entering the host 
+// Passed to JitManager APIs to determine whether to avoid calling into the host.
+// The profiling API stackwalking uses this to ensure to avoid re-entering the host
 // (particularly SQL) from a hijacked thread.
 enum HostCallPreference
 {

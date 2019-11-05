@@ -20,10 +20,8 @@ include_directories(BEFORE ${VM_DIR})
 
 add_definitions(-DPAL_STDCPP_COMPAT)
 
-add_compile_options(-fPIE)
-
-set(CREATEDUMP_SOURCES 
-    createdump.cpp 
+set(CREATEDUMP_SOURCES
+    createdump.cpp
     crashinfo.cpp
     threadinfo.cpp
     datatarget.cpp
@@ -43,7 +41,8 @@ add_dependencies(createdump pal_redefines_file)
 
 target_link_libraries(createdump
     createdump_lib
-    # share the PAL/corguids in the dac module
+    corguids
+    # share the PAL in the dac module
     mscordaccore
 )
 

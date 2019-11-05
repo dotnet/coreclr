@@ -3,12 +3,12 @@
 // See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // Util_NoDependencies.cpp
-// 
+//
 
-// 
-// This contains a bunch of C++ utility classes needed also for UtilCode without dependencies 
+//
+// This contains a bunch of C++ utility classes needed also for UtilCode without dependencies
 // (standalone version without CLR/clr.dll/mscoree.dll dependencies).
-// 
+//
 //*****************************************************************************
 
 #include "stdafx.h"
@@ -83,7 +83,7 @@ CHECK_SUPPORTED:
     if (!fSupportedPlatform)
     {
         // The current platform isn't supported. Display a message box to this effect and exit.
-        // Note that this should never happen since the .NET Fx setup should not install on 
+        // Note that this should never happen since the .NET Fx setup should not install on
         // non supported platforms (which is why the message box text isn't localized).
         UtilMessageBoxCatastrophicNonLocalized(NON_SUPPORTED_PLATFORM_MSGBOX_TITLE, NON_SUPPORTED_PLATFORM_MSGBOX_TEXT, MB_OK | MB_ICONERROR, TRUE);
         TerminateProcess(GetCurrentProcess(), NON_SUPPORTED_PLATFORM_TERMINATE_ERROR_CODE);
@@ -91,7 +91,7 @@ CHECK_SUPPORTED:
 #endif // FEATURE_PAL
 } // InitRunningOnVersionStatus
 
-#ifndef _WIN64
+#ifndef BIT64
 //------------------------------------------------------------------------------
 // Returns TRUE if we are running on a 64-bit OS in WoW, FALSE otherwise.
 BOOL RunningInWow64()
@@ -178,14 +178,14 @@ BOOL GetRegistryLongValue(HKEY    hKeyParent,
             return TRUE;
         }
     }
-    
+
     return FALSE;
 } // GetRegistryLongValue
 
 //----------------------------------------------------------------------------
-// 
-// GetCurrentModuleFileName - Retrieve the current module's filename 
-// 
+//
+// GetCurrentModuleFileName - Retrieve the current module's filename
+//
 // Arguments:
 //    pBuffer - output string buffer
 //
@@ -199,23 +199,23 @@ HRESULT GetCurrentModuleFileName(SString& pBuffer)
 {
     LIMITED_METHOD_CONTRACT;
 
-   
+
     DWORD ret = WszGetModuleFileName(NULL, pBuffer);
 
     if (ret == 0)
-    {   
+    {
         return E_UNEXPECTED;
     }
 
-    
+
     return S_OK;
 }
 
 //----------------------------------------------------------------------------
-// 
-// IsCurrentModuleFileNameInAutoExclusionList - decide if the current module's filename 
+//
+// IsCurrentModuleFileNameInAutoExclusionList - decide if the current module's filename
 //                                              is in the AutoExclusionList list
-// 
+//
 // Arguments:
 //    None
 //
@@ -224,7 +224,7 @@ HRESULT GetCurrentModuleFileName(SString& pBuffer)
 //
 // Note:
 //    This function cannot be used in out of process scenarios like DAC because it
-//    looks at current module's filename.   In OOP we want to use target process's 
+//    looks at current module's filename.   In OOP we want to use target process's
 //    module's filename.
 //
 //----------------------------------------------------------------------------
@@ -243,13 +243,13 @@ BOOL IsCurrentModuleFileNameInAutoExclusionList()
     DWORD ret = WszRegOpenKeyEx(HKEY_LOCAL_MACHINE, kUnmanagedDebuggerAutoExclusionListKey, 0, KEY_READ, &hKeyHolder);
 
     if (ret != ERROR_SUCCESS)
-    {   
+    {
         // there's not even an AutoExclusionList hive
         return FALSE;
     }
 
     PathString wszAppName;
-    
+
     // Get the appname to look up in the exclusion or inclusion list.
     if (GetCurrentModuleFileName(wszAppName) != S_OK)
     {
@@ -261,10 +261,10 @@ BOOL IsCurrentModuleFileNameInAutoExclusionList()
     DWORD value, valueType, valueSize = sizeof(value);
     ret = WszRegQueryValueEx(hKeyHolder, wszAppName, 0, &valueType, reinterpret_cast<BYTE*>(&value), &valueSize);
     if ((ret == ERROR_SUCCESS) && (valueType == REG_DWORD) && (value == 1))
-    {   
+    {
         return TRUE;
     }
-    
+
     return FALSE;
 } // IsCurrentModuleFileNameInAutoExclusionList
 
@@ -285,7 +285,7 @@ void GetDebuggerSettingInfo(SString &ssDebuggerString, BOOL *pfAuto)
         DWORD cchDebuggerString = MAX_LONGPATH;
         INDEBUG(DWORD cchOldDebuggerString = cchDebuggerString);
 
-        WCHAR * buf = ssDebuggerString.OpenUnicodeBuffer(cchDebuggerString);   
+        WCHAR * buf = ssDebuggerString.OpenUnicodeBuffer(cchDebuggerString);
         HRESULT hr = GetDebuggerSettingInfoWorker(buf, &cchDebuggerString, pfAuto);
         ssDebuggerString.CloseBuffer(cchDebuggerString);
 
@@ -294,7 +294,7 @@ void GetDebuggerSettingInfo(SString &ssDebuggerString, BOOL *pfAuto)
             _ASSERTE(cchDebuggerString > cchOldDebuggerString);
             INDEBUG(cchOldDebuggerString = cchDebuggerString);
 
-            buf = ssDebuggerString.OpenUnicodeBuffer(cchDebuggerString);   
+            buf = ssDebuggerString.OpenUnicodeBuffer(cchDebuggerString);
             hr = GetDebuggerSettingInfoWorker(buf, &cchDebuggerString, pfAuto);
             ssDebuggerString.CloseBuffer(cchDebuggerString);
         }
@@ -327,20 +327,20 @@ void GetDebuggerSettingInfo(SString &ssDebuggerString, BOOL *pfAuto)
 //---------------------------------------------------------------------------------------
 //
 // GetDebuggerSettingInfoWorker - retrieve information regarding what registered default debugger
-// 
+//
 // Arguments:
-//      * wszDebuggerString - [out] the string buffer to store the registered debugger launch 
+//      * wszDebuggerString - [out] the string buffer to store the registered debugger launch
 //                            string
 //      * pcchDebuggerString - [in, out] the size of string buffer in characters
-//      * pfAuto - [in] the flag to indicate whether the debugger neeeds to be launched 
+//      * pfAuto - [in] the flag to indicate whether the debugger neeeds to be launched
 //                 automatically
 //
 // Return Value:
 //    HRESULT indicating success or failure.
-//    
+//
 // Notes:
 //     * wszDebuggerString can be NULL.   When wszDebuggerString is NULL, pcchDebuggerString should
-//     * point to a DWORD of zero.   pcchDebuggerString cannot be NULL, and the DWORD pointed by 
+//     * point to a DWORD of zero.   pcchDebuggerString cannot be NULL, and the DWORD pointed by
 //     * pcchDebuggerString will store the used or required string buffer size in characters.
 HRESULT GetDebuggerSettingInfoWorker(__out_ecount_part_opt(*pcchDebuggerString, *pcchDebuggerString) LPWSTR wszDebuggerString, DWORD * pcchDebuggerString, BOOL * pfAuto)
 {
@@ -380,7 +380,7 @@ HRESULT GetDebuggerSettingInfoWorker(__out_ecount_part_opt(*pcchDebuggerString, 
 
     // Look in AeDebug key for "Debugger"; get the size of any value stored there.
     DWORD valueType, valueSize = 0;
-    ret = WszRegQueryValueEx(hKeyHolder, kUnmanagedDebuggerValue, 0, &valueType, 0, &valueSize);   
+    ret = WszRegQueryValueEx(hKeyHolder, kUnmanagedDebuggerValue, 0, &valueType, 0, &valueSize);
 
     _ASSERTE(pcchDebuggerString != NULL);
     if ((wszDebuggerString == NULL) || (*pcchDebuggerString < valueSize / sizeof(WCHAR)))
@@ -390,12 +390,12 @@ HRESULT GetDebuggerSettingInfoWorker(__out_ecount_part_opt(*pcchDebuggerString, 
     }
 
     *pcchDebuggerString = valueSize / sizeof(WCHAR);
-    
+
     // The size of an empty string with the null terminator is 2.
-    BOOL fIsDebuggerStringEmptry = valueSize <= 2 ? TRUE : FALSE; 
+    BOOL fIsDebuggerStringEmptry = valueSize <= 2 ? TRUE : FALSE;
 
     if ((ret != ERROR_SUCCESS) || (valueType != REG_SZ) || fIsDebuggerStringEmptry)
-    {   
+    {
         return S_OK;
     }
 
@@ -405,9 +405,9 @@ HRESULT GetDebuggerSettingInfoWorker(__out_ecount_part_opt(*pcchDebuggerString, 
     {
         *wszDebuggerString = W('\0');
         return S_OK;
-    }   
+    }
 
-    // The callers are in nothrow scope, so we must swallow exceptions and reset the output parameters to the 
+    // The callers are in nothrow scope, so we must swallow exceptions and reset the output parameters to the
     // default values if exceptions like OOM ever happen.
     EX_TRY
     {
@@ -436,13 +436,13 @@ HRESULT GetDebuggerSettingInfoWorker(__out_ecount_part_opt(*pcchDebuggerString, 
                 // Look in AeDebug key for "Auto"; get the size of any value stored there.
                 ret = WszRegQueryValueEx(hKeyHolder, kUnmanagedDebuggerAutoValue, 0, &valueType, 0, &valueSize);
                 if ((ret == ERROR_SUCCESS) && (valueType == REG_SZ) && (valueSize / sizeof(WCHAR) < MAX_LONGPATH))
-                {   
+                {
                     WCHAR wzAutoKey[MAX_LONGPATH];
                     valueSize = NumItems(wzAutoKey) * sizeof(WCHAR);
                     WszRegQueryValueEx(hKeyHolder, kUnmanagedDebuggerAutoValue, NULL, NULL, reinterpret_cast< LPBYTE >(wzAutoKey), &valueSize);
 
                     // The OS's behavior is to consider Auto to be FALSE unless the first character is set
-                    // to 1. They don't take into consideration the following characters. Also if the value 
+                    // to 1. They don't take into consideration the following characters. Also if the value
                     // isn't present they assume an Auto value of FALSE.
                     if ((wzAutoKey[0] == W('1')) && !IsCurrentModuleFileNameInAutoExclusionList())
                     {
@@ -475,11 +475,11 @@ HRESULT GetDebuggerSettingInfoWorker(__out_ecount_part_opt(*pcchDebuggerString, 
 #endif //!defined(FEATURE_UTILCODE_NO_DEPENDENCIES) || defined(_DEBUG)
 
 //*****************************************************************************
-// Convert hex value into a wide string of hex digits 
+// Convert hex value into a wide string of hex digits
 //*****************************************************************************
 HRESULT GetStr(
-                                 DWORD  hHexNum, 
-    __out_ecount((cbHexNum * 2)) LPWSTR szHexNum, 
+                                 DWORD  hHexNum,
+    __out_ecount((cbHexNum * 2)) LPWSTR szHexNum,
                                  DWORD  cbHexNum)
 {
     CONTRACTL
@@ -487,7 +487,7 @@ HRESULT GetStr(
         NOTHROW;
     }
     CONTRACTL_END;
-    
+
     _ASSERTE (szHexNum);
     cbHexNum *= 2; // each nibble is a char
     while (cbHexNum != 0)
@@ -510,7 +510,7 @@ HRESULT GetStr(
 //*****************************************************************************
 // Convert a GUID into a pointer to a Wide char string
 //*****************************************************************************
-int 
+int
 GuidToLPWSTR(
                           GUID   Guid,      // The GUID to convert.
     __out_ecount(cchGuid) LPWSTR szGuid,    // String into which the GUID is stored
@@ -521,10 +521,10 @@ GuidToLPWSTR(
         NOTHROW;
     }
     CONTRACTL_END;
-    
+
     int         i;
-    
-    // successive fields break the GUID into the form DWORD-WORD-WORD-WORD-WORD.DWORD 
+
+    // successive fields break the GUID into the form DWORD-WORD-WORD-WORD-WORD.DWORD
     // covering the 128-bit GUID. The string includes enclosing braces, which are an OLE convention.
 
     if (cchGuid < 39) // 38 chars + 1 null terminating.
@@ -539,19 +539,19 @@ GuidToLPWSTR(
     if (FAILED (GetStr(Guid.Data1, szGuid+1 , 4))) return 0;
 
     szGuid[9]  = W('-');
-    
+
     // {xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}
     //           ^^^^
     if (FAILED (GetStr(Guid.Data2, szGuid+10, 2))) return 0;
 
     szGuid[14] = W('-');
-    
+
     // {xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}
     //                ^^^^
     if (FAILED (GetStr(Guid.Data3, szGuid+15, 2))) return 0;
 
     szGuid[19] = W('-');
-    
+
     // Get the last two fields (which are byte arrays).
     // {xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}
     //                     ^^^^
@@ -560,7 +560,7 @@ GuidToLPWSTR(
             return (0);
 
     szGuid[24] = W('-');
-    
+
     // {xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}
     //                          ^^^^^^^^^^^^
     for (i=0; i < 6; ++i)
@@ -579,8 +579,8 @@ GuidToLPWSTR(
 // Convert wide string of (at most eight) hex digits into a hex value
 //*****************************************************************************
 HRESULT GetHex(
-                                DWORD * phHexNum, 
-    __in_ecount((cbHexNum * 2)) LPCWSTR szHexNum, 
+                                DWORD * phHexNum,
+    __in_ecount((cbHexNum * 2)) LPCWSTR szHexNum,
                                 DWORD   cbHexNum)
 {
     CONTRACTL
@@ -588,7 +588,7 @@ HRESULT GetHex(
         NOTHROW;
     }
     CONTRACTL_END;
-    
+
     _ASSERTE (szHexNum && phHexNum);
     _ASSERTE(cbHexNum == 1 || cbHexNum == 2 || cbHexNum == 4);
 
@@ -622,7 +622,7 @@ HRESULT GetHex(
 //*****************************************************************************
 // Parse a Wide char string into a GUID
 //*****************************************************************************
-BOOL 
+BOOL
 LPWSTRToGuid(
                          GUID  * Guid,      // [OUT] The GUID to fill in
     __in_ecount(cchGuid) LPCWSTR szGuid,    // [IN] String to parse
@@ -633,11 +633,11 @@ LPWSTRToGuid(
         NOTHROW;
     }
     CONTRACTL_END;
-    
+
     int         i;
     DWORD dw;
 
-    // successive fields break the GUID into the form DWORD-WORD-WORD-WORD-WORD.DWORD 
+    // successive fields break the GUID into the form DWORD-WORD-WORD-WORD-WORD.DWORD
     // covering the 128-bit GUID. The string includes enclosing braces, which are an OLE convention.
 
     if (cchGuid < 38) // 38 chars + 1 null terminating.
@@ -653,21 +653,21 @@ LPWSTRToGuid(
     Guid->Data1 = dw;
 
     if (szGuid[9] != W('-')) return FALSE;
-    
+
     // {xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}
     //           ^^^^
     if (FAILED (GetHex(&dw, szGuid+10, 2))) return FALSE;
     Guid->Data2 = (WORD)dw;
 
     if (szGuid[14] != W('-')) return FALSE;
-    
+
     // {xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}
     //                ^^^^
     if (FAILED (GetHex(&dw, szGuid+15, 2))) return FALSE;
     Guid->Data3 = (WORD)dw;
 
     if (szGuid[19] != W('-')) return FALSE;
-    
+
     // Get the last two fields (which are byte arrays).
     // {xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}
     //                     ^^^^
@@ -678,7 +678,7 @@ LPWSTRToGuid(
     }
 
     if (szGuid[24] != W('-')) return FALSE;
-    
+
     // {xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}
     //                          ^^^^^^^^^^^^
     for (i=0; i < 6; ++i)
@@ -704,7 +704,7 @@ void _cdecl DbgWriteEx(LPCTSTR szFmt, ...)
         NOTHROW;
     }
     CONTRACTL_END;
-    
+
     WCHAR rcBuff[1024];
     va_list marker;
 
@@ -723,7 +723,7 @@ void ConfigDWORD::init(const CLRConfig::ConfigDWORDInfo & info)
         NOTHROW;
     }
     CONTRACTL_END;
-    
+
     // make sure that the memory was zero initialized
     _ASSERTE(m_inited == 0 || m_inited == 1);
 
@@ -732,17 +732,17 @@ void ConfigDWORD::init(const CLRConfig::ConfigDWORDInfo & info)
 }
 
 //---------------------------------------------------------------------------------------
-// 
+//
 // Takes a const input string, and returns the start & size of the substring that has all
 // leading and trailing whitespace removed. The original string is not modified.
-// 
+//
 // Arguments:
 //      * pwsz - [in] points to const string we want to trim; [out] points to beginning
 //          of trimmed substring of input string
 //      * pcch - [in] Points to length in chars of input string (not counting null
 //          terminator); [out] Points to length in chars of trimmed substring (not
 //          counting null terminator)
-// 
+//
 void TrimWhiteSpace(__deref_inout_ecount(*pcch)  LPCWSTR *pwsz, __inout LPDWORD pcch)
 {
     LIMITED_METHOD_DAC_CONTRACT;
@@ -776,15 +776,15 @@ BOOL ThreadWillCreateGuardPage(SIZE_T sizeReservedStack, SIZE_T sizeCommitedStac
     // We need to make sure there will be a reserved but never committed page at the end
     // of the stack. We do here the check NT does when it creates the user stack to decide
     // if there is going to be a guard page. However, that is not enough, as if we only
-    // have a guard page, we have nothing to protect us from going pass it. Well, in 
-    // fact, there is something that we will protect you, there are certain places 
-    // (RTLUnwind) in NT that will check that the current frame is within stack limits. 
+    // have a guard page, we have nothing to protect us from going pass it. Well, in
+    // fact, there is something that we will protect you, there are certain places
+    // (RTLUnwind) in NT that will check that the current frame is within stack limits.
     // If we are not it will bomb out. We will also bomb out if we touch the hard guard
     // page.
-    // 
+    //
     // For situation B, teb->StackLimit is at the beggining of the user stack (ie
     // before updating StackLimit it checks if it was able to create a new guard page,
-    // in this case, it can't), which makes the check fail in RtlUnwind. 
+    // in this case, it can't), which makes the check fail in RtlUnwind.
     //
     //    Situation A  [ Hard guard page | Guard page | user stack]
     //
@@ -797,197 +797,19 @@ BOOL ThreadWillCreateGuardPage(SIZE_T sizeReservedStack, SIZE_T sizeCommitedStac
     //
     // We really want to be in situation A all the time, so we add one more page
     // to our requirements (we require guard page + hard guard)
-        
+
     SYSTEM_INFO sysInfo;
-    ::GetSystemInfo(&sysInfo);    
+    ::GetSystemInfo(&sysInfo);
 
     // OS rounds up sizes the following way to decide if it marks a guard page
     sizeReservedStack = ALIGN(sizeReservedStack, ((size_t)sysInfo.dwAllocationGranularity));   // Allocation granularity
     sizeCommitedStack = ALIGN(sizeCommitedStack, ((size_t)sysInfo.dwPageSize));  // Page Size
- 
+
     // OS wont create guard page, we can't execute managed code safely.
     // We also have to make sure we have a 'hard' guard, thus we add another
     // page to the memory we would need comitted.
-    // That is, the following code will check if sizeReservedStack is at least 2 pages 
+    // That is, the following code will check if sizeReservedStack is at least 2 pages
     // more than sizeCommitedStack.
-    return (sizeReservedStack > sizeCommitedStack + ((size_t)sysInfo.dwPageSize));     
+    return (sizeReservedStack > sizeCommitedStack + ((size_t)sysInfo.dwPageSize));
 } // ThreadWillCreateGuardPage
 
-//The following characters have special sorting weights when combined with other
-//characters, which means we can't use our fast sorting algorithm on them.
-//Most of these are pretty rare control characters, but apostrophe and hyphen
-//are fairly common and force us down the slower path.  This is because we want
-//"word sorting", which means that "coop" and "co-op" sort together, instead of
-//separately as they would if we were doing a string sort.
-//      0x0001   6    3    2   2   0  ;Start Of Heading
-//      0x0002   6    4    2   2   0  ;Start Of Text
-//      0x0003   6    5    2   2   0  ;End Of Text
-//      0x0004   6    6    2   2   0  ;End Of Transmission
-//      0x0005   6    7    2   2   0  ;Enquiry
-//      0x0006   6    8    2   2   0  ;Acknowledge
-//      0x0007   6    9    2   2   0  ;Bell
-//      0x0008   6   10    2   2   0  ;Backspace
-
-//      0x000e   6   11    2   2   0  ;Shift Out
-//      0x000f   6   12    2   2   0  ;Shift In
-//      0x0010   6   13    2   2   0  ;Data Link Escape
-//      0x0011   6   14    2   2   0  ;Device Control One
-//      0x0012   6   15    2   2   0  ;Device Control Two
-//      0x0013   6   16    2   2   0  ;Device Control Three
-//      0x0014   6   17    2   2   0  ;Device Control Four
-//      0x0015   6   18    2   2   0  ;Negative Acknowledge
-//      0x0016   6   19    2   2   0  ;Synchronous Idle
-//      0x0017   6   20    2   2   0  ;End Of Transmission Block
-//      0x0018   6   21    2   2   0  ;Cancel
-//      0x0019   6   22    2   2   0  ;End Of Medium
-//      0x001a   6   23    2   2   0  ;Substitute
-//      0x001b   6   24    2   2   0  ;Escape
-//      0x001c   6   25    2   2   0  ;File Separator
-//      0x001d   6   26    2   2   0  ;Group Separator
-//      0x001e   6   27    2   2   0  ;Record Separator
-//      0x001f   6   28    2   2   0  ;Unit Separator
-
-//      0x0027   6  128    2   2   0  ;Apostrophe-Quote
-//      0x002d   6  130    2   2   0  ;Hyphen-Minus
-
-//      0x007f   6   29    2   2   0  ;Delete
-
-const BYTE 
-HighCharHelper::HighCharTable[]= {
-    TRUE,     /* 0x0, 0x0 */
-    TRUE, /* 0x1, .*/
-    TRUE, /* 0x2, .*/
-    TRUE, /* 0x3, .*/
-    TRUE, /* 0x4, .*/
-    TRUE, /* 0x5, .*/
-    TRUE, /* 0x6, .*/
-    TRUE, /* 0x7, .*/
-    TRUE, /* 0x8, .*/
-    FALSE, /* 0x9,   */
-#ifdef PLATFORM_UNIX
-    TRUE, /* 0xA,  */
-#else    
-    FALSE, /* 0xA,  */
-#endif // PLATFORM_UNIX
-    FALSE, /* 0xB, .*/
-    FALSE, /* 0xC, .*/
-#ifdef PLATFORM_UNIX
-    TRUE, /* 0xD,  */
-#else    
-    FALSE, /* 0xD,  */
-#endif // PLATFORM_UNIX
-    TRUE, /* 0xE, .*/
-    TRUE, /* 0xF, .*/
-    TRUE, /* 0x10, .*/
-    TRUE, /* 0x11, .*/
-    TRUE, /* 0x12, .*/
-    TRUE, /* 0x13, .*/
-    TRUE, /* 0x14, .*/
-    TRUE, /* 0x15, .*/
-    TRUE, /* 0x16, .*/
-    TRUE, /* 0x17, .*/
-    TRUE, /* 0x18, .*/
-    TRUE, /* 0x19, .*/
-    TRUE, /* 0x1A, */
-    TRUE, /* 0x1B, .*/
-    TRUE, /* 0x1C, .*/
-    TRUE, /* 0x1D, .*/
-    TRUE, /* 0x1E, .*/
-    TRUE, /* 0x1F, .*/
-    FALSE, /*0x20,  */
-    FALSE, /*0x21, !*/
-    FALSE, /*0x22, "*/
-    FALSE, /*0x23,  #*/
-    FALSE, /*0x24,  $*/
-    FALSE, /*0x25,  %*/
-    FALSE, /*0x26,  &*/
-    TRUE,  /*0x27, '*/
-    FALSE, /*0x28, (*/
-    FALSE, /*0x29, )*/
-    FALSE, /*0x2A **/
-    FALSE, /*0x2B, +*/
-    FALSE, /*0x2C, ,*/
-    TRUE,  /*0x2D, -*/
-    FALSE, /*0x2E, .*/
-    FALSE, /*0x2F, /*/
-    FALSE, /*0x30, 0*/
-    FALSE, /*0x31, 1*/
-    FALSE, /*0x32, 2*/
-    FALSE, /*0x33, 3*/
-    FALSE, /*0x34, 4*/
-    FALSE, /*0x35, 5*/
-    FALSE, /*0x36, 6*/
-    FALSE, /*0x37, 7*/
-    FALSE, /*0x38, 8*/
-    FALSE, /*0x39, 9*/
-    FALSE, /*0x3A, :*/
-    FALSE, /*0x3B, ;*/
-    FALSE, /*0x3C, <*/
-    FALSE, /*0x3D, =*/
-    FALSE, /*0x3E, >*/
-    FALSE, /*0x3F, ?*/
-    FALSE, /*0x40, @*/
-    FALSE, /*0x41, A*/
-    FALSE, /*0x42, B*/
-    FALSE, /*0x43, C*/
-    FALSE, /*0x44, D*/
-    FALSE, /*0x45, E*/
-    FALSE, /*0x46, F*/
-    FALSE, /*0x47, G*/
-    FALSE, /*0x48, H*/
-    FALSE, /*0x49, I*/
-    FALSE, /*0x4A, J*/
-    FALSE, /*0x4B, K*/
-    FALSE, /*0x4C, L*/
-    FALSE, /*0x4D, M*/
-    FALSE, /*0x4E, N*/
-    FALSE, /*0x4F, O*/
-    FALSE, /*0x50, P*/
-    FALSE, /*0x51, Q*/
-    FALSE, /*0x52, R*/
-    FALSE, /*0x53, S*/
-    FALSE, /*0x54, T*/
-    FALSE, /*0x55, U*/
-    FALSE, /*0x56, V*/
-    FALSE, /*0x57, W*/
-    FALSE, /*0x58, X*/
-    FALSE, /*0x59, Y*/
-    FALSE, /*0x5A, Z*/
-    FALSE, /*0x5B, [*/
-    FALSE, /*0x5C, \*/
-    FALSE, /*0x5D, ]*/
-    FALSE, /*0x5E, ^*/
-    FALSE, /*0x5F, _*/
-    FALSE, /*0x60, `*/
-    FALSE, /*0x61, a*/
-    FALSE, /*0x62, b*/
-    FALSE, /*0x63, c*/
-    FALSE, /*0x64, d*/
-    FALSE, /*0x65, e*/
-    FALSE, /*0x66, f*/
-    FALSE, /*0x67, g*/
-    FALSE, /*0x68, h*/
-    FALSE, /*0x69, i*/
-    FALSE, /*0x6A, j*/
-    FALSE, /*0x6B, k*/
-    FALSE, /*0x6C, l*/
-    FALSE, /*0x6D, m*/
-    FALSE, /*0x6E, n*/
-    FALSE, /*0x6F, o*/
-    FALSE, /*0x70, p*/
-    FALSE, /*0x71, q*/
-    FALSE, /*0x72, r*/
-    FALSE, /*0x73, s*/
-    FALSE, /*0x74, t*/
-    FALSE, /*0x75, u*/
-    FALSE, /*0x76, v*/
-    FALSE, /*0x77, w*/
-    FALSE, /*0x78, x*/
-    FALSE, /*0x79, y*/
-    FALSE, /*0x7A, z*/
-    FALSE, /*0x7B, {*/
-    FALSE, /*0x7C, |*/
-    FALSE, /*0x7D, }*/
-    FALSE, /*0x7E, ~*/
-    TRUE, /*0x7F, */
-};  // HighCharHelper::HighCharTable

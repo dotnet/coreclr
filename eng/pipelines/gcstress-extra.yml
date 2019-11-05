@@ -11,13 +11,20 @@ schedules:
   always: true
 
 jobs:
-- template: /eng/platform-matrix.yml
+#
+# Checkout repository
+#
+- template: ../checkout-job.yml
+
+- template: ../platform-matrix.yml
   parameters:
     jobTemplate: build-job.yml
     buildConfig: checked
     platformGroup: gcstress
+    jobParameters:
+      testGroup: gcstress-extra
 
-- template: /eng/platform-matrix.yml
+- template: ../platform-matrix.yml
   parameters:
     jobTemplate: test-job.yml
     buildConfig: checked

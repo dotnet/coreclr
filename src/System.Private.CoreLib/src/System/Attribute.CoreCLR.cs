@@ -32,7 +32,7 @@ namespace System
             List<Attribute> attributeList = new List<Attribute>();
             CopyToArrayList(attributeList, attributes, types);
 
-            //if this is an index we need to get the parameter types to help disambiguate
+            // if this is an index we need to get the parameter types to help disambiguate
             Type[] indexParamTypes = GetIndexParameterTypes(element);
 
 
@@ -61,7 +61,7 @@ namespace System
                 if (!usage.Inherited)
                     return false;
 
-                //if this is an index we need to get the parameter types to help disambiguate
+                // if this is an index we need to get the parameter types to help disambiguate
                 Type[] indexParamTypes = GetIndexParameterTypes(element);
 
                 PropertyInfo? baseProp = GetParentDefinition(element, indexParamTypes);
@@ -84,10 +84,7 @@ namespace System
 
             // for the current property get the base class of the getter and the setter, they might be different
             // note that this only works for RuntimeMethodInfo
-            MethodInfo? propAccessor = property.GetGetMethod(true);
-
-            if (propAccessor == null)
-                propAccessor = property.GetSetMethod(true);
+            MethodInfo? propAccessor = property.GetGetMethod(true) ?? property.GetSetMethod(true);
 
             RuntimeMethodInfo? rtPropAccessor = propAccessor as RuntimeMethodInfo;
 
@@ -102,9 +99,9 @@ namespace System
                     return rtPropAccessor.DeclaringType!.GetProperty(
                         property.Name,
                         BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly,
-                        null, //will use default binder
+                        null, // will use default binder
                         property.PropertyType,
-                        propertyParameters, //used for index properties
+                        propertyParameters, // used for index properties
                         null);
                 }
             }
@@ -229,7 +226,7 @@ namespace System
             Debug.Assert(param != null);
 
             // For ParameterInfo's we need to make sure that we chain through all the MethodInfo's in the inheritance chain that
-            // have this ParameterInfo defined. .We pick up all the CustomAttributes for the starting ParameterInfo. We need to pick up only attributes 
+            // have this ParameterInfo defined. .We pick up all the CustomAttributes for the starting ParameterInfo. We need to pick up only attributes
             // that are marked inherited from the remainder of the MethodInfo's in the inheritance chain.
             // For MethodInfo's on an interface we do not do an inheritance walk so the default ParameterInfo attributes are returned.
             // For MethodInfo's on a class we walk up the inheritance chain but do not look at the MethodInfo's on the interfaces that the
@@ -238,8 +235,7 @@ namespace System
             List<Type> disAllowMultiple = new List<Type>();
             object?[] objAttr;
 
-            if (type == null)
-                type = typeof(Attribute);
+            type ??= typeof(Attribute);
 
             objAttr = param.GetCustomAttributes(type, false);
 
@@ -247,7 +243,7 @@ namespace System
             {
                 Type objType = objAttr[i]!.GetType();
                 AttributeUsageAttribute attribUsage = InternalGetAttributeUsage(objType);
-                if (attribUsage.AllowMultiple == false)
+                if (!attribUsage.AllowMultiple)
                     disAllowMultiple.Add(objType);
             }
 
@@ -276,9 +272,9 @@ namespace System
                     Type objType = objAttr[i]!.GetType();
                     AttributeUsageAttribute attribUsage = InternalGetAttributeUsage(objType);
 
-                    if ((attribUsage.Inherited) && (disAllowMultiple.Contains(objType) == false))
+                    if ((attribUsage.Inherited) && (!disAllowMultiple.Contains(objType)))
                     {
-                        if (attribUsage.AllowMultiple == false)
+                        if (!attribUsage.AllowMultiple)
                             disAllowMultiple.Add(objType);
                         count++;
                     }
@@ -294,14 +290,14 @@ namespace System
                 {
                     if (objAttr[i] != null)
                     {
-                        attributes[count] = (Attribute)objAttr[i]!; // TODO-NULLABLE Indexer nullability tracked (https://github.com/dotnet/roslyn/issues/34644)
+                        attributes[count] = (Attribute)objAttr[i]!; // TODO-NULLABLE: Indexer nullability tracked (https://github.com/dotnet/roslyn/issues/34644)
                         count++;
                     }
                 }
 
                 Attribute[] temp = ret;
                 ret = CreateAttributeArrayHelper(type, temp.Length + count);
-                Array.Copy(temp, 0, ret, 0, temp.Length);
+                Array.Copy(temp, ret, temp.Length);
 
                 int offset = temp.Length;
 
@@ -320,7 +316,7 @@ namespace System
             Debug.Assert(type != null);
 
             // For ParameterInfo's we need to make sure that we chain through all the MethodInfo's in the inheritance chain.
-            // We pick up all the CustomAttributes for the starting ParameterInfo. We need to pick up only attributes 
+            // We pick up all the CustomAttributes for the starting ParameterInfo. We need to pick up only attributes
             // that are marked inherited from the remainder of the ParameterInfo's in the inheritance chain.
             // For MethodInfo's on an interface we do not do an inheritance walk. For ParameterInfo's on a
             // Class we walk up the inheritance chain but do not look at the MethodInfo's on the interfaces that the class inherits from.
@@ -404,7 +400,7 @@ namespace System
                 }
                 else if (usage.Inherited && usage.AllowMultiple)
                 {
-                    // we saw this type already add it only if it is inheritable and it does allow multiple 
+                    // we saw this type already add it only if it is inheritable and it does allow multiple
                     attributeList.Add(attributes[i]);
                 }
             }
@@ -452,17 +448,12 @@ namespace System
             if (!type.IsSubclassOf(typeof(Attribute)) && type != typeof(Attribute))
                 throw new ArgumentException(SR.Argument_MustHaveAttributeBaseClass);
 
-            switch (element.MemberType)
+            return element.MemberType switch
             {
-                case MemberTypes.Property:
-                    return InternalGetCustomAttributes((PropertyInfo)element, type, inherit);
-
-                case MemberTypes.Event:
-                    return InternalGetCustomAttributes((EventInfo)element, type, inherit);
-
-                default:
-                    return (element.GetCustomAttributes(type, inherit) as Attribute[])!;
-            }
+                MemberTypes.Property => InternalGetCustomAttributes((PropertyInfo)element, type, inherit),
+                MemberTypes.Event => InternalGetCustomAttributes((EventInfo)element, type, inherit),
+                _ => (element.GetCustomAttributes(type, inherit) as Attribute[])!,
+            };
         }
 
         public static Attribute[] GetCustomAttributes(MemberInfo element)
@@ -475,17 +466,12 @@ namespace System
             if (element == null)
                 throw new ArgumentNullException(nameof(element));
 
-            switch (element.MemberType)
+            return element.MemberType switch
             {
-                case MemberTypes.Property:
-                    return InternalGetCustomAttributes((PropertyInfo)element, typeof(Attribute), inherit);
-
-                case MemberTypes.Event:
-                    return InternalGetCustomAttributes((EventInfo)element, typeof(Attribute), inherit);
-
-                default:
-                    return (element.GetCustomAttributes(typeof(Attribute), inherit) as Attribute[])!;
-            }
+                MemberTypes.Property => InternalGetCustomAttributes((PropertyInfo)element, typeof(Attribute), inherit),
+                MemberTypes.Event => InternalGetCustomAttributes((EventInfo)element, typeof(Attribute), inherit),
+                _ => (element.GetCustomAttributes(typeof(Attribute), inherit) as Attribute[])!,
+            };
         }
 
         public static bool IsDefined(MemberInfo element, Type attributeType)
@@ -505,17 +491,12 @@ namespace System
             if (!attributeType.IsSubclassOf(typeof(Attribute)) && attributeType != typeof(Attribute))
                 throw new ArgumentException(SR.Argument_MustHaveAttributeBaseClass);
 
-            switch (element.MemberType)
+            return element.MemberType switch
             {
-                case MemberTypes.Property:
-                    return InternalIsDefined((PropertyInfo)element, attributeType, inherit);
-
-                case MemberTypes.Event:
-                    return InternalIsDefined((EventInfo)element, attributeType, inherit);
-
-                default:
-                    return element.IsDefined(attributeType, inherit);
-            }
+                MemberTypes.Property => InternalIsDefined((PropertyInfo)element, attributeType, inherit),
+                MemberTypes.Event => InternalIsDefined((EventInfo)element, attributeType, inherit),
+                _ => element.IsDefined(attributeType, inherit),
+            };
         }
 
         public static Attribute? GetCustomAttribute(MemberInfo element, Type attributeType)
@@ -566,7 +547,7 @@ namespace System
 
             MemberInfo member = element.Member;
             if (member.MemberType == MemberTypes.Method && inherit)
-                return InternalParamGetCustomAttributes(element, attributeType, inherit) as Attribute[];
+                return InternalParamGetCustomAttributes(element, attributeType, inherit);
 
             return (element.GetCustomAttributes(attributeType, inherit) as Attribute[])!;
         }
@@ -582,7 +563,7 @@ namespace System
 
             MemberInfo member = element.Member;
             if (member.MemberType == MemberTypes.Method && inherit)
-                return InternalParamGetCustomAttributes(element, null, inherit) as Attribute[];
+                return InternalParamGetCustomAttributes(element, null, inherit);
 
             return (element.GetCustomAttributes(typeof(Attribute), inherit) as Attribute[])!;
         }
@@ -608,7 +589,7 @@ namespace System
 
             switch (member.MemberType)
             {
-                case MemberTypes.Method: // We need to climb up the member hierarchy            
+                case MemberTypes.Method: // We need to climb up the member hierarchy
                     return InternalParamIsDefined(element, attributeType, inherit);
 
                 case MemberTypes.Constructor:

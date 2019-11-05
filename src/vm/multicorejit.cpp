@@ -29,19 +29,16 @@
 #include "multicorejit.h"
 #include "multicorejitimpl.h"
 
-const wchar_t * AppxProfile    = W("Application.Profile");
 
-
-
-void MulticoreJitFireEtw(const wchar_t * pAction, const wchar_t * pTarget, int p1, int p2, int p3)
+void MulticoreJitFireEtw(const WCHAR * pAction, const WCHAR * pTarget, int p1, int p2, int p3)
 {
     LIMITED_METHOD_CONTRACT
-    
+
     FireEtwMulticoreJit(GetClrInstanceId(), pAction, pTarget, p1, p2, p3);
 }
 
 
-void MulticoreJitFireEtwA(const wchar_t * pAction, const char * pTarget, int p1, int p2, int p3)
+void MulticoreJitFireEtwA(const WCHAR * pAction, const char * pTarget, int p1, int p2, int p3)
 {
     CONTRACTL {
         NOTHROW;
@@ -60,7 +57,7 @@ void MulticoreJitFireEtwA(const wchar_t * pAction, const char * pTarget, int p1,
             FireEtwMulticoreJit(GetClrInstanceId(), pAction, wTarget.GetUnicode(), p1, p2, p3);
         }
     }
-    EX_CATCH 
+    EX_CATCH
     { }
     EX_END_CATCH(SwallowAllExceptions);
 #endif // FEATURE_EVENT_TRACE
@@ -146,7 +143,7 @@ HRESULT MulticoreJitRecorder::WriteOutput()
         CAN_TAKE_LOCK;
     }
     CONTRACTL_END;
-    
+
     HRESULT hr = E_FAIL;
 
     // Go into preemptive mode for file operations
@@ -174,7 +171,7 @@ HRESULT WriteData(IStream * pStream, const void * pData, unsigned len)
         MODE_PREEMPTIVE;
     }
     CONTRACTL_END
-    
+
     ULONG cbWritten;
 
     HRESULT hr = pStream->Write(pData, len, & cbWritten);
@@ -197,7 +194,7 @@ HRESULT WriteString(const void * pString, unsigned len, IStream * pStream)
         MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
-    
+
     ULONG cbWritten = 0;
 
     HRESULT hr;
@@ -207,15 +204,15 @@ HRESULT WriteString(const void * pString, unsigned len, IStream * pStream)
     if (SUCCEEDED(hr))
     {
         len = RoundUp(len) - len;
-        
+
         if (len != 0)
         {
             cbWritten = 0;
-            
+
             hr = pStream->Write(& cbWritten, len, & cbWritten);
         }
     }
-    
+
     return hr;
 }
 
@@ -295,11 +292,11 @@ bool ModuleVersion::GetModuleVersion(Module * pModule)
 ModuleRecord::ModuleRecord(unsigned lenName, unsigned lenAsmName)
 {
     LIMITED_METHOD_CONTRACT;
-    
+
     memset(this, 0, sizeof(ModuleRecord));
 
     recordID = Pack8_24(MULTICOREJIT_MODULE_RECORD_ID, sizeof(ModuleRecord));
-    
+
     wLoadLevel = 0;
     // Extra data
     lenModuleName = (unsigned short) lenName;
@@ -311,9 +308,9 @@ ModuleRecord::ModuleRecord(unsigned lenName, unsigned lenAsmName)
 bool RecorderModuleInfo::SetModule(Module * pMod)
 {
     STANDARD_VM_CONTRACT;
-    
+
     pModule   = pMod;
-    
+
     LPCUTF8 pModuleName = pMod->GetSimpleName();
     unsigned lenModuleName = (unsigned) strlen(pModuleName);
     simpleName.Set((const BYTE *) pModuleName, lenModuleName); // SBuffer::Set copies over name
@@ -348,7 +345,7 @@ HRESULT MulticoreJitRecorder::WriteModuleRecord(IStream * pStream, const Recorde
         CAN_TAKE_LOCK;
     }
     CONTRACTL_END;
-    
+
     HRESULT hr;
 
     const void * pModuleName = module.simpleName;
@@ -358,7 +355,7 @@ HRESULT MulticoreJitRecorder::WriteModuleRecord(IStream * pStream, const Recorde
     unsigned lenAssemblyName = module.assemblyName.GetSize();
 
     ModuleRecord mod(lenModuleName, lenAssemblyName);
-    
+
     mod.version        = module.moduleVersion;
     mod.jitMethodCount = module.methodCount;
     mod.wLoadLevel     = (unsigned short) module.loadLevel;
@@ -390,7 +387,7 @@ HRESULT MulticoreJitRecorder::WriteOutput(IStream * pStream)
         CAN_TAKE_LOCK;
     }
     CONTRACTL_END;
-    
+
     HRESULT hr = S_OK;
 
     {
@@ -405,7 +402,7 @@ HRESULT MulticoreJitRecorder::WriteOutput(IStream * pStream)
         header.moduleDepCount = m_ModuleDepCount;
 
         MulticoreJitCodeStorage & curStorage =  m_pDomain->GetMulticoreJitManager().GetMulticoreJitCodeStorage();
-        
+
         // Stats about played profile, 14 short, 3 long = 40 bytes
         header.shortCounters[ 0] = m_stats.m_nTotalMethod;
         header.shortCounters[ 1] = m_stats.m_nHasNativeCode;
@@ -422,16 +419,16 @@ HRESULT MulticoreJitRecorder::WriteOutput(IStream * pStream)
         _ASSERTE(HEADER_W_COUNTER >= 14);
 
         header.longCounters[0] = m_stats.m_hr;
-        
+
         _ASSERTE(HEADER_D_COUNTER >= 3);
-        
+
         _ASSERTE((sizeof(header) % sizeof(unsigned)) == 0);
 
         hr = WriteData(pStream, & header, sizeof(header));
     }
 
     DWORD dwData = 0;
-    
+
     for (unsigned i = 0; SUCCEEDED(hr) && (i < m_ModuleCount); i ++)
     {
         hr = WriteModuleRecord(pStream, m_ModuleList[i]);
@@ -453,7 +450,7 @@ HRESULT MulticoreJitRecorder::WriteOutput(IStream * pStream)
             }
 
             dwData = Pack8_24(MULTICOREJIT_JITINF_RECORD_ID,  count * sizeof(DWORD) + sizeof(DWORD));
-        
+
             hr = WriteData(pStream, & dwData, sizeof(dwData));
 
             if (SUCCEEDED(hr))
@@ -477,7 +474,7 @@ HRESULT MulticoreJitRecorder::WriteOutput(IStream * pStream)
 unsigned MulticoreJitRecorder::FindModule(Module * pModule)
 {
     LIMITED_METHOD_CONTRACT;
-    
+
     for (unsigned i = 0 ; i < m_ModuleCount; i ++)
     {
         if (m_ModuleList[i].pModule == pModule)
@@ -495,7 +492,7 @@ unsigned MulticoreJitRecorder::FindModule(Module * pModule)
 unsigned MulticoreJitRecorder::GetModuleIndex(Module * pModule)
 {
     STANDARD_VM_CONTRACT;
-    
+
     unsigned slot = FindModule(pModule);
 
     if ((slot == UINT_MAX) && (m_ModuleCount < MAX_MODULES))
@@ -515,18 +512,18 @@ unsigned MulticoreJitRecorder::GetModuleIndex(Module * pModule)
 void MulticoreJitRecorder::RecordJitInfo(unsigned module, unsigned method)
 {
     LIMITED_METHOD_CONTRACT;
-    
+
     if (m_JitInfoCount < (LONG) MAX_METHOD_ARRAY)
     {
         unsigned info1 = Pack8_24(module, method & 0xFFFFFF);
 
         // Due to incremental loading, there are quite a few RecordModuleLoad coming with increasing load level, merge
 
-        // Previous record and current record are both MODULE_DEPENDENCY 
+        // Previous record and current record are both MODULE_DEPENDENCY
         if ((m_JitInfoCount > 0) && (info1 & MODULE_DEPENDENCY))
         {
             unsigned info0 = m_JitInfoArray[m_JitInfoCount - 1];
-            
+
             if ((info0 & 0xFFFF00FF) == (info1 & 0xFFFF00FF)) // to/from modules are the same
             {
                 if (info1 > info0) // higher level
@@ -567,7 +564,7 @@ class MulticoreJitRecorderModuleEnumerator : public MulticoreJitModuleEnumerator
             CAN_TAKE_LOCK;
         }
         CONTRACTL_END;
-                                 
+
         if (MulticoreJitManager::IsSupportedModule(pModule, false, m_fAppxMode))
         {
             m_pRecorder->AddModuleDependency(pModule, MulticoreJitManager::GetModuleFileLoadLevel(pModule));
@@ -613,12 +610,12 @@ void MulticoreJitRecorder::AddModuleDependency(Module * pModule, FileLoadLevel l
 HRESULT MulticoreJitModuleEnumerator::HandleAssembly(DomainAssembly * pAssembly)
 {
     STANDARD_VM_CONTRACT;
-    
+
     DomainAssembly::ModuleIterator modIt = pAssembly->IterateModules(kModIterIncludeLoaded);
-    
+
     HRESULT hr = S_OK;
 
-    while (modIt.Next() && SUCCEEDED(hr)) 
+    while (modIt.Next() && SUCCEEDED(hr))
     {
         Module * pModule = modIt.GetModule();
 
@@ -636,7 +633,7 @@ HRESULT MulticoreJitModuleEnumerator::HandleAssembly(DomainAssembly * pAssembly)
 HRESULT MulticoreJitModuleEnumerator::EnumerateLoadedModules(AppDomain * pDomain)
 {
     STANDARD_VM_CONTRACT;
-    
+
     HRESULT hr = S_OK;
 
     AppDomain::AssemblyIterator appIt = pDomain->IterateAssembliesEx((AssemblyIterationFlags)(kIncludeLoaded | kIncludeExecution));
@@ -661,7 +658,7 @@ HRESULT MulticoreJitModuleEnumerator::EnumerateLoadedModules(AppDomain * pDomain
 TP_TIMER * MulticoreJitRecorder::s_delayedWriteTimer; // = NULL;
 
 // static
-void CALLBACK 
+void CALLBACK
 MulticoreJitRecorder::WriteMulticoreJitProfiler(PTP_CALLBACK_INSTANCE pInstance, PVOID pvContext, PTP_TIMER pTimer)
 {
     CONTRACTL
@@ -691,7 +688,7 @@ MulticoreJitRecorder::WriteMulticoreJitProfiler(PTP_CALLBACK_INSTANCE pInstance,
 void MulticoreJitRecorder::PreRecordFirstMethod()
 {
     STANDARD_VM_CONTRACT;
-    
+
     // When first method is added to an AppDomain, add all currently loaded modules as dependent modules
 
     m_fFirstMethod = false;
@@ -702,7 +699,7 @@ void MulticoreJitRecorder::PreRecordFirstMethod()
         enumerator.EnumerateLoadedModules(m_pDomain);
     }
 
-    // When running under Appx or CoreCLR for K, AppDomain is normally not shut down properly (CLR in hybrid case, or Alt-F4 shutdown), 
+    // When running under Appx or CoreCLR for K, AppDomain is normally not shut down properly (CLR in hybrid case, or Alt-F4 shutdown),
     // So we only allow writing out after profileWriteTimeout seconds
     {
         // Get the timeout in seconds.
@@ -715,7 +712,7 @@ void MulticoreJitRecorder::PreRecordFirstMethod()
         if (s_delayedWriteTimer != NULL)
         {
             ULARGE_INTEGER msDelay;
-            
+
             // SetThreadpoolTimer needs delay to be given in 100 ns unit, negative
             msDelay.QuadPart = (ULONGLONG) -(profileWriteTimeout * 10 * 1000 * 1000);
             FILETIME ftDueTime;
@@ -723,7 +720,7 @@ void MulticoreJitRecorder::PreRecordFirstMethod()
             ftDueTime.dwHighDateTime = msDelay.u.HighPart;
 
             // This will either set the timer to happen in profileWriteTimeout seconds, or reset the timer so the same will happen.
-            // This function is safe to call 
+            // This function is safe to call
             SetThreadpoolTimer(s_delayedWriteTimer, &ftDueTime, 0, 2000 /* large 2000 ms window for executing this timer is acceptable as the timing here is very much not critical */);
         }
 #endif // !FEATURE_PAL
@@ -734,7 +731,7 @@ void MulticoreJitRecorder::PreRecordFirstMethod()
 void MulticoreJitRecorder::RecordMethodJit(MethodDesc * pMethod, bool application)
 {
     STANDARD_VM_CONTRACT;
-    
+
     Module * pModule = pMethod->GetModule_NoLogging();
 
     // Skip methods from non-supported modules
@@ -787,7 +784,7 @@ void MulticoreJitRecorder::RecordMethodJit(MethodDesc * pMethod, bool applicatio
 void MulticoreJitRecorder::AbortProfile()
 {
     LIMITED_METHOD_CONTRACT;
-    
+
     // Increment session ID tells background thread to stop
     m_pDomain->GetMulticoreJitManager().GetProfileSession().Increment();
 
@@ -802,7 +799,7 @@ HRESULT MulticoreJitRecorder::StopProfile(bool appDomainShutdown)
         CAN_TAKE_LOCK;
     }
     CONTRACTL_END;
-    
+
     HRESULT hr = S_OK;
 
     // Increment session ID tells background thread to stop
@@ -822,7 +819,7 @@ HRESULT MulticoreJitRecorder::StopProfile(bool appDomainShutdown)
 
 
 // suffix (>= 0) is used for AutoStartProfile, to support multiple AppDomains. It's set to -1 for normal API call path
-HRESULT MulticoreJitRecorder::StartProfile(const wchar_t * pRoot, const wchar_t * pFile, int suffix, LONG nSession)
+HRESULT MulticoreJitRecorder::StartProfile(const WCHAR * pRoot, const WCHAR * pFile, int suffix, LONG nSession)
 {
     STANDARD_VM_CONTRACT;
 
@@ -841,7 +838,7 @@ HRESULT MulticoreJitRecorder::StartProfile(const wchar_t * pRoot, const wchar_t 
     // ([d|D]main-thread-delay)
     if ((suffix >= 0) && (lenFile >= 3) && (pFile[0]=='('))// AutoStartProfile, using environment variable
     {
-        pFile ++; 
+        pFile ++;
         lenFile --;
 
         while ((lenFile > 0) && isalpha(pFile[0]))
@@ -851,12 +848,12 @@ HRESULT MulticoreJitRecorder::StartProfile(const wchar_t * pRoot, const wchar_t 
             case 'd':
             case 'D':
                 g_MulticoreJitEnabled = false;
-                
+
             default:
                 break;
             }
 
-            pFile ++; 
+            pFile ++;
             lenFile --;
         }
 
@@ -882,7 +879,7 @@ HRESULT MulticoreJitRecorder::StartProfile(const wchar_t * pRoot, const wchar_t 
     }
 
     MulticoreJitTrace(("g_MulticoreJitEnabled   = %d, disable/enable Mcj feature", g_MulticoreJitEnabled));
-    
+
     if (g_MulticoreJitEnabled && (lenFile > 0))
     {
         m_fullFileName = pRoot;
@@ -900,9 +897,9 @@ HRESULT MulticoreJitRecorder::StartProfile(const wchar_t * pRoot, const wchar_t 
         // Suffix for AutoStartProfile, used for multiple appdomain
         if (suffix >= 0)
         {
-             m_fullFileName.AppendPrintf(W("_%s_%s_%d.prof"), 
-                SystemDomain::System()->DefaultDomain()->GetFriendlyName(), 
-                m_pDomain->GetFriendlyName(), 
+             m_fullFileName.AppendPrintf(W("_%s_%s_%d.prof"),
+                SystemDomain::System()->DefaultDomain()->GetFriendlyName(),
+                m_pDomain->GetFriendlyName(),
                 suffix);
         }
 
@@ -918,12 +915,12 @@ HRESULT MulticoreJitRecorder::StartProfile(const wchar_t * pRoot, const wchar_t 
         else
         {
             HRESULT hr1 = S_OK;
-            
+
             EX_TRY
             {
                 hr1 = player->ProcessProfile(m_fullFileName);
             }
-            EX_CATCH_HRESULT(hr1); 
+            EX_CATCH_HRESULT(hr1);
 
             // If ProcessProfile succeeds, the background thread is responsible for deleting it when it finishes; otherwise, delete now
             if (SUCCEEDED(hr1))
@@ -953,7 +950,7 @@ HRESULT MulticoreJitRecorder::StartProfile(const wchar_t * pRoot, const wchar_t 
     MulticoreJitTrace(("StartProfile('%S', '%S', %d) returns %x", pRoot, pFile, suffix, hr));
 
     _FireEtwMulticoreJit(W("STARTPROFILE"), m_fullFileName.GetUnicode(), hr, 0, 0);
-    
+
     return hr;
 }
 
@@ -962,7 +959,7 @@ HRESULT MulticoreJitRecorder::StartProfile(const wchar_t * pRoot, const wchar_t 
 void MulticoreJitRecorder::RecordModuleLoad(Module * pModule, FileLoadLevel loadLevel)
 {
     STANDARD_VM_CONTRACT;
-    
+
     if (pModule != NULL)
     {
         if (! m_fFirstMethod) // If m_fFirstMethod flag is still on, defer calling AddModuleDependency until first method JIT
@@ -977,11 +974,11 @@ void MulticoreJitRecorder::RecordModuleLoad(Module * pModule, FileLoadLevel load
 PCODE MulticoreJitRecorder::RequestMethodCode(MethodDesc * pMethod, MulticoreJitManager * pManager)
 {
     STANDARD_VM_CONTRACT;
-    
+
     // Disable it when profiler is running
 
-#ifdef PROFILING_SUPPORTED 
-    
+#ifdef PROFILING_SUPPORTED
+
     _ASSERTE(! CORProfilerTrackJITInfo());
 
 #endif
@@ -1012,12 +1009,12 @@ PCODE MulticoreJitRecorder::RequestMethodCode(MethodDesc * pMethod, MulticoreJit
 // API Function: SettProfileRoot, store information with MulticoreJitManager class
 // Threading: protected by InterlockedExchange(m_fMulticoreJITEnabled)
 
-void MulticoreJitManager::SetProfileRoot(AppDomain * pDomain, const wchar_t * pProfilePath)
+void MulticoreJitManager::SetProfileRoot(AppDomain * pDomain, const WCHAR * pProfilePath)
 {
     STANDARD_VM_CONTRACT;
 
 #ifdef PROFILING_SUPPORTED
-    
+
     if (CORProfilerTrackJITInfo())
     {
         return;
@@ -1037,7 +1034,7 @@ void MulticoreJitManager::SetProfileRoot(AppDomain * pDomain, const wchar_t * pP
 
 // API Function: StartProfile
 // Threading: protected by m_playerLock
-void MulticoreJitManager::StartProfile(AppDomain * pDomain, ICLRPrivBinder *pBinderContext, const wchar_t * pProfile, int suffix)
+void MulticoreJitManager::StartProfile(AppDomain * pDomain, ICLRPrivBinder *pBinderContext, const WCHAR * pProfile, int suffix)
 {
     CONTRACTL
     {
@@ -1069,10 +1066,10 @@ void MulticoreJitManager::StartProfile(AppDomain * pDomain, ICLRPrivBinder *pBin
 
 #endif
     CrstHolder hold(& m_playerLock);
-        
+
     // Stop current profiling first, delete current m_pMulticoreJitRecorder if any
     StopProfile(false);
-        
+
     if ((pProfile != NULL) && (pProfile[0] != 0)) // Ignore empty file name, just same as StopProfile
     {
         MulticoreJitRecorder * pRecorder = new (nothrow) MulticoreJitRecorder(
@@ -1083,7 +1080,7 @@ void MulticoreJitManager::StartProfile(AppDomain * pDomain, ICLRPrivBinder *pBin
         if (pRecorder != NULL)
         {
             m_pMulticoreJitRecorder = pRecorder;
-            
+
             LONG sessionID = m_ProfileSession.Increment();
 
             HRESULT hr = m_pMulticoreJitRecorder->StartProfile(m_profileRoot, pProfile, suffix, sessionID);
@@ -1163,7 +1160,7 @@ void MulticoreJitManager::StopProfile(bool appDomainShutdown)
     {
         // In the app domain shut down code path, need to hold m_playerLock critical section to wait for other thread to finish using recorder
         CrstHolder hold(& m_playerLock);
-            
+
         pRecorder = InterlockedExchangeT(& m_pMulticoreJitRecorder, NULL);
     }
     else
@@ -1176,15 +1173,15 @@ void MulticoreJitManager::StopProfile(bool appDomainShutdown)
     if (pRecorder != NULL)
     {
         m_fRecorderActive = false;
-        
+
         EX_TRY
         {
             pRecorder->StopProfile(appDomainShutdown);
         }
-        EX_CATCH 
-        { 
+        EX_CATCH
+        {
             MulticoreJitTrace(("StopProfile(%d) throws exception", appDomainShutdown));
-        } 
+        }
         EX_END_CATCH(SwallowAllExceptions);
 
         delete pRecorder;
@@ -1254,7 +1251,7 @@ MulticoreJitManager::~MulticoreJitManager()
     if (m_pMulticoreJitRecorder != NULL)
     {
         delete m_pMulticoreJitRecorder;
-    
+
         m_pMulticoreJitRecorder = NULL;
     }
 
@@ -1334,18 +1331,18 @@ void MulticoreJitManager::RecordMethodJit(MethodDesc * pMethod)
 }
 
 
-// static 
+// static
 bool MulticoreJitManager::IsMethodSupported(MethodDesc * pMethod)
 {
     CONTRACTL
     {
-        NOTHROW; 
-        GC_NOTRIGGER; 
+        NOTHROW;
+        GC_NOTRIGGER;
         MODE_ANY;
     }
     CONTRACTL_END;
 
-    return  pMethod->HasILHeader() && 
+    return  pMethod->HasILHeader() &&
             pMethod->IsTypicalSharedInstantiation() &&
             ! pMethod->IsDynamicMethod();
 }
@@ -1388,7 +1385,7 @@ void MulticoreJitManager::DisableMulticoreJit()
     }
     CONTRACTL_END;
 
-#ifdef PROFILING_SUPPORTED 
+#ifdef PROFILING_SUPPORTED
 
     AppDomainIterator domain(TRUE);
 
@@ -1428,7 +1425,7 @@ void QCALLTYPE MultiCoreJITNative::InternalStartProfile(__in_z LPCWSTR wszProfil
         pDomain,
         pBinderContext,
         wszProfile);
- 
+
     END_QCALL;
 }
 
@@ -1436,12 +1433,12 @@ void QCALLTYPE MultiCoreJITNative::InternalStartProfile(__in_z LPCWSTR wszProfil
 void QCALLTYPE MultiCoreJITNative::InternalSetProfileRoot(__in_z LPCWSTR wszProfilePath)
 {
     QCALL_CONTRACT;
-    
+
     BEGIN_QCALL;
-    
+
     AppDomain * pDomain = GetAppDomain();
 
     pDomain->GetMulticoreJitManager().SetProfileRoot(pDomain, wszProfilePath);
- 
+
     END_QCALL;
 }

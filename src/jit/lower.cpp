@@ -106,12 +106,21 @@ GenTree* Lowering::LowerNode(GenTree* node)
     switch (node->gtOper)
     {
         case GT_IND:
-            TryCreateAddrMode(LIR::Use(BlockRange(), &node->gtOp.gtOp1, node), true);
-            ContainCheckIndir(node->AsIndir());
+            // Leave struct typed indirs alone, they only appear as the source of
+            // block copy operations and LowerBlockStore will handle those.
+            if (node->TypeGet() != TYP_STRUCT)
+            {
+                // TODO-Cleanup: We're passing isContainable = true but ContainCheckIndir rejects
+                // address containment in some cases so we end up creating trivial (reg + offfset)
+                // or (reg + reg) LEAs that are not necessary.
+                TryCreateAddrMode(node->AsIndir()->Addr(), true);
+                ContainCheckIndir(node->AsIndir());
+            }
             break;
 
         case GT_STOREIND:
-            TryCreateAddrMode(LIR::Use(BlockRange(), &node->gtOp.gtOp1, node), true);
+            assert(node->TypeGet() != TYP_STRUCT);
+            TryCreateAddrMode(node->AsIndir()->Addr(), true);
             if (!comp->codeGen->gcInfo.gcIsWriteBarrierStoreIndNode(node))
             {
                 LowerStoreIndir(node->AsIndir());
@@ -119,14 +128,8 @@ GenTree* Lowering::LowerNode(GenTree* node)
             break;
 
         case GT_ADD:
-        {
-            GenTree* afterTransform = LowerAdd(node);
-            if (afterTransform != nullptr)
-            {
-                return afterTransform;
-            }
-            __fallthrough;
-        }
+            LowerAdd(node->AsOp());
+            break;
 
 #if !defined(_TARGET_64BIT_)
         case GT_ADD_LO:
@@ -241,12 +244,8 @@ GenTree* Lowering::LowerNode(GenTree* node)
         case GT_STORE_BLK:
         case GT_STORE_OBJ:
         case GT_STORE_DYN_BLK:
-        {
-            GenTreeBlk* blkNode = node->AsBlk();
-            TryCreateAddrMode(LIR::Use(BlockRange(), &blkNode->Addr(), blkNode), false);
-            LowerBlockStore(blkNode);
-        }
-        break;
+            LowerBlockStore(node->AsBlk());
+            break;
 
         case GT_LCLHEAP:
             ContainCheckLclHeap(node->AsOp());
@@ -265,7 +264,7 @@ GenTree* Lowering::LowerNode(GenTree* node)
 #endif // FEATURE_SIMD
 
 #ifdef FEATURE_HW_INTRINSICS
-        case GT_HWIntrinsic:
+        case GT_HWINTRINSIC:
             LowerHWIntrinsic(node->AsHWIntrinsic());
             break;
 #endif // FEATURE_HW_INTRINSICS
@@ -273,7 +272,7 @@ GenTree* Lowering::LowerNode(GenTree* node)
         case GT_LCL_FLD:
         {
             // We should only encounter this for lclVars that are lvDoNotEnregister.
-            verifyLclFldDoNotEnregister(node->AsLclVarCommon()->gtLclNum);
+            verifyLclFldDoNotEnregister(node->AsLclVarCommon()->GetLclNum());
             break;
         }
 
@@ -319,7 +318,7 @@ GenTree* Lowering::LowerNode(GenTree* node)
             break;
 
         case GT_XADD:
-            CheckImmedAndMakeContained(node, node->gtOp.gtOp2);
+            CheckImmedAndMakeContained(node, node->AsOp()->gtOp2);
             break;
 #elif defined(_TARGET_XARCH_)
         case GT_XADD:
@@ -346,6 +345,10 @@ GenTree* Lowering::LowerNode(GenTree* node)
             }
             break;
 #endif // !_TARGET_ARMARCH_
+
+        case GT_KEEPALIVE:
+            node->gtGetOp1()->SetRegOptional();
+            break;
 
         default:
             break;
@@ -477,7 +480,7 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
 
         // We have to get rid of the GT_SWITCH node but a child might have side effects so just assign
         // the result of the child subtree to a temp.
-        GenTree* rhs = node->gtOp.gtOp1;
+        GenTree* rhs = node->AsOp()->gtOp1;
 
         unsigned lclNum               = comp->lvaGrabTemp(true DEBUGARG("Lowering is creating a new local variable"));
         comp->lvaTable[lclNum].lvType = rhs->TypeGet();
@@ -496,7 +499,7 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
     noway_assert(jumpCnt >= 2);
 
     // Spill the argument to the switch node into a local so that it can be used later.
-    LIR::Use use(switchBBRange, &(node->gtOp.gtOp1), node);
+    LIR::Use use(switchBBRange, &(node->AsOp()->gtOp1), node);
     ReplaceWithLclVar(use);
 
     // GT_SWITCH(indexExpression) is now two statements:
@@ -504,9 +507,9 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
     //   2. and a statement with GT_SWITCH(temp)
 
     assert(node->gtOper == GT_SWITCH);
-    GenTree* temp = node->gtOp.gtOp1;
+    GenTree* temp = node->AsOp()->gtOp1;
     assert(temp->gtOper == GT_LCL_VAR);
-    unsigned  tempLclNum  = temp->gtLclVarCommon.gtLclNum;
+    unsigned  tempLclNum  = temp->AsLclVarCommon()->GetLclNum();
     var_types tempLclType = temp->TypeGet();
 
     BasicBlock* defaultBB   = jumpTab[jumpCnt - 1];
@@ -781,7 +784,7 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
     GenTree* next = node->gtNext;
 
     // Get rid of the GT_SWITCH(temp).
-    switchBBRange.Remove(node->gtOp.gtOp1);
+    switchBBRange.Remove(node->AsOp()->gtOp1);
     switchBBRange.Remove(node);
 
     return next;
@@ -968,8 +971,8 @@ void Lowering::ReplaceArgWithPutArgOrBitcast(GenTree** argSlot, GenTree* putArgO
     GenTree* arg = *argSlot;
 
     // Replace the argument with the putarg/copy
-    *argSlot                    = putArgOrBitcast;
-    putArgOrBitcast->gtOp.gtOp1 = arg;
+    *argSlot                       = putArgOrBitcast;
+    putArgOrBitcast->AsOp()->gtOp1 = arg;
 
     // Insert the putarg/copy into the block
     BlockRange().InsertAfter(arg, putArgOrBitcast);
@@ -1007,11 +1010,9 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
     assert(arg != nullptr);
     assert(info != nullptr);
 
-    GenTree* putArg         = nullptr;
-    bool     updateArgTable = true;
+    GenTree* putArg = nullptr;
 
-    bool isOnStack = true;
-    isOnStack      = info->regNum == REG_STK;
+    bool isOnStack = (info->GetRegNum() == REG_STK);
 
 #ifdef _TARGET_ARMARCH_
     // Mark contained when we pass struct
@@ -1028,7 +1029,7 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
 
 #if FEATURE_ARG_SPLIT
     // Struct can be split into register(s) and stack on ARM
-    if (info->isSplit)
+    if (info->IsSplit())
     {
         assert(arg->OperGet() == GT_OBJ || arg->OperGet() == GT_FIELD_LIST);
         // TODO: Need to check correctness for FastTailCall
@@ -1050,56 +1051,40 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
         GenTreePutArgSplit* argSplit = putArg->AsPutArgSplit();
         for (unsigned regIndex = 0; regIndex < info->numRegs; regIndex++)
         {
-            argSplit->SetRegNumByIdx(info->getRegNum(regIndex), regIndex);
+            argSplit->SetRegNumByIdx(info->GetRegNum(regIndex), regIndex);
         }
 
         if (arg->OperGet() == GT_OBJ)
         {
-            BYTE*       gcLayout = nullptr;
-            unsigned    numRefs  = 0;
-            GenTreeObj* argObj   = arg->AsObj();
-
-            if (argObj->IsGCInfoInitialized())
-            {
-                gcLayout = argObj->gtGcPtrs;
-                numRefs  = argObj->GetGcPtrCount();
-            }
-            else
-            {
-                // Set GC Pointer info
-                gcLayout = new (comp, CMK_Codegen) BYTE[info->numSlots + info->numRegs];
-                numRefs  = comp->info.compCompHnd->getClassGClayout(arg->gtObj.gtClass, gcLayout);
-                argSplit->setGcPointers(numRefs, gcLayout);
-            }
+            ClassLayout* layout = arg->AsObj()->GetLayout();
 
             // Set type of registers
             for (unsigned index = 0; index < info->numRegs; index++)
             {
-                var_types regType = comp->getJitGCType(gcLayout[index]);
-                // Account for the possibility that float fields may be passed in integer registers.
-                if (varTypeIsFloating(regType) && !genIsValidFloatReg(argSplit->GetRegNumByIdx(index)))
-                {
-                    regType = (regType == TYP_FLOAT) ? TYP_INT : TYP_LONG;
-                }
-                argSplit->m_regType[index] = regType;
+                argSplit->m_regType[index] = layout->GetGCPtrType(index);
             }
         }
         else
         {
-            GenTreeFieldList* fieldListPtr = arg->AsFieldList();
-            for (unsigned index = 0; index < info->numRegs; fieldListPtr = fieldListPtr->Rest(), index++)
+            unsigned regIndex = 0;
+            for (GenTreeFieldList::Use& use : arg->AsFieldList()->Uses())
             {
-                var_types regType = fieldListPtr->gtGetOp1()->TypeGet();
+                if (regIndex >= info->numRegs)
+                {
+                    break;
+                }
+                var_types regType = use.GetNode()->TypeGet();
                 // Account for the possibility that float fields may be passed in integer registers.
-                if (varTypeIsFloating(regType) && !genIsValidFloatReg(argSplit->GetRegNumByIdx(index)))
+                if (varTypeIsFloating(regType) && !genIsValidFloatReg(argSplit->GetRegNumByIdx(regIndex)))
                 {
                     regType = (regType == TYP_FLOAT) ? TYP_INT : TYP_LONG;
                 }
-                argSplit->m_regType[index] = regType;
-
-                // Clear the register assignments on the fieldList nodes, as these are contained.
-                fieldListPtr->gtRegNum = REG_NA;
+                argSplit->m_regType[regIndex] = regType;
+                regIndex++;
             }
+
+            // Clear the register assignment on the fieldList node, as these are contained.
+            arg->SetRegNum(REG_NA);
         }
     }
     else
@@ -1110,26 +1095,19 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
 #if FEATURE_MULTIREG_ARGS
             if ((info->numRegs > 1) && (arg->OperGet() == GT_FIELD_LIST))
             {
-                assert(arg->OperGet() == GT_FIELD_LIST);
-
-                assert(arg->AsFieldList()->IsFieldListHead());
                 unsigned int regIndex = 0;
-                for (GenTreeFieldList* fieldListPtr = arg->AsFieldList(); fieldListPtr != nullptr;
-                     fieldListPtr                   = fieldListPtr->Rest())
+                for (GenTreeFieldList::Use& use : arg->AsFieldList()->Uses())
                 {
-                    regNumber argReg = info->getRegNum(regIndex);
-                    GenTree*  curOp  = fieldListPtr->gtOp.gtOp1;
+                    regNumber argReg = info->GetRegNum(regIndex);
+                    GenTree*  curOp  = use.GetNode();
                     var_types curTyp = curOp->TypeGet();
 
                     // Create a new GT_PUTARG_REG node with op1
                     GenTree* newOper = comp->gtNewPutArgReg(curTyp, curOp, argReg);
 
                     // Splice in the new GT_PUTARG_REG node in the GT_FIELD_LIST
-                    ReplaceArgWithPutArgOrBitcast(&fieldListPtr->gtOp.gtOp1, newOper);
+                    ReplaceArgWithPutArgOrBitcast(&use.NodeRef(), newOper);
                     regIndex++;
-
-                    // Initialize all the gtRegNum's since the list won't be traversed in an LIR traversal.
-                    fieldListPtr->gtRegNum = REG_NA;
                 }
 
                 // Just return arg. The GT_FIELD_LIST is not replaced.
@@ -1139,7 +1117,7 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
             else
 #endif // FEATURE_MULTIREG_ARGS
             {
-                putArg = comp->gtNewPutArgReg(type, arg, info->regNum);
+                putArg = comp->gtNewPutArgReg(type, arg, info->GetRegNum());
             }
         }
         else
@@ -1190,11 +1168,7 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
                 }
                 else if (arg->OperIs(GT_OBJ))
                 {
-                    unsigned numRefs  = 0;
-                    BYTE*    gcLayout = new (comp, CMK_Codegen) BYTE[info->numSlots];
                     assert(!varTypeIsSIMD(arg));
-                    numRefs = comp->info.compCompHnd->getClassGClayout(arg->gtObj.gtClass, gcLayout);
-                    putArg->AsPutArgStk()->setGcPointers(numRefs, gcLayout);
 
 #ifdef _TARGET_X86_
                     // On x86 VM lies about the type of a struct containing a pointer sized
@@ -1250,10 +1224,6 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
     {
         putArg->gtFlags |= GTF_LATE_ARG;
     }
-    else if (updateArgTable)
-    {
-        info->node = putArg;
-    }
     return putArg;
 }
 
@@ -1294,7 +1264,7 @@ void Lowering::LowerArg(GenTreeCall* call, GenTree** ppArg)
     }
 
     fgArgTabEntry* info = comp->gtArgEntryByNode(call, arg);
-    assert(info->node == arg);
+    assert(info->GetNode() == arg);
     var_types type = arg->TypeGet();
 
     if (varTypeIsSmall(type))
@@ -1329,13 +1299,14 @@ void Lowering::LowerArg(GenTreeCall* call, GenTree** ppArg)
     }
 #elif defined(_TARGET_AMD64_)
     // TYP_SIMD8 parameters that are passed as longs
-    if (type == TYP_SIMD8 && genIsValidIntReg(info->regNum))
+    if (type == TYP_SIMD8 && genIsValidIntReg(info->GetRegNum()))
     {
         GenTreeUnOp* bitcast = new (comp, GT_BITCAST) GenTreeOp(GT_BITCAST, TYP_LONG, arg, nullptr);
         BlockRange().InsertAfter(arg, bitcast);
 
-        info->node = *ppArg = arg = bitcast;
-        type                      = TYP_LONG;
+        *ppArg = arg = bitcast;
+        assert(info->GetNode() == arg);
+        type = TYP_LONG;
     }
 #endif // defined(_TARGET_X86_)
 #endif // defined(FEATURE_SIMD)
@@ -1346,46 +1317,35 @@ void Lowering::LowerArg(GenTreeCall* call, GenTree** ppArg)
 #if !defined(_TARGET_64BIT_)
     if (varTypeIsLong(type))
     {
-        bool isReg = (info->regNum != REG_STK);
-        if (isReg)
+        noway_assert(arg->OperIs(GT_LONG));
+        GenTreeFieldList* fieldList = new (comp, GT_FIELD_LIST) GenTreeFieldList();
+        fieldList->AddFieldLIR(comp, arg->AsOp()->gtGetOp1(), 0, TYP_INT);
+        fieldList->AddFieldLIR(comp, arg->AsOp()->gtGetOp2(), 4, TYP_INT);
+        GenTree* newArg = NewPutArg(call, fieldList, info, type);
+
+        if (info->GetRegNum() != REG_STK)
         {
-            noway_assert(arg->OperGet() == GT_LONG);
             assert(info->numRegs == 2);
-
-            GenTree* argLo = arg->gtGetOp1();
-            GenTree* argHi = arg->gtGetOp2();
-
-            GenTreeFieldList* fieldList = new (comp, GT_FIELD_LIST) GenTreeFieldList(argLo, 0, TYP_INT, nullptr);
-            // Only the first fieldList node (GTF_FIELD_LIST_HEAD) is in the instruction sequence.
-            (void)new (comp, GT_FIELD_LIST) GenTreeFieldList(argHi, 4, TYP_INT, fieldList);
-            GenTree* putArg = NewPutArg(call, fieldList, info, type);
-
-            BlockRange().InsertBefore(arg, putArg);
-            BlockRange().Remove(arg);
-            *ppArg     = fieldList;
-            info->node = fieldList;
+            // In the register argument case, NewPutArg replaces the original field list args with new
+            // GT_PUTARG_REG nodes, inserts them in linear order and returns the field list. So the
+            // only thing left to do is to insert the field list itself in linear order.
+            assert(newArg == fieldList);
+            BlockRange().InsertBefore(arg, newArg);
         }
         else
         {
-            assert(arg->OperGet() == GT_LONG);
             // For longs, we will replace the GT_LONG with a GT_FIELD_LIST, and put that under a PUTARG_STK.
             // Although the hi argument needs to be pushed first, that will be handled by the general case,
             // in which the fields will be reversed.
             assert(info->numSlots == 2);
-            GenTree*          argLo     = arg->gtGetOp1();
-            GenTree*          argHi     = arg->gtGetOp2();
-            GenTreeFieldList* fieldList = new (comp, GT_FIELD_LIST) GenTreeFieldList(argLo, 0, TYP_INT, nullptr);
-            // Only the first fieldList node (GTF_FIELD_LIST_HEAD) is in the instruction sequence.
-            (void)new (comp, GT_FIELD_LIST) GenTreeFieldList(argHi, 4, TYP_INT, fieldList);
-            GenTree* putArg  = NewPutArg(call, fieldList, info, type);
-            putArg->gtRegNum = info->regNum;
-
-            // We can't call ReplaceArgWithPutArgOrBitcast here because it presumes that we are keeping the original
-            // arg.
-            BlockRange().InsertBefore(arg, fieldList, putArg);
-            BlockRange().Remove(arg);
-            *ppArg = putArg;
+            newArg->SetRegNum(REG_STK);
+            BlockRange().InsertBefore(arg, fieldList, newArg);
         }
+
+        *ppArg = newArg;
+        assert(info->GetNode() == newArg);
+
+        BlockRange().Remove(arg);
     }
     else
 #endif // !defined(_TARGET_64BIT_)
@@ -1436,46 +1396,45 @@ void Lowering::LowerArg(GenTreeCall* call, GenTree** ppArg)
 GenTree* Lowering::LowerFloatArg(GenTree** pArg, fgArgTabEntry* info)
 {
     GenTree* arg = *pArg;
-    if (info->regNum != REG_STK)
+    if (info->GetRegNum() != REG_STK)
     {
-        if (arg->OperIsFieldList())
+        if (arg->OperIs(GT_FIELD_LIST))
         {
-            GenTreeFieldList* currListNode  = arg->AsFieldList();
-            regNumber         currRegNumber = info->regNum;
-
             // Transform fields that are passed as registers in place.
-            unsigned fieldRegCount;
-            for (unsigned i = 0; i < info->numRegs; i += fieldRegCount)
+            regNumber currRegNumber = info->GetRegNum();
+            unsigned  regIndex      = 0;
+            for (GenTreeFieldList::Use& use : arg->AsFieldList()->Uses())
             {
-                assert(currListNode != nullptr);
-                GenTree* node = currListNode->Current();
+                if (regIndex >= info->numRegs)
+                {
+                    break;
+                }
+                GenTree* node = use.GetNode();
                 if (varTypeIsFloating(node))
                 {
                     GenTree* intNode = LowerFloatArgReg(node, currRegNumber);
                     assert(intNode != nullptr);
 
-                    ReplaceArgWithPutArgOrBitcast(currListNode->pCurrent(), intNode);
-                    currListNode->ChangeType(intNode->TypeGet());
+                    ReplaceArgWithPutArgOrBitcast(&use.NodeRef(), intNode);
                 }
 
                 if (node->TypeGet() == TYP_DOUBLE)
                 {
                     currRegNumber = REG_NEXT(REG_NEXT(currRegNumber));
-                    fieldRegCount = 2;
+                    regIndex += 2;
                 }
                 else
                 {
                     currRegNumber = REG_NEXT(currRegNumber);
-                    fieldRegCount = 1;
+                    regIndex += 1;
                 }
-                currListNode = currListNode->Rest();
             }
             // List fields were replaced in place.
             return arg;
         }
         else if (varTypeIsFloating(arg))
         {
-            GenTree* intNode = LowerFloatArgReg(arg, info->regNum);
+            GenTree* intNode = LowerFloatArgReg(arg, info->GetRegNum());
             assert(intNode != nullptr);
             ReplaceArgWithPutArgOrBitcast(pArg, intNode);
             return *pArg;
@@ -1500,7 +1459,7 @@ GenTree* Lowering::LowerFloatArgReg(GenTree* arg, regNumber regNum)
     assert(varTypeIsFloating(floatType));
     var_types intType = (floatType == TYP_DOUBLE) ? TYP_LONG : TYP_INT;
     GenTree*  intArg  = comp->gtNewBitCastNode(intType, arg);
-    intArg->gtRegNum  = regNum;
+    intArg->SetRegNum(regNum);
 #ifdef _TARGET_ARM_
     if (floatType == TYP_DOUBLE)
     {
@@ -1516,23 +1475,21 @@ GenTree* Lowering::LowerFloatArgReg(GenTree* arg, regNumber regNum)
 void Lowering::LowerArgsForCall(GenTreeCall* call)
 {
     JITDUMP("objp:\n======\n");
-    if (call->gtCallObjp)
+    if (call->gtCallThisArg != nullptr)
     {
-        LowerArg(call, &call->gtCallObjp);
+        LowerArg(call, &call->gtCallThisArg->NodeRef());
     }
 
-    GenTreeArgList* args = call->gtCallArgs;
-
     JITDUMP("\nargs:\n======\n");
-    for (; args; args = args->Rest())
+    for (GenTreeCall::Use& use : call->Args())
     {
-        LowerArg(call, &args->Current());
+        LowerArg(call, &use.NodeRef());
     }
 
     JITDUMP("\nlate:\n======\n");
-    for (args = call->gtCallLateArgs; args; args = args->Rest())
+    for (GenTreeCall::Use& use : call->LateArgs())
     {
-        LowerArg(call, &args->Current());
+        LowerArg(call, &use.NodeRef());
     }
 }
 
@@ -1749,15 +1706,14 @@ void Lowering::CheckVSQuirkStackPaddingNeeded(GenTreeCall* call)
     {
         bool     paddingNeeded  = false;
         GenTree* firstPutArgReg = nullptr;
-        for (GenTreeArgList* args = call->gtCallLateArgs; args; args = args->Rest())
+        for (GenTreeCall::Use& use : call->LateArgs())
         {
-            GenTree* tmp = args->Current();
-            if (tmp->OperGet() == GT_PUTARG_REG)
+            if (use.GetNode()->OperIs(GT_PUTARG_REG))
             {
                 if (firstPutArgReg == nullptr)
                 {
-                    firstPutArgReg = tmp;
-                    GenTree* op1   = firstPutArgReg->gtOp.gtOp1;
+                    firstPutArgReg = use.GetNode();
+                    GenTree* op1   = firstPutArgReg->AsOp()->gtOp1;
 
                     if (op1->OperGet() == GT_LCL_VAR_ADDR)
                     {
@@ -1851,28 +1807,26 @@ void Lowering::InsertProfTailCallHook(GenTreeCall* call, GenTree* insertionPoint
 
     if (insertionPoint == nullptr)
     {
-        GenTree* tmp = nullptr;
-        for (GenTreeArgList* args = call->gtCallArgs; args; args = args->Rest())
+        for (GenTreeCall::Use& use : call->Args())
         {
-            tmp = args->Current();
-            assert(tmp->OperGet() != GT_PUTARG_REG); // We don't expect to see these in gtCallArgs
-            if (tmp->OperGet() == GT_PUTARG_STK)
+            assert(!use.GetNode()->OperIs(GT_PUTARG_REG)); // We don't expect to see these in gtCallArgs
+
+            if (use.GetNode()->OperIs(GT_PUTARG_STK))
             {
                 // found it
-                insertionPoint = tmp;
+                insertionPoint = use.GetNode();
                 break;
             }
         }
 
         if (insertionPoint == nullptr)
         {
-            for (GenTreeArgList* args = call->gtCallLateArgs; args; args = args->Rest())
+            for (GenTreeCall::Use& use : call->LateArgs())
             {
-                tmp = args->Current();
-                if ((tmp->OperGet() == GT_PUTARG_REG) || (tmp->OperGet() == GT_PUTARG_STK))
+                if (use.GetNode()->OperIs(GT_PUTARG_REG, GT_PUTARG_STK))
                 {
                     // found it
-                    insertionPoint = tmp;
+                    insertionPoint = use.GetNode();
                     break;
                 }
             }
@@ -1892,8 +1846,28 @@ void Lowering::InsertProfTailCallHook(GenTreeCall* call, GenTree* insertionPoint
     BlockRange().InsertBefore(insertionPoint, profHookNode);
 }
 
-// Lower fast tail call implemented as epilog+jmp.
-// Also inserts PInvoke method epilog if required.
+//------------------------------------------------------------------------
+// LowerFastTailCall: Lower a call node dispatched as a fast tailcall (epilog +
+// jmp).
+//
+// Arguments:
+//    call - the call node that is being dispatched as a fast tailcall.
+//
+// Assumptions:
+//    call must be non-null.
+//
+// Notes:
+//     For fast tail calls it is necessary to set up stack args in the incoming
+//     arg stack space area. When args passed also come from this area we may
+//     run into problems because we may end up overwriting the stack slot before
+//     using it. For example, for foo(a, b) { return bar(b, a); }, if a and b
+//     are on incoming arg stack space in foo they need to be swapped in this
+//     area for the call to bar. This function detects this situation and
+//     introduces a temp when an outgoing argument would overwrite a later-used
+//     incoming argument.
+//
+//     This function also handles inserting necessary profiler hooks and pinvoke
+//     method epilogs in case there are inlined pinvokes.
 void Lowering::LowerFastTailCall(GenTreeCall* call)
 {
 #if FEATURE_FASTTAILCALL
@@ -1924,11 +1898,11 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
     // can add a new basic block for range check failure which becomes
     // fgLastBB with block number > loop header block number.
     // assert((comp->compCurBB->bbFlags & BBF_GC_SAFE_POINT) ||
-    //         !comp->optReachWithoutCall(comp->fgFirstBB, comp->compCurBB) || comp->genInterruptible);
+    //         !comp->optReachWithoutCall(comp->fgFirstBB, comp->compCurBB) || comp->GetInterruptible());
 
     // If PInvokes are in-lined, we have to remember to execute PInvoke method epilog anywhere that
     // a method returns.  This is a case of caller method has both PInvokes and tail calls.
-    if (comp->info.compCallUnmanaged)
+    if (comp->compMethodRequiresPInvokeFrame())
     {
         InsertPInvokeMethodEpilog(comp->compCurBB DEBUGARG(call));
     }
@@ -1940,150 +1914,36 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
     // of call is setup.  Note that once a stack arg is setup, it cannot have nested
     // calls subsequently in execution order to setup other args, because the nested
     // call could over-write the stack arg that is setup earlier.
-    GenTree*             firstPutArgStk = nullptr;
-    GenTreeArgList*      args;
     ArrayStack<GenTree*> putargs(comp->getAllocator(CMK_ArrayStack));
 
-    for (args = call->gtCallArgs; args; args = args->Rest())
+    for (GenTreeCall::Use& use : call->Args())
     {
-        GenTree* tmp = args->Current();
-        if (tmp->OperGet() == GT_PUTARG_STK)
+        if (use.GetNode()->OperIs(GT_PUTARG_STK))
         {
-            putargs.Push(tmp);
+            putargs.Push(use.GetNode());
         }
     }
 
-    for (args = call->gtCallLateArgs; args; args = args->Rest())
+    for (GenTreeCall::Use& use : call->LateArgs())
     {
-        GenTree* tmp = args->Current();
-        if (tmp->OperGet() == GT_PUTARG_STK)
+        if (use.GetNode()->OperIs(GT_PUTARG_STK))
         {
-            putargs.Push(tmp);
+            putargs.Push(use.GetNode());
         }
     }
 
+    GenTree* startNonGCNode = nullptr;
     if (!putargs.Empty())
     {
-        firstPutArgStk = putargs.Bottom();
-    }
-
-    // If we have a putarg_stk node, also count the number of non-standard args the
-    // call node has.  Note that while determining whether a tail call can be fast
-    // tail called, we don't count non-standard args (passed in R10 or R11) since they
-    // don't contribute to outgoing arg space.  These non-standard args are not
-    // accounted in caller's arg count but accounted in callee's arg count after
-    // fgMorphArgs(). Therefore, exclude callee's non-standard args while mapping
-    // callee's stack arg num to corresponding caller's stack arg num.
-    unsigned calleeNonStandardArgCount = call->GetNonStandardAddedArgCount(comp);
-
-    // Say Caller(a, b, c, d, e) fast tail calls Callee(e, d, c, b, a)
-    // i.e. passes its arguments in reverse to Callee. During call site
-    // setup, after computing argument side effects, stack args are setup
-    // first and reg args next.  In the above example, both Callers and
-    // Callee stack args (e and a respectively) share the same stack slot
-    // and are alive at the same time.  The act of setting up Callee's
-    // stack arg will over-write the stack arg of Caller and if there are
-    // further uses of Caller stack arg we have to make sure that we move
-    // it to a temp before over-writing its slot and use temp in place of
-    // the corresponding Caller stack arg.
-    //
-    // For the above example, conceptually this is what is done
-    //       tmp = e;
-    //       Stack slot of e  = a
-    //       R9 = b, R8 = c, RDx = d
-    //       RCX = tmp
-    //
-    // The below logic is meant to detect cases like this and introduce
-    // temps to set up args correctly for Callee.
-
-    for (int i = 0; i < putargs.Height(); i++)
-    {
-        GenTree* putArgStkNode = putargs.Bottom(i);
-
-        assert(putArgStkNode->OperGet() == GT_PUTARG_STK);
-
-        // Get the caller arg num corresponding to this callee arg.
-        // Note that these two args share the same stack slot. Therefore,
-        // if there are further uses of corresponding caller arg, we need
-        // to move it to a temp and use the temp in this call tree.
-        //
-        // Note that Caller is guaranteed to have a param corresponding to
-        // this Callee's arg since fast tail call mechanism counts the
-        // stack slots required for both Caller and Callee for passing params
-        // and allow fast tail call only if stack slots required by Caller >=
-        // Callee.
-        fgArgTabEntry* argTabEntry = comp->gtArgEntryByNode(call, putArgStkNode);
-        assert(argTabEntry);
-        unsigned callerArgNum = argTabEntry->argNum - calleeNonStandardArgCount;
-        noway_assert(callerArgNum < comp->info.compArgsCount);
-
-        unsigned   callerArgLclNum = callerArgNum;
-        LclVarDsc* callerArgDsc    = comp->lvaTable + callerArgLclNum;
-        if (callerArgDsc->lvPromoted)
-        {
-            callerArgLclNum =
-                callerArgDsc->lvFieldLclStart; // update the callerArgNum to the promoted struct field's lclNum
-            callerArgDsc = comp->lvaTable + callerArgLclNum;
-        }
-        noway_assert(callerArgDsc->lvIsParam);
-
-        // Start searching in execution order list till we encounter call node
-        unsigned  tmpLclNum = BAD_VAR_NUM;
-        var_types tmpType   = TYP_UNDEF;
-        for (GenTree* treeNode = putArgStkNode->gtNext; treeNode != call; treeNode = treeNode->gtNext)
-        {
-            if (treeNode->OperIsLocal() || treeNode->OperIsLocalAddr())
-            {
-                // This should not be a GT_PHI_ARG.
-                assert(treeNode->OperGet() != GT_PHI_ARG);
-
-                GenTreeLclVarCommon* lcl = treeNode->AsLclVarCommon();
-
-                // Fast tail calling criteria permits passing of structs of size 1, 2, 4 and 8 as args.
-                // It is possible that the callerArgLclNum corresponds to such a struct whose stack slot
-                // is getting over-written by setting up of a stack arg and there are further uses of
-                // any of its fields if such a struct is type-dependently promoted.  In this case too
-                // we need to introduce a temp.
-                if ((lcl->gtLclNum == callerArgNum) || (lcl->gtLclNum == callerArgLclNum))
-                {
-                    // Create tmp and use it in place of callerArgDsc
-                    if (tmpLclNum == BAD_VAR_NUM)
-                    {
-                        // Set tmpType first before calling lvaGrabTemp, as that call invalidates callerArgDsc
-                        tmpType   = genActualType(callerArgDsc->lvaArgType());
-                        tmpLclNum = comp->lvaGrabTemp(
-                            true DEBUGARG("Fast tail call lowering is creating a new local variable"));
-
-                        comp->lvaTable[tmpLclNum].lvType            = tmpType;
-                        comp->lvaTable[tmpLclNum].lvDoNotEnregister = comp->lvaTable[lcl->gtLclNum].lvDoNotEnregister;
-                    }
-
-                    lcl->SetLclNum(tmpLclNum);
-                }
-            }
-        }
-
-        // If we have created a temp, insert an embedded assignment stmnt before
-        // the first putargStkNode i.e.
-        //     tmpLcl = CallerArg
-        if (tmpLclNum != BAD_VAR_NUM)
-        {
-            assert(tmpType != TYP_UNDEF);
-            GenTreeLclVar* local      = new (comp, GT_LCL_VAR) GenTreeLclVar(GT_LCL_VAR, tmpType, callerArgLclNum);
-            GenTree*       assignExpr = comp->gtNewTempAssign(tmpLclNum, local);
-            ContainCheckRange(local, assignExpr);
-            BlockRange().InsertBefore(firstPutArgStk, LIR::SeqTree(comp, assignExpr));
-        }
-    }
-
-    // Insert GT_START_NONGC node before the first GT_PUTARG_STK node.
-    // Note that if there are no args to be setup on stack, no need to
-    // insert GT_START_NONGC node.
-    GenTree* startNonGCNode = nullptr;
-    if (firstPutArgStk != nullptr)
-    {
+        // Get the earliest operand of the first PUTARG_STK node. We will make
+        // the requred copies of args before this node.
+        bool     unused;
+        GenTree* insertionPoint = BlockRange().GetTreeRange(putargs.Bottom(), &unused).FirstNode();
+        // Insert GT_START_NONGC node before we evaluate the PUTARG_STK args.
+        // Note that if there are no args to be setup on stack, no need to
+        // insert GT_START_NONGC node.
         startNonGCNode = new (comp, GT_START_NONGC) GenTree(GT_START_NONGC, TYP_VOID);
-        BlockRange().InsertBefore(firstPutArgStk, startNonGCNode);
+        BlockRange().InsertBefore(insertionPoint, startNonGCNode);
 
         // Gc-interruptability in the following case:
         //     foo(a, b, c, d, e) { bar(a, b, c, d, e); }
@@ -2100,6 +1960,92 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
             assert(comp->fgFirstBB == comp->compCurBB);
             GenTree* noOp = new (comp, GT_NO_OP) GenTree(GT_NO_OP, TYP_VOID);
             BlockRange().InsertBefore(startNonGCNode, noOp);
+        }
+
+        // Since this is a fast tailcall each PUTARG_STK will place the argument in the
+        // _incoming_ arg space area. This will effectively overwrite our already existing
+        // incoming args that live in that area. If we have later uses of those args, this
+        // is a problem. We introduce a defensive copy into a temp here of those args that
+        // potentially may cause problems.
+        for (int i = 0; i < putargs.Height(); i++)
+        {
+            GenTreePutArgStk* put = putargs.Bottom(i)->AsPutArgStk();
+
+            unsigned int overwrittenStart = put->getArgOffset();
+            unsigned int overwrittenEnd   = overwrittenStart + put->getArgSize();
+#if !(defined(_TARGET_WINDOWS_) && defined(_TARGET_64BIT_))
+            int baseOff = -1; // Stack offset of first arg on stack
+#endif
+
+            for (unsigned callerArgLclNum = 0; callerArgLclNum < comp->info.compArgsCount; callerArgLclNum++)
+            {
+                LclVarDsc* callerArgDsc = comp->lvaGetDesc(callerArgLclNum);
+
+                if (callerArgDsc->lvIsRegArg)
+                {
+                    continue;
+                }
+
+#if defined(_TARGET_WINDOWS_) && defined(_TARGET_64BIT_)
+                // On Win64, the argument position determines the stack slot uniquely, and even the
+                // register args take up space in the stack frame (shadow space).
+                unsigned int argStart = callerArgLclNum * TARGET_POINTER_SIZE;
+                unsigned int argEnd   = argStart + static_cast<unsigned int>(callerArgDsc->lvArgStackSize());
+#else
+                assert(callerArgDsc->lvStkOffs != BAD_STK_OFFS);
+
+                if (baseOff == -1)
+                {
+                    baseOff = callerArgDsc->lvStkOffs;
+                }
+
+                // On all ABIs where we fast tail call the stack args should come in order.
+                assert(baseOff <= callerArgDsc->lvStkOffs);
+
+                // Compute offset of this stack argument relative to the first stack arg.
+                // This will be its offset into the incoming arg space area.
+                unsigned int argStart = static_cast<unsigned int>(callerArgDsc->lvStkOffs - baseOff);
+                unsigned int argEnd   = argStart + comp->lvaLclSize(callerArgLclNum);
+#endif
+
+                // If ranges do not overlap then this PUTARG_STK will not mess up the arg.
+                if ((overwrittenEnd <= argStart) || (overwrittenStart >= argEnd))
+                {
+                    continue;
+                }
+
+                // Codegen cannot handle a partially overlapping copy. For
+                // example, if we have
+                // bar(S16 stack, S32 stack2)
+                // foo(S32 stack, S32 stack2) { bar(..., stack) }
+                // then we may end up having to move 'stack' in foo 16 bytes
+                // ahead. It is possible that this PUTARG_STK is the only use,
+                // in which case we will need to introduce a temp, so look for
+                // uses starting from it. Note that we assume that in-place
+                // copies are OK.
+                GenTree* lookForUsesFrom = put->gtNext;
+                if (overwrittenStart != argStart)
+                {
+                    lookForUsesFrom = insertionPoint;
+                }
+
+                RehomeArgForFastTailCall(callerArgLclNum, insertionPoint, lookForUsesFrom, call);
+                // The above call can introduce temps and invalidate the pointer.
+                callerArgDsc = comp->lvaGetDesc(callerArgLclNum);
+
+                // For promoted locals we have more work to do as its fields could also have been invalidated.
+                if (!callerArgDsc->lvPromoted)
+                {
+                    continue;
+                }
+
+                unsigned int fieldsFirst = callerArgDsc->lvFieldLclStart;
+                unsigned int fieldsEnd   = fieldsFirst + callerArgDsc->lvFieldCnt;
+                for (unsigned int j = fieldsFirst; j < fieldsEnd; j++)
+                {
+                    RehomeArgForFastTailCall(j, insertionPoint, lookForUsesFrom, call);
+                }
+            }
         }
     }
 
@@ -2120,6 +2066,85 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
     // be true on such a platform.
     unreached();
 #endif
+}
+//
+//------------------------------------------------------------------------
+// RehomeArgForFastTailCall: Introduce temps for args that may be overwritten
+// during fast tailcall sequence.
+//
+// Arguments:
+//    lclNum - the lcl num of the arg that will be overwritten.
+//    insertTempBefore - the node at which to copy the arg into a temp.
+//    lookForUsesStart - the node where to start scanning and replacing uses of
+//                       the arg specified by lclNum.
+//    callNode - the call node that is being dispatched as a fast tailcall.
+//
+// Assumptions:
+//    all args must be non-null.
+//
+// Notes:
+//     This function scans for uses of the arg specified by lclNum starting
+//     from the lookForUsesStart node. If it finds any uses it introduces a temp
+//     for this argument and updates uses to use this instead. In the situation
+//     where it introduces a temp it can thus invalidate pointers to other
+//     locals.
+//
+void Lowering::RehomeArgForFastTailCall(unsigned int lclNum,
+                                        GenTree*     insertTempBefore,
+                                        GenTree*     lookForUsesStart,
+                                        GenTreeCall* callNode)
+{
+    unsigned int tmpLclNum = BAD_VAR_NUM;
+    for (GenTree* treeNode = lookForUsesStart; treeNode != callNode; treeNode = treeNode->gtNext)
+    {
+        if (!treeNode->OperIsLocal() && !treeNode->OperIsLocalAddr())
+        {
+            continue;
+        }
+
+        // This should not be a GT_PHI_ARG.
+        assert(treeNode->OperGet() != GT_PHI_ARG);
+
+        GenTreeLclVarCommon* lcl = treeNode->AsLclVarCommon();
+
+        if (lcl->GetLclNum() != lclNum)
+        {
+            continue;
+        }
+
+        // Create tmp and use it in place of callerArgDsc
+        if (tmpLclNum == BAD_VAR_NUM)
+        {
+            tmpLclNum = comp->lvaGrabTemp(true DEBUGARG("Fast tail call lowering is creating a new local variable"));
+
+            LclVarDsc* callerArgDsc                     = comp->lvaGetDesc(lclNum);
+            var_types  tmpTyp                           = genActualType(callerArgDsc->TypeGet());
+            comp->lvaTable[tmpLclNum].lvType            = tmpTyp;
+            comp->lvaTable[tmpLclNum].lvDoNotEnregister = comp->lvaTable[lcl->GetLclNum()].lvDoNotEnregister;
+            GenTree* value                              = comp->gtNewLclvNode(lclNum, tmpTyp);
+
+            // TODO-1stClassStructs: This can be simplified with 1st class structs work.
+            if (tmpTyp == TYP_STRUCT)
+            {
+                comp->lvaSetStruct(tmpLclNum, comp->lvaGetStruct(lclNum), false);
+                GenTree* loc = new (comp, GT_LCL_VAR_ADDR) GenTreeLclVar(GT_LCL_VAR_ADDR, TYP_STRUCT, tmpLclNum);
+                loc->gtType  = TYP_BYREF;
+                GenTreeBlk* storeBlk = new (comp, GT_STORE_BLK)
+                    GenTreeBlk(GT_STORE_BLK, TYP_STRUCT, loc, value, comp->typGetBlkLayout(callerArgDsc->lvExactSize));
+                storeBlk->gtFlags |= GTF_ASG;
+                BlockRange().InsertBefore(insertTempBefore, LIR::SeqTree(comp, storeBlk));
+                LowerNode(storeBlk);
+            }
+            else
+            {
+                GenTree* assignExpr = comp->gtNewTempAssign(tmpLclNum, value);
+                ContainCheckRange(value, assignExpr);
+                BlockRange().InsertBefore(insertTempBefore, LIR::SeqTree(comp, assignExpr));
+            }
+        }
+
+        lcl->SetLclNum(tmpLclNum);
+    }
 }
 
 //------------------------------------------------------------------------
@@ -2174,7 +2199,7 @@ GenTree* Lowering::LowerTailCallViaHelper(GenTreeCall* call, GenTree* callTarget
 
     // If PInvokes are in-lined, we have to remember to execute PInvoke method epilog anywhere that
     // a method returns.  This is a case of caller method has both PInvokes and tail calls.
-    if (comp->info.compCallUnmanaged)
+    if (comp->compMethodRequiresPInvokeFrame())
     {
         InsertPInvokeMethodEpilog(comp->compCurBB DEBUGARG(call));
     }
@@ -2202,16 +2227,16 @@ GenTree* Lowering::LowerTailCallViaHelper(GenTreeCall* call, GenTree* callTarget
 #ifdef DEBUG
     argEntry = comp->gtArgEntryByArgNum(call, 0);
     assert(argEntry != nullptr);
-    assert(argEntry->node->gtOper == GT_PUTARG_REG);
-    GenTree* firstArg = argEntry->node->gtOp.gtOp1;
+    assert(argEntry->GetNode()->OperIs(GT_PUTARG_REG));
+    GenTree* firstArg = argEntry->GetNode()->AsUnOp()->gtGetOp1();
     assert(firstArg->gtOper == GT_CNS_INT);
 #endif
 
     // Replace second arg by callTarget.
     argEntry = comp->gtArgEntryByArgNum(call, 1);
     assert(argEntry != nullptr);
-    assert(argEntry->node->gtOper == GT_PUTARG_REG);
-    GenTree* secondArg = argEntry->node->gtOp.gtOp1;
+    assert(argEntry->GetNode()->OperIs(GT_PUTARG_REG));
+    GenTree* secondArg = argEntry->GetNode()->AsUnOp()->gtGetOp1();
 
     ContainCheckRange(callTargetRange);
     BlockRange().InsertAfter(secondArg, std::move(callTargetRange));
@@ -2222,7 +2247,7 @@ GenTree* Lowering::LowerTailCallViaHelper(GenTreeCall* call, GenTree* callTarget
 
     BlockRange().Remove(std::move(secondArgRange));
 
-    argEntry->node->gtOp.gtOp1 = callTarget;
+    argEntry->GetNode()->AsUnOp()->gtOp1 = callTarget;
 
 #elif defined(_TARGET_X86_)
 
@@ -2241,8 +2266,7 @@ GenTree* Lowering::LowerTailCallViaHelper(GenTreeCall* call, GenTree* callTarget
     // arg 0 == callTarget.
     argEntry = comp->gtArgEntryByArgNum(call, numArgs - 1);
     assert(argEntry != nullptr);
-    assert(argEntry->node->gtOper == GT_PUTARG_STK);
-    GenTree* arg0 = argEntry->node->gtOp.gtOp1;
+    GenTree* arg0 = argEntry->GetNode()->AsPutArgStk()->gtGetOp1();
 
     ContainCheckRange(callTargetRange);
     BlockRange().InsertAfter(arg0, std::move(callTargetRange));
@@ -2252,34 +2276,31 @@ GenTree* Lowering::LowerTailCallViaHelper(GenTreeCall* call, GenTree* callTarget
     assert(isClosed);
     BlockRange().Remove(std::move(secondArgRange));
 
-    argEntry->node->gtOp.gtOp1 = callTarget;
+    argEntry->GetNode()->AsPutArgStk()->gtOp1 = callTarget;
 
     // arg 1 == flags
     argEntry = comp->gtArgEntryByArgNum(call, numArgs - 2);
     assert(argEntry != nullptr);
-    assert(argEntry->node->gtOper == GT_PUTARG_STK);
-    GenTree* arg1 = argEntry->node->gtOp.gtOp1;
+    GenTree* arg1 = argEntry->GetNode()->AsPutArgStk()->gtGetOp1();
     assert(arg1->gtOper == GT_CNS_INT);
 
     ssize_t tailCallHelperFlags = 1 |                                  // always restore EDI,ESI,EBX
                                   (call->IsVirtualStub() ? 0x2 : 0x0); // Stub dispatch flag
-    arg1->gtIntCon.gtIconVal = tailCallHelperFlags;
+    arg1->AsIntCon()->gtIconVal = tailCallHelperFlags;
 
     // arg 2 == numberOfNewStackArgsWords
     argEntry = comp->gtArgEntryByArgNum(call, numArgs - 3);
     assert(argEntry != nullptr);
-    assert(argEntry->node->gtOper == GT_PUTARG_STK);
-    GenTree* arg2 = argEntry->node->gtOp.gtOp1;
+    GenTree* arg2 = argEntry->GetNode()->AsPutArgStk()->gtGetOp1();
     assert(arg2->gtOper == GT_CNS_INT);
 
-    arg2->gtIntCon.gtIconVal = nNewStkArgsWords;
+    arg2->AsIntCon()->gtIconVal = nNewStkArgsWords;
 
 #ifdef DEBUG
     // arg 3 == numberOfOldStackArgsWords
     argEntry = comp->gtArgEntryByArgNum(call, numArgs - 4);
     assert(argEntry != nullptr);
-    assert(argEntry->node->gtOper == GT_PUTARG_STK);
-    GenTree* arg3 = argEntry->node->gtOp.gtOp1;
+    GenTree* arg3 = argEntry->GetNode()->AsPutArgStk()->gtGetOp1();
     assert(arg3->gtOper == GT_CNS_INT);
 #endif // DEBUG
 
@@ -2513,16 +2534,16 @@ GenTree* Lowering::DecomposeLongCompare(GenTree* cmp)
     {
         BlockRange().Remove(cmp);
 
-        GenTree* jcc    = cmpUse.User();
-        jcc->gtOp.gtOp1 = nullptr;
+        GenTree* jcc       = cmpUse.User();
+        jcc->AsOp()->gtOp1 = nullptr;
         jcc->ChangeOper(GT_JCC);
         jcc->gtFlags |= GTF_USE_FLAGS;
         jcc->AsCC()->gtCondition = GenCondition::FromIntegralRelop(condition, cmp->IsUnsigned());
     }
     else
     {
-        cmp->gtOp.gtOp1 = nullptr;
-        cmp->gtOp.gtOp2 = nullptr;
+        cmp->AsOp()->gtOp1 = nullptr;
+        cmp->AsOp()->gtOp2 = nullptr;
         cmp->ChangeOper(GT_SETCC);
         cmp->gtFlags |= GTF_USE_FLAGS;
         cmp->AsCC()->gtCondition = GenCondition::FromIntegralRelop(condition, cmp->IsUnsigned());
@@ -2615,8 +2636,8 @@ GenTree* Lowering::OptimizeConstCompare(GenTree* cmp)
                 op2->SetIconValue(0xff);
                 op2->gtType = castOp->gtType;
 #else
-                castOp->gtType = castToType;
-                op2->gtType    = castToType;
+                castOp->gtType        = castToType;
+                op2->gtType           = castToType;
 #endif
                 // If we have any contained memory ops on castOp, they must now not be contained.
                 if (castOp->OperIsLogical())
@@ -2632,7 +2653,7 @@ GenTree* Lowering::OptimizeConstCompare(GenTree* cmp)
                         op2->ClearContained();
                     }
                 }
-                cmp->gtOp.gtOp1 = castOp;
+                cmp->AsOp()->gtOp1 = castOp;
 
                 BlockRange().Remove(cast);
             }
@@ -2668,8 +2689,8 @@ GenTree* Lowering::OptimizeConstCompare(GenTree* cmp)
             BlockRange().Remove(op2);
 
             cmp->SetOperRaw(cmp->OperIs(GT_EQ) ? GT_TEST_EQ : GT_TEST_NE);
-            cmp->gtOp.gtOp1 = andOp1;
-            cmp->gtOp.gtOp2 = andOp2;
+            cmp->AsOp()->gtOp1 = andOp1;
+            cmp->AsOp()->gtOp2 = andOp2;
             // We will re-evaluate containment below
             andOp1->ClearContained();
             andOp2->ClearContained();
@@ -2732,7 +2753,7 @@ GenTree* Lowering::OptimizeConstCompare(GenTree* cmp)
             cmp->SetOper(GT_BT);
             cmp->gtType = TYP_VOID;
             cmp->gtFlags |= GTF_SET_FLAGS;
-            cmp->gtOp.gtOp2 = lsh->gtGetOp2();
+            cmp->AsOp()->gtOp2 = lsh->gtGetOp2();
             cmp->gtGetOp2()->ClearContained();
 
             BlockRange().Remove(lsh->gtGetOp1());
@@ -2890,7 +2911,7 @@ GenTree* Lowering::LowerJTrue(GenTreeOp* jtrue)
 {
 #ifdef _TARGET_ARM64_
     GenTree* relop    = jtrue->gtGetOp1();
-    GenTree* relopOp2 = relop->gtOp.gtGetOp2();
+    GenTree* relopOp2 = relop->AsOp()->gtGetOp2();
 
     if ((relop->gtNext == jtrue) && relopOp2->IsCnsIntOrI())
     {
@@ -2933,6 +2954,109 @@ GenTree* Lowering::LowerJTrue(GenTreeOp* jtrue)
     return nullptr;
 }
 
+//----------------------------------------------------------------------------------------------
+// LowerNodeCC: Lowers a node that produces a boolean value by setting the condition flags.
+//
+// Arguments:
+//     node - The node to lower
+//     condition - The condition code of the generated SETCC/JCC node
+//
+// Return Value:
+//     A SETCC/JCC node or nullptr if `node` is not used.
+//
+// Notes:
+//     This simply replaces `node`'s use with an appropiate SETCC/JCC node,
+//     `node` is not actually changed, except by having its GTF_SET_FLAGS set.
+//     It's the caller's responsibility to change `node` such that it only
+//     sets the condition flags, without producing a boolean value.
+//
+GenTreeCC* Lowering::LowerNodeCC(GenTree* node, GenCondition condition)
+{
+    // Skip over a chain of EQ/NE(x, 0) relops. This may be present either
+    // because `node` is not a relop and so it cannot be used directly by a
+    // JTRUE, or because the frontend failed to remove a EQ/NE(x, 0) that's
+    // used as logical negation.
+    //
+    // Usually there's only one such relop but there's little difference
+    // between removing one or all so we may as well remove them all.
+    //
+    // We can't allow any other nodes between `node` and its user because we
+    // have no way of knowing if those nodes change flags or not. So we're looking
+    // to skip over a sequence of appropriately connected zero and EQ/NE nodes.
+
+    // The x in EQ/NE(x, 0)
+    GenTree* relop = node;
+    // The first node of the relop sequence
+    GenTree* first = node->gtNext;
+    // The node following the relop sequence
+    GenTree* next = first;
+
+    while ((next != nullptr) && next->IsIntegralConst(0) && (next->gtNext != nullptr) &&
+           next->gtNext->OperIs(GT_EQ, GT_NE) && (next->gtNext->AsOp()->gtGetOp1() == relop) &&
+           (next->gtNext->AsOp()->gtGetOp2() == next))
+    {
+        relop = next->gtNext;
+        next  = relop->gtNext;
+
+        if (relop->OperIs(GT_EQ))
+        {
+            condition = GenCondition::Reverse(condition);
+        }
+    }
+
+    GenTreeCC* cc = nullptr;
+
+    // Next may be null if `node` is not used. In that case we don't need to generate a SETCC node.
+    if (next != nullptr)
+    {
+        if (next->OperIs(GT_JTRUE))
+        {
+            // If the instruction immediately following 'relop', i.e. 'next' is a conditional branch,
+            // it should always have 'relop' as its 'op1'. If it doesn't, then we have improperly
+            // constructed IL (the setting of a condition code should always immediately precede its
+            // use, since the JIT doesn't track dataflow for condition codes). Still, if it happens
+            // it's not our problem, it simply means that `node` is not used and can be removed.
+            if (next->AsUnOp()->gtGetOp1() == relop)
+            {
+                assert(relop->OperIsCompare());
+
+                next->ChangeOper(GT_JCC);
+                cc              = next->AsCC();
+                cc->gtCondition = condition;
+            }
+        }
+        else
+        {
+            // If the node is used by something other than a JTRUE then we need to insert a
+            // SETCC node to materialize the boolean value.
+            LIR::Use use;
+
+            if (BlockRange().TryGetUse(relop, &use))
+            {
+                cc = new (comp, GT_SETCC) GenTreeCC(GT_SETCC, condition, TYP_INT);
+                BlockRange().InsertAfter(node, cc);
+                use.ReplaceWith(comp, cc);
+            }
+        }
+    }
+
+    if (cc != nullptr)
+    {
+        node->gtFlags |= GTF_SET_FLAGS;
+        cc->gtFlags |= GTF_USE_FLAGS;
+    }
+
+    // Remove the chain of EQ/NE(x, 0) relop nodes, if any. Note that if a SETCC was
+    // inserted after `node`, `first` still points to the node that was initially
+    // after `node`.
+    if (relop != node)
+    {
+        BlockRange().Remove(first, relop);
+    }
+
+    return cc;
+}
+
 // Lower "jmp <method>" tail call to insert PInvoke method epilog if required.
 void Lowering::LowerJmpMethod(GenTree* jmp)
 {
@@ -2944,7 +3068,7 @@ void Lowering::LowerJmpMethod(GenTree* jmp)
 
     // If PInvokes are in-lined, we have to remember to execute PInvoke method epilog anywhere that
     // a method returns.
-    if (comp->info.compCallUnmanaged)
+    if (comp->compMethodRequiresPInvokeFrame())
     {
         InsertPInvokeMethodEpilog(comp->compCurBB DEBUGARG(jmp));
     }
@@ -2970,7 +3094,7 @@ void Lowering::LowerRet(GenTree* ret)
 #endif // _TARGET_AMD64_
 
     // Method doing PInvokes has exactly one return block unless it has tail calls.
-    if (comp->info.compCallUnmanaged && (comp->compCurBB == comp->genReturnBB))
+    if (comp->compMethodRequiresPInvokeFrame() && (comp->compCurBB == comp->genReturnBB))
     {
         InsertPInvokeMethodEpilog(comp->compCurBB DEBUGARG(ret));
     }
@@ -3050,7 +3174,7 @@ GenTree* Lowering::LowerDirectCall(GenTreeCall* call)
     {
         case IAT_VALUE:
             // Non-virtual direct call to known address
-            if (!IsCallTargetInRange(addr) || call->IsTailCall())
+            if (!IsCallTargetInRange(addr) || call->IsTailCallViaHelper())
             {
                 result = AddrGen(addr);
             }
@@ -3120,7 +3244,7 @@ GenTree* Lowering::LowerDelegateInvoke(GenTreeCall* call)
 #endif // !_TARGET_X86_
 
         fgArgTabEntry* thisArgTabEntry = comp->gtArgEntryByArgNum(call, argNum);
-        thisArgNode                    = thisArgTabEntry->node;
+        thisArgNode                    = thisArgTabEntry->GetNode();
     }
     else
     {
@@ -3128,7 +3252,7 @@ GenTree* Lowering::LowerDelegateInvoke(GenTreeCall* call)
     }
 
     assert(thisArgNode->gtOper == GT_PUTARG_REG);
-    GenTree* originalThisExpr = thisArgNode->gtOp.gtOp1;
+    GenTree* originalThisExpr = thisArgNode->AsOp()->gtOp1;
     GenTree* thisExpr         = originalThisExpr;
 
     // We're going to use the 'this' expression multiple times, so make a local to copy it.
@@ -3151,7 +3275,7 @@ GenTree* Lowering::LowerDelegateInvoke(GenTreeCall* call)
     {
         unsigned delegateInvokeTmp = comp->lvaGrabTemp(true DEBUGARG("delegate invoke call"));
 
-        LIR::Use thisExprUse(BlockRange(), &thisArgNode->gtOp.gtOp1, thisArgNode);
+        LIR::Use thisExprUse(BlockRange(), &thisArgNode->AsOp()->gtOp1, thisArgNode);
         ReplaceWithLclVar(thisExprUse, delegateInvokeTmp);
 
         thisExpr = thisExprUse.Def(); // it's changed; reload it.
@@ -3168,7 +3292,7 @@ GenTree* Lowering::LowerDelegateInvoke(GenTreeCall* call)
 
     BlockRange().InsertAfter(thisExpr, newThisAddr, newThis);
 
-    thisArgNode->gtOp.gtOp1 = newThis;
+    thisArgNode->AsOp()->gtOp1 = newThis;
     ContainCheckIndir(newThis->AsIndir());
 
     // the control target is
@@ -3336,9 +3460,11 @@ GenTree* Lowering::CreateFrameLinkUpdate(FrameLinkAction action)
 //                                                                              localloc and PInvoke in same function)
 //  +30h    +14h    m_pCallerReturnAddress            offsetOfReturnAddress   call site
 //  +38h    +18h    m_pCalleeSavedFP                  offsetOfCalleeSavedFP   not set by JIT
-//          +1Ch    JIT retval spill area (int)                               before call_gc    ???
-//          +20h    JIT retval spill area (long)                              before call_gc    ???
-//          +24h    Saved value of EBP                                        method prolog     ???
+//          +1Ch    m_pThread
+//          +20h    m_pSPAfterProlog                  offsetOfSPAfterProlog   arm only
+//          +20/24h JIT retval spill area (int)                               before call_gc    ???
+//          +24/28h JIT retval spill area (long)                              before call_gc    ???
+//          +28/2Ch Saved value of EBP                                        method prolog     ???
 //
 // Note that in the VM, InlinedCallFrame is a C++ class whose objects have a 'this' pointer that points
 // to the InlinedCallFrame vptr (the 2nd field listed above), and the GS cookie is stored *before*
@@ -3350,7 +3476,7 @@ GenTree* Lowering::CreateFrameLinkUpdate(FrameLinkAction action)
 //
 void Lowering::InsertPInvokeMethodProlog()
 {
-    noway_assert(comp->info.compCallUnmanaged);
+    noway_assert(comp->info.compUnmanagedCallCountWithGCTransition);
     noway_assert(comp->lvaInlinedPInvokeFrameVar != BAD_VAR_NUM);
 
     if (comp->opts.ShouldUsePInvokeHelpers())
@@ -3379,9 +3505,9 @@ void Lowering::InsertPInvokeMethodProlog()
     CLANG_FORMAT_COMMENT_ANCHOR;
 
 #if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
-    GenTreeArgList* argList = comp->gtNewArgList(frameAddr);
+    GenTreeCall::Use* argList = comp->gtNewCallArgs(frameAddr);
 #else
-    GenTreeArgList*    argList = comp->gtNewArgList(frameAddr, PhysReg(REG_SECRET_STUB_PARAM));
+    GenTreeCall::Use*  argList = comp->gtNewCallArgs(frameAddr, PhysReg(REG_SECRET_STUB_PARAM));
 #endif
 
     GenTree* call = comp->gtNewHelperCallNode(CORINFO_HELP_INIT_PINVOKE_FRAME, TYP_I_IMPL, argList);
@@ -3393,7 +3519,7 @@ void Lowering::InsertPInvokeMethodProlog()
 
     GenTree* store =
         new (comp, GT_STORE_LCL_VAR) GenTreeLclVar(GT_STORE_LCL_VAR, TYP_I_IMPL, comp->info.compLvFrameListRoot);
-    store->gtOp.gtOp1 = call;
+    store->AsOp()->gtOp1 = call;
     store->gtFlags |= GTF_VAR_DEF;
 
     GenTree* const insertionPoint = firstBlockRange.FirstNonPhiOrCatchArgNode();
@@ -3468,7 +3594,7 @@ void Lowering::InsertPInvokeMethodProlog()
 void Lowering::InsertPInvokeMethodEpilog(BasicBlock* returnBB DEBUGARG(GenTree* lastExpr))
 {
     assert(returnBB != nullptr);
-    assert(comp->info.compCallUnmanaged);
+    assert(comp->info.compUnmanagedCallCountWithGCTransition);
 
     if (comp->opts.ShouldUsePInvokeHelpers())
     {
@@ -3564,7 +3690,7 @@ void Lowering::InsertPInvokeCallProlog(GenTreeCall* call)
 
         // Insert call to CORINFO_HELP_JIT_PINVOKE_BEGIN
         GenTree* helperCall =
-            comp->gtNewHelperCallNode(CORINFO_HELP_JIT_PINVOKE_BEGIN, TYP_VOID, comp->gtNewArgList(frameAddr));
+            comp->gtNewHelperCallNode(CORINFO_HELP_JIT_PINVOKE_BEGIN, TYP_VOID, comp->gtNewCallArgs(frameAddr));
 
         comp->fgMorphTree(helperCall);
         BlockRange().InsertBefore(insertBefore, LIR::SeqTree(comp, helperCall));
@@ -3721,7 +3847,7 @@ void Lowering::InsertPInvokeCallEpilog(GenTreeCall* call)
 
         // Insert call to CORINFO_HELP_JIT_PINVOKE_END
         GenTreeCall* helperCall =
-            comp->gtNewHelperCallNode(CORINFO_HELP_JIT_PINVOKE_END, TYP_VOID, comp->gtNewArgList(frameAddr));
+            comp->gtNewHelperCallNode(CORINFO_HELP_JIT_PINVOKE_END, TYP_VOID, comp->gtNewCallArgs(frameAddr));
 
         comp->fgMorphTree(helperCall);
         BlockRange().InsertAfter(call, LIR::SeqTree(comp, helperCall));
@@ -3834,9 +3960,6 @@ GenTree* Lowering::LowerNonvirtPinvokeCall(GenTreeCall* call)
 
     GenTree* result = nullptr;
 
-    // assert we have seen one of these
-    noway_assert(comp->info.compCallUnmanaged != 0);
-
     // All code generated by this function must not contain the randomly-inserted NOPs
     // that we insert to inhibit JIT spraying in partial trust scenarios.
     // The PINVOKE_PROLOG op signals this to the code generator/emitter.
@@ -3844,7 +3967,11 @@ GenTree* Lowering::LowerNonvirtPinvokeCall(GenTreeCall* call)
     GenTree* prolog = new (comp, GT_NOP) GenTree(GT_PINVOKE_PROLOG, TYP_VOID);
     BlockRange().InsertBefore(call, prolog);
 
-    InsertPInvokeCallProlog(call);
+    bool addPInvokePrologEpilog = !call->IsSuppressGCTransition();
+    if (addPInvokePrologEpilog)
+    {
+        InsertPInvokeCallProlog(call);
+    }
 
     if (call->gtCallType != CT_INDIRECT)
     {
@@ -3887,7 +4014,10 @@ GenTree* Lowering::LowerNonvirtPinvokeCall(GenTreeCall* call)
         }
     }
 
-    InsertPInvokeCallEpilog(call);
+    if (addPInvokePrologEpilog)
+    {
+        InsertPInvokeCallEpilog(call);
+    }
 
     return result;
 }
@@ -3918,16 +4048,16 @@ GenTree* Lowering::LowerVirtualVtableCall(GenTreeCall* call)
 
     // get a reference to the thisPtr being passed
     fgArgTabEntry* argEntry = comp->gtArgEntryByArgNum(call, thisPtrArgNum);
-    assert(argEntry->regNum == thisPtrArgReg);
-    assert(argEntry->node->gtOper == GT_PUTARG_REG);
-    GenTree* thisPtr = argEntry->node->gtOp.gtOp1;
+    assert(argEntry->GetRegNum() == thisPtrArgReg);
+    assert(argEntry->GetNode()->OperIs(GT_PUTARG_REG));
+    GenTree* thisPtr = argEntry->GetNode()->AsUnOp()->gtGetOp1();
 
     // If what we are passing as the thisptr is not already a local, make a new local to place it in
     // because we will be creating expressions based on it.
     unsigned lclNum;
     if (thisPtr->IsLocal())
     {
-        lclNum = thisPtr->gtLclVarCommon.gtLclNum;
+        lclNum = thisPtr->AsLclVarCommon()->GetLclNum();
     }
     else
     {
@@ -3937,7 +4067,7 @@ GenTree* Lowering::LowerVirtualVtableCall(GenTreeCall* call)
             vtableCallTemp = comp->lvaGrabTemp(true DEBUGARG("virtual vtable call"));
         }
 
-        LIR::Use thisPtrUse(BlockRange(), &(argEntry->node->gtOp.gtOp1), argEntry->node);
+        LIR::Use thisPtrUse(BlockRange(), &(argEntry->GetNode()->AsUnOp()->gtOp1), argEntry->GetNode());
         ReplaceWithLclVar(thisPtrUse, vtableCallTemp);
 
         lclNum = vtableCallTemp;
@@ -4136,36 +4266,6 @@ GenTree* Lowering::LowerVirtualStubCall(GenTreeCall* call)
 }
 
 //------------------------------------------------------------------------
-// AddrModeCleanupHelper: Remove the nodes that are no longer used after an
-// addressing mode is constructed
-//
-// Arguments:
-//    addrMode - A pointer to a new GenTreeAddrMode
-//    node     - The node currently being considered for removal
-//
-// Return Value:
-//    None.
-//
-// Assumptions:
-//    'addrMode' and 'node' must be contained in the current block
-//
-void Lowering::AddrModeCleanupHelper(GenTreeAddrMode* addrMode, GenTree* node)
-{
-    if (node == addrMode->Base() || node == addrMode->Index())
-    {
-        return;
-    }
-
-    // TODO-LIR: change this to use the LIR mark bit and iterate instead of recursing
-    node->VisitOperands([this, addrMode](GenTree* operand) -> GenTree::VisitResult {
-        AddrModeCleanupHelper(addrMode, operand);
-        return GenTree::VisitResult::Continue;
-    });
-
-    BlockRange().Remove(node);
-}
-
-//------------------------------------------------------------------------
 // Lowering::AreSourcesPossibleModifiedLocals:
 //    Given two nodes which will be used in an addressing mode (base,
 //    index), check to see if they are lclVar reads, and if so, walk
@@ -4248,49 +4348,24 @@ bool Lowering::AreSourcesPossiblyModifiedLocals(GenTree* addr, GenTree* base, Ge
 //    addressing mode and transform them to a GT_LEA
 //
 // Arguments:
-//    use:     the use of the address we want to transform
-//    isIndir: true if this addressing mode is the child of an indir
+//    use - the use of the address we want to transform
+//    isContainable - true if this addressing mode can be contained
 //
 // Returns:
-//    The created LEA node or the original address node if an LEA could
-//    not be formed.
+//    true if the address node was changed to a LEA, false otherwise.
 //
-GenTree* Lowering::TryCreateAddrMode(LIR::Use&& use, bool isIndir)
+bool Lowering::TryCreateAddrMode(GenTree* addr, bool isContainable)
 {
-    GenTree* addr   = use.Def();
+    if (!addr->OperIs(GT_ADD) || addr->gtOverflow())
+    {
+        return false;
+    }
+
     GenTree* base   = nullptr;
     GenTree* index  = nullptr;
     unsigned scale  = 0;
     ssize_t  offset = 0;
     bool     rev    = false;
-
-    // TODO-1stClassStructs: This logic is here to preserve prior behavior. Note that previously
-    // block ops were not considered for addressing modes, but an add under it may have been.
-    // This should be replaced with logic that more carefully determines when an addressing mode
-    // would be beneficial for a block op.
-    if (isIndir)
-    {
-        GenTree* indir = use.User();
-        if (indir->TypeGet() == TYP_STRUCT)
-        {
-            isIndir = false;
-        }
-        else if (varTypeIsStruct(indir))
-        {
-            // We can have an indirection on the rhs of a block copy (it is the source
-            // object). This is not a "regular" indirection.
-            // (Note that the user check could be costly.)
-            LIR::Use indirUse;
-            if (BlockRange().TryGetUse(indir, &indirUse) && indirUse.User()->OperIsIndir())
-            {
-                isIndir = false;
-            }
-            else
-            {
-                isIndir = !indir->OperIsBlk();
-            }
-        }
-    }
 
     // Find out if an addressing mode can be constructed
     bool doAddrMode = comp->codeGen->genCreateAddrMode(addr,   // address
@@ -4308,18 +4383,18 @@ GenTree* Lowering::TryCreateAddrMode(LIR::Use&& use, bool isIndir)
         scale = 1;
     }
 
-    if (!isIndir)
+    if (!isContainable)
     {
         // this is just a reg-const add
         if (index == nullptr)
         {
-            return addr;
+            return false;
         }
 
         // this is just a reg-reg add
-        if (scale == 1 && offset == 0)
+        if ((scale == 1) && (offset == 0))
         {
-            return addr;
+            return false;
         }
     }
 
@@ -4328,7 +4403,7 @@ GenTree* Lowering::TryCreateAddrMode(LIR::Use&& use, bool isIndir)
     {
         JITDUMP("No addressing mode:\n  ");
         DISPNODE(addr);
-        return addr;
+        return false;
     }
 
     JITDUMP("Addressing mode:\n");
@@ -4344,13 +4419,21 @@ GenTree* Lowering::TryCreateAddrMode(LIR::Use&& use, bool isIndir)
         JITDUMP("  + %d\n", offset);
     }
 
-    var_types addrModeType = addr->TypeGet();
-    if (addrModeType == TYP_REF)
-    {
-        addrModeType = TYP_BYREF;
-    }
+    // Save the (potentially) unused operands before changing the address to LEA.
+    ArrayStack<GenTree*> unusedStack(comp->getAllocator(CMK_ArrayStack));
+    unusedStack.Push(addr->AsOp()->gtGetOp1());
+    unusedStack.Push(addr->AsOp()->gtGetOp2());
 
-    GenTreeAddrMode* addrMode = new (comp, GT_LEA) GenTreeAddrMode(addrModeType, base, index, scale, offset);
+    addr->ChangeOper(GT_LEA);
+    // Make sure there are no leftover side effects (though the existing ADD we're
+    // changing shouldn't have any at this point, but sometimes it does).
+    addr->gtFlags &= ~GTF_ALL_EFFECT;
+
+    GenTreeAddrMode* addrMode = addr->AsAddrMode();
+    addrMode->SetBase(base);
+    addrMode->SetIndex(index);
+    addrMode->SetScale(scale);
+    addrMode->SetOffset(static_cast<int>(offset));
 
     // Neither the base nor the index should now be contained.
     if (base != nullptr)
@@ -4361,22 +4444,42 @@ GenTree* Lowering::TryCreateAddrMode(LIR::Use&& use, bool isIndir)
     {
         index->ClearContained();
     }
-    addrMode->gtFlags |= (addr->gtFlags & GTF_IND_FLAGS);
-    addrMode->gtFlags &= ~GTF_ALL_EFFECT; // LEAs are side-effect-free.
 
-    JITDUMP("New addressing mode node:\n");
+    // Remove all the nodes that are no longer used.
+    while (!unusedStack.Empty())
+    {
+        GenTree* unused = unusedStack.Pop();
+
+        // Use a loop to process some of the nodes iteratively
+        // instead of pushing them on the stack.
+        while ((unused != base) && (unused != index))
+        {
+            JITDUMP("Removing unused node:\n  ");
+            DISPNODE(unused);
+
+            BlockRange().Remove(unused);
+
+            if (unused->OperIs(GT_ADD, GT_MUL, GT_LSH))
+            {
+                // Push the first operand and loop back to process the second one.
+                // This minimizes the stack depth because the second one tends to be
+                // a constant so it gets processed and then the first one gets popped.
+                unusedStack.Push(unused->AsOp()->gtGetOp1());
+                unused = unused->AsOp()->gtGetOp2();
+            }
+            else
+            {
+                assert(unused->OperIs(GT_CNS_INT));
+                break;
+            }
+        }
+    }
+
+    JITDUMP("New addressing mode node:\n  ");
     DISPNODE(addrMode);
     JITDUMP("\n");
 
-    BlockRange().InsertAfter(addr, addrMode);
-
-    // Now we need to remove all the nodes subsumed by the addrMode
-    AddrModeCleanupHelper(addrMode, addr);
-
-    // Replace the original address node with the addrMode.
-    use.ReplaceWith(comp, addrMode);
-
-    return addrMode;
+    return true;
 }
 
 //------------------------------------------------------------------------
@@ -4385,13 +4488,10 @@ GenTree* Lowering::TryCreateAddrMode(LIR::Use&& use, bool isIndir)
 // Arguments:
 //    node - the node we care about
 //
-// Returns:
-//    The next node to lower if we have transformed the ADD; nullptr otherwise.
-//
-GenTree* Lowering::LowerAdd(GenTree* node)
+void Lowering::LowerAdd(GenTreeOp* node)
 {
 #ifndef _TARGET_ARMARCH_
-    if (varTypeIsIntegralOrI(node))
+    if (varTypeIsIntegralOrI(node->TypeGet()))
     {
         LIR::Use use;
         if (BlockRange().TryGetUse(node, &use))
@@ -4399,19 +4499,18 @@ GenTree* Lowering::LowerAdd(GenTree* node)
             // If this is a child of an indir, let the parent handle it.
             // If there is a chain of adds, only look at the topmost one.
             GenTree* parent = use.User();
-            if (!parent->OperIsIndir() && (parent->gtOper != GT_ADD))
+            if (!parent->OperIsIndir() && !parent->OperIs(GT_ADD))
             {
-                GenTree* addr = TryCreateAddrMode(std::move(use), false);
-                if (addr != node)
-                {
-                    return addr->gtNext;
-                }
+                TryCreateAddrMode(node, false);
             }
         }
     }
 #endif // !_TARGET_ARMARCH_
 
-    return nullptr;
+    if (node->OperIs(GT_ADD))
+    {
+        ContainCheckBinary(node);
+    }
 }
 
 //------------------------------------------------------------------------
@@ -4502,7 +4601,7 @@ bool Lowering::LowerUnsignedDivOrMod(GenTreeOp* divMod)
         }
 
         divMod->SetOper(newOper);
-        divisor->gtIntCon.SetIconValue(divisorValue);
+        divisor->AsIntCon()->SetIconValue(divisorValue);
         ContainCheckNode(divMod);
         return true;
     }
@@ -4577,7 +4676,7 @@ bool Lowering::LowerUnsignedDivOrMod(GenTreeOp* divMod)
             GenTree* rsz = comp->gtNewOperNode(GT_RSZ, type, sub, one);
             BlockRange().InsertBefore(divMod, one, rsz);
 
-            LIR::Use mulhiUse(BlockRange(), &sub->gtOp.gtOp2, sub);
+            LIR::Use mulhiUse(BlockRange(), &sub->AsOp()->gtOp2, sub);
             mulhi = ReplaceWithLclVar(mulhiUse);
 
             mulhi        = comp->gtNewLclvNode(mulhi->AsLclVar()->GetLclNum(), mulhi->TypeGet());
@@ -4660,7 +4759,7 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
         return nullptr;
     }
 
-    ssize_t divisorValue = divisor->gtIntCon.IconValue();
+    ssize_t divisorValue = divisor->AsIntCon()->IconValue();
 
     if (divisorValue == -1 || divisorValue == 0)
     {
@@ -4716,7 +4815,7 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
 #endif // !_TARGET_64BIT_
         }
 
-        divisor->gtIntConCommon.SetIconValue(magic);
+        divisor->AsIntConCommon()->SetIconValue(magic);
 
         // Insert a new GT_MULHI node in front of the existing GT_DIV/GT_MOD node.
         // The existing node will later be transformed into a GT_ADD/GT_SUB that
@@ -4744,7 +4843,7 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
 
         if (requiresDividendMultiuse)
         {
-            LIR::Use dividendUse(BlockRange(), &mulhi->gtOp.gtOp2, mulhi);
+            LIR::Use dividendUse(BlockRange(), &mulhi->AsOp()->gtOp2, mulhi);
             dividend = ReplaceWithLclVar(dividendUse);
         }
 
@@ -4765,7 +4864,7 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
         GenTree* signBit = comp->gtNewOperNode(GT_RSZ, type, adjusted, shiftBy);
         BlockRange().InsertBefore(divMod, shiftBy, signBit);
 
-        LIR::Use adjustedUse(BlockRange(), &signBit->gtOp.gtOp1, signBit);
+        LIR::Use adjustedUse(BlockRange(), &signBit->AsOp()->gtOp1, signBit);
         adjusted = ReplaceWithLclVar(adjustedUse);
         adjusted = comp->gtNewLclvNode(adjusted->AsLclVar()->GetLclNum(), adjusted->TypeGet());
         BlockRange().InsertBefore(divMod, adjusted);
@@ -4780,8 +4879,8 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
         if (isDiv)
         {
             divMod->SetOperRaw(GT_ADD);
-            divMod->gtOp.gtOp1 = adjusted;
-            divMod->gtOp.gtOp2 = signBit;
+            divMod->AsOp()->gtOp1 = adjusted;
+            divMod->AsOp()->gtOp2 = signBit;
         }
         else
         {
@@ -4795,8 +4894,8 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
             BlockRange().InsertBefore(divMod, dividend, div, divisor, mul);
 
             divMod->SetOperRaw(GT_SUB);
-            divMod->gtOp.gtOp1 = dividend;
-            divMod->gtOp.gtOp2 = mul;
+            divMod->AsOp()->gtOp1 = dividend;
+            divMod->AsOp()->gtOp2 = mul;
         }
 
         return mulhi;
@@ -4817,7 +4916,7 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
 
     // We need to use the dividend node multiple times so its value needs to be
     // computed once and stored in a temp variable.
-    LIR::Use opDividend(BlockRange(), &divMod->gtOp.gtOp1, divMod);
+    LIR::Use opDividend(BlockRange(), &divMod->AsOp()->gtOp1, divMod);
     dividend = ReplaceWithLclVar(opDividend);
 
     GenTree* adjustment = comp->gtNewOperNode(GT_RSH, type, dividend, comp->gtNewIconNode(type == TYP_INT ? 31 : 63));
@@ -4842,7 +4941,7 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
     if (isDiv)
     {
         // perform the division by right shifting the adjusted dividend
-        divisor->gtIntCon.SetIconValue(genLog2(absDivisorValue));
+        divisor->AsIntCon()->SetIconValue(genLog2(absDivisorValue));
 
         newDivMod = comp->gtNewOperNode(GT_RSH, type, adjustedDividend, divisor);
         ContainCheckShiftRotate(newDivMod->AsOp());
@@ -4859,7 +4958,7 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
         // divisor % dividend = dividend - divisor x (dividend / divisor)
         // divisor x (dividend / divisor) translates to (dividend >> log2(divisor)) << log2(divisor)
         // which simply discards the low log2(divisor) bits, that's just dividend & ~(divisor - 1)
-        divisor->gtIntCon.SetIconValue(~(absDivisorValue - 1));
+        divisor->AsIntCon()->SetIconValue(~(absDivisorValue - 1));
 
         newDivMod = comp->gtNewOperNode(GT_SUB, type,
                                         comp->gtNewLclvNode(dividend->AsLclVar()->GetLclNum(), dividend->TypeGet()),
@@ -5051,7 +5150,7 @@ GenTree* Lowering::LowerArrElem(GenTree* node)
 {
     // This will assert if we don't have an ArrElem node
     GenTreeArrElem*     arrElem = node->AsArrElem();
-    const unsigned char rank    = arrElem->gtArrElem.gtArrRank;
+    const unsigned char rank    = arrElem->gtArrRank;
 
     JITDUMP("Lowering ArrElem\n");
     JITDUMP("============\n");
@@ -5079,7 +5178,7 @@ GenTree* Lowering::LowerArrElem(GenTree* node)
 
     for (unsigned char dim = 0; dim < rank; dim++)
     {
-        GenTree* indexNode = arrElem->gtArrElem.gtArrInds[dim];
+        GenTree* indexNode = arrElem->gtArrInds[dim];
 
         // Use the original arrObjNode on the 0th ArrIndex node, and clone it for subsequent ones.
         GenTree* idxArrObjNode;
@@ -5095,16 +5194,15 @@ GenTree* Lowering::LowerArrElem(GenTree* node)
 
         // Next comes the GT_ARR_INDEX node.
         GenTreeArrIndex* arrMDIdx = new (comp, GT_ARR_INDEX)
-            GenTreeArrIndex(TYP_INT, idxArrObjNode, indexNode, dim, rank, arrElem->gtArrElem.gtArrElemType);
+            GenTreeArrIndex(TYP_INT, idxArrObjNode, indexNode, dim, rank, arrElem->gtArrElemType);
         arrMDIdx->gtFlags |= ((idxArrObjNode->gtFlags | indexNode->gtFlags) & GTF_ALL_EFFECT);
         BlockRange().InsertBefore(insertionPoint, arrMDIdx);
 
         GenTree* offsArrObjNode = comp->gtClone(arrObjNode);
         BlockRange().InsertBefore(insertionPoint, offsArrObjNode);
 
-        GenTreeArrOffs* arrOffs =
-            new (comp, GT_ARR_OFFSET) GenTreeArrOffs(TYP_I_IMPL, prevArrOffs, arrMDIdx, offsArrObjNode, dim, rank,
-                                                     arrElem->gtArrElem.gtArrElemType);
+        GenTreeArrOffs* arrOffs = new (comp, GT_ARR_OFFSET)
+            GenTreeArrOffs(TYP_I_IMPL, prevArrOffs, arrMDIdx, offsArrObjNode, dim, rank, arrElem->gtArrElemType);
         arrOffs->gtFlags |= ((prevArrOffs->gtFlags | arrMDIdx->gtFlags | offsArrObjNode->gtFlags) & GTF_ALL_EFFECT);
         BlockRange().InsertBefore(insertionPoint, arrOffs);
 
@@ -5113,8 +5211,8 @@ GenTree* Lowering::LowerArrElem(GenTree* node)
 
     // Generate the LEA and make it reverse evaluation, because we want to evaluate the index expression before the
     // base.
-    unsigned scale  = arrElem->gtArrElem.gtArrElemSize;
-    unsigned offset = comp->eeGetMDArrayDataOffset(arrElem->gtArrElem.gtArrElemType, arrElem->gtArrElem.gtArrRank);
+    unsigned scale  = arrElem->gtArrElemSize;
+    unsigned offset = comp->eeGetMDArrayDataOffset(arrElem->gtArrElemType, arrElem->gtArrRank);
 
     GenTree* leaIndexNode = prevArrOffs;
     if (!jitIsScaleIndexMul(scale))
@@ -5159,7 +5257,7 @@ void Lowering::DoPhase()
     // If we have any PInvoke calls, insert the one-time prolog code. We'll inserted the epilog code in the
     // appropriate spots later. NOTE: there is a minor optimization opportunity here, as we still create p/invoke
     // data structures and setup/teardown even if we've eliminated all p/invoke calls due to dead code elimination.
-    if (comp->info.compCallUnmanaged)
+    if (comp->compMethodRequiresPInvokeFrame())
     {
         InsertPInvokeMethodProlog();
     }
@@ -5257,11 +5355,10 @@ void Lowering::CheckCallArg(GenTree* arg)
         {
             GenTreeFieldList* list = arg->AsFieldList();
             assert(list->isContained());
-            assert(list->IsFieldListHead());
 
-            for (; list != nullptr; list = list->Rest())
+            for (GenTreeFieldList::Use& use : list->Uses())
             {
-                assert(list->Current()->OperIsPutArg());
+                assert(use.GetNode()->OperIsPutArg());
             }
         }
         break;
@@ -5283,19 +5380,19 @@ void Lowering::CheckCallArg(GenTree* arg)
 //
 void Lowering::CheckCall(GenTreeCall* call)
 {
-    if (call->gtCallObjp != nullptr)
+    if (call->gtCallThisArg != nullptr)
     {
-        CheckCallArg(call->gtCallObjp);
+        CheckCallArg(call->gtCallThisArg->GetNode());
     }
 
-    for (GenTreeArgList* args = call->gtCallArgs; args != nullptr; args = args->Rest())
+    for (GenTreeCall::Use& use : call->Args())
     {
-        CheckCallArg(args->Current());
+        CheckCallArg(use.GetNode());
     }
 
-    for (GenTreeArgList* args = call->gtCallLateArgs; args != nullptr; args = args->Rest())
+    for (GenTreeCall::Use& use : call->LateArgs())
     {
-        CheckCallArg(args->Current());
+        CheckCallArg(use.GetNode());
     }
 }
 
@@ -5490,13 +5587,13 @@ bool Lowering::NodesAreEquivalentLeaves(GenTree* tree1, GenTree* tree2)
     switch (tree1->OperGet())
     {
         case GT_CNS_INT:
-            return tree1->gtIntCon.gtIconVal == tree2->gtIntCon.gtIconVal &&
+            return tree1->AsIntCon()->gtIconVal == tree2->AsIntCon()->gtIconVal &&
                    tree1->IsIconHandle() == tree2->IsIconHandle();
         case GT_LCL_VAR:
         case GT_LCL_VAR_ADDR:
-            return tree1->gtLclVarCommon.gtLclNum == tree2->gtLclVarCommon.gtLclNum;
+            return tree1->AsLclVarCommon()->GetLclNum() == tree2->AsLclVarCommon()->GetLclNum();
         case GT_CLS_VAR_ADDR:
-            return tree1->gtClsVar.gtClsVarHnd == tree2->gtClsVar.gtClsVarHnd;
+            return tree1->AsClsVar()->gtClsVarHnd == tree2->AsClsVar()->gtClsVarHnd;
         default:
             return false;
     }
@@ -5592,7 +5689,7 @@ void Lowering::ContainCheckNode(GenTree* node)
         case GT_PUTARG_SPLIT:
 #endif // FEATURE_ARG_SPLIT
             // The regNum must have been set by the lowering of the call.
-            assert(node->gtRegNum != REG_NA);
+            assert(node->GetRegNum() != REG_NA);
             break;
 #ifdef _TARGET_XARCH_
         case GT_INTRINSIC:
@@ -5605,7 +5702,7 @@ void Lowering::ContainCheckNode(GenTree* node)
             break;
 #endif // FEATURE_SIMD
 #ifdef FEATURE_HW_INTRINSICS
-        case GT_HWIntrinsic:
+        case GT_HWINTRINSIC:
             ContainCheckHWIntrinsic(node->AsHWIntrinsic());
             break;
 #endif // FEATURE_HW_INTRINSICS
@@ -5644,7 +5741,7 @@ void Lowering::ContainCheckArrOffset(GenTreeArrOffs* node)
     // we don't want to generate code for this
     if (node->gtOffset->IsIntegralConst(0))
     {
-        MakeSrcContained(node, node->gtArrOffs.gtOffset);
+        MakeSrcContained(node, node->AsArrOffs()->gtOffset);
     }
 }
 
@@ -5657,7 +5754,7 @@ void Lowering::ContainCheckArrOffset(GenTreeArrOffs* node)
 void Lowering::ContainCheckLclHeap(GenTreeOp* node)
 {
     assert(node->OperIs(GT_LCLHEAP));
-    GenTree* size = node->gtOp.gtOp1;
+    GenTree* size = node->AsOp()->gtOp1;
     if (size->IsCnsIntOrI())
     {
         MakeSrcContained(node, size);
@@ -5690,7 +5787,7 @@ void Lowering::ContainCheckRet(GenTreeOp* ret)
         if (op1->OperGet() == GT_LCL_VAR)
         {
             GenTreeLclVarCommon* lclVarCommon = op1->AsLclVarCommon();
-            LclVarDsc*           varDsc       = &(comp->lvaTable[lclVarCommon->gtLclNum]);
+            LclVarDsc*           varDsc       = &(comp->lvaTable[lclVarCommon->GetLclNum()]);
             // This must be a multi-reg return or an HFA of a single element.
             assert(varDsc->lvIsMultiRegRet || (varDsc->lvIsHfa() && varTypeIsValidHfaType(varDsc->lvType)));
 

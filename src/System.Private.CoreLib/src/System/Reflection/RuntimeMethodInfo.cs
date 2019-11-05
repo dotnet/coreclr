@@ -40,7 +40,7 @@ namespace System.Reflection
                     Type? declaringType = DeclaringType;
 
                     //
-                    // first take care of all the NO_INVOKE cases. 
+                    // first take care of all the NO_INVOKE cases.
                     if (ContainsGenericParameters ||
                          IsDisallowedByRefType(ReturnType) ||
                          (declaringType != null && declaringType.ContainsGenericParameters) ||
@@ -63,7 +63,7 @@ namespace System.Reflection
             }
         }
 
-        private bool IsDisallowedByRefType(Type type)
+        private static bool IsDisallowedByRefType(Type type)
         {
             if (!type.IsByRef)
                 return false;
@@ -91,62 +91,24 @@ namespace System.Reflection
         #endregion
 
         #region Private Methods
-        RuntimeMethodHandleInternal IRuntimeMethodInfo.Value
-        {
-            get
-            {
-                return new RuntimeMethodHandleInternal(m_handle);
-            }
-        }
+        RuntimeMethodHandleInternal IRuntimeMethodInfo.Value => new RuntimeMethodHandleInternal(m_handle);
 
-        private RuntimeType ReflectedTypeInternal
-        {
-            get
-            {
-                return m_reflectedTypeCache.GetRuntimeType();
-            }
-        }
+        private RuntimeType ReflectedTypeInternal => m_reflectedTypeCache.GetRuntimeType();
 
-        private ParameterInfo[] FetchNonReturnParameters()
-        {
-            if (m_parameters == null)
-                m_parameters = RuntimeParameterInfo.GetParameters(this, this, Signature);
+        private ParameterInfo[] FetchNonReturnParameters() =>
+            m_parameters ??= RuntimeParameterInfo.GetParameters(this, this, Signature);
 
-            return m_parameters;
-        }
-
-        private ParameterInfo FetchReturnParameter()
-        {
-            if (m_returnParameter == null)
-                m_returnParameter = RuntimeParameterInfo.GetReturnParameter(this, this, Signature);
-
-            return m_returnParameter;
-        }
+        private ParameterInfo FetchReturnParameter() =>
+            m_returnParameter ??= RuntimeParameterInfo.GetReturnParameter(this, this, Signature);
         #endregion
 
         #region Internal Members
-        internal override bool CacheEquals(object? o)
-        {
-            RuntimeMethodInfo? m = o as RuntimeMethodInfo;
+        internal override bool CacheEquals(object? o) =>
+            o is RuntimeMethodInfo m && m.m_handle == m_handle;
 
-            if (m is null)
-                return false;
+        internal Signature Signature => m_signature ??= new Signature(this, m_declaringType);
 
-            return m.m_handle == m_handle;
-        }
-
-        internal Signature Signature
-        {
-            get
-            {
-                if (m_signature == null)
-                    m_signature = new Signature(this, m_declaringType);
-
-                return m_signature;
-            }
-        }
-
-        internal BindingFlags BindingFlags { get { return m_bindingFlags; } }
+        internal BindingFlags BindingFlags => m_bindingFlags;
 
         internal RuntimeMethodInfo? GetParentDefinition()
         {
@@ -290,16 +252,7 @@ namespace System.Reflection
         #endregion
 
         #region MemberInfo Overrides
-        public override string Name
-        {
-            get
-            {
-                if (m_name == null)
-                    m_name = RuntimeMethodHandle.GetName(this);
-
-                return m_name;
-            }
-        }
+        public override string Name => m_name ??= RuntimeMethodHandle.GetName(this);
 
         public override Type? DeclaringType
         {
@@ -325,48 +278,32 @@ namespace System.Reflection
             }
         }
 
-        public override MemberTypes MemberType { get { return MemberTypes.Method; } }
-        public override int MetadataToken
-        {
-            get { return RuntimeMethodHandle.GetMethodDef(this); }
-        }
-        public override Module Module { get { return GetRuntimeModule(); } }
+        public override MemberTypes MemberType => MemberTypes.Method;
+        public override int MetadataToken => RuntimeMethodHandle.GetMethodDef(this);
+        public override Module Module => GetRuntimeModule();
         internal RuntimeType GetRuntimeType() { return m_declaringType; }
         internal RuntimeModule GetRuntimeModule() { return m_declaringType.GetRuntimeModule(); }
         internal RuntimeAssembly GetRuntimeAssembly() { return GetRuntimeModule().GetRuntimeAssembly(); }
 
-        public override bool IsSecurityCritical
-        {
-            get { return true; }
-        }
-        public override bool IsSecuritySafeCritical
-        {
-            get { return false; }
-        }
-        public override bool IsSecurityTransparent
-        {
-            get { return false; }
-        }
+        public override bool IsSecurityCritical => true;
+        public override bool IsSecuritySafeCritical => false;
+        public override bool IsSecurityTransparent => false;
         #endregion
 
         #region MethodBase Overrides
-        internal override ParameterInfo[] GetParametersNoCopy()
-        {
+        internal override ParameterInfo[] GetParametersNoCopy() =>
             FetchNonReturnParameters();
-
-            return m_parameters!;
-        }
 
         public override ParameterInfo[] GetParameters()
         {
-            FetchNonReturnParameters();
+            ParameterInfo[] parameters = FetchNonReturnParameters();
 
-            if (m_parameters!.Length == 0)
-                return m_parameters;
+            if (parameters.Length == 0)
+                return parameters;
 
-            ParameterInfo[] ret = new ParameterInfo[m_parameters.Length];
+            ParameterInfo[] ret = new ParameterInfo[parameters.Length];
 
-            Array.Copy(m_parameters, 0, ret, 0, m_parameters.Length);
+            Array.Copy(parameters, ret, parameters.Length);
 
             return ret;
         }
@@ -376,23 +313,11 @@ namespace System.Reflection
             return RuntimeMethodHandle.GetImplAttributes(this);
         }
 
-        public override RuntimeMethodHandle MethodHandle
-        {
-            get
-            {
-                return new RuntimeMethodHandle(this);
-            }
-        }
+        public override RuntimeMethodHandle MethodHandle => new RuntimeMethodHandle(this);
 
-        public override MethodAttributes Attributes { get { return m_methodAttributes; } }
+        public override MethodAttributes Attributes => m_methodAttributes;
 
-        public override CallingConventions CallingConvention
-        {
-            get
-            {
-                return Signature.CallingConvention;
-            }
-        }
+        public override CallingConventions CallingConvention => Signature.CallingConvention;
 
         public override MethodBody? GetMethodBody()
         {
@@ -447,7 +372,7 @@ namespace System.Reflection
             {
                 Type elementType = ReturnType.GetElementType()!;
                 if (elementType.IsByRefLike)
-                    throw new NotSupportedException(SR.NotSupported_ByRefToByRefLikeReturn);    
+                    throw new NotSupportedException(SR.NotSupported_ByRefToByRefLikeReturn);
                 if (elementType == typeof(void))
                     throw new NotSupportedException(SR.NotSupported_ByRefToVoidReturn);
             }
@@ -482,7 +407,7 @@ namespace System.Reflection
         {
             Signature sig = Signature;
 
-            // get the signature 
+            // get the signature
             int formalCount = sig.Arguments.Length;
             int actualCount = (parameters != null) ? parameters.Length : 0;
 
@@ -510,19 +435,13 @@ namespace System.Reflection
 
         #region MethodInfo Overrides
 
-        public override Type ReturnType
-        {
-            get { return Signature.ReturnType; }
-        }
+        public override Type ReturnType => Signature.ReturnType;
 
-        public override ICustomAttributeProvider ReturnTypeCustomAttributes
-        {
-            get { return ReturnParameter; }
-        }
+        public override ICustomAttributeProvider ReturnTypeCustomAttributes => ReturnParameter;
 
         public override ParameterInfo ReturnParameter => FetchReturnParameter();
 
-        public override bool IsCollectible => (RuntimeMethodHandle.GetIsCollectible(new RuntimeMethodHandleInternal(m_handle)) != Interop.BOOL.FALSE);
+        public override bool IsCollectible => RuntimeMethodHandle.GetIsCollectible(new RuntimeMethodHandleInternal(m_handle)) != Interop.BOOL.FALSE;
 
         public override MethodInfo GetBaseDefinition()
         {
@@ -656,21 +575,11 @@ namespace System.Reflection
             return ret!;
         }
 
-        internal RuntimeType[] GetGenericArgumentsInternal()
-        {
-            return RuntimeMethodHandle.GetMethodInstantiationInternal(this);
-        }
+        internal RuntimeType[] GetGenericArgumentsInternal() =>
+            RuntimeMethodHandle.GetMethodInstantiationInternal(this);
 
-        public override Type[] GetGenericArguments()
-        {
-            Type[] types = RuntimeMethodHandle.GetMethodInstantiationPublic(this);
-
-            if (types == null)
-            {
-                types = Array.Empty<Type>();
-            }
-            return types;
-        }
+        public override Type[] GetGenericArguments() =>
+            RuntimeMethodHandle.GetMethodInstantiationPublic(this) ?? Array.Empty<Type>();
 
         public override MethodInfo GetGenericMethodDefinition()
         {
@@ -680,15 +589,9 @@ namespace System.Reflection
             return (RuntimeType.GetMethodBase(m_declaringType, RuntimeMethodHandle.StripMethodInstantiation(this)) as MethodInfo)!;
         }
 
-        public override bool IsGenericMethod
-        {
-            get { return RuntimeMethodHandle.HasMethodInstantiation(this); }
-        }
+        public override bool IsGenericMethod => RuntimeMethodHandle.HasMethodInstantiation(this);
 
-        public override bool IsGenericMethodDefinition
-        {
-            get { return RuntimeMethodHandle.IsGenericMethodDefinition(this); }
-        }
+        public override bool IsGenericMethodDefinition => RuntimeMethodHandle.IsGenericMethodDefinition(this);
 
         public override bool ContainsGenericParameters
         {

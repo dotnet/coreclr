@@ -216,14 +216,14 @@ VOID DECLSPEC_NORETURN RealCOMPlusThrowOM();
 {                                                                               \
     INSTALL_EXCEPTION_HANDLING_RECORD(&(___pExRecord->m_ExReg));                \
     /* work around unreachable code warning */                                  \
-    if (true) {                                                                 
+    if (true) {
 
 #define UNINSTALL_COMPLUS_EXCEPTION_HANDLER()                                   \
     }                                                                           \
     UNINSTALL_EXCEPTION_HANDLING_RECORD(&(___pExRecord->m_ExReg));              \
-}                                                                               
+}
 
-#if !defined(WIN64EXCEPTIONS)
+#if !defined(FEATURE_EH_FUNCLETS)
 
 #define INSTALL_NESTED_EXCEPTION_HANDLER(frame)                                                                       \
    NestedHandlerExRecord *__pNestedHandlerExRecord = (NestedHandlerExRecord*) _alloca(sizeof(NestedHandlerExRecord)); \
@@ -234,12 +234,12 @@ VOID DECLSPEC_NORETURN RealCOMPlusThrowOM();
 #define UNINSTALL_NESTED_EXCEPTION_HANDLER()                                                                          \
    UNINSTALL_EXCEPTION_HANDLING_RECORD(&(__pNestedHandlerExRecord->m_ExReg));
 
-#else // defined(WIN64EXCEPTIONS)
+#else // defined(FEATURE_EH_FUNCLETS)
 
 #define INSTALL_NESTED_EXCEPTION_HANDLER(frame)
 #define UNINSTALL_NESTED_EXCEPTION_HANDLER()
 
-#endif // !defined(WIN64EXCEPTIONS)
+#endif // !defined(FEATURE_EH_FUNCLETS)
 
 LONG WINAPI CLRVectoredExceptionHandler(PEXCEPTION_POINTERS pExceptionInfo);
 
@@ -254,7 +254,7 @@ extern LONG InternalUnhandledExceptionFilter_Worker(PEXCEPTION_POINTERS pExcepti
 // -----------------------------------------------------------------------
 // Support for Corrupted State Exceptions
 // -----------------------------------------------------------------------
-// This enumeration defines the corruption severity of an exception and 
+// This enumeration defines the corruption severity of an exception and
 // whether it should be reused for the next exception thrown or not.
 enum CorruptionSeverity
 {
@@ -267,12 +267,12 @@ enum CorruptionSeverity
                              // severity across boundaries like Reflection invocation, AD transition etc.
 };
 
-#define GET_CORRUPTION_SEVERITY(severity) ((severity & (~ReuseForReraise)))
-#define CAN_REUSE_CORRUPTION_SEVERITY(severity) ((severity & ReuseForReraise) == ReuseForReraise)
+#define GET_CORRUPTION_SEVERITY(severity) (((severity) & (~ReuseForReraise)))
+#define CAN_REUSE_CORRUPTION_SEVERITY(severity) (((severity) & ReuseForReraise) == ReuseForReraise)
 
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
 
-VOID DECLSPEC_NORETURN RaiseTheException(OBJECTREF throwable, BOOL rethrow 
+VOID DECLSPEC_NORETURN RaiseTheException(OBJECTREF throwable, BOOL rethrow
 #ifdef FEATURE_CORRUPTING_EXCEPTIONS
                                         , CorruptionSeverity severity
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
@@ -314,7 +314,7 @@ VOID DECLSPEC_NORETURN DispatchManagedException(PAL_SEHException& ex, bool isHar
 
 // Install trap that catches unhandled managed exception and dumps its stack
 #define INSTALL_UNHANDLED_MANAGED_EXCEPTION_TRAP                                            \
-        try {                                                                                   
+        try {
 
 // Uninstall trap that catches unhandled managed exception and dumps its stack
 #define UNINSTALL_UNHANDLED_MANAGED_EXCEPTION_TRAP                                                  \

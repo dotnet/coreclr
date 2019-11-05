@@ -76,8 +76,8 @@ namespace System.Threading
                     {
                         if (ValidHandle())
                         {
-                            result = UnregisterWaitNative(GetHandle(), waitObject == null ? null : waitObject.SafeWaitHandle);
-                            if (result == true)
+                            result = UnregisterWaitNative(GetHandle(), waitObject?.SafeWaitHandle);
+                            if (result)
                             {
                                 if (bReleaseNeeded)
                                 {
@@ -111,7 +111,7 @@ namespace System.Threading
         {
             // if the app has already unregistered the wait, there is nothing to cleanup
             // we can detect this by checking the handle. Normally, there is no race condition here
-            // so no need to protect reading of handle. However, if this object gets 
+            // so no need to protect reading of handle. However, if this object gets
             // resurrected and then someone does an unregister, it would introduce a race condition
             //
             // PrepareConstrainedRegions call not needed since finalizer already in Cer
@@ -130,8 +130,8 @@ namespace System.Threading
             // This will result in a "leak" of sorts (since the handle will not be cleaned up)
             // but the process is exiting anyway.
             //
-            // During AD-unload, we don't finalize live objects until all threads have been 
-            // aborted out of the AD.  Since these locked regions are CERs, we won't abort them 
+            // During AD-unload, we don't finalize live objects until all threads have been
+            // aborted out of the AD.  Since these locked regions are CERs, we won't abort them
             // while the lock is held.  So there should be no leak on AD-unload.
             //
             if (Interlocked.CompareExchange(ref m_lock, 1, 0) == 0)
@@ -158,10 +158,10 @@ namespace System.Threading
             }
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void WaitHandleCleanupNative(IntPtr handle);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool UnregisterWaitNative(IntPtr handle, SafeHandle? waitObject);
     }
 
@@ -202,7 +202,7 @@ namespace System.Threading
             // Note: this function may incorrectly return false due to TickCount overflow
             // if work item execution took around a multiple of 2^32 milliseconds (~49.7 days),
             // which is improbable.
-            return ((uint)(Environment.TickCount - startTickCount) < DispatchQuantum);
+            return (uint)(Environment.TickCount - startTickCount) < DispatchQuantum;
         }
 
         public static bool SetMaxThreads(int workerThreads, int completionPortThreads)
@@ -256,7 +256,7 @@ namespace System.Threading
         /// </remarks>
         public static long CompletedWorkItemCount => GetCompletedWorkItemCount();
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern long GetCompletedWorkItemCount();
 
         private static extern long PendingUnmanagedWorkItemCount
@@ -297,10 +297,10 @@ namespace System.Threading
             return registeredWaitHandle;
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern Interop.BOOL RequestWorkerThread();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern unsafe bool PostQueuedCompletionStatus(NativeOverlapped* overlapped);
 
         [CLSCompliant(false)]
@@ -309,8 +309,8 @@ namespace System.Threading
 
         // The thread pool maintains a per-appdomain managed work queue.
         // New thread pool entries are added in the managed queue.
-        // The VM is responsible for the actual growing/shrinking of 
-        // threads. 
+        // The VM is responsible for the actual growing/shrinking of
+        // threads.
         private static void EnsureInitialized()
         {
             if (!ThreadPoolGlobals.threadPoolInitialized)
@@ -326,27 +326,27 @@ namespace System.Threading
             ThreadPoolGlobals.threadPoolInitialized = true;
         }
 
-        // Native methods: 
+        // Native methods:
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool SetMinThreadsNative(int workerThreads, int completionPortThreads);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool SetMaxThreadsNative(int workerThreads, int completionPortThreads);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void GetMinThreadsNative(out int workerThreads, out int completionPortThreads);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void GetMaxThreadsNative(out int workerThreads, out int completionPortThreads);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void GetAvailableThreadsNative(out int workerThreads, out int completionPortThreads);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool NotifyWorkItemComplete();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void ReportThreadStatus(bool isWorking);
 
         internal static void NotifyWorkItemProgress()
@@ -355,13 +355,13 @@ namespace System.Threading
             NotifyWorkItemProgressNative();
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void NotifyWorkItemProgressNative();
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void InitializeVMTp(ref bool enableWorkerTracking);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern IntPtr RegisterWaitForSingleObjectNative(
              WaitHandle waitHandle,
              object state,
@@ -369,7 +369,6 @@ namespace System.Threading
              bool executeOnlyOnce,
              RegisteredWaitHandle registeredWaitHandle
              );
-
 
         [Obsolete("ThreadPool.BindHandle(IntPtr) has been deprecated.  Please use ThreadPool.BindHandle(SafeHandle) instead.", false)]
         public static bool BindHandle(IntPtr osHandle)
@@ -398,7 +397,7 @@ namespace System.Threading
             return ret;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool BindIOCompletionCallbackNative(IntPtr fileHandle);
     }
 }

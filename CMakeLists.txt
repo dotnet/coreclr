@@ -1,5 +1,4 @@
-# Verify minimum required version
-cmake_minimum_required(VERSION 3.5.1)
+cmake_minimum_required(VERSION 3.14)
 
 cmake_policy(SET CMP0042 NEW)
 
@@ -8,9 +7,6 @@ project(CoreCLR)
 
 # Include cmake functions
 include(functions.cmake)
-
-# Verify that LTCG/LTO is available
-include(configure.cmake)
 
 if (WIN32)
   message(STATUS "VS_PLATFORM_TOOLSET is ${CMAKE_VS_PLATFORM_TOOLSET}")
@@ -109,32 +105,14 @@ else (WIN32)
           message(FATAL_ERROR "strip not found")
       endif()
 
-    else (CMAKE_SYSTEM_NAME STREQUAL Darwin)
-
-      # Ensure that objcopy is present
-      if (CLR_UNIX_CROSS_BUILD AND NOT DEFINED CLR_CROSS_COMPONENTS_BUILD)
-        if (CMAKE_SYSTEM_PROCESSOR STREQUAL armv7l OR CMAKE_SYSTEM_PROCESSOR STREQUAL aarch64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL arm)
-          find_program(OBJCOPY ${TOOLCHAIN}-objcopy)
-        elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL i686)
-          find_program(OBJCOPY objcopy)
-        else()
-          clr_unknown_arch()
-        endif()
-      else()
-        find_program(OBJCOPY objcopy)
-      endif()
-
-      if (OBJCOPY STREQUAL "OBJCOPY-NOTFOUND")
-          message(FATAL_ERROR "objcopy not found")
-      endif()
-
-    endif (CMAKE_SYSTEM_NAME STREQUAL Darwin)
+    endif()
 endif(WIN32)
 
 #----------------------------------------------------
 # Configure compiler settings for environment
 #----------------------------------------------------
 include(configurecompiler.cmake)
+include(configuretools.cmake)
 
 #----------------------------------------------------
 # Cross target Component build specific configuration
@@ -160,7 +138,6 @@ endif()
 if(CLR_CMAKE_PLATFORM_UNIX)
     add_subdirectory(src/pal)
     add_subdirectory(src/coreclr/hosts)
-    add_subdirectory(src/ildasm/unixcoreclrloader)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 # Add this subdir. We install the headers for the jit.
@@ -172,6 +149,8 @@ if(WIN32)
   add_subdirectory(src/gc/sample)
 endif()
 
+add_subdirectory(src/tools/crossgen2/jitinterface)
+
 # Above projects do not build with these compile options
 # All of the compiler options are specified in file compileoptions.cmake
 # Do not add any new options here. They should be added in compileoptions.cmake
@@ -179,13 +158,6 @@ if(WIN32)
   add_compile_options(/FIWarningControl.h) # force include of WarningControl.h
   add_compile_options(/Zl) # omit default library name in .OBJ
 endif(WIN32)
-
-#------------------------------
-# Add Test Directory
-#------------------------------
-if(CLR_CMAKE_BUILD_TESTS)
-  add_subdirectory(tests)
-endif(CLR_CMAKE_BUILD_TESTS)
 
 #--------------------------------
 # Definition directives

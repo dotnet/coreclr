@@ -91,8 +91,6 @@ static void ScanStackRoots(Thread * pThread, promote_func* fn, ScanContext* sc)
                 IsGCSpecialThread() ||
                 (GetThread() == ThreadSuspend::GetSuspensionThread() && ThreadStore::HoldingThreadStore()));
 
-    pThread->SetHasPromotedBytes();
-
     Frame* pTopFrame = pThread->GetFrame();
     Object ** topStack = (Object **)pTopFrame;
     if ((pTopFrame != ((Frame*)-1))
@@ -142,10 +140,17 @@ static void ScanStackRoots(Thread * pThread, promote_func* fn, ScanContext* sc)
 #endif
     {
         unsigned flagsStackWalk = ALLOW_ASYNC_STACK_WALK | ALLOW_INVALID_OBJECTS;
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
         flagsStackWalk |= GC_FUNCLET_REFERENCE_REPORTING;
-#endif // defined(WIN64EXCEPTIONS)
+#endif // defined(FEATURE_EH_FUNCLETS)
         pThread->StackWalkFrames( GcStackCrawlCallBack, &gcctx, flagsStackWalk);
+    }
+
+    GCFrame* pGCFrame = pThread->GetGCFrame();
+    while (pGCFrame != NULL)
+    {
+        pGCFrame->GcScanRoots(fn, sc);
+        pGCFrame = pGCFrame->PtrNextFrame();
     }
 }
 
@@ -364,31 +369,23 @@ bool GCToEEInterface::IsPreemptiveGCDisabled()
     WRAPPER_NO_CONTRACT;
 
     Thread* pThread = ::GetThread();
-    if (pThread)
-    {
-        return !!pThread->PreemptiveGCDisabled();
-    }
-
-    return false;
+    
+    return (pThread && pThread->PreemptiveGCDisabled());
 }
 
 bool GCToEEInterface::EnablePreemptiveGC()
 {
     WRAPPER_NO_CONTRACT;
 
-    bool bToggleGC = false;
     Thread* pThread = ::GetThread();
 
-    if (pThread)
+    if (pThread && pThread->PreemptiveGCDisabled())
     {
-        bToggleGC = !!pThread->PreemptiveGCDisabled();
-        if (bToggleGC)
-        {
-            pThread->EnablePreemptiveGC();
-        }
+        pThread->EnablePreemptiveGC();
+        return true;
     }
 
-    return bToggleGC;
+    return false;
 }
 
 void GCToEEInterface::DisablePreemptiveGC()
@@ -802,10 +799,10 @@ void GCToEEInterface::DiagWalkBGCSurvivors(void* gcContext)
 
 void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
 {
+    assert(args != nullptr);
     int stompWBCompleteActions = SWB_PASS;
     bool is_runtime_suspended = args->is_runtime_suspended;
 
-    assert(args != nullptr);
     switch (args->operation)
     {
     case WriteBarrierOp::StompResize:
@@ -817,9 +814,9 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
 
         // We are sensitive to the order of writes here (more comments on this further in the method)
         // In particular g_card_table must be written before writing the heap bounds.
-        // For platforms with weak memory ordering we will issue fences, for x64/x86 we are ok 
-        // as long as compiler does not reorder these writes. 
-        // That is unlikely since we have method calls in between. 
+        // For platforms with weak memory ordering we will issue fences, for x64/x86 we are ok
+        // as long as compiler does not reorder these writes.
+        // That is unlikely since we have method calls in between.
         // Just to be robust agains possible refactoring/inlining we will do a compiler-fenced store here.
         VolatileStoreWithoutBarrier(&g_card_table, args->card_table);
 
@@ -841,19 +838,19 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
 
         if (stompWBCompleteActions & SWB_ICACHE_FLUSH)
         {
-            // flushing/invalidating the write barrier's body for the current process 
+            // flushing/invalidating the write barrier's body for the current process
             // NOTE: the underlying API may flush more than needed or nothing at all if Icache is coherent.
             ::FlushWriteBarrierInstructionCache();
         }
 
-        // IMPORTANT: managed heap segments may surround unmanaged/stack segments. In such cases adding another managed 
-        //     heap segment may put a stack/unmanaged write inside the new heap range. However the old card table would 
+        // IMPORTANT: managed heap segments may surround unmanaged/stack segments. In such cases adding another managed
+        //     heap segment may put a stack/unmanaged write inside the new heap range. However the old card table would
         //     not cover it. Therefore we must ensure that the write barriers see the new table before seeing the new bounds.
         //
         //     On architectures with strong ordering, we only need to prevent compiler reordering.
         //     Otherwise we put a process-wide fence here (so that we could use an ordinary read in the barrier)
 
-#if defined(_ARM64_) || defined(_ARM_)      
+#if defined(_ARM64_) || defined(_ARM_)
         if (!is_runtime_suspended)
         {
             // If runtime is not suspended, force all threads to see the changed table before seeing updated heap boundaries.
@@ -872,14 +869,14 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
 #ifdef _ARM_
         if (stompWBCompleteActions & SWB_ICACHE_FLUSH)
         {
-            // flushing/invalidating the write barrier's body for the current process 
+            // flushing/invalidating the write barrier's body for the current process
             // NOTE: the underlying API may flush more than needed or nothing at all if Icache is coherent.
             ::FlushWriteBarrierInstructionCache();
         }
 #endif
 #endif
 
-        // At this point either the old or the new set of globals (card_table, bounds etc) can be used. Card tables and card bundles allow such use. 
+        // At this point either the old or the new set of globals (card_table, bounds etc) can be used. Card tables and card bundles allow such use.
         // When card tables are de-published (at EE suspension) all the info will be merged, so the information will not be lost.
         // Another point - we should not yet have any managed objects/addresses outside of the former bounds, so either old or new bounds are fine.
         // That is - because bounds can only become wider and we are not yet done with widening.
@@ -888,24 +885,24 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         // Once we are done, a new object can (and likely will) be allocated outside of the former bounds.
         // So, before such object can be used in a write barier, we must ensure that the barrier also uses the new bounds.
         //
-        // This is easy to arrange for architectures with strong memory ordering. We only need to ensure that 
+        // This is easy to arrange for architectures with strong memory ordering. We only need to ensure that
         // - object is allocated/published _after_ we publish bounds here
         // - write barrier reads bounds after reading the new object locations
         //
-        // for architectures with strong memory ordering (x86/x64) both conditions above are naturally guaranteed. 
+        // for architectures with strong memory ordering (x86/x64) both conditions above are naturally guaranteed.
         // Systems with weak ordering are more interesting. We could either:
         // a) issue a write fence here and pair it with a read fence in the write barrier, or
         // b) issue a process-wide full fence here and do ordinary reads in the barrier.
         //
         // We will do "b" because executing write barrier is by far more common than updating card table.
         //
-        // I.E. - for weak architectures we have to do a process-wide fence.  
+        // I.E. - for weak architectures we have to do a process-wide fence.
         //
-        // NOTE: suspending/resuming EE works the same as process-wide fence for our purposes here. 
+        // NOTE: suspending/resuming EE works the same as process-wide fence for our purposes here.
         //       (we care only about managed threads and suspend/resume will do full fences - good enough for us).
         //
 
-#if defined(_ARM64_) || defined(_ARM_)      
+#if defined(_ARM64_) || defined(_ARM_)
         is_runtime_suspended = (stompWBCompleteActions & SWB_EE_RESTART) || is_runtime_suspended;
         if (!is_runtime_suspended)
         {
@@ -1149,6 +1146,18 @@ bool GCToEEInterface::GetIntConfigValue(const char* key, int64_t* value)
         return true;
     }
 
+    if (strcmp(key, "GCHeapHardLimit") == 0)
+    {
+        *value = g_pConfig->GetGCHeapHardLimit();
+        return true;
+    }
+
+    if (strcmp(key, "GCHeapHardLimitPercent") == 0)
+    {
+        *value = g_pConfig->GetGCHeapHardLimitPercent();
+        return true;
+    }
+
     if (strcmp(key, "GCLOHThreshold") == 0)
     {
         *value = g_pConfig->GetGCLOHThreshold();
@@ -1168,7 +1177,7 @@ bool GCToEEInterface::GetIntConfigValue(const char* key, int64_t* value)
         return false;
     }
 
-    // There is no ConfigULONGLONGInfo, and the GC uses 64 bit values for things like GCHeapAffinitizeMask, 
+    // There is no ConfigULONGLONGInfo, and the GC uses 64 bit values for things like GCHeapAffinitizeMask,
     // so have to fake it with getting the string and converting to uint64_t
     if (CLRConfig::IsConfigOptionSpecified(configKey))
     {
@@ -1181,7 +1190,7 @@ bool GCToEEInterface::GetIntConfigValue(const char* key, int64_t* value)
             return false;
         }
 
-        wchar_t *end;
+        WCHAR *end;
         uint64_t result;
         errno = 0;
         result = _wcstoui64(out, &end, 16);
@@ -1221,7 +1230,7 @@ static bool GetStringConfigValueHelper(LPCWSTR out, const char** value)
     if (WideCharToMultiByte(CP_ACP, 0, out, -1 /* out is null-terminated */,
           configResult.GetValue(), charCount, nullptr, nullptr) == 0)
     {
-        // this should never happen, the previous call to WideCharToMultiByte that computed the charCount should 
+        // this should never happen, the previous call to WideCharToMultiByte that computed the charCount should
         // have caught all issues.
         assert(false);
         return false;
@@ -1307,7 +1316,7 @@ namespace
     bool CreateSuspendableThread(
         void (*threadStart)(void*),
         void* argument,
-        const wchar_t* name)
+        const WCHAR* name)
     {
         LIMITED_METHOD_CONTRACT;
 
@@ -1390,7 +1399,7 @@ namespace
     bool CreateNonSuspendableThread(
         void (*threadStart)(void*),
         void* argument,
-        const wchar_t* name)
+        const WCHAR* name)
     {
         LIMITED_METHOD_CONTRACT;
 
@@ -1600,8 +1609,8 @@ void GCToEEInterface::UpdateGCEventStatus(int currentPublicLevel, int currentPub
 {
 #if defined(__linux__) && defined(FEATURE_EVENT_TRACE)
     LIMITED_METHOD_CONTRACT;
-    // LTTng does not have a notion of enabling events via "keyword"/"level" but we have to 
-    // somehow implement a similar behavior to it. 
+    // LTTng does not have a notion of enabling events via "keyword"/"level" but we have to
+    // somehow implement a similar behavior to it.
 
     // To do this, we manaully check for events that are enabled via different provider/keywords/level.
     // Ex 1. GCJoin_V2 is what we use to check whether the GC keyword is enabled in verbose level in the public provider
@@ -1620,12 +1629,12 @@ void GCToEEInterface::UpdateGCEventStatus(int currentPublicLevel, int currentPub
     BOOL prv_gcprv_verbose = EventXplatEnabledPinPlugAtGCTime() || EventPipeEventEnabledPinPlugAtGCTime();
 
     int publicProviderLevel = keyword_gc_verbose ? GCEventLevel_Verbose : (keyword_gc_informational ? GCEventLevel_Information : GCEventLevel_None);
-    int publicProviderKeywords = (keyword_gc_informational ? GCEventKeyword_GC : GCEventKeyword_None) | 
+    int publicProviderKeywords = (keyword_gc_informational ? GCEventKeyword_GC : GCEventKeyword_None) |
                                  (keyword_gchandle_informational ? GCEventKeyword_GCHandle : GCEventKeyword_None) |
                                  (keyword_gc_heapsurvival_and_movement_informational ? GCEventKeyword_GCHeapSurvivalAndMovement : GCEventKeyword_None);
 
     int privateProviderLevel = prv_gcprv_verbose ? GCEventLevel_Verbose : (prv_gcprv_informational ? GCEventLevel_Information : GCEventLevel_None);
-    int privateProviderKeywords = (prv_gcprv_informational ? GCEventKeyword_GCPrivate : GCEventKeyword_None) | 
+    int privateProviderKeywords = (prv_gcprv_informational ? GCEventKeyword_GCPrivate : GCEventKeyword_None) |
         (keyword_gchandle_prv_informational ? GCEventKeyword_GCHandlePrivate : GCEventKeyword_None);
 
     if (publicProviderLevel != currentPublicLevel || publicProviderKeywords != currentPublicKeywords)

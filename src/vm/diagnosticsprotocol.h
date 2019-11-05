@@ -34,8 +34,8 @@ template <typename T>
 bool TryParseString(uint8_t *&bufferCursor, uint32_t &bufferLen, const T *&result)
 {
     static_assert(
-        std::is_same<T, char>::value || std::is_same<T, wchar_t>::value,
-        "Can only be instantiated with char and wchar_t types.");
+        std::is_same<T, char>::value || std::is_same<T, WCHAR>::value,
+        "Can only be instantiated with char and WCHAR types.");
 
     uint32_t stringLen = 0;
     if (!TryParse(bufferCursor, bufferLen, stringLen))
@@ -194,23 +194,6 @@ namespace DiagnosticsIpc
         // Initialize an outgoing IpcMessage with a header and payload
         template <typename T>
         bool Initialize(IpcHeader header, T& payload)
-        {
-            CONTRACTL
-            {
-                NOTHROW;
-                GC_TRIGGERS;
-                MODE_PREEMPTIVE;
-            }
-            CONTRACTL_END;
-
-            m_Header = header;
-
-            return FlattenImpl<T>(payload);
-        };
-
-        // Initialize an outgoing IpcMessage with a header and payload
-        template <typename T>
-        bool Initialize(IpcHeader header, T&& payload)
         {
             CONTRACTL
             {

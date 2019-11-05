@@ -76,9 +76,9 @@ EXTERN_C void SinglecastDelegateInvokeStub();
 #define JUMP_ALLOCATE_SIZE                      8   // # bytes to allocate for a jump instruction
 #define BACK_TO_BACK_JUMP_ALLOCATE_SIZE         8   // # bytes to allocate for a back to back jump instruction
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
 #define USE_INDIRECT_CODEHEADER
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 #define HAS_COMPACT_ENTRYPOINTS                 1
 
@@ -98,14 +98,6 @@ EXTERN_C void SinglecastDelegateInvokeStub();
 #define ENREGISTERED_RETURNTYPE_MAXSIZE         8
 #define ENREGISTERED_RETURNTYPE_INTEGER_MAXSIZE 4
 #define CALLDESCR_ARGREGS                       1   // CallDescrWorker has ArgumentRegister parameter
-
-//=======================================================================
-// IMPORTANT: This value is used to figure out how much to allocate
-// for a fixed array of FieldMarshaler's. That means it must be at least
-// as large as the largest FieldMarshaler subclass. This requirement
-// is guarded by an assert.
-//=======================================================================
-#define MAXFIELDMARSHALERSIZE               24
 
 //**********************************************************************
 // Parameter size
@@ -185,7 +177,7 @@ struct ArgumentRegisters {
 struct REGDISPLAY;
 typedef REGDISPLAY *PREGDISPLAY;
 
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
 // Sufficient context for Try/Catch restoration.
 struct EHContext {
     INT32       Eax;
@@ -200,7 +192,7 @@ struct EHContext {
 
     void Setup(PCODE resumePC, PREGDISPLAY regs);
     void UpdateFrame(PREGDISPLAY regs);
-    
+
     inline TADDR GetSP() {
         LIMITED_METHOD_CONTRACT;
         return (TADDR)Esp;
@@ -234,7 +226,7 @@ struct EHContext {
         Eip = 0;
     }
 };
-#endif // !WIN64EXCEPTIONS
+#endif // !FEATURE_EH_FUNCLETS
 
 #define ARGUMENTREGISTERS_SIZE sizeof(ArgumentRegisters)
 
@@ -300,7 +292,7 @@ inline void emitCOMStubCall (ComCallMethodDesc *pCOMMethod, PCODE target)
 
     pBuffer[0] = X86_INSTR_CALL_REL32; //CALLNEAR32
     *((LPVOID*)(1+pBuffer)) = (LPVOID) (((LPBYTE)target) - (pBuffer+5));
-    
+
     _ASSERTE(IS_ALIGNED(pBuffer + COMMETHOD_CALL_PRESTUB_ADDRESS_OFFSET, sizeof(void*)) &&
         *((SSIZE_T*)(pBuffer + COMMETHOD_CALL_PRESTUB_ADDRESS_OFFSET)) == ((LPBYTE)target - (LPBYTE)pCOMMethod));
 }
@@ -408,7 +400,7 @@ inline void emitJumpInd(LPBYTE pBuffer, LPVOID target)
     *((WORD*)pBuffer) = X86_INSTR_JMP_IND; // 0x25FF  jmp dword ptr[addr32]
     *((LPVOID*)(2+pBuffer)) = target;
 }
- 
+
 //------------------------------------------------------------------------
 inline PCODE isJump(PCODE pCode)
 {
@@ -462,12 +454,12 @@ EXTERN_C void __stdcall getFPReturn(int fpSize, INT64 *pretval);
 
 // SEH info forward declarations
 
-inline BOOL IsUnmanagedValueTypeReturnedByRef(UINT sizeofvaluetype) 
+inline BOOL IsUnmanagedValueTypeReturnedByRef(UINT sizeofvaluetype)
 {
     LIMITED_METHOD_CONTRACT;
 
 #ifndef UNIX_X86_ABI
-    // odd-sized small structures are not 
+    // odd-sized small structures are not
     //  enregistered e.g. struct { char a,b,c; }
     return (sizeofvaluetype > 8) ||
         (sizeofvaluetype & (sizeofvaluetype - 1)); // check that the size is power of two
@@ -529,8 +521,8 @@ struct HijackArgs
 // ClrFlushInstructionCache is used when we want to call FlushInstructionCache
 // for a specific architecture in the common code, but not for other architectures.
 // On IA64 ClrFlushInstructionCache calls the Kernel FlushInstructionCache function
-// to flush the instruction cache. 
-// We call ClrFlushInstructionCache whenever we create or modify code in the heap. 
+// to flush the instruction cache.
+// We call ClrFlushInstructionCache whenever we create or modify code in the heap.
 // Currently ClrFlushInstructionCache has no effect on X86
 //
 

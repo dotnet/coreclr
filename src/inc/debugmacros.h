@@ -40,7 +40,7 @@ extern int _DbgBreakCount;
 #define PRE_ASSERTE         /* if you need to change modes before doing asserts override */
 #define POST_ASSERTE        /* put it back */
 
-#if !defined(_ASSERTE_MSG)                                              
+#if !defined(_ASSERTE_MSG)
   #define _ASSERTE_MSG(expr, msg)                                           \
         do {                                                                \
              if (!(expr)) {                                                 \
@@ -100,13 +100,13 @@ void DECLSPEC_NORETURN __FreeBuildAssertFail(const char *szFile, int iLine, cons
         return FALSE;               \
     }                               \
 }
-    
-    
+
+
 #ifdef _DEBUG_IMPL
 
 // A macro to execute a statement only in _DEBUG_IMPL.
 #define DEBUG_IMPL_STMT(stmt) stmt
-    
+
 #define _ASSERTE_IMPL(expr) _ASSERTE((expr))
 
 #if     defined(_M_IX86)
@@ -214,7 +214,7 @@ unsigned DbgGetEXETimeStamp();
 // will not be coorelated with each other (9973 is prime).  Returns false on a retail build
 #define DbgRandomOnHashAndExe(hash, fractionOn) \
     (((DbgGetEXETimeStamp() * __LINE__ * ((hash) ? (hash) : 1)) % 9973) < \
-     unsigned(fractionOn * 9973))
+     unsigned((fractionOn) * 9973))
 #define DbgRandomOnExe(fractionOn) DbgRandomOnHashAndExe(0, fractionOn)
 #define DbgRandomOnStringAndExe(string, fractionOn) DbgRandomOnHashAndExe(HashStringA(string), fractionOn)
 
@@ -227,43 +227,4 @@ unsigned DbgGetEXETimeStamp();
 
 #endif // _DEBUG && !FEATUREPAL
 
-#ifdef _DEBUG
-namespace clr
-{
-    namespace dbg
-    {
-        // In debug builds, this can be used to write known bad values into
-        // memory. One example is in ComUtil::IUnknownCommon::~IUnknownCommon,
-        // which overwrites its instance memory with a known bad value after
-        // completing its destructor.
-        template < typename T >
-        void PoisonMem(T &val)
-        {
-            ZeroMemory((void*)&val, sizeof(T));
-        }
-
-        template < typename T >
-        void PoisonMem(T* ptr, size_t len)
-        {
-            ZeroMemory((void*)ptr, sizeof(T)* len);
-        }
-    }
-}
-#else
-
-// Empty versions of the functions in retail that will be inlined
-// and completely elided.
-namespace clr
-{
-    namespace dbg
-    {
-        template < typename T >
-        inline void PoisonMem(T &) {}
-
-        template < typename T >
-        void PoisonMem(T* ptr, size_t len){}
-    }
-}
 #endif
-
-#endif 

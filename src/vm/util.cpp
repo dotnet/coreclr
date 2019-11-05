@@ -53,7 +53,7 @@ static UINT ParseCommandLine(LPCWSTR psrc, __inout LPWSTR *pdstout)
        because the program name must be a legal NTFS/HPFS file name.
        Note that the double-quote characters are not copied, nor do they
        contribute to numchars.
-         
+
        This "simplification" is necessary for compatibility reasons even
        though it leads to mishandling of certain cases.  For example,
        "c:\tests\"test.exe will result in an arg0 of c:\tests\ and an
@@ -200,68 +200,6 @@ LEADINGWHITE:
 }
 
 
-// Function to parse apart a command line and return the 
-// arguments just like argv and argc
-// This function is a little funky because of the pointer work
-// but it is neat because it allows the recipient of the char**
-// to only have to do a single delete []
-LPWSTR* CommandLineToArgvW(__in LPWSTR lpCmdLine, DWORD *pNumArgs)
-{
-
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        INJECT_FAULT(return NULL;); 
-    }
-    CONTRACTL_END
-
-    DWORD argcount = 0;
-    LPWSTR retval = NULL;
-    LPWSTR *pslot;
-    // First we need to find out how many strings there are in the command line
-    _ASSERTE(lpCmdLine);
-    _ASSERTE(pNumArgs);
-
-    LPWSTR pdst = NULL;
-    argcount = ParseCommandLine(lpCmdLine, &pdst);
-
-    // This check is because on WinCE the Application Name is not passed in as an argument to the app!
-    if (argcount == 0)
-    {
-        *pNumArgs = 0;
-        return NULL;
-    }
-
-    // Now we need alloc a buffer the size of the command line + the number of strings * DWORD
-    retval = new (nothrow) WCHAR[(argcount*sizeof(WCHAR*))/sizeof(WCHAR) + (pdst - (LPWSTR)NULL)];
-    if(!retval)
-        return NULL;
-
-    pdst = (LPWSTR)( argcount*sizeof(LPWSTR*) + (BYTE*)retval );
-    ParseCommandLine(lpCmdLine, &pdst);
-    pdst = (LPWSTR)( argcount*sizeof(LPWSTR*) + (BYTE*)retval );
-    pslot = (LPWSTR*)retval;
-    for (DWORD i = 0; i < argcount; i++)
-    {
-        *(pslot++) = pdst;
-        while (*pdst != W('\0'))
-        {
-            pdst++;
-        }
-        pdst++;
-    }
-
-    
-
-    *pNumArgs = argcount;
-    return (LPWSTR*)retval;
-
-}
-
-
-
-
 //************************************************************************
 // CQuickHeap
 //
@@ -385,7 +323,7 @@ void NPrintToHandleA(HANDLE Handle, const char *pszString, size_t BytesToWrite)
         // Try to write to handle.  If this is not a CUI app, then this is probably
         // not going to work unless the dev took special pains to set their own console
         // handle during CreateProcess.  So try it, but don't yell if it doesn't work in
-        // that case.  Also, if we redirect stdout to a pipe then the pipe breaks (ie, we 
+        // that case.  Also, if we redirect stdout to a pipe then the pipe breaks (ie, we
         // write to something like the UNIX head command), don't complain.
         success = WriteFile(Handle, pszString, dwChunkToWrite, &dwBytesWritten, NULL);
         if (!success)
@@ -408,7 +346,7 @@ void NPrintToHandleA(HANDLE Handle, const char *pszString, size_t BytesToWrite)
 
 }
 
-static 
+static
 void PrintToHandleA(HANDLE Handle, const char *pszString)
 {
     CONTRACTL
@@ -565,8 +503,8 @@ bool operator ==(const ICorDebugInfo::VarLoc &varLoc1,
     case ICorDebugInfo::VLT_REG_BYREF:
         return varLoc1.vlReg.vlrReg == varLoc2.vlReg.vlrReg;
 
-    case ICorDebugInfo::VLT_STK: 
-    case ICorDebugInfo::VLT_STK_BYREF: 
+    case ICorDebugInfo::VLT_STK:
+    case ICorDebugInfo::VLT_STK_BYREF:
         return varLoc1.vlStk.vlsBaseReg == varLoc2.vlStk.vlsBaseReg &&
                varLoc1.vlStk.vlsOffset  == varLoc2.vlStk.vlsOffset;
 
@@ -616,13 +554,13 @@ SIZE_T GetRegOffsInCONTEXT(ICorDebugInfo::RegNum regNum)
     case ICorDebugInfo::REGNUM_ECX: return offsetof(T_CONTEXT,Ecx);
     case ICorDebugInfo::REGNUM_EDX: return offsetof(T_CONTEXT,Edx);
     case ICorDebugInfo::REGNUM_EBX: return offsetof(T_CONTEXT,Ebx);
-    // TODO: Fix AMBIENT_SP handling.  
+    // TODO: Fix AMBIENT_SP handling.
     // AMBIENT_SP It isn't necessarily the same value as ESP.  We probably shouldn't try
-    // and handle REGNUM_AMBIENT_SP here, and instead update our callers (eg. 
-    // GetNativeVarVal) to handle this case explicitly.  This logic should also be 
+    // and handle REGNUM_AMBIENT_SP here, and instead update our callers (eg.
+    // GetNativeVarVal) to handle this case explicitly.  This logic should also be
     // merged with the parallel (but correct in this case) logic in mscordbi.
-    case ICorDebugInfo::REGNUM_ESP: 
-    case ICorDebugInfo::REGNUM_AMBIENT_SP: 
+    case ICorDebugInfo::REGNUM_ESP:
+    case ICorDebugInfo::REGNUM_AMBIENT_SP:
                                     return offsetof(T_CONTEXT,Esp);
     case ICorDebugInfo::REGNUM_EBP: return offsetof(T_CONTEXT,Ebp);
     case ICorDebugInfo::REGNUM_ESI: return offsetof(T_CONTEXT,Esi);
@@ -862,7 +800,7 @@ BOOL CompareFiles(HANDLE hFile1,HANDLE hFile2)
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_NOTRIGGER;
     BY_HANDLE_FILE_INFORMATION fileinfo1;
-    BY_HANDLE_FILE_INFORMATION fileinfo2;    
+    BY_HANDLE_FILE_INFORMATION fileinfo2;
     if (!GetFileInformationByHandle(hFile1,&fileinfo1) ||
         !GetFileInformationByHandle(hFile2,&fileinfo2))
         ThrowLastError();
@@ -955,7 +893,7 @@ SIZE_T *NativeVarStackAddr(const ICorDebugInfo::VarLoc &   varLoc,
 }
 
 
-#if defined(_WIN64)
+#if defined(BIT64)
 void GetNativeVarValHelper(SIZE_T* dstAddrLow, SIZE_T* dstAddrHigh, SIZE_T* srcAddr, SIZE_T size)
 {
     if (size == 1)
@@ -977,14 +915,14 @@ void GetNativeVarValHelper(SIZE_T* dstAddrLow, SIZE_T* dstAddrHigh, SIZE_T* srcA
         UNREACHABLE();
     }
 }
-#endif // _WIN64
+#endif // BIT64
 
 
 bool    GetNativeVarVal(const ICorDebugInfo::VarLoc &   varLoc,
                         PCONTEXT                        pCtx,
                         SIZE_T                      *   pVal1,
                         SIZE_T                      *   pVal2
-                        WIN64_ARG(SIZE_T                cbSize))
+                        BIT64_ARG(SIZE_T                cbSize))
 {
 
     STATIC_CONTRACT_NOTHROW;
@@ -993,7 +931,7 @@ bool    GetNativeVarVal(const ICorDebugInfo::VarLoc &   varLoc,
 
     switch(varLoc.vlType)
     {
-#if !defined(_WIN64)
+#if !defined(BIT64)
         SIZE_T          regOffs;
 
     case ICorDebugInfo::VLT_REG:
@@ -1040,7 +978,7 @@ bool    GetNativeVarVal(const ICorDebugInfo::VarLoc &   varLoc,
     case ICorDebugInfo::VLT_FPSTK:
          _ASSERTE(!"NYI"); break;
 
-#else  // _WIN64
+#else  // BIT64
     case ICorDebugInfo::VLT_REG:
     case ICorDebugInfo::VLT_REG_FP:
     case ICorDebugInfo::VLT_STK:
@@ -1052,7 +990,7 @@ bool    GetNativeVarVal(const ICorDebugInfo::VarLoc &   varLoc,
         _ASSERTE(!"GNVV: This function should not be called for value types");
         break;
 
-#endif // _WIN64
+#endif // BIT64
 
     default:
          _ASSERTE(!"Bad locType"); break;
@@ -1062,7 +1000,7 @@ bool    GetNativeVarVal(const ICorDebugInfo::VarLoc &   varLoc,
 }
 
 
-#if defined(_WIN64)
+#if defined(BIT64)
 void SetNativeVarValHelper(SIZE_T* dstAddr, SIZE_T valueLow, SIZE_T valueHigh, SIZE_T size)
 {
     if (size == 1)
@@ -1084,14 +1022,14 @@ void SetNativeVarValHelper(SIZE_T* dstAddr, SIZE_T valueLow, SIZE_T valueHigh, S
         UNREACHABLE();
     }
 }
-#endif // _WIN64
+#endif // BIT64
 
 
 bool    SetNativeVarVal(const ICorDebugInfo::VarLoc &   varLoc,
                         PCONTEXT                        pCtx,
                         SIZE_T                          val1,
                         SIZE_T                          val2
-                        WIN64_ARG(SIZE_T                cbSize))
+                        BIT64_ARG(SIZE_T                cbSize))
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
@@ -1099,7 +1037,7 @@ bool    SetNativeVarVal(const ICorDebugInfo::VarLoc &   varLoc,
 
     switch(varLoc.vlType)
     {
-#if !defined(_WIN64)
+#if !defined(BIT64)
         SIZE_T          regOffs;
 
     case ICorDebugInfo::VLT_REG:
@@ -1146,7 +1084,7 @@ bool    SetNativeVarVal(const ICorDebugInfo::VarLoc &   varLoc,
     case ICorDebugInfo::VLT_FPSTK:
          _ASSERTE(!"NYI"); break;
 
-#else  // _WIN64
+#else  // BIT64
     case ICorDebugInfo::VLT_REG:
     case ICorDebugInfo::VLT_REG_FP:
     case ICorDebugInfo::VLT_STK:
@@ -1158,7 +1096,7 @@ bool    SetNativeVarVal(const ICorDebugInfo::VarLoc &   varLoc,
         _ASSERTE(!"GNVV: This function should not be called for value types");
         break;
 
-#endif // _WIN64
+#endif // BIT64
 
     default:
          _ASSERTE(!"Bad locType"); break;
@@ -1167,43 +1105,21 @@ bool    SetNativeVarVal(const ICorDebugInfo::VarLoc &   varLoc,
     return true;
 }
 
-HRESULT VMPostError(                    // Returned error.
-    HRESULT     hrRpt,                  // Reported error.
-    ...)                                // Error arguments.
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    GCX_PREEMP();
-   
-    va_list     marker;                 // User text.
-    va_start(marker, hrRpt);
-    hrRpt = PostErrorVA(hrRpt, marker);
-    va_end(marker);
-    
-    return hrRpt;
-}
-
 #ifndef CROSSGEN_COMPILE
 
 //-----------------------------------------------------------------------------
 #ifndef FEATURE_PAL
 
-// This function checks to see if GetLogicalProcessorInformation API is supported. 
-// On success, this function allocates a SLPI array, sets nEntries to number 
-// of elements in the SLPI array and returns a pointer to the SLPI array after filling it with information. 
+// This function checks to see if GetLogicalProcessorInformation API is supported.
+// On success, this function allocates a SLPI array, sets nEntries to number
+// of elements in the SLPI array and returns a pointer to the SLPI array after filling it with information.
 //
 // Note: If successful, IsGLPISupported allocates memory for the SLPI array and expects the caller to
 // free the memory once the caller is done using the information in the SLPI array.
 //
 // If the API is not supported or any failure, returns NULL
 //
-SYSTEM_LOGICAL_PROCESSOR_INFORMATION *IsGLPISupported( PDWORD nEntries ) 
+SYSTEM_LOGICAL_PROCESSOR_INFORMATION *IsGLPISupported( PDWORD nEntries )
 {
     DWORD cbslpi = 0;
     DWORD dwNumElements = 0;
@@ -1225,7 +1141,7 @@ SYSTEM_LOGICAL_PROCESSOR_INFORMATION *IsGLPISupported( PDWORD nEntries )
 
     dwNumElements = cbslpi / sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
 
-    // allocate a buffer in the free heap to hold an array of SLPI entries from GLPI, number of elements in the array is dwNumElements 
+    // allocate a buffer in the free heap to hold an array of SLPI entries from GLPI, number of elements in the array is dwNumElements
 
     pslpi = new (nothrow) SYSTEM_LOGICAL_PROCESSOR_INFORMATION[ dwNumElements ];
 
@@ -1233,7 +1149,7 @@ SYSTEM_LOGICAL_PROCESSOR_INFORMATION *IsGLPISupported( PDWORD nEntries )
     {
         // the memory allocation failed
         return NULL;
-    }      
+    }
 
     // Make call to GetLogicalProcessorInformation. Returns array of SLPI structures
 
@@ -1242,7 +1158,7 @@ SYSTEM_LOGICAL_PROCESSOR_INFORMATION *IsGLPISupported( PDWORD nEntries )
         // GetLogicalProcessorInformation failed
         delete[] pslpi ; //Allocation was fine but the API call itself failed and so we are releasing the memory before the return NULL.
         return NULL ;
-    } 
+    }
 
     // GetLogicalProcessorInformation successful, set nEntries to number of entries in the SLPI array
     *nEntries  = dwNumElements;
@@ -1261,11 +1177,11 @@ size_t GetLogicalProcessorCacheSizeFromOS()
     // Try to use GetLogicalProcessorInformation API and get a valid pointer to the SLPI array if successful.  Returns NULL
     // if API not present or on failure.
 
-    SYSTEM_LOGICAL_PROCESSOR_INFORMATION *pslpi = IsGLPISupported(&nEntries) ;   
+    SYSTEM_LOGICAL_PROCESSOR_INFORMATION *pslpi = IsGLPISupported(&nEntries) ;
 
     if (pslpi == NULL)
     {
-        // GetLogicalProcessorInformation not supported or failed.  
+        // GetLogicalProcessorInformation not supported or failed.
         goto Exit;
     }
 
@@ -1279,14 +1195,14 @@ size_t GetLogicalProcessorCacheSizeFromOS()
             if (pslpi[i].Relationship == RelationCache)
             {
                 last_cache_size = max(last_cache_size, pslpi[i].Cache.Size);
-            }             
-        }  
+            }
+        }
         cache_size = last_cache_size;
     }
 Exit:
 
     if(pslpi)
-        delete[] pslpi;  // release the memory allocated for the SLPI array.    
+        delete[] pslpi;  // release the memory allocated for the SLPI array.
 
     return cache_size;
 }
@@ -1295,7 +1211,7 @@ Exit:
 
 // This function returns the number of logical processors on a given physical chip.  If it cannot
 // determine the number of logical cpus, or the machine is not populated uniformly with the same
-// type of processors, this function returns 0. 
+// type of processors, this function returns 0.
 
 DWORD GetLogicalCpuCountFromOS()
 {
@@ -1309,8 +1225,8 @@ DWORD GetLogicalCpuCountFromOS()
 
 #ifdef FEATURE_PAL
     retVal = PAL_GetLogicalCpuCountFromOS();
-#else // FEATURE_PAL    
-    
+#else // FEATURE_PAL
+
     DWORD nEntries = 0;
 
     DWORD prevcount = 0;
@@ -1341,7 +1257,7 @@ DWORD GetLogicalCpuCountFromOS()
                 // (which would be best), but there are variants faster than these:
                 // See http://en.wikipedia.org/wiki/Hamming_weight.
                 // This is the naive implementation.
-#if !_WIN64
+#if !BIT64
                 count = (pmask & 0x55555555) + ((pmask >> 1) &  0x55555555);
                 count = (count & 0x33333333) + ((count >> 2) &  0x33333333);
                 count = (count & 0x0F0F0F0F) + ((count >> 4) &  0x0F0F0F0F);
@@ -1355,7 +1271,7 @@ DWORD GetLogicalCpuCountFromOS()
                 pmask = (pmask & 0x0000ffff0000ffffull) + ((pmask >> 16) & 0x0000ffff0000ffffull);
                 pmask = (pmask & 0x00000000ffffffffull) + ((pmask >> 32) & 0x00000000ffffffffull);
                 count = static_cast<DWORD>(pmask);
-#endif // !_WIN64 else
+#endif // !BIT64 else
                 assert (count > 0);
 
                 if (prevcount)
@@ -1374,16 +1290,16 @@ DWORD GetLogicalCpuCountFromOS()
 
     retVal = count;
 
-lDone: 
+lDone:
 
     if(pslpi)
     {
-        delete[] pslpi;                        // release the memory allocated for the SLPI array    
+        delete[] pslpi;                        // release the memory allocated for the SLPI array
     }
 #endif // FEATURE_PAL
 
     return retVal;
-}   
+}
 
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 
@@ -1396,7 +1312,7 @@ extern "C" DWORD __stdcall getcpuid(DWORD arg1, unsigned char result[16]);
 extern "C" DWORD __stdcall getextcpuid(DWORD arg1, DWORD arg2, unsigned char result[16]);
 
 // The following function uses a deterministic mechanism for enumerating/calculating the details of the cache hierarychy at runtime
-// by using deterministic cache parameter leafs on Prescott and higher processors. 
+// by using deterministic cache parameter leafs on Prescott and higher processors.
 // If successful, this function returns the cache size in bytes of the highest level on-die cache. Returns 0 on failure.
 
 size_t GetIntelDeterministicCacheEnum()
@@ -1419,11 +1335,11 @@ size_t GetIntelDeterministicCacheEnum()
         size_t curSize = 0;
 
         // Make First call  to getextcpuid with loopECX=0. loopECX provides an index indicating which level to return information about.
-        // The second parameter is input EAX=4, to specify we want deterministic cache parameter leaf information. 
+        // The second parameter is input EAX=4, to specify we want deterministic cache parameter leaf information.
         // getextcpuid with EAX=4 should be executed with loopECX = 0,1, ... until retEAX [4:0] contains 00000b, indicating no more
         // cache levels are supported.
 
-        getextcpuid(loopECX, 4, buffer);       
+        getextcpuid(loopECX, 4, buffer);
         memcpy(dwBuffer, buffer, buflen);
         retEAX = dwBuffer[0];       // get EAX
 
@@ -1442,9 +1358,9 @@ size_t GetIntelDeterministicCacheEnum()
                 maxSize = curSize;
 
             loopECX++;
-            getextcpuid(loopECX, 4, buffer);  
+            getextcpuid(loopECX, 4, buffer);
             memcpy(dwBuffer, buffer, buflen);
-            retEAX = dwBuffer[0] ;      // get EAX[4:0];        
+            retEAX = dwBuffer[0] ;      // get EAX[4:0];
             i++;
             if (i > 16) {               // prevent infinite looping
               return 0;
@@ -1455,7 +1371,7 @@ size_t GetIntelDeterministicCacheEnum()
     return retVal ;
 }
 
-// The following function uses CPUID function 2 with descriptor values to determine the cache size.  This requires a-priori 
+// The following function uses CPUID function 2 with descriptor values to determine the cache size.  This requires a-priori
 // knowledge of the descriptor values. This works on gallatin and prior processors (already released processors).
 // If successful, this function returns the cache size in bytes of the highest level on-die cache. Returns 0 on failure.
 
@@ -1463,10 +1379,10 @@ size_t GetIntelDescriptorValuesCache()
 {
     LIMITED_METHOD_CONTRACT;
     size_t size = 0;
-    size_t maxSize = 0;    
+    size_t maxSize = 0;
     unsigned char buffer[16];
 
-    getextcpuid(0,2, buffer);         // call CPUID with EAX function 2H to obtain cache descriptor values 
+    getextcpuid(0,2, buffer);         // call CPUID with EAX function 2H to obtain cache descriptor values
 
     for (int i = buffer[0]; --i >= 0; )
     {
@@ -1502,7 +1418,7 @@ size_t GetIntelDescriptorValuesCache()
                 case    0x43:
                 case    0x7B:
                 case    0x83:
-                case    0x86:                    
+                case    0x86:
                     size = 512*1024;
                     break;
 
@@ -1510,7 +1426,7 @@ size_t GetIntelDescriptorValuesCache()
                 case    0x44:
                 case    0x7C:
                 case    0x84:
-                case    0x87:                    
+                case    0x87:
                     size = 1024*1024;
                     break;
 
@@ -1542,11 +1458,11 @@ size_t GetIntelDescriptorValuesCache()
                                                                                       // initial APIC ID for the processor this code is running on.
                                                                                       // Default value = 0xff if HT is not supported
 
-// This function uses CPUID function 1 to return the number of logical processors on a given physical chip.  
-// It returns the number of logicals processors on a physical chip. 
+// This function uses CPUID function 1 to return the number of logical processors on a given physical chip.
+// It returns the number of logicals processors on a physical chip.
 
 DWORD GetLogicalCpuCountFallback()
-{   
+{
     BYTE LogicalNum   = 0;
     BYTE PhysicalNum  = 0;
     DWORD lProcCounter = 0;
@@ -1562,7 +1478,7 @@ DWORD GetLogicalCpuCountFallback()
         PhysicalNum = (BYTE) g_SystemInfo.dwNumberOfProcessors ; // total # of processors
         LogicalNum  = (BYTE) ((dwBuffer[1] & NUM_LOGICAL_BITS) >> 16); // # of logical per physical
 
-        if(LogicalNum > 1) 
+        if(LogicalNum > 1)
         {
 #ifdef FEATURE_CORESYSTEM
             // CoreSystem doesn't expose GetProcessAffinityMask or SetProcessAffinityMask or anything
@@ -1586,17 +1502,17 @@ DWORD GetLogicalCpuCountFallback()
                 PHY_ID_MASK  <<= 1;
                 PHY_ID_SHIFT++;
             }
-            hCurrentProcessHandle = GetCurrentProcess();  
+            hCurrentProcessHandle = GetCurrentProcess();
 
             GetProcessAffinityMask(hCurrentProcessHandle, &dwProcessAffinity, &dwSystemAffinity);
 
             // Check if available process affinity mask is equal to the available system affinity mask
-            // If the masks are equal, then all the processors the OS utilizes are available to the 
+            // If the masks are equal, then all the processors the OS utilizes are available to the
             // application.
 
             if (dwProcessAffinity != dwSystemAffinity)
             {
-                retVal = 0;          
+                retVal = 0;
                 goto fDone;
             }
 
@@ -1609,7 +1525,7 @@ DWORD GetLogicalCpuCountFallback()
                 // Check if this CPU is available
                 if (dwAffinityMask & dwProcessAffinity)
                 {
-                    if (SetProcessAffinityMask(hCurrentProcessHandle, dwAffinityMask))  
+                    if (SetProcessAffinityMask(hCurrentProcessHandle, dwAffinityMask))
                     {
                         BYTE APIC_ID, LOG_ID, PHY_ID;
                         __SwitchToThread(0, CALLER_LIMITS_SPINNING); // Give OS time to switch CPU
@@ -1619,7 +1535,7 @@ DWORD GetLogicalCpuCountFallback()
                         APIC_ID = (dwBuffer[1] & INITIAL_APIC_ID_BITS) >> 24;
                         LOG_ID  = APIC_ID & ~PHY_ID_MASK;
                         PHY_ID  = APIC_ID >> PHY_ID_SHIFT;
-                        if (LOG_ID != 0)   
+                        if (LOG_ID != 0)
                         lProcCounter++;
                     }
                 }
@@ -1637,7 +1553,7 @@ DWORD GetLogicalCpuCountFallback()
             }
 #endif // FEATURE_CORESYSTEM
         }
-    }   
+    }
 fDone:
 
     return retVal;
@@ -1667,113 +1583,102 @@ static size_t GetCacheSizeFromCpuId()
 
         DWORD maxCpuId = getcpuid(0, buffer);
 
-        if (dwBuffer[1] == 'uneG') 
+        if (memcmp(buffer + 4, "GenuineIntel", 12) == 0)
         {
-            if (dwBuffer[3] == 'Ieni') 
+            /*
+            //The following lines are commented because the OS API  on Windows 2003 SP1 is not returning the Cache Relation information on x86.
+            //Once the OS API (LH and above) is updated with this information, we should start using the OS API to get the cache enumeration by
+            //uncommenting the lines below.
+
+            maxSize = GetLogicalProcessorCacheSizeFromOS(); //use OS API for cache enumeration on LH and above
+            */
+            maxSize = 0;
+            if (maxCpuId >= 2)         // cpuid support for cache size determination is available
             {
-                if (dwBuffer[2] == 'letn') 
+                maxSize = GetIntelDeterministicCacheEnum();          // try to use use deterministic cache size enumeration
+                if (!maxSize)
+                {                    // deterministic enumeration failed, fallback to legacy enumeration using descriptor values
+                    maxSize = GetIntelDescriptorValuesCache();
+                }
+            }
+
+            // TODO: Currently GetLogicalCpuCountFromOS() and GetLogicalCpuCountFallback() are broken on
+            // multi-core processor, but we never call into those two functions since we don't halve the
+            // gen0size when it's prescott and above processor. We keep the old version here for earlier
+            // generation system(Northwood based), perf data suggests on those systems, halve gen0 size
+            // still boost the performance(ex:Biztalk boosts about 17%). So on earlier systems(Northwood)
+            // based, we still go ahead and halve gen0 size.  The logic in GetLogicalCpuCountFromOS()
+            // and GetLogicalCpuCountFallback() works fine for those earlier generation systems.
+            // If it's a Prescott and above processor or Multi-core, perf data suggests not to halve gen0
+            // size at all gives us overall better performance.
+            // This is going to be fixed with a new version in orcas time frame.
+            if (maxCpuId >= 2 && !((maxCpuId > 3) && (maxCpuId < 0x80000000)))
+            {
+                DWORD logicalProcessorCount = GetLogicalCpuCountFromOS(); //try to obtain HT enumeration from OS API
+
+                if (!logicalProcessorCount)
                 {
-                    /*
-                    //The following lines are commented because the OS API  on Windows 2003 SP1 is not returning the Cache Relation information on x86. 
-                    //Once the OS API (LH and above) is updated with this information, we should start using the OS API to get the cache enumeration by
-                    //uncommenting the lines below.
+                    logicalProcessorCount = GetLogicalCpuCountFallback();    // OS API failed, Fallback to HT enumeration using CPUID
+                }
 
-                    maxSize = GetLogicalProcessorCacheSizeFromOS(); //use OS API for cache enumeration on LH and above
-                    */
-                    maxSize = 0;
-                    if (maxCpuId >= 2)         // cpuid support for cache size determination is available
-                    {
-                        maxSize = GetIntelDeterministicCacheEnum();          // try to use use deterministic cache size enumeration
-                        if (!maxSize)
-                        {                    // deterministic enumeration failed, fallback to legacy enumeration using descriptor values            
-                            maxSize = GetIntelDescriptorValuesCache();   
-                        }   
-                    }
-
-                    // TODO: Currently GetLogicalCpuCountFromOS() and GetLogicalCpuCountFallback() are broken on 
-                    // multi-core processor, but we never call into those two functions since we don't halve the
-                    // gen0size when it's prescott and above processor. We keep the old version here for earlier
-                    // generation system(Northwood based), perf data suggests on those systems, halve gen0 size 
-                    // still boost the performance(ex:Biztalk boosts about 17%). So on earlier systems(Northwood) 
-                    // based, we still go ahead and halve gen0 size.  The logic in GetLogicalCpuCountFromOS() 
-                    // and GetLogicalCpuCountFallback() works fine for those earlier generation systems. 
-                    // If it's a Prescott and above processor or Multi-core, perf data suggests not to halve gen0 
-                    // size at all gives us overall better performance. 
-                    // This is going to be fixed with a new version in orcas time frame.
-                    if (maxCpuId >= 2 && !((maxCpuId > 3) && (maxCpuId < 0x80000000)))
-                    {
-                        DWORD logicalProcessorCount = GetLogicalCpuCountFromOS(); //try to obtain HT enumeration from OS API
-
-                        if (!logicalProcessorCount)
-                        {
-                            logicalProcessorCount = GetLogicalCpuCountFallback();    // OS API failed, Fallback to HT enumeration using CPUID
-                        }
-
-                        if (logicalProcessorCount)
-                        {
-                            maxSize = maxSize / logicalProcessorCount;
-                        }
-                    }
+                if (logicalProcessorCount)
+                {
+                    maxSize = maxSize / logicalProcessorCount;
                 }
             }
         }
+        else if (memcmp(buffer + 4, "AuthenticAMD", 12) == 0)
+        {
+            if (getcpuid(0x80000000, buffer) >= 0x80000006)
+            {
+                getcpuid(0x80000006, buffer);
 
-        else if (dwBuffer[1] == 'htuA') {
-            if (dwBuffer[3] == 'itne') {
-                if (dwBuffer[2] == 'DMAc') {
+                DWORD dwL2CacheBits = dwBuffer[2];
+                DWORD dwL3CacheBits = dwBuffer[3];
 
-                    if (getcpuid(0x80000000, buffer) >= 0x80000006)
+                maxSize = (size_t)((dwL2CacheBits >> 16) * 1024);    // L2 cache size in ECX bits 31-16
+
+                getcpuid(0x1, buffer);
+                DWORD dwBaseFamily = (dwBuffer[0] & (0xF << 8)) >> 8;
+                DWORD dwExtFamily  = (dwBuffer[0] & (0xFF << 20)) >> 20;
+                DWORD dwFamily = dwBaseFamily >= 0xF ? dwBaseFamily + dwExtFamily : dwBaseFamily;
+
+                if (dwFamily >= 0x10)
+                {
+                    BOOL bSkipAMDL3 = FALSE;
+
+                    if (dwFamily == 0x10)   // are we running on a Barcelona (Family 10h) processor?
                     {
-                        getcpuid(0x80000006, buffer);
+                        // check model
+                        DWORD dwBaseModel = (dwBuffer[0] & (0xF << 4)) >> 4 ;
+                        DWORD dwExtModel  = (dwBuffer[0] & (0xF << 16)) >> 16;
+                        DWORD dwModel = dwBaseFamily >= 0xF ? (dwExtModel << 4) | dwBaseModel : dwBaseModel;
 
-                        DWORD dwL2CacheBits = dwBuffer[2];
-                        DWORD dwL3CacheBits = dwBuffer[3];
-
-                        maxSize = (size_t)((dwL2CacheBits >> 16) * 1024);    // L2 cache size in ECX bits 31-16
-                                
-                        getcpuid(0x1, buffer);
-                        DWORD dwBaseFamily = (dwBuffer[0] & (0xF << 8)) >> 8;
-                        DWORD dwExtFamily  = (dwBuffer[0] & (0xFF << 20)) >> 20;
-                        DWORD dwFamily = dwBaseFamily >= 0xF ? dwBaseFamily + dwExtFamily : dwBaseFamily;
-
-                        if (dwFamily >= 0x10)
+                        switch (dwModel)
                         {
-                            BOOL bSkipAMDL3 = FALSE;
+                            case 0x2:
+                                // 65nm parts do not benefit from larger Gen0
+                                bSkipAMDL3 = TRUE;
+                                break;
 
-                            if (dwFamily == 0x10)   // are we running on a Barcelona (Family 10h) processor?
-                            {
-                                // check model
-                                DWORD dwBaseModel = (dwBuffer[0] & (0xF << 4)) >> 4 ;
-                                DWORD dwExtModel  = (dwBuffer[0] & (0xF << 16)) >> 16;
-                                DWORD dwModel = dwBaseFamily >= 0xF ? (dwExtModel << 4) | dwBaseModel : dwBaseModel;
-
-                                switch (dwModel)
-                                {
-                                    case 0x2:
-                                        // 65nm parts do not benefit from larger Gen0
-                                        bSkipAMDL3 = TRUE;
-                                        break;
-
-                                    case 0x4:
-                                    default:
-                                        bSkipAMDL3 = FALSE;
-                                }
-                            }
-
-                            if (!bSkipAMDL3)
-                            {
-                                // 45nm Greyhound parts (and future parts based on newer northbridge) benefit
-                                // from increased gen0 size, taking L3 into account
-                                getcpuid(0x80000008, buffer);
-                                DWORD dwNumberOfCores = (dwBuffer[2] & (0xFF)) + 1;     // NC is in ECX bits 7-0
-
-                                DWORD dwL3CacheSize = (size_t)((dwL3CacheBits >> 18) * 512 * 1024);  // L3 size in EDX bits 31-18 * 512KB
-                                // L3 is shared between cores
-                                dwL3CacheSize = dwL3CacheSize / dwNumberOfCores;
-                                maxSize += dwL3CacheSize;       // due to exclusive caches, add L3 size (possibly zero) to L2
-                                                                    // L1 is too small to worry about, so ignore it
-                            }
+                            case 0x4:
+                            default:
+                                bSkipAMDL3 = FALSE;
                         }
+                    }
+
+                    if (!bSkipAMDL3)
+                    {
+                        // 45nm Greyhound parts (and future parts based on newer northbridge) benefit
+                        // from increased gen0 size, taking L3 into account
+                        getcpuid(0x80000008, buffer);
+                        DWORD dwNumberOfCores = (dwBuffer[2] & (0xFF)) + 1;     // NC is in ECX bits 7-0
+
+                        DWORD dwL3CacheSize = (size_t)((dwL3CacheBits >> 18) * 512 * 1024);  // L3 size in EDX bits 31-18 * 512KB
+                        // L3 is shared between cores
+                        dwL3CacheSize = dwL3CacheSize / dwNumberOfCores;
+                        maxSize += dwL3CacheSize;       // due to exclusive caches, add L3 size (possibly zero) to L2
+                                                            // L1 is too small to worry about, so ignore it
                     }
                 }
             }
@@ -1796,28 +1701,22 @@ size_t GetCacheSizePerLogicalCpu(BOOL bTrueSize)
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
 
-    static size_t maxSize;
-    static size_t maxTrueSize;
+    static volatile size_t s_maxSize;
+    static volatile size_t s_maxTrueSize;
 
-    if (maxSize)
-    {
-        // maxSize and maxTrueSize cached
-        if (bTrueSize)
-        {
-            return maxTrueSize;
-        }
-        else
-        {
-            return maxSize;
-        }
-    }
+    size_t size = bTrueSize ? s_maxTrueSize : s_maxSize;
+    if (size != 0)
+        return size;
+
+    size_t maxSize = 0;
+    size_t maxTrueSize = 0;
 
     // For x86, always get from cpuid.
 #if !defined (_TARGET_X86_)
     maxSize = maxTrueSize = GetLogicalProcessorCacheSizeFromOS() ; // Returns the size of the highest level processor cache
 #endif
 
-#if defined (_TARGET_X86) || defined(_TARGET_AMD64_)
+#if defined (_TARGET_X86_) || defined(_TARGET_AMD64_)
     if (maxSize == 0)
     {
         maxSize = maxTrueSize = GetCacheSizeFromCpuId();
@@ -1827,11 +1726,11 @@ size_t GetCacheSizePerLogicalCpu(BOOL bTrueSize)
     maxSize = maxTrueSize * 3;
 #endif
 
+    s_maxSize = maxSize;
+    s_maxTrueSize = maxTrueSize;
+
     //    printf("GetCacheSizePerLogicalCpu returns %d, adjusted size %d\n", maxSize, maxTrueSize);
-    if (bTrueSize)
-        return maxTrueSize;
-    else
-        return maxSize;
+    return bTrueSize ? maxTrueSize : maxSize;
 }
 #endif // CROSSGEN_COMPILE
 
@@ -2021,12 +1920,12 @@ BOOL IsValidMethodCodeNotification(USHORT Notification)
     // If any bit is on other than that given by a valid combination of flags, no good.
     if (Notification & ~(
         CLRDATA_METHNOTIFY_NONE |
-        CLRDATA_METHNOTIFY_GENERATED | 
+        CLRDATA_METHNOTIFY_GENERATED |
         CLRDATA_METHNOTIFY_DISCARDED))
     {
         return FALSE;
     }
-    
+
     return TRUE;
 }
 
@@ -2087,7 +1986,7 @@ BOOL JITNotifications::SetAllNotifications(TADDR clrModule,USHORT NType,BOOL *ch
     }
 
     *changedOut = FALSE;
-    
+
     UINT Length = GetLength();
     for(UINT i=0; i < Length; i++)
     {
@@ -2099,7 +1998,7 @@ BOOL JITNotifications::SetAllNotifications(TADDR clrModule,USHORT NType,BOOL *ch
             pCurrent->state = NType;
             *changedOut = TRUE;
         }
-    }    
+    }
 
     if (*changedOut && NType == CLRDATA_METHNOTIFY_NONE)
     {
@@ -2129,12 +2028,12 @@ BOOL JITNotifications::SetNotification(TADDR clrModule, mdToken token, USHORT NT
     {
         return FALSE;
     }
-    
+
     if (NType == CLRDATA_METHNOTIFY_NONE)
     {
         // Remove an item if it exists
-        if (FindItem(clrModule, token, &iIndex))        
-        {       
+        if (FindItem(clrModule, token, &iIndex))
+        {
             JITNotification *pItem = m_jitTable + iIndex;
             pItem->SetFree();
             _ASSERTE(iIndex < GetLength());
@@ -2142,16 +2041,16 @@ BOOL JITNotifications::SetNotification(TADDR clrModule, mdToken token, USHORT NT
             if (iIndex == (GetLength()-1))
             {
                 DecrementLength();
-            }       
+            }
         }
-        return TRUE;            
+        return TRUE;
     }
-    
+
     if (FindItem(clrModule, token, &iIndex))
     {
         JITNotification *pItem = m_jitTable + iIndex;
         _ASSERTE(pItem->IsFree() == FALSE);
-        pItem->state =  NType;        
+        pItem->state =  NType;
         return TRUE;
     }
 
@@ -2166,35 +2065,35 @@ BOOL JITNotifications::SetNotification(TADDR clrModule, mdToken token, USHORT NT
             break;
         }
     }
-    
+
     if (iFirstFree == GetLength() &&
-        iFirstFree == GetTableSize())            
+        iFirstFree == GetTableSize())
     {
         // No more room
         return FALSE;
     }
-    
-    JITNotification *pCurrent = m_jitTable + iFirstFree;            
+
+    JITNotification *pCurrent = m_jitTable + iFirstFree;
     pCurrent->SetState(clrModule, token, NType);
-    if (iFirstFree == GetLength())            
+    if (iFirstFree == GetLength())
     {
         IncrementLength();
     }
-    
-    return TRUE;   
+
+    return TRUE;
 }
 
 UINT JITNotifications::GetLength()
 {
     LIMITED_METHOD_CONTRACT;
     _ASSERTE(IsActive());
-    
+
     if (!IsActive())
     {
         return 0;
     }
 
-    return (UINT) (m_jitTable - 1)->methodToken;    
+    return (UINT) (m_jitTable - 1)->methodToken;
 }
 
 void JITNotifications::IncrementLength()
@@ -2204,7 +2103,7 @@ void JITNotifications::IncrementLength()
     if (!IsActive())
     {
         return;
-    }    
+    }
 
     UINT *pShort = (UINT *) &((m_jitTable - 1)->methodToken);
     (*pShort)++;
@@ -2217,16 +2116,16 @@ void JITNotifications::DecrementLength()
     if (!IsActive())
     {
         return;
-    }    
+    }
 
     UINT *pShort = (UINT *) &((m_jitTable - 1)->methodToken);
     (*pShort)--;
 }
-    
+
 UINT JITNotifications::GetTableSize()
 {
     _ASSERTE(IsActive());
-    
+
     if (!IsActive())
     {
         return 0;
@@ -2245,7 +2144,7 @@ USHORT JITNotifications::Requested(TADDR clrModule, mdToken token)
         _ASSERTE(pItem->IsFree() == FALSE);
         return pItem->state;
     }
-        
+
     return CLRDATA_METHNOTIFY_NONE;
 }
 
@@ -2254,7 +2153,7 @@ USHORT JITNotifications::Requested(TADDR clrModule, mdToken token)
 JITNotification *JITNotifications::InitializeNotificationTable(UINT TableSize)
 {
     // We use the first entry in the table for recordkeeping info.
-    
+
     JITNotification *retTable = new (nothrow) JITNotification[TableSize+1];
     if (retTable)
     {
@@ -2268,11 +2167,11 @@ JITNotification *JITNotifications::InitializeNotificationTable(UINT TableSize)
     return retTable;
 }
 
-template <class NotificationClass> 
+template <class NotificationClass>
 BOOL UpdateOutOfProcTable(__GlobalPtr<NotificationClass*, DPTR(NotificationClass)> pHostTable, NotificationClass* copyFrom, UINT tableSize)
 {
-    
-    ClrSafeInt<ULONG32> allocSize = S_SIZE_T(sizeof(NotificationClass)) * ClrSafeInt<UINT>(tableSize); 
+
+    ClrSafeInt<ULONG32> allocSize = S_SIZE_T(sizeof(NotificationClass)) * ClrSafeInt<UINT>(tableSize);
     if (allocSize.IsOverflow())
     {
         return FALSE;
@@ -2398,9 +2297,9 @@ BOOL GcNotifications::SetNotification(GcEvtArgs ev)
                 break;
             }
         }
-        
+
         if (iFirstFree == Length() &&
-            iFirstFree == GetTableSize())            
+            iFirstFree == GetTableSize())
     {
             // No more room
         return FALSE;
@@ -2430,7 +2329,7 @@ BOOL GcNotifications::SetNotification(GcEvtArgs ev)
     }
 
     // and if needed, update the array's length
-    if (idx == Length())            
+    if (idx == Length())
     {
         IncrementLength();
     }
@@ -2445,7 +2344,7 @@ GARY_IMPL(size_t, g_clrNotificationArguments, MAX_CLR_NOTIFICATION_ARGS);
 GcNotification *GcNotifications::InitializeNotificationTable(UINT TableSize)
 {
     // We use the first entry in the table for recordkeeping info.
-    
+
     GcNotification *retTable = new (nothrow) GcNotification[TableSize+1];
     if (retTable)
     {
@@ -2576,11 +2475,11 @@ void DACNotify::DoJITPitchingNotification(MethodDesc *MethodDescPtr)
 
 #if defined(FEATURE_GDBJIT) && defined(FEATURE_PAL) && !defined(CROSSGEN_COMPILE)
     NotifyGdb::MethodPitched(MethodDescPtr);
-#endif    
+#endif
     TADDR Args[2] = { JIT_PITCHING_NOTIFICATION, (TADDR) MethodDescPtr };
     DACNotifyExceptionHelper(Args, 2);
-}    
-   
+}
+
 void DACNotify::DoModuleLoadNotification(Module *ModulePtr)
 {
     CONTRACTL
@@ -2789,7 +2688,7 @@ BOOL DACNotify::ParseExceptionCatcherEnterNotification(TADDR Args[], TADDR& Meth
     return TRUE;
 }
 
-static BOOL TrustMeIAmSafe(void *pLock) 
+static BOOL TrustMeIAmSafe(void *pLock)
 {
     LIMITED_METHOD_CONTRACT;
     return TRUE;
@@ -2938,7 +2837,7 @@ HRESULT GetFileVersion(                     // S_OK or error
     //
     // Note that this code is equivalent to FusionGetFileVersionInfo, found in fusion\asmcache\asmcache.cpp
     //
-    
+
     // Avoid confusion.
     pFileVersion->QuadPart = 0;
 

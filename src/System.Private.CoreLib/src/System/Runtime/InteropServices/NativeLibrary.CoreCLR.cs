@@ -4,7 +4,6 @@
 
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Threading;
 
 namespace System.Runtime.InteropServices
 {
@@ -14,26 +13,26 @@ namespace System.Runtime.InteropServices
         {
             RuntimeAssembly rtAsm = (RuntimeAssembly)assembly;
             return LoadByName(libraryName,
-                              JitHelpers.GetQCallAssemblyOnStack(ref rtAsm),
+                              new QCallAssembly(ref rtAsm),
                               searchPath.HasValue,
-                              (uint) searchPath.GetValueOrDefault(),
+                              (uint)searchPath.GetValueOrDefault(),
                               throwOnError);
         }
 
         /// External functions that implement the NativeLibrary interface
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern IntPtr LoadFromPath(string libraryName, bool throwOnError);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern IntPtr LoadByName(string libraryName, QCallAssembly callingAssembly,
-                                                 bool hasDllImportSearchPathFlag, uint dllImportSearchPathFlag, 
+                                                 bool hasDllImportSearchPathFlag, uint dllImportSearchPathFlag,
                                                  bool throwOnError);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern void FreeLib(IntPtr handle);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern IntPtr GetSymbol(IntPtr handle, string symbolName, bool throwOnError);
     }
 }

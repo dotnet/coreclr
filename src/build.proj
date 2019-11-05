@@ -9,13 +9,9 @@
   <ItemGroup>
     <ProjectReference Condition="'$(BuildManagedTools)' == 'true'" Include="tools/runincontext/runincontext.csproj" />
     <ProjectReference Condition="'$(BuildManagedTools)' == 'true'" Include="tools/r2rdump/R2RDump.csproj" />
+    <ProjectReference Condition="'$(BuildManagedTools)' == 'true'" Include="tools/ReadyToRun.SuperIlc/ReadyToRun.SuperIlc.csproj" />
     <ProjectReference Include="System.Private.CoreLib\System.Private.CoreLib.csproj" />
   </ItemGroup>
-
-  <!-- [ARCADE_REMOVE] The below targets should be removed entirely when all projects become SDK
-       projects. These should not be in this project file, but in a separate targets file for post-build.
-  -->
-  <Import Project="../dir.props" />
 
   <!-- Copy the UCRT files from the windows kit directory to the local directory.
        The api-*xstate.dll binary needs to be signed. -->

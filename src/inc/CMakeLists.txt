@@ -7,10 +7,7 @@ set( CORGUIDS_IDL_SOURCES
   corprof.idl
   corpub.idl
   mscorsvc.idl
-  clrprivappxhosting.idl
   clrprivbinding.idl
-  clrprivhosting.idl
-  clrprivruntimebinders.idl
   corsym.idl
   sospriv.idl
 )
@@ -33,7 +30,7 @@ foreach(GENERATE_IDL IN LISTS CORGUIDS_IDL_SOURCES)
    list(APPEND CORGUIDS_SOURCES ${OUT_NAME})
    add_custom_command(OUTPUT ${OUT_NAME}
                       COMMAND ${MIDL} ${MIDL_INCLUDE_DIRECTORIES} /h ${CMAKE_CURRENT_BINARY_DIR}/idls_out/${IDLNAME}.h ${MIDL_DEFINITIONS} /out ${CMAKE_CURRENT_BINARY_DIR}/idls_out ${CMAKE_CURRENT_SOURCE_DIR}/${GENERATE_IDL}
-                      DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${GENERATE_IDL} 
+                      DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${GENERATE_IDL}
                       COMMENT "Compiling ${GENERATE_IDL}")
 endforeach(GENERATE_IDL)
 
@@ -47,14 +44,6 @@ else()
 
 #The MIDL tool exists for Windows only, so for other systems, we have the prebuilt xxx_i.cpp files checked in
 
-# The prebuilt files contain extra '!_MIDL_USE_GUIDDEF_' after the #endif, but not in the comment.
-# In order to not to have to modify these prebuilt files, we disable the extra tokens warning.
-if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-add_compile_options(-Wno-extra-tokens)
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-add_compile_options(-Wno-endif-labels)
-endif()
-
 add_compile_options(-D_MIDL_USE_GUIDDEF_)
 foreach(IDL_SOURCE IN LISTS CORGUIDS_IDL_SOURCES)
    get_filename_component(IDLNAME ${IDL_SOURCE} NAME_WE)
@@ -62,7 +51,6 @@ foreach(IDL_SOURCE IN LISTS CORGUIDS_IDL_SOURCES)
    list(APPEND CORGUIDS_SOURCES ${C_SOURCE})
 endforeach(IDL_SOURCE)
 
-add_compile_options(-fPIC)
 endif(WIN32)
 
 if(FEATURE_JIT_PITCHING)

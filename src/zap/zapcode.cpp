@@ -50,7 +50,7 @@ ZapVirtualSection * ZapImage::GetCodeSection(CodeType codeType)
     UNREACHABLE();
 }
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
 ZapVirtualSection * ZapImage::GetUnwindDataSection(CodeType codeType)
 {
 #ifdef REDHAWK
@@ -69,7 +69,7 @@ ZapVirtualSection * ZapImage::GetUnwindDataSection(CodeType codeType)
 #endif // REDHAWK
     UNREACHABLE();
 }
-#endif // defined(WIN64EXCEPTIONS)
+#endif // defined(FEATURE_EH_FUNCLETS)
 
 ZapVirtualSection * ZapImage::GetRuntimeFunctionSection(CodeType codeType)
 {
@@ -143,7 +143,7 @@ void ZapImage::OutputCode(CodeType codeType)
     // Note there are three codeTypes: ProfiledHot, Unprofiled and ProfiledCold
 #if defined(REDHAWK)
     SectionMethodListGenerator map;
-#endif 
+#endif
 
     bool fCold = (codeType == ProfiledCold);
     CorInfoRegionKind regionKind = (codeType == ProfiledHot) ? CORINFO_REGION_HOT : CORINFO_REGION_COLD;
@@ -152,9 +152,9 @@ void ZapImage::OutputCode(CodeType codeType)
     ZapVirtualSection * pCodeSection = GetCodeSection(codeType);
     ZapVirtualSection * pRuntimeFunctionSection = GetRuntimeFunctionSection(codeType);
 
-#if defined (WIN64EXCEPTIONS)
+#if defined (FEATURE_EH_FUNCLETS)
     ZapVirtualSection * pUnwindDataSection = GetUnwindDataSection(codeType);
-#endif // defined (WIN64EXCEPTIONS)
+#endif // defined (FEATURE_EH_FUNCLETS)
 
     DWORD codeSize = 0;
 
@@ -293,7 +293,7 @@ void ZapImage::OutputCode(CodeType codeType)
             }
         }
 
-#if defined (WIN64EXCEPTIONS)
+#if defined (FEATURE_EH_FUNCLETS)
         //
         // Place unwind data
         //
@@ -346,7 +346,7 @@ void ZapImage::OutputCode(CodeType codeType)
             }
         }
 
-#else // defined (WIN64EXCEPTIONS)
+#else // defined (FEATURE_EH_FUNCLETS)
 
         ZapUnwindInfo * pUnwindInfo;
         if (fCold)
@@ -362,7 +362,7 @@ void ZapImage::OutputCode(CodeType codeType)
         }
         pRuntimeFunctionSection->Place(pUnwindInfo);
 
-#endif // defined (WIN64EXCEPTIONS)
+#endif // defined (FEATURE_EH_FUNCLETS)
 
         if (m_stats != NULL)
         {
@@ -638,7 +638,7 @@ void ZapImage::OutputGCInfo()
         ZapMethodHeader * pMethod = m_MethodCompilationOrder[i];
         ZapGCInfo * pGCInfo = pMethod->m_pGCInfo;
 
-        UINT32 uOffset = 0; 
+        UINT32 uOffset = 0;
         if (pGCInfo->GetType() == ZapNodeType_InnerPtr)
         {
             uOffset = ((ZapInnerPtr*)pGCInfo)->GetOffset();
@@ -767,13 +767,13 @@ void ZapImage::AddRelocsForEHClauses(ZapExceptionInfo * pExceptionInfo)
         {
             ZapNode *pEETypeNode = (ZapNode*)pClause->EETypeReference;
 
-            // @TODO: we're using a full pointer for each EEType reference in the EH clause. This will be 
-            // 64bits on a 64bit system, though, which is twice as large as it needs to be. We should make 
-            // these 32bit RVA's and compute the final address at runtime when we start supporting 64bit 
+            // @TODO: we're using a full pointer for each EEType reference in the EH clause. This will be
+            // 64bits on a 64bit system, though, which is twice as large as it needs to be. We should make
+            // these 32bit RVA's and compute the final address at runtime when we start supporting 64bit
             // systems. See comments in ZapInfo::setEHinfo() for more details.
             //
-            // N.B! If we move to RVAs, then the runtime structure that matches the EE_ILEXCEPTION struct 
-            // needs to have a padding field removed.  (The C++ compiler introduced 4 bytes of padding between 
+            // N.B! If we move to RVAs, then the runtime structure that matches the EE_ILEXCEPTION struct
+            // needs to have a padding field removed.  (The C++ compiler introduced 4 bytes of padding between
             // 'DataSize' and 'Clauses' because 'Clauses' has a pointer field in it.  This padding will
             // disappear when we change the pointers to RVAs.)
             pRelocs[relocIndex].m_type = IMAGE_REL_BASED_PTR;
@@ -800,8 +800,7 @@ void ZapImage::AddRelocsForEHClauses(ZapExceptionInfo * pExceptionInfo)
 // ZapMethodHeader
 //
 
-#if defined(_TARGET_X86_)
-
+#ifdef _TARGET_X86_
 DWORD ZapCodeBlob::ComputeRVA(ZapWriter * pZapWriter, DWORD dwPos)
 {
     void * pData = GetData();
@@ -810,7 +809,6 @@ DWORD ZapCodeBlob::ComputeRVA(ZapWriter * pZapWriter, DWORD dwPos)
 
     dwPos = AlignUp(dwPos, dwAlignment);
 
-#ifdef _TARGET_X86_
     //
     // Padding for straddler relocations.
     //
@@ -839,7 +837,6 @@ DWORD ZapCodeBlob::ComputeRVA(ZapWriter * pZapWriter, DWORD dwPos)
     SetRVA(dwPaddedPos);
 
     return dwPaddedPos + size;
-#endif // _TARGET_X86_
 }
 
 template <DWORD alignment>
@@ -862,7 +859,7 @@ public:
         S_SIZE_T cbAllocSize = S_SIZE_T(sizeof(ZapCodeBlobConst<alignment>)) + S_SIZE_T(cbSize);
         if(cbAllocSize.IsOverflow())
             ThrowHR(COR_E_OVERFLOW);
-        
+
         void * pMemory = new (pWriter->GetHeap()) BYTE[cbAllocSize.Value()];
 
         ZapCodeBlob * pZapCodeBlob = new (pMemory) ZapCodeBlobConst<alignment>(cbSize);
@@ -894,9 +891,7 @@ ZapCodeBlob * ZapCodeBlob::NewAlignedBlob(ZapWriter * pWriter, PVOID pData, SIZE
         return NULL;
     }
 }
-
-#endif
-
+#endif // _TARGET_X86_
 
 // See function prototype for details on why this iterator is "partial"
 BOOL ZapMethodHeader::PartialTargetMethodIterator::GetNext(CORINFO_METHOD_HANDLE *pHnd)
@@ -936,7 +931,7 @@ void ZapCodeMethodDescs::Save(ZapWriter * pZapWriter)
     ZapImage * pImage = ZapImage::GetImage(pZapWriter);
 
     COUNT_T nUnwindInfos = 0;
-    
+
     for (COUNT_T curMethod = m_iStartMethod; curMethod < m_iEndMethod; curMethod++)
     {
         ZapMethodHeader * pMethod = pImage->m_MethodCompilationOrder[curMethod];
@@ -948,7 +943,7 @@ void ZapCodeMethodDescs::Save(ZapWriter * pZapWriter)
         pImage->Write(&dwRVA, sizeof(dwRVA));
         nUnwindInfos++;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
         ZapUnwindInfo * pFragment = pMethod->m_pUnwindInfoFragments;
         while (pFragment != NULL)
         {
@@ -1044,7 +1039,7 @@ ZapNode * ZapMethodEntryPointTable::CanDirectCall(ZapMethodEntryPoint * pMethodE
     }
 }
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
 ZapGCInfo * ZapGCInfoTable::GetGCInfo(PVOID pGCInfo, SIZE_T cbGCInfo, PVOID pUnwindInfo, SIZE_T cbUnwindInfo)
 {
     ZapGCInfo * pNode = m_blobs.Lookup(GCInfoKey(pGCInfo, cbGCInfo, pUnwindInfo, cbUnwindInfo));
@@ -1068,7 +1063,7 @@ ZapGCInfo * ZapGCInfo::NewGCInfo(ZapWriter * pWriter, PVOID pGCInfo, SIZE_T cbGC
     void * pMemory = new (pWriter->GetHeap()) BYTE[cbAllocSize.Value()];
 
     ZapGCInfo * pZapGCInfo = new (pMemory) ZapGCInfo(cbGCInfo, cbUnwindInfo);
-    
+
     memcpy(pZapGCInfo->GetGCInfo(), pGCInfo, cbGCInfo);
     memcpy(pZapGCInfo->GetUnwindInfo(), pUnwindInfo, cbUnwindInfo);
 
@@ -1125,7 +1120,7 @@ void ZapUnwindInfo::Save(ZapWriter * pZapWriter)
     pZapWriter->Write(&runtimeFunction, sizeof(runtimeFunction));
 }
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
 // Compare the unwind infos by their offset
 int __cdecl ZapUnwindInfo::CompareUnwindInfo(const void* a_, const void* b_)
 {
@@ -1324,7 +1319,7 @@ ZapUnwindData * ZapUnwindDataTable::GetUnwindData(PVOID pBlob, SIZE_T cbBlob, BO
     m_blobs.Add(pNode);
     return pNode;
 }
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 //
 // ZapDebugInfo
@@ -1496,7 +1491,7 @@ DWORD ZapExceptionInfoLookupTable::GetSize()
     return (numExceptionInfoEntries + 1) * sizeof(CORCOMPILE_EXCEPTION_LOOKUP_TABLE_ENTRY);
 }
 
-void ZapExceptionInfoLookupTable::Save(ZapWriter* pZapWriter) 
+void ZapExceptionInfoLookupTable::Save(ZapWriter* pZapWriter)
 {
 
     if(m_exceptionInfoEntries.GetCount() == 0)
@@ -1525,7 +1520,7 @@ void ZapExceptionInfoLookupTable::Save(ZapWriter* pZapWriter)
             DWORD ehClauseSize = size % sizeof(CORCOMPILE_EXCEPTION_CLAUSE);
             CONSISTENCY_CHECK_MSG(ehClauseSize == 0, "There must be no gaps between 2 successive clause arrays, please check ZapExceptionInfo alignment");
         }
-#endif 
+#endif
     }
 
     // write a sentinal entry.. this entry helps to find the number of EHClauses for the last entry
@@ -1538,7 +1533,7 @@ void ZapExceptionInfoLookupTable::Save(ZapWriter* pZapWriter)
     sentinalEntry.MethodStartRVA = (DWORD)-1;
 
     // points just after the end of the Exception table
-    // the sentinal node m_pExceptionInfo pointer actually points to an invalid CORCOMPILE_EXCEPTION_CLAUSE 
+    // the sentinal node m_pExceptionInfo pointer actually points to an invalid CORCOMPILE_EXCEPTION_CLAUSE
     // area.  The lookup algorithm will never dereference the sentinal pointer, and hence this is safe
     sentinalEntry.ExceptionInfoRVA = pLastExceptionInfo->GetRVA() + pLastExceptionInfo->GetSize();
 
@@ -1581,8 +1576,8 @@ void ZapUnwindInfoLookupTable::Save(ZapWriter* pZapWriter)
 
         COUNT_T iCurrentIndex = RelativePC / RUNTIME_FUNCTION_LOOKUP_STRIDE;
 
-        // Note that we should not be using pUnwindInfo->GetEndAddress() here. The binary search 
-        // in the VM that's accelerated by this table does not look at the EndAddress either, and 
+        // Note that we should not be using pUnwindInfo->GetEndAddress() here. The binary search
+        // in the VM that's accelerated by this table does not look at the EndAddress either, and
         // so not using EndAddress here assures consistency.
         COUNT_T iPreviousIndex = (RelativePC - 1)/ RUNTIME_FUNCTION_LOOKUP_STRIDE;
 
@@ -1637,7 +1632,7 @@ void ZapColdCodeMap::Save(ZapWriter* pZapWriter)
 
         ZapUnwindInfo* pUnwindInfo = (ZapUnwindInfo*)m_pRuntimeFunctionSection->GetNode(i);
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
         if (pUnwindInfo->GetCode() == pPendingCode)
         {
             entry.mainFunctionEntryRVA = 0;
@@ -1658,7 +1653,7 @@ void ZapColdCodeMap::Save(ZapWriter* pZapWriter)
                 curMethod++;
             }
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
             entry.mainFunctionEntryRVA = pMethod->m_pUnwindInfo->GetRVA();
 #endif
 

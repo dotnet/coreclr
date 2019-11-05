@@ -26,7 +26,7 @@ namespace System.Reflection.Emit
         // DynamicMethod (just like we do for delegates). However, a user can get to
         // the corresponding RTDynamicMethod using Exception.TargetSite, StackFrame.GetMethod, etc.
         // If we allowed use of RTDynamicMethod, the creator of the DynamicMethod would
-        // not be able to bound access to the DynamicMethod. Hence, we need to ensure that 
+        // not be able to bound access to the DynamicMethod. Hence, we need to ensure that
         // we do not allow direct use of RTDynamicMethod.
         private RTDynamicMethod m_dynMethod = null!;
 
@@ -41,7 +41,7 @@ namespace System.Reflection.Emit
         // We capture the creation context so that we can do the checks against the same context,
         // irrespective of when the method gets compiled. Note that the DynamicMethod does not know when
         // it is ready for use since there is not API which indictates that IL generation has completed.
-        private static volatile InternalModuleBuilder s_anonymouslyHostedDynamicMethodsModule;
+        private static volatile InternalModuleBuilder? s_anonymouslyHostedDynamicMethodsModule;
         private static readonly object s_anonymouslyHostedDynamicMethodsModuleLock = new object();
 
         //
@@ -348,7 +348,7 @@ namespace System.Reflection.Emit
             }
 
             MulticastDelegate d = (MulticastDelegate)Delegate.CreateDelegateNoSecurityCheck(delegateType, null, GetMethodDescriptor());
-            // stash this MethodInfo by brute force.  
+            // stash this MethodInfo by brute force.
             d.StoreDynamicMethod(GetMethodInfo());
             return d;
         }
@@ -365,7 +365,7 @@ namespace System.Reflection.Emit
             }
 
             MulticastDelegate d = (MulticastDelegate)Delegate.CreateDelegateNoSecurityCheck(delegateType, target, GetMethodDescriptor());
-            // stash this MethodInfo by brute force. 
+            // stash this MethodInfo by brute force.
             d.StoreDynamicMethod(GetMethodInfo());
             return d;
         }
@@ -400,20 +400,20 @@ namespace System.Reflection.Emit
 
         public override string ToString() { return m_dynMethod.ToString(); }
 
-        public override string Name { get { return m_dynMethod.Name; } }
+        public override string Name => m_dynMethod.Name;
 
-        public override Type? DeclaringType { get { return m_dynMethod.DeclaringType; } }
+        public override Type? DeclaringType => m_dynMethod.DeclaringType;
 
-        public override Type? ReflectedType { get { return m_dynMethod.ReflectedType; } }
+        public override Type? ReflectedType => m_dynMethod.ReflectedType;
 
-        public override Module Module { get { return m_dynMethod.Module; } }
+        public override Module Module => m_dynMethod.Module;
 
         // we cannot return a MethodHandle because we cannot track it via GC so this method is off limits
-        public override RuntimeMethodHandle MethodHandle { get { throw new InvalidOperationException(SR.InvalidOperation_NotAllowedInDynamicMethod); } }
+        public override RuntimeMethodHandle MethodHandle => throw new InvalidOperationException(SR.InvalidOperation_NotAllowedInDynamicMethod);
 
-        public override MethodAttributes Attributes { get { return m_dynMethod.Attributes; } }
+        public override MethodAttributes Attributes => m_dynMethod.Attributes;
 
-        public override CallingConventions CallingConvention { get { return m_dynMethod.CallingConvention; } }
+        public override CallingConventions CallingConvention => m_dynMethod.CallingConvention;
 
         public override MethodInfo GetBaseDefinition() { return this; }
 
@@ -421,20 +421,11 @@ namespace System.Reflection.Emit
 
         public override MethodImplAttributes GetMethodImplementationFlags() { return m_dynMethod.GetMethodImplementationFlags(); }
 
-        public override bool IsSecurityCritical
-        {
-            get { return true; }
-        }
+        public override bool IsSecurityCritical => true;
 
-        public override bool IsSecuritySafeCritical
-        {
-            get { return false; }
-        }
+        public override bool IsSecuritySafeCritical => false;
 
-        public override bool IsSecurityTransparent
-        {
-            get { return false; }
-        }
+        public override bool IsSecurityTransparent => false;
 
         public override object? Invoke(object? obj, BindingFlags invokeAttr, Binder? binder, object?[]? parameters, CultureInfo? culture)
         {
@@ -443,11 +434,11 @@ namespace System.Reflection.Emit
 
             //
             // We do not demand any permission here because the caller already has access
-            // to the current DynamicMethod object, and it could just as easily emit another 
+            // to the current DynamicMethod object, and it could just as easily emit another
             // Transparent DynamicMethod to call the current DynamicMethod.
             //
 
-            RuntimeMethodHandle method = GetMethodDescriptor();
+            _ = GetMethodDescriptor();
             // ignore obj since it's a static method
 
             // create a signature object
@@ -490,11 +481,11 @@ namespace System.Reflection.Emit
 
         public override bool IsDefined(Type attributeType, bool inherit) { return m_dynMethod.IsDefined(attributeType, inherit); }
 
-        public override Type ReturnType { get { return m_dynMethod.ReturnType; } }
+        public override Type ReturnType => m_dynMethod.ReturnType;
 
-        public override ParameterInfo ReturnParameter { get { return m_dynMethod.ReturnParameter; } }
+        public override ParameterInfo ReturnParameter => m_dynMethod.ReturnParameter;
 
-        public override ICustomAttributeProvider ReturnTypeCustomAttributes { get { return m_dynMethod.ReturnTypeCustomAttributes; } }
+        public override ICustomAttributeProvider ReturnTypeCustomAttributes => m_dynMethod.ReturnTypeCustomAttributes;
 
         //
         // DynamicMethod specific methods
@@ -544,8 +535,8 @@ namespace System.Reflection.Emit
 
         public bool InitLocals
         {
-            get { return m_fInitLocals; }
-            set { m_fInitLocals = value; }
+            get => m_fInitLocals;
+            set => m_fInitLocals = value;
         }
 
         //
@@ -599,40 +590,19 @@ namespace System.Reflection.Emit
                 return sbName.ToString();
             }
 
-            public override string Name
-            {
-                get { return m_name; }
-            }
+            public override string Name => m_name;
 
-            public override Type? DeclaringType
-            {
-                get { return null; }
-            }
+            public override Type? DeclaringType => null;
 
-            public override Type? ReflectedType
-            {
-                get { return null; }
-            }
+            public override Type? ReflectedType => null;
 
-            public override Module Module
-            {
-                get { return m_owner.m_module; }
-            }
+            public override Module Module => m_owner.m_module;
 
-            public override RuntimeMethodHandle MethodHandle
-            {
-                get { throw new InvalidOperationException(SR.InvalidOperation_NotAllowedInDynamicMethod); }
-            }
+            public override RuntimeMethodHandle MethodHandle => throw new InvalidOperationException(SR.InvalidOperation_NotAllowedInDynamicMethod);
 
-            public override MethodAttributes Attributes
-            {
-                get { return m_attributes; }
-            }
+            public override MethodAttributes Attributes => m_attributes;
 
-            public override CallingConventions CallingConvention
-            {
-                get { return m_callingConvention; }
-            }
+            public override CallingConventions CallingConvention => m_callingConvention;
 
             public override MethodInfo GetBaseDefinition()
             {
@@ -643,7 +613,7 @@ namespace System.Reflection.Emit
             {
                 ParameterInfo[] privateParameters = LoadParameters();
                 ParameterInfo[] parameters = new ParameterInfo[privateParameters.Length];
-                Array.Copy(privateParameters, 0, parameters, 0, privateParameters.Length);
+                Array.Copy(privateParameters, parameters, privateParameters.Length);
                 return parameters;
             }
 
@@ -691,33 +661,15 @@ namespace System.Reflection.Emit
                     return false;
             }
 
-            public override bool IsSecurityCritical
-            {
-                get { return m_owner.IsSecurityCritical; }
-            }
+            public override bool IsSecurityCritical => m_owner.IsSecurityCritical;
 
-            public override bool IsSecuritySafeCritical
-            {
-                get { return m_owner.IsSecuritySafeCritical; }
-            }
+            public override bool IsSecuritySafeCritical => m_owner.IsSecuritySafeCritical;
 
-            public override bool IsSecurityTransparent
-            {
-                get { return m_owner.IsSecurityTransparent; }
-            }
+            public override bool IsSecurityTransparent => m_owner.IsSecurityTransparent;
 
-            public override Type ReturnType
-            {
-                get
-                {
-                    return m_owner.m_returnType;
-                }
-            }
+            public override Type ReturnType => m_owner.m_returnType;
 
-            public override ParameterInfo ReturnParameter
-            {
-                get { return new RuntimeParameterInfo(this, null, m_owner.m_returnType, -1); }
-            }
+            public override ParameterInfo ReturnParameter => new RuntimeParameterInfo(this, null, m_owner.m_returnType, -1);
 
             public override ICustomAttributeProvider ReturnTypeCustomAttributes => new EmptyCAHolder();
 
@@ -738,4 +690,3 @@ namespace System.Reflection.Emit
         }
     }
 }
-

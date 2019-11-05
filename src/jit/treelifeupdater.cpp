@@ -37,7 +37,7 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
     {
         lclVarTree = tree;
     }
-    unsigned int lclNum = lclVarTree->gtLclVarCommon.gtLclNum;
+    unsigned int lclNum = lclVarTree->AsLclVarCommon()->GetLclNum();
     LclVarDsc*   varDsc = compiler->lvaTable + lclNum;
 
 #ifdef DEBUG
@@ -96,7 +96,7 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
                 {
                     compiler->codeGen->genUpdateVarReg(varDsc, tree);
                 }
-                if (varDsc->lvIsInReg() && tree->gtRegNum != REG_NA)
+                if (varDsc->lvIsInReg() && tree->GetRegNum() != REG_NA)
                 {
                     compiler->codeGen->genUpdateRegLife(varDsc, isBorn, isDying DEBUGARG(tree));
                 }

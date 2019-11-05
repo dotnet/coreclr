@@ -11,9 +11,6 @@ using System.Security.Principal;
 
 namespace System.Threading
 {
-#if PROJECTN
-    [Internal.Runtime.CompilerServices.RelocatedType("System.Threading.Thread")]
-#endif
     public sealed partial class Thread : CriticalFinalizerObject
     {
         private static AsyncLocal<IPrincipal?>? s_asyncLocalPrincipal;
@@ -152,7 +149,7 @@ namespace System.Threading
                     }
                     Interlocked.CompareExchange(ref s_asyncLocalPrincipal, new AsyncLocal<IPrincipal?>(), null);
                 }
-                s_asyncLocalPrincipal!.Value = value; // TODO-NULLABLE: Remove ! when compiler specially-recognizes CompareExchange for nullability
+                s_asyncLocalPrincipal.Value = value;
             }
         }
 
@@ -194,13 +191,13 @@ namespace System.Threading
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_ThreadAbort);
         }
 
-        [ObsoleteAttribute("Thread.Suspend has been deprecated.  Please use other classes in System.Threading, such as Monitor, Mutex, Event, and Semaphore, to synchronize Threads or protect resources.  https://go.microsoft.com/fwlink/?linkid=14202", false)]
+        [Obsolete("Thread.Suspend has been deprecated.  Please use other classes in System.Threading, such as Monitor, Mutex, Event, and Semaphore, to synchronize Threads or protect resources.  https://go.microsoft.com/fwlink/?linkid=14202", false)]
         public void Suspend()
         {
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_ThreadSuspend);
         }
 
-        [ObsoleteAttribute("Thread.Resume has been deprecated.  Please use other classes in System.Threading, such as Monitor, Mutex, Event, and Semaphore, to synchronize Threads or protect resources.  https://go.microsoft.com/fwlink/?linkid=14202", false)]
+        [Obsolete("Thread.Resume has been deprecated.  Please use other classes in System.Threading, such as Monitor, Mutex, Event, and Semaphore, to synchronize Threads or protect resources.  https://go.microsoft.com/fwlink/?linkid=14202", false)]
         public void Resume()
         {
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_ThreadSuspend);
@@ -223,14 +220,8 @@ namespace System.Threading
         [Obsolete("The ApartmentState property has been deprecated.  Use GetApartmentState, SetApartmentState or TrySetApartmentState instead.", false)]
         public ApartmentState ApartmentState
         {
-            get
-            {
-                return GetApartmentState();
-            }
-            set
-            {
-                TrySetApartmentState(value);
-            }
+            get => GetApartmentState();
+            set => TrySetApartmentState(value);
         }
 
         public void SetApartmentState(ApartmentState state)

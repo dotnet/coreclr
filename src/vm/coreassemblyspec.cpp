@@ -35,21 +35,10 @@
 #include "../binder/inc/applicationcontext.hpp"
 #ifndef DACCESS_COMPILE
 
-STDAPI BinderGetImagePath(PEImage *pPEImage,
-                          SString &imagePath)
-{
-    HRESULT hr = S_OK;
-
-    _ASSERTE(pPEImage != NULL);
-
-    imagePath.Set(pPEImage->GetPath());
-    return hr;
-}
-
 STDAPI BinderAddRefPEImage(PEImage *pPEImage)
 {
     HRESULT hr = S_OK;
-    
+
     if (pPEImage != NULL)
     {
         pPEImage->AddRef();
@@ -61,7 +50,7 @@ STDAPI BinderAddRefPEImage(PEImage *pPEImage)
 STDAPI BinderReleasePEImage(PEImage *pPEImage)
 {
     HRESULT hr = S_OK;
-    
+
     if (pPEImage != NULL)
     {
         pPEImage->Release();
@@ -69,21 +58,6 @@ STDAPI BinderReleasePEImage(PEImage *pPEImage)
 
     return hr;
 }
-
-STDAPI BinderGetDisplayName(PEAssembly *pAssembly,
-                            SString    &displayName)
-{
-    HRESULT hr = S_OK;
-
-    if (pAssembly != NULL)
-    {
-        pAssembly->GetDisplayName(displayName, ASM_DISPLAYF_FULL);
-    }
-
-    return hr;
-}
-
-
 
 static VOID ThrowLoadError(AssemblySpec * pSpec, HRESULT hr)
 {
@@ -121,26 +95,26 @@ VOID  AssemblySpec::Bind(AppDomain      *pAppDomain,
 
     ReleaseHolder<BINDER_SPACE::Assembly> result;
     HRESULT hr=S_OK;
-    
+
     SString assemblyDisplayName;
 
-    pResult->Reset();    
+    pResult->Reset();
 
-    if (m_wszCodeBase==NULL)
+    if (m_wszCodeBase == NULL)
     {
         GetFileOrDisplayName(0, assemblyDisplayName);
     }
 
     // Have a default binding context setup
-    ICLRPrivBinder *pBinder = GetBindingContextFromParentAssembly(pAppDomain); 
-     
+    ICLRPrivBinder *pBinder = GetBindingContextFromParentAssembly(pAppDomain);
+
     // Get the reference to the TPABinder context
     CLRPrivBinderCoreCLR *pTPABinder = pAppDomain->GetTPABinderContext();
-    
+
     ReleaseHolder<ICLRPrivAssembly> pPrivAsm;
     _ASSERTE(pBinder != NULL);
 
-    if (m_wszCodeBase==NULL && IsMscorlibSatellite())
+    if (m_wszCodeBase == NULL && IsMscorlibSatellite())
     {
         StackSString sSystemDirectory(SystemDomain::System()->SystemDirectory());
         StackSString tmpString;
@@ -155,16 +129,16 @@ VOID  AssemblySpec::Bind(AppDomain      *pAppDomain,
         {
             tmpString.SetUTF8(m_context.szLocale);
             tmpString.ConvertToUnicode(sCultureName);
-        }        
-  
+        }
+
         hr = CCoreCLRBinderHelper::BindToSystemSatellite(sSystemDirectory, sSimpleName, sCultureName, &pPrivAsm);
     }
-    else if(m_wszCodeBase==NULL)
+    else if (m_wszCodeBase == NULL)
     {
-        // For name based binding these arguments shouldnt have been changed from default
+        // For name based binding these arguments shouldn't have been changed from default
         _ASSERTE(!fNgenExplicitBind && !fExplicitBindToNativeImage);
         SafeComHolder<IAssemblyName> pName;
-        hr = CreateAssemblyNameObject(&pName, assemblyDisplayName, CANOF_PARSE_DISPLAY_NAME, NULL);
+        hr = CreateAssemblyNameObject(&pName, assemblyDisplayName, true /*parseDisplayName*/);
         if (SUCCEEDED(hr))
         {
             hr = pBinder->BindAssemblyByName(pName, &pPrivAsm);
@@ -173,11 +147,11 @@ VOID  AssemblySpec::Bind(AppDomain      *pAppDomain,
     else
     {
         hr = pTPABinder->Bind(assemblyDisplayName,
-                           m_wszCodeBase,
-                           GetParentAssembly()? GetParentAssembly()->GetFile():NULL,
-                           fNgenExplicitBind,
-                           fExplicitBindToNativeImage,
-                          &pPrivAsm);
+                              m_wszCodeBase,
+                              GetParentAssembly() ? GetParentAssembly()->GetFile() : NULL,
+                              fNgenExplicitBind,
+                              fExplicitBindToNativeImage,
+                              &pPrivAsm);
     }
 
     pResult->SetHRBindResult(hr);
@@ -342,7 +316,7 @@ HRESULT BaseAssemblySpec::ParseName()
         return S_OK;
 
     HRESULT hr = S_OK;
-    
+
     EX_TRY
     {
         NewHolder<BINDER_SPACE::AssemblyIdentityUTF8> pAssemblyIdentity;
@@ -383,7 +357,7 @@ HRESULT BaseAssemblySpec::ParseName()
             m_context.usBuildNumber = (USHORT)pAssemblyIdentity->m_version.GetBuild();
             m_context.usRevisionNumber = (USHORT)pAssemblyIdentity->m_version.GetRevision();
         }
-            
+
         if (pAssemblyIdentity->Have(BINDER_SPACE::AssemblyIdentity::IDENTITY_FLAG_CULTURE))
         {
             if (!pAssemblyIdentity->m_cultureOrLanguage.IsEmpty())
@@ -398,7 +372,7 @@ HRESULT BaseAssemblySpec::ParseName()
         {
             m_pbPublicKeyOrToken = const_cast<BYTE *>(pAssemblyIdentity->GetPublicKeyOrTokenArray());
             m_cbPublicKeyOrToken = pAssemblyIdentity->m_publicKeyOrTokenBLOB.GetSize();
-            
+
             if (pAssemblyIdentity->Have(BINDER_SPACE::AssemblyIdentity::IDENTITY_FLAG_PUBLIC_KEY))
             {
                 m_dwFlags |= afPublicKey;
@@ -441,7 +415,7 @@ HRESULT BaseAssemblySpec::ParseName()
             }
         }
 
-        
+
         if (pAssemblyIdentity->
             Have(BINDER_SPACE::AssemblyIdentity::IDENTITY_FLAG_RETARGETABLE))
         {
@@ -452,14 +426,14 @@ HRESULT BaseAssemblySpec::ParseName()
             Have(BINDER_SPACE::AssemblyIdentity::IDENTITY_FLAG_CONTENT_TYPE))
         {
             DWORD dwContentType = pAssemblyIdentity->m_kContentType;
-            
+
             _ASSERTE((dwContentType == AssemblyContentType_Default) || (dwContentType == AssemblyContentType_WindowsRuntime));
             if (dwContentType == AssemblyContentType_WindowsRuntime)
             {
                 m_dwFlags |= afContentType_WindowsRuntime;
             }
         }
-        
+
         CloneFields();
     }
     EX_CATCH_HRESULT(hr);
@@ -569,7 +543,7 @@ VOID BaseAssemblySpec::GetFileOrDisplayName(DWORD flags, SString &result) const
         if (m_dwFlags & afPA_MSIL)
             assemblyIdentity.m_kProcessorArchitecture = peMSIL;
         else if (m_dwFlags & afPA_x86)
-            assemblyIdentity.m_kProcessorArchitecture = peI386; 
+            assemblyIdentity.m_kProcessorArchitecture = peI386;
         else if (m_dwFlags & afPA_IA64)
             assemblyIdentity.m_kProcessorArchitecture = peIA64;
         else if (m_dwFlags & afPA_AMD64)

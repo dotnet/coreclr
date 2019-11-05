@@ -12,7 +12,7 @@ endif(CORECLR_SET_RPATH)
 
 set(MSCORDBI_SOURCES
     mscordbi.cpp
-)  
+)
 
 # Add the DAC PAL export mapping file
 if(CLR_CMAKE_PLATFORM_LINUX)
@@ -20,8 +20,6 @@ if(CLR_CMAKE_PLATFORM_LINUX)
 endif(CLR_CMAKE_PLATFORM_LINUX)
 
 if(WIN32)
-    add_precompiled_header(stdafx.h stdafx.cpp MSCORDBI_SOURCES)
-    
     add_definitions(-DFX_VER_INTERNALNAME_STR=mscordbi.dll)
 
     list(APPEND MSCORDBI_SOURCES
@@ -34,7 +32,7 @@ if(WIN32)
 
     convert_to_absolute_path(DEF_SOURCES ${DEF_SOURCES})
 
-    preprocess_def_file(${DEF_SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/mscordbi.def)
+    preprocess_file(${DEF_SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/mscordbi.def)
 
     list(APPEND MSCORDBI_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/mscordbi.def)
 else(WIN32)
@@ -46,7 +44,7 @@ endif(WIN32)
 if(CLR_CMAKE_PLATFORM_LINUX OR CLR_CMAKE_PLATFORM_FREEBSD OR CLR_CMAKE_PLATFORM_NETBSD)
     # This option is necessary to ensure that the overloaded new/delete operators defined inside
     # of the utilcode will be used instead of the standard library delete operator.
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Xlinker -Bsymbolic -Xlinker -Bsymbolic-functions")    
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Xlinker -Bsymbolic -Xlinker -Bsymbolic-functions")
 
     # Add linker exports file option
     set(EXPORTS_LINKER_OPTION -Wl,--version-script=${EXPORTS_FILE})
@@ -58,6 +56,7 @@ if(CLR_CMAKE_PLATFORM_DARWIN)
 endif(CLR_CMAKE_PLATFORM_DARWIN)
 
 add_library_clr(mscordbi SHARED ${MSCORDBI_SOURCES})
+target_precompile_header(TARGET mscordbi HEADER stdafx.h)
 
 if(CLR_CMAKE_PLATFORM_UNIX)
     add_custom_target(mscordbi_exports DEPENDS ${EXPORTS_FILE})
@@ -77,7 +76,7 @@ set(COREDBI_LIBRARIES
     mdruntimerw-dbi
     mddatasource_dbi
     corguids
-) 
+)
 
 if(WIN32)
     list(APPEND COREDBI_LIBRARIES

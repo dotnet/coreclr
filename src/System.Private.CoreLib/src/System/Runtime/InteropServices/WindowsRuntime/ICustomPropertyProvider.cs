@@ -42,7 +42,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         //
         // Creates a ICustomProperty implementation for Jupiter
         // Called from ICustomPropertyProvider_GetIndexedProperty from within runtime
-        //               
+        //
         internal static unsafe ICustomProperty? CreateIndexedProperty(object target, string propertyName, TypeNameNative* pIndexedParamType)
         {
             Debug.Assert(target != null);
@@ -99,7 +99,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     }
 
     //
-    // Interface for data binding code (CustomPropertyImpl) to retreive the target object
+    // Interface for data binding code (CustomPropertyImpl) to retrieve the target object
     // See CustomPropertyImpl.InvokeInternal for details
     //
     internal interface IGetProxyTarget
@@ -113,11 +113,11 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // This serves two purposes:
     //
     // 1. Delegate data binding interfaces to another object
-    // Note that this proxy implements the native interfaces directly to avoid unnecessary overhead 
+    // Note that this proxy implements the native interfaces directly to avoid unnecessary overhead
     // (such as the adapter code that addresses behavior differences between IBindableVector & List
     // as well as simplify forwarding code (except for IEnumerable)
     //
-    // 2. ICLRServices.CreateManagedReference will hand out ICCW* of a new instance of this object
+    // 2. ICLRServices.GetTrackerTarget will hand out ICCW* of a new instance of this object
     // and will hold the other object alive
     //
     //
@@ -127,8 +127,8 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                                                           IBindableVector,      // IBindableVector -> IBindableVector/IVector<T>
                                                           IBindableVectorView   // IBindableVectorView -> IBindableVectorView/IVectorView<T>
     {
-        private object _target;
-        private InterfaceForwardingSupport _flags;
+        private readonly object _target;
+        private readonly InterfaceForwardingSupport _flags;
 
         internal ICustomPropertyProviderProxy(object target, InterfaceForwardingSupport flags)
         {
@@ -168,7 +168,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // Verify IEnumerable last because the first few QIs might succeed and we need
             // IEnumerable cast to use that cache (instead of having ICustomPropertyProvider to
             // forward it manually)
-            // For example, if we try to shoot in the dark by trying IVector<IInspectable> and it 
+            // For example, if we try to shoot in the dark by trying IVector<IInspectable> and it
             // succeeded, IEnumerable needs to know that
             if (target is IEnumerable)
                 supportFlags |= InterfaceForwardingSupport.IBindableIterableOrIIterable;
@@ -187,15 +187,15 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         //
         // IGetProxyTarget - unwraps the target object and use it for data binding
-        // 
+        //
         object IGetProxyTarget.GetTarget()
         {
             return _target;
         }
 
-        // 
+        //
         // ICustomQueryInterface methods
-        //    
+        //
         public CustomQueryInterfaceResult GetInterface([In]ref Guid iid, out IntPtr ppv)
         {
             ppv = IntPtr.Zero;
@@ -234,7 +234,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         //
         // IBindableVector implementation (forwards to IBindableVector / IVector<T>)
-        //        
+        //
         object? IBindableVector.GetAt(uint index)
         {
             IBindableVector? bindableVector = GetIBindableVectorNoThrow();
@@ -285,7 +285,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         private sealed class IVectorViewToIBindableVectorViewAdapter<T> : IBindableVectorView
         {
-            private IVectorView<T> _vectorView;
+            private readonly IVectorView<T> _vectorView;
 
             public IVectorViewToIBindableVectorViewAdapter(IVectorView<T> vectorView)
             {
@@ -297,13 +297,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 return _vectorView.GetAt(index);
             }
 
-            uint IBindableVectorView.Size
-            {
-                get
-                {
-                    return _vectorView.Size;
-                }
-            }
+            uint IBindableVectorView.Size => _vectorView.Size;
 
             bool IBindableVectorView.IndexOf(object value, out uint index)
             {
@@ -482,13 +476,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         private sealed class IteratorOfTToIteratorAdapter<T> : IBindableIterator
         {
-            private IIterator<T> _iterator;
+            private readonly IIterator<T> _iterator;
 
             public IteratorOfTToIteratorAdapter(IIterator<T> iterator)
             { _iterator = iterator; }
 
-            public bool HasCurrent { get { return _iterator.HasCurrent; } }
-            public object? Current { get { return _iterator.Current; } }
+            public bool HasCurrent => _iterator.HasCurrent;
+            public object? Current => _iterator.Current;
             public bool MoveNext() { return _iterator.MoveNext(); }
         }
 
@@ -523,4 +517,3 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
     }
 }
-

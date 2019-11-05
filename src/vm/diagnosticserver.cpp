@@ -20,20 +20,20 @@
 #ifdef FEATURE_PERFTRACING
 
 IpcStream::DiagnosticsIpc *DiagnosticServer::s_pIpc = nullptr;
+Volatile<bool> DiagnosticServer::s_shuttingDown(false);
 
-static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
+DWORD WINAPI DiagnosticServer::DiagnosticsServerThread(LPVOID)
 {
     CONTRACTL
     {
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        PRECONDITION(lpThreadParameter != nullptr);
+        PRECONDITION(s_pIpc != nullptr);
     }
     CONTRACTL_END;
 
-    auto pIpc = reinterpret_cast<IpcStream::DiagnosticsIpc *>(lpThreadParameter);
-    if (pIpc == nullptr)
+    if (s_pIpc == nullptr)
     {
         STRESS_LOG0(LF_DIAGNOSTICS_PORT, LL_ERROR, "Diagnostics IPC listener was undefined\n");
         return 1;
@@ -45,11 +45,11 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
 
     EX_TRY
     {
-        while (true)
+        while (!s_shuttingDown)
         {
             // FIXME: Ideally this would be something like a std::shared_ptr
-            IpcStream *pStream = pIpc->Accept(LoggingCallback);
-            
+            IpcStream *pStream = s_pIpc->Accept(LoggingCallback);
+
             if (pStream == nullptr)
                 continue;
 #ifdef FEATURE_AUTO_TRACE
@@ -116,6 +116,12 @@ bool DiagnosticServer::Initialize()
     }
     CONTRACTL_END;
 
+    // COMPlus_EnableDiagnostics==0 disables diagnostics so we don't create the diagnostics pipe/socket or diagnostics server thread
+    if (CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_EnableDiagnostics) == 0)
+    {
+        return true;
+    }
+
     bool fSuccess = false;
 
     EX_TRY
@@ -140,7 +146,7 @@ bool DiagnosticServer::Initialize()
             auto_trace_launch();
 #endif
             DWORD dwThreadId = 0;
-            HANDLE hThread = ::CreateThread( // TODO: Is it correct to have this "lower" level call here?
+            HANDLE hServerThread = ::CreateThread( // TODO: Is it correct to have this "lower" level call here?
                 nullptr,                     // no security attribute
                 0,                           // default stack size
                 DiagnosticsServerThread,     // thread proc
@@ -148,8 +154,11 @@ bool DiagnosticServer::Initialize()
                 0,                           // not suspended
                 &dwThreadId);                // returns thread ID
 
-            if (hThread == nullptr)
+            if (hServerThread == NULL)
             {
+                delete s_pIpc;
+                s_pIpc = nullptr;
+
                 // Failed to create IPC thread.
                 STRESS_LOG1(
                     LF_DIAGNOSTICS_PORT,                                 // facility
@@ -159,13 +168,11 @@ bool DiagnosticServer::Initialize()
             }
             else
             {
+                ::CloseHandle(hServerThread);
+
 #ifdef FEATURE_AUTO_TRACE
                 auto_trace_wait();
 #endif
-                // FIXME: Maybe hold on to the thread to abort/cleanup at exit?
-                ::CloseHandle(hThread);
-
-                // TODO: Add error handling?
                 fSuccess = true;
             }
         }
@@ -191,6 +198,8 @@ bool DiagnosticServer::Shutdown()
 
     bool fSuccess = false;
 
+    s_shuttingDown = true;
+
     EX_TRY
     {
         if (s_pIpc != nullptr)
@@ -199,11 +208,11 @@ bool DiagnosticServer::Shutdown()
                 STRESS_LOG2(
                     LF_DIAGNOSTICS_PORT,                                  // facility
                     LL_ERROR,                                             // level
-                    "Failed to unlink diagnostic IPC: error (%d): %s.\n", // msg
+                    "Failed to close diagnostic IPC: error (%d): %s.\n",  // msg
                     code,                                                 // data1
                     szMessage);                                           // data2
             };
-            s_pIpc->Unlink(ErrorCallback);
+            s_pIpc->Close(ErrorCallback); // This will break the accept waiting for client connection.
         }
         fSuccess = true;
     }

@@ -144,8 +144,10 @@ typedef void (*GCThreadFunction)(void* param);
 // Right now we support maximum 1024 procs - meaning that we will create at most
 // that many GC threads and GC heaps.
 #define MAX_SUPPORTED_CPUS 1024
+#define MAX_SUPPORTED_NODES 64
 #else
 #define MAX_SUPPORTED_CPUS 64
+#define MAX_SUPPORTED_NODES 16
 #endif // BIT64
 
 // Add of processor indices used to store affinity.
@@ -253,6 +255,7 @@ public:
     //  size      - size of the virtual memory range
     //  alignment - requested memory alignment
     //  flags     - flags to control special settings like write watching
+    //  node      - the NUMA node to reserve memory on
     // Return:
     //  Starting virtual address of the reserved range
     // Notes:
@@ -264,7 +267,7 @@ public:
     //
     //  Windows guarantees that the returned mapping will be aligned to the allocation
     //  granularity.
-    static void* VirtualReserve(size_t size, size_t alignment, uint32_t flags);
+    static void* VirtualReserve(size_t size, size_t alignment, uint32_t flags, uint16_t node = NUMA_NODE_UNDEFINED);
 
     // Release virtual memory range previously reserved using VirtualReserve
     // Parameters:
@@ -297,7 +300,7 @@ public:
     //  true if it has succeeded, false if it has failed
     static bool VirtualDecommit(void *address, size_t size);
 
-    // Reset virtual memory range. Indicates that data in the memory range specified by address and size is no 
+    // Reset virtual memory range. Indicates that data in the memory range specified by address and size is no
     // longer of interest, but it should not be decommitted.
     // Parameters:
     //  address - starting virtual address
@@ -360,10 +363,12 @@ public:
     //  true if it has succeeded, false if it has failed
     static bool SetCurrentThreadIdealAffinity(uint16_t srcProcNo, uint16_t dstProcNo);
 
+    static bool GetCurrentThreadIdealProc(uint16_t* procNo);
+
     // Get numeric id of the current thread if possible on the
     // current platform. It is indended for logging purposes only.
     // Return:
-    //  Numeric id of the current thread or 0 if the 
+    //  Numeric id of the current thread or 0 if the
     static uint64_t GetCurrentThreadIdForLogging();
 
     // Get id of the current process
@@ -426,10 +431,10 @@ public:
     //  non zero if it has succeeded, 0 if it has failed
     //  *is_restricted is set to true if asked and running in restricted.
     // Remarks:
-    //  If a process runs with a restricted memory limit, it returns the limit. If there's no limit 
+    //  If a process runs with a restricted memory limit, it returns the limit. If there's no limit
     //  specified, it returns amount of actual physical memory.
     //
-    // PERF TODO: Requires more work to not treat the restricted case to be special. 
+    // PERF TODO: Requires more work to not treat the restricted case to be special.
     // To be removed before 3.0 ships.
     static uint64_t GetPhysicalMemoryLimit(bool* is_restricted=NULL);
 
@@ -484,6 +489,15 @@ public:
     // Is NUMA support available
     static bool CanEnableGCNumaAware();
 
+    // TODO: add Linux implementation.
+    // For no NUMA this returns false.
+    static bool GetNumaInfo(uint16_t* total_nodes, uint32_t* max_procs_per_node);
+
+    // Is CPU Group enabled
+    // This only applies on Windows and only used by instrumentation but is on the
+    // interface due to LocalGC.
+    static bool CanEnableGCCPUGroups();
+
     // Get processor number and optionally its NUMA node number for the specified heap number
     // Parameters:
     //  heap_number - heap number to get the result for
@@ -492,6 +506,9 @@ public:
     // Return:
     //  true if it succeeded
     static bool GetProcessorForHeap(uint16_t heap_number, uint16_t* proc_no, uint16_t* node_no);
+
+    // For no CPU groups this returns false.
+    static bool GetCPUGroupInfo(uint16_t* total_groups, uint32_t* max_procs_per_group);
 
     // Parse the confing string describing affinitization ranges and update the passed in affinitySet accordingly
     // Parameters:

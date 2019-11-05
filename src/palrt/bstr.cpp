@@ -6,7 +6,7 @@
 //
 // ===========================================================================
 // File: bstr.cpp
-// 
+//
 // ===========================================================================
 
 
@@ -26,7 +26,7 @@ Revision History:
 #define CCH_BSTRMAX 0x7FFFFFFF  // 4 + (0x7ffffffb + 1 ) * 2 ==> 0xFFFFFFFC
 #define CB_BSTRMAX 0xFFFFFFFa   // 4 + (0xfffffff6 + 2) ==> 0xFFFFFFFC
 
-#define WIN32_ALLOC_ALIGN (16 - 1)      
+#define WIN32_ALLOC_ALIGN (16 - 1)
 
 inline HRESULT CbSysStringSize(ULONG cchSize, BOOL isByteLen, ULONG *result)
 {
@@ -73,7 +73,7 @@ inline HRESULT CbSysStringSize(ULONG cchSize, BOOL isByteLen, ULONG *result)
 ***********************************************************************/
 STDAPI_(BSTR) SysAllocStringLen(const OLECHAR *psz, UINT len)
 {
-    
+
     BSTR bstr;
     DWORD cbTotal = 0;
 
@@ -84,9 +84,9 @@ STDAPI_(BSTR) SysAllocStringLen(const OLECHAR *psz, UINT len)
 
     if(bstr != NULL){
 
-#if defined(_WIN64)
+#if defined(BIT64)
       // NOTE: There are some apps which peek back 4 bytes to look at the size of the BSTR. So, in case of 64-bit code,
-      // we need to ensure that the BSTR length can be found by looking one DWORD before the BSTR pointer. 
+      // we need to ensure that the BSTR length can be found by looking one DWORD before the BSTR pointer.
       *(DWORD_PTR *)bstr = (DWORD_PTR) 0;
       bstr = (BSTR) ((char *) bstr + sizeof (DWORD));
 #endif
@@ -136,7 +136,7 @@ SysAllocStringByteLen(const char FAR* psz, unsigned int len)
     bstr = (OLECHAR *)HeapAlloc(GetProcessHeap(), 0, cbTotal);
 
     if (bstr != NULL) {
-#if defined(_WIN64)
+#if defined(BIT64)
       *(DWORD FAR*)((char *)bstr + sizeof (DWORD)) = (DWORD)len;
 #else
       *(DWORD FAR*)bstr = (DWORD)len;
@@ -172,7 +172,7 @@ STDAPI_(void) SysFreeString(BSTR bstr)
 {
     if(bstr == NULL)
       return;
-    HeapFree(GetProcessHeap(), 0, (BYTE *)bstr-sizeof(DWORD_PTR));    
+    HeapFree(GetProcessHeap(), 0, (BYTE *)bstr-sizeof(DWORD_PTR));
 }
 
 /***

@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 //
 // File: OleVariant.h
-// 
+//
 
 //
 
@@ -19,7 +19,7 @@
 #define VTHACK_INSPECTABLE     247
 #define VTHACK_HSTRING         248
 #define VTHACK_REDIRECTEDTYPE  249
-#define VTHACK_CBOOL           250          
+#define VTHACK_CBOOL           250
 #define VTHACK_NONBLITTABLERECORD 251
 #define VTHACK_BLITTABLERECORD 252
 #define VTHACK_ANSICHAR        253
@@ -66,7 +66,7 @@ typedef enum
 //Mapping from CVType to type handle. Used for conversion between the two internally.
 extern const BinderClassID CVTypeToBinderClassID[];
 
-inline TypeHandle GetTypeHandleForCVType(CVTypes elemType) 
+inline TypeHandle GetTypeHandleForCVType(CVTypes elemType)
 {
     CONTRACT (TypeHandle)
     {
@@ -76,7 +76,7 @@ inline TypeHandle GetTypeHandleForCVType(CVTypes elemType)
         PRECONDITION(elemType < CV_LAST);
     }
     CONTRACT_END;
-    
+
     RETURN TypeHandle(MscorlibBinder::GetClass(CVTypeToBinderClassID[elemType]));
 }
 
@@ -100,16 +100,16 @@ extern CVTypes CorElementTypeToCVTypes(CorElementType type);
           should use VariantData::GetType() to get the CVType.
       4)  You should use SetObjRef and GetObjRef to manipulate the OBJECTREF field.
           These will handle write barriers correctly, as well as CV_EMPTY.
-      
+
 
    Empty, Missing & Null:
       Variants of type CV_EMPTY will be all zero's.  This forces us to add in
    special cases for all functions that convert a Variant into an object (such
-   as copying a Variant into an Object[]).  
+   as copying a Variant into an Object[]).
 
-      Variants of type Missing and Null will have their objectref field set to 
-   Missing.Value and Null.Value respectively.  This simplifies the code in 
-   Variant.cs and strewn throughout the EE.  
+      Variants of type Missing and Null will have their objectref field set to
+   Missing.Value and Null.Value respectively.  This simplifies the code in
+   Variant.cs and strewn throughout the EE.
 */
 
 #define VARIANT_TYPE_MASK  0xFFFF
@@ -120,7 +120,7 @@ struct VariantData
 {
     friend class MscorlibBinder;
 
-public:        
+public:
     static void NewVariant(VariantData * const& dest, const CVTypes type, INT64 data
                                             DEBUG_ARG(BOOL bDestIsInterior = FALSE));
 
@@ -161,7 +161,7 @@ public:
             PRECONDITION( (vt & ~VT_ARRAY) < 128 );
         }
         CONTRACTL_END;
-            
+
         if (vt & VT_ARRAY)
         {
             vt &= ~VT_ARRAY;
@@ -174,7 +174,7 @@ public:
     FORCEINLINE OBJECTREF GetObjRef() const
     {
         WRAPPER_NO_CONTRACT;
-        
+
         return (OBJECTREF)m_objref;
     }
 
@@ -201,7 +201,7 @@ public:
             MODE_COOPERATIVE;
         }
         CONTRACTL_END;
-        
+
         if (objRef!=NULL)
         {
             SetObjectReference((OBJECTREF*)&m_objref, objRef);
@@ -281,7 +281,7 @@ public:
     // When possible, please use the most specific SetDataAsXxx function.
     // This is necessary to guarantee we do sign extension correctly
     // for all types smaller than 32 bits.  R4's, R8's, U8's, DateTimes,
-    // Currencies, and TimeSpans can all be treated as ints of the appropriate 
+    // Currencies, and TimeSpans can all be treated as ints of the appropriate
     // size - sign extension is irrelevant in those cases.
     FORCEINLINE void SetDataAsInt8(INT8 data)
     {
@@ -372,22 +372,24 @@ class OleVariant
 
     static SAFEARRAY* CreateSafeArrayDescriptorForArrayRef(BASEARRAYREF* pArrayRef, VARTYPE vt,
                                                 MethodTable* pInterfaceMT = NULL);
-    
+
     static SAFEARRAY* CreateSafeArrayForArrayRef(BASEARRAYREF* pArrayRef, VARTYPE vt,
                                                 MethodTable* pInterfaceMT = NULL);
 
-    static BASEARRAYREF CreateArrayRefForSafeArray(SAFEARRAY* pSafeArray, VARTYPE vt, 
+    static BASEARRAYREF CreateArrayRefForSafeArray(SAFEARRAY* pSafeArray, VARTYPE vt,
                                                 MethodTable* pElementMT);
 
-    static void MarshalSafeArrayForArrayRef(BASEARRAYREF* pArrayRef, 
+    static void MarshalSafeArrayForArrayRef(BASEARRAYREF* pArrayRef,
                                             SAFEARRAY* pSafeArray,
                                             VARTYPE vt,
                                             MethodTable* pInterfaceMT,
+                                            PCODE pManagedMarshalerCode,
                                             BOOL fSafeArrayIsValid = TRUE);
-    
-    static void MarshalArrayRefForSafeArray(SAFEARRAY* pSafeArray, 
+
+    static void MarshalArrayRefForSafeArray(SAFEARRAY* pSafeArray,
                                             BASEARRAYREF* pArrayRef,
                                             VARTYPE vt,
+                                            PCODE pManagedMarshalerCode,
                                             MethodTable* pInterfaceMT);
 
     // Helper function to convert a boxed value class to an OLE variant.
@@ -428,6 +430,7 @@ class OleVariant
     // Note that Rank == 0 means SZARRAY (that is rank 1, no lower bounds)
     static TypeHandle GetArrayForVarType(VARTYPE vt, TypeHandle elemType, unsigned rank=0);
     static UINT GetElementSizeForVarType(VARTYPE vt, MethodTable* pInterfaceMT);
+    static MethodTable* GetNativeMethodTableForVarType(VARTYPE vt, MethodTable* pManagedMT);
 
 #ifdef FEATURE_COMINTEROP
     // Determine the element type of the objects being wrapped by an array of wrappers.
@@ -446,7 +449,7 @@ class OleVariant
                                                     MethodTable* pElementMT, BOOL bDefaultIsDispatch,
                                                     SIZE_T cElements);
 #endif // FEATURE_COMINTEROP
-    
+
     struct Marshaler
     {
 #ifdef FEATURE_COMINTEROP
@@ -454,11 +457,12 @@ class OleVariant
         void (*ComToOleVariant)(VariantData* pComVariant, VARIANT* pOleVariant);
         void (*OleRefToComVariant)(VARIANT* pOleVariant, VariantData* pComVariant);
 #endif // FEATURE_COMINTEROP
-        void (*OleToComArray)(void* oleArray, BASEARRAYREF* pComArray, MethodTable* pInterfaceMT);
+        void (*OleToComArray)(void* oleArray, BASEARRAYREF* pComArray, MethodTable* pInterfaceMT, PCODE pManagedMarshalerCode);
         void (*ComToOleArray)(BASEARRAYREF* pComArray, void* oleArray, MethodTable* pInterfaceMT,
-        	                  BOOL fBestFitMapping, BOOL fThrowOnUnmappableChar, 
-                              BOOL fOleArrayIsValid,SIZE_T cElements);
-        void (*ClearOleArray)(void* oleArray, SIZE_T cElements, MethodTable* pInterfaceMT);
+        	                  BOOL fBestFitMapping, BOOL fThrowOnUnmappableChar,
+                              BOOL fOleArrayIsValid,SIZE_T cElements,
+                              PCODE pManagedMarshalerCode);
+        void (*ClearOleArray)(BASEARRAYREF* pComArray, void* oleArray, SIZE_T cElements, MethodTable* pInterfaceMT, PCODE pManagedMarshalerCode);
     };
 
     static const Marshaler* GetMarshalerForVarType(VARTYPE vt, BOOL fThrow);
@@ -474,99 +478,103 @@ private:
     // Specific marshaler functions
 
     static void MarshalBoolArrayOleToCom(void *oleArray, BASEARRAYREF* pComArray,
-                                            MethodTable* pInterfaceMT);
+                                            MethodTable* pInterfaceMT, PCODE pManagedMarshalerCode);
     static void MarshalBoolArrayComToOle(BASEARRAYREF* pComArray, void* oleArray,
                                          MethodTable* pInterfaceMT, BOOL fBestFitMapping,
                                          BOOL fThrowOnUnmappableChar, BOOL fOleArrayIsValid,
-                                         SIZE_T cElements);
+                                         SIZE_T cElements, PCODE pManagedMarshalerCode);
 
     static void MarshalWinBoolArrayOleToCom(void* oleArray, BASEARRAYREF* pComArray,
-                                            MethodTable* pInterfaceMT);
+                                            MethodTable* pInterfaceMT, PCODE pManagedMarshalerCode);
     static void MarshalWinBoolArrayComToOle(BASEARRAYREF* pComArray, void* oleArray,
                                             MethodTable* pInterfaceMT, BOOL fBestFitMapping,
-                                            BOOL fThrowOnUnmappableChar, BOOL fOleArrayValid, 
-                                            SIZE_T cElements);
+                                            BOOL fThrowOnUnmappableChar, BOOL fOleArrayValid,
+                                            SIZE_T cElements, PCODE pManagedMarshalerCode);
     static void MarshalCBoolVariantOleToCom(VARIANT* pOleVariant, VariantData* pComVariant);
     static void MarshalCBoolVariantComToOle(VariantData* pComVariant, VARIANT* pOleVariant);
     static void MarshalCBoolVariantOleRefToCom(VARIANT* pOleVariant, VariantData* pComVariant);
     static void MarshalCBoolArrayOleToCom(void* oleArray, BASEARRAYREF* pComArray,
-                                            MethodTable* pInterfaceMT);
+                                            MethodTable* pInterfaceMT, PCODE pManagedMarshalerCode);
     static void MarshalCBoolArrayComToOle(BASEARRAYREF* pComArray, void* oleArray,
                                           MethodTable* pInterfaceMT, BOOL fBestFitMapping,
                                           BOOL fThrowOnUnmappableChar, BOOL fOleArrayValid,
-                                          SIZE_T cElements);
+                                          SIZE_T cElements, PCODE pManagedMarshalerCode);
 
     static void MarshalAnsiCharArrayOleToCom(void* oleArray, BASEARRAYREF* pComArray,
-                                            MethodTable* pInterfaceMT);
+                                            MethodTable* pInterfaceMT, PCODE pManagedMarshalerCode);
     static void MarshalAnsiCharArrayComToOle(BASEARRAYREF* pComArray, void* oleArray,
                                             MethodTable* pInterfaceMT, BOOL fBestFitMapping,
                                             BOOL fThrowOnUnmappableChar, BOOL fOleArrayValid,
-                                            SIZE_T cElements);
+                                            SIZE_T cElements, PCODE pManagedMarshalerCode);
 
 #ifdef FEATURE_COMINTEROP
     static void MarshalIDispatchArrayComToOle(BASEARRAYREF* pComArray, void* oleArray,
                                             MethodTable* pInterfaceMT, BOOL fBestFitMapping,
                                             BOOL fThrowOnUnmappableChar, BOOL fOleArrayValid,
-                                            SIZE_T cElements);
+                                            SIZE_T cElements, PCODE pManagedMarshalerCode);
 #endif // FEATURE_COMINTEROP
 
 #ifdef FEATURE_COMINTEROP
     static void MarshalBSTRArrayOleToCom(void* oleArray, BASEARRAYREF* pComArray,
-                                            MethodTable* pInterfaceMT);
+                                            MethodTable* pInterfaceMT, PCODE pManagedMarshalerCode);
     static void MarshalBSTRArrayComToOle(BASEARRAYREF* pComArray, void* oleArray,
                                             MethodTable* pInterfaceMT, BOOL fBestFitMapping,
                                             BOOL fThrowOnUnmappableChar, BOOL fOleArrayValid,
-                                            SIZE_T cElements);
-    static void ClearBSTRArray(void* oleArray, SIZE_T cElements, MethodTable* pInterfaceMT);
+                                            SIZE_T cElements, PCODE pManagedMarshalerCode);
+    static void ClearBSTRArray(BASEARRAYREF* comArray, void* oleArray, SIZE_T cElements, MethodTable* pInterfaceMT, PCODE pManagedMarshalerCode);
 #endif // FEATURE_COMINTEROP
 
     static void MarshalNonBlittableRecordArrayOleToCom(void* oleArray, BASEARRAYREF* pComArray,
-                                            MethodTable* pInterfaceMT);
+                                            MethodTable* pInterfaceMT, PCODE pManagedMarshalerCode);
     static void MarshalNonBlittableRecordArrayComToOle(BASEARRAYREF* pComArray, void* oleArray,
                                             MethodTable* pInterfaceMT, BOOL fBestFitMapping,
                                             BOOL fThrowOnUnmappableChar, BOOL fOleArrayValid,
-                                            SIZE_T cElements);
-    static void ClearNonBlittableRecordArray(void* oleArray, SIZE_T cElements, MethodTable* pInterfaceMT);
+                                            SIZE_T cElements, PCODE pManagedMarshalerCode);
+    static void ClearNonBlittableRecordArray(BASEARRAYREF* comArray, void* oleArray,
+                                             SIZE_T cElements, MethodTable* pInterfaceMT,
+                                             PCODE pManagedMarshalerCode);
 
     static void MarshalLPWSTRArrayOleToCom(void* oleArray, BASEARRAYREF* pComArray,
-                                            MethodTable* pInterfaceMT);
+                                            MethodTable* pInterfaceMT, PCODE pManagedMarshalerCode);
     static void MarshalLPWSTRRArrayComToOle(BASEARRAYREF* pComArray, void* oleArray,
                                             MethodTable* pInterfaceMT, BOOL fBestFitMapping,
                                             BOOL fThrowOnUnmappableChar, BOOL fOleArrayValid,
-                                            SIZE_T cElements);
-    static void ClearLPWSTRArray(void* oleArray, SIZE_T cElements, MethodTable* pInterfaceMT);
+                                            SIZE_T cElements, PCODE pManagedMarshalerCode);
+    static void ClearLPWSTRArray(BASEARRAYREF* comArray, void* oleArray,
+                                 SIZE_T cElements, MethodTable* pInterfaceMT, PCODE pManagedMarshalerCode);
 
     static void MarshalLPSTRArrayOleToCom(void* oleArray, BASEARRAYREF* pComArray,
-                                            MethodTable* pInterfaceMT);
+                                            MethodTable* pInterfaceMT, PCODE pManagedMarshalerCode);
     static void MarshalLPSTRRArrayComToOle(BASEARRAYREF* pComArray, void* oleArray,
                                             MethodTable* pInterfaceMT, BOOL fBestFitMapping,
                                             BOOL fThrowOnUnmappableChar, BOOL fOleArrayValid,
-                                            SIZE_T cElements);
-    static void ClearLPSTRArray(void* oleArray, SIZE_T cElements, MethodTable* pInterfaceMT);
+                                            SIZE_T cElements, PCODE pManagedMarshalerCode);
+    static void ClearLPSTRArray(BASEARRAYREF* comArray, void* oleArray,
+                                SIZE_T cElements, MethodTable* pInterfaceMT, PCODE pManagedMarshalerCode);
 
     static void MarshalDateArrayOleToCom(void* oleArray, BASEARRAYREF* pComArray,
-                                            MethodTable* pInterfaceMT);
+                                            MethodTable* pInterfaceMT, PCODE pManagedMarshalerCode);
     static void MarshalDateArrayComToOle(BASEARRAYREF* pComArray, void* oleArray,
                                             MethodTable* pInterfaceMT, BOOL fBestFitMapping,
                                             BOOL fThrowOnUnmappableChar, BOOL fOleArrayValid,
-                                            SIZE_T cElements);
+                                            SIZE_T cElements, PCODE pManagedMarshalerCode);
 
-    static void MarshalRecordArrayOleToCom(void* oleArray, BASEARRAYREF* pComArray, MethodTable* pElementMT);
+    static void MarshalRecordArrayOleToCom(void* oleArray, BASEARRAYREF* pComArray, MethodTable* pElementMT, PCODE pManagedMarshalerCode);
     static void MarshalRecordArrayComToOle(BASEARRAYREF* pComArray, void* oleArray, MethodTable* pElementMT,
-                                           BOOL fBestFitMapping, BOOL fThrowOnUnmappableChar, 
+                                           BOOL fBestFitMapping, BOOL fThrowOnUnmappableChar,
                                            BOOL fOleArrayValid,
-                                           SIZE_T cElements);
-    static void ClearRecordArray(void* oleArray, SIZE_T cElements, MethodTable* pElementMT);
+                                           SIZE_T cElements, PCODE pManagedMarshalerCode);
+    static void ClearRecordArray(BASEARRAYREF* comArray, void* oleArray, SIZE_T cElements, MethodTable* pElementMT, PCODE pManagedMarshalerCode);
 
 #ifdef FEATURE_COMINTEROP
     static HRESULT MarshalCommonOleRefVariantForObject(OBJECTREF *pObj, VARIANT *pOle);
     static void MarshalInterfaceArrayOleToCom(void* oleArray, BASEARRAYREF* pComArray,
-                                            MethodTable* pInterfaceMT);
+                                            MethodTable* pInterfaceMT, PCODE pManagedMarshalerCode);
     static void MarshalIUnknownArrayComToOle(BASEARRAYREF* pComArray, void* oleArray,
                                             MethodTable* pInterfaceMT, BOOL fBestFitMapping,
                                             BOOL fThrowOnUnmappableChar, BOOL fOleArrayValid,
-                                            SIZE_T cElements);
-    static void ClearInterfaceArray(void* oleArray, SIZE_T cElements, MethodTable* pInterfaceMT);
+                                            SIZE_T cElements, PCODE pManagedMarshalerCode);
+    static void ClearInterfaceArray(BASEARRAYREF* comArray, void* oleArray, SIZE_T cElements, MethodTable* pInterfaceMT, PCODE pManagedMarshalerCode);
 
     static void MarshalBoolVariantOleToCom(VARIANT* pOleVariant, VariantData* pComVariant);
 
@@ -603,19 +611,19 @@ private:
     static void MarshalCurrencyVariantComToOle(VariantData* pComVariant, VARIANT* pOleVariant);
     static void MarshalCurrencyVariantOleRefToCom(VARIANT* pOleVariant, VariantData* pComVariant);
     static void MarshalCurrencyArrayOleToCom(void* oleArray, BASEARRAYREF* pComArray,
-                                            MethodTable* pInterfaceMT);
+                                            MethodTable* pInterfaceMT, PCODE pManagedMarshalerCode);
     static void MarshalCurrencyArrayComToOle(BASEARRAYREF* pComArray, void* oleArray,
                                             MethodTable* pInterfaceMT, BOOL fBestFitMapping,
                                             BOOL fThrowOnUnmappableChar, BOOL fOleArrayValid,
-                                            SIZE_T cElements);
+                                            SIZE_T cElements, PCODE pManagedMarshalerCode);
 
     static void MarshalVariantArrayOleToCom(void* oleArray, BASEARRAYREF* pComArray,
-                                            MethodTable* pInterfaceMT);
+                                            MethodTable* pInterfaceMT, PCODE pManagedMarshalerCode);
     static void MarshalVariantArrayComToOle(BASEARRAYREF* pComArray, void* oleArray,
                                             MethodTable* pInterfaceMT, BOOL fBestFitMapping,
                                             BOOL fThrowOnUnmappableChar, BOOL fOleArrayValid,
-                                            SIZE_T cElements);
-    static void ClearVariantArray(void* oleArray, SIZE_T cElements, MethodTable* pInterfaceMT);
+                                            SIZE_T cElements, PCODE pManagedMarshalerCode);
+    static void ClearVariantArray(BASEARRAYREF* comArray, void* oleArray, SIZE_T cElements, MethodTable* pInterfaceMT, PCODE pManagedMarshalerCode);
 
 #ifdef FEATURE_CLASSIC_COMINTEROP
     static void MarshalArrayVariantOleToCom(VARIANT* pOleVariant, VariantData* pComVariant);
