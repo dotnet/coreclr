@@ -59,6 +59,11 @@ else()
    endif()
 endif()
 
+find_package(OpenSSL)
+if(NOT OPENSSL_FOUND)
+    message(FATAL_ERROR "!!! Cannot find libssl and System.Security.Cryptography.Native cannot build without it. Try installing libssl-dev (or the appropriate package for your platform) !!!")
+endif()
+
 set(NETCOREAPP_NATIVEPACKAGEPATH "${CLR_CMAKE_COREFXPACKAGE_PATH}")
 set(NETCOREAPP_NATIVEPACKAGEPATH "${NETCOREAPP_NATIVEPACKAGEPATH}/runtimes/${CLR_CMAKE_DISTRORID}/native")
 string(TOLOWER "${NETCOREAPP_NATIVEPACKAGEPATH}" NETCOREAPP_NATIVEPACKAGEPATH)
@@ -79,6 +84,8 @@ target_link_libraries(corebundle
     ${ZLIB_LIBRARIES}
     ${CURL_LIBRARIES}
     ${LIBGSS}
+    ${OPENSSL_CRYPTO_LIBRARY}
+    ${OPENSSL_SSL_LIBRARY}
 
     ${START_LIBRARY_GROUP} # Start group of libraries that have circular references
     coreclr_static
