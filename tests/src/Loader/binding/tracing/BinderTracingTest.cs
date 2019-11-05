@@ -34,6 +34,7 @@ namespace BinderTracingTests
         }
 
         private const string DefaultALC = "Default";
+        private const string DependentAssemblyName = "AssemblyToLoad";
 
         [BinderTest]
         public static BindOperation LoadFile()
@@ -46,6 +47,7 @@ namespace BinderTracingTests
                 AssemblyName = executingAssembly.GetName(),
                 AssemblyPath = executingAssembly.Location,
                 AssemblyLoadContext = AssemblyLoadContext.GetLoadContext(asm).ToString(),
+                RequestingAssemblyLoadContext = DefaultALC,
                 Success = true,
                 ResultAssemblyName = asm.GetName(),
                 ResultAssemblyPath = asm.Location,
@@ -64,6 +66,7 @@ namespace BinderTracingTests
             {
                 AssemblyName = executingAssembly.GetName(),
                 AssemblyLoadContext = AssemblyLoadContext.GetLoadContext(asm).ToString(),
+                RequestingAssemblyLoadContext = DefaultALC,
                 Success = true,
                 ResultAssemblyName = asm.GetName(),
                 ResultAssemblyPath = asm.Location,
@@ -83,6 +86,7 @@ namespace BinderTracingTests
             {
                 AssemblyName = executingAssembly.GetName(),
                 AssemblyLoadContext = alc.ToString(),
+                RequestingAssemblyLoadContext = DefaultALC,
                 Success = true,
                 ResultAssemblyName = asm.GetName(),
                 ResultAssemblyPath = asm.Location,
@@ -102,6 +106,7 @@ namespace BinderTracingTests
                 AssemblyName = executingAssembly.GetName(),
                 AssemblyPath = executingAssembly.Location,
                 AssemblyLoadContext = alc.ToString(),
+                RequestingAssemblyLoadContext = DefaultALC,
                 Success = true,
                 ResultAssemblyName = asm.GetName(),
                 ResultAssemblyPath = asm.Location,
@@ -138,6 +143,7 @@ namespace BinderTracingTests
                 AssemblyName = executingAssembly.GetName(),
                 AssemblyPath = executingAssembly.Location,
                 AssemblyLoadContext = DefaultALC,
+                RequestingAssemblyLoadContext = DefaultALC,
                 Success = true,
                 ResultAssemblyName = asm.GetName(),
                 ResultAssemblyPath = asm.Location,
@@ -155,6 +161,7 @@ namespace BinderTracingTests
             {
                 AssemblyName = new AssemblyName(assemblyName),
                 AssemblyLoadContext = DefaultALC,
+                RequestingAssemblyLoadContext = DefaultALC,
                 Success = true,
                 ResultAssemblyName = asm.GetName(),
                 ResultAssemblyPath = asm.Location,
@@ -184,6 +191,7 @@ namespace BinderTracingTests
             {
                 AssemblyName = new AssemblyName(assemblyName),
                 AssemblyLoadContext = DefaultALC,
+                RequestingAssemblyLoadContext = DefaultALC,
                 Success = false,
                 Cached = false
             };
@@ -192,13 +200,13 @@ namespace BinderTracingTests
         [BinderTest(isolate: true)]
         public static BindOperation Reflection()
         {
-            string assemblyName = "AssemblyToLoad";
-            var t = Type.GetType($"AssemblyToLoad.Program, {assemblyName}");
+            var t = GetDependentAssemblyType();
 
             return new BindOperation()
             {
-                AssemblyName = new AssemblyName(assemblyName),
+                AssemblyName = new AssemblyName(DependentAssemblyName),
                 AssemblyLoadContext = DefaultALC,
+                RequestingAssemblyLoadContext = DefaultALC,
                 RequestingAssembly = Assembly.GetExecutingAssembly().GetName(),
                 Success = true,
                 ResultAssemblyName = t.Assembly.GetName(),
@@ -216,6 +224,76 @@ namespace BinderTracingTests
         }
 
         [BinderTest(isolate: true)]
+        public static BindOperation Reflection_CustomALC()
+        {
+            CustomALC alc = new CustomALC(nameof(Reflection_CustomALC));
+            Type testClass = LoadTestClassInALC(alc);
+            MethodInfo method = testClass.GetMethod(nameof(GetDependentAssemblyType), BindingFlags.NonPublic | BindingFlags.Static);
+            Type t = (Type)method.Invoke(null, new object[0]);
+
+            return new BindOperation()
+            {
+                AssemblyName = new AssemblyName(DependentAssemblyName),
+                AssemblyLoadContext = alc.ToString(),
+                RequestingAssembly = testClass.Assembly.GetName(),
+                RequestingAssemblyLoadContext = alc.ToString(),
+                Success = true,
+                ResultAssemblyName = t.Assembly.GetName(),
+                ResultAssemblyPath = t.Assembly.Location,
+                Cached = false,
+            };
+        }
+
+        [BinderTest(isolate: true)]
+        public static BindOperation ContextualReflection_DefaultToCustomALC()
+        {
+            Type t;
+            CustomALC alc = new CustomALC(nameof(ContextualReflection_DefaultToCustomALC));
+            using (alc.EnterContextualReflection())
+            {
+                t = GetDependentAssemblyType();
+            }
+
+            return new BindOperation()
+            {
+                AssemblyName = new AssemblyName(DependentAssemblyName),
+                AssemblyLoadContext = alc.ToString(),
+                RequestingAssembly = Assembly.GetExecutingAssembly().GetName(),
+                RequestingAssemblyLoadContext = DefaultALC,
+                Success = true,
+                ResultAssemblyName = t.Assembly.GetName(),
+                ResultAssemblyPath = t.Assembly.Location,
+                Cached = false,
+            };
+        }
+
+        [BinderTest(isolate: true)]
+        public static BindOperation ContextualReflection_CustomToDefaultALC()
+        {
+            CustomALC alc = new CustomALC(nameof(ContextualReflection_CustomToDefaultALC));
+            Type testClass = LoadTestClassInALC(alc);
+            MethodInfo method = testClass.GetMethod(nameof(GetDependentAssemblyType), BindingFlags.NonPublic | BindingFlags.Static);
+
+            Type t;
+            using (AssemblyLoadContext.Default.EnterContextualReflection())
+            {
+                t = (Type)method.Invoke(null, new object[0]);
+            }
+
+            return new BindOperation()
+            {
+                AssemblyName = new AssemblyName(DependentAssemblyName),
+                AssemblyLoadContext = DefaultALC,
+                RequestingAssembly = testClass.Assembly.GetName(),
+                RequestingAssemblyLoadContext = alc.ToString(),
+                Success = true,
+                ResultAssemblyName = t.Assembly.GetName(),
+                ResultAssemblyPath = t.Assembly.Location,
+                Cached = false,
+            };
+        }
+
+        [BinderTest(isolate: true)]
         public static BindOperation JITLoad()
         {
             Assembly asm = UseDependentAssembly();
@@ -225,10 +303,32 @@ namespace BinderTracingTests
                 AssemblyName = asm.GetName(),
                 AssemblyLoadContext = DefaultALC,
                 RequestingAssembly = Assembly.GetExecutingAssembly().GetName(),
+                RequestingAssemblyLoadContext = DefaultALC,
                 Success = true,
                 ResultAssemblyName = asm.GetName(),
                 ResultAssemblyPath = asm.Location,
                 Cached = false,
+            };
+        }
+
+        [BinderTest(isolate: true)]
+        public static BindOperation JITLoad_CustomALC()
+        {
+            CustomALC alc = new CustomALC(nameof(JITLoad_CustomALC));
+            Type testClass= LoadTestClassInALC(alc);
+            MethodInfo method = testClass.GetMethod(nameof(UseDependentAssembly), BindingFlags.NonPublic | BindingFlags.Static);
+            Assembly asm = (Assembly)method.Invoke(null, new object[0]);
+
+            return new BindOperation()
+            {
+                AssemblyName = asm.GetName(),
+                AssemblyLoadContext = alc.ToString(),
+                RequestingAssembly = testClass.Assembly.GetName(),
+                RequestingAssemblyLoadContext = alc.ToString(),
+                Success = true,
+                ResultAssemblyName = asm.GetName(),
+                ResultAssemblyPath = asm.Location,
+                Cached = false
             };
         }
 
@@ -285,6 +385,17 @@ namespace BinderTracingTests
         {
             var p = new AssemblyToLoad.Program();
             return Assembly.GetAssembly(p.GetType());
+        }
+
+        private static Type GetDependentAssemblyType()
+        {
+            return Type.GetType($"AssemblyToLoad.Program, {DependentAssemblyName}");
+        }
+
+        private static Type LoadTestClassInALC(AssemblyLoadContext alc)
+        {
+            Assembly asm = alc.LoadFromAssemblyPath(Assembly.GetExecutingAssembly().Location);
+            return asm.GetType(typeof(BinderTracingTest).FullName);
         }
 
         private static bool RunSingleTest(MethodInfo method)
@@ -352,6 +463,7 @@ namespace BinderTracingTests
             Assert.AreEqual(expected.AssemblyPath ?? string.Empty, actual.AssemblyPath, $"Unexpected value for {nameof(BindOperation.AssemblyPath)} on event");
             Assert.AreEqual(expected.AssemblyLoadContext, actual.AssemblyLoadContext, $"Unexpected value for {nameof(BindOperation.AssemblyLoadContext)} on event");
             ValidateAssemblyName(expected.RequestingAssembly, actual.RequestingAssembly, nameof(BindOperation.RequestingAssembly));
+            Assert.AreEqual(expected.RequestingAssemblyLoadContext ?? string.Empty, actual.RequestingAssemblyLoadContext, $"Unexpected value for {nameof(BindOperation.RequestingAssemblyLoadContext)} on event");
 
             Assert.AreEqual(expected.Success, actual.Success, $"Unexpected value for {nameof(BindOperation.Success)} on event");
             Assert.AreEqual(expected.ResultAssemblyPath ?? string.Empty, actual.ResultAssemblyPath, $"Unexpected value for {nameof(BindOperation.ResultAssemblyPath)} on event");

@@ -19,6 +19,7 @@ namespace BinderTracingTests
         internal string AssemblyPath;
         internal AssemblyName RequestingAssembly;
         internal string AssemblyLoadContext;
+        internal string RequestingAssemblyLoadContext;
 
         internal bool Success;
         internal AssemblyName ResultAssemblyName;
@@ -93,6 +94,7 @@ namespace BinderTracingTests
                             AssemblyName = new AssemblyName(GetDataString("AssemblyName")),
                             AssemblyPath = GetDataString("AssemblyPath"),
                             AssemblyLoadContext = GetDataString("AssemblyLoadContext"),
+                            RequestingAssemblyLoadContext = GetDataString("RequestingAssemblyLoadContext"),
                             ActivityId = data.ActivityId,
                             ParentActivityId = data.RelatedActivityId,
                             Nested = bindOperations.ContainsKey(data.RelatedActivityId)

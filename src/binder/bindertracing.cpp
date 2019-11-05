@@ -41,6 +41,7 @@ namespace
             request.AssemblyPath,
             request.RequestingAssembly,
             request.AssemblyLoadContext,
+            request.RequestingAssemblyLoadContext,
             &activityId,
             &relatedActivityId);
 #endif // FEATURE_EVENT_TRACE
@@ -70,6 +71,7 @@ namespace
             request.AssemblyPath,
             request.RequestingAssembly,
             request.AssemblyLoadContext,
+            request.RequestingAssemblyLoadContext,
             success,
             resultName,
             resultPath,
@@ -78,17 +80,9 @@ namespace
 #endif // FEATURE_EVENT_TRACE
     }
 
-    void GetAssemblyLoadContextNameFromSpec(AssemblySpec *spec, /*out*/ SString &alcName)
+    void GetAssemblyLoadContextNameFromBindContext(ICLRPrivBinder *bindContext, AppDomain *domain, /*out*/ SString &alcName)
     {
-        _ASSERTE(spec != nullptr);
-
-        AppDomain *domain = spec->GetAppDomain();
-        ICLRPrivBinder* bindContext = spec->GetBindingContext();
-        if (bindContext == nullptr)
-        {
-            bindContext = spec->GetBindingContextFromParentAssembly(domain);
-            _ASSERTE(bindContext != nullptr);
-        }
+        _ASSERTE(bindContext != nullptr);
 
         UINT_PTR binderID = 0;
         HRESULT hr = bindContext->GetBinderID(&binderID);
@@ -132,6 +126,18 @@ namespace
         }
     }
 
+    void GetAssemblyLoadContextNameFromSpec(AssemblySpec *spec, /*out*/ SString &alcName)
+    {
+        _ASSERTE(spec != nullptr);
+
+        AppDomain *domain = spec->GetAppDomain();
+        ICLRPrivBinder* bindContext = spec->GetBindingContext();
+        if (bindContext == nullptr)
+            bindContext = spec->GetBindingContextFromParentAssembly(domain);
+
+        GetAssemblyLoadContextNameFromBindContext(bindContext, domain, alcName);
+    }
+
     void PopulateBindRequest(/*inout*/ BinderTracing::AssemblyBindOperation::BindRequest &request)
     {
         AssemblySpec *spec = request.AssemblySpec;
@@ -146,8 +152,16 @@ namespace
         DomainAssembly *parentAssembly = spec->GetParentAssembly();
         if (parentAssembly != nullptr)
         {
-            _ASSERTE(parentAssembly->GetFile() != nullptr);
-            parentAssembly->GetFile()->GetDisplayName(request.RequestingAssembly);
+            PEAssembly *peAssembly = parentAssembly->GetFile();
+            _ASSERTE(peAssembly != nullptr);
+            peAssembly->GetDisplayName(request.RequestingAssembly);
+
+            AppDomain *domain = parentAssembly->GetAppDomain();
+            ICLRPrivBinder *bindContext = peAssembly->GetBindingContext();
+            if (bindContext == nullptr)
+                bindContext = domain->GetTPABinderContext(); // System.Private.CoreLib returns null
+
+            GetAssemblyLoadContextNameFromBindContext(bindContext, domain, request.RequestingAssemblyLoadContext);
         }
 
         GetAssemblyLoadContextNameFromSpec(spec, request.AssemblyLoadContext);

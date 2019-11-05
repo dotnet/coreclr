@@ -33,6 +33,7 @@ namespace BinderTracing
             SString AssemblyPath;
             SString RequestingAssembly;
             SString AssemblyLoadContext;
+            SString RequestingAssemblyLoadContext;
         };
 
     private:
