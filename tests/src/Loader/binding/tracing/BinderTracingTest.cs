@@ -17,9 +17,11 @@ namespace BinderTracingTests
     class BinderTestAttribute : Attribute
     {
         public bool Isolate { get; private set; }
-        public BinderTestAttribute(bool isolate = false)
+        public string TestSetup { get; private set; }
+        public BinderTestAttribute(bool isolate = false, string testSetup = null)
         {
             Isolate = isolate;
+            TestSetup = testSetup;
         }
     }
 
@@ -108,6 +110,24 @@ namespace BinderTracingTests
         }
 
         [BinderTest(isolate: true)]
+        public static BindOperation LoadFromAssemblyName()
+        {
+            AssemblyName assemblyName = new AssemblyName("System.Xml");
+            CustomALC alc = new CustomALC(nameof(LoadFromAssemblyName));
+            Assembly asm = alc.LoadFromAssemblyName(assemblyName);
+
+            return new BindOperation()
+            {
+                AssemblyName = assemblyName,
+                AssemblyLoadContext = alc.ToString(),
+                Success = true,
+                ResultAssemblyName = asm.GetName(),
+                ResultAssemblyPath = asm.Location,
+                Cached = false
+            };
+        }
+
+        [BinderTest(isolate: true)]
         public static BindOperation LoadFrom()
         {
             var executingAssembly = Assembly.GetExecutingAssembly();
@@ -130,7 +150,7 @@ namespace BinderTracingTests
         {
             string assemblyName = "System.Xml";
             Assembly asm = Assembly.Load(assemblyName);
-            
+
             return new BindOperation()
             {
                 AssemblyName = new AssemblyName(assemblyName),
@@ -140,6 +160,14 @@ namespace BinderTracingTests
                 ResultAssemblyPath = asm.Location,
                 Cached = false
             };
+        }
+
+        [BinderTest(isolate: true, testSetup: nameof(PlatformAssembly))]
+        public static BindOperation PlatformAssembly_Cached()
+        {
+            BindOperation bind = PlatformAssembly();
+            bind.Cached = true;
+            return bind;
         }
 
         [BinderTest]
@@ -179,6 +207,14 @@ namespace BinderTracingTests
             };
         }
 
+        [BinderTest(isolate: true, testSetup: nameof(Reflection))]
+        public static BindOperation Reflection_Cached()
+        {
+            BindOperation bind = Reflection();
+            bind.Cached = true;
+            return bind;
+        }
+
         [BinderTest(isolate: true)]
         public static BindOperation JITLoad()
         {
@@ -200,12 +236,12 @@ namespace BinderTracingTests
         {
             MethodInfo[] methods = typeof(BinderTracingTest)
                 .GetMethods(BindingFlags.Public | BindingFlags.Static)
-                .Where(m => m.GetCustomAttributes(typeof(BinderTestAttribute), false).Length > 0 && m.ReturnType == typeof(BindOperation))
+                .Where(m => m.GetCustomAttribute<BinderTestAttribute>() != null && m.ReturnType == typeof(BindOperation))
                 .ToArray();
 
             foreach (var method in methods)
             {
-                BinderTestAttribute attribute = (BinderTestAttribute)method.GetCustomAttributes(typeof(BinderTestAttribute)).First();
+                BinderTestAttribute attribute = method.GetCustomAttribute<BinderTestAttribute>();
                 bool success = attribute.Isolate
                     ? RunTestInSeparateProcess(method)
                     : RunSingleTest(method);
@@ -232,7 +268,7 @@ namespace BinderTracingTests
                     // Run specific test - first argument should be the test method name
                     MethodInfo method = typeof(BinderTracingTest)
                         .GetMethod(args[0], BindingFlags.Public | BindingFlags.Static);
-                    Assert.IsTrue(method.GetCustomAttributes(typeof(BinderTestAttribute), false).Length > 0 && method.ReturnType == typeof(BindOperation));
+                    Assert.IsTrue(method != null && method.GetCustomAttribute<BinderTestAttribute>() != null && method.ReturnType == typeof(BindOperation));
                     success = RunSingleTest(method);
                 }
             }
@@ -256,6 +292,15 @@ namespace BinderTracingTests
             Console.WriteLine($"Running {method.Name}...");
             try
             {
+                BinderTestAttribute attribute = method.GetCustomAttribute<BinderTestAttribute>();
+                if (!string.IsNullOrEmpty(attribute.TestSetup))
+                {
+                    MethodInfo setupMethod = method.DeclaringType
+                        .GetMethod(attribute.TestSetup, BindingFlags.Public | BindingFlags.Static);
+                    Assert.IsTrue(setupMethod != null);
+                    setupMethod.Invoke(null, new object[0]);
+                }
+
                 Func<BindOperation> func = (Func<BindOperation>)method.CreateDelegate(typeof(Func<BindOperation>));
                 using (var listener = new BinderEventListener())
                 {
@@ -302,7 +347,7 @@ namespace BinderTracingTests
             BindOperation[] binds = listener.WaitAndGetEventsForAssembly(assemblyName);
             Assert.IsTrue(binds.Length == 1, $"Bind event count for {assemblyName} - expected: 1, actual: {binds.Length}");
             BindOperation actual = binds[0];
-            
+
             ValidateAssemblyName(expected.AssemblyName, actual.AssemblyName, nameof(BindOperation.AssemblyName));
             Assert.AreEqual(expected.AssemblyPath ?? string.Empty, actual.AssemblyPath, $"Unexpected value for {nameof(BindOperation.AssemblyPath)} on event");
             Assert.AreEqual(expected.AssemblyLoadContext, actual.AssemblyLoadContext, $"Unexpected value for {nameof(BindOperation.AssemblyLoadContext)} on event");
@@ -320,12 +365,12 @@ namespace BinderTracingTests
             {
                 return;
             }
-            
+
             if (expected.Version != null)
             {
                 Assert.AreEqual(expected.FullName, actual.FullName, $"Unexpected value for {propertyName} on event");
             }
-            else 
+            else
             {
                 Assert.AreEqual(expected.Name, actual.Name, $"Unexpected value for {propertyName} on event");
             }
