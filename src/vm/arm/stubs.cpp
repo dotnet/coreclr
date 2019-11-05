@@ -1687,6 +1687,10 @@ VOID StubLinkerCPU::EmitComputedInstantiatingMethodStub(MethodDesc* pSharedMD, s
     {
         _ASSERTE(pEntry->dstofs & ShuffleEntry::REGMASK);
         _ASSERTE(pEntry->srcofs & ShuffleEntry::REGMASK);
+        _ASSERTE(!(pEntry->dstofs & ShuffleEntry::FPREGMASK));
+        _ASSERTE(!(pEntry->srcofs & ShuffleEntry::FPREGMASK));
+        _ASSERTE(pEntry->dstofs != ShuffleEntry::HELPERREG));
+        _ASSERTE(pEntry->srcofs != ShuffleEntry::HELPERREG));
 
         ThumbEmitMovRegReg(ThumbReg(pEntry->dstofs & ShuffleEntry::OFSMASK),
                             ThumbReg(pEntry->srcofs & ShuffleEntry::OFSMASK));
