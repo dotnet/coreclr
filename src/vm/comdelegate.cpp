@@ -146,9 +146,7 @@ public:
     bool HasNextOfs()
     {
         return (m_currentGenRegIndex < m_argLocDesc->m_cGenReg) ||
-#if defined(UNIX_AMD64_ABI)
                (m_currentFloatRegIndex < m_argLocDesc->m_cFloatReg) ||
-#endif
                (m_currentStackSlotIndex < m_argLocDesc->m_cStack);
     }
 
@@ -165,6 +163,7 @@ public:
         {
             return GetNextOfsInStruct();
         }
+#endif // UNIX_AMD64_ABI
 
         // Shuffle float registers first
         if (m_currentFloatRegIndex < m_argLocDesc->m_cFloatReg)
@@ -174,7 +173,6 @@ public:
 
             return (UINT16)index | ShuffleEntry::REGMASK | ShuffleEntry::FPREGMASK;
         }
-#endif // UNIX_AMD64_ABI
 
         // Shuffle any registers first (the order matters since otherwise we could end up shuffling a stack slot
         // over a register we later need to shuffle down as well).
@@ -279,6 +277,10 @@ BOOL AddNextShuffleEntryToArray(ArgLocDesc sArgSrc, ArgLocDesc sArgDst, SArray<S
             {
                 // Instantiating Stub shuffles only support general register to register moves. More complex cases are handled by IL stubs
                 if (!(entry.srcofs & ShuffleEntry::REGMASK) || !(entry.dstofs & ShuffleEntry::REGMASK))
+                {
+                    return FALSE;
+                }
+                if ((entry.srcofs == ShuffleEntry::HELPERREG) || (entry.dstofs == ShuffleEntry::HELPERREG))
                 {
                     return FALSE;
                 }

@@ -701,8 +701,19 @@ public:
 #endif // UNIX_AMD64_ABI
         if (!TransitionBlock::IsStackArgumentOffset(argOffset))
         {
-            pLoc->m_idxGenReg = TransitionBlock::GetArgumentIndexFromOffset(argOffset);
-            pLoc->m_cGenReg = 1;
+#if !defined(UNIX_AMD64_ABI)
+            // On Windows x64, we re-use the location in the transition block for both the integer and floating point registers
+            if ((m_argType == ELEMENT_TYPE_R4) || (m_argType == ELEMENT_TYPE_R8))
+            {
+                pLoc->m_idxFloatReg = TransitionBlock::GetArgumentIndexFromOffset(argOffset);
+                pLoc->m_cFloatReg = 1;
+            }
+            else
+#endif
+            {
+                pLoc->m_idxGenReg = TransitionBlock::GetArgumentIndexFromOffset(argOffset);
+                pLoc->m_cGenReg = 1;
+            }
         }
         else
         {
