@@ -5,13 +5,6 @@
 // File: typehandle.cpp
 //
 
-
-//
-
-//
-// ============================================================================
-
-
 #include "common.h"
 #include "class.h"
 #include "typehandle.h"
@@ -22,59 +15,10 @@
 #include "typestring.h"
 #include "classloadlevel.h"
 #include "array.h"
+#include "castcache.h"
+
 #ifdef FEATURE_PREJIT 
 #include "zapsig.h"
-#endif
-
-// This method is not being called by all the constructors of TypeHandle
-// because of the following reason. SystemDomain::LoadBaseSystemClasses() 
-// loads TYPE__OBJECT_ARRAY which causes the following issues:
-//
-// If mscorlib is JIT-compiled, Module::CreateArrayMethodTable calls
-// TypeString::AppendName() with a TypeHandle that wraps the MethodTable
-// being created.
-// If mscorlib is ngenned, Module::RestoreMethodTablePointer() needs 
-// a TypeHandle to call ClassLoader::EnsureLoaded().
-//
-
-#if 0
-
-void TypeHandle::NormalizeUnsharedArrayMT()
-{
-    WRAPPER_NO_CONTRACT;
-
-    if (IsNull() || IsTypeDesc())
-        return;
-
-    if (!AsMethodTable()->IsArray())
-        return;
-
-    // This is an array type with a unique unshared MethodTable.
-    // We know that there must exist an ArrayTypeDesc for it, and it
-    // must have been restored.
-    // Let's look it up and use it.
-
-    ENABLE_FORBID_GC_LOADER_USE_IN_THIS_SCOPE();
-
-    TypeHandle elemType = AsMethodTable()->GetApproxArrayElementTypeHandle();
-    CorElementType kind = AsMethodTable()->GetInternalCorElementType();
-    unsigned rank = AsMethodTable()->GetRank();
-
-    // == FailIfNotLoadedOrNotRestored
-    TypeHandle arrayType = ClassLoader::LoadArrayTypeThrowing(  elemType, 
-                                                                kind,
-                                                                rank,
-                                                                ClassLoader::DontLoadTypes);
-    CONSISTENCY_CHECK(!arrayType.IsNull() && arrayType.IsArray()); 
-
-    //
-    // Update the current TypeHandle to use the ArrayTypeDesc
-    //
-    m_asPtr = arrayType.AsPtr();
-
-    INDEBUGIMPL(Verify());
-}
-
 #endif
 
 #ifdef _DEBUG_IMPL
@@ -702,6 +646,7 @@ BOOL TypeHandle::CanCastTo(TypeHandle type, TypeHandlePairList *pVisited)  const
     {
         THROWS;
         GC_TRIGGERS;
+        MODE_ANY;
         INJECT_FAULT(COMPlusThrowOM());
 
         LOADS_TYPE(CLASS_DEPENDENCIES_LOADED);
@@ -709,32 +654,56 @@ BOOL TypeHandle::CanCastTo(TypeHandle type, TypeHandlePairList *pVisited)  const
     CONTRACTL_END
 
     if (*this == type)
-        return(true);
+        return true;
 
-    if (IsTypeDesc())
-        return AsTypeDesc()->CanCastTo(type, pVisited);
-                
-    if (type.IsTypeDesc())
-        return(false);
+    if (!IsTypeDesc() && type.IsTypeDesc())
+        return false;
+        
+    {
+        GCX_COOP();
 
-    return AsMethodTable()->CanCastToClassOrInterface(type.AsMethodTable(), pVisited);
+        TypeHandle::CastResult result = CastCache::TryGetFromCache(*this, type);
+        if (result != TypeHandle::MaybeCast)
+        {
+            return (BOOL)result;
+        }
+
+        if (IsTypeDesc())
+            return AsTypeDesc()->CanCastTo(type, pVisited);
+
+#ifndef CROSSGEN_COMPILE
+        // we check nullable case first because it is not cacheable.
+        // object castability and type castability disagree on T --> Nullable<T>, 
+        // so we can't put this in the cache
+        if (Nullable::IsNullableForType(type, AsMethodTable()))
+        {
+            // do not allow type T to be cast to Nullable<T>
+            return FALSE;
+        }
+#endif  //!CROSSGEN_COMPILE
+
+        return AsMethodTable()->CanCastToClassOrInterface(type.AsMethodTable(), pVisited);
+    }
 }
 
 #include <optsmallperfcritical.h>
-TypeHandle::CastResult TypeHandle::CanCastToNoGC(TypeHandle type)  const
+TypeHandle::CastResult TypeHandle::CanCastToCached(TypeHandle type)  const
 {
-    LIMITED_METHOD_CONTRACT;
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_COOPERATIVE;
+    }
+    CONTRACTL_END;
 
     if (*this == type)
-        return(CanCast);
+        return CanCast;
 
-    if (IsTypeDesc())
-        return AsTypeDesc()->CanCastToNoGC(type);
-                
-    if (type.IsTypeDesc())
-        return(CannotCast);
+    if (!IsTypeDesc() && type.IsTypeDesc())
+        return CannotCast;
 
-    return AsMethodTable()->CanCastToClassOrInterfaceNoGC(type.AsMethodTable());
+    return CastCache::TryGetFromCache(*this, type);
 }
 #include <optdefault.h>
 
@@ -839,18 +808,24 @@ TypeHandle TypeHandle::MergeTypeHandlesToCommonParent(TypeHandle ta, TypeHandle 
     {
         if (tb.IsArray())
             return MergeArrayTypeHandlesToCommonParent(ta, tb);
-        else if (tb.IsInterface())
+
+        if (tb.IsInterface() && tb.HasInstantiation())
         {
             //Check to see if we can merge the array to a common interface (such as Derived[] and IList<Base>)
-            if (ArraySupportsBizarreInterface(ta.AsArray(), tb.AsMethodTable()))
+            if (ta.AsArray()->ArraySupportsBizarreInterface(tb.AsMethodTable(), /* pVisited */ NULL))
                 return tb;
         }
+
         ta = TypeHandle(g_pArrayClass);         // keep merging from here. 
     }
     else if (tb.IsArray())
     {
-        if (ta.IsInterface() && ArraySupportsBizarreInterface(tb.AsArray(), ta.AsMethodTable()))
-            return ta;
+        if (ta.IsInterface() && ta.HasInstantiation())
+        {
+            //Check to see if we can merge the array to a common interface (such as Derived[] and IList<Base>)
+            if (tb.AsArray()->ArraySupportsBizarreInterface(ta.AsMethodTable(), /* pVisited */ NULL))
+                return ta;
+        }
 
         tb = TypeHandle(g_pArrayClass);
     }
@@ -1239,9 +1214,9 @@ OBJECTREF TypeHandle::GetManagedClassObject() const
             case ELEMENT_TYPE_VAR:
             case ELEMENT_TYPE_MVAR:
                 return ((TypeVarTypeDesc*)AsTypeDesc())->GetManagedClassObject();
-                
-                // for this release a function pointer is mapped into an IntPtr. This result in a loss of information. Fix next release
+
             case ELEMENT_TYPE_FNPTR:
+                // A function pointer is mapped into typeof(IntPtr). It results in a loss of information.
                 return MscorlibBinder::GetElementType(ELEMENT_TYPE_I)->GetManagedClassObject();
                 
             default:
@@ -1250,80 +1225,29 @@ OBJECTREF TypeHandle::GetManagedClassObject() const
         }
     }
 }
-
-
-OBJECTREF TypeHandle::GetManagedClassObjectFast() const
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-
-        FORBID_FAULT;
-    }
-    CONTRACTL_END;
-
-    OBJECTREF o = NULL;
-
-    if (!IsTypeDesc()) {
-        o = AsMethodTable()->GetManagedClassObjectIfExists();
-    }
-    else 
-    {
-        switch(GetInternalCorElementType()) 
-        {
-            case ELEMENT_TYPE_ARRAY:
-            case ELEMENT_TYPE_SZARRAY:
-            case ELEMENT_TYPE_BYREF:
-            case ELEMENT_TYPE_PTR:
-                o = ((ParamTypeDesc*)AsTypeDesc())->GetManagedClassObjectFast();
-                break;
-
-            case ELEMENT_TYPE_VAR:
-            case ELEMENT_TYPE_MVAR:
-                o = ((TypeVarTypeDesc*)AsTypeDesc())->GetManagedClassObjectFast();
-                break;
-
-            // for this release a function pointer is mapped into an IntPtr. This result in a loss of information. Fix next release
-            case ELEMENT_TYPE_FNPTR:
-                // because TheFnPtrClass() can throw we return NULL for now. That is not a major deal because it just means we will
-                // not take advantage of this optimization, but the case is rather rare. 
-                //o = TheFnPtrClass()->GetManagedClassObjectFast();
-                break;
-
-            default:
-                _ASSERTE(!"Bad Element Type");
-                return NULL;
-        }
-    }
-    return o;
-}
 #endif // CROSSGEN_COMPILE
 
 #endif // #ifndef DACCESS_COMPILE
 
-BOOL TypeHandle::IsByRef()  const
+BOOL TypeHandle::IsByRef() const
 { 
     LIMITED_METHOD_CONTRACT;
 
-    return(IsTypeDesc() && AsTypeDesc()->IsByRef());
-
+    return (IsTypeDesc() && AsTypeDesc()->IsByRef());
 }
 
-BOOL TypeHandle::IsByRefLike()  const
+BOOL TypeHandle::IsByRefLike() const
 { 
     LIMITED_METHOD_CONTRACT;
 
-    return(!IsTypeDesc() && AsMethodTable()->IsByRefLike());
-
+    return (!IsTypeDesc() && AsMethodTable()->IsByRefLike());
 }
 
-BOOL TypeHandle::IsPointer()  const
+BOOL TypeHandle::IsPointer() const
 { 
     LIMITED_METHOD_CONTRACT;
 
-    return(IsTypeDesc() && AsTypeDesc()->IsPointer());
-
+    return (IsTypeDesc() && AsTypeDesc()->IsPointer());
 }
 
 //

@@ -61,6 +61,7 @@
 #include "typestring.h"
 #include "typedesc.h"
 #include "array.h"
+#include "castcache.h"
 
 #ifdef FEATURE_INTERPRETER
 #include "interpreter.h"
@@ -569,7 +570,7 @@ void MethodTable::SetIsRestored()
         
     PRECONDITION(!IsFullyLoaded());
 
-    FastInterlockAnd(EnsureWritablePages(&(GetWriteableDataForWrite()->m_dwFlags)), ~MethodTableWriteableData::enum_flag_Unrestored);
+    FastInterlockAnd(&GetWriteableDataForWrite()->m_dwFlags, ~MethodTableWriteableData::enum_flag_Unrestored);
 
 #ifndef DACCESS_COMPILE
     if (ETW_PROVIDER_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER))
@@ -685,7 +686,7 @@ PTR_MethodTable InterfaceInfo_t::GetApproxMethodTable(Module * pContainingModule
         if (!pItfMT->HasInstantiation())
         {
             // m_pMethodTable.SetValue() is not used here since we want to update the indirection cell
-            *EnsureWritablePages(m_pMethodTable.GetValuePtr()) = pItfMT;
+            *m_pMethodTable.GetValuePtr() = pItfMT;
         }
 
         return pItfMT;
@@ -1189,7 +1190,6 @@ void MethodTable::AddDynamicInterface(MethodTable *pItfMT)
     *(((DWORD_PTR *)pNewItfMap) - 1) = NumDynAddedInterfaces + 1;
 
     // Switch the old interface map with the new one.
-    EnsureWritablePages(&m_pInterfaceMap);
     m_pInterfaceMap.SetValueVolatile(pNewItfMap);
 
     // Log the fact that we leaked the interface vtable map.
@@ -1480,15 +1480,10 @@ BOOL MethodTable::CanCastToInterface(MethodTable *pTargetMT, TypeHandlePairList 
 
     if (!pTargetMT->HasVariance())
     {
-        if (HasTypeEquivalence() || pTargetMT->HasTypeEquivalence())
-        {
-            if (IsInterface() && IsEquivalentTo(pTargetMT))
-                return TRUE;
+        if (IsInterface() && IsEquivalentTo(pTargetMT))
+            return TRUE;
 
-            return ImplementsEquivalentInterface(pTargetMT);
-        }
-
-        return CanCastToNonVariantInterface(pTargetMT);
+        return ImplementsEquivalentInterface(pTargetMT);
     }
     else
     {
@@ -1521,19 +1516,21 @@ BOOL MethodTable::CanCastByVarianceToInterfaceOrDelegate(MethodTable *pTargetMT,
     }
     CONTRACTL_END
 
-    BOOL returnValue = FALSE;
-
-    EEClass *pClass = NULL;
-
-    TypeHandlePairList pairList(this, pTargetMT, pVisited);
-
-    if (TypeHandlePairList::Exists(pVisited, this, pTargetMT))
-        goto Exit;
-
-    if (GetTypeDefRid() != pTargetMT->GetTypeDefRid() || GetModule() != pTargetMT->GetModule())
+    // shortcut when having same types
+    if (this == pTargetMT)
     {
-        goto Exit;
+        return TRUE;
     }
+
+    if (GetTypeDefRid() != pTargetMT->GetTypeDefRid() || GetModule() != pTargetMT->GetModule() ||
+        TypeHandlePairList::Exists(pVisited, this, pTargetMT))
+    {
+        return FALSE;
+    }
+
+    EEClass* pClass = NULL;
+    TypeHandlePairList pairList(this, pTargetMT, pVisited);
+    BOOL returnValue = FALSE;
 
     {
         pClass = pTargetMT->GetClass();
@@ -1659,73 +1656,107 @@ BOOL MethodTable::CanCastToNonVariantInterface(MethodTable *pTargetMT)
 }
 
 //==========================================================================================
-TypeHandle::CastResult MethodTable::CanCastToInterfaceNoGC(MethodTable *pTargetMT)
+BOOL MethodTable::CanCastToClassOrInterface(MethodTable* pTargetMT, TypeHandlePairList* pVisited)
 {
     CONTRACTL
     {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
+        THROWS;
+        GC_TRIGGERS;
+        MODE_COOPERATIVE;
         INSTANCE_CHECK;
         PRECONDITION(CheckPointer(pTargetMT));
-        PRECONDITION(pTargetMT->IsInterface());
+        PRECONDITION(!pTargetMT->IsArray());
         PRECONDITION(IsRestored_NoLogging());
     }
     CONTRACTL_END
 
-    if (!pTargetMT->HasVariance() && !IsArray() && !HasTypeEquivalence() && !pTargetMT->HasTypeEquivalence())
+#ifndef CROSSGEN_COMPILE
+    // we cannot cache T --> Nullable<T> here since result is contextual.
+    // callers should have handled this already according to their rules.
+    _ASSERTE(!Nullable::IsNullableForType(TypeHandle(pTargetMT), this));
+#endif // CROSSGEN_COMPILE
+
+    BOOL result = pTargetMT->IsInterface() ?
+                                CanCastToInterface(pTargetMT, pVisited) :
+                                CanCastToClass(pTargetMT, pVisited);
+
+    // We only consider type-based conversion rules here.
+    // Therefore a negative result cannot rule out convertibility for ICastable and COM objects
+    if (result || !(pTargetMT->IsInterface() && (this->IsComObjectType() || this->IsICastable())))
     {
-        return CanCastToNonVariantInterface(pTargetMT) ? TypeHandle::CanCast : TypeHandle::CannotCast;
+        CastCache::TryAddToCache(this, pTargetMT, (BOOL)result);
     }
-    else
-    {
-        // We're conservative on variant interfaces and types with equivalence
-        return TypeHandle::MaybeCast;
-    }
+
+    return result;
 }
 
 //==========================================================================================
-TypeHandle::CastResult MethodTable::CanCastToClassNoGC(MethodTable *pTargetMT)
+BOOL MethodTable::ArraySupportsBizarreInterface(MethodTable * pInterfaceMT, TypeHandlePairList* pVisited)
 {
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        INSTANCE_CHECK;
-        PRECONDITION(CheckPointer(pTargetMT));
-        PRECONDITION(!pTargetMT->IsArray());
-        PRECONDITION(!pTargetMT->IsInterface());
-    }
-    CONTRACTL_END
+    CONTRACTL {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_COOPERATIVE;
+        PRECONDITION(this->IsArray());
+        PRECONDITION(pInterfaceMT->IsInterface());
+        PRECONDITION(pInterfaceMT->HasInstantiation());
+    } CONTRACTL_END;
 
-    // We're conservative on variant classes
-    if (pTargetMT->HasVariance() || g_IBCLogger.InstrEnabled())
+    // IList<T> & IReadOnlyList<T> only supported for SZ_ARRAYS
+    if (this->IsMultiDimArray() || 
+        !IsImplicitInterfaceOfSZArray(pInterfaceMT))
     {
-        return TypeHandle::MaybeCast;
-    }
-
-    // Type equivalence needs the slow path
-    if (HasTypeEquivalence() || pTargetMT->HasTypeEquivalence())
-    {
-        return TypeHandle::MaybeCast;
+        CastCache::TryAddToCache(this, pInterfaceMT, FALSE);
+        return FALSE;
     }
 
-    // If there are no variant type parameters, just chase the hierarchy
+    BOOL result = TypeDesc::CanCastParam(this->GetApproxArrayElementTypeHandle(), pInterfaceMT->GetInstantiation()[0], pVisited);
+
+    CastCache::TryAddToCache(this, pInterfaceMT, (BOOL)result);
+    return result;
+}
+
+BOOL MethodTable::ArrayIsInstanceOf(TypeHandle toTypeHnd, TypeHandlePairList* pVisited)
+{
+    CONTRACTL{
+        THROWS;
+        GC_TRIGGERS;
+        MODE_COOPERATIVE;
+        PRECONDITION(this->IsArray());
+        PRECONDITION(toTypeHnd.IsArray());
+    } CONTRACTL_END;
+
+    ArrayTypeDesc* toArrayType = toTypeHnd.AsArray();
+
+    // GetRank touches EEClass. Try to avoid it for SZArrays.
+    if (toArrayType->GetInternalCorElementType() == ELEMENT_TYPE_SZARRAY)
+    {
+        if (this->IsMultiDimArray())
+        {
+            CastCache::TryAddToCache(this, toTypeHnd, FALSE);
+            return TypeHandle::CannotCast;
+        }
+    }
     else
     {
-        PTR_VOID pMT = this;
-
-        do {
-            if (pMT == pTargetMT)
-                return TypeHandle::CanCast;
-
-            pMT = MethodTable::GetParentMethodTableOrIndirection(pMT);
-        } while (pMT);
+        if (this->GetRank() != toArrayType->GetRank())
+        {
+            CastCache::TryAddToCache(this, toTypeHnd, FALSE);
+            return TypeHandle::CannotCast;
+        }
     }
+    _ASSERTE(this->GetRank() == toArrayType->GetRank());
 
-    return TypeHandle::CannotCast;
+    TypeHandle elementTypeHandle = this->GetApproxArrayElementTypeHandle();
+    TypeHandle toElementTypeHandle = toArrayType->GetArrayElementTypeHandle();
+
+    BOOL result = (elementTypeHandle == toElementTypeHandle) ||
+        TypeDesc::CanCastParam(elementTypeHandle, toElementTypeHandle, pVisited);
+
+    CastCache::TryAddToCache(this, toTypeHnd, (BOOL)result);
+    return result;
 }
+
 #include <optdefault.h>
 
 BOOL 
@@ -2432,7 +2463,7 @@ bool MethodTable::ClassifyEightBytesWithManagedLayout(SystemVStructRegisterPassi
                     // those fields to be at their natural alignment.
 
                     LOG((LF_JIT, LL_EVERYTHING, "     %*sxxxx Field %d %s: offset %d (normalized %d), size %d not at natural alignment; not enregistering struct\n",
-                        nestingLevel * 5, "", fieldIndex, fieldIndex, (i == 0 ? "Value" : "Type"), fieldOffset, normalizedFieldOffset, fieldSize));
+                        nestingLevel * 5, "", fieldIndex, (i == 0 ? "Value" : "Type"), fieldOffset, normalizedFieldOffset, fieldSize));
                     return false;
                 }
 
@@ -2475,7 +2506,7 @@ bool MethodTable::ClassifyEightBytesWithManagedLayout(SystemVStructRegisterPassi
             // those fields to be at their natural alignment.
 
             LOG((LF_JIT, LL_EVERYTHING, "     %*sxxxx Field %d %s: offset %d (normalized %d), size %d not at natural alignment; not enregistering struct\n",
-                   nestingLevel * 5, "", fieldIndex, fieldIndex, fieldName, fieldOffset, normalizedFieldOffset, fieldSize));
+                   nestingLevel * 5, "", fieldIndex, fieldName, fieldOffset, normalizedFieldOffset, fieldSize));
             return false;
         }
 
@@ -2572,7 +2603,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
         return ClassifyEightBytesWithManagedLayout(helperPtr, nestingLevel, startOffsetOfStruct, useNativeLayout);
     }
 
-    const FieldMarshaler *pFieldMarshalers = GetLayoutInfo()->GetFieldMarshalers();
+    const NativeFieldDescriptor *pNativeFieldDescs = GetLayoutInfo()->GetNativeFieldDescriptors();
     UINT  numIntroducedFields = GetLayoutInfo()->GetNumCTMFields();
 
     // No fields.
@@ -2588,17 +2619,17 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
     // instead of adding additional padding at the end of a one-field structure.
     // We do this check here to save looking up the FixedBufferAttribute when loading the field
     // from metadata.
-    CorElementType firstFieldElementType = pFieldMarshalers->GetFieldDesc()->GetFieldType();
+    CorElementType firstFieldElementType = pNativeFieldDescs->GetFieldDesc()->GetFieldType();
     bool isFixedBuffer = numIntroducedFields == 1
                                 && ( CorTypeInfo::IsPrimitiveType_NoThrow(firstFieldElementType)
                                     || firstFieldElementType == ELEMENT_TYPE_VALUETYPE)
-                                && (pFieldMarshalers->GetExternalOffset() == 0)
+                                && (pNativeFieldDescs->GetExternalOffset() == 0)
                                 && IsValueType()
-                                && (GetLayoutInfo()->GetNativeSize() % pFieldMarshalers->NativeSize() == 0);
+                                && (GetLayoutInfo()->GetNativeSize() % pNativeFieldDescs->NativeSize() == 0);
 
     if (isFixedBuffer)
     {
-        numIntroducedFields = GetNativeSize() / pFieldMarshalers->NativeSize();
+        numIntroducedFields = GetNativeSize() / pNativeFieldDescs->NativeSize();
     }
 
     // The SIMD Intrinsic types are meant to be handled specially and should not be passed as struct registers
@@ -2634,18 +2665,18 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
 
     for (unsigned int fieldIndex = 0; fieldIndex < numIntroducedFields; fieldIndex++)
     {
-        const FieldMarshaler* pFieldMarshaler;
+        const NativeFieldDescriptor* pNFD;
         if (isFixedBuffer)
         {
             // Reuse the first field marshaler for all fields if a fixed buffer.
-            pFieldMarshaler = pFieldMarshalers;
+            pNFD = pNativeFieldDescs;
         }
         else
         {
-            pFieldMarshaler = (FieldMarshaler*)(((BYTE*)pFieldMarshalers) + MAXFIELDMARSHALERSIZE * fieldIndex);
+            pNFD = &pNativeFieldDescs[fieldIndex];
         }
 
-        FieldDesc *pField = pFieldMarshaler->GetFieldDesc();
+        FieldDesc *pField = pNFD->GetFieldDesc();
         CorElementType fieldType = pField->GetFieldType();
 
         // Invalid field type.
@@ -2654,12 +2685,12 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
             return false;
         }
 
-        unsigned int fieldNativeSize = pFieldMarshaler->NativeSize();
-        DWORD fieldOffset = pFieldMarshaler->GetExternalOffset();
+        unsigned int fieldNativeSize = pNFD->NativeSize();
+        DWORD fieldOffset = pNFD->GetExternalOffset();
 
         if (isFixedBuffer)
         {
-            // Since we reuse the FieldMarshaler for fixed buffers, we need to adjust the offset.
+            // Since we reuse the NativeFieldDescriptor for fixed buffers, we need to adjust the offset.
             fieldOffset += fieldIndex * fieldNativeSize;
         }
 
@@ -2682,7 +2713,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
         pField->GetName_NoThrow(&fieldName);
 #endif // _DEBUG
 
-        NativeFieldFlags nfc = pFieldMarshaler->GetNativeFieldFlags();
+        NativeFieldFlags nfc = pNFD->GetNativeFieldFlags();
 
 #ifdef FEATURE_COMINTEROP
         if (nfc & NATIVE_FIELD_SUBCATEGORY_COM_ONLY)
@@ -2694,11 +2725,10 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
 #endif // FEATURE_COMINTEROP
         if (nfc & NATIVE_FIELD_SUBCATEGORY_NESTED)
         {
-            FieldMarshaler_NestedType* pNestedMarshaler = (FieldMarshaler_NestedType*)pFieldMarshaler;
-            unsigned int numElements = pNestedMarshaler->GetNumElements();
+            unsigned int numElements = pNFD->GetNumElements();
             unsigned int nestedElementOffset = normalizedFieldOffset;
 
-            MethodTable* pFieldMT = pNestedMarshaler->GetNestedNativeMethodTable();
+            MethodTable* pFieldMT = pNFD->GetNestedNativeMethodTable();
 
             if (pFieldMT == nullptr)
             {
@@ -2740,13 +2770,13 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
             UNREACHABLE_MSG("Invalid native field subcategory.");
         }
 
-        if ((normalizedFieldOffset % pFieldMarshaler->AlignmentRequirement()) != 0)
+        if ((normalizedFieldOffset % pNFD->AlignmentRequirement()) != 0)
         {
             // The spec requires that struct values on the stack from register passed fields expects
             // those fields to be at their natural alignment.
 
             LOG((LF_JIT, LL_EVERYTHING, "     %*sxxxx Native Field %d %s: offset %d (normalized %d), required alignment %d not at natural alignment; not enregistering struct\n",
-                nestingLevel * 5, "", fieldIndex, fieldIndex, fieldName, fieldOffset, normalizedFieldOffset, pFieldMarshaler->AlignmentRequirement()));
+                nestingLevel * 5, "", fieldIndex, fieldName, fieldOffset, normalizedFieldOffset, pNFD->AlignmentRequirement()));
             return false;
         }
 
@@ -3856,7 +3886,7 @@ OBJECTREF MethodTable::GetManagedClassObject()
         // Only the winner can set m_ExposedClassObject from NULL.
         LOADERHANDLE exposedClassObjectHandle = pLoaderAllocator->AllocateHandle(refClass);
 
-        if (FastInterlockCompareExchangePointer(&(EnsureWritablePages(GetWriteableDataForWrite())->m_hExposedClassObject), exposedClassObjectHandle, static_cast<LOADERHANDLE>(NULL)))
+        if (FastInterlockCompareExchangePointer(&GetWriteableDataForWrite()->m_hExposedClassObject, exposedClassObjectHandle, static_cast<LOADERHANDLE>(NULL)))
         {
             pLoaderAllocator->FreeHandle(exposedClassObjectHandle);
         }
@@ -5585,12 +5615,12 @@ void MethodTable::DoFullyLoad(Generics::RecursionGraph * const pVisited,  const 
     // Fully load the types of fields associated with a field marshaler when ngenning
     if (HasLayout() && GetAppDomain()->IsCompilationDomain() && !IsZapped())
     {
-        FieldMarshaler* pFM                   = this->GetLayoutInfo()->GetFieldMarshalers();
-        UINT  numReferenceFields              = this->GetLayoutInfo()->GetNumCTMFields();
+        NativeFieldDescriptor* pNativeFieldDescriptors = this->GetLayoutInfo()->GetNativeFieldDescriptors();
+        UINT  numReferenceFields                       = this->GetLayoutInfo()->GetNumCTMFields();
 
-        while (numReferenceFields--)
+        for (UINT i = 0; i < numReferenceFields; ++i)
         {
-            
+            NativeFieldDescriptor* pFM = &pNativeFieldDescriptors[i];
             FieldDesc *pMarshalerField = pFM->GetFieldDesc();
 
             // If the fielddesc pointer here is a token tagged pointer, then the field marshaler that we are
@@ -5604,8 +5634,6 @@ void MethodTable::DoFullyLoad(Generics::RecursionGraph * const pVisited,  const 
                 
                 th.DoFullyLoad(&locals.newVisited, level, pPending, &locals.fBailed, pInstContext);
             }
-            // The accessibility check is not used here to prevent functional differences between ngen and non-ngen scenarios.
-            ((BYTE*&)pFM) += MAXFIELDMARSHALERSIZE;
         }
     }
 #endif //FEATURE_NATIVE_IMAGE_GENERATION
@@ -5886,7 +5914,7 @@ void MethodTable::DoRestoreTypeKey()
         Module::RestoreTypeHandlePointer(&inst.GetRawArgs()[j], GetLoaderModule(), CLASS_LOAD_UNRESTORED);
     }
 
-    FastInterlockAnd(&(EnsureWritablePages(GetWriteableDataForWrite())->m_dwFlags), ~MethodTableWriteableData::enum_flag_UnrestoredTypeKey);
+    FastInterlockAnd(&GetWriteableDataForWrite()->m_dwFlags, ~MethodTableWriteableData::enum_flag_UnrestoredTypeKey);
 }
 
 //==========================================================================================
@@ -5962,8 +5990,6 @@ void MethodTable::Restore()
     {
         MethodTableWriteableData * pWriteableData = GetWriteableDataForWrite();
         CrossModuleGenericsStaticsInfo * pInfo = pWriteableData->GetCrossModuleGenericsStaticsInfo();
-
-        EnsureWritablePages(pWriteableData, sizeof(MethodTableWriteableData) + sizeof(CrossModuleGenericsStaticsInfo));
 
         pInfo->m_pModuleForStatics = GetLoaderModule();
     }
@@ -9137,7 +9163,7 @@ void MethodTable::SetGuidInfo(GuidInfo* pGuidInfo)
 #ifdef FEATURE_COMINTEROP
     if (HasGuidInfo())
     {
-        *EnsureWritablePages(GetGuidInfoPtr()) = pGuidInfo;
+        *GetGuidInfoPtr() = pGuidInfo;
         return;
     }
 #endif // FEATURE_COMINTEROP
@@ -9183,18 +9209,6 @@ RCWPerTypeData *MethodTable::CreateRCWPerTypeData(bool bThrowOnOOM)
     _ASSERTE(pData->m_dwFlags == 0);
 
     RCWPerTypeData **pDataPtr = GetRCWPerTypeDataPtr();
-
-    if (bThrowOnOOM)
-    {
-        EnsureWritablePages(pDataPtr);
-    }
-    else
-    {
-        if (!EnsureWritablePagesNoThrow(pDataPtr, sizeof(*pDataPtr)))
-        {
-            return NULL;
-        }
-    }
 
     if (InterlockedCompareExchangeT(pDataPtr, pData, NULL) == NULL)
     {
@@ -9922,10 +9936,7 @@ BOOL MethodTable::Validate()
     }
     
 #ifdef _DEBUG    
-    // It is not a fatal error to fail the update the counter. We will run slower and retry next time, 
-    // but the system will function properly.
-    if (EnsureWritablePagesNoThrow(pWriteableData, sizeof(MethodTableWriteableData)))
-        pWriteableData->m_dwLastVerifedGCCnt = GCHeapUtilities::GetGCHeap()->GetGcCount();
+    pWriteableData->m_dwLastVerifedGCCnt = GCHeapUtilities::GetGCHeap()->GetGcCount();
 #endif //_DEBUG
 
     return TRUE;
@@ -10106,8 +10117,8 @@ BOOL MethodTable::IsLayoutInCurrentVersionBubble()
     {
         MethodTableWriteableData * pWriteableDataForWrite = GetWriteableDataForWrite();
         if (ComputeIsLayoutInCurrentVersionBubble(this))
-            *EnsureWritablePages(&pWriteableDataForWrite->m_dwFlags) |= MethodTableWriteableData::enum_flag_NGEN_IsLayoutInCurrentVersionBubble;
-        *EnsureWritablePages(&pWriteableDataForWrite->m_dwFlags) |= MethodTableWriteableData::enum_flag_NGEN_IsLayoutInCurrentVersionBubbleComputed;
+            pWriteableDataForWrite->m_dwFlags |= MethodTableWriteableData::enum_flag_NGEN_IsLayoutInCurrentVersionBubble;
+        pWriteableDataForWrite->m_dwFlags |= MethodTableWriteableData::enum_flag_NGEN_IsLayoutInCurrentVersionBubbleComputed;
     }
 
     return (pWriteableData->m_dwFlags & MethodTableWriteableData::enum_flag_NGEN_IsLayoutInCurrentVersionBubble) != 0;
@@ -10126,8 +10137,8 @@ BOOL MethodTable::IsLayoutFixedInCurrentVersionBubble()
     {
         MethodTableWriteableData * pWriteableDataForWrite = GetWriteableDataForWrite();
         if (ComputeIsLayoutFixedInCurrentVersionBubble(this))
-            *EnsureWritablePages(&pWriteableDataForWrite->m_dwFlags) |= MethodTableWriteableData::enum_flag_NGEN_IsLayoutFixed;
-        *EnsureWritablePages(&pWriteableDataForWrite->m_dwFlags) |= MethodTableWriteableData::enum_flag_NGEN_IsLayoutFixedComputed;
+            pWriteableDataForWrite->m_dwFlags |= MethodTableWriteableData::enum_flag_NGEN_IsLayoutFixed;
+        pWriteableDataForWrite->m_dwFlags |= MethodTableWriteableData::enum_flag_NGEN_IsLayoutFixedComputed;
     }
 
     return (pWriteableData->m_dwFlags & MethodTableWriteableData::enum_flag_NGEN_IsLayoutFixed) != 0;

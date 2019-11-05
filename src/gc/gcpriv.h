@@ -122,6 +122,7 @@ inline void FATAL_GC_ERROR()
 
 #ifdef BACKGROUND_GC
 #define MARK_ARRAY      //Mark bit in an array
+#define BGC_SERVO_TUNING
 #endif //BACKGROUND_GC
 
 #if defined(BACKGROUND_GC) || defined (CARD_BUNDLE) || defined(FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP)
@@ -255,7 +256,7 @@ const int policy_expand  = 2;
 #define SEG_REUSE_LOG_0 7
 #define SEG_REUSE_LOG_1 (SEG_REUSE_LOG_0 + 1)
 #define DT_LOG_0 (SEG_REUSE_LOG_1 + 1)
-#define BGC_LOG (DT_LOG_0 + 1)
+#define BGC_TUNING_LOG (DT_LOG_0 + 1)
 #define GTC_LOG (DT_LOG_0 + 2)
 #define GC_TABLE_LOG (DT_LOG_0 + 3)
 #define JOIN_LOG (DT_LOG_0 + 4)
@@ -292,6 +293,7 @@ void GCLog (const char *fmt, ... );
 // wanting to inspect GC logs on unmodified builds, we can use this define here
 // to do so.
 #define dprintf(l, x)
+//#define dprintf(l,x) STRESS_LOG_VA(x);
 
 #endif //SIMPLE_DPRINTF
 
@@ -362,6 +364,22 @@ class gc_heap;
 class exclusive_sync;
 class recursive_gc_sync;
 #endif //BACKGROUND_GC
+
+#ifdef MULTIPLE_HEAPS
+// card marking stealing only makes sense in server GC
+// but it works and is easier to debug for workstation GC
+// so turn it on for server GC, turn on for workstation GC if necessary
+#define FEATURE_CARD_MARKING_STEALING
+#endif //MULTIPLE_HEAPS
+
+#ifdef FEATURE_CARD_MARKING_STEALING
+class card_marking_enumerator;
+#define CARD_MARKING_STEALING_ARG(a)    ,a
+#define CARD_MARKING_STEALING_ARGS(a,b,c)    ,a,b,c
+#else // FEATURE_CARD_MARKING_STEALING
+#define CARD_MARKING_STEALING_ARG(a)
+#define CARD_MARKING_STEALING_ARGS(a,b,c)
+#endif // FEATURE_CARD_MARKING_STEALING
 
 // The following 2 modes are of the same format as in clr\src\bcl\system\runtime\gcsettings.cs
 // make sure you change that one if you change this one!
@@ -518,6 +536,7 @@ public:
 
     // These are opportunistically set
     uint32_t entry_memory_load;
+    uint64_t entry_available_physical_mem;
     uint32_t exit_memory_load;
 
     void init_mechanisms(); //for each GC
@@ -763,6 +782,7 @@ public:
     size_t          end_seg_allocated;
     BOOL            allocate_end_seg_p;
     size_t          condemned_allocated;
+    size_t          sweep_allocated;
     size_t          free_list_space;
     size_t          free_obj_space;
     size_t          allocation_size;
@@ -979,7 +999,8 @@ enum msl_take_state
     mt_alloc_small_cant,
     mt_alloc_large_cant,
     mt_try_alloc,
-    mt_try_budget
+    mt_try_budget,
+    mt_try_servo_budget
 };
 
 enum msl_enter_state
@@ -1116,11 +1137,11 @@ class gc_heap
 
 #ifdef MULTIPLE_HEAPS
     typedef void (gc_heap::* card_fn) (uint8_t**, int);
-#define call_fn(fn) (this->*fn)
+#define call_fn(this_arg,fn) (this_arg->*fn)
 #define __this this
 #else
     typedef void (* card_fn) (uint8_t**);
-#define call_fn(fn) (*fn)
+#define call_fn(this_arg,fn) (*fn)
 #define __this (gc_heap*)0
 #endif
 
@@ -1276,6 +1297,13 @@ public:
 
     PER_HEAP_ISOLATED
     void do_post_gc();
+
+#ifdef BGC_SERVO_TUNING
+    PER_HEAP_ISOLATED
+    void check_and_adjust_bgc_tuning (int gen_number, size_t physical_size, ptrdiff_t virtual_fl_size);
+    PER_HEAP_ISOLATED
+    void get_and_reset_loh_alloc_info();
+#endif //BGC_SERVO_TUNING
 
     PER_HEAP
     BOOL expand_soh_with_minimal_gc();
@@ -2125,6 +2153,257 @@ protected:
     void verify_mark_bits_cleared (uint8_t* obj, size_t s);
     PER_HEAP
     void clear_all_mark_array();
+
+#ifdef BGC_SERVO_TUNING
+
+    // Currently BGC servo tuning is an experimental feature.
+    class bgc_tuning
+    {
+    public:
+        struct tuning_calculation
+        {
+            // We use this virtual size that represents the generation 
+            // size at goal. We calculate the flr based on this.
+            size_t end_gen_size_goal;
+
+            // sweep goal is expressed as flr as we want to avoid 
+            // expanding the gen size.
+            double sweep_flr_goal;
+
+            // gen2 size at the end of last bgc.
+            size_t last_bgc_size;
+
+            //
+            // these need to be double so we don't loose so much accurancy
+            // they are *100.0
+            //
+            // the FL ratio at the start of current bgc sweep.
+            double current_bgc_sweep_flr; 
+            // the FL ratio at the end of last bgc.
+            // Only used for FF.
+            double last_bgc_flr; 
+            // the FL ratio last time we started a bgc
+            double current_bgc_start_flr;
+
+            double above_goal_accu_error;
+
+            // We will trigger the next BGC if this much 
+            // alloc has been consumed between the last
+            // bgc end and now.
+            size_t alloc_to_trigger;
+            // actual consumed alloc
+            size_t actual_alloc_to_trigger;
+
+            // the alloc between last bgc sweep start and end.
+            size_t last_bgc_end_alloc;
+
+            //
+            // For smoothing calc
+            // 
+            size_t smoothed_alloc_to_trigger;
+
+            //
+            // For TBH 
+            //
+            // last time we checked, were we above sweep flr goal?
+            bool last_sweep_above_p;
+            size_t alloc_to_trigger_0;
+
+            // This is to get us started. It's set when we observe in a gen1
+            // GC when the memory load is high enough and is used to seed the first
+            // BGC triggered due to this tuning.
+            size_t first_alloc_to_trigger;
+        };
+
+        struct tuning_stats
+        {
+            size_t last_bgc_physical_size;
+
+            size_t last_alloc_end_to_start;
+            size_t last_alloc_start_to_sweep;
+            size_t last_alloc_sweep_to_end;
+            // records the alloc at the last significant point,
+            // used to calculate the 3 alloc's above.
+            // It's reset at bgc sweep start as that's when we reset 
+            // all the allocation data (sweep_allocated/condemned_allocated/etc)
+            size_t last_alloc;
+
+            // the FL size at the end of last bgc.
+            size_t last_bgc_fl_size;
+
+            // last gen2 surv rate
+            double last_bgc_surv_rate;
+
+            // the FL ratio last time gen size increased.
+            double last_gen_increase_flr; 
+        };
+
+        // This is just so that I don't need to calculate things multiple
+        // times. Only used during bgc end calculations. Everything that 
+        // needs to be perserved across GCs will be saved in the other 2 
+        // structs.
+        struct bgc_size_data
+        {
+            size_t gen_size;
+            size_t gen_physical_size;
+            size_t gen_fl_size;
+            // The actual physical fl size, unadjusted
+            size_t gen_actual_phys_fl_size;
+            // I call this physical_fl but really it's adjusted based on alloc
+            // that we haven't consumed because the other generation consumed
+            // its alloc and triggered the BGC. See init_bgc_end_data.
+            // We don't allow it to go negative.
+            ptrdiff_t gen_physical_fl_size;
+            double gen_physical_flr;
+            double gen_flr;
+        };
+
+        static bool enable_fl_tuning;
+        // the memory load we aim to maintain.
+        static uint32_t memory_load_goal;
+
+        // if we are BGCMemGoalSlack above BGCMemGoal, this is where we 
+        // panic and start to see if we should do NGC2.
+        static uint32_t memory_load_goal_slack;
+        // This is calculated based on memory_load_goal.
+        static uint64_t available_memory_goal;
+        // If we are above (ml goal + slack), we need to panic.
+        // Currently we just trigger the next GC as an NGC2, but 
+        // we do track the accumulated error and could be more
+        // sophisticated about triggering NGC2 especially when 
+        // slack is small. We could say unless we see the error
+        // is large enough would we actually trigger an NGC2.
+        static bool panic_activated_p;
+        static double accu_error_panic;
+
+        static double above_goal_kp;
+        static double above_goal_ki;
+        static bool enable_ki;
+        static bool enable_kd;
+        static bool enable_smooth;
+        static bool enable_tbh;
+        static bool enable_ff;
+        static bool enable_gradual_d;
+        static double above_goal_kd;
+        static double above_goal_ff;
+        static double num_gen1s_smooth_factor;
+
+        // for ML servo loop
+        static double ml_kp;
+        static double ml_ki;
+
+        // for ML loop ki
+        static double accu_error;
+
+        // did we start tuning with FL yet?
+        static bool fl_tuning_triggered;
+
+        // ==================================================
+        // ============what's used in calculation============
+        // ==================================================
+        //
+        // only used in smoothing.
+        static size_t num_bgcs_since_tuning_trigger;
+
+        // gen1 GC setting the next GC as a BGC when it observes the
+        // memory load is high enough for the first time.
+        static bool next_bgc_p;
+
+        // this is organized as:
+        // element 0 is for max_generation
+        // element 1 is for max_generation+1
+        static tuning_calculation gen_calc[2];
+
+        // ======================================================
+        // ============what's used to only show stats============
+        // ======================================================
+        //
+        // how many gen1's actually happened before triggering next bgc.
+        static size_t actual_num_gen1s_to_trigger;
+
+        static size_t gen1_index_last_bgc_end;
+        static size_t gen1_index_last_bgc_start;
+        static size_t gen1_index_last_bgc_sweep;
+
+        static tuning_stats gen_stats[2];
+        // ============end of stats============
+
+        static bgc_size_data current_bgc_end_data[2];
+
+        static size_t last_stepping_bgc_count;
+        static uint32_t last_stepping_mem_load;
+        static uint32_t stepping_interval;
+
+        // When we are in the initial stage before fl tuning is triggered.
+        static bool use_stepping_trigger_p;
+
+        // the gen2 correction factor is used to put more emphasis
+        // on the gen2 when it triggered the BGC.
+        // If the BGC was triggered due to gen3, we decrease this 
+        // factor.
+        static double gen2_ratio_correction;
+        static double ratio_correction_step;
+
+        // Since we have 2 loops, this BGC was caused by one of them; for the other loop we know
+        // we didn't reach the goal so use the output from last time.
+        static void calculate_tuning (int gen_number, bool use_this_loop_p);
+
+        static void init_bgc_end_data (int gen_number, bool use_this_loop_p);
+        static void calc_end_bgc_fl (int gen_number);
+
+        static void convert_to_fl (bool use_gen2_loop_p, bool use_gen3_loop_p);
+        static double calculate_ml_tuning (uint64_t current_available_physical, bool reduce_p, ptrdiff_t* _vfl_from_kp, ptrdiff_t* _vfl_from_ki);
+
+        // This invokes the ml tuning loop and sets the total gen sizes, ie
+        // including vfl.
+        static void set_total_gen_sizes (bool use_gen2_loop_p, bool use_gen3_loop_p);
+
+        static bool should_trigger_bgc_loh();
+
+        // This is only called when we've already stopped for GC.
+        // For LOH we'd be doing this in the alloc path.
+        static bool should_trigger_bgc();
+
+        // If we keep being above ml goal, we need to compact.
+        static bool should_trigger_ngc2();
+
+        // Only implemented for gen2 now while we are in sweep.
+        // Before we could build up enough fl, we delay gen1 consuming 
+        // gen2 alloc so we don't get into panic.
+        // When we maintain the fl instead of building a new one, this
+        // can be eliminated.
+        static bool should_delay_alloc (int gen_number);
+
+        // When we are under the memory load goal, we'd like to do 10 BGCs
+        // before we reach the goal. 
+        static bool stepping_trigger (uint32_t current_memory_load, size_t current_gen2_count);
+
+        static void update_bgc_start (int gen_number, size_t num_gen1s_since_end);
+        // Updates the following:
+        // current_bgc_start_flr
+        // actual_alloc_to_trigger
+        // last_alloc_end_to_start
+        // last_alloc
+        // actual_num_gen1s_to_trigger
+        // gen1_index_last_bgc_start
+        static void record_bgc_start();
+
+        static void update_bgc_sweep_start (int gen_number, size_t num_gen1s_since_start);
+        // Updates the following:
+        // current_bgc_sweep_flr
+        // last_alloc_start_to_sweep
+        // last_alloc
+        // gen1_index_last_bgc_sweep
+        static void record_bgc_sweep_start();
+        // Updates the rest
+        static void record_and_adjust_bgc_end();
+    };
+
+    // This tells us why we chose to do a bgc in tuning.
+    PER_HEAP_ISOLATED
+    int saved_bgc_tuning_reason;
+#endif //BGC_SERVO_TUNING
+
 #endif //BACKGROUND_GC
 
     PER_HEAP
@@ -2449,17 +2728,19 @@ protected:
     void mark_through_cards_helper (uint8_t** poo, size_t& ngen,
                                     size_t& cg_pointers_found,
                                     card_fn fn, uint8_t* nhigh,
-                                    uint8_t* next_boundary);
+                                    uint8_t* next_boundary
+                                    CARD_MARKING_STEALING_ARG(gc_heap* hpt));
 
     PER_HEAP
     BOOL card_transition (uint8_t* po, uint8_t* end, size_t card_word_end,
-                               size_t& cg_pointers_found, 
-                               size_t& n_eph, size_t& n_card_set,
-                               size_t& card, size_t& end_card,
-                               BOOL& foundp, uint8_t*& start_address,
-                               uint8_t*& limit, size_t& n_cards_cleared);
+                          size_t& cg_pointers_found, 
+                          size_t& n_eph, size_t& n_card_set,
+                          size_t& card, size_t& end_card,
+                          BOOL& foundp, uint8_t*& start_address,
+                          uint8_t*& limit, size_t& n_cards_cleared
+                          CARD_MARKING_STEALING_ARGS(card_marking_enumerator& card_mark_enumerator, heap_segment* seg, size_t& card_word_end_out));
     PER_HEAP
-    void mark_through_cards_for_segments (card_fn fn, BOOL relocating);
+    void mark_through_cards_for_segments(card_fn fn, BOOL relocating CARD_MARKING_STEALING_ARG(gc_heap* hpt));
 
     PER_HEAP
     void repair_allocation_in_expanded_heap (generation* gen);
@@ -2604,6 +2885,22 @@ protected:
     size_t get_current_allocated();
     PER_HEAP_ISOLATED
     size_t get_total_allocated();
+#ifdef BGC_SERVO_TUNING
+    PER_HEAP_ISOLATED
+    size_t get_total_generation_size (int gen_number);
+    PER_HEAP_ISOLATED
+    size_t get_total_servo_alloc (int gen_number);
+    PER_HEAP_ISOLATED
+    size_t get_total_bgc_promoted();
+    PER_HEAP_ISOLATED
+    size_t get_total_surv_size (int gen_number);
+    PER_HEAP_ISOLATED
+    size_t get_total_begin_data_size (int gen_number);
+    PER_HEAP_ISOLATED
+    size_t get_total_generation_fl_size (int gen_number);
+    PER_HEAP_ISOLATED
+    size_t get_current_gc_index (int gen_number);
+#endif //BGC_SERVO_TUNING
     PER_HEAP
     size_t current_generation_size (int gen_number);
     PER_HEAP
@@ -2645,13 +2942,12 @@ protected:
     PER_HEAP
     BOOL ephemeral_gen_fit_p (gc_tuning_point tp);
     PER_HEAP
-    void reset_large_object (uint8_t* o);
-    PER_HEAP
     void sweep_large_objects ();
     PER_HEAP
     void relocate_in_large_objects ();
     PER_HEAP
-    void mark_through_cards_for_large_objects (card_fn fn, BOOL relocating);
+    void mark_through_cards_for_large_objects(card_fn fn, BOOL relocating
+                                              CARD_MARKING_STEALING_ARG(gc_heap* hpt));
     PER_HEAP
     void descr_segment (heap_segment* seg);
     PER_HEAP
@@ -3445,6 +3741,25 @@ protected:
     PER_HEAP
     size_t     end_loh_size;
 
+#ifdef BGC_SERVO_TUNING
+    PER_HEAP
+    uint64_t   loh_a_no_bgc;
+
+    PER_HEAP
+    uint64_t   loh_a_bgc_marking;
+
+    PER_HEAP
+    uint64_t   loh_a_bgc_planning;
+
+    // Total allocated last BGC's plan + between last and this bgc +
+    // this bgc's mark
+    PER_HEAP_ISOLATED
+    uint64_t   total_loh_a_last_bgc;
+
+    PER_HEAP
+    size_t     bgc_maxgen_end_fl_size;
+#endif //BGC_SERVO_TUNING
+
     // We need to throttle the LOH allocations during BGC since we can't
     // collect LOH when BGC is in progress. 
     // We allow the LOH heap size to double during a BGC. So for every
@@ -3964,6 +4279,36 @@ public:
     static
     BOOL      g_low_memory_status;
 
+#ifdef FEATURE_CARD_MARKING_STEALING
+    PER_HEAP
+    VOLATILE(uint32_t)    card_mark_chunk_index_soh;
+
+    PER_HEAP
+    VOLATILE(bool)        card_mark_done_soh;
+
+    PER_HEAP
+    VOLATILE(uint32_t)    card_mark_chunk_index_loh;
+
+    PER_HEAP
+    VOLATILE(bool)        card_mark_done_loh;
+
+    PER_HEAP
+    void reset_card_marking_enumerators()
+    {
+        // set chunk index to all 1 bits so that incrementing it yields 0 as the first index
+        card_mark_chunk_index_soh = ~0;
+        card_mark_done_soh = false;
+
+        card_mark_chunk_index_loh = ~0;
+        card_mark_done_loh = false;
+    }
+
+    PER_HEAP
+    bool find_next_chunk(card_marking_enumerator& card_mark_enumerator, heap_segment* seg,
+                         size_t& n_card_set, uint8_t*& start_address, uint8_t*& limit,
+                         size_t& card, size_t& end_card, size_t& card_word_end);
+#endif //FEATURE_CARD_MARKING_STEALING
+
 protected:
     PER_HEAP
     void update_collection_counts ();
@@ -4320,6 +4665,11 @@ size_t& generation_condemned_allocated (generation* inst)
 {
     return inst->condemned_allocated;
 }
+inline
+size_t& generation_sweep_allocated (generation* inst)
+{
+    return inst->sweep_allocated;
+}
 #ifdef FREE_USAGE_STATS
 inline
 size_t& generation_pinned_free_obj_space (generation* inst)
@@ -4619,3 +4969,46 @@ size_t gcard_of (uint8_t* object)
 {
     return (size_t)(object) / card_size;
 }
+#ifdef FEATURE_CARD_MARKING_STEALING
+// make this 8 card bundle bits (2 MB in 64-bit architectures, 1 MB in 32-bit) - should be at least 1 card bundle bit
+#define CARD_MARKING_STEALING_GRANULARITY (card_size*card_word_width*card_bundle_size*8)
+
+#define THIS_ARG    , __this
+class card_marking_enumerator
+{
+private:
+    heap_segment*       segment;
+    uint8_t*            gc_low;
+    uint32_t            segment_start_chunk_index;
+    VOLATILE(uint32_t)* chunk_index_counter;
+    uint8_t*            chunk_high;
+    uint32_t            old_chunk_index;
+    static const uint32_t INVALID_CHUNK_INDEX = ~0u;
+
+public:
+    card_marking_enumerator(heap_segment* seg, uint8_t* low, VOLATILE(uint32_t)* counter) :
+        segment(seg), gc_low(low), segment_start_chunk_index(0), chunk_index_counter(counter), chunk_high(nullptr), old_chunk_index(INVALID_CHUNK_INDEX)
+    {
+    }
+
+    // move to the next chunk in this segment - return false if no more chunks in this segment
+    bool move_next(heap_segment* seg, uint8_t*& low, uint8_t*& high);
+
+    void exhaust_segment(heap_segment* seg)
+    {
+        uint8_t* low;
+        uint8_t* high;
+        // make sure no more chunks in this segment - do this via move_next because we want to keep
+        // incrementing the chunk_index_counter rather than updating it via interlocked compare exchange
+        while (move_next(seg, low, high))
+            ;
+    }
+
+    uint8_t* get_chunk_high()
+    {
+        return chunk_high;
+    }
+};
+#else
+#define THIS_ARG
+#endif // FEATURE_CARD_MARKING_STEALING

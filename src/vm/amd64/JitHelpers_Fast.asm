@@ -229,7 +229,7 @@ endm
 
 ; PERF TODO: consider prefetching the entire interface map into the cache
 
-; For all bizarre castes this quickly fails and falls back onto the JITutil_IsInstanceOfAny
+; For all bizarre castes this quickly fails and falls back onto the JITutil_IsInstanceOfInterface
 ; helper, this means that all failure cases take the slow path as well.
 ;
 ; This can trash r10/r11
@@ -766,7 +766,7 @@ g_pObjectClass      equ     ?g_pObjectClass@@3PEAVMethodTable@@EA
 
 EXTERN  g_pObjectClass:qword
 extern ArrayStoreCheck:proc
-extern ObjIsInstanceOfNoGC:proc
+extern ObjIsInstanceOfCached:proc
 
 ; TODO: put definition for this in asmconstants.h
 CanCast equ     1
@@ -813,7 +813,7 @@ LEAF_ENTRY JIT_Stelem_Ref, _TEXT
         cmp     r9, [g_pObjectClass]
         je      DoWrite
 
-        jmp     JIT_Stelem_Ref__ObjIsInstanceOfNoGC_Helper
+        jmp     JIT_Stelem_Ref__ObjIsInstanceOfCached_Helper
                                 
     ThrowNullReferenceException:
         mov     rcx, CORINFO_NullReferenceException_ASM
@@ -824,7 +824,7 @@ LEAF_ENTRY JIT_Stelem_Ref, _TEXT
         jmp     JIT_InternalThrow        
 LEAF_END JIT_Stelem_Ref, _TEXT
 
-NESTED_ENTRY JIT_Stelem_Ref__ObjIsInstanceOfNoGC_Helper, _TEXT
+NESTED_ENTRY JIT_Stelem_Ref__ObjIsInstanceOfCached_Helper, _TEXT
         alloc_stack         MIN_SIZE
         save_reg_postrsp    rcx, MIN_SIZE + 8h
         save_reg_postrsp    rdx, MIN_SIZE + 10h
@@ -835,8 +835,8 @@ NESTED_ENTRY JIT_Stelem_Ref__ObjIsInstanceOfNoGC_Helper, _TEXT
         mov     rdx, r9
         mov     rcx, r8
 
-        ; TypeHandle::CastResult ObjIsInstanceOfNoGC(Object *pElement, TypeHandle toTypeHnd)
-        call    ObjIsInstanceOfNoGC
+        ; TypeHandle::CastResult ObjIsInstanceOfCached(Object *pElement, TypeHandle toTypeHnd)
+        call    ObjIsInstanceOfCached
 
         mov     rcx, [rsp + MIN_SIZE + 8h]
         mov     rdx, [rsp + MIN_SIZE + 10h]
@@ -855,7 +855,7 @@ NESTED_ENTRY JIT_Stelem_Ref__ObjIsInstanceOfNoGC_Helper, _TEXT
     NeedCheck:
         add     rsp, MIN_SIZE
         jmp     JIT_Stelem_Ref__ArrayStoreCheck_Helper
-NESTED_END JIT_Stelem_Ref__ObjIsInstanceOfNoGC_Helper, _TEXT
+NESTED_END JIT_Stelem_Ref__ObjIsInstanceOfCached_Helper, _TEXT
 
 ; Need to save r8 to provide a stack address for the Object*
 NESTED_ENTRY JIT_Stelem_Ref__ArrayStoreCheck_Helper, _TEXT
@@ -1011,15 +1011,15 @@ LEAF_ENTRY JIT_StackProbe, _TEXT
         ;
         ; NOTE: this helper will probe at least one page below the one pointed by rsp.
 
-        lea     rax, [rsp - PAGE_SIZE] ; rax points to some byte on the first unprobed page
-        or      rax, (PAGE_SIZE - 1)   ; rax points to the **highest address** on the first unprobed page
+        mov     rax, rsp               ; rax points to some byte on the last probed page
+        and     rax, -PAGE_SIZE        ; rax points to the **lowest address** on the last probed page
                                        ; This is done to make the following loop end condition simpler.
 
 ProbeLoop:
-        test    dword ptr [rax], eax
-        sub     rax, PAGE_SIZE         ; rax points to the highest address of the **next page** to probe
+        sub     rax, PAGE_SIZE         ; rax points to the lowest address of the **next page** to probe
+        test    dword ptr [rax], eax   ; rax points to the lowest address on the **last probed** page
         cmp     rax, r11
-        jge     ProbeLoop              ; if (rax >= r11), then we need to probe the page pointed to by rax.
+        jg      ProbeLoop              ; If (rax > r11), then we need to probe at least one more page.
 
         ret
 

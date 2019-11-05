@@ -358,8 +358,7 @@ struct GenTree
     GenTree##fn& As##fn##Ref()                                                                                         \
     {                                                                                                                  \
         return *As##fn();                                                                                              \
-    }                                                                                                                  \
-    __declspec(property(get = As##fn##Ref)) GenTree##fn& gt##fn;
+    }
 
 #define GTSTRUCT_1(fn, en) GTSTRUCT_N(fn, en)
 #define GTSTRUCT_2(fn, en, en2) GTSTRUCT_N(fn, en, en2)
@@ -1483,7 +1482,7 @@ public:
     static bool OperIsHWIntrinsic(genTreeOps gtOper)
     {
 #ifdef FEATURE_HW_INTRINSICS
-        return gtOper == GT_HWIntrinsic;
+        return gtOper == GT_HWINTRINSIC;
 #else
         return false;
 #endif // FEATURE_HW_INTRINSICS
@@ -1555,7 +1554,7 @@ public:
             case GT_RETFILT:
             case GT_NOP:
 #ifdef FEATURE_HW_INTRINSICS
-            case GT_HWIntrinsic:
+            case GT_HWINTRINSIC:
 #endif // FEATURE_HW_INTRINSICS
                 return true;
             case GT_RETURN:
@@ -1582,7 +1581,7 @@ public:
 #endif // !FEATURE_SIMD
 
 #ifdef FEATURE_HW_INTRINSICS
-            case GT_HWIntrinsic:
+            case GT_HWINTRINSIC:
 #endif // FEATURE_HW_INTRINSICS
 
 #if defined(_TARGET_ARM_)
@@ -1910,17 +1909,6 @@ public:
         assert(IsValue());
         gtFlags &= ~GTF_CONTAINED;
         ClearRegOptional();
-    }
-
-    bool IsRegVarDeath() const
-    {
-        unreached();
-        return (gtFlags & GTF_VAR_DEATH) ? true : false;
-    }
-    bool IsRegVarBirth() const
-    {
-        unreached();
-        return (gtFlags & GTF_REG_BIRTH) ? true : false;
     }
 
     bool IsReverseOp() const
@@ -4503,14 +4491,14 @@ struct GenTreeHWIntrinsic : public GenTreeJitIntrinsic
     var_types      gtIndexBaseType; // for AVX2 Gather* intrinsics
 
     GenTreeHWIntrinsic(var_types type, NamedIntrinsic hwIntrinsicID, var_types baseType, unsigned size)
-        : GenTreeJitIntrinsic(GT_HWIntrinsic, type, nullptr, nullptr, baseType, size)
+        : GenTreeJitIntrinsic(GT_HWINTRINSIC, type, nullptr, nullptr, baseType, size)
         , gtHWIntrinsicId(hwIntrinsicID)
         , gtIndexBaseType(TYP_UNKNOWN)
     {
     }
 
     GenTreeHWIntrinsic(var_types type, GenTree* op1, NamedIntrinsic hwIntrinsicID, var_types baseType, unsigned size)
-        : GenTreeJitIntrinsic(GT_HWIntrinsic, type, op1, nullptr, baseType, size)
+        : GenTreeJitIntrinsic(GT_HWINTRINSIC, type, op1, nullptr, baseType, size)
         , gtHWIntrinsicId(hwIntrinsicID)
         , gtIndexBaseType(TYP_UNKNOWN)
     {
@@ -4522,7 +4510,7 @@ struct GenTreeHWIntrinsic : public GenTreeJitIntrinsic
 
     GenTreeHWIntrinsic(
         var_types type, GenTree* op1, GenTree* op2, NamedIntrinsic hwIntrinsicID, var_types baseType, unsigned size)
-        : GenTreeJitIntrinsic(GT_HWIntrinsic, type, op1, op2, baseType, size)
+        : GenTreeJitIntrinsic(GT_HWINTRINSIC, type, op1, op2, baseType, size)
         , gtHWIntrinsicId(hwIntrinsicID)
         , gtIndexBaseType(TYP_UNKNOWN)
     {
@@ -4931,6 +4919,11 @@ struct GenTreeAddrMode : public GenTreeOp
         return gtOp1;
     }
 
+    void SetBase(GenTree* base)
+    {
+        gtOp1 = base;
+    }
+
     // Second operand is scaled index value
     bool HasIndex() const
     {
@@ -4941,9 +4934,29 @@ struct GenTreeAddrMode : public GenTreeOp
         return gtOp2;
     }
 
+    void SetIndex(GenTree* index)
+    {
+        gtOp2 = index;
+    }
+
+    unsigned GetScale() const
+    {
+        return gtScale;
+    }
+
+    void SetScale(unsigned scale)
+    {
+        gtScale = scale;
+    }
+
     int Offset()
     {
         return static_cast<int>(gtOffset);
+    }
+
+    void SetOffset(int offset)
+    {
+        gtOffset = offset;
     }
 
     unsigned gtScale; // The scale factor
@@ -5060,18 +5073,26 @@ public:
     enum
     {
         BlkOpKindInvalid,
+#ifndef _TARGET_X86_
         BlkOpKindHelper,
+#endif
+#ifdef _TARGET_XARCH_
         BlkOpKindRepInstr,
+#endif
         BlkOpKindUnroll,
     } gtBlkOpKind;
 
+#ifndef JIT32_GCENCODER
     bool gtBlkOpGcUnsafe;
+#endif
 
     GenTreeBlk(genTreeOps oper, var_types type, GenTree* addr, ClassLayout* layout)
         : GenTreeIndir(oper, type, addr, nullptr)
         , m_layout(layout)
         , gtBlkOpKind(BlkOpKindInvalid)
+#ifndef JIT32_GCENCODER
         , gtBlkOpGcUnsafe(false)
+#endif
     {
         assert(OperIsBlk(oper));
         assert((layout != nullptr) || OperIs(GT_DYN_BLK, GT_STORE_DYN_BLK));
@@ -5079,7 +5100,12 @@ public:
     }
 
     GenTreeBlk(genTreeOps oper, var_types type, GenTree* addr, GenTree* data, ClassLayout* layout)
-        : GenTreeIndir(oper, type, addr, data), m_layout(layout), gtBlkOpKind(BlkOpKindInvalid), gtBlkOpGcUnsafe(false)
+        : GenTreeIndir(oper, type, addr, data)
+        , m_layout(layout)
+        , gtBlkOpKind(BlkOpKindInvalid)
+#ifndef JIT32_GCENCODER
+        , gtBlkOpGcUnsafe(false)
+#endif
     {
         assert(OperIsBlk(oper));
         assert((layout != nullptr) || OperIs(GT_DYN_BLK, GT_STORE_DYN_BLK));
@@ -5500,7 +5526,7 @@ public:
     pointers) must be flagged as 'large' in GenTree::InitNodeSize().
  */
 
-/* gtClsVar -- 'static data member' (GT_CLS_VAR) */
+/* AsClsVar() -- 'static data member' (GT_CLS_VAR) */
 
 struct GenTreeClsVar : public GenTree
 {

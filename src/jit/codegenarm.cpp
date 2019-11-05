@@ -382,7 +382,7 @@ void CodeGen::genLclHeap(GenTree* tree)
         assert(size->isContained());
 
         // If amount is zero then return null in regCnt
-        size_t amount = size->gtIntCon.gtIconVal;
+        size_t amount = size->AsIntCon()->gtIconVal;
         if (amount == 0)
         {
             instGen_Set_Reg_To_Zero(EA_PTRSIZE, regCnt);
@@ -421,7 +421,7 @@ void CodeGen::genLclHeap(GenTree* tree)
     if (size->IsCnsIntOrI())
     {
         // 'amount' is the total number of bytes to localloc to properly STACK_ALIGN
-        target_size_t amount = (target_size_t)size->gtIntCon.gtIconVal;
+        target_size_t amount = (target_size_t)size->AsIntCon()->gtIconVal;
         amount               = AlignUp(amount, STACK_ALIGN);
 
         // For small allocations we will generate up to four push instructions (either 2 or 4, exactly,
@@ -1763,5 +1763,89 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper)
 }
 
 #endif // PROFILING_SUPPORTED
+
+//------------------------------------------------------------------------
+// genAllocLclFrame: Probe the stack and allocate the local stack frame - subtract from SP.
+//
+// Notes:
+//      The first instruction of the prolog is always a push (which touches the lowest address
+//      of the stack), either of the LR register or of some argument registers, e.g., in the case of
+//      pre-spilling. The LR register is always pushed because we require it to allow for GC return
+//      address hijacking (see the comment in CodeGen::genPushCalleeSavedRegisters()). These pushes
+//      happen immediately before calling this function, so the SP at the current location has already
+//      been touched.
+//
+// Arguments:
+//      frameSize         - the size of the stack frame being allocated.
+//      initReg           - register to use as a scratch register.
+//      pInitRegZeroed    - OUT parameter. *pInitRegZeroed is set to 'false' if and only if
+//                          this call sets 'initReg' to a non-zero value.
+//      maskArgRegsLiveIn - incoming argument registers that are currently live.
+//
+// Return value:
+//      None
+//
+void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pInitRegZeroed, regMaskTP maskArgRegsLiveIn)
+{
+    assert(compiler->compGeneratingProlog);
+
+    if (frameSize == 0)
+    {
+        return;
+    }
+
+    const target_size_t pageSize = compiler->eeGetPageSize();
+
+    assert(!compiler->info.compPublishStubParam || (REG_SECRET_STUB_PARAM != initReg));
+
+    if (frameSize < pageSize)
+    {
+        GetEmitter()->emitIns_R_I(INS_sub, EA_PTRSIZE, REG_SPBASE, frameSize);
+    }
+    else if (frameSize < compiler->getVeryLargeFrameSize())
+    {
+        for (target_size_t probeOffset = pageSize; probeOffset <= frameSize; probeOffset += pageSize)
+        {
+            // Generate:
+            //    movw initReg, -probeOffset
+            //    ldr initReg, [SP + initReg]
+
+            instGen_Set_Reg_To_Imm(EA_PTRSIZE, initReg, -(ssize_t)probeOffset);
+            GetEmitter()->emitIns_R_R_R(INS_ldr, EA_PTRSIZE, initReg, REG_SPBASE, initReg);
+        }
+
+        regSet.verifyRegUsed(initReg);
+        *pInitRegZeroed = false; // The initReg does not contain zero
+
+        instGen_Set_Reg_To_Imm(EA_PTRSIZE, initReg, frameSize);
+        compiler->unwindPadding();
+        GetEmitter()->emitIns_R_R_R(INS_sub, EA_PTRSIZE, REG_SPBASE, REG_SPBASE, initReg);
+    }
+    else
+    {
+        assert(frameSize >= compiler->getVeryLargeFrameSize());
+
+        genInstrWithConstant(INS_sub, EA_PTRSIZE, REG_STACK_PROBE_HELPER_ARG, REG_SPBASE, frameSize,
+                             INS_FLAGS_DONT_CARE, REG_STACK_PROBE_HELPER_ARG);
+        regSet.verifyRegUsed(REG_STACK_PROBE_HELPER_ARG);
+        genEmitHelperCall(CORINFO_HELP_STACK_PROBE, 0, EA_UNKNOWN, REG_STACK_PROBE_HELPER_CALL_TARGET);
+        compiler->unwindPadding();
+        GetEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, REG_SPBASE, REG_STACK_PROBE_HELPER_ARG);
+
+        if ((genRegMask(initReg) & (RBM_STACK_PROBE_HELPER_ARG | RBM_STACK_PROBE_HELPER_CALL_TARGET |
+                                    RBM_STACK_PROBE_HELPER_TRASH)) != RBM_NONE)
+        {
+            *pInitRegZeroed = false;
+        }
+    }
+
+    compiler->unwindAllocStack(frameSize);
+#ifdef USING_SCOPE_INFO
+    if (!doubleAlignOrFramePointerUsed())
+    {
+        psiAdjustStackLevel(frameSize);
+    }
+#endif // USING_SCOPE_INFO
+}
 
 #endif // _TARGET_ARM_

@@ -59,11 +59,11 @@ bool Lowering::IsContainableImmed(GenTree* parentNode, GenTree* childNode)
         // Make sure we have an actual immediate
         if (!childNode->IsCnsIntOrI())
             return false;
-        if (childNode->gtIntCon.ImmedValNeedsReloc(comp))
+        if (childNode->AsIntCon()->ImmedValNeedsReloc(comp))
             return false;
 
         // TODO-CrossBitness: we wouldn't need the cast below if GenTreeIntCon::gtIconVal had target_ssize_t type.
-        target_ssize_t immVal = (target_ssize_t)childNode->gtIntCon.gtIconVal;
+        target_ssize_t immVal = (target_ssize_t)childNode->AsIntCon()->gtIconVal;
         emitAttr       attr   = emitActualTypeSize(childNode->TypeGet());
         emitAttr       size   = EA_SIZE(attr);
 #ifdef _TARGET_ARM_
@@ -241,8 +241,12 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
             src = src->AsUnOp()->gtGetOp1();
         }
 
-#ifdef _TARGET_ARM64_
-        if ((size != 0) && (size <= INITBLK_UNROLL_LIMIT) && src->IsCnsIntOrI())
+        if (blkNode->OperIs(GT_STORE_OBJ))
+        {
+            blkNode->SetOper(GT_STORE_BLK);
+        }
+
+        if (!blkNode->OperIs(GT_STORE_DYN_BLK) && (size <= INITBLK_UNROLL_LIMIT) && src->OperIs(GT_CNS_INT))
         {
             blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindUnroll;
 
@@ -257,13 +261,19 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
 
             if (fill == 0)
             {
+#ifdef _TARGET_ARM64_
+                // On ARM64 we can just use REG_ZR instead of having to load
+                // the constant into a real register like on ARM32.
                 src->SetContained();
+#endif
             }
+#ifdef _TARGET_ARM64_
             else if (size >= REGSIZE_BYTES)
             {
                 fill *= 0x0101010101010101LL;
                 src->gtType = TYP_LONG;
             }
+#endif
             else
             {
                 fill *= 0x01010101;
@@ -272,10 +282,7 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
             src->AsIntCon()->SetIconValue(fill);
         }
         else
-#endif // _TARGET_ARM64_
         {
-            // TODO-ARM-CQ: Currently we generate a helper call for every initblk we encounter.
-            // Later on we should implement loop unrolling code sequences to improve CQ.
             blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindHelper;
         }
     }
@@ -292,9 +299,20 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
             src->AsIndir()->Addr()->ClearContained();
         }
 
-        if (blkNode->OperIs(GT_STORE_OBJ) && (!blkNode->AsObj()->GetLayout()->HasGCPtr() || blkNode->gtBlkOpGcUnsafe))
+        if (blkNode->OperIs(GT_STORE_OBJ))
         {
-            blkNode->SetOper(GT_STORE_BLK);
+            if (!blkNode->AsObj()->GetLayout()->HasGCPtr())
+            {
+                blkNode->SetOper(GT_STORE_BLK);
+            }
+            else if (dstAddr->OperIsLocalAddr() && (size <= CPBLK_UNROLL_LIMIT))
+            {
+                // If the size is small enough to unroll then we need to mark the block as non-interruptible
+                // to actually allow unrolling. The generated code does not report GC references loaded in the
+                // temporary register(s) used for copying.
+                blkNode->SetOper(GT_STORE_BLK);
+                blkNode->gtBlkOpGcUnsafe = true;
+            }
         }
 
         if (blkNode->OperIs(GT_STORE_OBJ))
@@ -303,18 +321,29 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
 
             blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindUnroll;
         }
+        else if (blkNode->OperIs(GT_STORE_BLK) && (size <= CPBLK_UNROLL_LIMIT))
+        {
+            blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindUnroll;
+
+            if (src->OperIs(GT_IND))
+            {
+                GenTree* srcAddr = src->AsIndir()->Addr();
+                if (srcAddr->OperIsLocalAddr())
+                {
+                    srcAddr->SetContained();
+                }
+            }
+
+            if (dstAddr->OperIsLocalAddr())
+            {
+                dstAddr->SetContained();
+            }
+        }
         else
         {
             assert(blkNode->OperIs(GT_STORE_BLK, GT_STORE_DYN_BLK));
 
-            if ((size != 0) && (size <= CPBLK_UNROLL_LIMIT))
-            {
-                blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindUnroll;
-            }
-            else
-            {
-                blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindHelper;
-            }
+            blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindHelper;
         }
     }
 }
@@ -395,9 +424,9 @@ void Lowering::LowerRotate(GenTree* tree)
 
         if (rotateLeftIndexNode->IsCnsIntOrI())
         {
-            ssize_t rotateLeftIndex                 = rotateLeftIndexNode->gtIntCon.gtIconVal;
-            ssize_t rotateRightIndex                = rotatedValueBitSize - rotateLeftIndex;
-            rotateLeftIndexNode->gtIntCon.gtIconVal = rotateRightIndex;
+            ssize_t rotateLeftIndex                    = rotateLeftIndexNode->AsIntCon()->gtIconVal;
+            ssize_t rotateRightIndex                   = rotatedValueBitSize - rotateLeftIndex;
+            rotateLeftIndexNode->AsIntCon()->gtIconVal = rotateRightIndex;
         }
         else
         {

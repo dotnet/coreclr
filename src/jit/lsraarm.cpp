@@ -54,7 +54,7 @@ int LinearScan::BuildLclHeap(GenTree* tree)
         assert(size->isContained());
         srcCount = 0;
 
-        size_t sizeVal = size->gtIntCon.gtIconVal;
+        size_t sizeVal = size->AsIntCon()->gtIconVal;
         if (sizeVal == 0)
         {
             internalIntCount = 0;
@@ -273,7 +273,7 @@ int LinearScan::BuildNode(GenTree* tree)
             BuildUse(op1);
             srcCount = 1;
 
-            switch (tree->gtIntrinsic.gtIntrinsicId)
+            switch (tree->AsIntrinsic()->gtIntrinsicId)
             {
                 case CORINFO_INTRINSIC_Abs:
                 case CORINFO_INTRINSIC_Sqrt:
@@ -533,7 +533,7 @@ int LinearScan::BuildNode(GenTree* tree)
             // and produces the flattened offset for this dimension.
             assert(dstCount == 1);
 
-            if (tree->gtArrOffs.gtOffset->isContained())
+            if (tree->AsArrOffs()->gtOffset->isContained())
             {
                 srcCount = 2;
             }

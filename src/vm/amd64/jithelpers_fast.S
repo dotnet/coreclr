@@ -453,7 +453,7 @@ LEAF_ENTRY JIT_Stelem_Ref, _TEXT
         cmp     rcx, [r11]
         je      LOCAL_LABEL(DoWrite)
 
-        jmp     C_FUNC(JIT_Stelem_Ref__ObjIsInstanceOfNoGC_Helper)
+        jmp     C_FUNC(JIT_Stelem_Ref__ObjIsInstanceOfCached_Helper)
                            
     LOCAL_LABEL(ThrowNullReferenceException):
         mov     rdi, CORINFO_NullReferenceException_ASM 
@@ -464,7 +464,7 @@ LEAF_ENTRY JIT_Stelem_Ref, _TEXT
         jmp     C_FUNC(JIT_InternalThrow)        
 LEAF_END JIT_Stelem_Ref, _TEXT
 
-LEAF_ENTRY JIT_Stelem_Ref__ObjIsInstanceOfNoGC_Helper, _TEXT
+LEAF_ENTRY JIT_Stelem_Ref__ObjIsInstanceOfCached_Helper, _TEXT
         push_nonvol_reg rbp
         mov     rbp, rsp
         set_cfa_register rbp, 16
@@ -478,8 +478,8 @@ LEAF_ENTRY JIT_Stelem_Ref__ObjIsInstanceOfNoGC_Helper, _TEXT
         mov     rsi, rcx
         mov     rdi, rdx
 
-        // TypeHandle::CastResult ObjIsInstanceOfNoGC(Object *pElement, TypeHandle toTypeHnd)
-        call    C_FUNC(ObjIsInstanceOfNoGC)
+        // TypeHandle::CastResult ObjIsInstanceOfCached(Object *pElement, TypeHandle toTypeHnd)
+        call    C_FUNC(ObjIsInstanceOfCached)
 
         mov     rdi, [rbp - 0x08]
         mov     rsi, [rbp - 0x10]
@@ -503,7 +503,7 @@ LEAF_ENTRY JIT_Stelem_Ref__ObjIsInstanceOfNoGC_Helper, _TEXT
 
     LOCAL_LABEL(NeedCheck):
         jmp     C_FUNC(JIT_Stelem_Ref__ArrayStoreCheck_Helper)
-LEAF_END JIT_Stelem_Ref__ObjIsInstanceOfNoGC_Helper, _TEXT
+LEAF_END JIT_Stelem_Ref__ObjIsInstanceOfCached_Helper, _TEXT
 
 // Need to save reg to provide a stack address for the Object*
 LEAF_ENTRY JIT_Stelem_Ref__ArrayStoreCheck_Helper, _TEXT
@@ -565,15 +565,14 @@ NESTED_ENTRY JIT_StackProbe, _TEXT, NoHandler
 
     END_PROLOGUE
 
-        sub     rsp, PAGE_SIZE         // rsp points to some byte on the first unprobed page
-        or      rsp, (PAGE_SIZE - 1)   // rsp points to the **highest address** on the first unprobed page
+        and     rsp, -PAGE_SIZE        // rsp points to the **lowest address** on the last probed page
                                        // This is done to make the following loop end condition simpler.
 
 LOCAL_LABEL(ProbeLoop):
-        test    dword ptr [rsp], eax
-        sub     rsp, PAGE_SIZE         // rsp points to the highest address of the **next page** to probe
+        sub     rsp, PAGE_SIZE         // rsp points to the lowest address of the **next page** to probe
+        test    dword ptr [rsp], eax   // rsp points to the lowest address on the **last probed** page
         cmp     rsp, r11
-        jge     LOCAL_LABEL(ProbeLoop) // if (rsp >= r11), then we need to probe the page pointed to by rsp.
+        jg      LOCAL_LABEL(ProbeLoop) // if (rsp > r11), then we need to probe at least one more page.
 
         RESET_FRAME_WITH_RBP
         ret

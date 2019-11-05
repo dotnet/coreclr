@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 // --------------------------------------------------------------------------------
 // PEImage.cpp
-// 
+//
 
 // --------------------------------------------------------------------------------
 
@@ -98,7 +98,7 @@ CHECK PEImage::CheckLayoutFormat(PEDecoder *pe)
     CHECK_OK;
 }
 
-CHECK PEImage::CheckILFormat() 
+CHECK PEImage::CheckILFormat()
 {
     WRAPPER_NO_CONTRACT;
 
@@ -261,11 +261,6 @@ ULONG PEImage::Release()
         }
     }
 
-#ifdef FEATURE_LAZY_COW_PAGES
-    if (result == 0 && m_bAllocatedLazyCOWPages)
-        ::FreeLazyCOWPages(GetLoadedLayout());
-#endif
-
     // This needs to be done outside of the hash lock, since this can call FreeLibrary,
     // which can cause _CorDllMain to be executed, which can cause the hash lock to be
     // taken again because we need to release the IJW fixup data in another PEImage hash.
@@ -369,8 +364,8 @@ void PEImage::GetPathFromDll(HINSTANCE hMod, SString &result)
     }
     CONTRACTL_END;
 
-    WszGetModuleFileName(hMod, result);   
-    
+    WszGetModuleFileName(hMod, result);
+
 }
 #endif // !FEATURE_PAL
 
@@ -529,7 +524,7 @@ void PEImage::OpenMDImport()
         if(FastInterlockCompareExchangePointer(&m_pMDImport, m_pNewImport, NULL))
         {
             m_pNewImport->Release();
-        } 
+        }
         else
         {
             // grab the module name. This information is only used for dac. But we need to get
@@ -571,9 +566,9 @@ void PEImage::GetMVID(GUID *pMvid)
         INJECT_FAULT(COMPlusThrowOM(););
     }
     CONTRACTL_END;
-    
+
     IfFailThrow(GetMDImport()->GetScopeProps(NULL, pMvid));
-    
+
 #ifdef _DEBUG
     COUNT_T cMeta;
     const void *pMeta = GetMetadata(&cMeta);
@@ -581,7 +576,7 @@ void PEImage::GetMVID(GUID *pMvid)
 
     if (pMeta == NULL)
         ThrowHR(COR_E_BADIMAGEFORMAT);
-    
+
     SafeComHolder<IMDInternalImport> pMDImport;
 
     IfFailThrow(GetMetaDataInternalInterface((void *) pMeta,
@@ -656,7 +651,7 @@ void PEImage::VerifyIsILOrNIAssembly(BOOL fIL)
 #endif
     if (!checkGoodFormat)
         ThrowFormat(COR_E_BADIMAGEFORMAT);
-    
+
     mdAssembly a;
     if (FAILED(GetMDImport()->GetAssemblyFromScope(&a)))
         ThrowFormat(COR_E_ASSEMBLYEXPECTED);
@@ -859,7 +854,7 @@ void PEImage::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 
                 // Triage dumps must not dump full paths as they may contain PII data.
                 // Thus, we replace debug directory's pdbs full path for with filaname only.
-                if (flags == CLRDATA_ENUM_MEM_TRIAGE &&                  
+                if (flags == CLRDATA_ENUM_MEM_TRIAGE &&
                     pDebugEntry[iIndex].Type == IMAGE_DEBUG_TYPE_CODEVIEW)
                 {
                     DWORD CvSignature = *(dac_cast<PTR_DWORD>(taEntryAddr));
@@ -867,7 +862,7 @@ void PEImage::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
                     {
                         CV_INFO_PDB70* pCvInfo = (CV_INFO_PDB70*)DacInstantiateTypeByAddressNoReport(taEntryAddr, sizeof(CV_INFO_PDB70), false);
 
-                        if (pCvInfo == NULL || pCvInfo->path == NULL)
+                        if (pCvInfo == NULL)
                         {
                             continue;
                         }
@@ -890,7 +885,7 @@ void PEImage::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
                         {
                             pCvInfo->path[i] = '\0';
                         }
-                        
+
                         DacUpdateMemoryRegion( taEntryAddr + offsetof(CV_INFO_PDB70, path), sizeof(pCvInfo->path), (PBYTE)pCvInfo->path );
                     }
                 }
@@ -932,9 +927,6 @@ PEImage::PEImage():
     m_dwPEKind(0),
     m_dwMachine(0),
     m_fCachedKindAndMachine(FALSE)
-#ifdef FEATURE_LAZY_COW_PAGES
-    ,m_bAllocatedLazyCOWPages(FALSE)
-#endif // FEATURE_LAZY_COW_PAGES
 {
     CONTRACTL
     {
@@ -965,7 +957,7 @@ PTR_PEImageLayout PEImage::GetLayout(DWORD imageLayoutMask,DWORD flags)
         SimpleReadLockHolder lock(m_pLayoutLock);
         pRetVal=GetLayoutInternal(imageLayoutMask,flags&(~LAYOUT_CREATEIFNEEDED));
     }
-    
+
     if (!(pRetVal || (flags&LAYOUT_CREATEIFNEEDED)==0))
     {
         SimpleWriteLockHolder lock(m_pLayoutLock);
@@ -998,9 +990,9 @@ PTR_PEImageLayout PEImage::GetLayoutInternal(DWORD imageLayoutMask,DWORD flags)
         MODE_ANY;
     }
     CONTRACTL_END;
-    
-    PTR_PEImageLayout pRetVal=GetExistingLayoutInternal(imageLayoutMask); 
- 
+
+    PTR_PEImageLayout pRetVal=GetExistingLayoutInternal(imageLayoutMask);
+
     if (pRetVal==NULL && (flags&LAYOUT_CREATEIFNEEDED))
     {
         _ASSERTE(HasID());
@@ -1060,7 +1052,7 @@ PTR_PEImageLayout PEImage::CreateLayoutMapped()
 
     if (m_bIsTrustedNativeImage || IsFile())
     {
-        // For CoreCLR, try to load all files via LoadLibrary first. If LoadLibrary did not work, retry using 
+        // For CoreCLR, try to load all files via LoadLibrary first. If LoadLibrary did not work, retry using
         // regular mapping - but not for native images.
         pLoadLayout = PEImageLayout::Load(this, FALSE /* bNTSafeLoad */, m_bIsTrustedNativeImage /* bThrowOnError */);
     }
@@ -1408,7 +1400,7 @@ HRESULT PEImage::TryOpenFile()
     STANDARD_VM_CONTRACT;
 
     SimpleWriteLockHolder lock(m_pLayoutLock);
-    
+
     if (m_hFile!=INVALID_HANDLE_VALUE)
         return S_OK;
     {
@@ -1478,17 +1470,6 @@ PEImage * PEImage::OpenImage(
         IfFailThrow(pIResourcePath->GetPath(cchPath, &cchPath, wzPath));
         pPEImage = PEImage::OpenImage(wzPath, flags);
     }
-#ifndef FEATURE_PAL
-    else if (iidResource ==__uuidof(ICLRPrivResourceHMODULE))
-    {
-        ReleaseHolder<ICLRPrivResourceHMODULE> pIResourceHMODULE;
-        _ASSERTE(flags == MDInternalImport_Default);
-        IfFailThrow(pIResource->QueryInterface(__uuidof(ICLRPrivResourceHMODULE), (LPVOID*)&pIResourceHMODULE));
-        HMODULE hMod;
-        IfFailThrow(pIResourceHMODULE->GetHMODULE(&hMod));
-        pPEImage = PEImage::LoadImage(hMod);
-    }
-#endif // !FEATURE_PAL    
     else
     {
         ThrowHR(COR_E_BADIMAGEFORMAT);

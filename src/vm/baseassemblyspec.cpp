@@ -14,6 +14,8 @@
 #include "common.h"
 #include "thekey.h"
 
+#include "../binder/inc/fusionassemblyname.hpp"
+
 VOID BaseAssemblySpec::CloneFieldsToStackingAllocator( StackingAllocator* alloc)
 {
     CONTRACTL
@@ -155,7 +157,7 @@ BOOL BaseAssemblySpec::IsAssemblySpecForMscorlib()
 // mscorlib.debug.resources.dll and uses the same public key as mscorlib.
 // It does not necessarily have the same version, and the Culture will 
 // always be set to something like "jp-JP".
-BOOL BaseAssemblySpec::IsMscorlibSatellite()
+BOOL BaseAssemblySpec::IsMscorlibSatellite() const
 {
     CONTRACTL
     {
@@ -618,7 +620,7 @@ HRESULT BaseAssemblySpec::CreateFusionName(
         SmallStackSString ssAssemblyName;
         fMustBeBindable ? GetEncodedName(ssAssemblyName) : GetName(ssAssemblyName);
 
-        IfFailGo(CreateAssemblyNameObject(&pFusionAssemblyName, ssAssemblyName.GetUnicode(), 0, NULL));
+        IfFailGo(CreateAssemblyNameObject(&pFusionAssemblyName, ssAssemblyName.GetUnicode(), false /*parseDisplayName*/));
 
         holder = pFusionAssemblyName;
 

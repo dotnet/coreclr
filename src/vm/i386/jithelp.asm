@@ -1294,7 +1294,7 @@ ret
 _JIT_PatchedCodeEnd@0 endp
 
 ; This is the ASM portion of JIT_IsInstanceOfInterface.  For all the bizarre cases, it quickly
-; fails and falls back on the JITutil_IsInstanceOfAny helper.  So all failure cases take
+; fails and falls back on the JITutil_IsInstanceOfInterface helper.  So all failure cases take
 ; the slow path, too.
 ;
 ; ARGUMENT_REG1 = array or interface to check for.
@@ -1480,14 +1480,13 @@ _JIT_StackProbe@0 PROC public
     push    ebp
     mov     ebp, esp
 
-    sub     esp, PAGE_SIZE       ; esp points to some byte on the first unprobed page
-    or      esp, (PAGE_SIZE - 1) ; esp points to the **highest address** on the first unprobed page
+    and     esp, -PAGE_SIZE      ; esp points to the **lowest address** on the last probed page
                                  ; This is done to make the loop end condition simpler.
 ProbeLoop:
-    test    [esp], eax
-    sub     esp, PAGE_SIZE       ; esp points to the highest address of the **next page** to probe
+    sub     esp, PAGE_SIZE       ; esp points to the lowest address of the **next page** to probe
+    test    [esp], eax           ; esp points to the lowest address on the **last probed** page
     cmp     esp, eax
-    jge     ProbeLoop            ; if esp >= eax, then we need to probe the page pointed to by esp.
+    jg      ProbeLoop            ; if esp > eax, then we need to probe at least one more page.
 
     mov     esp, ebp
     pop     ebp

@@ -5,6 +5,7 @@
 using System;
 using System.Diagnostics;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Reflection;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
@@ -373,33 +374,29 @@ namespace ILCompiler
 
             public FieldAndOffset[] GetOrAddDynamicLayout(DefType defType, ModuleFieldLayout moduleFieldLayout)
             {
-                FieldAndOffset[] fieldsForType;
-                if (!moduleFieldLayout.TryGetDynamicLayout(defType, out fieldsForType))
+                int nonGcOffset;
+                switch (moduleFieldLayout.Module.Context.Target.Architecture)
                 {
-                    int nonGcOffset;
-                    switch (moduleFieldLayout.Module.Context.Target.Architecture)
-                    {
-                        case TargetArchitecture.X86:
-                            nonGcOffset = DomainLocalModuleNormalDynamicEntryOffsetOfDataBlobX86;
-                            break;
+                    case TargetArchitecture.X86:
+                        nonGcOffset = DomainLocalModuleNormalDynamicEntryOffsetOfDataBlobX86;
+                        break;
 
-                        case TargetArchitecture.X64:
-                            nonGcOffset = DomainLocalModuleNormalDynamicEntryOffsetOfDataBlobAmd64;
-                            break;
+                    case TargetArchitecture.X64:
+                        nonGcOffset = DomainLocalModuleNormalDynamicEntryOffsetOfDataBlobAmd64;
+                        break;
 
-                        default:
-                            throw new NotImplementedException();
-                    }
-                    OffsetsForType offsetsForType = new OffsetsForType(
-                        nonGcOffset: new LayoutInt(nonGcOffset),
-                        tlsNonGcOffset: new LayoutInt(nonGcOffset),
-                        gcOffset: LayoutInt.Zero,
-                        tlsGcOffset: LayoutInt.Zero);
-
-                    fieldsForType = CalculateTypeLayout(defType, moduleFieldLayout.Module, offsetsForType);
-                    moduleFieldLayout.AddDynamicLayout(defType, fieldsForType);
+                    default:
+                        throw new NotImplementedException();
                 }
-                return fieldsForType;
+                OffsetsForType offsetsForType = new OffsetsForType(
+                    nonGcOffset: new LayoutInt(nonGcOffset),
+                    tlsNonGcOffset: new LayoutInt(nonGcOffset),
+                    gcOffset: LayoutInt.Zero,
+                    tlsGcOffset: LayoutInt.Zero);
+
+                FieldAndOffset[] fieldsForType;
+                fieldsForType = CalculateTypeLayout(defType, moduleFieldLayout.Module, offsetsForType);
+                return moduleFieldLayout.GetOrAddDynamicLayout(defType, fieldsForType);
             }
 
             public FieldAndOffset[] CalculateTypeLayout(DefType defType, EcmaModule module, in OffsetsForType offsetsForType)
@@ -728,7 +725,7 @@ namespace ILCompiler
 
             public IReadOnlyDictionary<TypeDefinitionHandle, OffsetsForType> TypeOffsets { get; }
 
-            private Dictionary<DefType, FieldAndOffset[]> _genericTypeToFieldMap;
+            private ConcurrentDictionary<DefType, FieldAndOffset[]> _genericTypeToFieldMap;
 
             public ModuleFieldLayout(
                 EcmaModule module, 
@@ -745,17 +742,12 @@ namespace ILCompiler
                 ThreadNonGcStatics = threadNonGcStatics;
                 TypeOffsets = typeOffsets;
 
-                _genericTypeToFieldMap = new Dictionary<DefType, FieldAndOffset[]>();
+                _genericTypeToFieldMap = new ConcurrentDictionary<DefType, FieldAndOffset[]>();
             }
 
-            public bool TryGetDynamicLayout(DefType instantiatedType, out FieldAndOffset[] fieldMap)
+            public FieldAndOffset[] GetOrAddDynamicLayout(DefType instantiatedType, FieldAndOffset[] fieldMap)
             {
-                return _genericTypeToFieldMap.TryGetValue(instantiatedType, out fieldMap);
-            }
-
-            public void AddDynamicLayout(DefType instantiatedType, FieldAndOffset[] fieldMap)
-            {
-                _genericTypeToFieldMap.Add(instantiatedType, fieldMap);
+                return _genericTypeToFieldMap.GetOrAdd(instantiatedType, fieldMap);
             }
         }
 
@@ -792,15 +784,26 @@ namespace ILCompiler
                 return;
             }
 
-            if (!_compilationGroup.ContainsTypeLayout(baseType))
+            if (_compilationGroup.ContainsType(baseType))
             {
-                LayoutInt alignment = new LayoutInt(type.Context.Target.PointerSize);
-                if (type.RequiresAlign8())
+                if (_compilationGroup.ContainsTypeLayout(baseType))
                 {
-                    alignment = new LayoutInt(8);
+                    // The type is defined in the module that's currently being compiled and the type layout doesn't depend on other modules
+                    return;
                 }
-                baseOffset = LayoutInt.AlignUp(baseOffset, alignment, type.Context.Target);
             }
+            else if (_compilationGroup.VersionsWithType(baseType))
+            {
+                // The baseType is in the current version bubble, but in a module different from the one that's currently being compiled
+                return;
+            }
+
+            LayoutInt alignment = new LayoutInt(type.Context.Target.PointerSize);
+            if (type.RequiresAlign8())
+            {
+                alignment = new LayoutInt(8);
+            }
+            baseOffset = LayoutInt.AlignUp(baseOffset, alignment, type.Context.Target);
         }
 
         public static bool IsManagedSequentialType(TypeDesc type)

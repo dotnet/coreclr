@@ -41,6 +41,7 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     baseassemblyspec.cpp
     binder.cpp
     bundle.cpp
+    castcache.cpp
     callcounter.cpp
     ceeload.cpp
     class.cpp
@@ -142,6 +143,7 @@ set(VM_HEADERS_DAC_AND_WKS_COMMON
     baseassemblyspec.h
     baseassemblyspec.inl
     binder.h
+    castcache.h
     ceeload.h
     ceeload.inl
     class.h
@@ -687,7 +689,6 @@ elseif(CLR_CMAKE_TARGET_ARCH_ARM)
         ${ARCH_SOURCES_DIR}/asmhelpers.asm
         ${ARCH_SOURCES_DIR}/CrtHelpers.asm
         ${ARCH_SOURCES_DIR}/ehhelpers.asm
-        ${ARCH_SOURCES_DIR}/memcpy.asm
         ${ARCH_SOURCES_DIR}/patchedcode.asm
         ${ARCH_SOURCES_DIR}/PInvokeStubs.asm
     )
@@ -741,7 +742,6 @@ else(WIN32)
             ${ARCH_SOURCES_DIR}/asmhelpers.S
             ${ARCH_SOURCES_DIR}/crthelpers.S
             ${ARCH_SOURCES_DIR}/ehhelpers.S
-            ${ARCH_SOURCES_DIR}/memcpy.S
             ${ARCH_SOURCES_DIR}/patchedcode.S
             ${ARCH_SOURCES_DIR}/pinvokestubs.S
         )

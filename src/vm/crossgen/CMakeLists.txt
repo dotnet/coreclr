@@ -6,6 +6,7 @@ set(VM_CROSSGEN_SOURCES
   ../baseassemblyspec.cpp
   ../binder.cpp
   ../bundle.cpp
+  ../castcache.cpp
   ../ceeload.cpp
   ../ceemain.cpp
   ../class.cpp

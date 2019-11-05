@@ -213,24 +213,11 @@ typedef unsigned char   regNumberSmall;
 
   // TODO-CQ: Fine tune the following xxBlk threshold values:
 
-  #define CPBLK_MOVS_LIMIT         16      // When generating code for CpBlk, this is the buffer size 
-                                           // threshold to stop generating rep movs and switch to the helper call.
-                                           // NOTE: Using rep movs is currently disabled since we found it has bad performance
-                                           //       on pre-Ivy Bridge hardware.
-                                           
   #define CPBLK_UNROLL_LIMIT       64      // Upper bound to let the code generator to loop unroll CpBlk.
-  #define INITBLK_STOS_LIMIT       64      // When generating code for InitBlk, this is the buffer size 
-                                           // NOTE: Using rep stos is currently disabled since we found it has bad performance
-                                           //       on pre-Ivy Bridge hardware.
-                                           // threshold to stop generating rep movs and switch to the helper call.
   #define INITBLK_UNROLL_LIMIT     128     // Upper bound to let the code generator to loop unroll InitBlk.
   #define CPOBJ_NONGC_SLOTS_LIMIT  4       // For CpObj code generation, this is the the threshold of the number 
                                            // of contiguous non-gc slots that trigger generating rep movsq instead of 
                                            // sequences of movsq instructions
-                                           // The way we're currently disabling rep movs/stos is by setting a limit less than
-                                           // its unrolling counterparts.  When lower takes the decision on which one to make it
-                                           // always asks for the unrolling limit first so you can say the JIT 'favors' unrolling.
-                                           // Setting the limit to something lower than that makes lower to never consider it.
 
 #ifdef FEATURE_SIMD
   #define ALIGN_SIMD_TYPES         1       // whether SIMD type locals are to be aligned
@@ -505,26 +492,11 @@ typedef unsigned char   regNumberSmall;
   #define ROUND_FLOAT              0       // Do not round intermed float expression results
   #define CPU_HAS_BYTE_REGS        0
 
-  #define CPBLK_MOVS_LIMIT         16      // When generating code for CpBlk, this is the buffer size 
-                                           // threshold to stop generating rep movs and switch to the helper call.
-                                           // NOTE: Using rep movs is currently disabled since we found it has bad performance
-                                           //       on pre-Ivy Bridge hardware.
-                                           
   #define CPBLK_UNROLL_LIMIT       64      // Upper bound to let the code generator to loop unroll CpBlk.
-  #define INITBLK_STOS_LIMIT       64      // When generating code for InitBlk, this is the buffer size 
-                                           // NOTE: Using rep stos is currently disabled since we found it has bad performance
-                                           //       on pre-Ivy Bridge hardware.
-                                           // threshold to stop generating rep movs and switch to the helper call.
   #define INITBLK_UNROLL_LIMIT     128     // Upper bound to let the code generator to loop unroll InitBlk.
   #define CPOBJ_NONGC_SLOTS_LIMIT  4       // For CpObj code generation, this is the the threshold of the number 
                                            // of contiguous non-gc slots that trigger generating rep movsq instead of 
                                            // sequences of movsq instructions
-
-                                           // The way we're currently disabling rep movs/stos is by setting a limit less than
-                                           // its unrolling counterparts.  When lower takes the decision on which one to make it
-                                           // always asks for the unrolling limit first so you can say the JIT 'favors' unrolling.
-                                           // Setting the limit to something lower than that makes lower to never consider it.
-
 
 #ifdef FEATURE_SIMD
   #define ALIGN_SIMD_TYPES         1       // whether SIMD type locals are to be aligned
@@ -921,7 +893,7 @@ typedef unsigned char   regNumberSmall;
   #define CPU_HAS_BYTE_REGS        0
 
   #define CPBLK_UNROLL_LIMIT       32      // Upper bound to let the code generator to loop unroll CpBlk.
-  #define INITBLK_UNROLL_LIMIT     32      // Upper bound to let the code generator to loop unroll InitBlk.
+  #define INITBLK_UNROLL_LIMIT     16      // Upper bound to let the code generator to loop unroll InitBlk.
 
   #define FEATURE_FIXED_OUT_ARGS   1       // Preallocate the outgoing arg area in the prolog
   #define FEATURE_STRUCTPROMOTE    1       // JIT Optimization to promote fields of structs into registers
@@ -1214,6 +1186,12 @@ typedef unsigned char   regNumberSmall;
 
   // The first thing in an ARM32 prolog pushes LR to the stack, so this can be 0.
   #define STACK_PROBE_BOUNDARY_THRESHOLD_BYTES 0
+
+  #define REG_STACK_PROBE_HELPER_ARG         REG_R4
+  #define RBM_STACK_PROBE_HELPER_ARG         RBM_R4
+  #define REG_STACK_PROBE_HELPER_CALL_TARGET REG_R5
+  #define RBM_STACK_PROBE_HELPER_CALL_TARGET RBM_R5
+  #define RBM_STACK_PROBE_HELPER_TRASH       (RBM_R5 | RBM_LR)
 
 #elif defined(_TARGET_ARM64_)
 

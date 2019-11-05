@@ -43,7 +43,6 @@ namespace BINDER_SPACE
                      /* in */ BOOL                     fIsDefinition = TRUE);
         HRESULT Init(/* in */ SString &assemblyDisplayName);
         HRESULT Init(/* in */ IAssemblyName *pIAssemblyName);
-        HRESULT CreateFusionName(/* out */ IAssemblyName **ppIAssemblyName);
 
         ULONG AddRef();
         ULONG Release();
@@ -68,26 +67,16 @@ namespace BINDER_SPACE
         inline void SetHave(DWORD dwIdentityFlags);
 
         inline BOOL HaveAssemblyVersion();
-        inline BOOL HaveNeutralCulture();
-
-        SString &GetDeNormalizedCulture();
-        BOOL IsStronglyNamed();
 
         BOOL IsMscorlib();
-
-        // Translate textual identity into appropriate PEKIND
-        HRESULT SetArchitecture(SString &architecture);
 
         ULONG Hash(/* in */ DWORD dwIncludeFlags);
         BOOL Equals(/* in */ AssemblyName *pAssemblyName,
                     /* in */ DWORD         dwIncludeFlags);
 
-        HRESULT Clone(/* out */ AssemblyName **ppAssemblyName);
-
         void GetDisplayName(/* out */ PathString &displayName,
                             /* in */  DWORD       dwIncludeFlags);
 
-        static SString &ArchitectureToString(PEKIND kArchitecture);        
     protected:
         enum
         {

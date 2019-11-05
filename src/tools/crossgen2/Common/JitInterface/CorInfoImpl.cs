@@ -700,6 +700,12 @@ namespace Internal.JitInterface
             // Check for hardware intrinsics
             if (HardwareIntrinsicHelpers.IsHardwareIntrinsic(method))
             {
+#if READYTORUN
+                if (!isMethodDefinedInCoreLib())
+                {
+                    throw new RequiresRuntimeJitException("This function is not defined in CoreLib and it is using hardware intrinsics.");
+                }
+#endif
 #if !READYTORUN
                 // Do not report the get_IsSupported method as an intrinsic - RyuJIT would expand it to
                 // a constant depending on the code generation flags passed to it, but we would like to
@@ -888,29 +894,10 @@ namespace Internal.JitInterface
             return comparer != null ? ObjectToHandle(comparer) : null;
         }
 
-        private SimdHelper _simdHelper;
-        private bool isInSIMDModule(CORINFO_CLASS_STRUCT_* classHnd)
+        private bool isIntrinsicType(CORINFO_CLASS_STRUCT_* classHnd)
         {
             TypeDesc type = HandleToObject(classHnd);
-            
-            if (_simdHelper.IsSimdType(type))
-            {
-#if DEBUG
-                // If this is Vector<T>, make sure the codegen and the type system agree on what instructions/registers
-                // we're generating code for.
-
-                CORJIT_FLAGS flags = default(CORJIT_FLAGS);
-                getJitFlags(ref flags, (uint)sizeof(CORJIT_FLAGS));
-
-                Debug.Assert(!_simdHelper.IsVectorOfT(type)
-                    || ((DefType)type).InstanceFieldSize.IsIndeterminate /* This would happen in the ReadyToRun case */
-                    || ((DefType)type).InstanceFieldSize.AsInt == GetMaxIntrinsicSIMDVectorLength(_jit, &flags));
-#endif
-
-                return true;
-            }
-
-            return false;
+            return type.IsIntrinsic;
         }
 
         private CorInfoUnmanagedCallConv getUnmanagedCallConv(CORINFO_METHOD_STRUCT_* method)
@@ -3024,6 +3011,17 @@ namespace Internal.JitInterface
             }
         }
 
+        private bool isMethodDefinedInCoreLib()
+        {
+            TypeDesc owningType = MethodBeingCompiled.OwningType;
+            MetadataType owningMetadataType = owningType as MetadataType;
+            if (owningMetadataType == null)
+            {
+                return false;
+            }
+            return owningMetadataType.Module == _compilation.TypeSystemContext.SystemModule;
+        }
+
         private uint getJitFlags(ref CORJIT_FLAGS flags, uint sizeInBytes)
         {
             // Read the user-defined configuration options.
@@ -3037,8 +3035,12 @@ namespace Internal.JitInterface
             flags.Set(CorJitFlag.CORJIT_FLAG_PREJIT);
             flags.Set(CorJitFlag.CORJIT_FLAG_USE_PINVOKE_HELPERS);
 
-            if (_compilation.TypeSystemContext.Target.Architecture == TargetArchitecture.X86
+            if ((_compilation.TypeSystemContext.Target.Architecture == TargetArchitecture.X86
                 || _compilation.TypeSystemContext.Target.Architecture == TargetArchitecture.X64)
+#if READYTORUN
+                && isMethodDefinedInCoreLib()
+#endif
+               )
             {
                 // This list needs to match the list of intrinsics we can generate detection code for
                 // in HardwareIntrinsicHelpers.EmitIsSupportedIL.
