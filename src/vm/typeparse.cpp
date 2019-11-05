@@ -93,7 +93,15 @@ SAFEHANDLE TypeName::GetSafeHandle()
     GCPROTECT_BEGIN(objSafeHandle);
 
     objSafeHandle = (SAFEHANDLE)AllocateObject(MscorlibBinder::GetClass(CLASS__SAFE_TYPENAMEPARSER_HANDLE));
-    CallDefaultConstructor(objSafeHandle);
+
+    MethodDescCallSite strCtor(METHOD__SAFE_TYPENAMEPARSER_HANDLE__CTOR);
+
+    ARG_SLOT args[1] =
+    {
+        ObjToArgSlot(objSafeHandle)
+    };
+
+    strCtor.Call(args);
 
     this->AddRef();
     objSafeHandle->SetHandle(this);
@@ -1267,7 +1275,7 @@ TypeHandle TypeName::GetTypeFromAsm()
         if (cGenericArgs > 0)
         {
             TypeHandle arrayHandle = ClassLoader::LoadArrayTypeThrowing(TypeHandle(g_pRuntimeTypeClass), ELEMENT_TYPE_SZARRAY);
-            gc.refGenericArguments = (PTRARRAYREF)AllocateArrayEx(arrayHandle, &cGenericArgs, 1);
+            gc.refGenericArguments = (PTRARRAYREF)AllocateSzArray(arrayHandle, cGenericArgs);
         }
         // Instantiate generic arguments
         for (INT32 i = 0; i < cGenericArgs; i++)
@@ -1391,10 +1399,14 @@ TypeName::GetTypeHaveAssemblyHelper(
         for (COUNT_T i = 0; i < names.GetCount(); i ++)
         {
             // each extra name represents one more level of nesting
-            LPCWSTR wname = names[i]->GetUnicode();
+            StackSString name(*(names[i]));
 
-            MAKE_UTF8PTR_FROMWIDE(name, wname);
-            typeName.SetName(name);
+            // The type name is expected to be lower-cased by the caller for case-insensitive lookups
+            if (bIgnoreCase)
+                name.LowerCase();
+
+            StackScratchBuffer buffer;
+            typeName.SetName(name.GetUTF8(buffer));
 
             // typeName.m_pBucket gets set here if the type is found
             // it will be used in the next iteration to look up the nested type
@@ -1498,7 +1510,7 @@ DomainAssembly * LoadDomainAssembly(
     DomainAssembly *pDomainAssembly = NULL;
 
     StackScratchBuffer buffer;
-    LPCUTF8 szAssemblySpec = psszAssemblySpec->GetUTF8(buffer);
+    LPCUTF8 szAssemblySpec = psszAssemblySpec ? psszAssemblySpec->GetUTF8(buffer) : NULL;
     IfFailThrow(spec.Init(szAssemblySpec));
 
     if (spec.IsContentType_WindowsRuntime())

@@ -8,7 +8,7 @@
 // and various helper types.
 //
 
-// 
+//
 
 //
 // ============================================================================
@@ -16,18 +16,10 @@
 #ifndef DWBUCKETMANAGER_HPP
 #define DWBUCKETMANAGER_HPP
 
-#ifdef FEATURE_WINDOWSPHONE
-#include "corhost.h"
-#endif
-
 // this will be used as an index into g_WerEventTraits
 enum WatsonBucketType
 {
     CLR20r3 = 0,
-    MoCrash,
-#ifdef FEATURE_WINDOWSPHONE
-    WinPhoneCrash,
-#endif
     // insert new types above this line
     EndOfWerBucketTypes
 };
@@ -39,7 +31,7 @@ struct WerEventTypeTraits
     const LPCWSTR EventName;
     const DWORD CountParams;
     INDEBUG(const WatsonBucketType BucketType);
-    
+
     WerEventTypeTraits(LPCWSTR name, DWORD params DEBUG_ARG(WatsonBucketType type))
         : EventName(name), CountParams(params) DEBUG_ARG(BucketType(type))
     {
@@ -50,11 +42,6 @@ struct WerEventTypeTraits
 const WerEventTypeTraits g_WerEventTraits[] =
 {
     WerEventTypeTraits(W("CLR20r3"), 9 DEBUG_ARG(CLR20r3)),
-    WerEventTypeTraits(W("MoAppCrash"), 9 DEBUG_ARG(MoCrash))
-#ifdef FEATURE_WINDOWSPHONE
-    // unfortunately Apollo uses the same event name
-    ,WerEventTypeTraits(W("CLR20r3"), 9 DEBUG_ARG(WinPhoneCrash))
-#endif
 };
 
 DWORD GetCountBucketParamsForEvent(LPCWSTR wzEventName)
@@ -73,7 +60,7 @@ DWORD GetCountBucketParamsForEvent(LPCWSTR wzEventName)
         _ASSERTE(!"missing event name when retrieving bucket params count");
         return 10;
     }
-    
+
     DWORD countParams = kInvalidParamsCount;
     for (int index = 0; index < EndOfWerBucketTypes; ++index)
     {
@@ -90,7 +77,7 @@ DWORD GetCountBucketParamsForEvent(LPCWSTR wzEventName)
         _ASSERTE(!"unknown event name when retrieving bucket params count");
         countParams = 10;
     }
-    
+
     return countParams;
 }
 
@@ -315,16 +302,15 @@ private:
     INDEBUG(size_t m_countParamsLogged);
     MethodDesc* m_pFaultingMD;
     PCODE m_faultingPc;
-    
+
     // misc helper functions
     DWORD GetILOffset();
     bool GetFileVersionInfoForModule(Module* pModule, USHORT& major, USHORT& minor, USHORT& build, USHORT& revision);
     bool IsCodeContractsFrame(MethodDesc* pMD);
-    void FindFaultingMethodInfo();
     OBJECTREF GetRealExceptionObject();
     WCHAR* GetParamBufferForIndex(BucketParameterIndex paramIndex);
     void LogParam(__in_z LPCWSTR paramValue, BucketParameterIndex paramIndex);
-    
+
 protected:
     ~BaseBucketParamsManager();
 
@@ -366,23 +352,20 @@ BaseBucketParamsManager::BaseBucketParamsManager(GenericModeBlock* pGenericModeB
 
     _ASSERTE(m_pGmb);
     INDEBUG(m_countParamsLogged = 0);
-    
+
     ZeroMemory(pGenericModeBlock, sizeof(GenericModeBlock));
 
     EECodeInfo codeInfo(initialFaultingPc);
     if (codeInfo.IsValid())
     {
         m_pFaultingMD = codeInfo.GetMethodDesc();
-
-        if (m_pFaultingMD)
-            FindFaultingMethodInfo();
     }
 }
 
 BaseBucketParamsManager::~BaseBucketParamsManager()
 {
     LIMITED_METHOD_CONTRACT;
-    
+
     _ASSERTE(m_countParamsLogged == GetCountBucketParamsForEvent(m_pGmb->wzEventTypeName));
 }
 
@@ -475,7 +458,7 @@ void BaseBucketParamsManager::GetAppName(__out_ecount(maxLength) WCHAR* targetPa
 
     HMODULE hModule = WszGetModuleHandle(NULL);
     PathString appPath;
-    
+
 
     if (GetCurrentModuleFileName(appPath) == S_OK)
     {
@@ -499,7 +482,7 @@ void BaseBucketParamsManager::GetAppVersion(__out_ecount(maxLength) WCHAR* targe
 
     HMODULE hModule = WszGetModuleHandle(NULL);
     PathString appPath;
-    
+
 
     WCHAR verBuf[23] = {0};
     USHORT major, minor, build, revision;
@@ -693,7 +676,7 @@ void BaseBucketParamsManager::GetModuleVersion(__out_ecount(maxLength) WCHAR* ta
                        major, minor, build, revision);
         }
     }
-    
+
     if (!pModule || failed)
     {
         wcsncpy_s(targetParam, maxLength, W("missing"), _TRUNCATE);
@@ -721,7 +704,7 @@ void BaseBucketParamsManager::GetModuleTimeStamp(__out_ecount(maxLength) WCHAR* 
     {
         EX_TRY
         {
-            // We only store the IL timestamp in the native image for the 
+            // We only store the IL timestamp in the native image for the
             // manifest module.  We should consider fixing this for Orcas.
             PTR_PEFile pFile = pModule->GetAssembly()->GetManifestModule()->GetFile();
 
@@ -746,7 +729,7 @@ void BaseBucketParamsManager::GetModuleTimeStamp(__out_ecount(maxLength) WCHAR* 
         }
         EX_END_CATCH(SwallowAllExceptions)
     }
-    
+
     if (!pModule || failed)
     {
         wcsncpy_s(targetParam, maxLength, W("missing"), _TRUNCATE);
@@ -982,6 +965,7 @@ bool BaseBucketParamsManager::GetFileVersionInfoForModule(Module* pModule, USHOR
     PEFile* pFile = pModule->GetFile();
     if (pFile)
     {
+#ifdef FEATURE_PREJIT
         // if we have a native imaged loaded for this module then get the version information from that.
         if (pFile->IsNativeLoaded())
         {
@@ -996,6 +980,7 @@ bool BaseBucketParamsManager::GetFileVersionInfoForModule(Module* pModule, USHOR
                 }
             }
         }
+#endif
 
         // if we failed to get the version info from the native image then fall back to the IL image.
         if (!succeeded)
@@ -1043,71 +1028,6 @@ bool BaseBucketParamsManager::IsCodeContractsFrame(MethodDesc* pMD)
         return true;
 
     return false;
-}
-
-// code contract failures will have several frames on the stack which are part of the code contracts infrastructure.
-// as such we don't want to blame any of these frames since they're just propagating the fault from the user's code.
-// the purpose of this function is to identify if the current faulting frame is part of the code contract infrastructure
-// and if it is to traverse the stack trace in the exception object until the first frame which isn't code contracts stuff.
-void BaseBucketParamsManager::FindFaultingMethodInfo()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        PRECONDITION(m_pFaultingMD != NULL);
-    }
-    CONTRACTL_END;
-
-    // check if this frame is part of the code contracts infrastructure
-    if (IsCodeContractsFrame(m_pFaultingMD))
-    {
-        // it is so we need to do more searching to find the correct faulting MethodDesc.
-        // iterate over each frame in the stack trace object until we find the first
-        // frame that isn't part of the code contracts goop.
-        GCX_COOP();
-
-        OBJECTREF throwable = GetRealExceptionObject();
-
-        if (throwable != NULL)
-        {
-            StackTraceArray traceData;
-            EXCEPTIONREF(throwable)->GetStackTrace(traceData);
-
-            GCPROTECT_BEGIN(traceData);
-
-            size_t numElements = traceData.Size();
-
-            ContractFailureKind kind = GetContractFailureKind(throwable);
-
-            // skip frame 0 since we already know it's part of code contracts
-            for (size_t index = 1; index < numElements; ++index)
-            {
-                StackTraceElement const& cur = traceData[index];
-
-                MethodDesc* pMD = cur.pFunc;
-                _ASSERTE(pMD);
-
-                if (!IsCodeContractsFrame(pMD))
-                {
-                    // we want the next frame for preconditions however if we don't have it for some
-                    // reason then just use this frame (better than defaulting to the code contracts goop)
-                    if ((kind == CONTRACT_FAILURE_PRECONDITION) && (index + 1 < numElements))
-                    {
-                        _ASSERTE(!IsCodeContractsFrame(traceData[index + 1].pFunc));
-                        continue;
-                    }
-
-                    m_pFaultingMD = pMD;
-                    m_faultingPc = cur.ip;
-                    break;
-                }
-            }
-
-            GCPROTECT_END();
-        }
-    }
 }
 
 // gets the "real" exception object.  it might be m_pException or the exception object on the thread
@@ -1250,7 +1170,7 @@ void BaseBucketParamsManager::LogParam(__in_z LPCWSTR paramValue, BucketParamete
     LIMITED_METHOD_CONTRACT;
 
     _ASSERTE(paramIndex < InvalidBucketParamIndex);
-    // the BucketParameterIndex enum starts at 0 however we refer to Watson 
+    // the BucketParameterIndex enum starts at 0 however we refer to Watson
     // bucket params with 1-based indices so we add one to paramIndex.
     LOG((LF_EH, LL_INFO10, "       p %d: %S\n", paramIndex + 1, paramValue));
     ++m_countParamsLogged;
@@ -1266,7 +1186,7 @@ void BaseBucketParamsManager::LogParam(__in_z LPCWSTR paramValue, BucketParamete
 
 class CLR20r3BucketParamsManager : public BaseBucketParamsManager
 {
-public:   
+public:
     CLR20r3BucketParamsManager(GenericModeBlock* pGenericModeBlock, TypeOfReportedError typeOfError, PCODE faultingPC, Thread* pFaultingThread, OBJECTREF* pThrownException);
     ~CLR20r3BucketParamsManager();
 
@@ -1314,108 +1234,6 @@ void CLR20r3BucketParamsManager::PopulateBucketParameters()
     PopulateBucketParameter(Parameter9, &CLR20r3BucketParamsManager::GetExceptionName, 32);
 }
 
-class MoCrashBucketParamsManager : public BaseBucketParamsManager
-{
-public:
-    MoCrashBucketParamsManager(GenericModeBlock* pGenericModeBlock, TypeOfReportedError typeOfError, PCODE faultingPC, Thread* pFaultingThread, OBJECTREF* pThrownException);
-    ~MoCrashBucketParamsManager();
-
-    virtual void PopulateBucketParameters();
-};
-
-MoCrashBucketParamsManager::MoCrashBucketParamsManager(GenericModeBlock* pGenericModeBlock, TypeOfReportedError typeOfError, PCODE faultingPC, Thread* pFaultingThread, OBJECTREF* pThrownException)
-    : BaseBucketParamsManager(pGenericModeBlock, typeOfError, faultingPC, pFaultingThread, pThrownException)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-}
-
-MoCrashBucketParamsManager::~MoCrashBucketParamsManager()
-{
-    LIMITED_METHOD_CONTRACT;
-}
-
-void MoCrashBucketParamsManager::PopulateBucketParameters()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    PopulateEventName(g_WerEventTraits[MoCrash].EventName);
-
-    // DW_MAX_BUCKETPARAM_CWC - 1 to ensure space for NULL
-    PopulateBucketParameter(Parameter1, &MoCrashBucketParamsManager::GetPackageMoniker, DW_MAX_BUCKETPARAM_CWC - 1);
-    PopulateBucketParameter(Parameter2, &MoCrashBucketParamsManager::GetPRAID, DW_MAX_BUCKETPARAM_CWC - 1);
-    PopulateBucketParameter(Parameter3, &MoCrashBucketParamsManager::GetAppVersion, DW_MAX_BUCKETPARAM_CWC - 1);
-    PopulateBucketParameter(Parameter4, &MoCrashBucketParamsManager::GetAppTimeStamp, DW_MAX_BUCKETPARAM_CWC - 1);
-    PopulateBucketParameter(Parameter5, &MoCrashBucketParamsManager::GetModuleName, DW_MAX_BUCKETPARAM_CWC - 1);
-    PopulateBucketParameter(Parameter6, &MoCrashBucketParamsManager::GetModuleVersion, DW_MAX_BUCKETPARAM_CWC - 1);
-    PopulateBucketParameter(Parameter7, &MoCrashBucketParamsManager::GetModuleTimeStamp, DW_MAX_BUCKETPARAM_CWC - 1);
-    PopulateBucketParameter(Parameter8, &MoCrashBucketParamsManager::GetExceptionName, DW_MAX_BUCKETPARAM_CWC - 1);
-    PopulateBucketParameter(Parameter9, &MoCrashBucketParamsManager::GetIlRva, DW_MAX_BUCKETPARAM_CWC - 1);
-}
-
-#ifdef FEATURE_WINDOWSPHONE
-class WinPhoneBucketParamsManager : public BaseBucketParamsManager
-{
-public:   
-    WinPhoneBucketParamsManager(GenericModeBlock* pGenericModeBlock, TypeOfReportedError typeOfError, PCODE faultingPC, Thread* pFaultingThread, OBJECTREF* pThrownException);
-    ~WinPhoneBucketParamsManager();
-
-    virtual void PopulateBucketParameters();
-};
-
-WinPhoneBucketParamsManager::WinPhoneBucketParamsManager(GenericModeBlock* pGenericModeBlock, TypeOfReportedError typeOfError, PCODE faultingPC, Thread* pFaultingThread, OBJECTREF* pThrownException)
-    : BaseBucketParamsManager(pGenericModeBlock, typeOfError, faultingPC, pFaultingThread, pThrownException)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-}
-
-WinPhoneBucketParamsManager::~WinPhoneBucketParamsManager()
-{
-    LIMITED_METHOD_CONTRACT;
-}
-
-void WinPhoneBucketParamsManager::PopulateBucketParameters()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    PopulateEventName(g_WerEventTraits[WinPhoneCrash].EventName);
-
-    // the "+ 1" is to explicitly indicate which fields need to specify space for NULL
-    PopulateBucketParameter(Parameter1, &WinPhoneBucketParamsManager::GetAppName, DW_MAX_BUCKETPARAM_CWC - 1);
-    PopulateBucketParameter(Parameter2, &WinPhoneBucketParamsManager::GetAppVersion, 23 + 1);
-    PopulateBucketParameter(Parameter3, &WinPhoneBucketParamsManager::GetAppTimeStamp, 8 + 1);
-    PopulateBucketParameter(Parameter4, &WinPhoneBucketParamsManager::GetModuleName, DW_MAX_BUCKETPARAM_CWC - 1);
-    PopulateBucketParameter(Parameter5, &WinPhoneBucketParamsManager::GetModuleVersion, 23 + 1);
-    PopulateBucketParameter(Parameter6, &WinPhoneBucketParamsManager::GetModuleTimeStamp, 8 + 1);
-    PopulateBucketParameter(Parameter7, &WinPhoneBucketParamsManager::GetMethodDef, 6 + 1);
-    PopulateBucketParameter(Parameter8, &WinPhoneBucketParamsManager::GetIlOffset, 8 + 1);
-    PopulateBucketParameter(Parameter9, &WinPhoneBucketParamsManager::GetExceptionName, DW_MAX_BUCKETPARAM_CWC - 1);
-}
-#endif // FEATURE_WINDOWSPHONE
-
 WatsonBucketType GetWatsonBucketType()
 {
     CONTRACTL
@@ -1427,12 +1245,7 @@ WatsonBucketType GetWatsonBucketType()
     }
     CONTRACTL_END;
 
-
-#ifdef FEATURE_WINDOWSPHONE
-        return WinPhoneCrash;
-#else
-        return CLR20r3;
-#endif // FEATURE_WINDOWSPHONE
+    return CLR20r3;
 }
 
 #endif // DACCESS_COMPILE

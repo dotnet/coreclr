@@ -567,10 +567,6 @@ BOOL DomainFile::DoIncrementalLoad(FileLoadLevel level)
         FinishLoad();
         break;
 
-    case FILE_LOAD_VERIFY_EXECUTION:
-        VerifyExecution();
-        break;
-
     case FILE_ACTIVE:
         Activate();
         break;
@@ -705,7 +701,7 @@ void DomainFile::VerifyNativeImageDependencies(bool verifyOnly)
 #endif
 
         PEAssembly * pDependencyFile = SystemDomain::SystemFile();
- 
+
 
         ReleaseHolder<PEImage> pDependencyNativeImage = pDependencyFile->GetNativeImageWithRef();
         if (pDependencyNativeImage == NULL)
@@ -734,7 +730,6 @@ void DomainFile::VerifyNativeImageDependencies(bool verifyOnly)
 
 NativeImageRejected:
     m_pFile->ClearNativeImage();
-    m_pFile->SetCannotUseNativeImage();
 
     CheckZapRequired();
 
@@ -786,18 +781,6 @@ BOOL DomainFile::IsZapRequired()
         return FALSE;
 
     DomainAssembly * pDomainAssembly = GetDomainAssembly();
-
-    // If the manifest module does not have an ngen image, the non-manifest
-    // modules cannot either
-    if (m_pFile->IsModule() && !pDomainAssembly->GetFile()->CanUseNativeImage())
-        m_pFile->SetCannotUseNativeImage();
-
-    // Some cases are not supported by design. They can never have a native image.
-    // So ignore such cases
-
-    if (!m_pFile->CanUseNativeImage() &&
-        g_pConfig->RequireZaps() == EEConfig::REQUIRE_ZAPS_SUPPORTED)
-        return FALSE;
 
 #ifdef FEATURE_NATIVE_IMAGE_GENERATION
     if (IsCompilationProcess())
@@ -851,8 +834,7 @@ void DomainFile::CheckZapRequired()
     GetFile()->FlushExternalLog();
 
     StackSString ss;
-    ss.Printf("ZapRequire: Could not get native image for %s.\n"
-              "Use FusLogVw.exe to check the reason.",
+    ss.Printf("ZapRequire: Could not get native image for %s.\n",
               GetSimpleName());
 
 #if defined(_DEBUG)
@@ -920,7 +902,6 @@ void DomainFile::ClearNativeImageStress()
 
     if (DbgRandomOnHashAndExe(hash, float(stressPercentage)/100))
     {
-        GetFile()->SetCannotUseNativeImage();
         GetFile()->ClearNativeImage();
         ExternalLog(LL_ERROR, "Rejecting native image for **clearNativeImageStress**");
     }
@@ -1004,14 +985,6 @@ void DomainFile::PostLoadLibrary()
 void DomainFile::AddDependencies()
 {
     STANDARD_VM_CONTRACT;
-
-#ifdef FEATURE_PREJIT
-
-    //
-    // CoreCLR hard binds to mscorlib.dll only. No need to track hardbound dependencies.
-    //
-
-#endif // FEATURE_PREJIT
 }
 
 void DomainFile::EagerFixups()
@@ -1023,8 +996,9 @@ void DomainFile::EagerFixups()
     {
         GetCurrentModule()->RunEagerFixups();
     }
-#ifdef FEATURE_READYTORUN
     else
+#endif // FEATURE_PREJIT
+#ifdef FEATURE_READYTORUN
     if (GetCurrentModule()->IsReadyToRun())
     {
 #ifndef CROSSGEN_COMPILE
@@ -1041,8 +1015,6 @@ void DomainFile::EagerFixups()
                                          GetCurrentModule() /* (void *)pLayout */);
     }
 #endif // FEATURE_READYTORUN
-
-#endif // FEATURE_PREJIT
 }
 
 void DomainFile::VtableFixups()
@@ -1082,17 +1054,18 @@ void DomainFile::FinishLoad()
 
 #if defined(FEATURE_COMINTEROP)
     // If this is a winmd file, ensure that the ngen reference namespace is loadable.
-    // This is necessary as on the phone we don't check ngen image dependencies, and thus we can get in a situation 
-    // where a winmd is loaded as a dependency of an ngen image, but the type used to build cross module references 
+    // This is necessary as on the phone we don't check ngen image dependencies, and thus we can get in a situation
+    // where a winmd is loaded as a dependency of an ngen image, but the type used to build cross module references
     // in winmd files isn't loaded.
-    if (GetFile()->AsAssembly()->IsWindowsRuntime() && GetFile()->HasHostAssembly())
+    PEFile* peFile = GetFile();
+    if (peFile && peFile->AsAssembly()->IsWindowsRuntime() && peFile->HasHostAssembly())
     {
         IMDInternalImport *pImport = GetFile()->GetPersistentMDImport();
         LPCSTR  szNameSpace;
         LPCSTR  szTypeName;
-        // It does not make sense to pass the file name to recieve fake type name for empty WinMDs, because we would use the name 
+        // It does not make sense to pass the file name to recieve fake type name for empty WinMDs, because we would use the name
         // for binding in next call to BindAssemblySpec which would fail for fake WinRT type name
-        // We will throw/return the error instead and the caller will recognize it and react to it by not creating the ngen image - 
+        // We will throw/return the error instead and the caller will recognize it and react to it by not creating the ngen image -
         // see code:Zapper::ComputeDependenciesInCurrentDomain
         if (SUCCEEDED(::GetFirstWinRTTypeDef(pImport, &szNameSpace, &szTypeName, NULL, NULL)))
         {
@@ -1147,31 +1120,6 @@ void DomainFile::FinishLoad()
     // Notify the perfmap of the IL image load.
     PerfMap::LogImageLoad(m_pFile);
 #endif
-}
-
-void DomainFile::VerifyExecution()
-{
-    CONTRACT_VOID
-    {
-        INSTANCE_CHECK;
-        PRECONDITION(IsLoaded());
-        STANDARD_VM_CHECK;
-    }
-    CONTRACT_END;
-
-    if(GetFile()->PassiveDomainOnly())
-    {
-    // Remove path - location must be hidden for security purposes
-        LPCWSTR path=GetFile()->GetPath();
-        LPCWSTR pStart = wcsrchr(path, '\\');
-        if (pStart != NULL)
-            pStart++;
-        else
-            pStart = path;
-        COMPlusThrow(kInvalidOperationException, IDS_EE_CODEEXECUTION_ASSEMBLY_FOR_PASSIVE_DOMAIN_ONLY,pStart);
-    }
-
-    RETURN;
 }
 
 void DomainFile::Activate()
@@ -1522,7 +1470,6 @@ void DomainAssembly::FindNativeImage()
         else
         {
             Module *  pNativeModule = pNativeImage->GetLoadedLayout()->GetPersistedModuleImage();
-            EnsureWritablePages(pNativeModule);
             PEFile ** ppNativeFile = (PEFile **) (PBYTE(pNativeModule) + Module::GetFileOffset());
 
             PEAssembly * pFile = (PEAssembly *)FastInterlockCompareExchangePointer((void **)ppNativeFile, (void *)GetFile(), (void *)NULL);
@@ -1535,20 +1482,13 @@ void DomainAssembly::FindNativeImage()
                 // reference the image directly).
                 m_dwReasonForRejectingNativeImage = ReasonForRejectingNativeImage_CannotShareNiAssemblyNotDomainNeutral;
                 STRESS_LOG3(LF_ZAP,LL_INFO100,"Rejecting native file %p, because it is already used by file %p - reason 0x%x\n",GetFile(),pFile,m_dwReasonForRejectingNativeImage);
-                
+
                 ExternalLog(LL_WARNING, "ZAP: An ngen image of an assembly which "
                     "is not loaded as domain-neutral cannot be used in multiple appdomains "
                     "- abandoning ngen image. The assembly will be JIT-compiled in "
                     "the second appdomain. See System.LoaderOptimization.MultiDomain "
                     "for information about domain-neutral loading.");
                 GetFile()->ClearNativeImage();
-
-                // We only support a (non-shared) native image to be used from a single
-                // AppDomain. Its not obvious if this is an implementation restriction,
-                // or if this should fail DomainFile::CheckZapRequired().
-                // We err on the side of conservativeness, so that multi-domain tests
-                // do not blow up in CheckZapRequired()
-                GetFile()->SetCannotUseNativeImage();
             }
             else
             {
@@ -1590,9 +1530,9 @@ void DomainAssembly::Allocate()
 
     AllocMemTracker   amTracker;
     AllocMemTracker * pamTracker = &amTracker;
-    
+
     Assembly * pAssembly = m_pAssembly;
-    
+
     if (pAssembly==NULL)
     {
         //! If you decide to remove "if" do not remove this brace: order is important here - in the case of an exception,
@@ -1629,7 +1569,7 @@ void DomainAssembly::Allocate()
 
     // Insert AssemblyDef details into AssemblySpecBindingCache if appropriate
 
-    
+
     fInsertIntoAssemblySpecBindingCache = fInsertIntoAssemblySpecBindingCache && GetFile()->CanUseWithBindingCache();
 
     if (fInsertIntoAssemblySpecBindingCache)
@@ -1800,11 +1740,11 @@ void DomainAssembly::GetCurrentVersionInfo(CORCOMPILE_VERSION_INFO *pNativeVersi
                                           &fForceProfiling,
                                           &fForceInstrument);
 
-#ifndef FEATURE_PAL 
+#ifndef FEATURE_PAL
     pNativeVersionInfo->wOSPlatformID = VER_PLATFORM_WIN32_NT;
 #else
     pNativeVersionInfo->wOSPlatformID = VER_PLATFORM_UNIX;
-#endif    
+#endif
 
     // The native images should be OS-version agnostic. Do not store the actual OS version for determinism.
     // pNativeVersionInfo->wOSMajorVersion = (WORD) osInfo.dwMajorVersion;
@@ -1947,7 +1887,7 @@ void DomainAssembly::GetOptimizedIdentitySignature(CORCOMPILE_ASSEMBLY_SIGNATURE
         CORCOMPILE_VERSION_INFO* pVersionInfo = pNativeImage->GetLoadedLayout()->GetNativeVersionInfo();
         pSignature->timeStamp = pVersionInfo->sourceAssembly.timeStamp;
         pSignature->ilImageSize = pVersionInfo->sourceAssembly.ilImageSize;
- 
+
         return;
     }
 
@@ -1971,7 +1911,7 @@ BOOL DomainAssembly::CheckZapDependencyIdentities(PEImage *pNativeImage)
 
     // The assembly spec should have the binding context associated with it
     _ASSERTE(spec.GetBindingContext()  || spec.IsAssemblySpecForMscorlib());
-    
+
     CORCOMPILE_VERSION_INFO *pVersionInfo = pNativeImage->GetLoadedLayout()->GetNativeVersionInfo();
 
     // Check our own assembly first
@@ -1994,7 +1934,7 @@ BOOL DomainAssembly::CheckZapDependencyIdentities(PEImage *pNativeImage)
         {
             AssemblySpec name;
             name.InitializeSpec(pDependencies->dwAssemblyDef, pNativeImage->GetNativeMDImport(), this);
-            
+
             if (!name.IsAssemblySpecForMscorlib())
             {
                 // We just initialized the assembly spec for the NI dependency. This will not have binding context
@@ -2004,7 +1944,7 @@ BOOL DomainAssembly::CheckZapDependencyIdentities(PEImage *pNativeImage)
                 _ASSERTE(pParentAssemblyBindingContext);
                 name.SetBindingContext(pParentAssemblyBindingContext);
             }
-            
+
             GetAppDomain()->CheckForMismatchedNativeImages(&name, &pDependencies->signAssemblyDef.mvid);
         }
 
@@ -2102,13 +2042,13 @@ bool DomainAssembly::GetDebuggingOverrides(DWORD *pdwFlags)
 
 #if defined(DEBUGGING_SUPPORTED) && !defined(FEATURE_CORESYSTEM)
     // TODO FIX in V5.0
-    // Any touch of the file system is relatively expensive even in the warm case. 
-    // 
+    // Any touch of the file system is relatively expensive even in the warm case.
+    //
     // Ideally we remove the .INI feature completely (if we need something put it in the .exe.config file)
-    // 
+    //
     // However because of compatibility concerns, we won't do this until the next side-by-side release
     // In the mean time don't check in the case where we have already loaded the NGEN image, as the
-    // JIT overrides don't mean anything in that case as we won't be jitting anyway.  
+    // JIT overrides don't mean anything in that case as we won't be jitting anyway.
     // This avoids doing these probes for framework DLLs right away.
     if (GetFile()->HasNativeImage())
         return false;
@@ -2407,6 +2347,12 @@ void DomainAssembly::EnumStaticGCRefs(promote_func* fn, ScanContext* sc)
          GCHeapUtilities::IsServerHeap()   &&
          IsGCSpecialThread());
 
+    if (IsCollectible())
+    {
+        // Collectible assemblies have statics stored in managed arrays, so they don't need special handlings
+        return;
+    }
+
     DomainModuleIterator i = IterateModules(kModIterIncludeLoaded);
     while (i.Next())
     {
@@ -2416,8 +2362,8 @@ void DomainAssembly::EnumStaticGCRefs(promote_func* fn, ScanContext* sc)
         {
             // We guarantee that at this point the module has it's DomainLocalModule set up
             // , as we create it while we load the module
-            _ASSERTE(pDomainFile->GetLoadedModule()->GetDomainLocalModule(this->GetAppDomain()));
-            pDomainFile->GetLoadedModule()->EnumRegularStaticGCRefs(this->GetAppDomain(), fn, sc);
+            _ASSERTE(pDomainFile->GetLoadedModule()->GetDomainLocalModule());
+            pDomainFile->GetLoadedModule()->EnumRegularStaticGCRefs(fn, sc);
 
             // We current to do not iterate over the ThreadLocalModules that correspond
             // to this Module. The GC discovers thread statics through the handle table.

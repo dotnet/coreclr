@@ -34,8 +34,8 @@ public:
 #ifdef FEATURE_TIERED_COMPILATION
 
 public:
-    void OnTier0MethodCalled(MethodDesc* pMethodDesc, bool isFirstCall, int currentCallCountLimit, BOOL* shouldStopCountingCallsRef, BOOL* wasPromotedToNextTierRef);
-    void OnMethodCallCountingStoppedWithoutTierPromotion(MethodDesc* pMethodDesc);
+    bool OnMethodCodeVersionCalledFirstTime(MethodDesc* pMethodDesc);
+    bool OnMethodCodeVersionCalledSubsequently(MethodDesc* pMethodDesc);
     void AsyncPromoteMethodToTier1(MethodDesc* pMethodDesc);
     void Shutdown();
     static CORJIT_FLAGS GetJitFlags(NativeCodeVersion nativeCodeVersion);
@@ -46,7 +46,6 @@ private:
     static void WINAPI TieringDelayTimerCallback(PVOID parameter, BOOLEAN timerFired);
     static void TieringDelayTimerCallbackInAppDomain(LPVOID parameter);
     void TieringDelayTimerCallbackWorker();
-    static void ResumeCountingCalls(MethodDesc* pMethodDesc);
 
     bool TryAsyncOptimizeMethods();
     static DWORD StaticOptimizeMethodsCallback(void* args);
@@ -65,9 +64,10 @@ private:
 
     Crst m_lock;
     SList<SListElem<NativeCodeVersion>> m_methodsToOptimize;
+    UINT32 m_countOfMethodsToOptimize;
     BOOL m_isAppDomainShuttingDown;
     DWORD m_countOptimizationThreadsRunning;
-    DWORD m_optimizationQuantumMs;
+    UINT32 m_countOfNewMethodsCalledDuringDelay;
     SArray<MethodDesc*>* m_methodsPendingCountingForTier1;
     HANDLE m_tieringDelayTimerHandle;
     bool m_tier1CallCountingCandidateMethodRecentlyRecorded;

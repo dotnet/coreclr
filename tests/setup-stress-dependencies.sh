@@ -16,9 +16,10 @@ function print_usage {
     echo ''
     echo 'Command line:'
     echo ''
-    echo './setup-gcstress.sh --outputDir=<coredistools_lib_install_path>'
+    echo './setup-gcstress.sh --arch=<TargetArch> --outputDir=<coredistools_lib_install_path>'
     echo ''
     echo 'Required arguments:'
+    echo '  --arch=<TargetArch>        : Target arch for the build'
     echo '  --outputDir=<path>         : Directory to install libcoredistools.so'
     echo ''
 }
@@ -55,6 +56,9 @@ do
         -v|--verbose)
             verbose=1
             ;;
+        --arch=*)
+            __BuildArch=${i#*=}
+            ;;
         --outputDir=*)
             libInstallDir=${i#*=}
             ;;
@@ -66,29 +70,31 @@ do
     esac
 done
 
-if [ -z "$libInstallDir" ]; then
-    echo "--libInstallDir is required."
+if [ -z "$__BuildArch" ]; then
+    echo "--arch is required."
     print_usage
     exit_with_error 1
+fi
+
+if [ -z "$libInstallDir" ]; then
+    echo "--outputDir is required."
+    print_usage
+    exit_with_error 1
+fi
+
+if [ "$__BuildArch" == "arm64" ] || [ "$__BuildArch" == "arm" ]; then
+    echo "No runtime dependencies for arm32/arm64"
+    exit $EXIT_CODE_SUCCESS
 fi
 
 # This script must be located in coreclr/tests.
 scriptDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-echo "Running init-tools.sh"
-"${scriptDir}"/../init-tools.sh
-
 dotnet=$"${scriptDir}"/../.dotnet/dotnet
-packageDir="${scriptDir}"/../packages
-csprojPath="${scriptDir}"/src/Common/stress_dependencies/stress_dependencies.csproj
+csprojPath="${scriptDir}"/stress_dependencies/stress_dependencies.csproj
 
 if [ ! -e $dotnetCmd ]; then
     exit_with_error 1 'dotnet commandline does not exist:'$dotnetCmd
-fi
-
-# make package directory
-if [ ! -e $packageDir ]; then
-    mkdir -p $packageDir
 fi
 
 # make output directory
@@ -148,7 +154,11 @@ initDistroRidGlobal ${__BuildOS} x64 ${isPortable}
 # 14.04 and 16.04 packages. Use the oldest package which will work on newer
 # platforms.
 if [[ ${__BuildOS} == "Linux" ]]; then
-   __DistroRid=ubuntu.14.04
+    if [[ ${__BuildArch} == "x64" ]]; then
+        __DistroRid=ubuntu.14.04-x64
+    elif [[ ${__BuildArch} == "x86" ]]; then
+        __DistroRid=ubuntu.14.04-x86
+    fi
 fi
 
 # Query runtime Id
@@ -162,11 +172,21 @@ fi
 
 # Download the package
 echo Downloading CoreDisTools package
-bash -c -x "$dotnet restore $csprojPath --source https://dotnet.myget.org/F/dotnet-core/ --packages $packageDir"
+bash -c -x "$dotnet restore $csprojPath"
 if [ $? -ne 0 ]
 then
     exit_with_error 1 "Failed to restore the package"
 fi
+
+CoreDisToolsPackagePathOutputFile="${scriptDir}/../bin/obj/${__BuildOS}.x64/optdatapath.txt"
+
+bash -c -x "$dotnet msbuild $csprojPath /t:DumpCoreDisToolsPackagePath /p:CoreDisToolsPackagePathOutputFile=\"$CoreDisToolsPackagePathOutputFile\" /p:RuntimeIdentifier=\"$rid\" /bl" 
+if [ $? -ne 0 ]
+then
+    exit_with_error 1 "Failed to find the path to CoreDisTools."
+fi
+
+packageDir=$(<"${CoreDisToolsPackagePathOutputFile}")
 
 # Get library path
 libPath=`find $packageDir | grep $rid | grep -m 1 libcoredistools`

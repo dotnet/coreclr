@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -12,11 +11,11 @@ namespace System
 {
     public abstract partial class Enum
     {
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetEnumValuesAndNames(RuntimeTypeHandle enumType, ObjectHandleOnStack values, ObjectHandleOnStack names, bool getNames);
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern void GetEnumValuesAndNames(QCallTypeHandle enumType, ObjectHandleOnStack values, ObjectHandleOnStack names, Interop.BOOL getNames);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        public override extern bool Equals(object? obj);
+        public extern override bool Equals(object? obj);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern object InternalBoxEnum(RuntimeType enumType, long value);
@@ -56,11 +55,12 @@ namespace System
             {
                 ulong[]? values = null;
                 string[]? names = null;
+                RuntimeTypeHandle enumTypeHandle = enumType.GetTypeHandleInternal();
                 GetEnumValuesAndNames(
-                    enumType.GetTypeHandleInternal(),
-                    JitHelpers.GetObjectHandleOnStack(ref values),
-                    JitHelpers.GetObjectHandleOnStack(ref names),
-                    getNames);
+                    new QCallTypeHandle(ref enumTypeHandle),
+                    ObjectHandleOnStack.Create(ref values),
+                    ObjectHandleOnStack.Create(ref names),
+                    getNames ? Interop.BOOL.TRUE : Interop.BOOL.FALSE);
                 bool hasFlagsAttribute = enumType.IsDefined(typeof(FlagsAttribute), inherit: false);
 
                 entry = new EnumInfo(hasFlagsAttribute, values!, names!);

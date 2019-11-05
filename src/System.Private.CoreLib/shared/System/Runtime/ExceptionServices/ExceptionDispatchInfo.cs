@@ -2,8 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 
 namespace System.Runtime.ExceptionServices
 {
@@ -12,7 +12,7 @@ namespace System.Runtime.ExceptionServices
     // object. This allows us to track error (via the exception object) independent
     // of the path the error takes.
     //
-    // This is particularly useful for frameworks that wish to propagate 
+    // This is particularly useful for frameworks that wish to propagate
     // exceptions (i.e. errors to be precise) across threads.
     public sealed class ExceptionDispatchInfo
     {
@@ -39,13 +39,7 @@ namespace System.Runtime.ExceptionServices
         }
 
         // Return the exception object represented by this ExceptionDispatchInfo instance
-        public Exception SourceException
-        {
-            get
-            {
-                return _exception;
-            }
-        }
+        public Exception SourceException => _exception;
 
         // When a framework needs to "Rethrow" an exception on a thread different (but not necessarily so) from
         // where it was thrown, it should invoke this method against the ExceptionDispatchInfo
@@ -54,6 +48,7 @@ namespace System.Runtime.ExceptionServices
         // This method will restore the original stack trace and bucketing details before throwing
         // the exception so that it is easy, from debugging standpoint, to understand what really went wrong on
         // the original thread.
+        [DoesNotReturn]
         [StackTraceHidden]
         public void Throw()
         {
@@ -64,6 +59,25 @@ namespace System.Runtime.ExceptionServices
 
         // Throws the source exception, maintaining the original bucketing details and augmenting
         // rather than replacing the original stack trace.
+        [DoesNotReturn]
         public static void Throw(Exception source) => Capture(source).Throw();
+
+        /// <summary>Stores the current stack trace into the specified <see cref="Exception"/> instance.</summary>
+        /// <param name="source">The unthrown <see cref="Exception"/> instance.</param>
+        /// <exception cref="ArgumentNullException">The <paramref name="source"/> argument was null.</exception>
+        /// <exception cref="InvalidOperationException">The <paramref name="source"/> argument was previously thrown or previously had a stack trace stored into it..</exception>
+        /// <returns>The <paramref name="source"/> exception instance.</returns>
+        [StackTraceHidden]
+        public static Exception SetCurrentStackTrace(Exception source)
+        {
+            if (source is null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
+
+            source.SetCurrentStackTrace();
+
+            return source;
+        }
     }
 }

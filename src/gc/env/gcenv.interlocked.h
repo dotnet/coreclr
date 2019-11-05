@@ -48,7 +48,7 @@ public:
     template<typename T>
     static void Or(T volatile *destination, T value);
 
-    // Set a 32-bit variable to the specified value as an atomic operation. 
+    // Set a 32-bit variable to the specified value as an atomic operation.
     // Parameters:
     //  destination - value to be exchanged
     //  value       - value to set the destination to
@@ -78,7 +78,13 @@ public:
     template<typename T>
     static T ExchangeAdd(T volatile *addend, T value);
 
-    // Performs an atomic compare-and-exchange operation on the specified values. 
+    template<typename T>
+    static T ExchangeAdd64(T volatile* addend, T value);
+
+    template<typename T>
+    static T ExchangeAddPtr(T volatile* addend, T value);
+
+    // Performs an atomic compare-and-exchange operation on the specified values.
     // Parameters:
     //  destination - value to be exchanged
     //  exchange    - value to set the destination to
@@ -89,7 +95,7 @@ public:
     template<typename T>
     static T CompareExchange(T volatile *destination, T exchange, T comparand);
 
-    // Performs an atomic compare-and-exchange operation on the specified pointers. 
+    // Performs an atomic compare-and-exchange operation on the specified pointers.
     // Parameters:
     //  destination - value to be exchanged
     //  exchange    - value to set the destination to

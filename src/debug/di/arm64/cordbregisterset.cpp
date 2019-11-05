@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: CordbRegisterSet.cpp
-// 
+//
 
 //
 //*****************************************************************************
@@ -47,14 +47,45 @@ HRESULT CordbRegisterSet::GetRegistersAvailable(ULONG64* pAvailable)
                 | SETBITULONG64(REGISTER_ARM64_X27)
                 | SETBITULONG64(REGISTER_ARM64_X28)
                 | SETBITULONG64(REGISTER_ARM64_FP)
-                | SETBITULONG64(REGISTER_ARM64_LR);
+                | SETBITULONG64(REGISTER_ARM64_LR)
+                | SETBITULONG64(REGISTER_ARM64_V0)
+                | SETBITULONG64(REGISTER_ARM64_V1)
+                | SETBITULONG64(REGISTER_ARM64_V2)
+                | SETBITULONG64(REGISTER_ARM64_V3)
+                | SETBITULONG64(REGISTER_ARM64_V4)
+                | SETBITULONG64(REGISTER_ARM64_V5)
+                | SETBITULONG64(REGISTER_ARM64_V6)
+                | SETBITULONG64(REGISTER_ARM64_V7)
+                | SETBITULONG64(REGISTER_ARM64_V8)
+                | SETBITULONG64(REGISTER_ARM64_V9)
+                | SETBITULONG64(REGISTER_ARM64_V10)
+                | SETBITULONG64(REGISTER_ARM64_V11)
+                | SETBITULONG64(REGISTER_ARM64_V12)
+                | SETBITULONG64(REGISTER_ARM64_V13)
+                | SETBITULONG64(REGISTER_ARM64_V14)
+                | SETBITULONG64(REGISTER_ARM64_V15)
+                | SETBITULONG64(REGISTER_ARM64_V16)
+                | SETBITULONG64(REGISTER_ARM64_V17)
+                | SETBITULONG64(REGISTER_ARM64_V18)
+                | SETBITULONG64(REGISTER_ARM64_V19)
+                | SETBITULONG64(REGISTER_ARM64_V20)
+                | SETBITULONG64(REGISTER_ARM64_V21)
+                | SETBITULONG64(REGISTER_ARM64_V22)
+                | SETBITULONG64(REGISTER_ARM64_V23)
+                | SETBITULONG64(REGISTER_ARM64_V24)
+                | SETBITULONG64(REGISTER_ARM64_V25)
+                | SETBITULONG64(REGISTER_ARM64_V26)
+                | SETBITULONG64(REGISTER_ARM64_V27)
+                | SETBITULONG64(REGISTER_ARM64_V28)
+                | SETBITULONG64(REGISTER_ARM64_V29)
+                | SETBITULONG64(REGISTER_ARM64_V30);
 
     return S_OK;
 }
 
 HRESULT CordbRegisterSet::GetRegisters(ULONG64 mask, ULONG32 regCount,
                                        CORDB_REGISTER regBuffer[])
-{ 
+{
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -62,24 +93,47 @@ HRESULT CordbRegisterSet::GetRegisters(ULONG64 mask, ULONG32 regCount,
     UINT iRegister = 0;
 
     VALIDATE_POINTER_TO_OBJECT_ARRAY(regBuffer, CORDB_REGISTER, regCount, true, true);
-    
-    // @ARM64TODO: floating point support
 
     for (int i = REGISTER_ARM64_PC;
-         i <= REGISTER_ARM64_LR && iRegister < regCount;
+         i <= REGISTER_ARM64_V30 && iRegister < regCount;
          i++)
     {
         if (mask &  SETBITULONG64(i))
         {
+            _ASSERTE (iRegister < regCount);
+
             if ((i >= REGISTER_ARM64_X0) && (i <= REGISTER_ARM64_X28))
             {
                 regBuffer[iRegister++] = m_rd->X[i - REGISTER_ARM64_X0];
                 continue;
             }
 
+            if ((i >= REGISTER_ARM64_V0) && (i <= REGISTER_ARM64_V30))
+            {
+                if (!m_thread->m_fFloatStateValid)
+                {
+                    HRESULT     hr = S_OK;
+                    EX_TRY
+                    {
+                        m_thread->LoadFloatState();
+                    }
+                    EX_CATCH_HRESULT(hr);
+
+                    if ( !SUCCEEDED(hr) )
+                    {
+                        return hr;
+                    }
+                    LOG( ( LF_CORDB, LL_INFO1000, "CRS::GR: Loaded float state\n" ) );
+                }
+
+                regBuffer[iRegister++] = *(CORDB_REGISTER*)
+                                          &(m_thread->m_floatValues[(i - REGISTER_ARM64_V0)]);
+                continue;
+            }
+
             switch (i)
             {
-            case REGISTER_ARM64_PC: 
+            case REGISTER_ARM64_PC:
                 regBuffer[iRegister++] = m_rd->PC; break;
             case REGISTER_ARM64_SP:
                 regBuffer[iRegister++] = m_rd->SP; break;
@@ -98,25 +152,93 @@ HRESULT CordbRegisterSet::GetRegisters(ULONG64 mask, ULONG32 regCount,
 }
 
 
-HRESULT CordbRegisterSet::GetRegistersAvailable(ULONG32 regCount, 
+HRESULT CordbRegisterSet::GetRegistersAvailable(ULONG32 regCount,
                                                 BYTE    pAvailable[])
 {
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT_ARRAY(pAvailable, CORDB_REGISTER, regCount, true, true);
-    
-    // Defer to adapter for v1.0 interface
-    return GetRegistersAvailableAdapter(regCount, pAvailable);
+
+    for (int i = 0 ; i < (int)regCount ; ++i)
+    {
+        if (i * 8 <= REGISTER_ARM64_V31)
+        {
+            pAvailable[i] = (i * 8 == REGISTER_ARM64_V31) ? BYTE(0x1) : BYTE(0xff);
+        }
+        else
+        {
+            pAvailable[i] = 0;
+        }
+    }
+
+    return S_OK;
 }
 
 
-HRESULT CordbRegisterSet::GetRegisters(ULONG32 maskCount, BYTE mask[], 
+HRESULT CordbRegisterSet::GetRegisters(ULONG32 maskCount, BYTE mask[],
                                        ULONG32 regCount, CORDB_REGISTER regBuffer[])
 {
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT_ARRAY(regBuffer, CORDB_REGISTER, regCount, true, true);
 
-    // Defer to adapter for v1.0 interface
-    return GetRegistersAdapter(maskCount, mask, regCount, regBuffer);
+    UINT iRegister = 0;
+
+    for (int m = 0 ; m < (int)maskCount ; ++m)
+    {
+        for (int bit = 0 ; bit < 8 ; ++bit)
+        {
+            if (mask[m] & SETBITULONG64(bit))
+            {
+                _ASSERTE (iRegister < regCount);
+
+                int i = m * 8 + bit;
+
+                if ((i >= REGISTER_ARM64_X0) && (i <= REGISTER_ARM64_X28))
+                {
+                    regBuffer[iRegister++] = m_rd->X[i - REGISTER_ARM64_X0];
+                    continue;
+                }
+
+                if ((i >= REGISTER_ARM64_V0) && (i <= REGISTER_ARM64_V31))
+                {
+                    if (!m_thread->m_fFloatStateValid)
+                    {
+                        HRESULT     hr = S_OK;
+                        EX_TRY
+                        {
+                            m_thread->LoadFloatState();
+                        }
+                        EX_CATCH_HRESULT(hr);
+
+                        if ( !SUCCEEDED(hr) )
+                        {
+                            return hr;
+                        }
+                        LOG( ( LF_CORDB, LL_INFO1000, "CRS::GR: Loaded float state\n" ) );
+                    }
+
+                    regBuffer[iRegister++] = *(CORDB_REGISTER*)
+                                              &(m_thread->m_floatValues[(i - REGISTER_ARM64_V0)]);
+                    continue;
+                }
+
+                switch (i)
+                {
+                case REGISTER_ARM64_PC:
+                    regBuffer[iRegister++] = m_rd->PC; break;
+                case REGISTER_ARM64_SP:
+                    regBuffer[iRegister++] = m_rd->SP; break;
+                case REGISTER_ARM64_FP:
+                    regBuffer[iRegister++] = m_rd->FP; break;
+                case REGISTER_ARM64_LR:
+                    regBuffer[iRegister++] = m_rd->LR; break;
+                default:
+                    _ASSERTE(false); break;
+                }
+            }
+        }
+    }
+
+    return S_OK;
 }
 
 

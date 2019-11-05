@@ -7,7 +7,7 @@
 
 //
 // Metadata zapping
-// 
+//
 // ======================================================================================
 
 #include "common.h"
@@ -162,6 +162,15 @@ void ZapILMetaData::CopyRVAFields()
     // Managed C++ binaries depend on the order of RVA fields
     qsort(&fields[0], fields.GetCount(), sizeof(RVAField), RVAFieldCmp);
 
+#ifdef _DEBUG
+    for (COUNT_T i = 0; i < fields.GetCount(); i++)
+    {
+        // Make sure no RVA field node has been placed during compilation. This would mess up the ordering
+        // and can potentially break the Managed C++ scenarios.
+        _ASSERTE(!GetRVAField(fields[i].pData)->IsPlaced());
+    }
+#endif
+
     for (COUNT_T i = 0; i < fields.GetCount(); i++)
     {
         RVAField field = fields[i];
@@ -172,7 +181,7 @@ void ZapILMetaData::CopyRVAFields()
         pRVADataNode->UpdateSizeAndAlignment(field.cbSize, field.cbAlignment);
 
         if (!pRVADataNode->IsPlaced())
-             m_pImage->m_pReadOnlyDataSection->Place(pRVADataNode);
+            m_pImage->m_pReadOnlyDataSection->Place(pRVADataNode);
     }
 }
 
@@ -193,7 +202,7 @@ void ZapILMetaData::CopyIL()
 
     //
     // Build the list for each priority in first pass, and then place
-    // the IL blobs in each list. The two passes are needed because of 
+    // the IL blobs in each list. The two passes are needed because of
     // interning of IL blobs (one IL blob can be on multiple lists).
     //
 
@@ -260,13 +269,13 @@ void ZapILMetaData::CopyMetaData()
     V_VT(&versionOption) = VT_BSTR;
     V_BSTR(&versionOption) = strVersion;
     IfFailThrow(pMetaDataDispenser->SetOption(MetaDataRuntimeVersion, &versionOption));
-    
+
     // Preserve local refs. WinMD adapter depends on them at runtime.
     VARIANT preserveLocalRefsOption;
     V_VT(&preserveLocalRefsOption) = VT_UI4;
     V_UI4(&preserveLocalRefsOption) = MDPreserveLocalTypeRef | MDPreserveLocalMemberRef;
     IfFailThrow(pMetaDataDispenser->SetOption(MetaDataPreserveLocalRefs, &preserveLocalRefsOption));
-    
+
     // ofNoTransform - Get the raw metadata for WinRT, not the adapter view
     HRESULT hr = pMetaDataDispenser->OpenScopeOnMemory(pMeta, cMeta,
                                                        ofWrite | ofNoTransform,

@@ -4,7 +4,7 @@
 // ============================================================
 //
 // CoreBindResult.inl
-// 
+//
 
 //
 // Implements the CoreBindResult class
@@ -12,8 +12,6 @@
 
 #ifndef __CORE_BIND_RESULT_INL__
 #define __CORE_BIND_RESULT_INL__
-
-#include "clrprivbinderutil.h"
 
 inline BOOL CoreBindResult::Found()
 {
@@ -35,7 +33,7 @@ inline BOOL CoreBindResult::IsMscorlib()
 #ifndef CROSSGEN_COMPILE
     return pAssembly->GetAssemblyName()->IsMscorlib();
 #else
-    return (pAssembly->GetPath()).EndsWithCaseInsensitive(SString(CoreLibName_IL_W), PEImage::GetFileSystemLocale());
+    return (pAssembly->GetPath()).EndsWithCaseInsensitive(SString(CoreLibName_IL_W));
 #endif
 }
 
@@ -48,7 +46,7 @@ inline void CoreBindResult::GetBindAssembly(ICLRPrivAssembly** ppAssembly)
         PRECONDITION(Found());
     }
     CONTRACTL_END;
-    
+
     m_pAssembly->AddRef();
     *ppAssembly = m_pAssembly;
 }

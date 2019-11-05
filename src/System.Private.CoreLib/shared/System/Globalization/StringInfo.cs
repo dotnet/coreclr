@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Diagnostics;
 
 namespace System.Globalization
@@ -111,7 +110,7 @@ namespace System.Globalization
             }
             else
             {
-                return String.Substring(start, Indexes[lengthInTextElements + startingTextElement] - start);
+                return String[start..Indexes[lengthInTextElements + startingTextElement]];
             }
         }
 
@@ -270,7 +269,7 @@ namespace System.Globalization
             int[] result = new int[len];
             if (len == 0)
             {
-                return (result);
+                return result;
             }
 
             int resultCount = 0;
@@ -288,8 +287,8 @@ namespace System.Globalization
             if (resultCount < len)
             {
                 int[] returnArray = new int[resultCount];
-                Array.Copy(result, 0, returnArray, 0, resultCount);
-                return (returnArray);
+                Array.Copy(result, returnArray, resultCount);
+                return returnArray;
             }
             return result;
         }

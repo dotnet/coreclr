@@ -14,12 +14,9 @@
 
 #include "nativeformatreader.h"
 #include "inlinetracking.h"
+#include "wellknownattributes.h"
 
 typedef DPTR(struct READYTORUN_SECTION) PTR_READYTORUN_SECTION;
-
-#ifndef FEATURE_PREJIT
-typedef DPTR(struct READYTORUN_IMPORT_SECTION) PTR_CORCOMPILE_IMPORT_SECTION;
-#endif
 
 class PrepareCodeConfig;
 
@@ -44,6 +41,7 @@ class ReadyToRunInfo
     NativeFormat::NativeHashtable   m_instMethodEntryPoints;
     NativeFormat::NativeHashtable   m_availableTypesHashtable;
     NativeFormat::NativeHashtable   m_pMetaDataHashtable;
+    NativeFormat::NativeCuckooFilter m_attributesPresence;
 
     Crst                            m_Crst;
     PtrHashMap                      m_entryPointToMethodDescMap;
@@ -62,7 +60,7 @@ public:
     MethodDesc * GetMethodDescForEntryPoint(PCODE entryPoint);
 
     BOOL HasHashtableOfTypes();
-    BOOL TryLookupTypeTokenFromName(NameHandle *pName, mdToken * pFoundTypeToken);
+    BOOL TryLookupTypeTokenFromName(const NameHandle *pName, mdToken * pFoundTypeToken);
 
     BOOL SkipTypeValidation()
     {
@@ -119,10 +117,31 @@ public:
         ReadyToRunInfo * m_pInfo;
         int m_methodDefIndex;
 
+        NativeFormat::NativeHashtable::AllEntriesEnumerator m_genericEnum;
+        NativeFormat::NativeParser m_genericParser;
+        uint m_genericCurrentOffset;
+        RID m_genericCurrentRid;
+        PCCOR_SIGNATURE m_genericCurrentSig;
+
+        void ParseGenericMethodSignatureAndRid(uint *offset, RID *rid);
+
     public:
-        MethodIterator(ReadyToRunInfo * pInfo)
-            : m_pInfo(pInfo), m_methodDefIndex(-1)
+        MethodIterator(ReadyToRunInfo * pInfo) :
+            m_pInfo(pInfo),
+            m_methodDefIndex(-1),
+            m_genericEnum(),
+            m_genericParser(),
+            m_genericCurrentOffset(-1),
+            m_genericCurrentRid(-1),
+            m_genericCurrentSig(NULL)
         {
+            NativeFormat::PTR_NativeHashtable pHash = NULL;
+            if (!pInfo->m_instMethodEntryPoints.IsNull())
+            {
+                pHash = NativeFormat::PTR_NativeHashtable(&pInfo->m_instMethodEntryPoints);
+            }
+
+            m_genericEnum = NativeFormat::NativeHashtable::AllEntriesEnumerator(pHash);
         }
 
         BOOL Next();
@@ -138,6 +157,9 @@ public:
     {
         return m_pPersistentInlineTrackingMap;
     }
+
+    bool MayHaveCustomAttribute(WellKnownAttribute attribute, mdToken token);
+    void DisableCustomAttributeFilter();
 
 private:
     BOOL GetTypeNameFromToken(IMDInternalImport * pImport, mdToken mdType, LPCUTF8 * ppszName, LPCUTF8 * ppszNameSpace);

@@ -7,7 +7,6 @@
 
 #include "stdafx.h"
 
-#include "unsafe.h"
 #include "clrhost.h"
 #include "utilcode.h"
 #include "ex.h"
@@ -78,7 +77,7 @@ void FreeClrDebugState(LPVOID pTlsData)
     {
 #undef HeapFree
 #undef GetProcessHeap
-        
+
         // Since "!(pClrDebugState->m_violationmask & BadDebugState)", we know we have
         // a valid m_pLockData
         _ASSERTE(pClrDebugState->GetDbgStateLockData() != NULL);
@@ -335,55 +334,6 @@ ClrDebugState *CLRInitDebugState()
 
 #endif //defined(_DEBUG_IMPL) && defined(ENABLE_CONTRACTS_IMPL)
 
-
-LPVOID ClrAllocInProcessHeapBootstrap (DWORD dwFlags, SIZE_T dwBytes)
-{
-#if defined(SELF_NO_HOST)
-    static HANDLE hHeap = NULL;
-
-    // This could race, but the result would be that this
-    // variable gets double initialized.
-    if (hHeap == NULL)
-        hHeap = ClrGetProcessHeap();
-
-    return ClrHeapAlloc(hHeap, dwFlags, S_SIZE_T(dwBytes));
-#else //!defined(SELF_NO_HOST)
-    FastAllocInProcessHeapFunc pfnHeapAlloc = (FastAllocInProcessHeapFunc)
-        GetClrCallbacks().m_pfnGetCLRFunction("EEHeapAllocInProcessHeap");
-    if (pfnHeapAlloc != NULL)
-    {
-        __ClrAllocInProcessHeap = pfnHeapAlloc;
-        return pfnHeapAlloc(dwFlags, dwBytes);
-    }
-    return ClrHeapAlloc(ClrGetProcessHeap(), dwFlags, S_SIZE_T(dwBytes));
-#endif // !defined(SELF_NO_HOST)
-}
-FastAllocInProcessHeapFunc __ClrAllocInProcessHeap = (FastAllocInProcessHeapFunc) ClrAllocInProcessHeapBootstrap;
-
-BOOL ClrFreeInProcessHeapBootstrap (DWORD dwFlags, LPVOID lpMem)
-{
-#if defined(SELF_NO_HOST)
-    static HANDLE hHeap = NULL;
-
-    // This could race, but the result would be that this
-    // variable gets double initialized.
-    if (hHeap == NULL)
-        hHeap = ClrGetProcessHeap();
-
-    return ClrHeapFree(hHeap, dwFlags,lpMem);
-#else //!defined(SELF_NO_HOST)
-    FastFreeInProcessHeapFunc pfnHeapFree = (FastFreeInProcessHeapFunc)
-        GetClrCallbacks().m_pfnGetCLRFunction("EEHeapFreeInProcessHeap");
-    if (pfnHeapFree)
-    {
-        __ClrFreeInProcessHeap = pfnHeapFree;
-        return (*pfnHeapFree)(dwFlags,lpMem);
-    }
-    return ClrHeapFree(ClrGetProcessHeap(),dwFlags,lpMem);
-#endif //!defined(SELF_NO_HOST)
-}
-FastFreeInProcessHeapFunc __ClrFreeInProcessHeap = (FastFreeInProcessHeapFunc) ClrFreeInProcessHeapBootstrap;
-
 const NoThrow nothrow = { 0 };
 
 #ifdef HAS_ADDRESS_SANITIZER
@@ -504,8 +454,8 @@ operator delete[](void *p) NOEXCEPT
  * New operator overloading for the executable heap
  * ------------------------------------------------------------------------ */
 
-#ifndef FEATURE_PAL 
- 
+#ifndef FEATURE_PAL
+
 const CExecutable executable = { 0 };
 
 void * __cdecl operator new(size_t n, const CExecutable&)
@@ -555,7 +505,7 @@ void * __cdecl operator new[](size_t n, const CExecutable&)
 }
 
 void * __cdecl operator new(size_t n, const CExecutable&, const NoThrow&)
-{    
+{
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_FAULT;
@@ -588,7 +538,7 @@ void * __cdecl operator new[](size_t n, const CExecutable&, const NoThrow&)
     return result;
 }
 
-#endif // FEATURE_PAL 
+#endif // FEATURE_PAL
 
 #ifdef _DEBUG
 
@@ -598,7 +548,7 @@ BOOL DbgIsExecutable(LPVOID lpMem, SIZE_T length)
 #if defined(CROSSGEN_COMPILE) || defined(FEATURE_PAL)
     // No NX support on PAL or for crossgen compilations.
     return TRUE;
-#else // !(CROSSGEN_COMPILE || FEATURE_PAL) 
+#else // !(CROSSGEN_COMPILE || FEATURE_PAL)
     BYTE *regionStart = (BYTE*) ALIGN_DOWN((BYTE*)lpMem, GetOsPageSize());
     BYTE *regionEnd = (BYTE*) ALIGN_UP((BYTE*)lpMem+length, GetOsPageSize());
     _ASSERTE(length > 0);
@@ -652,7 +602,7 @@ IExecutionEngine *GetExecutionEngine()
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_CANNOT_TAKE_LOCK;
     SUPPORTS_DAC_HOST_ONLY;
-       
+
     if (g_pExecutionEngine == NULL)
     {
         IExecutionEngine* pExecutionEngine;
@@ -669,7 +619,7 @@ IExecutionEngine *GetExecutionEngine()
 #endif  // SELF_NO_HOST
 
         //We use an explicit memory barrier here so that the reference g_pExecutionEngine is valid when
-        //it is used, This ia a requirement on platforms with weak memory model . We cannot use VolatileStore  
+        //it is used, This ia a requirement on platforms with weak memory model . We cannot use VolatileStore
         //because they are the same as normal assignment for DAC builds [see code:VOLATILE]
 
         MemoryBarrier();

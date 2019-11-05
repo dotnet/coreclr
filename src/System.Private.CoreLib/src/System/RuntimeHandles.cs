@@ -34,10 +34,10 @@ namespace System
             return type;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern bool IsInstanceOfType(RuntimeType type, object o);
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        internal static extern bool IsInstanceOfType(RuntimeType type, object? o);
 
-        internal static Type GetTypeHelper(Type typeStart, Type[] genericArgs, IntPtr pModifiers, int cModifiers)
+        internal static Type GetTypeHelper(Type typeStart, Type[]? genericArgs, IntPtr pModifiers, int cModifiers)
         {
             Type type = typeStart;
 
@@ -53,13 +53,10 @@ namespace System
                 {
                     if ((CorElementType)Marshal.ReadInt32((IntPtr)arModifiers, i * sizeof(int)) == CorElementType.ELEMENT_TYPE_PTR)
                         type = type.MakePointerType();
-
                     else if ((CorElementType)Marshal.ReadInt32((IntPtr)arModifiers, i * sizeof(int)) == CorElementType.ELEMENT_TYPE_BYREF)
                         type = type.MakeByRefType();
-
                     else if ((CorElementType)Marshal.ReadInt32((IntPtr)arModifiers, i * sizeof(int)) == CorElementType.ELEMENT_TYPE_SZARRAY)
                         type = type.MakeArrayType();
-
                     else
                         type = type.MakeArrayType(Marshal.ReadInt32((IntPtr)arModifiers, ++i * sizeof(int)));
                 }
@@ -68,24 +65,23 @@ namespace System
             return type;
         }
 
-        public static bool operator ==(RuntimeTypeHandle left, object right) { return left.Equals(right); }
+        public static bool operator ==(RuntimeTypeHandle left, object? right) => left.Equals(right);
 
-        public static bool operator ==(object left, RuntimeTypeHandle right) { return right.Equals(left); }
+        public static bool operator ==(object? left, RuntimeTypeHandle right) => right.Equals(left);
 
-        public static bool operator !=(RuntimeTypeHandle left, object right) { return !left.Equals(right); }
+        public static bool operator !=(RuntimeTypeHandle left, object? right) => !left.Equals(right);
 
-        public static bool operator !=(object left, RuntimeTypeHandle right) { return !right.Equals(left); }
-
+        public static bool operator !=(object? left, RuntimeTypeHandle right) => !right.Equals(left);
 
         // This is the RuntimeType for the type
-        private RuntimeType m_type;
+        internal RuntimeType m_type;
 
         public override int GetHashCode()
         {
             return m_type != null ? m_type.GetHashCode() : 0;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (!(obj is RuntimeTypeHandle))
                 return false;
@@ -99,13 +95,7 @@ namespace System
             return handle.m_type == m_type;
         }
 
-        public IntPtr Value
-        {
-            get
-            {
-                return m_type != null ? m_type.m_handle : IntPtr.Zero;
-            }
-        }
+        public IntPtr Value => m_type != null ? m_type.m_handle : IntPtr.Zero;
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern IntPtr GetValueInternal(RuntimeTypeHandle handle);
@@ -144,37 +134,37 @@ namespace System
         internal static bool IsByRef(RuntimeType type)
         {
             CorElementType corElemType = GetCorElementType(type);
-            return (corElemType == CorElementType.ELEMENT_TYPE_BYREF);
+            return corElemType == CorElementType.ELEMENT_TYPE_BYREF;
         }
 
         internal static bool IsPointer(RuntimeType type)
         {
             CorElementType corElemType = GetCorElementType(type);
-            return (corElemType == CorElementType.ELEMENT_TYPE_PTR);
+            return corElemType == CorElementType.ELEMENT_TYPE_PTR;
         }
 
         internal static bool IsArray(RuntimeType type)
         {
             CorElementType corElemType = GetCorElementType(type);
-            return (corElemType == CorElementType.ELEMENT_TYPE_ARRAY || corElemType == CorElementType.ELEMENT_TYPE_SZARRAY);
+            return corElemType == CorElementType.ELEMENT_TYPE_ARRAY || corElemType == CorElementType.ELEMENT_TYPE_SZARRAY;
         }
 
         internal static bool IsSZArray(RuntimeType type)
         {
             CorElementType corElemType = GetCorElementType(type);
-            return (corElemType == CorElementType.ELEMENT_TYPE_SZARRAY);
+            return corElemType == CorElementType.ELEMENT_TYPE_SZARRAY;
         }
 
         internal static bool HasElementType(RuntimeType type)
         {
             CorElementType corElemType = GetCorElementType(type);
 
-            return ((corElemType == CorElementType.ELEMENT_TYPE_ARRAY || corElemType == CorElementType.ELEMENT_TYPE_SZARRAY) // IsArray
+            return corElemType == CorElementType.ELEMENT_TYPE_ARRAY || corElemType == CorElementType.ELEMENT_TYPE_SZARRAY // IsArray
                    || (corElemType == CorElementType.ELEMENT_TYPE_PTR)                                          // IsPointer
-                   || (corElemType == CorElementType.ELEMENT_TYPE_BYREF));                                      // IsByRef
+                   || (corElemType == CorElementType.ELEMENT_TYPE_BYREF);                                      // IsByRef
         }
 
-        internal static IntPtr[] CopyRuntimeTypeHandles(RuntimeTypeHandle[] inHandles, out int length)
+        internal static IntPtr[]? CopyRuntimeTypeHandles(RuntimeTypeHandle[]? inHandles, out int length)
         {
             if (inHandles == null || inHandles.Length == 0)
             {
@@ -191,7 +181,7 @@ namespace System
             return outHandles;
         }
 
-        internal static IntPtr[] CopyRuntimeTypeHandles(Type[] inHandles, out int length)
+        internal static IntPtr[]? CopyRuntimeTypeHandles(Type[]? inHandles, out int length)
         {
             if (inHandles == null || inHandles.Length == 0)
             {
@@ -208,16 +198,13 @@ namespace System
             return outHandles;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern object CreateInstance(RuntimeType type, bool publicOnly, bool wrapExceptions, ref bool canBeCached, ref RuntimeMethodHandleInternal ctor, ref bool hasNoDefaultCtor);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern object CreateCaInstance(RuntimeType type, IRuntimeMethodInfo ctor);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern object Allocate(RuntimeType type);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern object CreateInstanceForAnotherGenericParameter(RuntimeType type, RuntimeType genericParameter);
 
         internal RuntimeType GetRuntimeType()
@@ -225,13 +212,13 @@ namespace System
             return m_type;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern CorElementType GetCorElementType(RuntimeType type);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern RuntimeAssembly GetAssembly(RuntimeType type);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern RuntimeModule GetModule(RuntimeType type);
 
         public ModuleHandle GetModuleHandle()
@@ -239,25 +226,25 @@ namespace System
             return new ModuleHandle(RuntimeTypeHandle.GetModule(m_type));
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern RuntimeType GetBaseType(RuntimeType type);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern TypeAttributes GetAttributes(RuntimeType type);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern RuntimeType GetElementType(RuntimeType type);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool CompareCanonicalHandles(RuntimeType left, RuntimeType right);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int GetArrayRank(RuntimeType type);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int GetToken(RuntimeType type);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern RuntimeMethodHandleInternal GetMethodAt(RuntimeType type, int slot);
 
         // This is managed wrapper for MethodTable::IntroducedMethodIterator
@@ -285,13 +272,7 @@ namespace System
                 return !(_handle.Value == IntPtr.Zero);
             }
 
-            public RuntimeMethodHandleInternal Current
-            {
-                get
-                {
-                    return _handle;
-                }
-            }
+            public RuntimeMethodHandleInternal Current => _handle;
 
             // Glue to make this work nicely with C# foreach statement
             public IntroducedMethodEnumerator GetEnumerator()
@@ -305,88 +286,96 @@ namespace System
             return new IntroducedMethodEnumerator(type);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern RuntimeMethodHandleInternal GetFirstIntroducedMethod(RuntimeType type);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void GetNextIntroducedMethod(ref RuntimeMethodHandleInternal method);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool GetFields(RuntimeType type, IntPtr* result, int* count);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern Type[] GetInterfaces(RuntimeType type);
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        internal static extern Type[]? GetInterfaces(RuntimeType type);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetConstraints(RuntimeTypeHandle handle, ObjectHandleOnStack types);
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern void GetConstraints(QCallTypeHandle handle, ObjectHandleOnStack types);
 
         internal Type[] GetConstraints()
         {
-            Type[] types = null;
-            GetConstraints(GetNativeHandle(), JitHelpers.GetObjectHandleOnStack(ref types));
+            Type[]? types = null;
+            RuntimeTypeHandle nativeHandle = GetNativeHandle();
 
-            return types;
+            GetConstraints(new QCallTypeHandle(ref nativeHandle), ObjectHandleOnStack.Create(ref types));
+
+            return types!;
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern IntPtr GetGCHandle(RuntimeTypeHandle handle, GCHandleType type);
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern IntPtr GetGCHandle(QCallTypeHandle handle, GCHandleType type);
 
         internal IntPtr GetGCHandle(GCHandleType type)
         {
-            return GetGCHandle(GetNativeHandle(), type);
+            RuntimeTypeHandle nativeHandle = GetNativeHandle();
+            return GetGCHandle(new QCallTypeHandle(ref nativeHandle), type);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int GetNumVirtuals(RuntimeType type);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void VerifyInterfaceIsImplemented(RuntimeTypeHandle handle, RuntimeTypeHandle interfaceHandle);
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern void VerifyInterfaceIsImplemented(QCallTypeHandle handle, QCallTypeHandle interfaceHandle);
 
         internal void VerifyInterfaceIsImplemented(RuntimeTypeHandle interfaceHandle)
         {
-            VerifyInterfaceIsImplemented(GetNativeHandle(), interfaceHandle.GetNativeHandle());
+            RuntimeTypeHandle nativeHandle = GetNativeHandle();
+            RuntimeTypeHandle nativeInterfaceHandle = interfaceHandle.GetNativeHandle();
+            VerifyInterfaceIsImplemented(new QCallTypeHandle(ref nativeHandle), new QCallTypeHandle(ref nativeInterfaceHandle));
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern RuntimeMethodHandleInternal GetInterfaceMethodImplementation(RuntimeTypeHandle handle, RuntimeTypeHandle interfaceHandle, RuntimeMethodHandleInternal interfaceMethodHandle);
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern RuntimeMethodHandleInternal GetInterfaceMethodImplementation(QCallTypeHandle handle, QCallTypeHandle interfaceHandle, RuntimeMethodHandleInternal interfaceMethodHandle);
 
         internal RuntimeMethodHandleInternal GetInterfaceMethodImplementation(RuntimeTypeHandle interfaceHandle, RuntimeMethodHandleInternal interfaceMethodHandle)
         {
-            return GetInterfaceMethodImplementation(GetNativeHandle(), interfaceHandle.GetNativeHandle(), interfaceMethodHandle);
+            RuntimeTypeHandle nativeHandle = GetNativeHandle();
+            RuntimeTypeHandle nativeInterfaceHandle = interfaceHandle.GetNativeHandle();
+            return GetInterfaceMethodImplementation(new QCallTypeHandle(ref nativeHandle), new QCallTypeHandle(ref nativeInterfaceHandle), interfaceMethodHandle);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool IsComObject(RuntimeType type, bool isGenericCOM);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool IsInterface(RuntimeType type);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool IsByRefLike(RuntimeType type);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool _IsVisible(RuntimeTypeHandle typeHandle);
+        private static extern bool _IsVisible(QCallTypeHandle typeHandle);
 
         internal static bool IsVisible(RuntimeType type)
         {
-            return _IsVisible(new RuntimeTypeHandle(type));
+            return _IsVisible(new QCallTypeHandle(ref type));
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool IsValueType(RuntimeType type);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void ConstructName(RuntimeTypeHandle handle, TypeNameFormatFlags formatFlags, StringHandleOnStack retString);
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern void ConstructName(QCallTypeHandle handle, TypeNameFormatFlags formatFlags, StringHandleOnStack retString);
 
         internal string ConstructName(TypeNameFormatFlags formatFlags)
         {
-            string name = null;
-            ConstructName(GetNativeHandle(), formatFlags, JitHelpers.GetStringHandleOnStack(ref name));
-            return name;
+            string? name = null;
+            RuntimeTypeHandle nativeHandle = GetNativeHandle();
+            ConstructName(new QCallTypeHandle(ref nativeHandle), formatFlags, new StringHandleOnStack(ref name));
+            return name!;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void* _GetUtf8Name(RuntimeType type);
 
         internal static MdUtf8String GetUtf8Name(RuntimeType type)
@@ -394,41 +383,31 @@ namespace System
             return new MdUtf8String(_GetUtf8Name(type));
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool CanCastTo(RuntimeType type, RuntimeType target);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern RuntimeType GetDeclaringType(RuntimeType type);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern IRuntimeMethodInfo GetDeclaringMethod(RuntimeType type);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetDefaultConstructor(RuntimeTypeHandle handle, ObjectHandleOnStack method);
-
-        internal IRuntimeMethodInfo GetDefaultConstructor()
-        {
-            IRuntimeMethodInfo ctor = null;
-            GetDefaultConstructor(GetNativeHandle(), JitHelpers.GetObjectHandleOnStack(ref ctor));
-            return ctor;
-        }
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void GetTypeByName(string name, bool throwOnError, bool ignoreCase, StackCrawlMarkHandle stackMark,
             ObjectHandleOnStack assemblyLoadContext,
             bool loadTypeFromPartialName, ObjectHandleOnStack type, ObjectHandleOnStack keepalive);
 
         // Wrapper function to reduce the need for ifdefs.
-        internal static RuntimeType GetTypeByName(string name, bool throwOnError, bool ignoreCase, ref StackCrawlMark stackMark, bool loadTypeFromPartialName)
+        internal static RuntimeType? GetTypeByName(string name, bool throwOnError, bool ignoreCase, ref StackCrawlMark stackMark, bool loadTypeFromPartialName)
         {
-            return GetTypeByName(name, throwOnError, ignoreCase, ref stackMark, AssemblyLoadContext.CurrentContextualReflectionContext, loadTypeFromPartialName);
+            return GetTypeByName(name, throwOnError, ignoreCase, ref stackMark, AssemblyLoadContext.CurrentContextualReflectionContext!, loadTypeFromPartialName);
         }
 
-        internal static RuntimeType GetTypeByName(string name, bool throwOnError, bool ignoreCase, ref StackCrawlMark stackMark,
+        internal static RuntimeType? GetTypeByName(string name, bool throwOnError, bool ignoreCase, ref StackCrawlMark stackMark,
                                                   AssemblyLoadContext assemblyLoadContext,
                                                   bool loadTypeFromPartialName)
         {
-            if (name == null || name.Length == 0)
+            if (string.IsNullOrEmpty(name))
             {
                 if (throwOnError)
                     throw new TypeLoadException(SR.Arg_TypeLoadNullStr);
@@ -436,134 +415,143 @@ namespace System
                 return null;
             }
 
-            RuntimeType type = null;
-
-            object keepAlive = null;
+            RuntimeType? type = null;
+            object? keepAlive = null;
             AssemblyLoadContext assemblyLoadContextStack = assemblyLoadContext;
             GetTypeByName(name, throwOnError, ignoreCase,
-                JitHelpers.GetStackCrawlMarkHandle(ref stackMark),
-                JitHelpers.GetObjectHandleOnStack(ref assemblyLoadContextStack),
-                loadTypeFromPartialName, JitHelpers.GetObjectHandleOnStack(ref type), JitHelpers.GetObjectHandleOnStack(ref keepAlive));
+                new StackCrawlMarkHandle(ref stackMark),
+                ObjectHandleOnStack.Create(ref assemblyLoadContextStack),
+                loadTypeFromPartialName, ObjectHandleOnStack.Create(ref type), ObjectHandleOnStack.Create(ref keepAlive));
             GC.KeepAlive(keepAlive);
 
             return type;
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetTypeByNameUsingCARules(string name, RuntimeModule scope, ObjectHandleOnStack type);
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern void GetTypeByNameUsingCARules(string name, QCallModule scope, ObjectHandleOnStack type);
 
         internal static RuntimeType GetTypeByNameUsingCARules(string name, RuntimeModule scope)
         {
-            if (name == null || name.Length == 0)
+            if (string.IsNullOrEmpty(name))
                 throw new ArgumentException(null, nameof(name));
 
-            RuntimeType type = null;
-            GetTypeByNameUsingCARules(name, scope.GetNativeHandle(), JitHelpers.GetObjectHandleOnStack(ref type));
+            RuntimeType type = null!;
+            GetTypeByNameUsingCARules(name, new QCallModule(ref scope), ObjectHandleOnStack.Create(ref type));
 
             return type;
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern void GetInstantiation(RuntimeTypeHandle type, ObjectHandleOnStack types, bool fAsRuntimeTypeArray);
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        internal static extern void GetInstantiation(QCallTypeHandle type, ObjectHandleOnStack types, Interop.BOOL fAsRuntimeTypeArray);
 
         internal RuntimeType[] GetInstantiationInternal()
         {
-            RuntimeType[] types = null;
-            GetInstantiation(GetNativeHandle(), JitHelpers.GetObjectHandleOnStack(ref types), true);
+            RuntimeType[] types = null!;
+            RuntimeTypeHandle nativeHandle = GetNativeHandle();
+            GetInstantiation(new QCallTypeHandle(ref nativeHandle), ObjectHandleOnStack.Create(ref types), Interop.BOOL.TRUE);
             return types;
         }
 
         internal Type[] GetInstantiationPublic()
         {
-            Type[] types = null;
-            GetInstantiation(GetNativeHandle(), JitHelpers.GetObjectHandleOnStack(ref types), false);
+            Type[] types = null!;
+            RuntimeTypeHandle nativeHandle = GetNativeHandle();
+            GetInstantiation(new QCallTypeHandle(ref nativeHandle), ObjectHandleOnStack.Create(ref types), Interop.BOOL.FALSE);
             return types;
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void Instantiate(RuntimeTypeHandle handle, IntPtr* pInst, int numGenericArgs, ObjectHandleOnStack type);
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern void Instantiate(QCallTypeHandle handle, IntPtr* pInst, int numGenericArgs, ObjectHandleOnStack type);
 
-        internal RuntimeType Instantiate(Type[] inst)
+        internal RuntimeType Instantiate(Type[]? inst)
         {
             // defensive copy to be sure array is not mutated from the outside during processing
             int instCount;
-            IntPtr[] instHandles = CopyRuntimeTypeHandles(inst, out instCount);
+            IntPtr[]? instHandles = CopyRuntimeTypeHandles(inst, out instCount);
 
             fixed (IntPtr* pInst = instHandles)
             {
-                RuntimeType type = null;
-                Instantiate(GetNativeHandle(), pInst, instCount, JitHelpers.GetObjectHandleOnStack(ref type));
+                RuntimeType type = null!;
+                RuntimeTypeHandle nativeHandle = GetNativeHandle();
+                Instantiate(new QCallTypeHandle(ref nativeHandle), pInst, instCount, ObjectHandleOnStack.Create(ref type));
                 GC.KeepAlive(inst);
                 return type;
             }
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void MakeArray(RuntimeTypeHandle handle, int rank, ObjectHandleOnStack type);
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern void MakeArray(QCallTypeHandle handle, int rank, ObjectHandleOnStack type);
 
         internal RuntimeType MakeArray(int rank)
         {
-            RuntimeType type = null;
-            MakeArray(GetNativeHandle(), rank, JitHelpers.GetObjectHandleOnStack(ref type));
+            RuntimeType type = null!;
+            RuntimeTypeHandle nativeHandle = GetNativeHandle();
+            MakeArray(new QCallTypeHandle(ref nativeHandle), rank, ObjectHandleOnStack.Create(ref type));
             return type;
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void MakeSZArray(RuntimeTypeHandle handle, ObjectHandleOnStack type);
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern void MakeSZArray(QCallTypeHandle handle, ObjectHandleOnStack type);
 
         internal RuntimeType MakeSZArray()
         {
-            RuntimeType type = null;
-            MakeSZArray(GetNativeHandle(), JitHelpers.GetObjectHandleOnStack(ref type));
+            RuntimeType type = null!;
+            RuntimeTypeHandle nativeHandle = GetNativeHandle();
+            MakeSZArray(new QCallTypeHandle(ref nativeHandle), ObjectHandleOnStack.Create(ref type));
             return type;
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void MakeByRef(RuntimeTypeHandle handle, ObjectHandleOnStack type);
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern void MakeByRef(QCallTypeHandle handle, ObjectHandleOnStack type);
 
         internal RuntimeType MakeByRef()
         {
-            RuntimeType type = null;
-            MakeByRef(GetNativeHandle(), JitHelpers.GetObjectHandleOnStack(ref type));
+            RuntimeType type = null!;
+            RuntimeTypeHandle nativeHandle = GetNativeHandle();
+            MakeByRef(new QCallTypeHandle(ref nativeHandle), ObjectHandleOnStack.Create(ref type));
             return type;
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void MakePointer(RuntimeTypeHandle handle, ObjectHandleOnStack type);
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern void MakePointer(QCallTypeHandle handle, ObjectHandleOnStack type);
 
         internal RuntimeType MakePointer()
         {
-            RuntimeType type = null;
-            MakePointer(GetNativeHandle(), JitHelpers.GetObjectHandleOnStack(ref type));
+            RuntimeType type = null!;
+            RuntimeTypeHandle nativeHandle = GetNativeHandle();
+            MakePointer(new QCallTypeHandle(ref nativeHandle), ObjectHandleOnStack.Create(ref type));
             return type;
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern bool IsCollectible(RuntimeTypeHandle handle);
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        internal static extern Interop.BOOL IsCollectible(QCallTypeHandle handle);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool HasInstantiation(RuntimeType type);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetGenericTypeDefinition(RuntimeTypeHandle type, ObjectHandleOnStack retType);
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern void GetGenericTypeDefinition(QCallTypeHandle type, ObjectHandleOnStack retType);
 
         internal static RuntimeType GetGenericTypeDefinition(RuntimeType type)
         {
             RuntimeType retType = type;
 
             if (HasInstantiation(retType) && !IsGenericTypeDefinition(retType))
-                GetGenericTypeDefinition(retType.GetTypeHandleInternal(), JitHelpers.GetObjectHandleOnStack(ref retType));
+            {
+                RuntimeTypeHandle nativeHandle = retType.GetTypeHandleInternal();
+                GetGenericTypeDefinition(new QCallTypeHandle(ref nativeHandle), ObjectHandleOnStack.Create(ref retType));
+            }
 
             return retType;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool IsGenericTypeDefinition(RuntimeType type);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool IsGenericVariable(RuntimeType type);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int GetGenericVariableIndex(RuntimeType type);
 
         internal int GetGenericVariableIndex()
@@ -576,7 +564,7 @@ namespace System
             return GetGenericVariableIndex(type);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool ContainsGenericVariables(RuntimeType handle);
 
         internal bool ContainsGenericVariables()
@@ -584,15 +572,15 @@ namespace System
             return ContainsGenericVariables(GetTypeChecked());
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool SatisfiesConstraints(RuntimeType paramType, IntPtr* pTypeContext, int typeContextLength, IntPtr* pMethodContext, int methodContextLength, RuntimeType toType);
 
-        internal static bool SatisfiesConstraints(RuntimeType paramType, RuntimeType[] typeContext, RuntimeType[] methodContext, RuntimeType toType)
+        internal static bool SatisfiesConstraints(RuntimeType paramType, RuntimeType[]? typeContext, RuntimeType[]? methodContext, RuntimeType toType)
         {
             int typeContextLength;
             int methodContextLength;
-            IntPtr[] typeContextHandles = CopyRuntimeTypeHandles(typeContext, out typeContextLength);
-            IntPtr[] methodContextHandles = CopyRuntimeTypeHandles(methodContext, out methodContextLength);
+            IntPtr[]? typeContextHandles = CopyRuntimeTypeHandles(typeContext, out typeContextLength);
+            IntPtr[]? methodContextHandles = CopyRuntimeTypeHandles(methodContext, out methodContextLength);
 
             fixed (IntPtr* pTypeContextHandles = typeContextHandles, pMethodContextHandles = methodContextHandles)
             {
@@ -605,7 +593,7 @@ namespace System
             }
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern IntPtr _GetMetadataImport(RuntimeType type);
 
         internal static MetadataImport GetMetadataImport(RuntimeType type)
@@ -619,42 +607,30 @@ namespace System
         }
 
 #if FEATURE_TYPEEQUIVALENCE
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool IsEquivalentTo(RuntimeType rtType1, RuntimeType rtType2);
 #endif // FEATURE_TYPEEQUIVALENCE
     }
 
-    // This type is used to remove the expense of having a managed reference object that is dynamically 
+    // This type is used to remove the expense of having a managed reference object that is dynamically
     // created when we can prove that we don't need that object. Use of this type requires code to ensure
-    // that the underlying native resource is not freed. 
+    // that the underlying native resource is not freed.
     // Cases in which this may be used:
     //  1. When native code calls managed code passing one of these as a parameter
     //  2. When managed code acquires one of these from an IRuntimeMethodInfo, and ensure that the IRuntimeMethodInfo is preserved
     //     across the lifetime of the RuntimeMethodHandleInternal instance
     //  3. When another object is used to keep the RuntimeMethodHandleInternal alive. See delegates, CreateInstance cache, Signature structure
-    // When in doubt, do not use. 
+    // When in doubt, do not use.
     internal struct RuntimeMethodHandleInternal
     {
-        internal static RuntimeMethodHandleInternal EmptyHandle
-        {
-            get
-            {
-                return new RuntimeMethodHandleInternal();
-            }
-        }
+        internal static RuntimeMethodHandleInternal EmptyHandle => new RuntimeMethodHandleInternal();
 
         internal bool IsNullHandle()
         {
             return m_handle == IntPtr.Zero;
         }
 
-        internal IntPtr Value
-        {
-            get
-            {
-                return m_handle;
-            }
-        }
+        internal IntPtr Value => m_handle;
 
         internal RuntimeMethodHandleInternal(IntPtr value)
         {
@@ -681,25 +657,19 @@ namespace System
         private object m_keepalive;
 
         // These unused variables are used to ensure that this class has the same layout as RuntimeMethodInfo
-#pragma warning disable 169
-        private object m_a;
-        private object m_b;
-        private object m_c;
-        private object m_d;
-        private object m_e;
-        private object m_f;
-        private object m_g;
-#pragma warning restore 169
+#pragma warning disable CA1823, 414
+        private object m_a = null!;
+        private object m_b = null!;
+        private object m_c = null!;
+        private object m_d = null!;
+        private object m_e = null!;
+        private object m_f = null!;
+        private object m_g = null!;
+#pragma warning restore CA1823, 414
 
         public RuntimeMethodHandleInternal m_value;
 
-        RuntimeMethodHandleInternal IRuntimeMethodInfo.Value
-        {
-            get
-            {
-                return m_value;
-            }
-        }
+        RuntimeMethodHandleInternal IRuntimeMethodInfo.Value => m_value;
     }
 
     internal interface IRuntimeMethodInfo
@@ -744,20 +714,14 @@ namespace System
             throw new PlatformNotSupportedException();
         }
 
-        public IntPtr Value
-        {
-            get
-            {
-                return m_value != null ? m_value.Value.Value : IntPtr.Zero;
-            }
-        }
+        public IntPtr Value => m_value != null ? m_value.Value.Value : IntPtr.Zero;
 
         public override int GetHashCode()
         {
             return ValueType.GetHashCodeOfPtr(Value);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (!(obj is RuntimeMethodHandle))
                 return false;
@@ -767,15 +731,9 @@ namespace System
             return handle.Value == Value;
         }
 
-        public static bool operator ==(RuntimeMethodHandle left, RuntimeMethodHandle right)
-        {
-            return left.Equals(right);
-        }
+        public static bool operator ==(RuntimeMethodHandle left, RuntimeMethodHandle right) => left.Equals(right);
 
-        public static bool operator !=(RuntimeMethodHandle left, RuntimeMethodHandle right)
-        {
-            return !left.Equals(right);
-        }
+        public static bool operator !=(RuntimeMethodHandle left, RuntimeMethodHandle right) => !left.Equals(right);
 
         public bool Equals(RuntimeMethodHandle handle)
         {
@@ -787,35 +745,34 @@ namespace System
             return m_value == null;
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern IntPtr GetFunctionPointer(RuntimeMethodHandleInternal handle);
 
         public IntPtr GetFunctionPointer()
         {
-            IntPtr ptr = GetFunctionPointer(EnsureNonNullMethodInfo(m_value).Value);
+            IntPtr ptr = GetFunctionPointer(EnsureNonNullMethodInfo(m_value!).Value);
             GC.KeepAlive(m_value);
             return ptr;
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool GetIsCollectible(RuntimeMethodHandleInternal handle);
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        internal static extern Interop.BOOL GetIsCollectible(RuntimeMethodHandleInternal handle);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern bool IsCAVisibleFromDecoratedType(
-            RuntimeTypeHandle attrTypeHandle,
-            IRuntimeMethodInfo attrCtor,
-            RuntimeTypeHandle sourceTypeHandle,
-            RuntimeModule sourceModule);
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        internal static extern Interop.BOOL IsCAVisibleFromDecoratedType(
+            QCallTypeHandle attrTypeHandle,
+            RuntimeMethodHandleInternal attrCtor,
+            QCallTypeHandle sourceTypeHandle,
+            QCallModule sourceModule);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern IRuntimeMethodInfo _GetCurrentMethod(ref StackCrawlMark stackMark);
-        internal static IRuntimeMethodInfo GetCurrentMethod(ref StackCrawlMark stackMark)
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        private static extern IRuntimeMethodInfo? _GetCurrentMethod(ref StackCrawlMark stackMark);
+        internal static IRuntimeMethodInfo? GetCurrentMethod(ref StackCrawlMark stackMark)
         {
             return _GetCurrentMethod(ref stackMark);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern MethodAttributes GetAttributes(RuntimeMethodHandleInternal method);
 
         internal static MethodAttributes GetAttributes(IRuntimeMethodInfo method)
@@ -825,20 +782,22 @@ namespace System
             return retVal;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern MethodImplAttributes GetImplAttributes(IRuntimeMethodInfo method);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void ConstructInstantiation(IRuntimeMethodInfo method, TypeNameFormatFlags format, StringHandleOnStack retString);
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern void ConstructInstantiation(RuntimeMethodHandleInternal method, TypeNameFormatFlags format, StringHandleOnStack retString);
 
         internal static string ConstructInstantiation(IRuntimeMethodInfo method, TypeNameFormatFlags format)
         {
-            string name = null;
-            ConstructInstantiation(EnsureNonNullMethodInfo(method), format, JitHelpers.GetStringHandleOnStack(ref name));
-            return name;
+            string? name = null;
+            IRuntimeMethodInfo methodInfo = EnsureNonNullMethodInfo(method);
+            ConstructInstantiation(methodInfo.Value, format, new StringHandleOnStack(ref name));
+            GC.KeepAlive(methodInfo);
+            return name!;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern RuntimeType GetDeclaringType(RuntimeMethodHandleInternal method);
 
         internal static RuntimeType GetDeclaringType(IRuntimeMethodInfo method)
@@ -848,7 +807,7 @@ namespace System
             return type;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int GetSlot(RuntimeMethodHandleInternal method);
 
         internal static int GetSlot(IRuntimeMethodInfo method)
@@ -860,10 +819,10 @@ namespace System
             return slot;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int GetMethodDef(IRuntimeMethodInfo method);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern string GetName(RuntimeMethodHandleInternal method);
 
         internal static string GetName(IRuntimeMethodInfo method)
@@ -873,7 +832,7 @@ namespace System
             return name;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void* _GetUtf8Name(RuntimeMethodHandleInternal method);
 
         internal static MdUtf8String GetUtf8Name(RuntimeMethodHandleInternal method)
@@ -881,41 +840,41 @@ namespace System
             return new MdUtf8String(_GetUtf8Name(method));
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool MatchesNameHash(RuntimeMethodHandleInternal method, uint hash);
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern object InvokeMethod(object target, object[] arguments, Signature sig, bool constructor, bool wrapExceptions);
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        internal static extern object InvokeMethod(object? target, object[]? arguments, Signature sig, bool constructor, bool wrapExceptions);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetMethodInstantiation(RuntimeMethodHandleInternal method, ObjectHandleOnStack types, bool fAsRuntimeTypeArray);
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern void GetMethodInstantiation(RuntimeMethodHandleInternal method, ObjectHandleOnStack types, Interop.BOOL fAsRuntimeTypeArray);
 
         internal static RuntimeType[] GetMethodInstantiationInternal(IRuntimeMethodInfo method)
         {
-            RuntimeType[] types = null;
-            GetMethodInstantiation(EnsureNonNullMethodInfo(method).Value, JitHelpers.GetObjectHandleOnStack(ref types), true);
+            RuntimeType[] types = null!;
+            GetMethodInstantiation(EnsureNonNullMethodInfo(method).Value, ObjectHandleOnStack.Create(ref types), Interop.BOOL.TRUE);
             GC.KeepAlive(method);
             return types;
         }
 
         internal static RuntimeType[] GetMethodInstantiationInternal(RuntimeMethodHandleInternal method)
         {
-            RuntimeType[] types = null;
-            GetMethodInstantiation(method, JitHelpers.GetObjectHandleOnStack(ref types), true);
+            RuntimeType[] types = null!;
+            GetMethodInstantiation(method, ObjectHandleOnStack.Create(ref types), Interop.BOOL.TRUE);
             return types;
         }
 
         internal static Type[] GetMethodInstantiationPublic(IRuntimeMethodInfo method)
         {
-            RuntimeType[] types = null;
-            GetMethodInstantiation(EnsureNonNullMethodInfo(method).Value, JitHelpers.GetObjectHandleOnStack(ref types), false);
+            RuntimeType[] types = null!;
+            GetMethodInstantiation(EnsureNonNullMethodInfo(method).Value, ObjectHandleOnStack.Create(ref types), Interop.BOOL.FALSE);
             GC.KeepAlive(method);
             return types;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool HasMethodInstantiation(RuntimeMethodHandleInternal method);
 
         internal static bool HasMethodInstantiation(IRuntimeMethodInfo method)
@@ -925,13 +884,13 @@ namespace System
             return fRet;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern RuntimeMethodHandleInternal GetStubIfNeeded(RuntimeMethodHandleInternal method, RuntimeType declaringType, RuntimeType[] methodInstantiation);
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        internal static extern RuntimeMethodHandleInternal GetStubIfNeeded(RuntimeMethodHandleInternal method, RuntimeType declaringType, RuntimeType[]? methodInstantiation);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern RuntimeMethodHandleInternal GetMethodFromCanonical(RuntimeMethodHandleInternal method, RuntimeType declaringType);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool IsGenericMethodDefinition(RuntimeMethodHandleInternal method);
 
         internal static bool IsGenericMethodDefinition(IRuntimeMethodInfo method)
@@ -941,48 +900,52 @@ namespace System
             return fRet;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool IsTypicalMethodDefinition(IRuntimeMethodInfo method);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetTypicalMethodDefinition(IRuntimeMethodInfo method, ObjectHandleOnStack outMethod);
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern void GetTypicalMethodDefinition(RuntimeMethodHandleInternal method, ObjectHandleOnStack outMethod);
 
         internal static IRuntimeMethodInfo GetTypicalMethodDefinition(IRuntimeMethodInfo method)
         {
             if (!IsTypicalMethodDefinition(method))
-                GetTypicalMethodDefinition(method, JitHelpers.GetObjectHandleOnStack(ref method));
+            {
+                GetTypicalMethodDefinition(method.Value, ObjectHandleOnStack.Create(ref method));
+                GC.KeepAlive(method);
+            }
 
             return method;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int GetGenericParameterCount(RuntimeMethodHandleInternal method);
 
         internal static int GetGenericParameterCount(IRuntimeMethodInfo method) => GetGenericParameterCount(method.Value);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void StripMethodInstantiation(IRuntimeMethodInfo method, ObjectHandleOnStack outMethod);
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern void StripMethodInstantiation(RuntimeMethodHandleInternal method, ObjectHandleOnStack outMethod);
 
         internal static IRuntimeMethodInfo StripMethodInstantiation(IRuntimeMethodInfo method)
         {
             IRuntimeMethodInfo strippedMethod = method;
 
-            StripMethodInstantiation(method, JitHelpers.GetObjectHandleOnStack(ref strippedMethod));
+            StripMethodInstantiation(method.Value, ObjectHandleOnStack.Create(ref strippedMethod));
+            GC.KeepAlive(method);
 
             return strippedMethod;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool IsDynamicMethod(RuntimeMethodHandleInternal method);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern void Destroy(RuntimeMethodHandleInternal method);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern Resolver GetResolver(RuntimeMethodHandleInternal method);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        internal static extern RuntimeMethodBody GetMethodBody(IRuntimeMethodInfo method, RuntimeType declaringType);
+        internal static extern RuntimeMethodBody? GetMethodBody(IRuntimeMethodInfo method, RuntimeType declaringType);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool IsConstructor(RuntimeMethodHandleInternal method);
@@ -991,15 +954,15 @@ namespace System
         internal static extern LoaderAllocator GetLoaderAllocator(RuntimeMethodHandleInternal method);
     }
 
-    // This type is used to remove the expense of having a managed reference object that is dynamically 
+    // This type is used to remove the expense of having a managed reference object that is dynamically
     // created when we can prove that we don't need that object. Use of this type requires code to ensure
-    // that the underlying native resource is not freed. 
+    // that the underlying native resource is not freed.
     // Cases in which this may be used:
     //  1. When native code calls managed code passing one of these as a parameter
     //  2. When managed code acquires one of these from an RtFieldInfo, and ensure that the RtFieldInfo is preserved
     //     across the lifetime of the RuntimeFieldHandleInternal instance
     //  3. When another object is used to keep the RuntimeFieldHandleInternal alive.
-    // When in doubt, do not use. 
+    // When in doubt, do not use.
     internal struct RuntimeFieldHandleInternal
     {
         internal bool IsNullHandle()
@@ -1007,13 +970,7 @@ namespace System
             return m_handle == IntPtr.Zero;
         }
 
-        internal IntPtr Value
-        {
-            get
-            {
-                return m_handle;
-            }
-        }
+        internal IntPtr Value => m_handle;
 
         internal RuntimeFieldHandleInternal(IntPtr value)
         {
@@ -1035,22 +992,16 @@ namespace System
     internal class RuntimeFieldInfoStub : IRuntimeFieldInfo
     {
         // These unused variables are used to ensure that this class has the same layout as RuntimeFieldInfo
-#pragma warning disable 169
-        private object m_keepalive;
-        private object m_c;
-        private object m_d;
+#pragma warning disable 414
+        private object m_keepalive = null!;
+        private object m_c = null!;
+        private object m_d = null!;
         private int m_b;
-        private object m_e;
+        private object m_e = null!;
         private RuntimeFieldHandleInternal m_fieldHandle;
-#pragma warning restore 169
+#pragma warning restore 414
 
-        RuntimeFieldHandleInternal IRuntimeFieldInfo.Value
-        {
-            get
-            {
-                return m_fieldHandle;
-            }
-        }
+        RuntimeFieldHandleInternal IRuntimeFieldInfo.Value => m_fieldHandle;
     }
 
     public unsafe struct RuntimeFieldHandle : ISerializable
@@ -1077,13 +1028,7 @@ namespace System
             return m_ptr;
         }
 
-        public IntPtr Value
-        {
-            get
-            {
-                return m_ptr != null ? m_ptr.Value.Value : IntPtr.Zero;
-            }
-        }
+        public IntPtr Value => m_ptr != null ? m_ptr.Value.Value : IntPtr.Zero;
 
         internal bool IsNullHandle()
         {
@@ -1095,7 +1040,7 @@ namespace System
             return ValueType.GetHashCodeOfPtr(Value);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (!(obj is RuntimeFieldHandle))
                 return false;
@@ -1110,31 +1055,25 @@ namespace System
             return handle.Value == Value;
         }
 
-        public static bool operator ==(RuntimeFieldHandle left, RuntimeFieldHandle right)
-        {
-            return left.Equals(right);
-        }
+        public static bool operator ==(RuntimeFieldHandle left, RuntimeFieldHandle right) => left.Equals(right);
 
-        public static bool operator !=(RuntimeFieldHandle left, RuntimeFieldHandle right)
-        {
-            return !left.Equals(right);
-        }
+        public static bool operator !=(RuntimeFieldHandle left, RuntimeFieldHandle right) => !left.Equals(right);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern string GetName(RtFieldInfo field);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern unsafe void* _GetUtf8Name(RuntimeFieldHandleInternal field);
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        private static extern void* _GetUtf8Name(RuntimeFieldHandleInternal field);
 
         internal static MdUtf8String GetUtf8Name(RuntimeFieldHandleInternal field) { return new MdUtf8String(_GetUtf8Name(field)); }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool MatchesNameHash(RuntimeFieldHandleInternal handle, uint hash);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern FieldAttributes GetAttributes(RuntimeFieldHandleInternal field);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern RuntimeType GetApproxDeclaringType(RuntimeFieldHandleInternal field);
 
         internal static RuntimeType GetApproxDeclaringType(IRuntimeFieldInfo field)
@@ -1144,25 +1083,25 @@ namespace System
             return type;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int GetToken(RtFieldInfo field);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern object GetValue(RtFieldInfo field, object instance, RuntimeType fieldType, RuntimeType declaringType, ref bool domainInitialized);
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        internal static extern object? GetValue(RtFieldInfo field, object? instance, RuntimeType fieldType, RuntimeType? declaringType, ref bool domainInitialized);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern object GetValueDirect(RtFieldInfo field, RuntimeType fieldType, void* pTypedRef, RuntimeType contextType);
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        internal static extern object? GetValueDirect(RtFieldInfo field, RuntimeType fieldType, void* pTypedRef, RuntimeType? contextType);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void SetValue(RtFieldInfo field, object obj, object value, RuntimeType fieldType, FieldAttributes fieldAttr, RuntimeType declaringType, ref bool domainInitialized);
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        internal static extern void SetValue(RtFieldInfo field, object? obj, object? value, RuntimeType fieldType, FieldAttributes fieldAttr, RuntimeType? declaringType, ref bool domainInitialized);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void SetValueDirect(RtFieldInfo field, RuntimeType fieldType, void* pTypedRef, object value, RuntimeType contextType);
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        internal static extern void SetValueDirect(RtFieldInfo field, RuntimeType fieldType, void* pTypedRef, object? value, RuntimeType? contextType);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern RuntimeFieldHandleInternal GetStaticFieldForGenericType(RuntimeFieldHandleInternal field, RuntimeType declaringType);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool AcquiresContextFromThis(RuntimeFieldHandleInternal field);
 
         // ISerializable interface
@@ -1207,7 +1146,7 @@ namespace System
             return m_ptr != null ? m_ptr.GetHashCode() : 0;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (!(obj is ModuleHandle))
                 return false;
@@ -1222,20 +1161,14 @@ namespace System
             return handle.m_ptr == m_ptr;
         }
 
-        public static bool operator ==(ModuleHandle left, ModuleHandle right)
-        {
-            return left.Equals(right);
-        }
+        public static bool operator ==(ModuleHandle left, ModuleHandle right) => left.Equals(right);
 
-        public static bool operator !=(ModuleHandle left, ModuleHandle right)
-        {
-            return !left.Equals(right);
-        }
+        public static bool operator !=(ModuleHandle left, ModuleHandle right) => !left.Equals(right);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern IRuntimeMethodInfo GetDynamicMethod(System.Reflection.Emit.DynamicMethod method, RuntimeModule module, string name, byte[] sig, Resolver resolver);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int GetToken(RuntimeModule module);
 
         private static void ValidateModulePointer(RuntimeModule module)
@@ -1251,12 +1184,12 @@ namespace System
         {
             return new RuntimeTypeHandle(ResolveTypeHandleInternal(GetRuntimeModule(), typeToken, null, null));
         }
-        public RuntimeTypeHandle ResolveTypeHandle(int typeToken, RuntimeTypeHandle[] typeInstantiationContext, RuntimeTypeHandle[] methodInstantiationContext)
+        public RuntimeTypeHandle ResolveTypeHandle(int typeToken, RuntimeTypeHandle[]? typeInstantiationContext, RuntimeTypeHandle[]? methodInstantiationContext)
         {
             return new RuntimeTypeHandle(ModuleHandle.ResolveTypeHandleInternal(GetRuntimeModule(), typeToken, typeInstantiationContext, methodInstantiationContext));
         }
 
-        internal static RuntimeType ResolveTypeHandleInternal(RuntimeModule module, int typeToken, RuntimeTypeHandle[] typeInstantiationContext, RuntimeTypeHandle[] methodInstantiationContext)
+        internal static RuntimeType ResolveTypeHandleInternal(RuntimeModule module, int typeToken, RuntimeTypeHandle[]? typeInstantiationContext, RuntimeTypeHandle[]? methodInstantiationContext)
         {
             ValidateModulePointer(module);
             if (!ModuleHandle.GetMetadataImport(module).IsValidToken(typeToken))
@@ -1264,21 +1197,21 @@ namespace System
                     SR.Format(SR.Argument_InvalidToken, typeToken, new ModuleHandle(module)));
 
             int typeInstCount, methodInstCount;
-            IntPtr[] typeInstantiationContextHandles = RuntimeTypeHandle.CopyRuntimeTypeHandles(typeInstantiationContext, out typeInstCount);
-            IntPtr[] methodInstantiationContextHandles = RuntimeTypeHandle.CopyRuntimeTypeHandles(methodInstantiationContext, out methodInstCount);
+            IntPtr[]? typeInstantiationContextHandles = RuntimeTypeHandle.CopyRuntimeTypeHandles(typeInstantiationContext, out typeInstCount);
+            IntPtr[]? methodInstantiationContextHandles = RuntimeTypeHandle.CopyRuntimeTypeHandles(methodInstantiationContext, out methodInstCount);
 
             fixed (IntPtr* typeInstArgs = typeInstantiationContextHandles, methodInstArgs = methodInstantiationContextHandles)
             {
-                RuntimeType type = null;
-                ResolveType(module, typeToken, typeInstArgs, typeInstCount, methodInstArgs, methodInstCount, JitHelpers.GetObjectHandleOnStack(ref type));
+                RuntimeType type = null!;
+                ResolveType(new QCallModule(ref module), typeToken, typeInstArgs, typeInstCount, methodInstArgs, methodInstCount, ObjectHandleOnStack.Create(ref type));
                 GC.KeepAlive(typeInstantiationContext);
                 GC.KeepAlive(methodInstantiationContext);
                 return type;
             }
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void ResolveType(RuntimeModule module,
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern void ResolveType(QCallModule module,
                                                             int typeToken,
                                                             IntPtr* typeInstArgs,
                                                             int typeInstCount,
@@ -1290,17 +1223,17 @@ namespace System
         public RuntimeMethodHandle GetRuntimeMethodHandleFromMetadataToken(int methodToken) { return ResolveMethodHandle(methodToken); }
         public RuntimeMethodHandle ResolveMethodHandle(int methodToken) { return ResolveMethodHandle(methodToken, null, null); }
         internal static IRuntimeMethodInfo ResolveMethodHandleInternal(RuntimeModule module, int methodToken) { return ModuleHandle.ResolveMethodHandleInternal(module, methodToken, null, null); }
-        public RuntimeMethodHandle ResolveMethodHandle(int methodToken, RuntimeTypeHandle[] typeInstantiationContext, RuntimeTypeHandle[] methodInstantiationContext)
+        public RuntimeMethodHandle ResolveMethodHandle(int methodToken, RuntimeTypeHandle[]? typeInstantiationContext, RuntimeTypeHandle[]? methodInstantiationContext)
         {
             return new RuntimeMethodHandle(ResolveMethodHandleInternal(GetRuntimeModule(), methodToken, typeInstantiationContext, methodInstantiationContext));
         }
 
-        internal static IRuntimeMethodInfo ResolveMethodHandleInternal(RuntimeModule module, int methodToken, RuntimeTypeHandle[] typeInstantiationContext, RuntimeTypeHandle[] methodInstantiationContext)
+        internal static IRuntimeMethodInfo ResolveMethodHandleInternal(RuntimeModule module, int methodToken, RuntimeTypeHandle[]? typeInstantiationContext, RuntimeTypeHandle[]? methodInstantiationContext)
         {
             int typeInstCount, methodInstCount;
 
-            IntPtr[] typeInstantiationContextHandles = RuntimeTypeHandle.CopyRuntimeTypeHandles(typeInstantiationContext, out typeInstCount);
-            IntPtr[] methodInstantiationContextHandles = RuntimeTypeHandle.CopyRuntimeTypeHandles(methodInstantiationContext, out methodInstCount);
+            IntPtr[]? typeInstantiationContextHandles = RuntimeTypeHandle.CopyRuntimeTypeHandles(typeInstantiationContext, out typeInstCount);
+            IntPtr[]? methodInstantiationContextHandles = RuntimeTypeHandle.CopyRuntimeTypeHandles(methodInstantiationContext, out methodInstCount);
 
             RuntimeMethodHandleInternal handle = ResolveMethodHandleInternalCore(module, methodToken, typeInstantiationContextHandles, typeInstCount, methodInstantiationContextHandles, methodInstCount);
             IRuntimeMethodInfo retVal = new RuntimeMethodInfoStub(handle, RuntimeMethodHandle.GetLoaderAllocator(handle));
@@ -1309,7 +1242,7 @@ namespace System
             return retVal;
         }
 
-        internal static RuntimeMethodHandleInternal ResolveMethodHandleInternalCore(RuntimeModule module, int methodToken, IntPtr[] typeInstantiationContext, int typeInstCount, IntPtr[] methodInstantiationContext, int methodInstCount)
+        internal static RuntimeMethodHandleInternal ResolveMethodHandleInternalCore(RuntimeModule module, int methodToken, IntPtr[]? typeInstantiationContext, int typeInstCount, IntPtr[]? methodInstantiationContext, int methodInstCount)
         {
             ValidateModulePointer(module);
             if (!ModuleHandle.GetMetadataImport(module.GetNativeHandle()).IsValidToken(methodToken))
@@ -1318,12 +1251,12 @@ namespace System
 
             fixed (IntPtr* typeInstArgs = typeInstantiationContext, methodInstArgs = methodInstantiationContext)
             {
-                return ResolveMethod(module.GetNativeHandle(), methodToken, typeInstArgs, typeInstCount, methodInstArgs, methodInstCount);
+                return ResolveMethod(new QCallModule(ref module), methodToken, typeInstArgs, typeInstCount, methodInstArgs, methodInstCount);
             }
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern RuntimeMethodHandleInternal ResolveMethod(RuntimeModule module,
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern RuntimeMethodHandleInternal ResolveMethod(QCallModule module,
                                                         int methodToken,
                                                         IntPtr* typeInstArgs,
                                                         int typeInstCount,
@@ -1333,10 +1266,10 @@ namespace System
         // SQL-CLR LKG9 Compiler dependency
         public RuntimeFieldHandle GetRuntimeFieldHandleFromMetadataToken(int fieldToken) { return ResolveFieldHandle(fieldToken); }
         public RuntimeFieldHandle ResolveFieldHandle(int fieldToken) { return new RuntimeFieldHandle(ResolveFieldHandleInternal(GetRuntimeModule(), fieldToken, null, null)); }
-        public RuntimeFieldHandle ResolveFieldHandle(int fieldToken, RuntimeTypeHandle[] typeInstantiationContext, RuntimeTypeHandle[] methodInstantiationContext)
+        public RuntimeFieldHandle ResolveFieldHandle(int fieldToken, RuntimeTypeHandle[]? typeInstantiationContext, RuntimeTypeHandle[]? methodInstantiationContext)
         { return new RuntimeFieldHandle(ResolveFieldHandleInternal(GetRuntimeModule(), fieldToken, typeInstantiationContext, methodInstantiationContext)); }
 
-        internal static IRuntimeFieldInfo ResolveFieldHandleInternal(RuntimeModule module, int fieldToken, RuntimeTypeHandle[] typeInstantiationContext, RuntimeTypeHandle[] methodInstantiationContext)
+        internal static IRuntimeFieldInfo ResolveFieldHandleInternal(RuntimeModule module, int fieldToken, RuntimeTypeHandle[]? typeInstantiationContext, RuntimeTypeHandle[]? methodInstantiationContext)
         {
             ValidateModulePointer(module);
             if (!ModuleHandle.GetMetadataImport(module.GetNativeHandle()).IsValidToken(fieldToken))
@@ -1345,21 +1278,21 @@ namespace System
 
             // defensive copy to be sure array is not mutated from the outside during processing
             int typeInstCount, methodInstCount;
-            IntPtr[] typeInstantiationContextHandles = RuntimeTypeHandle.CopyRuntimeTypeHandles(typeInstantiationContext, out typeInstCount);
-            IntPtr[] methodInstantiationContextHandles = RuntimeTypeHandle.CopyRuntimeTypeHandles(methodInstantiationContext, out methodInstCount);
+            IntPtr[]? typeInstantiationContextHandles = RuntimeTypeHandle.CopyRuntimeTypeHandles(typeInstantiationContext, out typeInstCount);
+            IntPtr[]? methodInstantiationContextHandles = RuntimeTypeHandle.CopyRuntimeTypeHandles(methodInstantiationContext, out methodInstCount);
 
             fixed (IntPtr* typeInstArgs = typeInstantiationContextHandles, methodInstArgs = methodInstantiationContextHandles)
             {
-                IRuntimeFieldInfo field = null;
-                ResolveField(module.GetNativeHandle(), fieldToken, typeInstArgs, typeInstCount, methodInstArgs, methodInstCount, JitHelpers.GetObjectHandleOnStack(ref field));
+                IRuntimeFieldInfo field = null!;
+                ResolveField(new QCallModule(ref module), fieldToken, typeInstArgs, typeInstCount, methodInstArgs, methodInstCount, ObjectHandleOnStack.Create(ref field));
                 GC.KeepAlive(typeInstantiationContext);
                 GC.KeepAlive(methodInstantiationContext);
                 return field;
             }
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void ResolveField(RuntimeModule module,
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern void ResolveField(QCallModule module,
                                                       int fieldToken,
                                                       IntPtr* typeInstArgs,
                                                       int typeInstCount,
@@ -1367,45 +1300,42 @@ namespace System
                                                       int methodInstCount,
                                                       ObjectHandleOnStack retField);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern bool _ContainsPropertyMatchingHash(RuntimeModule module, int propertyToken, uint hash);
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern Interop.BOOL _ContainsPropertyMatchingHash(QCallModule module, int propertyToken, uint hash);
 
         internal static bool ContainsPropertyMatchingHash(RuntimeModule module, int propertyToken, uint hash)
         {
-            return _ContainsPropertyMatchingHash(module.GetNativeHandle(), propertyToken, hash);
+            return _ContainsPropertyMatchingHash(new QCallModule(ref module), propertyToken, hash) != Interop.BOOL.FALSE;
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern void GetModuleType(RuntimeModule handle, ObjectHandleOnStack type);
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        internal static extern void GetModuleType(QCallModule handle, ObjectHandleOnStack type);
 
         internal static RuntimeType GetModuleType(RuntimeModule module)
         {
-            RuntimeType type = null;
-            GetModuleType(module.GetNativeHandle(), JitHelpers.GetObjectHandleOnStack(ref type));
+            RuntimeType type = null!;
+            GetModuleType(new QCallModule(ref module), ObjectHandleOnStack.Create(ref type));
             return type;
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetPEKind(RuntimeModule handle, out int peKind, out int machine);
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern void GetPEKind(QCallModule handle, int* peKind, int* machine);
 
         // making this internal, used by Module.GetPEKind
         internal static void GetPEKind(RuntimeModule module, out PortableExecutableKinds peKind, out ImageFileMachine machine)
         {
             int lKind, lMachine;
-            GetPEKind(module.GetNativeHandle(), out lKind, out lMachine);
+            GetPEKind(new QCallModule(ref module), &lKind, &lMachine);
             peKind = (PortableExecutableKinds)lKind;
             machine = (ImageFileMachine)lMachine;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int GetMDStreamVersion(RuntimeModule module);
 
-        public int MDStreamVersion
-        {
-            get { return GetMDStreamVersion(GetRuntimeModule().GetNativeHandle()); }
-        }
+        public int MDStreamVersion => GetMDStreamVersion(GetRuntimeModule().GetNativeHandle());
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern IntPtr _GetMetadataImport(RuntimeModule module);
 
         internal static MetadataImport GetMetadataImport(RuntimeModule module)
@@ -1440,10 +1370,10 @@ namespace System
         #endregion
 
         #region FCalls
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void GetSignature(
             void* pCorSig, int cCorSig,
-            RuntimeFieldHandleInternal fieldHandle, IRuntimeMethodInfo methodHandle, RuntimeType declaringType);
+            RuntimeFieldHandleInternal fieldHandle, IRuntimeMethodInfo? methodHandle, RuntimeType? declaringType);
 
         #endregion
 
@@ -1451,10 +1381,10 @@ namespace System
         //
         // Keep the layout in sync with SignatureNative in the VM
         //
-        internal RuntimeType[] m_arguments;
-        internal RuntimeType m_declaringType;
-        internal RuntimeType m_returnTypeORfieldType;
-        internal object m_keepalive;
+        internal RuntimeType[] m_arguments = null!;
+        internal RuntimeType m_declaringType = null!; // seems not used
+        internal RuntimeType m_returnTypeORfieldType = null!;
+        internal object? m_keepalive;
         internal void* m_sig;
         internal int m_managedCallingConventionAndArgIteratorFlags; // lowest byte is CallingConvention, upper 3 bytes are ArgIterator flags
         internal int m_nSizeOfArgStack;
@@ -1495,19 +1425,18 @@ namespace System
         #endregion
 
         #region Internal Members
-        internal CallingConventions CallingConvention { get { return (CallingConventions)(byte)m_managedCallingConventionAndArgIteratorFlags; } }
-        internal RuntimeType[] Arguments { get { return m_arguments; } }
-        internal RuntimeType ReturnType { get { return m_returnTypeORfieldType; } }
-        internal RuntimeType FieldType { get { return m_returnTypeORfieldType; } }
+        internal CallingConventions CallingConvention => (CallingConventions)(byte)m_managedCallingConventionAndArgIteratorFlags;
+        internal RuntimeType[] Arguments => m_arguments;
+        internal RuntimeType ReturnType => m_returnTypeORfieldType;
+        internal RuntimeType FieldType => m_returnTypeORfieldType;
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool CompareSig(Signature sig1, Signature sig2);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern Type[] GetCustomModifiers(int position, bool required);
         #endregion
     }
-
 
     internal abstract class Resolver
     {
@@ -1522,16 +1451,16 @@ namespace System
         }
 
         // ILHeader info
-        internal abstract RuntimeType GetJitContext(ref int securityControlFlags);
-        internal abstract byte[] GetCodeInfo(ref int stackSize, ref int initLocals, ref int EHCount);
+        internal abstract RuntimeType? GetJitContext(out int securityControlFlags);
+        internal abstract byte[] GetCodeInfo(out int stackSize, out int initLocals, out int EHCount);
         internal abstract byte[] GetLocalsSignature();
         internal abstract unsafe void GetEHInfo(int EHNumber, void* exception);
-        internal abstract byte[] GetRawEHInfo();
+        internal abstract byte[]? GetRawEHInfo();
         // token resolution
-        internal abstract string GetStringLiteral(int token);
+        internal abstract string? GetStringLiteral(int token);
         internal abstract void ResolveToken(int token, out IntPtr typeHandle, out IntPtr methodHandle, out IntPtr fieldHandle);
-        internal abstract byte[] ResolveSignature(int token, int fromMethod);
-        // 
+        internal abstract byte[]? ResolveSignature(int token, int fromMethod);
+        //
         internal abstract MethodInfo GetDynamicMethod();
     }
 }

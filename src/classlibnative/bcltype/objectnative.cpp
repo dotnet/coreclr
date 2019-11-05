@@ -19,7 +19,6 @@
 #include "object.h"
 #include "comsynchronizable.h"
 #include "eeconfig.h"
-#include "mdaassistants.h"
 
 
 /********************************************************************/
@@ -29,7 +28,7 @@
    they are immutable), for other value class, it means returning
    a boxed copy.  */
 
-FCIMPL1(Object*, ObjectNative::GetObjectValue, Object* obj) 
+FCIMPL1(Object*, ObjectNative::GetObjectValue, Object* obj)
 {
     CONTRACTL
     {
@@ -52,11 +51,11 @@ FCIMPL1(Object*, ObjectNative::GetObjectValue, Object* obj)
     Object* retVal = NULL;
     OBJECTREF objRef(obj);
     HELPER_METHOD_FRAME_BEGIN_RET_1(objRef);    // Set up a frame
-    
+
     // Technically we could return boxed DateTimes and Decimals without
     // copying them here, but VB realized that this would be a breaking change
-    // for their customers.  So copy them. 
-    // 
+    // for their customers.  So copy them.
+    //
     // MethodTable::Box is a cleaner way to copy value class, but it is slower than following code.
     //
     retVal = OBJECTREFToObject(AllocateObject(pMT));
@@ -74,18 +73,9 @@ NOINLINE static INT32 GetHashCodeHelper(OBJECTREF objRef)
 
     FC_INNER_PROLOG(ObjectNative::GetHashCode);
 
-    HELPER_METHOD_FRAME_BEGIN_RET_ATTRIB_1(Frame::FRAME_ATTR_EXACT_DEPTH|Frame::FRAME_ATTR_CAPTURE_DEPTH_2, objRef);   
+    HELPER_METHOD_FRAME_BEGIN_RET_ATTRIB_1(Frame::FRAME_ATTR_EXACT_DEPTH|Frame::FRAME_ATTR_CAPTURE_DEPTH_2, objRef);
 
-#ifdef MDA_SUPPORTED
-    MdaModuloObjectHashcode* pProbe = MDA_GET_ASSISTANT(ModuloObjectHashcode);
-#endif
-        
     idx = objRef->GetHashCodeEx();
-
-#ifdef MDA_SUPPORTED
-    if (pProbe)
-        idx = idx % pProbe->GetModulo();
-#endif
 
     HELPER_METHOD_FRAME_END();
     FC_INNER_EPILOG();
@@ -95,7 +85,7 @@ NOINLINE static INT32 GetHashCodeHelper(OBJECTREF objRef)
 // Note that we obtain a sync block index without actually building a sync block.
 // That's because a lot of objects are hashed, without requiring support for
 FCIMPL1(INT32, ObjectNative::GetHashCode, Object* obj) {
-    
+
     CONTRACTL
     {
         FCALL_CHECK;
@@ -104,15 +94,12 @@ FCIMPL1(INT32, ObjectNative::GetHashCode, Object* obj) {
     CONTRACTL_END;
 
     VALIDATEOBJECT(obj);
-        
+
     if (obj == 0)
         return 0;
 
     OBJECTREF objRef(obj);
 
-#ifdef MDA_SUPPORTED
-    if (!MDA_GET_ASSISTANT(ModuloObjectHashcode))
-#endif
     {
         DWORD bits = objRef->GetHeader()->GetBits();
 
@@ -144,7 +131,7 @@ FCIMPLEND
 
 //
 // Compare by ref for normal classes, by value for value types.
-//  
+//
 // <TODO>@todo: it would be nice to customize this method based on the
 // defining class rather than doing a runtime check whether it is
 // a value type.</TODO>
@@ -158,8 +145,8 @@ FCIMPL2(FC_BOOL_RET, ObjectNative::Equals, Object *pThisRef, Object *pCompareRef
         INJECT_FAULT(FCThrow(kOutOfMemoryException););
     }
     CONTRACTL_END;
-    
-    if (pThisRef == pCompareRef)    
+
+    if (pThisRef == pCompareRef)
         FC_RETURN_BOOL(TRUE);
 
     // Since we are in FCALL, we must handle NULL specially.
@@ -181,8 +168,8 @@ FCIMPL2(FC_BOOL_RET, ObjectNative::Equals, Object *pThisRef, Object *pCompareRef
     if(pThisRef->GetMethodTable() == g_pStringClass)
         dwBaseSize -= sizeof(WCHAR);
     BOOL ret = memcmp(
-        (void *) (pThisRef+1), 
-        (void *) (pCompareRef+1), 
+        (void *) (pThisRef+1),
+        (void *) (pCompareRef+1),
         dwBaseSize - sizeof(Object) - sizeof(int)) == 0;
 
     FC_GC_POLL_RET();
@@ -207,7 +194,7 @@ NOINLINE static Object* GetClassHelper(OBJECTREF objRef)
     return OBJECTREFToObject(refType);
 }
 
-// This routine is called by the Object.GetType() routine.   It is a major way to get the Sytem.Type 
+// This routine is called by the Object.GetType() routine.   It is a major way to get the Sytem.Type
 FCIMPL1(Object*, ObjectNative::GetClass, Object* pThis)
 {
     CONTRACTL
@@ -217,8 +204,8 @@ FCIMPL1(Object*, ObjectNative::GetClass, Object* pThis)
     }
     CONTRACTL_END;
 
-    OBJECTREF objRef = ObjectToOBJECTREF(pThis);  
-    if (objRef != NULL) 
+    OBJECTREF objRef = ObjectToOBJECTREF(pThis);
+    if (objRef != NULL)
     {
         MethodTable* pMT = objRef->GetMethodTable();
         OBJECTREF typePtr = pMT->GetManagedClassObjectIfExists();
@@ -227,29 +214,26 @@ FCIMPL1(Object*, ObjectNative::GetClass, Object* pThis)
             return OBJECTREFToObject(typePtr);
         }
     }
-    else 
+    else
         FCThrow(kNullReferenceException);
 
     FC_INNER_RETURN(Object*, GetClassHelper(objRef));
 }
 FCIMPLEND
 
-FCIMPL1(Object*, ObjectNative::Clone, Object* pThisUNSAFE)
+FCIMPL1(Object*, ObjectNative::AllocateUninitializedClone, Object* pObjUNSAFE)
 {
     FCALL_CONTRACT;
 
-    OBJECTREF refClone = NULL;
-    OBJECTREF refThis  = ObjectToOBJECTREF(pThisUNSAFE);
+    // Delegate error handling to managed side (it will throw NullRefenceException)
+    if (pObjUNSAFE == NULL)
+        return NULL;
 
-    if (refThis == NULL)
-        FCThrow(kNullReferenceException);
+    OBJECTREF refClone  = ObjectToOBJECTREF(pObjUNSAFE);
 
-    HELPER_METHOD_FRAME_BEGIN_RET_2(refClone, refThis);
+    HELPER_METHOD_FRAME_BEGIN_RET_1(refClone);
 
-    // ObjectNative::Clone() ensures that the source and destination are always in
-    // the same context.
-
-    MethodTable* pMT = refThis->GetMethodTable();    
+    MethodTable* pMT = refClone->GetMethodTable();
 
     // assert that String has overloaded the Clone() method
     _ASSERTE(pMT != g_pStringClass);
@@ -258,27 +242,15 @@ FCIMPL1(Object*, ObjectNative::Clone, Object* pThisUNSAFE)
 #endif // FEATURE_UTF8STRING
 
     if (pMT->IsArray()) {
-        refClone = DupArrayForCloning((BASEARRAYREF)refThis);
+        refClone = DupArrayForCloning((BASEARRAYREF)refClone);
     } else {
         // We don't need to call the <cinit> because we know
         //  that it has been called....(It was called before this was created)
         refClone = AllocateObject(pMT);
     }
 
-    SIZE_T cb = refThis->GetSize() - sizeof(ObjHeader);
-
-    // copy contents of "this" to the clone
-    if (pMT->ContainsPointers())
-    {
-        memmoveGCRefs(OBJECTREFToObject(refClone), OBJECTREFToObject(refThis), cb);
-    }
-    else
-    {
-        memcpyNoGCRefs(OBJECTREFToObject(refClone), OBJECTREFToObject(refThis), cb);
-    }
-
     HELPER_METHOD_FRAME_END();
-        
+
     return OBJECTREFToObject(refClone);
 }
 FCIMPLEND
@@ -355,3 +327,16 @@ FCIMPL1(FC_BOOL_RET, ObjectNative::IsLockHeld, Object* pThisUNSAFE)
 }
 FCIMPLEND
 
+INT64 QCALLTYPE ObjectNative::GetMonitorLockContentionCount()
+{
+    QCALL_CONTRACT;
+
+    INT64 result = 0;
+
+    BEGIN_QCALL;
+
+    result = (INT64)Thread::GetTotalMonitorLockContentionCount();
+
+    END_QCALL;
+    return result;
+}

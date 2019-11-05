@@ -18,9 +18,9 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 #if defined(_TARGET_AMD64_)
 #ifdef UNIX_AMD64_ABI
-int Compiler::mapRegNumToDwarfReg(regNumber reg)
+short Compiler::mapRegNumToDwarfReg(regNumber reg)
 {
-    int dwarfReg = DWARF_REG_ILLEGAL;
+    short dwarfReg = DWARF_REG_ILLEGAL;
 
     switch (reg)
     {
@@ -457,7 +457,6 @@ void Compiler::unwindSaveRegCFI(regNumber reg, unsigned offset)
         FuncInfoDsc* func = funCurrentFunc();
 
         unsigned int cbProlog = unwindGetCurrentOffset(func);
-        noway_assert((BYTE)cbProlog == cbProlog);
         createCfiCode(func, cbProlog, CFI_REL_OFFSET, mapRegNumToDwarfReg(reg), offset);
     }
 }
@@ -765,7 +764,7 @@ void Compiler::unwindEmitFuncHelper(FuncInfoDsc* func, void* pHotCode, void* pCo
         }
         else
         {
-            startOffset = func->startLoc->CodeOffset(genEmitter);
+            startOffset = func->startLoc->CodeOffset(GetEmitter());
         }
 
         if (func->endLoc == nullptr)
@@ -774,7 +773,7 @@ void Compiler::unwindEmitFuncHelper(FuncInfoDsc* func, void* pHotCode, void* pCo
         }
         else
         {
-            endOffset = func->endLoc->CodeOffset(genEmitter);
+            endOffset = func->endLoc->CodeOffset(GetEmitter());
         }
 
 #ifdef UNIX_AMD64_ABI
@@ -815,7 +814,7 @@ void Compiler::unwindEmitFuncHelper(FuncInfoDsc* func, void* pHotCode, void* pCo
         }
         else
         {
-            startOffset = func->coldStartLoc->CodeOffset(genEmitter);
+            startOffset = func->coldStartLoc->CodeOffset(GetEmitter());
         }
 
         if (func->coldEndLoc == nullptr)
@@ -824,7 +823,7 @@ void Compiler::unwindEmitFuncHelper(FuncInfoDsc* func, void* pHotCode, void* pCo
         }
         else
         {
-            endOffset = func->coldEndLoc->CodeOffset(genEmitter);
+            endOffset = func->coldEndLoc->CodeOffset(GetEmitter());
         }
     }
 

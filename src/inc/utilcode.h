@@ -163,14 +163,14 @@ typedef LPSTR   LPUTF8;
 #endif
 
 
-#define IS_DIGIT(ch) ((ch >= W('0')) && (ch <= W('9')))
-#define DIGIT_TO_INT(ch) (ch - W('0'))
-#define INT_TO_DIGIT(i) ((WCHAR)(W('0') + i))
+#define IS_DIGIT(ch) (((ch) >= W('0')) && ((ch) <= W('9')))
+#define DIGIT_TO_INT(ch) ((ch) - W('0'))
+#define INT_TO_DIGIT(i) ((WCHAR)(W('0') + (i)))
 
-#define IS_HEXDIGIT(ch) (((ch >= W('a')) && (ch <= W('f'))) || \
-                         ((ch >= W('A')) && (ch <= W('F'))))
+#define IS_HEXDIGIT(ch) ((((ch) >= W('a')) && ((ch) <= W('f'))) || \
+                         (((ch) >= W('A')) && ((ch) <= W('F'))))
 #define HEXDIGIT_TO_INT(ch) ((towlower(ch) - W('a')) + 10)
-#define INT_TO_HEXDIGIT(i) ((WCHAR)(W('a') + (i - 10)))
+#define INT_TO_HEXDIGIT(i) ((WCHAR)(W('a') + ((i) - 10)))
 
 
 // Helper will 4 byte align a value, rounding up.
@@ -489,13 +489,6 @@ inline void *__cdecl operator new(size_t, void *_P)
 
 /********************************************************************************/
 /* portability helpers */
-#ifdef _WIN64
-#define IN_WIN64(x)     x
-#define IN_WIN32(x)
-#else
-#define IN_WIN64(x)
-#define IN_WIN32(x)     x
-#endif
 
 #ifdef _TARGET_64BIT_
 #define IN_TARGET_64BIT(x)     x
@@ -531,16 +524,8 @@ inline HRESULT OutOfMemory()
 //*****************************************************************************
 // Handle accessing localizable resource strings
 //*****************************************************************************
-// NOTE: Should use locale names as much as possible.  LCIDs don't support
-// custom cultures on Vista+.
-// TODO: This should always use the names
-#ifdef FEATURE_USE_LCID    
-typedef LCID LocaleID;
-typedef LCID LocaleIDValue;
-#else
 typedef LPCWSTR LocaleID;
 typedef WCHAR LocaleIDValue[LOCALE_NAME_MAX_LENGTH];
-#endif
 
 // Notes about the culture callbacks:
 // - The language we're operating in can change at *runtime*!
@@ -556,12 +541,7 @@ typedef WCHAR LocaleIDValue[LOCALE_NAME_MAX_LENGTH];
 
 // Callback to obtain both the culture name and the culture's parent culture name
 typedef HRESULT (*FPGETTHREADUICULTURENAMES)(__inout StringArrayList* pCultureNames);
-#ifdef FEATURE_USE_LCID
-// Callback to return the culture ID.
-const LCID UICULTUREID_DONTCARE = (LCID)-1;
-#else
 const LPCWSTR UICULTUREID_DONTCARE = NULL;
-#endif
 
 typedef int (*FPGETTHREADUICULTUREID)(LocaleIDValue*);
 
@@ -571,17 +551,8 @@ HMODULE CLRLoadLibraryEx(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags);
 
 BOOL CLRFreeLibrary(HMODULE hModule);
 
-// Prevent people from using LoadStringRC & LoadStringRCEx from inside the product since it
-// causes issues with having the wrong version picked up inside the shim.
-#define LoadStringRC __error("From inside the CLR, use UtilLoadStringRC; LoadStringRC is only meant to be exported.")
-#define LoadStringRCEx __error("From inside the CLR, use UtilLoadStringRCEx; LoadStringRC is only meant to be exported.")
-
 // Load a string using the resources for the current module.
 STDAPI UtilLoadStringRC(UINT iResouceID, __out_ecount (iMax) LPWSTR szBuffer, int iMax, int bQuiet=FALSE);
-
-#ifdef FEATURE_USE_LCID
-STDAPI UtilLoadStringRCEx(LCID lcid, UINT iResourceID, __out_ecount (iMax) LPWSTR szBuffer, int iMax, int bQuiet, int *pcwchUsed);
-#endif
 
 // Specify callbacks so that UtilLoadStringRC can find out which language we're in.
 // If no callbacks specified (or both parameters are NULL), we default to the
@@ -605,7 +576,7 @@ extern HRESULT GetMUILanguageNames(__inout StringArrayList* pCultureNames);
 #endif // !defined(DACCESS_COMPILE)
 
 //*****************************************************************************
-// Use this class by privately deriving from noncopyable to disallow copying of 
+// Use this class by privately deriving from noncopyable to disallow copying of
 // your class.
 //*****************************************************************************
 class noncopyable
@@ -633,7 +604,7 @@ class CCulturedHInstance
     LocaleIDValue   m_LangId;
     HRESOURCEDLL    m_hInst;
     BOOL            m_fMissing;
-    
+
 public:
     CCulturedHInstance()
     {
@@ -641,25 +612,21 @@ public:
         m_hInst = NULL;
         m_fMissing = FALSE;
     }
-    
+
     BOOL HasID(LocaleID id)
     {
         _ASSERTE(m_hInst != NULL || m_fMissing);
         if (id == UICULTUREID_DONTCARE)
             return FALSE;
-        
-#ifdef FEATURE_USE_LCID
-        return id == m_LangId;
-#else
+
         return wcscmp(id, m_LangId) == 0;
-#endif
     }
-    
+
     HRESOURCEDLL GetLibraryHandle()
     {
         return m_hInst;
     }
-    
+
     BOOL IsSet()
     {
         return m_hInst != NULL;
@@ -676,7 +643,7 @@ public:
         SetId(id);
         m_fMissing = TRUE;
     }
-    
+
     void Set(LocaleID id, HRESOURCEDLL hInst)
     {
         _ASSERTE(m_hInst == NULL);
@@ -687,9 +654,6 @@ public:
   private:
     void SetId(LocaleID id)
     {
-#ifdef FEATURE_USE_LCID
-        m_LangId = id;
-#else
         if (id != UICULTUREID_DONTCARE)
         {
             wcsncpy_s(m_LangId, NumItems(m_LangId), id, NumItems(m_LangId));
@@ -699,7 +663,6 @@ public:
         {
             m_LangId[0] = W('\0');
         }
-#endif
     }
  };
 
@@ -718,18 +681,18 @@ public:
     enum ResourceCategory
     {
         // must be present
-        Required,                   
-        
+        Required,
+
         // present in Desktop CLR and Core CLR + debug pack, an error
         // If missing, get a generic error message instead
-        Error,           
-        
+        Error,
+
         // present in Desktop CLR and Core CLR + debug pack, normal operation (e.g tracing)
         // if missing, get a generic "resource not found" message instead
-        Debugging,           
+        Debugging,
 
         // present in Desktop CLR, optional for CoreCLR
-        DesktopCLR,       
+        DesktopCLR,
 
         // might not be present, non essential
         Optional
@@ -743,7 +706,7 @@ public:
 
         m_fpGetThreadUICultureId = NULL;
         m_fpGetThreadUICultureNames = NULL;
-        
+
 
         m_pHash = NULL;
         m_nHashSize = 0;
@@ -766,7 +729,7 @@ public:
 
     static void SetIsMscoree() {s_bIsMscoree = TRUE;}
 
-    HRESULT LoadString(ResourceCategory eCategory, UINT iResourceID, __out_ecount (iMax) LPWSTR szBuffer, int iMax , int *pcwchUsed=NULL);    
+    HRESULT LoadString(ResourceCategory eCategory, UINT iResourceID, __out_ecount (iMax) LPWSTR szBuffer, int iMax , int *pcwchUsed=NULL);
     HRESULT LoadString(ResourceCategory eCategory, LocaleID langId, UINT iResourceID, __out_ecount (iMax) LPWSTR szBuffer, int iMax, int *pcwchUsed);
 
     void SetResourceCultureCallbacks(
@@ -819,7 +782,7 @@ public:
 
 DWORD
 PALAPI
-static 
+static
 FormatMessage(
            IN DWORD dwFlags,
            IN LPCVOID lpSource,
@@ -887,7 +850,7 @@ int UtilMessageBox(
                   UINT uText,       // Resource Identifier for Text message
                   UINT uCaption,    // Resource Identifier for Caption
                   UINT uType,       // Style of MessageBox
-                  BOOL displayForNonInteractive,    // Display even if the process is running non interactive 
+                  BOOL displayForNonInteractive,    // Display even if the process is running non interactive
                   BOOL ShowFileNameInTitle, // Flag to show FileName in Caption
                   ...);             // Additional Arguments
 
@@ -896,7 +859,7 @@ int UtilMessageBoxNonLocalized(
                   LPCWSTR lpText,    // Resource Identifier for Text message
                   LPCWSTR lpTitle,   // Resource Identifier for Caption
                   UINT uType,       // Style of MessageBox
-                  BOOL displayForNonInteractive,    // Display even if the process is running non interactive 
+                  BOOL displayForNonInteractive,    // Display even if the process is running non interactive
                   BOOL ShowFileNameInTitle, // Flag to show FileName in Caption
                   ...);             // Additional Arguments
 
@@ -905,7 +868,7 @@ int UtilMessageBoxVA(
                   UINT uText,       // Resource Identifier for Text message
                   UINT uCaption,    // Resource Identifier for Caption
                   UINT uType,       // Style of MessageBox
-                  BOOL displayForNonInteractive,    // Display even if the process is running non interactive 
+                  BOOL displayForNonInteractive,    // Display even if the process is running non interactive
                   BOOL ShowFileNameInTitle, // Flag to show FileName in Caption
                   va_list args);    // Additional Arguments
 
@@ -914,7 +877,7 @@ int UtilMessageBoxNonLocalizedVA(
                   LPCWSTR lpText,    // Text message
                   LPCWSTR lpCaption, // Caption
                   UINT uType,       // Style of MessageBox
-                  BOOL displayForNonInteractive,    // Display even if the process is running non interactive 
+                  BOOL displayForNonInteractive,    // Display even if the process is running non interactive
                   BOOL ShowFileNameInTitle, // Flag to show FileName in Caption
                   BOOL * pInputFromUser,            // To distinguish between user pressing abort vs. assuming abort.
                   va_list args);    // Additional Arguments
@@ -925,7 +888,7 @@ int UtilMessageBoxNonLocalizedVA(
                   LPCWSTR lpCaption, // Caption
                   LPCWSTR lpDetails, // Details that may be shown in a collapsed extended area of the dialog (Vista or higher).
                   UINT uType,       // Style of MessageBox
-                  BOOL displayForNonInteractive,    // Display even if the process is running non interactive 
+                  BOOL displayForNonInteractive,    // Display even if the process is running non interactive
                   BOOL ShowFileNameInTitle, // Flag to show FileName in Caption
                   BOOL * pInputFromUser,            // To distinguish between user pressing abort vs. assuming abort.
                   va_list args);    // Additional Arguments
@@ -1002,10 +965,10 @@ inline HRESULT BadError(HRESULT hr)
 }
 
 #define TESTANDRETURNPOINTER(pointer)           \
-    TESTANDRETURN(pointer!=NULL, E_POINTER)
+    TESTANDRETURN((pointer)!=NULL, E_POINTER)
 
 #define TESTANDRETURNMEMORY(pointer)            \
-    TESTANDRETURN(pointer!=NULL, E_OUTOFMEMORY)
+    TESTANDRETURN((pointer)!=NULL, E_OUTOFMEMORY)
 
 #define TESTANDRETURNHR(hr)                     \
     TESTANDRETURN(SUCCEEDED(hr), hr)
@@ -1133,9 +1096,9 @@ public:
     };
 
     //
-    // NOTE: The following function is deprecated; use the CLRConfig class instead. 
+    // NOTE: The following function is deprecated; use the CLRConfig class instead.
     // To access a configuration value through CLRConfig, add an entry in file:../inc/CLRConfigValues.h.
-    // 
+    //
     static DWORD GetConfigDWORD_DontUse_(
         LPCWSTR        name,
         DWORD          defValue,
@@ -1143,16 +1106,16 @@ public:
         BOOL           fPrependCOMPLUS = TRUE);
 
     //
-    // NOTE: The following function is deprecated; use the CLRConfig class instead. 
+    // NOTE: The following function is deprecated; use the CLRConfig class instead.
     // To access a configuration value through CLRConfig, add an entry in file:../inc/CLRConfigValues.h.
-    // 
+    //
     static HRESULT GetConfigDWORD_DontUse_(
         LPCWSTR name,
         DWORD defValue,
         __out DWORD * result,
         CORConfigLevel level = COR_CONFIG_ALL,
         BOOL fPrependCOMPLUS = TRUE);
-    
+
     static ULONGLONG GetConfigULONGLONG_DontUse_(
         LPCWSTR        name,
         ULONGLONG      defValue,
@@ -1160,18 +1123,18 @@ public:
         BOOL           fPrependCOMPLUS = TRUE);
 
     //
-    // NOTE: The following function is deprecated; use the CLRConfig class instead. 
+    // NOTE: The following function is deprecated; use the CLRConfig class instead.
     // To access a configuration value through CLRConfig, add an entry in file:../inc/CLRConfigValues.h.
-    // 
+    //
     static DWORD GetConfigFlag_DontUse_(
         LPCWSTR        name,
         DWORD          bitToSet,
         BOOL           defValue = FALSE);
 
     //
-    // NOTE: The following function is deprecated; use the CLRConfig class instead. 
+    // NOTE: The following function is deprecated; use the CLRConfig class instead.
     // To access a configuration value through CLRConfig, add an entry in file:../inc/CLRConfigValues.h.
-    // 
+    //
     static LPWSTR GetConfigString_DontUse_(
         LPCWSTR name,
         BOOL fPrependCOMPLUS = TRUE,
@@ -1190,7 +1153,7 @@ private:
 //*****************************************************************************
 // Get either a DWORD or ULONGLONG. Always puts the result in a ULONGLONG that
 // you can safely cast to a DWORD if fGetDWORD is TRUE.
-//*****************************************************************************    
+//*****************************************************************************
     static HRESULT GetConfigInteger(
         LPCWSTR name,
         ULONGLONG defValue,
@@ -1238,7 +1201,7 @@ private:
 };
 
 // need this here because CLRConfig depends on REGUTIL, and ConfigStringHolder depends on CLRConfig
-#include "clrconfig.h" 
+#include "clrconfig.h"
 
 //-----------------------------------------------------------------------------
 // Wrapper for configuration strings.
@@ -1253,9 +1216,9 @@ public:
     }
 
     //
-    // NOTE: The following function is deprecated; use the CLRConfig class instead. 
+    // NOTE: The following function is deprecated; use the CLRConfig class instead.
     // To access a configuration value through CLRConfig, add an entry in file:../inc/CLRConfigValues.h.
-    // 
+    //
     void Init_DontUse_(LPCWSTR wszName)
     {
         Clear();
@@ -1313,7 +1276,7 @@ BOOL IsPreferredExecutableRange(void * p);
 // Handles the special requirements that we have on 64-bit platforms
 // where we want the executable memory to be located near mscorwks
 //
-BYTE * ClrVirtualAllocExecutable(SIZE_T dwSize, 
+BYTE * ClrVirtualAllocExecutable(SIZE_T dwSize,
                                  DWORD flAllocationType,
                                  DWORD flProtect);
 
@@ -1323,19 +1286,20 @@ BYTE * ClrVirtualAllocExecutable(SIZE_T dwSize,
 //
 BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
                                    const BYTE *pMaxAddr,
-                                   SIZE_T dwSize, 
+                                   SIZE_T dwSize,
                                    DWORD flAllocationType,
                                    DWORD flProtect);
 
 //
-// Allocate free memory with specific alignment                                   
+// Allocate free memory with specific alignment
 //
 LPVOID ClrVirtualAllocAligned(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect, SIZE_T alignment);
 
-class NumaNodeInfo 
+class NumaNodeInfo
 {
 private:
     static BOOL m_enableGCNumaAware;
+    static uint16_t m_nNodes;
     static BOOL InitNumaNodeInfoAPI();
 
 public:
@@ -1349,6 +1313,7 @@ public: 	// functions
                                      DWORD allocType, DWORD prot, DWORD node);
 #ifndef FEATURE_PAL
     static BOOL GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, PUSHORT node_no);
+    static bool GetNumaInfo(PUSHORT total_nodes, DWORD* max_procs_per_node);
 #else // !FEATURE_PAL
     static BOOL GetNumaProcessorNodeEx(USHORT proc_no, PUSHORT node_no);
 #endif // !FEATURE_PAL
@@ -1357,7 +1322,7 @@ public: 	// functions
 
 #ifndef FEATURE_PAL
 
-struct CPU_Group_Info 
+struct CPU_Group_Info
 {
     WORD	nr_active;	// at most 64
     WORD	reserved[1];
@@ -1390,17 +1355,18 @@ public:
     static BOOL CanEnableGCCPUGroups();
     static BOOL CanEnableThreadUseAllCpuGroups();
     static WORD GetNumActiveProcessors();
-    static void GetGroupForProcessor(WORD processor_number, 
+    static void GetGroupForProcessor(WORD processor_number,
 		    WORD *group_number, WORD *group_processor_number);
     static DWORD CalculateCurrentProcessorNumber();
+    static bool GetCPUGroupInfo(PUSHORT total_groups, DWORD* max_procs_per_group);
     //static void PopulateCPUUsageArray(void * infoBuffer, ULONG infoSize);
 
 #if !defined(FEATURE_REDHAWK)
 public:
     static BOOL GetLogicalProcessorInformationEx(LOGICAL_PROCESSOR_RELATIONSHIP relationship,
-		   SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *slpiex, PDWORD count); 
+		   SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *slpiex, PDWORD count);
     static BOOL SetThreadGroupAffinity(HANDLE h,
-		    GROUP_AFFINITY *groupAffinity, GROUP_AFFINITY *previousGroupAffinity);
+		    const GROUP_AFFINITY *groupAffinity, GROUP_AFFINITY *previousGroupAffinity);
     static BOOL GetThreadGroupAffinity(HANDLE h, GROUP_AFFINITY *groupAffinity);
     static BOOL GetSystemTimes(FILETIME *idleTime, FILETIME *kernelTime, FILETIME *userTime);
     static void ChooseCPUGroupAffinity(GROUP_AFFINITY *gf);
@@ -1899,12 +1865,12 @@ public:
     {
         WRAPPER_NO_CONTRACT;
         _ASSERTE(iIndex < m_iCount);
-        return ((void *) ((size_t) Ptr() + (iIndex * m_iElemSize)));
+        return (BYTE*) Ptr() + (iIndex * (size_t)m_iElemSize);
     }
-    int Size()
+    size_t Size()
     {
         LIMITED_METHOD_CONTRACT;
-        return (m_iCount * m_iElemSize);
+        return (m_iCount * (size_t)m_iElemSize);
     }
     int Count()
     {
@@ -2187,24 +2153,24 @@ private:
         WRAPPER_NO_CONTRACT;
         SSIZE_T     iLast;
         SSIZE_T     i;                      // loop variable.
-        
+
         for (;;)
         {
             // if less than two elements you're done.
             if (iLeft >= iRight)
                 return;
-            
+
             // ASSERT that we now have valid indicies.  This is statically provable
             // since this private function is only called with valid indicies,
             // and iLeft and iRight only converge towards eachother.  However,
             // PreFast can't detect this because it doesn't know about our callers.
             COMPILER_ASSUME(iLeft >= 0 && iLeft < m_iCount);
             COMPILER_ASSUME(iRight >= 0 && iRight < m_iCount);
-            
+
             // The mid-element is the pivot, move it to the left.
             Swap(iLeft, (iLeft + iRight) / 2);
             iLast = iLeft;
-            
+
             // move everything that is smaller than the pivot to the left.
             for (i = iLeft + 1; i <= iRight; i++)
             {
@@ -2213,10 +2179,10 @@ private:
                     Swap(i, ++iLast);
                 }
             }
-            
+
             // Put the pivot to the point where it is in between smaller and larger elements.
             Swap(iLeft, iLast);
-            
+
             // Sort each partition.
             SSIZE_T iLeftLast = iLast - 1;
             SSIZE_T iRightFirst = iLast + 1;
@@ -2255,7 +2221,7 @@ const T * BinarySearch(const T * pBase, int iCount, const T & find)
     while (iLast - iFirst > 10)
     {
         int iMid = (iLast + iFirst) / 2;
-        
+
         if (find < pBase[iMid])
             iLast = iMid - 1;
         else
@@ -2408,7 +2374,7 @@ protected:
     HASHENTRY *EntryPtr(ULONG iEntry)
     {
         LIMITED_METHOD_DAC_CONTRACT;
-        return (PTR_HASHENTRY(m_pcEntries + (iEntry * m_iEntrySize)));
+        return (PTR_HASHENTRY(m_pcEntries + (iEntry * (size_t)m_iEntrySize)));
     }
 
     ULONG     ItemIndex(HASHENTRY *p)
@@ -2859,7 +2825,7 @@ void CHashTableAndData<MemMgr>::InitFreeChain(
     BYTE* pcPtr;
     _ASSERTE(iEnd > iStart);
 
-    pcPtr = (BYTE*)m_pcEntries + iStart * m_iEntrySize;
+    pcPtr = (BYTE*)m_pcEntries + iStart * (size_t)m_iEntrySize;
     for (++iStart; iStart < iEnd; ++iStart)
     {
         ((FREEHASHENTRY *) pcPtr)->iFree = iStart;
@@ -2887,7 +2853,7 @@ int CHashTableAndData<MemMgr>::Grow()   // 1 if successful, 0 if not.
     {
         _ASSERTE( !"CHashTableAndData overflow!" );
         return (0);
-    }    
+    }
     iCurSize = MemMgr::RoundSize( iTotEntrySize.Value() );
     iEntries = (iCurSize + MemMgr::GrowSize(iCurSize)) / m_iEntrySize;
 
@@ -2934,8 +2900,8 @@ inline DWORD HashThreeToOne(DWORD a, DWORD b, DWORD c)
     lookup3.c, by Bob Jenkins, May 2006, Public Domain.
 
     These are functions for producing 32-bit hashes for hash table lookup.
-    hashword(), hashlittle(), hashlittle2(), hashbig(), mix(), and final() 
-    are externally useful functions.  Routines to test the hash are included 
+    hashword(), hashlittle(), hashlittle2(), hashbig(), mix(), and final()
+    are externally useful functions.  Routines to test the hash are included
     if SELF_TEST is defined.  You can use this free for any purpose.  It's in
     the public domain.  It has no warranty.
     */
@@ -2945,7 +2911,7 @@ inline DWORD HashThreeToOne(DWORD a, DWORD b, DWORD c)
     a ^= c; a -= rot32(c,11);
     b ^= a; b -= rot32(a,25);
     c ^= b; c -= rot32(b,16);
-    a ^= c; a -= rot32(c,4); 
+    a ^= c; a -= rot32(c,4);
     b ^= a; b -= rot32(a,14);
     c ^= b; c -= rot32(b,24);
 
@@ -3002,7 +2968,7 @@ inline ULONG HashStringN(LPCWSTR szStr, SIZE_T cchStr)
 
     // hash the string two characters at a time
     ULONG *ptr = (ULONG *)szStr;
-    
+
     // we assume that szStr is null-terminated
     _ASSERTE(cchStr <= wcslen(szStr));
     SIZE_T cDwordCount = (cchStr + 1) / 2;
@@ -3117,13 +3083,13 @@ class CClosedHashBase
     BYTE *EntryPtr(int iEntry)
     {
         LIMITED_METHOD_CONTRACT;
-        return (m_rgData + (iEntry * m_iEntrySize));
+        return (m_rgData + (iEntry * (size_t)m_iEntrySize));
     }
 
     BYTE *EntryPtr(int iEntry, BYTE *rgData)
     {
         LIMITED_METHOD_CONTRACT;
-        return (rgData + (iEntry * m_iEntrySize));
+        return (rgData + (iEntry * (size_t)m_iEntrySize));
     }
 
 public:
@@ -3902,9 +3868,9 @@ class ConfigDWORD
 {
 public:
     //
-    // NOTE: The following function is deprecated; use the CLRConfig class instead. 
+    // NOTE: The following function is deprecated; use the CLRConfig class instead.
     // To access a configuration value through CLRConfig, add an entry in file:../inc/CLRConfigValues.h.
-    // 
+    //
     inline DWORD val_DontUse_(__in __in_z LPCWSTR keyName, DWORD defaultVal=0)
     {
         WRAPPER_NO_CONTRACT;
@@ -4044,16 +4010,16 @@ class RangeList
     {
         return this->AddRangeWorker(start, end, id);
     }
-    
+
     void RemoveRanges(void *id, const BYTE *start = NULL, const BYTE *end = NULL)
     {
         return this->RemoveRangesWorker(id, start, end);
     }
-    
+
     BOOL IsInRange(TADDR address, TADDR *pID = NULL)
     {
         SUPPORTS_DAC;
-    
+
         return this->IsInRangeWorker(address, pID);
     }
 
@@ -4084,7 +4050,7 @@ class RangeList
         RANGE_COUNT = 10
     };
 
-   
+
   private:
     struct Range
     {
@@ -4270,7 +4236,7 @@ INT32 GetThumb2BlRel24(UINT16 * p);
 void PutThumb2BlRel24(UINT16 * p, INT32 imm24);
 
 //*****************************************************************************
-//  Extract the PC-Relative offset from a b or bl instruction 
+//  Extract the PC-Relative offset from a b or bl instruction
 //*****************************************************************************
 INT32 GetArm64Rel28(UINT32 * pCode);
 
@@ -4285,7 +4251,7 @@ INT32 GetArm64Rel21(UINT32 * pCode);
 INT32 GetArm64Rel12(UINT32 * pCode);
 
 //*****************************************************************************
-//  Deposit the PC-Relative offset 'imm28' into a b or bl instruction 
+//  Deposit the PC-Relative offset 'imm28' into a b or bl instruction
 //*****************************************************************************
 void PutArm64Rel28(UINT32 * pCode, INT32 imm28);
 
@@ -4651,7 +4617,7 @@ public:
         // In debug builds, remember the full group of flags that were set at the time
         // the constructor was called.  This will be used in ASSERTs in the destructor
         INDEBUG(m_nPreviousFlagGroup = (size_t)ClrFlsGetValue (TlsIdx_ThreadType));
-        
+
         if (!m_fPreviouslySet)
         {
             ClrFlsSetThreadType(flag);
@@ -4671,7 +4637,7 @@ public:
         // instantiated, then this holder still restores only the flag it knows about. To
         // prevent confusion, assert if some other flag was modified, so the user doesn't
         // expect the holder to restore the entire original set of flags.
-        // 
+        //
         // The expression below says that the only difference between the previous flag
         // group and the current flag group should be m_flag (or no difference at all, if
         // m_flag's state didn't actually change).
@@ -4776,8 +4742,8 @@ FORCEINLINE BOOL CanThisThreadCallIntoHost()
 namespace util
 {
     //  compare adapters
-    //  
-    
+    //
+
     template < typename T >
     struct less
     {
@@ -4795,7 +4761,7 @@ namespace util
             return first > second;
         }
     };
-    
+
 
     //  sort adapters
     //
@@ -4812,7 +4778,7 @@ namespace util
                 : CQuickSort< T >( begin, end - begin )
                 , m_pred( pred )
             {}
-            
+
             virtual int Compare( T * first, T * second )
             {
                 return m_pred( *first, *second ) ? -1
@@ -4825,7 +4791,7 @@ namespace util
         sort_helper sort_obj( begin, end, pred );
         sort_obj.Sort();
     }
-    
+
 
     template < typename Iter >
     void sort( Iter begin, Iter end );
@@ -4836,7 +4802,7 @@ namespace util
         util::sort( begin, end, util::less< T >() );
     }
 
-    
+
     // binary search adapters
     //
 
@@ -4907,16 +4873,6 @@ BOOL NoGuiOnAssert();
 VOID TerminateOnAssert();
 #endif // _DEBUG
 
-class HighCharHelper {
-public:
-    static inline BOOL IsHighChar(int c) {
-        return (BOOL)HighCharTable[c];
-    }
-
-private:
-    static const BYTE HighCharTable[];
-};
-
 
 BOOL ThreadWillCreateGuardPage(SIZE_T sizeReservedStack, SIZE_T sizeCommitedStack);
 
@@ -4926,7 +4882,7 @@ typedef Wrapper<BSTR, DoNothing, HolderSysFreeString> BSTRHolder;
 
 // HMODULE_TGT represents a handle to a module in the target process.  In non-DAC builds this is identical
 // to HMODULE (HINSTANCE), which is the base address of the module.  In DAC builds this must be a target address,
-// and so is represented by TADDR. 
+// and so is represented by TADDR.
 
 #ifdef DACCESS_COMPILE
 typedef TADDR HMODULE_TGT;
@@ -4944,22 +4900,15 @@ BOOL IsIPInModule(HMODULE_TGT hModule, PCODE ip);
 // which in turn calls InitUtilcode.
 //
 // This structure collects all of the critical callback info passed in InitUtilcode().
-// Note that one of them is GetCLRFunction() which is itself a gofer for many other
-// callbacks. If a callback fetch be safely deferred until we have TLS and stack probe
-// functionality running, it should be added to that function rather than this structure.
-// Things like IEE are here because that callback has to be set up before GetCLRFunction()
-// can be safely called.
 //----------------------------------------------------------------------------------------
 struct CoreClrCallbacks
 {
     typedef IExecutionEngine* (* pfnIEE_t)();
     typedef HRESULT (* pfnGetCORSystemDirectory_t)(SString& pbuffer);
-    typedef void* (* pfnGetCLRFunction_t)(LPCSTR functionName);
 
     HINSTANCE                   m_hmodCoreCLR;
     pfnIEE_t                    m_pfnIEE;
     pfnGetCORSystemDirectory_t  m_pfnGetCORSystemDirectory;
-    pfnGetCLRFunction_t         m_pfnGetCLRFunction;
 };
 
 
@@ -5000,7 +4949,7 @@ namespace UtilCode
     // These are type-safe versions of Interlocked[Compare]Exchange
     // They avoid invoking struct cast operations via reinterpreting
     // the struct's address as a LONG* or LONGLONG* and dereferencing it.
-    // 
+    //
     // If we had a global ::operator & (unary), we would love to use that
     // to ensure we were not also accidentally getting a structs's provided
     // operator &. TODO: probe with a static_assert?
@@ -5035,7 +4984,7 @@ namespace UtilCode
             return *reinterpret_cast<T*>(&res);
         }
     };
- 
+
     template <typename T>
     struct InterlockedCompareExchangeHelper<T, sizeof(LONGLONG)>
     {
@@ -5064,7 +5013,7 @@ namespace UtilCode
         }
     };
 }
- 
+
 template <typename T>
 inline T InterlockedExchangeT(
     T volatile * target,
@@ -5109,7 +5058,7 @@ inline T* InterlockedCompareExchangeT(
     typedef typename std::remove_const<T>::type * non_const_ptr_t;
     return reinterpret_cast<T*>(InterlockedCompareExchangePointer(
         reinterpret_cast<PVOID volatile *>(const_cast<non_const_ptr_t volatile *>(destination)),
-        reinterpret_cast<PVOID>(const_cast<non_const_ptr_t>(exchange)), 
+        reinterpret_cast<PVOID>(const_cast<non_const_ptr_t>(exchange)),
         reinterpret_cast<PVOID>(const_cast<non_const_ptr_t>(comparand))));
 }
 
@@ -5200,18 +5149,6 @@ void EnableTerminationOnHeapCorruption();
 
 namespace Clr { namespace Util
 {
-    // This api returns a pointer to a null-terminated string that contains the local appdata directory
-    // or it returns NULL in the case that the directory could not be found. The return value from this function
-    // is not actually checked for existence. 
-    HRESULT GetLocalAppDataDirectory(LPCWSTR *ppwzLocalAppDataDirectory);
-    HRESULT SetLocalAppDataDirectory(LPCWSTR pwzLocalAppDataDirectory);
-
-namespace Reg
-{
-    HRESULT ReadStringValue(HKEY hKey, LPCWSTR wszSubKey, LPCWSTR wszName, SString & ssValue);
-    __success(return == S_OK)
-    HRESULT ReadStringValue(HKEY hKey, LPCWSTR wszSubKey, LPCWSTR wszName, __deref_out __deref_out_z LPWSTR* pwszValue);
-}
 
 #ifdef FEATURE_COMINTEROP
 namespace Com
@@ -5219,29 +5156,6 @@ namespace Com
     HRESULT FindInprocServer32UsingCLSID(REFCLSID rclsid, SString & ssInprocServer32Name);
 }
 #endif // FEATURE_COMINTEROP
-
-namespace Win32
-{
-    static const WCHAR LONG_FILENAME_PREFIX_W[] = W("\\\\?\\");
-    static const CHAR LONG_FILENAME_PREFIX_A[] = "\\\\?\\";
-
-    void GetModuleFileName(
-        HMODULE hModule,
-        SString & ssFileName,
-        bool fAllowLongFileNames = false);
-
-    __success(return == S_OK)
-    HRESULT GetModuleFileName(
-        HMODULE hModule,
-        __deref_out_z LPWSTR * pwszFileName,
-        bool fAllowLongFileNames = false);
-
-    void GetFullPathName(
-        SString const & ssFileName,
-        SString & ssPathName,
-        DWORD * pdwFilePartIdx,
-        bool fAllowLongFileNames = false);
-}
 
 }}
 
@@ -5273,7 +5187,7 @@ namespace clr
 {
     //=================================================================================================================
     template <typename ItfT>
-    static inline 
+    static inline
     typename std::enable_if< std::is_pointer<ItfT>::value, ItfT >::type
     SafeAddRef(ItfT pItf)
     {
@@ -5320,7 +5234,7 @@ namespace clr
 {
     //=================================================================================================================
     template <typename PtrT>
-    static inline 
+    static inline
     typename std::enable_if< std::is_pointer<PtrT>::value, PtrT >::type
     SafeDelete(PtrT & ptr)
     {
@@ -5346,9 +5260,5 @@ struct SpinConstants
 };
 
 extern SpinConstants g_SpinConstants;
-
-// ======================================================================================
-
-void* GetCLRFunction(LPCSTR FunctionName);
 
 #endif // __UtilCode_h__

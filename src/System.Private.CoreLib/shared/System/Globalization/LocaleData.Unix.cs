@@ -2,8 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Diagnostics;
+
+#pragma warning disable SA1001
 
 // This file contains the handling of Windows OS specific culture features.
 
@@ -22,7 +23,7 @@ namespace System.Globalization
         ConsoleLocaleIndex = 8
     }
 
-    internal partial class LocaleData
+    internal static class LocaleData
     {
         // this is done rather than using a large readonly array of strings to avoid
         // generating a large amount of code in the static constructor.

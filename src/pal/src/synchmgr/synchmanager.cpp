@@ -1486,6 +1486,7 @@ namespace CorUnix
         }
 
         HANDLE hWorkerThread = NULL;
+        SIZE_T osThreadId = 0;
         palErr = InternalCreateThread(pthrCurrent,
                                       NULL,
                                       0,
@@ -1493,14 +1494,14 @@ namespace CorUnix
                                       (PVOID)pSynchManager,
                                       0,
                                       PalWorkerThread,
-                                      &pSynchManager->m_dwWorkerThreadTid,
+                                      &osThreadId,
                                       &hWorkerThread);
 
         if (NO_ERROR == palErr)
         {
+            pSynchManager->m_dwWorkerThreadTid = (DWORD)osThreadId;
             palErr = InternalGetThreadDataFromHandle(pthrCurrent,
                                                      hWorkerThread,
-                                                     0,
                                                      &pSynchManager->m_pthrWorker,
                                                      &pSynchManager->m_pipoThread);
             if (NO_ERROR != palErr)
@@ -2506,9 +2507,10 @@ namespace CorUnix
         BYTE * pbySrc, * pbyDst = rgSendBuf;
         WaitingThreadsListNode * pWLNode = SharedIDToTypePointer(WaitingThreadsListNode, shridWLNode);
 
+
+        _ASSERT_MSG(NULL != pWLNode, "Bad shared wait list node identifier (%p)\n", (VOID*)shridWLNode);
         _ASSERT_MSG(gPID != pWLNode->dwProcessId, "WakeUpRemoteThread called on local thread\n");
         _ASSERT_MSG(NULL != shridWLNode, "NULL shared identifier\n");
-        _ASSERT_MSG(NULL != pWLNode, "Bad shared wait list node identifier (%p)\n", (VOID*)shridWLNode);
         _ASSERT_MSG(MsgSize <= PIPE_BUF, "Message too long [MsgSize=%d PIPE_BUF=%d]\n", MsgSize, (int)PIPE_BUF);
 
         TRACE("Waking up remote thread {pid=%x, tid=%x} by sending cmd=%u and shridWLNode=%p over process pipe\n",
@@ -3034,7 +3036,7 @@ namespace CorUnix
 
         VALIDATEOBJECT(pTgtObjectSynchData);
 
-        pwtlnNode =  fSharedObject ? SharedIDToTypePointer(WaitingThreadsListNode, pTgtObjectSynchData->GetWTLHeadShmPtr()) 
+        pwtlnNode =  fSharedObject ? SharedIDToTypePointer(WaitingThreadsListNode, pTgtObjectSynchData->GetWTLHeadShmPtr())
                                    : pTgtObjectSynchData->GetWTLHeadPtr();
 
         while (pwtlnNode)
@@ -3042,7 +3044,7 @@ namespace CorUnix
             VALIDATEOBJECT(pwtlnNode);
 
             pwtlnNode->dwFlags &= ~WTLN_FLAG_DELEGATED_OBJECT_SIGNALING_IN_PROGRESS;
-            pwtlnNode = fSharedObject ? SharedIDToTypePointer(WaitingThreadsListNode, pwtlnNode->ptrNext.shrid) 
+            pwtlnNode = fSharedObject ? SharedIDToTypePointer(WaitingThreadsListNode, pwtlnNode->ptrNext.shrid)
                                       : pwtlnNode->ptrNext.ptr;
         }
     }
@@ -4583,7 +4585,7 @@ namespace CorUnix
         }
         else
         {
-#endif        
+#endif
 #if HAVE_WORKING_CLOCK_GETTIME
             // Not every platform implements a (working) clock_gettime
             iRet = clock_gettime(CLOCK_REALTIME, ptsAbsTmo);

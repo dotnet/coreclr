@@ -324,7 +324,7 @@ WRITE_BARRIER_ENTRY JIT_ByRefWriteBarrier
     ldr  x15, [x13], 8
     b C_FUNC(JIT_CheckedWriteBarrier)
 
-WRITE_BARRIER_END JIT_ByRefWriteBarrier 
+WRITE_BARRIER_END JIT_ByRefWriteBarrier
 
 //-----------------------------------------------------------------------------
 // Simple WriteBarriers
@@ -453,7 +453,7 @@ LOCAL_LABEL(SkipEphemeralCheck):
     beq  LOCAL_LABEL(Exit)
 
 LOCAL_LABEL(UpdateCardTable):
-    mov  x12, 0xFF 
+    mov  x12, 0xFF
     strb w12, [x15]
 
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
@@ -471,9 +471,10 @@ LOCAL_LABEL(UpdateCardBundle):
 
 LOCAL_LABEL(Exit):
     add  x14, x14, 8
-    ret  lr  
+    ret  lr
 WRITE_BARRIER_END JIT_WriteBarrier
 
+#ifdef FEATURE_PREJIT
 //------------------------------------------------
 // VirtualMethodFixupStub
 //
@@ -520,7 +521,8 @@ NESTED_ENTRY VirtualMethodFixupStub, _TEXT, NoHandler
     // and tailcall to the actual method
     EPILOG_BRANCH_REG x12
 
-NESTED_END VirtualMEthodFixupStub, _TEXT
+NESTED_END VirtualMethodFixupStub, _TEXT
+#endif // FEATURE_PREJIT
 
 //------------------------------------------------
 // ExternalMethodFixupStub
@@ -535,7 +537,7 @@ NESTED_END VirtualMEthodFixupStub, _TEXT
 //
 // On entry:
 //
-// x12 = Address of thunk 
+// x12 = Address of thunk
 
 NESTED_ENTRY ExternalMethodFixupStub, _TEXT, NoHandler
 
@@ -792,7 +794,7 @@ LOCAL_LABEL(UMThunkStub_InCooperativeMode):
     add x0, fp, #UMThunkStub_StackArgs
 
     // move source pointer to end of Stack Args
-    add x0, x0, x2 
+    add x0, x0, x2
 
     // Count of stack slot pairs to copy (divide by 16)
     lsr x1, x2, #4
@@ -801,10 +803,10 @@ LOCAL_LABEL(UMThunkStub_InCooperativeMode):
     and x2, x2, #8
 
     // If yes then start source pointer from 16 byte aligned stack slot
-    add x0, x0, x2  
+    add x0, x0, x2
 
     // increment stack slot pair count by 1 if x2 is not zero
-    add x1, x1, x2, LSR #3 
+    add x1, x1, x2, LSR #3
 
 LOCAL_LABEL(UMThunkStub_StackLoop):
     ldp x4, x5, [x0, #-16]! // pre-Index
@@ -855,7 +857,7 @@ NESTED_END UMThunkStub, _TEXT
 // ------------------------------------------------------------------
 // Hijack function for functions which return a scalar type or a struct (value type)
 NESTED_ENTRY OnHijackTripThread, _TEXT, NoHandler
-    PROLOG_SAVE_REG_PAIR_INDEXED   fp, lr, -144
+    PROLOG_SAVE_REG_PAIR_INDEXED   fp, lr, -176
     // Spill callee saved registers
     PROLOG_SAVE_REG_PAIR   x19, x20, 16
     PROLOG_SAVE_REG_PAIR   x21, x22, 32
@@ -867,8 +869,8 @@ NESTED_ENTRY OnHijackTripThread, _TEXT, NoHandler
     stp x0, x1, [sp, #96]
 
     // save any FP/HFA return value(s)
-    stp d0, d1, [sp, #112]
-    stp d2, d3, [sp, #128]
+    stp q0, q1, [sp, #112]
+    stp q2, q3, [sp, #144]
 
     mov x0, sp
     bl OnHijackWorker
@@ -877,15 +879,15 @@ NESTED_ENTRY OnHijackTripThread, _TEXT, NoHandler
     ldp x0, x1, [sp, #96]
 
     // restore any FP/HFA return value(s)
-    ldp d0, d1, [sp, #112]
-    ldp d2, d3, [sp, #128]
+    ldp q0, q1, [sp, #112]
+    ldp q2, q3, [sp, #144]
 
     EPILOG_RESTORE_REG_PAIR   x19, x20, 16
     EPILOG_RESTORE_REG_PAIR   x21, x22, 32
     EPILOG_RESTORE_REG_PAIR   x23, x24, 48
     EPILOG_RESTORE_REG_PAIR   x25, x26, 64
     EPILOG_RESTORE_REG_PAIR   x27, x28, 80
-    EPILOG_RESTORE_REG_PAIR_INDEXED   fp, lr,   144
+    EPILOG_RESTORE_REG_PAIR_INDEXED   fp, lr,   176
     EPILOG_RETURN
 NESTED_END OnHijackTripThread, _TEXT
 
@@ -957,7 +959,7 @@ NESTED_ENTRY CallEHFunclet, _TEXT, NoHandler
 
 NESTED_END CallEHFunclet, _TEXT
 
-// This helper enables us to call into a filter funclet by passing it the CallerSP to lookup the 
+// This helper enables us to call into a filter funclet by passing it the CallerSP to lookup the
 // frame pointer for accessing the locals in the parent method.
 NESTED_ENTRY CallEHFilterFunclet, _TEXT, NoHandler
 
@@ -985,7 +987,7 @@ NESTED_END CallEHFilterFunclet, _TEXT
 
 .macro GenerateRedirectedStubWithFrame stub, target
 
-    // 
+    //
     // This is the primary function to which execution will be redirected to.
     //
     NESTED_ENTRY \stub, _TEXT, NoHandler
@@ -1001,7 +1003,7 @@ NESTED_END CallEHFilterFunclet, _TEXT
         // triggered in the prolog or epilog of the managed method. For such a case, we must
         // align the stack before calling into the VM.
         //
-        // Runtime check for 16-byte alignment. 
+        // Runtime check for 16-byte alignment.
         mov x0, sp
         and x0, x0, #15
         sub sp, sp, x0
@@ -1224,7 +1226,7 @@ LEAF_END setFPReturn, _TEXT
 #endif
 
 //
-// JIT Static access helpers when coreclr host specifies single appdomain flag 
+// JIT Static access helpers when coreclr host specifies single appdomain flag
 //
 
 // ------------------------------------------------------------------
@@ -1342,10 +1344,10 @@ NESTED_ENTRY JIT_Stelem_Ref_NotExactMatch, _TEXT, NoHandler
     PROLOG_SAVE_REG        x2, 32
 
     // allow in case val can be casted to array element type
-    // call ObjIsInstanceOfNoGC(val, array->GetArrayElementTypeHandle())
+    // call ObjIsInstanceOfCached(val, array->GetArrayElementTypeHandle())
     mov     x1, x12 // array->GetArrayElementTypeHandle()
     mov     x0, x2
-    bl      C_FUNC(ObjIsInstanceOfNoGC)
+    bl      C_FUNC(ObjIsInstanceOfCached)
     cmp     x0, TypeHandle_CanCast
     beq     LOCAL_LABEL(DoWrite)             // ObjIsInstance returned TypeHandle::CanCast
 
@@ -1376,3 +1378,57 @@ LEAF_ENTRY  JIT_Stelem_DoWrite, _TEXT
     // single or multi-proc code based on the current CPU
     b       C_FUNC(JIT_WriteBarrier)
 LEAF_END JIT_Stelem_DoWrite, _TEXT
+
+#ifdef PROFILING_SUPPORTED
+
+// ------------------------------------------------------------------
+LEAF_ENTRY JIT_ProfilerEnterLeaveTailcallStub, _TEXT
+    ret     lr
+LEAF_END JIT_ProfilerEnterLeaveTailcallStub, _TEXT
+
+// ------------------------------------------------------------------
+#define PROFILE_ENTER    1
+#define PROFILE_LEAVE    2
+#define PROFILE_TAILCALL 4
+#define SIZEOF__PROFILE_PLATFORM_SPECIFIC_DATA 256
+
+// ------------------------------------------------------------------
+.macro GenerateProfileHelper helper, flags
+NESTED_ENTRY \helper\()Naked, _TEXT, NoHandler
+    // On entry:
+    //   x10 = functionIDOrClientID
+    //   x11 = profiledSp
+    //   x12 = throwable
+    //
+    // On exit:
+    //   Values of x0-x8, q0-q7, fp are preserved.
+    //   Values of other volatile registers are not preserved.
+
+    PROLOG_SAVE_REG_PAIR_INDEXED fp, lr, -SIZEOF__PROFILE_PLATFORM_SPECIFIC_DATA // Allocate space and save Fp, Pc.
+    SAVE_ARGUMENT_REGISTERS sp, 16          // Save x8 and argument registers (x0-x7).
+    str     xzr, [sp, 88]                   // Clear functionId.
+    SAVE_FLOAT_ARGUMENT_REGISTERS sp, 96    // Save floating-point/SIMD registers (q0-q7).
+    add     x12, fp, SIZEOF__PROFILE_PLATFORM_SPECIFIC_DATA // Compute probeSp - initial value of Sp on entry to the helper.
+    stp     x12, x11, [sp, 224]             // Save probeSp, profiledSp.
+    str     xzr, [sp, 240]                  // Clear hiddenArg.
+    mov     w12, \flags
+    stp     w12, wzr, [sp, 248]             // Save flags and clear unused field.
+
+    mov     x0, x10
+    mov     x1, sp
+    bl      \helper
+
+    RESTORE_ARGUMENT_REGISTERS sp, 16       // Restore x8 and argument registers.
+    RESTORE_FLOAT_ARGUMENT_REGISTERS sp, 96 // Restore floating-point/SIMD registers.
+
+    EPILOG_RESTORE_REG_PAIR_INDEXED fp, lr, SIZEOF__PROFILE_PLATFORM_SPECIFIC_DATA
+    EPILOG_RETURN
+
+NESTED_END \helper\()Naked, _TEXT
+.endmacro
+
+GenerateProfileHelper ProfileEnter, PROFILE_ENTER
+GenerateProfileHelper ProfileLeave, PROFILE_LEAVE
+GenerateProfileHelper ProfileTailcall, PROFILE_TAILCALL
+
+#endif

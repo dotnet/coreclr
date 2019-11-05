@@ -33,11 +33,11 @@ namespace System.Diagnostics.Tracing
 
         // optimized for common signatures (used by the ThreadTransferSend/Receive events)
         [NonEvent]
-        private unsafe void WriteEvent(int eventId, long arg1, int arg2, string arg3, bool arg4, int arg5, int arg6)
+        private unsafe void WriteEvent(int eventId, long arg1, int arg2, string? arg3, bool arg4, int arg5, int arg6)
         {
             if (IsEnabled())
             {
-                if (arg3 == null) arg3 = "";
+                arg3 ??= "";
                 fixed (char* string3Bytes = arg3)
                 {
                     EventSource.EventData* descrs = stackalloc EventSource.EventData[6];
@@ -66,11 +66,11 @@ namespace System.Diagnostics.Tracing
 
         // optimized for common signatures (used by the ThreadTransferSend/Receive events)
         [NonEvent]
-        private unsafe void WriteEvent(int eventId, long arg1, int arg2, string arg3)
+        private unsafe void WriteEvent(int eventId, long arg1, int arg2, string? arg3)
         {
             if (IsEnabled())
             {
-                if (arg3 == null) arg3 = "";
+                arg3 ??= "";
                 fixed (char* string3Bytes = arg3)
                 {
                     EventSource.EventData* descrs = stackalloc EventSource.EventData[3];
@@ -114,7 +114,7 @@ namespace System.Diagnostics.Tracing
             ThreadPoolDequeueWork((long)*((void**)Unsafe.AsPointer(ref workID)));
         }
 
-        // id -   represents a correlation ID that allows correlation of two activities, one stamped by 
+        // id -   represents a correlation ID that allows correlation of two activities, one stamped by
         //        ThreadTransferSend, the other by ThreadTransferReceive
         // kind - identifies the transfer: values below 64 are reserved for the runtime. Currently used values:
         //        1 - managed Timers ("roaming" ID)
@@ -137,7 +137,7 @@ namespace System.Diagnostics.Tracing
             ThreadTransferSend((long)*((void**)Unsafe.AsPointer(ref id)), kind, info, multiDequeues, intInfo1, intInfo2);
         }
 
-        // id -   represents a correlation ID that allows correlation of two activities, one stamped by 
+        // id -   represents a correlation ID that allows correlation of two activities, one stamped by
         //        ThreadTransferSend, the other by ThreadTransferReceive
         // kind - identifies the transfer: values below 64 are reserved for the runtime. Currently used values:
         //        1 - managed Timers ("roaming" ID)
@@ -145,7 +145,7 @@ namespace System.Diagnostics.Tracing
         //        3 - WinRT dispatch operations
         // info - any additional information user code might consider interesting
         [Event(151, Level = EventLevel.Informational, Keywords = Keywords.ThreadTransfer, Task = Tasks.ThreadTransfer, Opcode = EventOpcode.Receive)]
-        public void ThreadTransferReceive(long id, int kind, string info)
+        public void ThreadTransferReceive(long id, int kind, string? info)
         {
             WriteEvent(151, id, kind, info);
         }
@@ -153,10 +153,9 @@ namespace System.Diagnostics.Tracing
         //      keep track of GC movements in order to correlate the value passed to XyzSend with the
         //      (possibly changed) value passed to XyzReceive
         [NonEvent]
-        public unsafe void ThreadTransferReceiveObj(object id, int kind, string info)
+        public unsafe void ThreadTransferReceiveObj(object id, int kind, string? info)
         {
             ThreadTransferReceive((long)*((void**)Unsafe.AsPointer(ref id)), kind, info);
         }
     }
 }
-

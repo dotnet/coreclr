@@ -2,10 +2,8 @@ project(unixcoreconsole)
 
 include_directories(../unixcoreruncommon)
 
-add_compile_options(-fPIE)
-
-set(CORECONSOLE_SOURCES 
-    coreconsole.cpp 
+set(CORECONSOLE_SOURCES
+    coreconsole.cpp
 )
 
 _add_executable(coreconsole
@@ -14,7 +12,7 @@ _add_executable(coreconsole
 
 # FreeBSD and NetBSD implement dlopen(3) in libc
 if(NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD AND NOT CMAKE_SYSTEM_NAME STREQUAL NetBSD)
-    target_link_libraries(coreconsole 
+    target_link_libraries(coreconsole
         dl
     )
 endif(NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD AND NOT CMAKE_SYSTEM_NAME STREQUAL NetBSD)

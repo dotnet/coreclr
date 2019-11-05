@@ -7,7 +7,7 @@
 //
 //
 // Compiler-targeted type for switching back into the current execution context, e.g.
-// 
+//
 //   await Task.Yield();
 //   =====================
 //   var $awaiter = Task.Yield().GetAwaiter();
@@ -21,8 +21,6 @@
 //
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-using System;
-using System.Security;
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
 using System.Threading;
@@ -50,7 +48,7 @@ namespace System.Runtime.CompilerServices
         {
             /// <summary>Gets whether a yield is not required.</summary>
             /// <remarks>This property is intended for compiler user rather than use directly in code.</remarks>
-            public bool IsCompleted { get { return false; } } // yielding is always required for YieldAwaiter, hence false
+            public bool IsCompleted => false;  // yielding is always required for YieldAwaiter, hence false
 
             /// <summary>Posts the <paramref name="continuation"/> back to the current context.</summary>
             /// <param name="continuation">The action to invoke asynchronously.</param>
@@ -85,7 +83,7 @@ namespace System.Runtime.CompilerServices
                 // post the continuation to it.  However, treat the base type
                 // as if there wasn't a SynchronizationContext, since that's what it
                 // logically represents.
-                var syncCtx = SynchronizationContext.Current;
+                SynchronizationContext? syncCtx = SynchronizationContext.Current;
                 if (syncCtx != null && syncCtx.GetType() != typeof(SynchronizationContext))
                 {
                     syncCtx.Post(s_sendOrPostCallbackRunAction, continuation);
@@ -129,10 +127,10 @@ namespace System.Runtime.CompilerServices
                 // Otherwise, this is the same logic as in QueueContinuation, except using
                 // an IAsyncStateMachineBox instead of an Action, and only for flowContext:false.
 
-                SynchronizationContext syncCtx = SynchronizationContext.Current;
+                SynchronizationContext? syncCtx = SynchronizationContext.Current;
                 if (syncCtx != null && syncCtx.GetType() != typeof(SynchronizationContext))
                 {
-                    syncCtx.Post(s => ((IAsyncStateMachineBox)s).MoveNext(), box);
+                    syncCtx.Post(s => ((IAsyncStateMachineBox)s!).MoveNext(), box);
                 }
                 else
                 {
@@ -143,7 +141,7 @@ namespace System.Runtime.CompilerServices
                     }
                     else
                     {
-                        Task.Factory.StartNew(s => ((IAsyncStateMachineBox)s).MoveNext(), box, default, TaskCreationOptions.PreferFairness, scheduler);
+                        Task.Factory.StartNew(s => ((IAsyncStateMachineBox)s!).MoveNext(), box, default, TaskCreationOptions.PreferFairness, scheduler);
                     }
                 }
             }
@@ -155,13 +153,13 @@ namespace System.Runtime.CompilerServices
                 return continuation;
 #else
                 int continuationId = Task.NewId();
-                Task currentTask = Task.InternalCurrent;
+                Task? currentTask = Task.InternalCurrent;
                 // fire the correlation ETW event
                 TplEventSource.Log.AwaitTaskContinuationScheduled(TaskScheduler.Current.Id, (currentTask != null) ? currentTask.Id : 0, continuationId);
 
-                return AsyncMethodBuilderCore.CreateContinuationWrapper(continuation, (innerContinuation,continuationIdTask) =>
+                return AsyncMethodBuilderCore.CreateContinuationWrapper(continuation, (innerContinuation, continuationIdTask) =>
                 {
-                    var log = TplEventSource.Log;
+                    TplEventSource log = TplEventSource.Log;
                     log.TaskWaitContinuationStarted(((Task<int>)continuationIdTask).Result);
 
                     // ETW event for Task Wait End.
@@ -188,7 +186,7 @@ namespace System.Runtime.CompilerServices
             private static readonly SendOrPostCallback s_sendOrPostCallbackRunAction = RunAction;
             /// <summary>Runs an Action delegate provided as state.</summary>
             /// <param name="state">The Action delegate to invoke.</param>
-            private static void RunAction(object state) { ((Action)state)(); }
+            private static void RunAction(object? state) { ((Action)state!)(); }
 
             /// <summary>Ends the await operation.</summary>
             public void GetResult() { } // Nop. It exists purely because the compiler pattern demands it.

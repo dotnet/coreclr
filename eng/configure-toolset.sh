@@ -3,3 +3,6 @@
 # using the globally installed dotnet
 
 use_installed_dotnet_cli=false
+
+# Working around issue https://github.com/dotnet/arcade/issues/2673
+DisableNativeToolsetInstalls=true

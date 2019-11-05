@@ -124,77 +124,56 @@ int32_t FixupLocaleName(UChar* value, int32_t valueLength)
     return i;
 }
 
-static int IsEnvVarSet(const char* name)
-{
-    const char* value = getenv(name);
-
-    return (value != NULL) && (strcmp("", value) != 0);
-}
-
-// The behavior of uloc_getDefault() on POSIX systems is to query
-// setlocale(LC_MESSAGES) and use that value, unless it is C or
-// POSIX. In that case it tries to read LC_ALL, LC_MESSAGES and LANG
-// and then falls back to en_US_POSIX if none of them are set.
-//
-// en_US_POSIX is a weird locale since the collation rules treat 'a'
-// and 'A' as different letters even when ignoring case. Furthermore
-// it's common for LC_ALL, LC_MESSAGES and LANG to be unset when
-// running under Docker.
-//
-// We'd rather default to invariant in this case. If any of these
-// are set, we'll just call into ICU and let it do whatever
-// normalization it would do.
+// We use whatever ICU give us as the default locale except if it is en_US_POSIX. We'll map
+// this POSIX locale to Invariant instead. The reason is POSIX locale collation behavior
+// is not desirable at all because it doesn't support case insensitive string comparisons.
 const char* DetectDefaultLocaleName()
 {
-    char* loc = setlocale(LC_MESSAGES, NULL);
-
-    if (loc != NULL && (strcmp("C", loc) == 0 || strcmp("POSIX", loc) == 0))
+    const char* icuLocale = uloc_getDefault();
+    if (strcmp(icuLocale, "en_US_POSIX") == 0)
     {
-        if (!IsEnvVarSet("LC_ALL") && !IsEnvVarSet("LC_MESSAGES") && !IsEnvVarSet("LANG"))
-        {
-            return "";
-        }
+        return "";
     }
 
-    return uloc_getDefault();
+    return icuLocale;
 }
 
 // GlobalizationNative_GetLocales gets all locale names and store it in the value buffer
-// in case of success, it returns the count of the characters stored in value buffer  
+// in case of success, it returns the count of the characters stored in value buffer
 // in case of failure, it returns negative number.
-// if the input value buffer is null, it returns the length needed to store the 
+// if the input value buffer is null, it returns the length needed to store the
 // locale names list.
-// if the value is not null, it fills the value with locale names separated by the length 
-// of each name. 
+// if the value is not null, it fills the value with locale names separated by the length
+// of each name.
 int32_t GlobalizationNative_GetLocales(UChar *value, int32_t valueLength)
 {
     int32_t totalLength = 0;
     int32_t index = 0;
     int32_t localeCount = uloc_countAvailable();
-    
+
     if (localeCount <=  0)
         return -1; // failed
-    
+
     for (int32_t i = 0; i < localeCount; i++)
     {
         const char *pLocaleName = uloc_getAvailable(i);
         if (pLocaleName[0] == 0) // unexpected empty name
             return -2;
-        
+
         int32_t localeNameLength = strlen(pLocaleName);
-        
+
         totalLength += localeNameLength + 1; // add 1 for the name length
-        
+
         if (value != NULL)
         {
             if (totalLength > valueLength)
                 return -3;
-            
+
             value[index++] = (UChar) localeNameLength;
-            
+
             for (int j=0; j<localeNameLength; j++)
             {
-                if (pLocaleName[j] == '_') // fix the locale name  
+                if (pLocaleName[j] == '_') // fix the locale name
                 {
                     value[index++] = (UChar) '-';
                 }
@@ -205,7 +184,7 @@ int32_t GlobalizationNative_GetLocales(UChar *value, int32_t valueLength)
             }
         }
     }
-    
+
     return totalLength;
 }
 

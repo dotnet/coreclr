@@ -261,7 +261,7 @@ bool IsGuardPageGone()
 
     // We're not going to be called for a unmanaged exception.
     // Should always have a managed thread, but just in case something really
-    // crazy happens, it's not worth an AV. (since this is just being used as a hint)
+    // strange happens, it's not worth an AV. (since this is just being used as a hint)
     if (pThread == NULL)
     {
         return false;
@@ -888,15 +888,6 @@ ShutdownTransport()
     {
         g_pDbgTransport->Shutdown();
         g_pDbgTransport = NULL;
-    }
-}
-
-void
-AbortTransport()
-{
-    if (g_pDbgTransport != NULL)
-    {
-        g_pDbgTransport->AbortConnection();
     }
 }
 #endif // FEATURE_DBGIPC_TRANSPORT_VM
@@ -1895,6 +1886,16 @@ void NotifyDebuggerOfStartup()
 
 #endif // !FEATURE_PAL
 
+void Debugger::CleanupTransportSocket(void)
+{
+#if defined(FEATURE_PAL) && defined(FEATURE_DBGIPC_TRANSPORT_VM)
+    if (g_pDbgTransport != NULL)
+    {
+        g_pDbgTransport->AbortConnection();
+    }
+#endif // FEATURE_PAL && FEATURE_DBGIPC_TRANSPORT_VM
+}
+
 //---------------------------------------------------------------------------------------
 //
 // Initialize Left-Side debugger object
@@ -1989,10 +1990,6 @@ HRESULT Debugger::Startup(void)
         }
     #endif
 
-    #ifdef FEATURE_PAL
-        PAL_InitializeDebug();
-    #endif // FEATURE_PAL
-
         // Lazily initialize the interop-safe heap
 
         // Must be done before the RC thread is initialized.
@@ -2047,9 +2044,6 @@ HRESULT Debugger::Startup(void)
             ShutdownTransport();
             ThrowHR(hr);
         }
-    #ifdef FEATURE_PAL
-        PAL_SetShutdownCallback(AbortTransport);
-    #endif // FEATURE_PAL
     #endif // FEATURE_DBGIPC_TRANSPORT_VM
 
         RaiseStartupNotification();
@@ -2957,6 +2951,13 @@ DebuggerMethodInfo *Debugger::GetOrCreateMethodInfo(Module *pModule, mdMethodDef
 
 #ifndef DACCESS_COMPILE
 
+// Helper to use w/ the debug stores.
+BYTE* InteropSafeNoThrowNew(void*, size_t cBytes)
+{
+    BYTE* p = new (interopsafe, nothrow) BYTE[cBytes];
+    return p;
+}
+
 /******************************************************************************
  * GetILToNativeMapping returns a map from IL offsets to native
  * offsets for this code. An array of COR_PROF_IL_TO_NATIVE_MAP
@@ -2992,9 +2993,52 @@ HRESULT Debugger::GetILToNativeMapping(PCODE pNativeCodeStartAddress, ULONG32 cM
 #endif // PROFILING_SUPPORTED
 
     MethodDesc *fd = g_pEEInterface->GetNativeCodeMethodDesc(pNativeCodeStartAddress);
-    if (fd == NULL || fd->IsWrapperStub() || fd->IsDynamicMethod())
+    if (fd == NULL || fd->IsWrapperStub())
     {
         return E_FAIL;
+    }
+
+    if (fd->IsDynamicMethod())
+    {
+        if (g_pConfig->GetTrackDynamicMethodDebugInfo())
+        {
+            DebugInfoRequest diq;
+            diq.InitFromStartingAddr(fd, pNativeCodeStartAddress);
+
+            if (cMap == 0)
+            {
+                if (DebugInfoManager::GetBoundariesAndVars(diq, nullptr, nullptr, pcMap, nullptr, nullptr, nullptr))
+                {
+                    return S_OK;
+                }
+
+                return E_FAIL;
+            }
+
+            ICorDebugInfo::OffsetMapping* pMap = nullptr;
+            if (DebugInfoManager::GetBoundariesAndVars(diq, InteropSafeNoThrowNew, nullptr, pcMap, &pMap, nullptr, nullptr))
+            {
+                for (ULONG32 i = 0; i < cMap; ++i)
+                {
+                    map[i].ilOffset = pMap[i].ilOffset;
+                    map[i].nativeStartOffset = pMap[i].nativeOffset;
+                    if (i > 0)
+                    {
+                        map[i - 1].nativeEndOffset = map[i].nativeStartOffset;
+                    }
+                }
+
+                DeleteInteropSafe(pMap);
+
+                return S_OK;
+            }
+
+            return E_FAIL;
+        }
+        else
+        {
+            return E_FAIL;
+        }
     }
 
     DebuggerMethodInfo *pDMI = GetOrCreateMethodInfo(fd->GetModule(), fd->GetMemberDef());
@@ -3079,7 +3123,7 @@ HRESULT Debugger::GetILToNativeMapping(PCODE pNativeCodeStartAddress, ULONG32 cM
 
 HRESULT Debugger::GetILToNativeMappingIntoArrays(
     MethodDesc * pMethodDesc,
-    PCODE pCode,
+    PCODE pNativeCodeStartAddress,
     USHORT cMapMax,
     USHORT * pcMap,
     UINT ** prguiILOffset,
@@ -3092,6 +3136,7 @@ HRESULT Debugger::GetILToNativeMappingIntoArrays(
     }
     CONTRACTL_END;
 
+    _ASSERTE(pMethodDesc != NULL);
     _ASSERTE(pcMap != NULL);
     _ASSERTE(prguiILOffset != NULL);
     _ASSERTE(prguiNativeOffset != NULL);
@@ -3102,7 +3147,18 @@ HRESULT Debugger::GetILToNativeMappingIntoArrays(
 
     // Get the JIT info by functionId.
 
-    DebuggerJitInfo * pDJI = GetJitInfo(pMethodDesc, (const BYTE *)pCode);
+    if (pMethodDesc->IsWrapperStub() || pMethodDesc->IsDynamicMethod())
+    {
+        return E_FAIL;
+    }
+
+    DebuggerMethodInfo *pDMI = GetOrCreateMethodInfo(pMethodDesc->GetModule(), pMethodDesc->GetMemberDef());
+    if (pDMI == NULL)
+    {
+        return E_FAIL;
+    }
+
+    DebuggerJitInfo *pDJI = pDMI->FindOrCreateInitAndAddJitInfo(pMethodDesc, pNativeCodeStartAddress);
 
     // Dunno what went wrong
     if (pDJI == NULL)
@@ -3576,7 +3632,7 @@ HRESULT Debugger::SetIP( bool fCanSetIPOnly, Thread *thread,Module *module,
 
     LOG((LF_CORDB, LL_INFO1000, "D::SIP: In SetIP ==> fCanSetIPOnly:0x%x <==!\n", fCanSetIPOnly));
 
-    CodeVersionManager *pCodeVersionManager = module->GetCodeVersionManager();    
+    CodeVersionManager *pCodeVersionManager = module->GetCodeVersionManager();
     {
         CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
         ILCodeVersion ilCodeVersion = pCodeVersionManager->GetActiveILCodeVersion(module, mdMeth);
@@ -3601,13 +3657,13 @@ HRESULT Debugger::SetIP( bool fCanSetIPOnly, Thread *thread,Module *module,
     csi.GetStackInfo(ticket, thread, LEAF_MOST_FRAME, NULL);
 
     ULONG offsetNatFrom = csi.m_activeFrame.relOffset;
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
     if (csi.m_activeFrame.IsFuncletFrame())
     {
         offsetNatFrom = (ULONG)((SIZE_T)GetControlPC(&(csi.m_activeFrame.registers)) -
                                 (SIZE_T)(dji->m_addrOfCode));
     }
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
     _ASSERTE(dji != NULL);
 
@@ -3616,11 +3672,11 @@ HRESULT Debugger::SetIP( bool fCanSetIPOnly, Thread *thread,Module *module,
     // the size of the individual funclets or the parent method.
     pbBase = (BYTE*)CORDB_ADDRESS_TO_PTR(dji->m_addrOfCode);
     dwSize = (DWORD)dji->m_sizeOfCode;
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
     // Currently, method offsets are not bigger than 4 bytes even on WIN64.
     // Assert that it is so here.
     _ASSERTE((SIZE_T)dwSize == dji->m_sizeOfCode);
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 
     // Create our structure for analyzing this.
@@ -3628,10 +3684,10 @@ HRESULT Debugger::SetIP( bool fCanSetIPOnly, Thread *thread,Module *module,
     // CanSetIP & SetIP.</TODO>
     int           cFunclet  = 0;
     const DWORD * rgFunclet = NULL;
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
     cFunclet  = dji->GetFuncletCount();
     rgFunclet = dji->m_rgFunclet;
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
     EHRangeTree* pEHRT = new (nothrow) EHRangeTree(csi.m_activeFrame.pIJM,
                                                    csi.m_activeFrame.MethodToken,
@@ -3669,14 +3725,14 @@ HRESULT Debugger::SetIP( bool fCanSetIPOnly, Thread *thread,Module *module,
         // Caveat: we need to go to a sequence point
         if (fIsIL )
         {
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
             int funcletIndexFrom = dji->GetFuncletIndex((CORDB_ADDRESS)offsetNatFrom, DebuggerJitInfo::GFIM_BYOFFSET);
             offsetNatTo = dji->MapILOffsetToNativeForSetIP(offsetILTo, funcletIndexFrom, pEHRT, &exact);
-#else  // WIN64EXCEPTIONS
+#else  // FEATURE_EH_FUNCLETS
             DebuggerJitInfo::ILToNativeOffsetIterator it;
             dji->InitILToNativeOffsetIterator(it, offsetILTo);
             offsetNatTo = it.CurrentAssertOnlyOne(&exact);
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
             if (!exact)
             {
@@ -4334,19 +4390,19 @@ SIZE_T GetSetFrameHelper::GetSizeOfElement(CorElementType cet)
         {
         case ELEMENT_TYPE_I8:
         case ELEMENT_TYPE_U8:
-#if defined(_WIN64)
+#if defined(BIT64)
         case ELEMENT_TYPE_I:
         case ELEMENT_TYPE_U:
-#endif // _WIN64
+#endif // BIT64
         case ELEMENT_TYPE_R8:
                return 8;
 
         case ELEMENT_TYPE_I4:
         case ELEMENT_TYPE_U4:
-#if !defined(_WIN64)
+#if !defined(BIT64)
         case ELEMENT_TYPE_I:
         case ELEMENT_TYPE_U:
-#endif // !_WIN64
+#endif // !BIT64
         case ELEMENT_TYPE_R4:
             return 4;
 
@@ -4606,7 +4662,7 @@ HRESULT Debugger::GetVariablesFromOffset(MethodDesc  *pMD,
                                        pCtx,
                                        rgVal1 + rgValIndex,
                                        rgVal2 + rgValIndex
-                                       WIN64_ARG(cbClass));
+                                       BIT64_ARG(cbClass));
 
             LOG((LF_CORDB|LF_ENC,LL_INFO10000,
                  "D::GVFO [%2d] varnum %d, nonVC type %x, addr %8.8x: %8.8x;%8.8x\n",
@@ -4752,7 +4808,7 @@ HRESULT Debugger::SetVariablesAtOffset(MethodDesc  *pMD,
                                        pCtx,
                                        rgVal1[rgValIndex],
                                        rgVal2[rgValIndex]
-                                       WIN64_ARG(cbClass));
+                                       BIT64_ARG(cbClass));
 
             LOG((LF_CORDB|LF_ENC,LL_INFO10000,
                  "D::SVAO [%2d] varnum %d, nonVC type %x, addr %8.8x: %8.8x;%8.8x\n",
@@ -5335,7 +5391,7 @@ DebuggerModule* Debugger::LookupOrCreateModule(Module* pModule, AppDomain *pAppD
         HRESULT hr = S_OK;
         EX_TRY
         {
-            DomainFile * pDomainFile = pModule->FindDomainFile(pAppDomain);
+            DomainFile * pDomainFile = pModule->GetDomainFile();
             SIMPLIFYING_ASSUMPTION(pDomainFile != NULL);
             dmod = AddDebuggerModule(pDomainFile); // throws
         }
@@ -5413,7 +5469,7 @@ void Debugger::TrapAllRuntimeThreads()
                      !g_pEEInterface->IsPreemptiveGCDisabled());
     }
     CONTRACTL_END;
- 
+
 #if !defined(FEATURE_DBGIPC_TRANSPORT_VM)
     // Only sync if RS requested it.
     if (!m_RSRequestedSync)
@@ -5931,7 +5987,7 @@ void Debugger::SuspendForGarbageCollectionStarted()
         GC_NOTRIGGER;
     }
     CONTRACTL_END;
-    
+
     this->m_isGarbageCollectionEventsEnabledLatch = this->m_isGarbageCollectionEventsEnabled;
     this->m_willBlockOnGarbageCollectionEvent = this->m_isGarbageCollectionEventsEnabledLatch;
 }
@@ -5949,7 +6005,7 @@ void Debugger::SuspendForGarbageCollectionCompleted()
     {
         return;
     }
-    this->m_isBlockedOnGarbageCollectionEvent = TRUE; 
+    this->m_isBlockedOnGarbageCollectionEvent = TRUE;
 
     Thread* pThread = GetThread();
 
@@ -5993,7 +6049,7 @@ void Debugger::ResumeForGarbageCollectionStarted()
         return;
 
     {
-        Debugger::DebuggerLockHolder dbgLockHolder(this);        
+        Debugger::DebuggerLockHolder dbgLockHolder(this);
 
         DebuggerIPCEvent* ipce1 = m_pRCThread->GetIPCEventSendBuffer();
         InitIPCEvent(ipce1,
@@ -9223,8 +9279,8 @@ void Debugger::DetachThread(Thread *pRuntimeThread)
 //
 // SuspendComplete is called when the last Runtime thread reaches a safe point in response to having its trap flags set.
 // This may be called on either the real helper thread or someone doing helper thread duty.
-// 
-// It could also be called for sending garbage collection events (see DebuggerRCThread::SendIPCEvent for more about the 
+//
+// It could also be called for sending garbage collection events (see DebuggerRCThread::SendIPCEvent for more about the
 // thread mode associated with the events)
 //
 BOOL Debugger::SuspendComplete(bool isEESuspendedForGC)
@@ -9592,7 +9648,7 @@ void Debugger::LoadModule(Module* pRuntimeModule,
             _ASSERTE(pManifestModule->IsManifest());
             _ASSERTE(pManifestModule->GetAssembly() == pRuntimeModule->GetAssembly());
 
-            DomainFile * pManifestDomainFile = pManifestModule->GetDomainFile(pAppDomain);
+            DomainFile * pManifestDomainFile = pManifestModule->GetDomainFile();
 
             DebuggerLockHolder dbgLockHolder(this);
 
@@ -9741,7 +9797,7 @@ void Debugger::LoadModuleFinished(Module * pRuntimeModule, AppDomain * pAppDomai
 #ifdef _DEBUG
     {
         // This notification is called once the module is loaded
-        DomainFile * pDomainFile = pRuntimeModule->FindDomainFile(pAppDomain);
+        DomainFile * pDomainFile = pRuntimeModule->GetDomainFile();
         _ASSERTE((pDomainFile != NULL) && (pDomainFile->GetLoadLevel() >= FILE_LOADED));
     }
 #endif // _DEBUG
@@ -10202,7 +10258,7 @@ BOOL Debugger::SendSystemClassLoadUnloadEvent(mdTypeDef classMetadataToken,
         // triggers too early in the loading process. FindDomainFile will not become
         // non-NULL until the module is fully loaded into the domain which is what we
         // want.
-        if (classModule->FindDomainFile(pAppDomain) != NULL )
+        if (classModule->GetDomainFile() != NULL )
         {
             // Find the Left Side module that this class belongs in.
             DebuggerModule* pModule = LookupOrCreateModule(classModule, pAppDomain);
@@ -11798,7 +11854,7 @@ HRESULT Debugger::GetAndSendInterceptCommand(DebuggerIPCEvent *event)
 
                     ULONG relOffset = csi.m_activeFrame.relOffset;
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
                     int funcletIndex = PARENT_METHOD_INDEX;
 
                     // For funclets, we need to make sure that the stack empty sequence point we use is
@@ -11810,7 +11866,7 @@ HRESULT Debugger::GetAndSendInterceptCommand(DebuggerIPCEvent *event)
 
                     // Refer to the loop using pMap below.
                     DebuggerILToNativeMap* pMap = NULL;
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
                     for (unsigned int i = 0; i < pJitInfo->GetSequenceMapCount(); i++)
                     {
@@ -11847,23 +11903,23 @@ HRESULT Debugger::GetAndSendInterceptCommand(DebuggerIPCEvent *event)
                         }
 
                         if ((foundOffset < startOffset) && (startOffset <= relOffset)
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
                             // Check if we are still in the same funclet.
                             && (funcletIndex == pJitInfo->GetFuncletIndex(startOffset, DebuggerJitInfo::GFIM_BYOFFSET))
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
                            )
                         {
                             LOG((LF_CORDB, LL_INFO10000, "D::HIPCE: updating breakpoint at native offset 0x%x\n",
                                  startOffset));
                             foundOffset = startOffset;
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
                             // Save the map entry for modification later.
                             pMap = &(pJitInfo->GetSequenceMap()[i]);
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
                         }
                     }
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
                     // This is nasty.  Starting recently we could have multiple sequence points with the same IL offset
                     // in the SAME funclet/parent method (previously different sequence points with the same IL offset
                     // imply that they are in different funclet/parent method).  Fortunately, we only run into this
@@ -11883,7 +11939,7 @@ HRESULT Debugger::GetAndSendInterceptCommand(DebuggerIPCEvent *event)
                         }
                     }
                     _ASSERTE(foundOffset < relOffset);
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
                     //
                     // Set up a breakpoint on the intercept IP
@@ -12642,7 +12698,7 @@ bool Debugger::IsThreadAtSafePlaceWorker(Thread *thread)
         CONTEXT ctx;
         ZeroMemory(&rd, sizeof(rd));
         ZeroMemory(&ctx, sizeof(ctx));
-#if defined(_TARGET_X86_) && !defined(WIN64EXCEPTIONS)
+#if defined(_TARGET_X86_) && !defined(FEATURE_EH_FUNCLETS)
         rd.ControlPC = ctx.Eip;
         rd.PCTAddr = (TADDR)&(ctx.Eip);
 #else
@@ -13038,7 +13094,7 @@ BOOL EnCSequencePointHelper::ShouldSetRemapBreakpoint(unsigned int offsetIndex)
 //-----------------------------------------------------------------------------
 // For each function that's EnC-ed, the EE will call either UpdateFunction
 // (if the function already is loaded + jitted) or AddFunction
-// 
+//
 // This is called before the EE updates the MethodDesc, so pMD does not yet
 // point to the version we'll be remapping to.
 //-----------------------------------------------------------------------------
@@ -13171,7 +13227,7 @@ HRESULT Debugger::UpdateNotYetLoadedFunction(mdMethodDef token, Module * pModule
     HRESULT hr = pModule->GetMDImport()->GetParentToken(token, &classToken);
     if (FAILED(hr))
     {
-        // We never expect this to actually fail, but just in case it does for some other crazy reason,
+        // We never expect this to actually fail, but just in case it does for some other strange reason,
         // we'll return before we AV.
         CONSISTENCY_CHECK_MSGF(false, ("Class lookup failed:mdToken:0x%08x, pModule=%p. hr=0x%08x\n", token, pModule, hr));
         return hr;
@@ -13420,7 +13476,7 @@ void STDCALL ExceptionHijackWorker(
     // call SetThreadContext on ourself to fix us.
 }
 
-#if defined(WIN64EXCEPTIONS) && !defined(FEATURE_PAL)
+#if defined(FEATURE_EH_FUNCLETS) && !defined(FEATURE_PAL)
 
 #if defined(_TARGET_AMD64_)
 // ----------------------------------------------------------------------------
@@ -13485,8 +13541,8 @@ EXCEPTION_DISPOSITION EmptyPersonalityRoutine(IN     PEXCEPTION_RECORD   pExcept
 
 EXTERN_C EXCEPTION_DISPOSITION
 ExceptionHijackPersonalityRoutine(IN     PEXCEPTION_RECORD   pExceptionRecord
-                        WIN64_ARG(IN     ULONG64             MemoryStackFp)
-                    NOT_WIN64_ARG(IN     ULONG32             MemoryStackFp),
+                        BIT64_ARG(IN     ULONG64             MemoryStackFp)
+                    NOT_BIT64_ARG(IN     ULONG32             MemoryStackFp),
                                   IN OUT PCONTEXT            pContextRecord,
                                   IN OUT PDISPATCHER_CONTEXT pDispatcherContext
                                  )
@@ -13519,7 +13575,7 @@ ExceptionHijackPersonalityRoutine(IN     PEXCEPTION_RECORD   pExceptionRecord
     // exactly the behavior we want.
     return ExceptionCollidedUnwind;
 }
-#endif // WIN64EXCEPTIONS && !FEATURE_PAL
+#endif // FEATURE_EH_FUNCLETS && !FEATURE_PAL
 
 
 // UEF Prototype from excep.cpp
@@ -13601,9 +13657,9 @@ void Debugger::UnhandledHijackWorker(CONTEXT * pContext, EXCEPTION_RECORD * pRec
     {
 
         FrameWithCookie<FaultingExceptionFrame> fef;
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
         *((&fef)->GetGSCookiePtr()) = GetProcessGSCookie();
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
         if ((pContext != NULL) && fSOException)
         {
             GCX_COOP();     // Must be cooperative to modify frame chain.
@@ -15246,6 +15302,13 @@ HRESULT Debugger::FuncEvalSetup(DebuggerIPCE_FuncEvalInfo *pEvalInfo,
         return CORDBG_E_ILLEGAL_AT_GC_UNSAFE_POINT;
     }
 
+    if (filterContext != NULL && ::GetSP(filterContext) != ALIGN_DOWN(::GetSP(filterContext), STACK_ALIGN_SIZE))
+    {
+        // SP is not aligned, we cannot do a FuncEval here
+        LOG((LF_CORDB, LL_INFO1000, "D::FES SP is unaligned"));
+        return CORDBG_E_FUNC_EVAL_BAD_START_POINT;
+    }
+
     // Create a DebuggerEval to hold info about this eval while its in progress. Constructor copies the thread's
     // CONTEXT.
     DebuggerEval *pDE = new (interopsafe, nothrow) DebuggerEval(filterContext, pEvalInfo, fInException);
@@ -15377,6 +15440,13 @@ HRESULT Debugger::FuncEvalSetupReAbort(Thread *pThread, Thread::ThreadAbortReque
     if (filterContext == NULL)
     {
         return CORDBG_E_ILLEGAL_AT_GC_UNSAFE_POINT;
+    }
+
+    if (::GetSP(filterContext) != ALIGN_DOWN(::GetSP(filterContext), STACK_ALIGN_SIZE))
+    {
+        // SP is not aligned, we cannot do a FuncEval here
+        LOG((LF_CORDB, LL_INFO1000, "D::FESRA: SP is unaligned"));
+        return CORDBG_E_FUNC_EVAL_BAD_START_POINT;
     }
 
     // Create a DebuggerEval to hold info about this eval while its in progress. Constructor copies the thread's
@@ -16094,7 +16164,7 @@ BOOL Debugger::IsThreadContextInvalid(Thread *pThread)
     if (success)
     {
         // Check single-step flag
-        if (IsSSFlagEnabled(reinterpret_cast<DT_CONTEXT *>(&ctx) ARM_ARG(pThread)))
+        if (IsSSFlagEnabled(reinterpret_cast<DT_CONTEXT *>(&ctx) ARM_ARG(pThread) ARM64_ARG(pThread)))
         {
             // Can't hijack a thread whose SS-flag is set. This could lead to races
             // with the thread taking the SS-exception.

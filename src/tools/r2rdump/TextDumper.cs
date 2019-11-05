@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection.Metadata;
+using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
 using System.Text;
 using System.Xml;
@@ -118,7 +120,7 @@ namespace R2RDump
         }
 
         /// <summary>
-        /// Dumps one R2RMethod. 
+        /// Dumps one R2RMethod.
         /// </summary>
         internal override void DumpMethod(R2RMethod method, XmlNode parentNode = null)
         {
@@ -144,7 +146,7 @@ namespace R2RDump
         }
 
         /// <summary>
-        /// Dumps one runtime function. 
+        /// Dumps one runtime function.
         /// </summary>
         internal override void DumpRuntimeFunction(RuntimeFunction rtf, XmlNode parentNode = null)
         {
@@ -201,7 +203,7 @@ namespace R2RDump
                     }
                 }
 
-                if (rtf.Method.GcInfo != null && rtf.Method.GcInfo.Transitions.ContainsKey(codeOffset))
+                if (rtf.Method.GcInfo?.Transitions != null && rtf.Method.GcInfo.Transitions.ContainsKey(codeOffset))
                 {
                     foreach (BaseGcTransition transition in rtf.Method.GcInfo.Transitions[codeOffset])
                     {
@@ -355,6 +357,29 @@ namespace R2RDump
                             _writer.WriteLine();
                         }
                     }
+                    break;
+                case R2RSection.SectionType.READYTORUN_SECTION_MANIFEST_METADATA:
+                    int assemblyRefCount = _r2r.MetadataReader.GetTableRowCount(TableIndex.AssemblyRef);
+                    _writer.WriteLine($"MSIL AssemblyRef's ({assemblyRefCount} entries):");
+                    for (int assemblyRefIndex = 1; assemblyRefIndex <= assemblyRefCount; assemblyRefIndex++)
+                    {
+                        AssemblyReference assemblyRef = _r2r.MetadataReader.GetAssemblyReference(MetadataTokens.AssemblyReferenceHandle(assemblyRefIndex));
+                        string assemblyRefName = _r2r.MetadataReader.GetString(assemblyRef.Name);
+                        _writer.WriteLine($"[ID 0x{assemblyRefIndex:X2}]: {assemblyRefName}");
+                    }
+
+                    _writer.WriteLine($"Manifest metadata AssemblyRef's ({_r2r.ManifestReferenceAssemblies.Count} entries):");
+                    for (int manifestAsmIndex = 0; manifestAsmIndex < _r2r.ManifestReferenceAssemblies.Count; manifestAsmIndex++)
+                    {
+                        _writer.WriteLine($"[ID 0x{manifestAsmIndex + assemblyRefCount + 2:X2}]: {_r2r.ManifestReferenceAssemblies[manifestAsmIndex]}");
+                    }
+                    break;
+                case R2RSection.SectionType.READYTORUN_SECTION_ATTRIBUTEPRESENCE:
+                    int attributesStartOffset = _r2r.GetOffset(section.RelativeVirtualAddress);
+                    int attributesEndOffset = attributesStartOffset + section.Size;
+                    NativeCuckooFilter attributes = new NativeCuckooFilter(_r2r.Image, attributesStartOffset, attributesEndOffset);
+                    _writer.WriteLine("Attribute presence filter");
+                    _writer.WriteLine(attributes.ToString());
                     break;
             }
         }

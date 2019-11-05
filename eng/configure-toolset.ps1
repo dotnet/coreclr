@@ -3,3 +3,6 @@
 # using the globally installed dotnet
 
 $script:useInstalledDotNetCli = $false
+
+# Working around issue https://github.com/dotnet/arcade/issues/2673
+$script:DisableNativeToolsetInstalls = $true

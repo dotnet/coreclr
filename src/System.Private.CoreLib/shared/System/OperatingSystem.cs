@@ -7,21 +7,18 @@ using System.Runtime.Serialization;
 
 namespace System
 {
-#if PROJECTN
-    [Internal.Runtime.CompilerServices.RelocatedType("System.Runtime.Extensions")]
-#endif
     public sealed class OperatingSystem : ISerializable, ICloneable
     {
         private readonly Version _version;
         private readonly PlatformID _platform;
-        private readonly string _servicePack;
-        private string _versionString;
+        private readonly string? _servicePack;
+        private string? _versionString;
 
         public OperatingSystem(PlatformID platform, Version version) : this(platform, version, null)
         {
         }
 
-        internal OperatingSystem(PlatformID platform, Version version, string servicePack)
+        internal OperatingSystem(PlatformID platform, Version version, string? servicePack)
         {
             if (platform < PlatformID.Win32S || platform > PlatformID.MacOSX)
             {

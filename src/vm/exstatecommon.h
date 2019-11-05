@@ -16,17 +16,17 @@ class ExceptionFlags;
 //---------------------------------------------------------------------------------------
 //
 // This class stores information necessary to intercept an exception.  It's basically a communication channel
-// between the debugger and the EH subsystem.  Each internal exception tracking structure 
+// between the debugger and the EH subsystem.  Each internal exception tracking structure
 // (ExInfo on x86 and ExceptionTracker on WIN64) contains one DebuggerExState.
 //
 // Notes:
-//    This class actually stores more information on x86 than on WIN64 because the x86 EH subsystem 
+//    This class actually stores more information on x86 than on WIN64 because the x86 EH subsystem
 //    has more work to do when unwinding the stack.  WIN64 just asks the OS to do it.
 //
 
 class DebuggerExState
 {
-public:    
+public:
 
     //---------------------------------------------------------------------------------------
     //
@@ -51,13 +51,13 @@ public:
         m_pDebuggerContext = NULL;
         m_pDebuggerInterceptNativeOffset = 0;
 
-  #ifndef WIN64EXCEPTIONS
+  #ifndef FEATURE_EH_FUNCLETS
         // x86-specific fields
         m_pDebuggerInterceptFrame = EXCEPTION_CHAIN_END;
-  #endif // !WIN64EXCEPTIONS
+  #endif // !FEATURE_EH_FUNCLETS
         m_dDebuggerInterceptHandlerDepth  = 0;
     }
-    
+
     //---------------------------------------------------------------------------------------
     //
     // Retrieves the opaque token stored by the debugger.
@@ -66,10 +66,10 @@ public:
     //    the stored opaque token for the debugger
     //
 
-    void* GetDebuggerInterceptContext() 
-    { 
-        LIMITED_METHOD_CONTRACT; 
-        return m_pDebuggerContext; 
+    void* GetDebuggerInterceptContext()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_pDebuggerContext;
     }
 
     //---------------------------------------------------------------------------------------
@@ -133,9 +133,9 @@ public:
     //
 
     void GetDebuggerInterceptInfo(
- #ifndef WIN64EXCEPTIONS
+ #ifndef FEATURE_EH_FUNCLETS
                                   PEXCEPTION_REGISTRATION_RECORD *pEstablisherFrame,
- #endif // !WIN64EXCEPTIONS
+ #endif // !FEATURE_EH_FUNCLETS
                                   MethodDesc **ppFunc,
                                   int *pdHandler,
                                   BYTE **ppStack,
@@ -143,13 +143,13 @@ public:
                                   Frame **ppFrame)
     {
         LIMITED_METHOD_CONTRACT;
-  
-#ifndef WIN64EXCEPTIONS
+
+#ifndef FEATURE_EH_FUNCLETS
         if (pEstablisherFrame != NULL)
         {
             *pEstablisherFrame = m_pDebuggerInterceptFrame;
         }
-#endif // !WIN64EXCEPTIONS
+#endif // !FEATURE_EH_FUNCLETS
 
         if (ppFunc != NULL)
         {
@@ -176,8 +176,8 @@ public:
             *ppFrame = NULL;
         }
     }
-    
-private:     
+
+private:
     // This frame pointer marks the latest stack frame examined by the EH subsystem in the first pass.
     // An exception cannot be intercepted closer to the root than this frame pointer.
     StackFrame      m_sfDebuggerIndicatedFramePointer;
@@ -195,10 +195,10 @@ private:
     ULONG_PTR       m_pDebuggerInterceptNativeOffset;
 
     // The remaining fields are only used on x86.
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
     // the exception registration record covering the stack range containing the interception point
     PEXCEPTION_REGISTRATION_RECORD m_pDebuggerInterceptFrame;
-#endif // !WIN64EXCEPTIONS
+#endif // !FEATURE_EH_FUNCLETS
 
     // the nesting level at which we want to resume execution
     int             m_dDebuggerInterceptHandlerDepth;
@@ -208,9 +208,9 @@ private:
 class EHClauseInfo
 {
 public:
-    EHClauseInfo() 
-    { 
-        LIMITED_METHOD_CONTRACT; 
+    EHClauseInfo()
+    {
+        LIMITED_METHOD_CONTRACT;
 
         // For the profiler, other clause fields are not valid if m_ClauseType is COR_PRF_CLAUSE_NONE.
         m_ClauseType           = COR_PRF_CLAUSE_NONE;
@@ -226,8 +226,8 @@ public:
         m_ClauseType = EHClauseType;
     }
 
-    void SetInfo(COR_PRF_CLAUSE_TYPE EHClauseType, 
-                 UINT_PTR            uIPForEHClause, 
+    void SetInfo(COR_PRF_CLAUSE_TYPE EHClauseType,
+                 UINT_PTR            uIPForEHClause,
                  StackFrame          sfForEHClause)
     {
         LIMITED_METHOD_CONTRACT;
@@ -275,9 +275,9 @@ public:
     // it with correct SP value once its prolog has executed.
     //
     // This method is used to get the field reference
-    CallerStackFrame* GetCallerStackFrameForEHClauseReference() 
+    CallerStackFrame* GetCallerStackFrameForEHClauseReference()
     {
-        LIMITED_METHOD_CONTRACT; 
+        LIMITED_METHOD_CONTRACT;
         return &m_csfEHClause;
     }
 
@@ -287,7 +287,7 @@ private:
     CallerStackFrame m_csfEHClause;     // the caller SP of the funclet; only used on WIN64
 
     COR_PRF_CLAUSE_TYPE m_ClauseType;   // this has a value from COR_PRF_CLAUSE_TYPE while an exception notification is pending
-    BOOL m_fManagedCodeEntered;         // this flag indicates that we have called the managed code for the current EH clause   
+    BOOL m_fManagedCodeEntered;         // this flag indicates that we have called the managed code for the current EH clause
 };
 
 class ExceptionFlags
@@ -298,30 +298,30 @@ public:
         Init();
     }
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
     ExceptionFlags(bool fReadOnly)
     {
         Init();
-#ifdef _DEBUG        
+#ifdef _DEBUG
         if (fReadOnly)
         {
             m_flags |= Ex_FlagsAreReadOnly;
             m_debugFlags |= Ex_FlagsAreReadOnly;
         }
-#endif // _DEBUG        
+#endif // _DEBUG
     }
-#endif // defined(WIN64EXCEPTIONS)
+#endif // defined(FEATURE_EH_FUNCLETS)
 
     void AssertIfReadOnly()
     {
         SUPPORTS_DAC;
 
-#if defined(WIN64EXCEPTIONS) && defined(_DEBUG)
+#if defined(FEATURE_EH_FUNCLETS) && defined(_DEBUG)
         if ((m_flags & Ex_FlagsAreReadOnly) || (m_debugFlags & Ex_FlagsAreReadOnly))
         {
             _ASSERTE(!"Tried to update read-only flags!");
         }
-#endif // defined(WIN64EXCEPTIONS) && defined(_DEBUG)
+#endif // defined(FEATURE_EH_FUNCLETS) && defined(_DEBUG)
     }
 
     void Init()
@@ -331,7 +331,7 @@ public:
         m_debugFlags = 0;
 #endif // _DEBUG
     }
-    
+
     BOOL IsRethrown()      { LIMITED_METHOD_CONTRACT; return m_flags & Ex_IsRethrown; }
     void SetIsRethrown()   { LIMITED_METHOD_CONTRACT; AssertIfReadOnly(); m_flags |= Ex_IsRethrown; }
     void ResetIsRethrown() { LIMITED_METHOD_CONTRACT; AssertIfReadOnly(); m_flags &= ~Ex_IsRethrown; }
@@ -389,7 +389,7 @@ public:
     void ResetGotWatsonBucketDetails() { LIMITED_METHOD_CONTRACT; AssertIfReadOnly(); m_flags &= ~Ex_GotWatsonBucketInfo; }
 
 private:
-    enum 
+    enum
     {
         Ex_IsRethrown                   = 0x00000001,
         Ex_UnwindingToFindResumeFrame   = 0x00000002,
@@ -412,9 +412,9 @@ private:
 
         Ex_GotWatsonBucketInfo          = 0x00004000,
 
-#if defined(WIN64EXCEPTIONS) && defined(_DEBUG)
+#if defined(FEATURE_EH_FUNCLETS) && defined(_DEBUG)
         Ex_FlagsAreReadOnly             = 0x80000000
-#endif // defined(WIN64EXCEPTIONS) && defined(_DEBUG) 
+#endif // defined(FEATURE_EH_FUNCLETS) && defined(_DEBUG)
 
     };
 
@@ -452,7 +452,7 @@ private:
 };
 
 
-#ifndef FEATURE_PAL        
+#ifndef FEATURE_PAL
 // This class is used to track Watson bucketing information for an exception.
 typedef DPTR(class EHWatsonBucketTracker) PTR_EHWatsonBucketTracker;
 class EHWatsonBucketTracker
@@ -465,18 +465,18 @@ private:
     } m_WatsonUnhandledInfo;
 
 #ifdef _DEBUG
-    enum 
+    enum
     {
         // Bucket details were captured for ThreadAbort
         Wb_CapturedForThreadAbort = 1,
-        
+
         // Bucket details were captured at AD Transition
         Wb_CapturedAtADTransition = 2,
 
         // Bucket details were captured during Reflection invocation
         Wb_CapturedAtReflectionInvocation = 4
     };
-    
+
     DWORD m_DebugFlags;
 #endif // _DEBUG
 
@@ -516,9 +516,9 @@ BOOL SetupWatsonBucketsForFailFast(EXCEPTIONREF refException);
 void SetupWatsonBucketsForUEF(BOOL fUseLastThrownObject);
 BOOL SetupWatsonBucketsForEscapingPreallocatedExceptions();
 BOOL SetupWatsonBucketsForNonPreallocatedExceptions(OBJECTREF oThrowable = NULL);
-PTR_EHWatsonBucketTracker GetWatsonBucketTrackerForPreallocatedException(OBJECTREF oPreAllocThrowable, BOOL fCaptureBucketsIfNotPresent, 
+PTR_EHWatsonBucketTracker GetWatsonBucketTrackerForPreallocatedException(OBJECTREF oPreAllocThrowable, BOOL fCaptureBucketsIfNotPresent,
                                                                          BOOL fStartSearchFromPreviousTracker = FALSE);
 BOOL IsThrowableThreadAbortException(OBJECTREF oThrowable);
-#endif // !FEATURE_PAL        
+#endif // !FEATURE_PAL
 
 #endif // __ExStateCommon_h__

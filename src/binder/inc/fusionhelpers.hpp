@@ -54,23 +54,6 @@
 
 #define PUBLIC_KEY_TOKEN_LEN            8
 
-inline
-WCHAR*
-WSTRDupDynamic(LPCWSTR pwszSrc)
-{
-    LPWSTR pwszDest = NULL;
-    if (pwszSrc != NULL)
-    {
-        const size_t dwLen = wcslen(pwszSrc) + 1;
-        pwszDest = FUSION_NEW_ARRAY(WCHAR, dwLen);
-
-        if( pwszDest )
-            memcpy(pwszDest, pwszSrc, dwLen * sizeof(WCHAR));
-    }
-
-    return pwszDest;
-}
-
 #define MAX_URL_LENGTH 2084 // same as INTERNET_MAX_URL_LENGTH
 
 // bit mask macro helpers
@@ -81,9 +64,10 @@ WSTRDupDynamic(LPCWSTR pwszSrc)
 #define SET_BIT(id, mask)       (mask[((id)-1)>>3] |= (0x1<< (((id)-1)&0x7)))
 #define UNSET_BIT(id, mask)     (mask[((id)-1)>>3] &= (0xFF - (0x1<<(((id)-1)&0x7))))
 
-int FusionCompareStringI(LPCWSTR pwz1, LPCWSTR pwz2);
-
-// CLR lobal culture ID
-extern LocaleID g_lcid;
+inline
+int FusionCompareStringI(LPCWSTR pwz1, LPCWSTR pwz2)
+{
+    return SString::_wcsicmp(pwz1, pwz2);
+}
 
 #endif

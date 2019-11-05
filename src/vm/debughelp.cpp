@@ -339,8 +339,8 @@ MethodDesc* AsMethodDesc(size_t addr)
 //  This function will return NULL if the buffer is not large enough.
 /*******************************************************************/
 
-wchar_t* formatMethodTable(MethodTable* pMT,
-                           __out_z __inout_ecount(bufSize) wchar_t* buff,
+WCHAR* formatMethodTable(MethodTable* pMT,
+                           __out_z __inout_ecount(bufSize) WCHAR* buff,
                            DWORD bufSize)
 {
     CONTRACTL
@@ -379,8 +379,8 @@ wchar_t* formatMethodTable(MethodTable* pMT,
 //  return the buffer position for next write.
 /*******************************************************************/
 
-wchar_t* formatMethodDesc(MethodDesc* pMD,
-                          __out_z __inout_ecount(bufSize) wchar_t* buff,
+WCHAR* formatMethodDesc(MethodDesc* pMD,
+                          __out_z __inout_ecount(bufSize) WCHAR* buff,
                           DWORD bufSize)
 {
     CONTRACTL
@@ -460,13 +460,14 @@ int dumpStack(BYTE* topOfStack, unsigned len)
 
     int nLen = MAX_CLASSNAME_LENGTH * 4 + 400;  // this should be enough
 
-    wchar_t *buff = (wchar_t *) qb.AllocThrows(nLen * sizeof(wchar_t));
+    WCHAR *buff = (WCHAR *) qb.AllocThrows(nLen * sizeof(WCHAR));
+    WCHAR *buffEnd = buff + nLen;
 
     while (ptr < end)
     {
         buff[nLen - 1] = W('\0');
 
-        wchar_t* buffPtr = buff;
+        WCHAR* buffPtr = buff;
 
         // stop if we hit unmapped pages
         if (!isMemoryReadable((TADDR)ptr, sizeof(TADDR)))
@@ -476,14 +477,14 @@ int dumpStack(BYTE* topOfStack, unsigned len)
 
         if (isRetAddr((TADDR)*ptr, &whereCalled))
         {
-            if (_snwprintf_s(buffPtr, buff+NumItems(buff)-buffPtr-1, _TRUNCATE,  W("STK[%08X] = %08X "), (size_t)ptr, *ptr)  <0)
+            if (_snwprintf_s(buffPtr, buffEnd - buffPtr, _TRUNCATE,  W("STK[%08X] = %08X "), (size_t)ptr, *ptr) < 0)
             {
                 return(0);
             }
 
             buffPtr += wcslen(buffPtr);
 
-            const wchar_t* kind = W("RETADDR ");
+            const WCHAR* kind = W("RETADDR ");
 
             // Is this a stub (is the return address a MethodDesc?
             MethodDesc* ftn = AsMethodDesc(*ptr);
@@ -519,7 +520,7 @@ int dumpStack(BYTE* topOfStack, unsigned len)
                 ftn = ExecutionManager::GetCodeMethodDesc((PCODE)(*ptr));
             }
 
-            if(_snwprintf_s(buffPtr, buff+ nLen -buffPtr-1, _TRUNCATE, W("%s "), kind) < 0)
+            if (_snwprintf_s(buffPtr, buffEnd - buffPtr, _TRUNCATE, W("%s "), kind) < 0)
             {
                 return(0);
             }
@@ -529,7 +530,7 @@ int dumpStack(BYTE* topOfStack, unsigned len)
             if (ftn != 0)
             {
                 // buffer is not large enough
-                if( formatMethodDesc(ftn, buffPtr, static_cast<DWORD>(buff+ nLen -buffPtr-1)) == NULL)
+                if (formatMethodDesc(ftn, buffPtr, static_cast<DWORD>(buffEnd - buffPtr)) == NULL)
                 {
                     return(0);
                 }
@@ -538,13 +539,13 @@ int dumpStack(BYTE* topOfStack, unsigned len)
             }
             else
             {
-                wcsncpy_s(buffPtr, nLen - (buffPtr - buff), W("<UNKNOWN FTN>"), _TRUNCATE);
+                wcsncpy_s(buffPtr, buffEnd - buffPtr, W("<UNKNOWN FTN>"), _TRUNCATE);
                 buffPtr += wcslen(buffPtr);
             }
 
             if (whereCalled != 0)
             {
-                if(_snwprintf_s(buffPtr, buff+ nLen -buffPtr-1, _TRUNCATE, W(" Caller called Entry %X"), whereCalled) <0)
+                if (_snwprintf_s(buffPtr, buffEnd - buffPtr, _TRUNCATE, W(" Caller called Entry %X"), whereCalled) < 0)
                 {
                     return(0);
                 }
@@ -552,7 +553,7 @@ int dumpStack(BYTE* topOfStack, unsigned len)
                 buffPtr += wcslen(buffPtr);
             }
 
-            wcsncpy_s(buffPtr, nLen - (buffPtr - buff), W("\n"), _TRUNCATE);
+            wcsncpy_s(buffPtr, buffEnd - buffPtr, W("\n"), _TRUNCATE);
             buffPtr += wcslen(buffPtr);
             WszOutputDebugString(buff);
         }
@@ -561,21 +562,21 @@ int dumpStack(BYTE* topOfStack, unsigned len)
         if (pMT != 0)
         {
             buffPtr = buff;
-            if( _snwprintf_s(buffPtr, buff+ nLen -buffPtr-1, _TRUNCATE, W("STK[%08X] = %08X          MT PARAM "), (size_t)ptr, *ptr ) <0)
+            if ( _snwprintf_s(buffPtr, buffEnd - buffPtr, _TRUNCATE, W("STK[%08X] = %08X          MT PARAM "), (size_t)ptr, *ptr ) < 0)
             {
                 return(0);
             }
 
             buffPtr += wcslen(buffPtr);
 
-            if( formatMethodTable(pMT, buffPtr, static_cast<DWORD>(buff+ nLen -buffPtr-1)) == NULL)
+            if (formatMethodTable(pMT, buffPtr, static_cast<DWORD>(buffEnd - buffPtr)) == NULL)
             {
                 return(0);
             }
 
             buffPtr += wcslen(buffPtr);
 
-            wcsncpy_s(buffPtr, nLen - (buffPtr - buff), W("\n"), _TRUNCATE);
+            wcsncpy_s(buffPtr, buffEnd - buffPtr, W("\n"), _TRUNCATE);
             WszOutputDebugString(buff);
 
         }
@@ -772,40 +773,19 @@ void PrintException(OBJECTREF pObjectRef)
 
     GCPROTECT_BEGIN(pObjectRef);
 
-    if (!IsException(pObjectRef->GetMethodTable()))
+    MethodDescCallSite toString(METHOD__OBJECT__TO_STRING, &pObjectRef);
+
+    ARG_SLOT arg[1] = {
+        ObjToArgSlot(pObjectRef)
+    };
+
+    STRINGREF str = toString.Call_RetSTRINGREF(arg);
+
+    if(str->GetBuffer() != NULL)
     {
-         printf("Specified object is not an exception object.\n");
-    }
-    else
-    {
-        MethodDescCallSite internalToString(METHOD__EXCEPTION__INTERNAL_TO_STRING, &pObjectRef);
-
-        ARG_SLOT arg[1] = {
-            ObjToArgSlot(pObjectRef)
-        };
-
-        STRINGREF str = internalToString.Call_RetSTRINGREF(arg);
-
-        if(str->GetBuffer() != NULL)
-        {
-            WszOutputDebugString(str->GetBuffer());
-        }
+        WszOutputDebugString(str->GetBuffer());
     }
 
-    GCPROTECT_END();
-}
-
-void PrintException(UINT_PTR pObject)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    OBJECTREF pObjectRef = NULL;
-    GCPROTECT_BEGIN(pObjectRef);
     GCPROTECT_END();
 }
 
@@ -834,7 +814,7 @@ StackWalkAction PrintStackTraceCallback(CrawlFrame* pCF, VOID* pData)
 
     MethodDesc* pMD = pCF->GetFunction();
     const int nLen = 2048 - 1;    // keep one character for "\n"
-    wchar_t *buff = (wchar_t*)alloca((nLen + 1) * sizeof(wchar_t));
+    WCHAR *buff = (WCHAR*)alloca((nLen + 1) * sizeof(WCHAR));
     buff[0] = 0;
     buff[nLen-1] = W('\0');                    // make sure the buffer is always NULL-terminated
 

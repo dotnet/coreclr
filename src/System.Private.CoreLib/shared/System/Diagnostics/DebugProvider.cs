@@ -12,7 +12,7 @@ namespace System.Diagnostics
     /// </summary>
     public partial class DebugProvider
     {
-        public virtual void Fail(string message, string detailMessage)
+        public virtual void Fail(string? message, string? detailMessage)
         {
             string stackTrace;
             try
@@ -24,20 +24,20 @@ namespace System.Diagnostics
                 stackTrace = "";
             }
             WriteAssert(stackTrace, message, detailMessage);
-            FailCore(stackTrace, message, detailMessage, "Assertion Failed");
+            FailCore(stackTrace, message, detailMessage, "Assertion failed.");
         }
 
-        internal void WriteAssert(string stackTrace, string message, string detailMessage)
+        internal void WriteAssert(string stackTrace, string? message, string? detailMessage)
         {
-            WriteLine(SR.DebugAssertBanner + Environment.NewLine
-                   + SR.DebugAssertShortMessage + Environment.NewLine
-                   + message + Environment.NewLine
-                   + SR.DebugAssertLongMessage + Environment.NewLine
-                   + detailMessage + Environment.NewLine
+            WriteLine(SR.DebugAssertBanner + Environment.NewLineConst
+                   + SR.DebugAssertShortMessage + Environment.NewLineConst
+                   + message + Environment.NewLineConst
+                   + SR.DebugAssertLongMessage + Environment.NewLineConst
+                   + detailMessage + Environment.NewLineConst
                    + stackTrace);
         }
 
-        public virtual void Write(string message)
+        public virtual void Write(string? message)
         {
             lock (s_lock)
             {
@@ -52,16 +52,16 @@ namespace System.Diagnostics
                     _needIndent = false;
                 }
                 WriteCore(message);
-                if (message.EndsWith(Environment.NewLine))
+                if (message.EndsWith(Environment.NewLineConst))
                 {
                     _needIndent = true;
                 }
             }
         }
-        
-        public virtual void WriteLine(string message)
+
+        public virtual void WriteLine(string? message)
         {
-            Write(message + Environment.NewLine);
+            Write(message + Environment.NewLineConst);
         }
 
         public virtual void OnIndentLevelChanged(int indentLevel) { }
@@ -72,25 +72,27 @@ namespace System.Diagnostics
 
         private sealed class DebugAssertException : Exception
         {
-            internal DebugAssertException(string stackTrace) :
-                base(Environment.NewLine + stackTrace)
+            internal DebugAssertException(string? message, string? detailMessage, string? stackTrace) :
+                base(Terminate(message) + Terminate(detailMessage) + stackTrace)
             {
             }
 
-            internal DebugAssertException(string message, string stackTrace) :
-                base(message + Environment.NewLine + Environment.NewLine + stackTrace)
+            private static string? Terminate(string? s)
             {
-            }
+                if (s == null)
+                    return s;
 
-            internal DebugAssertException(string message, string detailMessage, string stackTrace) :
-                base(message + Environment.NewLine + detailMessage + Environment.NewLine + Environment.NewLine + stackTrace)
-            {
+                s = s.Trim();
+                if (s.Length > 0)
+                    s += Environment.NewLineConst;
+
+                return s;
             }
         }
 
         private bool _needIndent = true;
 
-        private string _indentString;
+        private string? _indentString;
 
         private string GetIndentString()
         {
@@ -103,7 +105,7 @@ namespace System.Diagnostics
         }
 
         // internal and not readonly so that the tests can swap this out.
-        internal static Action<string, string, string, string> s_FailCore = null;
-        internal static Action<string> s_WriteCore = null;
+        internal static Action<string, string?, string?, string>? s_FailCore = null;
+        internal static Action<string>? s_WriteCore = null;
     }
 }

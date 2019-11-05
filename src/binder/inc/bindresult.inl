@@ -24,14 +24,12 @@ BindResult::BindResult()
 {
     m_dwResultFlags = ContextEntry::RESULT_FLAG_NONE;
     m_pAssemblyName = NULL;
-    m_pRetargetedAssemblyName = NULL;
     m_pIUnknownAssembly = NULL;
 }
 
 BindResult::~BindResult()
 {
     SAFE_RELEASE(m_pAssemblyName);
-    SAFE_RELEASE(m_pRetargetedAssemblyName);
 }
 
 AssemblyName *BindResult::GetAssemblyName(BOOL fAddRef /* = FALSE */)
@@ -44,23 +42,6 @@ AssemblyName *BindResult::GetAssemblyName(BOOL fAddRef /* = FALSE */)
     }
 
     return pAssemblyName;
-}
-
-AssemblyName *BindResult::GetRetargetedAssemblyName()
-{
-    return m_pRetargetedAssemblyName;
-}
-
-void BindResult::SetRetargetedAssemblyName(AssemblyName *pRetargetedAssemblyName)
-{
-    SAFE_RELEASE(m_pRetargetedAssemblyName);
-
-    if (pRetargetedAssemblyName)
-    {
-        pRetargetedAssemblyName->AddRef();
-    }
-
-    m_pRetargetedAssemblyName = pRetargetedAssemblyName;
 }
 
 IUnknown *BindResult::GetAssembly(BOOL fAddRef /* = FALSE */)
@@ -78,23 +59,6 @@ IUnknown *BindResult::GetAssembly(BOOL fAddRef /* = FALSE */)
 Assembly *BindResult::GetAsAssembly(BOOL fAddRef /* = FALSE */)
 {
     return static_cast<Assembly *>(GetAssembly(fAddRef));
-}
-
-BOOL BindResult::GetIsDynamicBind()
-{
-    return ((m_dwResultFlags & ContextEntry::RESULT_FLAG_IS_DYNAMIC_BIND) != 0);
-}
-
-void BindResult::SetIsDynamicBind(BOOL fIsDynamicBind)
-{
-    if (fIsDynamicBind)
-    {
-        m_dwResultFlags |= ContextEntry::RESULT_FLAG_IS_DYNAMIC_BIND;
-    }
-    else
-    {
-        m_dwResultFlags &= ~ContextEntry::RESULT_FLAG_IS_DYNAMIC_BIND;
-    }
 }
 
 BOOL BindResult::GetIsInGAC()
@@ -148,31 +112,12 @@ void BindResult::SetIsFirstRequest(BOOL fIsFirstRequest)
     }
 }
 
-BOOL BindResult::GetIsSharable()
-{
-    return ((m_dwResultFlags & ContextEntry::RESULT_FLAG_IS_SHARABLE) != 0);
-}
-
-void BindResult::SetIsSharable(BOOL fIsSharable)
-{
-    if (fIsSharable)
-    {
-        m_dwResultFlags |= ContextEntry::RESULT_FLAG_IS_SHARABLE;
-    }
-    else
-    {
-        m_dwResultFlags &= ~ContextEntry::RESULT_FLAG_IS_SHARABLE;
-    }
-}
-
 void BindResult::SetResult(ContextEntry *pContextEntry, BOOL fIsContextBound /* = TRUE */)
 {
     _ASSERTE(pContextEntry != NULL);
 
-    SetIsDynamicBind(pContextEntry->GetIsDynamicBind());
     SetIsInGAC(pContextEntry->GetIsInGAC());
     SetIsContextBound(fIsContextBound);
-    SetIsSharable(pContextEntry->GetIsSharable());
     SAFE_RELEASE(m_pAssemblyName);
     m_pAssemblyName = pContextEntry->GetAssemblyName(TRUE /* fAddRef */);
     m_pIUnknownAssembly = pContextEntry->GetAssembly(TRUE /* fAddRef */);
@@ -182,9 +127,7 @@ void BindResult::SetResult(Assembly *pAssembly)
 {
     _ASSERTE(pAssembly != NULL);
 
-    SetIsDynamicBind(pAssembly->GetIsDynamicBind());
     SetIsInGAC(pAssembly->GetIsInGAC());
-    SetIsSharable(pAssembly->GetIsSharable());
     SAFE_RELEASE(m_pAssemblyName);
     m_pAssemblyName = pAssembly->GetAssemblyName(TRUE /* fAddRef */);
     pAssembly->AddRef();
@@ -211,15 +154,9 @@ BOOL BindResult::HaveResult()
     return (GetAssemblyName() != NULL);
 }
 
-IUnknown *BindResult::ExtractAssembly()
-{
-    return m_pIUnknownAssembly.Extract();
-}
-
 void BindResult::Reset()
 {
     SAFE_RELEASE(m_pAssemblyName);
-    SAFE_RELEASE(m_pRetargetedAssemblyName);
     m_pIUnknownAssembly = NULL;
     m_dwResultFlags = ContextEntry::RESULT_FLAG_NONE;
 }

@@ -3,9 +3,9 @@
 // See the LICENSE file in the project root for more information.
 // ===========================================================================
 // File: CEEMAIN.H
-// 
+//
 
-// 
+//
 //
 
 // CEEMAIN.H defines the entrypoints into the Virtual Execution Engine and
@@ -24,9 +24,6 @@ HRESULT EnsureEEStarted(COINITIEE flags);
 
 // Wrapper around EnsureEEStarted which also sets startup mode.
 HRESULT InitializeEE(COINITIEE flags);
-
-// Has the EE been started up?
-BOOL IsRuntimeStarted(DWORD *pdwStartupFlags);
 
 // Enum to control what happens at the end of EE shutdown. There are two options:
 // 1. Call ::ExitProcess to cause the process to terminate gracefully. This is how
@@ -123,7 +120,7 @@ private:
 
     // Free TLS memory block and make callback
     VOID STDMETHODCALLTYPE TLS_ThreadDetaching();
-    
+
     //***************************************************************************
     // IExecutionEngine methods for locking
     //***************************************************************************
@@ -178,7 +175,7 @@ private:
     BOOL STDMETHODCALLTYPE ClrHeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem);
     BOOL STDMETHODCALLTYPE ClrHeapValidate(HANDLE hHeap, DWORD dwFlags, LPCVOID lpMem);
     HANDLE STDMETHODCALLTYPE ClrGetProcessExecutableHeap();
-    
+
 };
 
 void SetLatchedExitCode (INT32 code);

@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System;
 using System.Runtime.InteropServices.WindowsRuntime;
 
@@ -74,7 +73,7 @@ namespace Internal.Runtime.InteropServices.WindowsRuntime
         /// <returns>true if the error was reported, false if not (ie running on Win8)</returns>
         public static bool ReportUnhandledError(Exception? ex)
         {
-           return WindowsRuntimeMarshal.ReportUnhandledError(ex); 
+            return WindowsRuntimeMarshal.ReportUnhandledError(ex);
         }
     }
 }

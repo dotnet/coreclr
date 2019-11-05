@@ -4,16 +4,14 @@
 
 using System.Buffers;
 using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Reflection;
 using System.Runtime.InteropServices;
 
 namespace System
 {
     public static partial class Environment
     {
-        private static string GetEnvironmentVariableCore(string variable)
+        private static string? GetEnvironmentVariableCore(string variable)
         {
             Span<char> buffer = stackalloc char[128]; // a somewhat reasonable default size
             int requiredSize = Interop.Kernel32.GetEnvironmentVariable(variable, buffer);
@@ -47,7 +45,7 @@ namespace System
             }
         }
 
-        private static void SetEnvironmentVariableCore(string variable, string value)
+        private static void SetEnvironmentVariableCore(string variable, string? value)
         {
             if (!Interop.Kernel32.SetEnvironmentVariable(variable, value))
             {
@@ -105,8 +103,8 @@ namespace System
                 // Copy strings out, parsing into pairs and inserting into the table.
                 // The first few environment variable entries start with an '='.
                 // The current working directory of every drive (except for those drives
-                // you haven't cd'ed into in your DOS window) are stored in the 
-                // environment block (as =C:=pwd) and the program's exit code is 
+                // you haven't cd'ed into in your DOS window) are stored in the
+                // environment block (as =C:=pwd) and the program's exit code is
                 // as well (=ExitCode=00000000).
 
                 var results = new Hashtable();
@@ -115,7 +113,7 @@ namespace System
                     int startKey = i;
 
                     // Skip to key. On some old OS, the environment block can be corrupted.
-                    // Some will not have '=', so we need to check for '\0'. 
+                    // Some will not have '=', so we need to check for '\0'.
                     while (block[i] != '=' && block[i] != '\0')
                     {
                         i++;
@@ -143,7 +141,7 @@ namespace System
                     int startValue = i;
                     while (block[i] != 0)
                     {
-                        i++; // Read to end of this entry 
+                        i++; // Read to end of this entry
                     }
 
                     string value = new string(block.Slice(startValue, i - startValue)); // skip over 0 handled by for loop's i++

@@ -22,7 +22,7 @@ void JitHost::freeMemory(void* block)
     ClrFreeInProcessHeap(0, block);
 }
 
-int JitHost::getIntConfigValue(const wchar_t* name, int defaultValue)
+int JitHost::getIntConfigValue(const WCHAR* name, int defaultValue)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -33,7 +33,7 @@ int JitHost::getIntConfigValue(const wchar_t* name, int defaultValue)
     return CLRConfig::GetConfigValue(info);
 }
 
-const wchar_t* JitHost::getStringConfigValue(const wchar_t* name)
+const WCHAR* JitHost::getStringConfigValue(const WCHAR* name)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -44,15 +44,15 @@ const wchar_t* JitHost::getStringConfigValue(const wchar_t* name)
     return CLRConfig::GetConfigValue(info);
 }
 
-void JitHost::freeStringConfigValue(const wchar_t* value)
+void JitHost::freeStringConfigValue(const WCHAR* value)
 {
     WRAPPER_NO_CONTRACT;
 
-    CLRConfig::FreeConfigString(const_cast<wchar_t*>(value));
+    CLRConfig::FreeConfigString(const_cast<WCHAR*>(value));
 }
 
 //
-// Pool memory blocks for JIT to avoid frequent commit/decommit. The frequent commit/decommit has been 
+// Pool memory blocks for JIT to avoid frequent commit/decommit. The frequent commit/decommit has been
 // shown to slow down the JIT significantly (10% or more). The memory blocks used by the JIT tend to be too big
 // to be covered by pooling done by the default malloc.
 //
@@ -119,7 +119,7 @@ void JitHost::freeSlab(void* slab, size_t actualSize)
     {
         CrstHolder lock(&m_jitSlabAllocatorCrst);
 
-        if (m_totalCached < 0x1000000) // Do not cache more than 16MB
+        if (m_totalCached < g_pConfig->JitHostMaxSlabCache()) // Do not cache more than maximum allowed value
         {
             m_totalCached += actualSize;
 

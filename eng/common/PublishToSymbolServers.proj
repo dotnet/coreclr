@@ -24,11 +24,21 @@
     <ItemGroup>
       <FilesToPublishToSymbolServer Include="$(PDBArtifactsDirectory)\*.pdb"/>
       <PackagesToPublishToSymbolServer Include="$(BlobBasePath)\*.symbols.nupkg"/>
+
+      <!--
+        These packages from Arcade-Services include some native libraries that
+        our current symbol uploader can't handle. Below is a workaround until
+        we get issue: https://github.com/dotnet/arcade/issues/2457 sorted.
+      -->
+      <PackagesToPublishToSymbolServer Remove="$(BlobBasePath)\Microsoft.DotNet.Darc.*" />
+      <PackagesToPublishToSymbolServer Remove="$(BlobBasePath)\Microsoft.DotNet.Maestro.Tasks.*" />
     </ItemGroup>
 
     <PropertyGroup>
       <DotNetSymbolExpirationInDays Condition="'$(DotNetSymbolExpirationInDays)' == ''">3650</DotNetSymbolExpirationInDays>
       <PublishToSymbolServer>true</PublishToSymbolServer>
+      <PublishToSymWeb Condition="'$(PublishToSymWeb)' == ''">true</PublishToSymWeb>
+      <PublishToMSDL Condition="'$(PublishToMSDL)' == ''">true</PublishToMSDL>
       <PublishToSymbolServer Condition="'@(FilesToPublishToSymbolServer)' == '' and '@(PackagesToPublishToSymbolServer)' == ''">false</PublishToSymbolServer>
     </PropertyGroup>
 
@@ -48,7 +58,7 @@
                     DryRun="false"
                     ConvertPortablePdbsToWindowsPdbs="false"
                     PdbConversionTreatAsWarning=""
-                    Condition="$(PublishToSymbolServer)"/>
+                    Condition="$(PublishToSymbolServer) and $(PublishToMSDL)"/>
 
     <!-- 
       Symbol Uploader: SymWeb 
@@ -65,7 +75,7 @@
                     DryRun="false"
                     ConvertPortablePdbsToWindowsPdbs="false"
                     PdbConversionTreatAsWarning=""
-                    Condition="$(PublishToSymbolServer)"/>
+                    Condition="$(PublishToSymbolServer) and $(PublishToSymWeb)"/>
   </Target>
 
   <ItemGroup>

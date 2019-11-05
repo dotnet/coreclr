@@ -52,7 +52,6 @@ StackingAllocator::StackingAllocator()
 
     m_FirstBlock = NULL;
     m_FirstFree = NULL;
-    m_InitialBlock = NULL;
     m_DeferredFreeBlock = NULL;
 
 #ifdef _DEBUG
@@ -64,9 +63,15 @@ StackingAllocator::StackingAllocator()
         m_MaxAlloc = 0;
 #endif
 
-    Init(true);
+    Init();
 }
 
+StackingAllocator::InitialStackBlock::InitialStackBlock()
+{
+    m_initialBlockHeader.m_Next = NULL;
+    m_initialBlockHeader.m_Length = sizeof(m_dataSpace);
+    INDEBUG(m_initialBlockHeader.m_Sentinal = 0);
+}
 
 StackingAllocator::~StackingAllocator()
 {
@@ -78,8 +83,8 @@ StackingAllocator::~StackingAllocator()
     }
     CONTRACTL_END;
 
-    Clear(NULL);
- 
+    Clear(&m_InitialBlock.m_initialBlockHeader);
+
     if (m_DeferredFreeBlock)
     {
         delete [] (char*)m_DeferredFreeBlock;
@@ -95,8 +100,32 @@ StackingAllocator::~StackingAllocator()
 #endif
 }
 
+void StackingAllocator::Init()
+{
+    WRAPPER_NO_CONTRACT;
+
+    m_FirstBlock = &m_InitialBlock.m_initialBlockHeader;
+    m_FirstFree = m_FirstBlock->GetData();
+    _ASSERTE((void*)m_FirstFree == (void*)m_InitialBlock.m_dataSpace);
+    m_BytesLeft = static_cast<unsigned>(m_FirstBlock->m_Length);
+}
+
 // Lightweight initial checkpoint
 Checkpoint StackingAllocator::s_initialCheckpoint;
+
+void StackingAllocator::StoreCheckpoint(Checkpoint *c)
+{
+    LIMITED_METHOD_CONTRACT;
+
+#ifdef _DEBUG
+    m_CheckpointDepth++;
+    m_Checkpoints++;
+#endif
+
+    // Record previous allocator state in it.
+    c->m_OldBlock = m_FirstBlock;
+    c->m_OldBytesLeft = m_BytesLeft;
+}
 
 void *StackingAllocator::GetCheckpoint()
 {
@@ -114,7 +143,7 @@ void *StackingAllocator::GetCheckpoint()
     // a special marker, s_initialCheckpoint). This is because we know how to restore the
     // allocator state on a Collapse without having to store any additional
     // context info.
-    if ((m_InitialBlock == NULL) || (m_FirstFree == m_InitialBlock->m_Data))
+    if (m_FirstFree == m_InitialBlock.m_dataSpace)
         return &s_initialCheckpoint;
 
     // Remember the current allocator state.
@@ -145,12 +174,12 @@ bool StackingAllocator::AllocNewBlockForBytes(unsigned n)
     CONTRACT_END;
 
     // already aligned and in the hard case
-    
+
     _ASSERTE(n % 8 == 0);
     _ASSERTE(n > m_BytesLeft);
 
     StackBlock* b = NULL;
-    
+
     // we need a block, but before we allocate a new block
     // we're going to check to see if there is block that we saved
     // rather than return to the OS, if there is such a block
@@ -158,7 +187,7 @@ bool StackingAllocator::AllocNewBlockForBytes(unsigned n)
     // OS again -- this helps us if we happen to be checkpointing
     // across a block seam very often as in VSWhidbey #100462
 
-    if (m_DeferredFreeBlock != NULL && m_DeferredFreeBlock->m_Length >= n) 
+    if (m_DeferredFreeBlock != NULL && m_DeferredFreeBlock->m_Length >= n)
     {
         b =  m_DeferredFreeBlock;
         m_DeferredFreeBlock = NULL;
@@ -172,9 +201,7 @@ bool StackingAllocator::AllocNewBlockForBytes(unsigned n)
         // limit of MinBlockSize and an upper limit of MaxBlockSize. If the
         // request is larger than MaxBlockSize then allocate exactly that
         // amount.
-        // Additionally, if we don't have an initial block yet, use an increased
-        // lower bound for the size, since we intend to cache this block.
-        unsigned lower = m_InitialBlock ? MinBlockSize : InitBlockSize;
+        unsigned lower = MinBlockSize;
         size_t allocSize = sizeof(StackBlock) + max(n, min(max(n * 4, lower), MaxBlockSize));
 
         // Allocate the block.
@@ -192,24 +219,16 @@ bool StackingAllocator::AllocNewBlockForBytes(unsigned n)
 #endif
      }
 
-     // If this is the first block allocated, we record that fact since we
-     // intend to cache it.
-     if (m_InitialBlock == NULL)
-     {
-         _ASSERTE((m_FirstBlock == NULL) && (m_FirstFree == NULL) && (m_BytesLeft == 0));
-         m_InitialBlock = b;
-     }
-
      // Link new block to head of block chain and update internal state to
      // start allocating from this new block.
      b->m_Next = m_FirstBlock;
      m_FirstBlock = b;
-     m_FirstFree = b->m_Data;
+     m_FirstFree = b->GetData();
      // the cast below is safe because b->m_Length is less than MaxBlockSize (4096)
      m_BytesLeft = static_cast<unsigned>(b->m_Length);
 
      INDEBUG(b->m_Sentinal = 0);
-     
+
      RETURN true;
 }
 
@@ -274,12 +293,12 @@ void StackingAllocator::Collapse(void *CheckpointMarker)
 
     // Special case collapsing back to the initial checkpoint.
     if (c == &s_initialCheckpoint || c->m_OldBlock == NULL) {
-        Clear(m_InitialBlock);
-        Init(false);
+        Clear(&m_InitialBlock.m_initialBlockHeader);
+        Init();
 
         // confirm no buffer overruns
         INDEBUG(Validate(m_FirstBlock, m_FirstFree));
-        
+
         return;
     }
 
@@ -295,20 +314,77 @@ void StackingAllocator::Collapse(void *CheckpointMarker)
 
     // Restore former allocator state.
     m_FirstBlock = pOldBlock;
-    m_FirstFree = &pOldBlock->m_Data[pOldBlock->m_Length - iOldBytesLeft];
+    m_FirstFree = &pOldBlock->GetData()[pOldBlock->m_Length - iOldBytesLeft];
     m_BytesLeft = iOldBytesLeft;
 
     // confirm no buffer overruns
     INDEBUG(Validate(m_FirstBlock, m_FirstFree));
 }
 
+#ifdef _DEBUG
+void StackingAllocator::Validate(StackBlock *block, void* spot)
+{
+    LIMITED_METHOD_CONTRACT;
 
+    if (!block)
+        return;
+    _ASSERTE(m_InitialBlock.m_initialBlockHeader.m_Length == sizeof(m_InitialBlock.m_dataSpace));
+    Sentinal* ptr = block->m_Sentinal;
+    _ASSERTE(spot);
+    while(ptr >= spot)
+    {
+            // If this assert goes off then someone overwrote their buffer!
+            // A common candidate is PINVOKE buffer run.  To confirm look
+            // up on the stack for NDirect.* Look for the MethodDesc
+            // associated with it.  Be very suspicious if it is one that
+            // has a return string buffer!.  This usually means the end
+            // programmer did not allocate a big enough buffer before passing
+            // it to the PINVOKE method.
+        if (ptr->m_Marker1 != Sentinal::marker1Val)
+            _ASSERTE(!"Memory overrun!! May be bad buffer passed to PINVOKE. turn on logging LF_STUBS level 6 to find method");
+        ptr = ptr->m_Next;
+    }
+    block->m_Sentinal = ptr;
+}
+#endif // _DEBUG
+
+void StackingAllocator::Clear(StackBlock *ToBlock)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    StackBlock *p = m_FirstBlock;
+    StackBlock *q;
+
+    _ASSERTE(ToBlock != NULL);
+
+    while (p != ToBlock)
+    {
+        PREFAST_ASSUME(p != NULL);
+
+        q = p;
+        p = p->m_Next;
+
+        INDEBUG(Validate(q, q));
+
+        // we don't give the tail block back to the OS
+        // because we can get into situations where we're growing
+        // back and forth over a single seam for a tiny alloc
+        // and the perf is a disaster -- VSWhidbey #100462
+        if (m_DeferredFreeBlock != NULL)
+        {
+            delete [] (char *)m_DeferredFreeBlock;
+        }
+
+        m_DeferredFreeBlock = q;
+        m_DeferredFreeBlock->m_Next = NULL;
+    }
+}
 void * __cdecl operator new(size_t n, StackingAllocator * alloc)
 {
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_FAULT;
 
-#ifdef _WIN64
+#ifdef BIT64
     // size_t's too big on 64-bit platforms so we check for overflow
     if(n > (size_t)(1<<31)) ThrowOutOfMemory();
 #endif
@@ -323,11 +399,11 @@ void * __cdecl operator new[](size_t n, StackingAllocator * alloc)
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_FAULT;
 
-#ifdef _WIN64
+#ifdef BIT64
     // size_t's too big on 64-bit platforms so we check for overflow
     if(n > (size_t)(1<<31)) ThrowOutOfMemory();
 #else
-    if(n == (size_t)-1) ThrowOutOfMemory();    // overflow occurred 
+    if(n == (size_t)-1) ThrowOutOfMemory();    // overflow occurred
 #endif
 
     void *retval = alloc->UnsafeAllocNoThrow((unsigned)n);
@@ -342,7 +418,7 @@ void * __cdecl operator new(size_t n, StackingAllocator * alloc, const NoThrow&)
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_FAULT;
 
-#ifdef _WIN64
+#ifdef BIT64
     // size_t's too big on 64-bit platforms so we check for overflow
     if(n > (size_t)(1<<31)) return NULL;
 #endif
@@ -355,13 +431,34 @@ void * __cdecl operator new[](size_t n, StackingAllocator * alloc, const NoThrow
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_FAULT;
 
-#ifdef _WIN64
+#ifdef BIT64
     // size_t's too big on 64-bit platforms so we check for overflow
     if(n > (size_t)(1<<31)) return NULL;
 #else
-    if(n == (size_t)-1) return NULL;    // overflow occurred 
+    if(n == (size_t)-1) return NULL;    // overflow occurred
 #endif
 
     return alloc->UnsafeAllocNoThrow((unsigned)n);
 }
 
+StackingAllocatorHolder::~StackingAllocatorHolder()
+{
+    m_pStackingAllocator->Collapse(m_checkpointMarker);
+    if (m_owner)
+    {
+        m_thread->m_stackLocalAllocator = NULL;
+        m_pStackingAllocator->~StackingAllocator();
+    }
+}
+
+StackingAllocatorHolder::StackingAllocatorHolder(StackingAllocator *pStackingAllocator, Thread *pThread, bool owner) :
+    m_pStackingAllocator(pStackingAllocator),
+    m_checkpointMarker(pStackingAllocator->GetCheckpoint()),
+    m_thread(pThread),
+    m_owner(owner)
+{
+    if (m_owner)
+    {
+        m_thread->m_stackLocalAllocator = pStackingAllocator;
+    }
+}

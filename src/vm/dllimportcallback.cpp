@@ -20,7 +20,6 @@
 #include "eeconfig.h"
 #include "dbginterface.h"
 #include "stubgen.h"
-#include "mdaassistants.h"
 #include "appdomain.inl"
 
 #ifndef CROSSGEN_COMPILE
@@ -170,7 +169,7 @@ VOID UMEntryThunk::CompileUMThunkWorker(UMThunkStubInfo *pInfo,
     // Make space for return value - instead of repeatedly doing push eax edx <trash regs> pop edx eax
     // we will save the return value once and restore it just before returning.
     pcpusl->X86EmitSubEsp(sizeof(PCONTEXT(NULL)->Eax) + sizeof(PCONTEXT(NULL)->Edx));
-    
+
     // Load thread descriptor into ECX
     const X86Reg kECXthread = kECX;
 
@@ -380,7 +379,7 @@ VOID UMEntryThunk::CompileUMThunkWorker(UMThunkStubInfo *pInfo,
         pcpusl->X86EmitOp(0xff, (X86Reg)2, (X86Reg)kESP_Unsafe, iCallSlotOffset);
 
         // Emit a NOP so we know that we can call managed code
-        INDEBUG(pcpusl->Emit8(X86_INSTR_NOP)); 
+        INDEBUG(pcpusl->Emit8(X86_INSTR_NOP));
 
         // restore EDI
         pcpusl->X86EmitPopReg(kEDI);
@@ -411,7 +410,7 @@ VOID UMEntryThunk::CompileUMThunkWorker(UMThunkStubInfo *pInfo,
 
         // mov [ESP+iCallSlotOffset], SCRATCHREG
         pcpusl->X86EmitIndexRegStore((X86Reg)kESP_Unsafe,iCallSlotOffset,SCRATCH_REGISTER_X86REG);
-        
+
         // call [ESP+iCallSlotOffset]
         pcpusl->X86EmitOp(0xff, (X86Reg)2, (X86Reg)kESP_Unsafe, iCallSlotOffset);
 
@@ -436,7 +435,7 @@ VOID UMEntryThunk::CompileUMThunkWorker(UMThunkStubInfo *pInfo,
 
         INDEBUG(pcpusl->Emit8(X86_INSTR_NOP)); // Emit a NOP so we know that we can call managed code
     }
-    
+
     // skip the call slot
     pcpusl->X86EmitAddEsp(4);
 
@@ -661,7 +660,7 @@ Stub *UMThunkMarshInfo::CompileNExportThunk(LoaderHeap *pLoaderHeap, PInvokeStat
         {
             // this is a copy-constructed argument - get its size
             TypeHandle thPtr = pMetaSig->GetLastTypeHandleThrowing();
-            
+
             _ASSERTE(thPtr.IsPointer());
             cbSize = thPtr.AsTypeDesc()->GetTypeParam().GetSize();
 
@@ -840,7 +839,7 @@ extern "C" VOID STDCALL ReversePInvokeBadTransition()
 {
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
-    // Fail 
+    // Fail
     EEPOLICY_HANDLE_FATAL_ERROR_WITH_MESSAGE(
                                              COR_E_EXECUTIONENGINE,
                                              W("Invalid Program: attempted to call a NativeCallable method from runtime-typesafe code.")
@@ -853,27 +852,13 @@ extern "C" VOID STDCALL UMThunkStubRareDisableWorker(Thread *pThread, UMEntryThu
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
 
-    // Do not add a CONTRACT here.  We haven't set up SEH.  We rely
-    // on HandleThreadAbort and COMPlusThrowBoot dealing with this situation properly.
+    // Do not add a CONTRACT here.  We haven't set up SEH.
 
     // WARNING!!!!
     // when we start executing here, we are actually in cooperative mode.  But we
     // haven't synchronized with the barrier to reentry yet.  So we are in a highly
     // dangerous mode.  If we call managed code, we will potentially be active in
     // the GC heap, even as GC's are occuring!
-
-    // Check for ShutDown scenario.  This happens only when we have initiated shutdown 
-    // and someone is trying to call in after the CLR is suspended.  In that case, we
-    // must either raise an unmanaged exception or return an HRESULT, depending on the
-    // expectations of our caller.
-    if (!CanRunManagedCode())
-    {
-        // DO NOT IMPROVE THIS EXCEPTION!  It cannot be a managed exception.  It
-        // cannot be a real exception object because we cannot execute any managed
-        // code here.
-        pThread->m_fPreemptiveGCDisabled = 0;
-        COMPlusThrowBoot(E_PROCESS_SHUTDOWN_REENTRY);
-    }
 
     // We must do the following in this order, because otherwise we would be constructing
     // the exception for the abort without synchronizing with the GC.  Also, we have no
@@ -897,9 +882,6 @@ PCODE TheUMEntryPrestubWorker(UMEntryThunk * pUMEntryThunk)
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_MODE_PREEMPTIVE;
-
-    if (!CanRunManagedCode())
-        COMPlusThrowBoot(E_PROCESS_SHUTDOWN_REENTRY);
 
     Thread * pThread = GetThreadNULLOk();
     if (pThread == NULL)
@@ -1087,7 +1069,7 @@ MethodDesc* UMThunkMarshInfo::GetILStubMethodDesc(MethodDesc* pInvokeMD, PInvoke
 //----------------------------------------------------------
 // This initializer is called during load time.
 // It does not do any stub initialization or sigparsing.
-// The RunTimeInit() must be called subsequently to fully 
+// The RunTimeInit() must be called subsequently to fully
 // UMThunkMarshInfo.
 //----------------------------------------------------------
 VOID UMThunkMarshInfo::LoadTimeInit(MethodDesc* pMD)
@@ -1168,10 +1150,6 @@ VOID UMThunkMarshInfo::RunTimeInit()
     LoaderHeap *pHeap = (pMD == NULL ? NULL : pMD->GetLoaderAllocator()->GetStubHeap());
 
     if (pFinalILStub != NULL ||
-#ifdef MDA_SUPPORTED
-        // GC.Collect calls are emitted to IL stubs
-        MDA_GET_ASSISTANT(GcManagedToUnmanaged) || MDA_GET_ASSISTANT(GcUnmanagedToManaged) ||
-#endif // MDA_SUPPORTED
         NDirect::MarshalingRequired(pMD, GetSignature().GetRawSig(), GetModule()))
     {
         if (pFinalILStub == NULL)
@@ -1210,10 +1188,6 @@ VOID UMThunkMarshInfo::RunTimeInit()
     if (pFinalILStub == NULL)
     {
         if (pMD != NULL && !pMD->IsEEImpl() &&
-#ifdef MDA_SUPPORTED
-            // GC.Collect calls are emitted to IL stubs
-            !MDA_GET_ASSISTANT(GcManagedToUnmanaged) && !MDA_GET_ASSISTANT(GcUnmanagedToManaged) &&
-#endif // MDA_SUPPORTED
             !NDirect::MarshalingRequired(pMD, GetSignature().GetRawSig(), GetModule()))
         {
             // Call the method directly in no-delegate case if possible. This is important to avoid JITing

@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Configuration.Assemblies;
-using System.IO;
 using System.Runtime.Serialization;
 using System.Text;
 using CultureInfo = System.Globalization.CultureInfo;
@@ -12,72 +11,62 @@ namespace System.Reflection
 {
     public sealed partial class AssemblyName : ICloneable, IDeserializationCallback, ISerializable
     {
-        // If you modify any of these fields, you must also update the 
+        // If you modify any of these fields, you must also update the
         // AssemblyBaseObject structure in object.h
-        private string _name;
-        private byte[] _publicKey;
-        private byte[] _publicKeyToken;
-        private CultureInfo _cultureInfo;
-        private string _codeBase;
-        private Version _version;
+        private string? _name;
+        private byte[]? _publicKey;
+        private byte[]? _publicKeyToken;
+        private CultureInfo? _cultureInfo;
+        private string? _codeBase;
+        private Version? _version;
 
-        private StrongNameKeyPair _strongNameKeyPair;
+        private StrongNameKeyPair? _strongNameKeyPair;
 
-        private byte[] _hashForControl;
         private AssemblyHashAlgorithm _hashAlgorithm;
-        private AssemblyHashAlgorithm _hashAlgorithmForControl;
 
         private AssemblyVersionCompatibility _versionCompatibility;
         private AssemblyNameFlags _flags;
 
         public AssemblyName()
         {
-            _hashAlgorithm = AssemblyHashAlgorithm.None;
             _versionCompatibility = AssemblyVersionCompatibility.SameMachine;
-            _flags = AssemblyNameFlags.None;
         }
 
         // Set and get the name of the assembly. If this is a weak Name
-        // then it optionally contains a site. For strong assembly names, 
+        // then it optionally contains a site. For strong assembly names,
         // the name partitions up the strong name's namespace
-        public string Name
+        public string? Name
         {
-            get { return _name; }
-            set { _name = value; }
+            get => _name;
+            set => _name = value;
         }
 
-        public Version Version
+        public Version? Version
         {
-            get { return _version; }
-            set { _version = value; }
+            get => _version;
+            set => _version = value;
         }
 
         // Locales, internally the LCID is used for the match.
-        public CultureInfo CultureInfo
+        public CultureInfo? CultureInfo
         {
-            get { return _cultureInfo; }
-            set { _cultureInfo = value; }
+            get => _cultureInfo;
+            set => _cultureInfo = value;
         }
 
-        public string CultureName
+        public string? CultureName
         {
-            get
-            {
-                return (_cultureInfo == null) ? null : _cultureInfo.Name;
-            }
-            set
-            {
-                _cultureInfo = (value == null) ? null : new CultureInfo(value);
-            }
+            get => _cultureInfo?.Name;
+            set => _cultureInfo = (value == null) ? null : new CultureInfo(value);
         }
 
-        public string CodeBase
+        public string? CodeBase
         {
-            get { return _codeBase; }
-            set { _codeBase = value; }
+            get => _codeBase;
+            set => _codeBase = value;
         }
 
-        public string EscapedCodeBase
+        public string? EscapedCodeBase
         {
             get
             {
@@ -134,16 +123,14 @@ namespace System.Reflection
             var name = new AssemblyName
             {
                 _name = _name,
-                _publicKey = (byte[])_publicKey?.Clone(),
-                _publicKeyToken = (byte[])_publicKeyToken?.Clone(),
+                _publicKey = (byte[]?)_publicKey?.Clone(),
+                _publicKeyToken = (byte[]?)_publicKeyToken?.Clone(),
                 _cultureInfo = _cultureInfo,
-                _version = (Version)_version?.Clone(),
+                _version = (Version?)_version?.Clone(),
                 _flags = _flags,
                 _codeBase = _codeBase,
                 _hashAlgorithm = _hashAlgorithm,
                 _versionCompatibility = _versionCompatibility,
-                _hashForControl = _hashForControl,
-                _hashAlgorithmForControl = _hashAlgorithmForControl
             };
             return name;
         }
@@ -161,12 +148,12 @@ namespace System.Reflection
             return GetFileInformationCore(assemblyFile);
         }
 
-        public byte[] GetPublicKey()
+        public byte[]? GetPublicKey()
         {
             return _publicKey;
         }
 
-        public void SetPublicKey(byte[] publicKey)
+        public void SetPublicKey(byte[]? publicKey)
         {
             _publicKey = publicKey;
 
@@ -178,14 +165,9 @@ namespace System.Reflection
 
         // The compressed version of the public key formed from a truncated hash.
         // Will throw a SecurityException if _publicKey is invalid
-        public byte[] GetPublicKeyToken()
-        {
-            if (_publicKeyToken == null)
-                _publicKeyToken = ComputePublicKeyToken();
-            return _publicKeyToken;
-        }
+        public byte[]? GetPublicKeyToken() => _publicKeyToken ??= ComputePublicKeyToken();
 
-        public void SetPublicKeyToken(byte[] publicKeyToken)
+        public void SetPublicKeyToken(byte[]? publicKeyToken)
         {
             _publicKeyToken = publicKeyToken;
         }
@@ -199,7 +181,7 @@ namespace System.Reflection
         // set or retrieved directly
         public AssemblyNameFlags Flags
         {
-            get { return (AssemblyNameFlags)((uint)_flags & 0xFFFFF10F); }
+            get => (AssemblyNameFlags)((uint)_flags & 0xFFFFF10F);
             set
             {
                 _flags &= unchecked((AssemblyNameFlags)0x00000EF0);
@@ -209,20 +191,20 @@ namespace System.Reflection
 
         public AssemblyHashAlgorithm HashAlgorithm
         {
-            get { return _hashAlgorithm; }
-            set { _hashAlgorithm = value; }
+            get => _hashAlgorithm;
+            set => _hashAlgorithm = value;
         }
 
         public AssemblyVersionCompatibility VersionCompatibility
         {
-            get { return _versionCompatibility; }
-            set { _versionCompatibility = value; }
+            get => _versionCompatibility;
+            set => _versionCompatibility = value;
         }
 
-        public StrongNameKeyPair KeyPair
+        public StrongNameKeyPair? KeyPair
         {
-            get { return _strongNameKeyPair; }
-            set { _strongNameKeyPair = value; }
+            get => _strongNameKeyPair;
+            set => _strongNameKeyPair = value;
         }
 
         public string FullName
@@ -232,7 +214,7 @@ namespace System.Reflection
                 if (this.Name == null)
                     return string.Empty;
                 // Do not call GetPublicKeyToken() here - that latches the result into AssemblyName which isn't a side effect we want.
-                byte[] pkt = _publicKeyToken ?? ComputePublicKeyToken();
+                byte[]? pkt = _publicKeyToken ?? ComputePublicKeyToken();
                 return AssemblyNameFormatter.ComputeDisplayName(Name, Version, CultureName, pkt, Flags, ContentType);
             }
         }
@@ -241,7 +223,7 @@ namespace System.Reflection
         {
             string s = FullName;
             if (s == null)
-                return base.ToString();
+                return base.ToString()!;
             else
                 return s;
         }
@@ -251,7 +233,7 @@ namespace System.Reflection
             throw new PlatformNotSupportedException();
         }
 
-        public void OnDeserialization(object sender)
+        public void OnDeserialization(object? sender)
         {
             throw new PlatformNotSupportedException();
         }
@@ -261,7 +243,7 @@ namespace System.Reflection
         /// match the intent of this api, this api has been broken this way since its debut and we cannot
         /// change its behavior now.
         /// </summary>
-        public static bool ReferenceMatchesDefinition(AssemblyName reference, AssemblyName definition)
+        public static bool ReferenceMatchesDefinition(AssemblyName? reference, AssemblyName? definition)
         {
             if (object.ReferenceEquals(reference, definition))
                 return true;
@@ -277,13 +259,13 @@ namespace System.Reflection
             return refName.Equals(defName, StringComparison.OrdinalIgnoreCase);
         }
 
-        internal static string EscapeCodeBase(string codebase)
+        internal static string EscapeCodeBase(string? codebase)
         {
             if (codebase == null)
                 return string.Empty;
 
             int position = 0;
-            char[] dest = EscapeString(codebase, 0, codebase.Length, null, ref position, true, c_DummyChar, c_DummyChar, c_DummyChar);
+            char[]? dest = EscapeString(codebase, 0, codebase.Length, null, ref position, true, c_DummyChar, c_DummyChar, c_DummyChar);
             if (dest == null)
                 return codebase;
 
@@ -302,7 +284,7 @@ namespace System.Reflection
         //
         // Returns null if nothing has to be escaped AND passed dest was null, otherwise the resulting array with the updated destPos
         //
-        internal static unsafe char[] EscapeString(string input, int start, int end, char[] dest, ref int destPos,
+        internal static unsafe char[]? EscapeString(string input, int start, int end, char[]? dest, ref int destPos,
             bool isUriString, char force1, char force2, char rsvd)
         {
             int i = start;
@@ -321,8 +303,7 @@ namespace System.Reflection
                         short maxSize = (short)Math.Min(end - i, (int)c_MaxUnicodeCharsReallocate - 1);
 
                         short count = 1;
-                        for (; count < maxSize && pStr[i + count] > '\x7f'; ++count)
-                            ;
+                        for (; count < maxSize && pStr[i + count] > '\x7f'; ++count) ;
 
                         // Is the last a high surrogate?
                         if (pStr[i + count - 1] >= 0xD800 && pStr[i + count - 1] <= 0xDBFF)
@@ -373,14 +354,7 @@ namespace System.Reflection
                         }
                         prevInputPos = i + 1;
                     }
-                    else if (ch == force1 || ch == force2)
-                    {
-                        dest = EnsureDestinationSize(pStr, dest, i, c_EncodedCharsPerByte,
-                            c_MaxAsciiCharsReallocate * c_EncodedCharsPerByte, ref destPos, prevInputPos);
-                        EscapeAsciiChar(ch, dest, ref destPos);
-                        prevInputPos = i + 1;
-                    }
-                    else if (ch != rsvd && (isUriString ? !IsReservedUnreservedOrHash(ch) : !IsUnreserved(ch)))
+                    else if (ch == force1 || ch == force2 || (ch != rsvd && (isUriString ? !IsReservedUnreservedOrHash(ch) : !IsUnreserved(ch))))
                     {
                         dest = EnsureDestinationSize(pStr, dest, i, c_EncodedCharsPerByte,
                             c_MaxAsciiCharsReallocate * c_EncodedCharsPerByte, ref destPos, prevInputPos);
@@ -403,15 +377,15 @@ namespace System.Reflection
         //
         // ensure destination array has enough space and contains all the needed input stuff
         //
-        private static unsafe char[] EnsureDestinationSize(char* pStr, char[] dest, int currentInputPos,
+        private static unsafe char[] EnsureDestinationSize(char* pStr, char[]? dest, int currentInputPos,
             short charsToAdd, short minReallocateChars, ref int destPos, int prevInputPos)
         {
-            if ((object)dest == null || dest.Length < destPos + (currentInputPos - prevInputPos) + charsToAdd)
+            if (dest is null || dest.Length < destPos + (currentInputPos - prevInputPos) + charsToAdd)
             {
                 // allocating or reallocating array by ensuring enough space based on maxCharsToAdd.
                 char[] newresult = new char[destPos + (currentInputPos - prevInputPos) + minReallocateChars];
 
-                if ((object)dest != null && destPos != 0)
+                if (!(dest is null) && destPos != 0)
                     Buffer.BlockCopy(dest, 0, newresult, 0, destPos << 1);
                 dest = newresult;
             }
@@ -466,7 +440,7 @@ namespace System.Reflection
             {
                 return true;
             }
-            return (RFC3986ReservedMarks.Contains(c));
+            return RFC3986ReservedMarks.Contains(c);
         }
 
         internal static bool IsUnreserved(char c)
@@ -475,10 +449,10 @@ namespace System.Reflection
             {
                 return true;
             }
-            return (RFC3986UnreservedMarks.Contains(c));
+            return RFC3986UnreservedMarks.Contains(c);
         }
 
-        //Only consider ASCII characters
+        // Only consider ASCII characters
         internal static bool IsAsciiLetter(char character)
         {
             return (character >= 'a' && character <= 'z') ||
@@ -493,12 +467,12 @@ namespace System.Reflection
         private static readonly char[] s_hexUpperChars = {
                                    '0', '1', '2', '3', '4', '5', '6', '7',
                                    '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
-        internal const char c_DummyChar = (char)0xFFFF;     //An Invalid Unicode character used as a dummy char passed into the parameter                                   
+        internal const char c_DummyChar = (char)0xFFFF;     // An Invalid Unicode character used as a dummy char passed into the parameter
         private const short c_MaxAsciiCharsReallocate = 40;
         private const short c_MaxUnicodeCharsReallocate = 40;
         private const short c_MaxUTF_8BytesPerUnicodeChar = 4;
         private const short c_EncodedCharsPerByte = 3;
-        private const string RFC3986ReservedMarks = @":/?#[]@!$&'()*+,;=";
-        private const string RFC3986UnreservedMarks = @"-._~";
+        private const string RFC3986ReservedMarks = ":/?#[]@!$&'()*+,;=";
+        private const string RFC3986UnreservedMarks = "-._~";
     }
 }

@@ -1,6 +1,6 @@
-// Licensed to the .NET Foundation under one or more agreements. 
-// The .NET Foundation licenses this file to you under the MIT license. 
-// See the LICENSE file in the project root for more information. 
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #include "stdafx.h"
 #include "windows.h"
@@ -10,7 +10,7 @@
 
 class LongFile
 {
-private:   
+private:
 #ifndef FEATURE_PAL
         static const WCHAR* ExtendedPrefix;
         static const WCHAR* DevicePathPrefix;
@@ -52,7 +52,7 @@ LoadLibraryExWrapper(
     HRESULT hr   = S_OK;
     HMODULE ret = NULL;
     DWORD lastError;
-    
+
     EX_TRY
     {
 
@@ -68,7 +68,7 @@ LoadLibraryExWrapper(
 
             ret = LoadLibraryExW(path.GetUnicode(), hFile, dwFlags);
         }
-        
+
         lastError = GetLastError();
     }
     EX_CATCH_HRESULT(hr);
@@ -121,7 +121,7 @@ CreateFileWrapper(
                     hTemplateFile);
 
         }
-        
+
         lastError = GetLastError();
     }
     EX_CATCH_HRESULT(hr);
@@ -131,50 +131,6 @@ CreateFileWrapper(
         SetLastError(hr);
     }
     else if(ret == INVALID_HANDLE_VALUE)
-    {
-        SetLastError(lastError);
-    }
-
-    return ret;
-}
-
-BOOL
-SetFileAttributesWrapper(
-        _In_ LPCWSTR lpFileName,
-        _In_ DWORD dwFileAttributes
-        )
-{
-    CONTRACTL
-    {
-        NOTHROW;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr = S_OK;
-    BOOL   ret = FALSE;
-    DWORD lastError;
-
-    EX_TRY
-    {
-        LongPathString path(LongPathString::Literal, lpFileName);
-
-        if (SUCCEEDED(LongFile::NormalizePath(path)))
-        {
-            ret = SetFileAttributesW(
-                    path.GetUnicode(),
-                    dwFileAttributes
-                    );
-        }
-        
-        lastError = GetLastError();
-    }
-    EX_CATCH_HRESULT(hr);
-
-    if (hr != S_OK )
-    {
-        SetLastError(hr);
-    }
-    else if(ret == FALSE)
     {
         SetLastError(lastError);
     }
@@ -205,7 +161,7 @@ GetFileAttributesWrapper(
         {
             ret = GetFileAttributesW(
                     path.GetUnicode()
-                );             
+                );
         }
 
         lastError = GetLastError();
@@ -252,9 +208,9 @@ GetFileAttributesExWrapper(
                     fInfoLevelId,
                     lpFileInformation
                     );
-            
+
         }
-        
+
         lastError = GetLastError();
     }
     EX_CATCH_HRESULT(hr);
@@ -296,55 +252,7 @@ DeleteFileWrapper(
                     path.GetUnicode()
                     );
         }
-        
-        lastError = GetLastError();
-    }
-    EX_CATCH_HRESULT(hr);
 
-    if (hr != S_OK )
-    {
-        SetLastError(hr);
-    }
-    else if(ret == FALSE)
-    {
-        SetLastError(lastError);
-    }
-
-    return ret;
-}
-
-
-BOOL
-CopyFileWrapper(
-        _In_ LPCWSTR lpExistingFileName,
-        _In_ LPCWSTR lpNewFileName,
-        _In_ BOOL bFailIfExists
-        )
-{
-    CONTRACTL
-    {
-        NOTHROW;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr  = S_OK;
-    BOOL    ret = FALSE;
-    DWORD lastError;
-
-    EX_TRY
-    {
-        LongPathString Existingpath(LongPathString::Literal, lpExistingFileName);
-        LongPathString Newpath(LongPathString::Literal, lpNewFileName);
-
-        if (SUCCEEDED(LongFile::NormalizePath(Existingpath)) && SUCCEEDED(LongFile::NormalizePath(Newpath)))
-        {
-            ret = CopyFileW(
-                    Existingpath.GetUnicode(),
-                    Newpath.GetUnicode(),
-                    bFailIfExists
-                    );
-        }
-        
         lastError = GetLastError();
     }
     EX_CATCH_HRESULT(hr);
@@ -391,7 +299,7 @@ MoveFileExWrapper(
                     dwFlags
                     );
         }
-        
+
         lastError = GetLastError();
     }
     EX_CATCH_HRESULT(hr);
@@ -424,7 +332,7 @@ SearchPathWrapper(
         NOTHROW;
     }
     CONTRACTL_END;
-   
+
     HRESULT hr  = S_OK;
     DWORD    ret = 0;
     DWORD lastError;
@@ -444,7 +352,7 @@ SearchPathWrapper(
                 lpPath = Existingpath.GetUnicode();
             }
         }
-    
+
         if (!getPath)
         {
             ret = SearchPathW(
@@ -467,7 +375,7 @@ SearchPathWrapper(
                     size,
                     lpBuffer.OpenUnicodeBuffer(size - 1),
                     lpFilePart
-                    ); 
+                    );
 
             if (ret > size)
             {
@@ -483,7 +391,7 @@ SearchPathWrapper(
             }
 
             lpBuffer.CloseBuffer(ret);
-            
+
         }
 
         lastError = GetLastError();
@@ -498,128 +406,9 @@ SearchPathWrapper(
     {
         SetLastError(lastError);
     }
-        
-    return ret;
-
-}
-
-DWORD
-GetShortPathNameWrapper(
-        _In_ LPCWSTR lpszLongPath,
-        SString& lpszShortPath
-        )
-{
-    CONTRACTL
-    {
-        NOTHROW;
-    }
-    CONTRACTL_END;
-
-    DWORD ret = 0;
-    HRESULT hr = S_OK;
-    DWORD lastError;
-
-    EX_TRY
-    {
-        LongPathString longPath(LongPathString::Literal, lpszLongPath);
-
-        if (SUCCEEDED(LongFile::NormalizePath(longPath)))
-        {
-            COUNT_T size = lpszShortPath.GetUnicodeAllocation() + 1;
-
-            ret = GetShortPathNameW(
-                    longPath.GetUnicode(),
-                    lpszShortPath.OpenUnicodeBuffer(size - 1),
-                    (DWORD)size
-                    );
-
-            if (ret > size)
-            {
-                lpszShortPath.CloseBuffer();
-                ret = GetShortPathNameW(
-                        longPath.GetUnicode(),
-                        lpszShortPath.OpenUnicodeBuffer(ret -1),
-                        ret
-                        );
-            }
-            
-            lpszShortPath.CloseBuffer(ret);
-        }
-        
-        lastError = GetLastError();
-    }
-    EX_CATCH_HRESULT(hr);
-
-    if (hr != S_OK )
-    {
-        SetLastError(hr);
-    }
-    else if(ret == 0)
-    {
-        SetLastError(lastError);
-    }
-        
-    return ret;
-}
-
-DWORD
-GetLongPathNameWrapper(
-        _In_ LPCWSTR lpszShortPath,
-        SString& lpszLongPath
-        )
-{
-    CONTRACTL
-    {
-        NOTHROW;
-    }
-    CONTRACTL_END;
-
-    DWORD ret = 0;
-    HRESULT hr = S_OK;
-    DWORD lastError;
-
-    EX_TRY
-    {
-        LongPathString shortPath(LongPathString::Literal, lpszShortPath);
-
-        if (SUCCEEDED(LongFile::NormalizePath(shortPath)))
-        {
-            COUNT_T size = lpszLongPath.GetUnicodeAllocation() + 1;
-
-            ret = GetLongPathNameW(
-                    shortPath.GetUnicode(),
-                    lpszLongPath.OpenUnicodeBuffer(size - 1),
-                    (DWORD)size
-                    );
-
-            if (ret > size)
-            {
-                lpszLongPath.CloseBuffer();
-                ret = GetLongPathNameW(
-                        shortPath.GetUnicode(),
-                        lpszLongPath.OpenUnicodeBuffer(ret - 1),
-                        ret
-                        );
-
-            }
-
-            lpszLongPath.CloseBuffer(ret);
-        }
-        
-        lastError = GetLastError();
-    }
-    EX_CATCH_HRESULT(hr);
-
-    if (hr != S_OK )
-    {
-        SetLastError(hr);
-    }
-    else if(ret == 0)
-    {
-        SetLastError(lastError);
-    }
 
     return ret;
+
 }
 
 BOOL
@@ -649,7 +438,7 @@ CreateDirectoryWrapper(
                     lpSecurityAttributes
                     );
         }
-            
+
         lastError = GetLastError();
     }
     EX_CATCH_HRESULT(hr);
@@ -666,47 +455,6 @@ CreateDirectoryWrapper(
     return ret;
 }
 
-BOOL
-RemoveDirectoryWrapper(
-        _In_ LPCWSTR lpPathName
-        )
-{
-    CONTRACTL
-    {
-        NOTHROW;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr = S_OK;
-    BOOL ret   = FALSE;
-    DWORD lastError;
-
-    EX_TRY
-    {
-        LongPathString path(LongPathString::Literal, lpPathName);
-
-        if (SUCCEEDED(LongFile::NormalizePath(path)))
-        {
-            ret = RemoveDirectoryW(
-                    path.GetUnicode()
-                    );
-        }
-        
-        lastError = GetLastError();
-    }
-    EX_CATCH_HRESULT(hr);
-
-    if (hr != S_OK )
-    {
-        SetLastError(hr);
-    }
-    else if(ret == FALSE)
-    {
-        SetLastError(lastError);
-    }
-
-    return ret;
-}
 DWORD
 GetModuleFileNameWrapper(
     _In_opt_ HMODULE hModule,
@@ -728,12 +476,12 @@ GetModuleFileNameWrapper(
         COUNT_T size = buffer.GetUnicodeAllocation() + 1;
 
         ret = GetModuleFileNameW(
-            hModule, 
+            hModule,
             buffer.OpenUnicodeBuffer(size - 1),
             (DWORD)size
             );
 
-        
+
         while (ret == size )
         {
             buffer.CloseBuffer();
@@ -743,9 +491,9 @@ GetModuleFileNameWrapper(
                 buffer.OpenUnicodeBuffer(size - 1),
                 (DWORD)size
                 );
-          
+
         }
-        
+
 
         lastError = GetLastError();
         buffer.CloseBuffer(ret);
@@ -792,11 +540,11 @@ UINT WINAPI GetTempFileNameWrapper(
             uUnique,
             buffer
             );
-        
+
         lastError = GetLastError();
         size = (COUNT_T)wcslen(buffer);
         lpTempFileName.CloseBuffer(size);
-        
+
     }
     EX_CATCH_HRESULT(hr);
 
@@ -848,7 +596,7 @@ DWORD WINAPI GetTempPathWrapper(
     {
         SetLastError(lastError);
     }
-   
+
     return ret;
 }
 
@@ -872,7 +620,7 @@ DWORD WINAPI GetCurrentDirectoryWrapper(
         COUNT_T size = MAX_LONGPATH;
 
         ret = GetCurrentDirectoryW(
-            size, 
+            size,
             lpBuffer.OpenUnicodeBuffer(size - 1)
             );
 
@@ -910,11 +658,11 @@ DWORD WINAPI GetEnvironmentVariableWrapper(
 
     EX_TRY
     {
-        
+
         COUNT_T size = lpBuffer.GetUnicodeAllocation() + 1;
 
         ret = GetEnvironmentVariableW(
-            lpName, 
+            lpName,
             lpBuffer.OpenUnicodeBuffer(size - 1),
             size
             );
@@ -922,7 +670,7 @@ DWORD WINAPI GetEnvironmentVariableWrapper(
         // We loop round getting the length of the env var and then trying to copy
         // the value into a the allocated buffer. Usually we'll go through this loop
         // precisely once, but the caution is ncessary in case the variable mutates
-        // beneath us, as the environment variable can be modified by another thread 
+        // beneath us, as the environment variable can be modified by another thread
         //between two calls to GetEnvironmentVariableW
 
         while (ret > size)
@@ -930,7 +678,7 @@ DWORD WINAPI GetEnvironmentVariableWrapper(
             size = ret;
             lpBuffer.CloseBuffer();
             ret = GetEnvironmentVariableW(
-                lpName, 
+                lpName,
                 lpBuffer.OpenUnicodeBuffer(size - 1),
                 size);
         }
@@ -954,53 +702,6 @@ DWORD WINAPI GetEnvironmentVariableWrapper(
 
 
 #ifndef FEATURE_PAL
-
-BOOL
-CreateHardLinkWrapper(
-        _In_       LPCWSTR lpFileName,
-        _In_       LPCWSTR lpExistingFileName,
-        _Reserved_ LPSECURITY_ATTRIBUTES lpSecurityAttributes
-        )
-{
-    CONTRACTL
-    {
-        NOTHROW;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr = S_OK;
-    BOOL ret   = FALSE;
-    DWORD lastError;
-
-    EX_TRY
-    {
-        LongPathString Existingpath(LongPathString::Literal, lpExistingFileName);
-        LongPathString FileName(LongPathString::Literal, lpFileName);
-
-        if (SUCCEEDED(LongFile::NormalizePath(Existingpath)) && SUCCEEDED(LongFile::NormalizePath(FileName)))
-        {
-            ret = CreateHardLinkW(
-                    Existingpath.GetUnicode(),
-                    FileName.GetUnicode(),
-                    lpSecurityAttributes
-                    );
-        }
-        
-        lastError = GetLastError();
-    }
-    EX_CATCH_HRESULT(hr);
-
-    if (hr != S_OK )
-    {
-        SetLastError(hr);
-    }
-    else if(ret == FALSE)
-    {
-        SetLastError(lastError);
-    }
-
-    return ret;
-}
 
 BOOL
 CopyFileExWrapper(
@@ -1039,7 +740,7 @@ CopyFileExWrapper(
                     dwCopyFlags
                     );
         }
-        
+
         lastError = GetLastError();
     }
     EX_CATCH_HRESULT(hr);
@@ -1091,7 +792,7 @@ FindFirstFileExWrapper(
                     dwAdditionalFlags
                     );
         }
-        
+
         lastError = GetLastError();
     }
     EX_CATCH_HRESULT(hr);
@@ -1120,9 +821,9 @@ BOOL PAL_GetPALDirectoryWrapper(SString& pbuffer)
 {
 
     HRESULT hr = S_OK;
-    
+
     PathString pPath;
-    DWORD dwPath; 
+    DWORD dwPath;
     HINSTANCE hinst = NULL;
 
 #if ! defined(DACCESS_COMPILE) && !defined(SELF_NO_HOST)
@@ -1134,16 +835,16 @@ BOOL PAL_GetPALDirectoryWrapper(SString& pbuffer)
 #endif
 
     dwPath = WszGetModuleFileName(hinst, pPath);
-    
+
     if(dwPath == 0)
     {
         hr = HRESULT_FROM_GetLastErrorNA();
     }
-    else 
+    else
     {
         hr = CopySystemDirectory(pPath, pbuffer);
     }
-  
+
     return (hr == S_OK);
 }
 
@@ -1210,8 +911,8 @@ BOOL LongFile::IsUNCExtended(SString & path)
 
 BOOL LongFile::IsPathNotFullyQualified(SString & path)
 {
-    if (path.GetCount() < 2) 
-    { 
+    if (path.GetCount() < 2)
+    {
         return TRUE;  // It isn't fixed, it must be relative.  There is no way to specify a fixed path with one character (or less).
     }
 
@@ -1261,7 +962,7 @@ HRESULT LongFile::NormalizePath(SString & path)
         _ASSERTE(prefixLen > 0 );
     }
 
-   
+
     COUNT_T size  = path.GetUnicodeAllocation() + 1;
     WCHAR* buffer = path.OpenUnicodeBuffer(size - 1);
 
@@ -1300,7 +1001,7 @@ HRESULT LongFile::NormalizePath(SString & path)
 
 	SString fullpath(SString::Literal,buffer + prefixLen);
 
-    //Check if the resolved path is a UNC. By default we assume relative path to resolve to disk 
+    //Check if the resolved path is a UNC. By default we assume relative path to resolve to disk
     if (fullpath.BeginsWith(UNCPathPrefix) && prefixLen != prefix.GetCount() - (COUNT_T)wcslen(UNCPATHPREFIX))
     {
 

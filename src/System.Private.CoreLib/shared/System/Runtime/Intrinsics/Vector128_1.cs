@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
@@ -28,7 +27,7 @@ namespace System.Runtime.Intrinsics
     [DebuggerDisplay("{DisplayString,nq}")]
     [DebuggerTypeProxy(typeof(Vector128DebugView<>))]
     [StructLayout(LayoutKind.Sequential, Size = Vector128.Size)]
-    public readonly struct Vector128<T> : IEquatable<Vector128<T>>, IFormattable
+    public readonly struct Vector128<T> : IEquatable<Vector128<T>>
         where T : struct
     {
         // These fields exist to ensure the alignment is 8, rather than 1.
@@ -40,6 +39,7 @@ namespace System.Runtime.Intrinsics
         /// <exception cref="NotSupportedException">The type of the current instance (<typeparamref name="T" />) is not supported.</exception>
         public static int Count
         {
+            [Intrinsic]
             get
             {
                 ThrowHelper.ThrowForUnsupportedVectorBaseType<T>();
@@ -77,19 +77,16 @@ namespace System.Runtime.Intrinsics
         internal static bool IsSupported
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return (typeof(T) == typeof(byte)) ||
-                       (typeof(T) == typeof(sbyte)) ||
-                       (typeof(T) == typeof(short)) ||
-                       (typeof(T) == typeof(ushort)) ||
-                       (typeof(T) == typeof(int)) ||
-                       (typeof(T) == typeof(uint)) ||
-                       (typeof(T) == typeof(long)) ||
-                       (typeof(T) == typeof(ulong)) ||
-                       (typeof(T) == typeof(float)) ||
-                       (typeof(T) == typeof(double));
-            }
+            get => (typeof(T) == typeof(byte)) ||
+                   (typeof(T) == typeof(sbyte)) ||
+                   (typeof(T) == typeof(short)) ||
+                   (typeof(T) == typeof(ushort)) ||
+                   (typeof(T) == typeof(int)) ||
+                   (typeof(T) == typeof(uint)) ||
+                   (typeof(T) == typeof(long)) ||
+                   (typeof(T) == typeof(ulong)) ||
+                   (typeof(T) == typeof(float)) ||
+                   (typeof(T) == typeof(double));
         }
 
         /// <summary>Determines whether the specified <see cref="Vector128{T}" /> is equal to the current instance.</summary>
@@ -173,43 +170,23 @@ namespace System.Runtime.Intrinsics
         /// <exception cref="NotSupportedException">The type of the current instance (<typeparamref name="T" />) is not supported.</exception>
         public override string ToString()
         {
-            return ToString("G");
-        }
-
-        /// <summary>Converts the current instance to an equivalent string representation using the specified format.</summary>
-        /// <param name="format">The format specifier used to format the individual elements of the current instance.</param>
-        /// <returns>An equivalent string representation of the current instance.</returns>
-        /// <exception cref="NotSupportedException">The type of the current instance (<typeparamref name="T" />) is not supported.</exception>
-        public string ToString(string? format)
-        {
-            return ToString(format, formatProvider: null);
-        }
-
-        /// <summary>Converts the current instance to an equivalent string representation using the specified format.</summary>
-        /// <param name="format">The format specifier used to format the individual elements of the current instance.</param>
-        /// <param name="formatProvider">The format provider used to format the individual elements of the current instance.</param>
-        /// <returns>An equivalent string representation of the current instance.</returns>
-        /// <exception cref="NotSupportedException">The type of the current instance (<typeparamref name="T" />) is not supported.</exception>
-        public string ToString(string? format, IFormatProvider? formatProvider)
-        {
             ThrowHelper.ThrowForUnsupportedVectorBaseType<T>();
 
-            string separator = NumberFormatInfo.GetInstance(formatProvider).NumberGroupSeparator;
             int lastElement = Count - 1;
+            var sb = new ValueStringBuilder(stackalloc char[64]);
+            CultureInfo invariant = CultureInfo.InvariantCulture;
 
-            var sb = StringBuilderCache.Acquire();
             sb.Append('<');
-
             for (int i = 0; i < lastElement; i++)
             {
-                sb.Append(((IFormattable)(this.GetElement(i))).ToString(format, formatProvider));
-                sb.Append(separator);
+                sb.Append(((IFormattable)this.GetElement(i)).ToString("G", invariant));
+                sb.Append(',');
                 sb.Append(' ');
             }
-            sb.Append(((IFormattable)(this.GetElement(lastElement))).ToString(format, formatProvider));
-
+            sb.Append(((IFormattable)this.GetElement(lastElement)).ToString("G", invariant));
             sb.Append('>');
-            return StringBuilderCache.GetStringAndRelease(sb);
+
+            return sb.ToString();
         }
     }
 }

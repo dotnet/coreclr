@@ -2,13 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Collections.Generic;
 using System.IO;
-using System.Configuration.Assemblies;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Runtime.Serialization;
 using System.Runtime.Loader;
+using System.Runtime.Serialization;
 using StackCrawlMark = System.Threading.StackCrawlMark;
 
 namespace System.Reflection
@@ -22,6 +20,27 @@ namespace System.Reflection
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return RuntimeAssembly.InternalLoad(assemblyString, ref stackMark, AssemblyLoadContext.CurrentContextualReflectionContext);
+        }
+
+        [Obsolete("This method has been deprecated. Please use Assembly.Load() instead. https://go.microsoft.com/fwlink/?linkid=14202")]
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
+        public static Assembly? LoadWithPartialName(string partialName)
+        {
+            if (partialName == null)
+                throw new ArgumentNullException(nameof(partialName));
+
+            if ((partialName.Length == 0) || (partialName[0] == '\0'))
+                throw new ArgumentException(SR.Format_StringZeroLength, nameof(partialName));
+
+            try
+            {
+                StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
+                return RuntimeAssembly.InternalLoad(partialName, ref stackMark, AssemblyLoadContext.CurrentContextualReflectionContext);
+            }
+            catch (FileNotFoundException)
+            {
+                return null;
+            }
         }
 
         // Locate an assembly by its name. The name can be strong or
@@ -38,9 +57,9 @@ namespace System.Reflection
 
         // Locate an assembly by its name. The name can be strong or
         // weak. The assembly is loaded into the domain of the caller.
-        internal static Assembly Load(AssemblyName assemblyRef, ref StackCrawlMark stackMark, AssemblyLoadContext assemblyLoadContext)
+        internal static Assembly Load(AssemblyName assemblyRef, ref StackCrawlMark stackMark, AssemblyLoadContext? assemblyLoadContext)
         {
-            AssemblyName modifiedAssemblyRef = null;
+            AssemblyName modifiedAssemblyRef;
             if (assemblyRef.CodeBase != null)
             {
                 modifiedAssemblyRef = (AssemblyName)assemblyRef.Clone();
@@ -54,13 +73,13 @@ namespace System.Reflection
             return RuntimeAssembly.InternalLoadAssemblyName(modifiedAssemblyRef, ref stackMark, assemblyLoadContext);
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void GetExecutingAssemblyNative(StackCrawlMarkHandle stackMark, ObjectHandleOnStack retAssembly);
 
         internal static RuntimeAssembly GetExecutingAssembly(ref StackCrawlMark stackMark)
         {
-            RuntimeAssembly retAssembly = null;
-            GetExecutingAssemblyNative(JitHelpers.GetStackCrawlMarkHandle(ref stackMark), JitHelpers.GetObjectHandleOnStack(ref retAssembly));
+            RuntimeAssembly? retAssembly = null;
+            GetExecutingAssemblyNative(new StackCrawlMarkHandle(ref stackMark), ObjectHandleOnStack.Create(ref retAssembly));
             return retAssembly;
         }
 
@@ -82,24 +101,27 @@ namespace System.Reflection
             return GetExecutingAssembly(ref stackMark);
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void GetEntryAssemblyNative(ObjectHandleOnStack retAssembly);
 
         // internal test hook
         private static bool s_forceNullEntryPoint = false;
 
-        public static Assembly GetEntryAssembly()
+        public static Assembly? GetEntryAssembly()
         {
             if (s_forceNullEntryPoint)
                 return null;
 
-            RuntimeAssembly entryAssembly = null;
-            GetEntryAssemblyNative(JitHelpers.GetObjectHandleOnStack(ref entryAssembly));
+            RuntimeAssembly? entryAssembly = null;
+            GetEntryAssemblyNative(ObjectHandleOnStack.Create(ref entryAssembly));
             return entryAssembly;
         }
 
         // Exists to faciliate code sharing between CoreCLR and CoreRT.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal bool IsRuntimeImplemented() => this is RuntimeAssembly;
+
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        internal static extern uint GetAssemblyCount();
     }
 }

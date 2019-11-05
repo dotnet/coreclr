@@ -42,20 +42,20 @@ namespace System
             /// </summary>
             public static string GetSerializedString(TimeZoneInfo zone)
             {
-                StringBuilder serializedText = StringBuilderCache.Acquire();
+                var serializedText = new ValueStringBuilder(stackalloc char[InitialCapacityForString]);
 
                 //
                 // <_id>;<_baseUtcOffset>;<_displayName>;<_standardDisplayName>;<_daylightDispayName>
                 //
-                SerializeSubstitute(zone.Id, serializedText);
+                SerializeSubstitute(zone.Id, ref serializedText);
                 serializedText.Append(Sep);
                 serializedText.AppendSpanFormattable(zone.BaseUtcOffset.TotalMinutes, format: default, CultureInfo.InvariantCulture);
                 serializedText.Append(Sep);
-                SerializeSubstitute(zone.DisplayName, serializedText);
+                SerializeSubstitute(zone.DisplayName, ref serializedText);
                 serializedText.Append(Sep);
-                SerializeSubstitute(zone.StandardName, serializedText);
+                SerializeSubstitute(zone.StandardName, ref serializedText);
                 serializedText.Append(Sep);
-                SerializeSubstitute(zone.DaylightName, serializedText);
+                SerializeSubstitute(zone.DaylightName, ref serializedText);
                 serializedText.Append(Sep);
 
                 AdjustmentRule[] rules = zone.GetAdjustmentRules();
@@ -69,9 +69,9 @@ namespace System
                     serializedText.AppendSpanFormattable(rule.DaylightDelta.TotalMinutes, format: default, CultureInfo.InvariantCulture);
                     serializedText.Append(Sep);
                     // serialize the TransitionTime's
-                    SerializeTransitionTime(rule.DaylightTransitionStart, serializedText);
+                    SerializeTransitionTime(rule.DaylightTransitionStart, ref serializedText);
                     serializedText.Append(Sep);
-                    SerializeTransitionTime(rule.DaylightTransitionEnd, serializedText);
+                    SerializeTransitionTime(rule.DaylightTransitionEnd, ref serializedText);
                     serializedText.Append(Sep);
                     if (rule.BaseUtcOffsetDelta != TimeSpan.Zero)
                     {
@@ -89,7 +89,7 @@ namespace System
                 }
                 serializedText.Append(Sep);
 
-                return StringBuilderCache.GetStringAndRelease(serializedText);
+                return serializedText.ToString();
             }
 
             /// <summary>
@@ -104,7 +104,7 @@ namespace System
                 string displayName = s.GetNextStringValue();
                 string standardName = s.GetNextStringValue();
                 string daylightName = s.GetNextStringValue();
-                AdjustmentRule[] rules = s.GetNextAdjustmentRuleArrayValue();
+                AdjustmentRule[]? rules = s.GetNextAdjustmentRuleArrayValue();
 
                 try
                 {
@@ -135,7 +135,7 @@ namespace System
             /// "]" -> "\]"
             /// "\" -> "\\"
             /// </summary>
-            private static void SerializeSubstitute(string text, StringBuilder serializedText)
+            private static void SerializeSubstitute(string text, ref ValueStringBuilder serializedText)
             {
                 foreach (char c in text)
                 {
@@ -150,7 +150,7 @@ namespace System
             /// <summary>
             /// Helper method to serialize a TimeZoneInfo.TransitionTime object.
             /// </summary>
-            private static void SerializeTransitionTime(TransitionTime time, StringBuilder serializedText)
+            private static void SerializeTransitionTime(TransitionTime time, ref ValueStringBuilder serializedText)
             {
                 serializedText.Append(Lhs);
                 serializedText.Append(time.IsFixedDateRule ? '1' : '0');
@@ -265,7 +265,7 @@ namespace System
                     throw new SerializationException(SR.Serialization_InvalidData);
                 }
                 State tokenState = State.NotEscaped;
-                StringBuilder token = StringBuilderCache.Acquire(InitialCapacityForString);
+                var token = new ValueStringBuilder(stackalloc char[InitialCapacityForString]);
 
                 // walk the serialized text, building up the token as we go...
                 for (int i = _currentTokenStartIndex; i < _serializedText.Length; i++)
@@ -302,7 +302,7 @@ namespace System
                                 {
                                     _state = State.StartOfToken;
                                 }
-                                return StringBuilderCache.GetStringAndRelease(token);
+                                return token.ToString();
 
                             case '\0':
                                 // invalid character
@@ -373,13 +373,13 @@ namespace System
             /// <summary>
             /// Helper function to read an AdjustmentRule[] token.
             /// </summary>
-            private AdjustmentRule[] GetNextAdjustmentRuleArrayValue()
+            private AdjustmentRule[]? GetNextAdjustmentRuleArrayValue()
             {
                 List<AdjustmentRule> rules = new List<AdjustmentRule>(1);
                 int count = 0;
 
                 // individual AdjustmentRule array elements do not require semicolons
-                AdjustmentRule rule = GetNextAdjustmentRuleValue();
+                AdjustmentRule? rule = GetNextAdjustmentRuleValue();
                 while (rule != null)
                 {
                     rules.Add(rule);
@@ -404,7 +404,7 @@ namespace System
             /// <summary>
             /// Helper function to read an AdjustmentRule token.
             /// </summary>
-            private AdjustmentRule GetNextAdjustmentRuleValue()
+            private AdjustmentRule? GetNextAdjustmentRuleValue()
             {
                 // first verify the internal state of the object
                 if (_state == State.EndOfLine)
@@ -453,7 +453,7 @@ namespace System
                 }
 
                 // Check if we have NoDaylightTransitions in the serialized string and then deserialize it
-                if ((_serializedText[_currentTokenStartIndex] >= '0' && _serializedText[_currentTokenStartIndex] <= '1'))
+                if (_serializedText[_currentTokenStartIndex] >= '0' && _serializedText[_currentTokenStartIndex] <= '1')
                 {
                     noDaylightTransitions = GetNextInt32Value();
                 }

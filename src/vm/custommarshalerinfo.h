@@ -1,14 +1,14 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
-// 
+//
 // File: CustomMarshalerInfo.h
-// 
+//
 
-// 
+//
 // Custom marshaler information used when marshaling
-// a parameter with a custom marshaler. 
-// 
+// a parameter with a custom marshaler.
+//
 
 
 #ifndef _CUSTOMMARSHALERINFO_H_
@@ -75,10 +75,10 @@ public:
         return m_bDataIsByValue;
     }
 
-    OBJECTHANDLE GetCustomMarshaler()
+    OBJECTREF GetCustomMarshaler()
     {
         LIMITED_METHOD_CONTRACT;
-        return m_hndCustomMarshaler;
+        return m_pLoaderAllocator->GetHandleValue(m_hndCustomMarshaler);
     }
 
     TypeHandle GetCustomMarshalerType()
@@ -90,11 +90,11 @@ public:
             MODE_COOPERATIVE;
         }
         CONTRACTL_END;
-        return ObjectFromHandle(m_hndCustomMarshaler)->GetTypeHandle();
+        return m_pLoaderAllocator->GetHandleValue(m_hndCustomMarshaler)->GetTypeHandle();
     }
 
     // Helper function to retrieve a custom marshaler method desc.
-    static MethodDesc*  GetCustomMarshalerMD(EnumCustomMarshalerMethods Method, TypeHandle hndCustomMarshalertype); 
+    static MethodDesc*  GetCustomMarshalerMD(EnumCustomMarshalerMethods Method, TypeHandle hndCustomMarshalertype);
 
     // Link used to contain this CM info in a linked list.
     SLink               m_Link;
@@ -102,7 +102,8 @@ public:
 private:
     int                 m_NativeSize;
     TypeHandle          m_hndManagedType;
-    OBJECTHANDLE        m_hndCustomMarshaler;
+    LoaderAllocator*    m_pLoaderAllocator;
+    LOADERHANDLE        m_hndCustomMarshaler;
     MethodDesc*         m_pMarshalNativeToManagedMD;
     MethodDesc*         m_pMarshalManagedToNativeMD;
     MethodDesc*         m_pCleanUpNativeDataMD;
@@ -197,19 +198,19 @@ public:
         WRAPPER_NO_CONTRACT;
         return GetCustomMarshalerInfo()->GetNativeSize();
     }
-    
+
     int GetManagedSize()
     {
         WRAPPER_NO_CONTRACT;
         return GetCustomMarshalerInfo()->GetManagedSize();
     }
-    
+
     TypeHandle GetManagedType()
     {
         WRAPPER_NO_CONTRACT;
         return GetCustomMarshalerInfo()->GetManagedType();
     }
-    
+
     BOOL IsDataByValue()
     {
         WRAPPER_NO_CONTRACT;

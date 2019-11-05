@@ -2,17 +2,16 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Runtime.CompilerServices;
 
 namespace System.IO
 {
     public abstract partial class Stream
     {
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern bool HasOverriddenBeginEndRead();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern bool HasOverriddenBeginEndWrite();
     }
 }

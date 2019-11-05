@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Reflection;
 using System.Threading;
@@ -12,39 +11,43 @@ namespace System.ComponentModel
     /// <summary>
     /// Specifies the default value for a property.
     /// </summary>
-    [SuppressMessage("Microsoft.Design", "CA1019:DefineAccessorsForAttributeArguments")]
-    [SuppressMessage("Microsoft.Performance", "CA1813:AvoidUnsealedAttributes")]
     [AttributeUsage(AttributeTargets.All)]
     public class DefaultValueAttribute : Attribute
     {
         /// <summary>
         /// This is the default value.
         /// </summary>
-        private object _value;
+        private object? _value;
 
         // Delegate ad hoc created 'TypeDescriptor.ConvertFromInvariantString' reflection object cache
-        private static object s_convertFromInvariantString;
+        private static object? s_convertFromInvariantString;
 
         /// <summary>
         /// Initializes a new instance of the <see cref='System.ComponentModel.DefaultValueAttribute'/>
         /// class, converting the specified value to the specified type, and using the U.S. English
         /// culture as the translation context.
         /// </summary>
-        public DefaultValueAttribute(Type type, string value)
+        public DefaultValueAttribute(Type type, string? value)
         {
-            // The try/catch here is because attributes should never throw exceptions.
+            // The null check and try/catch here are because attributes should never throw exceptions.
             // We would fail to load an otherwise normal class.
+
+            if (type == null)
+            {
+                return;
+            }
+
             try
             {
-                if (TryConvertFromInvariantString(type, value, out object convertedValue))
+                if (TryConvertFromInvariantString(type, value, out object? convertedValue))
                 {
                     _value = convertedValue;
                 }
-                else if (type.IsSubclassOf(typeof(Enum)))
+                else if (type.IsSubclassOf(typeof(Enum)) && value != null)
                 {
                     _value = Enum.Parse(type, value, true);
                 }
-                else if (type == typeof(TimeSpan))
+                else if (type == typeof(TimeSpan) && value != null)
                 {
                     _value = TimeSpan.Parse(value);
                 }
@@ -54,19 +57,19 @@ namespace System.ComponentModel
                 }
 
                 // Looking for ad hoc created TypeDescriptor.ConvertFromInvariantString(Type, string)
-                bool TryConvertFromInvariantString(Type typeToConvert, string stringValue, out object conversionResult)
+                static bool TryConvertFromInvariantString(Type? typeToConvert, string? stringValue, out object? conversionResult)
                 {
                     conversionResult = null;
 
                     // lazy init reflection objects
                     if (s_convertFromInvariantString == null)
                     {
-                        Type typeDescriptorType = Type.GetType("System.ComponentModel.TypeDescriptor, System.ComponentModel.TypeConverter", throwOnError: false);
-                        MethodInfo mi = typeDescriptorType?.GetMethod("ConvertFromInvariantString", BindingFlags.NonPublic | BindingFlags.Static);
+                        Type? typeDescriptorType = Type.GetType("System.ComponentModel.TypeDescriptor, System.ComponentModel.TypeConverter", throwOnError: false);
+                        MethodInfo? mi = typeDescriptorType?.GetMethod("ConvertFromInvariantString", BindingFlags.NonPublic | BindingFlags.Static);
                         Volatile.Write(ref s_convertFromInvariantString, mi == null ? new object() : mi.CreateDelegate(typeof(Func<Type, string, object>)));
                     }
 
-                    if (!(s_convertFromInvariantString is Func<Type, string, object> convertFromInvariantString))
+                    if (!(s_convertFromInvariantString is Func<Type?, string?, object> convertFromInvariantString))
                         return false;
 
                     try
@@ -151,7 +154,7 @@ namespace System.ComponentModel
 
         /// <summary>
         /// Initializes a new instance of the <see cref='System.ComponentModel.DefaultValueAttribute'/>
-        /// class using a <see cref='System.Boolean'/> value.
+        /// class using a <see cref='bool'/> value.
         /// </summary>
         public DefaultValueAttribute(bool value)
         {
@@ -160,9 +163,9 @@ namespace System.ComponentModel
 
         /// <summary>
         /// Initializes a new instance of the <see cref='System.ComponentModel.DefaultValueAttribute'/>
-        /// class using a <see cref='System.String'/>.
+        /// class using a <see cref='string'/>.
         /// </summary>
-        public DefaultValueAttribute(string value)
+        public DefaultValueAttribute(string? value)
         {
             _value = value;
         }
@@ -171,14 +174,14 @@ namespace System.ComponentModel
         /// Initializes a new instance of the <see cref='System.ComponentModel.DefaultValueAttribute'/>
         /// class.
         /// </summary>
-        public DefaultValueAttribute(object value)
+        public DefaultValueAttribute(object? value)
         {
             _value = value;
         }
 
         /// <summary>
         /// Initializes a new instance of the <see cref='System.ComponentModel.DefaultValueAttribute'/>
-        /// class using a <see cref='System.SByte'/> value.
+        /// class using a <see cref='sbyte'/> value.
         /// </summary>
         [CLSCompliant(false)]
         public DefaultValueAttribute(sbyte value)
@@ -188,7 +191,7 @@ namespace System.ComponentModel
 
         /// <summary>
         /// Initializes a new instance of the <see cref='System.ComponentModel.DefaultValueAttribute'/>
-        /// class using a <see cref='System.UInt16'/> value.
+        /// class using a <see cref='ushort'/> value.
         /// </summary>
         [CLSCompliant(false)]
         public DefaultValueAttribute(ushort value)
@@ -198,7 +201,7 @@ namespace System.ComponentModel
 
         /// <summary>
         /// Initializes a new instance of the <see cref='System.ComponentModel.DefaultValueAttribute'/>
-        /// class using a <see cref='System.UInt32'/> value.
+        /// class using a <see cref='uint'/> value.
         /// </summary>
         [CLSCompliant(false)]
         public DefaultValueAttribute(uint value)
@@ -208,7 +211,7 @@ namespace System.ComponentModel
 
         /// <summary>
         /// Initializes a new instance of the <see cref='System.ComponentModel.DefaultValueAttribute'/>
-        /// class using a <see cref='System.UInt64'/> value.
+        /// class using a <see cref='ulong'/> value.
         /// </summary>
         [CLSCompliant(false)]
         public DefaultValueAttribute(ulong value)
@@ -219,9 +222,9 @@ namespace System.ComponentModel
         /// <summary>
         /// Gets the default value of the property this attribute is bound to.
         /// </summary>
-        public virtual object Value => _value;
+        public virtual object? Value => _value;
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj == this)
             {
@@ -231,7 +234,7 @@ namespace System.ComponentModel
             {
                 return false;
             }
-            
+
             if (Value == null)
             {
                 return other.Value == null;
@@ -242,6 +245,6 @@ namespace System.ComponentModel
 
         public override int GetHashCode() => base.GetHashCode();
 
-        protected void SetValue(object value) => _value = value;
+        protected void SetValue(object? value) => _value = value;
     }
 }

@@ -29,7 +29,6 @@
 #include "asmconstants.h"
 #include "class.h"
 #include "virtualcallstub.h"
-#include "mdaassistants.h"
 #include "jitinterface.h"
 
 #ifdef FEATURE_COMINTEROP
@@ -48,7 +47,7 @@
 extern "C" DWORD STDCALL GetSpecificCpuTypeAsm(void);
 extern "C" DWORD STDCALL GetSpecificCpuFeaturesAsm(DWORD *pInfo);
 
-// NOTE on Frame Size C_ASSERT usage in this file 
+// NOTE on Frame Size C_ASSERT usage in this file
 // if the frame size changes then the stubs have to be revisited for correctness
 // kindly revist the logic and then update the constants so that the C_ASSERT will again fire
 // if someone changes the frame size.  You are expected to keep this hard coded constant
@@ -56,7 +55,7 @@ extern "C" DWORD STDCALL GetSpecificCpuFeaturesAsm(DWORD *pInfo);
 
 void generate_noref_copy (unsigned nbytes, StubLinkerCPU* sl);
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
 void UpdateRegDisplayFromCalleeSavedRegisters(REGDISPLAY * pRD, CalleeSavedRegisters * regs)
 {
     LIMITED_METHOD_CONTRACT;
@@ -80,7 +79,7 @@ void ClearRegDisplayArgumentAndScratchRegisters(REGDISPLAY * pRD)
     ENUM_ARGUMENT_AND_SCRATCH_REGISTERS();
 #undef ARGUMENT_AND_SCRATCH_REGISTER
 }
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 #ifndef DACCESS_COMPILE
 
@@ -103,12 +102,12 @@ void GetSpecificCpuInfo(CORINFO_CPU * cpuInfo)
     CORINFO_CPU tempVal;
     tempVal.dwCPUType = GetSpecificCpuTypeAsm();  // written in ASM & doesn't participate in contracts
     _ASSERTE(tempVal.dwCPUType);
-    
+
 #ifdef _DEBUG
     /* Set Family+Model+Stepping string (eg., x690 for Banias, or xF30 for P4 Prescott)
      * instead of Family only
      */
-     
+
     const DWORD cpuDefault = 0xFFFFFFFF;
     static ConfigDWORD cpuFamily;
     DWORD configCpuFamily = cpuFamily.val_DontUse_(CLRConfig::INTERNAL_CPUFamily, cpuDefault);
@@ -124,7 +123,7 @@ void GetSpecificCpuInfo(CORINFO_CPU * cpuInfo)
 #ifdef _DEBUG
     /* Set the 32-bit feature mask
      */
-    
+
     const DWORD cpuFeaturesDefault = 0xFFFFFFFF;
     static ConfigDWORD cpuFeatures;
     DWORD configCpuFeatures = cpuFeatures.val_DontUse_(CLRConfig::INTERNAL_CPUFeatures, cpuFeaturesDefault);
@@ -140,19 +139,19 @@ void GetSpecificCpuInfo(CORINFO_CPU * cpuInfo)
 #endif // #ifndef DACCESS_COMPILE
 
 
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
 //---------------------------------------------------------------------------------------
 //
 // Initialize the EHContext using the resume PC and the REGDISPLAY.  The EHContext is currently used in two
-// scenarios: to store the register state before calling an EH clause, and to retrieve the ambient SP of a 
+// scenarios: to store the register state before calling an EH clause, and to retrieve the ambient SP of a
 // particular stack frame.  resumePC means different things in the two scenarios.  In the former case, it
-// is the IP at which we are going to resume execution when we call an EH clause.  In the latter case, it 
+// is the IP at which we are going to resume execution when we call an EH clause.  In the latter case, it
 // is just the current IP.
 //
 // Arguments:
 //    resumePC - refer to the comment above
 //    regs     - This is the REGDISPLAY obtained from the CrawlFrame used in the stackwalk.  It represents the
-//               stack frame of the method containing the EH clause we are about to call.  For getting the 
+//               stack frame of the method containing the EH clause we are about to call.  For getting the
 //               ambient SP, this is the stack frame we are interested in.
 //
 
@@ -173,12 +172,12 @@ void EHContext::Setup(PCODE resumePC, PREGDISPLAY regs)
 //
 // Update the registers using new context
 //
-// This is necessary to reflect GC pointer changes during the middle of a unwind inside a 
+// This is necessary to reflect GC pointer changes during the middle of a unwind inside a
 // finally clause, because:
-// 1. GC won't see the part of stack inside try (which has thrown an exception) that is already 
-// unwinded and thus GC won't update GC pointers for this portion of the stack, but rather the 
+// 1. GC won't see the part of stack inside try (which has thrown an exception) that is already
+// unwinded and thus GC won't update GC pointers for this portion of the stack, but rather the
 // call stack in finally.
-// 2. upon return of finally, the unwind process continues and unwinds stack based on the part 
+// 2. upon return of finally, the unwind process continues and unwinds stack based on the part
 // of stack inside try and won't see the updated values in finally.
 // As a result, we need to manually update the context using register values upon return of finally
 //
@@ -190,21 +189,21 @@ void EHContext::Setup(PCODE resumePC, PREGDISPLAY regs)
 void EHContext::UpdateFrame(PREGDISPLAY regs)
 {
     LIMITED_METHOD_CONTRACT;
-    
-    // EAX ECX EDX are scratch. 
+
+    // EAX ECX EDX are scratch.
     // No need to update ESP as unwinder takes care of that for us
 
     LOG((LF_EH, LL_INFO1000, "Updating saved EBX: *%p= %p\n", regs->pEbx, this->Ebx));
     LOG((LF_EH, LL_INFO1000, "Updating saved ESI: *%p= %p\n", regs->pEsi, this->Esi));
     LOG((LF_EH, LL_INFO1000, "Updating saved EDI: *%p= %p\n", regs->pEdi, this->Edi));
     LOG((LF_EH, LL_INFO1000, "Updating saved EBP: *%p= %p\n", regs->pEbp, this->Ebp));
-    
+
     *regs->pEbx = this->Ebx;
     *regs->pEsi = this->Esi;
     *regs->pEdi = this->Edi;
     *regs->pEbp = this->Ebp;
 }
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 void TransitionFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 {
@@ -246,7 +245,7 @@ void TransitionFrame::UpdateRegDisplayHelper(const PREGDISPLAY pRD, UINT cbStack
 
     pRD->PCTAddr = GetReturnAddressPtr();
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
 
     DWORD CallerSP = (DWORD)(pRD->PCTAddr + sizeof(TADDR));
 
@@ -261,7 +260,7 @@ void TransitionFrame::UpdateRegDisplayHelper(const PREGDISPLAY pRD, UINT cbStack
 
     SyncRegDisplayToCurrentContext(pRD);
 
-#else // WIN64EXCEPTIONS
+#else // FEATURE_EH_FUNCLETS
 
     // reset pContext; it's only valid for active (top-most) frame
     pRD->pContext = NULL;
@@ -273,7 +272,7 @@ void TransitionFrame::UpdateRegDisplayHelper(const PREGDISPLAY pRD, UINT cbStack
     pRD->ControlPC = *PTR_PCODE(pRD->PCTAddr);
     pRD->SP  = (DWORD)(pRD->PCTAddr + sizeof(TADDR) + cbStackPop);
 
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
     RETURN;
 }
@@ -297,7 +296,7 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 
     pRD->PCTAddr = dac_cast<TADDR>(m_MachState.pRetAddr());
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
 
     pRD->IsCallerContextValid = FALSE;
     pRD->IsCallerSPValid      = FALSE;        // Don't add usage of this field.  This is only temporary.
@@ -350,7 +349,7 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 
     ClearRegDisplayArgumentAndScratchRegisters(pRD);
 
-#else // WIN64EXCEPTIONS
+#else // FEATURE_EH_FUNCLETS
 
     // reset pContext; it's only valid for active (top-most) frame
     pRD->pContext = NULL;
@@ -410,7 +409,7 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->ControlPC = m_MachState.GetRetAddr();
     pRD->SP  = (DWORD) m_MachState.esp();
 
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
     RETURN;
 }
@@ -418,7 +417,7 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 #ifdef _DEBUG_IMPL
 // Confirm that if the machine state was not initialized, then
 // any unspilled callee saved registers did not change
-EXTERN_C MachState* STDCALL HelperMethodFrameConfirmState(HelperMethodFrame* frame, void* esiVal, void* ediVal, void* ebxVal, void* ebpVal) 
+EXTERN_C MachState* STDCALL HelperMethodFrameConfirmState(HelperMethodFrame* frame, void* esiVal, void* ediVal, void* ebxVal, void* ebpVal)
     {
     CONTRACTL
     {
@@ -429,7 +428,7 @@ EXTERN_C MachState* STDCALL HelperMethodFrameConfirmState(HelperMethodFrame* fra
     }
     CONTRACTL_END;
 
-    MachState* state = frame->MachineState(); 
+    MachState* state = frame->MachineState();
 
     // if we've already executed this check once for this helper method frame then
     // we don't do the check again because it is very expensive.
@@ -503,7 +502,7 @@ void StubDispatchFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     {
         UpdateRegDisplayHelper(pRD, 0);
 
-        // If we do not have owning MethodDesc, we need to pretend that 
+        // If we do not have owning MethodDesc, we need to pretend that
         // the call happened on the call instruction to get the ESP unwound properly.
         //
         // This path is hit when we are throwing null reference exception from
@@ -548,7 +547,7 @@ void FaultingExceptionFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 
     pRD->PCTAddr = GetReturnAddressPtr();
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
 
     memcpy(pRD->pCurrentContext, &m_ctx, sizeof(CONTEXT));
 
@@ -566,7 +565,7 @@ void FaultingExceptionFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->IsCallerContextValid = FALSE;
     pRD->IsCallerSPValid = FALSE;        // Don't add usage of this field.  This is only temporary.
 
-#else // WIN64EXCEPTIONS
+#else // FEATURE_EH_FUNCLETS
 
     // reset pContext; it's only valid for active (top-most) frame
     pRD->pContext = NULL;
@@ -580,7 +579,7 @@ void FaultingExceptionFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->SP = m_Esp;
     pRD->ControlPC = *PTR_PCODE(pRD->PCTAddr);
 
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
     LOG((LF_GCROOTS, LL_INFO100000, "STACKWALK    FaultingExceptionFrame::UpdateRegDisplay(ip:%p, sp:%p)\n", pRD->ControlPC, pRD->SP));
 
@@ -596,7 +595,7 @@ void InlinedCallFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
         // We should skip over InlinedCallFrame if it is not active.
         // It will be part of a JITed method's frame, and the stack-walker
         // can handle such a case.
-#ifdef PROFILING_SUPPORTED        
+#ifdef PROFILING_SUPPORTED
         PRECONDITION(CORProfilerStackSnapshotEnabled() || InlinedCallFrame::FrameHasActiveCall(this));
 #endif
         HOST_NOCALLS;
@@ -612,8 +611,8 @@ void InlinedCallFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
         LOG((LF_CORDB, LL_ERROR, "WARNING: InlinedCallFrame::UpdateRegDisplay called on inactive frame %p\n", this));
         return;
     }
-    
-    DWORD stackArgSize = (DWORD) dac_cast<TADDR>(m_Datum);   
+
+    DWORD stackArgSize = (DWORD) dac_cast<TADDR>(m_Datum);
 
     if (stackArgSize & ~0xFFFF)
     {
@@ -630,7 +629,7 @@ void InlinedCallFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->PCTAddr = PTR_HOST_MEMBER_TADDR(InlinedCallFrame, this,
                                          m_pCallerReturnAddress);
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
 
     pRD->IsCallerContextValid = FALSE;
     pRD->IsCallerSPValid      = FALSE;        // Don't add usage of this field.  This is only temporary.
@@ -649,7 +648,7 @@ void InlinedCallFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 
     SyncRegDisplayToCurrentContext(pRD);
 
-#else // WIN64EXCEPTIONS
+#else // FEATURE_EH_FUNCLETS
 
     // reset pContext; it's only valid for active (top-most) frame
     pRD->pContext = NULL;
@@ -660,7 +659,7 @@ void InlinedCallFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     /* Now we need to pop off the outgoing arguments */
     pRD->SP  = (DWORD) dac_cast<TADDR>(m_pCallSiteSP) + stackArgSize;
 
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
     LOG((LF_GCROOTS, LL_INFO100000, "STACKWALK    InlinedCallFrame::UpdateRegDisplay(ip:%p, sp:%p)\n", pRD->ControlPC, pRD->SP));
 
@@ -691,7 +690,7 @@ void ResumableFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 
     pRD->PCTAddr = dac_cast<TADDR>(m_Regs) + offsetof(CONTEXT, Eip);
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
 
     CopyMemory(pRD->pCurrentContext, m_Regs, sizeof(T_CONTEXT));
 
@@ -709,7 +708,7 @@ void ResumableFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->IsCallerContextValid = FALSE;
     pRD->IsCallerSPValid      = FALSE;        // Don't add usage of this field.  This is only temporary.
 
-#else // WIN64EXCEPTIONS
+#else // FEATURE_EH_FUNCLETS
 
     // reset pContext; it's only valid for active (top-most) frame
     pRD->pContext = NULL;
@@ -749,7 +748,7 @@ void ResumableFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 
     pRD->SP  = m_Regs->Esp;
 
-#endif // !WIN64EXCEPTIONS
+#endif // !FEATURE_EH_FUNCLETS
 
     LOG((LF_GCROOTS, LL_INFO100000, "STACKWALK    ResumableFrame::UpdateRegDisplay(ip:%p, sp:%p)\n", pRD->ControlPC, pRD->SP));
 
@@ -770,7 +769,7 @@ void HijackFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 
     pRD->PCTAddr = dac_cast<TADDR>(m_Args) + offsetof(HijackArgs, Eip);
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
 
     pRD->IsCallerContextValid = FALSE;
     pRD->IsCallerSPValid      = FALSE;        // Don't add usage of this field.  This is only temporary.
@@ -790,7 +789,7 @@ void HijackFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 
     SyncRegDisplayToCurrentContext(pRD);
 
-#else // WIN64EXCEPTIONS
+#else // FEATURE_EH_FUNCLETS
 
     // This only describes the top-most frame
     pRD->pContext = NULL;
@@ -808,7 +807,7 @@ void HijackFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->ControlPC = *PTR_PCODE(pRD->PCTAddr);
     pRD->SP  = (DWORD)(pRD->PCTAddr + sizeof(TADDR));
 
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
     LOG((LF_GCROOTS, LL_INFO100000, "STACKWALK    HijackFrame::UpdateRegDisplay(ip:%p, sp:%p)\n", pRD->ControlPC, pRD->SP));
 }
@@ -849,7 +848,7 @@ void TailCallFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 
     pRD->PCTAddr = GetReturnAddressPtr();
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
 
     pRD->IsCallerContextValid = FALSE;
     pRD->IsCallerSPValid      = FALSE;        // Don't add usage of this field.  This is only temporary.
@@ -915,13 +914,13 @@ WORD GetUnpatchedCodeData(LPCBYTE pAddr)
                                                  &unpatchedOpcode))
     {
         // PRD_TYPE is supposed to be an opaque debugger structure representing data to remove a patch.
-        // Although PRD_TYPE is currently typedef'ed to be a DWORD_PTR, it's actually semantically just a BYTE. 
+        // Although PRD_TYPE is currently typedef'ed to be a DWORD_PTR, it's actually semantically just a BYTE.
         // (since a patch on x86 is just an 0xCC instruction).
         // Ideally, the debugger subsystem would expose a patch-code stripper that returns BYTE/WORD/etc, and
-        // not force us to crack it ourselves here. 
+        // not force us to crack it ourselves here.
         bLow = (BYTE) unpatchedOpcode;
     }
-    // 
+    //
 #endif
 
     WORD w = bLow + (bHigh << 8);
@@ -964,7 +963,7 @@ Stub *GenerateUMThunkPrestub()
     // mov ecx, [esi+UMThkCallFrame.pUMEntryThunk]
     psl->X86EmitIndexRegLoad(kECX, kESI, UMThkCallFrame::GetOffsetOfUMEntryThunk());
 
-    // The call conv is a __stdcall   
+    // The call conv is a __stdcall
     psl->X86EmitPushReg(kECX);
 
     // call UMEntryThunk::DoRunTimeInit
@@ -974,7 +973,7 @@ Stub *GenerateUMThunkPrestub()
     psl->X86EmitIndexRegLoad(kEAX, kESI, UMThkCallFrame::GetOffsetOfUMEntryThunk());
 
     //    lea eax, [eax + UMEntryThunk.m_code]  // point to fixedup UMEntryThunk
-    psl->X86EmitOp(0x8d, kEAX, kEAX, 
+    psl->X86EmitOp(0x8d, kEAX, kEAX,
                    UMEntryThunk::GetCodeOffset() + UMEntryThunkCode::GetEntryPointOffset());
 
     psl->EmitComMethodStubEpilog(UMThkCallFrame::GetMethodFrameVPtr(), rgRareLabels, rgRejoinLabels, FALSE /*Don't profile*/);
@@ -1035,165 +1034,6 @@ Stub *GenerateInitPInvokeFrameHelper()
 }
 
 
-
-#ifdef MDA_SUPPORTED
-
-//-----------------------------------------------------------------------------
-Stub *NDirectMethodDesc::GenerateStubForMDA(LPVOID pNativeTarget, Stub *pInnerStub)
-{
-    STANDARD_VM_CONTRACT;
-
-    CPUSTUBLINKER sl;
-    sl.X86EmitPushEBPframe();
-
-    DWORD callConv = (DWORD)(IsThisCall() ? pmCallConvThiscall : (IsStdCall() ? pmCallConvStdcall : pmCallConvCdecl));
-    _ASSERTE((callConv & StackImbalanceCookie::HAS_FP_RETURN_VALUE) == 0);
-
-    MetaSig msig(this);
-    if (msig.HasFPReturn())
-    {
-        // check for the HRESULT swapping impl flag
-        DWORD dwImplFlags;
-        IfFailThrow(GetMDImport()->GetMethodImplProps(GetMemberDef(), NULL, &dwImplFlags));
-
-        if (dwImplFlags & miPreserveSig)
-        {
-            // pass a flag to PInvokeStackImbalanceHelper that it should save & restore FPU return value
-            callConv |= StackImbalanceCookie::HAS_FP_RETURN_VALUE;
-        }
-    }
-
-    // init StackImbalanceCookie
-    sl.X86EmitPushReg(kEAX);       // m_dwSavedEsp (just making space)
-    sl.X86EmitPushImm32(callConv); // m_callConv
-
-    if (IsVarArgs())
-    {
-        // Re-push the return address as an argument to GetStackSizeForVarArgCall()
-        sl.X86EmitIndexPush(kEBP, 4);
-
-        // This will return the number of stack arguments (in DWORDs)
-        sl.X86EmitCall(sl.NewExternalCodeLabel((LPVOID)GetStackSizeForVarArgCall), 4);
-        
-        // shl eax,2
-        sl.Emit16(0xe0c1);
-        sl.Emit8(0x02);
-        
-        sl.X86EmitPushReg(kEAX); // m_dwStackArgSize
-    }
-    else
-    {
-        sl.X86EmitPushImm32(GetStackArgumentSize()); // m_dwStackArgSize
-    }
-
-    LPVOID pTarget = (pInnerStub != NULL ? (LPVOID)pInnerStub->GetEntryPoint() : pNativeTarget);
-    sl.X86EmitPushImmPtr(pTarget);       // m_pTarget
-    sl.X86EmitPushImmPtr(this);          // m_pMD
-
-    // stack layout at this point
-
-    // |          ...          |
-    // |    stack arguments    | EBP + 8
-    // +-----------------------+
-    // |    return address     | EBP + 4
-    // +-----------------------+
-    // |      saved EBP        | EBP + 0
-    // +-----------------------+
-    // | SIC::m_dwSavedEsp     |
-    // | SIC::m_callConv       |
-    // | SIC::m_dwStackArgSize |
-    // | SIC::m_pTarget        |
-    // | SIC::m_pMD            | EBP - 20
-    // ------------------------
-
-    // call the helper
-    sl.X86EmitCall(sl.NewExternalCodeLabel(PInvokeStackImbalanceHelper), sizeof(StackImbalanceCookie));
-
-    //  pop StackImbalanceCookie
-    sl.X86EmitMovSPReg(kEBP);
-
-    sl.X86EmitPopReg(kEBP);
-    sl.X86EmitReturn((IsStdCall() || IsThisCall()) ? GetStackArgumentSize() : 0);
-
-    if (pInnerStub)
-    {
-        return sl.LinkInterceptor(GetLoaderAllocator()->GetStubHeap(), pInnerStub, pNativeTarget);
-    }
-    else
-    {
-        return sl.Link(GetLoaderAllocator()->GetStubHeap());
-    }
-}
-
-//-----------------------------------------------------------------------------
-// static
-Stub *COMDelegate::GenerateStubForMDA(MethodDesc *pInvokeMD, MethodDesc *pStubMD, LPVOID pNativeTarget, Stub *pInnerStub)
-{
-    STANDARD_VM_CONTRACT;
-
-    WORD wStackArgSize = pStubMD->AsDynamicMethodDesc()->GetNativeStackArgSize();
-
-    // get unmanaged calling convention from pInvokeMD's metadata
-    PInvokeStaticSigInfo sigInfo(pInvokeMD);
-    DWORD callConv = (DWORD)sigInfo.GetCallConv();
-    _ASSERTE((callConv & StackImbalanceCookie::HAS_FP_RETURN_VALUE) == 0);
-
-    MetaSig msig(pInvokeMD);
-    if (msig.HasFPReturn())
-    {
-        // pass a flag to PInvokeStackImbalanceHelper that it should save & restore FPU return value
-        callConv |= StackImbalanceCookie::HAS_FP_RETURN_VALUE;
-    }
-
-    CPUSTUBLINKER sl;
-    sl.X86EmitPushEBPframe();
-
-    LPVOID pTarget = (pInnerStub != NULL ? (LPVOID)pInnerStub->GetEntryPoint() : pNativeTarget);
-
-    // init StackImbalanceCookie
-    sl.X86EmitPushReg(kEAX);             // m_dwSavedEsp (just making space)
-    sl.X86EmitPushImm32(callConv);       // m_callConv
-    sl.X86EmitPushImm32(wStackArgSize);  // m_dwStackArgSize
-    sl.X86EmitPushImmPtr(pTarget);       // m_pTarget
-    sl.X86EmitPushImmPtr(pInvokeMD);     // m_pMD
-
-    // stack layout at this point
-
-    // |          ...          |
-    // |    stack arguments    | EBP + 8
-    // +-----------------------+
-    // |    return address     | EBP + 4
-    // +-----------------------+
-    // |      saved EBP        | EBP + 0
-    // +-----------------------+
-    // | SIC::m_dwSavedEsp     |
-    // | SIC::m_callConv       |
-    // | SIC::m_dwStackArgSize |
-    // | SIC::m_pTarget        |
-    // | SIC::m_pMD            | EBP - 20
-    // ------------------------
-
-    // call the helper
-    sl.X86EmitCall(sl.NewExternalCodeLabel(PInvokeStackImbalanceHelper), sizeof(StackImbalanceCookie));
-
-    //  pop StackImbalanceCookie
-    sl.X86EmitMovSPReg(kEBP);
-
-    sl.X86EmitPopReg(kEBP);
-    sl.X86EmitReturn(callConv == pmCallConvCdecl ? 0 : wStackArgSize);
-
-    if (pInnerStub != NULL)
-    {
-        return sl.LinkInterceptor(pInnerStub, pNativeTarget);
-    }
-    else
-    {
-        return sl.Link(); // don't use loader heap as we want to be able to free the stub
-    }
-}
-
-#endif // MDA_SUPPORTED
-
 extern "C" VOID STDCALL StubRareEnableWorker(Thread *pThread)
 {
     WRAPPER_NO_CONTRACT;
@@ -1211,27 +1051,13 @@ extern "C" VOID STDCALL StubRareDisableTHROWWorker(Thread *pThread)
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
 
-    // Do not add a CONTRACT here.  We haven't set up SEH.  We rely
-    // on HandleThreadAbort and COMPlusThrowBoot dealing with this situation properly.
+    // Do not add a CONTRACT here.  We haven't set up SEH.
 
     // WARNING!!!!
     // when we start executing here, we are actually in cooperative mode.  But we
     // haven't synchronized with the barrier to reentry yet.  So we are in a highly
     // dangerous mode.  If we call managed code, we will potentially be active in
     // the GC heap, even as GC's are occuring!
-
-    // Check for ShutDown scenario.  This happens only when we have initiated shutdown 
-    // and someone is trying to call in after the CLR is suspended.  In that case, we
-    // must either raise an unmanaged exception or return an HRESULT, depending on the
-    // expectations of our caller.
-    if (!CanRunManagedCode())
-    {
-        // DO NOT IMPROVE THIS EXCEPTION!  It cannot be a managed exception.  It
-        // cannot be a real exception object because we cannot execute any managed
-        // code here.
-        pThread->m_fPreemptiveGCDisabled = 0;
-        COMPlusThrowBoot(E_PROCESS_SHUTDOWN_REENTRY);
-    }
 
     // We must do the following in this order, because otherwise we would be constructing
     // the exception for the abort without synchronizing with the GC.  Also, we have no
@@ -1328,7 +1154,7 @@ extern "C" DWORD __stdcall getcpuid(DWORD arg, unsigned char result[16])
     }
 }
 
-// The following function uses Deterministic Cache Parameter leafs to determine the cache hierarchy information on Prescott & Above platforms. 
+// The following function uses Deterministic Cache Parameter leafs to determine the cache hierarchy information on Prescott & Above platforms.
 //  This function takes 3 arguments:
 //     Arg1 is an input to ECX. Used as index to specify which cache level to return infoformation on by CPUID.
 //     Arg2 is an input to EAX. For deterministic code enumeration, we pass in 4H in arg2.
@@ -1523,6 +1349,7 @@ BOOL DoesSlotCallPrestub(PCODE pCode)
     return pCode == GetPreStubEntryPoint();
 }
 
+#ifdef FEATURE_PREJIT
 //==========================================================================================
 // In NGen image, virtual slots inherited from cross-module dependencies point to jump thunks.
 // These jump thunk initially point to VirtualMethodFixupStub which transfers control here.
@@ -1581,8 +1408,7 @@ EXTERN_C PVOID STDCALL VirtualMethodFixupWorker(Object * pThisPtr,  CORCOMPILE_V
             *(INT32 *)(&pNewValue[1]) = (INT32) pcRelOffset;
 
             _ASSERTE(IS_ALIGNED(pThunk, sizeof(INT64)));
-            if (EnsureWritableExecutablePagesNoThrow(pThunk, sizeof(INT64)))
-                FastInterlockCompareExchangeLong((INT64*)pThunk, newValue, oldValue);
+            FastInterlockCompareExchangeLong((INT64*)pThunk, newValue, oldValue);
 
             FlushInstructionCache(GetCurrentProcess(), pThunk, 8);
         }
@@ -1590,7 +1416,7 @@ EXTERN_C PVOID STDCALL VirtualMethodFixupWorker(Object * pThisPtr,  CORCOMPILE_V
 
     return PVOID(pCode);
 }
-
+#endif // FEATURE_PREJIT
 
 #ifdef FEATURE_READYTORUN
 

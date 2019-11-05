@@ -4,7 +4,7 @@
 //
 
 #include <assert.h>
-#include <pthread.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <search.h>
@@ -17,12 +17,18 @@ c_static_assert_msg(UCOL_LESS < 0, "managed side requires less than zero for a <
 c_static_assert_msg(UCOL_GREATER > 0, "managed side requires greater than zero for a > b");
 c_static_assert_msg(USEARCH_DONE == -1, "managed side requires -1 for not found");
 
-const int32_t CompareOptionsIgnoreCase = 0x1;
-const int32_t CompareOptionsIgnoreNonSpace = 0x2;
-const int32_t CompareOptionsIgnoreSymbols = 0x4;
-const int32_t CompareOptionsIgnoreKanaType = 0x8;
-const int32_t CompareOptionsIgnoreWidth = 0x10;
-// const int32_t CompareOptionsStringSort = 0x20000000;
+#define UCOL_IGNORABLE 0
+#define UCOL_PRIMARYORDERMASK 0xFFFF0000
+#define UCOL_SECONDARYORDERMASK 0x0000FF00
+#define UCOL_TERTIARYORDERMASK 0x000000FF
+
+#define CompareOptionsIgnoreCase 0x1
+#define CompareOptionsIgnoreNonSpace 0x2
+#define CompareOptionsIgnoreSymbols 0x4
+#define CompareOptionsIgnoreKanaType 0x8
+#define CompareOptionsIgnoreWidth 0x10
+#define CompareOptionsMask 0x1f
+// #define CompareOptionsStringSort 0x20000000
 // ICU's default is to use "StringSort", i.e. nonalphanumeric symbols come before alphanumeric.
 // When StringSort is not specified (.NET's default), the sort order will be different between
 // Windows and Unix platforms. The nonalphanumeric symbols will come after alphanumeric
@@ -41,21 +47,10 @@ typedef struct { int32_t key; UCollator* UCollator; } TCollatorMap;
  */
 struct SortHandle
 {
-    UCollator* regular;
-    pthread_mutex_t collatorsLockObject;
-    void* collatorsPerOptionRoot;
+    UCollator* collatorsPerOption[CompareOptionsMask + 1];
 };
 
-typedef struct { UChar* items; size_t capacity; size_t size; } UCharList;
-
-static int TreeComparer(const void* left, const void* right)
-{
-    const TCollatorMap* leftMap = left;
-    const TCollatorMap* rightMap = right;
-    if (leftMap->key < rightMap->key) return -1;
-    if (leftMap->key > rightMap->key) return 1;
-    return 0;
-}
+typedef struct { UChar* items; size_t size; } UCharList;
 
 // Hiragana character range
 const UChar hiraganaStart = 0x3041;
@@ -137,24 +132,6 @@ static int IsHalfFullHigherSymbol(UChar character)
         || (0xff61 <= character && character <= 0xff65);
 }
 
-static int AddItem(UCharList* list, const UChar item)
-{
-    size_t size = list->size++;
-    if (size >= list->capacity)
-    {
-        list->capacity *= 2;
-        UChar* ptr = (UChar*)realloc(list->items, list->capacity * sizeof(UChar*));
-        if (ptr == NULL)
-        {
-            return FALSE;
-        }
-        list->items = ptr;
-    }
-
-    list->items[size] = item;
-    return TRUE;
-}
-
 /*
 Gets a string of custom collation rules, if necessary.
 
@@ -184,18 +161,18 @@ static UCharList* GetCustomRules(int32_t options, UColAttributeValue strength, i
     }
 
     // If we need to create customRules, the KanaType custom rule will be 88 kana characters * 4 = 352 chars long
-    // and the Width custom rule will be at least 215 halfwidth characters * 4 = 860 chars long.
-    // Use 512 as the starting size, so the customRules won't have to grow if we are just
-    // doing the KanaType custom rule.
-    customRules->capacity = 512;
-    customRules->items = calloc(customRules->capacity, sizeof(UChar));
+    // and the Width custom rule will be at most 212 halfwidth characters * 5 = 1060 chars long.
+    int capacity =
+        ((needsIgnoreKanaTypeCustomRule || needsNotIgnoreKanaTypeCustomRule) ? 4 * (hiraganaEnd - hiraganaStart + 1) : 0) +
+        ((needsIgnoreWidthCustomRule || needsNotIgnoreWidthCustomRule) ? 5 * g_HalfFullCharsLength : 0);
+
+    UChar* items;
+    customRules->items = items = malloc(capacity * sizeof(UChar));
     if (customRules->items == NULL)
     {
         free(customRules);
         return NULL;
     }
-
-    customRules->size = 0;
 
     if (needsIgnoreKanaTypeCustomRule || needsNotIgnoreKanaTypeCustomRule)
     {
@@ -206,15 +183,11 @@ static UCharList* GetCustomRules(int32_t options, UColAttributeValue strength, i
             // Hiragana is the range 3041 to 3096 & 309D & 309E
             if (hiraganaChar <= 0x3096 || hiraganaChar >= 0x309D) // characters between 3096 and 309D are not mapped to katakana
             {
-                if(!(AddItem(customRules, '&')              &&
-                     AddItem(customRules, hiraganaChar)     &&
-                     AddItem(customRules, compareChar)      &&
-                     AddItem(customRules, hiraganaChar + hiraganaToKatakanaOffset)))
-                {
-                    free(customRules->items);
-                    free(customRules);
-                    return NULL;
-                }
+                assert(items - customRules->items <= capacity - 4);
+                *(items++) = '&';
+                *(items++) = hiraganaChar;
+                *(items++) = compareChar;
+                *(items++) = hiraganaChar + hiraganaToKatakanaOffset;
             }
         }
     }
@@ -237,19 +210,20 @@ static UCharList* GetCustomRules(int32_t options, UColAttributeValue strength, i
             // this character is a symbol, and if so skip it
             if (!(isIgnoreSymbols && needsNotIgnoreWidthCustomRule && (needsEscape || IsHalfFullHigherSymbol(higherChar))))
             {
-                if(!(AddItem(customRules, '&')                    &&
-                   (!needsEscape || AddItem(customRules, '\\'))   &&
-                   AddItem(customRules, lowerChar)                &&
-                   AddItem(customRules, compareChar)              &&
-                   AddItem(customRules, higherChar)))
+                assert(items - customRules->items <= capacity - 5);
+                *(items++) = '&';
+                if (needsEscape)
                 {
-                    free(customRules->items);
-                    free(customRules);
-                    return NULL;
+                    *(items++) = '\\';
                 }
+                *(items++) = lowerChar;
+                *(items++) = compareChar;
+                *(items++) = higherChar;
             }
         }
     }
+
+    customRules->size = items - customRules->items;
 
     return customRules;
 }
@@ -280,7 +254,7 @@ UCollator* CloneCollatorWithOptions(const UCollator* pCollator, int32_t options,
 
     UCollator* pClonedCollator;
     UCharList* customRules = GetCustomRules(options, strength, isIgnoreSymbols);
-    if (customRules == NULL)
+    if (customRules == NULL || customRules->size == 0)
     {
         pClonedCollator = ucol_safeClone(pCollator, NULL, NULL, pErr);
     }
@@ -305,8 +279,8 @@ UCollator* CloneCollatorWithOptions(const UCollator* pCollator, int32_t options,
 
         pClonedCollator = ucol_openRules(completeRules, completeRulesLength, UCOL_DEFAULT, strength, NULL, pErr);
         free(completeRules);
-        free(customRules);
     }
+    free(customRules);
 
     if (isIgnoreSymbols)
     {
@@ -349,7 +323,7 @@ static int CanIgnoreAllCollationElements(const UCollator* pColl, const UChar* lp
         int32_t curCollElem = UCOL_NULLORDER;
         while ((curCollElem = ucol_next(pCollElem, &err)) != UCOL_NULLORDER)
         {
-            if (curCollElem != 0)
+            if (curCollElem != UCOL_IGNORABLE)
             {
                 result = FALSE;
                 break;
@@ -360,7 +334,6 @@ static int CanIgnoreAllCollationElements(const UCollator* pColl, const UChar* lp
     }
 
     return U_SUCCESS(err) ? result : FALSE;
-
 }
 
 void CreateSortHandle(SortHandle** ppSortHandle)
@@ -371,13 +344,7 @@ void CreateSortHandle(SortHandle** ppSortHandle)
         return;
     }
 
-    (*ppSortHandle)->collatorsPerOptionRoot = NULL;
-    int result = pthread_mutex_init(&(*ppSortHandle)->collatorsLockObject, NULL);
-
-    if (result != 0)
-    {
-        assert(FALSE && "Unexpected pthread_mutex_init return value.");
-    }
+    memset(*ppSortHandle, 0, sizeof(SortHandle));
 }
 
 ResultCode GlobalizationNative_GetSortHandle(const char* lpLocaleName, SortHandle** ppSortHandle)
@@ -392,11 +359,10 @@ ResultCode GlobalizationNative_GetSortHandle(const char* lpLocaleName, SortHandl
 
     UErrorCode err = U_ZERO_ERROR;
 
-    (*ppSortHandle)->regular = ucol_open(lpLocaleName, &err);
+    (*ppSortHandle)->collatorsPerOption[0] = ucol_open(lpLocaleName, &err);
 
     if (U_FAILURE(err))
     {
-        pthread_mutex_destroy(&(*ppSortHandle)->collatorsLockObject);
         free(*ppSortHandle);
         (*ppSortHandle) = NULL;
     }
@@ -406,55 +372,46 @@ ResultCode GlobalizationNative_GetSortHandle(const char* lpLocaleName, SortHandl
 
 void GlobalizationNative_CloseSortHandle(SortHandle* pSortHandle)
 {
-    ucol_close(pSortHandle->regular);
-    pSortHandle->regular = NULL;
-
-    while (pSortHandle->collatorsPerOptionRoot != NULL)
+    for (int i = 0; i <= CompareOptionsMask; i++)
     {
-        TCollatorMap* data = *(TCollatorMap **)pSortHandle->collatorsPerOptionRoot;
-        tdelete(data, &pSortHandle->collatorsPerOptionRoot, TreeComparer);
-        ucol_close(data->UCollator);
-        free(data);
+        if (pSortHandle->collatorsPerOption[i] != NULL)
+        {
+            ucol_close(pSortHandle->collatorsPerOption[i]);
+            pSortHandle->collatorsPerOption[i] = NULL;
+        }
     }
-
-    pthread_mutex_destroy(&pSortHandle->collatorsLockObject);
 
     free(pSortHandle);
 }
 
 const UCollator* GetCollatorFromSortHandle(SortHandle* pSortHandle, int32_t options, UErrorCode* pErr)
 {
-    UCollator* pCollator;
     if (options == 0)
     {
-        pCollator = pSortHandle->regular;
+        return pSortHandle->collatorsPerOption[0];
     }
     else
     {
-        int lockResult = pthread_mutex_lock(&pSortHandle->collatorsLockObject);
-        if (lockResult != 0)
+        options &= CompareOptionsMask;
+        UCollator* pCollator = pSortHandle->collatorsPerOption[options];
+        if (pCollator != NULL)
         {
-            assert(FALSE && "Unexpected pthread_mutex_lock return value.");
+            return pCollator;
         }
 
-        TCollatorMap* map = (TCollatorMap*)malloc(sizeof(TCollatorMap));
-        map->key = options;
-        void* entry = tsearch(map, &pSortHandle->collatorsPerOptionRoot, TreeComparer);
-        if ((*(TCollatorMap**)entry) == map)
+        pCollator = CloneCollatorWithOptions(pSortHandle->collatorsPerOption[0], options, pErr);
+        UCollator* pNull = NULL;
+
+        // we are not using the standard atomic_compare_exchange_strong to workaround bugs in clang 5.0 (https://bugs.llvm.org/show_bug.cgi?id=37457)
+        if (!__atomic_compare_exchange_n(&pSortHandle->collatorsPerOption[options], &pNull, pCollator, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
         {
-            pCollator = CloneCollatorWithOptions(pSortHandle->regular, options, pErr);
-            map->UCollator = pCollator;
-        }
-        else
-        {
-            free(map);
-            pCollator = (*(TCollatorMap**)entry)->UCollator;
+            ucol_close(pCollator);
+            pCollator = pSortHandle->collatorsPerOption[options];
+            assert(pCollator != NULL && "pCollator not expected to be null here.");
         }
 
-        pthread_mutex_unlock(&pSortHandle->collatorsLockObject);
+        return pCollator;
     }
-
-    return pCollator;
 }
 
 int32_t GlobalizationNative_GetSortVersion(SortHandle* pSortHandle)
@@ -614,12 +571,12 @@ int32_t GlobalizationNative_IndexOfOrdinalIgnoreCase(
             U16_NEXT(trg, trgIdx, cwTargetLength, trgCodepoint);
             if (!AreEqualOrdinalIgnoreCase(srcCodepoint, trgCodepoint))
             {
-                match = FALSE; 
+                match = FALSE;
                 break;
             }
         }
 
-        if (match) 
+        if (match)
         {
             result = i;
             if (!findLast)
@@ -629,6 +586,142 @@ int32_t GlobalizationNative_IndexOfOrdinalIgnoreCase(
         }
 
         U16_FWD_1(lpSource, i, cwSourceLength);
+    }
+
+    return result;
+}
+
+/*
+ collation element is an int used for sorting. It consists of 3 components:
+    * primary - first 16 bits, representing the base letter
+    * secondary - next 8 bits, typically an accent
+    * tertiary - last 8 bits, typically the case
+
+An example (the numbers are made up to keep it simple)
+    a: 1 0 0
+    ą: 1 1 0
+    A: 1 0 1
+    Ą: 1 1 1
+
+    this method returns a mask that allows for characters comparison using specified Collator Strength
+*/
+static int32_t GetCollationElementMask(UColAttributeValue strength)
+{
+    assert(strength >= UCOL_SECONDARY);
+
+    switch (strength)
+    {
+        case UCOL_PRIMARY:
+            return UCOL_PRIMARYORDERMASK;
+        case UCOL_SECONDARY:
+            return UCOL_PRIMARYORDERMASK | UCOL_SECONDARYORDERMASK;
+        default:
+            return UCOL_PRIMARYORDERMASK | UCOL_SECONDARYORDERMASK | UCOL_TERTIARYORDERMASK;
+    }
+}
+
+static int32_t inline SimpleAffix_Iterators(UCollationElements* pPatternIterator, UCollationElements* pSourceIterator, UColAttributeValue strength, int32_t forwardSearch)
+{
+    assert(strength >= UCOL_SECONDARY);
+
+    UErrorCode errorCode = U_ZERO_ERROR;
+    int32_t movePattern = TRUE, moveSource = TRUE;
+    int32_t patternElement = UCOL_IGNORABLE, sourceElement = UCOL_IGNORABLE;
+
+    int32_t collationElementMask = GetCollationElementMask(strength);
+
+    while (TRUE)
+    {
+        if (movePattern)
+        {
+            patternElement = forwardSearch ? ucol_next(pPatternIterator, &errorCode) : ucol_previous(pPatternIterator, &errorCode);
+        }
+        if (moveSource)
+        {
+            sourceElement = forwardSearch ? ucol_next(pSourceIterator, &errorCode) : ucol_previous(pSourceIterator, &errorCode);
+        }
+        movePattern = TRUE; moveSource = TRUE;
+
+        if (patternElement == UCOL_NULLORDER)
+        {
+            if (sourceElement == UCOL_NULLORDER)
+            {
+                return TRUE; // source is equal to pattern, we have reached both ends|beginnings at the same time
+            }
+            else if (sourceElement == UCOL_IGNORABLE)
+            {
+                return TRUE; // the next|previous character in source is an ignorable character, an example: "o\u0000".StartsWith("o")
+            }
+            else if (forwardSearch && ((sourceElement & UCOL_PRIMARYORDERMASK) == 0) && (sourceElement & UCOL_SECONDARYORDERMASK) != 0)
+            {
+                return FALSE; // the next character in source text is a combining character, an example: "o\u0308".StartsWith("o")
+            }
+            else
+            {
+                return TRUE;
+            }
+        }
+        else if (patternElement == UCOL_IGNORABLE)
+        {
+            moveSource = FALSE;
+        }
+        else if (sourceElement == UCOL_IGNORABLE)
+        {
+            movePattern = FALSE;
+        }
+        else if ((patternElement & collationElementMask) != (sourceElement & collationElementMask))
+        {
+            return FALSE;
+        }
+    }
+}
+
+int32_t SimpleAffix(const UCollator* pCollator, UErrorCode* pErrorCode, const UChar* pPattern, int32_t patternLength, const UChar* pText, int32_t textLength, int32_t options, int32_t forwardSearch)
+{
+    assert(options <= CompareOptionsIgnoreCase);
+
+    int32_t result = FALSE;
+
+    UCollationElements* pPatternIterator = ucol_openElements(pCollator, pPattern, patternLength, pErrorCode);
+    if (U_SUCCESS(*pErrorCode))
+    {
+        UCollationElements* pSourceIterator = ucol_openElements(pCollator, pText, textLength, pErrorCode);
+        if (U_SUCCESS(*pErrorCode))
+        {
+            UColAttributeValue strength = ucol_getStrength(pCollator);
+
+            result = SimpleAffix_Iterators(pPatternIterator, pSourceIterator, strength, forwardSearch);
+
+            ucol_closeElements(pSourceIterator);
+        }
+
+        ucol_closeElements(pPatternIterator);
+    }
+
+    return result;
+}
+
+int32_t ComplexStartsWith(const UCollator* pCollator, UErrorCode* pErrorCode, const UChar* pPattern, int32_t patternLength, const UChar* pText, int32_t textLength)
+{
+    int32_t result = FALSE;
+
+    UStringSearch* pSearch = usearch_openFromCollator(pPattern, patternLength, pText, textLength, pCollator, NULL, pErrorCode);
+    if (U_SUCCESS(*pErrorCode))
+    {
+        int32_t idx = usearch_first(pSearch, pErrorCode);
+        if (idx != USEARCH_DONE)
+        {
+            if (idx == 0)
+            {
+                result = TRUE;
+            }
+            else
+            {
+                result = CanIgnoreAllCollationElements(pCollator, pText, idx);
+            }
+        }
+
+        usearch_close(pSearch);
     }
 
     return result;
@@ -645,32 +738,48 @@ int32_t GlobalizationNative_StartsWith(
                         int32_t cwSourceLength,
                         int32_t options)
 {
-    int32_t result = FALSE;
+
     UErrorCode err = U_ZERO_ERROR;
-    const UCollator* pColl = GetCollatorFromSortHandle(pSortHandle, options, &err);
+    const UCollator* pCollator = GetCollatorFromSortHandle(pSortHandle, options, &err);
 
-    if (U_SUCCESS(err))
+    if (!U_SUCCESS(err))
     {
-        UStringSearch* pSearch = usearch_openFromCollator(lpTarget, cwTargetLength, lpSource, cwSourceLength, pColl, NULL, &err);
-        int32_t idx = USEARCH_DONE;
+        return FALSE;
+    }
+    else if (options > CompareOptionsIgnoreCase)
+    {
+        return ComplexStartsWith(pCollator, &err, lpTarget, cwTargetLength, lpSource, cwSourceLength);
+    }
+    else
+    {
+        return SimpleAffix(pCollator, &err, lpTarget, cwTargetLength, lpSource, cwSourceLength, options, TRUE);
+    }
+}
 
-        if (U_SUCCESS(err))
+int32_t ComplexEndsWith(const UCollator* pCollator, UErrorCode* pErrorCode, const UChar* pPattern, int32_t patternLength, const UChar* pText, int32_t textLength)
+{
+    int32_t result = FALSE;
+
+    UStringSearch* pSearch = usearch_openFromCollator(pPattern, patternLength, pText, textLength, pCollator, NULL, pErrorCode);
+    if (U_SUCCESS(*pErrorCode))
+    {
+        int32_t idx = usearch_last(pSearch, pErrorCode);
+        if (idx != USEARCH_DONE)
         {
-            idx = usearch_first(pSearch, &err);
-            if (idx != USEARCH_DONE)
+            if ((idx + usearch_getMatchedLength(pSearch)) == patternLength)
             {
-                if (idx == 0)
-                {
-                    result = TRUE;
-                }
-                else
-                {
-                    result = CanIgnoreAllCollationElements(pColl, lpSource, idx);
-                }
+                result = TRUE;
             }
+            else
+            {
+                int32_t matchEnd = idx + usearch_getMatchedLength(pSearch);
+                int32_t remainingStringLength = patternLength - matchEnd;
 
-            usearch_close(pSearch);
+                result = CanIgnoreAllCollationElements(pCollator, pText + matchEnd, remainingStringLength);
+            }
         }
+
+        usearch_close(pSearch);
     }
 
     return result;
@@ -687,39 +796,21 @@ int32_t GlobalizationNative_EndsWith(
                         int32_t cwSourceLength,
                         int32_t options)
 {
-    int32_t result = FALSE;
     UErrorCode err = U_ZERO_ERROR;
-    const UCollator* pColl = GetCollatorFromSortHandle(pSortHandle, options, &err);
+    const UCollator* pCollator = GetCollatorFromSortHandle(pSortHandle, options, &err);
 
-    if (U_SUCCESS(err))
+    if (!U_SUCCESS(err))
     {
-        UStringSearch* pSearch = usearch_openFromCollator(lpTarget, cwTargetLength, lpSource, cwSourceLength, pColl, NULL, &err);
-        int32_t idx = USEARCH_DONE;
-
-        if (U_SUCCESS(err))
-        {
-            idx = usearch_last(pSearch, &err);
-
-            if (idx != USEARCH_DONE)
-            {
-                if ((idx + usearch_getMatchedLength(pSearch)) == cwSourceLength)
-                {
-                    result = TRUE;
-                }
-                else
-                {
-                    int32_t matchEnd = idx + usearch_getMatchedLength(pSearch);
-                    int32_t remainingStringLength = cwSourceLength - matchEnd;
-
-                    result = CanIgnoreAllCollationElements(pColl, lpSource + matchEnd, remainingStringLength);
-                }
-            }
-
-            usearch_close(pSearch);
-        }
+        return FALSE;
     }
-
-    return result;
+    else if (options > CompareOptionsIgnoreCase)
+    {
+        return ComplexEndsWith(pCollator, &err, lpTarget, cwTargetLength, lpSource, cwSourceLength);
+    }
+    else
+    {
+        return SimpleAffix(pCollator, &err, lpTarget, cwTargetLength, lpSource, cwSourceLength, options, FALSE);
+    }
 }
 
 int32_t GlobalizationNative_GetSortKey(

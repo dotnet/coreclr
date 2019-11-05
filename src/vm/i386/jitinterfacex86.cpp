@@ -23,14 +23,14 @@
 #include "eventtrace.h"
 #include "threadsuspend.h"
 
-#if defined(_DEBUG) && !defined (WRITE_BARRIER_CHECK) 
+#if defined(_DEBUG) && !defined (WRITE_BARRIER_CHECK)
 #define WRITE_BARRIER_CHECK 1
 #endif
 
 // To test with MON_DEBUG off, comment out the following line. DO NOT simply define
 // to be 0 as the checks are for #ifdef not #if 0.
-// 
-#ifdef _DEBUG 
+//
+#ifdef _DEBUG
 #define MON_DEBUG 1
 #endif
 
@@ -45,7 +45,6 @@ public:
         OBJ_ARRAY    = 0x4,
         ALIGN8       = 0x8,     // insert a dummy object to insure 8 byte alignment (until the next GC)
         ALIGN8OBJ    = 0x10,
-        NO_FRAME     = 0x20,    // call is from unmanaged code - don't try to put up a frame
     };
 
     static void *GenAllocSFast(Flags flags);
@@ -65,7 +64,7 @@ extern "C" LONG g_global_alloc_lock;
 extern "C" void STDCALL JIT_WriteBarrierReg_PreGrow();// JIThelp.asm/JIThelp.s
 extern "C" void STDCALL JIT_WriteBarrierReg_PostGrow();// JIThelp.asm/JIThelp.s
 
-#ifdef _DEBUG 
+#ifdef _DEBUG
 extern "C" void STDCALL WriteBarrierAssert(BYTE* ptr, Object* obj)
 {
     WRAPPER_NO_CONTRACT;
@@ -77,8 +76,11 @@ extern "C" void STDCALL WriteBarrierAssert(BYTE* ptr, Object* obj)
 
     if (fVerifyHeap)
     {
-        obj->Validate(FALSE);
-        if(GCHeapUtilities::GetGCHeap()->IsHeapPointer(ptr))
+        if (obj)
+        {
+            obj->Validate(FALSE);
+        }
+        if (GCHeapUtilities::GetGCHeap()->IsHeapPointer(ptr))
         {
             Object* pObj = *(Object**)ptr;
             _ASSERTE (pObj == NULL || GCHeapUtilities::GetGCHeap()->IsHeapPointer(pObj));
@@ -154,7 +156,7 @@ NotExactMatch:
         push EDX                    // element type handle
         push EAX                    // object
 
-        call ObjIsInstanceOfNoGC
+        call ObjIsInstanceOfCached
 
         pop ECX                     // caller-restore ECX and EDX
         pop EDX
@@ -247,7 +249,7 @@ extern "C" __declspec(naked) Object* F_CALL_CONV JIT_IsInstanceOfClass(MethodTab
 #if defined(FEATURE_TYPEEQUIVALENCE)
     SlowPath:
         jmp             JITutil_IsInstanceOfAny
-#endif            
+#endif
     }
 }
 
@@ -582,7 +584,7 @@ void JIT_TrialAlloc::EmitCore(CPUSTUBLINKER *psl, CodeLabel *noLock, CodeLabel *
     }
 
 
-#ifdef INCREMENTAL_MEMCLR 
+#ifdef INCREMENTAL_MEMCLR
     // <TODO>We're planning to get rid of this anyhow according to Patrick</TODO>
     _ASSERTE(!"NYI");
 #endif // INCREMENTAL_MEMCLR
@@ -767,47 +769,6 @@ void *JIT_TrialAlloc::GenBox(Flags flags)
     return (void *)pStub->GetEntryPoint();
 }
 
-
-HCIMPL2_RAW(Object*, UnframedAllocateObjectArray, MethodTable *pArrayMT, DWORD cElements)
-{
-    // This isn't _really_ an FCALL and therefore shouldn't have the 
-    // SO_TOLERANT part of the FCALL_CONTRACT b/c it is not entered
-    // from managed code.
-    CONTRACTL {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
-    } CONTRACTL_END;
-
-    return OBJECTREFToObject(AllocateArrayEx(pArrayMT,
-                           (INT32 *)(&cElements),
-                           1,
-                           FALSE));
-}
-HCIMPLEND_RAW
-
-
-HCIMPL2_RAW(Object*, UnframedAllocatePrimitiveArray, CorElementType type, DWORD cElements)
-{
-    // This isn't _really_ an FCALL and therefore shouldn't have the 
-    // SO_TOLERANT part of the FCALL_CONTRACT b/c it is not entered
-    // from managed code.
-    CONTRACTL {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
-    } CONTRACTL_END;
-
-    return OBJECTREFToObject( AllocatePrimitiveArray(type, cElements, FALSE) );
-}
-HCIMPLEND_RAW
-
-HCIMPL1_RAW(PTR_MethodTable, UnframedGetTemplateMethodTable, ArrayTypeDesc *arrayDesc)
-{
-    return arrayDesc->GetTemplateMethodTable();
-}
-HCIMPLEND_RAW
-
 void *JIT_TrialAlloc::GenAllocArray(Flags flags)
 {
     STANDARD_VM_CONTRACT;
@@ -831,29 +792,6 @@ void *JIT_TrialAlloc::GenAllocArray(Flags flags)
 
     // push edx
     sl.X86EmitPushReg(kEDX);
-
-    if (flags & NO_FRAME)
-    {
-        if ((flags & OBJ_ARRAY) == 0)
-        {
-            // mov ecx,[g_pPredefinedArrayTypes+ecx*4]
-            sl.Emit8(0x8b);
-            sl.Emit16(0x8d0c);
-            sl.Emit32((int)(size_t)&g_pPredefinedArrayTypes);
-
-            // test ecx,ecx
-            sl.Emit16(0xc985);
-
-            // je noLock
-            sl.X86EmitCondJump(noLock, X86CondCode::kJZ);
-
-            sl.X86EmitPushReg(kEDX);
-            sl.X86EmitCall(sl.NewExternalCodeLabel((LPVOID)UnframedGetTemplateMethodTable), 0);
-            sl.X86EmitPopReg(kEDX);
-
-            sl.X86EmitMovRegReg(kECX, kEAX);
-        }
-    }
 
     // Do a conservative check here.  This is to avoid doing overflow checks within this function.  We'll
     // still have to do a size check before running through the body of EmitCore.  The way we do the check
@@ -925,7 +863,7 @@ void *JIT_TrialAlloc::GenAllocArray(Flags flags)
         sl.X86EmitCondJump(noLock, X86CondCode::kJA);
     }
 
-#if DATA_ALIGNMENT == 4 
+#if DATA_ALIGNMENT == 4
     if (flags & OBJ_ARRAY)
     {
         // No need for rounding in this case - element size is 4, and m_BaseSize is guaranteed
@@ -979,28 +917,9 @@ void *JIT_TrialAlloc::GenAllocArray(Flags flags)
     // pop ecx - array method table
     sl.X86EmitPopReg(kECX);
 
-    CodeLabel * target;
-    if (flags & NO_FRAME)
-    {
-        if (flags & OBJ_ARRAY)
-        {
-            // Jump to the unframed helper
-            target = sl.NewExternalCodeLabel((LPVOID)UnframedAllocateObjectArray);
-            _ASSERTE(target->e.m_pExternalAddress);
-        }
-        else
-        {
-            // Jump to the unframed helper
-            target = sl.NewExternalCodeLabel((LPVOID)UnframedAllocatePrimitiveArray);
-            _ASSERTE(target->e.m_pExternalAddress);
-        }
-    }
-    else
-    {
-        // Jump to the framed helper
-        target = sl.NewExternalCodeLabel((LPVOID)JIT_NewArr1);
-        _ASSERTE(target->e.m_pExternalAddress);
-    }
+    // Jump to the framed helper
+    CodeLabel * target = sl.NewExternalCodeLabel((LPVOID)JIT_NewArr1);
+    _ASSERTE(target->e.m_pExternalAddress);
     sl.X86EmitNearJump(target);
 
     Stub *pStub = sl.Link(SystemDomain::GetGlobalLoaderAllocator()->GetExecutableHeap());
@@ -1087,31 +1006,14 @@ void *JIT_TrialAlloc::GenAllocString(Flags flags)
     // pop ecx - element count
     sl.X86EmitPopReg(kECX);
 
-    CodeLabel * target;
-    if (flags & NO_FRAME)
-    {
-        // Jump to the unframed helper
-        target = sl.NewExternalCodeLabel((LPVOID)UnframedAllocateString);
-    }
-    else
-    {
-        // Jump to the framed helper
-        target = sl.NewExternalCodeLabel((LPVOID)FramedAllocateString);
-    }
+    // Jump to the framed helper
+    CodeLabel * target = sl.NewExternalCodeLabel((LPVOID)FramedAllocateString);
     sl.X86EmitNearJump(target);
 
     Stub *pStub = sl.Link(SystemDomain::GetGlobalLoaderAllocator()->GetExecutableHeap());
 
     return (void *)pStub->GetEntryPoint();
 }
-
-
-FastStringAllocatorFuncPtr fastStringAllocator = UnframedAllocateString;
-
-FastObjectArrayAllocatorFuncPtr fastObjectArrayAllocator = UnframedAllocateObjectArray;
-
-FastPrimitiveArrayAllocatorFuncPtr fastPrimitiveArrayAllocator = UnframedAllocatePrimitiveArray;
-
 // For this helper,
 // If bCCtorCheck == true
 //          ECX contains the domain neutral module ID
@@ -1252,7 +1154,7 @@ static const void * const c_rgWriteBarriers[NUM_WRITE_BARRIERS] = {
     (void *)JIT_WriteBarrierEBP,
 };
 
-#ifdef WRITE_BARRIER_CHECK 
+#ifdef WRITE_BARRIER_CHECK
 static const void * const c_rgDebugWriteBarriers[NUM_WRITE_BARRIERS] = {
     (void *)JIT_DebugWriteBarrierEAX,
     (void *)JIT_DebugWriteBarrierECX,
@@ -1269,6 +1171,7 @@ static const void * const c_rgDebugWriteBarriers[NUM_WRITE_BARRIERS] = {
 // Initialize the part of the JIT helpers that require very little of
 // EE infrastructure to be in place.
 /*********************************************************************/
+#pragma warning (disable : 4731)
 void InitJITHelpers1()
 {
     STANDARD_VM_CONTRACT;
@@ -1327,9 +1230,9 @@ void InitJITHelpers1()
         }
     }
 
-    if (!(TrackAllocationsEnabled() 
+    if (!(TrackAllocationsEnabled()
         || LoggingOn(LF_GCALLOC, LL_INFO10)
-#ifdef _DEBUG 
+#ifdef _DEBUG
         || (g_pConfig->ShouldInjectFault(INJECTFAULT_GCHEAP) != 0)
 #endif
          )
@@ -1350,16 +1253,9 @@ void InitJITHelpers1()
         pMethodAddresses[5] = JIT_TrialAlloc::GenAllocArray((JIT_TrialAlloc::Flags)(flags|JIT_TrialAlloc::ALIGN8));
         SetJitHelperFunction(CORINFO_HELP_NEWARR_1_ALIGN8, pMethodAddresses[5]);
 
-        fastObjectArrayAllocator = (FastObjectArrayAllocatorFuncPtr)JIT_TrialAlloc::GenAllocArray((JIT_TrialAlloc::Flags)(flags|JIT_TrialAlloc::NO_FRAME|JIT_TrialAlloc::OBJ_ARRAY));
-        fastPrimitiveArrayAllocator = (FastPrimitiveArrayAllocatorFuncPtr)JIT_TrialAlloc::GenAllocArray((JIT_TrialAlloc::Flags)(flags|JIT_TrialAlloc::NO_FRAME));
-
         // If allocation logging is on, then we divert calls to FastAllocateString to an Ecall method, not this
         // generated method. Find this workaround in Ecall::Init() in ecall.cpp.
         ECall::DynamicallyAssignFCallImpl((PCODE) JIT_TrialAlloc::GenAllocString(flags), ECall::FastAllocateString);
-
-        // generate another allocator for use from unmanaged code (won't need a frame)
-        fastStringAllocator = (FastStringAllocatorFuncPtr) JIT_TrialAlloc::GenAllocString((JIT_TrialAlloc::Flags)(flags|JIT_TrialAlloc::NO_FRAME));
-        //UnframedAllocateString;
     }
 
     // Replace static helpers with faster assembly versions
@@ -1418,7 +1314,7 @@ void InitJITHelpers1()
         pBuf[3] &= 0xf8;
         pBuf[3] |= reg;
 
-#ifdef WRITE_BARRIER_CHECK 
+#ifdef WRITE_BARRIER_CHECK
         // Don't do the fancy optimization just jump to the old one
         // Use the slow one from time to time in a debug build because
         // there are some good asserts in the unoptimized one
@@ -1440,6 +1336,7 @@ void InitJITHelpers1()
     // Initialize g_TailCallFrameVptr for JIT_TailCall helper
     g_TailCallFrameVptr = (void*)TailCallFrame::GetMethodFrameVPtr();
 }
+#pragma warning (default : 4731)
 
 // these constans are offsets into our write barrier helpers for values that get updated as the bounds of the managed heap change.
 // ephemeral region
@@ -1453,7 +1350,7 @@ const int PostGrow_CardTableFirstLocation = 24;
 const int PostGrow_CardTableSecondLocation = 36;
 
 
-#ifndef CODECOVERAGE        // Deactivate alignment validation for code coverage builds 
+#ifndef CODECOVERAGE        // Deactivate alignment validation for code coverage builds
                             // because the instrumented binaries will not preserve alignment constraints and we will fail.
 
 void ValidateWriteBarrierHelpers()
@@ -1467,7 +1364,7 @@ void ValidateWriteBarrierHelpers()
     if ((g_pConfig->GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_BARRIERCHECK) || DEBUG_RANDOM_BARRIER_CHECK)
         return;
 #endif // WRITE_BARRIER_CHECK
-    
+
     // first validate the PreGrow helper
     BYTE* pWriteBarrierFunc = reinterpret_cast<BYTE*>(JIT_WriteBarrierEAX);
 
@@ -1523,7 +1420,7 @@ int StompWriteBarrierEphemeral(bool /* isRuntimeSuspended */)
 
     int stompWBCompleteActions = SWB_PASS;
 
-#ifdef WRITE_BARRIER_CHECK 
+#ifdef WRITE_BARRIER_CHECK
         // Don't do the fancy optimization if we are checking write barrier
     if (((BYTE *)JIT_WriteBarrierEAX)[0] == 0xE9)  // we are using slow write barrier
         return stompWBCompleteActions;
@@ -1579,7 +1476,7 @@ int StompWriteBarrierResize(bool isRuntimeSuspended, bool bReqUpperBoundsCheck)
 
     int stompWBCompleteActions = SWB_PASS;
 
-#ifdef WRITE_BARRIER_CHECK 
+#ifdef WRITE_BARRIER_CHECK
         // Don't do the fancy optimization if we are checking write barrier
     if (((BYTE *)JIT_WriteBarrierEAX)[0] == 0xE9)  // we are using slow write barrier
         return stompWBCompleteActions;

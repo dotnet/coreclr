@@ -2,8 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 /* ------------------------------------------------------------------------- *
- * DebuggerRegDisplayHelper.cpp -- implementation of the platform-dependent 
-// 
+ * DebuggerRegDisplayHelper.cpp -- implementation of the platform-dependent
+//
 
  *                                 methods for transferring information between
  *                                 REGDISPLAY and DebuggerREGDISPLAY
@@ -16,7 +16,7 @@ void CopyREGDISPLAY(REGDISPLAY* pDst, REGDISPLAY* pSrc)
 {
     *pDst = *pSrc;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     if (pSrc->pCurrentContextPointers == &(pSrc->ctxPtrsOne))
     {
         pDst->pCurrentContextPointers = &(pDst->ctxPtrsOne);

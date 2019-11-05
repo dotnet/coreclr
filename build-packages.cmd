@@ -2,6 +2,10 @@
 setlocal EnableDelayedExpansion
 
 set "__ProjectDir=%~dp0"
+set "__RepoRootDir=%~dp0..\..\"
+
+rem Remove after repo consolidation
+if not exist "%__RepoRootDir%\.dotnet-runtime-placeholder" ( set "__RepoRootDir=!__ProjectDir!" )
 
 set "__args=%*"
 set processedArgs=
@@ -33,19 +37,18 @@ if [!processedArgs!]==[] (
 
 :ArgsDone
 
-call "%__ProjectDir%"\setup_vs_tools.cmd
+set logFile=%__RepoRootDir%bin\Logs\build-packages.binlog
+powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__RepoRootDir%eng\common\build.ps1"^
+  -r -b -projects %__ProjectDir%src\.nuget\packages.builds^
+  -verbosity minimal /bl:%logFile% /nodeReuse:false^
+  /p:__BuildOS=Windows_NT^
+  /p:PortableBuild=true /p:FilterToOSGroup=Windows_NT^
+  %__MSBuildArgs% %unprocessedArgs%
 
-REM setup_vs_tools.cmd will correctly echo error message.
-if NOT '%ERRORLEVEL%' == '0' exit /b 1
-
-call %__ProjectDir%/dotnet.cmd msbuild /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
-  /p:__BuildOS=Windows_NT /flp:v=detailed;Append;LogFile=build-packages.log^
-  /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
-  /p:PortableBuild=true %__ProjectDir%\src\.nuget\packages.builds^
-  /p:FilterToOSGroup=Windows_NT %__MSBuildArgs% %unprocessedArgs%
 if NOT [!ERRORLEVEL!]==[0] (
-  echo ERROR: An error occurred while building packages, see build-packages.log for more details.
-  exit /b 1
+  echo ERROR: An error occurred while building packages. See log for more details:
+  echo     %logFile%
+  exit /b !ERRORLEVEL!
 )
 
 echo Done Building Packages.

@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using Microsoft.Win32.SafeHandles;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -61,13 +60,13 @@ namespace System.Threading
             Instances[id].FireNextTimers();
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern AppDomainTimerSafeHandle CreateAppDomainTimer(uint dueTime, int id);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern bool ChangeAppDomainTimer(AppDomainTimerSafeHandle handle, uint dueTime);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern bool DeleteAppDomainTimer(IntPtr handle);
 
         #endregion

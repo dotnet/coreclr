@@ -301,14 +301,17 @@ void CodeGenInterface::siVarLoc::siFillStackVarLoc(
             // size is not 1, 2, 4 or 8 bytes in size. During fgMorph, the compiler modifies
             // the IR to comply with the ABI and therefore changes the type of the lclVar
             // that holds the struct from TYP_STRUCT to TYP_BYREF but it gives us a hint that
-            // this is still a struct by setting the lvIsTemp flag.
+            // this is still a struct by setting the lvIsImplicitByref flag.
             // The same is true for ARM64 and structs > 16 bytes.
-            // (See Compiler::fgMarkImplicitByRefArgs in Morph.cpp for further detail)
+            //
+            // See lvaSetStruct for further detail.
+            //
             // Now, the VM expects a special enum for these type of local vars: VLT_STK_BYREF
             // to accomodate for this situation.
-            if (varDsc->lvType == TYP_BYREF && varDsc->lvIsTemp)
+            if (varDsc->lvIsImplicitByRef)
             {
                 assert(varDsc->lvIsParam);
+                assert(varDsc->lvType == TYP_BYREF);
                 this->vlType = VLT_STK_BYREF;
             }
             else
@@ -370,7 +373,7 @@ void CodeGenInterface::siVarLoc::siFillRegisterVarLoc(
         case TYP_LONG:
 #endif // _TARGET_64BIT_
             this->vlType       = VLT_REG;
-            this->vlReg.vlrReg = varDsc->lvRegNum;
+            this->vlReg.vlrReg = varDsc->GetRegNum();
             break;
 
 #ifndef _TARGET_64BIT_
@@ -378,16 +381,16 @@ void CodeGenInterface::siVarLoc::siFillRegisterVarLoc(
 #if !CPU_HAS_FP_SUPPORT
         case TYP_DOUBLE:
 #endif
-            if (varDsc->lvOtherReg != REG_STK)
+            if (varDsc->GetOtherReg() != REG_STK)
             {
                 this->vlType            = VLT_REG_REG;
-                this->vlRegReg.vlrrReg1 = varDsc->lvRegNum;
-                this->vlRegReg.vlrrReg2 = varDsc->lvOtherReg;
+                this->vlRegReg.vlrrReg1 = varDsc->GetRegNum();
+                this->vlRegReg.vlrrReg2 = varDsc->GetOtherReg();
             }
             else
             {
                 this->vlType                        = VLT_REG_STK;
-                this->vlRegStk.vlrsReg              = varDsc->lvRegNum;
+                this->vlRegStk.vlrsReg              = varDsc->GetRegNum();
                 this->vlRegStk.vlrsStk.vlrssBaseReg = baseReg;
                 if (isFramePointerUsed && this->vlRegStk.vlrsStk.vlrssBaseReg == REG_SPBASE)
                 {
@@ -404,7 +407,7 @@ void CodeGenInterface::siVarLoc::siFillRegisterVarLoc(
             // TODO-AMD64-Bug: ndp\clr\src\inc\corinfo.h has a definition of RegNum that only goes up to R15,
             // so no XMM registers can get debug information.
             this->vlType       = VLT_REG_FP;
-            this->vlReg.vlrReg = varDsc->lvRegNum;
+            this->vlReg.vlrReg = varDsc->GetRegNum();
             break;
 
 #else // !_TARGET_64BIT_
@@ -415,7 +418,7 @@ void CodeGenInterface::siVarLoc::siFillRegisterVarLoc(
             if (isFloatRegType(type))
             {
                 this->vlType         = VLT_FPSTK;
-                this->vlFPstk.vlfReg = varDsc->lvRegNum;
+                this->vlFPstk.vlfReg = varDsc->GetRegNum();
             }
             break;
 #endif // CPU_HAS_FP_SUPPORT
@@ -434,7 +437,7 @@ void CodeGenInterface::siVarLoc::siFillRegisterVarLoc(
             //
             // Note: Need to initialize vlrReg field, otherwise during jit dump hitting an assert
             // in eeDispVar() --> getRegName() that regNumber is valid.
-            this->vlReg.vlrReg = varDsc->lvRegNum;
+            this->vlReg.vlrReg = varDsc->GetRegNum();
             break;
 #endif // FEATURE_SIMD
 
@@ -673,7 +676,7 @@ CodeGen::siScope* CodeGen::siNewScope(unsigned LVnum, unsigned varNum)
 
     siScope* newScope = compiler->getAllocator(CMK_SiScope).allocate<siScope>(1);
 
-    newScope->scStartLoc.CaptureLocation(getEmitter());
+    newScope->scStartLoc.CaptureLocation(GetEmitter());
     assert(newScope->scStartLoc.Valid());
 
     newScope->scEndLoc.Init();
@@ -746,7 +749,7 @@ void CodeGen::siEndTrackedScope(unsigned varIndex)
         return;
     }
 
-    scope->scEndLoc.CaptureLocation(getEmitter());
+    scope->scEndLoc.CaptureLocation(GetEmitter());
     assert(scope->scEndLoc.Valid());
 
     siRemoveFromOpenScopeList(scope);
@@ -793,7 +796,7 @@ void CodeGen::siEndScope(unsigned varNum)
 
 void CodeGen::siEndScope(siScope* scope)
 {
-    scope->scEndLoc.CaptureLocation(getEmitter());
+    scope->scEndLoc.CaptureLocation(GetEmitter());
     assert(scope->scEndLoc.Valid());
 
     siRemoveFromOpenScopeList(scope);
@@ -888,7 +891,7 @@ void CodeGen::siInit()
 
     assert(compiler->opts.compScopeInfo);
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     if (compiler->info.compVarScopesCount > 0)
     {
         siInFuncletRegion = false;
@@ -922,10 +925,9 @@ void CodeGen::siInit()
         {
             siLatestTrackedScopes = new (compiler->getAllocator(CMK_SiScope)) siScope* [scopeCount] {};
         }
-
-        compiler->compResetScopeLists();
     }
 #endif // USING_SCOPE_INFO
+    compiler->compResetScopeLists();
 }
 
 /*****************************************************************************
@@ -949,7 +951,7 @@ void CodeGen::siBeginBlock(BasicBlock* block)
         return;
     }
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     if (siInFuncletRegion)
     {
         return;
@@ -999,12 +1001,13 @@ void CodeGen::siBeginBlock(BasicBlock* block)
         unsigned        varIndex = 0;
         while (iter.NextElem(&varIndex))
         {
-            unsigned varNum = compiler->lvaTrackedToVarNum[varIndex];
+            unsigned   varNum = compiler->lvaTrackedIndexToLclNum(varIndex);
+            LclVarDsc* varDsc = compiler->lvaGetDesc(varNum);
             // lvRefCnt may go down to 0 after liveness-analysis.
             // So we need to check if this tracked variable is actually used.
-            if (!compiler->lvaTable[varNum].lvIsInReg() && !compiler->lvaTable[varNum].lvOnFrame)
+            if (!varDsc->lvIsInReg() && !varDsc->lvOnFrame)
             {
-                assert(compiler->lvaTable[varNum].lvRefCnt() == 0);
+                assert(varDsc->lvRefCnt() == 0);
                 continue;
             }
 
@@ -1055,7 +1058,7 @@ void CodeGen::siOpenScopesForNonTrackedVars(const BasicBlock* block, unsigned in
         // Check if there are any scopes on the current block's start boundary.
         VarScopeDsc* varScope = nullptr;
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 
         // If we find a spot where the code offset isn't what we expect, because
         // there is a gap, it might be because we've moved the funclets out of
@@ -1084,7 +1087,7 @@ void CodeGen::siOpenScopesForNonTrackedVars(const BasicBlock* block, unsigned in
             }
         }
 
-#else // FEATURE_EH_FUNCLETS
+#else // !FEATURE_EH_FUNCLETS
 
         if (lastBlockILEndOffset != beginOffs)
         {
@@ -1092,7 +1095,7 @@ void CodeGen::siOpenScopesForNonTrackedVars(const BasicBlock* block, unsigned in
             return;
         }
 
-#endif // FEATURE_EH_FUNCLETS
+#endif // !FEATURE_EH_FUNCLETS
 
         while ((varScope = compiler->compGetNextEnterScope(beginOffs)) != nullptr)
         {
@@ -1109,7 +1112,7 @@ void CodeGen::siOpenScopesForNonTrackedVars(const BasicBlock* block, unsigned in
                 siNewScope(varScope->vsdLVnum, varScope->vsdVarNum);
 #endif // USING_SCOPE_INFO
 #ifdef USING_VARIABLE_LIVE_RANGE
-                compiler->getVariableLiveKeeper()->siStartVariableLiveRange(lclVarDsc, varScope->vsdVarNum);
+                varLiveKeeper->siStartVariableLiveRange(lclVarDsc, varScope->vsdVarNum);
 #endif // USING_VARIABLE_LIVE_RANGE
 
 #if defined(DEBUG) && defined(USING_SCOPE_INFO)
@@ -1146,7 +1149,7 @@ void CodeGen::siEndBlock(BasicBlock* block)
 {
     assert(compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0));
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     if (siInFuncletRegion)
     {
         return;
@@ -1235,7 +1238,7 @@ void CodeGen::siUpdate()
         return;
     }
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     if (siInFuncletRegion)
     {
         return;
@@ -1249,11 +1252,7 @@ void CodeGen::siUpdate()
     unsigned        varIndex = 0;
     while (iter.NextElem(&varIndex))
     {
-#ifdef DEBUG
-        unsigned   lclNum = compiler->lvaTrackedToVarNum[varIndex];
-        LclVarDsc* lclVar = &compiler->lvaTable[lclNum];
-        assert(lclVar->lvTracked);
-#endif
+        assert(compiler->lvaGetDescByTrackedIndex(varIndex)->lvTracked);
         siEndTrackedScope(varIndex);
     }
 
@@ -1272,7 +1271,7 @@ void CodeGen::siCheckVarScope(unsigned varNum, IL_OFFSET offs)
 {
     assert(compiler->opts.compScopeInfo && !compiler->opts.compDbgCode && (compiler->info.compVarScopesCount > 0));
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     if (siInFuncletRegion)
     {
         return;
@@ -1403,7 +1402,7 @@ CodeGen::psiScope* CodeGen::psiNewPrologScope(unsigned LVnum, unsigned slotNum)
 {
     psiScope* newScope = compiler->getAllocator(CMK_SiScope).allocate<psiScope>(1);
 
-    newScope->scStartLoc.CaptureLocation(getEmitter());
+    newScope->scStartLoc.CaptureLocation(GetEmitter());
     assert(newScope->scStartLoc.Valid());
 
     newScope->scEndLoc.Init();
@@ -1428,7 +1427,7 @@ CodeGen::psiScope* CodeGen::psiNewPrologScope(unsigned LVnum, unsigned slotNum)
 
 void CodeGen::psiEndPrologScope(psiScope* scope)
 {
-    scope->scEndLoc.CaptureLocation(getEmitter());
+    scope->scEndLoc.CaptureLocation(GetEmitter());
     assert(scope->scEndLoc.Valid());
 
     // Remove from open-scope list
@@ -1565,11 +1564,11 @@ void CodeGen::psiBegProlog()
 
                         if (nCnt == 0)
                         {
-                            regNum = lclVarDsc->lvArgReg;
+                            regNum = lclVarDsc->GetArgReg();
                         }
                         else if (nCnt == 1)
                         {
-                            otherRegNum = lclVarDsc->lvOtherArgReg;
+                            otherRegNum = lclVarDsc->GetOtherArgReg();
                         }
                         else
                         {
@@ -1614,15 +1613,15 @@ void CodeGen::psiBegProlog()
                 {
                     regType = lclVarDsc->GetHfaType();
                 }
-                assert(genMapRegNumToRegArgNum(lclVarDsc->lvArgReg, regType) != (unsigned)-1);
+                assert(genMapRegNumToRegArgNum(lclVarDsc->GetArgReg(), regType) != (unsigned)-1);
 #endif // DEBUG
 
 #ifdef USING_SCOPE_INFO
                 newScope->scRegister  = true;
-                newScope->u1.scRegNum = (regNumberSmall)lclVarDsc->lvArgReg;
+                newScope->u1.scRegNum = (regNumberSmall)lclVarDsc->GetArgReg();
 #endif // USING_SCOPE_INFO
 #ifdef USING_VARIABLE_LIVE_RANGE
-                varLocation.storeVariableInRegisters(lclVarDsc->lvArgReg, REG_NA);
+                varLocation.storeVariableInRegisters(lclVarDsc->GetArgReg(), REG_NA);
 #endif // USING_VARIABLE_LIVE_RANGE
             }
         }
@@ -1638,7 +1637,7 @@ void CodeGen::psiBegProlog()
 
 #ifdef USING_VARIABLE_LIVE_RANGE
         // Start a VariableLiveRange for this LclVarDsc on the built location
-        compiler->getVariableLiveKeeper()->psiStartVariableLiveRange(varLocation, varScope->vsdVarNum);
+        varLiveKeeper->psiStartVariableLiveRange(varLocation, varScope->vsdVarNum);
 #endif // USING_VARIABLE_LIVE_RANGE
     }
 }
@@ -1661,7 +1660,7 @@ void CodeGen::psiEndProlog()
 #endif
 
 #ifdef USING_VARIABLE_LIVE_RANGE
-    compiler->getVariableLiveKeeper()->psiClosePrologVariableRanges();
+    varLiveKeeper->psiClosePrologVariableRanges();
 #endif // USING_VARIABLE_LIVE_RANGE
 }
 
@@ -1802,8 +1801,8 @@ void CodeGen::psiMoveToReg(unsigned varNum, regNumber reg, regNumber otherReg)
     {
         // Grab the assigned registers.
 
-        reg      = compiler->lvaTable[varNum].lvRegNum;
-        otherReg = compiler->lvaTable[varNum].lvOtherReg;
+        reg      = compiler->lvaTable[varNum].GetRegNum();
+        otherReg = compiler->lvaTable[varNum].GetOtherReg();
     }
 
     psiScope* scope;
@@ -1864,7 +1863,7 @@ void CodeGen::psiMoveToStack(unsigned varNum)
         /* The param must be currently sitting in the register in which it
            was passed in */
         assert(scope->scRegister);
-        assert(scope->u1.scRegNum == compiler->lvaTable[varNum].lvArgReg);
+        assert(scope->u1.scRegNum == compiler->lvaTable[varNum].GetArgReg());
 
         psiScope* newScope     = psiNewPrologScope(scope->scLVnum, scope->scSlotNum);
         newScope->scRegister   = false;

@@ -378,7 +378,7 @@ HRESULT ULongLongToULong(ULONGLONG ullOperand, ULONG* pulResult)
     HRESULT hr = INTSAFE_E_ARITHMETIC_OVERFLOW;
     *pulResult = ULONG_ERROR;
     
-    if (ullOperand <= ULONG_MAX)
+    if (ullOperand <= UINT32_MAX)
     {
         *pulResult = (ULONG)ullOperand;
         hr = S_OK;
@@ -460,7 +460,7 @@ BSTR CoreClrBStrAlloc(LPCWSTR psz, size_t len)
 
     if(bstr != NULL){
 
-#if defined(_WIN64)
+#if defined(BIT64)
       // NOTE: There are some apps which peek back 4 bytes to look at the size of the BSTR. So, in case of 64-bit code,
       // we need to ensure that the BSTR length can be found by looking one DWORD before the BSTR pointer. 
       *(DWORD_PTR *)bstr = (DWORD_PTR) 0;
@@ -494,7 +494,7 @@ BSTR CoreClrBStrAlloc(LPCSTR psz, size_t len)
     bstr = (BSTR)CoreClrAlloc(cbTotal);
 
     if (bstr != NULL) {
-#if defined(_WIN64)
+#if defined(BIT64)
       *(DWORD *)((char *)bstr + sizeof (DWORD)) = (DWORD)len;
 #else
       *(DWORD *)bstr = (DWORD)len;
@@ -543,7 +543,7 @@ size_t TP_SysStringByteLen(BSTR bstr)
 #endif    
 }
 
-DWORD TP_SysStringLen(BSTR bstr)
+size_t TP_SysStringLen(BSTR bstr)
 {
 #ifdef WINDOWS
     return SysStringLen(bstr);

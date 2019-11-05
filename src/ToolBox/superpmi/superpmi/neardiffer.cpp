@@ -67,14 +67,38 @@ bool NearDiffer::InitAsmDiff()
 
     if (UseCoreDisTools)
     {
-        const char* coreDisToolsLibrary = MAKEDLLNAME_A("coredistools");
+        const WCHAR* coreDisToolsLibrary = MAKEDLLNAME_W("coredistools");
+#ifdef PLATFORM_UNIX
+        // Unix will require the full path to coredistools. Assume that the
+        // location is next to the full path to the superpmi.so.
 
-        HMODULE hCoreDisToolsLib = ::LoadLibraryA(coreDisToolsLibrary);
-        if (hCoreDisToolsLib == 0)
+        WCHAR coreCLRLoadedPath[MAX_LONGPATH];
+        HMODULE result = 0;
+        int returnVal = ::GetModuleFileNameW(result, coreCLRLoadedPath, MAX_LONGPATH);
+
+        if (returnVal == 0)
         {
-            LogError("LoadLibrary(%s) failed (0x%08x)", coreDisToolsLibrary, ::GetLastError());
+            LogError("GetModuleFileNameW failed (0x%08x)", ::GetLastError());
             return false;
         }
+
+        WCHAR* ptr = ::wcsrchr(coreCLRLoadedPath, '/');
+
+        // Move past the / character.
+        ptr = ptr + 1;
+
+        const WCHAR* coreDisToolsLibraryName = MAKEDLLNAME_W("coredistools");
+        ::wcscpy_s(ptr, &coreCLRLoadedPath[MAX_LONGPATH] - ptr, coreDisToolsLibraryName);
+        coreDisToolsLibrary = coreCLRLoadedPath;
+#endif // PLATFORM_UNIX
+
+        HMODULE hCoreDisToolsLib = ::LoadLibraryW(coreDisToolsLibrary);
+        if (hCoreDisToolsLib == 0)
+        {
+            LogError("LoadLibrary(%s) failed (0x%08x)", MAKEDLLNAME_A("coredistools"), ::GetLastError());
+            return false;
+        }
+
         g_PtrNewDiffer = (NewDiffer_t*)::GetProcAddress(hCoreDisToolsLib, "NewDiffer");
         if (g_PtrNewDiffer == nullptr)
         {
@@ -100,7 +124,19 @@ bool NearDiffer::InitAsmDiff()
             return false;
         }
 
-        corAsmDiff = (*g_PtrNewDiffer)(Target_Host, &CorPrinter, NearDiffer::CoreDisCompareOffsetsCallback);
+        TargetArch coreDisTargetArchitecture = Target_Host;
+#ifdef _TARGET_AMD64_
+        if ((TargetArchitecture != nullptr) && (0 == _stricmp(TargetArchitecture, "arm64")))
+        {
+            coreDisTargetArchitecture = Target_Arm64;
+        }
+#elif defined(_TARGET_X86_)
+        if ((TargetArchitecture != nullptr) && (0 == _stricmp(TargetArchitecture, "arm")))
+        {
+            coreDisTargetArchitecture = Target_Thumb;
+        }
+#endif
+        corAsmDiff = (*g_PtrNewDiffer)(coreDisTargetArchitecture, &CorPrinter, NearDiffer::CoreDisCompareOffsetsCallback);
     }
 #endif // USE_COREDISTOOLS
 
@@ -204,7 +240,7 @@ void NearDiffer::DumpCodeBlock(unsigned char* block, ULONG blocksize, void* orig
         }
         disasm->FDecode(&instr, ops, 3);
 
-        wchar_t instrMnemonicWide[64]; // I never know how much to allocate...
+        WCHAR instrMnemonicWide[64]; // I never know how much to allocate...
         disasm->CchFormatInstr(instrMnemonicWide, 64);
         char   instrMnemonic[128];
         size_t count;
@@ -530,9 +566,9 @@ bool NearDiffer::compareCodeSection(MethodContext* mc,
             FDecodeError = true;
         }
 
-        wchar_t instrMnemonic_1[64]; // I never know how much to allocate...
+        WCHAR instrMnemonic_1[64]; // I never know how much to allocate...
         disasm_1->CchFormatInstr(instrMnemonic_1, 64);
-        wchar_t instrMnemonic_2[64]; // I never know how much to allocate...
+        WCHAR instrMnemonic_2[64]; // I never know how much to allocate...
         disasm_2->CchFormatInstr(instrMnemonic_2, 64);
         if (wcscmp(instrMnemonic_1, L"ret") == 0)
             haveSeenRet = true;

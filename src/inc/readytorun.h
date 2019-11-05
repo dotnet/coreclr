@@ -15,8 +15,8 @@
 
 #define READYTORUN_SIGNATURE 0x00525452 // 'RTR'
 
-#define READYTORUN_MAJOR_VERSION 0x0003
-#define READYTORUN_MINOR_VERSION 0x0000
+#define READYTORUN_MAJOR_VERSION 0x0004
+#define READYTORUN_MINOR_VERSION 0x0001
 #define MINIMUM_READYTORUN_MAJOR_VERSION 0x003
 // R2R Version 2.1 adds the READYTORUN_SECTION_INLINING_INFO section
 // R2R Version 2.2 adds the READYTORUN_SECTION_PROFILEDATA_INFO section
@@ -66,7 +66,8 @@ enum ReadyToRunSectionType
     READYTORUN_SECTION_INSTANCE_METHOD_ENTRYPOINTS  = 109,
     READYTORUN_SECTION_INLINING_INFO                = 110, // Added in V2.1
     READYTORUN_SECTION_PROFILEDATA_INFO             = 111, // Added in V2.2
-    READYTORUN_SECTION_MANIFEST_METADATA            = 112  // Added in V2.3
+    READYTORUN_SECTION_MANIFEST_METADATA            = 112, // Added in V2.3
+    READYTORUN_SECTION_ATTRIBUTEPRESENCE            = 113, // Added in V3.1
 
 	// If you add a new section consider whether it is a breaking or non-breaking change.
 	// Usually it is non-breaking, but if it is preferable to have older runtimes fail
@@ -78,7 +79,7 @@ enum ReadyToRunSectionType
 //
 // READYTORUN_IMPORT_SECTION describes image range with references to code or runtime data structures
 //
-// There is number of different types of these ranges: eagerly initialized at image load vs. lazily initialized at method entry 
+// There is number of different types of these ranges: eagerly initialized at image load vs. lazily initialized at method entry
 // vs. lazily initialized on first use; handles vs. code pointers, etc.
 //
 struct READYTORUN_IMPORT_SECTION
@@ -184,7 +185,8 @@ enum ReadyToRunFixupKind
     READYTORUN_FIXUP_DelegateCtor               = 0x2C, /* optimized delegate ctor */
     READYTORUN_FIXUP_DeclaringTypeHandle        = 0x2D,
 
-    READYTORUN_FIXUP_IndirectPInvokeTarget      = 0x2E, /* Target of an inlined pinvoke */
+    READYTORUN_FIXUP_IndirectPInvokeTarget      = 0x2E, /* Target (indirect) of an inlined pinvoke */
+    READYTORUN_FIXUP_PInvokeTarget              = 0x2F, /* Target of an inlined pinvoke */
 };
 
 //
@@ -238,6 +240,7 @@ enum ReadyToRunHelper
     // PInvoke helpers
     READYTORUN_HELPER_PInvokeBegin              = 0x42,
     READYTORUN_HELPER_PInvokeEnd                = 0x43,
+    READYTORUN_HELPER_GCPoll                    = 0x44,
 
     // Get string handle lazily
     READYTORUN_HELPER_GetString                 = 0x50,
@@ -304,11 +307,15 @@ enum ReadyToRunHelper
     READYTORUN_HELPER_DblRound                  = 0xE2,
     READYTORUN_HELPER_FltRound                  = 0xE3,
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     // Personality rountines
     READYTORUN_HELPER_PersonalityRoutine        = 0xF0,
     READYTORUN_HELPER_PersonalityRoutineFilterFunclet = 0xF1,
 #endif
+
+    // Synchronized methods
+    READYTORUN_HELPER_MonitorEnter              = 0xF8,
+    READYTORUN_HELPER_MonitorExit               = 0xF9,
 
     //
     // Deprecated/legacy
@@ -330,6 +337,9 @@ enum ReadyToRunHelper
 
     // JIT32 x86-specific exception handling
     READYTORUN_HELPER_EndCatch                  = 0x110,
+
+    // Stack probing helper
+    READYTORUN_HELPER_StackProbe                = 0x111,
 };
 
 //
@@ -344,15 +354,20 @@ struct READYTORUN_EXCEPTION_LOOKUP_TABLE_ENTRY
 
 struct READYTORUN_EXCEPTION_CLAUSE
 {
-    CorExceptionFlag    Flags;  
-    DWORD               TryStartPC;    
+    CorExceptionFlag    Flags;
+    DWORD               TryStartPC;
     DWORD               TryEndPC;
-    DWORD               HandlerStartPC;  
-    DWORD               HandlerEndPC;  
+    DWORD               HandlerStartPC;
+    DWORD               HandlerEndPC;
     union {
         mdToken         ClassToken;
         DWORD           FilterOffset;
-    };  
+    };
+};
+
+enum ReadyToRunRuntimeConstants : DWORD
+{
+    READYTORUN_PInvokeTransitionFrameSizeInPointerUnits = 11
 };
 
 #endif // __READYTORUN_H__

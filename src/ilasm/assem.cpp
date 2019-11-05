@@ -15,10 +15,6 @@
 #define DECLARE_DATA
 
 #include "assembler.h"
-#ifdef FEATURE_PAL
-#include "coreclrloader.h"
-CoreCLRLoader *g_loader;
-#endif // FEATURE_PAL
 MetaDataGetDispenserFunc metaDataGetDispenser;
 
 void indexKeywords(Indx* indx); // defined in asmparse.y
@@ -205,7 +201,7 @@ Assembler::~Assembler()
     m_DocWriterList.RESET(true);
 
     m_MethodBodyList.RESET(true);
-    
+
     m_TypeDefDList.RESET(true);
 
     if (m_pSymWriter != NULL)
@@ -230,33 +226,16 @@ Assembler::~Assembler()
         m_pDisp->Release();
         m_pDisp = NULL;
     }
-
-#ifdef FEATURE_PAL
-    if (g_loader != NULL)
-    {
-        g_loader->Finish();
-    }
-#endif
-
 }
 
 
 BOOL Assembler::Init()
 {
-#ifdef FEATURE_PAL
-    g_loader = CoreCLRLoader::Create(g_pszExeFile);
-    if (g_loader == NULL)
-    {
-        return FALSE;
-    }
-    metaDataGetDispenser = (MetaDataGetDispenserFunc)g_loader->LoadFunction("MetaDataGetDispenser");
-#else
     metaDataGetDispenser = (MetaDataGetDispenserFunc)MetaDataGetDispenser;
-#endif // FEATURE_PAL
     if (m_pCeeFileGen != NULL) {
         if (m_pCeeFile)
             m_pCeeFileGen->DestroyCeeFile(&m_pCeeFile);
-        
+
         DestroyICeeFileGen(&m_pCeeFileGen);
 
         m_pCeeFileGen = NULL;
@@ -843,18 +822,21 @@ BOOL Assembler::EmitMethod(Method *pMethod)
     if (pMethod->m_NumTyPars)
     {
         ULONG i;
-        mdToken* ptk;
-        mdToken tk;
+        mdToken tkNil = mdTokenNil;
+        mdGenericParam tkGP = mdTokenNil;
         for(i = 0; i < pMethod->m_NumTyPars; i++)
         {
-            //ptk = (pMethod->m_TyParBounds[i] == NULL)? NULL :  (mdToken*)(pMethod->m_TyParBounds[i]->ptr());
-            //if(FAILED(m_pEmitter->DefineGenericParam(MethodToken,i,0,pMethod->m_TyParNames[i],0,ptk,&tk)))
-            ptk = (pMethod->m_TyPars[i].Bounds() == NULL)? NULL :  (mdToken*)(pMethod->m_TyPars[i].Bounds()->ptr());
-            if(FAILED(m_pEmitter->DefineGenericParam(MethodToken,i,pMethod->m_TyPars[i].Attrs(),pMethod->m_TyPars[i].Name(),0,ptk,&tk)))
-                report->error("Unable to define generic param'\n");
+            if (FAILED(m_pEmitter->DefineGenericParam(MethodToken, i, pMethod->m_TyPars[i].Attrs(), pMethod->m_TyPars[i].Name(), 0, &tkNil, &tkGP)))
+            {
+                report->error("Unable to define generic param: %s'\n", pMethod->m_TyPars[i].Name());
+            }
             else
-                EmitCustomAttributes(tk, pMethod->m_TyPars[i].CAList());
+            {
+                pMethod->m_TyPars[i].Token(tkGP);
+                EmitCustomAttributes(tkGP, pMethod->m_TyPars[i].CAList());
+            }
         }
+        EmitGenericParamConstraints(pMethod->m_NumTyPars, pMethod->m_TyPars, pMethod->m_Tok, &(pMethod->m_GPCList));
     }
     //--------------------------------------------------------------------------------
     EmitSecurityInfo(MethodToken,
@@ -1114,14 +1096,14 @@ BOOL Assembler::EmitProp(PropDescriptor* pPD)
     for(int j=0; j < nOthers; j++)
     {
         mdOthers[j] = ResolveLocalMemberRef((mdToken)(UINT_PTR)(pPD->m_tklOthers.PEEK(j)));     // @WARNING: casting down from 'mdToken*' to 'mdToken'
-        
+
         if((RidFromToken(mdOthers[j])!=0)&&(TypeFromToken(mdOthers[j]) != mdtMethodDef))
         {
             report->error("Invalid Other method of property '%s'\n",pPD->m_szName);
             delete [] mdOthers;
             return FALSE;
         }
-        
+
     }
     mdOthers[nOthers] = mdMethodDefNil; // like null-terminator
 
@@ -1245,21 +1227,23 @@ BOOL Assembler::EmitClass(Class *pClass)
     if (pClass->m_NumTyPars)
     {
         ULONG i;
-        mdToken* ptk;
-        mdToken tk;
+        mdToken tkNil = mdTokenNil;
+        mdGenericParam tkGP = mdTokenNil;
         for(i = 0; i < pClass->m_NumTyPars; i++)
         {
-            //ptk = (pClass->m_TyParBounds[i] == NULL)? NULL :  (mdToken*)(pClass->m_TyParBounds[i]->ptr());
-            //if(FAILED(m_pEmitter->DefineGenericParam(pClass->m_cl,i,pClass->m_TyParAttrs[i],pClass->m_TyParNames[i],0,ptk,&tk)))
-            ptk = (pClass->m_TyPars[i].Bounds() == NULL)? NULL :  (mdToken*)(pClass->m_TyPars[i].Bounds()->ptr());
-            if(FAILED(m_pEmitter->DefineGenericParam(pClass->m_cl,i,pClass->m_TyPars[i].Attrs(),pClass->m_TyPars[i].Name(),0,ptk,&tk)))
-                report->error("Unable to define generic param'\n");
+            if (FAILED(m_pEmitter->DefineGenericParam(pClass->m_cl, i, pClass->m_TyPars[i].Attrs(), pClass->m_TyPars[i].Name(), 0, &tkNil, &tkGP)))
+            {
+                report->error("Unable to define generic param: %s'\n", pClass->m_TyPars[i].Name());
+            }
             else
-                EmitCustomAttributes(tk, pClass->m_TyPars[i].CAList());
+            {
+                pClass->m_TyPars[i].Token(tkGP);
+                EmitCustomAttributes(tkGP, pClass->m_TyPars[i].CAList());
+            }
         }
+        EmitGenericParamConstraints(pClass->m_NumTyPars, pClass->m_TyPars, pClass->m_cl, &(pClass->m_GPCList));
     }
-    
-    
+
     EmitCustomAttributes(pClass->m_cl, &(pClass->m_CustDList));
     hr = S_OK;
 
@@ -1525,16 +1509,16 @@ For every delta with one or two bits set, and the deltas of all three
   have at least 1/4 probability of changing.
 * If mix() is run forward, every bit of c will change between 1/3 and
   2/3 of the time.  (Well, 22/100 and 78/100 for some 2-bit deltas.)
-mix() was built out of 36 single-cycle latency instructions in a 
+mix() was built out of 36 single-cycle latency instructions in a
   structure that could supported 2x parallelism, like so:
-      a -= b; 
+      a -= b;
       a -= c; x = (c>>13);
       b -= c; a ^= x;
       b -= a; x = (a<<8);
       c -= a; b ^= x;
       c -= b; x = (b>>13);
       ...
-  Unfortunately, superscalar Pentiums and Sparcs can't take advantage 
+  Unfortunately, superscalar Pentiums and Sparcs can't take advantage
   of that parallelism.  They've also turned some of those single-cycle
   latency instructions into multi-cycle latency instructions.  Still,
   this is the fastest good hash I could find.  There were about 2^^68
@@ -1582,7 +1566,7 @@ acceptable.  Do NOT use for cryptographic purposes.
 --------------------------------------------------------------------
 */
 
-unsigned hash( 
+unsigned hash(
      __in_ecount(length) const BYTE *k,        /* the key */
      unsigned  length,   /* the length of the key */
      unsigned  initval)  /* the previous hash, or an arbitrary value */

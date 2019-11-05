@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 namespace System.Globalization
 {
     public abstract class EastAsianLunisolarCalendar : Calendar
@@ -26,7 +25,7 @@ namespace System.Globalization
         {
             CheckTicksRange(time.Ticks);
 
-            TimeToLunar(time, out int year, out int month, out int day);
+            TimeToLunar(time, out int year, out _, out _);
             return ((year - 4) % 60) + 1;
         }
 
@@ -374,7 +373,7 @@ namespace System.Globalization
             }
 
             // Add the actual lunar day to get the solar day we want
-            solarDay = solarDay + numLunarDays;
+            solarDay += numLunarDays;
 
             if (solarDay > (365 + (isLeapYear ? 1 : 0)))
             {
@@ -469,7 +468,7 @@ namespace System.Globalization
             DateTime dt = LunarToTime(time, y, m, d);
 
             CheckAddResult(dt.Ticks, MinSupportedDateTime, MaxSupportedDateTime);
-            return (dt);
+            return dt;
         }
 
         public override DateTime AddYears(DateTime time, int years)
@@ -506,7 +505,7 @@ namespace System.Globalization
 
             for (int i = 1; i < m; i++)
             {
-                d = d + InternalGetDaysInMonth(y, i);
+                d += InternalGetDaysInMonth(y, i);
             }
             return d;
         }
@@ -518,7 +517,8 @@ namespace System.Globalization
         public override int GetDayOfMonth(DateTime time)
         {
             CheckTicksRange(time.Ticks);
-            TimeToLunar(time, out int y, out int m, out int d);
+
+            TimeToLunar(time, out _, out _, out int d);
 
             return d;
         }
@@ -548,7 +548,8 @@ namespace System.Globalization
         public override int GetMonth(DateTime time)
         {
             CheckTicksRange(time.Ticks);
-            TimeToLunar(time, out int y, out int m, out int d);
+
+            TimeToLunar(time, out _, out int m, out _);
 
             return m;
         }
@@ -560,7 +561,8 @@ namespace System.Globalization
         public override int GetYear(DateTime time)
         {
             CheckTicksRange(time.Ticks);
-            TimeToLunar(time, out int y, out int m, out int d);
+
+            TimeToLunar(time, out int y, out _, out _);
 
             return GetYear(y, time);
         }

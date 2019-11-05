@@ -11,6 +11,7 @@
 //      GC-internal type's fields, while still maintaining the same layout.
 // This interface is strictly versioned, see gcinterface.dacvars.def for more information.
 
+#define HEAP_SEGMENT_FLAGS_READONLY     1
 #define NUM_GC_DATA_POINTS              9
 #define MAX_COMPACT_REASONS_COUNT       11
 #define MAX_EXPAND_MECHANISMS_COUNT     6
@@ -53,15 +54,11 @@ public:
 
 class dac_handle_table {
 public:
-    // On the handle table side, this is an ADIndex. They should still have
-    // the same layout.
-    //
     // We do try to keep everything that the DAC knows about as close to the
     // start of the struct as possible to avoid having padding members. However,
     // HandleTable has rgTypeFlags at offset 0 for performance reasons and
     // we don't want to disrupt that.
     uint32_t padding[HANDLE_MAX_INTERNAL_TYPES];
-    DWORD uADIndex;
 };
 
 class dac_handle_table_bucket {
@@ -148,7 +145,7 @@ public:
     // The generation table must always be last, because the size of this array
     // (stored inline in the gc_heap class) can vary.
     //
-    // The size of the generation class is not part of the GC-DAC interface, 
+    // The size of the generation class is not part of the GC-DAC interface,
     // despite being embedded by-value into the gc_heap class. The DAC variable
     // "generation_size" stores the size of the generation class, so the DAC can
     // use it and pointer arithmetic to calculate correct offsets into the generation

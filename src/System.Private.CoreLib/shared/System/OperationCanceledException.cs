@@ -11,8 +11,6 @@
 **
 ===========================================================*/
 
-#nullable enable
-using System;
 using System.Runtime.Serialization;
 using System.Threading;
 
@@ -27,8 +25,8 @@ namespace System
 
         public CancellationToken CancellationToken
         {
-            get { return _cancellationToken; }
-            private set { _cancellationToken = value; }
+            get => _cancellationToken;
+            private set => _cancellationToken = value;
         }
 
         public OperationCanceledException()

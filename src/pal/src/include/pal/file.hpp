@@ -38,8 +38,6 @@ namespace CorUnix
     {
     public:
         int  unix_fd;
-        DWORD dwDesiredAccess; /* Unix assumes files are always opened for reading.
-                                  In Windows we can open a file for writing only */
         int  open_flags;       /* stores Unix file creation flags */
         BOOL open_flags_deviceaccessonly;
         CHAR *unix_filename;
@@ -136,15 +134,6 @@ namespace CorUnix
         );
 
     /*++
-    InternalMkstemp
-    Wraps mkstemp
-    --*/
-    int 
-    InternalMkstemp(
-        char *szNameTemplate
-        );
-
-    /*++
     InternalFgets
     Wraps fgets
     --*/
@@ -192,18 +181,18 @@ extern "C"
 
 /*++
 FILECanonicalizePath
-    Removes all instances of '/./', '/../' and '//' from an absolute path. 
-    
+    Removes all instances of '/./', '/../' and '//' from an absolute path.
+
 Parameters:
     LPSTR lpUnixPath : absolute path to modify, in Unix format
 
-(no return value)                                             
- 
+(no return value)
+
 Notes :
 -behavior is undefined if path is not absolute
--the order of steps *is* important: /one/./../two would give /one/two 
+-the order of steps *is* important: /one/./../two would give /one/two
  instead of /two if step 3 was done before step 2
--reason for this function is that GetFullPathName can't use realpath(), since 
+-reason for this function is that GetFullPathName can't use realpath(), since
  realpath() requires the given path to be valid and GetFullPathName does not.
 --*/
 void FILECanonicalizePath(LPSTR lpUnixPath);
@@ -218,35 +207,8 @@ Abstract:
 Parameter:
   IN/OUT lpPath: path to be modified
 --*/
-void 
-FILEDosToUnixPathA(LPSTR lpPath);
-
-/*++
-Function:
-  FileDosToUnixPathW
-
-Abstract:
-  Change a DOS path to a Unix path. Replace '\' by '/'.
-
-Parameter:
-  IN/OUT lpPath: path to be modified
-  --*/
 void
-FILEDosToUnixPathW(LPWSTR lpPath);
-
-/*++
-Function:
-  FileUnixToDosPathA
-
-Abstract:
-  Change a Unix path to a DOS path. Replace '/' by '\'.
-
-Parameter:
-  IN/OUT lpPath: path to be modified
---*/
-void 
-FILEUnixToDosPathA(LPSTR lpPath);
-
+FILEDosToUnixPathA(LPSTR lpPath);
 
 /*++
 Function:
@@ -264,16 +226,8 @@ DWORD FILEGetDirectoryFromFullPathA( LPCSTR lpFullPath,
 
 /*++
 Function:
-  FILEGetFileNameFromFullPath
-
-Given a full path, return a pointer to the first char of the filename part.
---*/
-LPCSTR FILEGetFileNameFromFullPathA( LPCSTR lpFullPath );
-
-/*++
-Function:
   FILEGetLastErrorFromErrno
-  
+
 Convert errno into the appropriate win32 error and return it.
 --*/
 DWORD FILEGetLastErrorFromErrno( void );
@@ -301,10 +255,10 @@ void FILECleanupStdHandles(void);
 
 /*++
 
-Function : 
+Function :
     FILEGetProperNotFoundError
-    
-Returns the proper error code, based on the 
+
+Returns the proper error code, based on the
 Windows behavoir.
 
     IN LPSTR lpPath - The path to check.

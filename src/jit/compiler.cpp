@@ -240,7 +240,7 @@ void Compiler::compDspSrcLinesByNativeIP(UNATIVE_OFFSET curIP)
 
     if (nextMappingDsc)
     {
-        UNATIVE_OFFSET offset = nextMappingDsc->ipmdNativeLoc.CodeOffset(genEmitter);
+        UNATIVE_OFFSET offset = nextMappingDsc->ipmdNativeLoc.CodeOffset(GetEmitter());
 
         if (offset <= curIP)
         {
@@ -469,61 +469,6 @@ var_types Compiler::getJitGCType(BYTE gcType)
     return result;
 }
 
-#if FEATURE_MULTIREG_ARGS
-//---------------------------------------------------------------------------
-// getStructGcPtrsFromOp: Given a GenTree node of TYP_STRUCT that represents
-//                        a pass by value argument, return the gcPtr layout
-//                        for the pointers sized fields
-// Arguments:
-//    op         - the operand of TYP_STRUCT that is passed by value
-//    gcPtrsOut  - an array of BYTES that are written by this method
-//                 they will contain the VM's CorInfoGCType values
-//                 for each pointer sized field
-// Return Value:
-//     Two [or more] values are written into the gcPtrs array
-//
-// Note that for ARM64 there will always be exactly two pointer sized fields
-
-void Compiler::getStructGcPtrsFromOp(GenTree* op, BYTE* gcPtrsOut)
-{
-    assert(op->TypeGet() == TYP_STRUCT);
-
-#ifdef _TARGET_ARM64_
-    if (op->OperGet() == GT_OBJ)
-    {
-        CORINFO_CLASS_HANDLE objClass = op->gtObj.gtClass;
-
-        int structSize = info.compCompHnd->getClassSize(objClass);
-        assert(structSize <= 2 * TARGET_POINTER_SIZE);
-
-        BYTE gcPtrsTmp[2] = {TYPE_GC_NONE, TYPE_GC_NONE};
-
-        info.compCompHnd->getClassGClayout(objClass, &gcPtrsTmp[0]);
-
-        gcPtrsOut[0] = gcPtrsTmp[0];
-        gcPtrsOut[1] = gcPtrsTmp[1];
-    }
-    else if (op->OperGet() == GT_LCL_VAR)
-    {
-        GenTreeLclVarCommon* varNode = op->AsLclVarCommon();
-        unsigned             varNum  = varNode->gtLclNum;
-        assert(varNum < lvaCount);
-        LclVarDsc* varDsc = &lvaTable[varNum];
-
-        // At this point any TYP_STRUCT LclVar must be a 16-byte pass by value argument
-        assert(varDsc->lvSize() == 2 * TARGET_POINTER_SIZE);
-
-        gcPtrsOut[0] = varDsc->lvGcLayout[0];
-        gcPtrsOut[1] = varDsc->lvGcLayout[1];
-    }
-    else
-#endif
-    {
-        noway_assert(!"Unsupported Oper for getStructGcPtrsFromOp");
-    }
-}
-#endif // FEATURE_MULTIREG_ARGS
-
 #ifdef ARM_SOFTFP
 //---------------------------------------------------------------------------
 // IsSingleFloat32Struct:
@@ -573,8 +518,8 @@ bool Compiler::isSingleFloat32Struct(CORINFO_CLASS_HANDLE clsHnd)
 //     of size 'structSize'.
 //     We examine 'clsHnd' to check the GC layout of the struct and
 //     return TYP_REF for structs that simply wrap an object.
-//     If the struct is a one element HFA, we will return the
-//     proper floating point type.
+//     If the struct is a one element HFA/HVA, we will return the
+//     proper floating point or vector type.
 //
 // Arguments:
 //    structSize - the size of the struct type, cannot be zero
@@ -592,13 +537,64 @@ bool Compiler::isSingleFloat32Struct(CORINFO_CLASS_HANDLE clsHnd)
 //    same way as any other 8-byte struct
 //    For ARM32 if we have an HFA struct that wraps a 64-bit double
 //    we will return TYP_DOUBLE.
+//    For vector calling conventions, a vector is considered a "primitive"
+//    type, as it is passed in a single register.
 //
 var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS_HANDLE clsHnd, bool isVarArg)
 {
     assert(structSize != 0);
 
-    var_types useType;
+    var_types useType = TYP_UNKNOWN;
 
+// Start by determining if we have an HFA/HVA with a single element.
+#ifdef FEATURE_HFA
+#if defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
+    // Arm64 Windows VarArg methods arguments will not classify HFA types, they will need to be treated
+    // as if they are not HFA types.
+    if (!isVarArg)
+#endif // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
+    {
+        switch (structSize)
+        {
+            case 4:
+            case 8:
+#ifdef _TARGET_ARM64_
+            case 16:
+#endif // _TARGET_ARM64_
+            {
+                var_types hfaType;
+#ifdef ARM_SOFTFP
+                // For ARM_SOFTFP, HFA is unsupported so we need to check in another way.
+                // This matters only for size-4 struct because bigger structs would be processed with RetBuf.
+                if (isSingleFloat32Struct(clsHnd))
+                {
+                    hfaType = TYP_FLOAT;
+                }
+#else  // !ARM_SOFTFP
+                hfaType = GetHfaType(clsHnd);
+#endif // ARM_SOFTFP
+                // We're only interested in the case where the struct size is equal to the size of the hfaType.
+                if (varTypeIsValidHfaType(hfaType))
+                {
+                    if (genTypeSize(hfaType) == structSize)
+                    {
+                        useType = hfaType;
+                    }
+                    else
+                    {
+                        return TYP_UNKNOWN;
+                    }
+                }
+            }
+        }
+        if (useType != TYP_UNKNOWN)
+        {
+            return useType;
+        }
+    }
+#endif // FEATURE_HFA
+
+    // Now deal with non-HFA/HVA structs.
     switch (structSize)
     {
         case 1:
@@ -618,15 +614,8 @@ var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS
 
 #ifdef _TARGET_64BIT_
         case 4:
-            if (IsHfa(clsHnd))
-            {
-                // A structSize of 4 with IsHfa, it must be an HFA of one float
-                useType = TYP_FLOAT;
-            }
-            else
-            {
-                useType = TYP_INT;
-            }
+            // We dealt with the one-float HFA above. All other 4-byte structs are handled as INT.
+            useType = TYP_INT;
             break;
 
 #if !defined(_TARGET_XARCH_) || defined(UNIX_AMD64_ABI)
@@ -640,86 +629,13 @@ var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS
 #endif // _TARGET_64BIT_
 
         case TARGET_POINTER_SIZE:
-#ifdef ARM_SOFTFP
-            // For ARM_SOFTFP, HFA is unsupported so we need to check in another way
-            // This matters only for size-4 struct cause bigger structs would be processed with RetBuf
-            if (isSingleFloat32Struct(clsHnd))
-#else // !ARM_SOFTFP
-            if (IsHfa(clsHnd)
-#if defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
-                // Arm64 Windows VarArg methods arguments will not
-                // classify HFA types, they will need to be treated
-                // as if they are not HFA types.
-                && !isVarArg
-#endif // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
-                )
-#endif // ARM_SOFTFP
-            {
-#ifdef _TARGET_64BIT_
-                var_types hfaType = GetHfaType(clsHnd);
-
-                // A structSize of 8 with IsHfa, we have two possiblities:
-                // An HFA of one double or an HFA of two floats
-                //
-                // Check and exclude the case of an HFA of two floats
-                if (hfaType == TYP_DOUBLE)
-                {
-                    // We have an HFA of one double
-                    useType = TYP_DOUBLE;
-                }
-                else
-                {
-                    assert(hfaType == TYP_FLOAT);
-
-                    // We have an HFA of two floats
-                    // This should be passed or returned in two FP registers
-                    useType = TYP_UNKNOWN;
-                }
-#else  // a 32BIT target
-                // A structSize of 4 with IsHfa, it must be an HFA of one float
-                useType = TYP_FLOAT;
-#endif // _TARGET_64BIT_
-            }
-            else
-            {
-                BYTE gcPtr = 0;
-                // Check if this pointer-sized struct is wrapping a GC object
-                info.compCompHnd->getClassGClayout(clsHnd, &gcPtr);
-                useType = getJitGCType(gcPtr);
-            }
-            break;
-
-#ifdef _TARGET_ARM_
-        case 8:
-            if (IsHfa(clsHnd))
-            {
-                var_types hfaType = GetHfaType(clsHnd);
-
-                // A structSize of 8 with IsHfa, we have two possiblities:
-                // An HFA of one double or an HFA of two floats
-                //
-                // Check and exclude the case of an HFA of two floats
-                if (hfaType == TYP_DOUBLE)
-                {
-                    // We have an HFA of one double
-                    useType = TYP_DOUBLE;
-                }
-                else
-                {
-                    assert(hfaType == TYP_FLOAT);
-
-                    // We have an HFA of two floats
-                    // This should be passed or returned in two FP registers
-                    useType = TYP_UNKNOWN;
-                }
-            }
-            else
-            {
-                // We don't have an HFA
-                useType = TYP_UNKNOWN;
-            }
-            break;
-#endif // _TARGET_ARM_
+        {
+            BYTE gcPtr = 0;
+            // Check if this pointer-sized struct is wrapping a GC object
+            info.compCompHnd->getClassGClayout(clsHnd, &gcPtr);
+            useType = getJitGCType(gcPtr);
+        }
+        break;
 
         default:
             useType = TYP_UNKNOWN;
@@ -733,7 +649,7 @@ var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS
 // getArgTypeForStruct:
 //     Get the type that is used to pass values of the given struct type.
 //     If you have already retrieved the struct size then it should be
-//     passed as the optional third argument, as this allows us to avoid
+//     passed as the optional fourth argument, as this allows us to avoid
 //     an extra call to getClassSize(clsHnd)
 //
 // Arguments:
@@ -802,11 +718,11 @@ var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
     else
 #endif // UNIX_AMD64_ABI
 
-        // The largest primitive type is 8 bytes (TYP_DOUBLE)
+        // The largest arg passed in a single register is MAX_PASS_SINGLEREG_BYTES,
         // so we can skip calling getPrimitiveTypeForStruct when we
         // have a struct that is larger than that.
         //
-        if (structSize <= sizeof(double))
+        if (structSize <= MAX_PASS_SINGLEREG_BYTES)
     {
         // We set the "primitive" useType based upon the structSize
         // and also examine the clsHnd to see if it is an HFA of count one
@@ -829,14 +745,21 @@ var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
         //
         if (structSize <= MAX_PASS_MULTIREG_BYTES)
         {
-            // Structs that are HFA's are passed by value in multiple registers
-            if (IsHfa(clsHnd)
+            // Structs that are HFA/HVA's are passed by value in multiple registers.
+            // Arm64 Windows VarArg methods arguments will not classify HFA/HVA types, they will need to be treated
+            // as if they are not HFA/HVA types.
+            var_types hfaType;
 #if defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
-                && !isVarArg // Arm64 Windows VarArg methods arguments will not
-                             // classify HFA types, they will need to be treated
-                             // as if they are not HFA types.
-#endif                       // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
-                )
+            if (isVarArg)
+            {
+                hfaType = TYP_UNDEF;
+            }
+            else
+#endif // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
+            {
+                hfaType = GetHfaType(clsHnd);
+            }
+            if (varTypeIsValidHfaType(hfaType))
             {
                 // HFA's of count one should have been handled by getPrimitiveTypeForStruct
                 assert(GetHfaCount(clsHnd) >= 2);
@@ -851,7 +774,6 @@ var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
             {
 
 #ifdef UNIX_AMD64_ABI
-
                 // The case of (structDesc.eightByteCount == 1) should have already been handled
                 if ((structDesc.eightByteCount > 1) || !structDesc.passedInRegisters)
                 {
@@ -1035,10 +957,10 @@ var_types Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
     // Check for cases where a small struct is returned in a register
     // via a primitive type.
     //
-    // The largest primitive type is 8 bytes (TYP_DOUBLE)
+    // The largest "primitive type" is MAX_PASS_SINGLEREG_BYTES
     // so we can skip calling getPrimitiveTypeForStruct when we
     // have a struct that is larger than that.
-    if (canReturnInRegister && (useType == TYP_UNKNOWN) && (structSize <= sizeof(double)))
+    if (canReturnInRegister && (useType == TYP_UNKNOWN) && (structSize <= MAX_PASS_SINGLEREG_BYTES))
     {
         // We set the "primitive" useType based upon the structSize
         // and also examine the clsHnd to see if it is an HFA of count one
@@ -1070,7 +992,7 @@ var_types Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
     // because when HFA are enabled, normally we would use two FP registers to pass or return it
     //
     // But if we don't have support for multiple register return types, we have to change this.
-    // Since we what we have an 8-byte struct (float + float)  we change useType to TYP_I_IMPL
+    // Since what we have is an 8-byte struct (float + float)  we change useType to TYP_I_IMPL
     // so that the struct is returned instead using an 8-byte integer register.
     //
     if ((FEATURE_MULTIREG_RET == 0) && (useType == TYP_UNKNOWN) && (structSize == (2 * sizeof(float))) && IsHfa(clsHnd))
@@ -1913,7 +1835,8 @@ void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
     opts.instrCount = 0;
 
     // Used to track when we should consider running EarlyProp
-    optMethodFlags = 0;
+    optMethodFlags       = 0;
+    optNoReturnCallCount = 0;
 
 #ifdef DEBUG
     m_nodeTestData      = nullptr;
@@ -1949,6 +1872,8 @@ void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
 
     // We start with the flow graph in tree-order
     fgOrder = FGOrderTree;
+
+    m_classLayoutTable = nullptr;
 
 #ifdef FEATURE_SIMD
     m_simdHandleCache = nullptr;
@@ -2088,8 +2013,8 @@ VarName Compiler::compVarName(regNumber reg, bool isFloatReg)
         {
             /* If the variable is not in a register, or not in the register we're looking for, quit. */
             /* Also, if it is a compiler generated variable (i.e. slot# > info.compVarScopesCount), don't bother. */
-            if ((varDsc->lvRegister != 0) && (varDsc->lvRegNum == reg) && (varDsc->IsFloatRegType() || !isFloatReg) &&
-                (varDsc->lvSlotNum < info.compVarScopesCount))
+            if ((varDsc->lvRegister != 0) && (varDsc->GetRegNum() == reg) &&
+                (varDsc->IsFloatRegType() || !isFloatReg) && (varDsc->lvSlotNum < info.compVarScopesCount))
             {
                 /* check if variable in that register is live */
                 if (VarSetOps::IsMember(this, compCurLife, varDsc->lvVarIndex))
@@ -2232,7 +2157,7 @@ void Compiler::compSetProcessor()
 #if defined(_TARGET_ARM_)
     info.genCPU = CPU_ARM;
 #elif defined(_TARGET_ARM64_)
-    info.genCPU       = CPU_ARM64;
+    info.genCPU      = CPU_ARM64;
 #elif defined(_TARGET_AMD64_)
     info.genCPU                   = CPU_X64;
 #elif defined(_TARGET_X86_)
@@ -2248,15 +2173,10 @@ void Compiler::compSetProcessor()
     CLANG_FORMAT_COMMENT_ANCHOR;
 
 #ifdef _TARGET_AMD64_
-    opts.compUseFCOMI = false;
-    opts.compUseCMOV  = true;
+    opts.compUseCMOV = true;
 #elif defined(_TARGET_X86_)
-    opts.compUseFCOMI = jitFlags.IsSet(JitFlags::JIT_FLAG_USE_FCOMI);
-    opts.compUseCMOV  = jitFlags.IsSet(JitFlags::JIT_FLAG_USE_CMOV);
-
+    opts.compUseCMOV = jitFlags.IsSet(JitFlags::JIT_FLAG_USE_CMOV);
 #ifdef DEBUG
-    if (opts.compUseFCOMI)
-        opts.compUseFCOMI = !compStressCompile(STRESS_USE_FCOMI, 50);
     if (opts.compUseCMOV)
         opts.compUseCMOV = !compStressCompile(STRESS_USE_CMOV, 50);
 #endif // DEBUG
@@ -2273,76 +2193,76 @@ void Compiler::compSetProcessor()
         // Dummy ISAs for simplifying the JIT code
         opts.setSupportedISA(InstructionSet_Vector128);
         opts.setSupportedISA(InstructionSet_Vector256);
+    }
 
-        if (JitConfig.EnableSSE())
+    if (JitConfig.EnableSSE())
+    {
+        opts.setSupportedISA(InstructionSet_SSE);
+#ifdef _TARGET_AMD64_
+        opts.setSupportedISA(InstructionSet_SSE_X64);
+#endif // _TARGET_AMD64_
+
+        if (JitConfig.EnableSSE2())
         {
-            opts.setSupportedISA(InstructionSet_SSE);
+            opts.setSupportedISA(InstructionSet_SSE2);
 #ifdef _TARGET_AMD64_
-            opts.setSupportedISA(InstructionSet_SSE_X64);
+            opts.setSupportedISA(InstructionSet_SSE2_X64);
 #endif // _TARGET_AMD64_
 
-            if (JitConfig.EnableSSE2())
+            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AES) && JitConfig.EnableAES())
             {
-                opts.setSupportedISA(InstructionSet_SSE2);
-#ifdef _TARGET_AMD64_
-                opts.setSupportedISA(InstructionSet_SSE2_X64);
-#endif // _TARGET_AMD64_
+                opts.setSupportedISA(InstructionSet_AES);
+            }
 
-                if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AES) && JitConfig.EnableAES())
+            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_PCLMULQDQ) && JitConfig.EnablePCLMULQDQ())
+            {
+                opts.setSupportedISA(InstructionSet_PCLMULQDQ);
+            }
+
+            // We need to additionaly check that COMPlus_EnableSSE3_4 is set, as that
+            // is a prexisting config flag that controls the SSE3+ ISAs
+            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE3) && JitConfig.EnableSSE3() && JitConfig.EnableSSE3_4())
+            {
+                opts.setSupportedISA(InstructionSet_SSE3);
+
+                if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSSE3) && JitConfig.EnableSSSE3())
                 {
-                    opts.setSupportedISA(InstructionSet_AES);
-                }
+                    opts.setSupportedISA(InstructionSet_SSSE3);
 
-                if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_PCLMULQDQ) && JitConfig.EnablePCLMULQDQ())
-                {
-                    opts.setSupportedISA(InstructionSet_PCLMULQDQ);
-                }
-
-                // We need to additionaly check that COMPlus_EnableSSE3_4 is set, as that
-                // is a prexisting config flag that controls the SSE3+ ISAs
-                if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE3) && JitConfig.EnableSSE3() && JitConfig.EnableSSE3_4())
-                {
-                    opts.setSupportedISA(InstructionSet_SSE3);
-
-                    if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSSE3) && JitConfig.EnableSSSE3())
+                    if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE41) && JitConfig.EnableSSE41())
                     {
-                        opts.setSupportedISA(InstructionSet_SSSE3);
+                        opts.setSupportedISA(InstructionSet_SSE41);
+#ifdef _TARGET_AMD64_
+                        opts.setSupportedISA(InstructionSet_SSE41_X64);
+#endif // _TARGET_AMD64_
 
-                        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE41) && JitConfig.EnableSSE41())
+                        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE42) && JitConfig.EnableSSE42())
                         {
-                            opts.setSupportedISA(InstructionSet_SSE41);
+                            opts.setSupportedISA(InstructionSet_SSE42);
 #ifdef _TARGET_AMD64_
-                            opts.setSupportedISA(InstructionSet_SSE41_X64);
+                            opts.setSupportedISA(InstructionSet_SSE42_X64);
 #endif // _TARGET_AMD64_
 
-                            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE42) && JitConfig.EnableSSE42())
+                            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_POPCNT) && JitConfig.EnablePOPCNT())
                             {
-                                opts.setSupportedISA(InstructionSet_SSE42);
+                                opts.setSupportedISA(InstructionSet_POPCNT);
 #ifdef _TARGET_AMD64_
-                                opts.setSupportedISA(InstructionSet_SSE42_X64);
+                                opts.setSupportedISA(InstructionSet_POPCNT_X64);
 #endif // _TARGET_AMD64_
+                            }
 
-                                if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_POPCNT) && JitConfig.EnablePOPCNT())
+                            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AVX) && JitConfig.EnableAVX())
+                            {
+                                opts.setSupportedISA(InstructionSet_AVX);
+
+                                if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_FMA) && JitConfig.EnableFMA())
                                 {
-                                    opts.setSupportedISA(InstructionSet_POPCNT);
-#ifdef _TARGET_AMD64_
-                                    opts.setSupportedISA(InstructionSet_POPCNT_X64);
-#endif // _TARGET_AMD64_
+                                    opts.setSupportedISA(InstructionSet_FMA);
                                 }
 
-                                if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AVX) && JitConfig.EnableAVX())
+                                if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AVX2) && JitConfig.EnableAVX2())
                                 {
-                                    opts.setSupportedISA(InstructionSet_AVX);
-
-                                    if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_FMA) && JitConfig.EnableFMA())
-                                    {
-                                        opts.setSupportedISA(InstructionSet_FMA);
-                                    }
-
-                                    if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AVX2) && JitConfig.EnableAVX2())
-                                    {
-                                        opts.setSupportedISA(InstructionSet_AVX2);
-                                    }
+                                    opts.setSupportedISA(InstructionSet_AVX2);
                                 }
                             }
                         }
@@ -2350,34 +2270,34 @@ void Compiler::compSetProcessor()
                 }
             }
         }
+    }
 
-        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_LZCNT) && JitConfig.EnableLZCNT())
-        {
-            opts.setSupportedISA(InstructionSet_LZCNT);
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_LZCNT) && JitConfig.EnableLZCNT())
+    {
+        opts.setSupportedISA(InstructionSet_LZCNT);
 #ifdef _TARGET_AMD64_
-            opts.setSupportedISA(InstructionSet_LZCNT_X64);
+        opts.setSupportedISA(InstructionSet_LZCNT_X64);
 #endif // _TARGET_AMD64_
-        }
+    }
 
-        // We currently need to also check that AVX is supported as that controls the support for the VEX encoding
-        // in the emitter.
-        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_BMI1) && JitConfig.EnableBMI1() && compSupports(InstructionSet_AVX))
-        {
-            opts.setSupportedISA(InstructionSet_BMI1);
+    // We currently need to also check that AVX is supported as that controls the support for the VEX encoding
+    // in the emitter.
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_BMI1) && JitConfig.EnableBMI1() && compSupports(InstructionSet_AVX))
+    {
+        opts.setSupportedISA(InstructionSet_BMI1);
 #ifdef _TARGET_AMD64_
-            opts.setSupportedISA(InstructionSet_BMI1_X64);
+        opts.setSupportedISA(InstructionSet_BMI1_X64);
 #endif // _TARGET_AMD64_
-        }
+    }
 
-        // We currently need to also check that AVX is supported as that controls the support for the VEX encoding
-        // in the emitter.
-        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_BMI2) && JitConfig.EnableBMI2() && compSupports(InstructionSet_AVX))
-        {
-            opts.setSupportedISA(InstructionSet_BMI2);
+    // We currently need to also check that AVX is supported as that controls the support for the VEX encoding
+    // in the emitter.
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_BMI2) && JitConfig.EnableBMI2() && compSupports(InstructionSet_AVX))
+    {
+        opts.setSupportedISA(InstructionSet_BMI2);
 #ifdef _TARGET_AMD64_
-            opts.setSupportedISA(InstructionSet_BMI2_X64);
+        opts.setSupportedISA(InstructionSet_BMI2_X64);
 #endif // _TARGET_AMD64_
-        }
     }
 #else  // !FEATURE_CORECLR
     if (!jitFlags.IsSet(JitFlags::JIT_FLAG_PREJIT))
@@ -2410,25 +2330,129 @@ void Compiler::compSetProcessor()
     {
         if (canUseVexEncoding())
         {
-            codeGen->getEmitter()->SetUseVEXEncoding(true);
+            codeGen->GetEmitter()->SetUseVEXEncoding(true);
             // Assume each JITted method does not contain AVX instruction at first
-            codeGen->getEmitter()->SetContainsAVX(false);
-            codeGen->getEmitter()->SetContains256bitAVX(false);
+            codeGen->GetEmitter()->SetContainsAVX(false);
+            codeGen->GetEmitter()->SetContains256bitAVX(false);
         }
     }
 #endif // _TARGET_XARCH_
 
 #if defined(_TARGET_ARM64_)
-    // There is no JitFlag for Base instructions handle manually
-    opts.setSupportedISA(InstructionSet_Base);
-    // Dummy ISAs for simplifying the JIT code
-    opts.setSupportedISA(InstructionSet_Vector64);
-    opts.setSupportedISA(InstructionSet_Vector128);
-#define HARDWARE_INTRINSIC_CLASS(flag, jit_config, isa)                                                                \
-    if (jitFlags.IsSet(JitFlags::flag) && JitConfig.jit_config())                                                      \
-        opts.setSupportedISA(InstructionSet_##isa);
-#include "hwintrinsiclistArm64.h"
+    if (JitConfig.EnableHWIntrinsic())
+    {
+        // Dummy ISAs for simplifying the JIT code
+        opts.setSupportedISA(InstructionSet_ArmBase);
+        opts.setSupportedISA(InstructionSet_ArmBase_Arm64);
+        opts.setSupportedISA(InstructionSet_Vector64);
+        opts.setSupportedISA(InstructionSet_Vector128);
+    }
 
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_AES) && JitConfig.EnableArm64Aes())
+    {
+        opts.setSupportedISA(InstructionSet_Aes);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_ATOMICS) && JitConfig.EnableArm64Atomics())
+    {
+        opts.setSupportedISA(InstructionSet_Atomics);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_CRC32) && JitConfig.EnableArm64Crc32())
+    {
+        opts.setSupportedISA(InstructionSet_Crc32);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_DCPOP) && JitConfig.EnableArm64Dcpop())
+    {
+        opts.setSupportedISA(InstructionSet_Dcpop);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_DP) && JitConfig.EnableArm64Dp())
+    {
+        opts.setSupportedISA(InstructionSet_Dp);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_FCMA) && JitConfig.EnableArm64Fcma())
+    {
+        opts.setSupportedISA(InstructionSet_Fcma);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_FP) && JitConfig.EnableArm64Fp())
+    {
+        opts.setSupportedISA(InstructionSet_Fp);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_FP16) && JitConfig.EnableArm64Fp16())
+    {
+        opts.setSupportedISA(InstructionSet_Fp16);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_JSCVT) && JitConfig.EnableArm64Jscvt())
+    {
+        opts.setSupportedISA(InstructionSet_Jscvt);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_LRCPC) && JitConfig.EnableArm64Lrcpc())
+    {
+        opts.setSupportedISA(InstructionSet_Lrcpc);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_PMULL) && JitConfig.EnableArm64Pmull())
+    {
+        opts.setSupportedISA(InstructionSet_Pmull);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SHA1) && JitConfig.EnableArm64Sha1())
+    {
+        opts.setSupportedISA(InstructionSet_Sha1);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SHA256) && JitConfig.EnableArm64Sha256())
+    {
+        opts.setSupportedISA(InstructionSet_Sha256);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SHA512) && JitConfig.EnableArm64Sha512())
+    {
+        opts.setSupportedISA(InstructionSet_Sha512);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SHA3) && JitConfig.EnableArm64Sha3())
+    {
+        opts.setSupportedISA(InstructionSet_Sha3);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_ADVSIMD) && JitConfig.EnableArm64AdvSimd())
+    {
+        opts.setSupportedISA(InstructionSet_AdvSimd);
+        opts.setSupportedISA(InstructionSet_AdvSimd_Arm64);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_ADVSIMD_V81) && JitConfig.EnableArm64AdvSimd_v81())
+    {
+        opts.setSupportedISA(InstructionSet_AdvSimd_v81);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_ADVSIMD_FP16) && JitConfig.EnableArm64AdvSimd_Fp16())
+    {
+        opts.setSupportedISA(InstructionSet_AdvSimd_Fp16);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SM3) && JitConfig.EnableArm64Sm3())
+    {
+        opts.setSupportedISA(InstructionSet_Sm3);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SM4) && JitConfig.EnableArm64Sm4())
+    {
+        opts.setSupportedISA(InstructionSet_Sm4);
+    }
+
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SVE) && JitConfig.EnableArm64Sve())
+    {
+        opts.setSupportedISA(InstructionSet_Sve);
+    }
 #endif
 }
 
@@ -2652,7 +2676,7 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
         // First, initialize the AltJitExcludeAssemblies list, but only do it once.
         if (!s_pAltJitExcludeAssembliesListInitialized)
         {
-            const wchar_t* wszAltJitExcludeAssemblyList = JitConfig.AltJitExcludeAssemblies();
+            const WCHAR* wszAltJitExcludeAssemblyList = JitConfig.AltJitExcludeAssemblies();
             if (wszAltJitExcludeAssemblyList != nullptr)
             {
                 // NOTE: The Assembly name list is allocated in the process heap, not in the no-release heap, which is
@@ -3195,7 +3219,7 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
             // Setup assembly name list for disassembly, if not already set up.
             if (!s_pJitDisasmIncludeAssembliesListInitialized)
             {
-                const wchar_t* assemblyNameList = JitConfig.JitDisasmAssemblies();
+                const WCHAR* assemblyNameList = JitConfig.JitDisasmAssemblies();
                 if (assemblyNameList != nullptr)
                 {
                     s_pJitDisasmIncludeAssembliesList = new (HostAllocator::getHostAllocator())
@@ -3205,7 +3229,7 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
             }
 
             // If we have an assembly name list for disassembly, also check this method's assembly.
-            if (s_pJitDisasmIncludeAssembliesList != nullptr)
+            if (s_pJitDisasmIncludeAssembliesList != nullptr && !s_pJitDisasmIncludeAssembliesList->IsEmpty())
             {
                 const char* assemblyName = info.compCompHnd->getAssemblyName(
                     info.compCompHnd->getModuleAssembly(info.compCompHnd->getClassModule(info.compClassHnd)));
@@ -3336,7 +3360,7 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
     // Read function list, if not already read, and there exists such a list.
     if (!s_pJitFunctionFileInitialized)
     {
-        const wchar_t* functionFileName = JitConfig.JitFunctionFile();
+        const WCHAR* functionFileName = JitConfig.JitFunctionFile();
         if (functionFileName != nullptr)
         {
             s_pJitMethodSet =
@@ -3396,10 +3420,11 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
         compProfilerMethHndIndirected = false;
     }
 
-    // Honour COMPlus_JitELTHookEnabled only if VM has not asked us to generate profiler
-    // hooks in the first place. That is, override VM only if it hasn't asked for a
-    // profiler callback for this method.
-    if (!compProfilerHookNeeded && (JitConfig.JitELTHookEnabled() != 0))
+    // Honour COMPlus_JitELTHookEnabled or STRESS_PROFILER_CALLBACKS stress mode
+    // only if VM has not asked us to generate profiler hooks in the first place.
+    // That is, override VM only if it hasn't asked for a profiler callback for this method.
+    if (!compProfilerHookNeeded &&
+        ((JitConfig.JitELTHookEnabled() != 0) || compStressCompile(STRESS_PROFILER_CALLBACKS, 5)))
     {
         opts.compJitELTHookEnabled = true;
     }
@@ -3414,7 +3439,7 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
 #endif // PROFILING_SUPPORTED
 
 #if FEATURE_TAILCALL_OPT
-    const wchar_t* strTailCallOpt = JitConfig.TailCallOpt();
+    const WCHAR* strTailCallOpt = JitConfig.TailCallOpt();
     if (strTailCallOpt != nullptr)
     {
         opts.compTailCallOpt = (UINT)_wtoi(strTailCallOpt) != 0;
@@ -3486,41 +3511,41 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
 #endif
     }
 
-    fgProfileBuffer              = nullptr;
+    fgBlockCounts                = nullptr;
     fgProfileData_ILSizeMismatch = false;
     fgNumProfileRuns             = 0;
     if (jitFlags->IsSet(JitFlags::JIT_FLAG_BBOPT))
     {
         assert(!compIsForInlining());
         HRESULT hr;
-        hr = info.compCompHnd->getBBProfileData(info.compMethodHnd, &fgProfileBufferCount, &fgProfileBuffer,
-                                                &fgNumProfileRuns);
+        hr = info.compCompHnd->getMethodBlockCounts(info.compMethodHnd, &fgBlockCountsCount, &fgBlockCounts,
+                                                    &fgNumProfileRuns);
 
-        // a failed result that also has a non-NULL fgProfileBuffer
+        // a failed result that also has a non-NULL fgBlockCounts
         // indicates that the ILSize for the method no longer matches
         // the ILSize for the method when profile data was collected.
         //
         // We will discard the IBC data in this case
         //
-        if (FAILED(hr) && (fgProfileBuffer != nullptr))
+        if (FAILED(hr) && (fgBlockCounts != nullptr))
         {
             fgProfileData_ILSizeMismatch = true;
-            fgProfileBuffer              = nullptr;
+            fgBlockCounts                = nullptr;
         }
 #ifdef DEBUG
-        // A successful result implies a non-NULL fgProfileBuffer
+        // A successful result implies a non-NULL fgBlockCounts
         //
         if (SUCCEEDED(hr))
         {
-            assert(fgProfileBuffer != nullptr);
+            assert(fgBlockCounts != nullptr);
         }
 
-        // A failed result implies a NULL fgProfileBuffer
+        // A failed result implies a NULL fgBlockCounts
         //   see implementation of Compiler::fgHaveProfileData()
         //
         if (FAILED(hr))
         {
-            assert(fgProfileBuffer == nullptr);
+            assert(fgBlockCounts == nullptr);
         }
 #endif
     }
@@ -3550,6 +3575,14 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
         {
             printf("OPTIONS: Tier-1 compilation\n");
         }
+        if (compSwitchedToOptimized)
+        {
+            printf("OPTIONS: Tier-0 compilation, switched to FullOpts");
+        }
+        if (compSwitchedToMinOpts)
+        {
+            printf("OPTIONS: Tier-1/FullOpts compilation, switched to MinOpts");
+        }
 
         printf("OPTIONS: compCodeOpt = %s\n",
                (opts.compCodeOpt == BLENDED_CODE)
@@ -3565,7 +3598,7 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
 
         if (jitFlags->IsSet(JitFlags::JIT_FLAG_BBOPT) && fgHaveProfileData())
         {
-            printf("OPTIONS: using real profile data\n");
+            printf("OPTIONS: optimized using profile data\n");
         }
 
         if (fgProfileData_ILSizeMismatch)
@@ -3663,11 +3696,11 @@ bool Compiler::compStressCompile(compStressArea stressArea, unsigned weight)
         return false;
     }
 
-    bool           doStress = false;
-    const wchar_t* strStressModeNames;
+    bool         doStress = false;
+    const WCHAR* strStressModeNames;
 
     // Does user explicitly prevent using this STRESS_MODE through the command line?
-    const wchar_t* strStressModeNamesNot = JitConfig.JitStressModeNamesNot();
+    const WCHAR* strStressModeNamesNot = JitConfig.JitStressModeNamesNot();
     if ((strStressModeNamesNot != nullptr) &&
         (wcsstr(strStressModeNamesNot, s_compStressModeNames[stressArea]) != nullptr))
     {
@@ -3787,7 +3820,7 @@ void Compiler::compInitDebuggingInfo()
 
         fgEnsureFirstBBisScratch();
 
-        fgInsertStmtAtEnd(fgFirstBB, gtNewNothingNode());
+        fgNewStmtAtEnd(fgFirstBB, gtNewNothingNode());
 
         JITDUMP("Debuggable code - Add new %s to perform initialization of variables\n", fgFirstBB->dspToString());
     }
@@ -3963,8 +3996,8 @@ void Compiler::compSetOptimizationLevel()
 			sscanf_s(histr, "%x", &methHashHi);
 			if (methHash >= methHashLo && methHash <= methHashHi)
 			{
-				printf("MinOpts for method %s, hash = 0x%x.\n",
-					info.compFullName, info.compMethodHash());
+				printf("MinOpts for method %s, hash = %08x.\n",
+					info.compFullName, methHash);
 				printf("");         // in our logic this causes a flush
 				theMinOptsValue = true;
 			}
@@ -4073,6 +4106,14 @@ _SetMinOpts:
     // Set the MinOpts value
     opts.SetMinOpts(theMinOptsValue);
 
+    // Notify the VM if MinOpts is being used when not requested
+    if (theMinOptsValue && !compIsForInlining() && !opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER0) &&
+        !opts.jitFlags->IsSet(JitFlags::JIT_FLAG_MIN_OPT) && !opts.compDbgCode)
+    {
+        info.compCompHnd->setMethodAttribs(info.compMethodHnd, CORINFO_FLG_SWITCHED_TO_MIN_OPT);
+        compSwitchedToMinOpts = true;
+    }
+
 #ifdef DEBUG
     if (verbose && !compIsForInlining())
     {
@@ -4109,7 +4150,7 @@ _SetMinOpts:
 
         if (opts.jitFlags->IsSet(JitFlags::JIT_FLAG_RELOC))
         {
-            codeGen->genAlignLoops = false; // loop alignment not supported for prejitted code
+            codeGen->SetAlignLoops(false); // loop alignment not supported for prejitted code
 
             // The zapper doesn't set JitFlags::JIT_FLAG_ALIGN_LOOPS, and there is
             // no reason for it to set it as the JIT doesn't currently support loop alignment
@@ -4119,7 +4160,7 @@ _SetMinOpts:
         }
         else
         {
-            codeGen->genAlignLoops = opts.jitFlags->IsSet(JitFlags::JIT_FLAG_ALIGN_LOOPS);
+            codeGen->SetAlignLoops(opts.jitFlags->IsSet(JitFlags::JIT_FLAG_ALIGN_LOOPS));
         }
     }
 
@@ -4298,6 +4339,59 @@ bool Compiler::compRsvdRegCheck(FrameLayoutState curState)
 }
 #endif // _TARGET_ARMARCH_
 
+const char* Compiler::compGetTieringName() const
+{
+    bool tier0 = opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER0);
+    bool tier1 = opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER1);
+    assert(!tier0 || !tier1); // We don't expect multiple TIER flags to be set at one time.
+
+    if (tier0)
+    {
+        return "Tier-0";
+    }
+    else if (tier1)
+    {
+        return "Tier-1";
+    }
+    else if (opts.OptimizationEnabled())
+    {
+        if (compSwitchedToOptimized)
+        {
+            return "Tier-0 switched to FullOpts";
+        }
+        else
+        {
+            return "FullOpts";
+        }
+    }
+    else if (opts.MinOpts())
+    {
+        if (compSwitchedToMinOpts)
+        {
+            if (compSwitchedToOptimized)
+            {
+                return "Tier-0 switched to FullOpts, then to MinOpts";
+            }
+            else
+            {
+                return "Tier-1/FullOpts switched to MinOpts";
+            }
+        }
+        else
+        {
+            return "MinOpts";
+        }
+    }
+    else if (opts.compDbgCode)
+    {
+        return "Debug";
+    }
+    else
+    {
+        return "Unknown optimization level";
+    }
+}
+
 void Compiler::compFunctionTraceStart()
 {
 #ifdef DEBUG
@@ -4318,8 +4412,9 @@ void Compiler::compFunctionTraceStart()
         {
             printf("  ");
         }
-        printf("{ Start Jitting %s (MethodHash=%08x)\n", info.compFullName,
-               info.compMethodHash()); /* } editor brace matching workaround for this printf */
+        printf("{ Start Jitting Method %4d %s (MethodHash=%08x) %s\n", Compiler::jitTotalMethodCompiled,
+               info.compFullName, info.compMethodHash(),
+               compGetTieringName()); /* } editor brace matching workaround for this printf */
     }
 #endif // DEBUG
 }
@@ -4341,10 +4436,14 @@ void Compiler::compFunctionTraceEnd(void* methodCodePtr, ULONG methodCodeSize, b
         {
             printf("  ");
         }
+
+        // Note: that is incorrect if we are compiling several methods at the same time.
+        unsigned methodNumber = Compiler::jitTotalMethodCompiled - 1;
+
         /* { editor brace-matching workaround for following printf */
-        printf("} Jitted Entry %03x at" FMT_ADDR "method %s size %08x%s%s\n", Compiler::jitTotalMethodCompiled,
-               DBG_ADDR(methodCodePtr), info.compFullName, methodCodeSize,
-               isNYI ? " NYI" : (compIsForImportOnly() ? " import only" : ""), opts.altJit ? " altjit" : "");
+        printf("} Jitted Method %4d at" FMT_ADDR "method %s size %08x%s%s\n", methodNumber, DBG_ADDR(methodCodePtr),
+               info.compFullName, methodCodeSize, isNYI ? " NYI" : (compIsForImportOnly() ? " import only" : ""),
+               opts.altJit ? " altjit" : "");
     }
 #endif // DEBUG
 }
@@ -4546,7 +4645,7 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
     fgComputeBlockAndEdgeWeights();
     EndPhase(PHASE_COMPUTE_EDGE_WEIGHTS);
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 
     /* Create funclets from the EH handlers. */
 
@@ -4557,6 +4656,9 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
 
     if (opts.OptimizationEnabled())
     {
+        fgTailMergeThrows();
+        EndPhase(PHASE_MERGE_THROWS);
+
         optOptimizeLayout();
         EndPhase(PHASE_OPTIMIZE_LAYOUT);
 
@@ -4761,7 +4863,7 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
         compCycleEstimate = 0;
         for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
         {
-            for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+            for (Statement* stmt : block->Statements())
             {
                 compSizeEstimate += stmt->GetCostSz();
                 compCycleEstimate += stmt->GetCostEx();
@@ -4824,7 +4926,7 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
     EndPhase(PHASE_LINEAR_SCAN);
 
     // Copied from rpPredictRegUse()
-    genFullPtrRegMap = (codeGen->genInterruptible || !codeGen->isFramePointerUsed());
+    SetFullPtrRegMapRequired(codeGen->GetInterruptible() || !codeGen->isFramePointerUsed());
 
 #ifdef DEBUG
     fgDebugCheckLinks();
@@ -4892,11 +4994,9 @@ void Compiler::ResetOptAnnotations()
 
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt : block->Statements())
         {
-            stmt->gtFlags &= ~GTF_STMT_HAS_CSE;
-
-            for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
+            for (GenTree* tree = stmt->GetTreeList(); tree != nullptr; tree = tree->gtNext)
             {
                 tree->ClearVN();
                 tree->ClearAssertion();
@@ -5007,28 +5107,12 @@ bool Compiler::compQuirkForPPP()
         // This fixes the PPP backward compat issue
         varDscExposedStruct->lvExactSize += 32;
 
-        // Update the GC info to indicate that the padding area does
-        // not contain any GC pointers.
-        //
         // The struct is now 64 bytes.
-        //
         // We're on x64 so this should be 8 pointer slots.
         assert((varDscExposedStruct->lvExactSize / TARGET_POINTER_SIZE) == 8);
 
-        BYTE* oldGCPtrs = varDscExposedStruct->lvGcLayout;
-        BYTE* newGCPtrs = getAllocator(CMK_LvaTable).allocate<BYTE>(8);
-
-        for (int i = 0; i < 4; i++)
-        {
-            newGCPtrs[i] = oldGCPtrs[i];
-        }
-
-        for (int i = 4; i < 8; i++)
-        {
-            newGCPtrs[i] = TYPE_GC_NONE;
-        }
-
-        varDscExposedStruct->lvGcLayout = newGCPtrs;
+        varDscExposedStruct->SetLayout(
+            varDscExposedStruct->GetLayout()->GetPPPQuirkLayout(getAllocator(CMK_ClassLayout)));
 
         return true;
     }
@@ -5217,9 +5301,9 @@ int Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SHA256);
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SHA512);
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SHA3);
-        compileFlags->Set(JitFlags::JIT_FLAG_HAS_ARM64_SIMD);
-        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SIMD_V81);
-        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SIMD_FP16);
+        compileFlags->Set(JitFlags::JIT_FLAG_HAS_ARM64_ADVSIMD);
+        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_ADVSIMD_V81);
+        compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_ADVSIMD_FP16);
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SM3);
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SM4);
         compileFlags->Clear(JitFlags::JIT_FLAG_HAS_ARM64_SVE);
@@ -5260,7 +5344,8 @@ int Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
     info.compClassName  = getAllocator(CMK_DebugOnly).allocate<char>(len);
     strcpy_s((char*)info.compClassName, len, classNamePtr);
 
-    info.compFullName = eeGetMethodFullName(methodHnd);
+    info.compFullName  = eeGetMethodFullName(methodHnd);
+    info.compPerfScore = 0.0;
 #endif // defined(DEBUG) || defined(LATE_DISASM)
 
 #ifdef DEBUG
@@ -5395,7 +5480,7 @@ int Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
 
         /* Tell the emitter that we're done with this function */
 
-        genEmitter->emitEndCG();
+        GetEmitter()->emitEndCG();
 
     DoneCleanUp:
         compDone();
@@ -5410,7 +5495,12 @@ unsigned Compiler::Info::compMethodHash() const
 {
     if (compMethodHashPrivate == 0)
     {
-        compMethodHashPrivate = compCompHnd->getMethodHash(compMethodHnd);
+        // compMethodHashPrivate = compCompHnd->getMethodHash(compMethodHnd);
+        assert(compFullName != nullptr);
+        assert(*compFullName != 0);
+        COUNT_T hash = HashStringA(compFullName); // Use compFullName to generate the hash, as it contains the signature
+                                                  // and return type
+        compMethodHashPrivate = hash;
     }
     return compMethodHashPrivate;
 }
@@ -5494,8 +5584,8 @@ void Compiler::compCompileFinish()
         unsigned profCallCount = 0;
         if (opts.jitFlags->IsSet(JitFlags::JIT_FLAG_BBOPT) && fgHaveProfileData())
         {
-            assert(fgProfileBuffer[0].ILOffset == 0);
-            profCallCount = fgProfileBuffer[0].ExecutionCount;
+            assert(fgBlockCounts[0].ILOffset == 0);
+            profCallCount = fgBlockCounts[0].ExecutionCount;
         }
 
         static bool headerPrinted = false;
@@ -5503,14 +5593,34 @@ void Compiler::compCompileFinish()
         {
             // clang-format off
             headerPrinted = true;
-            printf("         |  Profiled  | Exec-    |   Method has    |   calls   | Num |LclV |AProp| CSE |   Reg   |bytes | %3s code size | \n", Target::g_tgtCPUName);
-            printf(" mdToken |     |  RGN |    Count | EH | FRM | LOOP | NRM | IND | BBs | Cnt | Cnt | Cnt |  Alloc  |  IL  |   HOT |  COLD | method name \n");
-            printf("---------+-----+------+----------+----+-----+------+-----+-----+-----+-----+-----+-----+---------+------+-------+-------+-----------\n");
-            //      06001234 | PRF |  HOT |      219 | EH | ebp | LOOP |  15 |   6 |  12 |  17 |  12 |   8 |   28 p2 |  145 |   211 |   123 | System.Example(int)
+            printf("         |  Profiled   | Method   |   Method has    |   calls   | Num |LclV |AProp| CSE |   Perf  |bytes | %3s codesize| \n", Target::g_tgtCPUName);
+            printf(" mdToken |  CNT |  RGN |    Hash  | EH | FRM | LOOP | NRM | IND | BBs | Cnt | Cnt | Cnt |  Score  |  IL  |   HOT | CLD | method name \n");
+            printf("---------+------+------+----------+----+-----+------+-----+-----+-----+-----+-----+-----+---------+------+-------+-----+\n");
+            //      06001234 | 1234 |  HOT | 0f1e2d3c | EH | ebp | LOOP |  15 |   6 |  12 |  17 |  12 |   8 | 1234.56 |  145 |  1234 | 123 | System.Example(int)
             // clang-format on
         }
 
         printf("%08X | ", currentMethodToken);
+
+        if (fgHaveProfileData())
+        {
+            if (profCallCount <= 9999)
+            {
+                printf("%4d | ", profCallCount);
+            }
+            else if (profCallCount <= 999500)
+            {
+                printf("%3dK | ", (profCallCount + 500) / 1000);
+            }
+            else
+            {
+                printf("%3dM | ", (profCallCount + 500000) / 1000000);
+            }
+        }
+        else
+        {
+            printf("     | ");
+        }
 
         CorInfoRegionKind regionKind = info.compMethodInfo->regionKind;
 
@@ -5518,16 +5628,7 @@ void Compiler::compCompileFinish()
         {
             printf("ALT | ");
         }
-        else if (fgHaveProfileData())
-        {
-            printf("PRF | ");
-        }
-        else
-        {
-            printf("    | ");
-        }
-
-        if (regionKind == CORINFO_REGION_NONE)
+        else if (regionKind == CORINFO_REGION_NONE)
         {
             printf("     | ");
         }
@@ -5548,7 +5649,7 @@ void Compiler::compCompileFinish()
             printf("UNKN | ");
         }
 
-        printf("%8d | ", profCallCount);
+        printf("%08x | ", info.compMethodHash());
 
         if (compHndBBtabCount > 0)
         {
@@ -5606,10 +5707,18 @@ void Compiler::compCompileFinish()
 #endif // FEATURE_ANYCSE
         }
 
-        printf(" LSRA    |"); // TODO-Cleanup: dump some interesting LSRA stat into the order file?
+        if (info.compPerfScore < 9999.995)
+        {
+            printf(" %7.2f |", info.compPerfScore);
+        }
+        else
+        {
+            printf(" %7.0f |", info.compPerfScore);
+        }
+
         printf(" %4d |", info.compMethodInfo->ILCodeSize);
         printf(" %5d |", info.compTotalHotCodeSize);
-        printf(" %5d |", info.compTotalColdCodeSize);
+        printf(" %3d |", info.compTotalColdCodeSize);
 
         printf(" %s\n", eeGetMethodFullName(info.compMethodHnd));
         printf(""); // in our logic this causes a flush
@@ -5837,12 +5946,17 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
     info.compTotalHotCodeSize  = 0;
     info.compTotalColdCodeSize = 0;
 
+    compHasBackwardJump     = false;
+    compSwitchedToOptimized = false;
+    compSwitchedToMinOpts   = false;
+
 #ifdef DEBUG
     compCurBB = nullptr;
     lvaTable  = nullptr;
 
     // Reset node and block ID counter
     compGenTreeID    = 0;
+    compStatementID  = 0;
     compBasicBlockID = 0;
 #endif
 
@@ -5850,7 +5964,7 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
 
     if (!compIsForInlining())
     {
-        codeGen->getEmitter()->emitBegCG(this, compHnd);
+        codeGen->GetEmitter()->emitBegCG(this, compHnd);
     }
 
     info.compIsStatic = (info.compFlags & CORINFO_FLG_STATIC) != 0;
@@ -5873,8 +5987,8 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
     }
     info.compRetNativeType = info.compRetType = JITtype2varType(methodInfo->args.retType);
 
-    info.compCallUnmanaged   = 0;
-    info.compLvFrameListRoot = BAD_VAR_NUM;
+    info.compUnmanagedCallCountWithGCTransition = 0;
+    info.compLvFrameListRoot                    = BAD_VAR_NUM;
 
     info.compInitMem = ((methodInfo->options & CORINFO_OPT_INIT_LOCALS) != 0);
 
@@ -5969,6 +6083,17 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
         goto _Next;
     }
 
+#ifdef FEATURE_CORECLR
+    if (compHasBackwardJump && (info.compFlags & CORINFO_FLG_DISABLE_TIER0_FOR_LOOPS) != 0 && fgCanSwitchToOptimized())
+#else // !FEATURE_CORECLR
+    // We may want to use JitConfig value here to support DISABLE_TIER0_FOR_LOOPS
+    if (compHasBackwardJump && fgCanSwitchToOptimized())
+#endif
+    {
+        // Method likely has a loop, switch to the OptimizedTier to avoid spending too much time running slower code
+        fgSwitchToOptimized();
+    }
+
     compSetOptimizationLevel();
 
 #if COUNT_BASIC_BLOCKS
@@ -6014,12 +6139,13 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
 #ifdef DEBUG
     if (JitConfig.DumpJittedMethods() == 1 && !compIsForInlining())
     {
-        printf("Compiling %4d %s::%s, IL size = %u, hsh=0x%x\n", Compiler::jitTotalMethodCompiled, info.compClassName,
-               info.compMethodName, info.compILCodeSize, info.compMethodHash());
+        printf("Compiling %4d %s::%s, IL size = %u, hash=%08x\n", Compiler::jitTotalMethodCompiled, info.compClassName,
+               info.compMethodName, info.compILCodeSize, info.compMethodHash(), compGetTieringName());
     }
     if (compIsForInlining())
     {
-        compGenTreeID = impInlineInfo->InlinerCompiler->compGenTreeID;
+        compGenTreeID   = impInlineInfo->InlinerCompiler->compGenTreeID;
+        compStatementID = impInlineInfo->InlinerCompiler->compStatementID;
     }
 #endif
 
@@ -6029,6 +6155,7 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
     if (compIsForInlining())
     {
         impInlineInfo->InlinerCompiler->compGenTreeID    = compGenTreeID;
+        impInlineInfo->InlinerCompiler->compStatementID  = compStatementID;
         impInlineInfo->InlinerCompiler->compBasicBlockID = compBasicBlockID;
     }
 #endif
@@ -6930,22 +7057,20 @@ Compiler::NodeToIntMap* Compiler::FindReachableNodesInNodeTestData()
 
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->GetNextStmt())
         {
-            for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
+            for (GenTree* tree = stmt->GetTreeList(); tree != nullptr; tree = tree->gtNext)
             {
                 TestLabelAndNum tlAndN;
 
                 // For call nodes, translate late args to what they stand for.
                 if (tree->OperGet() == GT_CALL)
                 {
-                    GenTreeCall*    call = tree->AsCall();
-                    GenTreeArgList* args = call->gtCallArgs;
-                    unsigned        i    = 0;
-                    while (args != nullptr)
+                    GenTreeCall* call = tree->AsCall();
+                    unsigned     i    = 0;
+                    for (GenTreeCall::Use& use : call->Args())
                     {
-                        GenTree* arg = args->Current();
-                        if (arg->gtFlags & GTF_LATE_ARG)
+                        if ((use.GetNode()->gtFlags & GTF_LATE_ARG) != 0)
                         {
                             // Find the corresponding late arg.
                             GenTree* lateArg = call->fgArgInfo->GetArgNode(i);
@@ -6955,7 +7080,6 @@ Compiler::NodeToIntMap* Compiler::FindReachableNodesInNodeTestData()
                             }
                         }
                         i++;
-                        args = args->Rest();
                     }
                 }
 
@@ -6986,123 +7110,6 @@ void Compiler::TransferTestDataToNode(GenTree* from, GenTree* to)
 
         GetNodeTestData()->Remove(from);
         GetNodeTestData()->Set(to, tlAndN);
-    }
-}
-
-void Compiler::CopyTestDataToCloneTree(GenTree* from, GenTree* to)
-{
-    if (m_nodeTestData == nullptr)
-    {
-        return;
-    }
-    if (from == nullptr)
-    {
-        assert(to == nullptr);
-        return;
-    }
-    // Otherwise...
-    TestLabelAndNum tlAndN;
-    if (GetNodeTestData()->Lookup(from, &tlAndN))
-    {
-        // We can't currently associate multiple annotations with a single node.
-        // If we need to, we can fix this...
-        TestLabelAndNum tlAndNTo;
-        assert(!GetNodeTestData()->Lookup(to, &tlAndNTo));
-        GetNodeTestData()->Set(to, tlAndN);
-    }
-    // Now recurse, in parallel on both trees.
-
-    genTreeOps oper = from->OperGet();
-    unsigned   kind = from->OperKind();
-    assert(oper == to->OperGet());
-
-    // Cconstant or leaf nodes have no children.
-    if (kind & (GTK_CONST | GTK_LEAF))
-    {
-        return;
-    }
-
-    // Otherwise, is it a 'simple' unary/binary operator?
-
-    if (kind & GTK_SMPOP)
-    {
-        if (from->gtOp.gtOp1 != nullptr)
-        {
-            assert(to->gtOp.gtOp1 != nullptr);
-            CopyTestDataToCloneTree(from->gtOp.gtOp1, to->gtOp.gtOp1);
-        }
-        else
-        {
-            assert(to->gtOp.gtOp1 == nullptr);
-        }
-
-        if (from->gtGetOp2IfPresent() != nullptr)
-        {
-            assert(to->gtGetOp2IfPresent() != nullptr);
-            CopyTestDataToCloneTree(from->gtGetOp2(), to->gtGetOp2());
-        }
-        else
-        {
-            assert(to->gtGetOp2IfPresent() == nullptr);
-        }
-
-        return;
-    }
-
-    // Otherwise, see what kind of a special operator we have here.
-
-    switch (oper)
-    {
-        case GT_STMT:
-            CopyTestDataToCloneTree(from->gtStmt.gtStmtExpr, to->gtStmt.gtStmtExpr);
-            return;
-
-        case GT_CALL:
-            CopyTestDataToCloneTree(from->gtCall.gtCallObjp, to->gtCall.gtCallObjp);
-            CopyTestDataToCloneTree(from->gtCall.gtCallArgs, to->gtCall.gtCallArgs);
-            CopyTestDataToCloneTree(from->gtCall.gtCallLateArgs, to->gtCall.gtCallLateArgs);
-
-            if (from->gtCall.gtCallType == CT_INDIRECT)
-            {
-                CopyTestDataToCloneTree(from->gtCall.gtCallCookie, to->gtCall.gtCallCookie);
-                CopyTestDataToCloneTree(from->gtCall.gtCallAddr, to->gtCall.gtCallAddr);
-            }
-            // The other call types do not have additional GenTree arguments.
-
-            return;
-
-        case GT_FIELD:
-            CopyTestDataToCloneTree(from->gtField.gtFldObj, to->gtField.gtFldObj);
-            return;
-
-        case GT_ARR_ELEM:
-            assert(from->gtArrElem.gtArrRank == to->gtArrElem.gtArrRank);
-            for (unsigned dim = 0; dim < from->gtArrElem.gtArrRank; dim++)
-            {
-                CopyTestDataToCloneTree(from->gtArrElem.gtArrInds[dim], to->gtArrElem.gtArrInds[dim]);
-            }
-            CopyTestDataToCloneTree(from->gtArrElem.gtArrObj, to->gtArrElem.gtArrObj);
-            return;
-
-        case GT_CMPXCHG:
-            CopyTestDataToCloneTree(from->gtCmpXchg.gtOpLocation, to->gtCmpXchg.gtOpLocation);
-            CopyTestDataToCloneTree(from->gtCmpXchg.gtOpValue, to->gtCmpXchg.gtOpValue);
-            CopyTestDataToCloneTree(from->gtCmpXchg.gtOpComparand, to->gtCmpXchg.gtOpComparand);
-            return;
-
-        case GT_ARR_BOUNDS_CHECK:
-#ifdef FEATURE_SIMD
-        case GT_SIMD_CHK:
-#endif // FEATURE_SIMD
-#ifdef FEATURE_HW_INTRINSICS
-        case GT_HW_INTRINSIC_CHK:
-#endif // FEATURE_HW_INTRINSICS
-            CopyTestDataToCloneTree(from->gtBoundsChk.gtIndex, to->gtBoundsChk.gtIndex);
-            CopyTestDataToCloneTree(from->gtBoundsChk.gtArrLen, to->gtBoundsChk.gtArrLen);
-            return;
-
-        default:
-            unreached();
     }
 }
 
@@ -7181,9 +7188,9 @@ void Compiler::compCallArgStats()
 
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt : block->Statements())
         {
-            for (GenTree* call = stmt->gtStmtList; call != nullptr; call = call->gtNext)
+            for (GenTree* call = stmt->GetTreeList(); call != nullptr; call = call->gtNext)
             {
                 if (call->gtOper != GT_CALL)
                     continue;
@@ -7198,9 +7205,9 @@ void Compiler::compCallArgStats()
 
                 argTotalCalls++;
 
-                if (!call->gtCall.gtCallObjp)
+                if (call->AsCall()->gtCallThisArg == nullptr)
                 {
-                    if (call->gtCall.gtCallType == CT_HELPER)
+                    if (call->AsCall()->gtCallType == CT_HELPER)
                     {
                         argHelperCalls++;
                     }
@@ -8208,8 +8215,7 @@ void dumpConvertedVarSet(Compiler* comp, VARSET_VALARG_TP vars)
     unsigned        varIndex = 0;
     while (iter.NextElem(&varIndex))
     {
-        unsigned varNum = comp->lvaTrackedToVarNum[varIndex];
-        assert(varNum < comp->lvaCount);
+        unsigned varNum    = comp->lvaTrackedIndexToLclNum(varIndex);
         pVarNumSet[varNum] = 1; // This varNum is in the set
     }
 
@@ -8312,6 +8318,13 @@ void cBlocksV(Compiler* comp)
     static unsigned sequenceNumber = 0; // separate calls with a number to indicate this function has been called
     printf("===================================================================== *BlocksV %u\n", sequenceNumber++);
     comp->fgDispBasicBlocks(true);
+}
+
+void cStmt(Compiler* comp, Statement* statement)
+{
+    static unsigned sequenceNumber = 0; // separate calls with a number to indicate this function has been called
+    printf("===================================================================== *Stmt %u\n", sequenceNumber++);
+    comp->gtDispStmt(statement, ">>>");
 }
 
 void cTree(Compiler* comp, GenTree* tree)
@@ -8535,10 +8548,10 @@ void dBlockList(BasicBlockList* list)
 // Trees, Stmts, and/or Blocks using id or bbNum.
 // That can be used in watch window or as a way to get address of fields for data break points.
 
-GenTree*     dbTree;
-GenTreeStmt* dbStmt;
-BasicBlock*  dbTreeBlock;
-BasicBlock*  dbBlock;
+GenTree*    dbTree;
+Statement*  dbStmt;
+BasicBlock* dbTreeBlock;
+BasicBlock* dbBlock;
 
 // Debug APIs for finding Trees, Stmts, and/or Blocks.
 // As a side effect, they set the debug variables above.
@@ -8583,9 +8596,9 @@ GenTree* dFindTree(unsigned id)
 
     for (block = comp->fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
+        for (Statement* stmt : block->Statements())
         {
-            tree = dFindTree(stmt, id);
+            tree = dFindTree(stmt->GetRootNode(), id);
             if (tree != nullptr)
             {
                 dbTreeBlock = block;
@@ -8597,7 +8610,7 @@ GenTree* dFindTree(unsigned id)
     return nullptr;
 }
 
-GenTreeStmt* dFindStmt(unsigned id)
+Statement* dFindStmt(unsigned id)
 {
     Compiler*   comp = JitTls::GetCompiler();
     BasicBlock* block;
@@ -8607,7 +8620,7 @@ GenTreeStmt* dFindStmt(unsigned id)
     unsigned stmtId = 0;
     for (block = comp->fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
+        for (Statement* stmt : block->Statements())
         {
             stmtId++;
             if (stmtId == id)
@@ -8648,7 +8661,7 @@ void cFuncIR(Compiler* comp)
 {
     BasicBlock* block;
 
-    printf("Method %s::%s, hsh=0x%x\n", comp->info.compClassName, comp->info.compMethodName,
+    printf("Method %s::%s, hash=%08x\n", comp->info.compClassName, comp->info.compMethodName,
            comp->info.compMethodHash());
 
     printf("\n");
@@ -8800,27 +8813,27 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
 
     if (!block->IsLIR())
     {
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
+        for (Statement* stmt : block->Statements())
         {
             // Print current stmt.
 
             if (trees)
             {
-                cTree(comp, stmt);
+                cStmt(comp, stmt);
                 printf("\n");
                 printf("=====================================================================\n");
             }
 
             if (comp->compRationalIRForm)
             {
-                for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
+                for (GenTree* tree = stmt->GetTreeList(); tree != nullptr; tree = tree->gtNext)
                 {
                     cNodeIR(comp, tree);
                 }
             }
             else
             {
-                cTreeIR(comp, stmt);
+                cStmtIR(comp, stmt);
             }
 
             if (!noStmts && !trees)
@@ -8831,7 +8844,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
     }
     else
     {
-        for (GenTree* node = block->bbTreeList; node != nullptr; node = node->gtNext)
+        for (GenTree* node = block->GetFirstLIRNode(); node != nullptr; node = node->gtNext)
         {
             cNodeIR(comp, node);
         }
@@ -9362,7 +9375,7 @@ int cTreeFlagsIR(Compiler* comp, GenTree* tree)
 
             case GT_OBJ:
             case GT_STORE_OBJ:
-                if (tree->AsObj()->HasGCPtr())
+                if (tree->AsObj()->GetLayout()->HasGCPtr())
                 {
                     chars += printf("[BLK_HASGCPTR]");
                 }
@@ -9494,19 +9507,6 @@ int cTreeFlagsIR(Compiler* comp, GenTree* tree)
                     }
                 }
                 break;
-
-            case GT_STMT:
-
-                if (tree->gtFlags & GTF_STMT_CMPADD)
-                {
-                    chars += printf("[STMT_CMPADD]");
-                }
-                if (tree->gtFlags & GTF_STMT_HAS_CSE)
-                {
-                    chars += printf("[STMT_HAS_CSE]");
-                }
-                break;
-
             default:
 
             {
@@ -9639,16 +9639,16 @@ int cSsaNumIR(Compiler* comp, GenTree* tree)
 {
     int chars = 0;
 
-    if (tree->gtLclVarCommon.HasSsaName())
+    if (tree->AsLclVarCommon()->HasSsaName())
     {
         if (tree->gtFlags & GTF_VAR_USEASG)
         {
             assert(tree->gtFlags & GTF_VAR_DEF);
-            chars += printf("<u:%d><d:%d>", tree->gtLclVarCommon.gtSsaNum, comp->GetSsaNumForLocalVarDef(tree));
+            chars += printf("<u:%d><d:%d>", tree->AsLclVarCommon()->GetSsaNum(), comp->GetSsaNumForLocalVarDef(tree));
         }
         else
         {
-            chars += printf("<%s:%d>", (tree->gtFlags & GTF_VAR_DEF) ? "d" : "u", tree->gtLclVarCommon.gtSsaNum);
+            chars += printf("<%s:%d>", (tree->gtFlags & GTF_VAR_DEF) ? "d" : "u", tree->AsLclVarCommon()->GetSsaNum());
         }
     }
 
@@ -9749,7 +9749,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
         case GT_LCL_VAR:
         case GT_LCL_VAR_ADDR:
         case GT_STORE_LCL_VAR:
-            lclNum = tree->gtLclVarCommon.gtLclNum;
+            lclNum = tree->AsLclVarCommon()->GetLclNum();
             comp->gtGetLclVarNameInfo(lclNum, &ilKind, &ilName, &ilNum);
             if (ilName != nullptr)
             {
@@ -9770,14 +9770,14 @@ int cLeafIR(Compiler* comp, GenTree* tree)
                     {
                         if (varDsc->lvRegister)
                         {
-                            chars += printf(":%s", getRegName(varDsc->lvRegNum));
+                            chars += printf(":%s", getRegName(varDsc->GetRegNum()));
                         }
                         else
                         {
                             switch (tree->GetRegTag())
                             {
                                 case GenTree::GT_REGTAG_REG:
-                                    chars += printf(":%s", comp->compRegVarName(tree->gtRegNum));
+                                    chars += printf(":%s", comp->compRegVarName(tree->GetRegNum()));
                                     break;
                                 default:
                                     break;
@@ -9790,14 +9790,14 @@ int cLeafIR(Compiler* comp, GenTree* tree)
                 {
                     if (varDsc->lvRegister)
                     {
-                        chars += printf("(%s)", getRegName(varDsc->lvRegNum));
+                        chars += printf("(%s)", getRegName(varDsc->GetRegNum()));
                     }
                     else
                     {
                         switch (tree->GetRegTag())
                         {
                             case GenTree::GT_REGTAG_REG:
-                                chars += printf("(%s)", comp->compRegVarName(tree->gtRegNum));
+                                chars += printf("(%s)", comp->compRegVarName(tree->GetRegNum()));
                                 break;
                             default:
                                 break;
@@ -9813,15 +9813,15 @@ int cLeafIR(Compiler* comp, GenTree* tree)
         case GT_LCL_FLD_ADDR:
         case GT_STORE_LCL_FLD:
 
-            lclNum = tree->gtLclVarCommon.gtLclNum;
+            lclNum = tree->AsLclVarCommon()->GetLclNum();
             comp->gtGetLclVarNameInfo(lclNum, &ilKind, &ilName, &ilNum);
             if (ilName != nullptr)
             {
-                chars += printf("%s+%u", ilName, tree->gtLclFld.gtLclOffs);
+                chars += printf("%s+%u", ilName, tree->AsLclFld()->gtLclOffs);
             }
             else
             {
-                chars += printf("%s%d+%u", ilKind, ilNum, tree->gtLclFld.gtLclOffs);
+                chars += printf("%s%d+%u", ilKind, ilNum, tree->AsLclFld()->gtLclOffs);
                 LclVarDsc* varDsc = comp->lvaTable + lclNum;
                 if (comp->dumpIRLocals)
                 {
@@ -9834,14 +9834,14 @@ int cLeafIR(Compiler* comp, GenTree* tree)
                     {
                         if (varDsc->lvRegister)
                         {
-                            chars += printf(":%s", getRegName(varDsc->lvRegNum));
+                            chars += printf(":%s", getRegName(varDsc->GetRegNum()));
                         }
                         else
                         {
                             switch (tree->GetRegTag())
                             {
                                 case GenTree::GT_REGTAG_REG:
-                                    chars += printf(":%s", comp->compRegVarName(tree->gtRegNum));
+                                    chars += printf(":%s", comp->compRegVarName(tree->GetRegNum()));
                                     break;
                                 default:
                                     break;
@@ -9854,14 +9854,14 @@ int cLeafIR(Compiler* comp, GenTree* tree)
                 {
                     if (varDsc->lvRegister)
                     {
-                        chars += printf("(%s)", getRegName(varDsc->lvRegNum));
+                        chars += printf("(%s)", getRegName(varDsc->GetRegNum()));
                     }
                     else
                     {
                         switch (tree->GetRegTag())
                         {
                             case GenTree::GT_REGTAG_REG:
-                                chars += printf("(%s)", comp->compRegVarName(tree->gtRegNum));
+                                chars += printf("(%s)", comp->compRegVarName(tree->GetRegNum()));
                                 break;
                             default:
                                 break;
@@ -9871,7 +9871,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
             }
 
             // TODO: We probably want to expand field sequence.
-            // gtDispFieldSeq(tree->gtLclFld.gtFieldSeq);
+            // gtDispFieldSeq(tree->AsLclFld()->gtFieldSeq);
 
             hasSsa = true;
             break;
@@ -9888,7 +9888,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
             const char* className;
             const char* fieldName;
             const char* methodName;
-            const wchar_t* str;
+            const WCHAR* str;
 
             switch (tree->GetIconHandleFlag())
             {
@@ -9900,34 +9900,34 @@ int cLeafIR(Compiler* comp, GenTree* tree)
 
             case GTF_ICON_CLASS_HDL:
 
-                className = comp->eeGetClassName((CORINFO_CLASS_HANDLE)tree->gtIntCon.gtIconVal);
+                className = comp->eeGetClassName((CORINFO_CLASS_HANDLE)tree->AsIntCon()->gtIconVal);
                 chars += printf("CLASS(%s)", className);
                 break;
 
             case GTF_ICON_METHOD_HDL:
 
-                methodName = comp->eeGetMethodName((CORINFO_METHOD_HANDLE)tree->gtIntCon.gtIconVal,
+                methodName = comp->eeGetMethodName((CORINFO_METHOD_HANDLE)tree->AsIntCon()->gtIconVal,
                     &className);
                 chars += printf("METHOD(%s.%s)", className, methodName);
                 break;
 
             case GTF_ICON_FIELD_HDL:
 
-                fieldName = comp->eeGetFieldName((CORINFO_FIELD_HANDLE)tree->gtIntCon.gtIconVal,
+                fieldName = comp->eeGetFieldName((CORINFO_FIELD_HANDLE)tree->AsIntCon()->gtIconVal,
                     &className);
                 chars += printf("FIELD(%s.%s) ", className, fieldName);
                 break;
 
             case GTF_ICON_STATIC_HDL:
 
-                fieldName = comp->eeGetFieldName((CORINFO_FIELD_HANDLE)tree->gtIntCon.gtIconVal,
+                fieldName = comp->eeGetFieldName((CORINFO_FIELD_HANDLE)tree->AsIntCon()->gtIconVal,
                     &className);
                 chars += printf("STATIC_FIELD(%s.%s)", className, fieldName);
                 break;
 
             case GTF_ICON_STR_HDL:
 
-                str = comp->eeGetCPString(tree->gtIntCon.gtIconVal);
+                str = comp->eeGetCPString(tree->AsIntCon()->gtIconVal);
                 chars += printf("\"%S\"", str);
                 break;
 
@@ -9953,7 +9953,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
 
             case GTF_ICON_TOKEN_HDL:
 
-                chars += printf("TOKEN(%08X)", tree->gtIntCon.gtIconVal);
+                chars += printf("TOKEN(%08X)", tree->AsIntCon()->gtIconVal);
                 break;
 
             case GTF_ICON_TLS_HDL:
@@ -9983,14 +9983,14 @@ int cLeafIR(Compiler* comp, GenTree* tree)
             }
 #else
 #ifdef _TARGET_64BIT_
-                if ((tree->gtIntCon.gtIconVal & 0xFFFFFFFF00000000LL) != 0)
+                if ((tree->AsIntCon()->gtIconVal & 0xFFFFFFFF00000000LL) != 0)
                 {
-                    chars += printf("HANDLE(0x%llx)", dspPtr(tree->gtIntCon.gtIconVal));
+                    chars += printf("HANDLE(0x%llx)", dspPtr(tree->AsIntCon()->gtIconVal));
                 }
                 else
 #endif
                 {
-                    chars += printf("HANDLE(0x%0x)", dspPtr(tree->gtIntCon.gtIconVal));
+                    chars += printf("HANDLE(0x%0x)", dspPtr(tree->AsIntCon()->gtIconVal));
                 }
 #endif
             }
@@ -9998,18 +9998,18 @@ int cLeafIR(Compiler* comp, GenTree* tree)
             {
                 if (tree->TypeGet() == TYP_REF)
                 {
-                    assert(tree->gtIntCon.gtIconVal == 0);
+                    assert(tree->AsIntCon()->gtIconVal == 0);
                     chars += printf("null");
                 }
 #ifdef _TARGET_64BIT_
-                else if ((tree->gtIntCon.gtIconVal & 0xFFFFFFFF00000000LL) != 0)
+                else if ((tree->AsIntCon()->gtIconVal & 0xFFFFFFFF00000000LL) != 0)
                 {
-                    chars += printf("0x%llx", tree->gtIntCon.gtIconVal);
+                    chars += printf("0x%llx", tree->AsIntCon()->gtIconVal);
                 }
                 else
 #endif
                 {
-                    chars += printf("%ld(0x%x)", tree->gtIntCon.gtIconVal, tree->gtIntCon.gtIconVal);
+                    chars += printf("%ld(0x%x)", tree->AsIntCon()->gtIconVal, tree->AsIntCon()->gtIconVal);
                 }
             }
             break;
@@ -10035,7 +10035,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
             const char* methodName;
             const char* className;
 
-            methodName = comp->eeGetMethodName((CORINFO_METHOD_HANDLE)tree->gtVal.gtVal1, &className);
+            methodName = comp->eeGetMethodName((CORINFO_METHOD_HANDLE)tree->AsVal()->gtVal1, &className);
             chars += printf(" %s.%s", className, methodName);
         }
         break;
@@ -10054,12 +10054,12 @@ int cLeafIR(Compiler* comp, GenTree* tree)
 
         case GT_RET_EXPR:
 
-            chars += printf("t%d", tree->gtRetExpr.gtInlineCandidate->gtTreeID);
+            chars += printf("t%d", tree->AsRetExpr()->gtInlineCandidate->gtTreeID);
             break;
 
         case GT_PHYSREG:
 
-            chars += printf("%s", getRegName(tree->gtPhysReg.gtSrcReg, varTypeIsFloating(tree)));
+            chars += printf("%s", getRegName(tree->AsPhysReg()->gtSrcReg, varTypeIsFloating(tree)));
             break;
 
         case GT_LABEL:
@@ -10067,13 +10067,13 @@ int cLeafIR(Compiler* comp, GenTree* tree)
 
         case GT_IL_OFFSET:
 
-            if (tree->gtStmt.gtStmtILoffsx == BAD_IL_OFFSET)
+            if (tree->AsILOffset()->gtStmtILoffsx == BAD_IL_OFFSET)
             {
                 chars += printf("?");
             }
             else
             {
-                chars += printf("0x%x", jitGetILoffs(tree->gtStmt.gtStmtILoffsx));
+                chars += printf("0x%x", jitGetILoffs(tree->AsILOffset()->gtStmtILoffsx));
             }
             break;
 
@@ -10418,24 +10418,6 @@ void cNodeIR(Compiler* comp, GenTree* tree)
             return;
         }
     }
-    else if (op == GT_STMT)
-    {
-        if (noStmts)
-        {
-            if (dataflowView)
-            {
-                child = tree->GetChild(0);
-                if (child->gtOper != GT_COMMA)
-                {
-                    return;
-                }
-            }
-            else
-            {
-                return;
-            }
-        }
-    }
     else if (op == GT_COMMA)
     {
         if (dataflowView)
@@ -10579,7 +10561,7 @@ void cNodeIR(Compiler* comp, GenTree* tree)
     }
     else if (op == GT_INTRINSIC)
     {
-        CorInfoIntrinsics intrin = tree->gtIntrinsic.gtIntrinsicId;
+        CorInfoIntrinsics intrin = tree->AsIntrinsic()->gtIntrinsicId;
 
         chars += printf(":");
         switch (intrin)
@@ -10664,7 +10646,7 @@ void cNodeIR(Compiler* comp, GenTree* tree)
 
         {
             const char* className = nullptr;
-            const char* fieldName = comp->eeGetFieldName(tree->gtField.gtFldHnd, &className);
+            const char* fieldName = comp->eeGetFieldName(tree->AsField()->gtFldHnd, &className);
 
             chars += printf(" %s.%s", className, fieldName);
         }
@@ -10672,12 +10654,12 @@ void cNodeIR(Compiler* comp, GenTree* tree)
 
         case GT_CALL:
 
-            if (tree->gtCall.gtCallType != CT_INDIRECT)
+            if (tree->AsCall()->gtCallType != CT_INDIRECT)
             {
                 const char* methodName;
                 const char* className;
 
-                methodName = comp->eeGetMethodName(tree->gtCall.gtCallMethHnd, &className);
+                methodName = comp->eeGetMethodName(tree->AsCall()->gtCallMethHnd, &className);
 
                 chars += printf(" %s.%s", className, methodName);
             }
@@ -10743,20 +10725,17 @@ void cNodeIR(Compiler* comp, GenTree* tree)
     }
     else if (op == GT_PHI)
     {
-        if (tree->gtOp.gtOp1 != nullptr)
+        bool first = true;
+        for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
         {
-            bool first = true;
-            for (GenTreeArgList* args = tree->gtOp.gtOp1->AsArgList(); args != nullptr; args = args->Rest())
+            child = use.GetNode();
+            if (!first)
             {
-                child = args->Current();
-                if (!first)
-                {
-                    chars += printf(",");
-                }
-                first = false;
-                chars += printf(" ");
-                chars += cOperandIR(comp, child);
+                chars += printf(",");
             }
+            first = false;
+            chars += printf(" ");
+            chars += cOperandIR(comp, child);
         }
     }
     else
@@ -10866,6 +10845,16 @@ void cNodeIR(Compiler* comp, GenTree* tree)
     printf("\n");
 }
 
+void cStmtIR(Compiler* comp, Statement* stmt)
+{
+    cTreeIR(comp, stmt->GetRootNode());
+    if (!comp->dumpIRNoStmts)
+    {
+        dTabStopIR(0, COLUMN_OPCODE);
+        Compiler::printStmtID(stmt);
+    }
+}
+
 /*****************************************************************************
  *
  *  COMPlus_JitDumpIR support - dump out tree in linear IR form
@@ -10970,763 +10959,3 @@ bool Compiler::killGCRefs(GenTree* tree)
 
     return false;
 }
-
-#ifdef USING_VARIABLE_LIVE_RANGE
-#ifdef DEBUG
-//------------------------------------------------------------------------
-//                      VariableLiveRanges dumpers
-//------------------------------------------------------------------------
-
-// Dump "VariableLiveRange" when code has not been generated and we don't have so the assembly native offset
-// but at least "emitLocation"s and "siVarLoc"
-void VariableLiveKeeper::VariableLiveRange::dumpVariableLiveRange(const CodeGenInterface* codeGen) const
-{
-    codeGen->dumpSiVarLoc(&m_VarLocation);
-    printf(" [ ");
-    m_StartEmitLocation.Print();
-    printf(", ");
-    if (m_EndEmitLocation.Valid())
-    {
-        m_EndEmitLocation.Print();
-    }
-    else
-    {
-        printf("NON_CLOSED_RANGE");
-    }
-    printf(" ]; ");
-}
-
-// Dump "VariableLiveRange" when code has been generated and we have the assembly native offset of each "emitLocation"
-void VariableLiveKeeper::VariableLiveRange::dumpVariableLiveRange(emitter* emit, const CodeGenInterface* codeGen) const
-{
-    assert(emit != nullptr);
-
-    // "VariableLiveRanges" are created setting its location ("m_VarLocation") and the initial native offset
-    // ("m_StartEmitLocation")
-    codeGen->dumpSiVarLoc(&m_VarLocation);
-
-    // If this is an open "VariableLiveRange", "m_EndEmitLocation" is non-valid and print -1
-    UNATIVE_OFFSET endAssemblyOffset = m_EndEmitLocation.Valid() ? m_EndEmitLocation.CodeOffset(emit) : -1;
-
-    printf(" [%X , %X )", m_StartEmitLocation.CodeOffset(emit), m_EndEmitLocation.CodeOffset(emit));
-}
-
-//------------------------------------------------------------------------
-//                      LiveRangeDumper
-//------------------------------------------------------------------------
-//------------------------------------------------------------------------
-// resetDumper: If the the "liveRange" has its last "VariableLiveRange" closed, it makes
-//  the "LiveRangeDumper" points to end of "liveRange" (nullptr). In other case,
-//  it makes the "LiveRangeDumper" points to the last "VariableLiveRange" of
-//  "liveRange", which is opened.
-//
-// Arguments:
-//  liveRanges - the "LiveRangeList" of the "VariableLiveDescriptor" we want to
-//      udpate its "LiveRangeDumper".
-//
-// Notes:
-//  This method is expected to be called once a the code for a BasicBlock has been
-//  generated and all the new "VariableLiveRange"s of the variable during this block
-//  has been dumped.
-void VariableLiveKeeper::LiveRangeDumper::resetDumper(const LiveRangeList* liveRanges)
-{
-    // There must have reported something in order to reset
-    assert(m_hasLiveRangestoDump);
-
-    if (liveRanges->back().m_EndEmitLocation.Valid())
-    {
-        // the last "VariableLiveRange" is closed and the variable
-        // is no longer alive
-        m_hasLiveRangestoDump = false;
-    }
-    else
-    {
-        // the last "VariableLiveRange" remains opened because it is
-        // live at "BasicBlock"s "bbLiveOut".
-        m_StartingLiveRange = liveRanges->backPosition();
-    }
-}
-
-//------------------------------------------------------------------------
-// setDumperStartAt: Make "LiveRangeDumper" instance points the last "VariableLiveRange"
-// added so we can starts dumping from there after the actual "BasicBlock"s code is generated.
-//
-// Arguments:
-//  liveRangeIt - an iterator to a position in "VariableLiveDescriptor::m_VariableLiveRanges"
-//
-// Return Value:
-//  A const pointer to the "LiveRangeList" containing all the "VariableLiveRange"s
-//  of the variable with index "varNum".
-//
-// Notes:
-//  "varNum" should be always a valid inde ("varnum" < "m_LiveDscCount")
-void VariableLiveKeeper::LiveRangeDumper::setDumperStartAt(const LiveRangeListIterator liveRangeIt)
-{
-    m_hasLiveRangestoDump = true;
-    m_StartingLiveRange   = liveRangeIt;
-}
-
-//------------------------------------------------------------------------
-// getStartForDump: Return an iterator to the first "VariableLiveRange" edited/added
-//  during the current "BasicBlock"
-//
-// Return Value:
-//  A LiveRangeListIterator to the first "VariableLiveRange" in "LiveRangeList" which
-//  was used during last "BasicBlock".
-//
-VariableLiveKeeper::LiveRangeListIterator VariableLiveKeeper::LiveRangeDumper::getStartForDump() const
-{
-    return m_StartingLiveRange;
-}
-
-//------------------------------------------------------------------------
-// hasLiveRangesToDump: Retutn wheter at least a "VariableLiveRange" was alive during
-//  the current "BasicBlock"'s code generation
-//
-// Return Value:
-//  A boolean indicating indicating if there is at least a "VariableLiveRange"
-//  that has been used for the variable during last "BasicBlock".
-//
-bool VariableLiveKeeper::LiveRangeDumper::hasLiveRangesToDump() const
-{
-    return m_hasLiveRangestoDump;
-}
-#endif // DEBUG
-
-//------------------------------------------------------------------------
-//                      VariableLiveDescriptor
-//------------------------------------------------------------------------
-
-VariableLiveKeeper::VariableLiveDescriptor::VariableLiveDescriptor(CompAllocator allocator)
-{
-    // Initialize an empty list
-    m_VariableLiveRanges = new (allocator) LiveRangeList(allocator);
-
-    INDEBUG(m_VariableLifeBarrier = new (allocator) LiveRangeDumper(m_VariableLiveRanges));
-}
-
-//------------------------------------------------------------------------
-// hasVariableLiveRangeOpen: Return true if the variable is still alive,
-//  false in other case.
-//
-bool VariableLiveKeeper::VariableLiveDescriptor::hasVariableLiveRangeOpen() const
-{
-    return !m_VariableLiveRanges->empty() && !m_VariableLiveRanges->back().m_EndEmitLocation.Valid();
-}
-
-//------------------------------------------------------------------------
-// getLiveRanges: Return the list of variable locations for this variable.
-//
-// Return Value:
-//  A const LiveRangeList* pointing to the first variable location if it has
-//  any or the end of the list in other case.
-//
-VariableLiveKeeper::LiveRangeList* VariableLiveKeeper::VariableLiveDescriptor::getLiveRanges() const
-{
-    return m_VariableLiveRanges;
-}
-
-//------------------------------------------------------------------------
-// startLiveRangeFromEmitter: Report this variable as being born in "varLocation"
-//  since the instruction where "emit" is located.
-//
-// Arguments:
-//  varLocation  - the home of the variable.
-//  emit - an emitter* instance located at the first instruction from
-//  where "varLocation" becomes valid.
-//
-// Assumptions:
-//  This variable is being born so it should be dead.
-//
-// Notes:
-//  The position of "emit" matters to ensure intervals inclusive of the
-//  beginning and exclusive of the end.
-//
-void VariableLiveKeeper::VariableLiveDescriptor::startLiveRangeFromEmitter(CodeGenInterface::siVarLoc varLocation,
-                                                                           emitter*                   emit) const
-{
-    noway_assert(emit != nullptr);
-
-    // Is the first "VariableLiveRange" or the previous one has been closed so its "m_EndEmitLocation" is valid
-    noway_assert(m_VariableLiveRanges->empty() || m_VariableLiveRanges->back().m_EndEmitLocation.Valid());
-
-    // Creates new live range with invalid end
-    m_VariableLiveRanges->emplace_back(varLocation, emitLocation(), emitLocation());
-    m_VariableLiveRanges->back().m_StartEmitLocation.CaptureLocation(emit);
-
-#ifdef DEBUG
-    if (!m_VariableLifeBarrier->hasLiveRangesToDump())
-    {
-        m_VariableLifeBarrier->setDumperStartAt(m_VariableLiveRanges->backPosition());
-    }
-#endif // DEBUG
-
-    // startEmitLocationendEmitLocation has to be Valid and endEmitLocationendEmitLocation  not
-    noway_assert(m_VariableLiveRanges->back().m_StartEmitLocation.Valid());
-    noway_assert(!m_VariableLiveRanges->back().m_EndEmitLocation.Valid());
-}
-
-//------------------------------------------------------------------------
-// endLiveRangeAtEmitter: Report this variable as becoming dead since the
-//  instruction where "emit" is located.
-//
-// Arguments:
-//  emit - an emitter* instance located at the first instruction from
-//   this variable becomes dead.
-//
-// Assumptions:
-//  This variable is becoming dead so it should be alive.
-//
-// Notes:
-//  The position of "emit" matters to ensure intervals inclusive of the
-//  beginning and exclusive of the end.
-//
-void VariableLiveKeeper::VariableLiveDescriptor::endLiveRangeAtEmitter(emitter* emit) const
-{
-    noway_assert(emit != nullptr);
-    noway_assert(hasVariableLiveRangeOpen());
-
-    // Using [close, open) ranges so as to not compute the size of the last instruction
-    m_VariableLiveRanges->back().m_EndEmitLocation.CaptureLocation(emit);
-
-    // No m_EndEmitLocation has to be Valid
-    noway_assert(m_VariableLiveRanges->back().m_EndEmitLocation.Valid());
-}
-
-//------------------------------------------------------------------------
-// UpdateLiveRangeAtEmitter: Report this variable as changing its variable
-//  home to "varLocation" since the instruction where "emit" is located.
-//
-// Arguments:
-//  varLocation  - the new variable location.
-//  emit - an emitter* instance located at the first instruction from
-//   where "varLocation" becomes valid.
-//
-// Assumptions:
-//  This variable is being born so it should be dead.
-//
-// Notes:
-//  The position of "emit" matters to ensure intervals inclusive of the
-//  beginning and exclusive of the end.
-//
-void VariableLiveKeeper::VariableLiveDescriptor::updateLiveRangeAtEmitter(CodeGenInterface::siVarLoc varLocation,
-                                                                          emitter*                   emit) const
-{
-    // This variable is changing home so it has been started before during this block
-    noway_assert(m_VariableLiveRanges != nullptr && !m_VariableLiveRanges->empty());
-
-    // And its last m_EndEmitLocation has to be invalid
-    noway_assert(!m_VariableLiveRanges->back().m_EndEmitLocation.Valid());
-
-    // If we are reporting again the same home, that means we are doing something twice?
-    // noway_assert(! CodeGenInterface::siVarLoc::Equals(&m_VariableLiveRanges->back().m_VarLocation, varLocation));
-
-    // Close previous live range
-    endLiveRangeAtEmitter(emit);
-
-    startLiveRangeFromEmitter(varLocation, emit);
-}
-
-#ifdef DEBUG
-void VariableLiveKeeper::VariableLiveDescriptor::dumpAllRegisterLiveRangesForBlock(
-    emitter* emit, const CodeGenInterface* codeGen) const
-{
-    printf("[");
-    for (LiveRangeListIterator it = m_VariableLiveRanges->begin(); it != m_VariableLiveRanges->end(); it++)
-    {
-        it->dumpVariableLiveRange(emit, codeGen);
-    }
-    printf("]\n");
-}
-
-void VariableLiveKeeper::VariableLiveDescriptor::dumpRegisterLiveRangesForBlockBeforeCodeGenerated(
-    const CodeGenInterface* codeGen) const
-{
-    noway_assert(codeGen != nullptr);
-
-    printf("[");
-    for (LiveRangeListIterator it = m_VariableLifeBarrier->getStartForDump(); it != m_VariableLiveRanges->end(); it++)
-    {
-        it->dumpVariableLiveRange(codeGen);
-    }
-    printf("]\n");
-}
-
-// Returns true if a live range for this variable has been recorded
-bool VariableLiveKeeper::VariableLiveDescriptor::hasVarLiveRangesToDump() const
-{
-    return !m_VariableLiveRanges->empty();
-}
-
-// Returns true if a live range for this variable has been recorded from last call to EndBlock
-bool VariableLiveKeeper::VariableLiveDescriptor::hasVarLiverRangesFromLastBlockToDump() const
-{
-    return m_VariableLifeBarrier->hasLiveRangesToDump();
-}
-
-// Reset the barrier so as to dump only next block changes on next block
-void VariableLiveKeeper::VariableLiveDescriptor::endBlockLiveRanges()
-{
-    // make "m_VariableLifeBarrier->m_StartingLiveRange" now points to nullptr for printing purposes
-    m_VariableLifeBarrier->resetDumper(m_VariableLiveRanges);
-}
-#endif // DEBUG
-
-//------------------------------------------------------------------------
-//                      VariableLiveKeeper
-//------------------------------------------------------------------------
-// Initialize structures for VariableLiveRanges
-void Compiler::initializeVariableLiveKeeper()
-{
-    CompAllocator allocator = getAllocator(CMK_VariableLiveRanges);
-
-    int amountTrackedVariables = opts.compDbgInfo ? info.compLocalsCount : 0;
-    int amountTrackedArgs      = opts.compDbgInfo ? info.compArgsCount : 0;
-
-    varLiveKeeper = new (allocator) VariableLiveKeeper(amountTrackedVariables, amountTrackedArgs, this, allocator);
-}
-
-VariableLiveKeeper* Compiler::getVariableLiveKeeper() const
-{
-    return varLiveKeeper;
-};
-
-//------------------------------------------------------------------------
-// VariableLiveKeeper: Create an instance of the object in charge of managing
-//  VariableLiveRanges and intialize the array "m_vlrLiveDsc".
-//
-// Arguments:
-//    totalLocalCount   - the count of args, special args and IL Local
-//      variables in the method.
-//    argsCount         - the count of args and special args in the method.
-//    compiler          - a compiler instance
-//
-VariableLiveKeeper::VariableLiveKeeper(unsigned int  totalLocalCount,
-                                       unsigned int  argsCount,
-                                       Compiler*     comp,
-                                       CompAllocator allocator)
-    : m_LiveDscCount(totalLocalCount)
-    , m_LiveArgsCount(argsCount)
-    , m_Compiler(comp)
-    , m_LastBasicBlockHasBeenEmited(false)
-{
-    if (m_LiveDscCount > 0)
-    {
-        // Allocate memory for "m_vlrLiveDsc" and initialize each "VariableLiveDescriptor"
-        m_vlrLiveDsc = allocator.allocate<VariableLiveDescriptor>(m_LiveDscCount);
-
-        for (unsigned int varNum = 0; varNum < m_LiveDscCount; varNum++)
-        {
-            new (m_vlrLiveDsc + varNum, jitstd::placement_t()) VariableLiveDescriptor(allocator);
-        }
-    }
-}
-
-//------------------------------------------------------------------------
-// siStartOrCloseVariableLiveRange: Reports the given variable as beign born
-//  or becoming dead.
-//
-// Arguments:
-//    varDsc    - the variable for which a location changed will be reported
-//    varNum    - the index of the variable in the "compiler->lvaTable"
-//    isBorn    - whether the variable is being born from where the emitter is located.
-//    isDying   - whether the variable is dying from where the emitter is located.
-//
-// Assumptions:
-//    The emitter should be located on the first instruction from where is true that
-//    the variable becoming valid (when isBorn is true) or invalid (when isDying is true).
-//
-// Notes:
-//    This method is being called from treeLifeUpdater when the variable is being born,
-//    becoming dead, or both.
-//
-void VariableLiveKeeper::siStartOrCloseVariableLiveRange(const LclVarDsc* varDsc,
-                                                         unsigned int     varNum,
-                                                         bool             isBorn,
-                                                         bool             isDying)
-{
-    noway_assert(varDsc != nullptr);
-
-    // Only the variables that exists in the IL, "this", and special arguments
-    // are reported.
-    if (m_Compiler->opts.compDbgInfo && varNum < m_LiveDscCount)
-    {
-        if (isBorn && !isDying)
-        {
-            // "varDsc" is valid from this point
-            siStartVariableLiveRange(varDsc, varNum);
-        }
-        if (isDying && !isBorn)
-        {
-            // this variable live range is no longer valid from this point
-            siEndVariableLiveRange(varNum);
-        }
-    }
-}
-
-//------------------------------------------------------------------------
-// siStartOrCloseVariableLiveRanges: Iterates the given set of variables
-//  calling "siStartOrCloseVariableLiveRange" with each one.
-//
-// Arguments:
-//    varsIndexSet    - the set of variables to report start/end "VariableLiveRange"
-//    isBorn    - whether the set is being born from where the emitter is located.
-//    isDying   - whether the set is dying from where the emitter is located.
-//
-// Assumptions:
-//    The emitter should be located on the first instruction from where is true that
-//    the variable becoming valid (when isBorn is true) or invalid (when isDying is true).
-//
-// Notes:
-//    This method is being called from treeLifeUpdater when a set of variables
-//    is being born, becoming dead, or both.
-//
-void VariableLiveKeeper::siStartOrCloseVariableLiveRanges(VARSET_VALARG_TP varsIndexSet, bool isBorn, bool isDying)
-{
-    if (m_Compiler->opts.compDbgInfo)
-    {
-        VarSetOps::Iter iter(m_Compiler, varsIndexSet);
-        unsigned        varIndex = 0;
-        while (iter.NextElem(&varIndex))
-        {
-            unsigned int     varNum = m_Compiler->lvaTrackedToVarNum[varIndex];
-            const LclVarDsc* varDsc = m_Compiler->lvaGetDesc(varNum);
-            siStartOrCloseVariableLiveRange(varDsc, varNum, isBorn, isDying);
-        }
-    }
-}
-
-//------------------------------------------------------------------------
-// siStartVariableLiveRange: Reports the given variable as being born.
-//
-// Arguments:
-//    varDsc    - the variable for which a location changed will be reported
-//    varNum    - the index of the variable to report home in lvLiveDsc
-//
-// Assumptions:
-//    The emitter should be pointing to the first instruction from where the VariableLiveRange is
-//    becoming valid.
-//    The given "varDsc" should have its VariableRangeLists initialized.
-//
-// Notes:
-//    This method should be called on every place a Variable is becoming alive.
-void VariableLiveKeeper::siStartVariableLiveRange(const LclVarDsc* varDsc, unsigned int varNum)
-{
-    noway_assert(varDsc != nullptr);
-
-    // Only the variables that exists in the IL, "this", and special arguments
-    // are reported.
-    if (m_Compiler->opts.compDbgInfo && varNum < m_LiveDscCount)
-    {
-        // Build siVarLoc for this born "varDsc"
-        CodeGenInterface::siVarLoc varLocation =
-            m_Compiler->codeGen->getSiVarLoc(varDsc, m_Compiler->codeGen->getCurrentStackLevel());
-
-        VariableLiveDescriptor* varLiveDsc = &m_vlrLiveDsc[varNum];
-        // this variable live range is valid from this point
-        varLiveDsc->startLiveRangeFromEmitter(varLocation, m_Compiler->getEmitter());
-    }
-}
-
-//------------------------------------------------------------------------
-// siEndVariableLiveRange: Reports the variable as becoming dead.
-//
-// Arguments:
-//    varNum    - the index of the variable at m_vlrLiveDsc or lvaTable in that
-//       is becoming dead.
-//
-// Assumptions:
-//    The given variable should be alive.
-//    The emitter should be pointing to the first instruction from where the VariableLiveRange is
-//    becoming invalid.
-//
-// Notes:
-//    This method should be called on every place a Variable is becoming dead.
-void VariableLiveKeeper::siEndVariableLiveRange(unsigned int varNum)
-{
-    // Only the variables that exists in the IL, "this", and special arguments
-    // will be reported.
-
-    // This method is being called from genUpdateLife, and that one is called after
-    // code for BasicBlock have been generated, but the emitter has no longer
-    // a valid IG so we don't report the close of a "VariableLiveRange" after code is
-    // emitted.
-
-    if (m_Compiler->opts.compDbgInfo && varNum < m_LiveDscCount && !m_LastBasicBlockHasBeenEmited)
-    {
-        // this variable live range is no longer valid from this point
-        m_vlrLiveDsc[varNum].endLiveRangeAtEmitter(m_Compiler->getEmitter());
-    }
-}
-
-//------------------------------------------------------------------------
-// siUpdateVariableLiveRange: Reports the change of variable location for the
-//  given variable.
-//
-// Arguments:
-//    varDsc    - the variable for which tis home has changed.
-//    varNum    - the index of the variable to report home in lvLiveDsc
-//
-// Assumptions:
-//    The given variable should be alive.
-//    The emitter should be pointing to the first instruction from where
-//    the new variable location is becoming valid.
-//
-void VariableLiveKeeper::siUpdateVariableLiveRange(const LclVarDsc* varDsc, unsigned int varNum)
-{
-    noway_assert(varDsc != nullptr);
-
-    // Only the variables that exists in the IL, "this", and special arguments
-    // will be reported. This are locals and arguments, and are counted in
-    // "info.compLocalsCount".
-
-    // This method is being called when the prolog is being generated, and
-    // the emitter has no longer a valid IG so we don't report the close of
-    //  a "VariableLiveRange" after code is emitted.
-    if (m_Compiler->opts.compDbgInfo && varNum < m_LiveDscCount && !m_LastBasicBlockHasBeenEmited)
-    {
-        // Build the location of the variable
-        CodeGenInterface::siVarLoc siVarLoc =
-            m_Compiler->codeGen->getSiVarLoc(varDsc, m_Compiler->codeGen->getCurrentStackLevel());
-
-        // Report the home change for this variable
-        VariableLiveDescriptor* varLiveDsc = &m_vlrLiveDsc[varNum];
-        varLiveDsc->updateLiveRangeAtEmitter(siVarLoc, m_Compiler->getEmitter());
-    }
-}
-
-//------------------------------------------------------------------------
-// siEndAllVariableLiveRange: Reports the set of variables as becoming dead.
-//
-// Arguments:
-//    newLife    - the set of variables that are becoming dead.
-//
-// Assumptions:
-//    All the variables in the set are alive.
-//
-// Notes:
-//    This method is called when the last block being generated to killed all
-//    the live variables and set a flag to avoid reporting variable locations for
-//    on next calls to method that update variable liveness.
-void VariableLiveKeeper::siEndAllVariableLiveRange(VARSET_VALARG_TP varsToClose)
-{
-    if (m_Compiler->opts.compDbgInfo)
-    {
-        if (m_Compiler->lvaTrackedCount > 0 || !m_Compiler->opts.OptimizationDisabled())
-        {
-            VarSetOps::Iter iter(m_Compiler, varsToClose);
-            unsigned        varIndex = 0;
-            while (iter.NextElem(&varIndex))
-            {
-                unsigned int varNum = m_Compiler->lvaTrackedToVarNum[varIndex];
-                siEndVariableLiveRange(varNum);
-            }
-        }
-        else
-        {
-            // It seems we are jitting debug code, so we don't have variable
-            //  liveness info
-            siEndAllVariableLiveRange();
-        }
-    }
-
-    m_LastBasicBlockHasBeenEmited = true;
-}
-
-//------------------------------------------------------------------------
-// siEndAllVariableLiveRange: Reports all live variables as dead.
-//
-// Notes:
-//    This overload exists for the case we are jitting code compiled in
-//    debug mode. When that happen we don't have variable liveness info
-//    as "BaiscBlock::bbLiveIn" or "BaiscBlock::bbLiveOut" and there is no
-//    tracked variable.
-//
-void VariableLiveKeeper::siEndAllVariableLiveRange()
-{
-    // TODO: we can improve this keeping a set for the variables with
-    // open VariableLiveRanges
-
-    for (unsigned int varNum = 0; varNum < m_LiveDscCount; varNum++)
-    {
-        const VariableLiveDescriptor* varLiveDsc = m_vlrLiveDsc + varNum;
-        if (varLiveDsc->hasVariableLiveRangeOpen())
-        {
-            siEndVariableLiveRange(varNum);
-        }
-    }
-}
-
-//------------------------------------------------------------------------
-// getLiveRangesForVar: Return the "VariableLiveRange" that correspond to
-//  the given "varNum".
-//
-// Arguments:
-//  varNum  - the index of the variable in m_vlrLiveDsc, which is the same as
-//      in lvaTable.
-//
-// Return Value:
-//  A const pointer to the list of variable locations reported for the variable.
-//
-// Assumtions:
-//  This variable should be an argument, a special argument or an IL local
-//  variable.
-VariableLiveKeeper::LiveRangeList* VariableLiveKeeper::getLiveRangesForVar(unsigned int varNum) const
-{
-    // There should be at least one variable for which its liveness is tracked
-    noway_assert(varNum < m_LiveDscCount);
-
-    return m_vlrLiveDsc[varNum].getLiveRanges();
-}
-
-//------------------------------------------------------------------------
-// getLiveRangesCount: Returns the count of variable locations reported for the tracked
-//  variables, which are arguments, special arguments, and local IL variables.
-//
-// Return Value:
-//    size_t - the count of variable locations
-//
-// Notes:
-//    This method is being called from "genSetScopeInfo" to know the count of
-//    "varResultInfo" that should be created on eeSetLVcount.
-//
-size_t VariableLiveKeeper::getLiveRangesCount() const
-{
-    size_t liveRangesCount = 0;
-
-    if (m_Compiler->opts.compDbgInfo)
-    {
-        for (unsigned int varNum = 0; varNum < m_LiveDscCount; varNum++)
-        {
-            VariableLiveDescriptor* varLiveDsc = m_vlrLiveDsc + varNum;
-
-            if (m_Compiler->compMap2ILvarNum(varNum) != (unsigned int)ICorDebugInfo::UNKNOWN_ILNUM)
-            {
-                liveRangesCount += varLiveDsc->getLiveRanges()->size();
-            }
-        }
-    }
-    return liveRangesCount;
-}
-
-//------------------------------------------------------------------------
-// psiStartVariableLiveRange: Reports the given variable as being born.
-//
-// Arguments:
-//  varLcation  - the variable location
-//  varNum      - the index of the variable in "compiler->lvaTable" or
-//      "VariableLivekeeper->m_vlrLiveDsc"
-//
-// Notes:
-//  This function is expected to be called from "psiBegProlog" during
-//  prolog code generation.
-//
-void VariableLiveKeeper::psiStartVariableLiveRange(CodeGenInterface::siVarLoc varLocation, unsigned int varNum)
-{
-    // This descriptor has to correspond to a parameter. The first slots in lvaTable
-    // are arguments and special arguments.
-    noway_assert(varNum < m_LiveArgsCount);
-
-    VariableLiveDescriptor* varLiveDsc = &m_vlrLiveDsc[varNum];
-    varLiveDsc->startLiveRangeFromEmitter(varLocation, m_Compiler->getEmitter());
-}
-
-//------------------------------------------------------------------------
-// psiClosePrologVariableRanges: Report all the parameters as becoming dead.
-//
-// Notes:
-//  This function is expected to be called from preffix "psiEndProlog" after
-//  code for prolog has been generated.
-//
-void VariableLiveKeeper::psiClosePrologVariableRanges()
-{
-    noway_assert(m_LiveArgsCount <= m_LiveDscCount);
-
-    for (unsigned int varNum = 0; varNum < m_LiveArgsCount; varNum++)
-    {
-        VariableLiveDescriptor* varLiveDsc = m_vlrLiveDsc + varNum;
-
-        if (varLiveDsc->hasVariableLiveRangeOpen())
-        {
-            varLiveDsc->endLiveRangeAtEmitter(m_Compiler->getEmitter());
-        }
-    }
-}
-
-#ifdef DEBUG
-void VariableLiveKeeper::dumpBlockVariableLiveRanges(const BasicBlock* block)
-{
-    // "block" will be dereferenced
-    noway_assert(block != nullptr);
-
-    bool hasDumpedHistory = false;
-
-    if (m_Compiler->verbose)
-    {
-        printf("////////////////////////////////////////\n");
-        printf("////////////////////////////////////////\n");
-        printf("Variable Live Range History Dump for Block %d \n", block->bbNum);
-
-        if (m_Compiler->opts.compDbgInfo)
-        {
-            for (unsigned int varNum = 0; varNum < m_LiveDscCount; varNum++)
-            {
-                VariableLiveDescriptor* varLiveDsc = m_vlrLiveDsc + varNum;
-
-                if (varLiveDsc->hasVarLiverRangesFromLastBlockToDump())
-                {
-                    hasDumpedHistory = true;
-                    printf("IL Var Num %d:\n", m_Compiler->compMap2ILvarNum(varNum));
-                    varLiveDsc->dumpRegisterLiveRangesForBlockBeforeCodeGenerated(m_Compiler->codeGen);
-                    varLiveDsc->endBlockLiveRanges();
-                }
-            }
-        }
-
-        if (!hasDumpedHistory)
-        {
-            printf("..None..\n");
-        }
-
-        printf("////////////////////////////////////////\n");
-        printf("////////////////////////////////////////\n");
-        printf("End Generating code for Block %d \n", block->bbNum);
-    }
-}
-
-void VariableLiveKeeper::dumpLvaVariableLiveRanges() const
-{
-    bool hasDumpedHistory = false;
-
-    if (m_Compiler->verbose)
-    {
-        printf("////////////////////////////////////////\n");
-        printf("////////////////////////////////////////\n");
-        printf("PRINTING VARIABLE LIVE RANGES:\n");
-
-        if (m_Compiler->opts.compDbgInfo)
-        {
-            for (unsigned int varNum = 0; varNum < m_LiveDscCount; varNum++)
-            {
-                VariableLiveDescriptor* varLiveDsc = m_vlrLiveDsc + varNum;
-
-                if (varLiveDsc->hasVarLiveRangesToDump())
-                {
-                    hasDumpedHistory = true;
-                    printf("IL Var Num %d:\n", m_Compiler->compMap2ILvarNum(varNum));
-                    varLiveDsc->dumpAllRegisterLiveRangesForBlock(m_Compiler->getEmitter(), m_Compiler->codeGen);
-                }
-            }
-        }
-
-        if (!hasDumpedHistory)
-        {
-            printf("..None..\n");
-        }
-
-        printf("////////////////////////////////////////\n");
-        printf("////////////////////////////////////////\n");
-    }
-}
-#endif // DEBUG
-#endif // USING_VARIABLE_LIVE_RANGE

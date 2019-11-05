@@ -72,12 +72,11 @@ class   ArrayMethodDesc;
 class   Assembly;
 class   ClassLoader;
 class   DictionaryLayout;
-class   DomainLocalBlock;
 class   FCallMethodDesc;
 class   EEClass;
 class   EnCFieldDesc;
 class   FieldDesc;
-class   FieldMarshaler;
+class   NativeFieldDescriptor;
 struct  LayoutRawFieldInfo;
 class   MetaSig;
 class   MethodDesc;
@@ -97,9 +96,10 @@ class LoadingEntry_LockHolder;
 class   DispatchMapBuilder;
 class LoaderAllocator;
 class ComCallWrapperTemplate;
+enum class ParseNativeTypeFlags : int;
 
 typedef DPTR(DictionaryLayout) PTR_DictionaryLayout;
-typedef DPTR(FieldMarshaler) PTR_FieldMarshaler;
+typedef DPTR(NativeFieldDescriptor) PTR_NativeFieldDescriptor;
 
 
 //---------------------------------------------------------------------------------
@@ -251,7 +251,7 @@ public:
         hEnumInterfaceImpl.EnumInit(mdtInterfaceImpl, cl);
         m_pSubstChain = pSubstChain;
     }
-    
+
     // Returns:
     // S_OK ... if has next (TRUE)
     // S_FALSE ... if does not have next (FALSE)
@@ -265,7 +265,7 @@ public:
         {
             return S_FALSE;
         }
-        
+
         IfFailRet(m_pModule->GetMDImport()->GetTypeOfInterfaceImpl(ii, &m_CurrTok));
         m_CurrSubst = Substitution(m_CurrTok, m_pModule, m_pSubstChain);
         return S_OK;
@@ -357,15 +357,14 @@ class EEClassLayoutInfo
        BOOL fExplicitOffsets,       // explicit offsets?
        MethodTable *pParentMT,       // the loaded superclass
        ULONG cTotalFields,              // total number of fields (instance and static)
-       HENUMInternal *phEnumField,  // enumerator for field
+       HENUMInternal *phEnumField,  // enumerator for fields
        Module* pModule,             // Module that defines the scope, loader and heap (for allocate FieldMarshalers)
        const SigTypeContext *pTypeContext,          // Type parameters for NStruct being loaded
        EEClassLayoutInfo *pEEClassLayoutInfoOut,  // caller-allocated structure to fill in.
-       LayoutRawFieldInfo *pInfoArrayOut, // caller-allocated array to fill in.  Needs room for cMember+1 elements
+       LayoutRawFieldInfo *pInfoArrayOut, // caller-allocated array to fill in.  Needs room for cTotalFields+1 elements
        LoaderAllocator * pAllocator,
        AllocMemTracker    *pamTracker
     );
-
 
     friend class ClassLoader;
     friend class EEClass;
@@ -375,12 +374,54 @@ class EEClassLayoutInfo
 #endif
 
     private:
+        static void ParseFieldNativeTypes(
+            IMDInternalImport* pInternalImport,
+            const mdTypeDef cl, // cl of the NStruct being loaded
+            HENUMInternal* phEnumField, // enumerator for fields
+            const ULONG cTotalFields,
+            Module* pModule, // Module that defines the scope, loader and heap (for allocate FieldMarshalers)
+            ParseNativeTypeFlags nativeTypeFlags,
+            const SigTypeContext* pTypeContext, // Type parameters for NStruct being loaded
+            BOOL* fDisqualifyFromManagedSequential,
+            LayoutRawFieldInfo* pFieldInfoArrayOut, // caller-allocated array to fill in.  Needs room for cTotalFields+1 elements
+            EEClassLayoutInfo* pEEClassLayoutInfoOut, // caller-allocated structure to fill in.
+            ULONG* cInstanceFields // [out] number of instance fields
+#ifdef _DEBUG
+            ,
+            LPCUTF8 szNamespace,
+            LPCUTF8 szName
+#endif
+        );
+
+        static void SetOffsetsAndSortFields(
+            IMDInternalImport* pInternalImport,
+            const mdTypeDef cl,
+            LayoutRawFieldInfo* pFieldInfoArray, // An array of LayoutRawFieldInfos.
+            const ULONG cInstanceFields,
+            const BOOL fExplicitOffsets,
+            const UINT32 cbAdjustedParentLayoutNativeSize,
+            Module* pModule, // Module that defines the scope for the type-load
+            LayoutRawFieldInfo** pSortArrayOut // A caller-allocated array to fill in with pointers to elements in pFieldInfoArray in ascending order when sequential layout, and declaration order otherwise.
+        );
+
+        static void CalculateSizeAndFieldOffsets(
+            const UINT32 parentSize,
+            ULONG numInstanceFields,
+            BOOL fExplicitOffsets,
+            LayoutRawFieldInfo* const* pSortedFieldInfoArray, // An array of pointers to LayoutRawFieldInfo's in ascending order when sequential layout.
+            ULONG classSizeInMetadata,
+            BYTE packingSize,
+            BYTE parentAlignmentRequirement,
+            BOOL calculatingNativeLayout,
+            EEClassLayoutInfo* pEEClassLayoutInfoOut // A pointer to a caller-allocated EEClassLayoutInfo that we are filling in.
+        );
+
         // size (in bytes) of fixed portion of NStruct.
         UINT32      m_cbNativeSize;
         UINT32      m_cbManagedSize;
 
     public:
-        // 1,2,4 or 8: this is equal to the largest of the alignment requirements
+        // this is equal to the largest of the alignment requirements
         // of each of the EEClass's members. If the NStruct extends another NStruct,
         // the base NStruct is treated as the first member for the purpose of
         // this calculation.
@@ -414,8 +455,11 @@ class EEClassLayoutInfo
 #endif // UNIX_AMD64_ABI
 #ifdef FEATURE_HFA
             // HFA type of the unmanaged layout
+            // Note that these are not flags, they are discrete values.
             e_R4_HFA                    = 0x10,
             e_R8_HFA                    = 0x20,
+            e_16_HFA                    = 0x30,
+            e_HFATypeFlags              = 0x30,
 #endif
         };
 
@@ -427,10 +471,10 @@ class EEClassLayoutInfo
         // # of fields that are of the calltime-marshal variety.
         UINT        m_numCTMFields;
 
-        // An array of FieldMarshaler data blocks, used to drive call-time
+        // An array of NativeFieldDescriptor data blocks, used to drive call-time
         // marshaling of NStruct reference parameters. The number of elements
         // equals m_numCTMFields.
-        RelativePointer<PTR_FieldMarshaler> m_pFieldMarshalers;
+        RelativePointer<PTR_NativeFieldDescriptor> m_pNativeFieldDescriptors;
 
 
     public:
@@ -459,17 +503,17 @@ class EEClassLayoutInfo
             return m_numCTMFields;
         }
 
-        PTR_FieldMarshaler GetFieldMarshalers() const
+        PTR_NativeFieldDescriptor GetNativeFieldDescriptors() const
         {
             LIMITED_METHOD_CONTRACT;
-            return ReadPointerMaybeNull(this, &EEClassLayoutInfo::m_pFieldMarshalers);
+            return ReadPointerMaybeNull(this, &EEClassLayoutInfo::m_pNativeFieldDescriptors);
         }
 
 #ifndef DACCESS_COMPILE
-        void SetFieldMarshalers(FieldMarshaler *pFieldMarshallers)
+        void SetNativeFieldDescriptors(NativeFieldDescriptor *pNativeFieldDescriptors)
         {
             LIMITED_METHOD_CONTRACT;
-            m_pFieldMarshalers.SetValueMaybeNull(pFieldMarshallers);
+            m_pNativeFieldDescriptors.SetValueMaybeNull(pNativeFieldDescriptors);
         }
 #endif // DACCESS_COMPILE
 
@@ -500,7 +544,7 @@ class EEClassLayoutInfo
         {
             LIMITED_METHOD_CONTRACT;
             return (m_bFlags & e_HAS_EXPLICIT_SIZE) == e_HAS_EXPLICIT_SIZE;
-        }        
+        }
 
         DWORD GetPackingSize() const
         {
@@ -526,15 +570,19 @@ class EEClassLayoutInfo
         bool IsNativeHFA()
         {
             LIMITED_METHOD_CONTRACT;
-            return (m_bFlags & (e_R4_HFA | e_R8_HFA)) != 0;
+            return (m_bFlags & e_HFATypeFlags) != 0;
         }
 
         CorElementType GetNativeHFAType()
         {
             LIMITED_METHOD_CONTRACT;
-            if (IsNativeHFA())                      
-                return (m_bFlags & e_R4_HFA) ? ELEMENT_TYPE_R4 : ELEMENT_TYPE_R8;
-            return ELEMENT_TYPE_END;
+            switch (m_bFlags & e_HFATypeFlags)
+            {
+            case e_R4_HFA: return ELEMENT_TYPE_R4;
+            case e_R8_HFA: return ELEMENT_TYPE_R8;
+            case e_16_HFA: return ELEMENT_TYPE_VALUETYPE;
+            default:       return ELEMENT_TYPE_END;
+            }
         }
 #else // !FEATURE_HFA
         bool IsNativeHFA()
@@ -580,7 +628,15 @@ class EEClassLayoutInfo
         void SetNativeHFAType(CorElementType hfaType)
         {
             LIMITED_METHOD_CONTRACT;
-            m_bFlags |= (hfaType == ELEMENT_TYPE_R4) ? e_R4_HFA : e_R8_HFA;
+            // We should call this at most once.
+            _ASSERTE((m_bFlags & e_HFATypeFlags) == 0);
+            switch (hfaType)
+            {
+            case ELEMENT_TYPE_R4: m_bFlags |= e_R4_HFA; break;
+            case ELEMENT_TYPE_R8: m_bFlags |= e_R8_HFA; break;
+            case ELEMENT_TYPE_VALUETYPE: m_bFlags |= e_16_HFA; break;
+            default: _ASSERTE(!"Invalid HFA Type");
+            }
         }
 #endif
 #ifdef UNIX_AMD64_ABI
@@ -680,10 +736,10 @@ class EEClassOptionalFields
 #endif
 
     //
-    // GENERICS RELATED FIELDS. 
+    // GENERICS RELATED FIELDS.
     //
 
-    // If IsSharedByGenericInstantiations(), layout of handle dictionary for generic type 
+    // If IsSharedByGenericInstantiations(), layout of handle dictionary for generic type
     // (the last dictionary pointed to from PerInstInfo). Otherwise NULL.
     PTR_DictionaryLayout m_pDictLayout;
 
@@ -718,7 +774,7 @@ class EEClassOptionalFields
 
 #if defined(UNIX_AMD64_ABI)
     // Number of eightBytes in the following arrays
-    int m_numberEightBytes; 
+    int m_numberEightBytes;
     // Classification of the eightBytes
     SystemVClassificationType m_eightByteClassifications[CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS];
     // Size of data the eightBytes
@@ -814,18 +870,18 @@ typedef DPTR(EEClassPackedFields) PTR_EEClassPackedFields;
 // cold), and thus is segregated from the hot portion (which lives in code:MethodTable).  As noted above an
 // it is also the case that EEClass is SHARED among all instantiations of a generic type, so anything that
 // is specific to a paritcular type can not live off the EEClass.
-// 
-// From here you can get to 
+//
+// From here you can get to
 //     code:MethodTable - The representation of the hot portion of a type.
-//     code:MethodDesc - The representation of a method 
-//     code:FieldDesc - The representation of a field. 
-// 
+//     code:MethodDesc - The representation of a method
+//     code:FieldDesc - The representation of a field.
+//
 // EEClasses hold the following important fields
-//     * code:EEClass.m_pMethodTable - Points a MethodTable associated with 
+//     * code:EEClass.m_pMethodTable - Points a MethodTable associated with
 //     * code:EEClass.m_pChunks - a list of code:MethodDescChunk which is simply a list of code:MethodDesc
-//         which represent the methods.  
-//     * code:EEClass.m_pFieldDescList - a list of fields in the type.  
-// 
+//         which represent the methods.
+//     * code:EEClass.m_pFieldDescList - a list of fields in the type.
+//
 class EEClass // DO NOT CREATE A NEW EEClass USING NEW!
 {
     /************************************
@@ -1190,7 +1246,7 @@ public:
     }
 
     /*
-     * Number of bytes to subract from code:MethodTable::GetBaseSize() to get the actual number of bytes 
+     * Number of bytes to subract from code:MethodTable::GetBaseSize() to get the actual number of bytes
      * of instance fields stored in the object on the GC heap.
      */
     inline DWORD GetBaseSizePadding()
@@ -1306,14 +1362,14 @@ public:
         return (m_VMFlags & VMFLAG_UNSAFEVALUETYPE);
     }
 
-    
+
 private:
     inline void SetUnsafeValueClass()
     {
         LIMITED_METHOD_CONTRACT;
         m_VMFlags |= VMFLAG_UNSAFEVALUETYPE;
     }
-    
+
 public:
     inline BOOL HasNoGuid()
     {
@@ -1323,7 +1379,7 @@ public:
     inline void SetHasNoGuid()
     {
         WRAPPER_NO_CONTRACT;
-        FastInterlockOr(EnsureWritablePages(&m_VMFlags), VMFLAG_NO_GUID);
+        FastInterlockOr(&m_VMFlags, VMFLAG_NO_GUID);
     }
 
 public:
@@ -1348,6 +1404,11 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
         m_VMFlags |= (DWORD) VMFLAG_FIXED_ADDRESS_VT_STATICS;
+    }
+    void SetHasOnlyAbstractMethods()
+    {
+        LIMITED_METHOD_CONTRACT;
+        m_VMFlags |= (DWORD) VMFLAG_ONLY_ABSTRACT_METHODS;
     }
 #ifdef FEATURE_COMINTEROP
     void SetSparseForCOMInterop()
@@ -1430,6 +1491,13 @@ public:
         LIMITED_METHOD_CONTRACT;
         return m_VMFlags & VMFLAG_FIXED_ADDRESS_VT_STATICS;
     }
+
+    BOOL HasOnlyAbstractMethods()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_VMFlags & VMFLAG_ONLY_ABSTRACT_METHODS;
+    }
+
 #ifdef FEATURE_COMINTEROP
     BOOL IsSparseForCOMInterop()
     {
@@ -1538,7 +1606,7 @@ public:
      * The CorElementType for this class (most classes = ELEMENT_TYPE_CLASS)
      */
 public:
-    // This is what would be used in the calling convention for this type. 
+    // This is what would be used in the calling convention for this type.
     CorElementType  GetInternalCorElementType()
     {
         LIMITED_METHOD_DAC_CONTRACT;
@@ -1579,7 +1647,7 @@ public:
     {
         WRAPPER_NO_CONTRACT;
         #ifndef DACCESS_COMPILE
-        EnsureWritablePages(&m_pGuidInfo)->SetValueMaybeNull(pGuidInfo);
+        m_pGuidInfo.SetValueMaybeNull(pGuidInfo);
         #endif // DACCESS_COMPILE
     }
 
@@ -1621,7 +1689,7 @@ public:
             GetOptionalFields()->m_eightByteSizes[i] = eightByteSizes[i];
         }
     }
-#endif // UNIX_AMD64_ABI    
+#endif // UNIX_AMD64_ABI
 
 #if defined(FEATURE_HFA)
     bool CheckForHFA(MethodTable ** pByValueClassCache);
@@ -1642,7 +1710,7 @@ public:
     {
         WRAPPER_NO_CONTRACT;
         _ASSERTE(HasOptionalFields());
-        *EnsureWritablePages(&GetOptionalFields()->m_pCoClassForIntf) = th;
+        GetOptionalFields()->m_pCoClassForIntf = th;
     }
 
     inline WinMDAdapter::RedirectedTypeIndex GetWinRTRedirectedTypeIndex()
@@ -1698,7 +1766,6 @@ public:
     {
         WRAPPER_NO_CONTRACT;
         _ASSERTE(IsInterface());
-        EnsureWritablePages(this);
         m_ComInterfaceType = ItfType;
     }
 
@@ -1710,7 +1777,7 @@ public:
     inline BOOL SetComCallWrapperTemplate(ComCallWrapperTemplate *pTemplate)
     {
         WRAPPER_NO_CONTRACT;
-        return (InterlockedCompareExchangeT(EnsureWritablePages(&m_pccwTemplate), pTemplate, NULL) == NULL);
+        return (InterlockedCompareExchangeT(&m_pccwTemplate, pTemplate, NULL) == NULL);
     }
 
 #ifdef FEATURE_COMINTEROP_UNMANAGED_ACTIVATION
@@ -1723,7 +1790,7 @@ public:
     {
         WRAPPER_NO_CONTRACT;
         _ASSERTE(HasOptionalFields());
-        return (InterlockedCompareExchangeT(EnsureWritablePages(&GetOptionalFields()->m_pClassFactory), pFactory, NULL) == NULL);
+        return (InterlockedCompareExchangeT(&GetOptionalFields()->m_pClassFactory, pFactory, NULL) == NULL);
     }
 #endif // FEATURE_COMINTEROP_UNMANAGED_ACTIVATION
 #endif // FEATURE_COMINTEROP
@@ -1837,7 +1904,7 @@ public:
 
         //   OVERLAYED is used to detect whether Equals can safely optimize to a bit-compare across the structure.
         VMFLAG_HASOVERLAYEDFIELDS              = 0x00000400,
-        
+
         // Set this if this class or its parent have instance fields which
         // must be explicitly inited in a constructor (e.g. pointers of any
         // kind, gc or native).
@@ -1859,7 +1926,7 @@ public:
         // unused                              = 0x00080000,
         VMFLAG_CONTAINS_STACK_PTR              = 0x00100000,
         VMFLAG_PREFER_ALIGN8                   = 0x00200000, // Would like to have 8-byte alignment
-        // unused                              = 0x00400000,
+        VMFLAG_ONLY_ABSTRACT_METHODS           = 0x00400000, // Type only contains abstract methods
 
 #ifdef FEATURE_COMINTEROP
         VMFLAG_SPARSE_FOR_COMINTEROP           = 0x00800000,
@@ -1870,7 +1937,7 @@ public:
         VMFLAG_EXPORTED_TO_WINRT               = 0x08000000,
 #endif // FEATURE_COMINTEROP
 
-        // This one indicates that the fields of the valuetype are 
+        // This one indicates that the fields of the valuetype are
         // not tightly packed and is used to check whether we can
         // do bit-equality on value types to implement ValueType::Equals.
         // It is not valid for classes, and only matters if ContainsPointer
@@ -1889,7 +1956,7 @@ public:
 #endif
     };
 
-public: 
+public:
     // C_ASSERTs in Jitinterface.cpp need this to be public to check the offset.
     // Put it first so the offset rarely changes, which just reduces the number of times we have to fiddle
     // with the offset.
@@ -1899,9 +1966,9 @@ public:
 public:
     LPCUTF8 m_szDebugClassName;
     BOOL m_fDebuggingClass;
-#endif 
+#endif
 
-private: 
+private:
     // Layout rest of fields below from largest to smallest to lessen the chance of wasting bytes with
     // compiler injected padding (especially with the difference between pointers and DWORDs on 64-bit).
     RelativePointer<PTR_EEClassOptionalFields> m_rpOptionalFields;
@@ -2077,7 +2144,7 @@ public:
 
 
 //---------------------------------------------------------------------------------------
-// 
+//
 class LayoutEEClass : public EEClass
 {
 public:
@@ -2302,8 +2369,8 @@ struct EnCAddedFieldElement;
 
 
 // --------------------------------------------------------------------------------------------
-// For generic instantiations the FieldDescs stored for instance 
-// fields are approximate, not exact, i.e. they are representatives owned by 
+// For generic instantiations the FieldDescs stored for instance
+// fields are approximate, not exact, i.e. they are representatives owned by
 // canonical instantiation and they do not carry exact type information.
 // This will not include EnC related fields. (See EncApproxFieldDescIterator for that)
 class ApproxFieldDescIterator
@@ -2334,7 +2401,7 @@ private:
         SUPPORTS_DAC;
         return m_iteratorType;
     }
-    
+
     int Count() {
         LIMITED_METHOD_CONTRACT;
         return m_totalFields;
@@ -2363,12 +2430,12 @@ private:
     bool m_lastNextFromParentClass;
 
     bool NextClass();
-    
+
 public:
     DeepFieldDescIterator()
     {
         LIMITED_METHOD_CONTRACT;
-        
+
         m_numClasses = 0;
         m_curClass = 0;
         m_deepTotalFields = 0;
@@ -2378,16 +2445,16 @@ public:
                           bool includeParents = true)
     {
         WRAPPER_NO_CONTRACT;
-        
+
         Init(pMT, iteratorType, includeParents);
     }
     void Init(MethodTable* pMT, int iteratorType,
               bool includeParents = true);
-    
+
     FieldDesc* Next();
 
     bool Skip(int numSkip);
-    
+
     int Count()
     {
         LIMITED_METHOD_CONTRACT;

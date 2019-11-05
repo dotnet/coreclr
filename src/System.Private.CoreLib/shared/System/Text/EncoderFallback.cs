@@ -4,14 +4,15 @@
 
 using System.Buffers;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 
 namespace System.Text
 {
     public abstract class EncoderFallback
     {
-        private static EncoderFallback s_replacementFallback; // Default fallback, uses no best fit & "?"
-        private static EncoderFallback s_exceptionFallback;
+        private static EncoderFallback? s_replacementFallback; // Default fallback, uses no best fit & "?"
+        private static EncoderFallback? s_exceptionFallback;
 
         // Get each of our generic fallbacks.
 
@@ -20,7 +21,7 @@ namespace System.Text
             get
             {
                 if (s_replacementFallback == null)
-                    Interlocked.CompareExchange<EncoderFallback>(ref s_replacementFallback, new EncoderReplacementFallback(), null);
+                    Interlocked.CompareExchange<EncoderFallback?>(ref s_replacementFallback, new EncoderReplacementFallback(), null);
 
                 return s_replacementFallback;
             }
@@ -32,7 +33,7 @@ namespace System.Text
             get
             {
                 if (s_exceptionFallback == null)
-                    Interlocked.CompareExchange<EncoderFallback>(ref s_exceptionFallback, new EncoderExceptionFallback(), null);
+                    Interlocked.CompareExchange<EncoderFallback?>(ref s_exceptionFallback, new EncoderExceptionFallback(), null);
 
                 return s_exceptionFallback;
             }
@@ -87,13 +88,13 @@ namespace System.Text
         // These help us with our performance and messages internally
         internal unsafe char* charStart;
         internal unsafe char* charEnd;
-        internal EncoderNLS encoder; // TODO: MAKE ME PRIVATE
+        internal EncoderNLS? encoder; // TODO: MAKE ME PRIVATE
         internal bool setEncoder;
         internal bool bUsedEncoder;
         internal bool bFallingBack = false;
         internal int iRecursionCount = 0;
         private const int iMaxRecursion = 250;
-        private Encoding encoding;
+        private Encoding? encoding;
         private int originalCharCount;
 
         // Internal Reset
@@ -108,7 +109,7 @@ namespace System.Text
 
         // Set the above values
         // This can't be part of the constructor because EncoderFallbacks would have to know how to implement these.
-        internal unsafe void InternalInitialize(char* charStart, char* charEnd, EncoderNLS encoder, bool setEncoder)
+        internal unsafe void InternalInitialize(char* charStart, char* charEnd, EncoderNLS? encoder, bool setEncoder)
         {
             this.charStart = charStart;
             this.charEnd = charEnd;
@@ -119,7 +120,7 @@ namespace System.Text
             this.iRecursionCount = 0;
         }
 
-        internal static EncoderFallbackBuffer CreateAndInitialize(Encoding encoding, EncoderNLS encoder, int originalCharCount)
+        internal static EncoderFallbackBuffer CreateAndInitialize(Encoding encoding, EncoderNLS? encoder, int originalCharCount)
         {
             // The original char count is only used for keeping track of what 'index' value needs
             // to be passed to the abstract Fallback method. The index value is calculated by subtracting
@@ -218,6 +219,7 @@ namespace System.Text
         {
             int originalBytesLength = bytes.Length;
 
+            Debug.Assert(encoding != null);
             Rune thisRune;
             while ((thisRune = GetNextRune()).Value != 0)
             {
@@ -267,6 +269,7 @@ namespace System.Text
         {
             int totalByteCount = 0;
 
+            Debug.Assert(encoding != null);
             Rune thisRune;
             while ((thisRune = GetNextRune()).Value != 0)
             {
@@ -315,7 +318,7 @@ namespace System.Text
         // Note that this could also change the contents of this.encoder, which is the same
         // object that the caller is using, so the caller could mess up the encoder for us
         // if they aren't careful.
-        internal unsafe virtual bool InternalFallback(char ch, ref char* chars)
+        internal virtual unsafe bool InternalFallback(char ch, ref char* chars)
         {
             // Shouldn't have null charStart
             Debug.Assert(charStart != null,
@@ -373,13 +376,9 @@ namespace System.Text
             return bFallingBack;
         }
 
-        // private helper methods
-        internal void ThrowLastCharRecursive(int charRecursive)
-        {
+        [DoesNotReturn]
+        internal static void ThrowLastCharRecursive(int charRecursive) =>
             // Throw it, using our complete character
-            throw new ArgumentException(
-                SR.Format(SR.Argument_RecursiveFallback,
-                    charRecursive), "chars");
-        }
+            throw new ArgumentException(SR.Format(SR.Argument_RecursiveFallback, charRecursive), "chars");
     }
 }

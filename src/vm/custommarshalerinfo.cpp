@@ -1,14 +1,14 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
-// 
+//
 // File: CustomMarshalerInfo.cpp
-// 
+//
 
-// 
+//
 // Custom marshaler information used when marshaling
-// a parameter with a custom marshaler. 
-// 
+// a parameter with a custom marshaler.
+//
 
 
 #include "common.h"
@@ -16,7 +16,6 @@
 
 #include "custommarshalerinfo.h"
 #include "mlinfo.h"
-#include "mdaassistants.h"
 #include "sigbuilder.h"
 
 //==========================================================================
@@ -26,6 +25,7 @@
 CustomMarshalerInfo::CustomMarshalerInfo(LoaderAllocator *pLoaderAllocator, TypeHandle hndCustomMarshalerType, TypeHandle hndManagedType, LPCUTF8 strCookie, DWORD cCookieStrBytes)
 : m_NativeSize(0)
 , m_hndManagedType(hndManagedType)
+, m_pLoaderAllocator(pLoaderAllocator)
 , m_hndCustomMarshaler(NULL)
 , m_pMarshalNativeToManagedMD(NULL)
 , m_pMarshalManagedToNativeMD(NULL)
@@ -44,7 +44,7 @@ CustomMarshalerInfo::CustomMarshalerInfo(LoaderAllocator *pLoaderAllocator, Type
 
 
     // Make sure the custom marshaller implements ICustomMarshaler.
-    if (!hndCustomMarshalerType.GetMethodTable()->CanCastToNonVariantInterface(MscorlibBinder::GetClass(CLASS__ICUSTOM_MARSHALER)))
+    if (!hndCustomMarshalerType.GetMethodTable()->CanCastToInterface(MscorlibBinder::GetClass(CLASS__ICUSTOM_MARSHALER)))
     {
         DefineFullyQualifiedNameForClassW()
         COMPlusThrow(kApplicationException,
@@ -84,7 +84,7 @@ CustomMarshalerInfo::CustomMarshalerInfo(LoaderAllocator *pLoaderAllocator, Type
     {
         pGetCustomMarshalerMD = MethodDesc::FindOrCreateAssociatedMethodDesc(
             pGetCustomMarshalerMD,
-            hndCustomMarshalerType.GetMethodTable(), 
+            hndCustomMarshalerType.GetMethodTable(),
             FALSE,           // forceBoxedEntryPoint
             Instantiation(), // methodInst
             FALSE,           // allowInstParam
@@ -99,7 +99,7 @@ CustomMarshalerInfo::CustomMarshalerInfo(LoaderAllocator *pLoaderAllocator, Type
     pGetCustomMarshalerMD->EnsureActive();
 
     // Prepare the arguments that will be passed to GetCustomMarshaler.
-    ARG_SLOT GetCustomMarshalerArgs[] = { 
+    ARG_SLOT GetCustomMarshalerArgs[] = {
         ObjToArgSlot(CookieStringObj)
     };
 
@@ -112,7 +112,7 @@ CustomMarshalerInfo::CustomMarshalerInfo(LoaderAllocator *pLoaderAllocator, Type
                      IDS_EE_NOCUSTOMMARSHALER,
                      GetFullyQualifiedNameForClassW(hndCustomMarshalerType.GetMethodTable()));
     }
-    m_hndCustomMarshaler = pLoaderAllocator->GetDomain()->CreateHandle(CustomMarshalerObj);
+    m_hndCustomMarshaler = pLoaderAllocator->AllocateHandle(CustomMarshalerObj);
 
     // Retrieve the size of the native data.
     if (m_bDataIsByValue)
@@ -133,12 +133,15 @@ CustomMarshalerInfo::CustomMarshalerInfo(LoaderAllocator *pLoaderAllocator, Type
 CustomMarshalerInfo::~CustomMarshalerInfo()
 {
     WRAPPER_NO_CONTRACT;
-#ifndef CROSSGEN_COMPILE    
-    if (m_hndCustomMarshaler)
+#ifndef CROSSGEN_COMPILE
+    if (m_pLoaderAllocator->IsAlive() && m_hndCustomMarshaler)
     {
-        DestroyHandle(m_hndCustomMarshaler);
-        m_hndCustomMarshaler = NULL;
+        // Only free the LOADERHANDLE if the LoaderAllocator is still alive.
+        // If the loader allocator isn't alive, the handle has automatically
+        // been collected already.
+        m_pLoaderAllocator->FreeHandle(m_hndCustomMarshaler);
     }
+    m_hndCustomMarshaler = NULL;
 #endif
 }
 
@@ -154,7 +157,7 @@ void *CustomMarshalerInfo::operator new(size_t size, LoaderHeap *pHeap)
         PRECONDITION(CheckPointer(pHeap));
     }
     CONTRACTL_END;
-    
+
     return pHeap->AllocMem(S_SIZE_T(sizeof(CustomMarshalerInfo)));
 }
 
@@ -177,18 +180,25 @@ OBJECTREF CustomMarshalerInfo::InvokeMarshalNativeToManagedMeth(void *pNative)
         PRECONDITION(CheckPointer(pNative, NULL_OK));
     }
     CONTRACTL_END;
-    
+
     if (!pNative)
         return NULL;
 
-    MethodDescCallSite marshalNativeToManaged(m_pMarshalNativeToManagedMD, m_hndCustomMarshaler);
-    
+    OBJECTREF managedObject;
+
+    OBJECTREF customMarshaler = m_pLoaderAllocator->GetHandleValue(m_hndCustomMarshaler);
+    GCPROTECT_BEGIN (customMarshaler);
+    MethodDescCallSite marshalNativeToManaged(m_pMarshalNativeToManagedMD, &customMarshaler);
+
     ARG_SLOT Args[] = {
-        ObjToArgSlot(ObjectFromHandle(m_hndCustomMarshaler)),
+        ObjToArgSlot(customMarshaler),
         PtrToArgSlot(pNative)
     };
 
-    return marshalNativeToManaged.Call_RetOBJECTREF(Args);
+    managedObject = marshalNativeToManaged.Call_RetOBJECTREF(Args);
+    GCPROTECT_END ();
+
+    return managedObject;
 }
 
 
@@ -208,16 +218,19 @@ void *CustomMarshalerInfo::InvokeMarshalManagedToNativeMeth(OBJECTREF MngObj)
         return NULL;
 
     GCPROTECT_BEGIN (MngObj);
-    MethodDescCallSite marshalManagedToNative(m_pMarshalManagedToNativeMD, m_hndCustomMarshaler);
+    OBJECTREF customMarshaler = m_pLoaderAllocator->GetHandleValue(m_hndCustomMarshaler);
+    GCPROTECT_BEGIN (customMarshaler);
+    MethodDescCallSite marshalManagedToNative(m_pMarshalManagedToNativeMD, &customMarshaler);
 
     ARG_SLOT Args[] = {
-        ObjToArgSlot(ObjectFromHandle(m_hndCustomMarshaler)),
+        ObjToArgSlot(customMarshaler),
         ObjToArgSlot(MngObj)
     };
 
     RetVal = marshalManagedToNative.Call_RetLPVOID(Args);
     GCPROTECT_END ();
-    
+    GCPROTECT_END ();
+
     return RetVal;
 }
 
@@ -236,14 +249,17 @@ void CustomMarshalerInfo::InvokeCleanUpNativeMeth(void *pNative)
     if (!pNative)
         return;
 
-    MethodDescCallSite cleanUpNativeData(m_pCleanUpNativeDataMD, m_hndCustomMarshaler);
+    OBJECTREF customMarshaler = m_pLoaderAllocator->GetHandleValue(m_hndCustomMarshaler);
+    GCPROTECT_BEGIN (customMarshaler);
+    MethodDescCallSite cleanUpNativeData(m_pCleanUpNativeDataMD, &customMarshaler);
 
     ARG_SLOT Args[] = {
-        ObjToArgSlot(ObjectFromHandle(m_hndCustomMarshaler)),
+        ObjToArgSlot(customMarshaler),
         PtrToArgSlot(pNative)
     };
 
     cleanUpNativeData.Call(Args);
+    GCPROTECT_END();
 }
 
 
@@ -261,14 +277,17 @@ void CustomMarshalerInfo::InvokeCleanUpManagedMeth(OBJECTREF MngObj)
         return;
 
     GCPROTECT_BEGIN (MngObj);
-    MethodDescCallSite cleanUpManagedData(m_pCleanUpManagedDataMD, m_hndCustomMarshaler);
+    OBJECTREF customMarshaler = m_pLoaderAllocator->GetHandleValue(m_hndCustomMarshaler);
+    GCPROTECT_BEGIN (customMarshaler);
+    MethodDescCallSite cleanUpManagedData(m_pCleanUpManagedDataMD, &customMarshaler);
 
     ARG_SLOT Args[] = {
-        ObjToArgSlot(ObjectFromHandle(m_hndCustomMarshaler)),
+        ObjToArgSlot(customMarshaler),
         ObjToArgSlot(MngObj)
     };
 
     cleanUpManagedData.Call(Args);
+    GCPROTECT_END ();
     GCPROTECT_END ();
 }
 
@@ -286,7 +305,7 @@ MethodDesc *CustomMarshalerInfo::GetCustomMarshalerMD(EnumCustomMarshalerMethods
 
     MethodTable *pMT = hndCustomMarshalertype.AsMethodTable();
 
-    _ASSERTE(pMT->CanCastToNonVariantInterface(MscorlibBinder::GetClass(CLASS__ICUSTOM_MARSHALER)));
+    _ASSERTE(pMT->CanCastToInterface(MscorlibBinder::GetClass(CLASS__ICUSTOM_MARSHALER)));
 
     MethodDesc *pMD = NULL;
 
@@ -358,7 +377,7 @@ EEHashEntry_t * EECMHelperHashtableHelper::AllocateEntry(EECMHelperHashtableKey 
         INJECT_FAULT(return NULL;);
     }
     CONTRACTL_END;
-    
+
     EEHashEntry_t *pEntry;
 
     if (bDeepCopy)
@@ -384,15 +403,15 @@ EEHashEntry_t * EECMHelperHashtableHelper::AllocateEntry(EECMHelperHashtableKey 
         pEntryKey->m_Instantiation = Instantiation(
             (TypeHandle *) (pEntryKey->m_strCookie + pEntryKey->m_cCookieStrBytes),
             pKey->GetMarshalerInstantiation().GetNumArgs());
-        memcpy((void*)pEntryKey->m_strMarshalerTypeName, pKey->GetMarshalerTypeName(), pKey->GetMarshalerTypeNameByteCount()); 
-        memcpy((void*)pEntryKey->m_strCookie, pKey->GetCookieString(), pKey->GetCookieStringByteCount()); 
+        memcpy((void*)pEntryKey->m_strMarshalerTypeName, pKey->GetMarshalerTypeName(), pKey->GetMarshalerTypeNameByteCount());
+        memcpy((void*)pEntryKey->m_strCookie, pKey->GetCookieString(), pKey->GetCookieStringByteCount());
         memcpy((void*)pEntryKey->m_Instantiation.GetRawArgs(), pKey->GetMarshalerInstantiation().GetRawArgs(),
-            pEntryKey->m_Instantiation.GetNumArgs() * sizeof(LPVOID)); 
+            pEntryKey->m_Instantiation.GetNumArgs() * sizeof(LPVOID));
         pEntryKey->m_invokingAssembly = pKey->GetInvokingAssembly();
     }
     else
     {
-        pEntry = (EEHashEntry_t *) 
+        pEntry = (EEHashEntry_t *)
             new (nothrow) BYTE[sizeof(EEHashEntry) - 1 + sizeof(EECMHelperHashtableKey)];
         if (!pEntry)
             return NULL;
@@ -420,7 +439,7 @@ void EECMHelperHashtableHelper::DeleteEntry(EEHashEntry_t *pEntry, void* pHeap)
         PRECONDITION(CheckPointer(pEntry));
     }
     CONTRACTL_END;
-    
+
     delete[] (BYTE*)pEntry;
 }
 
@@ -436,7 +455,7 @@ BOOL EECMHelperHashtableHelper::CompareKeys(EEHashEntry_t *pEntry, EECMHelperHas
         PRECONDITION(CheckPointer(pKey));
     }
     CONTRACTL_END;
-    
+
     EECMHelperHashtableKey *pEntryKey = (EECMHelperHashtableKey *) pEntry->Key;
 
     if (pEntryKey->GetMarshalerTypeNameByteCount() != pKey->GetMarshalerTypeNameByteCount())
@@ -471,10 +490,10 @@ BOOL EECMHelperHashtableHelper::CompareKeys(EEHashEntry_t *pEntry, EECMHelperHas
 DWORD EECMHelperHashtableHelper::Hash(EECMHelperHashtableKey *pKey)
 {
     WRAPPER_NO_CONTRACT;
-    
+
     return (DWORD)
-        (HashBytes((const BYTE *) pKey->GetMarshalerTypeName(), pKey->GetMarshalerTypeNameByteCount()) + 
-        HashBytes((const BYTE *) pKey->GetCookieString(), pKey->GetCookieStringByteCount()) + 
+        (HashBytes((const BYTE *) pKey->GetMarshalerTypeName(), pKey->GetMarshalerTypeNameByteCount()) +
+        HashBytes((const BYTE *) pKey->GetCookieString(), pKey->GetCookieStringByteCount()) +
         HashBytes((const BYTE *) pKey->GetMarshalerInstantiation().GetRawArgs(), pKey->GetMarshalerInstantiation().GetNumArgs() * sizeof(LPVOID)));
 }
 
@@ -495,7 +514,7 @@ void *CustomMarshalerHelper::InvokeMarshalManagedToNativeMeth(OBJECTREF MngObj)
         MODE_COOPERATIVE;
     }
     CONTRACTL_END;
-    
+
     void *RetVal = NULL;
 
     GCPROTECT_BEGIN(MngObj)
@@ -531,16 +550,8 @@ void CustomMarshalerHelper::InvokeCleanUpNativeMeth(void *pNative)
             ExceptionObj = GET_THROWABLE();
         }
         EX_END_CATCH(SwallowAllExceptions);
-
-#ifdef MDA_SUPPORTED
-        if (ExceptionObj != NULL)
-        {
-            TypeHandle typeCustomMarshaler = GetCustomMarshalerInfo()->GetCustomMarshalerType();
-            MDA_TRIGGER_ASSISTANT(MarshalCleanupError, ReportErrorCustomMarshalerCleanup(typeCustomMarshaler, &ExceptionObj));
-        }
-#endif
     }
-    GCPROTECT_END();   
+    GCPROTECT_END();
 }
 
 
@@ -553,7 +564,7 @@ void CustomMarshalerHelper::InvokeCleanUpManagedMeth(OBJECTREF MngObj)
         MODE_COOPERATIVE;
     }
     CONTRACTL_END;
-    
+
     GCPROTECT_BEGIN(MngObj)
     {
         CustomMarshalerInfo *pCMInfo = GetCustomMarshalerInfo();
@@ -574,7 +585,7 @@ void *NonSharedCustomMarshalerHelper::operator new(size_t size, LoaderHeap *pHea
         PRECONDITION(CheckPointer(pHeap));
     }
     CONTRACTL_END;
-    
+
     return pHeap->AllocMem(S_SIZE_T(sizeof(NonSharedCustomMarshalerHelper)));
 }
 
@@ -610,7 +621,7 @@ void *SharedCustomMarshalerHelper::operator new(size_t size, LoaderHeap *pHeap)
         PRECONDITION(CheckPointer(pHeap));
     }
     CONTRACTL_END;
-    
+
     return pHeap->AllocMem(S_SIZE_T(sizeof(SharedCustomMarshalerHelper)));
 }
 
@@ -632,7 +643,7 @@ CustomMarshalerInfo *SharedCustomMarshalerHelper::GetCustomMarshalerInfo()
         MODE_COOPERATIVE;
     }
     CONTRACTL_END;
-    
+
     // Retrieve the marshalling data for the current app domain.
     EEMarshalingData *pMarshalingData = GetThread()->GetDomain()->GetLoaderAllocator()->GetMarshalingData();
 

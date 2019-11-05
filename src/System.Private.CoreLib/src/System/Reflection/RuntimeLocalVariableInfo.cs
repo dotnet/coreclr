@@ -8,7 +8,7 @@ namespace System.Reflection
 {
     internal sealed class RuntimeLocalVariableInfo : LocalVariableInfo
     {
-        private RuntimeType _type;
+        private RuntimeType? _type;
         private int _localIndex;
         private bool _isPinned;
 

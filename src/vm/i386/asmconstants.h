@@ -7,12 +7,12 @@
 // Be sure to rebuild clr/src/vm/ceemain.cpp after changing this file, to
 // ensure that the constants match the expected C/C++ values
 
-// 
+//
 // If you need to figure out a constant that has changed and is causing
 // a compile-time assert, check out USE_COMPILE_TIME_CONSTANT_FINDER.
 // TODO: put the constant finder in a common place so other platforms can use it.
 
-#ifndef _TARGET_X86_ 
+#ifndef _TARGET_X86_
 #error this file should only be used on an X86 platform
 #endif
 
@@ -65,7 +65,7 @@ ASMCONSTANTS_C_ASSERT(CONTEXT_Eip == offsetof(CONTEXT,Eip))
 #define CONTEXT_Esp 0xc4
 ASMCONSTANTS_C_ASSERT(CONTEXT_Esp == offsetof(CONTEXT,Esp))
 
-#ifndef WIN64EXCEPTIONS
+#ifndef FEATURE_EH_FUNCLETS
 // EHContext from clr/src/vm/i386/cgencpu.h
 #define EHContext_Eax 0x00
 ASMCONSTANTS_C_ASSERT(EHContext_Eax == offsetof(EHContext,Eax))
@@ -93,7 +93,7 @@ ASMCONSTANTS_C_ASSERT(EHContext_Esp == offsetof(EHContext,Esp))
 
 #define EHContext_Eip 0x20
 ASMCONSTANTS_C_ASSERT(EHContext_Eip == offsetof(EHContext,Eip))
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 
 // from clr/src/fjit/helperframe.h
@@ -205,7 +205,7 @@ ASMCONSTANTS_C_ASSERT(Thread::TS_Hijacked == TS_Hijacked_ASM)
 
 // from clr/src/vm/appdomain.hpp
 
-// This is the offset from EBP at which the original CONTEXT is stored in one of the 
+// This is the offset from EBP at which the original CONTEXT is stored in one of the
 // RedirectedHandledJITCase*_Stub functions.
 #define REDIRECTSTUB_EBP_OFFSET_CONTEXT (-4)
 
@@ -236,10 +236,10 @@ ASMCONSTANTS_C_ASSERT(OFFSETOF__FrameHandlerExRecord__m_ExReg__Handler == offset
 ASMCONSTANTS_C_ASSERT(OFFSETOF__FrameHandlerExRecord__m_pEntryFrame == offsetof(FrameHandlerExRecord, m_pEntryFrame))
 
 #ifdef _DEBUG
-#ifndef STACK_OVERWRITE_BARRIER_SIZE 
+#ifndef STACK_OVERWRITE_BARRIER_SIZE
 #define STACK_OVERWRITE_BARRIER_SIZE 20
 #endif
-#ifndef STACK_OVERWRITE_BARRIER_VALUE 
+#ifndef STACK_OVERWRITE_BARRIER_VALUE
 #define STACK_OVERWRITE_BARRIER_VALUE 0xabcdefab
 #endif
 
@@ -247,25 +247,6 @@ ASMCONSTANTS_C_ASSERT(OFFSETOF__FrameHandlerExRecord__m_pEntryFrame == offsetof(
 ASMCONSTANTS_C_ASSERT(SIZEOF_FrameHandlerExRecordWithBarrier == sizeof(FrameHandlerExRecordWithBarrier))
 #endif
 
-
-#ifdef MDA_SUPPORTED
-#define SIZEOF_StackImbalanceCookie 0x14
-ASMCONSTANTS_C_ASSERT(SIZEOF_StackImbalanceCookie == sizeof(StackImbalanceCookie))
-
-#define StackImbalanceCookie__m_pMD            0x00
-#define StackImbalanceCookie__m_pTarget        0x04
-#define StackImbalanceCookie__m_dwStackArgSize 0x08
-#define StackImbalanceCookie__m_callConv       0x0c
-#define StackImbalanceCookie__m_dwSavedEsp     0x10
-#define StackImbalanceCookie__HAS_FP_RETURN_VALUE 0x80000000
-
-ASMCONSTANTS_C_ASSERT(StackImbalanceCookie__m_pMD            == offsetof(StackImbalanceCookie, m_pMD))
-ASMCONSTANTS_C_ASSERT(StackImbalanceCookie__m_pTarget        == offsetof(StackImbalanceCookie, m_pTarget))
-ASMCONSTANTS_C_ASSERT(StackImbalanceCookie__m_dwStackArgSize == offsetof(StackImbalanceCookie, m_dwStackArgSize))
-ASMCONSTANTS_C_ASSERT(StackImbalanceCookie__m_callConv       == offsetof(StackImbalanceCookie, m_callConv))
-ASMCONSTANTS_C_ASSERT(StackImbalanceCookie__m_dwSavedEsp     == offsetof(StackImbalanceCookie, m_dwSavedEsp))
-ASMCONSTANTS_C_ASSERT(StackImbalanceCookie__HAS_FP_RETURN_VALUE == StackImbalanceCookie::HAS_FP_RETURN_VALUE)
-#endif // MDA_SUPPORTED
 
 #define MethodDesc_m_wFlags                   DBG_FRE(0x1a, 0x06)
 ASMCONSTANTS_C_ASSERT(MethodDesc_m_wFlags == offsetof(MethodDesc, m_wFlags))
@@ -384,7 +365,7 @@ ASMCONSTANTS_C_ASSERT(ResolveCacheElem__pNext   == offsetof(ResolveCacheElem, pN
 // in the error message. This is useful if a size or offset changes. To use, comment out
 // the compile-time assert that is firing, enable the constant finder, add the appropriate
 // constant to find to BogusFunction(), and build.
-// 
+//
 // Here's a sample compiler error:
 // d:\dd\clr\src\ndp\clr\src\vm\i386\asmconstants.h(326) : error C2248: 'FindCompileTimeConstant<N>::FindCompileTimeConstant' : cannot access private member declared in class 'FindCompileTimeConstant<N>'
 //         with

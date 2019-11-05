@@ -37,11 +37,17 @@ LEAF_ENTRY JIT_CheckedWriteBarrier, _TEXT
         .byte 0x72, 0x0e
         PREPARE_EXTERNAL_VAR g_highest_address, rax
         cmp     rdi, [rax]
+
+#ifdef FEATURE_WRITEBARRIER_COPY
+        // jnb     NotInHeap
+        .byte 0x73, 0x06
+        jmp     [rip + C_FUNC(JIT_WriteBarrier_Loc)]
+#else
         // jnb     NotInHeap
         .byte 0x73, 0x02
-        
-        // call C_FUNC(JIT_WriteBarrier)
+        // jmp C_FUNC(JIT_WriteBarrier)
         .byte 0xeb, 0x05
+#endif
 
     NotInHeap:
         // See comment above about possible AV
@@ -50,9 +56,9 @@ LEAF_ENTRY JIT_CheckedWriteBarrier, _TEXT
 LEAF_END_MARKED JIT_CheckedWriteBarrier, _TEXT
 
 
-// This is used by the mechanism to hold either the JIT_WriteBarrier_PreGrow 
+// This is used by the mechanism to hold either the JIT_WriteBarrier_PreGrow
 // or JIT_WriteBarrier_PostGrow code (depending on the state of the GC). It _WILL_
-// change at runtime as the GC changes. Initially it should simply be a copy of the 
+// change at runtime as the GC changes. Initially it should simply be a copy of the
 // larger of the two functions (JIT_WriteBarrier_PostGrow) to ensure we have created
 // enough space to copy that code in.
 .balign 16
@@ -196,7 +202,7 @@ LEAF_ENTRY JIT_WriteBarrier, _TEXT
         shr     rdi, 0x0A
         cmp     byte ptr [rdi + rax], 0FFh
 
-        .byte 0x75, 0x02 
+        .byte 0x75, 0x02
         // jne     UpdateCardBundle
         REPRET
 
@@ -229,7 +235,7 @@ LEAF_END JIT_PatchedCodeLast, _TEXT
 //
 //   Note: RyuJIT assumes that all volatile registers can be trashed by
 //   the CORINFO_HELP_ASSIGN_BYREF helper (i.e. JIT_ByRefWriteBarrier)
-//   except RDI and RSI. This helper uses and defines RDI and RSI, so 
+//   except RDI and RSI. This helper uses and defines RDI and RSI, so
 //   they remain as live GC refs or byrefs, and are not killed.
 //
 //
@@ -340,7 +346,7 @@ LEAF_ENTRY JIT_ByRefWriteBarrier, _TEXT
         // Check if we need to update the card table
         // Calc pCardByte
         shr     rcx, 0x0B
-        
+
         PREPARE_EXTERNAL_VAR g_card_table, rax
         mov     rax, [rax]
 
@@ -356,7 +362,7 @@ LEAF_ENTRY JIT_ByRefWriteBarrier, _TEXT
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
         // Shift rcx by 0x0A more to get the card bundle byte (we shifted by 0x0B already)
         shr     rcx, 0x0A
-        
+
         PREPARE_EXTERNAL_VAR g_card_bundle_table, rax
         add     rcx, [rax]
 
@@ -387,6 +393,13 @@ LEAF_ENTRY JIT_ByRefWriteBarrier, _TEXT
         add     rsi, 0x8
         ret
 LEAF_END_MARKED JIT_ByRefWriteBarrier, _TEXT
+
+#ifdef FEATURE_WRITEBARRIER_COPY
+        // When JIT_WriteBarrier is copied into an allocated page, the JIT_Stelem_Ref and its
+        // helpers use this global variable to jump to it. This variable is set in InitThreadManager.
+        .global _JIT_WriteBarrier_Loc
+        .zerofill __DATA,__common,_JIT_WriteBarrier_Loc,8,3
+#endif // FEATURE_WRITEBARRIER_COPY
 
 // TODO: put definition for this in asmconstants.h
 #define CanCast 1
@@ -424,34 +437,38 @@ LEAF_ENTRY JIT_Stelem_Ref, _TEXT
         mov     rsi, rdx
 
         // JIT_WriteBarrier(Object** dst, Object* src)
+#ifdef FEATURE_WRITEBARRIER_COPY
+        jmp     [rip + C_FUNC(JIT_WriteBarrier_Loc)]
+#else
         jmp     C_FUNC(JIT_WriteBarrier)
+#endif
 
     LOCAL_LABEL(AssigningNull):
         // write barrier is not needed for assignment of NULL references
         mov     [rdi + 8*rsi + OFFSETOF__PtrArray__m_Array], rdx
         ret
-            
+
     LOCAL_LABEL(NotExactMatch):
         PREPARE_EXTERNAL_VAR g_pObjectClass, r11
         cmp     rcx, [r11]
         je      LOCAL_LABEL(DoWrite)
 
-        jmp     C_FUNC(JIT_Stelem_Ref__ObjIsInstanceOfNoGC_Helper)
-                           
+        jmp     C_FUNC(JIT_Stelem_Ref__ObjIsInstanceOfCached_Helper)
+
     LOCAL_LABEL(ThrowNullReferenceException):
-        mov     rdi, CORINFO_NullReferenceException_ASM 
+        mov     rdi, CORINFO_NullReferenceException_ASM
         jmp     C_FUNC(JIT_InternalThrow)
-        
+
     LOCAL_LABEL(ThrowIndexOutOfRangeException):
         mov     rdi, CORINFO_IndexOutOfRangeException_ASM
-        jmp     C_FUNC(JIT_InternalThrow)        
+        jmp     C_FUNC(JIT_InternalThrow)
 LEAF_END JIT_Stelem_Ref, _TEXT
 
-LEAF_ENTRY JIT_Stelem_Ref__ObjIsInstanceOfNoGC_Helper, _TEXT
+LEAF_ENTRY JIT_Stelem_Ref__ObjIsInstanceOfCached_Helper, _TEXT
         push_nonvol_reg rbp
         mov     rbp, rsp
         set_cfa_register rbp, 16
-        
+
         sub     rsp, 0x20
         mov     [rbp - 0x08], rdi
         mov     [rbp - 0x10], rsi
@@ -461,15 +478,15 @@ LEAF_ENTRY JIT_Stelem_Ref__ObjIsInstanceOfNoGC_Helper, _TEXT
         mov     rsi, rcx
         mov     rdi, rdx
 
-        // TypeHandle::CastResult ObjIsInstanceOfNoGC(Object *pElement, TypeHandle toTypeHnd)
-        call    C_FUNC(ObjIsInstanceOfNoGC)
+        // TypeHandle::CastResult ObjIsInstanceOfCached(Object *pElement, TypeHandle toTypeHnd)
+        call    C_FUNC(ObjIsInstanceOfCached)
 
         mov     rdi, [rbp - 0x08]
         mov     rsi, [rbp - 0x10]
         mov     rdx, [rbp - 0x18]
 
         RESET_FRAME_WITH_RBP
-        
+
         cmp     eax, CanCast
         jne     LOCAL_LABEL(NeedCheck)
 
@@ -478,11 +495,15 @@ LEAF_ENTRY JIT_Stelem_Ref__ObjIsInstanceOfNoGC_Helper, _TEXT
         mov     rsi, rdx
 
         // JIT_WriteBarrier(Object** dst, Object* src)
+#ifdef FEATURE_WRITEBARRIER_COPY
+        jmp     [rip + C_FUNC(JIT_WriteBarrier_Loc)]
+#else
         jmp     C_FUNC(JIT_WriteBarrier)
+#endif
 
     LOCAL_LABEL(NeedCheck):
         jmp     C_FUNC(JIT_Stelem_Ref__ArrayStoreCheck_Helper)
-LEAF_END JIT_Stelem_Ref__ObjIsInstanceOfNoGC_Helper, _TEXT
+LEAF_END JIT_Stelem_Ref__ObjIsInstanceOfCached_Helper, _TEXT
 
 // Need to save reg to provide a stack address for the Object*
 LEAF_ENTRY JIT_Stelem_Ref__ArrayStoreCheck_Helper, _TEXT
@@ -504,11 +525,56 @@ LEAF_ENTRY JIT_Stelem_Ref__ArrayStoreCheck_Helper, _TEXT
         mov     rdx, [rbp - 0x20]
 
         lea     rdi, [rdi + 8*rsi]
-        add     rdi, OFFSETOF__PtrArray__m_Array        
+        add     rdi, OFFSETOF__PtrArray__m_Array
         mov     rsi, rdx
 
         RESET_FRAME_WITH_RBP
-        
+
         // JIT_WriteBarrier(Object** dst, Object* src)
+#ifdef FEATURE_WRITEBARRIER_COPY
+        jmp     [rip + C_FUNC(JIT_WriteBarrier_Loc)]
+#else
         jmp     C_FUNC(JIT_WriteBarrier)
+#endif
 LEAF_END JIT_Stelem_Ref__ArrayStoreCheck_Helper, _TEXT
+
+// The following helper will access ("probe") a word on each page of the stack
+// starting with the page right beneath rsp down to the one pointed to by r11.
+// The procedure is needed to make sure that the "guard" page is pushed down below the allocated stack frame.
+// The call to the helper will be emitted by JIT in the function/funclet prolog when large (larger than 0x3000 bytes) stack frame is required.
+//
+// NOTE: On Linux we must advance the stack pointer as we probe - it is not allowed to access 65535 bytes below rsp.
+// Since this helper will modify a value of rsp - it must establish the frame pointer.
+//
+// See also https://github.com/dotnet/coreclr/issues/16827#issue-303331518 for more information.
+
+#define PAGE_SIZE 0x1000
+
+NESTED_ENTRY JIT_StackProbe, _TEXT, NoHandler
+        // On entry:
+        //   r11 - points to the lowest address on the stack frame being allocated (i.e. [InitialSp - FrameSize])
+        //   rsp - points to some byte on the last probed page
+        // On exit:
+        //   r11 - is preserved
+        //
+        // NOTE: this helper will probe at least one page below the one pointed by rsp.
+
+        push_nonvol_reg rbp
+        mov     rbp, rsp
+        set_cfa_register rbp, 16
+
+    END_PROLOGUE
+
+        and     rsp, -PAGE_SIZE        // rsp points to the **lowest address** on the last probed page
+                                       // This is done to make the following loop end condition simpler.
+
+LOCAL_LABEL(ProbeLoop):
+        sub     rsp, PAGE_SIZE         // rsp points to the lowest address of the **next page** to probe
+        test    dword ptr [rsp], eax   // rsp points to the lowest address on the **last probed** page
+        cmp     rsp, r11
+        jg      LOCAL_LABEL(ProbeLoop) // if (rsp > r11), then we need to probe at least one more page.
+
+        RESET_FRAME_WITH_RBP
+        ret
+
+NESTED_END JIT_StackProbe, _TEXT

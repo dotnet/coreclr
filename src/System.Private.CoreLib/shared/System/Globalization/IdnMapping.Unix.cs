@@ -2,12 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Diagnostics;
 
 namespace System.Globalization
 {
-    sealed partial class IdnMapping
+    public sealed partial class IdnMapping
     {
         private unsafe string GetAsciiCore(string unicodeString, char* unicode, int count)
         {

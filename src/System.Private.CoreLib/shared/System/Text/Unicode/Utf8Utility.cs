@@ -6,10 +6,12 @@ using System.Buffers;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using Internal.Runtime.CompilerServices;
 
 namespace System.Text.Unicode
 {
-    internal static class Utf8Utility
+    internal static partial class Utf8Utility
     {
         /// <summary>
         /// The maximum number of bytes that can result from UTF-8 transcoding
@@ -29,38 +31,42 @@ namespace System.Text.Unicode
         /// comes first) is ASCII.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int GetIndexOfFirstInvalidUtf8Sequence(ReadOnlySpan<byte> utf8Data, out bool isAscii)
+        public static unsafe int GetIndexOfFirstInvalidUtf8Sequence(ReadOnlySpan<byte> utf8Data, out bool isAscii)
         {
-            // TODO_UTF8STRING: Replace this with the faster drop-in replacement when it's available (coreclr #21948).
-
-            bool tempIsAscii = true;
-            int originalDataLength = utf8Data.Length;
-
-            while (!utf8Data.IsEmpty)
+            fixed (byte* pUtf8Data = &MemoryMarshal.GetReference(utf8Data))
             {
-                if (Rune.DecodeFromUtf8(utf8Data, out Rune result, out int bytesConsumed) != OperationStatus.Done)
-                {
-                    break;
-                }
+                byte* pFirstInvalidByte = GetPointerToFirstInvalidByte(pUtf8Data, utf8Data.Length, out int utf16CodeUnitCountAdjustment, out _);
+                int index = (int)(void*)Unsafe.ByteOffset(ref *pUtf8Data, ref *pFirstInvalidByte);
 
-                tempIsAscii &= result.IsAscii;
-                utf8Data = utf8Data.Slice(bytesConsumed);
+                isAscii = (utf16CodeUnitCountAdjustment == 0); // If UTF-16 char count == UTF-8 byte count, it's ASCII.
+                return (index < utf8Data.Length) ? index : -1;
             }
-
-            isAscii = tempIsAscii;
-            return (utf8Data.IsEmpty) ? -1 : (originalDataLength - utf8Data.Length);
         }
 
 #if FEATURE_UTF8STRING
         /// <summary>
+        /// Returns a value stating whether <paramref name="utf8Data"/> contains only well-formed UTF-8 data.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe bool IsWellFormedUtf8(ReadOnlySpan<byte> utf8Data)
+        {
+            fixed (byte* pUtf8Data = &MemoryMarshal.GetReference(utf8Data))
+            {
+                // The return value here will point to the end of the span if the data is well-formed.
+                byte* pFirstInvalidByte = GetPointerToFirstInvalidByte(pUtf8Data, utf8Data.Length, out int _, out _);
+                return (pFirstInvalidByte == (pUtf8Data + (uint)utf8Data.Length));
+            }
+        }
+
+        /// <summary>
         /// Returns <paramref name="value"/> if it is null or contains only well-formed UTF-8 data;
         /// otherwises allocates a new <see cref="Utf8String"/> instance containing the same data as
         /// <paramref name="value"/> but where all invalid UTF-8 sequences have been replaced
-        /// with U+FFD.
+        /// with U+FFFD.
         /// </summary>
         public static Utf8String ValidateAndFixupUtf8String(Utf8String value)
         {
-            if (Utf8String.IsNullOrEmpty(value))
+            if (value.Length == 0)
             {
                 return value;
             }
@@ -84,7 +90,7 @@ namespace System.Text.Unicode
             {
                 if (Rune.DecodeFromUtf8(valueAsBytes, out _, out int bytesConsumed) == OperationStatus.Done)
                 {
-                    //  Valid scalar value - copy data as-is to MemoryStream
+                    // Valid scalar value - copy data as-is to MemoryStream
                     memStream.Write(valueAsBytes.Slice(0, bytesConsumed));
                 }
                 else
@@ -99,7 +105,7 @@ namespace System.Text.Unicode
             bool success = memStream.TryGetBuffer(out ArraySegment<byte> memStreamBuffer);
             Debug.Assert(success, "Couldn't get underlying MemoryStream buffer.");
 
-            return Utf8String.DangerousCreateWithoutValidation(memStreamBuffer, assumeWellFormed: true);
+            return Utf8String.UnsafeCreateWithoutValidation(memStreamBuffer);
         }
 #endif // FEATURE_UTF8STRING
     }

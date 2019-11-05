@@ -2,15 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Runtime.CompilerServices;
-using System.Security;
 using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
@@ -24,7 +18,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // That's because they are invoked with special "this"! The "this" object
     // for all of these methods are not IterableToEnumerableAdapter objects. Rather, they are of type
     // IIterable<T>. No actual IterableToEnumerableAdapter object is ever instantiated. Thus, you will
-    // see a lot of expressions that cast "this" to "IIterable<T>". 
+    // see a lot of expressions that cast "this" to "IIterable<T>".
     internal sealed class IterableToEnumerableAdapter
     {
         private IterableToEnumerableAdapter()
@@ -72,39 +66,38 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             Debug.Fail("This class is never instantiated");
         }
 
-        private sealed class NonGenericToGenericIterator : IIterator<object>
+        private sealed class NonGenericToGenericIterator : IIterator<object?>
         {
-            private IBindableIterator iterator;
+            private readonly IBindableIterator iterator;
 
             public NonGenericToGenericIterator(IBindableIterator iterator)
             { this.iterator = iterator; }
 
-            public object Current { get { return iterator.Current; } }
-            public bool HasCurrent { get { return iterator.HasCurrent; } }
+            public object? Current => iterator.Current;
+            public bool HasCurrent => iterator.HasCurrent;
             public bool MoveNext() { return iterator.MoveNext(); }
-            public int GetMany(object[] items) { throw new NotSupportedException(); }
+            public int GetMany(object?[] items) { throw new NotSupportedException(); }
         }
 
         // This method is invoked when GetEnumerator is called on a WinRT-backed implementation of IEnumerable.
         internal IEnumerator GetEnumerator_Stub()
         {
             IBindableIterable _this = Unsafe.As<IBindableIterable>(this);
-            return new IteratorToEnumeratorAdapter<object>(new NonGenericToGenericIterator(_this.First()));
+            return new IteratorToEnumeratorAdapter<object?>(new NonGenericToGenericIterator(_this.First()));
         }
     }
 
     // Adapter class which holds a Windows Runtime IIterator<T>, exposing it as a managed IEnumerator<T>
 
-
-    // There are a few implementation differences between the Iterator and IEnumerator which need to be 
-    // addressed. Iterator starts at index 0 while IEnumerator starts at index -1 as a result of which 
-    // the first call to IEnumerator.Current is correct only after calling MoveNext(). 
+    // There are a few implementation differences between the Iterator and IEnumerator which need to be
+    // addressed. Iterator starts at index 0 while IEnumerator starts at index -1 as a result of which
+    // the first call to IEnumerator.Current is correct only after calling MoveNext().
     // Also IEnumerator throws an exception when we call Current after reaching the end of collection.
     internal sealed class IteratorToEnumeratorAdapter<T> : IEnumerator<T>
     {
-        private IIterator<T> m_iterator;
+        private readonly IIterator<T> m_iterator;
         private bool m_hadCurrent;
-        private T m_current;
+        private T m_current = default!;
         private bool m_isInitialized;
 
         internal IteratorToEnumeratorAdapter(IIterator<T> iterator)
@@ -129,7 +122,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        object IEnumerator.Current
+        object? IEnumerator.Current
         {
             get
             {

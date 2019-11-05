@@ -2,9 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Buffers;
 using System.Diagnostics;
+using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -25,7 +25,7 @@ namespace System.IO
             private const long CompletedCallback = (long)8 << 32;
             private const ulong ResultMask = ((ulong)uint.MaxValue) << 32;
 
-            private static Action<object?> s_cancelCallback;
+            private static Action<object?>? s_cancelCallback;
 
             private readonly FileStream _stream;
             private readonly int _numBufferedBytes;
@@ -51,18 +51,15 @@ namespace System.IO
                 // buffer is used) and where operations on the FileStream are not being performed concurrently.
                 Debug.Assert(bytes == null || ReferenceEquals(bytes, _stream._buffer));
 
-                // The _preallocatedOverlapped is null if the internal buffer was never created, so we check for 
+                // The _preallocatedOverlapped is null if the internal buffer was never created, so we check for
                 // a non-null bytes before using the stream's _preallocatedOverlapped
                 _overlapped = bytes != null && _stream.CompareExchangeCurrentOverlappedOwner(this, null) == null ?
-                    _stream._fileHandle.ThreadPoolBinding.AllocateNativeOverlapped(_stream._preallocatedOverlapped!) : // allocated when buffer was created, and buffer is non-null
-                    _stream._fileHandle.ThreadPoolBinding.AllocateNativeOverlapped(s_ioCallback, this, bytes);
+                    _stream._fileHandle.ThreadPoolBinding!.AllocateNativeOverlapped(_stream._preallocatedOverlapped!) : // allocated when buffer was created, and buffer is non-null
+                    _stream._fileHandle.ThreadPoolBinding!.AllocateNativeOverlapped(s_ioCallback, this, bytes);
                 Debug.Assert(_overlapped != null, "AllocateNativeOverlapped returned null");
             }
 
-            internal NativeOverlapped* Overlapped
-            {
-                get { return _overlapped; }
-            }
+            internal NativeOverlapped* Overlapped => _overlapped;
 
             public void SetCompletedSynchronously(int numBytes)
             {
@@ -81,8 +78,7 @@ namespace System.IO
                 // Quick check to make sure the IO hasn't completed
                 if (_overlapped != null)
                 {
-                    var cancelCallback = s_cancelCallback;
-                    if (cancelCallback == null) s_cancelCallback = cancelCallback = Cancel;
+                    Action<object?>? cancelCallback = s_cancelCallback ??= Cancel;
 
                     // Register the cancellation only if the IO hasn't completed
                     long packedResult = Interlocked.CompareExchange(ref _result, RegisteringCancellation, NoResult);
@@ -118,19 +114,19 @@ namespace System.IO
                 // (this is why we disposed the registration above).
                 if (_overlapped != null)
                 {
-                    _stream._fileHandle.ThreadPoolBinding.FreeNativeOverlapped(_overlapped);
+                    _stream._fileHandle.ThreadPoolBinding!.FreeNativeOverlapped(_overlapped);
                     _overlapped = null;
                 }
 
                 // Ensure we're no longer set as the current completion source (we may not have been to begin with).
-                // Only one operation at a time is eligible to use the preallocated overlapped, 
+                // Only one operation at a time is eligible to use the preallocated overlapped,
                 _stream.CompareExchangeCurrentOverlappedOwner(null, this);
             }
 
-            // When doing IO asynchronously (i.e. _isAsync==true), this callback is 
-            // called by a free thread in the threadpool when the IO operation 
-            // completes.  
-            internal static unsafe void IOCallback(uint errorCode, uint numBytes, NativeOverlapped* pOverlapped)
+            // When doing IO asynchronously (i.e. _isAsync==true), this callback is
+            // called by a free thread in the threadpool when the IO operation
+            // completes.
+            internal static void IOCallback(uint errorCode, uint numBytes, NativeOverlapped* pOverlapped)
             {
                 // Extract the completion source from the overlapped.  The state in the overlapped
                 // will either be a FileStream (in the case where the preallocated overlapped was used),
@@ -146,8 +142,8 @@ namespace System.IO
                 Debug.Assert(completionSource._overlapped == pOverlapped, "Overlaps don't match");
 
                 // Handle reading from & writing to closed pipes.  While I'm not sure
-                // this is entirely necessary anymore, maybe it's possible for 
-                // an async read on a pipe to be issued and then the pipe is closed, 
+                // this is entirely necessary anymore, maybe it's possible for
+                // an async read on a pipe to be issued and then the pipe is closed,
                 // returning this error.  This may very well be necessary.
                 ulong packedResult;
                 if (errorCode != 0 && errorCode != ERROR_BROKEN_PIPE && errorCode != ERROR_NO_DATA)
@@ -191,7 +187,9 @@ namespace System.IO
                     }
                     else
                     {
-                        TrySetException(Win32Marshal.GetExceptionForWin32Error(errorCode));
+                        Exception e = Win32Marshal.GetExceptionForWin32Error(errorCode);
+                        e.SetCurrentStackTrace();
+                        TrySetException(e);
                     }
                 }
                 else

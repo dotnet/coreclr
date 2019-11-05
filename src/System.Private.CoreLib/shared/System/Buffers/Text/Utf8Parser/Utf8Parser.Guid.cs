@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 namespace System.Buffers.Text
 {
     public static partial class Utf8Parser
@@ -16,7 +15,7 @@ namespace System.Buffers.Text
         /// <param name="standardFormat">Expected format of the Utf8 string</param>
         /// <returns>
         /// true for success. "bytesConsumed" contains the length in bytes of the substring that was parsed.
-        /// false if the string was not syntactically valid or an overflow or underflow occurred. "bytesConsumed" is set to 0. 
+        /// false if the string was not syntactically valid or an overflow or underflow occurred. "bytesConsumed" is set to 0.
         /// </returns>
         /// <remarks>
         /// Formats supported:
@@ -211,7 +210,7 @@ namespace System.Buffers.Text
                 return false;
             }
 
-            source = source.Slice(5);// justConsumed + 1 for delimiter
+            source = source.Slice(5); // justConsumed + 1 for delimiter
 
             if (!TryParseUInt64X(source, out ulong i5, out justConsumed))
             {

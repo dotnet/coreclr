@@ -10,7 +10,6 @@ using System.Diagnostics.Tracing;
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using System.Reflection;
 
 namespace BasicEventSourceTests
 {
@@ -19,13 +18,13 @@ namespace BasicEventSourceTests
         [EventSource(Name = "SimpleEventSource")]
         private sealed class SimpleEventSource : EventSource
         {
-            private object _failureCounter;
-            private object _successCounter;
+            private PollingCounter _failureCounter;
+            private PollingCounter _successCounter;
 
-            public SimpleEventSource(Func<double> getFailureCount, Func<double> getSuccessCount, Type PollingCounterType)
+            public SimpleEventSource(Func<double> getMockedCount, Func<double> getSuccessCount)
             {
-                _failureCounter = Activator.CreateInstance(PollingCounterType, "failureCount", this, getSuccessCount);
-                _successCounter = Activator.CreateInstance(PollingCounterType, "successCount", this, getFailureCount);
+                _failureCounter = new PollingCounter("failureCount", this, getSuccessCount);
+                _successCounter = new PollingCounter("successCount", this, getMockedCount);
             }
         }
 
@@ -112,9 +111,9 @@ namespace BasicEventSourceTests
                         }
                         else if (name.Equals("successCount"))
                         {
-                            if (Int32.Parse(mean) != failureCountCalled)
+                            if (Int32.Parse(mean) != mockedCountCalled)
                             {
-                                Console.WriteLine($"Mean is not what we expected: {mean} vs {failureCountCalled}");
+                                Console.WriteLine($"Mean is not what we expected: {mean} vs {mockedCountCalled}");
                             }
                         }
 
@@ -137,13 +136,13 @@ namespace BasicEventSourceTests
         }
 
 
-        public static int failureCountCalled = 0;
+        public static int mockedCountCalled = 0;
         public static int successCountCalled = 0;
 
-        public static double getFailureCount()
+        public static double getMockedCount()
         {
-            failureCountCalled++;
-            return failureCountCalled;
+            mockedCountCalled++;
+            return mockedCountCalled;
         }
 
         public static double getSuccessCount()
@@ -157,26 +156,12 @@ namespace BasicEventSourceTests
             // Create an EventListener.
             using (SimpleEventListener myListener = new SimpleEventListener("SimpleEventSource", EventLevel.Verbose))
             {
-                 // Reflect over System.Private.CoreLib and get the PollingCounter type.
-                Assembly SPC = typeof(System.Diagnostics.Tracing.EventSource).Assembly;
-                if(SPC == null)
-                {
-                    Console.WriteLine("Failed to get System.Private.CoreLib assembly.");
-                    return 1;
-                }
-                Type PollingCounterType = SPC.GetType("System.Diagnostics.Tracing.PollingCounter");
-                if(PollingCounterType == null)
-                {
-                    Console.WriteLine("Failed to get System.Diagnostics.Tracing.PollingCounter type.");
-                    return 1;
-                }
-
-                SimpleEventSource eventSource = new SimpleEventSource(getFailureCount, getSuccessCount, PollingCounterType);
+                SimpleEventSource eventSource = new SimpleEventSource(getMockedCount, getSuccessCount);
 
                 // Want to sleep for 5000 ms to get some counters piling up.
                 Thread.Sleep(5000);
 
-                if (myListener.FailureEventCount > 0 && myListener.SuccessEventCount > 0 && !myListener.Failed && (failureCountCalled > 0 && successCountCalled > 0))
+                if (myListener.FailureEventCount > 0 && myListener.SuccessEventCount > 0 && !myListener.Failed && (mockedCountCalled > 0 && successCountCalled > 0))
                 {
                     Console.WriteLine("Test Passed");
                     return 100;    

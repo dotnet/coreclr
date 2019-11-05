@@ -2,6 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Text;
 
@@ -67,10 +69,10 @@ namespace System.IO
         /// </summary>
         internal static bool IsValidDriveChar(char value)
         {
-            return ((value >= 'A' && value <= 'Z') || (value >= 'a' && value <= 'z'));
+            return (value >= 'A' && value <= 'Z') || (value >= 'a' && value <= 'z');
         }
 
-        internal static bool EndsWithPeriodOrSpace(string path)
+        internal static bool EndsWithPeriodOrSpace(string? path)
         {
             if (string.IsNullOrEmpty(path))
                 return false;
@@ -86,26 +88,10 @@ namespace System.IO
         /// away from paths during normalization, but if we see such a path at this point it should be
         /// normalized and has retained the final characters. (Typically from one of the *Info classes)
         /// </summary>
-        internal static string EnsureExtendedPrefixIfNeeded(string path)
+        [return: NotNullIfNotNull("path")]
+        internal static string? EnsureExtendedPrefixIfNeeded(string? path)
         {
             if (path != null && (path.Length >= MaxShortPath || EndsWithPeriodOrSpace(path)))
-            {
-                return EnsureExtendedPrefix(path);
-            }
-            else
-            {
-                return path;
-            }
-        }
-
-        /// <summary>
-        /// DO NOT USE- Use EnsureExtendedPrefixIfNeeded. This will be removed shortly.
-        /// Adds the extended path prefix (\\?\) if not already a device path, IF the path is not relative,
-        /// AND the path is more than 259 characters. (> MAX_PATH + null)
-        /// </summary>
-        internal static string EnsureExtendedPrefixOverMaxPath(string path)
-        {
-            if (path != null && path.Length >= MaxShortPath)
             {
                 return EnsureExtendedPrefix(path);
             }
@@ -320,30 +306,30 @@ namespace System.IO
         /// <summary>
         /// Normalize separators in the given path. Converts forward slashes into back slashes and compresses slash runs, keeping initial 2 if present.
         /// Also trims initial whitespace in front of "rooted" paths (see PathStartSkip).
-        /// 
+        ///
         /// This effectively replicates the behavior of the legacy NormalizePath when it was called with fullCheck=false and expandShortpaths=false.
         /// The current NormalizePath gets directory separator normalization from Win32's GetFullPathName(), which will resolve relative paths and as
         /// such can't be used here (and is overkill for our uses).
-        /// 
+        ///
         /// Like the current NormalizePath this will not try and analyze periods/spaces within directory segments.
         /// </summary>
         /// <remarks>
         /// The only callers that used to use Path.Normalize(fullCheck=false) were Path.GetDirectoryName() and Path.GetPathRoot(). Both usages do
         /// not need trimming of trailing whitespace here.
-        /// 
+        ///
         /// GetPathRoot() could technically skip normalizing separators after the second segment- consider as a future optimization.
-        /// 
+        ///
         /// For legacy desktop behavior with ExpandShortPaths:
         ///  - It has no impact on GetPathRoot() so doesn't need consideration.
         ///  - It could impact GetDirectoryName(), but only if the path isn't relative (C:\ or \\Server\Share).
-        /// 
+        ///
         /// In the case of GetDirectoryName() the ExpandShortPaths behavior was undocumented and provided inconsistent results if the path was
         /// fixed/relative. For example: "C:\PROGRA~1\A.TXT" would return "C:\Program Files" while ".\PROGRA~1\A.TXT" would return ".\PROGRA~1". If you
         /// ultimately call GetFullPath() this doesn't matter, but if you don't or have any intermediate string handling could easily be tripped up by
         /// this undocumented behavior.
-        /// 
+        ///
         /// We won't match this old behavior because:
-        /// 
+        ///
         ///   1. It was undocumented
         ///   2. It was costly (extremely so if it actually contained '~')
         ///   3. Doesn't play nice with string logic
@@ -375,8 +361,7 @@ namespace System.IO
             if (normalized)
                 return path;
 
-            Span<char> initialBuffer = stackalloc char[MaxShortPath];
-            ValueStringBuilder builder = new ValueStringBuilder(initialBuffer);
+            var builder = new ValueStringBuilder(stackalloc char[MaxShortPath]);
 
             int start = 0;
             if (IsDirectorySeparator(path[start]))
@@ -410,7 +395,7 @@ namespace System.IO
 
         /// <summary>
         /// Returns true if the path is effectively empty for the current OS.
-        /// For unix, this is empty or null. For Windows, this is empty, null, or 
+        /// For unix, this is empty or null. For Windows, this is empty, null, or
         /// just spaces ((char)32).
         /// </summary>
         internal static bool IsEffectivelyEmpty(ReadOnlySpan<char> path)

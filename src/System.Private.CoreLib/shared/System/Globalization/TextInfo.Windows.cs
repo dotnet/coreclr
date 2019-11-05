@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Diagnostics;
 
 namespace System.Globalization
@@ -11,17 +10,7 @@ namespace System.Globalization
     {
         private unsafe void FinishInitialization()
         {
-            if (GlobalizationMode.Invariant)
-            {
-                _sortHandle = IntPtr.Zero;
-                return;
-            }
-
-            const uint LCMAP_SORTHANDLE = 0x20000000;
-
-            IntPtr handle;
-            int ret = Interop.Kernel32.LCMapStringEx(_textInfoName, LCMAP_SORTHANDLE, null, 0, &handle, IntPtr.Size, null, null, IntPtr.Zero);
-            _sortHandle = ret > 0 ? handle : IntPtr.Zero;
+            _sortHandle = CompareInfo.GetSortHandle(_textInfoName);
         }
 
         private unsafe void ChangeCase(char* pSource, int pSourceLen, char* pResult, int pResultLen, bool toUpper)

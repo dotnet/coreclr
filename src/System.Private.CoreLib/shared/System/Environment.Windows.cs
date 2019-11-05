@@ -3,10 +3,8 @@
 // See the LICENSE file in the project root for more information.
 
 using System.IO;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
-using Microsoft.Win32;
 
 namespace System
 {
@@ -16,8 +14,7 @@ namespace System
         {
             get
             {
-                Span<char> initialBuffer = stackalloc char[Interop.Kernel32.MAX_PATH];
-                var builder = new ValueStringBuilder(initialBuffer);
+                var builder = new ValueStringBuilder(stackalloc char[Interop.Kernel32.MAX_PATH]);
 
                 uint length;
                 while ((length = Interop.Kernel32.GetCurrentDirectory((uint)builder.Capacity, ref builder.GetPinnableReference())) > builder.Capacity)
@@ -31,9 +28,14 @@ namespace System
                 builder.Length = (int)length;
 
                 // If we have a tilde in the path, make an attempt to expand 8.3 filenames
-                return builder.AsSpan().Contains('~')
-                    ? PathHelper.TryExpandShortFileName(ref builder, null)
-                    : builder.ToString();
+                if (builder.AsSpan().Contains('~'))
+                {
+                    string result = PathHelper.TryExpandShortFileName(ref builder, null);
+                    builder.Dispose();
+                    return result;
+                }
+
+                return builder.ToString();
             }
             set
             {
@@ -49,7 +51,7 @@ namespace System
 
         public static string[] GetLogicalDrives() => DriveInfoInternal.GetLogicalDrives();
 
-        public static string NewLine => "\r\n";
+        internal const string NewLineConst = "\r\n";
 
         public static int SystemPageSize
         {
@@ -62,8 +64,7 @@ namespace System
 
         private static string ExpandEnvironmentVariablesCore(string name)
         {
-            Span<char> initialBuffer = stackalloc char[128];
-            var builder = new ValueStringBuilder(initialBuffer);
+            var builder = new ValueStringBuilder(stackalloc char[128]);
 
             uint length;
             while ((length = Interop.Kernel32.ExpandEnvironmentStrings(name, ref builder.GetPinnableReference(), (uint)builder.Capacity)) > builder.Capacity)
@@ -105,8 +106,7 @@ namespace System
             get
             {
                 // Normally this will be C:\Windows\System32
-                Span<char> initialBuffer = stackalloc char[32];
-                var builder = new ValueStringBuilder(initialBuffer);
+                var builder = new ValueStringBuilder(stackalloc char[32]);
 
                 uint length;
                 while ((length = Interop.Kernel32.GetSystemDirectoryW(ref builder.GetPinnableReference(), (uint)builder.Capacity)) > builder.Capacity)
@@ -119,6 +119,21 @@ namespace System
 
                 builder.Length = (int)length;
                 return builder.ToString();
+            }
+        }
+
+        public static unsafe long WorkingSet
+        {
+            get
+            {
+                Interop.Kernel32.PROCESS_MEMORY_COUNTERS memoryCounters = default;
+                memoryCounters.cb = (uint)(sizeof(Interop.Kernel32.PROCESS_MEMORY_COUNTERS));
+
+                if (!Interop.Kernel32.GetProcessMemoryInfo(Interop.Kernel32.GetCurrentProcess(), ref memoryCounters, memoryCounters.cb))
+                {
+                    return 0;
+                }
+                return (long)memoryCounters.WorkingSetSize;
             }
         }
     }

@@ -26,20 +26,13 @@
 #include "jitinterface.h"
 #include "eeconfig.h"
 #include "log.h"
-#include "fieldmarshaler.h"
 #include "cgensys.h"
 #include "array.h"
 #include "typestring.h"
 #include "sigbuilder.h"
 
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable:4244)
-#endif // _MSC_VER
-
 #define MAX_SIZE_FOR_VALUECLASS_IN_ARRAY 0xffff
 #define MAX_PTRS_FOR_VALUECLASSS_IN_ARRAY 0xffff
-
 
 /*****************************************************************************************/
 LPCUTF8 ArrayMethodDesc::GetMethodName()
@@ -102,7 +95,7 @@ VOID ArrayClass::GenerateArrayAccessorCallSig(
 #ifdef FEATURE_ARRAYSTUB_AS_IL
     ,BOOL fForStubAsIL
 #endif
-    ) 
+    )
 {
     CONTRACTL {
         STANDARD_VM_CHECK;
@@ -179,14 +172,14 @@ VOID ArrayClass::GenerateArrayAccessorCallSig(
             *pSig++ = 0;        // variable 0
             break;
     }
-	
+
 #if defined(FEATURE_ARRAYSTUB_AS_IL ) && !defined(_TARGET_X86_)
     if(dwFuncType == ArrayMethodDesc::ARRAY_FUNC_ADDRESS && fForStubAsIL)
     {
         *pSig++ = ELEMENT_TYPE_I;
     }
 #endif
-	
+
     for (i = 0; i < dwRank; i++)
         *pSig++ = ELEMENT_TYPE_I4;
 
@@ -234,7 +227,7 @@ void ArrayClass::InitArrayMethodDesc(
     _ASSERTE(!pNewMD->MayHaveNativeCode());
     pNewMD->SetTemporaryEntryPoint(pLoaderAllocator, pamTracker);
 
-#ifdef _DEBUG 
+#ifdef _DEBUG
     _ASSERTE(pNewMD->GetMethodName() && GetDebugClassName());
     pNewMD->m_pszDebugMethodName = pNewMD->GetMethodName();
     pNewMD->m_pszDebugClassName  = GetDebugClassName();
@@ -252,22 +245,11 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
 
     MethodTable * pElemMT = elemTypeHnd.GetMethodTable();
 
-    CorElementType elemType = elemTypeHnd.GetSignatureCorElementType();    
+    CorElementType elemType = elemTypeHnd.GetSignatureCorElementType();
 
     // Shared EEClass if there is one
     MethodTable * pCanonMT = NULL;
 
-    // Strictly speaking no method table should be needed for
-    // arrays of the faked up TypeDescs for variable types that are
-    // used when verfifying generic code.
-    // However verification is tied in with some codegen in the JITs, so give these
-    // the shared MT just in case.
-    // This checks match precisely one in ParamTypeDesc::OwnsMethodTable
-    if (CorTypeInfo::IsGenericVariable(elemType)) {
-        // This is loading the canonical version of the array so we can override
-        OVERRIDE_TYPE_LOAD_LEVEL_LIMIT(CLASS_LOADED);
-        return(ClassLoader::LoadArrayTypeThrowing(TypeHandle(g_pObjectClass), arrayKind, Rank).GetMethodTable());
-    }
 
     // Arrays of reference types all share the same EEClass.
     //
@@ -389,7 +371,7 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
     }
 
     // ArrayClass already includes one void*
-    LoaderAllocator* pAllocator= this->GetLoaderAllocator(); 
+    LoaderAllocator* pAllocator= this->GetLoaderAllocator();
     BYTE* pMemory = (BYTE *)pamTracker->Track(pAllocator->GetHighFrequencyHeap()->AllocMem(S_SIZE_T(cbArrayClass) +
                                                                                             S_SIZE_T(cbMT)));
 
@@ -412,7 +394,7 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
     pMT->SetMultipurposeSlotsMask(dwMultipurposeSlotsMask);
 
     // Allocate the private data block ("private" during runtime in the ngen'ed case).
-    MethodTableWriteableData * pMTWriteableData = (MethodTableWriteableData *) (BYTE *) 
+    MethodTableWriteableData * pMTWriteableData = (MethodTableWriteableData *) (BYTE *)
         pamTracker->Track(pAllocator->GetHighFrequencyHeap()->AllocMem(S_SIZE_T(sizeof(MethodTableWriteableData))));
     pMT->SetWriteableData(pMTWriteableData);
 
@@ -430,16 +412,20 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
         pClass->SetMethodTable (pMT);
 
         // Fill In the method table
-        pClass->SetNumMethods(numVirtuals + numNonVirtualSlots);
+        pClass->SetNumMethods(static_cast<WORD>(numVirtuals + numNonVirtualSlots));
 
-        pClass->SetNumNonVirtualSlots(numNonVirtualSlots);
+        pClass->SetNumNonVirtualSlots(static_cast<WORD>(numNonVirtualSlots));
     }
 
-    pMT->SetNumVirtuals(numVirtuals);
+    pMT->SetNumVirtuals(static_cast<WORD>(numVirtuals));
 
     pMT->SetParentMethodTable(pParentClass);
 
-    DWORD dwComponentSize = elemTypeHnd.GetSize();
+    // Method tables for arrays of generic type parameters are needed for type analysis. 
+    // No instances will be created, so we can use 0 as element size.
+    DWORD dwComponentSize = CorTypeInfo::IsGenericVariable(elemType) ?
+                                0 :
+                                elemTypeHnd.GetSize();
 
     if (elemType == ELEMENT_TYPE_VALUETYPE || elemType == ELEMENT_TYPE_VOID)
     {
@@ -463,9 +449,9 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
         pMT->SetCanonicalMethodTable(pCanonMT);
     }
 
-    pMT->SetIsArray(arrayKind, elemType);
+    pMT->SetIsArray(arrayKind);
 
-    pMT->SetApproxArrayElementTypeHandle(elemTypeHnd);
+    pMT->SetArrayElementTypeHandle(elemTypeHnd);
 
     _ASSERTE(FitsIn<WORD>(dwComponentSize));
     pMT->SetComponentSize(static_cast<WORD>(dwComponentSize));
@@ -531,7 +517,7 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
                 // Share the parent chunk
                 it.SetIndirectionSlot(pParentClass->GetVtableIndirections()[it.GetIndex()].GetValueMaybeNull());
             }
-            else 
+            else
             {
                 // Use the locally allocated chunk
                 it.SetIndirectionSlot((MethodTable::VTableIndir2_t *)(pMemory+cbArrayClass+offsetOfUnsharedVtableChunks));
@@ -554,7 +540,7 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
             pMT->SetNonVirtualSlotsArray((PTR_PCODE)(pMemory+cbArrayClass+offsetOfNonVirtualSlots));
     }
 
-#ifdef _DEBUG 
+#ifdef _DEBUG
     StackSString debugName;
     TypeString::AppendType(debugName, TypeHandle(pMT));
     StackScratchBuffer buff;
@@ -741,7 +727,7 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
         CGCDesc::GetCGCDescFromMT(pMT)->InitValueClassSeries(pMT, 1);
         pSeries = CGCDesc::GetCGCDescFromMT(pMT)->GetHighestSeries();
         pSeries->SetSeriesOffset(ArrayBase::GetDataPtrOffset(pMT));
-        pSeries->val_serie[0].set_val_serie_item (0, pMT->GetComponentSize());
+        pSeries->val_serie[0].set_val_serie_item (0, static_cast<HALF_SIZE_T>(pMT->GetComponentSize()));
     }
 #endif
 
@@ -811,10 +797,10 @@ public:
             if(m_pMD->GetArrayFuncIndex() == ArrayMethodDesc::ARRAY_FUNC_SET)
             {
                 ILCodeLabel * pTypeCheckOK = NewCodeLabel();
-                
+
                 m_pCode->EmitLDARG(rank); // load value to store
                 m_pCode->EmitBRFALSE(pTypeCheckOK); //Storing NULL is OK
-                
+
                 m_pCode->EmitLDARG(rank); // return param
                 m_pCode->EmitLDFLDA(tokRawData);
                 m_pCode->EmitLDC(Object::GetOffsetOfFirstField());
@@ -829,12 +815,12 @@ public:
                 m_pCode->EmitLDC(MethodTable::GetOffsetOfArrayElementTypeHandle());
                 m_pCode->EmitADD();
                 m_pCode->EmitLDIND_I();
-                
+
                 m_pCode->EmitCEQ();
                 m_pCode->EmitBRTRUE(pTypeCheckOK); // Same type is OK
 
                 // Call type check helper
-                m_pCode->EmitLDARG(rank);               
+                m_pCode->EmitLDARG(rank);
                 m_pCode->EmitLoadThis();
                 m_pCode->EmitCALL(METHOD__STUBHELPERS__ARRAY_TYPE_CHECK,2,0);
 
@@ -850,11 +836,11 @@ public:
                 m_pCode->EmitLDARG(hiddenArgIdx); // hidden param
                 m_pCode->EmitBRFALSE(pTypeCheckPassed);
                 m_pCode->EmitLDARG(hiddenArgIdx);
-                m_pCode->EmitLDFLDA(tokRawData);          
+                m_pCode->EmitLDFLDA(tokRawData);
                 m_pCode->EmitLDC(offsetof(ParamTypeDesc, m_Arg) - (Object::GetOffsetOfFirstField()+2));
                 m_pCode->EmitADD();
                 m_pCode->EmitLDIND_I();
-                
+
                 m_pCode->EmitLoadThis();
                 m_pCode->EmitLDFLDA(tokRawData);
                 m_pCode->EmitLDC(Object::GetOffsetOfFirstField());
@@ -863,7 +849,7 @@ public:
                 m_pCode->EmitLDC(MethodTable::GetOffsetOfArrayElementTypeHandle());
                 m_pCode->EmitADD();
                 m_pCode->EmitLDIND_I();
-                
+
                 m_pCode->EmitCEQ();
                 m_pCode->EmitBRFALSE(pTypeMismatchExceptionLabel); // throw exception if not same
                 m_pCode->EmitLabel(pTypeCheckPassed);
@@ -965,7 +951,7 @@ public:
         }
         m_pCode->EmitADD();
 
-        LocalDesc elemType(pMT->GetApproxArrayElementTypeHandle().GetInternalCorElementType());
+        LocalDesc elemType(pMT->GetArrayElementTypeHandle().GetInternalCorElementType());
 
         switch (m_pMD->GetArrayFuncIndex())
         {
@@ -973,7 +959,7 @@ public:
         case ArrayMethodDesc::ARRAY_FUNC_GET:
             if(elemType.ElementType[0]==ELEMENT_TYPE_VALUETYPE)
             {
-                m_pCode->EmitLDOBJ(GetToken(pMT->GetApproxArrayElementTypeHandle()));
+                m_pCode->EmitLDOBJ(GetToken(pMT->GetArrayElementTypeHandle()));
             }
             else
                 m_pCode->EmitLDIND_T(&elemType);
@@ -982,10 +968,10 @@ public:
         case ArrayMethodDesc::ARRAY_FUNC_SET:
             // Value to store into the array
             m_pCode->EmitLDARG(rank);
-            
+
             if(elemType.ElementType[0]==ELEMENT_TYPE_VALUETYPE)
             {
-                m_pCode->EmitSTOBJ(GetToken(pMT->GetApproxArrayElementTypeHandle()));
+                m_pCode->EmitSTOBJ(GetToken(pMT->GetArrayElementTypeHandle()));
             }
             else
                 m_pCode->EmitSTIND_T(&elemType);
@@ -1108,7 +1094,7 @@ void GenerateArrayOpScript(ArrayMethodDesc *pMD, ArrayOpScript *paos)
     MetaSig msig(pMD);
     _ASSERTE(!msig.IsVarArg());     // No array signature is varargs, code below does not expect it.
 
-    switch (pMT->GetApproxArrayElementTypeHandle().GetInternalCorElementType())
+    switch (pMT->GetArrayElementTypeHandle().GetInternalCorElementType())
     {
         // These are all different because of sign extension
 
@@ -1133,26 +1119,26 @@ void GenerateArrayOpScript(ArrayMethodDesc *pMD, ArrayOpScript *paos)
             break;
 
         case ELEMENT_TYPE_I4:
-        IN_WIN32(case ELEMENT_TYPE_I:)
+        IN_TARGET_32BIT(case ELEMENT_TYPE_I:)
             paos->m_elemsize = 4;
             paos->m_signed = TRUE;
             break;
 
         case ELEMENT_TYPE_U4:
-        IN_WIN32(case ELEMENT_TYPE_U:)
-        IN_WIN32(case ELEMENT_TYPE_PTR:)
+        IN_TARGET_32BIT(case ELEMENT_TYPE_U:)
+        IN_TARGET_32BIT(case ELEMENT_TYPE_PTR:)
             paos->m_elemsize = 4;
             break;
 
         case ELEMENT_TYPE_I8:
-        IN_WIN64(case ELEMENT_TYPE_I:)
+        IN_TARGET_64BIT(case ELEMENT_TYPE_I:)
             paos->m_elemsize = 8;
             paos->m_signed = TRUE;
             break;
 
         case ELEMENT_TYPE_U8:
-        IN_WIN64(case ELEMENT_TYPE_U:)
-        IN_WIN64(case ELEMENT_TYPE_PTR:)
+        IN_TARGET_64BIT(case ELEMENT_TYPE_U:)
+        IN_TARGET_64BIT(case ELEMENT_TYPE_PTR:)
             paos->m_elemsize = 8;
             break;
 
@@ -1182,7 +1168,7 @@ void GenerateArrayOpScript(ArrayMethodDesc *pMD, ArrayOpScript *paos)
 
         case ELEMENT_TYPE_VALUETYPE:
             paos->m_elemsize = pMT->GetComponentSize();
-            if (pMT->ContainsPointers()) 
+            if (pMT->ContainsPointers())
             {
                 paos->m_gcDesc = CGCDesc::GetCGCDescFromMT(pMT);
                 paos->m_flags |= paos->NEEDSWRITEBARRIER;
@@ -1205,7 +1191,7 @@ void GenerateArrayOpScript(ArrayMethodDesc *pMD, ArrayOpScript *paos)
         paos->m_fRetBufLoc = argit.GetRetBuffArgOffset();
     }
 
-    if (paos->m_op == ArrayOpScript::LOADADDR) 
+    if (paos->m_op == ArrayOpScript::LOADADDR)
     {
         paos->m_typeParamOffs = argit.GetParamTypeArgOffset();
     }
@@ -1296,6 +1282,7 @@ BOOL IsImplicitInterfaceOfSZArray(MethodTable *pInterfaceMT)
 {
     LIMITED_METHOD_CONTRACT;
     PRECONDITION(pInterfaceMT->IsInterface());
+    PRECONDITION(pInterfaceMT->HasInstantiation());
 
     // Is target interface Anything<T> in mscorlib?
     if (!pInterfaceMT->HasInstantiation() || !pInterfaceMT->GetModule()->IsSystem())
@@ -1309,42 +1296,6 @@ BOOL IsImplicitInterfaceOfSZArray(MethodTable *pInterfaceMT)
             rid == MscorlibBinder::GetExistingClass(CLASS__IENUMERABLEGENERIC)->GetTypeDefRid() ||
             rid == MscorlibBinder::GetExistingClass(CLASS__IREADONLYCOLLECTIONGENERIC)->GetTypeDefRid() ||
             rid == MscorlibBinder::GetExistingClass(CLASS__IREADONLYLISTGENERIC)->GetTypeDefRid());
-}
-
-//---------------------------------------------------------------------
-// Check if arrays supports certain interfaces that don't appear in the base interface
-// list. It does not check the base interfaces themselves - you must do that
-// separately.
-//---------------------------------------------------------------------
-BOOL ArraySupportsBizarreInterface(ArrayTypeDesc *pArrayTypeDesc, MethodTable *pInterfaceMT)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        INJECT_FAULT(COMPlusThrowOM(););
-
-        PRECONDITION(pInterfaceMT->IsInterface());
-        PRECONDITION(pArrayTypeDesc->IsArray());
-    }
-    CONTRACTL_END
-
-#ifdef _DEBUG
-    MethodTable *pArrayMT = pArrayTypeDesc->GetMethodTable();
-    _ASSERTE(pArrayMT->IsArray());
-    _ASSERTE(pArrayMT->IsRestored());
-#endif
-
-    // IList<T> & IReadOnlyList<T> only supported for SZ_ARRAYS
-    if (pArrayTypeDesc->GetInternalCorElementType() != ELEMENT_TYPE_SZARRAY)
-        return FALSE;
-
-    ClassLoader::EnsureLoaded(pInterfaceMT, CLASS_DEPENDENCIES_LOADED);
-
-    if (!IsImplicitInterfaceOfSZArray(pInterfaceMT))
-        return FALSE;
-
-    return TypeDesc::CanCastParam(pArrayTypeDesc->GetTypeParam(), pInterfaceMT->GetInstantiation()[0], NULL);
 }
 
 //----------------------------------------------------------------------------------
@@ -1383,7 +1334,7 @@ MethodDesc* GetActualImplementationForArrayGenericIListOrIReadOnlyListMethod(Met
     // Subtract one for the non-generic IEnumerable that the generic enumerable inherits from
     unsigned int inheritanceDepth = pItfcMeth->GetMethodTable()->GetNumInterfaces() - 1;
     PREFIX_ASSUME(0 <= inheritanceDepth && inheritanceDepth < NumItems(startingMethod));
-   
+
     MethodDesc *pGenericImplementor = MscorlibBinder::GetMethod((BinderMethodID)(startingMethod[inheritanceDepth] + slot));
 
     // The most common reason for this assert is that the order of the SZArrayHelper methods in
@@ -1392,7 +1343,7 @@ MethodDesc* GetActualImplementationForArrayGenericIListOrIReadOnlyListMethod(Met
 
     // OPTIMIZATION: For any method other than GetEnumerator(), we can safely substitute
     // "Object" for reference-type theT's. This causes fewer methods to be instantiated.
-    if (startingMethod[inheritanceDepth] != METHOD__SZARRAYHELPER__GETENUMERATOR && 
+    if (startingMethod[inheritanceDepth] != METHOD__SZARRAYHELPER__GETENUMERATOR &&
         !theT.IsValueType())
     {
         theT = TypeHandle(g_pObjectClass);
@@ -1409,7 +1360,27 @@ MethodDesc* GetActualImplementationForArrayGenericIListOrIReadOnlyListMethod(Met
 }
 #endif // DACCESS_COMPILE
 
-#ifdef _MSC_VER
-#pragma warning(pop)
-#pragma warning(disable:4244)
-#endif // _MSC_VER: warning C4244
+CorElementType GetNormalizedIntegralArrayElementType(CorElementType elementType)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    _ASSERTE(CorTypeInfo::IsPrimitiveType_NoThrow(elementType));
+
+    // Array Primitive types such as E_T_I4 and E_T_U4 are interchangeable
+    // Enums with interchangeable underlying types are interchangable
+    // BOOL is NOT interchangeable with I1/U1, neither CHAR -- with I2/U2
+
+    switch (elementType)
+    {
+    case ELEMENT_TYPE_U1:
+    case ELEMENT_TYPE_U2:
+    case ELEMENT_TYPE_U4:
+    case ELEMENT_TYPE_U8:
+    case ELEMENT_TYPE_U:
+        return (CorElementType)(elementType - 1); // normalize to signed type
+    default:
+        break;
+    }
+
+    return elementType;
+}

@@ -9,11 +9,7 @@
 #include "gcenv.h"
 #include "gc.h"
 
-MethodTable * g_pFreeObjectMethodTable;
-
 EEConfig * g_pConfig;
-
-gc_alloc_context g_global_alloc_context;
 
 bool CLREventStatic::CreateManualEventNoThrow(bool bInitialState)
 {
@@ -181,19 +177,14 @@ bool GCToEEInterface::IsPreemptiveGCDisabled()
 
 bool GCToEEInterface::EnablePreemptiveGC()
 {
-    bool bToggleGC = false;
     Thread* pThread = ::GetThread();
-
-    if (pThread)
+    if (pThread && pThread->PreemptiveGCDisabled())
     {
-        bToggleGC = !!pThread->PreemptiveGCDisabled();
-        if (bToggleGC)
-        {
-            pThread->EnablePreemptiveGC();
-        }
+        pThread->EnablePreemptiveGC();
+        return true;
     }
 
-    return bToggleGC;
+    return false;
 }
 
 void GCToEEInterface::DisablePreemptiveGC()
@@ -255,7 +246,7 @@ void GCToEEInterface::DiagWalkFReachableObjects(void* gcContext)
 {
 }
 
-void GCToEEInterface::DiagWalkSurvivors(void* gcContext)
+void GCToEEInterface::DiagWalkSurvivors(void* gcContext, bool fCompacting)
 {
 }
 
@@ -280,11 +271,6 @@ void GCToEEInterface::EnableFinalization(bool foundFinalizers)
 void GCToEEInterface::HandleFatalError(unsigned int exitCode)
 {
     abort();
-}
-
-bool GCToEEInterface::ShouldFinalizeObjectForUnload(void* pDomain, Object* obj)
-{
-    return true;
 }
 
 bool GCToEEInterface::EagerFinalized(Object* obj)
@@ -327,7 +313,7 @@ static MethodTable freeObjectMT;
 
 MethodTable* GCToEEInterface::GetFreeObjectMethodTable()
 {
-    // 
+    //
     // Initialize free object methodtable. The GC uses a special array-like methodtable as placeholder
     // for collected free space.
     //
@@ -348,34 +334,9 @@ void GCToEEInterface::WalkAsyncPinned(Object* object, void* context, void (*call
 {
 }
 
-uint32_t GCToEEInterface::GetDefaultDomainIndex()
-{
-    return -1;
-}
-
-void *GCToEEInterface::GetAppDomainAtIndex(uint32_t appDomainIndex)
-{
-    return nullptr;
-}
-
-bool GCToEEInterface::AppDomainCanAccessHandleTable(uint32_t appDomainID)
-{
-    return true;
-}
-
-uint32_t GCToEEInterface::GetIndexOfAppDomainBeingUnloaded()
-{
-    return -1;
-}
-
 uint32_t GCToEEInterface::GetTotalNumSizedRefHandles()
 {
     return -1;
-}
-
-bool GCToEEInterface::AppDomainIsRudeUnload(void *appDomain)
-{
-    return false;
 }
 
 inline bool GCToEEInterface::AnalyzeSurvivorsRequested(int condemnedGeneration)
@@ -385,5 +346,5 @@ inline bool GCToEEInterface::AnalyzeSurvivorsRequested(int condemnedGeneration)
 
 inline void GCToEEInterface::AnalyzeSurvivorsFinished(int condemnedGeneration)
 {
-    
+
 }

@@ -5,8 +5,6 @@
 using System.Collections;
 using System.Runtime.InteropServices.ComTypes;
 
-using Variant = System.Runtime.InteropServices.Variant;
-
 namespace System.Runtime.InteropServices.CustomMarshalers
 {
     internal class EnumerableViewOfDispatch : ICustomAdapter, System.Collections.IEnumerable
@@ -28,7 +26,7 @@ namespace System.Runtime.InteropServices.CustomMarshalers
             Variant result;
             unsafe
             {
-                void *resultLocal = &result;
+                void* resultLocal = &result;
                 DISPPARAMS dispParams = new DISPPARAMS();
                 Guid guid = Guid.Empty;
                 Dispatch.Invoke(
@@ -42,7 +40,7 @@ namespace System.Runtime.InteropServices.CustomMarshalers
                     IntPtr.Zero);
             }
 
-            object resultAsObject = result.ToObject();
+            object? resultAsObject = result.ToObject();
             if (!(resultAsObject is IEnumVARIANT enumVariant))
             {
                 throw new InvalidOperationException(SR.InvalidOp_InvalidNewEnumVariant);

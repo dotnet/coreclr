@@ -34,11 +34,7 @@ CHECK PEDecoder::CheckFormat() const
         {
             CHECK(CheckCorHeader());
 
-#if !defined(FEATURE_PREJIT)
-            CHECK(IsILOnly());
-#endif
-
-            if (IsILOnly() && !HasReadyToRunHeader())
+            if (IsILOnly())
                 CHECK(CheckILOnly());
 
             if (HasNativeHeader())
@@ -329,7 +325,7 @@ CHECK PEDecoder::CheckNTHeaders() const
         // 0x200, and the header remapping resulted in new headers size of 0x208). To compensate
         // for this issue (it would be quite difficult to fix in the remapping code; see Dev11 430008)
         // we assume that when the image is mapped that the needed validation has already been done.
-        // 
+        //
 
         if (!IsMapped())
         {
@@ -1410,6 +1406,12 @@ CHECK PEDecoder::CheckILOnly() const
 
     CHECK(CheckCorHeader());
 
+    if (HasReadyToRunHeader())
+    {
+        // Pretend R2R images are IL-only
+        const_cast<PEDecoder *>(this)->m_flags |= FLAG_IL_ONLY_CHECKED;
+        CHECK_OK;
+    }
 
     // Allow only verifiable directories.
 
@@ -1509,7 +1511,7 @@ CHECK PEDecoder::CheckILOnlyImportDlls() const
 
     // The only allowed DLL Imports are MscorEE.dll:_CorExeMain,_CorDllMain
 
-#ifdef _WIN64
+#ifdef BIT64
     // On win64, when the image is LoadLibrary'd, we whack the import and IAT directories. We have to relax
     // the verification for mapped images. Ideally, we would only do it for a post-LoadLibrary image.
     if (IsMapped() && !HasDirectoryEntry(IMAGE_DIRECTORY_ENTRY_IMPORT))
@@ -1790,26 +1792,73 @@ void PEDecoder::LayoutILOnly(void *base, BOOL allowFullPE) const
 
 #endif // #ifndef DACCESS_COMPILE
 
-DWORD PEDecoder::ReadResourceDictionary(DWORD rvaOfResourceSection, DWORD rva, LPCWSTR name, BOOL *pIsDictionary) const
+bool ReadResourceDirectoryHeader(const PEDecoder *pDecoder, DWORD rvaOfResourceSection, DWORD rva, IMAGE_RESOURCE_DIRECTORY_ENTRY** ppDirectoryEntries, IMAGE_RESOURCE_DIRECTORY **ppResourceDirectory)
 {
-    *pIsDictionary = FALSE;
+    if (!pDecoder->CheckRva(rva, sizeof(IMAGE_RESOURCE_DIRECTORY)))
+    {
+        return false;
+    }
 
-    if (!CheckRva(rva, sizeof(IMAGE_RESOURCE_DIRECTORY)))
+    *ppResourceDirectory = (IMAGE_RESOURCE_DIRECTORY *)pDecoder->GetRvaData(rva);
+
+    // Check to see if entire resource directory is accessible
+    if (!pDecoder->CheckRva(rva + sizeof(IMAGE_RESOURCE_DIRECTORY),
+                       (sizeof(IMAGE_RESOURCE_DIRECTORY_ENTRY) * (*ppResourceDirectory)->NumberOfNamedEntries) +
+                       (sizeof(IMAGE_RESOURCE_DIRECTORY_ENTRY) * (*ppResourceDirectory)->NumberOfIdEntries)))
+    {
+        return false;
+    }
+
+    *ppDirectoryEntries = (IMAGE_RESOURCE_DIRECTORY_ENTRY *)pDecoder->GetRvaData(rva + sizeof(IMAGE_RESOURCE_DIRECTORY));
+    return true;
+}
+
+bool ReadNameFromResourceDirectoryEntry(const PEDecoder *pDecoder, DWORD rvaOfResourceSection, IMAGE_RESOURCE_DIRECTORY_ENTRY* pDirectoryEntries, DWORD iEntry, DWORD *pNameUInt, WCHAR **pNameStr)
+{
+    *pNameStr = NULL;
+    *pNameUInt = 0;
+
+    if (!IS_INTRESOURCE(pDirectoryEntries[iEntry].Name))
+    {
+        DWORD entryName = pDirectoryEntries[iEntry].Name;
+        if (!(entryName & IMAGE_RESOURCE_NAME_IS_STRING))
+            return false;
+        DWORD entryNameRva = (entryName & ~IMAGE_RESOURCE_NAME_IS_STRING) + rvaOfResourceSection;
+
+        if (!pDecoder->CheckRva(entryNameRva, sizeof(WORD)))
+            return false;
+
+        size_t entryNameLen = *(WORD*)pDecoder->GetRvaData(entryNameRva);
+        if (!pDecoder->CheckRva(entryNameRva, (COUNT_T)(sizeof(WORD) * (1 + entryNameLen))))
+            return false;
+        *pNameStr = new(nothrow) WCHAR[entryNameLen + 1];
+        if ((*pNameStr) == NULL)
+            return false;
+        memcpy((*pNameStr), (WCHAR*)pDecoder->GetRvaData(entryNameRva + sizeof(WORD)), entryNameLen * sizeof(WCHAR));
+        (*pNameStr)[entryNameLen] = 0;
+    }
+    else
+    {
+        DWORD name = pDirectoryEntries[iEntry].Name;
+        if (!IS_INTRESOURCE(name))
+            return false;
+
+        *pNameUInt = name;
+    }
+
+    return true;
+}
+
+DWORD ReadResourceDirectory(const PEDecoder *pDecoder, DWORD rvaOfResourceSection, DWORD rva, LPCWSTR name, BOOL *pisDirectory)
+{
+    *pisDirectory = FALSE;
+
+    IMAGE_RESOURCE_DIRECTORY* pResourceDirectory;
+    IMAGE_RESOURCE_DIRECTORY_ENTRY* pDirectoryEntries;
+    if (!ReadResourceDirectoryHeader(pDecoder, rvaOfResourceSection, rva, &pDirectoryEntries, &pResourceDirectory))
     {
         return 0;
     }
-
-    IMAGE_RESOURCE_DIRECTORY *pResourceDirectory = (IMAGE_RESOURCE_DIRECTORY *)GetRvaData(rva);
-
-    // Check to see if entire resource dictionary is accessible
-    if (!CheckRva(rva + sizeof(IMAGE_RESOURCE_DIRECTORY), 
-                       (sizeof(IMAGE_RESOURCE_DIRECTORY_ENTRY) * pResourceDirectory->NumberOfNamedEntries) +
-                       (sizeof(IMAGE_RESOURCE_DIRECTORY_ENTRY) * pResourceDirectory->NumberOfIdEntries)))
-    {
-        return 0;
-    }
-
-    IMAGE_RESOURCE_DIRECTORY_ENTRY* pDirectoryEntries = (IMAGE_RESOURCE_DIRECTORY_ENTRY *)GetRvaData(rva + sizeof(IMAGE_RESOURCE_DIRECTORY));
 
     // A fast implementation of resource lookup uses a binary search, but our needs are simple, and a linear search
     // is easier to prove correct, so do that instead.
@@ -1819,7 +1868,7 @@ DWORD PEDecoder::ReadResourceDictionary(DWORD rvaOfResourceSection, DWORD rva, L
     {
         BOOL foundEntry = FALSE;
 
-        if (((UINT_PTR)name) <= 0xFFFF)
+        if (IS_INTRESOURCE(name))
         {
             // name is id
             if (pDirectoryEntries[iEntry].Name == (DWORD)(SIZE_T)name)
@@ -1831,27 +1880,27 @@ DWORD PEDecoder::ReadResourceDictionary(DWORD rvaOfResourceSection, DWORD rva, L
             DWORD entryName = pDirectoryEntries[iEntry].Name;
             if (!(entryName & IMAGE_RESOURCE_NAME_IS_STRING))
                 continue;
-            
+
             DWORD entryNameRva = (entryName & ~IMAGE_RESOURCE_NAME_IS_STRING) + rvaOfResourceSection;
 
-            if (!CheckRva(entryNameRva, sizeof(WORD)))
+            if (!pDecoder->CheckRva(entryNameRva, sizeof(WORD)))
                 return 0;
 
-            size_t entryNameLen = *(WORD*)GetRvaData(entryNameRva);
+            size_t entryNameLen = *(WORD*)pDecoder->GetRvaData(entryNameRva);
             if (wcslen(name) != entryNameLen)
                 continue;
 
-            if (!CheckRva(entryNameRva, (COUNT_T)(sizeof(WORD) * (1 + entryNameLen))))
+            if (!pDecoder->CheckRva(entryNameRva, (COUNT_T)(sizeof(WORD) * (1 + entryNameLen))))
                 return 0;
-            
-            if (memcmp((WCHAR*)GetRvaData(entryNameRva + sizeof(WORD)), name, entryNameLen * sizeof(WCHAR)) == 0)
+
+            if (memcmp((WCHAR*)pDecoder->GetRvaData(entryNameRva + sizeof(WORD)), name, entryNameLen * sizeof(WCHAR)) == 0)
                 foundEntry = TRUE;
         }
 
         if (!foundEntry)
             continue;
 
-        *pIsDictionary = !!(pDirectoryEntries[iEntry].OffsetToData & IMAGE_RESOURCE_DATA_IS_DIRECTORY);
+        *pisDirectory = !!(pDirectoryEntries[iEntry].OffsetToData & IMAGE_RESOURCE_DATA_IS_DIRECTORY);
         DWORD offsetToData = pDirectoryEntries[iEntry].OffsetToData & ~IMAGE_RESOURCE_DATA_IS_DIRECTORY;
         DWORD dataRva = rvaOfResourceSection + offsetToData;
         return dataRva;
@@ -1860,16 +1909,16 @@ DWORD PEDecoder::ReadResourceDictionary(DWORD rvaOfResourceSection, DWORD rva, L
     return 0;
 }
 
-DWORD PEDecoder::ReadResourceDataEntry(DWORD rva, COUNT_T *pSize) const
+DWORD ReadResourceDataEntry(const PEDecoder *pDecoder, DWORD rva, COUNT_T *pSize)
 {
     *pSize = 0;
 
-    if (!CheckRva(rva, sizeof(IMAGE_RESOURCE_DATA_ENTRY)))
+    if (!pDecoder->CheckRva(rva, sizeof(IMAGE_RESOURCE_DATA_ENTRY)))
     {
         return 0;
     }
 
-    IMAGE_RESOURCE_DATA_ENTRY *pDataEntry = (IMAGE_RESOURCE_DATA_ENTRY *)GetRvaData(rva);
+    IMAGE_RESOURCE_DATA_ENTRY *pDataEntry = (IMAGE_RESOURCE_DATA_ENTRY *)pDecoder->GetRvaData(rva);
     *pSize = pDataEntry->Size;
     return pDataEntry->OffsetToData;
 }
@@ -1898,17 +1947,17 @@ void * PEDecoder::GetWin32Resource(LPCWSTR lpName, LPCWSTR lpType, COUNT_T *pSiz
     if (pDir->VirtualAddress == 0)
         return NULL;
 
-    BOOL isDictionary = FALSE;
-    DWORD nameTableRva = ReadResourceDictionary(pDir->VirtualAddress, pDir->VirtualAddress, lpType, &isDictionary);
+    BOOL isDirectory = FALSE;
+    DWORD nameTableRva = ReadResourceDirectory(this, pDir->VirtualAddress, pDir->VirtualAddress, lpType, &isDirectory);
 
-    if (!isDictionary)
+    if (!isDirectory)
         return NULL;
-    
+
     if (nameTableRva == 0)
         return NULL;
 
-    DWORD languageTableRva = ReadResourceDictionary(pDir->VirtualAddress, nameTableRva, lpName, &isDictionary);
-    if (!isDictionary)
+    DWORD languageTableRva = ReadResourceDirectory(this, pDir->VirtualAddress, nameTableRva, lpName, &isDirectory);
+    if (!isDirectory)
         return NULL;
 
     if (languageTableRva == 0)
@@ -1918,14 +1967,14 @@ void * PEDecoder::GetWin32Resource(LPCWSTR lpName, LPCWSTR lpType, COUNT_T *pSiz
     // This translates to LANGID 0 as the initial lookup point, which is sufficient for the needs of this api at this time
     // (FindResource in the Windows api implements a large number of fallback paths which this api does not implement)
 
-    DWORD resourceDataEntryRva = ReadResourceDictionary(pDir->VirtualAddress, languageTableRva, 0, &isDictionary);
-    if (isDictionary) // This must not be a resource dictionary itself
+    DWORD resourceDataEntryRva = ReadResourceDirectory(this, pDir->VirtualAddress, languageTableRva, 0, &isDirectory);
+    if (isDirectory) // This must not be a resource directory itself
         return NULL;
 
     if (resourceDataEntryRva == 0)
         return NULL;
 
-    DWORD resourceDataRva = ReadResourceDataEntry(resourceDataEntryRva, pSize);
+    DWORD resourceDataRva = ReadResourceDataEntry(this, resourceDataEntryRva, pSize);
     if (!CheckRva(resourceDataRva, *pSize))
     {
         *pSize = 0;
@@ -1933,6 +1982,229 @@ void * PEDecoder::GetWin32Resource(LPCWSTR lpName, LPCWSTR lpType, COUNT_T *pSiz
     }
 
     return (void*)GetRvaData(resourceDataRva);
+}
+
+typedef bool (*PEDecoder_EnumerateResourceTableFunction)(const PEDecoder *pDecoder, DWORD rvaOfResourceSection, bool isDirectory, LPCWSTR name, DWORD dataRVA, void *context);
+
+struct ResourceEnumerateNamesState
+{
+    PEDecoder_ResourceNamesCallbackFunction namesCallback;
+    PEDecoder_ResourceCallbackFunction langIDcallback;
+    void *context;
+    LPCWSTR nameType;
+    LPCWSTR nameName;
+    PEDecoder_EnumerateResourceTableFunction callbackPerName;
+    PEDecoder_EnumerateResourceTableFunction callbackPerLangID;
+};
+
+struct ResourceEnumerateTypesState
+{
+    PEDecoder_ResourceTypesCallbackFunction callback;
+    void *context;
+    LPCWSTR nameType;
+};
+
+bool EnumerateWin32ResourceTable(const PEDecoder *pDecoder, DWORD rvaOfResourceSection, DWORD rvaOfResourceTable, PEDecoder_EnumerateResourceTableFunction resourceTableEnumerator, void *context)
+{
+    IMAGE_RESOURCE_DIRECTORY* pResourceDirectory;
+    IMAGE_RESOURCE_DIRECTORY_ENTRY* pDirectoryEntries;
+    if (!ReadResourceDirectoryHeader(pDecoder, rvaOfResourceSection, rvaOfResourceTable, &pDirectoryEntries, &pResourceDirectory))
+    {
+        return false;
+    }
+
+    DWORD iEntryCount = (DWORD)pResourceDirectory->NumberOfNamedEntries + (DWORD)pResourceDirectory->NumberOfIdEntries;
+
+    for (DWORD iEntry = 0; iEntry < iEntryCount; iEntry++)
+    {
+        DWORD nameUInt;
+        NewArrayHolder<WCHAR> nameString;
+        if (!ReadNameFromResourceDirectoryEntry(pDecoder, rvaOfResourceSection, pDirectoryEntries, iEntry, &nameUInt, &nameString))
+            return false;
+
+        LPCWSTR name = MAKEINTRESOURCEW(nameUInt);
+        if (nameString != NULL)
+            name = &nameString[0];
+
+        bool isDirectory = !!(pDirectoryEntries[iEntry].OffsetToData & IMAGE_RESOURCE_DATA_IS_DIRECTORY);
+        DWORD offsetToData = pDirectoryEntries[iEntry].OffsetToData & ~IMAGE_RESOURCE_DATA_IS_DIRECTORY;
+        DWORD dataRva = rvaOfResourceSection + offsetToData;
+
+        if (!resourceTableEnumerator(pDecoder, rvaOfResourceSection, isDirectory, name, dataRva, context))
+            return false;
+    }
+
+    return true;
+}
+
+bool DoesResourceNameMatch(LPCWSTR nameA, LPCWSTR nameB)
+{
+    bool foundEntry = false;
+
+    if (IS_INTRESOURCE(nameA))
+    {
+        // name is id
+        if (nameA == nameB)
+            foundEntry = true;
+    }
+    else
+    {
+        // name is a string.
+
+        // Check for name enumerated is an id. If so, it doesn't match, skip to next.
+        if (IS_INTRESOURCE(nameB))
+            return false;
+        else
+            foundEntry = !wcscmp(nameB, nameA);
+    }
+
+    return foundEntry;
+}
+
+bool EnumerateLangIDs(const PEDecoder *pDecoder, DWORD rvaOfResourceSection, bool isDirectory, LPCWSTR name, DWORD dataRVA, void *context)
+{
+    ResourceEnumerateNamesState *state = (ResourceEnumerateNamesState*)context;
+    if (isDirectory)
+        return false;
+
+    // Only LangIDs are permitted here
+    if (!IS_INTRESOURCE(name))
+        return false;
+
+    if (dataRVA == 0)
+        return false;
+
+    COUNT_T cbData;
+    DWORD resourceDataRva = ReadResourceDataEntry(pDecoder, dataRVA, &cbData);
+    if (!pDecoder->CheckRva(resourceDataRva, cbData))
+    {
+        return false;
+    }
+
+    BYTE *pData = (BYTE*)pDecoder->GetRvaData(resourceDataRva);
+
+    return state->langIDcallback(state->nameName, state->nameType, (DWORD)(uintptr_t)name, pData, cbData, state->context);
+}
+
+
+bool EnumerateNames(const PEDecoder *pDecoder, DWORD rvaOfResourceSection, bool isDirectory, LPCWSTR name, DWORD dataRVA, void *context)
+{
+    ResourceEnumerateNamesState *state = (ResourceEnumerateNamesState*)context;
+    if (!isDirectory)
+        return false;
+
+    state->nameName = name;
+    return state->namesCallback(state->nameName, state->nameType, state->context);
+}
+
+bool EnumerateNamesForLangID(const PEDecoder *pDecoder, DWORD rvaOfResourceSection, bool isDirectory, LPCWSTR name, DWORD dataRVA, void *context)
+{
+    ResourceEnumerateNamesState *state = (ResourceEnumerateNamesState*)context;
+    if (!isDirectory)
+        return false;
+
+    bool foundEntry = DoesResourceNameMatch(state->nameName, name);
+
+    if (foundEntry)
+        return EnumerateWin32ResourceTable(pDecoder, rvaOfResourceSection, dataRVA, state->callbackPerLangID, context);
+    else
+        return true; // Keep scanning
+}
+
+
+bool EnumerateTypes(const PEDecoder *pDecoder, DWORD rvaOfResourceSection, bool isDirectory, LPCWSTR name, DWORD dataRVA, void *context)
+{
+    ResourceEnumerateTypesState *state = (ResourceEnumerateTypesState*)context;
+    if (!isDirectory)
+        return false;
+
+    state->nameType = name;
+    return state->callback(name, state->context);
+}
+
+bool EnumerateTypesForNames(const PEDecoder *pDecoder, DWORD rvaOfResourceSection, bool isDirectory, LPCWSTR name, DWORD dataRVA, void *context)
+{
+    ResourceEnumerateNamesState *state = (ResourceEnumerateNamesState*)context;
+    if (!isDirectory)
+        return false;
+
+    bool foundEntry = DoesResourceNameMatch(state->nameType, name);
+
+    if (foundEntry)
+        return EnumerateWin32ResourceTable(pDecoder, rvaOfResourceSection, dataRVA, state->callbackPerName, context);
+    else
+        return true; // Keep scanning
+}
+
+
+bool PEDecoder::EnumerateWin32ResourceTypes(PEDecoder_ResourceTypesCallbackFunction callback, void* context) const
+{
+    if (!HasDirectoryEntry(IMAGE_DIRECTORY_ENTRY_RESOURCE))
+        return true;
+
+    COUNT_T resourceDataSize = 0;
+    IMAGE_DATA_DIRECTORY *pDir = GetDirectoryEntry(IMAGE_DIRECTORY_ENTRY_RESOURCE);
+
+    if (pDir->VirtualAddress == 0)
+        return true;
+
+    DWORD rvaOfResourceSection = pDir->VirtualAddress;
+
+    ResourceEnumerateTypesState state;
+    state.context = context;
+    state.callback = callback;
+
+    return EnumerateWin32ResourceTable(this, rvaOfResourceSection, rvaOfResourceSection, EnumerateTypes, &state);
+}
+
+bool PEDecoder::EnumerateWin32ResourceNames(LPCWSTR lpType, PEDecoder_ResourceNamesCallbackFunction callback, void* context) const
+{
+    if (!HasDirectoryEntry(IMAGE_DIRECTORY_ENTRY_RESOURCE))
+        return true;
+
+    COUNT_T resourceDataSize = 0;
+    IMAGE_DATA_DIRECTORY *pDir = GetDirectoryEntry(IMAGE_DIRECTORY_ENTRY_RESOURCE);
+
+    if (pDir->VirtualAddress == 0)
+        return true;
+
+    DWORD rvaOfResourceSection = pDir->VirtualAddress;
+
+    ResourceEnumerateNamesState state;
+    state.context = context;
+    state.namesCallback = callback;
+    state.langIDcallback = NULL;
+    state.nameType = lpType;
+    state.nameName = NULL;
+    state.callbackPerName = EnumerateNames;
+    state.callbackPerLangID = NULL;
+
+    return EnumerateWin32ResourceTable(this, rvaOfResourceSection, rvaOfResourceSection, EnumerateTypesForNames, &state);
+}
+
+bool PEDecoder::EnumerateWin32Resources(LPCWSTR lpName, LPCWSTR lpType, PEDecoder_ResourceCallbackFunction callback, void* context) const
+{
+    if (!HasDirectoryEntry(IMAGE_DIRECTORY_ENTRY_RESOURCE))
+        return true;
+
+    COUNT_T resourceDataSize = 0;
+    IMAGE_DATA_DIRECTORY *pDir = GetDirectoryEntry(IMAGE_DIRECTORY_ENTRY_RESOURCE);
+
+    if (pDir->VirtualAddress == 0)
+        return true;
+
+    DWORD rvaOfResourceSection = pDir->VirtualAddress;
+
+    ResourceEnumerateNamesState state;
+    state.context = context;
+    state.namesCallback = NULL;
+    state.langIDcallback = callback;
+    state.nameType = lpType;
+    state.nameName = lpName;
+    state.callbackPerName = EnumerateNamesForLangID;
+    state.callbackPerLangID = EnumerateLangIDs;
+
+    return EnumerateWin32ResourceTable(this, rvaOfResourceSection, rvaOfResourceSection, EnumerateTypesForNames, &state);
 }
 
 BOOL PEDecoder::HasNativeHeader() const
@@ -2559,7 +2831,7 @@ CORCOMPILE_METHOD_PROFILE_LIST *PEDecoder::GetNativeProfileDataList(COUNT_T * pS
     RETURN PTR_CORCOMPILE_METHOD_PROFILE_LIST(GetDirectoryData(pDir));
 }
 
-
+#endif // FEATURE_PREJIT
 
 PTR_CVOID PEDecoder::GetNativeManifestMetadata(COUNT_T *pSize) const
 {
@@ -2572,9 +2844,15 @@ PTR_CVOID PEDecoder::GetNativeManifestMetadata(COUNT_T *pSize) const
         GC_NOTRIGGER;
     }
     CONTRACT_END;
-    
-    IMAGE_DATA_DIRECTORY *pDir;
-    if (HasReadyToRunHeader())
+
+    IMAGE_DATA_DIRECTORY *pDir = NULL;
+#ifdef FEATURE_PREJIT
+    if (!HasReadyToRunHeader())
+    {
+        pDir = GetMetaDataHelper(METADATA_SECTION_MANIFEST);
+    }
+    else
+#endif
     {
         READYTORUN_HEADER * pHeader = GetReadyToRunHeader();
 
@@ -2586,13 +2864,23 @@ PTR_CVOID PEDecoder::GetNativeManifestMetadata(COUNT_T *pSize) const
 
             READYTORUN_SECTION * pSection = pSections + i;
             if (pSection->Type == READYTORUN_SECTION_MANIFEST_METADATA)
+            {
                 // Set pDir to the address of the manifest metadata section
                 pDir = &pSection->Section;
+                break;
+            }
         }
-    }
-    else
-    {
-        pDir = GetMetaDataHelper(METADATA_SECTION_MANIFEST);
+
+        // ReadyToRun file without large version bubble support doesn't have the READYTORUN_SECTION_MANIFEST_METADATA
+        if (pDir == NULL)
+        {
+            if (pSize != NULL)
+            {
+                *pSize = 0;
+            }
+
+            RETURN NULL;
+        }
     }
 
     if (pSize != NULL)
@@ -2600,6 +2888,8 @@ PTR_CVOID PEDecoder::GetNativeManifestMetadata(COUNT_T *pSize) const
 
     RETURN dac_cast<PTR_VOID>(GetDirectoryData(pDir));
 }
+
+#ifdef FEATURE_PREJIT
 
 PTR_CORCOMPILE_IMPORT_SECTION PEDecoder::GetNativeImportSections(COUNT_T *pCount) const
 {

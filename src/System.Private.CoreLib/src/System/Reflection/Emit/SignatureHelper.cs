@@ -2,15 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-// 
-
 using System.Text;
-using System;
+using System.Buffers.Binary;
 using System.Diagnostics;
-using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
 
 namespace System.Reflection.Emit
 {
@@ -21,22 +16,22 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Static Members
-        public static SignatureHelper GetMethodSigHelper(Module mod, Type returnType, Type[] parameterTypes)
+        public static SignatureHelper GetMethodSigHelper(Module? mod, Type? returnType, Type[]? parameterTypes)
         {
             return GetMethodSigHelper(mod, CallingConventions.Standard, returnType, null, null, parameterTypes, null, null);
         }
 
-        internal static SignatureHelper GetMethodSigHelper(Module mod, CallingConventions callingConvention, Type returnType, int cGenericParam)
+        internal static SignatureHelper GetMethodSigHelper(Module? mod, CallingConventions callingConvention, Type? returnType, int cGenericParam)
         {
             return GetMethodSigHelper(mod, callingConvention, cGenericParam, returnType, null, null, null, null, null);
         }
 
-        public static SignatureHelper GetMethodSigHelper(Module mod, CallingConventions callingConvention, Type returnType)
+        public static SignatureHelper GetMethodSigHelper(Module? mod, CallingConventions callingConvention, Type? returnType)
         {
             return GetMethodSigHelper(mod, callingConvention, returnType, null, null, null, null, null);
         }
 
-        internal static SignatureHelper GetMethodSpecSigHelper(Module scope, Type[] inst)
+        internal static SignatureHelper GetMethodSpecSigHelper(Module? scope, Type[] inst)
         {
             SignatureHelper sigHelp = new SignatureHelper(scope, MdSigCallingConvention.GenericInst);
             sigHelp.AddData(inst.Length);
@@ -46,18 +41,18 @@ namespace System.Reflection.Emit
         }
 
         internal static SignatureHelper GetMethodSigHelper(
-            Module scope, CallingConventions callingConvention,
-            Type returnType, Type[] requiredReturnTypeCustomModifiers, Type[] optionalReturnTypeCustomModifiers,
-            Type[] parameterTypes, Type[][] requiredParameterTypeCustomModifiers, Type[][] optionalParameterTypeCustomModifiers)
+            Module? scope, CallingConventions callingConvention,
+            Type? returnType, Type[]? requiredReturnTypeCustomModifiers, Type[]? optionalReturnTypeCustomModifiers,
+            Type[]? parameterTypes, Type[][]? requiredParameterTypeCustomModifiers, Type[][]? optionalParameterTypeCustomModifiers)
         {
             return GetMethodSigHelper(scope, callingConvention, 0, returnType, requiredReturnTypeCustomModifiers,
                 optionalReturnTypeCustomModifiers, parameterTypes, requiredParameterTypeCustomModifiers, optionalParameterTypeCustomModifiers);
         }
 
         internal static SignatureHelper GetMethodSigHelper(
-            Module scope, CallingConventions callingConvention, int cGenericParam,
-            Type returnType, Type[] requiredReturnTypeCustomModifiers, Type[] optionalReturnTypeCustomModifiers,
-            Type[] parameterTypes, Type[][] requiredParameterTypeCustomModifiers, Type[][] optionalParameterTypeCustomModifiers)
+            Module? scope, CallingConventions callingConvention, int cGenericParam,
+            Type? returnType, Type[]? requiredReturnTypeCustomModifiers, Type[]? optionalReturnTypeCustomModifiers,
+            Type[]? parameterTypes, Type[][]? requiredParameterTypeCustomModifiers, Type[][]? optionalParameterTypeCustomModifiers)
         {
             SignatureHelper sigHelp;
             MdSigCallingConvention intCall;
@@ -87,13 +82,11 @@ namespace System.Reflection.Emit
             return sigHelp;
         }
 
-        public static SignatureHelper GetMethodSigHelper(Module mod, CallingConvention unmanagedCallConv, Type returnType)
+        public static SignatureHelper GetMethodSigHelper(Module? mod, CallingConvention unmanagedCallConv, Type? returnType)
         {
-            SignatureHelper sigHelp;
             MdSigCallingConvention intCall;
 
-            if (returnType == null)
-                returnType = typeof(void);
+            returnType ??= typeof(void);
 
             if (unmanagedCallConv == CallingConvention.Cdecl)
             {
@@ -116,9 +109,7 @@ namespace System.Reflection.Emit
                 throw new ArgumentException(SR.Argument_UnknownUnmanagedCallConv, nameof(unmanagedCallConv));
             }
 
-            sigHelp = new SignatureHelper(mod, intCall, returnType, null, null);
-
-            return sigHelp;
+            return new SignatureHelper(mod, intCall, returnType, null, null);
         }
 
         public static SignatureHelper GetLocalVarSigHelper()
@@ -126,41 +117,41 @@ namespace System.Reflection.Emit
             return GetLocalVarSigHelper(null);
         }
 
-        public static SignatureHelper GetMethodSigHelper(CallingConventions callingConvention, Type returnType)
+        public static SignatureHelper GetMethodSigHelper(CallingConventions callingConvention, Type? returnType)
         {
             return GetMethodSigHelper(null, callingConvention, returnType);
         }
 
-        public static SignatureHelper GetMethodSigHelper(CallingConvention unmanagedCallingConvention, Type returnType)
+        public static SignatureHelper GetMethodSigHelper(CallingConvention unmanagedCallingConvention, Type? returnType)
         {
             return GetMethodSigHelper(null, unmanagedCallingConvention, returnType);
         }
 
-        public static SignatureHelper GetLocalVarSigHelper(Module mod)
+        public static SignatureHelper GetLocalVarSigHelper(Module? mod)
         {
             return new SignatureHelper(mod, MdSigCallingConvention.LocalSig);
         }
 
-        public static SignatureHelper GetFieldSigHelper(Module mod)
+        public static SignatureHelper GetFieldSigHelper(Module? mod)
         {
             return new SignatureHelper(mod, MdSigCallingConvention.Field);
         }
 
-        public static SignatureHelper GetPropertySigHelper(Module mod, Type returnType, Type[] parameterTypes)
+        public static SignatureHelper GetPropertySigHelper(Module? mod, Type? returnType, Type[]? parameterTypes)
         {
             return GetPropertySigHelper(mod, returnType, null, null, parameterTypes, null, null);
         }
 
-        public static SignatureHelper GetPropertySigHelper(Module mod,
-            Type returnType, Type[] requiredReturnTypeCustomModifiers, Type[] optionalReturnTypeCustomModifiers,
-            Type[] parameterTypes, Type[][] requiredParameterTypeCustomModifiers, Type[][] optionalParameterTypeCustomModifiers)
+        public static SignatureHelper GetPropertySigHelper(Module? mod,
+            Type? returnType, Type[]? requiredReturnTypeCustomModifiers, Type[]? optionalReturnTypeCustomModifiers,
+            Type[]? parameterTypes, Type[][]? requiredParameterTypeCustomModifiers, Type[][]? optionalParameterTypeCustomModifiers)
         {
             return GetPropertySigHelper(mod, (CallingConventions)0, returnType, requiredReturnTypeCustomModifiers, optionalReturnTypeCustomModifiers,
                 parameterTypes, requiredParameterTypeCustomModifiers, optionalParameterTypeCustomModifiers);
         }
-        public static SignatureHelper GetPropertySigHelper(Module mod, CallingConventions callingConvention,
-            Type returnType, Type[] requiredReturnTypeCustomModifiers, Type[] optionalReturnTypeCustomModifiers,
-            Type[] parameterTypes, Type[][] requiredParameterTypeCustomModifiers, Type[][] optionalParameterTypeCustomModifiers)
+        public static SignatureHelper GetPropertySigHelper(Module? mod, CallingConventions callingConvention,
+            Type? returnType, Type[]? requiredReturnTypeCustomModifiers, Type[]? optionalReturnTypeCustomModifiers,
+            Type[]? parameterTypes, Type[][]? requiredParameterTypeCustomModifiers, Type[][]? optionalParameterTypeCustomModifiers)
         {
             SignatureHelper sigHelp;
 
@@ -194,23 +185,23 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Private Data Members
-        private byte[] m_signature;
+        private byte[] m_signature = null!;
         private int m_currSig; // index into m_signature buffer for next available byte
         private int m_sizeLoc; // index into m_signature buffer to put m_argCount (will be NO_SIZE_IN_SIG if no arg count is needed)
-        private ModuleBuilder m_module;
+        private ModuleBuilder? m_module;
         private bool m_sigDone;
         private int m_argCount; // tracking number of arguments in the signature
         #endregion
 
         #region Constructor
-        private SignatureHelper(Module mod, MdSigCallingConvention callingConvention)
+        private SignatureHelper(Module? mod, MdSigCallingConvention callingConvention)
         {
             // Use this constructor to instantiate a local var sig  or Field where return type is not applied.
             Init(mod, callingConvention);
         }
 
-        private SignatureHelper(Module mod, MdSigCallingConvention callingConvention, int cGenericParameters,
-            Type returnType, Type[] requiredCustomModifiers, Type[] optionalCustomModifiers)
+        private SignatureHelper(Module? mod, MdSigCallingConvention callingConvention, int cGenericParameters,
+            Type returnType, Type[]? requiredCustomModifiers, Type[]? optionalCustomModifiers)
         {
             // Use this constructor to instantiate a any signatures that will require a return type.
             Init(mod, callingConvention, cGenericParameters);
@@ -221,8 +212,8 @@ namespace System.Reflection.Emit
             AddOneArgTypeHelper(returnType, requiredCustomModifiers, optionalCustomModifiers);
         }
 
-        private SignatureHelper(Module mod, MdSigCallingConvention callingConvention,
-            Type returnType, Type[] requiredCustomModifiers, Type[] optionalCustomModifiers)
+        private SignatureHelper(Module? mod, MdSigCallingConvention callingConvention,
+            Type returnType, Type[]? requiredCustomModifiers, Type[]? optionalCustomModifiers)
             : this(mod, callingConvention, 0, returnType, requiredCustomModifiers, optionalCustomModifiers)
         {
         }
@@ -234,7 +225,7 @@ namespace System.Reflection.Emit
             AddOneArgTypeHelper(type);
         }
 
-        private void Init(Module mod)
+        private void Init(Module? mod)
         {
             m_signature = new byte[32];
             m_currSig = 0;
@@ -247,12 +238,12 @@ namespace System.Reflection.Emit
                 throw new ArgumentException(SR.NotSupported_MustBeModuleBuilder);
         }
 
-        private void Init(Module mod, MdSigCallingConvention callingConvention)
+        private void Init(Module? mod, MdSigCallingConvention callingConvention)
         {
             Init(mod, callingConvention, 0);
         }
 
-        private void Init(Module mod, MdSigCallingConvention callingConvention, int cGenericParam)
+        private void Init(Module? mod, MdSigCallingConvention callingConvention, int cGenericParam)
         {
             Init(mod);
 
@@ -283,9 +274,9 @@ namespace System.Reflection.Emit
             AddOneArgTypeHelper(argument);
         }
 
-        private void AddOneArgTypeHelper(Type clsArgument, Type[] requiredCustomModifiers, Type[] optionalCustomModifiers)
+        private void AddOneArgTypeHelper(Type clsArgument, Type[]? requiredCustomModifiers, Type[]? optionalCustomModifiers)
         {
-            // This function will not increase the argument count. It only fills in bytes 
+            // This function will not increase the argument count. It only fills in bytes
             // in the signature based on clsArgument. This helper is called for return type.
 
             Debug.Assert(clsArgument != null);
@@ -307,7 +298,7 @@ namespace System.Reflection.Emit
 
                     AddElementType(CorElementType.ELEMENT_TYPE_CMOD_OPT);
 
-                    int token = m_module.GetTypeToken(t).Token;
+                    int token = m_module!.GetTypeToken(t).Token;
                     Debug.Assert(!MetadataToken.IsNullToken(token));
                     AddToken(token);
                 }
@@ -330,7 +321,7 @@ namespace System.Reflection.Emit
 
                     AddElementType(CorElementType.ELEMENT_TYPE_CMOD_REQD);
 
-                    int token = m_module.GetTypeToken(t).Token;
+                    int token = m_module!.GetTypeToken(t).Token;
                     Debug.Assert(!MetadataToken.IsNullToken(token));
                     AddToken(token);
                 }
@@ -375,7 +366,7 @@ namespace System.Reflection.Emit
                 }
                 else
                 {
-                    tkType = m_module.GetTypeToken(clsArgument);
+                    tkType = m_module!.GetTypeToken(clsArgument);
                 }
 
                 if (clsArgument.IsValueType)
@@ -398,7 +389,7 @@ namespace System.Reflection.Emit
                 }
                 else
                 {
-                    tkType = m_module.GetTypeToken(clsArgument);
+                    tkType = m_module!.GetTypeToken(clsArgument);
                 }
 
                 if (clsArgument.IsValueType)
@@ -413,13 +404,13 @@ namespace System.Reflection.Emit
             else if (clsArgument.IsByRef)
             {
                 AddElementType(CorElementType.ELEMENT_TYPE_BYREF);
-                clsArgument = clsArgument.GetElementType();
+                clsArgument = clsArgument.GetElementType()!;
                 AddOneArgTypeHelper(clsArgument);
             }
             else if (clsArgument.IsPointer)
             {
                 AddElementType(CorElementType.ELEMENT_TYPE_PTR);
-                AddOneArgTypeHelper(clsArgument.GetElementType());
+                AddOneArgTypeHelper(clsArgument.GetElementType()!);
             }
             else if (clsArgument.IsArray)
             {
@@ -427,13 +418,13 @@ namespace System.Reflection.Emit
                 {
                     AddElementType(CorElementType.ELEMENT_TYPE_SZARRAY);
 
-                    AddOneArgTypeHelper(clsArgument.GetElementType());
+                    AddOneArgTypeHelper(clsArgument.GetElementType()!);
                 }
                 else
                 {
                     AddElementType(CorElementType.ELEMENT_TYPE_ARRAY);
 
-                    AddOneArgTypeHelper(clsArgument.GetElementType());
+                    AddOneArgTypeHelper(clsArgument.GetElementType()!);
 
                     // put the rank information
                     int rank = clsArgument.GetArrayRank();
@@ -452,7 +443,7 @@ namespace System.Reflection.Emit
                 {
                     type = RuntimeTypeHandle.GetCorElementType((RuntimeType)clsArgument);
 
-                    //GetCorElementType returns CorElementType.ELEMENT_TYPE_CLASS for both object and string
+                    // GetCorElementType returns CorElementType.ELEMENT_TYPE_CLASS for both object and string
                     if (type == CorElementType.ELEMENT_TYPE_CLASS)
                     {
                         if (clsArgument == typeof(object))
@@ -483,8 +474,6 @@ namespace System.Reflection.Emit
 
         private void AddData(int data)
         {
-            // A managed representation of CorSigCompressData; 
-
             if (m_currSig + 4 > m_signature.Length)
             {
                 m_signature = ExpandArray(m_signature);
@@ -492,19 +481,17 @@ namespace System.Reflection.Emit
 
             if (data <= 0x7F)
             {
-                m_signature[m_currSig++] = (byte)(data & 0xFF);
+                m_signature[m_currSig++] = (byte)data;
             }
-            else if (data <= 0x3FFF)
+            else if (data <= 0x3F_FF)
             {
-                m_signature[m_currSig++] = (byte)((data >> 8) | 0x80);
-                m_signature[m_currSig++] = (byte)(data & 0xFF);
+                BinaryPrimitives.WriteInt16BigEndian(m_signature.AsSpan(m_currSig), (short)(data | 0x80_00));
+                m_currSig += 2;
             }
-            else if (data <= 0x1FFFFFFF)
+            else if (data <= 0x1F_FF_FF_FF)
             {
-                m_signature[m_currSig++] = (byte)((data >> 24) | 0xC0);
-                m_signature[m_currSig++] = (byte)((data >> 16) & 0xFF);
-                m_signature[m_currSig++] = (byte)((data >> 8) & 0xFF);
-                m_signature[m_currSig++] = (byte)((data) & 0xFF);
+                BinaryPrimitives.WriteInt32BigEndian(m_signature.AsSpan(m_currSig), (int)(data | 0xC0_00_00_00));
+                m_currSig += 4;
             }
             else
             {
@@ -527,28 +514,28 @@ namespace System.Reflection.Emit
             // Pulls the token appart to get a rid, adds some appropriate bits
             // to the token and then adds this to the signature.
 
-            int rid = (token & 0x00FFFFFF); //This is RidFromToken;
-            MetadataTokenType type = (MetadataTokenType)(token & unchecked((int)0xFF000000)); //This is TypeFromToken;
+            int rid = (token & 0x00FFFFFF); // This is RidFromToken;
+            MetadataTokenType type = (MetadataTokenType)(token & unchecked((int)0xFF000000)); // This is TypeFromToken;
 
             if (rid > 0x3FFFFFF)
             {
-                // token is too big to be compressed    
+                // token is too big to be compressed
                 throw new ArgumentException(SR.Argument_LargeInteger);
             }
 
-            rid = (rid << 2);
+            rid <<= 2;
 
-            // TypeDef is encoded with low bits 00  
-            // TypeRef is encoded with low bits 01  
-            // TypeSpec is encoded with low bits 10    
+            // TypeDef is encoded with low bits 00
+            // TypeRef is encoded with low bits 01
+            // TypeSpec is encoded with low bits 10
             if (type == MetadataTokenType.TypeRef)
             {
-                //if type is mdtTypeRef
+                // if type is mdtTypeRef
                 rid |= 0x1;
             }
             else if (type == MetadataTokenType.TypeSpec)
             {
-                //if type is mdtTypeSpec
+                // if type is mdtTypeSpec
                 rid |= 0x2;
             }
 
@@ -564,7 +551,7 @@ namespace System.Reflection.Emit
 
         private unsafe void InternalAddRuntimeType(Type type)
         {
-            // Add a runtime type into the signature. 
+            // Add a runtime type into the signature.
 
             AddElementType(CorElementType.ELEMENT_TYPE_INTERNAL);
 
@@ -582,13 +569,13 @@ namespace System.Reflection.Emit
                 m_signature[m_currSig++] = phandle[i];
         }
 
-        private byte[] ExpandArray(byte[] inArray)
+        private static byte[] ExpandArray(byte[] inArray)
         {
             // Expand the signature buffer size
             return ExpandArray(inArray, inArray.Length * 2);
         }
 
-        private byte[] ExpandArray(byte[] inArray, int requiredLength)
+        private static byte[] ExpandArray(byte[] inArray, int requiredLength)
         {
             // Expand the signature buffer size
 
@@ -604,7 +591,7 @@ namespace System.Reflection.Emit
         {
             if (m_sizeLoc == NO_SIZE_IN_SIG)
             {
-                //We don't have a size if this is a field.
+                // We don't have a size if this is a field.
                 return;
             }
 
@@ -629,17 +616,17 @@ namespace System.Reflection.Emit
             if (m_sizeLoc == NO_SIZE_IN_SIG)
                 return;
 
-            //If we have fewer than 128 arguments and we haven't been told to copy the
-            //array, we can just set the appropriate bit and return.
+            // If we have fewer than 128 arguments and we haven't been told to copy the
+            // array, we can just set the appropriate bit and return.
             if (m_argCount < 0x80 && !forceCopy)
             {
                 m_signature[m_sizeLoc] = (byte)m_argCount;
                 return;
             }
 
-            //We need to have more bytes for the size.  Figure out how many bytes here.
-            //Since we need to copy anyway, we're just going to take the cost of doing a
-            //new allocation.
+            // We need to have more bytes for the size.  Figure out how many bytes here.
+            // Since we need to copy anyway, we're just going to take the cost of doing a
+            // new allocation.
             if (m_argCount < 0x80)
             {
                 newSigSize = 1;
@@ -653,17 +640,17 @@ namespace System.Reflection.Emit
                 newSigSize = 4;
             }
 
-            //Allocate the new array.
+            // Allocate the new array.
             temp = new byte[m_currSig + newSigSize - 1];
 
-            //Copy the calling convention.  The calling convention is always just one byte
-            //so we just copy that byte.  Then copy the rest of the array, shifting everything
-            //to make room for the new number of elements.
+            // Copy the calling convention.  The calling convention is always just one byte
+            // so we just copy that byte.  Then copy the rest of the array, shifting everything
+            // to make room for the new number of elements.
             temp[0] = m_signature[0];
             Buffer.BlockCopy(m_signature, m_sizeLoc + 1, temp, m_sizeLoc + newSigSize, currSigHolder - (m_sizeLoc + 1));
             m_signature = temp;
 
-            //Use the AddData method to add the number of elements appropriately compressed.
+            // Use the AddData method to add the number of elements appropriately compressed.
             m_currSig = m_sizeLoc;
             AddData(m_argCount);
             m_currSig = currSigHolder + (newSigSize - 1);
@@ -672,13 +659,7 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Internal Members
-        internal int ArgumentCount
-        {
-            get
-            {
-                return m_argCount;
-            }
-        }
+        internal int ArgumentCount => m_argCount;
 
         internal static bool IsSimpleType(CorElementType type)
         {
@@ -705,9 +686,9 @@ namespace System.Reflection.Emit
             {
                 m_sigDone = true;
 
-                // If we have more than 128 variables, we can't just set the length, we need 
-                // to compress it.  Unfortunately, this means that we need to copy the entire 
-                // array.  Bummer, eh?
+                // If we have more than 128 variables, we can't just set the length, we need
+                // to compress it.  Unfortunately, this means that we need to copy the entire
+                // array.
                 SetNumberOfSignatureElements(false);
             }
 
@@ -715,18 +696,15 @@ namespace System.Reflection.Emit
             return m_signature;
         }
 
-
-
-
         internal byte[] InternalGetSignatureArray()
         {
             int argCount = m_argCount;
             int currSigLength = m_currSig;
             int newSigSize = currSigLength;
 
-            //Allocate the new array.
+            // Allocate the new array.
             if (argCount < 0x7F)
-                newSigSize += 1;
+                newSigSize++;
             else if (argCount < 0x3FFF)
                 newSigSize += 2;
             else
@@ -750,7 +728,7 @@ namespace System.Reflection.Emit
                 temp[sigCopyIndex++] = (byte)((argCount >> 24) | 0xC0);
                 temp[sigCopyIndex++] = (byte)((argCount >> 16) & 0xFF);
                 temp[sigCopyIndex++] = (byte)((argCount >> 8) & 0xFF);
-                temp[sigCopyIndex++] = (byte)((argCount) & 0xFF);
+                temp[sigCopyIndex++] = (byte)(argCount & 0xFF);
             }
             else
                 throw new ArgumentException(SR.Argument_LargeInteger);
@@ -779,7 +757,7 @@ namespace System.Reflection.Emit
             AddOneArgTypeHelper(argument, pinned);
         }
 
-        public void AddArguments(Type[] arguments, Type[][] requiredCustomModifiers, Type[][] optionalCustomModifiers)
+        public void AddArguments(Type[]? arguments, Type[][]? requiredCustomModifiers, Type[][]? optionalCustomModifiers)
         {
             if (requiredCustomModifiers != null && (arguments == null || requiredCustomModifiers.Length != arguments.Length))
                 throw new ArgumentException(SR.Format(SR.Argument_MismatchedArrays, nameof(requiredCustomModifiers), nameof(arguments)));
@@ -791,14 +769,12 @@ namespace System.Reflection.Emit
             {
                 for (int i = 0; i < arguments.Length; i++)
                 {
-                    AddArgument(arguments[i],
-                        requiredCustomModifiers == null ? null : requiredCustomModifiers[i],
-                        optionalCustomModifiers == null ? null : optionalCustomModifiers[i]);
+                    AddArgument(arguments[i], requiredCustomModifiers?[i], optionalCustomModifiers?[i]);
                 }
             }
         }
 
-        public void AddArgument(Type argument, Type[] requiredCustomModifiers, Type[] optionalCustomModifiers)
+        public void AddArgument(Type argument, Type[]? requiredCustomModifiers, Type[]? optionalCustomModifiers)
         {
             if (m_sigDone)
                 throw new ArgumentException(SR.Argument_SigIsFinalized);
@@ -810,7 +786,7 @@ namespace System.Reflection.Emit
 
             // Add an argument to the signature. Takes a Type and determines whether it
             // is one of the primitive types of which we have special knowledge or a more
-            // general class.  In the former case, we only add the appropriate short cut encoding, 
+            // general class.  In the former case, we only add the appropriate short cut encoding,
             // otherwise we will calculate proper description for the type.
             AddOneArgTypeHelper(argument, requiredCustomModifiers, optionalCustomModifiers);
         }
@@ -820,7 +796,7 @@ namespace System.Reflection.Emit
             AddElementType(CorElementType.ELEMENT_TYPE_SENTINEL);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (!(obj is SignatureHelper))
             {
@@ -829,7 +805,7 @@ namespace System.Reflection.Emit
 
             SignatureHelper temp = (SignatureHelper)obj;
 
-            if (!temp.m_module.Equals(m_module) || temp.m_currSig != m_currSig || temp.m_sizeLoc != m_sizeLoc || temp.m_sigDone != m_sigDone)
+            if (!temp.m_module!.Equals(m_module) || temp.m_currSig != m_currSig || temp.m_sizeLoc != m_sizeLoc || temp.m_sigDone != m_sigDone)
             {
                 return false;
             }
@@ -845,11 +821,11 @@ namespace System.Reflection.Emit
         public override int GetHashCode()
         {
             // Start the hash code with the hash code of the module and the values of the member variables.
-            int HashCode = m_module.GetHashCode() + m_currSig + m_sizeLoc;
+            int HashCode = m_module!.GetHashCode() + m_currSig + m_sizeLoc;
 
             // Add one if the sig is done.
             if (m_sigDone)
-                HashCode += 1;
+                HashCode++;
 
             // Then add the hash code of all the arguments.
             for (int i = 0; i < m_currSig; i++)
@@ -865,7 +841,7 @@ namespace System.Reflection.Emit
 
         internal byte[] GetSignature(bool appendEndOfSig)
         {
-            // Chops the internal signature to the appropriate length.  Adds the 
+            // Chops the internal signature to the appropriate length.  Adds the
             // end token to the signature and marks the signature as finished so that
             // no further tokens can be added. Return the full signature in a trimmed array.
             if (!m_sigDone)
@@ -876,12 +852,12 @@ namespace System.Reflection.Emit
                 m_sigDone = true;
             }
 
-            // This case will only happen if the user got the signature through 
+            // This case will only happen if the user got the signature through
             // InternalGetSignature first and then called GetSignature.
             if (m_signature.Length > m_currSig)
             {
                 byte[] temp = new byte[m_currSig];
-                Array.Copy(m_signature, 0, temp, 0, m_currSig);
+                Array.Copy(m_signature, temp, m_currSig);
                 m_signature = temp;
             }
 
@@ -891,52 +867,27 @@ namespace System.Reflection.Emit
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
-            sb.Append("Length: " + m_currSig + Environment.NewLine);
+            sb.Append("Length: ").Append(m_currSig).AppendLine();
 
             if (m_sizeLoc != -1)
             {
-                sb.Append("Arguments: " + m_signature[m_sizeLoc] + Environment.NewLine);
+                sb.Append("Arguments: ").Append(m_signature[m_sizeLoc]).AppendLine();
             }
             else
             {
-                sb.Append("Field Signature" + Environment.NewLine);
+                sb.AppendLine("Field Signature");
             }
 
-            sb.Append("Signature: " + Environment.NewLine);
+            sb.AppendLine("Signature: ");
             for (int i = 0; i <= m_currSig; i++)
             {
-                sb.Append(m_signature[i] + "  ");
+                sb.Append(m_signature[i]).Append("  ");
             }
 
-            sb.Append(Environment.NewLine);
+            sb.AppendLine();
             return sb.ToString();
         }
 
         #endregion
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

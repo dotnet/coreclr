@@ -84,7 +84,6 @@ bool emitInsIsCompare(instruction ins);
 bool emitInsIsLoad(instruction ins);
 bool emitInsIsStore(instruction ins);
 bool emitInsIsLoadOrStore(instruction ins);
-emitAttr emitInsAdjustLoadStoreAttr(instruction ins, emitAttr attr);
 emitAttr emitInsTargetRegSize(instrDesc* id);
 emitAttr emitInsLoadStoreSize(instrDesc* id);
 
@@ -310,6 +309,12 @@ static code_t insEncodeFloatElemsize(emitAttr size);
 // Returns the encoding to select the index for an Arm64 float vector by elem instruction
 static code_t insEncodeFloatIndex(emitAttr elemsize, ssize_t index);
 
+// Returns the encoding to select the vector elemsize for an Arm64 ld/st# vector instruction
+static code_t insEncodeVLSElemsize(emitAttr size);
+
+// Returns the encoding to select the index for an Arm64 ld/st# vector by elem instruction
+static code_t insEncodeVLSIndex(emitAttr elemsize, ssize_t index);
+
 // Returns the encoding to select the 'conversion' operation for a type 'fmt' Arm64 instruction
 static code_t insEncodeConvertOpt(insFormat fmt, insOpts conversion);
 
@@ -339,6 +344,12 @@ static bool isIntegerRegister(regNumber reg)
 {
     return (reg >= REG_INT_FIRST) && (reg <= REG_INT_LAST);
 }
+
+//  Returns true if reg encodes for REG_SP or REG_FP
+static bool isStackRegister(regNumber reg)
+{
+    return (reg == REG_ZR) || (reg == REG_FP);
+} // ZR (R31) encodes the SP register
 
 // Returns true if 'value' is a legal unsigned immediate 8 bit encoding (such as for fMOV).
 static bool isValidUimm8(ssize_t value)
@@ -668,6 +679,12 @@ inline static bool insOptsConvertIntToFloat(insOpts opt)
 static bool isValidImmCond(ssize_t imm);
 static bool isValidImmCondFlags(ssize_t imm);
 static bool isValidImmCondFlagsImm5(ssize_t imm);
+
+// Computes page "delta" between two addresses
+inline static ssize_t computeRelPageAddr(size_t dstAddr, size_t srcAddr)
+{
+    return (dstAddr >> 12) - (srcAddr >> 12);
+}
 
 /************************************************************************/
 /*           The public entry points to output instructions             */

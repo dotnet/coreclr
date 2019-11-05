@@ -4,7 +4,7 @@
 /*============================================================
 **
 ** Header:  AppDomain.i
-** 
+**
 
 **
 ** Purpose: Implements AppDomain (loader domain) architecture
@@ -18,18 +18,6 @@
 #ifndef DACCESS_COMPILE
 
 #include "appdomain.hpp"
-
-inline DomainAssembly* AppDomain::FindDomainAssembly(Assembly* assembly)
-{
-    CONTRACTL
-    {
-        GC_NOTRIGGER;
-        MODE_COOPERATIVE;
-        PRECONDITION(CheckPointer(assembly));
-    }
-    CONTRACTL_END;
-    return assembly->FindDomainAssembly(this);    
-};
 
 inline void AppDomain::AddMemoryPressure()
 {
@@ -75,24 +63,24 @@ inline void AppDomain::SetForceTrivialWaitOperations()
 
 inline PTR_LoaderHeap AppDomain::GetHighFrequencyHeap()
 {
-    WRAPPER_NO_CONTRACT;    
+    WRAPPER_NO_CONTRACT;
     return GetLoaderAllocator()->GetHighFrequencyHeap();
 }
 
 inline PTR_LoaderHeap AppDomain::GetLowFrequencyHeap()
 {
-    WRAPPER_NO_CONTRACT;    
+    WRAPPER_NO_CONTRACT;
     return GetLoaderAllocator()->GetLowFrequencyHeap();
 }
 
 inline PTR_LoaderHeap AppDomain::GetStubHeap()
 {
-    WRAPPER_NO_CONTRACT;    
+    WRAPPER_NO_CONTRACT;
     return GetLoaderAllocator()->GetStubHeap();
 }
 
 /* static */
-inline DWORD DomainLocalModule::DynamicEntry::GetOffsetOfDataBlob() 
+inline DWORD DomainLocalModule::DynamicEntry::GetOffsetOfDataBlob()
 {
     LIMITED_METHOD_CONTRACT;
     _ASSERTE(DWORD(offsetof(NormalDynamicEntry, m_pDataBlob)) == offsetof(NormalDynamicEntry, m_pDataBlob));

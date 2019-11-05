@@ -1577,25 +1577,25 @@ CorInfoIntrinsics MethodContext::repGetIntrinsicID(CORINFO_METHOD_HANDLE method,
     return result;
 }
 
-void MethodContext::recIsInSIMDModule(CORINFO_CLASS_HANDLE cls, BOOL result)
+void MethodContext::recIsIntrinsicType(CORINFO_CLASS_HANDLE cls, BOOL result)
 {
-    if (IsInSIMDModule == nullptr)
-        IsInSIMDModule = new LightWeightMap<DWORDLONG, DWORD>();
+    if (IsIntrinsicType == nullptr)
+        IsIntrinsicType = new LightWeightMap<DWORDLONG, DWORD>();
 
-    IsInSIMDModule->Add((DWORDLONG)cls, (DWORD)result);
-    DEBUG_REC(dmpIsInSIMDModule((DWORDLONG)cls, (DWORD)result));
+    IsIntrinsicType->Add((DWORDLONG)cls, (DWORD)result);
+    DEBUG_REC(dmpIsIntrinsicType((DWORDLONG)cls, (DWORD)result));
 }
-void MethodContext::dmpIsInSIMDModule(DWORDLONG key, DWORD value)
+void MethodContext::dmpIsIntrinsicType(DWORDLONG key, DWORD value)
 {
-    printf("IsInSIMDModule key mth-%016llX, value intr-%u", key, value);
+    printf("IsIntrinsicType key mth-%016llX, value intr-%u", key, value);
 }
-BOOL MethodContext::repIsInSIMDModule(CORINFO_CLASS_HANDLE cls)
+BOOL MethodContext::repIsIntrinsicType(CORINFO_CLASS_HANDLE cls)
 {
-    AssertCodeMsg(IsInSIMDModule != nullptr, EXCEPTIONCODE_MC, "Didn't find anything for %016llX", (DWORDLONG)cls);
-    AssertCodeMsg(IsInSIMDModule->GetIndex((DWORDLONG)cls) != -1, EXCEPTIONCODE_MC, "Didn't find %016llX",
+    AssertCodeMsg(IsIntrinsicType != nullptr, EXCEPTIONCODE_MC, "Didn't find anything for %016llX", (DWORDLONG)cls);
+    AssertCodeMsg(IsIntrinsicType->GetIndex((DWORDLONG)cls) != -1, EXCEPTIONCODE_MC, "Didn't find %016llX",
                   (DWORDLONG)cls);
-    BOOL result = (BOOL)IsInSIMDModule->Get((DWORDLONG)cls);
-    DEBUG_REP(dmpIsInSIMDModule((DWORDLONG)cls, (DWORD)result));
+    BOOL result = (BOOL)IsIntrinsicType->Get((DWORDLONG)cls);
+    DEBUG_REP(dmpIsIntrinsicType((DWORDLONG)cls, (DWORD)result));
     return result;
 }
 
@@ -2535,8 +2535,8 @@ void MethodContext::recGetArgType(CORINFO_SIG_INFO*       sig,
         GetArgType = new LightWeightMap<GetArgTypeValue, Agnostic_GetArgType_Value>();
 
     GetArgTypeValue key;
-    ZeroMemory(&key, sizeof(GetArgType)); // We use the input structs as a key and use memcmp to compare.. so
-                                          // we need to zero out padding too
+    ZeroMemory(&key, sizeof(key)); // We use the input structs as a key and use memcmp to compare.. so
+                                   // we need to zero out padding too
     // Only setting values for things the EE seems to pay attention to... this is necessary since some of the values
     // are unset and fail our precise comparisons ...
     key.flags                  = (DWORD)sig->flags;
@@ -4353,6 +4353,7 @@ void MethodContext::recGetFieldType(CORINFO_FIELD_HANDLE  field,
     key.A = (DWORDLONG)field;
     key.B = (DWORDLONG)memberParent;
 
+    value.B = (DWORD)result;
     if (structType == nullptr)
     {
         value.A = 0;
@@ -4360,9 +4361,18 @@ void MethodContext::recGetFieldType(CORINFO_FIELD_HANDLE  field,
     else
     {
         value.A = (DWORDLONG)*structType;
-    }
-    value.B = (DWORD)result;
 
+        // If we had a previous call with null 'structType', we will not have captured the
+        // class handle (we use only 'field' and 'memberParent' as keys).
+        // Update the value in that case.
+        unsigned index = GetFieldType->GetIndex(key);
+        if ((index != (unsigned)-1) && (GetFieldType->GetItem(index).A == 0))
+        {
+            GetFieldType->Update(index, value);
+            DEBUG_REC(dmpGetFieldType(key, value));
+            return;
+        }
+    }
     GetFieldType->Add(key, value);
     DEBUG_REC(dmpGetFieldType(key, value));
 }
@@ -5237,49 +5247,49 @@ DWORD MethodContext::repGetFieldThreadLocalStoreID(CORINFO_FIELD_HANDLE field, v
     return (DWORD)value.B;
 }
 
-void MethodContext::recGetBBProfileData(CORINFO_METHOD_HANDLE        ftnHnd,
-                                        ULONG*                       count,
-                                        ICorJitInfo::ProfileBuffer** profileBuffer,
-                                        ULONG*                       numRuns,
-                                        HRESULT                      result)
+void MethodContext::recGetMethodBlockCounts(CORINFO_METHOD_HANDLE        ftnHnd,
+                                            UINT32 *                     pCount,
+                                            ICorJitInfo::BlockCounts**   pBlockCounts,
+                                            UINT32 *                     pNumRuns,
+                                            HRESULT                      result)
 {
-    if (GetBBProfileData == nullptr)
-        GetBBProfileData = new LightWeightMap<DWORDLONG, Agnostic_GetBBProfileData>();
+    if (GetMethodBlockCounts == nullptr)
+        GetMethodBlockCounts = new LightWeightMap<DWORDLONG, Agnostic_GetMethodBlockCounts>();
 
-    Agnostic_GetBBProfileData value;
+    Agnostic_GetMethodBlockCounts value;
 
-    value.count = (DWORD)*count;
-    value.profileBuffer_index =
-        GetBBProfileData->AddBuffer((unsigned char*)*profileBuffer, sizeof(ICorJitInfo::ProfileBuffer) * (*count));
-    value.numRuns = (DWORD)*numRuns;
+    value.count = (DWORD)*pCount;
+    value.pBlockCounts_index =
+        GetMethodBlockCounts->AddBuffer((unsigned char*)*pBlockCounts, sizeof(ICorJitInfo::BlockCounts) * (*pCount));
+    value.numRuns = (DWORD)*pNumRuns;
     value.result  = (DWORD)result;
 
-    GetBBProfileData->Add((DWORDLONG)ftnHnd, value);
+    GetMethodBlockCounts->Add((DWORDLONG)ftnHnd, value);
 }
-void MethodContext::dmpGetBBProfileData(DWORDLONG key, const Agnostic_GetBBProfileData& value)
+void MethodContext::dmpGetMethodBlockCounts(DWORDLONG key, const Agnostic_GetMethodBlockCounts& value)
 {
-    printf("GetBBProfileData key ftn-%016llX, value cnt-%u profileBuf-", key, value.count);
-    ICorJitInfo::ProfileBuffer* pBuf =
-        (ICorJitInfo::ProfileBuffer*)GetBBProfileData->GetBuffer(value.profileBuffer_index);
+    printf("GetMethodBlockCounts key ftn-%016llX, value cnt-%u profileBuf-", key, value.count);
+    ICorJitInfo::BlockCounts* pBuf =
+        (ICorJitInfo::BlockCounts*)GetMethodBlockCounts->GetBuffer(value.pBlockCounts_index);
     for (DWORD i = 0; i < value.count; i++, pBuf++)
     {
         printf("{il-%u,cnt-%u}", pBuf->ILOffset, pBuf->ExecutionCount);
     }
-    GetBBProfileData->Unlock();
+    GetMethodBlockCounts->Unlock();
     printf(" numRuns-%u result-%u", value.numRuns, value.result);
 }
-HRESULT MethodContext::repGetBBProfileData(CORINFO_METHOD_HANDLE        ftnHnd,
-                                           ULONG*                       count,
-                                           ICorJitInfo::ProfileBuffer** profileBuffer,
-                                           ULONG*                       numRuns)
+HRESULT MethodContext::repGetMethodBlockCounts(CORINFO_METHOD_HANDLE        ftnHnd,
+                                               UINT32 *                     pCount,
+                                               ICorJitInfo::BlockCounts**   pBlockCounts,
+                                               UINT32 *                     pNumRuns)
 {
-    Agnostic_GetBBProfileData tempValue;
+    Agnostic_GetMethodBlockCounts tempValue;
 
-    tempValue = GetBBProfileData->Get((DWORDLONG)ftnHnd);
+    tempValue = GetMethodBlockCounts->Get((DWORDLONG)ftnHnd);
 
-    *count         = (ULONG)tempValue.count;
-    *profileBuffer = (ICorJitInfo::ProfileBuffer*)GetBBProfileData->GetBuffer(tempValue.profileBuffer_index);
-    *numRuns       = (ULONG)tempValue.numRuns;
+    *pCount        = (UINT32)tempValue.count;
+    *pBlockCounts  = (ICorJitInfo::BlockCounts*)GetMethodBlockCounts->GetBuffer(tempValue.pBlockCounts_index);
+    *pNumRuns      = (UINT32)tempValue.numRuns;
     HRESULT result = (HRESULT)tempValue.result;
     return result;
 }
@@ -6230,7 +6240,7 @@ bool MethodContext::repIsFieldStatic(CORINFO_FIELD_HANDLE fhld)
     return result;
 }
 
-void MethodContext::recGetIntConfigValue(const wchar_t* name, int defaultValue, int result)
+void MethodContext::recGetIntConfigValue(const WCHAR* name, int defaultValue, int result)
 {
     if (GetIntConfigValue == nullptr)
         GetIntConfigValue = new LightWeightMap<Agnostic_ConfigIntInfo, DWORD>();
@@ -6241,7 +6251,7 @@ void MethodContext::recGetIntConfigValue(const wchar_t* name, int defaultValue, 
     ZeroMemory(&key, sizeof(Agnostic_ConfigIntInfo));
 
     DWORD index =
-        (DWORD)GetIntConfigValue->AddBuffer((unsigned char*)name, sizeof(wchar_t) * ((unsigned int)wcslen(name) + 1));
+        (DWORD)GetIntConfigValue->AddBuffer((unsigned char*)name, sizeof(WCHAR) * ((unsigned int)wcslen(name) + 1));
 
     key.nameIndex    = index;
     key.defaultValue = defaultValue;
@@ -6252,12 +6262,12 @@ void MethodContext::recGetIntConfigValue(const wchar_t* name, int defaultValue, 
 
 void MethodContext::dmpGetIntConfigValue(const Agnostic_ConfigIntInfo& key, int value)
 {
-    const wchar_t* name = (const wchar_t*)GetIntConfigValue->GetBuffer(key.nameIndex);
+    const WCHAR* name = (const WCHAR*)GetIntConfigValue->GetBuffer(key.nameIndex);
     printf("GetIntConfigValue name %S, default value %d, value %d", name, key.defaultValue, value);
     GetIntConfigValue->Unlock();
 }
 
-int MethodContext::repGetIntConfigValue(const wchar_t* name, int defaultValue)
+int MethodContext::repGetIntConfigValue(const WCHAR* name, int defaultValue)
 {
     if (GetIntConfigValue == nullptr)
         return defaultValue;
@@ -6267,7 +6277,7 @@ int MethodContext::repGetIntConfigValue(const wchar_t* name, int defaultValue)
     Agnostic_ConfigIntInfo key;
     ZeroMemory(&key, sizeof(Agnostic_ConfigIntInfo));
 
-    size_t nameLenInBytes = sizeof(wchar_t) * (wcslen(name) + 1);
+    size_t nameLenInBytes = sizeof(WCHAR) * (wcslen(name) + 1);
     int    nameIndex      = GetIntConfigValue->Contains((unsigned char*)name, (unsigned int)nameLenInBytes);
     if (nameIndex == -1) // config name not in map
         return defaultValue;
@@ -6280,7 +6290,7 @@ int MethodContext::repGetIntConfigValue(const wchar_t* name, int defaultValue)
     return (int)result;
 }
 
-void MethodContext::recGetStringConfigValue(const wchar_t* name, const wchar_t* result)
+void MethodContext::recGetStringConfigValue(const WCHAR* name, const WCHAR* result)
 {
     if (GetStringConfigValue == nullptr)
         GetStringConfigValue = new LightWeightMap<DWORD, DWORD>();
@@ -6288,12 +6298,12 @@ void MethodContext::recGetStringConfigValue(const wchar_t* name, const wchar_t* 
     AssertCodeMsg(name != nullptr, EXCEPTIONCODE_MC, "Name can not be nullptr");
 
     DWORD nameIndex = (DWORD)GetStringConfigValue->AddBuffer((unsigned char*)name,
-                                                             sizeof(wchar_t) * ((unsigned int)wcslen(name) + 1));
+                                                             sizeof(WCHAR) * ((unsigned int)wcslen(name) + 1));
 
     DWORD resultIndex = (DWORD)-1;
     if (result != nullptr)
         resultIndex = (DWORD)GetStringConfigValue->AddBuffer((unsigned char*)result,
-                                                             sizeof(wchar_t) * ((unsigned int)wcslen(result) + 1));
+                                                             sizeof(WCHAR) * ((unsigned int)wcslen(result) + 1));
 
     GetStringConfigValue->Add(nameIndex, resultIndex);
     DEBUG_REC(dmpGetStringConfigValue(nameIndex, resultIndex));
@@ -6301,26 +6311,26 @@ void MethodContext::recGetStringConfigValue(const wchar_t* name, const wchar_t* 
 
 void MethodContext::dmpGetStringConfigValue(DWORD nameIndex, DWORD resultIndex)
 {
-    const wchar_t* name   = (const wchar_t*)GetStringConfigValue->GetBuffer(nameIndex);
-    const wchar_t* result = (const wchar_t*)GetStringConfigValue->GetBuffer(resultIndex);
+    const WCHAR* name   = (const WCHAR*)GetStringConfigValue->GetBuffer(nameIndex);
+    const WCHAR* result = (const WCHAR*)GetStringConfigValue->GetBuffer(resultIndex);
     printf("GetStringConfigValue name %S, result %S", name, result);
     GetStringConfigValue->Unlock();
 }
 
-const wchar_t* MethodContext::repGetStringConfigValue(const wchar_t* name)
+const WCHAR* MethodContext::repGetStringConfigValue(const WCHAR* name)
 {
     if (GetStringConfigValue == nullptr)
         return nullptr;
 
     AssertCodeMsg(name != nullptr, EXCEPTIONCODE_MC, "Name can not be nullptr");
 
-    size_t nameLenInBytes = sizeof(wchar_t) * (wcslen(name) + 1);
+    size_t nameLenInBytes = sizeof(WCHAR) * (wcslen(name) + 1);
     int    nameIndex      = GetStringConfigValue->Contains((unsigned char*)name, (unsigned int)nameLenInBytes);
     if (nameIndex == -1) // config name not in map
         return nullptr;
 
     int            resultIndex = GetStringConfigValue->Get(nameIndex);
-    const wchar_t* value       = (const wchar_t*)GetStringConfigValue->GetBuffer(resultIndex);
+    const WCHAR* value       = (const WCHAR*)GetStringConfigValue->GetBuffer(resultIndex);
 
     DEBUG_REP(dmpGetStringConfigValue(nameIndex, resultIndex));
 

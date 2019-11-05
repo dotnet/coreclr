@@ -11,7 +11,6 @@
 **
 =============================================================================*/
 
-#nullable enable
 using System.Runtime.Serialization;
 
 namespace System
@@ -38,6 +37,6 @@ namespace System
             HResult = HResults.COR_E_INVALIDPROGRAM;
         }
 
-        internal InvalidProgramException(SerializationInfo info, StreamingContext context) : base(info, context) { }
+        private InvalidProgramException(SerializationInfo info, StreamingContext context) : base(info, context) { }
     }
 }

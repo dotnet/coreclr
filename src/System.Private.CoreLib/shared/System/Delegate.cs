@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
@@ -13,6 +13,8 @@ namespace System
     {
         public virtual object Clone() => MemberwiseClone();
 
+        [return: NotNullIfNotNull("a")]
+        [return: NotNullIfNotNull("b")]
         public static Delegate? Combine(Delegate? a, Delegate? b)
         {
             if (a is null)
@@ -33,7 +35,7 @@ namespace System
             return d;
         }
 
-        // V2 api: Creates open or closed delegates to static or instance methods - relaxed signature checking allowed. 
+        // V2 api: Creates open or closed delegates to static or instance methods - relaxed signature checking allowed.
         public static Delegate CreateDelegate(Type type, object? firstArgument, MethodInfo method) => CreateDelegate(type, firstArgument, method, throwOnBindFailure: true)!;
 
         // V1 api: Creates open delegates to static or instance methods - relaxed signature checking allowed.
@@ -80,7 +82,7 @@ namespace System
 
         public static Delegate? RemoveAll(Delegate? source, Delegate? value)
         {
-            Delegate? newDelegate = null;
+            Delegate? newDelegate;
 
             do
             {

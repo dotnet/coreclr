@@ -10,7 +10,7 @@
 #include <ndpversion.h>
 
 // Global variables
-bool g_bSchema = false; 
+bool g_bSchema = false;
 bool g_bRaw = false;
 bool g_bDebug = false;
 bool g_bHeader = false;
@@ -21,8 +21,8 @@ DWORD g_ValModuleType = ValidatorModuleTypeInvalid;
 IMetaDataImport2 *g_pImport = NULL;
 IMetaDataDispenserEx *g_pDisp = NULL;
 
-void DisplayFile(__in_z __in wchar_t* szFile, BOOL isFile, ULONG DumpFilter, __in_z __in_opt wchar_t* szObjFile, strPassBackFn pDisplayString);
-void DisplayArchive(__in_z __in wchar_t* szFile, ULONG DumpFilter, __in_z __in_opt wchar_t* szObjName, strPassBackFn pDisplayString);
+void DisplayFile(__in_z __in WCHAR* szFile, BOOL isFile, ULONG DumpFilter, __in_z __in_opt WCHAR* szObjFile, strPassBackFn pDisplayString);
+void DisplayArchive(__in_z __in WCHAR* szFile, ULONG DumpFilter, __in_z __in_opt WCHAR* szObjName, strPassBackFn pDisplayString);
 
 void PrintLogo()
 {
@@ -61,16 +61,16 @@ void DisplayString(__in_z __in const char *str)
 
 extern "C" int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
 {
-    wchar_t *pArg = NULL;
-    wchar_t *szObjName = NULL;
+    WCHAR *pArg = NULL;
+    WCHAR *szObjName = NULL;
     ULONG DumpFilter = MDInfo::dumpDefault;
     HRESULT hr = 0;
     BOOL    fWantHelp=FALSE;
-    
+
     // Validate incoming arguments
     for (int i=1;  i<argc;  i++)
     {
-        const wchar_t *szArg = argv[i];
+        const WCHAR *szArg = argv[i];
         if (*szArg == L'-' || *szArg == L'/')
         {
             if (_wcsicmp(szArg + 1, L"?") == 0)
@@ -133,16 +133,16 @@ extern "C" int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
         Usage();
 
     hr = LegacyActivationShim::ClrCoCreateInstance(
-        CLSID_CorMetaDataDispenser, NULL, CLSCTX_INPROC_SERVER, 
+        CLSID_CorMetaDataDispenser, NULL, CLSCTX_INPROC_SERVER,
         IID_IMetaDataDispenserEx, (void **) &g_pDisp);
     if(FAILED(hr)) MDInfo::Error("Unable to CoCreate Meta-data Dispenser", hr);
 
     // Loop through all files in the file pattern passed
     WIN32_FIND_DATA fdFiles;
     HANDLE hFind;
-    wchar_t szSpec[_MAX_PATH];
-    wchar_t szDrive[_MAX_DRIVE];
-    wchar_t szDir[_MAX_DIR];
+    WCHAR szSpec[_MAX_PATH];
+    WCHAR szDrive[_MAX_DRIVE];
+    WCHAR szDir[_MAX_DIR];
 
     hFind = WszFindFirstFile(pArg, &fdFiles);
 

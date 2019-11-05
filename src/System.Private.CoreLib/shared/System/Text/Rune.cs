@@ -6,6 +6,7 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Text.Unicode;
 
 namespace System.Text
 {
@@ -30,14 +31,14 @@ namespace System.Text
         // - bottom 5 bits are the UnicodeCategory of the character
         private static ReadOnlySpan<byte> AsciiCharInfo => new byte[]
         {
-            0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x8E, 0x8E, 0x8E, 0x8E, 0x8E, 0x0E, 0x0E,
-            0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E,
-            0x8B, 0x18, 0x18, 0x18, 0x1A, 0x18, 0x18, 0x18, 0x14, 0x15, 0x18, 0x19, 0x18, 0x13, 0x18, 0x18,
-            0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x18, 0x18, 0x19, 0x19, 0x19, 0x18,
-            0x18, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40,
-            0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x14, 0x18, 0x15, 0x1B, 0x12,
-            0x1B, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
-            0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x14, 0x19, 0x15, 0x19, 0x0E
+            0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x8E, 0x8E, 0x8E, 0x8E, 0x8E, 0x0E, 0x0E, // U+0000..U+000F
+            0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, // U+0010..U+001F
+            0x8B, 0x18, 0x18, 0x18, 0x1A, 0x18, 0x18, 0x18, 0x14, 0x15, 0x18, 0x19, 0x18, 0x13, 0x18, 0x18, // U+0020..U+002F
+            0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x18, 0x18, 0x19, 0x19, 0x19, 0x18, // U+0030..U+003F
+            0x18, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, // U+0040..U+004F
+            0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x14, 0x18, 0x15, 0x1B, 0x12, // U+0050..U+005F
+            0x1B, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, // U+0060..U+006F
+            0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x14, 0x19, 0x15, 0x19, 0x0E, // U+0070..U+007F
         };
 
         private readonly uint _value;
@@ -105,17 +106,17 @@ namespace System.Text
             _value = scalarValue;
         }
 
-        public static bool operator ==(Rune left, Rune right) => (left._value == right._value);
+        public static bool operator ==(Rune left, Rune right) => left._value == right._value;
 
-        public static bool operator !=(Rune left, Rune right) => (left._value != right._value);
+        public static bool operator !=(Rune left, Rune right) => left._value != right._value;
 
-        public static bool operator <(Rune left, Rune right) => (left._value < right._value);
+        public static bool operator <(Rune left, Rune right) => left._value < right._value;
 
-        public static bool operator <=(Rune left, Rune right) => (left._value <= right._value);
+        public static bool operator <=(Rune left, Rune right) => left._value <= right._value;
 
-        public static bool operator >(Rune left, Rune right) => (left._value > right._value);
+        public static bool operator >(Rune left, Rune right) => left._value > right._value;
 
-        public static bool operator >=(Rune left, Rune right) => (left._value >= right._value);
+        public static bool operator >=(Rune left, Rune right) => left._value >= right._value;
 
         // Operators below are explicit because they may throw.
 
@@ -152,7 +153,7 @@ namespace System.Text
         public static Rune ReplacementChar => UnsafeCreate(UnicodeUtility.ReplacementChar);
 
         /// <summary>
-        /// Returns the length in code units (<see cref="Char"/>) of the
+        /// Returns the length in code units (<see cref="char"/>) of the
         /// UTF-16 sequence required to represent this scalar value.
         /// </summary>
         /// <remarks>
@@ -662,46 +663,6 @@ namespace System.Text
             }
         }
 
-        public static OperationStatus DecodeUtf16(ReadOnlySpan<char> utf16Source, out Rune result, out int charsConsumed)
-        {
-            // [TODO] This method was renamed to DecodeFromUtf16. We'll leave this copy of
-            // the method here temporarily so that we don't break corefx consumers
-            // while the rename takes place.
-            // Tracking issue: https://github.com/dotnet/coreclr/issues/23319
-
-            return DecodeFromUtf16(utf16Source, out result, out charsConsumed);
-        }
-
-        public static OperationStatus DecodeUtf16FromEnd(ReadOnlySpan<char> utf16Source, out Rune result, out int charsConsumed)
-        {
-            // [TODO] This method was renamed to DecodeLastFromUtf16. We'll leave this copy of
-            // the method here temporarily so that we don't break corefx consumers
-            // while the rename takes place.
-            // Tracking issue: https://github.com/dotnet/coreclr/issues/23319
-
-            return DecodeLastFromUtf16(utf16Source, out result, out charsConsumed);
-        }
-
-        public static OperationStatus DecodeUtf8(ReadOnlySpan<byte> utf8Source, out Rune result, out int bytesConsumed)
-        {
-            // [TODO] This method was renamed to DecodeFromUtf8. We'll leave this copy of
-            // the method here temporarily so that we don't break corefx consumers
-            // while the rename takes place.
-            // Tracking issue: https://github.com/dotnet/coreclr/issues/23319
-
-            return DecodeFromUtf8(utf8Source, out result, out bytesConsumed);
-        }
-
-        public static OperationStatus DecodeUtf8FromEnd(ReadOnlySpan<byte> utf8Source, out Rune result, out int bytesConsumed)
-        {
-            // [TODO] This method was renamed to DecodeLastFromUtf8. We'll leave this copy of
-            // the method here temporarily so that we don't break corefx consumers
-            // while the rename takes place.
-            // Tracking issue: https://github.com/dotnet/coreclr/issues/23319
-
-            return DecodeLastFromUtf8(utf8Source, out result, out bytesConsumed);
-        }
-
         /// <summary>
         /// Encodes this <see cref="Rune"/> to a UTF-16 destination buffer.
         /// </summary>
@@ -738,9 +699,9 @@ namespace System.Text
             return bytesWritten;
         }
 
-        public override bool Equals(object obj) => (obj is Rune other) && this.Equals(other);
+        public override bool Equals(object? obj) => (obj is Rune other) && this.Equals(other);
 
-        public bool Equals(Rune other) => (this == other);
+        public bool Equals(Rune other) => this == other;
 
         public override int GetHashCode() => Value;
 
@@ -821,7 +782,7 @@ namespace System.Text
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.input);
             }
 
-            if ((uint)index >= (uint)input.Length)
+            if ((uint)index >= (uint)input!.Length)
             {
                 ThrowHelper.ThrowArgumentOutOfRange_IndexException();
             }
@@ -984,16 +945,6 @@ namespace System.Text
             return false;
         }
 
-        public bool TryEncode(Span<char> destination, out int charsWritten)
-        {
-            // [TODO] This method was renamed to TryEncodeToUtf16. We'll leave this copy of
-            // the method here temporarily so that we don't break corefx consumers
-            // while the rename takes place.
-            // Tracking issue: https://github.com/dotnet/coreclr/issues/23319
-
-            return TryEncodeToUtf16(destination, out charsWritten);
-        }
-
         /// <summary>
         /// Encodes this <see cref="Rune"/> to a destination buffer as UTF-8 bytes.
         /// </summary>
@@ -1060,16 +1011,6 @@ namespace System.Text
 
             bytesWritten = default;
             return false;
-        }
-
-        public bool TryEncodeToUtf8Bytes(Span<byte> destination, out int bytesWritten)
-        {
-            // [TODO] This method was renamed to TryEncodeToUtf8. We'll leave this copy of
-            // the method here temporarily so that we don't break corefx consumers
-            // while the rename takes place.
-            // Tracking issue: https://github.com/dotnet/coreclr/issues/23319
-
-            return TryEncodeToUtf8(destination, out bytesWritten);
         }
 
         /// <summary>
@@ -1199,7 +1140,7 @@ namespace System.Text
             // 00..1F (+1) => 01..20 (&~80) => 01..20
             // 7F..9F (+1) => 80..A0 (&~80) => 00..20
 
-            return (((value._value + 1) & ~0x80u) <= 0x20u);
+            return ((value._value + 1) & ~0x80u) <= 0x20u;
         }
 
         public static bool IsDigit(Rune value)
@@ -1210,7 +1151,7 @@ namespace System.Text
             }
             else
             {
-                return (GetUnicodeCategoryNonAscii(value) == UnicodeCategory.DecimalDigitNumber);
+                return GetUnicodeCategoryNonAscii(value) == UnicodeCategory.DecimalDigitNumber;
             }
         }
 
@@ -1218,7 +1159,7 @@ namespace System.Text
         {
             if (value.IsAscii)
             {
-                return (((value._value - 'A') & ~0x20u) <= (uint)('Z' - 'A')); // [A-Za-z]
+                return ((value._value - 'A') & ~0x20u) <= (uint)('Z' - 'A'); // [A-Za-z]
             }
             else
             {
@@ -1230,7 +1171,7 @@ namespace System.Text
         {
             if (value.IsAscii)
             {
-                return ((AsciiCharInfo[value.Value] & IsLetterOrDigitFlag) != 0);
+                return (AsciiCharInfo[value.Value] & IsLetterOrDigitFlag) != 0;
             }
             else
             {
@@ -1246,7 +1187,7 @@ namespace System.Text
             }
             else
             {
-                return (GetUnicodeCategoryNonAscii(value) == UnicodeCategory.LowercaseLetter);
+                return GetUnicodeCategoryNonAscii(value) == UnicodeCategory.LowercaseLetter;
             }
         }
 
@@ -1285,7 +1226,7 @@ namespace System.Text
             }
             else
             {
-                return (GetUnicodeCategoryNonAscii(value) == UnicodeCategory.UppercaseLetter);
+                return GetUnicodeCategoryNonAscii(value) == UnicodeCategory.UppercaseLetter;
             }
         }
 
@@ -1324,7 +1265,7 @@ namespace System.Text
                 return ToLowerInvariant(value);
             }
 
-            return ChangeCaseCultureAware(value, culture.TextInfo, toUpper: false);
+            return ChangeCaseCultureAware(value, culture!.TextInfo, toUpper: false);
         }
 
         public static Rune ToLowerInvariant(Rune value)
@@ -1367,7 +1308,7 @@ namespace System.Text
                 return ToUpperInvariant(value);
             }
 
-            return ChangeCaseCultureAware(value, culture.TextInfo, toUpper: true);
+            return ChangeCaseCultureAware(value, culture!.TextInfo, toUpper: true);
         }
 
         public static Rune ToUpperInvariant(Rune value)

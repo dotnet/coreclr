@@ -2,6 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Diagnostics.CodeAnalysis;
+
 namespace System.Runtime.CompilerServices
 {
     /// <summary>
@@ -14,8 +16,7 @@ namespace System.Runtime.CompilerServices
         /// Gets the strongly typed value associated with the <see cref = "StrongBox{T}"></see>
         /// <remarks>This is explicitly exposed as a field instead of a property to enable loading the address of the field.</remarks>
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1051:DoNotDeclareVisibleInstanceFields")]
-        public T Value;
+        [MaybeNull] public T Value = default!;
 
         /// <summary>
         /// Initializes a new StrongBox which can receive a value when used in a reference call.
@@ -33,16 +34,10 @@ namespace System.Runtime.CompilerServices
             Value = value;
         }
 
-        object IStrongBox.Value
+        object? IStrongBox.Value
         {
-            get
-            {
-                return Value;
-            }
-            set
-            {
-                Value = (T)value;
-            }
+            get => Value;
+            set => Value = (T)value!;
         }
     }
 
@@ -54,6 +49,6 @@ namespace System.Runtime.CompilerServices
         /// <summary>
         /// Gets or sets the value the object references.
         /// </summary>
-        object Value { get; set; }
+        object? Value { get; set; }
     }
 }

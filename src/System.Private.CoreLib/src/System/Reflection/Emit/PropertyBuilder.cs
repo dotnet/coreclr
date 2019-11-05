@@ -4,29 +4,27 @@
 
 /*============================================================
 **
-** 
-** 
+**
+**
 **
 **
 ** Propertybuilder is for client to define properties for a class
 **
-** 
+**
 ===========================================================*/
+
+using System.Runtime.CompilerServices;
+using CultureInfo = System.Globalization.CultureInfo;
 
 namespace System.Reflection.Emit
 {
-    using System;
-    using System.Reflection;
-    using CultureInfo = System.Globalization.CultureInfo;
-    using System.Runtime.InteropServices;
-
-    // 
+    //
     // A PropertyBuilder is always associated with a TypeBuilder.  The TypeBuilder.DefineProperty
     // method will return a new PropertyBuilder to a client.
-    // 
+    //
     public sealed class PropertyBuilder : PropertyInfo
     {
-        // Constructs a PropertyBuilder.  
+        // Constructs a PropertyBuilder.
         //
         internal PropertyBuilder(
             ModuleBuilder mod,            // the module containing this PropertyBuilder
@@ -57,7 +55,7 @@ namespace System.Reflection.Emit
         /// <summary>
         /// Set the default value of the Property
         /// </summary>
-        public void SetConstant(object defaultValue)
+        public void SetConstant(object? defaultValue)
         {
             m_containingType.ThrowIfCreated();
 
@@ -71,18 +69,9 @@ namespace System.Reflection.Emit
 
         // Return the Token for this property within the TypeBuilder that the
         // property is defined within.
-        public PropertyToken PropertyToken
-        {
-            get { return m_prToken; }
-        }
+        public PropertyToken PropertyToken => m_prToken;
 
-        public override Module Module
-        {
-            get
-            {
-                return m_containingType.Module;
-            }
-        }
+        public override Module Module => m_containingType.Module;
 
         private void SetMethodSemantics(MethodBuilder mdBuilder, MethodSemanticsAttributes semantics)
         {
@@ -92,8 +81,9 @@ namespace System.Reflection.Emit
             }
 
             m_containingType.ThrowIfCreated();
+            ModuleBuilder module = m_moduleBuilder;
             TypeBuilder.DefineMethodSemantics(
-                m_moduleBuilder.GetNativeHandle(),
+                new QCallModule(ref module),
                 m_prToken.Token,
                 semantics,
                 mdBuilder.GetToken().Token);
@@ -146,22 +136,22 @@ namespace System.Reflection.Emit
         }
 
         // Not supported functions in dynamic module.
-        public override object GetValue(object obj, object[] index)
+        public override object GetValue(object? obj, object?[]? index)
         {
             throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
-        public override object GetValue(object obj, BindingFlags invokeAttr, Binder binder, object[] index, CultureInfo culture)
+        public override object GetValue(object? obj, BindingFlags invokeAttr, Binder? binder, object?[]? index, CultureInfo? culture)
         {
             throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
-        public override void SetValue(object obj, object value, object[] index)
+        public override void SetValue(object? obj, object? value, object?[]? index)
         {
             throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
-        public override void SetValue(object obj, object value, BindingFlags invokeAttr, Binder binder, object[] index, CultureInfo culture)
+        public override void SetValue(object? obj, object? value, BindingFlags invokeAttr, Binder? binder, object?[]? index, CultureInfo? culture)
         {
             throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
@@ -171,7 +161,7 @@ namespace System.Reflection.Emit
             throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
-        public override MethodInfo GetGetMethod(bool nonPublic)
+        public override MethodInfo? GetGetMethod(bool nonPublic)
         {
             if (nonPublic || m_getMethod == null)
                 return m_getMethod;
@@ -181,7 +171,7 @@ namespace System.Reflection.Emit
             return null;
         }
 
-        public override MethodInfo GetSetMethod(bool nonPublic)
+        public override MethodInfo? GetSetMethod(bool nonPublic)
         {
             if (nonPublic || m_setMethod == null)
                 return m_setMethod;
@@ -196,15 +186,9 @@ namespace System.Reflection.Emit
             throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
-        public override Type PropertyType
-        {
-            get { return m_returnType; }
-        }
+        public override Type PropertyType => m_returnType;
 
-        public override PropertyAttributes Attributes
-        {
-            get { return m_attributes; }
-        }
+        public override PropertyAttributes Attributes => m_attributes;
 
         public override bool CanRead
         {
@@ -231,20 +215,11 @@ namespace System.Reflection.Emit
             throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
-        public override string Name
-        {
-            get { return m_name; }
-        }
+        public override string Name => m_name;
 
-        public override Type DeclaringType
-        {
-            get { return m_containingType; }
-        }
+        public override Type? DeclaringType => m_containingType;
 
-        public override Type ReflectedType
-        {
-            get { return m_containingType; }
-        }
+        public override Type? ReflectedType => m_containingType;
 
         // These are package private so that TypeBuilder can access them.
         private string m_name;                // The name of the property
@@ -254,8 +229,8 @@ namespace System.Reflection.Emit
         private SignatureHelper m_signature;
         private PropertyAttributes m_attributes;        // property's attribute flags
         private Type m_returnType;        // property's return type
-        private MethodInfo m_getMethod;
-        private MethodInfo m_setMethod;
+        private MethodInfo? m_getMethod;
+        private MethodInfo? m_setMethod;
         private TypeBuilder m_containingType;
     }
 }

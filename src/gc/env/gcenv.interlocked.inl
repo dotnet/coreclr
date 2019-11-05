@@ -57,7 +57,7 @@ __forceinline T Interlocked::Decrement(T volatile *addend)
 #endif
 }
 
-// Set a 32-bit variable to the specified value as an atomic operation. 
+// Set a 32-bit variable to the specified value as an atomic operation.
 // Parameters:
 //  destination - value to be exchanged
 //  value       - value to set the destination to
@@ -76,7 +76,7 @@ __forceinline T Interlocked::Exchange(T volatile *destination, T value)
 #endif
 }
 
-// Performs an atomic compare-and-exchange operation on the specified values. 
+// Performs an atomic compare-and-exchange operation on the specified values.
 // Parameters:
 //  destination - value to be exchanged
 //  exchange    - value to set the destinaton to
@@ -109,6 +109,37 @@ __forceinline T Interlocked::ExchangeAdd(T volatile *addend, T value)
 #ifdef _MSC_VER
     static_assert(sizeof(long) == sizeof(T), "Size of long must be the same as size of T");
     return _InterlockedExchangeAdd((long*)addend, value);
+#else
+    T result = __sync_fetch_and_add(addend, value);
+    ArmInterlockedOperationBarrier();
+    return result;
+#endif
+}
+
+template <typename T>
+__forceinline T Interlocked::ExchangeAdd64(T volatile* addend, T value)
+{
+#ifdef _MSC_VER
+    static_assert(sizeof(int64_t) == sizeof(T), "Size of LONGLONG must be the same as size of T");
+    return _InterlockedExchangeAdd64((int64_t*)addend, value);
+#else
+    T result = __sync_fetch_and_add(addend, value);
+    ArmInterlockedOperationBarrier();
+    return result;
+#endif
+}
+
+template <typename T>
+__forceinline T Interlocked::ExchangeAddPtr(T volatile* addend, T value)
+{
+#ifdef _MSC_VER
+#ifdef BIT64
+    static_assert(sizeof(int64_t) == sizeof(T), "Size of LONGLONG must be the same as size of T");
+    return _InterlockedExchangeAdd64((int64_t*)addend, value);
+#else
+    static_assert(sizeof(long) == sizeof(T), "Size of long must be the same as size of T");
+    return _InterlockedExchangeAdd((long*)addend, value);
+#endif
 #else
     T result = __sync_fetch_and_add(addend, value);
     ArmInterlockedOperationBarrier();
@@ -186,7 +217,7 @@ __forceinline T Interlocked::ExchangePointer(T volatile * destination, std::null
 #endif
 }
 
-// Performs an atomic compare-and-exchange operation on the specified pointers. 
+// Performs an atomic compare-and-exchange operation on the specified pointers.
 // Parameters:
 //  destination - value to be exchanged
 //  exchange    - value to set the destinaton to

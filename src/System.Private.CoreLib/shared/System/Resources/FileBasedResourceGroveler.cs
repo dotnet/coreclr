@@ -8,14 +8,13 @@
 ** Purpose: Searches for resources on disk, used for file-
 ** based resource lookup.
 **
-** 
+**
 ===========================================================*/
 
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
-using System.Threading;
 
 using Internal.IO;
 
@@ -23,7 +22,7 @@ namespace System.Resources
 {
     internal class FileBasedResourceGroveler : IResourceGroveler
     {
-        private ResourceManager.ResourceManagerMediator _mediator;
+        private readonly ResourceManager.ResourceManagerMediator _mediator;
 
         public FileBasedResourceGroveler(ResourceManager.ResourceManagerMediator mediator)
         {
@@ -31,15 +30,15 @@ namespace System.Resources
             _mediator = mediator;
         }
 
-        // Consider modifying IResourceGroveler interface (hence this method signature) when we figure out 
-        // serialization compat story for moving ResourceManager members to either file-based or 
+        // Consider modifying IResourceGroveler interface (hence this method signature) when we figure out
+        // serialization compat story for moving ResourceManager members to either file-based or
         // manifest-based classes. Want to continue tightening the design to get rid of unused params.
-        public ResourceSet GrovelForResourceSet(CultureInfo culture, Dictionary<string, ResourceSet> localResourceSets, bool tryParents, bool createIfNotExists)
+        public ResourceSet? GrovelForResourceSet(CultureInfo culture, Dictionary<string, ResourceSet> localResourceSets, bool tryParents, bool createIfNotExists)
         {
             Debug.Assert(culture != null, "culture shouldn't be null; check caller");
 
-            string fileName = null;
-            ResourceSet rs = null;
+            string? fileName = null;
+            ResourceSet? rs = null;
 
             // Don't use Assembly manifest, but grovel on disk for a file.
             // Create new ResourceSet, if a file exists on disk for it.
@@ -54,7 +53,7 @@ namespace System.Resources
                     {
                         // We really don't think this should happen - we always
                         // expect the neutral locale's resources to be present.
-                        throw new MissingManifestResourceException(SR.MissingManifestResource_NoNeutralDisk + Environment.NewLine + "baseName: " + _mediator.BaseNameField + "  locationInfo: " + (_mediator.LocationInfo == null ? "<null>" : _mediator.LocationInfo.FullName) + "  fileName: " + _mediator.GetResourceFileName(culture));
+                        throw new MissingManifestResourceException(SR.MissingManifestResource_NoNeutralDisk + Environment.NewLineConst + "baseName: " + _mediator.BaseNameField + "  locationInfo: " + (_mediator.LocationInfo == null ? "<null>" : _mediator.LocationInfo.FullName) + "  fileName: " + _mediator.GetResourceFileName(culture));
                     }
                 }
             }
@@ -65,20 +64,19 @@ namespace System.Resources
             return rs;
         }
 
-        // Given a CultureInfo, it generates the path &; file name for 
+        // Given a CultureInfo, it generates the path &; file name for
         // the .resources file for that CultureInfo.  This method will grovel
         // the disk looking for the correct file name & path.  Uses CultureInfo's
-        // Name property.  If the module directory was set in the ResourceManager 
+        // Name property.  If the module directory was set in the ResourceManager
         // constructor, we'll look there first.  If it couldn't be found in the module
         // diretory or the module dir wasn't provided, look in the current
         // directory.
-
-        private string FindResourceFile(CultureInfo culture, string fileName)
+        private string? FindResourceFile(CultureInfo culture, string fileName)
         {
             Debug.Assert(culture != null, "culture shouldn't be null; check caller");
             Debug.Assert(fileName != null, "fileName shouldn't be null; check caller");
 
-            // If we have a moduleDir, check there first.  Get module fully 
+            // If we have a moduleDir, check there first.  Get module fully
             // qualified name, append path to that.
             if (_mediator.ModuleDir != null)
             {
@@ -111,7 +109,7 @@ namespace System.Resources
                 args[0] = file;
                 try
                 {
-                    return (ResourceSet)Activator.CreateInstance(_mediator.UserResourceSet, args);
+                    return (ResourceSet)Activator.CreateInstance(_mediator.UserResourceSet, args)!;
                 }
                 catch (MissingMethodException e)
                 {

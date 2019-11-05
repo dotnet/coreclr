@@ -20,17 +20,17 @@ Although SuperPMI has many uses, setup and use of SuperPMI is not always trivial
 | OSX | x64 |  <ul><li>- [x] </li></ul> |  <ul><li>- [x] </li></ul> |  |
 | Windows | x64 |  <ul><li>- [x] </li></ul> |  <ul><li>- [x] </li></ul> |  |
 | Windows | x86 |  <ul><li>- [x] </li></ul> |  <ul><li>- [x] </li></ul> |  |
-| Windows | arm |  <ul><li>- [] </li></ul> |  <ul><li>- [] </li></ul> | N/A |
-| Windows | arm64 |  <ul><li>- [] </li></ul> |  <ul><li>- [] </li></ul> | N/A |
+| Windows | arm |  <ul><li>- [ ] </li></ul> |  <ul><li>- [ ] </li></ul> | N/A |
+| Windows | arm64 |  <ul><li>- [ ] </li></ul> |  <ul><li>- [ ] </li></ul> | N/A |
 | Ubuntu | x64 |  <ul><li>- [x] </li></ul> |  <ul><li>- [x] </li></ul> |  |
-| Ubuntu | arm32 |  <ul><li>- [] </li></ul> |  <ul><li>- [] </li></ul> | N/A |
-| Ubuntu | arm64 |  <ul><li>- [] </li></ul> |  <ul><li>- [] </li></ul> | N/A |
+| Ubuntu | arm32 |  <ul><li>- [ ] </li></ul> |  <ul><li>- [ ] </li></ul> | N/A |
+| Ubuntu | arm64 |  <ul><li>- [ ] </li></ul> |  <ul><li>- [ ] </li></ul> | N/A |
 
 ### Default Collections
 
 See the table above for locations of default collections that exist. If there is an mch file that exists, then SuperPMI will automatically download and setup the mch using that location. Please note that, it is possible that the collection is out of date, or there is a jitinterface change which makes the collection invalid. If this is the case, then in order to use the tool a collection will have to be done manually. In order to reproduce the default collections, please see below for what command the default collections are done with.
 
-`/Users/jashoo/coreclr/build.sh x64 checked -skiptests`
+`/Users/jashoo/coreclr/build.sh x64 checked`
 
 `/Users/jashoo/coreclr/build-test.sh x64 checked -priority1`
 

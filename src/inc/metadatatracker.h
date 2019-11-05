@@ -5,7 +5,7 @@
 #ifndef _METADATATRACKER_H_
 #define _METADATATRACKER_H_
 
-#if defined(FEATURE_PREJIT) && defined(FEATURE_WINDOWSPHONE)
+#ifdef FEATURE_PREJIT
 
 #define METADATATRACKER_DATA 1
 #if !defined(DACCESS_COMPILE)
@@ -48,7 +48,7 @@ class MetaDataTracker
     SIZE_T          m_mdSectionRowSize[NUM_MD_SECTIONS];
     BOOL            m_bActivated;
 
-    static BOOL     s_bEnabled; 
+    static BOOL     s_bEnabled;
 
     static MetaDataTracker *m_MDTrackers;
 
@@ -71,14 +71,13 @@ public:
 
         m_ModuleName = NULL;
 
-        DWORD len = (DWORD)wcslen(modName);
-        _ASSERTE(len + 1 != 0);      // Prevent Overflow
-        m_ModuleName = new wchar_t[len + 1];
-        NewArrayHolder<wchar_t> moduleNameHolder(m_ModuleName);
-        wcscpy_s((wchar_t *)m_ModuleName, len + 1, (wchar_t *)modName);
+        size_t len = wcslen(modName);
+        m_ModuleName = new WCHAR[len + 1];
+        NewArrayHolder<WCHAR> moduleNameHolder(m_ModuleName);
+        wcscpy_s((WCHAR *)m_ModuleName, len + 1, (WCHAR *)modName);
 
         m_MetadataBase = baseAddress;
-        m_MetadataSize = mdSize; 
+        m_MetadataSize = mdSize;
 
         m_next = m_MDTrackers;
         m_MDTrackers = this;
@@ -159,7 +158,7 @@ public:
 
         if (!Enabled())
             return;
-        
+
         MetaDataTracker *mdMod = m_MDTrackers;
         while( mdMod)
         {
@@ -219,7 +218,7 @@ public:
 
         if (!Enabled())
             return NULL;
-        
+
         MetaDataTracker *mdMod = m_MDTrackers;
         while( mdMod)
         {
@@ -297,7 +296,7 @@ public:
 
 
 private:
-    
+
     // ***************************************************************************
     // Helper functions
     // ***************************************************************************
@@ -311,7 +310,7 @@ private:
         if (address < m_MetadataBase || address >= (m_MetadataBase + m_MetadataSize))
             return FALSE;
 
-        // This address range belongs to us but the tracker is not activated. 
+        // This address range belongs to us but the tracker is not activated.
         if (!IsActivated())
         {
             // _ASSERTE (!"Metadata Tracker not active but trying to access metadata");

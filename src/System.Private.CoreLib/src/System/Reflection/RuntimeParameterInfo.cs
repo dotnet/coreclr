@@ -9,38 +9,37 @@ using MdToken = System.Reflection.MetadataToken;
 
 namespace System.Reflection
 {
-    internal unsafe sealed class RuntimeParameterInfo : ParameterInfo
+    internal sealed unsafe class RuntimeParameterInfo : ParameterInfo
     {
         #region Static Members
-        internal static unsafe ParameterInfo[] GetParameters(IRuntimeMethodInfo method, MemberInfo member, Signature sig)
+        internal static ParameterInfo[] GetParameters(IRuntimeMethodInfo method, MemberInfo member, Signature sig)
         {
             Debug.Assert(method is RuntimeMethodInfo || method is RuntimeConstructorInfo);
 
-            ParameterInfo dummy;
-            return GetParameters(method, member, sig, out dummy, false);
+            return GetParameters(method, member, sig, out _, false);
         }
 
-        internal static unsafe ParameterInfo GetReturnParameter(IRuntimeMethodInfo method, MemberInfo member, Signature sig)
+        internal static ParameterInfo GetReturnParameter(IRuntimeMethodInfo method, MemberInfo member, Signature sig)
         {
             Debug.Assert(method is RuntimeMethodInfo || method is RuntimeConstructorInfo);
 
             ParameterInfo returnParameter;
-            GetParameters(method, member, sig, out returnParameter, true);
+            GetParameters(method, member, sig, out returnParameter!, true);
             return returnParameter;
         }
 
-        internal static unsafe ParameterInfo[] GetParameters(
-            IRuntimeMethodInfo methodHandle, MemberInfo member, Signature sig, out ParameterInfo returnParameter, bool fetchReturnParameter)
+        internal static ParameterInfo[] GetParameters(
+            IRuntimeMethodInfo methodHandle, MemberInfo member, Signature sig, out ParameterInfo? returnParameter, bool fetchReturnParameter)
         {
             returnParameter = null;
             int sigArgCount = sig.Arguments.Length;
-            ParameterInfo[] args = fetchReturnParameter ? null : new ParameterInfo[sigArgCount];
+            ParameterInfo[] args = fetchReturnParameter ? null! : new ParameterInfo[sigArgCount];
 
             int tkMethodDef = RuntimeMethodHandle.GetMethodDef(methodHandle);
             int cParamDefs = 0;
 
             // Not all methods have tokens. Arrays, pointers and byRef types do not have tokens as they
-            // are generated on the fly by the runtime. 
+            // are generated on the fly by the runtime.
             if (!MdToken.IsNullToken(tkMethodDef))
             {
                 MetadataImport scope = RuntimeTypeHandle.GetMetadataImport(RuntimeMethodHandle.GetDeclaringType(methodHandle));
@@ -50,7 +49,7 @@ namespace System.Reflection
 
                 cParamDefs = tkParamDefs.Length;
 
-                // Not all parameters have tokens. Parameters may have no token 
+                // Not all parameters have tokens. Parameters may have no token
                 // if they have no name and no attributes.
                 if (cParamDefs > sigArgCount + 1 /* return type */)
                     throw new BadImageFormatException(SR.BadImageFormat_ParameterSignatureMismatch);
@@ -65,7 +64,7 @@ namespace System.Reflection
 
                     position--;
 
-                    if (fetchReturnParameter == true && position == -1)
+                    if (fetchReturnParameter && position == -1)
                     {
                         // more than one return parameter?
                         if (returnParameter != null)
@@ -73,7 +72,7 @@ namespace System.Reflection
 
                         returnParameter = new RuntimeParameterInfo(sig, scope, tkParamDef, position, attr, member);
                     }
-                    else if (fetchReturnParameter == false && position >= 0)
+                    else if (!fetchReturnParameter && position >= 0)
                     {
                         // position beyong sigArgCount?
                         if (position >= sigArgCount)
@@ -88,10 +87,7 @@ namespace System.Reflection
             // Fill in empty ParameterInfos for those without tokens
             if (fetchReturnParameter)
             {
-                if (returnParameter == null)
-                {
-                    returnParameter = new RuntimeParameterInfo(sig, MetadataImport.EmptyImport, 0, -1, (ParameterAttributes)0, member);
-                }
+                returnParameter ??= new RuntimeParameterInfo(sig, MetadataImport.EmptyImport, 0, -1, (ParameterAttributes)0, member);
             }
             else
             {
@@ -119,11 +115,11 @@ namespace System.Reflection
         #region Private Data Members
         private int m_tkParamDef;
         private MetadataImport m_scope;
-        private Signature m_signature;
+        private Signature m_signature = null!;
         private volatile bool m_nameIsCached = false;
         private readonly bool m_noMetadata = false;
         private bool m_noDefaultValue = false;
-        private MethodBase m_originalMember = null;
+        private MethodBase? m_originalMember = null;
         #endregion
 
         #region Internal Properties
@@ -131,7 +127,7 @@ namespace System.Reflection
         {
             get
             {
-                MethodBase result = m_originalMember != null ? m_originalMember : MemberImpl as MethodBase;
+                MethodBase? result = m_originalMember ?? MemberImpl as MethodBase;
                 Debug.Assert(result != null);
                 return result;
             }
@@ -139,7 +135,7 @@ namespace System.Reflection
         #endregion
 
         #region Internal Methods
-        internal void SetName(string name)
+        internal void SetName(string? name)
         {
             NameImpl = name;
         }
@@ -163,7 +159,7 @@ namespace System.Reflection
             // Change ownership
             MemberImpl = member;
 
-            // The original owner should always be a method, because this method is only used to 
+            // The original owner should always be a method, because this method is only used to
             // change the owner from a method to a property.
             m_originalMember = accessor.MemberImpl as MethodBase;
             Debug.Assert(m_originalMember != null);
@@ -201,7 +197,7 @@ namespace System.Reflection
         }
 
         // ctor for no metadata MethodInfo in the DynamicMethod and RuntimeMethodInfo cases
-        internal RuntimeParameterInfo(MethodInfo owner, string name, Type parameterType, int position)
+        internal RuntimeParameterInfo(MethodInfo owner, string? name, Type parameterType, int position)
         {
             MemberImpl = owner;
             NameImpl = name;
@@ -238,7 +234,7 @@ namespace System.Reflection
             }
         }
 
-        public override string Name
+        public override string? Name
         {
             get
             {
@@ -246,8 +242,7 @@ namespace System.Reflection
                 {
                     if (!MdToken.IsNullToken(m_tkParamDef))
                     {
-                        string name;
-                        name = m_scope.GetName(m_tkParamDef).ToString();
+                        string name = m_scope.GetName(m_tkParamDef).ToString();
                         NameImpl = name;
                     }
 
@@ -268,16 +263,16 @@ namespace System.Reflection
                 if (m_noMetadata || m_noDefaultValue)
                     return false;
 
-                object defaultValue = GetDefaultValueInternal(false);
+                object? defaultValue = GetDefaultValueInternal(false);
 
-                return (defaultValue != DBNull.Value);
+                return defaultValue != DBNull.Value;
             }
         }
 
-        public override object DefaultValue { get { return GetDefaultValue(false); } }
-        public override object RawDefaultValue { get { return GetDefaultValue(true); } }
+        public override object? DefaultValue => GetDefaultValue(false);
+        public override object? RawDefaultValue => GetDefaultValue(true);
 
-        private object GetDefaultValue(bool raw)
+        private object? GetDefaultValue(bool raw)
         {
             // OLD COMMENT (Is this even true?)
             // Cannot cache because default value could be non-agile user defined enumeration.
@@ -286,7 +281,7 @@ namespace System.Reflection
                 return null;
 
             // for dynamic method we pretend to have cached the value so we do not go to metadata
-            object defaultValue = GetDefaultValueInternal(raw);
+            object? defaultValue = GetDefaultValueInternal(raw);
 
             if (defaultValue == DBNull.Value)
             {
@@ -303,19 +298,19 @@ namespace System.Reflection
         }
 
         // returns DBNull.Value if the parameter doesn't have a default value
-        private object GetDefaultValueInternal(bool raw)
+        private object? GetDefaultValueInternal(bool raw)
         {
             Debug.Assert(!m_noMetadata);
 
             if (m_noDefaultValue)
                 return DBNull.Value;
 
-            object defaultValue = null;
+            object? defaultValue = null;
 
-            // Why check the parameter type only for DateTime and only for the ctor arguments? 
+            // Why check the parameter type only for DateTime and only for the ctor arguments?
             // No check on the parameter type is done for named args and for Decimal.
 
-            // We should move this after MdToken.IsNullToken(m_tkParamDef) and combine it 
+            // We should move this after MdToken.IsNullToken(m_tkParamDef) and combine it
             // with the other custom attribute logic. But will that be a breaking change?
             // For a DateTime parameter on which both an md constant and a ca constant are set,
             // which one should win?
@@ -328,7 +323,7 @@ namespace System.Reflection
                             CustomAttributeData.GetCustomAttributes(this), typeof(DateTimeConstantAttribute), 0);
 
                     if (value.ArgumentType != null)
-                        return new DateTime((long)value.Value);
+                        return new DateTime((long)value.Value!);
                 }
                 else
                 {
@@ -353,7 +348,7 @@ namespace System.Reflection
                 {
                     foreach (CustomAttributeData attr in CustomAttributeData.GetCustomAttributes(this))
                     {
-                        Type attrType = attr.Constructor.DeclaringType;
+                        Type? attrType = attr.Constructor.DeclaringType;
 
                         if (attrType == typeof(DateTimeConstantAttribute))
                         {
@@ -363,7 +358,7 @@ namespace System.Reflection
                         {
                             defaultValue = GetRawDecimalConstant(attr);
                         }
-                        else if (attrType.IsSubclassOf(s_CustomConstantAttributeType))
+                        else if (attrType!.IsSubclassOf(s_CustomConstantAttributeType))
                         {
                             defaultValue = GetRawConstant(attr);
                         }
@@ -404,7 +399,7 @@ namespace System.Reflection
                 {
                     // This is not possible because Decimal cannot be represented directly in the metadata.
                     Debug.Fail("Decimal cannot be represented directly in the metadata.");
-                    return (decimal)namedArgument.TypedValue.Value;
+                    return (decimal)namedArgument.TypedValue.Value!;
                 }
             }
 
@@ -417,24 +412,24 @@ namespace System.Reflection
             if (parameters[2].ParameterType == typeof(uint))
             {
                 // DecimalConstantAttribute(byte scale, byte sign, uint hi, uint mid, uint low)
-                int low = (int)(uint)args[4].Value;
-                int mid = (int)(uint)args[3].Value;
-                int hi = (int)(uint)args[2].Value;
-                byte sign = (byte)args[1].Value;
-                byte scale = (byte)args[0].Value;
+                int low = (int)(uint)args[4].Value!;
+                int mid = (int)(uint)args[3].Value!;
+                int hi = (int)(uint)args[2].Value!;
+                byte sign = (byte)args[1].Value!;
+                byte scale = (byte)args[0].Value!;
 
-                return new System.Decimal(low, mid, hi, (sign != 0), scale);
+                return new decimal(low, mid, hi, sign != 0, scale);
             }
             else
             {
                 // DecimalConstantAttribute(byte scale, byte sign, int hi, int mid, int low)
-                int low = (int)args[4].Value;
-                int mid = (int)args[3].Value;
-                int hi = (int)args[2].Value;
-                byte sign = (byte)args[1].Value;
-                byte scale = (byte)args[0].Value;
+                int low = (int)args[4].Value!;
+                int mid = (int)args[3].Value!;
+                int hi = (int)args[2].Value!;
+                byte sign = (byte)args[1].Value!;
+                byte scale = (byte)args[0].Value!;
 
-                return new System.Decimal(low, mid, hi, (sign != 0), scale);
+                return new decimal(low, mid, hi, sign != 0, scale);
             }
         }
 
@@ -447,15 +442,15 @@ namespace System.Reflection
             {
                 if (namedArgument.MemberInfo.Name.Equals("Value"))
                 {
-                    return new DateTime((long)namedArgument.TypedValue.Value);
+                    return new DateTime((long)namedArgument.TypedValue.Value!);
                 }
             }
 
             // Look at the ctor argument if the "Value" property was not explicitly defined.
-            return new DateTime((long)attr.ConstructorArguments[0].Value);
+            return new DateTime((long)attr.ConstructorArguments[0].Value!);
         }
 
-        private static object GetRawConstant(CustomAttributeData attr)
+        private static object? GetRawConstant(CustomAttributeData attr)
         {
             foreach (CustomAttributeNamedArgument namedArgument in attr.NamedArguments)
             {
@@ -468,11 +463,11 @@ namespace System.Reflection
             return DBNull.Value;
         }
 
-        internal RuntimeModule GetRuntimeModule()
+        internal RuntimeModule? GetRuntimeModule()
         {
-            RuntimeMethodInfo method = Member as RuntimeMethodInfo;
-            RuntimeConstructorInfo constructor = Member as RuntimeConstructorInfo;
-            RuntimePropertyInfo property = Member as RuntimePropertyInfo;
+            RuntimeMethodInfo? method = Member as RuntimeMethodInfo;
+            RuntimeConstructorInfo? constructor = Member as RuntimeConstructorInfo;
+            RuntimePropertyInfo? property = Member as RuntimePropertyInfo;
 
             if (method != null)
                 return method.GetRuntimeModule();
@@ -484,13 +479,7 @@ namespace System.Reflection
                 return null;
         }
 
-        public override int MetadataToken
-        {
-            get
-            {
-                return m_tkParamDef;
-            }
-        }
+        public override int MetadataToken => m_tkParamDef;
 
         public override Type[] GetRequiredCustomModifiers()
         {
@@ -510,7 +499,7 @@ namespace System.Reflection
             if (MdToken.IsNullToken(m_tkParamDef))
                 return Array.Empty<object>();
 
-            return CustomAttribute.GetCustomAttributes(this, typeof(object) as RuntimeType);
+            return CustomAttribute.GetCustomAttributes(this, (typeof(object) as RuntimeType)!);
         }
 
         public override object[] GetCustomAttributes(Type attributeType, bool inherit)
@@ -521,7 +510,7 @@ namespace System.Reflection
             if (MdToken.IsNullToken(m_tkParamDef))
                 return Array.Empty<object>();
 
-            RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
+            RuntimeType? attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
             if (attributeRuntimeType == null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
@@ -537,7 +526,7 @@ namespace System.Reflection
             if (MdToken.IsNullToken(m_tkParamDef))
                 return false;
 
-            RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
+            RuntimeType? attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
             if (attributeRuntimeType == null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));

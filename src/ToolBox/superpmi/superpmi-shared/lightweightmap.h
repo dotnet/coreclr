@@ -299,7 +299,7 @@ public:
         return size;
     }
 
-    // its worth noting that the acutal order of insert here doesnt meet what you migth expect.  Its using memcmp, so
+    // It's worth noting that the actual order of insertion here doesnt meet what you might expect.  It's using memcmp, so
     // since we are on a little endian machine we'd use the lowest 8 bits as the first part of the key.  This is
     // a side effect of using the same code for large structs and DWORDS etc...
     bool Add(_Key key, _Item item)
@@ -366,9 +366,13 @@ public:
         return true;
     }
 
+    void Update(int index, _Item item)
+    {
+        pItems[index] = item;
+    }
+
     int GetIndex(_Key key)
     {
-        AssertCodeMsg(this != nullptr, EXCEPTIONCODE_MC, "There is no such LWM (in GetIndex)");
         if (numItems == 0)
             return -1;
 

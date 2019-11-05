@@ -5,7 +5,7 @@
 /*============================================================
 **
 ** Header:  Assembly.hpp
-** 
+**
 
 **
 ** Purpose: Implements assembly (loader domain) architecture
@@ -23,16 +23,6 @@
 #include "iceefilegen.h"
 #include "cordbpriv.h"
 #include "assemblyspec.hpp"
-
-// A helper macro for the assembly's module hash (m_pAllowedFiles).
-#define UTF8_TO_LOWER_CASE(str, qb)                                                             \
-{                                                                                               \
-    WRAPPER_NO_CONTRACT;                                                                           \
-    INT32 allocBytes = InternalCasingHelper::InvariantToLower(NULL, 0, str);                    \
-    qb.AllocThrows(allocBytes);                                                                 \
-    InternalCasingHelper::InvariantToLower((LPUTF8) qb.Ptr(), allocBytes, str);                 \
-}
-
 
 class BaseDomain;
 class AppDomain;
@@ -70,13 +60,13 @@ struct CreateDynamicAssemblyArgs : CreateDynamicAssemblyArgsGC
 // An assembly is the unit of deployment for managed code.  Typically Assemblies are one to one with files
 // (Modules), however this is not necessary, as an assembly can contain serveral files (typically you only
 // do this so that you can resource-only modules that are national language specific)
-// 
+//
 // Conceptually Assemblies are loaded into code:AppDomain
-// 
-// So in general an assemly is a list of code:Module, where a code:Module is 1-1 with a DLL or EXE file. 
-//  
+//
+// So in general an assemly is a list of code:Module, where a code:Module is 1-1 with a DLL or EXE file.
+//
 // One of the modules the code:Assembly.m_pManifest is special in that it knows about all the other
-// modules in an assembly (often it is the only one).  
+// modules in an assembly (often it is the only one).
 //
 class Assembly
 {
@@ -173,7 +163,7 @@ public:
         {
             LIMITED_METHOD_CONTRACT;
             SUPPORTS_DAC;
-          
+
             m_pManifest = pAssembly->GetManifestModule();
             m_i = (DWORD) -1;
         }
@@ -314,6 +304,16 @@ public:
         return m_pManifestFile->GetPersistentMDImport();
     }
 
+    HRESULT GetCustomAttribute(mdToken parentToken,
+                               WellKnownAttribute attribute,
+                               const void  **ppData,
+                               ULONG *pcbData)
+    {
+        WRAPPER_NO_CONTRACT;
+        SUPPORTS_DAC;
+        return GetManifestModule()->GetCustomAttribute(parentToken, attribute, ppData, pcbData);
+    }
+
 #ifndef DACCESS_COMPILE
     IMetaDataAssemblyImport* GetManifestAssemblyImporter()
     {
@@ -391,8 +391,8 @@ public:
                                      mdTypeDef mdNested,
                                      mdTypeDef *pCL);
 
-    static Module * FindModuleByTypeRef(Module *         pModule, 
-                                        mdTypeRef        typeRef, 
+    static Module * FindModuleByTypeRef(Module *         pModule,
+                                        mdTypeRef        typeRef,
                                         Loader::LoadFlag loadFlag,
                                         BOOL *           pfNoResolutionScope);
 
@@ -432,24 +432,14 @@ public:
 
     //****************************************************************************************
 
-    DomainAssembly *GetDomainAssembly(AppDomain *pDomain);
+    DomainAssembly *GetDomainAssembly();
     void SetDomainAssembly(DomainAssembly *pAssembly);
-
-    // Verison of GetDomainAssembly that uses the current AppDomain (N/A in DAC builds)
-#ifndef DACCESS_COMPILE
-    DomainAssembly *GetDomainAssembly()     { WRAPPER_NO_CONTRACT; return GetDomainAssembly(GetAppDomain()); }
-#endif
-
-    // FindDomainAssembly will return NULL if the assembly is not in the given domain
-    DomainAssembly *FindDomainAssembly(AppDomain *pDomain);
 
 #if defined(FEATURE_COLLECTIBLE_TYPES) && !defined(DACCESS_COMPILE)
     OBJECTHANDLE GetLoaderAllocatorObjectHandle() { WRAPPER_NO_CONTRACT; return GetLoaderAllocator()->GetLoaderAllocatorObjectHandle(); }
 #endif // FEATURE_COLLECTIBLE_TYPES
 
-    BOOL IsSIMDVectorAssembly() { LIMITED_METHOD_DAC_CONTRACT; return m_fIsSIMDVectorAssembly; }
-
-#ifdef FEATURE_PREJIT
+#if defined(FEATURE_PREJIT) || defined(FEATURE_READYTORUN)
     BOOL IsInstrumented();
     BOOL IsInstrumentedHelper();
 #endif // FEATURE_PREJIT
@@ -567,12 +557,12 @@ protected:
 
         if (!IsWinMD()) // ignore classic COM interop CAs in .winmd
         {
-            if (this->GetManifestImport()->GetCustomAttributeByName(TokenFromRid(1, mdtAssembly), INTEROP_IMPORTEDFROMTYPELIB_TYPE, 0, 0) == S_OK)
+            if (GetManifestModule()->GetCustomAttribute(TokenFromRid(1, mdtAssembly), WellKnownAttribute::ImportedFromTypeLib, NULL, 0) == S_OK)
                 mask |= INTEROP_ATTRIBUTE_IMPORTED_FROM_TYPELIB;
-            if (this->GetManifestImport()->GetCustomAttributeByName(TokenFromRid(1, mdtAssembly), INTEROP_PRIMARYINTEROPASSEMBLY_TYPE, 0, 0) == S_OK)
+            if (GetManifestModule()->GetCustomAttribute(TokenFromRid(1, mdtAssembly), WellKnownAttribute::PrimaryInteropAssembly, NULL, 0) == S_OK)
                 mask |= INTEROP_ATTRIBUTE_PRIMARY_INTEROP_ASSEMBLY;
         }
-        
+
         if (!IsDynamic())
         {
             mask |= INTEROP_ATTRIBUTE_CACHED;
@@ -591,7 +581,7 @@ private:
     void CacheManifestFiles();
 
     void CacheFriendAssemblyInfo();
-   
+
 
     PTR_BaseDomain        m_pDomain;        // Parent Domain
     PTR_ClassLoader       m_pClassLoader;   // Single Loader
@@ -625,9 +615,7 @@ private:
 
     BOOL                  m_fTerminated;
 
-    BOOL                  m_fIsSIMDVectorAssembly;
-
-#ifdef FEATURE_PREJIT
+#if defined(FEATURE_PREJIT) || defined(FEATURE_READYTORUN)
     enum IsInstrumentedStatus {
         IS_INSTRUMENTED_UNSET = 0,
         IS_INSTRUMENTED_FALSE = 1,
@@ -666,7 +654,7 @@ public:
     //
     // Return Value:
     //    true if friend access is allowed, false otherwise
-    //    
+    //
     // Notes:
     //    Template type T should be either FieldDesc, MethodDesc, or MethodTable.
     //

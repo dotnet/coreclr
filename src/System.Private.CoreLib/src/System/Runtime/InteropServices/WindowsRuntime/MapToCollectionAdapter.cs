@@ -2,15 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-
-using System;
-using System.Security;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Runtime.CompilerServices;
 using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
@@ -34,7 +27,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // int Count { get }
-        internal int Count<K, V>()
+        internal int Count<K, V>() where K : notnull
         {
             object _this = Unsafe.As<object>(this);
 
@@ -64,13 +57,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // bool IsReadOnly { get }
-        internal bool IsReadOnly<K, V>()
+        internal bool IsReadOnly<K, V>() where K : notnull
         {
             return false;
         }
 
         // void Add(T item)
-        internal void Add<K, V>(KeyValuePair<K, V> item)
+        internal void Add<K, V>(KeyValuePair<K, V> item) where K : notnull
         {
             object _this = Unsafe.As<object>(this);
 
@@ -86,7 +79,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void Clear()
-        internal void Clear<K, V>()
+        internal void Clear<K, V>() where K : notnull
         {
             object _this = Unsafe.As<object>(this);
 
@@ -102,7 +95,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // bool Contains(T item)
-        internal bool Contains<K, V>(KeyValuePair<K, V> item)
+        internal bool Contains<K, V>(KeyValuePair<K, V> item) where K : notnull
         {
             object _this = Unsafe.As<object>(this);
 
@@ -120,13 +113,12 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             {
                 IVector<KeyValuePair<K, V>> _this_vector = Unsafe.As<IVector<KeyValuePair<K, V>>>(this);
 
-                uint index;
-                return _this_vector.IndexOf(item, out index);
+                return _this_vector.IndexOf(item, out _);
             }
         }
 
         // void CopyTo(T[] array, int arrayIndex)
-        internal void CopyTo<K, V>(KeyValuePair<K, V>[] array, int arrayIndex)
+        internal void CopyTo<K, V>(KeyValuePair<K, V>[] array, int arrayIndex) where K : notnull
         {
             if (array == null)
                 throw new ArgumentNullException(nameof(array));
@@ -149,7 +141,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // bool Remove(T item)
-        internal bool Remove<K, V>(KeyValuePair<K, V> item)
+        internal bool Remove<K, V>(KeyValuePair<K, V> item) where K : notnull
         {
             object _this = Unsafe.As<object>(this);
 

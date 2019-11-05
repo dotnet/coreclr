@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 // ---------------------------------------------------------------------------
 // SString.h  (Safe String)
-// 
+//
 
 // ---------------------------------------------------------------------------
 
@@ -125,9 +125,6 @@ private:
     enum tagUTF8 { Utf8 };
     enum tagANSI { Ansi };
     enum tagASCII {Ascii };
-#ifdef SSTRING_CONSOLECODEPAGE
-    enum tagCONSOLE { Console };
-#endif
 
     static void Startup();
     static CHECK CheckStartup();
@@ -151,10 +148,6 @@ private:
     SString(enum tagUTF8 dummytag, const UTF8 *string, COUNT_T count);
     SString(enum tagANSI dummytag, const ANSI *string);
     SString(enum tagANSI dummytag, const ANSI *string, COUNT_T count);
-#ifdef SSTRING_CONSOLECODEPAGE
-    SString(enum tagCONSOLE dummytag, const CONSOLE *string);
-    SString(enum tagCONSOLE dummytag, const CONSOLE *string, COUNT_T count);
-#endif
     SString(WCHAR character);
 
     // NOTE: Literals MUST be read-only never-freed strings.
@@ -180,9 +173,6 @@ private:
     void SetASCII(const ASCII *string);
     void SetUTF8(const UTF8 *string);
     void SetANSI(const ANSI *string);
-#ifdef SSTRING_CONSOLECODEPAGE
-    void SetConsole(const CONSOLE *string);
-#endif
 
     // Set this string to a copy of the first count chars of the given string
     void Set(const WCHAR *string, COUNT_T count);
@@ -195,9 +185,6 @@ private:
 
     void SetUTF8(const UTF8 *string, COUNT_T count);
     void SetANSI(const ANSI *string, COUNT_T count);
-#ifdef SSTRING_CONSOLECODEPAGE
-    void SetConsole(const CONSOLE *string, COUNT_T count);
-#endif
 
     // Set this string to the unicode character
     void Set(WCHAR character);
@@ -221,51 +208,46 @@ private:
     COUNT_T GetCount() const;
     BOOL IsEmpty() const;
 
-    // Return whether a single byte string has all characters which fit in the ASCII set.  
-    // (Note that this will return FALSE if the string has been converted to unicode for any 
+    // Return whether a single byte string has all characters which fit in the ASCII set.
+    // (Note that this will return FALSE if the string has been converted to unicode for any
     // reason.)
     BOOL IsASCII() const;
 
-    // !!!!!!!!!!!!!! WARNING about case insensitive operations !!!!!!!!!!!!!!! 
+    // !!!!!!!!!!!!!! WARNING about case insensitive operations !!!!!!!!!!!!!!!
     //
-    //                 THIS IS NOT SUPPORTED FULLY ON WIN9x  
-    //      SString case-insensitive comparison is based off LCMapString, 
+    //                 THIS IS NOT SUPPORTED FULLY ON WIN9x
+    //      SString case-insensitive comparison is based off LCMapString,
     //      which does not work on characters outside the current OS code page.
     //
-    //      Case insensitive code in SString is primarily targeted at 
-    //      supporting path comparisons, which is supported correctly on 9x, 
+    //      Case insensitive code in SString is primarily targeted at
+    //      supporting path comparisons, which is supported correctly on 9x,
     //      since file system names are limited to the OS code page.
-    // 
-    // !!!!!!!!!!!!!! WARNING about case insensitive operations !!!!!!!!!!!!!!! 
+    //
+    // !!!!!!!!!!!!!! WARNING about case insensitive operations !!!!!!!!!!!!!!!
 
     // Compute a content-based hash value
     ULONG Hash() const;
     ULONG HashCaseInsensitive() const;
-    ULONG HashCaseInsensitive(LocaleID locale) const;
 
     // Do a string comparison. Return 0 if the strings
     // have the same value,  -1 if this is "less than" s, or 1 if
     // this is "greater than" s.
     int Compare(const SString &s) const;
     int CompareCaseInsensitive(const SString &s) const; // invariant locale
-    int CompareCaseInsensitive(const SString &s, LocaleID locale) const;
 
     // Do a case sensitive string comparison. Return TRUE if the strings
     // have the same value FALSE if not.
     BOOL Equals(const SString &s) const;
     BOOL EqualsCaseInsensitive(const SString &s) const; // invariant locale
-    BOOL EqualsCaseInsensitive(const SString &s, LocaleID locale) const;
 
     // Match s to a portion of the string starting at the position.
     // Return TRUE if the strings have the same value
     // (regardless of representation), FALSE if not.
     BOOL Match(const CIterator &i, const SString &s) const;
     BOOL MatchCaseInsensitive(const CIterator &i, const SString &s) const; // invariant locale
-    BOOL MatchCaseInsensitive(const CIterator &i, const SString &s, LocaleID locale) const;
 
     BOOL Match(const CIterator &i, WCHAR c) const;
     BOOL MatchCaseInsensitive(const CIterator &i, WCHAR c) const; // invariant locale
-    BOOL MatchCaseInsensitive(const CIterator &i, WCHAR c, LocaleID locale) const;
 
     // Like match, but advances the iterator past the match
     // if successful
@@ -292,12 +274,10 @@ private:
     // Returns TRUE if this string begins with the contents of s
     BOOL BeginsWith(const SString &s) const;
     BOOL BeginsWithCaseInsensitive(const SString &s) const; // invariant locale
-    BOOL BeginsWithCaseInsensitive(const SString &s, LocaleID locale) const;
 
     // Returns TRUE if this string ends with the contents of s
     BOOL EndsWith(const SString &s) const;
     BOOL EndsWithCaseInsensitive(const SString &s) const; // invariant locale
-    BOOL EndsWithCaseInsensitive(const SString &s, LocaleID locale) const;
 
     // Sets this string to an empty string "".
     void Clear();
@@ -340,13 +320,13 @@ private:
     // Iterators:
     // ------------------------------------------------------------------
 
-    // SString splits iterators into two categories.  
+    // SString splits iterators into two categories.
     //
     // CIterator and Iterator are cheap to create, but allow only read-only
-    // access to the string.  
+    // access to the string.
     //
     // UIterator forces a unicode conversion, but allows
-    // assignment to individual string characters.  They are also a bit more 
+    // assignment to individual string characters.  They are also a bit more
     // efficient once created.
 
     // ------------------------------------------------------------------
@@ -543,10 +523,10 @@ private:
 
     void LowerCase();
     void UpperCase();
-    
+
     // Helper function to convert string in-place to lower-case (no allocation overhead for SString instance)
     static void LowerCase(__inout_z LPWSTR wszString);
-    
+
     // These routines will use the given scratch string if necessary
     // to perform a conversion to the desired representation
 
@@ -572,9 +552,6 @@ private:
     const UTF8 *GetUTF8(AbstractScratchBuffer &scratch) const;
     const UTF8 *GetUTF8(AbstractScratchBuffer &scratch, COUNT_T *pcbUtf8) const;
     const ANSI *GetANSI(AbstractScratchBuffer &scratch) const;
-#ifdef SSTRING_CONSOLECODEPAGE
-    const CONSOLE *GetConsole(AbstractScratchBuffer &scratch) const;
-#endif
 
     // Used when the representation is known, throws if the representation doesn't match
     const UTF8 *GetUTF8NoConvert() const;
@@ -583,9 +560,6 @@ private:
     void ConvertToUnicode(SString &dest) const;
     void ConvertToANSI(SString &dest) const;
     COUNT_T ConvertToUTF8(SString &dest) const;
-#ifdef SSTRING_CONSOLECODEPAGE
-    void ConvertToConsole(SString &dest) const;
-#endif
 
     //-------------------------------------------------------------------
     // Accessing the string contents directly
@@ -652,7 +626,7 @@ private:
     // Instantiate a copy of the raw buffer in the host and return a pointer to it
     void * DacGetRawContent() const;
 
-    // Instantiate a copy of the raw buffer in the host.  Requires that the underlying 
+    // Instantiate a copy of the raw buffer in the host.  Requires that the underlying
     // representation is already unicode.
     const WCHAR * DacGetRawUnicode() const;
 
@@ -674,7 +648,7 @@ private:
 
     // WARNING: The MBCS version of printf function are factory for globalization
     // issues when used to format Unicode strings (%S). The Unicode versions are
-    // preffered in this case.
+    // preferred in this case.
     void Printf(const CHAR *format, ...);
     void VPrintf(const CHAR *format, va_list args);
 
@@ -761,22 +735,14 @@ private:
     SString(void *buffer, COUNT_T size);
 
  private:
-    static int CaseCompareHelperA(const CHAR *buffer1, const CHAR *buffer2, COUNT_T count, LocaleID lcid, BOOL stopOnNull, BOOL stopOnCount);
-    static int CaseCompareHelper(const WCHAR *buffer1, const WCHAR *buffer2, COUNT_T count, LocaleID lcid, BOOL stopOnNull, BOOL stopOnCount);
-    
+    static int CaseCompareHelperA(const CHAR *buffer1, const CHAR *buffer2, COUNT_T count, BOOL stopOnNull, BOOL stopOnCount);
+    static int CaseCompareHelper(const WCHAR *buffer1, const WCHAR *buffer2, COUNT_T count, BOOL stopOnNull, BOOL stopOnCount);
+
     // Internal helpers:
 
     static const BYTE s_EmptyBuffer[2];
 
     static UINT s_ACP;
-    SVAL_DECL(BOOL, s_IsANSIMultibyte);
-
-#ifdef SSTRING_CONSOLECODEPAGE
-    static UINT s_ConsoleCP;
-    static BOOL s_IsConsoleMultibyte;
-#endif
-
-    const static LocaleID s_defaultLCID;
 
     SPTR_DECL(SString,s_Empty);
 
@@ -787,9 +753,6 @@ private:
     UTF8 *GetRawUTF8() const;
     ANSI *GetRawANSI() const;
     WCHAR *GetRawUnicode() const;
-#ifdef SSTRING_CONSOLECODEPAGE
-    CONSOLE *GetRawConsole() const;
-#endif
 
     void InitEmpty();
 
@@ -823,13 +786,13 @@ private:
     void ConvertASCIIToUnicode(SString &dest) const;
     void ConvertToUnicode() const;
     void ConvertToUnicode(const CIterator &i) const;
-  
+
     const SString &GetCompatibleString(const SString &s, SString &scratch) const;
     const SString &GetCompatibleString(const SString &s, SString &scratch, const CIterator &i) const;
     BOOL ScanASCII() const;
     void NullTerminate();
 
-    void Resize(COUNT_T count, Representation representation, 
+    void Resize(COUNT_T count, Representation representation,
                 Preserve preserve = DONT_PRESERVE);
 
     void OpenBuffer(Representation representation, COUNT_T countChars);
@@ -951,22 +914,6 @@ public:
         WRAPPER_NO_CONTRACT;
         SetANSI(string, count);
     }
-
-#ifdef SSTRING_CONSOLECODEPAGE
-    FORCEINLINE InlineSString(enum tagCONSOLE dummytag, const CONSOLE *string)
-      : SString(m_inline, SBUFFER_PADDED_SIZE(MEMSIZE))
-    {
-        WRAPPER_NO_CONTRACT;
-        SetCONSOLE(string);
-    }
-
-    FORCEINLINE InlineSString(enum tagCONSOLE dummytag, const CONSOLE *string, COUNT_T count)
-      : SString(m_inline, SBUFFER_PADDED_SIZE(MEMSIZE))
-    {
-        WRAPPER_NO_CONTRACT;
-        SetCONSOLE(string, count);
-    }
-#endif
 
     FORCEINLINE InlineSString(WCHAR character)
       : SString(m_inline, SBUFFER_PADDED_SIZE(MEMSIZE))

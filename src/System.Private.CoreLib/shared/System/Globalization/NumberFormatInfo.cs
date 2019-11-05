@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 namespace System.Globalization
 {
     /// <remarks>
@@ -36,7 +35,7 @@ namespace System.Globalization
     /// </remarks>
     public sealed class NumberFormatInfo : IFormatProvider, ICloneable
     {
-        private static volatile NumberFormatInfo s_invariantInfo;
+        private static volatile NumberFormatInfo? s_invariantInfo;
 
         internal int[] _numberGroupSizes = new int[] { 3 };
         internal int[] _currencyGroupSizes = new int[] { 3 };
@@ -55,7 +54,6 @@ namespace System.Globalization
         internal string _percentGroupSeparator = ",";
         internal string _percentSymbol = "%";
         internal string _perMilleSymbol = "\u2030";
-
 
         internal string[] _nativeDigits = { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
 
@@ -189,22 +187,10 @@ namespace System.Globalization
         /// supported and constant irrespective of the current culture.
         /// Used by FromString methods.
         /// </summary>
-        public static NumberFormatInfo InvariantInfo
-        {
-            get
-            {
-                if (s_invariantInfo == null)
-                {
-                    // Lazy create the invariant info. This cannot be done in a .cctor because exceptions can
-                    // be thrown out of a .cctor stack that will need this.
-                    s_invariantInfo = new NumberFormatInfo
-                    {
-                        _isReadOnly = true
-                    };
-                }
-                return s_invariantInfo;
-            }
-        }
+        public static NumberFormatInfo InvariantInfo => s_invariantInfo ??=
+            // Lazy create the invariant info. This cannot be done in a .cctor because exceptions can
+            // be thrown out of a .cctor stack that will need this.
+            new NumberFormatInfo { _isReadOnly = true };
 
         public static NumberFormatInfo GetInstance(IFormatProvider? formatProvider)
         {
@@ -212,7 +198,7 @@ namespace System.Globalization
                 CurrentInfo : // Fast path for a null provider
                 GetProviderNonNull(formatProvider);
 
-            NumberFormatInfo GetProviderNonNull(IFormatProvider provider)
+            static NumberFormatInfo GetProviderNonNull(IFormatProvider provider)
             {
                 // Fast path for a regular CultureInfo
                 if (provider is CultureInfo cultureProvider && !cultureProvider._isInherited)
@@ -233,7 +219,6 @@ namespace System.Globalization
             n._isReadOnly = false;
             return n;
         }
-
 
         public int CurrencyDecimalDigits
         {
@@ -291,10 +276,9 @@ namespace System.Globalization
             }
         }
 
-
         public int[] CurrencyGroupSizes
         {
-            get => ((int[])_currencyGroupSizes.Clone());
+            get => (int[])_currencyGroupSizes.Clone();
             set
             {
                 if (value == null)
@@ -312,7 +296,7 @@ namespace System.Globalization
 
         public int[] NumberGroupSizes
         {
-            get => ((int[])_numberGroupSizes.Clone());
+            get => (int[])_numberGroupSizes.Clone();
             set
             {
                 if (value == null)
@@ -328,10 +312,9 @@ namespace System.Globalization
             }
         }
 
-
         public int[] PercentGroupSizes
         {
-            get => ((int[])_percentGroupSizes.Clone());
+            get => (int[])_percentGroupSizes.Clone();
             set
             {
                 if (value == null)
@@ -346,7 +329,6 @@ namespace System.Globalization
             }
         }
 
-
         public string CurrencyGroupSeparator
         {
             get => _currencyGroupSeparator;
@@ -357,7 +339,6 @@ namespace System.Globalization
                 _currencyGroupSeparator = value;
             }
         }
-
 
         public string CurrencySymbol
         {
@@ -624,7 +605,6 @@ namespace System.Globalization
             }
         }
 
-
         public string PercentDecimalSeparator
         {
             get => _percentDecimalSeparator;
@@ -636,7 +616,6 @@ namespace System.Globalization
             }
         }
 
-
         public string PercentGroupSeparator
         {
             get => _percentGroupSeparator;
@@ -647,7 +626,6 @@ namespace System.Globalization
                 _percentGroupSeparator = value;
             }
         }
-
 
         public string PercentSymbol
         {
@@ -663,7 +641,6 @@ namespace System.Globalization
                 _percentSymbol = value;
             }
         }
-
 
         public string PerMilleSymbol
         {

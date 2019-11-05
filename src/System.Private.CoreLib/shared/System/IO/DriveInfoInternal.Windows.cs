@@ -2,8 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System.Diagnostics;
-using System.Text;
 
 namespace System.IO
 {
@@ -18,7 +18,7 @@ namespace System.IO
                 throw Win32Marshal.GetExceptionForLastWin32Error();
             }
 
-            // GetLogicalDrives returns a bitmask starting from 
+            // GetLogicalDrives returns a bitmask starting from
             // position 0 "A" indicating whether a drive is present.
             // Loop over each bit, creating a string for each one
             // that is set.
@@ -51,7 +51,7 @@ namespace System.IO
         {
             Debug.Assert(driveName != null);
 
-            string name;
+            string? name;
 
             if (driveName.Length == 1)
             {
@@ -70,7 +70,7 @@ namespace System.IO
             // because some Win32 API don't work without it.
             if (name.Length == 2 && name[1] == ':')
             {
-                name = name + "\\";
+                name += "\\";
             }
 
             // Now verify that the drive letter could be a real drive name.

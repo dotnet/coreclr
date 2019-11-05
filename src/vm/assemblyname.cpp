@@ -26,7 +26,7 @@
 
 #ifndef URL_ESCAPE_AS_UTF8
 #define URL_ESCAPE_AS_UTF8              0x00040000  // Percent-encode all non-ASCII characters as their UTF-8 equivalents.
-#endif 
+#endif
 
 FCIMPL1(Object*, AssemblyNameNative::GetFileInformation, StringObject* filenameUNSAFE)
 {
@@ -71,7 +71,7 @@ FCIMPL1(Object*, AssemblyNameNative::GetFileInformation, StringObject* filenameU
     AssemblySpec spec;
     spec.InitializeSpec(TokenFromRid(mdtAssembly,1),pImage->GetMDImport(),NULL);
     spec.AssemblyNameInit(&gc.result, pImage);
-    
+
     HELPER_METHOD_FRAME_END();
     return OBJECTREFToObject(gc.result);
 }
@@ -88,12 +88,10 @@ FCIMPL1(Object*, AssemblyNameNative::ToString, Object* refThisUNSAFE)
     if (pThis == NULL)
         COMPlusThrow(kNullReferenceException, W("NullReference_This"));
 
-    Thread *pThread = GetThread();
-
-    CheckPointHolder cph(pThread->m_MarshalAlloc.GetCheckpoint()); //hold checkpoint for autorelease
+    ACQUIRE_STACKING_ALLOCATOR(pStackingAllocator);
 
     AssemblySpec spec;
-    spec.InitializeSpec(&(pThread->m_MarshalAlloc), (ASSEMBLYNAMEREF*) &pThis, FALSE); 
+    spec.InitializeSpec(pStackingAllocator, (ASSEMBLYNAMEREF*) &pThis, FALSE);
 
     StackSString name;
     spec.GetFileOrDisplayName(ASM_DISPLAYF_VERSION |
@@ -127,7 +125,7 @@ FCIMPL1(Object*, AssemblyNameNative::GetPublicKeyToken, Object* refThisUNSAFE)
         DWORD cb = orPublicKey->GetNumComponents();
         StrongNameBufferHolder<BYTE> pbToken;
 
-        if (cb) {    
+        if (cb) {
             CQuickBytes qb;
             BYTE *pbKey = (BYTE*) qb.AllocThrows(cb);
             memcpy(pbKey, orPublicKey->GetDataPtr(), cb);
@@ -149,49 +147,32 @@ FCIMPL1(Object*, AssemblyNameNative::GetPublicKeyToken, Object* refThisUNSAFE)
 FCIMPLEND
 
 
-FCIMPL3(void, AssemblyNameNative::Init, Object * refThisUNSAFE, OBJECTREF * pAssemblyRef, CLR_BOOL fRaiseResolveEvent)
+FCIMPL1(void, AssemblyNameNative::Init, Object * refThisUNSAFE)
 {
     FCALL_CONTRACT;
 
     ASSEMBLYNAMEREF pThis = (ASSEMBLYNAMEREF) (OBJECTREF) refThisUNSAFE;
     HRESULT hr = S_OK;
-    
+
     HELPER_METHOD_FRAME_BEGIN_1(pThis);
-    
-    *pAssemblyRef = NULL;
 
     if (pThis == NULL)
         COMPlusThrow(kNullReferenceException, W("NullReference_This"));
 
-    Thread * pThread = GetThread();
-
-    CheckPointHolder cph(pThread->m_MarshalAlloc.GetCheckpoint()); //hold checkpoint for autorelease
+    ACQUIRE_STACKING_ALLOCATOR(pStackingAllocator);
 
     AssemblySpec spec;
-    hr = spec.InitializeSpec(&(pThread->m_MarshalAlloc), (ASSEMBLYNAMEREF *) &pThis, TRUE); 
+    hr = spec.InitializeSpec(pStackingAllocator, (ASSEMBLYNAMEREF *) &pThis, TRUE);
 
     if (SUCCEEDED(hr))
     {
         spec.AssemblyNameInit(&pThis,NULL);
     }
-    else if ((hr == FUSION_E_INVALID_NAME) && fRaiseResolveEvent)
-    {
-        Assembly * pAssembly = GetAppDomain()->RaiseAssemblyResolveEvent(&spec);
-
-        if (pAssembly == NULL)
-        {
-            EEFileLoadException::Throw(&spec, hr);
-        }
-        else
-        {
-            *((OBJECTREF *) (&(*pAssemblyRef))) = pAssembly->GetExposedObject();
-        }
-    }
     else
     {
         ThrowHR(hr);
     }
-    
+
     HELPER_METHOD_FRAME_END();
 }
 FCIMPLEND

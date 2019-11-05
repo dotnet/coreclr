@@ -83,23 +83,6 @@ void Assembly::SetAssemblyName(AssemblyName *pAssemblyName,
     }
 }
 
-BOOL Assembly::GetInspectionOnly()
-{
-    return ((m_dwAssemblyFlags & FLAG_INSPECTION_ONLY) != 0);
-}
-
-void Assembly::SetInspectionOnly(BOOL fInspectionOnly)
-{
-    if (fInspectionOnly)
-    {
-        m_dwAssemblyFlags |= FLAG_INSPECTION_ONLY;
-    }
-    else
-    {
-        m_dwAssemblyFlags &= ~FLAG_INSPECTION_ONLY;
-    }
-}
-
 BOOL Assembly::GetIsInGAC()
 {
     return ((m_dwAssemblyFlags & FLAG_IS_IN_GAC) != 0);
@@ -114,57 +97,6 @@ void Assembly::SetIsInGAC(BOOL fIsInGAC)
     else
     {
         m_dwAssemblyFlags &= ~FLAG_IS_IN_GAC;
-    }
-}
-
-BOOL Assembly::GetIsDynamicBind()
-{
-    return ((m_dwAssemblyFlags & FLAG_IS_DYNAMIC_BIND) != 0);
-}
-
-void Assembly::SetIsDynamicBind(BOOL fIsDynamicBind)
-{
-    if (fIsDynamicBind)
-    {
-        m_dwAssemblyFlags |= FLAG_IS_DYNAMIC_BIND;
-    }
-    else
-    {
-        m_dwAssemblyFlags &= ~FLAG_IS_DYNAMIC_BIND;
-    }
-}
-
-BOOL Assembly::GetIsByteArray()
-{
-    return ((m_dwAssemblyFlags & FLAG_IS_BYTE_ARRAY) != 0);
-}
-
-void Assembly::SetIsByteArray(BOOL fIsByteArray)
-{
-    if (fIsByteArray)
-    {
-        m_dwAssemblyFlags |= FLAG_IS_BYTE_ARRAY;
-    }
-    else
-    {
-        m_dwAssemblyFlags &= ~FLAG_IS_BYTE_ARRAY;
-    }
-}
-
-BOOL Assembly::GetIsSharable()
-{
-    return ((m_dwAssemblyFlags & FLAG_IS_SHARABLE) != 0);
-}
-
-void Assembly::SetIsSharable(BOOL fIsSharable)
-{
-    if (fIsSharable)
-    {
-        m_dwAssemblyFlags |= FLAG_IS_SHARABLE;
-    }
-    else
-    {
-        m_dwAssemblyFlags &= ~FLAG_IS_SHARABLE;
     }
 }
 
@@ -184,21 +116,6 @@ void Assembly::SetMDImport(IMDInternalImport *pMDImport)
 
     m_pMDImport = pMDImport;
     m_pMDImport->AddRef();
-}
-
-mdAssembly *Assembly::GetAssemblyRefTokens()
-{
-    return m_pAssemblyRefTokens;
-}
-
-DWORD Assembly::GetNbAssemblyRefTokens()
-{
-    return m_dwCAssemblyRefTokens;
-}
-
-void Assembly::SetNbAsssemblyRefTokens(DWORD dwCAssemblyRefTokens)
-{
-    m_dwCAssemblyRefTokens = dwCAssemblyRefTokens;
 }
 
 BINDER_SPACE::Assembly* GetAssemblyFromPrivAssemblyFast(ICLRPrivAssembly *pPrivAssembly)

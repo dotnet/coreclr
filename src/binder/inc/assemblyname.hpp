@@ -28,7 +28,7 @@ namespace BINDER_SPACE
             INCLUDE_DEFAULT                     = 0x00,
             INCLUDE_VERSION                     = 0x01,
             INCLUDE_ARCHITECTURE                = 0x02,
-            INCLUDE_RETARGETABLE                = 0x04, 
+            INCLUDE_RETARGETABLE                = 0x04,
             INCLUDE_CONTENT_TYPE                = 0x08,
             INCLUDE_PUBLIC_KEY_TOKEN            = 0x10,
             EXCLUDE_CULTURE                     = 0x20
@@ -43,7 +43,6 @@ namespace BINDER_SPACE
                      /* in */ BOOL                     fIsDefinition = TRUE);
         HRESULT Init(/* in */ SString &assemblyDisplayName);
         HRESULT Init(/* in */ IAssemblyName *pIAssemblyName);
-        HRESULT CreateFusionName(/* out */ IAssemblyName **ppIAssemblyName);
 
         ULONG AddRef();
         ULONG Release();
@@ -67,31 +66,15 @@ namespace BINDER_SPACE
 
         inline void SetHave(DWORD dwIdentityFlags);
 
-        inline BOOL HaveAssemblyVersion();
-        inline BOOL HaveNeutralCulture();
-
-        SString &GetDeNormalizedCulture();
-        BOOL IsStronglyNamed();
-
         BOOL IsMscorlib();
-
-        // Translate textual identity into appropriate PEKIND
-        HRESULT SetArchitecture(SString &architecture);
 
         ULONG Hash(/* in */ DWORD dwIncludeFlags);
         BOOL Equals(/* in */ AssemblyName *pAssemblyName,
                     /* in */ DWORD         dwIncludeFlags);
 
-        // Compare assembly ref with assembly def ignoring assembly version
-        BOOL RefEqualsDef(/* in */ AssemblyName *pAssemblyNameDef,
-                          /* in */ BOOL          fInspectionOnly);
-
-        HRESULT Clone(/* out */ AssemblyName **ppAssemblyName);
-
         void GetDisplayName(/* out */ PathString &displayName,
                             /* in */  DWORD       dwIncludeFlags);
 
-        static SString &ArchitectureToString(PEKIND kArchitecture);        
     protected:
         enum
         {

@@ -2,10 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 namespace System.Globalization
 {
-    internal class InternalGlobalizationHelper
+    internal static class InternalGlobalizationHelper
     {
         // Copied from the TimeSpan to be used inside the globalization code and avoid internal dependency on TimeSpan class
         internal static long TimeToTicks(int hour, int minute, int second)

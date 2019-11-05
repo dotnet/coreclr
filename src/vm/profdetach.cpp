@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 //
 // ProfDetach.cpp
-// 
+//
 
 //
 // Implementation of helper classes and structures used for Profiling API Detaching
@@ -30,7 +30,7 @@ CLREvent           ProfilingAPIDetach::s_eventDetachWorkAvailable;
 // Description:
 //    Set every member variable to NULL or 0.  They'll get initialized to real values
 //    in ProfilingAPIDetach::RequestProfilerDetach.
-//    
+//
 
 ProfilerDetachInfo::ProfilerDetachInfo()
 {
@@ -49,7 +49,7 @@ void ProfilerDetachInfo::Init()
     // Executed during construction of a global object, therefore we cannot
     // use real contracts, as this requires that utilcode has been initialized.
     STATIC_CONTRACT_LEAF;
-    
+
     m_pEEToProf = NULL;
     m_ui64DetachStartTime = 0;
     m_dwExpectedCompletionMilliseconds = 0;
@@ -62,11 +62,11 @@ void ProfilerDetachInfo::Init()
 
 // ----------------------------------------------------------------------------
 // ProfilingAPIDetach::Initialize
-// 
+//
 // Description:
 //    Initialize static event
 
-// static 
+// static
 HRESULT ProfilingAPIDetach::Initialize()
 {
     CONTRACTL
@@ -109,18 +109,18 @@ HRESULT ProfilingAPIDetach::Initialize()
 
 // ----------------------------------------------------------------------------
 // ProfilingAPIDetach::RequestProfilerDetach
-// 
+//
 // Description:
 //    Initialize ProfilerDetachInfo structures with parameters passed from
 //    ICorProfilerInfo3::RequestProfilerDetach
-//    
+//
 // Arguments:
 //    * dwExpectedCompletionMilliseconds - A hint to the CLR as to how long it should
 //        wait before checking to see if execution has evacuated the profiler and all
 //        profiler-instrumented code. If this is 0, the CLR will select a default.
-//      
+//
 // Notes:
-// 
+//
 //    Invariants maintained by profiler:
 //    * Before calling RequestProfilerDetach, the profiler must turn off all hijacking.
 //    * If RequestProfilerDetach is called from a thread created by the CLR (i.e., from
@@ -143,7 +143,7 @@ HRESULT ProfilingAPIDetach::Initialize()
 //            profiler's creation, which promises not to make any more calls into the CLR
 //            afterward. In this case, the DetachThread will be blocked until
 //            RequestProfilerDetach signals s_eventDetachWorkAvailable at the end.
-//            
+//
 
 // static
 HRESULT ProfilingAPIDetach::RequestProfilerDetach(DWORD dwExpectedCompletionMilliseconds)
@@ -252,7 +252,7 @@ HRESULT ProfilingAPIDetach::RequestProfilerDetach(DWORD dwExpectedCompletionMill
         // profiler.
     }
     EX_END_CATCH(RethrowTerminalExceptions);
-    
+
     return S_OK;
 }
 
@@ -288,8 +288,8 @@ void ProfilingAPIDetach::ExecuteEvacuationLoop()
         {
             dwErr = GetLastError();
             LOG((
-                LF_CORPROF, 
-                LL_ERROR, 
+                LF_CORPROF,
+                LL_ERROR,
                 "**PROF: DetachThread wait for s_eventDetachWorkAvailable failed with GetLastError = %d.\n",
                 dwErr));
         }
@@ -297,8 +297,8 @@ void ProfilingAPIDetach::ExecuteEvacuationLoop()
         {
             dwErr = dwRet;      // No extra error info available beyond the return code
             LOG((
-                LF_CORPROF, 
-                LL_ERROR, 
+                LF_CORPROF,
+                LL_ERROR,
                 "**PROF: DetachThread wait for s_eventDetachWorkAvailable terminated with %d.\n",
                 dwErr));
         }
@@ -324,7 +324,7 @@ void ProfilingAPIDetach::ExecuteEvacuationLoop()
         // Give profiler a chance to return from its procs
         SleepWhileProfilerEvacuates();
     }
-    while (!IsProfilerEvacuated());
+    while (!ProfilingAPIUtility::IsProfilerEvacuated());
 
     UnloadProfiler();
 }
@@ -359,16 +359,16 @@ void ProfilingAPIDetach::SleepWhileProfilerEvacuates()
 
     // First time through, initialize the static min / max sleep times.  Normally, we'll
     // just use the constants above, but the user may customize these (within reason).
-    
+
     // They should either both be uninitialized or both initialized
     _ASSERTE(
         ((s_dwMinSleepMs == 0) && (s_dwMaxSleepMs == 0)) ||
         ((s_dwMinSleepMs != 0) && (s_dwMaxSleepMs != 0)));
-    
+
     if (s_dwMaxSleepMs == 0)
     {
         // No race here, since only the DetachThread runs this code
-        
+
         s_dwMinSleepMs = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_ProfAPI_DetachMinSleepMs);
         s_dwMaxSleepMs = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_ProfAPI_DetachMaxSleepMs);
 
@@ -433,7 +433,7 @@ void ProfilingAPIDetach::SleepWhileProfilerEvacuates()
 
     // ...but keep it in bounds!
     ui64SleepMilliseconds = min(
-        max(ui64SleepMilliseconds, s_dwMinSleepMs), 
+        max(ui64SleepMilliseconds, s_dwMinSleepMs),
         s_dwMaxSleepMs);
 
     // At this point it's safe to cast ui64SleepMilliseconds down to a DWORD since we
@@ -442,96 +442,7 @@ void ProfilingAPIDetach::SleepWhileProfilerEvacuates()
     ClrSleepEx((DWORD) ui64SleepMilliseconds, FALSE /* alertable */);
 }
 
-//---------------------------------------------------------------------------------------
-//
-// Performs the evacuation checks by grabbing the thread store lock, iterating through
-// all EE Threads, and querying each one's evacuation counter.  If they're all 0, the
-// profiler is ready to be unloaded.
-//
-// Return Value:
-//    Nonzero iff the profiler is fully evacuated and ready to be unloaded.
-//
 
-// static
-BOOL ProfilingAPIDetach::IsProfilerEvacuated()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-        CAN_TAKE_LOCK;
-    }
-    CONTRACTL_END;
-
-    _ASSERTE(g_profControlBlock.curProfStatus.Get() == kProfStatusDetaching);
-
-    // Check evacuation counters on all the threads (see
-    // code:ProfilingAPIUtility::InitializeProfiling#LoadUnloadCallbackSynchronization
-    // for details). Doing this under the thread store lock not only ensures we can
-    // iterate through the Thread objects safely, but also forces us to serialize with
-    // the GC. The latter is important, as server GC enters the profiler on non-EE
-    // Threads, and so no evacuation counters might be incremented during server GC even
-    // though control could be entering the profiler.
-    {
-        ThreadStoreLockHolder TSLockHolder;
-
-        Thread * pThread = ThreadStore::GetAllThreadList(
-            NULL,   // cursor thread; always NULL to begin with
-            0,      // mask to AND with Thread::m_State to filter returned threads 
-            0);     // bits to match the result of the above AND.  (m_State & 0 == 0,
-                    // so we won't filter out any threads)
-        
-        // Note that, by not filtering out any of the threads, we're intentionally including
-        // stuff like TS_Dead or TS_Unstarted.  But that keeps us on the safe
-        // side.  If an EE Thread object exists, we want to check its counters to be
-        // absolutely certain it isn't executing in a profiler.
-
-        while (pThread != NULL)
-        {
-            // Note that pThread is still in motion as we check its evacuation counter.
-            // This is ok, because we've already changed the profiler status to
-            // kProfStatusDetaching and flushed CPU buffers. So at this point the counter
-            // will typically only go down to 0 (and not increment anymore), with one
-            // small exception (below). So if we get a read of 0 below, the counter will
-            // typically stay there. Specifically:
-            //     * pThread is most likely not about to increment its evacuation counter
-            //         from 0 to 1 because pThread sees that the status is
-            //         kProfStatusDetaching.
-            //     * Note that there is a small race where pThread might actually
-            //         increment its evac counter from 0 to 1 (if it dirty-read the
-            //         profiler status a tad too early), but that implies that when
-            //         pThread rechecks the profiler status (clean read) then pThread
-            //         will immediately decrement the evac counter back to 0 and avoid
-            //         calling into the EEToProfInterfaceImpl pointer.
-            // 
-            // (see
-            // code:ProfilingAPIUtility::InitializeProfiling#LoadUnloadCallbackSynchronization
-            // for details)
-            DWORD dwEvacCounter = pThread->GetProfilerEvacuationCounter();
-            if (dwEvacCounter != 0)
-            {
-                LOG((
-                    LF_CORPROF, 
-                    LL_INFO100, 
-                    "**PROF: Profiler not yet evacuated because OS Thread ID 0x%x has evac counter of %d (decimal).\n",
-                    pThread->GetOSThreadId(),
-                    dwEvacCounter));
-                return FALSE;
-            }
-
-            pThread = ThreadStore::GetAllThreadList(pThread, 0, 0);
-        }
-    }
-
-    // FUTURE: When rejit feature crew complete, add code to verify all rejitted
-    // functions are fully reverted and off of all stacks.  If this is very easy to
-    // verify (e.g., checking a single value), consider putting it above the loop
-    // above so we can early-out quicker if rejitted code is still around.
-
-    // We got this far without returning, so the profiler is fully evacuated
-    return TRUE;
-}
 
 // ---------------------------------------------------------------------------------------
 // After we've verified a detaching profiler has fully evacuated, call this to unload the
@@ -573,7 +484,7 @@ void ProfilingAPIDetach::UnloadProfiler()
         // releases the profiler's callback interfaces, unloads the profiler DLL, sets
         // the status to kProfStatusNone, and resets g_profControlBlock for use next time
         // a profiler tries to attach.
-        // 
+        //
         // Note that s_profilerDetachInfo.Init() has already NULL'd out
         // s_profilerDetachInfo.m_pEEToProf, so we won't have a dangling pointer to the
         // EEToProfInterfaceImpl that's about to be destroyed.
@@ -616,8 +527,8 @@ DWORD WINAPI ProfilingAPIDetach::ProfilingAPIDetachThreadStart(LPVOID)
     ClrFlsSetThreadType(ThreadType_ProfAPI_Detach);
 
     LOG((
-        LF_CORPROF, 
-        LL_INFO10, 
+        LF_CORPROF,
+        LL_INFO10,
         "**PROF: DetachThread created and executing.\n"));
 
     // This try block is a last-ditch stop-gap to prevent an unhandled exception on the
@@ -638,8 +549,8 @@ DWORD WINAPI ProfilingAPIDetach::ProfilingAPIDetachThreadStart(LPVOID)
     EX_END_CATCH(RethrowTerminalExceptions);
 
     LOG((
-        LF_CORPROF, 
-        LL_INFO10, 
+        LF_CORPROF,
+        LL_INFO10,
         "**PROF: DetachThread exiting.\n"));
 
     return 0;
@@ -683,10 +594,10 @@ HRESULT ProfilingAPIDetach::CreateDetachThread()
     if (hDetachThread == NULL)
     {
         DWORD dwErr = GetLastError();
-        
+
         LOG((
-            LF_CORPROF, 
-            LL_ERROR, 
+            LF_CORPROF,
+            LL_ERROR,
             "**PROF: Failed to create DetachThread.  GetLastError=%d.\n",
             dwErr));
 

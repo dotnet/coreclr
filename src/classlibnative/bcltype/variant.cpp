@@ -35,77 +35,6 @@
 #define EnumU8          0x800000
 #define EnumMask        0xF00000
 
-//
-// Current Conversions
-// 
-
-FCIMPL1(float, COMVariant::GetR4FromVar, VariantData* var)
-{
-    CONTRACTL
-    {
-        FCALL_CHECK;
-        PRECONDITION(CheckPointer(var));
-    }
-    CONTRACTL_END;
-    
-    INT32 val = var->GetDataAsInt32();
-    return (float&)val;
-}
-FCIMPLEND
-    
-FCIMPL1(double, COMVariant::GetR8FromVar, VariantData* var)
-{
-    CONTRACTL
-    {
-        FCALL_CHECK;
-        PRECONDITION(CheckPointer(var));
-    }
-    CONTRACTL_END;
-    
-    INT64 val = var->GetDataAsInt64();
-    return (double&)val;
-}
-FCIMPLEND
-
-
-/*=================================SetFieldsR4==================================
-**
-==============================================================================*/
-FCIMPL2_IV(void, COMVariant::SetFieldsR4, VariantData* var, float val)
-{
-    CONTRACTL
-    {
-        FCALL_CHECK;
-        PRECONDITION(CheckPointer(var));
-    }
-    CONTRACTL_END;
-    
-    INT64 tempData;
-
-    tempData = *((INT32 *)(&val));
-    var->SetData(&tempData);
-    var->SetType(CV_R4);
-}
-FCIMPLEND
-
-
-/*=================================SetFieldsR8==================================
-**
-==============================================================================*/
-FCIMPL2_IV(void, COMVariant::SetFieldsR8, VariantData* var, double val)
-{
-    CONTRACTL
-    {
-        FCALL_CHECK;
-        PRECONDITION(CheckPointer(var));
-    }
-    CONTRACTL_END;
-    
-    var->SetData((void *)(&val));
-    var->SetType(CV_R8);
-}
-FCIMPLEND
-
 
 /*===============================SetFieldsObject================================
 **
@@ -136,7 +65,7 @@ FCIMPL2(void, COMVariant::SetFieldsObject, VariantData* var, Object* vVal)
     {
         var->SetObjRef(val);
         typeHandle = TypeHandle(valMT);
-        
+
         if (typeHandle==GetTypeHandleForCVType(CV_MISSING))
         {
             var->SetType(CV_MISSING);
@@ -170,7 +99,7 @@ FCIMPL2(void, COMVariant::SetFieldsObject, VariantData* var, Object* vVal)
         ClearObjectReference(var->GetObjRefPtr());
         typeHandle = TypeHandle(valMT);
         CorElementType cet = typeHandle.GetSignatureCorElementType();
-        
+
         if (cet>=ELEMENT_TYPE_BOOLEAN && cet<=ELEMENT_TYPE_STRING)
         {
             cvt = (CVTypes)cet;
@@ -186,7 +115,7 @@ FCIMPL2(void, COMVariant::SetFieldsObject, VariantData* var, Object* vVal)
         // Copies must be done based on the exact number of bytes to copy.
         // We don't want to read garbage from other blocks of memory.
         //CV_I8 --> CV_R8, CV_DATETIME, CV_TIMESPAN, & CV_CURRENCY are all of the 8 byte quantities
-        //If we don't find one of those ranges, we've found a value class 
+        //If we don't find one of those ranges, we've found a value class
         //of which we don't have inherent knowledge, so just slam that into an
         //ObjectRef.
         if (cvt>=CV_BOOLEAN && cvt<=CV_U1 && cvt != CV_CHAR)
@@ -239,7 +168,7 @@ FCIMPL1(Object*, COMVariant::BoxEnum, VariantData* var)
     CONTRACTL_END;
 
     OBJECTREF retO = NULL;
-    
+
     HELPER_METHOD_FRAME_BEGIN_RET_1(retO);
 
 #ifdef _DEBUG
@@ -262,7 +191,7 @@ FCIMPLEND
 /*===============================GetTypeFromClass===============================
 **Action: Takes an MethodTable * and returns the associated CVType.
 **Arguments: MethodTable * -- a pointer to the class for which we want the CVType.
-**Returns:  The CVType associated with the MethodTable or CV_OBJECT if this can't be 
+**Returns:  The CVType associated with the MethodTable or CV_OBJECT if this can't be
 **          determined.
 **Exceptions: None
 ==============================================================================*/
@@ -276,7 +205,7 @@ CVTypes COMVariant::GetCVTypeFromClass(TypeHandle th)
         MODE_ANY;
     }
     CONTRACTL_END;
-    
+
     if (th.IsNull())
         return CV_EMPTY;
 
@@ -290,7 +219,7 @@ CVTypes COMVariant::GetCVTypeFromClass(TypeHandle th)
     if (th.IsEnum())
         return CV_ENUM;
 
-    return CV_OBJECT;    
+    return CV_OBJECT;
 }
 
 
@@ -305,7 +234,7 @@ int COMVariant::GetEnumFlags(TypeHandle th)
         PRECONDITION(th.IsEnum());
     }
     CONTRACTL_END;
-    
+
     // <TODO> check this approximation - we may be losing exact type information </TODO>
     ApproxFieldDescIterator fdIterator(th.GetMethodTable(), ApproxFieldDescIterator::INSTANCE_FIELDS);
     FieldDesc* p = fdIterator.Next();
@@ -314,7 +243,7 @@ int COMVariant::GetEnumFlags(TypeHandle th)
         _ASSERTE(!"NULL FieldDesc returned");
         return 0;
     }
-    
+
 #ifdef _DEBUG
     WORD fldCnt = th.GetMethodTable()->GetNumInstanceFields();
 #endif
@@ -326,32 +255,32 @@ int COMVariant::GetEnumFlags(TypeHandle th)
     {
         case ELEMENT_TYPE_I1:
             return (CV_ENUM | EnumI1);
-            
+
         case ELEMENT_TYPE_U1:
             return (CV_ENUM | EnumU1);
-            
+
         case ELEMENT_TYPE_I2:
             return (CV_ENUM | EnumI2);
-            
+
         case ELEMENT_TYPE_U2:
             return (CV_ENUM | EnumU2);
-            
-        IN_WIN32(case ELEMENT_TYPE_I:)
+
+        IN_TARGET_32BIT(case ELEMENT_TYPE_I:)
         case ELEMENT_TYPE_I4:
             return (CV_ENUM | EnumI4);
-            
-        IN_WIN32(case ELEMENT_TYPE_U:)
+
+        IN_TARGET_32BIT(case ELEMENT_TYPE_U:)
         case ELEMENT_TYPE_U4:
             return (CV_ENUM | EnumU4);
-            
-        IN_WIN64(case ELEMENT_TYPE_I:)
+
+        IN_TARGET_64BIT(case ELEMENT_TYPE_I:)
         case ELEMENT_TYPE_I8:
             return (CV_ENUM | EnumI8);
-            
-        IN_WIN64(case ELEMENT_TYPE_U:)
+
+        IN_TARGET_64BIT(case ELEMENT_TYPE_U:)
         case ELEMENT_TYPE_U8:
             return (CV_ENUM | EnumU8);
-            
+
         default:
             _ASSERTE(!"UNknown Type");
             return 0;

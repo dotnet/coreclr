@@ -11,18 +11,6 @@ namespace Server.Contract
     using System.Runtime.InteropServices;
     using System.Text;
 
-    public struct SizeF
-    {
-        public float width;
-        public float height;
-    }
-
-    public struct Size
-    {
-        public byte width;
-        public byte height;
-    }
-
     [ComVisible(true)]
     [Guid("05655A94-A915-4926-815D-A9EA648BAAD9")]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
@@ -60,14 +48,6 @@ namespace Server.Contract
 
         int Add_ManyInts11(int i1, int i2, int i3, int i4, int i5, int i6, int i7, int i8, int i9, int i10, int i11);
         int Add_ManyInts12(int i1, int i2, int i3, int i4, int i5, int i6, int i7, int i8, int i9, int i10, int i11, int i12);
-
-        [PreserveSig]
-        SizeF MakeSize(float width, float height);
-        [PreserveSig]
-        Size MakeSizeSmall(byte width, byte height);
-
-        [PreserveSig]
-        HFA_4 MakeHFA(float x, float y, float z, float w);
     }
 
     [ComVisible(true)]
@@ -196,6 +176,18 @@ namespace Server.Contract
         void Reverse_BStr_Out([MarshalAs(UnmanagedType.BStr)] string a, [MarshalAs(UnmanagedType.BStr)] out string b);
 
         void Reverse_BStr_OutAttr([MarshalAs(UnmanagedType.BStr)] string a, [Out][MarshalAs(UnmanagedType.BStr)] string b);
+
+        [LCIDConversion(1)]
+        [return: MarshalAs(UnmanagedType.LPWStr)]
+        string Reverse_LPWStr_With_LCID([MarshalAs(UnmanagedType.LPWStr)] string a);
+
+        [LCIDConversion(0)]
+        void Pass_Through_LCID(out int lcid);
+    }
+
+    public struct HResult
+    {
+        public int hr;
     }
 
     [ComVisible(true)]
@@ -207,6 +199,9 @@ namespace Server.Contract
 
         [PreserveSig]
         int Return_As_HResult(int hresultToReturn);
+
+        [PreserveSig]
+        HResult Return_As_HResult_Struct(int hresultToReturn);
     }
 
     public enum IDispatchTesting_Exception
@@ -251,6 +246,9 @@ namespace Server.Contract
 
         // Special cases
         HFA_4 DoubleHVAValues(ref HFA_4 input);
+
+        [LCIDConversion(0)]
+        int PassThroughLCID();
     }
 
     [ComVisible(true)]

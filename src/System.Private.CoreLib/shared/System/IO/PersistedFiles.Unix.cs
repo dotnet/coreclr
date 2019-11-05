@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
@@ -9,7 +10,7 @@ namespace System.IO
 {
     internal static partial class PersistedFiles
     {
-        private static string s_userProductDirectory;
+        private static string? s_userProductDirectory;
 
         /// <summary>
         /// Get the location of where to persist information for a particular aspect of the framework,
@@ -24,7 +25,7 @@ namespace System.IO
                 EnsureUserDirectories();
             }
 
-            return Path.Combine(s_userProductDirectory, featureName);
+            return Path.Combine(s_userProductDirectory!, featureName);
         }
 
         /// <summary>
@@ -41,7 +42,7 @@ namespace System.IO
                 EnsureUserDirectories();
             }
 
-            return Path.Combine(s_userProductDirectory, featureName, subFeatureName);
+            return Path.Combine(s_userProductDirectory!, featureName, subFeatureName);
         }
 
         /// <summary>
@@ -60,12 +61,12 @@ namespace System.IO
                 EnsureUserDirectories();
             }
 
-            return Path.Combine(s_userProductDirectory, Path.Combine(featurePathParts));
+            return Path.Combine(s_userProductDirectory!, Path.Combine(featurePathParts));
         }
 
         private static void EnsureUserDirectories()
         {
-            string userHomeDirectory = GetHomeDirectory();
+            string? userHomeDirectory = GetHomeDirectory();
 
             if (string.IsNullOrEmpty(userHomeDirectory))
             {
@@ -80,20 +81,20 @@ namespace System.IO
 
         /// <summary>Gets the current user's home directory.</summary>
         /// <returns>The path to the home directory, or null if it could not be determined.</returns>
-        internal static string GetHomeDirectory()
+        internal static string? GetHomeDirectory()
         {
             // First try to get the user's home directory from the HOME environment variable.
             // This should work in most cases.
-            string userHomeDirectory = Environment.GetEnvironmentVariable("HOME");
+            string? userHomeDirectory = Environment.GetEnvironmentVariable("HOME");
             if (!string.IsNullOrEmpty(userHomeDirectory))
                 return userHomeDirectory;
 
-            // In initialization conditions, however, the "HOME" environment variable may 
+            // In initialization conditions, however, the "HOME" environment variable may
             // not yet be set. For such cases, consult with the password entry.
             unsafe
             {
                 // First try with a buffer that should suffice for 99% of cases.
-                // Note that, theoretically, userHomeDirectory may be null in the success case 
+                // Note that, theoretically, userHomeDirectory may be null in the success case
                 // if we simply couldn't find a home directory for the current user.
                 // In that case, we pass back the null value and let the caller decide
                 // what to do.
@@ -123,7 +124,7 @@ namespace System.IO
         /// <param name="bufLen">The length of <paramref name="buf"/>.</param>
         /// <param name="path">The resulting path; null if the user didn't have an entry.</param>
         /// <returns>true if the call was successful (path may still be null); false is a larger buffer is needed.</returns>
-        private static unsafe bool TryGetHomeDirectoryFromPasswd(byte* buf, int bufLen, out string path)
+        private static unsafe bool TryGetHomeDirectoryFromPasswd(byte* buf, int bufLen, out string? path)
         {
             // Call getpwuid_r to get the passwd struct
             Interop.Sys.Passwd passwd;
@@ -148,7 +149,7 @@ namespace System.IO
 
             var errorInfo = new Interop.ErrorInfo(error);
 
-            // If the call failed because the buffer was too small, return false to 
+            // If the call failed because the buffer was too small, return false to
             // indicate the caller should try again with a larger buffer.
             if (errorInfo.Error == Interop.Error.ERANGE)
             {

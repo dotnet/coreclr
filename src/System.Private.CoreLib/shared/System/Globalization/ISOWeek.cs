@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using static System.Globalization.GregorianCalendar;
 
 namespace System.Globalization
@@ -91,7 +90,7 @@ namespace System.Globalization
                 throw new ArgumentOutOfRangeException(nameof(year), SR.ArgumentOutOfRange_Year);
             }
 
-            int P(int y) => (y + (y / 4) - (y / 100) + (y / 400)) % 7;
+            static int P(int y) => (y + (y / 4) - (y / 100) + (y / 400)) % 7;
 
             if (P(year) == 4 || P(year - 1) == 3)
             {
@@ -157,7 +156,7 @@ namespace System.Globalization
         // This matches the underlying values of the DayOfWeek enum, except for Sunday, which needs to be converted.
         private static int GetWeekday(DayOfWeek dayOfWeek)
         {
-            return dayOfWeek == DayOfWeek.Sunday ? 7 : (int) dayOfWeek;
+            return dayOfWeek == DayOfWeek.Sunday ? 7 : (int)dayOfWeek;
         }
     }
 }

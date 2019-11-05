@@ -5,6 +5,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using Internal.Runtime.CompilerServices;
 
@@ -12,7 +13,7 @@ namespace System.Runtime.CompilerServices
 {
     public sealed class ConditionalWeakTable<TKey, TValue> : IEnumerable<KeyValuePair<TKey, TValue>>
         where TKey : class
-        where TValue : class
+        where TValue : class?
     {
         // Lifetimes of keys and values:
         // Inserting a key and value into the dictonary will not
@@ -51,7 +52,7 @@ namespace System.Runtime.CompilerServices
         /// The key may get garbaged collected during the TryGetValue operation. If so, TryGetValue
         /// may at its discretion, return "false" and set "value" to the default (as if the key was not present.)
         /// </remarks>
-        public bool TryGetValue(TKey key, out TValue value)
+        public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
         {
             if (key is null)
             {
@@ -195,7 +196,7 @@ namespace System.Runtime.CompilerServices
         private TValue GetValueLocked(TKey key, CreateValueCallback createValueCallback)
         {
             // If we got here, the key was not in the table. Invoke the callback (outside the lock)
-            // to generate the new value for the key. 
+            // to generate the new value for the key.
             TValue newValue = createValueCallback(key);
 
             lock (_lock)
@@ -264,10 +265,10 @@ namespace System.Runtime.CompilerServices
             // This, however, would cause the enumerator's understanding of indices to break.  So, as long as
             // there is any outstanding enumerator, no compaction is performed.
 
-            private ConditionalWeakTable<TKey, TValue> _table; // parent table, set to null when disposed
-            private readonly int _maxIndexInclusive;           // last index in the container that should be enumerated
-            private int _currentIndex = -1;                    // the current index into the container
-            private KeyValuePair<TKey, TValue> _current;       // the current entry set by MoveNext and returned from Current
+            private ConditionalWeakTable<TKey, TValue>? _table; // parent table, set to null when disposed
+            private readonly int _maxIndexInclusive;            // last index in the container that should be enumerated
+            private int _currentIndex;                          // the current index into the container
+            private KeyValuePair<TKey, TValue> _current;        // the current entry set by MoveNext and returned from Current
 
             public Enumerator(ConditionalWeakTable<TKey, TValue> table)
             {
@@ -295,7 +296,7 @@ namespace System.Runtime.CompilerServices
             {
                 // Use an interlocked operation to ensure that only one thread can get access to
                 // the _table for disposal and thus only decrement the ref count once.
-                ConditionalWeakTable<TKey, TValue> table = Interlocked.Exchange(ref _table, null);
+                ConditionalWeakTable<TKey, TValue>? table = Interlocked.Exchange(ref _table, null);
                 if (table != null)
                 {
                     // Ensure we don't keep the last current alive unnecessarily
@@ -316,7 +317,7 @@ namespace System.Runtime.CompilerServices
             public bool MoveNext()
             {
                 // Start by getting the current table.  If it's already been disposed, it will be null.
-                ConditionalWeakTable<TKey, TValue> table = _table;
+                ConditionalWeakTable<TKey, TValue>? table = _table;
                 if (table != null)
                 {
                     // Once have the table, we need to lock to synchronize with other operations on
@@ -336,7 +337,7 @@ namespace System.Runtime.CompilerServices
                             while (_currentIndex < _maxIndexInclusive)
                             {
                                 _currentIndex++;
-                                if (c.TryGetEntry(_currentIndex, out TKey key, out TValue value))
+                                if (c.TryGetEntry(_currentIndex, out TKey? key, out TValue value))
                                 {
                                     _current = new KeyValuePair<TKey, TValue>(key, value);
                                     return true;
@@ -362,7 +363,7 @@ namespace System.Runtime.CompilerServices
                 }
             }
 
-            object IEnumerator.Current => Current;
+            object? IEnumerator.Current => Current;
 
             public void Reset() { }
         }
@@ -396,17 +397,17 @@ namespace System.Runtime.CompilerServices
         //    - Used with live key (linked into a bucket list where _buckets[hashCode & (_buckets.Length - 1)] points to first entry)
         //         depHnd.IsAllocated == true, depHnd.GetPrimary() != null
         //         hashCode == RuntimeHelpers.GetHashCode(depHnd.GetPrimary()) & int.MaxValue
-        //         next links to next Entry in bucket. 
-        //                          
+        //         next links to next Entry in bucket.
+        //
         //    - Used with dead key (linked into a bucket list where _buckets[hashCode & (_buckets.Length - 1)] points to first entry)
         //         depHnd.IsAllocated == true, depHnd.GetPrimary() is null
-        //         hashCode == <notcare> 
-        //         next links to next Entry in bucket. 
+        //         hashCode == <notcare>
+        //         next links to next Entry in bucket.
         //
         //    - Has been removed from the table (by a call to Remove)
         //         depHnd.IsAllocated == true, depHnd.GetPrimary() == <notcare>
-        //         hashCode == -1 
-        //         next links to next Entry in bucket. 
+        //         hashCode == -1
+        //         next links to next Entry in bucket.
         //
         // The only difference between "used with live key" and "used with dead key" is that
         // depHnd.GetPrimary() returns null. The transition from "used with live key" to "used with dead key"
@@ -437,20 +438,20 @@ namespace System.Runtime.CompilerServices
             private int _firstFreeEntry;           // _firstFreeEntry < _entries.Length => table has capacity,  entries grow from the bottom of the table.
             private bool _invalid;                 // flag detects if OOM or other background exception threw us out of the lock.
             private bool _finalized;               // set to true when initially finalized
-            private volatile object _oldKeepAlive; // used to ensure the next allocated container isn't finalized until this one is GC'd
+            private volatile object? _oldKeepAlive; // used to ensure the next allocated container isn't finalized until this one is GC'd
 
             internal Container(ConditionalWeakTable<TKey, TValue> parent)
             {
                 Debug.Assert(parent != null);
                 Debug.Assert(IsPowerOfTwo(InitialCapacity));
 
-                int size = InitialCapacity;
-                _buckets = new int[size];
+                const int Size = InitialCapacity;
+                _buckets = new int[Size];
                 for (int i = 0; i < _buckets.Length; i++)
                 {
                     _buckets[i] = -1;
                 }
-                _entries = new Entry[size];
+                _entries = new Entry[Size];
 
                 // Only store the parent after all of the allocations have happened successfully.
                 // Otherwise, as part of growing or clearing the container, we could end up allocating
@@ -480,6 +481,7 @@ namespace System.Runtime.CompilerServices
             /// <summary>Worker for adding a new key/value pair. Container must NOT be full.</summary>
             internal void CreateEntryNoResize(TKey key, TValue value)
             {
+                Debug.Assert(key != null); // key already validated as non-null and not already in table.
                 Debug.Assert(HasCapacity);
 
                 VerifyIntegrity();
@@ -501,11 +503,11 @@ namespace System.Runtime.CompilerServices
             }
 
             /// <summary>Worker for finding a key/value pair. Must hold _lock.</summary>
-            internal bool TryGetValueWorker(TKey key, out TValue value)
+            internal bool TryGetValueWorker(TKey key, [MaybeNullWhen(false)] out TValue value)
             {
                 Debug.Assert(key != null); // Key already validated as non-null
 
-                int entryIndex = FindEntry(key, out object secondary);
+                int entryIndex = FindEntry(key, out object? secondary);
                 value = Unsafe.As<TValue>(secondary);
                 return entryIndex != -1;
             }
@@ -514,7 +516,7 @@ namespace System.Runtime.CompilerServices
             /// Returns -1 if not found (if key expires during FindEntry, this can be treated as "not found.").
             /// Must hold _lock, or be prepared to retry the search while holding _lock.
             /// </summary>
-            internal int FindEntry(TKey key, out object value)
+            internal int FindEntry(TKey key, out object? value)
             {
                 Debug.Assert(key != null); // Key already validated as non-null.
 
@@ -535,11 +537,11 @@ namespace System.Runtime.CompilerServices
             }
 
             /// <summary>Gets the entry at the specified entry index.</summary>
-            internal bool TryGetEntry(int index, out TKey key, out TValue value)
+            internal bool TryGetEntry(int index, [NotNullWhen(true)] out TKey? key, [MaybeNullWhen(false)] out TValue value)
             {
                 if (index < _entries.Length)
                 {
-                    object oKey = _entries[index].depHnd.GetPrimaryAndSecondary(out object oValue);
+                    object? oKey = _entries[index].depHnd.GetPrimaryAndSecondary(out object? oValue);
                     GC.KeepAlive(this); // ensure we don't get finalized while accessing DependentHandles.
 
                     if (oKey != null)
@@ -551,7 +553,7 @@ namespace System.Runtime.CompilerServices
                 }
 
                 key = default;
-                value = default;
+                value = default!;
                 return false;
             }
 
@@ -724,7 +726,7 @@ namespace System.Runtime.CompilerServices
                 // the old container to the new container, and also ensure that the new container isn't finalized
                 // while the old container may still be in use.  As such, we store a reference from the old container
                 // to the new one, which will keep the new container alive as long as the old one is.
-                var newContainer = new Container(_parent, newBuckets, newEntries, newEntriesIndex);
+                var newContainer = new Container(_parent!, newBuckets, newEntries, newEntriesIndex);
                 if (activeEnumerators)
                 {
                     // If there are active enumerators, both the old container and the new container may be storing
@@ -750,11 +752,9 @@ namespace System.Runtime.CompilerServices
 
             ~Container()
             {
-                // We're just freeing per-appdomain unmanaged handles here. If we're already shutting down the AD,
-                // don't bother. (Despite its name, Environment.HasShutdownStart also returns true if the current
-                // AD is finalizing.)  We also skip doing anything if the container is invalid, including if someone
+                // Skip doing anything if the container is invalid, including if somehow
                 // the container object was allocated but its associated table never set.
-                if (Environment.HasShutdownStarted || _invalid || _parent is null)
+                if (_invalid || _parent is null)
                 {
                     return;
                 }
@@ -773,7 +773,7 @@ namespace System.Runtime.CompilerServices
                     {
                         if (_parent._container == this)
                         {
-                            _parent._container = null;
+                            _parent._container = null!;
                         }
                     }
                     GC.ReRegisterForFinalize(this); // next time it's finalized, we'll be sure there are no remaining refs
@@ -782,8 +782,8 @@ namespace System.Runtime.CompilerServices
 
                 Entry[] entries = _entries;
                 _invalid = true;
-                _entries = null;
-                _buckets = null;
+                _entries = null!;
+                _buckets = null!;
 
                 if (entries != null)
                 {

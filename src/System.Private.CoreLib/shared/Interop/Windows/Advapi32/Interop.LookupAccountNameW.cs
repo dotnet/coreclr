@@ -4,13 +4,13 @@
 
 using System.Runtime.InteropServices;
 
-internal partial class Interop
+internal static partial class Interop
 {
-    internal partial class Advapi32
+    internal static partial class Advapi32
     {
         [DllImport(Libraries.Advapi32, CharSet = CharSet.Unicode, SetLastError = true, ExactSpelling = true)]
         internal static extern bool LookupAccountNameW(
-            string lpSystemName,
+            string? lpSystemName,
             ref char lpAccountName,
             ref byte Sid,
             ref uint cbSid,

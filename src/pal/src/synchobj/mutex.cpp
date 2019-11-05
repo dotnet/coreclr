@@ -12,7 +12,7 @@ Module Name:
 
 Abstract:
 
-    Implementation of mutex synchroniztion object as described in 
+    Implementation of mutex synchroniztion object as described in
     the WIN32 API
 
 Revision History:
@@ -116,13 +116,13 @@ CreateMutexA(
     HANDLE hMutex = NULL;
     CPalThread *pthr = NULL;
     PAL_ERROR palError;
-    
+
     PERF_ENTRY(CreateMutexA);
     ENTRY("CreateMutexA(lpMutexAttr=%p, bInitialOwner=%d, lpName=%p (%s)\n",
           lpMutexAttributes, bInitialOwner, lpName, lpName?lpName:"NULL");
 
     pthr = InternalGetCurrentThread();
-    
+
     palError = InternalCreateMutex(
         pthr,
         lpMutexAttributes,
@@ -139,7 +139,7 @@ CreateMutexA(
     //
 
     pthr->SetLastError(palError);
-    
+
     LOGEXIT("CreateMutexA returns HANDLE %p\n", hMutex);
     PERF_EXIT(CreateMutexA);
     return hMutex;
@@ -343,7 +343,6 @@ CorUnix::InternalCreateMutex(
         pthr,
         pobjMutex,
         aot,
-        0, // should be MUTEX_ALL_ACCESS -- currently ignored (no Win32 security)
         &hMutex,
         &pobjRegisteredMutex
         );
@@ -421,12 +420,12 @@ ReleaseMutex( IN HANDLE hMutex )
 {
     PAL_ERROR palError = NO_ERROR;
     CPalThread *pthr = NULL;
-    
+
     PERF_ENTRY(ReleaseMutex);
     ENTRY("ReleaseMutex(hMutex=%p)\n", hMutex);
 
     pthr = InternalGetCurrentThread();
-    
+
     palError = InternalReleaseMutex(pthr, hMutex);
 
     if (NO_ERROR != palError)
@@ -471,7 +470,6 @@ CorUnix::InternalReleaseMutex(
         pthr,
         hMutex,
         &aotAnyMutex,
-        0, // should be MUTEX_MODIFY_STATE -- current ignored (no Win32 security)
         &pobjMutex
         );
 
@@ -559,9 +557,9 @@ OpenMutexA (
     HANDLE hMutex = NULL;
     CPalThread *pthr = NULL;
     PAL_ERROR palError;
-    
+
     PERF_ENTRY(OpenMutexA);
-    ENTRY("OpenMutexA(dwDesiredAccess=%#x, bInheritHandle=%d, lpName=%p (%s))\n", 
+    ENTRY("OpenMutexA(dwDesiredAccess=%#x, bInheritHandle=%d, lpName=%p (%s))\n",
           dwDesiredAccess, bInheritHandle, lpName, lpName?lpName:"NULL");
 
     pthr = InternalGetCurrentThread();
@@ -574,14 +572,14 @@ OpenMutexA (
         goto OpenMutexAExit;
     }
 
-    palError = InternalOpenMutex(pthr, dwDesiredAccess, bInheritHandle, lpName, &hMutex);
+    palError = InternalOpenMutex(pthr, lpName, &hMutex);
 
 OpenMutexAExit:
     if (NO_ERROR != palError)
     {
         pthr->SetLastError(palError);
     }
-        
+
     LOGEXIT("OpenMutexA returns HANDLE %p\n", hMutex);
     PERF_EXIT(OpenMutexA);
     return hMutex;
@@ -611,7 +609,7 @@ OpenMutexW(
     char utf8Name[SHARED_MEMORY_MAX_NAME_CHAR_COUNT + 1];
 
     PERF_ENTRY(OpenMutexW);
-    ENTRY("OpenMutexW(dwDesiredAccess=%#x, bInheritHandle=%d, lpName=%p (%S))\n", 
+    ENTRY("OpenMutexW(dwDesiredAccess=%#x, bInheritHandle=%d, lpName=%p (%S))\n",
           dwDesiredAccess, bInheritHandle, lpName, lpName?lpName:W16_NULLSTRING);
 
     pthr = InternalGetCurrentThread();
@@ -642,7 +640,7 @@ OpenMutexW(
         }
     }
 
-    palError = InternalOpenMutex(pthr, dwDesiredAccess, bInheritHandle, lpName == nullptr ? nullptr : utf8Name, &hMutex);
+    palError = InternalOpenMutex(pthr, lpName == nullptr ? nullptr : utf8Name, &hMutex);
 
 OpenMutexWExit:
     if (NO_ERROR != palError)
@@ -660,22 +658,16 @@ OpenMutexWExit:
 Function:
   InternalOpenMutex
 
-Note:
-  dwDesiredAccess is currently ignored (no Win32 object security support)
-  bInheritHandle is currently ignored (handles to mutexes are not inheritable)
-
 Parameters:
   pthr -- thread data for calling thread
   phEvent -- on success, receives the allocated mutex handle
-  
+
   See MSDN docs on OpenMutex for all other parameters.
 --*/
 
 PAL_ERROR
 CorUnix::InternalOpenMutex(
     CPalThread *pthr,
-    DWORD dwDesiredAccess,
-    BOOL bInheritHandle,
     LPCSTR lpName,
     HANDLE *phMutex
     )
@@ -690,11 +682,9 @@ CorUnix::InternalOpenMutex(
     _ASSERTE(NULL != lpName);
     _ASSERTE(NULL != phMutex);
 
-    ENTRY("InternalOpenMutex(pthr=%p, dwDesiredAccess=%d, bInheritHandle=%d, "
+    ENTRY("InternalOpenMutex(pthr=%p, "
         "lpName=%p, phMutex=%p)\n",
         pthr,
-        dwDesiredAccess,
-        bInheritHandle,
         lpName,
         phMutex
         );
@@ -715,7 +705,6 @@ CorUnix::InternalOpenMutex(
         pthr,
         pobjMutex,
         &aotNamedMutex,
-        dwDesiredAccess,
         &hMutex,
         &pobjRegisteredMutex
         );
@@ -796,10 +785,10 @@ void SPINLOCKAcquire (LONG * lock, unsigned int flags)
             nanosleep(&tsSleepTime, NULL);
 #else
             sched_yield();
-#endif 
+#endif
         }
     }
-    
+
 }
 
 void SPINLOCKRelease (LONG * lock)
@@ -1303,14 +1292,15 @@ void NamedMutexProcessData::Close(bool isAbruptShutdown, bool releaseSharedData)
         {
             GetSharedData()->~NamedMutexSharedData();
         }
+
+#if !NAMED_MUTEX_USE_PTHREAD_MUTEX
+        CloseHandle(m_processLockHandle);
+        SharedMemoryHelpers::CloseFile(m_sharedLockFileDescriptor);
+#endif // !NAMED_MUTEX_USE_PTHREAD_MUTEX
+
     }
 
 #if !NAMED_MUTEX_USE_PTHREAD_MUTEX
-    if (!isAbruptShutdown)
-    {
-        CloseHandle(m_processLockHandle);
-        SharedMemoryHelpers::CloseFile(m_sharedLockFileDescriptor);
-    }
 
     if (!releaseSharedData)
     {

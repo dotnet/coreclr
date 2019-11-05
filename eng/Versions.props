@@ -1,23 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
   <PropertyGroup>
-    <!-- This repo version -->
-    <VersionPrefix>3.0.0</VersionPrefix>
-    <PreReleaseVersionLabel>preview5</PreReleaseVersionLabel>
-    <!-- Opt-out repo features -->
+    <!-- The .NET Core product branding version -->
+    <ProductVersion>5.0.0</ProductVersion>
+    <!-- File version numbers -->
+    <MajorVersion>5</MajorVersion>
+    <MinorVersion>0</MinorVersion>
+    <!-- Always use shipping version instead of dummy versions -->
+    <DotNetUseShippingVersions>true</DotNetUseShippingVersions>
+    <PreReleaseVersionLabel>alpha1</PreReleaseVersionLabel>
+    <!-- Opt-in/out repo features -->
+    <UsingToolIbcOptimization>true</UsingToolIbcOptimization>
+    <UsingToolMicrosoftNetCompilers>true</UsingToolMicrosoftNetCompilers>
     <UsingToolXliff>false</UsingToolXliff>
-    <UsingToolNetFrameworkReferenceAssemblies>true</UsingToolNetFrameworkReferenceAssemblies>
-    <MicrosoftDotNetXUnitConsoleRunnerVersion>2.5.1-beta.19179.4</MicrosoftDotNetXUnitConsoleRunnerVersion>
-    <MicrosoftNetFrameworkReferenceAssembliesVersion>1.0.0-alpha-004</MicrosoftNetFrameworkReferenceAssembliesVersion>
-    <MicrosoftPrivateCoreFxNETCoreAppVersion>4.6.0-preview5.19208.1</MicrosoftPrivateCoreFxNETCoreAppVersion>
-    <MicrosoftNETCorePlatformsVersion>3.0.0-preview5.19208.1</MicrosoftNETCorePlatformsVersion>
-    <MicrosoftNETCoreAppVersion>3.0.0-preview5-27609-17</MicrosoftNETCoreAppVersion>
-    <optimizationIBCCoreCLRVersion>99.99.99-master-20190313.3</optimizationIBCCoreCLRVersion>
-    <optimizationPGOCoreCLRVersion>99.99.99-master-20190313.3</optimizationPGOCoreCLRVersion>
+    <!-- Package versions -->
+    <!-- arcade -->
+    <MicrosoftDotNetBuildTasksFeedVersion>5.0.0-beta.19554.3</MicrosoftDotNetBuildTasksFeedVersion>
+    <MicrosoftDotNetBuildTasksPackagingVersion>5.0.0-beta.19554.3</MicrosoftDotNetBuildTasksPackagingVersion>
+    <MicrosoftDotNetXUnitConsoleRunnerVersion>2.5.1-beta.19278.1</MicrosoftDotNetXUnitConsoleRunnerVersion>
+    <MicrosoftDotNetVersionToolsTasksVersion>5.0.0-beta.19554.3</MicrosoftDotNetVersionToolsTasksVersion>
+    <MicrosoftDotNetHelixSdkVersion>5.0.0-beta.19554.3</MicrosoftDotNetHelixSdkVersion>
+    <!-- corefx -->
+    <MicrosoftPrivateCoreFxNETCoreAppVersion>5.0.0-alpha.1.19554.10</MicrosoftPrivateCoreFxNETCoreAppVersion>
+    <MicrosoftNETCorePlatformsVersion>5.0.0-alpha.1.19554.10</MicrosoftNETCorePlatformsVersion>
+    <!-- core-setup -->
+    <MicrosoftNETCoreAppVersion>5.0.0-alpha.1.19554.7</MicrosoftNETCoreAppVersion>
+    <!-- dotnet-optimization -->
+    <optimizationIBCCoreCLRVersion>99.99.99-master-20190716.1</optimizationIBCCoreCLRVersion>
+    <optimizationPGOCoreCLRVersion>99.99.99-master-20190716.1</optimizationPGOCoreCLRVersion>
+    <!-- ilasm -->
+    <MicrosoftNETCoreILAsmVersion>5.0.0-alpha1.19413.7</MicrosoftNETCoreILAsmVersion>
+    <MicrosoftNETCoreILAsmPackageVersion>$(MicrosoftNETCoreILAsmVersion)</MicrosoftNETCoreILAsmPackageVersion>
+    <!-- IL linker -->
+    <ILLinkTasksVersion>0.1.6-prerelease.19523.1</ILLinkTasksVersion>
   </PropertyGroup>
   <!--Package names-->
   <PropertyGroup>
-    <MicrosoftDotNetXUnitConsoleRunnerPackage>Microsoft.DotNet.XUnitConsoleRunner</MicrosoftDotNetXUnitConsoleRunnerPackage>
+    <MicrosoftDotNetXUnitConsoleRunnerPackage>microsoft.dotnet.xunitconsolerunner</MicrosoftDotNetXUnitConsoleRunnerPackage>
     <MicrosoftPrivateCoreFxNETCoreAppPackage>Microsoft.Private.CoreFx.NETCoreApp</MicrosoftPrivateCoreFxNETCoreAppPackage>
     <MicrosoftNETCorePlatformsPackage>Microsoft.NETCore.Platforms</MicrosoftNETCorePlatformsPackage>
     <MicrosoftNETCoreAppPackage>Microsoft.NETCore.App</MicrosoftNETCoreAppPackage>

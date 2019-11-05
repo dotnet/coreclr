@@ -52,8 +52,6 @@
 #define dwUniBuf 16384
 
 #ifdef FEATURE_PAL
-#include "coreclrloader.h"
-extern CoreCLRLoader *g_loader;
 extern char *g_pszExeFile;
 #endif
 typedef int(STDAPICALLTYPE *MetaDataGetDispenserFunc) (
@@ -116,13 +114,95 @@ struct CustomDescr
     mdToken tkOwner;
     mdToken tkInterfacePair; // Needed for InterfaceImpl CA's
     BinStr* pBlob;
-    CustomDescr(mdToken tko, mdToken tk, BinStr* pblob) { tkType = tk; pBlob = pblob; tkOwner = tko; tkInterfacePair = 0; };
-    CustomDescr(mdToken tk, BinStr* pblob) { tkType = tk; pBlob = pblob; tkOwner = 0; tkInterfacePair = 0;};
-    CustomDescr(CustomDescr* pOrig) { tkType = pOrig->tkType; pBlob = new BinStr(); pBlob->append(pOrig->pBlob); tkOwner = pOrig->tkOwner; tkInterfacePair = pOrig->tkInterfacePair; };
-    ~CustomDescr() { if(pBlob) delete pBlob; };
+
+    CustomDescr(mdToken tko, mdToken tk, BinStr* pblob)
+    {
+        tkType = tk;
+        pBlob = pblob;
+        tkOwner = tko;
+        tkInterfacePair = 0;
+    };
+    CustomDescr(mdToken tk, BinStr* pblob)
+    {
+        tkType = tk;
+        pBlob = pblob;
+        tkOwner = 0;
+        tkInterfacePair = 0;
+    };
+    CustomDescr(CustomDescr* pOrig)
+    {
+        tkType = pOrig->tkType;
+        pBlob = new BinStr();
+        pBlob->append(pOrig->pBlob);
+        tkOwner = pOrig->tkOwner;
+        tkInterfacePair = pOrig->tkInterfacePair;
+    };
+    ~CustomDescr()
+    {
+        if(pBlob)
+            delete pBlob;
+    };
 };
 typedef FIFO<CustomDescr> CustomDescrList;
 typedef LIFO<CustomDescrList> CustomDescrListStack;
+
+class GenericParamConstraintDescriptor
+{
+public:
+    GenericParamConstraintDescriptor()
+    {
+        m_tk = mdTokenNil;
+        m_tkOwner = mdTokenNil;
+        m_iGenericParamIndex = -1;
+        m_tkTypeConstraint = mdTokenNil;
+    };
+    ~GenericParamConstraintDescriptor()
+    {
+        m_lstCA.RESET(true);
+    };
+    void Init(int index, mdToken typeConstraint)
+    {
+        m_iGenericParamIndex = index;
+        m_tkTypeConstraint = typeConstraint;
+    };
+    void Token(mdToken tk)
+    {
+        m_tk = tk;
+    };
+    mdToken Token()
+    {
+        return m_tk;
+    };
+    void SetOwner(mdToken tk)
+    {
+        m_tkOwner = tk;
+    };
+    mdToken GetOwner()
+    {
+        return m_tkOwner;
+    };
+    int GetParamIndex()
+    {
+        return m_iGenericParamIndex;
+    };
+    mdToken GetTypeConstraint()
+    {
+        return m_tkTypeConstraint;
+    };
+    CustomDescrList* CAList()
+    {
+        return &m_lstCA;
+    };
+
+private:
+    mdGenericParamConstraint m_tk;
+    mdToken m_tkOwner;
+    int m_iGenericParamIndex;
+    mdToken m_tkTypeConstraint;
+
+    CustomDescrList m_lstCA;
+};
+typedef FIFO<GenericParamConstraintDescriptor> GenericParamConstraintList;
 /**************************************************************************/
 #include "typar.hpp"
 #include "method.hpp"
@@ -145,7 +225,7 @@ class GlobalLabel
 {
 public:
     LPCUTF8         m_szName;
-    DWORD           m_GlobalOffset; 
+    DWORD           m_GlobalOffset;
     HCEESECTION     m_Section;
     unsigned        m_Hash;
 
@@ -160,7 +240,7 @@ public:
     ~GlobalLabel(){ delete [] m_szName; }
 
     int ComparedTo(GlobalLabel* L)
-    { 
+    {
         return (m_Hash == L->m_Hash) ? strcmp(m_szName, L->m_szName)
                                      : ((m_Hash > L->m_Hash) ? 1 : -1);
     }
@@ -186,7 +266,7 @@ class ErrorReporter
 public:
     virtual void error(const char* fmt, ...) = 0;
     virtual void warn(const char* fmt, ...) = 0;
-    virtual void msg(const char* fmt, ...) = 0; 
+    virtual void msg(const char* fmt, ...) = 0;
 };
 
 /**************************************************************************/
@@ -195,7 +275,7 @@ public:
 struct Labels {
     Labels(__in __nullterminated char* aLabel, Labels* aNext, bool aIsLabel) : Label(aLabel), Next(aNext), isLabel(aIsLabel) {}
     ~Labels() { if(isLabel && Label) delete [] Label; delete Next; }
-        
+
     char*       Label;
     Labels*     Next;
     bool        isLabel;
@@ -238,7 +318,7 @@ struct FieldDescriptor
     DWORD           m_dwName;
     mdFieldDef      m_fdFieldTok;
     ULONG           m_ulOffset;
-    char*           m_rvaLabel;         // if field has RVA associated with it, label for it goes here. 
+    char*           m_rvaLabel;         // if field has RVA associated with it, label for it goes here.
     BinStr*         m_pbsSig;
     Class*			m_pClass;
     BinStr*			m_pbsValue;
@@ -351,7 +431,7 @@ public:
     {
         m_Action = action;
         m_TypeSpec = type;
-        
+
         m_pbsBlob = new BinStr();
         m_pbsBlob->appendInt16(VAL16(1));     // prolog 0x01 0x00
         m_pbsBlob->appendInt32((int)action);  // 4-byte action
@@ -555,8 +635,8 @@ typedef FIFO<DocWriter> DocWriterList;
 /**************************************************************************/
 /* The assembler object does all the code generation (dealing with meta-data)
    writing a PE file etc etc. But does NOT deal with syntax (that is what
-   AsmParse is for).  Thus the API below is how AsmParse 'controls' the 
-   Assember.  Note that the Assembler object does know about the 
+   AsmParse is for).  Thus the API below is how AsmParse 'controls' the
+   Assember.  Note that the Assembler object does know about the
    AsmParse object (that is Assember is more fundamental than AsmParse) */
 struct Instr
 {
@@ -652,7 +732,7 @@ struct Indx
         {
             unsigned char uch = (unsigned char) *psz;
             if(table[uch] != NULL)
-                return ((Indx*)(table[uch]))->FindString(psz+1); 
+                return ((Indx*)(table[uch]))->FindString(psz+1);
         }
         else if(*psz == 0) return table[0];
         return NULL;
@@ -663,7 +743,7 @@ class Assembler {
 public:
     Assembler();
     ~Assembler();
-    //--------------------------------------------------------  
+    //--------------------------------------------------------
 	GlobalLabelList m_lstGlobalLabel;
 	GlobalFixupList m_lstGlobalFixup;
 
@@ -724,9 +804,9 @@ public:
     mdToken   *m_crImplList;
     int     m_nImplList;
     int     m_nImplListSize;
-    
+
     TyParList       *m_TyParList;
-    
+
     Method *m_pCurMethod;
     Class   *m_pCurClass;
     ClassStack m_ClassStack; // for nested classes
@@ -749,7 +829,7 @@ public:
     BinStr* m_pbsMD;
 
     Instr   m_Instr[INSTR_POOL_SIZE]; // 16
-    inline  Instr* GetInstr() 
+    inline  Instr* GetInstr()
     {
         int i;
         for(i=0; (i<INSTR_POOL_SIZE)&&(m_Instr[i].opcode != -1); i++);
@@ -893,7 +973,7 @@ public:
     {
         ARG_NAME_LIST *pArgList=pFirst, *pArgListNext;
         for(; pArgList; pArgListNext=pArgList->pNext,
-                        delete pArgList, 
+                        delete pArgList,
                         pArgList=pArgListNext);
     };
 
@@ -1084,7 +1164,7 @@ public:
                         pCD->tkOwner = GetInterfaceImpl(pCD->tkOwner, pCD->tkInterfacePair);
                     }
                     m_pEmitter->DefineCustomAttribute(pCD->tkOwner,pCD->tkType,pBlobBody,cTemp,&cv);
-				
+
                     delete pCD;
                     return;
                 }
@@ -1102,7 +1182,6 @@ public:
             DefineCV(pCD);
         }
     };
-
     void EmitUnresolvedCustomAttributes(); // implementation: writer.cpp
     // VTable blob (if any)
 public:
@@ -1120,7 +1199,7 @@ public:
 private:
     MethodImplDList m_MethodImplDList;
 public:
-    void AddMethodImpl(mdToken tkImplementedTypeSpec, __in __nullterminated char* szImplementedName, BinStr* pImplementedSig, 
+    void AddMethodImpl(mdToken tkImplementedTypeSpec, __in __nullterminated char* szImplementedName, BinStr* pImplementedSig,
                     mdToken tkImplementingTypeSpec, __in_opt __nullterminated char* szImplementingName, BinStr* pImplementingSig);
     BOOL EmitMethodImpls();
     // lexical scope handling paraphernalia:
@@ -1187,6 +1266,16 @@ public:
     unsigned NumTypeDefs() {return m_TypeDefDList.COUNT();};
 private:
     HRESULT GetCAName(mdToken tkCA, __out LPWSTR *ppszName);
+
+public:
+    void RecordTypeConstraints(GenericParamConstraintList* pGPCList, int numTyPars, TyParDescr* tyPars);
+
+    void AddGenericParamConstraint(int index, char * pStrGenericParam, mdToken tkTypeConstraint);
+
+    bool CheckAddGenericParamConstraint(GenericParamConstraintList* pGPCList, int index, mdToken tkTypeConstraint);
+
+    void EmitGenericParamConstraints(int numTyPars, TyParDescr* pTyPars, mdToken tkOwner, GenericParamConstraintList* pGPCL);
+
 };
 
 #endif  // Assember_h

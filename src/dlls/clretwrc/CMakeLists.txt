@@ -9,7 +9,7 @@ if(WIN32)
 
     # remove /guard:cf from resource-only libraries
     string(REPLACE "/guard:cf" "" CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS})
-    
+
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /NOENTRY")
 endif(WIN32)
 
@@ -21,3 +21,5 @@ add_library_clr(clretwrc SHARED
 
 # add the install targets
 install_clr(clretwrc)
+
+add_dependencies(clretwrc eventing_headers)

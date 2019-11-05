@@ -33,10 +33,10 @@
         ;; of slots we must pad with another. This simplifies to "if the low bit of numStackSlots is set,
         ;; extend the stack another eight bytes".
         ldr     x0, [x19,#CallDescrData__pSrc]
-        add     x0, x0, x1 lsl #3               ; pSrcEnd=pSrc+8*numStackSlots 
+        add     x0, x0, x1 lsl #3               ; pSrcEnd=pSrc+8*numStackSlots
         ands    x2, x1, #1
         beq     Lstackloop
-    
+
         ;; This loop copies numStackSlots words
         ;; from [pSrcEnd-8,pSrcEnd-16,...] to [sp-8,sp-16,...]
 
@@ -44,7 +44,7 @@
         ldr     x4, [x0,#-8]!
         str     x4, [sp,#-16]!
         subs    x1, x1, #1
-        beq     Ldonestack   
+        beq     Ldonestack
 Lstackloop
         ldp     x2, x4, [x0,#-16]!
         stp     x2, x4, [sp,#-16]!
@@ -53,7 +53,7 @@ Lstackloop
 Ldonestack
 
         ;; If FP arguments are supplied in registers (x9 != NULL) then initialize all of them from the pointer
-        ;; given in x9. 
+        ;; given in x9.
         ldr     x9, [x19,#CallDescrData__pFloatArgumentRegisters]
         cbz     x9, LNoFloatingPoint
         ldp     q0, q1, [x9]
@@ -93,7 +93,7 @@ LNoFloatingPoint
         bne     LNoDoubleReturn
 
 LFloatReturn
-        str     d0, [x19, #(CallDescrData__returnValue + 0)]
+        str     q0, [x19, #(CallDescrData__returnValue + 0)]
         b       LReturnDone
 
 LNoDoubleReturn
@@ -117,6 +117,16 @@ LNoFloatHFAReturn
 
 LNoDoubleHFAReturn
 
+        ;;VectorHFAReturn  return case
+        cmp     w3, #64
+        bne     LNoVectorHFAReturn
+
+        stp     q0, q1, [x19, #(CallDescrData__returnValue + 0)]
+        stp     q2, q3, [x19, #(CallDescrData__returnValue + 0x20)]
+        b       LReturnDone
+
+LNoVectorHFAReturn
+
         EMIT_BREAKPOINT ; Unreachable
 
 LIntReturn
@@ -126,7 +136,7 @@ LIntReturn
 LReturnDone
 
 #ifdef _DEBUG
-        ;; trash the floating point registers to ensure that the HFA return values 
+        ;; trash the floating point registers to ensure that the HFA return values
         ;; won't survive by accident
         ldp     d0, d1, [sp]
         ldp     d2, d3, [sp, #16]

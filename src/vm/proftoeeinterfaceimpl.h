@@ -10,7 +10,7 @@
 // outside of the EE.
 //
 
-// 
+//
 
 // ======================================================================================
 
@@ -29,6 +29,7 @@
 
 
 #include "profilinghelper.h"
+#include "profilinghelper.inl"
 
 
 class ProfilerFunctionEnum;
@@ -56,13 +57,16 @@ class ProfileArgIterator
 private:
     void        *m_handle;
     ArgIterator  m_argIterator;
+#ifdef UNIX_AMD64_ABI
+    UINT64       m_bufferPos;
+#endif // UNIX_AMD64_ABI
 
 public:
     ProfileArgIterator(MetaSig * pMetaSig, void* platformSpecificHandle);
 
     ~ProfileArgIterator();
 
-    // 
+    //
     // Returns number of arguments returned by GetNextArgAddr
     //
     UINT GetNumArgs()
@@ -71,15 +75,19 @@ public:
         return m_argIterator.NumFixedArgs();
     }
 
+#ifdef UNIX_AMD64_ABI
+    LPVOID CopyStructFromRegisters();
+#endif // UNIX_AMD64_ABI
+
     //
     // After initialization, this method is called repeatedly until it
     // returns NULL to get the address of each arg.
-    // 
+    //
     // Note: this address could be anywhere on the stack.
     //
     LPVOID GetNextArgAddr();
 
-    // 
+    //
     // Returns argument size
     //
     UINT GetArgSize()
@@ -133,7 +141,7 @@ typedef struct _PROFILER_STACK_WALK_DATA PROFILER_STACK_WALK_DATA;
 // from the profiler implementation.  The profiler will call back on the v-table
 // to get at EE internals as required.
 
-class ProfToEEInterfaceImpl : public ICorProfilerInfo9
+class ProfToEEInterfaceImpl : public ICorProfilerInfo11
 {
 public:
 
@@ -175,8 +183,8 @@ public:
     COM_METHOD GetFunctionFromIP(LPCBYTE ip, FunctionID * pFunctionId);
 
     COM_METHOD GetTokenAndMetaDataFromFunction(
-        FunctionID functionId, 
-        REFIID riid, 
+        FunctionID functionId,
+        REFIID riid,
         IUnknown ** ppOut,
         mdToken * pToken);
 
@@ -360,7 +368,7 @@ public:
     COM_METHOD GetStaticFieldInfo(ClassID classId,
                                   mdFieldDef fieldToken,
                                   COR_PRF_STATIC_TYPE * pFieldInfo);
-    
+
     COM_METHOD GetClassFromTokenAndTypeArgs(ModuleID moduleID,
                                             mdTypeDef typeDef,
                                             ULONG32 cTypeArgs,
@@ -382,7 +390,7 @@ public:
     COM_METHOD GetGenerationBounds(ULONG cObjectRanges,
                                    ULONG * pcObjectRanges,
                                    COR_PRF_GC_GENERATION_RANGE ranges[]);
- 
+
     COM_METHOD GetObjectGeneration(ObjectID objectId,
                                    COR_PRF_GC_GENERATION_RANGE *range);
 
@@ -407,7 +415,7 @@ public:
         void * clientData);                                  // in
 
     COM_METHOD SetEnterLeaveFunctionHooks3(
-        FunctionEnter3 * pFuncEnter3,                               // in 
+        FunctionEnter3 * pFuncEnter3,                               // in
         FunctionLeave3 * pFuncLeave3,                               // in
         FunctionTailcall3 * pFuncTailcall3);                        // in
 
@@ -416,20 +424,20 @@ public:
         FunctionLeave3WithInfo * pFuncLeave3WithInfo,               // in
         FunctionTailcall3WithInfo * pFuncTailcall3WithInfo);        // in
 
-    COM_METHOD GetFunctionEnter3Info( 
+    COM_METHOD GetFunctionEnter3Info(
                 FunctionID functionId,                              // in
                 COR_PRF_ELT_INFO eltInfo,                           // in
                 COR_PRF_FRAME_INFO * pFrameInfo,                    // out
                 ULONG * pcbArgumentInfo,                            // in, out
                 COR_PRF_FUNCTION_ARGUMENT_INFO * pArgumentInfo);    // out
-                
-    COM_METHOD GetFunctionLeave3Info( 
+
+    COM_METHOD GetFunctionLeave3Info(
                 FunctionID functionId,                              // in
                 COR_PRF_ELT_INFO eltInfo,                           // in
                 COR_PRF_FRAME_INFO * pFrameInfo,                    // out
                 COR_PRF_FUNCTION_ARGUMENT_RANGE * pRetvalRange);    // out
-               
-    COM_METHOD GetFunctionTailcall3Info( 
+
+    COM_METHOD GetFunctionTailcall3Info(
                 FunctionID functionId,                              // in
                 COR_PRF_ELT_INFO pFrameInfo,                        // in
                 COR_PRF_FRAME_INFO * pFunc);                        // out
@@ -476,7 +484,7 @@ public:
         /* out */ ICorProfilerThreadEnum ** ppEnum);
 
     COM_METHOD InitializeCurrentThread();
-    
+
     // end ICorProfilerInfo4
 
     COM_METHOD RequestReJIT(ULONG       cFunctions,   // in
@@ -511,7 +519,7 @@ public:
                    COR_DEBUG_IL_TO_NATIVE_MAP  map[]);      // out
 
     COM_METHOD EnumJITedFunctions2(ICorProfilerFunctionEnum** ppEnum);
-    
+
 	// end ICorProfilerInfo4
 
 
@@ -547,10 +555,10 @@ public:
         DWORD* pCountSymbolBytes);
 
     COM_METHOD ReadInMemorySymbols(
-        ModuleID moduleId, 
-        DWORD symbolsReadOffset, 
-        BYTE* pSymbolBytes, 
-        DWORD countSymbolBytes, 
+        ModuleID moduleId,
+        DWORD symbolsReadOffset,
+        BYTE* pSymbolBytes,
+        DWORD countSymbolBytes,
         DWORD* pCountSymbolBytesRead);
 
     // end ICorProfilerInfo7
@@ -577,28 +585,62 @@ public:
 
     // end ICorProfilerInfo8
 
-    // beging ICorProfilerInfo9
+    // begin ICorProfilerInfo9
 
     COM_METHOD GetNativeCodeStartAddresses(
-        FunctionID functionID, 
-        ReJITID reJitId, 
-        ULONG32 cCodeStartAddresses, 
-        ULONG32 *pcCodeStartAddresses, 
+        FunctionID functionID,
+        ReJITID reJitId,
+        ULONG32 cCodeStartAddresses,
+        ULONG32 *pcCodeStartAddresses,
         UINT_PTR codeStartAddresses[]);
 
     COM_METHOD GetILToNativeMapping3(
-        UINT_PTR pNativeCodeStartAddress, 
-        ULONG32 cMap, 
-        ULONG32 *pcMap, 
+        UINT_PTR pNativeCodeStartAddress,
+        ULONG32 cMap,
+        ULONG32 *pcMap,
         COR_DEBUG_IL_TO_NATIVE_MAP map[]);
 
     COM_METHOD GetCodeInfo4(
-        UINT_PTR pNativeCodeStartAddress, 
-        ULONG32 cCodeInfos, 
-        ULONG32* pcCodeInfos, 
+        UINT_PTR pNativeCodeStartAddress,
+        ULONG32 cCodeInfos,
+        ULONG32* pcCodeInfos,
         COR_PRF_CODE_INFO codeInfos[]);
 
     // end ICorProfilerInfo9
+
+    // beging ICorProfilerInfo10
+
+    COM_METHOD EnumerateObjectReferences(ObjectID objectId, ObjectReferenceCallback callback, void* clientData);
+
+    COM_METHOD IsFrozenObject(ObjectID objectId, BOOL *pbFrozen);
+
+    COM_METHOD GetLOHObjectSizeThreshold(DWORD *pThreshold);
+
+    COM_METHOD RequestReJITWithInliners(
+        DWORD       dwRejitFlags,
+        ULONG       cFunctions,
+        ModuleID    moduleIds[],
+        mdMethodDef methodIds[]);
+
+    COM_METHOD SuspendRuntime();
+
+    COM_METHOD ResumeRuntime();
+
+    // end ICorProfilerInfo10
+
+    // begin ICorProfilerInfo11
+
+    COM_METHOD GetEnvironmentVariable(
+        const WCHAR *szName,
+        ULONG       cchValue,
+        ULONG       *pcchValue,
+        __out_ecount_part_opt(cchValue, *pcchValue) WCHAR szValue[]);
+
+    COM_METHOD SetEnvironmentVariable(
+        const WCHAR *szName,
+        const WCHAR *szValue);
+
+    // end ICorProfilerInfo11
 
 protected:
 
@@ -630,6 +672,8 @@ protected:
     HRESULT ProfilerStackWalkFramesWrapper(Thread * pThreadToSnapshot, PROFILER_STACK_WALK_DATA * pData, unsigned flags);
 
     HRESULT EnumJITedFunctionsHelper(ProfilerFunctionEnum ** ppEnum, IJitManager ** ppJitMgr);
+
+    HRESULT SetupThreadForReJIT();
 
 #ifdef _TARGET_X86_
     HRESULT ProfilerEbpWalker(Thread * pThreadToSnapshot, LPCONTEXT pctxSeed, StackSnapshotCallback * callback, void * clientData);

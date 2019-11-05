@@ -12,10 +12,10 @@
 #include "errorhandling.h"
 #include "spmiutil.h"
 
-JitInstance* JitInstance::InitJit(char*          nameOfJit,
-                                  bool           breakOnAssert,
-                                  SimpleTimer*   st1,
-                                  MethodContext* firstContext,
+JitInstance* JitInstance::InitJit(char*                         nameOfJit,
+                                  bool                          breakOnAssert,
+                                  SimpleTimer*                  st1,
+                                  MethodContext*                firstContext,
                                   LightWeightMap<DWORD, DWORD>* forceOptions,
                                   LightWeightMap<DWORD, DWORD>* options)
 {
@@ -174,16 +174,14 @@ HRESULT JitInstance::StartUp(char* PathToJit, bool copyJit, bool breakOnDebugBre
         return -1;
     }
     pnsxsJitStartup = (PsxsJitStartup)::GetProcAddress(hLib, "sxsJitStartup");
-    if (pnsxsJitStartup == 0)
-    {
-        LogError("GetProcAddress 'sxsJitStartup' failed (0x%08x)", ::GetLastError());
-        return -1;
-    }
-    pnjitStartup = (PjitStartup)::GetProcAddress(hLib, "jitStartup");
+    pnjitStartup    = (PjitStartup)::GetProcAddress(hLib, "jitStartup");
 
-    // Setup CoreClrCallbacks and call sxsJitStartup
-    CoreClrCallbacks* cccallbacks = InitCoreClrCallbacks();
-    pnsxsJitStartup(*cccallbacks);
+    if (pnsxsJitStartup != nullptr)
+    {
+        // Setup CoreClrCallbacks and call sxsJitStartup
+        CoreClrCallbacks* cccallbacks = InitCoreClrCallbacks();
+        pnsxsJitStartup(*cccallbacks);
+    }
 
     // Setup ICorJitHost and call jitStartup if necessary
     if (pnjitStartup != nullptr)
@@ -244,16 +242,14 @@ bool JitInstance::reLoad(MethodContext* firstContext)
         return false;
     }
     pnsxsJitStartup = (PsxsJitStartup)::GetProcAddress(hLib, "sxsJitStartup");
-    if (pnsxsJitStartup == 0)
-    {
-        LogError("GetProcAddress 'sxsJitStartup' failed (0x%08x)", ::GetLastError());
-        return false;
-    }
-    pnjitStartup = (PjitStartup)::GetProcAddress(hLib, "jitStartup");
+    pnjitStartup    = (PjitStartup)::GetProcAddress(hLib, "jitStartup");
 
-    // Setup CoreClrCallbacks and call sxsJitStartup
-    CoreClrCallbacks* cccallbacks = InitCoreClrCallbacks();
-    pnsxsJitStartup(*cccallbacks);
+    if (pnsxsJitStartup != nullptr)
+    {
+        // Setup CoreClrCallbacks and call sxsJitStartup
+        CoreClrCallbacks* cccallbacks = InitCoreClrCallbacks();
+        pnsxsJitStartup(*cccallbacks);
+    }
 
     // Setup ICorJitHost and call jitStartup if necessary
     if (pnjitStartup != nullptr)
@@ -314,22 +310,32 @@ JitInstance::Result JitInstance::CompileMethod(MethodContext* MethodToCompile, i
         {
             pParam->pThis->lt.Start();
         }
-        CorJitResult temp = pParam->pThis->pJitInstance->compileMethod(pParam->pThis->icji, &pParam->info,
+        CorJitResult jitResult = pParam->pThis->pJitInstance->compileMethod(pParam->pThis->icji, &pParam->info,
                                                                        pParam->flags, &NEntryBlock, &NCodeSizeBlock);
         if (pParam->collectThroughput)
         {
             pParam->pThis->lt.Stop();
             pParam->pThis->times[0] = pParam->pThis->lt.GetCycles();
         }
-        if ((SpmiTargetArchitecture == SPMI_TARGET_ARCHITECTURE_ARM64) && (temp == CORJIT_SKIPPED))
+        if (jitResult == CORJIT_SKIPPED)
         {
             // For altjit, treat SKIPPED as OK
-            temp = CORJIT_OK;
+#ifdef _TARGET_AMD64_
+            if (SpmiTargetArchitecture == SPMI_TARGET_ARCHITECTURE_ARM64)
+            {
+                jitResult = CORJIT_OK;
+            }
+#elif defined(_TARGET_X86_)
+            if (SpmiTargetArchitecture == SPMI_TARGET_ARCHITECTURE_ARM)
+            {
+                jitResult = CORJIT_OK;
+            }
+#endif
         }
-        if (temp == CORJIT_OK)
+        if (jitResult == CORJIT_OK)
         {
             // capture the results of compilation
-            pParam->pThis->mc->cr->recCompileMethod(&NEntryBlock, &NCodeSizeBlock, temp);
+            pParam->pThis->mc->cr->recCompileMethod(&NEntryBlock, &NCodeSizeBlock, jitResult);
             pParam->pThis->mc->cr->recAllocMemCapture();
             pParam->pThis->mc->cr->recAllocGCInfoCapture();
 
@@ -337,7 +343,7 @@ JitInstance::Result JitInstance::CompileMethod(MethodContext* MethodToCompile, i
         }
         else
         {
-            LogDebug("compileMethod failed with result %d", temp);
+            LogDebug("compileMethod failed with result %d", jitResult);
             pParam->result = RESULT_ERROR;
         }
     }
@@ -414,31 +420,31 @@ void JitInstance::timeResult(CORINFO_METHOD_INFO info, unsigned flags)
 
 /*-------------------------- Misc ---------------------------------------*/
 
-const wchar_t* JitInstance::getForceOption(const wchar_t* key)
+const WCHAR* JitInstance::getForceOption(const WCHAR* key)
 {
     return getOption(key, forceOptions);
 }
 
-const wchar_t* JitInstance::getOption(const wchar_t* key)
+const WCHAR* JitInstance::getOption(const WCHAR* key)
 {
     return getOption(key, options);
 }
 
-const wchar_t* JitInstance::getOption(const wchar_t* key, LightWeightMap<DWORD, DWORD>* options)
+const WCHAR* JitInstance::getOption(const WCHAR* key, LightWeightMap<DWORD, DWORD>* options)
 {
     if (options == nullptr)
     {
         return nullptr;
     }
 
-    size_t keyLenInBytes = sizeof(wchar_t) * (wcslen(key) + 1);
+    size_t keyLenInBytes = sizeof(WCHAR) * (wcslen(key) + 1);
     int    keyIndex      = options->Contains((unsigned char*)key, (unsigned int)keyLenInBytes);
     if (keyIndex == -1)
     {
         return nullptr;
     }
 
-    return (const wchar_t*)options->GetBuffer(options->Get(keyIndex));
+    return (const WCHAR*)options->GetBuffer(options->Get(keyIndex));
 }
 
 // Used to allocate memory that needs to handed to the EE.

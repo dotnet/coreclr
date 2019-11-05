@@ -6,6 +6,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Internal.Runtime.CompilerServices;
 
@@ -15,7 +16,7 @@ namespace System
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public abstract partial class Array : ICloneable, IList, IStructuralComparable, IStructuralEquatable
     {
-        // We impose limits on maximum array lenght in each dimension to allow efficient
+        // We impose limits on maximum array length in each dimension to allow efficient
         // implementation of advanced range check elimination in future.
         // Keep in sync with vm\gcscan.cpp and HashHelpers.MaxPrimeArrayLength.
         // The constants are defined in this method: inline SIZE_T MaxArrayLength(SIZE_T componentSize) from gcscan
@@ -23,9 +24,8 @@ namespace System
         internal const int MaxArrayLength = 0X7FEFFFFF;
         internal const int MaxByteArrayLength = 0x7FFFFFC7;
 
-        // This ctor exists solely to prevent C# from generating a protected .ctor that violates the surface area. I really want this to be a
-        // "protected-and-internal" rather than "internal" but C# has no keyword for the former.
-        internal Array() { }
+        // This ctor exists solely to prevent C# from generating a protected .ctor that violates the surface area.
+        private protected Array() { }
 
         public static ReadOnlyCollection<T> AsReadOnly<T>(T[] array)
         {
@@ -38,12 +38,12 @@ namespace System
             return new ReadOnlyCollection<T>(array);
         }
 
-        public static void Resize<T>(ref T[] array, int newSize)
+        public static void Resize<T>([NotNull] ref T[]? array, int newSize)
         {
             if (newSize < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.newSize, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 
-            T[] larray = array;
+            T[]? larray = array;
             if (larray == null)
             {
                 array = new T[newSize];
@@ -106,7 +106,7 @@ namespace System
             Copy(sourceArray, isourceIndex, destinationArray, idestinationIndex, ilength);
         }
 
-        public object GetValue(long index)
+        public object? GetValue(long index)
         {
             int iindex = (int)index;
             if (index != iindex)
@@ -115,7 +115,7 @@ namespace System
             return this.GetValue(iindex);
         }
 
-        public object GetValue(long index1, long index2)
+        public object? GetValue(long index1, long index2)
         {
             int iindex1 = (int)index1;
             int iindex2 = (int)index2;
@@ -128,7 +128,7 @@ namespace System
             return this.GetValue(iindex1, iindex2);
         }
 
-        public object GetValue(long index1, long index2, long index3)
+        public object? GetValue(long index1, long index2, long index3)
         {
             int iindex1 = (int)index1;
             int iindex2 = (int)index2;
@@ -144,7 +144,7 @@ namespace System
             return this.GetValue(iindex1, iindex2, iindex3);
         }
 
-        public object GetValue(params long[] indices)
+        public object? GetValue(params long[] indices)
         {
             if (indices == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.indices);
@@ -165,7 +165,7 @@ namespace System
             return this.GetValue(intIndices);
         }
 
-        public void SetValue(object value, long index)
+        public void SetValue(object? value, long index)
         {
             int iindex = (int)index;
 
@@ -175,7 +175,7 @@ namespace System
             this.SetValue(value, iindex);
         }
 
-        public void SetValue(object value, long index1, long index2)
+        public void SetValue(object? value, long index1, long index2)
         {
             int iindex1 = (int)index1;
             int iindex2 = (int)index2;
@@ -188,7 +188,7 @@ namespace System
             this.SetValue(value, iindex1, iindex2);
         }
 
-        public void SetValue(object value, long index1, long index2, long index3)
+        public void SetValue(object? value, long index1, long index2, long index3)
         {
             int iindex1 = (int)index1;
             int iindex2 = (int)index2;
@@ -204,7 +204,7 @@ namespace System
             this.SetValue(value, iindex1, iindex2, iindex3);
         }
 
-        public void SetValue(object value, params long[] indices)
+        public void SetValue(object? value, params long[] indices)
         {
             if (indices == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.indices);
@@ -235,50 +235,41 @@ namespace System
 
         public long GetLongLength(int dimension)
         {
-            //This method should throw an IndexOufOfRangeException for compat if dimension < 0 or >= Rank
+            // This method should throw an IndexOufOfRangeException for compat if dimension < 0 or >= Rank
             return GetLength(dimension);
         }
 
         // Number of elements in the Array.
-        int ICollection.Count
-        { get { return Length; } }
+        int ICollection.Count => Length;
 
-
-        // Returns an object appropriate for synchronizing access to this 
+        // Returns an object appropriate for synchronizing access to this
         // Array.
-        public object SyncRoot
-        { get { return this; } }
+        public object SyncRoot => this;
 
         // Is this Array read-only?
-        public bool IsReadOnly
-        { get { return false; } }
+        public bool IsReadOnly => false;
 
-        public bool IsFixedSize
-        {
-            get { return true; }
-        }
+        public bool IsFixedSize => true;
 
         // Is this Array synchronized (i.e., thread-safe)?  If you want a synchronized
-        // collection, you can use SyncRoot as an object to synchronize your 
-        // collection with.  You could also call GetSynchronized() 
+        // collection, you can use SyncRoot as an object to synchronize your
+        // collection with.  You could also call GetSynchronized()
         // to get a synchronized wrapper around the Array.
-        public bool IsSynchronized
-        { get { return false; } }
+        public bool IsSynchronized => false;
 
-
-        object IList.this[int index]
+        object? IList.this[int index]
         {
-            get { return GetValue(index); }
-            set { SetValue(value, index); }
+            get => GetValue(index);
+            set => SetValue(value, index);
         }
 
-        int IList.Add(object value)
+        int IList.Add(object? value)
         {
             ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_FixedSizeCollection);
             return default;
         }
 
-        bool IList.Contains(object value)
+        bool IList.Contains(object? value)
         {
             return Array.IndexOf(this, value) >= this.GetLowerBound(0);
         }
@@ -288,17 +279,17 @@ namespace System
             Array.Clear(this, this.GetLowerBound(0), this.Length);
         }
 
-        int IList.IndexOf(object value)
+        int IList.IndexOf(object? value)
         {
             return Array.IndexOf(this, value);
         }
 
-        void IList.Insert(int index, object value)
+        void IList.Insert(int index, object? value)
         {
             ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_FixedSizeCollection);
         }
 
-        void IList.Remove(object value)
+        void IList.Remove(object? value)
         {
             ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_FixedSizeCollection);
         }
@@ -309,20 +300,20 @@ namespace System
         }
 
         // Make a new array which is a shallow copy of the original array.
-        // 
+        //
         public object Clone()
         {
             return MemberwiseClone();
         }
 
-        int IStructuralComparable.CompareTo(object other, IComparer comparer)
+        int IStructuralComparable.CompareTo(object? other, IComparer comparer)
         {
             if (other == null)
             {
                 return 1;
             }
 
-            Array o = other as Array;
+            Array? o = other as Array;
 
             if (o == null || this.Length != o.Length)
             {
@@ -334,8 +325,8 @@ namespace System
 
             while (i < o.Length && c == 0)
             {
-                object left = GetValue(i);
-                object right = o.GetValue(i);
+                object? left = GetValue(i);
+                object? right = o.GetValue(i);
 
                 c = comparer.Compare(left, right);
                 i++;
@@ -344,7 +335,7 @@ namespace System
             return c;
         }
 
-        bool IStructuralEquatable.Equals(object other, IEqualityComparer comparer)
+        bool IStructuralEquatable.Equals(object? other, IEqualityComparer comparer)
         {
             if (other == null)
             {
@@ -364,8 +355,8 @@ namespace System
             int i = 0;
             while (i < o.Length)
             {
-                object left = GetValue(i);
-                object right = o.GetValue(i);
+                object? left = GetValue(i);
+                object? right = o.GetValue(i);
 
                 if (!comparer.Equals(left, right))
                 {
@@ -377,11 +368,6 @@ namespace System
             return true;
         }
 
-        private static int CombineHashCodes(int h1, int h2)
-        {
-            return (((h1 << 5) + h1) ^ h2);
-        }
-
         int IStructuralEquatable.GetHashCode(IEqualityComparer comparer)
         {
             if (comparer == null)
@@ -391,7 +377,7 @@ namespace System
 
             for (int i = (this.Length >= 8 ? this.Length - 8 : 0); i < this.Length; i++)
             {
-                ret = CombineHashCodes(ret, comparer.GetHashCode(GetValue(i)));
+                ret = HashCode.Combine(ret, comparer.GetHashCode(GetValue(i)!));
             }
 
             return ret;
@@ -409,8 +395,8 @@ namespace System
         // integer. The bitwise complement operator (~) can be applied to a
         // negative result to produce the index of the first element (if any) that
         // is larger than the given search value.
-        // 
-        public static int BinarySearch(Array array, object value)
+        //
+        public static int BinarySearch(Array array, object? value)
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
@@ -429,8 +415,8 @@ namespace System
         // integer. The bitwise complement operator (~) can be applied to a
         // negative result to produce the index of the first element (if any) that
         // is larger than the given search value.
-        // 
-        public static int BinarySearch(Array array, int index, int length, object value)
+        //
+        public static int BinarySearch(Array array, int index, int length, object? value)
         {
             return BinarySearch(array, index, length, value, null);
         }
@@ -442,14 +428,14 @@ namespace System
         // interface, which in that case must be implemented by all elements of the
         // array and the given search value. This method assumes that the array is
         // already sorted; if this is not the case, the result will be incorrect.
-        // 
+        //
         // The method returns the index of the given value in the array. If the
         // array does not contain the given value, the method returns a negative
         // integer. The bitwise complement operator (~) can be applied to a
         // negative result to produce the index of the first element (if any) that
         // is larger than the given search value.
-        // 
-        public static int BinarySearch(Array array, object value, IComparer comparer)
+        //
+        public static int BinarySearch(Array array, object? value, IComparer? comparer)
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
@@ -464,14 +450,14 @@ namespace System
         // all elements of the array and the given search value. This method
         // assumes that the array is already sorted; if this is not the case, the
         // result will be incorrect.
-        // 
+        //
         // The method returns the index of the given value in the array. If the
         // array does not contain the given value, the method returns a negative
         // integer. The bitwise complement operator (~) can be applied to a
         // negative result to produce the index of the first element (if any) that
         // is larger than the given search value.
-        // 
-        public static int BinarySearch(Array array, int index, int length, object value, IComparer comparer)
+        //
+        public static int BinarySearch(Array array, int index, int length, object? value, IComparer? comparer)
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
@@ -485,8 +471,8 @@ namespace System
             if (array.Rank != 1)
                 ThrowHelper.ThrowRankException(ExceptionResource.Rank_MultiDimNotSupported);
 
-            if (comparer == null) comparer = Comparer.Default;
-#if CORECLR
+            comparer ??= Comparer.Default;
+#if !CORERT
             if (comparer == Comparer.Default)
             {
                 int retval;
@@ -502,7 +488,7 @@ namespace System
             {
                 while (lo <= hi)
                 {
-                    // i might overflow if lo and hi are both large positive numbers. 
+                    // i might overflow if lo and hi are both large positive numbers.
                     int i = GetMedian(lo, hi);
 
                     int c;
@@ -563,7 +549,7 @@ namespace System
             return BinarySearch<T>(array, 0, array.Length, value, null);
         }
 
-        public static int BinarySearch<T>(T[] array, T value, System.Collections.Generic.IComparer<T> comparer)
+        public static int BinarySearch<T>(T[] array, T value, System.Collections.Generic.IComparer<T>? comparer)
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
@@ -575,7 +561,7 @@ namespace System
             return BinarySearch<T>(array, index, length, value, null);
         }
 
-        public static int BinarySearch<T>(T[] array, int index, int length, T value, System.Collections.Generic.IComparer<T> comparer)
+        public static int BinarySearch<T>(T[] array, int index, int length, T value, System.Collections.Generic.IComparer<T>? comparer)
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
@@ -612,17 +598,17 @@ namespace System
 
         // CopyTo copies a collection into an Array, starting at a particular
         // index into the array.
-        // 
+        //
         // This method is to support the ICollection interface, and calls
         // Array.Copy internally.  If you aren't using ICollection explicitly,
         // call Array.Copy to avoid an extra indirection.
-        // 
+        //
         public void CopyTo(Array array, int index)
         {
             if (array != null && array.Rank != 1)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankMultiDimNotSupported);
             // Note: Array.Copy throws a RankException and we want a consistent ArgumentException for all the IList CopyTo methods.
-            Array.Copy(this, GetLowerBound(0), array, index, Length);
+            Array.Copy(this, GetLowerBound(0), array!, index, Length);
         }
 
         public void CopyTo(Array array, long index)
@@ -636,7 +622,9 @@ namespace System
 
         private static class EmptyArray<T>
         {
+#pragma warning disable CA1825 // this is the implementation of Array.Empty<T>()
             internal static readonly T[] Value = new T[0];
+#pragma warning restore CA1825
         }
 
         public static T[] Empty<T>()
@@ -685,6 +673,7 @@ namespace System
             }
         }
 
+        [return: MaybeNull]
         public static T Find<T>(T[] array, Predicate<T> match)
         {
             if (array == null)
@@ -704,7 +693,7 @@ namespace System
                     return array[i];
                 }
             }
-            return default;
+            return default!;
         }
 
         public static T[] FindAll<T>(T[] array, Predicate<T> match)
@@ -781,6 +770,7 @@ namespace System
             return -1;
         }
 
+        [return: MaybeNull]
         public static T FindLast<T>(T[] array, Predicate<T> match)
         {
             if (array == null)
@@ -800,7 +790,7 @@ namespace System
                     return array[i];
                 }
             }
-            return default;
+            return default!;
         }
 
         public static int FindLastIndex<T>(T[] array, Predicate<T> match)
@@ -845,7 +835,7 @@ namespace System
             }
             else
             {
-                // Make sure we're not out of range            
+                // Make sure we're not out of range
                 if (startIndex < 0 || startIndex >= array.Length)
                 {
                     ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
@@ -890,8 +880,8 @@ namespace System
         // Returns the index of the first occurrence of a given value in an array.
         // The array is searched forwards, and the elements of the array are
         // compared to the given value using the Object.Equals method.
-        // 
-        public static int IndexOf(Array array, object value)
+        //
+        public static int IndexOf(Array array, object? value)
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
@@ -903,8 +893,8 @@ namespace System
         // startIndex and ending at the last element of the array. The
         // elements of the array are compared to the given value using the
         // Object.Equals method.
-        // 
-        public static int IndexOf(Array array, object value, int startIndex)
+        //
+        public static int IndexOf(Array array, object? value, int startIndex)
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
@@ -917,8 +907,8 @@ namespace System
         // startIndex and upto count elements. The
         // elements of the array are compared to the given value using the
         // Object.Equals method.
-        // 
-        public static int IndexOf(Array array, object value, int startIndex, int count)
+        //
+        public static int IndexOf(Array array, object? value, int startIndex, int count)
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
@@ -931,7 +921,7 @@ namespace System
             if (count < 0 || count > array.Length - startIndex + lb)
                 ThrowHelper.ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count();
 
-#if CORECLR
+#if !CORERT
             // Try calling a quick native method to handle primitive types.
             int retVal;
             bool r = TrySZIndexOf(array, startIndex, count, value, out retVal);
@@ -939,9 +929,8 @@ namespace System
                 return retVal;
 #endif
 
-            object[] objArray = array as object[];
             int endIndex = startIndex + count;
-            if (objArray != null)
+            if (array is object[] objArray)
             {
                 if (value == null)
                 {
@@ -965,7 +954,7 @@ namespace System
             {
                 for (int i = startIndex; i < endIndex; i++)
                 {
-                    object obj = array.GetValue(i);
+                    object? obj = array.GetValue(i);
                     if (obj == null)
                     {
                         if (value == null)
@@ -1022,30 +1011,43 @@ namespace System
                 ThrowHelper.ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count();
             }
 
-            // Hits a code generation bug on ProjectN
-#if !PROJECTN
-            if (typeof(T) == typeof(byte))
+            if (RuntimeHelpers.IsBitwiseEquatable<T>())
             {
-                int result = SpanHelpers.IndexOf(
-                    ref Unsafe.Add(ref array.GetRawSzArrayData(), startIndex),
-                    Unsafe.As<T, byte>(ref value),
-                    count);
-
-                return (result >= 0 ? startIndex : 0) + result;
+                if (Unsafe.SizeOf<T>() == sizeof(byte))
+                {
+                    int result = SpanHelpers.IndexOf(
+                        ref Unsafe.Add(ref array.GetRawSzArrayData(), startIndex),
+                        Unsafe.As<T, byte>(ref value),
+                        count);
+                    return (result >= 0 ? startIndex : 0) + result;
+                }
+                else if (Unsafe.SizeOf<T>() == sizeof(char))
+                {
+                    int result = SpanHelpers.IndexOf(
+                        ref Unsafe.Add(ref Unsafe.As<byte, char>(ref array.GetRawSzArrayData()), startIndex),
+                        Unsafe.As<T, char>(ref value),
+                        count);
+                    return (result >= 0 ? startIndex : 0) + result;
+                }
+                else if (Unsafe.SizeOf<T>() == sizeof(int))
+                {
+                    int result = SpanHelpers.IndexOf(
+                        ref Unsafe.Add(ref Unsafe.As<byte, int>(ref array.GetRawSzArrayData()), startIndex),
+                        Unsafe.As<T, int>(ref value),
+                        count);
+                    return (result >= 0 ? startIndex : 0) + result;
+                }
+                else if (Unsafe.SizeOf<T>() == sizeof(long))
+                {
+                    int result = SpanHelpers.IndexOf(
+                        ref Unsafe.Add(ref Unsafe.As<byte, long>(ref array.GetRawSzArrayData()), startIndex),
+                        Unsafe.As<T, long>(ref value),
+                        count);
+                    return (result >= 0 ? startIndex : 0) + result;
+                }
             }
 
-            if (typeof(T) == typeof(char))
-            {
-                int result = SpanHelpers.IndexOf(
-                    ref Unsafe.Add(ref Unsafe.As<byte, char>(ref array.GetRawSzArrayData()), startIndex),
-                    Unsafe.As<T, char>(ref value),
-                    count);
-
-                return (result >= 0 ? startIndex : 0) + result;
-            }
-#endif
-
-#if CORECLR
+#if !CORERT
             return EqualityComparer<T>.Default.IndexOf(array, value, startIndex, count);
 #else
             return IndexOfImpl(array, value, startIndex, count);
@@ -1055,8 +1057,8 @@ namespace System
         // Returns the index of the last occurrence of a given value in an array.
         // The array is searched backwards, and the elements of the array are
         // compared to the given value using the Object.Equals method.
-        // 
-        public static int LastIndexOf(Array array, object value)
+        //
+        public static int LastIndexOf(Array array, object? value)
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
@@ -1068,8 +1070,8 @@ namespace System
         // an array. The array is searched backwards, starting at index
         // startIndex and ending at index 0. The elements of the array are
         // compared to the given value using the Object.Equals method.
-        // 
-        public static int LastIndexOf(Array array, object value, int startIndex)
+        //
+        public static int LastIndexOf(Array array, object? value, int startIndex)
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
@@ -1082,8 +1084,8 @@ namespace System
         // startIndex and counting uptocount elements. The elements of
         // the array are compared to the given value using the Object.Equals
         // method.
-        // 
-        public static int LastIndexOf(Array array, object value, int startIndex, int count)
+        //
+        public static int LastIndexOf(Array array, object? value, int startIndex, int count)
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
@@ -1102,7 +1104,7 @@ namespace System
             if (array.Rank != 1)
                 ThrowHelper.ThrowRankException(ExceptionResource.Rank_MultiDimNotSupported);
 
-#if CORECLR
+#if !CORERT
             // Try calling a quick native method to handle primitive types.
             int retVal;
             bool r = TrySZLastIndexOf(array, startIndex, count, value, out retVal);
@@ -1110,9 +1112,8 @@ namespace System
                 return retVal;
 #endif
 
-            object[] objArray = array as object[];
             int endIndex = startIndex - count + 1;
-            if (objArray != null)
+            if (array is object[] objArray)
             {
                 if (value == null)
                 {
@@ -1136,7 +1137,7 @@ namespace System
             {
                 for (int i = startIndex; i >= endIndex; i--)
                 {
-                    object obj = array.GetValue(i);
+                    object? obj = array.GetValue(i);
                     if (obj == null)
                     {
                         if (value == null)
@@ -1198,7 +1199,7 @@ namespace System
                 return -1;
             }
 
-            // Make sure we're not out of range            
+            // Make sure we're not out of range
             if ((uint)startIndex >= (uint)array.Length)
             {
                 ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
@@ -1210,32 +1211,51 @@ namespace System
                 ThrowHelper.ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count();
             }
 
-            // Hits a code generation bug on ProjectN
-#if !PROJECTN
-            if (typeof(T) == typeof(byte))
+            if (RuntimeHelpers.IsBitwiseEquatable<T>())
             {
-                int endIndex = startIndex - count + 1;
-                int result = SpanHelpers.LastIndexOf(
-                    ref Unsafe.Add(ref array.GetRawSzArrayData(), endIndex),
-                    Unsafe.As<T, byte>(ref value),
-                    count);
+                if (Unsafe.SizeOf<T>() == sizeof(byte))
+                {
+                    int endIndex = startIndex - count + 1;
+                    int result = SpanHelpers.LastIndexOf(
+                        ref Unsafe.Add(ref array.GetRawSzArrayData(), endIndex),
+                        Unsafe.As<T, byte>(ref value),
+                        count);
 
-                return (result >= 0 ? endIndex : 0) + result;
+                    return (result >= 0 ? endIndex : 0) + result;
+                }
+                else if (Unsafe.SizeOf<T>() == sizeof(char))
+                {
+                    int endIndex = startIndex - count + 1;
+                    int result = SpanHelpers.LastIndexOf(
+                        ref Unsafe.Add(ref Unsafe.As<byte, char>(ref array.GetRawSzArrayData()), endIndex),
+                        Unsafe.As<T, char>(ref value),
+                        count);
+
+                    return (result >= 0 ? endIndex : 0) + result;
+                }
+                else if (Unsafe.SizeOf<T>() == sizeof(int))
+                {
+                    int endIndex = startIndex - count + 1;
+                    int result = SpanHelpers.LastIndexOf(
+                        ref Unsafe.Add(ref Unsafe.As<byte, int>(ref array.GetRawSzArrayData()), endIndex),
+                        Unsafe.As<T, int>(ref value),
+                        count);
+
+                    return (result >= 0 ? endIndex : 0) + result;
+                }
+                else if (Unsafe.SizeOf<T>() == sizeof(long))
+                {
+                    int endIndex = startIndex - count + 1;
+                    int result = SpanHelpers.LastIndexOf(
+                        ref Unsafe.Add(ref Unsafe.As<byte, long>(ref array.GetRawSzArrayData()), endIndex),
+                        Unsafe.As<T, long>(ref value),
+                        count);
+
+                    return (result >= 0 ? endIndex : 0) + result;
+                }
             }
 
-            if (typeof(T) == typeof(char))
-            {
-                int endIndex = startIndex - count + 1;
-                int result = SpanHelpers.LastIndexOf(
-                    ref Unsafe.Add(ref Unsafe.As<byte, char>(ref array.GetRawSzArrayData()), endIndex),
-                    Unsafe.As<T, char>(ref value),
-                    count);
-
-                return (result >= 0 ? endIndex : 0) + result;
-            }
-#endif
-
-#if CORECLR
+#if !CORERT
             return EqualityComparer<T>.Default.LastIndexOf(array, value, startIndex, count);
 #else
             return LastIndexOfImpl(array, value, startIndex, count);
@@ -1246,7 +1266,7 @@ namespace System
         // method, an element previously located at index i will now be
         // located at index length - i - 1, where length is the
         // length of the array.
-        // 
+        //
         public static void Reverse(Array array)
         {
             if (array == null)
@@ -1259,7 +1279,7 @@ namespace System
         // which was previously located at index i will now be located at
         // index index + (index + count - i - 1).
         // Reliability note: This may fail because it may have to box objects.
-        // 
+        //
         public static void Reverse(Array array, int index, int length)
         {
             if (array == null)
@@ -1278,7 +1298,7 @@ namespace System
             if (length <= 1)
                 return;
 
-#if CORECLR
+#if !CORERT
             bool r = TrySZReverse(array, index, length);
             if (r)
                 return;
@@ -1294,7 +1314,7 @@ namespace System
                 int j = index + length - 1;
                 while (i < j)
                 {
-                    object temp = array.GetValue(i);
+                    object? temp = array.GetValue(i);
                     array.SetValue(array.GetValue(j), i);
                     array.SetValue(temp, j);
                     i++;
@@ -1339,7 +1359,7 @@ namespace System
         // Sorts the elements of an array. The sort compares the elements to each
         // other using the IComparable interface, which must be implemented
         // by all elements of the array.
-        // 
+        //
         public static void Sort(Array array)
         {
             if (array == null)
@@ -1352,8 +1372,8 @@ namespace System
         // corresponding elements in the items array. The sort compares the
         // keys to each other using the IComparable interface, which must be
         // implemented by all elements of the keys array.
-        // 
-        public static void Sort(Array keys, Array items)
+        //
+        public static void Sort(Array keys, Array? items)
         {
             if (keys == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.keys);
@@ -1363,7 +1383,7 @@ namespace System
         // Sorts the elements in a section of an array. The sort compares the
         // elements to each other using the IComparable interface, which
         // must be implemented by all elements in the given section of the array.
-        // 
+        //
         public static void Sort(Array array, int index, int length)
         {
             Sort(array, null, index, length, null);
@@ -1374,8 +1394,8 @@ namespace System
         // corresponding elements in the items array. The sort compares the
         // keys to each other using the IComparable interface, which must be
         // implemented by all elements of the keys array.
-        // 
-        public static void Sort(Array keys, Array items, int index, int length)
+        //
+        public static void Sort(Array keys, Array? items, int index, int length)
         {
             Sort(keys, items, index, length, null);
         }
@@ -1385,8 +1405,8 @@ namespace System
         // null, the elements are compared to each other using the
         // IComparable interface, which in that case must be implemented by
         // all elements of the array.
-        // 
-        public static void Sort(Array array, IComparer comparer)
+        //
+        public static void Sort(Array array, IComparer? comparer)
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
@@ -1400,8 +1420,8 @@ namespace System
         // comparer is null, the elements are compared to each other using
         // the IComparable interface, which in that case must be implemented
         // by all elements of the keys array.
-        // 
-        public static void Sort(Array keys, Array items, IComparer comparer)
+        //
+        public static void Sort(Array keys, Array? items, IComparer? comparer)
         {
             if (keys == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.keys);
@@ -1413,8 +1433,8 @@ namespace System
         // comparer is null, the elements are compared to each other using
         // the IComparable interface, which in that case must be implemented
         // by all elements in the given section of the array.
-        // 
-        public static void Sort(Array array, int index, int length, IComparer comparer)
+        //
+        public static void Sort(Array array, int index, int length, IComparer? comparer)
         {
             Sort(array, null, index, length, comparer);
         }
@@ -1426,8 +1446,8 @@ namespace System
         // comparer is null, the elements are compared to each other using
         // the IComparable interface, which in that case must be implemented
         // by all elements of the given section of the keys array.
-        // 
-        public static void Sort(Array keys, Array items, int index, int length, IComparer comparer)
+        //
+        public static void Sort(Array keys, Array? items, int index, int length, IComparer? comparer)
         {
             if (keys == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.keys);
@@ -1444,7 +1464,6 @@ namespace System
             if (keys.Length - (index - keysLowerBound) < length || (items != null && (index - keysLowerBound) > items.Length - length))
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
 
-
             if (length > 1)
             {
                 SortImpl(keys, items, index, length, comparer ?? Comparer.Default);
@@ -1458,7 +1477,7 @@ namespace System
             Sort<T>(array, 0, array.Length, null);
         }
 
-        public static void Sort<TKey, TValue>(TKey[] keys, TValue[] items)
+        public static void Sort<TKey, TValue>(TKey[] keys, TValue[]? items)
         {
             if (keys == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.keys);
@@ -1470,26 +1489,26 @@ namespace System
             Sort<T>(array, index, length, null);
         }
 
-        public static void Sort<TKey, TValue>(TKey[] keys, TValue[] items, int index, int length)
+        public static void Sort<TKey, TValue>(TKey[] keys, TValue[]? items, int index, int length)
         {
             Sort<TKey, TValue>(keys, items, index, length, null);
         }
 
-        public static void Sort<T>(T[] array, System.Collections.Generic.IComparer<T> comparer)
+        public static void Sort<T>(T[] array, System.Collections.Generic.IComparer<T>? comparer)
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             Sort<T>(array, 0, array.Length, comparer);
         }
 
-        public static void Sort<TKey, TValue>(TKey[] keys, TValue[] items, System.Collections.Generic.IComparer<TKey> comparer)
+        public static void Sort<TKey, TValue>(TKey[] keys, TValue[]? items, System.Collections.Generic.IComparer<TKey>? comparer)
         {
             if (keys == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.keys);
             Sort<TKey, TValue>(keys, items, 0, keys.Length, comparer);
         }
 
-        public static void Sort<T>(T[] array, int index, int length, System.Collections.Generic.IComparer<T> comparer)
+        public static void Sort<T>(T[] array, int index, int length, System.Collections.Generic.IComparer<T>? comparer)
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
@@ -1502,7 +1521,7 @@ namespace System
 
             if (length > 1)
             {
-#if CORECLR
+#if !CORERT
                 if (comparer == null || comparer == Comparer<T>.Default)
                 {
                     if (TrySZSort(array, null, index, index + length - 1))
@@ -1516,7 +1535,7 @@ namespace System
             }
         }
 
-        public static void Sort<TKey, TValue>(TKey[] keys, TValue[] items, int index, int length, System.Collections.Generic.IComparer<TKey> comparer)
+        public static void Sort<TKey, TValue>(TKey[] keys, TValue[]? items, int index, int length, System.Collections.Generic.IComparer<TKey>? comparer)
         {
             if (keys == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.keys);
@@ -1529,7 +1548,7 @@ namespace System
 
             if (length > 1)
             {
-#if CORECLR
+#if !CORERT
                 if (comparer == null || comparer == Comparer<TKey>.Default)
                 {
                     if (TrySZSort(keys, items, index, index + length - 1))
@@ -1561,7 +1580,7 @@ namespace System
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.comparison);
             }
 
-            ArraySortHelper<T>.Sort(array, 0, array.Length, comparison);
+            ArraySortHelper<T>.Sort(array, 0, array.Length, comparison!);
         }
 
         public static bool TrueForAll<T>(T[] array, Predicate<T> match)
@@ -1591,10 +1610,10 @@ namespace System
         private readonly struct SorterObjectArray
         {
             private readonly object[] keys;
-            private readonly object[] items;
+            private readonly object?[]? items;
             private readonly IComparer comparer;
 
-            internal SorterObjectArray(object[] keys, object[] items, IComparer comparer)
+            internal SorterObjectArray(object[] keys, object?[]? items, IComparer comparer)
             {
                 this.keys = keys;
                 this.items = items;
@@ -1612,7 +1631,7 @@ namespace System
                         keys[b] = temp;
                         if (items != null)
                         {
-                            object item = items[a];
+                            object? item = items[a];
                             items[a] = items[b];
                             items[b] = item;
                         }
@@ -1628,7 +1647,7 @@ namespace System
 
                 if (items != null)
                 {
-                    object item = items[i];
+                    object? item = items[i];
                     items[i] = items[j];
                     items[j] = item;
                 }
@@ -1724,18 +1743,18 @@ namespace System
                 }
 
                 // Put pivot in the right location.
-                Swap(left, (hi - 1));
+                Swap(left, hi - 1);
                 return left;
             }
 
             private void Heapsort(int lo, int hi)
             {
                 int n = hi - lo + 1;
-                for (int i = n / 2; i >= 1; i = i - 1)
+                for (int i = n / 2; i >= 1; i--)
                 {
                     DownHeap(i, n, lo);
                 }
-                for (int i = n; i > 1; i = i - 1)
+                for (int i = n; i > 1; i--)
                 {
                     Swap(lo, lo + i - 1);
 
@@ -1746,7 +1765,7 @@ namespace System
             private void DownHeap(int i, int n, int lo)
             {
                 object d = keys[lo + i - 1];
-                object dt = (items != null) ? items[lo + i - 1] : null;
+                object? dt = items?[lo + i - 1];
                 int child;
                 while (i <= n / 2)
                 {
@@ -1770,12 +1789,13 @@ namespace System
             private void InsertionSort(int lo, int hi)
             {
                 int i, j;
-                object t, ti;
+                object t;
+                object? ti;
                 for (i = lo; i < hi; i++)
                 {
                     j = i;
                     t = keys[i + 1];
-                    ti = (items != null) ? items[i + 1] : null;
+                    ti = items?[i + 1];
                     while (j >= lo && comparer.Compare(t, keys[j]) < 0)
                     {
                         keys[j + 1] = keys[j];
@@ -1796,10 +1816,10 @@ namespace System
         private readonly struct SorterGenericArray
         {
             private readonly Array keys;
-            private readonly Array items;
+            private readonly Array? items;
             private readonly IComparer comparer;
 
-            internal SorterGenericArray(Array keys, Array items, IComparer comparer)
+            internal SorterGenericArray(Array keys, Array? items, IComparer comparer)
             {
                 this.keys = keys;
                 this.items = items;
@@ -1812,12 +1832,12 @@ namespace System
                 {
                     if (comparer.Compare(keys.GetValue(a), keys.GetValue(b)) > 0)
                     {
-                        object key = keys.GetValue(a);
+                        object? key = keys.GetValue(a);
                         keys.SetValue(keys.GetValue(b), a);
                         keys.SetValue(key, b);
                         if (items != null)
                         {
-                            object item = items.GetValue(a);
+                            object? item = items.GetValue(a);
                             items.SetValue(items.GetValue(b), a);
                             items.SetValue(item, b);
                         }
@@ -1827,13 +1847,13 @@ namespace System
 
             private void Swap(int i, int j)
             {
-                object t1 = keys.GetValue(i);
+                object? t1 = keys.GetValue(i);
                 keys.SetValue(keys.GetValue(j), i);
                 keys.SetValue(t1, j);
 
                 if (items != null)
                 {
-                    object t2 = items.GetValue(i);
+                    object? t2 = items.GetValue(i);
                     items.SetValue(items.GetValue(j), i);
                     items.SetValue(t2, j);
                 }
@@ -1913,7 +1933,7 @@ namespace System
                 SwapIfGreaterWithItems(lo, hi);
                 SwapIfGreaterWithItems(mid, hi);
 
-                object pivot = keys.GetValue(mid);
+                object? pivot = keys.GetValue(mid);
                 Swap(mid, hi - 1);
                 int left = lo, right = hi - 1;  // We already partitioned lo and hi and put the pivot in hi - 1.  And we pre-increment & decrement below.
 
@@ -1929,18 +1949,18 @@ namespace System
                 }
 
                 // Put pivot in the right location.
-                Swap(left, (hi - 1));
+                Swap(left, hi - 1);
                 return left;
             }
 
             private void Heapsort(int lo, int hi)
             {
                 int n = hi - lo + 1;
-                for (int i = n / 2; i >= 1; i = i - 1)
+                for (int i = n / 2; i >= 1; i--)
                 {
                     DownHeap(i, n, lo);
                 }
-                for (int i = n; i > 1; i = i - 1)
+                for (int i = n; i > 1; i--)
                 {
                     Swap(lo, lo + i - 1);
 
@@ -1950,8 +1970,8 @@ namespace System
 
             private void DownHeap(int i, int n, int lo)
             {
-                object d = keys.GetValue(lo + i - 1);
-                object dt = (items != null) ? items.GetValue(lo + i - 1) : null;
+                object? d = keys.GetValue(lo + i - 1);
+                object? dt = items?.GetValue(lo + i - 1);
                 int child;
                 while (i <= n / 2)
                 {
@@ -1977,12 +1997,13 @@ namespace System
             private void InsertionSort(int lo, int hi)
             {
                 int i, j;
-                object t, dt;
+                object? t;
+                object? dt;
                 for (i = lo; i < hi; i++)
                 {
                     j = i;
                     t = keys.GetValue(i + 1);
-                    dt = (items != null) ? items.GetValue(i + 1) : null;
+                    dt = items?.GetValue(i + 1);
 
                     while (j >= lo && comparer.Compare(t, keys.GetValue(j)) < 0)
                     {

@@ -24,6 +24,7 @@ Abstract:
 #include <string.h>
 #include <sys/resource.h>
 #include <errno.h>
+#include <limits>
 
 #include "cgroup.h"
 
@@ -56,7 +57,7 @@ public:
         free(s_cpu_cgroup_path);
     }
 
-    static bool GetPhysicalMemoryLimit(size_t *val)
+    static bool GetPhysicalMemoryLimit(uint64_t *val)
     {
         char *mem_limit_filename = nullptr;
         bool result = false;
@@ -81,6 +82,7 @@ public:
     {
         char *mem_usage_filename = nullptr;
         bool result = false;
+        uint64_t temp = 0;
 
         if (s_memory_cgroup_path == nullptr)
             return result;
@@ -93,7 +95,18 @@ public:
 
         strcpy(mem_usage_filename, s_memory_cgroup_path);
         strcat(mem_usage_filename, MEM_USAGE_FILENAME);
-        result = ReadMemoryValueFromFile(mem_usage_filename, val);
+        result = ReadMemoryValueFromFile(mem_usage_filename, &temp);
+        if (result)
+        {
+            if (temp > std::numeric_limits<size_t>::max())
+            {
+                *val = std::numeric_limits<size_t>::max();
+            }
+            else
+            {
+                *val = (size_t)temp;
+            }
+        }
         free(mem_usage_filename);
         return result;
     }
@@ -125,7 +138,7 @@ public:
 
         return true;
     }
-    
+
 private:
     static bool IsMemorySubsystem(const char *strTok){
         return strcmp("memory", strTok) == 0;
@@ -178,7 +191,7 @@ private:
         FILE *mountinfofile = fopen(PROC_MOUNTINFO_FILENAME, "r");
         if (mountinfofile == nullptr)
             goto done;
-    
+
         while (getline(&line, &lineLen, mountinfofile) != -1)
         {
             if (filesystemType == nullptr || lineLen > maxLineLen)
@@ -197,7 +210,7 @@ private:
             char* separatorChar = strstr(line, " - ");
 
             // See man page of proc to get format for /proc/self/mountinfo file
-            int sscanfRet = sscanf(separatorChar, 
+            int sscanfRet = sscanf(separatorChar,
                                    " - %s %*s %s",
                                    filesystemType,
                                    options);
@@ -206,11 +219,11 @@ private:
                 assert(!"Failed to parse mount info file contents with sscanf.");
                 goto done;
             }
-    
+
             if (strncmp(filesystemType, "cgroup", 6) == 0)
             {
                 char* context = nullptr;
-                char* strTok = strtok_r(options, ",", &context); 
+                char* strTok = strtok_r(options, ",", &context);
                 while (strTok != nullptr)
                 {
                     if (is_subsystem(strTok))
@@ -221,7 +234,7 @@ private:
                         mountroot = (char*)malloc(lineLen+1);
                         if (mountroot == nullptr)
                             goto done;
-    
+
                         sscanfRet = sscanf(line,
                                            "%*s %*s %*s %s %s ",
                                            mountroot,
@@ -248,7 +261,7 @@ private:
         if (mountinfofile)
             fclose(mountinfofile);
     }
-    
+
     static char* FindCGroupPathForSubsystem(bool (*is_subsystem)(const char *))
     {
         char *line = nullptr;
@@ -261,7 +274,7 @@ private:
         FILE *cgroupfile = fopen(PROC_CGROUP_FILENAME, "r");
         if (cgroupfile == nullptr)
             goto done;
-    
+
         while (!result && getline(&line, &lineLen, cgroupfile) != -1)
         {
             if (subsystem_list == nullptr || lineLen > maxLineLen)
@@ -276,9 +289,9 @@ private:
                     goto done;
                 maxLineLen = lineLen;
             }
-                   
+
             // See man page of proc to get format for /proc/self/cgroup file
-            int sscanfRet = sscanf(line, 
+            int sscanfRet = sscanf(line,
                                    "%*[^:]:%[^:]:%s",
                                    subsystem_list,
                                    cgroup_path);
@@ -287,15 +300,15 @@ private:
                 assert(!"Failed to parse cgroup info file contents with sscanf.");
                 goto done;
             }
-    
+
             char* context = nullptr;
-            char* strTok = strtok_r(subsystem_list, ",", &context); 
+            char* strTok = strtok_r(subsystem_list, ",", &context);
             while (strTok != nullptr)
             {
                 if (is_subsystem(strTok))
                 {
                     result = true;
-                    break;  
+                    break;
                 }
                 strTok = strtok_r(nullptr, ",", &context);
             }
@@ -312,42 +325,42 @@ private:
             fclose(cgroupfile);
         return cgroup_path;
     }
-    
-    static bool ReadMemoryValueFromFile(const char* filename, size_t* val)
+
+    static bool ReadMemoryValueFromFile(const char* filename, uint64_t* val)
     {
         bool result = false;
         char *line = nullptr;
         size_t lineLen = 0;
         char* endptr = nullptr;
-        size_t num = 0, l, multiplier;
+        uint64_t num = 0, l, multiplier;
         FILE* file = nullptr;
-    
+
         if (val == nullptr)
             goto done;
-    
+
         file = fopen(filename, "r");
         if (file == nullptr)
             goto done;
-        
+
         if (getline(&line, &lineLen, file) == -1)
             goto done;
-    
+
         errno = 0;
-        num = strtoull(line, &endptr, 0); 
+        num = strtoull(line, &endptr, 0);
         if (errno != 0)
             goto done;
-    
+
         multiplier = 1;
         switch(*endptr)
         {
             case 'g':
             case 'G': multiplier = 1024;
-            case 'm': 
+            case 'm':
             case 'M': multiplier = multiplier*1024;
             case 'k':
             case 'K': multiplier = multiplier*1024;
         }
-    
+
         *val = num * multiplier;
         result = true;
         if (*val/multiplier != num)
@@ -355,7 +368,7 @@ private:
     done:
         if (file)
             fclose(file);
-        free(line);    
+        free(line);
         return result;
     }
 
@@ -388,31 +401,31 @@ private:
         size_t lineLen = 0;
 
         FILE* file = nullptr;
-    
+
         if (val == nullptr)
             goto done;
-    
+
         file = fopen(filename, "r");
         if (file == nullptr)
             goto done;
-        
+
         if (getline(&line, &lineLen, file) == -1)
             goto done;
 
         errno = 0;
         *val = atoll(line);
         if (errno != 0)
-            goto done;      
+            goto done;
 
         result = true;
     done:
         if (file)
             fclose(file);
-        free(line);    
+        free(line);
         return result;
     }
 };
-   
+
 char *CGroup::s_memory_cgroup_path = nullptr;
 char *CGroup::s_cpu_cgroup_path = nullptr;
 
@@ -428,13 +441,13 @@ void CleanupCGroup()
 
 size_t GetRestrictedPhysicalMemoryLimit()
 {
-    size_t physical_memory_limit = 0;
- 
+    uint64_t physical_memory_limit = 0;
+
     if (!CGroup::GetPhysicalMemoryLimit(&physical_memory_limit))
          return 0;
 
-    // If there's no memory limit specified on the container this 
-    // actually returns 0x7FFFFFFFFFFFF000 (2^63-1 rounded down to 
+    // If there's no memory limit specified on the container this
+    // actually returns 0x7FFFFFFFFFFFF000 (2^63-1 rounded down to
     // 4k which is a common page size). So we know we are not
     // running in a memory restricted environment.
     if (physical_memory_limit > 0x7FFFFFFF00000000)
@@ -448,12 +461,12 @@ size_t GetRestrictedPhysicalMemoryLimit()
     {
         rlimit_soft_limit = curr_rlimit.rlim_cur;
     }
-    physical_memory_limit = (physical_memory_limit < rlimit_soft_limit) ? 
+    physical_memory_limit = (physical_memory_limit < rlimit_soft_limit) ?
                             physical_memory_limit : rlimit_soft_limit;
 
     // Ensure that limit is not greater than real memory size
     long pages = sysconf(_SC_PHYS_PAGES);
-    if (pages != -1) 
+    if (pages != -1)
     {
         long pageSize = sysconf(_SC_PAGE_SIZE);
         if (pageSize != -1)
@@ -463,7 +476,16 @@ size_t GetRestrictedPhysicalMemoryLimit()
         }
     }
 
-    return physical_memory_limit;
+    if (physical_memory_limit > std::numeric_limits<size_t>::max())
+    {
+        // It is observed in practice when the memory is unrestricted, Linux control
+        // group returns a physical limit that is bigger than the address space
+        return std::numeric_limits<size_t>::max();
+    }
+    else
+    {
+        return (size_t)physical_memory_limit;
+    }
 }
 
 bool GetPhysicalMemoryUsed(size_t* val)
@@ -484,11 +506,11 @@ bool GetPhysicalMemoryUsed(size_t* val)
     if (file != nullptr && getline(&line, &linelen, file) != -1)
     {
         char* context = nullptr;
-        char* strTok = strtok_r(line, " ", &context); 
-        strTok = strtok_r(nullptr, " ", &context); 
+        char* strTok = strtok_r(line, " ", &context);
+        strTok = strtok_r(nullptr, " ", &context);
 
         errno = 0;
-        *val = strtoull(strTok, nullptr, 0); 
+        *val = strtoull(strTok, nullptr, 0);
         if (errno == 0)
         {
             long pageSize = sysconf(_SC_PAGE_SIZE);

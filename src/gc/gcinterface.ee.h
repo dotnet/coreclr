@@ -154,9 +154,9 @@ public:
     virtual
     void FireGCFullNotify_V1(uint32_t genNumber, uint32_t isAlloc) = 0;
     virtual
-    void FireSetGCHandle(void *handleID, void *objectID, uint32_t kind, uint32_t generation, uint64_t appDomainID) = 0;
+    void FireSetGCHandle(void *handleID, void *objectID, uint32_t kind, uint32_t generation) = 0;
     virtual
-    void FirePrvSetGCHandle(void *handleID, void *objectID, uint32_t kind, uint32_t generation, uint64_t appDomainID) = 0;
+    void FirePrvSetGCHandle(void *handleID, void *objectID, uint32_t kind, uint32_t generation) = 0;
     virtual
     void FireDestroyGCHandle(void *handleID) = 0;
     virtual
@@ -230,9 +230,9 @@ public:
     virtual
     bool IsPreemptiveGCDisabled() = 0;
 
-    // Enables preemptive GC on the current thread. Returns true if the thread mode 
+    // Enables preemptive GC on the current thread. Returns true if the thread mode
     // was changed and false if the thread mode wasn't changed or the thread is not
-    // a managed thread. 
+    // a managed thread.
     virtual
     bool EnablePreemptiveGC() = 0;
 
@@ -292,11 +292,11 @@ public:
     virtual
     void DiagWalkFReachableObjects(void* gcContext) = 0;
 
-    // During a GC after we discover the survivors and the relocation info, 
-    // gives the diagnostics code a chance to run. This includes LOH if we are 
+    // During a GC after we discover the survivors and the relocation info,
+    // gives the diagnostics code a chance to run. This includes LOH if we are
     // compacting LOH.
     virtual
-    void DiagWalkSurvivors(void* gcContext) = 0;
+    void DiagWalkSurvivors(void* gcContext, bool fCompacting) = 0;
 
     // During a full GC after we discover what objects to survive on LOH,
     // gives the diagnostics code a chance to run.
@@ -320,11 +320,6 @@ public:
     // Signals to the EE that the GC encountered a fatal error and can't recover.
     virtual
     void HandleFatalError(unsigned int exitCode) = 0;
-
-    // Asks the EE if it wants a particular object to be finalized when unloading
-    // an app domain.
-    virtual
-    bool ShouldFinalizeObjectForUnload(void* pDomain, Object* obj) = 0;
 
     // Offers the EE the option to finalize the given object eagerly, i.e.
     // not on the finalizer thread but on the current thread. The
@@ -410,22 +405,7 @@ public:
     IGCToCLREventSink* EventSink() = 0;
 
     virtual
-    uint32_t GetDefaultDomainIndex() = 0;
-
-    virtual
-    void *GetAppDomainAtIndex(uint32_t appDomainIndex) = 0;
-
-    virtual
-    uint32_t GetIndexOfAppDomainBeingUnloaded() = 0;
-
-    virtual
-    bool AppDomainCanAccessHandleTable(uint32_t appDomainID) = 0;
-
-    virtual
     uint32_t GetTotalNumSizedRefHandles() = 0;
-
-    virtual
-    bool AppDomainIsRudeUnload(void *appDomain) = 0;
 
     virtual
     bool AnalyzeSurvivorsRequested(int condemnedGeneration) = 0;
@@ -433,7 +413,7 @@ public:
     virtual
     void AnalyzeSurvivorsFinished(int condemnedGeneration) = 0;
 
-    virtual 
+    virtual
     void VerifySyncTableEntry() = 0;
 
     virtual

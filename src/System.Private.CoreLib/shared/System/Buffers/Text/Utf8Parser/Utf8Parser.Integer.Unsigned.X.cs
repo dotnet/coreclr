@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 namespace System.Buffers.Text
 {
     public static partial class Utf8Parser
@@ -19,7 +18,7 @@ namespace System.Buffers.Text
             byte nextDigit;
 
             // Cache Parsers.s_HexLookup in order to avoid static constructor checks
-            byte[] hexLookup = ParserHelpers.s_hexLookup;
+            ReadOnlySpan<byte> hexLookup = ParserHelpers.HexLookup;
 
             // Parse the first digit separately. If invalid here, we need to return false.
             nextCharacter = source[0];
@@ -102,7 +101,7 @@ namespace System.Buffers.Text
             byte nextDigit;
 
             // Cache Parsers.s_HexLookup in order to avoid static constructor checks
-            byte[] hexLookup = ParserHelpers.s_hexLookup;
+            ReadOnlySpan<byte> hexLookup = ParserHelpers.HexLookup;
 
             // Parse the first digit separately. If invalid here, we need to return false.
             nextCharacter = source[0];
@@ -185,7 +184,7 @@ namespace System.Buffers.Text
             byte nextDigit;
 
             // Cache Parsers.s_HexLookup in order to avoid static constructor checks
-            byte[] hexLookup = ParserHelpers.s_hexLookup;
+            ReadOnlySpan<byte> hexLookup = ParserHelpers.HexLookup;
 
             // Parse the first digit separately. If invalid here, we need to return false.
             nextCharacter = source[0];
@@ -268,7 +267,7 @@ namespace System.Buffers.Text
             byte nextDigit;
 
             // Cache Parsers.s_HexLookup in order to avoid static constructor checks
-            byte[] hexLookup = ParserHelpers.s_hexLookup;
+            ReadOnlySpan<byte> hexLookup = ParserHelpers.HexLookup;
 
             // Parse the first digit separately. If invalid here, we need to return false.
             nextCharacter = source[0];

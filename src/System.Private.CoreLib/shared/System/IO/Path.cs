@@ -2,7 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -16,7 +18,7 @@ namespace System.IO
 #endif
 {
     // Provides methods for processing file system strings in a cross-platform manner.
-    // Most of the methods don't do a complete parsing (such as examining a UNC hostname), 
+    // Most of the methods don't do a complete parsing (such as examining a UNC hostname),
     // but they will handle most string operations.
     public static partial class Path
     {
@@ -45,7 +47,8 @@ namespace System.IO
         // returns null. If path does not contain a file extension,
         // the new file extension is appended to the path. If extension
         // is null, any existing extension is removed from path.
-        public static string ChangeExtension(string path, string extension)
+        [return: NotNullIfNotNull("path")]
+        public static string? ChangeExtension(string? path, string? extension)
         {
             if (path == null)
                 return null;
@@ -98,7 +101,7 @@ namespace System.IO
         /// <remarks>
         /// Directory separators are normalized in the returned string.
         /// </remarks>
-        public static string GetDirectoryName(string path)
+        public static string? GetDirectoryName(string? path)
         {
             if (path == null || PathInternal.IsEffectivelyEmpty(path.AsSpan()))
                 return null;
@@ -131,7 +134,7 @@ namespace System.IO
             if (end <= rootLength)
                 return -1;
 
-            while (end > rootLength && !PathInternal.IsDirectorySeparator(path[--end]));
+            while (end > rootLength && !PathInternal.IsDirectorySeparator(path[--end])) ;
 
             // Trim off any remaining separators (to deal with C:\foo\\bar)
             while (end > rootLength && PathInternal.IsDirectorySeparator(path[end - 1]))
@@ -146,7 +149,8 @@ namespace System.IO
         /// The returned value is null if the given path is null or empty if the given path does not include an
         /// extension.
         /// </summary>
-        public static string GetExtension(string path)
+        [return: NotNullIfNotNull("path")]
+        public static string? GetExtension(string? path)
         {
             if (path == null)
                 return null;
@@ -157,7 +161,7 @@ namespace System.IO
         /// <summary>
         /// Returns the extension of the given path.
         /// </summary>
-        /// <remarks> 
+        /// <remarks>
         /// The returned value is an empty ReadOnlySpan if the given path does not include an extension.
         /// </remarks>
         public static ReadOnlySpan<char> GetExtension(ReadOnlySpan<char> path)
@@ -185,7 +189,8 @@ namespace System.IO
         /// the characters of path that follow the last separator in path. The resulting string is
         /// null if path is null.
         /// </summary>
-        public static string GetFileName(string path)
+        [return: NotNullIfNotNull("path")]
+        public static string? GetFileName(string? path)
         {
             if (path == null)
                 return null;
@@ -216,7 +221,8 @@ namespace System.IO
             return path;
         }
 
-        public static string GetFileNameWithoutExtension(string path)
+        [return: NotNullIfNotNull("path")]
+        public static string? GetFileNameWithoutExtension(string? path)
         {
             if (path == null)
                 return null;
@@ -250,9 +256,9 @@ namespace System.IO
             Interop.GetRandomBytes(pKey, KeyLength);
 
 #if MS_IO_REDIST
-                return StringExtensions.Create(
+            return StringExtensions.Create(
 #else
-                return string.Create(
+            return string.Create(
 #endif
                     12, (IntPtr)pKey, (span, key) => // 12 == 8 + 1 (for period) + 3
                          Populate83FileNameFromRandomBytes((byte*)key, KeyLength, span));
@@ -290,7 +296,7 @@ namespace System.IO
         /// Tests if a path's file name includes a file extension. A trailing period
         /// is not considered an extension.
         /// </summary>
-        public static bool HasExtension(string path)
+        public static bool HasExtension(string? path)
         {
             if (path != null)
             {
@@ -345,7 +351,7 @@ namespace System.IO
                 throw new ArgumentNullException(nameof(paths));
             }
 
-            int finalSize = 0;
+            int maxSize = 0;
             int firstComponent = 0;
 
             // We have two passes, the first calculates how large a buffer to allocate and does some precondition
@@ -366,19 +372,20 @@ namespace System.IO
                 if (IsPathRooted(paths[i]))
                 {
                     firstComponent = i;
-                    finalSize = paths[i].Length;
+                    maxSize = paths[i].Length;
                 }
                 else
                 {
-                    finalSize += paths[i].Length;
+                    maxSize += paths[i].Length;
                 }
 
                 char ch = paths[i][paths[i].Length - 1];
                 if (!PathInternal.IsDirectorySeparator(ch))
-                    finalSize++;
+                    maxSize++;
             }
 
-            StringBuilder finalPath = StringBuilderCache.Acquire(finalSize);
+            var builder = new ValueStringBuilder(stackalloc char[260]); // MaxShortPath on Windows
+            builder.EnsureCapacity(maxSize);
 
             for (int i = firstComponent; i < paths.Length; i++)
             {
@@ -387,23 +394,23 @@ namespace System.IO
                     continue;
                 }
 
-                if (finalPath.Length == 0)
+                if (builder.Length == 0)
                 {
-                    finalPath.Append(paths[i]);
+                    builder.Append(paths[i]);
                 }
                 else
                 {
-                    char ch = finalPath[finalPath.Length - 1];
+                    char ch = builder[builder.Length - 1];
                     if (!PathInternal.IsDirectorySeparator(ch))
                     {
-                        finalPath.Append(PathInternal.DirectorySeparatorChar);
+                        builder.Append(PathInternal.DirectorySeparatorChar);
                     }
 
-                    finalPath.Append(paths[i]);
+                    builder.Append(paths[i]);
                 }
             }
 
-            return StringBuilderCache.GetStringAndRelease(finalPath);
+            return builder.ToString();
         }
 
         // Unlike Combine(), Join() methods do not consider rooting. They simply combine paths, ensuring that there
@@ -433,14 +440,84 @@ namespace System.IO
             return JoinInternal(path1, path2, path3);
         }
 
-        public static string Join(string path1, string path2)
+        public static string Join(ReadOnlySpan<char> path1, ReadOnlySpan<char> path2, ReadOnlySpan<char> path3, ReadOnlySpan<char> path4)
+        {
+            if (path1.Length == 0)
+                return Join(path2, path3, path4);
+
+            if (path2.Length == 0)
+                return Join(path1, path3, path4);
+
+            if (path3.Length == 0)
+                return Join(path1, path2, path4);
+
+            if (path4.Length == 0)
+                return Join(path1, path2, path3);
+
+            return JoinInternal(path1, path2, path3, path4);
+        }
+
+        public static string Join(string? path1, string? path2)
         {
             return Join(path1.AsSpan(), path2.AsSpan());
         }
 
-        public static string Join(string path1, string path2, string path3)
+        public static string Join(string? path1, string? path2, string? path3)
         {
             return Join(path1.AsSpan(), path2.AsSpan(), path3.AsSpan());
+        }
+
+        public static string Join(string? path1, string? path2, string? path3, string? path4)
+        {
+            return Join(path1.AsSpan(), path2.AsSpan(), path3.AsSpan(), path4.AsSpan());
+        }
+
+        public static string Join(params string?[] paths)
+        {
+            if (paths == null)
+            {
+                throw new ArgumentNullException(nameof(paths));
+            }
+
+            if (paths.Length == 0)
+            {
+                return string.Empty;
+            }
+
+            int maxSize = 0;
+            foreach (string? path in paths)
+            {
+                maxSize += path?.Length ?? 0;
+            }
+            maxSize += paths.Length - 1;
+
+            var builder = new ValueStringBuilder(stackalloc char[260]); // MaxShortPath on Windows
+            builder.EnsureCapacity(maxSize);
+
+            for (int i = 0; i < paths.Length; i++)
+            {
+                string? path = paths[i];
+                if (string.IsNullOrEmpty(path))
+                {
+                    continue;
+                }
+
+                if (builder.Length == 0)
+                {
+                    builder.Append(path);
+                }
+                else
+                {
+                    if (!PathInternal.IsDirectorySeparator(builder[builder.Length - 1]) && !PathInternal.IsDirectorySeparator(path[0]))
+                    {
+                        builder.Append(PathInternal.DirectorySeparatorChar);
+                    }
+
+                    builder.Append(path);
+                }
+            }
+
+            return builder.ToString();
         }
 
         public static bool TryJoin(ReadOnlySpan<char> path1, ReadOnlySpan<char> path2, Span<char> destination, out int charsWritten)
@@ -462,7 +539,7 @@ namespace System.IO
                 return true;
             }
 
-            bool needsSeparator = !(PathInternal.EndsInDirectorySeparator(path1) || PathInternal.StartsWithDirectorySeparator(path2));
+            bool needsSeparator = !(EndsInDirectorySeparator(path1) || PathInternal.StartsWithDirectorySeparator(path2));
             int charsNeeded = path1.Length + path2.Length + (needsSeparator ? 1 : 0);
             if (destination.Length < charsNeeded)
                 return false;
@@ -490,8 +567,8 @@ namespace System.IO
             if (path3.Length == 0)
                 return TryJoin(path1, path2, destination, out charsWritten);
 
-            int neededSeparators = PathInternal.EndsInDirectorySeparator(path1) || PathInternal.StartsWithDirectorySeparator(path2) ? 0 : 1;
-            bool needsSecondSeparator = !(PathInternal.EndsInDirectorySeparator(path2) || PathInternal.StartsWithDirectorySeparator(path3));
+            int neededSeparators = EndsInDirectorySeparator(path1) || PathInternal.StartsWithDirectorySeparator(path2) ? 0 : 1;
+            bool needsSecondSeparator = !(EndsInDirectorySeparator(path2) || PathInternal.StartsWithDirectorySeparator(path3));
             if (needsSecondSeparator)
                 neededSeparators++;
 
@@ -634,7 +711,6 @@ namespace System.IO
 
             fixed (char* f = &MemoryMarshal.GetReference(first), s = &MemoryMarshal.GetReference(second), t = &MemoryMarshal.GetReference(third), u = &MemoryMarshal.GetReference(fourth))
             {
-
 #if MS_IO_REDIST
                 return StringExtensions.Create(
 #else
@@ -642,7 +718,7 @@ namespace System.IO
 #endif
                     first.Length + second.Length + third.Length + fourth.Length + (firstHasSeparator ? 0 : 1) + (thirdHasSeparator ? 0 : 1) + (fourthHasSeparator ? 0 : 1),
                     (First: (IntPtr)f, FirstLength: first.Length, Second: (IntPtr)s, SecondLength: second.Length,
-                        Third: (IntPtr)t, ThirdLength: third.Length, Fourth: (IntPtr)u, FourthLength:fourth.Length,
+                        Third: (IntPtr)t, ThirdLength: third.Length, Fourth: (IntPtr)u, FourthLength: fourth.Length,
                         FirstHasSeparator: firstHasSeparator, ThirdHasSeparator: thirdHasSeparator, FourthHasSeparator: fourthHasSeparator),
                     (destination, state) =>
                     {
@@ -664,7 +740,7 @@ namespace System.IO
                 (byte)'a', (byte)'b', (byte)'c', (byte)'d', (byte)'e', (byte)'f', (byte)'g', (byte)'h',
                 (byte)'i', (byte)'j', (byte)'k', (byte)'l', (byte)'m', (byte)'n', (byte)'o', (byte)'p',
                 (byte)'q', (byte)'r', (byte)'s', (byte)'t', (byte)'u', (byte)'v', (byte)'w', (byte)'x',
-                (byte)'y', (byte)'z', (byte)'0', (byte)'1', (byte)'2', (byte)'3', (byte)'4', (byte)'5'};
+                (byte)'y', (byte)'z', (byte)'0', (byte)'1', (byte)'2', (byte)'3', (byte)'4', (byte)'5' };
 
         private static unsafe void Populate83FileNameFromRandomBytes(byte* bytes, int byteCount, Span<char> chars)
         {
@@ -701,7 +777,7 @@ namespace System.IO
             // Consume 3 MSB bits of b2, 1 MSB bit of b3, b4
             b2 >>= 5;
 
-            Debug.Assert(((b2 & 0xF8) == 0), "Unexpected set bits");
+            Debug.Assert((b2 & 0xF8) == 0, "Unexpected set bits");
 
             if ((b3 & 0x80) != 0)
                 b2 |= 0x08;
@@ -733,8 +809,18 @@ namespace System.IO
 
         private static string GetRelativePath(string relativeTo, string path, StringComparison comparisonType)
         {
-            if (string.IsNullOrEmpty(relativeTo)) throw new ArgumentNullException(nameof(relativeTo));
-            if (PathInternal.IsEffectivelyEmpty(path.AsSpan())) throw new ArgumentNullException(nameof(path));
+            if (relativeTo == null)
+                throw new ArgumentNullException(nameof(relativeTo));
+
+            if (PathInternal.IsEffectivelyEmpty(relativeTo.AsSpan()))
+                throw new ArgumentException(SR.Arg_PathEmpty, nameof(relativeTo));
+
+            if (path == null)
+                throw new ArgumentNullException(nameof(path));
+
+            if (PathInternal.IsEffectivelyEmpty(path.AsSpan()))
+                throw new ArgumentException(SR.Arg_PathEmpty, nameof(path));
+
             Debug.Assert(comparisonType == StringComparison.Ordinal || comparisonType == StringComparison.OrdinalIgnoreCase);
 
             relativeTo = GetFullPath(relativeTo);
@@ -752,10 +838,10 @@ namespace System.IO
 
             // Trailing separators aren't significant for comparison
             int relativeToLength = relativeTo.Length;
-            if (PathInternal.EndsInDirectorySeparator(relativeTo.AsSpan()))
+            if (EndsInDirectorySeparator(relativeTo.AsSpan()))
                 relativeToLength--;
 
-            bool pathEndsInSeparator = PathInternal.EndsInDirectorySeparator(path.AsSpan());
+            bool pathEndsInSeparator = EndsInDirectorySeparator(path.AsSpan());
             int pathLength = path.Length;
             if (pathEndsInSeparator)
                 pathLength--;
@@ -773,7 +859,8 @@ namespace System.IO
             //  C:\Foo\Bar C:\Bar\Bar L3, S2 -> ..\..\Bar\Bar
             //  C:\Foo\Foo C:\Foo\Bar L7, S1 -> ..\Bar
 
-            StringBuilder sb = StringBuilderCache.Acquire(Math.Max(relativeTo.Length, path.Length));
+            var sb = new ValueStringBuilder(stackalloc char[260]);
+            sb.EnsureCapacity(Math.Max(relativeTo.Length, path.Length));
 
             // Add parent segments for segments past the common on the "from" path
             if (commonLength < relativeToLength)
@@ -808,21 +895,44 @@ namespace System.IO
                     sb.Append(DirectorySeparatorChar);
                 }
 
-                sb.Append(path, commonLength, differenceLength);
+                sb.Append(path.AsSpan(commonLength, differenceLength));
             }
 
-            return StringBuilderCache.GetStringAndRelease(sb);
+            return sb.ToString();
         }
 
         /// <summary>Returns a comparison that can be used to compare file and directory names for equality.</summary>
-        internal static StringComparison StringComparison
-        {
-            get
-            {
-                return IsCaseSensitive ?
-                    StringComparison.Ordinal :
-                    StringComparison.OrdinalIgnoreCase;
-            }
-        }
+        internal static StringComparison StringComparison =>
+            IsCaseSensitive ?
+                StringComparison.Ordinal :
+                StringComparison.OrdinalIgnoreCase;
+
+        /// <summary>
+        /// Trims one trailing directory separator beyond the root of the path.
+        /// </summary>
+        public static string TrimEndingDirectorySeparator(string path) =>
+            EndsInDirectorySeparator(path) && !PathInternal.IsRoot(path.AsSpan()) ?
+                path.Substring(0, path.Length - 1) :
+                path;
+
+        /// <summary>
+        /// Trims one trailing directory separator beyond the root of the path.
+        /// </summary>
+        public static ReadOnlySpan<char> TrimEndingDirectorySeparator(ReadOnlySpan<char> path) =>
+            EndsInDirectorySeparator(path) && !PathInternal.IsRoot(path) ?
+                path.Slice(0, path.Length - 1) :
+                path;
+
+        /// <summary>
+        /// Returns true if the path ends in a directory separator.
+        /// </summary>
+        public static bool EndsInDirectorySeparator(ReadOnlySpan<char> path)
+            => path.Length > 0 && PathInternal.IsDirectorySeparator(path[path.Length - 1]);
+
+        /// <summary>
+        /// Returns true if the path ends in a directory separator.
+        /// </summary>
+        public static bool EndsInDirectorySeparator(string path)
+              => !string.IsNullOrEmpty(path) && PathInternal.IsDirectorySeparator(path[path.Length - 1]);
     }
 }

@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 // ===========================================================================
 // File: ReadyToRunInfo.cpp
-// 
+//
 
 //
 // Runtime support for Ready to Run
@@ -16,6 +16,7 @@
 #include "versionresilienthashcode.h"
 #include "typehashingalgorithms.h"
 #include "method.hpp"
+#include "wellknownattributes.h"
 
 using namespace NativeFormat;
 
@@ -78,7 +79,7 @@ BOOL ReadyToRunInfo::HasHashtableOfTypes()
     return !m_availableTypesHashtable.IsNull();
 }
 
-BOOL ReadyToRunInfo::TryLookupTypeTokenFromName(NameHandle *pName, mdToken * pFoundTypeToken)
+BOOL ReadyToRunInfo::TryLookupTypeTokenFromName(const NameHandle *pName, mdToken * pFoundTypeToken)
 {
     CONTRACTL
     {
@@ -102,7 +103,7 @@ BOOL ReadyToRunInfo::TryLookupTypeTokenFromName(NameHandle *pName, mdToken * pFo
 
     if (pName->GetTypeToken() == mdtBaseType || pName->GetTypeModule() == NULL)
     {
-        // Name-based lookups (ex: Type.GetType()). 
+        // Name-based lookups (ex: Type.GetType()).
 
         pszName = pName->GetName();
         pszNameSpace = "";
@@ -226,9 +227,9 @@ BOOL ReadyToRunInfo::GetTypeNameFromToken(IMDInternalImport * pImport, mdToken m
 
     switch (TypeFromToken(mdType))
     {
-    case mdtTypeDef: 
+    case mdtTypeDef:
         return SUCCEEDED(pImport->GetNameOfTypeDef(mdType, ppszName, ppszNameSpace));
-    case mdtTypeRef: 
+    case mdtTypeRef:
         return SUCCEEDED(pImport->GetNameOfTypeRef(mdType, ppszNameSpace, ppszName));
     case mdtExportedType:
         return SUCCEEDED(pImport->GetExportedTypeProps(mdType, ppszNameSpace, ppszName, NULL, NULL, NULL));
@@ -434,7 +435,7 @@ static bool AcquireImage(Module * pModule, PEImageLayout * pLayout, READYTORUN_H
             PBYTE pSig = (PBYTE)pLayout->GetBase() + pSignatures[i];
             if (pSig[0] == READYTORUN_FIXUP_Helper && pSig[1] == READYTORUN_HELPER_Module)
             {
-                Module * pPrevious = InterlockedCompareExchangeT(EnsureWritablePages((Module **)(pFixups + i)), pModule, NULL);
+                Module * pPrevious = InterlockedCompareExchangeT((Module **)(pFixups + i), pModule, NULL);
                 return pPrevious == NULL || pPrevious == pModule;
             }
         }
@@ -589,7 +590,7 @@ ReadyToRunInfo::ReadyToRunInfo(Module * pModule, PEImageLayout * pLayout, READYT
         m_entryPointToMethodDescMap.Init(TRUE, &lock);
     }
 
-    // For format version 2.1 and later, there is an optional inlining table 
+    // For format version 2.1 and later, there is an optional inlining table
     if (IsImageVersionAtLeast(2, 1))
     {
         IMAGE_DATA_DIRECTORY * pInlineTrackingInfoDir = FindSection(READYTORUN_SECTION_INLINING_INFO);
@@ -610,10 +611,22 @@ ReadyToRunInfo::ReadyToRunInfo(Module * pModule, PEImageLayout * pLayout, READYT
             CORCOMPILE_METHOD_PROFILE_LIST * pMethodProfileList;
             pMethodProfileList = (CORCOMPILE_METHOD_PROFILE_LIST *)GetImage()->GetDirectoryData(pProfileDataInfoDir);
 
-            pModule->SetMethodProfileList(pMethodProfileList);  
+            pModule->SetMethodProfileList(pMethodProfileList);
         }
     }
 
+    // For format version 3.1 and later, there is an optional attributes section
+    IMAGE_DATA_DIRECTORY *attributesPresenceDataInfoDir = FindSection(READYTORUN_SECTION_ATTRIBUTEPRESENCE);
+    if (attributesPresenceDataInfoDir != NULL)
+    {
+        NativeCuckooFilter newFilter(
+            (byte *)pLayout->GetBase(),
+            pLayout->GetVirtualSize(),
+            attributesPresenceDataInfoDir->VirtualAddress,
+            attributesPresenceDataInfoDir->Size);
+
+        m_attributesPresence = newFilter;
+    }
 }
 
 static bool SigMatchesMethodDesc(MethodDesc* pMD, SigPointer &sig, Module * pModule)
@@ -700,10 +713,7 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig
             {
                 // Get the updated SigPointer location, so we can calculate the size of the blob,
                 // in order to skip the blob and find the entry point data.
-                PCCOR_SIGNATURE pSigNew;
-                DWORD cbSigNew;
-                sig.GetSignature(&pSigNew, &cbSigNew);
-                offset = entryParser.GetOffset() + (uint)(pSigNew - pBlob);
+                offset = entryParser.GetOffset() + (uint)(sig.GetPtr() - pBlob);
                 break;
             }
         }
@@ -794,11 +804,77 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig
     }
 
 done:
-    if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, R2RGetEntryPoint))
+    if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, R2RGetEntryPoint))
     {
         ETW::MethodLog::GetR2RGetEntryPoint(pMD, pEntryPoint);
     }
     return pEntryPoint;
+}
+
+
+void ReadyToRunInfo::MethodIterator::ParseGenericMethodSignatureAndRid(uint *pOffset, RID *pRid)
+{
+    _ASSERTE(!m_genericParser.IsNull());
+
+    HRESULT hr = S_OK;
+    *pOffset = -1;
+    *pRid = -1;
+
+    PCCOR_SIGNATURE pBlob = (PCCOR_SIGNATURE)m_genericParser.GetBlob();
+    SigPointer sig(pBlob);
+
+    DWORD methodFlags = 0;
+    // Skip the signature so we can get to the offset
+    hr = sig.GetData(&methodFlags);
+    if (FAILED(hr))
+    {
+        return;
+    }
+
+    if (methodFlags & ENCODE_METHOD_SIG_OwnerType)
+    {
+        hr = sig.SkipExactlyOne();
+        if (FAILED(hr))
+        {
+            return;
+        }
+    }
+
+    _ASSERTE((methodFlags & ENCODE_METHOD_SIG_SlotInsteadOfToken) == 0);
+    _ASSERTE((methodFlags & ENCODE_METHOD_SIG_MemberRefToken) == 0);
+
+    hr = sig.GetData(pRid);
+    if (FAILED(hr))
+    {
+        return;
+    }
+
+    if (methodFlags & ENCODE_METHOD_SIG_MethodInstantiation)
+    {
+        DWORD numGenericArgs;
+        hr = sig.GetData(&numGenericArgs);
+        if (FAILED(hr))
+        {
+            return;
+        }
+
+        for (DWORD i = 0; i < numGenericArgs; i++)
+        {
+            hr = sig.SkipExactlyOne();
+            if (FAILED(hr))
+            {
+                return;
+            }
+        }
+    }
+
+    // Now that we have the size of the signature we can grab the offset and decode it
+    PCCOR_SIGNATURE pSigNew;
+    DWORD cbSigNew;
+    sig.GetSignature(&pSigNew, &cbSigNew);
+
+    m_genericCurrentSig = pBlob;
+    *pOffset = m_genericParser.GetOffset() + (uint)(pSigNew - pBlob);
 }
 
 BOOL ReadyToRunInfo::MethodIterator::Next()
@@ -811,12 +887,24 @@ BOOL ReadyToRunInfo::MethodIterator::Next()
     }
     CONTRACTL_END;
 
+    // Enumerate non-generic methods
     while (++m_methodDefIndex < (int)m_pInfo->m_methodDefEntryPoints.GetCount())
     {
         uint offset;
         if (m_pInfo->m_methodDefEntryPoints.TryGetAt(m_methodDefIndex, &offset))
+        {
             return TRUE;
+        }
     }
+
+    // Enumerate generic instantiations
+    m_genericParser = m_genericEnum.GetNext();
+    if (!m_genericParser.IsNull())
+    {
+        ParseGenericMethodSignatureAndRid(&m_genericCurrentOffset, &m_genericCurrentRid);
+        return TRUE;
+    }
+
     return FALSE;
 }
 
@@ -824,7 +912,18 @@ MethodDesc * ReadyToRunInfo::MethodIterator::GetMethodDesc()
 {
     STANDARD_VM_CONTRACT;
 
-    return MemberLoader::GetMethodDescFromMethodDef(m_pInfo->m_pModule, mdtMethodDef | (m_methodDefIndex + 1), FALSE);
+    mdMethodDef methodToken = mdTokenNil;
+    if (m_methodDefIndex < (int)m_pInfo->m_methodDefEntryPoints.GetCount())
+    {
+        methodToken = mdtMethodDef | (m_methodDefIndex + 1);
+        return MemberLoader::GetMethodDescFromMethodDef(m_pInfo->m_pModule, methodToken, FALSE);
+    }
+    else
+    {
+        _ASSERTE(m_genericCurrentOffset > 0 && m_genericCurrentSig != NULL);
+        return ZapSig::DecodeMethod(m_pInfo->m_pModule, m_pInfo->m_pModule, m_genericCurrentSig);
+    }
+
 }
 
 MethodDesc * ReadyToRunInfo::MethodIterator::GetMethodDesc_NoRestore()
@@ -838,9 +937,22 @@ MethodDesc * ReadyToRunInfo::MethodIterator::GetMethodDesc_NoRestore()
     CONTRACTL_END;
 
     uint offset;
-    if (!m_pInfo->m_methodDefEntryPoints.TryGetAt(m_methodDefIndex, &offset))
+    if (m_methodDefIndex < (int)m_pInfo->m_methodDefEntryPoints.GetCount())
     {
-        return NULL;
+        if (!m_pInfo->m_methodDefEntryPoints.TryGetAt(m_methodDefIndex, &offset))
+        {
+            return NULL;
+        }
+    }
+    else
+    {
+        if (m_genericCurrentOffset <= 0)
+        {
+            // Failed to parse generic info.
+            return NULL;
+        }
+
+        offset = m_genericCurrentOffset;
     }
 
     uint id;
@@ -905,6 +1017,33 @@ BOOL ReadyToRunInfo::IsImageVersionAtLeast(int majorVersion, int minorVersion)
 	return (m_pHeader->MajorVersion == majorVersion && m_pHeader->MinorVersion >= minorVersion) ||
 		   (m_pHeader->MajorVersion > majorVersion);
 
+}
+
+static DWORD s_wellKnownAttributeHashes[(DWORD)WellKnownAttribute::CountOfWellKnownAttributes];
+
+bool ReadyToRunInfo::MayHaveCustomAttribute(WellKnownAttribute attribute, mdToken token)
+{
+    UINT32 hash = 0;
+    UINT16 fingerprint = 0;
+    if (!m_attributesPresence.HashComputationImmaterial())
+    {
+        DWORD wellKnownHash = s_wellKnownAttributeHashes[(DWORD)attribute];
+        if (wellKnownHash == 0)
+        {
+            // TODO, investigate using constexpr to compute string hashes at compile time initially
+            s_wellKnownAttributeHashes[(DWORD)attribute] = wellKnownHash = ComputeNameHashCode(GetWellKnownAttributeName(attribute));
+        }
+
+        hash = CombineTwoValuesIntoHash(wellKnownHash, token);
+        fingerprint = hash >> 16;
+    }
+
+    return m_attributesPresence.MayExist(hash, fingerprint);
+}
+
+void ReadyToRunInfo::DisableCustomAttributeFilter()
+{
+    m_attributesPresence.DisableFilter();
 }
 
 #endif // DACCESS_COMPILE

@@ -17,6 +17,11 @@ namespace ContextualReflectionTest
     {
     }
 
+    class MockAssembly : Assembly
+    {
+        public MockAssembly() {}
+    }
+
     class Program : IProgram
     {
         public AssemblyLoadContext alc { get; set; }
@@ -127,160 +132,160 @@ namespace ContextualReflectionTest
 
         void VerifyContextualReflectionProxy()
         {
-            Assert.IsNull(ConntextualReflectionProxy.CurrentContextualReflectionContext);
+            Assert.IsNull(AssemblyLoadContext.CurrentContextualReflectionContext);
 
-            using (ConntextualReflectionProxy.EnterContextualReflection(alc))
+            using (alc.EnterContextualReflection())
             {
-                Assert.AreEqual(alc, ConntextualReflectionProxy.CurrentContextualReflectionContext);
-                using (ConntextualReflectionProxy.EnterContextualReflection(AssemblyLoadContext.Default))
+                Assert.AreEqual(alc, AssemblyLoadContext.CurrentContextualReflectionContext);
+                using (AssemblyLoadContext.Default.EnterContextualReflection())
                 {
-                    Assert.AreEqual(AssemblyLoadContext.Default, ConntextualReflectionProxy.CurrentContextualReflectionContext);
-                    using (ConntextualReflectionProxy.EnterContextualReflection((Assembly)null))
+                    Assert.AreEqual(AssemblyLoadContext.Default, AssemblyLoadContext.CurrentContextualReflectionContext);
+                    using (AssemblyLoadContext.EnterContextualReflection(null))
                     {
-                        Assert.IsNull(ConntextualReflectionProxy.CurrentContextualReflectionContext);
-                        using (ConntextualReflectionProxy.EnterContextualReflection(alcAssembly))
+                        Assert.IsNull(AssemblyLoadContext.CurrentContextualReflectionContext);
+                        using (AssemblyLoadContext.EnterContextualReflection(alcAssembly))
                         {
-                            Assert.AreEqual(alc, ConntextualReflectionProxy.CurrentContextualReflectionContext);
+                            Assert.AreEqual(alc, AssemblyLoadContext.CurrentContextualReflectionContext);
                         }
-                        Assert.IsNull(ConntextualReflectionProxy.CurrentContextualReflectionContext);
+                        Assert.IsNull(AssemblyLoadContext.CurrentContextualReflectionContext);
                     }
-                    Assert.AreEqual(AssemblyLoadContext.Default, ConntextualReflectionProxy.CurrentContextualReflectionContext);
+                    Assert.AreEqual(AssemblyLoadContext.Default, AssemblyLoadContext.CurrentContextualReflectionContext);
                 }
-                Assert.AreEqual(alc, ConntextualReflectionProxy.CurrentContextualReflectionContext);
+                Assert.AreEqual(alc, AssemblyLoadContext.CurrentContextualReflectionContext);
             }
-            Assert.IsNull(ConntextualReflectionProxy.CurrentContextualReflectionContext);
+            Assert.IsNull(AssemblyLoadContext.CurrentContextualReflectionContext);
         }
 
         void VerifyUsingStatementContextualReflectionUsage()
         {
-            Assert.IsNull(ConntextualReflectionProxy.CurrentContextualReflectionContext);
+            Assert.IsNull(AssemblyLoadContext.CurrentContextualReflectionContext);
 
             {
-                using IDisposable alcScope = ConntextualReflectionProxy.EnterContextualReflection(alc);
-                Assert.AreEqual(alc, ConntextualReflectionProxy.CurrentContextualReflectionContext);
+                using IDisposable alcScope = alc.EnterContextualReflection();
+                Assert.AreEqual(alc, AssemblyLoadContext.CurrentContextualReflectionContext);
             }
 
-            Assert.IsNull(ConntextualReflectionProxy.CurrentContextualReflectionContext);
+            Assert.IsNull(AssemblyLoadContext.CurrentContextualReflectionContext);
 
             {
-                using IDisposable alcScope = ConntextualReflectionProxy.EnterContextualReflection(alc);
-                Assert.AreEqual(alc, ConntextualReflectionProxy.CurrentContextualReflectionContext);
+                using IDisposable alcScope = alc.EnterContextualReflection();
+                Assert.AreEqual(alc, AssemblyLoadContext.CurrentContextualReflectionContext);
                 alcScope.Dispose();
-                Assert.IsNull(ConntextualReflectionProxy.CurrentContextualReflectionContext);
+                Assert.IsNull(AssemblyLoadContext.CurrentContextualReflectionContext);
             }
 
-            Assert.IsNull(ConntextualReflectionProxy.CurrentContextualReflectionContext);
+            Assert.IsNull(AssemblyLoadContext.CurrentContextualReflectionContext);
 
             {
-                using IDisposable alcScope = ConntextualReflectionProxy.EnterContextualReflection(alc);
-                Assert.AreEqual(alc, ConntextualReflectionProxy.CurrentContextualReflectionContext);
+                using IDisposable alcScope = alc.EnterContextualReflection();
+                Assert.AreEqual(alc, AssemblyLoadContext.CurrentContextualReflectionContext);
                 alcScope.Dispose();
-                Assert.IsNull(ConntextualReflectionProxy.CurrentContextualReflectionContext);
+                Assert.IsNull(AssemblyLoadContext.CurrentContextualReflectionContext);
                 alcScope.Dispose();
             }
 
-            Assert.IsNull(ConntextualReflectionProxy.CurrentContextualReflectionContext);
+            Assert.IsNull(AssemblyLoadContext.CurrentContextualReflectionContext);
 
             {
-                using IDisposable alcScope = ConntextualReflectionProxy.EnterContextualReflection(alc);
-                Assert.AreEqual(alc, ConntextualReflectionProxy.CurrentContextualReflectionContext);
+                using IDisposable alcScope = alc.EnterContextualReflection();
+                Assert.AreEqual(alc, AssemblyLoadContext.CurrentContextualReflectionContext);
                 {
-                    using IDisposable defaultScope = ConntextualReflectionProxy.EnterContextualReflection(AssemblyLoadContext.Default);
-                    Assert.AreEqual(AssemblyLoadContext.Default, ConntextualReflectionProxy.CurrentContextualReflectionContext);
+                    using IDisposable defaultScope = AssemblyLoadContext.Default.EnterContextualReflection();
+                    Assert.AreEqual(AssemblyLoadContext.Default, AssemblyLoadContext.CurrentContextualReflectionContext);
 
                 }
-                Assert.AreEqual(alc, ConntextualReflectionProxy.CurrentContextualReflectionContext);
+                Assert.AreEqual(alc, AssemblyLoadContext.CurrentContextualReflectionContext);
             }
 
-            Assert.IsNull(ConntextualReflectionProxy.CurrentContextualReflectionContext);
+            Assert.IsNull(AssemblyLoadContext.CurrentContextualReflectionContext);
 
             {
-                using IDisposable alcScope = ConntextualReflectionProxy.EnterContextualReflection(alc);
-                Assert.AreEqual(alc, ConntextualReflectionProxy.CurrentContextualReflectionContext);
+                using IDisposable alcScope = alc.EnterContextualReflection();
+                Assert.AreEqual(alc, AssemblyLoadContext.CurrentContextualReflectionContext);
                 try
                 {
-                    using IDisposable defaultScope = ConntextualReflectionProxy.EnterContextualReflection(AssemblyLoadContext.Default);
-                    Assert.AreEqual(AssemblyLoadContext.Default, ConntextualReflectionProxy.CurrentContextualReflectionContext);
+                    using IDisposable defaultScope = AssemblyLoadContext.Default.EnterContextualReflection();
+                    Assert.AreEqual(AssemblyLoadContext.Default, AssemblyLoadContext.CurrentContextualReflectionContext);
 
                     throw new InvalidOperationException();
                 }
                 catch
                 {
                 }
-                Assert.AreEqual(alc, ConntextualReflectionProxy.CurrentContextualReflectionContext);
+                Assert.AreEqual(alc, AssemblyLoadContext.CurrentContextualReflectionContext);
             }
 
-            Assert.IsNull(ConntextualReflectionProxy.CurrentContextualReflectionContext);
+            Assert.IsNull(AssemblyLoadContext.CurrentContextualReflectionContext);
 
             {
-                using IDisposable alcScope = ConntextualReflectionProxy.EnterContextualReflection(alc);
-                Assert.AreEqual(alc, ConntextualReflectionProxy.CurrentContextualReflectionContext);
-                using IDisposable defaultScope = ConntextualReflectionProxy.EnterContextualReflection(AssemblyLoadContext.Default);
-                Assert.AreEqual(AssemblyLoadContext.Default, ConntextualReflectionProxy.CurrentContextualReflectionContext);
+                using IDisposable alcScope = alc.EnterContextualReflection();
+                Assert.AreEqual(alc, AssemblyLoadContext.CurrentContextualReflectionContext);
+                using IDisposable defaultScope = AssemblyLoadContext.Default.EnterContextualReflection();
+                Assert.AreEqual(AssemblyLoadContext.Default, AssemblyLoadContext.CurrentContextualReflectionContext);
                 defaultScope.Dispose();
-                Assert.AreEqual(alc, ConntextualReflectionProxy.CurrentContextualReflectionContext);
+                Assert.AreEqual(alc, AssemblyLoadContext.CurrentContextualReflectionContext);
                 alcScope.Dispose();
             }
 
-            Assert.IsNull(ConntextualReflectionProxy.CurrentContextualReflectionContext);
+            Assert.IsNull(AssemblyLoadContext.CurrentContextualReflectionContext);
         }
 
         void VerifyBadContextualReflectionUsage()
         {
-            Assert.IsNull(ConntextualReflectionProxy.CurrentContextualReflectionContext);
+            Assert.IsNull(AssemblyLoadContext.CurrentContextualReflectionContext);
 
             {
-                IDisposable alcScope = ConntextualReflectionProxy.EnterContextualReflection(alc);
-                Assert.AreEqual(alc, ConntextualReflectionProxy.CurrentContextualReflectionContext);
+                IDisposable alcScope = alc.EnterContextualReflection();
+                Assert.AreEqual(alc, AssemblyLoadContext.CurrentContextualReflectionContext);
                 alcScope.Dispose();
             }
 
-            Assert.IsNull(ConntextualReflectionProxy.CurrentContextualReflectionContext);
+            Assert.IsNull(AssemblyLoadContext.CurrentContextualReflectionContext);
 
             {
-                IDisposable alcScope = ConntextualReflectionProxy.EnterContextualReflection(alc);
-                Assert.AreEqual(alc, ConntextualReflectionProxy.CurrentContextualReflectionContext);
+                IDisposable alcScope = alc.EnterContextualReflection();
+                Assert.AreEqual(alc, AssemblyLoadContext.CurrentContextualReflectionContext);
                 alcScope.Dispose();
                 alcScope.Dispose();
             }
 
-            Assert.IsNull(ConntextualReflectionProxy.CurrentContextualReflectionContext);
+            Assert.IsNull(AssemblyLoadContext.CurrentContextualReflectionContext);
 
             {
-                IDisposable alcScope = ConntextualReflectionProxy.EnterContextualReflection(alc);
-                Assert.AreEqual(alc, ConntextualReflectionProxy.CurrentContextualReflectionContext);
-                IDisposable defaultScope = ConntextualReflectionProxy.EnterContextualReflection(AssemblyLoadContext.Default);
-                Assert.AreEqual(AssemblyLoadContext.Default, ConntextualReflectionProxy.CurrentContextualReflectionContext);
+                IDisposable alcScope = alc.EnterContextualReflection();
+                Assert.AreEqual(alc, AssemblyLoadContext.CurrentContextualReflectionContext);
+                IDisposable defaultScope = AssemblyLoadContext.Default.EnterContextualReflection();
+                Assert.AreEqual(AssemblyLoadContext.Default, AssemblyLoadContext.CurrentContextualReflectionContext);
                 defaultScope.Dispose();
-                Assert.AreEqual(alc, ConntextualReflectionProxy.CurrentContextualReflectionContext);
+                Assert.AreEqual(alc, AssemblyLoadContext.CurrentContextualReflectionContext);
                 alcScope.Dispose();
             }
 
-            Assert.IsNull(ConntextualReflectionProxy.CurrentContextualReflectionContext);
+            Assert.IsNull(AssemblyLoadContext.CurrentContextualReflectionContext);
 
             {
-                IDisposable alcScope = ConntextualReflectionProxy.EnterContextualReflection(alc);
-                Assert.AreEqual(alc, ConntextualReflectionProxy.CurrentContextualReflectionContext);
-                IDisposable defaultScope = ConntextualReflectionProxy.EnterContextualReflection(AssemblyLoadContext.Default);
-                Assert.AreEqual(AssemblyLoadContext.Default, ConntextualReflectionProxy.CurrentContextualReflectionContext);
+                IDisposable alcScope = alc.EnterContextualReflection();
+                Assert.AreEqual(alc, AssemblyLoadContext.CurrentContextualReflectionContext);
+                IDisposable defaultScope = AssemblyLoadContext.Default.EnterContextualReflection();
+                Assert.AreEqual(AssemblyLoadContext.Default, AssemblyLoadContext.CurrentContextualReflectionContext);
 
                 alcScope.Dispose();
-                Assert.IsNull(ConntextualReflectionProxy.CurrentContextualReflectionContext);
+                Assert.IsNull(AssemblyLoadContext.CurrentContextualReflectionContext);
 
                 defaultScope.Dispose();
-                Assert.AreEqual(alc, ConntextualReflectionProxy.CurrentContextualReflectionContext);
+                Assert.AreEqual(alc, AssemblyLoadContext.CurrentContextualReflectionContext);
                 alcScope.Dispose();
             }
 
-            Assert.IsNull(ConntextualReflectionProxy.CurrentContextualReflectionContext);
+            Assert.IsNull(AssemblyLoadContext.CurrentContextualReflectionContext);
 
             {
-                IDisposable alcScope = ConntextualReflectionProxy.EnterContextualReflection(alc);
-                Assert.AreEqual(alc, ConntextualReflectionProxy.CurrentContextualReflectionContext);
+                IDisposable alcScope = alc.EnterContextualReflection();
+                Assert.AreEqual(alc, AssemblyLoadContext.CurrentContextualReflectionContext);
                 try
                 {
-                    IDisposable defaultScope = ConntextualReflectionProxy.EnterContextualReflection((Assembly)null);
-                    Assert.AreEqual(null, ConntextualReflectionProxy.CurrentContextualReflectionContext);
+                    IDisposable defaultScope = AssemblyLoadContext.EnterContextualReflection(null);
+                    Assert.AreEqual(null, AssemblyLoadContext.CurrentContextualReflectionContext);
 
                     throw new InvalidOperationException();
                 }
@@ -289,23 +294,23 @@ namespace ContextualReflectionTest
                 }
             }
 
-            Assert.IsNull(ConntextualReflectionProxy.CurrentContextualReflectionContext);
+            Assert.IsNull(AssemblyLoadContext.CurrentContextualReflectionContext);
         }
 
         void TestResolveMissingAssembly(bool isolated, Action<string> action, bool skipNullIsolated = false)
         {
-            using (ConntextualReflectionProxy.EnterContextualReflection((Assembly)null))
+            using (AssemblyLoadContext.EnterContextualReflection(null))
             {
                 TestResolve.Assert(ResolveEvents.ExpectedEvent, () => action("TestDefaultLoad"));
                 if (!skipNullIsolated)
                     TestResolve.Assert(isolated ? ResolveEvents.ExpectedEvent : ResolveEvents.NoEvent, () => action("TestIsolatedLoad"));
             }
-            using (ConntextualReflectionProxy.EnterContextualReflection(AssemblyLoadContext.Default))
+            using (AssemblyLoadContext.Default.EnterContextualReflection())
             {
                 TestResolve.Assert(ResolveEvents.ExpectedEvent, () => action("TestDefaultLoad"));
                 TestResolve.Assert(ResolveEvents.NoEvent, () => action("TestIsolatedLoad"));
             }
-            using (ConntextualReflectionProxy.EnterContextualReflection(alc))
+            using (alc.EnterContextualReflection())
             {
                 TestResolve.Assert(ResolveEvents.ExpectedEvent, () => action("TestDefaultLoad"));
                 TestResolve.Assert(ResolveEvents.ExpectedEvent, () => action("TestIsolatedLoad"));
@@ -316,13 +321,16 @@ namespace ContextualReflectionTest
         {
             TestAssemblyLoad(isolated, (string assemblyName) => Assembly.Load(assemblyName));
             TestAssemblyLoad(isolated, (string assemblyName) => Assembly.Load(new AssemblyName(assemblyName)));
+#pragma warning disable 618
+            TestAssemblyLoad(isolated, (string assemblyName) => Assembly.LoadWithPartialName(assemblyName));
+#pragma warning restore 618
         }
 
         void TestAssemblyLoad(bool isolated, Func<string, Assembly> assemblyLoad)
         {
             TestResolveMissingAssembly(isolated, (string assemblyName) => assemblyLoad(assemblyName));
 
-            using (ConntextualReflectionProxy.EnterContextualReflection((Assembly)null))
+            using (AssemblyLoadContext.EnterContextualReflection(null))
             {
                 Assembly assembly = assemblyLoad("ContextualReflection");
 
@@ -332,7 +340,7 @@ namespace ContextualReflectionTest
 
                 Assert.AreEqual(AssemblyLoadContext.Default, AssemblyLoadContext.GetLoadContext(depends));
             }
-            using (ConntextualReflectionProxy.EnterContextualReflection(AssemblyLoadContext.Default))
+            using (AssemblyLoadContext.Default.EnterContextualReflection())
             {
                 Assembly assembly = assemblyLoad("ContextualReflection");
 
@@ -342,7 +350,7 @@ namespace ContextualReflectionTest
 
                 Assert.AreEqual(AssemblyLoadContext.Default, AssemblyLoadContext.GetLoadContext(depends));
             }
-            using (ConntextualReflectionProxy.EnterContextualReflection(alc))
+            using (alc.EnterContextualReflection())
             {
                 Assembly assembly = assemblyLoad("ContextualReflection");
 
@@ -368,7 +376,7 @@ namespace ContextualReflectionTest
         {
             TestResolveMissingAssembly(isolated, (string assemblyName) => typeGetType(string.Format("MyType, {0}", assemblyName)));
 
-            using (ConntextualReflectionProxy.EnterContextualReflection((Assembly)null))
+            using (AssemblyLoadContext.EnterContextualReflection(null))
             {
                 {
                     Type p = typeGetType("ContextualReflectionTest.Program");
@@ -400,7 +408,7 @@ namespace ContextualReflectionTest
                     Assert.AreEqual(isolated ? alc : AssemblyLoadContext.Default, AssemblyLoadContext.GetLoadContext(g.GenericTypeArguments[0].Assembly));
                 }
             }
-            using (ConntextualReflectionProxy.EnterContextualReflection(AssemblyLoadContext.Default))
+            using (AssemblyLoadContext.Default.EnterContextualReflection())
             {
                 {
                     Type p = typeGetType("ContextualReflectionTest.Program");
@@ -432,7 +440,7 @@ namespace ContextualReflectionTest
                     Assert.AreEqual(AssemblyLoadContext.Default, AssemblyLoadContext.GetLoadContext(g.GenericTypeArguments[0].Assembly));
                 }
             }
-            using (ConntextualReflectionProxy.EnterContextualReflection(alc))
+            using (alc.EnterContextualReflection())
             {
                 {
                     Type p = typeGetType("ContextualReflectionTest.Program");
@@ -472,7 +480,7 @@ namespace ContextualReflectionTest
             TestResolveMissingAssembly(isolated,
                 (string assemblyName) => assembly.GetType(string.Format("ContextualReflectionTest.AGenericClass`1[[MyType, {0}]]", assemblyName)));
 
-            using (ConntextualReflectionProxy.EnterContextualReflection((Assembly)null))
+            using (AssemblyLoadContext.EnterContextualReflection(null))
             {
                 {
                     Type g = assembly.GetType("ContextualReflectionTest.AGenericClass`1[[ContextualReflectionTest.Program]]", throwOnError : false);
@@ -504,7 +512,7 @@ namespace ContextualReflectionTest
                     Assert.AreEqual(AssemblyLoadContext.Default, AssemblyLoadContext.GetLoadContext(m.GenericTypeArguments[0].Assembly));
                 }
             }
-            using (ConntextualReflectionProxy.EnterContextualReflection(AssemblyLoadContext.Default))
+            using (AssemblyLoadContext.Default.EnterContextualReflection())
             {
                 {
                     Type g = assembly.GetType("ContextualReflectionTest.AGenericClass`1[[ContextualReflectionTest.Program]]", throwOnError : false);
@@ -536,7 +544,7 @@ namespace ContextualReflectionTest
                     Assert.AreEqual(AssemblyLoadContext.Default, AssemblyLoadContext.GetLoadContext(m.GenericTypeArguments[0].Assembly));
                 }
             }
-            using (ConntextualReflectionProxy.EnterContextualReflection(alc))
+            using (alc.EnterContextualReflection())
             {
                 {
                     Type g = assembly.GetType("ContextualReflectionTest.AGenericClass`1[[ContextualReflectionTest.Program]]", throwOnError : false);
@@ -582,7 +590,7 @@ namespace ContextualReflectionTest
 
             Assembly assembly = Assembly.GetExecutingAssembly();
 
-            using (ConntextualReflectionProxy.EnterContextualReflection((Assembly)null))
+            using (AssemblyLoadContext.EnterContextualReflection(null))
             {
                 {
                     ObjectHandle objectHandle = Activator.CreateInstance(null, "ContextualReflectionTest.AGenericClass`1[[ContextualReflectionTest.Program]]");
@@ -627,7 +635,7 @@ namespace ContextualReflectionTest
                     Assert.AreEqual(AssemblyLoadContext.Default, AssemblyLoadContext.GetLoadContext(m.GenericTypeArguments[0].Assembly));
                 }
             }
-            using (ConntextualReflectionProxy.EnterContextualReflection(AssemblyLoadContext.Default))
+            using (AssemblyLoadContext.Default.EnterContextualReflection())
             {
                 {
                     ObjectHandle objectHandle = Activator.CreateInstance(null, "ContextualReflectionTest.AGenericClass`1[[ContextualReflectionTest.Program]]");
@@ -672,7 +680,7 @@ namespace ContextualReflectionTest
                     Assert.AreEqual(AssemblyLoadContext.Default, AssemblyLoadContext.GetLoadContext(m.GenericTypeArguments[0].Assembly));
                 }
             }
-            using (ConntextualReflectionProxy.EnterContextualReflection(alc))
+            using (alc.EnterContextualReflection())
             {
                 {
                     ObjectHandle objectHandle = Activator.CreateInstance(null, "ContextualReflectionTest.AGenericClass`1[[ContextualReflectionTest.Program]]");
@@ -717,6 +725,11 @@ namespace ContextualReflectionTest
             }
         }
 
+        void TestMockAssemblyThrows()
+        {
+            Exception e = Assert.ThrowsArgumentException("activating", () => AssemblyLoadContext.EnterContextualReflection(new MockAssembly()));
+        }
+
         public void RunTests()
         {
             VerifyIsolationDefault();
@@ -735,9 +748,9 @@ namespace ContextualReflectionTest
             TestTypeGetType(isolated);
             TestAssemblyGetType(isolated);
             TestActivatorCreateInstance(isolated);
+            TestMockAssemblyThrows();
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
         public void RunTestsIsolated()
         {
             VerifyIsolationAlc();

@@ -135,7 +135,7 @@ EventReporter::EventReporter(EventReporterType type)
 
     case ERT_ManagedFailFast:
         if(!ssMessage.LoadResource(CCompRC::Optional, IDS_ER_MANAGEDFAILFAST))
-            m_Description.Append(W("Description: The application requested process termination through System.Environment.FailFast(string message)."));
+            m_Description.Append(W("Description: The application requested process termination through Environment.FailFast."));
         else
         {
             m_Description.Append(ssMessage);
@@ -145,7 +145,7 @@ EventReporter::EventReporter(EventReporterType type)
 
     case ERT_UnmanagedFailFast:
         if(!ssMessage.LoadResource(CCompRC::Optional, IDS_ER_UNMANAGEDFAILFAST))
-            m_Description.Append(W("Description: The process was terminated due to an internal error in the .NET Runtime "));
+            m_Description.Append(W("Description: The process was terminated due to an internal error in the .NET Runtime."));
         else
         {
             m_Description.Append(ssMessage);
@@ -155,7 +155,7 @@ EventReporter::EventReporter(EventReporterType type)
     case ERT_StackOverflow:
         // Fetch the localized Stack Overflow Error text or fall back on a hardcoded variant if things get dire.
         if(!ssMessage.LoadResource(CCompRC::Optional, IDS_ER_STACK_OVERFLOW))
-            m_Description.Append(W("Description: The process was terminated due to stack overflow."));
+            m_Description.Append(W("Description: The process was terminated due to a stack overflow."));
         else
         {
             m_Description.Append(ssMessage);
@@ -399,7 +399,7 @@ void EventReporter::Report()
 {
     CONTRACTL
     {
-        NOTHROW; 
+        NOTHROW;
         GC_NOTRIGGER;
     }
     CONTRACTL_END;
@@ -429,7 +429,7 @@ void EventReporter::Report()
     }
 
     CONTRACT_VIOLATION(ThrowsViolation);
-    
+
     COUNT_T ctSize = m_Description.GetCount();
     LOG((LF_EH, LL_INFO100, "EventReporter::Report - Writing %d bytes to event log.\n", ctSize));
 
@@ -448,7 +448,7 @@ void EventReporter::Report()
             LOG((LF_EH, LL_INFO100, "EventReporter::Report - Error (win32 code %d) while writing to event log.\n", dwRetVal));
 
             // We were unable to log the error to event log - now check why.
-            if ((dwRetVal != ERROR_EVENTLOG_FILE_CORRUPT) && (dwRetVal != ERROR_LOG_FILE_FULL) && 
+            if ((dwRetVal != ERROR_EVENTLOG_FILE_CORRUPT) && (dwRetVal != ERROR_LOG_FILE_FULL) &&
                 (dwRetVal != ERROR_NOT_ENOUGH_MEMORY)) // Writing to the log can fail under OOM (observed on Vista)
             {
                 // If the event log file was neither corrupt nor full, then assert,
@@ -485,7 +485,7 @@ BOOL ShouldLogInEventLog()
 {
     CONTRACTL
     {
-        NOTHROW; 
+        NOTHROW;
         GC_NOTRIGGER;
     }
     CONTRACTL_END;
@@ -553,7 +553,7 @@ StackWalkAction LogCallstackForEventReporterCallback(
     StackSString str;
     str = *pWordAt;
 
-    TypeString::AppendMethodInternal(str, pMD, TypeString::FormatNamespace|TypeString::FormatFullInst|TypeString::FormatSignature); 
+    TypeString::AppendMethodInternal(str, pMD, TypeString::FormatNamespace|TypeString::FormatFullInst|TypeString::FormatSignature);
     pReporter->AddStackTrace(str);
 
     return SWA_CONTINUE;

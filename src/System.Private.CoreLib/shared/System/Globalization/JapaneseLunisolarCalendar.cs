@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 namespace System.Globalization
 {
     /// <remarks>
@@ -28,14 +27,9 @@ namespace System.Globalization
 
         public override DateTime MaxSupportedDateTime => s_maxDate;
 
-        protected override int DaysInYearBeforeMinSupportedYear
-        {
-            get
-            {
-                // 1959 from ChineseLunisolarCalendar
-                return 354;
-            }
-        }
+        protected override int DaysInYearBeforeMinSupportedYear =>
+            // 1959 from ChineseLunisolarCalendar
+            354;
 
         // Data for years 1960-2049 matches output of Calendrical Calculations [1] and published calendar tables [2].
         // [1] Reingold, Edward M, and Nachum Dershowitz. Calendrical Calculations: The Ultimate Edition. Cambridge [etc.: Cambridge University Press, 2018. Print.
@@ -202,7 +196,7 @@ namespace System.Globalization
             // If we didn't copy any then something was wrong, just return base
             if (newIndex == 0) return baseEras;
 
-            Array.Resize(ref newEras, newIndex);
+            Array.Resize(ref newEras!, newIndex);
             return newEras;
         }
 

@@ -2,10 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Diagnostics;
 using System.Numerics;
-using Internal.Runtime.CompilerServices;
 
 namespace System
 {
@@ -22,7 +20,7 @@ namespace System
 
             ulong mantissa = ExtractFractionAndBiasedExponent(value, out int exponent);
 
-            uint mantissaHighBitIdx = 0;
+            uint mantissaHighBitIdx;
             bool hasUnequalMargins = false;
 
             if ((mantissa >> DiyFp.DoubleImplicitBitIndex) != 0)
@@ -52,7 +50,7 @@ namespace System
 
             uint mantissa = ExtractFractionAndBiasedExponent(value, out int exponent);
 
-            uint mantissaHighBitIdx = 0;
+            uint mantissaHighBitIdx;
             bool hasUnequalMargins = false;
 
             if ((mantissa >> DiyFp.SingleImplicitBitIndex) != 0)
@@ -234,7 +232,7 @@ namespace System
             {
                 // The exponent estimate was incorrect.
                 // Increment the exponent and don't perform the premultiply needed for the first loop iteration.
-                digitExponent = digitExponent + 1;
+                digitExponent++;
             }
             else
             {
@@ -278,7 +276,7 @@ namespace System
             }
 
             // Output the exponent of the first digit we will print
-            decimalExponent = digitExponent - 1;
+            decimalExponent = --digitExponent;
 
             // In preparation for calling BigInteger.HeuristicDivie(), we need to scale up our values such that the highest block of the denominator is greater than or equal to 8.
             // We also need to guarantee that the numerator can never have a length greater than the denominator after each loop iteration.
@@ -316,14 +314,13 @@ namespace System
             if (cutoffNumber == -1)
             {
                 Debug.Assert(isSignificantDigits);
+                Debug.Assert(digitExponent >= cutoffExponent);
 
                 // For the unique cutoff mode, we will try to print until we have reached a level of precision that uniquely distinguishes this value from its neighbors.
                 // If we run out of space in the output buffer, we terminate early.
 
                 while (true)
                 {
-                    digitExponent = digitExponent - 1;
-
                     // divide out the scale to extract the digit
                     outputDigit = BigInteger.HeuristicDivide(ref scaledValue, ref scale);
                     Debug.Assert(outputDigit < 10);
@@ -342,7 +339,7 @@ namespace System
 
                     // store the output digit
                     buffer[curDigit] = (byte)('0' + outputDigit);
-                    curDigit += 1;
+                    curDigit++;
 
                     // multiply larger by the output base
                     scaledValue.Multiply10();
@@ -352,9 +349,11 @@ namespace System
                     {
                         BigInteger.Multiply(ref scaledMarginLow, 2, ref *pScaledMarginHigh);
                     }
+
+                    digitExponent--;
                 }
             }
-            else
+            else if (digitExponent >= cutoffExponent)
             {
                 Debug.Assert((cutoffNumber > 0) || ((cutoffNumber == 0) && !isSignificantDigits));
 
@@ -364,8 +363,6 @@ namespace System
 
                 while (true)
                 {
-                    digitExponent = digitExponent - 1;
-
                     // divide out the scale to extract the digit
                     outputDigit = BigInteger.HeuristicDivide(ref scaledValue, ref scale);
                     Debug.Assert(outputDigit < 10);
@@ -377,11 +374,38 @@ namespace System
 
                     // store the output digit
                     buffer[curDigit] = (byte)('0' + outputDigit);
-                    curDigit += 1;
+                    curDigit++;
 
                     // multiply larger by the output base
                     scaledValue.Multiply10();
+                    digitExponent--;
                 }
+            }
+            else
+            {
+                // In the scenario where the first significant digit is after the cutoff, we want to treat that
+                // first significant digit as the rounding digit. If the first significant would cause the next
+                // digit to round, we will increase the decimalExponent by one and set the previous digit to one.
+                // This  ensures we correctly handle the case where the first significant digit is exactly one after
+                // the cutoff, it is a 4, and the subsequent digit would round that to 5 inducing a double rounding
+                // bug when NumberToString does its own rounding checks. However, if the first significant digit
+                // would not cause the next one to round, we preserve that digit as is.
+
+                // divide out the scale to extract the digit
+                outputDigit = BigInteger.HeuristicDivide(ref scaledValue, ref scale);
+                Debug.Assert((0 < outputDigit) && (outputDigit < 10));
+
+                if ((outputDigit > 5) || ((outputDigit == 5) && !scaledValue.IsZero()))
+                {
+                    decimalExponent++;
+                    outputDigit = 1;
+                }
+
+                buffer[curDigit] = (byte)('0' + outputDigit);
+                curDigit++;
+
+                // return the number of digits output
+                return (uint)curDigit;
             }
 
             // round off the final digit
@@ -411,7 +435,7 @@ namespace System
             if (roundDown)
             {
                 buffer[curDigit] = (byte)('0' + outputDigit);
-                curDigit += 1;
+                curDigit++;
             }
             else if (outputDigit == 9)      // handle rounding up
             {
@@ -424,20 +448,20 @@ namespace System
                         // output 1 at the next highest exponent
 
                         buffer[curDigit] = (byte)('1');
-                        curDigit += 1;
-                        decimalExponent += 1;
+                        curDigit++;
+                        decimalExponent++;
 
                         break;
                     }
 
-                    curDigit -= 1;
+                    curDigit--;
 
                     if (buffer[curDigit] != '9')
                     {
                         // increment the digit
 
-                        buffer[curDigit] += 1;
-                        curDigit += 1;
+                        buffer[curDigit]++;
+                        curDigit++;
 
                         break;
                     }
@@ -447,11 +471,11 @@ namespace System
             {
                 // values in the range [0,8] can perform a simple round up
                 buffer[curDigit] = (byte)('0' + outputDigit + 1);
-                curDigit += 1;
+                curDigit++;
             }
 
             // return the number of digits output
-            uint outputLen = (uint)(curDigit);
+            uint outputLen = (uint)curDigit;
             Debug.Assert(outputLen <= buffer.Length);
             return outputLen;
         }

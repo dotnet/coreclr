@@ -286,7 +286,7 @@ public:
 
     virtual HRESULT GetILToNativeMappingIntoArrays(
         MethodDesc * pMethodDesc,
-        PCODE pCode,
+        PCODE pNativeCodeStartAddress,
         USHORT cMapMax,
         USHORT * pcMap,
         UINT ** prguiILOffset,
@@ -398,6 +398,9 @@ public:
 #ifdef FEATURE_INTEROP_DEBUGGING
     virtual LONG FirstChanceSuspendHijackWorker(PCONTEXT pContext, PEXCEPTION_RECORD pExceptionRecord) = 0;
 #endif
+
+    // Helper method for cleaning up transport socket
+    virtual void CleanupTransportSocket(void) = 0;
 
 #endif // #ifndef DACCESS_COMPILE
 

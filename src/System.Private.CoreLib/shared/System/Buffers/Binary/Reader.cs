@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
@@ -21,7 +20,7 @@ namespace System.Buffers.Binary
         /// This is a no-op and added only for consistency.
         /// This allows the caller to read a struct of numeric primitives and reverse each field
         /// rather than having to skip sbyte fields.
-        /// </summary> 
+        /// </summary>
         [CLSCompliant(false)]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static sbyte ReverseEndianness(sbyte value)
@@ -31,21 +30,21 @@ namespace System.Buffers.Binary
 
         /// <summary>
         /// Reverses a primitive value - performs an endianness swap
-        /// </summary> 
+        /// </summary>
         [Intrinsic]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static short ReverseEndianness(short value) => (short)ReverseEndianness((ushort)value);
 
         /// <summary>
         /// Reverses a primitive value - performs an endianness swap
-        /// </summary> 
+        /// </summary>
         [Intrinsic]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int ReverseEndianness(int value) => (int)ReverseEndianness((uint)value);
 
         /// <summary>
         /// Reverses a primitive value - performs an endianness swap
-        /// </summary> 
+        /// </summary>
         [Intrinsic]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static long ReverseEndianness(long value) => (long)ReverseEndianness((ulong)value);
@@ -54,16 +53,16 @@ namespace System.Buffers.Binary
         /// This is a no-op and added only for consistency.
         /// This allows the caller to read a struct of numeric primitives and reverse each field
         /// rather than having to skip byte fields.
-        /// </summary> 
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte ReverseEndianness(byte value) 
+        public static byte ReverseEndianness(byte value)
         {
             return value;
         }
 
         /// <summary>
         /// Reverses a primitive value - performs an endianness swap
-        /// </summary> 
+        /// </summary>
         [CLSCompliant(false)]
         [Intrinsic]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -81,7 +80,7 @@ namespace System.Buffers.Binary
 
         /// <summary>
         /// Reverses a primitive value - performs an endianness swap
-        /// </summary> 
+        /// </summary>
         [CLSCompliant(false)]
         [Intrinsic]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -113,7 +112,7 @@ namespace System.Buffers.Binary
 
         /// <summary>
         /// Reverses a primitive value - performs an endianness swap
-        /// </summary> 
+        /// </summary>
         [CLSCompliant(false)]
         [Intrinsic]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

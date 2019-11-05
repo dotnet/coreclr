@@ -4,7 +4,7 @@
 
 
 /*
- * GCCOMMON.CPP 
+ * GCCOMMON.CPP
  *
  * Code common to both SVR and WKS gcs
  */
@@ -36,8 +36,6 @@ uint8_t* g_shadow_lowest_address = NULL;
 uint32_t* g_gc_card_table;
 
 VOLATILE(int32_t) g_fSuspensionPending = 0;
-
-uint32_t g_yieldProcessorScalingFactor = 1;
 
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
 uint32_t* g_gc_card_bundle_table;

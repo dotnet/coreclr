@@ -1,6 +1,7 @@
 [CmdletBinding(PositionalBinding=$false)]
 Param(
   [string][Alias('c')]$configuration = "Debug",
+  [string]$platform = $null,
   [string] $projects,
   [string][Alias('v')]$verbosity = "minimal",
   [string] $msbuildEngine = $null,
@@ -17,6 +18,7 @@ Param(
   [switch] $sign,
   [switch] $pack,
   [switch] $publish,
+  [switch] $clean,
   [switch][Alias('bl')]$binaryLog,
   [switch] $ci,
   [switch] $prepareMachine,
@@ -29,6 +31,7 @@ Param(
 function Print-Usage() {
     Write-Host "Common settings:"
     Write-Host "  -configuration <value>  Build configuration: 'Debug' or 'Release' (short: -c)"
+    Write-Host "  -platform <value>       Platform configuration: 'x86', 'x64' or any valid Platform value to pass to msbuild"
     Write-Host "  -verbosity <value>      Msbuild verbosity: q[uiet], m[inimal], n[ormal], d[etailed], and diag[nostic] (short: -v)"
     Write-Host "  -binaryLog              Output binary log (short: -bl)"
     Write-Host "  -help                   Print help and exit"
@@ -46,6 +49,7 @@ function Print-Usage() {
     Write-Host "  -pack                   Package build outputs into NuGet packages and Willow components"
     Write-Host "  -sign                   Sign build outputs"
     Write-Host "  -publish                Publish artifacts (e.g. symbols)"
+    Write-Host "  -clean                  Clean the solution"
     Write-Host ""
 
     Write-Host "Advanced settings:"
@@ -77,17 +81,23 @@ function Build {
   InitializeCustomToolset
 
   $bl = if ($binaryLog) { "/bl:" + (Join-Path $LogDir "Build.binlog") } else { "" }
+  $platformArg = if ($platform) { "/p:Platform=$platform" } else { "" }
 
   if ($projects) {
     # Re-assign properties to a new variable because PowerShell doesn't let us append properties directly for unclear reasons.
     # Explicitly set the type as string[] because otherwise PowerShell would make this char[] if $properties is empty.
     [string[]] $msbuildArgs = $properties
+    
+    # Resolve relative project paths into full paths 
+    $projects = ($projects.Split(';').ForEach({Resolve-Path $_}) -join ';')
+    
     $msbuildArgs += "/p:Projects=$projects"
     $properties = $msbuildArgs
   }
 
   MSBuild $toolsetBuildProj `
     $bl `
+    $platformArg `
     /p:Configuration=$configuration `
     /p:RepoRoot=$RepoRoot `
     /p:Restore=$restore `
@@ -104,6 +114,14 @@ function Build {
     @properties
 }
 
+if ($clean) {
+  if(Test-Path $ArtifactsDir) {
+    Remove-Item -Recurse -Force $ArtifactsDir
+    Write-Host "Artifacts directory deleted."
+  }
+  exit 0
+}
+
 try {
   if ($help -or (($null -ne $properties) -and ($properties.Contains("/help") -or $properties.Contains("/?")))) {
     Print-Usage
@@ -115,19 +133,15 @@ try {
     $nodeReuse = $false
   }
 
-  # Import custom tools configuration, if present in the repo.
-  # Note: Import in global scope so that the script set top-level variables without qualification.
-  $configureToolsetScript = Join-Path $EngRoot "configure-toolset.ps1"
-  if (Test-Path $configureToolsetScript) {
-    . $configureToolsetScript
+  if ($restore) {
+    InitializeNativeTools
   }
 
   Build
 }
 catch {
-  Write-Host $_
-  Write-Host $_.Exception
   Write-Host $_.ScriptStackTrace
+  Write-PipelineTelemetryError -Category "InitializeToolset" -Message $_
   ExitWithExitCode 1
 }
 

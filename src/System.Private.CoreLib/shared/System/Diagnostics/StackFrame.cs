@@ -15,7 +15,7 @@ namespace System.Diagnostics
         /// <summary>
         /// Reflection information for the method if available, null otherwise.
         /// </summary>
-        private MethodBase _method;
+        private MethodBase? _method;
 
         /// <summary>
         /// Native offset of the current instruction within the current method if available,
@@ -32,7 +32,7 @@ namespace System.Diagnostics
         /// <summary>
         /// Source file name representing the current code location if available, null otherwise.
         /// </summary>
-        private string _fileName;
+        private string? _fileName;
 
         /// <summary>
         /// Line number representing the current code location if available, 0 otherwise.
@@ -96,7 +96,7 @@ namespace System.Diagnostics
         /// name and line number.  Use when you don't want to use the
         /// debugger's line mapping logic.
         /// </summary>
-        public StackFrame(string fileName, int lineNumber)
+        public StackFrame(string? fileName, int lineNumber)
         {
             InitMembers();
 
@@ -110,8 +110,8 @@ namespace System.Diagnostics
         /// name, line number and column number.  Use when you don't want to
         /// use the debugger's line mapping logic.
         /// </summary>
-        public StackFrame(string fileName, int lineNumber, int colNumber)
-            : this (fileName, lineNumber)
+        public StackFrame(string? fileName, int lineNumber, int colNumber)
+            : this(fileName, lineNumber)
         {
             _columnNumber = colNumber;
         }
@@ -126,7 +126,7 @@ namespace System.Diagnostics
         /// <summary>
         /// Returns the method the frame is executing
         /// </summary>
-        public virtual MethodBase GetMethod()
+        public virtual MethodBase? GetMethod()
         {
             return _method;
         }
@@ -156,7 +156,7 @@ namespace System.Diagnostics
         /// information is normally extracted from the debugging symbols
         /// for the executable.
         /// </summary>
-        public virtual string GetFileName()
+        public virtual string? GetFileName()
         {
             return _fileName;
         }
@@ -203,7 +203,7 @@ namespace System.Diagnostics
                     bool fFirstTyParam = true;
                     while (k < typars.Length)
                     {
-                        if (fFirstTyParam == false)
+                        if (!fFirstTyParam)
                             sb.Append(',');
                         else
                             fFirstTyParam = false;
@@ -240,7 +240,7 @@ namespace System.Diagnostics
             {
                 sb.Append("<null>");
             }
-            sb.Append(Environment.NewLine);
+            sb.Append(Environment.NewLineConst);
 
             return sb.ToString();
         }

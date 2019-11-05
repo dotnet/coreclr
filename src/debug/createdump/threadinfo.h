@@ -7,8 +7,13 @@ class CrashInfo;
 #if defined(__arm__)
 #define user_regs_struct user_regs
 #define user_fpregs_struct user_fpregs
+#endif
 
-#if defined(__VFP_FP__) && !defined(__SOFTFP__)
+#if defined(__aarch64__)
+#define user_fpregs_struct user_fpsimd_struct
+#endif
+
+#if defined(__arm__) && defined(__VFP_FP__) && !defined(__SOFTFP__)
 struct user_vfpregs_struct
 {
   unsigned long long  fpregs[32];
@@ -16,9 +21,7 @@ struct user_vfpregs_struct
 } __attribute__((__packed__));
 #endif
 
-#endif
-
-class ThreadInfo 
+class ThreadInfo
 {
 private:
     pid_t m_tid;                                // thread id

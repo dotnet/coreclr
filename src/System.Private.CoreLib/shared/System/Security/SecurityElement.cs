@@ -2,33 +2,13 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.s
 
-#nullable enable
 using System.Collections;
 using System.Diagnostics;
-using System.Globalization;
-using System.IO;
 using System.Text;
 
 namespace System.Security
 {
-#if PROJECTN
-    [Internal.Runtime.CompilerServices.RelocatedType("System.Runtime.Extensions")]
-#endif
-    internal interface ISecurityElementFactory
-    {
-        SecurityElement CreateSecurityElement();
-
-        object Copy();
-
-        string GetTag();
-
-        string? Attribute(string attributeName);
-    }
-
-#if PROJECTN
-    [Internal.Runtime.CompilerServices.RelocatedType("System.Runtime.Extensions")]
-#endif
-    public sealed class SecurityElement : ISecurityElementFactory
+    public sealed class SecurityElement
     {
         internal string _tag = null!;
         internal string? _text;
@@ -37,7 +17,6 @@ namespace System.Security
 
         private const int AttributesTypical = 4 * 2;  // 4 attributes, times 2 strings per attribute
         private const int ChildrenTypical = 1;
-        private const string Indent = "   ";
 
         private static readonly char[] s_tagIllegalCharacters = new char[] { ' ', '<', '>' };
         private static readonly char[] s_textIllegalCharacters = new char[] { '<', '>' };
@@ -90,11 +69,7 @@ namespace System.Security
 
         public string Tag
         {
-            get
-            {
-                return _tag;
-            }
-
+            get => _tag;
             set
             {
                 if (value == null)
@@ -124,7 +99,7 @@ namespace System.Security
 
                     for (int i = 0; i < iMax; i += 2)
                     {
-                        hashtable.Add(_attributes[i], _attributes[i + 1]);
+                        hashtable.Add(_attributes[i]!, _attributes[i + 1]);
                     }
 
                     return hashtable;
@@ -145,7 +120,7 @@ namespace System.Security
                     while (enumerator.MoveNext())
                     {
                         string attrName = (string)enumerator.Key;
-                        string attrValue = (string)enumerator.Value;
+                        string? attrValue = (string?)enumerator.Value;
 
                         if (!IsValidAttributeName(attrName))
                             throw new ArgumentException(SR.Format(SR.Argument_InvalidElementName, attrName));
@@ -164,11 +139,7 @@ namespace System.Security
 
         public string? Text
         {
-            get
-            {
-                return Unescape(_text);
-            }
-
+            get => Unescape(_text);
             set
             {
                 if (value == null)
@@ -189,7 +160,6 @@ namespace System.Security
         {
             get
             {
-                ConvertSecurityElementFactories();
                 return _children;
             }
 
@@ -200,19 +170,6 @@ namespace System.Security
                     throw new ArgumentException(SR.ArgumentNull_Child);
                 }
                 _children = value;
-            }
-        }
-
-        internal void ConvertSecurityElementFactories()
-        {
-            if (_children == null)
-                return;
-
-            for (int i = 0; i < _children.Count; ++i)
-            {
-                ISecurityElementFactory? iseFactory = _children[i] as ISecurityElementFactory;
-                if (iseFactory != null && !(_children[i] is SecurityElement))
-                    _children[i] = iseFactory.CreateSecurityElement();
             }
         }
 
@@ -231,7 +188,7 @@ namespace System.Security
 
                 for (int i = 0; i < iMax; i += 2)
                 {
-                    string strAttrName = (string)_attributes[i];
+                    string? strAttrName = (string?)_attributes[i];
 
                     if (string.Equals(strAttrName, name))
                         throw new ArgumentException(SR.Argument_AttributeNamesMustBeUnique);
@@ -264,8 +221,7 @@ namespace System.Security
             if (child == null)
                 throw new ArgumentNullException(nameof(child));
 
-            if (_children == null)
-                _children = new ArrayList(ChildrenTypical);
+            _children ??= new ArrayList(ChildrenTypical);
 
             _children.Add(child);
         }
@@ -301,8 +257,8 @@ namespace System.Security
 
                 for (int i = 0; i < iMax; i++)
                 {
-                    string lhs = (string)_attributes[i];
-                    string rhs = (string)other._attributes[i];
+                    string? lhs = (string?)_attributes[i];
+                    string? rhs = (string?)other._attributes[i];
 
                     if (!string.Equals(lhs, rhs))
                         return false;
@@ -322,18 +278,15 @@ namespace System.Security
                 if (_children.Count != other._children.Count)
                     return false;
 
-                ConvertSecurityElementFactories();
-                other.ConvertSecurityElementFactories();
-
                 IEnumerator lhs = _children.GetEnumerator();
                 IEnumerator rhs = other._children.GetEnumerator();
 
-                SecurityElement e1, e2;
+                SecurityElement? e1, e2;
                 while (lhs.MoveNext())
                 {
                     rhs.MoveNext();
-                    e1 = (SecurityElement)lhs.Current;
-                    e2 = (SecurityElement)rhs.Current;
+                    e1 = (SecurityElement?)lhs.Current;
+                    e2 = (SecurityElement?)rhs.Current;
                     if (e1 == null || !e1.Equal(e2))
                         return false;
                 }
@@ -424,8 +377,7 @@ namespace System.Security
                 }
                 else
                 {
-                    if (sb == null)
-                        sb = new StringBuilder();
+                    sb ??= new StringBuilder();
 
                     sb.Append(str, newIndex, index - newIndex);
                     sb.Append(GetEscapeSequence(str[index]));
@@ -473,7 +425,7 @@ namespace System.Security
             int index; // Pointer into the string that indicates the location of the current '&' character
             int newIndex = 0; // Pointer into the string that indicates the start index of the "remainging" string (that still needs to be processed).
 
-            do
+            while (true)
             {
                 index = str.IndexOf('&', newIndex);
 
@@ -489,27 +441,24 @@ namespace System.Security
                 }
                 else
                 {
-                    if (sb == null)
-                        sb = new StringBuilder();
+                    sb ??= new StringBuilder();
 
                     sb.Append(str, newIndex, index - newIndex);
                     sb.Append(GetUnescapeSequence(str, index, out newIndex)); // updates the newIndex too
-
                 }
             }
-            while (true);
         }
 
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
 
-            ToString("", sb, (obj, str) => ((StringBuilder)obj).Append(str));
+            ToString(sb, (obj, str) => ((StringBuilder)obj).Append(str));
 
             return sb.ToString();
         }
 
-        private void ToString(string indent, object obj, Action<object, string?> write)
+        private void ToString(object obj, Action<object, string?> write)
         {
             write(obj, "<");
             write(obj, _tag);
@@ -524,8 +473,8 @@ namespace System.Security
 
                 for (int i = 0; i < iMax; i += 2)
                 {
-                    string strAttrName = (string)_attributes[i];
-                    string strAttrValue = (string)_attributes[i + 1];
+                    string? strAttrName = (string?)_attributes[i];
+                    string? strAttrValue = (string?)_attributes[i + 1];
 
                     write(obj, strAttrName);
                     write(obj, "=\"");
@@ -534,7 +483,7 @@ namespace System.Security
 
                     if (i != _attributes.Count - 2)
                     {
-                        write(obj, Environment.NewLine);
+                        write(obj, Environment.NewLineConst);
                     }
                 }
             }
@@ -543,7 +492,7 @@ namespace System.Security
             {
                 // If we are a single tag with no children, just add the end of tag text.
                 write(obj, "/>");
-                write(obj, Environment.NewLine);
+                write(obj, Environment.NewLineConst);
             }
             else
             {
@@ -556,13 +505,11 @@ namespace System.Security
                 // Output any children.
                 if (_children != null)
                 {
-                    ConvertSecurityElementFactories();
-
-                    write(obj, Environment.NewLine);
+                    write(obj, Environment.NewLineConst);
 
                     for (int i = 0; i < _children.Count; ++i)
                     {
-                        ((SecurityElement)_children[i]).ToString(string.Empty, obj, write);
+                        ((SecurityElement)_children[i]!).ToString(obj, write);
                     }
                 }
 
@@ -570,7 +517,7 @@ namespace System.Security
                 write(obj, "</");
                 write(obj, _tag);
                 write(obj, ">");
-                write(obj, Environment.NewLine);
+                write(obj, Environment.NewLineConst);
             }
         }
 
@@ -591,11 +538,11 @@ namespace System.Security
 
             for (int i = 0; i < iMax; i += 2)
             {
-                string strAttrName = (string)_attributes[i];
+                string? strAttrName = (string?)_attributes[i];
 
                 if (string.Equals(strAttrName, name))
                 {
-                    string strAttrValue = (string)_attributes[i + 1];
+                    string? strAttrValue = (string?)_attributes[i + 1];
 
                     return Unescape(strAttrValue);
                 }
@@ -617,7 +564,7 @@ namespace System.Security
             // an invalid tag simply won't be found.
             if (_children == null)
                 return null;
-            foreach (SecurityElement current in _children)
+            foreach (SecurityElement? current in _children)
             {
                 if (current != null && string.Equals(current.Tag, tag))
                     return current;
@@ -639,9 +586,9 @@ namespace System.Security
             if (_children == null)
                 return null;
 
-            foreach (SecurityElement child in Children!)
+            foreach (SecurityElement? child in Children!)
             {
-                string? text = child.SearchForTextOfTag(tag);
+                string? text = child?.SearchForTextOfTag(tag);
                 if (text != null)
                     return text;
             }
@@ -653,29 +600,7 @@ namespace System.Security
             if (xml == null)
                 throw new ArgumentNullException(nameof(xml));
 
-            return default(SecurityElement);
-        }
-
-        //--------------- ISecurityElementFactory implementation -----------------
-
-        SecurityElement ISecurityElementFactory.CreateSecurityElement()
-        {
-            return this;
-        }
-
-        string ISecurityElementFactory.GetTag()
-        {
-            return ((SecurityElement)this).Tag;
-        }
-
-        object ISecurityElementFactory.Copy()
-        {
-            return ((SecurityElement)this).Copy();
-        }
-
-        string? ISecurityElementFactory.Attribute(string attributeName)
-        {
-            return ((SecurityElement)this).Attribute(attributeName);
+            return default;
         }
     }
 }

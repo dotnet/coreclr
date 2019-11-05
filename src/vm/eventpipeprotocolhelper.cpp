@@ -3,11 +3,141 @@
 // See the LICENSE file in the project root for more information.
 
 #include "common.h"
+#include "fastserializer.h"
+#include "eventpipefile.h"
 #include "eventpipeprotocolhelper.h"
+#include "eventpipesession.h"
 #include "diagnosticsipc.h"
 #include "diagnosticsprotocol.h"
 
 #ifdef FEATURE_PERFTRACING
+
+static bool IsNullOrWhiteSpace(LPCWSTR value)
+{
+    if (value == nullptr)
+        return true;
+
+    while (*value)
+    {
+        if (!iswspace(*value))
+            return false;
+        ++value;
+    }
+    return true;
+}
+
+static bool TryParseCircularBufferSize(uint8_t*& bufferCursor, uint32_t& bufferLen, uint32_t& circularBufferSizeInMB)
+{
+    const bool CanParse = TryParse(bufferCursor, bufferLen, circularBufferSizeInMB);
+    return CanParse && (circularBufferSizeInMB > 0);
+}
+
+static bool TryParseSerializationFormat(uint8_t*& bufferCursor, uint32_t& bufferLen, EventPipeSerializationFormat& serializationFormat)
+{
+    const bool CanParse = TryParse(bufferCursor, bufferLen, (uint32_t&)serializationFormat);
+    return CanParse && (0 <= (int)serializationFormat) && ((int)serializationFormat < (int)EventPipeSerializationFormat::Count);
+}
+
+static bool TryParseRundownRequested(uint8_t*& bufferCursor, uint32_t& bufferLen, bool& rundownRequested)
+{
+    return TryParse(bufferCursor, bufferLen, rundownRequested);
+}
+
+const EventPipeCollectTracing2CommandPayload* EventPipeCollectTracing2CommandPayload::TryParse(BYTE* lpBuffer, uint16_t& BufferSize)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+        PRECONDITION(lpBuffer != nullptr);
+    }
+    CONTRACTL_END;
+
+    EventPipeCollectTracing2CommandPayload *payload = new (nothrow) EventPipeCollectTracing2CommandPayload;
+    if (payload == nullptr)
+    {
+        // OOM
+        return nullptr;
+    }
+
+    payload->incomingBuffer = lpBuffer;
+    uint8_t* pBufferCursor = payload->incomingBuffer;
+    uint32_t bufferLen = BufferSize;
+    if (!TryParseCircularBufferSize(pBufferCursor, bufferLen, payload->circularBufferSizeInMB) ||
+        !TryParseSerializationFormat(pBufferCursor, bufferLen, payload->serializationFormat) ||
+        !TryParseRundownRequested(pBufferCursor, bufferLen, payload->rundownRequested) ||
+        !EventPipeProtocolHelper::TryParseProviderConfiguration(pBufferCursor, bufferLen, payload->providerConfigs))
+    {
+        delete payload;
+        return nullptr;
+    }
+
+    return payload;
+}
+
+const EventPipeCollectTracingCommandPayload* EventPipeCollectTracingCommandPayload::TryParse(BYTE* lpBuffer, uint16_t& BufferSize)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+        PRECONDITION(lpBuffer != nullptr);
+    }
+    CONTRACTL_END;
+
+    EventPipeCollectTracingCommandPayload *payload = new (nothrow) EventPipeCollectTracingCommandPayload;
+    if (payload == nullptr)
+    {
+        // OOM
+        return nullptr;
+    }
+
+    payload->incomingBuffer = lpBuffer;
+    uint8_t* pBufferCursor = payload->incomingBuffer;
+    uint32_t bufferLen = BufferSize;
+    if (!TryParseCircularBufferSize(pBufferCursor, bufferLen, payload->circularBufferSizeInMB) ||
+        !TryParseSerializationFormat(pBufferCursor, bufferLen, payload->serializationFormat) ||
+        !EventPipeProtocolHelper::TryParseProviderConfiguration(pBufferCursor, bufferLen, payload->providerConfigs))
+    {
+        delete payload;
+        return nullptr;
+    }
+
+    return payload;
+}
+
+void EventPipeProtocolHelper::HandleIpcMessage(DiagnosticsIpc::IpcMessage& message, IpcStream* pStream)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION(pStream != nullptr);
+    }
+    CONTRACTL_END;
+
+    switch ((EventPipeCommandId)message.GetHeader().CommandId)
+    {
+    case EventPipeCommandId::CollectTracing:
+        EventPipeProtocolHelper::CollectTracing(message, pStream);
+        break;
+    case EventPipeCommandId::CollectTracing2:
+        EventPipeProtocolHelper::CollectTracing2(message, pStream);
+        break;
+    case EventPipeCommandId::StopTracing:
+        EventPipeProtocolHelper::StopTracing(message, pStream);
+        break;
+
+    default:
+        STRESS_LOG1(LF_DIAGNOSTICS_PORT, LL_WARNING, "Received unknown request type (%d)\n", message.GetHeader().CommandSet);
+        DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, CORDIAGIPC_E_UNKNOWN_COMMAND);
+        delete pStream;
+        break;
+    }
+}
 
 bool EventPipeProtocolHelper::TryParseProviderConfiguration(uint8_t *&bufferCursor, uint32_t &bufferLen, CQuickArray<EventPipeProviderConfiguration> &result)
 {
@@ -39,85 +169,43 @@ bool EventPipeProtocolHelper::TryParseProviderConfiguration(uint8_t *&bufferCurs
         LPCWSTR pProviderName = nullptr;
         if (!TryParseString(bufferCursor, bufferLen, pProviderName))
             return false;
-        if (wcslen(pProviderName) == 0)
-            return false; // TODO: Should we ignore these input?
+        if (IsNullOrWhiteSpace(pProviderName))
+            return false;
 
         LPCWSTR pFilterData = nullptr; // This parameter is optional.
         TryParseString(bufferCursor, bufferLen, pFilterData);
 
         pConfigs[i] = EventPipeProviderConfiguration(pProviderName, keywords, logLevel, pFilterData);
     }
-    return true;
+    return (countConfigs > 0);
 }
 
-void EventPipeProtocolHelper::EnableFileTracingEventHandler(IpcStream *pStream)
+void EventPipeProtocolHelper::StopTracing(DiagnosticsIpc::IpcMessage& message, IpcStream *pStream)
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
         PRECONDITION(pStream != nullptr);
     }
     CONTRACTL_END;
 
-    // TODO: Read within a loop.
-    uint8_t buffer[IpcStreamReadBufferSize]{};
-    uint32_t nNumberOfBytesRead = 0;
-    bool fSuccess = pStream->Read(buffer, sizeof(buffer), nNumberOfBytesRead);
-    if (!fSuccess)
+    NewHolder<const EventPipeStopTracingCommandPayload> payload = message.TryParsePayload<EventPipeStopTracingCommandPayload>();
+    if (payload == nullptr)
     {
-        // TODO: Add error handling.
+        DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, CORDIAGIPC_E_BAD_ENCODING);
         delete pStream;
         return;
     }
 
-    // The protocol buffer is defined as:
-    // X, Y, Z means encode bytes for X followed by bytes for Y followed by bytes for Z
-    // message = uint circularBufferMB, string outputPath, array<provider_config> providers
-    // uint = 4 little endian bytes
-    // ulong = 8 little endian bytes
-    // wchar = 2 little endian bytes, UTF16 encoding
-    // array<T> = uint length, length # of Ts
-    // string = (array<char> where the last char must = 0) or (length = 0)
-    // provider_config = ulong keywords, uint logLevel, string provider_name, string filter_data
+    EventPipe::Disable(payload->sessionId);
 
-    LPCWSTR strOutputPath;
-    uint32_t circularBufferSizeInMB = EventPipeProtocolHelper::DefaultCircularBufferMB;
-    CQuickArray<EventPipeProviderConfiguration> providerConfigs;
+    DiagnosticsIpc::IpcMessage stopTracingResponse;
+    if (stopTracingResponse.Initialize(DiagnosticsIpc::GenericSuccessHeader, payload->sessionId))
+        stopTracingResponse.Send(pStream);
 
-    uint8_t *pBufferCursor = buffer;
-    uint32_t bufferLen = nNumberOfBytesRead;
-    if (!TryParse(pBufferCursor, bufferLen, circularBufferSizeInMB) ||
-        !TryParseString(pBufferCursor, bufferLen, strOutputPath) ||
-        !TryParseProviderConfiguration(pBufferCursor, bufferLen, providerConfigs))
-    {
-        // TODO: error handling
-        delete pStream;
-        return;
-    }
-
-    EventPipeSessionID sessionId = (EventPipeSessionID) nullptr;
-    if (providerConfigs.Size() > 0)
-    {
-        sessionId = EventPipe::Enable(
-            strOutputPath,                                  // outputFile
-            circularBufferSizeInMB,                         // circularBufferSizeInMB
-            DefaultProfilerSamplingRateInNanoseconds,       // ProfilerSamplingRateInNanoseconds
-            providerConfigs.Ptr(),                          // pConfigs
-            static_cast<uint32_t>(providerConfigs.Size())); // numConfigs
-    }
-
-    uint32_t nBytesWritten = 0;
-    fSuccess = pStream->Write(&sessionId, sizeof(sessionId), nBytesWritten);
-    if (!fSuccess)
-    {
-        // TODO: Add error handling.
-        delete pStream;
-        return;
-    }
-
-    fSuccess = pStream->Flush();
+    bool fSuccess = pStream->Flush();
     if (!fSuccess)
     {
         // TODO: Add error handling.
@@ -125,99 +213,91 @@ void EventPipeProtocolHelper::EnableFileTracingEventHandler(IpcStream *pStream)
     delete pStream;
 }
 
-void EventPipeProtocolHelper::DisableFileTracingEventHandler(IpcStream *pStream)
+void EventPipeProtocolHelper::CollectTracing(DiagnosticsIpc::IpcMessage& message, IpcStream *pStream)
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
         PRECONDITION(pStream != nullptr);
     }
     CONTRACTL_END;
 
-    uint32_t nNumberOfBytesRead = 0;
-    EventPipeSessionID sessionId = (EventPipeSessionID) nullptr;
-    bool fSuccess = pStream->Read(&sessionId, sizeof(sessionId), nNumberOfBytesRead);
-    if (!fSuccess || nNumberOfBytesRead != sizeof(sessionId))
+    NewHolder<const EventPipeCollectTracingCommandPayload> payload = message.TryParsePayload<EventPipeCollectTracingCommandPayload>();
+    if (payload == nullptr)
     {
-        // TODO: Add error handling.
+        DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, CORDIAGIPC_E_BAD_ENCODING);
         delete pStream;
         return;
     }
 
-    EventPipe::Disable(sessionId);
-    uint32_t nBytesWritten = 0;
-    fSuccess = pStream->Write(&sessionId, sizeof(sessionId), nBytesWritten);
-    if (!fSuccess)
-    {
-        // TODO: Add error handling.
-        delete pStream;
-        return;
-    }
+    auto sessionId = EventPipe::Enable(
+        nullptr,                                        // strOutputPath (ignored in this scenario)
+        payload->circularBufferSizeInMB,                         // circularBufferSizeInMB
+        payload->providerConfigs.Ptr(),                          // pConfigs
+        static_cast<uint32_t>(payload->providerConfigs.Size()),  // numConfigs
+        EventPipeSessionType::IpcStream,                // EventPipeSessionType
+        payload->serializationFormat,                   // EventPipeSerializationFormat
+        true,                                           // rundownRequested
+        pStream);                                       // IpcStream
 
-    fSuccess = pStream->Flush();
-    if (!fSuccess)
+    if (sessionId == 0)
     {
-        // TODO: Add error handling.
+        DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, E_FAIL);
+        delete pStream;
     }
-    delete pStream;
+    else
+    {
+        DiagnosticsIpc::IpcMessage successResponse;
+        if (successResponse.Initialize(DiagnosticsIpc::GenericSuccessHeader, sessionId))
+            successResponse.Send(pStream);
+        EventPipe::StartStreaming(sessionId);
+    }
 }
 
-void EventPipeProtocolHelper::AttachTracingEventHandler(IpcStream *pStream)
+void EventPipeProtocolHelper::CollectTracing2(DiagnosticsIpc::IpcMessage& message, IpcStream *pStream)
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
         PRECONDITION(pStream != nullptr);
     }
     CONTRACTL_END;
 
-    // TODO: Read within a loop.
-    uint8_t buffer[IpcStreamReadBufferSize]{};
-    uint32_t nNumberOfBytesRead = 0;
-    bool fSuccess = pStream->Read(buffer, sizeof(buffer), nNumberOfBytesRead);
-    if (!fSuccess)
+    const EventPipeCollectTracing2CommandPayload* payload = message.TryParsePayload<EventPipeCollectTracing2CommandPayload>();
+    if (payload == nullptr)
     {
-        // TODO: Add error handling.
+        DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, CORDIAGIPC_E_BAD_ENCODING);
+        delete payload;
         delete pStream;
         return;
     }
 
-    // The protocol buffer is defined as:
-    // X, Y, Z means encode bytes for X followed by bytes for Y followed by bytes for Z
-    // message = uint circularBufferMB, string outputPath, array<provider_config> providers
-    // uint = 4 little endian bytes
-    // wchar = 2 little endian bytes, UTF16 encoding
-    // array<T> = uint length, length # of Ts
-    // string = (array<char> where the last char must = 0) or (length = 0)
-    // provider_config = ulong keywords, uint logLevel, string provider_name, string filter_data
+    auto sessionId = EventPipe::Enable(
+        nullptr,                                        // strOutputPath (ignored in this scenario)
+        payload->circularBufferSizeInMB,                         // circularBufferSizeInMB
+        payload->providerConfigs.Ptr(),                          // pConfigs
+        static_cast<uint32_t>(payload->providerConfigs.Size()),  // numConfigs
+        EventPipeSessionType::IpcStream,                // EventPipeSessionType
+        payload->serializationFormat,                   // EventPipeSerializationFormat
+        payload->rundownRequested,                      // rundownRequested
+        pStream);                                       // IpcStream
 
-    LPCWSTR strOutputPath;
-    uint32_t circularBufferSizeInMB = EventPipeProtocolHelper::DefaultCircularBufferMB;
-    CQuickArray<EventPipeProviderConfiguration> providerConfigs;
-
-    uint8_t *pBufferCursor = buffer;
-    uint32_t bufferLen = nNumberOfBytesRead;
-    if (!TryParse(pBufferCursor, bufferLen, circularBufferSizeInMB) ||
-        !TryParseString(pBufferCursor, bufferLen, strOutputPath) ||
-        !TryParseProviderConfiguration(pBufferCursor, bufferLen, providerConfigs))
+    if (sessionId == 0)
     {
-        // TODO: error handling
+        DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, E_FAIL);
+        delete payload;
         delete pStream;
-        return;
     }
-
-    if (providerConfigs.Size() > 0)
+    else
     {
-        EventPipe::Enable(
-            pStream,                                        // IPC stream
-            circularBufferSizeInMB,                         // circularBufferSizeInMB
-            DefaultProfilerSamplingRateInNanoseconds,       // ProfilerSamplingRateInNanoseconds
-            providerConfigs.Ptr(),                          // pConfigs
-            static_cast<uint32_t>(providerConfigs.Size())); // numConfigs
+        DiagnosticsIpc::IpcMessage successResponse;
+        if (successResponse.Initialize(DiagnosticsIpc::GenericSuccessHeader, sessionId))
+            successResponse.Send(pStream);
+        EventPipe::StartStreaming(sessionId);
     }
 }
 

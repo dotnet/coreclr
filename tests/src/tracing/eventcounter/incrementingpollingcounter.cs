@@ -10,7 +10,6 @@ using System.Diagnostics.Tracing;
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using System.Reflection;
 
 namespace BasicEventSourceTests
 {
@@ -19,11 +18,11 @@ namespace BasicEventSourceTests
         [EventSource(Name = "SimpleEventSource")]
         private sealed class SimpleEventSource : EventSource
         {
-            private object _failureCounter;
+            private IncrementingPollingCounter _mockedCounter;
 
-            public SimpleEventSource(Func<double> getFailureCount, Type IncrementingPollingCounterType)
+            public SimpleEventSource(Func<double> getMockedCount)
             {
-                _failureCounter = Activator.CreateInstance(IncrementingPollingCounterType, "failureCount", this, getFailureCount);    
+                _mockedCounter = new IncrementingPollingCounter("failureCount", this, getMockedCount) { DisplayName = "Failure Count", DisplayUnits = "Count", DisplayRateTimeScale = new TimeSpan(0, 0, 1) };
             }
         }
 
@@ -36,6 +35,9 @@ namespace BasicEventSourceTests
             public int FailureEventCount { get; private set; } = 0;
             public bool Failed = false;
             public bool MetadataSet = false;
+            public string displayName = "";
+            public string displayRateTimeScale = "";
+            public string displayUnits = "";
 
             public SimpleEventListener(string targetSourceName, EventLevel level)
             {
@@ -77,6 +79,18 @@ namespace BasicEventSourceTests
                             {
                                 increment = payload.Value.ToString();
                             }
+                            else if (payload.Key.Equals("DisplayRateTimeScale"))
+                            {
+                                displayRateTimeScale = payload.Value.ToString();
+                            }
+                            else if (payload.Key.Equals("DisplayName"))
+                            {
+                                displayName = payload.Value.ToString();
+                            }
+                            else if (payload.Key.Equals("DisplayUnits"))
+                            {
+                                displayUnits = payload.Value.ToString();
+                            }
                         }
 
                         // Check if the mean is what we expect it to be
@@ -91,47 +105,49 @@ namespace BasicEventSourceTests
         }
 
 
-        public static int failureCountCalled = 0;
+        public static int mockedCountCalled = 0;
 
-        public static double getFailureCount()
+        public static double getMockedCount()
         {
-            failureCountCalled++;
-            return failureCountCalled;
+            mockedCountCalled++;
+            return mockedCountCalled;
         }
         public static int Main(string[] args)
         {
             // Create an EventListener.
             using (SimpleEventListener myListener = new SimpleEventListener("SimpleEventSource", EventLevel.Verbose))
             {
-                 // Reflect over System.Private.CoreLib and get the IncrementingPollingCounter type.
-                Assembly SPC = typeof(System.Diagnostics.Tracing.EventSource).Assembly;
-                if(SPC == null)
-                {
-                    Console.WriteLine("Failed to get System.Private.CoreLib assembly.");
-                    return 1;
-                }
-                Type IncrementingPollingCounterType = SPC.GetType("System.Diagnostics.Tracing.IncrementingPollingCounter");
-                if(IncrementingPollingCounterType == null)
-                {
-                    Console.WriteLine("Failed to get System.Diagnostics.Tracing.IncrementingPollingCounterType type.");
-                    return 1;
-                }
-
-                SimpleEventSource eventSource = new SimpleEventSource(getFailureCount, IncrementingPollingCounterType);
+                SimpleEventSource eventSource = new SimpleEventSource(getMockedCount);
 
                 // Want to sleep for 5000 ms to get some counters piling up.
                 Thread.Sleep(5000);
 
-                if (!myListener.Failed && failureCountCalled > 0)
+                if (myListener.Failed || mockedCountCalled <= 0)
                 {
-                    Console.WriteLine("Test Passed");
-                    return 100;    
+                    Console.WriteLine($"Test Failed - mockedCountCalled = {mockedCountCalled}, myListener.Failed = {myListener.Failed}");
+                    return 1;    
                 }
-                else
+                
+                if (myListener.displayRateTimeScale != "00:00:01")
                 {
-                    Console.WriteLine("Test Failed");
+                    Console.WriteLine($"Test Failed - Incorrect DisplayRateTimeScale in payload: {myListener.displayRateTimeScale}");
                     return 1;
                 }
+                
+                if (myListener.displayName != "Failure Count")
+                {
+                    Console.WriteLine($"Test Failed - Incorrect DisplayName in payload: {myListener.displayName}");
+                    return 1;
+                }
+
+                if (myListener.displayUnits != "Count")
+                {
+                    Console.WriteLine($"Test failed - Incorrect DisplayUnits in payload: {myListener.displayUnits}");
+                    return 1;
+                }
+                
+                Console.WriteLine("Test passed");
+                return 100;
             }
         }
     }

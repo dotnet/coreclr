@@ -4,8 +4,7 @@
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Security;
-using Microsoft.Win32;
+using System.Threading;
 
 #if FEATURE_PERFTRACING
 
@@ -17,7 +16,7 @@ namespace System.Diagnostics.Tracing
         internal IntPtr ProviderID;
         internal uint EventID;
         internal uint ThreadID;
-        internal Int64 TimeStamp;
+        internal long TimeStamp;
         internal Guid ActivityId;
         internal Guid ChildActivityId;
         internal IntPtr Payload;
@@ -27,33 +26,33 @@ namespace System.Diagnostics.Tracing
     [StructLayout(LayoutKind.Sequential)]
     internal struct EventPipeSessionInfo
     {
-        internal Int64 StartTimeAsUTCFileTime;
-        internal Int64 StartTimeStamp;
-        internal Int64 TimeStampFrequency;
+        internal long StartTimeAsUTCFileTime;
+        internal long StartTimeStamp;
+        internal long TimeStampFrequency;
     }
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct EventPipeProviderConfiguration
     {
         [MarshalAs(UnmanagedType.LPWStr)]
-        private string m_providerName;
-        private ulong m_keywords;
-        private uint m_loggingLevel;
+        private readonly string m_providerName;
+        private readonly ulong m_keywords;
+        private readonly uint m_loggingLevel;
 
         [MarshalAs(UnmanagedType.LPWStr)]
-        private readonly string m_filterData;
+        private readonly string? m_filterData;
 
         internal EventPipeProviderConfiguration(
             string providerName,
             ulong keywords,
             uint loggingLevel,
-            string filterData)
+            string? filterData)
         {
-            if(string.IsNullOrEmpty(providerName))
+            if (string.IsNullOrEmpty(providerName))
             {
                 throw new ArgumentNullException(nameof(providerName));
             }
-            if(loggingLevel > 5) // 5 == Verbose, the highest value in EventPipeLoggingLevel.
+            if (loggingLevel > 5) // 5 == Verbose, the highest value in EventPipeLoggingLevel.
             {
                 throw new ArgumentOutOfRangeException(nameof(loggingLevel));
             }
@@ -78,29 +77,42 @@ namespace System.Diagnostics.Tracing
             get { return m_loggingLevel; }
         }
 
-        internal string FilterData => m_filterData;
+        internal string? FilterData => m_filterData;
+    }
+
+    internal enum EventPipeSerializationFormat
+    {
+        NetPerf,
+        NetTrace
+    }
+
+    internal sealed class EventPipeWaitHandle : WaitHandle
+    {
     }
 
     internal sealed class EventPipeConfiguration
     {
-        private string m_outputFile;
-        private uint m_circularBufferSizeInMB;
-        private List<EventPipeProviderConfiguration> m_providers;
+        private readonly string m_outputFile;
+        private readonly EventPipeSerializationFormat m_format;
+        private readonly uint m_circularBufferSizeInMB;
+        private readonly List<EventPipeProviderConfiguration> m_providers;
         private TimeSpan m_minTimeBetweenSamples = TimeSpan.FromMilliseconds(1);
 
         internal EventPipeConfiguration(
             string outputFile,
+            EventPipeSerializationFormat format,
             uint circularBufferSizeInMB)
         {
-            if(string.IsNullOrEmpty(outputFile))
+            if (string.IsNullOrEmpty(outputFile))
             {
                 throw new ArgumentNullException(nameof(outputFile));
             }
-            if(circularBufferSizeInMB == 0)
+            if (circularBufferSizeInMB == 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(circularBufferSizeInMB));
             }
             m_outputFile = outputFile;
+            m_format = format;
             m_circularBufferSizeInMB = circularBufferSizeInMB;
             m_providers = new List<EventPipeProviderConfiguration>();
         }
@@ -108,6 +120,11 @@ namespace System.Diagnostics.Tracing
         internal string OutputFile
         {
             get { return m_outputFile; }
+        }
+
+        internal EventPipeSerializationFormat Format
+        {
+            get { return m_format; }
         }
 
         internal uint CircularBufferSizeInMB
@@ -120,18 +137,12 @@ namespace System.Diagnostics.Tracing
             get { return m_providers.ToArray(); }
         }
 
-        internal long ProfilerSamplingRateInNanoseconds
-        {
-            // 100 nanoseconds == 1 tick.
-            get { return m_minTimeBetweenSamples.Ticks * 100; }
-        }
-
         internal void EnableProvider(string providerName, ulong keywords, uint loggingLevel)
         {
             EnableProviderWithFilter(providerName, keywords, loggingLevel, null);
         }
 
-        internal void EnableProviderWithFilter(string providerName, ulong keywords, uint loggingLevel, string filterData)
+        internal void EnableProviderWithFilter(string providerName, ulong keywords, uint loggingLevel, string? filterData)
         {
             m_providers.Add(new EventPipeProviderConfiguration(
                 providerName,
@@ -147,7 +158,7 @@ namespace System.Diagnostics.Tracing
 
         internal void EnableProviderRange(EventPipeProviderConfiguration[] providerConfigs)
         {
-            foreach(EventPipeProviderConfiguration config in providerConfigs)
+            foreach (EventPipeProviderConfiguration config in providerConfigs)
             {
                 EnableProviderConfiguration(config);
             }
@@ -155,7 +166,7 @@ namespace System.Diagnostics.Tracing
 
         internal void SetProfilerSamplingRate(TimeSpan minTimeBetweenSamples)
         {
-            if(minTimeBetweenSamples.Ticks <= 0)
+            if (minTimeBetweenSamples.Ticks <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(minTimeBetweenSamples));
             }
@@ -166,16 +177,16 @@ namespace System.Diagnostics.Tracing
 
     internal static class EventPipe
     {
-        private static UInt64 s_sessionID = 0;
+        private static ulong s_sessionID = 0;
 
         internal static void Enable(EventPipeConfiguration configuration)
         {
-            if(configuration == null)
+            if (configuration == null)
             {
                 throw new ArgumentNullException(nameof(configuration));
             }
 
-            if(configuration.Providers == null)
+            if (configuration.Providers == null)
             {
                 throw new ArgumentNullException(nameof(configuration.Providers));
             }
@@ -184,10 +195,9 @@ namespace System.Diagnostics.Tracing
 
             s_sessionID = EventPipeInternal.Enable(
                 configuration.OutputFile,
+                configuration.Format,
                 configuration.CircularBufferSizeInMB,
-                (ulong)configuration.ProfilerSamplingRateInNanoseconds,
-                providers,
-                (uint)providers.Length);
+                providers);
         }
 
         internal static void Disable()
@@ -198,53 +208,120 @@ namespace System.Diagnostics.Tracing
 
     internal static class EventPipeInternal
     {
+        private unsafe struct EventPipeProviderConfigurationNative
+        {
+            private char* m_pProviderName;
+            private ulong m_keywords;
+            private uint m_loggingLevel;
+            private char* m_pFilterData;
+
+            internal static void MarshalToNative(EventPipeProviderConfiguration managed, ref EventPipeProviderConfigurationNative native)
+            {
+                native.m_pProviderName = (char*)Marshal.StringToCoTaskMemUni(managed.ProviderName);
+                native.m_keywords = managed.Keywords;
+                native.m_loggingLevel = managed.LoggingLevel;
+                native.m_pFilterData = (char*)Marshal.StringToCoTaskMemUni(managed.FilterData);
+            }
+
+            internal void Release()
+            {
+                if (m_pProviderName != null)
+                {
+                    Marshal.FreeCoTaskMem((IntPtr)m_pProviderName);
+                }
+                if (m_pFilterData != null)
+                {
+                    Marshal.FreeCoTaskMem((IntPtr)m_pFilterData);
+                }
+            }
+        }
+
         //
         // These PInvokes are used by the configuration APIs to interact with EventPipe.
         //
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern UInt64 Enable(
-            string outputFile,
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static unsafe extern ulong Enable(
+            char* outputFile,
+            EventPipeSerializationFormat format,
             uint circularBufferSizeInMB,
-            ulong profilerSamplingRateInNanoseconds,
-            EventPipeProviderConfiguration[] providers,
+            EventPipeProviderConfigurationNative* providers,
             uint numProviders);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern void Disable(UInt64 sessionID);
+        internal static unsafe ulong Enable(
+            string? outputFile,
+            EventPipeSerializationFormat format,
+            uint circularBufferSizeInMB,
+            EventPipeProviderConfiguration[] providers)
+        {
+            Span<EventPipeProviderConfigurationNative> providersNative = new Span<EventPipeProviderConfigurationNative>((void*)Marshal.AllocCoTaskMem(sizeof(EventPipeProviderConfigurationNative) * providers.Length), providers.Length);
+            providersNative.Clear();
+
+            try
+            {
+                for (int i = 0; i < providers.Length; i++)
+                {
+                    EventPipeProviderConfigurationNative.MarshalToNative(providers[i], ref providersNative[i]);
+                }
+
+                fixed (char* outputFilePath = outputFile)
+                fixed (EventPipeProviderConfigurationNative* providersNativePointer = providersNative)
+                {
+                    return Enable(outputFilePath, format, circularBufferSizeInMB, providersNativePointer, (uint)providersNative.Length);
+                }
+            }
+            finally
+            {
+                for (int i = 0; i < providers.Length; i++)
+                {
+                    providersNative[i].Release();
+                }
+
+                fixed (EventPipeProviderConfigurationNative* providersNativePointer = providersNative)
+                {
+                    Marshal.FreeCoTaskMem((IntPtr)providersNativePointer);
+                }
+            }
+        }
+
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        internal static extern void Disable(ulong sessionID);
 
         //
         // These PInvokes are used by EventSource to interact with the EventPipe.
         //
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern IntPtr CreateProvider(string providerName, UnsafeNativeMethods.ManifestEtw.EtwEnableCallback callbackFunc);
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        internal static extern IntPtr CreateProvider(string providerName, Interop.Advapi32.EtwEnableCallback callbackFunc);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern unsafe IntPtr DefineEvent(IntPtr provHandle, uint eventID, long keywords, uint eventVersion, uint level, void *pMetadata, uint metadataLength);
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        internal static extern unsafe IntPtr DefineEvent(IntPtr provHandle, uint eventID, long keywords, uint eventVersion, uint level, void* pMetadata, uint metadataLength);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern IntPtr GetProvider(string providerName);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern void DeleteProvider(IntPtr provHandle);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern int EventActivityIdControl(uint controlCode, ref Guid activityId);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern unsafe void WriteEvent(IntPtr eventHandle, uint eventID, void* pData, uint length, Guid* activityId, Guid* relatedActivityId);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern unsafe void WriteEventData(IntPtr eventHandle, uint eventID, EventProvider.EventData* pEventData, uint dataCount, Guid* activityId, Guid* relatedActivityId);
 
 
         //
         // These PInvokes are used as part of the EventPipeEventDispatcher.
         //
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern unsafe bool GetSessionInfo(UInt64 sessionID, EventPipeSessionInfo* pSessionInfo);
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        internal static extern unsafe bool GetSessionInfo(ulong sessionID, EventPipeSessionInfo* pSessionInfo);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern unsafe bool GetNextEvent(EventPipeEventInstanceData* pInstance);
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        internal static extern unsafe bool GetNextEvent(ulong sessionID, EventPipeEventInstanceData* pInstance);
+
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        internal static extern unsafe IntPtr GetWaitHandle(ulong sessionID);
     }
 }
 

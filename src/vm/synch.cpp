@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 //
 
-// 
+//
 
 #include "common.h"
 
@@ -15,11 +15,11 @@ void CLREventBase::CreateAutoEvent (BOOL bInitialState  // If TRUE, initial stat
 {
     CONTRACTL
     {
-        THROWS;           
+        THROWS;
         GC_NOTRIGGER;
         // disallow creation of Crst before EE starts
         // Can not assert here. ASP.NET uses our Threadpool before EE is started.
-        PRECONDITION((m_handle == INVALID_HANDLE_VALUE));        
+        PRECONDITION((m_handle == INVALID_HANDLE_VALUE));
         PRECONDITION((!IsOSEvent()));
     }
     CONTRACTL_END;
@@ -27,13 +27,13 @@ void CLREventBase::CreateAutoEvent (BOOL bInitialState  // If TRUE, initial stat
     SetAutoEvent();
 
     {
-        HANDLE h = UnsafeCreateEvent(NULL,FALSE,bInitialState,NULL);
+        HANDLE h = WszCreateEvent(NULL,FALSE,bInitialState,NULL);
         if (h == NULL) {
             ThrowOutOfMemory();
         }
         m_handle = h;
     }
-    
+
 }
 
 BOOL CLREventBase::CreateAutoEventNoThrow (BOOL bInitialState  // If TRUE, initial state is signalled
@@ -45,7 +45,7 @@ BOOL CLREventBase::CreateAutoEventNoThrow (BOOL bInitialState  // If TRUE, initi
         GC_NOTRIGGER;
         // disallow creation of Crst before EE starts
         // Can not assert here. ASP.NET uses our Threadpool before EE is started.
-        PRECONDITION((m_handle == INVALID_HANDLE_VALUE)); 
+        PRECONDITION((m_handle == INVALID_HANDLE_VALUE));
         PRECONDITION((!IsOSEvent()));
     }
     CONTRACTL_END;
@@ -67,17 +67,17 @@ void CLREventBase::CreateManualEvent (BOOL bInitialState  // If TRUE, initial st
 {
     CONTRACTL
     {
-        THROWS;           
+        THROWS;
         GC_NOTRIGGER;
         // disallow creation of Crst before EE starts
         // Can not assert here. ASP.NET uses our Threadpool before EE is started.
-        PRECONDITION((m_handle == INVALID_HANDLE_VALUE));        
+        PRECONDITION((m_handle == INVALID_HANDLE_VALUE));
         PRECONDITION((!IsOSEvent()));
     }
     CONTRACTL_END;
 
     {
-        HANDLE h = UnsafeCreateEvent(NULL,TRUE,bInitialState,NULL);
+        HANDLE h = WszCreateEvent(NULL,TRUE,bInitialState,NULL);
         if (h == NULL) {
             ThrowOutOfMemory();
         }
@@ -128,7 +128,7 @@ void CLREventBase::CreateMonitorEvent(SIZE_T Cookie)
     FastInterlockOr(&m_dwFlags, CLREVENT_FLAGS_AUTO_EVENT);
 
     {
-        HANDLE h = UnsafeCreateEvent(NULL,FALSE,FALSE,NULL);
+        HANDLE h = WszCreateEvent(NULL,FALSE,FALSE,NULL);
         if (h == NULL) {
             ThrowOutOfMemory();
         }
@@ -140,7 +140,7 @@ void CLREventBase::CreateMonitorEvent(SIZE_T Cookie)
             CloseHandle(h);
         }
     }
-    
+
     // thread-safe SetInDeadlockDetection
     FastInterlockOr(&m_dwFlags, CLREVENT_FLAGS_IN_DEADLOCK_DETECTION);
 
@@ -213,10 +213,10 @@ void CLREventBase::CreateOSAutoEvent (BOOL bInitialState  // If TRUE, initial st
 {
     CONTRACTL
     {
-        THROWS;           
+        THROWS;
         GC_NOTRIGGER;
         // disallow creation of Crst before EE starts
-        PRECONDITION((m_handle == INVALID_HANDLE_VALUE));        
+        PRECONDITION((m_handle == INVALID_HANDLE_VALUE));
     }
     CONTRACTL_END;
 
@@ -226,7 +226,7 @@ void CLREventBase::CreateOSAutoEvent (BOOL bInitialState  // If TRUE, initial st
     SetOSEvent();
     SetAutoEvent();
 
-    HANDLE h = UnsafeCreateEvent(NULL,FALSE,bInitialState,NULL);
+    HANDLE h = WszCreateEvent(NULL,FALSE,bInitialState,NULL);
     if (h == NULL) {
         ThrowOutOfMemory();
     }
@@ -241,7 +241,7 @@ BOOL CLREventBase::CreateOSAutoEventNoThrow (BOOL bInitialState  // If TRUE, ini
         NOTHROW;
         GC_NOTRIGGER;
         // disallow creation of Crst before EE starts
-        PRECONDITION((m_handle == INVALID_HANDLE_VALUE));        
+        PRECONDITION((m_handle == INVALID_HANDLE_VALUE));
     }
     CONTRACTL_END;
 
@@ -262,10 +262,10 @@ void CLREventBase::CreateOSManualEvent (BOOL bInitialState  // If TRUE, initial 
 {
     CONTRACTL
     {
-        THROWS;           
+        THROWS;
         GC_NOTRIGGER;
         // disallow creation of Crst before EE starts
-        PRECONDITION((m_handle == INVALID_HANDLE_VALUE));        
+        PRECONDITION((m_handle == INVALID_HANDLE_VALUE));
     }
     CONTRACTL_END;
 
@@ -274,7 +274,7 @@ void CLREventBase::CreateOSManualEvent (BOOL bInitialState  // If TRUE, initial 
 
     SetOSEvent();
 
-    HANDLE h = UnsafeCreateEvent(NULL,TRUE,bInitialState,NULL);
+    HANDLE h = WszCreateEvent(NULL,TRUE,bInitialState,NULL);
     if (h == NULL) {
         ThrowOutOfMemory();
     }
@@ -286,7 +286,7 @@ BOOL CLREventBase::CreateOSManualEventNoThrow (BOOL bInitialState  // If TRUE, i
 {
     CONTRACTL
     {
-        NOTHROW; 
+        NOTHROW;
         GC_NOTRIGGER;
         // disallow creation of Crst before EE starts
         PRECONDITION((m_handle == INVALID_HANDLE_VALUE));
@@ -341,8 +341,8 @@ BOOL CLREventBase::Set()
 
     _ASSERTE(Thread::Debug_AllowCallout());
 
-    {    
-        return UnsafeSetEvent(m_handle);
+    {
+        return SetEvent(m_handle);
     }
 
 }
@@ -365,7 +365,7 @@ BOOL CLREventBase::Reset()
               !"Can not call Reset on AutoEvent");
 
     {
-        return UnsafeResetEvent(m_handle);
+        return ResetEvent(m_handle);
     }
 }
 
@@ -411,21 +411,21 @@ static DWORD CLREventWaitHelper(HANDLE handle, DWORD dwMilliseconds, BOOL alerta
 }
 
 
-DWORD CLREventBase::Wait(DWORD dwMilliseconds, BOOL alertable, PendingSync *syncState) 
+DWORD CLREventBase::Wait(DWORD dwMilliseconds, BOOL alertable, PendingSync *syncState)
 {
     WRAPPER_NO_CONTRACT;
     return WaitEx(dwMilliseconds, alertable?WaitMode_Alertable:WaitMode_None,syncState);
 }
 
 
-DWORD CLREventBase::WaitEx(DWORD dwMilliseconds, WaitMode mode, PendingSync *syncState) 
+DWORD CLREventBase::WaitEx(DWORD dwMilliseconds, WaitMode mode, PendingSync *syncState)
 {
     BOOL alertable = (mode & WaitMode_Alertable)!=0;
     CONTRACTL
     {
         if (alertable)
         {
-            THROWS;               // Thread::DoAppropriateWait can throw   
+            THROWS;               // Thread::DoAppropriateWait can throw
         }
         else
         {
@@ -435,12 +435,12 @@ DWORD CLREventBase::WaitEx(DWORD dwMilliseconds, WaitMode mode, PendingSync *syn
         {
             if (alertable)
                 GC_TRIGGERS;
-            else 
+            else
                 GC_NOTRIGGER;
         }
         else
         {
-            DISABLED(GC_TRIGGERS);        
+            DISABLED(GC_TRIGGERS);
         }
         PRECONDITION(m_handle != INVALID_HANDLE_VALUE); // Handle has to be valid
     }
@@ -449,8 +449,8 @@ DWORD CLREventBase::WaitEx(DWORD dwMilliseconds, WaitMode mode, PendingSync *syn
 
     _ASSERTE(Thread::Debug_AllowCallout());
 
-    Thread * pThread = GetThread();    
-    
+    Thread * pThread = GetThread();
+
 #ifdef _DEBUG
     // If a CLREvent is OS event only, we can not wait for the event on a managed thread
     if (IsOSEvent())
@@ -461,8 +461,8 @@ DWORD CLREventBase::WaitEx(DWORD dwMilliseconds, WaitMode mode, PendingSync *syn
     {
         if (pThread && alertable) {
             DWORD dwRet = WAIT_FAILED;
-            dwRet = pThread->DoAppropriateWait(1, &m_handle, FALSE, dwMilliseconds, 
-                                              mode, 
+            dwRet = pThread->DoAppropriateWait(1, &m_handle, FALSE, dwMilliseconds,
+                                              mode,
                                               syncState);
             return dwRet;
         }
@@ -484,7 +484,7 @@ void CLRSemaphore::Create (DWORD dwInitial, DWORD dwMax)
     CONTRACTL_END;
 
     {
-        HANDLE h = UnsafeCreateSemaphore(NULL,dwInitial,dwMax,NULL);
+        HANDLE h = WszCreateSemaphore(NULL,dwInitial,dwMax,NULL);
         if (h == NULL) {
             ThrowOutOfMemory();
         }
@@ -514,7 +514,7 @@ BOOL CLRSemaphore::Release(LONG lReleaseCount, LONG *lpPreviousCount)
     CONTRACTL_END;
 
     {
-        return ::UnsafeReleaseSemaphore(m_handle, lReleaseCount, lpPreviousCount);
+        return ::ReleaseSemaphore(m_handle, lReleaseCount, lpPreviousCount);
     }
 }
 
@@ -525,7 +525,7 @@ DWORD CLRSemaphore::Wait(DWORD dwMilliseconds, BOOL alertable)
     {
         if (GetThread() && alertable)
         {
-            THROWS;               // Thread::DoAppropriateWait can throw       
+            THROWS;               // Thread::DoAppropriateWait can throw
         }
         else
         {
@@ -535,18 +535,18 @@ DWORD CLRSemaphore::Wait(DWORD dwMilliseconds, BOOL alertable)
         {
             if (alertable)
                 GC_TRIGGERS;
-            else 
+            else
                 GC_NOTRIGGER;
         }
         else
         {
-            DISABLED(GC_TRIGGERS);        
+            DISABLED(GC_TRIGGERS);
         }
         PRECONDITION(m_handle != INVALID_HANDLE_VALUE); // Invalid to have invalid handle
     }
     CONTRACTL_END;
 
-    
+
     Thread *pThread = GetThread();
     _ASSERTE (pThread || !g_fEEStarted || dbgOnly_IsSpecialEEThread());
 
@@ -555,7 +555,7 @@ DWORD CLRSemaphore::Wait(DWORD dwMilliseconds, BOOL alertable)
         // Currently we can not call through DoAppropriateWait because of CannotThrowComplusException.
         // We should re-consider this after our code is exception safe.
         if (pThread && alertable) {
-            return pThread->DoAppropriateWait(1, &m_handle, FALSE, dwMilliseconds, 
+            return pThread->DoAppropriateWait(1, &m_handle, FALSE, dwMilliseconds,
                                               alertable?WaitMode_Alertable:WaitMode_None,
                                               NULL);
         }
@@ -589,7 +589,7 @@ void CLRLifoSemaphore::Create(INT32 initialSignalCount, INT32 maximumSignalCount
     _ASSERTE(m_handle == nullptr);
 
 #ifdef FEATURE_PAL
-    HANDLE h = UnsafeCreateSemaphore(nullptr, 0, maximumSignalCount, nullptr);
+    HANDLE h = WszCreateSemaphore(nullptr, 0, maximumSignalCount, nullptr);
 #else // !FEATURE_PAL
     HANDLE h = CreateIoCompletionPort(INVALID_HANDLE_VALUE, nullptr, 0, maximumSignalCount);
 #endif // FEATURE_PAL
@@ -966,7 +966,7 @@ void CLRLifoSemaphore::Release(INT32 releaseCount)
 
     // Wake waiters
 #ifdef FEATURE_PAL
-    BOOL released = UnsafeReleaseSemaphore(m_handle, countOfWaitersToWake, nullptr);
+    BOOL released = ReleaseSemaphore(m_handle, countOfWaitersToWake, nullptr);
     _ASSERTE(released);
 #else // !FEATURE_PAL
     while (--countOfWaitersToWake >= 0)

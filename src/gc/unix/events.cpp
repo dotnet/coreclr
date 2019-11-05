@@ -9,7 +9,7 @@
 #include <mutex>
 #include <pthread.h>
 #include <errno.h>
-#include "config.h"
+#include "config.gc.h"
 #include "common.h"
 
 #include "gcenv.structs.h"
@@ -146,7 +146,7 @@ public:
             TimeSpecAdd(&endTime, milliseconds);
         }
 #else
-#error "Don't know how to perfom timed wait on this platform"
+#error "Don't know how to perform timed wait on this platform"
 #endif
 
         int st = 0;
@@ -161,7 +161,7 @@ public:
             else
             {
 #if HAVE_MACH_ABSOLUTE_TIME
-                // Since OSX doesn't support CLOCK_MONOTONIC, we use relative variant of the 
+                // Since OSX doesn't support CLOCK_MONOTONIC, we use relative variant of the
                 // timed wait and we need to handle spurious wakeups properly.
                 st = pthread_cond_timedwait_relative_np(&m_condition, &m_mutex, &endTime);
                 if ((st == 0) && !m_state)

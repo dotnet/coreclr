@@ -8,6 +8,11 @@
 #include "gcinfotypes.h"
 #include "gcinfodecoder.h"
 
+// *****************************************************************************
+// WARNING!!!: These values and code are also used by SOS in the diagnostics
+// repo. Should updated in a backwards and forwards compatible way.
+// See: https://github.com/dotnet/diagnostics/blob/master/src/inc/gcinfodumper.h
+// *****************************************************************************
 
 //
 // This class dumps the contents of the gc encodings, providing outputs
@@ -39,7 +44,7 @@ public:
             GcSlotFlags Flags,
             GcSlotState NewState,
             PVOID pvData);
-    
+
     // Returns TRUE to stop decoding.
     typedef BOOL StackSlotStateChangeProc (
             UINT32 CodeOffset,

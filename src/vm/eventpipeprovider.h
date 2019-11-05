@@ -18,14 +18,10 @@ class EventPipeProvider
     // Declare friends.
     friend class EventPipe;
     friend class EventPipeConfiguration;
-    friend class SampleProfiler;
 
 private:
     // The name of the provider.
-    SString m_providerName;
-
-    // True if the provider is enabled.
-    bool m_enabled;
+    const SString m_providerName;
 
     // Bit vector containing the currently enabled keywords.
     INT64 m_keywords;
@@ -50,6 +46,9 @@ private:
     // has been deferred until tracing is stopped.
     bool m_deleteDeferred;
 
+    // Bit mask of sessions for which this provider is enabled.
+    uint64_t m_sessions;
+
     // Private constructor because all providers are created through EventPipe::CreateProvider.
     EventPipeProvider(EventPipeConfiguration *pConfig, const SString &providerName, EventPipeCallback pCallbackFunction = NULL, void *pCallbackData = NULL);
 
@@ -61,13 +60,20 @@ public:
     const SString& GetProviderName() const;
 
     // Determine if the provider is enabled.
-    bool Enabled() const;
+    bool Enabled() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return (m_sessions != 0);
+    }
 
-    // Determine if the specified keywords are enabled.
-    bool EventEnabled(INT64 keywords) const;
+    bool IsEnabled(uint64_t sessionMask) const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return ((m_sessions & sessionMask) != 0);
+    }
 
-    // Determine if the specified keywords and level match the configuration.
-    bool EventEnabled(INT64 keywords, EventPipeEventLevel eventLevel) const;
+    // Compute the enabled bit mask, the ith bit is 1 iff an event with the given (provider, keywords, eventLevel) is enabled for the ith session.
+    INT64 ComputeEventEnabledMask(INT64 keywords, EventPipeEventLevel eventLevel) const;
 
     // Create a new event.
     EventPipeEvent* AddEvent(unsigned int eventID, INT64 keywords, unsigned int eventVersion, EventPipeEventLevel level, bool needStack, BYTE *pMetadata = NULL, unsigned int metadataLength = 0);
@@ -77,15 +83,37 @@ private:
     // Add an event to the provider.
     void AddEvent(EventPipeEvent &event);
 
-    // Set the provider configuration (enable and disable sets of events).
+    // Set the provider configuration (enable sets of events).
     // This is called by EventPipeConfiguration.
-    void SetConfiguration(bool providerEnabled, INT64 keywords, EventPipeEventLevel providerLevel, LPCWSTR pFilterData);
+    EventPipeProviderCallbackData SetConfiguration(
+        INT64 keywordsForAllSessions,
+        EventPipeEventLevel providerLevelForAllSessions,
+        uint64_t sessionMask,
+        INT64 keywords,
+        EventPipeEventLevel providerLevel,
+        LPCWSTR pFilterData);
+
+    // Unset the provider configuration for the specified session (disable sets of events).
+    // This is called by EventPipeConfiguration.
+    EventPipeProviderCallbackData UnsetConfiguration(
+        INT64 keywordsForAllSessions,
+        EventPipeEventLevel providerLevelForAllSessions,
+        uint64_t sessionMask,
+        INT64 keywords,
+        EventPipeEventLevel providerLevel,
+        LPCWSTR pFilterData);
 
     // Refresh the runtime state of all events.
     void RefreshAllEvents();
 
+    // Prepare the data required for invoking callback
+    EventPipeProviderCallbackData PrepareCallbackData(
+        INT64 keywords,
+        EventPipeEventLevel providerLevel,
+        LPCWSTR pFilterData);
+
     // Invoke the provider callback.
-    void InvokeCallback(LPCWSTR pFilterData);
+    static void InvokeCallback(EventPipeProviderCallbackData eventPipeProviderCallbackData);
 
     // Specifies whether or not the provider was deleted, but that deletion
     // was deferred until after tracing is stopped.

@@ -15,14 +15,15 @@
 #include "callcounter.h"
 
 #ifdef FEATURE_TIERED_COMPILATION
+#ifndef DACCESS_COMPILE
 
-CallCounterEntry CallCounterEntry::CreateWithTier0CallCountingDisabled(const MethodDesc *m)
+CallCounterEntry CallCounterEntry::CreateWithCallCountingDisabled(MethodDesc *m)
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(m != nullptr);
 
     CallCounterEntry entry(m, INT_MAX);
-    _ASSERTE(!entry.IsTier0CallCountingEnabled());
+    _ASSERTE(!entry.IsCallCountingEnabled());
     return entry;
 }
 
@@ -33,34 +34,30 @@ CallCounter::CallCounter()
     m_lock.Init(LOCK_TYPE_DEFAULT);
 }
 
-bool CallCounter::IsEligibleForTier0CallCounting(MethodDesc* pMethodDesc)
+#endif // !DACCESS_COMPILE
+
+bool CallCounter::IsCallCountingEnabled(PTR_MethodDesc pMethodDesc)
 {
     WRAPPER_NO_CONTRACT;
-    _ASSERTE(pMethodDesc != NULL);
+    _ASSERTE(pMethodDesc != PTR_NULL);
     _ASSERTE(pMethodDesc->IsEligibleForTieredCompilation());
 
-    return g_pConfig->TieredCompilation_StartupTier_CallCounting() && !pMethodDesc->RequestedAggressiveOptimization();
-}
-
-bool CallCounter::IsTier0CallCountingEnabled(MethodDesc* pMethodDesc)
-{
-    WRAPPER_NO_CONTRACT;
-    _ASSERTE(pMethodDesc != NULL);
-    _ASSERTE(pMethodDesc->IsEligibleForTieredCompilation());
-    _ASSERTE(IsEligibleForTier0CallCounting(pMethodDesc));
-
+#ifndef DACCESS_COMPILE
     SpinLockHolder holder(&m_lock);
+#endif
 
-    const CallCounterEntry *entry = m_methodToCallCount.LookupPtr(pMethodDesc);
-    return entry == nullptr || entry->IsTier0CallCountingEnabled();
+    PTR_CallCounterEntry entry =
+        (PTR_CallCounterEntry)const_cast<CallCounterEntry *>(m_methodToCallCount.LookupPtr(pMethodDesc));
+    return entry == PTR_NULL || entry->IsCallCountingEnabled();
 }
 
-void CallCounter::DisableTier0CallCounting(MethodDesc* pMethodDesc)
+#ifndef DACCESS_COMPILE
+
+void CallCounter::DisableCallCounting(MethodDesc* pMethodDesc)
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(pMethodDesc != NULL);
     _ASSERTE(pMethodDesc->IsEligibleForTieredCompilation());
-    _ASSERTE(IsEligibleForTier0CallCounting(pMethodDesc));
 
     // Disabling call counting will affect the tier of the MethodDesc's first native code version. Callers must ensure that this
     // change is made deterministically and prior to or while jitting the first native code version such that the tier would not
@@ -74,13 +71,41 @@ void CallCounter::DisableTier0CallCounting(MethodDesc* pMethodDesc)
     CallCounterEntry *existingEntry = const_cast<CallCounterEntry *>(m_methodToCallCount.LookupPtr(pMethodDesc));
     if (existingEntry != nullptr)
     {
-        existingEntry->DisableTier0CallCounting();
+        existingEntry->DisableCallCounting();
         return;
     }
 
     // Typically, the entry would already exist because OnMethodCalled() would have been called before this function on the same
     // thread. With multi-core JIT, a function may be jitted before it is called, in which case the entry would not exist.
-    m_methodToCallCount.Add(CallCounterEntry::CreateWithTier0CallCountingDisabled(pMethodDesc));
+    m_methodToCallCount.Add(CallCounterEntry::CreateWithCallCountingDisabled(pMethodDesc));
+}
+
+NOINLINE bool CallCounter::OnMethodCodeVersionCalledSubsequently(NativeCodeVersion nativeCodeVersion, bool *doPublishRef)
+{
+    STANDARD_VM_CONTRACT;
+    _ASSERTE(!nativeCodeVersion.IsNull());
+    _ASSERTE(nativeCodeVersion.GetNativeCode() != NULL);
+    _ASSERTE(doPublishRef != nullptr);
+    _ASSERTE(*doPublishRef);
+
+    MethodDesc *methodDesc = nativeCodeVersion.GetMethodDesc();
+    if (!methodDesc->IsEligibleForTieredCompilation() ||
+        nativeCodeVersion.GetOptimizationTier() != NativeCodeVersion::OptimizationTier0)
+    {
+        return false;
+    }
+
+    TieredCompilationManager *tieredCompilationManager = GetAppDomain()->GetTieredCompilationManager();
+    if (tieredCompilationManager->OnMethodCodeVersionCalledSubsequently(methodDesc))
+    {
+        return true;
+    }
+
+    if (methodDesc->GetCallCounter()->IncrementCount(methodDesc))
+    {
+        *doPublishRef = false;
+    }
+    return true;
 }
 
 // This is called by the prestub each time the method is invoked in a particular
@@ -88,21 +113,16 @@ void CallCounter::DisableTier0CallCounting(MethodDesc* pMethodDesc)
 // calls continue until we backpatch the prestub to avoid future calls. This allows
 // us to track the number of calls to each method and use it as a trigger for tiered
 // compilation.
-void CallCounter::OnMethodCalled(
-    MethodDesc* pMethodDesc,
-    TieredCompilationManager *pTieredCompilationManager,
-    BOOL* shouldStopCountingCallsRef,
-    BOOL* wasPromotedToNextTierRef)
+bool CallCounter::IncrementCount(MethodDesc* pMethodDesc)
 {
     STANDARD_VM_CONTRACT;
 
     _ASSERTE(pMethodDesc->IsEligibleForTieredCompilation());
-    _ASSERTE(pTieredCompilationManager != nullptr);
-    _ASSERTE(shouldStopCountingCallsRef != nullptr);
-    _ASSERTE(wasPromotedToNextTierRef != nullptr);
 
-    // At the moment, call counting is only done for tier 0 code
-    _ASSERTE(IsEligibleForTier0CallCounting(pMethodDesc));
+    if (!g_pConfig->TieredCompilation_CallCounting())
+    {
+        return false; // stop counting calls
+    }
 
     // PERF: This as a simple to implement, but not so performant, call counter
     // Currently this is only called until we reach a fixed call count and then
@@ -113,12 +133,11 @@ void CallCounter::OnMethodCalled(
     // overhead to acquire the lock/search the dictionary. Depending on where it
     // is we may also be able to reduce it to 1 byte counter without wasting the
     // following bytes for alignment. Further work to inline the OnMethodCalled
-    // callback directly into the jitted code would eliminate CPU overhead of 
+    // callback directly into the jitted code would eliminate CPU overhead of
     // leaving the prestub unpatched, but may not be good overall as it increases
     // the size of the jitted code.
 
-    bool isFirstTier0Call = false;
-    int tier0CallCountLimit;
+    int callCountLimit;
     {
         //Be careful if you convert to something fully lock/interlocked-free that
         //you correctly handle what happens when some N simultaneous calls don't
@@ -130,30 +149,30 @@ void CallCounter::OnMethodCalled(
         CallCounterEntry* pEntry = const_cast<CallCounterEntry*>(m_methodToCallCount.LookupPtr(pMethodDesc));
         if (pEntry == NULL)
         {
-            isFirstTier0Call = true;
-            tier0CallCountLimit = (int)g_pConfig->TieredCompilation_StartupTier_CallCountThreshold() - 1;
-            _ASSERTE(tier0CallCountLimit >= 0);
-            m_methodToCallCount.Add(CallCounterEntry(pMethodDesc, tier0CallCountLimit));
+            callCountLimit = (int)g_pConfig->TieredCompilation_CallCountThreshold() - 1;
+            _ASSERTE(callCountLimit >= 0);
+            m_methodToCallCount.Add(CallCounterEntry(pMethodDesc, callCountLimit));
         }
-        else if (pEntry->IsTier0CallCountingEnabled())
+        else if (pEntry->IsCallCountingEnabled())
         {
-            pEntry->tier0CallCountLimit--;
-            tier0CallCountLimit = pEntry->tier0CallCountLimit;
+            callCountLimit = --pEntry->callCountLimit;
         }
         else
         {
-            *shouldStopCountingCallsRef = true;
-            *wasPromotedToNextTierRef = true;
-            return;
+            return false; // stop counting calls
         }
     }
 
-    pTieredCompilationManager->OnTier0MethodCalled(
-        pMethodDesc,
-        isFirstTier0Call,
-        tier0CallCountLimit,
-        shouldStopCountingCallsRef,
-        wasPromotedToNextTierRef);
+    if (callCountLimit > 0)
+    {
+        return true; // continue counting calls
+    }
+    if (callCountLimit == 0)
+    {
+        GetAppDomain()->GetTieredCompilationManager()->AsyncPromoteMethodToTier1(pMethodDesc);
+    }
+    return false; // stop counting calls
 }
 
+#endif // !DACCESS_COMPILE
 #endif // FEATURE_TIERED_COMPILATION

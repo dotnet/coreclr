@@ -43,21 +43,6 @@ HINSTANCE g_hInst = nullptr;
 
 /*****************************************************************************/
 
-#ifdef DEBUG
-
-JitOptions jitOpts = {
-    nullptr, // methodName
-    nullptr, // className
-    0.1,     // CGknob
-    0,       // testMask
-
-    (JitOptions*)nullptr // lastDummyField.
-};
-
-#endif // DEBUG
-
-/*****************************************************************************/
-
 extern "C" DLLEXPORT void __stdcall jitStartup(ICorJitHost* jitHost)
 {
     if (g_jitInitialized)
@@ -85,7 +70,7 @@ extern "C" DLLEXPORT void __stdcall jitStartup(ICorJitHost* jitHost)
     JitConfig.initialize(jitHost);
 
 #ifdef DEBUG
-    const wchar_t* jitStdOutFile = JitConfig.JitStdOutFile();
+    const WCHAR* jitStdOutFile = JitConfig.JitStdOutFile();
     if (jitStdOutFile != nullptr)
     {
         jitstdout = _wfopen(jitStdOutFile, W("a"));
@@ -191,12 +176,14 @@ HINSTANCE GetModuleInst()
     return (g_hInst);
 }
 
+#ifndef FEATURE_CORECLR
 extern "C" DLLEXPORT void __stdcall sxsJitStartup(CoreClrCallbacks const& cccallbacks)
 {
 #ifndef SELF_NO_HOST
     InitUtilcode(cccallbacks);
 #endif
 }
+#endif // FEATURE_CORECLR
 
 #endif // !FEATURE_MERGE_JIT_AND_ENGINE
 
@@ -419,8 +406,8 @@ unsigned CILJit::getMaxIntrinsicSIMDVectorLength(CORJIT_FLAGS cpuCompileFlags)
         // disabling SSE also disables SSE2 through AVX2), we need to check each ISA in the hierarchy to
         // ensure that AVX2 is actually supported. Otherwise, we will end up getting asserts downstream.
         if ((JitConfig.EnableAVX2() != 0) && (JitConfig.EnableAVX() != 0) && (JitConfig.EnableSSE42() != 0) &&
-            (JitConfig.EnableSSE41() != 0) && (JitConfig.EnableSSSE3() != 0) && (JitConfig.EnableSSE3() != 0) &&
-            (JitConfig.EnableSSE2() != 0) && (JitConfig.EnableSSE() != 0))
+            (JitConfig.EnableSSE41() != 0) && (JitConfig.EnableSSSE3() != 0) && (JitConfig.EnableSSE3_4() != 0) &&
+            (JitConfig.EnableSSE3() != 0) && (JitConfig.EnableSSE2() != 0) && (JitConfig.EnableSSE() != 0))
         {
             if (GetJitTls() != nullptr && JitTls::GetCompiler() != nullptr)
             {
@@ -1321,7 +1308,7 @@ static LONG FilterSuperPMIExceptions_ee_il(PEXCEPTION_POINTERS pExceptionPointer
 
 const char* Compiler::eeGetMethodName(CORINFO_METHOD_HANDLE method, const char** classNamePtr)
 {
-    if (eeGetHelperNum(method))
+    if (eeGetHelperNum(method) != CORINFO_HELP_UNDEF)
     {
         if (classNamePtr != nullptr)
         {
@@ -1423,7 +1410,7 @@ const char* Compiler::eeGetClassName(CORINFO_CLASS_HANDLE clsHnd)
 
 #ifdef DEBUG
 
-const wchar_t* Compiler::eeGetCPString(size_t strHandle)
+const WCHAR* Compiler::eeGetCPString(size_t strHandle)
 {
 #ifdef FEATURE_PAL
     return nullptr;

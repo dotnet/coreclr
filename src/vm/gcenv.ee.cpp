@@ -91,8 +91,6 @@ static void ScanStackRoots(Thread * pThread, promote_func* fn, ScanContext* sc)
                 IsGCSpecialThread() ||
                 (GetThread() == ThreadSuspend::GetSuspensionThread() && ThreadStore::HoldingThreadStore()));
 
-    pThread->SetHasPromotedBytes();
-
     Frame* pTopFrame = pThread->GetFrame();
     Object ** topStack = (Object **)pTopFrame;
     if ((pTopFrame != ((Frame*)-1))
@@ -142,10 +140,17 @@ static void ScanStackRoots(Thread * pThread, promote_func* fn, ScanContext* sc)
 #endif
     {
         unsigned flagsStackWalk = ALLOW_ASYNC_STACK_WALK | ALLOW_INVALID_OBJECTS;
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
         flagsStackWalk |= GC_FUNCLET_REFERENCE_REPORTING;
-#endif // defined(WIN64EXCEPTIONS)
+#endif // defined(FEATURE_EH_FUNCLETS)
         pThread->StackWalkFrames( GcStackCrawlCallBack, &gcctx, flagsStackWalk);
+    }
+
+    GCFrame* pGCFrame = pThread->GetGCFrame();
+    while (pGCFrame != NULL)
+    {
+        pGCFrame->GcScanRoots(fn, sc);
+        pGCFrame = pGCFrame->PtrNextFrame();
     }
 }
 
@@ -364,31 +369,23 @@ bool GCToEEInterface::IsPreemptiveGCDisabled()
     WRAPPER_NO_CONTRACT;
 
     Thread* pThread = ::GetThread();
-    if (pThread)
-    {
-        return !!pThread->PreemptiveGCDisabled();
-    }
-
-    return false;
+    
+    return (pThread && pThread->PreemptiveGCDisabled());
 }
 
 bool GCToEEInterface::EnablePreemptiveGC()
 {
     WRAPPER_NO_CONTRACT;
 
-    bool bToggleGC = false;
     Thread* pThread = ::GetThread();
 
-    if (pThread)
+    if (pThread && pThread->PreemptiveGCDisabled())
     {
-        bToggleGC = !!pThread->PreemptiveGCDisabled();
-        if (bToggleGC)
-        {
-            pThread->EnablePreemptiveGC();
-        }
+        pThread->EnablePreemptiveGC();
+        return true;
     }
 
-    return bToggleGC;
+    return false;
 }
 
 void GCToEEInterface::DisablePreemptiveGC()
@@ -409,52 +406,14 @@ Thread* GCToEEInterface::GetThread()
     return ::GetThread();
 }
 
-struct BackgroundThreadStubArgs
-{
-    Thread* thread;
-    GCBackgroundThreadFunction threadStart;
-    void* arg;
-    CLREvent threadStartedEvent;
-    bool hasStarted;
-};
-
-DWORD WINAPI BackgroundThreadStub(void* arg)
-{
-    BackgroundThreadStubArgs* stubArgs = (BackgroundThreadStubArgs*)arg;
-    assert (stubArgs->thread != NULL);
-
-    ClrFlsSetThreadType (ThreadType_GC);
-    stubArgs->thread->SetGCSpecial(true);
-    STRESS_LOG_RESERVE_MEM (GC_STRESSLOG_MULTIPLY);
-
-    stubArgs->hasStarted = !!stubArgs->thread->HasStarted(FALSE);
-
-    Thread* thread = stubArgs->thread;
-    GCBackgroundThreadFunction realThreadStart = stubArgs->threadStart;
-    void* realThreadArg = stubArgs->arg;
-    bool hasStarted = stubArgs->hasStarted;
-
-    stubArgs->threadStartedEvent.Set();
-    // The stubArgs cannot be used once the event is set, since that releases wait on the
-    // event in the function that created this thread and the stubArgs go out of scope.
-
-    DWORD result = 0;
-
-    if (hasStarted)
-    {
-        result = realThreadStart(realThreadArg);
-        DestroyThread(thread);
-    }
-
-    return result;
-}
-
 //
 // Diagnostics code
 //
 
 #if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
-inline BOOL ShouldTrackMovementForProfilerOrEtw()
+
+// Tracks all surviving objects (moved or otherwise).
+inline bool ShouldTrackSurvivorsForProfilerOrEtw()
 {
 #ifdef GC_PROFILING
     if (CORProfilerTrackGC())
@@ -466,6 +425,16 @@ inline BOOL ShouldTrackMovementForProfilerOrEtw()
         return true;
 #endif
 
+    return false;
+}
+
+// Only tracks surviving objects in compacting GCs (moved or otherwise).
+inline bool ShouldTrackSurvivorsInCompactingGCsForProfiler()
+{
+#ifdef GC_PROFILING
+    if (CORProfilerTrackGCMovedObjects())
+        return true;
+#endif
     return false;
 }
 #endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
@@ -788,10 +757,11 @@ void WalkMovedReferences(uint8_t* begin, uint8_t* end,
                                !fBGC);
 }
 
-void GCToEEInterface::DiagWalkSurvivors(void* gcContext)
+void GCToEEInterface::DiagWalkSurvivors(void* gcContext, bool fCompacting)
 {
 #if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
-    if (ShouldTrackMovementForProfilerOrEtw())
+    if (ShouldTrackSurvivorsForProfilerOrEtw() ||
+        (fCompacting && ShouldTrackSurvivorsInCompactingGCsForProfiler()))
     {
         size_t context = 0;
         ETW::GCLog::BeginMovedReferences(&context);
@@ -804,7 +774,7 @@ void GCToEEInterface::DiagWalkSurvivors(void* gcContext)
 void GCToEEInterface::DiagWalkLOHSurvivors(void* gcContext)
 {
 #if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
-    if (ShouldTrackMovementForProfilerOrEtw())
+    if (ShouldTrackSurvivorsForProfilerOrEtw())
     {
         size_t context = 0;
         ETW::GCLog::BeginMovedReferences(&context);
@@ -817,7 +787,7 @@ void GCToEEInterface::DiagWalkLOHSurvivors(void* gcContext)
 void GCToEEInterface::DiagWalkBGCSurvivors(void* gcContext)
 {
 #if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
-    if (ShouldTrackMovementForProfilerOrEtw())
+    if (ShouldTrackSurvivorsForProfilerOrEtw())
     {
         size_t context = 0;
         ETW::GCLog::BeginMovedReferences(&context);
@@ -829,10 +799,10 @@ void GCToEEInterface::DiagWalkBGCSurvivors(void* gcContext)
 
 void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
 {
-    int stompWBCompleteActions = SWB_PASS;
-    bool is_runtime_suspended = false;
-
     assert(args != nullptr);
+    int stompWBCompleteActions = SWB_PASS;
+    bool is_runtime_suspended = args->is_runtime_suspended;
+
     switch (args->operation)
     {
     case WriteBarrierOp::StompResize:
@@ -842,7 +812,13 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         assert(args->lowest_address != nullptr);
         assert(args->highest_address != nullptr);
 
-        g_card_table = args->card_table;
+        // We are sensitive to the order of writes here (more comments on this further in the method)
+        // In particular g_card_table must be written before writing the heap bounds.
+        // For platforms with weak memory ordering we will issue fences, for x64/x86 we are ok
+        // as long as compiler does not reorder these writes.
+        // That is unlikely since we have method calls in between.
+        // Just to be robust agains possible refactoring/inlining we will do a compiler-fenced store here.
+        VolatileStoreWithoutBarrier(&g_card_table, args->card_table);
 
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
         assert(args->card_bundle_table != nullptr);
@@ -857,53 +833,84 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         }
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 
-        stompWBCompleteActions |= ::StompWriteBarrierResize(args->is_runtime_suspended, args->requires_upper_bounds_check);
-
-        // We need to make sure that other threads executing checked write barriers
-        // will see the g_card_table update before g_lowest/highest_address updates.
-        // Otherwise, the checked write barrier may AV accessing the old card table
-        // with address that it does not cover.
-        //
-        // Even x86's total store ordering is insufficient here because threads reading
-        // g_card_table do so via the instruction cache, whereas g_lowest/highest_address
-        // are read via the data cache.
-        //
-        // The g_card_table update is covered by section 8.1.3 of the Intel Software
-        // Development Manual, Volume 3A (System Programming Guide, Part 1), about
-        // "cross-modifying code": We need all _executing_ threads to invalidate
-        // their instruction cache, which FlushProcessWriteBuffers achieves by sending
-        // an IPI (inter-process interrupt).
+        stompWBCompleteActions |= ::StompWriteBarrierResize(is_runtime_suspended, args->requires_upper_bounds_check);
+        is_runtime_suspended = (stompWBCompleteActions & SWB_EE_RESTART) || is_runtime_suspended;
 
         if (stompWBCompleteActions & SWB_ICACHE_FLUSH)
         {
-            // flushing icache on current processor (thread)
+            // flushing/invalidating the write barrier's body for the current process
+            // NOTE: the underlying API may flush more than needed or nothing at all if Icache is coherent.
             ::FlushWriteBarrierInstructionCache();
-            // asking other processors (threads) to invalidate their icache
-            FlushProcessWriteBuffers();
         }
 
+        // IMPORTANT: managed heap segments may surround unmanaged/stack segments. In such cases adding another managed
+        //     heap segment may put a stack/unmanaged write inside the new heap range. However the old card table would
+        //     not cover it. Therefore we must ensure that the write barriers see the new table before seeing the new bounds.
+        //
+        //     On architectures with strong ordering, we only need to prevent compiler reordering.
+        //     Otherwise we put a process-wide fence here (so that we could use an ordinary read in the barrier)
+
+#if defined(_ARM64_) || defined(_ARM_)
+        if (!is_runtime_suspended)
+        {
+            // If runtime is not suspended, force all threads to see the changed table before seeing updated heap boundaries.
+            // See: http://vstfdevdiv:8080/DevDiv2/DevDiv/_workitems/edit/346765
+            FlushProcessWriteBuffers();
+        }
+#endif
+
         g_lowest_address = args->lowest_address;
-        VolatileStore(&g_highest_address, args->highest_address);
+        g_highest_address = args->highest_address;
 
 #if defined(_ARM64_) || defined(_ARM_)
         // Need to reupdate for changes to g_highest_address g_lowest_address
-        is_runtime_suspended = (stompWBCompleteActions & SWB_EE_RESTART) || args->is_runtime_suspended;
         stompWBCompleteActions |= ::StompWriteBarrierResize(is_runtime_suspended, args->requires_upper_bounds_check);
 
 #ifdef _ARM_
         if (stompWBCompleteActions & SWB_ICACHE_FLUSH)
         {
+            // flushing/invalidating the write barrier's body for the current process
+            // NOTE: the underlying API may flush more than needed or nothing at all if Icache is coherent.
             ::FlushWriteBarrierInstructionCache();
         }
 #endif
+#endif
 
-        is_runtime_suspended = (stompWBCompleteActions & SWB_EE_RESTART) || args->is_runtime_suspended;
-        if(!is_runtime_suspended)
+        // At this point either the old or the new set of globals (card_table, bounds etc) can be used. Card tables and card bundles allow such use.
+        // When card tables are de-published (at EE suspension) all the info will be merged, so the information will not be lost.
+        // Another point - we should not yet have any managed objects/addresses outside of the former bounds, so either old or new bounds are fine.
+        // That is - because bounds can only become wider and we are not yet done with widening.
+        //
+        // However!!
+        // Once we are done, a new object can (and likely will) be allocated outside of the former bounds.
+        // So, before such object can be used in a write barier, we must ensure that the barrier also uses the new bounds.
+        //
+        // This is easy to arrange for architectures with strong memory ordering. We only need to ensure that
+        // - object is allocated/published _after_ we publish bounds here
+        // - write barrier reads bounds after reading the new object locations
+        //
+        // for architectures with strong memory ordering (x86/x64) both conditions above are naturally guaranteed.
+        // Systems with weak ordering are more interesting. We could either:
+        // a) issue a write fence here and pair it with a read fence in the write barrier, or
+        // b) issue a process-wide full fence here and do ordinary reads in the barrier.
+        //
+        // We will do "b" because executing write barrier is by far more common than updating card table.
+        //
+        // I.E. - for weak architectures we have to do a process-wide fence.
+        //
+        // NOTE: suspending/resuming EE works the same as process-wide fence for our purposes here.
+        //       (we care only about managed threads and suspend/resume will do full fences - good enough for us).
+        //
+
+#if defined(_ARM64_) || defined(_ARM_)
+        is_runtime_suspended = (stompWBCompleteActions & SWB_EE_RESTART) || is_runtime_suspended;
+        if (!is_runtime_suspended)
         {
-            // If runtime is not suspended, force updated state to be visible to all threads
-            MemoryBarrier();
+            // If runtime is not suspended, force all threads to see the changed state before observing future allocations.
+            FlushProcessWriteBuffers();
         }
 #endif
+
         if (stompWBCompleteActions & SWB_EE_RESTART)
         {
             assert(!args->is_runtime_suspended &&
@@ -912,6 +919,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         }
         return; // unlike other branches we have already done cleanup so bailing out here
     case WriteBarrierOp::StompEphemeral:
+        assert(args->is_runtime_suspended && "the runtime must be suspended here!");
         // StompEphemeral requires a new ephemeral low and a new ephemeral high
         assert(args->ephemeral_low != nullptr);
         assert(args->ephemeral_high != nullptr);
@@ -920,6 +928,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         stompWBCompleteActions |= ::StompWriteBarrierEphemeral(args->is_runtime_suspended);
         break;
     case WriteBarrierOp::Initialize:
+        assert(args->is_runtime_suspended && "the runtime must be suspended here!");
         // This operation should only be invoked once, upon initialization.
         assert(g_card_table == nullptr);
         assert(g_lowest_address == nullptr);
@@ -929,7 +938,6 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         assert(args->highest_address != nullptr);
         assert(args->ephemeral_low != nullptr);
         assert(args->ephemeral_high != nullptr);
-        assert(args->is_runtime_suspended && "the runtime must be suspended here!");
         assert(!args->requires_upper_bounds_check && "the ephemeral generation must be at the top of the heap!");
 
         g_card_table = args->card_table;
@@ -953,8 +961,8 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         break;
     case WriteBarrierOp::SwitchToWriteWatch:
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
-        assert(args->write_watch_table != nullptr);
         assert(args->is_runtime_suspended && "the runtime must be suspended here!");
+        assert(args->write_watch_table != nullptr);
         g_sw_ww_table = args->write_watch_table;
         g_sw_ww_enabled_for_gc_heap = true;
         stompWBCompleteActions |= ::SwitchToWriteWatchBarrier(true);
@@ -998,15 +1006,6 @@ void GCToEEInterface::EnableFinalization(bool foundFinalizers)
 void GCToEEInterface::HandleFatalError(unsigned int exitCode)
 {
     EEPOLICY_HANDLE_FATAL_ERROR(exitCode);
-}
-
-bool GCToEEInterface::ShouldFinalizeObjectForUnload(void* pDomain, Object* obj)
-{
-    // CoreCLR does not have appdomains, so this code path is dead. Other runtimes may
-    // choose to inspect the object being finalized here.
-    // [DESKTOP TODO] Desktop looks for "agile and finalizable" objects and may choose
-    // to move them to a new app domain instead of finalizing them here.
-    return true;
 }
 
 bool GCToEEInterface::EagerFinalized(Object* obj)
@@ -1095,6 +1094,18 @@ bool GCToEEInterface::GetIntConfigValue(const char* key, int64_t* value)
         return true;
     }
 
+    if (strcmp(key, "GCHeapHardLimit") == 0)
+    {
+        *value = g_pConfig->GetGCHeapHardLimit();
+        return true;
+    }
+
+    if (strcmp(key, "GCHeapHardLimitPercent") == 0)
+    {
+        *value = g_pConfig->GetGCHeapHardLimitPercent();
+        return true;
+    }
+
     if (strcmp(key, "GCLOHThreshold") == 0)
     {
         *value = g_pConfig->GetGCLOHThreshold();
@@ -1108,7 +1119,7 @@ bool GCToEEInterface::GetIntConfigValue(const char* key, int64_t* value)
         return false;
     }
 
-    // There is no ConfigULONGLONGInfo, and the GC uses 64 bit values for things like GCHeapAffinitizeMask, 
+    // There is no ConfigULONGLONGInfo, and the GC uses 64 bit values for things like GCHeapAffinitizeMask,
     // so have to fake it with getting the string and converting to uint64_t
     if (CLRConfig::IsConfigOptionSpecified(configKey))
     {
@@ -1121,7 +1132,7 @@ bool GCToEEInterface::GetIntConfigValue(const char* key, int64_t* value)
             return false;
         }
 
-        wchar_t *end;
+        WCHAR *end;
         uint64_t result;
         errno = 0;
         result = _wcstoui64(out, &end, 16);
@@ -1183,7 +1194,7 @@ bool GCToEEInterface::GetStringConfigValue(const char* key, const char** value)
     if (WideCharToMultiByte(CP_ACP, 0, out, -1 /* out is null-terminated */,
           configResult.GetValue(), charCount, nullptr, nullptr) == 0)
     {
-        // this should never happen, the previous call to WideCharToMultiByte that computed the charCount should 
+        // this should never happen, the previous call to WideCharToMultiByte that computed the charCount should
         // have caught all issues.
         assert(false);
         CLRConfig::FreeConfigString(out);
@@ -1235,7 +1246,7 @@ namespace
     bool CreateSuspendableThread(
         void (*threadStart)(void*),
         void* argument,
-        const wchar_t* name)
+        const WCHAR* name)
     {
         LIMITED_METHOD_CONTRACT;
 
@@ -1318,7 +1329,7 @@ namespace
     bool CreateNonSuspendableThread(
         void (*threadStart)(void*),
         void* argument,
-        const wchar_t* name)
+        const WCHAR* name)
     {
         LIMITED_METHOD_CONTRACT;
 
@@ -1473,34 +1484,6 @@ IGCToCLREventSink* GCToEEInterface::EventSink()
     return &g_gcToClrEventSink;
 }
 
-uint32_t GCToEEInterface::GetDefaultDomainIndex()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return DefaultADID;
-}
-
-void *GCToEEInterface::GetAppDomainAtIndex(uint32_t appDomainIndex)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return ::GetAppDomain();
-}
-
-bool GCToEEInterface::AppDomainCanAccessHandleTable(uint32_t appDomainID)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return appDomainID == DefaultADID;
-}
-
-uint32_t GCToEEInterface::GetIndexOfAppDomainBeingUnloaded()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return 0xFFFFFFFF;
-}
-
 uint32_t GCToEEInterface::GetTotalNumSizedRefHandles()
 {
     LIMITED_METHOD_CONTRACT;
@@ -1508,13 +1491,6 @@ uint32_t GCToEEInterface::GetTotalNumSizedRefHandles()
     return SystemDomain::System()->GetTotalNumSizedRefHandles();
 }
 
-
-bool GCToEEInterface::AppDomainIsRudeUnload(void *appDomain)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return false;
-}
 
 bool GCToEEInterface::AnalyzeSurvivorsRequested(int condemnedGeneration)
 {
@@ -1561,10 +1537,10 @@ void GCToEEInterface::VerifySyncTableEntry()
 
 void GCToEEInterface::UpdateGCEventStatus(int currentPublicLevel, int currentPublicKeywords, int currentPrivateLevel, int currentPrivateKeywords)
 {
-#if defined(__linux__)
+#if defined(__linux__) && defined(FEATURE_EVENT_TRACE)
     LIMITED_METHOD_CONTRACT;
-    // LTTng does not have a notion of enabling events via "keyword"/"level" but we have to 
-    // somehow implement a similar behavior to it. 
+    // LTTng does not have a notion of enabling events via "keyword"/"level" but we have to
+    // somehow implement a similar behavior to it.
 
     // To do this, we manaully check for events that are enabled via different provider/keywords/level.
     // Ex 1. GCJoin_V2 is what we use to check whether the GC keyword is enabled in verbose level in the public provider
@@ -1572,23 +1548,23 @@ void GCToEEInterface::UpdateGCEventStatus(int currentPublicLevel, int currentPub
     // Refer to the comments in src/vm/gcenv.ee.h next to the EXTERN C definitions to see which events are enabled.
 
     // WARNING: To change an event's GC level, perfcollect script needs to be updated simultaneously to reflect it.
-    BOOL keyword_gc_verbose = EventXplatEnabledGCJoin_V2();
-    BOOL keyword_gc_informational = EventXplatEnabledGCStart();
+    BOOL keyword_gc_verbose = EventXplatEnabledGCJoin_V2() || EventPipeEventEnabledGCJoin_V2();
+    BOOL keyword_gc_informational = EventXplatEnabledGCStart() || EventPipeEventEnabledGCStart();
 
-    BOOL keyword_gc_heapsurvival_and_movement_informational = EventXplatEnabledGCGenerationRange();
-    BOOL keyword_gchandle_informational = EventXplatEnabledSetGCHandle();
-    BOOL keyword_gchandle_prv_informational = EventXplatEnabledPrvSetGCHandle();
+    BOOL keyword_gc_heapsurvival_and_movement_informational = EventXplatEnabledGCGenerationRange() || EventPipeEventEnabledGCGenerationRange();
+    BOOL keyword_gchandle_informational = EventXplatEnabledSetGCHandle() || EventPipeEventEnabledSetGCHandle();
+    BOOL keyword_gchandle_prv_informational = EventXplatEnabledPrvSetGCHandle() || EventPipeEventEnabledPrvSetGCHandle();
 
-    BOOL prv_gcprv_informational = EventXplatEnabledBGCBegin();
-    BOOL prv_gcprv_verbose = EventXplatEnabledPinPlugAtGCTime();
+    BOOL prv_gcprv_informational = EventXplatEnabledBGCBegin() || EventPipeEventEnabledBGCBegin();
+    BOOL prv_gcprv_verbose = EventXplatEnabledPinPlugAtGCTime() || EventPipeEventEnabledPinPlugAtGCTime();
 
     int publicProviderLevel = keyword_gc_verbose ? GCEventLevel_Verbose : (keyword_gc_informational ? GCEventLevel_Information : GCEventLevel_None);
-    int publicProviderKeywords = (keyword_gc_informational ? GCEventKeyword_GC : GCEventKeyword_None) | 
+    int publicProviderKeywords = (keyword_gc_informational ? GCEventKeyword_GC : GCEventKeyword_None) |
                                  (keyword_gchandle_informational ? GCEventKeyword_GCHandle : GCEventKeyword_None) |
                                  (keyword_gc_heapsurvival_and_movement_informational ? GCEventKeyword_GCHeapSurvivalAndMovement : GCEventKeyword_None);
 
     int privateProviderLevel = prv_gcprv_verbose ? GCEventLevel_Verbose : (prv_gcprv_informational ? GCEventLevel_Information : GCEventLevel_None);
-    int privateProviderKeywords = (prv_gcprv_informational ? GCEventKeyword_GCPrivate : GCEventKeyword_None) | 
+    int privateProviderKeywords = (prv_gcprv_informational ? GCEventKeyword_GCPrivate : GCEventKeyword_None) |
         (keyword_gchandle_prv_informational ? GCEventKeyword_GCHandlePrivate : GCEventKeyword_None);
 
     if (publicProviderLevel != currentPublicLevel || publicProviderKeywords != currentPublicKeywords)
@@ -1603,5 +1579,5 @@ void GCToEEInterface::UpdateGCEventStatus(int currentPublicLevel, int currentPub
         GCEventKeyword privateKeywords = static_cast<GCEventKeyword>(privateProviderKeywords);
         GCHeapUtilities::RecordEventStateChange(false, privateKeywords, privateLevel);
     }
-#endif // __linux__
+#endif // __linux__ && FEATURE_EVENT_TRACE
 }

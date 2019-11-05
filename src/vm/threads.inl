@@ -4,8 +4,8 @@
 //
 
 
-// 
-// 
+//
+//
 /*============================================================
 **
 ** Header:  Threads.inl
@@ -73,7 +73,7 @@ Frame* Thread::FindFrame(SIZE_T StackPointer)
 inline void Thread::SetThrowable(OBJECTREF pThrowable DEBUG_ARG(ThreadExceptionState::SetThrowableErrorChecking stecFlags))
 {
     WRAPPER_NO_CONTRACT;
-    
+
     m_ExceptionState.SetThrowable(pThrowable DEBUG_ARG(stecFlags));
 }
 
@@ -182,5 +182,38 @@ inline void Thread::SetGCSpecial(bool fGCSpecial)
     LIMITED_METHOD_CONTRACT;
     m_fGCSpecial = fGCSpecial;
 }
+
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+
+inline Thread::CurrentPrepareCodeConfigHolder::CurrentPrepareCodeConfigHolder(Thread *thread, PrepareCodeConfig *config)
+    : m_thread(thread)
+#ifdef _DEBUG
+    , m_config(config)
+#endif
+{
+    LIMITED_METHOD_CONTRACT;
+    _ASSERTE(thread != nullptr);
+    _ASSERTE(thread == GetThread());
+    _ASSERTE(config != nullptr);
+
+    PrepareCodeConfig *previousConfig = thread->m_currentPrepareCodeConfig;
+    if (previousConfig != nullptr)
+    {
+        config->SetNextInSameThread(previousConfig);
+    }
+    thread->m_currentPrepareCodeConfig = config;
+}
+
+inline Thread::CurrentPrepareCodeConfigHolder::~CurrentPrepareCodeConfigHolder()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    PrepareCodeConfig *config = m_thread->m_currentPrepareCodeConfig;
+    _ASSERTE(config == m_config);
+    m_thread->m_currentPrepareCodeConfig = config->GetNextInSameThread();
+    config->SetNextInSameThread(nullptr);
+}
+
+#endif // !DACCESS_COMPILE && !CROSSGEN_COMPILE
 
 #endif

@@ -11,9 +11,6 @@
 #include <intrin.h>
 #endif // _MSC_VER
 
-#define REDHAWK_PALIMPORT extern "C"
-#define REDHAWK_PALAPI __stdcall
-
 #if !defined(_MSC_VER)
 #define _alloca alloca
 #endif //_MSC_VER
@@ -131,7 +128,7 @@ typedef DWORD (WINAPI *PTHREAD_START_ROUTINE)(void* lpThreadParameter);
 #define WAIT_TIMEOUT            258
 #define WAIT_FAILED             0xFFFFFFFF
 
-#if defined(_MSC_VER) 
+#if defined(_MSC_VER)
  #if defined(_ARM_)
 
   __forceinline void YieldProcessor() { }
@@ -150,12 +147,12 @@ typedef DWORD (WINAPI *PTHREAD_START_ROUTINE)(void* lpThreadParameter);
   #define MemoryBarrier() { __dmb(_ARM64_BARRIER_SY); }
 
  #elif defined(_AMD64_)
-  
+
   extern "C" void
   _mm_pause (
       void
       );
-  
+
   extern "C" void
   _mm_mfence (
       void
@@ -163,12 +160,12 @@ typedef DWORD (WINAPI *PTHREAD_START_ROUTINE)(void* lpThreadParameter);
 
   #pragma intrinsic(_mm_pause)
   #pragma intrinsic(_mm_mfence)
-  
+
   #define YieldProcessor _mm_pause
   #define MemoryBarrier _mm_mfence
 
  #elif defined(_X86_)
-  
+
   #define YieldProcessor() __asm { rep nop }
   #define MemoryBarrier() MemoryBarrierImpl()
   __forceinline void MemoryBarrierImpl()
@@ -275,7 +272,7 @@ inline uint8_t BitScanForward64(uint32_t *bitIndex, uint64_t mask)
     uint32_t hi = (mask >> 32) & 0xFFFFFFFF;
     uint32_t lo = mask & 0xFFFFFFFF;
     uint32_t fakeBitIndex = 0;
-    
+
     uint8_t result = BitScanForward(bitIndex, lo);
     if (result == 0)
     {
@@ -537,23 +534,5 @@ inline bool FitsInU1(uint64_t val)
 {
     return val == (uint64_t)(uint8_t)val;
 }
-
-// -----------------------------------------------------------------------------------------------------------
-//
-// AppDomain emulation. The we don't have these in Redhawk so instead we emulate the bare minimum of the API
-// touched by the GC/HandleTable and pretend we have precisely one (default) appdomain.
-//
-
-#define RH_DEFAULT_DOMAIN_ID 1
-
-struct ADIndex
-{
-    DWORD m_dwIndex;
-
-    ADIndex () : m_dwIndex(RH_DEFAULT_DOMAIN_ID) {}
-    explicit ADIndex (DWORD id) : m_dwIndex(id) {}
-    BOOL operator==(const ADIndex& ad) const { return m_dwIndex == ad.m_dwIndex; }
-    BOOL operator!=(const ADIndex& ad) const { return m_dwIndex != ad.m_dwIndex; }
-};
 
 #endif // __GCENV_BASE_INCLUDED__

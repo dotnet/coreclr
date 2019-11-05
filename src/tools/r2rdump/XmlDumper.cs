@@ -38,6 +38,10 @@ namespace R2RDump
             _ignoredProperties.Add(typeof(RuntimeFunction), "UnwindRVA", attrs);
             _ignoredProperties.Add(typeof(R2RSection), "RelativeVirtualAddress", attrs);
             _ignoredProperties.Add(typeof(R2RSection), "Size", attrs);
+
+            XmlAttributes ignoreAlways = new XmlAttributes();
+            ignoreAlways.XmlIgnore = true;
+            _ignoredProperties.Add(typeof(R2RReader), "ImportCellNames", ignoreAlways);
         }
 
         internal override void Begin()
@@ -137,7 +141,7 @@ namespace R2RDump
         }
 
         /// <summary>
-        /// Dumps one R2RMethod. 
+        /// Dumps one R2RMethod.
         /// </summary>
         internal override void DumpMethod(R2RMethod method, XmlNode parentNode)
         {
@@ -177,7 +181,7 @@ namespace R2RDump
         }
 
         /// <summary>
-        /// Dumps one runtime function. 
+        /// Dumps one runtime function.
         /// </summary>
         internal override void DumpRuntimeFunction(RuntimeFunction rtf, XmlNode parentNode)
         {

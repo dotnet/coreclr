@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 namespace System.Buffers.Text
 {
     //
@@ -28,7 +27,7 @@ namespace System.Buffers.Text
             int answer;
 
             // Handle the first digit (or period) as a special case. This ensures some compatible edge-case behavior with the classic parse routines
-            // (at least one digit must precede any commas, and a string without any digits prior to the decimal point must have at least 
+            // (at least one digit must precede any commas, and a string without any digits prior to the decimal point must have at least
             // one digit after the decimal point.)
             if (c == Utf8Constants.Period)
                 goto FractionalPartWithoutLeadingDigits;
@@ -36,7 +35,7 @@ namespace System.Buffers.Text
                 goto FalseExit;
             answer = c - '0';
 
-            for (; ; )
+            while (true)
             {
                 index++;
                 if ((uint)index >= (uint)source.Length)
@@ -109,7 +108,7 @@ namespace System.Buffers.Text
             int answer;
 
             // Handle the first digit (or period) as a special case. This ensures some compatible edge-case behavior with the classic parse routines
-            // (at least one digit must precede any commas, and a string without any digits prior to the decimal point must have at least 
+            // (at least one digit must precede any commas, and a string without any digits prior to the decimal point must have at least
             // one digit after the decimal point.)
             if (c == Utf8Constants.Period)
                 goto FractionalPartWithoutLeadingDigits;
@@ -117,7 +116,7 @@ namespace System.Buffers.Text
                 goto FalseExit;
             answer = c - '0';
 
-            for (; ; )
+            while (true)
             {
                 index++;
                 if ((uint)index >= (uint)source.Length)
@@ -190,7 +189,7 @@ namespace System.Buffers.Text
             int answer;
 
             // Handle the first digit (or period) as a special case. This ensures some compatible edge-case behavior with the classic parse routines
-            // (at least one digit must precede any commas, and a string without any digits prior to the decimal point must have at least 
+            // (at least one digit must precede any commas, and a string without any digits prior to the decimal point must have at least
             // one digit after the decimal point.)
             if (c == Utf8Constants.Period)
                 goto FractionalPartWithoutLeadingDigits;
@@ -198,7 +197,7 @@ namespace System.Buffers.Text
                 goto FalseExit;
             answer = c - '0';
 
-            for (; ; )
+            while (true)
             {
                 index++;
                 if ((uint)index >= (uint)source.Length)
@@ -271,7 +270,7 @@ namespace System.Buffers.Text
             long answer;
 
             // Handle the first digit (or period) as a special case. This ensures some compatible edge-case behavior with the classic parse routines
-            // (at least one digit must precede any commas, and a string without any digits prior to the decimal point must have at least 
+            // (at least one digit must precede any commas, and a string without any digits prior to the decimal point must have at least
             // one digit after the decimal point.)
             if (c == Utf8Constants.Period)
                 goto FractionalPartWithoutLeadingDigits;
@@ -279,7 +278,7 @@ namespace System.Buffers.Text
                 goto FalseExit;
             answer = c - '0';
 
-            for (; ; )
+            while (true)
             {
                 index++;
                 if ((uint)index >= (uint)source.Length)

@@ -132,8 +132,8 @@ CORINFO_CLASS_HANDLE getDefaultEqualityComparerClass(CORINFO_CLASS_HANDLE elemTy
 
 // Given resolved token that corresponds to an intrinsic classified as
 // a CORINFO_INTRINSIC_GetRawHandle intrinsic, fetch the handle associated
-// with the token. If this is not possible at compile-time (because the current method's 
-// code is shared and the token contains generic parameters) then indicate 
+// with the token. If this is not possible at compile-time (because the current method's
+// code is shared and the token contains generic parameters) then indicate
 // how the handle should be looked up at runtime.
 void expandRawHandleIntrinsic(
     CORINFO_RESOLVED_TOKEN *        pResolvedToken,
@@ -144,9 +144,8 @@ void expandRawHandleIntrinsic(
 // *pMustExpand tells whether or not JIT must expand the intrinsic.
 CorInfoIntrinsics getIntrinsicID(CORINFO_METHOD_HANDLE method, bool* pMustExpand = NULL /* OUT */);
 
-// Is the given module the System.Numerics.Vectors module?
-// This defaults to false.
-bool isInSIMDModule(CORINFO_CLASS_HANDLE classHnd); /* { return false; } */
+// Is the given type in System.Private.Corelib and marked with IntrinsicAttribute?
+bool isIntrinsicType(CORINFO_CLASS_HANDLE classHnd);
 
 // return the unmanaged calling convention for a PInvoke
 CorInfoUnmanagedCallConv getUnmanagedCallConv(CORINFO_METHOD_HANDLE method);
@@ -1017,24 +1016,24 @@ int doAssert(const char* szFile, int iLine, const char* szExpr);
 void reportFatalError(CorJitResult result);
 
 /*
-struct ProfileBuffer  // Also defined here: code:CORBBTPROF_BLOCK_DATA
+struct BlockCounts  // Also defined here: code:CORBBTPROF_BLOCK_DATA
 {
-    ULONG ILOffset;
-    ULONG ExecutionCount;
+    UINT32 ILOffset;
+    UINT32 ExecutionCount;
 };
 */
 
 // allocate a basic block profile buffer where execution counts will be stored
 // for jitted basic blocks.
-HRESULT allocBBProfileBuffer(ULONG           count, // The number of basic blocks that we have
-                             ProfileBuffer** profileBuffer);
+HRESULT allocMethodBlockCounts(UINT32          count, // The number of basic blocks that we have
+                               BlockCounts**   pBlockCounts);
 
 // get profile information to be used for optimizing the current method.  The format
-// of the buffer is the same as the format the JIT passes to allocBBProfileBuffer.
-HRESULT getBBProfileData(CORINFO_METHOD_HANDLE ftnHnd,
-                         ULONG*                count, // The number of basic blocks that we have
-                         ProfileBuffer**       profileBuffer,
-                         ULONG*                numRuns);
+// of the buffer is the same as the format the JIT passes to allocMethodBlockCounts.
+HRESULT getMethodBlockCounts(CORINFO_METHOD_HANDLE ftnHnd,
+                             UINT32 *          pCount, // The number of basic blocks that we have
+                             BlockCounts**     pBlockCounts,
+                             UINT32 *          pNumRuns);
 
 // Associates a native call site, identified by its offset in the native code stream, with
 // the signature information and method handle the JIT used to lay out the call site. If
