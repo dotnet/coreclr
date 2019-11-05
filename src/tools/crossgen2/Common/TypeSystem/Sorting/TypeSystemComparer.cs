@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Collections.Generic;
 using Debug = System.Diagnostics.Debug;
 
 namespace Internal.TypeSystem
@@ -25,7 +24,7 @@ namespace Internal.TypeSystem
     // to sort itself with respect to other instances of the same type.
     // Comparisons between different categories of types are centralized to a single location that
     // can provide rules to sort them.
-    public class TypeSystemComparer : IComparer<MethodDesc>
+    public class TypeSystemComparer
     {
         public int Compare(TypeDesc x, TypeDesc y)
         {

@@ -32,7 +32,6 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
 
         public ImportThunk(ReadyToRunHelper helperId, ReadyToRunCodegenNodeFactory factory, Import instanceCell, bool useVirtualCall)
         {
-            // These are all imports
             _helperCell = factory.GetReadyToRunHelperCell(helperId);
             _instanceCell = instanceCell;
             _moduleImport = factory.ModuleImport;

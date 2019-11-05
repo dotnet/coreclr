@@ -110,7 +110,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
 
         public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
         {
-            return _methodNode.CompareToImpl(((MethodGCInfoNode)other)._methodNode, comparer);
+            return comparer.Compare(_methodNode, ((MethodGCInfoNode)other)._methodNode);
         }
     }
 }
