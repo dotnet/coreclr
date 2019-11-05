@@ -24,6 +24,13 @@ namespace Internal.TypeSystem
         Static = 0x0010,
     }
 
+    public struct CustomModifier
+    {
+        public string index;
+        public bool required;
+        public TypeDesc type;
+    }
+
     /// <summary>
     /// Represents the parameter types, the return type, and flags of a method.
     /// </summary>
@@ -33,13 +40,15 @@ namespace Internal.TypeSystem
         internal int _genericParameterCount;
         internal TypeDesc _returnType;
         internal TypeDesc[] _parameters;
+        internal CustomModifier[] _customModifiers;
 
-        public MethodSignature(MethodSignatureFlags flags, int genericParameterCount, TypeDesc returnType, TypeDesc[] parameters)
+        public MethodSignature(MethodSignatureFlags flags, int genericParameterCount, TypeDesc returnType, TypeDesc[] parameters, CustomModifier[] customModifiers = null)
         {
             _flags = flags;
             _genericParameterCount = genericParameterCount;
             _returnType = returnType;
             _parameters = parameters;
+            _customModifiers = customModifiers;
 
             Debug.Assert(parameters != null, "Parameters must not be null");
         }
@@ -120,7 +129,32 @@ namespace Internal.TypeSystem
                     return false;
             }
 
-            return true;
+            if (this._customModifiers == null && otherSignature._customModifiers == null)
+            {
+                return true;
+            }
+
+            if (this._customModifiers != null && otherSignature._customModifiers != null)
+            {
+                if (this._customModifiers.Length != otherSignature._customModifiers.Length)
+                {
+                    return false;
+                }
+
+                for (int i = 0; i < this._customModifiers.Length; i++)
+                {
+                    if (this._customModifiers[i].index != otherSignature._customModifiers[i].index)
+                        return false;
+                    if (this._customModifiers[i].required != otherSignature._customModifiers[i].required)
+                        return false;
+                    if (this._customModifiers[i].type != otherSignature._customModifiers[i].type)
+                        return false;
+                }
+
+                return true;
+            }
+
+            return false;
         }
 
         public override bool Equals(object obj)
@@ -174,6 +208,7 @@ namespace Internal.TypeSystem
         private int _genericParameterCount;
         private TypeDesc _returnType;
         private TypeDesc[] _parameters;
+        private CustomModifier[] _customModifiers;
 
         public MethodSignatureBuilder(MethodSignature template)
         {
@@ -183,6 +218,7 @@ namespace Internal.TypeSystem
             _genericParameterCount = template._genericParameterCount;
             _returnType = template._returnType;
             _parameters = template._parameters;
+            _customModifiers = template._customModifiers;
         }
 
         public MethodSignatureFlags Flags
@@ -237,7 +273,7 @@ namespace Internal.TypeSystem
                 _returnType != _template._returnType ||
                 _parameters != _template._parameters)
             {
-                _template = new MethodSignature(_flags, _genericParameterCount, _returnType, _parameters);
+                _template = new MethodSignature(_flags, _genericParameterCount, _returnType, _parameters, _customModifiers);
             }
 
             return _template;

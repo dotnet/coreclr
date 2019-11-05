@@ -6,8 +6,10 @@ using System;
 using System.Reflection.Metadata;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
+using System.Linq;
 
 using Internal.TypeSystem;
+using System.Collections.Generic;
 
 namespace Internal.TypeSystem.Ecma
 {
@@ -16,13 +18,21 @@ namespace Internal.TypeSystem.Ecma
         private EcmaModule _module;
         private BlobReader _reader;
 
-        // TODO
-        // bool _hasModifiers;
+        private class Frame
+        {
+            public int index;
+        }
+
+        private Stack<Frame> _indexStack;
+        private List<CustomModifier> _customModifiers;
+
 
         public EcmaSignatureParser(EcmaModule module, BlobReader reader)
         {
             _module = module;
             _reader = reader;
+            _indexStack = null;
+            _customModifiers = null;
         }
 
         private TypeDesc GetWellKnownType(WellKnownType wellKnownType)
@@ -31,6 +41,22 @@ namespace Internal.TypeSystem.Ecma
         }
 
         private TypeDesc ParseType(SignatureTypeCode typeCode)
+        {
+
+            if (_indexStack != null)
+            {
+                _indexStack.Peek().index++;
+                _indexStack.Push(new Frame());
+            }
+            TypeDesc result = ParseTypeImpl(typeCode);
+            if (_indexStack != null)
+            {
+                _indexStack.Pop();
+            }
+            return result;
+        }
+
+        private TypeDesc ParseTypeImpl(SignatureTypeCode typeCode)
         {
             // Switch on the type.
             switch (typeCode)
@@ -111,7 +137,7 @@ namespace Internal.TypeSystem.Ecma
                 case SignatureTypeCode.TypedReference:
                     return GetWellKnownType(WellKnownType.TypedReference);
                 case SignatureTypeCode.FunctionPointer:
-                    return _module.Context.GetFunctionPointerType(ParseMethodSignature());
+                    return _module.Context.GetFunctionPointerType(ParseMethodSignatureInternal());
                 default:
                     throw new BadImageFormatException();
             }
@@ -119,15 +145,42 @@ namespace Internal.TypeSystem.Ecma
 
         private SignatureTypeCode ParseTypeCode(bool skipPinned = true)
         {
-            for (;;)
+            if (_indexStack != null)
+            {
+                _indexStack.Peek().index++;
+                _indexStack.Push(new Frame());
+            }
+            SignatureTypeCode result = ParseTypeCodeImpl(skipPinned);
+            if (_indexStack != null)
+            {
+                _indexStack.Pop();
+            }
+            return result;
+        }
+
+        private SignatureTypeCode ParseTypeCodeImpl(bool skipPinned = true)
+        {
+            for (; ; )
             {
                 SignatureTypeCode typeCode = _reader.ReadSignatureTypeCode();
 
-                // TODO: actually consume modopts
-                if (typeCode == SignatureTypeCode.RequiredModifier ||
-                    typeCode == SignatureTypeCode.OptionalModifier)
+                if (typeCode == SignatureTypeCode.RequiredModifier)
                 {
-                    _reader.ReadTypeHandle();
+                    EntityHandle typeHandle = _reader.ReadTypeHandle();
+                    if (_customModifiers != null)
+                    {
+                        _customModifiers.Add(new CustomModifier { index = string.Join(".", _indexStack.Select(f => f.index)), required = true, type = _module.GetType(typeHandle) });
+                    }
+                    continue;
+                }
+
+                if (typeCode == SignatureTypeCode.OptionalModifier)
+                {
+                    EntityHandle typeHandle = _reader.ReadTypeHandle();
+                    if (_customModifiers != null)
+                    {
+                        _customModifiers.Add(new CustomModifier { index = string.Join(".", _indexStack.Select(f => f.index)), required = false, type = _module.GetType(typeHandle) });
+                    }
                     continue;
                 }
 
@@ -144,6 +197,21 @@ namespace Internal.TypeSystem.Ecma
 
         public TypeDesc ParseType()
         {
+            if (_indexStack != null)
+            {
+                _indexStack.Peek().index++;
+                _indexStack.Push(new Frame());
+            }
+            TypeDesc result = ParseTypeImpl();
+            if (_indexStack != null)
+            {
+                _indexStack.Pop();
+            }
+            return result;
+        }
+
+        public TypeDesc ParseTypeImpl()
+        {
             return ParseType(ParseTypeCode());
         }
 
@@ -157,6 +225,38 @@ namespace Internal.TypeSystem.Ecma
         }
 
         public MethodSignature ParseMethodSignature()
+        {
+            try
+            {
+                _indexStack = new Stack<Frame>();
+                _indexStack.Push(new Frame());
+                _customModifiers = new List<CustomModifier>();
+                return ParseMethodSignatureInternal();
+            }
+            finally
+            {
+                _indexStack = null;
+                _customModifiers = null;
+            }
+
+        }
+
+        private MethodSignature ParseMethodSignatureInternal()
+        {
+            if (_indexStack != null)
+            {
+                _indexStack.Peek().index++;
+                _indexStack.Push(new Frame());
+            }
+            MethodSignature result = ParseMethodSignatureImpl();
+            if (_indexStack != null)
+            {
+                _indexStack.Pop();
+            }
+            return result;
+        }
+
+        public MethodSignature ParseMethodSignatureImpl()
         {
             SignatureHeader header = _reader.ReadSignatureHeader();
 
@@ -198,7 +298,10 @@ namespace Internal.TypeSystem.Ecma
                 parameters = TypeDesc.EmptyTypes;
             }
 
-            return new MethodSignature(flags, arity, returnType, parameters);
+            CustomModifier[] customModifiersArray = (_customModifiers == null || _customModifiers.Count == 0) ? null : _customModifiers.ToArray();
+
+            return new MethodSignature(flags, arity, returnType, parameters, customModifiersArray);
+
         }
 
         public PropertySignature ParsePropertySignature()
