@@ -40,7 +40,7 @@ namespace System
         private static extern unsafe void __ZeroMemory(void* b, nuint byteLength);
 
         // The maximum block size to for __BulkMoveWithWriteBarrier FCall. This is required to avoid GC starvation.
-        private const uint BulkMoveWithWriteBarrierChunk = 0x10000;
+        private const uint BulkMoveWithWriteBarrierChunk = 0x4000;
 
         internal static void BulkMoveWithWriteBarrier(ref byte destination, ref byte source, nuint byteCount)
         {
