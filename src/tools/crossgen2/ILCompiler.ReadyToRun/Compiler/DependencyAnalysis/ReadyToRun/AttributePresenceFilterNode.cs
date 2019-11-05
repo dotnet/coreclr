@@ -102,99 +102,117 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             return customAttributeEntries;
         }
 
-        private class FakeType
-        {
-            public static FakeType Instance = new FakeType();
-        }
-
-        private class FakeGenericContext
-        {
-        }
-
-        private class FakeSignatureTypeProvider : ISignatureTypeProvider<FakeType, FakeGenericContext>
+        /**
+         * This class is used to extract the first type handle in a signature.
+         * 
+         * In the case that a custom attribute's constructor is a MemberReference,
+         * and its parent is a TypeSpec, we have to parse the signature, but we do 
+         * not want to actually resolve the types. So we used this dummy signature 
+         * type provider to extract the first type handle.
+         */ 
+        private class FirstTypeHandleExtractor : ISignatureTypeProvider<DummyType, DummyGenericContext>
         {
             private EntityHandle _firstTypeHandle;
 
             public EntityHandle FirstTypeHandle => _firstTypeHandle;
 
-            public FakeType GetArrayType(FakeType elementType, ArrayShape shape)
-            {
-                return FakeType.Instance;
-            }
-
-            public FakeType GetByReferenceType(FakeType elementType)
-            {
-                return FakeType.Instance;
-            }
-
-            public FakeType GetFunctionPointerType(MethodSignature<FakeType> signature)
-            {
-                return FakeType.Instance;
-            }
-
-            public FakeType GetGenericInstantiation(FakeType genericType, ImmutableArray<FakeType> typeArguments)
-            {
-                return FakeType.Instance;
-            }
-
-            public FakeType GetGenericMethodParameter(FakeGenericContext genericContext, int index)
-            {
-                return FakeType.Instance;
-            }
-
-            public FakeType GetGenericTypeParameter(FakeGenericContext genericContext, int index)
-            {
-                return FakeType.Instance;
-            }
-
-            public FakeType GetModifiedType(FakeType modifier, FakeType unmodifiedType, bool isRequired)
-            {
-                return FakeType.Instance;
-            }
-
-            public FakeType GetPinnedType(FakeType elementType)
-            {
-                return FakeType.Instance;
-            }
-
-            public FakeType GetPointerType(FakeType elementType)
-            {
-                return FakeType.Instance;
-            }
-
-            public FakeType GetPrimitiveType(PrimitiveTypeCode typeCode)
-            {
-                return new FakeType();
-            }
-
-            public FakeType GetSZArrayType(FakeType elementType)
-            {
-                return FakeType.Instance;
-            }
-
-            public FakeType GetTypeFromDefinition(MetadataReader reader, TypeDefinitionHandle handle, byte rawTypeKind)
+            public DummyType GetTypeFromDefinition(MetadataReader reader, TypeDefinitionHandle handle, byte rawTypeKind)
             {
                 if (_firstTypeHandle.IsNil)
                 {
                     _firstTypeHandle = handle;
                 }
-                return new FakeType();
+                return new DummyType();
             }
 
-            public FakeType GetTypeFromReference(MetadataReader reader, TypeReferenceHandle handle, byte rawTypeKind)
+            public DummyType GetTypeFromReference(MetadataReader reader, TypeReferenceHandle handle, byte rawTypeKind)
             {
                 if (_firstTypeHandle.IsNil)
                 {
                     _firstTypeHandle = handle;
                 }
-                return FakeType.Instance;
+                return DummyType.Instance;
             }
 
-            public FakeType GetTypeFromSpecification(MetadataReader reader, FakeGenericContext genericContext, TypeSpecificationHandle handle, byte rawTypeKind)
+            #region Uninteresting dummy methods
+
+            // These methods are required by the interface, but it is otherwise uninteresting for our purpose here
+
+            public DummyType GetArrayType(DummyType elementType, ArrayShape shape)
             {
-                return FakeType.Instance;
+                return DummyType.Instance;
             }
+
+            public DummyType GetByReferenceType(DummyType elementType)
+            {
+                return DummyType.Instance;
+            }
+
+            public DummyType GetFunctionPointerType(MethodSignature<DummyType> signature)
+            {
+                return DummyType.Instance;
+            }
+
+            public DummyType GetGenericInstantiation(DummyType genericType, ImmutableArray<DummyType> typeArguments)
+            {
+                return DummyType.Instance;
+            }
+
+            public DummyType GetGenericMethodParameter(DummyGenericContext genericContext, int index)
+            {
+                return DummyType.Instance;
+            }
+
+            public DummyType GetGenericTypeParameter(DummyGenericContext genericContext, int index)
+            {
+                return DummyType.Instance;
+            }
+
+            public DummyType GetModifiedType(DummyType modifier, DummyType unmodifiedType, bool isRequired)
+            {
+                return DummyType.Instance;
+            }
+
+            public DummyType GetPinnedType(DummyType elementType)
+            {
+                return DummyType.Instance;
+            }
+
+            public DummyType GetPointerType(DummyType elementType)
+            {
+                return DummyType.Instance;
+            }
+
+            public DummyType GetPrimitiveType(PrimitiveTypeCode typeCode)
+            {
+                return new DummyType();
+            }
+
+            public DummyType GetSZArrayType(DummyType elementType)
+            {
+                return DummyType.Instance;
+            }
+
+            public DummyType GetTypeFromSpecification(MetadataReader reader, DummyGenericContext genericContext, TypeSpecificationHandle handle, byte rawTypeKind)
+            {
+                return DummyType.Instance;
+            }
+
+            #endregion
         }
+
+        #region Uninteresting dummy types
+
+        private class DummyType
+        {
+            public static DummyType Instance = new DummyType();
+        }
+
+        private class DummyGenericContext
+        {
+        }
+
+        #endregion
 
         private void ReadCustomAttributeTypeNameWithoutResolving(EntityHandle customAttributeConstructorHandle, out string customAttributeTypeNamespace, out string customAttributeTypeName)
         {
@@ -229,8 +247,8 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
                     Debug.Assert(customAttributeConstructorReferenceParentHandle.Kind == HandleKind.TypeSpecification);
                     TypeSpecificationHandle customAttributeConstructorTypeSpecificationHandle = (TypeSpecificationHandle)customAttributeConstructorReferenceParentHandle;
                     TypeSpecification customAttributeConstructorTypeSpecification = _module.MetadataReader.GetTypeSpecification(customAttributeConstructorTypeSpecificationHandle);
-                    FakeSignatureTypeProvider fakeSignatureTypeProvider = new FakeSignatureTypeProvider();
-                    customAttributeConstructorTypeSpecification.DecodeSignature(fakeSignatureTypeProvider, new FakeGenericContext());
+                    FirstTypeHandleExtractor fakeSignatureTypeProvider = new FirstTypeHandleExtractor();
+                    customAttributeConstructorTypeSpecification.DecodeSignature(fakeSignatureTypeProvider, new DummyGenericContext());
                     EntityHandle firstTypeHandle = fakeSignatureTypeProvider.FirstTypeHandle;
                     if (firstTypeHandle.Kind == HandleKind.TypeDefinition)
                     {
