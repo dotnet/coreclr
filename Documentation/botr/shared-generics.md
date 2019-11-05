@@ -152,7 +152,7 @@ This was acceptable, until we introduced the [ReadyToRun](https://github.com/dot
 
 For this reason, the dynamic dictionary expansion feature was introduced.
 
-### Description and Algorithms
+### Description
 
 The feature is simple in concept: change dictionary layouts from a linked list of buckets into dynamically expandable arrays instead. Sounds simple, but great care had to be taken when impementing it, because:
 - We can't just resize `DictionaryLayout` structures alone. If the size of the layout is larger than the size of the actual generic dictionary, this would cause the JIT to generate indirection instructions that do not match the size of the dictionary data, leading to access violations.
@@ -163,15 +163,37 @@ The feature is simple in concept: change dictionary layouts from a linked list o
 - We can't just resize the generic dictionary for a single instantiation. For instance, in our example above, let's say we wanted to expand the dictionary for `Func<string>`. The resizing of the layout would have an impact on the shared canonical code that the JIT generates for `Func<__Canon>`. If we only resized the dictionary of `Func<string>`, the shared generic code would work for that instantiation only, but when we attempt to use it with another instantiation like `Func<object>`, the jitted instructions would no longer match the size of the dictionary structure, and would cause access violations.
 - The runtime is multithreaded, which adds to the complexity.
 
+### Expansion Algorithm
+
+##### Step 1 - Type and Method Registration
+
 The first step in this feature is to insert all generic types and methods with dictionaries into a hashtable, where the key is the canonical instantiation. For instance, with our example, `Func<string>` and `Func<object>` would be added to the hashtable as values under the `Func<__Canon>` key. This ensures that if we ever need to resize the dictionary layout, we would have a way of finding all existing instantiations to resize their dictionaries as well (remember, a dictionary size has to match the size of the layout now). This is achieved by calls to the `Module::RecordTypeForDictionaryExpansion_Locked` and `Module::RecordMethodForDictionaryExpansion_Locked` APIs, every time a new generic type or method is created, just before they get published for usage by other threads.
 
+##### Step 2 - Dictionary Layout Expansion
+
 Resizing of the dictionary layouts takes place in `DictionaryLayout::ExpandDictionaryLayout`. A new `DictionaryLayout` structure is allocated with a larger size, and the contents of the old layout are copied over. At this point, we **cannot yet** associate that new layout with the canonical instantiation: we need to resize the dictionaries of all related instantiations (because of multi-threading).
+
+##### Step 3 - Type and Method Dictionaries Expansion
 
 Resizing of the dictionaries of all related types or methods takes place in `Module::ExpandTypeDictionaries_Locked` and `Module::ExpandMethodDictionaries_Locked`. New dictionaries are allocated for each affected type or method, and the contents of their old dictionaries are copied over. These new dictionaries then get published on the corresponding `MethodTable` or `InstantiatedMethodDesc` structures (the "PerInstInfo" field). Great care is taken to perform all the dictionary allocations and initializations first before publishing them, with a call to `FlushProcessWriteBuffers()` in the middle to ensure correct ordering of read/write operations in multi-threading.
 
 One thing to note is that old dictionaries are not deallocated, but once a new dictionary gets published on a MethodTable or MethodDesc, any subsequent dictionary lookup by generic code will make use of that newly allocated dictionary. Deallocating old dictionaries would be extremely complicated, especially in a multi-threaded environment, and won't give any useful benefit.
 
+##### Step 4 - Publishing New Dictionary Layout
+
 Finally, after resizing all generic dictionaries, the last step is to publish the newly allocated `DictionaryLayout` structure by associating it with the canonical instantiation.
+
+##### Note on Thread Synchronization
+
+Thread synchronization is done by protecting all places where dictionaries are read/written in a meaninful way using a critical section implementation:
+``` c++
+CrstHolder ch(&SystemDomain::SystemModule()->m_DictionaryCrst);
+```
+
+Here is the list of places that require synchronization:
+- Before recording any new generic type or method into hashtable to track them for dictionary expansions (`RecordTypeForDictionaryExpansion_Locked` and `RecordMethodForDictionaryExpansion_Locked`). This prevents any expansion from taking place on another thread before we get a chance to add the type/method into the hashtable and track them.
+- Before any unassigned slot in a DictionaryLayout structure gets assigned a certain lookup kind/signature (see `DictionaryLayout::FindToken` implementations). No two threads are allowed to update a DictionaryLayout structure at the same time.
+- Before any uninitialized dictionary slot gets populated with a value as a result of a dictionary lookup (see `Dictionary::PopulateEntry`). This is because during expansion, the contents of an existing dictionary are copied over to the newly allocated one, so the lock synchronizes read and write operations.
 
 ### Diagnostics
 
