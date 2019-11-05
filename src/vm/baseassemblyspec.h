@@ -217,6 +217,9 @@ public:
 
 protected:
     static BOOL CompareRefToDef(const BaseAssemblySpec *pRef, const BaseAssemblySpec *pDef);
+
+private:
+    void GetDisplayNameInternal(DWORD flags, SString &result) const;
 };
 
 #endif // __BASE_ASSEMBLY_SPEC_H__

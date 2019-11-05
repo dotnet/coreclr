@@ -461,7 +461,7 @@ VOID BaseAssemblySpec::GetFileOrDisplayName(DWORD flags, SString &result) const
         return;
     }
 
-    return GetDisplayName(flags, result);
+    GetDisplayNameInternal(flags, result);
 }
 
 VOID BaseAssemblySpec::GetDisplayName(DWORD flags, SString &result) const
@@ -476,6 +476,11 @@ VOID BaseAssemblySpec::GetDisplayName(DWORD flags, SString &result) const
     }
     CONTRACTL_END;
 
+    GetDisplayNameInternal(flags, result);
+}
+
+VOID BaseAssemblySpec::GetDisplayNameInternal(DWORD flags, SString &result) const
+{
     if (flags==0)
         flags=ASM_DISPLAYF_FULL;
 

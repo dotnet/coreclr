@@ -85,9 +85,10 @@ namespace
         AppDomain *domain = spec->GetAppDomain();
         ICLRPrivBinder* bindContext = spec->GetBindingContext();
         if (bindContext == nullptr)
+        {
             bindContext = spec->GetBindingContextFromParentAssembly(domain);
-
-        _ASSERTE(bindContext != nullptr);
+            _ASSERTE(bindContext != nullptr);
+        }
 
         UINT_PTR binderID = 0;
         HRESULT hr = bindContext->GetBinderID(&binderID);
@@ -106,7 +107,9 @@ namespace
         }
         else
         {
-#if !defined(CROSSGEN_COMPILE)
+#ifdef CROSSGEN_COMPILE
+            alcName.Set(W("Custom"));
+#else // CROSSGEN_COMPILE
             CLRPrivBinderAssemblyLoadContext * alcBinder = static_cast<CLRPrivBinderAssemblyLoadContext *>(binder);
             OBJECTREF *alc = reinterpret_cast<OBJECTREF *>(alcBinder->GetManagedAssemblyLoadContext());
 
@@ -125,9 +128,7 @@ namespace
             gc.alcName->GetSString(alcName);
 
             GCPROTECT_END();
-#else // !defined(CROSSGEN_COMPILE)
-            alcName.Set(W("Custom"));
-#endif // !defined(CROSSGEN_COMPILE)
+#endif // CROSSGEN_COMPILE
         }
     }
 
