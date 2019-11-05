@@ -352,7 +352,8 @@ PCODE MethodDesc::PrepareILBasedCode(PrepareCodeConfig* pConfig)
     if (pConfig->MayUsePrecompiledCode())
     {
 #ifdef FEATURE_READYTORUN
-        if (this->IsDynamicMethod() && MayUsePrecompiledILStub())
+        // TODO: Remove IsSystem check when IL Stubs are fixed to be non-shared
+        if (this->IsDynamicMethod() && GetLoaderModule()->IsSystem() && MayUsePrecompiledILStub())
         {
             DynamicMethodDesc *stubMethodDesc = this->AsDynamicMethodDesc();
             if (stubMethodDesc->IsILStub() && stubMethodDesc->IsPInvokeStub())

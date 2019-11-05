@@ -140,7 +140,8 @@ namespace ILCompiler
                     && key.IsPInvoke
                     && _compilationModuleGroup.GeneratesPInvoke(key))
                 {
-                    methodIL = PInvokeILEmitter.EmitIL(key);
+                    // TODO: enable when IL Stubs are fixed to be non-shared
+                    // methodIL = PInvokeILEmitter.EmitIL(key);
                 }
 
                 return new MethodILData() { Method = key, MethodIL = methodIL };
