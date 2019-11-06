@@ -15,10 +15,10 @@ export DOTNET_MULTILEVEL_LOOKUP=0
 # Disable first run since we want to control all package sources
 export DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
 
-source ${__RepoRootDir}/eng/configure-toolset.sh
 source ${__RepoRootDir}/eng/common/tools.sh
 
-__dotnetDir=InitializeDotNetCli($true)
+InitializeDotNetCli
+__dotnetDir=${_InitializeDotNetCli}
 
 if [ $? != 0 ]; then
     echo "Failed to install dotnet using Arcade"
