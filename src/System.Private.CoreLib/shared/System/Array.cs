@@ -472,15 +472,6 @@ namespace System
                 ThrowHelper.ThrowRankException(ExceptionResource.Rank_MultiDimNotSupported);
 
             comparer ??= Comparer.Default;
-#if !CORERT
-            if (comparer == Comparer.Default)
-            {
-                int retval;
-                bool r = TrySZBinarySearch(array, index, length, value, out retval);
-                if (r)
-                    return retval;
-            }
-#endif
 
             int lo = index;
             int hi = index + length - 1;
@@ -511,32 +502,96 @@ namespace System
                         hi = i - 1;
                     }
                 }
+                return -1;
             }
-            else
-            {
-                while (lo <= hi)
-                {
-                    int i = GetMedian(lo, hi);
 
-                    int c;
-                    try
+            if (comparer == Comparer.Default)
+            {
+                int result;
+                switch (Type.GetTypeCode(array.GetType().GetElementType()))
+                {
+                    case TypeCode.Boolean:
+                        if (TryGenericBinarySearch<bool>(array, index, length, value, out result)) return result;
+                        break;
+                    case TypeCode.Byte:
+                        if (TryGenericBinarySearch<byte>(array, index, length, value, out result)) return result;
+                        break;
+                    case TypeCode.Char:
+                        if (TryGenericBinarySearch<char>(array, index, length, value, out result)) return result;
+                        break;
+                    case TypeCode.Double:
+                        if (TryGenericBinarySearch<double>(array, index, length, value, out result)) return result;
+                        break;
+                    case TypeCode.Int16:
+                        if (TryGenericBinarySearch<short>(array, index, length, value, out result)) return result;
+                        break;
+                    case TypeCode.Int32:
+                        if (TryGenericBinarySearch<int>(array, index, length, value, out result)) return result;
+                        break;
+                    case TypeCode.Int64:
+                        if (TryGenericBinarySearch<long>(array, index, length, value, out result)) return result;
+                        break;
+                    case TypeCode.SByte:
+                        if (TryGenericBinarySearch<sbyte>(array, index, length, value, out result)) return result;
+                        break;
+                    case TypeCode.Single:
+                        if (TryGenericBinarySearch<float>(array, index, length, value, out result)) return result;
+                        break;
+                    case TypeCode.UInt16:
+                        if (TryGenericBinarySearch<ushort>(array, index, length, value, out result)) return result;
+                        break;
+                    case TypeCode.UInt32:
+                        if (TryGenericBinarySearch<uint>(array, index, length, value, out result)) return result;
+                        break;
+                    case TypeCode.UInt64:
+                        if (TryGenericBinarySearch<ulong>(array, index, length, value, out result)) return result;
+                        break;
+                }
+
+                static bool TryGenericBinarySearch<T>(Array array, int index, int length, object? value, out int result) where T : struct
+                {
+                    if (array is T[] arrayOfT)
                     {
-                        c = comparer.Compare(array.GetValue(i), value);
+                        if (value is null)
+                        {
+                            result = -1;
+                            return true;
+                        }
+
+                        if (value is T valueOfT)
+                        {
+                            result = BinarySearch<T>(arrayOfT, valueOfT);
+                            return true;
+                        }
                     }
-                    catch (Exception e)
-                    {
-                        ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_IComparerFailed, e);
-                        return default;
-                    }
-                    if (c == 0) return i;
-                    if (c < 0)
-                    {
-                        lo = i + 1;
-                    }
-                    else
-                    {
-                        hi = i - 1;
-                    }
+
+                    result = default;
+                    return false;
+                }
+            }
+
+            while (lo <= hi)
+            {
+                int i = GetMedian(lo, hi);
+
+                int c;
+                try
+                {
+                    c = comparer.Compare(array.GetValue(i), value);
+                }
+                catch (Exception e)
+                {
+                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_IComparerFailed, e);
+                    return default;
+                }
+                if (c == 0) return i;
+                if (c < 0)
+                {
+                    lo = i + 1;
+                }
+                else
+                {
+                    hi = i - 1;
                 }
             }
             return ~lo;
@@ -921,14 +976,6 @@ namespace System
             if (count < 0 || count > array.Length - startIndex + lb)
                 ThrowHelper.ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count();
 
-#if !CORERT
-            // Try calling a quick native method to handle primitive types.
-            int retVal;
-            bool r = TrySZIndexOf(array, startIndex, count, value, out retVal);
-            if (r)
-                return retVal;
-#endif
-
             int endIndex = startIndex + count;
             if (array is object[] objArray)
             {
@@ -949,22 +996,83 @@ namespace System
                             return i;
                     }
                 }
+                return -1;
             }
-            else
+
+            int result;
+            switch (Type.GetTypeCode(array.GetType().GetElementType()))
             {
-                for (int i = startIndex; i < endIndex; i++)
+                case TypeCode.Boolean:
+                    if (TryGenericIndexOf<bool>(array, value, startIndex, count, out result)) return result;
+                    break;
+                case TypeCode.Byte:
+                    if (TryGenericIndexOf<byte>(array, value, startIndex, count, out result)) return result;
+                    break;
+                case TypeCode.Char:
+                    if (TryGenericIndexOf<char>(array, value, startIndex, count, out result)) return result;
+                    break;
+                case TypeCode.Double:
+                    if (TryGenericIndexOf<double>(array, value, startIndex, count, out result)) return result;
+                    break;
+                case TypeCode.Int16:
+                    if (TryGenericIndexOf<short>(array, value, startIndex, count, out result)) return result;
+                    break;
+                case TypeCode.Int32:
+                    if (TryGenericIndexOf<int>(array, value, startIndex, count, out result)) return result;
+                    break;
+                case TypeCode.Int64:
+                    if (TryGenericIndexOf<long>(array, value, startIndex, count, out result)) return result;
+                    break;
+                case TypeCode.SByte:
+                    if (TryGenericIndexOf<sbyte>(array, value, startIndex, count, out result)) return result;
+                    break;
+                case TypeCode.Single:
+                    if (TryGenericIndexOf<float>(array, value, startIndex, count, out result)) return result;
+                    break;
+                case TypeCode.UInt16:
+                    if (TryGenericIndexOf<ushort>(array, value, startIndex, count, out result)) return result;
+                    break;
+                case TypeCode.UInt32:
+                    if (TryGenericIndexOf<uint>(array, value, startIndex, count, out result)) return result;
+                    break;
+                case TypeCode.UInt64:
+                    if (TryGenericIndexOf<ulong>(array, value, startIndex, count, out result)) return result;
+                    break;
+            }
+
+            static bool TryGenericIndexOf<T>(Array array, object? value, int startIndex, int count, out int result) where T: struct
+            {
+                if (array is T[] arrayOfT)
                 {
-                    object? obj = array.GetValue(i);
-                    if (obj == null)
+                    if (value is null)
                     {
-                        if (value == null)
-                            return i;
+                        result = -1;
+                        return true;
                     }
-                    else
+
+                    if (value is T valueOfT)
                     {
-                        if (obj.Equals(value))
-                            return i;
+                        result = IndexOf<T>(arrayOfT, valueOfT, startIndex, count);
+                        return true;
                     }
+                }
+
+                result = default;
+                return false;
+            }
+
+            for (int i = startIndex; i < endIndex; i++)
+            {
+                object? obj = array.GetValue(i);
+                if (obj == null)
+                {
+                    if (value == null)
+                        return i;
+                }
+                else
+                {
+                    if (obj.Equals(value))
+                        return i;
                 }
             }
             // Return one less than the lower bound of the array.  This way,
@@ -1104,14 +1212,6 @@ namespace System
             if (array.Rank != 1)
                 ThrowHelper.ThrowRankException(ExceptionResource.Rank_MultiDimNotSupported);
 
-#if !CORERT
-            // Try calling a quick native method to handle primitive types.
-            int retVal;
-            bool r = TrySZLastIndexOf(array, startIndex, count, value, out retVal);
-            if (r)
-                return retVal;
-#endif
-
             int endIndex = startIndex - count + 1;
             if (array is object[] objArray)
             {
@@ -1132,22 +1232,83 @@ namespace System
                             return i;
                     }
                 }
+                return -1;
             }
-            else
+
+            int result;
+            switch (Type.GetTypeCode(array.GetType().GetElementType()))
             {
-                for (int i = startIndex; i >= endIndex; i--)
+                case TypeCode.Boolean:
+                    if (TryGenericLastIndexOf<bool>(array, value, startIndex, count, out result)) return result;
+                    break;
+                case TypeCode.Byte:
+                    if (TryGenericLastIndexOf<byte>(array, value, startIndex, count, out result)) return result;
+                    break;
+                case TypeCode.Char:
+                    if (TryGenericLastIndexOf<char>(array, value, startIndex, count, out result)) return result;
+                    break;
+                case TypeCode.Double:
+                    if (TryGenericLastIndexOf<double>(array, value, startIndex, count, out result)) return result;
+                    break;
+                case TypeCode.Int16:
+                    if (TryGenericLastIndexOf<short>(array, value, startIndex, count, out result)) return result;
+                    break;
+                case TypeCode.Int32:
+                    if (TryGenericLastIndexOf<int>(array, value, startIndex, count, out result)) return result;
+                    break;
+                case TypeCode.Int64:
+                    if (TryGenericLastIndexOf<long>(array, value, startIndex, count, out result)) return result;
+                    break;
+                case TypeCode.SByte:
+                    if (TryGenericLastIndexOf<sbyte>(array, value, startIndex, count, out result)) return result;
+                    break;
+                case TypeCode.Single:
+                    if (TryGenericLastIndexOf<float>(array, value, startIndex, count, out result)) return result;
+                    break;
+                case TypeCode.UInt16:
+                    if (TryGenericLastIndexOf<ushort>(array, value, startIndex, count, out result)) return result;
+                    break;
+                case TypeCode.UInt32:
+                    if (TryGenericLastIndexOf<uint>(array, value, startIndex, count, out result)) return result;
+                    break;
+                case TypeCode.UInt64:
+                    if (TryGenericLastIndexOf<ulong>(array, value, startIndex, count, out result)) return result;
+                    break;
+            }
+
+            static bool TryGenericLastIndexOf<T>(Array array, object? value, int startIndex, int count, out int result) where T : struct
+            {
+                if (array is T[] arrayOfT)
                 {
-                    object? obj = array.GetValue(i);
-                    if (obj == null)
+                    if (value is null)
                     {
-                        if (value == null)
-                            return i;
+                        result = -1;
+                        return true;
                     }
-                    else
+
+                    if (value is T valueOfT)
                     {
-                        if (obj.Equals(value))
-                            return i;
+                        result = LastIndexOf<T>(arrayOfT, valueOfT, startIndex, count);
+                        return true;
                     }
+                }
+
+                result = default;
+                return false;
+            }
+
+            for (int i = startIndex; i >= endIndex; i--)
+            {
+                object? obj = array.GetValue(i);
+                if (obj == null)
+                {
+                    if (value == null)
+                        return i;
+                }
+                else
+                {
+                    if (obj.Equals(value))
+                        return i;
                 }
             }
             return lb - 1;  // Return lb-1 for arrays with negative lower bounds.
@@ -1298,28 +1459,63 @@ namespace System
             if (length <= 1)
                 return;
 
-#if !CORERT
-            bool r = TrySZReverse(array, index, length);
-            if (r)
-                return;
-#endif
-
             if (array is object[] objArray)
             {
                 Array.Reverse<object>(objArray, index, length);
+                return;
             }
-            else
+
+            switch (Type.GetTypeCode(array.GetType().GetElementType()))
             {
-                int i = index;
-                int j = index + length - 1;
-                while (i < j)
+                case TypeCode.Boolean:
+                    if (TryGenericReverse<bool>(array, index, length)) return;
+                    break;
+                case TypeCode.Byte:
+                case TypeCode.SByte: // sbyte[] can be cast to byte[]
+                    if (TryGenericReverse<byte>(array, index, length)) return;
+                    break;
+                case TypeCode.Char:
+                    if (TryGenericReverse<char>(array, index, length)) return;
+                    break;
+                case TypeCode.Double:
+                    if (TryGenericReverse<double>(array, index, length)) return;
+                    break;
+                case TypeCode.Int16:
+                case TypeCode.UInt16: // ushort[] can be cast to short[]
+                    if (TryGenericReverse<short>(array, index, length)) return;
+                    break;
+                case TypeCode.Int32:
+                case TypeCode.UInt32: // uint[] can be cast to int[]
+                    if (TryGenericReverse<int>(array, index, length)) return;
+                    break;
+                case TypeCode.Int64:
+                case TypeCode.UInt64: // ulong[] can be cast to long[]
+                    if (TryGenericReverse<long>(array, index, length)) return;
+                    break;
+                case TypeCode.Single:
+                    if (TryGenericReverse<float>(array, index, length)) return;
+                    break;
+            }
+
+            static bool TryGenericReverse<T>(Array array, int index, int length) where T : struct
+            {
+                if (array is T[] arrayOfT)
                 {
-                    object? temp = array.GetValue(i);
-                    array.SetValue(array.GetValue(j), i);
-                    array.SetValue(temp, j);
-                    i++;
-                    j--;
+                    Reverse<T>(arrayOfT, index, length);
+                    return true;
                 }
+                return false;
+            }
+
+            int i = index;
+            int j = index + length - 1;
+            while (i < j)
+            {
+                object? temp = array.GetValue(i);
+                array.SetValue(array.GetValue(j), i);
+                array.SetValue(temp, j);
+                i++;
+                j--;
             }
         }
 
@@ -1464,127 +1660,85 @@ namespace System
             if (keys.Length - (index - keysLowerBound) < length || (items != null && (index - keysLowerBound) > items.Length - length))
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
 
-            if (length > 1)
+            if (length <= 1)
+                return;
+
+            comparer ??= Comparer.Default;
+
+            if (keys is object[] objKeys)
             {
-                comparer ??= Comparer.Default;
-
-                if (comparer == Comparer.Default)
-                {
-                    switch (Type.GetTypeCode(keys.GetType().GetElementType()))
-                    {
-                        case TypeCode.Boolean:
-                            if (TryGenericSort(keys as bool[], items, index, length)) return;
-                            break;
-                        case TypeCode.Byte:
-                            if (TryGenericSort(keys as byte[], items, index, length)) return;
-                            break;
-                        case TypeCode.Char:
-                            if (TryGenericSort(keys as char[], items, index, length)) return;
-                            break;
-                        case TypeCode.Double:
-                            if (TryGenericSort(keys as double[], items, index, length)) return;
-                            break;
-                        case TypeCode.Int16:
-                            if (TryGenericSort(keys as short[], items, index, length)) return;
-                            break;
-                        case TypeCode.Int32:
-                            if (TryGenericSort(keys as int[], items, index, length)) return;
-                            break;
-                        case TypeCode.Int64:
-                            if (TryGenericSort(keys as long[], items, index, length)) return;
-                            break;
-                        case TypeCode.SByte:
-                            if (TryGenericSort(keys as sbyte[], items, index, length)) return;
-                            break;
-                        case TypeCode.Single:
-                            if (TryGenericSort(keys as float[], items, index, length)) return;
-                            break;
-                        case TypeCode.String:
-                            if (TryGenericSort(keys as string[], items, index, length)) return;
-                            break;
-                        case TypeCode.UInt16:
-                            if (TryGenericSort(keys as ushort[], items, index, length)) return;
-                            break;
-                        case TypeCode.UInt32:
-                            if (TryGenericSort(keys as uint[], items, index, length)) return;
-                            break;
-                        case TypeCode.UInt64:
-                            if (TryGenericSort(keys as ulong[], items, index, length)) return;
-                            break;
-                    }
-
-                    static bool TryGenericSort<TKey>(TKey[]? keys, Array? items, int index, int length)
-                    {
-                        if (keys != null)
-                        {
-                            if (items is null)
-                            {
-                                Sort(keys, index, length);
-                                return true;
-                            }
-
-                            switch (Type.GetTypeCode(items.GetType().GetElementType()))
-                            {
-                                case TypeCode.Boolean:
-                                    if (items is bool[] boolItems) { Sort(keys, boolItems, index, length); return true; }
-                                    break;
-                                case TypeCode.Byte:
-                                    if (items is byte[] byteItems) { Sort(keys, byteItems, index, length); return true; }
-                                    break;
-                                case TypeCode.Char:
-                                    if (items is char[] charItems) { Sort(keys, charItems, index, length); return true; }
-                                    break;
-                                case TypeCode.Double:
-                                    if (items is double[] doubleItems) { Sort(keys, doubleItems, index, length); return true; }
-                                    break;
-                                case TypeCode.Int16:
-                                    if (items is short[] shortItems) { Sort(keys, shortItems, index, length); return true; }
-                                    break;
-                                case TypeCode.Int32:
-                                    if (items is int[] intItems) { Sort(keys, intItems, index, length); return true; }
-                                    break;
-                                case TypeCode.Int64:
-                                    if (items is long[] longItems) { Sort(keys, longItems, index, length); return true; }
-                                    break;
-                                case TypeCode.SByte:
-                                    if (items is sbyte[] sbyteItems) { Sort(keys, sbyteItems, index, length); return true; }
-                                    break;
-                                case TypeCode.Single:
-                                    if (items is float[] floatItems) { Sort(keys, floatItems, index, length); return true; }
-                                    break;
-                                case TypeCode.String:
-                                    if (items is string[] stringItems) { Sort(keys, stringItems, index, length); return true; }
-                                    break;
-                                case TypeCode.UInt16:
-                                    if (items is ushort[] ushortItems) { Sort(keys, ushortItems, index, length); return true; }
-                                    break;
-                                case TypeCode.UInt32:
-                                    if (items is uint[] uintItems) { Sort(keys, uintItems, index, length); return true; }
-                                    break;
-                                case TypeCode.UInt64:
-                                    if (items is ulong[] ulongItems) { Sort(keys, ulongItems, index, length); return true; }
-                                    break;
-                            }
-                        }
-
-                        return false;
-                    }
-                }
-
-                object[]? objKeys = keys as object[];
-                object[]? objItems = null;
-                if (objKeys != null)
-                    objItems = items as object[];
-
-                if (objKeys != null && (items == null || objItems != null))
+                object[]? objItems = items as object[];
+                if (items == null || objItems != null)
                 {
                     new SorterObjectArray(objKeys, objItems, comparer).Sort(index, length);
-                }
-                else
-                {
-                    new SorterGenericArray(keys, items, comparer).Sort(index, length);
+                    return;
                 }
             }
+
+            if (comparer == Comparer.Default)
+            {
+                switch (Type.GetTypeCode(keys.GetType().GetElementType()))
+                {
+                    case TypeCode.Boolean:
+                        if (TryGenericSort<bool>(keys, items, index, length)) return;
+                        break;
+                    case TypeCode.Byte:
+                        if (TryGenericSort<byte>(keys, items, index, length)) return;
+                        break;
+                    case TypeCode.Char:
+                        if (TryGenericSort<char>(keys, items, index, length)) return;
+                        break;
+                    case TypeCode.Double:
+                        if (TryGenericSort<double>(keys, items, index, length)) return;
+                        break;
+                    case TypeCode.Int16:
+                        if (TryGenericSort<short>(keys, items, index, length)) return;
+                        break;
+                    case TypeCode.Int32:
+                        if (TryGenericSort<int>(keys, items, index, length)) return;
+                        break;
+                    case TypeCode.Int64:
+                        if (TryGenericSort<long>(keys, items, index, length)) return;
+                        break;
+                    case TypeCode.SByte:
+                        if (TryGenericSort<sbyte>(keys, items, index, length)) return;
+                        break;
+                    case TypeCode.Single:
+                        if (TryGenericSort<float>(keys, items, index, length)) return;
+                        break;
+                    case TypeCode.UInt16:
+                        if (TryGenericSort<ushort>(keys, items, index, length)) return;
+                        break;
+                    case TypeCode.UInt32:
+                        if (TryGenericSort<uint>(keys, items, index, length)) return;
+                        break;
+                    case TypeCode.UInt64:
+                        if (TryGenericSort<ulong>(keys, items, index, length)) return;
+                        break;
+                }
+
+                static bool TryGenericSort<T>(Array keys, Array? items, int index, int length) where T : struct
+                {
+                    if (keys is T[] keysOfT)
+                    {
+                        if (items is null)
+                        {
+                            Sort<T>(keysOfT, index, length);
+                            return true;
+                        }
+
+                        if (items is T[] itemsOfT)
+                        {
+                            Sort<T, T>(keysOfT, itemsOfT, index, length);
+                            return true;
+                        }
+                    }
+
+                    return false;
+                }
+            }
+
+            new SorterGenericArray(keys, items, comparer).Sort(index, length);
         }
 
         public static void Sort<T>(T[] array)
@@ -1711,7 +1865,6 @@ namespace System
             return true;
         }
 
-#if !CORERT
         // Private value type used by the Sort methods.
         private readonly struct SorterObjectArray
         {
@@ -1726,7 +1879,7 @@ namespace System
                 this.comparer = comparer;
             }
 
-            internal void SwapIfGreaterWithItems(int a, int b)
+            internal void SwapIfGreater(int a, int b)
             {
                 if (a != b)
                 {
@@ -1796,14 +1949,14 @@ namespace System
                         }
                         if (partitionSize == 2)
                         {
-                            SwapIfGreaterWithItems(lo, hi);
+                            SwapIfGreater(lo, hi);
                             return;
                         }
                         if (partitionSize == 3)
                         {
-                            SwapIfGreaterWithItems(lo, hi - 1);
-                            SwapIfGreaterWithItems(lo, hi);
-                            SwapIfGreaterWithItems(hi - 1, hi);
+                            SwapIfGreater(lo, hi - 1);
+                            SwapIfGreater(lo, hi);
+                            SwapIfGreater(hi - 1, hi);
                             return;
                         }
 
@@ -1829,9 +1982,9 @@ namespace System
                 // Compute median-of-three.  But also partition them, since we've done the comparison.
                 int mid = lo + (hi - lo) / 2;
                 // Sort lo, mid and hi appropriately, then pick mid as the pivot.
-                SwapIfGreaterWithItems(lo, mid);
-                SwapIfGreaterWithItems(lo, hi);
-                SwapIfGreaterWithItems(mid, hi);
+                SwapIfGreater(lo, mid);
+                SwapIfGreater(lo, hi);
+                SwapIfGreater(mid, hi);
 
                 object pivot = keys[mid];
                 Swap(mid, hi - 1);
@@ -1932,7 +2085,7 @@ namespace System
                 this.comparer = comparer;
             }
 
-            internal void SwapIfGreaterWithItems(int a, int b)
+            internal void SwapIfGreater(int a, int b)
             {
                 if (a != b)
                 {
@@ -2002,14 +2155,14 @@ namespace System
                         }
                         if (partitionSize == 2)
                         {
-                            SwapIfGreaterWithItems(lo, hi);
+                            SwapIfGreater(lo, hi);
                             return;
                         }
                         if (partitionSize == 3)
                         {
-                            SwapIfGreaterWithItems(lo, hi - 1);
-                            SwapIfGreaterWithItems(lo, hi);
-                            SwapIfGreaterWithItems(hi - 1, hi);
+                            SwapIfGreater(lo, hi - 1);
+                            SwapIfGreater(lo, hi);
+                            SwapIfGreater(hi - 1, hi);
                             return;
                         }
 
@@ -2035,9 +2188,9 @@ namespace System
                 // Compute median-of-three.  But also partition them, since we've done the comparison.
                 int mid = lo + (hi - lo) / 2;
 
-                SwapIfGreaterWithItems(lo, mid);
-                SwapIfGreaterWithItems(lo, hi);
-                SwapIfGreaterWithItems(mid, hi);
+                SwapIfGreater(lo, mid);
+                SwapIfGreater(lo, hi);
+                SwapIfGreater(mid, hi);
 
                 object? pivot = keys.GetValue(mid);
                 Swap(mid, hi - 1);
@@ -2126,6 +2279,7 @@ namespace System
             }
         }
 
+#if !CORERT
         public IEnumerator GetEnumerator()
         {
             int lowerBound = GetLowerBound(0);

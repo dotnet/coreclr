@@ -474,18 +474,6 @@ namespace System
             return Unsafe.Add(ref RuntimeHelpers.GetMultiDimensionalArrayBounds(this), rank + dimension);
         }
 
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern bool TrySZBinarySearch(Array sourceArray, int sourceIndex, int count, object? value, out int retVal);
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern bool TrySZIndexOf(Array sourceArray, int sourceIndex, int count, object? value, out int retVal);
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern bool TrySZLastIndexOf(Array sourceArray, int sourceIndex, int count, object? value, out int retVal);
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern bool TrySZReverse(Array array, int index, int count);
-
         // if this is an array of value classes and that value class has a default constructor
         // then this calls this default constructor on every element in the value class array.
         // otherwise this is a no-op.  Generally this method is called automatically by the compiler
