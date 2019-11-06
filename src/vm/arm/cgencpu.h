@@ -150,6 +150,7 @@ struct FloatArgumentRegisters {
         double  d[8];   // d0-d7
     };
 };
+#define NUM_FLOAT_ARGUMENT_REGISTERS 16 // Count the single registers, as they are addressable more finely
 
 // forward decl
 struct REGDISPLAY;

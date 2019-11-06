@@ -151,6 +151,7 @@ struct FloatArgumentRegisters {
     NEON128   q[8];  // q0-q7
 };
 
+#define NUM_FLOAT_ARGUMENT_REGISTERS 8
 
 //**********************************************************************
 // Exception handling

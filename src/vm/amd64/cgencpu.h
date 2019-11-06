@@ -263,7 +263,9 @@ typedef DPTR(struct FloatArgumentRegisters) PTR_FloatArgumentRegisters;
 struct FloatArgumentRegisters {
      M128A d[NUM_FLOAT_ARGUMENT_REGISTERS];   // xmm0-xmm7
 };
-
+#else
+// Windows x64 calling convention uses 4 registers for floating point data
+#define NUM_FLOAT_ARGUMENT_REGISTERS 4
 #endif
 
 

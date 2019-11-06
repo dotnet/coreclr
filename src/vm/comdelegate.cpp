@@ -445,6 +445,9 @@ BOOL GenerateShuffleArrayPortable(MethodDesc* pMethodSrc, MethodDesc *pMethodDst
             int srcIndex = GetNormalizedArgumentSlotIndex(entry.srcofs);
             int dstIndex = GetNormalizedArgumentSlotIndex(entry.dstofs);
 
+            _ASSERTE((srcIndex >= 0) && ((unsigned int)srcIndex < argSlots));
+            _ASSERTE((dstIndex >= 0) && ((unsigned int)dstIndex < argSlots));
+
             // Unmark the node to indicate that it was not processed yet
             pGraphNodes[srcIndex].isMarked = false;
             // The node contains a register / stack slot that is a source from which we move data to a destination one
@@ -475,6 +478,7 @@ BOOL GenerateShuffleArrayPortable(MethodDesc* pMethodSrc, MethodDesc *pMethodDst
 
                 do
                 {
+                    _ASSERTE(index < argSlots);
                     pGraphNodes[index].isMarked = true;
                     if (dstOfs != ShuffleEntry::SENTINEL)
                     {
@@ -509,6 +513,7 @@ BOOL GenerateShuffleArrayPortable(MethodDesc* pMethodSrc, MethodDesc *pMethodDst
 
                 do
                 {
+                    _ASSERTE(index < argSlots);
                     pGraphNodes[index].isMarked = true;
 
                     entry.srcofs = pGraphNodes[index].ofs;
