@@ -38817,14 +38817,14 @@ static const char* bool_to_str(const bool value)
     return out;
 }
 
-static const char* size_t_to_str(const size_t value)
+static const char* int64_t_to_str(const int64_t value)
 {
     // 2**64 in base ten has 20 characters at most, + 1 for the '\0'
     const size_t max_size = 21;
     char* out = new (nothrow) char[max_size];
     if (out != nullptr)
     {
-        int n = snprintf(out, max_size, "%zu", value);
+        int n = snprintf(out, max_size, "%llu", (long long) value);
         // -1 because n does not include the '\0'
         assert(n <= max_size - 1);
     }
@@ -38839,7 +38839,7 @@ const char* GCHeap::GetGCConfigValue(const wchar_t* key)
     }
     else if (wcscmp(key, L"HeapAffinitizeMask") == 0)
     {
-        return size_t_to_str(GCConfig::GetGCHeapAffinitizeMask());
+        return int64_t_to_str(GCConfig::GetGCHeapAffinitizeMask());
     }
     else if (wcscmp(key, L"HeapAffinitizeRanges") == 0)
     {
@@ -38853,19 +38853,19 @@ const char* GCHeap::GetGCConfigValue(const wchar_t* key)
 #else
         const size_t heapCount = 1;
 #endif
-        return size_t_to_str(heapCount);
+        return int64_t_to_str(heapCount);
     }
     else if (wcscmp(key, L"HeapHardLimit") == 0)
     {
-        return size_t_to_str(gc_heap::heap_hard_limit);
+        return int64_t_to_str(gc_heap::heap_hard_limit);
     }
     else if (wcscmp(key, L"HeapHardLimitPercent") == 0)
     {
-        return size_t_to_str(GCConfig::GetGCHeapHardLimitPercent());
+        return int64_t_to_str(GCConfig::GetGCHeapHardLimitPercent());
     }
     else if (wcscmp(key, L"HighMemoryPercent") == 0)
     {
-        return size_t_to_str(gc_heap::high_memory_load_th);
+        return int64_t_to_str(gc_heap::high_memory_load_th);
     }
     else if (wcscmp(key, L"NoAffinitize") == 0)
     {
@@ -38878,11 +38878,11 @@ const char* GCHeap::GetGCConfigValue(const wchar_t* key)
     }
     else if (wcscmp(key, L"LargePages") == 0)
     {
-        return size_t_to_str(gc_heap::use_large_pages_p);
+        return int64_t_to_str(gc_heap::use_large_pages_p);
     }
     else if (wcscmp(key, L"LOHThreshold") == 0)
     {
-        return size_t_to_str(loh_size_threshold);
+        return int64_t_to_str(loh_size_threshold);
     }
     else if (wcscmp(key, L"Server") == 0)
     {
