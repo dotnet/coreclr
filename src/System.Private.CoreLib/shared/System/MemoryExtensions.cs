@@ -1870,40 +1870,50 @@ namespace System
         }
 
         /// <summary>
-        /// Sorts the elements in the entire <see cref="Span{T}" /> 
-        /// using the <see cref="IComparable" /> implementation of each 
-        /// element of the <see cref= "Span{T}" />
+        /// Sorts the elements in the entire <see cref="Span{T}" /> using the <see cref="IComparable{T}" /> implementation
+        /// of each element of the <see cref= "Span{T}" />
         /// </summary>
+        /// <typeparam name="T">The type of the elements of the span.</typeparam>
         /// <param name="span">The <see cref="Span{T}"/> to sort.</param>
-        /// <exception cref = "InvalidOperationException"> 
-        /// One or more elements do not implement the <see cref="IComparable" /> interface.
+        /// <exception cref="InvalidOperationException">
+        /// One or more elements in <paramref name="span"/> do not implement the <see cref="IComparable{T}" /> interface.
         /// </exception>
         public static void Sort<T>(this Span<T> span) =>
-            Sort(span, (IComparer<T>)null!);
+            Sort(span, (IComparer<T>?)null);
 
         /// <summary>
-        /// Sorts the elements in the entire <see cref="Span{T}" /> 
-        /// using the <typeparamref name="TComparer" />.
+        /// Sorts the elements in the entire <see cref="Span{T}" /> using the <typeparamref name="TComparer" />.
         /// </summary>
+        /// <typeparam name="T">The type of the elements of the span.</typeparam>
+        /// <typeparam name="TComparer">The type of the comparer to use to compare elements.</typeparam>
+        /// <param name="span">The <see cref="Span{T}"/> to sort.</param>
+        /// <param name="comparer">
+        /// The <see cref="IComparer{T}"/> implementation to use when comparing elements, or null to
+        /// use the <see cref="IComparable{T}"/> interface implementation of each element.
+        /// </param>
+        /// <exception cref="InvalidOperationException">
+        /// <paramref name="comparer"/> is null, and one or more elements in <paramref name="span"/> do not
+        /// implement the <see cref="IComparable{T}" /> interface.
+        /// </exception>
+        /// <exception cref="ArgumentException">
+        /// The implementation of <paramref name="comparer"/> caused an error during the sort.
+        /// </exception>
         public static void Sort<T, TComparer>(this Span<T> span, TComparer comparer)
-            where TComparer : IComparer<T>
+            where TComparer : IComparer<T>?
         {
             if (span.Length > 1)
             {
-                // Span based Sort does not call `TrySZSort`, but instead
-                // uses the managed generic code only. This means Span based Sort 
-                // might differ in both performance and sorting for equal keys
-
-                // TODO: Add TComparer support until then value type comparers will be boxed
-                //       and performance will be affected
-                ArraySortHelper<T>.Default.Sort(span, 0, span.Length, comparer);
+                ArraySortHelper<T>.Default.Sort(span, comparer); // value-type comparer will be boxed
             }
         }
 
         /// <summary>
-        /// Sorts the elements in the entire <see cref="Span{T}" /> 
-        /// using the <see cref="Comparison{T}" />.
+        /// Sorts the elements in the entire <see cref="Span{T}" /> using the specified <see cref="Comparison{T}" />.
         /// </summary>
+        /// <typeparam name="T">The type of the elements of the span.</typeparam>
+        /// <param name="span">The <see cref="Span{T}"/> to sort.</param>
+        /// <param name="comparison">The <see cref="Comparison{T}"/> to use when comparing elements.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="comparison"/> is null.</exception>
         public static void Sort<T>(this Span<T> span, Comparison<T> comparison)
         {
             if (comparison == null)
@@ -1911,56 +1921,74 @@ namespace System
 
             if (span.Length > 1)
             {
-                ArraySortHelper<T>.Sort(span, 0, span.Length, comparison!); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
+                ArraySortHelper<T>.Sort(span, comparison);
             }
         }
 
         /// <summary>
-        /// Sorts a pair of spans 
-        /// (one contains the keys <see cref="Span{TKey}"/> 
-        /// and the other contains the corresponding items <see cref="Span{TValue}"/>) 
-        /// based on the keys in the first <see cref= "Span{TKey}" /> 
-        /// using the <see cref="IComparable" /> implementation of each 
-        /// element of the <see cref= "Span{TKey}"/>.
+        /// Sorts a pair of spans (one containing the keys and the other containing the corresponding items)
+        /// based on the keys in the first <see cref="Span{TKey}" /> using the <see cref="IComparable{T}" />
+        /// implementation of each key.
         /// </summary>
+        /// <typeparam name="TKey">The type of the elements of the key span.</typeparam>
+        /// <typeparam name="TValue">The type of the elements of the items span.</typeparam>
+        /// <param name="keys">The span that contains the keys to sort.</param>
+        /// <param name="items">The span that contains the items that correspond to the keys in <paramref name="keys"/>.</param>
+        /// <exception cref="ArgumentException">
+        /// The length of <paramref name="keys"/> isn't equal to the length of <paramref name="items"/>.
+        /// </exception>
+        /// <exception cref="InvalidOperationException">
+        /// One or more elements in <paramref name="keys"/> do not implement the <see cref="IComparable{T}" /> interface.
+        /// </exception>
         public static void Sort<TKey, TValue>(this Span<TKey> keys, Span<TValue> items) =>
-            Sort(keys, items, (IComparer<TKey>)null!);
+            Sort(keys, items, (IComparer<TKey>?)null);
 
         /// <summary>
-        /// Sorts a pair of spans 
-        /// (one contains the keys <see cref="Span{TKey}"/> 
-        /// and the other contains the corresponding items <see cref="Span{TValue}"/>) 
-        /// based on the keys in the first <see cref= "Span{TKey}" /> 
-        /// using the <typeparamref name="TComparer" />.
+        /// Sorts a pair of spans (one containing the keys and the other containing the corresponding items)
+        /// based on the keys in the first <see cref="Span{TKey}" /> using the specified comparer.
         /// </summary>
-        public static void Sort<TKey, TValue, TComparer>(this Span<TKey> keys,
-            Span<TValue> items, TComparer comparer)
-            where TComparer : IComparer<TKey>
+        /// <typeparam name="TKey">The type of the elements of the key span.</typeparam>
+        /// <typeparam name="TValue">The type of the elements of the items span.</typeparam>
+        /// <typeparam name="TComparer">The type of the comparer to use to compare elements.</typeparam>
+        /// <param name="keys">The span that contains the keys to sort.</param>
+        /// <param name="items">The span that contains the items that correspond to the keys in <paramref name="keys"/>.</param>
+        /// <param name="comparer">
+        /// The <see cref="IComparer{T}"/> implementation to use when comparing elements, or null to
+        /// use the <see cref="IComparable{T}"/> interface implementation of each element.
+        /// </param>
+        /// <exception cref="ArgumentException">
+        /// The length of <paramref name="keys"/> isn't equal to the length of <paramref name="items"/>.
+        /// </exception>
+        /// <exception cref="InvalidOperationException">
+        /// <paramref name="comparer"/> is null, and one or more elements in <paramref name="keys"/> do not
+        /// implement the <see cref="IComparable{T}" /> interface.
+        /// </exception>
+        public static void Sort<TKey, TValue, TComparer>(this Span<TKey> keys, Span<TValue> items, TComparer comparer)
+            where TComparer : IComparer<TKey>?
         {
             if (keys.Length != items.Length)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_SpansMustHaveSameLength);
 
             if (keys.Length > 1)
             {
-                // Span based Sort does not call `TrySZSort`, but instead
-                // uses the managed generic code only. This means Span based Sort 
-                // might differ in both performance and sorting for equal keys
-
-                // TODO: Add TComparer support until then value type comparers will be boxed
-                //       and performance will be affected
-                ArraySortHelper<TKey, TValue>.Default.Sort(keys, items, 0, keys.Length, comparer);
+                ArraySortHelper<TKey, TValue>.Default.Sort(keys, items, comparer); // value-type comparer will be boxed
             }
         }
 
         /// <summary>
-        /// Sorts a pair of spans 
-        /// (one contains the keys <see cref="Span{TKey}"/> 
-        /// and the other contains the corresponding items <see cref="Span{TValue}"/>) 
-        /// based on the keys in the first <see cref= "Span{TKey}" /> 
-        /// using the <see cref="Comparison{TKey}" />.
+        /// Sorts a pair of spans (one containing the keys and the other containing the corresponding items)
+        /// based on the keys in the first <see cref="Span{TKey}" /> using the specified comparison.
         /// </summary>
-        public static void Sort<TKey, TValue>(this Span<TKey> keys,
-           Span<TValue> items, Comparison<TKey> comparison)
+        /// <typeparam name="TKey">The type of the elements of the key span.</typeparam>
+        /// <typeparam name="TValue">The type of the elements of the items span.</typeparam>
+        /// <param name="keys">The span that contains the keys to sort.</param>
+        /// <param name="items">The span that contains the items that correspond to the keys in <paramref name="keys"/>.</param>
+        /// <param name="comparison">The <see cref="Comparison{T}"/> to use when comparing elements.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="comparison"/> is null.</exception>
+        /// <exception cref="ArgumentException">
+        /// The length of <paramref name="keys"/> isn't equal to the length of <paramref name="items"/>.
+        /// </exception>
+        public static void Sort<TKey, TValue>(this Span<TKey> keys, Span<TValue> items, Comparison<TKey> comparison)
         {
             if (comparison == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.comparison);
@@ -1969,10 +1997,7 @@ namespace System
 
             if (keys.Length > 1)
             {
-                // TODO: Add Comparison<T> overload that is not available in existing Sort code.
-                //       Hence Comparison<T> is wrapped in ComparisonComparer<T> for now.
-                var comparisonComparer = new ComparisonComparer<TKey>(comparison!); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
-                ArraySortHelper<TKey, TValue>.Default.Sort(keys, items, 0, keys.Length, comparisonComparer); 
+                ArraySortHelper<TKey, TValue>.Default.Sort(keys, items, new ComparisonComparer<TKey>(comparison));
             }
         }
     }
