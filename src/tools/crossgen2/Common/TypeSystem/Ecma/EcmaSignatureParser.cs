@@ -137,7 +137,7 @@ namespace Internal.TypeSystem.Ecma
                 case SignatureTypeCode.TypedReference:
                     return GetWellKnownType(WellKnownType.TypedReference);
                 case SignatureTypeCode.FunctionPointer:
-                    return _module.Context.GetFunctionPointerType(ParseMethodSignatureInternal());
+                    return _module.Context.GetFunctionPointerType(ParseMethodSignatureInternal(skipCustomModifier: true));
                 default:
                     throw new BadImageFormatException();
             }
@@ -231,7 +231,7 @@ namespace Internal.TypeSystem.Ecma
                 _indexStack = new Stack<Frame>();
                 _indexStack.Push(new Frame());
                 _customModifiers = new List<CustomModifier>();
-                return ParseMethodSignatureInternal();
+                return ParseMethodSignatureInternal(skipCustomModifier: false);
             }
             finally
             {
@@ -241,14 +241,14 @@ namespace Internal.TypeSystem.Ecma
 
         }
 
-        private MethodSignature ParseMethodSignatureInternal()
+        private MethodSignature ParseMethodSignatureInternal(bool skipCustomModifier)
         {
             if (_indexStack != null)
             {
                 _indexStack.Peek().index++;
                 _indexStack.Push(new Frame());
             }
-            MethodSignature result = ParseMethodSignatureImpl();
+            MethodSignature result = ParseMethodSignatureImpl(skipCustomModifier);
             if (_indexStack != null)
             {
                 _indexStack.Pop();
@@ -256,7 +256,7 @@ namespace Internal.TypeSystem.Ecma
             return result;
         }
 
-        public MethodSignature ParseMethodSignatureImpl()
+        public MethodSignature ParseMethodSignatureImpl(bool skipCustomModifier)
         {
             SignatureHeader header = _reader.ReadSignatureHeader();
 
@@ -298,7 +298,7 @@ namespace Internal.TypeSystem.Ecma
                 parameters = TypeDesc.EmptyTypes;
             }
 
-            CustomModifier[] customModifiersArray = (_customModifiers == null || _customModifiers.Count == 0) ? null : _customModifiers.ToArray();
+            CustomModifier[] customModifiersArray = (_customModifiers == null || _customModifiers.Count == 0 || skipCustomModifier) ? null : _customModifiers.ToArray();
 
             return new MethodSignature(flags, arity, returnType, parameters, customModifiersArray);
 
