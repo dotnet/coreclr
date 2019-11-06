@@ -1499,9 +1499,6 @@ namespace System
                         case TypeCode.Single:
                             if (TryGenericSort(keys as float[], items, index, length)) return;
                             break;
-                        case TypeCode.String:
-                            if (TryGenericSort(keys as string[], items, index, length)) return;
-                            break;
                         case TypeCode.UInt16:
                             if (TryGenericSort(keys as ushort[], items, index, length)) return;
                             break;
@@ -1551,9 +1548,6 @@ namespace System
                                     break;
                                 case TypeCode.Single:
                                     if (items is float[] floatItems) { Sort(keys, floatItems, index, length); return true; }
-                                    break;
-                                case TypeCode.String:
-                                    if (items is string[] stringItems) { Sort(keys, stringItems, index, length); return true; }
                                     break;
                                 case TypeCode.UInt16:
                                     if (items is ushort[] ushortItems) { Sort(keys, ushortItems, index, length); return true; }
