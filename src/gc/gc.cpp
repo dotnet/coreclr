@@ -21283,7 +21283,7 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
                 if (!hp->card_mark_done_loh)
                 {
                     dprintf(3, ("Marking cross generation pointers for large objects on heap %d", hp->heap_number));
-                    hp->mark_through_cards_for_large_objects(mark_object_fn, poh_generation, FALSE THIS_ARG);
+                    hp->mark_through_cards_for_large_objects(mark_object_fn, loh_generation, FALSE THIS_ARG);
 
 #ifdef ALLOW_REFERENCES_IN_POH
                     hp->mark_through_cards_for_large_objects (mark_object_fn, poh_generation, FALSE THIS_ARG);
