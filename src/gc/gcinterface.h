@@ -177,7 +177,6 @@ struct segment_info
 #define GC_PROFILING       //Turn on profiling
 #endif // PROFILING_SUPPORTED
 
-//TODO: VS, undo this. Lowered limit temporarily to test POH
 #define LARGE_OBJECT_SIZE ((size_t)(85000))
 
 // The minimum size of an object is three pointers wide: one for the syncblock,
@@ -794,8 +793,8 @@ public:
     Heap verification routines. These are used during heap verification only.
     ===========================================================================
     */
-    // Returns whether or not this object is in the fixed heap.
-    virtual bool IsObjectInFixedHeap(Object* pObj) = 0;
+    // Returns whether or not this object is too large for SOH.
+    virtual bool IsObjectIsLarge(Object* pObj) = 0;
 
     // Walks an object and validates its members.
     virtual void ValidateObjectMember(Object* obj) = 0;

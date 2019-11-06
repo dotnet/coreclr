@@ -495,7 +495,6 @@ void c_write (uint32_t& place, uint32_t value)
 #ifndef DACCESS_COMPILE
 
 // If every heap's gen2 or gen3 size is less than this threshold we will do a blocking GC.
-// TODO: VS reverse this to 4Mb. this is to trigger bg
 const size_t bgc_min_per_heap = 4*1024*1024;
 
 int gc_heap::gchist_index = 0;
@@ -23418,8 +23417,7 @@ void gc_heap::plan_phase (int condemned_gen_number)
                     dprintf(4, ("+%Ix+", (size_t)xl));
                     assert ((size (xl) > 0));
 
-                    //TODO: VS undo this (changed temporarily to test POH with reduced LOH limit)
-                    // assert ((size (xl) <= loh_size_threshold));
+                    assert ((size (xl) <= loh_size_threshold));
                     last_object_in_plug = xl;
 
                     xl = xl + Align (size (xl));
@@ -37264,7 +37262,7 @@ void GCHeap::Relocate (Object** ppObject, ScanContext* sc,
     STRESS_LOG_ROOT_RELOCATE(ppObject, object, pheader, ((!(flags & GC_CALL_INTERIOR)) ? ((Object*)object)->GetGCSafeMethodTable() : 0));
 }
 
-/*static*/ bool GCHeap::IsObjectInFixedHeap(Object *pObj)
+/*static*/ bool GCHeap::IsObjectIsLarge(Object *pObj)
 {
     // For now we simply look at the size of the object to determine if it in the
     // fixed heap or not. If the bit indicating this gets set at some point

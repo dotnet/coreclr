@@ -517,7 +517,6 @@ ASMCONSTANTS_C_ASSERT(OFFSET__TEB__ThreadLocalStoragePointer == offsetof(TEB, Th
 ASMCONSTANTS_RUNTIME_ASSERT(DELEGATE_FIELD_OFFSET__METHOD_AUX == Object::GetOffsetOfFirstField() +
         MscorlibBinder::GetFieldOffset(FIELD__DELEGATE__METHOD_PTR_AUX));
 
-//TODO: VS, undo this. Lowered limit temporarily to test POH
 #define ASM_LARGE_OBJECT_SIZE 85000
 ASMCONSTANTS_C_ASSERT(ASM_LARGE_OBJECT_SIZE == LARGE_OBJECT_SIZE);
 
