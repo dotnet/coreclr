@@ -16,6 +16,7 @@ using System.Diagnostics;
 using System.Diagnostics.Tracing;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
+using System.Runtime.InteropServices;
 using Internal.Runtime.CompilerServices;
 
 namespace System.Threading.Tasks
@@ -4701,7 +4702,7 @@ namespace System.Threading.Tasks
                 {
                     // Add any exceptions for this task to the collection, and if it's wait
                     // notification bit is set, store it to operate on at the end.
-                    foreach (Task task in waitedOnTaskList)
+                    foreach (Task task in CollectionsMarshal.AsSpan(waitedOnTaskList)) // Span acts as a smaller more efficent List enumerator
                     {
                         if (task.IsFaulted) exceptionSeen = true;
                         else if (task.IsCanceled) cancellationSeen = true;
@@ -4723,7 +4724,7 @@ namespace System.Threading.Tasks
                 // about the first one that requires it.  The debugger will reset the bit
                 // for any tasks we don't notify of as soon as we break, so we only need to notify
                 // for one.
-                foreach (Task task in notificationTasks)
+                foreach (Task task in CollectionsMarshal.AsSpan(notificationTasks)) // Span acts as a smaller more efficent List enumerator
                 {
                     if (task.NotifyDebuggerOfWaitCompletionIfNecessary()) break;
                 }
@@ -4773,7 +4774,7 @@ namespace System.Threading.Tasks
             var mres = new SetOnCountdownMres(tasks.Count);
             try
             {
-                foreach (Task task in tasks)
+                foreach (Task task in CollectionsMarshal.AsSpan(tasks)) // Span acts as a smaller more efficent List enumerator
                 {
                     task.AddCompletionAction(mres, addBeforeOthers: true);
                 }
@@ -4783,7 +4784,7 @@ namespace System.Threading.Tasks
             {
                 if (!waitCompleted)
                 {
-                    foreach (Task task in tasks)
+                    foreach (Task task in CollectionsMarshal.AsSpan(tasks)) // Span acts as a smaller more efficent List enumerator
                     {
                         if (!task.IsCompleted) task.RemoveContinuation(mres);
                     }
@@ -6134,7 +6135,7 @@ namespace System.Threading.Tasks
                 if (continuationObject is List<object?> continuationList)
                 {
                     List<Delegate> result = new List<Delegate>();
-                    foreach (object? obj in continuationList)
+                    foreach (object? obj in CollectionsMarshal.AsSpan(continuationList)) // Span acts as a smaller more efficent List enumerator
                     {
                         Delegate[]? innerDelegates = GetDelegatesFromContinuationObject(obj);
                         if (innerDelegates != null)
