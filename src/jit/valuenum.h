@@ -225,6 +225,9 @@ private:
     // MapSelect application.
     int m_mapSelectBudget;
 
+    template <typename T, typename NumMap>
+    inline ValueNum VnForConst(T cnsVal, NumMap* numMap, var_types varType);
+
 public:
     // Initializes any static variables of ValueNumStore.
     static void InitValueNumStoreStatics();
@@ -257,15 +260,11 @@ public:
 #endif // DEBUG
 
     // This block of methods gets value numbers for constants of primitive types.
-
     ValueNum VNForIntCon(INT32 cnsVal);
     ValueNum VNForLongCon(INT64 cnsVal);
     ValueNum VNForFloatCon(float cnsVal);
     ValueNum VNForDoubleCon(double cnsVal);
     ValueNum VNForByrefCon(size_t byrefVal);
-
-    template <typename T, typename NumMap>
-    inline ValueNum VnForConst(T cnsVal, NumMap* numMap, var_types varType);
 
 #ifdef _TARGET_64BIT_
     ValueNum VNForPtrSizeIntCon(INT64 cnsVal)
