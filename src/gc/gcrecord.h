@@ -14,7 +14,7 @@ Module Name:
 #define __gc_record_h__
 
 // We have 3 regular generations [0-2]
-// In addition we have LOH and POH which do not promote or condemn.
+// In addition we have LOH and POH which are logically Gen 2.
 // We pack the dynamic tuning for deciding which gen to condemn in a uint32_t.
 // We assume that 2 bits are enough to represent a generation that can be condemned.
 #define bits_generation 2

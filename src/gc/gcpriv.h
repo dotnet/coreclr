@@ -1701,7 +1701,7 @@ protected:
     void fix_allocation_context (alloc_context* acontext, BOOL for_gc_p,
                                  int align_const);
     PER_HEAP
-    void fix_large_allocation_area (BOOL for_gc_p);
+    void fix_ploh_allocation_area (BOOL for_gc_p);
     PER_HEAP
     void fix_older_allocation_area (generation* older_gen);
     PER_HEAP
@@ -1735,7 +1735,7 @@ protected:
     PER_HEAP_ISOLATED
     void seg_mapping_table_remove_segment (heap_segment* seg);
     PER_HEAP
-    heap_segment* get_large_segment (int gen_number, size_t size, BOOL* did_full_compact_gc);
+    heap_segment* get_ploh_segment (int gen_number, size_t size, BOOL* did_full_compact_gc);
     PER_HEAP
     void thread_ploh_segment (int gen_number, heap_segment* new_seg);
     PER_HEAP_ISOLATED

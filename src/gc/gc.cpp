@@ -5075,7 +5075,7 @@ void gc_heap::thread_ploh_segment (int gen_number, heap_segment* new_seg)
 }
 
 heap_segment*
-gc_heap::get_large_segment (int gen_number, size_t size, BOOL* did_full_compact_gc)
+gc_heap::get_ploh_segment (int gen_number, size_t size, BOOL* did_full_compact_gc)
 {
     *did_full_compact_gc = FALSE;
     size_t last_full_compact_gc_count = get_full_compact_gc_count();
@@ -5086,7 +5086,7 @@ gc_heap::get_large_segment (int gen_number, size_t size, BOOL* did_full_compact_
     enter_spin_lock (&gc_heap::gc_lock);
     dprintf (SPINLOCK_LOG, ("[%d]Seg: Egc", heap_number));
     // if a GC happened between here and before we ask for a segment in
-    // get_large_segment, we need to count that GC.
+    // get_ploh_segment, we need to count that GC.
     size_t current_full_compact_gc_count = get_full_compact_gc_count();
 
     if (current_full_compact_gc_count > last_full_compact_gc_count)
@@ -6452,7 +6452,7 @@ void gc_heap::fix_youngest_allocation_area (BOOL for_gc_p)
     heap_segment_allocated (ephemeral_heap_segment) = alloc_allocated;
 }
 
-void gc_heap::fix_large_allocation_area (BOOL for_gc_p)
+void gc_heap::fix_ploh_allocation_area (BOOL for_gc_p)
 {
     UNREFERENCED_PARAMETER(for_gc_p);
 
@@ -6587,7 +6587,7 @@ void gc_heap::fix_allocation_contexts (BOOL for_gc_p)
 
     GCToEEInterface::GcEnumAllocContexts(fix_alloc_context, &args);
     fix_youngest_allocation_area(for_gc_p);
-    fix_large_allocation_area(for_gc_p);
+    fix_ploh_allocation_area(for_gc_p);
 }
 
 void gc_heap::fix_older_allocation_area (generation* older_gen)
@@ -13580,7 +13580,7 @@ BOOL gc_heap::ploh_get_new_seg (int gen_number,
 
     size_t seg_size = get_ploh_seg_size (size);
 
-    heap_segment* new_seg = get_large_segment (gen_number, seg_size, did_full_compact_gc);
+    heap_segment* new_seg = get_ploh_segment (gen_number, seg_size, did_full_compact_gc);
 
     if (new_seg && gen_number == loh_generation)
     {
@@ -16104,7 +16104,7 @@ int gc_heap::generation_to_condemn (int n_initial,
 
         if (check_max_gen_alloc)
         {
-            //figure out if large objects need to be collected.
+            //figure out if non-soh objects need to be collected.
             if (get_new_allocation (loh_generation) <= 0 || get_new_allocation (poh_generation) <= 0)
             {
                 n = max_generation;
@@ -27097,9 +27097,9 @@ BOOL gc_heap::commit_mark_array_bgc_init (uint32_t* mark_array_addr)
     dprintf (GC_TABLE_LOG, ("BGC init commit: lowest: %Ix, highest: %Ix, mark_array: %Ix",
                             lowest_address, highest_address, mark_array));
 
-    for (int gen_num = max_generation; gen_num < total_generation_count; gen_num++)
+    for (int i = max_generation; i < total_generation_count; i++)
     {
-        generation* gen = generation_of(gen_num);
+        generation* gen = generation_of(i);
         heap_segment* seg = heap_segment_in_range(generation_start_segment(gen));
         while (seg)
         {
@@ -33016,9 +33016,9 @@ void gc_heap::trim_youngest_desired_low_memory()
     if (g_low_memory_status)
     {
         size_t committed_mem = 0;
-        for (int gn = max_generation; gn < total_generation_count; gn++)
+        for (int i = max_generation; i < total_generation_count; i++)
         {
-            heap_segment* seg = generation_start_segment(generation_of(gn));
+            heap_segment* seg = generation_start_segment(generation_of(i));
             while (seg)
             {
                 committed_mem += heap_segment_committed(seg) - heap_segment_mem(seg);
@@ -34500,7 +34500,7 @@ void gc_heap::background_sweep()
             {
                 if (gen->gen_num >= loh_generation)
                 {
-                    // we can treat all LOH segments as in the bgc domain
+                    // we can treat all PLOH segments as in the bgc domain
                     // regardless of whether we saw in bgc mark or not
                     // because we don't allow LOH allocations during bgc
                     // sweep anyway - the LOH segments can't change.
@@ -40277,7 +40277,7 @@ void checkGCWriteBarrier()
     }
 
     {
-        // go through large object heaps
+        // go through non-soh object heaps
         int alignment = get_alignment_constant(FALSE);
         for (int i = loh_generation; i <= poh_generation; i++)
         {
