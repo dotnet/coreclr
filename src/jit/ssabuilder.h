@@ -5,8 +5,6 @@
 #pragma once
 #pragma warning(disable : 4503) // 'identifier' : decorated name length exceeded, name was truncated
 
-#undef SSA_FEATURE_DOMARR
-
 #include "compiler.h"
 #include "ssarenamestate.h"
 
@@ -63,15 +61,6 @@ private:
     // order. Requires count to be the valid entries in the "postOrder" array. Computes
     // each block's immediate dominator and records it in the BasicBlock in bbIDom.
     void ComputeImmediateDom(BasicBlock** postOrder, int count);
-
-#ifdef SSA_FEATURE_DOMARR
-    // Requires "curBlock" to be the first basic block at the first step of the recursion.
-    // Requires "domTree" to be a adjacency list (actually, a set of blocks with a set of blocks
-    // as children.) Requires "preIndex" and "postIndex" to be initialized to 0 at entry into recursion.
-    // Computes arrays "m_pDomPreOrder" and "m_pDomPostOrder" of block indices such that the blocks of a
-    // "domTree" are in pre and postorder respectively.
-    void DomTreeWalk(BasicBlock* curBlock, BlkToBlkVectorMap* domTree, int* preIndex, int* postIndex);
-#endif
 
     // Requires all blocks to have computed "bbIDom." Requires "domTree" to be a preallocated BlkToBlkVectorMap.
     // Helper to compute "domTree" from the pre-computed bbIDom of the basic blocks.
@@ -141,11 +130,4 @@ private:
     BitVec       m_visited;
 
     SsaRenameState m_renameStack;
-
-#ifdef SSA_FEATURE_DOMARR
-    // To answer queries of type a DOM b.
-    // Do not move these outside of this class, use accessors/interface methods.
-    int* m_pDomPreOrder;
-    int* m_pDomPostOrder;
-#endif
 };

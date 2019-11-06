@@ -137,10 +137,6 @@ SsaBuilder::SsaBuilder(Compiler* pCompiler)
     , m_allocator(pCompiler->getAllocator(CMK_SSA))
     , m_visitedTraits(0, pCompiler) // at this point we do not know the size, SetupBBRoot can add a block
     , m_renameStack(m_allocator, pCompiler->lvaCount)
-#ifdef SSA_FEATURE_DOMARR
-    , m_pDomPreOrder(nullptr)
-    , m_pDomPostOrder(nullptr)
-#endif
 {
 }
 
@@ -322,44 +318,6 @@ void SsaBuilder::ComputeImmediateDom(BasicBlock** postOrder, int count)
     }
 }
 
-#ifdef SSA_FEATURE_DOMARR
-/**
- * Walk the DOM tree and compute pre and post-order arrangement of the tree.
- *
- * @param curBlock The current block being operated on at some recursive level.
- * @param domTree The DOM tree as a map (block -> set of child blocks.)
- * @param preIndex The initial index given to the first block visited in pre order.
- * @param postIndex The initial index given to the first block visited in post order.
- *
- * @remarks This would help us answer queries such as "a dom b?" in constant time.
- *          For example, if a dominated b, then Pre[a] < Pre[b] but Post[a] > Post[b]
- */
-void SsaBuilder::DomTreeWalk(BasicBlock* curBlock, BlkToBlkVectorMap* domTree, int* preIndex, int* postIndex)
-{
-    JITDUMP("[SsaBuilder::DomTreeWalk] block %s:\n", curBlock->dspToString());
-
-    // Store the order number at the block number in the pre order list.
-    m_pDomPreOrder[curBlock->bbNum] = *preIndex;
-    ++(*preIndex);
-
-    BlkVector* domChildren = domTree->LookupPointer(curBlock);
-    if (domChildren != nullptr)
-    {
-        for (BasicBlock* child : *domChildren)
-        {
-            if (curBlock != child)
-            {
-                DomTreeWalk(child, domTree, preIndex, postIndex);
-            }
-        }
-    }
-
-    // Store the order number at the block number in the post order list.
-    m_pDomPostOrder[curBlock->bbNum] = *postIndex;
-    ++(*postIndex);
-}
-#endif
-
 /**
  * Using IDom of each basic block, add a mapping from block->IDom -> block.
  * @param pCompiler Compiler instance
@@ -431,21 +389,6 @@ void SsaBuilder::ComputeDominators(BasicBlock** postOrder, int count, BlkToBlkVe
     }
 
     DBEXEC(m_pCompiler->verboseSsa, DisplayDominators(domTree));
-
-#ifdef SSA_FEATURE_DOMARR
-    // Allocate space for constant time computation of (a DOM b?) query.
-    unsigned bbArrSize = m_pCompiler->fgBBNumMax + 1; // We will use 1-based bbNums as indices into these arrays, so
-                                                      // add 1.
-    m_pDomPreOrder  = new (&m_allocator) int[bbArrSize];
-    m_pDomPostOrder = new (&m_allocator) int[bbArrSize];
-
-    // Initial counters.
-    int preIndex  = 0;
-    int postIndex = 0;
-
-    // Populate the pre and post order of the tree.
-    DomTreeWalk(m_pCompiler->fgFirstBB, domTree, &preIndex, &postIndex);
-#endif
 }
 
 #ifdef DEBUG
