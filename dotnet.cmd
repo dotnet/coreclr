@@ -18,7 +18,7 @@ set DOTNET_MULTILEVEL_LOOKUP=0
 set DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
 
 echo Installing dotnet using Arcade...
-set PS_DOTNET_INSTALL_SCRIPT=". %__RepoRootDir%eng\configure-toolset.ps1; . %__RepoRootDir%eng\common\tools.ps1; InitializeDotNetCli($true)"
+set PS_DOTNET_INSTALL_SCRIPT=". %__RepoRootDir%eng\common\tools.ps1; InitializeDotNetCli($true)"
 set "PS_COMMAND=powershell -NoProfile -ExecutionPolicy unrestricted -Command %PS_DOTNET_INSTALL_SCRIPT%"
 
 echo running: %PS_COMMAND%
