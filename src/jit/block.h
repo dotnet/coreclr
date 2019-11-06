@@ -378,7 +378,6 @@ struct BasicBlock : private LIR::Range
 
     unsigned bbNum; // the block's number
 
-    unsigned bbPostOrderNum; // the block's post order number in the graph.
     unsigned bbRefs; // number of blocks that can reach here, either by fall-through or a branch. If this falls to zero,
                      // the block is unreachable.
 
@@ -893,8 +892,8 @@ struct BasicBlock : private LIR::Range
     BlockSet    bbReach; // Set of all blocks that can reach this one
     BasicBlock* bbIDom;  // Represent the closest dominator to this block (called the Immediate
                          // Dominator) used to compute the dominance tree.
-    unsigned bbDfsNum;   // The index of this block in DFS reverse post order
-                         // relative to the flow graph.
+
+    unsigned bbPostOrderNum; // the block's post order number in the graph.
 
     IL_OFFSET bbCodeOffs;    // IL offset of the beginning of the block
     IL_OFFSET bbCodeOffsEnd; // IL offset past the end of the block. Thus, the [bbCodeOffs..bbCodeOffsEnd)

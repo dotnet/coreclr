@@ -2395,8 +2395,8 @@ void Compiler::fgDfsInvPostOrderHelper(BasicBlock* block, BlockSet& visited, uns
 
             unsigned invCount = fgBBcount - *count + 1;
             assert(1 <= invCount && invCount <= fgBBNumMax);
-            fgBBInvPostOrder[invCount] = currentBlock;
-            currentBlock->bbDfsNum     = invCount;
+            fgBBInvPostOrder[invCount]   = currentBlock;
+            currentBlock->bbPostOrderNum = invCount;
             ++(*count);
         }
     }
@@ -2439,13 +2439,13 @@ void Compiler::fgComputeDoms()
     flowList   flRoot;
     BasicBlock bbRoot;
 
-    bbRoot.bbPreds  = nullptr;
-    bbRoot.bbNum    = 0;
-    bbRoot.bbIDom   = &bbRoot;
-    bbRoot.bbDfsNum = 0;
-    bbRoot.bbFlags  = 0;
-    flRoot.flNext   = nullptr;
-    flRoot.flBlock  = &bbRoot;
+    bbRoot.bbPreds        = nullptr;
+    bbRoot.bbNum          = 0;
+    bbRoot.bbIDom         = &bbRoot;
+    bbRoot.bbPostOrderNum = 0;
+    bbRoot.bbFlags        = 0;
+    flRoot.flNext         = nullptr;
+    flRoot.flBlock        = &bbRoot;
 
     fgBBInvPostOrder[0] = &bbRoot;
 
@@ -2852,11 +2852,11 @@ BasicBlock* Compiler::fgIntersectDom(BasicBlock* a, BasicBlock* b)
     BasicBlock* finger2 = b;
     while (finger1 != finger2)
     {
-        while (finger1->bbDfsNum > finger2->bbDfsNum)
+        while (finger1->bbPostOrderNum > finger2->bbPostOrderNum)
         {
             finger1 = finger1->bbIDom;
         }
-        while (finger2->bbDfsNum > finger1->bbDfsNum)
+        while (finger2->bbPostOrderNum > finger1->bbPostOrderNum)
         {
             finger2 = finger2->bbIDom;
         }

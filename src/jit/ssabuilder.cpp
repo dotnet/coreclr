@@ -107,10 +107,6 @@ void Compiler::fgResetForSsa()
             }
         }
 
-        // Clear post-order numbers and SSA numbers; SSA construction will overwrite these,
-        // but only for reachable code, so clear them to avoid analysis getting confused
-        // by stale annotations in unreachable code.
-        blk->bbPostOrderNum = 0;
         for (Statement* stmt : blk->Statements())
         {
             for (GenTree* tree = stmt->GetTreeList(); tree != nullptr; tree = tree->gtNext)
@@ -237,13 +233,6 @@ int SsaBuilder::TopologicalSort(BasicBlock** postOrder, int count)
 void SsaBuilder::ComputeImmediateDom(BasicBlock** postOrder, int count)
 {
     JITDUMP("[SsaBuilder::ComputeImmediateDom]\n");
-
-    // TODO-Cleanup: We currently have two dominance computations happening.  We should unify them; for
-    // now, at least forget the results of the first.
-    for (BasicBlock* blk = m_pCompiler->fgFirstBB; blk != nullptr; blk = blk->bbNext)
-    {
-        blk->bbIDom = nullptr;
-    }
 
     // Add entry point to visited as its IDom is NULL.
     BitVecOps::ClearD(&m_visitedTraits, m_visited);
@@ -1652,6 +1641,14 @@ void SsaBuilder::Build()
 
     m_visitedTraits = BitVecTraits(blockCount, m_pCompiler);
     m_visited       = BitVecOps::MakeEmpty(&m_visitedTraits);
+
+    // TODO-Cleanup: We currently have two dominance computations happening.  We should unify them; for
+    // now, at least forget the results of the first.
+    for (BasicBlock* block = m_pCompiler->fgFirstBB; block != nullptr; block = block->bbNext)
+    {
+        block->bbIDom         = nullptr;
+        block->bbPostOrderNum = 0;
+    }
 
     // Topologically sort the graph.
     int count = TopologicalSort(postOrder, blockCount);
