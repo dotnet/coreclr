@@ -7,6 +7,8 @@ Author: Fadi Hanna - 2019
 
 Shared generics is a runtime+JIT feature aimed at reducing the amount of code the runtime generates for generic methods of various instantiations (supports methods on generic types and generic methods). The idea is that for certain instantiations, the generated code will almost be identical with the exception of a few instructions, so in order to reduce the memory footprint, and the amount of time we spend jitting these generic methods, the runtime will generate a single special canonical version of the code, which can be used by all compatible instantiations of the method.
 
+More information on the design can be found in the original MSR paper at https://www.microsoft.com/en-us/research/publication/design-and-implementation-of-generics-for-the-net-common-language-runtime.
+
 ### Canonical Codegen and Generic Dictionaries
 
 Consider the following C# code sample:
@@ -60,30 +62,30 @@ class AnotherDerivedClass : DerivedClass<string> { }
 
 The MethodTables of each of these types will look like the following:
 
-| **BaseClass[T]'s MethodTable** |
-|--------------------------|
-| ...      |
+| **BaseClass[T]'s MethodTable**                        |
+|-------------------------------------------------------|
+| ...                                                   |
 | `m_PerInstInfo`: points at dictionary table below     |
-| ...      |
-| `dictionaryTable[0]`: points at dictionary data below      |
-| `BaseClass's dictionary data here`  |
+| ...                                                   |
+| `dictionaryTable[0]`: points at dictionary data below |
+| `BaseClass's dictionary data here`                    |
 
-| **DerivedClass[U]'s MethodTable ** |
-|--------------------------|
-| ...      |
-| `m_PerInstInfo`: points at dictionary table below     |
-| ...      |
-| `dictionaryTable[0]`: points at dictionary data of `BaseClass`      |
-| `dictionaryTable[1]`: points at dictionary data below      |
-| `DerivedClass's dictionary data here`  |
+| **DerivedClass[U]'s MethodTable **                             |
+|----------------------------------------------------------------|
+| ...                                                            |
+| `m_PerInstInfo`: points at dictionary table below              |
+| ...                                                            |
+| `dictionaryTable[0]`: points at dictionary data of `BaseClass` |
+| `dictionaryTable[1]`: points at dictionary data below          |
+| `DerivedClass's dictionary data here`                          |
 
-| **AnotherDerivedClass's MethodTable** |
-|--------------------------|
-| ...      |
-| `m_PerInstInfo`: points at dictionary table below     |
-| ...      |
-| `dictionaryTable[0]`: points at dictionary data of `BaseClass`      |
-| `dictionaryTable[1]`: points at dictionary data of `DerivedClass`      |
+| **AnotherDerivedClass's MethodTable**                             |
+|-------------------------------------------------------------------|
+| ...                                                               |
+| `m_PerInstInfo`: points at dictionary table below                 |
+| ...                                                               |
+| `dictionaryTable[0]`: points at dictionary data of `BaseClass`    |
+| `dictionaryTable[1]`: points at dictionary data of `DerivedClass` |
 
 Note that `AnotherDerivedClass` doesn't have a dictionary of its own given that it is not a generic type, but inherits the dictionary pointers of its base types.
 
@@ -95,13 +97,13 @@ The first N slots in an instantiation of N arguments are always going to be the 
 
 For instance, here is an example of the contents of the generic dictionary for our `Func<string>` example:
 
-| `Func<string>'s dicionary` |
-|--------------------------|
-| slot[0]: TypeHandle(`string`)      |
-| slot[1]: Total dictionary size  |
+| `Func<string>'s dicionary`           |
+|--------------------------------------|
+| slot[0]: TypeHandle(`string`)        |
+| slot[1]: Total dictionary size       |
 | slot[2]: TypeHandle(`List<string>`)  |
-| slot[3]: NULL (not used)  |
-| slot[4]: NULL (not used)  |
+| slot[3]: NULL (not used)             |
+| slot[4]: NULL (not used)             |
 
 Note: the size slot is never used by generic code, and is part of the dynamic dictionary expansion feature. More on that below.
 
@@ -146,9 +148,9 @@ So what happens when the above algorithm runs, but no existing slot with the sam
 
 Before the dynamic dictionary expansion feature, dictionary layouts were organized into buckets (a linked list of fixed-size `DictionaryLayout` structures). The size of the initial layout bucket was always fixed to some number which was computed based on some heuristics for generic types, and always fixed to 4 slots for generic methods. The generic types and methods also had fixed-size generic dictionaries which could be used for lookups (also known as "fast lookup slots").
 
-When a bucket gets filled with entries, we would just allocate a new `DictionaryLayout` bucket, and add it to the list. The problem however is that we couldn't resize the generic dictionaries of types or methods, because they have already been allocated with a fixed size, and the JIT does not support generating instructions that could indirect into a linked-list of dictionaries. Given that limitation, we could only lookup a generic dictionary for a fixed number of values (the ones associated with the entries of the first `DictionaryLayout` bucket), and were forced to go through a slower runtime helper for additional lookups.
+When a bucket gets filled with entries, we would just allocate a new `DictionaryLayout` bucket, and add it to the list. The problem however is that we could not resize the generic dictionaries of types or methods, because they had already been allocated with a fixed size, and the JIT does not support generating instructions that could indirect into a linked-list of dictionaries. Given that limitation, we could only lookup a generic dictionary for a fixed number of values (the ones associated with the entries of the first `DictionaryLayout` bucket), and were forced to go through a slower runtime helper for additional lookups. This implementation design is from the time of fragile NGen images, and having expandable dictionary structures would have been very complicated.
 
-This was acceptable, until we introduced the [ReadyToRun](https://github.com/dotnet/coreclr/blob/master/Documentation/botr/readytorun-overview.md) and the Tiered Compilation technologies. Slots were getting assigned quickly when used by ReadyToRun code, and when the runtime decided re-jitted certain methods for better performance, it could not in some cases find any remaining "fast lookup slots", and was forced to generate code that goes through the slower runtime helpers. This ended up hurting performance in some scenarios, and a decision was made to not use the fast lookup slots for ReadyToRun code, and instead keep them reserved for re-jitted code. This decision however hurt the ReadyToRun performance, but it was a necessary compromise since we cared more about re-jitted code throughput over R2R throughput.
+When the [ReadyToRun](https://github.com/dotnet/coreclr/blob/master/Documentation/botr/readytorun-overview.md) and the Tiered Compilation technologies were introduced, some performance problems started to show. Dictionary slots were getting assigned quickly when used by ReadyToRun code, and when the runtime decided to re-jit certain methods for better performance, it could not in some cases find any remaining "fast lookup slots", and was forced to generate code that goes through the slower runtime helpers. This ended up hurting performance in some scenarios, and a decision was made to not use the fast lookup slots for ReadyToRun code, and instead keep them reserved for re-jitted code. This decision however hurt the ReadyToRun performance, but it was a necessary compromise since we cared more about re-jitted code throughput over R2R throughput.
 
 For this reason, the dynamic dictionary expansion feature was introduced.
 
@@ -157,9 +159,8 @@ For this reason, the dynamic dictionary expansion feature was introduced.
 The feature is simple in concept: change dictionary layouts from a linked list of buckets into dynamically expandable arrays instead. Sounds simple, but great care had to be taken when impementing it, because:
 - We can't just resize `DictionaryLayout` structures alone. If the size of the layout is larger than the size of the actual generic dictionary, this would cause the JIT to generate indirection instructions that do not match the size of the dictionary data, leading to access violations.
 - We can't just resize generic dictionaries on types and methods:
-    - For types, the generic dictionary is part of the `MethodTable` structure, which can't be reallocated (already in use by managed code)
-    - For methods, the generic dictionary is not part of the `MethodDesc` structure, but can still be in use by some generic code.
-    - We can't have multiple MethodTables or MethodDescs for the same type or method anyways, so reallocations are not an option.
+    - They were already allocated with a fixed number of slots, and cannot be resized in place.
+    - They can be in use by some generic code.
 - We can't just resize the generic dictionary for a single instantiation. For instance, in our example above, let's say we wanted to expand the dictionary for `Func<string>`. The resizing of the layout would have an impact on the shared canonical code that the JIT generates for `Func<__Canon>`. If we only resized the dictionary of `Func<string>`, the shared generic code would work for that instantiation only, but when we attempt to use it with another instantiation like `Func<object>`, the jitted instructions would no longer match the size of the dictionary structure, and would cause access violations.
 - The runtime is multithreaded, which adds to the complexity.
 
