@@ -18,8 +18,7 @@ export DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
 echo "Running init-dotnet.sh"
 source $working_tree_root/init-dotnet.sh
 
-${_InitializeDotNetCli}/dotnet
-dotnetPath=${__RepoRootDir}/.dotnet/dotnet
+dotnetPath=${_InitializeDotNetCli}/dotnet
 
 echo "Running: ${dotnetPath} $@"
 ${dotnetPath} "$@"
