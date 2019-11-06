@@ -21,8 +21,8 @@
     <MicrosoftDotNetVersionToolsTasksVersion>5.0.0-beta.19554.3</MicrosoftDotNetVersionToolsTasksVersion>
     <MicrosoftDotNetHelixSdkVersion>5.0.0-beta.19554.3</MicrosoftDotNetHelixSdkVersion>
     <!-- corefx -->
-    <MicrosoftPrivateCoreFxNETCoreAppVersion>5.0.0-alpha.1.19554.10</MicrosoftPrivateCoreFxNETCoreAppVersion>
-    <MicrosoftNETCorePlatformsVersion>5.0.0-alpha.1.19554.10</MicrosoftNETCorePlatformsVersion>
+    <MicrosoftPrivateCoreFxNETCoreAppVersion>5.0.0-alpha.1.19555.8</MicrosoftPrivateCoreFxNETCoreAppVersion>
+    <MicrosoftNETCorePlatformsVersion>5.0.0-alpha.1.19555.8</MicrosoftNETCorePlatformsVersion>
     <!-- core-setup -->
     <MicrosoftNETCoreAppVersion>5.0.0-alpha.1.19554.7</MicrosoftNETCoreAppVersion>
     <!-- dotnet-optimization -->
