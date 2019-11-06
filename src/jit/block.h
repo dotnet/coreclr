@@ -1335,20 +1335,6 @@ struct DfsBlockEntry
     }
 };
 
-struct DfsNumEntry
-{
-    DfsStackState dfsStackState; // The pre/post traversal action for this entry
-    unsigned      dfsNum;        // The corresponding block number for the action
-
-    DfsNumEntry() : dfsStackState(DSS_Invalid), dfsNum(0)
-    {
-    }
-
-    DfsNumEntry(DfsStackState state, unsigned bbNum) : dfsStackState(state), dfsNum(bbNum)
-    {
-    }
-};
-
 /*****************************************************************************
  *
  *  The following call-backs supplied by the client; it's used by the code
@@ -1448,6 +1434,14 @@ public:
         m_pos.Advance(comp, m_block);
         return succ;
     }
+};
+
+// Simple dominator tree node that keeps track of a node's first child and next sibling.
+// The parent is provided by BasicBlock::bbIDom.
+struct DomTreeNode
+{
+    BasicBlock* firstChild;
+    BasicBlock* nextSibling;
 };
 
 /*****************************************************************************/
