@@ -1673,7 +1673,6 @@ CorUnix::InternalSetThreadDescription(
     if (error != 0) 
     {
         palError = ERROR_INTERNAL_ERROR;
-        goto InternalSetThreadDescriptionExit;
     }
 
 InternalSetThreadDescriptionExit:
