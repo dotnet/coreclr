@@ -1678,7 +1678,7 @@ ValueNum ValueNumStore::VNForByrefCon(size_t cnsVal)
         Chunk*   c                                             = GetAllocChunk(TYP_BYREF, CEA_Const);
         unsigned offsetWithinChunk                             = c->AllocVN();
         res                                                    = c->m_baseVN + offsetWithinChunk;
-        reinterpret_cast<INT64*>(c->m_defs)[offsetWithinChunk] = cnsVal;
+        reinterpret_cast<size_t*>(c->m_defs)[offsetWithinChunk] = cnsVal;
         GetByrefCnsMap()->Set(cnsVal, res);
         return res;
     }
