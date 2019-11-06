@@ -29,7 +29,7 @@ namespace ILCompiler.DependencyAnalysis
         //
         // Relocations for R2R image production
         //
-        IMAGE_REL_SYMBOL_SIZE = 0x1000,             // The size of data in the image representated by the target symbol node
+        IMAGE_REL_SYMBOL_SIZE = 0x1000,             // The size of data in the image represented by the target symbol node
     }
 
     public struct Relocation
