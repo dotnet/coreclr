@@ -191,14 +191,14 @@ namespace System.IO
 
         public virtual void CopyTo(ReadOnlySpanAction<byte, object?> callback, object? state, int bufferSize)
         {
-            if (callback == null) throw new NotSupportedException();
+            if (callback == null) throw new ArgumentNullException(nameof(callback));
 
             CopyTo(new WriteCallbackStream(callback, state), bufferSize);
         }
 
         public virtual Task CopyToAsync(Func<ReadOnlyMemory<byte>, object?, CancellationToken, ValueTask> callback, object? state, int bufferSize, CancellationToken cancellationToken)
         {
-            if (callback == null) throw new NotSupportedException();
+            if (callback == null) throw new ArgumentNullException(nameof(callback));
 
             return CopyToAsync(new WriteCallbackStream(callback, state), bufferSize, cancellationToken);
         }
@@ -947,6 +947,22 @@ namespace System.IO
                 // Validate arguments here for compat, since previously this method
                 // was inherited from Stream (which did check its arguments).
                 StreamHelpers.ValidateCopyToArgs(this, destination, bufferSize);
+
+                return cancellationToken.IsCancellationRequested ?
+                    Task.FromCanceled(cancellationToken) :
+                    Task.CompletedTask;
+            }
+
+            public override void CopyTo(ReadOnlySpanAction<byte, object?> callback, object? state, int bufferSize)
+            {
+                StreamHelpers.ValidateCopyToArgs(this, callback, bufferSize);
+
+                // After we validate arguments this is a nop.
+            }
+
+            public override Task CopyToAsync(Func<ReadOnlyMemory<byte>, object?, CancellationToken, ValueTask> callback, object? state, int bufferSize, CancellationToken cancellationToken)
+            {
+                StreamHelpers.ValidateCopyToArgs(this, callback, bufferSize);
 
                 return cancellationToken.IsCancellationRequested ?
                     Task.FromCanceled(cancellationToken) :
