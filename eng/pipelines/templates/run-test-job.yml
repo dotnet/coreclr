@@ -364,7 +364,7 @@ jobs:
         ${{ if in(parameters.testGroup, 'gc-longrunning') }}:
           longRunningGcTests: true
           scenarios:
-          - normal
+          - gcServer
         ${{ if in(parameters.testGroup, 'gc-simulator') }}:
           gcSimulatorTests: true
           scenarios:
