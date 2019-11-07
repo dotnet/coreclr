@@ -478,6 +478,9 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern CorElementType GetCorElementTypeOfElementType();
 
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        private extern bool IsValueOfElementType(object value);
+
         // if this is an array of value classes and that value class has a default constructor
         // then this calls this default constructor on every element in the value class array.
         // otherwise this is a no-op.  Generally this method is called automatically by the compiler

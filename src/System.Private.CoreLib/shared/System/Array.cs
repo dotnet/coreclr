@@ -508,66 +508,62 @@ namespace System
 
             if (comparer == Comparer.Default)
             {
-                int result;
-                switch (array.GetCorElementTypeOfElementType())
+                CorElementType et = array.GetCorElementTypeOfElementType();
+                if (et.IsPrimitiveType()
+                    // IntPtr/UIntPtr does not implement IComparable
+                    && (et != CorElementType.ELEMENT_TYPE_I) && (et != CorElementType.ELEMENT_TYPE_U))
                 {
-                    case CorElementType.ELEMENT_TYPE_BOOLEAN:
-                        if (TryGenericBinarySearch<bool>(array, index, length, value, out result)) return result;
-                        break;
-                    case CorElementType.ELEMENT_TYPE_U1:
-                        if (TryGenericBinarySearch<byte>(array, index, length, value, out result)) return result;
-                        break;
-                    case CorElementType.ELEMENT_TYPE_CHAR:
-                        if (TryGenericBinarySearch<char>(array, index, length, value, out result)) return result;
-                        break;
-                    case CorElementType.ELEMENT_TYPE_R8:
-                        if (TryGenericBinarySearch<double>(array, index, length, value, out result)) return result;
-                        break;
-                    case CorElementType.ELEMENT_TYPE_I2:
-                        if (TryGenericBinarySearch<short>(array, index, length, value, out result)) return result;
-                        break;
-                    case CorElementType.ELEMENT_TYPE_I4:
-                        if (TryGenericBinarySearch<int>(array, index, length, value, out result)) return result;
-                        break;
-                    case CorElementType.ELEMENT_TYPE_I8:
-                        if (TryGenericBinarySearch<long>(array, index, length, value, out result)) return result;
-                        break;
-                    case CorElementType.ELEMENT_TYPE_I1:
-                        if (TryGenericBinarySearch<sbyte>(array, index, length, value, out result)) return result;
-                        break;
-                    case CorElementType.ELEMENT_TYPE_R4:
-                        if (TryGenericBinarySearch<float>(array, index, length, value, out result)) return result;
-                        break;
-                    case CorElementType.ELEMENT_TYPE_U2:
-                        if (TryGenericBinarySearch<ushort>(array, index, length, value, out result)) return result;
-                        break;
-                    case CorElementType.ELEMENT_TYPE_U4:
-                        if (TryGenericBinarySearch<uint>(array, index, length, value, out result)) return result;
-                        break;
-                    case CorElementType.ELEMENT_TYPE_U8:
-                        if (TryGenericBinarySearch<ulong>(array, index, length, value, out result)) return result;
-                        break;
-                }
+                    if (value == null)
+                        return ~index;
 
-                static bool TryGenericBinarySearch<T>(Array array, int index, int length, object? value, out int result) where T : struct
-                {
-                    if (array is T[] arrayOfT)
+                    if (array.IsValueOfElementType(value))
                     {
-                        if (value is null)
+                        int adjustedIndex = index - lb;
+                        int result = -1;
+                        switch (et)
                         {
-                            result = -1;
-                            return true;
+                            case CorElementType.ELEMENT_TYPE_I1:
+                                result = GenericBinarySearch<sbyte>(array, adjustedIndex, length, value);
+                                break;
+                            case CorElementType.ELEMENT_TYPE_U1:
+                            case CorElementType.ELEMENT_TYPE_BOOLEAN:
+                                result = GenericBinarySearch<byte>(array, adjustedIndex, length, value);
+                                break;
+                            case CorElementType.ELEMENT_TYPE_I2:
+                                result = GenericBinarySearch<short>(array, adjustedIndex, length, value);
+                                break;
+                            case CorElementType.ELEMENT_TYPE_U2:
+                            case CorElementType.ELEMENT_TYPE_CHAR:
+                                result = GenericBinarySearch<ushort>(array, adjustedIndex, length, value);
+                                break;
+                            case CorElementType.ELEMENT_TYPE_I4:
+                                result = GenericBinarySearch<int>(array, adjustedIndex, length, value);
+                                break;
+                            case CorElementType.ELEMENT_TYPE_U4:
+                                result = GenericBinarySearch<uint>(array, adjustedIndex, length, value);
+                                break;
+                            case CorElementType.ELEMENT_TYPE_I8:
+                                result = GenericBinarySearch<long>(array, adjustedIndex, length, value);
+                                break;
+                            case CorElementType.ELEMENT_TYPE_U8:
+                                result = GenericBinarySearch<ulong>(array, adjustedIndex, length, value);
+                                break;
+                            case CorElementType.ELEMENT_TYPE_R4:
+                                result = GenericBinarySearch<float>(array, adjustedIndex, length, value);
+                                break;
+                            case CorElementType.ELEMENT_TYPE_R8:
+                                result = GenericBinarySearch<double>(array, adjustedIndex, length, value);
+                                break;
+                            default:
+                                Debug.Fail("All primitive types should be handled above");
+                                break;
                         }
 
-                        if (value is T valueOfT)
-                        {
-                            result = BinarySearch<T>(arrayOfT, index, length, valueOfT);
-                            return true;
-                        }
+                        return (result >= 0) ? (index + result) : ~(index + ~result);
+
+                        static int GenericBinarySearch<T>(Array array, int adjustedIndex, int length, object value) where T: struct, IComparable<T>
+                            => UnsafeArrayAsSpan<T>(array, adjustedIndex, length).BinarySearch(Unsafe.As<byte, T>(ref value.GetRawData()));
                     }
-
-                    result = default;
-                    return false;
                 }
             }
 
@@ -1000,72 +996,60 @@ namespace System
                 return -1;
             }
 
-            int result;
-            switch (array.GetCorElementTypeOfElementType())
+            CorElementType et = array.GetCorElementTypeOfElementType();
+            if (et.IsPrimitiveType())
             {
-                case CorElementType.ELEMENT_TYPE_BOOLEAN:
-                    if (TryGenericIndexOf<bool>(array, value, startIndex, count, out result)) return result;
-                    break;
-                case CorElementType.ELEMENT_TYPE_U1:
-                    if (TryGenericIndexOf<byte>(array, value, startIndex, count, out result)) return result;
-                    break;
-                case CorElementType.ELEMENT_TYPE_CHAR:
-                    if (TryGenericIndexOf<char>(array, value, startIndex, count, out result)) return result;
-                    break;
-                case CorElementType.ELEMENT_TYPE_R8:
-                    if (TryGenericIndexOf<double>(array, value, startIndex, count, out result)) return result;
-                    break;
-                case CorElementType.ELEMENT_TYPE_I2:
-                    if (TryGenericIndexOf<short>(array, value, startIndex, count, out result)) return result;
-                    break;
-                case CorElementType.ELEMENT_TYPE_I4:
-                    if (TryGenericIndexOf<int>(array, value, startIndex, count, out result)) return result;
-                    break;
-                case CorElementType.ELEMENT_TYPE_I8:
-                    if (TryGenericIndexOf<long>(array, value, startIndex, count, out result)) return result;
-                    break;
-                case CorElementType.ELEMENT_TYPE_I1:
-                    if (TryGenericIndexOf<sbyte>(array, value, startIndex, count, out result)) return result;
-                    break;
-                case CorElementType.ELEMENT_TYPE_R4:
-                    if (TryGenericIndexOf<float>(array, value, startIndex, count, out result)) return result;
-                    break;
-                case CorElementType.ELEMENT_TYPE_U2:
-                    if (TryGenericIndexOf<ushort>(array, value, startIndex, count, out result)) return result;
-                    break;
-                case CorElementType.ELEMENT_TYPE_U4:
-                    if (TryGenericIndexOf<uint>(array, value, startIndex, count, out result)) return result;
-                    break;
-                case CorElementType.ELEMENT_TYPE_U8:
-                    if (TryGenericIndexOf<ulong>(array, value, startIndex, count, out result)) return result;
-                    break;
-                case CorElementType.ELEMENT_TYPE_I:
-                    if (TryGenericIndexOf<IntPtr>(array, value, startIndex, count, out result)) return result;
-                    break;
-                case CorElementType.ELEMENT_TYPE_U:
-                    if (TryGenericIndexOf<UIntPtr>(array, value, startIndex, count, out result)) return result;
-                    break;
-            }
+                if (value == null)
+                    return lb - 1;
 
-            static bool TryGenericIndexOf<T>(Array array, object? value, int startIndex, int count, out int result) where T: struct
-            {
-                if (array is T[] arrayOfT)
+                if (array.IsValueOfElementType(value))
                 {
-                    if (value is null)
+                    int adjustedIndex = startIndex - lb;
+                    int result = -1;
+                    switch (et)
                     {
-                        result = -1;
-                        return true;
+                        case CorElementType.ELEMENT_TYPE_I1:
+                        case CorElementType.ELEMENT_TYPE_U1:
+                        case CorElementType.ELEMENT_TYPE_BOOLEAN:
+                            result = GenericIndexOf<byte>(array, value, adjustedIndex, count);
+                            break;
+                        case CorElementType.ELEMENT_TYPE_I2:
+                        case CorElementType.ELEMENT_TYPE_U2:
+                        case CorElementType.ELEMENT_TYPE_CHAR:
+                            result = GenericIndexOf<char>(array, value, adjustedIndex, count);
+                            break;
+                        case CorElementType.ELEMENT_TYPE_I4:
+                        case CorElementType.ELEMENT_TYPE_U4:
+#if !BIT64
+                        case CorElementType.ELEMENT_TYPE_I:
+                        case CorElementType.ELEMENT_TYPE_U:
+#endif
+                            result = GenericIndexOf<int>(array, value, adjustedIndex, count);
+                            break;
+                        case CorElementType.ELEMENT_TYPE_I8:
+                        case CorElementType.ELEMENT_TYPE_U8:
+#if BIT64
+                        case CorElementType.ELEMENT_TYPE_I:
+                        case CorElementType.ELEMENT_TYPE_U:
+#endif
+                            result = GenericIndexOf<long>(array, value, adjustedIndex, count);
+                            break;
+                        case CorElementType.ELEMENT_TYPE_R4:
+                            result = GenericIndexOf<float>(array, value, adjustedIndex, count);
+                            break;
+                        case CorElementType.ELEMENT_TYPE_R8:
+                            result = GenericIndexOf<double>(array, value, adjustedIndex, count);
+                            break;
+                        default:
+                            Debug.Fail("All primitive types should be handled above");
+                            break;
                     }
 
-                    if (value is T valueOfT)
-                    {
-                        result = IndexOf<T>(arrayOfT, valueOfT, startIndex, count);
-                        return true;
-                    }
+                    return (result >= 0 ? startIndex : lb) + result;
+
+                    static int GenericIndexOf<T>(Array array, object value, int adjustedIndex, int length) where T : struct, IEquatable<T>
+                        => UnsafeArrayAsSpan<T>(array, adjustedIndex, length).IndexOf(Unsafe.As<byte, T>(ref value.GetRawData()));
                 }
-
-                result = default;
-                return false;
             }
 
             for (int i = startIndex; i < endIndex; i++)
@@ -1242,72 +1226,60 @@ namespace System
                 return -1;
             }
 
-            int result;
-            switch (array.GetCorElementTypeOfElementType())
+            CorElementType et = array.GetCorElementTypeOfElementType();
+            if (et.IsPrimitiveType())
             {
-                case CorElementType.ELEMENT_TYPE_BOOLEAN:
-                    if (TryGenericLastIndexOf<bool>(array, value, startIndex, count, out result)) return result;
-                    break;
-                case CorElementType.ELEMENT_TYPE_U1:
-                    if (TryGenericLastIndexOf<byte>(array, value, startIndex, count, out result)) return result;
-                    break;
-                case CorElementType.ELEMENT_TYPE_CHAR:
-                    if (TryGenericLastIndexOf<char>(array, value, startIndex, count, out result)) return result;
-                    break;
-                case CorElementType.ELEMENT_TYPE_R8:
-                    if (TryGenericLastIndexOf<double>(array, value, startIndex, count, out result)) return result;
-                    break;
-                case CorElementType.ELEMENT_TYPE_I2:
-                    if (TryGenericLastIndexOf<short>(array, value, startIndex, count, out result)) return result;
-                    break;
-                case CorElementType.ELEMENT_TYPE_I4:
-                    if (TryGenericLastIndexOf<int>(array, value, startIndex, count, out result)) return result;
-                    break;
-                case CorElementType.ELEMENT_TYPE_I8:
-                    if (TryGenericLastIndexOf<long>(array, value, startIndex, count, out result)) return result;
-                    break;
-                case CorElementType.ELEMENT_TYPE_I1:
-                    if (TryGenericLastIndexOf<sbyte>(array, value, startIndex, count, out result)) return result;
-                    break;
-                case CorElementType.ELEMENT_TYPE_R4:
-                    if (TryGenericLastIndexOf<float>(array, value, startIndex, count, out result)) return result;
-                    break;
-                case CorElementType.ELEMENT_TYPE_U2:
-                    if (TryGenericLastIndexOf<ushort>(array, value, startIndex, count, out result)) return result;
-                    break;
-                case CorElementType.ELEMENT_TYPE_U4:
-                    if (TryGenericLastIndexOf<uint>(array, value, startIndex, count, out result)) return result;
-                    break;
-                case CorElementType.ELEMENT_TYPE_U8:
-                    if (TryGenericLastIndexOf<ulong>(array, value, startIndex, count, out result)) return result;
-                    break;
-                case CorElementType.ELEMENT_TYPE_I:
-                    if (TryGenericLastIndexOf<IntPtr>(array, value, startIndex, count, out result)) return result;
-                    break;
-                case CorElementType.ELEMENT_TYPE_U:
-                    if (TryGenericLastIndexOf<UIntPtr>(array, value, startIndex, count, out result)) return result;
-                    break;
-            }
+                if (value == null)
+                    return lb - 1;
 
-            static bool TryGenericLastIndexOf<T>(Array array, object? value, int startIndex, int count, out int result) where T : struct
-            {
-                if (array is T[] arrayOfT)
+                if (array.IsValueOfElementType(value))
                 {
-                    if (value is null)
+                    int adjustedIndex = endIndex - lb;
+                    int result = -1;
+                    switch (et)
                     {
-                        result = -1;
-                        return true;
+                        case CorElementType.ELEMENT_TYPE_I1:
+                        case CorElementType.ELEMENT_TYPE_U1:
+                        case CorElementType.ELEMENT_TYPE_BOOLEAN:
+                            result = GenericLastIndexOf<byte>(array, value, adjustedIndex, count);
+                            break;
+                        case CorElementType.ELEMENT_TYPE_I2:
+                        case CorElementType.ELEMENT_TYPE_U2:
+                        case CorElementType.ELEMENT_TYPE_CHAR:
+                            result = GenericLastIndexOf<char>(array, value, adjustedIndex, count);
+                            break;
+                        case CorElementType.ELEMENT_TYPE_I4:
+                        case CorElementType.ELEMENT_TYPE_U4:
+#if !BIT64
+                        case CorElementType.ELEMENT_TYPE_I:
+                        case CorElementType.ELEMENT_TYPE_U:
+#endif
+                            result = GenericLastIndexOf<int>(array, value, adjustedIndex, count);
+                            break;
+                        case CorElementType.ELEMENT_TYPE_I8:
+                        case CorElementType.ELEMENT_TYPE_U8:
+#if BIT64
+                        case CorElementType.ELEMENT_TYPE_I:
+                        case CorElementType.ELEMENT_TYPE_U:
+#endif
+                            result = GenericLastIndexOf<long>(array, value, adjustedIndex, count);
+                            break;
+                        case CorElementType.ELEMENT_TYPE_R4:
+                            result = GenericLastIndexOf<float>(array, value, adjustedIndex, count);
+                            break;
+                        case CorElementType.ELEMENT_TYPE_R8:
+                            result = GenericLastIndexOf<double>(array, value, adjustedIndex, count);
+                            break;
+                        default:
+                            Debug.Fail("All primitive types should be handled above");
+                            break;
                     }
 
-                    if (value is T valueOfT)
-                    {
-                        result = LastIndexOf<T>(arrayOfT, valueOfT, startIndex, count);
-                        return true;
-                    }
+                    return (result >= 0 ? endIndex : lb) + result;
+
+                    static int GenericLastIndexOf<T>(Array array, object value, int adjustedIndex, int length) where T : struct, IEquatable<T>
+                        => UnsafeArrayAsSpan<T>(array, adjustedIndex, length).LastIndexOf(Unsafe.As<byte, T>(ref value.GetRawData()));
                 }
-
-                result = default;
-                return false;
             }
 
             for (int i = startIndex; i >= endIndex; i--)
@@ -1475,32 +1447,32 @@ namespace System
             int adjustedIndex = index - lowerBound;
             switch (array.GetCorElementTypeOfElementType())
             {
-                case CorElementType.ELEMENT_TYPE_BOOLEAN:
-                case CorElementType.ELEMENT_TYPE_U1:
                 case CorElementType.ELEMENT_TYPE_I1:
+                case CorElementType.ELEMENT_TYPE_U1:
+                case CorElementType.ELEMENT_TYPE_BOOLEAN:
                     UnsafeArrayAsSpan<byte>(array, adjustedIndex, length).Reverse();
                     return;
-                case CorElementType.ELEMENT_TYPE_CHAR:
                 case CorElementType.ELEMENT_TYPE_I2:
                 case CorElementType.ELEMENT_TYPE_U2:
+                case CorElementType.ELEMENT_TYPE_CHAR:
                     UnsafeArrayAsSpan<short>(array, adjustedIndex, length).Reverse();
                     return;
                 case CorElementType.ELEMENT_TYPE_I4:
                 case CorElementType.ELEMENT_TYPE_U4:
-                case CorElementType.ELEMENT_TYPE_R4:
 #if !BIT64
                 case CorElementType.ELEMENT_TYPE_I:
                 case CorElementType.ELEMENT_TYPE_U:
 #endif
+                case CorElementType.ELEMENT_TYPE_R4:
                     UnsafeArrayAsSpan<int>(array, adjustedIndex, length).Reverse();
                     return;
                 case CorElementType.ELEMENT_TYPE_I8:
                 case CorElementType.ELEMENT_TYPE_U8:
-                case CorElementType.ELEMENT_TYPE_R8:
 #if BIT64
                 case CorElementType.ELEMENT_TYPE_I:
                 case CorElementType.ELEMENT_TYPE_U:
 #endif
+                case CorElementType.ELEMENT_TYPE_R8:
                     UnsafeArrayAsSpan<long>(array, adjustedIndex, length).Reverse();
                     return;
                 case CorElementType.ELEMENT_TYPE_OBJECT:
@@ -1686,41 +1658,45 @@ namespace System
                     int adjustedIndex = index - keysLowerBound;
                     switch (et)
                     {
-                        case CorElementType.ELEMENT_TYPE_BOOLEAN:
-                        case CorElementType.ELEMENT_TYPE_U1:
-                            GenericSort<byte>(keys, items, adjustedIndex, length);
-                            break;
-                        case CorElementType.ELEMENT_TYPE_R8:
-                            GenericSort<double>(keys, items, adjustedIndex, length);
-                            break;
-                        case CorElementType.ELEMENT_TYPE_I2:
-                            GenericSort<short>(keys, items, adjustedIndex, length);
-                            break;
-                        case CorElementType.ELEMENT_TYPE_I4:
-                            GenericSort<int>(keys, items, adjustedIndex, length);
-                            break;
-                        case CorElementType.ELEMENT_TYPE_I8:
-                            GenericSort<long>(keys, items, adjustedIndex, length);
-                            break;
                         case CorElementType.ELEMENT_TYPE_I1:
                             GenericSort<sbyte>(keys, items, adjustedIndex, length);
-                            break;
-                        case CorElementType.ELEMENT_TYPE_R4:
-                            GenericSort<float>(keys, items, adjustedIndex, length);
-                            break;
+                            return;
+                        case CorElementType.ELEMENT_TYPE_U1:
+                        case CorElementType.ELEMENT_TYPE_BOOLEAN:
+                            GenericSort<byte>(keys, items, adjustedIndex, length);
+                            return;
+                        case CorElementType.ELEMENT_TYPE_I2:
+                            GenericSort<short>(keys, items, adjustedIndex, length);
+                            return;
                         case CorElementType.ELEMENT_TYPE_U2:
                         case CorElementType.ELEMENT_TYPE_CHAR:
                             GenericSort<ushort>(keys, items, adjustedIndex, length);
-                            break;
+                            return;
+                        case CorElementType.ELEMENT_TYPE_I4:
+                            GenericSort<int>(keys, items, adjustedIndex, length);
+                            return;
                         case CorElementType.ELEMENT_TYPE_U4:
                             GenericSort<uint>(keys, items, adjustedIndex, length);
-                            break;
+                            return;
+                        case CorElementType.ELEMENT_TYPE_I8:
+                            GenericSort<long>(keys, items, adjustedIndex, length);
+                            return;
                         case CorElementType.ELEMENT_TYPE_U8:
                             GenericSort<ulong>(keys, items, adjustedIndex, length);
+                            return;
+                        case CorElementType.ELEMENT_TYPE_R4:
+                            GenericSort<float>(keys, items, adjustedIndex, length);
+                            return;
+                        case CorElementType.ELEMENT_TYPE_R8:
+                            GenericSort<double>(keys, items, adjustedIndex, length);
+                            return;
+                        case CorElementType.ELEMENT_TYPE_I:
+                        case CorElementType.ELEMENT_TYPE_U:
+                            // IntPtr/UIntPtr does not implement IComparable
                             break;
                     }
 
-                    static void GenericSort<T>(Array keys, Array? items, int adjustedIndex, int length) where T : struct
+                    static void GenericSort<T>(Array keys, Array? items, int adjustedIndex, int length) where T: struct
                     {
                         Span<T> keysSpan = UnsafeArrayAsSpan<T>(keys, adjustedIndex, length);
                         if (items != null)

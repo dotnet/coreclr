@@ -25,12 +25,18 @@ FCIMPL1(INT32, ArrayNative::GetCorElementTypeOfElementType, ArrayBase* arrayUNSA
 
     _ASSERTE(arrayUNSAFE != NULL);
 
-    // Check the type from the contained element's handle
-    TypeHandle elementTH = arrayUNSAFE->GetArrayElementTypeHandle();
-    return elementTH.GetVerifierCorElementType();
+    return arrayUNSAFE->GetArrayElementTypeHandle().GetVerifierCorElementType();
 }
 FCIMPLEND
 
+FCIMPL2(INT32, ArrayNative::IsValueOfElementType, ArrayBase* arrayUNSAFE, Object* valueUNSAFE)
+{
+    _ASSERTE(arrayUNSAFE != NULL);
+    _ASSERTE(valueUNSAFE != NULL);
+
+    FC_RETURN_BOOL(arrayUNSAFE->GetArrayElementTypeHandle() == valueUNSAFE->GetTypeHandle());
+}
+FCIMPLEND
 
 // array is GC protected by caller
 void ArrayInitializeWorker(ARRAYBASEREF * arrayRef,
