@@ -18,13 +18,8 @@ namespace Internal.TypeSystem.Ecma
         private EcmaModule _module;
         private BlobReader _reader;
 
-        private class Frame
-        {
-            public int index;
-        }
-
-        private Stack<Frame> _indexStack;
-        private List<CustomModifier> _customModifiers;
+        private Stack<int> _indexStack;
+        private List<EmbeddedSignatureData> _embeddedSignatureDataList;
 
 
         public EcmaSignatureParser(EcmaModule module, BlobReader reader)
@@ -32,7 +27,7 @@ namespace Internal.TypeSystem.Ecma
             _module = module;
             _reader = reader;
             _indexStack = null;
-            _customModifiers = null;
+            _embeddedSignatureDataList = null;
         }
 
         private TypeDesc GetWellKnownType(WellKnownType wellKnownType)
@@ -45,8 +40,9 @@ namespace Internal.TypeSystem.Ecma
 
             if (_indexStack != null)
             {
-                _indexStack.Peek().index++;
-                _indexStack.Push(new Frame());
+                int was = _indexStack.Pop();
+                _indexStack.Push(was + 1);
+                _indexStack.Push(0);
             }
             TypeDesc result = ParseTypeImpl(typeCode);
             if (_indexStack != null)
@@ -137,7 +133,7 @@ namespace Internal.TypeSystem.Ecma
                 case SignatureTypeCode.TypedReference:
                     return GetWellKnownType(WellKnownType.TypedReference);
                 case SignatureTypeCode.FunctionPointer:
-                    return _module.Context.GetFunctionPointerType(ParseMethodSignatureInternal(skipCustomModifier: true));
+                    return _module.Context.GetFunctionPointerType(ParseMethodSignatureInternal(skipEmbeddedSignatureData: true));
                 default:
                     throw new BadImageFormatException();
             }
@@ -147,8 +143,9 @@ namespace Internal.TypeSystem.Ecma
         {
             if (_indexStack != null)
             {
-                _indexStack.Peek().index++;
-                _indexStack.Push(new Frame());
+                int was = _indexStack.Pop();
+                _indexStack.Push(was + 1);
+                _indexStack.Push(0);
             }
             SignatureTypeCode result = ParseTypeCodeImpl(skipPinned);
             if (_indexStack != null)
@@ -167,9 +164,9 @@ namespace Internal.TypeSystem.Ecma
                 if (typeCode == SignatureTypeCode.RequiredModifier)
                 {
                     EntityHandle typeHandle = _reader.ReadTypeHandle();
-                    if (_customModifiers != null)
+                    if (_embeddedSignatureDataList != null)
                     {
-                        _customModifiers.Add(new CustomModifier { index = string.Join(".", _indexStack.Select(f => f.index)), required = true, type = _module.GetType(typeHandle) });
+                        _embeddedSignatureDataList.Add(new EmbeddedSignatureData { index = string.Join(".", _indexStack), kind = EmbeddedSignatureDataKind.RequiredCustomModifier, type = _module.GetType(typeHandle) });
                     }
                     continue;
                 }
@@ -177,9 +174,9 @@ namespace Internal.TypeSystem.Ecma
                 if (typeCode == SignatureTypeCode.OptionalModifier)
                 {
                     EntityHandle typeHandle = _reader.ReadTypeHandle();
-                    if (_customModifiers != null)
+                    if (_embeddedSignatureDataList != null)
                     {
-                        _customModifiers.Add(new CustomModifier { index = string.Join(".", _indexStack.Select(f => f.index)), required = false, type = _module.GetType(typeHandle) });
+                        _embeddedSignatureDataList.Add(new EmbeddedSignatureData { index = string.Join(".", _indexStack), kind = EmbeddedSignatureDataKind.OptionalCustomModifier, type = _module.GetType(typeHandle) });
                     }
                     continue;
                 }
@@ -199,8 +196,9 @@ namespace Internal.TypeSystem.Ecma
         {
             if (_indexStack != null)
             {
-                _indexStack.Peek().index++;
-                _indexStack.Push(new Frame());
+                int was = _indexStack.Pop();
+                _indexStack.Push(was + 1);
+                _indexStack.Push(0);
             }
             TypeDesc result = ParseTypeImpl();
             if (_indexStack != null)
@@ -210,7 +208,7 @@ namespace Internal.TypeSystem.Ecma
             return result;
         }
 
-        public TypeDesc ParseTypeImpl()
+        private TypeDesc ParseTypeImpl()
         {
             return ParseType(ParseTypeCode());
         }
@@ -228,27 +226,28 @@ namespace Internal.TypeSystem.Ecma
         {
             try
             {
-                _indexStack = new Stack<Frame>();
-                _indexStack.Push(new Frame());
-                _customModifiers = new List<CustomModifier>();
-                return ParseMethodSignatureInternal(skipCustomModifier: false);
+                _indexStack = new Stack<int>();
+                _indexStack.Push(0);
+                _embeddedSignatureDataList = new List<EmbeddedSignatureData>();
+                return ParseMethodSignatureInternal(skipEmbeddedSignatureData: false);
             }
             finally
             {
                 _indexStack = null;
-                _customModifiers = null;
+                _embeddedSignatureDataList = null;
             }
 
         }
 
-        private MethodSignature ParseMethodSignatureInternal(bool skipCustomModifier)
+        private MethodSignature ParseMethodSignatureInternal(bool skipEmbeddedSignatureData)
         {
             if (_indexStack != null)
             {
-                _indexStack.Peek().index++;
-                _indexStack.Push(new Frame());
+                int was = _indexStack.Pop();
+                _indexStack.Push(was + 1);
+                _indexStack.Push(0);
             }
-            MethodSignature result = ParseMethodSignatureImpl(skipCustomModifier);
+            MethodSignature result = ParseMethodSignatureImpl(skipEmbeddedSignatureData);
             if (_indexStack != null)
             {
                 _indexStack.Pop();
@@ -256,7 +255,7 @@ namespace Internal.TypeSystem.Ecma
             return result;
         }
 
-        public MethodSignature ParseMethodSignatureImpl(bool skipCustomModifier)
+        private MethodSignature ParseMethodSignatureImpl(bool skipEmbeddedSignatureData)
         {
             SignatureHeader header = _reader.ReadSignatureHeader();
 
@@ -298,9 +297,9 @@ namespace Internal.TypeSystem.Ecma
                 parameters = TypeDesc.EmptyTypes;
             }
 
-            CustomModifier[] customModifiersArray = (_customModifiers == null || _customModifiers.Count == 0 || skipCustomModifier) ? null : _customModifiers.ToArray();
+            EmbeddedSignatureData[] embeddedSignatureDataArray = (_embeddedSignatureDataList == null || _embeddedSignatureDataList.Count == 0 || skipEmbeddedSignatureData) ? null : _embeddedSignatureDataList.ToArray();
 
-            return new MethodSignature(flags, arity, returnType, parameters, customModifiersArray);
+            return new MethodSignature(flags, arity, returnType, parameters, embeddedSignatureDataArray);
 
         }
 

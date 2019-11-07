@@ -24,10 +24,16 @@ namespace Internal.TypeSystem
         Static = 0x0010,
     }
 
-    public struct CustomModifier
+    public enum EmbeddedSignatureDataKind
+    {
+        RequiredCustomModifier = 0,
+        OptionalCustomModifier = 1
+    }
+
+    public struct EmbeddedSignatureData
     {
         public string index;
-        public bool required;
+        public EmbeddedSignatureDataKind kind;
         public TypeDesc type;
     }
 
@@ -40,15 +46,15 @@ namespace Internal.TypeSystem
         internal int _genericParameterCount;
         internal TypeDesc _returnType;
         internal TypeDesc[] _parameters;
-        internal CustomModifier[] _customModifiers;
+        internal EmbeddedSignatureData[] _embeddedSignatureData;
 
-        public MethodSignature(MethodSignatureFlags flags, int genericParameterCount, TypeDesc returnType, TypeDesc[] parameters, CustomModifier[] customModifiers = null)
+        public MethodSignature(MethodSignatureFlags flags, int genericParameterCount, TypeDesc returnType, TypeDesc[] parameters, EmbeddedSignatureData[] embeddedSignatureData = null)
         {
             _flags = flags;
             _genericParameterCount = genericParameterCount;
             _returnType = returnType;
             _parameters = parameters;
-            _customModifiers = customModifiers;
+            _embeddedSignatureData = embeddedSignatureData;
 
             Debug.Assert(parameters != null, "Parameters must not be null");
         }
@@ -129,25 +135,25 @@ namespace Internal.TypeSystem
                     return false;
             }
 
-            if (this._customModifiers == null && otherSignature._customModifiers == null)
+            if (this._embeddedSignatureData == null && otherSignature._embeddedSignatureData == null)
             {
                 return true;
             }
 
-            if (this._customModifiers != null && otherSignature._customModifiers != null)
+            if (this._embeddedSignatureData != null && otherSignature._embeddedSignatureData != null)
             {
-                if (this._customModifiers.Length != otherSignature._customModifiers.Length)
+                if (this._embeddedSignatureData.Length != otherSignature._embeddedSignatureData.Length)
                 {
                     return false;
                 }
 
-                for (int i = 0; i < this._customModifiers.Length; i++)
+                for (int i = 0; i < this._embeddedSignatureData.Length; i++)
                 {
-                    if (this._customModifiers[i].index != otherSignature._customModifiers[i].index)
+                    if (this._embeddedSignatureData[i].index != otherSignature._embeddedSignatureData[i].index)
                         return false;
-                    if (this._customModifiers[i].required != otherSignature._customModifiers[i].required)
+                    if (this._embeddedSignatureData[i].kind != otherSignature._embeddedSignatureData[i].kind)
                         return false;
-                    if (this._customModifiers[i].type != otherSignature._customModifiers[i].type)
+                    if (this._embeddedSignatureData[i].type != otherSignature._embeddedSignatureData[i].type)
                         return false;
                 }
 
@@ -208,7 +214,7 @@ namespace Internal.TypeSystem
         private int _genericParameterCount;
         private TypeDesc _returnType;
         private TypeDesc[] _parameters;
-        private CustomModifier[] _customModifiers;
+        private EmbeddedSignatureData[] _customModifiers;
 
         public MethodSignatureBuilder(MethodSignature template)
         {
@@ -218,7 +224,7 @@ namespace Internal.TypeSystem
             _genericParameterCount = template._genericParameterCount;
             _returnType = template._returnType;
             _parameters = template._parameters;
-            _customModifiers = template._customModifiers;
+            _customModifiers = template._embeddedSignatureData;
         }
 
         public MethodSignatureFlags Flags
