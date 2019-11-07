@@ -1472,56 +1472,42 @@ namespace System
             if (length <= 1)
                 return;
 
-            if (array is object[] objArray)
-            {
-                Array.Reverse<object>(objArray, index, length);
-                return;
-            }
-
+            int adjustedIndex = index - lowerBound;
             switch (array.GetCorElementTypeOfElementType())
             {
                 case CorElementType.ELEMENT_TYPE_BOOLEAN:
-                    if (TryGenericReverse<bool>(array, index, length)) return;
-                    break;
                 case CorElementType.ELEMENT_TYPE_U1:
-                case CorElementType.ELEMENT_TYPE_I1: // sbyte[] can be cast to byte[]
-                    if (TryGenericReverse<byte>(array, index, length)) return;
-                    break;
+                case CorElementType.ELEMENT_TYPE_I1:
+                    UnsafeArrayAsSpan<byte>(array, adjustedIndex, length).Reverse();
+                    return;
                 case CorElementType.ELEMENT_TYPE_CHAR:
-                    if (TryGenericReverse<char>(array, index, length)) return;
-                    break;
-                case CorElementType.ELEMENT_TYPE_R8:
-                    if (TryGenericReverse<double>(array, index, length)) return;
-                    break;
                 case CorElementType.ELEMENT_TYPE_I2:
-                case CorElementType.ELEMENT_TYPE_U2: // ushort[] can be cast to short[]
-                    if (TryGenericReverse<short>(array, index, length)) return;
-                    break;
+                case CorElementType.ELEMENT_TYPE_U2:
+                    UnsafeArrayAsSpan<short>(array, adjustedIndex, length).Reverse();
+                    return;
                 case CorElementType.ELEMENT_TYPE_I4:
-                case CorElementType.ELEMENT_TYPE_U4: // uint[] can be cast to int[]
-                    if (TryGenericReverse<int>(array, index, length)) return;
-                    break;
-                case CorElementType.ELEMENT_TYPE_I8:
-                case CorElementType.ELEMENT_TYPE_U8: // ulong[] can be cast to long[]
-                    if (TryGenericReverse<long>(array, index, length)) return;
-                    break;
+                case CorElementType.ELEMENT_TYPE_U4:
                 case CorElementType.ELEMENT_TYPE_R4:
-                    if (TryGenericReverse<float>(array, index, length)) return;
-                    break;
+#if !BIT64
                 case CorElementType.ELEMENT_TYPE_I:
-                case CorElementType.ELEMENT_TYPE_U: // UIntPtr[] can be cast to IntPtr[]
-                    if (TryGenericReverse<IntPtr>(array, index, length)) return;
-                    break;
-            }
-
-            static bool TryGenericReverse<T>(Array array, int index, int length) where T : struct
-            {
-                if (array is T[] arrayOfT)
-                {
-                    Reverse<T>(arrayOfT, index, length);
-                    return true;
-                }
-                return false;
+                case CorElementType.ELEMENT_TYPE_U:
+#endif
+                    UnsafeArrayAsSpan<int>(array, adjustedIndex, length).Reverse();
+                    return;
+                case CorElementType.ELEMENT_TYPE_I8:
+                case CorElementType.ELEMENT_TYPE_U8:
+                case CorElementType.ELEMENT_TYPE_R8:
+#if BIT64
+                case CorElementType.ELEMENT_TYPE_I:
+                case CorElementType.ELEMENT_TYPE_U:
+#endif
+                    UnsafeArrayAsSpan<long>(array, adjustedIndex, length).Reverse();
+                    return;
+                case CorElementType.ELEMENT_TYPE_OBJECT:
+                case CorElementType.ELEMENT_TYPE_ARRAY:
+                case CorElementType.ELEMENT_TYPE_SZARRAY:
+                    UnsafeArrayAsSpan<object>(array, adjustedIndex, length).Reverse();
+                    return;
             }
 
             int i = index;
@@ -1694,64 +1680,58 @@ namespace System
 
             if (comparer == Comparer.Default)
             {
-                switch (keys.GetCorElementTypeOfElementType())
+                CorElementType et = keys.GetCorElementTypeOfElementType();
+                if (items == null || items.GetCorElementTypeOfElementType() == et)
                 {
-                    case CorElementType.ELEMENT_TYPE_BOOLEAN:
-                        if (TryGenericSort<bool>(keys, items, index, length)) return;
-                        break;
-                    case CorElementType.ELEMENT_TYPE_U1:
-                        if (TryGenericSort<byte>(keys, items, index, length)) return;
-                        break;
-                    case CorElementType.ELEMENT_TYPE_CHAR:
-                        if (TryGenericSort<char>(keys, items, index, length)) return;
-                        break;
-                    case CorElementType.ELEMENT_TYPE_R8:
-                        if (TryGenericSort<double>(keys, items, index, length)) return;
-                        break;
-                    case CorElementType.ELEMENT_TYPE_I2:
-                        if (TryGenericSort<short>(keys, items, index, length)) return;
-                        break;
-                    case CorElementType.ELEMENT_TYPE_I4:
-                        if (TryGenericSort<int>(keys, items, index, length)) return;
-                        break;
-                    case CorElementType.ELEMENT_TYPE_I8:
-                        if (TryGenericSort<long>(keys, items, index, length)) return;
-                        break;
-                    case CorElementType.ELEMENT_TYPE_I1:
-                        if (TryGenericSort<sbyte>(keys, items, index, length)) return;
-                        break;
-                    case CorElementType.ELEMENT_TYPE_R4:
-                        if (TryGenericSort<float>(keys, items, index, length)) return;
-                        break;
-                    case CorElementType.ELEMENT_TYPE_U2:
-                        if (TryGenericSort<ushort>(keys, items, index, length)) return;
-                        break;
-                    case CorElementType.ELEMENT_TYPE_U4:
-                        if (TryGenericSort<uint>(keys, items, index, length)) return;
-                        break;
-                    case CorElementType.ELEMENT_TYPE_U8:
-                        if (TryGenericSort<ulong>(keys, items, index, length)) return;
-                        break;
-                }
-
-                static bool TryGenericSort<T>(Array keys, Array? items, int index, int length) where T : struct
-                {
-                    if (keys is T[] keysOfT)
+                    int adjustedIndex = index - keysLowerBound;
+                    switch (et)
                     {
-                        if (items is null)
-                        {
-                            Sort<T>(keysOfT, index, length);
-                            return true;
-                        }
-
-                        if (items is T[] itemsOfT)
-                        {
-                            Sort<T, T>(keysOfT, itemsOfT, index, length);
-                            return true;
-                        }
+                        case CorElementType.ELEMENT_TYPE_BOOLEAN:
+                        case CorElementType.ELEMENT_TYPE_U1:
+                            GenericSort<byte>(keys, items, adjustedIndex, length);
+                            break;
+                        case CorElementType.ELEMENT_TYPE_R8:
+                            GenericSort<double>(keys, items, adjustedIndex, length);
+                            break;
+                        case CorElementType.ELEMENT_TYPE_I2:
+                            GenericSort<short>(keys, items, adjustedIndex, length);
+                            break;
+                        case CorElementType.ELEMENT_TYPE_I4:
+                            GenericSort<int>(keys, items, adjustedIndex, length);
+                            break;
+                        case CorElementType.ELEMENT_TYPE_I8:
+                            GenericSort<long>(keys, items, adjustedIndex, length);
+                            break;
+                        case CorElementType.ELEMENT_TYPE_I1:
+                            GenericSort<sbyte>(keys, items, adjustedIndex, length);
+                            break;
+                        case CorElementType.ELEMENT_TYPE_R4:
+                            GenericSort<float>(keys, items, adjustedIndex, length);
+                            break;
+                        case CorElementType.ELEMENT_TYPE_U2:
+                        case CorElementType.ELEMENT_TYPE_CHAR:
+                            GenericSort<ushort>(keys, items, adjustedIndex, length);
+                            break;
+                        case CorElementType.ELEMENT_TYPE_U4:
+                            GenericSort<uint>(keys, items, adjustedIndex, length);
+                            break;
+                        case CorElementType.ELEMENT_TYPE_U8:
+                            GenericSort<ulong>(keys, items, adjustedIndex, length);
+                            break;
                     }
 
-                    return false;
+                    static void GenericSort<T>(Array keys, Array? items, int adjustedIndex, int length) where T : struct
+                    {
+                        Span<T> keysSpan = UnsafeArrayAsSpan<T>(keys, adjustedIndex, length);
+                        if (items != null)
+                        {
+                            keysSpan.Sort<T, T>(UnsafeArrayAsSpan<T>(items, adjustedIndex, length));
+                        }
+                        else
+                        {
+                            keysSpan.Sort<T>();
+                        }
+                    }
                 }
             }
 
@@ -2295,6 +2275,9 @@ namespace System
                 }
             }
         }
+
+        private static Span<T> UnsafeArrayAsSpan<T>(Array array, int adjustedIndex, int length) =>
+            new Span<T>(ref Unsafe.As<byte, T>(ref array.GetRawArrayData()), array.Length).Slice(adjustedIndex, length);
 
 #if !CORERT
         public IEnumerator GetEnumerator()
