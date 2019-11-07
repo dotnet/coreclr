@@ -21309,35 +21309,18 @@ void Compiler::fgDebugCheckFlags(GenTree* tree)
                 {
                     fgDebugCheckFlags(call->gtCallThisArg->GetNode());
                     chkFlags |= (call->gtCallThisArg->GetNode()->gtFlags & GTF_SIDE_EFFECT);
-
-                    if ((call->gtCallThisArg->GetNode()->gtFlags & GTF_ASG) != 0)
-                    {
-                        treeFlags |= GTF_ASG;
-                    }
                 }
 
                 for (GenTreeCall::Use& use : call->Args())
                 {
                     fgDebugCheckFlags(use.GetNode());
-
                     chkFlags |= (use.GetNode()->gtFlags & GTF_SIDE_EFFECT);
-
-                    if ((use.GetNode()->gtFlags & GTF_ASG) != 0)
-                    {
-                        treeFlags |= GTF_ASG;
-                    }
                 }
 
                 for (GenTreeCall::Use& use : call->LateArgs())
                 {
                     fgDebugCheckFlags(use.GetNode());
-
                     chkFlags |= (use.GetNode()->gtFlags & GTF_SIDE_EFFECT);
-
-                    if ((use.GetNode()->gtFlags & GTF_ASG) != 0)
-                    {
-                        treeFlags |= GTF_ASG;
-                    }
                 }
 
                 if ((call->gtCallType == CT_INDIRECT) && (call->gtCallCookie != nullptr))

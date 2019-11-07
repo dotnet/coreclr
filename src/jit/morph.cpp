@@ -2267,6 +2267,7 @@ void fgArgInfo::EvalArgsToTemps()
         {
             noway_assert(curArgTabEntry->use->GetNode() == argx);
             curArgTabEntry->use->SetNode(setupArg);
+            callTree->gtFlags |= setupArg->gtFlags & GTF_ALL_EFFECT;
         }
 
         /* deferred arg goes into the late argument list */
