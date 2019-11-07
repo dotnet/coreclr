@@ -237,6 +237,8 @@ namespace
     //=======================================================================
     BOOL CheckIfDisqualifiedFromManagedSequential(CorElementType corElemType, MetaSig& fsig, RawFieldPlacementInfo* pManagedPlacementInfo)
     {
+        pManagedPlacementInfo->m_alignment = TARGET_POINTER_SIZE;
+        pManagedPlacementInfo->m_size = TARGET_POINTER_SIZE;
         // This type may qualify for ManagedSequential. Collect managed size and alignment info.
         if (CorTypeInfo::IsPrimitiveType(corElemType))
         {
@@ -287,11 +289,12 @@ namespace
             }
             else
             {
-                pManagedPlacementInfo->m_alignment = 8;
+                pManagedPlacementInfo->m_alignment = TARGET_POINTER_SIZE;
             }
 
             return !pNestedType.GetMethodTable()->IsManagedSequential();
         }
+
         // No other type permitted for ManagedSequential.
         return TRUE;
     }
@@ -700,34 +703,30 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
         pEEClassLayoutInfoOut->SetIsZeroSized(TRUE);
     }
 
-    // Calculate the managedsequential layout if the type is eligible.
-    if (!fDisqualifyFromManagedSequential || fExplicitOffsets || isBlittable)
+    BYTE parentManagedAlignmentRequirement = 0;
+    UINT32 parentSize = 0;
+    if (pParentMT && (pParentMT->IsManagedSequential() || (pParentMT->GetClass()->HasExplicitFieldOffsetLayout() && pParentMT->IsBlittable())))
     {
-        BYTE parentManagedAlignmentRequirement = 0;
-        UINT32 parentSize = 0;
-        if (pParentMT && (pParentMT->IsManagedSequential() || (pParentMT->GetClass()->HasExplicitFieldOffsetLayout() && pParentMT->IsBlittable())))
-        {
-            parentManagedAlignmentRequirement = pParentLayoutInfo->m_ManagedLargestAlignmentRequirementOfAllMembers;
-            parentSize = pParentMT->GetNumInstanceFieldBytes();
-        }
+        parentManagedAlignmentRequirement = pParentLayoutInfo->m_ManagedLargestAlignmentRequirementOfAllMembers;
+        parentSize = pParentMT->GetNumInstanceFieldBytes();
+    }
 
-        CalculateSizeAndFieldOffsets(
-            parentSize,
-            cInstanceFields,
-            fExplicitOffsets,
-            pSortArray,
-            classSizeInMetadata,
-            packingSize,
-            parentManagedAlignmentRequirement,
-            /*limitToMaxInteropSize*/ FALSE,
-            &pEEClassLayoutInfoOut->m_ManagedLargestAlignmentRequirementOfAllMembers,
-            &pEEClassLayoutInfoOut->m_cbManagedSize);
+    CalculateSizeAndFieldOffsets(
+        parentSize,
+        cInstanceFields,
+        fExplicitOffsets,
+        pSortArray,
+        classSizeInMetadata,
+        packingSize,
+        parentManagedAlignmentRequirement,
+        /*limitToMaxInteropSize*/ FALSE,
+        &pEEClassLayoutInfoOut->m_ManagedLargestAlignmentRequirementOfAllMembers,
+        &pEEClassLayoutInfoOut->m_cbManagedSize);
 
-        if (pEEClassLayoutInfoOut->m_cbManagedSize == 0)
-        {
-            _ASSERTE(pEEClassLayoutInfoOut->IsZeroSized());
-            pEEClassLayoutInfoOut->m_cbManagedSize = 1; // Bump the managed size of the structure up to 1.
-        }
+    if (pEEClassLayoutInfoOut->m_cbManagedSize == 0)
+    {
+        _ASSERTE(pEEClassLayoutInfoOut->IsZeroSized());
+        pEEClassLayoutInfoOut->m_cbManagedSize = 1; // Bump the managed size of the structure up to 1.
     }
 
     pEEClassLayoutInfoOut->SetIsManagedSequential(!fDisqualifyFromManagedSequential);
