@@ -62,7 +62,7 @@ The `eng/common/cross/build-rootfs.sh` script can be used to download the files 
     LinuxCodeName - optional, Code name for Linux, can be: trusty(default), vivid, wily, xenial or alpine. If BuildArch is armel, LinuxCodeName is jessie(default) or tizen.
     lldbx.y - optional, LLDB version, can be: lldb3.6(default), lldb3.8. This is ignored when building rootfs for Alpine Linux.
 
-The `build-rootfs.sh` script must be run as root as it has to make some symlinks to the system, it will by default generate the rootfs in `eng/common/cross\rootfs\<BuildArch>` however this can be changed by setting the `ROOTFS_DIR` environment variable.
+The `build-rootfs.sh` script must be run as root as it has to make some symlinks to the system, it will by default generate the rootfs in `eng/common/cross/rootfs/<BuildArch>` however this can be changed by setting the `ROOTFS_DIR` environment variable.
 
 For example, to generate an arm rootfs:
 
