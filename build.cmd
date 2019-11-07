@@ -417,6 +417,7 @@ if not exist "!PgoDataPackagePathOutputFile!" (
 )
 
 set /p __PgoOptDataPath=<"!PgoDataPackagePathOutputFile!"
+set __PgoOptDataPath="%__PgoOptDataPath%"
 
 powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__RepoRootDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
     "%OptDataProjectFilePath%" /t:DumpIbcDataPackagePath /nologo %__CommonMSBuildArgs% /p:IbcDataPackagePathOutputFile="!IbcDataPackagePathOutputFile!"
@@ -432,6 +433,7 @@ if not exist "!IbcDataPackagePathOutputFile!" (
 )
 
 set /p __IbcOptDataPath=<"!IbcDataPackagePathOutputFile!"
+set __IbcOptDataPath="%__IbcOptDataPath%"
 
 REM =========================================================================================
 REM ===
