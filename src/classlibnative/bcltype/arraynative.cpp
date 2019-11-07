@@ -18,6 +18,20 @@
 
 #include "arraynative.inl"
 
+// Returns a bool to indicate if the array is of primitive types or not.
+FCIMPL1(INT32, ArrayNative::GetCorElementTypeOfElementType, ArrayBase* arrayUNSAFE)
+{
+    FCALL_CONTRACT;
+
+    _ASSERTE(arrayUNSAFE != NULL);
+
+    // Check the type from the contained element's handle
+    TypeHandle elementTH = arrayUNSAFE->GetArrayElementTypeHandle();
+    return elementTH.GetVerifierCorElementType();
+}
+FCIMPLEND
+
+
 // array is GC protected by caller
 void ArrayInitializeWorker(ARRAYBASEREF * arrayRef,
                            MethodTable* pArrayMT,

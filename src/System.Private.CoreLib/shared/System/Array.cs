@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using Internal.Runtime.CompilerServices;
 
@@ -508,42 +509,42 @@ namespace System
             if (comparer == Comparer.Default)
             {
                 int result;
-                switch (Type.GetTypeCode(array.GetType().GetElementType()))
+                switch (array.GetCorElementTypeOfElementType())
                 {
-                    case TypeCode.Boolean:
+                    case CorElementType.ELEMENT_TYPE_BOOLEAN:
                         if (TryGenericBinarySearch<bool>(array, index, length, value, out result)) return result;
                         break;
-                    case TypeCode.Byte:
+                    case CorElementType.ELEMENT_TYPE_U1:
                         if (TryGenericBinarySearch<byte>(array, index, length, value, out result)) return result;
                         break;
-                    case TypeCode.Char:
+                    case CorElementType.ELEMENT_TYPE_CHAR:
                         if (TryGenericBinarySearch<char>(array, index, length, value, out result)) return result;
                         break;
-                    case TypeCode.Double:
+                    case CorElementType.ELEMENT_TYPE_R8:
                         if (TryGenericBinarySearch<double>(array, index, length, value, out result)) return result;
                         break;
-                    case TypeCode.Int16:
+                    case CorElementType.ELEMENT_TYPE_I2:
                         if (TryGenericBinarySearch<short>(array, index, length, value, out result)) return result;
                         break;
-                    case TypeCode.Int32:
+                    case CorElementType.ELEMENT_TYPE_I4:
                         if (TryGenericBinarySearch<int>(array, index, length, value, out result)) return result;
                         break;
-                    case TypeCode.Int64:
+                    case CorElementType.ELEMENT_TYPE_I8:
                         if (TryGenericBinarySearch<long>(array, index, length, value, out result)) return result;
                         break;
-                    case TypeCode.SByte:
+                    case CorElementType.ELEMENT_TYPE_I1:
                         if (TryGenericBinarySearch<sbyte>(array, index, length, value, out result)) return result;
                         break;
-                    case TypeCode.Single:
+                    case CorElementType.ELEMENT_TYPE_R4:
                         if (TryGenericBinarySearch<float>(array, index, length, value, out result)) return result;
                         break;
-                    case TypeCode.UInt16:
+                    case CorElementType.ELEMENT_TYPE_U2:
                         if (TryGenericBinarySearch<ushort>(array, index, length, value, out result)) return result;
                         break;
-                    case TypeCode.UInt32:
+                    case CorElementType.ELEMENT_TYPE_U4:
                         if (TryGenericBinarySearch<uint>(array, index, length, value, out result)) return result;
                         break;
-                    case TypeCode.UInt64:
+                    case CorElementType.ELEMENT_TYPE_U8:
                         if (TryGenericBinarySearch<ulong>(array, index, length, value, out result)) return result;
                         break;
                 }
@@ -1000,43 +1001,49 @@ namespace System
             }
 
             int result;
-            switch (Type.GetTypeCode(array.GetType().GetElementType()))
+            switch (array.GetCorElementTypeOfElementType())
             {
-                case TypeCode.Boolean:
+                case CorElementType.ELEMENT_TYPE_BOOLEAN:
                     if (TryGenericIndexOf<bool>(array, value, startIndex, count, out result)) return result;
                     break;
-                case TypeCode.Byte:
+                case CorElementType.ELEMENT_TYPE_U1:
                     if (TryGenericIndexOf<byte>(array, value, startIndex, count, out result)) return result;
                     break;
-                case TypeCode.Char:
+                case CorElementType.ELEMENT_TYPE_CHAR:
                     if (TryGenericIndexOf<char>(array, value, startIndex, count, out result)) return result;
                     break;
-                case TypeCode.Double:
+                case CorElementType.ELEMENT_TYPE_R8:
                     if (TryGenericIndexOf<double>(array, value, startIndex, count, out result)) return result;
                     break;
-                case TypeCode.Int16:
+                case CorElementType.ELEMENT_TYPE_I2:
                     if (TryGenericIndexOf<short>(array, value, startIndex, count, out result)) return result;
                     break;
-                case TypeCode.Int32:
+                case CorElementType.ELEMENT_TYPE_I4:
                     if (TryGenericIndexOf<int>(array, value, startIndex, count, out result)) return result;
                     break;
-                case TypeCode.Int64:
+                case CorElementType.ELEMENT_TYPE_I8:
                     if (TryGenericIndexOf<long>(array, value, startIndex, count, out result)) return result;
                     break;
-                case TypeCode.SByte:
+                case CorElementType.ELEMENT_TYPE_I1:
                     if (TryGenericIndexOf<sbyte>(array, value, startIndex, count, out result)) return result;
                     break;
-                case TypeCode.Single:
+                case CorElementType.ELEMENT_TYPE_R4:
                     if (TryGenericIndexOf<float>(array, value, startIndex, count, out result)) return result;
                     break;
-                case TypeCode.UInt16:
+                case CorElementType.ELEMENT_TYPE_U2:
                     if (TryGenericIndexOf<ushort>(array, value, startIndex, count, out result)) return result;
                     break;
-                case TypeCode.UInt32:
+                case CorElementType.ELEMENT_TYPE_U4:
                     if (TryGenericIndexOf<uint>(array, value, startIndex, count, out result)) return result;
                     break;
-                case TypeCode.UInt64:
+                case CorElementType.ELEMENT_TYPE_U8:
                     if (TryGenericIndexOf<ulong>(array, value, startIndex, count, out result)) return result;
+                    break;
+                case CorElementType.ELEMENT_TYPE_I:
+                    if (TryGenericIndexOf<IntPtr>(array, value, startIndex, count, out result)) return result;
+                    break;
+                case CorElementType.ELEMENT_TYPE_U:
+                    if (TryGenericIndexOf<UIntPtr>(array, value, startIndex, count, out result)) return result;
                     break;
             }
 
@@ -1236,43 +1243,49 @@ namespace System
             }
 
             int result;
-            switch (Type.GetTypeCode(array.GetType().GetElementType()))
+            switch (array.GetCorElementTypeOfElementType())
             {
-                case TypeCode.Boolean:
+                case CorElementType.ELEMENT_TYPE_BOOLEAN:
                     if (TryGenericLastIndexOf<bool>(array, value, startIndex, count, out result)) return result;
                     break;
-                case TypeCode.Byte:
+                case CorElementType.ELEMENT_TYPE_U1:
                     if (TryGenericLastIndexOf<byte>(array, value, startIndex, count, out result)) return result;
                     break;
-                case TypeCode.Char:
+                case CorElementType.ELEMENT_TYPE_CHAR:
                     if (TryGenericLastIndexOf<char>(array, value, startIndex, count, out result)) return result;
                     break;
-                case TypeCode.Double:
+                case CorElementType.ELEMENT_TYPE_R8:
                     if (TryGenericLastIndexOf<double>(array, value, startIndex, count, out result)) return result;
                     break;
-                case TypeCode.Int16:
+                case CorElementType.ELEMENT_TYPE_I2:
                     if (TryGenericLastIndexOf<short>(array, value, startIndex, count, out result)) return result;
                     break;
-                case TypeCode.Int32:
+                case CorElementType.ELEMENT_TYPE_I4:
                     if (TryGenericLastIndexOf<int>(array, value, startIndex, count, out result)) return result;
                     break;
-                case TypeCode.Int64:
+                case CorElementType.ELEMENT_TYPE_I8:
                     if (TryGenericLastIndexOf<long>(array, value, startIndex, count, out result)) return result;
                     break;
-                case TypeCode.SByte:
+                case CorElementType.ELEMENT_TYPE_I1:
                     if (TryGenericLastIndexOf<sbyte>(array, value, startIndex, count, out result)) return result;
                     break;
-                case TypeCode.Single:
+                case CorElementType.ELEMENT_TYPE_R4:
                     if (TryGenericLastIndexOf<float>(array, value, startIndex, count, out result)) return result;
                     break;
-                case TypeCode.UInt16:
+                case CorElementType.ELEMENT_TYPE_U2:
                     if (TryGenericLastIndexOf<ushort>(array, value, startIndex, count, out result)) return result;
                     break;
-                case TypeCode.UInt32:
+                case CorElementType.ELEMENT_TYPE_U4:
                     if (TryGenericLastIndexOf<uint>(array, value, startIndex, count, out result)) return result;
                     break;
-                case TypeCode.UInt64:
+                case CorElementType.ELEMENT_TYPE_U8:
                     if (TryGenericLastIndexOf<ulong>(array, value, startIndex, count, out result)) return result;
+                    break;
+                case CorElementType.ELEMENT_TYPE_I:
+                    if (TryGenericLastIndexOf<IntPtr>(array, value, startIndex, count, out result)) return result;
+                    break;
+                case CorElementType.ELEMENT_TYPE_U:
+                    if (TryGenericLastIndexOf<UIntPtr>(array, value, startIndex, count, out result)) return result;
                     break;
             }
 
@@ -1465,35 +1478,39 @@ namespace System
                 return;
             }
 
-            switch (Type.GetTypeCode(array.GetType().GetElementType()))
+            switch (array.GetCorElementTypeOfElementType())
             {
-                case TypeCode.Boolean:
+                case CorElementType.ELEMENT_TYPE_BOOLEAN:
                     if (TryGenericReverse<bool>(array, index, length)) return;
                     break;
-                case TypeCode.Byte:
-                case TypeCode.SByte: // sbyte[] can be cast to byte[]
+                case CorElementType.ELEMENT_TYPE_U1:
+                case CorElementType.ELEMENT_TYPE_I1: // sbyte[] can be cast to byte[]
                     if (TryGenericReverse<byte>(array, index, length)) return;
                     break;
-                case TypeCode.Char:
+                case CorElementType.ELEMENT_TYPE_CHAR:
                     if (TryGenericReverse<char>(array, index, length)) return;
                     break;
-                case TypeCode.Double:
+                case CorElementType.ELEMENT_TYPE_R8:
                     if (TryGenericReverse<double>(array, index, length)) return;
                     break;
-                case TypeCode.Int16:
-                case TypeCode.UInt16: // ushort[] can be cast to short[]
+                case CorElementType.ELEMENT_TYPE_I2:
+                case CorElementType.ELEMENT_TYPE_U2: // ushort[] can be cast to short[]
                     if (TryGenericReverse<short>(array, index, length)) return;
                     break;
-                case TypeCode.Int32:
-                case TypeCode.UInt32: // uint[] can be cast to int[]
+                case CorElementType.ELEMENT_TYPE_I4:
+                case CorElementType.ELEMENT_TYPE_U4: // uint[] can be cast to int[]
                     if (TryGenericReverse<int>(array, index, length)) return;
                     break;
-                case TypeCode.Int64:
-                case TypeCode.UInt64: // ulong[] can be cast to long[]
+                case CorElementType.ELEMENT_TYPE_I8:
+                case CorElementType.ELEMENT_TYPE_U8: // ulong[] can be cast to long[]
                     if (TryGenericReverse<long>(array, index, length)) return;
                     break;
-                case TypeCode.Single:
+                case CorElementType.ELEMENT_TYPE_R4:
                     if (TryGenericReverse<float>(array, index, length)) return;
+                    break;
+                case CorElementType.ELEMENT_TYPE_I:
+                case CorElementType.ELEMENT_TYPE_U: // UIntPtr[] can be cast to IntPtr[]
+                    if (TryGenericReverse<IntPtr>(array, index, length)) return;
                     break;
             }
 
@@ -1677,42 +1694,42 @@ namespace System
 
             if (comparer == Comparer.Default)
             {
-                switch (Type.GetTypeCode(keys.GetType().GetElementType()))
+                switch (keys.GetCorElementTypeOfElementType())
                 {
-                    case TypeCode.Boolean:
+                    case CorElementType.ELEMENT_TYPE_BOOLEAN:
                         if (TryGenericSort<bool>(keys, items, index, length)) return;
                         break;
-                    case TypeCode.Byte:
+                    case CorElementType.ELEMENT_TYPE_U1:
                         if (TryGenericSort<byte>(keys, items, index, length)) return;
                         break;
-                    case TypeCode.Char:
+                    case CorElementType.ELEMENT_TYPE_CHAR:
                         if (TryGenericSort<char>(keys, items, index, length)) return;
                         break;
-                    case TypeCode.Double:
+                    case CorElementType.ELEMENT_TYPE_R8:
                         if (TryGenericSort<double>(keys, items, index, length)) return;
                         break;
-                    case TypeCode.Int16:
+                    case CorElementType.ELEMENT_TYPE_I2:
                         if (TryGenericSort<short>(keys, items, index, length)) return;
                         break;
-                    case TypeCode.Int32:
+                    case CorElementType.ELEMENT_TYPE_I4:
                         if (TryGenericSort<int>(keys, items, index, length)) return;
                         break;
-                    case TypeCode.Int64:
+                    case CorElementType.ELEMENT_TYPE_I8:
                         if (TryGenericSort<long>(keys, items, index, length)) return;
                         break;
-                    case TypeCode.SByte:
+                    case CorElementType.ELEMENT_TYPE_I1:
                         if (TryGenericSort<sbyte>(keys, items, index, length)) return;
                         break;
-                    case TypeCode.Single:
+                    case CorElementType.ELEMENT_TYPE_R4:
                         if (TryGenericSort<float>(keys, items, index, length)) return;
                         break;
-                    case TypeCode.UInt16:
+                    case CorElementType.ELEMENT_TYPE_U2:
                         if (TryGenericSort<ushort>(keys, items, index, length)) return;
                         break;
-                    case TypeCode.UInt32:
+                    case CorElementType.ELEMENT_TYPE_U4:
                         if (TryGenericSort<uint>(keys, items, index, length)) return;
                         break;
-                    case TypeCode.UInt64:
+                    case CorElementType.ELEMENT_TYPE_U8:
                         if (TryGenericSort<ulong>(keys, items, index, length)) return;
                         break;
                 }
