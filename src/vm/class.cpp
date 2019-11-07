@@ -1473,36 +1473,6 @@ EEClass::CheckForHFA()
     return true;
 }
 
-#ifdef FEATURE_HFA
-//
-// The managed and unmanaged views of the types can differ for non-blitable types. This method
-// mirrors the HFA type computation for the unmanaged view.
-//
-void CheckForNativeHFA(MethodTable* pMT, EEClassNativeLayoutInfo* pNativeLayoutInfo)
-{
-    STANDARD_VM_CONTRACT;
-
-    // No HFAs with inheritance
-    if (!(pMT->IsValueType() || (pMT->GetParentMethodTable() == g_pObjectClass)))
-        return;
-
-    // No HFAs with explicit layout. There may be cases where explicit layout may be still
-    // eligible for HFA, but it is hard to tell the real intent. Make it simple and just 
-    // unconditionally disable HFAs for explicit layout.
-    if (pMT->GetClass()->HasExplicitFieldOffsetLayout())
-        return;
-
-    CorElementType hfaType = pNativeLayoutInfo->GetNativeHFATypeRaw();
-    if (hfaType == ELEMENT_TYPE_END)
-    {
-        return;
-    }
-
-    // All the above tests passed. It's HFA!
-    pNativeLayoutInfo->SetHFAType(hfaType);
-}
-#endif // FEATURE_HFA
-
 #ifdef FEATURE_64BIT_ALIGNMENT
 // Returns true iff the native view of this type requires 64-bit aligment.
 bool MethodTable::NativeRequiresAlign8()
