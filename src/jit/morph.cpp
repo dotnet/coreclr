@@ -11566,13 +11566,6 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
 
         /* Propagate the new flags */
         tree->gtFlags |= (op1->gtFlags & GTF_ALL_EFFECT);
-
-        // &aliasedVar doesn't need GTF_GLOB_REF, though alisasedVar does
-        // Similarly for clsVar
-        if (oper == GT_ADDR && (op1->gtOper == GT_LCL_VAR || op1->gtOper == GT_CLS_VAR))
-        {
-            tree->gtFlags &= ~GTF_GLOB_REF;
-        }
     } // if (op1)
 
     /*-------------------------------------------------------------------------

@@ -21110,7 +21110,7 @@ void Compiler::fgDebugCheckFlags(GenTree* tree)
 {
     const genTreeOps oper      = tree->OperGet();
     const unsigned   kind      = tree->OperKind();
-    unsigned         treeFlags = tree->gtFlags & GTF_ALL_EFFECT;
+    const unsigned   treeFlags = tree->gtFlags & GTF_ALL_EFFECT;
     unsigned         chkFlags  = 0;
 
     if (tree->OperMayThrow(this))
@@ -21282,14 +21282,6 @@ void Compiler::fgDebugCheckFlags(GenTree* tree)
         if (tree->OperRequiresAsgFlag())
         {
             chkFlags |= GTF_ASG;
-        }
-
-        if (oper == GT_ADDR && (op1->OperIsLocal() || op1->gtOper == GT_CLS_VAR ||
-                                (op1->gtOper == GT_IND && op1->AsOp()->gtOp1->gtOper == GT_CLS_VAR_ADDR)))
-        {
-            /* &aliasedVar doesn't need GTF_GLOB_REF, though alisasedVar does.
-               Similarly for clsVar */
-            treeFlags |= GTF_GLOB_REF;
         }
     }
 

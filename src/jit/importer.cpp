@@ -11285,9 +11285,6 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                  */
                 op1 = gtNewOperNode(GT_ADDR, TYP_BYREF, op1);
 
-                // &aliasedVar doesnt need GTF_GLOB_REF, though alisasedVar does
-                assert((op1->gtFlags & GTF_GLOB_REF) == 0);
-
                 tiRetVal = lvaTable[lclNum].lvVerTypeInfo;
                 if (tiVerificationNeeded)
                 {
