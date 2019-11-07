@@ -50,8 +50,8 @@ enum class ParseNativeTypeFlags : int
 };
 
 //=======================================================================
-// This function returns TRUE if the type passed in is either a value class or a class and if it has layout information 
-// and is marshalable. In all other cases it will return FALSE. 
+// This function returns TRUE if the type passed in is either a value class or a class and if it has layout information
+// and is marshalable. In all other cases it will return FALSE.
 //=======================================================================
 BOOL IsStructMarshalable(TypeHandle th);
 

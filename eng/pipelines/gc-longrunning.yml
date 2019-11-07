@@ -14,9 +14,9 @@ jobs:
 #
 # Checkout repository
 #
-- template: /eng/checkout-job.yml
+- template: templates/checkout-job.yml
 
-- template: /eng/platform-matrix.yml
+- template: templates/platform-matrix.yml
   parameters:
     jobTemplate: build-job.yml
     buildConfig: release
@@ -28,12 +28,12 @@ jobs:
     jobParameters:
       testGroup: gc-longrunning
 
-- template: /eng/platform-matrix.yml
+- template: templates/platform-matrix.yml
   parameters:
     jobTemplate: build-test-job.yml
     buildConfig: release
     platforms:
-    - OSX_x64
+    - Linux_x64
     - Linux_arm64
     - Windows_NT_x64
     - Windows_NT_arm64
@@ -41,7 +41,7 @@ jobs:
     jobParameters:
       testGroup: gc-longrunning
 
-- template: /eng/platform-matrix.yml
+- template: templates/platform-matrix.yml
   parameters:
     jobTemplate: run-test-job.yml
     buildConfig: release
@@ -51,5 +51,6 @@ jobs:
     - Windows_NT_x64
     - Windows_NT_arm64
     helixQueueGroup: ci
+    managedOsxBuild: false
     jobParameters:
       testGroup: gc-longrunning

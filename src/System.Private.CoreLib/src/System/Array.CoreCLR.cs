@@ -135,30 +135,133 @@ namespace System
         // Copies length elements from sourceArray, starting at index 0, to
         // destinationArray, starting at index 0.
         //
-        public static void Copy(Array sourceArray, Array destinationArray, int length)
+        public static unsafe void Copy(Array sourceArray, Array destinationArray, int length)
         {
             if (sourceArray == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.sourceArray);
             if (destinationArray == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.destinationArray);
 
-            Copy(sourceArray, sourceArray.GetLowerBound(0), destinationArray, destinationArray.GetLowerBound(0), length, false);
+            MethodTable* pMT = RuntimeHelpers.GetMethodTable(sourceArray);
+            if (pMT == RuntimeHelpers.GetMethodTable(destinationArray) &&
+                !pMT->IsMultiDimensionalArray &&
+                (uint)length <= (nuint)sourceArray.LongLength &&
+                (uint)length <= (nuint)destinationArray.LongLength)
+            {
+                nuint byteCount = (uint)length * (nuint)pMT->ComponentSize;
+                ref byte src = ref sourceArray.GetRawSzArrayData();
+                ref byte dst = ref destinationArray.GetRawSzArrayData();
+
+                if (pMT->ContainsGCPointers)
+                    Buffer.BulkMoveWithWriteBarrier(ref dst, ref src, byteCount);
+                else
+                    Buffer.Memmove(ref dst, ref src, byteCount);
+
+                // GC.KeepAlive(sourceArray) not required. pMT kept alive via sourceArray
+                return;
+            }
+
+            // Less common
+            Copy(sourceArray, sourceArray.GetLowerBound(0), destinationArray, destinationArray.GetLowerBound(0), length, reliable: false);
         }
 
         // Copies length elements from sourceArray, starting at sourceIndex, to
         // destinationArray, starting at destinationIndex.
         //
-        public static void Copy(Array sourceArray, int sourceIndex, Array destinationArray, int destinationIndex, int length)
+        public static unsafe void Copy(Array sourceArray, int sourceIndex, Array destinationArray, int destinationIndex, int length)
         {
-            Copy(sourceArray, sourceIndex, destinationArray, destinationIndex, length, false);
+            if (sourceArray != null && destinationArray != null)
+            {
+                MethodTable* pMT = RuntimeHelpers.GetMethodTable(sourceArray);
+                if (pMT == RuntimeHelpers.GetMethodTable(destinationArray) &&
+                    !pMT->IsMultiDimensionalArray &&
+                    length >= 0 && sourceIndex >= 0 && destinationIndex >= 0 &&
+                    (uint)(sourceIndex + length) <= (nuint)sourceArray.LongLength &&
+                    (uint)(destinationIndex + length) <= (nuint)destinationArray.LongLength)
+                {
+                    nuint elementSize = (nuint)pMT->ComponentSize;
+                    nuint byteCount = (uint)length * elementSize;
+                    ref byte src = ref Unsafe.AddByteOffset(ref sourceArray.GetRawSzArrayData(), (uint)sourceIndex * elementSize);
+                    ref byte dst = ref Unsafe.AddByteOffset(ref destinationArray.GetRawSzArrayData(), (uint)destinationIndex * elementSize);
+
+                    if (pMT->ContainsGCPointers)
+                        Buffer.BulkMoveWithWriteBarrier(ref dst, ref src, byteCount);
+                    else
+                        Buffer.Memmove(ref dst, ref src, byteCount);
+
+                    // GC.KeepAlive(sourceArray) not required. pMT kept alive via sourceArray
+                    return;
+                }
+            }
+
+            // Less common
+            Copy(sourceArray!, sourceIndex, destinationArray!, destinationIndex, length, reliable: false);
         }
+
+        private static unsafe void Copy(Array sourceArray, int sourceIndex, Array destinationArray, int destinationIndex, int length, bool reliable)
+        {
+            if (sourceArray == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.sourceArray);
+            if (destinationArray == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.destinationArray);
+
+            if (sourceArray.GetType() != destinationArray.GetType() && sourceArray.Rank != destinationArray.Rank)
+                throw new RankException(SR.Rank_MustMatch);
+
+            if (length < 0)
+                throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_NeedNonNegNum);
+
+            int srcLB = sourceArray.GetLowerBound(0);
+            if (sourceIndex < srcLB || sourceIndex - srcLB < 0)
+                throw new ArgumentOutOfRangeException(nameof(sourceIndex), SR.ArgumentOutOfRange_ArrayLB);
+            sourceIndex -= srcLB;
+
+            int dstLB = destinationArray.GetLowerBound(0);
+            if (destinationIndex < dstLB || destinationIndex - dstLB < 0)
+                throw new ArgumentOutOfRangeException(nameof(destinationIndex), SR.ArgumentOutOfRange_ArrayLB);
+            destinationIndex -= dstLB;
+
+            if ((uint)(sourceIndex + length) > (nuint)sourceArray.LongLength)
+                throw new ArgumentException(SR.Arg_LongerThanSrcArray, nameof(sourceArray));
+            if ((uint)(destinationIndex + length) > (nuint)destinationArray.LongLength)
+                throw new ArgumentException(SR.Arg_LongerThanDestArray, nameof(destinationArray));
+
+            if (sourceArray.GetType() == destinationArray.GetType() || IsSimpleCopy(sourceArray, destinationArray))
+            {
+                MethodTable* pMT = RuntimeHelpers.GetMethodTable(sourceArray);
+
+                nuint elementSize = (nuint)pMT->ComponentSize;
+                nuint byteCount = (uint)length * elementSize;
+                ref byte src = ref Unsafe.AddByteOffset(ref sourceArray.GetRawArrayData(), (uint)sourceIndex * elementSize);
+                ref byte dst = ref Unsafe.AddByteOffset(ref destinationArray.GetRawArrayData(), (uint)destinationIndex * elementSize);
+
+                if (pMT->ContainsGCPointers)
+                    Buffer.BulkMoveWithWriteBarrier(ref dst, ref src, byteCount);
+                else
+                    Buffer.Memmove(ref dst, ref src, byteCount);
+
+                // GC.KeepAlive(sourceArray) not required. pMT kept alive via sourceArray
+                return;
+            }
+
+            // If we were called from Array.ConstrainedCopy, ensure that the array copy
+            // is guaranteed to succeed.
+            if (reliable)
+                throw new ArrayTypeMismatchException(SR.ArrayTypeMismatch_ConstrainedCopy);
+
+            // Rare
+            CopySlow(sourceArray, sourceIndex, destinationArray, destinationIndex, length);
+        }
+
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        private static extern bool IsSimpleCopy(Array sourceArray, Array destinationArray);
 
         // Reliability-wise, this method will either possibly corrupt your
         // instance & might fail when called from within a CER, or if the
         // reliable flag is true, it will either always succeed or always
         // throw an exception with no side effects.
         [MethodImpl(MethodImplOptions.InternalCall)]
-        internal static extern void Copy(Array sourceArray, int sourceIndex, Array destinationArray, int destinationIndex, int length, bool reliable);
+        private static extern void CopySlow(Array sourceArray, int sourceIndex, Array destinationArray, int destinationIndex, int length);
 
         // Provides a strong exception guarantee - either it succeeds, or
         // it throws an exception with no side effects.  The arrays must be
@@ -167,7 +270,7 @@ namespace System
         // It will up-cast, assuming the array types are correct.
         public static void ConstrainedCopy(Array sourceArray, int sourceIndex, Array destinationArray, int destinationIndex, int length)
         {
-            Copy(sourceArray, sourceIndex, destinationArray, destinationIndex, length, true);
+            Copy(sourceArray, sourceIndex, destinationArray, destinationIndex, length, reliable: true);
         }
 
         // Sets length elements in array to 0 (or null for Object arrays), starting
@@ -178,24 +281,34 @@ namespace System
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
 
-            ref byte p = ref GetRawArrayGeometry(array, out uint numComponents, out uint elementSize, out int lowerBound, out bool containsGCPointers);
+            ref byte p = ref Unsafe.As<RawArrayData>(array).Data;
+            int lowerBound = 0;
+
+            MethodTable* pMT = RuntimeHelpers.GetMethodTable(array);
+            if (pMT->IsMultiDimensionalArray)
+            {
+                int rank = pMT->MultiDimensionalArrayRank;
+                lowerBound = Unsafe.Add(ref Unsafe.As<byte, int>(ref p), rank);
+                p = ref Unsafe.Add(ref p, 2 * sizeof(int) * rank); // skip the bounds
+            }
 
             int offset = index - lowerBound;
 
-            if (index < lowerBound || offset < 0 || length < 0 || (uint)(offset + length) > numComponents)
+            if (index < lowerBound || offset < 0 || length < 0 || (uint)(offset + length) > (nuint)array.LongLength)
                 ThrowHelper.ThrowIndexOutOfRangeException();
 
-            ref byte ptr = ref Unsafe.AddByteOffset(ref p, (uint)offset * (nuint)elementSize);
-            nuint byteLength = (uint)length * (nuint)elementSize;
+            nuint elementSize = pMT->ComponentSize;
 
-            if (containsGCPointers)
+            ref byte ptr = ref Unsafe.AddByteOffset(ref p, (uint)offset * elementSize);
+            nuint byteLength = (uint)length * elementSize;
+
+            if (pMT->ContainsGCPointers)
                 SpanHelpers.ClearWithReferences(ref Unsafe.As<byte, IntPtr>(ref ptr), byteLength / (uint)sizeof(IntPtr));
             else
                 SpanHelpers.ClearWithoutReferences(ref ptr, byteLength);
-        }
 
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern ref byte GetRawArrayGeometry(Array array, out uint numComponents, out uint elementSize, out int lowerBound, out bool containsGCPointers);
+            // GC.KeepAlive(array) not required. pMT kept alive via `ptr`
+        }
 
         // The various Get values...
         public unsafe object? GetValue(params int[] indices)
@@ -302,33 +415,6 @@ namespace System
             InternalSetValue(&elemref, value);
         }
 
-        private static void SortImpl(Array keys, Array? items, int index, int length, IComparer comparer)
-        {
-            Debug.Assert(comparer != null);
-
-            if (comparer == Comparer.Default)
-            {
-                bool r = TrySZSort(keys, items, index, index + length - 1);
-                if (r)
-                    return;
-            }
-
-            object[]? objKeys = keys as object[];
-            object[]? objItems = null;
-            if (objKeys != null)
-                objItems = items as object[];
-            if (objKeys != null && (items == null || objItems != null))
-            {
-                SorterObjectArray sorter = new SorterObjectArray(objKeys, objItems, comparer);
-                sorter.Sort(index, length);
-            }
-            else
-            {
-                SorterGenericArray sorter = new SorterGenericArray(keys, items, comparer);
-                sorter.Sort(index, length);
-            }
-        }
-
         [MethodImpl(MethodImplOptions.InternalCall)]
         // reference to TypedReference is banned, so have to pass result as pointer
         private extern unsafe void InternalGetReference(void* elemRef, int rank, int* pIndices);
@@ -342,20 +428,51 @@ namespace System
 
         public long LongLength => Unsafe.As<RawArrayData>(this).Length;
 
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        public extern int GetLength(int dimension);
-
-        public extern int Rank
+        public unsafe int Rank
         {
-            [MethodImpl(MethodImplOptions.InternalCall)]
-            get;
+            get
+            {
+                int rank = RuntimeHelpers.GetMultiDimensionalArrayRank(this);
+                return (rank != 0) ? rank : 1;
+            }
         }
 
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        public extern int GetUpperBound(int dimension);
+        public unsafe int GetLength(int dimension)
+        {
+            int rank = RuntimeHelpers.GetMultiDimensionalArrayRank(this);
+            if (rank == 0 && dimension == 0)
+                return Length;
 
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        public extern int GetLowerBound(int dimension);
+            if ((uint)dimension >= (uint)rank)
+                throw new IndexOutOfRangeException(SR.IndexOutOfRange_ArrayRankIndex);
+
+            return Unsafe.Add(ref RuntimeHelpers.GetMultiDimensionalArrayBounds(this), dimension);
+        }
+
+        public unsafe int GetUpperBound(int dimension)
+        {
+            int rank = RuntimeHelpers.GetMultiDimensionalArrayRank(this);
+            if (rank == 0 && dimension == 0)
+                return Length - 1;
+
+            if ((uint)dimension >= (uint)rank)
+                throw new IndexOutOfRangeException(SR.IndexOutOfRange_ArrayRankIndex);
+
+            ref int bounds = ref RuntimeHelpers.GetMultiDimensionalArrayBounds(this);
+            return Unsafe.Add(ref bounds, dimension) + Unsafe.Add(ref bounds, rank + dimension) - 1;
+        }
+
+        public unsafe int GetLowerBound(int dimension)
+        {
+            int rank = RuntimeHelpers.GetMultiDimensionalArrayRank(this);
+            if (rank == 0 && dimension == 0)
+                return 0;
+
+            if ((uint)dimension >= (uint)rank)
+                throw new IndexOutOfRangeException(SR.IndexOutOfRange_ArrayRankIndex);
+
+            return Unsafe.Add(ref RuntimeHelpers.GetMultiDimensionalArrayBounds(this), rank + dimension);
+        }
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool TrySZBinarySearch(Array sourceArray, int sourceIndex, int count, object? value, out int retVal);
@@ -368,9 +485,6 @@ namespace System
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool TrySZReverse(Array array, int index, int count);
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern bool TrySZSort(Array keys, Array? items, int left, int right);
 
         // if this is an array of value classes and that value class has a default constructor
         // then this calls this default constructor on every element in the value class array.

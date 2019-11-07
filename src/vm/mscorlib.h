@@ -11,20 +11,20 @@
 // #define DEFINE_FIELD(classId, id, stringName)
 // #include "mscorlib.h"
 //
-// Note: To determine if the namespace you want to use in DEFINE_CLASS is supported or not, 
+// Note: To determine if the namespace you want to use in DEFINE_CLASS is supported or not,
 //       examine vm\namespace.h. If it is not present, define it there and then proceed to use it below.
 //
 
 //
 // Note: This file gets parsed by the Mono IL Linker (https://github.com/mono/linker/) which may throw an exception during parsing.
-// Specifically, this (https://github.com/mono/linker/blob/master/corebuild/integration/ILLink.Tasks/CreateRuntimeRootDescriptorFile.cs) will try to 
+// Specifically, this (https://github.com/mono/linker/blob/master/corebuild/integration/ILLink.Tasks/CreateRuntimeRootDescriptorFile.cs) will try to
 // parse this header, and it may throw an exception while doing that. If you edit this file and get a build failure on msbuild.exe D:\repos\coreclr\build.proj
 // you might want to check out the parser linked above.
 //
 
-// 
+//
 // Note: The SM_* and IM_* are signatures defined in file:metasig.h using IM() and SM() macros.
-// 
+//
 
 #ifndef DEFINE_CLASS
 #define DEFINE_CLASS(id, nameSpace, stringName)
@@ -94,7 +94,7 @@ DEFINE_CLASS(ARGUMENT_HANDLE,       System,                 RuntimeArgumentHandl
 
 DEFINE_CLASS(ARRAY,                 System,                 Array)
 
-DEFINE_CLASS(ARRAY_WITH_OFFSET,     Interop,                ArrayWithOffset)                 
+DEFINE_CLASS(ARRAY_WITH_OFFSET,     Interop,                ArrayWithOffset)
 DEFINE_FIELD(ARRAY_WITH_OFFSET,     M_ARRAY,                m_array)
 DEFINE_FIELD(ARRAY_WITH_OFFSET,     M_OFFSET,               m_offset)
 DEFINE_FIELD(ARRAY_WITH_OFFSET,     M_COUNT,                m_count)
@@ -289,7 +289,7 @@ DEFINE_METHOD(DATE_TIME,            LONG_CTOR,              .ctor,              
 DEFINE_CLASS(DATE_TIME_OFFSET,      System,                 DateTimeOffset)
 #endif // FEATURE_COMINTEROP
 
-DEFINE_CLASS(DECIMAL,               System,                 Decimal)      
+DEFINE_CLASS(DECIMAL,               System,                 Decimal)
 DEFINE_METHOD(DECIMAL,              CURRENCY_CTOR,          .ctor,                      IM_Currency_RetVoid)
 
 DEFINE_CLASS_U(System,                 Delegate,            NoClass)
@@ -616,7 +616,7 @@ DEFINE_CLASS(__CANON,              System,                 __Canon)
 
 
 #ifdef FEATURE_COMINTEROP
-DEFINE_CLASS(OLE_AUT_BINDER,        System,                 OleAutBinder)    
+DEFINE_CLASS(OLE_AUT_BINDER,        System,                 OleAutBinder)
 #endif // FEATURE_COMINTEROP
 
 DEFINE_CLASS(MONITOR,               Threading,              Monitor)
@@ -707,10 +707,8 @@ DEFINE_METHOD(RUNTIME_HELPERS,      GET_RAW_DATA,            GetRawData,        
 DEFINE_METHOD(RUNTIME_HELPERS,      GET_RAW_SZ_ARRAY_DATA,   GetRawSzArrayData,  NoSig)
 DEFINE_METHOD(RUNTIME_HELPERS,      GET_RAW_ARRAY_DATA,      GetRawArrayData, NoSig)
 DEFINE_METHOD(RUNTIME_HELPERS,      GET_UNINITIALIZED_OBJECT, GetUninitializedObject, NoSig)
-
-DEFINE_CLASS(JIT_HELPERS,           CompilerServices,       JitHelpers)
-DEFINE_METHOD(JIT_HELPERS,          ENUM_EQUALS,            EnumEquals, NoSig)
-DEFINE_METHOD(JIT_HELPERS,          ENUM_COMPARE_TO,        EnumCompareTo, NoSig)
+DEFINE_METHOD(RUNTIME_HELPERS,      ENUM_EQUALS,            EnumEquals, NoSig)
+DEFINE_METHOD(RUNTIME_HELPERS,      ENUM_COMPARE_TO,        EnumCompareTo, NoSig)
 
 DEFINE_CLASS(UNSAFE,                InternalCompilerServices,       Unsafe)
 DEFINE_METHOD(UNSAFE,               AS_POINTER,             AsPointer, NoSig)
@@ -928,7 +926,7 @@ DEFINE_METHOD(ASSEMBLYLOADCONTEXT,  START_ASSEMBLY_LOAD,    StartAssemblyLoad,  
 DEFINE_METHOD(ASSEMBLYLOADCONTEXT,  STOP_ASSEMBLY_LOAD,     StopAssemblyLoad,     SM_RefGuid_RetVoid)
 
 #ifdef FEATURE_COMINTEROP
-DEFINE_CLASS(WINDOWSRUNTIMEMETATADA, WinRT, WindowsRuntimeMetadata) 
+DEFINE_CLASS(WINDOWSRUNTIMEMETATADA, WinRT, WindowsRuntimeMetadata)
 DEFINE_METHOD(WINDOWSRUNTIMEMETATADA,  ON_DESIGNER_NAMESPACE_RESOLVE, OnDesignerNamespaceResolve, SM_Str_RetArrStr)
 #endif //FEATURE_COMINTEROP
 

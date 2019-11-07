@@ -254,7 +254,7 @@ public:
         hEnumInterfaceImpl.EnumInit(mdtInterfaceImpl, cl);
         m_pSubstChain = pSubstChain;
     }
-    
+
     // Returns:
     // S_OK ... if has next (TRUE)
     // S_FALSE ... if does not have next (FALSE)
@@ -268,7 +268,7 @@ public:
         {
             return S_FALSE;
         }
-        
+
         IfFailRet(m_pModule->GetMDImport()->GetTypeOfInterfaceImpl(ii, &m_CurrTok));
         m_CurrSubst = Substitution(m_CurrTok, m_pModule, m_pSubstChain);
         return S_OK;
@@ -437,7 +437,7 @@ class EEClassLayoutInfo
         {
             LIMITED_METHOD_CONTRACT;
             return (m_bFlags & e_HAS_EXPLICIT_SIZE) == e_HAS_EXPLICIT_SIZE;
-        }        
+        }
 
         BYTE GetPackingSize() const
         {
@@ -560,10 +560,10 @@ class EEClassOptionalFields
 #endif
 
     //
-    // GENERICS RELATED FIELDS. 
+    // GENERICS RELATED FIELDS.
     //
 
-    // If IsSharedByGenericInstantiations(), layout of handle dictionary for generic type 
+    // If IsSharedByGenericInstantiations(), layout of handle dictionary for generic type
     // (the last dictionary pointed to from PerInstInfo). Otherwise NULL.
     PTR_DictionaryLayout m_pDictLayout;
 
@@ -598,7 +598,7 @@ class EEClassOptionalFields
 
 #if defined(UNIX_AMD64_ABI)
     // Number of eightBytes in the following arrays
-    int m_numberEightBytes; 
+    int m_numberEightBytes;
     // Classification of the eightBytes
     SystemVClassificationType m_eightByteClassifications[CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS];
     // Size of data the eightBytes
@@ -694,18 +694,18 @@ typedef DPTR(EEClassPackedFields) PTR_EEClassPackedFields;
 // cold), and thus is segregated from the hot portion (which lives in code:MethodTable).  As noted above an
 // it is also the case that EEClass is SHARED among all instantiations of a generic type, so anything that
 // is specific to a paritcular type can not live off the EEClass.
-// 
-// From here you can get to 
+//
+// From here you can get to
 //     code:MethodTable - The representation of the hot portion of a type.
-//     code:MethodDesc - The representation of a method 
-//     code:FieldDesc - The representation of a field. 
-// 
+//     code:MethodDesc - The representation of a method
+//     code:FieldDesc - The representation of a field.
+//
 // EEClasses hold the following important fields
-//     * code:EEClass.m_pMethodTable - Points a MethodTable associated with 
+//     * code:EEClass.m_pMethodTable - Points a MethodTable associated with
 //     * code:EEClass.m_pChunks - a list of code:MethodDescChunk which is simply a list of code:MethodDesc
-//         which represent the methods.  
-//     * code:EEClass.m_pFieldDescList - a list of fields in the type.  
-// 
+//         which represent the methods.
+//     * code:EEClass.m_pFieldDescList - a list of fields in the type.
+//
 class EEClass // DO NOT CREATE A NEW EEClass USING NEW!
 {
     /************************************
@@ -1071,7 +1071,7 @@ public:
     }
 
     /*
-     * Number of bytes to subract from code:MethodTable::GetBaseSize() to get the actual number of bytes 
+     * Number of bytes to subract from code:MethodTable::GetBaseSize() to get the actual number of bytes
      * of instance fields stored in the object on the GC heap.
      */
     inline DWORD GetBaseSizePadding()
@@ -1187,14 +1187,14 @@ public:
         return (m_VMFlags & VMFLAG_UNSAFEVALUETYPE);
     }
 
-    
+
 private:
     inline void SetUnsafeValueClass()
     {
         LIMITED_METHOD_CONTRACT;
         m_VMFlags |= VMFLAG_UNSAFEVALUETYPE;
     }
-    
+
 public:
     inline BOOL HasNoGuid()
     {
@@ -1431,7 +1431,7 @@ public:
      * The CorElementType for this class (most classes = ELEMENT_TYPE_CLASS)
      */
 public:
-    // This is what would be used in the calling convention for this type. 
+    // This is what would be used in the calling convention for this type.
     CorElementType  GetInternalCorElementType()
     {
         LIMITED_METHOD_DAC_CONTRACT;
@@ -1514,7 +1514,7 @@ public:
             GetOptionalFields()->m_eightByteSizes[i] = eightByteSizes[i];
         }
     }
-#endif // UNIX_AMD64_ABI    
+#endif // UNIX_AMD64_ABI
 
 #if defined(FEATURE_HFA)
     bool CheckForHFA(MethodTable ** pByValueClassCache);
@@ -1604,6 +1604,8 @@ public:
 
 
 public:
+    // This API is not multi-threaded safe: the dictionary layout pointer can be updated by another
+    // thread during a generic dictionary size expansion.
     PTR_DictionaryLayout GetDictionaryLayout()
     {
         SUPPORTS_DAC;
@@ -1711,7 +1713,7 @@ public:
 
         //   OVERLAYED is used to detect whether Equals can safely optimize to a bit-compare across the structure.
         VMFLAG_HASOVERLAYEDFIELDS              = 0x00000400,
-        
+
         // Set this if this class or its parent have instance fields which
         // must be explicitly inited in a constructor (e.g. pointers of any
         // kind, gc or native).
@@ -1744,7 +1746,7 @@ public:
         VMFLAG_EXPORTED_TO_WINRT               = 0x08000000,
 #endif // FEATURE_COMINTEROP
 
-        // This one indicates that the fields of the valuetype are 
+        // This one indicates that the fields of the valuetype are
         // not tightly packed and is used to check whether we can
         // do bit-equality on value types to implement ValueType::Equals.
         // It is not valid for classes, and only matters if ContainsPointer
@@ -1763,7 +1765,7 @@ public:
 #endif
     };
 
-public: 
+public:
     // C_ASSERTs in Jitinterface.cpp need this to be public to check the offset.
     // Put it first so the offset rarely changes, which just reduces the number of times we have to fiddle
     // with the offset.
@@ -1773,9 +1775,9 @@ public:
 public:
     LPCUTF8 m_szDebugClassName;
     BOOL m_fDebuggingClass;
-#endif 
+#endif
 
-private: 
+private:
     // Layout rest of fields below from largest to smallest to lessen the chance of wasting bytes with
     // compiler injected padding (especially with the difference between pointers and DWORDs on 64-bit).
     RelativePointer<PTR_EEClassOptionalFields> m_rpOptionalFields;
@@ -1951,7 +1953,7 @@ public:
 
 
 //---------------------------------------------------------------------------------------
-// 
+//
 class LayoutEEClass : public EEClass
 {
 public:
@@ -2183,8 +2185,8 @@ struct EnCAddedFieldElement;
 
 
 // --------------------------------------------------------------------------------------------
-// For generic instantiations the FieldDescs stored for instance 
-// fields are approximate, not exact, i.e. they are representatives owned by 
+// For generic instantiations the FieldDescs stored for instance
+// fields are approximate, not exact, i.e. they are representatives owned by
 // canonical instantiation and they do not carry exact type information.
 // This will not include EnC related fields. (See EncApproxFieldDescIterator for that)
 class ApproxFieldDescIterator
@@ -2215,7 +2217,7 @@ private:
         SUPPORTS_DAC;
         return m_iteratorType;
     }
-    
+
     int Count() {
         LIMITED_METHOD_CONTRACT;
         return m_totalFields;
@@ -2244,12 +2246,12 @@ private:
     bool m_lastNextFromParentClass;
 
     bool NextClass();
-    
+
 public:
     DeepFieldDescIterator()
     {
         LIMITED_METHOD_CONTRACT;
-        
+
         m_numClasses = 0;
         m_curClass = 0;
         m_deepTotalFields = 0;
@@ -2259,16 +2261,16 @@ public:
                           bool includeParents = true)
     {
         WRAPPER_NO_CONTRACT;
-        
+
         Init(pMT, iteratorType, includeParents);
     }
     void Init(MethodTable* pMT, int iteratorType,
               bool includeParents = true);
-    
+
     FieldDesc* Next();
 
     bool Skip(int numSkip);
-    
+
     int Count()
     {
         LIMITED_METHOD_CONTRACT;

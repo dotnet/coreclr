@@ -17,13 +17,13 @@
 #include "array.h"
 #include "castcache.h"
 
-#ifdef FEATURE_PREJIT 
+#ifdef FEATURE_PREJIT
 #include "zapsig.h"
 #endif
 
 #ifdef _DEBUG_IMPL
 
-BOOL TypeHandle::Verify() 
+BOOL TypeHandle::Verify()
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
@@ -79,7 +79,7 @@ unsigned TypeHandle::GetSize()  const
     return(GetSizeForCorElementType(type));
 }
 
-PTR_Module TypeHandle::GetModule() const { 
+PTR_Module TypeHandle::GetModule() const {
     LIMITED_METHOD_DAC_CONTRACT;
 
     if (IsTypeDesc())
@@ -87,7 +87,7 @@ PTR_Module TypeHandle::GetModule() const {
     return(AsMethodTable()->GetModule());
 }
 
-Assembly* TypeHandle::GetAssembly() const { 
+Assembly* TypeHandle::GetAssembly() const {
     LIMITED_METHOD_DAC_CONTRACT;
 
     if (IsTypeDesc())
@@ -95,13 +95,13 @@ Assembly* TypeHandle::GetAssembly() const {
     return(AsMethodTable()->GetAssembly());
 }
 
-BOOL TypeHandle::IsArray() const { 
+BOOL TypeHandle::IsArray() const {
     LIMITED_METHOD_DAC_CONTRACT;
 
     return(IsTypeDesc() && AsTypeDesc()->IsArray());
 }
 
-BOOL TypeHandle::IsArrayType() const { 
+BOOL TypeHandle::IsArrayType() const {
     LIMITED_METHOD_DAC_CONTRACT;
 
     if (IsTypeDesc())
@@ -114,7 +114,7 @@ BOOL TypeHandle::IsArrayType() const {
     }
 }
 
-BOOL TypeHandle::IsGenericVariable() const { 
+BOOL TypeHandle::IsGenericVariable() const {
     LIMITED_METHOD_DAC_CONTRACT;
 
     return(IsTypeDesc() && CorTypeInfo::IsGenericVariable_NoThrow(AsTypeDesc()->GetInternalCorElementType()));
@@ -137,12 +137,12 @@ Module *TypeHandle::GetDefiningModuleForOpenType() const
     Module* returnValue = NULL;
 
     if (IsGenericVariable())
-    { 
+    {
         PTR_TypeVarTypeDesc pTyVar = dac_cast<PTR_TypeVarTypeDesc>(AsTypeDesc());
         returnValue = pTyVar->GetModule();
         goto Exit;
     }
-    
+
     if (HasTypeParam())
     {
         returnValue = GetTypeParam().GetDefiningModuleForOpenType();
@@ -164,7 +164,7 @@ BOOL TypeHandle::ContainsGenericVariables(BOOL methodOnly /*=FALSE*/) const
     if (IsTypeDesc())
     {
         if (IsGenericVariable())
-        { 
+        {
             if (!methodOnly)
                 return TRUE;
 
@@ -204,7 +204,7 @@ BOOL TypeHandle::IsGenericTypeDefinition() const {
 
     if (!IsTypeDesc())
         return AsMethodTable()->IsGenericTypeDefinition();
-    else 
+    else
         return FALSE;
 }
 
@@ -212,10 +212,10 @@ PTR_MethodTable TypeHandle::GetCanonicalMethodTable() const
 {
     LIMITED_METHOD_DAC_CONTRACT;
 
-    if (IsTypeDesc()) 
+    if (IsTypeDesc())
     {
         PTR_MethodTable pMT = AsTypeDesc()->GetMethodTable();
-        if (pMT != NULL) 
+        if (pMT != NULL)
             pMT = pMT->GetCanonicalMethodTable();
         return pMT;
     }
@@ -226,7 +226,7 @@ PTR_MethodTable TypeHandle::GetCanonicalMethodTable() const
 }
 
 // Obtain instantiation from an instantiated type or a pointer to the
-// element type of an array or pointer type                     
+// element type of an array or pointer type
 Instantiation TypeHandle::GetClassOrArrayInstantiation() const
 {
     LIMITED_METHOD_DAC_CONTRACT;
@@ -252,14 +252,14 @@ Instantiation TypeHandle::GetInstantiationOfParentClass(MethodTable *pWhichParen
     return GetMethodTable()->GetInstantiationOfParentClass(pWhichParent);
 }
 
-// Obtain element type from an array or pointer type            
+// Obtain element type from an array or pointer type
 TypeHandle TypeHandle::GetTypeParam() const
 {
     LIMITED_METHOD_DAC_CONTRACT;
 
     if (IsTypeDesc())
         return AsTypeDesc()->GetTypeParam();
-    else 
+    else
         return TypeHandle();
 }
 
@@ -271,7 +271,7 @@ TypeHandle TypeHandle::Instantiate(Instantiation inst) const
 }
 
 TypeHandle TypeHandle::MakePointer() const
-{ 
+{
     STATIC_CONTRACT_WRAPPER;
     return ClassLoader::LoadPointerOrByrefTypeThrowing(ELEMENT_TYPE_PTR, *this);
 }
@@ -313,7 +313,7 @@ PTR_Module TypeHandle::GetLoaderModule() const
     if (IsTypeDesc())
         return AsTypeDesc()->GetLoaderModule();
     else
-        return AsMethodTable()->GetLoaderModule();   
+        return AsMethodTable()->GetLoaderModule();
 }
 
 PTR_Module TypeHandle::GetZapModule() const
@@ -323,7 +323,7 @@ PTR_Module TypeHandle::GetZapModule() const
     if (IsTypeDesc())
         return AsTypeDesc()->GetZapModule();
     else
-        return AsMethodTable()->GetZapModule();   
+        return AsMethodTable()->GetZapModule();
 }
 
 PTR_BaseDomain TypeHandle::GetDomain() const
@@ -334,7 +334,7 @@ PTR_BaseDomain TypeHandle::GetDomain() const
         return AsTypeDesc()->GetDomain();
     else
         return AsMethodTable()->GetDomain();
-    
+
 }
 
 PTR_LoaderAllocator TypeHandle::GetLoaderAllocator() const
@@ -391,8 +391,8 @@ BOOL TypeHandle::IsCanonicalSubtype() const
     return FALSE;
 }
 
-// Obtain instantiation from an instantiated type.                     
-// Return NULL if it's not one.                                         
+// Obtain instantiation from an instantiated type.
+// Return NULL if it's not one.
 Instantiation TypeHandle::GetInstantiation() const
 {
     LIMITED_METHOD_DAC_CONTRACT;
@@ -414,7 +414,7 @@ BOOL TypeHandle::IsInterface() const
 {
     LIMITED_METHOD_DAC_CONTRACT;
 
-    return !IsTypeDesc() && AsMethodTable()->IsInterface(); 
+    return !IsTypeDesc() && AsMethodTable()->IsInterface();
 }
 
 BOOL TypeHandle::IsAbstract() const
@@ -471,7 +471,7 @@ BOOL TypeHandle::IsBlittable() const
 
     if (!IsTypeDesc())
     {
-        // This is a simple type (not an array, ptr or byref) so if 
+        // This is a simple type (not an array, ptr or byref) so if
         // simply check to see if the type is blittable.
         return AsMethodTable()->IsBlittable();
     }
@@ -622,7 +622,7 @@ BOOL TypeHandle::IsBoxedAndCanCastTo(TypeHandle type, TypeHandlePairList *pPairL
     else if (CorTypeInfo::IsGenericVariable(fromParamCorType))
     {
         TypeVarTypeDesc* varFromParam = AsGenericVariable();
-            
+
         if (!varFromParam->ConstraintsLoaded())
             varFromParam->LoadConstraints(CLASS_DEPENDENCIES_LOADED);
 
@@ -659,7 +659,7 @@ BOOL TypeHandle::CanCastTo(TypeHandle type, TypeHandlePairList *pVisited)  const
 
     if (!IsTypeDesc() && type.IsTypeDesc())
         return false;
-        
+
     {
         GCX_COOP();
 
@@ -674,7 +674,7 @@ BOOL TypeHandle::CanCastTo(TypeHandle type, TypeHandlePairList *pVisited)  const
 
 #ifndef CROSSGEN_COMPILE
         // we check nullable case first because it is not cacheable.
-        // object castability and type castability disagree on T --> Nullable<T>, 
+        // object castability and type castability disagree on T --> Nullable<T>,
         // so we can't put this in the cache
         if (Nullable::IsNullableForType(type, AsMethodTable()))
         {
@@ -758,7 +758,7 @@ TypeHandle TypeHandle::MergeClassWithInterface(TypeHandle tClass, TypeHandle tIn
     }
     CONTRACTL_END
 
-    MethodTable *pMTClass = tClass.AsMethodTable(); 
+    MethodTable *pMTClass = tClass.AsMethodTable();
 
     // Check if the class implements the interface
     if (pMTClass->ImplementsEquivalentInterface(tInterface.AsMethodTable()))
@@ -805,7 +805,7 @@ TypeHandle TypeHandle::MergeTypeHandlesToCommonParent(TypeHandle ta, TypeHandle 
         return ta;
 
     // Handle the array case
-    if (ta.IsArray()) 
+    if (ta.IsArray())
     {
         if (tb.IsArray())
             return MergeArrayTypeHandlesToCommonParent(ta, tb);
@@ -813,18 +813,18 @@ TypeHandle TypeHandle::MergeTypeHandlesToCommonParent(TypeHandle ta, TypeHandle 
         if (tb.IsInterface() && tb.HasInstantiation())
         {
             //Check to see if we can merge the array to a common interface (such as Derived[] and IList<Base>)
-            if (ta.AsArray()->ArraySupportsBizarreInterface(tb.AsMethodTable(), /* pVisited */ NULL))
+            if (ta.CanCastTo(tb, /* pVisited */ NULL))
                 return tb;
         }
 
-        ta = TypeHandle(g_pArrayClass);         // keep merging from here. 
+        ta = TypeHandle(g_pArrayClass);         // keep merging from here.
     }
     else if (tb.IsArray())
     {
         if (ta.IsInterface() && ta.HasInstantiation())
         {
             //Check to see if we can merge the array to a common interface (such as Derived[] and IList<Base>)
-            if (tb.AsArray()->ArraySupportsBizarreInterface(ta.AsMethodTable(), /* pVisited */ NULL))
+            if (tb.CanCastTo(ta, /* pVisited */ NULL))
                 return ta;
         }
 
@@ -832,7 +832,7 @@ TypeHandle TypeHandle::MergeTypeHandlesToCommonParent(TypeHandle ta, TypeHandle 
     }
 
 
-    // If either is a (by assumption boxed) type variable 
+    // If either is a (by assumption boxed) type variable
     // return the supertype, if they are related, or object if they are incomparable.
     if (ta.IsGenericVariable() || tb.IsGenericVariable())
     {
@@ -847,7 +847,7 @@ TypeHandle TypeHandle::MergeTypeHandlesToCommonParent(TypeHandle ta, TypeHandle 
     _ASSERTE(!ta.IsTypeDesc() && !tb.IsTypeDesc());
 
 
-    MethodTable *pMTa = ta.AsMethodTable(); 
+    MethodTable *pMTa = ta.AsMethodTable();
     MethodTable *pMTb = tb.AsMethodTable();
 
     if (pMTb->IsInterface())
@@ -856,7 +856,7 @@ TypeHandle TypeHandle::MergeTypeHandlesToCommonParent(TypeHandle ta, TypeHandle 
         if (pMTa->IsInterface())
         {
             //
-            // Both classes are interfaces.  Check that if one 
+            // Both classes are interfaces.  Check that if one
             // interface extends the other.
             //
             // Does tb extend ta ?
@@ -896,7 +896,7 @@ TypeHandle TypeHandle::MergeTypeHandlesToCommonParent(TypeHandle ta, TypeHandle 
 
     for (tSearch = tb; (!tSearch.IsNull()); tSearch = tSearch.GetParent())
         bDepth++;
-    
+
     // for whichever class is lower down in the hierarchy, walk up the superclass chain
     // to the same level as the other class
     while (aDepth > bDepth)
@@ -960,8 +960,8 @@ TypeHandle TypeHandle::MergeArrayTypeHandlesToCommonParent(TypeHandle ta, TypeHa
         return TypeHandle(g_pArrayClass);
 
     if (tbKind != taKind)
-    {        
-        if (CorTypeInfo::IsArray(tbKind) && 
+    {
+        if (CorTypeInfo::IsArray(tbKind) &&
             CorTypeInfo::IsArray(taKind) && rank == 1)
             mergeKind = ELEMENT_TYPE_ARRAY;
         else
@@ -991,14 +991,14 @@ TypeHandle TypeHandle::MergeArrayTypeHandlesToCommonParent(TypeHandle ta, TypeHa
     {
         // The element types have nothing in common.
         return TypeHandle(g_pArrayClass);
-    }    
+    }
 
 
     {
         // This should just result in resolving an already loaded type.
-        ENABLE_FORBID_GC_LOADER_USE_IN_THIS_SCOPE();    
+        ENABLE_FORBID_GC_LOADER_USE_IN_THIS_SCOPE();
         // == FailIfNotLoadedOrNotRestored
-        TypeHandle result = ClassLoader::LoadArrayTypeThrowing(tMergeElem, mergeKind, rank, ClassLoader::DontLoadTypes);  
+        TypeHandle result = ClassLoader::LoadArrayTypeThrowing(tMergeElem, mergeKind, rank, ClassLoader::DontLoadTypes);
         _ASSERTE(!result.IsNull());
 
         // <TODO> should be able to assert IsRestored here </TODO>
@@ -1019,12 +1019,12 @@ BOOL TypeHandle::IsFnPtrType() const
 {
     LIMITED_METHOD_DAC_CONTRACT;
 
-    return (IsTypeDesc() && 
+    return (IsTypeDesc() &&
             (GetSignatureCorElementType() == ELEMENT_TYPE_FNPTR));
 }
 
 BOOL TypeHandle::IsRestored_NoLogging() const
-{ 
+{
     LIMITED_METHOD_CONTRACT;
 
     if (!IsTypeDesc())
@@ -1038,7 +1038,7 @@ BOOL TypeHandle::IsRestored_NoLogging() const
 }
 
 BOOL TypeHandle::IsRestored() const
-{ 
+{
     LIMITED_METHOD_DAC_CONTRACT;
 
     if (!IsTypeDesc())
@@ -1071,7 +1071,7 @@ BOOL TypeHandle::HasUnrestoredTypeKey()  const
 
 #ifdef FEATURE_PREJIT
 void TypeHandle::DoRestoreTypeKey()
-{ 
+{
     CONTRACT_VOID
     {
         THROWS;
@@ -1092,7 +1092,7 @@ void TypeHandle::DoRestoreTypeKey()
         PREFIX_ASSUME(pMT != NULL);
         pMT->DoRestoreTypeKey();
     }
-#endif    
+#endif
 
 #ifdef _DEBUG
 #ifndef DACCESS_COMPILE
@@ -1104,14 +1104,14 @@ void TypeHandle::DoRestoreTypeKey()
     }
 #endif
 #endif
-    
+
 
     RETURN;
 }
 #endif
 
 void TypeHandle::CheckRestore() const
-{ 
+{
     CONTRACTL
     {
         if (FORBIDGC_LOADER_USE_ENABLED()) NOTHROW; else THROWS;
@@ -1137,7 +1137,7 @@ BOOL TypeHandle::ComputeNeedsRestore(DataImage *image, TypeHandleList *pVisited)
     STATIC_STANDARD_VM_CONTRACT;
 
     _ASSERTE(GetAppDomain()->IsCompilationDomain());
-        
+
     if (!IsTypeDesc())
         return GetMethodTable()->ComputeNeedsRestore(image, pVisited);
     else
@@ -1145,7 +1145,7 @@ BOOL TypeHandle::ComputeNeedsRestore(DataImage *image, TypeHandleList *pVisited)
 }
 #endif // FEATURE_NATIVE_IMAGE_GENERATION
 
-BOOL 
+BOOL
 TypeHandle::IsExternallyVisible() const
 {
     CONTRACTL
@@ -1155,17 +1155,17 @@ TypeHandle::IsExternallyVisible() const
         MODE_ANY;
     }
     CONTRACTL_END
-    
+
     if (!IsTypeDesc())
     {
         return AsMethodTable()->IsExternallyVisible();
     }
-    
+
     if (IsGenericVariable())
     {   // VAR, MVAR
         return TRUE;
     }
-    
+
     if (IsFnPtrType())
     {   // FNPTR
         // Function pointer has to check its all argument types
@@ -1173,10 +1173,10 @@ TypeHandle::IsExternallyVisible() const
     }
     // ARRAY, SZARRAY, PTR, BYREF
     _ASSERTE(HasTypeParam());
-    
+
     TypeHandle paramType = AsTypeDesc()->GetTypeParam();
     _ASSERTE(!paramType.IsNull());
-    
+
     return paramType.IsExternallyVisible();
 } // TypeHandle::IsExternallyVisible
 
@@ -1204,14 +1204,14 @@ OBJECTREF TypeHandle::GetManagedClassObject() const
     }
     else
     {
-        switch(GetInternalCorElementType()) 
+        switch(GetInternalCorElementType())
         {
             case ELEMENT_TYPE_ARRAY:
             case ELEMENT_TYPE_SZARRAY:
             case ELEMENT_TYPE_BYREF:
             case ELEMENT_TYPE_PTR:
                 return ((ParamTypeDesc*)AsTypeDesc())->GetManagedClassObject();
-                
+
             case ELEMENT_TYPE_VAR:
             case ELEMENT_TYPE_MVAR:
                 return ((TypeVarTypeDesc*)AsTypeDesc())->GetManagedClassObject();
@@ -1219,7 +1219,7 @@ OBJECTREF TypeHandle::GetManagedClassObject() const
             case ELEMENT_TYPE_FNPTR:
                 // A function pointer is mapped into typeof(IntPtr). It results in a loss of information.
                 return MscorlibBinder::GetElementType(ELEMENT_TYPE_I)->GetManagedClassObject();
-                
+
             default:
                 _ASSERTE(!"Bad Element Type");
                 return NULL;
@@ -1231,21 +1231,21 @@ OBJECTREF TypeHandle::GetManagedClassObject() const
 #endif // #ifndef DACCESS_COMPILE
 
 BOOL TypeHandle::IsByRef() const
-{ 
+{
     LIMITED_METHOD_CONTRACT;
 
     return (IsTypeDesc() && AsTypeDesc()->IsByRef());
 }
 
 BOOL TypeHandle::IsByRefLike() const
-{ 
+{
     LIMITED_METHOD_CONTRACT;
 
     return (!IsTypeDesc() && AsMethodTable()->IsByRefLike());
 }
 
 BOOL TypeHandle::IsPointer() const
-{ 
+{
     LIMITED_METHOD_CONTRACT;
 
     return (IsTypeDesc() && AsTypeDesc()->IsPointer());
@@ -1254,10 +1254,10 @@ BOOL TypeHandle::IsPointer() const
 //
 // The internal type is the type that most of the runtime cares about.  This type has had two normalizations
 // applied to it
-// 
+//
 //    * Enumerated type have been normalized to the primitive type that underlies them (typically int)
 //    * Value types that look like ints (which include RuntimeTypeHandles, etc), have been morphed to be
-//        their underlying type (much like enumeration types.  See 
+//        their underlying type (much like enumeration types.  See
 // * see code:MethodTable#KindsOfElementTypes for more
 // * This value is set by code:EEClass::ComputeInternalCorElementTypeForValueType
 CorElementType TypeHandle::GetInternalCorElementType()  const
@@ -1334,20 +1334,20 @@ void TypeHandle::DoFullyLoad(Generics::RecursionGraph *pVisited, ClassLoadLevel 
 }
 
 // As its name suggests, this returns the type as it is in the meta-data signature.  No morphing to deal
-// with verification or with value types that are treated as primitives is done.  
+// with verification or with value types that are treated as primitives is done.
 // see code:MethodTable#KindsOfElementTypes for more
 CorElementType TypeHandle::GetSignatureCorElementType() const
 {
     LIMITED_METHOD_DAC_CONTRACT;
 
-    // This gets used by 
-    //     MethodTable::DoRestoreTypeKey() --> 
+    // This gets used by
+    //     MethodTable::DoRestoreTypeKey() -->
     //     Module::RestoreMethodTablePointer() -->
     //     ZapSig::DecodeType() -->
     //     SigPointer::GetTypeHandleThrowing -->
     //     TypeHandle::GetSignatureCorElementType
-    // early on during the process of restoring, i.e. after the EEClass for the 
-    // MT is restored but not the parent method table.  Thus we cannot 
+    // early on during the process of restoring, i.e. after the EEClass for the
+    // MT is restored but not the parent method table.  Thus we cannot
     // assume that the parent method table is even yet a valid pointer.
     // However both MethodTable::GetClass and MethodTable::IsValueType work
     // even if the parent method table pointer has not been restored.
@@ -1432,12 +1432,12 @@ TypeHandle::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 //   Returns TRUE if constraints are satisfied.
 //
 //   Returns FALSE if constraints are violated and the type is a canonical instantiation. (We
-//     have to let these load as these form the basis of every instantiation. The canonical 
+//     have to let these load as these form the basis of every instantiation. The canonical
 //     methodtable is not available to users.
 //
 //   THROWS if constraints are violated
 //
-// 
+//
 //--------------------------------------------------------------------------------------
 BOOL SatisfiesClassConstraints(TypeHandle instanceTypeHnd, TypeHandle typicalTypeHnd,
                                const InstantiationContext *pInstContext)
@@ -1450,7 +1450,7 @@ BOOL SatisfiesClassConstraints(TypeHandle instanceTypeHnd, TypeHandle typicalTyp
     }
     CONTRACTL_END;
 
-#ifndef DACCESS_COMPILE 
+#ifndef DACCESS_COMPILE
 
     Instantiation formalInst = typicalTypeHnd.GetInstantiation();
     Instantiation actualInst = instanceTypeHnd.GetInstantiation();
@@ -1466,7 +1466,7 @@ BOOL SatisfiesClassConstraints(TypeHandle instanceTypeHnd, TypeHandle typicalTyp
         // Log the TypeVarTypeDesc access
         g_IBCLogger.LogTypeMethodTableWriteableAccess(&thActualArg);
 
-        BOOL bSatisfiesConstraints = 
+        BOOL bSatisfiesConstraints =
             formalInst[i].AsGenericVariable()->SatisfiesConstraints(&typeContext, thActualArg, pInstContext);
 
         if (!bSatisfiesConstraints)
@@ -1490,11 +1490,11 @@ BOOL SatisfiesClassConstraints(TypeHandle instanceTypeHnd, TypeHandle typicalTyp
                          typicalTypeHndName,
                          formalParamName
                         );
-        }       
+        }
     }
 
     return TRUE;
-  
+
 #else
     return TRUE;
 #endif
@@ -1515,7 +1515,7 @@ BOOL TypeHandle::SatisfiesClassConstraints() const
         INJECT_FAULT(COMPlusThrowOM());
     }
     CONTRACTL_END;
-    
+
     BOOL returnValue = FALSE;
     Instantiation classInst;
     TypeHandle thCanonical;
@@ -1524,23 +1524,23 @@ BOOL TypeHandle::SatisfiesClassConstraints() const
     TypeHandle thParent;
 
     //TODO: cache (positive?) result in methodtable using, say, enum_flag2_UNUSEDxxx
-    
+
     //TODO: reconsider this check
     thParent = GetParent();
-   
-    if (!thParent.IsNull() && !thParent.SatisfiesClassConstraints()) 
+
+    if (!thParent.IsNull() && !thParent.SatisfiesClassConstraints())
     {
         return FALSE;
     }
-    
-    if (!HasInstantiation()) 
+
+    if (!HasInstantiation())
     {
         return TRUE;
     }
 
-    classInst = GetInstantiation(); 
+    classInst = GetInstantiation();
     thCanonical = ClassLoader::LoadTypeDefThrowing(
-                                    GetModule(), 
+                                    GetModule(),
                                     GetCl(),
                                     ClassLoader::ThrowIfNotFound,
                                     ClassLoader::PermitUninstDefOrRef);
@@ -1555,11 +1555,11 @@ BOOL TypeHandle::SatisfiesClassConstraints() const
 
         TypeVarTypeDesc* tyvar = typicalInst[i].AsGenericVariable();
         _ASSERTE(tyvar != NULL);
-        _ASSERTE(TypeFromToken(tyvar->GetTypeOrMethodDef()) == mdtTypeDef);        
+        _ASSERTE(TypeFromToken(tyvar->GetTypeOrMethodDef()) == mdtTypeDef);
 
         tyvar->LoadConstraints(); //TODO: is this necessary for anything but the typical class?
 
-        if (!tyvar->SatisfiesConstraints(&typeContext, thArg)) 
+        if (!tyvar->SatisfiesConstraints(&typeContext, thArg))
         {
             return FALSE;
         }
@@ -1600,7 +1600,7 @@ TypeKey TypeHandle::GetTypeKey() const
         MethodTable *pMT = AsMethodTable();
         if (pMT->IsArray())
         {
-            TypeKey tk(pMT->GetInternalCorElementType(), pMT->GetApproxArrayElementTypeHandle(), TRUE, pMT->GetRank());
+            TypeKey tk(pMT->GetInternalCorElementType(), pMT->GetArrayElementTypeHandle(), TRUE, pMT->GetRank());
             return tk;
         }
         else if (pMT->IsTypicalTypeDefinition())
@@ -1634,30 +1634,30 @@ CHECK TypeHandle::CheckMatchesKey(TypeKey *pKey) const
         if (!IsTypeDesc() && AsMethodTable()->IsArray())
         {
             MethodTable *pMT = AsMethodTable();
-            CHECK_MSGF(pMT->GetInternalCorElementType() == pKey->GetKind(), 
+            CHECK_MSGF(pMT->GetInternalCorElementType() == pKey->GetKind(),
                        ("CorElementType %d of Array MethodTable does not match key %S", pMT->GetArrayElementType(), typeKeyString.GetUnicode()));
-            
-            CHECK_MSGF(pMT->GetApproxArrayElementTypeHandle() == pKey->GetElementType(), 
+
+            CHECK_MSGF(pMT->GetArrayElementTypeHandle() == pKey->GetElementType(),
                        ("Element type of Array MethodTable does not match key %S",typeKeyString.GetUnicode()));
 
-            CHECK_MSGF(pMT->GetRank() == pKey->GetRank(), 
+            CHECK_MSGF(pMT->GetRank() == pKey->GetRank(),
                        ("Rank %d of Array MethodTable does not match key %S", pMT->GetRank(), typeKeyString.GetUnicode()));
         }
         else
         if (IsTypeDesc())
         {
             TypeDesc *pTD = AsTypeDesc();
-            CHECK_MSGF(pTD->GetInternalCorElementType() == pKey->GetKind(), 
+            CHECK_MSGF(pTD->GetInternalCorElementType() == pKey->GetKind(),
                        ("CorElementType %d of TypeDesc does not match key %S", pTD->GetInternalCorElementType(), typeKeyString.GetUnicode()));
-            
+
             if (CorTypeInfo::IsModifier(pKey->GetKind()))
             {
-                CHECK_MSGF(pTD->GetTypeParam() == pKey->GetElementType(), 
+                CHECK_MSGF(pTD->GetTypeParam() == pKey->GetElementType(),
                            ("Element type of TypeDesc does not match key %S",typeKeyString.GetUnicode()));
             }
             if (CorTypeInfo::IsArray(pKey->GetKind()))
             {
-                CHECK_MSGF(pTD->GetMethodTable()->GetRank() == pKey->GetRank(), 
+                CHECK_MSGF(pTD->GetMethodTable()->GetRank() == pKey->GetRank(),
                            ("Rank %d of array TypeDesc does not match key %S", pTD->GetMethodTable()->GetRank(), typeKeyString.GetUnicode()));
             }
         }
@@ -1665,24 +1665,24 @@ CHECK TypeHandle::CheckMatchesKey(TypeKey *pKey) const
         {
             MethodTable *pMT = AsMethodTable();
             CHECK_MSGF(pMT->GetModule() == pKey->GetModule(), ("Module of MethodTable does not match key %S", typeKeyString.GetUnicode()));
-            CHECK_MSGF(pMT->GetCl() == pKey->GetTypeToken(), 
+            CHECK_MSGF(pMT->GetCl() == pKey->GetTypeToken(),
                        ("TypeDef %x of Methodtable does not match TypeDef %x of key %S", pMT->GetCl(), pKey->GetTypeToken(),
                         typeKeyString.GetUnicode()));
-            
+
             if (pMT->IsTypicalTypeDefinition())
             {
-                CHECK_MSGF(pKey->GetNumGenericArgs() == 0 && !pKey->HasInstantiation(), 
+                CHECK_MSGF(pKey->GetNumGenericArgs() == 0 && !pKey->HasInstantiation(),
                            ("Key %S for Typical MethodTable has non-zero number of generic arguments", typeKeyString.GetUnicode()));
             }
             else
             {
-                CHECK_MSGF(pMT->GetNumGenericArgs() == pKey->GetNumGenericArgs(), 
+                CHECK_MSGF(pMT->GetNumGenericArgs() == pKey->GetNumGenericArgs(),
                            ("Number of generic params %d in MethodTable does not match key %S", pMT->GetNumGenericArgs(), typeKeyString.GetUnicode()));
                 if (pKey->HasInstantiation())
                 {
                     for (DWORD i = 0; i < pMT->GetNumGenericArgs(); i++)
                     {
-#ifdef FEATURE_PREJIT 
+#ifdef FEATURE_PREJIT
                         CHECK_MSGF(ZapSig::CompareTypeHandleFieldToTypeHandle(pMT->GetInstantiation().GetRawArgs()[i].GetValuePtr(), pKey->GetInstantiation()[i]),
                                ("Generic argument %d in MethodTable does not match key %S", i, typeKeyString.GetUnicode()));
 #else
