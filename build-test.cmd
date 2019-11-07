@@ -31,10 +31,14 @@ set __BuildOS=Windows_NT
 set "__ProjectDir=%~dp0"
 :: remove trailing slash
 if %__ProjectDir:~-1%==\ set "__ProjectDir=%__ProjectDir:~0,-1%"
+set "__RepoRootDir=%__ProjectDir%\..\.."
+
+rem Remove after repo consolidation
+if not exist "%__RepoRootDir%\.dotnet-runtime-placeholder" ( set "__RepoRootDir=!__ProjectDir!" )
+
 set "__TestDir=%__ProjectDir%\tests"
 set "__ProjectFilesDir=%__TestDir%"
 set "__SourceDir=%__ProjectDir%\src"
-set "__PackagesDir=%__ProjectDir%\.packages"
 set "__RootBinDir=%__ProjectDir%\bin"
 set "__LogsDir=%__RootBinDir%\Logs"
 set "__MsbuildDebugLogsDir=%__LogsDir%\MsbuildDebugLogs"
@@ -161,11 +165,6 @@ if not exist "%__MsbuildDebugLogsDir%"          md "%__MsbuildDebugLogsDir%"
 REM Set up the directory for MSBuild debug logs.
 set MSBUILDDEBUGPATH=%__MsbuildDebugLogsDir%
 
-echo %__MsgPrefix%Checking prerequisites
-
-REM Eval the output from set-cmake-path.ps1
-for /f "delims=" %%a in ('powershell -NoProfile -ExecutionPolicy ByPass "& ""%__SourceDir%\pal\tools\set-cmake-path.ps1"""') do %%a
-
 REM =========================================================================================
 REM ===
 REM === Restore Build Tools
@@ -200,6 +199,23 @@ if defined __SkipNative goto skipnative
 echo %__MsgPrefix%Commencing build of native test components for %__BuildArch%/%__BuildType%
 
 REM Set the environment for the native build
+
+REM Eval the output from set-cmake-path.ps1
+for /f "delims=" %%a in ('powershell -NoProfile -ExecutionPolicy ByPass "& ""%__SourceDir%\pal\tools\set-cmake-path.ps1"""') do %%a
+REM echo Using CMake from %CMakePath%
+
+REM NumberOfCores is an WMI property providing number of physical cores on machine
+REM processor(s). It is used to set optimal level of CL parallelism during native build step
+if not defined NumberOfCores (
+    REM Determine number of physical processor cores available on machine
+    set TotalNumberOfCores=0
+    for /f "tokens=*" %%I in (
+        'wmic cpu get NumberOfCores /value ^| find "=" 2^>NUL'
+    ) do set %%I & set /a TotalNumberOfCores=TotalNumberOfCores+NumberOfCores
+    set NumberOfCores=!TotalNumberOfCores!
+)
+echo %__MsgPrefix%Number of processor cores %NumberOfCores%
+
 set __VCBuildArch=x86_amd64
 if /i "%__BuildArch%" == "x86" ( set __VCBuildArch=x86 )
 if /i "%__BuildArch%" == "arm" ( set __VCBuildArch=x86_arm )
@@ -215,36 +231,35 @@ if not defined VSINSTALLDIR (
 )
 if not exist "%VSINSTALLDIR%DIA SDK" goto NoDIA
 
-pushd "%__NativeTestIntermediatesDir%"
 set __ExtraCmakeArgs="-DCMAKE_SYSTEM_VERSION=10.0"
-call "%__SourceDir%\pal\tools\gen-buildsys-win.bat" ""%__ProjectFilesDir%"" %__VSVersion% %__BuildArch% !__ExtraCmakeArgs!
-@if defined _echo @echo on
-popd
+call "%__SourceDir%\pal\tools\gen-buildsys.cmd" "%__ProjectFilesDir%" "%__NativeTestIntermediatesDir%" %__VSVersion% %__BuildArch% !__ExtraCmakeArgs!
+  
+if not !errorlevel! == 0 (
+    echo %__ErrMsgPrefix%%__MsgPrefix%Error: failed to generate native component build project!
+    exit /b 1
+)
 
-if not exist "%__NativeTestIntermediatesDir%\install.vcxproj" (
-    echo %__ErrMsgPrefix%%__MsgPrefix%Failed to generate test native component build project!
+@if defined _echo @echo on
+
+if not exist "%__NativeTestIntermediatesDir%\CMakeCache.txt" (
+    echo %__ErrMsgPrefix%%__MsgPrefix%Error: unable to find generated native component build project!
     exit /b 1
 )
 
 set __BuildLogRootName=Tests_Native
-set __BuildLog=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.log
-set __BuildWrn=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn
-set __BuildErr=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.err
-set __MsbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
-set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
-set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
+set __BuildLog="%__LogsDir%\!__BuildLogRootName!_%__BuildOS%__%__BuildArch%__%__BuildType%.log"
+set __BuildWrn="%__LogsDir%\!__BuildLogRootName!_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn"
+set __BuildErr="%__LogsDir%\!__BuildLogRootName!_%__BuildOS%__%__BuildArch%__%__BuildType%.err"
+set __MsbuildLog=/flp:Verbosity=normal;LogFile=!__BuildLog!
+set __MsbuildWrn=/flp1:WarningsOnly;LogFile=!__BuildWrn!
+set __MsbuildErr=/flp2:ErrorsOnly;LogFile=!__BuildErr!
 set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-call "%__ProjectDir%\cmake_msbuild.cmd" /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
-  /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
-  /p:UsePartialNGENOptimization=false /maxcpucount^
-  "%__NativeTestIntermediatesDir%\install.vcxproj"^
-  !__Logging! /p:Configuration=%__BuildType% /p:Platform=%__BuildArch% %__CommonMSBuildArgs% %__PriorityArg% %__UnprocessedBuildArgs%
+REM We pass the /m flag directly to MSBuild so that we can get both MSBuild and CL parallelism, which is fastest for our builds.
+"%CMakePath%" --build %__NativeTestIntermediatesDir% --target install --config %__BuildType% -- /m !__Logging!
+
 if errorlevel 1 (
-    echo %__ErrMsgPrefix%%__MsgPrefix%Error: native test build failed. Refer to the build log files for details.
-    echo     %__BuildLog%
-    echo     %__BuildWrn%
-    echo     %__BuildErr%
+    echo %__ErrMsgPrefix%%__MsgPrefix%Error: native test build failed.
     exit /b 1
 )
 
@@ -273,11 +288,19 @@ set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 set __Logging='!__MsbuildLog!' '!__MsbuildWrn!' '!__MsbuildErr!'
 
 REM Disable warnAsError - coreclr issue 19922
-powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -Command "%__ProjectDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
+powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -Command "%__RepoRootDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
   %__ProjectDir%\tests\build.proj -warnAsError:0 /t:BatchRestorePackages /nodeReuse:false^
   /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
   /p:UsePartialNGENOptimization=false /maxcpucount^
   !__Logging! %__CommonMSBuildArgs% %__PriorityArg% %__UnprocessedBuildArgs%
+
+if errorlevel 1 (
+    echo %__ErrMsgPrefix%%__MsgPrefix%Error: Package restoration failed. Refer to the build log files for details:
+    echo     %__BuildLog%
+    echo     %__BuildWrn%
+    echo     %__BuildErr%
+    exit /b 1
+)
 
 :SkipRestoreProduct
 
@@ -311,7 +334,7 @@ set __NumberOfTestGroups=3
 if %__Priority% GTR 0 (set __NumberOfTestGroups=10)
 echo %__MsgPrefix%Building tests divided into %__NumberOfTestGroups% test groups
 
-set __CommonMSBuildCmdPrefix=powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -Command "!__ProjectDir!\eng\common\msbuild.ps1" !__ArcadeScriptArgs!
+set __CommonMSBuildCmdPrefix=powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -Command "!__RepoRootDir!\eng\common\msbuild.ps1" !__ArcadeScriptArgs!
 
 for /l %%G in (1, 1, %__NumberOfTestGroups%) do (
 
@@ -324,7 +347,16 @@ for /l %%G in (1, 1, %__NumberOfTestGroups%) do (
 
     if not "%__CopyNativeTestBinaries%" == "1" (
         REM Disable warnAsError - coreclr issue 19922
-        set __MSBuildBuildArgs=!__ProjectDir!\tests\build.proj -warnAsError:0 /nodeReuse:false !__Logging! !TargetsWindowsMsbuildArg! !__msbuildArgs! !__PriorityArg! !__UnprocessedBuildArgs! /p:CopyNativeProjectBinaries=!__CopyNativeProjectsAfterCombinedTestBuild!
+        set __MSBuildBuildArgs=!__ProjectDir!\tests\build.proj
+        set __MSBuildBuildArgs=!__MSBuildBuildArgs! -warnAsError:0
+        set __MSBuildBuildArgs=!__MSBuildBuildArgs! /nodeReuse:false
+        set __MSBuildBuildArgs=!__MSBuildBuildArgs! !__Logging!
+        set __MSBuildBuildArgs=!__MSBuildBuildArgs! !TargetsWindowsMsbuildArg!
+        set __MSBuildBuildArgs=!__MSBuildBuildArgs! !__msbuildArgs!
+        set __MSBuildBuildArgs=!__MSBuildBuildArgs! !__PriorityArg!
+        set __MSBuildBuildArgs=!__MSBuildBuildArgs! !__UnprocessedBuildArgs!
+        set __MSBuildBuildArgs=!__MSBuildBuildArgs! /p:CopyNativeProjectBinaries=!__CopyNativeProjectsAfterCombinedTestBuild!
+        set __MSBuildBuildArgs=!__MSBuildBuildArgs! /p:__SkipPackageRestore=true
         echo Running: msbuild !__MSBuildBuildArgs!
         !__CommonMSBuildCmdPrefix! !__MSBuildBuildArgs!
 
@@ -367,7 +399,7 @@ REM Check that we've built about as many tests as we expect. This is primarily i
 REM drastically fewer Pri-1 tests than expected.
 echo %__MsgPrefix%Check the managed tests build
 echo Running: dotnet msbuild %__ProjectDir%\tests\src\runtest.proj /t:CheckTestBuild /nodeReuse:false /p:CLRTestPriorityToBuild=%__Priority% %__msbuildArgs% %__unprocessedBuildArgs%
-powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__ProjectDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
+powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__RepoRootDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
     %__ProjectDir%\tests\src\runtest.proj /t:CheckTestBuild /nodeReuse:false /p:CLRTestPriorityToBuild=%__Priority% %__msbuildArgs% %__unprocessedBuildArgs%
 if errorlevel 1 (
     echo %__ErrMsgPrefix%%__MsgPrefix%Error: Check Test Build failed.
@@ -420,7 +452,7 @@ set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__ProjectDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
+powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__RepoRootDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
   %__ProjectDir%\tests\src\runtest.proj /t:CreateTestOverlay /nodeReuse:false^
   /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
   /p:UsePartialNGENOptimization=false /maxcpucount^
@@ -453,7 +485,7 @@ set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
-powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__ProjectDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
+powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__RepoRootDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
   %__ProjectDir%\tests\src\runtest.proj /t:CreateTestHost /nodeReuse:false^
   /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
   /p:UsePartialNGENOptimization=false /maxcpucount^

@@ -5,7 +5,7 @@
 /*============================================================
 **
 ** Header:  Assembly.hpp
-** 
+**
 
 **
 ** Purpose: Implements assembly (loader domain) architecture
@@ -60,13 +60,13 @@ struct CreateDynamicAssemblyArgs : CreateDynamicAssemblyArgsGC
 // An assembly is the unit of deployment for managed code.  Typically Assemblies are one to one with files
 // (Modules), however this is not necessary, as an assembly can contain serveral files (typically you only
 // do this so that you can resource-only modules that are national language specific)
-// 
+//
 // Conceptually Assemblies are loaded into code:AppDomain
-// 
-// So in general an assemly is a list of code:Module, where a code:Module is 1-1 with a DLL or EXE file. 
-//  
+//
+// So in general an assemly is a list of code:Module, where a code:Module is 1-1 with a DLL or EXE file.
+//
 // One of the modules the code:Assembly.m_pManifest is special in that it knows about all the other
-// modules in an assembly (often it is the only one).  
+// modules in an assembly (often it is the only one).
 //
 class Assembly
 {
@@ -163,7 +163,7 @@ public:
         {
             LIMITED_METHOD_CONTRACT;
             SUPPORTS_DAC;
-          
+
             m_pManifest = pAssembly->GetManifestModule();
             m_i = (DWORD) -1;
         }
@@ -391,8 +391,8 @@ public:
                                      mdTypeDef mdNested,
                                      mdTypeDef *pCL);
 
-    static Module * FindModuleByTypeRef(Module *         pModule, 
-                                        mdTypeRef        typeRef, 
+    static Module * FindModuleByTypeRef(Module *         pModule,
+                                        mdTypeRef        typeRef,
                                         Loader::LoadFlag loadFlag,
                                         BOOL *           pfNoResolutionScope);
 
@@ -438,8 +438,6 @@ public:
 #if defined(FEATURE_COLLECTIBLE_TYPES) && !defined(DACCESS_COMPILE)
     OBJECTHANDLE GetLoaderAllocatorObjectHandle() { WRAPPER_NO_CONTRACT; return GetLoaderAllocator()->GetLoaderAllocatorObjectHandle(); }
 #endif // FEATURE_COLLECTIBLE_TYPES
-
-    BOOL IsSIMDVectorAssembly() { LIMITED_METHOD_DAC_CONTRACT; return m_fIsSIMDVectorAssembly; }
 
 #if defined(FEATURE_PREJIT) || defined(FEATURE_READYTORUN)
     BOOL IsInstrumented();
@@ -564,7 +562,7 @@ protected:
             if (GetManifestModule()->GetCustomAttribute(TokenFromRid(1, mdtAssembly), WellKnownAttribute::PrimaryInteropAssembly, NULL, 0) == S_OK)
                 mask |= INTEROP_ATTRIBUTE_PRIMARY_INTEROP_ASSEMBLY;
         }
-        
+
         if (!IsDynamic())
         {
             mask |= INTEROP_ATTRIBUTE_CACHED;
@@ -583,7 +581,7 @@ private:
     void CacheManifestFiles();
 
     void CacheFriendAssemblyInfo();
-   
+
 
     PTR_BaseDomain        m_pDomain;        // Parent Domain
     PTR_ClassLoader       m_pClassLoader;   // Single Loader
@@ -616,8 +614,6 @@ private:
     DebuggerAssemblyControlFlags m_debuggerFlags;
 
     BOOL                  m_fTerminated;
-
-    BOOL                  m_fIsSIMDVectorAssembly;
 
 #if defined(FEATURE_PREJIT) || defined(FEATURE_READYTORUN)
     enum IsInstrumentedStatus {
@@ -658,7 +654,7 @@ public:
     //
     // Return Value:
     //    true if friend access is allowed, false otherwise
-    //    
+    //
     // Notes:
     //    Template type T should be either FieldDesc, MethodDesc, or MethodTable.
     //

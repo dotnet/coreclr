@@ -8,7 +8,7 @@
 /*============================================================
 **
 ** Header:  COMUtilNative
-** 
+**
 **
 ** Purpose: A dumping ground for classes which aren't large
 ** enough to get their own file in the VM.
@@ -49,8 +49,6 @@ public:
     static FCDECL3(StringObject *, StripFileInfo, Object *orefExcepUNSAFE, StringObject *orefStrUNSAFE, CLR_BOOL isRemoteStackTrace);
     static void QCALLTYPE GetMessageFromNativeResources(ExceptionMessageKind kind, QCall::StringHandleOnStack retMesg);
     static FCDECL0(VOID, PrepareForForeignExceptionRaise);
-    static FCDECL1(Object*, CopyStackTrace, Object* pStackTraceUNSAFE);
-    static FCDECL1(Object*, CopyDynamicMethods, Object* pDynamicMethodsUNSAFE);
     static FCDECL3(VOID, GetStackTracesDeepCopy, Object* pExceptionObjectUnsafe, Object **pStackTraceUnsafe, Object **pDynamicMethodsUnsafe);
     static FCDECL3(VOID, SaveStackTracesFromDeepCopy, Object* pExceptionObjectUnsafe, Object *pStackTraceUnsafe, Object *pDynamicMethodsUnsafe);
 
@@ -64,26 +62,18 @@ public:
     static FCDECL0(UINT32, GetExceptionCount);
 };
 
-class MemoryNative
-{
-public:
-    static void QCALLTYPE Clear(void *dst, size_t length);
-    static FCDECL3(VOID, BulkMoveWithWriteBarrier, void *dst, void *src, size_t byteCount);
-};
-
 //
 // Buffer
 //
-class Buffer {
+class Buffer
+{
 public:
-
-    // BlockCopy
-    // This method from one primitive array to another based
-    //      upon an offset into each an a byte count.
-    static FCDECL5(VOID, BlockCopy, ArrayBase *src, int srcOffset, ArrayBase *dst, int dstOffset, int count);
     static FCDECL1(FC_BOOL_RET, IsPrimitiveTypeArray, ArrayBase *arrayUNSAFE);
 
+    static FCDECL3(VOID, BulkMoveWithWriteBarrier, void *dst, void *src, size_t byteCount);
+
     static void QCALLTYPE MemMove(void *dst, void *src, size_t length);
+    static void QCALLTYPE Clear(void *dst, size_t length);
 };
 
 #define MIN_GC_MEMORYPRESSURE_THRESHOLD 100000
@@ -101,7 +91,7 @@ private:
     static UINT64   m_addPressure[NEW_PRESSURE_COUNT];
     static UINT64   m_remPressure[NEW_PRESSURE_COUNT];
     static UINT     m_iteration;
-    
+
 public:
     static CrstStatic m_MemoryPressureLock;
 
@@ -122,10 +112,10 @@ public:
     static FCDECL0(UINT64,  GetSegmentSize);
     static FCDECL0(int,     GetLastGCPercentTimeInGC);
     static FCDECL1(UINT64,  GetGenerationSize, int gen);
-    static 
+    static
     INT64 QCALLTYPE GetTotalMemory();
 
-    static 
+    static
     void QCALLTYPE Collect(INT32 generation, INT32 mode);
 
     static
@@ -136,7 +126,7 @@ public:
     static FCDECL1(void,    SuppressFinalize, Object *obj);
     static FCDECL1(void,    ReRegisterForFinalize, Object *obj);
     static FCDECL2(int,     CollectionCount, INT32 generation, INT32 getSpecialGCCount);
-    
+
     static FCDECL0(INT64,    GetAllocatedBytesForCurrentThread);
     static FCDECL1(INT64,    GetTotalAllocatedBytes, CLR_BOOL precise);
 
@@ -150,15 +140,15 @@ public:
     void QCALLTYPE UnregisterFrozenSegment(void *segmentHandle);
 #endif // FEATURE_BASICFREEZE
 
-    static 
+    static
     int QCALLTYPE StartNoGCRegion(INT64 totalSize, BOOL lohSizeKnown, INT64 lohSize, BOOL disallowFullBlockingGC);
 
-    static 
+    static
     int QCALLTYPE EndNoGCRegion();
 
     static
     void QCALLTYPE _AddMemoryPressure(UINT64 bytesAllocated);
-    
+
     static
     void QCALLTYPE _RemoveMemoryPressure(UINT64 bytesAllocated);
 

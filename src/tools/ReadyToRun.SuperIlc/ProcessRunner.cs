@@ -14,7 +14,7 @@ public class ProcessParameters
     /// <summary>
     /// Maximum time for CPAOT / Crossgen compilation.
     /// </summary>
-    public const int DefaultIlcTimeout = 5 * 60 * 1000;
+    public const int DefaultIlcTimeout = 10 * 60 * 1000;
 
     /// <summary>
     /// Test execution timeout.
@@ -106,7 +106,7 @@ public class ProcessRunner : IDisposable
     private CancellationTokenSource _cancellationTokenSource;
 
     private readonly DataReceivedEventHandler _outputHandler;
-    
+
     private readonly DataReceivedEventHandler _errorHandler;
 
     public ProcessRunner(ProcessInfo processInfo, int processIndex, int processCount, ReadyToRunJittedMethods jittedMethods, AutoResetEvent processExitEvent)
@@ -226,8 +226,14 @@ public class ProcessRunner : IDisposable
     private void CleanupLogWriter()
     {
         TextWriter logWriter = _logWriter;
-        _logWriter = null;
-        logWriter?.Dispose();
+        if (logWriter != null)
+        {
+            lock (logWriter)
+            {
+                _logWriter = null;
+                logWriter.Dispose();
+            }
+        }
     }
 
     private void ExitEventHandler(object sender, EventArgs eventArgs)
@@ -254,7 +260,11 @@ public class ProcessRunner : IDisposable
         {
             lock (logWriter)
             {
-                logWriter.WriteLine(data);
+                if (_logWriter != null)
+                {
+                    // The logWriter was not disposed yet
+                    logWriter.WriteLine(data);
+                }
             }
         }
     }
@@ -267,7 +277,11 @@ public class ProcessRunner : IDisposable
         {
             lock (logWriter)
             {
-                logWriter.WriteLine(data);
+                if (_logWriter != null)
+                {
+                    // The logWriter was not disposed yet
+                    logWriter.WriteLine(data);
+                }
             }
         }
     }
@@ -338,7 +352,6 @@ public class ProcessRunner : IDisposable
         _processInfo.Finished = true;
 
         _logWriter.Flush();
-        _logWriter.Close();
 
         CleanupLogWriter();
 

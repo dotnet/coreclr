@@ -585,7 +585,6 @@ int LinearScan::BuildBlockStore(GenTreeBlk* blkNode)
         switch (blkNode->gtBlkOpKind)
         {
             case GenTreeBlk::BlkOpKindUnroll:
-                NYI_ARM("initblk loop unrolling is currently not implemented.");
                 break;
 
             case GenTreeBlk::BlkOpKindHelper:
@@ -605,7 +604,6 @@ int LinearScan::BuildBlockStore(GenTreeBlk* blkNode)
         {
             assert(src->isContained());
             srcAddrOrFill = src->AsIndir()->Addr();
-            assert(!srcAddrOrFill->isContained());
         }
 
         if (blkNode->OperIs(GT_STORE_OBJ))
@@ -632,6 +630,7 @@ int LinearScan::BuildBlockStore(GenTreeBlk* blkNode)
             // which is killed by a StoreObj (and thus needn't be reserved).
             if (srcAddrOrFill != nullptr)
             {
+                assert(!srcAddrOrFill->isContained());
                 srcRegMask = RBM_WRITE_BARRIER_SRC_BYREF;
             }
         }
@@ -655,6 +654,7 @@ int LinearScan::BuildBlockStore(GenTreeBlk* blkNode)
                     dstAddrRegMask = RBM_ARG_0;
                     if (srcAddrOrFill != nullptr)
                     {
+                        assert(!srcAddrOrFill->isContained());
                         srcRegMask = RBM_ARG_1;
                     }
                     sizeRegMask = RBM_ARG_2;
@@ -679,11 +679,22 @@ int LinearScan::BuildBlockStore(GenTreeBlk* blkNode)
         useCount++;
         BuildUse(dstAddr, dstAddrRegMask);
     }
-
-    if ((srcAddrOrFill != nullptr) && !srcAddrOrFill->isContained())
+    else if (dstAddr->OperIsAddrMode())
     {
-        useCount++;
-        BuildUse(srcAddrOrFill, srcRegMask);
+        useCount += BuildAddrUses(dstAddr->AsAddrMode()->Base());
+    }
+
+    if (srcAddrOrFill != nullptr)
+    {
+        if (!srcAddrOrFill->isContained())
+        {
+            useCount++;
+            BuildUse(srcAddrOrFill, srcRegMask);
+        }
+        else if (srcAddrOrFill->OperIsAddrMode())
+        {
+            useCount += BuildAddrUses(srcAddrOrFill->AsAddrMode()->Base());
+        }
     }
 
     if (blkNode->OperIs(GT_STORE_DYN_BLK))

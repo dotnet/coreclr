@@ -63,7 +63,6 @@
 // should be the normalized representative genericMethodArgs (see typehandle.h)
 //
 
-
 // Helper method that creates a method-desc off a template method desc
 static MethodDesc* CreateMethodDesc(LoaderAllocator *pAllocator,
                                     MethodTable *pMT,
@@ -127,7 +126,7 @@ static MethodDesc* CreateMethodDesc(LoaderAllocator *pAllocator,
     pMD->SetMemberDef(token);
     pMD->SetSlot(pTemplateMD->GetSlot());
 
-#ifdef _DEBUG 
+#ifdef _DEBUG
     pMD->m_pszDebugMethodName = pTemplateMD->m_pszDebugMethodName;
     //<NICE> more info here</NICE>
     pMD->m_pszDebugMethodSignature = "<generic method signature>";
@@ -297,7 +296,8 @@ InstantiatedMethodDesc::NewInstantiatedMethodDesc(MethodTable *pExactMT,
                                                   MethodDesc* pGenericMDescInRepMT,
                                                   MethodDesc* pWrappedMD,
                                                   Instantiation methodInst,
-                                                  BOOL getWrappedCode)
+                                                  BOOL getWrappedCode,
+                                                  BOOL recordForDictionaryExpansion)
 {
     CONTRACT(InstantiatedMethodDesc*)
     {
@@ -373,32 +373,45 @@ InstantiatedMethodDesc::NewInstantiatedMethodDesc(MethodTable *pExactMT,
             {
                 if (pWrappedMD->IsSharedByGenericMethodInstantiations())
                 {
+                    // It is ok to not take a lock here while reading the dictionary layout pointer. This is because
+                    // when we reach the point of registering the newly created MethodDesc, we take the lock and 
+                    // check if the dictionary layout was expanded, and if so, we expand the dictionary of the method
+                    // before recording it for future dictionary expansions and publishing it.
                     pDL = pWrappedMD->AsInstantiatedMethodDesc()->GetDictLayoutRaw();
                 }
             }
             else if (getWrappedCode)
             {
-                // 4 seems like a good number
-                pDL = DictionaryLayout::Allocate(4, pAllocator, &amt);
+                pDL = DictionaryLayout::Allocate(NUM_DICTIONARY_SLOTS, pAllocator, &amt);
 #ifdef _DEBUG 
                 {
                     SString name;
                     TypeString::AppendMethodDebug(name, pGenericMDescInRepMT);
                     LOG((LF_JIT, LL_INFO1000, "GENERICS: Created new dictionary layout for dictionary of size %d for %S\n",
-                         DictionaryLayout::GetFirstDictionaryBucketSize(pGenericMDescInRepMT->GetNumGenericMethodArgs(), pDL), name.GetUnicode()));
+                        DictionaryLayout::GetDictionarySizeFromLayout(pGenericMDescInRepMT->GetNumGenericMethodArgs(), pDL), name.GetUnicode()));
                 }
 #endif // _DEBUG
             }
 
             // Allocate space for the instantiation and dictionary
-            infoSize = DictionaryLayout::GetFirstDictionaryBucketSize(methodInst.GetNumArgs(), pDL);
-            pInstOrPerInstInfo = (TypeHandle *) (void*) amt.Track(pAllocator->GetHighFrequencyHeap()->AllocMem(S_SIZE_T(infoSize)));
+            infoSize = DictionaryLayout::GetDictionarySizeFromLayout(methodInst.GetNumArgs(), pDL);
+            pInstOrPerInstInfo = (TypeHandle*)(void*)amt.Track(pAllocator->GetHighFrequencyHeap()->AllocMem(S_SIZE_T(infoSize)));
             for (DWORD i = 0; i < methodInst.GetNumArgs(); i++)
                 pInstOrPerInstInfo[i] = methodInst[i];
+
+            if (pDL != NULL && pDL->GetMaxSlots() > 0)
+            {
+                // Has to be at least larger than the first slots containing the instantiation arguments,
+                // and the slot with size information. Otherwise, we shouldn't really have a size slot
+                _ASSERTE(infoSize > (sizeof(TypeHandle*) * methodInst.GetNumArgs() + sizeof(ULONG_PTR*)));
+
+                ULONG_PTR* pDictSizeSlot = ((ULONG_PTR*)pInstOrPerInstInfo) + methodInst.GetNumArgs();
+                *pDictSizeSlot = infoSize;
+            }
         }
 
         BOOL forComInterop = FALSE;
-#ifdef FEATURE_COMINTEROP        
+#ifdef FEATURE_COMINTEROP
         if (pExactMT->IsProjectedFromWinRT())
         {
             forComInterop = (pExactMT->IsInterface() || (pExactMT->IsDelegate() && COMDelegate::IsDelegateInvokeMethod(pGenericMDescInRepMT)));
@@ -449,7 +462,7 @@ InstantiatedMethodDesc::NewInstantiatedMethodDesc(MethodTable *pExactMT,
             // for all other reference instantiations so we can't not load it. The Canon type is
             // not visible to users so it can't be abused.
 
-            BOOL fExempt = 
+            BOOL fExempt =
                 TypeHandle::IsCanonicalSubtypeInstantiation(methodInst) ||
                 TypeHandle::IsCanonicalSubtypeInstantiation(pNewMD->GetClassInstantiation());
 
@@ -474,7 +487,7 @@ InstantiatedMethodDesc::NewInstantiatedMethodDesc(MethodTable *pExactMT,
                 // No one else got there first, our MethodDesc wins.
                 amt.SuppressRelease();
 
-#ifdef _DEBUG 
+#ifdef _DEBUG
                 SString name(SString::Utf8);
                 TypeString::AppendMethodDebug(name, pNewMD);
                 StackScratchBuffer buff;
@@ -482,8 +495,8 @@ InstantiatedMethodDesc::NewInstantiatedMethodDesc(MethodTable *pExactMT,
                 const char* verb = "Created";
                 if (pWrappedMD)
                     LOG((LF_CLASSLOADER, LL_INFO1000,
-                         "GENERICS: %s instantiating-stub method desc %s with dictionary size %d\n",
-                         verb, pDebugNameUTF8, infoSize));
+                        "GENERICS: %s instantiating-stub method desc %s with dictionary size %d\n",
+                        verb, pDebugNameUTF8, infoSize));
                 else
                     LOG((LF_CLASSLOADER, LL_INFO1000,
                          "GENERICS: %s instantiated method desc %s\n",
@@ -506,6 +519,15 @@ InstantiatedMethodDesc::NewInstantiatedMethodDesc(MethodTable *pExactMT,
                 // Verify that we are not creating redundant MethodDescs
                 _ASSERTE(!pNewMD->IsTightlyBoundToMethodTable());
 
+#ifndef CROSSGEN_COMPILE
+                if (recordForDictionaryExpansion && pNewMD->HasMethodInstantiation())
+                {
+                    // Recording needs to happen before the MD gets published to the hashtable of InstantiatedMethodDescs
+                    CrstHolder ch(&SystemDomain::SystemModule()->m_DictionaryCrst);
+                    pNewMD->GetModule()->RecordMethodForDictionaryExpansion_Locked(pNewMD);
+                }
+#endif
+
                 // The method desc is fully set up; now add to the table
                 InstMethodHashTable* pTable = pExactMDLoaderModule->GetInstMethodHashTable();
                 pTable->InsertMethodDesc(pNewMD);
@@ -514,7 +536,7 @@ InstantiatedMethodDesc::NewInstantiatedMethodDesc(MethodTable *pExactMT,
                 pNewMD = pOldMD;
             // CrstHolder goes out of scope here
         }
-        
+
     }
 
     RETURN pNewMD;
@@ -551,6 +573,7 @@ InstantiatedMethodDesc::FindOrCreateExactClassMethod(MethodTable *pExactMT,
                                             pCanonicalMD,
                                             pCanonicalMD,
                                             Instantiation(),
+                                            FALSE,
                                             FALSE);
     }
 
@@ -725,7 +748,7 @@ InstantiatedMethodDesc::FindLoadedInstantiatedMethodDesc(MethodTable *pExactOrRe
 // for the Delegate.CreateDelegate logic.
 //
 // allowCreate may be set to FALSE to enforce that the method searched
-// should already be in existence - thus preventing creation and GCs during 
+// should already be in existence - thus preventing creation and GCs during
 // inappropriate times.
 
 #ifdef _PREFAST_
@@ -820,7 +843,7 @@ MethodDesc::FindOrCreateAssociatedMethodDesc(MethodDesc* pDefMD,
 
         pMDescInCanonMT = pExactMT->GetCanonicalMethodTable()->GetParallelMethodDesc(pDefMD);
 
-        if (!allowCreate && (!pMDescInCanonMT->IsRestored() || 
+        if (!allowCreate && (!pMDescInCanonMT->IsRestored() ||
                               !pMDescInCanonMT->GetMethodTable()->IsFullyLoaded()))
 
         {
@@ -838,7 +861,7 @@ MethodDesc::FindOrCreateAssociatedMethodDesc(MethodDesc* pDefMD,
     if (    methodInst.IsEmpty()
         && (allowInstParam || !pMDescInCanonMT->RequiresInstArg())
         && (forceBoxedEntryPoint == pMDescInCanonMT->IsUnboxingStub())
-        && (!forceRemotableMethod || !pMDescInCanonMT->IsInterface() 
+        && (!forceRemotableMethod || !pMDescInCanonMT->IsInterface()
                 || !pMDescInCanonMT->GetMethodTable()->IsSharedByGenericInstantiations()) )
     {
         RETURN(pMDescInCanonMT);
@@ -1150,7 +1173,8 @@ MethodDesc::FindOrCreateAssociatedMethodDesc(MethodDesc* pDefMD,
                                                                             pMDescInCanonMT,
                                                                             NULL,
                                                                             Instantiation(repInst, methodInst.GetNumArgs()),
-                                                                            TRUE);
+                                                                            TRUE,
+                                                                            FALSE);
             }
         }
         else if (getWrappedThenStub)
@@ -1185,7 +1209,8 @@ MethodDesc::FindOrCreateAssociatedMethodDesc(MethodDesc* pDefMD,
                                                                             pMDescInCanonMT,
                                                                             pWrappedMD,
                                                                             methodInst,
-                                                                            FALSE);
+                                                                            FALSE,
+                                                                            TRUE);
             }
         }
         else
@@ -1210,6 +1235,7 @@ MethodDesc::FindOrCreateAssociatedMethodDesc(MethodDesc* pDefMD,
                                                                             pMDescInCanonMT,
                                                                             NULL,
                                                                             methodInst,
+                                                                            FALSE,
                                                                             FALSE);
             }
         }
@@ -1234,7 +1260,7 @@ MethodDesc::FindOrCreateAssociatedMethodDesc(MethodDesc* pDefMD,
     MethodDesc *pMethod,
     TypeHandle instType,
     Instantiation methodInst)
-{    
+{
     CONTRACTL {
         THROWS;
         GC_TRIGGERS;    // Because allowCreate is TRUE
@@ -1243,7 +1269,7 @@ MethodDesc::FindOrCreateAssociatedMethodDesc(MethodDesc* pDefMD,
     CONTRACTL_END;
 
     MethodDesc *pInstMD = pMethod;
-    
+
     // no stubs for TypeDesc
     if (instType.IsTypeDesc())
         return pInstMD;
@@ -1266,23 +1292,23 @@ MethodDesc::FindOrCreateAssociatedMethodDesc(MethodDesc* pDefMD,
         pInstMD = MethodDesc::FindOrCreateAssociatedMethodDesc(
             pMethod,
             pMT,
-            pMethod->IsUnboxingStub(), 
+            pMethod->IsUnboxingStub(),
             methodInst,
             FALSE,      /* no allowInstParam */
             TRUE   /* force remotable method (i.e. inst wrappers for non-generic methods on generic interfaces) */);
     }
-    else if ( !pMethod->HasMethodInstantiation() && 
-              ( instType.IsValueType() || 
-                ( instType.HasInstantiation() && 
-                  !instType.IsGenericTypeDefinition() && 
+    else if ( !pMethod->HasMethodInstantiation() &&
+              ( instType.IsValueType() ||
+                ( instType.HasInstantiation() &&
+                  !instType.IsGenericTypeDefinition() &&
                   ( instType.IsInterface() || pMethod->IsStatic() ) ) ) )
     {
-        // 
+        //
         // Called at MethodInfos cache creation
         //   the method is either a normal method or a generic method definition
         // Also called at MethodBase.GetMethodBaseFromHandle
         //   the method is either a normal method, a generic method definition, or an instantiated generic method
-        // Needs an instantiating stub if 
+        // Needs an instantiating stub if
         // - non generic static method on a generic class
         // - non generic instance method on a struct
         // - non generic method on a generic interface
@@ -1313,7 +1339,7 @@ MethodDesc::FindOrCreateAssociatedMethodDesc(MethodDesc* pDefMD,
 //
 // NOTE: If allowCreate is FALSE, typically you must also set ENABLE_FORBID_GC_LOADER_USE_IN_THIS_SCOPE()
 // allowCreate may be set to FALSE to enforce that the method searched
-// should already be in existence - thus preventing creation and GCs during 
+// should already be in existence - thus preventing creation and GCs during
 // inappropriate times.
 //
 MethodDesc * MethodDesc::FindOrCreateTypicalSharedInstantiation(BOOL allowCreate /* = TRUE */)
@@ -1370,14 +1396,14 @@ MethodDesc * MethodDesc::FindOrCreateTypicalSharedInstantiation(BOOL allowCreate
         dwAllocSize = 0;
         if (!ClrSafeInt<DWORD>::multiply(sizeof(TypeHandle), nGenericMethodArgs, dwAllocSize))
             ThrowHR(COR_E_OVERFLOW);
-        
+
         genericMethodArgs = reinterpret_cast<TypeHandle*>(qbGenericMethodArgs.AllocThrows(dwAllocSize));
 
         for (DWORD i =0; i < nGenericMethodArgs; i++)
             genericMethodArgs[i] = TypeHandle(g_pCanonMethodTableClass);
     }
 
-    RETURN(MethodDesc::FindOrCreateAssociatedMethodDesc(pMD, 
+    RETURN(MethodDesc::FindOrCreateAssociatedMethodDesc(pMD,
                                                         pMT,
                                                         FALSE, /* don't get unboxing entry point */
                                                         Instantiation(genericMethodArgs, nGenericMethodArgs),
@@ -1611,7 +1637,7 @@ void MethodDesc::LoadConstraintsForTypicalMethodDefinition(BOOL *pfHasCircularCl
 }
 
 
-#ifdef FEATURE_PREJIT 
+#ifdef FEATURE_PREJIT
 
 void MethodDesc::PrepopulateDictionary(DataImage * image, BOOL nonExpansive)
 {
@@ -1627,7 +1653,7 @@ void MethodDesc::PrepopulateDictionary(DataImage * image, BOOL nonExpansive)
 
 #endif // FEATURE_PREJIT
 
-#ifndef DACCESS_COMPILE 
+#ifndef DACCESS_COMPILE
 
 BOOL MethodDesc::SatisfiesMethodConstraints(TypeHandle thParent, BOOL fThrowIfNotSatisfied/* = FALSE*/)
 {
@@ -1672,15 +1698,15 @@ BOOL MethodDesc::SatisfiesMethodConstraints(TypeHandle thParent, BOOL fThrowIfNo
             {
                 SString sParentName;
                 TypeString::AppendType(sParentName, thParent);
-    
+
                 SString sMethodName(SString::Utf8, GetName());
-    
+
                 SString sActualParamName;
                 TypeString::AppendType(sActualParamName, methodInst[i]);
-    
+
                 SString sFormalParamName;
                 TypeString::AppendType(sFormalParamName, typicalInst[i]);
-               
+
                 COMPlusThrow(kVerificationException,
                              IDS_EE_METHOD_CONSTRAINTS_VIOLATION,
                              sParentName.GetUnicode(),
@@ -1688,14 +1714,29 @@ BOOL MethodDesc::SatisfiesMethodConstraints(TypeHandle thParent, BOOL fThrowIfNo
                              sActualParamName.GetUnicode(),
                              sFormalParamName.GetUnicode()
                             );
-      
-                
+
+
             }
             return FALSE;
         }
 
     }
     return TRUE;
+}
+
+DWORD InstantiatedMethodDesc::GetDictionarySlotsSize()
+{
+    CONTRACTL
+    {
+        PRECONDITION(SystemDomain::SystemModule()->m_DictionaryCrst.OwnedByCurrentThread());
+    }
+    CONTRACTL_END
+
+    ULONG_PTR* pDictionarySlots = (ULONG_PTR*)IMD_GetMethodDictionary();
+    if (pDictionarySlots == NULL)
+        return 0;
+    ULONG_PTR* pSizeSlot = pDictionarySlots + m_wNumGenericArgs;
+    return (DWORD)(*pSizeSlot);
 }
 
 #endif // !DACCESS_COMPILE

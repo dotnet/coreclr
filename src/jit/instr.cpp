@@ -480,7 +480,7 @@ void CodeGen::inst_set_SV_var(GenTree* tree)
 {
 #ifdef DEBUG
     assert(tree && (tree->gtOper == GT_LCL_VAR || tree->gtOper == GT_LCL_VAR_ADDR || tree->gtOper == GT_STORE_LCL_VAR));
-    assert(tree->gtLclVarCommon.GetLclNum() < compiler->lvaCount);
+    assert(tree->AsLclVarCommon()->GetLclNum() < compiler->lvaCount);
 
     GetEmitter()->emitVarRefOffs = tree->AsLclVar()->gtLclILoffs;
 
@@ -588,7 +588,7 @@ AGAIN:
             goto LCL;
 
         LCL:
-            varNum = tree->gtLclVarCommon.GetLclNum();
+            varNum = tree->AsLclVarCommon()->GetLclNum();
             assert(varNum < compiler->lvaCount);
 
             if (shfv)
@@ -633,9 +633,9 @@ AGAIN:
             assert(offs == 0);
             assert(!shfv);
             if (tree->IsIconHandle())
-                inst_IV_handle(ins, tree->gtIntCon.gtIconVal);
+                inst_IV_handle(ins, tree->AsIntCon()->gtIconVal);
             else
-                inst_IV(ins, tree->gtIntCon.gtIconVal);
+                inst_IV(ins, tree->AsIntCon()->gtIconVal);
             break;
 #endif
 
@@ -696,7 +696,7 @@ AGAIN:
 
         LCL:
 
-            varNum = tree->gtLclVarCommon.GetLclNum();
+            varNum = tree->AsLclVarCommon()->GetLclNum();
             assert(varNum < compiler->lvaCount);
 
 #if CPU_LOAD_STORE_ARCH
@@ -844,7 +844,7 @@ AGAIN:
             goto LCL;
 
         LCL:
-            varNum = tree->gtLclVarCommon.GetLclNum();
+            varNum = tree->AsLclVarCommon()->GetLclNum();
             assert(varNum < compiler->lvaCount);
 
 #ifdef _TARGET_ARM_
@@ -908,7 +908,8 @@ AGAIN:
             assert(offs == 0);
 
             // TODO-CrossBitness: we wouldn't need the cast below if GenTreeIntCon::gtIconVal had target_ssize_t type.
-            inst_RV_IV(ins, reg, (target_ssize_t)tree->gtIntCon.gtIconVal, emitActualTypeSize(tree->TypeGet()), flags);
+            inst_RV_IV(ins, reg, (target_ssize_t)tree->AsIntCon()->gtIconVal, emitActualTypeSize(tree->TypeGet()),
+                       flags);
             break;
 
         case GT_CNS_LNG:
@@ -1111,13 +1112,14 @@ void CodeGen::inst_RV_TT_IV(instruction ins, emitAttr attr, regNumber reg1, GenT
 
                 default:
                 {
+                    GenTreeIndir load = indirForm(rmOp->TypeGet(), addr);
+
                     if (memIndir == nullptr)
                     {
                         // This is the HW intrinsic load case.
                         // Until we improve the handling of addressing modes in the emitter, we'll create a
                         // temporary GT_IND to generate code with.
-                        GenTreeIndir load = indirForm(rmOp->TypeGet(), addr);
-                        memIndir          = &load;
+                        memIndir = &load;
                     }
                     GetEmitter()->emitIns_R_A_I(ins, attr, reg1, memIndir, ival);
                     return;

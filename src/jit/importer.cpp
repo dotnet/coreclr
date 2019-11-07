@@ -511,7 +511,7 @@ inline void Compiler::impAppendStmtCheck(Statement* stmt, unsigned chkLevel)
 
         if (tree->AsOp()->gtOp1->gtOper == GT_LCL_VAR)
         {
-            unsigned lclNum = tree->AsOp()->gtOp1->gtLclVarCommon.GetLclNum();
+            unsigned lclNum = tree->AsOp()->gtOp1->AsLclVarCommon()->GetLclNum();
             for (unsigned level = 0; level < chkLevel; level++)
             {
                 assert(!gtHasRef(verCurrentState.esStack[level].val, lclNum, false));
@@ -1122,7 +1122,7 @@ GenTree* Compiler::impAssignStruct(GenTree*             dest,
 
     // Return a NOP if this is a self-assignment.
     if (dest->OperGet() == GT_LCL_VAR && src->OperGet() == GT_LCL_VAR &&
-        src->gtLclVarCommon.GetLclNum() == dest->gtLclVarCommon.GetLclNum())
+        src->AsLclVarCommon()->GetLclNum() == dest->AsLclVarCommon()->GetLclNum())
     {
         return gtNewNothingNode();
     }
@@ -1240,13 +1240,13 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
                     // TODO-1stClassStructs: Eliminate this pessimization when we can more generally
                     // handle multireg returns.
                     lcl->gtFlags |= GTF_DONT_CSE;
-                    lvaTable[lcl->gtLclVarCommon.GetLclNum()].lvIsMultiRegRet = true;
+                    lvaTable[lcl->AsLclVarCommon()->GetLclNum()].lvIsMultiRegRet = true;
                 }
                 else if (lcl->gtType != src->gtType)
                 {
                     // We change this to a GT_LCL_FLD (from a GT_ADDR of a GT_LCL_VAR)
                     lcl->ChangeOper(GT_LCL_FLD);
-                    fgLclFldAssign(lcl->gtLclVarCommon.GetLclNum());
+                    fgLclFldAssign(lcl->AsLclVarCommon()->GetLclNum());
                     lcl->gtType = src->gtType;
                     asgType     = src->gtType;
                 }
@@ -1256,7 +1256,7 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
 #if defined(_TARGET_ARM_)
                 // TODO-Cleanup: This should have been taken care of in the above HasMultiRegRetVal() case,
                 // but that method has not been updadted to include ARM.
-                impMarkLclDstNotPromotable(lcl->gtLclVarCommon.GetLclNum(), src, structHnd);
+                impMarkLclDstNotPromotable(lcl->AsLclVarCommon()->GetLclNum(), src, structHnd);
                 lcl->gtFlags |= GTF_DONT_CSE;
 #elif defined(UNIX_AMD64_ABI)
                 // Not allowed for FEATURE_CORCLR which is the only SKU available for System V OSs.
@@ -1268,7 +1268,7 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
                 // TODO-Cleanup: Why is this needed here? This seems that it will set this even for
                 // non-multireg returns.
                 lcl->gtFlags |= GTF_DONT_CSE;
-                lvaTable[lcl->gtLclVarCommon.GetLclNum()].lvIsMultiRegRet = true;
+                lvaTable[lcl->AsLclVarCommon()->GetLclNum()].lvIsMultiRegRet = true;
 #endif
             }
             else // we don't have a GT_ADDR of a GT_LCL_VAR
@@ -1332,7 +1332,7 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
     else if (src->gtOper == GT_INDEX)
     {
         asgType = impNormStructType(structHnd);
-        assert(src->gtIndex.gtStructElemClass == structHnd);
+        assert(src->AsIndex()->gtStructElemClass == structHnd);
     }
     else if (src->gtOper == GT_MKREFANY)
     {
@@ -1466,7 +1466,7 @@ GenTree* Compiler::impGetStructAddr(GenTree*             structVal,
     if (oper == GT_OBJ && willDeref)
     {
         assert(structVal->AsObj()->GetLayout()->GetClassHandle() == structHnd);
-        return (structVal->gtObj.Addr());
+        return (structVal->AsObj()->Addr());
     }
     else if (oper == GT_CALL || oper == GT_RET_EXPR || oper == GT_OBJ || oper == GT_MKREFANY ||
              structVal->OperIsSimdOrHWintrinsic())
@@ -1628,14 +1628,14 @@ GenTree* Compiler::impNormStructVal(GenTree*             structVal,
             break;
 
         case GT_ARGPLACE:
-            structVal->gtArgPlace.gtArgPlaceClsHnd = structHnd;
+            structVal->AsArgPlace()->gtArgPlaceClsHnd = structHnd;
             break;
 
         case GT_INDEX:
             // This will be transformed to an OBJ later.
-            alreadyNormalized                    = true;
-            structVal->gtIndex.gtStructElemClass = structHnd;
-            structVal->gtIndex.gtIndElemSize     = info.compCompHnd->getClassSize(structHnd);
+            alreadyNormalized                       = true;
+            structVal->AsIndex()->gtStructElemClass = structHnd;
+            structVal->AsIndex()->gtIndElemSize     = info.compCompHnd->getClassSize(structHnd);
             break;
 
         case GT_FIELD:
@@ -1672,7 +1672,7 @@ GenTree* Compiler::impNormStructVal(GenTree*             structVal,
             break;
 #endif // FEATURE_SIMD
 #ifdef FEATURE_HW_INTRINSICS
-        case GT_HWIntrinsic:
+        case GT_HWINTRINSIC:
             assert(varTypeIsSIMD(structVal) && (structVal->gtType == structType));
             break;
 #endif
@@ -1931,12 +1931,12 @@ GenTree* Compiler::impMethodPointer(CORINFO_RESOLVED_TOKEN* pResolvedToken, CORI
 #ifdef FEATURE_READYTORUN_COMPILER
             if (opts.IsReadyToRun())
             {
-                op1->gtFptrVal.gtEntryPoint = pCallInfo->codePointerLookup.constLookup;
+                op1->AsFptrVal()->gtEntryPoint = pCallInfo->codePointerLookup.constLookup;
             }
             else
             {
-                op1->gtFptrVal.gtEntryPoint.addr       = nullptr;
-                op1->gtFptrVal.gtEntryPoint.accessType = IAT_VALUE;
+                op1->AsFptrVal()->gtEntryPoint.addr       = nullptr;
+                op1->AsFptrVal()->gtEntryPoint.accessType = IAT_VALUE;
             }
 #endif
             break;
@@ -2160,7 +2160,7 @@ GenTree* Compiler::impRuntimeLookupToTree(CORINFO_RESOLVED_TOKEN* pResolvedToken
     unsigned tmp;
     if (handleCopy->IsLocal())
     {
-        tmp = handleCopy->gtLclVarCommon.GetLclNum();
+        tmp = handleCopy->AsLclVarCommon()->GetLclNum();
     }
     else
     {
@@ -2329,7 +2329,8 @@ void Compiler::impSpillStackEnsure(bool spillLeaves)
 
         // Temps introduced by the importer itself don't need to be spilled
 
-        bool isTempLcl = (tree->OperGet() == GT_LCL_VAR) && (tree->gtLclVarCommon.GetLclNum() >= info.compLocalsCount);
+        bool isTempLcl =
+            (tree->OperGet() == GT_LCL_VAR) && (tree->AsLclVarCommon()->GetLclNum() >= info.compLocalsCount);
 
         if (isTempLcl)
         {
@@ -2533,7 +2534,7 @@ BasicBlock* Compiler::impPushCatchArgOnStack(BasicBlock* hndBlk, CORINFO_CLASS_H
             if ((tree->gtOper == GT_ASG) && (tree->AsOp()->gtOp1->gtOper == GT_LCL_VAR) &&
                 (tree->AsOp()->gtOp2->gtOper == GT_CATCH_ARG))
             {
-                tree = gtNewLclvNode(tree->AsOp()->gtOp1->gtLclVarCommon.GetLclNum(), TYP_REF);
+                tree = gtNewLclvNode(tree->AsOp()->gtOp1->AsLclVarCommon()->GetLclNum(), TYP_REF);
 
                 impPushOnStack(tree, typeInfo(TI_REF, clsHnd));
 
@@ -2555,7 +2556,7 @@ BasicBlock* Compiler::impPushCatchArgOnStack(BasicBlock* hndBlk, CORINFO_CLASS_H
 #if defined(JIT32_GCENCODER)
     const bool forceInsertNewBlock = isSingleBlockFilter || compStressCompile(STRESS_CATCH_ARG, 5);
 #else
-    const bool forceInsertNewBlock                                        = compStressCompile(STRESS_CATCH_ARG, 5);
+    const bool forceInsertNewBlock                                           = compStressCompile(STRESS_CATCH_ARG, 5);
 #endif // defined(JIT32_GCENCODER)
 
     /* Spill GT_CATCH_ARG to a temp if there are jumps to the beginning of the handler */
@@ -2956,7 +2957,7 @@ GenTree* Compiler::impImplicitIorI4Cast(GenTree* tree, var_types dstTyp)
         // Automatic upcast for a GT_CNS_INT into TYP_I_IMPL
         if ((tree->OperGet() == GT_CNS_INT) && varTypeIsI(dstTyp))
         {
-            if (!varTypeIsI(tree->gtType) || ((tree->gtType == TYP_REF) && (tree->gtIntCon.gtIconVal == 0)))
+            if (!varTypeIsI(tree->gtType) || ((tree->gtType == TYP_REF) && (tree->AsIntCon()->gtIconVal == 0)))
             {
                 tree->gtType = TYP_I_IMPL;
             }
@@ -3051,7 +3052,7 @@ GenTree* Compiler::impInitializeArrayIntrinsic(CORINFO_SIG_INFO* sig)
         return nullptr;
     }
 
-    CORINFO_FIELD_HANDLE fieldToken = (CORINFO_FIELD_HANDLE)fieldTokenNode->gtIntCon.gtCompileTimeHandle;
+    CORINFO_FIELD_HANDLE fieldToken = (CORINFO_FIELD_HANDLE)fieldTokenNode->AsIntCon()->gtCompileTimeHandle;
     if (!fieldTokenNode->IsIconHandle(GTF_ICON_FIELD_HDL) || (fieldToken == nullptr))
     {
         return nullptr;
@@ -3075,8 +3076,8 @@ GenTree* Compiler::impInitializeArrayIntrinsic(CORINFO_SIG_INFO* sig)
     //
     GenTree* arrayAssignment = impLastStmt->GetRootNode();
     if ((arrayAssignment->gtOper != GT_ASG) || (arrayAssignment->AsOp()->gtOp1->gtOper != GT_LCL_VAR) ||
-        (arrayLocalNode->gtOper != GT_LCL_VAR) ||
-        (arrayAssignment->AsOp()->gtOp1->gtLclVarCommon.GetLclNum() != arrayLocalNode->gtLclVarCommon.GetLclNum()))
+        (arrayLocalNode->gtOper != GT_LCL_VAR) || (arrayAssignment->AsOp()->gtOp1->AsLclVarCommon()->GetLclNum() !=
+                                                   arrayLocalNode->AsLclVarCommon()->GetLclNum()))
     {
         return nullptr;
     }
@@ -3299,7 +3300,7 @@ GenTree* Compiler::impInitializeArrayIntrinsic(CORINFO_SIG_INFO* sig)
             return nullptr;
         }
 
-        numElements = S_SIZE_T(arrayLengthNode->gtIntCon.gtIconVal);
+        numElements = S_SIZE_T(arrayLengthNode->AsIntCon()->gtIconVal);
 
         if (!info.compCompHnd->isSDArray(arrayClsHnd))
         {
@@ -3621,7 +3622,7 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
 
             GenTree* node = new (this, GT_CMPXCHG) GenTreeCmpXchg(genActualType(callType), op1, op2, op3);
 
-            node->gtCmpXchg.gtOpLocation->gtFlags |= GTF_DONT_CSE;
+            node->AsCmpXchg()->gtOpLocation->gtFlags |= GTF_DONT_CSE;
             retNode = node;
             break;
         }
@@ -4104,6 +4105,20 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
                 break;
             }
 
+            case NI_System_GC_KeepAlive:
+            {
+                retNode = gtNewOperNode(GT_KEEPALIVE, TYP_VOID, impPopStack().val);
+
+                // Prevent both reordering and removal. Invalid optimizations of GC.KeepAlive are
+                // very subtle and hard to observe. Thus we are conservatively marking it with both
+                // GTF_CALL and GTF_GLOB_REF side-effects even though it may be more than strictly
+                // necessary. The conservative side-effects are unlikely to have negative impact
+                // on code quality in this case.
+                retNode->gtFlags |= (GTF_CALL | GTF_GLOB_REF);
+
+                break;
+            }
+
             default:
                 break;
         }
@@ -4281,6 +4296,13 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
                 {
                     result = NI_System_MathF_Round;
                 }
+            }
+        }
+        else if (strcmp(className, "GC") == 0)
+        {
+            if (strcmp(methodName, "KeepAlive") == 0)
+            {
+                result = NI_System_GC_KeepAlive;
             }
         }
     }
@@ -6537,7 +6559,7 @@ GenTreeCall* Compiler::impImportIndirectCall(CORINFO_SIG_INFO* sig, IL_OFFSETX i
 
     if (fptr->OperGet() == GT_LCL_VAR)
     {
-        lvaTable[fptr->gtLclVarCommon.GetLclNum()].lvKeepType = 1;
+        lvaTable[fptr->AsLclVarCommon()->GetLclNum()].lvKeepType = 1;
     }
 #endif
 
@@ -7502,12 +7524,12 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
                     if (opts.IsReadyToRun())
                     {
                         noway_assert(callInfo->kind == CORINFO_CALL);
-                        call->gtIntrinsic.gtEntryPoint = callInfo->codePointerLookup.constLookup;
+                        call->AsIntrinsic()->gtEntryPoint = callInfo->codePointerLookup.constLookup;
                     }
                     else
                     {
-                        call->gtIntrinsic.gtEntryPoint.addr       = nullptr;
-                        call->gtIntrinsic.gtEntryPoint.accessType = IAT_VALUE;
+                        call->AsIntrinsic()->gtEntryPoint.addr       = nullptr;
+                        call->AsIntrinsic()->gtEntryPoint.accessType = IAT_VALUE;
                     }
                 }
 #endif
@@ -8316,7 +8338,7 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
             {
                 assert(newobjThis->gtOper == GT_ADDR && newobjThis->AsOp()->gtOp1->gtOper == GT_LCL_VAR);
 
-                unsigned tmp = newobjThis->AsOp()->gtOp1->gtLclVarCommon.GetLclNum();
+                unsigned tmp = newobjThis->AsOp()->gtOp1->AsLclVarCommon()->GetLclNum();
                 impPushOnStack(gtNewLclvNode(tmp, lvaGetRealType(tmp)), verMakeTypeInfo(clsHnd).NormaliseForStack());
             }
             else
@@ -8331,7 +8353,7 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
                 }
 
                 assert(newobjThis->gtOper == GT_LCL_VAR);
-                impPushOnStack(gtNewLclvNode(newobjThis->gtLclVarCommon.GetLclNum(), TYP_REF),
+                impPushOnStack(gtNewLclvNode(newobjThis->AsLclVarCommon()->GetLclNum(), TYP_REF),
                                typeInfo(TI_REF, clsHnd));
             }
         }
@@ -8965,7 +8987,7 @@ GenTree* Compiler::impFixupStructReturnType(GenTree* op, CORINFO_CLASS_HANDLE re
         if (op->gtOper == GT_LCL_VAR)
         {
             // Make sure that this struct stays in memory and doesn't get promoted.
-            unsigned lclNum                  = op->gtLclVarCommon.GetLclNum();
+            unsigned lclNum                  = op->AsLclVarCommon()->GetLclNum();
             lvaTable[lclNum].lvIsMultiRegRet = true;
 
             // TODO-1stClassStructs: Handle constant propagation and CSE-ing of multireg returns.
@@ -8992,7 +9014,7 @@ GenTree* Compiler::impFixupStructReturnType(GenTree* op, CORINFO_CLASS_HANDLE re
         if (op->gtOper == GT_LCL_VAR)
         {
             // This LCL_VAR is an HFA return value, it stays as a TYP_STRUCT
-            unsigned lclNum = op->gtLclVarCommon.GetLclNum();
+            unsigned lclNum = op->AsLclVarCommon()->GetLclNum();
             // Make sure this struct type stays as struct so that we can return it as an HFA
             lvaTable[lclNum].lvIsMultiRegRet = true;
 
@@ -9027,7 +9049,7 @@ GenTree* Compiler::impFixupStructReturnType(GenTree* op, CORINFO_CLASS_HANDLE re
         if (op->gtOper == GT_LCL_VAR)
         {
             // This LCL_VAR stays as a TYP_STRUCT
-            unsigned lclNum = op->gtLclVarCommon.GetLclNum();
+            unsigned lclNum = op->AsLclVarCommon()->GetLclNum();
 
             if (!lvaIsImplicitByRefLocal(lclNum))
             {
@@ -11140,7 +11162,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 
                 /* Filter out simple assignments to itself */
 
-                if (op1->gtOper == GT_LCL_VAR && lclNum == op1->gtLclVarCommon.GetLclNum())
+                if (op1->gtOper == GT_LCL_VAR && lclNum == op1->AsLclVarCommon()->GetLclNum())
                 {
                     if (opts.compDbgCode)
                     {
@@ -11700,21 +11722,21 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     // remember the element size
                     if (lclTyp == TYP_REF)
                     {
-                        op1->gtIndex.gtIndElemSize = TARGET_POINTER_SIZE;
+                        op1->AsIndex()->gtIndElemSize = TARGET_POINTER_SIZE;
                     }
                     else
                     {
                         // If ldElemClass is precisely a primitive type, use that, otherwise, preserve the struct type.
                         if (info.compCompHnd->getTypeForPrimitiveValueClass(ldelemClsHnd) == CORINFO_TYPE_UNDEF)
                         {
-                            op1->gtIndex.gtStructElemClass = ldelemClsHnd;
+                            op1->AsIndex()->gtStructElemClass = ldelemClsHnd;
                         }
-                        assert(lclTyp != TYP_STRUCT || op1->gtIndex.gtStructElemClass != nullptr);
+                        assert(lclTyp != TYP_STRUCT || op1->AsIndex()->gtStructElemClass != nullptr);
                         if (lclTyp == TYP_STRUCT)
                         {
-                            size                       = info.compCompHnd->getClassSize(ldelemClsHnd);
-                            op1->gtIndex.gtIndElemSize = size;
-                            op1->gtType                = lclTyp;
+                            size                          = info.compCompHnd->getClassSize(ldelemClsHnd);
+                            op1->AsIndex()->gtIndElemSize = size;
+                            op1->gtType                   = lclTyp;
                         }
                     }
 
@@ -11829,7 +11851,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 if (arrayNodeFrom->OperGet() == GT_CNS_INT)
                 {
                     JITDUMP("\nstelem of null: skipping covariant store check\n");
-                    assert(arrayNodeFrom->gtType == TYP_REF && arrayNodeFrom->gtIntCon.gtIconVal == 0);
+                    assert(arrayNodeFrom->gtType == TYP_REF && arrayNodeFrom->AsIntCon()->gtIconVal == 0);
                     lclTyp = TYP_REF;
                     goto ARR_ST_POST_VERIFY;
                 }
@@ -11935,8 +11957,8 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 {
                     assert(stelemClsHnd != DUMMY_INIT(NULL));
 
-                    op1->gtIndex.gtStructElemClass = stelemClsHnd;
-                    op1->gtIndex.gtIndElemSize     = info.compCompHnd->getClassSize(stelemClsHnd);
+                    op1->AsIndex()->gtStructElemClass = stelemClsHnd;
+                    op1->AsIndex()->gtIndElemSize     = info.compCompHnd->getClassSize(stelemClsHnd);
                 }
                 if (varTypeIsStruct(op1))
                 {
@@ -12346,7 +12368,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                        unreachable under compDbgCode */
                     assert(!opts.compDbgCode);
 
-                    BBjumpKinds foldedJumpKind = (BBjumpKinds)(op1->gtIntCon.gtIconVal ? BBJ_ALWAYS : BBJ_NONE);
+                    BBjumpKinds foldedJumpKind = (BBjumpKinds)(op1->AsIntCon()->gtIconVal ? BBJ_ALWAYS : BBJ_NONE);
                     assertImp((block->bbJumpKind == BBJ_COND)            // normal case
                               || (block->bbJumpKind == foldedJumpKind)); // this can happen if we are reimporting the
                                                                          // block for the second time
@@ -12355,7 +12377,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 #ifdef DEBUG
                     if (verbose)
                     {
-                        if (op1->gtIntCon.gtIconVal)
+                        if (op1->AsIntCon()->gtIconVal)
                         {
                             printf("\nThe conditional jump becomes an unconditional jump to " FMT_BB "\n",
                                    block->bbJumpDest->bbNum);
@@ -12815,7 +12837,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 
                     if (op2->gtOper == GT_CNS_INT)
                     {
-                        ssize_t ival = op2->gtIntCon.gtIconVal;
+                        ssize_t ival = op2->AsIntCon()->gtIconVal;
                         ssize_t mask, umask;
 
                         switch (lclTyp)
@@ -14103,7 +14125,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 #ifdef FEATURE_READYTORUN_COMPILER
                         if (fieldInfo.fieldAccessor == CORINFO_FIELD_INSTANCE_WITH_BASE)
                         {
-                            op1->gtField.gtFieldLookup = fieldInfo.fieldLookup;
+                            op1->AsField()->gtFieldLookup = fieldInfo.fieldLookup;
                         }
 #endif
 
@@ -14124,7 +14146,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                         DWORD typeFlags = info.compCompHnd->getClassAttribs(resolvedToken.hClass);
                         if (StructHasOverlappingFields(typeFlags))
                         {
-                            op1->gtField.gtFldMayOverlap = true;
+                            op1->AsField()->gtFldMayOverlap = true;
                         }
 
                         // wrap it in a address of operator if necessary
@@ -14420,13 +14442,13 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                         DWORD typeFlags = info.compCompHnd->getClassAttribs(resolvedToken.hClass);
                         if (StructHasOverlappingFields(typeFlags))
                         {
-                            op1->gtField.gtFldMayOverlap = true;
+                            op1->AsField()->gtFldMayOverlap = true;
                         }
 
 #ifdef FEATURE_READYTORUN_COMPILER
                         if (fieldInfo.fieldAccessor == CORINFO_FIELD_INSTANCE_WITH_BASE)
                         {
-                            op1->gtField.gtFieldLookup = fieldInfo.fieldLookup;
+                            op1->AsField()->gtFieldLookup = fieldInfo.fieldLookup;
                         }
 #endif
 
@@ -16435,7 +16457,8 @@ bool Compiler::impReturnInstruction(BasicBlock* block, int prefixFlags, OPCODE& 
                         // Some other block(s) have seen the CEE_RET first.
                         // Better they spilled to the same temp.
                         assert(impInlineInfo->retExpr->gtOper == GT_LCL_VAR);
-                        assert(impInlineInfo->retExpr->gtLclVarCommon.GetLclNum() == op2->gtLclVarCommon.GetLclNum());
+                        assert(impInlineInfo->retExpr->AsLclVarCommon()->GetLclNum() ==
+                               op2->AsLclVarCommon()->GetLclNum());
                     }
 #endif
                 }
@@ -17687,7 +17710,7 @@ void Compiler::impRetypeEntryStateTemps(BasicBlock* blk)
             GenTree* tree = es->esStack[level].val;
             if ((tree->gtOper == GT_LCL_VAR) || (tree->gtOper == GT_LCL_FLD))
             {
-                unsigned lclNum = tree->gtLclVarCommon.GetLclNum();
+                unsigned lclNum = tree->AsLclVarCommon()->GetLclNum();
                 noway_assert(lclNum < lvaCount);
                 LclVarDsc* varDsc              = lvaTable + lclNum;
                 es->esStack[level].val->gtType = varDsc->TypeGet();
@@ -18100,7 +18123,7 @@ BOOL Compiler::impIsAddressInLocal(GenTree* tree, GenTree** lclVarTreeOut)
     GenTree* op = tree->AsOp()->gtOp1;
     while (op->gtOper == GT_FIELD)
     {
-        op = op->gtField.gtFldObj;
+        op = op->AsField()->gtFldObj;
         if (op && op->gtOper == GT_ADDR) // Skip static fields where op will be NULL.
         {
             op = op->AsOp()->gtOp1;
@@ -18598,7 +18621,7 @@ void Compiler::impInlineRecordArgInfo(InlineInfo*   pInlineInfo,
         ((curArgVal->gtOper == GT_ADDR) && (curArgVal->AsOp()->gtOp1->gtOper == GT_LCL_VAR)))
     {
         inlCurArgInfo->argIsInvariant = true;
-        if (inlCurArgInfo->argIsThis && (curArgVal->gtOper == GT_CNS_INT) && (curArgVal->gtIntCon.gtIconVal == 0))
+        if (inlCurArgInfo->argIsThis && (curArgVal->gtOper == GT_CNS_INT) && (curArgVal->AsIntCon()->gtIconVal == 0))
         {
             // Abort inlining at this call site
             inlineResult->NoteFatal(InlineObservation::CALLSITE_ARG_HAS_NULL_THIS);
@@ -18782,17 +18805,6 @@ void Compiler::impInlineInitVars(InlineInfo* pInlineInfo)
 
     if (thisArg != nullptr)
     {
-        var_types sigType;
-
-        if (clsAttr & CORINFO_FLG_VALUECLASS)
-        {
-            sigType = TYP_BYREF;
-        }
-        else
-        {
-            sigType = TYP_REF;
-        }
-
         lclVarInfo[0].lclVerTypeInfo = verMakeTypeInfo(pInlineInfo->inlineCandidateInfo->clsHandle);
         lclVarInfo[0].lclHasLdlocaOp = false;
 
@@ -18801,15 +18813,13 @@ void Compiler::impInlineInitVars(InlineInfo* pInlineInfo)
         // the inlining multiplier) for anything in that assembly.
         // But we only need to normalize it if it is a TYP_STRUCT
         // (which we need to do even if we have already set foundSIMDType).
-        if ((!foundSIMDType || (sigType == TYP_STRUCT)) && isSIMDorHWSIMDClass(&(lclVarInfo[0].lclVerTypeInfo)))
+        if (!foundSIMDType && isSIMDorHWSIMDClass(&(lclVarInfo[0].lclVerTypeInfo)))
         {
-            if (sigType == TYP_STRUCT)
-            {
-                sigType = impNormStructType(lclVarInfo[0].lclVerTypeInfo.GetClassHandle());
-            }
             foundSIMDType = true;
         }
 #endif // FEATURE_SIMD
+
+        var_types sigType         = ((clsAttr & CORINFO_FLG_VALUECLASS) != 0) ? TYP_BYREF : TYP_REF;
         lclVarInfo[0].lclTypeInfo = sigType;
 
         GenTree* thisArgNode = thisArg->GetNode();
@@ -18829,30 +18839,10 @@ void Compiler::impInlineInitVars(InlineInfo* pInlineInfo)
 
             /* This can only happen with byrefs <-> ints/shorts */
 
-            assert(genActualType(sigType) == TYP_I_IMPL || sigType == TYP_BYREF);
+            assert(sigType == TYP_BYREF);
             assert((genActualType(thisArgNode->TypeGet()) == TYP_I_IMPL) || (thisArgNode->TypeGet() == TYP_BYREF));
 
-            if (sigType == TYP_BYREF)
-            {
-                lclVarInfo[0].lclVerTypeInfo = typeInfo(varType2tiType(TYP_I_IMPL));
-            }
-            else if (thisArgNode->TypeGet() == TYP_BYREF)
-            {
-                assert(sigType == TYP_I_IMPL);
-
-                /* If possible change the BYREF to an int */
-                if (thisArgNode->IsLocalAddrExpr() != nullptr)
-                {
-                    thisArgNode->gtType          = TYP_I_IMPL;
-                    lclVarInfo[0].lclVerTypeInfo = typeInfo(varType2tiType(TYP_I_IMPL));
-                }
-                else
-                {
-                    /* Arguments 'int <- byref' cannot be bashed */
-                    inlineResult->NoteFatal(InlineObservation::CALLSITE_ARG_NO_BASH_TO_INT);
-                    return;
-                }
-            }
+            lclVarInfo[0].lclVerTypeInfo = typeInfo(varType2tiType(TYP_I_IMPL));
         }
     }
 
@@ -18940,8 +18930,8 @@ void Compiler::impInlineInitVars(InlineInfo* pInlineInfo)
                     /* Narrowing cast */
 
                     if (inlArgNode->gtOper == GT_LCL_VAR &&
-                        !lvaTable[inlArgNode->gtLclVarCommon.GetLclNum()].lvNormalizeOnLoad() &&
-                        sigType == lvaGetRealType(inlArgNode->gtLclVarCommon.GetLclNum()))
+                        !lvaTable[inlArgNode->AsLclVarCommon()->GetLclNum()].lvNormalizeOnLoad() &&
+                        sigType == lvaGetRealType(inlArgNode->AsLclVarCommon()->GetLclNum()))
                     {
                         /* We don't need to insert a cast here as the variable
                            was assigned a normalized value of the right type */
@@ -19236,7 +19226,7 @@ GenTree* Compiler::impInlineFetchArg(unsigned lclNum, InlArgInfo* inlArgInfo, In
         //
         // Use the caller-supplied node if this is the first use.
         op1               = argInfo.argNode;
-        argInfo.argTmpNum = op1->gtLclVarCommon.GetLclNum();
+        argInfo.argTmpNum = op1->AsLclVarCommon()->GetLclNum();
 
         // Use an equivalent copy if this is the second or subsequent
         // use, or if we need to retype.
@@ -19250,13 +19240,13 @@ GenTree* Compiler::impInlineFetchArg(unsigned lclNum, InlArgInfo* inlArgInfo, In
 
             var_types newTyp = lclTyp;
 
-            if (!lvaTable[op1->gtLclVarCommon.GetLclNum()].lvNormalizeOnLoad())
+            if (!lvaTable[op1->AsLclVarCommon()->GetLclNum()].lvNormalizeOnLoad())
             {
                 newTyp = genActualType(lclTyp);
             }
 
             // Create a new lcl var node - remember the argument lclNum
-            op1 = gtNewLclvNode(op1->gtLclVarCommon.GetLclNum(), newTyp DEBUGARG(op1->AsLclVar()->gtLclILoffs));
+            op1 = gtNewLclvNode(op1->AsLclVarCommon()->GetLclNum(), newTyp DEBUGARG(op1->AsLclVar()->gtLclILoffs));
         }
     }
     else if (argInfo.argIsByRefToStructLocal && !argInfo.argHasStargOp)
@@ -19403,7 +19393,7 @@ GenTree* Compiler::impInlineFetchArg(unsigned lclNum, InlArgInfo* inlArgInfo, In
 BOOL Compiler::impInlineIsThis(GenTree* tree, InlArgInfo* inlArgInfo)
 {
     assert(compIsForInlining());
-    return (tree->gtOper == GT_LCL_VAR && tree->gtLclVarCommon.GetLclNum() == inlArgInfo[0].argTmpNum);
+    return (tree->gtOper == GT_LCL_VAR && tree->AsLclVarCommon()->GetLclNum() == inlArgInfo[0].argTmpNum);
 }
 
 //-----------------------------------------------------------------------------
@@ -19894,7 +19884,7 @@ bool Compiler::IsMathIntrinsic(CorInfoIntrinsics intrinsicId)
 
 bool Compiler::IsMathIntrinsic(GenTree* tree)
 {
-    return (tree->OperGet() == GT_INTRINSIC) && IsMathIntrinsic(tree->gtIntrinsic.gtIntrinsicId);
+    return (tree->OperGet() == GT_INTRINSIC) && IsMathIntrinsic(tree->AsIntrinsic()->gtIntrinsicId);
 }
 
 //------------------------------------------------------------------------

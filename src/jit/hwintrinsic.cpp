@@ -15,7 +15,7 @@ static const HWIntrinsicInfo hwIntrinsicInfoArray[] = {
 #include "hwintrinsiclistxarch.h"
 #elif defined (_TARGET_ARM64_)
 #define HARDWARE_INTRINSIC(isa, name, ival, size, numarg, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, category, flag) \
-    {NI_##isa##_##name, #name, InstructionSet_##isa, ival, size, numarg, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, category, static_cast<HWIntrinsicFlag>(flag)},
+    {NI_##isa##_##name, #name, InstructionSet_##isa, ival, static_cast<unsigned>(size), numarg, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, category, static_cast<HWIntrinsicFlag>(flag)},
 #include "hwintrinsiclistarm64.h"
 #else
 #error Unsupported platform
@@ -497,7 +497,7 @@ static bool impIsTableDrivenHWIntrinsic(NamedIntrinsic intrinsicId, HWIntrinsicC
 }
 
 //------------------------------------------------------------------------
-// impHWIntrinsic: Import a hardware intrinsic as a GT_HWIntrinsic node if possible
+// impHWIntrinsic: Import a hardware intrinsic as a GT_HWINTRINSIC node if possible
 //
 // Arguments:
 //    intrinsic -- id of the intrinsic function.
@@ -505,7 +505,7 @@ static bool impIsTableDrivenHWIntrinsic(NamedIntrinsic intrinsicId, HWIntrinsicC
 //    sig       -- signature of the intrinsic call
 //
 // Return Value:
-//    The GT_HWIntrinsic node, or nullptr if not a supported intrinsic
+//    The GT_HWINTRINSIC node, or nullptr if not a supported intrinsic
 //
 GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
                                   CORINFO_CLASS_HANDLE  clsHnd,

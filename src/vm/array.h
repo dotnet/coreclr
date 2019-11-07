@@ -81,7 +81,7 @@ struct ArrayOpScript
     const ArrayOpIndexSpec *GetArrayOpIndexSpecs() const
     {
         LIMITED_METHOD_CONTRACT;
-        
+
         return (const ArrayOpIndexSpec *)(1+ this);
     }
 
@@ -105,7 +105,6 @@ Stub *GenerateArrayOpStub(ArrayMethodDesc* pMD);
 
 
 BOOL IsImplicitInterfaceOfSZArray(MethodTable *pIntfMT);
-BOOL ArraySupportsBizarreInterface(ArrayTypeDesc *pArrayTypeDesc, MethodTable *pInterfaceMT);
 MethodDesc* GetActualImplementationForArrayGenericIListOrIReadOnlyListMethod(MethodDesc *pItfcMeth, TypeHandle theT);
 
 CorElementType GetNormalizedIntegralArrayElementType(CorElementType elementType);

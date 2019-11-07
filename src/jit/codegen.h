@@ -647,7 +647,6 @@ protected:
         unsigned scLVnum;  // 'which' in eeGetLVinfo()
 
         unsigned scStackLevel; // Only for stk-vars
-        bool scAvailable : 1;  // It has a home / Home recycled - TODO-Cleanup: it appears this is unused (always true)
 
         siScope* scPrev;
         siScope* scNext;
@@ -1232,7 +1231,7 @@ protected:
         {
             return false;
         }
-        const LclVarDsc* varDsc = &compiler->lvaTable[tree->gtLclVarCommon.GetLclNum()];
+        const LclVarDsc* varDsc = &compiler->lvaTable[tree->AsLclVarCommon()->GetLclNum()];
         return (varDsc->lvIsRegCandidate());
     }
 

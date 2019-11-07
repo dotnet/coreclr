@@ -1574,17 +1574,16 @@ public:
 
         void InitializeCounts()
         {
+            m_Size = Expr()->GetCostSz(); // always the GetCostSz()
             if (m_context->CodeOptKind() == Compiler::SMALL_CODE)
             {
-                m_Cost     = Expr()->GetCostSz();   // the estimated code size
-                m_Size     = Expr()->GetCostSz();   // always the GetCostSz()
+                m_Cost     = m_Size;                // the estimated code size
                 m_defCount = m_CseDsc->csdDefCount; // def count
                 m_useCount = m_CseDsc->csdUseCount; // use count (excluding the implicit uses at defs)
             }
             else
             {
                 m_Cost     = Expr()->GetCostEx();   // the estimated execution cost
-                m_Size     = Expr()->GetCostSz();   // always the GetCostSz()
                 m_defCount = m_CseDsc->csdDefWtCnt; // weighted def count
                 m_useCount = m_CseDsc->csdUseWtCnt; // weighted use count (excluding the implicit uses at defs)
             }
@@ -2202,7 +2201,7 @@ public:
                 cse                    = m_pCompiler->gtNewLclvNode(cseLclVarNum, cseLclVarTyp);
 
                 // Assign the ssa num for the use. Note it may be the reserved num.
-                cse->gtLclVarCommon.SetSsaNum(cseSsaNum);
+                cse->AsLclVarCommon()->SetSsaNum(cseSsaNum);
 
                 // assign the proper ValueNumber, A CSE use discards any exceptions
                 cse->gtVNPair = vnStore->VNPNormalPair(exp->gtVNPair);
@@ -2376,12 +2375,12 @@ public:
 
                     // These should not have been set yet, since this is the first and
                     // only def for this CSE.
-                    assert(ssaVarDsc->m_defLoc.m_blk == nullptr);
-                    assert(ssaVarDsc->m_defLoc.m_tree == nullptr);
+                    assert(ssaVarDsc->GetBlock() == nullptr);
+                    assert(ssaVarDsc->GetAssignment() == nullptr);
 
-                    ssaVarDsc->m_vnPair        = val->gtVNPair;
-                    ssaVarDsc->m_defLoc.m_blk  = blk;
-                    ssaVarDsc->m_defLoc.m_tree = asg;
+                    ssaVarDsc->m_vnPair = val->gtVNPair;
+                    ssaVarDsc->SetBlock(blk);
+                    ssaVarDsc->SetAssignment(asg->AsOp());
                 }
 
                 /* Create a reference to the CSE temp */
@@ -2389,7 +2388,7 @@ public:
                 ref->gtVNPair = val->gtVNPair; // The new 'ref' is the same as 'val'
 
                 // Assign the ssa num for the ref use. Note it may be the reserved num.
-                ref->gtLclVarCommon.SetSsaNum(cseSsaNum);
+                ref->AsLclVarCommon()->SetSsaNum(cseSsaNum);
 
                 // If it has a zero-offset field seq, copy annotation to the ref
                 if (hasZeroMapAnnotation)

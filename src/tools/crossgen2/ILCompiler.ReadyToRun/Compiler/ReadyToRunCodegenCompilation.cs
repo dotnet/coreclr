@@ -10,6 +10,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 
 using Internal.IL;
+using Internal.IL.Stubs;
 using Internal.JitInterface;
 using Internal.TypeSystem;
 
@@ -56,10 +57,11 @@ namespace ILCompiler
             foreach (var rootProvider in compilationRoots)
                 rootProvider.AddCompilationRoots(rootingService);
 
-            _methodILCache = new ILCache(ilProvider);
+            _methodILCache = new ILCache(ilProvider, NodeFactory.CompilationModuleGroup);
         }
 
         public abstract void Compile(string outputFileName);
+        public abstract void WriteDependencyLog(string outputFileName);
 
         protected abstract void ComputeDependencyNodeDependencies(List<DependencyNodeCore<NodeFactory>> obj);
 
@@ -79,7 +81,7 @@ namespace ILCompiler
         {
             // Flush the cache when it grows too big
             if (_methodILCache.Count > 1000)
-                _methodILCache = new ILCache(_methodILCache.ILProvider);
+                _methodILCache = new ILCache(_methodILCache.ILProvider, NodeFactory.CompilationModuleGroup);
 
             return _methodILCache.GetOrCreateValue(method).MethodIL;
         }
@@ -107,10 +109,12 @@ namespace ILCompiler
         private sealed class ILCache : LockFreeReaderHashtable<MethodDesc, ILCache.MethodILData>
         {
             public ILProvider ILProvider { get; }
+            private readonly CompilationModuleGroup _compilationModuleGroup;
 
-            public ILCache(ILProvider provider)
+            public ILCache(ILProvider provider, CompilationModuleGroup compilationModuleGroup)
             {
                 ILProvider = provider;
+                _compilationModuleGroup = compilationModuleGroup;
             }
 
             protected override int GetKeyHashCode(MethodDesc key)
@@ -131,7 +135,16 @@ namespace ILCompiler
             }
             protected override MethodILData CreateValueFromKey(MethodDesc key)
             {
-                return new MethodILData() { Method = key, MethodIL = ILProvider.GetMethodIL(key) };
+                MethodIL methodIL = ILProvider.GetMethodIL(key);
+                if (methodIL == null
+                    && key.IsPInvoke
+                    && _compilationModuleGroup.GeneratesPInvoke(key))
+                {
+                    // TODO: enable when IL Stubs are fixed to be non-shared
+                    // methodIL = PInvokeILEmitter.EmitIL(key);
+                }
+
+                return new MethodILData() { Method = key, MethodIL = methodIL };
             }
 
             internal class MethodILData
@@ -171,6 +184,7 @@ namespace ILCompiler
     public interface ICompilation
     {
         void Compile(string outputFileName);
+        void WriteDependencyLog(string outputFileName);
     }
 
     public sealed class ReadyToRunCodegenCompilation : Compilation
@@ -226,6 +240,15 @@ namespace ILCompiler
                     NodeFactory.SetMarkingComplete();
                     ReadyToRunObjectWriter.EmitObject(inputPeReader, outputFile, nodes, NodeFactory);
                 }
+            }
+        }
+
+        public override void WriteDependencyLog(string outputFileName)
+        {
+            using (FileStream dgmlOutput = new FileStream(outputFileName, FileMode.Create))
+            {
+                DgmlWriter.WriteDependencyGraphToStream(dgmlOutput, _dependencyGraph, _nodeFactory);
+                dgmlOutput.Flush();
             }
         }
 

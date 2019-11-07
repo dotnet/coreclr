@@ -1592,6 +1592,41 @@ ValueNumStore::Chunk* ValueNumStore::GetAllocChunk(var_types              typ,
     return res;
 }
 
+//------------------------------------------------------------------------
+// VnForConst: Return value number for a constant.
+//
+// Arguments:
+//   cnsVal - `T` constant to return a VN for;
+//   numMap - VNMap<T> map where `T` type constants should be stored;
+//   varType - jit type for the `T`: TYP_INT for int, TYP_LONG for long etc.
+//
+// Return value:
+//    value number for the given constant.
+//
+// Notes:
+//   First try to find an existing VN for `cnsVal` in `numMap`,
+//   if it fails then allocate a new `varType` chunk and return that.
+//
+template <typename T, typename NumMap>
+ValueNum ValueNumStore::VnForConst(T cnsVal, NumMap* numMap, var_types varType)
+{
+    ValueNum res;
+    if (numMap->Lookup(cnsVal, &res))
+    {
+        return res;
+    }
+    else
+    {
+        Chunk*   chunk               = GetAllocChunk(varType, CEA_Const);
+        unsigned offsetWithinChunk   = chunk->AllocVN();
+        res                          = chunk->m_baseVN + offsetWithinChunk;
+        T* chunkDefs                 = reinterpret_cast<T*>(chunk->m_defs);
+        chunkDefs[offsetWithinChunk] = cnsVal;
+        numMap->Set(cnsVal, res);
+        return res;
+    }
+}
+
 ValueNum ValueNumStore::VNForIntCon(INT32 cnsVal)
 {
     if (IsSmallIntConst(cnsVal))
@@ -1602,86 +1637,34 @@ ValueNum ValueNumStore::VNForIntCon(INT32 cnsVal)
         {
             return vn;
         }
-        vn                          = GetVNForIntCon(cnsVal);
+        vn                          = VnForConst(cnsVal, GetIntCnsMap(), TYP_INT);
         m_VNsForSmallIntConsts[ind] = vn;
         return vn;
     }
     else
     {
-        return GetVNForIntCon(cnsVal);
+        return VnForConst(cnsVal, GetIntCnsMap(), TYP_INT);
     }
 }
 
 ValueNum ValueNumStore::VNForLongCon(INT64 cnsVal)
 {
-    ValueNum res;
-    if (GetLongCnsMap()->Lookup(cnsVal, &res))
-    {
-        return res;
-    }
-    else
-    {
-        Chunk*   c                                             = GetAllocChunk(TYP_LONG, CEA_Const);
-        unsigned offsetWithinChunk                             = c->AllocVN();
-        res                                                    = c->m_baseVN + offsetWithinChunk;
-        reinterpret_cast<INT64*>(c->m_defs)[offsetWithinChunk] = cnsVal;
-        GetLongCnsMap()->Set(cnsVal, res);
-        return res;
-    }
+    return VnForConst(cnsVal, GetLongCnsMap(), TYP_LONG);
 }
 
 ValueNum ValueNumStore::VNForFloatCon(float cnsVal)
 {
-    ValueNum res;
-    if (GetFloatCnsMap()->Lookup(cnsVal, &res))
-    {
-        return res;
-    }
-    else
-    {
-        Chunk*   c                                             = GetAllocChunk(TYP_FLOAT, CEA_Const);
-        unsigned offsetWithinChunk                             = c->AllocVN();
-        res                                                    = c->m_baseVN + offsetWithinChunk;
-        reinterpret_cast<float*>(c->m_defs)[offsetWithinChunk] = cnsVal;
-        GetFloatCnsMap()->Set(cnsVal, res);
-        return res;
-    }
+    return VnForConst(cnsVal, GetFloatCnsMap(), TYP_FLOAT);
 }
 
 ValueNum ValueNumStore::VNForDoubleCon(double cnsVal)
 {
-    ValueNum res;
-    if (GetDoubleCnsMap()->Lookup(cnsVal, &res))
-    {
-        return res;
-    }
-    else
-    {
-        Chunk*   c                                              = GetAllocChunk(TYP_DOUBLE, CEA_Const);
-        unsigned offsetWithinChunk                              = c->AllocVN();
-        res                                                     = c->m_baseVN + offsetWithinChunk;
-        reinterpret_cast<double*>(c->m_defs)[offsetWithinChunk] = cnsVal;
-        GetDoubleCnsMap()->Set(cnsVal, res);
-        return res;
-    }
+    return VnForConst(cnsVal, GetDoubleCnsMap(), TYP_DOUBLE);
 }
 
 ValueNum ValueNumStore::VNForByrefCon(size_t cnsVal)
 {
-    ValueNum res;
-    if (GetByrefCnsMap()->Lookup(cnsVal, &res))
-    {
-        return res;
-    }
-    else
-    {
-        Chunk*   c                                             = GetAllocChunk(TYP_BYREF, CEA_Const);
-        unsigned offsetWithinChunk                             = c->AllocVN();
-        res                                                    = c->m_baseVN + offsetWithinChunk;
-        reinterpret_cast<INT64*>(c->m_defs)[offsetWithinChunk] = cnsVal;
-        GetByrefCnsMap()->Set(cnsVal, res);
-        return res;
-    }
+    return VnForConst(cnsVal, GetByrefCnsMap(), TYP_BYREF);
 }
 
 ValueNum ValueNumStore::VNForCastOper(var_types castToType, bool srcIsUnsigned /*=false*/)
@@ -3888,7 +3871,7 @@ ValueNum ValueNumStore::ExtendPtrVN(GenTree* opA, GenTree* opB)
 {
     if (opB->OperGet() == GT_CNS_INT)
     {
-        FieldSeqNode* fldSeq = opB->gtIntCon.gtFieldSeq;
+        FieldSeqNode* fldSeq = opB->AsIntCon()->gtFieldSeq;
         if (fldSeq != nullptr)
         {
             return ExtendPtrVN(opA, fldSeq);
@@ -5702,7 +5685,7 @@ void Compiler::fgValueNumber()
             ValueNum      initVal = vnStore->VNForFunc(varDsc->TypeGet(), VNF_InitVal, vnStore->VNForIntCon(lclNum));
             LclSsaVarDsc* ssaDef  = varDsc->GetPerSsaData(SsaConfig::FIRST_SSA_NUM);
             ssaDef->m_vnPair.SetBoth(initVal);
-            ssaDef->m_defLoc.m_blk = fgFirstBB;
+            ssaDef->SetBlock(fgFirstBB);
         }
         else if (info.compInitMem || varDsc->lvMustInit ||
                  VarSetOps::IsMember(this, fgFirstBB->bbLiveIn, varDsc->lvVarIndex))
@@ -5761,7 +5744,7 @@ void Compiler::fgValueNumber()
 
             LclSsaVarDsc* ssaDef = varDsc->GetPerSsaData(SsaConfig::FIRST_SSA_NUM);
             ssaDef->m_vnPair.SetBoth(initVal);
-            ssaDef->m_defLoc.m_blk = fgFirstBB;
+            ssaDef->SetBlock(fgFirstBB);
         }
     }
     // Give memory an initial value number (about which we know nothing).
@@ -6707,7 +6690,7 @@ void Compiler::fgValueNumberTree(GenTree* tree)
 #endif
 
 #ifdef FEATURE_HW_INTRINSICS
-    if (oper == GT_HWIntrinsic)
+    if (oper == GT_HWINTRINSIC)
     {
         // TODO-CQ: For now hardware intrinsics are not handled by value numbering to be amenable for CSE'ing.
         tree->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, TYP_UNKNOWN));
@@ -6883,7 +6866,7 @@ void Compiler::fgValueNumberTree(GenTree* tree)
             case GT_FTN_ADDR:
                 // Use the value of the function pointer (actually, a method handle.)
                 tree->gtVNPair.SetBoth(
-                    vnStore->VNForHandle(ssize_t(tree->gtFptrVal.gtFptrMethod), GTF_ICON_METHOD_HDL));
+                    vnStore->VNForHandle(ssize_t(tree->AsFptrVal()->gtFptrMethod), GTF_ICON_METHOD_HDL));
                 break;
 
             // This group passes through a value from a child node.
@@ -7618,7 +7601,7 @@ void Compiler::fgValueNumberTree(GenTree* tree)
             {
                 FieldSeqNode* fieldSeq = nullptr;
                 ValueNum      newVN    = ValueNumStore::NoVN;
-                if (!lvaInSsa(arg->gtLclVarCommon.GetLclNum()))
+                if (!lvaInSsa(arg->AsLclVarCommon()->GetLclNum()))
                 {
                     newVN = vnStore->VNForExpr(compCurBB, TYP_BYREF);
                 }
@@ -7633,9 +7616,9 @@ void Compiler::fgValueNumberTree(GenTree* tree)
                 }
                 if (newVN == ValueNumStore::NoVN)
                 {
-                    assert(arg->gtLclVarCommon.GetSsaNum() != ValueNumStore::NoVN);
+                    assert(arg->AsLclVarCommon()->GetSsaNum() != ValueNumStore::NoVN);
                     newVN = vnStore->VNForFunc(TYP_BYREF, VNF_PtrToLoc,
-                                               vnStore->VNForIntCon(arg->gtLclVarCommon.GetLclNum()),
+                                               vnStore->VNForIntCon(arg->AsLclVarCommon()->GetLclNum()),
                                                vnStore->VNForFieldSeq(fieldSeq));
                 }
                 tree->gtVNPair.SetBoth(newVN);
@@ -9463,15 +9446,15 @@ void Compiler::fgValueNumberAddExceptionSet(GenTree* tree)
                 break;
 
             case GT_ARR_ELEM:
-                fgValueNumberAddExceptionSetForIndirection(tree, tree->gtArrElem.gtArrObj);
+                fgValueNumberAddExceptionSetForIndirection(tree, tree->AsArrElem()->gtArrObj);
                 break;
 
             case GT_ARR_INDEX:
-                fgValueNumberAddExceptionSetForIndirection(tree, tree->gtArrIndex.ArrObj());
+                fgValueNumberAddExceptionSetForIndirection(tree, tree->AsArrIndex()->ArrObj());
                 break;
 
             case GT_ARR_OFFSET:
-                fgValueNumberAddExceptionSetForIndirection(tree, tree->gtArrOffs.gtArrObj);
+                fgValueNumberAddExceptionSetForIndirection(tree, tree->AsArrOffs()->gtArrObj);
                 break;
 
             case GT_DIV:
