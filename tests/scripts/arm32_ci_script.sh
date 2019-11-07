@@ -286,7 +286,7 @@ function cross_build_coreclr_with_docker {
 
         (set +x; echo "Build RootFS for $__buildArch $__linuxCodeName")
         $__dockerCmd $__buildRootfsCmd
-        sudo chown -R $(id -u -n) $__RepoRootDir/eng/common/rootfs
+        sudo chown -R $(id -u -n) $__RepoRootDir/eng/common/cross/rootfs
     fi
 
     __extraArgs=""
