@@ -502,7 +502,7 @@ namespace System
                         hi = i - 1;
                     }
                 }
-                return -1;
+                return ~lo;
             }
 
             if (comparer == Comparer.Default)
@@ -560,7 +560,7 @@ namespace System
 
                         if (value is T valueOfT)
                         {
-                            result = BinarySearch<T>(arrayOfT, valueOfT);
+                            result = BinarySearch<T>(arrayOfT, index, length, valueOfT);
                             return true;
                         }
                     }
