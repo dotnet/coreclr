@@ -239,6 +239,7 @@ private:
     };
     HFAType m_hfaType;
 #endif
+    bool m_isMarshalable;
     uint32_t m_size;
     uint32_t m_numFields;
 
@@ -347,5 +348,15 @@ public:
         return false;
     }
 #endif
+
+    bool IsMarshalable() const
+    {
+        return m_isMarshalable;
+    }
+
+    void SetIsMarshalable(bool isMarshalable)
+    {
+        m_isMarshalable = isMarshalable;
+    }
 };
 #endif // __FieldMarshaler_h__

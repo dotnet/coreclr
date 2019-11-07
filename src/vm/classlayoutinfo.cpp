@@ -774,10 +774,6 @@ void EEClassNativeLayoutInfo::InitializeNativeLayoutFieldMetadataThrowing(Method
 #endif
 
             ((LayoutEEClass*)pClass)->m_nativeLayoutInfo.SetValue(pNativeLayoutInfo);
-            if(IsStructMarshalable(pMT))
-            {
-                pMT->SetStructMarshalable();
-            }
         }
     }
 }
@@ -979,6 +975,18 @@ VOID EEClassNativeLayoutInfo::CollectNativeLayoutFieldMetadataThrowing(MethodTab
         pNativeFieldDescriptors[i] = pInfoArray[i].m_nfd;
     }
 
+    bool isMarshalable = true;
+    for (UINT i = 0; i < numTotalInstanceFields; i++)
+    {
+        if (pNativeFieldDescriptors[i].IsUnmarshalable())
+        {
+            isMarshalable = false;
+            break;
+        }
+    }
+
+    pNativeLayoutInfo->SetIsMarshalable(isMarshalable);
+
     pNativeLayoutInfo.SuppressRelease();
     *pNativeLayoutInfoOut = pNativeLayoutInfo;
 
@@ -995,8 +1003,6 @@ VOID EEClassNativeLayoutInfo::CollectNativeLayoutFieldMetadataThrowing(MethodTab
             _ASSERTE(pNativeLayoutInfo->GetLargestAlignmentRequirement() == pEEClassLayoutInfo->m_ManagedLargestAlignmentRequirementOfAllMembers);
         }
 
-        BOOL illegalMarshaler = FALSE;
-
         LOG((LF_INTEROP, LL_INFO100000, "\n\n"));
         LOG((LF_INTEROP, LL_INFO100000, "%s.%s\n", szNamespace, szName));
         LOG((LF_INTEROP, LL_INFO100000, "Packsize      = %lu\n", (ULONG)pEEClassLayoutInfo->GetPackingSize()));
@@ -1012,24 +1018,10 @@ VOID EEClassNativeLayoutInfo::CollectNativeLayoutFieldMetadataThrowing(MethodTab
             LOG((LF_INTEROP, LL_INFO100000, "+%-5lu  ", (ULONG)(pfwalk->m_placement.m_offset)));
             LOG((LF_INTEROP, LL_INFO100000, "%s", fieldname));
             LOG((LF_INTEROP, LL_INFO100000, "\n"));
-
-            if (pfwalk->m_nfd.IsUnmarshalable())
-                illegalMarshaler = TRUE;
-        }
-
-        // If we are dealing with a non trivial parent, determine if it has any illegal marshallers.
-        if (fHasNonTrivialParent)
-        {
-            NativeFieldDescriptor* pParentNFD = pNativeFieldDescriptors;
-            for (UINT i = 0; i < numTotalInstanceFields; i++)
-            {
-                if (pParentNFD->IsUnmarshalable())
-                    illegalMarshaler = TRUE;
-            }
         }
 
         LOG((LF_INTEROP, LL_INFO100000, "+%-5lu   EOS\n", (ULONG)(pNativeLayoutInfo->GetSize())));
-        LOG((LF_INTEROP, LL_INFO100000, "Allocated %d %s field marshallers for %s.%s\n", numTotalInstanceFields, (illegalMarshaler ? "pointless" : "usable"), szNamespace, szName));
+        LOG((LF_INTEROP, LL_INFO100000, "Allocated %d %s field marshallers for %s.%s\n", numTotalInstanceFields, (!isMarshalable ? "pointless" : "usable"), szNamespace, szName));
     }
 #endif
     return;

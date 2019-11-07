@@ -367,21 +367,8 @@ BOOL IsStructMarshalable(TypeHandle th)
 
     MethodTable *pMT= th.GetMethodTable();
     PREFIX_ASSUME(pMT != NULL);
-    
-    if (pMT->IsStructMarshalable())
-        return TRUE;
 
-    EEClassNativeLayoutInfo const* pNativeLayoutInfo = pMT->GetNativeLayoutInfo();
-
-    const NativeFieldDescriptor *pNativeFieldDescriptors = pNativeLayoutInfo->GetNativeFieldDescriptors();
-    UINT  numReferenceFields = pNativeLayoutInfo->GetNumFields();
-
-    for (UINT i = 0; i < numReferenceFields; ++i)
-    {
-        if (pNativeFieldDescriptors[i].IsUnmarshalable())
-            return FALSE;
-    } 
-    return TRUE;
+    return pMT->GetNativeLayoutInfo()->IsMarshalable() ? TRUE : FALSE;
 }
 
 NativeFieldDescriptor::NativeFieldDescriptor()

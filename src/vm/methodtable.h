@@ -2758,20 +2758,6 @@ public:
         SetFlag(enum_flag_Category_Nullable);
     }
     
-    inline BOOL IsStructMarshalable() 
-    {
-        LIMITED_METHOD_CONTRACT;
-        PRECONDITION(!IsInterface());
-        return GetFlag(enum_flag_IfNotInterfaceThenMarshalable); 
-    }
-
-    inline void SetStructMarshalable()
-    {
-        LIMITED_METHOD_CONTRACT;
-        PRECONDITION(!IsInterface());
-        SetFlag(enum_flag_IfNotInterfaceThenMarshalable);
-    }
-    
     // The following methods are only valid for the 
     // method tables for array types.  These MTs may 
     // be shared between array types and thus GetArrayElementTypeHandle
@@ -3716,7 +3702,6 @@ private:
 
         enum_flag_HasFinalizer                = 0x00100000, // instances require finalization
 
-        enum_flag_IfNotInterfaceThenMarshalable = 0x00200000, // Is this type marshalable by the pinvoke marshalling layer
 #ifdef FEATURE_COMINTEROP
         enum_flag_IfInterfaceThenHasGuidInfo    = 0x00200000, // Does the type has optional GuidInfo
 #endif // FEATURE_COMINTEROP

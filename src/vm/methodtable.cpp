@@ -4068,12 +4068,6 @@ void MethodTable::Save(DataImage *image, DWORD profilingFlags)
         SetFlag(enum_flag_NotInPZM);
     }
 
-    // Set the IsStructMarshallable Bit
-    if (::IsStructMarshalable(this))
-    {
-        SetStructMarshalable();
-    }
-
     TADDR start, end;
 
     GetSavedExtent(&start, &end);
