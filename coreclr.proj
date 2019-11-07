@@ -1,0 +1,20 @@
+<Project>
+  <Import Project="Directory.Build.props" />
+  <Import Project="Directory.Build.targets" />
+
+  <Target Name="Build">
+    <ItemGroup>
+      <_CoreClrBuildArg Condition="$([MSBuild]::IsOsPlatform(Windows))" Include="-skiptests" />
+      <_CoreClrBuildArg Include="-$(Platform)" />
+      <_CoreClrBuildArg Include="-$(Configuration.ToLower())" />
+      <_CoreClrBuildArg Condition="'$(ContinuousIntegrationBuild)' == 'true'" Include="-ci" />
+    </ItemGroup>
+
+    <PropertyGroup>
+      <_CoreClrBuildScript Condition="$([MSBuild]::IsOsPlatform(Windows))">build.cmd</_CoreClrBuildScript>
+      <_CoreClrBuildScript Condition="!$([MSBuild]::IsOsPlatform(Windows))">build.sh</_CoreClrBuildScript>
+    </PropertyGroup>
+
+    <Exec Command="&quot;$(MSBuildThisFileDirectory)$(_CoreClrBuildScript)&quot; @(_CoreClrBuildArg->'%(Identity)',' ')" />
+  </Target>
+</Project>
