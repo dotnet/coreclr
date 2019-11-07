@@ -96,8 +96,8 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
         public int ModuleToIndex(EcmaModule module)
         {
             AssemblyName assemblyName = module.Assembly.GetName();
-            int assemblyRefIndex;
-            if (!_assemblyRefToModuleIdMap.TryGetValue(assemblyName.Name, out assemblyRefIndex))
+
+            if (!_manifestAssemblies.Contains(assemblyName))
             {
                 if (_emissionCompleted)
                 {
@@ -108,22 +108,14 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
                 // the verification logic would be broken at runtime.
                 Debug.Assert(_nodeFactory.CompilationModuleGroup.VersionsWithModule(module));
 
-                assemblyRefIndex = _nextModuleId++;
                 _manifestAssemblies.Add(assemblyName);
-                _assemblyRefToModuleIdMap.Add(assemblyName.Name, assemblyRefIndex);
-            }
-            else if (_nodeFactory.CompilationModuleGroup.VersionsWithModule(module))
-            {
-                // This is one of the modules already referenced by the current module, and also part of the version
-                // bubble, so it needs to be emitted in the manifest.
-                if (!_manifestAssemblies.Contains(assemblyName))
-                {
-                    _nextModuleId++;
-                    _manifestAssemblies.Add(assemblyName);
-                }
+                if (!_assemblyRefToModuleIdMap.ContainsKey(assemblyName.Name))
+                    _assemblyRefToModuleIdMap.Add(assemblyName.Name, _nextModuleId);
+
+                _nextModuleId++;
             }
 
-            return assemblyRefIndex;
+            return _assemblyRefToModuleIdMap[assemblyName.Name];
         }
 
         public override int ClassCode => 791828335;
