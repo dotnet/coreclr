@@ -31,11 +31,24 @@ namespace Internal.TypeSystem.Interop
 
             var mdType = (MetadataType)type;
 
+            if (!mdType.IsSequentialLayout && !mdType.IsExplicitLayout)
+            {
+                return false;
+            }
+
             foreach (FieldDesc field in type.GetFields())
             {
                 if (field.IsStatic)
                 {
                     continue;
+                }
+
+                if (!field.FieldType.IsValueType)
+                {
+                    // Types with fields of non-value types cannot be blittable
+                    // This check prevents possible infinite recursion where GetMarshallerKind would call back to IsBlittable e.g. for
+                    // the case of classes with pointer members to the class itself.
+                    return false;
                 }
 
                 MarshallerKind marshallerKind = MarshalHelpers.GetMarshallerKind(
