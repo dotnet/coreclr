@@ -60,12 +60,18 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
         /// </summary>
         private string _inputModuleName;
 
-        public ManifestMetadataTableNode(EcmaModule inputModule)
+        /// <summary>
+        /// Node factory for the compilation
+        /// </summary>
+        private readonly NodeFactory _nodeFactory;
+
+        public ManifestMetadataTableNode(EcmaModule inputModule, NodeFactory nodeFactory)
             : base(inputModule.Context.Target)
         {
             _assemblyRefToModuleIdMap = new Dictionary<string, int>();
             _manifestAssemblies = new List<AssemblyName>();
             _signatureEmitters = new List<ISignatureEmitter>();
+            _nodeFactory = nodeFactory;
 
             _inputModuleName = inputModule.Assembly.GetName().Name;
 
@@ -95,13 +101,28 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             {
                 if (_emissionCompleted)
                 {
-                    throw new Exception("mustn't add new assemblies after signatures have been materialized");
+                    throw new InvalidOperationException("Adding a new assembly after signatures have been materialized.");
                 }
+
+                // If we're going to add a module to the manifest, it has to be part of the version bubble, otherwise
+                // the verification logic would be broken at runtime.
+                Debug.Assert(_nodeFactory.CompilationModuleGroup.VersionsWithModule(module));
 
                 assemblyRefIndex = _nextModuleId++;
                 _manifestAssemblies.Add(assemblyName);
                 _assemblyRefToModuleIdMap.Add(assemblyName.Name, assemblyRefIndex);
             }
+            else if (_nodeFactory.CompilationModuleGroup.VersionsWithModule(module))
+            {
+                // This is one of the modules already referenced by the current module, and also part of the version
+                // bubble, so it needs to be emitted in the manifest.
+                if (!_manifestAssemblies.Contains(assemblyName))
+                {
+                    _nextModuleId++;
+                    _manifestAssemblies.Add(assemblyName);
+                }
+            }
+
             return assemblyRefIndex;
         }
 
