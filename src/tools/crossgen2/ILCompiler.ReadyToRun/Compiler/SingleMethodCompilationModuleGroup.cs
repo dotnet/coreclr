@@ -33,7 +33,7 @@ namespace ILCompiler
 
         public override bool VersionsWithModule(ModuleDesc module)
         {
-            return ((EcmaMethod)_method).Module == module;
+            return ((EcmaMethod)_method.GetTypicalMethodDefinition()).Module == module;
         }
 
         public override bool GeneratesPInvoke(MethodDesc method)
