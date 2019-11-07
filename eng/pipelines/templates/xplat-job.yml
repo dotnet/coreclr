@@ -8,6 +8,7 @@ parameters:
   container: ''
   crossrootfsDir: ''
   stagedBuild: false
+  strategy: ''
 
   # arcade-specific parameters
   condition: ''
@@ -47,6 +48,8 @@ jobs:
 
     enableMicrobuild: ${{ parameters.enableMicrobuild }}
     enablePublishUsingPipelines: true
+
+    strategy: ${{ parameters.strategy }}
 
     pool:
 
@@ -168,7 +171,6 @@ jobs:
     - template: download-artifact-step.yml
       parameters:
         displayName: 'GIT repository'
-        downloadFolder: $(Build.SourcesDirectory)/download/
         cleanUnpackFolder: false
         unpackFolder: $(Build.SourcesDirectory)
         ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
