@@ -82,7 +82,13 @@ jobs:
         value: '/'
 
     - name: coreClrRepoRoot
-      value: '$(Build.SourcesDirectory)'
+      value: '$(Build.SourcesDirectory)/src/coreclr'
+
+    # BEGIN SECTION to remove after repo consolidation
+    - ${{ not(startsWith(variables['Build.DefinitionName'], 'runtime')) }}:
+      - name: coreClrRepoRoot
+        value: '$(Build.SourcesDirectory)'
+    # END SECTION to remove after repo consolidation
 
     - name: coreClrRepoRootDir
       value: '$(coreClrRepoRoot)$(dir)'
