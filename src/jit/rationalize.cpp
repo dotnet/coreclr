@@ -48,8 +48,7 @@ void copyFlags(GenTree* dst, GenTree* src, unsigned mask)
 // lclVar if possible.
 //
 // Arguments:
-//    use      - A use reference for a block node
-//    keepBlk  - True if this should remain a block node if it is not a lclVar
+//    use - A use reference for a block node
 //
 // Return Value:
 //    None.
@@ -57,7 +56,7 @@ void copyFlags(GenTree* dst, GenTree* src, unsigned mask)
 // TODO-1stClassStructs: These should be eliminated earlier, once we can handle
 // lclVars in all the places that used to have GT_OBJ.
 //
-void Rationalizer::RewriteSIMDOperand(LIR::Use& use, bool keepBlk)
+void Rationalizer::RewriteSIMDOperand(LIR::Use& use)
 {
 #ifdef FEATURE_SIMD
     // No lowering is needed for non-SIMD nodes, so early out if SIMD types are not supported.
@@ -116,7 +115,7 @@ void Rationalizer::RewriteSIMDOperand(LIR::Use& use, bool keepBlk)
 
         use.ReplaceWith(comp, addr->gtGetOp1());
     }
-    else if (!keepBlk)
+    else
     {
         tree->SetOper(GT_IND);
         tree->gtType = simdType;
@@ -616,7 +615,7 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, Compiler::Ge
 
             if (varTypeIsSIMD(node))
             {
-                RewriteSIMDOperand(use, false);
+                RewriteSIMDOperand(use);
             }
             else
             {
@@ -761,7 +760,7 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, Compiler::Ge
             if (varTypeIsSIMD(node))
             {
                 // Rewrite these as GT_IND.
-                RewriteSIMDOperand(use, false);
+                RewriteSIMDOperand(use);
             }
             break;
 
