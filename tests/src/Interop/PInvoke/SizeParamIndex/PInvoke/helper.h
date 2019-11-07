@@ -107,8 +107,10 @@ BOOL CheckAndChangeArrayByRef(T ** ppActual, T* Actual_Array_Size, SIZE_T Expect
 template<typename T>
 BOOL CheckAndChangeArrayByOut(T ** ppActual, T* Actual_Array_Size, SIZE_T Array_Size)
 {
-    if (*ppActual != NULL)
+    if(*ppActual != NULL )
     {
+        printf("ManagedtoNative Error in Method: %s!\n",__FUNCTION__);
+        printf("Array is not NULL");
         return FALSE;
     }
 
