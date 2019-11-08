@@ -8,6 +8,7 @@
       <_CoreClrBuildArg Include="-$(Platform)" />
       <_CoreClrBuildArg Include="-$(Configuration.ToLower())" />
       <_CoreClrBuildArg Condition="'$(ContinuousIntegrationBuild)' == 'true'" Include="-ci" />
+      <_CoreClrBuildArg Condition="$([MSBuild]::IsOsPlatform(Windows)) and ('$(Platform)' == 'x86' or '$(Platform)' = 'x64')" Include="-enforcepgo" />
     </ItemGroup>
 
     <PropertyGroup>
@@ -17,4 +18,8 @@
 
     <Exec Command="&quot;$(MSBuildThisFileDirectory)$(_CoreClrBuildScript)&quot; @(_CoreClrBuildArg->'%(Identity)',' ')" />
   </Target>
+
+  <Target Name="Restore" />
+  <Target Name="Test" />
+  <Target Name="Pack" />
 </Project>
