@@ -37703,7 +37703,8 @@ GCHeap::AllocLHeap( size_t size, uint32_t flags REQD_ALIGN_DCL)
     //TODO: VS this is for testing POH, it passes LOH allocations to POH heap. remove the "else" section when done 
     alloc_context* acontext;
 
-    if (false)
+    // spread 50%/50% between POH and LOH
+    if (gc_rand::get_rand() & 1)
     {
         acontext = generation_alloc_context (hp->generation_of (loh_generation));
         newAlloc = (Object*) hp->allocate_large_object (size + ComputeMaxStructAlignPadLarge(requiredAlignment), flags, acontext->alloc_bytes_ploh);
