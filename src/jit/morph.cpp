@@ -7666,7 +7666,7 @@ GenTree* Compiler::fgCreateCallDispatcherAndGetResult(GenTreeCall*          orig
                                                       CORINFO_METHOD_HANDLE dispatcherHnd)
 {
     GenTreeCall* callDispatcherNode =
-        gtNewCallNode(CT_USER_FUNC, dispatcherHnd, TYP_VOID, nullptr, fgMorphStmt->gtStmtILoffsx);
+        gtNewCallNode(CT_USER_FUNC, dispatcherHnd, TYP_VOID, nullptr, fgMorphStmt->GetILOffsetX());
     // The dispatcher has signature
     // void DispatchTailCalls(void* callersRetAddrSlot, void* callTarget, void* retValue)
 
@@ -15789,9 +15789,9 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* lnot, bool* loadw)
 
         // Has fgMorphStmt been sneakily changed ?
 
-        if (stmt->GetRootNode() != tree || block != compCurBB)
+        if (stmt->GetRootNode() != oldTree || block != compCurBB)
         {
-            if (stmt->GetRootNode() != tree)
+            if (stmt->GetRootNode() != oldTree)
             {
                 /* This must be tailcall. Ignore 'morphedTree' and carry on with
                 the tail-call node */
@@ -15811,7 +15811,7 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* lnot, bool* loadw)
             }
 
             noway_assert(compTailCallUsed);
-            noway_assert(morph->gtOper == GT_CALL);
+            noway_assert(morphedTree->gtOper == GT_CALL);
             GenTreeCall* call = morphedTree->AsCall();
             // Could be
             //   - a fast call made as jmp in which case block will be ending with

@@ -261,9 +261,6 @@ namespace System.Runtime.CompilerServices
         }
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern object GetUninitializedObjectInternal(Type type);
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern IntPtr AllocTailCallArgBuffer(int size, IntPtr gcDesc);
 
         [MethodImpl(MethodImplOptions.InternalCall)]

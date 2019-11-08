@@ -5687,7 +5687,7 @@ static bool IsTailCallThatReturns(const BYTE * ip, ControllerStackInfo* info)
     LOG((LF_CORDB, LL_INFO1000, "ITCTR: target %p is the tailcall dispatcher\n", ip));
 
     _ASSERTE(info->HasReturnFrame());
-    LPVOID retAddr = (LPVOID)GetControlPC(&info->m_returnFrame.registers);
+    LPVOID retAddr = (LPVOID)GetControlPC(&info->GetReturnFrame().registers);
     TailCallTls* tls = GetThread()->GetTailCallTls();
     LPVOID tailCallAwareRetAddr = tls->GetFrame()->TailCallAwareReturnAddress;
 
