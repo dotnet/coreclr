@@ -8352,7 +8352,7 @@ DONE:
 #ifdef DEBUG
     // In debug we want to be able to register callsites with the EE.
     assert(call->AsCall()->callSig == nullptr);
-    call->AsCall()->callSig = new (this, CMK_Generic) CORINFO_SIG_INFO;
+    call->AsCall()->callSig  = new (this, CMK_Generic) CORINFO_SIG_INFO;
     *call->AsCall()->callSig = *sig;
 #endif
 
@@ -8469,9 +8469,15 @@ DONE:
                     call->AsCall()->tailCallInfo = new (this, CMK_CorTailCallInfo) TailCallSiteInfo;
                     switch (opcode)
                     {
-                    case CEE_CALLI: call->AsCall()->tailCallInfo->SetCalli(sig); break;
-                    case CEE_CALLVIRT: call->AsCall()->tailCallInfo->SetCallvirt(sig, pResolvedToken); break;
-                    default: call->AsCall()->tailCallInfo->SetCall(sig, pResolvedToken); break;
+                        case CEE_CALLI:
+                            call->AsCall()->tailCallInfo->SetCalli(sig);
+                            break;
+                        case CEE_CALLVIRT:
+                            call->AsCall()->tailCallInfo->SetCallvirt(sig, pResolvedToken);
+                            break;
+                        default:
+                            call->AsCall()->tailCallInfo->SetCall(sig, pResolvedToken);
+                            break;
                     }
                 }
             }

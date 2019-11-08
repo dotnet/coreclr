@@ -6020,11 +6020,11 @@ GenTreeCall* Compiler::gtNewCallNode(
     {
         node->gtFlags |= (use.GetNode()->gtFlags & GTF_ALL_EFFECT);
     }
-    node->gtCallType      = callType;
-    node->gtCallMethHnd   = callHnd;
-    node->gtCallArgs      = args;
-    node->gtCallThisArg   = nullptr;
-    node->fgArgInfo       = nullptr;
+    node->gtCallType    = callType;
+    node->gtCallMethHnd = callHnd;
+    node->gtCallArgs    = args;
+    node->gtCallThisArg = nullptr;
+    node->fgArgInfo     = nullptr;
     INDEBUG(node->callSig = nullptr;)
     node->tailCallInfo    = nullptr;
     node->gtRetClsHnd     = nullptr;

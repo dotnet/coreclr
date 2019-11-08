@@ -3450,42 +3450,51 @@ public:
 
 class TailCallSiteInfo
 {
-    bool m_isCallvirt : 1;
-    bool m_isCalli : 1;
-    CORINFO_SIG_INFO m_sig;
+    bool                   m_isCallvirt : 1;
+    bool                   m_isCalli : 1;
+    CORINFO_SIG_INFO       m_sig;
     CORINFO_RESOLVED_TOKEN m_token;
 
 public:
-    bool IsCallvirt() { return m_isCallvirt; }
-    bool IsCalli() { return m_isCalli; }
+    bool IsCallvirt()
+    {
+        return m_isCallvirt;
+    }
+    bool IsCalli()
+    {
+        return m_isCalli;
+    }
     CORINFO_RESOLVED_TOKEN* GetToken()
     {
         assert(!IsCalli());
         return &m_token;
     }
-    CORINFO_SIG_INFO* GetSig() { return &m_sig; }
+    CORINFO_SIG_INFO* GetSig()
+    {
+        return &m_sig;
+    }
 
     void SetCalli(CORINFO_SIG_INFO* sig)
     {
         m_isCallvirt = false;
-        m_isCalli = true;
-        m_sig = *sig;
+        m_isCalli    = true;
+        m_sig        = *sig;
     }
 
     void SetCallvirt(CORINFO_SIG_INFO* sig, CORINFO_RESOLVED_TOKEN* token)
     {
         m_isCallvirt = true;
-        m_isCalli = false;
-        m_sig = *sig;
-        m_token = *token;
+        m_isCalli    = false;
+        m_sig        = *sig;
+        m_token      = *token;
     }
 
     void SetCall(CORINFO_SIG_INFO* sig, CORINFO_RESOLVED_TOKEN* token)
     {
         m_isCallvirt = false;
-        m_isCalli = false;
-        m_sig = *sig;
-        m_token = *token;
+        m_isCalli    = false;
+        m_sig        = *sig;
+        m_token      = *token;
     }
 };
 
@@ -4437,9 +4446,7 @@ struct GenTreeFptrVal : public GenTree
     CORINFO_CONST_LOOKUP gtEntryPoint;
 #endif
 
-    GenTreeFptrVal(var_types type, CORINFO_METHOD_HANDLE meth)
-        : GenTree(GT_FTN_ADDR, type)
-        , gtFptrMethod(meth)
+    GenTreeFptrVal(var_types type, CORINFO_METHOD_HANDLE meth) : GenTree(GT_FTN_ADDR, type), gtFptrMethod(meth)
     {
 #ifdef FEATURE_READYTORUN_COMPILER
         gtEntryPoint.addr       = nullptr;

@@ -7133,8 +7133,8 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
             // Make sure we can get the helpers. We do this last as the runtime
             // will likely be required to generate these.
             CORINFO_RESOLVED_TOKEN* token = nullptr;
-            CORINFO_SIG_INFO* sig = call->tailCallInfo->GetSig();
-            unsigned flags = 0;
+            CORINFO_SIG_INFO*       sig   = call->tailCallInfo->GetSig();
+            unsigned                flags = 0;
             if (!call->tailCallInfo->IsCalli())
             {
                 token = call->tailCallInfo->GetToken();
@@ -7144,7 +7144,8 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
                 }
             }
 
-            if (!info.compCompHnd->getTailCallHelpers(token, sig, (CORINFO_GET_TAILCALL_HELPERS_FLAGS)flags, &tailCallHelpers))
+            if (!info.compCompHnd->getTailCallHelpers(token, sig, (CORINFO_GET_TAILCALL_HELPERS_FLAGS)flags,
+                                                      &tailCallHelpers))
             {
                 failTailCall("Tail call help not available");
                 return nullptr;
@@ -7480,8 +7481,7 @@ GenTree* Compiler::fgMorphTailCallViaHelpers(GenTreeCall* call, CORINFO_TAILCALL
 
     // If asked to store target and we have a type arg we will store
     // instantiating stub, so in that case we should not pass the type arg.
-    if ((help.flags & CORINFO_TAILCALL_STORE_TARGET) &&
-        call->tailCallInfo->GetSig()->hasTypeArg())
+    if ((help.flags & CORINFO_TAILCALL_STORE_TARGET) && call->tailCallInfo->GetSig()->hasTypeArg())
     {
         JITDUMP("Removing type arg");
 
@@ -7517,17 +7517,13 @@ GenTree* Compiler::fgMorphTailCallViaHelpers(GenTreeCall* call, CORINFO_TAILCALL
         else
         {
             CORINFO_CALL_INFO callInfo;
-            unsigned flags = CORINFO_CALLINFO_LDFTN;
+            unsigned          flags = CORINFO_CALLINFO_LDFTN;
             if (call->tailCallInfo->IsCallvirt())
             {
                 flags |= CORINFO_CALLINFO_CALLVIRT;
             }
 
-            eeGetCallInfo(
-                call->tailCallInfo->GetToken(),
-                nullptr,
-                (CORINFO_CALLINFO_FLAGS)flags,
-                &callInfo);
+            eeGetCallInfo(call->tailCallInfo->GetToken(), nullptr, (CORINFO_CALLINFO_FLAGS)flags, &callInfo);
 
             // R2R requires different handling but we don't support tailcall via
             // helpers in R2R yet, so just leave it for now.
@@ -7543,8 +7539,8 @@ GenTree* Compiler::fgMorphTailCallViaHelpers(GenTreeCall* call, CORINFO_TAILCALL
             {
                 assert(call->gtCallThisArg != nullptr);
                 // TODO: Proper cloning of the this pointer.
-                target = getVirtMethodPointerTree(
-                    gtCloneExpr(call->gtCallThisArg->GetNode()), call->tailCallInfo->GetToken(), &callInfo);
+                target = getVirtMethodPointerTree(gtCloneExpr(call->gtCallThisArg->GetNode()),
+                                                  call->tailCallInfo->GetToken(), &callInfo);
             }
         }
 
@@ -7564,8 +7560,8 @@ GenTree* Compiler::fgMorphTailCallViaHelpers(GenTreeCall* call, CORINFO_TAILCALL
     if (call->gtCallThisArg != nullptr)
     {
         JITDUMP("Moving this pointer into arg list\n");
-        GenTree* thisPtr = nullptr;
-        GenTree* objp    = call->gtCallThisArg->GetNode();
+        GenTree* thisPtr    = nullptr;
+        GenTree* objp       = call->gtCallThisArg->GetNode();
         call->gtCallThisArg = nullptr;
 
         if (call->NeedsNullCheck())
@@ -7726,9 +7722,8 @@ GenTree* Compiler::fgCreateCallDispatcherAndGetResult(GenTreeCall*          orig
 
     // Add callTarget
     callDispatcherNode->gtCallArgs =
-        gtPrependNewCallArg(
-            new (this, GT_FTN_ADDR) GenTreeFptrVal(TYP_I_IMPL, callTargetStubHnd),
-            callDispatcherNode->gtCallArgs);
+        gtPrependNewCallArg(new (this, GT_FTN_ADDR) GenTreeFptrVal(TYP_I_IMPL, callTargetStubHnd),
+                            callDispatcherNode->gtCallArgs);
 
     // Add the caller's return address slot.
     if (lvaRetAddrVar == BAD_VAR_NUM)
@@ -7759,8 +7754,7 @@ GenTree* Compiler::fgCreateCallDispatcherAndGetResult(GenTreeCall*          orig
     return comma;
 }
 
-GenTree* Compiler::getMethodPointerTree(CORINFO_RESOLVED_TOKEN* pResolvedToken,
-                                        CORINFO_CALL_INFO* pCallInfo)
+GenTree* Compiler::getMethodPointerTree(CORINFO_RESOLVED_TOKEN* pResolvedToken, CORINFO_CALL_INFO* pCallInfo)
 {
     switch (pCallInfo->kind)
     {
@@ -7775,9 +7769,9 @@ GenTree* Compiler::getMethodPointerTree(CORINFO_RESOLVED_TOKEN* pResolvedToken,
 }
 
 GenTree* Compiler::getLookupTree(CORINFO_RESOLVED_TOKEN* pResolvedToken,
-                                 CORINFO_LOOKUP* pLookup,
-                                 unsigned handleFlags,
-                                 void* compileTimeHandle)
+                                 CORINFO_LOOKUP*         pLookup,
+                                 unsigned                handleFlags,
+                                 void*                   compileTimeHandle)
 {
     if (!pLookup->lookupKind.needsRuntimeLookup)
     {
@@ -7817,7 +7811,8 @@ GenTree* Compiler::getRuntimeLookupTree(CORINFO_RESOLVED_TOKEN* pResolvedToken,
     {
         GenTree* argNode =
             gtNewIconEmbHndNode(pRuntimeLookup->signature, nullptr, GTF_ICON_TOKEN_HDL, compileTimeHandle);
-        GenTreeCall::Use* helperArgs = gtNewCallArgs(getRuntimeContextTree(pLookup->lookupKind.runtimeLookupKind), argNode);
+        GenTreeCall::Use* helperArgs =
+            gtNewCallArgs(getRuntimeContextTree(pLookup->lookupKind.runtimeLookupKind), argNode);
 
         return gtNewHelperCallNode(pRuntimeLookup->helper, TYP_I_IMPL, helperArgs);
     }
@@ -7826,8 +7821,7 @@ GenTree* Compiler::getRuntimeLookupTree(CORINFO_RESOLVED_TOKEN* pResolvedToken,
 
     ArrayStack<GenTree*> stmts(getAllocator(CMK_ArrayStack));
 
-    auto cloneTree = [&](GenTree** tree DEBUGARG(const char* reason))
-    {
+    auto cloneTree = [&](GenTree** tree DEBUGARG(const char* reason)) {
         if (!((*tree)->gtFlags & GTF_GLOB_EFFECT))
         {
             GenTree* clone = gtClone(*tree, true);
@@ -7867,8 +7861,7 @@ GenTree* Compiler::getRuntimeLookupTree(CORINFO_RESOLVED_TOKEN* pResolvedToken,
 
         if (pRuntimeLookup->offsets[i] != 0)
         {
-            result =
-                gtNewOperNode(GT_ADD, TYP_I_IMPL, result, gtNewIconNode(pRuntimeLookup->offsets[i], TYP_I_IMPL));
+            result = gtNewOperNode(GT_ADD, TYP_I_IMPL, result, gtNewIconNode(pRuntimeLookup->offsets[i], TYP_I_IMPL));
         }
     }
 
@@ -7920,33 +7913,35 @@ GenTree* Compiler::getRuntimeLookupTree(CORINFO_RESOLVED_TOKEN* pResolvedToken,
         GenTree* handleCopy = cloneTree(&handle DEBUGARG("getRuntimeLookupTree handle"));
 
         // Call to helper
-        GenTree* argNode = gtNewIconEmbHndNode(pRuntimeLookup->signature, nullptr, GTF_ICON_TOKEN_HDL, compileTimeHandle);
+        GenTree* argNode =
+            gtNewIconEmbHndNode(pRuntimeLookup->signature, nullptr, GTF_ICON_TOKEN_HDL, compileTimeHandle);
 
-        GenTreeCall::Use* helperArgs = gtNewCallArgs(getRuntimeContextTree(pLookup->lookupKind.runtimeLookupKind), argNode);
-        GenTree*          helperCall = gtNewHelperCallNode(pRuntimeLookup->helper, TYP_I_IMPL, helperArgs);
+        GenTreeCall::Use* helperArgs =
+            gtNewCallArgs(getRuntimeContextTree(pLookup->lookupKind.runtimeLookupKind), argNode);
+        GenTree* helperCall = gtNewHelperCallNode(pRuntimeLookup->helper, TYP_I_IMPL, helperArgs);
 
         result = helperCall;
         //// Check for null and possibly call helper
-        //GenTree* relop = gtNewOperNode(GT_NE, TYP_INT, handle, gtNewIconNode(0, TYP_I_IMPL));
+        // GenTree* relop = gtNewOperNode(GT_NE, TYP_INT, handle, gtNewIconNode(0, TYP_I_IMPL));
 
-        //GenTree* colon = new (this, GT_COLON) GenTreeColon(TYP_I_IMPL,
+        // GenTree* colon = new (this, GT_COLON) GenTreeColon(TYP_I_IMPL,
         //                                                gtNewNothingNode(), // do nothing if nonnull
         //                                                helperCall);
 
-        //GenTree* qmark = gtNewQmarkNode(TYP_I_IMPL, relop, colon);
+        // GenTree* qmark = gtNewQmarkNode(TYP_I_IMPL, relop, colon);
 
-        //unsigned tmp;
-        //if (handleCopy->IsLocal())
+        // unsigned tmp;
+        // if (handleCopy->IsLocal())
         //{
         //    tmp = handleCopy->gtLclVarCommon.GetLclNum();
         //}
-        //else
+        // else
         //{
         //    tmp = lvaGrabTemp(true DEBUGARG("spilling QMark1"));
         //}
 
-        //stmts.Push(gtNewTempAssign(tmp, qmark));
-        //result = gtNewLclvNode(tmp, TYP_I_IMPL);
+        // stmts.Push(gtNewTempAssign(tmp, qmark));
+        // result = gtNewLclvNode(tmp, TYP_I_IMPL);
     }
 
     // Produces GT_COMMA(stmt1, GT_COMMA(stmt2, ... GT_COMMA(stmtN, result)))
@@ -7960,11 +7955,11 @@ GenTree* Compiler::getRuntimeLookupTree(CORINFO_RESOLVED_TOKEN* pResolvedToken,
     return result;
 }
 
-GenTree* Compiler::getVirtMethodPointerTree(GenTree* thisPtr,
+GenTree* Compiler::getVirtMethodPointerTree(GenTree*                thisPtr,
                                             CORINFO_RESOLVED_TOKEN* pResolvedToken,
-                                            CORINFO_CALL_INFO* pCallInfo)
+                                            CORINFO_CALL_INFO*      pCallInfo)
 {
-    GenTree* exactTypeDesc = getTokenHandleTree(pResolvedToken, true);
+    GenTree* exactTypeDesc   = getTokenHandleTree(pResolvedToken, true);
     GenTree* exactMethodDesc = getTokenHandleTree(pResolvedToken, false);
 
     GenTreeCall::Use* helpArgs = gtNewCallArgs(thisPtr, exactTypeDesc, exactMethodDesc);
