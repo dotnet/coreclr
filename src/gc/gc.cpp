@@ -38831,22 +38831,22 @@ static const char* int64_t_to_str(const int64_t value)
     return out;
 }
 
-const char* GCHeap::GetGCConfigValue(const wchar_t* key)
+const char* GCHeap::GetGCConfigValue(const char* key)
 {
-    if (wcscmp(key, L"CpuGroup") == 0)
+    if (strcmp(key, "CpuGroup") == 0)
     {
         return bool_to_str(GCConfig::GetGCCpuGroup());
     }
-    else if (wcscmp(key, L"HeapAffinitizeMask") == 0)
+    else if (strcmp(key, "HeapAffinitizeMask") == 0)
     {
         return int64_t_to_str(GCConfig::GetGCHeapAffinitizeMask());
     }
-    else if (wcscmp(key, L"HeapAffinitizeRanges") == 0)
+    else if (strcmp(key, "HeapAffinitizeRanges") == 0)
     {
         // GetGCHeapAffinitizeRanges returns a GCConfigStringHolder which will delete the string, but not if we Extract() it.
         return GCConfig::GetGCHeapAffinitizeRanges().Extract();
     }
-    else if (wcscmp(key, L"HeapCount") == 0)
+    else if (strcmp(key, "HeapCount") == 0)
     {
 #ifdef MULTIPLE_HEAPS
         const size_t heapCount = gc_heap::n_heaps;
@@ -38855,19 +38855,19 @@ const char* GCHeap::GetGCConfigValue(const wchar_t* key)
 #endif
         return int64_t_to_str(heapCount);
     }
-    else if (wcscmp(key, L"HeapHardLimit") == 0)
+    else if (strcmp(key, "HeapHardLimit") == 0)
     {
         return int64_t_to_str(gc_heap::heap_hard_limit);
     }
-    else if (wcscmp(key, L"HeapHardLimitPercent") == 0)
+    else if (strcmp(key, "HeapHardLimitPercent") == 0)
     {
         return int64_t_to_str(GCConfig::GetGCHeapHardLimitPercent());
     }
-    else if (wcscmp(key, L"HighMemoryPercent") == 0)
+    else if (strcmp(key, "HighMemoryPercent") == 0)
     {
         return int64_t_to_str(gc_heap::high_memory_load_th);
     }
-    else if (wcscmp(key, L"NoAffinitize") == 0)
+    else if (strcmp(key, "NoAffinitize") == 0)
     {
 #ifdef MULTIPLE_HEAPS
         const bool noAffinitize = gc_heap::gc_thread_no_affinitize_p;
@@ -38876,15 +38876,15 @@ const char* GCHeap::GetGCConfigValue(const wchar_t* key)
 #endif
         return bool_to_str(noAffinitize);
     }
-    else if (wcscmp(key, L"LargePages") == 0)
+    else if (strcmp(key, "LargePages") == 0)
     {
         return int64_t_to_str(gc_heap::use_large_pages_p);
     }
-    else if (wcscmp(key, L"LOHThreshold") == 0)
+    else if (strcmp(key, "LOHThreshold") == 0)
     {
         return int64_t_to_str(loh_size_threshold);
     }
-    else if (wcscmp(key, L"Server") == 0)
+    else if (strcmp(key, "Server") == 0)
     {
 #ifdef MULTIPLE_HEAPS
         return bool_to_str(true);

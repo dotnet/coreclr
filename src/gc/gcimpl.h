@@ -178,7 +178,7 @@ public:
                        size_t* lastRecordedHeapSizeBytes,
                        size_t* lastRecordedFragmentationBytes);
 
-    const char* GetGCConfigValue(const wchar_t* key);
+    const char* GetGCConfigValue(const char* key);
 
     int GetGcLatencyMode();
     int SetGcLatencyMode(int newLatencyMode);

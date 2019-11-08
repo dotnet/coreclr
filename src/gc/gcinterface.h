@@ -612,7 +612,7 @@ public:
                                size_t* lastRecordedHeapSizeBytes,
                                size_t* lastRecordedFragmentationBytes) = 0;
 
-    virtual const char* GetGCConfigValue(const wchar_t* key) = 0;
+    virtual const char* GetGCConfigValue(const char* key) = 0;
 
     // Gets the current GC latency mode.
     virtual int GetGcLatencyMode() = 0;

@@ -78,7 +78,7 @@ namespace System
                                     fragmentedBytes: (long)(ulong)lastRecordedFragmentationBytes);
         }
 
-        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Ansi)]
         internal static extern void GetGCConfigValue(string name, StringHandleOnStack retString);
 
         // internal for now, for testing that configuration works

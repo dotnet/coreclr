@@ -712,7 +712,7 @@ FCIMPL6(void, GCInterface::GetMemoryInfo, UINT64* highMemLoadThreshold, UINT64* 
 }
 FCIMPLEND
 
-void QCALLTYPE GCInterface::GetGCConfigValue(const wchar_t* key, QCall::StringHandleOnStack result)
+void QCALLTYPE GCInterface::GetGCConfigValue(const char* key, QCall::StringHandleOnStack result)
 {
     QCALL_CONTRACT;
 

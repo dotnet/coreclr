@@ -99,7 +99,7 @@ public:
     static FORCEINLINE UINT64 InterlockedSub(UINT64 *pMinuend, UINT64 subtrahend);
 
     static FCDECL6(void,    GetMemoryInfo, UINT64* highMemLoadThresholdBytes, UINT64* totalAvailableMemoryBytes, UINT64* lastRecordedMemLoadBytes, UINT32* lastRecordedMemLoadPct, size_t* lastRecordedHeapSizBytes, size_t* lastRecordedFragmentationBytes);
-    static void QCALLTYPE GetGCConfigValue(const wchar_t* key, QCall::StringHandleOnStack result);
+    static void QCALLTYPE GetGCConfigValue(const char* key, QCall::StringHandleOnStack result);
     static FCDECL0(int,     GetGcLatencyMode);
     static FCDECL1(int,     SetGcLatencyMode, int newLatencyMode);
     static FCDECL0(int,     GetLOHCompactionMode);
