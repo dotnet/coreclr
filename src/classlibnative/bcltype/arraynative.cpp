@@ -29,7 +29,7 @@ FCIMPL1(INT32, ArrayNative::GetCorElementTypeOfElementType, ArrayBase* arrayUNSA
 }
 FCIMPLEND
 
-FCIMPL2(INT32, ArrayNative::IsValueOfElementType, ArrayBase* arrayUNSAFE, Object* valueUNSAFE)
+FCIMPL2(FC_BOOL_RET, ArrayNative::IsValueOfElementType, ArrayBase* arrayUNSAFE, Object* valueUNSAFE)
 {
     _ASSERTE(arrayUNSAFE != NULL);
     _ASSERTE(valueUNSAFE != NULL);
