@@ -30,6 +30,15 @@ then
   exit 1
 fi
 
+__CoreClrDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/../../.."
+__RepoRootDir=${__CoreClrDir}/../..
+
+# BEGIN SECTION to remove after repo consolidation
+if [ ! -f "${__RepoRootDir}/.dotnet-runtime-placeholder" ]; then
+  __RepoRootDir=${__CoreClrDir}
+fi
+# END SECTION to remove after repo consolidation
+
 build_arch="$3"
 buildtype=DEBUG
 code_coverage=OFF
@@ -66,10 +75,10 @@ if [ "$CROSSCOMPILE" == "1" ]; then
         exit 1
     fi
     if [[ -z $CONFIG_DIR ]]; then
-        CONFIG_DIR="$1/eng/common/cross"
+        CONFIG_DIR="${__RepoRootDir}/eng/common/cross"
     fi
     export TARGET_BUILD_ARCH=$build_arch
-    cmake_extra_defines="$cmake_extra_defines -C $scriptroot/tryrun.cmake"
+    cmake_extra_defines="$cmake_extra_defines -C $CONFIG_DIR/tryrun.cmake"
     cmake_extra_defines="$cmake_extra_defines -DCMAKE_TOOLCHAIN_FILE=$CONFIG_DIR/toolchain.cmake"
 fi
 

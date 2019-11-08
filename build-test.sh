@@ -548,7 +548,7 @@ build_native_projects()
         __versionSourceFile="$intermediatesForBuild/version.c"
         if [ $__SkipGenerateVersion == 0 ]; then
             pwd
-            $__RepoRootDir/eng/common/msbuild.sh $__ProjectRoot/eng/empty.csproj \
+            $__RepoRootDir/eng/common/msbuild.sh $__RepoRootDir/eng/empty.csproj \
                                                  /p:NativeVersionFile=$__versionSourceFile \
                                                  /t:GenerateNativeVersionFile /restore \
                                                  $__CommonMSBuildArgs $__UnprocessedBuildArgs
