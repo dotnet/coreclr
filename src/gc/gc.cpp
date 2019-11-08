@@ -38824,9 +38824,9 @@ static const char* int64_t_to_str(const int64_t value)
     char* out = new (nothrow) char[max_size];
     if (out != nullptr)
     {
-        int n = snprintf(out, max_size, "%llu", (long long) value);
+        int n = _snprintf_s (out, max_size, _TRUNCATE, "%llu", (long long) value);
         // -1 because n does not include the '\0'
-        assert(n <= max_size - 1);
+        assert (n <= max_size - 1);
     }
     return out;
 }
