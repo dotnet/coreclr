@@ -24,6 +24,7 @@
     <MicrosoftPrivateCoreFxNETCoreAppVersion>4.7.0-preview3.19551.4</MicrosoftPrivateCoreFxNETCoreAppVersion>
     <MicrosoftNETCorePlatformsVersion>3.1.0-preview3.19551.4</MicrosoftNETCorePlatformsVersion>
     <MicrosoftBclAsyncInterfacesVersion>1.0.0-preview7.19326.2</MicrosoftBclAsyncInterfacesVersion>
+    <SystemIOFileSystemAccessControlVersion>4.7.0-preview3.19551.4</SystemIOFileSystemAccessControlVersion>
     <!-- core-setup -->
     <MicrosoftNETCoreAppVersion>3.1.0-preview3.19553.2</MicrosoftNETCoreAppVersion>
     <!-- dotnet-core-internal-tooling -->

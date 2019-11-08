@@ -26,6 +26,10 @@
       <Uri>https://github.com/dotnet/corefx</Uri>
       <Sha>046765913dff824f9ed0f2d2fe0fb9b111906cf5</Sha>
     </Dependency>
+    <Dependency Name="System.IO.FileSystem.AccessControl" Version="4.7.0-preview3.19551.4">
+      <Uri>https://github.com/dotnet/corefx</Uri>
+      <Sha>046765913dff824f9ed0f2d2fe0fb9b111906cf5</Sha>
+    </Dependency>
     <Dependency Name="Microsoft.NETCore.App" Version="3.1.0-preview3.19553.2">
       <Uri>https://github.com/dotnet/core-setup</Uri>
       <Sha>13f35c3d86a40ff811bfde0b64cfb86431c19d15</Sha>
