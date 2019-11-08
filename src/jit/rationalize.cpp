@@ -37,21 +37,6 @@ genTreeOps addrForm(genTreeOps loadForm)
     }
 }
 
-// return op that is the load equivalent of the given addr opcode
-genTreeOps loadForm(genTreeOps addrForm)
-{
-    switch (addrForm)
-    {
-        case GT_LCL_VAR_ADDR:
-            return GT_LCL_VAR;
-        case GT_LCL_FLD_ADDR:
-            return GT_LCL_FLD;
-        default:
-            noway_assert(!"not a local address opcode\n");
-            unreached();
-    }
-}
-
 // copy the flags determined by mask from src to dst
 void copyFlags(GenTree* dst, GenTree* src, unsigned mask)
 {
