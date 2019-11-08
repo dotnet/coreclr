@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -25,7 +26,7 @@ namespace BinderTracingTests
         }
     }
 
-    class BinderTracingTest
+    partial class BinderTracingTest
     {
         public class CustomALC : AssemblyLoadContext
         {
@@ -35,6 +36,9 @@ namespace BinderTracingTests
 
         private const string DefaultALC = "Default";
         private const string DependentAssemblyName = "AssemblyToLoad";
+        private const string SubdirectoryAssemblyName = "AssemblyToLoad_Subdirectory";
+
+        private static readonly AssemblyName CoreLibName = typeof(object).Assembly.GetName();
 
         [BinderTest]
         public static BindOperation LoadFile()
@@ -47,6 +51,7 @@ namespace BinderTracingTests
                 AssemblyName = executingAssembly.GetName(),
                 AssemblyPath = executingAssembly.Location,
                 AssemblyLoadContext = AssemblyLoadContext.GetLoadContext(asm).ToString(),
+                RequestingAssembly = CoreLibName,
                 RequestingAssemblyLoadContext = DefaultALC,
                 Success = true,
                 ResultAssemblyName = asm.GetName(),
@@ -66,6 +71,7 @@ namespace BinderTracingTests
             {
                 AssemblyName = executingAssembly.GetName(),
                 AssemblyLoadContext = AssemblyLoadContext.GetLoadContext(asm).ToString(),
+                RequestingAssembly = CoreLibName,
                 RequestingAssemblyLoadContext = DefaultALC,
                 Success = true,
                 ResultAssemblyName = asm.GetName(),
@@ -86,6 +92,7 @@ namespace BinderTracingTests
             {
                 AssemblyName = executingAssembly.GetName(),
                 AssemblyLoadContext = alc.ToString(),
+                RequestingAssembly = CoreLibName,
                 RequestingAssemblyLoadContext = DefaultALC,
                 Success = true,
                 ResultAssemblyName = asm.GetName(),
@@ -106,6 +113,7 @@ namespace BinderTracingTests
                 AssemblyName = executingAssembly.GetName(),
                 AssemblyPath = executingAssembly.Location,
                 AssemblyLoadContext = alc.ToString(),
+                RequestingAssembly = CoreLibName,
                 RequestingAssemblyLoadContext = DefaultALC,
                 Success = true,
                 ResultAssemblyName = asm.GetName(),
@@ -143,6 +151,7 @@ namespace BinderTracingTests
                 AssemblyName = executingAssembly.GetName(),
                 AssemblyPath = executingAssembly.Location,
                 AssemblyLoadContext = DefaultALC,
+                RequestingAssembly = CoreLibName,
                 RequestingAssemblyLoadContext = DefaultALC,
                 Success = true,
                 ResultAssemblyName = asm.GetName(),
@@ -154,13 +163,14 @@ namespace BinderTracingTests
         [BinderTest(isolate: true)]
         public static BindOperation PlatformAssembly()
         {
-            string assemblyName = "System.Xml";
+            var assemblyName = new AssemblyName("System.Xml");
             Assembly asm = Assembly.Load(assemblyName);
 
             return new BindOperation()
             {
-                AssemblyName = new AssemblyName(assemblyName),
+                AssemblyName = assemblyName,
                 AssemblyLoadContext = DefaultALC,
+                RequestingAssembly = Assembly.GetExecutingAssembly().GetName(),
                 RequestingAssemblyLoadContext = DefaultALC,
                 Success = true,
                 ResultAssemblyName = asm.GetName(),
@@ -191,6 +201,7 @@ namespace BinderTracingTests
             {
                 AssemblyName = new AssemblyName(assemblyName),
                 AssemblyLoadContext = DefaultALC,
+                RequestingAssembly = Assembly.GetExecutingAssembly().GetName(),
                 RequestingAssemblyLoadContext = DefaultALC,
                 Success = false,
                 Cached = false
@@ -206,8 +217,8 @@ namespace BinderTracingTests
             {
                 AssemblyName = new AssemblyName(DependentAssemblyName),
                 AssemblyLoadContext = DefaultALC,
-                RequestingAssemblyLoadContext = DefaultALC,
                 RequestingAssembly = Assembly.GetExecutingAssembly().GetName(),
+                RequestingAssemblyLoadContext = DefaultALC,
                 Success = true,
                 ResultAssemblyName = t.Assembly.GetName(),
                 ResultAssemblyPath = t.Assembly.Location,
@@ -368,7 +379,7 @@ namespace BinderTracingTests
                     // Run specific test - first argument should be the test method name
                     MethodInfo method = typeof(BinderTracingTest)
                         .GetMethod(args[0], BindingFlags.Public | BindingFlags.Static);
-                    Assert.IsTrue(method != null && method.GetCustomAttribute<BinderTestAttribute>() != null && method.ReturnType == typeof(BindOperation));
+                    Assert.IsTrue(method != null && method.GetCustomAttribute<BinderTestAttribute>() != null && method.ReturnType == typeof(BindOperation), "Invalid test muthod specified");
                     success = RunSingleTest(method);
                 }
             }
@@ -462,29 +473,45 @@ namespace BinderTracingTests
             ValidateAssemblyName(expected.AssemblyName, actual.AssemblyName, nameof(BindOperation.AssemblyName));
             Assert.AreEqual(expected.AssemblyPath ?? string.Empty, actual.AssemblyPath, $"Unexpected value for {nameof(BindOperation.AssemblyPath)} on event");
             Assert.AreEqual(expected.AssemblyLoadContext, actual.AssemblyLoadContext, $"Unexpected value for {nameof(BindOperation.AssemblyLoadContext)} on event");
-            ValidateAssemblyName(expected.RequestingAssembly, actual.RequestingAssembly, nameof(BindOperation.RequestingAssembly));
             Assert.AreEqual(expected.RequestingAssemblyLoadContext ?? string.Empty, actual.RequestingAssemblyLoadContext, $"Unexpected value for {nameof(BindOperation.RequestingAssemblyLoadContext)} on event");
+            ValidateAssemblyName(expected.RequestingAssembly, actual.RequestingAssembly, nameof(BindOperation.RequestingAssembly));
 
             Assert.AreEqual(expected.Success, actual.Success, $"Unexpected value for {nameof(BindOperation.Success)} on event");
             Assert.AreEqual(expected.ResultAssemblyPath ?? string.Empty, actual.ResultAssemblyPath, $"Unexpected value for {nameof(BindOperation.ResultAssemblyPath)} on event");
             Assert.AreEqual(expected.Cached, actual.Cached, $"Unexpected value for {nameof(BindOperation.Cached)} on event");
             ValidateAssemblyName(expected.ResultAssemblyName, actual.ResultAssemblyName, nameof(BindOperation.ResultAssemblyName));
+
+            ValidateHandlerInvocations(expected.ALCResolvingHandlers, actual.ALCResolvingHandlers, "ALCResolving");
+        }
+
+        private static bool AssemblyNamesMatch(AssemblyName name1, AssemblyName name2)
+        {
+            if (name1 == null || name2 == null)
+                return name1 == null && name2 == null;
+
+            return name1.Name == name2.Name
+                && ((name1.Version == null && name2.Version == null) || name1.Version == name2.Version)
+                && ((string.IsNullOrEmpty(name1.CultureName) && string.IsNullOrEmpty(name1.CultureName)) || name1.CultureName == name2.CultureName);
         }
 
         private static void ValidateAssemblyName(AssemblyName expected, AssemblyName actual, string propertyName)
         {
-            if (expected == null)
-            {
-                return;
-            }
+            Assert.IsTrue(AssemblyNamesMatch(expected, actual), $"Unexpected value for {propertyName} on event - expected: {expected}, actual: {actual}");
+        }
 
-            if (expected.Version != null)
+        private static void ValidateHandlerInvocations(List<HandlerInvocation> expected, List<HandlerInvocation> actual, string eventName)
+        {
+            Assert.AreEqual(expected.Count, actual.Count, $"Unexpected handler invocation count for {eventName}");
+
+            foreach (var match in expected)
             {
-                Assert.AreEqual(expected.FullName, actual.FullName, $"Unexpected value for {propertyName} on event");
-            }
-            else
-            {
-                Assert.AreEqual(expected.Name, actual.Name, $"Unexpected value for {propertyName} on event");
+                Predicate<HandlerInvocation> pred = h =>
+                    AssemblyNamesMatch(h.AssemblyName, match.AssemblyName)
+                        && h.HandlerName == match.HandlerName
+                        && h.AssemblyLoadContext == match.AssemblyLoadContext
+                        && AssemblyNamesMatch(h.ResultAssemblyName, match.ResultAssemblyName)
+                        && h.ResultAssemblyPath == match.ResultAssemblyPath;
+                Assert.IsTrue(actual.Exists(pred), $"Handler invocation not found: {match.ToString()}");
             }
         }
     }

@@ -31,6 +31,30 @@ namespace BinderTracingTests
 
         internal bool Completed;
         internal bool Nested;
+
+        internal List<HandlerInvocation> ALCResolvingHandlers = new List<HandlerInvocation>();
+    }
+
+    internal class HandlerInvocation
+    {
+        internal AssemblyName AssemblyName;
+        internal string HandlerName;
+        internal string AssemblyLoadContext;
+
+        internal AssemblyName ResultAssemblyName;
+        internal string ResultAssemblyPath;
+
+        public override string ToString()
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append($"{HandlerName} - ");
+            sb.Append($"Request: Name={AssemblyName.FullName}");
+            if (!string.IsNullOrEmpty(AssemblyLoadContext))
+                sb.Append($", ALC={AssemblyLoadContext}");
+
+            sb.Append($" - Result: Name={ResultAssemblyName?.FullName}, Path={ResultAssemblyPath}");
+            return sb.ToString();
+        }
     }
 
     internal sealed class BinderEventListener : EventListener
@@ -81,33 +105,37 @@ namespace BinderTracingTests
                 return;
 
             object GetData(string name) => data.Payload[data.PayloadNames.IndexOf(name)];
-            string GetDataString(string name) => GetData(name).ToString();
+            string GetDataString(string name) => GetData(name) as string;
 
             switch (data.EventName)
             {
                 case "AssemblyLoadStart":
+                {
+                    var bindOperation = new BindOperation()
+                    {
+                        AssemblyName = new AssemblyName(GetDataString("AssemblyName")),
+                        AssemblyPath = GetDataString("AssemblyPath"),
+                        AssemblyLoadContext = GetDataString("AssemblyLoadContext"),
+                        RequestingAssemblyLoadContext = GetDataString("RequestingAssemblyLoadContext"),
+                        ActivityId = data.ActivityId,
+                        ParentActivityId = data.RelatedActivityId,
+                    };
+                    string requestingAssembly = GetDataString("RequestingAssembly");
+                    if (!string.IsNullOrEmpty(requestingAssembly))
+                    {
+                        bindOperation.RequestingAssembly = new AssemblyName(requestingAssembly);
+                    }
+
                     lock (eventsLock)
                     {
                         Assert.IsTrue(!bindOperations.ContainsKey(data.ActivityId), "AssemblyLoadStart should not exist for same activity ID ");
-                        var bindOperation = new BindOperation()
-                        {
-                            AssemblyName = new AssemblyName(GetDataString("AssemblyName")),
-                            AssemblyPath = GetDataString("AssemblyPath"),
-                            AssemblyLoadContext = GetDataString("AssemblyLoadContext"),
-                            RequestingAssemblyLoadContext = GetDataString("RequestingAssemblyLoadContext"),
-                            ActivityId = data.ActivityId,
-                            ParentActivityId = data.RelatedActivityId,
-                            Nested = bindOperations.ContainsKey(data.RelatedActivityId)
-                        };
-                        string requestingAssembly = GetDataString("RequestingAssembly");
-                        if (!string.IsNullOrEmpty(requestingAssembly))
-                        {
-                            bindOperation.RequestingAssembly = new AssemblyName(requestingAssembly);
-                        }
+                        bindOperation.Nested = bindOperations.ContainsKey(data.RelatedActivityId);
                         bindOperations.Add(data.ActivityId, bindOperation);
                     }
                     break;
+                }
                 case "AssemblyLoadStop":
+                {
                     lock (eventsLock)
                     {
                         Assert.IsTrue(bindOperations.ContainsKey(data.ActivityId), "AssemblyLoadStop should have a matching AssemblyBindStart");
@@ -123,7 +151,45 @@ namespace BinderTracingTests
                         bind.Completed = true;
                     }
                     break;
+                }
+                case "ALCResolvingHandlerInvoked":
+                {
+                    var handlerInvocation = new HandlerInvocation()
+                    {
+                        AssemblyName = new AssemblyName(GetDataString("AssemblyName")),
+                        HandlerName = GetDataString("HandlerName"),
+                        AssemblyLoadContext = GetDataString("AssemblyLoadContext"),
+                        ResultAssemblyPath = GetDataString("ResultAssemblyPath")
+                    };
+                    string resultName = GetDataString("ResultAssemblyName");
+                    if (!string.IsNullOrEmpty(resultName))
+                    {
+                        handlerInvocation.ResultAssemblyName = new AssemblyName(resultName);
+                    }
+
+                    lock (eventsLock)
+                    {
+                        Assert.IsTrue(bindOperations.ContainsKey(data.ActivityId), "ALCResolvingHandlerInvoked should have a matching AssemblyBindStart");
+                        BindOperation bind = bindOperations[data.ActivityId];
+                        bind.ALCResolvingHandlers.Add(handlerInvocation);
+                    }
+                    break;
+                }
             }
+
+                var sb = new System.Text.StringBuilder($"{data.EventName}");
+                sb.AppendLine();
+                sb.AppendLine("  Payload:");
+                for (int i = 0; i < data.Payload.Count; i++)
+                {
+                    string payloadString = data.Payload[i] != null ? data.Payload[i].ToString() : string.Empty;
+                    sb.AppendLine($"    {data.PayloadNames[i]} = {payloadString}");
+                }
+
+                sb.AppendLine($"  Activity: {data.ActivityId}");
+                sb.AppendLine($"  Related Activity: {data.RelatedActivityId}");
+
+                // Console.WriteLine(sb.ToString());
         }
     }
 }

@@ -394,6 +394,7 @@
                           value="32" eventGUID="{BCF2339E-B0A6-452D-966C-33AC9DD82573}"
                           message="$(string.RuntimePublisher.AssemblyLoaderTaskMessage)">
                         <opcodes>
+                            <opcode name="ALCResolvingHandlerInvoked" message="$(string.RuntimePublisher.ALCResolvingHandlerInvokedOpcodeMessage)" symbol="CLR_ALC_RESOLVING_HANDLER_INVOKED_OPCODE" value="12"/>
                         </opcodes>
                     </task>
                 <!--Next available ID is 33-->
@@ -1702,6 +1703,25 @@
                                 <TypeParameterCount> %4 </TypeParameterCount>
                                 <LoaderModuleID> %5 </LoaderModuleID>
                             </MethodDetails>
+                        </UserData>
+                    </template>
+
+                    <template tid="ALCResolvingHandlerInvoked">
+                        <data name="ClrInstanceID" inType="win:UInt16" />
+                        <data name="AssemblyName" inType="win:UnicodeString" />
+                        <data name="HandlerName" inType="win:UnicodeString" />
+                        <data name="AssemblyLoadContext" inType="win:UnicodeString" />
+                        <data name="ResultAssemblyName" inType="win:UnicodeString" />
+                        <data name="ResultAssemblyPath" inType="win:UnicodeString" />
+                        <UserData>
+                            <ALCResolvingHandlerInvoked xmlns="myNs">
+                                <ClrInstanceID> %1 </ClrInstanceID>
+                                <AssemblyName> %2 </AssemblyName>
+                                <HandlerName> %3 </HandlerName>
+                                <AssemblyLoadContext> %4 </AssemblyLoadContext>
+                                <ResultAssemblyName> %5 </ResultAssemblyName>
+                                <ResultAssemblyPath> %6 </ResultAssemblyPath>
+                            </ALCResolvingHandlerInvoked>
                         </UserData>
                     </template>
 
@@ -3501,6 +3521,11 @@
                            keywords ="AssemblyLoaderKeyword" opcode="win:Stop"
                            task="AssemblyLoader"
                            symbol="AssemblyLoadStop" message="$(string.RuntimePublisher.AssemblyLoadStopEventMessage)"/>
+
+                    <event value="293" version="0" level="win:Informational"  template="ALCResolvingHandlerInvoked"
+                           keywords ="AssemblyLoaderKeyword" opcode="ALCResolvingHandlerInvoked"
+                           task="AssemblyLoader"
+                           symbol="ALCResolvingHandlerInvoked" message="$(string.RuntimePublisher.ALCResolvingHandlerInvokedEventMessage)"/>
 
                 </events>
             </provider>
@@ -6699,6 +6724,7 @@
                 <string id="RuntimePublisher.AppDomainUnload_V1EventMessage" value="AppDomainID=%1;%nAppDomainFlags=%2;%nAppDomainName=%3;%nAppDomainIndex=%4;%nClrInstanceID=%5" />
                 <string id="RuntimePublisher.AssemblyLoadStartEventMessage" value="ClrInstanceID=%1;%nAssemblyName=%2;%nAssemblyPath=%3;%nRequestingAssembly=%4;%nAssemblyLoadContext=%5;%nRequestingAssemblyLoadContext=%6" />
                 <string id="RuntimePublisher.AssemblyLoadStopEventMessage" value="ClrInstanceID=%1;%nAssemblyName=%2;%nAssemblyPath=%3;%nRequestingAssembly=%4;%nAssemblyLoadContext=%5;%nRequestingAssemblyLoadContext=%6;%nSuccess=%7;%nResultAssemblyName=%8;%nResultAssemblyPath=%9;%nCached=%10" />
+                <string id="RuntimePublisher.ALCResolvingHandlerInvokedEventMessage" value="ClrInstanceID=%1;%nAssemblyName=%2;%nHandlerName=%3;%nAssemblyLoadContext=%4;%nResultAssemblyName=%5;%nResultAssemblyPath=%6" />
                 <string id="RuntimePublisher.StackEventMessage" value="ClrInstanceID=%1;%nReserved1=%2;%nReserved2=%3;%nFrameCount=%4;%nStack=%5" />
                 <string id="RuntimePublisher.AppDomainMemAllocatedEventMessage" value="AppDomainID=%1;%nAllocated=%2;%nClrInstanceID=%3" />
                 <string id="RuntimePublisher.AppDomainMemSurvivedEventMessage" value="AppDomainID=%1;%nSurvived=%2;%nProcessSurvived=%3;%nClrInstanceID=%4" />
@@ -7326,6 +7352,8 @@
                 <string id="RuntimePublisher.TieredCompilationSettingsOpcodeMessage" value="Settings" />
                 <string id="RuntimePublisher.TieredCompilationPauseOpcodeMessage" value="Pause" />
                 <string id="RuntimePublisher.TieredCompilationResumeOpcodeMessage" value="Resume" />
+
+                <string id="RuntimePublisher.ALCResolvingHandlerInvokedOpcodeMessage" value="ALCResolvingHandlerInvoked" />
 
                 <string id="RundownPublisher.MethodDCStartOpcodeMessage" value="DCStart" />
                 <string id="RundownPublisher.MethodDCEndOpcodeMessage" value="DCStop" />

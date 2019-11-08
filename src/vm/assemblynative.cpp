@@ -1428,3 +1428,15 @@ FCIMPL0(FC_BOOL_RET, AssemblyNative::IsTracingEnabled)
     FC_RETURN_BOOL(BinderTracing::IsEnabled());
 }
 FCIMPLEND
+
+// static
+void QCALLTYPE AssemblyNative::TraceResolvingHandlerInvoked(LPCWSTR assemblyName, LPCWSTR handlerName, LPCWSTR alcName, LPCWSTR resultAssemblyName, LPCWSTR resultAssemblyPath)
+{
+    QCALL_CONTRACT;
+
+    BEGIN_QCALL;
+
+    FireEtwALCResolvingHandlerInvoked(GetClrInstanceId(), assemblyName, handlerName, alcName, resultAssemblyName, resultAssemblyPath);
+
+    END_QCALL;
+}
