@@ -40,7 +40,11 @@ namespace System
         private static extern unsafe void __ZeroMemory(void* b, nuint byteLength);
 
         // The maximum block size to for __BulkMoveWithWriteBarrier FCall. This is required to avoid GC starvation.
+#if DEBUG // Stress the mechanism in debug builds
+        private const uint BulkMoveWithWriteBarrierChunk = 0x400;
+#else
         private const uint BulkMoveWithWriteBarrierChunk = 0x4000;
+#endif
 
         internal static void BulkMoveWithWriteBarrier(ref byte destination, ref byte source, nuint byteCount)
         {
@@ -56,10 +60,10 @@ namespace System
         {
             Debug.Assert(byteCount > BulkMoveWithWriteBarrierChunk);
 
-            if (Unsafe.AreSame(ref destination, ref source))
+            if (Unsafe.AreSame(ref source, ref destination))
                 return;
 
-            if ((nuint)(nint)Unsafe.ByteOffset(ref destination, ref source) >= byteCount)
+            if ((nuint)(nint)Unsafe.ByteOffset(ref source, ref destination) >= byteCount)
             {
                 // Copy forwards
                 do
