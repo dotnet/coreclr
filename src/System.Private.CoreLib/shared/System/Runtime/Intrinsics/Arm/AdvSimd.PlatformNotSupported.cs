@@ -340,6 +340,7 @@ namespace System.Runtime.Intrinsics.Arm
             /// </summary>
             public static Vector128<ulong> UnzipOdd(Vector128<ulong> left, Vector128<ulong> right) { throw new PlatformNotSupportedException(); }
 
+            /// <summary>
             /// uint8x8_t vzip2_u8(uint8x8_t a, uint8x8_t b)
             ///   A64: ZIP2 Vd.8B, Vn.8B, Vm.8B
             /// </summary>
