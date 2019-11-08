@@ -43,9 +43,9 @@
       <Uri>https://github.com/dotnet/arcade</Uri>
       <Sha>b62f1617f2c453497fd55697c04dd8021a38dc17</Sha>
     </Dependency>
-    <Dependency Name="ILLink.Tasks" Version="0.1.6-prerelease.19523.1">
+    <Dependency Name="ILLink.Tasks" Version="0.1.6-prerelease.19557.1">
       <Uri>https://github.com/mono/linker</Uri>
-      <Sha />
+      <Sha>742b71402b3f6c88fc22956a819d7ea00408f42c</Sha>
     </Dependency>
   </ToolsetDependencies>
 </Dependencies>
