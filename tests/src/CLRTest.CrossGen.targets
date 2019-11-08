@@ -108,7 +108,7 @@ if defined RunCrossGen (
             mkdir IL
             copy $(MSBuildProjectName).dll IL\$(MSBuildProjectName).dll
             ren $(MSBuildProjectName).dll $(MSBuildProjectName).org
-            set __Command=!_DebuggerFullPath! "!CORE_ROOT!\crossgen.exe" !OptionalArguments! /Platform_Assemblies_Paths !CORE_ROOT!%3B%25cd%25 /in $(scriptPath)\$(MSBuildProjectName).org /out %25scriptPath%25\$(MSBuildProjectName).dll
+            set __Command=!_DebuggerFullPath! "!CORE_ROOT!\crossgen.exe" !OptionalArguments! /Platform_Assemblies_Paths !CORE_ROOT!%3B%25cd%25 /in %21scriptPath%21$(MSBuildProjectName).org /out %21scriptPath%21\$(MSBuildProjectName).dll
             echo "!__Command!"
             call !__Command!
             set CrossGenStatus=!ERRORLEVEL!
