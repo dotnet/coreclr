@@ -704,6 +704,16 @@ namespace System.Runtime.Loader
             foreach (ResolveEventHandler handler in eventHandler.GetInvocationList())
             {
                 Assembly? asm = handler(AppDomain.CurrentDomain, args);
+#if CORECLR
+                if (eventHandler == AssemblyResolve && AssemblyLoadContext.IsTracingEnabled())
+                {
+                    AssemblyLoadContext.TraceAssemblyResolveHandlerInvoked(
+                        name,
+                        handler.Method.Name,
+                        asm?.FullName,
+                        asm != null && !asm.IsDynamic ? asm.Location : null);
+                }
+#endif // CORECLR
                 RuntimeAssembly? ret = GetRuntimeAssembly(asm);
                 if (ret != null)
                     return ret;

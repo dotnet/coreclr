@@ -33,6 +33,9 @@ namespace BinderTracingTests
         internal bool Nested;
 
         internal List<HandlerInvocation> ALCResolvingHandlers = new List<HandlerInvocation>();
+        internal List<HandlerInvocation> AppDomainAssemblyResolveHandlers = new List<HandlerInvocation>();
+
+        internal List<BindOperation> NestedBinds = new List<BindOperation>();
     }
 
     internal class HandlerInvocation
@@ -104,7 +107,11 @@ namespace BinderTracingTests
             if (data.EventSource.Name != "Microsoft-Windows-DotNETRuntime")
                 return;
 
-            object GetData(string name) => data.Payload[data.PayloadNames.IndexOf(name)];
+            object GetData(string name)
+            {
+                int index = data.PayloadNames.IndexOf(name);
+                return index >= 0 ? data.Payload[index] : null;
+            };
             string GetDataString(string name) => GetData(name) as string;
 
             switch (data.EventName)
@@ -131,6 +138,10 @@ namespace BinderTracingTests
                         Assert.IsTrue(!bindOperations.ContainsKey(data.ActivityId), "AssemblyLoadStart should not exist for same activity ID ");
                         bindOperation.Nested = bindOperations.ContainsKey(data.RelatedActivityId);
                         bindOperations.Add(data.ActivityId, bindOperation);
+                        if (bindOperation.Nested)
+                        {
+                            bindOperations[data.RelatedActivityId].NestedBinds.Add(bindOperation);
+                        }
                     }
                     break;
                 }
@@ -154,19 +165,7 @@ namespace BinderTracingTests
                 }
                 case "ALCResolvingHandlerInvoked":
                 {
-                    var handlerInvocation = new HandlerInvocation()
-                    {
-                        AssemblyName = new AssemblyName(GetDataString("AssemblyName")),
-                        HandlerName = GetDataString("HandlerName"),
-                        AssemblyLoadContext = GetDataString("AssemblyLoadContext"),
-                        ResultAssemblyPath = GetDataString("ResultAssemblyPath")
-                    };
-                    string resultName = GetDataString("ResultAssemblyName");
-                    if (!string.IsNullOrEmpty(resultName))
-                    {
-                        handlerInvocation.ResultAssemblyName = new AssemblyName(resultName);
-                    }
-
+                    HandlerInvocation handlerInvocation = ParseHandlerInvokedEvent(GetDataString);
                     lock (eventsLock)
                     {
                         Assert.IsTrue(bindOperations.ContainsKey(data.ActivityId), "ALCResolvingHandlerInvoked should have a matching AssemblyBindStart");
@@ -175,21 +174,36 @@ namespace BinderTracingTests
                     }
                     break;
                 }
+                case "AppDomainAssemblyResolveHandlerInvoked":
+                {
+                    HandlerInvocation handlerInvocation = ParseHandlerInvokedEvent(GetDataString);
+                    lock (eventsLock)
+                    {
+                        Assert.IsTrue(bindOperations.ContainsKey(data.ActivityId), "AppDomainAssemblyResolveHandlerInvoked should have a matching AssemblyBindStart");
+                        BindOperation bind = bindOperations[data.ActivityId];
+                        bind.AppDomainAssemblyResolveHandlers.Add(handlerInvocation);
+                    }
+                    break;
+                }
+            }
+        }
+
+        private HandlerInvocation ParseHandlerInvokedEvent(Func<string, string> getDataString)
+        {
+            var handlerInvocation = new HandlerInvocation()
+            {
+                AssemblyName = new AssemblyName(getDataString("AssemblyName")),
+                HandlerName = getDataString("HandlerName"),
+                AssemblyLoadContext = getDataString("AssemblyLoadContext"),
+                ResultAssemblyPath = getDataString("ResultAssemblyPath")
+            };
+            string resultName = getDataString("ResultAssemblyName");
+            if (!string.IsNullOrEmpty(resultName))
+            {
+                handlerInvocation.ResultAssemblyName = new AssemblyName(resultName);
             }
 
-                var sb = new System.Text.StringBuilder($"{data.EventName}");
-                sb.AppendLine();
-                sb.AppendLine("  Payload:");
-                for (int i = 0; i < data.Payload.Count; i++)
-                {
-                    string payloadString = data.Payload[i] != null ? data.Payload[i].ToString() : string.Empty;
-                    sb.AppendLine($"    {data.PayloadNames[i]} = {payloadString}");
-                }
-
-                sb.AppendLine($"  Activity: {data.ActivityId}");
-                sb.AppendLine($"  Related Activity: {data.RelatedActivityId}");
-
-                // Console.WriteLine(sb.ToString());
+            return handlerInvocation;
         }
     }
 }

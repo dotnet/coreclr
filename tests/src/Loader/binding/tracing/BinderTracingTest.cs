@@ -482,6 +482,7 @@ namespace BinderTracingTests
             ValidateAssemblyName(expected.ResultAssemblyName, actual.ResultAssemblyName, nameof(BindOperation.ResultAssemblyName));
 
             ValidateHandlerInvocations(expected.ALCResolvingHandlers, actual.ALCResolvingHandlers, "ALCResolving");
+            ValidateHandlerInvocations(expected.AppDomainAssemblyResolveHandlers, actual.AppDomainAssemblyResolveHandlers, "AppDomainAssemblyResolve");
         }
 
         private static bool AssemblyNamesMatch(AssemblyName name1, AssemblyName name2)

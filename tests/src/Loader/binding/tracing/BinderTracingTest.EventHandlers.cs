@@ -70,7 +70,7 @@ namespace BinderTracingTests
         {
             var assemblyName = new AssemblyName(SubdirectoryAssemblyName);
             CustomALC alc = new CustomALC(nameof(ALCResolvingEvent_NameMismatch));
-            using (var handlers = new Handlers(HandlerReturn.MismatchAssembly, alc))
+            using (var handlers = new Handlers(HandlerReturn.NameMismatch, alc))
             {
                 Assert.Throws<FileLoadException>(() => alc.LoadFromAssemblyName(assemblyName));
 
@@ -111,11 +111,109 @@ namespace BinderTracingTests
             }
         }
 
+        [BinderTest]
+        public static BindOperation AppDomainAssemblyResolve_ReturnNull()
+        {
+            var assemblyName = new AssemblyName(SubdirectoryAssemblyName);
+            using (var handlers = new Handlers(HandlerReturn.Null))
+            {
+                try
+                {
+                    Assembly.Load(assemblyName);
+                }
+                catch { }
+
+                Assert.AreEqual(1, handlers.Invocations.Count);
+                return new BindOperation()
+                {
+                    AssemblyName = assemblyName,
+                    AssemblyLoadContext = DefaultALC,
+                    RequestingAssembly = Assembly.GetExecutingAssembly().GetName(),
+                    RequestingAssemblyLoadContext = DefaultALC,
+                    Success = false,
+                    Cached = false,
+                    AppDomainAssemblyResolveHandlers = handlers.Invocations
+                };
+            }
+        }
+
+        [BinderTest]
+        public static BindOperation AppDomainAssemblyResolve_LoadAssembly()
+        {
+            var assemblyName = new AssemblyName(SubdirectoryAssemblyName);
+            CustomALC alc = new CustomALC(nameof(AppDomainAssemblyResolve_LoadAssembly));
+            using (var handlers = new Handlers(HandlerReturn.RequestedAssembly))
+            {
+                Assembly asm = alc.LoadFromAssemblyName(assemblyName);
+
+                Assert.AreEqual(1, handlers.Invocations.Count);
+                return new BindOperation()
+                {
+                    AssemblyName = assemblyName,
+                    AssemblyLoadContext = alc.ToString(),
+                    Success = true,
+                    ResultAssemblyName = asm.GetName(),
+                    ResultAssemblyPath = asm.Location,
+                    Cached = false,
+                    AppDomainAssemblyResolveHandlers = handlers.Invocations
+                };
+            }
+        }
+
+        [BinderTest]
+        public static BindOperation AppDomainAssemblyResolve_NameMismatch()
+        {
+            var assemblyName = new AssemblyName(SubdirectoryAssemblyName);
+            CustomALC alc = new CustomALC(nameof(AppDomainAssemblyResolve_NameMismatch));
+            using (var handlers = new Handlers(HandlerReturn.NameMismatch))
+            {
+                // Result of AssemblyResolve event does not get checked for name mismatch
+                Assembly asm = alc.LoadFromAssemblyName(assemblyName);
+
+                Assert.AreEqual(1, handlers.Invocations.Count);
+                return new BindOperation()
+                {
+                    AssemblyName = assemblyName,
+                    AssemblyLoadContext = alc.ToString(),
+                    Success = true,
+                    ResultAssemblyName = asm.GetName(),
+                    ResultAssemblyPath = asm.Location,
+                    Cached = false,
+                    AppDomainAssemblyResolveHandlers = handlers.Invocations
+                };
+            }
+        }
+
+        [BinderTest]
+        public static BindOperation AppDomainAssemblyResolve_MultipleHandlers()
+        {
+            var assemblyName = new AssemblyName(SubdirectoryAssemblyName);
+            CustomALC alc = new CustomALC(nameof(AppDomainAssemblyResolve_LoadAssembly));
+            using (var handlerNull = new Handlers(HandlerReturn.Null))
+            using (var handlerLoad = new Handlers(HandlerReturn.RequestedAssembly))
+            {
+                Assembly asm = alc.LoadFromAssemblyName(assemblyName);
+
+                Assert.AreEqual(1, handlerNull.Invocations.Count);
+                Assert.AreEqual(1, handlerLoad.Invocations.Count);
+                return new BindOperation()
+                {
+                    AssemblyName = assemblyName,
+                    AssemblyLoadContext = alc.ToString(),
+                    Success = true,
+                    ResultAssemblyName = asm.GetName(),
+                    ResultAssemblyPath = asm.Location,
+                    Cached = false,
+                    AppDomainAssemblyResolveHandlers = handlerNull.Invocations.Concat(handlerLoad.Invocations).ToList()
+                };
+            }
+        }
+
         private enum HandlerReturn
         {
             Null,
             RequestedAssembly,
-            MismatchAssembly
+            NameMismatch
         }
 
         private class Handlers : IDisposable
@@ -124,6 +222,12 @@ namespace BinderTracingTests
             private AssemblyLoadContext alc;
 
             internal readonly List<HandlerInvocation> Invocations = new List<HandlerInvocation>();
+
+            public Handlers(HandlerReturn handlerReturn)
+            {
+                this.handlerReturn = handlerReturn;
+                AppDomain.CurrentDomain.AssemblyResolve += OnAppDomainAssemblyResolve;
+            }
 
             public Handlers(HandlerReturn handlerReturn, AssemblyLoadContext alc)
             {
@@ -134,22 +238,14 @@ namespace BinderTracingTests
 
             public void Dispose()
             {
-                this.alc.Resolving -= OnALCResolving;
+                AppDomain.CurrentDomain.AssemblyResolve -= OnAppDomainAssemblyResolve;
+                if (alc != null)
+                    alc.Resolving -= OnALCResolving;
             }
 
             private Assembly OnALCResolving(AssemblyLoadContext context, AssemblyName assemblyName)
             {
-                Assembly asm = null;
-                if (handlerReturn != HandlerReturn.Null)
-                {
-                    string appPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-                    string fileName = handlerReturn == HandlerReturn.RequestedAssembly ? $"{assemblyName.Name}.dll" : $"{assemblyName.Name}Mismatch.dll";
-                    string assemblyPath = Path.Combine(appPath, "DependentAssemblies", fileName);
-                    asm = File.Exists(assemblyPath)
-                        ? context.LoadFromAssemblyPath(assemblyPath)
-                        : null;
-                }
-
+                Assembly asm = ResolveAssembly(context, assemblyName);
                 var invocation = new HandlerInvocation()
                 {
                     AssemblyName = assemblyName,
@@ -164,6 +260,39 @@ namespace BinderTracingTests
 
                 Invocations.Add(invocation);
                 return asm;
+            }
+
+            private Assembly OnAppDomainAssemblyResolve(object sender, ResolveEventArgs args)
+            {
+                var assemblyName = new AssemblyName(args.Name);
+                var customContext = new CustomALC(nameof(OnAppDomainAssemblyResolve));
+                Assembly asm = ResolveAssembly(customContext, assemblyName);
+                var invocation = new HandlerInvocation()
+                {
+                    AssemblyName = assemblyName,
+                    HandlerName = nameof(OnAppDomainAssemblyResolve),
+                };
+                if (asm != null)
+                {
+                    invocation.ResultAssemblyName = asm.GetName();
+                    invocation.ResultAssemblyPath = asm.Location;
+                }
+
+                Invocations.Add(invocation);
+                return asm;
+            }
+
+            private Assembly ResolveAssembly(AssemblyLoadContext context, AssemblyName assemblyName)
+            {
+                if (handlerReturn == HandlerReturn.Null)
+                    return null;
+
+                string appPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                string fileName = handlerReturn == HandlerReturn.RequestedAssembly ? $"{assemblyName.Name}.dll" : $"{assemblyName.Name}Mismatch.dll";
+                string assemblyPath = Path.Combine(appPath, "DependentAssemblies", fileName);
+                return File.Exists(assemblyPath)
+                    ? context.LoadFromAssemblyPath(assemblyPath)
+                    : null;
             }
         }
     }
