@@ -11,12 +11,12 @@ jobs:
 #
 # Checkout repository
 #
-- template: /eng/checkout-job.yml
+- template: templates/checkout-job.yml
 
 #
 # Debug builds
 #
-- template: /eng/platform-matrix.yml
+- template: templates/platform-matrix.yml
   parameters:
     jobTemplate: build-job.yml
     buildConfig: debug
@@ -29,7 +29,7 @@ jobs:
 #
 # Checked builds
 #
-- template: /eng/platform-matrix.yml
+- template: templates/platform-matrix.yml
   parameters:
     jobTemplate: build-job.yml
     buildConfig: checked
@@ -45,12 +45,11 @@ jobs:
     - Windows_NT_x86
     jobParameters:
       testGroup: innerloop
-      crossgenFramework: true
 
 #
 # Release builds
 #
-- template: /eng/platform-matrix.yml
+- template: templates/platform-matrix.yml
   parameters:
     jobTemplate: build-job.yml
     buildConfig: release
@@ -58,6 +57,7 @@ jobs:
     - Linux_arm64
     - Linux_musl_x64
     - Linux_rhel6_x64
+    - OSX_x64
     - Windows_NT_arm
     - Windows_NT_arm64
     - Windows_NT_x64
@@ -67,9 +67,28 @@ jobs:
 #
 # Checked test builds
 #
-- template: /eng/platform-matrix.yml
+- template: templates/platform-matrix.yml
   parameters:
-    jobTemplate: test-job.yml
+    jobTemplate: build-test-job.yml
+    buildConfig: checked
+    platforms:
+    - Linux_arm
+    - Linux_arm64
+    - OSX_x64
+    - Windows_NT_arm
+    - Windows_NT_arm64
+    - Windows_NT_x64
+    - Windows_NT_x86
+    helixQueueGroup: pr
+    jobParameters:
+      testGroup: innerloop
+
+#
+# Checked JIT test executions
+#
+- template: templates/platform-matrix.yml
+  parameters:
+    jobTemplate: run-test-job.yml
     buildConfig: checked
     platforms:
     - Linux_arm
@@ -86,11 +105,11 @@ jobs:
       testGroup: innerloop
 
 #
-# ReadyToRun test jobs
+# Checked R2R test executions
 #
-- template: /eng/platform-matrix.yml
+- template: templates/platform-matrix.yml
   parameters:
-    jobTemplate: test-job.yml
+    jobTemplate: run-test-job.yml
     buildConfig: checked
     platforms:
     - Linux_x64
@@ -106,14 +125,15 @@ jobs:
 #
 # CoreFX test runs against CoreCLR
 #
-- template: /eng/platform-matrix.yml
+- template: templates/platform-matrix.yml
   parameters:
-    jobTemplate: test-job.yml
+    jobTemplate: run-test-job.yml
     buildConfig: checked
     platforms:
     - Linux_x64
     - Windows_NT_x64
     helixQueueGroup: pr
+    testGroup: innerloop
     jobParameters:
       testGroup: innerloop
       corefxTests: true
@@ -122,7 +142,7 @@ jobs:
 #
 # Crossgen-comparison jobs
 #
-- template: /eng/platform-matrix.yml
+- template: templates/platform-matrix.yml
   parameters:
     jobTemplate: crossgen-comparison-job.yml
     buildConfig: checked
@@ -133,9 +153,22 @@ jobs:
 #
 # Release test builds
 #
-- template: /eng/platform-matrix.yml
+- template: templates/platform-matrix.yml
   parameters:
-    jobTemplate: test-job.yml
+    jobTemplate: build-test-job.yml
+    buildConfig: release
+    platforms:
+    - OSX_x64
+    helixQueueGroup: pr
+    jobParameters:
+      testGroup: innerloop
+
+#
+# Release test builds
+#
+- template: templates/platform-matrix.yml
+  parameters:
+    jobTemplate: run-test-job.yml
     buildConfig: release
     platforms:
     - Linux_musl_x64
@@ -146,9 +179,9 @@ jobs:
 #
 # Formatting
 #
-- template: /eng/platform-matrix.yml
+- template: templates/platform-matrix.yml
   parameters:
     jobTemplate: format-job.yml
     platforms:
     - Linux_x64
-
+    - Windows_NT_x64

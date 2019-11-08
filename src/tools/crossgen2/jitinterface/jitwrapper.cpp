@@ -24,7 +24,7 @@ public:
         corJitFlags = other.corJitFlags;
     }
 private:
-    unsigned __int64 corJitFlags;
+    uint64_t corJitFlags;
 };
 
 static const GUID JITEEVersionIdentifier = { /* 108808e4-71b3-4573-8371-323323c4fb80 */

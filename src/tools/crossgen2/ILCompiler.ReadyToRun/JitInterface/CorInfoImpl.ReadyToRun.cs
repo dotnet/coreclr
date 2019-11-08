@@ -64,6 +64,28 @@ namespace Internal.JitInterface
             sb.Append("; ");
             sb.Append(Token.ToString());
         }
+
+        public int CompareTo(MethodWithToken other, TypeSystemComparer comparer)
+        {
+            int result;
+            if (ConstrainedType != null || other.ConstrainedType != null)
+            {
+                if (ConstrainedType == null)
+                    return -1;
+                else if (other.ConstrainedType == null)
+                    return 1;
+
+                result = comparer.Compare(ConstrainedType, other.ConstrainedType);
+                if (result != 0)
+                    return result;
+            }
+
+            result = comparer.Compare(Method, other.Method);
+            if (result != 0)
+                return result;
+
+            return Token.CompareTo(other.Token);
+        }
     }
 
     public struct GenericContext : IEquatable<GenericContext>
@@ -164,15 +186,24 @@ namespace Internal.JitInterface
 
         public void CompileMethod(IReadyToRunMethodCodeNode methodCodeNodeNeedingCode)
         {
+            bool codeGotPublished = false;
             _methodCodeNode = methodCodeNodeNeedingCode;
 
-            if (!ShouldSkipCompilation(methodCodeNodeNeedingCode))
+            try
             {
-                CompileMethodInternal(methodCodeNodeNeedingCode);
+                if (!ShouldSkipCompilation(methodCodeNodeNeedingCode))
+                {
+                    CompileMethodInternal(methodCodeNodeNeedingCode);
+                    codeGotPublished = true;
+                }
             }
-            else
+            finally
             {
-                PublishEmptyCode();
+                if (!codeGotPublished)
+                {
+                    PublishEmptyCode();
+                }
+                CompileMethodCleanup();
             }
         }
 
@@ -557,11 +588,16 @@ namespace Internal.JitInterface
                     id = ReadyToRunHelper.LogMethodEnter;
                     break;
 
+                case CorInfoHelpFunc.CORINFO_HELP_STACK_PROBE:
+                    id = ReadyToRunHelper.StackProbe;
+                    break;
+
                 case CorInfoHelpFunc.CORINFO_HELP_INITCLASS:
                 case CorInfoHelpFunc.CORINFO_HELP_INITINSTCLASS:
                 case CorInfoHelpFunc.CORINFO_HELP_THROW_ARGUMENTEXCEPTION:
                 case CorInfoHelpFunc.CORINFO_HELP_THROW_ARGUMENTOUTOFRANGEEXCEPTION:
                 case CorInfoHelpFunc.CORINFO_HELP_THROW_PLATFORM_NOT_SUPPORTED:
+                case CorInfoHelpFunc.CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE_MAYBENULL:
                 case CorInfoHelpFunc.CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE_MAYBENULL:
                 case CorInfoHelpFunc.CORINFO_HELP_GETREFANY:
                     throw new RequiresRuntimeJitException(ftnNum.ToString());
@@ -606,6 +642,7 @@ namespace Internal.JitInterface
         {
             mdToken token = pResolvedToken.token;
             var methodIL = (MethodIL)HandleToObject((IntPtr)pResolvedToken.tokenScope);
+            EcmaModule module;
 
             // If the method body is synthetized by the compiler (the definition of the MethodIL is not
             // an EcmaMethodIL), the tokens in the MethodIL are not actual tokens: they're just
@@ -613,9 +650,9 @@ namespace Internal.JitInterface
             // token to refer to the result of token lookup in the R2R fixups.
             //
             // We replace the token with the token of the ECMA entity. This only works for **non-generic
-            // types/members within the current module**, but this happens to be good enough because
+            // types/members within the current version bubble**, but this happens to be good enough because
             // we only do this replacement within CoreLib to replace method bodies in places
-            // that we cannot express in C# right now).
+            // that we cannot express in C# right now and for p/invokes in large version bubbles).
             MethodIL methodILDef = methodIL.GetMethodILDefinition();
             bool isFauxMethodIL = !(methodILDef is EcmaMethodIL);
             if (isFauxMethodIL)
@@ -624,32 +661,42 @@ namespace Internal.JitInterface
 
                 if (resultDef is MethodDesc)
                 {
-                    Debug.Assert(resultDef is EcmaMethod em && em.Module == ((MetadataType)methodILDef.OwningMethod.OwningType).Module);
+                    Debug.Assert(resultDef is EcmaMethod);
+                    Debug.Assert(_compilation.NodeFactory.CompilationModuleGroup.VersionsWithType(((EcmaMethod)resultDef).OwningType));
                     token = (mdToken)MetadataTokens.GetToken(((EcmaMethod)resultDef).Handle);
+                    module = ((EcmaMethod)resultDef).Module;
                 }
                 else if (resultDef is FieldDesc)
                 {
-                    Debug.Assert(resultDef is EcmaField ef && ef.Module == ((MetadataType)methodILDef.OwningMethod.OwningType).Module);
+                    Debug.Assert(resultDef is EcmaField);
+                    Debug.Assert(_compilation.NodeFactory.CompilationModuleGroup.VersionsWithType(((EcmaField)resultDef).OwningType));
                     token = (mdToken)MetadataTokens.GetToken(((EcmaField)resultDef).Handle);
+                    module = ((EcmaField)resultDef).Module;
                 }
                 else
                 {
                     if (resultDef is EcmaType ecmaType)
                     {
-                        Debug.Assert(ecmaType.Module == ((MetadataType)methodILDef.OwningMethod.OwningType).Module);
+                        Debug.Assert(_compilation.NodeFactory.CompilationModuleGroup.VersionsWithType(ecmaType));
                         token = (mdToken)MetadataTokens.GetToken(ecmaType.Handle);
+                        module = ecmaType.EcmaModule;
                     }
                     else
                     {
                         // To replace !!0, we need to find the token for a !!0 TypeSpec within the image.
                         Debug.Assert(resultDef is SignatureMethodVariable);
                         Debug.Assert(((SignatureMethodVariable)resultDef).Index == 0);
-                        token = FindGenericMethodArgTypeSpec((EcmaModule)((MetadataType)methodILDef.OwningMethod.OwningType).Module);
+                        module = (EcmaModule)((MetadataType)methodILDef.OwningMethod.OwningType).Module;
+                        token = FindGenericMethodArgTypeSpec(module);
                     }
                 }
             }
+            else
+            {
+                module = ((EcmaMethodIL)methodILDef).Module;
+            }
 
-            return new ModuleToken(((EcmaMethod)methodIL.OwningMethod.GetTypicalMethodDefinition()).Module, token);
+            return new ModuleToken(module, token);
         }
 
         private InfoAccessType constructStringLiteral(CORINFO_MODULE_STRUCT_* module, mdToken metaTok, ref void* ppValue)
@@ -744,6 +791,11 @@ namespace Internal.JitInterface
         private CorInfoHelpFunc getNewHelper(ref CORINFO_RESOLVED_TOKEN pResolvedToken, CORINFO_METHOD_STRUCT_* callerHandle, byte* pHasSideEffects = null)
         {
             TypeDesc type = HandleToObject(pResolvedToken.hClass);
+            MetadataType metadataType = type as MetadataType;
+            if (metadataType != null && metadataType.IsAbstract)
+            {
+                ThrowHelper.ThrowInvalidProgramException(ExceptionStringID.InvalidProgramSpecific, HandleToObject(callerHandle));
+            }
 
             if (pHasSideEffects != null)
             {
@@ -1717,20 +1769,8 @@ namespace Internal.JitInterface
                 // Sequential layout
                 return true;
             }
-            else
-            {
-                // <BUGNUM>workaround for B#104780 - VC fails to set SequentialLayout on some classes
-                // with ClassSize. Too late to fix compiler for V1.
-                //
-                // To compensate, we treat AutoLayout classes as Sequential if they
-                // meet all of the following criteria:
-                //
-                //    - ClassSize present and nonzero.
-                //    - No instance fields declared
-                //    - Base class is System.ValueType.
-                //</BUGNUM>
-                return type.BaseType.IsValueType && !type.GetFields().GetEnumerator().MoveNext();
-            }
+
+            return false;
         }
 
         /// <summary>
@@ -1876,7 +1916,7 @@ namespace Internal.JitInterface
             pBlockCounts = (BlockCounts*)GetPin(_bbCounts = new byte[count * sizeof(BlockCounts)]);
             if (_profileDataNode == null)
             {
-                _profileDataNode = _compilation.NodeFactory.ProfileDataNode((MethodWithGCInfo)_methodCodeNode);
+                _profileDataNode = _compilation.NodeFactory.ProfileData((MethodWithGCInfo)_methodCodeNode);
             }
             return 0;
         }
@@ -1909,13 +1949,21 @@ namespace Internal.JitInterface
             }
             else
             {
-                throw new NotImplementedException();
+                var sig = (MethodSignature)HandleToObject((IntPtr)callSiteSig->pSig);
+                return SignatureRequiresMarshaling(sig);
             }
         }
 
         private bool convertPInvokeCalliToCall(ref CORINFO_RESOLVED_TOKEN pResolvedToken, bool mustConvert)
         {
             throw new NotImplementedException();
+        }
+
+        private bool canGetCookieForPInvokeCalliSig(CORINFO_SIG_INFO* szMetaSig)
+        {
+            // If we answer "true" here, RyuJIT is going to ask for the cookie and for the CORINFO_HELP_PINVOKE_CALLI
+            // helper. The helper doesn't exist in ReadyToRun, so let's just throw right here.
+            throw new RequiresRuntimeJitException($"{MethodBeingCompiled} -> {nameof(canGetCookieForPInvokeCalliSig)}");
         }
 
         private bool MethodRequiresMarshaling(EcmaMethod method)
@@ -1932,12 +1980,17 @@ namespace Internal.JitInterface
                 return true;
             }
 
-            if (TypeRequiresMarshaling(method.Signature.ReturnType, isReturnType: true))
+            return SignatureRequiresMarshaling(method.Signature);
+        }
+
+        private bool SignatureRequiresMarshaling(MethodSignature sig)
+        {
+            if (TypeRequiresMarshaling(sig.ReturnType, isReturnType: true))
             {
                 return true;
             }
 
-            foreach (TypeDesc argType in method.Signature)
+            foreach (TypeDesc argType in sig)
             {
                 if (TypeRequiresMarshaling(argType, isReturnType: false))
                 {

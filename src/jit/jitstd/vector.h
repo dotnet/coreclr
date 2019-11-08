@@ -203,7 +203,7 @@ public:
     vector& operator=(const vector& vec);
     template <typename Alt, typename AltAllocator>
     vector<T, Allocator>& operator=(const vector<Alt, AltAllocator>& vec);
-    
+
     reference operator[](size_type n);
     const_reference operator[](size_type n) const;
 
@@ -576,6 +576,11 @@ vector<T, Allocator>& vector<T, Allocator>::operator=(const vector<Alt, AltAlloc
 template <typename T, typename Allocator>
 vector<T, Allocator>& vector<T, Allocator>::operator=(const vector<T, Allocator>& vec)
 {
+    if (this == &vec)
+    {
+        return *this;
+    }
+
     // We'll not observe copy-on-write for now.
     m_allocator = vec.m_allocator;
     ensure_capacity(vec.m_nSize);
@@ -873,7 +878,7 @@ vector<T, Allocator>::iterator::iterator(const iterator& it)
 {
 }
 
-        
+
 template <typename T, typename Allocator>
 typename vector<T, Allocator>::iterator& vector<T, Allocator>::iterator::operator++()
 {
@@ -971,7 +976,7 @@ vector<T, Allocator>::const_iterator::const_iterator(const const_iterator& it)
 {
 }
 
-        
+
 template <typename T, typename Allocator>
 typename vector<T, Allocator>::const_iterator& vector<T, Allocator>::const_iterator::operator++()
 {
@@ -1071,7 +1076,7 @@ vector<T, Allocator>::reverse_iterator::reverse_iterator(const reverse_iterator&
 {
 }
 
-        
+
 template <typename T, typename Allocator>
 typename vector<T, Allocator>::reverse_iterator& vector<T, Allocator>::reverse_iterator::operator++()
 {
@@ -1169,7 +1174,7 @@ vector<T, Allocator>::const_reverse_iterator::const_reverse_iterator(const const
 {
 }
 
-        
+
 template <typename T, typename Allocator>
 typename vector<T, Allocator>::const_reverse_iterator& vector<T, Allocator>::const_reverse_iterator::operator++()
 {

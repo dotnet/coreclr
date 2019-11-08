@@ -1,9 +1,9 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
-// 
+//
 // File: StubGen.cpp
-// 
+//
 
 //
 
@@ -30,17 +30,17 @@ void DumpIL_RemoveFullPath(SString &strTokenFormatting)
     STANDARD_VM_CONTRACT;
     if (strTokenFormatting.IsEmpty())
         return;
-    
+
     SString::Iterator begin = strTokenFormatting.Begin();
     SString::Iterator end = strTokenFormatting.End();
     SString::Iterator leftBracket = strTokenFormatting.Begin();
-    
+
     // Find the first '[' in the string.
     while ((leftBracket != end) && (*leftBracket != W('[')))
     {
         ++leftBracket;
     }
-    
+
     if (leftBracket != end)
     {
         SString::Iterator lastSlash = strTokenFormatting.End() - 1;
@@ -84,16 +84,16 @@ void ILStubLinker::DumpIL_FormatToken(mdToken token, SString &strTokenFormatting
             if (typeHnd.IsTypeDesc())
             {
                 TypeDesc *pTypeDesc = typeHnd.AsTypeDesc();
-                pMT = pTypeDesc->GetMethodTable();                
+                pMT = pTypeDesc->GetMethodTable();
             }
             else
             {
                 pMT = typeHnd.AsMethodTable();
-            }               
-            
+            }
+
             // AppendType handles NULL correctly
             TypeString::AppendType(typeName, TypeHandle(pMT));
-            
+
             if (pMT && typeHnd.IsNativeValueType())
                 typeName.Append(W("_NativeValueType"));
             strTokenFormatting.Set(typeName);
@@ -106,7 +106,7 @@ void ILStubLinker::DumpIL_FormatToken(mdToken token, SString &strTokenFormatting
 
             SString typeName;
             TypeString::AppendType(typeName, TypeHandle(pFD->GetApproxEnclosingMethodTable()));
-            
+
             SString strFieldName(SString::Utf8, pFD->GetName());
             strTokenFormatting.Printf(W("%s::%s"), typeName.GetUnicode(), strFieldName.GetUnicode());
         }
@@ -140,7 +140,7 @@ void ILStubLinker::DumpIL_FormatToken(mdToken token, SString &strTokenFormatting
 
             strTokenFormatting.SetUTF8((LPUTF8)sigStr.Ptr());
         }
-        else 
+        else
         {
             strTokenFormatting.Printf(W("%d"), token);
         }
@@ -180,7 +180,7 @@ void ILCodeStream::Emit(ILInstrEnum instr, INT16 iStackDelta, UINT_PTR uArg)
 ILCodeLabel* ILStubLinker::NewCodeLabel()
 {
     STANDARD_VM_CONTRACT;
-    
+
     ILCodeLabel* pCodeLabel = new ILCodeLabel();
 
     pCodeLabel->m_pNext = m_pLabelList;
@@ -208,7 +208,7 @@ void ILCodeStream::EmitLabel(ILCodeLabel* pCodeLabel)
     Emit(CEE_CODE_LABEL, 0, (UINT_PTR)pCodeLabel);
 }
 
-static const BYTE s_rgbOpcodeSizes[] = 
+static const BYTE s_rgbOpcodeSizes[] =
 {
 
 #define OPDEF(name,string,pop,push,oprType,opcType,l,s1,s2,ctrl) \
@@ -261,7 +261,7 @@ struct ILOpcode
     BYTE byte2;
 };
 
-static const ILOpcode s_rgOpcodes[] = 
+static const ILOpcode s_rgOpcodes[] =
 {
 
 #define OPDEF(name,string,pop,push,oprType,opcType,l,s1,s2,ctrl) \
@@ -347,7 +347,7 @@ lShortForm:
                 static_assert_no_msg(((UINT_PTR)CEE_LDARG - c_uMakeShortDelta) == (UINT_PTR)CEE_LDARG_S);
                 static_assert_no_msg(((UINT_PTR)CEE_LDLOC - c_uMakeShortDelta) == (UINT_PTR)CEE_LDLOC_S);
                 static_assert_no_msg(((UINT_PTR)CEE_STLOC - c_uMakeShortDelta) == (UINT_PTR)CEE_STLOC_S);
-                
+
                 instr = (ILInstrEnum)((UINT_PTR)instr - c_uMakeShortDelta);
             }
             break;
@@ -363,7 +363,7 @@ lShortForm:
                 static_assert_no_msg(((UINT_PTR)CEE_LDARGA - c_uMakeShortDelta) == (UINT_PTR)CEE_LDARGA_S);
                 static_assert_no_msg(((UINT_PTR)CEE_STARG  - c_uMakeShortDelta) == (UINT_PTR)CEE_STARG_S);
                 static_assert_no_msg(((UINT_PTR)CEE_LDLOCA - c_uMakeShortDelta) == (UINT_PTR)CEE_LDLOCA_S);
-                
+
                 instr = (ILInstrEnum)((UINT_PTR)instr - c_uMakeShortDelta);
             }
             break;
@@ -385,7 +385,7 @@ void ILStubLinker::PatchInstructionArgument(ILCodeLabel* pLabel, UINT_PTR uNewAr
     UINT            idx                 = pLabel->m_idxLabeledInstruction;
     ILCodeStream*   pLabelCodeStream    = pLabel->m_pCodeStreamOfLabel;
     ILInstruction*  pLabelInstrBuffer   = (ILInstruction*)pLabelCodeStream->m_pqbILInstructions->Ptr();
-    
+
     CONSISTENCY_CHECK(pLabelInstrBuffer[idx].uInstruction == ILCodeStream::CEE_CODE_LABEL);
     CONSISTENCY_CHECK(pLabelInstrBuffer[idx].iStackDelta == 0);
 
@@ -413,7 +413,7 @@ ILCodeLabel::~ILCodeLabel()
 size_t ILCodeLabel::GetCodeOffset()
 {
     LIMITED_METHOD_CONTRACT;
-    
+
     CONSISTENCY_CHECK(m_codeOffset != (size_t)-1);
     return m_codeOffset;
 }
@@ -422,12 +422,12 @@ size_t ILCodeLabel::GetCodeOffset()
 void ILCodeLabel::SetCodeOffset(size_t codeOffset)
 {
     LIMITED_METHOD_CONTRACT;
-    
+
     CONSISTENCY_CHECK((m_codeOffset == (size_t)-1) && (codeOffset != (size_t)-1));
     m_codeOffset = codeOffset;
 }
 
-static const LPCSTR s_rgOpcodeNames[] = 
+static const LPCSTR s_rgOpcodeNames[] =
 {
 #define OPDEF(name,string,pop,push,oprType,opcType,l,s1,s2,ctrl) \
     string,
@@ -438,7 +438,7 @@ static const LPCSTR s_rgOpcodeNames[] =
 
 #include "openum.h"
 
-static const BYTE s_rgbOpcodeArgType[] = 
+static const BYTE s_rgbOpcodeArgType[] =
 {
 
 #define OPDEF(name,string,pop,push,oprType,opcType,l,s1,s2,ctrl) \
@@ -450,13 +450,13 @@ static const BYTE s_rgbOpcodeArgType[] =
 
 
 //---------------------------------------------------------------------------------------
-// 
-void 
+//
+void
 ILStubLinker::LogILInstruction(
-    size_t          curOffset, 
-    bool            isLabeled, 
-    INT             iCurStack, 
-    ILInstruction * pInstruction, 
+    size_t          curOffset,
+    bool            isLabeled,
+    INT             iCurStack,
+    ILInstruction * pInstruction,
     SString *       pDumpILStubCode)
 {
     STANDARD_VM_CONTRACT;
@@ -464,7 +464,7 @@ ILStubLinker::LogILInstruction(
     // format label
     //
     SString strLabel;
-    
+
     if (isLabeled)
     {
         strLabel.Printf(W("IL_%04x:"), curOffset);
@@ -517,13 +517,13 @@ ILStubLinker::LogILInstruction(
         {
         case InlineNone:
             break;
-            
+
         case ShortInlineVar:
         case ShortInlineI:
         case InlineI:
             strArgument.Printf(W("0x%x"), pInstruction->uArg);
             break;
-            
+
         case InlineI8:
             strArgument.Printf(W("0x%p"), (void *)pInstruction->uArg);
             break;
@@ -570,13 +570,13 @@ ILStubLinker::LogILInstruction(
 } // ILStubLinker::LogILInstruction
 
 //---------------------------------------------------------------------------------------
-// 
-void 
+//
+void
 ILStubLinker::LogILStubWorker(
-    ILInstruction * pInstrBuffer, 
-    UINT            numInstr, 
-    size_t *        pcbCode, 
-    INT *           piCurStack, 
+    ILInstruction * pInstrBuffer,
+    UINT            numInstr,
+    size_t *        pcbCode,
+    INT *           piCurStack,
     SString *       pDumpILStubCode)
 {
     CONTRACTL
@@ -594,13 +594,13 @@ ILStubLinker::LogILStubWorker(
     {
         ILCodeStream::ILInstrEnum instr = (ILCodeStream::ILInstrEnum)pInstrBuffer[i].uInstruction;
         CONSISTENCY_CHECK(ILCodeStream::IsSupportedInstruction(instr));
-        
+
         if (instr == ILCodeStream::CEE_CODE_LABEL)
         {
             isLabeled = true;
             continue;
         }
-        
+
         LogILInstruction(*pcbCode, isLabeled, *piCurStack, &pInstrBuffer[i], pDumpILStubCode);
         isLabeled = false;
 
@@ -610,7 +610,7 @@ ILStubLinker::LogILStubWorker(
         PREFIX_ASSUME((size_t)instr < sizeof(s_rgbOpcodeSizes));
         *pcbCode += s_rgbOpcodeSizes[instr];
 
-        // 
+        //
         // calculate curstack
         //
         *piCurStack += pInstrBuffer[i].iStackDelta;
@@ -683,7 +683,7 @@ void ILStubLinker::LogILStub(CORJIT_FLAGS jitFlags, SString *pDumpILStubCode)
                 pDumpILStubCode->AppendPrintf("// %s {\n", pCurrentStream->GetStreamDescription(pCurrentStream->GetStreamType()));
             else
                 LOG((LF_STUBS, LL_INFO1000, "%s {\n", pCurrentStream->GetStreamDescription(pCurrentStream->GetStreamType())));
-                
+
             ILInstruction* pInstrBuffer = (ILInstruction*)pCurrentStream->m_pqbILInstructions->Ptr();
             LogILStubWorker(pInstrBuffer, pCurrentStream->m_uCurInstrIdx, &cbCode, &iCurStack, pDumpILStubCode);
 
@@ -733,7 +733,7 @@ bool ILStubLinker::FirstPassLink(ILInstruction* pInstrBuffer, UINT numInstr, siz
         PREFIX_ASSUME((size_t)instr < sizeof(s_rgbOpcodeSizes));
         *pcbCode += s_rgbOpcodeSizes[instr];
 
-        // 
+        //
         // calculate maxstack
         //
         *piCurStack += pInstrBuffer[i].iStackDelta;
@@ -770,10 +770,10 @@ void ILStubLinker::SecondPassLink(ILInstruction* pInstrBuffer, UINT numInstr, si
         if (ILCodeStream::IsBranchInstruction(instr))
         {
             ILCodeLabel* pLabel = (ILCodeLabel*) pInstrBuffer[i].uArg;
-            
+
             CONSISTENCY_CHECK(this == pLabel->m_pOwningStubLinker);
             CONSISTENCY_CHECK(IsInCodeStreamList(pLabel->m_pCodeStreamOfLabel));
-            
+
             pInstrBuffer[i].uArg = pLabel->GetCodeOffset() - *pCurCodeOffset;
         }
     }
@@ -789,7 +789,7 @@ size_t ILStubLinker::Link(UINT* puMaxStack)
     CONTRACTL_END;
 
     //
-    // Pass1: calculate code size, lower instructions to smallest form, 
+    // Pass1: calculate code size, lower instructions to smallest form,
     //        fill in branch target offsets, and calculate maxstack
     //
 
@@ -818,7 +818,7 @@ size_t ILStubLinker::Link(UINT* puMaxStack)
 
     pCurrentStream = m_pCodeStreamList;
     size_t curCodeOffset = 0;
-    
+
     while (pCurrentStream)
     {
         if (pCurrentStream->m_pqbILInstructions)
@@ -894,7 +894,7 @@ void ILStubLinker::WriteEHClauses(COR_ILMETHOD_SECT_EH* pSect)
 
 #ifdef _DEBUG
 
-static const PCSTR s_rgOpNames[] = 
+static const PCSTR s_rgOpNames[] =
 {
 
 #define OPDEF(name,string,pop,push,oprType,opcType,l,s1,s2,ctrl) \
@@ -944,23 +944,23 @@ BYTE* ILStubLinker::GenerateCodeWorker(BYTE* pbBuffer, ILInstruction* pInstrBuff
             {
                 case 0:
                     break;
-                    
+
                 case 1:
                     *pbBuffer = (BYTE)pInstrBuffer[i].uArg;
                     break;
-                    
+
                 case 2:
                     SET_UNALIGNED_VAL16(pbBuffer, pInstrBuffer[i].uArg);
                     break;
-                    
+
                 case 4:
                     SET_UNALIGNED_VAL32(pbBuffer, pInstrBuffer[i].uArg);
                     break;
-                    
+
                 case 8:
                     {
                         UINT64 uVal = pInstrBuffer[i].uArg;
-#ifndef BIT64  // We don't have room on 32-bit platforms to store the CLR_NAN_64 value, so 
+#ifndef BIT64  // We don't have room on 32-bit platforms to store the CLR_NAN_64 value, so
                 // we use a special value to represent CLR_NAN_64 and then recreate it here.
                         if ((instr == ILCodeStream::CEE_LDC_R8) && (((UINT32)uVal) == ILCodeStream::SPECIAL_VALUE_NAN_64_ON_32))
                             uVal = CLR_NAN_64;
@@ -971,8 +971,8 @@ BYTE* ILStubLinker::GenerateCodeWorker(BYTE* pbBuffer, ILInstruction* pInstrBuff
 
                 default:
                     UNREACHABLE_MSG("unexpected il opcode argument size");
-            }               
-            
+            }
+
             pbBuffer += argSize;
             *pcbCode += opSize;
         }
@@ -1007,7 +1007,7 @@ void ILStubLinker::GenerateCode(BYTE* pbBuffer, size_t cbBufferSize)
 bool ILStubLinker::IsInCodeStreamList(ILCodeStream* pcs)
 {
     LIMITED_METHOD_CONTRACT;
-    
+
     ILCodeStream*   pCurrentStream = m_pCodeStreamList;
     while (pCurrentStream)
     {
@@ -1026,7 +1026,7 @@ bool ILStubLinker::IsInCodeStreamList(ILCodeStream* pcs)
 bool ILCodeStream::IsSupportedInstruction(ILInstrEnum instr)
 {
     LIMITED_METHOD_CONTRACT;
-    
+
     CONSISTENCY_CHECK_MSG(instr != CEE_SWITCH, "CEE_SWITCH is not supported currently due to InlineSwitch in s_rgbOpcodeSizes");
     CONSISTENCY_CHECK_MSG(((instr >= CEE_BR_S) && (instr <= CEE_BLT_UN_S)) || instr == CEE_LEAVE, "we only use long-form branch opcodes");
     return true;
@@ -1052,7 +1052,7 @@ LPCSTR ILCodeStream::GetStreamDescription(ILStubLinker::CodeStreamType streamTyp
     size_t len = sizeof(lpszDescriptions)/sizeof(LPCSTR);
     _ASSERT(streamType >= 0 && (size_t)streamType < len);
 #endif // _DEBUG
-    
+
     return lpszDescriptions[streamType];
 }
 
@@ -1434,7 +1434,7 @@ void ILCodeStream::EmitLDC_R4(UINT32 uConst)
 void ILCodeStream::EmitLDC_R8(UINT64 uConst)
 {
     STANDARD_VM_CONTRACT;
-#ifndef BIT64  // We don't have room on 32-bit platforms to stor the CLR_NAN_64 value, so 
+#ifndef BIT64  // We don't have room on 32-bit platforms to stor the CLR_NAN_64 value, so
                 // we use a special value to represent CLR_NAN_64 and then recreate it later.
     CONSISTENCY_CHECK(((UINT32)uConst) != SPECIAL_VALUE_NAN_64_ON_32);
     if (uConst == CLR_NAN_64)
@@ -1525,7 +1525,7 @@ void ILCodeStream::EmitLDIND_T(LocalDesc* pType)
         elementType = (CorElementType)pType->ElementType[i];
         onlyFoundModifiers = (elementType == ELEMENT_TYPE_PINNED);
     }
-    
+
 
     switch (elementType)
     {
@@ -1553,8 +1553,14 @@ void ILCodeStream::EmitLDIND_T(LocalDesc* pType)
 
         case ELEMENT_TYPE_INTERNAL:
         {
-            CONSISTENCY_CHECK_MSG(!(pType->InternalToken.GetMethodTable()->IsValueType()), "don't know how to handle value types here");
-            EmitLDIND_REF();
+            if (pType->InternalToken.GetMethodTable()->IsValueType())
+            {
+                EmitLDOBJ(m_pOwner->GetToken(pType->InternalToken.GetMethodTable()));
+            }
+            else
+            {
+                EmitLDIND_REF();
+            }
             break;
         }
 
@@ -1760,8 +1766,14 @@ void ILCodeStream::EmitSTIND_T(LocalDesc* pType)
 
         case ELEMENT_TYPE_INTERNAL:
         {
-            CONSISTENCY_CHECK_MSG(!(pType->InternalToken.GetMethodTable()->IsValueType()), "don't know how to handle value types here");
-            EmitSTIND_REF();
+            if (pType->InternalToken.GetMethodTable()->IsValueType())
+            {
+                EmitSTOBJ(m_pOwner->GetToken(pType->InternalToken.GetMethodTable()));
+            }
+            else
+            {
+                EmitSTIND_REF();
+            }
             break;
         }
 
@@ -1799,6 +1811,12 @@ void ILCodeStream::EmitTHROW()
 {
     WRAPPER_NO_CONTRACT;
     Emit(CEE_THROW, -1, 0);
+}
+
+void ILCodeStream::EmitUNALIGNED(BYTE alignment)
+{
+    WRAPPER_NO_CONTRACT;
+    Emit(CEE_UNALIGNED, 0, alignment);
 }
 
 
@@ -1841,7 +1859,7 @@ void ILCodeStream::EmitLoadThis ()
     _ASSERTE(m_pOwner->m_fHasThis);
     // OK, this is ugly, but we add 1 to all LDARGs when
     // m_fHasThis is true, so we compensate for that here
-    // so that we don't have to have a special method to 
+    // so that we don't have to have a special method to
     // load arguments.
     EmitLDARG((unsigned)-1);
 }
@@ -1860,7 +1878,7 @@ void ILCodeStream::EmitLoadNullPtr()
 void ILCodeStream::EmitArgIteratorCreateAndLoad()
 {
     STANDARD_VM_CONTRACT;
-    
+
     //
     // we insert the ArgIterator in the same spot that the VASigCookie will go for sanity
     //
@@ -1879,7 +1897,7 @@ void ILCodeStream::EmitArgIteratorCreateAndLoad()
     aiLoc.ElementType[1]    = ELEMENT_TYPE_INTERNAL;
     aiLoc.cbType            = 2;
     aiLoc.InternalToken     = MscorlibBinder::GetClass(CLASS__ARG_ITERATOR);
-    
+
     SetStubTargetArgType(&aiLoc, false);
 }
 
@@ -1927,7 +1945,7 @@ DWORD StubSigBuilder::Append(LocalDesc* pLoc)
     }
     CONTRACTL_END;
 
-    EnsureEnoughQuickBytes(pLoc->cbType + sizeof(TypeHandle));    
+    EnsureEnoughQuickBytes(pLoc->cbType + sizeof(TypeHandle));
 
     memcpyNoGCRefs(m_pbSigCursor, pLoc->ElementType, pLoc->cbType);
     m_pbSigCursor   += pLoc->cbType;
@@ -1939,7 +1957,7 @@ DWORD StubSigBuilder::Append(LocalDesc* pLoc)
     {
         CONSISTENCY_CHECK(   ELEMENT_TYPE_CLASS     != pLoc->ElementType[i]
                           && ELEMENT_TYPE_VALUETYPE != pLoc->ElementType[i]);
-                
+
         switch (pLoc->ElementType[i])
         {
             case ELEMENT_TYPE_INTERNAL:
@@ -1967,17 +1985,17 @@ DWORD StubSigBuilder::Append(LocalDesc* pLoc)
                 }
                 break;
 
-            default: 
+            default:
                 break;
         }
-        
+
         i++;
     }
 
     if (pLoc->ElementType[0] == ELEMENT_TYPE_ARRAY)
     {
         EnsureEnoughQuickBytes(pLoc->cbArrayBoundsInfo);
-        
+
         memcpyNoGCRefs(m_pbSigCursor, pLoc->pSig, pLoc->cbArrayBoundsInfo);
         m_pbSigCursor   += pLoc->cbArrayBoundsInfo;
         m_cbSig         += pLoc->cbArrayBoundsInfo;
@@ -1989,8 +2007,8 @@ DWORD StubSigBuilder::Append(LocalDesc* pLoc)
 }
 
 //---------------------------------------------------------------------------------------
-// 
-DWORD 
+//
+DWORD
 LocalSigBuilder::GetSigSize()
 {
     STANDARD_VM_CONTRACT;
@@ -1998,7 +2016,7 @@ LocalSigBuilder::GetSigSize()
     BYTE   temp[4];
     UINT32 cbEncoded   = CorSigCompressData(m_nItems, temp);
 
-    S_UINT32 cbSigSize = 
+    S_UINT32 cbSigSize =
         S_UINT32(1) +           // IMAGE_CEE_CS_CALLCONV_LOCAL_SIG
         S_UINT32(cbEncoded) +   // encoded number of locals
         S_UINT32(m_cbSig) +     // types
@@ -2011,10 +2029,10 @@ LocalSigBuilder::GetSigSize()
 }
 
 //---------------------------------------------------------------------------------------
-// 
-DWORD 
+//
+DWORD
 LocalSigBuilder::GetSig(
-    BYTE * pbLocalSig, 
+    BYTE * pbLocalSig,
     DWORD  cbBuffer)
 {
     STANDARD_VM_CONTRACT;
@@ -2054,7 +2072,7 @@ void FunctionSigBuilder::SetReturnType(LocalDesc* pLoc)
         PRECONDITION(pLoc->cbType > 0);
     }
     CONTRACTL_END;
-    
+
     m_qbReturnSig.ReSizeThrows(pLoc->cbType);
     memcpyNoGCRefs(m_qbReturnSig.Ptr(), pLoc->ElementType, pLoc->cbType);
 
@@ -2064,7 +2082,7 @@ void FunctionSigBuilder::SetReturnType(LocalDesc* pLoc)
     {
         CONSISTENCY_CHECK(   ELEMENT_TYPE_CLASS     != pLoc->ElementType[i]
                           && ELEMENT_TYPE_VALUETYPE != pLoc->ElementType[i]);
-                
+
         switch (pLoc->ElementType[i])
         {
             case ELEMENT_TYPE_INTERNAL:
@@ -2088,10 +2106,10 @@ void FunctionSigBuilder::SetReturnType(LocalDesc* pLoc)
                 }
                 break;
 
-            default: 
+            default:
                 break;
         }
-        
+
         i++;
     }
 
@@ -2142,8 +2160,8 @@ void FunctionSigBuilder::SetSig(PCCOR_SIGNATURE pSig, DWORD cSig)
 }
 
 //---------------------------------------------------------------------------------------
-// 
-DWORD 
+//
+DWORD
 FunctionSigBuilder::GetSigSize()
 {
     STANDARD_VM_CONTRACT;
@@ -2154,7 +2172,7 @@ FunctionSigBuilder::GetSigSize()
 
     CONSISTENCY_CHECK(cbEncodedRetType > 0);
 
-    S_UINT32 cbSigSize = 
+    S_UINT32 cbSigSize =
         S_UINT32(1) +                   // calling convention
         S_UINT32(cbEncodedLen) +        // encoded number of args
         S_UINT32(cbEncodedRetType) +    // encoded return type
@@ -2168,10 +2186,10 @@ FunctionSigBuilder::GetSigSize()
 }
 
 //---------------------------------------------------------------------------------------
-// 
-DWORD 
+//
+DWORD
 FunctionSigBuilder::GetSig(
-    BYTE * pbLocalSig, 
+    BYTE * pbLocalSig,
     DWORD  cbBuffer)
 {
     STANDARD_VM_CONTRACT;
@@ -2214,8 +2232,8 @@ DWORD ILStubLinker::NewLocal(LocalDesc loc)
 }
 
 //---------------------------------------------------------------------------------------
-// 
-DWORD 
+//
+DWORD
 ILStubLinker::GetLocalSigSize()
 {
     LIMITED_METHOD_CONTRACT;
@@ -2224,10 +2242,10 @@ ILStubLinker::GetLocalSigSize()
 }
 
 //---------------------------------------------------------------------------------------
-// 
-DWORD 
+//
+DWORD
 ILStubLinker::GetLocalSig(
-    BYTE * pbLocalSig, 
+    BYTE * pbLocalSig,
     DWORD  cbBuffer)
 {
     STANDARD_VM_CONTRACT;
@@ -2237,8 +2255,8 @@ ILStubLinker::GetLocalSig(
 }
 
 //---------------------------------------------------------------------------------------
-// 
-DWORD 
+//
+DWORD
 ILStubLinker::GetStubTargetMethodSigSize()
 {
     STANDARD_VM_CONTRACT;
@@ -2247,10 +2265,10 @@ ILStubLinker::GetStubTargetMethodSigSize()
 }
 
 //---------------------------------------------------------------------------------------
-// 
-DWORD 
+//
+DWORD
 ILStubLinker::GetStubTargetMethodSig(
-    BYTE * pbSig, 
+    BYTE * pbSig,
     DWORD  cbSig)
 {
     LIMITED_METHOD_CONTRACT;
@@ -2274,7 +2292,7 @@ static BOOL SigHasVoidReturnType(const Signature &signature)
         GC_NOTRIGGER;
     }
     CONTRACTL_END
-    
+
     SigPointer ptr = signature.CreateSigPointer();
 
     ULONG data;
@@ -2287,7 +2305,7 @@ static BOOL SigHasVoidReturnType(const Signature &signature)
 
     // skip number of args
     IfFailThrow(ptr.GetData(NULL));
-    
+
     CorElementType retType;
     IfFailThrow(ptr.PeekElemType(&retType));
 
@@ -2325,7 +2343,7 @@ ILStubLinker::ILStubLinker(Module* pStubSigModule, const Signature &signature, S
         // Until told otherwise, assume that the stub has the same return type as the signature.
         m_StubHasVoidReturnType = SigHasVoidReturnType(signature);
         m_StubTargetHasVoidReturnType = m_StubHasVoidReturnType;
-        
+
         //
         // Get the stub's calling convention.  Set m_fHasThis to match
         // IMAGE_CEE_CS_CALLCONV_HASTHIS.
@@ -2353,22 +2371,22 @@ ILStubLinker::ILStubLinker(Module* pStubSigModule, const Signature &signature, S
         {
             //
             // If we have a PInvoke stub that has a VARARG calling convention
-            // we will transition to a NATIVEVARARG calling convention for the 
+            // we will transition to a NATIVEVARARG calling convention for the
             // target call. The JIT64 knows about this calling convention,
-            // basically it is the same as the managed vararg calling convention 
-            // except without a VASigCookie.        
+            // basically it is the same as the managed vararg calling convention
+            // except without a VASigCookie.
             //
-            // If our stub is not a PInvoke stub and has a vararg calling convention, 
-            // we are most likely going to have to forward those variable arguments 
-            // on to our call target.  Unfortunately, callsites to varargs methods 
-            // in IL always have full signatures (that's where the VASigCookie comes 
-            // from). But we don't have that in this case, so we play some tricks and 
+            // If our stub is not a PInvoke stub and has a vararg calling convention,
+            // we are most likely going to have to forward those variable arguments
+            // on to our call target.  Unfortunately, callsites to varargs methods
+            // in IL always have full signatures (that's where the VASigCookie comes
+            // from). But we don't have that in this case, so we play some tricks and
             // pass an ArgIterator down to an assembly routine that pulls out the
             // variable arguments and puts them in the right spot before forwarding
             // to the stub target.
             //
-            // The net result is that we don't want to set the native calling 
-            // convention to be vararg for non-PInvoke stubs, so we just use 
+            // The net result is that we don't want to set the native calling
+            // convention to be vararg for non-PInvoke stubs, so we just use
             // the default callconv.
             //
             if (!fIsNDirectStub)
@@ -2387,7 +2405,7 @@ ILStubLinker::ILStubLinker(Module* pStubSigModule, const Signature &signature, S
             uNativeCallingConv |= IMAGE_CEE_CS_CALLCONV_HASTHIS;
         }
 
-        if (fTargetHasThis)
+        if (fTargetHasThis && !fIsReverseStub)
         {
             m_iTargetStackDelta--;
         }
@@ -2397,7 +2415,21 @@ ILStubLinker::ILStubLinker(Module* pStubSigModule, const Signature &signature, S
         if (uStubCallingConvInfo & IMAGE_CEE_CS_CALLCONV_GENERIC)
             IfFailThrow(m_managedSigPtr.GetData(NULL));    // skip number of type parameters
 
-        IfFailThrow(m_managedSigPtr.GetData(NULL));        // skip number of parameters
+        ULONG numParams = 0;
+        IfFailThrow(m_managedSigPtr.GetData(&numParams));
+        // If we are a reverse stub, then the target signature called in the stub
+        // is the managed signature. In that case, we calculate the target IL stack delta
+        // here from the managed signature.
+        if (fIsReverseStub)
+        {
+            // As per ECMA 335, the max number of parameters is 0x1FFFFFFF (see section 11.23.2), which fits in a 32-bit signed integer
+            // So this cast is safe.
+            m_iTargetStackDelta -= (INT)numParams;
+            if (!m_StubHasVoidReturnType)
+            {
+                m_iTargetStackDelta++;
+            }
+        }
         IfFailThrow(m_managedSigPtr.SkipExactlyOne()); // skip return type
     }
 }
@@ -2424,7 +2456,7 @@ void ILStubLinker::DeleteCodeLabels()
         GC_TRIGGERS;
     }
     CONTRACTL_END;
-    
+
     //
     // walk the list of labels and free each one
     //
@@ -2467,7 +2499,7 @@ void ILStubLinker::ClearCodeStreams()
         GC_TRIGGERS;
     }
     CONTRACTL_END;
-    
+
     ILCodeStream* pCurrent = m_pCodeStreamList;
     while (pCurrent)
     {
@@ -2490,9 +2522,9 @@ void ILStubLinker::GetStubReturnType(LocalDesc* pLoc, Module* pModule)
     ULONG uCallingConv;
     int   nTypeArgs = 0;
     int   nArgs;
-    
+
     IfFailThrow(ptr.GetCallingConvInfo(&uCallingConv));
-    
+
     if (uCallingConv & IMAGE_CEE_CS_CALLCONV_GENERIC)
         IfFailThrow(ptr.GetData((ULONG*)&nTypeArgs));
 
@@ -2513,7 +2545,7 @@ void ILStubLinker::TransformArgForJIT(LocalDesc *pLoc)
     // Turn everything into blittable primitives. The reason this method is needed are
     // byrefs which are OK only when they ref stack data or are pinned. This condition
     // cannot be verified by code:NDirect.MarshalingRequired so we explicitly get rid
-    // of them here. 
+    // of them here.
     switch (pLoc->ElementType[0])
     {
         // primitives
@@ -2615,18 +2647,20 @@ void ILStubLinker::SetStubTargetReturnType(LocalDesc* pLoc)
         PRECONDITION(CheckPointer(pLoc, NULL_NOT_OK));
     }
     CONTRACTL_END;
-    
+
     TransformArgForJIT(pLoc);
 
     m_nativeFnSigBuilder.SetReturnType(pLoc);
 
-    // Update check for if a stub has a void return type based on the provided return type.
-    m_StubTargetHasVoidReturnType = ((1 == pLoc->cbType) && (ELEMENT_TYPE_VOID == pLoc->ElementType[0])) ? TRUE : FALSE;
-    if (!m_StubTargetHasVoidReturnType)
+    if (!m_fIsReverseStub)
     {
-        m_iTargetStackDelta++;
+        // Update check for if a stub has a void return type based on the provided return type.
+        m_StubTargetHasVoidReturnType = ((1 == pLoc->cbType) && (ELEMENT_TYPE_VOID == pLoc->ElementType[0])) ? TRUE : FALSE;
+        if (!m_StubTargetHasVoidReturnType)
+        {
+            m_iTargetStackDelta++;
+        }
     }
-
 }
 
 DWORD ILStubLinker::SetStubTargetArgType(CorElementType typ, bool fConsumeStubArg /*= true*/)
@@ -2640,7 +2674,17 @@ DWORD ILStubLinker::SetStubTargetArgType(CorElementType typ, bool fConsumeStubAr
 void ILStubLinker::SetStubTargetCallingConv(CorCallingConvention uNativeCallingConv)
 {
     LIMITED_METHOD_CONTRACT;
+    CorCallingConvention originalCallingConvention = m_nativeFnSigBuilder.GetCallingConv();
     m_nativeFnSigBuilder.SetCallingConv(uNativeCallingConv);
+    if (!m_fIsReverseStub)
+    {
+        if ( (originalCallingConvention & CORINFO_CALLCONV_HASTHIS) && !(uNativeCallingConv & CORINFO_CALLCONV_HASTHIS))
+        {
+            // Our calling convention had an implied-this beforehand and now it doesn't.
+            // Account for this in the target stack delta.
+            m_iTargetStackDelta++;
+        }
+    }
 }
 
 static size_t GetManagedTypeForMDArray(LocalDesc* pLoc, Module* pModule, PCCOR_SIGNATURE psigManagedArg, SigTypeContext *pTypeContext)
@@ -2655,10 +2699,10 @@ static size_t GetManagedTypeForMDArray(LocalDesc* pLoc, Module* pModule, PCCOR_S
         PRECONDITION(*psigManagedArg == ELEMENT_TYPE_ARRAY);
     }
     CONTRACTL_END;
-    
+
     SigPointer      ptr;
     size_t          cbDest = 0;
-    
+
     //
     // copy ELEMENT_TYPE_ARRAY
     //
@@ -2726,7 +2770,7 @@ void ILStubLinker::GetManagedTypeHelper(LocalDesc* pLoc, Module* pModule, PCCOR_
     LOG((LF_STUBS, LL_INFO10000, "GetManagedTypeHelper on type at %p\n", psigManagedArg));
 
     IfFailThrow(ptr.PeekElemType(&eType));
-   
+
     size_t cbDest               = 0;
 
     while (eType == ELEMENT_TYPE_PTR ||
@@ -2764,7 +2808,7 @@ void ILStubLinker::GetManagedTypeHelper(LocalDesc* pLoc, Module* pModule, PCCOR_
 
                 pLoc->InternalToken = (eType == ELEMENT_TYPE_VAR ? pTypeContext->m_classInst[varNum] :
                                                                    pTypeContext->m_methodInst[varNum]);
-                
+
                 pLoc->ElementType[cbDest] = ELEMENT_TYPE_INTERNAL;
                 cbDest++;
                 break;
@@ -2775,7 +2819,7 @@ void ILStubLinker::GetManagedTypeHelper(LocalDesc* pLoc, Module* pModule, PCCOR_
         case ELEMENT_TYPE_INTERNAL:
             {
                 pLoc->InternalToken = ptr.GetTypeHandleThrowing(pModule, pTypeContext);
-                
+
                 pLoc->ElementType[cbDest] = ELEMENT_TYPE_INTERNAL;
                 cbDest++;
                 break;
@@ -2796,7 +2840,7 @@ void ILStubLinker::GetManagedTypeHelper(LocalDesc* pLoc, Module* pModule, PCCOR_
             // in the generated sig
             pLoc->pSigModule = pModule;
             pLoc->pSig       = psigManagedArg+1;
-            
+
             pLoc->ElementType[cbDest] = ELEMENT_TYPE_FNPTR;
             cbDest++;
             break;
@@ -2809,19 +2853,19 @@ void ILStubLinker::GetManagedTypeHelper(LocalDesc* pLoc, Module* pModule, PCCOR_
             {
                 size_t          cbType;
                 PCCOR_SIGNATURE psigNextManagedArg;
-            
+
                 IfFailThrow(ptr.SkipExactlyOne());
-            
+
                 psigNextManagedArg  = ptr.GetPtr();
                 cbType              = psigNextManagedArg - psigManagedArg;
-            
+
                 size_t cbNewDest;
                 if (!ClrSafeInt<size_t>::addition(cbDest, cbType, cbNewDest) ||
                     cbNewDest > LocalDesc::MAX_LOCALDESC_ELEMENTS)
                 {
                     COMPlusThrow(kMarshalDirectiveException, IDS_EE_SIGTOOCOMPLEX);
                 }
-            
+
                 memcpyNoGCRefs(&pLoc->ElementType[cbDest], psigManagedArg, cbType);
                 cbDest = cbNewDest;
                 break;
@@ -2889,8 +2933,8 @@ void ILStubLinker::GetStubArgType(LocalDesc* pLoc, Module* pModule)
 }
 
 //---------------------------------------------------------------------------------------
-// 
-DWORD 
+//
+DWORD
 ILStubLinker::SetStubTargetArgType(
     LocalDesc * pLoc,            // = NULL
     bool        fConsumeStubArg) // = true
@@ -2908,20 +2952,29 @@ ILStubLinker::SetStubTargetArgType(
             pLoc = &locDesc;
             GetStubArgType(pLoc, m_pStubSigModule);
         }
-        
+
         IfFailThrow(m_managedSigPtr.SkipExactlyOne());
     }
 
     TransformArgForJIT(pLoc);
 
     DWORD dwArgNum = m_nativeFnSigBuilder.NewArg(pLoc);
-    m_iTargetStackDelta--;
+
+    // If we are a reverse stub, then the native function signature is the signature of the
+    // stub instead of the signature of the target.
+    // Otherwise, the native signature is the signature of the target.
+    // So, we only want to modify the target IL stack delta here if we are calling the native
+    // function as our target signature.
+    if (!m_fIsReverseStub)
+    {
+        m_iTargetStackDelta--;
+    }
 
     return dwArgNum;
 } // ILStubLinker::SetStubTargetArgType
 
 //---------------------------------------------------------------------------------------
-// 
+//
 int ILStubLinker::GetToken(MethodDesc* pMD)
 {
     STANDARD_VM_CONTRACT;
@@ -2999,7 +3052,7 @@ ILCodeStream* ILStubLinker::FindLastCodeStream(ILCodeStream* pList)
 ILCodeStream* ILStubLinker::NewCodeStream(CodeStreamType codeStreamType)
 {
     STANDARD_VM_CONTRACT;
-    
+
     NewHolder<ILCodeStream> pNewCodeStream = new ILCodeStream(this, codeStreamType);
 
     if (NULL == m_pCodeStreamList)
@@ -3012,28 +3065,28 @@ ILCodeStream* ILStubLinker::NewCodeStream(CodeStreamType codeStreamType)
         CONSISTENCY_CHECK(NULL == pTail->m_pNextStream);
         pTail->m_pNextStream = pNewCodeStream;
     }
-    
+
     pNewCodeStream.SuppressRelease();
     return pNewCodeStream;
 }
 
 int ILCodeStream::GetToken(MethodDesc* pMD)
-{ 
+{
     STANDARD_VM_CONTRACT;
     return m_pOwner->GetToken(pMD);
-} 
+}
 int ILCodeStream::GetToken(MethodTable* pMT)
-{ 
+{
     STANDARD_VM_CONTRACT;
     return m_pOwner->GetToken(pMT);
-} 
+}
 int ILCodeStream::GetToken(TypeHandle th)
-{ 
+{
     STANDARD_VM_CONTRACT;
     return m_pOwner->GetToken(th);
-} 
+}
 int ILCodeStream::GetToken(FieldDesc* pFD)
-{ 
+{
     STANDARD_VM_CONTRACT;
     return m_pOwner->GetToken(pFD);
 } 

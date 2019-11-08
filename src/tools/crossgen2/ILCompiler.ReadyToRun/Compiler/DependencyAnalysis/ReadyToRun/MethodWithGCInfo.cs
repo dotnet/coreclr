@@ -6,8 +6,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
-using ILCompiler.DependencyAnalysis;
-
 using Internal.JitInterface;
 using Internal.Text;
 using Internal.TypeSystem;
@@ -245,10 +243,14 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             Debug.Assert(_debugEHClauseInfos == null);
             _debugEHClauseInfos = debugEHClauseInfos;
         }
-
-        public int CompareToImpl(ISortableSymbolNode other, CompilerComparer comparer)
+        public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
         {
-            throw new NotImplementedException();
+            MethodWithGCInfo otherNode = (MethodWithGCInfo)other;
+            int result = comparer.Compare(_method, otherNode._method);
+            if (result != 0)
+                return result;
+
+            return SignatureContext.CompareTo(otherNode.SignatureContext, comparer);
         }
 
         public int Offset => 0;

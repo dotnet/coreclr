@@ -83,5 +83,31 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
         {
             return Resolver.GetModuleTokenForField(field, throwIfNotFound);
         }
+
+        public bool Equals(SignatureContext other)
+        {
+            return GlobalContext == other.GlobalContext
+                && LocalContext == other.LocalContext;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is SignatureContext other && Equals(other);
+        }
+
+        public override int GetHashCode()
+        {
+            return GlobalContext.GetHashCode()
+                ^ (LocalContext.GetHashCode() * 31);
+        }
+
+        public int CompareTo(SignatureContext other, TypeSystemComparer comparer)
+        {
+            int result = GlobalContext.CompareTo(other.GlobalContext);
+            if (result != 0)
+                return result;
+
+            return LocalContext.CompareTo(other.LocalContext);
+        }
     }
 }

@@ -132,8 +132,8 @@ CORINFO_CLASS_HANDLE getDefaultEqualityComparerClass(CORINFO_CLASS_HANDLE elemTy
 
 // Given resolved token that corresponds to an intrinsic classified as
 // a CORINFO_INTRINSIC_GetRawHandle intrinsic, fetch the handle associated
-// with the token. If this is not possible at compile-time (because the current method's 
-// code is shared and the token contains generic parameters) then indicate 
+// with the token. If this is not possible at compile-time (because the current method's
+// code is shared and the token contains generic parameters) then indicate
 // how the handle should be looked up at runtime.
 void expandRawHandleIntrinsic(
     CORINFO_RESOLVED_TOKEN *        pResolvedToken,
@@ -144,9 +144,8 @@ void expandRawHandleIntrinsic(
 // *pMustExpand tells whether or not JIT must expand the intrinsic.
 CorInfoIntrinsics getIntrinsicID(CORINFO_METHOD_HANDLE method, bool* pMustExpand = NULL /* OUT */);
 
-// Is the given module the System.Numerics.Vectors module?
-// This defaults to false.
-bool isInSIMDModule(CORINFO_CLASS_HANDLE classHnd); /* { return false; } */
+// Is the given type in System.Private.Corelib and marked with IntrinsicAttribute?
+bool isIntrinsicType(CORINFO_CLASS_HANDLE classHnd);
 
 // return the unmanaged calling convention for a PInvoke
 CorInfoUnmanagedCallConv getUnmanagedCallConv(CORINFO_METHOD_HANDLE method);

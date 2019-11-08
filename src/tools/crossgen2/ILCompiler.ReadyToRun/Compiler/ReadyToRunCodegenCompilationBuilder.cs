@@ -22,6 +22,7 @@ namespace ILCompiler
         private readonly EcmaModule _inputModule;
         private readonly bool _ibcTuning;
         private readonly bool _resilient;
+        private string _jitPath;
 
         // These need to provide reasonable defaults so that the user can optionally skip
         // calling the Use/Configure methods and still get something reasonable back.
@@ -31,9 +32,9 @@ namespace ILCompiler
         public ReadyToRunCodegenCompilationBuilder(CompilerTypeSystemContext context, CompilationModuleGroup group, string inputFilePath, bool ibcTuning, bool resilient)
             : base(context, group, new CoreRTNameMangler())
         {
+            _inputFilePath = inputFilePath;
             _ibcTuning = ibcTuning;
             _resilient = resilient;
-            _inputFilePath = inputFilePath;
 
             _inputModule = context.GetModuleFromPath(_inputFilePath);
 
@@ -45,7 +46,7 @@ namespace ILCompiler
         {
             var builder = new ArrayBuilder<KeyValuePair<string, string>>();
 
-            foreach (string param in options)
+            foreach (string param in options ?? Array.Empty<string>())
             {
                 int indexOfEquals = param.IndexOf('=');
 
@@ -77,11 +78,27 @@ namespace ILCompiler
             return _ilProvider;
         }
 
+        public override CompilationBuilder UseJitPath(string jitPath)
+        {
+            _jitPath = jitPath;
+            return this;
+        }
+
         public override ICompilation ToCompilation()
         {
             ModuleTokenResolver moduleTokenResolver = new ModuleTokenResolver(_compilationGroup, _context);
             SignatureContext signatureContext = new SignatureContext(_inputModule, moduleTokenResolver);
             CopiedCorHeaderNode corHeaderNode = new CopiedCorHeaderNode(_inputModule);
+            AttributePresenceFilterNode attributePresenceFilterNode = null;
+            
+            // Core library attributes are checked FAR more often than other dlls
+            // attributes, so produce a highly efficient table for determining if they are
+            // present. Other assemblies *MAY* benefit from this feature, but it doesn't show
+            // as useful at this time.
+            if (_inputModule == _inputModule.Context.SystemModule)
+            {
+                 attributePresenceFilterNode = new AttributePresenceFilterNode(_inputModule);
+            }
 
             // Produce a ResourceData where the IBC PROFILE_DATA entry has been filtered out
             ResourceData win32Resources = new ResourceData(_inputModule, (object type, object name, ushort language) =>
@@ -107,9 +124,11 @@ namespace ILCompiler
                 moduleTokenResolver,
                 signatureContext,
                 corHeaderNode,
-                win32Resources);
+                win32Resources,
+                attributePresenceFilterNode);
 
-            DependencyAnalyzerBase<NodeFactory> graph = CreateDependencyGraph(factory);
+            IComparer<DependencyNodeCore<NodeFactory>> comparer = new SortableDependencyNode.ObjectNodeComparer(new CompilerComparer());
+            DependencyAnalyzerBase<NodeFactory> graph = CreateDependencyGraph(factory, comparer);
 
             List<CorJitFlag> corJitFlags = new List<CorJitFlag> { CorJitFlag.CORJIT_FLAG_DEBUG_INFO };
 
@@ -136,7 +155,7 @@ namespace ILCompiler
                 corJitFlags.Add(CorJitFlag.CORJIT_FLAG_BBINSTR);
 
             corJitFlags.Add(CorJitFlag.CORJIT_FLAG_FEATURE_SIMD);
-            var jitConfig = new JitConfigProvider(corJitFlags, _ryujitOptions);
+            var jitConfig = new JitConfigProvider(corJitFlags, _ryujitOptions, _jitPath);
 
             return new ReadyToRunCodegenCompilation(
                 graph,

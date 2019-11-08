@@ -37,6 +37,7 @@ Abstract:
 #define __PAL_H__
 
 #ifdef PAL_STDCPP_COMPAT
+#include <float.h>
 #include <limits.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -261,9 +262,10 @@ typedef char * va_list;
 #define INT_MAX       2147483647
 #define UINT_MAX      0xffffffff
 
-#define LONG_MIN    (-2147483647L - 1)
-#define LONG_MAX      2147483647L
-#define ULONG_MAX     0xffffffffUL
+// LONG_MIN, LONG_MAX, ULONG_MAX -- use INT32_MIN etc. instead.
+
+#define FLT_MAX 3.402823466e+38F
+#define DBL_MAX 1.7976931348623157e+308
 
 #endif // !PAL_STDCPP_COMPAT
 
@@ -274,10 +276,7 @@ typedef char * va_list;
 PALIMPORT
 BOOL
 PALAPI
-PAL_IsDebuggerPresent(VOID);
-
-#define FLT_MAX 3.402823466e+38F
-#define DBL_MAX 1.7976931348623157e+308
+PAL_IsDebuggerPresent();
 
 /* minimum signed 64 bit value */
 #define _I64_MIN    (I64(-9223372036854775807) - 1)
@@ -371,8 +370,7 @@ PAL_InitializeWithFlags(
 PALIMPORT
 int
 PALAPI
-PAL_InitializeDLL(
-    VOID);
+PAL_InitializeDLL();
 
 PALIMPORT
 void
@@ -454,7 +452,7 @@ PAL_UnregisterForRuntimeStartup(
 PALIMPORT
 BOOL
 PALAPI
-PAL_NotifyRuntimeStarted(VOID);
+PAL_NotifyRuntimeStarted();
 
 #ifdef __APPLE__
 PALIMPORT
@@ -528,6 +526,24 @@ PAL_ProbeMemory(
     PVOID pBuffer,
     DWORD cbBuffer,
     BOOL fWriteAccess);
+
+PALIMPORT
+int
+PALAPI
+// Start the jitdump file
+PAL_PerfJitDump_Start(const char* path);
+
+PALIMPORT
+int
+PALAPI
+// Log a method to the jitdump file.
+PAL_PerfJitDump_LogMethod(void* pCode, size_t codeSize, const char* symbol, void* debugInfo, void* unwindInfo);
+
+PALIMPORT
+int
+PALAPI
+// Finish the jitdump file
+PAL_PerfJitDump_Finish();
 
 /******************* winuser.h Entrypoints *******************************/
 PALIMPORT
@@ -1050,8 +1066,7 @@ FlushFileBuffers(
 PALIMPORT
 UINT
 PALAPI
-GetConsoleOutputCP(
-           VOID);
+GetConsoleOutputCP();
 
 PALIMPORT
 DWORD
@@ -1301,40 +1316,34 @@ ReleaseMutex(
 PALIMPORT
 DWORD
 PALAPI
-GetCurrentProcessId(
-            VOID);
+GetCurrentProcessId();
 
 PALIMPORT
 DWORD
 PALAPI
-GetCurrentSessionId(
-            VOID);
+GetCurrentSessionId();
 
 PALIMPORT
 HANDLE
 PALAPI
-GetCurrentProcess(
-          VOID);
+GetCurrentProcess();
 
 PALIMPORT
 DWORD
 PALAPI
-GetCurrentThreadId(
-           VOID);
+GetCurrentThreadId();
 
 PALIMPORT
 size_t
 PALAPI
-PAL_GetCurrentOSThreadId(
-           VOID);
+PAL_GetCurrentOSThreadId();
 
 // To work around multiply-defined symbols in the Carbon framework.
 #define GetCurrentThread PAL_GetCurrentThread
 PALIMPORT
 HANDLE
 PALAPI
-GetCurrentThread(
-         VOID);
+GetCurrentThread();
 
 
 #define STARTF_USESTDHANDLES       0x00000100
@@ -1542,8 +1551,7 @@ SleepEx(
 PALIMPORT
 BOOL
 PALAPI
-SwitchToThread(
-    VOID);
+SwitchToThread();
 
 #define DEBUG_PROCESS                     0x00000001
 #define DEBUG_ONLY_THIS_PROCESS           0x00000002
@@ -2397,27 +2405,27 @@ GetThreadTimes(
 PALIMPORT
 PVOID
 PALAPI
-PAL_GetStackBase(VOID);
+PAL_GetStackBase();
 
 PALIMPORT
 PVOID
 PALAPI
-PAL_GetStackLimit(VOID);
+PAL_GetStackLimit();
 
 PALIMPORT
 DWORD
 PALAPI
-PAL_GetLogicalCpuCountFromOS(VOID);
+PAL_GetLogicalCpuCountFromOS();
 
 PALIMPORT
 DWORD
 PALAPI
-PAL_GetTotalCpuCount(VOID);
+PAL_GetTotalCpuCount();
 
 PALIMPORT
 size_t
 PALAPI
-PAL_GetRestrictedPhysicalMemoryLimit(VOID);
+PAL_GetRestrictedPhysicalMemoryLimit();
 
 PALIMPORT
 BOOL
@@ -2432,7 +2440,7 @@ PAL_GetCpuLimit(UINT* val);
 PALIMPORT
 size_t
 PALAPI
-PAL_GetLogicalProcessorCacheSizeFromOS(VOID);
+PAL_GetLogicalProcessorCacheSizeFromOS();
 
 typedef BOOL(*UnwindReadMemoryCallback)(PVOID address, PVOID buffer, SIZE_T size);
 
@@ -2835,8 +2843,7 @@ VirtualQuery(
 PALIMPORT
 HANDLE
 PALAPI
-GetProcessHeap(
-           VOID);
+GetProcessHeap();
 
 #define HEAP_ZERO_MEMORY 0x00000008
 
@@ -3128,8 +3135,7 @@ OutputDebugStringW(
 PALIMPORT
 VOID
 PALAPI
-DebugBreak(
-       VOID);
+DebugBreak();
 
 PALIMPORT
 DWORD
@@ -3161,8 +3167,7 @@ SetEnvironmentVariableW(
 PALIMPORT
 LPWSTR
 PALAPI
-GetEnvironmentStringsW(
-               VOID);
+GetEnvironmentStringsW();
 
 #ifdef UNICODE
 #define GetEnvironmentStrings GetEnvironmentStringsW
@@ -3208,13 +3213,12 @@ RaiseFailFastException(
 PALIMPORT
 DWORD
 PALAPI
-GetTickCount(
-         VOID);
+GetTickCount();
 
 PALIMPORT
 ULONGLONG
 PALAPI
-GetTickCount64(VOID);
+GetTickCount64();
 
 PALIMPORT
 BOOL
@@ -3686,8 +3690,7 @@ PALIMPORT
 inline
 VOID
 PALAPI
-MemoryBarrier(
-    VOID)
+MemoryBarrier()
 {
     __sync_synchronize();
 }
@@ -3697,8 +3700,7 @@ PALIMPORT
 inline
 VOID
 PALAPI
-YieldProcessor(
-    VOID)
+YieldProcessor()
 {
 #if defined(_X86_) || defined(_AMD64_)
     __asm__ __volatile__(
@@ -3714,7 +3716,7 @@ YieldProcessor(
 PALIMPORT
 DWORD
 PALAPI
-GetCurrentProcessorNumber(VOID);
+GetCurrentProcessorNumber();
 
 /*++
 Function:
@@ -3726,7 +3728,7 @@ Checks if GetCurrentProcessorNumber is available in the current environment
 PALIMPORT
 BOOL
 PALAPI
-PAL_HasGetCurrentProcessorNumber(VOID);
+PAL_HasGetCurrentProcessorNumber();
 
 #define FORMAT_MESSAGE_ALLOCATE_BUFFER 0x00000100
 #define FORMAT_MESSAGE_IGNORE_INSERTS  0x00000200
@@ -3755,8 +3757,7 @@ FormatMessageW(
 PALIMPORT
 DWORD
 PALAPI
-GetLastError(
-         VOID);
+GetLastError();
 
 PALIMPORT
 VOID
@@ -3767,8 +3768,7 @@ SetLastError(
 PALIMPORT
 LPWSTR
 PALAPI
-GetCommandLineW(
-        VOID);
+GetCommandLineW();
 
 #ifdef UNICODE
 #define GetCommandLine GetCommandLineW
@@ -3812,7 +3812,7 @@ ResetWriteWatch(
 PALIMPORT
 VOID
 PALAPI
-FlushProcessWriteBuffers(VOID);
+FlushProcessWriteBuffers();
 
 typedef void (*PAL_ActivationFunction)(CONTEXT *context);
 typedef BOOL (*PAL_SafeActivationCheckFunction)(SIZE_T ip, BOOL checkingCurrentThread);
@@ -4536,22 +4536,22 @@ PAL_GetCPUBusyTime(
 PALIMPORT
 VOID
 PALAPI
-PAL_EnableProcessProfile(VOID);
+PAL_EnableProcessProfile();
 
 PALIMPORT
 VOID
 PALAPI
-PAL_DisableProcessProfile(VOID);
+PAL_DisableProcessProfile();
 
 PALIMPORT
 BOOL
 PALAPI
-PAL_IsProcessProfileEnabled(VOID);
+PAL_IsProcessProfileEnabled();
 
 PALIMPORT
 INT64
 PALAPI
-PAL_GetCpuTickCount(VOID);
+PAL_GetCpuTickCount();
 #endif // PAL_PERF
 
 /******************* PAL functions for SIMD extensions *****************/
@@ -4576,8 +4576,6 @@ PAL_GetJitCpuCapabilityFlags(CORJIT_FLAGS *flags);
 #endif
 
 #ifdef __cplusplus
-
-#include "pal_unwind.h"
 
 PALIMPORT
 VOID

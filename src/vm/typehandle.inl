@@ -5,24 +5,17 @@
 // File: typehandle.inl
 //
 
-
-//
-
-//
-// ============================================================================
-
-
 #ifndef _TYPEHANDLE_INL_
 #define _TYPEHANDLE_INL_
 
 #include "typehandle.h"
 
 inline mdTypeDef TypeHandle::GetCl() const
-{ 
+{
     LIMITED_METHOD_DAC_CONTRACT;
 
     PREFIX_ASSUME(GetMethodTable() != NULL);
-    return GetMethodTable()->GetCl(); 
+    return GetMethodTable()->GetCl();
 }
 
 inline PTR_MethodTable TypeHandle::GetMethodTable() const
@@ -93,7 +86,11 @@ inline BOOL TypeHandle::IsZapped() const
 {
     LIMITED_METHOD_DAC_CONTRACT;
 
+#ifdef FEATURE_PREJIT
     return (GetZapModule() != NULL);
+#else
+    return FALSE;
+#endif
 }
 
 inline PTR_ArrayTypeDesc TypeHandle::AsArray() const
@@ -117,7 +114,7 @@ inline PTR_MethodTable TypeHandle::AsMethodTable() const
     return PTR_MethodTable(m_asTAddr);
 }
 
-inline PTR_TypeDesc TypeHandle::AsTypeDesc() const 
+inline PTR_TypeDesc TypeHandle::AsTypeDesc() const
 {
     LIMITED_METHOD_DAC_CONTRACT;
 
@@ -140,7 +137,7 @@ inline FnPtrTypeDesc* TypeHandle::AsFnPtrType() const
 }
 
 inline TypeVarTypeDesc* TypeHandle::AsGenericVariable() const
-{ 
+{
     LIMITED_METHOD_DAC_CONTRACT;
 
     _ASSERTE(IsGenericVariable());
@@ -181,7 +178,7 @@ inline BOOL TypeHandle::HasTypeEquivalence() const
 {
     LIMITED_METHOD_CONTRACT;
 
-    if (IsTypeDesc()) 
+    if (IsTypeDesc())
         return AsTypeDesc()->HasTypeEquivalence();
     else
         return AsMethodTable()->HasTypeEquivalence();
@@ -279,6 +276,53 @@ inline void TypeHandle::ForEachComponentMethodTable(T &callback) const
     }
 }
 
+#ifndef CROSSGEN_COMPILE
+FORCEINLINE OBJECTREF TypeHandle::GetManagedClassObjectFast() const
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        FORBID_FAULT;
+    }
+    CONTRACTL_END;
+
+    OBJECTREF o = NULL;
+
+    if (!IsTypeDesc())
+    {
+        o = AsMethodTable()->GetManagedClassObjectIfExists();
+    }
+    else
+    {
+        switch (AsTypeDesc()->GetInternalCorElementType())
+        {
+        case ELEMENT_TYPE_ARRAY:
+        case ELEMENT_TYPE_SZARRAY:
+        case ELEMENT_TYPE_BYREF:
+        case ELEMENT_TYPE_PTR:
+            o = dac_cast<PTR_ParamTypeDesc>(AsTypeDesc())->GetManagedClassObjectFast();
+            break;
+
+        case ELEMENT_TYPE_VAR:
+        case ELEMENT_TYPE_MVAR:
+            o = dac_cast<PTR_TypeVarTypeDesc>(AsTypeDesc())->GetManagedClassObjectFast();
+            break;
+
+        case ELEMENT_TYPE_FNPTR:
+            // A function pointer is mapped into typeof(IntPtr). It results in a loss of information.
+            o = MscorlibBinder::GetElementType(ELEMENT_TYPE_I)->GetManagedClassObjectIfExists();
+            break;
+
+        default:
+            _ASSERTE(!"Bad Element Type");
+            return NULL;
+        }
+    }
+
+    return o;
+}
+#endif // CROSSGEN_COMPILE
 
 #endif  // _TYPEHANDLE_INL_
-

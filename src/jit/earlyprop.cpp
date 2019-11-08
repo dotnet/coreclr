@@ -195,7 +195,7 @@ void Compiler::optEarlyProp()
             // Walk the stmt tree in linear order to rewrite any array length reference with a
             // constant array length.
             bool isRewritten = false;
-            for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
+            for (GenTree* tree = stmt->GetTreeList(); tree != nullptr; tree = tree->gtNext)
             {
                 GenTree* rewrittenTree = optEarlyPropRewriteTree(tree);
                 if (rewrittenTree != nullptr)
@@ -243,7 +243,7 @@ GenTree* Compiler::optEarlyPropRewriteTree(GenTree* tree)
 
     if (tree->OperGet() == GT_ARR_LENGTH)
     {
-        objectRefPtr = tree->gtOp.gtOp1;
+        objectRefPtr = tree->AsOp()->gtOp1;
         propKind     = optPropKind::OPK_ARRAYLEN;
     }
     else if (tree->OperIsIndir())
@@ -258,7 +258,7 @@ GenTree* Compiler::optEarlyPropRewriteTree(GenTree* tree)
             //      *  stmtExpr  void  (top level)
             //      \--*  indir     int
             //          \--*  lclVar    ref    V02 loc0
-            if (compCurStmt->gtStmtExpr == tree)
+            if (compCurStmt->GetRootNode() == tree)
             {
                 return nullptr;
             }
@@ -424,9 +424,9 @@ GenTree* Compiler::optPropGetValueRec(unsigned lclNum, unsigned ssaNum, optPropK
     }
 
     // Track along the use-def chain to get the array length
-    GenTree* treelhs = lvaTable[lclNum].GetPerSsaData(ssaNum)->m_defLoc.m_tree;
+    GenTreeOp* ssaDefAsg = lvaTable[lclNum].GetPerSsaData(ssaNum)->GetAssignment();
 
-    if (treelhs == nullptr)
+    if (ssaDefAsg == nullptr)
     {
         // Incoming parameters or live-in variables don't have actual definition tree node
         // for their FIRST_SSA_NUM. See SsaBuilder::RenameVariables.
@@ -434,46 +434,41 @@ GenTree* Compiler::optPropGetValueRec(unsigned lclNum, unsigned ssaNum, optPropK
     }
     else
     {
-        GenTree** lhsPtr;
-        GenTree*  treeDefParent = treelhs->gtGetParent(&lhsPtr);
+        assert(ssaDefAsg->OperIs(GT_ASG));
 
-        if (treeDefParent->OperGet() == GT_ASG)
+        GenTree* treeRhs = ssaDefAsg->gtGetOp2();
+
+        if (treeRhs->OperIsScalarLocal() && lvaInSsa(treeRhs->AsLclVarCommon()->GetLclNum()))
         {
-            assert(treelhs == treeDefParent->gtGetOp1());
-            GenTree* treeRhs = treeDefParent->gtGetOp2();
+            // Recursively track the Rhs
+            unsigned rhsLclNum = treeRhs->AsLclVarCommon()->GetLclNum();
+            unsigned rhsSsaNum = treeRhs->AsLclVarCommon()->GetSsaNum();
 
-            if (treeRhs->OperIsScalarLocal() && lvaInSsa(treeRhs->AsLclVarCommon()->GetLclNum()))
+            value = optPropGetValueRec(rhsLclNum, rhsSsaNum, valueKind, walkDepth + 1);
+        }
+        else
+        {
+            if (valueKind == optPropKind::OPK_ARRAYLEN)
             {
-                // Recursively track the Rhs
-                unsigned rhsLclNum = treeRhs->AsLclVarCommon()->GetLclNum();
-                unsigned rhsSsaNum = treeRhs->AsLclVarCommon()->GetSsaNum();
-
-                value = optPropGetValueRec(rhsLclNum, rhsSsaNum, valueKind, walkDepth + 1);
-            }
-            else
-            {
-                if (valueKind == optPropKind::OPK_ARRAYLEN)
+                value = getArrayLengthFromAllocation(treeRhs);
+                if (value != nullptr)
                 {
-                    value = getArrayLengthFromAllocation(treeRhs);
-                    if (value != nullptr)
+                    if (!value->IsCnsIntOrI())
                     {
-                        if (!value->IsCnsIntOrI())
-                        {
-                            // Leave out non-constant-sized array
-                            value = nullptr;
-                        }
+                        // Leave out non-constant-sized array
+                        value = nullptr;
                     }
                 }
-                else if (valueKind == optPropKind::OPK_OBJ_GETTYPE)
+            }
+            else if (valueKind == optPropKind::OPK_OBJ_GETTYPE)
+            {
+                value = getObjectHandleNodeFromAllocation(treeRhs);
+                if (value != nullptr)
                 {
-                    value = getObjectHandleNodeFromAllocation(treeRhs);
-                    if (value != nullptr)
+                    if (!value->IsCnsIntOrI())
                     {
-                        if (!value->IsCnsIntOrI())
-                        {
-                            // Leave out non-constant-sized array
-                            value = nullptr;
-                        }
+                        // Leave out non-constant-sized array
+                        value = nullptr;
                     }
                 }
             }
@@ -548,15 +543,15 @@ void Compiler::optFoldNullCheck(GenTree* tree)
 
         if (ssaNum != SsaConfig::RESERVED_SSA_NUM)
         {
-            DefLoc      defLoc   = lvaTable[lclNum].GetPerSsaData(ssaNum)->m_defLoc;
-            BasicBlock* defBlock = defLoc.m_blk;
+            LclSsaVarDsc* defLoc   = lvaTable[lclNum].GetPerSsaData(ssaNum);
+            BasicBlock*   defBlock = defLoc->GetBlock();
 
             if (compCurBB == defBlock)
             {
-                GenTree* defTree   = defLoc.m_tree;
-                GenTree* defParent = defTree->gtGetParent(nullptr);
+                GenTree* defParent = defLoc->GetAssignment();
+                assert(defParent->OperIs(GT_ASG));
 
-                if ((defParent->OperGet() == GT_ASG) && (defParent->gtNext == nullptr))
+                if (defParent->gtNext == nullptr)
                 {
                     GenTree* defRHS = defParent->gtGetOp2();
                     if (defRHS->OperGet() == GT_COMMA)
@@ -573,12 +568,12 @@ void Compiler::optFoldNullCheck(GenTree* tree)
                                 {
                                     GenTree* additionNode = defRHS->gtGetOp2();
                                     if ((additionNode->gtGetOp1()->OperGet() == GT_LCL_VAR) &&
-                                        (additionNode->gtGetOp1()->gtLclVarCommon.GetLclNum() == nullCheckLclNum))
+                                        (additionNode->gtGetOp1()->AsLclVarCommon()->GetLclNum() == nullCheckLclNum))
                                     {
                                         GenTree* offset = additionNode->gtGetOp2();
                                         if (offset->IsCnsIntOrI())
                                         {
-                                            if (!fgIsBigOffset(offset->gtIntConCommon.IconValue()))
+                                            if (!fgIsBigOffset(offset->AsIntConCommon()->IconValue()))
                                             {
                                                 // Walk from the use to the def in reverse execution order to see
                                                 // if any nodes have unsafe side effects.
@@ -607,8 +602,8 @@ void Compiler::optFoldNullCheck(GenTree* tree)
                                                 // Then walk the statement list in reverse execution order
                                                 // until we get to the statement containing the null check.
                                                 // We only need to check the side effects at the root of each statement.
-                                                Statement* curStmt = compCurStmt->getPrevStmt();
-                                                currentTree        = curStmt->gtStmtExpr;
+                                                Statement* curStmt = compCurStmt->GetPrevStmt();
+                                                currentTree        = curStmt->GetRootNode();
                                                 while (canRemoveNullCheck && (currentTree != defParent))
                                                 {
                                                     if ((nodesWalked++ > maxNodesWalked) ||
@@ -618,9 +613,9 @@ void Compiler::optFoldNullCheck(GenTree* tree)
                                                     }
                                                     else
                                                     {
-                                                        curStmt = curStmt->getPrevStmt();
+                                                        curStmt = curStmt->GetPrevStmt();
                                                         assert(curStmt != nullptr);
-                                                        currentTree = curStmt->gtStmtExpr;
+                                                        currentTree = curStmt->GetRootNode();
                                                     }
                                                 }
 

@@ -848,7 +848,7 @@ namespace System.Globalization
                             CultureInfo ci;
 
                             if (CultureInfo.DefaultThreadCurrentUICulture != null &&
-                                ((ci = GetUserDefaultCulture()) != null) &&
+                                ((ci = CultureInfo.GetUserDefaultCulture()) != null) &&
                                 !CultureInfo.DefaultThreadCurrentUICulture.Name.Equals(ci.Name))
                             {
                                 _sLocalizedDisplayName = NativeName;
@@ -1001,7 +1001,7 @@ namespace System.Globalization
                     CultureInfo ci;
 
                     if (CultureInfo.DefaultThreadCurrentUICulture != null &&
-                        ((ci = GetUserDefaultCulture()) != null) &&
+                        ((ci = CultureInfo.GetUserDefaultCulture()) != null) &&
                         !CultureInfo.DefaultThreadCurrentUICulture!.Name.Equals(ci.Name))
                     {
                         _sLocalizedLanguage = NativeLanguageName;
@@ -1567,7 +1567,7 @@ namespace System.Globalization
 
                         // It worked, remember the list
                         CalendarId[] temp = new CalendarId[count];
-                        Array.Copy(calendars, 0, temp, 0, count);
+                        Array.Copy(calendars, temp, count);
 
                         // Want 1st calendar to be default
                         // Prior to Vista the enumeration didn't have default calendar first

@@ -15,7 +15,7 @@ namespace System
         public static int CurrentManagedThreadId => Thread.CurrentThread.ManagedThreadId;
 
         // Terminates this process with the given exit code.
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void _Exit(int exitCode);
 
         [DoesNotReturn]
@@ -80,12 +80,7 @@ namespace System
                 GetCommandLineArgsNative();
         }
 
-        // Unconditionally return false since .NET Core does not support object finalization during shutdown.
-        public static bool HasShutdownStarted => false;
-
-        public static int ProcessorCount => GetProcessorCount();
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern int GetProcessorCount();
 
         // If you change this method's signature then you must change the code that calls it
@@ -126,7 +121,7 @@ namespace System
         // Does the current version of Windows have Windows Runtime suppport?
         internal static bool IsWinRTSupported => WinRT.IsSupported;
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern Interop.BOOL WinRTSupported();
 #endif // FEATURE_COMINTEROP
     }

@@ -5,11 +5,9 @@
 // Any class with a vtable that needs to be instantiated
 // during debugging data access must be listed here.
 
-VPTR_CLASS(Thread)
-
 VPTR_CLASS(EEJitManager)
 
-#ifdef FEATURE_PREJIT 
+#ifdef FEATURE_PREJIT
 VPTR_CLASS(NativeImageJitManager)
 #endif // FEATURE_PREJIT
 #ifdef FEATURE_READYTORUN
@@ -20,7 +18,7 @@ VPTR_CLASS(EECodeManager)
 VPTR_CLASS(RangeList)
 VPTR_CLASS(LockedRangeList)
 
-#ifdef EnC_SUPPORTED 
+#ifdef EnC_SUPPORTED
 VPTR_CLASS(EditAndContinueModule)
 #endif
 VPTR_CLASS(Module)
@@ -52,7 +50,7 @@ VPTR_CLASS(MappedImageLayout)
 VPTR_CLASS(LoadedImageLayout)
 #endif // !CROSSGEN_COMPILE && !FEATURE_PAL
 VPTR_CLASS(FlatImageLayout)
-#ifdef FEATURE_COMINTEROP 
+#ifdef FEATURE_COMINTEROP
 VPTR_CLASS(ComMethodFrame)
 VPTR_CLASS(ComPlusMethodFrame)
 VPTR_CLASS(ComPrestubMethodFrame)
@@ -67,7 +65,6 @@ VPTR_CLASS(DebuggerExitFrame)
 VPTR_CLASS(DebuggerU2MCatchHandlerFrame)
 VPTR_CLASS(FaultingExceptionFrame)
 VPTR_CLASS(FuncEvalFrame)
-VPTR_CLASS(GCFrame)
 VPTR_CLASS(HelperMethodFrame)
 VPTR_CLASS(HelperMethodFrame_1OBJ)
 VPTR_CLASS(HelperMethodFrame_2OBJ)
@@ -103,9 +100,9 @@ VPTR_CLASS(ExceptionFilterFrame)
 
 #ifdef _DEBUG
 VPTR_CLASS(AssumeByrefFromJITStack)
-#endif 
+#endif
 
-#ifdef DEBUGGING_SUPPORTED 
+#ifdef DEBUGGING_SUPPORTED
 VPTR_CLASS(Debugger)
 VPTR_CLASS(EEDbgInterfaceImpl)
 #endif // DEBUGGING_SUPPORTED

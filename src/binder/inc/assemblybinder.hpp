@@ -58,10 +58,6 @@ namespace BINDER_SPACE
                                              /* in */ SString   &cultureName,
                                              /* out */ Assembly **ppSystemAssembly);
 
-        static HRESULT GetAssemblyFromImage(/* in */ PEImage    *pPEImage,
-                                            /* in */ PEImage    *pNativePEImage,
-                                            /* out */ Assembly **ppAssembly);
-
         static HRESULT GetAssembly(/* in */  SString     &assemblyPath,
                                    /* in */  BOOL         fIsInGAC,
                                    /* in */  BOOL         fExplicitBindToNativeImage,
@@ -74,55 +70,22 @@ namespace BINDER_SPACE
                                                       /* in */ IAssemblyName      *pIAssemblyName,
                                                       /* in */ CLRPrivBinderCoreCLR *pTPABinder,
                                                       /* out */ Assembly           **ppAssembly);
-                                                      
+
         static HRESULT BindUsingPEImage(/* in */  ApplicationContext *pApplicationContext,
                                         /* in */  BINDER_SPACE::AssemblyName *pAssemblyName,
                                         /* in */  PEImage            *pPEImage,
                                         /* in */  PEKIND              peKind,
-                                        /* in */  IMDInternalImport  *pIMetaDataAssemblyImport, 
-                                        /* [retval] [out] */  Assembly **ppAssembly);          
+                                        /* in */  IMDInternalImport  *pIMetaDataAssemblyImport,
+                                        /* [retval] [out] */  Assembly **ppAssembly);
 #endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
-                                 
+
         static HRESULT TranslatePEToArchitectureType(DWORD  *pdwPAFlags, PEKIND *PeKind);
-        
-    protected:
-        enum
-        {
-            BIND_NONE = 0x00,
-            BIND_CACHE_FAILURES = 0x01,
-            BIND_CACHE_RERUN_BIND = 0x02,
-            BIND_IGNORE_DYNAMIC_BINDS = 0x04
-#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
-            ,
-            BIND_IGNORE_REFDEF_MATCH = 0x8
-#endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
-        };
 
-        static BOOL IgnoreDynamicBinds(DWORD dwBindFlags)
-        {
-            return ((dwBindFlags & BIND_IGNORE_DYNAMIC_BINDS) != 0);
-        }
-
-        static BOOL CacheBindFailures(DWORD dwBindFlags)
-        {
-            return ((dwBindFlags & BIND_CACHE_FAILURES) != 0);
-        }
-
-        static BOOL RerunBind(DWORD dwBindFlags)
-        {
-            return ((dwBindFlags & BIND_CACHE_RERUN_BIND) != 0);
-        }
-        
-#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
-        static BOOL IgnoreRefDefMatch(DWORD dwBindFlags)
-        {
-            return ((dwBindFlags & BIND_IGNORE_REFDEF_MATCH) != 0);
-        }
-#endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
-        
+    private:
         static HRESULT BindByName(/* in */  ApplicationContext *pApplicationContext,
                                   /* in */  AssemblyName       *pAssemblyName,
-                                  /* in */  DWORD               dwBindFlags,
+                                  /* in */  bool                skipFailureCaching,
+                                  /* in */  bool                skipVersionCompatibilityCheck,
                                   /* in */  bool                excludeAppPaths,
                                   /* out */ BindResult         *pBindResult);
 
@@ -138,7 +101,7 @@ namespace BINDER_SPACE
 
         static HRESULT BindLocked(/* in */  ApplicationContext *pApplicationContext,
                                   /* in */  AssemblyName       *pAssemblyName,
-                                  /* in */  DWORD               dwBindFlags,
+                                  /* in */  bool                skipVersionCompatibilityCheck,
                                   /* in */  bool                excludeAppPaths,
                                   /* out */ BindResult         *pBindResult);
 
@@ -150,7 +113,7 @@ namespace BINDER_SPACE
                                      /* in */  AssemblyName        *pRequestedAssemblyName,
                                      /* in */  bool                 excludeAppPaths,
                                      /* out */ BindResult          *pBindResult);
-        
+
         static HRESULT Register(/* in */  ApplicationContext *pApplicationContext,
                                 /* in */  BindResult         *pBindResult);
         static HRESULT RegisterAndGetHostChosen(/* in */  ApplicationContext *pApplicationContext,

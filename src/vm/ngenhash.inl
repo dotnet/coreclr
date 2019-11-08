@@ -81,10 +81,6 @@ VALUE *NgenHashTable<NGEN_HASH_ARGS>::BaseAllocateEntry(AllocMemTracker *pamTrac
     }
     CONTRACTL_END;
 
-    // Faults are forbidden in BaseInsertEntry. Make the table writeable now that the faults are still allowed.
-    EnsureWritablePages(this);
-    EnsureWritablePages(this->GetWarmBuckets(), m_cWarmBuckets * sizeof(PTR_VolatileEntry));
-
     TaggedMemAllocPtr pMemory = GetHeap()->AllocMem(S_SIZE_T(sizeof(VolatileEntry)));
 
     VolatileEntry *pEntry;
@@ -786,7 +782,7 @@ void NgenHashTable<NGEN_HASH_ARGS>::BaseSave(DataImage *pImage, CorProfileData *
     // We'll allocate half as many buckets as entries (with at least 1 bucket, or zero if there are no entries
     // in this section of the hash).
     DWORD cHotBuckets = cHotEntries ? NextLargestPrime(cHotEntries / 2) : 0;
-    DWORD cColdBuckets = cColdEntries ? NextLargestPrime(cColdEntries / 2) : 0;    
+    DWORD cColdBuckets = cColdEntries ? NextLargestPrime(cColdEntries / 2) : 0;
 
     // Allocate arrays to track bucket chain lengths for each hot or cold bucket list (as needed).
     DWORD *pHotBucketSizes = cHotBuckets ? new DWORD[cHotBuckets] : NULL;
@@ -955,7 +951,7 @@ void NgenHashTable<NGEN_HASH_ARGS>::BaseSave(DataImage *pImage, CorProfileData *
     if (cHotEntries)
     {
         pImage->StoreStructure(GetPersistedHotEntries(),
-                               static_cast<ULONG>(sizeof(PersistedEntry) * cHotEntries), 
+                               static_cast<ULONG>(sizeof(PersistedEntry) * cHotEntries),
                                fAllEntriesImmutable ? DataImage::ITEM_NGEN_HASH_ENTRIES_RO_HOT : DataImage::ITEM_NGEN_HASH_ENTRIES_HOT);
 
         pImage->StoreStructure(GetPersistedHotBuckets(),
@@ -967,7 +963,7 @@ void NgenHashTable<NGEN_HASH_ARGS>::BaseSave(DataImage *pImage, CorProfileData *
     if (cColdEntries)
     {
         pImage->StoreStructure(GetPersistedColdEntries(),
-                               static_cast<ULONG>(sizeof(PersistedEntry) * cColdEntries), 
+                               static_cast<ULONG>(sizeof(PersistedEntry) * cColdEntries),
                                fAllEntriesImmutable ? DataImage::ITEM_NGEN_HASH_ENTRIES_RO_COLD : DataImage::ITEM_NGEN_HASH_ENTRIES_COLD);
 
         pImage->StoreStructure(GetPersistedColdBuckets(),

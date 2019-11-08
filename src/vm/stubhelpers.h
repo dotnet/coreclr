@@ -1,11 +1,11 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
-// 
+//
 // File: stubhelpers.h
-// 
+//
 
-// 
+//
 
 
 #ifndef __STUBHELPERS_h__
@@ -46,13 +46,6 @@ public:
     // PInvoke stub helpers
     //-------------------------------------------------------
 
-    static FCDECL1_V(double,        DateMarshaler__ConvertToNative,  INT64 managedDate);
-    static FCDECL1_V(INT64,         DateMarshaler__ConvertToManaged, double nativeDate);
-
-    static FCDECL4(void,            ValueClassMarshaler__ConvertToNative, LPVOID pDest, LPVOID pSrc, MethodTable* pMT, OBJECTREF *ppCleanupWorkListOnStack);
-    static FCDECL3(void,            ValueClassMarshaler__ConvertToManaged, LPVOID pDest, LPVOID pSrc, MethodTable* pMT);
-    static FCDECL2(void,            ValueClassMarshaler__ClearNative, LPVOID pDest, MethodTable* pMT);
-
 #ifdef FEATURE_COMINTEROP
     static FCDECL4(IUnknown*,       GetCOMIPFromRCW,                    Object* pSrcUNSAFE, MethodDesc* pMD, void **ppTarget, CLR_BOOL* pfNeedsRelease);
     static FCDECL3(IUnknown*,       GetCOMIPFromRCW_WinRT,              Object* pSrcUNSAFE, MethodDesc* pMD, void **ppTarget);
@@ -61,7 +54,7 @@ public:
 
     static FCDECL2(FC_BOOL_RET,     ShouldCallWinRTInterface,           Object* pSrcUNSAFE, MethodDesc* pMD);
     static FCDECL3(DelegateObject*, GetTargetForAmbiguousVariantCall,   Object* pSrcUNSAFE, MethodTable* pMT, CLR_BOOL *pfUseString);
-    
+
     static FCDECL2(void,            ObjectMarshaler__ConvertToNative, Object* pSrcUNSAFE, VARIANT* pDest);
     static FCDECL1(Object*,         ObjectMarshaler__ConvertToManaged, VARIANT* pSrc);
     static FCDECL1(void,            ObjectMarshaler__ClearNative,      VARIANT* pSrc);
@@ -98,7 +91,7 @@ public:
 
     static FCDECL3(void,            FmtClassUpdateNativeInternal, Object* pObjUNSAFE, BYTE* pbNative, OBJECTREF *ppCleanupWorkListOnStack);
     static FCDECL2(void,            FmtClassUpdateCLRInternal, Object* pObjUNSAFE, BYTE* pbNative);
-    static FCDECL2(void,            LayoutDestroyNativeInternal, BYTE* pbNative, MethodTable* pMT);
+    static FCDECL2(void,            LayoutDestroyNativeInternal, Object* pObjUNSAFE, BYTE* pbNative);
     static FCDECL1(Object*,         AllocateInternal,       EnregisteredTypeHandle typeHnd);
     static FCDECL3(void,            MarshalToUnmanagedVaListInternal, va_list va, DWORD cbVaListSize, const VARARGS* pArgIterator);
     static FCDECL2(void,            MarshalToManagedVaListInternal, va_list va, VARARGS* pArgIterator);
@@ -112,7 +105,7 @@ public:
     static FCDECL3(void,            ValidateByref, void *pByref, MethodDesc *pMD, Object *pThisUNSAFE);
 
 #ifdef FEATURE_COMINTEROP
-    static FCDECL1(Object*,         GetWinRTFactoryObject,  MethodDesc *pCMD);    
+    static FCDECL1(Object*,         GetWinRTFactoryObject,  MethodDesc *pCMD);
 #endif // FEATURE_COMINTEROP
 
 #ifdef PROFILING_SUPPORTED

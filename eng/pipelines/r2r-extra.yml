@@ -14,23 +14,23 @@ jobs:
 #
 # Checkout repository
 #
-- template: /eng/checkout-job.yml
+- template: templates/checkout-job.yml
 
-- template: /eng/platform-matrix.yml
+- template: templates/platform-matrix.yml
   parameters:
     jobTemplate: build-job.yml
     buildConfig: checked
     platformGroup: gcstress
     jobParameters:
       testGroup: r2r-extra
-      crossgenFramework: true
 
-- template: /eng/platform-matrix.yml
+- template: templates/platform-matrix.yml
   parameters:
     jobTemplate: test-job.yml
     buildConfig: checked
     platformGroup: gcstress # r2r-extra testGroup runs gcstress15 scenario
     helixQueueGroup: ci
+    managedOsxBuild: false
     jobParameters:
       testGroup: r2r-extra
       readyToRun: true

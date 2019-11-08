@@ -225,6 +225,9 @@ private:
     // MapSelect application.
     int m_mapSelectBudget;
 
+    template <typename T, typename NumMap>
+    inline ValueNum VnForConst(T cnsVal, NumMap* numMap, var_types varType);
+
 public:
     // Initializes any static variables of ValueNumStore.
     static void InitValueNumStoreStatics();
@@ -257,7 +260,6 @@ public:
 #endif // DEBUG
 
     // This block of methods gets value numbers for constants of primitive types.
-
     ValueNum VNForIntCon(INT32 cnsVal);
     ValueNum VNForLongCon(INT64 cnsVal);
     ValueNum VNForFloatCon(float cnsVal);
@@ -1146,24 +1148,6 @@ private:
         return m_intCnsMap;
     }
 
-    ValueNum GetVNForIntCon(INT32 cnsVal)
-    {
-        ValueNum res;
-        if (GetIntCnsMap()->Lookup(cnsVal, &res))
-        {
-            return res;
-        }
-        else
-        {
-            Chunk*   c                                             = GetAllocChunk(TYP_INT, CEA_Const);
-            unsigned offsetWithinChunk                             = c->AllocVN();
-            res                                                    = c->m_baseVN + offsetWithinChunk;
-            reinterpret_cast<INT32*>(c->m_defs)[offsetWithinChunk] = cnsVal;
-            GetIntCnsMap()->Set(cnsVal, res);
-            return res;
-        }
-    }
-
     typedef VNMap<INT64> LongToValueNumMap;
     LongToValueNumMap*   m_longCnsMap;
     LongToValueNumMap*   GetLongCnsMap()
@@ -1274,7 +1258,7 @@ private:
 
     struct VNDefFunc2ArgKeyFuncs : public JitKeyFuncsDefEquals<VNDefFunc2Arg>
     {
-        static unsigned GetHashCode(VNDefFunc2Arg val)
+        static unsigned GetHashCode(const VNDefFunc2Arg& val)
         {
             return (val.m_func << 24) + (val.m_arg0 << 8) + val.m_arg1;
         }
@@ -1292,7 +1276,7 @@ private:
 
     struct VNDefFunc3ArgKeyFuncs : public JitKeyFuncsDefEquals<VNDefFunc3Arg>
     {
-        static unsigned GetHashCode(VNDefFunc3Arg val)
+        static unsigned GetHashCode(const VNDefFunc3Arg& val)
         {
             return (val.m_func << 24) + (val.m_arg0 << 16) + (val.m_arg1 << 8) + val.m_arg2;
         }
@@ -1310,7 +1294,7 @@ private:
 
     struct VNDefFunc4ArgKeyFuncs : public JitKeyFuncsDefEquals<VNDefFunc4Arg>
     {
-        static unsigned GetHashCode(VNDefFunc4Arg val)
+        static unsigned GetHashCode(const VNDefFunc4Arg& val)
         {
             return (val.m_func << 24) + (val.m_arg0 << 16) + (val.m_arg1 << 8) + val.m_arg2 + (val.m_arg3 << 12);
         }

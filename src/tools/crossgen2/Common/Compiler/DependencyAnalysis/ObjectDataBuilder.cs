@@ -15,9 +15,13 @@ namespace ILCompiler.DependencyAnalysis
         : Internal.Runtime.ITargetBinaryWriter
 #endif
     {
-        public ObjectDataBuilder(NodeFactory factory, bool relocsOnly)
+        public ObjectDataBuilder(NodeFactory factory, bool relocsOnly) : this(factory.Target, relocsOnly)
         {
-            _target = factory.Target;
+        }
+
+        public ObjectDataBuilder(TargetDetails target, bool relocsOnly)
+        {
+            _target = target;
             _data = new ArrayBuilder<byte>();
             _relocs = new ArrayBuilder<Relocation>();
             Alignment = 1;
@@ -287,6 +291,7 @@ namespace ILCompiler.DependencyAnalysis
                 case RelocType.IMAGE_REL_BASED_HIGHLOW:
                 case RelocType.IMAGE_REL_SECREL:
                 case RelocType.IMAGE_REL_BASED_ADDR32NB:
+                case RelocType.IMAGE_REL_SYMBOL_SIZE:
                     EmitInt(delta);
                     break;
                 case RelocType.IMAGE_REL_BASED_DIR64:
