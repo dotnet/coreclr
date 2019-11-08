@@ -3,6 +3,19 @@
 # This file invokes cmake and generates the build system for Clang.
 #
 
+source="${BASH_SOURCE[0]}"
+
+# resolve $SOURCE until the file is no longer a symlink
+while [[ -h $source ]]; do
+  scriptroot="$( cd -P "$( dirname "$source" )" && pwd )"
+  source="$(readlink "$source")"
+
+  # if $source was a relative symlink, we need to resolve it relative to the path where the
+  # symlink file was located
+  [[ $source != /* ]] && source="$scriptroot/$source"
+done
+scriptroot="$( cd -P "$( dirname "$source" )" && pwd )"
+
 if [ $# -lt 4 ]
 then
   echo "Usage..."
@@ -53,10 +66,10 @@ if [ "$CROSSCOMPILE" == "1" ]; then
         exit 1
     fi
     if [[ -z $CONFIG_DIR ]]; then
-        CONFIG_DIR="$1/cross"
+        CONFIG_DIR="$1/eng/common/cross"
     fi
     export TARGET_BUILD_ARCH=$build_arch
-    cmake_extra_defines="$cmake_extra_defines -C $CONFIG_DIR/tryrun.cmake"
+    cmake_extra_defines="$cmake_extra_defines -C $scriptroot/tryrun.cmake"
     cmake_extra_defines="$cmake_extra_defines -DCMAKE_TOOLCHAIN_FILE=$CONFIG_DIR/toolchain.cmake"
 fi
 

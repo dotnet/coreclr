@@ -2068,6 +2068,10 @@ void SystemDomain::LoadBaseSystemClasses()
     g_pDelegateClass = MscorlibBinder::GetClass(CLASS__DELEGATE);
     g_pMulticastDelegateClass = MscorlibBinder::GetClass(CLASS__MULTICAST_DELEGATE);
 
+#ifndef CROSSGEN_COMPILE
+    CrossLoaderAllocatorHashSetup::EnsureTypesLoaded();
+#endif
+
     // used by IsImplicitInterfaceOfSZArray
     MscorlibBinder::GetClass(CLASS__IENUMERABLEGENERIC);
     MscorlibBinder::GetClass(CLASS__ICOLLECTIONGENERIC);
@@ -2082,10 +2086,6 @@ void SystemDomain::LoadBaseSystemClasses()
     // Load Utf8String
     g_pUtf8StringClass = MscorlibBinder::GetClass(CLASS__UTF8_STRING);
 #endif // FEATURE_UTF8STRING
-
-#ifndef CROSSGEN_COMPILE
-    CrossLoaderAllocatorHashSetup::EnsureTypesLoaded();
-#endif
 
 #ifndef CROSSGEN_COMPILE
     ECall::PopulateManagedStringConstructors();
@@ -4983,10 +4983,12 @@ EndTry2:;
     {
         HRESULT hrBindResult = S_OK;
         PEAssemblyHolder result;
-
+        
+        bool isCached = false;
         EX_TRY
         {
-            if (!IsCached(pSpec))
+            isCached = IsCached(pSpec);
+            if (!isCached)
             {
 
                 {
@@ -5147,7 +5149,7 @@ EndTry2:;
                 result->AddRef();
         }
 
-        bindOperation.SetResult(result.GetValue());
+        bindOperation.SetResult(result.GetValue(), isCached);
         return result.Extract();
     }
     else
