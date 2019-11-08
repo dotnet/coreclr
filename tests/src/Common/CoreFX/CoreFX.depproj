@@ -33,7 +33,7 @@
   <ItemGroup>
 
     <!-- Workaround to exclude runtime assets from this package while we fix a bug in CoreFx -->
-    <PackageReference Include="System.IO.FileSystem.AccessControl" Version="$(SystemIOFileSystemAccessControlVersion)" PrivateAssets="Runtime" />
+    <PackageReference Include="System.IO.FileSystem.AccessControl" Version="$(SystemIOFileSystemAccessControlVersion)" ExcludeAssets="Runtime" />
 
     <!-- Microsoft.Private.CoreFx.OOB is a meta-package that contains references to most of what we need -->
     <PackageReference Include="Microsoft.Private.CoreFx.OOB" Version="$(MicrosoftPrivateCoreFxNETCoreAppVersion)" />
