@@ -47,7 +47,7 @@ if [ ! -z ${RunCrossGen+x} ]%3B then
           mkdir IL
           cp $(MSBuildProjectName).dll IL/$(MSBuildProjectName).dll
           mv $(MSBuildProjectName).dll $(MSBuildProjectName).org
-          __Command=$_DebuggerFullPath "$CORE_ROOT/crossgen" /Platform_Assemblies_Paths $CORE_ROOT/Crossgen-ret.out%3A$PWD /in $(MSBuildProjectName).org /out $(MSBuildProjectName).dll
+          __Command=$_DebuggerFullPath "$CORE_ROOT/crossgen" /Platform_Assemblies_Paths $CORE_ROOT%3A$PWD /in $(MSBuildProjectName).org /out $(MSBuildProjectName).dll
           echo $__Command
           $__Command
           __cgExitCode=$?
@@ -108,7 +108,7 @@ if defined RunCrossGen (
             mkdir IL
             copy $(MSBuildProjectName).dll IL\$(MSBuildProjectName).dll
             ren $(MSBuildProjectName).dll $(MSBuildProjectName).org
-            set __Command=!_DebuggerFullPath! "!CORE_ROOT!\crossgen.exe" !OptionalArguments! /Platform_Assemblies_Paths !CORE_ROOT!\Crossgen-ret.out%3B%25cd%25 /in $(scriptPath)\$(MSBuildProjectName).org /out %25scriptPath%25\$(MSBuildProjectName).dll
+            set __Command=!_DebuggerFullPath! "!CORE_ROOT!\crossgen.exe" !OptionalArguments! /Platform_Assemblies_Paths !CORE_ROOT!%3B%25cd%25 /in $(scriptPath)\$(MSBuildProjectName).org /out %25scriptPath%25\$(MSBuildProjectName).dll
             echo "!__Command!"
             call !__Command!
             set CrossGenStatus=!ERRORLEVEL!
