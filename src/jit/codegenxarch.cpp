@@ -1459,14 +1459,14 @@ const CodeGen::GenConditionDesc CodeGen::GenConditionDesc::map[32]
     { EJ_ja  }, // UGT
     { EJ_jb  }, // C
     { EJ_jae }, // NC
-                        
+
     // Floating point compare instructions (UCOMISS, UCOMISD etc.) set the condition flags as follows:
-    //    ZF PF CF  Meaning   
+    //    ZF PF CF  Meaning
     //   ---------------------
-    //    1  1  1   Unordered 
-    //    0  0  0   Greater   
-    //    0  0  1   Less Than 
-    //    1  0  0   Equal     
+    //    1  1  1   Unordered
+    //    0  0  0   Greater
+    //    0  0  1   Less Than
+    //    1  0  0   Equal
     //
     // Since ZF and CF are also set when the result is unordered, in some cases we first need to check
     // PF before checking ZF/CF. In general, ordered conditions will result in a jump only if PF is not
@@ -1480,7 +1480,7 @@ const CodeGen::GenConditionDesc CodeGen::GenConditionDesc::map[32]
     { EJ_ja                  }, // FGT
     { EJ_jo                  }, // O
     { EJ_jno                 }, // NO
-                        
+
     { EJ_je                }, // FEQU
     { EJ_jp, GT_OR, EJ_jne }, // FNEU
     { EJ_jb                }, // FLTU
@@ -1814,7 +1814,7 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
 #endif // FEATURE_SIMD
 
 #ifdef FEATURE_HW_INTRINSICS
-        case GT_HWIntrinsic:
+        case GT_HWINTRINSIC:
             genHWIntrinsic(treeNode->AsHWIntrinsic());
             break;
 #endif // FEATURE_HW_INTRINSICS
@@ -1913,6 +1913,10 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
             break;
 
         case GT_NOP:
+            break;
+
+        case GT_KEEPALIVE:
+            genConsumeRegs(treeNode->AsOp()->gtOp1);
             break;
 
         case GT_NO_OP:
@@ -2215,7 +2219,17 @@ void CodeGen::genMultiRegCallStoreToLocal(GenTree* treeNode)
 }
 
 //------------------------------------------------------------------------
-// genAllocLclFrame: Probe the stack and allocate the local stack frame: subtract from SP.
+// genAllocLclFrame: Probe the stack and allocate the local stack frame - subtract from SP.
+//
+// Arguments:
+//      frameSize         - the size of the stack frame being allocated.
+//      initReg           - register to use as a scratch register.
+//      pInitRegZeroed    - OUT parameter. *pInitRegZeroed is set to 'false' if and only if
+//                          this call sets 'initReg' to a non-zero value.
+//      maskArgRegsLiveIn - incoming argument registers that are currently live.
+//
+// Return value:
+//      None
 //
 void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pInitRegZeroed, regMaskTP maskArgRegsLiveIn)
 {
@@ -2917,8 +2931,45 @@ void CodeGen::genCodeForInitBlkUnroll(GenTreeBlk* node)
 {
     assert(node->OperIs(GT_STORE_BLK));
 
-    regNumber dstAddrBaseReg = genConsumeReg(node->Addr());
-    unsigned  dstOffset      = 0;
+    unsigned  dstLclNum         = BAD_VAR_NUM;
+    regNumber dstAddrBaseReg    = REG_NA;
+    regNumber dstAddrIndexReg   = REG_NA;
+    unsigned  dstAddrIndexScale = 1;
+    int       dstOffset         = 0;
+    GenTree*  dstAddr           = node->Addr();
+
+    if (!dstAddr->isContained())
+    {
+        dstAddrBaseReg = genConsumeReg(dstAddr);
+    }
+    else if (dstAddr->OperIsAddrMode())
+    {
+        GenTreeAddrMode* addrMode = dstAddr->AsAddrMode();
+
+        if (addrMode->HasBase())
+        {
+            dstAddrBaseReg = genConsumeReg(addrMode->Base());
+        }
+
+        if (addrMode->HasIndex())
+        {
+            dstAddrIndexReg   = genConsumeReg(addrMode->Index());
+            dstAddrIndexScale = addrMode->GetScale();
+        }
+
+        dstOffset = addrMode->Offset();
+    }
+    else
+    {
+        assert(dstAddr->OperIsLocalAddr());
+        dstLclNum = dstAddr->AsLclVarCommon()->GetLclNum();
+
+        if (dstAddr->OperIs(GT_LCL_FLD_ADDR))
+        {
+            assert(dstAddr->AsLclFld()->gtLclOffs <= INT32_MAX);
+            dstOffset = static_cast<int>(dstAddr->AsLclFld()->gtLclOffs);
+        }
+    }
 
     regNumber srcIntReg = REG_NA;
     GenTree*  src       = node->Data();
@@ -2944,6 +2995,9 @@ void CodeGen::genCodeForInitBlkUnroll(GenTreeBlk* node)
     emitter* emit = GetEmitter();
     unsigned size = node->GetLayout()->GetSize();
 
+    assert(size <= INT32_MAX);
+    assert(dstOffset < (INT32_MAX - static_cast<int>(size)));
+
     // Fill as much as possible using SSE2 stores.
     if (size >= XMM_REGSIZE_BYTES)
     {
@@ -2967,7 +3021,15 @@ void CodeGen::genCodeForInitBlkUnroll(GenTreeBlk* node)
 
         for (unsigned regSize = XMM_REGSIZE_BYTES; size >= regSize; size -= regSize, dstOffset += regSize)
         {
-            emit->emitIns_AR_R(INS_movdqu, EA_ATTR(regSize), srcXmmReg, dstAddrBaseReg, dstOffset);
+            if (dstLclNum != BAD_VAR_NUM)
+            {
+                emit->emitIns_S_R(INS_movdqu, EA_ATTR(regSize), srcXmmReg, dstLclNum, dstOffset);
+            }
+            else
+            {
+                emit->emitIns_ARX_R(INS_movdqu, EA_ATTR(regSize), srcXmmReg, dstAddrBaseReg, dstAddrIndexReg,
+                                    dstAddrIndexScale, dstOffset);
+            }
         }
 
         // TODO-CQ-XArch: On x86 we could initialize 8 byte at once by using MOVQ instead of two 4 byte MOV stores.
@@ -2983,7 +3045,15 @@ void CodeGen::genCodeForInitBlkUnroll(GenTreeBlk* node)
             regSize /= 2;
         }
 
-        emit->emitIns_AR_R(INS_mov, EA_ATTR(regSize), srcIntReg, dstAddrBaseReg, dstOffset);
+        if (dstLclNum != BAD_VAR_NUM)
+        {
+            emit->emitIns_S_R(INS_mov, EA_ATTR(regSize), srcIntReg, dstLclNum, dstOffset);
+        }
+        else
+        {
+            emit->emitIns_ARX_R(INS_mov, EA_ATTR(regSize), srcIntReg, dstAddrBaseReg, dstAddrIndexReg,
+                                dstAddrIndexScale, dstOffset);
+        }
     }
 }
 
@@ -3041,33 +3111,64 @@ void CodeGen::genCodeForCpBlkUnroll(GenTreeBlk* node)
 {
     assert(node->OperIs(GT_STORE_BLK));
 
-    unsigned  dstLclNum      = BAD_VAR_NUM;
-    regNumber dstAddrBaseReg = REG_NA;
-    unsigned  dstOffset      = 0;
-    GenTree*  dstAddr        = node->Addr();
+    unsigned  dstLclNum         = BAD_VAR_NUM;
+    regNumber dstAddrBaseReg    = REG_NA;
+    regNumber dstAddrIndexReg   = REG_NA;
+    unsigned  dstAddrIndexScale = 1;
+    int       dstOffset         = 0;
+    GenTree*  dstAddr           = node->Addr();
 
     if (!dstAddr->isContained())
     {
         dstAddrBaseReg = genConsumeReg(dstAddr);
     }
+    else if (dstAddr->OperIsAddrMode())
+    {
+        GenTreeAddrMode* addrMode = dstAddr->AsAddrMode();
+
+        if (addrMode->HasBase())
+        {
+            dstAddrBaseReg = genConsumeReg(addrMode->Base());
+        }
+
+        if (addrMode->HasIndex())
+        {
+            dstAddrIndexReg   = genConsumeReg(addrMode->Index());
+            dstAddrIndexScale = addrMode->GetScale();
+        }
+
+        dstOffset = addrMode->Offset();
+    }
     else
     {
         assert(dstAddr->OperIsLocalAddr());
         dstLclNum = dstAddr->AsLclVarCommon()->GetLclNum();
-        dstOffset = dstAddr->OperIs(GT_LCL_FLD_ADDR) ? dstAddr->AsLclFld()->gtLclOffs : 0;
+
+        if (dstAddr->OperIs(GT_LCL_FLD_ADDR))
+        {
+            assert(dstAddr->AsLclFld()->gtLclOffs <= INT32_MAX);
+            dstOffset = static_cast<int>(dstAddr->AsLclFld()->gtLclOffs);
+        }
     }
 
-    unsigned  srcLclNum      = BAD_VAR_NUM;
-    regNumber srcAddrBaseReg = REG_NA;
-    unsigned  srcOffset      = 0;
-    GenTree*  src            = node->Data();
+    unsigned  srcLclNum         = BAD_VAR_NUM;
+    regNumber srcAddrBaseReg    = REG_NA;
+    regNumber srcAddrIndexReg   = REG_NA;
+    unsigned  srcAddrIndexScale = 1;
+    int       srcOffset         = 0;
+    GenTree*  src               = node->Data();
 
     assert(src->isContained());
 
     if (src->OperIs(GT_LCL_VAR, GT_LCL_FLD))
     {
         srcLclNum = src->AsLclVarCommon()->GetLclNum();
-        srcOffset = src->OperIs(GT_LCL_FLD) ? src->AsLclFld()->gtLclOffs : 0;
+
+        if (src->OperIs(GT_LCL_FLD))
+        {
+            assert(src->AsLclFld()->gtLclOffs <= INT32_MAX);
+            srcOffset = static_cast<int>(src->AsLclFld()->gtLclOffs);
+        }
     }
     else
     {
@@ -3078,16 +3179,42 @@ void CodeGen::genCodeForCpBlkUnroll(GenTreeBlk* node)
         {
             srcAddrBaseReg = genConsumeReg(srcAddr);
         }
+        else if (srcAddr->OperIsAddrMode())
+        {
+            GenTreeAddrMode* addrMode = srcAddr->AsAddrMode();
+
+            if (addrMode->HasBase())
+            {
+                srcAddrBaseReg = genConsumeReg(addrMode->Base());
+            }
+
+            if (addrMode->HasIndex())
+            {
+                srcAddrIndexReg   = genConsumeReg(addrMode->Index());
+                srcAddrIndexScale = addrMode->GetScale();
+            }
+
+            srcOffset = addrMode->Offset();
+        }
         else
         {
             assert(srcAddr->OperIsLocalAddr());
             srcLclNum = srcAddr->AsLclVarCommon()->GetLclNum();
-            srcOffset = srcAddr->OperIs(GT_LCL_FLD_ADDR) ? srcAddr->AsLclFld()->gtLclOffs : 0;
+
+            if (srcAddr->OperIs(GT_LCL_FLD_ADDR))
+            {
+                assert(srcAddr->AsLclFld()->gtLclOffs <= INT32_MAX);
+                srcOffset = static_cast<int>(srcAddr->AsLclFld()->gtLclOffs);
+            }
         }
     }
 
     emitter* emit = GetEmitter();
     unsigned size = node->GetLayout()->GetSize();
+
+    assert(size <= INT32_MAX);
+    assert(srcOffset < (INT32_MAX - static_cast<int>(size)));
+    assert(dstOffset < (INT32_MAX - static_cast<int>(size)));
 
     if (size >= XMM_REGSIZE_BYTES)
     {
@@ -3102,7 +3229,8 @@ void CodeGen::genCodeForCpBlkUnroll(GenTreeBlk* node)
             }
             else
             {
-                emit->emitIns_R_AR(INS_movdqu, EA_ATTR(regSize), tempReg, srcAddrBaseReg, srcOffset);
+                emit->emitIns_R_ARX(INS_movdqu, EA_ATTR(regSize), tempReg, srcAddrBaseReg, srcAddrIndexReg,
+                                    srcAddrIndexScale, srcOffset);
             }
 
             if (dstLclNum != BAD_VAR_NUM)
@@ -3111,7 +3239,8 @@ void CodeGen::genCodeForCpBlkUnroll(GenTreeBlk* node)
             }
             else
             {
-                emit->emitIns_AR_R(INS_movdqu, EA_ATTR(regSize), tempReg, dstAddrBaseReg, dstOffset);
+                emit->emitIns_ARX_R(INS_movdqu, EA_ATTR(regSize), tempReg, dstAddrBaseReg, dstAddrIndexReg,
+                                    dstAddrIndexScale, dstOffset);
             }
         }
 
@@ -3137,7 +3266,8 @@ void CodeGen::genCodeForCpBlkUnroll(GenTreeBlk* node)
             }
             else
             {
-                emit->emitIns_R_AR(INS_mov, EA_ATTR(regSize), tempReg, srcAddrBaseReg, srcOffset);
+                emit->emitIns_R_ARX(INS_mov, EA_ATTR(regSize), tempReg, srcAddrBaseReg, srcAddrIndexReg,
+                                    srcAddrIndexScale, srcOffset);
             }
 
             if (dstLclNum != BAD_VAR_NUM)
@@ -3146,7 +3276,8 @@ void CodeGen::genCodeForCpBlkUnroll(GenTreeBlk* node)
             }
             else
             {
-                emit->emitIns_AR_R(INS_mov, EA_ATTR(regSize), tempReg, dstAddrBaseReg, dstOffset);
+                emit->emitIns_ARX_R(INS_mov, EA_ATTR(regSize), tempReg, dstAddrBaseReg, dstAddrIndexReg,
+                                    dstAddrIndexScale, dstOffset);
             }
         }
     }

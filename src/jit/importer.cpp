@@ -1170,9 +1170,8 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
                                       BasicBlock*          block       /* = NULL */
                                       )
 {
-    var_types destType;
-    GenTree*  dest      = nullptr;
-    unsigned  destFlags = 0;
+    GenTree* dest      = nullptr;
+    unsigned destFlags = 0;
 
     if (ilOffset == BAD_IL_OFFSET)
     {
@@ -1181,23 +1180,6 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
 
     assert(src->OperIs(GT_LCL_VAR, GT_FIELD, GT_IND, GT_OBJ, GT_CALL, GT_MKREFANY, GT_RET_EXPR, GT_COMMA) ||
            (src->TypeGet() != TYP_STRUCT && (src->OperIsSimdOrHWintrinsic() || src->OperIs(GT_LCL_FLD))));
-
-    if (destAddr->OperGet() == GT_ADDR)
-    {
-        GenTree* destNode = destAddr->gtGetOp1();
-        // If the actual destination is a local, or already a block node, or is a node that
-        // will be morphed, don't insert an OBJ(ADDR).
-        if (destNode->gtOper == GT_INDEX || destNode->OperIsBlk() ||
-            ((destNode->OperGet() == GT_LCL_VAR) && (destNode->TypeGet() == src->TypeGet())))
-        {
-            dest = destNode;
-        }
-        destType = destNode->TypeGet();
-    }
-    else
-    {
-        destType = src->TypeGet();
-    }
 
     var_types asgType = src->TypeGet();
 
@@ -1309,13 +1291,6 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
             src->gtType  = genActualType(returnType);
             call->gtType = src->gtType;
 
-            // If we've changed the type, and it no longer matches a local destination,
-            // we must use an indirection.
-            if ((dest != nullptr) && (dest->OperGet() == GT_LCL_VAR) && (dest->TypeGet() != asgType))
-            {
-                dest = nullptr;
-            }
-
             // !!! The destination could be on stack. !!!
             // This flag will let us choose the correct write barrier.
             destFlags = GTF_IND_TGTANYWHERE;
@@ -1407,6 +1382,33 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
         asgType     = impNormStructType(structHnd);
         src->gtType = asgType;
     }
+    if ((dest == nullptr) && (destAddr->OperGet() == GT_ADDR))
+    {
+        GenTree* destNode = destAddr->gtGetOp1();
+        // If the actual destination is a local, a GT_INDEX or a block node, or is a node that
+        // will be morphed, don't insert an OBJ(ADDR) if it already has the right type.
+        if (destNode->OperIs(GT_LCL_VAR, GT_INDEX) || destNode->OperIsBlk())
+        {
+            var_types destType = destNode->TypeGet();
+            // If one or both types are TYP_STRUCT (one may not yet be normalized), they are compatible
+            // iff their handles are the same.
+            // Otherwise, they are compatible if their types are the same.
+            bool typesAreCompatible =
+                ((destType == TYP_STRUCT) || (asgType == TYP_STRUCT))
+                    ? ((gtGetStructHandleIfPresent(destNode) == structHnd) && varTypeIsStruct(asgType))
+                    : (destType == asgType);
+            if (typesAreCompatible)
+            {
+                dest = destNode;
+                if (destType != TYP_STRUCT)
+                {
+                    // Use a normalized type if available. We know from above that they're equivalent.
+                    asgType = destType;
+                }
+            }
+        }
+    }
+
     if (dest == nullptr)
     {
         if (asgType == TYP_STRUCT)
@@ -1672,7 +1674,7 @@ GenTree* Compiler::impNormStructVal(GenTree*             structVal,
             break;
 #endif // FEATURE_SIMD
 #ifdef FEATURE_HW_INTRINSICS
-        case GT_HWIntrinsic:
+        case GT_HWINTRINSIC:
             assert(varTypeIsSIMD(structVal) && (structVal->gtType == structType));
             break;
 #endif
@@ -4105,6 +4107,20 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
                 break;
             }
 
+            case NI_System_GC_KeepAlive:
+            {
+                retNode = gtNewOperNode(GT_KEEPALIVE, TYP_VOID, impPopStack().val);
+
+                // Prevent both reordering and removal. Invalid optimizations of GC.KeepAlive are
+                // very subtle and hard to observe. Thus we are conservatively marking it with both
+                // GTF_CALL and GTF_GLOB_REF side-effects even though it may be more than strictly
+                // necessary. The conservative side-effects are unlikely to have negative impact
+                // on code quality in this case.
+                retNode->gtFlags |= (GTF_CALL | GTF_GLOB_REF);
+
+                break;
+            }
+
             default:
                 break;
         }
@@ -4282,6 +4298,13 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
                 {
                     result = NI_System_MathF_Round;
                 }
+            }
+        }
+        else if (strcmp(className, "GC") == 0)
+        {
+            if (strcmp(methodName, "KeepAlive") == 0)
+            {
+                result = NI_System_GC_KeepAlive;
             }
         }
     }
@@ -18784,17 +18807,6 @@ void Compiler::impInlineInitVars(InlineInfo* pInlineInfo)
 
     if (thisArg != nullptr)
     {
-        var_types sigType;
-
-        if (clsAttr & CORINFO_FLG_VALUECLASS)
-        {
-            sigType = TYP_BYREF;
-        }
-        else
-        {
-            sigType = TYP_REF;
-        }
-
         lclVarInfo[0].lclVerTypeInfo = verMakeTypeInfo(pInlineInfo->inlineCandidateInfo->clsHandle);
         lclVarInfo[0].lclHasLdlocaOp = false;
 
@@ -18803,15 +18815,13 @@ void Compiler::impInlineInitVars(InlineInfo* pInlineInfo)
         // the inlining multiplier) for anything in that assembly.
         // But we only need to normalize it if it is a TYP_STRUCT
         // (which we need to do even if we have already set foundSIMDType).
-        if ((!foundSIMDType || (sigType == TYP_STRUCT)) && isSIMDorHWSIMDClass(&(lclVarInfo[0].lclVerTypeInfo)))
+        if (!foundSIMDType && isSIMDorHWSIMDClass(&(lclVarInfo[0].lclVerTypeInfo)))
         {
-            if (sigType == TYP_STRUCT)
-            {
-                sigType = impNormStructType(lclVarInfo[0].lclVerTypeInfo.GetClassHandle());
-            }
             foundSIMDType = true;
         }
 #endif // FEATURE_SIMD
+
+        var_types sigType         = ((clsAttr & CORINFO_FLG_VALUECLASS) != 0) ? TYP_BYREF : TYP_REF;
         lclVarInfo[0].lclTypeInfo = sigType;
 
         GenTree* thisArgNode = thisArg->GetNode();
@@ -18831,30 +18841,10 @@ void Compiler::impInlineInitVars(InlineInfo* pInlineInfo)
 
             /* This can only happen with byrefs <-> ints/shorts */
 
-            assert(genActualType(sigType) == TYP_I_IMPL || sigType == TYP_BYREF);
+            assert(sigType == TYP_BYREF);
             assert((genActualType(thisArgNode->TypeGet()) == TYP_I_IMPL) || (thisArgNode->TypeGet() == TYP_BYREF));
 
-            if (sigType == TYP_BYREF)
-            {
-                lclVarInfo[0].lclVerTypeInfo = typeInfo(varType2tiType(TYP_I_IMPL));
-            }
-            else if (thisArgNode->TypeGet() == TYP_BYREF)
-            {
-                assert(sigType == TYP_I_IMPL);
-
-                /* If possible change the BYREF to an int */
-                if (thisArgNode->IsLocalAddrExpr() != nullptr)
-                {
-                    thisArgNode->gtType          = TYP_I_IMPL;
-                    lclVarInfo[0].lclVerTypeInfo = typeInfo(varType2tiType(TYP_I_IMPL));
-                }
-                else
-                {
-                    /* Arguments 'int <- byref' cannot be bashed */
-                    inlineResult->NoteFatal(InlineObservation::CALLSITE_ARG_NO_BASH_TO_INT);
-                    return;
-                }
-            }
+            lclVarInfo[0].lclVerTypeInfo = typeInfo(varType2tiType(TYP_I_IMPL));
         }
     }
 

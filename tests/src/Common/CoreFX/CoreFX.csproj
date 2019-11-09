@@ -29,7 +29,7 @@
 
   <ItemGroup>
     <!-- Microsoft.Private.CoreFx.OOB is a meta-package that contains references to most of what we need -->
-    <PackageReference Include="Microsoft.Private.CoreFx.OOB" Version="$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)" />
+    <PackageReference Include="Microsoft.Private.CoreFx.OOB" Version="$(MicrosoftPrivateCoreFxNETCoreAppVersion)" />
 
     <!-- dotnet.exe -->
     <PackageReference Include="Microsoft.NETCore.DotNetHost" Version="$(MicrosoftNETCoreAppVersion)" />
@@ -41,6 +41,9 @@
     <PackageReference Include="Microsoft.NETCore.DotNetHostPolicy" Version="$(MicrosoftNETCoreAppVersion)" />
 
     <KnownFrameworkReference Remove="Microsoft.AspNetCore.App" />
+    <KnownFrameworkReference Remove="Microsoft.WindowsDesktop.App" />
+    <KnownFrameworkReference Remove="Microsoft.WindowsDesktop.App.WindowsForms" />
+    <KnownFrameworkReference Remove="Microsoft.WindowsDesktop.App.WPF" />
   </ItemGroup>
 
   <!-- Target SetupTestingHost needs to run after "AfterResolveReferences" so @(ReferenceCopyLocalPaths) is

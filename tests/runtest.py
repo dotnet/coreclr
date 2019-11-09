@@ -970,6 +970,11 @@ def run_tests(host_os,
         print("Setting RunCrossGen=true")
         os.environ["RunCrossGen"] = "true"
 
+    if run_crossgen2_tests:
+        print("Running tests R2R (Crossgen2)")
+        print("Setting RunCrossGen2=true")
+        os.environ["RunCrossGen2"] = "true"
+
     if large_version_bubble:
         print("Large Version Bubble enabled")
         os.environ["LargeVersionBubble"] = "true"
@@ -1593,7 +1598,7 @@ def setup_core_root(host_os,
 
                 if host_os != "Windows_NT":
                     # Set executable bit
-                    os.chmod(os.path.join(dest, item), 0o774)
+                    os.chmod(os.path.join(dest, os.path.basename(item)), 0o774)
             else:
                 new_dir = os.path.join(dest, os.path.basename(item))
                 if os.path.isdir(new_dir):

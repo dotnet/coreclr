@@ -12,19 +12,11 @@
 //
 // ============================================================
 
-#ifndef FEATURE_CORESYSTEM
-#define DISABLE_BINDER_DEBUG_LOGGING
-#endif
-
 #include "applicationcontext.hpp"
 #include "stringarraylist.h"
 #include "loadcontext.hpp"
-#include "propertymap.hpp"
 #include "failurecache.hpp"
 #include "assemblyidentitycache.hpp"
-#ifdef FEATURE_VERSIONING_LOG
-#include "debuglog.hpp"
-#endif // FEATURE_VERSIONING_LOG
 #include "utils.hpp"
 #include "variables.hpp"
 #include "ex.h"
@@ -68,7 +60,7 @@ namespace BINDER_SPACE
     {
         ULONG ulRef = InterlockedDecrement(&m_cRef);
 
-        if (ulRef == 0) 
+        if (ulRef == 0)
         {
             delete this;
         }
@@ -111,12 +103,9 @@ namespace BINDER_SPACE
     HRESULT ApplicationContext::Init()
     {
         HRESULT hr = S_OK;
-        BINDER_LOG_ENTER(W("ApplicationContext::Init"));
-        BINDER_LOG_POINTER(W("this"), this);
 
         ReleaseHolder<ExecutionContext> pExecutionContext;
 
-        PropertyMap *pPropertyMap = NULL;
         FailureCache *pFailureCache = NULL;
 
         // Allocate context objects
@@ -129,7 +118,6 @@ namespace BINDER_SPACE
                                                CRST_REENTRANCY);
         if (!m_contextCS)
         {
-            SAFE_DELETE(pPropertyMap);
             SAFE_DELETE(pFailureCache);
             hr = E_OUTOFMEMORY;
         }
@@ -139,9 +127,8 @@ namespace BINDER_SPACE
 
             m_pFailureCache = pFailureCache;
         }
-        
+
     Exit:
-        BINDER_LOG_LEAVE_HR(W("ApplicationContext::Init"), hr);
         return hr;
     }
 
@@ -220,27 +207,21 @@ namespace BINDER_SPACE
                                                   BOOL     fAcquireLock)
     {
         HRESULT hr = S_OK;
-        BINDER_LOG_ENTER(W("ApplicationContext::SetupBindingPaths"));
-        BINDER_LOG_POINTER(W("this"), this);
 
 #ifndef CROSSGEN_COMPILE
         CRITSEC_Holder contextLock(fAcquireLock ? GetCriticalSectionCookie() : NULL);
 #endif
         if (m_pTrustedPlatformAssemblyMap != nullptr)
         {
-#if defined(BINDER_DEBUG_LOG)
-            BINDER_LOG(W("ApplicationContext::SetupBindingPaths: Binding paths already setup"));
-#endif // BINDER_LOG_STRING
             GO_WITH_HRESULT(S_OK);
         }
-
 
         //
         // Parse TrustedPlatformAssemblies
         //
         m_pTrustedPlatformAssemblyMap = new SimpleNameToFileNameMap();
         m_pFileNameHash = new TpaFileNameHash();
-        
+
         sTrustedPlatformAssemblies.Normalize();
 
         for (SString::Iterator i = sTrustedPlatformAssemblies.Begin(); i != sTrustedPlatformAssemblies.End(); )
@@ -256,14 +237,13 @@ namespace BINDER_SPACE
 #ifndef CROSSGEN_COMPILE
             if (Path::IsRelative(fileName))
             {
-                BINDER_LOG_STRING(W("ApplicationContext::SetupBindingPaths: Relative path not allowed"), fileName);
                 GO_WITH_HRESULT(E_INVALIDARG);
             }
 #endif
 
             // Find the beginning of the simple name
             SString::Iterator iSimpleNameStart = fileName.End();
-            
+
             if (!fileName.FindBack(iSimpleNameStart, DIRECTORY_SEPARATOR_CHAR_W))
             {
                 iSimpleNameStart = fileName.Begin();
@@ -289,7 +269,7 @@ namespace BINDER_SPACE
             SString sDll(W(".dll"));
             SString sExe(W(".exe"));
             SString sWinmd(W(".winmd"));
-            
+
             if (fileName.EndsWithCaseInsensitive(sNiDll) ||
                 fileName.EndsWithCaseInsensitive(sNiExe))
             {
@@ -329,11 +309,10 @@ namespace BINDER_SPACE
                 if ((pExistingEntry->m_wszILFileName != nullptr && !isNativeImage) ||
                     (pExistingEntry->m_wszNIFileName != nullptr && isNativeImage))
                 {
-                    BINDER_LOG_STRING(W("ApplicationContext::SetupBindingPaths: Skipping TPA entry because of already existing IL/NI entry for short name "), fileName.GetUnicode());
                     continue;
                 }
             }
-            
+
             LPWSTR wszSimpleName = nullptr;
             if (pExistingEntry == nullptr)
             {
@@ -348,14 +327,14 @@ namespace BINDER_SPACE
             {
                 wszSimpleName = pExistingEntry->m_wszSimpleName;
             }
-            
+
             LPWSTR wszFileName = new WCHAR[fileName.GetCount() + 1];
             if (wszFileName == nullptr)
             {
                 GO_WITH_HRESULT(E_OUTOFMEMORY);
             }
             wcscpy_s(wszFileName, fileName.GetCount() + 1, fileName.GetUnicode());
-            
+
             SimpleNameToFileNameMapEntry mapEntry;
             mapEntry.m_wszSimpleName = wszSimpleName;
             if (isNativeImage)
@@ -370,12 +349,10 @@ namespace BINDER_SPACE
             }
 
             m_pTrustedPlatformAssemblyMap->AddOrReplace(mapEntry);
-            
+
             FileNameMapEntry fileNameExistenceEntry;
             fileNameExistenceEntry.m_wszFileName = wszFileName;
             m_pFileNameHash->AddOrReplace(fileNameExistenceEntry);
-            
-            BINDER_LOG_STRING(W("ApplicationContext::SetupBindingPaths: Added TPA entry"), wszFileName);
         }
 
         //
@@ -396,13 +373,11 @@ namespace BINDER_SPACE
 #ifndef CROSSGEN_COMPILE
             if (Path::IsRelative(pathName))
             {
-                BINDER_LOG_STRING(W("ApplicationContext::SetupBindingPaths: Relative path not allowed"), pathName);
                 GO_WITH_HRESULT(E_INVALIDARG);
             }
 #endif
 
             m_platformResourceRoots.Append(pathName);
-            BINDER_LOG_STRING(W("ApplicationContext::SetupBindingPaths: Added resource root"), pathName);
         }
 
         //
@@ -419,17 +394,15 @@ namespace BINDER_SPACE
             {
                 break;
             }
-            
+
 #ifndef CROSSGEN_COMPILE
             if (Path::IsRelative(pathName))
             {
-                BINDER_LOG_STRING(W("ApplicationContext::SetupBindingPaths: Relative path not allowed"), pathName);
                 GO_WITH_HRESULT(E_INVALIDARG);
             }
 #endif
 
             m_appPaths.Append(pathName);
-            BINDER_LOG_STRING(W("ApplicationContext::SetupBindingPaths: Added App Path"), pathName);
         }
 
         //
@@ -450,17 +423,14 @@ namespace BINDER_SPACE
 #ifndef CROSSGEN_COMPILE
             if (Path::IsRelative(pathName))
             {
-                BINDER_LOG_STRING(W("ApplicationContext::SetupBindingPaths: Relative path not allowed"), pathName);
                 GO_WITH_HRESULT(E_INVALIDARG);
             }
 #endif
 
             m_appNiPaths.Append(pathName);
-            BINDER_LOG_STRING(W("ApplicationContext::SetupBindingPaths: Added App NI Path"), pathName);
         }
 
     Exit:
-        BINDER_LOG_LEAVE_HR(W("ApplicationContext::SetupBindingPaths"), hr);
         return hr;
     }
 
@@ -468,8 +438,6 @@ namespace BINDER_SPACE
                                                     AssemblyIdentityUTF8 **ppAssemblyIdentity)
     {
         HRESULT hr = S_OK;
-        BINDER_LOG_ENTER(W("ApplicationContext::GetAssemblyIdentity"));
-        BINDER_LOG_POINTER(W("this"), this);
 
         _ASSERTE(szTextualIdentity != NULL);
         _ASSERTE(ppAssemblyIdentity != NULL);
@@ -496,7 +464,6 @@ namespace BINDER_SPACE
         *ppAssemblyIdentity = pAssemblyIdentity;
 
     Exit:
-        BINDER_LOG_LEAVE_HR(W("ApplicationContext::GetAssemblyIdentity"), hr);
         return hr;
     }
 

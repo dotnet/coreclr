@@ -3,6 +3,19 @@
 # This file invokes cmake and generates the build system for Clang.
 #
 
+source="${BASH_SOURCE[0]}"
+
+# resolve $SOURCE until the file is no longer a symlink
+while [[ -h $source ]]; do
+  scriptroot="$( cd -P "$( dirname "$source" )" && pwd )"
+  source="$(readlink "$source")"
+
+  # if $source was a relative symlink, we need to resolve it relative to the path where the
+  # symlink file was located
+  [[ $source != /* ]] && source="$scriptroot/$source"
+done
+scriptroot="$( cd -P "$( dirname "$source" )" && pwd )"
+
 if [ $# -lt 4 ]
 then
   echo "Usage..."
@@ -16,6 +29,15 @@ then
   echo "Pass additional arguments to CMake call."
   exit 1
 fi
+
+__CoreClrDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/../../.."
+__RepoRootDir=${__CoreClrDir}/../..
+
+# BEGIN SECTION to remove after repo consolidation
+if [ ! -f "${__RepoRootDir}/.dotnet-runtime-placeholder" ]; then
+  __RepoRootDir=${__CoreClrDir}
+fi
+# END SECTION to remove after repo consolidation
 
 build_arch="$3"
 buildtype=DEBUG
@@ -52,12 +74,9 @@ if [ "$CROSSCOMPILE" == "1" ]; then
         echo "ROOTFS_DIR not set for crosscompile"
         exit 1
     fi
-    if [[ -z $CONFIG_DIR ]]; then
-        CONFIG_DIR="$1/cross"
-    fi
     export TARGET_BUILD_ARCH=$build_arch
-    cmake_extra_defines="$cmake_extra_defines -C $CONFIG_DIR/tryrun.cmake"
-    cmake_extra_defines="$cmake_extra_defines -DCMAKE_TOOLCHAIN_FILE=$CONFIG_DIR/toolchain.cmake"
+    cmake_extra_defines="$cmake_extra_defines -C ${__CoreClrDir}/tryrun.cmake"
+    cmake_extra_defines="$cmake_extra_defines -DCMAKE_TOOLCHAIN_FILE=${__RepoRootDir}/eng/common/cross/toolchain.cmake"
 fi
 
 cmake_command=$(command -v cmake)

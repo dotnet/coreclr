@@ -33,7 +33,7 @@ namespace BINDER_SPACE
         if (ppv == NULL)
         {
             hr = E_POINTER;
-        }    
+        }
         else
         {
             if (IsEqualIID(riid, IID_IUnknown))
@@ -60,7 +60,7 @@ namespace BINDER_SPACE
     {
         ULONG ulRef = InterlockedDecrement(&m_cRef);
 
-        if (ulRef == 0) 
+        if (ulRef == 0)
         {
             delete this;
         }
@@ -81,8 +81,6 @@ namespace BINDER_SPACE
 
     Assembly::~Assembly()
     {
-        BINDER_LOG_ASSEMBLY_NAME(L"destructing assembly", m_pAssemblyName);
-
         if (m_pPEImage != NULL)
         {
             BinderReleasePEImage(m_pPEImage);
@@ -109,7 +107,6 @@ namespace BINDER_SPACE
                            BOOL                     fIsInGAC)
     {
         HRESULT hr = S_OK;
-        BINDER_LOG_ENTER(L"Assembly::Init");
 
         ReleaseHolder<AssemblyName> pAssemblyName;
         SAFE_NEW(pAssemblyName, AssemblyName);
@@ -121,10 +118,6 @@ namespace BINDER_SPACE
         {
             GetPath().Set(assemblyPath);
         }
-
-        BINDER_LOG_ASSEMBLY_NAME(L"AssemblyNameDef", pAssemblyName);
-        BINDER_LOG_STRING(L"System Architecture",
-                          AssemblyName::ArchitectureToString(GetSystemArchitecture()));
 
         // Safe architecture for validation
         PEKIND kAssemblyArchitecture;
@@ -145,7 +138,6 @@ namespace BINDER_SPACE
         }
 
     Exit:
-        BINDER_LOG_LEAVE_HR(L"Assembly::Init", hr);
         return hr;
     }
 
@@ -153,26 +145,26 @@ namespace BINDER_SPACE
     {
         // Zero init the GUID incase we fail
         ZeroMemory(pMVID, sizeof(GUID));
-        
+
         return m_pMDImport->GetScopeProps(NULL, pMVID);
     }
-    
+
     /* static */
     PEKIND Assembly::GetSystemArchitecture()
     {
 #if defined(_TARGET_X86_)
         return peI386;
-#elif defined(_TARGET_AMD64_) 
+#elif defined(_TARGET_AMD64_)
         return peAMD64;
-#elif defined(_TARGET_ARM_) 
+#elif defined(_TARGET_ARM_)
         return peARM;
-#elif defined(_TARGET_ARM64_) 
+#elif defined(_TARGET_ARM64_)
         return peARM64;
 #else
         PORTABILITY_ASSERT("Assembly::GetSystemArchitecture");
 #endif
     }
-    
+
     /* static */
     BOOL Assembly::IsValidArchitecture(PEKIND kArchitecture)
     {
@@ -181,11 +173,11 @@ namespace BINDER_SPACE
 
         return (kArchitecture == GetSystemArchitecture());
     }
-    
+
     // --------------------------------------------------------------------
     // ICLRPrivAssembly methods
     // --------------------------------------------------------------------
-    LPCWSTR Assembly::GetSimpleName() 
+    LPCWSTR Assembly::GetSimpleName()
     {
         AssemblyName *pAsmName = GetAssemblyName();
         return (pAsmName == nullptr ? nullptr : (LPCWSTR)pAsmName->GetSimpleName());
@@ -200,20 +192,10 @@ namespace BINDER_SPACE
     {
         return (m_pBinder == NULL) ? E_FAIL : m_pBinder->GetBinderID(pBinderId);
     }
- 
+
     HRESULT Assembly::GetLoaderAllocator(LPVOID* pLoaderAllocator)
     {
         return (m_pBinder == NULL) ? E_FAIL : m_pBinder->GetLoaderAllocator(pLoaderAllocator);
-    }
-
-    HRESULT Assembly::IsShareable(
-        BOOL * pbIsShareable)
-    {
-        if(pbIsShareable == nullptr)
-            return E_INVALIDARG;
-
-        *pbIsShareable = GetIsSharable();
-        return S_OK;
     }
 
     HRESULT Assembly::GetAvailableImageTypes(
@@ -248,18 +230,18 @@ namespace BINDER_SPACE
         {
             hr = CLR_E_BIND_IMAGE_UNAVAILABLE;
         }
-        
+
         return hr;
     }
 
     // get parent pointer from nested type
     #define GetPThis() ((BINDER_SPACE::Assembly*)(((PBYTE)this) - offsetof(BINDER_SPACE::Assembly, m_clrPrivRes)))
-    
+
     HRESULT Assembly::CLRPrivResourceAssembly::QueryInterface(REFIID riid, void ** ppv)
     {
         HRESULT hr = S_OK;
         VALIDATE_ARG_RET(ppv != NULL);
-        
+
         if (IsEqualIID(riid, IID_IUnknown))
         {
             AddRef();
@@ -281,10 +263,10 @@ namespace BINDER_SPACE
             *ppv = NULL;
             hr = E_NOINTERFACE;
         }
-        
+
         return hr;
     }
- 
+
     ULONG Assembly::CLRPrivResourceAssembly::AddRef()
     {
         return GetPThis()->AddRef();
@@ -301,14 +283,14 @@ namespace BINDER_SPACE
         *pIID = __uuidof(ICLRPrivResourceAssembly);
         return S_OK;
     }
-    
+
     HRESULT Assembly::CLRPrivResourceAssembly::GetAssembly(LPVOID *ppAssembly)
     {
         VALIDATE_ARG_RET(ppAssembly != nullptr);
         AddRef();
         *ppAssembly = GetPThis();
-        return S_OK; 
+        return S_OK;
     }
-    
+
 }
 

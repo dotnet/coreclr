@@ -49,10 +49,502 @@ namespace System.Runtime.Intrinsics.Arm
             public static Vector128<double> Add(Vector128<double> left, Vector128<double> right) => Add(left, right);
 
             /// <summary>
+            /// uint8_t vaddv_u8(uint8x8_t a)
+            ///   A64: ADDV Bd, Vn.8B
+            /// </summary>
+            public static byte AddAcross(Vector64<byte> value) => AddAcross(value);
+
+            /// <summary>
+            /// int16_t vaddv_s16(int16x4_t a)
+            ///   A64: ADDV Hd, Vn.4H
+            /// </summary>
+            public static short AddAcross(Vector64<short> value) => AddAcross(value);
+
+            /// <summary>
+            /// int8_t vaddv_s8(int8x8_t a)
+            ///   A64: ADDV Bd, Vn.8B
+            /// </summary>
+            public static sbyte AddAcross(Vector64<sbyte> value) => AddAcross(value);
+
+            /// <summary>
+            /// uint16_t vaddv_u16(uint16x4_t a)
+            ///   A64: ADDV Hd, Vn.4H
+            /// </summary>
+            public static ushort AddAcross(Vector64<ushort> value) => AddAcross(value);
+
+            /// <summary>
+            /// uint8_t vaddvq_u8(uint8x16_t a)
+            ///   A64: ADDV Bd, Vn.16B
+            /// </summary>
+            public static byte AddAcross(Vector128<byte> value) => AddAcross(value);
+
+            /// <summary>
+            /// int16_t vaddvq_s16(int16x8_t a)
+            ///   A64: ADDV Hd, Vn.8H
+            /// </summary>
+            public static short AddAcross(Vector128<short> value) => AddAcross(value);
+
+            /// <summary>
+            /// int32_t vaddvq_s32(int32x4_t a)
+            ///   A64: ADDV Sd, Vn.4S
+            /// </summary>
+            public static int AddAcross(Vector128<int> value) => AddAcross(value);
+
+            /// <summary>
+            /// int8_t vaddvq_s8(int8x16_t a)
+            ///   A64: ADDV Bd, Vn.16B
+            /// </summary>
+            public static sbyte AddAcross(Vector128<sbyte> value) => AddAcross(value);
+
+            /// <summary>
+            /// uint16_t vaddvq_u16(uint16x8_t a)
+            ///   A64: ADDV Hd, Vn.8H
+            /// </summary>
+            public static ushort AddAcross(Vector128<ushort> value) => AddAcross(value);
+
+            /// <summary>
+            /// uint32_t vaddvq_u32(uint32x4_t a)
+            ///   A64: ADDV Sd, Vn.4S
+            /// </summary>
+            public static uint AddAcross(Vector128<uint> value) => AddAcross(value);
+
+            /// <summary>
             /// float64x2_t vsubq_f64 (float64x2_t a, float64x2_t b)
             ///   A64: FSUB Vd.2D, Vn.2D, Vm.2D
             /// </summary>
             public static Vector128<double> Subtract(Vector128<double> left, Vector128<double> right) => Add(left, right);
+
+            /// <summary>
+            /// uint8x8_t vrbit_u8 (uint8x8_t a)
+            ///   A64: RBIT Vd.8B, Vn.8B
+            /// </summary>
+            public static Vector64<byte> ReverseElementBits(Vector64<byte> value) => ReverseElementBits(value);
+
+            /// <summary>
+            /// int8x8_t vrbit_s8 (int8x8_t a)
+            ///   A64: RBIT Vd.8B, Vn.8B
+            /// </summary>
+            public static Vector64<sbyte> ReverseElementBits(Vector64<sbyte> value) => ReverseElementBits(value);
+
+            /// <summary>
+            /// uint8x16_t vrbitq_u8 (uint8x16_t a)
+            ///   A64: RBIT Vd.16B, Vn.16B
+            /// </summary>
+            public static Vector128<byte> ReverseElementBits(Vector128<byte> value) => ReverseElementBits(value);
+
+            /// <summary>
+            /// int8x16_t vrbitq_s8 (int8x16_t a)
+            ///   A64: RBIT Vd.16B, Vn.16B
+            /// </summary>
+            public static Vector128<sbyte> ReverseElementBits(Vector128<sbyte> value) => ReverseElementBits(value);
+
+            /// <summary>
+            /// uint8x8_t vuzp1_u8(uint8x8_t a, uint8x8_t b)
+            ///   A64: UZP1 Vd.8B, Vn.8B, Vm.8B
+            /// </summary>
+            public static Vector64<byte> UnzipEven(Vector64<byte> left, Vector64<byte> right) => UnzipEven(left, right);
+
+            /// <summary>
+            /// int16x4_t vuzp1_s16(int16x4_t a, int16x4_t b)
+            ///   A64: UZP1 Vd.4H, Vn.4H, Vm.4H
+            /// </summary>
+            public static Vector64<short> UnzipEven(Vector64<short> left, Vector64<short> right) => UnzipEven(left, right);
+
+            /// <summary>
+            /// int32x2_t vuzp1_s32(int32x2_t a, int32x2_t b)
+            ///   A64: UZP1 Vd.2S, Vn.2S, Vm.2S
+            /// </summary>
+            public static Vector64<int> UnzipEven(Vector64<int> left, Vector64<int> right) => UnzipEven(left, right);
+
+            /// <summary>
+            /// int8x8_t vuzp1_s8(int8x8_t a, int8x8_t b)
+            ///   A64: UZP1 Vd.8B, Vn.8B, Vm.8B
+            /// </summary>
+            public static Vector64<sbyte> UnzipEven(Vector64<sbyte> left, Vector64<sbyte> right) => UnzipEven(left, right);
+
+            /// <summary>
+            /// float32x2_t vuzp1_f32(float32x2_t a, float32x2_t b)
+            ///   A64: UZP1 Vd.2S, Vn.2S, Vm.2S
+            /// </summary>
+            public static Vector64<float> UnzipEven(Vector64<float> left, Vector64<float> right) => UnzipEven(left, right);
+
+            /// <summary>
+            /// uint16x4_t vuzp1_u16(uint16x4_t a, uint16x4_t b)
+            ///   A64: UZP1 Vd.4H, Vn.4H, Vm.4H
+            /// </summary>
+            public static Vector64<ushort> UnzipEven(Vector64<ushort> left, Vector64<ushort> right) => UnzipEven(left, right);
+
+            /// <summary>
+            /// uint32x2_t vuzp1_u32(uint32x2_t a, uint32x2_t b)
+            ///   A64: UZP1 Vd.2S, Vn.2S, Vm.2S
+            /// </summary>
+            public static Vector64<uint> UnzipEven(Vector64<uint> left, Vector64<uint> right) => UnzipEven(left, right);
+
+            /// <summary>
+            /// uint8x16_t vuzp1q_u8(uint8x16_t a, uint8x16_t b)
+            ///   A64: UZP1 Vd.16B, Vn.16B, Vm.16B
+            /// </summary>
+            public static Vector128<byte> UnzipEven(Vector128<byte> left, Vector128<byte> right) => UnzipEven(left, right);
+
+            /// <summary>
+            /// float64x2_t vuzp1q_f64(float64x2_t a, float64x2_t b)
+            ///   A64: UZP1 Vd.2D, Vn.2D, Vm.2D
+            /// </summary>
+            public static Vector128<double> UnzipEven(Vector128<double> left, Vector128<double> right) => UnzipEven(left, right);
+
+            /// <summary>
+            /// int16x8_t vuzp1q_s16(int16x8_t a, int16x8_t b)
+            ///   A64: UZP1 Vd.8H, Vn.8H, Vm.8H
+            /// </summary>
+            public static Vector128<short> UnzipEven(Vector128<short> left, Vector128<short> right) => UnzipEven(left, right);
+
+            /// <summary>
+            /// int32x4_t vuzp1q_s32(int32x4_t a, int32x4_t b)
+            ///   A64: UZP1 Vd.4S, Vn.4S, Vm.4S
+            /// </summary>
+            public static Vector128<int> UnzipEven(Vector128<int> left, Vector128<int> right) => UnzipEven(left, right);
+
+            /// <summary>
+            /// int64x2_t vuzp1q_s64(int64x2_t a, int64x2_t b)
+            ///   A64: UZP1 Vd.2D, Vn.2D, Vm.2D
+            /// </summary>
+            public static Vector128<long> UnzipEven(Vector128<long> left, Vector128<long> right) => UnzipEven(left, right);
+
+            /// <summary>
+            /// int8x16_t vuzp1q_u8(int8x16_t a, int8x16_t b)
+            ///   A64: UZP1 Vd.16B, Vn.16B, Vm.16B
+            /// </summary>
+            public static Vector128<sbyte> UnzipEven(Vector128<sbyte> left, Vector128<sbyte> right) => UnzipEven(left, right);
+
+            /// <summary>
+            /// float32x4_t vuzp1q_f32(float32x4_t a, float32x4_t b)
+            ///   A64: UZP1 Vd.4S, Vn.4S, Vm.4S
+            /// </summary>
+            public static Vector128<float> UnzipEven(Vector128<float> left, Vector128<float> right) => UnzipEven(left, right);
+
+            /// <summary>
+            /// uint16x8_t vuzp1q_u16(uint16x8_t a, uint16x8_t b)
+            ///   A64: UZP1 Vd.8H, Vn.8H, Vm.8H
+            /// </summary>
+            public static Vector128<ushort> UnzipEven(Vector128<ushort> left, Vector128<ushort> right) => UnzipEven(left, right);
+
+            /// <summary>
+            /// uint32x4_t vuzp1q_u32(uint32x4_t a, uint32x4_t b)
+            ///   A64: UZP1 Vd.4S, Vn.4S, Vm.4S
+            /// </summary>
+            public static Vector128<uint> UnzipEven(Vector128<uint> left, Vector128<uint> right) => UnzipEven(left, right);
+
+            /// <summary>
+            /// uint64x2_t vuzp1q_u64(uint64x2_t a, uint64x2_t b)
+            ///   A64: UZP1 Vd.2D, Vn.2D, Vm.2D
+            /// </summary>
+            public static Vector128<ulong> UnzipEven(Vector128<ulong> left, Vector128<ulong> right) => UnzipEven(left, right);
+
+            /// <summary>
+            /// uint8x8_t vuzp2_u8(uint8x8_t a, uint8x8_t b)
+            ///   A64: UZP2 Vd.8B, Vn.8B, Vm.8B
+            /// </summary>
+            public static Vector64<byte> UnzipOdd(Vector64<byte> left, Vector64<byte> right) => UnzipOdd(left, right);
+
+            /// <summary>
+            /// int16x4_t vuzp2_s16(int16x4_t a, int16x4_t b)
+            ///   A64: UZP2 Vd.4H, Vn.4H, Vm.4H
+            /// </summary>
+            public static Vector64<short> UnzipOdd(Vector64<short> left, Vector64<short> right) => UnzipOdd(left, right);
+
+            /// <summary>
+            /// int32x2_t vuzp2_s32(int32x2_t a, int32x2_t b)
+            ///   A64: UZP2 Vd.2S, Vn.2S, Vm.2S
+            /// </summary>
+            public static Vector64<int> UnzipOdd(Vector64<int> left, Vector64<int> right) => UnzipOdd(left, right);
+
+            /// <summary>
+            /// int8x8_t vuzp2_s8(int8x8_t a, int8x8_t b)
+            ///   A64: UZP2 Vd.8B, Vn.8B, Vm.8B
+            /// </summary>
+            public static Vector64<sbyte> UnzipOdd(Vector64<sbyte> left, Vector64<sbyte> right) => UnzipOdd(left, right);
+
+            /// <summary>
+            /// float32x2_t vuzp2_f32(float32x2_t a, float32x2_t b)
+            ///   A64: UZP2 Vd.2S, Vn.2S, Vm.2S
+            /// </summary>
+            public static Vector64<float> UnzipOdd(Vector64<float> left, Vector64<float> right) => UnzipOdd(left, right);
+
+            /// <summary>
+            /// uint16x4_t vuzp2_u16(uint16x4_t a, uint16x4_t b)
+            ///   A64: UZP2 Vd.4H, Vn.4H, Vm.4H
+            /// </summary>
+            public static Vector64<ushort> UnzipOdd(Vector64<ushort> left, Vector64<ushort> right) => UnzipOdd(left, right);
+
+            /// <summary>
+            /// uint32x2_t vuzp2_u32(uint32x2_t a, uint32x2_t b)
+            ///   A64: UZP2 Vd.2S, Vn.2S, Vm.2S
+            /// </summary>
+            public static Vector64<uint> UnzipOdd(Vector64<uint> left, Vector64<uint> right) => UnzipOdd(left, right);
+
+            /// <summary>
+            /// uint8x16_t vuzp2q_u8(uint8x16_t a, uint8x16_t b)
+            ///   A64: UZP2 Vd.16B, Vn.16B, Vm.16B
+            /// </summary>
+            public static Vector128<byte> UnzipOdd(Vector128<byte> left, Vector128<byte> right) => UnzipOdd(left, right);
+
+            /// <summary>
+            /// float64x2_t vuzp2q_f64(float64x2_t a, float64x2_t b)
+            ///   A64: UZP2 Vd.2D, Vn.2D, Vm.2D
+            /// </summary>
+            public static Vector128<double> UnzipOdd(Vector128<double> left, Vector128<double> right) => UnzipOdd(left, right);
+
+            /// <summary>
+            /// int16x8_t vuzp2q_s16(int16x8_t a, int16x8_t b)
+            ///   A64: UZP2 Vd.8H, Vn.8H, Vm.8H
+            /// </summary>
+            public static Vector128<short> UnzipOdd(Vector128<short> left, Vector128<short> right) => UnzipOdd(left, right);
+
+            /// <summary>
+            /// int32x4_t vuzp2q_s32(int32x4_t a, int32x4_t b)
+            ///   A64: UZP2 Vd.4S, Vn.4S, Vm.4S
+            /// </summary>
+            public static Vector128<int> UnzipOdd(Vector128<int> left, Vector128<int> right) => UnzipOdd(left, right);
+
+            /// <summary>
+            /// int64x2_t vuzp2q_s64(int64x2_t a, int64x2_t b)
+            ///   A64: UZP2 Vd.2D, Vn.2D, Vm.2D
+            /// </summary>
+            public static Vector128<long> UnzipOdd(Vector128<long> left, Vector128<long> right) => UnzipOdd(left, right);
+
+            /// <summary>
+            /// int8x16_t vuzp2q_u8(int8x16_t a, int8x16_t b)
+            ///   A64: UZP2 Vd.16B, Vn.16B, Vm.16B
+            /// </summary>
+            public static Vector128<sbyte> UnzipOdd(Vector128<sbyte> left, Vector128<sbyte> right) => UnzipOdd(left, right);
+
+            /// <summary>
+            /// float32x4_t vuzp2q_f32(float32x4_t a, float32x4_t b)
+            ///   A64: UZP2 Vd.4S, Vn.4S, Vm.4S
+            /// </summary>
+            public static Vector128<float> UnzipOdd(Vector128<float> left, Vector128<float> right) => UnzipOdd(left, right);
+
+            /// <summary>
+            /// uint16x8_t vuzp2q_u16(uint16x8_t a, uint16x8_t b)
+            ///   A64: UZP2 Vd.8H, Vn.8H, Vm.8H
+            /// </summary>
+            public static Vector128<ushort> UnzipOdd(Vector128<ushort> left, Vector128<ushort> right) => UnzipOdd(left, right);
+
+            /// <summary>
+            /// uint32x4_t vuzp2q_u32(uint32x4_t a, uint32x4_t b)
+            ///   A64: UZP2 Vd.4S, Vn.4S, Vm.4S
+            /// </summary>
+            public static Vector128<uint> UnzipOdd(Vector128<uint> left, Vector128<uint> right) => UnzipOdd(left, right);
+
+            /// <summary>
+            /// uint64x2_t vuzp2q_u64(uint64x2_t a, uint64x2_t b)
+            ///   A64: UZP2 Vd.2D, Vn.2D, Vm.2D
+            /// </summary>
+            public static Vector128<ulong> UnzipOdd(Vector128<ulong> left, Vector128<ulong> right) => UnzipOdd(left, right);
+
+            /// <summary>
+            /// uint8x8_t vzip2_u8(uint8x8_t a, uint8x8_t b)
+            ///   A64: ZIP2 Vd.8B, Vn.8B, Vm.8B
+            /// </summary>
+            public static Vector64<byte> ZipHigh(Vector64<byte> left, Vector64<byte> right) => ZipHigh(left, right);
+
+            /// <summary>
+            /// int16x4_t vzip2_s16(int16x4_t a, int16x4_t b)
+            ///   A64: ZIP2 Vd.4H, Vn.4H, Vm.4H
+            /// </summary>
+            public static Vector64<short> ZipHigh(Vector64<short> left, Vector64<short> right) => ZipHigh(left, right);
+
+            /// <summary>
+            /// int32x2_t vzip2_s32(int32x2_t a, int32x2_t b)
+            ///   A64: ZIP2 Vd.2S, Vn.2S, Vm.2S
+            /// </summary>
+            public static Vector64<int> ZipHigh(Vector64<int> left, Vector64<int> right) => ZipHigh(left, right);
+
+            /// <summary>
+            /// int8x8_t vzip2_s8(int8x8_t a, int8x8_t b)
+            ///   A64: ZIP2 Vd.8B, Vn.8B, Vm.8B
+            /// </summary>
+            public static Vector64<sbyte> ZipHigh(Vector64<sbyte> left, Vector64<sbyte> right) => ZipHigh(left, right);
+
+            /// <summary>
+            /// float32x2_t vzip2_f32(float32x2_t a, float32x2_t b)
+            ///   A64: ZIP2 Vd.2S, Vn.2S, Vm.2S
+            /// </summary>
+            public static Vector64<float> ZipHigh(Vector64<float> left, Vector64<float> right) => ZipHigh(left, right);
+
+            /// <summary>
+            /// uint16x4_t vzip2_u16(uint16x4_t a, uint16x4_t b)
+            ///   A64: ZIP2 Vd.4H, Vn.4H, Vm.4H
+            /// </summary>
+            public static Vector64<ushort> ZipHigh(Vector64<ushort> left, Vector64<ushort> right) => ZipHigh(left, right);
+
+            /// <summary>
+            /// uint32x2_t vzip2_u32(uint32x2_t a, uint32x2_t b)
+            ///   A64: ZIP2 Vd.2S, Vn.2S, Vm.2S
+            /// </summary>
+            public static Vector64<uint> ZipHigh(Vector64<uint> left, Vector64<uint> right) => ZipHigh(left, right);
+
+            /// <summary>
+            /// uint8x16_t vzip2q_u8(uint8x16_t a, uint8x16_t b)
+            ///   A64: ZIP2 Vd.16B, Vn.16B, Vm.16B
+            /// </summary>
+            public static Vector128<byte> ZipHigh(Vector128<byte> left, Vector128<byte> right) => ZipHigh(left, right);
+
+            /// <summary>
+            /// float64x2_t vzip2q_f64(float64x2_t a, float64x2_t b)
+            ///   A64: ZIP2 Vd.2D, Vn.2D, Vm.2D
+            /// </summary>
+            public static Vector128<double> ZipHigh(Vector128<double> left, Vector128<double> right) => ZipHigh(left, right);
+
+            /// <summary>
+            /// int16x8_t vzip2q_s16(int16x8_t a, int16x8_t b)
+            ///   A64: ZIP2 Vd.8H, Vn.8H, Vm.8H
+            /// </summary>
+            public static Vector128<short> ZipHigh(Vector128<short> left, Vector128<short> right) => ZipHigh(left, right);
+
+            /// <summary>
+            /// int32x4_t vzip2q_s32(int32x4_t a, int32x4_t b)
+            ///   A64: ZIP2 Vd.4S, Vn.4S, Vm.4S
+            /// </summary>
+            public static Vector128<int> ZipHigh(Vector128<int> left, Vector128<int> right) => ZipHigh(left, right);
+
+            /// <summary>
+            /// int64x2_t vzip2q_s64(int64x2_t a, int64x2_t b)
+            ///   A64: ZIP2 Vd.2D, Vn.2D, Vm.2D
+            /// </summary>
+            public static Vector128<long> ZipHigh(Vector128<long> left, Vector128<long> right) => ZipHigh(left, right);
+
+            /// <summary>
+            /// int8x16_t vzip2q_u8(int8x16_t a, int8x16_t b)
+            ///   A64: ZIP2 Vd.16B, Vn.16B, Vm.16B
+            /// </summary>
+            public static Vector128<sbyte> ZipHigh(Vector128<sbyte> left, Vector128<sbyte> right) => ZipHigh(left, right);
+
+            /// <summary>
+            /// float32x4_t vzip2q_f32(float32x4_t a, float32x4_t b)
+            ///   A64: ZIP2 Vd.4S, Vn.4S, Vm.4S
+            /// </summary>
+            public static Vector128<float> ZipHigh(Vector128<float> left, Vector128<float> right) => ZipHigh(left, right);
+
+            /// <summary>
+            /// uint16x8_t vzip2q_u16(uint16x8_t a, uint16x8_t b)
+            ///   A64: ZIP2 Vd.8H, Vn.8H, Vm.8H
+            /// </summary>
+            public static Vector128<ushort> ZipHigh(Vector128<ushort> left, Vector128<ushort> right) => ZipHigh(left, right);
+
+            /// <summary>
+            /// uint32x4_t vzip2q_u32(uint32x4_t a, uint32x4_t b)
+            ///   A64: ZIP2 Vd.4S, Vn.4S, Vm.4S
+            /// </summary>
+            public static Vector128<uint> ZipHigh(Vector128<uint> left, Vector128<uint> right) => ZipHigh(left, right);
+
+            /// <summary>
+            /// uint64x2_t vzip2q_u64(uint64x2_t a, uint64x2_t b)
+            ///   A64: ZIP2 Vd.2D, Vn.2D, Vm.2D
+            /// </summary>
+            public static Vector128<ulong> ZipHigh(Vector128<ulong> left, Vector128<ulong> right) => ZipHigh(left, right);
+
+            /// <summary>
+            /// uint8x8_t vzip1_u8(uint8x8_t a, uint8x8_t b)
+            ///   A64: ZIP1 Vd.8B, Vn.8B, Vm.8B
+            /// </summary>
+            public static Vector64<byte> ZipLow(Vector64<byte> left, Vector64<byte> right) => ZipLow(left, right);
+
+            /// <summary>
+            /// int16x4_t vzip1_s16(int16x4_t a, int16x4_t b)
+            ///   A64: ZIP1 Vd.4H, Vn.4H, Vm.4H
+            /// </summary>
+            public static Vector64<short> ZipLow(Vector64<short> left, Vector64<short> right) => ZipLow(left, right);
+
+            /// <summary>
+            /// int32x2_t vzip1_s32(int32x2_t a, int32x2_t b)
+            ///   A64: ZIP1 Vd.2S, Vn.2S, Vm.2S
+            /// </summary>
+            public static Vector64<int> ZipLow(Vector64<int> left, Vector64<int> right) => ZipLow(left, right);
+
+            /// <summary>
+            /// int8x8_t vzip1_s8(int8x8_t a, int8x8_t b)
+            ///   A64: ZIP1 Vd.8B, Vn.8B, Vm.8B
+            /// </summary>
+            public static Vector64<sbyte> ZipLow(Vector64<sbyte> left, Vector64<sbyte> right) => ZipLow(left, right);
+
+            /// <summary>
+            /// float32x2_t vzip1_f32(float32x2_t a, float32x2_t b)
+            ///   A64: ZIP1 Vd.2S, Vn.2S, Vm.2S
+            /// </summary>
+            public static Vector64<float> ZipLow(Vector64<float> left, Vector64<float> right) => ZipLow(left, right);
+
+            /// <summary>
+            /// uint16x4_t vzip1_u16(uint16x4_t a, uint16x4_t b)
+            ///   A64: ZIP1 Vd.4H, Vn.4H, Vm.4H
+            /// </summary>
+            public static Vector64<ushort> ZipLow(Vector64<ushort> left, Vector64<ushort> right) => ZipLow(left, right);
+
+            /// <summary>
+            /// uint32x2_t vzip1_u32(uint32x2_t a, uint32x2_t b)
+            ///   A64: ZIP1 Vd.2S, Vn.2S, Vm.2S
+            /// </summary>
+            public static Vector64<uint> ZipLow(Vector64<uint> left, Vector64<uint> right) => ZipLow(left, right);
+
+            /// <summary>
+            /// uint8x16_t vzip1q_u8(uint8x16_t a, uint8x16_t b)
+            ///   A64: ZIP1 Vd.16B, Vn.16B, Vm.16B
+            /// </summary>
+            public static Vector128<byte> ZipLow(Vector128<byte> left, Vector128<byte> right) => ZipLow(left, right);
+
+            /// <summary>
+            /// float64x2_t vzip1q_f64(float64x2_t a, float64x2_t b)
+            ///   A64: ZIP1 Vd.2D, Vn.2D, Vm.2D
+            /// </summary>
+            public static Vector128<double> ZipLow(Vector128<double> left, Vector128<double> right) => ZipLow(left, right);
+
+            /// <summary>
+            /// int16x8_t vzip1q_s16(int16x8_t a, int16x8_t b)
+            ///   A64: ZIP1 Vd.8H, Vn.8H, Vm.8H
+            /// </summary>
+            public static Vector128<short> ZipLow(Vector128<short> left, Vector128<short> right) => ZipLow(left, right);
+
+            /// <summary>
+            /// int32x4_t vzip1q_s32(int32x4_t a, int32x4_t b)
+            ///   A64: ZIP1 Vd.4S, Vn.4S, Vm.4S
+            /// </summary>
+            public static Vector128<int> ZipLow(Vector128<int> left, Vector128<int> right) => ZipLow(left, right);
+
+            /// <summary>
+            /// int64x2_t vzip1q_s64(int64x2_t a, int64x2_t b)
+            ///   A64: ZIP1 Vd.2D, Vn.2D, Vm.2D
+            /// </summary>
+            public static Vector128<long> ZipLow(Vector128<long> left, Vector128<long> right) => ZipLow(left, right);
+
+            /// <summary>
+            /// int8x16_t vzip1q_u8(int8x16_t a, int8x16_t b)
+            ///   A64: ZIP1 Vd.16B, Vn.16B, Vm.16B
+            /// </summary>
+            public static Vector128<sbyte> ZipLow(Vector128<sbyte> left, Vector128<sbyte> right) => ZipLow(left, right);
+
+            /// <summary>
+            /// float32x4_t vzip1q_f32(float32x4_t a, float32x4_t b)
+            ///   A64: ZIP1 Vd.4S, Vn.4S, Vm.4S
+            /// </summary>
+            public static Vector128<float> ZipLow(Vector128<float> left, Vector128<float> right) => ZipLow(left, right);
+
+            /// <summary>
+            /// uint16x8_t vzip1q_u16(uint16x8_t a, uint16x8_t b)
+            ///   A64: ZIP1 Vd.8H, Vn.8H, Vm.8H
+            /// </summary>
+            public static Vector128<ushort> ZipLow(Vector128<ushort> left, Vector128<ushort> right) => ZipLow(left, right);
+
+            /// <summary>
+            /// uint32x4_t vzip1q_u32(uint32x4_t a, uint32x4_t b)
+            ///   A64: ZIP1 Vd.4S, Vn.4S, Vm.4S
+            /// </summary>
+            public static Vector128<uint> ZipLow(Vector128<uint> left, Vector128<uint> right) => ZipLow(left, right);
+
+            /// <summary>
+            /// uint64x2_t vzip1q_u64(uint64x2_t a, uint64x2_t b)
+            ///   A64: ZIP1 Vd.2D, Vn.2D, Vm.2D
+            /// </summary>
+            public static Vector128<ulong> ZipLow(Vector128<ulong> left, Vector128<ulong> right) => ZipLow(left, right);
         }
 
         /// <summary>
@@ -550,6 +1042,272 @@ namespace System.Runtime.Intrinsics.Arm
         ///   A64: BIC Vd, Vn, Vm
         /// </summary>
         public static Vector128<ulong> AndNot(Vector128<ulong> left, Vector128<ulong> right) => AndNot(left, right);
+
+        /// <summary>
+        /// uint8x8_t vbsl_u8 (uint8x8_t a, uint8x8_t b, uint8x8_t c)
+        ///   A32: VBSL Dd, Dn, Dm
+        ///   A64: BSL Vd, Vn, Vm
+        /// </summary>
+        public static Vector64<byte> BitwiseSelect(Vector64<byte> select, Vector64<byte> left, Vector64<byte> right) => BitwiseSelect(select, left, right);
+
+        // /// <summary>
+        // /// float64x1_t vbsl_f64 (float64x1_t a, float64x1_t b, float64x1_t c)
+        // ///   A32: VBSL Dd, Dn, Dm
+        // ///   A64: BSL Vd, Vn, Vm
+        // /// </summary>
+        // public static Vector64<double> BitwiseSelect(Vector64<double> select, Vector64<double> left, Vector64<double> right) => BitwiseSelect(select, left, right);
+
+        /// <summary>
+        /// int16x4_t vbsl_s16 (int16x4_t a, int16x4_t b, int16x4_t c)
+        ///   A32: VBSL Dd, Dn, Dm
+        ///   A64: BSL Vd, Vn, Vm
+        /// </summary>
+        public static Vector64<short> BitwiseSelect(Vector64<short> select, Vector64<short> left, Vector64<short> right) => BitwiseSelect(select, left, right);
+
+        /// <summary>
+        /// int32x2_t vbsl_s32 (int32x2_t a, int32x2_t b, int32x2_t c)
+        ///   A32: VBSL Dd, Dn, Dm
+        ///   A64: BSL Vd, Vn, Vm
+        /// </summary>
+        public static Vector64<int> BitwiseSelect(Vector64<int> select, Vector64<int> left, Vector64<int> right) => BitwiseSelect(select, left, right);
+
+        // /// <summary>
+        // /// int64x1_t vbsl_s64 (int64x1_t a, int64x1_t b, int64x1_t c)
+        // ///   A32: VBSL Dd, Dn, Dm
+        // ///   A64: BSL Vd, Vn, Vm
+        // /// </summary>
+        // public static Vector64<long> BitwiseSelect(Vector64<long> select, Vector64<long> left, Vector64<long> right) => BitwiseSelect(select, left, right);
+
+        /// <summary>
+        /// int8x8_t vbsl_s8 (int8x8_t a, int8x8_t b, int8x8_t c)
+        ///   A32: VBSL Dd, Dn, Dm
+        ///   A64: BSL Vd, Vn, Vm
+        /// </summary>
+        public static Vector64<sbyte> BitwiseSelect(Vector64<sbyte> select, Vector64<sbyte> left, Vector64<sbyte> right) => BitwiseSelect(select, left, right);
+
+        /// <summary>
+        /// float32x2_t vbsl_f32 (float32x2_t a, float32x2_t b, float32x2_t c)
+        ///   A32: VBSL Dd, Dn, Dm
+        ///   A64: BSL Vd, Vn, Vm
+        /// </summary>
+        public static Vector64<float> BitwiseSelect(Vector64<float> select, Vector64<float> left, Vector64<float> right) => BitwiseSelect(select, left, right);
+
+        /// <summary>
+        /// uint16x4_t vbsl_u16 (uint16x4_t a, uint16x4_t b, uint16x4_t c)
+        ///   A32: VBSL Dd, Dn, Dm
+        ///   A64: BSL Vd, Vn, Vm
+        /// </summary>
+        public static Vector64<ushort> BitwiseSelect(Vector64<ushort> select, Vector64<ushort> left, Vector64<ushort> right) => BitwiseSelect(select, left, right);
+
+        /// <summary>
+        /// uint32x2_t vbsl_u32 (uint32x2_t a, uint32x2_t b, uint32x2_t c)
+        ///   A32: VBSL Dd, Dn, Dm
+        ///   A64: BSL Vd, Vn, Vm
+        /// </summary>
+        public static Vector64<uint> BitwiseSelect(Vector64<uint> select, Vector64<uint> left, Vector64<uint> right) => BitwiseSelect(select, left, right);
+
+        // /// <summary>
+        // /// uint64x1_t vbsl_u64 (uint64x1_t a, uint64x1_t b, uint64x1_t c)
+        // ///   A32: VBSL Dd, Dn, Dm
+        // ///   A64: BSL Vd, Vn, Vm
+        // /// </summary>
+        // public static Vector64<ulong> BitwiseSelect(Vector64<ulong> select, Vector64<ulong> left, Vector64<ulong> right) => BitwiseSelect(select, left, right);
+
+        /// <summary>
+        /// uint8x16_t vbslq_u8 (uint8x16_t a, uint8x16_t b, uint8x16_t c)
+        ///   A32: VBSL Qd, Qn, Qm
+        ///   A64: BSL Vd, Vn, Vm
+        /// </summary>
+        public static Vector128<byte> BitwiseSelect(Vector128<byte> select, Vector128<byte> left, Vector128<byte> right) => BitwiseSelect(select, left, right);
+
+        /// <summary>
+        /// float64x2_t vbslq_f64 (float64x2_t a, float64x2_t b, float64x2_t c)
+        ///   A32: VBSL Qd, Qn, Qm
+        ///   A64: BSL Vd, Vn, Vm
+        /// </summary>
+        public static Vector128<double> BitwiseSelect(Vector128<double> select, Vector128<double> left, Vector128<double> right) => BitwiseSelect(select, left, right);
+
+        /// <summary>
+        /// int16x8_t vbslq_s16 (int16x8_t a, int16x8_t b, int16x8_t c)
+        ///   A32: VBSL Qd, Qn, Qm
+        ///   A64: BSL Vd, Vn, Vm
+        /// </summary>
+        public static Vector128<short> BitwiseSelect(Vector128<short> select, Vector128<short> left, Vector128<short> right) => BitwiseSelect(select, left, right);
+
+        /// <summary>
+        /// int32x4_t vbslq_s32 (int32x4_t a, int32x4_t b, int32x4_t c)
+        ///   A32: VBSL Qd, Qn, Qm
+        ///   A64: BSL Vd, Vn, Vm
+        /// </summary>
+        public static Vector128<int> BitwiseSelect(Vector128<int> select, Vector128<int> left, Vector128<int> right) => BitwiseSelect(select, left, right);
+
+        /// <summary>
+        /// int64x2_t vbslq_s64 (int64x2_t a, int64x2_t b, int64x2_t c)
+        ///   A32: VBSL Qd, Qn, Qm
+        ///   A64: BSL Vd, Vn, Vm
+        /// </summary>
+        public static Vector128<long> BitwiseSelect(Vector128<long> select, Vector128<long> left, Vector128<long> right) => BitwiseSelect(select, left, right);
+
+        /// <summary>
+        /// int8x16_t vbslq_s8 (int8x16_t a, int8x16_t b, int8x16_t c)
+        ///   A32: VBSL Qd, Qn, Qm
+        ///   A64: BSL Vd, Vn, Vm
+        /// </summary>
+        public static Vector128<sbyte> BitwiseSelect(Vector128<sbyte> select, Vector128<sbyte> left, Vector128<sbyte> right) => BitwiseSelect(select, left, right);
+
+        /// <summary>
+        /// float32x4_t vbslq_f32 (float32x4_t a, float32x4_t b, float32x4_t c)
+        ///   A32: VBSL Qd, Qn, Qm
+        ///   A64: BSL Vd, Vn, Vm
+        /// </summary>
+        public static Vector128<float> BitwiseSelect(Vector128<float> select, Vector128<float> left, Vector128<float> right) => BitwiseSelect(select, left, right);
+
+        /// <summary>
+        /// uint16x8_t vbslq_u16 (uint16x8_t a, uint16x8_t b, uint16x8_t c)
+        ///   A32: VBSL Qd, Qn, Qm
+        ///   A64: BSL Vd, Vn, Vm
+        /// </summary>
+        public static Vector128<ushort> BitwiseSelect(Vector128<ushort> select, Vector128<ushort> left, Vector128<ushort> right) => BitwiseSelect(select, left, right);
+
+        /// <summary>
+        /// uint32x4_t vbslq_u32 (uint32x4_t a, uint32x4_t b, uint32x4_t c)
+        ///   A32: VBSL Qd, Qn, Qm
+        ///   A64: BSL Vd, Vn, Vm
+        /// </summary>
+        public static Vector128<uint> BitwiseSelect(Vector128<uint> select, Vector128<uint> left, Vector128<uint> right) => BitwiseSelect(select, left, right);
+
+        /// <summary>
+        /// uint64x2_t vbslq_u64 (uint64x2_t a, uint64x2_t b, uint64x2_t c)
+        ///   A32: VBSL Qd, Qn, Qm
+        ///   A64: BSL Vd, Vn, Vm
+        /// </summary>
+        public static Vector128<ulong> BitwiseSelect(Vector128<ulong> select, Vector128<ulong> left, Vector128<ulong> right) => BitwiseSelect(select, left, right);
+
+        /// <summary>
+        /// int8x8_t vcls_s8 (int8x8_t a)
+        ///   A32: VCLS Dd, Dm
+        ///   A64: CLS Vd, Vn
+        /// </summary>
+        public static Vector64<sbyte> LeadingSignCount(Vector64<sbyte> value) => LeadingSignCount(value);
+
+        /// <summary>
+        /// int16x4_t vcls_s16 (int16x4_t a)
+        ///   A32: VCLS Dd, Dm
+        ///   A64: CLS Vd, Vn
+        /// </summary>
+        public static Vector64<short> LeadingSignCount(Vector64<short> value) => LeadingSignCount(value);
+
+        /// <summary>
+        /// int32x2_t vcls_s32 (int32x2_t a)
+        ///   A32: VCLS Dd, Dm
+        ///   A64: CLS Vd, Vn
+        /// </summary>
+        public static Vector64<int> LeadingSignCount(Vector64<int> value) => LeadingSignCount(value);
+
+        /// <summary>
+        /// int8x16_t vclsq_s8 (int8x16_t a)
+        ///   A32: VCLS Qd, Qm
+        ///   A64: CLS Vd, Vn
+        /// </summary>
+        public static Vector128<sbyte> LeadingSignCount(Vector128<sbyte> value) => LeadingSignCount(value);
+
+        /// <summary>
+        /// int16x8_t vclsq_s16 (int16x8_t a)
+        ///   A32: VCLS Qd, Qm
+        ///   A64: CLS Vd, Vn
+        /// </summary>
+        public static Vector128<short> LeadingSignCount(Vector128<short> value) => LeadingSignCount(value);
+
+        /// <summary>
+        /// int32x4_t vclsq_s32 (int32x4_t a)
+        ///   A32: VCLS Qd, Qm
+        ///   A64: CLS Vd, Vn
+        /// </summary>
+        public static Vector128<int> LeadingSignCount(Vector128<int> value) => LeadingSignCount(value);
+
+        /// <summary>
+        /// int8x8_t vclz_s8 (int8x8_t a)
+        ///   A32: VCLZ Dd, Dm
+        ///   A64: CLZ Vd, Vn
+        /// </summary>
+        public static Vector64<sbyte> LeadingZeroCount(Vector64<sbyte> value) => LeadingZeroCount(value);
+
+        /// <summary>
+        /// uint8x8_t vclz_u8 (uint8x8_t a)
+        ///   A32: VCLZ Dd, Dm
+        ///   A64: CLZ Vd, Vn
+        /// </summary>
+        public static Vector64<byte> LeadingZeroCount(Vector64<byte> value) => LeadingZeroCount(value);
+
+        /// <summary>
+        /// int16x4_t vclz_s16 (int16x4_t a)
+        ///   A32: VCLZ Dd, Dm
+        ///   A64: CLZ Vd, Vn
+        /// </summary>
+        public static Vector64<short> LeadingZeroCount(Vector64<short> value) => LeadingZeroCount(value);
+
+        /// <summary>
+        /// uint16x4_t vclz_u16 (uint16x4_t a)
+        ///   A32: VCLZ Dd, Dm
+        ///   A64: CLZ Vd, Vn
+        /// </summary>
+        public static Vector64<ushort> LeadingZeroCount(Vector64<ushort> value) => LeadingZeroCount(value);
+
+        /// <summary>
+        /// int32x2_t vclz_s32 (int32x2_t a)
+        ///   A32: VCLZ Dd, Dm
+        ///   A64: CLZ Vd, Vn
+        /// </summary>
+        public static Vector64<int> LeadingZeroCount(Vector64<int> value) => LeadingZeroCount(value);
+
+        /// <summary>
+        /// uint32x2_t vclz_u32 (uint32x2_t a)
+        ///   A32: VCLZ Dd, Dm
+        ///   A64: CLZ Vd, Vn
+        /// </summary>
+        public static Vector64<uint> LeadingZeroCount(Vector64<uint> value) => LeadingZeroCount(value);
+
+        /// <summary>
+        /// int8x16_t vclzq_s8 (int8x16_t a)
+        ///   A32: VCLZ Qd, Qm
+        ///   A64: CLZ Vd, Vn
+        /// </summary>
+        public static Vector128<sbyte> LeadingZeroCount(Vector128<sbyte> value) => LeadingZeroCount(value);
+
+        /// <summary>
+        /// uint8x16_t vclzq_u8 (uint8x16_t a)
+        ///   A32: VCLZ Qd, Qm
+        ///   A64: CLZ Vd, Vn
+        /// </summary>
+        public static Vector128<byte> LeadingZeroCount(Vector128<byte> value) => LeadingZeroCount(value);
+
+        /// <summary>
+        /// int16x8_t vclzq_s16 (int16x8_t a)
+        ///   A32: VCLZ Qd, Qm
+        ///   A64: CLZ Vd, Vn
+        /// </summary>
+        public static Vector128<short> LeadingZeroCount(Vector128<short> value) => LeadingZeroCount(value);
+
+        /// <summary>
+        /// uint16x8_t vclzq_u16 (uint16x8_t a)
+        ///   A32: VCLZ Qd, Qm
+        ///   A64: CLZ Vd, Vn
+        /// </summary>
+        public static Vector128<ushort> LeadingZeroCount(Vector128<ushort> value) => LeadingZeroCount(value);
+
+        /// <summary>
+        /// int32x4_t vclzq_s32 (int32x4_t a)
+        ///   A32: VCLZ Qd, Qm
+        ///   A64: CLZ Vd, Vn
+        /// </summary>
+        public static Vector128<int> LeadingZeroCount(Vector128<int> value) => LeadingZeroCount(value);
+
+        /// <summary>
+        /// uint32x4_t vclzq_u32 (uint32x4_t a)
+        ///   A32: VCLZ Qd, Qm
+        ///   A64: CLZ Vd, Vn
+        /// </summary>
+        public static Vector128<uint> LeadingZeroCount(Vector128<uint> value) => LeadingZeroCount(value);
 
         /// <summary>
         /// uint8x8_t vld1_u8 (uint8_t const * ptr)
@@ -1101,6 +1859,34 @@ namespace System.Runtime.Intrinsics.Arm
         ///   A64: ORN Vd, Vn, Vm
         /// </summary>
         public static Vector128<ulong> OrNot(Vector128<ulong> left, Vector128<ulong> right) => OrNot(left, right);
+
+        /// <summary>
+        /// int8x8_t vcnt_s8 (int8x8_t a)
+        ///   A32: VCNT Dd, Dm
+        ///   A64: CNT Vd, Vn
+        /// </summary>
+        public static Vector64<sbyte> PopCount(Vector64<sbyte> value) => PopCount(value);
+
+        /// <summary>
+        /// uint8x8_t vcnt_u8 (uint8x8_t a)
+        ///   A32: VCNT Dd, Dm
+        ///   A64: CNT Vd, Vn
+        /// </summary>
+        public static Vector64<byte> PopCount(Vector64<byte> value) => PopCount(value);
+
+        /// <summary>
+        /// int8x16_t vcntq_s8 (int8x16_t a)
+        ///   A32: VCNT Qd, Qm
+        ///   A64: CNT Vd, Vn
+        /// </summary>
+        public static Vector128<sbyte> PopCount(Vector128<sbyte> value) => PopCount(value);
+
+        /// <summary>
+        /// uint8x16_t vcntq_u8 (uint8x16_t a)
+        ///   A32: VCNT Qd, Qm
+        ///   A64: CNT Vd, Vn
+        /// </summary>
+        public static Vector128<byte> PopCount(Vector128<byte> value) => PopCount(value);
 
         /// <summary>
         /// uint8x8_t vsub_u8 (uint8x8_t a, uint8x8_t b)

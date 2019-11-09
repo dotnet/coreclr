@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace System.Threading
@@ -57,7 +58,7 @@ namespace System.Threading
         }
 
         private CacheLineSeparated _separated;
-        private ulong _currentSampleStartTime;
+        private long _currentSampleStartTime;
         private readonly ThreadInt64PersistentCounter _completionCounter = new ThreadInt64PersistentCounter();
         private int _threadAdjustmentIntervalMs;
 
@@ -67,7 +68,7 @@ namespace System.Threading
 
         private PortableThreadPool()
         {
-            _minThreads = s_forcedMinWorkerThreads > 0 ? s_forcedMinWorkerThreads : (short)ThreadPoolGlobals.processorCount;
+            _minThreads = s_forcedMinWorkerThreads > 0 ? s_forcedMinWorkerThreads : (short)Environment.ProcessorCount;
             if (_minThreads > MaxPossibleThreadCount)
             {
                 _minThreads = MaxPossibleThreadCount;
@@ -199,7 +200,7 @@ namespace System.Threading
         {
             _completionCounter.Increment();
             Volatile.Write(ref _separated.lastDequeueTime, Environment.TickCount);
-            
+
             if (ShouldAdjustMaxWorkersActive() && _hillClimbingThreadAdjustmentLock.TryAcquire())
             {
                 try
@@ -225,9 +226,9 @@ namespace System.Threading
             int currentTicks = Environment.TickCount;
             int totalNumCompletions = (int)_completionCounter.Count;
             int numCompletions = totalNumCompletions - _separated.priorCompletionCount;
-            ulong startTime = _currentSampleStartTime;
-            ulong endTime = HighPerformanceCounter.TickCount;
-            ulong freq = HighPerformanceCounter.Frequency;
+            long startTime = _currentSampleStartTime;
+            long endTime = Stopwatch.GetTimestamp();
+            long freq = Stopwatch.Frequency;
 
             double elapsedSeconds = (double)(endTime - startTime) / freq;
 

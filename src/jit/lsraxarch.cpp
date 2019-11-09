@@ -242,6 +242,11 @@ int LinearScan::BuildNode(GenTree* tree)
             }
             break;
 
+        case GT_KEEPALIVE:
+            assert(dstCount == 0);
+            srcCount = BuildOperandUses(tree->gtGetOp1());
+            break;
+
         case GT_JTRUE:
         {
             srcCount = 0;
@@ -356,7 +361,7 @@ int LinearScan::BuildNode(GenTree* tree)
 #endif // FEATURE_SIMD
 
 #ifdef FEATURE_HW_INTRINSICS
-        case GT_HWIntrinsic:
+        case GT_HWINTRINSIC:
             srcCount = BuildHWIntrinsic(tree->AsHWIntrinsic());
             break;
 #endif // FEATURE_HW_INTRINSICS
@@ -544,7 +549,6 @@ int LinearScan::BuildNode(GenTree* tree)
 #endif // FEATURE_HW_INTRINSICS
 
             // Consumes arrLen & index - has no result
-            srcCount = 2;
             assert(dstCount == 0);
             srcCount = BuildOperandUses(tree->AsBoundsChk()->gtIndex);
             srcCount += BuildOperandUses(tree->AsBoundsChk()->gtArrLen);
@@ -788,7 +792,7 @@ bool LinearScan::isRMWRegOper(GenTree* tree)
             return (!tree->gtGetOp2()->isContainedIntOrIImmed() && !tree->gtGetOp1()->isContainedIntOrIImmed());
 
 #ifdef FEATURE_HW_INTRINSICS
-        case GT_HWIntrinsic:
+        case GT_HWINTRINSIC:
             return tree->isRMWHWIntrinsic(compiler);
 #endif // FEATURE_HW_INTRINSICS
 
@@ -1409,11 +1413,22 @@ int LinearScan::BuildBlockStore(GenTreeBlk* blkNode)
         useCount++;
         BuildUse(dstAddr, dstAddrRegMask);
     }
-
-    if ((srcAddrOrFill != nullptr) && !srcAddrOrFill->isContained())
+    else if (dstAddr->OperIsAddrMode())
     {
-        useCount++;
-        BuildUse(srcAddrOrFill, srcRegMask);
+        useCount += BuildAddrUses(dstAddr);
+    }
+
+    if (srcAddrOrFill != nullptr)
+    {
+        if (!srcAddrOrFill->isContained())
+        {
+            useCount++;
+            BuildUse(srcAddrOrFill, srcRegMask);
+        }
+        else if (srcAddrOrFill->OperIsAddrMode())
+        {
+            useCount += BuildAddrUses(srcAddrOrFill);
+        }
     }
 
     if (blkNode->OperIs(GT_STORE_DYN_BLK))
@@ -1780,10 +1795,7 @@ int LinearScan::BuildIntrinsic(GenTree* tree)
             // xmm register. When we add support in emitter to emit 128-bit
             // data constants and instructions that operate on 128-bit
             // memory operands we can avoid the need for an internal register.
-            if (tree->AsIntrinsic()->gtIntrinsicId == CORINFO_INTRINSIC_Abs)
-            {
-                internalFloatDef = buildInternalFloatRegisterDefForNode(tree, internalFloatRegCandidates());
-            }
+            internalFloatDef = buildInternalFloatRegisterDefForNode(tree, internalFloatRegCandidates());
             break;
 
 #ifdef _TARGET_X86_
@@ -2241,10 +2253,10 @@ int LinearScan::BuildSIMD(GenTreeSIMD* simdTree)
 
 #ifdef FEATURE_HW_INTRINSICS
 //------------------------------------------------------------------------
-// BuildHWIntrinsic: Set the NodeInfo for a GT_HWIntrinsic tree.
+// BuildHWIntrinsic: Set the NodeInfo for a GT_HWINTRINSIC tree.
 //
 // Arguments:
-//    tree       - The GT_HWIntrinsic node of interest
+//    tree       - The GT_HWINTRINSIC node of interest
 //
 // Return Value:
 //    The number of sources consumed by this node.
@@ -2633,7 +2645,7 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
 
             if (op2 != nullptr)
             {
-                if (op2->OperIs(GT_HWIntrinsic) && op2->AsHWIntrinsic()->OperIsMemoryLoad() && op2->isContained())
+                if (op2->OperIs(GT_HWINTRINSIC) && op2->AsHWIntrinsic()->OperIsMemoryLoad() && op2->isContained())
                 {
                     srcCount += BuildAddrUses(op2->gtGetOp1());
                 }

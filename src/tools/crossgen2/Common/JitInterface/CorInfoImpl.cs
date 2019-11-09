@@ -764,6 +764,15 @@ namespace Internal.JitInterface
         {
             MethodDesc callerMethod = HandleToObject(callerHnd);
             MethodDesc calleeMethod = HandleToObject(calleeHnd);
+
+#if READYTORUN
+            // IL stubs don't inline well
+            if (calleeMethod.IsPInvoke)
+            {
+                return CorInfoInline.INLINE_NEVER;
+            }
+#endif
+
             if (_compilation.CanInline(callerMethod, calleeMethod))
             {
                 // No restrictions on inlining
@@ -885,29 +894,10 @@ namespace Internal.JitInterface
             return comparer != null ? ObjectToHandle(comparer) : null;
         }
 
-        private SimdHelper _simdHelper;
-        private bool isInSIMDModule(CORINFO_CLASS_STRUCT_* classHnd)
+        private bool isIntrinsicType(CORINFO_CLASS_STRUCT_* classHnd)
         {
             TypeDesc type = HandleToObject(classHnd);
-            
-            if (_simdHelper.IsSimdType(type))
-            {
-#if DEBUG
-                // If this is Vector<T>, make sure the codegen and the type system agree on what instructions/registers
-                // we're generating code for.
-
-                CORJIT_FLAGS flags = default(CORJIT_FLAGS);
-                getJitFlags(ref flags, (uint)sizeof(CORJIT_FLAGS));
-
-                Debug.Assert(!_simdHelper.IsVectorOfT(type)
-                    || ((DefType)type).InstanceFieldSize.IsIndeterminate /* This would happen in the ReadyToRun case */
-                    || ((DefType)type).InstanceFieldSize.AsInt == GetMaxIntrinsicSIMDVectorLength(_jit, &flags));
-#endif
-
-                return true;
-            }
-
-            return false;
+            return type.IsIntrinsic;
         }
 
         private CorInfoUnmanagedCallConv getUnmanagedCallConv(CORINFO_METHOD_STRUCT_* method)
@@ -3065,7 +3055,13 @@ namespace Internal.JitInterface
                 flags.Set(CorJitFlag.CORJIT_FLAG_REVERSE_PINVOKE);
 
             if (this.MethodBeingCompiled.IsPInvoke)
+            {
                 flags.Set(CorJitFlag.CORJIT_FLAG_IL_STUB);
+
+#if READYTORUN
+                flags.Set(CorJitFlag.CORJIT_FLAG_PUBLISH_SECRET_PARAM);
+#endif
+            }
 
             if (this.MethodBeingCompiled.IsNoOptimization)
                 flags.Set(CorJitFlag.CORJIT_FLAG_MIN_OPT);

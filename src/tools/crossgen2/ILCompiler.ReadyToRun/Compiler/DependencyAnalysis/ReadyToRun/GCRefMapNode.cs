@@ -39,7 +39,10 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
 
         public void AddImport(Import import)
         {
-            _methods.Add(import as IMethodNode);
+            lock (_methods)
+            {
+                _methods.Add(import as IMethodNode);
+            }
         }
 
         public void AppendMangledName(NameMangler nameMangler, Utf8StringBuilder sb)
@@ -59,6 +62,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
                     definedSymbols: new ISymbolDefinitionNode[] { this });
             }
 
+            _methods.Sort(new CompilerComparer());
             GCRefMapBuilder builder = new GCRefMapBuilder(factory.Target, relocsOnly);
             builder.Builder.RequireInitialAlignment(4);
             builder.Builder.AddSymbol(this);
@@ -78,12 +82,6 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             int nextMethodIndex = GCREFMAP_LOOKUP_STRIDE - 1;
             for (int methodIndex = 0; methodIndex < _methods.Count; methodIndex++)
             {
-                if (methodIndex >= nextMethodIndex)
-                {
-                    builder.Builder.EmitInt(offsets[nextOffsetIndex], builder.Builder.CountBytes);
-                    nextOffsetIndex++;
-                    nextMethodIndex += GCREFMAP_LOOKUP_STRIDE;
-                }
                 IMethodNode methodNode = _methods[methodIndex];
                 if (methodNode == null || (methodNode is MethodWithGCInfo methodWithGCInfo && methodWithGCInfo.IsEmpty))
                 {
@@ -94,6 +92,12 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
                 else
                 {
                     builder.GetCallRefMap(methodNode.Method);
+                }
+                if (methodIndex >= nextMethodIndex)
+                {
+                    builder.Builder.EmitInt(offsets[nextOffsetIndex], builder.Builder.CountBytes);
+                    nextOffsetIndex++;
+                    nextMethodIndex += GCREFMAP_LOOKUP_STRIDE;
                 }
             }
             Debug.Assert(nextOffsetIndex == offsets.Length);
@@ -106,6 +110,11 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             Utf8StringBuilder sb = new Utf8StringBuilder();
             AppendMangledName(factory.NameMangler, sb);
             return sb.ToString();
+        }
+
+        public override int CompareToImpl(ISortableNode other, CompilerComparer comparer)
+        {
+            return comparer.Compare(_importSection, ((GCRefMapNode)other)._importSection);
         }
     }
 }

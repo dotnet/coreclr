@@ -8,6 +8,8 @@ using System.Collections.Generic;
 using Internal.TypeSystem;
 using Internal.TypeSystem.Ecma;
 
+using Debug = System.Diagnostics.Debug;
+
 namespace ILCompiler
 {
     public class ReadyToRunSingleAssemblyCompilationModuleGroup : CompilationModuleGroup
@@ -159,6 +161,11 @@ namespace ILCompiler
             return true;
         }
 
+        public override bool VersionsWithModule(ModuleDesc module)
+        {
+            return _versionBubbleModuleSet.Contains(module);
+        }
+
         public override bool VersionsWithType(TypeDesc typeDesc)
         {
             return typeDesc.GetTypeDefinition() is EcmaType ecmaType &&
@@ -180,6 +187,17 @@ namespace ILCompiler
                     calleeMethod.HasCustomAttribute("System.Runtime.Versioning", "NonVersionableAttribute"));
 
             return canInline;
+        }
+
+        public override bool GeneratesPInvoke(MethodDesc method)
+        {
+            // PInvokes depend on details of the core library.
+            //
+            // We allow compiling them if both the module of the pinvoke and the core library
+            // are in the version bubble.
+            Debug.Assert(method is EcmaMethod);
+            return _versionBubbleModuleSet.Contains(((EcmaMethod)method).Module)
+                && _versionBubbleModuleSet.Contains(method.Context.SystemModule);
         }
     }
 }

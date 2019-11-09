@@ -4289,18 +4289,14 @@ void Compiler::fgOptWhileLoop(BasicBlock* block)
             {
                 bTest->bbFlags |= BBF_RUN_RARELY;
                 // All out edge weights are set to zero
-                edgeToNext->flEdgeWeightMin = BB_ZERO_WEIGHT;
-                edgeToNext->flEdgeWeightMax = BB_ZERO_WEIGHT;
-                edgeToJump->flEdgeWeightMin = BB_ZERO_WEIGHT;
-                edgeToJump->flEdgeWeightMax = BB_ZERO_WEIGHT;
+                edgeToNext->setEdgeWeights(BB_ZERO_WEIGHT, BB_ZERO_WEIGHT);
+                edgeToJump->setEdgeWeights(BB_ZERO_WEIGHT, BB_ZERO_WEIGHT);
             }
             else
             {
                 // Update the our edge weights
-                edgeToNext->flEdgeWeightMin = BB_ZERO_WEIGHT;
-                edgeToNext->flEdgeWeightMax = min(edgeToNext->flEdgeWeightMax, newWeightTest);
-                edgeToJump->flEdgeWeightMin = BB_ZERO_WEIGHT;
-                edgeToJump->flEdgeWeightMax = min(edgeToJump->flEdgeWeightMax, newWeightTest);
+                edgeToNext->setEdgeWeights(BB_ZERO_WEIGHT, min(edgeToNext->edgeWeightMax(), newWeightTest));
+                edgeToJump->setEdgeWeights(BB_ZERO_WEIGHT, min(edgeToJump->edgeWeightMax(), newWeightTest));
             }
         }
     }
@@ -5095,14 +5091,14 @@ void Compiler::optCloneLoops()
     unsigned methHash = info.compMethodHash();
     char* lostr = getenv("loopclonehashlo");
     unsigned methHashLo = 0;
-    if (lostr != NULL) 
+    if (lostr != NULL)
     {
         sscanf_s(lostr, "%x", &methHashLo);
         // methHashLo = (unsigned(atoi(lostr)) << 2);  // So we don't have to use negative numbers.
     }
     char* histr = getenv("loopclonehashhi");
     unsigned methHashHi = UINT32_MAX;
-    if (histr != NULL) 
+    if (histr != NULL)
     {
         sscanf_s(histr, "%x", &methHashHi);
         // methHashHi = (unsigned(atoi(histr)) << 2);  // So we don't have to use negative numbers.
@@ -6021,7 +6017,7 @@ bool Compiler::optIsVarAssigned(BasicBlock* beg, BasicBlock* end, GenTree* skip,
 
         for (Statement* stmt : beg->Statements())
         {
-            if (fgWalkTreePre(stmt->GetRootNodePointer(), optIsVarAssgCB, &desc))
+            if (fgWalkTreePre(stmt->GetRootNodePointer(), optIsVarAssgCB, &desc) != WALK_CONTINUE)
             {
                 result = true;
                 goto DONE;
@@ -6340,14 +6336,14 @@ void Compiler::optHoistLoopCode()
     unsigned methHash = info.compMethodHash();
     char* lostr = getenv("loophoisthashlo");
     unsigned methHashLo = 0;
-    if (lostr != NULL) 
+    if (lostr != NULL)
     {
         sscanf_s(lostr, "%x", &methHashLo);
         // methHashLo = (unsigned(atoi(lostr)) << 2);  // So we don't have to use negative numbers.
     }
     char* histr = getenv("loophoisthashhi");
     unsigned methHashHi = UINT32_MAX;
-    if (histr != NULL) 
+    if (histr != NULL)
     {
         sscanf_s(histr, "%x", &methHashHi);
         // methHashHi = (unsigned(atoi(histr)) << 2);  // So we don't have to use negative numbers.
@@ -6875,7 +6871,7 @@ void Compiler::optHoistLoopBlocks(unsigned loopNum, ArrayStack<BasicBlock*>* blo
                 // and the SSA definition must be outside the loop we're hoisting from ...
                 isInvariant = isInvariant &&
                               !m_compiler->optLoopTable[m_loopNum].lpContains(
-                                  m_compiler->lvaGetDesc(lclNum)->GetPerSsaData(lclVar->GetSsaNum())->m_defLoc.m_blk);
+                                  m_compiler->lvaGetDesc(lclNum)->GetPerSsaData(lclVar->GetSsaNum())->GetBlock());
                 // and the VN of the tree is considered invariant as well.
                 //
                 // TODO-CQ: This VN invariance check should not be necessary and in some cases it is conservative - it
@@ -7264,7 +7260,7 @@ bool Compiler::optVNIsLoopInvariant(ValueNum vn, unsigned lnum, VNToBoolMap* loo
             unsigned      lclNum = funcApp.m_args[0];
             unsigned      ssaNum = funcApp.m_args[1];
             LclSsaVarDsc* ssaDef = lvaTable[lclNum].GetPerSsaData(ssaNum);
-            res                  = !optLoopContains(lnum, ssaDef->m_defLoc.m_blk->bbNatLoopNum);
+            res                  = !optLoopContains(lnum, ssaDef->GetBlock()->bbNatLoopNum);
         }
         else if (funcApp.m_func == VNF_PhiMemoryDef)
         {
@@ -7399,9 +7395,9 @@ void Compiler::fgCreateLoopPreHeader(unsigned lnum)
                     noway_assert(edgeToJump != nullptr);
 
                     loopEnteredCount =
-                        ((double)edgeToNext->flEdgeWeightMin + (double)edgeToNext->flEdgeWeightMax) / 2.0;
+                        ((double)edgeToNext->edgeWeightMin() + (double)edgeToNext->edgeWeightMax()) / 2.0;
                     loopSkippedCount =
-                        ((double)edgeToJump->flEdgeWeightMin + (double)edgeToJump->flEdgeWeightMax) / 2.0;
+                        ((double)edgeToJump->edgeWeightMin() + (double)edgeToJump->edgeWeightMax()) / 2.0;
                 }
                 else
                 {
@@ -9089,17 +9085,15 @@ void Compiler::optOptimizeBools()
             noway_assert(edge1 != nullptr);
             noway_assert(edge2 != nullptr);
 
-            BasicBlock::weight_t edgeSumMin = edge1->flEdgeWeightMin + edge2->flEdgeWeightMin;
-            BasicBlock::weight_t edgeSumMax = edge1->flEdgeWeightMax + edge2->flEdgeWeightMax;
-            if ((edgeSumMax >= edge1->flEdgeWeightMax) && (edgeSumMax >= edge2->flEdgeWeightMax))
+            BasicBlock::weight_t edgeSumMin = edge1->edgeWeightMin() + edge2->edgeWeightMin();
+            BasicBlock::weight_t edgeSumMax = edge1->edgeWeightMax() + edge2->edgeWeightMax();
+            if ((edgeSumMax >= edge1->edgeWeightMax()) && (edgeSumMax >= edge2->edgeWeightMax()))
             {
-                edge1->flEdgeWeightMin = edgeSumMin;
-                edge1->flEdgeWeightMax = edgeSumMax;
+                edge1->setEdgeWeights(edgeSumMin, edgeSumMax);
             }
             else
             {
-                edge1->flEdgeWeightMin = BB_ZERO_WEIGHT;
-                edge1->flEdgeWeightMax = BB_MAX_WEIGHT;
+                edge1->setEdgeWeights(BB_ZERO_WEIGHT, BB_MAX_WEIGHT);
             }
 
             /* Get rid of the second block (which is a BBJ_COND) */

@@ -67,7 +67,7 @@ usage()
 
 initTargetDistroRid()
 {
-    source init-distro-rid.sh
+    source ${__ProjectDir}/init-distro-rid.sh
 
     local passedRootfsDir=""
 
@@ -140,13 +140,10 @@ check_prereqs()
 
 restore_optdata()
 {
-    # we only need optdata on a Release build
-    if [[ "$__BuildType" != "Release" ]]; then __SkipRestoreOptData=1; fi
-
     local OptDataProjectFilePath="$__ProjectRoot/src/.nuget/optdata/optdata.csproj"
     if [[ ( $__SkipRestoreOptData == 0 ) && ( $__isMSBuildOnNETCoreSupported == 1 ) ]]; then
         echo "Restoring the OptimizationData package"
-        "$__ProjectRoot/eng/common/msbuild.sh" $__ArcadeScriptArgs \
+        "$__RepoRootDir/eng/common/msbuild.sh" $__ArcadeScriptArgs \
                                                $OptDataProjectFilePath /t:Restore /m \
                                                $__CommonMSBuildArgs $__UnprocessedBuildArgs
         local exit_code=$?
@@ -159,28 +156,28 @@ restore_optdata()
     if [ $__isMSBuildOnNETCoreSupported == 1 ]; then
         # Parse the optdata package versions out of msbuild so that we can pass them on to CMake
 
-        local PgoDataPackageVersionOutputFile="${__IntermediatesDir}/optdataversion.txt"
-        local IbcDataPackageVersionOutputFile="${__IntermediatesDir}/ibcoptdataversion.txt"
+        local PgoDataPackagePathOutputFile="${__IntermediatesDir}/optdatapath.txt"
+        local IbcDataPackagePathOutputFile="${__IntermediatesDir}/ibcoptdatapath.txt"
 
-        # Writes into ${PgoDataPackageVersionOutputFile}
-        "$__ProjectRoot/eng/common/msbuild.sh" $__ArcadeScriptArgs $OptDataProjectFilePath /t:DumpPgoDataPackageVersion ${__CommonMSBuildArgs} /p:PgoDataPackageVersionOutputFile=${PgoDataPackageVersionOutputFile} 2>&1 > /dev/null
+        # Writes into ${PgoDataPackagePathOutputFile}
+        "$__RepoRootDir/eng/common/msbuild.sh" $__ArcadeScriptArgs $OptDataProjectFilePath /t:DumpPgoDataPackagePath ${__CommonMSBuildArgs} /p:PgoDataPackagePathOutputFile=${PgoDataPackagePathOutputFile} 2>&1 > /dev/null
         local exit_code=$?
-        if [ $exit_code != 0 ] || [ ! -f "${PgoDataPackageVersionOutputFile}" ]; then
-            echo "${__ErrMsgPrefix}Failed to get PGO data package version."
+        if [ $exit_code != 0 ] || [ ! -f "${PgoDataPackagePathOutputFile}" ]; then
+            echo "${__ErrMsgPrefix}Failed to get PGO data package path."
             exit $exit_code
         fi
 
-        __PgoOptDataVersion=$(<"${PgoDataPackageVersionOutputFile}")
+        __PgoOptDataPath=$(<"${PgoDataPackagePathOutputFile}")
 
-        # Writes into ${IbcDataPackageVersionOutputFile}
-        "$__ProjectRoot/eng/common/msbuild.sh" $__ArcadeScriptArgs $OptDataProjectFilePath /t:DumpIbcDataPackageVersion ${__CommonMSBuildArgs} /p:IbcDataPackageVersionOutputFile=${IbcDataPackageVersionOutputFile} 2>&1 > /dev/null
+        # Writes into ${IbcDataPackagePathOutputFile}
+        "$__RepoRootDir/eng/common/msbuild.sh" $__ArcadeScriptArgs $OptDataProjectFilePath /t:DumpIbcDataPackagePath ${__CommonMSBuildArgs} /p:IbcDataPackagePathOutputFile=${IbcDataPackagePathOutputFile} 2>&1 > /dev/null
         local exit_code=$?
-        if [ $exit_code != 0 ] || [ ! -f "${IbcDataPackageVersionOutputFile}" ]; then
-            echo "${__ErrMsgPrefix}Failed to get IBC data package version."
+        if [ $exit_code != 0 ] || [ ! -f "${IbcDataPackagePathOutputFile}" ]; then
+            echo "${__ErrMsgPrefix}Failed to get IBC data package path."
             exit $exit_code
         fi
 
-        __IbcOptDataVersion=$(<"${IbcDataPackageVersionOutputFile}")
+        __IbcOptDataPath=$(<"${IbcDataPackagePathOutputFile}")
     fi
 }
 
@@ -238,7 +235,7 @@ build_native()
         __versionSourceFile="$intermediatesForBuild/version.c"
         if [ $__SkipGenerateVersion == 0 ]; then
             pwd
-            "$__ProjectRoot/eng/common/msbuild.sh" $__ArcadeScriptArgs $__ProjectRoot/eng/empty.csproj \
+            "$__RepoRootDir/eng/common/msbuild.sh" $__ArcadeScriptArgs $__ProjectRoot/eng/empty.csproj \
                                                    /p:NativeVersionFile=$__versionSourceFile \
                                                    /t:GenerateNativeVersionFile /restore \
                                                    $__CommonMSBuildArgs $__UnprocessedBuildArgs
@@ -276,8 +273,9 @@ build_native()
             extraCmakeArguments="$extraCmakeArguments -DCLR_CMAKE_ENABLE_CODE_COVERAGE=1"
         fi
 
-        echo "Invoking \"$scriptDir/gen-buildsys.sh\" \"$__ProjectRoot\" \"$intermediatesForBuild\" $platformArch $__BuildType $generator $scan_build $extraCmakeArguments $__cmakeargs"
-        source "$scriptDir/gen-buildsys.sh" "$__ProjectRoot" "$intermediatesForBuild" $platformArch $__BuildType $generator $scan_build "$extraCmakeArguments" "$__cmakeargs"
+        nextCommand="\"$scriptDir/gen-buildsys.sh\" \"$__ProjectRoot\" \"$intermediatesForBuild\" $platformArch $__BuildType $generator $scan_build $extraCmakeArguments $__cmakeargs"
+        echo "Invoking $nextCommand"
+        eval $nextCommand
     
         if [ $? != 0  ]; then
             echo "${__ErrMsgPrefix}Failed to generate $message build project!"
@@ -344,7 +342,7 @@ build_cross_architecture_components()
     export __CMakeBinDir="$crossArchBinDir"
     export CROSSCOMPILE=0
 
-    __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_ARCH=$__BuildArch -DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument -DCLR_CMAKE_OPTDATA_VERSION=$__PgoOptDataVersion -DCLR_CMAKE_PGO_OPTIMIZE=$__PgoOptimize -DCLR_CROSS_COMPONENTS_BUILD=1"
+    __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_ARCH=$__BuildArch -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument -DCLR_CMAKE_OPTDATA_PATH=$__PgoOptDataPath -DCLR_CMAKE_PGO_OPTIMIZE=$__PgoOptimize -DCLR_CROSS_COMPONENTS_BUILD=1"
     build_native $__SkipCrossArchBuild "$__CrossArch" "$intermediatesForBuild" "$__ExtraCmakeArgs" "cross-architecture components"
 
     export CROSSCOMPILE=1
@@ -426,7 +424,7 @@ build_CoreLib()
     # Invoke MSBuild
     __ExtraBuildArgs=""
     if [[ "$__IbcTuning" == "" ]]; then
-        __ExtraBuildArgs="$__ExtraBuildArgs /p:OptimizationDataDir=\"$__PackagesDir/optimization.$__BuildOS-$__BuildArch.IBC.CoreCLR/$__IbcOptDataVersion/data\""
+        __ExtraBuildArgs="$__ExtraBuildArgs /p:OptimizationDataDir=\"$__IbcOptDataPath/data\""
         __ExtraBuildArgs="$__ExtraBuildArgs /p:EnableProfileGuidedOptimization=true"
     fi
 
@@ -434,7 +432,7 @@ build_CoreLib()
         __ExtraBuildArgs="$__ExtraBuildArgs /p:BuildManagedTools=true"
     fi
 
-    "$__ProjectRoot/eng/common/msbuild.sh" $__ArcadeScriptArgs \
+    "$__RepoRootDir/eng/common/msbuild.sh" $__ArcadeScriptArgs \
                                            $__ProjectDir/src/build.proj /t:Restore \
                                            /p:PortableBuild=true /maxcpucount /p:IncludeRestoreOnlyProjects=true \
                                            /flp:Verbosity=normal\;LogFile=$__LogsDir/System.Private.CoreLib_$__BuildOS__$__BuildArch__$__BuildType.log \
@@ -447,7 +445,7 @@ build_CoreLib()
         exit $exit_code
     fi
 
-    "$__ProjectRoot/eng/common/msbuild.sh" $__ArcadeScriptArgs \
+    "$__RepoRootDir/eng/common/msbuild.sh" $__ArcadeScriptArgs \
                                            $__ProjectDir/src/build.proj \
                                            /p:PortableBuild=true /maxcpucount \
                                            /flp:Verbosity=normal\;LogFile=$__LogsDir/System.Private.CoreLib_$__BuildOS__$__BuildArch__$__BuildType.log \
@@ -462,7 +460,13 @@ build_CoreLib()
 
     if [[ "$__BuildManagedTools" -eq "1" ]]; then
         echo "Publishing crossgen2 for $__DistroRid"
-        "$__ProjectRoot/dotnet.sh" publish --self-contained -r $__DistroRid -c $__BuildType -o "$__BinDir/crossgen2" "$__ProjectRoot/src/tools/crossgen2/crossgen2/crossgen2.csproj"
+        "$__ProjectRoot/dotnet.sh" publish --self-contained -r $__DistroRid -c $__BuildType -o "$__BinDir/crossgen2" "$__ProjectRoot/src/tools/crossgen2/crossgen2/crossgen2.csproj" /p:BuildArch=$__BuildArch
+
+        local exit_code=$?
+        if [ $exit_code != 0 ]; then
+            echo "${__ErrMsgPrefix}Failed to build crossgen2."
+            exit $exit_code
+        fi
 
         if [ "$__HostOS" == "OSX" ]; then
             cp "$__BinDir/libclrjit.dylib" "$__BinDir/crossgen2/libclrjitilc.dylib"
@@ -535,7 +539,7 @@ generate_NugetPackages()
     echo "ROOTFS_DIR is "$ROOTFS_DIR
     # Build the packages
     # Package build uses the Arcade system and scripts, relying on it to restore required toolsets as part of build
-    $__ProjectRoot/eng/common/build.sh -r -b -projects $__SourceDir/.nuget/packages.builds \
+    $__RepoRootDir/eng/common/build.sh -r -b -projects $__SourceDir/.nuget/packages.builds \
                                        -verbosity minimal -bl:$__LogsDir/Nuget_$__BuildOS__$__BuildArch__$__BuildType.binlog \
                                        /p:PortableBuild=true \
                                        /p:__IntermediatesDir=$__IntermediatesDir /p:__RootBinDir=$__RootBinDir /p:__DoCrossArchBuild=$__CrossBuild \
@@ -557,8 +561,17 @@ echo "Commencing CoreCLR Repo build"
 #
 # Set the default arguments for build
 
-# Obtain the location of the bash script to figure out where the root of the repo is.
+# Obtain the location of the bash script to figure out where the root of the subrepo is.
 __ProjectRoot="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Some paths are relative to the main repo root
+__RepoRootDir="${__ProjectRoot}/../.."
+
+# BEGIN SECTION to remove after repo consolidation
+if [ ! -f "${__RepoRootDir}/.dotnet-runtime-placeholder" ]; then
+  __RepoRootDir=${__ProjectRoot}
+fi
+# END SECTION to remove after repo consolidation
 
 # Use uname to determine what the CPU is.
 CPUName=$(uname -p)
@@ -648,7 +661,6 @@ __IgnoreWarnings=0
 # Set the various build properties here so that CMake and MSBuild can pick them up
 __ProjectDir="$__ProjectRoot"
 __SourceDir="$__ProjectDir/src"
-__PackagesDir="${DotNetRestorePackagesPath:-${__ProjectDir}/.packages}"
 __RootBinDir="$__ProjectDir/bin"
 __UnprocessedBuildArgs=
 __CommonMSBuildArgs=
@@ -676,14 +688,13 @@ __ClangMinorVersion=0
 __GccBuild=0
 __GccMajorVersion=0
 __GccMinorVersion=0
-__NuGetPath="$__PackagesDir/NuGet.exe"
 __DistroRid=""
 __cmakeargs=""
 __SkipGenerateVersion=0
 __PortableBuild=1
 __msbuildonunsupportedplatform=0
-__PgoOptDataVersion=""
-__IbcOptDataVersion=""
+__PgoOptDataPath=""
+__IbcOptDataPath=""
 __BuildManagedTools=1
 __SkipRestoreArg="/p:RestoreDuringBuild=true"
 __SignTypeArg=""
@@ -817,6 +828,16 @@ while :; do
             __ClangMinorVersion=
             ;;
 
+        clang8|-clang8)
+            __ClangMajorVersion=8
+            __ClangMinorVersion=
+            ;;
+
+        clang9|-clang9)
+            __ClangMajorVersion=9
+            __ClangMinorVersion=
+            ;;
+
         gcc5|-gcc5)
             __GccMajorVersion=5
             __GccMinorVersion=
@@ -837,6 +858,12 @@ while :; do
 
         gcc8|-gcc8)
             __GccMajorVersion=8
+            __GccMinorVersion=
+            __GccBuild=1
+            ;;
+
+        gcc9|-gcc9)
+            __GccMajorVersion=9
             __GccMinorVersion=
             __GccBuild=1
             ;;
@@ -1051,7 +1078,7 @@ __CrossGenCoreLibLog="$__LogsDir/CrossgenCoreLib_$__BuildOS.$__BuildArch.$__Buil
 if [ $__CrossBuild == 1 ]; then
     export CROSSCOMPILE=1
     if ! [[ -n "$ROOTFS_DIR" ]]; then
-        export ROOTFS_DIR="$__ProjectRoot/cross/rootfs/$__BuildArch"
+        export ROOTFS_DIR="$__RepoRootDir/eng/common/cross/rootfs/$__BuildArch"
     fi
 fi
 
@@ -1095,7 +1122,7 @@ restore_optdata
 generate_event_logging
 
 # Build the coreclr (native) components.
-__ExtraCmakeArgs="-DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument -DCLR_CMAKE_OPTDATA_VERSION=$__PgoOptDataVersion -DCLR_CMAKE_PGO_OPTIMIZE=$__PgoOptimize"
+__ExtraCmakeArgs="-DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument -DCLR_CMAKE_OPTDATA_PATH=$__PgoOptDataPath -DCLR_CMAKE_PGO_OPTIMIZE=$__PgoOptimize"
 
 build_native $__SkipCoreCLR "$__BuildArch" "$__IntermediatesDir" "$__ExtraCmakeArgs" "CoreCLR component"
 
