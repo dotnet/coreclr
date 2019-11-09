@@ -915,13 +915,13 @@ namespace System
             if (target == null)
                 return 1; // all values are greater than null
 
-            if (this.GetType() != target.GetType())
-                throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, target.GetType(), this.GetType()));
+            if (GetType() != target.GetType())
+                throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, target.GetType(), GetType()));
 
             ref byte pThisValue = ref this.GetRawData();
             ref byte pTargetValue = ref target.GetRawData();
 
-            switch (this.InternalGetCorElementType())
+            switch (InternalGetCorElementType())
             {
                 case CorElementType.ELEMENT_TYPE_I1:
                     return Unsafe.As<byte, sbyte>(ref pThisValue).CompareTo(Unsafe.As<byte, sbyte>(ref pTargetValue));
@@ -952,7 +952,7 @@ namespace System
 #if BIT64
                 case CorElementType.ELEMENT_TYPE_U:
 #endif
-                    return Unsafe.As<byte, long>(ref pThisValue).CompareTo(Unsafe.As<byte, ulong>(ref pTargetValue));
+                    return Unsafe.As<byte, ulong>(ref pThisValue).CompareTo(Unsafe.As<byte, ulong>(ref pTargetValue));
                 default:
                     throw new InvalidOperationException(SR.InvalidOperation_UnknownEnumType);
             }
