@@ -951,7 +951,7 @@ void  DispatchHolder::Initialize(PCODE implTarget, PCODE failTarget, size_t expe
 // instruction halfword to which it applies. For thumb-2 encodings the offset must be computed before emitting
 // the first of the halfwords.
 #undef PC_REL_OFFSET
-#define PC_REL_OFFSET(_field) (WORD)(offsetof(DispatchStub, _field) - (offsetof(DispatchStub, _entryPoint[n + 2]) & 0xfffffffc))
+#define PC_REL_OFFSET(_field) (WORD)(offsetof(DispatchStub, _field) - ((offsetof(DispatchStub, _entryPoint) + sizeof(*DispatchStub::_entryPoint) * (n + 2)) & 0xfffffffc))
 
     // r0 : object. It can be null as well.
     // when it is null the code causes an AV. This AV is seen by the VM's personality routine
@@ -1033,7 +1033,7 @@ void ResolveHolder::Initialize(PCODE resolveWorkerTarget, PCODE patcherTarget,
 // instruction halfword to which it applies. For thumb-2 encodings the offset must be computed before emitting
 // the first of the halfwords.
 #undef PC_REL_OFFSET
-#define PC_REL_OFFSET(_field) (WORD)(offsetof(ResolveStub, _field) - (offsetof(ResolveStub, _resolveEntryPoint[n + 2]) & 0xfffffffc))
+#define PC_REL_OFFSET(_field) (WORD)(offsetof(ResolveStub, _field) - ((offsetof(ResolveStub, _resolveEntryPoint) + sizeof(*ResolveStub::_resolveEntryPoint) * (n + 2)) & 0xfffffffc))
 
     // ldr r12, [r0 + #Object.m_pMethTab]
     _stub._resolveEntryPoint[n++] = RESOLVE_STUB_FIRST_WORD;
@@ -1168,7 +1168,7 @@ void ResolveHolder::Initialize(PCODE resolveWorkerTarget, PCODE patcherTarget,
     _ASSERTE((n & 1) == 0);
 
 #undef PC_REL_OFFSET
-#define PC_REL_OFFSET(_field) (WORD)(offsetof(ResolveStub, _field) - (offsetof(ResolveStub, _slowEntryPoint[n + 2]) & 0xfffffffc))
+#define PC_REL_OFFSET(_field) (WORD)(offsetof(ResolveStub, _field) - ((offsetof(ResolveStub, _slowEntryPoint) + sizeof(*ResolveStub::_slowEntryPoint) * (n + 2)) & 0xfffffffc))
 
     n = 0;
 
@@ -1196,7 +1196,7 @@ void ResolveHolder::Initialize(PCODE resolveWorkerTarget, PCODE patcherTarget,
     _ASSERTE((n & 1) == 0);
 
 #undef PC_REL_OFFSET
-#define PC_REL_OFFSET(_field) (WORD)(offsetof(ResolveStub, _field) - (offsetof(ResolveStub, _failEntryPoint[n + 2]) & 0xfffffffc))
+#define PC_REL_OFFSET(_field) (WORD)(offsetof(ResolveStub, _field) - ((offsetof(ResolveStub, _failEntryPoint) + sizeof(*ResolveStub::_failEntryPoint) * (n + 2)) & 0xfffffffc))
 
     n = 0;
 
@@ -1233,7 +1233,7 @@ void ResolveHolder::Initialize(PCODE resolveWorkerTarget, PCODE patcherTarget,
 
     // resolveEntryPoint:
     // b _resolveEntryPoint
-    offset = (WORD)(offsetof(ResolveStub, _resolveEntryPoint) - offsetof(ResolveStub, _failEntryPoint[n + 2]));
+    offset = (WORD)(offsetof(ResolveStub, _resolveEntryPoint) - (offsetof(ResolveStub, _failEntryPoint) + sizeof(*ResolveStub::_failEntryPoint) * (n + 2)));
     _ASSERTE((offset & 1) == 0);
     offset = (offset >> 1) & 0x07ff;
     _stub._failEntryPoint[n++] = 0xe000 | offset;
@@ -1341,7 +1341,7 @@ Stub *GenerateInitPInvokeFrameHelper()
 
 #ifdef FEATURE_PAL
     for (int reg = 0; reg < 4; reg++)
-        psl->ThumbEmitLoadRegIndirect(ThumbReg(reg), thumbRegSp, offsetof(ArgumentRegisters, r) + sizeof(*ArgumentRegisters::r) * reg));
+        psl->ThumbEmitLoadRegIndirect(ThumbReg(reg), thumbRegSp, offsetof(ArgumentRegisters, r) + sizeof(*ArgumentRegisters::r) * reg);
 #endif
 
     // mov [regFrame + FrameInfo.offsetOfGSCookie], GetProcessGSCookie()
