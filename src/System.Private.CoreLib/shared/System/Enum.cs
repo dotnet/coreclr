@@ -953,6 +953,10 @@ namespace System
                 case CorElementType.ELEMENT_TYPE_U:
 #endif
                     return Unsafe.As<byte, ulong>(ref pThisValue).CompareTo(Unsafe.As<byte, ulong>(ref pTargetValue));
+                case CorElementType.ELEMENT_TYPE_R4:
+                    return Unsafe.As<byte, float>(ref pThisValue).CompareTo(Unsafe.As<byte, float>(ref pTargetValue));
+                case CorElementType.ELEMENT_TYPE_R8:
+                    return Unsafe.As<byte, double>(ref pThisValue).CompareTo(Unsafe.As<byte, double>(ref pTargetValue));
                 default:
                     throw new InvalidOperationException(SR.InvalidOperation_UnknownEnumType);
             }
