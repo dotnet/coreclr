@@ -154,15 +154,15 @@ typedef struct _ARM_CONTEXT_OFFSETS
 } ARM_CONTEXT_OFFSETS, *PARM_CONTEXT_OFFSETS;
 
 static const ARM_CONTEXT_OFFSETS TrapFrameOffsets =
-{  8, 272, { 248,252,256,260, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, 72 },
-   { 184, 192, 200, 208, 216, 224, 232, 240, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0,
-     ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0}, 64, 68, 264,
+{  8, 272, { 248,252,256,260, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, 72 },
+   { 184, 192, 200, 208, 216, 224, 232, 240, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0,
+     (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0}, 64, 68, 264,
    268, 176};
 
 static const ARM_CONTEXT_OFFSETS MachineFrameOffsets =
-{  8,   8, {  ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0 },
-   {~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0,
-    ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0, ~0}, 0, ~0,  4, ~0 , ~0};
+{  8,   8, {  (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0 },
+   {(UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0,
+    (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0, (UINT16)~0}, 0, (UINT16)~0,  4, (UINT16)~0 , (UINT16)~0};
 
 static const ARM_CONTEXT_OFFSETS ContextOffsets =
 { 16, 416, {   4,  8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52 },
