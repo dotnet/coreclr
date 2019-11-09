@@ -38,39 +38,11 @@ namespace System
                     ((nuint)strA.Length) * 2);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int CompareOrdinalHelper(string strA, int indexA, int countA, string strB, int indexB, int countB)
-        {
-            Debug.Assert(strA != null);
-            Debug.Assert(strB != null);
-            Debug.Assert(indexA >= 0 && indexB >= 0);
-            Debug.Assert(countA >= 0 && countB >= 0);
-            Debug.Assert(indexA + countA <= strA.Length && indexB + countB <= strB.Length);
-
-            return SpanHelpers.SequenceCompareTo(ref Unsafe.Add(ref strA.GetRawStringData(), indexA), countA, ref Unsafe.Add(ref strB.GetRawStringData(), indexB), countB);
-        }
-
         private static bool EqualsOrdinalIgnoreCase(string strA, string strB)
         {
             Debug.Assert(strA.Length == strB.Length);
 
             return CompareInfo.EqualsOrdinalIgnoreCase(ref strA.GetRawStringData(), ref strB.GetRawStringData(), strB.Length);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe int CompareOrdinalHelper(string strA, string strB)
-        {
-            Debug.Assert(strA != null);
-            Debug.Assert(strB != null);
-
-            // NOTE: This may be subject to change if eliminating the check
-            // in the callers makes them small enough to be inlined
-            Debug.Assert(strA._firstChar == strB._firstChar,
-                "For performance reasons, callers of this method should " +
-                "check/short-circuit beforehand if the first char is the same.");
-
-            // Already compared 1 char, so start 1 char in
-            return SpanHelpers.SequenceCompareTo(ref Unsafe.Add(ref strA.GetRawStringData(), 1), strA.Length - 1, ref Unsafe.Add(ref strB.GetRawStringData(), 1), strB.Length - 1);
         }
 
         // Provides a culture-correct string comparison. StrA is compared to StrB
@@ -132,8 +104,13 @@ namespace System
                         return strA._firstChar - strB._firstChar;
                     }
 
-                    return CompareOrdinalHelper(strA, strB);
+                    if (strA.Length > 1 && strB.Length > 1)
+                    {
+                        // Already compared 1 char, so start 1 char in
+                        return SpanHelpers.SequenceCompareTo(ref Unsafe.Add(ref strA.GetRawStringData(), 1), strA.Length - 1, ref Unsafe.Add(ref strB.GetRawStringData(), 1), strB.Length - 1);
+                    }
 
+                    return strA.Length - strB.Length;
                 default: // StringComparison.OrdinalIgnoreCase
                     Debug.Assert(comparisonType == StringComparison.OrdinalIgnoreCase);
                     return CompareInfo.CompareOrdinalIgnoreCase(strA, strB);
@@ -295,7 +272,7 @@ namespace System
                     return CompareInfo.Invariant.Compare(strA, indexA, lengthA, strB, indexB, lengthB, GetCaseCompareOfComparisonCulture(comparisonType));
 
                 case StringComparison.Ordinal:
-                    return CompareOrdinalHelper(strA, indexA, lengthA, strB, indexB, lengthB);
+                    return SpanHelpers.SequenceCompareTo(ref Unsafe.Add(ref strA.GetRawStringData(), indexA), lengthA, ref Unsafe.Add(ref strB.GetRawStringData(), indexB), lengthB);
 
                 default:
                     Debug.Assert(comparisonType == StringComparison.OrdinalIgnoreCase); // ThrowIfStringComparisonInvalid validated these earlier
@@ -329,7 +306,13 @@ namespace System
                 return strA._firstChar - strB._firstChar;
             }
 
-            return CompareOrdinalHelper(strA, strB);
+            if (strA.Length > 1 && strB.Length > 1)
+            {
+                // Already compared 1 char, so start 1 char in
+                return SpanHelpers.SequenceCompareTo(ref Unsafe.Add(ref strA.GetRawStringData(), 1), strA.Length - 1, ref Unsafe.Add(ref strB.GetRawStringData(), 1), strB.Length - 1);
+            }
+
+            return strA.Length - strB.Length;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -379,7 +362,7 @@ namespace System
                 return 0;
             }
 
-            return CompareOrdinalHelper(strA, indexA, lengthA, strB, indexB, lengthB);
+            return SpanHelpers.SequenceCompareTo(ref Unsafe.Add(ref strA.GetRawStringData(), indexA), lengthA, ref Unsafe.Add(ref strB.GetRawStringData(), indexB), lengthB);
         }
 
         // Compares this String to another String (cast as object), returning an integer that
