@@ -2013,7 +2013,7 @@ void StubLinkerCPU::ThumbEmitCallWithGenericInstantiationParameter(MethodDesc *p
         // 1) First loop will emit the moves that have stack location as the target
         // 2) Second loop will emit moves that have register as the target.
         DWORD idxCurrentLoopBegin = 0, idxCurrentLoopEnd = cArgDescriptors;
-        if (idxFirstMoveToStack != -1)
+        if (idxFirstMoveToStack != (DWORD)-1)
         {
             _ASSERTE(idxFirstMoveToStack < cArgDescriptors);
             idxCurrentLoopBegin = idxFirstMoveToStack;
