@@ -29,6 +29,7 @@ namespace BinderTracingTests
                 catch { }
 
                 Assert.AreEqual(1, handlers.Invocations.Count);
+                Assert.AreEqual(0, handlers.Binds.Count);
                 return new BindOperation()
                 {
                     AssemblyName = assemblyName,
@@ -37,7 +38,8 @@ namespace BinderTracingTests
                     RequestingAssemblyLoadContext = DefaultALC,
                     Success = false,
                     Cached = false,
-                    ALCResolvingHandlers = handlers.Invocations
+                    ALCResolvingHandlers = handlers.Invocations,
+                    NestedBinds = handlers.Binds
                 };
             }
         }
@@ -52,6 +54,7 @@ namespace BinderTracingTests
                 Assembly asm = alc.LoadFromAssemblyName(assemblyName);
 
                 Assert.AreEqual(1, handlers.Invocations.Count);
+                Assert.AreEqual(1, handlers.Binds.Count);
                 return new BindOperation()
                 {
                     AssemblyName = assemblyName,
@@ -60,7 +63,8 @@ namespace BinderTracingTests
                     ResultAssemblyName = asm.GetName(),
                     ResultAssemblyPath = asm.Location,
                     Cached = false,
-                    ALCResolvingHandlers = handlers.Invocations
+                    ALCResolvingHandlers = handlers.Invocations,
+                    NestedBinds = handlers.Binds
                 };
             }
         }
@@ -75,13 +79,15 @@ namespace BinderTracingTests
                 Assert.Throws<FileLoadException>(() => alc.LoadFromAssemblyName(assemblyName));
 
                 Assert.AreEqual(1, handlers.Invocations.Count);
+                Assert.AreEqual(1, handlers.Binds.Count);
                 return new BindOperation()
                 {
                     AssemblyName = assemblyName,
                     AssemblyLoadContext = alc.ToString(),
                     Success = false,
                     Cached = false,
-                    ALCResolvingHandlers = handlers.Invocations
+                    ALCResolvingHandlers = handlers.Invocations,
+                    NestedBinds = handlers.Binds
                 };
             }
         }
@@ -97,7 +103,9 @@ namespace BinderTracingTests
                 Assembly asm = alc.LoadFromAssemblyName(assemblyName);
 
                 Assert.AreEqual(1, handlerNull.Invocations.Count);
+                Assert.AreEqual(0, handlerNull.Binds.Count);
                 Assert.AreEqual(1, handlerLoad.Invocations.Count);
+                Assert.AreEqual(1, handlerLoad.Binds.Count);
                 return new BindOperation()
                 {
                     AssemblyName = assemblyName,
@@ -106,7 +114,8 @@ namespace BinderTracingTests
                     ResultAssemblyName = asm.GetName(),
                     ResultAssemblyPath = asm.Location,
                     Cached = false,
-                    ALCResolvingHandlers = handlerNull.Invocations.Concat(handlerLoad.Invocations).ToList()
+                    ALCResolvingHandlers = handlerNull.Invocations.Concat(handlerLoad.Invocations).ToList(),
+                    NestedBinds = handlerNull.Binds.Concat(handlerLoad.Binds).ToList()
                 };
             }
         }
@@ -124,6 +133,7 @@ namespace BinderTracingTests
                 catch { }
 
                 Assert.AreEqual(1, handlers.Invocations.Count);
+                Assert.AreEqual(0, handlers.Binds.Count);
                 return new BindOperation()
                 {
                     AssemblyName = assemblyName,
@@ -132,7 +142,8 @@ namespace BinderTracingTests
                     RequestingAssemblyLoadContext = DefaultALC,
                     Success = false,
                     Cached = false,
-                    AppDomainAssemblyResolveHandlers = handlers.Invocations
+                    AppDomainAssemblyResolveHandlers = handlers.Invocations,
+                    NestedBinds = handlers.Binds
                 };
             }
         }
@@ -147,6 +158,7 @@ namespace BinderTracingTests
                 Assembly asm = alc.LoadFromAssemblyName(assemblyName);
 
                 Assert.AreEqual(1, handlers.Invocations.Count);
+                Assert.AreEqual(1, handlers.Binds.Count);
                 return new BindOperation()
                 {
                     AssemblyName = assemblyName,
@@ -155,7 +167,8 @@ namespace BinderTracingTests
                     ResultAssemblyName = asm.GetName(),
                     ResultAssemblyPath = asm.Location,
                     Cached = false,
-                    AppDomainAssemblyResolveHandlers = handlers.Invocations
+                    AppDomainAssemblyResolveHandlers = handlers.Invocations,
+                    NestedBinds = handlers.Binds
                 };
             }
         }
@@ -171,6 +184,7 @@ namespace BinderTracingTests
                 Assembly asm = alc.LoadFromAssemblyName(assemblyName);
 
                 Assert.AreEqual(1, handlers.Invocations.Count);
+                Assert.AreEqual(1, handlers.Binds.Count);
                 return new BindOperation()
                 {
                     AssemblyName = assemblyName,
@@ -179,7 +193,8 @@ namespace BinderTracingTests
                     ResultAssemblyName = asm.GetName(),
                     ResultAssemblyPath = asm.Location,
                     Cached = false,
-                    AppDomainAssemblyResolveHandlers = handlers.Invocations
+                    AppDomainAssemblyResolveHandlers = handlers.Invocations,
+                    NestedBinds = handlers.Binds
                 };
             }
         }
@@ -195,7 +210,9 @@ namespace BinderTracingTests
                 Assembly asm = alc.LoadFromAssemblyName(assemblyName);
 
                 Assert.AreEqual(1, handlerNull.Invocations.Count);
+                Assert.AreEqual(0, handlerNull.Binds.Count);
                 Assert.AreEqual(1, handlerLoad.Invocations.Count);
+                Assert.AreEqual(1, handlerLoad.Binds.Count);
                 return new BindOperation()
                 {
                     AssemblyName = assemblyName,
@@ -204,7 +221,8 @@ namespace BinderTracingTests
                     ResultAssemblyName = asm.GetName(),
                     ResultAssemblyPath = asm.Location,
                     Cached = false,
-                    AppDomainAssemblyResolveHandlers = handlerNull.Invocations.Concat(handlerLoad.Invocations).ToList()
+                    AppDomainAssemblyResolveHandlers = handlerNull.Invocations.Concat(handlerLoad.Invocations).ToList(),
+                    NestedBinds = handlerNull.Binds.Concat(handlerLoad.Binds).ToList()
                 };
             }
         }
@@ -222,6 +240,7 @@ namespace BinderTracingTests
             private AssemblyLoadContext alc;
 
             internal readonly List<HandlerInvocation> Invocations = new List<HandlerInvocation>();
+            internal readonly List<BindOperation> Binds = new List<BindOperation>();
 
             public Handlers(HandlerReturn handlerReturn)
             {
@@ -250,7 +269,7 @@ namespace BinderTracingTests
                 {
                     AssemblyName = assemblyName,
                     HandlerName = nameof(OnALCResolving),
-                    AssemblyLoadContext = context == AssemblyLoadContext.Default ? "Default" : context.ToString(),
+                    AssemblyLoadContext = context == AssemblyLoadContext.Default ? context.Name : context.ToString(),
                 };
                 if (asm != null)
                 {
@@ -290,9 +309,25 @@ namespace BinderTracingTests
                 string appPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
                 string fileName = handlerReturn == HandlerReturn.RequestedAssembly ? $"{assemblyName.Name}.dll" : $"{assemblyName.Name}Mismatch.dll";
                 string assemblyPath = Path.Combine(appPath, "DependentAssemblies", fileName);
-                return File.Exists(assemblyPath)
-                    ? context.LoadFromAssemblyPath(assemblyPath)
-                    : null;
+
+                if (!File.Exists(assemblyPath))
+                    return null;
+
+                Assembly asm = context.LoadFromAssemblyPath(assemblyPath);
+                var bind = new BindOperation()
+                {
+                    AssemblyName = asm.GetName(),
+                    AssemblyPath = assemblyPath,
+                    AssemblyLoadContext = context == AssemblyLoadContext.Default ? context.Name : context.ToString(),
+                    RequestingAssembly = CoreLibName,
+                    RequestingAssemblyLoadContext = DefaultALC,
+                    Success = true,
+                    ResultAssemblyName = asm.GetName(),
+                    ResultAssemblyPath = asm.Location,
+                    Cached = false
+                };
+                Binds.Add(bind);
+                return asm;
             }
         }
     }

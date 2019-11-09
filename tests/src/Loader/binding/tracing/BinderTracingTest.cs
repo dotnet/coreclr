@@ -470,6 +470,11 @@ namespace BinderTracingTests
             Assert.IsTrue(binds.Length == 1, $"Bind event count for {assemblyName} - expected: 1, actual: {binds.Length}");
             BindOperation actual = binds[0];
 
+            ValidateBindOperation(expected, actual);
+        }
+
+        private static void ValidateBindOperation(BindOperation expected, BindOperation actual)
+        {
             ValidateAssemblyName(expected.AssemblyName, actual.AssemblyName, nameof(BindOperation.AssemblyName));
             Assert.AreEqual(expected.AssemblyPath ?? string.Empty, actual.AssemblyPath, $"Unexpected value for {nameof(BindOperation.AssemblyPath)} on event");
             Assert.AreEqual(expected.AssemblyLoadContext, actual.AssemblyLoadContext, $"Unexpected value for {nameof(BindOperation.AssemblyLoadContext)} on event");
@@ -483,6 +488,8 @@ namespace BinderTracingTests
 
             ValidateHandlerInvocations(expected.ALCResolvingHandlers, actual.ALCResolvingHandlers, "ALCResolving");
             ValidateHandlerInvocations(expected.AppDomainAssemblyResolveHandlers, actual.AppDomainAssemblyResolveHandlers, "AppDomainAssemblyResolve");
+
+            ValidateNestedBinds(expected.NestedBinds, actual.NestedBinds);
         }
 
         private static bool AssemblyNamesMatch(AssemblyName name1, AssemblyName name2)
@@ -513,6 +520,29 @@ namespace BinderTracingTests
                         && AssemblyNamesMatch(h.ResultAssemblyName, match.ResultAssemblyName)
                         && h.ResultAssemblyPath == match.ResultAssemblyPath;
                 Assert.IsTrue(actual.Exists(pred), $"Handler invocation not found: {match.ToString()}");
+            }
+        }
+
+        private static bool BindOperationsMatch(BindOperation bind1, BindOperation bind2)
+        {
+            try
+            {
+                ValidateBindOperation(bind1, bind2);
+            }
+            catch (AssertTestException e)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private static void ValidateNestedBinds(List<BindOperation> expected, List<BindOperation> actual)
+        {
+            foreach (var match in expected)
+            {
+                Predicate<BindOperation> pred = b => BindOperationsMatch(match, b);
+                Assert.IsTrue(actual.Exists(pred), $"Nested bind operation not found: {match.ToString()}");
             }
         }
     }

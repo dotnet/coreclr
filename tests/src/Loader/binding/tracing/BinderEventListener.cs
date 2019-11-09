@@ -15,37 +15,53 @@ namespace BinderTracingTests
 {
     internal class BindOperation
     {
-        internal AssemblyName AssemblyName;
-        internal string AssemblyPath;
-        internal AssemblyName RequestingAssembly;
-        internal string AssemblyLoadContext;
-        internal string RequestingAssemblyLoadContext;
+        public AssemblyName AssemblyName { get; internal set; }
+        public string AssemblyPath { get; internal set; }
+        public AssemblyName RequestingAssembly { get; internal set; }
+        public string AssemblyLoadContext { get; internal set; }
+        public string RequestingAssemblyLoadContext { get; internal set; }
 
-        internal bool Success;
-        internal AssemblyName ResultAssemblyName;
-        internal string ResultAssemblyPath;
-        internal bool Cached;
+        public bool Success { get; internal set; }
+        public AssemblyName ResultAssemblyName { get; internal set; }
+        public string ResultAssemblyPath { get; internal set; }
+        public bool Cached { get; internal set; }
 
-        internal Guid ActivityId;
-        internal Guid ParentActivityId;
+        public Guid ActivityId { get; internal set; }
+        public Guid ParentActivityId { get; internal set; }
 
-        internal bool Completed;
-        internal bool Nested;
+        public bool Completed { get; internal set; }
+        public bool Nested { get; internal set; }
 
-        internal List<HandlerInvocation> ALCResolvingHandlers = new List<HandlerInvocation>();
-        internal List<HandlerInvocation> AppDomainAssemblyResolveHandlers = new List<HandlerInvocation>();
+        public List<HandlerInvocation> ALCResolvingHandlers { get; internal set; }
+        public List<HandlerInvocation> AppDomainAssemblyResolveHandlers { get; internal set; }
 
-        internal List<BindOperation> NestedBinds = new List<BindOperation>();
+        public List<BindOperation> NestedBinds { get; internal set; }
+
+        public BindOperation()
+        {
+            ALCResolvingHandlers = new List<HandlerInvocation>();
+            AppDomainAssemblyResolveHandlers = new List<HandlerInvocation>();
+            NestedBinds = new List<BindOperation>();
+        }
+
+        public override string ToString()
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append(AssemblyName);
+            sb.Append($" - Request: Path={AssemblyPath}, ALC={AssemblyLoadContext}, RequestingAssembly={RequestingAssembly}, RequestingALC={RequestingAssemblyLoadContext}");
+            sb.Append($" - Result: Success={Success}, Name={ResultAssemblyName}, Path={ResultAssemblyPath}, Cached={Cached}");
+            return sb.ToString();
+        }
     }
 
     internal class HandlerInvocation
     {
-        internal AssemblyName AssemblyName;
-        internal string HandlerName;
-        internal string AssemblyLoadContext;
+        public AssemblyName AssemblyName { get; internal set; }
+        public string HandlerName { get; internal set; }
+        public string AssemblyLoadContext { get; internal set; }
 
-        internal AssemblyName ResultAssemblyName;
-        internal string ResultAssemblyPath;
+        public AssemblyName ResultAssemblyName { get; internal set; }
+        public string ResultAssemblyPath { get; internal set; }
 
         public override string ToString()
         {
