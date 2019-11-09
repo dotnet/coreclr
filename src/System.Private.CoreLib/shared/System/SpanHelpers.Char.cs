@@ -115,7 +115,7 @@ namespace System
                     uint differences = ~matches;
                     // Find bitflag offset of first difference and add to current offset,
                     // flags are in bytes so divide for chars
-                    offset = offset + BitOperations.TrailingZeroCount((int)differences) / sizeof(char);
+                    offset += BitOperations.TrailingZeroCount((int)differences) / sizeof(char);
 
                     int result = Unsafe.Add(ref firstStart, offset).CompareTo(Unsafe.Add(ref secondStart, offset));
                     Debug.Assert(result != 0);
@@ -134,13 +134,9 @@ namespace System
                         // So the bit position in 'matches' corresponds to the element offset.
 
                         // 16 elements in Vector128<byte> so we compare to ushort.MaxValue to check if everything matched
-                        if (matches == ushort.MaxValue)
+                        if (matches != ushort.MaxValue)
                         {
-                            // All matched
-                            offset += Vector128<ushort>.Count;
-                        }
-                        else
-                        {
+                            // Has difference
                             goto Difference;
                         }
                     }
@@ -158,7 +154,7 @@ namespace System
                     uint differences = ~matches;
                     // Find bitflag offset of first difference and add to current offset,
                     // flags are in bytes so divide for chars
-                    offset = offset + BitOperations.TrailingZeroCount((int)differences) / sizeof(char);
+                    offset += BitOperations.TrailingZeroCount((int)differences) / sizeof(char);
 
                     int result = Unsafe.Add(ref firstStart, offset).CompareTo(Unsafe.Add(ref secondStart, offset));
                     Debug.Assert(result != 0);
@@ -202,7 +198,7 @@ namespace System
                     uint differences = ~matches;
                     // Find bitflag offset of first difference and add to current offset,
                     // flags are in bytes so divide for chars
-                    offset = offset + BitOperations.TrailingZeroCount((int)differences) / sizeof(char);
+                    offset += BitOperations.TrailingZeroCount((int)differences) / sizeof(char);
 
                     int result = Unsafe.Add(ref firstStart, offset).CompareTo(Unsafe.Add(ref secondStart, offset));
                     Debug.Assert(result != 0);
@@ -1159,7 +1155,6 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ref char Add(ref char source, nint elementOffset)
             => ref Unsafe.Add(ref source, (IntPtr)elementOffset);
-
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static unsafe UIntPtr LoadUIntPtr(ref char start, nint offset)
