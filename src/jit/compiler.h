@@ -6115,10 +6115,24 @@ protected:
 
     static const int MIN_CSE_COST = 2;
 
-    // trait information for CSE bitsets
-    BitVecTraits* cseMaskTraits;     // one bit per CSE candidate
-    BitVecTraits* cseLivenessTraits; // two bits per CSE candidate + 1
-    EXPSET_TP     cseFull;
+    // BitVec trait information only used by the optCSE_canSwap() method, for the  CSE_defMask and CSE_useMask.
+    // This BitVec uses one bit per CSE candidate
+    BitVecTraits* cseMaskTraits; // one bit per CSE candidate
+
+    // BitVec trait information for computing CSE availability using the CSE_DataFlow algorithm.
+    // Two bits are allocated per CSE candidate to compute CSE availability
+    // plus an extra bit to handle the initial unvisited case.
+    // (See CSE_DataFlow::EndMerge for an explaination of why this is necessary)
+    //
+    // The two bits per CSE candidate have the following meanings:
+    //     11 - The CSE is available, and is also available when considering calls as killing availability.
+    //     10 - The CSE is available, but is not available when considering calls as killing availability.
+    //     00 - The CSE is not available
+    //     01 - An illegal combination
+    //
+    BitVecTraits* cseLivenessTraits;
+
+    EXPSET_TP cseCallKillsMask; // Computed once - A mask that is used to kill available CSEs at callsites
 
     /* Generic list of nodes - used by the CSE logic */
 
