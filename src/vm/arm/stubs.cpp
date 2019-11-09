@@ -1334,14 +1334,14 @@ Stub *GenerateInitPInvokeFrameHelper()
 
     // Save argument registers around the GetThread call. Don't bother with using ldm/stm since this inefficient path anyway.
     for (int reg = 0; reg < 4; reg++)
-        psl->ThumbEmitStoreRegIndirect(ThumbReg(reg), thumbRegSp, offsetof(ArgumentRegisters, r[reg]));
+        psl->ThumbEmitStoreRegIndirect(ThumbReg(reg), thumbRegSp, offsetof(ArgumentRegisters, r) + sizeof(*ArgumentRegisters::r) * reg);
 #endif
 
     psl->ThumbEmitGetThread(regThread);
 
 #ifdef FEATURE_PAL
     for (int reg = 0; reg < 4; reg++)
-        psl->ThumbEmitLoadRegIndirect(ThumbReg(reg), thumbRegSp, offsetof(ArgumentRegisters, r[reg]));
+        psl->ThumbEmitLoadRegIndirect(ThumbReg(reg), thumbRegSp, offsetof(ArgumentRegisters, r) + sizeof(*ArgumentRegisters::r) * reg));
 #endif
 
     // mov [regFrame + FrameInfo.offsetOfGSCookie], GetProcessGSCookie()
@@ -2891,7 +2891,7 @@ void StubLinkerCPU::EmitStubLinkFrame(TADDR pFrameVptr, int offsetOfFrame, int o
     // reload argument registers that could have been corrupted by the call
     for (int reg = 0; reg < 4; reg++)
         ThumbEmitLoadRegIndirect(ThumbReg(reg), ThumbReg(4),
-            offsetOfTransitionBlock + TransitionBlock::GetOffsetOfArgumentRegisters() + offsetof(ArgumentRegisters, r[reg]));
+            offsetOfTransitionBlock + TransitionBlock::GetOffsetOfArgumentRegisters() + offsetof(ArgumentRegisters, r) +  sizeof(*ArgumentRegisters::r) * reg);
 #endif
 
     ThumbEmitLoadRegIndirect(ThumbReg(6), ThumbReg(5), Thread::GetOffsetOfCurrentFrame());
