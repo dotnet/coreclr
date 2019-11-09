@@ -1057,16 +1057,6 @@ bool GCToEEInterface::GetBooleanConfigValue(const char* key, bool* value)
         return true;
     }
     
-    if (strcmp(key, "gcAllowVeryLargeObjects") == 0)
-    {
-#ifdef _WIN64
-        *value = g_pConfig->GetGCAllowVeryLargeObjects();
-#else
-        *value = false;
-#endif
-        return true;
-    }
-
     if (strcmp(key, "GCCpuGroup") == 0)
     {
         *value = g_pConfig->GetGCCpuGroup();
