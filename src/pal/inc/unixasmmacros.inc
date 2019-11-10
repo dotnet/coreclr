@@ -18,7 +18,7 @@
 #define LOCAL_LABEL(name) .L##name
 #endif
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(_ARM64_)
 #define C_PLTFUNC(name) _##name
 #else
 #define C_PLTFUNC(name) name@PLT
