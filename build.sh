@@ -64,7 +64,7 @@ check_prereqs()
     # Check presence of CMake on the path
     hash cmake 2>/dev/null || { echo >&2 "Please install cmake before running this script"; exit 1; }
 
-    function version { echo "$@" | awk -F. '{ printf("%d%02d%02d\n", $1,$2,$3); }'; } 
+    function version { echo "$@" | awk -F. '{ printf("%d%02d%02d\n", $1,$2,$3); }'; }
 
     local cmake_version=$(cmake --version | grep -Eo "[0-9]+\.[0-9]+\.[0-9]+")
 
@@ -226,7 +226,7 @@ build_native()
             echo "Invoking \"$scriptDir/find-gcc.sh\" \"$__GccMajorVersion\" \"$__GccMinorVersion\""
             source "$scriptDir/find-gcc.sh" "$__GccMajorVersion" "$__GccMinorVersion"
         fi
-        
+
         if [[ -n "$__CodeCoverage" ]]; then
             extraCmakeArguments="$extraCmakeArguments -DCLR_CMAKE_ENABLE_CODE_COVERAGE=1"
         fi
@@ -234,7 +234,7 @@ build_native()
         nextCommand="CONFIG_DIR=\"$__RepoRootDir/eng/common/cross\" \"$scriptDir/gen-buildsys.sh\" \"$__ProjectRoot\" \"$intermediatesForBuild\" $platformArch $__BuildType $generator $scan_build $extraCmakeArguments $__cmakeargs"
         echo "Invoking $nextCommand"
         eval $nextCommand
-    
+
         if [ $? != 0  ]; then
             echo "${__ErrMsgPrefix}Failed to generate $message build project!"
             exit 1
@@ -267,7 +267,7 @@ build_native()
 
         cmake --build "$intermediatesForBuild" --target install -j $__NumProc
     fi
-    
+
     local exit_code=$?
     if [ $exit_code != 0 ]; then
         echo "${__ErrMsgPrefix}Failed to build $message."
@@ -637,6 +637,10 @@ __cmakeargs=""
 __msbuildonunsupportedplatform=0
 
 source "$__ProjectRoot"/_build-commons.sh
+
+if [ "${__BuildArch}" != "${__HostArch}" ]; then
+    __CrossBuild=1
+fi
 
 # Set dependent variables
 __LogsDir="$__RootBinDir/Logs"

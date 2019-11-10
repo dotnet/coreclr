@@ -525,7 +525,7 @@ build_native_projects()
         nextCommand="CONFIG_DIR=\"$__RepoRootDir/eng/common/cross\" \"$scriptDir/gen-buildsys.sh\" \"$__TestDir\" \"$intermediatesForBuild\" $platformArch $__BuildType $generator $extraCmakeArguments $__cmakeargs"
         echo "Invoking $nextCommand"
         eval $nextCommand
-        
+
         if [ $? != 0  ]; then
             echo "${__ErrMsgPrefix}Failed to generate $message build project!"
             exit 1
@@ -546,7 +546,7 @@ build_native_projects()
     echo "Executing cmake --build \"$intermediatesForBuild\" --target install -j $__NumProc"
 
     cmake --build "$intermediatesForBuild" --target install -j $__NumProc
-    
+
     local exit_code=$?
     if [ $exit_code != 0 ]; then
         echo "${__ErrMsgPrefix}Failed to build $message."
