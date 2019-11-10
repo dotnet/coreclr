@@ -74,7 +74,15 @@
 #endif
 
 #if defined(__GNUC__)
-#if defined(_ARM_) || defined(_ARM64_)
+#if defined(_ARMV6_)
+#define VOLATILE_MEMORY_BARRIER() \
+ asm volatile                                           \
+ (                                                      \
+    ".align                \n\t"                        \
+    ".arm                  \n\t"                        \
+    "dmb ish               \n\t" : : : "memory"         \
+ )
+#elif defined(_ARM_) || defined(_ARM64_)
 // This is functionally equivalent to the MemoryBarrier() macro used on ARM on Windows.
 #define VOLATILE_MEMORY_BARRIER() asm volatile ("dmb ish" : : : "memory")
 #else
