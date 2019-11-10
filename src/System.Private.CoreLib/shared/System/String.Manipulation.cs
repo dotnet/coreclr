@@ -1105,19 +1105,17 @@ namespace System
                     }
                 }
 
-                do
+                for (; remainingLength > 0; remainingLength--)
                 {
                     char currentChar = *pSrc;
                     if (currentChar == oldChar)
                         currentChar = newChar;
                     *pDst = currentChar;
 
-                    remainingLength--;
                     pSrc++;
                     pDst++;
-                } while (remainingLength > 0);
+                }
             }
-
             return result;
         }
 
