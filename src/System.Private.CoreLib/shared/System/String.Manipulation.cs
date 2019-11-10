@@ -5,6 +5,8 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
 using System.Text;
 using Internal.Runtime.CompilerServices;
 
@@ -1050,68 +1052,73 @@ namespace System
 
         // Replaces all instances of oldChar with newChar.
         //
-        public string Replace(char oldChar, char newChar)
+        public unsafe string Replace(char oldChar, char newChar)
         {
             if (oldChar == newChar)
                 return this;
 
-            unsafe
+            int firstIndex = IndexOf(oldChar);
+
+            if (firstIndex < 0)
+                return this;
+
+            int remainingLength = Length - firstIndex;
+            string result = FastAllocateString(Length);
+
+            fixed (char* pChars = &_firstChar, pResult = &result._firstChar)
             {
-                int remainingLength = Length;
+                int copyLength = firstIndex;
 
-                fixed (char* pChars = &_firstChar)
+                // Copy the characters already proven not to match.
+                if (copyLength > 0)
                 {
-                    char* pSrc = pChars;
+                    wstrcpy(pResult, pChars, copyLength);
+                }
 
-                    while (remainingLength > 0)
+                // Copy the remaining characters, doing the replacement as we go.
+                char* pSrc = pChars + copyLength;
+                char* pDst = pResult + copyLength;
+
+                if (Sse2.IsSupported)
+                {
+                    Vector128<ushort> oldChars = Vector128.Create(oldChar);
+                    Vector128<ushort> newChars = Vector128.Create(newChar);
+                    Vector128<ushort> allSet = Vector128.Create(-1).AsUInt16();
+                    for (; (remainingLength - Vector128<ushort>.Count) >= 0; remainingLength -= Vector128<ushort>.Count)
                     {
-                        if (*pSrc == oldChar)
+                        Vector128<ushort> original = Sse2.LoadVector128((ushort*)pSrc);
+                        Vector128<ushort> equals = Sse2.CompareEqual(original, oldChars);
+                        if (Sse2.MoveMask(equals.AsByte()) == 0)
                         {
-                            break;
+                            Sse2.Store((ushort*)pDst, original);
+                        }
+                        else
+                        {
+                            Vector128<ushort> replacements = Sse2.And(newChars, equals);
+                            Vector128<ushort> remainingOriginals = Sse2.And(original, Sse2.Xor(equals, allSet));
+                            Vector128<ushort> combined = Sse2.Or(replacements, remainingOriginals);
+                            Sse2.Store((ushort*)pDst, combined);
                         }
 
-                        remainingLength--;
-                        pSrc++;
+                        pSrc += Vector128<ushort>.Count;
+                        pDst += Vector128<ushort>.Count;
                     }
                 }
 
-                if (remainingLength == 0)
-                    return this;
-
-                string result = FastAllocateString(Length);
-
-                fixed (char* pChars = &_firstChar)
+                do
                 {
-                    fixed (char* pResult = &result._firstChar)
-                    {
-                        int copyLength = Length - remainingLength;
+                    char currentChar = *pSrc;
+                    if (currentChar == oldChar)
+                        currentChar = newChar;
+                    *pDst = currentChar;
 
-                        // Copy the characters already proven not to match.
-                        if (copyLength > 0)
-                        {
-                            wstrcpy(pResult, pChars, copyLength);
-                        }
-
-                        // Copy the remaining characters, doing the replacement as we go.
-                        char* pSrc = pChars + copyLength;
-                        char* pDst = pResult + copyLength;
-
-                        do
-                        {
-                            char currentChar = *pSrc;
-                            if (currentChar == oldChar)
-                                currentChar = newChar;
-                            *pDst = currentChar;
-
-                            remainingLength--;
-                            pSrc++;
-                            pDst++;
-                        } while (remainingLength > 0);
-                    }
-                }
-
-                return result;
+                    remainingLength--;
+                    pSrc++;
+                    pDst++;
+                } while (remainingLength > 0);
             }
+
+            return result;
         }
 
         public string Replace(string oldValue, string? newValue)
