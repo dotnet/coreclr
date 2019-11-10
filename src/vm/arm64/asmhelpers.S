@@ -197,7 +197,7 @@ LEAF_END ThePreStubPatch, _TEXT
 //
 .macro WRITE_BARRIER_ENTRY name
     LEAF_ENTRY \name, _TEXT
-.endmacro
+.endm
 
 // WRITE_BARRIER_END
 //
@@ -205,7 +205,7 @@ LEAF_END ThePreStubPatch, _TEXT
 //
 .macro WRITE_BARRIER_END name
     LEAF_END_MARKED \name, _TEXT
-.endmacro
+.endm
 
 // ------------------------------------------------------------------
 // Start of the writeable code region
@@ -1025,7 +1025,7 @@ NESTED_END CallEHFilterFunclet, _TEXT
 
     NESTED_END \stub, _TEXT
 
-.endmacro
+.endm
 
 
 // ------------------------------------------------------------------
@@ -1425,7 +1425,7 @@ NESTED_ENTRY \helper\()Naked, _TEXT, NoHandler
     EPILOG_RETURN
 
 NESTED_END \helper\()Naked, _TEXT
-.endmacro
+.endm
 
 GenerateProfileHelper ProfileEnter, PROFILE_ENTER
 GenerateProfileHelper ProfileLeave, PROFILE_LEAVE
