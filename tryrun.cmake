@@ -14,7 +14,7 @@ else()
    SET(ALPINE_LINUX 0)
 endif()
 
-if(TARGET_ARCH_NAME MATCHES "^(armel|arm|arm64|x86)$")
+if(TARGET_ARCH_NAME MATCHES "^(armel|arm|armv6|arm64|x86)$")
   set_cache_value(FILE_OPS_CHECK_FERROR_OF_PREVIOUS_CALL_EXITCODE 1)
   set_cache_value(GETPWUID_R_SETS_ERRNO_EXITCODE 0)
   set_cache_value(HAS_POSIX_SEMAPHORES_EXITCODE 0)
@@ -58,7 +58,7 @@ if(TARGET_ARCH_NAME MATCHES "^(armel|arm|arm64|x86)$")
   endif()
 
 else()
-  message(FATAL_ERROR "Arch is ${TARGET_ARCH_NAME}. Only armel, arm, arm64 and x86 are supported!")
+  message(FATAL_ERROR "Arch is ${TARGET_ARCH_NAME}. Only armel, arm, armv6, arm64 and x86 are supported!")
 endif()
 
 if(TARGET_ARCH_NAME STREQUAL "x86")

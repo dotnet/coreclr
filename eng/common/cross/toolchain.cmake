@@ -17,6 +17,10 @@ elseif(TARGET_ARCH_NAME STREQUAL "arm")
   else()
     set(TOOLCHAIN "arm-linux-gnueabihf")
   endif()
+elseif(TARGET_ARCH_NAME STREQUAL "armv6")
+  set(CMAKE_SYSTEM_PROCESSOR armv6)
+  set(TOOLCHAIN "arm-linux-gnueabi")
+  add_definitions(-D_ARMV6_)
 elseif(TARGET_ARCH_NAME STREQUAL "arm64")
   set(CMAKE_SYSTEM_PROCESSOR aarch64)
   if(EXISTS ${CROSS_ROOTFS}/usr/lib/gcc/aarch64-alpine-linux-musl)
@@ -28,7 +32,7 @@ elseif(TARGET_ARCH_NAME STREQUAL "x86")
   set(CMAKE_SYSTEM_PROCESSOR i686)
   set(TOOLCHAIN "i686-linux-gnu")
 else()
-  message(FATAL_ERROR "Arch is ${TARGET_ARCH_NAME}. Only armel, arm, arm64 and x86 are supported!")
+  message(FATAL_ERROR "Arch is ${TARGET_ARCH_NAME}. Only armel, arm, armv6, arm64 and x86 are supported!")
 endif()
 
 if(DEFINED ENV{TOOLCHAIN})
@@ -63,13 +67,13 @@ endif()
 
 # Specify compile options
 
-if(TARGET_ARCH_NAME MATCHES "^(arm|armel|arm64)$")
+if(TARGET_ARCH_NAME MATCHES "^(arm|armel|armv6|arm64)$")
   set(CMAKE_C_COMPILER_TARGET ${TOOLCHAIN})
   set(CMAKE_CXX_COMPILER_TARGET ${TOOLCHAIN})
   set(CMAKE_ASM_COMPILER_TARGET ${TOOLCHAIN})
 endif()
 
-if(TARGET_ARCH_NAME MATCHES "^(arm|armel)$")
+if(TARGET_ARCH_NAME MATCHES "^(arm|armel|armv6)$")
   add_compile_options(-mthumb)
   add_compile_options(-mfpu=vfpv3)
   if(TARGET_ARCH_NAME STREQUAL "armel")
@@ -85,7 +89,7 @@ elseif(TARGET_ARCH_NAME STREQUAL "x86")
 endif()
 
 # Set LLDB include and library paths for builds that need lldb.
-if(TARGET_ARCH_NAME MATCHES "^(arm|armel|x86)$")
+if(TARGET_ARCH_NAME MATCHES "^(arm|armel|armv6|x86)$")
   if(TARGET_ARCH_NAME STREQUAL "x86")
     set(LLVM_CROSS_DIR "$ENV{LLVM_CROSS_HOME}")
   else() # arm/armel case
@@ -105,7 +109,7 @@ if(TARGET_ARCH_NAME MATCHES "^(arm|armel|x86)$")
       else()
         set(WITH_LLDB_INCLUDES "${CROSS_ROOTFS}/usr/lib/llvm-3.6/include")
       endif()
-    else() # arm/armel case
+    else() # arm/armel/armv6 case
       set(WITH_LLDB_LIBS "${CROSS_ROOTFS}/usr/lib/${TOOLCHAIN}" CACHE STRING "")
       set(WITH_LLDB_INCLUDES "${CROSS_ROOTFS}/usr/lib/llvm-3.6/include" CACHE STRING "")
     endif()
