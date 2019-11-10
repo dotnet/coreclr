@@ -423,7 +423,3 @@ if [ "$__ClangMajorVersion" = 0 ] && [ "$__ClangMinorVersion" = 0 ]; then
         __ClangMinorVersion=9
     fi
 fi
-
-if [ "${__BuildArch}" != "${__HostArch}" ]; then
-    __CrossBuild=1
-fi
