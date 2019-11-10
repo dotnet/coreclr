@@ -3022,7 +3022,8 @@ CFinalize*  gc_heap::finalize_queue = 0;
 VOLATILE(uint32_t) gc_heap::card_mark_chunk_index_soh;
 VOLATILE(bool) gc_heap::card_mark_done_soh;
 VOLATILE(uint32_t) gc_heap::card_mark_chunk_index_loh;
-VOLATILE(bool) gc_heap::card_mark_done_loh;
+VOLATILE(uint32_t) gc_heap::card_mark_chunk_index_poh;
+VOLATILE(bool) gc_heap::card_mark_done_ploh;
 #endif // FEATURE_CARD_MARKING_STEALING
 
 generation gc_heap::generation_table [total_generation_count];
@@ -6024,7 +6025,7 @@ bool gc_heap::virtual_commit (void* address, size_t size, int h_number, bool* ha
 
         if ((current_total_committed + size) > heap_hard_limit)
         {
-            dprintf (1, ("%Id + %Id = %Id > limit",
+            dprintf (1, ("%Id + %Id = %Id > limit %Id ",
                 current_total_committed, size,
                 (current_total_committed + size),
                 heap_hard_limit));
@@ -20654,26 +20655,17 @@ size_t gc_heap::get_total_gen_estimated_reclaim (int gen_number)
 
 size_t gc_heap::committed_size()
 {
-    int cur_generation = max_generation;
-    generation* gen = generation_of (cur_generation);
-    heap_segment* seg = heap_segment_rw (generation_start_segment (gen));
     size_t total_committed = 0;
 
-    while (1)
+    for (int cur_generation = max_generation; cur_generation < total_generation_count; cur_generation++)
     {
-        total_committed += heap_segment_committed (seg) - (uint8_t*)seg;
+        generation* gen = generation_of(cur_generation);
+        heap_segment* seg = heap_segment_rw(generation_start_segment(gen));        
 
-        seg = heap_segment_next (seg);
-        if (!seg)
+        while (seg)
         {
-            if (cur_generation < total_generation_count)
-            {
-                cur_generation++;
-                gen = generation_of (cur_generation);
-                seg = generation_start_segment (gen);
-            }
-            else 
-                break;
+            total_committed += heap_segment_committed(seg) - (uint8_t*)seg;
+            seg = heap_segment_next(seg);
         }
     }
 
@@ -21254,18 +21246,18 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
             }
 
 #if defined(MULTIPLE_HEAPS) && defined(FEATURE_CARD_MARKING_STEALING)
-            if (!card_mark_done_loh)
+            if (!card_mark_done_ploh)
 #endif // MULTIPLE_HEAPS && FEATURE_CARD_MARKING_STEALING
             {
                 dprintf (3, ("Marking cross generation pointers for large objects on heap %d", heap_number));
-                mark_through_cards_for_large_objects(mark_object_fn, loh_generation, FALSE THIS_ARG);
+                mark_through_cards_for_ploh_objects(mark_object_fn, loh_generation, FALSE THIS_ARG);
 
 #ifdef ALLOW_REFERENCES_IN_POH
-                mark_through_cards_for_large_objects (mark_object_fn, poh_generation, FALSE THIS_ARG);
+                mark_through_cards_for_ploh_objects (mark_object_fn, poh_generation, FALSE THIS_ARG);
 #endif //ALLOW_REFERENCES_IN_POH
 
 #if defined(MULTIPLE_HEAPS) && defined(FEATURE_CARD_MARKING_STEALING)
-                card_mark_done_loh = true;
+                card_mark_done_ploh = true;
 #endif // MULTIPLE_HEAPS && FEATURE_CARD_MARKING_STEALING
             }
 
@@ -21282,16 +21274,16 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
                     hp->card_mark_done_soh = true;
                 }
 
-                if (!hp->card_mark_done_loh)
+                if (!hp->card_mark_done_ploh)
                 {
                     dprintf(3, ("Marking cross generation pointers for large objects on heap %d", hp->heap_number));
-                    hp->mark_through_cards_for_large_objects(mark_object_fn, loh_generation, FALSE THIS_ARG);
+                    hp->mark_through_cards_for_ploh_objects(mark_object_fn, loh_generation, FALSE THIS_ARG);
 
 #ifdef ALLOW_REFERENCES_IN_POH
-                    hp->mark_through_cards_for_large_objects (mark_object_fn, poh_generation, FALSE THIS_ARG);
+                    hp->mark_through_cards_for_ploh_objects (mark_object_fn, poh_generation, FALSE THIS_ARG);
 #endif
 
-                    hp->card_mark_done_loh = true;
+                    hp->card_mark_done_ploh = true;
                 }
             }
 #endif // MULTIPLE_HEAPS && FEATURE_CARD_MARKING_STEALING
@@ -26040,18 +26032,18 @@ void gc_heap::relocate_phase (int condemned_gen_number,
     if (condemned_gen_number != max_generation)
     {
 #if defined(MULTIPLE_HEAPS) && defined(FEATURE_CARD_MARKING_STEALING)
-        if (!card_mark_done_loh)
+        if (!card_mark_done_ploh)
 #endif // MULTIPLE_HEAPS && FEATURE_CARD_MARKING_STEALING
         {
             dprintf (3, ("Relocating cross generation pointers for large objects on heap %d", heap_number));
-            mark_through_cards_for_large_objects(&gc_heap::relocate_address, loh_generation, TRUE THIS_ARG);
+            mark_through_cards_for_ploh_objects(&gc_heap::relocate_address, loh_generation, TRUE THIS_ARG);
 
 #ifdef ALLOW_REFERENCES_IN_POH
-            mark_through_cards_for_large_objects (&gc_heap::relocate_address, poh_generation, TRUE THIS_ARG);
+            mark_through_cards_for_ploh_objects (&gc_heap::relocate_address, poh_generation, TRUE THIS_ARG);
 #endif
 
 #if defined(MULTIPLE_HEAPS) && defined(FEATURE_CARD_MARKING_STEALING)
-            card_mark_done_loh = true;
+            card_mark_done_ploh = true;
 #endif // MULTIPLE_HEAPS && FEATURE_CARD_MARKING_STEALING
         }
     }
@@ -26113,16 +26105,16 @@ void gc_heap::relocate_phase (int condemned_gen_number,
                 hp->card_mark_done_soh = true;
             }
 
-            if (!hp->card_mark_done_loh)
+            if (!hp->card_mark_done_ploh)
             {
                 dprintf(3, ("Relocating cross generation pointers for large objects on heap %d", hp->heap_number));
-                hp->mark_through_cards_for_large_objects(&gc_heap::relocate_address, loh_generation, TRUE THIS_ARG);
+                hp->mark_through_cards_for_ploh_objects(&gc_heap::relocate_address, loh_generation, TRUE THIS_ARG);
 
 #ifdef ALLOW_REFERENCES_IN_POH
-                hp->mark_through_cards_for_large_objects(&gc_heap::relocate_address, poh_generation, TRUE THIS_ARG);
+                hp->mark_through_cards_for_ploh_objects(&gc_heap::relocate_address, poh_generation, TRUE THIS_ARG);
 #endif
 
-                hp->card_mark_done_loh = true;
+                hp->card_mark_done_ploh = true;
             }
         }
     }
@@ -27170,7 +27162,7 @@ BOOL gc_heap::commit_new_mark_array (uint32_t* new_mark_array_addr)
 {
     dprintf (GC_TABLE_LOG, ("committing existing segs on MA %Ix", new_mark_array_addr));
 
-    for (int i = max_generation; i <= poh_generation; i++)
+    for (int i = max_generation; i < total_generation_count; i++)
     {
         generation* gen = generation_of(i);
         heap_segment* seg = heap_segment_in_range(generation_start_segment(gen));
@@ -27636,7 +27628,7 @@ void gc_heap::background_mark_phase ()
         total_loh_size = generation_size (loh_generation);
         total_poh_size = generation_size (poh_generation);
 
-        dprintf (GTC_LOG, ("FM: h%d: loh: %Id, soh: %Id", heap_number, total_loh_size, total_soh_size, total_poh_size));
+        dprintf (GTC_LOG, ("FM: h%d: loh: %Id, soh: %Id, poh: %Id", heap_number, total_loh_size, total_soh_size, total_poh_size));
 
         dprintf (2, ("nonconcurrent marking stack roots"));
         GCScan::GcScanRoots(background_promote,
@@ -28520,7 +28512,7 @@ int gc_heap::check_for_ephemeral_alloc()
         for (int heap_index = 0; heap_index < n_heaps; heap_index++)
 #endif //MULTIPLE_HEAPS
         {
-            for (int i = 0; i <= (max_generation - 1); i++)
+            for (int i = 0; i < max_generation; i++)
             {
 #ifdef MULTIPLE_HEAPS
                 if (g_heaps[heap_index]->get_new_allocation (i) <= 0)
@@ -29570,7 +29562,7 @@ double gc_heap::bgc_tuning::calculate_ml_tuning (uint64_t current_available_phys
     dprintf (BGC_TUNING_LOG, ("total phy %Id, mem goal: %Id, curr phy: %Id, g2 phy: %Id, g3 phy: %Id",
             (size_t)total_physical_mem, (size_t)available_memory_goal,
             (size_t)current_available_physical,
-            gen2_physical_size - gen3_physical_size));
+            gen2_physical_size, gen3_physical_size));
     dprintf (BGC_TUNING_LOG, ("BTL: Max output: %Id, ER %Id / %Id = %.3f, %s",
             (size_t)max_output,
             error, available_memory_goal, error_ratio,
@@ -32612,7 +32604,7 @@ size_t gc_heap::desired_new_allocation (dynamic_data* dd,
                     size_t ploh_committed = committed_size (gen_number, &ploh_allocated);
                     dprintf (1, ("GC#%Id h%d, GMI: PLOH budget, PLOH commit %Id (obj %Id, frag %Id), total commit: %Id (recorded: %Id)", 
                         (size_t)settings.gc_index, heap_number, 
-                        loh_committed, loh_allocated,
+                        ploh_committed, ploh_allocated,
                         dd_fragmentation (dynamic_data_of (gen_number)),
                         get_total_committed_size(), (current_total_committed - current_total_committed_bookkeeping)));
                 }
@@ -34914,14 +34906,14 @@ void gc_heap::relocate_in_ploh_objects (generation_num gen_num)
     }
 }
 
-void gc_heap::mark_through_cards_for_large_objects (card_fn fn,
-                                                    int oldest_gen_num,
+void gc_heap::mark_through_cards_for_ploh_objects (card_fn fn,
+                                                    int gen_num,
                                                     BOOL relocating
                                                     CARD_MARKING_STEALING_ARG(gc_heap* hpt))
 {
     uint8_t*      low               = gc_low;
     size_t        end_card          = 0;
-    generation*   oldest_gen        = generation_of (oldest_gen_num);
+    generation*   oldest_gen        = generation_of (gen_num);
     heap_segment* seg               = heap_segment_rw (generation_start_segment (oldest_gen));
 
     PREFIX_ASSUME(seg != NULL);
@@ -34960,7 +34952,11 @@ void gc_heap::mark_through_cards_for_large_objects (card_fn fn,
     size_t total_cards_cleared = 0;
 
 #ifdef FEATURE_CARD_MARKING_STEALING
-    card_marking_enumerator card_mark_enumerator(seg, low, (VOLATILE(uint32_t)*) & card_mark_chunk_index_loh);
+    VOLATILE(uint32_t)* chunk_index = (VOLATILE(uint32_t)*) &(gen_num == loh_generation ? 
+        card_mark_chunk_index_loh : 
+        card_mark_chunk_index_poh);
+
+    card_marking_enumerator card_mark_enumerator(seg, low, chunk_index);
     card_word_end = 0;
 #endif // FEATURE_CARD_MARKING_STEALING
 

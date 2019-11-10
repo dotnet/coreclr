@@ -2959,7 +2959,7 @@ protected:
     PER_HEAP
     void relocate_in_ploh_objects (generation_num gen_num);
     PER_HEAP
-    void mark_through_cards_for_large_objects(card_fn fn, int oldest_gen_num, BOOL relocating
+    void mark_through_cards_for_ploh_objects(card_fn fn, int oldest_gen_num, BOOL relocating
                                               CARD_MARKING_STEALING_ARG(gc_heap* hpt));
     PER_HEAP
     void descr_segment (heap_segment* seg);
@@ -4316,7 +4316,10 @@ public:
     VOLATILE(uint32_t)    card_mark_chunk_index_loh;
 
     PER_HEAP
-    VOLATILE(bool)        card_mark_done_loh;
+    VOLATILE(uint32_t)    card_mark_chunk_index_poh;
+
+    PER_HEAP
+    VOLATILE(bool)        card_mark_done_ploh;
 
     PER_HEAP
     void reset_card_marking_enumerators()
@@ -4326,7 +4329,8 @@ public:
         card_mark_done_soh = false;
 
         card_mark_chunk_index_loh = ~0;
-        card_mark_done_loh = false;
+        card_mark_chunk_index_poh = ~0;
+        card_mark_done_ploh = false;
     }
 
     PER_HEAP
