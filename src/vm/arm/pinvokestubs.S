@@ -73,7 +73,7 @@
 
     NESTED_END \__PInvokeGenStubFuncName, _TEXT
 
-.endmacro
+.endm
 
 // ------------------------------------------------------------------
 // IN:
