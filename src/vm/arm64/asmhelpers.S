@@ -80,7 +80,7 @@ LEAF_END LazyMachStateCaptureState, _TEXT
     ldr \reg, [x2]
 LOCAL_LABEL(NoRestore_\reg):
 
-.endmacro
+.endm
 
 // EXTERN_C int __fastcall HelperMethodFrameRestoreState(
 // INDEBUG_COMMA(HelperMethodFrame *pFrame)
