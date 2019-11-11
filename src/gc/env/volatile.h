@@ -75,7 +75,7 @@
 #if defined(_ARMV6_)
 #define VOLATILE_MEMORY_BARRIER() \
 do {                                                                                               \
-	UINT32 reg = 0;                                                                            \
+	uint32_t reg = 0;                                                                          \
 	__asm__ __volatile__ (".align \n\t"                                                        \
 			      ".arm   \n\t"                                                        \
 			      "mcr	p15,0,%[t],c7,c10,4\n" :: [t] "r" (reg) : "memory");       \
