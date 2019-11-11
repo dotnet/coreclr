@@ -174,7 +174,9 @@ C_FUNC(\Name\()_End):
 
         .if (__PWTB_SaveFPArgs == 1)
                 add r6, sp, #(__PWTB_FloatArgumentRegisters)
+#ifndef ARMV6
                 vstm r6, {d0-d7}
+#endif
         .endif
 
         CHECK_STACK_ALIGNMENT
@@ -196,7 +198,9 @@ C_FUNC(\Name\()_End):
 
         .if (__PWTB_SaveFPArgs == 1)
                 add r6, sp, #(__PWTB_FloatArgumentRegisters)
+#ifndef ARMV6
                 vldm r6, {d0-d7}
+#endif
         .endif
 
         free_stack __PWTB_StackAlloc
