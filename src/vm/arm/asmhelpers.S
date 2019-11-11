@@ -110,6 +110,8 @@ LOCAL_LABEL(LNoFloatingPoint):
         bne     LOCAL_LABEL(LNoFloatReturn)
 #ifndef ARMV6
         vmov    r0, s0
+#else
+        mov     r0, #0
 #endif
         b       LOCAL_LABEL(LFloatingPointReturnDone)
 LOCAL_LABEL(LNoFloatReturn):
@@ -120,6 +122,9 @@ LOCAL_LABEL(LNoFloatReturn):
         bne     LOCAL_LABEL(LNoDoubleReturn)
 #ifndef ARMV6
         vmov    r0, r1, s0, s1
+#else
+        mov     r0, #0
+        mov     r1, #0
 #endif
         b       LOCAL_LABEL(LFloatingPointReturnDone)
 LOCAL_LABEL(LNoDoubleReturn):
@@ -322,6 +327,8 @@ LOCAL_LABEL(LNullThis):
         PROLOG_STACK_SAVE_OFFSET r7, #20
 #ifndef ARMV6
         PROLOG_VPUSH {d0-d7}
+#else
+        add  sp, sp, #64
 #endif
 
         CHECK_STACK_ALIGNMENT
@@ -335,6 +342,8 @@ LOCAL_LABEL(LNullThis):
         // Epilog
 #ifndef ARMV6
         EPILOG_VPOP {d0-d7}
+#else
+        sub sp, sp, #64
 #endif        
         EPILOG_POP "{r0-r4,r7,r8,lr}"
         bx r12
@@ -508,6 +517,8 @@ ThePreStubPatchLabel:
                                                         // arbitrary register to keep stack aligned
 #ifndef ARMV6
         PROLOG_VPUSH {d0-d7}                                   // Spill floating point argument registers
+#else
+        add sp, sp, #64
 #endif
 
         CHECK_STACK_ALIGNMENT
@@ -518,6 +529,8 @@ ThePreStubPatchLabel:
 
 #ifndef ARMV6
         EPILOG_VPOP {d0-d7}
+#else
+        sub sp, sp, #64
 #endif
         EPILOG_POP "{r0-r4,r7,r8,lr}"
 
@@ -1060,6 +1073,8 @@ LOCAL_LABEL(stackProbe_loop):
     PROLOG_STACK_SAVE_OFFSET r7, #8
 #ifndef ARMV6
     PROLOG_VPUSH {d0-d3}                  // floating point return value
+#else
+    add sp, sp, #32
 #endif
 
     CHECK_STACK_ALIGNMENT
@@ -1068,6 +1083,8 @@ LOCAL_LABEL(stackProbe_loop):
 
 #ifndef ARMV6
     EPILOG_VPOP {d0-d3}
+#else
+    sub sp, sp, #32
 #endif
 
     EPILOG_POP "{r0-r1, r7,r8, r11, pc}"
@@ -1548,6 +1565,8 @@ DelayLoad_Helper\suffix:
 
 #ifndef ARMV6
         PROLOG_VPUSH "{d0-d3}"    // saving as d0-d3 can have the floating point return value
+#else
+        add sp, sp, #32
 #endif        
         PROLOG_PUSH "{r1}"        // saving as r1 can have partial return value when return is > 32 bits
         alloc_stack 4             // 8 byte align
@@ -1561,6 +1580,8 @@ DelayLoad_Helper\suffix:
         EPILOG_POP "{r1}"
 #ifndef ARMV6        
         EPILOG_VPOP "{d0-d3}"
+#else
+        sub sp, sp, #32
 #endif
 
         EPILOG_POP "{r0,r4-r11,pc}"
