@@ -19882,7 +19882,8 @@ void gc_heap::background_mark_simple1 (uint8_t* oo THREAD_NUMBER_DCL)
                     *(place) = start;
                     *(background_mark_stack_tos++) = (uint8_t*)((size_t)oo | 1);
 
-                    int i = num_partial_refs;
+                    int num_pushed_refs = num_partial_refs;
+                    int num_processed_refs = num_pushed_refs * 16;
 
                     go_through_object (method_table(oo), oo, s, ppslot,
                                        start, use_start, (oo + s),
@@ -19900,7 +19901,7 @@ void gc_heap::background_mark_simple1 (uint8_t* oo THREAD_NUMBER_DCL)
                             if (contain_pointers_or_collectible (o))
                             {
                                 *(background_mark_stack_tos++) = o;
-                                if (--i == 0)
+                                if (--num_pushed_refs == 0)
                                 {
                                     //update the start
                                     *place = (uint8_t*)(ppslot+1);
@@ -19909,9 +19910,9 @@ void gc_heap::background_mark_simple1 (uint8_t* oo THREAD_NUMBER_DCL)
 
                             }
                         }
-                        if (g_fSuspensionPending > 0)
+                        if (--num_processed_refs == 0)
                         {
-                            //update the start
+                            // give foreground GC a chance to run
                             *place = (uint8_t*)(ppslot + 1);
                             goto more_to_do;
                         }
