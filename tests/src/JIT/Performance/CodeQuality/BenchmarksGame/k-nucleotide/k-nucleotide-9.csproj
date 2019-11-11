@@ -11,8 +11,8 @@
     <Compile Include="harness-helpers.cs" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="knucleotide-input.txt" />
-    <EmbeddedResource Include="knucleotide-input-big.txt" />
+    <EmbeddedResource Include="knucleotide-input.bin" />
+    <EmbeddedResource Include="knucleotide-input-big.bin" />
   </ItemGroup>
   <PropertyGroup>
     <ProjectAssetsFile>$(JitPackagesConfigFileDirectory)benchmark\obj\project.assets.json</ProjectAssetsFile>

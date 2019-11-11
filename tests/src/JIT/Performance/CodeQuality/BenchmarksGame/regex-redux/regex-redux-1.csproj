@@ -11,8 +11,8 @@
     <Compile Include="harness-helpers.cs" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="regexdna-input25.txt" />
-    <EmbeddedResource Include="regexdna-input25000.txt" />
+    <EmbeddedResource Include="regexdna-input25.bin" />
+    <EmbeddedResource Include="regexdna-input25000.bin" />
   </ItemGroup>
   <PropertyGroup>
     <ProjectAssetsFile>$(JitPackagesConfigFileDirectory)benchmark\obj\project.assets.json</ProjectAssetsFile>
