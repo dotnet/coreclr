@@ -89,8 +89,8 @@ LEAF_ENTRY CONTEXT_CaptureContext, _TEXT
     vstmiane r0!, {d0-d15}
     vstmiane r0!, {d16-d31}
 #else
-    addne  r0, #64
-    addne  r0, #64
+    addne  r0, #128
+    addne  r0, #128
 #endif
     subne r0, CONTEXT_D31
 
@@ -144,8 +144,8 @@ LOCAL_LABEL(Restore_CONTEXT_FLOATING_POINT):
     vldmiane r0!, {d0-d15}
     vldmiane r0, {d16-d31}
 #else
-    addne  r0, #64
-    addne  r0, #64
+    addne  r0, #128
+    addne  r0, #128
 #endif
     subne r0, CONTEXT_D16
 
