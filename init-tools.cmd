@@ -105,9 +105,6 @@ if NOT exist "%BUILD_TOOLS_PATH%\init-tools.cmd" (
 
 :afterbuildtoolsrestore
 
-:: Ask init-tools to also restore ILAsm
-set /p ILASMCOMPILER_VERSION=< "%~dp0ILAsmVersion.txt"
-
 echo Initializing BuildTools...
 echo Running: "%BUILD_TOOLS_PATH%\init-tools.cmd" "%~dp0" "%DOTNET_CMD%" "%TOOLRUNTIME_DIR%" >> "%INIT_TOOLS_LOG%"
 call "%BUILD_TOOLS_PATH%\init-tools.cmd" "%~dp0" "%DOTNET_CMD%" "%TOOLRUNTIME_DIR%" "%PACKAGES_DIR%" >> "%INIT_TOOLS_LOG%"
@@ -116,6 +113,12 @@ if not [%INIT_TOOLS_ERRORLEVEL%]==[0] (
   echo ERROR: An error occured when trying to initialize the tools. 1>&2
   goto :error
 )
+
+REM ILasm/ILDasm used to be restored by buildtools. The reference there was a netocreapp2.0, which was prior to our support of linux-musl. We initialize it locally as a 3.0 with the new SDK.
+set /p ILASM_VERSION=< "%~dp0ILAsmVersion.txt"
+if [%NATIVE_TOOLS_RID%] == [] set NATIVE_TOOLS_RID=win-x64
+echo Running: call "%DOTNET_CMD%" build "%~dp0tests\ilasm-restore\ilasm.depproj" --no-cache --packages "%PACKAGES_DIR%" -r "%NATIVE_TOOLS_RID%" /p:ILAsmPackageVersion="%ILASM_VERSION%" /p:ExpectedILAsmPath="%TOOLRUNTIME_DIR%\ilasm" >> "%INIT_TOOLS_LOG%"
+call "%DOTNET_CMD%" build "%~dp0tests\ilasm-restore\ilasm.depproj" --no-cache --packages "%PACKAGES_DIR%" -r "%NATIVE_TOOLS_RID%" /p:ILAsmPackageVersion="%ILASM_VERSION%" /p:ExpectedILAsmPath="%TOOLRUNTIME_DIR%\ilasm"
 
 :: Create semaphore file
 echo Done initializing tools.

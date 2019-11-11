@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- This file is largely a copy of the BuildTools equivalent -->
+  <PropertyGroup>
+    <!-- suppress the attempt to copy build output. -->
+    <CopyBuildOutputToOutputDirectory>false</CopyBuildOutputToOutputDirectory>
+    <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
+  </PropertyGroup>
+
+  <Target Name="CoreCompile">
+    <Copy SourceFiles="@(NativeCopyLocalItems)" DestinationFolder="$(ExpectedILAsmPath)" />
+  </Target>
+
+  <!-- Required by Common.Targets -->
+  <Target Name="CreateManifestResourceNames" />
+
+  <PropertyGroup>
+    <NuGetTargetMoniker>.NETCoreApp,Version=v3.0</NuGetTargetMoniker>
+    <TargetFramework>netcoreapp3.0</TargetFramework>
+    <RidSpecificAssets>true</RidSpecificAssets>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETCore.ILAsm" Version="$(ILAsmPackageVersion)" />
+    <PackageReference Include="Microsoft.NETCore.ILDAsm" Version="$(ILAsmPackageVersion)" />
+
+    <!-- ILAsm has a very unfortunate runtime dependency on CoreCLR, so we need to grab that too -->
+    <!-- https://github.com/dotnet/coreclr/issues/15059 -->
+    <PackageReference Include="Microsoft.NETCore.Runtime.CoreCLR" Version="$(ILAsmPackageVersion)" />
+  </ItemGroup>
+</Project> 
