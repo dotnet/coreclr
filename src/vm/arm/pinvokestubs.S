@@ -11,7 +11,9 @@
 #include "unixasmmacros.inc"
 
 .syntax unified
+#ifndef ARMV6
 .thumb
+#endif
 
 // ------------------------------------------------------------------
 // Macro to generate PInvoke Stubs.

@@ -16,7 +16,9 @@
 #include "asmconstants.h"
 
 .syntax unified
+#ifndef ARMV6
 .thumb
+#endif
 
 // JIT_MemSet/JIT_MemCpy
 //

@@ -683,7 +683,7 @@ elseif(CLR_CMAKE_TARGET_ARCH_I386)
     set(VM_HEADERS_WKS_ARCH_ASM
         ${ARCH_SOURCES_DIR}/asmconstants.h
     )
-elseif(CLR_CMAKE_TARGET_ARCH_ARM)
+elseif(CLR_CMAKE_TARGET_ARCH_ARM OR CLR_CMAKE_PLATFORM_ARCH_ARMV6)
     set(VM_SOURCES_WKS_ARCH_ASM
         ${ARCH_SOURCES_DIR}/asmhelpers.asm
         ${ARCH_SOURCES_DIR}/CrtHelpers.asm
@@ -736,7 +736,7 @@ else(WIN32)
             ${ARCH_SOURCES_DIR}/pinvokestubs.S
             ${ARCH_SOURCES_DIR}/umthunkstub.S
         )
-    elseif(CLR_CMAKE_TARGET_ARCH_ARM)
+    elseif(CLR_CMAKE_TARGET_ARCH_ARM OR CLR_CMAKE_PLATFORM_ARCH_ARMV6)
         set(VM_SOURCES_WKS_ARCH_ASM
             ${ARCH_SOURCES_DIR}/asmhelpers.S
             ${ARCH_SOURCES_DIR}/crthelpers.S
@@ -812,7 +812,7 @@ elseif(CLR_CMAKE_TARGET_ARCH_I386)
     set(VM_HEADERS_WKS_ARCH
         exceptionhandling.h
     )
-elseif(CLR_CMAKE_TARGET_ARCH_ARM)
+elseif(CLR_CMAKE_TARGET_ARCH_ARM OR CLR_CMAKE_PLATFORM_ARCH_ARMV6)
     set(VM_SOURCES_DAC_AND_WKS_ARCH
         ${ARCH_SOURCES_DIR}/exceparm.cpp
         ${ARCH_SOURCES_DIR}/stubs.cpp

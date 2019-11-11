@@ -11,7 +11,9 @@
 #include "asmconstants.h"
 
 .syntax unified
+#ifndef ARMV6
 .thumb
+#endif
 
 // LPVOID __stdcall GetCurrentIP(void)//
     LEAF_ENTRY GetCurrentIP, _TEXT

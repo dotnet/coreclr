@@ -11,7 +11,9 @@
 #include "asmconstants.h"
 
 .syntax unified
+#ifndef ARMV6
 .thumb
+#endif
 
 // ------------------------------------------------------------------
 // Start of the writeable code region

@@ -12,7 +12,9 @@
 #include "asmconstants.h"
 
 .syntax unified
+#ifndef ARMV6
 .thumb
+#endif
 
 //
 // WARNING!!  These functions immediately ruin thread unwindability.  This is
