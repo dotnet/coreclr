@@ -72,7 +72,7 @@ if(TARGET_ARCH_NAME MATCHES "^(arm|armel|armv6|arm64)$")
   set(CMAKE_ASM_COMPILER_TARGET ${TOOLCHAIN})
 endif()
 
-if(TARGET_ARCH_NAME MATCHES "^(arm|armel|armv6)$")
+if(TARGET_ARCH_NAME MATCHES "^(arm|armel)$")
   add_compile_options(-mthumb)
   add_compile_options(-mfpu=vfpv3)
   if(TARGET_ARCH_NAME STREQUAL "armel")
