@@ -570,7 +570,7 @@ endif(CLR_CMAKE_PLATFORM_UNIX_ARM)
 if(CLR_CMAKE_PLATFORM_UNIX_ARMV6)
    # Because we don't use CMAKE_C_COMPILER/CMAKE_CXX_COMPILER to use clang
    # we have to set the triple by adding a compiler argument
-   add_compile_options(-mthumb)
+   add_compile_options(-marm)
    add_compile_options(-march=armv6)
 endif(CLR_CMAKE_PLATFORM_UNIX_ARMV6)
 
