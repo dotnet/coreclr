@@ -32,14 +32,14 @@ namespace BinderTracingTests
         public bool Completed { get; internal set; }
         public bool Nested { get; internal set; }
 
-        public List<HandlerInvocation> ALCResolvingHandlers { get; internal set; }
+        public List<HandlerInvocation> AssemblyLoadContextResolvingHandlers { get; internal set; }
         public List<HandlerInvocation> AppDomainAssemblyResolveHandlers { get; internal set; }
 
         public List<BindOperation> NestedBinds { get; internal set; }
 
         public BindOperation()
         {
-            ALCResolvingHandlers = new List<HandlerInvocation>();
+            AssemblyLoadContextResolvingHandlers = new List<HandlerInvocation>();
             AppDomainAssemblyResolveHandlers = new List<HandlerInvocation>();
             NestedBinds = new List<BindOperation>();
         }
@@ -179,14 +179,14 @@ namespace BinderTracingTests
                     }
                     break;
                 }
-                case "ALCResolvingHandlerInvoked":
+                case "AssemblyLoadContextResolvingHandlerInvoked":
                 {
                     HandlerInvocation handlerInvocation = ParseHandlerInvokedEvent(GetDataString);
                     lock (eventsLock)
                     {
-                        Assert.IsTrue(bindOperations.ContainsKey(data.ActivityId), "ALCResolvingHandlerInvoked should have a matching AssemblyBindStart");
+                        Assert.IsTrue(bindOperations.ContainsKey(data.ActivityId), "AssemblyLoadContextResolvingHandlerInvoked should have a matching AssemblyBindStart");
                         BindOperation bind = bindOperations[data.ActivityId];
-                        bind.ALCResolvingHandlers.Add(handlerInvocation);
+                        bind.AssemblyLoadContextResolvingHandlers.Add(handlerInvocation);
                     }
                     break;
                 }

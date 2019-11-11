@@ -486,7 +486,7 @@ namespace BinderTracingTests
             Assert.AreEqual(expected.Cached, actual.Cached, $"Unexpected value for {nameof(BindOperation.Cached)} on event");
             ValidateAssemblyName(expected.ResultAssemblyName, actual.ResultAssemblyName, nameof(BindOperation.ResultAssemblyName));
 
-            ValidateHandlerInvocations(expected.ALCResolvingHandlers, actual.ALCResolvingHandlers, "ALCResolving");
+            ValidateHandlerInvocations(expected.AssemblyLoadContextResolvingHandlers, actual.AssemblyLoadContextResolvingHandlers, "AssemblyLoadContextResolving");
             ValidateHandlerInvocations(expected.AppDomainAssemblyResolveHandlers, actual.AppDomainAssemblyResolveHandlers, "AppDomainAssemblyResolve");
 
             ValidateNestedBinds(expected.NestedBinds, actual.NestedBinds);

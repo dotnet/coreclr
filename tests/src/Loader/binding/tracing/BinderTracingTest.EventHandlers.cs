@@ -17,7 +17,7 @@ namespace BinderTracingTests
     partial class BinderTracingTest
     {
         [BinderTest]
-        public static BindOperation ALCResolvingEvent_ReturnNull()
+        public static BindOperation AssemblyLoadContextResolving_ReturnNull()
         {
             var assemblyName = new AssemblyName(SubdirectoryAssemblyName);
             using (var handlers = new Handlers(HandlerReturn.Null, AssemblyLoadContext.Default))
@@ -38,17 +38,17 @@ namespace BinderTracingTests
                     RequestingAssemblyLoadContext = DefaultALC,
                     Success = false,
                     Cached = false,
-                    ALCResolvingHandlers = handlers.Invocations,
+                    AssemblyLoadContextResolvingHandlers = handlers.Invocations,
                     NestedBinds = handlers.Binds
                 };
             }
         }
 
         [BinderTest]
-        public static BindOperation ALCResolvingEvent_LoadAssembly()
+        public static BindOperation AssemblyLoadContextResolving_LoadAssembly()
         {
             var assemblyName = new AssemblyName(SubdirectoryAssemblyName);
-            CustomALC alc = new CustomALC(nameof(ALCResolvingEvent_LoadAssembly));
+            CustomALC alc = new CustomALC(nameof(AssemblyLoadContextResolving_LoadAssembly));
             using (var handlers = new Handlers(HandlerReturn.RequestedAssembly, alc))
             {
                 Assembly asm = alc.LoadFromAssemblyName(assemblyName);
@@ -63,17 +63,17 @@ namespace BinderTracingTests
                     ResultAssemblyName = asm.GetName(),
                     ResultAssemblyPath = asm.Location,
                     Cached = false,
-                    ALCResolvingHandlers = handlers.Invocations,
+                    AssemblyLoadContextResolvingHandlers = handlers.Invocations,
                     NestedBinds = handlers.Binds
                 };
             }
         }
 
         [BinderTest]
-        public static BindOperation ALCResolvingEvent_NameMismatch()
+        public static BindOperation AssemblyLoadContextResolving_NameMismatch()
         {
             var assemblyName = new AssemblyName(SubdirectoryAssemblyName);
-            CustomALC alc = new CustomALC(nameof(ALCResolvingEvent_NameMismatch));
+            CustomALC alc = new CustomALC(nameof(AssemblyLoadContextResolving_NameMismatch));
             using (var handlers = new Handlers(HandlerReturn.NameMismatch, alc))
             {
                 Assert.Throws<FileLoadException>(() => alc.LoadFromAssemblyName(assemblyName));
@@ -86,17 +86,17 @@ namespace BinderTracingTests
                     AssemblyLoadContext = alc.ToString(),
                     Success = false,
                     Cached = false,
-                    ALCResolvingHandlers = handlers.Invocations,
+                    AssemblyLoadContextResolvingHandlers = handlers.Invocations,
                     NestedBinds = handlers.Binds
                 };
             }
         }
 
         [BinderTest]
-        public static BindOperation ALCResolvingEvent_MultipleHandlers()
+        public static BindOperation AssemblyLoadContextResolving_MultipleHandlers()
         {
             var assemblyName = new AssemblyName(SubdirectoryAssemblyName);
-            CustomALC alc = new CustomALC(nameof(ALCResolvingEvent_NameMismatch));
+            CustomALC alc = new CustomALC(nameof(AssemblyLoadContextResolving_NameMismatch));
             using (var handlerNull = new Handlers(HandlerReturn.Null, alc))
             using (var handlerLoad = new Handlers(HandlerReturn.RequestedAssembly, alc))
             {
@@ -114,7 +114,7 @@ namespace BinderTracingTests
                     ResultAssemblyName = asm.GetName(),
                     ResultAssemblyPath = asm.Location,
                     Cached = false,
-                    ALCResolvingHandlers = handlerNull.Invocations.Concat(handlerLoad.Invocations).ToList(),
+                    AssemblyLoadContextResolvingHandlers = handlerNull.Invocations.Concat(handlerLoad.Invocations).ToList(),
                     NestedBinds = handlerNull.Binds.Concat(handlerLoad.Binds).ToList()
                 };
             }
@@ -252,23 +252,23 @@ namespace BinderTracingTests
             {
                 this.handlerReturn = handlerReturn;
                 this.alc = alc;
-                this.alc.Resolving += OnALCResolving;
+                this.alc.Resolving += OnAssemblyLoadContextResolving;
             }
 
             public void Dispose()
             {
                 AppDomain.CurrentDomain.AssemblyResolve -= OnAppDomainAssemblyResolve;
                 if (alc != null)
-                    alc.Resolving -= OnALCResolving;
+                    alc.Resolving -= OnAssemblyLoadContextResolving;
             }
 
-            private Assembly OnALCResolving(AssemblyLoadContext context, AssemblyName assemblyName)
+            private Assembly OnAssemblyLoadContextResolving(AssemblyLoadContext context, AssemblyName assemblyName)
             {
                 Assembly asm = ResolveAssembly(context, assemblyName);
                 var invocation = new HandlerInvocation()
                 {
                     AssemblyName = assemblyName,
-                    HandlerName = nameof(OnALCResolving),
+                    HandlerName = nameof(OnAssemblyLoadContextResolving),
                     AssemblyLoadContext = context == AssemblyLoadContext.Default ? context.Name : context.ToString(),
                 };
                 if (asm != null)

@@ -1436,7 +1436,7 @@ void QCALLTYPE AssemblyNative::TraceResolvingHandlerInvoked(LPCWSTR assemblyName
 
     BEGIN_QCALL;
 
-    FireEtwALCResolvingHandlerInvoked(GetClrInstanceId(), assemblyName, handlerName, alcName, resultAssemblyName, resultAssemblyPath);
+    FireEtwAssemblyLoadContextResolvingHandlerInvoked(GetClrInstanceId(), assemblyName, handlerName, alcName, resultAssemblyName, resultAssemblyPath);
 
     END_QCALL;
 }
