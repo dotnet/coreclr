@@ -3,7 +3,8 @@
 // See the LICENSE file in the project root for more information.
 
 .macro LEAF_ENTRY Name, Section
-        .thumb_func
+        .align
+        .arm
         .global C_FUNC(\Name)
         .type \Name, %function
 C_FUNC(\Name):
@@ -26,7 +27,8 @@ C_FUNC(\Name):
 .endm
 
 .macro PATCH_LABEL Name
-        .thumb_func
+        .align
+        .arm
         .global C_FUNC(\Name)
 C_FUNC(\Name):
 .endm
@@ -37,7 +39,8 @@ C_FUNC(\Name):
 .endm
 
 .macro LEAF_END_MARKED Name, Section
-        .thumb_func
+        .align
+        .arm
         .global C_FUNC(\Name\()_End)
 C_FUNC(\Name\()_End):
         LEAF_END \Name, \Section
@@ -198,7 +201,9 @@ C_FUNC(\Name\()_End):
 .endm
 
 .macro EMIT_BREAKPOINT
-        .inst.w 0xde01
+.align
+.arm
+        .inst 0xe7f001f0
 .endm
 
 .macro PROLOG_PUSH RegList
@@ -255,7 +260,8 @@ C_FUNC(\Name\()_End):
 // is misaligned.
 //
 .macro CHECK_STACK_ALIGNMENT
-
+.align
+.arm
 #ifdef _DEBUG
         push {r0}
         add r0, sp, #4
