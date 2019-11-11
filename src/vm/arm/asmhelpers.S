@@ -13,6 +13,11 @@
 .syntax unified
 #ifndef ARMV6
 .thumb
+#define MOVEWORD movw
+#define MOVETOP  movt
+#else
+#define MOVEWORD mov
+#define MOVETOP  mov
 #endif
 
 // LPVOID __stdcall GetCurrentIP(void)//
@@ -91,7 +96,9 @@ LOCAL_LABEL(LNoFloatingPoint):
         // Do not use "it" since it faults in floating point even when the instruction is not executed.
         cmp     r3, #4
         bne     LOCAL_LABEL(LNoFloatReturn)
+#ifndef ARMV6
         vmov    r0, s0
+#endif
         b       LOCAL_LABEL(LFloatingPointReturnDone)
 LOCAL_LABEL(LNoFloatReturn):
 
@@ -99,7 +106,9 @@ LOCAL_LABEL(LNoFloatReturn):
         // Do not use "it" since it faults in floating point even when the instruction is not executed.
         cmp     r3, #8
         bne     LOCAL_LABEL(LNoDoubleReturn)
+#ifndef ARMV6
         vmov    r0, r1, s0, s1
+#endif
         b       LOCAL_LABEL(LFloatingPointReturnDone)
 LOCAL_LABEL(LNoDoubleReturn):
 
@@ -619,16 +628,18 @@ NESTED_ENTRY ProfileEnterNaked, _TEXT, NoHandler
     // void       *profiledSp; // location of arguments on stack
     // LPVOID      hiddenArg;
     // UINT32      flags;
-    movw        r4, #1
+    MOVEWORD    r4, #1
     push        { /* flags      */ r4 }
-    movw        r4, #0
+    MOVEWORD    r4, #0
     push        { /* hiddenArg  */ r4 }
     add         r5, r11, #8
     push        { /* profiledSp */ r5 }
     add         r5, sp, #32
     push        { /* probeSp    */ r5 }
     push        { /* functionId */ r0 }
+#ifndef ARMV6
     vpush.64    { d0 - d7 }
+#endif
     push        { lr }
     push        { r11 }
     push        { /* return value, r4 is NULL */ r4 }
@@ -662,16 +673,18 @@ NESTED_ENTRY ProfileLeaveNaked, _TEXT, NoHandler
     // void       *profiledSp; // location of arguments on stack
     // LPVOID      hiddenArg;
     // UINT32      flags;
-    movw        r4, #2
+    MOVEWORD    r4, #2
     push        { /* flags      */ r4 }
-    movw        r4, #0
+    MOVEWORD    r4, #0
     push        { /* hiddenArg  */ r4 }
     add         r5, r11, #8
     push        { /* profiledSp */ r5 }
     add         r5, sp, #40
     push        { /* probeSp    */ r5 }
     push        { /* functionId */ r0 }
+#ifndef ARMV6
     vpush.64    { d0 - d7 }
+#endif
     push        { lr }
     push        { r11 }
     push        { r1 }
@@ -705,9 +718,9 @@ NESTED_ENTRY ProfileTailcallNaked, _TEXT, NoHandler
     // void       *profiledSp; // location of arguments on stack
     // LPVOID      hiddenArg;
     // UINT32      flags;
-    movw        r4, #2
+    MOVEWORD    r4, #2
     push        { /* flags      */ r4 }
-    movw        r4, #0
+    MOVEWORD    r4, #0
     push        { /* hiddenArg  */ r4 }
     add         r5, r11, #8
     push        { /* profiledSp */ r5 }
@@ -857,6 +870,7 @@ LOCAL_LABEL(checkStack_neg):
     NESTED_END checkStack, _TEXT
 
     NESTED_ENTRY stackProbe, _TEXT, NoHandler
+    .thumb
     PROLOG_PUSH "{r5,r6}"
     mov         r6, r12
     bfc         r6, #0, #0xc  // align down (4K)
@@ -1205,8 +1219,8 @@ LOCAL_LABEL(DoWrite):
     .macro LOAD_GC_GLOBAL name, regName, globalName
 \name\()__\globalName\()_offset:
     __\name\()__\globalName\()_offset = (\name\()__\globalName\()_offset - \name)
-        movw \regName, #0
-        movt \regName, #0
+        MOVEWORD \regName, #0
+        MOVETOP \regName, #0
     .endm
 
     .macro UPDATE_GC_SHADOW name, ptrReg, valReg
