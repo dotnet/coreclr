@@ -31,9 +31,12 @@ Revision History:
 
 #if HAVE_SYSCONF
 // <unistd.h> already included above
-#elif HAVE_SYSCTL
+#endif
+#if HAVE_SYSCTL && not defined(__linux__)
+// glibc is deprecating sysctl so we should not use it even if it exist.
 #include <sys/sysctl.h>
-#else
+#endif
+#if not HAVE_SYSCONF && not HAVE_SYSCTL
 #error Either sysctl or sysconf is required for GetSystemInfo.
 #endif
 
