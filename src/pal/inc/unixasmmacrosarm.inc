@@ -2,9 +2,16 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#ifndef ARMV6
+#define ENCODING .thumb
+#define BREAKPOINT .inst.w 0xde01
+#else
+#define ENCODING .arm
+#define BREAKPOINT .inst 0xe7f001f0
+#endif
+
 .macro LEAF_ENTRY Name, Section
-        .align
-        .arm
+        ENCODING
         .global C_FUNC(\Name)
         .type \Name, %function
 C_FUNC(\Name):
@@ -27,8 +34,7 @@ C_FUNC(\Name):
 .endm
 
 .macro PATCH_LABEL Name
-        .align
-        .arm
+        ENCODING
         .global C_FUNC(\Name)
 C_FUNC(\Name):
 .endm
@@ -39,8 +45,7 @@ C_FUNC(\Name):
 .endm
 
 .macro LEAF_END_MARKED Name, Section
-        .align
-        .arm
+        ENCODING
         .global C_FUNC(\Name\()_End)
 C_FUNC(\Name\()_End):
         LEAF_END \Name, \Section
@@ -201,9 +206,8 @@ C_FUNC(\Name\()_End):
 .endm
 
 .macro EMIT_BREAKPOINT
-.align
-.arm
-        .inst 0xe7f001f0
+        ENCODING
+        BREAKPOINT
 .endm
 
 .macro PROLOG_PUSH RegList
@@ -260,8 +264,7 @@ C_FUNC(\Name\()_End):
 // is misaligned.
 //
 .macro CHECK_STACK_ALIGNMENT
-.align
-.arm
+        ENCODING
 #ifdef _DEBUG
         push {r0}
         add r0, sp, #4
