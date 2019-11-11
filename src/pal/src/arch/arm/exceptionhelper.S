@@ -6,7 +6,9 @@
 #include "asmconstants.h"
 
 .syntax unified
+#ifndef ARMV6
 .thumb
+#endif
 
 // EXTERN_C void ThrowExceptionFromContextInternal(CONTEXT* context, PAL_SEHException* ex);
 LEAF_ENTRY ThrowExceptionFromContextInternal, _TEXT
@@ -32,6 +34,7 @@ LEAF_ENTRY ThrowExceptionFromContextInternal, _TEXT
     ldr sp,   [r0, #(CONTEXT_Sp)]
     ldr lr,   [r0, #(CONTEXT_Pc)]
 
+#ifndef ARMV6
     vldr d8,  [r0, #(CONTEXT_D8)]
     vldr d9,  [r0, #(CONTEXT_D9)]
     vldr d10, [r0, #(CONTEXT_D10)]
@@ -40,6 +43,7 @@ LEAF_ENTRY ThrowExceptionFromContextInternal, _TEXT
     vldr d13, [r0, #(CONTEXT_D13)]
     vldr d14, [r0, #(CONTEXT_D14)]
     vldr d15, [r0, #(CONTEXT_D15)]
+#endif
 
     // The PAL_SEHException pointer
     mov r0, r1

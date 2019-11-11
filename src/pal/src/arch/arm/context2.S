@@ -11,7 +11,9 @@
 #include "asmconstants.h"
 
 .syntax unified
+#ifndef ARMV6
 .thumb
+#endif
 
 #define CONTEXT_ARM     0x00200000
 
@@ -74,13 +76,22 @@ LEAF_ENTRY CONTEXT_CaptureContext, _TEXT
     tst r2, #(CONTEXT_FLOATING_POINT)
 
     itt ne
+#ifndef ARMV6
     vmrsne r3, fpscr
+#else
+    movne  r3, #0
+#endif
     strne r3, [r0, #(CONTEXT_Fpscr)]
 
     itttt ne
     addne r0, CONTEXT_D0
+#ifndef ARMV6
     vstmiane r0!, {d0-d15}
     vstmiane r0!, {d16-d31}
+#else
+    addne  r0, #64
+    addne  r0, #64
+#endif
     subne r0, CONTEXT_D31
 
     // Make sure sp is restored
@@ -129,13 +140,22 @@ LOCAL_LABEL(Restore_CONTEXT_FLOATING_POINT):
 
     itttt ne
     addne r0, CONTEXT_D0
+#ifndef ARMV6
     vldmiane r0!, {d0-d15}
     vldmiane r0, {d16-d31}
+#else
+    addne  r0, #64
+    addne  r0, #64
+#endif
     subne r0, CONTEXT_D16
 
     itt ne
     ldrne r3, [r0, #(CONTEXT_Fpscr)]
+#ifndef ARMV6
     vmrsne r3, FPSCR
+#else
+    movne  r3, #0
+#endif
 
     ldr r2, [r0, #(CONTEXT_ContextFlags)]
     tst r2, #(CONTEXT_CONTROL)

@@ -5,7 +5,9 @@
 #include "unixasmmacros.inc"
 
 .syntax unified
+#ifndef ARMV6
 .thumb
+#endif
 
 LEAF_ENTRY DBG_DebugBreak, _TEXT
     EMIT_BREAKPOINT

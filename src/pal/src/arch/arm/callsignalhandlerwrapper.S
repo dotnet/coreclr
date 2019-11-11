@@ -6,7 +6,9 @@
 #include "asmconstants.h"
 
 .syntax unified
+#ifndef ARMV6
 .thumb
+#endif
 
 .macro CALL_SIGNAL_HANDLER_WRAPPER Alignment
 
@@ -36,7 +38,11 @@ LOCAL_LABEL(SignalHandlerWorkerReturn\Alignment):
 LOCAL_LABEL(SignalHandlerWorkerReturn\Alignment):
     // Following instruction are needed to say gdb that this frame is SIGTRAMP_FRAME
     // and it can restore all registers from stack
+#ifndef ARMV6
     mov.w r7, #119
+#else
+    mov r7, #119
+#endif
     svc 0
 #endif
 NESTED_END CallSignalHandlerWrapper\Alignment, _TEXT
