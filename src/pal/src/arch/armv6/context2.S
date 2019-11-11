@@ -28,6 +28,8 @@
 //  r0: Context*
 //
 LEAF_ENTRY CONTEXT_CaptureContext, _TEXT
+    .align
+    .arm
     // Ensure we save these registers
     push {r4-r11}
     // Save processor flags before calling any of the following 'test' instructions
@@ -95,6 +97,8 @@ LEAF_END CONTEXT_CaptureContext, _TEXT
 //  R0: Context*
 //
 LEAF_ENTRY RtlCaptureContext, _TEXT
+.align
+.arm
     push {r1}
     mov r1, #0
     orr r1, r1, #CONTEXT_ARM
@@ -111,6 +115,8 @@ LEAF_END RtlCaptureContext, _TEXT
 //  r1: Exception*
 //
 LEAF_ENTRY RtlRestoreContext, _TEXT
+.align
+.arm
     END_PROLOGUE
 
 #ifdef HAS_ASAN

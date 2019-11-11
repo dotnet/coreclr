@@ -10,6 +10,8 @@
 
 // EXTERN_C void ThrowExceptionFromContextInternal(CONTEXT* context, PAL_SEHException* ex);
 LEAF_ENTRY ThrowExceptionFromContextInternal, _TEXT
+.align
+.arm
     // Ported from src/pal/src/arch/amd64/exceptionhelper.S
 #ifdef HAS_ASAN
     // Need to call __asan_handle_no_return explicitly here because we re-intialize SP before
