@@ -134,21 +134,7 @@ namespace BinderTracingTests
             {
                 case "AssemblyLoadStart":
                 {
-                    var bindOperation = new BindOperation()
-                    {
-                        AssemblyName = new AssemblyName(GetDataString("AssemblyName")),
-                        AssemblyPath = GetDataString("AssemblyPath"),
-                        AssemblyLoadContext = GetDataString("AssemblyLoadContext"),
-                        RequestingAssemblyLoadContext = GetDataString("RequestingAssemblyLoadContext"),
-                        ActivityId = data.ActivityId,
-                        ParentActivityId = data.RelatedActivityId,
-                    };
-                    string requestingAssembly = GetDataString("RequestingAssembly");
-                    if (!string.IsNullOrEmpty(requestingAssembly))
-                    {
-                        bindOperation.RequestingAssembly = new AssemblyName(requestingAssembly);
-                    }
-
+                    BindOperation bindOperation = ParseAssemblyLoadStartEvent(data, GetDataString);
                     lock (eventsLock)
                     {
                         Assert.IsTrue(!bindOperations.ContainsKey(data.ActivityId), "AssemblyLoadStart should not exist for same activity ID ");
@@ -202,6 +188,26 @@ namespace BinderTracingTests
                     break;
                 }
             }
+        }
+
+        private BindOperation ParseAssemblyLoadStartEvent(EventWrittenEventArgs data, Func<string, string> getDataString)
+        {
+            var bindOperation = new BindOperation()
+            {
+                AssemblyName = new AssemblyName(getDataString("AssemblyName")),
+                AssemblyPath = getDataString("AssemblyPath"),
+                AssemblyLoadContext = getDataString("AssemblyLoadContext"),
+                RequestingAssemblyLoadContext = getDataString("RequestingAssemblyLoadContext"),
+                ActivityId = data.ActivityId,
+                ParentActivityId = data.RelatedActivityId,
+            };
+            string requestingAssembly = getDataString("RequestingAssembly");
+            if (!string.IsNullOrEmpty(requestingAssembly))
+            {
+                bindOperation.RequestingAssembly = new AssemblyName(requestingAssembly);
+            }
+
+            return bindOperation;
         }
 
         private HandlerInvocation ParseHandlerInvokedEvent(Func<string, string> getDataString)
