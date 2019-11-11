@@ -1054,17 +1054,14 @@ namespace System.Globalization
                 {
                     try
                     {
-                        _sLocalizedCountry = GetRegionDisplayName(TwoLetterISOCountryName);
+                        _sLocalizedCountry = GetRegionDisplayName();
                     }
                     catch
                     {
                         // do nothing. we'll fallback
                     }
 
-                    if (_sLocalizedCountry == null)
-                    {
-                        _sLocalizedCountry = NativeCountryName;
-                    }
+                    _sLocalizedCountry ??= NativeCountryName;
                 }
                 return _sLocalizedCountry;
             }
