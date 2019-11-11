@@ -35,7 +35,12 @@
         ldr                 \VASigCookieReg, [\VASigCookieReg,#VASigCookie__pNDirectILStub]
 
         // if null goto stub generation
+#ifndef ARMV6
         cbz                 \VASigCookieReg, \__PInvokeStubFuncName\()Label
+#else
+        cmp                 \VASigCookieReg, #0x0
+        beq                 \__PInvokeStubFuncName\()Label
+#endif
 
         EPILOG_STACK_FREE   4
         EPILOG_BRANCH_REG   \VASigCookieReg
@@ -150,7 +155,12 @@
         // Check return trap
         ldr     r2, =g_TrapReturningThreads
         ldr     r2, [r2]
+#ifndef ARMV6
         cbnz    r2, LOCAL_LABEL(RarePath)
+#else
+        cmp     r2, #0x0
+        bne     LOCAL_LABEL(RarePath)
+#endif
 
         // pThread->m_pFrame = pFrame->m_Next
         ldr     r2, [r0, #Frame__m_Next]

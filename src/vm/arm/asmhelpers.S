@@ -44,7 +44,12 @@
         mov     r5,r0 // save pCallDescrData in r5
 
         ldr     r1, [r5,#CallDescrData__numStackSlots]
+ #ifndef ARMV6
         cbz     r1, LOCAL_LABEL(Ldonestack)
+ #else
+        cmp     r1, #0
+        beq     LOCAL_LABEL(Ldonestack)
+#endif
 
         // Add frame padding to ensure frame size is a multiple of 8 (a requirement of the OS ABI).
         // We push four registers (above) and numStackSlots arguments (below). If this comes to an odd number
@@ -68,9 +73,12 @@ LOCAL_LABEL(Ldonestack):
         // If FP arguments are supplied in registers (r3 != NULL) then initialize all of them from the pointer
         // given in r3. Do not use "it" since it faults in floating point even when the instruction is not executed.
         ldr     r3, [r5,#CallDescrData__pFloatArgumentRegisters]
+#ifndef ARMV6
         cbz     r3, LOCAL_LABEL(LNoFloatingPoint)
-#ifndef ARMV6        
         vldm    r3, {s0-s15}
+#else
+        cmp     r3, #0
+        beq     LOCAL_LABEL(LNoFloatingPoint)
 #endif        
 LOCAL_LABEL(LNoFloatingPoint):
 
@@ -90,8 +98,12 @@ LOCAL_LABEL(LNoFloatingPoint):
         ldr     r3, [r5,#CallDescrData__fpReturnSize]
 
         // Save FP return value if appropriate
+#ifndef ARMV6
         cbz     r3, LOCAL_LABEL(LFloatingPointReturnDone)
-
+#else
+        cmp     r3, #0
+        beq     LOCAL_LABEL(LFloatingPointReturnDone)
+#endif
         // Float return case
         // Do not use "it" since it faults in floating point even when the instruction is not executed.
         cmp     r3, #4
@@ -349,7 +361,12 @@ UMThunkStub_StackArgsSize = 10*4
         CHECK_STACK_ALIGNMENT
 
         bl                  C_FUNC(GetThread)
+#ifndef ARMV6
         cbz                 r0, LOCAL_LABEL(UMThunkStub_DoThreadSetup)
+#else
+        cmp                 r0, #0
+        beq                 LOCAL_LABEL(UMThunkStub_DoThreadSetup)
+#endif
 
 LOCAL_LABEL(UMThunkStub_HaveThread):
         mov                 r5, r0                  // r5 = Thread *
@@ -360,13 +377,23 @@ LOCAL_LABEL(UMThunkStub_HaveThread):
         str                 r4, [r5, #Thread__m_fPreemptiveGCDisabled]
 
         ldr                 r3, [r2]
+#ifndef ARMV6
         cbnz                r3, LOCAL_LABEL(UMThunkStub_DoTrapReturningThreads)
+#else
+        cmp                 r3, #0
+        bne                 LOCAL_LABEL(UMThunkStub_DoTrapReturningThreads)
+#endif
 
 LOCAL_LABEL(UMThunkStub_InCooperativeMode):
         ldr                 r12, [r7, #UMThunkStub_HiddenArgOffset]
         ldr                 r3, [r12, #UMEntryThunk__m_pUMThunkMarshInfo]
         ldr                 r2, [r3, #UMThunkMarshInfo__m_cbActualArgSize]
+#ifndef ARMV6
         cbz                 r2, LOCAL_LABEL(UMThunkStub_ArgumentsSetup)
+#else
+        cmp                 r2, #0
+        beq                 LOCAL_LABEL(UMThunkStub_ArgumentsSetup)
+#endif
 
         add                 r0, r7, #UMThunkStub_StackArgsOffset // Source pointer
         add                 r0, r0, r2
@@ -870,10 +897,15 @@ LOCAL_LABEL(checkStack_neg):
     NESTED_END checkStack, _TEXT
 
     NESTED_ENTRY stackProbe, _TEXT, NoHandler
-    .thumb
     PROLOG_PUSH "{r5,r6}"
     mov         r6, r12
+#ifndef ARMV6
     bfc         r6, #0, #0xc  // align down (4K)
+#else
+    lsr         r6, r6, #12
+    lsl         r6, r6, #12
+#endif
+
 LOCAL_LABEL(stackProbe_loop):
     sub         r4,r4,#0x1000 // dec stack Limit by 4K as page size is 4K
     ldr         r5,[r4]       // try to read ... this should move the guard page
@@ -1114,7 +1146,12 @@ LOCAL_LABEL(CallCppHelper3):
     // We retain arguments as they were passed and use r0 == array// r1 == idx// r2 == val
 
     // check for null array
+#ifndef ARMV6
     cbz     r0, LOCAL_LABEL(ThrowNullReferenceException)
+#else
+    cmp     r0, #0
+    beq     LOCAL_LABEL(ThrowNullReferenceException)
+#endif
 
     // idx bounds check
     ldr     r3,[r0,#ArrayBase__m_NumComponents]
@@ -1122,7 +1159,12 @@ LOCAL_LABEL(CallCppHelper3):
     bls     LOCAL_LABEL(ThrowIndexOutOfRangeException)
 
     // fast path to null assignment (doesn't need any write-barriers)
+#ifndef ARMV6
     cbz     r2, LOCAL_LABEL(AssigningNull)
+#else
+    cmp     r2, #0
+    beq     LOCAL_LABEL(AssigningNull)
+#endif
 
     // Verify the array-type and val-type matches before writing
     ldr     r12, [r0] // r12 = array MT
@@ -1471,7 +1513,13 @@ DelayLoad_Helper\suffix:
 
         bl          C_FUNC(DynamicHelperWorker)
 
+#ifndef ARMV6
         cbnz        r0, 0f
+#else
+        cmp         r0, 0
+        bne         0f
+#endif
+
         ldr         r0, [sp,#(__PWTB_TransitionBlock+9*4)]  // The result is stored in the argument area of the transition block
 
         EPILOG_WITH_TRANSITION_BLOCK_RETURN
@@ -1540,12 +1588,23 @@ DelayLoad_Helper\suffix:
         PROLOG_STACK_SAVE r7
 
         mov r5, sp                       // r5 points to some byte on the last probed page
+#ifndef ARMV6
         bfc r5, #0, #PAGE_SIZE_LOG2      // r5 points to the **lowest address** on the last probed page
+#else
+        lsr     r5, r5, #12
+        lsl     r5, r5, #12
+#endif
         mov sp, r5
 
 ProbeLoop:
                                          // Immediate operand for the following instruction can not be greater than 4095.
-        sub sp, #(PAGE_SIZE - 4)         // sp points to the **fourth** byte on the **next page** to probe
+        // sp points to the **fourth** byte on the **next page** to probe
+#ifndef ARMV6
+        sub sp, #(PAGE_SIZE - 4)
+#else
+        sub sp, sp, #4096
+        add sp, sp, #4
+#endif
         ldr r5, [sp, #-4]!               // sp points to the lowest address on the **last probed** page
         cmp sp, r4
         bhi ProbeLoop                    // If (sp > r4), then we need to probe at least one more page.
