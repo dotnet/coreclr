@@ -555,7 +555,12 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   endif(CLR_CMAKE_PLATFORM_DARWIN)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
-if(CLR_CMAKE_PLATFORM_UNIX_ARM)
+if(CLR_CMAKE_PLATFORM_UNIX_ARMV6)
+   # Because we don't use CMAKE_C_COMPILER/CMAKE_CXX_COMPILER to use clang
+   # we have to set the triple by adding a compiler argument
+   add_compile_options(-march=armv6)
+   add_compile_options(-marm)
+else()
    # Because we don't use CMAKE_C_COMPILER/CMAKE_CXX_COMPILER to use clang
    # we have to set the triple by adding a compiler argument
    add_compile_options(-mthumb)
@@ -565,13 +570,6 @@ if(CLR_CMAKE_PLATFORM_UNIX_ARM)
      add_definitions(-DARM_SOFTFP)
      add_compile_options(-mfloat-abi=softfp)
    endif(ARM_SOFTFP)
-endif(CLR_CMAKE_PLATFORM_UNIX_ARM)
-
-if(CLR_CMAKE_PLATFORM_UNIX_ARMV6)
-   # Because we don't use CMAKE_C_COMPILER/CMAKE_CXX_COMPILER to use clang
-   # we have to set the triple by adding a compiler argument
-   add_compile_options(-marm)
-   add_compile_options(-march=armv6)
 endif(CLR_CMAKE_PLATFORM_UNIX_ARMV6)
 
 if(CLR_CMAKE_PLATFORM_UNIX)
