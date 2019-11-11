@@ -37,7 +37,7 @@
 // want to go changing the layout of, for example, structures defined in OS header files
 // so we explicitly opt-in with this attribute.
 //
-#if defined(__GNUC__) && !defined(_ARM_) && !defined(_ARM64_)
+#if defined(__GNUC__) && defined(_X86_)
 #define MSLAYOUT __attribute__((__ms_struct__))
 #else
 #define MSLAYOUT
