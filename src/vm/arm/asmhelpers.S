@@ -64,7 +64,9 @@ LOCAL_LABEL(Ldonestack):
         // given in r3. Do not use "it" since it faults in floating point even when the instruction is not executed.
         ldr     r3, [r5,#CallDescrData__pFloatArgumentRegisters]
         cbz     r3, LOCAL_LABEL(LNoFloatingPoint)
+#ifndef ARMV6        
         vldm    r3, {s0-s15}
+#endif        
 LOCAL_LABEL(LNoFloatingPoint):
 
         // Copy [pArgumentRegisters, ..., pArgumentRegisters + 12]
@@ -105,13 +107,17 @@ LOCAL_LABEL(LNoDoubleReturn):
 
         cmp     r3, #16
         bne     LOCAL_LABEL(LNoFloatHFAReturn)
+#ifndef ARMV6        
         vstm    r2, {s0-s3}
+#endif        
         b       LOCAL_LABEL(LReturnDone)
 LOCAL_LABEL(LNoFloatHFAReturn):
 
         cmp     r3, #32
         bne     LOCAL_LABEL(LNoDoubleHFAReturn)
+#ifndef ARMV6
         vstm    r2, {d0-d3}
+#endif        
         b       LOCAL_LABEL(LReturnDone)
 LOCAL_LABEL(LNoDoubleHFAReturn):
 
@@ -128,7 +134,9 @@ LOCAL_LABEL(LReturnDone):
 #ifdef _DEBUG
         // trash the floating point registers to ensure that the HFA return values
         // won't survive by accident
+#ifndef ARMV6
         vldm    sp, {d0-d3}
+#endif
 #endif
 
         EPILOG_STACK_RESTORE_OFFSET   r7, #8
@@ -291,7 +299,9 @@ LOCAL_LABEL(LNullThis):
 
         PROLOG_PUSH "{r0-r4,r7,r8,lr}" // add r8 to make stack aligned by 8B
         PROLOG_STACK_SAVE_OFFSET r7, #20
+#ifndef ARMV6
         PROLOG_VPUSH {d0-d7}
+#endif
 
         CHECK_STACK_ALIGNMENT
 
@@ -302,7 +312,9 @@ LOCAL_LABEL(LNullThis):
         mov     r12, r0
 
         // Epilog
+#ifndef ARMV6
         EPILOG_VPOP {d0-d7}
+#endif        
         EPILOG_POP "{r0-r4,r7,r8,lr}"
         bx r12
 
@@ -380,19 +392,27 @@ LOCAL_LABEL(UMThunkStub_PostCall):
 
 LOCAL_LABEL(UMThunkStub_DoThreadSetup):
         sub                 sp, #SIZEOF__FloatArgumentRegisters
+#ifndef ARMV6
         vstm                sp, {d0-d7}
+#endif        
         bl                  C_FUNC(CreateThreadBlockThrow)
+#ifndef ARMV6
         vldm                sp, {d0-d7}
+#endif
         add                 sp, #SIZEOF__FloatArgumentRegisters
         b                   LOCAL_LABEL(UMThunkStub_HaveThread)
 
 LOCAL_LABEL(UMThunkStub_DoTrapReturningThreads):
         sub                 sp, #SIZEOF__FloatArgumentRegisters
+#ifndef ARMV6
         vstm                sp, {d0-d7}
+#endif        
         mov                 r0, r5              // Thread* pThread
         ldr                 r1, [r7, #UMThunkStub_HiddenArgOffset]  // UMEntryThunk* pUMEntry
         bl                  C_FUNC(UMThunkStubRareDisableWorker)
+#ifndef ARMV6
         vldm                sp, {d0-d7}
+#endif        
         add                 sp, #SIZEOF__FloatArgumentRegisters
         b                   LOCAL_LABEL(UMThunkStub_InCooperativeMode)
 
@@ -450,7 +470,9 @@ ThePreStubPatchLabel:
         PROLOG_PUSH "{r0-r4,r7,r8,lr}"                  // Spill general argument registers, return address and
         PROLOG_STACK_SAVE_OFFSET r7, #20
                                                         // arbitrary register to keep stack aligned
+#ifndef ARMV6
         PROLOG_VPUSH {d0-d7}                                   // Spill floating point argument registers
+#endif
 
         CHECK_STACK_ALIGNMENT
 
@@ -458,7 +480,9 @@ ThePreStubPatchLabel:
         bl      C_FUNC(NDirectImportWorker)
         mov     r12, r0
 
+#ifndef ARMV6
         EPILOG_VPOP {d0-d7}
+#endif
         EPILOG_POP "{r0-r4,r7,r8,lr}"
 
         // If we got back from NDirectImportWorker, the MD has been successfully
@@ -690,7 +714,9 @@ NESTED_ENTRY ProfileTailcallNaked, _TEXT, NoHandler
     add         r5, sp, #40
     push        { /* probeSp    */ r5 }
     push        { /* functionId */ r0 }
+#ifndef ARMV6    
     vpush.64    { d0 - d7 }
+#endif    
     push        { lr }
     push        { r11 }
     push        { r1 }
@@ -869,8 +895,9 @@ LOCAL_LABEL(stackProbe_loop):
 
     // Align stack
     alloc_stack  SIZEOF__FloatArgumentRegisters + 4
+#ifndef ARMV6
     vstm                sp, {d0-d7}
-
+#endif
 
     CHECK_STACK_ALIGNMENT
 
@@ -890,7 +917,9 @@ LOCAL_LABEL(stackProbe_loop):
     mov         r12, r0
 
     // pop the stack and restore original register state
+#ifndef ARMV6
     vldm               sp, {d0-d7}
+#endif    
     free_stack SIZEOF__FloatArgumentRegisters + 4
     EPILOG_POP "{r0-r3, r7,r8, lr}"
 
@@ -983,13 +1012,18 @@ LOCAL_LABEL(stackProbe_loop):
 
     PROLOG_PUSH "{r0-r1, r7,r8, r11, lr}" // save integer return value
     PROLOG_STACK_SAVE_OFFSET r7, #8
+#ifndef ARMV6
     PROLOG_VPUSH {d0-d3}                  // floating point return value
+#endif
 
     CHECK_STACK_ALIGNMENT
 
     bl          C_FUNC(JIT_RareDisableHelperWorker)
 
+#ifndef ARMV6
     EPILOG_VPOP {d0-d3}
+#endif
+
     EPILOG_POP "{r0-r1, r7,r8, r11, pc}"
 
     NESTED_END JIT_RareDisableHelper, _TEXT
@@ -1221,7 +1255,12 @@ LOCAL_LABEL(DoWrite):
     LEAF_ENTRY \name, _TEXT
         START_WRITE_BARRIER \name
         .if(\mp)
+#ifndef ARMV6
             dmb
+#else
+            mov      r2, #0
+            mcr      p15,0,r2,c7,c10,4
+#endif
         .endif
 
         str r1, [r0]
@@ -1246,7 +1285,12 @@ LOCAL_LABEL(DoWrite):
     .macro JIT_CHECKEDWRITEBARRIER_MP name, post
     LEAF_ENTRY \name, _TEXT
         START_WRITE_BARRIER \name
+#ifndef ARMV6
         dmb
+#else
+        mov      r2, #0
+        mcr      p15,0,r2,c7,c10,4
+#endif
         str r1, [r0]
         CHECK_GC_HEAP_RANGE \name, r0, 1f
         UPDATE_GC_SHADOW \name, r0, r1
@@ -1262,7 +1306,12 @@ LOCAL_LABEL(DoWrite):
     LEAF_ENTRY \name, _TEXT
         START_WRITE_BARRIER \name
         .if(\mp)
+#ifndef ARMV6
             dmb
+#else
+            mov      r2, #0
+            mcr      p15,0,r2,c7,c10,4
+#endif
         .endif
 
         ldr r2, [r1]
@@ -1435,7 +1484,9 @@ DelayLoad_Helper\suffix:
         NESTED_ENTRY OnHijackTripThread, _TEXT, NoHandler
         PROLOG_PUSH "{r0,r4-r11,lr}"
 
+#ifndef ARMV6
         PROLOG_VPUSH "{d0-d3}"    // saving as d0-d3 can have the floating point return value
+#endif        
         PROLOG_PUSH "{r1}"        // saving as r1 can have partial return value when return is > 32 bits
         alloc_stack 4             // 8 byte align
 
@@ -1446,7 +1497,9 @@ DelayLoad_Helper\suffix:
 
         free_stack 4
         EPILOG_POP "{r1}"
+#ifndef ARMV6        
         EPILOG_VPOP "{d0-d3}"
+#endif
 
         EPILOG_POP "{r0,r4-r11,pc}"
         NESTED_END OnHijackTripThread, _TEXT
