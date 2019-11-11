@@ -75,16 +75,6 @@ LEAF_ENTRY CONTEXT_CaptureContext, _TEXT
     ldr r2, [r0, #(CONTEXT_ContextFlags)]
     tst r2, #(CONTEXT_FLOATING_POINT)
 
-    itt ne
-    vmrsne r3, fpscr
-    strne r3, [r0, #(CONTEXT_Fpscr)]
-
-    itttt ne
-    addne r0, CONTEXT_D0
-    vstmiane r0!, {d0-d15}
-    vstmiane r0!, {d16-d31}
-    subne r0, CONTEXT_D31
-
     // Make sure sp is restored
     add sp, sp, #4
 
@@ -132,16 +122,6 @@ LOCAL_LABEL(Restore_CONTEXT_FLOATING_POINT):
 #endif
     ldr r2, [r0, #(CONTEXT_ContextFlags)]
     tst r2, #(CONTEXT_FLOATING_POINT)
-
-    itttt ne
-    addne r0, CONTEXT_D0
-    vldmiane r0!, {d0-d15}
-    vldmiane r0, {d16-d31}
-    subne r0, CONTEXT_D16
-
-    itt ne
-    ldrne r3, [r0, #(CONTEXT_Fpscr)]
-    vmrsne r3, FPSCR
 
     ldr r2, [r0, #(CONTEXT_ContextFlags)]
     tst r2, #(CONTEXT_CONTROL)
