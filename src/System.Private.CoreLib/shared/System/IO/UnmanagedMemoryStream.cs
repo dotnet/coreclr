@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -220,7 +221,7 @@ namespace System.IO
         /// <param name="callback">the callback to be called</param>
         /// <param name="state">A user-defined state, passed to the callback</param>
         /// <param name="bufferSize">the maximum size of the memory span</param>
-        public override void CopyTo(Buffers.ReadOnlySpanAction<byte, object?> callback, object? state, int bufferSize)
+        public override void CopyTo(ReadOnlySpanAction<byte, object?> callback, object? state, int bufferSize)
         {
             // If we have been inherited into a subclass, the following implementation could be incorrect
             // since it does not call through to Read() which a subclass might have overridden.
@@ -264,6 +265,7 @@ namespace System.IO
                     {
                         _buffer.AcquirePointer(ref pointer);
                         ReadOnlySpan<byte> span = new ReadOnlySpan<byte>(pointer + pos + _offset, nInt);
+                        Interlocked.Exchange(ref _position, pos + n);
                         callback(span, state);
                     }
                     finally
@@ -277,11 +279,10 @@ namespace System.IO
                 else
                 {
                     ReadOnlySpan<byte> span = new ReadOnlySpan<byte>(_mem + pos, nInt);
+                    Interlocked.Exchange(ref _position, pos + n);
                     callback(span, state);
                 }
             }
-
-            Interlocked.Exchange(ref _position, pos + n);
         }
 
         /// <summary>

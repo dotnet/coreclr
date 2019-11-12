@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -547,7 +548,7 @@ namespace System.IO
             }
         }
 
-        public override void CopyTo(Buffers.ReadOnlySpanAction<byte, object?> callback, object? state, int bufferSize)
+        public override void CopyTo(ReadOnlySpanAction<byte, object?> callback, object? state, int bufferSize)
         {
             // If we have been inherited into a subclass, the following implementation could be incorrect
             // since it does not call through to Read() which a subclass might have overridden.
