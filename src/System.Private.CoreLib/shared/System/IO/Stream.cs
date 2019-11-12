@@ -241,12 +241,12 @@ namespace System.IO
                 return WriteAsync(new ReadOnlyMemory<byte>(buffer, offset, length), cancellationToken).AsTask();
             }
 
-            public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
+            public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
             {
                 if (_func != null)
-                    return _func(buffer, _state, cancellationToken);
+                    await _func(buffer, _state, cancellationToken);
                 else if (_action != null)
-                    return new ValueTask(Task.Run(() => _action(buffer.Span, _state), cancellationToken));
+                    _action(buffer.Span, _state);
                 else
                     throw new NotSupportedException();
             }
