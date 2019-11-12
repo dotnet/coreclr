@@ -228,8 +228,12 @@ namespace System.IO
 
             public override void Write(ReadOnlySpan<byte> span)
             {
-                if (_action == null) throw new NotSupportedException();
-                _action(span, _state);
+                if (_action != null)
+                    _action(span, _state);
+                else if (_func != null)
+                    _func(span.ToArray(), _state, CancellationToken.None).GetAwaiter().GetResult();
+                else
+                    throw new NotSupportedException();
             }
 
             public override Task WriteAsync(byte[] buffer, int offset, int length, CancellationToken cancellationToken)
@@ -239,8 +243,12 @@ namespace System.IO
 
             public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
             {
-                if (_func == null) throw new NotSupportedException();
-                return _func(buffer, _state, cancellationToken);
+                if (_func != null)
+                    return _func(buffer, _state, cancellationToken);
+                else if (_action != null)
+                    return new ValueTask(Task.Run(() => _action(buffer.Span, _state), cancellationToken));
+                else
+                    throw new NotSupportedException();
             }
 
             public override bool CanRead => false;
