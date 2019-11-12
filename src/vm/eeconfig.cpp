@@ -821,7 +821,7 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
     iGCHeapHardLimitPercent = Configuration::GetKnobDWORDValue(W("System.GC.HeapHardLimitPercent"), 0);
 
     iGCCpuGroup = Configuration::GetKnobBooleanValue(W("System.GC.CpuGroup"), CLRConfig::EXTERNAL_GCCpuGroup);
-    iGCHighMemoryPercent = Configuration::GetKnobDWORDValue(W("System.GC.HighMemoryPercent"), 0);
+    iGCHighMemoryPercent = Configuration::GetKnobDWORDValue(W("System.GC.HighMemoryPercent"), CLRConfig::EXTERNAL_GCHighMemPercent);
     fGCLargePages = Configuration::GetKnobBooleanValue(W("System.GC.LargePages"), CLRConfig::EXTERNAL_GCLargePages);
     lpszGCHeapAffinitizeRanges = Configuration::GetKnobStringValue(W("System.GC.HeapAffinitizeRanges"), CLRConfig::EXTERNAL_GCHeapAffinitizeRanges);
 
