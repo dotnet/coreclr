@@ -282,16 +282,16 @@ function cross_build_coreclr_with_docker {
 
     if [ $__skipRootFS == 0 ]; then
         # Build rootfs
-        __buildRootfsCmd="./cross/build-rootfs.sh $__buildArch $__linuxCodeName --skipunmount"
+        __buildRootfsCmd="$__RepoRootDir/eng/common/cross/build-rootfs.sh $__buildArch $__linuxCodeName --skipunmount"
 
         (set +x; echo "Build RootFS for $__buildArch $__linuxCodeName")
         $__dockerCmd $__buildRootfsCmd
-        sudo chown -R $(id -u -n) cross/rootfs
+        sudo chown -R $(id -u -n) $__RepoRootDir/eng/common/cross/rootfs
     fi
 
     __extraArgs=""
     if [[ "$__buildArch" == "armel" && "$__linuxCodeName" == "tizen" ]]; then
-        __extraArgs="cmakeargs -DFEATURE_GDBJIT=TRUE -PortableBuild=false"
+        __extraArgs="cmakeargs -DFEATURE_NGEN_RELOCS_OPTIMIZATIONS=true cmakeargs -DFEATURE_GDBJIT=true cmakeargs -DFEATURE_PREJIT=true -PortableBuild=false"
     fi
 
     # Cross building coreclr with rootfs in Docker
@@ -326,7 +326,7 @@ function copy_to_emulator {
     __testDirFileBase="$__ARMEmulCoreclr/$testDirFileBase"
 
     sudo cp -R ./tests "$__ARMRootfsCoreclrPath/"
-    sudo cp -R ./packages "$__ARMRootfsCoreclrPath/"
+    sudo cp -R ./.packages "$__ARMRootfsCoreclrPath/"
     sudo cp -R ./Tools "$__ARMRootfsCoreclrPath/"
 
     #Copy corefx binary directories to the corefx root in the emulator (first native and then managed)
@@ -404,6 +404,14 @@ function run_tests_using_docker {
 
     $__dockerCmd $__testCmd
 }
+
+__RepoRootDir=./../..
+
+# BEGIN SECTION to remove after repo consolidation
+if [ ! -f "${__RepoRootDir}/.dotnet-runtime-placeholder" ]; then
+  __RepoRootDir=.
+fi
+# END SECTION to remove after repo consolidation
 
 #Define script variables
 __ciMode="emulator"

@@ -3,9 +3,9 @@
 // See the LICENSE file in the project root for more information.
 // ===========================================================================
 // File: CeeSectionString.cpp
-// 
+//
 
-// 
+//
 // ===========================================================================
 #include "stdafx.h"
 
@@ -46,7 +46,7 @@ void CeeSectionString::dumpTable()
     for (int i=0; i < MaxRealEntries; i++) {
         if (stringTable[i]) {
             printf("Bucket %d\n", i);
-            printf("Total size: %d\n\n", 
+            printf("Total size: %d\n\n",
                     count = dumpEntries(stringTable[i]));
             sum += count;
         }
@@ -64,7 +64,7 @@ CeeSectionString::~CeeSectionString()
         deleteEntries(stringTable[i]);
 }
 
-StringTableEntry* CeeSectionString::createEntry(__in_z LPWSTR target, ULONG hashId) 
+StringTableEntry* CeeSectionString::createEntry(__in_z LPWSTR target, ULONG hashId)
 {
     StringTableEntry *entry = new StringTableEntry;
     if (!entry)
@@ -72,8 +72,8 @@ StringTableEntry* CeeSectionString::createEntry(__in_z LPWSTR target, ULONG hash
     entry->m_next = NULL;
     entry->m_hashId = hashId;
     entry->m_offset = dataLen();
-    size_t len = (wcslen(target)+1) * sizeof(wchar_t);
-    if (len > ULONG_MAX) {
+    size_t len = (wcslen(target)+1) * sizeof(WCHAR);
+    if (len > UINT32_MAX) {
         delete entry;
         return NULL;
     }

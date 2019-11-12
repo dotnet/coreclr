@@ -33,12 +33,14 @@ typedef DPTR(class CodeVersionManager) PTR_CodeVersionManager;
 
 // This HRESULT is only used as a private implementation detail. Corerror.xml has a comment in it
 //  reserving this value for our use but it doesn't appear in the public headers.
-#define CORPROF_E_RUNTIME_SUSPEND_REQUIRED 0x80131381
+#define CORPROF_E_RUNTIME_SUSPEND_REQUIRED _HRESULT_TYPEDEF_(0x80131381L)
 
 #endif
 
-
-
+#ifdef HAVE_GCCOVER
+class GCCoverageInfo;
+typedef DPTR(class GCCoverageInfo) PTR_GCCoverageInfo;
+#endif
 
 class NativeCodeVersion
 {
@@ -53,27 +55,44 @@ public:
 #ifdef FEATURE_CODE_VERSIONING
     NativeCodeVersion(PTR_NativeCodeVersionNode pVersionNode);
 #endif
-    NativeCodeVersion(PTR_MethodDesc pMethod);
+    explicit NativeCodeVersion(PTR_MethodDesc pMethod);
+
     BOOL IsNull() const;
     PTR_MethodDesc GetMethodDesc() const;
     NativeCodeVersionId GetVersionId() const;
     BOOL IsDefaultVersion() const;
     PCODE GetNativeCode() const;
+
+#ifdef FEATURE_CODE_VERSIONING
     ILCodeVersion GetILCodeVersion() const;
     ReJITID GetILCodeVersionId() const;
+#endif
+
 #ifndef DACCESS_COMPILE
     BOOL SetNativeCodeInterlocked(PCODE pCode, PCODE pExpected = NULL);
 #endif
+
     enum OptimizationTier
     {
         OptimizationTier0,
-        OptimizationTier1
+        OptimizationTier1,
+        OptimizationTierOptimized, // may do less optimizations than tier 1
     };
 #ifdef FEATURE_TIERED_COMPILATION
     OptimizationTier GetOptimizationTier() const;
+#ifndef DACCESS_COMPILE
+    void SetOptimizationTier(OptimizationTier tier);
+#endif
 #endif // FEATURE_TIERED_COMPILATION
+
+#ifdef HAVE_GCCOVER
+    PTR_GCCoverageInfo GetGCCoverageInfo() const;
+    void SetGCCoverageInfo(PTR_GCCoverageInfo gcCover);
+#endif
+
     bool operator==(const NativeCodeVersion & rhs) const;
     bool operator!=(const NativeCodeVersion & rhs) const;
+
 #if defined(DACCESS_COMPILE) && defined(FEATURE_CODE_VERSIONING)
     // The DAC is privy to the backing node abstraction
     PTR_NativeCodeVersionNode AsNode() const;
@@ -82,7 +101,7 @@ public:
 private:
 
 #ifndef FEATURE_CODE_VERSIONING
-    MethodDesc* m_pMethodDesc;
+    PTR_MethodDesc m_pMethodDesc;
 #else // FEATURE_CODE_VERSIONING
 
 #ifndef DACCESS_COMPILE
@@ -106,7 +125,7 @@ private:
     union
     {
         PTR_NativeCodeVersionNode m_pVersionNode;
-        struct SyntheticStorage
+        struct
         {
             PTR_MethodDesc m_pMethodDesc;
         } m_synthetic;
@@ -174,11 +193,18 @@ public:
         kStateActive = 0x00000002,
 
         kStateMask = 0x0000000F,
+
+        // Indicates that the method being ReJITted is an inliner of the actual
+        // ReJIT request and we should not issue the GetReJITParameters for this
+        // method.
+        kSuppressParams = 0x80000000
     };
 
     RejitFlags GetRejitState() const;
+    BOOL GetEnableReJITCallback() const;
 #ifndef DACCESS_COMPILE
     void SetRejitState(RejitFlags newState);
+    void SetEnableReJITCallback(BOOL state);
 #endif
 
 #ifdef DACCESS_COMPILE
@@ -204,7 +230,7 @@ private:
     union
     {
         PTR_ILCodeVersionNode m_pVersionNode;
-        struct SyntheticStorage
+        struct
         {
             PTR_Module m_pModule;
             mdMethodDef m_methodDef;
@@ -218,13 +244,16 @@ class NativeCodeVersionNode
     friend NativeCodeVersionIterator;
     friend MethodDescVersioningState;
     friend ILCodeVersionNode;
+
 public:
 #ifndef DACCESS_COMPILE
     NativeCodeVersionNode(NativeCodeVersionId id, MethodDesc* pMethod, ReJITID parentId, NativeCodeVersion::OptimizationTier optimizationTier);
 #endif
+
 #ifdef DEBUG
     BOOL LockOwnedByCurrentThread() const;
 #endif
+
     PTR_MethodDesc GetMethodDesc() const;
     NativeCodeVersionId GetVersionId() const;
     PCODE GetNativeCode() const;
@@ -235,8 +264,17 @@ public:
     BOOL SetNativeCodeInterlocked(PCODE pCode, PCODE pExpected);
     void SetActiveChildFlag(BOOL isActive);
 #endif
+
 #ifdef FEATURE_TIERED_COMPILATION
     NativeCodeVersion::OptimizationTier GetOptimizationTier() const;
+#ifndef DACCESS_COMPILE
+    void SetOptimizationTier(NativeCodeVersion::OptimizationTier tier);
+#endif
+#endif // FEATURE_TIERED_COMPILATION
+
+#ifdef HAVE_GCCOVER
+    PTR_GCCoverageInfo GetGCCoverageInfo() const;
+    void SetGCCoverageInfo(PTR_GCCoverageInfo gcCover);
 #endif
 
 private:
@@ -251,6 +289,9 @@ private:
     NativeCodeVersionId m_id;
 #ifdef FEATURE_TIERED_COMPILATION
     NativeCodeVersion::OptimizationTier m_optTier;
+#endif
+#ifdef HAVE_GCCOVER
+    PTR_GCCoverageInfo m_gcCover;
 #endif
 
     enum NativeCodeVersionNodeFlags
@@ -320,12 +361,14 @@ public:
     DWORD GetJitFlags() const;
     const InstrumentedILOffsetMapping* GetInstrumentedILMap() const;
     ILCodeVersion::RejitFlags GetRejitState() const;
+    BOOL GetEnableReJITCallback() const;
     PTR_ILCodeVersionNode GetNextILVersionNode() const;
 #ifndef DACCESS_COMPILE
     void SetIL(COR_ILMETHOD* pIL);
     void SetJitFlags(DWORD flags);
     void SetInstrumentedILMap(SIZE_T cMap, COR_IL_MAP * rgMap);
     void SetRejitState(ILCodeVersion::RejitFlags newState);
+    void SetEnableReJITCallback(BOOL state);
     void SetNextILVersionNode(ILCodeVersionNode* pNextVersionNode);
 #endif
 
@@ -389,50 +432,14 @@ private:
 class MethodDescVersioningState
 {
 public:
-    // The size of the code used to jump stamp the prolog
-#ifdef FEATURE_JUMPSTAMP
-    static const size_t JumpStubSize =
-#if defined(_X86_) || defined(_AMD64_)
-        5;
-#else
-#error "Need to define size of jump-stamp for this platform"
-#endif
-#endif // FEATURE_JUMPSTAMP
-
     MethodDescVersioningState(PTR_MethodDesc pMethodDesc);
     PTR_MethodDesc GetMethodDesc() const;
     NativeCodeVersionId AllocateVersionId();
     PTR_NativeCodeVersionNode GetFirstVersionNode() const;
 
 #ifndef DACCESS_COMPILE
-#ifdef FEATURE_JUMPSTAMP
-    HRESULT SyncJumpStamp(NativeCodeVersion nativeCodeVersion, BOOL fEESuspended);
-    HRESULT UpdateJumpTarget(BOOL fEESuspended, PCODE pRejittedCode);
-    HRESULT UndoJumpStampNativeCode(BOOL fEESuspended);
-    HRESULT JumpStampNativeCode(PCODE pCode = NULL);
-#endif // FEATURE_JUMPSTAMP
     void LinkNativeCodeVersionNode(NativeCodeVersionNode* pNativeCodeVersionNode);
 #endif // DACCESS_COMPILE
-
-#ifdef FEATURE_JUMPSTAMP
-    enum JumpStampFlags
-    {
-        // There is no jump stamp in place on this method (Either because
-        // there is no code at all, or there is code that hasn't been
-        // overwritten with a jump)
-        JumpStampNone = 0x0,
-
-        // The method code has the jump stamp written in, and it points to the Prestub
-        JumpStampToPrestub = 0x1,
-
-        // The method code has the jump stamp written in, and it points to the currently
-        // active code version
-        JumpStampToActiveVersion = 0x2,
-    };
-
-    JumpStampFlags GetJumpStampState();
-    void SetJumpStampState(JumpStampFlags newState);
-#endif // FEATURE_JUMPSTAMP
 
     //read-write data for the default native code version
     BOOL IsDefaultVersionActiveChild() const;
@@ -441,26 +448,15 @@ public:
 #endif
 
 private:
-#if !defined(DACCESS_COMPILE) && defined(FEATURE_JUMPSTAMP)
-    INDEBUG(BOOL CodeIsSaved();)
-    HRESULT UpdateJumpStampHelper(BYTE* pbCode, INT64 i64OldValue, INT64 i64NewValue, BOOL fContentionPossible);
-#endif
     PTR_MethodDesc m_pMethodDesc;
-    
+
     enum MethodDescVersioningStateFlags
     {
-        JumpStampMask = 0x3,
         IsDefaultVersionActiveChildFlag = 0x4
     };
     BYTE m_flags;
     NativeCodeVersionId m_nextId;
     PTR_NativeCodeVersionNode m_pFirstVersionNode;
-
-
-    // The originally JITted code that was overwritten with the jmp stamp.
-#ifdef FEATURE_JUMPSTAMP
-    BYTE m_rgSavedCode[JumpStubSize];
-#endif
 };
 
 class MethodDescVersioningStateHashTraits : public NoRemoveSHashTraits<DefaultSHashTraits<PTR_MethodDescVersioningState>>
@@ -484,10 +480,10 @@ public:
     static count_t Hash(key_t k)
     {
         LIMITED_METHOD_CONTRACT;
-        return (count_t)(size_t)dac_cast<TADDR>(k);
+        return (count_t)dac_cast<TADDR>(k);
     }
 
-    static const element_t Null() { LIMITED_METHOD_CONTRACT; return dac_cast<PTR_MethodDescVersioningState>(nullptr); }
+    static element_t Null() { LIMITED_METHOD_CONTRACT; return dac_cast<PTR_MethodDescVersioningState>(nullptr); }
     static bool IsNull(const element_t &e) { LIMITED_METHOD_CONTRACT; return e == NULL; }
 };
 
@@ -549,23 +545,20 @@ public:
         return (count_t)k.Hash();
     }
 
-    static const element_t Null() { LIMITED_METHOD_CONTRACT; return dac_cast<PTR_ILCodeVersioningState>(nullptr); }
+    static element_t Null() { LIMITED_METHOD_CONTRACT; return dac_cast<PTR_ILCodeVersioningState>(nullptr); }
     static bool IsNull(const element_t &e) { LIMITED_METHOD_CONTRACT; return e == NULL; }
 };
 
 typedef SHash<ILCodeVersioningStateHashTraits> ILCodeVersioningStateHash;
 
-
 class CodeVersionManager
 {
     friend class ILCodeVersion;
-    friend class PublishMethodHolder;
-    friend class PublishMethodTableHolder;
 
 public:
     CodeVersionManager();
 
-    void PreInit(BOOL fSharedDomain);
+    void PreInit();
 
     class TableLockHolder : public CrstHolder
     {
@@ -577,7 +570,7 @@ public:
     void EnterLock();
     void LeaveLock();
 #endif
-    
+
 #ifdef DEBUG
     BOOL LockOwnedByCurrentThread() const;
 #endif
@@ -604,8 +597,7 @@ public:
 
     HRESULT AddILCodeVersion(Module* pModule, mdMethodDef methodDef, ReJITID rejitId, ILCodeVersion* pILCodeVersion);
     HRESULT AddNativeCodeVersion(ILCodeVersion ilCodeVersion, MethodDesc* pClosedMethodDesc, NativeCodeVersion::OptimizationTier optimizationTier, NativeCodeVersion* pNativeCodeVersion);
-    HRESULT DoJumpStampIfNecessary(MethodDesc* pMD, PCODE pCode);
-    PCODE PublishVersionableCodeIfNecessary(MethodDesc* pMethodDesc, BOOL fCanBackpatchPrestub);
+    PCODE PublishVersionableCodeIfNecessary(MethodDesc* pMethodDesc, bool *doBackpatchRef, bool *doFullBackpatchRef);
     HRESULT PublishNativeCodeVersion(MethodDesc* pMethodDesc, NativeCodeVersion nativeCodeVersion, BOOL fEESuspended);
     HRESULT GetOrCreateMethodDescVersioningState(MethodDesc* pMethod, MethodDescVersioningState** ppMethodDescVersioningState);
     HRESULT GetOrCreateILCodeVersioningState(Module* pModule, mdMethodDef methodDef, ILCodeVersioningState** ppILCodeVersioningState);
@@ -613,6 +605,22 @@ public:
     static HRESULT AddCodePublishError(Module* pModule, mdMethodDef methodDef, MethodDesc* pMD, HRESULT hrStatus, CDynArray<CodePublishError> * pErrors);
     static HRESULT AddCodePublishError(NativeCodeVersion nativeCodeVersion, HRESULT hrStatus, CDynArray<CodePublishError> * pErrors);
     static void OnAppDomainExit(AppDomain* pAppDomain);
+#endif
+
+    static bool IsMethodSupported(PTR_MethodDesc pMethodDesc);
+
+#ifndef DACCESS_COMPILE
+    static bool InitialNativeCodeVersionMayNotBeTheDefaultNativeCodeVersion()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return s_initialNativeCodeVersionMayNotBeTheDefaultNativeCodeVersion;
+    }
+
+    static void SetInitialNativeCodeVersionMayNotBeTheDefaultNativeCodeVersion()
+    {
+        LIMITED_METHOD_CONTRACT;
+        s_initialNativeCodeVersionMayNotBeTheDefaultNativeCodeVersion = true;
+    }
 #endif
 
 private:
@@ -627,7 +635,10 @@ private:
         CDynArray<CodePublishError> * pUnsupportedMethodErrors);
     static HRESULT GetNonVersionableError(MethodDesc* pMD);
     void ReportCodePublishError(CodePublishError* pErrorRecord);
+    void ReportCodePublishError(MethodDesc* pMD, HRESULT hrStatus);
     void ReportCodePublishError(Module* pModule, mdMethodDef methodDef, MethodDesc* pMD, HRESULT hrStatus);
+
+    static bool s_initialNativeCodeVersionMayNotBeTheDefaultNativeCodeVersion;
 #endif
 
     //Module,MethodDef -> ILCodeVersioningState
@@ -635,50 +646,10 @@ private:
 
     //closed MethodDesc -> MethodDescVersioningState
     MethodDescVersioningStateHash m_methodDescVersioningStateMap;
-    
+
     CrstExplicitInit m_crstTable;
 };
 
 #endif // FEATURE_CODE_VERSIONING
-
-//
-// These holders are used by runtime code that is making new code
-// available for execution, either by publishing jitted code
-// or restoring NGEN code. It ensures the publishing is synchronized
-// with rejit requests
-//
-class PublishMethodHolder
-{
-public:
-#if !defined(FEATURE_CODE_VERSIONING) || defined(DACCESS_COMPILE) || defined(CROSSGEN_COMPILE)
-    PublishMethodHolder(MethodDesc* pMethod, PCODE pCode) { }
-#else
-    PublishMethodHolder(MethodDesc* pMethod, PCODE pCode);
-    ~PublishMethodHolder();
-#endif
-
-private:
-#if defined(FEATURE_CODE_VERSIONING)
-    MethodDesc * m_pMD;
-    HRESULT m_hr;
-#endif
-};
-
-class PublishMethodTableHolder
-{
-public:
-#if !defined(FEATURE_CODE_VERSIONING) || defined(DACCESS_COMPILE) || defined(CROSSGEN_COMPILE)
-    PublishMethodTableHolder(MethodTable* pMethodTable) { }
-#else
-    PublishMethodTableHolder(MethodTable* pMethodTable);
-    ~PublishMethodTableHolder();
-#endif
-
-private:
-#if defined(FEATURE_CODE_VERSIONING) && !defined(DACCESS_COMPILE)
-    MethodTable* m_pMethodTable;
-    CDynArray<CodeVersionManager::CodePublishError> m_errors;
-#endif
-};
 
 #endif // CODE_VERSION_H

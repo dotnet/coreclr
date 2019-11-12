@@ -20,7 +20,7 @@
 // The JIT/EE interface is versioned. By "interface", we mean mean any and all communication between the
 // JIT and the EE. Any time a change is made to the interface, the JIT/EE interface version identifier
 // must be updated. See code:JITEEVersionIdentifier for more information.
-// 
+//
 // NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE
 //
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -33,32 +33,6 @@
 #include <stdarg.h>
 
 #include <corjitflags.h>
-
-#define CORINFO_STACKPROBE_DEPTH        256*sizeof(UINT_PTR)          // Guaranteed stack until an fcall/unmanaged
-                                                    // code can set up a frame. Please make sure
-                                                    // this is less than a page. This is due to
-                                                    // 2 reasons:
-                                                    //
-                                                    // If we need to probe more than a page
-                                                    // size, we need one instruction per page
-                                                    // (7 bytes per instruction)
-                                                    //
-                                                    // The JIT wants some safe space so it doesn't
-                                                    // have to put a probe on every call site. It achieves
-                                                    // this by probing n bytes more than CORINFO_STACKPROBE_DEPTH
-                                                    // If it hasn't used more than n for its own stuff, it
-                                                    // can do a call without doing any other probe
-                                                    //
-                                                    // In any case, we do really expect this define to be
-                                                    // small, as setting up a frame should be only pushing
-                                                    // a couple of bytes on the stack
-                                                    //
-                                                    // There is a compile time assert
-                                                    // in the x86 jit to protect you from this
-                                                    //
-
-
-
 
 /*****************************************************************************/
     // These are error codes returned by CompileMethod
@@ -244,9 +218,9 @@ extern "C" ICorJitCompiler* __stdcall getJit();
 // ICorJitCompiler is the interface that the EE uses to get IL bytecode converted to native code. Note that
 // to accomplish this the JIT has to call back to the EE to get symbolic information.  The code:ICorJitInfo
 // type passed as 'comp' to compileMethod is the mechanism to get this information.  This is often the more
-// interesting interface.  
-// 
-// 
+// interesting interface.
+//
+//
 class ICorJitCompiler
 {
 public:
@@ -256,10 +230,10 @@ public:
     // nativeSizeOfCode are just for convenience because the JIT asks the EE for the memory to emit code into
     // (see code:ICorJitInfo.allocMem), so really the EE already knows where the method starts and how big
     // it is (in fact, it could be in more than one chunk).
-    // 
+    //
     // * In the 32 bit jit this is implemented by code:CILJit.compileMethod
     // * For the 64 bit jit this is implemented by code:PreJit.compileMethod
-    // 
+    //
     // Note: Obfuscators that are hacking the JIT depend on this method having __stdcall calling convention
     virtual CorJitResult __stdcall compileMethod (
             ICorJitInfo                 *comp,               /* IN */
@@ -283,7 +257,7 @@ public:
     // The EE asks the JIT for a "version identifier". This represents the version of the JIT/EE interface.
     // If the JIT doesn't implement the same JIT/EE interface expected by the EE (because the JIT doesn't
     // return the version identifier that the EE expects), then the EE fails to load the JIT.
-    // 
+    //
     virtual void getVersionIdentifier(
             GUID*   versionIdentifier   /* OUT */
             ) = 0;
@@ -305,20 +279,20 @@ public:
 
 //------------------------------------------------------------------------------------------
 // #JitToEEInterface
-// 
+//
 // ICorJitInfo is the main interface that the JIT uses to call back to the EE and get information. It is
 // the companion to code:ICorJitCompiler#EEToJitInterface. The concrete implementation of this in the
-// runtime is the code:CEEJitInfo type.  There is also a version of this for the NGEN case.  
-// 
-// See code:ICorMethodInfo#EEJitContractDetails for subtle conventions used by this interface.  
-// 
-// There is more information on the JIT in the book of the runtime entry 
+// runtime is the code:CEEJitInfo type.  There is also a version of this for the NGEN case.
+//
+// See code:ICorMethodInfo#EEJitContractDetails for subtle conventions used by this interface.
+//
+// There is more information on the JIT in the book of the runtime entry
 // http://devdiv/sites/CLR/Product%20Documentation/2.0/BookOfTheRuntime/JIT/JIT%20Design.doc
-// 
+//
 class ICorJitInfo : public ICorDynamicInfo
 {
 public:
-    // return memory manager that the JIT can use to allocate a regular memory
+    // OBSOLETE: return memory manager that the JIT can use to allocate a regular memory
     virtual IEEMemoryManager* getMemoryManager() = 0;
 
     // get a block of memory for the code, readonly data, and read-write data
@@ -358,7 +332,7 @@ public:
     // Parameters:
     //
     //    pHotCode        main method code buffer, always filled in
-    //    pColdCode       cold code buffer, only filled in if this is cold code, 
+    //    pColdCode       cold code buffer, only filled in if this is cold code,
     //                      null otherwise
     //    startOffset     start of code block, relative to appropriate code buffer
     //                      (e.g. pColdCode if cold, pHotCode if hot).
@@ -412,29 +386,29 @@ public:
     // do an assert.  will return true if the code should retry (DebugBreak)
     // returns false, if the assert should be igored.
     virtual int doAssert(const char* szFile, int iLine, const char* szExpr) = 0;
-    
+
     virtual void reportFatalError(CorJitResult result) = 0;
 
-    struct ProfileBuffer  // Also defined here: code:CORBBTPROF_BLOCK_DATA
+    struct BlockCounts  // Also defined by:  CORBBTPROF_BLOCK_DATA
     {
-        ULONG ILOffset;
-        ULONG ExecutionCount;
+        UINT32 ILOffset;
+        UINT32 ExecutionCount;
     };
 
     // allocate a basic block profile buffer where execution counts will be stored
     // for jitted basic blocks.
-    virtual HRESULT allocBBProfileBuffer (
-            ULONG                 count,           // The number of basic blocks that we have
-            ProfileBuffer **      profileBuffer
+    virtual HRESULT allocMethodBlockCounts (
+            UINT32                count,           // The number of basic blocks that we have
+            BlockCounts **        pBlockCounts     // pointer to array of <ILOffset, ExecutionCount> tuples
             ) = 0;
 
     // get profile information to be used for optimizing the current method.  The format
     // of the buffer is the same as the format the JIT passes to allocBBProfileBuffer.
-    virtual HRESULT getBBProfileData(
+    virtual HRESULT getMethodBlockCounts(
             CORINFO_METHOD_HANDLE ftnHnd,
-            ULONG *               count,           // The number of basic blocks that we have
-            ProfileBuffer **      profileBuffer,
-            ULONG *               numRuns
+            UINT32 *              pCount,          // pointer to the count of <ILOffset, ExecutionCount> tuples
+            BlockCounts **        pBlockCounts,    // pointer to array of <ILOffset, ExecutionCount> tuples
+            UINT32 *              pNumRuns         // pointer to the total number of profile scenarios run
             ) = 0;
 
     // Associates a native call site, identified by its offset in the native code stream, with
@@ -471,7 +445,7 @@ public:
     // returns one of the IMAGE_FILE_MACHINE_* values. Note that if the VM
     // is cross-compiling (such as the case for crossgen), it will return a
     // different value than if it was compiling for the host architecture.
-    // 
+    //
     virtual DWORD getExpectedTargetArchitecture() = 0;
 
     // Fetches extended flags for a particular compilation instance. Returns

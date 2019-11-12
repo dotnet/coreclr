@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 // --------------------------------------------------------------------------------
 // PEImage.inl
-// 
+//
 
 // --------------------------------------------------------------------------------
 
@@ -29,7 +29,6 @@ inline ULONG PEImage::AddRef()
 inline const SString &PEImage::GetPath()
 {
     LIMITED_METHOD_DAC_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     return m_path;
 }
@@ -37,7 +36,6 @@ inline const SString &PEImage::GetPath()
 inline void PEImage::SetModuleFileNameHintForDAC()
 {
     LIMITED_METHOD_DAC_CONTRACT;
-    STATIC_CONTRACT_SO_INTOLERANT;
 
     // Grab module name only for triage dumps where full paths are excluded
     // because may contain PII data.
@@ -65,7 +63,7 @@ inline const SString &PEImage::GetModuleFileNameHintForDAC()
 
     return m_sModuleFileNameHintUsedByDac;
 }
-#endif 
+#endif
 
 
 
@@ -99,7 +97,7 @@ inline PTR_PEImageLayout PEImage::GetLoadedLayout()
 // Does not take any locks or call AddRef.
 //
 // Arguments:
-//    imageLayoutMask - bits from PEImageLayout specifying which layouts the caller would be 
+//    imageLayoutMask - bits from PEImageLayout specifying which layouts the caller would be
 //                      interested in getting
 //
 // Return value:
@@ -139,7 +137,7 @@ inline BOOL PEImage::IsOpened()
 
 
 #ifdef FEATURE_PREJIT
-inline CHECK PEImage::CheckNativeFormat() 
+inline CHECK PEImage::CheckNativeFormat()
 {
     WRAPPER_NO_CONTRACT;
     if (HasLoadedLayout())
@@ -175,7 +173,7 @@ inline BOOL PEImage::IsReferenceAssembly()
 }
 
 
-inline const BOOL PEImage::HasNTHeaders()   
+inline BOOL PEImage::HasNTHeaders()
 {
     WRAPPER_NO_CONTRACT;
     if (HasLoadedLayout())
@@ -187,7 +185,7 @@ inline const BOOL PEImage::HasNTHeaders()
     }
 }
 
-inline const BOOL PEImage::HasCorHeader()   
+inline BOOL PEImage::HasCorHeader()
 {
     WRAPPER_NO_CONTRACT;
     if (HasLoadedLayout())
@@ -199,7 +197,7 @@ inline const BOOL PEImage::HasCorHeader()
     }
 }
 
-inline const BOOL PEImage::HasReadyToRunHeader()   
+inline BOOL PEImage::HasReadyToRunHeader()
 {
     WRAPPER_NO_CONTRACT;
     if (HasLoadedLayout())
@@ -211,19 +209,7 @@ inline const BOOL PEImage::HasReadyToRunHeader()
     }
 }
 
-inline void PEImage::SetPassiveDomainOnly()
-{
-    LIMITED_METHOD_CONTRACT;
-    m_bPassiveDomainOnly=TRUE;
-}
-
-inline BOOL PEImage::PassiveDomainOnly()
-{
-    LIMITED_METHOD_CONTRACT;
-    return m_bPassiveDomainOnly;
-}
-
-inline const BOOL PEImage::HasDirectoryEntry(int entry)   
+inline BOOL PEImage::HasDirectoryEntry(int entry)
 {
     WRAPPER_NO_CONTRACT;
     if (HasLoadedLayout())
@@ -235,7 +221,7 @@ inline const BOOL PEImage::HasDirectoryEntry(int entry)
     }
 }
 
-inline const mdToken PEImage::GetEntryPointToken()
+inline mdToken PEImage::GetEntryPointToken()
 {
     WRAPPER_NO_CONTRACT;
     if (HasLoadedLayout())
@@ -254,7 +240,7 @@ inline const mdToken PEImage::GetEntryPointToken()
     }
 }
 
-inline const DWORD PEImage::GetCorHeaderFlags()   
+inline DWORD PEImage::GetCorHeaderFlags()
 {
     WRAPPER_NO_CONTRACT;
 
@@ -275,13 +261,13 @@ inline BOOL PEImage::MDImportLoaded()
     return m_pMDImport != NULL;
 }
 
-inline const BOOL PEImage::HasV1Metadata()   
+inline BOOL PEImage::HasV1Metadata()
 {
     WRAPPER_NO_CONTRACT;
     return GetMDImport()->GetMetadataStreamVersion()==MD_STREAM_VER_1X;
 }
 
-inline const BOOL PEImage::IsILOnly()   
+inline BOOL PEImage::IsILOnly()
 {
     WRAPPER_NO_CONTRACT;
     if (HasLoadedLayout())
@@ -293,7 +279,7 @@ inline const BOOL PEImage::IsILOnly()
     }
 }
 
-inline const WORD PEImage::GetSubsystem()   
+inline WORD PEImage::GetSubsystem()
 {
     WRAPPER_NO_CONTRACT;
     SUPPORTS_DAC;
@@ -307,8 +293,8 @@ inline const WORD PEImage::GetSubsystem()
     }
 }
 
-#ifdef FEATURE_PREJIT    
-inline const BOOL PEImage::IsNativeILILOnly()   
+#ifdef FEATURE_PREJIT
+inline BOOL PEImage::IsNativeILILOnly()
 {
     WRAPPER_NO_CONTRACT;
     if (HasLoadedLayout())
@@ -332,7 +318,7 @@ inline void PEImage::GetNativeILPEKindAndMachine(DWORD* pdwKind, DWORD* pdwMachi
     }
 }
 
-inline const BOOL PEImage::IsNativeILDll()   
+inline BOOL PEImage::IsNativeILDll()
 {
     WRAPPER_NO_CONTRACT;
     if (HasLoadedLayout())
@@ -345,7 +331,7 @@ inline const BOOL PEImage::IsNativeILDll()
 }
 #endif // FEATURE_PREJIT
 
-inline const BOOL PEImage::IsDll()   
+inline BOOL PEImage::IsDll()
 {
     WRAPPER_NO_CONTRACT;
     if (HasLoadedLayout())
@@ -357,26 +343,9 @@ inline const BOOL PEImage::IsDll()
     }
 }
 
-inline const BOOL PEImage::HasStrongNameSignature()   
+inline BOOL PEImage::IsIbcOptimized()
 {
-    WRAPPER_NO_CONTRACT;
-    if (HasLoadedLayout())
-        return GetLoadedLayout()->HasStrongNameSignature();
-    else
-    {
-        PEImageLayoutHolder pLayout(GetLayout(PEImageLayout::LAYOUT_ANY,LAYOUT_CREATEIFNEEDED));
-        return pLayout->HasStrongNameSignature();
-    }
-}
-
-#ifndef DACCESS_COMPILE
-
-
-#endif // !DACCESS_COMPILE
-
-inline BOOL PEImage::IsIbcOptimized()   
-{
-#ifdef FEATURE_PREJIT 
+#ifdef FEATURE_PREJIT
     WRAPPER_NO_CONTRACT;
     if (HasLoadedLayout())
         return GetLoadedLayout()->GetNativeILIsIbcOptimized();
@@ -390,8 +359,7 @@ inline BOOL PEImage::IsIbcOptimized()
 #endif
 }
 
-#ifdef FEATURE_PREJIT 
-inline PTR_CVOID PEImage::GetNativeManifestMetadata(COUNT_T *pSize) 
+inline PTR_CVOID PEImage::GetNativeManifestMetadata(COUNT_T *pSize)
 {
     WRAPPER_NO_CONTRACT;
     if (HasLoadedLayout())
@@ -402,9 +370,8 @@ inline PTR_CVOID PEImage::GetNativeManifestMetadata(COUNT_T *pSize)
         return pLayout->GetNativeManifestMetadata(pSize);
     }
 }
-#endif
 
-inline PTR_CVOID PEImage::GetMetadata(COUNT_T *pSize) 
+inline PTR_CVOID PEImage::GetMetadata(COUNT_T *pSize)
 {
     WRAPPER_NO_CONTRACT;
     if (HasLoadedLayout())
@@ -416,7 +383,7 @@ inline PTR_CVOID PEImage::GetMetadata(COUNT_T *pSize)
     }
 }
 
-inline BOOL PEImage::HasNativeHeader() 
+inline BOOL PEImage::HasNativeHeader()
 {
     WRAPPER_NO_CONTRACT;
     if (HasLoadedLayout())
@@ -428,7 +395,7 @@ inline BOOL PEImage::HasNativeHeader()
     }
 }
 
-inline BOOL PEImage::HasContents() 
+inline BOOL PEImage::HasContents()
 {
     WRAPPER_NO_CONTRACT;
     if (HasLoadedLayout())
@@ -452,17 +419,6 @@ inline CHECK PEImage::CheckFormat()
         CHECK(pLayout->CheckFormat());
     }
     CHECK_OK;
-}
-inline PTR_CVOID PEImage::GetStrongNameSignature(COUNT_T *pSize) 
-{
-    WRAPPER_NO_CONTRACT;
-    if (HasLoadedLayout())
-        return GetLoadedLayout()->GetStrongNameSignature(pSize);
-    else
-    {
-        PEImageLayoutHolder pLayout(GetLayout(PEImageLayout::LAYOUT_ANY,LAYOUT_CREATEIFNEEDED));
-        return pLayout->GetStrongNameSignature(pSize);
-    }
 }
 
 inline void  PEImage::Init(LPCWSTR pPath)
@@ -489,20 +445,21 @@ inline PTR_PEImage PEImage::FindByPath(LPCWSTR pPath)
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        PRECONDITION(CheckPointer(pPath));
         PRECONDITION(s_hashLock.OwnedByCurrentThread());
     }
     CONTRACTL_END;
 
-    int CaseHashHelper(const WCHAR *buffer, COUNT_T count, LocaleID lcid);
+    int CaseHashHelper(const WCHAR *buffer, COUNT_T count);
 
     PEImageLocator locator(pPath);
 #ifdef FEATURE_CASE_SENSITIVE_FILESYSTEM
     DWORD dwHash=path.Hash();
 #else
-    DWORD dwHash = CaseHashHelper(pPath, (COUNT_T) wcslen(pPath), PEImage::GetFileSystemLocale());
+    DWORD dwHash = CaseHashHelper(pPath, (COUNT_T) wcslen(pPath));
 #endif
    return (PEImage *) s_Images->LookupValue(dwHash, &locator);
-    
+
 }
 
 /* static */
@@ -518,7 +475,7 @@ inline PTR_PEImage PEImage::OpenImage(LPCWSTR pPath, MDInternalImportFlags flags
     }
 
     CrstHolder holder(&s_hashLock);
-    
+
     PEImage* found = FindByPath(pPath);
 
 
@@ -531,20 +488,18 @@ inline PTR_PEImage PEImage::OpenImage(LPCWSTR pPath, MDInternalImportFlags flags
         }
 
         PEImageHolder pImage(new PEImage);
-#ifdef FEATURE_PREJIT        
+#ifdef FEATURE_PREJIT
         if (flags &  MDInternalImport_TrustedNativeImage)
             pImage->SetIsTrustedNativeImage();
-        if (flags &  MDInternalImport_NativeImageInstall)
-            pImage->SetIsNativeImageInstall();
-#endif        
+#endif
         pImage->Init(pPath);
 
         pImage->AddToHashMap();
         return dac_cast<PTR_PEImage>(pImage.Extract());
     }
-    
+
     found->AddRef();
-    
+
     return dac_cast<PTR_PEImage>(found);
 }
 #endif
@@ -613,7 +568,7 @@ inline ULONG PEImage::GetIDHash()
 #ifdef FEATURE_CASE_SENSITIVE_FILESYSTEM
     RETURN m_path.Hash();
 #else
-    RETURN m_path.HashCaseInsensitive(PEImage::GetFileSystemLocale());
+    RETURN m_path.HashCaseInsensitive();
 #endif
 }
 
@@ -638,7 +593,7 @@ inline void PEImage::CachePEKindAndMachine()
     }
     else
     {
-        pLayout.Assign(GetLayout(PEImageLayout::LAYOUT_MAPPED|PEImageLayout::LAYOUT_FLAT, 
+        pLayout.Assign(GetLayout(PEImageLayout::LAYOUT_MAPPED|PEImageLayout::LAYOUT_FLAT,
                                  PEImage::LAYOUT_CREATEIFNEEDED));
     }
 
@@ -662,22 +617,5 @@ inline void  PEImage::GetPEKindAndMachine(DWORD* pdwKind, DWORD* pdwMachine)
     if (pdwMachine)
         *pdwMachine = m_dwMachine;
 }
-
-
-
-#ifndef DACCESS_COMPILE
-inline void PEImage::AllocateLazyCOWPages()
-{
-    STANDARD_VM_CONTRACT;
-
-#ifdef FEATURE_LAZY_COW_PAGES
-    if (!m_bAllocatedLazyCOWPages && CLRConfig::GetConfigValue(CLRConfig::INTERNAL_ZapLazyCOWPagesEnabled))
-    {
-        ::AllocateLazyCOWPages(GetLoadedLayout());
-        m_bAllocatedLazyCOWPages = TRUE;
-    }
-#endif
-}
-#endif
 
 #endif  // PEIMAGE_INL_

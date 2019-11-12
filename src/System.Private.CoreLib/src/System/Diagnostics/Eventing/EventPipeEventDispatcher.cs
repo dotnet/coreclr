@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Win32.SafeHandles;
 
 namespace System.Diagnostics.Tracing
 {
@@ -24,22 +25,26 @@ namespace System.Diagnostics.Tracing
 
         internal static readonly EventPipeEventDispatcher Instance = new EventPipeEventDispatcher();
 
-        private IntPtr m_RuntimeProviderID;
+        private readonly IntPtr m_RuntimeProviderID;
 
-        private UInt64 m_sessionID = 0;
+        private ulong m_sessionID = 0;
         private DateTime m_syncTimeUtc;
-        private Int64 m_syncTimeQPC;
-        private Int64 m_timeQPCFrequency;
+        private long m_syncTimeQPC;
+        private long m_timeQPCFrequency;
 
         private bool m_stopDispatchTask;
-        private Task m_dispatchTask = null;
-        private object m_dispatchControlLock = new object();
-        private Dictionary<EventListener, EventListenerSubscription> m_subscriptions = new Dictionary<EventListener, EventListenerSubscription>();
+        private readonly EventPipeWaitHandle m_dispatchTaskWaitHandle = new EventPipeWaitHandle();
+        private Task? m_dispatchTask = null;
+        private readonly object m_dispatchControlLock = new object();
+        private readonly Dictionary<EventListener, EventListenerSubscription> m_subscriptions = new Dictionary<EventListener, EventListenerSubscription>();
+
+        private const uint DefaultEventListenerCircularMBSize = 10;
 
         private EventPipeEventDispatcher()
         {
             // Get the ID of the runtime provider so that it can be used as a filter when processing events.
-            m_RuntimeProviderID = EventPipeInternal.GetProvider(RuntimeEventSource.EventSourceName);
+            m_RuntimeProviderID = EventPipeInternal.GetProvider(NativeRuntimeEventSource.EventSourceName);
+            m_dispatchTaskWaitHandle.SafeWaitHandle = new SafeWaitHandle(IntPtr.Zero, false);
         }
 
         internal void SendCommand(EventListener eventListener, EventCommand command, bool enable, EventLevel level, EventKeywords matchAnyKeywords)
@@ -107,10 +112,10 @@ namespace System.Diagnostics.Tracing
             // Enable the EventPipe session.
             EventPipeProviderConfiguration[] providerConfiguration = new EventPipeProviderConfiguration[]
             {
-                new EventPipeProviderConfiguration(RuntimeEventSource.EventSourceName, (ulong) aggregatedKeywords, (uint) highestLevel)
+                new EventPipeProviderConfiguration(NativeRuntimeEventSource.EventSourceName, (ulong)aggregatedKeywords, (uint)highestLevel, null)
             };
 
-            m_sessionID = EventPipeInternal.Enable(null, 1024, 1, providerConfiguration, 1);
+            m_sessionID = EventPipeInternal.Enable(null, EventPipeSerializationFormat.NetTrace, DefaultEventListenerCircularMBSize, providerConfiguration);
             Debug.Assert(m_sessionID != 0);
 
             // Get the session information that is required to properly dispatch events.
@@ -119,7 +124,7 @@ namespace System.Diagnostics.Tracing
             {
                 if (!EventPipeInternal.GetSessionInfo(m_sessionID, &sessionInfo))
                 {
-                    Debug.Assert(false, "GetSessionInfo returned false.");
+                    Debug.Fail("GetSessionInfo returned false.");
                 }
             }
 
@@ -138,7 +143,10 @@ namespace System.Diagnostics.Tracing
             if (m_dispatchTask == null)
             {
                 m_stopDispatchTask = false;
-                m_dispatchTask = Task.Factory.StartNew(DispatchEventsToEventListeners, TaskCreationOptions.LongRunning);
+                // Create a SafeWaitHandle that won't release the handle when done
+                m_dispatchTaskWaitHandle.SafeWaitHandle = new SafeWaitHandle(EventPipeInternal.GetWaitHandle(m_sessionID), false);
+
+                m_dispatchTask = Task.Factory.StartNew(DispatchEventsToEventListeners, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
             }
         }
 
@@ -146,9 +154,11 @@ namespace System.Diagnostics.Tracing
         {
             Debug.Assert(Monitor.IsEntered(m_dispatchControlLock));
 
-            if(m_dispatchTask != null)
+            if (m_dispatchTask != null)
             {
                 m_stopDispatchTask = true;
+                Debug.Assert(!m_dispatchTaskWaitHandle.SafeWaitHandle.IsInvalid);
+                Interop.Kernel32.SetEvent(m_dispatchTaskWaitHandle.SafeWaitHandle);
                 m_dispatchTask.Wait();
                 m_dispatchTask = null;
             }
@@ -161,22 +171,32 @@ namespace System.Diagnostics.Tracing
 
             while (!m_stopDispatchTask)
             {
+                bool eventsReceived = false;
                 // Get the next event.
-                while (!m_stopDispatchTask && EventPipeInternal.GetNextEvent(&instanceData))
+                while (!m_stopDispatchTask && EventPipeInternal.GetNextEvent(m_sessionID, &instanceData))
                 {
+                    eventsReceived = true;
+
                     // Filter based on provider.
                     if (instanceData.ProviderID == m_RuntimeProviderID)
                     {
                         // Dispatch the event.
-                        ReadOnlySpan<Byte> payload = new ReadOnlySpan<byte>((void*)instanceData.Payload, (int)instanceData.PayloadLength);
+                        ReadOnlySpan<byte> payload = new ReadOnlySpan<byte>((void*)instanceData.Payload, (int)instanceData.PayloadLength);
                         DateTime dateTimeStamp = TimeStampToDateTime(instanceData.TimeStamp);
-                        RuntimeEventSource.Log.ProcessEvent(instanceData.EventID, instanceData.ThreadID, dateTimeStamp, instanceData.ActivityId, instanceData.ChildActivityId, payload);
+                        NativeRuntimeEventSource.Log.ProcessEvent(instanceData.EventID, instanceData.ThreadID, dateTimeStamp, instanceData.ActivityId, instanceData.ChildActivityId, payload);
                     }
                 }
 
                 // Wait for more events.
                 if (!m_stopDispatchTask)
                 {
+                    if (!eventsReceived)
+                    {
+                        // Future TODO: this would make more sense to handle in EventPipeSession/EventPipe native code.
+                        Debug.Assert(!m_dispatchTaskWaitHandle.SafeWaitHandle.IsInvalid);
+                        m_dispatchTaskWaitHandle.WaitOne();
+                    }
+
                     Thread.Sleep(10);
                 }
             }
@@ -185,16 +205,16 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// Converts a QueryPerformanceCounter (QPC) timestamp to a UTC DateTime.
         /// </summary>
-        private DateTime TimeStampToDateTime(Int64 timeStamp)
+        private DateTime TimeStampToDateTime(long timeStamp)
         {
-            if (timeStamp == Int64.MaxValue)
+            if (timeStamp == long.MaxValue)
             {
                 return DateTime.MaxValue;
             }
 
             Debug.Assert((m_syncTimeUtc.Ticks != 0) && (m_syncTimeQPC != 0) && (m_timeQPCFrequency != 0));
-            Int64 inTicks = (Int64)((timeStamp - m_syncTimeQPC) * 10000000.0 / m_timeQPCFrequency) + m_syncTimeUtc.Ticks;
-            if((inTicks < 0)|| (DateTime.MaxTicks < inTicks))
+            long inTicks = (long)((timeStamp - m_syncTimeQPC) * 10000000.0 / m_timeQPCFrequency) + m_syncTimeUtc.Ticks;
+            if ((inTicks < 0) || (DateTime.MaxTicks < inTicks))
             {
                 inTicks = DateTime.MaxTicks;
             }

@@ -60,7 +60,7 @@ private:
     }
 
 public: // IStringTesting
-    DEF_RAWFUNC(Add_LPStr)(
+    DEF_FUNC(Add_LPStr)(
         /*[in]*/ LPSTR a,
         /*[in]*/ LPSTR b,
         /*[out,retval]*/ LPSTR * pRetVal)
@@ -78,7 +78,7 @@ public: // IStringTesting
         *pRetVal = buf;
         return S_OK;
     }
-    DEF_RAWFUNC(Add_LPWStr)(
+    DEF_FUNC(Add_LPWStr)(
         /*[in]*/ LPWSTR a,
         /*[in]*/ LPWSTR b,
         /*[out,retval]*/ LPWSTR * pRetVal)
@@ -86,17 +86,17 @@ public: // IStringTesting
         if (a == nullptr || b == nullptr)
             return E_POINTER;
 
-        size_t aLen = ::wcslen(a);
-        size_t bLen = ::wcslen(b);
+        size_t aLen = ::TP_slen(a);
+        size_t bLen = ::TP_slen(b);
         auto buf = (LPWSTR)::CoTaskMemAlloc((aLen + bLen + 1) * sizeof(*b));
 
-        ::wcscpy_s(buf, aLen + 1, a);
-        ::wcscpy_s(buf + aLen, bLen + 1, b);
+        ::TP_scpy_s(buf, aLen + 1, a);
+        ::TP_scpy_s(buf + aLen, bLen + 1, b);
 
         *pRetVal = buf;
         return S_OK;
     }
-    DEF_RAWFUNC(Add_BStr)(
+    DEF_FUNC(Add_BStr)(
         /*[in]*/ BSTR a,
         /*[in]*/ BSTR b,
         /*[out,retval]*/ BSTR * pRetVal)
@@ -108,19 +108,19 @@ public: // IStringTesting
         UINT bLen = ::SysStringLen(b);
         BSTR buf = ::SysAllocStringByteLen(nullptr, (aLen + bLen) * sizeof(a[0]));
 
-        ::wcscpy_s(buf, aLen + 1, a);
-        ::wcscpy_s(buf + aLen, bLen + 1, b);
+        ::TP_scpy_s(buf, aLen + 1, a);
+        ::TP_scpy_s(buf + aLen, bLen + 1, b);
 
         *pRetVal = buf;
         return S_OK;
     }
-    DEF_RAWFUNC(Reverse_LPStr)(
+    DEF_FUNC(Reverse_LPStr)(
         /*[in]*/ LPSTR a,
         /*[out,retval]*/ LPSTR * pRetVal)
     {
         return Reverse(a, pRetVal);
     }
-    DEF_RAWFUNC(Reverse_LPStr_Ref)(
+    DEF_FUNC(Reverse_LPStr_Ref)(
         /*[in,out]*/ LPSTR * a,
         /*[out,retval]*/ LPSTR * pRetVal)
     {
@@ -129,26 +129,26 @@ public: // IStringTesting
         ReverseInplace(::strlen(*a), *a);
         return S_OK;
     }
-    DEF_RAWFUNC(Reverse_LPStr_InRef)(
+    DEF_FUNC(Reverse_LPStr_InRef)(
         /*[in]*/ LPSTR * a,
         /*[out,retval]*/ LPSTR * pRetVal)
     {
         return Reverse(*a, pRetVal);
     }
-    DEF_RAWFUNC(Reverse_LPStr_Out)(
+    DEF_FUNC(Reverse_LPStr_Out)(
         /*[in]*/ LPSTR a,
         /*[out]*/ LPSTR * b)
     {
         return Reverse(a, b);
     }
-    DEF_RAWFUNC(Reverse_LPStr_OutAttr)(
+    DEF_FUNC(Reverse_LPStr_OutAttr)(
         /*[in]*/ LPSTR a,
         /*[out]*/ LPSTR b)
     {
         ReverseInplace(::strlen(b), b);
         return S_OK;
     }
-    DEF_RAWFUNC(Reverse_SB_LPStr)(
+    DEF_FUNC(Reverse_SB_LPStr)(
         /*[in,out]*/ LPSTR a,
         /*[out,retval]*/ LPSTR * pRetVal)
     {
@@ -157,7 +157,7 @@ public: // IStringTesting
         ReverseInplace(::strlen(a), a);
         return S_OK;
     }
-    DEF_RAWFUNC(Reverse_SB_LPStr_Ref)(
+    DEF_FUNC(Reverse_SB_LPStr_Ref)(
         /*[in,out]*/ LPSTR * a,
         /*[out,retval]*/ LPSTR * pRetVal)
     {
@@ -166,7 +166,7 @@ public: // IStringTesting
         ReverseInplace(::strlen(*a), *a);
         return S_OK;
     }
-    DEF_RAWFUNC(Reverse_SB_LPStr_InRef)(
+    DEF_FUNC(Reverse_SB_LPStr_InRef)(
         /*[in]*/ LPSTR * a,
         /*[out,retval]*/ LPSTR * pRetVal)
     {
@@ -175,7 +175,7 @@ public: // IStringTesting
         ReverseInplace(::strlen(*a), *a);
         return S_OK;
     }
-    DEF_RAWFUNC(Reverse_SB_LPStr_Out)(
+    DEF_FUNC(Reverse_SB_LPStr_Out)(
         /*[in,out]*/ LPSTR a,
         /*[out]*/ LPSTR * b)
     {
@@ -184,7 +184,7 @@ public: // IStringTesting
         ReverseInplace(::strlen(a), a);
         return S_OK;
     }
-    DEF_RAWFUNC(Reverse_SB_LPStr_OutAttr)(
+    DEF_FUNC(Reverse_SB_LPStr_OutAttr)(
         /*[in,out]*/ LPSTR a,
         /*[out]*/ LPSTR b)
     {
@@ -194,93 +194,96 @@ public: // IStringTesting
         ::memcpy_s(b, byteLen, a, byteLen);
         return S_OK;
     }
-    DEF_RAWFUNC(Reverse_LPWStr)(
+    DEF_FUNC(Reverse_LPWStr)(
         /*[in]*/ LPWSTR a,
         /*[out,retval]*/ LPWSTR * pRetVal)
     {
         return Reverse(a, pRetVal);
     }
-    DEF_RAWFUNC(Reverse_LPWStr_Ref)(
+    DEF_FUNC(Reverse_LPWStr_Ref)(
         /*[in,out]*/ LPWSTR * a,
         /*[out,retval]*/ LPWSTR * pRetVal)
     {
         HRESULT hr;
         RETURN_IF_FAILED(Reverse(*a, pRetVal));
-        ReverseInplace(::wcslen(*a), *a);
+        ReverseInplace(::TP_slen(*a), *a);
         return S_OK;
     }
-    DEF_RAWFUNC(Reverse_LPWStr_InRef)(
+    DEF_FUNC(Reverse_LPWStr_InRef)(
         /*[in]*/ LPWSTR * a,
         /*[out,retval]*/ LPWSTR * pRetVal)
     {
         return Reverse(*a, pRetVal);
     }
-    DEF_RAWFUNC(Reverse_LPWStr_Out)(
+    DEF_FUNC(Reverse_LPWStr_Out)(
         /*[in]*/ LPWSTR a,
         /*[out]*/ LPWSTR * b)
     {
         return Reverse(a, b);
     }
-    DEF_RAWFUNC(Reverse_LPWStr_OutAttr)(
+    DEF_FUNC(Reverse_LPWStr_OutAttr)(
         /*[in]*/ LPWSTR a,
         /*[out]*/ LPWSTR b)
     {
-        ReverseInplace(::wcslen(b), b);
-        return S_OK;
+        // Not possible to test from native server
+        // since the out string is a pointer to the
+        // actual CLR string and modifying it breaks
+        // the immutability invariant of CLR strings.
+        return S_FALSE;
     }
-    DEF_RAWFUNC(Reverse_SB_LPWStr)(
+    DEF_FUNC(Reverse_SB_LPWStr)(
         /*[in,out]*/ LPWSTR a,
         /*[out,retval]*/ LPWSTR * pRetVal)
     {
         HRESULT hr;
         RETURN_IF_FAILED(Reverse(a, pRetVal));
-        ReverseInplace(::wcslen(a), a);
+        ReverseInplace(::TP_slen(a), a);
         return S_OK;
     }
-    DEF_RAWFUNC(Reverse_SB_LPWStr_Ref)(
+    DEF_FUNC(Reverse_SB_LPWStr_Ref)(
         /*[in,out]*/ LPWSTR * a,
         /*[out,retval]*/ LPWSTR * pRetVal)
     {
         HRESULT hr;
         RETURN_IF_FAILED(Reverse(*a, pRetVal));
-        ReverseInplace(::wcslen(*a), *a);
+        ReverseInplace(::TP_slen(*a), *a);
         return S_OK;
     }
-    DEF_RAWFUNC(Reverse_SB_LPWStr_InRef)(
+    DEF_FUNC(Reverse_SB_LPWStr_InRef)(
         /*[in]*/ LPWSTR * a,
         /*[out,retval]*/ LPWSTR * pRetVal)
     {
         HRESULT hr;
         RETURN_IF_FAILED(Reverse(*a, pRetVal));
-        ReverseInplace(::wcslen(*a), *a);
+        ReverseInplace(::TP_slen(*a), *a);
         return S_OK;
     }
-    DEF_RAWFUNC(Reverse_SB_LPWStr_Out)(
+    DEF_FUNC(Reverse_SB_LPWStr_Out)(
         /*[in,out]*/ LPWSTR a,
         /*[out]*/ LPWSTR * b)
     {
         HRESULT hr;
         RETURN_IF_FAILED(Reverse(a, b));
-        ReverseInplace(::wcslen(a), a);
+        ReverseInplace(::TP_slen(a), a);
         return S_OK;
     }
-    DEF_RAWFUNC(Reverse_SB_LPWStr_OutAttr)(
+    DEF_FUNC(Reverse_SB_LPWStr_OutAttr)(
         /*[in,out]*/ LPWSTR a,
         /*[out]*/ LPWSTR b)
     {
-        size_t len = ::wcslen(a);
+        size_t len = ::TP_slen(a);
         ReverseInplace(len, a);
         size_t byteLen = (len + 1) * sizeof(*a);
         ::memcpy_s(b, byteLen, a, byteLen);
         return S_OK;
     }
-    DEF_RAWFUNC(Reverse_BStr)(
+    DEF_FUNC(Reverse_BStr)(
         /*[in]*/ BSTR a,
         /*[out,retval]*/ BSTR * pRetVal)
     {
         return ReverseBstr(a, pRetVal);
     }
-    DEF_RAWFUNC(Reverse_BStr_Ref)(
+    DEF_FUNC(Reverse_BStr_Ref)(
         /*[in,out]*/ BSTR * a,
         /*[out,retval]*/ BSTR * pRetVal)
     {
@@ -289,23 +292,39 @@ public: // IStringTesting
         ReverseInplace(::SysStringLen(*a), *a);
         return S_OK;
     }
-    DEF_RAWFUNC(Reverse_BStr_InRef)(
+    DEF_FUNC(Reverse_BStr_InRef)(
         /*[in]*/ BSTR * a,
         /*[out,retval]*/ BSTR * pRetVal)
     {
         return ReverseBstr(*a, pRetVal);
     }
-    DEF_RAWFUNC(Reverse_BStr_Out)(
+    DEF_FUNC(Reverse_BStr_Out)(
         /*[in]*/ BSTR a,
         /*[out]*/ BSTR * b)
     {
         return ReverseBstr(a, b);
     }
-    DEF_RAWFUNC(Reverse_BStr_OutAttr)(
+    DEF_FUNC(Reverse_BStr_OutAttr)(
         /*[in]*/ BSTR a,
         /*[out]*/ BSTR b)
     {
         ReverseInplace(::SysStringLen(b), b);
+        return S_OK;
+    }
+
+    DEF_FUNC(Reverse_LPWSTR_With_LCID)(
+        /*[in]*/ LPWSTR a,
+        /*[in]*/ LCID lcid, // This parameter is only used as a placeholder to check that we've injected it into the correct arg slot.
+        /*[out]*/ LPWSTR*  b)
+    {
+        return Reverse_LPWStr(a, b);
+    }
+
+    DEF_FUNC(Pass_Through_LCID)(
+        /*[in]*/ LCID lcidFromCulture,
+        /*[out]*/ LCID* outLcid)
+    {
+        *outLcid = lcidFromCulture;
         return S_OK;
     }
 
@@ -314,7 +333,7 @@ public: // IUnknown
         /* [in] */ REFIID riid,
         /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR *__RPC_FAR *ppvObject)
     {
-        return DoQueryInterface<StringTesting, IStringTesting>(this, riid, ppvObject);
+        return DoQueryInterface(riid, ppvObject, static_cast<IStringTesting *>(this));
     }
 
     DEFINE_REF_COUNTING();

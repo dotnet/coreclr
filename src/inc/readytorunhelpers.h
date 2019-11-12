@@ -84,10 +84,10 @@ HELPER(READYTORUN_HELPER_Dbl2UIntOvf,               CORINFO_HELP_DBL2UINT_OVF,  
 HELPER(READYTORUN_HELPER_Dbl2ULng,                  CORINFO_HELP_DBL2ULNG,                          )
 HELPER(READYTORUN_HELPER_Dbl2ULngOvf,               CORINFO_HELP_DBL2ULNG_OVF,                      )
 
-HELPER(READYTORUN_HELPER_DblRem,                    CORINFO_HELP_FLTREM,                            )
-HELPER(READYTORUN_HELPER_FltRem,                    CORINFO_HELP_DBLREM,                            )
-HELPER(READYTORUN_HELPER_DblRound,                  CORINFO_HELP_FLTROUND,                          )
-HELPER(READYTORUN_HELPER_FltRound,                  CORINFO_HELP_DBLROUND,                          )
+HELPER(READYTORUN_HELPER_FltRem,                    CORINFO_HELP_FLTREM,                            )
+HELPER(READYTORUN_HELPER_DblRem,                    CORINFO_HELP_DBLREM,                            )
+HELPER(READYTORUN_HELPER_FltRound,                  CORINFO_HELP_FLTROUND,                          )
+HELPER(READYTORUN_HELPER_DblRound,                  CORINFO_HELP_DBLROUND,                          )
 
 #ifndef _TARGET_X86_
 HELPER(READYTORUN_HELPER_PersonalityRoutine,        CORINFO_HELP_EE_PERSONALITY_ROUTINE,            OPTIMIZEFORSIZE)
@@ -109,6 +109,17 @@ HELPER(READYTORUN_HELPER_CheckedWriteBarrier_EDI,   CORINFO_HELP_CHECKED_ASSIGN_
 HELPER(READYTORUN_HELPER_CheckedWriteBarrier_EBP,   CORINFO_HELP_CHECKED_ASSIGN_REF_EBP,            )
 
 HELPER(READYTORUN_HELPER_EndCatch,                  CORINFO_HELP_ENDCATCH,                          OPTIMIZEFORSIZE)
+#endif
+
+HELPER(READYTORUN_HELPER_PInvokeBegin,              CORINFO_HELP_JIT_PINVOKE_BEGIN,                 )
+HELPER(READYTORUN_HELPER_PInvokeEnd,                CORINFO_HELP_JIT_PINVOKE_END,                   )
+HELPER(READYTORUN_HELPER_GCPoll,                    CORINFO_HELP_POLL_GC,                           )
+
+HELPER(READYTORUN_HELPER_MonitorEnter,              CORINFO_HELP_MON_ENTER,                         )
+HELPER(READYTORUN_HELPER_MonitorExit,               CORINFO_HELP_MON_EXIT,                          )
+
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+HELPER(READYTORUN_HELPER_StackProbe,                CORINFO_HELP_STACK_PROBE,                       )
 #endif
 
 #undef HELPER

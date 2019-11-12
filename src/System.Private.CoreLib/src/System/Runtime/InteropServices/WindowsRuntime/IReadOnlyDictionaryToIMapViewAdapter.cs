@@ -2,15 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-
-using System;
-using System.Security;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Runtime.CompilerServices;
 using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
@@ -22,7 +15,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // That's because they are invoked with special "this"! The "this" object
     // for all of these methods are not IReadOnlyDictionaryToIMapViewAdapter objects. Rather, they are of type
     // IReadOnlyDictionary<K, V>. No actual IReadOnlyDictionaryToIMapViewAdapter object is ever instantiated. Thus, you will
-    // see a lot of expressions that cast "this" to "IReadOnlyDictionary<K, V>". 
+    // see a lot of expressions that cast "this" to "IReadOnlyDictionary<K, V>".
     [DebuggerDisplay("Size = {Size}")]
     internal sealed class IReadOnlyDictionaryToIMapViewAdapter
     {
@@ -32,7 +25,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // V Lookup(K key)
-        internal V Lookup<K, V>(K key)
+        internal V Lookup<K, V>(K key) where K : notnull
         {
             IReadOnlyDictionary<K, V> _this = Unsafe.As<IReadOnlyDictionary<K, V>>(this);
             V value;
@@ -40,6 +33,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
             if (!keyFound)
             {
+                Debug.Assert(key != null);
                 Exception e = new KeyNotFoundException(SR.Format(SR.Arg_KeyNotFoundWithKey, key.ToString()));
                 e.HResult = HResults.E_BOUNDS;
                 throw e;
@@ -49,21 +43,21 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // uint Size { get }
-        internal uint Size<K, V>()
+        internal uint Size<K, V>() where K : notnull
         {
             IReadOnlyDictionary<K, V> _this = Unsafe.As<IReadOnlyDictionary<K, V>>(this);
             return (uint)_this.Count;
         }
 
         // bool HasKey(K key)
-        internal bool HasKey<K, V>(K key)
+        internal bool HasKey<K, V>(K key) where K : notnull
         {
             IReadOnlyDictionary<K, V> _this = Unsafe.As<IReadOnlyDictionary<K, V>>(this);
             return _this.ContainsKey(key);
         }
 
         // void Split(out IMapView<K, V> first, out IMapView<K, V> second)
-        internal void Split<K, V>(out IMapView<K, V> first, out IMapView<K, V> second)
+        internal void Split<K, V>(out IMapView<K, V>? first, out IMapView<K, V>? second) where K : notnull
         {
             IReadOnlyDictionary<K, V> _this = Unsafe.As<IReadOnlyDictionary<K, V>>(this);
 
@@ -74,9 +68,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 return;
             }
 
-            ConstantSplittableMap<K, V> splittableMap = _this as ConstantSplittableMap<K, V>;
-
-            if (splittableMap == null)
+            if (!(_this is ConstantSplittableMap<K, V> splittableMap))
                 splittableMap = new ConstantSplittableMap<K, V>(_this);
 
             splittableMap.Split(out first, out second);

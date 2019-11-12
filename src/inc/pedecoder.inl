@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 // --------------------------------------------------------------------------------
 // PEDecoder.inl
-// 
+//
 
 // --------------------------------------------------------------------------------
 
@@ -52,14 +52,14 @@ inline BOOL PEDecoder::IsMapped() const
 {
     LIMITED_METHOD_CONTRACT;
     SUPPORTS_DAC;
-    
+
     return (m_flags & FLAG_MAPPED) != 0;
 }
 
 inline BOOL PEDecoder::IsRelocated() const
 {
     LIMITED_METHOD_CONTRACT;
-    
+
     return (m_flags & FLAG_RELOCATED) != 0;
 }
 
@@ -71,7 +71,7 @@ inline void PEDecoder::SetRelocated()
 inline BOOL PEDecoder::IsFlat() const
 {
     LIMITED_METHOD_CONTRACT;
-    
+
     return HasContents() && !IsMapped();
 }
 
@@ -79,7 +79,7 @@ inline BOOL PEDecoder::HasContents() const
 {
     LIMITED_METHOD_CONTRACT;
     SUPPORTS_DAC;
-    
+
     return (m_flags & FLAG_CONTENTS) != 0;
 }
 
@@ -107,7 +107,6 @@ inline PEDecoder::PEDecoder(PTR_VOID mappedBase, bool fixedUp /*= FALSE*/)
         PRECONDITION(PEDecoder(mappedBase,fixedUp).CheckNTHeaders());
         THROWS;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
@@ -158,7 +157,7 @@ inline void PEDecoder::Init(void *flatBase, COUNT_T size)
         PRECONDITION((size == 0) || CheckPointer(flatBase));
         PRECONDITION(!HasContents());
         NOTHROW;
-        GC_NOTRIGGER;    
+        GC_NOTRIGGER;
     }
     CONTRACTL_END;
 
@@ -240,7 +239,6 @@ inline BOOL PEDecoder::Has32BitNTHeaders() const
         PRECONDITION(HasNTHeaders());
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         SUPPORTS_DAC;
         CANNOT_TAKE_LOCK;
         SUPPORTS_DAC;
@@ -264,7 +262,7 @@ inline const void *PEDecoder::GetHeaders(COUNT_T *pSize) const
 
     //even though some data in OptionalHeader is different for 32 and 64, this field is the same
     if (pSize != NULL)
-        *pSize = VAL32(FindNTHeaders()->OptionalHeader.SizeOfHeaders); 
+        *pSize = VAL32(FindNTHeaders()->OptionalHeader.SizeOfHeaders);
 
     RETURN (const void *) m_base;
 }
@@ -306,7 +304,6 @@ inline const void *PEDecoder::GetPreferredBase() const
         PRECONDITION(CheckNTHeaders());
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
     }
     CONTRACT_END;
@@ -326,7 +323,6 @@ inline COUNT_T PEDecoder::GetVirtualSize() const
         NOTHROW;
         GC_NOTRIGGER;
         SUPPORTS_DAC;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -343,7 +339,6 @@ inline WORD PEDecoder::GetSubsystem() const
         NOTHROW;
         GC_NOTRIGGER;
         SUPPORTS_DAC;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -359,7 +354,6 @@ inline WORD PEDecoder::GetDllCharacteristics() const
         PRECONDITION(CheckNTHeaders());
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -585,7 +579,6 @@ inline BOOL PEDecoder::HasDirectoryEntry(int entry) const
         NOTHROW;
         GC_NOTRIGGER;
         SUPPORTS_DAC;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -604,7 +597,6 @@ inline IMAGE_DATA_DIRECTORY *PEDecoder::GetDirectoryEntry(int entry) const
         NOTHROW;
         GC_NOTRIGGER;
         POSTCONDITION(CheckPointer(RETVAL));
-        SO_TOLERANT;
         CANNOT_TAKE_LOCK;
         SUPPORTS_DAC;
     }
@@ -633,7 +625,6 @@ inline TADDR PEDecoder::GetDirectoryEntryData(int entry, COUNT_T *pSize) const
         NOTHROW;
         GC_NOTRIGGER;
         POSTCONDITION(CheckPointer((void *)RETVAL, NULL_OK));
-        SO_TOLERANT;
         CANNOT_TAKE_LOCK;
         SUPPORTS_DAC;
     }
@@ -656,7 +647,6 @@ inline TADDR PEDecoder::GetDirectoryData(IMAGE_DATA_DIRECTORY *pDir) const
         PRECONDITION(CheckDirectory(pDir, 0, NULL_OK));
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         SUPPORTS_DAC;
         POSTCONDITION(CheckPointer((void *)RETVAL, NULL_OK));
         CANNOT_TAKE_LOCK;
@@ -676,7 +666,6 @@ inline TADDR PEDecoder::GetDirectoryData(IMAGE_DATA_DIRECTORY *pDir, COUNT_T *pS
         PRECONDITION(CheckPointer(pSize));
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         SUPPORTS_DAC;
         POSTCONDITION(CheckPointer((void *)RETVAL, NULL_OK));
         CANNOT_TAKE_LOCK;
@@ -698,7 +687,6 @@ inline TADDR PEDecoder::GetInternalAddressData(SIZE_T address) const
         NOTHROW;
         GC_NOTRIGGER;
         POSTCONDITION(CheckPointer((void *)RETVAL));
-        SO_TOLERANT;
     }
     CONTRACT_END;
 
@@ -714,7 +702,6 @@ inline BOOL PEDecoder::HasCorHeader() const
         NOTHROW;
         SUPPORTS_DAC;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -729,7 +716,6 @@ inline BOOL PEDecoder::IsILOnly() const
         PRECONDITION(HasCorHeader());
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
@@ -756,7 +742,7 @@ inline COUNT_T PEDecoder::RvaToOffset(RVA rva) const
         IMAGE_SECTION_HEADER *section = RvaToSection(rva);
         if (section == NULL)
             return rva;
-    
+
         return rva - VAL32(section->VirtualAddress) + VAL32(section->PointerToRawData);
     }
     else return 0;
@@ -778,7 +764,7 @@ inline RVA PEDecoder::OffsetToRva(COUNT_T fileOffset) const
     {
         IMAGE_SECTION_HEADER *section = OffsetToSection(fileOffset);
         PREFIX_ASSUME (section!=NULL); //TODO: actually it is possible that it si null we need to rethink how we handle this cases and do better there
-    
+
         return fileOffset - VAL32(section->PointerToRawData) + VAL32(section->VirtualAddress);
     }
     else return 0;
@@ -794,7 +780,6 @@ inline BOOL PEDecoder::IsStrongNameSigned() const
         NOTHROW;
         GC_NOTRIGGER;
         SUPPORTS_DAC;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -811,7 +796,6 @@ inline BOOL PEDecoder::HasStrongNameSignature() const
         NOTHROW;
         GC_NOTRIGGER;
         SUPPORTS_DAC;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -865,7 +849,6 @@ inline BOOL PEDecoder::HasTls() const
         PRECONDITION(CheckNTHeaders());
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -880,7 +863,6 @@ inline CHECK PEDecoder::CheckTls() const
         PRECONDITION(CheckNTHeaders());
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACT_CHECK_END;
 
@@ -891,7 +873,7 @@ inline CHECK PEDecoder::CheckTls() const
     CHECK(CheckUnderflow(VALPTR(pTlsHeader->EndAddressOfRawData), VALPTR(pTlsHeader->StartAddressOfRawData)));
     CHECK(VALPTR(pTlsHeader->EndAddressOfRawData) - VALPTR(pTlsHeader->StartAddressOfRawData) <= COUNT_T_MAX);
 
-    CHECK(CheckInternalAddress(VALPTR(pTlsHeader->StartAddressOfRawData), 
+    CHECK(CheckInternalAddress(VALPTR(pTlsHeader->StartAddressOfRawData),
         (COUNT_T) (VALPTR(pTlsHeader->EndAddressOfRawData) - VALPTR(pTlsHeader->StartAddressOfRawData))));
 
     CHECK_OK;
@@ -934,7 +916,7 @@ inline UINT32 PEDecoder::GetTlsIndex() const
     CONTRACTL_END;
 
     IMAGE_TLS_DIRECTORY *pTlsHeader = (IMAGE_TLS_DIRECTORY *) GetDirectoryEntryData(IMAGE_DIRECTORY_ENTRY_TLS);
-    
+
     return (UINT32)*PTR_UINT32(GetInternalAddressData((SIZE_T)VALPTR(pTlsHeader->AddressOfIndex)));
 }
 
@@ -947,7 +929,6 @@ inline IMAGE_COR20_HEADER *PEDecoder::GetCorHeader() const
         PRECONDITION(HasCorHeader());
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         POSTCONDITION(CheckPointer(RETVAL));
         CANNOT_TAKE_LOCK;
         SUPPORTS_DAC;
@@ -993,10 +974,8 @@ inline CORCOMPILE_HEADER *PEDecoder::GetNativeHeader() const
         NOTHROW;
         GC_NOTRIGGER;
         POSTCONDITION(CheckPointer(RETVAL));
-        SO_TOLERANT;        
         SUPPORTS_DAC;
         CANNOT_TAKE_LOCK;
-        SO_TOLERANT;
     }
     CONTRACT_END;
 
@@ -1076,7 +1055,6 @@ inline BOOL PEDecoder::IsNativeILILOnly() const
         PRECONDITION(CheckNativeHeader());
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         CANNOT_TAKE_LOCK;
         SUPPORTS_DAC;
     }
@@ -1202,7 +1180,6 @@ inline IMAGE_NT_HEADERS *PEDecoder::FindNTHeaders() const
         NOTHROW;
         GC_NOTRIGGER;
         POSTCONDITION(CheckPointer(RETVAL));
-        SO_TOLERANT;
         CANNOT_TAKE_LOCK;
         SUPPORTS_DAC;
     }
@@ -1221,7 +1198,6 @@ inline IMAGE_COR20_HEADER *PEDecoder::FindCorHeader() const
         GC_NOTRIGGER;
         POSTCONDITION(CheckPointer(RETVAL));
         CANNOT_TAKE_LOCK;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACT_END;
@@ -1239,7 +1215,6 @@ inline CORCOMPILE_HEADER *PEDecoder::FindNativeHeader() const
         NOTHROW;
         GC_NOTRIGGER;
         POSTCONDITION(CheckPointer(RETVAL));
-        SO_TOLERANT;        
         CANNOT_TAKE_LOCK;
         SUPPORTS_DAC;
     }
@@ -1304,8 +1279,8 @@ inline void PEDecoder::GetPEKindAndMachine(DWORD * pdwPEKind, DWORD *pdwMachine)
     {
         dwMachine = GetMachine();
 
-        BOOL fIsPE32Plus = !Has32BitNTHeaders(); 
-        
+        BOOL fIsPE32Plus = !Has32BitNTHeaders();
+
         if (fIsPE32Plus)
             dwKind |= (DWORD)pe32Plus;
 
@@ -1319,7 +1294,7 @@ inline void PEDecoder::GetPEKindAndMachine(DWORD * pdwPEKind, DWORD *pdwMachine)
                 if (dwCorFlags & VAL32(COMIMAGE_FLAGS_ILONLY))
                 {
                     dwKind |= (DWORD)peILonly;
-#ifdef _WIN64
+#ifdef BIT64
                     // compensate for shim promotion of PE32/ILONLY headers to PE32+ on WIN64
                     if (fIsPE32Plus && (GetMachine() == IMAGE_FILE_MACHINE_I386))
                         dwKind &= ~((DWORD)pe32Plus);
@@ -1388,7 +1363,6 @@ inline BOOL PEDecoder::HasReadyToRunHeader() const
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
@@ -1413,10 +1387,8 @@ inline READYTORUN_HEADER * PEDecoder::GetReadyToRunHeader() const
         NOTHROW;
         GC_NOTRIGGER;
         POSTCONDITION(CheckPointer(RETVAL));
-        SO_TOLERANT;        
         SUPPORTS_DAC;
         CANNOT_TAKE_LOCK;
-        SO_TOLERANT;
     }
     CONTRACT_END;
 

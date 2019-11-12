@@ -25,16 +25,16 @@
 // off optimization and it ends up being a wasteful implementation.
 //
 // Hence these assembly helpers.
-// 
+//
 //EXTERN_C void __stdcall JIT_MemSet(void* _dest, int c, size_t count)
 LEAF_ENTRY JIT_MemSet, _TEXT
 
         cmp r2, #0
         it eq
         bxeq lr
-        
-        ldr r3, [r0]
-        
+
+        ldrb r3, [r0]
+
         b C_PLTFUNC(memset)
 
 LEAF_END_MARKED JIT_MemSet, _TEXT
@@ -43,16 +43,14 @@ LEAF_END_MARKED JIT_MemSet, _TEXT
 //EXTERN_C void __stdcall JIT_MemCpy(void* _dest, const void *_src, size_t count)
 LEAF_ENTRY JIT_MemCpy, _TEXT
 //
-// It only requires 4 byte alignment
-// and doesn't return a value
 
         cmp r2, #0
         it eq
         bxeq lr
-        
-        ldr r3, [r0]
-        ldr r3, [r1]
-        
+
+        ldrb r3, [r0]
+        ldrb r3, [r1]
+
         b C_PLTFUNC(memcpy)
 
 LEAF_END_MARKED JIT_MemCpy, _TEXT

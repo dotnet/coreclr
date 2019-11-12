@@ -32,8 +32,8 @@
 #define __in_z
 #define __in
 
-/* 
- * The original SafeCRT implemention allows runtine control over buffer checking.
+/*
+ * The original SafeCRT implemention allows runtime control over buffer checking.
  * For now we'll key this off the debug flag.
  */
 #ifdef _DEBUG

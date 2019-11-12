@@ -21,6 +21,7 @@ bool g_fNGenWinMDResilient;
 
 #ifdef FEATURE_READYTORUN_COMPILER
 bool g_fReadyToRunCompilation;
+bool g_fLargeVersionBubble;
 #endif
 
 static bool s_fNGenNoMetaData;
@@ -32,8 +33,8 @@ static bool s_fNGenNoMetaData;
 // Zapper Object instead of creating one on your own.
 
 
-STDAPI NGenWorker(LPCWSTR pwzFilename, DWORD dwFlags, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzOutputFilename=NULL, LPCWSTR pwzPlatformWinmdPaths=NULL, ICorSvcLogger *pLogger = NULL, LPCWSTR pwszCLRJITPath = nullptr)
-{    
+STDAPI NGenWorker(LPCWSTR pwzFilename, DWORD dwFlags, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzOutputFilename=NULL, SIZE_T customBaseAddress=0, LPCWSTR pwzPlatformWinmdPaths=NULL, ICorSvcLogger *pLogger = NULL, LPCWSTR pwszCLRJITPath = nullptr)
+{
     HRESULT hr = S_OK;
 
     BEGIN_ENTRYPOINT_NOTHROW;
@@ -44,9 +45,9 @@ STDAPI NGenWorker(LPCWSTR pwzFilename, DWORD dwFlags, LPCWSTR pwzPlatformAssembl
     {
         NGenOptions ngo = {0};
         ngo.dwSize = sizeof(NGenOptions);
-        
+
         // V1
-        
+
         ngo.fDebug = false;
         ngo.fDebugOpt = false;
         ngo.fProf = false;
@@ -82,6 +83,8 @@ STDAPI NGenWorker(LPCWSTR pwzFilename, DWORD dwFlags, LPCWSTR pwzPlatformAssembl
         if (pwzOutputFilename)
             zap->SetOutputFilename(pwzOutputFilename);
 
+        zap->SetCustomBaseAddress(customBaseAddress);
+
         if (pwzPlatformAssembliesPaths != nullptr)
             zap->SetPlatformAssembliesPaths(pwzPlatformAssembliesPaths);
 
@@ -110,6 +113,7 @@ STDAPI NGenWorker(LPCWSTR pwzFilename, DWORD dwFlags, LPCWSTR pwzPlatformAssembl
 
 #ifdef FEATURE_READYTORUN_COMPILER
         g_fReadyToRunCompilation = !!(dwFlags & NGENWORKER_FLAGS_READYTORUN);
+        g_fLargeVersionBubble = !!(dwFlags & NGENWORKER_FLAGS_LARGEVERSIONBUBBLE);
 #endif
 
         if (pLogger != NULL)
@@ -127,7 +131,7 @@ STDAPI NGenWorker(LPCWSTR pwzFilename, DWORD dwFlags, LPCWSTR pwzPlatformAssembl
 }
 
 STDAPI CreatePDBWorker(LPCWSTR pwzAssemblyPath, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzAppNiPaths, LPCWSTR pwzPdbPath, BOOL fGeneratePDBLinesInfo, LPCWSTR pwzManagedPdbSearchPath, LPCWSTR pwzPlatformWinmdPaths, LPCWSTR pwzDiasymreaderPath)
-{    
+{
     HRESULT hr = S_OK;
 
     BEGIN_ENTRYPOINT_NOTHROW;
@@ -177,14 +181,14 @@ STDAPI CreatePDBWorker(LPCWSTR pwzAssemblyPath, LPCWSTR pwzPlatformAssembliesPat
         // Zapper::CreatePdb is shared code for both desktop NGEN PDBs and coreclr
         // crossgen PDBs.
         zap->CreatePdb(
-            strAssemblyPath, 
+            strAssemblyPath,
 
             // On desktop with fusion AND on the phone, the various binders always expect
             // the native image to be specified here.
-            strAssemblyPath, 
-            
-            strPdbPath, 
-            fGeneratePDBLinesInfo, 
+            strAssemblyPath,
+
+            strPdbPath,
+            fGeneratePDBLinesInfo,
             strManagedPdbSearchPath);
     }
     EX_CATCH_HRESULT(hr);
@@ -356,7 +360,7 @@ Zapper::Zapper(NGenOptions *pOptions, bool fromDllHost)
 
         //
         // Things that we turn off when this is the last retry for ngen
-        // 
+        //
         zo->m_ignoreProfileData = true;   // ignore any IBC profile data
 
 #ifdef _TARGET_ARM_
@@ -405,6 +409,8 @@ void Zapper::Init(ZapperOptions *pOptions, bool fFreeZapperOptions)
 
     m_pAssemblyEmit = NULL;
     m_fFreeZapperOptions = fFreeZapperOptions;
+
+    m_customBaseAddress = 0;
 
 #ifdef LOGGING
     InitializeLogging();
@@ -477,7 +483,7 @@ void Zapper::LoadAndInitializeJITForNgen(LPCWSTR pwzJitName, OUT HINSTANCE* phJi
         CoreClrFolder.Set(m_CLRJITPath);
         hr = S_OK;
     }
-    else 
+    else
 #endif // !defined(FEATURE_MERGE_JIT_AND_ENGINE)
     if (WszGetModuleFileName(g_hThisInst, CoreClrFolder))
     {
@@ -507,19 +513,6 @@ void Zapper::LoadAndInitializeJITForNgen(LPCWSTR pwzJitName, OUT HINSTANCE* phJi
         Error(W("Unable to load Jit Compiler: %s, hr=0x%08x\r\n"), pwzJitName, hr);
         ThrowLastError();
     }
-
-#if !defined(CROSSGEN_COMPILE)
-    typedef void (__stdcall* pSxsJitStartup) (CoreClrCallbacks const & cccallbacks);
-    pSxsJitStartup sxsJitStartupFn = (pSxsJitStartup) GetProcAddress(*phJit, "sxsJitStartup");
-    if (sxsJitStartupFn == NULL)
-    {
-        Error(W("Unable to load Jit startup function: %s\r\n"), pwzJitName);
-        ThrowLastError();
-    }
-
-    CoreClrCallbacks cccallbacks = GetClrCallbacks();
-    (*sxsJitStartupFn) (cccallbacks);
-#endif
 
     typedef void (__stdcall* pJitStartup)(ICorJitHost* host);
     pJitStartup jitStartupFn = (pJitStartup)GetProcAddress(*phJit, "jitStartup");
@@ -615,7 +608,7 @@ void Zapper::InitEE(BOOL fForceDebug, BOOL fForceProfile, BOOL fForceInstrument)
 
     LPCWSTR pwzJitName = CorCompileGetRuntimeDllName(ngenDllId);
     LoadAndInitializeJITForNgen(pwzJitName, &m_hJitLib, &m_pJitCompiler);
-    
+
 #endif // FEATURE_MERGE_JIT_AND_ENGINE
 
 #ifdef ALLOW_SXS_JIT_NGEN
@@ -635,7 +628,7 @@ void Zapper::InitEE(BOOL fForceDebug, BOOL fForceProfile, BOOL fForceInstrument)
     if (altJit != NULL)
     {
         // Allow a second jit to be loaded into the system.
-        // 
+        //
         LPCWSTR altName;
         hr = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_AltJitName, (LPWSTR*)&altName);
         if (FAILED(hr))
@@ -756,8 +749,8 @@ void Zapper::CleanupAssembly()
 // Stepping is masked out by GetSpecificCpuInfo()
 // #define CPU_X86_STEPPING(cpuType)   (((cpuType) & 0x000F)     )
 
-#define CPU_X86_USE_CMOV(cpuFeat)   ((cpuFeat & 0x00008001) == 0x00008001)
-#define CPU_X86_USE_SSE2(cpuFeat)   ((cpuFeat & 0x04000000) == 0x04000000)
+#define CPU_X86_USE_CMOV(cpuFeat)   (((cpuFeat) & 0x00008001) == 0x00008001)
+#define CPU_X86_USE_SSE2(cpuFeat)   (((cpuFeat) & 0x04000000) == 0x04000000)
 
 // Values for CPU_X86_FAMILY(cpuType)
 #define CPU_X86_486                 4
@@ -834,40 +827,9 @@ BOOL Zapper::IsAssembly(LPCWSTR path)
     return TRUE;
 }
 
-/*static*/ HRESULT Zapper::GenericDomainCallback(LPVOID pvArgs)
-{
-    STATIC_CONTRACT_ENTRY_POINT;
-
-    HRESULT hr = S_OK;
-
-    BEGIN_ENTRYPOINT_NOTHROW;
-    EX_TRY
-    {
-        REMOVE_STACK_GUARD;
-        ((DomainCallback *) pvArgs)->doCallback();
-    }
-    EX_CATCH_HRESULT(hr);
-
-    END_ENTRYPOINT_NOTHROW;
-    
-    return hr;
-}
-
-void Zapper::InvokeDomainCallback(DomainCallback *callback)
-{
-#ifdef CROSSGEN_COMPILE
-    // Call the callback directly for better error messages (avoids exception swallowing and rethrow)
-    callback->doCallback();
-#else
-    IfFailThrow(m_pEECompileInfo->MakeCrossDomainCallback(m_pDomain,
-                                                          Zapper::GenericDomainCallback,
-                                                          (LPVOID) callback));
-#endif
-}
-
 void Zapper::SetContextInfo(LPCWSTR assemblyName)
 {
-    // A special case:  If we're compiling mscorlib, ignore m_exeName and don't set any context. 
+    // A special case:  If we're compiling mscorlib, ignore m_exeName and don't set any context.
     // There can only be one mscorlib in the runtime, independent of any context.  If we don't
     // check for mscorlib, and isExe == true, then CompilationDomain::SetContextInfo will call
     // into mscorlib and cause the resulting mscorlib.ni.dll to be slightly different (checked
@@ -959,85 +921,28 @@ void Zapper::CreateCompilationDomain()
 
 void Zapper::CreateDependenciesLookupDomain()
 {
-    class Callback : public DomainCallback
-    {
-    public:
-        Callback(Zapper *pZapper)
-        {
-            this->pZapper = pZapper;
-        }
-
-        virtual void doCallback()
-        {
-            pZapper->CreateDependenciesLookupDomainInCurrentDomain();
-        }
-
-        Zapper* pZapper;
-    };
-
-
     CreateCompilationDomain();
-
-    Callback callback(this);
-    InvokeDomainCallback(&callback);
+    CreateDependenciesLookupDomainInCurrentDomain();
 }
 
 void Zapper::CreatePdb(BSTR pAssemblyPathOrName, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath)
 {
-    class Callback : public DomainCallback {
-
-    public:
-
-        Callback(Zapper *pZapper, BSTR pAssemblyPathOrName, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath)
-            : m_pZapper(pZapper),
-              m_pAssemblyPathOrName(pAssemblyPathOrName),
-              m_pNativeImagePath(pNativeImagePath),
-              m_pPdbPath(pPdbPath),
-              m_pdbLines(pdbLines),
-              m_pManagedPdbSearchPath(pManagedPdbSearchPath)
-        {
-        }
-                
-        virtual void doCallback()
-        {
-            m_pZapper->CreatePdbInCurrentDomain(m_pAssemblyPathOrName, m_pNativeImagePath, m_pPdbPath, m_pdbLines, m_pManagedPdbSearchPath);
-        };
-
-    private:
-
-        Zapper *m_pZapper;
-        BSTR m_pAssemblyPathOrName;
-        BSTR m_pNativeImagePath;
-        BSTR m_pPdbPath;
-        BOOL m_pdbLines;
-        BSTR m_pManagedPdbSearchPath;
-
-    };
-
 #ifdef CROSSGEN_COMPILE
     CreateCompilationDomain();
 #endif
-    _ASSERTE(m_pDomain);
 
-    Callback callback(this, pAssemblyPathOrName, pNativeImagePath, pPdbPath, pdbLines, pManagedPdbSearchPath);
-    InvokeDomainCallback(&callback);
-}
-
-
-void Zapper::CreatePdbInCurrentDomain(BSTR pAssemblyPathOrName, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath)
-{
     EX_TRY
     {
         CORINFO_ASSEMBLY_HANDLE hAssembly = NULL;
 
         IfFailThrow(m_pEECompileInfo->LoadAssemblyByPath(
-            pAssemblyPathOrName, 
+            pAssemblyPathOrName,
 
             // fExplicitBindToNativeImage: On the phone, a path to the NI is specified
             // explicitly (even with .ni. in the name). All other callers specify a path to
             // the IL, and the NI is inferred, so this is normally FALSE in those other
             // cases.
-            TRUE, 
+            TRUE,
 
             &hAssembly));
 
@@ -1096,26 +1001,6 @@ void Zapper::ComputeDependencies(LPCWSTR pAssemblyName, CORCOMPILE_NGEN_SIGNATUR
 
 HRESULT Zapper::Compile(LPCWSTR string, CORCOMPILE_NGEN_SIGNATURE * pNativeImageSig)
 {
-    class Callback : public DomainCallback
-    {
-    public:
-        Callback(Zapper *pZapper, LPCWSTR pAssemblyName, CORCOMPILE_NGEN_SIGNATURE * pNativeImageSig)
-        {
-            this->pZapper         = pZapper;
-            this->pAssemblyName   = pAssemblyName;
-            this->pNativeImageSig = pNativeImageSig;
-        }
-
-        virtual void doCallback()
-        {
-            pZapper->CompileInCurrentDomain(pAssemblyName, pNativeImageSig);
-        }
-
-        Zapper* pZapper;
-        LPCWSTR pAssemblyName;
-        CORCOMPILE_NGEN_SIGNATURE * pNativeImageSig;
-    };
-
     HRESULT hr = S_OK;
 
     bool fMscorlib = false;
@@ -1139,8 +1024,7 @@ HRESULT Zapper::Compile(LPCWSTR string, CORCOMPILE_NGEN_SIGNATURE * pNativeImage
 
     EX_TRY
     {
-        Callback callback(this, string, pNativeImageSig);
-        InvokeDomainCallback(&callback);
+        CompileInCurrentDomain(string, pNativeImageSig);
     }
     EX_CATCH
     {
@@ -1179,7 +1063,7 @@ bool Zapper::HasProfileData()
 void Zapper::CompileInCurrentDomain(__in LPCWSTR string, CORCOMPILE_NGEN_SIGNATURE * pNativeImageSig)
 {
     STATIC_CONTRACT_ENTRY_POINT;
-    
+
     BEGIN_ENTRYPOINT_VOIDRET;
 
 
@@ -1307,6 +1191,35 @@ void Zapper::InitializeCompilerFlags(CORCOMPILE_VERSION_INFO * pVersionInfo)
     m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_SSE2);
 
 #endif // _TARGET_X86_
+
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+    // If we're crossgenning CoreLib, allow generating non-VEX intrinsics. The generated code might
+    // not actually be supported by the processor at runtime so we compensate for it by
+    // not letting the get_IsSupported method to be intrinsically expanded in crossgen
+    // (see special handling around CORINFO_FLG_JIT_INTRINSIC in ZapInfo).
+    // That way the actual support checks will always be jitted.
+    // We only do this for CoreLib because forgetting to wrap intrinsics under IsSupported
+    // checks can lead to illegal instruction traps (instead of a nice managed exception).
+    if (m_pEECompileInfo->GetAssemblyModule(m_hAssembly) == m_pEECompileInfo->GetLoaderModuleForMscorlib())
+    {
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_FEATURE_SIMD);
+
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_AES);
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_PCLMULQDQ);
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_SSE3);
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_SSSE3);
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_SSE41);
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_SSE42);
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_POPCNT);
+        // Leaving out CORJIT_FLAGS::CORJIT_FLAG_USE_AVX, CORJIT_FLAGS::CORJIT_FLAG_USE_FMA
+        // CORJIT_FLAGS::CORJIT_FLAG_USE_AVX2, CORJIT_FLAGS::CORJIT_FLAG_USE_BMI1,
+        // CORJIT_FLAGS::CORJIT_FLAG_USE_BMI2 on purpose - these require VEX encodings
+        // and the JIT doesn't support generating code for methods with mixed encodings.
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_LZCNT);
+#endif // defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+    }
+#endif // defined(_TARGET_X86_) || defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
 
     if (   m_pOpt->m_compilerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_INFO)
         && m_pOpt->m_compilerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_CODE)
@@ -1500,7 +1413,7 @@ void Zapper::CompileAssembly(CORCOMPILE_NGEN_SIGNATURE * pNativeImageSig)
 
         if (strNativeImagePath.IsEmpty())
         {
-            strNativeImagePath.Set(m_outputPath, SL(DIRECTORY_SEPARATOR_STR_W), strAssemblyName, 
+            strNativeImagePath.Set(m_outputPath, SL(DIRECTORY_SEPARATOR_STR_W), strAssemblyName,
                 pAssemblyModule->m_ModuleDecoder.IsDll() ? SL(W(".ni.dll")) : SL(W(".ni.exe")));
         }
 
@@ -1549,7 +1462,7 @@ ZapImage * Zapper::CompileModule(CORINFO_MODULE_HANDLE hModule,
 
     // Finish initializing the ZapImage object
     // any calls that could throw an exception are done in ZapImage::Initialize()
-    // 
+    //
     module->ZapWriter::Initialize();
 
     //
@@ -1778,4 +1691,15 @@ void Zapper::SetOutputFilename(LPCWSTR pwzOutputFilename)
 SString Zapper::GetOutputFileName()
 {
     return m_outputFilename;
+}
+
+
+void Zapper::SetCustomBaseAddress(SIZE_T baseAddress)
+{
+    m_customBaseAddress = baseAddress;
+}
+
+SIZE_T Zapper::GetCustomBaseAddress()
+{
+    return m_customBaseAddress;
 }

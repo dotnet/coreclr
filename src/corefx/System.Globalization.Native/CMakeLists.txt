@@ -1,10 +1,9 @@
-
-project(System.Globalization.Native)
+project(System.Globalization.Native C)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-add_definitions(-DPIC=1)
-add_definitions(-DBIT64=1)
+add_definitions(-DPIC)
+add_definitions(-DBIT64)
 
 set(ICU_HOMEBREW_INC_PATH "/usr/local/opt/icu4c/include")
 
@@ -38,19 +37,17 @@ endif()
 
 include(configure.cmake)
 
-add_compile_options(-fPIC)
-
 set(NATIVEGLOBALIZATION_SOURCES
-    calendarData.cpp
-    casing.cpp
-    collation.cpp
-    idna.cpp
-    locale.cpp
-    localeNumberData.cpp
-    localeStringData.cpp
-    normalization.cpp
-    timeZoneInfo.cpp
-    icushim.cpp
+    pal_calendarData.c
+    pal_casing.c
+    pal_collation.c
+    pal_idna.c
+    pal_locale.c
+    pal_localeNumberData.c
+    pal_localeStringData.c
+    pal_normalization.c
+    pal_timeZoneInfo.c
+    pal_icushim.c
 )
 
 include_directories(${UTYPES_H})
@@ -86,7 +83,7 @@ else()
         dl
     )
 
-    add_definitions(-DU_DISABLE_RENAMING=1)
+    add_definitions(-DU_DISABLE_RENAMING)
 endif()
 
 verify_dependencies(
@@ -97,4 +94,3 @@ verify_dependencies(
 # add the install targets
 install_clr(System.Globalization.Native)
 install(TARGETS System.Globalization.Native_Static DESTINATION .)
-

@@ -10,7 +10,7 @@
 // to inspect the handle table in detail. The semantics of these functions MUST be
 // versioned along with the rest of this interface - any changes in semantics
 // must be accompanied with a major versino bump.
-// 
+//
 // Please do not add any additional functions to this list; we'd like to keep it
 // to an absolute minimum.
 #ifdef DACCESS_COMPILE
@@ -42,9 +42,6 @@ void HndEnumHandles(
 
 GC_DAC_VISIBLE
 OBJECTREF HndFetchHandle(OBJECTHANDLE handle);
-
-GC_DAC_VISIBLE
-struct ADIndex HndGetHandleADIndex(OBJECTHANDLE handle);
 
 GC_DAC_VISIBLE
 uintptr_t HndGetHandleExtraInfo(OBJECTHANDLE handle);

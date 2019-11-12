@@ -1,3 +1,7 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 using System;
 using System.Xml;
 using System.Xml.Schema;
@@ -11,7 +15,7 @@ public class GenerateHeaders {
             Console.WriteLine("Usage:genheaders XML-file header-file resorce-file");
             return;
         }
-    
+
         ValidateXML(args[0]);
         String Message=null;
         String SymbolicName=null;
@@ -26,34 +30,35 @@ public class GenerateHeaders {
 	int SeveritySuccess=0;
 	int SeverityError=1;
 
-	int minSR = MakeHresult(SeveritySuccess,FaciltyUrt,0);		
-        int maxSR = MakeHresult(SeveritySuccess,FaciltyUrt,0xffff);	
-	int minHR = MakeHresult(SeverityError,FaciltyUrt,0);		
-	int maxHR = MakeHresult(SeverityError,FaciltyUrt,0xffff);		
+	int minSR = MakeHresult(SeveritySuccess,FaciltyUrt,0);
+        int maxSR = MakeHresult(SeveritySuccess,FaciltyUrt,0xffff);
+	int minHR = MakeHresult(SeverityError,FaciltyUrt,0);
+	int maxHR = MakeHresult(SeverityError,FaciltyUrt,0xffff);
 
-
-        PrintHeader(HSW);  
+        PrintLicenseHeader(HSW);
+        PrintHeader(HSW);
+        PrintLicenseHeader(RSW);
         PrintResourceHeader(RSW);
-        
+
         XmlTextReader rdr = new XmlTextReader(args[0]);
         rdr.WhitespaceHandling = WhitespaceHandling.None;
-        
+
         while (rdr.Read()) {
-            
-            switch (rdr.NodeType) {           
-                
+
+            switch (rdr.NodeType) {
+
                 case XmlNodeType.Element:
 
                     if (rdr.Name.ToString() == "HRESULT") {
-                        NumericValue=rdr.GetAttribute("NumericValue"); 			
+                        NumericValue=rdr.GetAttribute("NumericValue");
                     }
                     if (rdr.Name.ToString() == "Message") {
                         Message = rdr.ReadString();
                     }
-                    if (rdr.Name.ToString() == "SymbolicName") {    
+                    if (rdr.Name.ToString() == "SymbolicName") {
                         SymbolicName = rdr.ReadString();
                     }
-                
+
                     break;
 
                 case XmlNodeType.EndElement:
@@ -64,7 +69,7 @@ public class GenerateHeaders {
 			if ( (NumericValue.StartsWith("0x")) || (NumericValue.StartsWith("0X")) ) {
 
 			    String HexResult = NumericValue.Substring(2);
-			    int num = int.Parse(HexResult, System.Globalization.NumberStyles.HexNumber);			    	
+			    int num = int.Parse(HexResult, System.Globalization.NumberStyles.HexNumber);
 
 			    if ((num>minSR) && (num <= maxSR)) {
 				num = num & 0xffff;
@@ -73,19 +78,19 @@ public class GenerateHeaders {
 				num = num & 0xffff;
 			        HSW.WriteLine("#define " + SymbolicName + " EMAKEHR(0x" + num.ToString("x") + ")");
 			    } else {
-              		        HSW.WriteLine("#define " + SymbolicName + " " + NumericValue );		
-                            }  	 	
+              		        HSW.WriteLine("#define " + SymbolicName + " " + NumericValue );
+                            }
 
 
-			    	
+
 			} else {
 	                    HSW.WriteLine("#define " + SymbolicName + " " + NumericValue );
 			}
 
-                        if (Message != null) {   
+                        if (Message != null) {
                             RSW.Write("\tMSG_FOR_URT_HR(" + SymbolicName + ") ");
                             RSW.WriteLine(Message);
-                        } 
+                        }
 
                         SymbolicName = null;
                         NumericValue = null;
@@ -105,7 +110,7 @@ public class GenerateHeaders {
         bool AreFilesEqual = false;
 
         if (File.Exists(args[1])) {
-            StreamReader sr1 = new StreamReader(tempheaderfile);        
+            StreamReader sr1 = new StreamReader(tempheaderfile);
             StreamReader sr2 = new StreamReader(args[1]);
             AreFilesEqual = CompareFiles(sr1, sr2);
             sr1.Close();
@@ -114,15 +119,15 @@ public class GenerateHeaders {
 
         if (!AreFilesEqual) {
             File.Copy(tempheaderfile, args[1], true);
-            File.Copy(temprcfile, args[2], true);            
+            File.Copy(temprcfile, args[2], true);
         }
 
         if (!File.Exists(args[2])) {
-            File.Copy(temprcfile, args[2], true);            
+            File.Copy(temprcfile, args[2], true);
         }
 
-        File.Delete(tempheaderfile);            
-        File.Delete(temprcfile);                      
+        File.Delete(tempheaderfile);
+        File.Delete(temprcfile);
     }
 
     private static void ValidateXML (String XMLFile) {
@@ -134,22 +139,28 @@ public class GenerateHeaders {
         settings.ValidationFlags |= XmlSchemaValidationFlags.ProcessInlineSchema;
 
         settings.ValidationEventHandler += new ValidationEventHandler (ValidationCallBack);
- 
+
         // Create the XmlReader object.
         XmlReader reader = XmlReader.Create(XMLFile, settings);
 
-        // Parse the file. 
+        // Parse the file.
 
         while (reader.Read()) {
         }
-    }     
+    }
 
     // Display any validation errors.
     private static void ValidationCallBack(object sender, ValidationEventArgs e) {
     Console.WriteLine("Validation Error: {0}", e.Message);
     Environment.Exit(-1);
-    }   
+    }
 
+    private static void PrintLicenseHeader(StreamWriter SW) {
+        SW.WriteLine("// Licensed to the .NET Foundation under one or more agreements.");
+        SW.WriteLine("// The .NET Foundation licenses this file to you under the MIT license.");
+        SW.WriteLine("// See the LICENSE file in the project root for more information.");
+        SW.WriteLine();
+    }
 
     private static void PrintHeader(StreamWriter SW) {
 
@@ -166,7 +177,7 @@ public class GenerateHeaders {
         SW.WriteLine("//corerror.xml");
         SW.WriteLine("//");
         SW.WriteLine();
-        SW.WriteLine("#ifndef FACILITY_URT");    
+        SW.WriteLine("#ifndef FACILITY_URT");
         SW.WriteLine("#define FACILITY_URT            0x13");
         SW.WriteLine("#endif");
         SW.WriteLine("#ifndef EMAKEHR");
@@ -205,14 +216,14 @@ public class GenerateHeaders {
             if (line1 != line2) {
                 return false;
             }
-          
-        }   
 
-    } 
+        }
 
-   private static int MakeHresult(int sev, int fac, int code) {	
+    }
+
+   private static int MakeHresult(int sev, int fac, int code) {
 	 return ((sev<<31) | (fac<<16) | (code));
-   }	
+   }
 }
 
 

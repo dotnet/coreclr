@@ -13,13 +13,13 @@ namespace System
             Name = name;
         }
 
-        public ResolveEventArgs(string name, Assembly requestingAssembly)
+        public ResolveEventArgs(string name, Assembly? requestingAssembly)
         {
             Name = name;
             RequestingAssembly = requestingAssembly;
         }
 
         public string Name { get; }
-        public Assembly RequestingAssembly { get; }
+        public Assembly? RequestingAssembly { get; }
     }
 }

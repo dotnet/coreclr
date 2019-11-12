@@ -2,15 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-
-using System;
-using System.Security;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Runtime.CompilerServices;
 using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
@@ -22,7 +15,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // That's because they are invoked with special "this"! The "this" object
     // for all of these methods are not IReadOnlyListToIVectorViewAdapter objects. Rather, they are of type
     // IReadOnlyList<T>. No actual IReadOnlyListToIVectorViewAdapter object is ever instantiated. Thus, you will
-    // see a lot of expressions that cast "this" to "IReadOnlyList<T>". 
+    // see a lot of expressions that cast "this" to "IReadOnlyList<T>".
     [DebuggerDisplay("Size = {Size}")]
     internal sealed class IReadOnlyListToIVectorViewAdapter
     {
@@ -86,7 +79,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         {
             IReadOnlyList<T> _this = Unsafe.As<IReadOnlyList<T>>(this);
 
-            // REX spec says "calling GetMany with startIndex equal to the length of the vector 
+            // REX spec says "calling GetMany with startIndex equal to the length of the vector
             // (last valid index + 1) and any specified capacity will succeed and return zero actual
             // elements".
             if (startIndex == _this.Count)
@@ -108,7 +101,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
             if (typeof(T) == typeof(string))
             {
-                string[] stringItems = items as string[];
+                string[] stringItems = (items as string[])!;
 
                 // Fill in the rest of the array with string.Empty to avoid marshaling failure
                 for (uint i = itemCount; i < items.Length; ++i)

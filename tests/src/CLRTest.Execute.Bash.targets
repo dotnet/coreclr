@@ -42,7 +42,7 @@ WARNING:   When setting properties based on their current state (for example:
     </PropertyGroup>
     <!-- In order to avoid the overhead of calling MSBuild (as it may result in chains of MSBuild calls) I am assuming the extension in this circumstance. -->
     <PropertyGroup Condition="$(CLRTestProjectToRun) != '' AND $(GenerateRunScript)">
-      <ExecuteShFullPath>$(OutputPath)$([System.IO.Path]::GetFilenameWithoutExtension(&quot;$(CLRTestProjectToRun)&quot;)).exe</ExecuteShFullPath>
+      <ExecuteShFullPath>$(OutputPath)$([System.IO.Path]::GetFilenameWithoutExtension(&quot;$(CLRTestProjectToRun)&quot;)).dll</ExecuteShFullPath>
     </PropertyGroup>
     <PropertyGroup Condition="!$(GenerateRunScript)">
       <ExecuteShFullPath>$(OutputPath)$(MSBuildProjectName).$(OutputType.ToLower())</ExecuteShFullPath>
@@ -76,6 +76,14 @@ $(BashCLRTestEnvironmentCompatibilityCheck)
 if [ ! -z "$COMPlus_GCStress" ]
 then
   echo SKIPPING EXECUTION BECAUSE COMPlus_GCStress IS SET
+  exit $(GCBashScriptExitCode)
+fi
+      ]]></BashCLRTestEnvironmentCompatibilityCheck>
+      <BashCLRTestEnvironmentCompatibilityCheck Condition="'$(UnloadabilityIncompatible)' == 'true'"><![CDATA[
+$(BashCLRTestEnvironmentCompatibilityCheck)
+if [ ! -z "$RunInUnloadableContext" ]
+then
+  echo SKIPPING EXECUTION BECAUSE the test is incompatible with unloadability
   exit $(GCBashScriptExitCode)
 fi
       ]]></BashCLRTestEnvironmentCompatibilityCheck>
@@ -114,7 +122,7 @@ echo BEGIN EXECUTION]]>
       </BashCLRTestExitCodePrep>
     
       <BashCLRTestArgPrep Condition=" '$(CLRTestExecutionArguments)'!='' ">
-<![CDATA[if [ -z ${CLRTestExecutionArguments+x} ]%3B then export CLRTestExecutionArguments='$(CLRTestExecutionArguments)'%3B fi]]>
+<![CDATA[if [ -z ${CLRTestExecutionArguments+x} ]%3B then CLRTestExecutionArguments=($(CLRTestExecutionArguments))%3B fi]]>
       </BashCLRTestArgPrep>
     
       <!-- By default, be prepared to do a full check -->
@@ -152,7 +160,7 @@ fi
         <HasParam>true</HasParam>
         <ParamText>=*</ParamText> <!-- Bash specific -->
         <ParamName>coreRootFullPath</ParamName>
-        <Command><![CDATA[        CORE_ROOT="${i#*=}"]]></Command>
+        <Command><![CDATA[        export CORE_ROOT="${i#*=}"]]></Command>
         <Description>Set CORE_ROOT to the specified value before running the test.</Description>
       </BashCLRTestExecutionScriptArgument>
     </ItemGroup>
@@ -245,19 +253,7 @@ fi
       </PropertyGroup>
       <PropertyGroup>
       <_CLRTestRunFile Condition="'$(CLRTestIsHosted)'=='true'">"$CORE_ROOT/corerun"</_CLRTestRunFile>
-      <BashCLRTestLaunchCmds><![CDATA[
-if [ -z "$DoLink" -a ! -z "$RunningIlasmRoundTrip" ];
-then
-  echo $(_CLRTestRunFile) $(TargetAssemblyName) $CLRTestExecutionArguments
-  $(_CLRTestRunFile) $(TargetAssemblyName) $CLRTestExecutionArguments
-  if [  $? -ne $CLRTestExpectedExitCode ]
-  then
-    echo END EXECUTION OF IL{D}ASM BINARY - FAILED $? vs $CLRTestExpectedExitCode
-    echo FAILED
-    exit 1
-  fi
-fi
-      ]]></BashCLRTestLaunchCmds>
+      <BashCLRTestLaunchCmds>$(BashIlrtTestLaunchCmds)</BashCLRTestLaunchCmds>
 
       <BashCLRTestLaunchCmds Condition="'$(CLRTestKind)' == 'BuildAndRun'">
     <![CDATA[
@@ -266,8 +262,17 @@ $(BashCLRTestLaunchCmds)
 if [ ! -z ${RunCrossGen+x} ]%3B then
   TakeLock
 fi
-echo $_DebuggerFullPath $(_CLRTestRunFile) $ExePath $CLRTestExecutionArguments 
-$_DebuggerFullPath $(_CLRTestRunFile) $ExePath $CLRTestExecutionArguments 
+
+if [ ! -z "$CLRCustomTestLauncher" ];
+then
+    LAUNCHER="$CLRCustomTestLauncher $PWD/"
+else
+    LAUNCHER="$_DebuggerFullPath $(_CLRTestRunFile)"
+fi
+
+echo $LAUNCHER $ExePath %24(printf "'%s' " "${CLRTestExecutionArguments[@]}")
+$LAUNCHER $ExePath "${CLRTestExecutionArguments[@]}"
+
 CLRTestExitCode=$?
 if [ ! -z ${RunCrossGen+x} ]%3B then
   ReleaseLock
@@ -276,10 +281,10 @@ $(BashLinkerTestCleanupCmds)
       ]]></BashCLRTestLaunchCmds>
       <BashCLRTestLaunchCmds Condition="'$(CLRTestKind)' == 'RunOnly'"><![CDATA[
 $(BashCLRTestLaunchCmds)
-echo export CDPATH="$%28dirname "$0")"
-export CDPATH="$%28dirname "$0")"
-echo /bin/sh $(InputAssemblyName) 
-/bin/sh $(InputAssemblyName)
+echo export CDPATH="$%28dirname "${BASH_SOURCE[0]}")"
+export CDPATH="$%28dirname "${BASH_SOURCE[0]}")"
+echo /usr/bin/env bash $(InputAssemblyName) %24(printf "'%s' " "${CLRTestExecutionArguments[@]}")
+/usr/bin/env bash $(InputAssemblyName) "${CLRTestExecutionArguments[@]}"
 CLRTestExitCode=$?
 CLRTestExpectedExitCode=0
       ]]></BashCLRTestLaunchCmds>
@@ -335,7 +340,7 @@ for i in "$@"
 %(Command)
         %3B%3B')
         *)
-        CLRTestExecutionArguments="$CLRTestExecutionArguments $i"
+        CLRTestExecutionArguments+=("${i}")
     esac
 done
 
@@ -366,7 +371,7 @@ ReleaseLock()
         return 3
     fi
 }
-cd "$%28dirname "$0")"
+cd "$%28dirname "${BASH_SOURCE[0]}")"
 LockFile="lock"
 
 

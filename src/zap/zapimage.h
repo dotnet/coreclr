@@ -32,7 +32,7 @@ class ZapBaseRelocs;
 class ZapBlobWithRelocs;
 
 //class ZapGCInfoTable;
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
 class ZapUnwindDataTable;
 #endif
 
@@ -214,14 +214,15 @@ public:
     ZapVirtualSection * m_pHotRuntimeFunctionLookupSection;
     ZapVirtualSection * m_pRuntimeFunctionLookupSection;
     ZapVirtualSection * m_pColdCodeMapSection;
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
     ZapVirtualSection * m_pHotUnwindDataSection;
     ZapVirtualSection * m_pUnwindDataSection;
     ZapVirtualSection * m_pColdUnwindDataSection;
-#endif // defined(WIN64EXCEPTIONS)
+#endif // defined(FEATURE_EH_FUNCLETS)
 
 #ifdef FEATURE_READYTORUN_COMPILER
     ZapVirtualSection * m_pAvailableTypesSection;
+    ZapVirtualSection * m_pAttributePresenceSection;
 #endif
 
     // Preloader sections
@@ -279,7 +280,7 @@ private:
 
     ZapGCInfoTable *            m_pGCInfoTable;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     ZapUnwindDataTable *        m_pUnwindDataTable;
 #endif
 
@@ -388,10 +389,10 @@ private:
 
         static const element_t Null()
         {
-            LIMITED_METHOD_CONTRACT; 
-            ProfileDataHashEntry e; 
-            e.md = 0; 
-            e.size = 0; 
+            LIMITED_METHOD_CONTRACT;
+            ProfileDataHashEntry e;
+            e.md = 0;
+            e.size = 0;
             e.pos = 0;
             e.flags = 0;
             e.status = NOT_COMPILED;
@@ -478,7 +479,7 @@ private:
         static BOOL Equals(key_t k1, key_t k2);
         static COUNT_T Hash(key_t k);
 
-        static const element_t Null() { LIMITED_METHOD_CONTRACT; return NULL; }
+        static element_t Null() { LIMITED_METHOD_CONTRACT; return NULL; }
         static bool IsNull(const element_t &e) { LIMITED_METHOD_CONTRACT; return e == NULL; }
     };
 
@@ -577,7 +578,7 @@ private:
     ZapVirtualSection * GetCodeMethodDescSection(CodeType codeType);
     ZapVirtualSection * GetUnwindInfoLookupSection(CodeType codeType);
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
     ZapVirtualSection * GetUnwindDataSection(CodeType codeType);
 #endif
 
@@ -596,9 +597,12 @@ private:
     void OutputTypesTableForReadyToRun(IMDInternalImport * pMDImport);
     void OutputInliningTableForReadyToRun();
     void OutputProfileDataForReadyToRun();
+    void OutputManifestMetadataForReadyToRun();
+    HRESULT ComputeAttributePresenceTable(IMDInternalImport * pMDImport, SArray<UINT16> *table);
+    void OutputAttributePresenceFilter(IMDInternalImport * pMDImport);
 
     void CopyDebugDirEntry();
-    void CopyWin32VersionResource();
+    void CopyWin32Resources();
 
     void OutputManifestMetadata();
     void OutputTables();
@@ -615,7 +619,7 @@ private:
     void ComputeClassLayoutOrder();
     void SortUnprofiledMethodsByClassLayoutOrder();
 
-    HRESULT GetPdbFileNameFromModuleFilePath(__in_z const wchar_t *pwszModuleFilePath,
+    HRESULT GetPdbFileNameFromModuleFilePath(__in_z const WCHAR* pwszModuleFilePath,
                                              __out_ecount(dwPdbFileNameBufferSize) char * pwszPdbFileName,
                                              DWORD dwPdbFileNameBufferSize);
 
@@ -675,7 +679,7 @@ public:
     void SetDependencies(CORCOMPILE_DEPENDENCY *pDependencies, DWORD cDependencies);
     void SetPdbFileName(const SString &strFileName);
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     void SetRuntimeFunctionsDirectoryEntry();
 #endif
 
@@ -691,6 +695,7 @@ public:
     }
 
     static void __stdcall TryCompileMethodStub(LPVOID pContext, CORINFO_METHOD_HANDLE hStub, CORJIT_FLAGS jitFlags);
+    static DWORD EncodeModuleHelper(LPVOID compileContext, CORINFO_MODULE_HANDLE referencedModule);
 
     BOOL IsVTableGapMethod(mdMethodDef md);
 
@@ -838,14 +843,15 @@ public:
     }
 
     HRESULT LocateProfileData();
-    HRESULT parseProfileData  ();
+    HRESULT parseProfileData();
     HRESULT convertProfileDataFromV1();
+    HRESULT hashMethodBlockCounts();
+    void hashBBUpdateFlagsAndCompileResult(mdToken token, unsigned methodProfilingDataFlags, CompileStatus compileResult);
+
     void RehydrateBasicBlockSection();
     void RehydrateTokenSection(int sectionFormat, unsigned int flagTable[255]);
     void RehydrateBlobStream();
     HRESULT RehydrateProfileData();
-    HRESULT hashBBProfileData ();
-    void hashBBUpdateFlagsAndCompileResult(mdToken token, unsigned methodProfilingDataFlags, CompileStatus compileResult);
 
     void              LoadProfileData();
     CorProfileData *  NewProfileData();

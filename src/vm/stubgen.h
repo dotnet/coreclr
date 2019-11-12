@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 //
 // File: StubGen.h
-// 
+//
 
 //
 
@@ -13,10 +13,25 @@
 
 #include "stublink.h"
 
+struct StructMarshalStubs
+{
+    static const DWORD MANAGED_STRUCT_ARGIDX = 0;
+    static const DWORD NATIVE_STRUCT_ARGIDX = 1;
+    static const DWORD OPERATION_ARGIDX = 2;
+    static const DWORD CLEANUP_WORK_LIST_ARGIDX = 3;
+
+    enum MarshalOperation
+    {
+        Marshal,
+        Unmarshal,
+        Cleanup
+    };
+};
+
 struct LocalDesc
 {
     const static size_t MAX_LOCALDESC_ELEMENTS = 8;
-    
+
     BYTE    ElementType[MAX_LOCALDESC_ELEMENTS];
     size_t  cbType;
     TypeHandle InternalToken;  // only valid with ELEMENT_TYPE_INTERNAL
@@ -60,31 +75,46 @@ struct LocalDesc
 
     void MakeByRef()
     {
+        LIMITED_METHOD_CONTRACT;
         ChangeType(ELEMENT_TYPE_BYREF);
     }
 
     void MakePinned()
     {
+        LIMITED_METHOD_CONTRACT;
         ChangeType(ELEMENT_TYPE_PINNED);
+    }
+
+    void MakeArray()
+    {
+        LIMITED_METHOD_CONTRACT;
+        ChangeType(ELEMENT_TYPE_SZARRAY);
     }
 
     // makes the LocalDesc semantically equivalent to ET_TYPE_CMOD_REQD<IsCopyConstructed>/ET_TYPE_CMOD_REQD<NeedsCopyConstructorModifier>
     void MakeCopyConstructedPointer()
     {
-        ChangeType(ELEMENT_TYPE_PTR);
+        LIMITED_METHOD_CONTRACT;
+        MakePointer();
         bIsCopyConstructed = TRUE;
+    }
+
+    void MakePointer()
+    {
+        LIMITED_METHOD_CONTRACT;
+        ChangeType(ELEMENT_TYPE_PTR);
     }
 
     void ChangeType(CorElementType elemType)
     {
         LIMITED_METHOD_CONTRACT;
         PREFIX_ASSUME((MAX_LOCALDESC_ELEMENTS-1) >= cbType);
-        
+
         for (size_t i = cbType; i >= 1; i--)
         {
             ElementType[i]  = ElementType[i-1];
         }
-        
+
         ElementType[0]  = static_cast<BYTE>(elemType);
         cbType          += 1;
     }
@@ -96,22 +126,40 @@ struct LocalDesc
             THROWS;
             GC_TRIGGERS;
             MODE_ANY;
-            PRECONDITION(cbType == 1);    // this only works on 1-element types for now
         }
         CONTRACTL_END;
-        
-        if (ElementType[0] == ELEMENT_TYPE_VALUETYPE)
+
+        bool lastElementTypeIsValueType = false;
+
+        if (ElementType[cbType - 1] == ELEMENT_TYPE_VALUETYPE)
         {
-            return true;
+            lastElementTypeIsValueType = true;
         }
-        else if ((ElementType[0] == ELEMENT_TYPE_INTERNAL) &&
+        else if ((ElementType[cbType - 1] == ELEMENT_TYPE_INTERNAL) &&
                     (InternalToken.IsNativeValueType() ||
                      InternalToken.GetMethodTable()->IsValueType()))
         {
-            return true;
+            lastElementTypeIsValueType = true;
         }
 
-        return false;
+        if (!lastElementTypeIsValueType)
+        {
+             return false;
+        }
+
+        // verify that the prefix element types don't make the type a non-value type
+        // this only works on LocalDescs with the prefixes exposed in the Add* methods above.
+        for (size_t i = 0; i < cbType - 1; i++)
+        {
+            if (ElementType[i] == ELEMENT_TYPE_BYREF
+                || ElementType[i] == ELEMENT_TYPE_SZARRAY
+                || ElementType[i] == ELEMENT_TYPE_PTR)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 };
 
@@ -134,7 +182,7 @@ protected:
 };
 
 //---------------------------------------------------------------------------------------
-// 
+//
 class LocalSigBuilder : protected StubSigBuilder
 {
 public:
@@ -148,7 +196,7 @@ public:
             PRECONDITION(CheckPointer(pLoc));
         }
         CONTRACTL_END;
-        
+
         return Append(pLoc);
     }
 
@@ -158,7 +206,7 @@ public:
 };  // class LocalSigBuilder
 
 //---------------------------------------------------------------------------------------
-// 
+//
 class FunctionSigBuilder : protected StubSigBuilder
 {
 public:
@@ -167,7 +215,7 @@ public:
     DWORD NewArg(LocalDesc * pArg)
     {
         WRAPPER_NO_CONTRACT;
-        
+
         return Append(pArg);
     }
 
@@ -225,14 +273,14 @@ protected:
 #endif // _DEBUG
 
 //---------------------------------------------------------------------------------------
-// 
+//
 class TokenLookupMap
 {
-public:    
+public:
     TokenLookupMap()
     {
         STANDARD_VM_CONTRACT;
-        
+
         m_qbEntries.AllocThrows(TOKEN_LOOKUP_MAP_SIZE);
         m_nextAvailableRid = 0;
     }
@@ -247,7 +295,7 @@ public:
         m_qbEntries.AllocThrows(size);
         memcpy(m_qbEntries.Ptr(), pSrc->m_qbEntries.Ptr(), size);
     }
-    
+
     TypeHandle LookupTypeDef(mdToken token)
     {
         WRAPPER_NO_CONTRACT;
@@ -294,7 +342,7 @@ protected:
             PRECONDITION(TypeFromToken(token) == TokenType);
         }
         CONTRACTL_END;
-        
+
         return ((HandleType*)m_qbEntries.Ptr())[RidFromToken(token)-1];
     }
 
@@ -309,19 +357,19 @@ protected:
             PRECONDITION(handle != NULL);
         }
         CONTRACTL_END;
-        
+
         if (m_qbEntries.Size() <= (sizeof(handle) * m_nextAvailableRid))
         {
             m_qbEntries.ReSizeThrows(2 * m_qbEntries.Size());
         }
 
         mdToken token = TokenFromRid(m_nextAvailableRid++, TokenType)+1;
-        
+
         ((HandleType*)m_qbEntries.Ptr())[RidFromToken(token)-1] = handle;
 
         return token;
     }
-    
+
     unsigned int                                    m_nextAvailableRid;
     CQuickBytesSpecifySize<TOKEN_LOOKUP_MAP_SIZE>   m_qbEntries;
 };
@@ -338,22 +386,21 @@ struct ILStubEHClause
     DWORD dwTypeToken;
 };
 
-
 class ILCodeLabel;
 class ILCodeStream;
 //---------------------------------------------------------------------------------------
-// 
+//
 class ILStubLinker
 {
     friend class ILCodeLabel;
     friend class ILCodeStream;
-    
+
 public:
 
     ILStubLinker(Module* pModule, const Signature &signature, SigTypeContext *pTypeContext, MethodDesc *pMD,
-                 BOOL fTargetHasThis, BOOL fStubHasThis, BOOL fIsNDirectStub = FALSE);
+                 BOOL fTargetHasThis, BOOL fStubHasThis, BOOL fIsNDirectStub = FALSE, BOOL fIsReverseStub = FALSE);
     ~ILStubLinker();
-    
+
     void GenerateCode(BYTE* pbBuffer, size_t cbBufferSize);
     void ClearCode();
 
@@ -398,7 +445,6 @@ public:
     void GetStubReturnType(LocalDesc * pLoc, Module * pModule);
     CorCallingConvention GetStubTargetCallingConv();
 
-    
     CorElementType GetStubTargetReturnElementType() { WRAPPER_NO_CONTRACT; return m_nativeFnSigBuilder.GetReturnElementType(); }
 
     static void GetManagedTypeHelper(LocalDesc* pLoc, Module* pModule, PCCOR_SIGNATURE pSig, SigTypeContext *pTypeContext, MethodDesc *pMD);
@@ -423,7 +469,7 @@ public:
         kCleanup,
         kExceptionHandler,
     };
-    
+
     ILCodeStream* NewCodeStream(CodeStreamType codeStreamType);
 
     MethodDesc *GetTargetMD() { LIMITED_METHOD_CONTRACT; return m_pMD; }
@@ -435,10 +481,10 @@ public:
 protected:
     void LogILStubWorker(ILInstruction* pInstrBuffer, UINT numInstr, size_t* pcbCode, INT* piCurStack, SString *pDumpILStubCode = NULL);
     void LogILInstruction(size_t curOffset, bool isLabeled, INT iCurStack, ILInstruction* pInstruction, SString *pDumpILStubCode = NULL);
-    
+
 private:
     ILCodeStream*       m_pCodeStreamList;
-    
+
     TokenLookupMap      m_tokenMap;
     LocalSigBuilder     m_localSigBuilder;
     FunctionSigBuilder  m_nativeFnSigBuilder;
@@ -477,12 +523,23 @@ protected:
     void SetStubTargetReturnType(LocalDesc* pLoc);
     void SetStubTargetCallingConv(CorCallingConvention uNativeCallingConv);
 
+    bool ReturnOpcodePopsStack()
+    {
+        if ((!m_fIsReverseStub && m_StubHasVoidReturnType) || (m_fIsReverseStub && m_StubTargetHasVoidReturnType))
+        {
+            return false;
+        }
+        return true;
+    }
+
     void TransformArgForJIT(LocalDesc *pLoc);
 
     Module * GetStubSigModule();
     SigTypeContext *GetStubSigTypeContext();
 
     BOOL    m_StubHasVoidReturnType;
+    BOOL    m_StubTargetHasVoidReturnType;
+    BOOL    m_fIsReverseStub;
     INT     m_iTargetStackDelta;
     DWORD   m_cbCurrentCompressedSigLen;
     DWORD   m_nLocals;
@@ -496,12 +553,12 @@ protected:
 
 
 //---------------------------------------------------------------------------------------
-// 
+//
 class ILCodeLabel
 {
     friend class ILStubLinker;
     friend class ILCodeStream;
-    
+
 public:
     ILCodeLabel();
     ~ILCodeLabel();
@@ -527,7 +584,7 @@ public:
     {
 #define OPDEF(name,string,pop,push,oprType,opcType,l,s1,s2,ctrl) \
         name,
-    
+
 #include "opcode.def"
 #undef OPDEF
     };
@@ -584,7 +641,7 @@ public:
     void EmitCONV_OVF_I4();
     void EmitCONV_T     (CorElementType type);
     void EmitCPBLK      ();
-    void EmitCPOBJ      (int token); 
+    void EmitCPOBJ      (int token);
     void EmitDUP        ();
     void EmitENDFINALLY ();
     void EmitINITBLK    ();
@@ -595,6 +652,7 @@ public:
     void EmitLDC        (DWORD_PTR uConst);
     void EmitLDC_R4     (UINT32 uConst);
     void EmitLDC_R8     (UINT64 uConst);
+    void EmitLDELEMA    (int token);
     void EmitLDELEM_REF ();
     void EmitLDFLD      (int token);
     void EmitLDFLDA     (int token);
@@ -645,6 +703,7 @@ public:
     void EmitSTSFLD     (int token);
     void EmitSUB        ();
     void EmitTHROW      ();
+    void EmitUNALIGNED  (BYTE alignment);
 
     // Overloads to simplify common usage patterns
     void EmitNEWOBJ     (BinderMethodID id, int numInArgs);
@@ -680,12 +739,12 @@ public:
     // ctors/dtor
     //
 
-    ILCodeStream(ILStubLinker* pOwner, ILStubLinker::CodeStreamType codeStreamType) : 
+    ILCodeStream(ILStubLinker* pOwner, ILStubLinker::CodeStreamType codeStreamType) :
         m_pNextStream(NULL),
         m_pOwner(pOwner),
         m_pqbILInstructions(NULL),
         m_uCurInstrIdx(0),
-        m_codeStreamType(codeStreamType)        
+        m_codeStreamType(codeStreamType)
     {
     }
 
@@ -698,7 +757,7 @@ public:
             GC_TRIGGERS;
         }
         CONTRACTL_END;
-        
+
         if (NULL != m_pqbILInstructions)
         {
             delete m_pqbILInstructions;
@@ -707,15 +766,15 @@ public:
     }
 
     ILStubLinker::CodeStreamType GetStreamType() { return m_codeStreamType; }
-    
+
     LPCSTR GetStreamDescription(ILStubLinker::CodeStreamType streamType);
-    
+
 protected:
 
     void Emit(ILInstrEnum instr, INT16 iStackDelta, UINT_PTR uArg);
 
-    enum Constants 
-    { 
+    enum Constants
+    {
         INITIAL_NUM_IL_INSTRUCTIONS = 64,
         INITIAL_IL_INSTRUCTION_BUFFER_SIZE = INITIAL_NUM_IL_INSTRUCTIONS * sizeof(ILStubLinker::ILInstruction),
     };
@@ -728,9 +787,9 @@ protected:
     UINT                m_uCurInstrIdx;
     ILStubLinker::CodeStreamType      m_codeStreamType;       // Type of the ILCodeStream
 
-#ifndef _WIN64
+#ifndef BIT64
     const static UINT32 SPECIAL_VALUE_NAN_64_ON_32 = 0xFFFFFFFF;
-#endif // _WIN64
+#endif // BIT64
 };
 
 #define TOKEN_ILSTUB_TARGET_SIG (TokenFromRid(0xFFFFFF, mdtSignature))

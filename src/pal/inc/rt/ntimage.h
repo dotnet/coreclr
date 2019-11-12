@@ -5,8 +5,8 @@
 
 //
 // ===========================================================================
-// File: ntimage.h 
-// 
+// File: ntimage.h
+//
 // ===========================================================================
 
 //
@@ -16,7 +16,7 @@
 //
 //Author:
 //
-//     
+//
 //
 //Revision History:
 //
@@ -30,7 +30,7 @@
 #endif
 
 //
-// Define the linker version number.  
+// Define the linker version number.
 
 #define IMAGE_MAJOR_LINKER_VERSION 2
 
@@ -357,7 +357,7 @@ typedef struct _IMAGE_OPTIONAL_HEADER64 {
 #define IMAGE_NT_OPTIONAL_HDR64_MAGIC      0x20b
 #define IMAGE_ROM_OPTIONAL_HDR_MAGIC       0x107
 
-#ifdef _WIN64
+#ifdef BIT64
 typedef IMAGE_OPTIONAL_HEADER64             IMAGE_OPTIONAL_HEADER;
 typedef PIMAGE_OPTIONAL_HEADER64            PIMAGE_OPTIONAL_HEADER;
 #define IMAGE_SIZEOF_NT_OPTIONAL_HEADER     IMAGE_SIZEOF_NT_OPTIONAL64_HEADER
@@ -386,7 +386,7 @@ typedef struct _IMAGE_ROM_HEADERS {
     IMAGE_ROM_OPTIONAL_HEADER OptionalHeader;
 } IMAGE_ROM_HEADERS, *PIMAGE_ROM_HEADERS;
 
-#ifdef _WIN64
+#ifdef BIT64
 typedef IMAGE_NT_HEADERS64                  IMAGE_NT_HEADERS;
 typedef PIMAGE_NT_HEADERS64                 PIMAGE_NT_HEADERS;
 #else
@@ -1006,7 +1006,7 @@ typedef IMAGE_RELOCATION UNALIGNED *PIMAGE_RELOCATION;
 #define IMAGE_REL_IA64_SECREL22         0x000C
 #define IMAGE_REL_IA64_SECREL64I        0x000D
 #define IMAGE_REL_IA64_SECREL32         0x000E
-// 
+//
 #define IMAGE_REL_IA64_DIR32NB          0x0010
 #define IMAGE_REL_IA64_SREL14           0x0011
 #define IMAGE_REL_IA64_SREL22           0x0012
@@ -1288,7 +1288,7 @@ typedef struct _IMAGE_TLS_DIRECTORY32 {
 } IMAGE_TLS_DIRECTORY32;
 typedef IMAGE_TLS_DIRECTORY32 * PIMAGE_TLS_DIRECTORY32;
 
-#ifdef _WIN64
+#ifdef BIT64
 #define IMAGE_ORDINAL_FLAG              IMAGE_ORDINAL_FLAG64
 #define IMAGE_ORDINAL(Ordinal)          IMAGE_ORDINAL64(Ordinal)
 typedef IMAGE_THUNK_DATA64              IMAGE_THUNK_DATA;
@@ -1485,7 +1485,7 @@ typedef struct {
     ULONG   Reserved[ 2 ];
 } IMAGE_LOAD_CONFIG_DIRECTORY64, *PIMAGE_LOAD_CONFIG_DIRECTORY64;
 
-#ifdef _WIN64
+#ifdef BIT64
 typedef IMAGE_LOAD_CONFIG_DIRECTORY64   IMAGE_LOAD_CONFIG_DIRECTORY;
 typedef PIMAGE_LOAD_CONFIG_DIRECTORY64  PIMAGE_LOAD_CONFIG_DIRECTORY;
 #else
@@ -1584,7 +1584,7 @@ typedef struct _IMAGE_DEBUG_DIRECTORY {
 
 // end_winnt
 
-// 
+//
 
 // begin_winnt
 

@@ -16,17 +16,17 @@ NESTED_ENTRY TheUMEntryPrestub, _TEXT, UnhandledExceptionHandlerUnix
     SAVE_FLOAT_ARGUMENT_REGISTERS 0
     END_PROLOGUE
 
-    mov rdi, METHODDESC_REGISTER 
+    mov rdi, METHODDESC_REGISTER
     call C_FUNC(TheUMEntryPrestubWorker)
-    
-    // we're going to tail call to the exec stub that we just setup 
+
+    // we're going to tail call to the exec stub that we just setup
 
     RESTORE_FLOAT_ARGUMENT_REGISTERS 0
     free_stack (SIZEOF_MAX_FP_ARG_SPILL + 8)
     POP_ARGUMENT_REGISTERS
     TAILJMP_RAX
 
-NESTED_END TheUMEntryPrestub, _TEXT 
+NESTED_END TheUMEntryPrestub, _TEXT
 
 //
 // METHODDESC_REGISTER: UMEntryThunk*
@@ -103,21 +103,11 @@ LOCAL_LABEL(InCooperativeMode):
 
         mov             METHODDESC_REGISTER, [rbp - UMThunkStubAMD64_RBP_OFFSET + UMThunkStubAMD64_METHODDESC_OFFSET]
 
-#if _DEBUG
-        mov             rax, [r12 + OFFSETOF__Thread__m_pDomain]
-        mov             eax, [rax + OFFSETOF__AppDomain__m_dwId]
-
-        mov             r11d, [METHODDESC_REGISTER + OFFSETOF__UMEntryThunk__m_dwDomainId]
-
-        cmp             rax, r11
-        jne             LOCAL_LABEL(WrongAppDomain)
-#endif
-
         mov             r11, [METHODDESC_REGISTER + OFFSETOF__UMEntryThunk__m_pUMThunkMarshInfo]
         mov             eax, [r11 + OFFSETOF__UMThunkMarshInfo__m_cbActualArgSize]                      // stack_args
         test            rax, rax                                                                        // stack_args
         jnz             LOCAL_LABEL(UMThunkStub_CopyStackArgs)                                          // stack_args
-        
+
 LOCAL_LABEL(UMThunkStub_ArgumentsSetup):
         mov    rdi, [rbp - UMThunkStubAMD64_RBP_OFFSET + UMThunkStubAMD64_INT_ARG_OFFSET]
         mov    rsi, [rbp - UMThunkStubAMD64_RBP_OFFSET + UMThunkStubAMD64_INT_ARG_OFFSET + 0x08]
@@ -154,7 +144,7 @@ LOCAL_LABEL(PostCall):
 LOCAL_LABEL(DoThreadSetup):
         call            C_FUNC(CreateThreadBlockThrow)
         jmp             LOCAL_LABEL(HaveThread)
-        
+
 LOCAL_LABEL(InvalidTransition):
         //No arguments to setup , ReversePInvokeBadTransition will failfast
         call            C_FUNC(ReversePInvokeBadTransition)
@@ -189,10 +179,5 @@ LOCAL_LABEL(CopyLoop):
         jnz             LOCAL_LABEL(CopyLoop)
 
         jmp             LOCAL_LABEL(UMThunkStub_ArgumentsSetup)
-
-#if _DEBUG
-LOCAL_LABEL(WrongAppDomain):
-        int3
-#endif
 
 NESTED_END UMThunkStub, _TEXT

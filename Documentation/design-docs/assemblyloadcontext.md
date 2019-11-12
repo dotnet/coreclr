@@ -18,21 +18,21 @@ Every .NET Core app has a **LoadContext** instance created during .NET Core Runt
 ### Custom LoadContext
 For scenarios that wish to have isolation between loaded assemblies, applications can create their own **LoadContext** instance by deriving from **System.Runtime.Loader.AssemblyLoadContext** type and loading the assemblies within that instance.
 
-Multiple assemblies with the same simple name cannot be loaded into a single load context (*Default* or *Custom*). Also, .Net Core ignores strong name token for assembly binding process.
+Multiple assemblies with the same simple name cannot be loaded into a single load context (*Default* or *Custom*). Also, .NET Core ignores strong name token for assembly binding process.
 
 ## How Load is attempted
 
 ### Basics
-If an assembly *A1* triggers the load of an assembly *C1*, the latter's load is attempted within the **LoadContext** instance of the former (which is also known as the *RequestingAssembly* or *ParentAssembly*). 
+If an assembly *A1* triggers the load of an assembly *C1*, the latter's load is attempted within the **LoadContext** instance of the former (which is also known as the *RequestingAssembly* or *ParentAssembly*).
 
 Dynamically generated assemblies add a slight twist since they do not have a *ParentAssembly/RequestingAssembly* per-se. Thus, they are associated with the load context of their *Creator Assembly* and any subsequent loads (static or dynamic) will use that load context.
 
 ### Resolution Process
 If the assembly was already present in *A1's* context, either because we had successfully loaded it earlier, or because we failed to load it for some reason, we return the corresponding status (and assembly reference for the success case).
 
-However, if *C1* was not found in *A1's* context, the *Load* method override in *A1's* context is invoked. 
+However, if *C1* was not found in *A1's* context, the *Load* method override in *A1's* context is invoked.
 
-* For *Custom LoadContext*, this override is an opportunity to load an assembly **before** the fallback (see below) to *Default LoadContext* is attempted to resolve the load. 
+* For *Custom LoadContext*, this override is an opportunity to load an assembly **before** the fallback (see below) to *Default LoadContext* is attempted to resolve the load.
 
 * For *Default LoadContext*, this override always returns *null* since *Default Context* cannot override itself.
 
@@ -64,11 +64,17 @@ This property will return a reference to the *Default LoadContext*.
 
 ### Load
 
-This method should be overriden in a *Custom LoadContext* if the intent is to override the assembly resolution that would be done during fallback to *Defaut LoadContext*
+This method should be overriden in a *Custom LoadContext* if the intent is to override the assembly resolution that would be done during fallback to *Default LoadContext*
 
 ### LoadFromAssemblyName
 
-This method can be used to load an assembly into a load context different from the load context of the currently executing assembly.
+This method can be used to load an assembly into a load context different from the load context of the currently executing assembly. The assembly will be loaded into the load context on which the method is called. If the context can't resolve the assembly in its **Load** method the assembly loading will defer to the **Default** load context. In such case it's possible the loaded assembly is from the **Default** context even though the method was called on a non-default context.
+
+Calling this method directly on the **AssemblyLoadContext.Default** will only load the assembly from the **Default** context. Depending on the caller the **Default** may or may not be different from the load context of the currently executing assembly.
+
+This method does not "forcefully" load the assembly into the specified context. It basically initiates a bind to the specified assembly name on the specified context. That bind operation will go through the full binding resolution logic which is free to resolve the assembly from any context (in reality the most likely outcome is either the specified context or the default context). This process is described above.
+
+To make sure a specified assembly is loaded into the specified load context call **AssemblyLoadContext.LoadFromAssemblyPath** and specify the path to the assembly file.
 
 ### Resolving
 

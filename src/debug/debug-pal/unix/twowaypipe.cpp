@@ -11,18 +11,17 @@
 #include <pal_assert.h>
 #include "twowaypipe.h"
 
-// Creates a server side of the pipe. 
-// Id is used to create pipes names and uniquely identify the pipe on the machine. 
+// Creates a server side of the pipe.
+// Id is used to create pipes names and uniquely identify the pipe on the machine.
 // true - success, false - failure (use GetLastError() for more details)
-bool TwoWayPipe::CreateServer(DWORD id)
+bool TwoWayPipe::CreateServer(const ProcessDescriptor& pd)
 {
     _ASSERTE(m_state == NotInitialized);
     if (m_state != NotInitialized)
         return false;
 
-    m_id = id;
-    PAL_GetTransportPipeName(m_inPipeName, id, "in");
-    PAL_GetTransportPipeName(m_outPipeName, id, "out");
+    PAL_GetTransportPipeName(m_inPipeName, pd.m_Pid, pd.m_ApplicationGroupId, "in");
+    PAL_GetTransportPipeName(m_outPipeName, pd.m_Pid, pd.m_ApplicationGroupId, "out");
 
     unlink(m_inPipeName);
 
@@ -45,18 +44,17 @@ bool TwoWayPipe::CreateServer(DWORD id)
 }
 
 // Connects to a previously opened server side of the pipe.
-// Id is used to locate the pipe on the machine. 
+// Id is used to locate the pipe on the machine.
 // true - success, false - failure (use GetLastError() for more details)
-bool TwoWayPipe::Connect(DWORD id)
+bool TwoWayPipe::Connect(const ProcessDescriptor& pd)
 {
     _ASSERTE(m_state == NotInitialized);
     if (m_state != NotInitialized)
         return false;
 
-    m_id = id;
     //"in" and "out" are switched deliberately, because we're on the client
-    PAL_GetTransportPipeName(m_inPipeName, id, "out");
-    PAL_GetTransportPipeName(m_outPipeName, id, "in");
+    PAL_GetTransportPipeName(m_inPipeName, pd.m_Pid, pd.m_ApplicationGroupId, "out");
+    PAL_GetTransportPipeName(m_outPipeName, pd.m_Pid, pd.m_ApplicationGroupId, "in");
 
     // Pipe opening order is reversed compared to WaitForConnection()
     // in order to avaid deadlock.
@@ -119,8 +117,8 @@ int TwoWayPipe::Read(void *buffer, DWORD bufferSize)
     while ((bytesRead = (int)read(m_inboundPipe, buffer, cb)) > 0)
     {
         totalBytesRead += bytesRead;
-        _ASSERTE(totalBytesRead <= bufferSize);
-        if (totalBytesRead >= bufferSize)
+        _ASSERTE(totalBytesRead <= (int)bufferSize);
+        if (totalBytesRead >= (int)bufferSize)
         {
             break;
         }
@@ -146,8 +144,8 @@ int TwoWayPipe::Write(const void *data, DWORD dataSize)
     while ((bytesWritten = (int)write(m_outboundPipe, data, cb)) > 0)
     {
         totalBytesWritten += bytesWritten;
-        _ASSERTE(totalBytesWritten <= dataSize);
-        if (totalBytesWritten >= dataSize)
+        _ASSERTE(totalBytesWritten <= (int)dataSize);
+        if (totalBytesWritten >= (int)dataSize)
         {
             break;
         }
@@ -177,7 +175,7 @@ bool TwoWayPipe::Disconnect()
     return true;
 }
 
-// Used by debugger side (RS) to cleanup the target (LS) named pipes 
+// Used by debugger side (RS) to cleanup the target (LS) named pipes
 // and semaphores when the debugger detects the debuggee process  exited.
 void TwoWayPipe::CleanupTargetProcess()
 {

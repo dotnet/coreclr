@@ -2,12 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Text;
 using Internal.Runtime.CompilerServices;
 
@@ -33,16 +30,9 @@ namespace System
             }
         }
 
-        public static string Concat(object arg0)
-        {
-            if (arg0 == null)
-            {
-                return string.Empty;
-            }
-            return arg0.ToString();
-        }
+        public static string Concat(object? arg0) => arg0?.ToString() ?? string.Empty;
 
-        public static string Concat(object arg0, object arg1)
+        public static string Concat(object? arg0, object? arg1)
         {
             if (arg0 == null)
             {
@@ -56,7 +46,7 @@ namespace System
             return Concat(arg0.ToString(), arg1.ToString());
         }
 
-        public static string Concat(object arg0, object arg1, object arg2)
+        public static string Concat(object? arg0, object? arg1, object? arg2)
         {
             if (arg0 == null)
             {
@@ -76,7 +66,7 @@ namespace System
             return Concat(arg0.ToString(), arg1.ToString(), arg2.ToString());
         }
 
-        public static string Concat(params object[] args)
+        public static string Concat(params object?[] args)
         {
             if (args == null)
             {
@@ -105,7 +95,7 @@ namespace System
 
             for (int i = 0; i < args.Length; i++)
             {
-                object value = args[i];
+                object? value = args[i];
 
                 string toString = value?.ToString() ?? string.Empty; // We need to handle both the cases when value or value.ToString() is null
                 strings[i] = toString;
@@ -169,7 +159,7 @@ namespace System
 
                     // Create the StringBuilder, add the chars we've already enumerated,
                     // add the rest, and then get the resulting string.
-                    StringBuilder result = StringBuilderCache.Acquire();
+                    var result = new ValueStringBuilder(stackalloc char[256]);
                     result.Append(c); // first value
                     do
                     {
@@ -177,7 +167,7 @@ namespace System
                         result.Append(c);
                     }
                     while (en.MoveNext());
-                    return StringBuilderCache.GetStringAndRelease(result);
+                    return result.ToString();
                 }
             }
             else
@@ -195,7 +185,7 @@ namespace System
                     // Everything should be called in the order
                     // MoveNext-Current-ToString, unless further optimizations
                     // can be made, to avoid breaking changes
-                    string firstString = currentValue?.ToString();
+                    string? firstString = currentValue?.ToString();
 
                     // If there's only 1 item, simply call ToString on that
                     if (!en.MoveNext())
@@ -205,7 +195,7 @@ namespace System
                         return firstString ?? string.Empty;
                     }
 
-                    StringBuilder result = StringBuilderCache.Acquire();
+                    var result = new ValueStringBuilder(stackalloc char[256]);
 
                     result.Append(firstString);
 
@@ -220,29 +210,30 @@ namespace System
                     }
                     while (en.MoveNext());
 
-                    return StringBuilderCache.GetStringAndRelease(result);
+                    return result.ToString();
                 }
             }
         }
 
-        public static string Concat(IEnumerable<string> values)
+        public static string Concat(IEnumerable<string?> values)
         {
             if (values == null)
                 throw new ArgumentNullException(nameof(values));
 
-            using (IEnumerator<string> en = values.GetEnumerator())
+            using (IEnumerator<string?> en = values.GetEnumerator())
             {
                 if (!en.MoveNext())
                     return string.Empty;
 
-                string firstValue = en.Current;
+                string? firstValue = en.Current;
 
                 if (!en.MoveNext())
                 {
                     return firstValue ?? string.Empty;
                 }
 
-                StringBuilder result = StringBuilderCache.Acquire();
+                var result = new ValueStringBuilder(stackalloc char[256]);
+
                 result.Append(firstValue);
 
                 do
@@ -251,11 +242,11 @@ namespace System
                 }
                 while (en.MoveNext());
 
-                return StringBuilderCache.GetStringAndRelease(result);
+                return result.ToString();
             }
         }
 
-        public static string Concat(string str0, string str1)
+        public static string Concat(string? str0, string? str1)
         {
             if (IsNullOrEmpty(str0))
             {
@@ -281,7 +272,7 @@ namespace System
             return result;
         }
 
-        public static string Concat(string str0, string str1, string str2)
+        public static string Concat(string? str0, string? str1, string? str2)
         {
             if (IsNullOrEmpty(str0))
             {
@@ -308,7 +299,7 @@ namespace System
             return result;
         }
 
-        public static string Concat(string str0, string str1, string str2, string str3)
+        public static string Concat(string? str0, string? str1, string? str2, string? str3)
         {
             if (IsNullOrEmpty(str0))
             {
@@ -341,7 +332,71 @@ namespace System
             return result;
         }
 
-        public static string Concat(params string[] values)
+        public static string Concat(ReadOnlySpan<char> str0, ReadOnlySpan<char> str1)
+        {
+            int length = checked(str0.Length + str1.Length);
+            if (length == 0)
+            {
+                return Empty;
+            }
+
+            string result = FastAllocateString(length);
+            Span<char> resultSpan = new Span<char>(ref result.GetRawStringData(), result.Length);
+
+            str0.CopyTo(resultSpan);
+            str1.CopyTo(resultSpan.Slice(str0.Length));
+
+            return result;
+        }
+
+        public static string Concat(ReadOnlySpan<char> str0, ReadOnlySpan<char> str1, ReadOnlySpan<char> str2)
+        {
+            int length = checked(str0.Length + str1.Length + str2.Length);
+            if (length == 0)
+            {
+                return Empty;
+            }
+
+            string result = FastAllocateString(length);
+            Span<char> resultSpan = new Span<char>(ref result.GetRawStringData(), result.Length);
+
+            str0.CopyTo(resultSpan);
+            resultSpan = resultSpan.Slice(str0.Length);
+
+            str1.CopyTo(resultSpan);
+            resultSpan = resultSpan.Slice(str1.Length);
+
+            str2.CopyTo(resultSpan);
+
+            return result;
+        }
+
+        public static string Concat(ReadOnlySpan<char> str0, ReadOnlySpan<char> str1, ReadOnlySpan<char> str2, ReadOnlySpan<char> str3)
+        {
+            int length = checked(str0.Length + str1.Length + str2.Length + str3.Length);
+            if (length == 0)
+            {
+                return Empty;
+            }
+
+            string result = FastAllocateString(length);
+            Span<char> resultSpan = new Span<char>(ref result.GetRawStringData(), result.Length);
+
+            str0.CopyTo(resultSpan);
+            resultSpan = resultSpan.Slice(str0.Length);
+
+            str1.CopyTo(resultSpan);
+            resultSpan = resultSpan.Slice(str1.Length);
+
+            str2.CopyTo(resultSpan);
+            resultSpan = resultSpan.Slice(str2.Length);
+
+            str3.CopyTo(resultSpan);
+
+            return result;
+        }
+
+        public static string Concat(params string?[] values)
         {
             if (values == null)
                 throw new ArgumentNullException(nameof(values));
@@ -364,7 +419,7 @@ namespace System
             long totalLengthLong = 0;
             for (int i = 0; i < values.Length; i++)
             {
-                string value = values[i];
+                string? value = values[i];
                 if (value != null)
                 {
                     totalLengthLong += value.Length;
@@ -387,7 +442,7 @@ namespace System
             int copiedLength = 0;
             for (int i = 0; i < values.Length; i++)
             {
-                string value = values[i];
+                string? value = values[i];
                 if (!string.IsNullOrEmpty(value))
                 {
                     int valueLen = value.Length;
@@ -406,25 +461,25 @@ namespace System
             // something changed concurrently to mutate the input array: fall back to
             // doing the concatenation again, but this time with a defensive copy. This
             // fall back should be extremely rare.
-            return copiedLength == totalLength ? result : Concat((string[])values.Clone());
+            return copiedLength == totalLength ? result : Concat((string?[])values.Clone());
         }
 
-        public static string Format(string format, object arg0)
+        public static string Format(string format, object? arg0)
         {
             return FormatHelper(null, format, new ParamsArray(arg0));
         }
 
-        public static string Format(string format, object arg0, object arg1)
+        public static string Format(string format, object? arg0, object? arg1)
         {
             return FormatHelper(null, format, new ParamsArray(arg0, arg1));
         }
 
-        public static string Format(string format, object arg0, object arg1, object arg2)
+        public static string Format(string format, object? arg0, object? arg1, object? arg2)
         {
             return FormatHelper(null, format, new ParamsArray(arg0, arg1, arg2));
         }
 
-        public static string Format(string format, params object[] args)
+        public static string Format(string format, params object?[] args)
         {
             if (args == null)
             {
@@ -436,22 +491,22 @@ namespace System
             return FormatHelper(null, format, new ParamsArray(args));
         }
 
-        public static string Format(IFormatProvider provider, string format, object arg0)
+        public static string Format(IFormatProvider? provider, string format, object? arg0)
         {
             return FormatHelper(provider, format, new ParamsArray(arg0));
         }
 
-        public static string Format(IFormatProvider provider, string format, object arg0, object arg1)
+        public static string Format(IFormatProvider? provider, string format, object? arg0, object? arg1)
         {
             return FormatHelper(provider, format, new ParamsArray(arg0, arg1));
         }
 
-        public static string Format(IFormatProvider provider, string format, object arg0, object arg1, object arg2)
+        public static string Format(IFormatProvider? provider, string format, object? arg0, object? arg1, object? arg2)
         {
             return FormatHelper(provider, format, new ParamsArray(arg0, arg1, arg2));
         }
 
-        public static string Format(IFormatProvider provider, string format, params object[] args)
+        public static string Format(IFormatProvider? provider, string format, params object?[] args)
         {
             if (args == null)
             {
@@ -463,15 +518,15 @@ namespace System
             return FormatHelper(provider, format, new ParamsArray(args));
         }
 
-        private static string FormatHelper(IFormatProvider provider, string format, ParamsArray args)
+        private static string FormatHelper(IFormatProvider? provider, string format, ParamsArray args)
         {
             if (format == null)
                 throw new ArgumentNullException(nameof(format));
 
-            return StringBuilderCache.GetStringAndRelease(
-                StringBuilderCache
-                    .Acquire(format.Length + args.Length * 8)
-                    .AppendFormatHelper(provider, format, args));
+            var sb = new ValueStringBuilder(stackalloc char[256]);
+            sb.EnsureCapacity(format.Length + args.Length * 8);
+            sb.AppendFormatHelper(provider, format, args);
+            return sb.ToString();
         }
 
         public string Insert(int startIndex, string value)
@@ -510,7 +565,7 @@ namespace System
             return result;
         }
 
-        public static string Join(char separator, params string[] value)
+        public static string Join(char separator, params string?[] value)
         {
             if (value == null)
             {
@@ -520,7 +575,7 @@ namespace System
             return Join(separator, value, 0, value.Length);
         }
 
-        public static unsafe string Join(char separator, params object[] values)
+        public static unsafe string Join(char separator, params object?[] values)
         {
             // Defer argument validation to the internal function
             return JoinCore(&separator, 1, values);
@@ -532,7 +587,7 @@ namespace System
             return JoinCore(&separator, 1, values);
         }
 
-        public static unsafe string Join(char separator, string[] value, int startIndex, int count)
+        public static unsafe string Join(char separator, string?[] value, int startIndex, int count)
         {
             // Defer argument validation to the internal function
             return JoinCore(&separator, 1, value, startIndex, count);
@@ -540,7 +595,7 @@ namespace System
 
         // Joins an array of strings together as one string with a separator between each original string.
         //
-        public static string Join(string separator, params string[] value)
+        public static string Join(string? separator, params string?[] value)
         {
             if (value == null)
             {
@@ -549,9 +604,9 @@ namespace System
             return Join(separator, value, 0, value.Length);
         }
 
-        public static unsafe string Join(string separator, params object[] values)
+        public static unsafe string Join(string? separator, params object?[] values)
         {
-            separator = separator ?? string.Empty;
+            separator ??= string.Empty;
             fixed (char* pSeparator = &separator._firstChar)
             {
                 // Defer argument validation to the internal function
@@ -559,9 +614,9 @@ namespace System
             }
         }
 
-        public static unsafe string Join<T>(string separator, IEnumerable<T> values)
+        public static unsafe string Join<T>(string? separator, IEnumerable<T> values)
         {
-            separator = separator ?? string.Empty;
+            separator ??= string.Empty;
             fixed (char* pSeparator = &separator._firstChar)
             {
                 // Defer argument validation to the internal function
@@ -569,21 +624,21 @@ namespace System
             }
         }
 
-        public static string Join(string separator, IEnumerable<string> values)
+        public static string Join(string? separator, IEnumerable<string?> values)
         {
             if (values == null)
             {
                 throw new ArgumentNullException(nameof(values));
             }
 
-            using (IEnumerator<string> en = values.GetEnumerator())
+            using (IEnumerator<string?> en = values.GetEnumerator())
             {
                 if (!en.MoveNext())
                 {
                     return string.Empty;
                 }
 
-                string firstValue = en.Current;
+                string? firstValue = en.Current;
 
                 if (!en.MoveNext())
                 {
@@ -592,7 +647,8 @@ namespace System
                 }
 
                 // Null separator and values are handled by the StringBuilder
-                StringBuilder result = StringBuilderCache.Acquire();
+                var result = new ValueStringBuilder(stackalloc char[256]);
+
                 result.Append(firstValue);
 
                 do
@@ -602,15 +658,15 @@ namespace System
                 }
                 while (en.MoveNext());
 
-                return StringBuilderCache.GetStringAndRelease(result);
+                return result.ToString();
             }
         }
 
         // Joins an array of strings together as one string with a separator between each original string.
         //
-        public static unsafe string Join(string separator, string[] value, int startIndex, int count)
+        public static unsafe string Join(string? separator, string?[] value, int startIndex, int count)
         {
-            separator = separator ?? string.Empty;
+            separator ??= Empty;
             fixed (char* pSeparator = &separator._firstChar)
             {
                 // Defer argument validation to the internal function
@@ -618,7 +674,7 @@ namespace System
             }
         }
 
-        private static unsafe string JoinCore(char* separator, int separatorLength, object[] values)
+        private static unsafe string JoinCore(char* separator, int separatorLength, object?[] values)
         {
             if (values == null)
             {
@@ -630,27 +686,28 @@ namespace System
                 return string.Empty;
             }
 
-            string firstString = values[0]?.ToString();
+            string? firstString = values[0]?.ToString();
 
             if (values.Length == 1)
             {
                 return firstString ?? string.Empty;
             }
 
-            StringBuilder result = StringBuilderCache.Acquire();
+            var result = new ValueStringBuilder(stackalloc char[256]);
+
             result.Append(firstString);
 
             for (int i = 1; i < values.Length; i++)
             {
                 result.Append(separator, separatorLength);
-                object value = values[i];
+                object? value = values[i];
                 if (value != null)
                 {
                     result.Append(value.ToString());
                 }
             }
 
-            return StringBuilderCache.GetStringAndRelease(result);
+            return result.ToString();
         }
 
         private static unsafe string JoinCore<T>(char* separator, int separatorLength, IEnumerable<T> values)
@@ -675,7 +732,7 @@ namespace System
                 // Everything should be called in the order
                 // MoveNext-Current-ToString, unless further optimizations
                 // can be made, to avoid breaking changes
-                string firstString = currentValue?.ToString();
+                string? firstString = currentValue?.ToString();
 
                 // If there's only 1 item, simply call ToString on that
                 if (!en.MoveNext())
@@ -685,7 +742,7 @@ namespace System
                     return firstString ?? string.Empty;
                 }
 
-                StringBuilder result = StringBuilderCache.Acquire();
+                var result = new ValueStringBuilder(stackalloc char[256]);
 
                 result.Append(firstString);
 
@@ -701,11 +758,11 @@ namespace System
                 }
                 while (en.MoveNext());
 
-                return StringBuilderCache.GetStringAndRelease(result);
+                return result.ToString();
             }
         }
 
-        private static unsafe string JoinCore(char* separator, int separatorLength, string[] value, int startIndex, int count)
+        private static unsafe string JoinCore(char* separator, int separatorLength, string?[] value, int startIndex, int count)
         {
             // If the separator is null, it is converted to an empty string before entering this function.
             // Even for empty strings, fixed should never return null (it should return a pointer to a null char).
@@ -746,7 +803,7 @@ namespace System
             // Calculate the length of the resultant string so we know how much space to allocate.
             for (int i = startIndex, end = startIndex + count; i < end; i++)
             {
-                string currentValue = value[i];
+                string? currentValue = value[i];
                 if (currentValue != null)
                 {
                     totalLength += currentValue.Length;
@@ -769,7 +826,7 @@ namespace System
 
                 // We range check again to avoid buffer overflows if this happens.
 
-                string currentValue = value[i];
+                string? currentValue = value[i];
                 if (currentValue != null)
                 {
                     int valueLen = currentValue.Length;
@@ -811,7 +868,7 @@ namespace System
             // fall back should be extremely rare.
             return copiedLength == totalLength ?
                 result :
-                JoinCore(separator, separatorLength, (string[])value.Clone(), startIndex, count);
+                JoinCore(separator, separatorLength, (string?[])value.Clone(), startIndex, count);
         }
 
         public string PadLeft(int totalWidth) => PadLeft(totalWidth, ' ');
@@ -909,12 +966,12 @@ namespace System
             return Substring(0, startIndex);
         }
 
-        public string Replace(string oldValue, string newValue, bool ignoreCase, CultureInfo culture)
+        public string Replace(string oldValue, string? newValue, bool ignoreCase, CultureInfo? culture)
         {
             return ReplaceCore(oldValue, newValue, culture, ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None);
         }
 
-        public string Replace(string oldValue, string newValue, StringComparison comparisonType)
+        public string Replace(string oldValue, string? newValue, StringComparison comparisonType)
         {
             switch (comparisonType)
             {
@@ -937,7 +994,7 @@ namespace System
             }
         }
 
-        private unsafe string ReplaceCore(string oldValue, string newValue, CultureInfo culture, CompareOptions options)
+        private unsafe string ReplaceCore(string oldValue, string? newValue, CultureInfo? culture, CompareOptions options)
         {
             if (oldValue == null)
                 throw new ArgumentNullException(nameof(oldValue));
@@ -946,11 +1003,11 @@ namespace System
 
             // If they asked to replace oldValue with a null, replace all occurrences
             // with the empty string.
-            if (newValue == null)
-                newValue = string.Empty;
+            newValue ??= string.Empty;
 
             CultureInfo referenceCulture = culture ?? CultureInfo.CurrentCulture;
-            StringBuilder result = StringBuilderCache.Acquire();
+            var result = new ValueStringBuilder(stackalloc char[256]);
+            result.EnsureCapacity(this.Length);
 
             int startIndex = 0;
             int index = 0;
@@ -966,7 +1023,7 @@ namespace System
                 if (index >= 0)
                 {
                     // append the unmodified portion of string
-                    result.Append(this, startIndex, index - startIndex);
+                    result.Append(this.AsSpan(startIndex, index - startIndex));
 
                     // append the replacement
                     result.Append(newValue);
@@ -979,16 +1036,16 @@ namespace System
                     // small optimization,
                     // if we have not done any replacements,
                     // we will return the original string
-                    StringBuilderCache.Release(result);
+                    result.Dispose();
                     return this;
                 }
                 else
                 {
-                    result.Append(this, startIndex, this.Length - startIndex);
+                    result.Append(this.AsSpan(startIndex, this.Length - startIndex));
                 }
             } while (index >= 0);
 
-            return StringBuilderCache.GetStringAndRelease(result);
+            return result.ToString();
         }
 
         // Replaces all instances of oldChar with newChar.
@@ -1029,13 +1086,13 @@ namespace System
                     {
                         int copyLength = Length - remainingLength;
 
-                        //Copy the characters already proven not to match.
+                        // Copy the characters already proven not to match.
                         if (copyLength > 0)
                         {
                             wstrcpy(pResult, pChars, copyLength);
                         }
 
-                        //Copy the remaining characters, doing the replacement as we go.
+                        // Copy the remaining characters, doing the replacement as we go.
                         char* pSrc = pChars + copyLength;
                         char* pDst = pResult + copyLength;
 
@@ -1057,7 +1114,7 @@ namespace System
             }
         }
 
-        public string Replace(string oldValue, string newValue)
+        public string Replace(string oldValue, string? newValue)
         {
             if (oldValue == null)
                 throw new ArgumentNullException(nameof(oldValue));
@@ -1065,11 +1122,9 @@ namespace System
                 throw new ArgumentException(SR.Argument_StringZeroLength, nameof(oldValue));
 
             // Api behavior: if newValue is null, instances of oldValue are to be removed.
-            if (newValue == null)
-                newValue = string.Empty;
+            newValue ??= string.Empty;
 
-            Span<int> initialSpan = stackalloc int[StackallocIntBufferSizeLimit];
-            var replacementIndices = new ValueListBuilder<int>(initialSpan);
+            var replacementIndices = new ValueListBuilder<int>(stackalloc int[StackallocIntBufferSizeLimit]);
 
             unsafe
             {
@@ -1168,7 +1223,7 @@ namespace System
         // If the separator is null
         // whitespace (i.e., Character.IsWhitespace) is used as the separator.
         //
-        public string[] Split(params char[] separator)
+        public string[] Split(params char[]? separator)
         {
             return SplitInternal(separator, int.MaxValue, StringSplitOptions.None);
         }
@@ -1184,17 +1239,17 @@ namespace System
         // If there are more than count different strings, the last n-(count-1)
         // elements are concatenated and added as the last string.
         //
-        public string[] Split(char[] separator, int count)
+        public string[] Split(char[]? separator, int count)
         {
             return SplitInternal(separator, count, StringSplitOptions.None);
         }
 
-        public string[] Split(char[] separator, StringSplitOptions options)
+        public string[] Split(char[]? separator, StringSplitOptions options)
         {
             return SplitInternal(separator, int.MaxValue, options);
         }
 
-        public string[] Split(char[] separator, int count, StringSplitOptions options)
+        public string[] Split(char[]? separator, int count, StringSplitOptions options)
         {
             return SplitInternal(separator, count, options);
         }
@@ -1220,8 +1275,7 @@ namespace System
                 return new string[] { this };
             }
 
-            Span<int> initialSpan = stackalloc int[StackallocIntBufferSizeLimit];
-            var sepListBuilder = new ValueListBuilder<int>(initialSpan);
+            var sepListBuilder = new ValueListBuilder<int>(stackalloc int[StackallocIntBufferSizeLimit]);
 
             MakeSeparatorList(separators, ref sepListBuilder);
             ReadOnlySpan<int> sepList = sepListBuilder.AsSpan();
@@ -1241,27 +1295,27 @@ namespace System
             return result;
         }
 
-        public string[] Split(string separator, StringSplitOptions options = StringSplitOptions.None)
+        public string[] Split(string? separator, StringSplitOptions options = StringSplitOptions.None)
         {
             return SplitInternal(separator ?? string.Empty, null, int.MaxValue, options);
         }
 
-        public string[] Split(string separator, int count, StringSplitOptions options = StringSplitOptions.None)
+        public string[] Split(string? separator, int count, StringSplitOptions options = StringSplitOptions.None)
         {
             return SplitInternal(separator ?? string.Empty, null, count, options);
         }
 
-        public string[] Split(string[] separator, StringSplitOptions options)
+        public string[] Split(string[]? separator, StringSplitOptions options)
         {
             return SplitInternal(null, separator, int.MaxValue, options);
         }
 
-        public string[] Split(string[] separator, int count, StringSplitOptions options)
+        public string[] Split(string[]? separator, int count, StringSplitOptions options)
         {
             return SplitInternal(null, separator, count, options);
         }
 
-        private string[] SplitInternal(string separator, string[] separators, int count, StringSplitOptions options)
+        private string[] SplitInternal(string? separator, string?[]? separators, int count, StringSplitOptions options)
         {
             if (count < 0)
             {
@@ -1280,7 +1334,7 @@ namespace System
 
             if (!singleSeparator && (separators == null || separators.Length == 0))
             {
-                return SplitInternal((char[])null, count, options);
+                return SplitInternal(default(ReadOnlySpan<char>), count, options);
             }
 
             if ((count == 0) || (omitEmptyEntries && Length == 0))
@@ -1288,23 +1342,20 @@ namespace System
                 return Array.Empty<string>();
             }
 
-            if (count == 1 || (singleSeparator && separator.Length == 0))
+            if (count == 1 || (singleSeparator && separator!.Length == 0))
             {
                 return new string[] { this };
             }
 
             if (singleSeparator)
             {
-                return SplitInternal(separator, count, options);
+                return SplitInternal(separator!, count, options);
             }
 
-            Span<int> sepListInitialSpan = stackalloc int[StackallocIntBufferSizeLimit];
-            var sepListBuilder = new ValueListBuilder<int>(sepListInitialSpan);
+            var sepListBuilder = new ValueListBuilder<int>(stackalloc int[StackallocIntBufferSizeLimit]);
+            var lengthListBuilder = new ValueListBuilder<int>(stackalloc int[StackallocIntBufferSizeLimit]);
 
-            Span<int> lengthListInitialSpan = stackalloc int[StackallocIntBufferSizeLimit];
-            var lengthListBuilder = new ValueListBuilder<int>(lengthListInitialSpan);
-
-            MakeSeparatorList(separators, ref sepListBuilder, ref lengthListBuilder);
+            MakeSeparatorList(separators!, ref sepListBuilder, ref lengthListBuilder);
             ReadOnlySpan<int> sepList = sepListBuilder.AsSpan();
             ReadOnlySpan<int> lengthList = lengthListBuilder.AsSpan();
 
@@ -1326,8 +1377,7 @@ namespace System
 
         private string[] SplitInternal(string separator, int count, StringSplitOptions options)
         {
-            Span<int> sepListInitialSpan = stackalloc int[StackallocIntBufferSizeLimit];
-            var sepListBuilder = new ValueListBuilder<int>(sepListInitialSpan);
+            var sepListBuilder = new ValueListBuilder<int>(stackalloc int[StackallocIntBufferSizeLimit]);
 
             MakeSeparatorList(separator, ref sepListBuilder);
             ReadOnlySpan<int> sepList = sepListBuilder.AsSpan();
@@ -1356,8 +1406,8 @@ namespace System
             count--;
             int numActualReplaces = (sepList.Length < count) ? sepList.Length : count;
 
-            //Allocate space for the new array.
-            //+1 for the string from the end of the last replace to the end of the string.
+            // Allocate space for the new array.
+            // +1 for the string from the end of the last replace to the end of the string.
             string[] splitStrings = new string[numActualReplaces + 1];
 
             for (int i = 0; i < numActualReplaces && currIndex < Length; i++)
@@ -1366,15 +1416,15 @@ namespace System
                 currIndex = sepList[i] + (lengthList.IsEmpty ? defaultLength : lengthList[i]);
             }
 
-            //Handle the last string at the end of the array if there is one.
+            // Handle the last string at the end of the array if there is one.
             if (currIndex < Length && numActualReplaces >= 0)
             {
                 splitStrings[arrIndex] = Substring(currIndex);
             }
             else if (arrIndex == numActualReplaces)
             {
-                //We had a separator character at the end of a string.  Rather than just allowing
-                //a null character, we'll replace the last element in the array with an empty string.
+                // We had a separator character at the end of a string.  Rather than just allowing
+                // a null character, we'll replace the last element in the array with an empty string.
                 splitStrings[arrIndex] = string.Empty;
             }
 
@@ -1419,7 +1469,7 @@ namespace System
             // we must have at least one slot left to fill in the last string.
             Debug.Assert(arrIndex < maxItems);
 
-            //Handle the last string at the end of the array if there is one.
+            // Handle the last string at the end of the array if there is one.
             if (currIndex < Length)
             {
                 splitStrings[arrIndex++] = Substring(currIndex);
@@ -1442,7 +1492,6 @@ namespace System
         /// </summary>
         /// <param name="separators"><see cref="ReadOnlySpan{T}"/> of separator chars</param>
         /// <param name="sepListBuilder"><see cref="ValueListBuilder{T}"/> to store indexes</param>
-        /// <returns></returns>
         private void MakeSeparatorList(ReadOnlySpan<char> separators, ref ValueListBuilder<int> sepListBuilder)
         {
             char sep0, sep1, sep2;
@@ -1525,7 +1574,6 @@ namespace System
         /// </summary>
         /// <param name="separator">separator string</param>
         /// <param name="sepListBuilder"><see cref="ValueListBuilder{T}"/> to store indexes</param>
-        /// <returns></returns>
         private void MakeSeparatorList(string separator, ref ValueListBuilder<int> sepListBuilder)
         {
             Debug.Assert(!IsNullOrEmpty(separator), "!string.IsNullOrEmpty(separator)");
@@ -1552,17 +1600,15 @@ namespace System
         /// <param name="separators">separator strngs</param>
         /// <param name="sepListBuilder"><see cref="ValueListBuilder{T}"/> for separator indexes</param>
         /// <param name="lengthListBuilder"><see cref="ValueListBuilder{T}"/> for separator length values</param>
-        private void MakeSeparatorList(string[] separators, ref ValueListBuilder<int> sepListBuilder, ref ValueListBuilder<int> lengthListBuilder)
+        private void MakeSeparatorList(string?[] separators, ref ValueListBuilder<int> sepListBuilder, ref ValueListBuilder<int> lengthListBuilder)
         {
             Debug.Assert(separators != null && separators.Length > 0, "separators != null && separators.Length > 0");
-
-            int sepCount = separators.Length;
 
             for (int i = 0; i < Length; i++)
             {
                 for (int j = 0; j < separators.Length; j++)
                 {
-                    string separator = separators[j];
+                    string? separator = separators[j];
                     if (IsNullOrEmpty(separator))
                     {
                         continue;
@@ -1639,19 +1685,13 @@ namespace System
         }
 
         // Creates a copy of this string in lower case.  The culture is set by culture.
-        public string ToLower()
-        {
-            return CultureInfo.CurrentCulture.TextInfo.ToLower(this);
-        }
+        public string ToLower() => ToLower(null);
 
         // Creates a copy of this string in lower case.  The culture is set by culture.
-        public string ToLower(CultureInfo culture)
+        public string ToLower(CultureInfo? culture)
         {
-            if (culture == null)
-            {
-                throw new ArgumentNullException(nameof(culture));
-            }
-            return culture.TextInfo.ToLower(this);
+            CultureInfo cult = culture ?? CultureInfo.CurrentCulture;
+            return cult.TextInfo.ToLower(this);
         }
 
         // Creates a copy of this string in lower case based on invariant culture.
@@ -1660,22 +1700,16 @@ namespace System
             return CultureInfo.InvariantCulture.TextInfo.ToLower(this);
         }
 
-        public string ToUpper()
-        {
-            return CultureInfo.CurrentCulture.TextInfo.ToUpper(this);
-        }
+        public string ToUpper() => ToUpper(null);
 
         // Creates a copy of this string in upper case.  The culture is set by culture.
-        public string ToUpper(CultureInfo culture)
+        public string ToUpper(CultureInfo? culture)
         {
-            if (culture == null)
-            {
-                throw new ArgumentNullException(nameof(culture));
-            }
-            return culture.TextInfo.ToUpper(this);
+            CultureInfo cult = culture ?? CultureInfo.CurrentCulture;
+            return cult.TextInfo.ToUpper(this);
         }
 
-        //Creates a copy of this string in upper case based on invariant culture.
+        // Creates a copy of this string in upper case based on invariant culture.
         public string ToUpperInvariant()
         {
             return CultureInfo.InvariantCulture.TextInfo.ToUpper(this);
@@ -1690,7 +1724,7 @@ namespace System
         public unsafe string Trim(char trimChar) => TrimHelper(&trimChar, 1, TrimType.Both);
 
         // Removes a set of characters from the beginning and end of this string.
-        public unsafe string Trim(params char[] trimChars)
+        public unsafe string Trim(params char[]? trimChars)
         {
             if (trimChars == null || trimChars.Length == 0)
             {
@@ -1709,7 +1743,7 @@ namespace System
         public unsafe string TrimStart(char trimChar) => TrimHelper(&trimChar, 1, TrimType.Head);
 
         // Removes a set of characters from the beginning of this string.
-        public unsafe string TrimStart(params char[] trimChars)
+        public unsafe string TrimStart(params char[]? trimChars)
         {
             if (trimChars == null || trimChars.Length == 0)
             {
@@ -1728,7 +1762,7 @@ namespace System
         public unsafe string TrimEnd(char trimChar) => TrimHelper(&trimChar, 1, TrimType.Tail);
 
         // Removes a set of characters from the end of this string.
-        public unsafe string TrimEnd(params char[] trimChars)
+        public unsafe string TrimEnd(params char[]? trimChars)
         {
             if (trimChars == null || trimChars.Length == 0)
             {
@@ -1748,7 +1782,7 @@ namespace System
             int start = 0;
 
             // Trim specified characters.
-            if (trimType != TrimType.Tail)
+            if ((trimType & TrimType.Head) != 0)
             {
                 for (start = 0; start < Length; start++)
                 {
@@ -1759,7 +1793,7 @@ namespace System
                 }
             }
 
-            if (trimType != TrimType.Head)
+            if ((trimType & TrimType.Tail) != 0)
             {
                 for (end = Length - 1; end >= start; end--)
                 {
@@ -1784,7 +1818,7 @@ namespace System
             int start = 0;
 
             // Trim specified characters.
-            if (trimType != TrimType.Tail)
+            if ((trimType & TrimType.Head) != 0)
             {
                 for (start = 0; start < Length; start++)
                 {
@@ -1805,7 +1839,7 @@ namespace System
                 }
             }
 
-            if (trimType != TrimType.Head)
+            if ((trimType & TrimType.Tail) != 0)
             {
                 for (end = Length - 1; end >= start; end--)
                 {
@@ -1836,13 +1870,6 @@ namespace System
                 len == Length ? this :
                 len == 0 ? string.Empty :
                 InternalSubString(start, len);
-        }
-
-        private enum TrimType
-        {
-            Head = 0,
-            Tail = 1,
-            Both = 2
         }
     }
 }

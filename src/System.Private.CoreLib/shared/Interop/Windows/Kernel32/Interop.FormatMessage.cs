@@ -5,9 +5,9 @@
 using System;
 using System.Runtime.InteropServices;
 
-internal partial class Interop
+internal static partial class Interop
 {
-    internal partial class Kernel32
+    internal static partial class Kernel32
     {
         private const int FORMAT_MESSAGE_IGNORE_INSERTS = 0x00000200;
         private const int FORMAT_MESSAGE_FROM_HMODULE = 0x00000800;
@@ -42,7 +42,7 @@ internal partial class Interop
 
             // First try to format the message into the stack based buffer.  Most error messages willl fit.
             Span<char> stackBuffer = stackalloc char[256]; // arbitrary stack limit
-            fixed (char* bufferPtr = &MemoryMarshal.GetReference(stackBuffer))
+            fixed (char* bufferPtr = stackBuffer)
             {
                 int length = FormatMessage(flags, moduleHandle, unchecked((uint)errorCode), 0, bufferPtr, stackBuffer.Length, IntPtr.Zero);
                 if (length > 0)

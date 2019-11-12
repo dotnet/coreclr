@@ -12,8 +12,6 @@
 //
 // ============================================================
 
-#define DISABLE_BINDER_DEBUG_LOGGING
-
 #include "textualidentityparser.hpp"
 #include "assemblyidentity.hpp"
 #include "utils.hpp"
@@ -61,9 +59,6 @@ namespace BINDER_SPACE
     {
         const int iPublicKeyTokenLength = 8;
 
-        const int iPublicKeyMinLength = 0;
-        const int iPublicKeyMaxLength = 2048;
-
         const int iVersionMax = 65535;
         const int iVersionParts = 4;
 
@@ -94,10 +89,10 @@ namespace BINDER_SPACE
                 UINT v;
 
                 v = pSrc[x]>>4;
-                pDst[y++] = (WCHAR)TOHEX(v);  
-                v = pSrc[x] & 0x0f;                 
-                pDst[y++] = (WCHAR)TOHEX(v); 
-            }                                    
+                pDst[y++] = (WCHAR)TOHEX(v);
+                v = pSrc[x] & 0x0f;
+                pDst[y++] = (WCHAR)TOHEX(v);
+            }
         }
 
         inline BOOL EqualsCaseInsensitive(SString &a, LPCWSTR wzB)
@@ -143,17 +138,14 @@ namespace BINDER_SPACE
 
         inline BOOL ValidatePublicKey(SString &publicKey)
         {
-            
-            return ((publicKey.GetCount() >= (iPublicKeyMinLength * 2)) &&
-                    (publicKey.GetCount() <= (iPublicKeyMaxLength * 2)) &&
-                    ValidateHex(publicKey));
+            return ValidateHex(publicKey);
         }
 
         const struct {
             LPCWSTR strValue;
             PEKIND enumValue;
         } wszKnownArchitectures[] = { { W("x86"), peI386 },
-                                      { W("IA64"), peIA64 }, 
+                                      { W("IA64"), peIA64 },
                                       { W("AMD64"), peAMD64 },
                                       { W("ARM"), peARM },
                                       { W("MSIL"), peMSIL } };
@@ -191,7 +183,7 @@ namespace BINDER_SPACE
         LPCWSTR ContentTypeToString(AssemblyContentType kContentType)
         {
             _ASSERTE(kContentType != AssemblyContentType_Default);
-            
+
             if (kContentType == AssemblyContentType_WindowsRuntime)
             {
                 return W("WindowsRuntime");
@@ -238,11 +230,8 @@ namespace BINDER_SPACE
                                          BOOL              fPermitUnescapedQuotes)
     {
         HRESULT hr = S_OK;
-        BINDER_LOG_ENTER(W("TextualIdentityParser::Parse"));
 
         IF_FALSE_GO(pAssemblyIdentity != NULL);
-
-        BINDER_LOG_STRING(W("textualIdentity"), textualIdentity);
 
         EX_TRY
         {
@@ -256,7 +245,6 @@ namespace BINDER_SPACE
         EX_CATCH_HRESULT(hr);
 
     Exit:
-        BINDER_LOG_LEAVE_HR(W("TextualIdentityParser::Parse"), hr);
         return hr;
     }
 
@@ -266,7 +254,6 @@ namespace BINDER_SPACE
                                             SString          &textualIdentity)
     {
         HRESULT hr = S_OK;
-        BINDER_LOG_ENTER(W("TextualIdentityParser::ToString"));
 
         IF_FALSE_GO(pAssemblyIdentity != NULL);
 
@@ -366,9 +353,8 @@ namespace BINDER_SPACE
             }
         }
         EX_CATCH_HRESULT(hr);
-        
+
     Exit:
-        BINDER_LOG_LEAVE_HR(W("TextualIdentityParser::ToString"), hr);
         return hr;
     }
 
@@ -382,8 +368,6 @@ namespace BINDER_SPACE
         const DWORD UnspecifiedNumber = (DWORD)-1;
         DWORD dwCurrentNumber = UnspecifiedNumber;
         DWORD dwNumbers[iVersionParts] = {UnspecifiedNumber, UnspecifiedNumber, UnspecifiedNumber, UnspecifiedNumber};
-
-        BINDER_LOG_ENTER(W("TextualIdentityParser::ParseVersion"));
 
         if (versionString.GetCount() > 0) {
             SString::Iterator cursor = versionString.Begin();
@@ -434,7 +418,7 @@ namespace BINDER_SPACE
                         dwCurrentNumber = 0;
                     }
                     dwCurrentNumber = (dwCurrentNumber * 10) + (wcCurrentChar - W('0'));
-                    
+
                     if (dwCurrentNumber > static_cast<DWORD>(iVersionMax))
                     {
                         goto Exit;
@@ -466,7 +450,6 @@ namespace BINDER_SPACE
         }
 
     Exit:
-        BINDER_LOG_LEAVE(W("TextualIdentityParser::ParseVersion"));
         return fIsValid;
     }
 
@@ -510,7 +493,6 @@ namespace BINDER_SPACE
     BOOL TextualIdentityParser::Parse(SString &textualIdentity, BOOL fPermitUnescapedQuotes)
     {
         BOOL fIsValid = TRUE;
-        BINDER_LOG_ENTER(W("TextualIdentityParser::Parse(textualIdentity)"));
         SString unicodeTextualIdentity;
 
         // Lexer modifies input string
@@ -524,7 +506,7 @@ namespace BINDER_SPACE
         m_pAssemblyIdentity->m_simpleName.Set(currentString);
         m_pAssemblyIdentity->m_simpleName.Normalize();
         m_pAssemblyIdentity->SetHave(AssemblyIdentity::IDENTITY_FLAG_SIMPLE_NAME);
-            
+
         for (;;)
         {
             SmallStackSString attributeString;
@@ -543,7 +525,6 @@ namespace BINDER_SPACE
         }
 
     Exit:
-        BINDER_LOG_LEAVE_BOOL(W("TextualIdentityParser::Parse(textualIdentity)"), fIsValid);
         return fIsValid;
     }
 
@@ -551,7 +532,6 @@ namespace BINDER_SPACE
                                             SString &contentString)
     {
         BOOL fIsValid = TRUE;
-        BINDER_LOG_ENTER(W("TextualIdentityParser::ParseString"));
         SString unicodeTextualString;
 
         // Lexer modifies input string
@@ -565,14 +545,12 @@ namespace BINDER_SPACE
         currentString.Normalize();
 
     Exit:
-        BINDER_LOG_LEAVE_BOOL(W("TextualIdentityParser::ParseString"), fIsValid);
         return fIsValid;
     }
 
     BOOL TextualIdentityParser::PopulateAssemblyIdentity(SString &attributeString,
                                                          SString &valueString)
     {
-        BINDER_LOG_ENTER(W("TextualIdentityParser::PopulateAssemblyIdentity"));
         BOOL fIsValid = TRUE;
 
         if (EqualsCaseInsensitive(attributeString, W("culture")) ||
@@ -704,16 +682,8 @@ namespace BINDER_SPACE
                           m_pAssemblyIdentity->m_customBLOB);
             }
         }
-        else
-        {
-            // Fusion compat: Silently drop unknown attribute/value pair
-            BINDER_LOG_STRING(W("unknown attribute"), attributeString);
-            BINDER_LOG_STRING(W("unknown value"), valueString);
-        }
 
     Exit:
-        BINDER_LOG_LEAVE_HR(W("TextualIdentityParser::PopulateAssemblyIdentity"),
-                            (fIsValid ? S_OK : S_FALSE));
         return fIsValid;
     }
 
@@ -721,10 +691,6 @@ namespace BINDER_SPACE
     void TextualIdentityParser::EscapeString(SString &input,
                                              SString &result)
     {
-        BINDER_LOG_ENTER(W("TextualIdentityParser::EscapeString"));
-
-        BINDER_LOG_STRING(W("input"), input);
-
         BOOL fNeedQuotes = FALSE;
         WCHAR wcQuoteCharacter = W('"');
 
@@ -797,7 +763,5 @@ namespace BINDER_SPACE
         {
             result.Set(tmpString);
         }
-
-        BINDER_LOG_LEAVE(W("TextualIdentityParser::EscapeString"));
     }
 };

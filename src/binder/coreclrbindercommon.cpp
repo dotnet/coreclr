@@ -7,7 +7,6 @@
 #include "assemblybinder.hpp"
 #include "coreclrbindercommon.h"
 #include "clrprivbindercoreclr.h"
-#include "clrprivbinderutil.h"
 
 using namespace BINDER_SPACE;
 
@@ -17,15 +16,9 @@ using namespace BINDER_SPACE;
 /* static */
 HRESULT CCoreCLRBinderHelper::Init()
 {
-    STANDARD_VM_CONTRACT;
-    HRESULT hr = S_OK;
-    EX_TRY
-    {
-        hr = AssemblyBinder::Startup();
-    }
-    EX_CATCH_HRESULT(hr);
+    STATIC_CONTRACT_NOTHROW;
 
-    return hr;
+    return AssemblyBinder::Startup();
 }
 
 HRESULT CCoreCLRBinderHelper::DefaultBinderSetupContext(DWORD dwAppDomainId,CLRPrivBinderCoreCLR **ppTPABinder)
@@ -37,7 +30,7 @@ HRESULT CCoreCLRBinderHelper::DefaultBinderSetupContext(DWORD dwAppDomainId,CLRP
         {
             ReleaseHolder<CLRPrivBinderCoreCLR> pBinder;
             SAFE_NEW(pBinder, CLRPrivBinderCoreCLR);
-            
+
             BINDER_SPACE::ApplicationContext *pApplicationContext = pBinder->GetAppContext();
             hr = pApplicationContext->Init();
             if(SUCCEEDED(hr))
@@ -103,7 +96,7 @@ HRESULT CCoreCLRBinderHelper::BindToSystem(ICLRPrivAssembly **ppSystemAssembly, 
 {
     HRESULT hr = S_OK;
     VALIDATE_ARG_RET(ppSystemAssembly != NULL);
-    
+
     EX_TRY
     {
         ReleaseHolder<BINDER_SPACE::Assembly> pAsm;
@@ -127,7 +120,7 @@ HRESULT CCoreCLRBinderHelper::BindToSystemSatellite(SString            &systemPa
 {
     HRESULT hr = S_OK;
     VALIDATE_ARG_RET(ppSystemAssembly != NULL && !systemPath.IsEmpty());
-    
+
     EX_TRY
     {
         ReleaseHolder<BINDER_SPACE::Assembly> pAsm;
@@ -141,44 +134,4 @@ HRESULT CCoreCLRBinderHelper::BindToSystemSatellite(SString            &systemPa
     EX_CATCH_HRESULT(hr);
 
     return hr;
-}
-
-HRESULT CCoreCLRBinderHelper::GetAssemblyFromImage(PEImage           *pPEImage,
-                                                   PEImage           *pNativePEImage,
-                                                   ICLRPrivAssembly **ppAssembly)
-{
-    HRESULT hr = S_OK;
-    VALIDATE_ARG_RET(pPEImage != NULL && ppAssembly != NULL);
-
-    EX_TRY
-    {
-        ReleaseHolder<BINDER_SPACE::Assembly> pAsm;
-        hr = AssemblyBinder::GetAssemblyFromImage(pPEImage, pNativePEImage, &pAsm);
-        if(SUCCEEDED(hr))
-        {
-            _ASSERTE(pAsm != nullptr);
-            *ppAssembly = pAsm.Extract();
-        }
-    }
-    EX_CATCH_HRESULT(hr);
-
-    return hr;
-}
-
-//=============================================================================
-// Explicitly bind to an assembly by filepath
-//=============================================================================
-/* static */
-HRESULT CCoreCLRBinderHelper::GetAssembly(/* in */  SString     &assemblyPath,
-                                   /* in */  BOOL         fInspectionOnly,
-                                   /* in */  BOOL         fIsInGAC,
-                                   /* in */  BOOL         fExplicitBindToNativeImage,
-                                   /* out */ BINDER_SPACE::Assembly   **ppAssembly)
-{
-    return AssemblyBinder::GetAssembly(assemblyPath,
-                                         fInspectionOnly,
-                                         fIsInGAC,
-                                         fExplicitBindToNativeImage,
-                                         ppAssembly
-                                         );
 }

@@ -22,9 +22,6 @@ enum PrecodeType {
 #ifdef HAS_NDIRECT_IMPORT_PRECODE
     PRECODE_NDIRECT_IMPORT  = NDirectImportPrecode::Type,
 #endif // HAS_NDIRECT_IMPORT_PRECODE
-#ifdef HAS_REMOTING_PRECODE
-    PRECODE_REMOTING        = RemotingPrecode::Type,
-#endif // HAS_REMOTING_PRECODE
 #ifdef HAS_FIXUP_PRECODE
     PRECODE_FIXUP           = FixupPrecode::Type,
 #endif // HAS_FIXUP_PRECODE
@@ -63,16 +60,6 @@ public:
 private:
 #endif // HAS_NDIRECT_IMPORT_PRECODE
 
-#ifdef HAS_REMOTING_PRECODE
-    RemotingPrecode* AsRemotingPrecode()
-    {
-        LIMITED_METHOD_CONTRACT;
-        SUPPORTS_DAC;
-
-        return dac_cast<PTR_RemotingPrecode>(this);
-    }
-#endif // HAS_REMOTING_PRECODE
-
 #ifdef HAS_FIXUP_PRECODE
     FixupPrecode* AsFixupPrecode()
     {
@@ -107,7 +94,7 @@ private:
         DacError(E_UNEXPECTED);
 #else
 #ifdef _PREFIX_
-        // We only use __UNREACHABLE here since otherwise it would be a hint 
+        // We only use __UNREACHABLE here since otherwise it would be a hint
         // for the compiler to fold this case with the other cases in a switch
         // statement. However, we would rather have this case be a separate
         // code path so that we will get a clean crash sooner.
@@ -195,7 +182,7 @@ public:
         SUPPORTS_DAC;
 
 #ifdef CROSSGEN_COMPILE
-        // Crossgen does not create jump stubs on AMD64, so just return always false here to 
+        // Crossgen does not create jump stubs on AMD64, so just return always false here to
         // avoid non-deterministic behavior.
         return FALSE;
 #else // CROSSGEN_COMPILE
@@ -219,12 +206,6 @@ public:
     {
         WRAPPER_NO_CONTRACT;
         SUPPORTS_DAC;
-
-#ifdef HAS_REMOTING_PRECODE
-        // Remoting precode is special case
-        if (GetType() == PRECODE_REMOTING)
-            return FALSE;
-#endif
 
         return IsPointingTo(GetTarget(), pNativeCode);
     }
@@ -304,7 +285,7 @@ public:
 
     //
     // Precode as temporary entrypoint
-    // 
+    //
 
     static SIZE_T SizeOfTemporaryEntryPoint(PrecodeType t)
     {
@@ -326,7 +307,7 @@ public:
 #ifdef FEATURE_PREJIT
     //
     // NGEN stuff
-    // 
+    //
 
     void Save(DataImage *image);
     void Fixup(DataImage *image, MethodDesc * pMD);
@@ -361,7 +342,7 @@ public:
     static DWORD GetOffset(PrecodeType t, DWORD index, DWORD count)
     {
         assert(t == PRECODE_FIXUP);
-        assert(index < count); 
+        assert(index < count);
         return (DWORD)((count - index - 1)* sizeof(FixupPrecode));
     }
 #endif

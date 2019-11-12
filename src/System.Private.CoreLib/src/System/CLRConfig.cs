@@ -4,7 +4,6 @@
 
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Microsoft.Win32;
 
 namespace System
 {
@@ -12,7 +11,7 @@ namespace System
     // one example, is using the context switch in the globalization code which require to read the switch very
     // early even before the appdomain get initialized.
     // In general AppContext should be used instead of CLRConfig if there is no reason prevent that.
-    internal class CLRConfig
+    internal static class CLRConfig
     {
         internal static bool GetBoolValue(string switchName, out bool exist)
         {
@@ -30,8 +29,7 @@ namespace System
             // abstractions where reasonably possible.
 
             Span<char> buffer = stackalloc char[32];
-
-            int length = Win32Native.GetEnvironmentVariable(environmentName, buffer);
+            int length = Interop.Kernel32.GetEnvironmentVariable(environmentName, buffer);
             switch (length)
             {
                 case 1:
@@ -53,7 +51,7 @@ namespace System
             return defaultValue;
         }
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern bool GetConfigBoolValue(string configSwitchName, out bool exist);
     }
 }

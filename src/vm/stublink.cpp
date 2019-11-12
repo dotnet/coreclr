@@ -12,7 +12,6 @@
 #include "threads.h"
 #include "excep.h"
 #include "stublink.h"
-#include "perfcounters.h"
 #include "stubgen.h"
 #include "stublink.inl"
 
@@ -122,8 +121,8 @@ void *__DEBUG__g_StubHeapSegments = &g_StubHeapSegments;
 //
 T_RUNTIME_FUNCTION*
 FindStubFunctionEntry (
-   WIN64_ONLY(IN ULONG64    ControlPc)
-    NOT_WIN64(IN ULONG      ControlPc),
+   BIT64_ONLY(IN ULONG64    ControlPc)
+    NOT_BIT64(IN ULONG      ControlPc),
               IN PVOID      Context
     )
 {
@@ -132,7 +131,6 @@ FindStubFunctionEntry (
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
     }
     CONTRACTL_END
 
@@ -202,14 +200,14 @@ bool UnregisterUnwindInfoInLoaderHeapCallback (PVOID pvArgs, PVOID pvAllocationB
         NOTHROW;
         GC_TRIGGERS;
     }
-    CONTRACTL_END;    
+    CONTRACTL_END;
 
     //
     // There may be multiple StubUnwindInfoHeapSegment's associated with a region.
     //
 
     LOG((LF_STUBS, LL_INFO1000, "Looking for stub unwind info for LoaderHeap segment %p size %p\n", pvAllocationBase, cbReserved));
-    
+
     CrstHolder crst(&g_StubUnwindInfoHeapSegmentsCrst);
 
     StubUnwindInfoHeapSegment *pStubHeapSegment;
@@ -292,20 +290,20 @@ class StubUnwindInfoSegmentBoundaryReservationList
     };
 
     ReservationList *m_pList;
-    
+
 public:
 
     StubUnwindInfoSegmentBoundaryReservationList ()
     {
         LIMITED_METHOD_CONTRACT;
-        
+
         m_pList = NULL;
     }
 
     ~StubUnwindInfoSegmentBoundaryReservationList ()
     {
         LIMITED_METHOD_CONTRACT;
-        
+
         ReservationList *pList = m_pList;
         while (pList)
         {
@@ -320,7 +318,7 @@ public:
     void AddStub (Stub *pStub)
     {
         LIMITED_METHOD_CONTRACT;
-        
+
         ReservationList *pList = ReservationList::FromStub(pStub);
 
         pList->pNext = m_pList;
@@ -345,7 +343,6 @@ StubLinker::StubLinker()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -391,7 +388,6 @@ VOID StubLinker::EmitBytes(const BYTE *pBytes, UINT numBytes)
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -457,7 +453,6 @@ VOID StubLinker::Emit16(unsigned __int16 val)
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -479,7 +474,6 @@ VOID StubLinker::Emit32(unsigned __int32 val)
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -522,7 +516,6 @@ VOID StubLinker::EmitPtr(const VOID *val)
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -547,7 +540,6 @@ CodeLabel* StubLinker::NewCodeLabel()
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -589,7 +581,6 @@ VOID StubLinker::EmitLabel(CodeLabel* pCodeLabel)
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -614,7 +605,6 @@ CodeLabel* StubLinker::EmitNewCodeLabel()
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -633,7 +623,6 @@ VOID StubLinker::EmitPatchLabel()
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -655,7 +644,6 @@ UINT32 StubLinker::GetLabelOffset(CodeLabel *pLabel)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -674,7 +662,6 @@ CodeLabel* StubLinker::NewExternalCodeLabel(LPVOID pExternalAddress)
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_TOLERANT;   
 
         PRECONDITION(CheckPointer(pExternalAddress));
     }
@@ -707,7 +694,6 @@ VOID StubLinker::EmitLabelRef(CodeLabel* target, const InstructionFormat & instr
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -739,7 +725,6 @@ CodeRun *StubLinker::GetLastCodeRunIfAny()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -782,7 +767,6 @@ VOID StubLinker::AppendCodeElement(CodeElement *pCodeElement)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -801,7 +785,6 @@ static BOOL LabelCanReach(LabelRef *pLabelRef)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -938,7 +921,6 @@ int StubLinker::CalculateSize(int* pGlobalSize)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -1164,7 +1146,7 @@ bool StubLinker::EmitStub(Stub* pStub, int globalsize, LoaderHeap* pHeap)
     }
 #endif // STUBLINKER_GENERATES_UNWIND_INFO
 
-    if (!m_fDataOnly) 
+    if (!m_fDataOnly)
     {
         FlushInstructionCache(GetCurrentProcess(), pCode, globalsize);
     }
@@ -1232,7 +1214,6 @@ VOID StubLinker::UnwindAllocStack (SHORT FrameSizeIncrement)
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     } CONTRACTL_END;
 
     if (! ClrSafeInt<SHORT>::addition(m_stackSize, FrameSizeIncrement, m_stackSize))
@@ -1280,7 +1261,6 @@ UNWIND_CODE *StubLinker::AllocUnwindInfo (UCHAR Op, UCHAR nExtraSlots /*= 0*/)
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     } CONTRACTL_END;
 
     _ASSERTE(Op < sizeof(UnwindOpExtraSlotTable));
@@ -1308,7 +1288,7 @@ UNWIND_CODE *StubLinker::AllocUnwindInfo (UCHAR Op, UCHAR nExtraSlots /*= 0*/)
 
     return pUnwindCode;
 }
-#endif // defined(_TARGET_AMD64_) 
+#endif // defined(_TARGET_AMD64_)
 
 struct FindBlockArgs
 {
@@ -1371,11 +1351,11 @@ bool StubLinker::EmitUnwindInfo(Stub* pStub, int globalsize, LoaderHeap* pHeap)
 
     //
     // The RUNTIME_FUNCTION offsets are ULONGs.  If the region size is >
-    // ULONG_MAX, then we'll shift the base address to the next 4gb and
+    // UINT32_MAX, then we'll shift the base address to the next 4gb and
     // register a separate function table.
     //
     // But...RtlInstallFunctionTableCallback has a 2gb restriction...so
-    // make that LONG_MAX.
+    // make that INT32_MAX.
     //
 
     StubUnwindInfoHeader *pHeader = pStub->GetUnwindInfoHeader();
@@ -1407,7 +1387,7 @@ bool StubLinker::EmitUnwindInfo(Stub* pStub, int globalsize, LoaderHeap* pHeap)
     // includes one UNWIND_CODE.
     _ASSERTE(IS_ALIGNED(pStub, sizeof(void*)));
     _ASSERTE(0 == (FIELD_OFFSET(StubUnwindInfoHeader, FunctionEntry) % sizeof(void*)));
-    
+
     StubUnwindInfoHeader * pUnwindInfoHeader = pStub->GetUnwindInfoHeader();
 
 #ifdef _TARGET_AMD64_
@@ -1517,11 +1497,11 @@ bool StubLinker::EmitUnwindInfo(Stub* pStub, int globalsize, LoaderHeap* pHeap)
         COMPlusThrowArithmetic();
     pCurFunction->BeginAddress = sBeginAddress.Value();
 
-    S_UINT32 sEndAddress = S_BYTEPTR(pCode) + S_BYTEPTR(globalsize) - S_BYTEPTR(pbBaseAddress);    
+    S_UINT32 sEndAddress = S_BYTEPTR(pCode) + S_BYTEPTR(globalsize) - S_BYTEPTR(pbBaseAddress);
     if (sEndAddress.IsOverflow())
         COMPlusThrowArithmetic();
     pCurFunction->EndAddress = sEndAddress.Value();
-            
+
     S_UINT32 sTemp = S_BYTEPTR(pUnwindInfo) - S_BYTEPTR(pbBaseAddress);
     if (sTemp.IsOverflow())
         COMPlusThrowArithmetic();
@@ -1545,7 +1525,7 @@ bool StubLinker::EmitUnwindInfo(Stub* pStub, int globalsize, LoaderHeap* pHeap)
         COMPlusThrowArithmetic();
     RUNTIME_FUNCTION__SetUnwindInfoAddress(pCurFunction, sTemp.Value());
 
-    //Get the exact function Length. Cannot use globalsize as it is explicitly made to be 
+    //Get the exact function Length. Cannot use globalsize as it is explicitly made to be
     // 4 byte aligned
     CodeRun *pLastCodeElem = GetLastCodeRunIfAny();
     _ASSERTE(pLastCodeElem != NULL);
@@ -1554,7 +1534,7 @@ bool StubLinker::EmitUnwindInfo(Stub* pStub, int globalsize, LoaderHeap* pHeap)
 
     // cannot encode functionLength greater than (2 * 0xFFFFF)
     if (functionLength > 2 * 0xFFFFF)
-        COMPlusThrowArithmetic();     
+        COMPlusThrowArithmetic();
 
     _ASSERTE(functionLength <= globalsize);
 
@@ -1598,7 +1578,7 @@ bool StubLinker::EmitUnwindInfo(Stub* pStub, int globalsize, LoaderHeap* pHeap)
 
     // Unwind info generated will be incorrect when m_cCalleeSavedRegs = 0.
     // The unwind code will say that the size of push/pop instruction
-    // size is 16bits when actually the opcode generated by 
+    // size is 16bits when actually the opcode generated by
     // ThumbEmitPop & ThumbEMitPush will be 32bits.
     // Currently no stubs has m_cCalleeSavedRegs as 0
     // therfore just adding the assert.
@@ -1666,7 +1646,7 @@ bool StubLinker::EmitUnwindInfo(Stub* pStub, int globalsize, LoaderHeap* pHeap)
     //Check that MAX_UNWIND_CODE_WORDS is sufficient to store all unwind Codes
     _ASSERTE(codeWordsCount <= MAX_UNWIND_CODE_WORDS);
 
-    *(DWORD *)pUnwindInfo = 
+    *(DWORD *)pUnwindInfo =
         ((functionLength) / 2) |
         (1 << 21) |
         ((int)epilogUnwindCodeIndex << 23)|
@@ -1685,7 +1665,7 @@ bool StubLinker::EmitUnwindInfo(Stub* pStub, int globalsize, LoaderHeap* pHeap)
         // Fill in the RUNTIME_FUNCTION struct for this prologue.
         //
         UNWIND_INFO *pUnwindInfo = &(pUnwindInfoHeader->UnwindInfo);
-    
+
         T_RUNTIME_FUNCTION *pCurFunction = &(pUnwindInfoHeader->FunctionEntry);
 
         _ASSERTE(IS_ALIGNED(pCurFunction, sizeof(void*)));
@@ -1707,16 +1687,16 @@ bool StubLinker::EmitUnwindInfo(Stub* pStub, int globalsize, LoaderHeap* pHeap)
         int functionLength = pLastCodeElem->m_numcodebytes + pLastCodeElem->m_globaloffset;
 
         // .xdata has 18 bits for function length and it is to store the total length of the function in bytes, divided by 4
-        // If the function is larger than 1M, then multiple pdata and xdata records must be used, which we don't support right now. 
+        // If the function is larger than 1M, then multiple pdata and xdata records must be used, which we don't support right now.
         if (functionLength > 4 * 0x3FFFF)
-            COMPlusThrowArithmetic();     
+            COMPlusThrowArithmetic();
 
         _ASSERTE(functionLength <= globalsize);
 
         // No support for extended code words and/or extended epilog.
         // ASSERTION: first 10 bits of the pUnwindInfo, which holds the #codewords and #epilogcount, cannot be 0
         // And no space for exception scope data also means that no support for exceptions for the stubs
-        // generated with this stublinker. 
+        // generated with this stublinker.
         BYTE * pUnwindCodes = (BYTE *)pUnwindInfo + sizeof(DWORD);
 
 
@@ -1728,7 +1708,7 @@ bool StubLinker::EmitUnwindInfo(Stub* pStub, int globalsize, LoaderHeap* pHeap)
         // to report them to the OS. (they are not expressible anyways)
 
         // 5. Floating point argument registers:
-        // Similar to Integer argumetn registers, no reporting
+        // Similar to Integer argument registers, no reporting
         //
 
         // 4. Set the frame pointer
@@ -1772,19 +1752,19 @@ bool StubLinker::EmitUnwindInfo(Stub* pStub, int globalsize, LoaderHeap* pHeap)
 
         // 1. SP Relocation
         //
-        // EmitProlog is supposed to reject frames larger than 504 bytes. 
+        // EmitProlog is supposed to reject frames larger than 504 bytes.
         // Assert that here.
         _ASSERTE(cStackFrameSizeInQWORDs <= 0x3F);
         if (cStackFrameSizeInQWORDs <= 0x1F)
         {
             // alloc_s
-            *pUnwindCodes++ = (BYTE)(cStackFrameSizeInQWORDs); 
+            *pUnwindCodes++ = (BYTE)(cStackFrameSizeInQWORDs);
         }
         else
         {
             // alloc_m
             *pUnwindCodes++ = (BYTE)(0xC0 | (cStackFrameSizeInQWORDs >> 8));
-            *pUnwindCodes++ = (BYTE)(cStackFrameSizeInQWORDs); 
+            *pUnwindCodes++ = (BYTE)(cStackFrameSizeInQWORDs);
         }
 
         // End
@@ -1796,11 +1776,11 @@ bool StubLinker::EmitUnwindInfo(Stub* pStub, int globalsize, LoaderHeap* pHeap)
         //Check that MAX_UNWIND_CODE_WORDS is sufficient to store all unwind Codes
         _ASSERTE(codeWordsCount <= MAX_UNWIND_CODE_WORDS);
 
-        *(DWORD *)pUnwindInfo = 
+        *(DWORD *)pUnwindInfo =
             ((functionLength) / 4) |
             (1 << 21) |     // E bit
             (epilogUnwindCodeIndex << 22)|
-            (codeWordsCount << 27);  
+            (codeWordsCount << 27);
     } // end else (!m_fProlog)
 #else
     PORTABILITY_ASSERT("StubLinker::EmitUnwindInfo");
@@ -1847,7 +1827,7 @@ bool StubLinker::EmitUnwindInfo(Stub* pStub, int globalsize, LoaderHeap* pHeap)
             cbSegment = MaxSegmentSize;
 
         NewHolder<StubUnwindInfoHeapSegment> pNewStubHeapSegment = new StubUnwindInfoHeapSegment();
-        
+
 
         pNewStubHeapSegment->pbBaseAddress = pbBaseAddress;
         pNewStubHeapSegment->cbSegment = cbSegment;
@@ -1883,8 +1863,8 @@ bool StubLinker::EmitUnwindInfo(Stub* pStub, int globalsize, LoaderHeap* pHeap)
 #ifdef _TARGET_AMD64_
     // Publish Unwind info to ETW stack crawler
     UnwindInfoTable::AddToUnwindInfoTable(
-        &pStubHeapSegment->pUnwindInfoTable, pCurFunction, 
-        (TADDR) pStubHeapSegment->pbBaseAddress, 
+        &pStubHeapSegment->pUnwindInfoTable, pCurFunction,
+        (TADDR) pStubHeapSegment->pbBaseAddress,
         (TADDR) pStubHeapSegment->pbBaseAddress + pStubHeapSegment->cbSegment);
 #endif
 
@@ -1910,7 +1890,7 @@ void StubLinker::DescribeProlog(UINT cCalleeSavedRegs, UINT cbStackFrame, BOOL f
 void StubLinker::DescribeProlog(UINT cIntRegArgs, UINT cVecRegArgs, UINT cCalleeSavedRegs, UINT cbStackSpace)
 {
     m_fProlog               = TRUE;
-    m_cIntRegArgs           = cIntRegArgs; 
+    m_cIntRegArgs           = cIntRegArgs;
     m_cVecRegArgs           = cVecRegArgs;
     m_cCalleeSavedRegs      = cCalleeSavedRegs;
     m_cbStackSpace          = cbStackSpace;
@@ -1988,8 +1968,6 @@ VOID Stub::DeleteStub()
     }
     CONTRACTL_END;
 
-    COUNTER_ONLY(GetPerfCounters().m_Interop.cStubs--);
-
 #ifdef STUBLINKER_GENERATES_UNWIND_INFO
     if (HasUnwindInfo())
     {
@@ -2012,7 +1990,7 @@ VOID Stub::DeleteStub()
             {
                 PBYTE pbCode = (PBYTE)GetEntryPointInternal();
 #ifdef _TARGET_AMD64_
-                UnwindInfoTable::RemoveFromUnwindInfoTable(&pSegment->pUnwindInfoTable, 
+                UnwindInfoTable::RemoveFromUnwindInfoTable(&pSegment->pUnwindInfoTable,
                     (TADDR) pSegment->pbBaseAddress, (TADDR) pbCode);
 #endif
                 for (StubUnwindInfoHeapSegment *pNextSegment = pSegment->pNext;
@@ -2073,7 +2051,7 @@ VOID Stub::DeleteStub()
     }
 #endif
 
-    // a size of 0 is a signal to Nirvana to flush the entire cache 
+    // a size of 0 is a signal to Nirvana to flush the entire cache
     //FlushInstructionCache(GetCurrentProcess(),0,0);
 
     if ((m_patchOffset & LOADER_HEAP_BIT) == 0)
@@ -2168,15 +2146,13 @@ Stub* Stub::NewStub(PTR_VOID pCode, DWORD flags)
     _ASSERTE(!nUnwindInfoSize || !pHeap || pHeap->m_fPermitStubsWithUnwindInfo);
 #endif // STUBLINKER_GENERATES_UNWIND_INFO
 
-    COUNTER_ONLY(GetPerfCounters().m_Interop.cStubs++);
-
     S_SIZE_T size = S_SIZE_T(sizeof(Stub));
 
     if (flags & NEWSTUB_FL_INTERCEPT)
     {
         size += sizeof(Stub *) + sizeof(void*);
     }
-    
+
 #ifdef STUBLINKER_GENERATES_UNWIND_INFO
     if (nUnwindInfoSize != 0)
     {
@@ -2216,7 +2192,7 @@ Stub* Stub::NewStub(PTR_VOID pCode, DWORD flags)
     }
 
     // Make sure that the payload of the stub is aligned
-    Stub* pStub = (Stub*)((pBlock + totalSize) - 
+    Stub* pStub = (Stub*)((pBlock + totalSize) -
         (sizeof(Stub) + ((flags & NEWSTUB_FL_EXTERNAL) ? sizeof(PTR_PCODE) : numCodeBytes)));
 
     pStub->SetupStub(
@@ -2248,7 +2224,7 @@ void Stub::SetupStub(int numCodeBytes, DWORD flags
 #ifdef _DEBUG
     m_signature = kUsedStub;
 #else
-#ifdef _WIN64
+#ifdef BIT64
     m_pad_code_bytes = 0;
 #endif
 #endif
@@ -2342,7 +2318,7 @@ void Stub::SetupStub(int numCodeBytes, DWORD flags
     InterceptStub *pStub = (InterceptStub *) NewStub(
             pHeap,
             numCodeBytes,
-            NEWSTUB_FL_INTERCEPT            
+            NEWSTUB_FL_INTERCEPT
 #ifdef STUBLINKER_GENERATES_UNWIND_INFO
             , nUnwindInfoSize
 #endif
@@ -2413,7 +2389,7 @@ ArgBasedStubCache::~ArgBasedStubCache()
             pStub->DecRef();
         }
     }
-    // a size of 0 is a signal to Nirvana to flush the entire cache 
+    // a size of 0 is a signal to Nirvana to flush the entire cache
     // not sure if this is needed, but should have no CLR perf impact since size is 0.
     FlushInstructionCache(GetCurrentProcess(),0,0);
 

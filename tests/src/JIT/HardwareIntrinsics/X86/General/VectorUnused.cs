@@ -21,8 +21,8 @@ internal partial class IntelHardwareIntrinsicTest
         {
             if (Sse2.IsSupported)
             {
-                Vector128<T> v1 = SetAllVector128<T>(t1);
-                v1 = Vector128Add<T>(v1, SetZeroVector128<T>());
+                Vector128<T> v1 = CreateVector128<T>(t1);
+                v1 = Vector128Add<T>(v1, Vector128<T>.Zero);
             }
 
             return Pass;
@@ -33,10 +33,10 @@ internal partial class IntelHardwareIntrinsicTest
     {
         public static int VectorUnused(T t1, T t2)
         {
-            if (Avx.IsSupported)
+            if (Avx2.IsSupported)
             {
-                Vector256<T> v1 = Avx.SetAllVector256<T>(t1);
-                v1 = Avx.Permute2x128(v1, Avx.SetAllVector256<T>(t2), 1);
+                Vector256<T> v1 = CreateVector256<T>(t1);
+                v1 = Vector256Add<T>(v1, CreateVector256<T>(t2));
             }
             return Pass;
         }

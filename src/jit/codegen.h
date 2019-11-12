@@ -10,8 +10,8 @@
 
 #ifndef _CODEGEN_H_
 #define _CODEGEN_H_
-#include "compiler.h" // temporary??
 #include "codegeninterface.h"
+#include "compiler.h" // temporary??
 #include "regset.h"
 #include "jitgcinfo.h"
 
@@ -92,26 +92,10 @@ private:
         }
     }
 
-    enum CompareKind
-    {
-        CK_SIGNED,
-        CK_UNSIGNED,
-        CK_LOGICAL
-    };
-    static emitJumpKind genJumpKindForOper(genTreeOps cmp, CompareKind compareKind);
-
-    // For a given compare oper tree, returns the conditions to use with jmp/set in 'jmpKind' array.
-    // The corresponding elements of jmpToTrueLabel indicate whether the target of the jump is to the
-    // 'true' label or a 'false' label.
-    //
-    // 'true' label corresponds to jump target of the current basic block i.e. the target to
-    // branch to on compare condition being true.  'false' label corresponds to the target to
-    // branch to on condition being false.
-    static void genJumpKindsForTree(GenTree* cmpTree, emitJumpKind jmpKind[2], bool jmpToTrueLabel[2]);
-
     static bool genShouldRoundFP();
 
     GenTreeIndir indirForm(var_types type, GenTree* base);
+    GenTreeStoreInd storeIndirForm(var_types type, GenTree* base, GenTree* data);
 
     GenTreeIntCon intForm(var_types type, ssize_t value);
 
@@ -121,11 +105,6 @@ private:
 #ifdef _TARGET_XARCH_
     void genCodeForLockAdd(GenTreeOp* node);
 #endif
-
-    //-------------------------------------------------------------------------
-    // Register-related methods
-
-    void rsInit();
 
 #ifdef REG_OPT_RSVD
     // On some targets such as the ARM we may need to have an extra reserved register
@@ -147,10 +126,6 @@ private:
 
     bool     genUseBlockInit;  // true if we plan to block-initialize the local stack frame
     unsigned genInitStkLclCnt; // The count of local variables that we need to zero init
-
-    //  Keeps track of how many bytes we've pushed on the processor's stack.
-    //
-    unsigned genStackLevel;
 
     void SubtractStackLevel(unsigned adjustment)
     {
@@ -181,13 +156,6 @@ private:
         }
         genStackLevel = newStackLevel;
     }
-
-#if STACK_PROBES
-    // Stack Probes
-    bool genNeedPrologStackProbe;
-
-    void genGenerateStackProbe();
-#endif
 
     //-------------------------------------------------------------------------
 
@@ -233,9 +201,11 @@ protected:
 
 #ifdef DEBUG
     static const char* genSizeStr(emitAttr size);
-
-    void genStressRegs(GenTree* tree);
 #endif // DEBUG
+
+    void genInitialize();
+
+    void genInitializeRegisterState();
 
     void genCodeForBBlist();
 
@@ -249,7 +219,12 @@ protected:
 
     BasicBlock* genCreateTempLabel();
 
+private:
+    void genLogLabel(BasicBlock* bb);
+
+protected:
     void genDefineTempLabel(BasicBlock* label);
+    void genDefineInlineTempLabel(BasicBlock* label);
 
     void genAdjustSP(target_ssize_t delta);
 
@@ -257,7 +232,7 @@ protected:
 
     void genExitCode(BasicBlock* block);
 
-    void genJumpToThrowHlpBlk(emitJumpKind jumpKind, SpecialCodeKind codeKind, GenTree* failBlk = nullptr);
+    void genJumpToThrowHlpBlk(emitJumpKind jumpKind, SpecialCodeKind codeKind, BasicBlock* failBlk = nullptr);
 
     void genCheckOverflow(GenTree* tree);
 
@@ -288,25 +263,54 @@ protected:
                               regNumber   tmpReg,
                               bool        inUnwindRegion = false);
 
-    void genStackPointerAdjustment(ssize_t spAdjustment, regNumber tmpReg, bool* pTmpRegIsZero);
+    void genStackPointerAdjustment(ssize_t spAdjustment, regNumber tmpReg, bool* pTmpRegIsZero, bool reportUnwindData);
 
     void genPrologSaveRegPair(regNumber reg1,
                               regNumber reg2,
                               int       spOffset,
                               int       spDelta,
-                              bool      lastSavedWasPreviousPair,
+                              bool      useSaveNextPair,
                               regNumber tmpReg,
                               bool*     pTmpRegIsZero);
 
     void genPrologSaveReg(regNumber reg1, int spOffset, int spDelta, regNumber tmpReg, bool* pTmpRegIsZero);
 
-    void genEpilogRestoreRegPair(
-        regNumber reg1, regNumber reg2, int spOffset, int spDelta, regNumber tmpReg, bool* pTmpRegIsZero);
+    void genEpilogRestoreRegPair(regNumber reg1,
+                                 regNumber reg2,
+                                 int       spOffset,
+                                 int       spDelta,
+                                 bool      useSaveNextPair,
+                                 regNumber tmpReg,
+                                 bool*     pTmpRegIsZero);
 
     void genEpilogRestoreReg(regNumber reg1, int spOffset, int spDelta, regNumber tmpReg, bool* pTmpRegIsZero);
 
-    void genSaveCalleeSavedRegistersHelp(regMaskTP regsToSaveMask, int lowestCalleeSavedOffset, int spDelta);
+    // A simple struct to keep register pairs for prolog and epilog.
+    struct RegPair
+    {
+        regNumber reg1;
+        regNumber reg2;
+        bool      useSaveNextPair;
 
+        RegPair(regNumber reg1) : reg1(reg1), reg2(REG_NA), useSaveNextPair(false)
+        {
+        }
+
+        RegPair(regNumber reg1, regNumber reg2) : reg1(reg1), reg2(reg2), useSaveNextPair(false)
+        {
+            assert(reg2 == REG_NEXT(reg1));
+        }
+    };
+
+    static void genBuildRegPairsStack(regMaskTP regsMask, ArrayStack<RegPair>* regStack);
+    static void genSetUseSaveNextPairs(ArrayStack<RegPair>* regStack);
+
+    static int genGetSlotSizeForRegsInMask(regMaskTP regsMask);
+
+    void genSaveCalleeSavedRegisterGroup(regMaskTP regsMask, int spDelta, int spOffset);
+    void genRestoreCalleeSavedRegisterGroup(regMaskTP regsMask, int spDelta, int spOffset);
+
+    void genSaveCalleeSavedRegistersHelp(regMaskTP regsToSaveMask, int lowestCalleeSavedOffset, int spDelta);
     void genRestoreCalleeSavedRegistersHelp(regMaskTP regsToRestoreMask, int lowestCalleeSavedOffset, int spDelta);
 
     void genPushCalleeSavedRegisters(regNumber initReg, bool* pInitRegZeroed);
@@ -317,6 +321,11 @@ protected:
     void genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pInitRegZeroed, regMaskTP maskArgRegsLiveIn);
 
 #if defined(_TARGET_ARM_)
+
+    bool genInstrWithConstant(
+        instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, ssize_t imm, insFlags flags, regNumber tmpReg);
+
+    bool genStackPointerAdjustment(ssize_t spAdjustment, regNumber tmpReg);
 
     void genPushFltRegs(regMaskTP regMask);
     void genPopFltRegs(regMaskTP regMask);
@@ -410,7 +419,7 @@ protected:
 
 #ifdef PROFILING_SUPPORTED
     void genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed);
-    void genProfilingLeaveCallback(unsigned helper = CORINFO_HELP_PROF_FCN_LEAVE);
+    void genProfilingLeaveCallback(unsigned helper);
 #endif // PROFILING_SUPPORTED
 
     void genPrologPadForReJit();
@@ -467,7 +476,7 @@ protected:
     void genFnProlog();
     void genFnEpilog(BasicBlock* block);
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 
     void genReserveFuncletProlog(BasicBlock* block);
     void genReserveFuncletEpilog(BasicBlock* block);
@@ -482,7 +491,7 @@ protected:
     void genInsertNopForUnwinder(BasicBlock* block);
 #endif
 
-#else // FEATURE_EH_FUNCLETS
+#else // !FEATURE_EH_FUNCLETS
 
     // This is a no-op when there are no funclets!
     void genUpdateCurrentFunclet(BasicBlock* block)
@@ -497,7 +506,7 @@ protected:
     }
 #endif
 
-#endif // FEATURE_EH_FUNCLETS
+#endif // !FEATURE_EH_FUNCLETS
 
     void genGeneratePrologsAndEpilogs();
 
@@ -508,6 +517,12 @@ protected:
 #if defined(DEBUG) && defined(LATE_DISASM) && defined(_TARGET_AMD64_)
     void genAmd64EmitterUnitTests();
 #endif
+
+#ifdef _TARGET_ARM64_
+    virtual void SetSaveFpLrWithAllCalleeSavedRegisters(bool value);
+    virtual bool IsSaveFpLrWithAllCalleeSavedRegisters() const;
+    bool         genSaveFpLrWithAllCalleeSavedRegisters;
+#endif // _TARGET_ARM64_
 
     //-------------------------------------------------------------------------
     //
@@ -544,49 +559,70 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     //-------------------------------------------------------------------------
     // scope info for the variables
 
-    void genSetScopeInfo(unsigned            which,
-                         UNATIVE_OFFSET      startOffs,
-                         UNATIVE_OFFSET      length,
-                         unsigned            varNum,
-                         unsigned            LVnum,
-                         bool                avail,
-                         Compiler::siVarLoc& loc);
+    void genSetScopeInfo(unsigned       which,
+                         UNATIVE_OFFSET startOffs,
+                         UNATIVE_OFFSET length,
+                         unsigned       varNum,
+                         unsigned       LVnum,
+                         bool           avail,
+                         siVarLoc*      varLoc);
 
     void genSetScopeInfo();
+#ifdef USING_VARIABLE_LIVE_RANGE
+    // Send VariableLiveRanges as debug info to the debugger
+    void genSetScopeInfoUsingVariableRanges();
+#endif // USING_VARIABLE_LIVE_RANGE
 
-    void genRemoveBBsection(BasicBlock* head, BasicBlock* tail);
+#ifdef USING_SCOPE_INFO
+    void genSetScopeInfoUsingsiScope();
 
-protected:
-    /*
-    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    XX                                                                           XX
-    XX                           ScopeInfo                                       XX
-    XX                                                                           XX
-    XX  Keeps track of the scopes during code-generation.                        XX
-    XX  This is used to translate the local-variable debugging information       XX
-    XX  from IL offsets to native code offsets.                                  XX
-    XX                                                                           XX
-    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    */
+/*
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XX                                                                           XX
+XX                           ScopeInfo                                       XX
+XX                                                                           XX
+XX  Keeps track of the scopes during code-generation.                        XX
+XX  This is used to translate the local-variable debugging information       XX
+XX  from IL offsets to native code offsets.                                  XX
+XX                                                                           XX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+*/
 
-    /*****************************************************************************/
-    /*****************************************************************************
-     *                              ScopeInfo
-     *
-     * This class is called during code gen at block-boundaries, and when the
-     * set of live variables changes. It keeps track of the scope of the variables
-     * in terms of the native code PC.
-     */
+/*****************************************************************************/
+/*****************************************************************************
+ *                              ScopeInfo
+ *
+ * This class is called during code gen at block-boundaries, and when the
+ * set of live variables changes. It keeps track of the scope of the variables
+ * in terms of the native code PC.
+ */
 
+#endif // USING_SCOPE_INFO
 public:
     void siInit();
+    void checkICodeDebugInfo();
 
+    // The logic used to report debug info on debug code is the same for ScopeInfo and
+    // VariableLiveRange
     void siBeginBlock(BasicBlock* block);
-
     void siEndBlock(BasicBlock* block);
 
+    // VariableLiveRange and siScope needs this method to report variables on debug code
+    void siOpenScopesForNonTrackedVars(const BasicBlock* block, unsigned int lastBlockILEndOffset);
+
+protected:
+#if defined(FEATURE_EH_FUNCLETS)
+    bool siInFuncletRegion; // Have we seen the start of the funclet region?
+#endif                      // FEATURE_EH_FUNCLETS
+
+    IL_OFFSET siLastEndOffs; // IL offset of the (exclusive) end of the last block processed
+
+#ifdef USING_SCOPE_INFO
+
+public:
+    // Closes the "ScopeInfo" of the tracked variables that has become dead.
     virtual void siUpdate();
 
     void siCheckVarScope(unsigned varNum, IL_OFFSET offs);
@@ -611,11 +647,14 @@ protected:
         unsigned scLVnum;  // 'which' in eeGetLVinfo()
 
         unsigned scStackLevel; // Only for stk-vars
-        bool scAvailable : 1;  // It has a home / Home recycled - TODO-Cleanup: it appears this is unused (always true)
 
         siScope* scPrev;
         siScope* scNext;
     };
+
+    // Returns a "siVarLoc" instance representing the place where the variable lives base on
+    // varDsc and scope description.
+    CodeGenInterface::siVarLoc getSiVarLoc(const LclVarDsc* varDsc, const siScope* scope) const;
 
     siScope siOpenScopeList, siScopeList, *siOpenScopeLast, *siScopeLast;
 
@@ -626,12 +665,6 @@ protected:
     // Tracks the last entry for each tracked register variable
 
     siScope** siLatestTrackedScopes;
-
-    IL_OFFSET siLastEndOffs; // IL offset of the (exclusive) end of the last block processed
-
-#if FEATURE_EH_FUNCLETS
-    bool siInFuncletRegion; // Have we seen the start of the funclet region?
-#endif                      // FEATURE_EH_FUNCLETS
 
     // Functions
 
@@ -658,33 +691,38 @@ public:
     const char* siStackVarName(size_t offs, size_t size, unsigned reg, unsigned stkOffs);
 #endif // LATE_DISASM
 
-public:
-    /*
-    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    XX                                                                           XX
-    XX                          PrologScopeInfo                                  XX
-    XX                                                                           XX
-    XX We need special handling in the prolog block, as the parameter variables  XX
-    XX may not be in the same position described by genLclVarTable - they all    XX
-    XX start out on the stack                                                    XX
-    XX                                                                           XX
-    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    */
-
+/*
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XX                                                                           XX
+XX                          PrologScopeInfo                                  XX
+XX                                                                           XX
+XX We need special handling in the prolog block, as the parameter variables  XX
+XX may not be in the same position described by genLclVarTable - they all    XX
+XX start out on the stack                                                    XX
+XX                                                                           XX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+*/
+#endif // USING_SCOPE_INFO
 public:
     void psiBegProlog();
 
+    void psiEndProlog();
+
+#ifdef USING_SCOPE_INFO
     void psiAdjustStackLevel(unsigned size);
 
+    // For EBP-frames, the parameters are accessed via ESP on entry to the function,
+    // but via EBP right after a "mov ebp,esp" instruction.
     void psiMoveESPtoEBP();
 
+    // Close previous psiScope and open a new one on the location described by the registers.
     void psiMoveToReg(unsigned varNum, regNumber reg = REG_NA, regNumber otherReg = REG_NA);
 
+    // Search the open "psiScope" of the "varNum" parameter, close it and open
+    // a new one using "LclVarDsc" fields.
     void psiMoveToStack(unsigned varNum);
-
-    void psiEndProlog();
 
     /**************************************************************************
      *                          PROTECTED
@@ -722,6 +760,10 @@ protected:
 
         psiScope* scPrev;
         psiScope* scNext;
+
+        // Returns a "siVarLoc" instance representing the place where the variable lives base on
+        // psiScope properties.
+        CodeGenInterface::siVarLoc getSiVarLoc() const;
     };
 
     psiScope psiOpenScopeList, psiScopeList, *psiOpenScopeLast, *psiScopeLast;
@@ -734,26 +776,30 @@ protected:
 
     void psiEndPrologScope(psiScope* scope);
 
-    void psSetScopeOffset(psiScope* newScope, LclVarDsc* lclVarDsc1);
+    void psiSetScopeOffset(psiScope* newScope, const LclVarDsc* lclVarDsc) const;
+#endif // USING_SCOPE_INFO
 
-/*****************************************************************************
- *                        TrnslLocalVarInfo
- *
- * This struct holds the LocalVarInfo in terms of the generated native code
- * after a call to genSetScopeInfo()
- */
+    NATIVE_OFFSET psiGetVarStackOffset(const LclVarDsc* lclVarDsc) const;
 
+    /*****************************************************************************
+     *                        TrnslLocalVarInfo
+     *
+     * This struct holds the LocalVarInfo in terms of the generated native code
+     * after a call to genSetScopeInfo()
+     */
+
+protected:
 #ifdef DEBUG
 
     struct TrnslLocalVarInfo
     {
-        unsigned           tlviVarNum;
-        unsigned           tlviLVnum;
-        VarName            tlviName;
-        UNATIVE_OFFSET     tlviStartPC;
-        size_t             tlviLength;
-        bool               tlviAvailable;
-        Compiler::siVarLoc tlviVarLoc;
+        unsigned       tlviVarNum;
+        unsigned       tlviLVnum;
+        VarName        tlviName;
+        UNATIVE_OFFSET tlviStartPC;
+        size_t         tlviLength;
+        bool           tlviAvailable;
+        siVarLoc       tlviVarLoc;
     };
 
     // Array of scopes of LocalVars in terms of native code
@@ -897,7 +943,6 @@ protected:
     void genSIMDZero(var_types targetType, var_types baseType, regNumber targetReg);
     void genSIMDIntrinsicInit(GenTreeSIMD* simdNode);
     void genSIMDIntrinsicInitN(GenTreeSIMD* simdNode);
-    void genSIMDIntrinsicInitArray(GenTreeSIMD* simdNode);
     void genSIMDIntrinsicUnOp(GenTreeSIMD* simdNode);
     void genSIMDIntrinsicBinOp(GenTreeSIMD* simdNode);
     void genSIMDIntrinsicRelOp(GenTreeSIMD* simdNode);
@@ -919,7 +964,6 @@ protected:
     void genSIMDExtractUpperHalf(GenTreeSIMD* simdNode, regNumber srcReg, regNumber tgtReg);
     void genSIMDIntrinsicWiden(GenTreeSIMD* simdNode);
     void genSIMDIntrinsic(GenTreeSIMD* simdNode);
-    void genSIMDCheck(GenTree* treeNode);
 
     // TYP_SIMD12 (i.e Vector3 of size 12 bytes) is not a hardware supported size and requires
     // two reads/writes on 64-bit targets. These routines abstract reading/writing of Vector3
@@ -939,21 +983,23 @@ protected:
 #ifdef FEATURE_HW_INTRINSICS
     void genHWIntrinsic(GenTreeHWIntrinsic* node);
 #if defined(_TARGET_XARCH_)
-    void genHWIntrinsic_R_RM(GenTreeHWIntrinsic* node, instruction ins, emitAttr attr);
+    void genHWIntrinsic_R_RM(GenTreeHWIntrinsic* node, instruction ins, emitAttr attr, regNumber reg, GenTree* rmOp);
     void genHWIntrinsic_R_RM_I(GenTreeHWIntrinsic* node, instruction ins, int8_t ival);
     void genHWIntrinsic_R_R_RM(GenTreeHWIntrinsic* node, instruction ins, emitAttr attr);
+    void genHWIntrinsic_R_R_RM(
+        GenTreeHWIntrinsic* node, instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, GenTree* op2);
     void genHWIntrinsic_R_R_RM_I(GenTreeHWIntrinsic* node, instruction ins, int8_t ival);
     void genHWIntrinsic_R_R_RM_R(GenTreeHWIntrinsic* node, instruction ins);
     void genHWIntrinsic_R_R_R_RM(
         instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber op2Reg, GenTree* op3);
+    void genBaseIntrinsic(GenTreeHWIntrinsic* node);
     void genSSEIntrinsic(GenTreeHWIntrinsic* node);
     void genSSE2Intrinsic(GenTreeHWIntrinsic* node);
     void genSSE41Intrinsic(GenTreeHWIntrinsic* node);
     void genSSE42Intrinsic(GenTreeHWIntrinsic* node);
     void genAvxOrAvx2Intrinsic(GenTreeHWIntrinsic* node);
     void genAESIntrinsic(GenTreeHWIntrinsic* node);
-    void genBMI1Intrinsic(GenTreeHWIntrinsic* node);
-    void genBMI2Intrinsic(GenTreeHWIntrinsic* node);
+    void genBMI1OrBMI2Intrinsic(GenTreeHWIntrinsic* node);
     void genFMAIntrinsic(GenTreeHWIntrinsic* node);
     void genLZCNTIntrinsic(GenTreeHWIntrinsic* node);
     void genPCLMULQDQIntrinsic(GenTreeHWIntrinsic* node);
@@ -967,21 +1013,7 @@ protected:
                                          HWIntrinsicSwitchCaseBody emitSwCase);
 #endif // defined(_TARGET_XARCH_)
 #if defined(_TARGET_ARM64_)
-    instruction getOpForHWIntrinsic(GenTreeHWIntrinsic* node, var_types instrType);
-    void genHWIntrinsicUnaryOp(GenTreeHWIntrinsic* node);
-    void genHWIntrinsicCrcOp(GenTreeHWIntrinsic* node);
-    void genHWIntrinsicSimdBinaryOp(GenTreeHWIntrinsic* node);
-    void genHWIntrinsicSimdExtractOp(GenTreeHWIntrinsic* node);
-    void genHWIntrinsicSimdInsertOp(GenTreeHWIntrinsic* node);
-    void genHWIntrinsicSimdSelectOp(GenTreeHWIntrinsic* node);
-    void genHWIntrinsicSimdSetAllOp(GenTreeHWIntrinsic* node);
-    void genHWIntrinsicSimdUnaryOp(GenTreeHWIntrinsic* node);
-    void genHWIntrinsicSimdBinaryRMWOp(GenTreeHWIntrinsic* node);
-    void genHWIntrinsicSimdTernaryRMWOp(GenTreeHWIntrinsic* node);
-    void genHWIntrinsicShaHashOp(GenTreeHWIntrinsic* node);
-    void genHWIntrinsicShaRotateOp(GenTreeHWIntrinsic* node);
-    template <typename HWIntrinsicSwitchCaseBody>
-    void genHWIntrinsicSwitchTable(regNumber swReg, regNumber tmpReg, int swMax, HWIntrinsicSwitchCaseBody emitSwCase);
+    void genSpecialIntrinsic(GenTreeHWIntrinsic* node);
 #endif // defined(_TARGET_XARCH_)
 #endif // FEATURE_HW_INTRINSICS
 
@@ -993,6 +1025,8 @@ protected:
 
 #endif // !defined(_TARGET_64BIT_)
 
+    // Do liveness update for register produced by the current node in codegen after
+    // code has been emitted for it.
     void genProduceReg(GenTree* tree);
     void genUnspillRegIfNeeded(GenTree* tree);
     regNumber genConsumeReg(GenTree* tree);
@@ -1028,6 +1062,9 @@ protected:
 
     void genConsumeRegs(GenTree* tree);
     void genConsumeOperands(GenTreeOp* tree);
+#ifdef FEATURE_HW_INTRINSICS
+    void genConsumeHWIntrinsicOperands(GenTreeHWIntrinsic* tree);
+#endif // FEATURE_HW_INTRINSICS
     void genEmitGSCookieCheck(bool pushReg);
     void genSetRegToIcon(regNumber reg, ssize_t val, var_types type = TYP_INT, insFlags flags = INS_FLAGS_DONT_CARE);
     void genCodeForShift(GenTree* tree);
@@ -1046,6 +1083,7 @@ protected:
     void genCodeForIndexAddr(GenTreeIndexAddr* tree);
     void genCodeForIndir(GenTreeIndir* tree);
     void genCodeForNegNot(GenTree* tree);
+    void genCodeForBswap(GenTree* tree);
     void genCodeForLclVar(GenTreeLclVar* tree);
     void genCodeForLclFld(GenTreeLclFld* tree);
     void genCodeForStoreLclFld(GenTreeLclFld* tree);
@@ -1056,9 +1094,11 @@ protected:
     void genCodeForStoreInd(GenTreeStoreInd* tree);
     void genCodeForSwap(GenTreeOp* tree);
     void genCodeForCpObj(GenTreeObj* cpObjNode);
-    void genCodeForCpBlk(GenTreeBlk* cpBlkNode);
     void genCodeForCpBlkRepMovs(GenTreeBlk* cpBlkNode);
     void genCodeForCpBlkUnroll(GenTreeBlk* cpBlkNode);
+#ifndef _TARGET_X86_
+    void genCodeForCpBlkHelper(GenTreeBlk* cpBlkNode);
+#endif
     void genCodeForPhysReg(GenTreePhysReg* tree);
     void genCodeForNullCheck(GenTreeOp* tree);
     void genCodeForCmpXchg(GenTreeCmpXchg* tree);
@@ -1118,21 +1158,16 @@ protected:
     unsigned genMove4IfNeeded(unsigned size, regNumber tmpReg, GenTree* srcAddr, unsigned offset);
     unsigned genMove2IfNeeded(unsigned size, regNumber tmpReg, GenTree* srcAddr, unsigned offset);
     unsigned genMove1IfNeeded(unsigned size, regNumber tmpReg, GenTree* srcAddr, unsigned offset);
+    void genCodeForLoadOffset(instruction ins, emitAttr size, regNumber dst, GenTree* base, unsigned offset);
     void genStructPutArgRepMovs(GenTreePutArgStk* putArgStkNode);
     void genStructPutArgUnroll(GenTreePutArgStk* putArgStkNode);
     void genStoreRegToStackArg(var_types type, regNumber reg, int offset);
 #endif // FEATURE_PUT_STRUCT_ARG_STK
 
-    void genCodeForLoadOffset(instruction ins, emitAttr size, regNumber dst, GenTree* base, unsigned offset);
-    void genCodeForStoreOffset(instruction ins, emitAttr size, regNumber src, GenTree* base, unsigned offset);
-
-#ifdef _TARGET_ARM64_
-    void genCodeForLoadPairOffset(regNumber dst, regNumber dst2, GenTree* base, unsigned offset);
-    void genCodeForStorePairOffset(regNumber src, regNumber src2, GenTree* base, unsigned offset);
-#endif // _TARGET_ARM64_
-
     void genCodeForStoreBlk(GenTreeBlk* storeBlkNode);
-    void genCodeForInitBlk(GenTreeBlk* initBlkNode);
+#ifndef _TARGET_X86_
+    void genCodeForInitBlkHelper(GenTreeBlk* initBlkNode);
+#endif
     void genCodeForInitBlkRepStos(GenTreeBlk* initBlkNode);
     void genCodeForInitBlkUnroll(GenTreeBlk* initBlkNode);
     void genJumpTable(GenTree* tree);
@@ -1144,12 +1179,12 @@ protected:
     void genCallInstruction(GenTreeCall* call);
     void genJmpMethod(GenTree* jmp);
     BasicBlock* genCallFinally(BasicBlock* block);
-    void genCodeForJumpTrue(GenTree* tree);
+    void genCodeForJumpTrue(GenTreeOp* jtrue);
 #ifdef _TARGET_ARM64_
     void genCodeForJumpCompare(GenTreeOp* tree);
 #endif // _TARGET_ARM64_
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     void genEHCatchRet(BasicBlock* block);
 #else  // !FEATURE_EH_FUNCLETS
     void genEHFinallyOrFilterRet(BasicBlock* block);
@@ -1175,6 +1210,19 @@ protected:
 
     void genReturn(GenTree* treeNode);
 
+#ifdef _TARGET_ARMARCH_
+    void genStackPointerConstantAdjustment(ssize_t spDelta);
+#else  // !_TARGET_ARMARCH_
+    void genStackPointerConstantAdjustment(ssize_t spDelta, regNumber regTmp);
+#endif // !_TARGET_ARMARCH_
+
+    void genStackPointerConstantAdjustmentWithProbe(ssize_t spDelta, regNumber regTmp);
+    target_ssize_t genStackPointerConstantAdjustmentLoopWithProbe(ssize_t spDelta, regNumber regTmp);
+
+#if defined(_TARGET_XARCH_)
+    void genStackPointerDynamicAdjustmentWithProbe(regNumber regSpDelta, regNumber regTmp);
+#endif // defined(_TARGET_XARCH_)
+
     void genLclHeap(GenTree* tree);
 
     bool genIsRegCandidateLocal(GenTree* tree)
@@ -1183,7 +1231,7 @@ protected:
         {
             return false;
         }
-        const LclVarDsc* varDsc = &compiler->lvaTable[tree->gtLclVarCommon.gtLclNum];
+        const LclVarDsc* varDsc = &compiler->lvaTable[tree->AsLclVarCommon()->GetLclNum()];
         return (varDsc->lvIsRegCandidate());
     }
 
@@ -1195,6 +1243,10 @@ protected:
     unsigned m_stkArgOffset;
 #endif // !_TARGET_X86_
 #endif // !FEATURE_PUT_STRUCT_ARG_STK
+
+#if defined(DEBUG) && defined(_TARGET_XARCH_)
+    void genStackPointerCheck(bool doStackPointerCheck, unsigned lvaStackPointerVar);
+#endif // defined(DEBUG) && defined(_TARGET_XARCH_)
 
 #ifdef DEBUG
     GenTree* lastConsumedNode;
@@ -1250,7 +1302,6 @@ public:
 
     void inst_IV(instruction ins, int val);
     void inst_IV_handle(instruction ins, int val);
-    void inst_FS(instruction ins, unsigned stk = 0);
 
     void inst_RV_IV(
         instruction ins, regNumber reg, target_ssize_t val, emitAttr size, insFlags flags = INS_FLAGS_DONT_CARE);
@@ -1265,18 +1316,6 @@ public:
         instruction ins, regNumber reg, TempDsc* tmp, unsigned ofs, var_types type, emitAttr size = EA_UNKNOWN);
     void inst_FS_ST(instruction ins, emitAttr size, TempDsc* tmp, unsigned ofs);
 
-    void instEmit_indCall(GenTreeCall* call,
-                          size_t       argSize,
-                          emitAttr retSize MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(emitAttr secondRetSize));
-
-    void instEmit_RM(instruction ins, GenTree* tree, GenTree* addr, unsigned offs);
-
-    void instEmit_RM_RV(instruction ins, emitAttr size, GenTree* tree, regNumber reg, unsigned offs);
-
-    void instEmit_RV_RM(instruction ins, emitAttr size, regNumber reg, GenTree* tree, unsigned offs);
-
-    void instEmit_RV_RIA(instruction ins, regNumber reg1, regNumber reg2, unsigned offs);
-
     void inst_TT(instruction ins, GenTree* tree, unsigned offs = 0, int shfv = 0, emitAttr size = EA_UNKNOWN);
 
     void inst_TT_RV(instruction ins,
@@ -1286,31 +1325,12 @@ public:
                     emitAttr    size  = EA_UNKNOWN,
                     insFlags    flags = INS_FLAGS_DONT_CARE);
 
-    void inst_TT_IV(instruction ins,
-                    GenTree*    tree,
-                    ssize_t     val,
-                    unsigned    offs  = 0,
-                    emitAttr    size  = EA_UNKNOWN,
-                    insFlags    flags = INS_FLAGS_DONT_CARE);
-
-    void inst_RV_AT(instruction ins,
-                    emitAttr    size,
-                    var_types   type,
-                    regNumber   reg,
-                    GenTree*    tree,
-                    unsigned    offs  = 0,
-                    insFlags    flags = INS_FLAGS_DONT_CARE);
-
-    void inst_AT_IV(instruction ins, emitAttr size, GenTree* baseTree, int icon, unsigned offs = 0);
-
     void inst_RV_TT(instruction ins,
                     regNumber   reg,
                     GenTree*    tree,
                     unsigned    offs  = 0,
                     emitAttr    size  = EA_UNKNOWN,
                     insFlags    flags = INS_FLAGS_DONT_CARE);
-
-    void inst_RV_TT_IV(instruction ins, regNumber reg, GenTree* tree, int val);
 
     void inst_FS_TT(instruction ins, GenTree* tree);
 
@@ -1324,6 +1344,7 @@ public:
 
 #if defined(_TARGET_XARCH_)
     void inst_RV_RV_IV(instruction ins, emitAttr size, regNumber reg1, regNumber reg2, unsigned ival);
+    void inst_RV_TT_IV(instruction ins, emitAttr attr, regNumber reg1, GenTree* rmOp, int ival);
 #endif
 
     void inst_RV_RR(instruction ins, emitAttr size, regNumber reg1, regNumber reg2);
@@ -1331,8 +1352,6 @@ public:
     void inst_RV_ST(instruction ins, emitAttr size, regNumber reg, GenTree* tree);
 
     void inst_mov_RV_ST(regNumber reg, GenTree* tree);
-
-    void instGetAddrMode(GenTree* addr, regNumber* baseReg, unsigned* indScale, regNumber* indReg, unsigned* cns);
 
     void inst_set_SV_var(GenTree* tree);
 
@@ -1384,9 +1403,6 @@ public:
 
     void instGen_Store_Reg_Into_Lcl(var_types dstType, regNumber srcReg, int varNum, int offs);
 
-    void instGen_Store_Imm_Into_Lcl(
-        var_types dstType, emitAttr sizeAttr, ssize_t imm, int varNum, int offs, regNumber regToUse = REG_NA);
-
 #ifdef DEBUG
     void __cdecl instDisp(instruction ins, bool noNL, const char* fmt, ...);
 #endif
@@ -1394,6 +1410,50 @@ public:
 #ifdef _TARGET_XARCH_
     instruction genMapShiftInsToShiftByConstantIns(instruction ins, int shiftByValue);
 #endif // _TARGET_XARCH_
+
+    // Maps a GenCondition code to a sequence of conditional jumps or other conditional instructions
+    // such as X86's SETcc. A sequence of instructions rather than just a single one is required for
+    // certain floating point conditions.
+    // For example, X86's UCOMISS sets ZF to indicate equality but it also sets it, together with PF,
+    // to indicate an unordered result. So for GenCondition::FEQ we first need to check if PF is 0
+    // and then jump if ZF is 1:
+    //       JP fallThroughBlock
+    //       JE jumpDestBlock
+    //   fallThroughBlock:
+    //       ...
+    //   jumpDestBlock:
+    //
+    // This is very similar to the way shortcircuit evaluation of bool AND and OR operators works so
+    // in order to make the GenConditionDesc mapping tables easier to read, a bool expression-like
+    // pattern is used to encode the above:
+    //     { EJ_jnp, GT_AND, EJ_je  }
+    //     { EJ_jp,  GT_OR,  EJ_jne }
+    //
+    // For more details check inst_JCC and inst_SETCC functions.
+    //
+    struct GenConditionDesc
+    {
+        emitJumpKind jumpKind1;
+        genTreeOps   oper;
+        emitJumpKind jumpKind2;
+        char         padTo4Bytes;
+
+        static const GenConditionDesc& Get(GenCondition condition)
+        {
+            assert(condition.GetCode() < _countof(map));
+            const GenConditionDesc& desc = map[condition.GetCode()];
+            assert(desc.jumpKind1 != EJ_NONE);
+            assert((desc.oper == GT_NONE) || (desc.oper == GT_AND) || (desc.oper == GT_OR));
+            assert((desc.oper == GT_NONE) == (desc.jumpKind2 == EJ_NONE));
+            return desc;
+        }
+
+    private:
+        static const GenConditionDesc map[32];
+    };
+
+    void inst_JCC(GenCondition condition, BasicBlock* target);
+    void inst_SETCC(GenCondition condition, var_types type, regNumber dstReg);
 };
 
 /*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX

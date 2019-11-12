@@ -218,11 +218,11 @@ CorInfoIntrinsics MyICJI::getIntrinsicID(CORINFO_METHOD_HANDLE method, bool* pMu
     return jitInstance->mc->repGetIntrinsicID(method, pMustExpand);
 }
 
-// Is the given module the System.Numerics.Vectors module?
-bool MyICJI::isInSIMDModule(CORINFO_CLASS_HANDLE classHnd)
+// Is the given type in System.Private.Corelib and marked with IntrinsicAttribute?
+bool MyICJI::isIntrinsicType(CORINFO_CLASS_HANDLE classHnd)
 {
-    jitInstance->mc->cr->AddCall("isInSIMDModule");
-    return jitInstance->mc->repIsInSIMDModule(classHnd) ? true : false;
+    jitInstance->mc->cr->AddCall("isIntrinsicType");
+    return jitInstance->mc->repIsIntrinsicType(classHnd) ? true : false;
 }
 
 // return the unmanaged calling convention for a PInvoke
@@ -486,6 +486,15 @@ BOOL MyICJI::isValueClass(CORINFO_CLASS_HANDLE cls)
     return jitInstance->mc->repIsValueClass(cls);
 }
 
+// Decides how the JIT should do the optimization to inline the check for
+//     GetTypeFromHandle(handle) == obj.GetType() (for CORINFO_INLINE_TYPECHECK_SOURCE_VTABLE)
+//     GetTypeFromHandle(X) == GetTypeFromHandle(Y) (for CORINFO_INLINE_TYPECHECK_SOURCE_TOKEN)
+CorInfoInlineTypeCheck MyICJI::canInlineTypeCheck(CORINFO_CLASS_HANDLE cls, CorInfoInlineTypeCheckSource source)
+{
+    jitInstance->mc->cr->AddCall("canInlineTypeCheck");
+    return jitInstance->mc->repCanInlineTypeCheck(cls, source);
+}
+
 // If this method returns true, JIT will do optimization to inline the check for
 //     GetTypeFromHandle(handle) == obj.GetType()
 BOOL MyICJI::canInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls)
@@ -577,6 +586,19 @@ unsigned MyICJI::getClassSize(CORINFO_CLASS_HANDLE cls)
     return jitInstance->mc->repGetClassSize(cls);
 }
 
+// return the number of bytes needed by an instance of the class allocated on the heap
+unsigned MyICJI::getHeapClassSize(CORINFO_CLASS_HANDLE cls)
+{
+    jitInstance->mc->cr->AddCall("getHeapClassSize");
+    return jitInstance->mc->repGetHeapClassSize(cls);
+}
+
+BOOL MyICJI::canAllocateOnStack(CORINFO_CLASS_HANDLE cls)
+{
+    jitInstance->mc->cr->AddCall("canAllocateOnStack");
+    return jitInstance->mc->repCanAllocateOnStack(cls);
+}
+
 unsigned MyICJI::getClassAlignmentRequirement(CORINFO_CLASS_HANDLE cls, BOOL fDoubleAlignHint)
 {
     jitInstance->mc->cr->AddCall("getClassAlignmentRequirement");
@@ -622,10 +644,10 @@ BOOL MyICJI::checkMethodModifier(CORINFO_METHOD_HANDLE hMethod, LPCSTR modifier,
 }
 
 // returns the "NEW" helper optimized for "newCls."
-CorInfoHelpFunc MyICJI::getNewHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken, CORINFO_METHOD_HANDLE callerHandle)
+CorInfoHelpFunc MyICJI::getNewHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken, CORINFO_METHOD_HANDLE callerHandle, bool * pHasSideEffects)
 {
     jitInstance->mc->cr->AddCall("getNewHelper");
-    return jitInstance->mc->repGetNewHelper(pResolvedToken, callerHandle);
+    return jitInstance->mc->repGetNewHelper(pResolvedToken, callerHandle, pHasSideEffects);
 }
 
 // returns the newArr (1-Dim array) helper optimized for "arrayCls."
@@ -804,11 +826,18 @@ TypeCompareState MyICJI::compareTypesForEquality(CORINFO_CLASS_HANDLE cls1, CORI
     return jitInstance->mc->repCompareTypesForEquality(cls1, cls2);
 }
 
-// returns is the intersection of cls1 and cls2.
+// returns the intersection of cls1 and cls2.
 CORINFO_CLASS_HANDLE MyICJI::mergeClasses(CORINFO_CLASS_HANDLE cls1, CORINFO_CLASS_HANDLE cls2)
 {
     jitInstance->mc->cr->AddCall("mergeClasses");
     return jitInstance->mc->repMergeClasses(cls1, cls2);
+}
+
+// Returns true if cls2 is known to be a more specific type than cls1
+BOOL MyICJI::isMoreSpecificType(CORINFO_CLASS_HANDLE cls1, CORINFO_CLASS_HANDLE cls2)
+{
+    jitInstance->mc->cr->AddCall("isMoreSpecificType");
+    return jitInstance->mc->repIsMoreSpecificType(cls1, cls2);
 }
 
 // Given a class handle, returns the Parent type.
@@ -1237,13 +1266,14 @@ const char* MyICJI::getMethodName(CORINFO_METHOD_HANDLE ftn,       /* IN */
     return jitInstance->mc->repGetMethodName(ftn, moduleName);
 }
 
-const char* MyICJI::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftn,          /* IN */
-                                              const char**          className,    /* OUT */
-                                              const char**          namespaceName /* OUT */
+const char* MyICJI::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftn,                /* IN */
+                                              const char**          className,          /* OUT */
+                                              const char**          namespaceName,      /* OUT */
+                                              const char**          enclosingClassName /* OUT */
                                               )
 {
     jitInstance->mc->cr->AddCall("getMethodNameFromMetadata");
-    return jitInstance->mc->repGetMethodNameFromMetadata(ftn, className, namespaceName);
+    return jitInstance->mc->repGetMethodNameFromMetadata(ftn, className, namespaceName, enclosingClassName);
 }
 
 // this function is for debugging only.  It returns a value that
@@ -1501,6 +1531,13 @@ void* MyICJI::getFieldAddress(CORINFO_FIELD_HANDLE field, void** ppIndirection)
 {
     jitInstance->mc->cr->AddCall("getFieldAddress");
     return jitInstance->mc->repGetFieldAddress(field, ppIndirection);
+}
+
+// return the class handle for the current value of a static field
+CORINFO_CLASS_HANDLE MyICJI::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool* pIsSpeculative)
+{
+    jitInstance->mc->cr->AddCall("getStaticFieldCurrentClass");
+    return jitInstance->mc->repGetStaticFieldCurrentClass(field, pIsSpeculative);
 }
 
 // registers a vararg sig & returns a VM cookie for it (which can contain other stuff)
@@ -1773,22 +1810,22 @@ void MyICJI::reportFatalError(CorJitResult result)
 
 // allocate a basic block profile buffer where execution counts will be stored
 // for jitted basic blocks.
-HRESULT MyICJI::allocBBProfileBuffer(ULONG           count, // The number of basic blocks that we have
-                                     ProfileBuffer** profileBuffer)
+HRESULT MyICJI::allocMethodBlockCounts(UINT32          count, // The number of basic blocks that we have
+                                       BlockCounts**   pBlockCounts)
 {
-    jitInstance->mc->cr->AddCall("allocBBProfileBuffer");
-    return jitInstance->mc->cr->repAllocBBProfileBuffer(count, profileBuffer);
+    jitInstance->mc->cr->AddCall("allocMethodBlockCounts");
+    return jitInstance->mc->cr->repAllocMethodBlockCounts(count, pBlockCounts);
 }
 
 // get profile information to be used for optimizing the current method.  The format
-// of the buffer is the same as the format the JIT passes to allocBBProfileBuffer.
-HRESULT MyICJI::getBBProfileData(CORINFO_METHOD_HANDLE ftnHnd,
-                                 ULONG*                count, // The number of basic blocks that we have
-                                 ProfileBuffer**       profileBuffer,
-                                 ULONG*                numRuns)
+// of the buffer is the same as the format the JIT passes to allocMethodBlockCounts.
+HRESULT MyICJI::getMethodBlockCounts(CORINFO_METHOD_HANDLE ftnHnd,
+                                     UINT32 *              pCount, // The number of basic blocks that we have
+                                     BlockCounts**         pBlockCounts,
+                                     UINT32 *              pNumRuns)
 {
-    jitInstance->mc->cr->AddCall("getBBProfileData");
-    return jitInstance->mc->repGetBBProfileData(ftnHnd, count, profileBuffer, numRuns);
+    jitInstance->mc->cr->AddCall("getMethodBlockCounts");
+    return jitInstance->mc->repGetMethodBlockCounts(ftnHnd, pCount, pBlockCounts, pNumRuns);
 }
 
 // Associates a native call site, identified by its offset in the native code stream, with

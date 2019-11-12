@@ -6,22 +6,21 @@
 **
 **
 **
-** Purpose: This class only exists to provide support for 
-**          implenting IDispatch on managed objects. It is 
+** Purpose: This class only exists to provide support for
+**          implenting IDispatch on managed objects. It is
 **          used to provide OleAut style coercion rules.
 **
-** 
+**
 ===========================================================*/
+
+using System;
+using System.Diagnostics;
+using System.Globalization;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace Microsoft.Win32
 {
-    using System;
-    using System.Diagnostics;
-    using System.Reflection;
-    using System.Runtime.CompilerServices;
-    using System.Runtime.Versioning;
-    using CultureInfo = System.Globalization.CultureInfo;
-
     internal static class OAVariantLib
     {
         #region Constants
@@ -33,7 +32,7 @@ namespace Microsoft.Win32
         public const int CalendarHijri = 0x08;
         public const int LocalBool = 0x10;
 
-        internal static readonly Type[] ClassTypes = {
+        internal static readonly Type?[] ClassTypes = {
             typeof(Empty),
             typeof(void),
             typeof(bool),
@@ -71,8 +70,8 @@ namespace Microsoft.Win32
          * Changes a Variant from one type to another, calling the OLE
          * Automation VariantChangeTypeEx routine.  Note the legal types here are
          * restricted to the subset of what can be legally found in a VB
-         * Variant and the types that CLR supports explicitly in the 
-         * CLR Variant class.  
+         * Variant and the types that CLR supports explicitly in the
+         * CLR Variant class.
          */
         internal static Variant ChangeType(Variant source, Type targetClass, short options, CultureInfo culture)
         {
@@ -80,14 +79,9 @@ namespace Microsoft.Win32
                 throw new ArgumentNullException(nameof(targetClass));
             if (culture == null)
                 throw new ArgumentNullException(nameof(culture));
-            Variant result = new Variant();
+            Variant result = default;
             ChangeTypeEx(ref result, ref source,
-#if FEATURE_USE_LCID
                          culture.LCID,
-#else
-        // @CORESYSTODO: what does CoreSystem expect for this argument?
-                        0,
-#endif
                          targetClass.TypeHandle.Value, GetCVTypeFromClass(targetClass), options);
             return result;
         }
@@ -125,7 +119,7 @@ namespace Microsoft.Win32
 
         #region Private FCalls
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void ChangeTypeEx(ref Variant result, ref Variant source, int lcid, IntPtr typeHandle, int cvType, short flags);
 
         #endregion

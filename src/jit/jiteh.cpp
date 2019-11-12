@@ -244,7 +244,7 @@ void EHblkDsc::DispEntry(unsigned XTnum)
 {
     printf(" %2u  ::", XTnum);
 
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
     printf("  %2u  ", XTnum, ebdHandlerNestingLevel);
 #endif // !FEATURE_EH_FUNCLETS
 
@@ -605,17 +605,17 @@ bool Compiler::bbIsExFlowBlock(BasicBlock* block, unsigned* regionIndex)
 
 bool Compiler::ehHasCallableHandlers()
 {
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 
     // Any EH in the function?
 
     return compHndBBtabCount > 0;
 
-#else // FEATURE_EH_FUNCLETS
+#else // !FEATURE_EH_FUNCLETS
 
     return ehNeedsShadowSPslots();
 
-#endif // FEATURE_EH_FUNCLETS
+#endif // !FEATURE_EH_FUNCLETS
 }
 
 /******************************************************************************************
@@ -907,8 +907,6 @@ void Compiler::ehGetCallFinallyBlockRange(unsigned finallyIndex, BasicBlock** be
     assert(begBlk != nullptr);
     assert(endBlk != nullptr);
 
-    EHblkDsc* ehDsc = ehGetDsc(finallyIndex);
-
 #if FEATURE_EH_CALLFINALLY_THUNKS
     bool     inTryRegion;
     unsigned callFinallyRegionIndex = ehGetCallFinallyRegionIndex(finallyIndex, &inTryRegion);
@@ -934,8 +932,9 @@ void Compiler::ehGetCallFinallyBlockRange(unsigned finallyIndex, BasicBlock** be
         }
     }
 #else  // !FEATURE_EH_CALLFINALLY_THUNKS
-    *begBlk = ehDsc->ebdTryBeg;
-    *endBlk = ehDsc->ebdTryLast->bbNext;
+    EHblkDsc* ehDsc = ehGetDsc(finallyIndex);
+    *begBlk         = ehDsc->ebdTryBeg;
+    *endBlk         = ehDsc->ebdTryLast->bbNext;
 #endif // !FEATURE_EH_CALLFINALLY_THUNKS
 }
 
@@ -985,7 +984,7 @@ bool Compiler::ehCallFinallyInCorrectRegion(BasicBlock* blockCallFinally, unsign
 
 #endif // DEBUG
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 
 /*****************************************************************************
  *
@@ -1075,7 +1074,7 @@ void* Compiler::ehEmitCookie(BasicBlock* block)
 
     void* cookie;
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
     if (block->bbFlags & BBF_FINALLY_TARGET)
     {
         // Use the offset of the beginning of the NOP padding, not the main block.
@@ -1085,7 +1084,7 @@ void* Compiler::ehEmitCookie(BasicBlock* block)
         cookie = block->bbUnwindNopEmitCookie;
     }
     else
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
     {
         cookie = block->bbEmitCookie;
     }
@@ -1101,7 +1100,7 @@ void* Compiler::ehEmitCookie(BasicBlock* block)
 
 UNATIVE_OFFSET Compiler::ehCodeOffset(BasicBlock* block)
 {
-    return genEmitter->emitCodeOffset(ehEmitCookie(block), 0);
+    return GetEmitter()->emitCodeOffset(ehEmitCookie(block), 0);
 }
 
 /****************************************************************************/
@@ -1346,7 +1345,7 @@ void Compiler::fgSkipRmvdBlocks(EHblkDsc* handlerTab)
  */
 void Compiler::fgAllocEHTable()
 {
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 
     // We need to allocate space for EH clauses that will be used by funclets
     // as well as one for each EH clause from the IL. Nested EH clauses pulled
@@ -1363,11 +1362,11 @@ void Compiler::fgAllocEHTable()
     compHndBBtabAllocCount = info.compXcptnsCount * 2;
 #endif                                             // DEBUG
 
-#else // FEATURE_EH_FUNCLETS
+#else // !FEATURE_EH_FUNCLETS
 
     compHndBBtabAllocCount = info.compXcptnsCount;
 
-#endif // FEATURE_EH_FUNCLETS
+#endif // !FEATURE_EH_FUNCLETS
 
     compHndBBtab = new (this, CMK_BasicBlock) EHblkDsc[compHndBBtabAllocCount];
 
@@ -1484,7 +1483,7 @@ void Compiler::fgRemoveEHTableEntry(unsigned XTnum)
     }
 }
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 
 /*****************************************************************************
  *
@@ -1599,7 +1598,7 @@ EHblkDsc* Compiler::fgAddEHTableEntry(unsigned XTnum)
 #if !FEATURE_EH
 
 /*****************************************************************************
- *  fgRemoveEH: To facilitiate the bring-up of new platforms without having to
+ *  fgRemoveEH: To facilitate the bring-up of new platforms without having to
  *  worry about fully implementing EH, we want to simply remove EH constructs
  *  from the IR. This works because a large percentage of our tests contain
  *  EH constructs but don't actually throw exceptions. This function removes
@@ -2963,9 +2962,9 @@ void Compiler::dispOutgoingEHClause(unsigned num, const CORINFO_EH_CLAUSE& claus
     if (opts.dspDiffable)
     {
         /* (( brace matching editor workaround to compensate for the following line */
-        printf("EH#%u: try [%s..%s) handled by [%s..%s) ", num, genEmitter->emitOffsetToLabel(clause.TryOffset),
-               genEmitter->emitOffsetToLabel(clause.TryLength), genEmitter->emitOffsetToLabel(clause.HandlerOffset),
-               genEmitter->emitOffsetToLabel(clause.HandlerLength));
+        printf("EH#%u: try [%s..%s) handled by [%s..%s) ", num, GetEmitter()->emitOffsetToLabel(clause.TryOffset),
+               GetEmitter()->emitOffsetToLabel(clause.TryLength), GetEmitter()->emitOffsetToLabel(clause.HandlerOffset),
+               GetEmitter()->emitOffsetToLabel(clause.HandlerLength));
     }
     else
     {
@@ -2989,8 +2988,8 @@ void Compiler::dispOutgoingEHClause(unsigned num, const CORINFO_EH_CLAUSE& claus
             if (opts.dspDiffable)
             {
                 /* ( brace matching editor workaround to compensate for the following line */
-                printf("filter at [%s..%s)", genEmitter->emitOffsetToLabel(clause.ClassToken),
-                       genEmitter->emitOffsetToLabel(clause.HandlerOffset));
+                printf("filter at [%s..%s)", GetEmitter()->emitOffsetToLabel(clause.ClassToken),
+                       GetEmitter()->emitOffsetToLabel(clause.HandlerOffset));
             }
             else
             {
@@ -3084,7 +3083,7 @@ void Compiler::fgVerifyHandlerTab()
             assert((HBtab->ebdFilter->bbFlags & BBF_REMOVED) == 0);
         }
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
         if (fgFuncletsCreated)
         {
             assert(HBtab->ebdHndBeg->bbFlags & BBF_FUNCLET_BEG);
@@ -3155,7 +3154,7 @@ void Compiler::fgVerifyHandlerTab()
         blockHndBegSet[i] = false;
     }
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     bool     isLegalFirstFunclet = false;
     unsigned bbNumFirstFunclet   = 0;
 
@@ -3220,7 +3219,7 @@ void Compiler::fgVerifyHandlerTab()
             assert((bbNumHndLast < bbNumTryBeg) || (bbNumTryLast < bbNumHndBeg));
         }
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
         // If funclets have been created, check the first funclet block. The first funclet block must be the
         // first block of a filter or handler. All filter/handler blocks must come after it.
         // Note that 'try' blocks might come either before or after it. If after, they will be nested within
@@ -3295,7 +3294,7 @@ void Compiler::fgVerifyHandlerTab()
                 // remains in the main function region.
                 CLANG_FORMAT_COMMENT_ANCHOR;
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
                 if (fgFuncletsCreated)
                 {
                     // If both the 'try' region and the outer 'try' region are in the main function area, then we can
@@ -3376,7 +3375,7 @@ void Compiler::fgVerifyHandlerTab()
 // funclets have been created, it's harder to make any relationship asserts about the order of nested
 // handlers, which also have been made into funclets.
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
             if (fgFuncletsCreated)
             {
                 if (handlerBegIsTryBegNormalizationDone)
@@ -3468,7 +3467,7 @@ void Compiler::fgVerifyHandlerTab()
         }
     }
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     assert(!fgFuncletsCreated || isLegalFirstFunclet);
 #endif // FEATURE_EH_FUNCLETS
 
@@ -3508,7 +3507,7 @@ void Compiler::fgVerifyHandlerTab()
         }
     }
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     if (fgFuncletsCreated)
     {
         // Mark all the funclet 'try' indices correctly, since they do not exist in the linear 'try' region that
@@ -3552,7 +3551,7 @@ void Compiler::fgVerifyHandlerTab()
         {
             assert(block->bbCatchTyp == BBCT_NONE);
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
             if (fgFuncletsCreated)
             {
                 // Make sure blocks that aren't the first block of a funclet do not have the BBF_FUNCLET_BEG flag set.
@@ -3580,7 +3579,7 @@ void Compiler::fgDispHandlerTab()
     }
 
     printf("\nindex  ");
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
     printf("nest, ");
 #endif // !FEATURE_EH_FUNCLETS
     printf("eTry, eHnd\n");

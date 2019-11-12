@@ -96,7 +96,7 @@ void emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataReg, GenTr
 static bool isModImmConst(int imm);
 static int encodeModImmConst(int imm);
 
-static int insUnscaleImm(int imm, emitAttr size);
+static int insUnscaleImm(instruction ins, int imm);
 
 /************************************************************************/
 /*           Public inline informational methods                        */
@@ -267,7 +267,7 @@ void emitIns_C(instruction ins, emitAttr attr, CORINFO_FIELD_HANDLE fdlHnd, int 
 
 void emitIns_S(instruction ins, emitAttr attr, int varx, int offs);
 
-void emitIns_genStackOffset(regNumber r, int varx, int offs);
+void emitIns_genStackOffset(regNumber r, int varx, int offs, bool isFloatUsage);
 
 void emitIns_S_R(instruction ins, emitAttr attr, regNumber ireg, int varx, int offs);
 

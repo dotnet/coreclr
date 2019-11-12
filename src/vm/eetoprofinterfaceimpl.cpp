@@ -3,15 +3,15 @@
 // See the LICENSE file in the project root for more information.
 //
 // EEToProfInterfaceImpl.cpp
-// 
+//
 
 //
-// This module implements wrappers around calling the profiler's 
+// This module implements wrappers around calling the profiler's
 // ICorProfilerCallaback* interfaces. When code in the EE needs to call the
 // profiler, it goes through EEToProfInterfaceImpl to do so.
 //
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-// NOTE! NOTE! NOTE! NOTE! NOTE! NOTE! NOTE! NOTE! NOTE! NOTE! NOTE! NOTE! 
+// NOTE! NOTE! NOTE! NOTE! NOTE! NOTE! NOTE! NOTE! NOTE! NOTE! NOTE! NOTE!
 //
 // PLEASE READ!
 //
@@ -50,7 +50,6 @@
 //              If you use MODE_ANY, you must comment why you don't want an exact mode.
 //       CAN_TAKE_LOCK
 //       ASSERT_NO_EE_LOCKS_HELD()
-//       SO_NOT_MAINLINE
 //   Note that the preferred contracts in this file are DIFFERENT than the preferred
 //   contracts for proftoeeinterfaceimpl.cpp.
 //
@@ -58,7 +57,7 @@
 // public entrypoints, and they should be contracted following the same guidelines
 // as per the rest of the EE.
 //
-// NOTE! NOTE! NOTE! NOTE! NOTE! NOTE! NOTE! NOTE! NOTE! NOTE! NOTE! NOTE! 
+// NOTE! NOTE! NOTE! NOTE! NOTE! NOTE! NOTE! NOTE! NOTE! NOTE! NOTE! NOTE!
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //
 
@@ -88,7 +87,7 @@ enum ClrToProfEntrypointFlags
 {
     // Default
     kEE2PNone                           = 0x00000000,
-    
+
     // Callback is allowable even for detaching profilers
     kEE2PAllowableWhileDetaching        = 0x00000001,
 
@@ -100,13 +99,9 @@ enum ClrToProfEntrypointFlags
     kEE2PNoTrigger                      = 0x00000004,
 };
 
-#ifdef FEATURE_PROFAPI_ATTACH_DETACH
 #define ASSERT_EVAC_COUNTER_NONZERO()   \
     _ASSERTE((GetThreadNULLOk() == NULL) ||                                             \
              (GetThreadNULLOk()->GetProfilerEvacuationCounter() != 0U))
-#else // FEATURE_PROFAPI_ATTACH_DETACH
-#define ASSERT_EVAC_COUNTER_NONZERO()
-#endif // FEATURE_PROFAPI_ATTACH_DETACH
 
 #define CHECK_PROFILER_STATUS(ee2pFlags)                                                \
     /* If one of these asserts fires, perhaps you forgot to use                     */  \
@@ -142,18 +137,16 @@ enum ClrToProfEntrypointFlags
         return S_OK;                                                                    \
     }
 
-// Least common denominator for the callback wrappers.  Logs, removes stack
-// guard (REMOVE_STACK_GUARD_FOR_PROFILER_CALL), records in EE Thread object that 
-// we're in a callback, and asserts that we're allowed to issue callbacks for the 
-// specified ThreadID (i.e., no ThreadDestroyed callback has been issued for the 
+// Least common denominator for the callback wrappers.  Logs, records in EE Thread object
+// that we're in a callback, and asserts that we're allowed to issue callbacks for the
+// specified ThreadID (i.e., no ThreadDestroyed callback has been issued for the
 // ThreadID).
-// 
+//
 #define CLR_TO_PROFILER_ENTRYPOINT_FOR_THREAD_EX(ee2pFlags, threadId, logParams)        \
     INCONTRACT(AssertTriggersContract(!((ee2pFlags) & kEE2PNoTrigger)));                \
     CHECK_PROFILER_STATUS(ee2pFlags);                                                   \
     LOG(logParams);                                                                     \
     _ASSERTE(m_pCallback2 != NULL);                                                     \
-    REMOVE_STACK_GUARD_FOR_PROFILER_CALL;                                               \
     /* Normally, set COR_PRF_CALLBACKSTATE_INCALLBACK |                              */ \
     /* COR_PRF_CALLBACKSTATE_IN_TRIGGERS_SCOPE in the callback state, but omit       */ \
     /* COR_PRF_CALLBACKSTATE_IN_TRIGGERS_SCOPE if we're in a GC_NOTRIGGERS callback  */ \
@@ -167,8 +160,8 @@ enum ClrToProfEntrypointFlags
 #define CLR_TO_PROFILER_ENTRYPOINT_EX(ee2pFlags, logParams)                             \
     CLR_TO_PROFILER_ENTRYPOINT_FOR_THREAD_EX(ee2pFlags, GetThreadNULLOk(), logParams)
 
-// Typical entrypoint macro you'll use. Checks that we're allowed to issue 
-// callbacks for the current thread (i.e., no ThreadDestroyed callback has been 
+// Typical entrypoint macro you'll use. Checks that we're allowed to issue
+// callbacks for the current thread (i.e., no ThreadDestroyed callback has been
 // issued for the current thread).
 #define CLR_TO_PROFILER_ENTRYPOINT(logParams)                                           \
         CLR_TO_PROFILER_ENTRYPOINT_EX(kEE2PNone, logParams)
@@ -178,7 +171,7 @@ enum ClrToProfEntrypointFlags
 
 //---------------------------------------------------------------------------------------
 //
-// Wrapper around Thread::ProfilerCallbacksAllowed 
+// Wrapper around Thread::ProfilerCallbacksAllowed
 //
 // Arguments:
 //      pThread - Thread on which we need to determine whether callbacks are allowed
@@ -196,7 +189,7 @@ inline BOOL ProfilerCallbacksAllowedForThread(Thread * pThread)
 
 //---------------------------------------------------------------------------------------
 //
-// Wrapper around Thread::SetProfilerCallbacksAllowed 
+// Wrapper around Thread::SetProfilerCallbacksAllowed
 //
 // Arguments:
 //      pThread - Thread on which we're setting whether callbacks shall be allowed
@@ -215,24 +208,24 @@ inline void SetProfilerCallbacksAllowedForThread(Thread * pThread, BOOL fValue)
 //
 // Low-level function to find and CoCreateInstance the profiler's DLL. Called when
 // initializing via EEToProfInterfaceImpl::Init()
-// 
+//
 // Arguments:
 //      * pClsid - [in] Profiler's CLSID
 //      * wszClsid - [in] String form of CLSID or progid of profiler to load.
 //      * wszProfileDLL - [in] Path to profiler DLL
 //      * ppCallback - [out] Pointer to profiler's ICorProfilerCallback2 interface
 //      * phmodProfilerDLL - [out] HMODULE of profiler's DLL.
-//          
+//
 // Return Value:
 //    HRESULT indicating success or failure.
-//    
+//
 // Notes:
 //     * This function (or one of its callees) will log an error to the event log if
 //         there is a failure
 
 static HRESULT CoCreateProfiler(
     const CLSID * pClsid,
-    __in_z LPCWSTR wszClsid, 
+    __in_z LPCWSTR wszClsid,
     __in_z LPCWSTR wszProfileDLL,
     ICorProfilerCallback2 ** ppCallback,
     HMODULE * phmodProfilerDLL)
@@ -247,7 +240,6 @@ static HRESULT CoCreateProfiler(
         // which takes locks.
         CAN_TAKE_LOCK;
 
-        SO_NOT_MAINLINE;
     } CONTRACTL_END;
 
     _ASSERTE(pClsid != NULL);
@@ -263,15 +255,15 @@ static HRESULT CoCreateProfiler(
     // This is the ICorProfilerCallback2 ptr we get back from the profiler's class
     // factory's CreateInstance()
     ReleaseHolder<ICorProfilerCallback2> pCallback2FromCreateInstance;
-    
+
     // This is the ICorProfilerCallback2 ptr we get back from the profiler's QI (see its
     // first use below for an explanation on why this is necessary).
     ReleaseHolder<ICorProfilerCallback2> pCallback2FromQI;
 
     // Create an instance of the profiler
-    hr = FakeCoCreateInstanceEx(*pClsid, 
+    hr = FakeCoCreateInstanceEx(*pClsid,
                                 wszProfileDLL,
-                                IID_ICorProfilerCallback2, 
+                                IID_ICorProfilerCallback2,
                                 (LPVOID *) &pCallback2FromCreateInstance,
                                 phmodProfilerDLL);
 
@@ -305,8 +297,8 @@ static HRESULT CoCreateProfiler(
     if (FAILED(hr))
     {
         LOG((
-            LF_CORPROF, 
-            LL_INFO10, 
+            LF_CORPROF,
+            LL_INFO10,
             "**PROF: Unable to CoCreateInstance profiler class %S.  hr=0x%x.\n",
             wszClsid,
             hr));
@@ -325,7 +317,7 @@ static HRESULT CoCreateProfiler(
     // the redundant QI, the CLR would accept what it got from CreateInstance(), and
     // start calling into it using the unsupported interface's vtable, which would
     // cause an AV.
-    // 
+    //
     // There were many MSDN samples (for example
     // http://msdn.microsoft.com/msdnmag/issues/03/01/NETProfilerAPI/) which
     // unfortunately had this CreateInstance() bug, so many profilers might have been
@@ -478,7 +470,7 @@ EEToProfInterfaceImpl::EEToProfInterfaceImpl() :
 HRESULT EEToProfInterfaceImpl::Init(
     ProfToEEInterfaceImpl * pProfToEE,
     const CLSID * pClsid,
-    __in_z LPCWSTR wszClsid, 
+    __in_z LPCWSTR wszClsid,
     __in_z LPCWSTR wszProfileDLL,
     BOOL fLoadedViaAttach,
     DWORD dwConcurrentGCWaitTimeoutInMs)
@@ -503,7 +495,7 @@ HRESULT EEToProfInterfaceImpl::Init(
 
     m_fLoadedViaAttach = fLoadedViaAttach;
     m_dwConcurrentGCWaitTimeoutInMs = dwConcurrentGCWaitTimeoutInMs;
-    
+
     // The rule sez your Crst should switch to preemptive when it's taken.  We intentionally
     // break this rule with CRST_UNSAFE_ANYMODE, because this Crst is taken DURING A GC
     // (see AllocateMovedReferencesData(), called by MovedReference(), called by the GC),
@@ -512,8 +504,8 @@ HRESULT EEToProfInterfaceImpl::Init(
     CRITSEC_AllocationHolder csGCRefDataFreeList(ClrCreateCriticalSection(CrstProfilerGCRefDataFreeList, CRST_UNSAFE_ANYMODE));
     if (csGCRefDataFreeList == NULL)
     {
-        LOG((LF_CORPROF, 
-            LL_ERROR, 
+        LOG((LF_CORPROF,
+            LL_ERROR,
             "**PROF: Failed to create Crst during initialization.\n"));
 
         // A specialized event log entry for this failure would be confusing and
@@ -522,12 +514,12 @@ HRESULT EEToProfInterfaceImpl::Init(
         return E_FAIL;
     }
 
-    // CEEInfo::GetProfilingHandle will be PREEMPTIVE mode when trying to update 
+    // CEEInfo::GetProfilingHandle will be PREEMPTIVE mode when trying to update
     // m_pFunctionIDHashTable while ProfileEnter, ProfileLeave and ProfileTailcall
-    // and LookupClientIDFromCache all will be in COOPERATIVE mode when trying 
-    // to read m_pFunctionIDHashTable, so pFunctionIDHashTableRWLock must be created 
-    // with COOPERATIVE_OR_PREEMPTIVE.  It is safe to so do because FunctionIDHashTable, 
-    // synchronized by m_pFunctionIDHashTableRWLock runs only native code and uses 
+    // and LookupClientIDFromCache all will be in COOPERATIVE mode when trying
+    // to read m_pFunctionIDHashTable, so pFunctionIDHashTableRWLock must be created
+    // with COOPERATIVE_OR_PREEMPTIVE.  It is safe to so do because FunctionIDHashTable,
+    // synchronized by m_pFunctionIDHashTableRWLock runs only native code and uses
     // only native heap.
     NewHolder<SimpleRWLock> pFunctionIDHashTableRWLock(new (nothrow) SimpleRWLock(COOPERATIVE_OR_PREEMPTIVE, LOCK_TYPE_DEFAULT));
 
@@ -535,8 +527,8 @@ HRESULT EEToProfInterfaceImpl::Init(
 
     if ((pFunctionIDHashTable == NULL) || (pFunctionIDHashTableRWLock == NULL))
     {
-        LOG((LF_CORPROF, 
-            LL_ERROR, 
+        LOG((LF_CORPROF,
+            LL_ERROR,
             "**PROF: Failed to create FunctionIDHashTable or FunctionIDHashTableRWLock during initialization.\n"));
 
         // A specialized event log entry for this failure would be confusing and
@@ -616,7 +608,7 @@ HRESULT EEToProfInterfaceImpl::Init(
 
 HRESULT EEToProfInterfaceImpl::CreateProfiler(
     const CLSID * pClsid,
-    __in_z LPCWSTR wszClsid, 
+    __in_z LPCWSTR wszClsid,
     __in_z LPCWSTR wszProfileDLL)
 {
     CONTRACTL
@@ -630,24 +622,19 @@ HRESULT EEToProfInterfaceImpl::CreateProfiler(
         CAN_TAKE_LOCK;
 
         MODE_PREEMPTIVE;
-        SO_NOT_MAINLINE;
-    } 
+    }
     CONTRACTL_END;
 
     // Always called before Thread created.
     _ASSERTE(GetThreadNULLOk() == NULL);
-
-    // We'll be calling into the profiler to create its ICorProfilerCallback*
-    // implementation
-    REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
 
     // Try and CoCreate the registered profiler
     ReleaseHolder<ICorProfilerCallback2> pCallback2;
     HModuleHolder hmodProfilerDLL;
     HRESULT hr = CoCreateProfiler(
         pClsid,
-        wszClsid, 
-        wszProfileDLL, 
+        wszClsid,
+        wszProfileDLL,
         &pCallback2,
         &hmodProfilerDLL);
     if (FAILED(hr))
@@ -659,7 +646,7 @@ HRESULT EEToProfInterfaceImpl::CreateProfiler(
     // CoCreateProfiler ensures that if it succeeds, we get some valid pointers
     _ASSERTE(pCallback2 != NULL);
     _ASSERTE(hmodProfilerDLL != NULL);
-    
+
     // Save profiler pointers into this.  The reference ownership now
     // belongs to this class, so NULL out locals without allowing them to release
     m_pCallback2 = pCallback2.Extract();
@@ -808,7 +795,7 @@ HRESULT EEToProfInterfaceImpl::CreateProfiler(
             m_pCallback3->AddRef();
         }
     }
-        
+
     if (m_pCallback5 == NULL)
     {
         ReleaseHolder<ICorProfilerCallback5> pCallback5;
@@ -878,7 +865,7 @@ HRESULT EEToProfInterfaceImpl::CreateProfiler(
 
 //---------------------------------------------------------------------------------------
 //
-// Performs cleanup for EEToProfInterfaceImpl, including releasing the profiler's 
+// Performs cleanup for EEToProfInterfaceImpl, including releasing the profiler's
 // callback interface.  Called on termination of a profiler connection.
 //
 
@@ -914,7 +901,6 @@ EEToProfInterfaceImpl::~EEToProfInterfaceImpl()
     {
         if (m_pCallback2 != NULL)
         {
-            REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
             m_pCallback2->Release();
             m_pCallback2 = NULL;
         }
@@ -923,49 +909,42 @@ EEToProfInterfaceImpl::~EEToProfInterfaceImpl()
 
         if (fIsV4Profiler)
         {
-            REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
             m_pCallback3->Release();
             m_pCallback3 = NULL;
         }
 
         if (m_pCallback4 != NULL)
         {
-            REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
             m_pCallback4->Release();
             m_pCallback4 = NULL;
         }
 
         if (m_pCallback5 != NULL)
         {
-            REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
             m_pCallback5->Release();
             m_pCallback5 = NULL;
         }
 
         if (m_pCallback6 != NULL)
         {
-            REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
             m_pCallback6->Release();
             m_pCallback6 = NULL;
         }
 
         if (m_pCallback7 != NULL)
         {
-            REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
             m_pCallback7->Release();
             m_pCallback7 = NULL;
         }
 
         if (m_pCallback8 != NULL)
         {
-            REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
             m_pCallback8->Release();
             m_pCallback8 = NULL;
         }
 
         if (m_pCallback9 != NULL)
         {
-            REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
             m_pCallback9->Release();
             m_pCallback9 = NULL;
         }
@@ -1000,7 +979,7 @@ EEToProfInterfaceImpl::~EEToProfInterfaceImpl()
 
     if (m_pSavedAllocDataBlock)
     {
-#ifdef _WIN64
+#ifdef BIT64
         _ASSERTE((UINT_PTR)m_pSavedAllocDataBlock != 0xFFFFFFFFFFFFFFFF);
 #else
         _ASSERTE((UINT_PTR)m_pSavedAllocDataBlock != 0xFFFFFFFF);
@@ -1043,7 +1022,7 @@ EEToProfInterfaceImpl::~EEToProfInterfaceImpl()
         delete m_pFunctionIDHashTable;
         m_pFunctionIDHashTable = NULL;
     }
-    
+
     if (m_pFunctionIDHashTableRWLock != NULL)
     {
         delete m_pFunctionIDHashTableRWLock;
@@ -1102,10 +1081,10 @@ void EEToProfInterfaceImpl::GetGUID(GUID * pGUID)
         ASSERT_NO_EE_LOCKS_HELD();
     }
     CONTRACTL_END;
-    
+
     // the member GUID and the argument should both be valid
     _ASSERTE(!(IsEqualGUID(m_GUID, k_guidZero)));
-    _ASSERTE(pGUID); 
+    _ASSERTE(pGUID);
 
     // Copy the contents of the template GUID
     memcpy(pGUID, &m_GUID, sizeof(GUID));
@@ -1122,7 +1101,7 @@ void EEToProfInterfaceImpl::GetGUID(GUID * pGUID)
 // Arguments:
 //      funcId - FunctionID for profiler to map
 //      pbHookFunction - [out] Specifies whether the profiler wants to hook (enter/leave)
-//                             this function 
+//                             this function
 //
 // Return Value:
 //      The profiler-specified value that we should use to identify this function
@@ -1136,7 +1115,7 @@ UINT_PTR EEToProfInterfaceImpl::EEFunctionIDMapper(FunctionID funcId, BOOL * pbH
     // This isn't a public callback via ICorProfilerCallback*, but it's close (a
     // public callback via a function pointer).  So we'll aim to have the preferred
     // contracts here.
-    CONTRACTL 
+    CONTRACTL
     {
         // Yay!
         NOTHROW;
@@ -1153,44 +1132,43 @@ UINT_PTR EEToProfInterfaceImpl::EEFunctionIDMapper(FunctionID funcId, BOOL * pbH
         // ListLockEntry typically held during this callback (thanks to
         // MethodTable::DoRunClassInitThrowing).
 
-        SO_NOT_MAINLINE;
-    } 
+    }
     CONTRACTL_END;
-   
-    // only called when CORProfilerFunctionIDMapperEnabled() is true, 
+
+    // only called when CORProfilerFunctionIDMapperEnabled() is true,
     // which means either m_pProfilersFuncIDMapper or m_pProfilersFuncIDMapper2 should not be NULL;
     _ASSERTE((m_pProfilersFuncIDMapper != NULL) || (m_pProfilersFuncIDMapper2 != NULL));
-   
+
     UINT_PTR clientId = NULL;
 
     if (m_pProfilersFuncIDMapper2 != NULL)
     {
-        CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                    LL_INFO100, 
-                                    "**PROF: Calling profiler's FunctionIDMapper2. funcId: 0x%p. clientData: 0x%p.\n", 
+        CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                    LL_INFO100,
+                                    "**PROF: Calling profiler's FunctionIDMapper2. funcId: 0x%p. clientData: 0x%p.\n",
                                     funcId,
                                     m_pProfilersFuncIDMapper2ClientData));
 
-        // The attached profiler may not want to hook this function, so ask it 
+        // The attached profiler may not want to hook this function, so ask it
         clientId = m_pProfilersFuncIDMapper2(funcId, m_pProfilersFuncIDMapper2ClientData, pbHookFunction);
 
     }
     else
     {
-        CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                    LL_INFO100, 
-                                    "**PROF: Calling profiler's FunctionIDMapper. funcId: 0x%p.\n", 
+        CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                    LL_INFO100,
+                                    "**PROF: Calling profiler's FunctionIDMapper. funcId: 0x%p.\n",
                                     funcId));
 
-        // The attached profiler may not want to hook this function, so ask it 
+        // The attached profiler may not want to hook this function, so ask it
         clientId = m_pProfilersFuncIDMapper(funcId, pbHookFunction);
     }
-    
+
     static LONG s_lIsELT2Enabled = -1;
     if (s_lIsELT2Enabled == -1)
     {
-        LONG lEnabled = ((m_pEnter2    != NULL) || 
-                         (m_pLeave2    != NULL) || 
+        LONG lEnabled = ((m_pEnter2    != NULL) ||
+                         (m_pLeave2    != NULL) ||
                          (m_pTailcall2 != NULL));
 
         InterlockedCompareExchange(&s_lIsELT2Enabled, lEnabled, -1);
@@ -1204,12 +1182,12 @@ UINT_PTR EEToProfInterfaceImpl::EEFunctionIDMapper(FunctionID funcId, BOOL * pbH
         functionIDAndClientID.clientID   = clientId;
 
         // ClientID Hash table may throw OUTOFMEMORY exception, which is not expected by the caller.
-        EX_TRY 
+        EX_TRY
         {
             SimpleWriteLockHolder writeLockHolder(m_pFunctionIDHashTableRWLock);
             m_pFunctionIDHashTable->AddOrReplace(functionIDAndClientID);
-        } 
-        EX_CATCH 
+        }
+        EX_CATCH
         {
             // Running out of heap memory means we no longer can maintain the integrity of the mapping table.
             // All ELT2 fast-path hooks are disabled since we cannot report correct FunctionID to the
@@ -1218,15 +1196,15 @@ UINT_PTR EEToProfInterfaceImpl::EEFunctionIDMapper(FunctionID funcId, BOOL * pbH
         }
         EX_END_CATCH(RethrowTerminalExceptions);
 
-        // If ELT2 is in use, FunctionID will be returned to the JIT to be embedded into the ELT3 probes 
-        // instead of using clientID because the profiler may map several functionIDs to a clientID to 
-        // do things like code coverage analysis.  FunctionID to clientID has the one-on-one relationship, 
-        // while the reverse may not have this one-on-one mapping.  Therefore, FunctionID is used as the 
+        // If ELT2 is in use, FunctionID will be returned to the JIT to be embedded into the ELT3 probes
+        // instead of using clientID because the profiler may map several functionIDs to a clientID to
+        // do things like code coverage analysis.  FunctionID to clientID has the one-on-one relationship,
+        // while the reverse may not have this one-on-one mapping.  Therefore, FunctionID is used as the
         // key to retrieve the corresponding clientID from the internal FunctionID hash table.
         return funcId;
     }
 
-    // For profilers that support ELT3, clientID will be embedded into the ELT3 probes 
+    // For profilers that support ELT3, clientID will be embedded into the ELT3 probes
     return clientId;
 }
 
@@ -1256,7 +1234,7 @@ EEToProfInterfaceImpl::GCReferencesData * EEToProfInterfaceImpl::AllocateMovedRe
     {
         NOTHROW;
         GC_NOTRIGGER;
-        if (GetThreadNULLOk()) { MODE_COOPERATIVE; } 
+        if (GetThreadNULLOk()) { MODE_COOPERATIVE; }
 
         // We directly take m_csGCRefDataFreeList around accessing the free list below
         CAN_TAKE_LOCK;
@@ -1364,12 +1342,12 @@ HRESULT EEToProfInterfaceImpl::MovedReference(BYTE * pbMemBlockStart,
 
         // Called during a GC
         GC_NOTRIGGER;
-        if (GetThreadNULLOk()) { MODE_COOPERATIVE; } 
+        if (GetThreadNULLOk()) { MODE_COOPERATIVE; }
 
         // Thread store lock normally held during this callback
     }
     CONTRACTL_END;
-    
+
     _ASSERTE(pHeapId);
     _ASSERTE(*((size_t *)pHeapId) != (size_t)(-1));
 
@@ -1452,7 +1430,7 @@ HRESULT EEToProfInterfaceImpl::EndMovedReferences(void * pHeapId)
 
         // Called during a GC
         GC_NOTRIGGER;
-        if (GetThreadNULLOk()) { MODE_COOPERATIVE; } 
+        if (GetThreadNULLOk()) { MODE_COOPERATIVE; }
 
         // We directly take m_csGCRefDataFreeList around accessing the free list below
         CAN_TAKE_LOCK;
@@ -1522,7 +1500,6 @@ HRESULT EEToProfInterfaceImpl::AllocByClass(ObjectID objId, ClassID clsId, void 
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_INTOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -1612,7 +1589,7 @@ HRESULT EEToProfInterfaceImpl::AllocByClass(ObjectID objId, ClassID clsId, void 
     _ASSERTE(dwProcId == GetCurrentProcessId());
 
     // Lookup to see if this class already has an entry
-    CLASSHASHENTRY * pEntry = 
+    CLASSHASHENTRY * pEntry =
         reinterpret_cast<CLASSHASHENTRY *>(pData->pHashTable->Find(HASH(clsId), (SIZE_T)clsId));
 
     // If this class has already been encountered, just increment the counter.
@@ -1690,7 +1667,7 @@ DWORD EtwRootFlagsToProfApiRootFlags(DWORD dwEtwRootFlags)
     LIMITED_METHOD_CONTRACT;
 
     // If a new ETW flag is added, adjust this assert, and add a case below.
-    _ASSERTE((dwEtwRootFlags & 
+    _ASSERTE((dwEtwRootFlags &
         ~(kEtwGCRootFlagsPinning | kEtwGCRootFlagsWeakRef | kEtwGCRootFlagsInterior | kEtwGCRootFlagsRefCounted))
                     == 0);
 
@@ -1729,7 +1706,7 @@ DWORD EtwRootFlagsToProfApiRootFlags(DWORD dwEtwRootFlags)
 DWORD EtwRootKindToProfApiRootKind(EtwGCRootKind dwEtwRootKind)
 {
     LIMITED_METHOD_CONTRACT;
-    
+
     switch(dwEtwRootKind)
     {
     default:
@@ -1771,7 +1748,7 @@ DWORD EtwRootKindToProfApiRootKind(EtwGCRootKind dwEtwRootKind)
 HRESULT EEToProfInterfaceImpl::RootReference2(BYTE * objectId,
                                               EtwGCRootKind dwEtwRootKind,
                                               EtwGCRootFlags dwEtwRootFlags,
-                                              void * rootID, 
+                                              void * rootID,
                                               void * pHeapId)
 {
     _ASSERTE(pHeapId);
@@ -1874,7 +1851,7 @@ HRESULT EEToProfInterfaceImpl::EndRootReferences2(void * pHeapId)
 
 //---------------------------------------------------------------------------------------
 //
-// Callback used by the GC when scanning the roots (via 
+// Callback used by the GC when scanning the roots (via
 // Ref_ScanDependentHandlesForProfilerAndETW in ObjectHandle.cpp).
 //
 // Arguments:
@@ -1888,8 +1865,8 @@ HRESULT EEToProfInterfaceImpl::EndRootReferences2(void * pHeapId)
 //
 
 HRESULT EEToProfInterfaceImpl::ConditionalWeakTableElementReference(BYTE * primaryObjectId,
-                        BYTE * secondaryObjectId, 
-                        void * rootID, 
+                        BYTE * secondaryObjectId,
+                        void * rootID,
                         void * pHeapId)
 {
     _ASSERTE(pHeapId);
@@ -1925,7 +1902,7 @@ HRESULT EEToProfInterfaceImpl::ConditionalWeakTableElementReference(BYTE * prima
     _ASSERTE(pData->curIdx >= 0 && pData->curIdx <= kcReferencesMax);
 
     // If the struct has been filled, then we need to notify the profiler of
-    // these dependent handle references and clear the struct for the next 
+    // these dependent handle references and clear the struct for the next
     // load of dependent handle references
     if (pData->curIdx == kcReferencesMax)
     {
@@ -1947,12 +1924,12 @@ HRESULT EEToProfInterfaceImpl::ConditionalWeakTableElementReference(BYTE * prima
 //---------------------------------------------------------------------------------------
 //
 // Called by the GC to indicate that the GC is finished calling
-// EEToProfInterfaceImpl::ConditionalWeakTableElementReference for this collection.  This 
+// EEToProfInterfaceImpl::ConditionalWeakTableElementReference for this collection.  This
 // function will call into the profiler to notify it of all the DependentHandle references
 // we've cached.
 //
 // Arguments:
-//      pHeapId - Casted to a GCReferencesData * that contains the dependent handle 
+//      pHeapId - Casted to a GCReferencesData * that contains the dependent handle
 //                references we've cached.
 //
 // Return Value:
@@ -2018,30 +1995,30 @@ HRESULT EEToProfInterfaceImpl::EnsureProfilerDetachable()
         ((g_profControlBlock.dwEventMaskHigh & COR_PRF_HIGH_MONITOR_IMMUTABLE) != 0))
     {
         LOG((
-            LF_CORPROF, 
-            LL_ERROR, 
-            "**PROF: Profiler may not detach because it set an immutable flag.  Flags = 0x%x.\n", 
+            LF_CORPROF,
+            LL_ERROR,
+            "**PROF: Profiler may not detach because it set an immutable flag.  Flags = 0x%x.\n",
             g_profControlBlock.dwEventMask));
 
         return CORPROF_E_IMMUTABLE_FLAGS_SET;
     }
 
-    if ((m_pEnter != NULL)             || 
-        (m_pLeave != NULL)             || 
+    if ((m_pEnter != NULL)             ||
+        (m_pLeave != NULL)             ||
         (m_pTailcall != NULL)          ||
-        (m_pEnter2 != NULL)            || 
-        (m_pLeave2 != NULL)            || 
+        (m_pEnter2 != NULL)            ||
+        (m_pLeave2 != NULL)            ||
         (m_pTailcall2 != NULL)         ||
-        (m_pEnter3 != NULL)            || 
-        (m_pEnter3WithInfo != NULL)    || 
-        (m_pLeave3 != NULL)            || 
-        (m_pLeave3WithInfo != NULL)    || 
+        (m_pEnter3 != NULL)            ||
+        (m_pEnter3WithInfo != NULL)    ||
+        (m_pLeave3 != NULL)            ||
+        (m_pLeave3WithInfo != NULL)    ||
         (m_pTailcall3 != NULL)         ||
         (m_pTailcall3WithInfo != NULL))
     {
         LOG((
-            LF_CORPROF, 
-            LL_ERROR, 
+            LF_CORPROF,
+            LL_ERROR,
             "**PROF: Profiler may not detach because it set an ELT(2) hook.\n"));
 
         return CORPROF_E_IRREVERSIBLE_INSTRUMENTATION_PRESENT;
@@ -2050,8 +2027,8 @@ HRESULT EEToProfInterfaceImpl::EnsureProfilerDetachable()
     if (m_fUnrevertiblyModifiedIL)
     {
         LOG((
-            LF_CORPROF, 
-            LL_ERROR, 
+            LF_CORPROF,
+            LL_ERROR,
             "**PROF: Profiler may not detach because it called SetILFunctionBody.\n"));
 
         return CORPROF_E_IRREVERSIBLE_INSTRUMENTATION_PRESENT;
@@ -2060,11 +2037,11 @@ HRESULT EEToProfInterfaceImpl::EnsureProfilerDetachable()
     if (m_fModifiedRejitState)
     {
         LOG((
-            LF_CORPROF, 
-            LL_ERROR, 
+            LF_CORPROF,
+            LL_ERROR,
             "**PROF: Profiler may not detach because it enabled Rejit.\n"));
 
-        return CORPROF_E_IRREVERSIBLE_INSTRUMENTATION_PRESENT;   
+        return CORPROF_E_IRREVERSIBLE_INSTRUMENTATION_PRESENT;
     }
 
     return S_OK;
@@ -2108,7 +2085,7 @@ HRESULT EEToProfInterfaceImpl::DetermineAndSetEnterLeaveFunctionHooksForJit()
                          (m_pLeave2 != NULL)     ||
                          (m_pTailcall2 != NULL);
 
-    // If no hooks were set (e.g., SetEventMask called with COR_PRF_MONITOR_ENTERLEAVE, 
+    // If no hooks were set (e.g., SetEventMask called with COR_PRF_MONITOR_ENTERLEAVE,
     // but SetEnterLeaveFunctionHooks(*) never called), then nothing to do
     if (!fCLRv4Hooks           &&
         !fWhidbeyHooks         &&
@@ -2121,34 +2098,33 @@ HRESULT EEToProfInterfaceImpl::DetermineAndSetEnterLeaveFunctionHooksForJit()
 
 
     HRESULT hr = S_OK;
-    
+
     EX_TRY
     {
         if (fCLRv4Hooks)
         {
             // For each type of hook (enter/leave/tailcall) we must determine if we can use the
             // happy lucky fast path (i.e., direct call from JITd code right into the profiler's
-            // hook or the JIT default stub (see below)), or the slow path (i.e., call into an 
+            // hook or the JIT default stub (see below)), or the slow path (i.e., call into an
             // intermediary FCALL which then calls the profiler's hook) with extra information
             // about the current function.
 
-            // The casts below are to appease rotor.  cl.exe doesn't need them.
             hr = SetEnterLeaveFunctionHooksForJit(
                 (m_pEnter3WithInfo != NULL) ?
-                    reinterpret_cast<FunctionEnter3 *>(PROFILECALLBACK(ProfileEnter)) :
+                    PROFILECALLBACK(ProfileEnter) :
                     m_pEnter3,
                 (m_pLeave3WithInfo != NULL) ?
-                    reinterpret_cast<FunctionLeave3 *>(PROFILECALLBACK(ProfileLeave)) :
+                    PROFILECALLBACK(ProfileLeave) :
                     m_pLeave3,
                 (m_pTailcall3WithInfo != NULL) ?
-                    reinterpret_cast<FunctionTailcall3 *>(PROFILECALLBACK(ProfileTailcall)) :
+                    PROFILECALLBACK(ProfileTailcall) :
                     m_pTailcall3);
         }
         else
         {
             //
             // Everett or Whidbey hooks.
-            // 
+            //
 
             // When using Everett or Whidbey hooks, the check looks like this:
             //
@@ -2157,16 +2133,16 @@ HRESULT EEToProfInterfaceImpl::DetermineAndSetEnterLeaveFunctionHooksForJit()
             //
             // Why?
             //
-            // - If the profiler wants the old-style Whidbey or Everett hooks, we need a wrapper 
-            // to convert from the ELT3 prototype the JIT expects to the Whidbey or Everett 
-            // prototype the profiler expects. It applies to Whidbey fast-path hooks.   And due 
-            // to the overhead of looking up FunctionID from cache and using lock to synchronize 
-            // cache accesses, the so-called Whidbey fast-path hooks are much slower than they 
+            // - If the profiler wants the old-style Whidbey or Everett hooks, we need a wrapper
+            // to convert from the ELT3 prototype the JIT expects to the Whidbey or Everett
+            // prototype the profiler expects. It applies to Whidbey fast-path hooks.   And due
+            // to the overhead of looking up FunctionID from cache and using lock to synchronize
+            // cache accesses, the so-called Whidbey fast-path hooks are much slower than they
             // used to be.  Whidbey and Everett hooks are supported to keep existing profiler
-            // running, but the profiler writers are encouraged to use ELT3 interface for the 
+            // running, but the profiler writers are encouraged to use ELT3 interface for the
             // best performance.
             //
-            // Implicit in the above logic is if one of the hook types has no hook pointer 
+            // Implicit in the above logic is if one of the hook types has no hook pointer
             // specified, then we pass NULL as the hook pointer to the JIT, in which case the JIT
             // just generates a call to the default stub (a single ret) w/out invoking the slow-path
             // wrapper.  I call this the "fast path to nowhere"
@@ -2175,16 +2151,15 @@ HRESULT EEToProfInterfaceImpl::DetermineAndSetEnterLeaveFunctionHooksForJit()
             BOOL fLeave = (m_pLeave != NULL) || (m_pLeave2 != NULL);
             BOOL fTailcall = (m_pTailcall != NULL) || (m_pTailcall2 != NULL);
 
-            // The casts below are to appease rotor.  cl.exe doesn't need them.
             hr = SetEnterLeaveFunctionHooksForJit(
                 fEnter ?
-                    reinterpret_cast<FunctionEnter3 *>(PROFILECALLBACK(ProfileEnter)) :
+                    PROFILECALLBACK(ProfileEnter) :
                     NULL,
                 fLeave ?
-                    reinterpret_cast<FunctionLeave3 *>(PROFILECALLBACK(ProfileLeave)) :
+                    PROFILECALLBACK(ProfileLeave) :
                     NULL,
                 fTailcall ?
-                    reinterpret_cast<FunctionTailcall3 *>(PROFILECALLBACK(ProfileTailcall)) :
+                    PROFILECALLBACK(ProfileTailcall) :
                     NULL);
         }
     }
@@ -2196,7 +2171,7 @@ HRESULT EEToProfInterfaceImpl::DetermineAndSetEnterLeaveFunctionHooksForJit()
     // the IA64-only lock while allocating stub space!).  For example, specifying
     // RethrowTerminalExceptions forces us to test to see if the caught exception is
     // terminal and Exception::IsTerminal() can lock if we get a handle table cache miss
-    // while getting a handle for the exception.  It is good to minimize locks from 
+    // while getting a handle for the exception.  It is good to minimize locks from
     // profiler Info functions (and their callees), and this is a dumb lock to have,
     // given that we can avoid it altogether by just having terminal exceptions be
     // swallowed here, and returning the failure to the profiler.  For those who don't
@@ -2230,7 +2205,6 @@ HRESULT EEToProfInterfaceImpl::SetEventMask(DWORD dwEventMask, DWORD dwEventMask
         MODE_ANY;
         EE_THREAD_NOT_REQUIRED;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -2254,11 +2228,11 @@ HRESULT EEToProfInterfaceImpl::SetEventMask(DWORD dwEventMask, DWORD dwEventMask
     // shadow stacks to verify stack walks (which can be done mutably via manual
     // EBP-frame walking), or enable immutable DSS to gather IP addresses to verify the
     // mutable GetFunctionFromIP.
-    // 
+    //
     // Similarly, test profilers may need to extend the set of flags allowable on attach
     // to enable features that help verify other parts of the profapi that ARE allowed
     // on attach.
-    // 
+    //
     // See code:#P2CLRRestrictionsOverview for more information
     DWORD dwImmutableEventFlags = COR_PRF_MONITOR_IMMUTABLE;
     DWORD dwAllowableAfterAttachEventFlags = COR_PRF_ALLOWABLE_AFTER_ATTACH;
@@ -2268,13 +2242,13 @@ HRESULT EEToProfInterfaceImpl::SetEventMask(DWORD dwEventMask, DWORD dwEventMask
     {
         // Remove from the immutable flag list those flags that a test-only profiler may
         // need to set post-startup (specified via COMPlus_TestOnlyAllowedEventMask)
-        dwImmutableEventFlags &= ~dwTestOnlyAllowedEventMask;  
+        dwImmutableEventFlags &= ~dwTestOnlyAllowedEventMask;
 
         // And add to the "allowable after attach" list the same test-only flags.
         dwAllowableAfterAttachEventFlags |= dwTestOnlyAllowedEventMask;
-        
-        LOG((LF_CORPROF, LL_INFO10, "**PROF: TestOnlyAllowedEventMask=0x%x. New immutable flags=0x%x.  New AllowableAfterAttach flags=0x%x\n", 
-            dwTestOnlyAllowedEventMask, 
+
+        LOG((LF_CORPROF, LL_INFO10, "**PROF: TestOnlyAllowedEventMask=0x%x. New immutable flags=0x%x.  New AllowableAfterAttach flags=0x%x\n",
+            dwTestOnlyAllowedEventMask,
             dwImmutableEventFlags,
             dwAllowableAfterAttachEventFlags));
     }
@@ -2314,12 +2288,12 @@ HRESULT EEToProfInterfaceImpl::SetEventMask(DWORD dwEventMask, DWORD dwEventMask
         return CORPROF_E_UNSUPPORTED_FOR_ATTACHING_PROFILER;
     }
 
-    // After fast path ELT hooks are set in Initial callback, the startup profiler is not allowed to change flags 
+    // After fast path ELT hooks are set in Initial callback, the startup profiler is not allowed to change flags
     // that require slow path ELT hooks or disable ELT hooks.
-    if ((g_profControlBlock.curProfStatus.Get() == kProfStatusInitializingForStartupLoad) && 
+    if ((g_profControlBlock.curProfStatus.Get() == kProfStatusInitializingForStartupLoad) &&
         (
-            (m_pEnter3    != NULL) || 
-            (m_pLeave3    != NULL) || 
+            (m_pEnter3    != NULL) ||
+            (m_pLeave3    != NULL) ||
             (m_pTailcall3 != NULL)
         ) &&
         (
@@ -2334,7 +2308,7 @@ HRESULT EEToProfInterfaceImpl::SetEventMask(DWORD dwEventMask, DWORD dwEventMask
 
     // After slow path ELT hooks are set in Initial callback, the startup profiler is not allowed to remove
     // all flags that require slow path ELT hooks or to change the flag to disable the ELT hooks.
-    if ((g_profControlBlock.curProfStatus.Get() == kProfStatusInitializingForStartupLoad) && 
+    if ((g_profControlBlock.curProfStatus.Get() == kProfStatusInitializingForStartupLoad) &&
         (
             (m_pEnter3WithInfo    != NULL) ||
             (m_pLeave3WithInfo    != NULL) ||
@@ -2352,7 +2326,7 @@ HRESULT EEToProfInterfaceImpl::SetEventMask(DWORD dwEventMask, DWORD dwEventMask
 
 
     // Note whether the caller is changing flags that affect enter leave hooks
-    BOOL fEnterLeaveHooksAffected = 
+    BOOL fEnterLeaveHooksAffected =
         // Did any of the relevant flags change?
         (
             (
@@ -2380,22 +2354,22 @@ HRESULT EEToProfInterfaceImpl::SetEventMask(DWORD dwEventMask, DWORD dwEventMask
 
     BOOL fNeedToTurnOffConcurrentGC = FALSE;
 
-    if (((dwEventMask & COR_PRF_MONITOR_GC) != 0) && 
+    if (((dwEventMask & COR_PRF_MONITOR_GC) != 0) &&
         ((g_profControlBlock.dwEventMask & COR_PRF_MONITOR_GC) == 0))
     {
         // We don't need to worry about startup load as we'll turn off concurrent GC later
         if (g_profControlBlock.curProfStatus.Get() != kProfStatusInitializingForStartupLoad)
-        {        
+        {
             // Since we're not an initializing startup profiler, the EE must be fully started up
             // so we can check whether concurrent GC is on
             if (!g_fEEStarted)
             {
                 return CORPROF_E_RUNTIME_UNINITIALIZED;
             }
-            
-            // We don't want to change the flag before GC is fully initialized, 
+
+            // We don't want to change the flag before GC is fully initialized,
             // otherwise the concurrent GC setting would be overwritten
-            // Make sure GC is fully initialized before proceed 
+            // Make sure GC is fully initialized before proceed
             if (!IsGarbageCollectorFullyInitialized())
             {
                 return CORPROF_E_NOT_YET_AVAILABLE;
@@ -2408,7 +2382,7 @@ HRESULT EEToProfInterfaceImpl::SetEventMask(DWORD dwEventMask, DWORD dwEventMask
                 if (GCHeapUtilities::GetGCHeap()->IsConcurrentGCEnabled())
                 {
                     // We only allow turning off concurrent GC in the profiler attach thread inside
-                    // InitializeForAttach, otherwise we would be vulnerable to weird races such as 
+                    // InitializeForAttach, otherwise we would be vulnerable to weird races such as
                     // SetEventMask running on a separate thread and trying to turn off concurrent GC.
                     // The best option here is to fail with CORPROF_E_CONCURRENT_GC_NOT_PROFILABLE.
                     // Existing Dev10 profilers should be prepared to handle such case.
@@ -2425,14 +2399,14 @@ HRESULT EEToProfInterfaceImpl::SetEventMask(DWORD dwEventMask, DWORD dwEventMask
             else
             {
                 // Fail if concurrent GC is enabled
-                // This should only happen for attach profilers if user didn't turn on COR_PRF_MONITOR_GC 
+                // This should only happen for attach profilers if user didn't turn on COR_PRF_MONITOR_GC
                 // at attach time
                 if (GCHeapUtilities::GetGCHeap()->IsConcurrentGCEnabled())
                 {
                     return CORPROF_E_CONCURRENT_GC_NOT_PROFILABLE;
-                }        
+                }
             }
-        }        
+        }
     }
 
     if ((dwEventMask & COR_PRF_ENABLE_REJIT) != 0)
@@ -2494,9 +2468,9 @@ HRESULT EEToProfInterfaceImpl::SetEventMask(DWORD dwEventMask, DWORD dwEventMask
     {
         // Turn off concurrent GC if it is on so that user can walk the heap safely in GC callbacks
         IGCHeap * pGCHeap = GCHeapUtilities::GetGCHeap();
-        
+
         LOG((LF_CORPROF, LL_INFO10, "**PROF: Turning off concurrent GC at attach.\n"));
-        
+
         // First turn off concurrent GC
         pGCHeap->TemporaryDisableConcurrentGC();
 
@@ -2505,10 +2479,10 @@ HRESULT EEToProfInterfaceImpl::SetEventMask(DWORD dwEventMask, DWORD dwEventMask
         // User can use a timeout that can be set by environment variable if the GC turns out
         // to be too long. The default value is INFINITE.
         //
-        // NOTE: 
-        // If we don't do it in this order there might be a new concurrent GC started 
+        // NOTE:
+        // If we don't do it in this order there might be a new concurrent GC started
         // before we actually turn off concurrent GC
-        //                
+        //
         hr = pGCHeap->WaitUntilConcurrentGCCompleteAsync(m_dwConcurrentGCWaitTimeoutInMs);
         if (FAILED(hr))
         {
@@ -2521,14 +2495,14 @@ HRESULT EEToProfInterfaceImpl::SetEventMask(DWORD dwEventMask, DWORD dwEventMask
                 // remember the fact that we've failed, and report the failure later after InitializeForAttach
                 m_bHasTimedOutWaitingForConcurrentGC = TRUE;
             }
-            
+
             pGCHeap->TemporaryEnableConcurrentGC();
             return hr;
         }
-    
+
         // Remember that we've turned off concurrent GC and we'll turn it back on in TerminateProfiling
         g_profControlBlock.fConcurrentGCDisabledForAttach = TRUE;
-    
+
         LOG((LF_CORPROF, LL_INFO10, "**PROF: Concurrent GC has been turned off at attach.\n"));
     }
 
@@ -2559,7 +2533,6 @@ HRESULT EEToProfInterfaceImpl::SetEnterLeaveFunctionHooks(FunctionEnter * pFuncE
         MODE_ANY;
         EE_THREAD_NOT_REQUIRED;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -2569,17 +2542,17 @@ HRESULT EEToProfInterfaceImpl::SetEnterLeaveFunctionHooks(FunctionEnter * pFuncE
         return E_INVALIDARG;
     }
 
-    // ELT3 hooks beat Whidbey and Whidbey hooks beat Everett hooks.  So if any ELT3 or 
-    // Whidbey hooks were set (SetEnterLeaveFunctionHooks3(WithInfo) or SetEnterLeaveFunctionHooks2), 
+    // ELT3 hooks beat Whidbey and Whidbey hooks beat Everett hooks.  So if any ELT3 or
+    // Whidbey hooks were set (SetEnterLeaveFunctionHooks3(WithInfo) or SetEnterLeaveFunctionHooks2),
     // this should be a noop
     if ((m_pEnter3            != NULL) ||
         (m_pEnter3WithInfo    != NULL) ||
-        (m_pLeave3            != NULL) || 
-        (m_pLeave3WithInfo    != NULL) || 
+        (m_pLeave3            != NULL) ||
+        (m_pLeave3WithInfo    != NULL) ||
         (m_pTailcall3         != NULL) ||
         (m_pTailcall3WithInfo != NULL) ||
         (m_pEnter2            != NULL) ||
-        (m_pLeave2            != NULL) || 
+        (m_pLeave2            != NULL) ||
         (m_pTailcall2         != NULL))
     {
         return S_OK;
@@ -2617,7 +2590,6 @@ HRESULT EEToProfInterfaceImpl::SetEnterLeaveFunctionHooks2(FunctionEnter2 * pFun
         MODE_ANY;
         EE_THREAD_NOT_REQUIRED;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -2627,12 +2599,12 @@ HRESULT EEToProfInterfaceImpl::SetEnterLeaveFunctionHooks2(FunctionEnter2 * pFun
         return E_INVALIDARG;
     }
 
-    // ELT3 hooks beat Whidbey.  So if any ELT3 hooks were set (SetEnterLeaveFunctionHooks3(WithInfo)), 
+    // ELT3 hooks beat Whidbey.  So if any ELT3 hooks were set (SetEnterLeaveFunctionHooks3(WithInfo)),
     // this should be a noop
     if ((m_pEnter3            != NULL) ||
         (m_pEnter3WithInfo    != NULL) ||
-        (m_pLeave3            != NULL) || 
-        (m_pLeave3WithInfo    != NULL) || 
+        (m_pLeave3            != NULL) ||
+        (m_pLeave3WithInfo    != NULL) ||
         (m_pTailcall3         != NULL) ||
         (m_pTailcall3WithInfo != NULL))
     {
@@ -2676,7 +2648,6 @@ HRESULT EEToProfInterfaceImpl::SetEnterLeaveFunctionHooks3(FunctionEnter3 * pFun
         MODE_ANY;
         EE_THREAD_NOT_REQUIRED;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -2737,7 +2708,6 @@ HRESULT EEToProfInterfaceImpl::SetEnterLeaveFunctionHooks3WithInfo(FunctionEnter
         MODE_ANY;
         EE_THREAD_NOT_REQUIRED;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -2813,13 +2783,12 @@ HRESULT EEToProfInterfaceImpl::Initialize()
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
     CLR_TO_PROFILER_ENTRYPOINT_EX(kEE2PAllowableWhileInitializing,
-        (LF_CORPROF, 
-         LL_INFO10, 
+        (LF_CORPROF,
+         LL_INFO10,
          "**PROF: Calling profiler's Initialize() method.\n"));
 
     _ASSERTE(m_pProfToEE != NULL);
@@ -2830,7 +2799,7 @@ HRESULT EEToProfInterfaceImpl::Initialize()
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->Initialize(m_pProfToEE);
     }
@@ -2856,13 +2825,12 @@ HRESULT EEToProfInterfaceImpl::InitializeForAttach(void * pvClientData, UINT cbC
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
     CLR_TO_PROFILER_ENTRYPOINT_EX(kEE2PAllowableWhileInitializing,
-        (LF_CORPROF, 
-         LL_INFO10, 
+        (LF_CORPROF,
+         LL_INFO10,
          "**PROF: Calling profiler's InitializeForAttach() method.\n"));
 
     _ASSERTE(m_pProfToEE != NULL);
@@ -2915,12 +2883,11 @@ HRESULT EEToProfInterfaceImpl::ProfilerAttachComplete()
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO10, 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO10,
                                 "**PROF: Calling profiler's ProfilerAttachComplete() method.\n"));
 
     // Attach initialization occurs on the AttachThread, which does not have an EEThread
@@ -2979,7 +2946,6 @@ HRESULT EEToProfInterfaceImpl::ThreadCreated(ThreadID threadId)
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -2990,16 +2956,16 @@ HRESULT EEToProfInterfaceImpl::ThreadCreated(ThreadID threadId)
     // code:Thread::m_fGCSpecial
     _ASSERTE(!reinterpret_cast<Thread *>(threadId)->IsGCSpecial());
 
-    CLR_TO_PROFILER_ENTRYPOINT_FOR_THREAD(threadId, 
-                                          (LF_CORPROF, 
-                                           LL_INFO100, 
-                                           "**PROF: Notifying profiler of created thread. ThreadId: 0x%p.\n", 
+    CLR_TO_PROFILER_ENTRYPOINT_FOR_THREAD(threadId,
+                                          (LF_CORPROF,
+                                           LL_INFO100,
+                                           "**PROF: Notifying profiler of created thread. ThreadId: 0x%p.\n",
                                            threadId));
 
     // Notify the profiler of the newly created thread.
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ThreadCreated(threadId);
     }
@@ -3023,13 +2989,12 @@ HRESULT EEToProfInterfaceImpl::ThreadDestroyed(ThreadID threadId)
 
         // Thread store lock is typically held during this callback
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
     if (reinterpret_cast<Thread *>(threadId)->IsGCSpecial())
         return S_OK;
-   
+
     // In general, we like callbacks to switch to preemptive before calling into the
     // profiler.  And this is particularly important to do in the ThreadCreated &
     // ThreadDestroyed callbacks.
@@ -3056,9 +3021,9 @@ HRESULT EEToProfInterfaceImpl::ThreadDestroyed(ThreadID threadId)
     //      A waits on B
     //      B waits on "this".
     CLR_TO_PROFILER_ENTRYPOINT_FOR_THREAD(threadId,
-                                          (LF_CORPROF, 
-                                           LL_INFO100, 
-                                           "**PROF: Notifying profiler of destroyed thread. ThreadId: 0x%p.\n", 
+                                          (LF_CORPROF,
+                                           LL_INFO100,
+                                           "**PROF: Notifying profiler of destroyed thread. ThreadId: 0x%p.\n",
                                            threadId));
 
     // From now on, issue no more callbacks for this thread
@@ -3067,7 +3032,7 @@ HRESULT EEToProfInterfaceImpl::ThreadDestroyed(ThreadID threadId)
     // Notify the profiler of the destroyed thread
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ThreadDestroyed(threadId);
     }
@@ -3094,7 +3059,6 @@ HRESULT EEToProfInterfaceImpl::ThreadAssignedToOSThread(ThreadID managedThreadId
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -3104,16 +3068,16 @@ HRESULT EEToProfInterfaceImpl::ThreadAssignedToOSThread(ThreadID managedThreadId
     CLR_TO_PROFILER_ENTRYPOINT_FOR_THREAD_EX(
         kEE2PNoTrigger,
         managedThreadId,
-        (LF_CORPROF, 
-        LL_INFO100, 
-        "**PROF: Notifying profiler of thread assignment.  ThreadId: 0x%p, OSThreadId: 0x%08x\n", 
-        managedThreadId, 
+        (LF_CORPROF,
+        LL_INFO100,
+        "**PROF: Notifying profiler of thread assignment.  ThreadId: 0x%p, OSThreadId: 0x%08x\n",
+        managedThreadId,
         osThreadId));
 
     // Notify the profiler of the thread being assigned to the OS thread
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ThreadAssignedToOSThread(managedThreadId, osThreadId);
     }
@@ -3140,21 +3104,20 @@ HRESULT EEToProfInterfaceImpl::ThreadNameChanged(ThreadID managedThreadId,
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
+
     if (reinterpret_cast<Thread *>(managedThreadId)->IsGCSpecial())
         return S_OK;
 
-    CLR_TO_PROFILER_ENTRYPOINT_FOR_THREAD(managedThreadId, 
-                                          (LF_CORPROF, 
-                                           LL_INFO100, 
+    CLR_TO_PROFILER_ENTRYPOINT_FOR_THREAD(managedThreadId,
+                                          (LF_CORPROF,
+                                           LL_INFO100,
                                            "**PROF: Notifying profiler of thread name change.\n"));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ThreadNameChanged(managedThreadId, cchName, name);
     }
@@ -3183,17 +3146,16 @@ HRESULT EEToProfInterfaceImpl::Shutdown()
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
+
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
                                 LL_INFO10,
                                 "**PROF: Notifying profiler that shutdown is beginning.\n"));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->Shutdown();
     }
@@ -3210,7 +3172,7 @@ HRESULT EEToProfInterfaceImpl::FunctionUnloadStarted(FunctionID functionId)
 }
 
 HRESULT EEToProfInterfaceImpl::JITCompilationFinished(FunctionID functionId,
-                                                      HRESULT hrStatus, 
+                                                      HRESULT hrStatus,
                                                       BOOL fIsSafeToBlock)
 {
     CONTRACTL
@@ -3229,21 +3191,20 @@ HRESULT EEToProfInterfaceImpl::JITCompilationFinished(FunctionID functionId,
 
         // The JIT / MethodDesc code likely hold locks while this callback is made
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO1000, 
-                                "**PROF: JITCompilationFinished 0x%p, hr=0x%08x.\n", 
-                                functionId, 
+
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO1000,
+                                "**PROF: JITCompilationFinished 0x%p, hr=0x%08x.\n",
+                                functionId,
                                 hrStatus));
 
     _ASSERTE(functionId);
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->JITCompilationFinished(functionId, hrStatus, fIsSafeToBlock);
     }
@@ -3269,25 +3230,24 @@ HRESULT EEToProfInterfaceImpl::JITCompilationStarted(FunctionID functionId,
 
         // The JIT / MethodDesc code likely hold locks while this callback is made
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO1000, 
-                                "**PROF: JITCompilationStarted 0x%p.\n", 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO1000,
+                                "**PROF: JITCompilationStarted 0x%p.\n",
                                 functionId));
 
     // Currently JITCompilationStarted is always called with fIsSafeToBlock==TRUE.  If this ever changes,
     // it's safe to remove this assert, but this should serve as a trigger to change our
     // public documentation to state that this callback is no longer called in preemptive mode all the time.
     _ASSERTE(fIsSafeToBlock);
-    
+
     _ASSERTE(functionId);
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->JITCompilationStarted(functionId, fIsSafeToBlock);
     }
@@ -3301,7 +3261,6 @@ HRESULT EEToProfInterfaceImpl::DynamicMethodUnloaded(FunctionID functionId)
         GC_TRIGGERS;
         MODE_COOPERATIVE; // RuntimeMethodHandle::Destroy (the caller) moves from QCALL to GCX_COOP
         CAN_TAKE_LOCK;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -3319,7 +3278,7 @@ HRESULT EEToProfInterfaceImpl::DynamicMethodUnloaded(FunctionID functionId)
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback9->DynamicMethodUnloaded(functionId);
     }
@@ -3338,13 +3297,12 @@ HRESULT EEToProfInterfaceImpl::DynamicMethodJITCompilationFinished(FunctionID fu
 
         // The JIT / MethodDesc code likely hold locks while this callback is made
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO1000, 
-                                "**PROF: DynamicMethodJITCompilationFinished 0x%p.\n", 
+
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO1000,
+                                "**PROF: DynamicMethodJITCompilationFinished 0x%p.\n",
                                 functionId));
 
     _ASSERTE(functionId);
@@ -3356,7 +3314,7 @@ HRESULT EEToProfInterfaceImpl::DynamicMethodJITCompilationFinished(FunctionID fu
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback8->DynamicMethodJITCompilationFinished(functionId, hrStatus, fIsSafeToBlock);
     }
@@ -3376,13 +3334,12 @@ HRESULT EEToProfInterfaceImpl::DynamicMethodJITCompilationStarted(FunctionID fun
 
         // The JIT / MethodDesc code likely hold locks while this callback is made
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO1000, 
-                                "**PROF: DynamicMethodJITCompilationStarted 0x%p.\n", 
+
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO1000,
+                                "**PROF: DynamicMethodJITCompilationStarted 0x%p.\n",
                                 functionId));
 
     _ASSERTE(functionId);
@@ -3399,7 +3356,7 @@ HRESULT EEToProfInterfaceImpl::DynamicMethodJITCompilationStarted(FunctionID fun
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback8->DynamicMethodJITCompilationStarted(functionId, fIsSafeToBlock, pILHeader, cbILHeader);
     }
@@ -3425,20 +3382,19 @@ HRESULT EEToProfInterfaceImpl::JITCachedFunctionSearchStarted(
 
         // The JIT / MethodDesc code likely hold locks while this callback is made
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO1000, 
-                                "**PROF: JITCachedFunctionSearchStarted 0x%p.\n", 
+
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO1000,
+                                "**PROF: JITCachedFunctionSearchStarted 0x%p.\n",
                                 functionId));
     _ASSERTE(functionId);
     _ASSERTE(pbUseCachedFunction != NULL);
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->JITCachedFunctionSearchStarted(functionId, pbUseCachedFunction);
     }
@@ -3464,23 +3420,22 @@ HRESULT EEToProfInterfaceImpl::JITCachedFunctionSearchFinished(
 
         // The JIT / MethodDesc code likely hold locks while this callback is made
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO1000, 
-                                "**PROF: JITCachedFunctionSearchFinished 0x%p, %s.\n", 
+
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO1000,
+                                "**PROF: JITCachedFunctionSearchFinished 0x%p, %s.\n",
                                 functionId,
-                                (result == COR_PRF_CACHED_FUNCTION_FOUND ? 
-                                    "Cached function found" : 
+                                (result == COR_PRF_CACHED_FUNCTION_FOUND ?
+                                    "Cached function found" :
                                     "Cached function not found")));
 
     _ASSERTE(functionId);
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->JITCachedFunctionSearchFinished(functionId, result);
     }
@@ -3514,14 +3469,13 @@ HRESULT EEToProfInterfaceImpl::JITInlining(
 
         // The JIT / MethodDesc code likely hold locks while this callback is made
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO1000, 
-                                "**PROF: JITInlining caller: 0x%p, callee: 0x%p.\n", 
-                                callerId, 
+
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO1000,
+                                "**PROF: JITInlining caller: 0x%p, callee: 0x%p.\n",
+                                callerId,
                                 calleeId));
 
     _ASSERTE(callerId);
@@ -3529,7 +3483,7 @@ HRESULT EEToProfInterfaceImpl::JITInlining(
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->JITInlining(callerId, calleeId, pfShouldInline);
     }
@@ -3556,13 +3510,12 @@ HRESULT EEToProfInterfaceImpl::ReJITCompilationStarted(
 
         // The JIT / MethodDesc code likely hold locks while this callback is made
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO1000, 
-                                "**PROF: ReJITCompilationStarted 0x%p 0x%p.\n", 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO1000,
+                                "**PROF: ReJITCompilationStarted 0x%p 0x%p.\n",
                                 functionId, reJitId));
 
     // Should only be called on profilers that support ICorProfilerCallback4
@@ -3572,13 +3525,13 @@ HRESULT EEToProfInterfaceImpl::ReJITCompilationStarted(
     // it's safe to remove this assert, but this should serve as a trigger to change our
     // public documentation to state that this callback is no longer called in preemptive mode all the time.
     _ASSERTE(fIsSafeToBlock);
-    
+
     _ASSERTE(functionId);
     _ASSERTE(reJitId);
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback4->ReJITCompilationStarted(functionId, reJitId, fIsSafeToBlock);
     }
@@ -3606,13 +3559,12 @@ HRESULT EEToProfInterfaceImpl::GetReJITParameters(
 
         // The ReJIT code holds a lock while this callback is made
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO1000, 
-                                "**PROF: GetReJITParameters 0x%p 0x%p.\n", 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO1000,
+                                "**PROF: GetReJITParameters 0x%p 0x%p.\n",
                                 moduleId, methodId));
 
     // Should only be called on profilers that support ICorProfilerCallback4
@@ -3622,7 +3574,7 @@ HRESULT EEToProfInterfaceImpl::GetReJITParameters(
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback4->GetReJITParameters(moduleId, methodId, pFunctionControl);
     }
@@ -3650,13 +3602,12 @@ HRESULT EEToProfInterfaceImpl::ReJITCompilationFinished(
 
         // ReJit holds a lock as well as possibly others...
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO1000, 
-                                "**PROF: ReJITCompilationFinished 0x%p 0x%p hr=0x%x.\n", 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO1000,
+                                "**PROF: ReJITCompilationFinished 0x%p 0x%p hr=0x%x.\n",
                                 functionId, reJitId, hrStatus));
 
     // Should only be called on profilers that support ICorProfilerCallback4
@@ -3667,7 +3618,7 @@ HRESULT EEToProfInterfaceImpl::ReJITCompilationFinished(
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback4->ReJITCompilationFinished(functionId, reJitId, hrStatus, fIsSafeToBlock);
     }
@@ -3694,13 +3645,12 @@ HRESULT EEToProfInterfaceImpl::ReJITError(
         // Yay!
         CAN_TAKE_LOCK;
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO1000, 
-                                "**PROF: ReJITError 0x%p 0x%x 0x%p 0x%x.\n", 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO1000,
+                                "**PROF: ReJITError 0x%p 0x%x 0x%p 0x%x.\n",
                                 moduleId, methodId, functionId, hrStatus));
 
     // Should only be called on profilers that support ICorProfilerCallback4
@@ -3708,7 +3658,7 @@ HRESULT EEToProfInterfaceImpl::ReJITError(
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback4->ReJITError(moduleId, methodId, functionId, hrStatus);
     }
@@ -3728,31 +3678,30 @@ HRESULT EEToProfInterfaceImpl::ModuleLoadStarted(ModuleID moduleId)
         // Yay!
         GC_TRIGGERS;
 
-        // This has historically not run in preemptive, and is called from cooperative-mode 
-        // functions. However, since we're triggers, it might actually be safe to consider 
+        // This has historically not run in preemptive, and is called from cooperative-mode
+        // functions. However, since we're triggers, it might actually be safe to consider
         // letting this run in preemptive mode.
         MODE_COOPERATIVE;
-        
+
         // Yay!
         CAN_TAKE_LOCK;
 
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO10, 
-                                "**PROF: ModuleLoadStarted 0x%p.\n", 
+
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO10,
+                                "**PROF: ModuleLoadStarted 0x%p.\n",
                                 moduleId));
 
     _ASSERTE(moduleId != 0);
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ModuleLoadStarted(moduleId);
     }
@@ -3773,27 +3722,26 @@ HRESULT EEToProfInterfaceImpl::ModuleLoadFinished(
 
         // Yay!
         MODE_PREEMPTIVE;
-        
+
         // Yay!
         CAN_TAKE_LOCK;
 
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO10, 
-                                "**PROF: ModuleLoadFinished 0x%p.\n", 
+
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO10,
+                                "**PROF: ModuleLoadFinished 0x%p.\n",
                                 moduleId));
 
     _ASSERTE(moduleId != 0);
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ModuleLoadFinished(moduleId, hrStatus);
     }
@@ -3821,20 +3769,19 @@ HRESULT EEToProfInterfaceImpl::ModuleUnloadStarted(
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO10, 
-                                "**PROF: ModuleUnloadStarted 0x%p.\n", 
+
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO10,
+                                "**PROF: ModuleUnloadStarted 0x%p.\n",
                                 moduleId));
 
     _ASSERTE(moduleId != 0);
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ModuleUnloadStarted(moduleId);
     }
@@ -3862,18 +3809,17 @@ HRESULT EEToProfInterfaceImpl::ModuleUnloadFinished(
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO10, 
-                                "**PROF: ModuleUnloadFinished 0x%p.\n", 
+
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO10,
+                                "**PROF: ModuleUnloadFinished 0x%p.\n",
                                 moduleId));
     _ASSERTE(moduleId != 0);
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ModuleUnloadFinished(moduleId, hrStatus);
     }
@@ -3901,21 +3847,20 @@ HRESULT EEToProfInterfaceImpl::ModuleAttachedToAssembly(
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO10, 
-                                "**PROF: ModuleAttachedToAssembly 0x%p, 0x%p.\n", 
-                                moduleId, 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO10,
+                                "**PROF: ModuleAttachedToAssembly 0x%p, 0x%p.\n",
+                                moduleId,
                                 AssemblyId));
 
     _ASSERTE(moduleId != 0);
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ModuleAttachedToAssembly(moduleId, AssemblyId);
     }
@@ -3937,7 +3882,6 @@ HRESULT EEToProfInterfaceImpl::ModuleInMemorySymbolsUpdated(ModuleID moduleId)
         // Yay!
         CAN_TAKE_LOCK;
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -3952,7 +3896,7 @@ HRESULT EEToProfInterfaceImpl::ModuleInMemorySymbolsUpdated(ModuleID moduleId)
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         hr = m_pCallback7->ModuleInMemorySymbolsUpdated(moduleId);
     }
@@ -3983,20 +3927,19 @@ HRESULT EEToProfInterfaceImpl::ClassLoadStarted(
 
         // UnresolvedClassLock typically held during this callback
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO100, 
-                                "**PROF: ClassLoadStarted 0x%p.\n", 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO100,
+                                "**PROF: ClassLoadStarted 0x%p.\n",
                                 classId));
 
     _ASSERTE(classId);
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ClassLoadStarted(classId);
     }
@@ -4023,21 +3966,20 @@ HRESULT EEToProfInterfaceImpl::ClassLoadFinished(
 
         // UnresolvedClassLock typically held during this callback
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO100, 
-                                "**PROF: ClassLoadFinished 0x%p, 0x%08x.\n", 
-                                classId, 
+
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO100,
+                                "**PROF: ClassLoadFinished 0x%p, 0x%08x.\n",
+                                classId,
                                 hrStatus));
 
     _ASSERTE(classId);
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ClassLoadFinished(classId, hrStatus);
     }
@@ -4066,20 +4008,19 @@ HRESULT EEToProfInterfaceImpl::ClassUnloadStarted(
         // exception is thrown, and EEClass::Destruct is called from the catch clause
         // inside ClassLoader::CreateTypeHandleForTypeDefThrowing.
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO100, 
-                                "**PROF: ClassUnloadStarted 0x%p.\n", 
+
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO100,
+                                "**PROF: ClassUnloadStarted 0x%p.\n",
                                 classId));
 
     _ASSERTE(classId);
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ClassUnloadStarted(classId);
     }
@@ -4106,21 +4047,20 @@ HRESULT EEToProfInterfaceImpl::ClassUnloadFinished(
 
         // Locks can be held when this is called.  See comment in ClassUnloadStarted
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO100, 
-                                "**PROF: ClassUnloadFinished 0x%p, 0x%08x.\n", 
-                                classId, 
+
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO100,
+                                "**PROF: ClassUnloadFinished 0x%p, 0x%08x.\n",
+                                classId,
                                 hrStatus));
 
     _ASSERTE(classId);
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ClassUnloadFinished(classId, hrStatus);
     }
@@ -4150,20 +4090,19 @@ HRESULT EEToProfInterfaceImpl::AppDomainCreationStarted(
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
- 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO10, 
-                                "**PROF: AppDomainCreationStarted 0x%p.\n", 
+
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO10,
+                                "**PROF: AppDomainCreationStarted 0x%p.\n",
                                 appDomainId));
 
     _ASSERTE(appDomainId != 0);
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->AppDomainCreationStarted(appDomainId);
     }
@@ -4191,21 +4130,20 @@ HRESULT EEToProfInterfaceImpl::AppDomainCreationFinished(
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO10, 
-                                "**PROF: AppDomainCreationFinished 0x%p, 0x%08x.\n", 
-                                appDomainId, 
+
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO10,
+                                "**PROF: AppDomainCreationFinished 0x%p, 0x%08x.\n",
+                                appDomainId,
                                 hrStatus));
 
     _ASSERTE(appDomainId != 0);
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->AppDomainCreationFinished(appDomainId, hrStatus);
     }
@@ -4231,20 +4169,19 @@ HRESULT EEToProfInterfaceImpl::AppDomainShutdownStarted(
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO10, 
-                                "**PROF: AppDomainShutdownStarted 0x%p.\n", 
+
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO10,
+                                "**PROF: AppDomainShutdownStarted 0x%p.\n",
                                 appDomainId));
 
     _ASSERTE(appDomainId != 0);
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->AppDomainShutdownStarted(appDomainId);
     }
@@ -4271,21 +4208,20 @@ HRESULT EEToProfInterfaceImpl::AppDomainShutdownFinished(
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO10, 
-                                "**PROF: AppDomainShutdownFinished 0x%p, 0x%08x.\n", 
-                                appDomainId, 
+
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO10,
+                                "**PROF: AppDomainShutdownFinished 0x%p, 0x%08x.\n",
+                                appDomainId,
                                 hrStatus));
 
     _ASSERTE(appDomainId != 0);
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->AppDomainShutdownFinished(appDomainId, hrStatus);
     }
@@ -4306,8 +4242,8 @@ HRESULT EEToProfInterfaceImpl::AssemblyLoadStarted(
         // Yay!
         GC_TRIGGERS;
 
-        // This has historically not run in preemptive, and is called from cooperative-mode 
-        // functions. However, since we're triggers, it might actually be safe to consider 
+        // This has historically not run in preemptive, and is called from cooperative-mode
+        // functions. However, since we're triggers, it might actually be safe to consider
         // letting this run in preemptive mode.
         MODE_COOPERATIVE;
 
@@ -4317,20 +4253,19 @@ HRESULT EEToProfInterfaceImpl::AssemblyLoadStarted(
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO10, 
-                                "**PROF: AssemblyLoadStarted 0x%p.\n", 
+
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO10,
+                                "**PROF: AssemblyLoadStarted 0x%p.\n",
                                 assemblyId));
 
     _ASSERTE(assemblyId != 0);
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->AssemblyLoadStarted(assemblyId);
     }
@@ -4348,8 +4283,8 @@ HRESULT EEToProfInterfaceImpl::AssemblyLoadFinished(
         // Yay!
         GC_TRIGGERS;
 
-        // This has historically not run in preemptive, and is called from cooperative-mode 
-        // functions. However, since we're triggers, it might actually be safe to consider 
+        // This has historically not run in preemptive, and is called from cooperative-mode
+        // functions. However, since we're triggers, it might actually be safe to consider
         // letting this run in preemptive mode.
         MODE_COOPERATIVE;
 
@@ -4359,21 +4294,20 @@ HRESULT EEToProfInterfaceImpl::AssemblyLoadFinished(
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO10, 
-                                "**PROF: AssemblyLoadFinished 0x%p, 0x%08x.\n", 
-                                assemblyId, 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO10,
+                                "**PROF: AssemblyLoadFinished 0x%p, 0x%08x.\n",
+                                assemblyId,
                                 hrStatus));
 
     _ASSERTE(assemblyId != 0);
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->AssemblyLoadFinished(assemblyId, hrStatus);
     }
@@ -4399,12 +4333,11 @@ HRESULT EEToProfInterfaceImpl::AssemblyUnloadStarted(
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO10, 
+
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO10,
                                 "**PROF: AssemblyUnloadStarted 0x%p.\n",
                                 assemblyId));
 
@@ -4412,7 +4345,7 @@ HRESULT EEToProfInterfaceImpl::AssemblyUnloadStarted(
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->AssemblyUnloadStarted(assemblyId);
     }
@@ -4439,11 +4372,10 @@ HRESULT EEToProfInterfaceImpl::AssemblyUnloadFinished(
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
                                 LL_INFO10,
                                 "**PROF: AssemblyUnloadFinished 0x%p, 0x%08x.\n",
                                 assemblyId,
@@ -4453,7 +4385,7 @@ HRESULT EEToProfInterfaceImpl::AssemblyUnloadFinished(
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->AssemblyUnloadFinished(assemblyId, hrStatus);
     }
@@ -4484,20 +4416,19 @@ HRESULT EEToProfInterfaceImpl::UnmanagedToManagedTransition(
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO10000, 
-                                "**PROF: UnmanagedToManagedTransition 0x%p.\n", 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO10000,
+                                "**PROF: UnmanagedToManagedTransition 0x%p.\n",
                                 functionId));
 
     _ASSERTE(reason == COR_PRF_TRANSITION_CALL || reason == COR_PRF_TRANSITION_RETURN);
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->UnmanagedToManagedTransition(functionId, reason);
     }
@@ -4524,20 +4455,19 @@ HRESULT EEToProfInterfaceImpl::ManagedToUnmanagedTransition(
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
+
     _ASSERTE(reason == COR_PRF_TRANSITION_CALL || reason == COR_PRF_TRANSITION_RETURN);
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO10000, 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO10000,
                                 "**PROF: ManagedToUnmanagedTransition 0x%p.\n",
                                 functionId));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ManagedToUnmanagedTransition(functionId, reason);
     }
@@ -4567,19 +4497,18 @@ HRESULT EEToProfInterfaceImpl::ExceptionThrown(
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO1000, 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO1000,
                                 "**PROF: ExceptionThrown. ObjectID: 0x%p. ThreadID: 0x%p\n",
-                                thrownObjectId, 
+                                thrownObjectId,
                                 GetThread()));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ExceptionThrown(thrownObjectId);
     }
@@ -4605,19 +4534,18 @@ HRESULT EEToProfInterfaceImpl::ExceptionSearchFunctionEnter(
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO1000, 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO1000,
                                 "**PROF: ExceptionSearchFunctionEnter. ThreadID: 0x%p, functionId: 0x%p\n",
-                                GetThread(), 
+                                GetThread(),
                                 functionId));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ExceptionSearchFunctionEnter(functionId);
     }
@@ -4642,18 +4570,17 @@ HRESULT EEToProfInterfaceImpl::ExceptionSearchFunctionLeave()
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO1000, 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO1000,
                                 "**PROF: ExceptionSearchFunctionLeave. ThreadID: 0x%p\n",
                                 GetThread()));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ExceptionSearchFunctionLeave();
     }
@@ -4678,19 +4605,18 @@ HRESULT EEToProfInterfaceImpl::ExceptionSearchFilterEnter(FunctionID functionId)
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO1000, 
-                                "**PROF: ExceptionSearchFilterEnter. ThreadID: 0x%p, functionId: 0x%p\n", 
-                                GetThread(), 
+
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO1000,
+                                "**PROF: ExceptionSearchFilterEnter. ThreadID: 0x%p, functionId: 0x%p\n",
+                                GetThread(),
                                 functionId));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ExceptionSearchFilterEnter(functionId);
     }
@@ -4715,18 +4641,17 @@ HRESULT EEToProfInterfaceImpl::ExceptionSearchFilterLeave()
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO1000, 
+
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO1000,
                                 "**PROF: ExceptionFilterLeave. ThreadID: 0x%p\n",
                                 GetThread()));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ExceptionSearchFilterLeave();
     }
@@ -4751,18 +4676,17 @@ HRESULT EEToProfInterfaceImpl::ExceptionSearchCatcherFound(FunctionID functionId
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO1000, 
+
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO1000,
                                 "**PROF: ExceptionSearchCatcherFound.  ThreadID: 0x%p\n",
                                 GetThread()));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ExceptionSearchCatcherFound(functionId);
     }
@@ -4800,21 +4724,20 @@ HRESULT EEToProfInterfaceImpl::ExceptionUnwindFunctionEnter(FunctionID functionI
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
     CLR_TO_PROFILER_ENTRYPOINT_EX(
         kEE2PNoTrigger,
-        (LF_CORPROF, 
-        LL_INFO1000, 
-        "**PROF: ExceptionUnwindFunctionEnter. ThreadID: 0x%p, functionId: 0x%p\n", 
+        (LF_CORPROF,
+        LL_INFO1000,
+        "**PROF: ExceptionUnwindFunctionEnter. ThreadID: 0x%p, functionId: 0x%p\n",
         GetThread(),
         functionId));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ExceptionUnwindFunctionEnter(functionId);
     }
@@ -4840,20 +4763,19 @@ HRESULT EEToProfInterfaceImpl::ExceptionUnwindFunctionLeave()
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
     CLR_TO_PROFILER_ENTRYPOINT_EX(
         kEE2PNoTrigger,
-        (LF_CORPROF, 
-        LL_INFO1000, 
+        (LF_CORPROF,
+        LL_INFO1000,
         "**PROF: ExceptionUnwindFunctionLeave. ThreadID: 0x%p\n",
         GetThread()));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ExceptionUnwindFunctionLeave();
     }
@@ -4879,21 +4801,20 @@ HRESULT EEToProfInterfaceImpl::ExceptionUnwindFinallyEnter(FunctionID functionId
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
     CLR_TO_PROFILER_ENTRYPOINT_EX(
         kEE2PNoTrigger,
-        (LF_CORPROF, 
-        LL_INFO1000, 
+        (LF_CORPROF,
+        LL_INFO1000,
         "**PROF: ExceptionUnwindFinallyEnter. ThreadID: 0x%p, functionId: 0x%p\n",
         GetThread(),
         functionId));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ExceptionUnwindFinallyEnter(functionId);
     }
@@ -4919,20 +4840,19 @@ HRESULT EEToProfInterfaceImpl::ExceptionUnwindFinallyLeave()
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
     CLR_TO_PROFILER_ENTRYPOINT_EX(
         kEE2PNoTrigger,
-        (LF_CORPROF, 
-        LL_INFO1000, 
+        (LF_CORPROF,
+        LL_INFO1000,
         "**PROF: ExceptionUnwindFinallyLeave. ThreadID: 0x%p\n",
         GetThread()));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ExceptionUnwindFinallyLeave();
     }
@@ -4958,20 +4878,19 @@ HRESULT EEToProfInterfaceImpl::ExceptionCatcherEnter(FunctionID functionId, Obje
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
     CLR_TO_PROFILER_ENTRYPOINT_EX(
         kEE2PNoTrigger,
-        (LF_CORPROF, 
+        (LF_CORPROF,
         LL_INFO1000, "**PROF: ExceptionCatcherEnter.        ThreadID: 0x%p, functionId: 0x%p\n",
-        GetThread(), 
+        GetThread(),
         functionId));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ExceptionCatcherEnter(functionId, objectId);
     }
@@ -4997,19 +4916,18 @@ HRESULT EEToProfInterfaceImpl::ExceptionCatcherLeave()
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO1000, 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO1000,
                                 "**PROF: ExceptionCatcherLeave.        ThreadID: 0x%p\n",
                                 GetThread()));
 
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ExceptionCatcherLeave();
     }
@@ -5043,21 +4961,20 @@ HRESULT EEToProfInterfaceImpl::COMClassicVTableCreated(
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO100, 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO100,
                                 "**PROF: COMClassicWrapperCreated %#x %#08x... %#x %d.\n",
-                                classId, 
-                                implementedIID.Data1, 
-                                pVTable, 
+                                classId,
+                                implementedIID.Data1,
+                                pVTable,
                                 cSlots));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->COMClassicVTableCreated(classId, implementedIID, pVTable, cSlots);
     }
@@ -5085,25 +5002,24 @@ HRESULT EEToProfInterfaceImpl::COMClassicVTableDestroyed(
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
     // NOTE: There is no problem with this code, and it is ready and willing
-    // to be called.  However, this callback is intentionally not being 
+    // to be called.  However, this callback is intentionally not being
     // issued currently.  See comment in ComMethodTable::Cleanup() for more
     // information.
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO100, 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO100,
                                 "**PROF: COMClassicWrapperDestroyed %#x %#08x... %#x.\n",
-                                classId, 
-                                implementedIID.Data1, 
+                                classId,
+                                implementedIID.Data1,
                                 pVTable));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->COMClassicVTableDestroyed(classId, implementedIID, pVTable);
     }
@@ -5135,20 +5051,19 @@ HRESULT EEToProfInterfaceImpl::RuntimeSuspendStarted(
 
         // Thread store lock is typically held during this callback
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
     CLR_TO_PROFILER_ENTRYPOINT_EX(
         kEE2PNoTrigger,
-        (LF_CORPROF, 
-        LL_INFO100, 
+        (LF_CORPROF,
+        LL_INFO100,
         "**PROF: RuntimeSuspendStarted. ThreadID 0x%p.\n",
         GetThread()));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->RuntimeSuspendStarted(suspendReason);
     }
@@ -5174,21 +5089,20 @@ HRESULT EEToProfInterfaceImpl::RuntimeSuspendFinished()
 
         // Thread store lock is typically held during this callback
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
     CLR_TO_PROFILER_ENTRYPOINT_EX(
         kEE2PNoTrigger,
-        (LF_CORPROF, 
-        LL_INFO100, 
+        (LF_CORPROF,
+        LL_INFO100,
         "**PROF: RuntimeSuspendFinished. ThreadID 0x%p.\n",
         GetThread()));
 
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->RuntimeSuspendFinished();
     }
@@ -5219,20 +5133,19 @@ HRESULT EEToProfInterfaceImpl::RuntimeSuspendAborted()
 
         // Thread store lock is typically held during this callback
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
     CLR_TO_PROFILER_ENTRYPOINT_EX(
         kEE2PNoTrigger,
-        (LF_CORPROF, 
-        LL_INFO100, 
+        (LF_CORPROF,
+        LL_INFO100,
         "**PROF: RuntimeSuspendAborted. ThreadID 0x%p.\n",
         GetThread()));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->RuntimeSuspendAborted();
     }
@@ -5258,18 +5171,17 @@ HRESULT EEToProfInterfaceImpl::RuntimeResumeStarted()
 
         // Thread store lock is typically held during this callback
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO100, 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO100,
                                 "**PROF: RuntimeResumeStarted. ThreadID 0x%p.\n",
                                 GetThread()));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->RuntimeResumeStarted();
     }
@@ -5293,18 +5205,17 @@ HRESULT EEToProfInterfaceImpl::RuntimeResumeFinished()
 
         // Thread store lock is typically held during this callback
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO100, 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO100,
                                 "**PROF: RuntimeResumeFinished. ThreadID 0x%p.\n",
                                 GetThread()));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->RuntimeResumeFinished();
     }
@@ -5329,7 +5240,6 @@ HRESULT EEToProfInterfaceImpl::RuntimeThreadSuspended(ThreadID suspendedThreadId
 
         // Thread store lock is typically held during this callback
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -5348,8 +5258,8 @@ HRESULT EEToProfInterfaceImpl::RuntimeThreadSuspended(ThreadID suspendedThreadId
          suspendedThreadId));
 
     // NOTE: We're notrigger, so we cannot switch to preemptive mode.
-    
-    // We may have already indicated to the profiler that this thread has died, but 
+
+    // We may have already indicated to the profiler that this thread has died, but
     // the runtime may continue to suspend this thread during the process of destroying
     // the thread, so we do not want to indicate to the profiler these suspensions.
     if (!ProfilerCallbacksAllowedForThread((Thread *) suspendedThreadId))
@@ -5359,7 +5269,6 @@ HRESULT EEToProfInterfaceImpl::RuntimeThreadSuspended(ThreadID suspendedThreadId
 
     // Remaining essentials from our entrypoint macros with kEE2PNoTrigger flag
     SetCallbackStateFlagsHolder csf(COR_PRF_CALLBACKSTATE_INCALLBACK);
-    REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
     _ASSERTE(m_pCallback2 != NULL);
 
     {
@@ -5367,7 +5276,7 @@ HRESULT EEToProfInterfaceImpl::RuntimeThreadSuspended(ThreadID suspendedThreadId
 
         // The ForbidSuspendThreadHolder prevents deadlocks under the following scenario:
         // 1) Thread A blocks waiting for the current GC to complete (this can happen if A is trying to
-        //      switch to cooperative during a GC). 
+        //      switch to cooperative during a GC).
         // 2) This causes us to send a RuntimeThreadSuspended callback to the profiler.  (Although
         //      A isn't technically being "suspended", this blocking is considered suspension as far as the
         //      profapi is concerned.)
@@ -5397,7 +5306,7 @@ HRESULT EEToProfInterfaceImpl::RuntimeThreadSuspended(ThreadID suspendedThreadId
 
         {
             // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-            // whose try/catch blocks aren't visible to the contract system        
+            // whose try/catch blocks aren't visible to the contract system
             PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
             return m_pCallback2->RuntimeThreadSuspended(suspendedThreadId);
         }
@@ -5415,7 +5324,7 @@ HRESULT EEToProfInterfaceImpl::RuntimeThreadResumed(ThreadID resumedThreadId)
         // ICorProfilerInfo2::DoStackSnapshot!  And that dude is called asynchronously and
         // must therefore never cause a GC.
         // Other reasons for notrigger: also called by notrigger dudes Thread::SysStartSuspendForDebug,
-        // CheckSuspended, Thread::IsRunningIn, Thread::IsExecutingWithinCer, Thread::IsExecutingWithinCer,
+        // CheckSuspended, Thread::IsExecutingWithinCer, Thread::IsExecutingWithinCer,
         // UnwindFrames
         GC_NOTRIGGER;
 
@@ -5427,7 +5336,6 @@ HRESULT EEToProfInterfaceImpl::RuntimeThreadResumed(ThreadID resumedThreadId)
 
         // Thread store lock is typically held during this callback
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -5446,7 +5354,7 @@ HRESULT EEToProfInterfaceImpl::RuntimeThreadResumed(ThreadID resumedThreadId)
 
     // NOTE: We're notrigger, so we cannot switch to preemptive mode.
 
-    // We may have already indicated to the profiler that this thread has died, but 
+    // We may have already indicated to the profiler that this thread has died, but
     // the runtime may resume this thread during the process of destroying
     // the thread, so we do not want to indicate to the profiler these resumes.
     if (!ProfilerCallbacksAllowedForThread((Thread *) resumedThreadId))
@@ -5456,12 +5364,11 @@ HRESULT EEToProfInterfaceImpl::RuntimeThreadResumed(ThreadID resumedThreadId)
 
     // Remaining essentials from our entrypoint macros with kEE2PNoTrigger flag
     SetCallbackStateFlagsHolder csf(COR_PRF_CALLBACKSTATE_INCALLBACK);
-    REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
     _ASSERTE(m_pCallback2 != NULL);
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->RuntimeThreadResumed(resumedThreadId);
     }
@@ -5490,18 +5397,17 @@ HRESULT EEToProfInterfaceImpl::RemotingClientInvocationStarted()
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO1000, 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO1000,
                                 "**PROF: RemotingClientInvocationStarted. ThreadID: 0x%p\n",
                                 GetThread()));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->RemotingClientInvocationStarted();
     }
@@ -5526,18 +5432,17 @@ HRESULT EEToProfInterfaceImpl::RemotingClientSendingMessage(GUID *pCookie, BOOL 
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO1000, 
-                                "**PROF: RemotingClientSendingMessage. ThreadID: 0x%p\n", 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO1000,
+                                "**PROF: RemotingClientSendingMessage. ThreadID: 0x%p\n",
                                 GetThread()));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->RemotingClientSendingMessage(pCookie, fIsAsync);
     }
@@ -5562,18 +5467,17 @@ HRESULT EEToProfInterfaceImpl::RemotingClientReceivingReply(GUID * pCookie, BOOL
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO1000, 
-                                "**PROF: RemotingClientReceivingReply. ThreadID: 0x%p\n", 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO1000,
+                                "**PROF: RemotingClientReceivingReply. ThreadID: 0x%p\n",
                                 GetThread()));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->RemotingClientReceivingReply(pCookie, fIsAsync);
     }
@@ -5598,18 +5502,17 @@ HRESULT EEToProfInterfaceImpl::RemotingClientInvocationFinished()
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO1000, 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO1000,
                                 "**PROF: RemotingClientInvocationFinished. ThreadID: 0x%p\n",
                                 GetThread()));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->RemotingClientInvocationFinished();
     }
@@ -5634,18 +5537,17 @@ HRESULT EEToProfInterfaceImpl::RemotingServerReceivingMessage(GUID *pCookie, BOO
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO1000, 
-                                "**PROF: RemotingServerReceivingMessage. ThreadID: 0x%p\n", 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO1000,
+                                "**PROF: RemotingServerReceivingMessage. ThreadID: 0x%p\n",
                                 GetThread()));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->RemotingServerReceivingMessage(pCookie, fIsAsync);
     }
@@ -5670,18 +5572,17 @@ HRESULT EEToProfInterfaceImpl::RemotingServerInvocationStarted()
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO1000, 
-                                "**PROF: RemotingServerInvocationStarted. ThreadID: 0x%p\n", 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO1000,
+                                "**PROF: RemotingServerInvocationStarted. ThreadID: 0x%p\n",
                                 GetThread()));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->RemotingServerInvocationStarted();
     }
@@ -5706,18 +5607,17 @@ HRESULT EEToProfInterfaceImpl::RemotingServerInvocationReturned()
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO1000, 
-                                "**PROF: RemotingServerInvocationReturned. ThreadID: 0x%p\n", 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO1000,
+                                "**PROF: RemotingServerInvocationReturned. ThreadID: 0x%p\n",
                                 GetThread()));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->RemotingServerInvocationReturned();
     }
@@ -5742,18 +5642,17 @@ HRESULT EEToProfInterfaceImpl::RemotingServerSendingReply(GUID *pCookie, BOOL fI
         // Yay!
         ASSERT_NO_EE_LOCKS_HELD();
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO1000, 
-                                "**PROF: RemotingServerSendingReply. ThreadID: 0x%p\n", 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO1000,
+                                "**PROF: RemotingServerSendingReply. ThreadID: 0x%p\n",
                                 GetThread()));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->RemotingServerSendingReply(pCookie, fIsAsync);
     }
@@ -5783,19 +5682,18 @@ HRESULT EEToProfInterfaceImpl::ObjectAllocated(
 
         // CrstAppDomainHandleTable can be held while this is called
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO1000, 
-                                "**PROF: ObjectAllocated. ObjectID: 0x%p.  ClassID: 0x%p\n", 
-                                objectId, 
+
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO1000,
+                                "**PROF: ObjectAllocated. ObjectID: 0x%p.  ClassID: 0x%p\n",
+                                objectId,
                                 classId));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ObjectAllocated(objectId, classId);
     }
@@ -5813,25 +5711,24 @@ HRESULT EEToProfInterfaceImpl::MovedReferences(GCReferencesData *pData)
         GC_NOTRIGGER;
 
         // This is called by the thread doing a GC WHILE it does the GC
-        if (GetThreadNULLOk()) { MODE_COOPERATIVE; } 
+        if (GetThreadNULLOk()) { MODE_COOPERATIVE; }
 
         // Yay!
         CAN_TAKE_LOCK;
 
         // Thread store lock normally held during this callback
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
     CLR_TO_PROFILER_ENTRYPOINT_EX(
         kEE2PNoTrigger,
-        (LF_CORPROF, 
-        LL_INFO10000, 
+        (LF_CORPROF,
+        LL_INFO10000,
         "**PROF: MovedReferences.\n"));
 
     _ASSERTE(!GCHeapUtilities::GetGCHeap()->IsConcurrentGCEnabled());
-    
+
     if (pData->curIdx == 0)
     {
         return S_OK;
@@ -5846,7 +5743,7 @@ HRESULT EEToProfInterfaceImpl::MovedReferences(GCReferencesData *pData)
         if (m_pCallback4 != NULL)
         {
             // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-            // whose try/catch blocks aren't visible to the contract system        
+            // whose try/catch blocks aren't visible to the contract system
             PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
             hr = m_pCallback4->MovedReferences2((ULONG)pData->curIdx,
                                                 (ObjectID *)pData->arrpbMemBlockStartOld,
@@ -5856,15 +5753,15 @@ HRESULT EEToProfInterfaceImpl::MovedReferences(GCReferencesData *pData)
                 return hr;
         }
 
-#ifdef _WIN64
+#ifdef BIT64
         // Recompute sizes as ULONGs for legacy callback
         for (ULONG i = 0; i < pData->curIdx; i++)
-            pData->arrULONG[i] = (pData->arrMemBlockSize[i] > ULONG_MAX) ? ULONG_MAX : (ULONG)pData->arrMemBlockSize[i];
+            pData->arrULONG[i] = (pData->arrMemBlockSize[i] > UINT32_MAX) ? UINT32_MAX : (ULONG)pData->arrMemBlockSize[i];
 #endif
 
         {
             // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-            // whose try/catch blocks aren't visible to the contract system        
+            // whose try/catch blocks aren't visible to the contract system
             PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
             hr = m_pCallback2->MovedReferences((ULONG)pData->curIdx,
                                                (ObjectID *)pData->arrpbMemBlockStartOld,
@@ -5877,7 +5774,7 @@ HRESULT EEToProfInterfaceImpl::MovedReferences(GCReferencesData *pData)
         if (m_pCallback4 != NULL)
         {
             // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-            // whose try/catch blocks aren't visible to the contract system        
+            // whose try/catch blocks aren't visible to the contract system
             PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
             hr = m_pCallback4->SurvivingReferences2((ULONG)pData->curIdx,
                                                     (ObjectID *)pData->arrpbMemBlockStartOld,
@@ -5886,15 +5783,15 @@ HRESULT EEToProfInterfaceImpl::MovedReferences(GCReferencesData *pData)
                 return hr;
         }
 
-#ifdef _WIN64
+#ifdef BIT64
         // Recompute sizes as ULONGs for legacy callback
         for (ULONG i = 0; i < pData->curIdx; i++)
-            pData->arrULONG[i] = (pData->arrMemBlockSize[i] > ULONG_MAX) ? ULONG_MAX : (ULONG)pData->arrMemBlockSize[i];
+            pData->arrULONG[i] = (pData->arrMemBlockSize[i] > UINT32_MAX) ? UINT32_MAX : (ULONG)pData->arrMemBlockSize[i];
 #endif
 
         {
             // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-            // whose try/catch blocks aren't visible to the contract system        
+            // whose try/catch blocks aren't visible to the contract system
             PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
             hr = m_pCallback2->SurvivingReferences((ULONG)pData->curIdx,
                                                    (ObjectID *)pData->arrpbMemBlockStartOld,
@@ -5916,21 +5813,20 @@ HRESULT EEToProfInterfaceImpl::NotifyAllocByClass(AllocByClassData *pData)
         GC_NOTRIGGER;
 
         // This is called by the thread doing a GC WHILE it does the GC
-        if (GetThreadNULLOk()) { MODE_COOPERATIVE; } 
+        if (GetThreadNULLOk()) { MODE_COOPERATIVE; }
 
         // Yay!
         CAN_TAKE_LOCK;
 
         // Thread store lock normally held during this callback
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
+
     CLR_TO_PROFILER_ENTRYPOINT_EX(
         kEE2PNoTrigger,
-        (LF_CORPROF, 
-        LL_INFO10000, 
+        (LF_CORPROF,
+        LL_INFO10000,
         "**PROF: ObjectsAllocatedByClass.\n"));
 
     _ASSERTE(pData != NULL);
@@ -5989,7 +5885,7 @@ HRESULT EEToProfInterfaceImpl::NotifyAllocByClass(AllocByClassData *pData)
     // Now communicate the results to the profiler
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ObjectsAllocatedByClass((ULONG)pData->iHash, pData->arrClsId, pData->arrcObjects);
     }
@@ -6009,28 +5905,27 @@ HRESULT EEToProfInterfaceImpl::ObjectReference(ObjectID objId,
         GC_NOTRIGGER;
 
         // This is called by the thread doing a GC WHILE it does the GC
-        if (GetThreadNULLOk()) { MODE_COOPERATIVE; } 
+        if (GetThreadNULLOk()) { MODE_COOPERATIVE; }
 
         // Yay!
         CAN_TAKE_LOCK;
 
         // Thread store lock normally held during this callback
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
+
     CLR_TO_PROFILER_ENTRYPOINT_EX(
         kEE2PNoTrigger,
-        (LF_CORPROF, 
-        LL_INFO100000, 
+        (LF_CORPROF,
+        LL_INFO100000,
         "**PROF: ObjectReferences.\n"));
 
     _ASSERTE(!GCHeapUtilities::GetGCHeap()->IsConcurrentGCEnabled());
-    
-    {                
+
+    {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ObjectReferences(objId, classId, cNumRefs, arrObjRef);
     }
@@ -6057,19 +5952,18 @@ HRESULT EEToProfInterfaceImpl::FinalizeableObjectQueued(BOOL isCritical, ObjectI
 
         // Thread store lock normally held during this callback
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO100, 
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO100,
                                 "**PROF: Notifying profiler of finalizeable object.\n"));
 
     _ASSERTE(!GCHeapUtilities::GetGCHeap()->IsConcurrentGCEnabled());
-    
-    {                
+
+    {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->FinalizeableObjectQueued(isCritical ? COR_PRF_FINALIZER_CRITICAL : 0, objectID);
     }
@@ -6087,25 +5981,24 @@ HRESULT EEToProfInterfaceImpl::RootReferences2(GCReferencesData *pData)
         GC_NOTRIGGER;
 
         // This is called by the thread doing a GC WHILE it does the GC
-        if (GetThreadNULLOk()) { MODE_COOPERATIVE; } 
+        if (GetThreadNULLOk()) { MODE_COOPERATIVE; }
 
         // Yay!
         CAN_TAKE_LOCK;
 
         // Thread store lock normally held during this callback
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
+
     CLR_TO_PROFILER_ENTRYPOINT_EX(
         kEE2PNoTrigger,
-        (LF_CORPROF, 
-        LL_INFO10000, 
+        (LF_CORPROF,
+        LL_INFO10000,
         "**PROF: RootReferences2.\n"));
 
     _ASSERTE(!GCHeapUtilities::GetGCHeap()->IsConcurrentGCEnabled());
-    
+
     HRESULT hr = S_OK;
 
     COR_PRF_GC_ROOT_FLAGS flags[kcReferencesMax];
@@ -6119,7 +6012,7 @@ HRESULT EEToProfInterfaceImpl::RootReferences2(GCReferencesData *pData)
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         hr = m_pCallback2->RootReferences2((ULONG)pData->curIdx,
                                           (ObjectID *)pData->arrpbMemBlockStartOld,
@@ -6132,7 +6025,7 @@ HRESULT EEToProfInterfaceImpl::RootReferences2(GCReferencesData *pData)
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         hr = m_pCallback2->RootReferences((ULONG)pData->curIdx, (ObjectID *)pData->arrpbMemBlockStartOld);
     }
@@ -6152,32 +6045,31 @@ HRESULT EEToProfInterfaceImpl::ConditionalWeakTableElementReferences(GCReference
         GC_NOTRIGGER;
 
         // This is called by the thread doing a GC WHILE it does the GC
-        if (GetThreadNULLOk()) { MODE_COOPERATIVE; } 
+        if (GetThreadNULLOk()) { MODE_COOPERATIVE; }
 
         // Yay!
         CAN_TAKE_LOCK;
 
         // Thread store lock normally held during this callback
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
+
     CLR_TO_PROFILER_ENTRYPOINT_EX(
         kEE2PNoTrigger,
-        (LF_CORPROF, 
-        LL_INFO10000, 
+        (LF_CORPROF,
+        LL_INFO10000,
         "**PROF: ConditionalWeakTableElementReferences.\n"));
 
     _ASSERTE(!GCHeapUtilities::GetGCHeap()->IsConcurrentGCEnabled());
-    
+
     HRESULT hr = S_OK;
 
     _ASSERTE(pData->curIdx <= kcReferencesMax);
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         hr = m_pCallback5->ConditionalWeakTableElementReferences(
                                           (ULONG)pData->curIdx,
@@ -6205,9 +6097,9 @@ HRESULT EEToProfInterfaceImpl::HandleCreated(UINT_PTR handleId, ObjectID initial
         // switch to preemptive (as we normally do in callbacks) and must not trigger,
         // as this would really tick off some of our callers (as well as invalidating
         // initialObjectId).
-        if (initialObjectId != NULL) 
-        { 
-            MODE_COOPERATIVE; 
+        if (initialObjectId != NULL)
+        {
+            MODE_COOPERATIVE;
         }
         else
         {
@@ -6219,19 +6111,18 @@ HRESULT EEToProfInterfaceImpl::HandleCreated(UINT_PTR handleId, ObjectID initial
 
         // CrstAppDomainHandleTable can be held during this callback
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
     CLR_TO_PROFILER_ENTRYPOINT_EX(
         kEE2PNoTrigger,
-        (LF_CORPROF, 
-        LL_INFO10000, 
+        (LF_CORPROF,
+        LL_INFO10000,
         "**PROF: HandleCreated.\n"));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->HandleCreated(handleId, initialObjectId);
     }
@@ -6244,11 +6135,11 @@ HRESULT EEToProfInterfaceImpl::HandleDestroyed(UINT_PTR handleId)
         // Yay!
         NOTHROW;
 
-        // Called by HndDestroyHandle, which is notrigger.  But HndDestroyHandle is also 
+        // Called by HndDestroyHandle, which is notrigger.  But HndDestroyHandle is also
         // MODE_ANY, so perhaps we can change the whole call path to be triggers?
         GC_NOTRIGGER;
 
-        // Although we're called from a notrigger function, I verified empirically that 
+        // Although we're called from a notrigger function, I verified empirically that
         // this is called coop & preemp
         MODE_ANY;
 
@@ -6257,19 +6148,18 @@ HRESULT EEToProfInterfaceImpl::HandleDestroyed(UINT_PTR handleId)
 
         // Thread store lock is typically held during this callback
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
     CLR_TO_PROFILER_ENTRYPOINT_EX(
         kEE2PNoTrigger,
-        (LF_CORPROF, 
-        LL_INFO10000, 
+        (LF_CORPROF,
+        LL_INFO10000,
         "**PROF: HandleDestroyed.\n"));
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->HandleDestroyed(handleId);
     }
@@ -6286,28 +6176,27 @@ HRESULT EEToProfInterfaceImpl::GarbageCollectionStarted(int cGenerations, BOOL g
         GC_NOTRIGGER;
 
         // This is called by the thread doing a GC WHILE it does the GC
-        if (GetThreadNULLOk()) { MODE_COOPERATIVE; } 
+        if (GetThreadNULLOk()) { MODE_COOPERATIVE; }
 
         // Yay!
         CAN_TAKE_LOCK;
 
         // Thread store lock normally held during this callback
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
+
     CLR_TO_PROFILER_ENTRYPOINT_EX(
         kEE2PNoTrigger,
-        (LF_CORPROF, 
-        LL_INFO10000, 
+        (LF_CORPROF,
+        LL_INFO10000,
         "**PROF: GarbageCollectionStarted.\n"));
 
-    _ASSERTE(!GCHeapUtilities::GetGCHeap()->IsConcurrentGCEnabled());
-    
-    {            
+    _ASSERTE(!CORProfilerTrackGC() || !GCHeapUtilities::GetGCHeap()->IsConcurrentGCEnabled());
+
+    {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->GarbageCollectionStarted(cGenerations, generationCollected, reason);
     }
@@ -6324,28 +6213,27 @@ HRESULT EEToProfInterfaceImpl::GarbageCollectionFinished()
         GC_NOTRIGGER;
 
         // This is called by the thread doing a GC WHILE it does the GC
-        if (GetThreadNULLOk()) { MODE_COOPERATIVE; } 
+        if (GetThreadNULLOk()) { MODE_COOPERATIVE; }
 
         // Yay!
         CAN_TAKE_LOCK;
 
         // Thread store lock normally held during this callback
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
+
     CLR_TO_PROFILER_ENTRYPOINT_EX(
         kEE2PNoTrigger,
-        (LF_CORPROF, 
-        LL_INFO10000, 
+        (LF_CORPROF,
+        LL_INFO10000,
         "**PROF: GarbageCollectionFinished.\n"));
 
-    _ASSERTE(!GCHeapUtilities::GetGCHeap()->IsConcurrentGCEnabled());
-    
-    {        
+    _ASSERTE(!CORProfilerTrackGC() || !GCHeapUtilities::GetGCHeap()->IsConcurrentGCEnabled());
+
+    {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->GarbageCollectionFinished();
     }
@@ -6368,14 +6256,13 @@ HRESULT EEToProfInterfaceImpl::ProfilerDetachSucceeded()
         CAN_TAKE_LOCK;
 
         // ProfilingAPIUtility::s_csStatus is held while this callback is issued.
-        
-        SO_NOT_MAINLINE;
+
     }
     CONTRACTL_END;
-    
+
     CLR_TO_PROFILER_ENTRYPOINT_EX(kEE2PAllowableWhileDetaching,
-        (LF_CORPROF, 
-         LL_INFO10, 
+        (LF_CORPROF,
+         LL_INFO10,
          "**PROF: ProfilerDetachSucceeded.\n"));
 
     // Should only be called on profilers that support ICorProfilerCallback3
@@ -6383,7 +6270,7 @@ HRESULT EEToProfInterfaceImpl::ProfilerDetachSucceeded()
 
     {
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
+        // whose try/catch blocks aren't visible to the contract system
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback3->ProfilerDetachSucceeded();
     }
@@ -6407,13 +6294,12 @@ HRESULT EEToProfInterfaceImpl::GetAssemblyReferences(LPCWSTR wszAssemblyPath, IA
         // Yay!
         CAN_TAKE_LOCK;
 
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
-    
-    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
-                                LL_INFO10, 
-                                "**PROF: AssemblyReferenceClosureWalkStarted.  wszAssemblyPath: 0x%p.\n", 
+
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+                                LL_INFO10,
+                                "**PROF: AssemblyReferenceClosureWalkStarted.  wszAssemblyPath: 0x%p.\n",
                                 wszAssemblyPath
                                 ));
     HRESULT hr = S_OK;

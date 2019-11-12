@@ -90,7 +90,7 @@ namespace System.Globalization
                 throw new ArgumentOutOfRangeException(nameof(year), SR.ArgumentOutOfRange_Year);
             }
 
-            int P(int y) => (y + (y / 4) - (y / 100) + (y / 400)) % 7;
+            static int P(int y) => (y + (y / 4) - (y / 100) + (y / 400)) % 7;
 
             if (P(year) == 4 || P(year - 1) == 3)
             {
@@ -135,7 +135,7 @@ namespace System.Globalization
             int correction = GetWeekday(jan4.DayOfWeek) + 3;
 
             int ordinal = (week * 7) + GetWeekday(dayOfWeek) - correction;
-                
+
             return new DateTime(year, month: 1, day: 1).AddDays(ordinal - 1);
         }
 
@@ -156,7 +156,7 @@ namespace System.Globalization
         // This matches the underlying values of the DayOfWeek enum, except for Sunday, which needs to be converted.
         private static int GetWeekday(DayOfWeek dayOfWeek)
         {
-            return dayOfWeek == DayOfWeek.Sunday ? 7 : (int) dayOfWeek;
+            return dayOfWeek == DayOfWeek.Sunday ? 7 : (int)dayOfWeek;
         }
     }
 }

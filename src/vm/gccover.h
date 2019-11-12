@@ -20,11 +20,10 @@
 
 class GCCoverageInfo {
 public:
-    IJitManager::MethodRegionInfo methodRegion;    
-    BYTE*         curInstr;         // The last instruction that was able to execute 
-    MethodDesc*   lastMD;           // Used to quickly figure out the culprite
+    IJitManager::MethodRegionInfo methodRegion;
+    BYTE*         curInstr;         // The last instruction that was able to execute
 
-        // Following 6 variables are for prolog / epilog walking coverage        
+        // Following 6 variables are for prolog / epilog walking coverage
     ICodeManager* codeMan;          // CodeMan for this method
     GCInfoToken gcInfoToken;             // gcInfo for this method
 
@@ -46,7 +45,7 @@ public:
     };
 
     // Sloppy bitsets (will wrap, and not threadsafe) but best effort is OK
-    // since we just need half decent coverage.  
+    // since we just need half decent coverage.
     BOOL IsBitSetForOffset(unsigned offset) {
         unsigned dword = hasExecuted[(offset >> 5) % hasExecutedSize];
         return(dword & (1 << (offset & 0x1F)));
@@ -61,24 +60,27 @@ public:
 
 };
 
+typedef DPTR(GCCoverageInfo) PTR_GCCoverageInfo; // see code:GCCoverageInfo::savedCode
+
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif // _MSC_VER
 
-
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 
-#define INTERRUPT_INSTR                 0xF4    // X86 HLT instruction (any 1 byte illegal instruction will do)
-#define INTERRUPT_INSTR_CALL            0xFA    // X86 CLI instruction 
-#define INTERRUPT_INSTR_PROTECT_RET     0xFB    // X86 STI instruction 
+#define INTERRUPT_INSTR                        0xF4    // X86 HLT instruction (any 1 byte illegal instruction will do)
+#define INTERRUPT_INSTR_CALL                   0xFA    // X86 CLI instruction
+#define INTERRUPT_INSTR_PROTECT_FIRST_RET      0xFB    // X86 STI instruction, protect the first return register
+#define INTERRUPT_INSTR_PROTECT_SECOND_RET     0xEC    // X86 IN instruction, protect the second return register
+#define INTERRUPT_INSTR_PROTECT_BOTH_RET       0xED    // X86 IN instruction, protect both return registers
 
 #elif defined(_TARGET_ARM_)
 
-// 16-bit illegal instructions which will cause exception and cause 
+// 16-bit illegal instructions which will cause exception and cause
 // control to go to GcStress codepath
-#define INTERRUPT_INSTR                 0xde00             
-#define INTERRUPT_INSTR_CALL            0xde03  // 0xde01 generates SIGTRAP (breakpoint) instead of SIGILL on Unix             
-#define INTERRUPT_INSTR_PROTECT_RET     0xde02      
+#define INTERRUPT_INSTR                 0xde00
+#define INTERRUPT_INSTR_CALL            0xde03  // 0xde01 generates SIGTRAP (breakpoint) instead of SIGILL on Unix
+#define INTERRUPT_INSTR_PROTECT_RET     0xde02
 
 // 32-bit illegal instructions. It is necessary to replace a 16-bit instruction
 // with a 16-bit illegal instruction, and a 32-bit instruction with a 32-bit
@@ -97,14 +99,83 @@ public:
 
 #elif defined(_TARGET_ARM64_)
 
-// The following encodings are undefined. They fall into section C4.5.8 - Data processing (2 source) of 
+// The following encodings are undefined. They fall into section C4.5.8 - Data processing (2 source) of
 // "Arm Architecture Reference Manual ARMv8"
 //
 #define INTERRUPT_INSTR                 0xBADC0DE0
-#define INTERRUPT_INSTR_CALL            0xBADC0DE1         
-#define INTERRUPT_INSTR_PROTECT_RET     0xBADC0DE2  
+#define INTERRUPT_INSTR_CALL            0xBADC0DE1
+#define INTERRUPT_INSTR_PROTECT_RET     0xBADC0DE2
 
 #endif // _TARGET_*
+
+// The body of this method is in this header file to allow
+// mscordaccore.dll to link without getting an unsat symbol
+//
+inline bool IsGcCoverageInterruptInstructionVal(UINT32 instrVal)
+{
+#if defined(_TARGET_ARM64_)
+
+    switch (instrVal)
+    {
+    case INTERRUPT_INSTR:
+    case INTERRUPT_INSTR_CALL:
+    case INTERRUPT_INSTR_PROTECT_RET:
+        return true;
+    default:
+        return false;
+    }
+
+#elif defined(_TARGET_ARM_)
+
+    UINT16 instrVal16 = static_cast<UINT16>(instrVal);
+    size_t instrLen = GetARMInstructionLength(instrVal16);
+
+    if (instrLen == 2)
+    {
+        switch (instrVal16)
+        {
+        case INTERRUPT_INSTR:
+        case INTERRUPT_INSTR_CALL:
+        case INTERRUPT_INSTR_PROTECT_RET:
+            return true;
+        default:
+            return false;
+        }
+    }
+    else
+    {
+        _ASSERTE(instrLen == 4);
+
+        switch (instrVal)
+        {
+        case INTERRUPT_INSTR_32:
+        case INTERRUPT_INSTR_CALL_32:
+        case INTERRUPT_INSTR_PROTECT_RET_32:
+            return true;
+        default:
+            return false;
+        }
+    }
+
+#else // x64 and x86
+
+    switch (instrVal)
+    {
+    case INTERRUPT_INSTR:
+    case INTERRUPT_INSTR_CALL:
+    case INTERRUPT_INSTR_PROTECT_FIRST_RET:
+    case INTERRUPT_INSTR_PROTECT_SECOND_RET:
+    case INTERRUPT_INSTR_PROTECT_BOTH_RET:
+        return true;
+    default:
+        return false;
+    }
+
+#endif  // _TARGET_XXXX_
+}
+
+bool IsGcCoverageInterruptInstruction(PBYTE instrPtr);
+bool IsGcCoverageInterrupt(LPVOID ip);
 
 #endif // HAVE_GCCOVER
 

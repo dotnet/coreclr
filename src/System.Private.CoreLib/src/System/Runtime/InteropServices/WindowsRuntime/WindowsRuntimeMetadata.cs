@@ -2,33 +2,24 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Reflection;
-using System.Reflection.Emit;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Security;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
     internal static class WindowsRuntimeMetadata
     {
-        private static EventHandler<DesignerNamespaceResolveEventArgs> DesignerNamespaceResolve;
+        private static readonly EventHandler<DesignerNamespaceResolveEventArgs>? DesignerNamespaceResolve;
 
-        internal static string[] OnDesignerNamespaceResolveEvent(AppDomain appDomain, string namespaceName)
+        internal static string[]? OnDesignerNamespaceResolve(string namespaceName)
         {
-            EventHandler<DesignerNamespaceResolveEventArgs> eventHandler = DesignerNamespaceResolve;
+            EventHandler<DesignerNamespaceResolveEventArgs>? eventHandler = DesignerNamespaceResolve;
             if (eventHandler != null)
             {
                 foreach (EventHandler<DesignerNamespaceResolveEventArgs> handler in eventHandler.GetInvocationList())
                 {
                     DesignerNamespaceResolveEventArgs eventArgs = new DesignerNamespaceResolveEventArgs(namespaceName);
 
-                    handler(appDomain, eventArgs);
+                    handler(AppDomain.CurrentDomain, eventArgs);
 
                     Collection<string> assemblyFilesCollection = eventArgs.ResolvedAssemblyFiles;
                     if (assemblyFilesCollection.Count > 0)
@@ -57,16 +48,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
     internal class DesignerNamespaceResolveEventArgs : EventArgs
     {
-        private string _NamespaceName;
-        private Collection<string> _ResolvedAssemblyFiles;
+        private readonly string _NamespaceName;
+        private readonly Collection<string> _ResolvedAssemblyFiles;
 
-        public Collection<string> ResolvedAssemblyFiles
-        {
-            get
-            {
-                return _ResolvedAssemblyFiles;
-            }
-        }
+        public Collection<string> ResolvedAssemblyFiles => _ResolvedAssemblyFiles;
 
         public DesignerNamespaceResolveEventArgs(string namespaceName)
         {

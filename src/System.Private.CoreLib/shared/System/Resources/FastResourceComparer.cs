@@ -4,24 +4,25 @@
 
 /*============================================================
 **
-** 
-** 
 **
 **
-** Purpose: A collection of quick methods for comparing 
+**
+**
+** Purpose: A collection of quick methods for comparing
 **          resource keys (strings)
 **
-** 
+**
 ===========================================================*/
 
-using System;
+#nullable enable
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 
 namespace System.Resources
 {
-    internal sealed class FastResourceComparer : IComparer, IEqualityComparer, IComparer<string>, IEqualityComparer<string>
+    internal sealed class FastResourceComparer : IComparer, IEqualityComparer, IComparer<string?>, IEqualityComparer<string?>
     {
         internal static readonly FastResourceComparer Default = new FastResourceComparer();
 
@@ -32,17 +33,17 @@ namespace System.Resources
             return FastResourceComparer.HashFunction(s);
         }
 
-        public int GetHashCode(string key)
+        public int GetHashCode([DisallowNull] string? key)
         {
-            return FastResourceComparer.HashFunction(key);
+            return FastResourceComparer.HashFunction(key!);
         }
 
         // This hash function MUST be publically documented with the resource
-        // file format, AND we may NEVER change this hash function's return 
+        // file format, AND we may NEVER change this hash function's return
         // value (without changing the file format).
         internal static int HashFunction(string key)
         {
-            // Never change this hash function.  We must standardize it so that 
+            // Never change this hash function.  We must standardize it so that
             // others can read & write our .resources files.  Additionally, we
             // have a copy of it in InternalResGen as well.
             uint hash = 5381;
@@ -52,33 +53,33 @@ namespace System.Resources
         }
 
         // Compares Strings quickly in a case-sensitive way
-        public int Compare(object a, object b)
+        public int Compare(object? a, object? b)
         {
             if (a == b) return 0;
-            string sa = (string)a;
-            string sb = (string)b;
+            string? sa = (string?)a;
+            string? sb = (string?)b;
             return string.CompareOrdinal(sa, sb);
         }
 
-        public int Compare(string a, string b)
+        public int Compare(string? a, string? b)
         {
             return string.CompareOrdinal(a, b);
         }
 
-        public bool Equals(string a, string b)
+        public bool Equals(string? a, string? b)
         {
             return string.Equals(a, b);
         }
 
-        public new bool Equals(object a, object b)
+        public new bool Equals(object? a, object? b)
         {
             if (a == b) return true;
-            string sa = (string)a;
-            string sb = (string)b;
+            string? sa = (string?)a;
+            string? sb = (string?)b;
             return string.Equals(sa, sb);
         }
 
-        // Input is one string to compare with, and a byte[] containing chars in 
+        // Input is one string to compare with, and a byte[] containing chars in
         // little endian unicode.  Pass in the number of valid chars.
         public static unsafe int CompareOrdinal(string a, byte[] bytes, int bCharLength)
         {
@@ -139,4 +140,3 @@ namespace System.Resources
         }
     }
 }
-

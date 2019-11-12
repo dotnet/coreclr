@@ -1,14 +1,14 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
-// 
+//
 // File: CustomMarshalerInfo.h
-// 
+//
 
-// 
+//
 // Custom marshaler information used when marshaling
-// a parameter with a custom marshaler. 
-// 
+// a parameter with a custom marshaler.
+//
 
 
 #ifndef _CUSTOMMARSHALERINFO_H_
@@ -36,7 +36,7 @@ class CustomMarshalerInfo
 {
 public:
     // Constructor and destructor.
-    CustomMarshalerInfo(BaseDomain* pDomain, TypeHandle hndCustomMarshalerType, TypeHandle hndManagedType, LPCUTF8 strCookie, DWORD cCookieStrBytes);
+    CustomMarshalerInfo(LoaderAllocator* pLoaderAllocator, TypeHandle hndCustomMarshalerType, TypeHandle hndManagedType, LPCUTF8 strCookie, DWORD cCookieStrBytes);
     ~CustomMarshalerInfo();
 
     // CustomMarshalerInfo's are always allocated on the loader heap so we need to redefine
@@ -75,10 +75,10 @@ public:
         return m_bDataIsByValue;
     }
 
-    OBJECTHANDLE GetCustomMarshaler()
+    OBJECTREF GetCustomMarshaler()
     {
         LIMITED_METHOD_CONTRACT;
-        return m_hndCustomMarshaler;
+        return m_pLoaderAllocator->GetHandleValue(m_hndCustomMarshaler);
     }
 
     TypeHandle GetCustomMarshalerType()
@@ -87,15 +87,14 @@ public:
         {
             NOTHROW;
             GC_NOTRIGGER;
-            SO_TOLERANT;
             MODE_COOPERATIVE;
         }
         CONTRACTL_END;
-        return ObjectFromHandle(m_hndCustomMarshaler)->GetTypeHandle();
+        return m_pLoaderAllocator->GetHandleValue(m_hndCustomMarshaler)->GetTypeHandle();
     }
 
     // Helper function to retrieve a custom marshaler method desc.
-    static MethodDesc*  GetCustomMarshalerMD(EnumCustomMarshalerMethods Method, TypeHandle hndCustomMarshalertype); 
+    static MethodDesc*  GetCustomMarshalerMD(EnumCustomMarshalerMethods Method, TypeHandle hndCustomMarshalertype);
 
     // Link used to contain this CM info in a linked list.
     SLink               m_Link;
@@ -103,7 +102,8 @@ public:
 private:
     int                 m_NativeSize;
     TypeHandle          m_hndManagedType;
-    OBJECTHANDLE        m_hndCustomMarshaler;
+    LoaderAllocator*    m_pLoaderAllocator;
+    LOADERHANDLE        m_hndCustomMarshaler;
     MethodDesc*         m_pMarshalNativeToManagedMD;
     MethodDesc*         m_pMarshalManagedToNativeMD;
     MethodDesc*         m_pCleanUpNativeDataMD;
@@ -114,59 +114,59 @@ private:
 
 typedef SList<CustomMarshalerInfo, true> CMINFOLIST;
 
+class Assembly;
 
 class EECMHelperHashtableKey
 {
 public:
-    EECMHelperHashtableKey(DWORD cMarshalerTypeNameBytes, LPCSTR strMarshalerTypeName, DWORD cCookieStrBytes, LPCSTR strCookie, Instantiation instantiation, BOOL bSharedHelper) 
+    EECMHelperHashtableKey(DWORD cMarshalerTypeNameBytes, LPCSTR strMarshalerTypeName, DWORD cCookieStrBytes, LPCSTR strCookie, Instantiation instantiation, Assembly* invokingAssembly)
     : m_cMarshalerTypeNameBytes(cMarshalerTypeNameBytes)
     , m_strMarshalerTypeName(strMarshalerTypeName)
     , m_cCookieStrBytes(cCookieStrBytes)
     , m_strCookie(strCookie)
     , m_Instantiation(instantiation)
-    , m_bSharedHelper(bSharedHelper)
+    , m_invokingAssembly(invokingAssembly)
     {
         LIMITED_METHOD_CONTRACT;
     }
 
-    inline DWORD GetMarshalerTypeNameByteCount() const
+    DWORD GetMarshalerTypeNameByteCount() const
     {
         LIMITED_METHOD_CONTRACT;
         return m_cMarshalerTypeNameBytes;
     }
-    inline LPCSTR GetMarshalerTypeName() const
+    LPCSTR GetMarshalerTypeName() const
     {
         LIMITED_METHOD_CONTRACT;
         return m_strMarshalerTypeName;
     }
-    inline LPCSTR GetCookieString() const
+    LPCSTR GetCookieString() const
     {
         LIMITED_METHOD_CONTRACT;
         return m_strCookie;
     }
-    inline ULONG GetCookieStringByteCount() const
+    ULONG GetCookieStringByteCount() const
     {
         LIMITED_METHOD_CONTRACT;
         return m_cCookieStrBytes;
     }
-    inline Instantiation GetMarshalerInstantiation() const
+    Instantiation GetMarshalerInstantiation() const
     {
         LIMITED_METHOD_CONTRACT;
         return m_Instantiation;
     }
-    inline BOOL IsSharedHelper() const
+    Assembly* GetInvokingAssembly() const
     {
         LIMITED_METHOD_CONTRACT;
-        return m_bSharedHelper;
+        return m_invokingAssembly;
     }
-
 
     DWORD           m_cMarshalerTypeNameBytes;
     LPCSTR          m_strMarshalerTypeName;
     DWORD           m_cCookieStrBytes;
     LPCSTR          m_strCookie;
     Instantiation   m_Instantiation;
-    BOOL            m_bSharedHelper;
+    Assembly*       m_invokingAssembly;
 };
 
 
@@ -198,19 +198,19 @@ public:
         WRAPPER_NO_CONTRACT;
         return GetCustomMarshalerInfo()->GetNativeSize();
     }
-    
+
     int GetManagedSize()
     {
         WRAPPER_NO_CONTRACT;
         return GetCustomMarshalerInfo()->GetManagedSize();
     }
-    
+
     TypeHandle GetManagedType()
     {
         WRAPPER_NO_CONTRACT;
         return GetCustomMarshalerInfo()->GetManagedType();
     }
-    
+
     BOOL IsDataByValue()
     {
         WRAPPER_NO_CONTRACT;

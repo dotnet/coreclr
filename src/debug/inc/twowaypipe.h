@@ -6,6 +6,8 @@
 #ifndef TwoWayPipe_H
 #define TwoWayPipe_H
 
+#include "processdescriptor.h"
+
 #ifdef FEATURE_PAL
 #define INVALID_PIPE -1
 #else
@@ -26,7 +28,7 @@ public:
     {
         NotInitialized,   // Object didn't create or connect to any pipes.
         Created,          // Server side of the pipe has been created, but didn't bind it to a client.
-        ServerConnected,  // Server side of the pipe is connected to a client 
+        ServerConnected,  // Server side of the pipe is connected to a client
         ClientConnected,  // Client side of the pipe is connected to a server.
     };
 
@@ -42,15 +44,15 @@ public:
         Disconnect();
     }
 
-    // Creates a server side of the pipe. 
-    // Id is used to create pipes names and uniquely identify the pipe on the machine. 
+    // Creates a server side of the pipe.
+    // pd is used to create pipes names and uniquely identify the pipe on the machine.
     // true - success, false - failure (use GetLastError() for more details)
-    bool CreateServer(DWORD id);
+    bool CreateServer(const ProcessDescriptor& pd);
 
     // Connects to a previously opened server side of the pipe.
-    // Id is used to locate the pipe on the machine. 
+    // pd is used to locate the pipe on the machine.
     // true - success, false - failure (use GetLastError() for more details)
-    bool Connect(DWORD id);
+    bool Connect(const ProcessDescriptor& pd);
 
     // Waits for incoming client connections, assumes GetState() == Created
     // true - success, false - failure (use GetLastError() for more details)
@@ -73,7 +75,7 @@ public:
         return m_state;
     }
 
-    // Used by debugger side (RS) to cleanup the target (LS) named pipes 
+    // Used by debugger side (RS) to cleanup the target (LS) named pipes
     // and semaphores when the debugger detects the debuggee process  exited.
     void CleanupTargetProcess();
 
@@ -83,7 +85,6 @@ private:
 
 #ifdef FEATURE_PAL
 
-    int m_id;                               // id that was passed to CreateServer() or Connect()
     int m_inboundPipe, m_outboundPipe;      // two one sided pipes used for communication
     char m_inPipeName[MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH];   // filename of the inbound pipe
     char m_outPipeName[MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH];  // filename of the outbound pipe
@@ -92,7 +93,7 @@ private:
     // Connects to a one sided pipe previously created by CreateOneWayPipe.
     // In order to successfully connect id and inbound flag should be the same.
     HANDLE OpenOneWayPipe(DWORD id, bool inbound);
-   
+
     // Creates a one way pipe, id and inboud flag are used for naming.
     // Created pipe is supposed to be connected to by OpenOneWayPipe.
     HANDLE CreateOneWayPipe(DWORD id, bool inbound);

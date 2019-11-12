@@ -28,6 +28,9 @@ public:
     static FCDECL2(FC_BOOL_RET, CorSetMinThreads, DWORD workerThreads, DWORD completionPortThreads);
     static FCDECL2(VOID, CorGetMinThreads, DWORD* workerThreads, DWORD* completionPortThreads);
     static FCDECL2(VOID, CorGetAvailableThreads, DWORD* workerThreads, DWORD* completionPortThreads);
+    static FCDECL0(INT32, GetThreadCount);
+    static INT64 QCALLTYPE GetCompletedWorkItemCount();
+    static FCDECL0(INT64, GetPendingUnmanagedWorkItemCount);
 
     static FCDECL0(VOID, NotifyRequestProgress);
     static FCDECL0(FC_BOOL_RET, NotifyRequestComplete);
@@ -46,7 +49,7 @@ public:
 
     static BOOL QCALLTYPE RequestWorkerThread();
 
-    static FCDECL1(FC_BOOL_RET, CorPostQueuedCompletionStatus, LPOVERLAPPED lpOverlapped);    
+    static FCDECL1(FC_BOOL_RET, CorPostQueuedCompletionStatus, LPOVERLAPPED lpOverlapped);
     static FCDECL2(FC_BOOL_RET, CorUnregisterWait, LPVOID WaitHandle, Object * objectToNotify);
     static FCDECL1(void, CorWaitHandleCleanupNative, LPVOID WaitHandle);
     static FCDECL1(FC_BOOL_RET, CorBindIoCompletionCallback, HANDLE fileHandle);
@@ -66,7 +69,7 @@ void WINAPI BindIoCompletionCallbackStub(DWORD ErrorCode,
                                          LPOVERLAPPED lpOverlapped);
 void SetAsyncResultProperties(
     OVERLAPPEDDATAREF overlapped,
-    DWORD dwErrorCode, 
+    DWORD dwErrorCode,
     DWORD dwNumBytes);
 
 #endif

@@ -2,6 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+// ******************************************************************************
+// WARNING!!!: These values are used by SOS in the diagnostics repo. Values should
+// added or removed in a backwards and forwards compatible way.
+// See: https://github.com/dotnet/diagnostics/blob/master/src/inc/gcinfo.h
+// ******************************************************************************
 
 /*****************************************************************************/
 #ifndef _GCINFO_H_
@@ -26,7 +31,7 @@ const unsigned        OFFSET_MASK  = 0x3;  // mask to access the low 2 bits
 //
 const unsigned  byref_OFFSET_FLAG  = 0x1;  // the offset is an interior ptr
 const unsigned pinned_OFFSET_FLAG  = 0x2;  // the offset is a pinned ptr
-#if !defined(_TARGET_X86_) || !defined(WIN64EXCEPTIONS)
+#if !defined(_TARGET_X86_) || !defined(FEATURE_EH_FUNCLETS)
 const unsigned   this_OFFSET_FLAG  = 0x2;  // the offset is "this"
 #endif
 
@@ -60,7 +65,7 @@ inline BOOL GCInfoEncodesRevPInvokeFrame(UINT32 version=GCINFO_VERSION)
 // 1) The current GCINFO_VERSION for JITted and Ngened images
 // 2) A function of the Ready - to - run major version stored in READYTORUN_HEADER
 //   for ready - to - run images.ReadyToRunJitManager::JitTokenToGCInfoVersion()
-//   provides the GcInfo version for any Method. 
+//   provides the GcInfo version for any Method.
 //-----------------------------------------------------------------------------
 
 struct GCInfoToken
@@ -68,11 +73,11 @@ struct GCInfoToken
     PTR_VOID Info;
     UINT32 Version;
 
-    BOOL IsReturnKindAvailable() 
+    BOOL IsReturnKindAvailable()
     {
         return GCInfoEncodesReturnKind(Version);
     }
-    BOOL IsReversePInvokeFrameAvailable() 
+    BOOL IsReversePInvokeFrameAvailable()
     {
         return GCInfoEncodesRevPInvokeFrame(Version);
     }

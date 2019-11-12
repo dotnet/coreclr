@@ -276,8 +276,8 @@ enum emitAttr : unsigned
 #define EA_ATTR(x)                  ((emitAttr)(x))
 #define EA_SIZE(x)                  ((emitAttr)(((unsigned)(x)) &  EA_SIZE_MASK))
 #define EA_SIZE_IN_BYTES(x)         ((UNATIVE_OFFSET)(EA_SIZE(x)))
-#define EA_SET_SIZE(x, sz)          ((emitAttr)((((unsigned)(x)) & ~EA_SIZE_MASK) | sz))
-#define EA_SET_FLG(x, flg)          ((emitAttr)(((unsigned)(x)) | flg))
+#define EA_SET_SIZE(x, sz)          ((emitAttr)((((unsigned)(x)) & ~EA_SIZE_MASK) | (sz)))
+#define EA_SET_FLG(x, flg)          ((emitAttr)(((unsigned)(x)) | (flg)))
 #define EA_4BYTE_DSP_RELOC          (EA_SET_FLG(EA_4BYTE, EA_DSP_RELOC_FLG))
 #define EA_PTR_DSP_RELOC            (EA_SET_FLG(EA_PTRSIZE, EA_DSP_RELOC_FLG))
 #define EA_HANDLE_CNS_RELOC         (EA_SET_FLG(EA_PTRSIZE, EA_CNS_RELOC_FLG))
@@ -296,51 +296,63 @@ enum InstructionSet
 {
     InstructionSet_ILLEGAL = 0,
 #ifdef _TARGET_XARCH_
+    InstructionSet_Vector128,
+    InstructionSet_Vector256,
     // Start linear order SIMD instruction sets
     // These ISAs have strictly generation to generation order.
-    InstructionSet_SSE     = 1,
-    InstructionSet_SSE2    = 2,
-    InstructionSet_SSE3    = 3,
-    InstructionSet_SSSE3   = 4,
-    InstructionSet_SSE41   = 5,
-    InstructionSet_SSE42   = 6,
-    InstructionSet_AVX     = 7,
-    InstructionSet_AVX2    = 8,
-    // Reserve values <32 for future SIMD instruction sets (i.e., AVX512),
+    InstructionSet_SSE,
+    InstructionSet_SSE2,
+    InstructionSet_SSE3,
+    InstructionSet_SSSE3,
+    InstructionSet_SSE41,
+    InstructionSet_SSE42,
+    InstructionSet_AVX,
+    InstructionSet_AVX2,
     // End linear order SIMD instruction sets.
-
-    InstructionSet_AES     = 32,
-    InstructionSet_BMI1    = 33,
-    InstructionSet_BMI2    = 34,
-    InstructionSet_FMA     = 35,
-    InstructionSet_LZCNT   = 36,
-    InstructionSet_PCLMULQDQ  = 37,
-    InstructionSet_POPCNT  = 38,
+    InstructionSet_AES,
+    InstructionSet_BMI1,
+    InstructionSet_BMI2,
+    InstructionSet_FMA,
+    InstructionSet_LZCNT,
+    InstructionSet_PCLMULQDQ,
+    InstructionSet_POPCNT,
+    InstructionSet_BMI1_X64,
+    InstructionSet_BMI2_X64,
+    InstructionSet_LZCNT_X64,
+    InstructionSet_POPCNT_X64,
+    InstructionSet_SSE_X64,
+    InstructionSet_SSE2_X64,
+    InstructionSet_SSE41_X64,
+    InstructionSet_SSE42_X64,
 #elif defined(_TARGET_ARM_)
     InstructionSet_NEON,
 #elif defined(_TARGET_ARM64_)
-    InstructionSet_Base,      // Base instructions available on all Arm64 platforms
-    InstructionSet_Aes,       // ID_AA64ISAR0_EL1.AES is 1 or better
-    InstructionSet_Atomics,   // ID_AA64ISAR0_EL1.Atomic is 2 or better
-    InstructionSet_Crc32,     // ID_AA64ISAR0_EL1.CRC32 is 1 or better
-    InstructionSet_Dcpop,     // ID_AA64ISAR1_EL1.DPB is 1 or better
-    InstructionSet_Dp,        // ID_AA64ISAR0_EL1.DP is 1 or better
-    InstructionSet_Fcma,      // ID_AA64ISAR1_EL1.FCMA is 1 or better
-    InstructionSet_Fp,        // ID_AA64PFR0_EL1.FP is 0 or better
-    InstructionSet_Fp16,      // ID_AA64PFR0_EL1.FP is 1 or better
-    InstructionSet_Jscvt,     // ID_AA64ISAR1_EL1.JSCVT is 1 or better
-    InstructionSet_Lrcpc,     // ID_AA64ISAR1_EL1.LRCPC is 1 or better
-    InstructionSet_Pmull,     // ID_AA64ISAR0_EL1.AES is 2 or better
-    InstructionSet_Sha1,      // ID_AA64ISAR0_EL1.SHA1 is 1 or better
-    InstructionSet_Sha256,    // ID_AA64ISAR0_EL1.SHA2 is 1 or better
-    InstructionSet_Sha512,    // ID_AA64ISAR0_EL1.SHA2 is 2 or better
-    InstructionSet_Sha3,      // ID_AA64ISAR0_EL1.SHA3 is 1 or better
-    InstructionSet_Simd,      // ID_AA64PFR0_EL1.AdvSIMD is 0 or better
-    InstructionSet_Simd_v81,  // ID_AA64ISAR0_EL1.RDM is 1 or better
-    InstructionSet_Simd_fp16, // ID_AA64PFR0_EL1.AdvSIMD is 1 or better
-    InstructionSet_Sm3,       // ID_AA64ISAR0_EL1.SM3 is 1 or better
-    InstructionSet_Sm4,       // ID_AA64ISAR0_EL1.SM4 is 1 or better
-    InstructionSet_Sve,       // ID_AA64PFR0_EL1.SVE is 1 or better
+    InstructionSet_AdvSimd,       // ID_AA64PFR0_EL1.AdvSIMD is 0 or better
+    InstructionSet_AdvSimd_Arm64,
+    InstructionSet_AdvSimd_Fp16,  // ID_AA64PFR0_EL1.AdvSIMD is 1 or better
+    InstructionSet_AdvSimd_v81,   // ID_AA64ISAR0_EL1.RDM is 1 or better
+    InstructionSet_Aes,           // ID_AA64ISAR0_EL1.AES is 1 or better
+    InstructionSet_ArmBase,
+    InstructionSet_ArmBase_Arm64,
+    InstructionSet_Atomics,       // ID_AA64ISAR0_EL1.Atomic is 2 or better
+    InstructionSet_Crc32,         // ID_AA64ISAR0_EL1.CRC32 is 1 or better
+    InstructionSet_Dcpop,         // ID_AA64ISAR1_EL1.DPB is 1 or better
+    InstructionSet_Dp,            // ID_AA64ISAR0_EL1.DP is 1 or better
+    InstructionSet_Fcma,          // ID_AA64ISAR1_EL1.FCMA is 1 or better
+    InstructionSet_Fp,            // ID_AA64PFR0_EL1.FP is 0 or better
+    InstructionSet_Fp16,          // ID_AA64PFR0_EL1.FP is 1 or better
+    InstructionSet_Jscvt,         // ID_AA64ISAR1_EL1.JSCVT is 1 or better
+    InstructionSet_Lrcpc,         // ID_AA64ISAR1_EL1.LRCPC is 1 or better
+    InstructionSet_Pmull,         // ID_AA64ISAR0_EL1.AES is 2 or better
+    InstructionSet_Sha1,          // ID_AA64ISAR0_EL1.SHA1 is 1 or better
+    InstructionSet_Sha256,        // ID_AA64ISAR0_EL1.SHA2 is 1 or better
+    InstructionSet_Sha512,        // ID_AA64ISAR0_EL1.SHA2 is 2 or better
+    InstructionSet_Sha3,          // ID_AA64ISAR0_EL1.SHA3 is 1 or better
+    InstructionSet_Sm3,           // ID_AA64ISAR0_EL1.SM3 is 1 or better
+    InstructionSet_Sm4,           // ID_AA64ISAR0_EL1.SM4 is 1 or better
+    InstructionSet_Sve,           // ID_AA64PFR0_EL1.SVE is 1 or better
+    InstructionSet_Vector64,
+    InstructionSet_Vector128,
 #endif
     InstructionSet_NONE       // No instruction set is available indicating an invalid value
 };

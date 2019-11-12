@@ -29,20 +29,20 @@ NESTED_ENTRY FuncEvalHijack, _TEXT, UnhandledExceptionHandlerUnix
         //
         // epilogue
         //
-        add     rsp, 20h
+        add     rsp, 0x20
         TAILJMP_RAX
 NESTED_END FuncEvalHijack, _TEXT
 
 //extern ExceptionHijackWorker:proc
 
-// This is the general purpose hijacking stub. The DacDbi Hijack primitive will 
+// This is the general purpose hijacking stub. The DacDbi Hijack primitive will
 // set up the stack and then set the IP here, and so this just makes the call.
 NESTED_ENTRY ExceptionHijack, _TEXT, UnhandledExceptionHandlerUnix
         // the stack should be aligned at this point, since we do not call this
         // function explicitly
-        // 
+        //
         // There is a problem here.  The Orcas assembler doesn't like a 0-sized stack frame.
-        // So we allocate 4 stack slots as the outgoing argument home and just copy the 
+        // So we allocate 4 stack slots as the outgoing argument home and just copy the
         // arguments set up by DacDbi into these stack slots.  We will take a perf hit,
         // but this is not a perf critical code path anyway.
 
@@ -56,24 +56,24 @@ NESTED_ENTRY ExceptionHijack, _TEXT, UnhandledExceptionHandlerUnix
         END_PROLOGUE
 
         // We used to do an "alloc_stack 0h" because the stack has been allocated for us
-        // by the OOP hijacking routine.  Our arguments have also been pushed onto the 
-        // stack for us.  However, the Orcas compilers don't like a 0-sized frame, so 
-        // we need to allocate something here and then just copy the stack arguments to 
+        // by the OOP hijacking routine.  Our arguments have also been pushed onto the
+        // stack for us.  However, the Orcas compilers don't like a 0-sized frame, so
+        // we need to allocate something here and then just copy the stack arguments to
         // their new argument homes.
 
         // In x86, ExceptionHijackWorker is marked STDCALL, so it finds
         // its arguments on the stack. In x64, it gets its arguments in
         // registers (set up for us by DacDbiInterfaceImpl::Hijack),
         // and this stack space may be reused.
-        mov     rax, [rsp + 20h]
+        mov     rax, [rsp + 0x20]
         mov     [rsp], rax
-        mov     rax, [rsp + 28h]
-        mov     [rsp + 8h], rax
-        mov     rax, [rsp + 30h]
-        mov     [rsp + 10h], rax
-        mov     rax, [rsp + 38h]
-        mov     [rsp + 18h], rax
-        
+        mov     rax, [rsp + 0x28]
+        mov     [rsp + 0x8], rax
+        mov     rax, [rsp + 0x30]
+        mov     [rsp + 0x10], rax
+        mov     rax, [rsp + 0x38]
+        mov     [rsp + 0x18], rax
+
         // DD Hijack primitive already set the stack. So just make the call now.
         call    C_FUNC(ExceptionHijackWorker)
 
@@ -93,7 +93,7 @@ NESTED_ENTRY ExceptionHijack, _TEXT, UnhandledExceptionHandlerUnix
         //
         // epilogue
         //
-        add     rsp, 20h
+        add     rsp, 0x20
         TAILJMP_RAX
 
 // Put a label here to tell the debugger where the end of this function is.

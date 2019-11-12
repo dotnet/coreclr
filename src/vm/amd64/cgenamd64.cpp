@@ -120,7 +120,7 @@ void InlinedCallFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     {
         NOTHROW;
         GC_NOTRIGGER;
-#ifdef PROFILING_SUPPORTED        
+#ifdef PROFILING_SUPPORTED
         PRECONDITION(CORProfilerStackSnapshotEnabled() || InlinedCallFrame::FrameHasActiveCall(this));
 #endif
         HOST_NOCALLS;
@@ -237,7 +237,7 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 void FaultingExceptionFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 {
     LIMITED_METHOD_DAC_CONTRACT;
-    
+
     memcpy(pRD->pCurrentContext, &m_ctx, sizeof(CONTEXT));
 
     pRD->ControlPC = m_ctx.Rip;
@@ -364,7 +364,6 @@ BOOL isJumpRel32(PCODE pCode)
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     } CONTRACTL_END;
 
@@ -374,7 +373,7 @@ BOOL isJumpRel32(PCODE pCode)
 }
 
 //
-//  Given the same pBuffer that was used by emitJump this 
+//  Given the same pBuffer that was used by emitJump this
 //  method decodes the instructions and returns the jump target
 //
 PCODE decodeJump32(PCODE pBuffer)
@@ -383,14 +382,13 @@ PCODE decodeJump32(PCODE pBuffer)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
 
     // jmp rel32
     _ASSERTE(isJumpRel32(pBuffer));
-    
+
     return rel32Decode(pBuffer+1);
 }
 
@@ -399,7 +397,6 @@ BOOL isJumpRel64(PCODE pCode)
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     } CONTRACTL_END;
 
@@ -417,7 +414,6 @@ PCODE decodeJump64(PCODE pBuffer)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
@@ -425,7 +421,7 @@ PCODE decodeJump64(PCODE pBuffer)
     // mov rax, xxx
     // jmp rax
     _ASSERTE(isJumpRel64(pBuffer));
-    
+
     return *PTR_UINT64(pBuffer+2);
 }
 
@@ -620,7 +616,7 @@ UMEntryThunk* UMEntryThunk::Decode(LPVOID pCallback)
     return (UMEntryThunk*)pThunkCode->m_uet;
 }
 
-INT32 rel32UsingJumpStub(INT32 UNALIGNED * pRel32, PCODE target, MethodDesc *pMethod, 
+INT32 rel32UsingJumpStub(INT32 UNALIGNED * pRel32, PCODE target, MethodDesc *pMethod,
     LoaderAllocator *pLoaderAllocator /* = NULL */, bool throwOnOutOfMemoryWithinRange /*= true*/)
 {
     CONTRACTL
@@ -633,8 +629,8 @@ INT32 rel32UsingJumpStub(INT32 UNALIGNED * pRel32, PCODE target, MethodDesc *pMe
         PRECONDITION(pLoaderAllocator != NULL || pMethod->GetLoaderAllocator() != NULL);
         // If a domain is provided, the MethodDesc mustn't yet be set up to have one, or it must match the MethodDesc's domain,
         // unless we're in a compilation domain (NGen loads assemblies as domain-bound but compiles them as domain neutral).
-        PRECONDITION(!pLoaderAllocator || !pMethod || pMethod->GetMethodDescChunk()->GetMethodTablePtr()->IsNull() || 
-            pLoaderAllocator == pMethod->GetMethodDescChunk()->GetFirstMethodDesc()->GetLoaderAllocatorForCode() || IsCompilationProcess());
+        PRECONDITION(!pLoaderAllocator || !pMethod || pMethod->GetMethodDescChunk()->GetMethodTablePtr()->IsNull() ||
+            pLoaderAllocator == pMethod->GetMethodDescChunk()->GetFirstMethodDesc()->GetLoaderAllocator() || IsCompilationProcess());
     }
     CONTRACTL_END;
 
@@ -651,7 +647,7 @@ INT32 rel32UsingJumpStub(INT32 UNALIGNED * pRel32, PCODE target, MethodDesc *pMe
         if (hiAddr < baseAddr) hiAddr = UINT64_MAX; // overflow
 
         // Always try to allocate with throwOnOutOfMemoryWithinRange:false first to conserve reserveForJumpStubs until when
-        // it is really needed. LoaderCodeHeap::CreateCodeHeap and EEJitManager::CanUseCodeHeap won't use the reserved 
+        // it is really needed. LoaderCodeHeap::CreateCodeHeap and EEJitManager::CanUseCodeHeap won't use the reserved
         // space when throwOnOutOfMemoryWithinRange is false.
         //
         // The reserved space should be only used by jump stubs for precodes and other similar code fragments. It should
@@ -730,7 +726,6 @@ BOOL DoesSlotCallPrestub(PCODE pCode)
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         PRECONDITION(pCode != GetPreStubEntryPoint());
     } CONTRACTL_END;
 
@@ -811,7 +806,6 @@ DWORD GetOffsetAtEndOfFunction(ULONGLONG           uImageBase,
         MODE_ANY;
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         PRECONDITION((offsetNum > 0) && (offsetNum < 20));  /* we only allow reasonable offsetNums 1..19 */
     }
     CONTRACTL_END;
@@ -826,6 +820,7 @@ DWORD GetOffsetAtEndOfFunction(ULONGLONG           uImageBase,
     return offsetInFunc;
 }
 
+#ifdef FEATURE_PREJIT
 //==========================================================================================
 // In NGen image, virtual slots inherited from cross-module dependencies point to jump thunks.
 // These jump thunk initially point to VirtualMethodFixupStub which transfers control here.
@@ -837,7 +832,7 @@ EXTERN_C PCODE VirtualMethodFixupWorker(TransitionBlock * pTransitionBlock, CORC
     CONTRACTL
     {
         THROWS;
-        GC_TRIGGERS;    // GC not allowed until we call pEMFrame->SetFunction(pMD);  
+        GC_TRIGGERS;    // GC not allowed until we call pEMFrame->SetFunction(pMD);
 
         ENTRY_POINT;
     }
@@ -846,13 +841,11 @@ EXTERN_C PCODE VirtualMethodFixupWorker(TransitionBlock * pTransitionBlock, CORC
     MAKE_CURRENT_THREAD_AVAILABLE();
 
     PCODE         pCode   = NULL;
-    MethodDesc *  pMD     = NULL;   
+    MethodDesc *  pMD     = NULL;
 
 #ifdef _DEBUG
     Thread::ObjectRefFlush(CURRENT_THREAD);
 #endif
-
-    BEGIN_SO_INTOLERANT_CODE(CURRENT_THREAD);
 
     _ASSERTE(IS_ALIGNED((size_t)pThunk, sizeof(INT64)));
 
@@ -863,7 +856,7 @@ EXTERN_C PCODE VirtualMethodFixupWorker(TransitionBlock * pTransitionBlock, CORC
     _ASSERTE(pThisPtr != NULL);
     VALIDATEOBJECT(pThisPtr);
 
-    MethodTable * pMT = pThisPtr->GetTrueMethodTable();
+    MethodTable * pMT = pThisPtr->GetMethodTable();
 
     WORD slotNumber = pThunk->slotNum;
     _ASSERTE(slotNumber != (WORD)-1);
@@ -874,16 +867,26 @@ EXTERN_C PCODE VirtualMethodFixupWorker(TransitionBlock * pTransitionBlock, CORC
     {
         pMD = MethodTable::GetMethodDescForSlotAddress(pCode);
 
-        pEMFrame->SetFunction(pMD);   //  We will use the pMD to enumerate the GC refs in the arguments 
+        pEMFrame->SetFunction(pMD);   //  We will use the pMD to enumerate the GC refs in the arguments
         pEMFrame->Push(CURRENT_THREAD);
 
         INSTALL_MANAGED_EXCEPTION_DISPATCHER;
         INSTALL_UNWIND_AND_CONTINUE_HANDLER_NO_PROBE;
 
-        // Skip fixup precode jump for better perf
-        PCODE pDirectTarget = Precode::TryToSkipFixupPrecode(pCode);
-        if (pDirectTarget != NULL)
-            pCode = pDirectTarget;
+        if (pMD->IsVersionableWithVtableSlotBackpatch())
+        {
+            // The entry point for this method needs to be versionable, so use a FuncPtrStub similarly to what is done in
+            // MethodDesc::GetMultiCallableAddrOfCode()
+            GCX_COOP();
+            pCode = pMD->GetLoaderAllocator()->GetFuncPtrStubs()->GetFuncPtrStub(pMD);
+        }
+        else
+        {
+            // Skip fixup precode jump for better perf
+            PCODE pDirectTarget = Precode::TryToSkipFixupPrecode(pCode);
+            if (pDirectTarget != NULL)
+                pCode = pDirectTarget;
+        }
 
         INT64 oldValue = *(INT64*)pThunk;
         BYTE* pOldValue = (BYTE*)&oldValue;
@@ -897,23 +900,20 @@ EXTERN_C PCODE VirtualMethodFixupWorker(TransitionBlock * pTransitionBlock, CORC
             *(INT32 *)(pNewValue+1) = rel32UsingJumpStub((INT32*)(&pThunk->callJmp[1]), pCode, pMD, NULL);
 
             _ASSERTE(IS_ALIGNED(pThunk, sizeof(INT64)));
-            EnsureWritableExecutablePages(pThunk, sizeof(INT64));
             FastInterlockCompareExchangeLong((INT64*)pThunk, newValue, oldValue);
 
             FlushInstructionCache(GetCurrentProcess(), pThunk, 8);
         }
-        
+
         UNINSTALL_UNWIND_AND_CONTINUE_HANDLER_NO_PROBE;
         UNINSTALL_MANAGED_EXCEPTION_DISPATCHER;
         pEMFrame->Pop(CURRENT_THREAD);
     }
 
     // Ready to return
-
-    END_SO_INTOLERANT_CODE;
-   
     return pCode;
 }
+#endif // FEATURE_PREJIT
 
 #ifdef FEATURE_READYTORUN
 

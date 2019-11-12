@@ -2,9 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-// 
-
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
@@ -21,9 +18,9 @@ namespace System.Reflection
             ComposedOfNoStaticMembers = 0x8,
         }
 
-        internal static bool IncludeAccessor(MethodInfo associate, bool nonPublic)
+        internal static bool IncludeAccessor(MethodInfo? associate, bool nonPublic)
         {
-            if ((object)associate == null)
+            if (associate is null)
                 return false;
 
             if (nonPublic)
@@ -35,7 +32,7 @@ namespace System.Reflection
             return false;
         }
 
-        private static unsafe RuntimeMethodInfo AssignAssociates(
+        private static RuntimeMethodInfo? AssignAssociates(
             int tkMethod,
             RuntimeType declaredType,
             RuntimeType reflectedType)
@@ -48,7 +45,7 @@ namespace System.Reflection
 
             bool isInherited = declaredType != reflectedType;
 
-            IntPtr[] genericArgumentHandles = null;
+            IntPtr[]? genericArgumentHandles = null;
             int genericArgumentCount = 0;
             RuntimeType[] genericArguments = declaredType.GetTypeHandleInternal().GetInstantiationInternal();
             if (genericArguments != null)
@@ -68,20 +65,20 @@ namespace System.Reflection
             {
                 MethodAttributes methAttr = RuntimeMethodHandle.GetAttributes(associateMethodHandle);
 
-                // ECMA MethodSemantics: "All methods for a given Property or Event shall have the same accessibility 
-                //(ie the MemberAccessMask subfield of their Flags row) and cannot be CompilerControlled  [CLS]"
+                // ECMA MethodSemantics: "All methods for a given Property or Event shall have the same accessibility
+                // (ie the MemberAccessMask subfield of their Flags row) and cannot be CompilerControlled  [CLS]"
                 // Consequently, a property may be composed of public and private methods. If the declared type !=
-                // the reflected type, the private methods should not be exposed. Note that this implies that the 
+                // the reflected type, the private methods should not be exposed. Note that this implies that the
                 // identity of a property includes it's reflected type.
 
                 if ((methAttr & MethodAttributes.MemberAccessMask) == MethodAttributes.Private)
                     return null;
 
-                // Note this is the first time the property was encountered walking from the most derived class 
+                // Note this is the first time the property was encountered walking from the most derived class
                 // towards the base class. It would seem to follow that any associated methods would not
                 // be overriden -- but this is not necessarily true. A more derived class may have overriden a
-                // virtual method associated with a property in a base class without associating the override with 
-                // the same or any property in the derived class. 
+                // virtual method associated with a property in a base class without associating the override with
+                // the same or any property in the derived class.
                 if ((methAttr & MethodAttributes.Virtual) != 0)
                 {
                     bool declaringTypeIsClass =
@@ -98,27 +95,24 @@ namespace System.Reflection
                 }
             }
 
-            RuntimeMethodInfo associateMethod =
+            RuntimeMethodInfo? associateMethod =
                 RuntimeType.GetMethodBase(reflectedType, associateMethodHandle) as RuntimeMethodInfo;
 
             // suppose a property was mapped to a method not in the derivation hierarchy of the reflectedTypeHandle
-            if (associateMethod == null)
-                associateMethod = reflectedType.Module.ResolveMethod(tkMethod, null, null) as RuntimeMethodInfo;
-
-            return associateMethod;
+            return associateMethod ?? reflectedType.Module.ResolveMethod(tkMethod, null, null) as RuntimeMethodInfo;
         }
 
-        internal static unsafe void AssignAssociates(
+        internal static void AssignAssociates(
             MetadataImport scope,
             int mdPropEvent,
             RuntimeType declaringType,
             RuntimeType reflectedType,
-            out RuntimeMethodInfo addOn,
-            out RuntimeMethodInfo removeOn,
-            out RuntimeMethodInfo fireOn,
-            out RuntimeMethodInfo getter,
-            out RuntimeMethodInfo setter,
-            out MethodInfo[] other,
+            out RuntimeMethodInfo? addOn,
+            out RuntimeMethodInfo? removeOn,
+            out RuntimeMethodInfo? fireOn,
+            out RuntimeMethodInfo? getter,
+            out RuntimeMethodInfo? setter,
+            out MethodInfo[]? other,
             out bool composedOfAllPrivateMethods,
             out BindingFlags bindingFlags)
         {
@@ -131,11 +125,11 @@ namespace System.Reflection
                 Attributes.ComposedOfNoStaticMembers;
 
             while (RuntimeTypeHandle.IsGenericVariable(reflectedType))
-                reflectedType = (RuntimeType)reflectedType.BaseType;
+                reflectedType = (RuntimeType)reflectedType.BaseType!;
 
             bool isInherited = declaringType != reflectedType;
 
-            List<MethodInfo> otherList = null;
+            List<MethodInfo>? otherList = null;
 
             MetadataEnumResult associatesData;
             scope.Enum(MetadataTokenType.MethodDef, mdPropEvent, out associatesData);
@@ -148,7 +142,7 @@ namespace System.Reflection
                 MethodSemanticsAttributes semantics = (MethodSemanticsAttributes)associatesData[i * 2 + 1];
 
                 #region Assign each associate
-                RuntimeMethodInfo associateMethod =
+                RuntimeMethodInfo? associateMethod =
                     AssignAssociates(methodDefToken, declaringType, reflectedType);
 
                 if (associateMethod == null)
@@ -191,8 +185,7 @@ namespace System.Reflection
                     removeOn = associateMethod;
                 else
                 {
-                    if (otherList == null)
-                        otherList = new List<MethodInfo>(cAssociates);
+                    otherList ??= new List<MethodInfo>(cAssociates);
                     otherList.Add(associateMethod);
                 }
             }
@@ -203,7 +196,7 @@ namespace System.Reflection
 
             composedOfAllPrivateMethods = (attributes & Attributes.ComposedOfAllPrivateMethods) != 0;
 
-            other = (otherList != null) ? otherList.ToArray() : null;
+            other = otherList?.ToArray();
         }
     }
 }

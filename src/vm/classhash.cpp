@@ -23,7 +23,7 @@ PTR_EEClassHashEntry EEClassHashEntry::GetEncloser()
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
-    
+
     return m_pEncloser.Get();
 }
 
@@ -56,7 +56,7 @@ void EEClassHashEntry::SetData(void *data)
         MODE_ANY;
     }
     CONTRACTL_END;
-    
+
     // TypeHandles are encoded as a relative pointer rather than a regular pointer to avoid the need for image
     // fixups (any TypeHandles in this hash are defined in the same module).
     if (((TADDR)data & EECLASSHASH_TYPEHANDLE_DISCR) == 0)
@@ -205,6 +205,32 @@ mdToken EEClassHashTable::UncompressModuleAndClassDef(HashDatum Data)
         return ((dwData >> 1) & 0x00ffffff) | mdtTypeDef;
 }
 
+static void ConstructKeyFromDataCaseInsensitive(EEClassHashTable::ConstructKeyCallback* pCallback, LPSTR pszNameSpace, LPSTR pszName)
+{
+    CONTRACTL
+    {
+        THROWS;
+        MODE_ANY;
+    }
+    CONTRACTL_END
+
+    LPUTF8 Key[2];
+
+    StackSString nameSpace(SString::Utf8, pszNameSpace);
+    nameSpace.LowerCase();
+
+    StackScratchBuffer nameSpaceBuffer;
+    Key[0] = (LPUTF8)nameSpace.GetUTF8(nameSpaceBuffer);
+
+    StackSString name(SString::Utf8, pszName);
+    name.LowerCase();
+
+    StackScratchBuffer nameBuffer;
+    Key[1] = (LPUTF8)name.GetUTF8(nameBuffer);
+
+    pCallback->UseKeys(Key);
+}
+
 VOID EEClassHashTable::ConstructKeyFromData(PTR_EEClassHashEntry pEntry, // IN  : Entry to compare
                                             ConstructKeyCallback *pCallback) // This class will process the output
 {
@@ -218,30 +244,27 @@ VOID EEClassHashTable::ConstructKeyFromData(PTR_EEClassHashEntry pEntry, // IN  
     }
     CONTRACTL_END;
 
-    LPUTF8 Key[2];
-    Key[0] = Key[1] = NULL;
-
     {
 #ifdef _DEBUG_IMPL
         _ASSERTE(!(m_bCaseInsensitive && FORBIDGC_LOADER_USE_ENABLED()));
 #endif
-    
+
         // cqb - If m_bCaseInsensitive is true for the hash table, the bytes in Key will be allocated
         // from cqb. This is to prevent wasting bytes in the Loader Heap. Thusly, it is important to note that
         // in this case, the lifetime of Key is bounded by the lifetime of cqb, which will free the memory
         // it allocated on destruction.
-        
+
         _ASSERTE(!m_pModule.IsNull());
         LPSTR        pszName = NULL;
         LPSTR        pszNameSpace = NULL;
         IMDInternalImport *pInternalImport = NULL;
-        
+
         PTR_VOID Data = NULL;
         if (!m_bCaseInsensitive)
             Data = pEntry->GetData();
         else
             Data = (PTR_EEClassHashEntry(pEntry->GetData()))->GetData();
-    
+
         // Lower bit is a discriminator.  If the lower bit is NOT SET, it means we have
         // a TypeHandle, otherwise, we have a mdtTypedef/mdtExportedType.
         if ((dac_cast<TADDR>(Data) & EECLASSHASH_TYPEHANDLE_DISCR) == 0)
@@ -259,9 +282,9 @@ VOID EEClassHashTable::ConstructKeyFromData(PTR_EEClassHashEntry pEntry, // IN  
             if (TypeFromToken(mdtUncompressed) == mdtExportedType)
             {
                 IfFailThrow(GetModule()->GetClassLoader()->GetAssembly()->GetManifestImport()->GetExportedTypeProps(
-                    mdtUncompressed, 
-                    (LPCSTR *)&pszNameSpace, 
-                    (LPCSTR *)&pszName,  
+                    mdtUncompressed,
+                    (LPCSTR *)&pszNameSpace,
+                    (LPCSTR *)&pszName,
                     NULL,   //mdImpl
                     NULL,   // type def
                     NULL)); // flags
@@ -269,7 +292,7 @@ VOID EEClassHashTable::ConstructKeyFromData(PTR_EEClassHashEntry pEntry, // IN  
             else
             {
                 _ASSERTE(TypeFromToken(mdtUncompressed) == mdtTypeDef);
-    
+
                 Module *    pUncompressedModule;
                 mdTypeDef   UncompressedCl;
                 UncompressModuleAndNonExportClassDef(Data, &pUncompressedModule, &UncompressedCl);
@@ -279,62 +302,27 @@ VOID EEClassHashTable::ConstructKeyFromData(PTR_EEClassHashEntry pEntry, // IN  
                 IfFailThrow(pInternalImport->GetNameOfTypeDef(UncompressedCl, (LPCSTR *)&pszName, (LPCSTR *)&pszNameSpace));
             }
         }
-        
+
         if (!m_bCaseInsensitive)
         {
+            LPUTF8 Key[2];
+
             Key[0] = pszNameSpace;
             Key[1] = pszName;
+
+            pCallback->UseKeys(Key);
         }
         else
         {
-            CONTRACT_VIOLATION(ThrowsViolation|FaultViolation);
-
 #ifndef DACCESS_COMPILE
-            // We can call the nothrow version here because we fulfilled the requirement of calling
-            // InitTables() in the "new" method.
-            INT32 iNSLength = InternalCasingHelper::InvariantToLowerNoThrow(NULL, 0, pszNameSpace);
-            if (!iNSLength)
-            {
-                COMPlusThrowOM();
-            }
-
-            INT32 iNameLength = InternalCasingHelper::InvariantToLowerNoThrow(NULL, 0, pszName);
-            if (!iNameLength)
-            {
-                COMPlusThrowOM();
-            }
-
-            // Prefast overflow sanity check before alloc.
-            INT32 iAllocSize;
-            if (!ClrSafeInt<INT32>::addition(iNSLength, iNameLength, iAllocSize))
-                COMPlusThrowOM();
-            LPUTF8 pszOutNameSpace = (LPUTF8) _alloca(iAllocSize);
-            if (iNSLength == 1)
-            {
-                *pszOutNameSpace = '\0';
-            }
-            else
-            {
-                if (!InternalCasingHelper::InvariantToLowerNoThrow(pszOutNameSpace, iNSLength, pszNameSpace))
-                {
-                    COMPlusThrowOM();
-                }
-            }
-            LPUTF8 pszOutName = (LPUTF8) pszOutNameSpace + iNSLength;
-
-            if (!InternalCasingHelper::InvariantToLowerNoThrow(pszOutName, iNameLength, pszName))
-            {
-                COMPlusThrowOM();
-            }
-            Key[0] = pszOutNameSpace;
-            Key[1] = pszOutName;
+            CONTRACT_VIOLATION(ThrowsViolation | FaultViolation);
+            ConstructKeyFromDataCaseInsensitive(pCallback, pszNameSpace, pszName);
 #else
             DacNotImpl();
 #endif // #ifndef DACCESS_COMPILE
         }
     }
 
-    pCallback->UseKeys(Key);
 }
 
 #ifndef DACCESS_COMPILE
@@ -382,9 +370,9 @@ public:
         _ASSERTE (strcmp(pNewEntry->DebugKey[0], Key[0]) == 0);
         SUPPORTS_DAC;
     }
-    
+
     EEClassHashEntry_t *pNewEntry;
-    
+
 };
 #endif // _DEBUG
 
@@ -444,8 +432,8 @@ EEClassHashEntry_t *EEClassHashTable::InsertValueIfNotFound(LPCUTF8 pszNamespace
         *pbFound = TRUE;
         return pNewEntry;
     }
-    
-    // Reached here implies that we didn't find the entry and need to insert it 
+
+    // Reached here implies that we didn't find the entry and need to insert it
     *pbFound = FALSE;
 
     pNewEntry = BaseAllocateEntry(pamTracker);
@@ -493,12 +481,12 @@ EEClassHashEntry_t *EEClassHashTable::FindItem(LPCUTF8 pszNamespace, LPCUTF8 psz
     // further check which of these entries actually match the full key (there can be multiple hits with
     // nested types in the picture).
     PTR_EEClassHashEntry pSearch = BaseFindFirstEntryByHash(Hash(pszNamespace, pszClassName), pContext);
-    
+
     while (pSearch)
     {
         LPCUTF8 rgKey[] = { pszNamespace, pszClassName };
-    
-        if (CompareKeys(pSearch, rgKey)) 
+
+        if (CompareKeys(pSearch, rgKey))
         {
             // If (IsNested), then we're looking for a nested class
             // If (pSearch->pEncloser), we've found a nested class
@@ -519,7 +507,7 @@ EEClassHashEntry_t *EEClassHashTable::FindItem(LPCUTF8 pszNamespace, LPCUTF8 psz
     return NULL;
 }
 
-EEClassHashEntry_t *EEClassHashTable::FindNextNestedClass(NameHandle* pName, PTR_VOID *pData, LookupContext *pContext)
+EEClassHashEntry_t *EEClassHashTable::FindNextNestedClass(const NameHandle* pName, PTR_VOID *pData, LookupContext *pContext)
 {
     CONTRACTL
     {
@@ -570,7 +558,7 @@ EEClassHashEntry_t *EEClassHashTable::FindNextNestedClass(LPCUTF8 pszNamespace, 
     {
         LPCUTF8 rgKey[] = { pszNamespace, pszClassName };
 
-        if (pSearch->GetEncloser() && CompareKeys(pSearch, rgKey)) 
+        if (pSearch->GetEncloser() && CompareKeys(pSearch, rgKey))
         {
             *pData = pSearch->GetData();
             return pSearch;
@@ -638,9 +626,9 @@ EEClassHashEntry_t * EEClassHashTable::GetValue(LPCUTF8 pszFullyQualifiedName, P
     CONTRACTL_END;
 
     _ASSERTE(!m_pModule.IsNull());
-    
+
     CQuickBytes szNamespace;
-    
+
     LPCUTF8 pNamespace = Utf8Empty;
 
     LPCUTF8 p = ns::FindSep(pszFullyQualifiedName);
@@ -649,9 +637,9 @@ EEClassHashEntry_t * EEClassHashTable::GetValue(LPCUTF8 pszFullyQualifiedName, P
     {
         SIZE_T d = p - pszFullyQualifiedName;
 
-        FAULT_NOT_FATAL();        
+        FAULT_NOT_FATAL();
         pNamespace = szNamespace.SetStringNoThrow(pszFullyQualifiedName, d);
-        
+
         if (NULL == pNamespace)
         {
             return NULL;
@@ -665,7 +653,7 @@ EEClassHashEntry_t * EEClassHashTable::GetValue(LPCUTF8 pszFullyQualifiedName, P
     }
 
     EEClassHashEntry_t * ret = GetValue(pNamespace, p, pData, IsNested, pContext);
-    
+
     return ret;
 }
 
@@ -692,7 +680,7 @@ EEClassHashEntry_t * EEClassHashTable::GetValue(LPCUTF8 pszNamespace, LPCUTF8 ps
 }
 
 
-EEClassHashEntry_t * EEClassHashTable::GetValue(NameHandle* pName, PTR_VOID *pData, BOOL IsNested, LookupContext *pContext)
+EEClassHashEntry_t * EEClassHashTable::GetValue(const NameHandle* pName, PTR_VOID *pData, BOOL IsNested, LookupContext *pContext)
 {
     CONTRACTL
     {
@@ -722,15 +710,14 @@ public:
     virtual void UseKeys(__in_ecount(2) LPUTF8 *pKey1)
     {
         LIMITED_METHOD_CONTRACT;
-        STATIC_CONTRACT_SO_TOLERANT;
         SUPPORTS_DAC;
 
-        bReturn = ( 
+        bReturn = (
             ((pKey1[0] == pKey2[0]) && (pKey1[1] == pKey2[1])) ||
             ((strcmp (pKey1[0], pKey2[0]) == 0) && (strcmp (pKey1[1], pKey2[1]) == 0))
             );
     }
-    
+
     LPCUTF8 *pKey2;
     BOOL     bReturn;
 };
@@ -763,7 +750,7 @@ BOOL EEClassHashTable::CompareKeys(PTR_EEClassHashEntry pEntry, LPCUTF8 * pKey2)
         CONTRACT_VIOLATION(ThrowsViolation);
         ConstructKeyFromData(pEntry, &cback);
     }
-    
+
     return cback.bReturn;
 }
 
@@ -798,7 +785,7 @@ bool EEClassHashTable::ShouldSave(DataImage *pImage, EEClassHashEntry_t *pEntry)
 bool EEClassHashTable::IsHotEntry(EEClassHashEntry_t *pEntry, CorProfileData *pProfileData)
 {
     STANDARD_VM_CONTRACT;
-    
+
     PTR_VOID datum = pEntry->GetData();
     mdToken token;
 
@@ -835,7 +822,7 @@ bool EEClassHashTable::IsHotEntry(EEClassHashEntry_t *pEntry, CorProfileData *pP
 bool EEClassHashTable::SaveEntry(DataImage *pImage, CorProfileData *pProfileData, EEClassHashEntry_t *pOldEntry, EEClassHashEntry_t *pNewEntry, EntryMappingTable *pMap)
 {
     STANDARD_VM_CONTRACT;
-    
+
     // If we're a nested class we have a reference to the entry of our enclosing class. But this reference
     // will have been broken by the saving process (the base class re-creates and re-orders all entries in
     // order to optimize them for ngen images). So we read the old encloser address from the old version of
@@ -883,8 +870,8 @@ void EEClassHashTable::PrepareExportedTypesForSaving(DataImage *image)
     HENUMInternalHolder phEnum(pImport);
     phEnum.EnumInit(mdtExportedType, mdTokenNil);
     mdToken mdExportedType;
-    
-    for (int i = 0; pImport->EnumNext(&phEnum, &mdExportedType); i++) 
+
+    for (int i = 0; pImport->EnumNext(&phEnum, &mdExportedType); i++)
     {
         mdTypeDef typeDef;
         LPCSTR pszNameSpace, pszName;
@@ -892,10 +879,10 @@ void EEClassHashTable::PrepareExportedTypesForSaving(DataImage *image)
         DWORD dwFlags;
         if (FAILED(pImport->GetExportedTypeProps(
             mdExportedType,
-            &pszNameSpace, 
-            &pszName, 
-            &mdImpl, 
-            &typeDef, 
+            &pszNameSpace,
+            &pszName,
+            &mdImpl,
+            &typeDef,
             &dwFlags)))
         {
             THROW_BAD_FORMAT(BFA_NOFIND_EXPORTED_TYPE, GetModule());
@@ -907,16 +894,16 @@ void EEClassHashTable::PrepareExportedTypesForSaving(DataImage *image)
                           tokenType == mdtAssemblyRef ||
                           tokenType == mdtExportedType);
 
-        // If mdImpl is a file or an assembly, than it points to the location 
-        // of the type. If mdImpl is another exported type, then it is the enclosing 
+        // If mdImpl is a file or an assembly, than it points to the location
+        // of the type. If mdImpl is another exported type, then it is the enclosing
         // exported type for current (nested) type.
         BOOL isNested = (tokenType == mdtExportedType);
 
         // ilasm does not consistently set the dwFlags to correctly reflect nesting
         //CONSISTENCY_CHECK(!isNested || IsTdNested(dwFlags));
 
-        EEClassHashEntry_t * pEntry = NULL; 
-          
+        EEClassHashEntry_t * pEntry = NULL;
+
         if (!isNested)
         {
             pEntry = FindItem(pszNameSpace, pszName, FALSE/*nested*/, NULL);
@@ -925,12 +912,12 @@ void EEClassHashTable::PrepareExportedTypesForSaving(DataImage *image)
         {
             PTR_VOID data;
             LookupContext sContext;
-  
+
             // This following line finds the 1st "nested" class EEClassHashEntry_t.
-            if ((pEntry = FindItem(pszNameSpace, pszName, TRUE/*nested*/, &sContext)) != NULL) 
+            if ((pEntry = FindItem(pszNameSpace, pszName, TRUE/*nested*/, &sContext)) != NULL)
             {
                 // The (immediate) encloser of EEClassHashEntry_t (i.e. pEntry) is stored in pEntry->pEncloser.
-                // It needs to be a type of "mdImpl". 
+                // It needs to be a type of "mdImpl".
                 // "CompareNestedEntryWithExportedType" will check if "pEntry->pEncloser" is a type of "mdImpl",
                 // as well as walking up the enclosing chain.
                 _ASSERTE (TypeFromToken(mdImpl) == mdtExportedType);
@@ -949,7 +936,7 @@ void EEClassHashTable::PrepareExportedTypesForSaving(DataImage *image)
             THROW_BAD_FORMAT(BFA_NOFIND_EXPORTED_TYPE, GetModule());
             continue;
         }
-        
+
         if (((ULONG_PTR)(pEntry->GetData())) & EECLASSHASH_TYPEHANDLE_DISCR)
             continue;
 
@@ -970,9 +957,9 @@ void EEClassHashTable::PrepareExportedTypesForSaving(DataImage *image)
         pEntry->SetData(EEClassHashTable::CompressClassDef(mdExportedType));
     }
 }
-    
+
 void EEClassHashTable::Fixup(DataImage *pImage)
-{    
+{
     STANDARD_VM_CONTRACT;
 
     // The base class does all the main fixup work. We're called back at FixupEntry below for each entry so we
@@ -983,7 +970,7 @@ void EEClassHashTable::Fixup(DataImage *pImage)
 void EEClassHashTable::FixupEntry(DataImage *pImage, EEClassHashEntry_t *pEntry, void *pFixupBase, DWORD cbFixupOffset)
 {
     STANDARD_VM_CONTRACT;
-    
+
     // Cross-entry references require special fixup. Fortunately they know how to do this themselves.
     pEntry->m_pEncloser.Fixup(pImage, this);
 
@@ -1010,7 +997,7 @@ void EEClassHashTable::FixupEntry(DataImage *pImage, EEClassHashEntry_t *pEntry,
 #endif // FEATURE_NATIVE_IMAGE_GENERATION
 
 /*===========================MakeCaseInsensitiveTable===========================
-**Action: Creates a case-insensitive lookup table for class names.  We create a 
+**Action: Creates a case-insensitive lookup table for class names.  We create a
 **        full path (namespace & class name) in lowercase and then use that as the
 **        key in our table.  The hash datum is a pointer to the EEClassHashEntry in this
 **        table.
@@ -1029,14 +1016,14 @@ public:
 
         //Build the cannonical name (convert it to lowercase).
         //Key[0] is the namespace, Key[1] is class name.
-        
+
         pLoader->CreateCanonicallyCasedKey(key[0], key[1], ppszLowerNameSpace, ppszLowerClsName);
     }
-    
+
     ClassLoader *pLoader;
     LPUTF8      *ppszLowerNameSpace;
     LPUTF8      *ppszLowerClsName;
-    
+
 };
 
 EEClassHashTable *EEClassHashTable::MakeCaseInsensitiveTable(Module *pModule, AllocMemTracker *pamTracker)

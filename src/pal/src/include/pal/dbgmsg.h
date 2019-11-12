@@ -121,20 +121,20 @@ Using Debug channels at Run Time
     "stdout" or "stderr". If PAL_API_TRACING is not set, output will go to
     stderr.
 
-    ASSERT() messages cannot be controlled with PAL_DBG_CHANNELS; they can be 
-    globally disabled (in debug builds) by setting the environment variable 
-    PAL_DISABLE_ASSERTS to 1. In release builds, they will always be disabled                    
+    ASSERT() messages cannot be controlled with PAL_DBG_CHANNELS; they can be
+    globally disabled (in debug builds) by setting the environment variable
+    PAL_DISABLE_ASSERTS to 1. In release builds, they will always be disabled
 
-    The environment variable "PAL_API_LEVELS" determines how many levels of 
-    nesting will be allowed in ENTRY calls; if not set, the default is 1; a 
+    The environment variable "PAL_API_LEVELS" determines how many levels of
+    nesting will be allowed in ENTRY calls; if not set, the default is 1; a
     value of 0 will allow infinite nesting, but will not indent the output
 
-    It is possible to disable/enable all channels during the execution of a 
-    process; this involves using a debugger to modify a variable within the 
-    address space of the running process. the variable is named 
-    'dbg_master_switch'; if set to zero, all debug chanels will be closed; if 
+    It is possible to disable/enable all channels during the execution of a
+    process; this involves using a debugger to modify a variable within the
+    address space of the running process. the variable is named
+    'dbg_master_switch'; if set to zero, all debug chanels will be closed; if
     set to nonzero, channels will be open or closed based on PAL_DBG_CHANNELS
-    
+
     Notes :
     If _ENABLE_DEBUG_MESSAGES_ was not defined at build-time, no debug messages
     will be generated.
@@ -145,7 +145,7 @@ Using Debug channels at Run Time
     Normally, if the file specified by PAL_API_TRACING exists, its content will
     be overwritten when a PAL process starts using it. If --enable-appendtraces
     is used, debug output will be appended at the end of the file instead.
-  
+
 
 
  */
@@ -158,7 +158,6 @@ Using Debug channels at Run Time
 #include "pal/perftrace.h"
 #include "pal/debug.h"
 #include "pal/thread.hpp"
-#include "pal/tls.hpp"
 
 #ifdef __cplusplus
 extern "C"
@@ -191,10 +190,11 @@ typedef enum
     DCI_POLL,
     DCI_CRYPT,
     DCI_SHFOLDER,
-#ifdef FEATURE_PAL_SXS
     DCI_SXS,
-#endif // FEATURE_PAL_SXS
     DCI_NUMA,
+    // Please make sure to update dbg_channel_names when adding entries here.
+
+    // Do not remove this line, as it indicates the end of the list
     DCI_LAST
 } DBG_CHANNEL_ID;
 
@@ -214,8 +214,8 @@ typedef enum
 
 /* extern variables */
 
-// Change W16_NULLSTRING to external variable to avoid multiple warnings showing up in prefast 
-extern LPCWSTR W16_NULLSTRING; 
+// Change W16_NULLSTRING to external variable to avoid multiple warnings showing up in prefast
+extern LPCWSTR W16_NULLSTRING;
 
 extern DWORD dbg_channel_flags[DCI_LAST];
 extern BOOL g_Dbg_asserts_enabled;
@@ -299,7 +299,7 @@ bool DBG_ShouldCheckStackAlignment();
 
 #define LOGEXIT_(x) \
     DBG_PRINTF(DLI_EXIT, DCI_##x,TRUE)
-    
+
 #define DBGOUT \
     DBG_PRINTF(DLI_TRACE,defdbgchan,FALSE)
 
@@ -322,77 +322,12 @@ bool DBG_ShouldCheckStackAlignment();
         BOOL __bHeader = bHeader;\
         DBG_PRINTF2
 
-#ifdef __GNUC__
-#define DBG_PRINTF2(args...)\
-        DBG_printf_gcc(__chanid,__levid,__bHeader,__FUNCTION__,__FILE__,\
-                       __LINE__,args);\
-    }\
-}
-#else /* __GNUC__ */
 #define DBG_PRINTF2(...)\
-      DBG_printf_c99(__chanid,__levid,__bHeader,__FILE__,__LINE__,__VA_ARGS__);\
+      DBG_printf(__chanid,__levid,__bHeader,__FUNCTION__,__FILE__,__LINE__,__VA_ARGS__);\
     }\
 }
-#endif /* __GNUC__ */
 
 #endif /* _ENABLE_DEBUG_MESSAGES_ */
-
-/* Use GNU C-specific features if available : __FUNCTION__ pseudo-macro,
-   variable-argument macros */
-#ifdef __GNUC__
-
-/* define NOTRACE as nothing; this will absorb the variable-argument list used
-   in tracing macros */
-#define NOTRACE(args...)
-
-#if defined(__cplusplus) && defined(FEATURE_PAL_SXS)
-#define __ASSERT_ENTER()                                                \
-    /* DBG_printf_gcc() and DebugBreak() need a PAL thread */           \
-    PAL_EnterHolder __holder(PALIsThreadDataInitialized() && \
-        (CorUnix::InternalGetCurrentThread() == NULL || \
-        !CorUnix::InternalGetCurrentThread()->IsInPal()));
-#else /* __cplusplus && FEATURE_PAL_SXS */
-#define __ASSERT_ENTER()
-#endif /* __cplusplus && FEATURE_PAL_SXS */
-
-#if !defined(_DEBUG)
-
-#define ASSERT(args...)
-#define _ASSERT(expr) 
-#define _ASSERTE(expr) 
-#define _ASSERT_MSG(args...) 
-
-#else /* defined(_DEBUG) */ 
-
-#define ASSERT(args...)                                                 \
-{                                                                       \
-    __ASSERT_ENTER();                                                   \
-    if (output_file && dbg_master_switch)                               \
-    {                                                                   \
-        DBG_printf_gcc(defdbgchan,DLI_ASSERT,TRUE,__FUNCTION__,__FILE__,__LINE__,args); \
-    }                                                                   \
-    if (g_Dbg_asserts_enabled)                                          \
-    {                                                                   \
-        DebugBreak();                                                   \
-    }                                                                   \
-}
-
-#define _ASSERT(expr) do { if (!(expr)) { ASSERT(""); } } while(0)
-#define _ASSERTE(expr) do { if (!(expr)) { ASSERT("Expression: " #expr "\n"); } } while(0)
-#define _ASSERT_MSG(expr, args...) \
-    do { \
-        if (!(expr)) \
-        { \
-            ASSERT("Expression: " #expr ", Description: " args); \
-        } \
-    } while(0)
-
-#endif /* defined(_DEBUG) */
-
-#else /* __GNUC__ */
-/* Not GNU C : C99 [the latest version of the ISO C Standard] specifies
-   a different syntax for variable-argument macros, so try using that*/
-#if defined __STDC_VERSION__ && __STDC_VERSION__ >=199901L
 
 /* define NOTRACE as nothing; this will absorb the variable-argument list used
    in tracing macros */
@@ -401,26 +336,29 @@ bool DBG_ShouldCheckStackAlignment();
 #if !defined(_DEBUG)
 
 #define ASSERT(...)
-#define _ASSERT(expr) 
-#define _ASSERTE(expr) 
-#define _ASSERT_MSG(...) 
+#define _ASSERT(expr)
+#define _ASSERTE(expr)
+#define _ASSERT_MSG(...)
 
 #else /* defined(_DEBUG) */
 
+inline void ANALYZER_NORETURN AssertBreak()
+{
+    if(g_Dbg_asserts_enabled)
+    {
+        DebugBreak();
+    }
+}
+
 #define ASSERT(...)                                                     \
 {                                                                       \
-    __ASSERT_ENTER();                                                   \
     if (output_file && dbg_master_switch)                               \
     {                                                                   \
-        DBG_printf_c99(defdbgchan,DLI_ASSERT,TRUE,__FILE__,__LINE__,__VA_ARGS__); \
+        DBG_printf(defdbgchan,DLI_ASSERT,TRUE,__FUNCTION__,__FILE__,__LINE__,__VA_ARGS__); \
     }                                                                   \
-    if(g_Dbg_asserts_enabled)                                           \
-    {                                                                   \
-        PAL_Leave();                                                    \
-        DebugBreak();                                                   \
-    }                                                                   \
+    AssertBreak();                                                     \
 }
-    
+
 #define _ASSERT(expr) do { if (!(expr)) { ASSERT(""); } } while(0)
 #define _ASSERTE(expr) do { if (!(expr)) { ASSERT("Expression: " #expr "\n"); } } while(0)
 #define _ASSERT_MSG(expr, ...) \
@@ -432,17 +370,6 @@ bool DBG_ShouldCheckStackAlignment();
     } while(0)
 
 #endif /* !_DEBUG */
-
-#else /* __STDC_VERSION__ */
-/* Not GNU C, not C99 :  
-   possible work around for the lack of variable-argument macros: 
-   by using 2 function calls; must wrap the whole thing in a critical 
-   section to avoid interleaved output from multiple threads */
-
-#error The compiler is missing support for variable-argument macros.
-
-#endif /* __STDC_VERSION__*/
-#endif /* __GNUC__ */
 
 /* Function declarations */
 
@@ -496,42 +423,7 @@ BOOL DBG_preprintf(DBG_CHANNEL_ID channel, DBG_LEVEL_ID level, BOOL bHeader,
 
 /*++
 Function :
-    DBG_printf_gcc
-
-    Internal function for debug channels; don't use.
-    This function outputs a complete debug message, including the function name.
-
-Parameters :
-    DBG_CHANNEL_ID channel : debug channel to use
-    DBG_LEVEL_ID level : debug message level
-    BOOL bHeader : whether or not to output message header (thread id, etc)
-    LPSTR function : current function
-    LPSTR file : current file
-    INT line : line number
-    LPSTR format, ... : standard printf parameter list.
-
-Return Value :
-    always 1.
-
-Notes :
-    This version is for gnu compilers that support variable-argument macros
-    and the __FUNCTION__ pseudo-macro.
-
---*/
-#if __GNUC__ && CHECK_TRACE_SPECIFIERS
-/* if requested, use an __attribute__ feature to ask gcc to check that format 
-   specifiers match their parameters */
-int DBG_printf_gcc(DBG_CHANNEL_ID channel, DBG_LEVEL_ID level, BOOL bHeader,
-                   LPCSTR function, LPCSTR file, INT line, LPCSTR format, ...)
-                   __attribute__ ((format (printf,7, 8)));
-#else
-int DBG_printf_gcc(DBG_CHANNEL_ID channel, DBG_LEVEL_ID level, BOOL bHeader,
-                   LPCSTR function, LPCSTR file, INT line, LPCSTR format, ...);
-#endif
-
-/*++
-Function :
-    DBG_printf_c99
+    DBG_printf
 
     Internal function for debug channels; don't use.
     This function outputs a complete debug message, without function name.
@@ -540,21 +432,30 @@ Parameters :
     DBG_CHANNEL_ID channel : debug channel to use
     DBG_LEVEL_ID level : debug message level
     BOOL bHeader : whether or not to output message header (thread id, etc)
-    LPSTR file : current file
+    LPCSTR function : current function
+    LPCSTR file : current file
     INT line : line number
-    LPSTR format, ... : standard printf parameter list.
+    LPCSTR format, ... : standard printf parameter list.
 
 Return Value :
     always 1.
 
 Notes :
-    This version is for compilers that support the C99 flavor of
-    variable-argument macros but not the gnu flavor, and do not support the
-    __FUNCTION__ pseudo-macro.
+    This function requires that the compiler support the C99 flavor of
+    variable-argument macros, and that they support the __FUNCTION__
+    pseudo-macro.
 
 --*/
-int DBG_printf_c99(DBG_CHANNEL_ID channel, DBG_LEVEL_ID level, BOOL bHeader,
-                   LPSTR file, INT line, LPSTR format, ...);
+#if __GNUC__ && CHECK_TRACE_SPECIFIERS
+/* if requested, use an __attribute__ feature to ask gcc to check that format
+   specifiers match their parameters */
+int DBG_printf(DBG_CHANNEL_ID channel, DBG_LEVEL_ID level, BOOL bHeader,
+               LPCSTR function, LPCSTR file, INT line, LPCSTR format, ...)
+               __attribute__ ((format (printf,7, 8)));
+#else
+int DBG_printf(DBG_CHANNEL_ID channel, DBG_LEVEL_ID level, BOOL bHeader,
+               LPCSTR function, LPCSTR file, INT line, LPCSTR format, ...);
+#endif
 
 /*++
 Function :
@@ -583,12 +484,12 @@ Function :
 
     retrieve current ENTRY nesting level and [optionnally] modify it
 
-Parameters :                                  
+Parameters :
     int new_level : value to which the nesting level must be set, or -1
 
 Return value :
     nesting level at the time the function was called
-    
+
 Notes:
 if new_level is -1, the nesting level will not be modified
 --*/

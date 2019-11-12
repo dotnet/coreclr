@@ -44,7 +44,7 @@ public:
     RegSet(Compiler* compiler, GCInfo& gcInfo);
 
 #ifdef _TARGET_ARM_
-    regMaskTP rsMaskPreSpillRegs(bool includeAlignment)
+    regMaskTP rsMaskPreSpillRegs(bool includeAlignment) const
     {
         return includeAlignment ? (rsMaskPreSpillRegArg | rsMaskPreSpillAlign) : rsMaskPreSpillRegArg;
     }
@@ -98,10 +98,7 @@ public:
 
     void verifyRegistersUsed(regMaskTP regMask);
 
-public: // TODO-Cleanup: Should be private, but GCInfo uses them
-    __declspec(property(get = GetMaskVars, put = SetMaskVars)) regMaskTP rsMaskVars; // mask of registers currently
-                                                                                     // allocated to variables
-
+public:
     regMaskTP GetMaskVars() const // 'get' property function for rsMaskVars property
     {
         return _rsMaskVars;

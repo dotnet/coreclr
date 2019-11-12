@@ -95,6 +95,20 @@ public:
         DWORD     B;
         DWORD     C;
     };
+    struct Agnostic_CORINFO_METHODNAME_TOKENin
+    {
+        DWORDLONG ftn;
+        DWORD     className;
+        DWORD     namespaceName;
+        DWORD     enclosingClassName;
+    };
+    struct Agnostic_CORINFO_METHODNAME_TOKENout
+    {
+        DWORD methodName;
+        DWORD className;
+        DWORD namespaceName;
+        DWORD enclosingClassName;
+    };
     struct Agnostic_CORINFO_RESOLVED_TOKENin
     {
         DWORDLONG tokenContext;
@@ -173,6 +187,11 @@ public:
         DWORDLONG ppIndirection;
         DWORDLONG fieldAddress;
         DWORD     fieldValue;
+    };
+    struct Agnostic_GetStaticFieldCurrentClass
+    {
+        DWORDLONG classHandle;
+        bool      isSpeculative;
     };
     struct Agnostic_CORINFO_RESOLVED_TOKEN
     {
@@ -406,10 +425,10 @@ public:
         DWORDLONG method;
         DWORDLONG delegateCls;
     };
-    struct Agnostic_GetBBProfileData
+    struct Agnostic_GetMethodBlockCounts
     {
         DWORD count;
-        DWORD profileBuffer_index;
+        DWORD pBlockCounts_index;
         DWORD numRuns;
         DWORD result;
     };
@@ -620,11 +639,13 @@ public:
     void recGetMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftn,
                                       char*                 methodname,
                                       const char**          moduleName,
-                                      const char**          namespaceName);
-    void dmpGetMethodNameFromMetadata(DLDD key, DDD value);
+                                      const char**          namespaceName,
+                                      const char**          enclosingClassName);
+    void dmpGetMethodNameFromMetadata(Agnostic_CORINFO_METHODNAME_TOKENin key, Agnostic_CORINFO_METHODNAME_TOKENout value);
     const char* repGetMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftn,
                                              const char**          className,
-                                             const char**          namespaceName);
+                                             const char**          namespaceName,
+                                             const char**          enclosingClassName);
 
     void recGetJitFlags(CORJIT_FLAGS* jitFlags, DWORD sizeInBytes, DWORD result);
     void dmpGetJitFlags(DWORD key, DD value);
@@ -696,6 +717,14 @@ public:
     void dmpGetClassSize(DWORDLONG key, DWORD val);
     unsigned repGetClassSize(CORINFO_CLASS_HANDLE cls);
 
+    void recGetHeapClassSize(CORINFO_CLASS_HANDLE cls, unsigned result);
+    void dmpGetHeapClassSize(DWORDLONG key, DWORD val);
+    unsigned repGetHeapClassSize(CORINFO_CLASS_HANDLE cls);
+
+    void recCanAllocateOnStack(CORINFO_CLASS_HANDLE cls, BOOL result);
+    void dmpCanAllocateOnStack(DWORDLONG key, DWORD val);
+    BOOL repCanAllocateOnStack(CORINFO_CLASS_HANDLE cls);
+
     void recGetClassNumInstanceFields(CORINFO_CLASS_HANDLE cls, unsigned result);
     void dmpGetClassNumInstanceFields(DWORDLONG key, DWORD value);
     unsigned repGetClassNumInstanceFields(CORINFO_CLASS_HANDLE cls);
@@ -740,9 +769,9 @@ public:
     void dmpIsSDArray(DWORDLONG key, DWORD value);
     BOOL repIsSDArray(CORINFO_CLASS_HANDLE cls);
 
-    void recIsInSIMDModule(CORINFO_CLASS_HANDLE cls, BOOL result);
-    void dmpIsInSIMDModule(DWORDLONG key, DWORD value);
-    BOOL repIsInSIMDModule(CORINFO_CLASS_HANDLE cls);
+    void recIsIntrinsicType(CORINFO_CLASS_HANDLE cls, BOOL result);
+    void dmpIsIntrinsicType(DWORDLONG key, DWORD value);
+    BOOL repIsIntrinsicType(CORINFO_CLASS_HANDLE cls);
 
     void recGetFieldClass(CORINFO_FIELD_HANDLE field, CORINFO_CLASS_HANDLE result);
     void dmpGetFieldClass(DWORDLONG key, DWORDLONG value);
@@ -849,9 +878,10 @@ public:
 
     void recGetNewHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken,
                          CORINFO_METHOD_HANDLE   callerHandle,
+                         bool* pHasSideEffects,
                          CorInfoHelpFunc         result);
-    void dmpGetNewHelper(const Agnostic_GetNewHelper& key, DWORD value);
-    CorInfoHelpFunc repGetNewHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken, CORINFO_METHOD_HANDLE callerHandle);
+    void dmpGetNewHelper(const Agnostic_GetNewHelper& key, DD value);
+    CorInfoHelpFunc repGetNewHelper(CORINFO_RESOLVED_TOKEN* pResolvedToken, CORINFO_METHOD_HANDLE callerHandle, bool * pHasSideEffects);
 
     void recEmbedGenericHandle(CORINFO_RESOLVED_TOKEN*       pResolvedToken,
                                BOOL                          fEmbedParent,
@@ -914,6 +944,10 @@ public:
     void recGetFieldAddress(CORINFO_FIELD_HANDLE field, void** ppIndirection, void* result, CorInfoType cit);
     void dmpGetFieldAddress(DWORDLONG key, const Agnostic_GetFieldAddress& value);
     void* repGetFieldAddress(CORINFO_FIELD_HANDLE field, void** ppIndirection);
+
+    void recGetStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool isSpeculative, CORINFO_CLASS_HANDLE result);
+    void dmpGetStaticFieldCurrentClass(DWORDLONG key, const Agnostic_GetStaticFieldCurrentClass& value);
+    CORINFO_CLASS_HANDLE repGetStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool* pIsSpeculative);
 
     void recGetClassGClayout(CORINFO_CLASS_HANDLE cls, BYTE* gcPtrs, unsigned len, unsigned result);
     void dmpGetClassGClayout(DWORDLONG key, const Agnostic_GetClassGClayout& value);
@@ -1027,6 +1061,11 @@ public:
     void dmpGetFieldName(DWORDLONG key, DD value);
     const char* repGetFieldName(CORINFO_FIELD_HANDLE ftn, const char** moduleName);
 
+    void recCanInlineTypeCheck(CORINFO_CLASS_HANDLE         cls,
+                               CorInfoInlineTypeCheckSource source,
+                               CorInfoInlineTypeCheck       result);
+    void dmpCanInlineTypeCheck(DLD key, DWORD value);
+    CorInfoInlineTypeCheck repCanInlineTypeCheck(CORINFO_CLASS_HANDLE cls, CorInfoInlineTypeCheckSource source);
     void recCanInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls, BOOL result);
     void dmpCanInlineTypeCheckWithObjectVTable(DWORDLONG key, DWORD value);
     BOOL repCanInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls);
@@ -1150,20 +1189,24 @@ public:
     void dmpGetFieldThreadLocalStoreID(DWORDLONG key, DLD value);
     DWORD repGetFieldThreadLocalStoreID(CORINFO_FIELD_HANDLE field, void** ppIndirection);
 
-    void recGetBBProfileData(CORINFO_METHOD_HANDLE        ftnHnd,
-                             ULONG*                       count,
-                             ICorJitInfo::ProfileBuffer** profileBuffer,
-                             ULONG*                       numRuns,
-                             HRESULT                      result);
-    void dmpGetBBProfileData(DWORDLONG key, const Agnostic_GetBBProfileData& value);
-    HRESULT repGetBBProfileData(CORINFO_METHOD_HANDLE        ftnHnd,
-                                ULONG*                       count,
-                                ICorJitInfo::ProfileBuffer** profileBuffer,
-                                ULONG*                       numRuns);
+    void recGetMethodBlockCounts(CORINFO_METHOD_HANDLE        ftnHnd,
+                                 UINT32 *                     pCount,
+                                 ICorJitInfo::BlockCounts**   pBlockCounts,
+                                 UINT32 *                     pNumRuns,
+                                 HRESULT                      result);
+    void dmpGetMethodBlockCounts(DWORDLONG key, const Agnostic_GetMethodBlockCounts& value);
+    HRESULT repGetMethodBlockCounts(CORINFO_METHOD_HANDLE        ftnHnd,
+                                    UINT32 *                     pCount,
+                                    ICorJitInfo::BlockCounts**   pBlockCounts,
+                                    UINT32 *                     pNumRuns);
 
     void recMergeClasses(CORINFO_CLASS_HANDLE cls1, CORINFO_CLASS_HANDLE cls2, CORINFO_CLASS_HANDLE result);
     void dmpMergeClasses(DLDL key, DWORDLONG value);
     CORINFO_CLASS_HANDLE repMergeClasses(CORINFO_CLASS_HANDLE cls1, CORINFO_CLASS_HANDLE cls2);
+
+    void recIsMoreSpecificType(CORINFO_CLASS_HANDLE cls1, CORINFO_CLASS_HANDLE cls2, BOOL result);
+    void dmpIsMoreSpecificType(DLDL key, DWORD value);
+    BOOL repIsMoreSpecificType(CORINFO_CLASS_HANDLE cls1, CORINFO_CLASS_HANDLE cls2);
 
     void recGetCookieForPInvokeCalliSig(CORINFO_SIG_INFO* szMetaSig, void** ppIndirection, LPVOID result);
     void dmpGetCookieForPInvokeCalliSig(const GetCookieForPInvokeCalliSigValue& key, DLDL value);
@@ -1267,13 +1310,13 @@ public:
     void dmpIsFieldStatic(DWORDLONG key, DWORD value);
     bool repIsFieldStatic(CORINFO_FIELD_HANDLE fhld);
 
-    void recGetIntConfigValue(const wchar_t* name, int defaultValue, int result);
+    void recGetIntConfigValue(const WCHAR* name, int defaultValue, int result);
     void dmpGetIntConfigValue(const Agnostic_ConfigIntInfo& key, int value);
-    int repGetIntConfigValue(const wchar_t* name, int defaultValue);
+    int repGetIntConfigValue(const WCHAR* name, int defaultValue);
 
-    void recGetStringConfigValue(const wchar_t* name, const wchar_t* result);
+    void recGetStringConfigValue(const WCHAR* name, const WCHAR* result);
     void dmpGetStringConfigValue(DWORD nameIndex, DWORD result);
-    const wchar_t* repGetStringConfigValue(const wchar_t* name);
+    const WCHAR* repGetStringConfigValue(const WCHAR* name);
 
     struct Environment
     {
@@ -1309,7 +1352,7 @@ private:
 };
 
 // ********************* Please keep this up-to-date to ease adding more ***************
-// Highest packet number: 168
+// Highest packet number: 174
 // *************************************************************************************
 enum mcPackets
 {
@@ -1321,9 +1364,10 @@ enum mcPackets
     Packet_CanCast                    = 5,
     Retired8                          = 6,
     Packet_GetLazyStringLiteralHelper = 147, // Added 12/20/2013 - as a replacement for CanEmbedModuleHandleForHelper
-    Packet_CanGetCookieForPInvokeCalliSig                = 7,
-    Packet_CanGetVarArgsHandle                           = 8,
-    Packet_CanInline                                     = 9,
+    Packet_CanGetCookieForPInvokeCalliSig = 7,
+    Packet_CanGetVarArgsHandle            = 8,
+    Packet_CanInline                      = 9,
+    Packet_CanInlineTypeCheck = 173, // Added 11/15/2018 as a replacement for CanInlineTypeCheckWithObjectVTable
     Packet_CanInlineTypeCheckWithObjectVTable            = 10,
     Packet_CanSkipMethodVerification                     = 11,
     Packet_CanTailCall                                   = 12,
@@ -1361,7 +1405,7 @@ enum mcPackets
     Packet_GetArgType                                    = 140, // retired as 30 on 2013/07/03
     Packet_GetArrayInitializationData                    = 31,
     Packet_GetArrayRank                                  = 32,
-    Packet_GetBBProfileData                              = 33,
+    Packet_GetMethodBlockCounts                          = 33,
     Packet_GetBoundaries                                 = 34,
     Packet_GetBoxHelper                                  = 35,
     Packet_GetBuiltinClass                               = 36,
@@ -1378,6 +1422,8 @@ enum mcPackets
     Packet_GetTypeInstantiationArgument                  = 167, // Added 12/4/17
     Packet_GetClassNumInstanceFields                     = 46,
     Packet_GetClassSize                                  = 47,
+    Packet_GetHeapClassSize                              = 170, // Added 10/5/2018
+    Packet_CanAllocateOnStack                            = 171, // Added 10/5/2018
     Packet_GetIntConfigValue                             = 151, // Added 2/12/2015
     Packet_GetStringConfigValue                          = 152, // Added 2/12/2015
     Packet_GetCookieForPInvokeCalliSig                   = 48,
@@ -1386,6 +1432,7 @@ enum mcPackets
     Packet_GetEEInfo                                     = 50,
     Packet_GetEHinfo                                     = 51,
     Packet_GetFieldAddress                               = 52,
+    Packet_GetStaticFieldCurrentClass                    = 172, // Added 11/7/2018
     Packet_GetFieldClass                                 = 53,
     Packet_GetFieldInClass                               = 54,
     Packet_GetFieldInfo                                  = 55,
@@ -1441,7 +1488,7 @@ enum mcPackets
     Packet_IsCompatibleDelegate                          = 99,
     Packet_IsDelegateCreationAllowed                     = 155,
     Packet_IsFieldStatic                                 = 137, // Added 4/9/2013 - needed for 4.5.1
-    Packet_IsInSIMDModule                                = 148, // Added 6/18/2014 - SIMD support
+    Packet_IsIntrinsicType                               = 148, // Added 10/26/2019 - SIMD support
     Packet_IsInstantiationOfVerifiedGeneric              = 100,
     Packet_IsSDArray                                     = 101,
     Packet_IsStructRequiringStackAllocRetBuf             = 102,
@@ -1451,6 +1498,7 @@ enum mcPackets
     Packet_IsValueClass                                  = 105,
     Packet_IsWriteBarrierHelperRequired                  = 106,
     Packet_MergeClasses                                  = 107,
+    Packet_IsMoreSpecificType                            = 174, // Added 2/14/2019
     Packet_PInvokeMarshalingRequired                     = 108,
     Packet_ResolveToken                                  = 109,
     Packet_ResolveVirtualMethod                          = 160, // Added 2/13/17
@@ -1460,7 +1508,7 @@ enum mcPackets
     Packet_ShouldEnforceCallvirtRestriction              = 112,
 
     PacketCR_AddressMap                        = 113,
-    PacketCR_AllocBBProfileBuffer              = 131,
+    PacketCR_AllocMethodBlockCounts            = 131,
     PacketCR_AllocGCInfo                       = 114,
     PacketCR_AllocMem                          = 115,
     PacketCR_AllocUnwindInfo                   = 132,

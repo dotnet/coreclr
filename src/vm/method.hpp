@@ -10,7 +10,7 @@
 // file:../../doc/BookOfTheRuntime/ClassLoader/MethodDescDesign.doc
 //
 
-#ifndef _METHOD_H 
+#ifndef _METHOD_H
 #define _METHOD_H
 
 #include "cor.h"
@@ -19,7 +19,6 @@
 #include "codeman.h"
 #include "class.h"
 #include "siginfo.hpp"
-#include "declsec.h"
 #include "methodimpl.h"
 #include "typedesc.h"
 #include <stddef.h>
@@ -109,7 +108,7 @@ enum MethodClassification
     mcInstantiated = 5, // Instantiated generic methods, including descriptors
                         // for both shared and unshared code (see InstantiatedMethodDesc)
 
-#ifdef FEATURE_COMINTEROP 
+#ifdef FEATURE_COMINTEROP
     // This needs a little explanation.  There are MethodDescs on MethodTables
     // which are Interfaces.  These have the mdcInterface bit set.  Then there
     // are MethodDescs on MethodTables that are Classes, where the method is
@@ -134,7 +133,7 @@ enum MethodDescClassification
     mdcClassification                   = 0x0007,
     mdcClassificationCount              = mdcClassification+1,
 
-    // Note that layout of code:MethodDesc::s_ClassificationSizeTable depends on the exact values 
+    // Note that layout of code:MethodDesc::s_ClassificationSizeTable depends on the exact values
     // of mdcHasNonVtableSlot and mdcMethodImpl
 
     // Has local slot (vs. has real slot in MethodTable)
@@ -184,11 +183,11 @@ enum MethodDescClassification
 // with the exact owning type handle.
 //
 // See genmeth.cpp for details of instantiated generic method descriptors.
-// 
+//
 // A MethodDesc is the representation of a method of a type.  These live in code:MethodDescChunk which in
 // turn lives in code:EEClass.   They are conceptually cold (we do not expect to access them in normal
-// program exectution, but we often fall short of that goal.  
-// 
+// program exectution, but we often fall short of that goal.
+//
 // A Method desc knows how to get at its metadata token code:GetMemberDef, its chunk
 // code:MethodDescChunk, which in turns knows how to get at its type code:MethodTable.
 // It also knows how to get at its IL code (code:IMAGE_COR_ILMETHOD)
@@ -211,18 +210,15 @@ class MethodDesc
 
 public:
 
-    enum
-    {
-#ifdef _WIN64
-        ALIGNMENT_SHIFT = 3,
+#ifdef BIT64
+    static const int ALIGNMENT_SHIFT = 3;
 #else
-        ALIGNMENT_SHIFT = 2,
+    static const int ALIGNMENT_SHIFT = 2;
 #endif
-        ALIGNMENT       = (1<<ALIGNMENT_SHIFT),
-        ALIGNMENT_MASK  = (ALIGNMENT-1)
-    };
+    static const size_t ALIGNMENT = (1 << ALIGNMENT_SHIFT);
+    static const size_t ALIGNMENT_MASK = (ALIGNMENT - 1);
 
-#ifdef _DEBUG 
+#ifdef _DEBUG
 
     // These are set only for MethodDescs but every time we want to use the debugger
     // to examine these fields, the code has the thing stored in a MethodDesc*.
@@ -246,17 +242,30 @@ public:
     inline PCODE GetStableEntryPoint()
     {
         LIMITED_METHOD_DAC_CONTRACT;
-
         _ASSERTE(HasStableEntryPoint());
+        _ASSERTE(!IsVersionableWithVtableSlotBackpatch());
+
         return GetMethodEntryPoint();
     }
 
+    void SetMethodEntryPoint(PCODE addr);
     BOOL SetStableEntryPointInterlocked(PCODE addr);
 
     BOOL HasTemporaryEntryPoint();
     PCODE GetTemporaryEntryPoint();
 
     void SetTemporaryEntryPoint(LoaderAllocator *pLoaderAllocator, AllocMemTracker *pamTracker);
+
+    PCODE GetInitialEntryPointForCopiedSlot()
+    {
+        WRAPPER_NO_CONTRACT;
+
+        if (IsVersionableWithVtableSlotBackpatch())
+        {
+            return GetTemporaryEntryPoint();
+        }
+        return GetMethodEntryPoint();
+    }
 
     inline BOOL HasPrecode()
     {
@@ -275,7 +284,7 @@ public:
         return pPrecode;
     }
 
-    inline BOOL MayHavePrecode()
+    inline bool MayHavePrecode()
     {
         CONTRACTL
         {
@@ -285,7 +294,17 @@ public:
         }
         CONTRACTL_END
 
-        return !MayHaveNativeCode() || IsRemotingInterceptedViaPrestub() || IsVersionableWithPrecode();
+        // Ideally, methods that will not have native code (!MayHaveNativeCode() == true) should not be versionable. Currently,
+        // that is not the case, in some situations it was seen that 1/4 to 1/3 of versionable methods do not have native
+        // code, though there is no significant overhead from this. MayHaveNativeCode() appears to be an expensive check to do
+        // for each MethodDesc, even if it's done only once, and when it was attempted, at the time it was showing up noticeably
+        // in startup performance profiles.
+        //
+        // In particular, methods versionable with vtable slot backpatch should not have a precode (in the sense HasPrecode()
+        // must return false) even if they will not have native code.
+        bool result = IsVersionable() ? IsVersionableWithPrecode() : !MayHaveNativeCode();
+        _ASSERTE(!result || !IsVersionableWithVtableSlotBackpatch());
+        return result;
     }
 
     void InterlockedUpdateFlags2(BYTE bMask, BOOL fSet);
@@ -298,7 +317,7 @@ public:
 #endif // FEATURE_PREJIT
 
     // Given a code address return back the MethodDesc whenever possible
-    // 
+    //
     static MethodDesc *  GetMethodDescFromStubAddr(PCODE addr, BOOL fSpeculative = FALSE);
 
 
@@ -408,9 +427,9 @@ public:
     {
         LIMITED_METHOD_DAC_CONTRACT;
 
-        // This bit caches the IsMdStatic(GetAttrs()) check. We used to assert it here, but not doing it anymore. GetAttrs() 
-        // accesses metadata that is not compatible with contracts of this method. The metadata access can fail, the metadata 
-        // are not available during shutdown, the metadata access can take locks. It is not worth it to code around all these 
+        // This bit caches the IsMdStatic(GetAttrs()) check. We used to assert it here, but not doing it anymore. GetAttrs()
+        // accesses metadata that is not compatible with contracts of this method. The metadata access can fail, the metadata
+        // are not available during shutdown, the metadata access can take locks. It is not worth it to code around all these
         // just for the assert.
         // _ASSERTE((((m_wFlags & mdcStatic) != 0) == (IsMdStatic(flags) != 0)));
 
@@ -455,7 +474,7 @@ public:
         return (HasClassInstantiation_NoLogging() || HasMethodInstantiation());
     }
 
-    inline BOOL HasClassInstantiation() const 
+    inline BOOL HasClassInstantiation() const
     {
         LIMITED_METHOD_DAC_CONTRACT;
         return GetMethodTable()->HasInstantiation();
@@ -495,20 +514,15 @@ public:
     CallCounter* GetCallCounter();
 #endif
 
-    PTR_LoaderAllocator GetLoaderAllocator();
+#ifndef CROSSGEN_COMPILE
+    MethodDescBackpatchInfoTracker* GetBackpatchInfoTracker();
+#endif
 
-    // GetLoaderAllocatorForCode returns the allocator with the responsibility for allocation.
-    // This is called from GetMulticallableAddrOfCode when allocating a small trampoline stub for the method.
-    // Normally a method in a shared domain will allocate memory for stubs in the shared domain.
-    // That has to be different for DynamicMethod as they need to be allocated always in the AppDomain
-    // that created the method.
-    LoaderAllocator * GetLoaderAllocatorForCode();
+    PTR_LoaderAllocator GetLoaderAllocator();
 
     // GetDomainSpecificLoaderAllocator returns the collectable loader allocator for collectable types
     // and the loader allocator in the current domain for non-collectable types
     LoaderAllocator * GetDomainSpecificLoaderAllocator();
-
-    inline BOOL IsDomainNeutral();
 
     Module* GetLoaderModule();
 
@@ -654,10 +668,10 @@ public:
         return GetMethodTable()->IsInterface();
     }
 
-    void ComputeSuppressUnmanagedCodeAccessAttr(IMDInternalImport *pImport);
     BOOL HasNativeCallableAttribute();
+    BOOL ShouldSuppressGCTransition();
 
-#ifdef FEATURE_COMINTEROP 
+#ifdef FEATURE_COMINTEROP
     inline DWORD IsComPlusCall()
     {
         WRAPPER_NO_CONTRACT;
@@ -710,51 +724,6 @@ public:
 #endif
     CHECK CheckActivated();
 
-
-    //================================================================
-    // REMOTING
-    //
-    // IsRemoting...: These predicates indicate how are remoting
-    // intercepts are implemented.
-    //
-    // Remoting intercepts are required for all invocations of  methods on
-    // MarshalByRef classes (including virtual calls on methods
-    // which end up invoking a method on the MarshalByRef class).
-    //
-    // Remoting intercepts are implemented by one of the following techniques:
-    //  (1) Non-virtual methods: inserting a stub in DoPrestub (for non-virtual calls)
-    //   See: IsRemotingInterceptedViaPrestub
-    //
-    //  (2) Virtual methods: by transparent proxy vtables, where all the entries in the vtable
-    //      are a special hook which traps into the remoting logic
-    //   See: IsRemotingInterceptedViaVirtualDispatch (context indicates
-    //        if it is a virtual call)
-    //
-    //  (3) Non-virtual-calls on virtual methods:
-    //      by forcing calls to be indirect and wrapping the
-    //      call with a stub returned by GetNonVirtualEntryPointForVirtualMethod.
-    //      (this is used when invoking virtual methods non-virtually using 'call')
-    //   See: IsRemotingInterceptedViaVirtualDispatch (context indicates
-    //        if it is a virtual call)
-    //
-    // Ultimately essentially all calls go through CTPMethodTable::OnCall in
-    // remoting.cpp.
-    //
-    // Check if this methoddesc needs to be intercepted
-    // by the context code, using a stub.
-    // Also see IsRemotingInterceptedViaVirtualDispatch()
-    BOOL IsRemotingInterceptedViaPrestub();
-
-    // Check if is intercepted by the context code, using the virtual table
-    // of TransparentProxy.
-    // If such a function is called non-virtually, it needs to be handled specially
-    BOOL IsRemotingInterceptedViaVirtualDispatch();
-
-    BOOL MayBeRemotingIntercepted();
-
-    //================================================================
-    // Does it represent a one way method call with no out/return parameters?
-
     //================================================================
     // FCalls.
     BOOL IsFCall()
@@ -798,6 +767,10 @@ public:
     // arguments passed in registers.
     UINT SizeOfArgStack();
 
+    // Returns the # of bytes of stack used by arguments in a call from native to this function.
+    // Does not include arguments passed in registers.
+    UINT SizeOfNativeArgStack();
+
     // Returns the # of bytes to pop after a call. Not necessary the
     // same as SizeOfArgStack()!
     UINT CbStackPop();
@@ -826,7 +799,7 @@ public:
     }
 
     void SetIsUnboxingStub()
-    {    
+    {
         LIMITED_METHOD_CONTRACT;
         m_bFlags2 |= enum_flag2_IsUnboxingStub;
     }
@@ -856,7 +829,6 @@ public:
         {
             NOTHROW;
             GC_NOTRIGGER;
-            SO_TOLERANT;
             MODE_ANY;
         }
         CONTRACTL_END;
@@ -879,10 +851,10 @@ public:
     // Convenience methods for common signature wrapper types.
     SigPointer GetSigPointer();
     Signature GetSignature();
-    
 
-    void GetSigFromMetadata(IMDInternalImport * importer, 
-                            PCCOR_SIGNATURE   * ppSig, 
+
+    void GetSigFromMetadata(IMDInternalImport * importer,
+                            PCCOR_SIGNATURE   * ppSig,
                             DWORD             * pcSig);
 
 
@@ -894,7 +866,17 @@ public:
         return pModule->GetMDImport();
     }
 
-#ifndef DACCESS_COMPILE 
+    HRESULT GetCustomAttribute(WellKnownAttribute attribute,
+                               const void  **ppData,
+                               ULONG *pcbData) const
+    {
+        WRAPPER_NO_CONTRACT;
+        Module *pModule = GetModule();
+        PREFIX_ASSUME(pModule != NULL);
+        return pModule->GetCustomAttribute(GetMemberDef(), attribute, ppData, pcbData);
+    }
+
+#ifndef DACCESS_COMPILE
     IMetaDataEmit* GetEmitter()
     {
         WRAPPER_NO_CONTRACT;
@@ -912,7 +894,7 @@ public:
     }
 #endif // !DACCESS_COMPILE
 
-#ifdef FEATURE_COMINTEROP 
+#ifdef FEATURE_COMINTEROP
     WORD GetComSlot();
     LONG GetComDispid();
 #endif // FEATURE_COMINTEROP
@@ -974,7 +956,7 @@ public:
         return (m_wFlags & mdcSynchronized) != 0;
     }
 
-    // Be careful about races with profiler when using this method. The profiler can 
+    // Be careful about races with profiler when using this method. The profiler can
     // replace preimplemented code of the method with jitted code.
     // Avoid code patterns like if(IsPreImplemented()) { PCODE pCode = GetPreImplementedCode(); ... }.
     // Use PCODE pCode = GetPreImplementedCode(); if (pCode != NULL) { ... } instead.
@@ -1163,7 +1145,7 @@ public:
     mdMethodDef GetMemberDef() const;
     mdMethodDef GetMemberDef_NoLogging() const;
 
-#ifdef _DEBUG 
+#ifdef _DEBUG
     BOOL SanityCheck();
 #endif // _DEBUG
 
@@ -1181,92 +1163,258 @@ public:
 
 public:
 
-    // TRUE iff it is possible to change the code this method will run using
-    // the CodeVersionManager.
-    // Note: EnC currently returns FALSE here because it uses its own seperate
-    // scheme to manage versionability. We will likely want to converge them
-    // at some point.
-    BOOL IsVersionable()
+    // True iff it is possible to change the code this method will run using the CodeVersionManager. Note: EnC currently returns
+    // false here because it uses its own seperate scheme to manage versionability. We will likely want to converge them at some
+    // point.
+    bool IsVersionable()
     {
-#ifndef FEATURE_CODE_VERSIONING
-        return FALSE;
-#else
-        return IsVersionableWithPrecode() || IsVersionableWithJumpStamp();
-#endif
+        WRAPPER_NO_CONTRACT;
+        return IsEligibleForTieredCompilation() || IsEligibleForReJIT();
     }
 
-    // If true, these methods version using the CodeVersionManager and
-    // switch between different code versions by updating the target of the precode.
-    // Note: EnC returns FALSE - even though it uses precode updates it does not
-    // use the CodeVersionManager right now
-    BOOL IsVersionableWithPrecode()
+    // True iff all calls to the method should funnel through a Precode which can be updated to point to the current method
+    // body. This versioning technique can introduce more indirections than optimal but it has low memory overhead when a
+    // FixupPrecode may be shared with the temporary entry point that is created anyway.
+    bool IsVersionableWithPrecode()
     {
-#ifdef FEATURE_CODE_VERSIONING
-        return
-            // policy: which things do we want to version with a precode if possible
-            IsEligibleForTieredCompilation() &&
-
-            // functional requirements:
-            !IsZapped() &&        // NGEN directly invokes the pre-generated native code.
-                                  // without necessarily going through the prestub or
-                                  // precode
-            HasNativeCodeSlot();  // the stable entry point will need to point at our
-                                  // precode and not directly contain the native code.
-#else
-        return FALSE;
-#endif
+        WRAPPER_NO_CONTRACT;
+        return IsVersionable() && !Helper_IsEligibleForVersioningWithVtableSlotBackpatch();
     }
 
-    // If true, these methods version using the CodeVersionManager and switch between
-    // different code versions by overwriting the first bytes of the method's initial
-    // native code with a jmp instruction.
-    BOOL IsVersionableWithJumpStamp()
+    // True iff all calls to the method should go through a backpatchable vtable slot or through a FuncPtrStub. This versioning
+    // technique eliminates extra indirections from precodes but is more memory intensive to track all the appropriate slots.
+    // See Helper_IsEligibleForVersioningWithEntryPointSlotBackpatch() for more details.
+    bool IsVersionableWithVtableSlotBackpatch()
     {
-#if defined(FEATURE_CODE_VERSIONING) && defined(FEATURE_JUMPSTAMP)
+        WRAPPER_NO_CONTRACT;
+        return IsVersionable() && Helper_IsEligibleForVersioningWithVtableSlotBackpatch();
+    }
+
+    bool IsEligibleForReJIT()
+    {
+        WRAPPER_NO_CONTRACT;
+
+#ifdef FEATURE_REJIT
         return
-            // for native image code this is policy, but for jitted code it is a functional requirement
-            // to ensure the prolog is sufficiently large
             ReJitManager::IsReJITEnabled() &&
 
-            // functional requirement - the runtime doesn't expect both options to be possible
-            !IsVersionableWithPrecode() &&
+            // Previously we didn't support these methods because of functional requirements for
+            // jumpstamps, keeping this in for back compat.
+            IsIL() &&
+            !IsWrapperStub() &&
 
-            // functional requirement - we must be able to evacuate the prolog and the prolog must be big
-            // enough, both of which are only designed to work on jitted code
-            (IsIL() || IsNoMetadata()) &&
-            !IsUnboxingStub() &&
-            !IsInstantiatingStub() &&
-
-            // functional requirement - code version manager can't handle what would happen if the code
-            // was collected
-            !GetLoaderAllocator()->IsCollectible();
-#else
-        return FALSE;
+            // Functional requirement
+            CodeVersionManager::IsMethodSupported(PTR_MethodDesc(this));
+#else // FEATURE_REJIT
+        return false;
 #endif
     }
 
-#ifdef FEATURE_TIERED_COMPILATION
-    // Is this method allowed to be recompiled and the entrypoint redirected so that we
-    // can optimize its performance? Eligibility is invariant for the lifetime of a method.
-    BOOL IsEligibleForTieredCompilation()
+public:
+
+    bool IsEligibleForTieredCompilation()
     {
         LIMITED_METHOD_DAC_CONTRACT;
 
-        // Keep in-sync with MethodTableBuilder::NeedsNativeCodeSlot(bmtMDMethod * pMDMethod)
-        // to ensure native slots are available where needed.
-        return g_pConfig->TieredCompilation() &&
-            !IsZapped() &&
-            !IsEnCMethod() &&
-            HasNativeCodeSlot() &&
-            !IsUnboxingStub() &&
-            !IsInstantiatingStub() &&
-            !IsDynamicMethod() &&
-            !GetLoaderAllocator()->IsCollectible() &&
-            !CORDisableJITOptimizations(GetModule()->GetDebuggerInfoBits()) &&
-            !CORProfilerDisableTieredCompilation();
-    }
+#ifdef FEATURE_TIERED_COMPILATION
+        return (m_bFlags2 & enum_flag2_IsEligibleForTieredCompilation) != 0;
+#else
+        return false;
 #endif
+    }
 
+    // Is this method allowed to be recompiled and the entrypoint redirected so that we
+    // can optimize its performance? Eligibility is invariant for the lifetime of a method.
+    bool DetermineAndSetIsEligibleForTieredCompilation();
+
+    bool IsJitOptimizationDisabled();
+
+private:
+    // This function is not intended to be called in most places, and is named as such to discourage calling it accidentally
+    bool Helper_IsEligibleForVersioningWithVtableSlotBackpatch()
+    {
+        WRAPPER_NO_CONTRACT;
+        _ASSERTE(IsVersionable());
+        _ASSERTE(IsIL() || IsDynamicMethod());
+
+#if defined(FEATURE_CODE_VERSIONING) && !defined(CROSSGEN_COMPILE)
+        _ASSERTE(CodeVersionManager::IsMethodSupported(PTR_MethodDesc(this)));
+
+        // For a method eligible for code versioning and vtable slot backpatch:
+        //   - It does not have a precode (HasPrecode() returns false)
+        //   - It does not have a stable entry point (HasStableEntryPoint() returns false)
+        //   - A call to the method may be:
+        //     - An indirect call through the MethodTable's backpatchable vtable slot
+        //     - A direct call to a backpatchable FuncPtrStub, perhaps through a JumpStub
+        //     - For interface methods, an indirect call through the virtual stub dispatch (VSD) indirection cell to a
+        //       backpatchable DispatchStub or a ResolveStub that refers to a backpatchable ResolveCacheEntry
+        //   - The purpose is that typical calls to the method have no additional overhead when code versioning is enabled
+        //
+        // Recording and backpatching slots:
+        //   - In order for all vtable slots for the method to be backpatchable:
+        //     - A vtable slot initially points to the MethodDesc's temporary entry point, even when the method is inherited by
+        //       a derived type (the slot's value is not copied from the parent)
+        //     - The temporary entry point always points to the prestub and is never backpatched, in order to be able to
+        //       discover new vtable slots through which the method may be called
+        //     - The prestub, as part of DoBackpatch(), records any slots that are transitioned from the temporary entry point
+        //       to the method's at-the-time current, non-prestub entry point
+        //     - Any further changes to the method's entry point cause recorded slots to be backpatched in
+        //       BackpatchEntryPointSlots()
+        //   - In order for the FuncPtrStub to be backpatchable:
+        //     - After the FuncPtrStub is created and exposed, it is patched to point to the method's at-the-time current entry
+        //       point if necessary
+        //     - Any further changes to the method's entry point cause the FuncPtrStub to be backpatched in
+        //       BackpatchEntryPointSlots()
+        //   - In order for VSD entities to be backpatchable:
+        //     - A DispatchStub's entry point target is aligned and recorded for backpatching in BackpatchEntryPointSlots()
+        //     - A ResolveCacheEntry's entry point target is recorded for backpatching in BackpatchEntryPointSlots()
+        //
+        // Slot lifetime and management of recorded slots:
+        //   - A slot is recorded in the LoaderAllocator in which the slot is allocated, see
+        //     RecordAndBackpatchEntryPointSlot()
+        //   - An inherited slot that has a shorter lifetime than the MethodDesc, when recorded, needs to be accessible by the
+        //     MethodDesc for backpatching, so the dependent LoaderAllocator with the slot to backpatch is also recorded in the
+        //     MethodDesc's LoaderAllocator, see
+        //     MethodDescBackpatchInfo::AddDependentLoaderAllocator_Locked()
+        //   - At the end of a LoaderAllocator's lifetime, the LoaderAllocator is unregistered from dependency LoaderAllocators,
+        //     see MethodDescBackpatchInfoTracker::ClearDependencyMethodDescEntryPointSlots()
+        //   - When a MethodDesc's entry point changes, backpatching also includes iterating over recorded dependent
+        //     LoaderAllocators to backpatch the relevant slots recorded there, see BackpatchEntryPointSlots()
+        //
+        // Synchronization between entry point changes and backpatching slots
+        //   - A global lock is used to ensure that all recorded backpatchable slots corresponding to a MethodDesc point to the
+        //     same entry point, see DoBackpatch() and BackpatchEntryPointSlots() for examples
+        //
+        // Typical slot value transitions when tiered compilation is enabled:
+        //   - Initially, the slot contains the method's temporary entry point, which always points to the prestub (see above)
+        //   - After the tier 0 JIT completes, the slot is transitioned to the tier 0 entry point, and the slot is recorded for
+        //     backpatching
+        //   - When tiered compilation decides to begin counting calls for the method, the slot is transitioned to the temporary
+        //     entry point (call counting currently happens in the prestub)
+        //   - When the call count reaches the tier 1 threshold, the slot is transitioned to the tier 0 entry point and a tier 1
+        //     JIT is scheduled
+        //   - After the tier 1 JIT completes, the slot is transitioned to the tier 1 entry point
+
+        return
+            // Policy
+            g_pConfig->BackpatchEntryPointSlots() &&
+
+            // Functional requirement - The entry point must be through a vtable slot in the MethodTable that may be recorded
+            // and backpatched
+            IsVtableSlot() &&
+
+            // Functional requirement - True interface methods are not backpatched, see DoBackpatch()
+            !(IsInterface() && !IsStatic());
+#else
+        // Entry point slot backpatch is disabled for CrossGen
+        return false;
+#endif
+    }
+
+public:
+    bool MayHaveEntryPointSlotsToBackpatch()
+    {
+        WRAPPER_NO_CONTRACT;
+
+#ifndef CROSSGEN_COMPILE
+        // This is the only case currently. In the future, a method that does not have a vtable slot may still record entry
+        // point slots that need to be backpatched on entry point change, and in such cases the conditions here may be changed.
+        return IsVersionableWithVtableSlotBackpatch();
+#else
+        // Entry point slot backpatch is disabled for CrossGen
+        return false;
+#endif
+    }
+
+#ifndef CROSSGEN_COMPILE
+
+private:
+    // Gets the prestub entry point to use for backpatching. Entry point slot backpatch uses this entry point as an oracle to
+    // determine if the entry point actually changed and warrants backpatching.
+    PCODE GetPrestubEntryPointToBackpatch()
+    {
+        WRAPPER_NO_CONTRACT;
+        _ASSERTE(MayHaveEntryPointSlotsToBackpatch());
+
+        // At the moment this is the only case, see MayHaveEntryPointSlotsToBackpatch()
+        _ASSERTE(IsVersionableWithVtableSlotBackpatch());
+        return GetTemporaryEntryPoint();
+    }
+
+    // Gets the entry point stored in the primary storage location for backpatching. Entry point slot backpatch uses this entry
+    // point as an oracle to determine if the entry point actually changed and warrants backpatching.
+    PCODE GetEntryPointToBackpatch_Locked()
+    {
+        WRAPPER_NO_CONTRACT;
+        _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
+        _ASSERTE(MayHaveEntryPointSlotsToBackpatch());
+
+        // At the moment this is the only case, see MayHaveEntryPointSlotsToBackpatch()
+        _ASSERTE(IsVersionableWithVtableSlotBackpatch());
+        return GetMethodEntryPoint();
+    }
+
+    // Sets the entry point stored in the primary storage location for backpatching. Entry point slot backpatch uses this entry
+    // point as an oracle to determine if the entry point actually changed and warrants backpatching.
+    void SetEntryPointToBackpatch_Locked(PCODE entryPoint)
+    {
+        WRAPPER_NO_CONTRACT;
+        _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
+        _ASSERTE(entryPoint != NULL);
+        _ASSERTE(MayHaveEntryPointSlotsToBackpatch());
+
+        // At the moment this is the only case, see MayHaveEntryPointSlotsToBackpatch(). If that changes in the future, this
+        // function may have to handle other cases in SetCodeEntryPoint().
+        _ASSERTE(IsVersionableWithVtableSlotBackpatch());
+        SetMethodEntryPoint(entryPoint);
+    }
+
+public:
+    void RecordAndBackpatchEntryPointSlot(LoaderAllocator *slotLoaderAllocator, TADDR slot, EntryPointSlots::SlotType slotType);
+private:
+    void RecordAndBackpatchEntryPointSlot_Locked(LoaderAllocator *mdLoaderAllocator, LoaderAllocator *slotLoaderAllocator, TADDR slot, EntryPointSlots::SlotType slotType, PCODE currentEntryPoint);
+
+public:
+    bool TryBackpatchEntryPointSlotsFromPrestub(PCODE entryPoint)
+    {
+        WRAPPER_NO_CONTRACT;
+        return TryBackpatchEntryPointSlots(entryPoint, false /* isPrestubEntryPoint */, true /* onlyFromPrestubEntryPoint */);
+    }
+
+    void BackpatchEntryPointSlots(PCODE entryPoint)
+    {
+        WRAPPER_NO_CONTRACT;
+        BackpatchEntryPointSlots(entryPoint, false /* isPrestubEntryPoint */);
+    }
+
+    void BackpatchToResetEntryPointSlots()
+    {
+        WRAPPER_NO_CONTRACT;
+        BackpatchEntryPointSlots(GetPrestubEntryPointToBackpatch(), true /* isPrestubEntryPoint */);
+    }
+
+private:
+    void BackpatchEntryPointSlots(PCODE entryPoint, bool isPrestubEntryPoint)
+    {
+        WRAPPER_NO_CONTRACT;
+
+#ifdef _DEBUG // workaround for release build unused variable error
+        bool success =
+#endif
+            TryBackpatchEntryPointSlots(entryPoint, isPrestubEntryPoint, false /* onlyFromPrestubEntryPoint */);
+        _ASSERTE(success);
+    }
+
+    bool TryBackpatchEntryPointSlots(PCODE entryPoint, bool isPrestubEntryPoint, bool onlyFromPrestubEntryPoint);
+
+public:
+    void TrySetInitialCodeEntryPointForVersionableMethod(PCODE entryPoint, bool mayHaveEntryPointSlotsToBackpatch);
+    void SetCodeEntryPoint(PCODE entryPoint);
+    void ResetCodeEntryPoint();
+
+#endif // !CROSSGEN_COMPILE
+
+public:
     bool RequestedAggressiveOptimization()
     {
         WRAPPER_NO_CONTRACT;
@@ -1293,11 +1441,7 @@ public:
             return false;
 #endif
 
-        return 
-#ifdef FEATURE_TIERED_COMPILATION
-            !IsEligibleForTieredCompilation() &&
-#endif
-            !IsEnCMethod();
+        return !IsVersionable() && !IsEnCMethod();
     }
 
     //Is this method currently pointing to native code that will never change?
@@ -1327,7 +1471,7 @@ public:
         return GetPrecode()->IsPointingToNativeCode(GetNativeCode());
     }
 
-    // Be careful about races with profiler when using this method. The profiler can 
+    // Be careful about races with profiler when using this method. The profiler can
     // replace preimplemented code of the method with jitted code.
     // Avoid code patterns like if(HasNativeCode()) { PCODE pCode = GetNativeCode(); ... }.
     // Use PCODE pCode = GetNativeCode(); if (pCode != NULL) { ... } instead.
@@ -1346,26 +1490,24 @@ public:
 
     ULONG GetRVA();
 
-    BOOL IsClassConstructorTriggeredViaPrestub();
-
 public:
 
     // Returns preimplemented code of the method if method has one.
     // Returns NULL if method has no preimplemented code.
-    // Be careful about races with profiler when using this method. The profiler can 
+    // Be careful about races with profiler when using this method. The profiler can
     // replace preimplemented code of the method with jitted code.
     PCODE GetPreImplementedCode();
 
     // Returns address of code to call. The address is good for one immediate invocation only.
     // Use GetMultiCallableAddrOfCode() to get address that can be invoked multiple times.
     //
-    // Only call GetSingleCallableAddrOfCode() if you can guarantee that no virtualization is 
+    // Only call GetSingleCallableAddrOfCode() if you can guarantee that no virtualization is
     // necessary, or if you can guarantee that it has already happened. For instance, the frame of a
     // stackwalk has obviously been virtualized as much as it will be.
     //
     PCODE GetSingleCallableAddrOfCode()
-    { 
-        WRAPPER_NO_CONTRACT; 
+    {
+        WRAPPER_NO_CONTRACT;
         _ASSERTE(!IsGenericMethodDefinition());
         return GetMethodEntryPoint();
     }
@@ -1391,7 +1533,7 @@ public:
     PCODE GetMultiCallableAddrOfVirtualizedCode(OBJECTREF *orThis, TypeHandle staticTH);
 
     // The current method entrypoint. It is simply the value of the current method slot.
-    // GetMethodEntryPoint() should be used to get an opaque method entrypoint, for instance 
+    // GetMethodEntryPoint() should be used to get an opaque method entrypoint, for instance
     // when copying or searching vtables. It should not be used to get address to call.
     //
     // GetSingleCallableAddrOfCode() and GetStableEntryPoint() are aliases with stricter preconditions.
@@ -1461,7 +1603,7 @@ public:
     // of correctness to pass in the the corresponding non-unboxing MD.
     //
     // allowCreate may be set to FALSE to enforce that the method searched
-    // should already be in existence - thus preventing creation and GCs during 
+    // should already be in existence - thus preventing creation and GCs during
     // inappropriate times.
     //
     static MethodDesc* FindOrCreateAssociatedMethodDesc(MethodDesc* pPrimaryMD,
@@ -1492,7 +1634,7 @@ public:
     // C<__Canon>.m<__Canon>
     //
     // allowCreate may be set to FALSE to enforce that the method searched
-    // should already be in existence - thus preventing creation and GCs during 
+    // should already be in existence - thus preventing creation and GCs during
     // inappropriate times.
     //
     MethodDesc * FindOrCreateTypicalSharedInstantiation(BOOL allowCreate = TRUE);
@@ -1503,18 +1645,17 @@ public:
     MethodDesc *ResolveGenericVirtualMethod(OBJECTREF *orThis);
 
 
+private:
+    ReturnKind ParseReturnKindFromSig(INDEBUG(bool supportStringConstructors = false));
+
 public:
-
-    // does this function return an object reference?
-    MetaSig::RETURNTYPE ReturnsObject(
-#ifdef _DEBUG 
-        bool supportStringConstructors = false,
-#endif
-        MethodTable** pMT = NULL
-        );
-
-
-    void Destruct();
+    // This method is used to restore ReturnKind using the class handle, it is fully supported only on x64 Ubuntu,
+    // other platforms do not support multi-reg return case with pointers.
+    // Use this method only when you can't hit this case
+    // (like ComPlusMethodFrame::GcScanRoots) or when you can tolerate RT_Illegal return.
+    // Also, on the other platforms for a single field struct return case
+    // the function can't distinguish RT_Object and RT_ByRef.
+    ReturnKind GetReturnKind(INDEBUG(bool supportStringConstructors = false));
 
 public:
     // In general you don't want to call GetCallTarget - you want to
@@ -1549,7 +1690,7 @@ public:
 
         typedef enum _MethodPriorityEnum
         {
-            NoFlags = -1,	
+            NoFlags = -1,
             HotMethodDesc = 0x0,
             WriteableMethodDesc = 0x1,
             ColdMethodDesc = 0x2,
@@ -1588,7 +1729,7 @@ public:
         ZapStoredStructure * Save();
     };
 
-    bool CanSkipDoPrestub(MethodDesc * callerMD, 
+    bool CanSkipDoPrestub(MethodDesc * callerMD,
                           CorInfoIndirectCallReason *pReason,
                           CORINFO_ACCESS_FLAGS  accessFlags = CORINFO_ACCESS_ANY);
 
@@ -1643,9 +1784,9 @@ public:
     // Arguments:
     //     pMT - cached value of code:MethodDesc::GetMethodTable()
     //     pDispatchingMT - method table of the object that the method is being dispatched on, can be NULL.
-    //     fFullBackPatch - indicates whether to patch all possible slots, including the ones 
+    //     fFullBackPatch - indicates whether to patch all possible slots, including the ones
     //                      expensive to patch
-    //                      
+    //
     // Return value:
     //     stable entry point (code:MethodDesc::GetStableEntryPoint())
     //
@@ -1658,15 +1799,8 @@ public:
     VOID GetMethodInfoNoSig(SString &namespaceOrClassName, SString &methodName);
     VOID GetFullMethodInfo(SString& fullMethodSigName);
 
-    BOOL HasTypeEquivalentStructParameters()
-#ifndef FEATURE_TYPEEQUIVALENCE
-    {
-        LIMITED_METHOD_CONTRACT;
-        return FALSE;
-    }
-#else
-        ;
-#endif
+    BOOL HasTypeEquivalentStructParameters();
+
     typedef void (*WalkValueTypeParameterFnPtr)(Module *pModule, mdToken token, Module *pDefModule, mdToken tkDefToken, const SigParser *ptr, SigTypeContext *pTypeContext, void *pData);
 
     void WalkValueTypeParameters(MethodTable *pMT, WalkValueTypeParameterFnPtr function, void *pData);
@@ -1689,14 +1823,14 @@ protected:
         // have a fairly strong justification for existence.
         enum_flag3_TokenRemainderMask                       = 0x3FFF, // This must equal METHOD_TOKEN_REMAINDER_MASK calculated higher in this file
                                                                       // These are seperate to allow the flags space available and used to be obvious here
-                                                                      // and for the logic that splits the token to be algorithmically generated based on the 
+                                                                      // and for the logic that splits the token to be algorithmically generated based on the
                                                                       // #define
         enum_flag3_HasForwardedValuetypeParameter           = 0x4000, // Indicates that a type-forwarded type is used as a valuetype parameter (this flag is only valid for ngenned items)
         enum_flag3_ValueTypeParametersWalked                = 0x4000, // Indicates that all typeref's in the signature of the method have been resolved to typedefs (or that process failed) (this flag is only valid for non-ngenned methods)
         enum_flag3_DoesNotHaveEquivalentValuetypeParameters = 0x8000, // Indicates that we have verified that there are no equivalent valuetype parameters for this method
     };
     UINT16      m_wFlags3AndTokenRemainder;
-    
+
     BYTE        m_chunkIndex;
 
     enum {
@@ -1709,14 +1843,15 @@ protected:
 
         enum_flag2_IsJitIntrinsic           = 0x10,   // Jit may expand method as an intrinsic
 
-        // unused                           = 0x20,
+        enum_flag2_IsEligibleForTieredCompilation = 0x20,
+
         // unused                           = 0x40,
-        // unused                           = 0x80, 
+        // unused                           = 0x80,
     };
     BYTE        m_bFlags2;
 
     // The slot number of this MethodDesc in the vtable array.
-    // Note that we may store other information in the high bits if available -- 
+    // Note that we may store other information in the high bits if available --
     // see enum_packedSlotLayout and mdcRequiresFullSlotNumber for details.
     WORD m_wSlotNumber;
 
@@ -1730,7 +1865,7 @@ protected:
 
 
 public:
-#ifdef DACCESS_COMPILE 
+#ifdef DACCESS_COMPILE
     void EnumMemoryRegions(CLRDataEnumMemoryFlags flags);
 #endif
 
@@ -1792,7 +1927,7 @@ public:
 
     WORD InterlockedUpdateFlags3(WORD wMask, BOOL fSet);
 
-#ifdef FEATURE_COMINTEROP
+#ifdef FEATURE_TYPEEQUIVALENCE
     inline BOOL DoesNotHaveEquivalentValuetypeParameters()
     {
         LIMITED_METHOD_DAC_CONTRACT;
@@ -1804,7 +1939,7 @@ public:
         LIMITED_METHOD_CONTRACT;
         InterlockedUpdateFlags3(enum_flag3_DoesNotHaveEquivalentValuetypeParameters, TRUE);
     }
-#endif //FEATURE_COMINTEROP
+#endif // FEATURE_TYPEEQUIVALENCE
 
     inline BOOL HasForwardedValuetypeParameter()
     {
@@ -1845,7 +1980,7 @@ public:
 
     // class MethodImpl;                            // Present if HasMethodImplSlot() is true
 
-    typedef RelativePointer<PCODE> NonVtableSlot;   // Present if HasNonVtableSlot() is true 
+    typedef RelativePointer<PCODE> NonVtableSlot;   // Present if HasNonVtableSlot() is true
                                                     // RelativePointer for NGen, PCODE for JIT
 
 #define FIXUP_LIST_MASK 1
@@ -1859,7 +1994,7 @@ public:
 
 // StubMethodInfo for use in creating RuntimeMethodHandles
     REFLECTMETHODREF GetStubMethodInfo();
-    
+
     PrecodeType GetPrecodeType();
 
 
@@ -1870,7 +2005,6 @@ public:
 #ifndef DACCESS_COMPILE
 public:
     PCODE PrepareInitialCode();
-    PCODE PrepareCode(NativeCodeVersion codeVersion);
     PCODE PrepareCode(PrepareCodeConfig* pConfig);
 
 private:
@@ -1914,7 +2048,120 @@ public:
     BOOL ReadyToRunRejectedPrecompiledCode();
     void SetProfilerRejectedPrecompiledCode();
     void SetReadyToRunRejectedPrecompiledCode();
-    
+
+#ifdef FEATURE_CODE_VERSIONING
+public:
+    bool ProfilerMayHaveActivatedNonDefaultCodeVersion() const
+    {
+        WRAPPER_NO_CONTRACT;
+        return m_profilerMayHaveActivatedNonDefaultCodeVersion;
+    }
+
+    void SetProfilerMayHaveActivatedNonDefaultCodeVersion()
+    {
+        WRAPPER_NO_CONTRACT;
+        m_profilerMayHaveActivatedNonDefaultCodeVersion = true;
+    }
+
+    bool GeneratedOrLoadedNewCode() const
+    {
+        WRAPPER_NO_CONTRACT;
+        return m_generatedOrLoadedNewCode;
+    }
+
+    void SetGeneratedOrLoadedNewCode()
+    {
+        WRAPPER_NO_CONTRACT;
+        _ASSERTE(!m_generatedOrLoadedNewCode);
+
+        m_generatedOrLoadedNewCode = true;
+    }
+#endif
+
+#ifdef FEATURE_TIERED_COMPILATION
+public:
+    bool ShouldCountCalls() const
+    {
+        WRAPPER_NO_CONTRACT;
+        return m_shouldCountCalls;
+    }
+
+    void SetShouldCountCalls()
+    {
+        WRAPPER_NO_CONTRACT;
+        _ASSERTE(!m_shouldCountCalls);
+
+        m_shouldCountCalls = true;
+    }
+#endif
+
+#ifndef CROSSGEN_COMPILE
+public:
+    enum class JitOptimizationTier : UINT8
+    {
+        Unknown, // to identify older runtimes that would send this value
+        MinOptJitted,
+        Optimized,
+        QuickJitted,
+        OptimizedTier1,
+
+        Count
+    };
+
+    static JitOptimizationTier GetJitOptimizationTier(PrepareCodeConfig *config, MethodDesc *methodDesc);
+    static const char *GetJitOptimizationTierStr(PrepareCodeConfig *config, MethodDesc *methodDesc);
+
+    bool JitSwitchedToMinOpt() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_jitSwitchedToMinOpt;
+    }
+
+    void SetJitSwitchedToMinOpt()
+    {
+        LIMITED_METHOD_CONTRACT;
+
+#ifdef FEATURE_TIERED_COMPILATION
+        m_jitSwitchedToOptimized = false;
+#endif
+        m_jitSwitchedToMinOpt = true;
+    }
+
+#ifdef FEATURE_TIERED_COMPILATION
+public:
+    bool JitSwitchedToOptimized() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_jitSwitchedToOptimized;
+    }
+
+    void SetJitSwitchedToOptimized()
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        if (!m_jitSwitchedToMinOpt)
+        {
+            m_jitSwitchedToOptimized = true;
+        }
+    }
+#endif
+
+public:
+    PrepareCodeConfig *GetNextInSameThread() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_nextInSameThread;
+    }
+
+    void SetNextInSameThread(PrepareCodeConfig *config)
+    {
+        LIMITED_METHOD_CONTRACT;
+        _ASSERTE(config == nullptr || m_nextInSameThread == nullptr);
+
+        m_nextInSameThread = config;
+    }
+#endif // !CROSSGEN_COMPILE
+
 protected:
     MethodDesc* m_pMethodDesc;
     NativeCodeVersion m_nativeCodeVersion;
@@ -1922,6 +2169,26 @@ protected:
     BOOL m_mayUsePrecompiledCode;
     BOOL m_ProfilerRejectedPrecompiledCode;
     BOOL m_ReadyToRunRejectedPrecompiledCode;
+
+#ifdef FEATURE_CODE_VERSIONING
+private:
+    bool m_profilerMayHaveActivatedNonDefaultCodeVersion;
+    bool m_generatedOrLoadedNewCode;
+#endif
+
+#ifdef FEATURE_TIERED_COMPILATION
+private:
+    bool m_shouldCountCalls;
+#endif
+
+#ifndef CROSSGEN_COMPILE
+private:
+    bool m_jitSwitchedToMinOpt; // when it wasn't requested
+#ifdef FEATURE_TIERED_COMPILATION
+    bool m_jitSwitchedToOptimized; // when a different tier was requested
+#endif
+    PrepareCodeConfig *m_nextInSameThread;
+#endif // !CROSSGEN_COMPILE
 };
 
 #ifdef FEATURE_CODE_VERSIONING
@@ -1938,6 +2205,25 @@ public:
 private:
     ILCodeVersion m_ilCodeVersion;
 };
+
+class PrepareCodeConfigBuffer
+{
+private:
+    UINT8 m_buffer[sizeof(VersionedPrepareCodeConfig)];
+
+public:
+    PrepareCodeConfigBuffer(NativeCodeVersion codeVersion);
+
+public:
+    PrepareCodeConfig *GetConfig() const
+    {
+        WRAPPER_NO_CONTRACT;
+        return (PrepareCodeConfig *)m_buffer;
+    }
+
+    PrepareCodeConfigBuffer(const PrepareCodeConfigBuffer &) = delete;
+    PrepareCodeConfigBuffer &operator =(const PrepareCodeConfigBuffer &) = delete;
+};
 #endif // FEATURE_CODE_VERSIONING
 #endif // DACCESS_COMPILE
 
@@ -1946,7 +2232,7 @@ private:
 // A code:MethodDescChunk is a container that holds one or more code:MethodDesc.  Logically it is just
 // compression.  Basically fields that are common among methods descs in the chunk are stored in the chunk
 // and the MethodDescs themselves just store and index that allows them to find their Chunk.  Semantically
-// a code:MethodDescChunk is just a set of code:MethodDesc.  
+// a code:MethodDescChunk is just a set of code:MethodDesc.
 class MethodDescChunk
 {
     friend class MethodDesc;
@@ -1954,14 +2240,14 @@ class MethodDescChunk
 #if defined(FEATURE_PREJIT) && !defined(DACCESS_COMPILE)
     friend class MethodDesc::SaveChunk;
 #endif
-#ifdef DACCESS_COMPILE 
+#ifdef DACCESS_COMPILE
     friend class NativeImageDumper;
 #endif // DACCESS_COMPILE
 
     enum {
         enum_flag_TokenRangeMask                           = 0x03FF, // This must equal METHOD_TOKEN_RANGE_MASK calculated higher in this file
                                                                      // These are seperate to allow the flags space available and used to be obvious here
-                                                                     // and for the logic that splits the token to be algorithmically generated based on the 
+                                                                     // and for the logic that splits the token to be algorithmically generated based on the
                                                                      // #define
         enum_flag_HasCompactEntrypoints                    = 0x4000, // Compact temporary entry points
         enum_flag_IsZapped                                 = 0x8000, // This chunk lives in NGen module
@@ -2049,7 +2335,7 @@ public:
         return dac_cast<DPTR(RelativeFixupPointer<PTR_MethodTable>)>(PTR_HOST_MEMBER_TADDR(MethodDescChunk, this, m_methodTable));
     }
 
-#ifndef DACCESS_COMPILE 
+#ifndef DACCESS_COMPILE
     inline void SetMethodTable(MethodTable * pMT)
     {
         LIMITED_METHOD_CONTRACT;
@@ -2065,15 +2351,15 @@ public:
         _ASSERTE(FitsIn<BYTE>((sizeOfMethodDescs / MethodDesc::ALIGNMENT) - 1));
         m_size = static_cast<BYTE>((sizeOfMethodDescs / MethodDesc::ALIGNMENT) - 1);
         _ASSERTE(SizeOf() == sizeof(MethodDescChunk) + sizeOfMethodDescs);
-    
+
         _ASSERTE(FitsIn<BYTE>(methodDescCount - 1));
         m_count = static_cast<BYTE>(methodDescCount - 1);
         _ASSERTE(GetCount() == methodDescCount);
     }
 #endif // !DACCESS_COMPILE
 
-#ifdef FEATURE_PREJIT 
-#ifndef DACCESS_COMPILE 
+#ifdef FEATURE_PREJIT
+#ifndef DACCESS_COMPILE
     inline void RestoreMTPointer(ClassLoadLevel level = CLASS_LOADED)
     {
         LIMITED_METHOD_CONTRACT;
@@ -2082,7 +2368,7 @@ public:
 #endif // !DACCESS_COMPILE
 #endif // FEATURE_PREJIT
 
-#ifndef DACCESS_COMPILE 
+#ifndef DACCESS_COMPILE
     void SetNextChunk(MethodDescChunk *chunk)
     {
         LIMITED_METHOD_CONTRACT;
@@ -2144,7 +2430,7 @@ public:
     // Maximum size of one chunk (corresponts to the maximum of m_size = 0xFF)
     static const SIZE_T MaxSizeOfMethodDescs = 0x100 * MethodDesc::ALIGNMENT;
 
-#ifdef DACCESS_COMPILE 
+#ifdef DACCESS_COMPILE
     void EnumMemoryRegions(CLRDataEnumMemoryFlags flags);
 #endif
 
@@ -2209,7 +2495,7 @@ class StoredSigMethodDesc : public MethodDesc
 
     RelativePointer<TADDR>           m_pSig;
     DWORD           m_cSig;
-#ifdef _WIN64 
+#ifdef BIT64
     // m_dwExtendedFlags is not used by StoredSigMethodDesc itself.
     // It is used by child classes. We allocate the space here to get
     // optimal layout.
@@ -2234,7 +2520,7 @@ class StoredSigMethodDesc : public MethodDesc
         {
             *sigLen = m_cSig;
         }
-#ifdef DACCESS_COMPILE 
+#ifdef DACCESS_COMPILE
         return (PCCOR_SIGNATURE)
             DacInstantiateTypeByAddress(GetSigRVA(), m_cSig, true);
 #else // !DACCESS_COMPILE
@@ -2244,13 +2530,13 @@ class StoredSigMethodDesc : public MethodDesc
     }
     void SetStoredMethodSig(PCCOR_SIGNATURE sig, DWORD sigBytes)
     {
-#ifndef DACCESS_COMPILE 
+#ifndef DACCESS_COMPILE
         m_pSig.SetValueMaybeNull((TADDR)sig);
         m_cSig = sigBytes;
 #endif // !DACCESS_COMPILE
     }
 
-#ifdef DACCESS_COMPILE 
+#ifdef DACCESS_COMPILE
     void EnumMemoryRegions(CLRDataEnumMemoryFlags flags);
 #endif
 };
@@ -2268,7 +2554,7 @@ class FCallMethodDesc : public MethodDesc
 #endif
 
     DWORD   m_dwECallID;
-#ifdef _WIN64 
+#ifdef BIT64
     DWORD   m_padding;
 #endif
 
@@ -2308,7 +2594,7 @@ protected:
     RelativePointer<PTR_CUTF8>           m_pszMethodName;
     PTR_DynamicResolver m_pResolver;
 
-#ifndef _WIN64
+#ifndef BIT64
     // We use m_dwExtendedFlags from StoredSigMethodDesc on WIN64
     DWORD               m_dwExtendedFlags;   // see DynamicMethodDesc::ExtendedFlags enum
 #endif
@@ -2324,7 +2610,7 @@ protected:
         // mdStatic               = 0x0010,
         nomdCALLIStub             = 0x0020,
         nomdDelegateStub          = 0x0040,
-        nomdCopyCtorArgs          = 0x0080,
+        nomdStructMarshalStub     = 0x0080,
         nomdUnbreakable           = 0x0100,
         nomdDelegateCOMStub       = 0x0200,  // CLR->COM or COM->CLR call via a delegate (WinRT specific)
         nomdSignatureNeedsRestore = 0x0400,
@@ -2373,18 +2659,9 @@ public:
 
     void SetNativeStackArgSize(WORD cbArgSize)
     {
-        LIMITED_METHOD_CONTRACT; 
+        LIMITED_METHOD_CONTRACT;
         _ASSERTE(IsILStub() && (cbArgSize % sizeof(SLOT)) == 0);
         m_dwExtendedFlags = (m_dwExtendedFlags & ~nomdStackArgSize) | ((DWORD)cbArgSize << 16);
-    }
-
-    void SetHasCopyCtorArgs(bool value)
-    {
-        LIMITED_METHOD_CONTRACT;
-        if (value)
-        {
-            m_dwExtendedFlags |= nomdCopyCtorArgs;
-        }
     }
 
     void SetUnbreakable(bool value)
@@ -2423,11 +2700,11 @@ public:
             // Since we don't update the signatreNeedsRestore bit when we actually
             // restore the signature, the bit will have a stall value.  The signature
             // bit in the metadata will always contain the correct, up-to-date
-            // information. 
+            // information.
             Volatile<BYTE> *pVolatileSig = (Volatile<BYTE> *)GetStoredMethodSig();
             if ((*pVolatileSig & IMAGE_CEE_CS_CALLCONV_NEEDSRESTORE) != 0)
                 return false;
-        }            
+        }
 
         return true;
     }
@@ -2435,14 +2712,14 @@ public:
     bool IsReverseStub()     { LIMITED_METHOD_DAC_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdReverseStub));  }
     bool IsCALLIStub()       { LIMITED_METHOD_DAC_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdCALLIStub));    }
     bool IsDelegateStub()    { LIMITED_METHOD_DAC_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdDelegateStub)); }
-    bool IsCLRToCOMStub()    { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return ((0 == (m_dwExtendedFlags & mdStatic)) && !IsReverseStub() && !IsDelegateStub()); }
+    bool IsCLRToCOMStub()    { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return ((0 == (m_dwExtendedFlags & mdStatic)) && !IsReverseStub() && !IsDelegateStub() && !IsStructMarshalStub()); }
     bool IsCOMToCLRStub()    { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return ((0 == (m_dwExtendedFlags & mdStatic)) &&  IsReverseStub()); }
-    bool IsPInvokeStub()     { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return ((0 != (m_dwExtendedFlags & mdStatic)) && !IsReverseStub() && !IsCALLIStub()); }
-    bool HasCopyCtorArgs()   { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdCopyCtorArgs));  }
+    bool IsPInvokeStub()     { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return ((0 != (m_dwExtendedFlags & mdStatic)) && !IsReverseStub() && !IsCALLIStub() && !IsStructMarshalStub()); }
     bool IsUnbreakable()     { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdUnbreakable));  }
     bool IsDelegateCOMStub() { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdDelegateCOMStub));  }
     bool IsSignatureNeedsRestore() { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdSignatureNeedsRestore)); }
     bool IsStubNeedsCOMStarted()   { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdStubNeedsCOMStarted)); }
+    bool IsStructMarshalStub()   { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdStructMarshalStub)); }
 #ifdef FEATURE_MULTICASTSTUB_AS_IL
     bool IsMulticastStub() {
         LIMITED_METHOD_DAC_CONTRACT;
@@ -2456,8 +2733,8 @@ public:
         _ASSERTE(IsILStub());
         return !!(m_dwExtendedFlags & nomdSecureDelegateStub);
     }
-    bool IsUnboxingILStub() { 
-        LIMITED_METHOD_DAC_CONTRACT; 
+    bool IsUnboxingILStub() {
+        LIMITED_METHOD_DAC_CONTRACT;
         _ASSERTE(IsILStub());
         return !!(m_dwExtendedFlags & nomdUnboxingILStub);
     }
@@ -2475,7 +2752,7 @@ public:
     //
     // following implementations defined in DynamicMethod.cpp
     //
-    void Destroy(BOOL fDomainUnload = FALSE);
+    void Destroy();
 };
 
 
@@ -2531,7 +2808,7 @@ public:
         return NULL;
     }
     void Init(MethodDesc *pMethod)
-    {        
+    {
         LIMITED_METHOD_CONTRACT;
     }
 };
@@ -2553,7 +2830,7 @@ class NDirectWriteableData
 {
 public:
     // The JIT generates an indirect call through this location in some cases.
-    // Initialized to NDirectImportThunkGlue. Patched to the true target or 
+    // Initialized to NDirectImportThunkGlue. Patched to the true target or
     // host interceptor stub or alignment thunk after linking.
     LPVOID      m_pNDirectTarget;
 };
@@ -2573,7 +2850,7 @@ public:
         // If we are hosted, stack imbalance MDA is active, or alignment thunks are needed,
         // we will intercept m_pNDirectTarget. The true target is saved here.
         LPVOID      m_pNativeNDirectTarget;
-            
+
         // Information about the entrypoint
         RelativePointer<PTR_CUTF8>     m_pszEntrypointName;
 
@@ -2616,7 +2893,7 @@ public:
     enum Flags
     {
         // There are two groups of flag bits here each which gets initialized
-        // at different times. 
+        // at different times.
 
         //
         // Group 1: The init group.
@@ -2655,11 +2932,15 @@ public:
 
         kDefaultDllImportSearchPathsStatus = 0x2000, // either method has custom attribute or not.
 
-        kHasCopyCtorArgs                = 0x4000,
-
         kStdCallWithRetBuf              = 0x8000,   // Call returns large structure, only valid if kStdCall is also set
 
     };
+
+    // Resolve the import to the NDirect target and set it on the NDirectMethodDesc.
+    static void *ResolveAndSetNDirectTarget(_In_ NDirectMethodDesc *pMD);
+
+    // Attempt to import the NDirect target if a GC transition is suppressed.
+    static BOOL TryResolveNDirectTargetForNoGCTransition(_In_ MethodDesc* pMD, _Out_ void** ndirectTarget);
 
     // Retrieves the cached result of marshaling required computation, or performs the computation
     // if the result is not cached yet.
@@ -2784,7 +3065,7 @@ public:
         LIMITED_METHOD_CONTRACT;
         return (ndirect.m_wFlags  & kDefaultDllImportSearchPathsIsCached) != 0;
     }
-    
+
     ULONG DefaultDllImportSearchPathsAttributeCachedValue()
     {
         LIMITED_METHOD_CONTRACT;
@@ -2795,23 +3076,6 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
         return (ndirect.m_DefaultDllImportSearchPathsAttributeValue & 0x2) != 0;
-    }
-
-    BOOL HasCopyCtorArgs() const
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-
-        return (ndirect.m_wFlags & kHasCopyCtorArgs) != 0;
-    }
-
-    void SetHasCopyCtorArgs(BOOL value)
-    {
-        WRAPPER_NO_CONTRACT;
-
-        if (value)
-        {
-            InterlockedSetNDirectFlags(kHasCopyCtorArgs);
-        }
     }
 
     BOOL IsStdCallWithRetBuf() const
@@ -2879,12 +3143,10 @@ public:
     //  Find the entry point name and function address
     //  based on the module and data from NDirectMethodDesc
     //
-    LPVOID FindEntryPoint(HINSTANCE hMod) const;
+    LPVOID FindEntryPoint(NATIVE_LIBRARY_HANDLE hMod) const;
 
 private:
-#ifdef MDA_SUPPORTED    
-    Stub* GenerateStubForMDA(LPVOID pNativeTarget, Stub *pInnerStub);
-#endif // MDA_SUPPORTED
+    FARPROC FindEntryPointWithMangling(NATIVE_LIBRARY_HANDLE mod, PTR_CUTF8 entryPointName) const;
 
 public:
 
@@ -2935,11 +3197,11 @@ public:
     // cctor may change the target DLL, change DLL search path etc.
     BOOL IsClassConstructorTriggeredAtLinkTime()
     {
-        LIMITED_METHOD_CONTRACT;       
+        LIMITED_METHOD_CONTRACT;
         MethodTable * pMT = GetMethodTable();
         // Try to avoid touching the EEClass if possible
         if (pMT->IsClassPreInited())
-            return FALSE;      
+            return FALSE;
         return !pMT->GetClass()->IsBeforeFieldInit();
     }
 
@@ -2950,7 +3212,7 @@ public:
     BOOL IsClassConstructorTriggeredByILStub()
     {
         WRAPPER_NO_CONTRACT;
-        
+
         return (IsClassConstructorTriggeredAtLinkTime() &&
                 (IsZapped() || GetDomain()->IsSharedDomain() || SystemDomain::GetCurrentDomain()->IsCompilationDomain()));
     }
@@ -2969,7 +3231,7 @@ public:
 class EEImplMethodDesc : public StoredSigMethodDesc
 { };
 
-#ifdef FEATURE_COMINTEROP 
+#ifdef FEATURE_COMINTEROP
 
 // This is the extra information needed to be associated with a method in order to use it for
 // CLR->COM calls. It is currently used by code:ComPlusCallMethodDesc (ordinary CLR->COM calls),
@@ -2986,13 +3248,12 @@ struct ComPlusCallInfo
     {
         kHasSuppressUnmanagedCodeAccess = 0x1,
         kRequiresArgumentWrapping       = 0x2,
-        kHasCopyCtorArgs                = 0x4,
     };
 
     union
     {
         // IL stub for CLR to COM call
-        PCODE m_pILStub; 
+        PCODE m_pILStub;
 
         // MethodDesc of the COM event provider to forward the call to (COM event interfaces)
         MethodDesc *m_pEventProviderMD;
@@ -3008,7 +3269,7 @@ struct ComPlusCallInfo
     // the stubs for it. There's probably a better place to do this
     // caching but I'm not sure I know all the places these things are
     // created.)
-    WORD        m_cachedComSlot; 
+    WORD        m_cachedComSlot;
 
     PCODE * GetAddrOfILStubField()
     {
@@ -3020,19 +3281,6 @@ struct ComPlusCallInfo
     // Size of outgoing arguments (on stack). This is currently used only
     // on x86 when we have an InlinedCallFrame representing a CLR->COM call.
     WORD        m_cbStackArgumentSize;
-
-    void SetHasCopyCtorArgs(BOOL value)
-    {
-        LIMITED_METHOD_CONTRACT;
-        if (value)
-            FastInterlockOr(reinterpret_cast<DWORD *>(&m_flags), kHasCopyCtorArgs);
-    }
-
-    BOOL HasCopyCtorArgs()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return ((m_flags & kHasCopyCtorArgs) != 0);
-    }
 
     void InitStackArgumentSize()
     {
@@ -3061,11 +3309,7 @@ struct ComPlusCallInfo
         return m_cbStackArgumentSize;
     }
 
-    union
-    {
-        LPVOID      m_pRetThunk;         // used for late-bound calls
-        LPVOID      m_pInterceptStub;    // used for early-bound IL stub calls
-    };
+    LPVOID      m_pRetThunk;
 
 #else // _TARGET_X86_
     void InitStackArgumentSize()
@@ -3138,18 +3382,6 @@ public:
     }
 
 #ifdef _TARGET_X86_
-    BOOL HasCopyCtorArgs()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_pComPlusCallInfo->HasCopyCtorArgs();
-    }
-
-    void SetHasCopyCtorArgs(BOOL value)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_pComPlusCallInfo->SetHasCopyCtorArgs(value);
-    }
-
     WORD GetStackArgumentSize()
     {
         LIMITED_METHOD_DAC_CONTRACT;
@@ -3362,7 +3594,7 @@ public:
 
     // Setup the IMD as a wrapper around another method desc
     void SetupWrapperStubWithInstantiations(MethodDesc* wrappedMD,DWORD numGenericArgs, TypeHandle *pGenericMethodInst);
-    
+
 
 #ifdef EnC_SUPPORTED
     void SetupEnCAddedMethod()
@@ -3537,7 +3769,7 @@ inline void MethodDesc::SetMemberDef(mdMethodDef mb)
 #endif
 }
 
-#ifdef _DEBUG 
+#ifdef _DEBUG
 
 inline BOOL MethodDesc::SanityCheck()
 {
@@ -3545,7 +3777,6 @@ inline BOOL MethodDesc::SanityCheck()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
         SUPPORTS_DAC;
     }
@@ -3559,7 +3790,7 @@ inline BOOL MethodDesc::SanityCheck()
         // we just want it to not AV.
         return GetMethodTable() == m_pDebugMethodTable.GetValue() && this->GetModule() != NULL;
     }
-    
+
     return TRUE;
 }
 

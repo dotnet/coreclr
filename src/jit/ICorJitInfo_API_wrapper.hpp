@@ -140,11 +140,11 @@ CorInfoIntrinsics WrapICorJitInfo::getIntrinsicID(
     return temp;
 }
 
-bool WrapICorJitInfo::isInSIMDModule(CORINFO_CLASS_HANDLE classHnd)
+bool WrapICorJitInfo::isIntrinsicType(CORINFO_CLASS_HANDLE classHnd)
 {
-    API_ENTER(isInSIMDModule);
-    bool temp = wrapHnd->isInSIMDModule(classHnd);
-    API_LEAVE(isInSIMDModule);
+    API_ENTER(isIntrinsicType);
+    bool temp = wrapHnd->isIntrinsicType(classHnd);
+    API_LEAVE(isIntrinsicType);
     return temp;
 }
 
@@ -395,6 +395,14 @@ BOOL WrapICorJitInfo::isValueClass(CORINFO_CLASS_HANDLE cls)
     return temp;
 }
 
+CorInfoInlineTypeCheck canInlineTypeCheck(CORINFO_CLASS_HANDLE cls, CorInfoInlineTypeCheckSource source)
+{
+    API_ENTER(canInlineTypeCheck);
+    CorInfoInlineTypeCheck temp = wrapHnd->canInlineTypeCheck(cls, source);
+    API_LEAVE(canInlineTypeCheck);
+    return temp;
+}
+
 BOOL WrapICorJitInfo::canInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls)
 {
     API_ENTER(canInlineTypeCheckWithObjectVTable);
@@ -481,6 +489,22 @@ unsigned WrapICorJitInfo::getClassSize(CORINFO_CLASS_HANDLE        cls)
     return temp;
 }
 
+unsigned WrapICorJitInfo::getHeapClassSize(CORINFO_CLASS_HANDLE     cls)
+{
+    API_ENTER(getHeapClassSize);
+    unsigned temp = wrapHnd->getHeapClassSize(cls);
+    API_LEAVE(getHeapClassSize);
+    return temp;
+}
+
+BOOL WrapICorJitInfo::canAllocateOnStack(CORINFO_CLASS_HANDLE    cls)
+{
+    API_ENTER(canAllocateOnStack);
+    BOOL temp = wrapHnd->canAllocateOnStack(cls);
+    API_LEAVE(canAllocateOnStack);
+    return temp;
+}
+
 unsigned WrapICorJitInfo::getClassAlignmentRequirement(
             CORINFO_CLASS_HANDLE        cls,
             BOOL                        fDoubleAlignHint)
@@ -533,10 +557,11 @@ BOOL WrapICorJitInfo::checkMethodModifier(
 
 CorInfoHelpFunc WrapICorJitInfo::getNewHelper(
             CORINFO_RESOLVED_TOKEN * pResolvedToken,
-            CORINFO_METHOD_HANDLE    callerHandle)
+            CORINFO_METHOD_HANDLE    callerHandle,
+            bool * pHasSideEffects)
 {
     API_ENTER(getNewHelper);
-    CorInfoHelpFunc temp = wrapHnd->getNewHelper(pResolvedToken, callerHandle);
+    CorInfoHelpFunc temp = wrapHnd->getNewHelper(pResolvedToken, callerHandle, pHasSideEffects);
     API_LEAVE(getNewHelper);
     return temp;
 }
@@ -1055,12 +1080,13 @@ const char* WrapICorJitInfo::getMethodName(
 }
 
 const char* WrapICorJitInfo::getMethodNameFromMetadata(
-        CORINFO_METHOD_HANDLE       ftn,           /* IN */
-        const char                **className,     /* OUT */
-        const char                **namespaceName  /* OUT */)
+        CORINFO_METHOD_HANDLE       ftn,                 /* IN */
+        const char                **className,           /* OUT */
+        const char                **namespaceName,       /* OUT */
+        const char                **enclosingClassName  /* OUT */)
 {
     API_ENTER(getMethodNameFromMetadata);
-    const char* temp = wrapHnd->getMethodNameFromMetaData(ftn, moduleName, namespaceName);
+    const char* temp = wrapHnd->getMethodNameFromMetaData(ftn, className, namespaceName, enclosingClassName);
     API_LEAVE(getMethodNameFromMetadata);
     return temp;
 }
@@ -1564,25 +1590,25 @@ void WrapICorJitInfo::reportFatalError(CorJitResult result)
     API_LEAVE(reportFatalError);
 }
 
-HRESULT WrapICorJitInfo::allocBBProfileBuffer(
-        ULONG count,
-        ProfileBuffer **profileBuffer)
+HRESULT WrapICorJitInfo::allocMethodBlockCounts(
+        UINT32 count,
+        BlockCounts **pBlockCounts)
 {
-    API_ENTER(allocBBProfileBuffer);
-    HRESULT result = wrapHnd->allocBBProfileBuffer(count, profileBuffer);
-    API_LEAVE(allocBBProfileBuffer);
+    API_ENTER(allocMethodBlockCounts);
+    HRESULT result = wrapHnd->allocMethodBlockCounts(count, pBlockCounts);
+    API_LEAVE(allocMethodBlockCounts);
     return result;
 }
 
-HRESULT WrapICorJitInfo::getBBProfileData(
+HRESULT WrapICorJitInfo::getMethodBlockCounts(
         CORINFO_METHOD_HANDLE ftnHnd,
-        ULONG *count,
-        ProfileBuffer **profileBuffer,
-        ULONG *numRuns)
+        UINT32 *pCount,
+        BlockCounts **pBlockCounts,
+        UINT32 *pNumRuns)
 {
-    API_ENTER(getBBProfileData);
-    HRESULT temp = wrapHnd->getBBProfileData(ftnHnd, count, profileBuffer, numRuns);
-    API_LEAVE(getBBProfileData);
+    API_ENTER(getMethodBlockCounts);
+    HRESULT temp = wrapHnd->getMethodBlockCounts(ftnHnd, pCount, pBlockCounts, pNumRuns);
+    API_LEAVE(getMethodBlockCounts);
     return temp;
 }
 

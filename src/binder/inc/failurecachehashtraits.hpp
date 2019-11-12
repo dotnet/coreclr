@@ -57,7 +57,7 @@ namespace BINDER_SPACE
     {
     public:
         typedef SString& key_t;
- 
+
         // GetKey, Equals, and Hash can throw due to SString
         static const bool s_NoThrow = false;
 
@@ -73,7 +73,7 @@ namespace BINDER_SPACE
         {
             return HashCaseInsensitive(pAssemblyNameOrPath);
         }
-        static const element_t Null()
+        static element_t Null()
         {
             return NULL;
         }

@@ -9,7 +9,7 @@
 class ErrorMarshalTesting : public UnknownImpl, public IErrorMarshalTesting
 {
 public: // IErrorMarshalTesting
-    DEF_RAWFUNC(Throw_HResult)(
+    DEF_FUNC(Throw_HResult)(
         /*[in]*/ int hresultToReturn)
     {
         return HRESULT{ hresultToReturn };
@@ -21,12 +21,18 @@ public: // IErrorMarshalTesting
         return hresultToReturn;
     }
 
+    int STDMETHODCALLTYPE Return_As_HResult_Struct(
+        /*[in]*/ int hresultToReturn)
+    {
+        return hresultToReturn;
+    }
+
 public: // IUnknown
     STDMETHOD(QueryInterface)(
         /* [in] */ REFIID riid,
         /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR *__RPC_FAR *ppvObject)
     {
-        return DoQueryInterface<ErrorMarshalTesting, IErrorMarshalTesting>(this, riid, ppvObject);
+        return DoQueryInterface(riid, ppvObject, static_cast<IErrorMarshalTesting *>(this));
     }
 
     DEFINE_REF_COUNTING();

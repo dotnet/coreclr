@@ -61,13 +61,8 @@ public:
         ApartmentUnknown = 2
     };
 
-    static LPVOID F_CALL_CONV FastGetCurrentThread();
-    static LPVOID F_CALL_CONV FastGetDomain();
-
     static void StartInner(ThreadBaseObject* pThisUNSAFE);
 
-    static FCDECL1(void, Abort, ThreadBaseObject* pThis);
-    static FCDECL1(void, ResetAbort, ThreadBaseObject* pThis);
     static FCDECL1(void,    Start,             ThreadBaseObject* pThisUNSAFE);
     static FCDECL1(INT32,   GetPriority,       ThreadBaseObject* pThisUNSAFE);
     static FCDECL2(void,    SetPriority,       ThreadBaseObject* pThisUNSAFE, INT32 iPriority);
@@ -87,8 +82,6 @@ public:
     static FCDECL3(INT32,   SetApartmentState, ThreadBaseObject* pThisUNSAFE, INT32 iState, CLR_BOOL fireMDAOnMismatch);
     static FCDECL1(void,    StartupSetApartmentState, ThreadBaseObject* pThis);
 #endif // FEATURE_COMINTEROP_APARTMENT_SUPPORT
-    static FCDECL0(Object*, GetDomain);
-    static void QCALLTYPE nativeInitCultureAccessors();
 
     static
     void QCALLTYPE InformThreadNameChange(QCall::ThreadHandle thread, LPCWSTR name, INT32 len);
@@ -107,11 +100,7 @@ public:
     static FCDECL1(void,    DisableComObjectEagerCleanup,   ThreadBaseObject* pThis);
 #endif //FEATURE_COMINTEROP
     static FCDECL1(FC_BOOL_RET,IsThreadpoolThread,             ThreadBaseObject* thread);
-
-    static FCDECL1(void, SetIsThreadStaticsArray, Object* pObject);
-
-    static FCDECL2(void,    SetAbortReason, ThreadBaseObject* pThisUNSAFE, Object* pObject);
-    static FCDECL1(void,    ClearAbortReason, ThreadBaseObject* pThisUNSAFE);
+    static FCDECL1(Object*, GetThreadDeserializationTracker, StackCrawlMark* stackMark);
 
     static FCDECL0(INT32,   GetCurrentProcessorNumber);
 

@@ -67,7 +67,7 @@ private:
 
         return TRUE;
     }
-    
+
     BOOL HasAvailableMemory(SIZE_T count)
     {
         return (count < m_size);
@@ -81,12 +81,12 @@ private:
         {
             m_buffer = m_innerBuffer;
         }
-        
+
         if (HasAvailableMemory(count))
         {
             m_count = count;
         }
-        else 
+        else
         {
             if (count > STACKCOUNT)
             {
@@ -109,7 +109,7 @@ private:
 
 public:
     StackString()
-        : m_buffer(m_innerBuffer), m_size(0), m_count(0)
+        : m_buffer(m_innerBuffer), m_size(STACKCOUNT+1), m_count(0)
     {
     }
 
@@ -129,11 +129,17 @@ public:
         return Set(s.m_buffer, s.m_count);
     }
 
+    template<SIZE_T bufferLength> BOOL Set(const T (&buffer)[bufferLength])
+    {
+        // bufferLength includes terminator character
+        return Set(buffer, bufferLength - 1);
+    }
+
     SIZE_T GetCount() const
     {
         return m_count;
     }
-    
+
     SIZE_T GetSizeOf() const
     {
         return m_size * sizeof(T);
@@ -157,6 +163,11 @@ public:
         return result;
     }
 
+    T * OpenStringBuffer()
+    {
+        return m_buffer;
+    }
+
     //count should not include the terminating null
     void CloseBuffer(SIZE_T count)
     {
@@ -166,13 +177,13 @@ public:
         NullTerminate();
         return;
     }
-    
+
     //Call this with the best estimate if you want to
-    //prevent possible reallocations on further operations 
+    //prevent possible reallocations on further operations
     BOOL Reserve(SIZE_T count)
     {
         SIZE_T endpos = m_count;
-        
+
         if (!Resize(count))
             return FALSE;
 
@@ -198,42 +209,60 @@ public:
     {
         return Append(s.GetString(), s.GetCount());
     }
-   
-   BOOL IsEmpty()
-   {
-       return 0 == m_buffer[0];
-   }
 
-   void Clear()
-   {
-       m_count = 0;
-       NullTerminate();
-   }
-   ~StackString()
-   {
-       DeleteBuffer();
-   }
+    template<SIZE_T bufferLength> BOOL Append(const T (&buffer)[bufferLength])
+    {
+        // bufferLength includes terminator character
+        return Append(buffer, bufferLength - 1);
+    }
+
+    BOOL Append(T ch)
+    {
+        SIZE_T endpos = m_count;
+        if (!Resize(m_count + 1))
+            return FALSE;
+
+        m_buffer[endpos] = ch;
+        NullTerminate();
+        return TRUE;
+    }
+
+    BOOL IsEmpty()
+    {
+        return 0 == m_buffer[0];
+    }
+
+    void Clear()
+    {
+        m_count = 0;
+        NullTerminate();
+    }
+
+    ~StackString()
+    {
+        DeleteBuffer();
+    }
 };
 
 #if _DEBUG
 typedef StackString<32, CHAR> PathCharString;
-typedef StackString<32, WCHAR> PathWCharString; 
+typedef StackString<32, WCHAR> PathWCharString;
 #else
-typedef StackString<260, CHAR> PathCharString;
-typedef StackString<260, WCHAR> PathWCharString; 
+typedef StackString<MAX_PATH, CHAR> PathCharString;
+typedef StackString<MAX_PATH, WCHAR> PathWCharString;
 #endif
 #endif
 
 // Some Helper Definitions
-BOOL 
+BOOL
 PAL_GetPALDirectoryW(
         PathWCharString& lpDirectoryName);
-BOOL 
+BOOL
 PAL_GetPALDirectoryA(
         PathCharString& lpDirectoryName);
 DWORD
 GetCurrentDirectoryA(
          PathCharString& lpBuffer);
-void 
+void
 FILEDosToUnixPathA(
         PathCharString& lpPath);

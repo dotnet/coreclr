@@ -15,7 +15,7 @@ namespace System
     /// </summary>
     internal class __ComObject : MarshalByRefObject
     {
-        private Hashtable m_ObjectToDataMap; // Do not rename (runtime relies on this name).
+        private Hashtable? m_ObjectToDataMap; // Do not rename (runtime relies on this name).
 
         /// <summary>
         /// Default constructor - can't instantiate this directly.
@@ -33,7 +33,7 @@ namespace System
             // Only do the IStringable cast when running under AppX for better compat
             // Otherwise we could do a IStringable cast in classic apps which could introduce
             // a thread transition which would lead to deadlock.
-            if (AppDomain.IsAppXModel())
+            if (ApplicationModel.IsUap)
             {
                 // Check whether the type implements IStringable.
                 if (this is IStringable stringableType)
@@ -42,15 +42,15 @@ namespace System
                 }
             }
 
-            return base.ToString();
+            return base.ToString()!;
         }
 
         /// <summary>
         /// Retrieves the data associated with the specified if such data exists.
         /// </summary>
-        internal object GetData(object key)
+        internal object? GetData(object key)
         {
-            object data = null;
+            object? data = null;
 
             // Synchronize access to the map.
             lock (this)
@@ -69,7 +69,7 @@ namespace System
         /// <summary>
         /// Sets the data for the specified key on the current __ComObject.
         /// </summary>
-        internal bool SetData(object key, object data)
+        internal bool SetData(object key, object? data)
         {
             bool bAdded = false;
 
@@ -77,10 +77,7 @@ namespace System
             lock (this)
             {
                 // If the map hasn't been allocated yet, allocate it.
-                if (m_ObjectToDataMap == null)
-                {
-                    m_ObjectToDataMap = new Hashtable();
-                }
+                m_ObjectToDataMap ??= new Hashtable();
 
                 // If there isn't already data in the map then add it.
                 if (m_ObjectToDataMap[key] == null)
@@ -104,7 +101,7 @@ namespace System
                 // If the map hasn't been allocated, then there is nothing to do.
                 if (m_ObjectToDataMap != null)
                 {
-                    foreach (object o in m_ObjectToDataMap.Values)
+                    foreach (object? o in m_ObjectToDataMap.Values)
                     {
                         // Note: the value could be an object[]
                         // We are fine for now as object[] doesn't implement IDisposable nor derive from __ComObject
@@ -123,14 +120,14 @@ namespace System
                 }
             }
         }
-        
+
         /// <summary>
         /// Called from within the EE and is used to handle calls on methods of event interfaces.
         /// </summary>
         internal object GetEventProvider(RuntimeType t)
         {
             // Check to see if we already have a cached event provider for this type.
-            object provider = GetData(t);
+            object? provider = GetData(t);
             if (provider != null)
             {
                 return provider;
@@ -147,7 +144,7 @@ namespace System
         private object CreateEventProvider(RuntimeType t)
         {
             // Create the event provider for the specified type.
-            object EvProvider = Activator.CreateInstance(t, Activator.ConstructorDefault | BindingFlags.NonPublic, null, new object[] { this }, null);
+            object EvProvider = Activator.CreateInstance(t, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.CreateInstance, null, new object[] { this }, null)!;
 
             // Attempt to cache the wrapper on the object.
             if (!SetData(t, EvProvider))
@@ -159,7 +156,7 @@ namespace System
                 }
 
                 // Another thead already cached the wrapper so use that one instead.
-                EvProvider = GetData(t);
+                EvProvider = GetData(t)!;
             }
 
             return EvProvider;

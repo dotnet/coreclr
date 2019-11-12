@@ -215,7 +215,7 @@ flowList* Compiler::BlockPredsWithEH(BasicBlock* blk)
 //------------------------------------------------------------------------
 // dspBlockILRange(): Display the block's IL range as [XXX...YYY), where XXX and YYY might be "???" for BAD_IL_OFFSET.
 //
-void BasicBlock::dspBlockILRange()
+void BasicBlock::dspBlockILRange() const
 {
     if (bbCodeOffs != BAD_IL_OFFSET)
     {
@@ -333,12 +333,12 @@ void BasicBlock::dspFlags()
     {
         printf("newobj ");
     }
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
     if (bbFlags & BBF_FINALLY_TARGET)
     {
         printf("ftarget ");
     }
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
     if (bbFlags & BBF_BACKWARD_JUMP)
     {
         printf("bwd ");
@@ -611,7 +611,7 @@ void* BasicBlock::MemoryPhiArg::operator new(size_t sz, Compiler* comp)
 bool BasicBlock::CloneBlockState(
     Compiler* compiler, BasicBlock* to, const BasicBlock* from, unsigned varNum, int varVal)
 {
-    assert(to->bbTreeList == nullptr);
+    assert(to->bbStmtList == nullptr);
 
     to->bbFlags  = from->bbFlags;
     to->bbWeight = from->bbWeight;
@@ -631,9 +631,9 @@ bool BasicBlock::CloneBlockState(
     to->bbTgtStkDepth = from->bbTgtStkDepth;
 #endif // DEBUG
 
-    for (GenTree* fromStmt = from->bbTreeList; fromStmt != nullptr; fromStmt = fromStmt->gtNext)
+    for (Statement* fromStmt : from->Statements())
     {
-        auto newExpr = compiler->gtCloneExpr(fromStmt->gtStmt.gtStmtExpr, 0, varNum, varVal);
+        auto newExpr = compiler->gtCloneExpr(fromStmt->GetRootNode(), 0, varNum, varVal);
         if (!newExpr)
         {
             // gtCloneExpr doesn't handle all opcodes, so may fail to clone a statement.
@@ -660,8 +660,8 @@ void BasicBlock::MakeLIR(GenTree* firstNode, GenTree* lastNode)
 
 bool BasicBlock::IsLIR()
 {
-    const bool isLIR = (bbFlags & BBF_IS_LIR) != 0;
-    assert((bbTreeList == nullptr) || ((isLIR) == !bbTreeList->IsStatement()));
+    assert(isValid());
+    const bool isLIR = ((bbFlags & BBF_IS_LIR) != 0);
     return isLIR;
 }
 
@@ -672,16 +672,11 @@ bool BasicBlock::IsLIR()
 //    None.
 //
 // Return Value:
-//    The first statement in the block's bbTreeList.
+//    The first statement in the block's bbStmtList.
 //
-GenTreeStmt* BasicBlock::firstStmt() const
+Statement* BasicBlock::firstStmt() const
 {
-    if (bbTreeList == nullptr)
-    {
-        return nullptr;
-    }
-
-    return bbTreeList->AsStmt();
+    return bbStmtList;
 }
 
 //------------------------------------------------------------------------
@@ -691,18 +686,18 @@ GenTreeStmt* BasicBlock::firstStmt() const
 //    None.
 //
 // Return Value:
-//    The last statement in the block's bbTreeList.
+//    The last statement in the block's bbStmtList.
 //
-GenTreeStmt* BasicBlock::lastStmt() const
+Statement* BasicBlock::lastStmt() const
 {
-    if (bbTreeList == nullptr)
+    if (bbStmtList == nullptr)
     {
         return nullptr;
     }
 
-    GenTree* result = bbTreeList->gtPrev;
-    assert(result && result->gtNext == nullptr);
-    return result->AsStmt();
+    Statement* result = bbStmtList->GetPrevStmt();
+    assert(result != nullptr && result->GetNextStmt() == nullptr);
+    return result;
 }
 
 //------------------------------------------------------------------------
@@ -710,7 +705,7 @@ GenTreeStmt* BasicBlock::lastStmt() const
 //
 GenTree* BasicBlock::firstNode()
 {
-    return IsLIR() ? bbTreeList : Compiler::fgGetFirstNode(firstStmt()->gtStmtExpr);
+    return IsLIR() ? GetFirstLIRNode() : Compiler::fgGetFirstNode(firstStmt()->GetRootNode());
 }
 
 //------------------------------------------------------------------------
@@ -718,7 +713,7 @@ GenTree* BasicBlock::firstNode()
 //
 GenTree* BasicBlock::lastNode()
 {
-    return IsLIR() ? m_lastNode : lastStmt()->gtStmtExpr;
+    return IsLIR() ? m_lastNode : lastStmt()->GetRootNode();
 }
 
 //------------------------------------------------------------------------
@@ -807,39 +802,60 @@ bool BasicBlock::isEmpty()
     return true;
 }
 
-GenTreeStmt* BasicBlock::FirstNonPhiDef()
+//------------------------------------------------------------------------
+// isValid: Checks that the basic block doesn't mix statements and LIR lists.
+//
+// Return Value:
+//    True if it a valid basic block.
+//
+bool BasicBlock::isValid()
 {
-    GenTree* stmt = bbTreeList;
+    const bool isLIR = ((bbFlags & BBF_IS_LIR) != 0);
+    if (isLIR)
+    {
+        // Should not have statements in LIR.
+        return (bbStmtList == nullptr);
+    }
+    else
+    {
+        // Should not have tree list before LIR.
+        return (GetFirstLIRNode() == nullptr);
+    }
+}
+
+Statement* BasicBlock::FirstNonPhiDef()
+{
+    Statement* stmt = firstStmt();
     if (stmt == nullptr)
     {
         return nullptr;
     }
-    GenTree* tree = stmt->gtStmt.gtStmtExpr;
-    while ((tree->OperGet() == GT_ASG && tree->gtOp.gtOp2->OperGet() == GT_PHI) ||
-           (tree->OperGet() == GT_STORE_LCL_VAR && tree->gtOp.gtOp1->OperGet() == GT_PHI))
+    GenTree* tree = stmt->GetRootNode();
+    while ((tree->OperGet() == GT_ASG && tree->AsOp()->gtOp2->OperGet() == GT_PHI) ||
+           (tree->OperGet() == GT_STORE_LCL_VAR && tree->AsOp()->gtOp1->OperGet() == GT_PHI))
     {
-        stmt = stmt->gtNext;
+        stmt = stmt->GetNextStmt();
         if (stmt == nullptr)
         {
             return nullptr;
         }
-        tree = stmt->gtStmt.gtStmtExpr;
+        tree = stmt->GetRootNode();
     }
-    return stmt->AsStmt();
+    return stmt;
 }
 
-GenTree* BasicBlock::FirstNonPhiDefOrCatchArgAsg()
+Statement* BasicBlock::FirstNonPhiDefOrCatchArgAsg()
 {
-    GenTree* stmt = FirstNonPhiDef();
+    Statement* stmt = FirstNonPhiDef();
     if (stmt == nullptr)
     {
         return nullptr;
     }
-    GenTree* tree = stmt->gtStmt.gtStmtExpr;
-    if ((tree->OperGet() == GT_ASG && tree->gtOp.gtOp2->OperGet() == GT_CATCH_ARG) ||
-        (tree->OperGet() == GT_STORE_LCL_VAR && tree->gtOp.gtOp1->OperGet() == GT_CATCH_ARG))
+    GenTree* tree = stmt->GetRootNode();
+    if ((tree->OperGet() == GT_ASG && tree->AsOp()->gtOp2->OperGet() == GT_CATCH_ARG) ||
+        (tree->OperGet() == GT_STORE_LCL_VAR && tree->AsOp()->gtOp1->OperGet() == GT_CATCH_ARG))
     {
-        stmt = stmt->gtNext;
+        stmt = stmt->GetNextStmt();
     }
     return stmt;
 }
@@ -1356,4 +1372,215 @@ BasicBlock* Compiler::bbNewBasicBlock(BBjumpKinds jumpKind)
     block->bbNatLoopNum = BasicBlock::NOT_IN_LOOP;
 
     return block;
+}
+
+//------------------------------------------------------------------------
+// hasEHBoundaryIn: Determine if this block begins at an EH boundary.
+//
+// Return Value:
+//    True iff the block is the target of an EH edge; false otherwise.
+//
+// Notes:
+//    For the purposes of this method (and its callers), an EH edge is one on
+//    which the EH flow model requires that all lclVars must be reloaded from
+//    the stack before use, since control flow may transfer to this block through
+//    control flow that is not reflected in the flowgraph.
+//    Note that having a predecessor in a different EH region doesn't require
+//    that lclVars must be reloaded from the stack. That's only required when
+//    this block might be entered via flow that is not represented by an edge
+//    in the flowgraph.
+//
+bool BasicBlock::hasEHBoundaryIn()
+{
+    bool returnVal = (bbCatchTyp != BBCT_NONE);
+    if (!returnVal)
+    {
+#if FEATURE_EH_FUNCLETS
+        assert((bbFlags & BBF_FUNCLET_BEG) == 0);
+#endif // FEATURE_EH_FUNCLETS
+    }
+    return returnVal;
+}
+
+//------------------------------------------------------------------------
+// hasEHBoundaryOut: Determine if this block ends in an EH boundary.
+//
+// Return Value:
+//    True iff the block ends in an exception boundary that requires that no lclVars
+//    are live in registers; false otherwise.
+//
+// Notes:
+//    We may have a successor in a different EH region, but it is OK to have lclVars
+//    live in registers if any successor is a normal flow edge. That's because the
+//    EH write-thru semantics ensure that we always have an up-to-date value on the stack.
+//
+bool BasicBlock::hasEHBoundaryOut()
+{
+    bool returnVal = false;
+    // If a block is marked BBF_KEEP_BBJ_ALWAYS, it is always paired with its predecessor which is an
+    // EH boundary block. It must remain empty, and we must not have any live incoming vars in registers,
+    // in particular because we can't perform resolution if there are mismatches across edges.
+    if ((bbFlags & BBF_KEEP_BBJ_ALWAYS) != 0)
+    {
+        returnVal = true;
+    }
+
+    if (bbJumpKind == BBJ_EHFILTERRET)
+    {
+        returnVal = true;
+    }
+
+    if (bbJumpKind == BBJ_EHFINALLYRET)
+    {
+        returnVal = true;
+    }
+
+#if FEATURE_EH_FUNCLETS
+    if (bbJumpKind == BBJ_EHCATCHRET)
+    {
+        returnVal = true;
+    }
+#endif // FEATURE_EH_FUNCLETS
+
+    return returnVal;
+}
+
+//------------------------------------------------------------------------------
+// DisplayStaticSizes: display various static sizes of the BasicBlock data structure.
+//
+// Arguments:
+//    fout  - where to write the output
+//
+// Return Value:
+//    None
+//
+// Note: This function only does something if MEASURE_BLOCK_SIZE is defined, which it might
+// be in private Release builds.
+//
+/* static */
+void BasicBlock::DisplayStaticSizes(FILE* fout)
+{
+#if MEASURE_BLOCK_SIZE
+
+    BasicBlock* bbDummy = nullptr;
+
+    fprintf(fout, "\n");
+    fprintf(fout, "Offset / size of bbNext                = %3u / %3u\n", offsetof(BasicBlock, bbNext),
+            sizeof(bbDummy->bbNext));
+    fprintf(fout, "Offset / size of bbPrev                = %3u / %3u\n", offsetof(BasicBlock, bbPrev),
+            sizeof(bbDummy->bbPrev));
+    fprintf(fout, "Offset / size of bbFlags               = %3u / %3u\n", offsetof(BasicBlock, bbFlags),
+            sizeof(bbDummy->bbFlags));
+    fprintf(fout, "Offset / size of bbNum                 = %3u / %3u\n", offsetof(BasicBlock, bbNum),
+            sizeof(bbDummy->bbNum));
+    fprintf(fout, "Offset / size of bbPostOrderNum        = %3u / %3u\n", offsetof(BasicBlock, bbPostOrderNum),
+            sizeof(bbDummy->bbPostOrderNum));
+    fprintf(fout, "Offset / size of bbRefs                = %3u / %3u\n", offsetof(BasicBlock, bbRefs),
+            sizeof(bbDummy->bbRefs));
+    fprintf(fout, "Offset / size of bbWeight              = %3u / %3u\n", offsetof(BasicBlock, bbWeight),
+            sizeof(bbDummy->bbWeight));
+    fprintf(fout, "Offset / size of bbJumpKind            = %3u / %3u\n", offsetof(BasicBlock, bbJumpKind),
+            sizeof(bbDummy->bbJumpKind));
+    fprintf(fout, "Offset / size of bbJumpOffs            = %3u / %3u\n", offsetof(BasicBlock, bbJumpOffs),
+            sizeof(bbDummy->bbJumpOffs));
+    fprintf(fout, "Offset / size of bbJumpDest            = %3u / %3u\n", offsetof(BasicBlock, bbJumpDest),
+            sizeof(bbDummy->bbJumpDest));
+    fprintf(fout, "Offset / size of bbJumpSwt             = %3u / %3u\n", offsetof(BasicBlock, bbJumpSwt),
+            sizeof(bbDummy->bbJumpSwt));
+    fprintf(fout, "Offset / size of bbEntryState          = %3u / %3u\n", offsetof(BasicBlock, bbEntryState),
+            sizeof(bbDummy->bbEntryState));
+    fprintf(fout, "Offset / size of bbStkTempsIn          = %3u / %3u\n", offsetof(BasicBlock, bbStkTempsIn),
+            sizeof(bbDummy->bbStkTempsIn));
+    fprintf(fout, "Offset / size of bbStkTempsOut         = %3u / %3u\n", offsetof(BasicBlock, bbStkTempsOut),
+            sizeof(bbDummy->bbStkTempsOut));
+    fprintf(fout, "Offset / size of bbTryIndex            = %3u / %3u\n", offsetof(BasicBlock, bbTryIndex),
+            sizeof(bbDummy->bbTryIndex));
+    fprintf(fout, "Offset / size of bbHndIndex            = %3u / %3u\n", offsetof(BasicBlock, bbHndIndex),
+            sizeof(bbDummy->bbHndIndex));
+    fprintf(fout, "Offset / size of bbCatchTyp            = %3u / %3u\n", offsetof(BasicBlock, bbCatchTyp),
+            sizeof(bbDummy->bbCatchTyp));
+    fprintf(fout, "Offset / size of bbStkDepth            = %3u / %3u\n", offsetof(BasicBlock, bbStkDepth),
+            sizeof(bbDummy->bbStkDepth));
+    fprintf(fout, "Offset / size of bbFPinVars            = %3u / %3u\n", offsetof(BasicBlock, bbFPinVars),
+            sizeof(bbDummy->bbFPinVars));
+    fprintf(fout, "Offset / size of bbCheapPreds          = %3u / %3u\n", offsetof(BasicBlock, bbCheapPreds),
+            sizeof(bbDummy->bbCheapPreds));
+    fprintf(fout, "Offset / size of bbPreds               = %3u / %3u\n", offsetof(BasicBlock, bbPreds),
+            sizeof(bbDummy->bbPreds));
+    fprintf(fout, "Offset / size of bbReach               = %3u / %3u\n", offsetof(BasicBlock, bbReach),
+            sizeof(bbDummy->bbReach));
+    fprintf(fout, "Offset / size of bbIDom                = %3u / %3u\n", offsetof(BasicBlock, bbIDom),
+            sizeof(bbDummy->bbIDom));
+    fprintf(fout, "Offset / size of bbDfsNum              = %3u / %3u\n", offsetof(BasicBlock, bbDfsNum),
+            sizeof(bbDummy->bbDfsNum));
+    fprintf(fout, "Offset / size of bbCodeOffs            = %3u / %3u\n", offsetof(BasicBlock, bbCodeOffs),
+            sizeof(bbDummy->bbCodeOffs));
+    fprintf(fout, "Offset / size of bbCodeOffsEnd         = %3u / %3u\n", offsetof(BasicBlock, bbCodeOffsEnd),
+            sizeof(bbDummy->bbCodeOffsEnd));
+    fprintf(fout, "Offset / size of bbVarUse              = %3u / %3u\n", offsetof(BasicBlock, bbVarUse),
+            sizeof(bbDummy->bbVarUse));
+    fprintf(fout, "Offset / size of bbVarDef              = %3u / %3u\n", offsetof(BasicBlock, bbVarDef),
+            sizeof(bbDummy->bbVarDef));
+    fprintf(fout, "Offset / size of bbLiveIn              = %3u / %3u\n", offsetof(BasicBlock, bbLiveIn),
+            sizeof(bbDummy->bbLiveIn));
+    fprintf(fout, "Offset / size of bbLiveOut             = %3u / %3u\n", offsetof(BasicBlock, bbLiveOut),
+            sizeof(bbDummy->bbLiveOut));
+    // Can't do bitfield bbMemoryUse, bbMemoryDef, bbMemoryLiveIn, bbMemoryLiveOut, bbMemoryHavoc
+    fprintf(fout, "Offset / size of bbMemorySsaPhiFunc    = %3u / %3u\n", offsetof(BasicBlock, bbMemorySsaPhiFunc),
+            sizeof(bbDummy->bbMemorySsaPhiFunc));
+    fprintf(fout, "Offset / size of bbMemorySsaNumIn      = %3u / %3u\n", offsetof(BasicBlock, bbMemorySsaNumIn),
+            sizeof(bbDummy->bbMemorySsaNumIn));
+    fprintf(fout, "Offset / size of bbMemorySsaNumOut     = %3u / %3u\n", offsetof(BasicBlock, bbMemorySsaNumOut),
+            sizeof(bbDummy->bbMemorySsaNumOut));
+    fprintf(fout, "Offset / size of bbScope               = %3u / %3u\n", offsetof(BasicBlock, bbScope),
+            sizeof(bbDummy->bbScope));
+    fprintf(fout, "Offset / size of bbCseGen              = %3u / %3u\n", offsetof(BasicBlock, bbCseGen),
+            sizeof(bbDummy->bbCseGen));
+#if ASSERTION_PROP
+    fprintf(fout, "Offset / size of bbAssertionGen        = %3u / %3u\n", offsetof(BasicBlock, bbAssertionGen),
+            sizeof(bbDummy->bbAssertionGen));
+#endif // ASSERTION_PROP
+    fprintf(fout, "Offset / size of bbCseIn               = %3u / %3u\n", offsetof(BasicBlock, bbCseIn),
+            sizeof(bbDummy->bbCseIn));
+#if ASSERTION_PROP
+    fprintf(fout, "Offset / size of bbAssertionIn         = %3u / %3u\n", offsetof(BasicBlock, bbAssertionIn),
+            sizeof(bbDummy->bbAssertionIn));
+#endif // ASSERTION_PROP
+    fprintf(fout, "Offset / size of bbCseOut              = %3u / %3u\n", offsetof(BasicBlock, bbCseOut),
+            sizeof(bbDummy->bbCseOut));
+#if ASSERTION_PROP
+    fprintf(fout, "Offset / size of bbAssertionOut        = %3u / %3u\n", offsetof(BasicBlock, bbAssertionOut),
+            sizeof(bbDummy->bbAssertionOut));
+#endif // ASSERTION_PROP
+    fprintf(fout, "Offset / size of bbEmitCookie          = %3u / %3u\n", offsetof(BasicBlock, bbEmitCookie),
+            sizeof(bbDummy->bbEmitCookie));
+
+#if defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
+    fprintf(fout, "Offset / size of bbUnwindNopEmitCookie = %3u / %3u\n", offsetof(BasicBlock, bbUnwindNopEmitCookie),
+            sizeof(bbDummy->bbUnwindNopEmitCookie));
+#endif // defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
+
+#ifdef VERIFIER
+    fprintf(fout, "Offset / size of bbStackIn             = %3u / %3u\n", offsetof(BasicBlock, bbStackIn),
+            sizeof(bbDummy->bbStackIn));
+    fprintf(fout, "Offset / size of bbStackOut            = %3u / %3u\n", offsetof(BasicBlock, bbStackOut),
+            sizeof(bbDummy->bbStackOut));
+    fprintf(fout, "Offset / size of bbTypesIn             = %3u / %3u\n", offsetof(BasicBlock, bbTypesIn),
+            sizeof(bbDummy->bbTypesIn));
+    fprintf(fout, "Offset / size of bbTypesOut            = %3u / %3u\n", offsetof(BasicBlock, bbTypesOut),
+            sizeof(bbDummy->bbTypesOut));
+#endif // VERIFIER
+
+#ifdef DEBUG
+    fprintf(fout, "Offset / size of bbLoopNum             = %3u / %3u\n", offsetof(BasicBlock, bbLoopNum),
+            sizeof(bbDummy->bbLoopNum));
+#endif // DEBUG
+
+    fprintf(fout, "Offset / size of bbNatLoopNum          = %3u / %3u\n", offsetof(BasicBlock, bbNatLoopNum),
+            sizeof(bbDummy->bbNatLoopNum));
+
+    fprintf(fout, "\n");
+    fprintf(fout, "Size of BasicBlock                     = %3u\n", sizeof(BasicBlock));
+
+#endif // MEASURE_BLOCK_SIZE
 }

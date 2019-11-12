@@ -16,7 +16,7 @@
 //-----------------------------------------------------------------------------
 // Widechar strings representing the units in UnitOfMeasure. *** Keep in sync  ***
 // with the array defined in PerfLog.cpp
-const wchar_t * const wszUnitOfMeasureDescr[MAX_UNITS_OF_MEASURE] =
+const WCHAR * const wszUnitOfMeasureDescr[MAX_UNITS_OF_MEASURE] =
 {
     W(""),
     W("sec"),
@@ -33,7 +33,7 @@ const wchar_t * const wszUnitOfMeasureDescr[MAX_UNITS_OF_MEASURE] =
 // a degrade.
 // "Direction" property is true if an increase in the value of the counter indicates
 // an improvement.
-const wchar_t * const wszIDirection[MAX_UNITS_OF_MEASURE] =
+const WCHAR * const wszIDirection[MAX_UNITS_OF_MEASURE] =
 {
     W("false"),
     W("false"),
@@ -46,7 +46,7 @@ const wchar_t * const wszIDirection[MAX_UNITS_OF_MEASURE] =
 //-----------------------------------------------------------------------------
 // Initialize static variables of the PerfLog class.
 bool PerfLog::m_perfLogInit = false;
-wchar_t PerfLog::m_wszOutStr_1[];
+WCHAR PerfLog::m_wszOutStr_1[];
 DWORD PerfLog::m_dwWriteByte = 0;
 int PerfLog::m_fLogPerfData = 0;
 HANDLE PerfLog::m_hPerfLogFileHandle = 0;
@@ -58,7 +58,7 @@ bool PerfLog::m_commaSeparatedFormat = false;
 void PerfLog::PerfLogInitialize()
 {
     LIMITED_METHOD_CONTRACT;
-    
+
     // Make sure we are called only once.
     if (m_perfLogInit)
     {
@@ -71,7 +71,7 @@ void PerfLog::PerfLogInitialize()
     // Checks the JIT_PERF_OUTPUT env var and sets g_fJitPerfOn.
     InitJitPerf();
 #endif
-    
+
 #ifdef WS_PERF
     // Private working set perf stats
     InitWSPerf();
@@ -107,7 +107,7 @@ void PerfLog::PerfLogInitialize()
         m_perfAutomationFormat = true;
     if (_cchValue && (wcscmp (_lpszValue, W("CSV")) == 0))
         m_commaSeparatedFormat = true;
-    
+
     if (PerfAutomationFormat() || CommaSeparatedFormat())
     {
         // Hardcoded file name for spitting the perf auotmation formatted perf data. Open
@@ -119,7 +119,7 @@ void PerfLog::PerfLogInitialize()
                                               W("C:\\PerfData.dat"),
 #endif
                                               GENERIC_WRITE,
-                                              FILE_SHARE_WRITE,    
+                                              FILE_SHARE_WRITE,
                                               0,
                                               OPEN_ALWAYS,
                                               FILE_ATTRIBUTE_NORMAL,
@@ -138,7 +138,7 @@ void PerfLog::PerfLogInitialize()
             CloseHandle (m_hPerfLogFileHandle);
             m_fLogPerfData = 0;
             goto ErrExit;
-        }    
+        }
     }
 
     m_perfLogInit = true;
@@ -171,27 +171,27 @@ void PerfLog::PerfLogDone()
         CloseHandle (m_hPerfLogFileHandle);
 }
 
-void PerfLog::OutToStdout(__in_z const wchar_t *wszName, UnitOfMeasure unit, __in_opt const wchar_t *wszDescr)
+void PerfLog::OutToStdout(__in_z const WCHAR *wszName, UnitOfMeasure unit, __in_opt const WCHAR *wszDescr)
 {
     LIMITED_METHOD_CONTRACT;
 
-    wchar_t wszOutStr_2[PRINT_STR_LEN];
-    
+    WCHAR wszOutStr_2[PRINT_STR_LEN];
+
     if (wszDescr)
         _snwprintf_s(wszOutStr_2, PRINT_STR_LEN, PRINT_STR_LEN - 1, W(" (%s)\n"), wszDescr);
     else
         _snwprintf_s(wszOutStr_2, PRINT_STR_LEN, PRINT_STR_LEN - 1, W("\n"));
-    
+
     printf("%S", m_wszOutStr_1);
     printf("%S", wszOutStr_2);
 }
 
-void PerfLog::OutToPerfFile(__in_z const wchar_t *wszName, UnitOfMeasure unit, __in_opt const wchar_t *wszDescr)
+void PerfLog::OutToPerfFile(__in_z const WCHAR *wszName, UnitOfMeasure unit, __in_opt const WCHAR *wszDescr)
 {
     LIMITED_METHOD_CONTRACT;
-    
+
     char szPrintStr[PRINT_STR_LEN];
-    
+
     if (CommaSeparatedFormat())
     {
         if (WszWideCharToMultiByte (CP_ACP, 0, m_wszOutStr_1, -1, szPrintStr, PRINT_STR_LEN-1, 0, 0) ) {
@@ -199,12 +199,12 @@ void PerfLog::OutToPerfFile(__in_z const wchar_t *wszName, UnitOfMeasure unit, _
                 printf("ERROR: Could not write to perf log.\n");
         }
         else
-            wprintf(W("ERROR: Could not do string conversion.\n"));        
+            wprintf(W("ERROR: Could not do string conversion.\n"));
     }
     else
     {
-        wchar_t wszOutStr_2[PRINT_STR_LEN];
-    
+        WCHAR wszOutStr_2[PRINT_STR_LEN];
+
         // workaround. The formats for ExecTime is slightly different from a custom value.
         if (wcscmp(wszName, W("ExecTime")) == 0)
             _snwprintf_s(wszOutStr_2, PRINT_STR_LEN, PRINT_STR_LEN - 1, W("ExecUnitDescr=%s\nExecIDirection=%s\n"), wszDescr, wszIDirection[unit]);
@@ -220,25 +220,25 @@ void PerfLog::OutToPerfFile(__in_z const wchar_t *wszName, UnitOfMeasure unit, _
         if(WszWideCharToMultiByte (CP_ACP, 0, m_wszOutStr_1, -1, szPrintStr, PRINT_STR_LEN-1, 0, 0) ) {
             if (0 == WriteFile (m_hPerfLogFileHandle, szPrintStr, (DWORD)strlen(szPrintStr), &m_dwWriteByte, NULL))
                 printf("ERROR: Could not write to perf log.\n");
-        } 
-        else 
+        }
+        else
             wprintf(W("ERROR: Could not do string conversion.\n"));
-                
+
         if(WszWideCharToMultiByte (CP_ACP, 0, wszOutStr_2, -1, szPrintStr, PRINT_STR_LEN-1, 0, 0)) {
             if (0 == WriteFile (m_hPerfLogFileHandle, szPrintStr, (DWORD)strlen(szPrintStr), &m_dwWriteByte, NULL))
                 printf("ERROR: Could not write to perf log.\n");
         }
-        else 
+        else
             wprintf(W("ERROR: Could not do string conversion.\n"));
     }
 }
 
-// Output stats in pretty print to stdout and perf automation format to file 
+// Output stats in pretty print to stdout and perf automation format to file
 // handle m_hPerfLogFileHandle
-void PerfLog::Log(__in_z const wchar_t *wszName, UINT64 val, UnitOfMeasure unit, __in_opt const wchar_t *wszDescr)
+void PerfLog::Log(__in_z const WCHAR *wszName, UINT64 val, UnitOfMeasure unit, __in_opt const WCHAR *wszDescr)
 {
     LIMITED_METHOD_CONTRACT;
-    
+
     // Format the output into two pieces: The first piece is formatted here, rest in OutToStdout.
     _snwprintf_s(m_wszOutStr_1, PRINT_STR_LEN, PRINT_STR_LEN - 1, W("%-30s%12.3I64u %s"), wszName, val, wszUnitOfMeasureDescr[unit]);
     OutToStdout (wszName, unit, wszDescr);
@@ -249,7 +249,7 @@ void PerfLog::Log(__in_z const wchar_t *wszName, UINT64 val, UnitOfMeasure unit,
         _snwprintf_s(m_wszOutStr_1, PRINT_STR_LEN, PRINT_STR_LEN - 1, W("%s;%0.3I64u;"), wszName, val);
         OutToPerfFile (wszName, unit, wszDescr);
     }
-    
+
     if (PerfAutomationFormat())
     {
         // workaround, Special case for ExecTime. since the format is slightly different than for custom value.
@@ -261,12 +261,12 @@ void PerfLog::Log(__in_z const wchar_t *wszName, UINT64 val, UnitOfMeasure unit,
     }
 }
 
-// Output stats in pretty print to stdout and perf automation format to file 
+// Output stats in pretty print to stdout and perf automation format to file
 // handle m_hPerfLogFileHandle
-void PerfLog::Log(__in_z const wchar_t *wszName, double val, UnitOfMeasure unit, __in_opt const wchar_t *wszDescr)
+void PerfLog::Log(__in_z const WCHAR *wszName, double val, UnitOfMeasure unit, __in_opt const WCHAR *wszDescr)
 {
     LIMITED_METHOD_CONTRACT;
-    
+
     // Format the output into two pieces: The first piece is formatted here, rest in OutToStdout.
     _snwprintf_s(m_wszOutStr_1, PRINT_STR_LEN, PRINT_STR_LEN - 1, W("%-30s%12.3g %s"), wszName, val, wszUnitOfMeasureDescr[unit]);
     OutToStdout (wszName, unit, wszDescr);
@@ -277,7 +277,7 @@ void PerfLog::Log(__in_z const wchar_t *wszName, double val, UnitOfMeasure unit,
         _snwprintf_s(m_wszOutStr_1, PRINT_STR_LEN, PRINT_STR_LEN - 1, W("%s;%0.3g;"), wszName, val);
         OutToPerfFile (wszName, unit, wszDescr);
     }
-    
+
     if (PerfAutomationFormat())
     {
         // workaround, Special case for ExecTime. since the format is slightly different than for custom value.
@@ -289,12 +289,12 @@ void PerfLog::Log(__in_z const wchar_t *wszName, double val, UnitOfMeasure unit,
     }
 }
 
-// Output stats in pretty print to stdout and perf automation format to file 
+// Output stats in pretty print to stdout and perf automation format to file
 // handle m_hPerfLogFileHandle
-void PerfLog::Log(__in_z const wchar_t *wszName, UINT32 val, UnitOfMeasure unit, __in_opt const wchar_t *wszDescr)
+void PerfLog::Log(__in_z const WCHAR *wszName, UINT32 val, UnitOfMeasure unit, __in_opt const WCHAR *wszDescr)
 {
     LIMITED_METHOD_CONTRACT;
-    
+
     // Format the output into two pieces: The first piece is formatted here, rest in OutToStdout.
 
     _snwprintf_s(m_wszOutStr_1, PRINT_STR_LEN, PRINT_STR_LEN - 1, W("%-30s%12d %s"), wszName, val, wszUnitOfMeasureDescr[unit]);
@@ -306,7 +306,7 @@ void PerfLog::Log(__in_z const wchar_t *wszName, UINT32 val, UnitOfMeasure unit,
         _snwprintf_s(m_wszOutStr_1, PRINT_STR_LEN, PRINT_STR_LEN - 1, W("%s;%d;"), wszName, val);
         OutToPerfFile (wszName, unit, wszDescr);
     }
-    
+
     if (PerfAutomationFormat())
     {
         // workaround, Special case for ExecTime. since the format is slightly different than for custom value.

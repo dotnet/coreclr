@@ -148,7 +148,7 @@ namespace R2RDump
         }
 
         //
-        // The enumerator does not conform to the regular C# enumerator pattern to avoid paying 
+        // The enumerator does not conform to the regular C# enumerator pattern to avoid paying
         // its performance penalty (allocation, multiple calls per iteration)
         //
         public struct Enumerator
@@ -236,6 +236,63 @@ namespace R2RDump
         public AllEntriesEnumerator EnumerateAllEntries()
         {
             return new AllEntriesEnumerator(this);
+        }
+    }
+
+    /// <summary>
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/vm/nativeformatreader.h">NativeFormat::NativeHashtable</a>
+    /// </summary>
+    struct NativeCuckooFilter
+    {
+        private byte[] _image;
+        private int _filterStartOffset;
+        private int _filterEndOffset;
+
+        public NativeCuckooFilter(byte[] image, int filterStartOffset, int filterEndOffset)
+        {
+            _image = image;
+            _filterStartOffset = filterStartOffset;
+            _filterEndOffset = filterEndOffset;
+
+            if (((_filterStartOffset & 0xF) != 0) || ((_filterEndOffset & 0xF) != 0))
+            {
+                // Native cuckoo filters must be aligned at 16byte boundaries within the PE file
+                throw new System.BadImageFormatException();
+            }
+        }
+
+        private IEnumerable<ushort[]> GetBuckets()
+        {
+            int offset = _filterStartOffset;
+            while (offset < _filterEndOffset)
+            {
+                ushort[] bucket = new ushort[8];
+                for (int i = 0; i < bucket.Length; i++)
+                {
+                    bucket[i] = NativeReader.ReadUInt16(_image, ref offset);
+                }
+                yield return bucket;
+            }
+        }
+
+        public override string ToString()
+        {
+            StringBuilder sb = new StringBuilder();
+
+            sb.AppendLine($"NativeCuckooFilter Size: {(_filterEndOffset - _filterStartOffset) / 16}");
+            int bucket = 0;
+            foreach (ushort [] bucketContents in GetBuckets())
+            {
+                sb.Append($"Bucket: {bucket} [");
+                for (int i = 0; i < 8; i++)
+                {
+                    sb.Append($"{bucketContents[i],4:X} ");
+                }
+                sb.AppendLine("]");
+                bucket++;
+            }
+
+            return sb.ToString();
         }
     }
 }

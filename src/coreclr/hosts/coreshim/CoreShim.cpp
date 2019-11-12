@@ -64,17 +64,28 @@ namespace
         return std::wstring{ buffer.Buf, buffer.Buf + len };
     }
 
-    std::wstring GetEnvVar(_In_z_ const WCHAR *env)
+    bool TryGetEnvVar(_In_z_ const WCHAR* env, _Inout_ std::wstring& value)
     {
         DWORD len = ::GetEnvironmentVariableW(env, nullptr, 0);
         if (len == 0)
-            throw __HRESULT_FROM_WIN32(ERROR_ENVVAR_NOT_FOUND);
+            return false;
 
         PathBuffer<WCHAR> buffer;
         buffer.SetLength(len);
         (void)::GetEnvironmentVariableW(env, buffer, buffer);
 
-        return static_cast<WCHAR *>(buffer.Buf);
+        value = static_cast<WCHAR *>(buffer.Buf);
+        return true;
+    }
+
+    std::wstring GetEnvVar(_In_z_ const WCHAR *env)
+    {
+        std::wstring value;
+        if (!TryGetEnvVar(env, value))
+        {
+            throw __HRESULT_FROM_WIN32(ERROR_ENVVAR_NOT_FOUND);
+        }
+        return value;
     }
 
     std::string ConvertWideToUtf8(_In_ const std::wstring &wide)
@@ -92,12 +103,11 @@ namespace
 
 namespace Utility
 {
-    HRESULT TryGetEnvVar(_In_z_ const WCHAR *env, _Inout_ std::string &envVar)
+    HRESULT TryGetEnvVar(_In_z_ const WCHAR *env, _Inout_ std::wstring &envVar)
     {
         try
         {
-            std::wstring envVarLocal = GetEnvVar(env);
-            envVar = ConvertWideToUtf8(envVarLocal);
+            envVar = GetEnvVar(env);
         }
         catch (HRESULT hr)
         {
@@ -106,6 +116,80 @@ namespace Utility
 
         return S_OK;
     }
+
+    HRESULT GetCoreShimDirectory(_Inout_ std::wstring &dir)
+    {
+        HMODULE hModule;
+        BOOL res = ::GetModuleHandleExW(
+            GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+            reinterpret_cast<LPCWSTR>(&TryGetEnvVar),
+            &hModule);
+        if (res == FALSE)
+            return HRESULT_FROM_WIN32(::GetLastError());
+
+        std::wstring path;
+        size_t dwModuleFileName = MAX_PATH / 2;
+
+        do
+        {
+            path.resize(dwModuleFileName * 2);
+            dwModuleFileName = GetModuleFileNameW(hModule, (LPWSTR)path.data(), static_cast<DWORD>(path.size()));
+        } while (dwModuleFileName == path.size());
+
+        if (dwModuleFileName == 0)
+            return HRESULT_FROM_WIN32(::GetLastError());
+
+        size_t idx = path.find_last_of(W('\\'));
+        if (idx == std::wstring::npos)
+            return E_UNEXPECTED;
+
+        path.resize(idx + 1);
+        dir = std::move(path);
+        return S_OK;
+    }
+
+    HRESULT GetCoreShimDirectory(_Inout_ std::string &dir)
+    {
+        HRESULT hr;
+
+        std::wstring dir_wide;
+        RETURN_IF_FAILED(GetCoreShimDirectory(dir_wide));
+
+        dir = ConvertWideToUtf8(dir_wide);
+
+        return S_OK;
+    }
+}
+
+bool TryLoadHostPolicy(const WCHAR* hostPolicyPath)
+{
+    const WCHAR *hostpolicyName = W("hostpolicy.dll");
+    HMODULE hMod = ::GetModuleHandleW(hostpolicyName);
+    if (hMod != nullptr)
+    {
+        return true;
+    }
+
+    // Check if a hostpolicy exists and if it does, load it.
+    if (INVALID_FILE_ATTRIBUTES != ::GetFileAttributesW(hostPolicyPath))
+    {
+        hMod = ::LoadLibraryExW(hostPolicyPath, nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+        if (hMod == nullptr)
+            return false;
+
+        // Initialize the hostpolicy mock to a default state
+        using Set_corehost_resolve_component_dependencies_Values_fn = void(__cdecl *)(
+            int returnValue,
+            const WCHAR *assemblyPaths,
+            const WCHAR *nativeSearchPaths,
+            const WCHAR *resourceSearchPaths);
+        auto set_comp_depend_values = (Set_corehost_resolve_component_dependencies_Values_fn)
+            ::GetProcAddress(hMod, "Set_corehost_resolve_component_dependencies_Values");
+
+        assert(set_comp_depend_values != nullptr);
+        set_comp_depend_values(0, W(""), W(""), W(""));
+    }
+    return true;
 }
 
 HRESULT coreclr::GetCoreClrInstance(_Outptr_ coreclr **instance, _In_opt_z_ const WCHAR *path)
@@ -115,6 +199,18 @@ HRESULT coreclr::GetCoreClrInstance(_Outptr_ coreclr **instance, _In_opt_z_ cons
         *instance = s_CoreClrInstance;
         return S_FALSE;
     }
+
+    const wchar_t* mockHostPolicyEnvVar = W("MOCK_HOSTPOLICY");
+    std::wstring hostPolicyPath;
+
+    if (TryGetEnvVar(mockHostPolicyEnvVar, hostPolicyPath))
+    {
+        if (!TryLoadHostPolicy(hostPolicyPath.c_str()))
+        {
+            return E_UNEXPECTED;
+        }
+    }
+
 
     try
     {
@@ -238,6 +334,7 @@ HRESULT coreclr::CreateTpaList(_Inout_ std::string &tpaList, _In_opt_z_ const WC
 
 coreclr::coreclr(_Inout_ AutoModule hmod)
     : _hmod{ std::move(hmod) }
+    , _attached{ false }
     , _clrInst{ nullptr }
     , _appDomainId{ std::numeric_limits<uint32_t>::max() }
 {
@@ -253,7 +350,7 @@ coreclr::coreclr(_Inout_ AutoModule hmod)
 
 coreclr::~coreclr()
 {
-    if (_clrInst != nullptr)
+    if (_clrInst != nullptr && !_attached)
     {
         HRESULT hr = _shutdown(_clrInst, _appDomainId);
         assert(SUCCEEDED(hr));
@@ -274,6 +371,21 @@ HRESULT coreclr::Initialize(
         appDomainName = "CoreShim";
 
     HRESULT hr;
+
+    // Check if this is hosted scenario - launched via CoreRun.exe
+    HMODULE mod = ::GetModuleHandleW(W("CoreRun.exe"));
+    if (mod != NULL)
+    {
+        using GetCurrentClrDetailsFunc = HRESULT(*)(void **clrInstance, unsigned int *appDomainId);
+        auto getCurrentClrDetails = (GetCurrentClrDetailsFunc)::GetProcAddress(mod, "GetCurrentClrDetails");
+        RETURN_IF_FAILED(getCurrentClrDetails(&_clrInst, &_appDomainId));
+        if (_clrInst != nullptr)
+        {
+            _attached = true;
+            return S_OK;
+        }
+    }
+
     try
     {
         const std::wstring exePathW = GetExePath();

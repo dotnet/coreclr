@@ -11,17 +11,17 @@ using System.Threading.Tasks;
 namespace System.IO
 {
     // A MemoryStream represents a Stream in memory (ie, it has no backing store).
-    // This stream may reduce the need for temporary buffers and files in 
-    // an application.  
-    // 
+    // This stream may reduce the need for temporary buffers and files in
+    // an application.
+    //
     // There are two ways to create a MemoryStream.  You can initialize one
-    // from an unsigned byte array, or you can create an empty one.  Empty 
+    // from an unsigned byte array, or you can create an empty one.  Empty
     // memory streams are resizable, while ones created with a byte array provide
     // a stream "view" of the data.
     public class MemoryStream : Stream
     {
         private byte[] _buffer;    // Either allocated internally or externally.
-        private int _origin;       // For user-provided arrays, start at this origin
+        private readonly int _origin;       // For user-provided arrays, start at this origin
         private int _position;     // read/write head.
         private int _length;       // Number of bytes within the memory stream
         private int _capacity;     // length of usable portion of buffer for stream
@@ -29,10 +29,10 @@ namespace System.IO
 
         private bool _expandable;  // User-provided buffers aren't expandable.
         private bool _writable;    // Can user write to this stream?
-        private bool _exposable;   // Whether the array can be returned to the user.
+        private readonly bool _exposable;   // Whether the array can be returned to the user.
         private bool _isOpen;      // Is this stream open or closed?
 
-        private Task<int> _lastReadTask; // The last successful task returned from ReadAsync
+        private Task<int>? _lastReadTask; // The last successful task returned from ReadAsync
 
         private const int MemStreamMaxLength = int.MaxValue;
 
@@ -150,11 +150,7 @@ namespace System.IO
 
             if (value > _capacity)
             {
-                int newCapacity = value;
-                if (newCapacity < 256)
-                {
-                    newCapacity = 256;
-                }
+                int newCapacity = Math.Max(value, 256);
 
                 // We are ok with this overflowing since the next statement will deal
                 // with the cases where _capacity*2 overflows.
@@ -167,7 +163,7 @@ namespace System.IO
                 // And we want to give the user the value that they asked for
                 if ((uint)(_capacity * 2) > Array.MaxByteArrayLength)
                 {
-                    newCapacity = value > Array.MaxByteArrayLength ? value : Array.MaxByteArrayLength;
+                    newCapacity = Math.Max(value, Array.MaxByteArrayLength);
                 }
 
                 Capacity = newCapacity;
@@ -196,7 +192,6 @@ namespace System.IO
             }
         }
 
-
         public virtual byte[] GetBuffer()
         {
             if (!_exposable)
@@ -212,7 +207,7 @@ namespace System.IO
                 return false;
             }
 
-            buffer = new ArraySegment<byte>(_buffer, offset: _origin, count: (_length - _origin));
+            buffer = new ArraySegment<byte>(_buffer, offset: _origin, count: _length - _origin);
             return true;
         }
 
@@ -230,18 +225,24 @@ namespace System.IO
             return _position;
         }
 
-        // PERF: Takes out Int32 as fast as possible
-        internal int InternalReadInt32()
+        // PERF: Expose internal buffer for BinaryReader instead of going via the regular Stream interface which requires to copy the data out
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal ReadOnlySpan<byte> InternalReadSpan(int count)
         {
             EnsureNotClosed();
 
-            int pos = (_position += 4); // use temp to avoid a race condition
-            if (pos > _length)
+            int origPos = _position;
+            int newPos = origPos + count;
+
+            if ((uint)newPos > (uint)_length)
             {
                 _position = _length;
                 throw Error.GetEndOfFile();
             }
-            return (int)(_buffer[pos - 4] | _buffer[pos - 3] << 8 | _buffer[pos - 2] << 16 | _buffer[pos - 1] << 24);
+
+            var span = new ReadOnlySpan<byte>(_buffer, origPos, count);
+            _position = newPos;
+            return span;
         }
 
         // PERF: Get actual length of bytes available for read; do sanity checks; shift position - i.e. everything except actual copying bytes
@@ -263,7 +264,7 @@ namespace System.IO
         // Gets & sets the capacity (number of bytes allocated) for this stream.
         // The capacity cannot be set to a value less than the current length
         // of the stream.
-        // 
+        //
         public virtual int Capacity
         {
             get
@@ -297,7 +298,7 @@ namespace System.IO
                     }
                     else
                     {
-                        _buffer = null;
+                        _buffer = Array.Empty<byte>();
                     }
                     _capacity = value;
                 }
@@ -411,14 +412,14 @@ namespace System.IO
             try
             {
                 int n = Read(buffer, offset, count);
-                var t = _lastReadTask;
+                Task<int>? t = _lastReadTask;
                 Debug.Assert(t == null || t.Status == TaskStatus.RanToCompletion,
                     "Expected that a stored last task completed successfully");
                 return (t != null && t.Result == n) ? t : (_lastReadTask = Task.FromResult<int>(n));
             }
             catch (OperationCanceledException oce)
             {
-                return Task.FromCancellation<int>(oce);
+                return Task.FromCanceled<int>(oce);
             }
             catch (Exception exception)
             {
@@ -449,12 +450,12 @@ namespace System.IO
                 // it then fall back to doing the ArrayPool/copy behavior.
                 return new ValueTask<int>(
                     MemoryMarshal.TryGetArray(buffer, out ArraySegment<byte> destinationArray) ?
-                        Read(destinationArray.Array, destinationArray.Offset, destinationArray.Count) :
+                        Read(destinationArray.Array!, destinationArray.Offset, destinationArray.Count) :
                         Read(buffer.Span));
             }
             catch (OperationCanceledException oce)
             {
-                return new ValueTask<int>(Task.FromCancellation<int>(oce));
+                return new ValueTask<int>(Task.FromCanceled<int>(oce));
             }
             catch (Exception exception)
             {
@@ -479,7 +480,7 @@ namespace System.IO
             StreamHelpers.ValidateCopyToArgs(this, destination, bufferSize);
 
             // If we have been inherited into a subclass, the following implementation could be incorrect
-            // since it does not call through to Read() which a subclass might have overridden.  
+            // since it does not call through to Read() which a subclass might have overridden.
             // To be safe we will only use this implementation in cases where we know it is safe to do so,
             // and delegate to our base class (which will call into Read) when we are not sure.
             if (GetType() != typeof(MemoryStream))
@@ -509,7 +510,7 @@ namespace System.IO
             StreamHelpers.ValidateCopyToArgs(this, destination, bufferSize);
 
             // If we have been inherited into a subclass, the following implementation could be incorrect
-            // since it does not call through to ReadAsync() which a subclass might have overridden.  
+            // since it does not call through to ReadAsync() which a subclass might have overridden.
             // To be safe we will only use this implementation in cases where we know it is safe to do so,
             // and delegate to our base class (which will call into ReadAsync) when we are not sure.
             if (GetType() != typeof(MemoryStream))
@@ -531,8 +532,7 @@ namespace System.IO
                 return Task.CompletedTask;
 
             // If destination is not a memory stream, write there asynchronously:
-            MemoryStream memStrDest = destination as MemoryStream;
-            if (memStrDest == null)
+            if (!(destination is MemoryStream memStrDest))
                 return destination.WriteAsync(_buffer, pos, n, cancellationToken);
 
             try
@@ -546,7 +546,6 @@ namespace System.IO
                 return Task.FromException(ex);
             }
         }
-
 
         public override long Seek(long offset, SeekOrigin loc)
         {
@@ -593,12 +592,12 @@ namespace System.IO
         // value must be nonnegative and less than the space remaining in
         // the array, int.MaxValue - origin
         // Origin is 0 in all cases other than a MemoryStream created on
-        // top of an existing array and a specific starting offset was passed 
-        // into the MemoryStream constructor.  The upper bounds prevents any 
-        // situations where a stream may be created on top of an array then 
-        // the stream is made longer than the maximum possible length of the 
+        // top of an existing array and a specific starting offset was passed
+        // into the MemoryStream constructor.  The upper bounds prevents any
+        // situations where a stream may be created on top of an array then
+        // the stream is made longer than the maximum possible length of the
         // array (int.MaxValue).
-        // 
+        //
         public override void SetLength(long value)
         {
             if (value < 0 || value > int.MaxValue)
@@ -744,7 +743,7 @@ namespace System.IO
             }
             catch (OperationCanceledException oce)
             {
-                return Task.FromCancellation<VoidTaskResult>(oce);
+                return Task.FromCanceled(oce);
             }
             catch (Exception exception)
             {
@@ -765,7 +764,7 @@ namespace System.IO
                 // Unlike ReadAsync, we could delegate to WriteAsync(byte[], ...) here, but we don't for consistency.
                 if (MemoryMarshal.TryGetArray(buffer, out ArraySegment<byte> sourceArray))
                 {
-                    Write(sourceArray.Array, sourceArray.Offset, sourceArray.Count);
+                    Write(sourceArray.Array!, sourceArray.Offset, sourceArray.Count);
                 }
                 else
                 {
@@ -775,7 +774,7 @@ namespace System.IO
             }
             catch (OperationCanceledException oce)
             {
-                return new ValueTask(Task.FromCancellation<VoidTaskResult>(oce));
+                return new ValueTask(Task.FromCanceled(oce));
             }
             catch (Exception exception)
             {

@@ -1,12 +1,12 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
-// 
+//
 // File: DispatchInfo.h
-// 
+//
 
 //
-// Definition of helpers used to expose IDispatch 
+// Definition of helpers used to expose IDispatch
 // and IDispatchEx to COM.
 //
 
@@ -84,7 +84,7 @@ struct DispatchMemberInfo
             PRECONDITION(CheckPointer(m_pParamInOnly));
         }
         CONTRACTL_END;
-        
+
         // Add one for the return type.
         return m_pParamInOnly[iIndex + 1];
     }
@@ -104,7 +104,7 @@ struct DispatchMemberInfo
         RETURN (Aware == m_CultureAwareState);
     }
 
-    EnumMemberTypes GetMemberType() 
+    EnumMemberTypes GetMemberType()
     {
         CONTRACT (EnumMemberTypes)
         {
@@ -114,11 +114,11 @@ struct DispatchMemberInfo
             PRECONDITION(Uninitted != m_enumType);
         }
         CONTRACT_END;
-        
+
         RETURN m_enumType;
     }
 
-    int GetNumParameters() 
+    int GetNumParameters()
     {
         CONTRACT (int)
         {
@@ -128,7 +128,7 @@ struct DispatchMemberInfo
             PRECONDITION(m_iNumParams != -1);
         }
         CONTRACT_END;
-        
+
         RETURN m_iNumParams;
     }
 
@@ -138,16 +138,21 @@ struct DispatchMemberInfo
         return m_bLastParamOleVarArg;
     }
 
-    void SetHandle(OBJECTHANDLE objhnd)
+    void SetHandle(LOADERHANDLE objhnd)
     {
         m_hndMemberInfo = objhnd;
     }
 
-    BOOL RequiresManagedObjCleanup() 
+    BOOL RequiresManagedObjCleanup()
     {
         LIMITED_METHOD_CONTRACT;
         return m_bRequiresManagedCleanup;
     }
+
+#ifndef DACCESS_COMPILE
+    OBJECTREF GetMemberInfoObject();
+    void ClearMemberInfoObject();
+#endif // DACCESS_COMPILE
 
     // Parameter marshaling methods.
     void MarshalParamNativeToManaged(int iParam, VARIANT *pSrcVar, OBJECTREF *pDestObj);
@@ -169,12 +174,11 @@ private:
     void DetermineCultureAwareness();
     void SetUpParamMarshalerInfo();
     void SetUpMethodMarshalerInfo(MethodDesc *pMeth, BOOL bReturnValueOnly);
-    void SetUpFieldMarshalerInfo(FieldDesc *pField);
     void SetUpDispParamMarshalerForMarshalInfo(int iParam, MarshalInfo *pInfo);
     void SetUpDispParamAttributes(int iParam, MarshalInfo* Info);
 public:
     DISPID                  m_DispID;
-    OBJECTHANDLE            m_hndMemberInfo;
+    LOADERHANDLE            m_hndMemberInfo;
     DispParamMarshaler**    m_apParamMarshaler;
     BOOL*                   m_pParamInOnly;
     DispatchMemberInfo*     m_pNext;
@@ -238,7 +242,7 @@ public:
 
     // Helper method that invokes the member with the specified DISPID.
     HRESULT                 InvokeMember(SimpleComCallWrapper *pSimpleWrap, DISPID id, LCID lcid, WORD wFlags, DISPPARAMS *pdp, VARIANT *pVarRes, EXCEPINFO *pei, IServiceProvider *pspCaller, unsigned int *puArgErr);
-    
+
     void                    InvokeMemberDebuggerWrapper(DispatchMemberInfo*   pDispMemberInfo,
                                                InvokeObjects*        pObjs,
                                                int                   NumParams,
@@ -257,7 +261,7 @@ public:
                                                int*                  pManagedMethodParamIndexMap,
                                                VARIANT**             aByrefArgOleVariant,
                                                Frame *               pFrame);
-    
+
     void                    InvokeMemberWorker(DispatchMemberInfo*   pDispMemberInfo,
                                                InvokeObjects*        pObjs,
                                                int                   NumParams,
@@ -276,9 +280,6 @@ public:
                                                int*                  pManagedMethodParamIndexMap,
                                                VARIANT**             aByrefArgOleVariant);
 
-    // Method to NULL the handles inside DispatchMemberInfo
-    void                    DestroyMemberInfoHandles();
-
     // Methods to retrieve the cached MD's
     static MethodDesc*      GetFieldInfoMD(BinderMethodID Method, TypeHandle hndFieldInfoType);
     static MethodDesc*      GetPropertyInfoMD(BinderMethodID Method, TypeHandle hndPropInfoType);
@@ -295,6 +296,11 @@ public:
 
     // Returns TRUE if the argument is "Missing"
     static BOOL             VariantIsMissing(VARIANT *pOle);
+
+    LoaderAllocator*        GetLoaderAllocator()
+    {
+        return m_pMT->GetLoaderAllocator();
+    }
 
 protected:
     // Parameter marshaling helpers.
@@ -369,7 +375,7 @@ public:
     DispatchMemberInfo*     SynchFindMember(DISPID DispID);
     DispatchMemberInfo*     SynchFindMember(SString& strName, BOOL bCaseSensitive);
 
-    // Helper method that invokes the member with the specified DISPID. These methods synch 
+    // Helper method that invokes the member with the specified DISPID. These methods synch
     // with the managed view if they fail to find the method.
     HRESULT                 SynchInvokeMember(SimpleComCallWrapper *pSimpleWrap, DISPID id, LCID lcid, WORD wFlags, DISPPARAMS *pdp, VARIANT *pVarRes, EXCEPINFO *pei, IServiceProvider *pspCaller, unsigned int *puArgErr);
 
@@ -384,7 +390,7 @@ public:
     DispatchMemberInfo*     AddMember(SString& strName, BOOL bCaseSensitive);
     void                    DeleteMember(DISPID DispID);
 
-    // Methods to retrieve the cached MD's   
+    // Methods to retrieve the cached MD's
     MethodDesc*             GetIReflectMD(BinderMethodID Method);
     MethodDesc*             GetIExpandoMD(BinderMethodID Method);
 

@@ -13,6 +13,7 @@ syntax: glob
 *.userosscache
 *.sln.docstates
 *.swp
+launchSettings.json
 
 # Build results
 [Dd]ebug/
@@ -24,6 +25,7 @@ bld/
 [Bb]in/
 [Oo]bj/
 msbuild.log
+msbuild.binlog
 
 # add back architecture directories ignored in 'Build results'
 !tests/x86
@@ -152,6 +154,7 @@ publish/
 *.nuget.g.targets
 *.nuget.cache
 **/packages/*
+*.nuget.dgspec.json
 project.lock.json
 project.assets.json
 
@@ -206,7 +209,8 @@ FakesAssemblies/
 browse.VC.db
 
 # Local settings folder for Visual Studio Code
-.vscode/
+**/.vscode/**
+!**/.vscode/c_cpp_properties.json
 
 ### MonoDevelop ###
 
@@ -318,3 +322,8 @@ sandbox
 
 #IL linker for testing
 linker
+
+# Arcade files
+/artifacts/toolset
+/.packages
+/.dotnet

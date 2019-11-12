@@ -8,14 +8,10 @@
 **
 ** RuntimeClass is the base class of all WinRT types
 **
-** 
+**
 ===========================================================*/
 
-using System;
-using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.WindowsRuntime;
 using System.Runtime.CompilerServices;
-using System.Security;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
@@ -28,17 +24,15 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         string ToString();
     }
 
-    internal class IStringableHelper
+    internal static class IStringableHelper
     {
-        internal static string ToString(object obj)
+        internal static string? ToString(object obj)
         {
-            IGetProxyTarget proxy = obj as IGetProxyTarget;
-            if (proxy != null)
+            if (obj is IGetProxyTarget proxy)
                 obj = proxy.GetTarget();
 
             // Check whether the type implements IStringable.
-            IStringable stringableType = obj as IStringable;
-            if (stringableType != null)
+            if (obj is IStringable stringableType)
             {
                 return stringableType.ToString();
             }
@@ -56,7 +50,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         //
         // Support for ToString/GetHashCode/Equals override
-        //        
+        //
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern IntPtr GetRedirectedGetHashCodeMD();
 
@@ -80,8 +74,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         public override string ToString()
         {
             // Check whether the type implements IStringable.
-            IStringable stringableType = this as IStringable;
-            if (stringableType != null)
+            if (this is IStringable stringableType)
             {
                 return stringableType.ToString();
             }
@@ -100,9 +93,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         internal extern IntPtr GetRedirectedEqualsMD();
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        internal extern bool RedirectEquals(object obj, IntPtr pMD);
+        internal extern bool RedirectEquals(object? obj, IntPtr pMD);
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             IntPtr pMD = GetRedirectedEqualsMD();
             if (pMD == IntPtr.Zero)

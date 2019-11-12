@@ -47,26 +47,7 @@ enum VNFunc
     VNF_COUNT
 };
 
-enum VNOperKind
-{
-    VOK_Default,
-    VOK_Unsigned,
-    VOK_OverflowCheck,
-    VOK_Unsigned_OverflowCheck
-};
-
-// Given the bool values isUnsigned and overflowCheck return the proper VNOperKInd enum
-//
-VNOperKind VNGetOperKind(bool isUnsigned, bool overflowCheck);
-
-// Given an "oper" and associated flags with it, transform the oper into a
-// more accurate oper that can be used in evaluation.
-// For example, (GT_ADD, true, false) transforms to GT_ADD_UN
-// and (GT_ADD, false, true) transforms to GT_ADD_OVF
-//
-VNFunc GetVNFuncForOper(genTreeOps oper, VNOperKind operKind);
-
-// Given a GenTree node return the VNFunc that shodul be used when value numbering
+// Given a GenTree node return the VNFunc that should be used when value numbering
 //
 VNFunc GetVNFuncForNode(GenTree* node);
 
@@ -190,19 +171,16 @@ private:
     // Returns "true" iff "vnf" can be evaluated for constant arguments.
     static bool CanEvalForConstantArgs(VNFunc vnf);
 
+    // Returns "true" iff "vnf" should be folded by evaluating the func with constant arguments.
+    bool VNEvalShouldFold(var_types typ, VNFunc func, ValueNum arg0VN, ValueNum arg1VN);
+
     // return vnf(v0)
     template <typename T>
     static T EvalOp(VNFunc vnf, T v0);
 
-    // returns vnf(v0)  for int/INT32
-    int EvalOpInt(VNFunc vnf, int v0);
-
     // returns vnf(v0, v1).
     template <typename T>
     T EvalOp(VNFunc vnf, T v0, T v1);
-
-    // returns vnf(v0, v1)  for int/INT32
-    int EvalOpInt(VNFunc vnf, int v0, int v1);
 
     // return vnf(v0) or vnf(v0, v1), respectively (must, of course be unary/binary ops, respectively.)
     template <typename T>
@@ -212,8 +190,6 @@ private:
 
     template <typename T>
     static int EvalComparison(VNFunc vnf, T v0, T v1);
-    template <typename T>
-    static int EvalOrderedComparisonFloat(VNFunc vnf, T v0, T v1);
 
     // Should only instantiate (in a non-trivial way) for "int" and "INT64".  Returns true iff dividing "v0" by "v1"
     // would produce integer overflow (an ArithmeticException -- *not* division by zero, which is separate.)
@@ -240,12 +216,17 @@ private:
     ValueNum EvalFuncForConstantFPArgs(var_types typ, VNFunc vnf, ValueNum vn0, ValueNum vn1);
     ValueNum EvalCastForConstantArgs(var_types typ, VNFunc vnf, ValueNum vn0, ValueNum vn1);
 
+    ValueNum EvalUsingMathIdentity(var_types typ, VNFunc vnf, ValueNum vn0, ValueNum vn1);
+
 // This is the constant value used for the default value of m_mapSelectBudget
 #define DEFAULT_MAP_SELECT_BUDGET 100 // used by JitVNMapSelBudget
 
     // This is the maximum number of MapSelect terms that can be "considered" as part of evaluation of a top-level
     // MapSelect application.
     int m_mapSelectBudget;
+
+    template <typename T, typename NumMap>
+    inline ValueNum VnForConst(T cnsVal, NumMap* numMap, var_types varType);
 
 public:
     // Initializes any static variables of ValueNumStore.
@@ -279,12 +260,11 @@ public:
 #endif // DEBUG
 
     // This block of methods gets value numbers for constants of primitive types.
-
     ValueNum VNForIntCon(INT32 cnsVal);
     ValueNum VNForLongCon(INT64 cnsVal);
     ValueNum VNForFloatCon(float cnsVal);
     ValueNum VNForDoubleCon(double cnsVal);
-    ValueNum VNForByrefCon(INT64 byrefVal);
+    ValueNum VNForByrefCon(size_t byrefVal);
 
 #ifdef _TARGET_64BIT_
     ValueNum VNForPtrSizeIntCon(INT64 cnsVal)
@@ -358,10 +338,6 @@ public:
     // It returns NoVN for a "typ" that has no one value, such as TYP_REF.
     ValueNum VNOneForType(var_types typ);
 
-    // Returns the value number for negative one of the given "typ".
-    // It returns NoVN for a "typ" that has no negative one value, such as TYP_REF, or TYP_UINT
-    ValueNum VNNegOneForType(var_types typ);
-
     // Create or return the existimg value number representing a singleton exception set
     // for the the exception value "x".
     ValueNum VNExcSetSingleton(ValueNum x);
@@ -404,12 +380,25 @@ public:
 
     ValueNumPair VNPWithExc(ValueNumPair vnp, ValueNumPair excSetVNP);
 
-    // If "vnWx" is a "VNF_ValWithExc(normal, excSet)" value, this sets "*pvn" to the Normal value
-    // and sets "*pvnx" to Exception set value.  Otherwise, this just sets "*pvn" to to the Normal value.
+    // This sets "*pvn" to the Normal value and sets "*pvnx" to Exception set value.
     // "pvnx" represents the set of all exceptions that can happen for the expression
     void VNUnpackExc(ValueNum vnWx, ValueNum* pvn, ValueNum* pvnx);
 
     void VNPUnpackExc(ValueNumPair vnWx, ValueNumPair* pvn, ValueNumPair* pvnx);
+
+    // This returns the Union of exceptions from vnWx and vnExcSet
+    ValueNum VNUnionExcSet(ValueNum vnWx, ValueNum vnExcSet);
+
+    // This returns the Union of exceptions from vnpWx and vnpExcSet
+    ValueNumPair VNPUnionExcSet(ValueNumPair vnpWx, ValueNumPair vnpExcSet);
+
+    // Sets the normal value to a new unique ValueNum
+    // Keeps any Exception set values
+    ValueNum VNMakeNormalUnique(ValueNum vn);
+
+    // Sets the liberal & conservative
+    // Keeps any Exception set values
+    ValueNumPair VNPMakeNormalUniquePair(ValueNumPair vnp);
 
     // If "vn" is a "VNF_ValWithExc(norm, excSet)" value, returns the "norm" argument; otherwise,
     // just returns "vn".
@@ -452,15 +441,14 @@ public:
     // True "iff" vn is a value returned by a call to a shared static helper.
     bool IsSharedStatic(ValueNum vn);
 
-    // VN's for functions of other values.
-    // Four overloads, for arities 0, 1, 2, and 3.  If we need other arities, we'll consider it.
+    // VNForFunc: We have five overloads, for arities 0, 1, 2, 3 and 4
     ValueNum VNForFunc(var_types typ, VNFunc func);
     ValueNum VNForFunc(var_types typ, VNFunc func, ValueNum opVNwx);
     // This must not be used for VNF_MapSelect applications; instead use VNForMapSelect, below.
     ValueNum VNForFunc(var_types typ, VNFunc func, ValueNum op1VNwx, ValueNum op2VNwx);
     ValueNum VNForFunc(var_types typ, VNFunc func, ValueNum op1VNwx, ValueNum op2VNwx, ValueNum op3VNwx);
 
-    // The following four op VNForFunc is only used for VNF_PtrToArrElem, elemTypeEqVN, arrVN, inxVN, fldSeqVN
+    // The following four-op VNForFunc is used for VNF_PtrToArrElem, elemTypeEqVN, arrVN, inxVN, fldSeqVN
     ValueNum VNForFunc(
         var_types typ, VNFunc func, ValueNum op1VNwx, ValueNum op2VNwx, ValueNum op3VNwx, ValueNum op4VNwx);
 
@@ -732,12 +720,6 @@ public:
     {
     };
 
-    // Return true if two value numbers would compare equal.
-    bool VNIsEqual(ValueNum vn1, ValueNum vn2)
-    {
-        return (vn1 == vn2) && (vn1 != NoVN) && !varTypeIsFloating(TypeOfVN(vn1));
-    }
-
 private:
     struct Chunk;
 
@@ -831,10 +813,6 @@ public:
         return ConstantValueInternal<T>(vn DEBUGARG(true));
     }
 
-    // Given a value number "vn", go through the list of VNs that are handles
-    // to find if it is present, if so, return "true", else "false."
-    bool IsHandle(ValueNum vn);
-
     // Requires "mthFunc" to be an intrinsic math function (one of the allowable values for the "gtMath" field
     // of a GenTreeMath node).  For unary ops, return the value number for the application of this function to
     // "arg0VN". For binary ops, return the value number for the application of this function to "arg0VN" and
@@ -912,18 +890,6 @@ public:
 
     // Returns true if "vn" is a reserved value number
     static bool isReservedVN(ValueNum);
-
-#define VALUENUM_SUPPORT_MERGE 0
-#if VALUENUM_SUPPORT_MERGE
-    // If we're going to support the Merge operation, and do it right, we really need to use an entire
-    // egraph data structure, so that we can do congruence closure, and discover congruences implied
-    // by the eq-class merge.
-
-    // It may be that we provisionally give two expressions distinct value numbers, then later discover
-    // that the values of the expressions are provably equal.  We allow the two value numbers to be
-    // "merged" -- after the merge, they represent the same abstract value.
-    void MergeVNs(ValueNum vn1, ValueNum vn2);
-#endif
 
 private:
     // We will allocate value numbers in "chunks".  Each chunk will have the same type and "constness".
@@ -1182,24 +1148,6 @@ private:
         return m_intCnsMap;
     }
 
-    ValueNum GetVNForIntCon(INT32 cnsVal)
-    {
-        ValueNum res;
-        if (GetIntCnsMap()->Lookup(cnsVal, &res))
-        {
-            return res;
-        }
-        else
-        {
-            Chunk*   c                                             = GetAllocChunk(TYP_INT, CEA_Const);
-            unsigned offsetWithinChunk                             = c->AllocVN();
-            res                                                    = c->m_baseVN + offsetWithinChunk;
-            reinterpret_cast<INT32*>(c->m_defs)[offsetWithinChunk] = cnsVal;
-            GetIntCnsMap()->Set(cnsVal, res);
-            return res;
-        }
-    }
-
     typedef VNMap<INT64> LongToValueNumMap;
     LongToValueNumMap*   m_longCnsMap;
     LongToValueNumMap*   GetLongCnsMap()
@@ -1261,12 +1209,13 @@ private:
         return m_doubleCnsMap;
     }
 
-    LongToValueNumMap* m_byrefCnsMap;
-    LongToValueNumMap* GetByrefCnsMap()
+    typedef VNMap<size_t> ByrefToValueNumMap;
+    ByrefToValueNumMap*   m_byrefCnsMap;
+    ByrefToValueNumMap*   GetByrefCnsMap()
     {
         if (m_byrefCnsMap == nullptr)
         {
-            m_byrefCnsMap = new (m_alloc) LongToValueNumMap(m_alloc);
+            m_byrefCnsMap = new (m_alloc) ByrefToValueNumMap(m_alloc);
         }
         return m_byrefCnsMap;
     }
@@ -1309,7 +1258,7 @@ private:
 
     struct VNDefFunc2ArgKeyFuncs : public JitKeyFuncsDefEquals<VNDefFunc2Arg>
     {
-        static unsigned GetHashCode(VNDefFunc2Arg val)
+        static unsigned GetHashCode(const VNDefFunc2Arg& val)
         {
             return (val.m_func << 24) + (val.m_arg0 << 8) + val.m_arg1;
         }
@@ -1327,7 +1276,7 @@ private:
 
     struct VNDefFunc3ArgKeyFuncs : public JitKeyFuncsDefEquals<VNDefFunc3Arg>
     {
-        static unsigned GetHashCode(VNDefFunc3Arg val)
+        static unsigned GetHashCode(const VNDefFunc3Arg& val)
         {
             return (val.m_func << 24) + (val.m_arg0 << 16) + (val.m_arg1 << 8) + val.m_arg2;
         }
@@ -1345,7 +1294,7 @@ private:
 
     struct VNDefFunc4ArgKeyFuncs : public JitKeyFuncsDefEquals<VNDefFunc4Arg>
     {
-        static unsigned GetHashCode(VNDefFunc4Arg val)
+        static unsigned GetHashCode(const VNDefFunc4Arg& val)
         {
             return (val.m_func << 24) + (val.m_arg0 << 16) + (val.m_arg1 << 8) + val.m_arg2 + (val.m_arg3 << 12);
         }
@@ -1412,8 +1361,8 @@ struct ValueNumStore::VarTypConv<TYP_DOUBLE>
 template <>
 struct ValueNumStore::VarTypConv<TYP_BYREF>
 {
-    typedef INT64 Type;
-    typedef void* Lang;
+    typedef size_t Type;
+    typedef void*  Lang;
 };
 template <>
 struct ValueNumStore::VarTypConv<TYP_REF>

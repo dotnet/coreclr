@@ -14,33 +14,19 @@ namespace BINDER_SPACE
     class AssemblyIdentityUTF8;
 };
 
-class CLRPrivBinderCoreCLR : public IUnknownCommon<ICLRPrivBinder>
+class CLRPrivBinderCoreCLR : public IUnknownCommon<ICLRPrivBinder, IID_ICLRPrivBinder>
 {
 public:
 
     //=========================================================================
     // ICLRPrivBinder functions
     //-------------------------------------------------------------------------
-    STDMETHOD(BindAssemblyByName)( 
+    STDMETHOD(BindAssemblyByName)(
             /* [in] */ IAssemblyName *pIAssemblyName,
             /* [retval][out] */ ICLRPrivAssembly **ppAssembly);
-        
-    STDMETHOD(VerifyBind)( 
-            /* [in] */ IAssemblyName *pIAssemblyName,
-            /* [in] */ ICLRPrivAssembly *pAssembly,
-            /* [in] */ ICLRPrivAssemblyInfo *pAssemblyInfo);
 
-    STDMETHOD(GetBinderFlags)( 
-            /* [retval][out] */ DWORD *pBinderFlags);
-         
-    STDMETHOD(GetBinderID)( 
+    STDMETHOD(GetBinderID)(
             /* [retval][out] */ UINT_PTR *pBinderId);
-         
-    STDMETHOD(FindAssemblyBySpec)( 
-            /* [in] */ LPVOID pvAppDomain,
-            /* [in] */ LPVOID pvAssemblySpec,
-            /* [out] */ HRESULT *pResult,
-            /* [out] */ ICLRPrivAssembly **ppAssembly);
 
     STDMETHOD(GetLoaderAllocator)(
         /* [retval][out] */ LPVOID *pLoaderAllocator);
@@ -51,8 +37,6 @@ public:
                               SString  &sPlatformResourceRoots,
                               SString  &sAppPaths,
                               SString  &sAppNiPaths);
-
-    bool IsInTpaList(const SString  &sFileName);
 
     inline BINDER_SPACE::ApplicationContext *GetAppContext()
     {
@@ -66,13 +50,9 @@ public:
                  BOOL         fExplicitBindToNativeImage,
                  ICLRPrivAssembly **ppAssembly);
 
-#ifndef CROSSGEN_COMPILE
-    HRESULT PreBindByteArray(PEImage  *pPEImage, BOOL fInspectionOnly);
-#endif // CROSSGEN_COMPILE
-
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
-    HRESULT BindUsingPEImage( /* in */ PEImage *pPEImage, 
-                              /* in */ BOOL fIsNativeImage, 
+    HRESULT BindUsingPEImage( /* in */ PEImage *pPEImage,
+                              /* in */ BOOL fIsNativeImage,
                               /* [retval][out] */ ICLRPrivAssembly **ppAssembly);
 #endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
@@ -90,7 +70,7 @@ public:
     {
         m_ptrManagedAssemblyLoadContext = ptrManagedTPABinderInstance;
     }
-    
+
     //=========================================================================
     // Internal implementation details
     //-------------------------------------------------------------------------

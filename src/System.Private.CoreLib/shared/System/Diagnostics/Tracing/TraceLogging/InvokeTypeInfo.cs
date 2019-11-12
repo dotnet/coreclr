@@ -2,7 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#if ES_BUILD_STANDALONE
 using System;
+#endif
 using System.Collections.Generic;
 
 #if ES_BUILD_STANDALONE
@@ -16,19 +18,16 @@ namespace System.Diagnostics.Tracing
     /// for arbitrary types. It writes all public instance properties of
     /// the type.
     /// </summary>
-    /// <typeparam name="ContainerType">
-    /// Type from which to read values.
-    /// </typeparam>
     internal sealed class InvokeTypeInfo : TraceLoggingTypeInfo
     {
-        internal readonly PropertyAnalysis[] properties;
+        internal readonly PropertyAnalysis[]? properties;
 
         public InvokeTypeInfo(
             Type type,
             TypeAnalysis typeAnalysis)
             : base(
                 type,
-                typeAnalysis.name,
+                typeAnalysis.name!,
                 typeAnalysis.level,
                 typeAnalysis.opcode,
                 typeAnalysis.keywords,
@@ -40,16 +39,16 @@ namespace System.Diagnostics.Tracing
 
         public override void WriteMetadata(
             TraceLoggingMetadataCollector collector,
-            string name,
+            string? name,
             EventFieldFormat format)
         {
-            var groupCollector = collector.AddGroup(name);
+            TraceLoggingMetadataCollector groupCollector = collector.AddGroup(name);
             if (this.properties != null)
             {
-                foreach (var property in this.properties)
+                foreach (PropertyAnalysis property in this.properties)
                 {
-                    var propertyFormat = EventFieldFormat.Default;
-                    var propertyAttribute = property.fieldAttribute;
+                    EventFieldFormat propertyFormat = EventFieldFormat.Default;
+                    EventFieldAttribute? propertyAttribute = property.fieldAttribute;
                     if (propertyAttribute != null)
                     {
                         groupCollector.Tags = propertyAttribute.Tags;
@@ -68,26 +67,26 @@ namespace System.Diagnostics.Tracing
         {
             if (this.properties != null)
             {
-                foreach (var property in this.properties)
+                foreach (PropertyAnalysis property in this.properties)
                 {
                     property.typeInfo.WriteData(collector, property.getter(value));
                 }
             }
         }
 
-        public override object GetData(object value)
+        public override object? GetData(object? value)
         {
             if (this.properties != null)
             {
                 var membersNames = new List<string>();
-                var memebersValues = new List<object>();
+                var membersValues = new List<object?>();
                 for (int i = 0; i < this.properties.Length; i++)
                 {
-                    var propertyValue = properties[i].propertyInfo.GetValue(value);
+                    object? propertyValue = properties[i].propertyInfo.GetValue(value);
                     membersNames.Add(properties[i].name);
-                    memebersValues.Add(properties[i].typeInfo.GetData(propertyValue));
+                    membersValues.Add(properties[i].typeInfo.GetData(propertyValue));
                 }
-                return new EventPayload(membersNames, memebersValues);
+                return new EventPayload(membersNames, membersValues);
             }
 
             return null;

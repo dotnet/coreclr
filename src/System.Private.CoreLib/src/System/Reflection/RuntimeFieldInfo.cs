@@ -11,8 +11,8 @@ namespace System.Reflection
     {
         #region Private Data Members
         private BindingFlags m_bindingFlags;
-        protected RuntimeTypeCache m_reflectedTypeCache;
-        protected RuntimeType m_declaringType;
+        protected RuntimeTypeCache m_reflectedTypeCache = null!;
+        protected RuntimeType m_declaringType = null!;
         #endregion
 
         #region Constructor
@@ -29,14 +29,8 @@ namespace System.Reflection
         #endregion
 
         #region NonPublic Members
-        internal BindingFlags BindingFlags { get { return m_bindingFlags; } }
-        private RuntimeType ReflectedTypeInternal
-        {
-            get
-            {
-                return m_reflectedTypeCache.GetRuntimeType();
-            }
-        }
+        internal BindingFlags BindingFlags => m_bindingFlags;
+        private RuntimeType ReflectedTypeInternal => m_reflectedTypeCache.GetRuntimeType();
 
         internal RuntimeType GetDeclaringTypeInternal()
         {
@@ -48,30 +42,19 @@ namespace System.Reflection
         #endregion
 
         #region MemberInfo Overrides
-        public override MemberTypes MemberType { get { return MemberTypes.Field; } }
-        public override Type ReflectedType
-        {
-            get
-            {
-                return m_reflectedTypeCache.IsGlobal ? null : ReflectedTypeInternal;
-            }
-        }
+        public override MemberTypes MemberType => MemberTypes.Field;
+        public override Type? ReflectedType => m_reflectedTypeCache.IsGlobal ? null : ReflectedTypeInternal;
 
-        public override Type DeclaringType
-        {
-            get
-            {
-                return m_reflectedTypeCache.IsGlobal ? null : m_declaringType;
-            }
-        }
+        public override Type? DeclaringType => m_reflectedTypeCache.IsGlobal ? null : m_declaringType;
 
         public sealed override bool HasSameMetadataDefinitionAs(MemberInfo other) => HasSameMetadataDefinitionAsCore<RuntimeFieldInfo>(other);
 
-        public override Module Module { get { return GetRuntimeModule(); } }
+        public override Module Module => GetRuntimeModule();
+        public override bool IsCollectible => m_declaringType.IsCollectible;
         #endregion
 
         #region Object Overrides
-        public unsafe override string ToString()
+        public override string ToString()
         {
             return FieldType.FormatTypeName() + " " + Name;
         }
@@ -80,7 +63,7 @@ namespace System.Reflection
         #region ICustomAttributeProvider
         public override object[] GetCustomAttributes(bool inherit)
         {
-            return CustomAttribute.GetCustomAttributes(this, typeof(object) as RuntimeType);
+            return CustomAttribute.GetCustomAttributes(this, (typeof(object) as RuntimeType)!);
         }
 
         public override object[] GetCustomAttributes(Type attributeType, bool inherit)
@@ -88,7 +71,7 @@ namespace System.Reflection
             if (attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
 
-            RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
+            RuntimeType? attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
             if (attributeRuntimeType == null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
@@ -101,7 +84,7 @@ namespace System.Reflection
             if (attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
 
-            RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
+            RuntimeType? attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
             if (attributeRuntimeType == null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));

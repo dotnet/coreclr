@@ -2,17 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-
-using System;
-using System.Security;
-using System.Reflection;
-using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Runtime.CompilerServices;
 using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
@@ -24,7 +16,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // That's because they are invoked with special "this"! The "this" object
     // for all of these methods are not ListToVectorAdapter objects. Rather, they are of type
     // IList<T>. No actual ListToVectorAdapter object is ever instantiated. Thus, you will
-    // see a lot of expressions that cast "this" to "IList<T>". 
+    // see a lot of expressions that cast "this" to "IList<T>".
     internal sealed class ListToVectorAdapter
     {
         private ListToVectorAdapter()
@@ -63,8 +55,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
             // Note: This list is not really read-only - you could QI for a modifiable
             // list.  We gain some perf by doing this.  We believe this is acceptable.
-            IReadOnlyList<T> roList = _this as IReadOnlyList<T>;
-            if (roList == null)
+            if (!(_this is IReadOnlyList<T> roList))
             {
                 roList = new ReadOnlyCollection<T>(_this);
             }
@@ -231,7 +222,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
             if (typeof(T) == typeof(string))
             {
-                string[] stringItems = items as string[];
+                string[] stringItems = (items as string[])!;
 
                 // Fill in rest of the array with string.Empty to avoid marshaling failure
                 for (uint i = itemCount; i < items.Length; ++i)

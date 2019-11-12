@@ -32,15 +32,15 @@
 #include "sigbuilder.h"
 #include "compile.h"
 
-#ifndef DACCESS_COMPILE 
+#ifndef DACCESS_COMPILE
 
 //---------------------------------------------------------------------------------------
 //
 //static
-DictionaryLayout * 
+DictionaryLayout *
 DictionaryLayout::Allocate(
-    WORD              numSlots, 
-    LoaderAllocator * pAllocator, 
+    WORD              numSlots,
+    LoaderAllocator * pAllocator,
     AllocMemTracker * pamTracker)
 {
     CONTRACT(DictionaryLayout*)
@@ -77,11 +77,11 @@ DictionaryLayout::Allocate(
 //---------------------------------------------------------------------------------------
 //
 // Count the number of bytes that are required by the first bucket in a dictionary with the specified layout
-// 
+//
 //static
-DWORD 
+DWORD
 DictionaryLayout::GetFirstDictionaryBucketSize(
-    DWORD                numGenericArgs, 
+    DWORD                numGenericArgs,
     PTR_DictionaryLayout pDictLayout)
 {
     LIMITED_METHOD_DAC_CONTRACT;
@@ -95,7 +95,7 @@ DictionaryLayout::GetFirstDictionaryBucketSize(
     return bytes;
 }
 
-#ifndef DACCESS_COMPILE 
+#ifndef DACCESS_COMPILE
 //---------------------------------------------------------------------------------------
 //
 // Find a token in the dictionary layout and return the offsets of indirections
@@ -107,9 +107,9 @@ DictionaryLayout::GetFirstDictionaryBucketSize(
 // reliability scenarios.
 //
 // Optimize the case of a token being !i (for class dictionaries) or !!i (for method dictionaries)
-// 
+//
 /* static */
-BOOL 
+BOOL
 DictionaryLayout::FindTokenWorker(LoaderAllocator *                 pAllocator,
                                   DWORD                             numGenericArgs,
                                   DictionaryLayout *                pDictLayout,
@@ -131,6 +131,15 @@ DictionaryLayout::FindTokenWorker(LoaderAllocator *                 pAllocator,
         PRECONDITION((pSigBuilder == NULL && cbSig == -1) || (CheckPointer(pSigBuilder) && cbSig > 0));
     }
     CONTRACTL_END
+
+#ifndef FEATURE_NATIVE_IMAGE_GENERATION
+    // If the tiered compilation is on, save the fast dictionary slots for the hot Tier1 code
+    if (g_pConfig->TieredCompilation() && signatureSource == FromReadyToRunImage)
+    {
+        pResult->signature = pSig;
+        return FALSE;
+    }
+#endif
 
     BOOL isFirstBucket = TRUE;
 
@@ -154,7 +163,7 @@ DictionaryLayout::FindTokenWorker(LoaderAllocator *                 pAllocator,
 
                     if (pDictLayout->m_slots[iSlot].m_signatureSource != FromReadyToRunImage)
                     {
-                        // Compare the signatures. We do not need to worry about the size of pCandidate. 
+                        // Compare the signatures. We do not need to worry about the size of pCandidate.
                         // As long as we are comparing one byte at a time we are guaranteed to not overrun.
                         DWORD j;
                         for (j = 0; j < cbSig; j++)
@@ -211,8 +220,8 @@ DictionaryLayout::FindTokenWorker(LoaderAllocator *                 pAllocator,
                         memcpy(pResultSignature, pNewSig, cbNewSig);
                     }
 
-                    *EnsureWritablePages(&(pDictLayout->m_slots[iSlot].m_signature)) = pResultSignature;
-                    *EnsureWritablePages(&(pDictLayout->m_slots[iSlot].m_signatureSource)) = signatureSource;
+                    pDictLayout->m_slots[iSlot].m_signature = pResultSignature;
+                    pDictLayout->m_slots[iSlot].m_signatureSource = signatureSource;
                 }
 
                 pResult->signature = pDictLayout->m_slots[iSlot].m_signature;
@@ -235,7 +244,7 @@ DictionaryLayout::FindTokenWorker(LoaderAllocator *                 pAllocator,
         // orphaning a bucket in a race. We leak the loser in such a race (since the allocation comes from the loader heap) but both
         // the race and the overflow should be very rare.
         if (pDictLayout->m_pNext == NULL)
-            FastInterlockCompareExchangePointer(EnsureWritablePages(&(pDictLayout->m_pNext)), Allocate(4, pAllocator, NULL), 0);
+            FastInterlockCompareExchangePointer(&pDictLayout->m_pNext, Allocate(4, pAllocator, NULL), 0);
 
         pDictLayout = pDictLayout->m_pNext;
         isFirstBucket = FALSE;
@@ -243,13 +252,13 @@ DictionaryLayout::FindTokenWorker(LoaderAllocator *                 pAllocator,
 } // DictionaryLayout::FindToken
 
 /* static */
-BOOL 
-DictionaryLayout::FindToken(LoaderAllocator *               pAllocator, 
-                            DWORD                           numGenericArgs, 
-                            DictionaryLayout *              pDictLayout, 
-                            CORINFO_RUNTIME_LOOKUP *        pResult, 
-                            SigBuilder *                    pSigBuilder, 
-                            int                             nFirstOffset, 
+BOOL
+DictionaryLayout::FindToken(LoaderAllocator *               pAllocator,
+                            DWORD                           numGenericArgs,
+                            DictionaryLayout *              pDictLayout,
+                            CORINFO_RUNTIME_LOOKUP *        pResult,
+                            SigBuilder *                    pSigBuilder,
+                            int                             nFirstOffset,
                             DictionaryEntrySignatureSource  signatureSource)
 {
     WRAPPER_NO_CONTRACT;
@@ -262,11 +271,11 @@ DictionaryLayout::FindToken(LoaderAllocator *               pAllocator,
 }
 
 /* static */
-BOOL 
+BOOL
 DictionaryLayout::FindToken(LoaderAllocator *               pAllocator,
-                            DWORD                           numGenericArgs, 
-                            DictionaryLayout *              pDictLayout, 
-                            CORINFO_RUNTIME_LOOKUP *        pResult, 
+                            DWORD                           numGenericArgs,
+                            DictionaryLayout *              pDictLayout,
+                            CORINFO_RUNTIME_LOOKUP *        pResult,
                             BYTE *                          signature,
                             int                             nFirstOffset,
                             DictionaryEntrySignatureSource  signatureSource,
@@ -281,7 +290,7 @@ DictionaryLayout::FindToken(LoaderAllocator *               pAllocator,
 
 //---------------------------------------------------------------------------------------
 //
-DWORD 
+DWORD
 DictionaryLayout::GetMaxSlots()
 {
     LIMITED_METHOD_CONTRACT;
@@ -290,7 +299,7 @@ DictionaryLayout::GetMaxSlots()
 
 //---------------------------------------------------------------------------------------
 //
-DWORD 
+DWORD
 DictionaryLayout::GetNumUsedSlots()
 {
     LIMITED_METHOD_CONTRACT;
@@ -306,12 +315,12 @@ DictionaryLayout::GetNumUsedSlots()
 
 
 //---------------------------------------------------------------------------------------
-// 
-DictionaryEntryKind 
+//
+DictionaryEntryKind
 DictionaryEntryLayout::GetKind()
 {
     STANDARD_VM_CONTRACT;
-    
+
     if (m_signature == NULL)
         return EmptySlot;
 
@@ -324,11 +333,11 @@ DictionaryEntryLayout::GetKind()
 }
 
 #ifndef DACCESS_COMPILE
-#ifdef FEATURE_NATIVE_IMAGE_GENERATION 
+#ifdef FEATURE_NATIVE_IMAGE_GENERATION
 
 //---------------------------------------------------------------------------------------
-// 
-DWORD 
+//
+DWORD
 DictionaryLayout::GetObjectSize()
 {
     LIMITED_METHOD_CONTRACT;
@@ -338,8 +347,8 @@ DictionaryLayout::GetObjectSize()
 //---------------------------------------------------------------------------------------
 //
 // Save the dictionary layout for prejitting
-// 
-void 
+//
+void
 DictionaryLayout::Save(
     DataImage * image)
 {
@@ -358,8 +367,8 @@ DictionaryLayout::Save(
 //---------------------------------------------------------------------------------------
 //
 // Save the dictionary layout for prejitting
-// 
-void 
+//
+void
 DictionaryLayout::Trim()
 {
     CONTRACTL
@@ -377,17 +386,17 @@ DictionaryLayout::Trim()
     // Trim down the size to what's actually used
     DWORD dwSlots = pDictLayout->GetNumUsedSlots();
     _ASSERTE(FitsIn<WORD>(dwSlots));
-    *EnsureWritablePages(&pDictLayout->m_numSlots) = static_cast<WORD>(dwSlots);
+    pDictLayout->m_numSlots = static_cast<WORD>(dwSlots);
 
 }
 
 //---------------------------------------------------------------------------------------
 //
 // Fixup pointers in the dictionary layout for prejitting
-// 
-void 
+//
+void
 DictionaryLayout::Fixup(
-    DataImage * image, 
+    DataImage * image,
     BOOL        fMethod)
 {
     STANDARD_VM_CONTRACT;
@@ -414,14 +423,14 @@ DictionaryLayout::Fixup(
 //
 // Fixup pointers in the actual dictionary, including the type arguments.  Delete entries
 // that are expensive or difficult to restore.
-// 
-void 
+//
+void
 Dictionary::Fixup(
-    DataImage *        image, 
-    BOOL               canSaveInstantiation, 
-    BOOL               canSaveSlots, 
-    DWORD              numGenericArgs, 
-    Module *           pModule, 
+    DataImage *        image,
+    BOOL               canSaveInstantiation,
+    BOOL               canSaveSlots,
+    DWORD              numGenericArgs,
+    Module *           pModule,
     DictionaryLayout * pDictLayout)
 {
     STANDARD_VM_CONTRACT;
@@ -506,10 +515,10 @@ Dictionary::Fixup(
 
 //---------------------------------------------------------------------------------------
 //
-BOOL 
+BOOL
 Dictionary::IsWriteable(
-    DataImage *         image, 
-    BOOL                canSaveSlots, 
+    DataImage *         image,
+    BOOL                canSaveSlots,
     DWORD               numGenericArgs, // Must be non-zero
     Module *            pModule,        // module of the generic code
     DictionaryLayout *  pDictLayout)
@@ -558,7 +567,7 @@ Dictionary::IsWriteable(
                     image->CanEagerBindToFieldDesc(GetFieldDescSlot(numGenericArgs,i)) &&
                     image->CanHardBindToZapModule(GetFieldDescSlot(numGenericArgs,i)->GetLoaderModule()))
                 {
-                    // do nothing                
+                    // do nothing
                 }
                 else
                 {
@@ -578,10 +587,10 @@ Dictionary::IsWriteable(
 
 //---------------------------------------------------------------------------------------
 //
-BOOL 
+BOOL
 Dictionary::ComputeNeedsRestore(
-    DataImage *      image, 
-    TypeHandleList * pVisited, 
+    DataImage *      image,
+    TypeHandleList * pVisited,
     DWORD            numGenericArgs)
 {
     STANDARD_VM_CONTRACT;
@@ -606,9 +615,9 @@ Dictionary::ComputeNeedsRestore(
 #ifdef FEATURE_PREJIT
 //---------------------------------------------------------------------------------------
 //
-void 
+void
 Dictionary::Restore(
-    DWORD          numGenericArgs, 
+    DWORD          numGenericArgs,
     ClassLoadLevel level)
 {
     CONTRACTL
@@ -632,13 +641,13 @@ Dictionary::Restore(
 #endif // FEATURE_PREJIT
 
 //---------------------------------------------------------------------------------------
-// 
-DictionaryEntry 
+//
+DictionaryEntry
 Dictionary::PopulateEntry(
-    MethodDesc *       pMD, 
-    MethodTable *      pMT, 
-    LPVOID             signature, 
-    BOOL               nonExpansive, 
+    MethodDesc *       pMD,
+    MethodTable *      pMT,
+    LPVOID             signature,
+    BOOL               nonExpansive,
     DictionaryEntry ** ppSlot,
     DWORD              dictionaryIndexAndSlot, /* = -1 */
     Module *           pModule /* = NULL */)
@@ -686,8 +695,20 @@ Dictionary::PopulateEntry(
             pBlob = p.GetPtr();
         }
 
-        CORCOMPILE_FIXUP_BLOB_KIND signatureKind = (CORCOMPILE_FIXUP_BLOB_KIND)CorSigUncompressData(pBlob);
-        switch (signatureKind)
+        BYTE signatureKind = *pBlob++;
+        if (signatureKind & ENCODE_MODULE_OVERRIDE)
+        {
+            DWORD moduleIndex = CorSigUncompressData(pBlob);
+            Module * pSignatureModule = pModule->GetModuleFromIndex(moduleIndex);
+            if (pInfoModule == pModule)
+            {
+                pInfoModule = pSignatureModule;
+            }
+            _ASSERTE(pInfoModule == pSignatureModule);
+            signatureKind &= ~ENCODE_MODULE_OVERRIDE;
+        }
+
+        switch ((CORCOMPILE_FIXUP_BLOB_KIND) signatureKind)
         {
             case ENCODE_DECLARINGTYPE_HANDLE:   kind = DeclaringTypeHandleSlot; break;
             case ENCODE_TYPE_HANDLE:            kind = TypeHandleSlot; break;
@@ -740,8 +761,8 @@ Dictionary::PopulateEntry(
         {
             IfFailThrow(ptr.GetData(&dictionaryIndex));
         }
-        
-        // MethodTable is expected to be normalized      
+
+        // MethodTable is expected to be normalized
         _ASSERTE(pDictionary == pMT->GetPerInstInfo()[dictionaryIndex].GetValueMaybeNull());
     }
     else
@@ -770,11 +791,11 @@ Dictionary::PopulateEntry(
         {
             declaringType = ptr.GetTypeHandleThrowing(
                 pLookupModule,
-                &typeContext, 
-                (nonExpansive ? ClassLoader::DontLoadTypes : ClassLoader::LoadTypes), 
-                CLASS_LOADED, 
-                FALSE, 
-                NULL, 
+                &typeContext,
+                (nonExpansive ? ClassLoader::DontLoadTypes : ClassLoader::LoadTypes),
+                CLASS_LOADED,
+                FALSE,
+                NULL,
                 pZapSigContext);
             if (declaringType.IsNull())
             {
@@ -790,11 +811,11 @@ Dictionary::PopulateEntry(
         {
             TypeHandle th = ptr.GetTypeHandleThrowing(
                 pLookupModule,
-                &typeContext, 
-                (nonExpansive ? ClassLoader::DontLoadTypes : ClassLoader::LoadTypes), 
-                CLASS_LOADED, 
-                FALSE, 
-                NULL, 
+                &typeContext,
+                (nonExpansive ? ClassLoader::DontLoadTypes : ClassLoader::LoadTypes),
+                CLASS_LOADED,
+                FALSE,
+                NULL,
                 pZapSigContext);
             if (th.IsNull())
             {
@@ -821,11 +842,11 @@ Dictionary::PopulateEntry(
         {
             constraintType = ptr.GetTypeHandleThrowing(
                 pLookupModule,
-                &typeContext, 
-                (nonExpansive ? ClassLoader::DontLoadTypes : ClassLoader::LoadTypes), 
-                CLASS_LOADED, 
-                FALSE, 
-                NULL, 
+                &typeContext,
+                (nonExpansive ? ClassLoader::DontLoadTypes : ClassLoader::LoadTypes),
+                CLASS_LOADED,
+                FALSE,
+                NULL,
                 pZapSigContext);
             if (constraintType.IsNull())
             {
@@ -1108,6 +1129,37 @@ Dictionary::PopulateEntry(
                 if (!pResolvedMD)
                     COMPlusThrowHR(COR_E_BADIMAGEFORMAT);
 
+#if FEATURE_DEFAULT_INTERFACES
+                // If we resolved the constrained call on a value type into a method on a reference type, this is a
+                // default interface method implementation.
+                // In such case we would need to box the value type before we can dispatch to the implementation.
+                // This would require us to make a "boxing stub". For now we leave the boxing stubs unimplemented.
+                // It's not clear if anyone would need them and the implementation complexity is not worth it at this time.
+                if (!pResolvedMD->GetMethodTable()->IsValueType() && constraintType.GetMethodTable()->IsValueType())
+                {
+                    SString assemblyName;
+
+                    constraintType.GetMethodTable()->GetAssembly()->GetDisplayName(assemblyName);
+
+                    SString strInterfaceName;
+                    TypeString::AppendType(strInterfaceName, ownerType);
+
+                    SString strMethodName;
+                    TypeString::AppendMethod(strMethodName, pMethod, pMethod->GetMethodInstantiation());
+
+                    SString strTargetClassName;
+                    TypeString::AppendType(strTargetClassName, constraintType.GetMethodTable());
+
+                    COMPlusThrow(
+                        kNotSupportedException,
+                        IDS_CLASSLOAD_UNSUPPORTED_DISPATCH,
+                        strMethodName,
+                        strInterfaceName,
+                        strTargetClassName,
+                        assemblyName);
+                }
+#endif
+
                 result = (CORINFO_GENERIC_HANDLE)pResolvedMD->GetMultiCallableAddrOfCode();
             }
             else
@@ -1139,7 +1191,7 @@ Dictionary::PopulateEntry(
             {
                 FieldDesc* pField = ZapSig::DecodeField((Module*)pZapSigContext->pModuleContext, pZapSigContext->pInfoModule, ptr.GetPtr(), &typeContext, &ownerType);
                 _ASSERTE(!ownerType.IsNull());
-                
+
                 if (!IsCompilationProcess())
                     ownerType.AsMethodTable()->EnsureInstanceActive();
 
@@ -1181,7 +1233,7 @@ Dictionary::PopulateEntry(
         ULONG slotIndex;
         if (isReadyToRunModule)
         {
-            _ASSERT(dictionaryIndexAndSlot != -1);
+            _ASSERT(dictionaryIndexAndSlot != (DWORD)-1);
             slotIndex = (ULONG)(dictionaryIndexAndSlot & 0xFFFF);
         }
         else
@@ -1193,7 +1245,7 @@ Dictionary::PopulateEntry(
 
         if ((slotIndex != 0) && !IsCompilationProcess())
         {
-            *EnsureWritablePages(pDictionary->GetSlotAddr(0, slotIndex)) = result;
+            *(pDictionary->GetSlotAddr(0, slotIndex)) = result;
             *ppSlot = pDictionary->GetSlotAddr(0, slotIndex);
         }
     }
@@ -1202,11 +1254,11 @@ Dictionary::PopulateEntry(
 } // Dictionary::PopulateEntry
 
 //---------------------------------------------------------------------------------------
-// 
-void 
+//
+void
 Dictionary::PrepopulateDictionary(
-    MethodDesc *  pMD, 
-    MethodTable * pMT, 
+    MethodDesc *  pMD,
+    MethodTable * pMT,
     BOOL          nonExpansive)
 {
     STANDARD_VM_CONTRACT;
@@ -1223,12 +1275,12 @@ Dictionary::PrepopulateDictionary(
                 DictionaryEntry * pSlot;
                 DictionaryEntry entry;
                 entry = PopulateEntry(
-                    pMD, 
-                    pMT, 
-                    pDictLayout->GetEntryLayout(i)->m_signature, 
-                    nonExpansive, 
+                    pMD,
+                    pMT,
+                    pDictLayout->GetEntryLayout(i)->m_signature,
+                    nonExpansive,
                     &pSlot);
-                
+
                 _ASSERT((entry == NULL) || (entry == GetSlot(numGenericArgs,i)) || IsCompilationProcess());
                 _ASSERT((pSlot == NULL) || (pSlot == GetSlotAddr(numGenericArgs,i)));
             }

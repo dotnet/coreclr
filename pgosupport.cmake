@@ -1,3 +1,6 @@
+include(CheckIPOSupported)
+check_ipo_supported(RESULT HAVE_LTO)
+
 # Adds Profile Guided Optimization (PGO) flags to the current target
 function(add_pgo TargetName)
     if(WIN32)
@@ -5,14 +8,9 @@ function(add_pgo TargetName)
     else(WIN32)
         set(ProfileFileName "${TargetName}.profdata")
     endif(WIN32)
-
-    set(CLR_CMAKE_OPTDATA_PACKAGEWITHRID "optimization.${CLR_CMAKE_TARGET_OS}-${CLR_CMAKE_TARGET_ARCH}.PGO.CoreCLR")
-
-    # On case-sensitive file systems, NuGet packages are restored to lowercase paths
-    string(TOLOWER "${CLR_CMAKE_OPTDATA_PACKAGEWITHRID}/${CLR_CMAKE_OPTDATA_VERSION}" OptDataVersionedSubPath)
-
+    
     file(TO_NATIVE_PATH
-        "${CLR_CMAKE_PACKAGES_DIR}/${OptDataVersionedSubPath}/data/${ProfileFileName}"
+        "${CLR_CMAKE_OPTDATA_PATH}/data/${ProfileFileName}"
         ProfilePath
     )
 
@@ -28,7 +26,9 @@ function(add_pgo TargetName)
         endif(WIN32)
     elseif(CLR_CMAKE_PGO_OPTIMIZE)
         # If we don't have profile data availble, gracefully fall back to a non-PGO opt build
-        if(EXISTS ${ProfilePath})
+        if(NOT EXISTS ${ProfilePath})
+            message("PGO data file NOT found: ${ProfilePath}")
+        else(NOT EXISTS ${ProfilePath})
             if(WIN32)
                 set_property(TARGET ${TargetName} APPEND_STRING PROPERTY LINK_FLAGS_RELEASE        " /LTCG /USEPROFILE:PGD=${ProfilePath}")
                 set_property(TARGET ${TargetName} APPEND_STRING PROPERTY LINK_FLAGS_RELWITHDEBINFO " /LTCG /USEPROFILE:PGD=${ProfilePath}")
@@ -46,6 +46,6 @@ function(add_pgo TargetName)
                     endif(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 3.6)
                 endif(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL RELEASE OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL RELWITHDEBINFO)
             endif(WIN32)
-        endif(EXISTS ${ProfilePath})
+        endif(NOT EXISTS ${ProfilePath})
     endif(CLR_CMAKE_PGO_INSTRUMENT)
 endfunction(add_pgo)

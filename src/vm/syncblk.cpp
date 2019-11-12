@@ -22,7 +22,6 @@
 #include "syncblk.h"
 #include "interoputil.h"
 #include "encee.h"
-#include "perfcounters.h"
 #include "eventtrace.h"
 #include "dllimportcallback.h"
 #include "comcallablewrapper.h"
@@ -56,18 +55,6 @@ SPTR_IMPL (SyncBlockCache, SyncBlockCache, s_pSyncBlockCache);
 #ifndef DACCESS_COMPILE
 
 
-
-void SyncBlock::OnADUnload()
-{
-    WRAPPER_NO_CONTRACT;
-#ifdef EnC_SUPPORTED
-    if (m_pEnCInfo)
-    {
-        m_pEnCInfo->Cleanup();
-        m_pEnCInfo = NULL;
-    }
-#endif
-}
 
 #ifndef FEATURE_PAL
 // static
@@ -229,12 +216,6 @@ void InteropSyncBlockInfo::SetRawRCW(RCW* pRCW)
 }
 #endif // FEATURE_COMINTEROP
 
-void UMEntryThunk::OnADUnload()
-{
-    LIMITED_METHOD_CONTRACT;
-    m_pObjectHandle = NULL;
-}
-
 #endif // !DACCESS_COMPILE
 
 PTR_SyncTableEntry SyncTableEntry::GetSyncTableEntry()
@@ -309,7 +290,6 @@ inline WaitEventLink *ThreadQueue::DequeueThread(SyncBlock *psb)
 #endif
         ret = WaitEventLinkForLink(pLink);
         _ASSERTE(ret->m_WaitSB == psb);
-        COUNTER_ONLY(GetPerfCounters().m_LocksAndThreads.cQueueLength--);
     }
     return ret;
 }
@@ -333,8 +313,6 @@ inline void ThreadQueue::EnqueueThread(WaitEventLink *pWaitEventLink, SyncBlock 
     // Be careful, the debugger inspects the queue from out of process and just looks at the memory...
     // it must be valid even if the lock is held. Be careful if you change the way the queue is updated.
     SyncBlockCache::LockHolder lh(SyncBlockCache::GetSyncBlockCache());
-
-    COUNTER_ONLY(GetPerfCounters().m_LocksAndThreads.cQueueLength++);
 
     SLink       *pPrior = &psb->m_Link;
 
@@ -382,7 +360,6 @@ BOOL ThreadQueue::RemoveThread (Thread *pThread, SyncBlock *psb)
             pLink->m_pNext = (SLink *)POISONC;
 #endif
             _ASSERTE(pWaitEventLink->m_WaitSB == psb);
-            COUNTER_ONLY(GetPerfCounters().m_LocksAndThreads.cQueueLength--);
             res = TRUE;
             break;
         }
@@ -571,12 +548,12 @@ SyncBlockCache::~SyncBlockCache()
 }
 
 
-// When the GC determines that an object is dead the low bit of the 
-// m_Object field of SyncTableEntry is set, however it is not 
+// When the GC determines that an object is dead the low bit of the
+// m_Object field of SyncTableEntry is set, however it is not
 // cleaned up because we cant do the COM interop cleanup at GC time.
 // It is put on a cleanup list and at a later time (typically during
-// finalization, this list is cleaned up. 
-// 
+// finalization, this list is cleaned up.
+//
 void SyncBlockCache::CleanupSyncBlocks()
 {
     STATIC_CONTRACT_THROWS;
@@ -639,7 +616,7 @@ void SyncBlockCache::CleanupSyncBlocks()
                 FinalizerThread::GetFinalizerThread()->PulseGCMode();
             }
         }
-        
+
 #ifdef FEATURE_COMINTEROP
         // Now clean up the rcw's sorted by context
         if (g_pRCWCleanupList != NULL)
@@ -654,169 +631,12 @@ void SyncBlockCache::CleanupSyncBlocks()
 #ifdef FEATURE_COMINTEROP
         if (param.pRCW)
             param.pRCW->Cleanup();
-#endif        
+#endif
 
         if (param.psb)
             DeleteSyncBlock(param.psb);
     } EE_END_FINALLY;
 }
-
-// When a appdomain is unloading, we need to insure that any pointers to
-// it from sync blocks (eg from COM Callable Wrappers) are properly 
-// updated so that they fail gracefully if another call is made from
-// them.  This is what this routine does.  
-// 
-VOID SyncBlockCache::CleanupSyncBlocksInAppDomain(AppDomain *pDomain)
-{
-    CONTRACTL
-    {
-        GC_TRIGGERS;
-        THROWS;
-        MODE_COOPERATIVE;
-    }
-    CONTRACTL_END;
-
-#ifndef DACCESS_COMPILE
-    _ASSERTE(IsFinalizerThread());
-    
-    ADIndex index = pDomain->GetIndex();
-
-    ADID id = pDomain->GetId();
-
-    // Make sure we dont race with anybody updating the table
-    DWORD maxIndex;
-
-    {        
-        // Taking this lock here avoids races whre m_FreeSyncTableIndex is being updated.
-        // (a volatile read would have been enough however).  
-        SyncBlockCache::LockHolder lh(SyncBlockCache::GetSyncBlockCache());
-        maxIndex = m_FreeSyncTableIndex;
-    }
-    BOOL bModifiedCleanupList=FALSE;
-    STRESS_LOG1(LF_APPDOMAIN, LL_INFO100, "To cleanup - %d sync blocks", maxIndex);
-    DWORD nb;
-    for (nb = 1; nb < maxIndex; nb++)
-    {
-        // This is a check for syncblocks that were already cleaned up.
-        if ((size_t)SyncTableEntry::GetSyncTableEntry()[nb].m_Object.Load() & 1)
-        {
-            continue;
-        }
-
-        // If the syncblock pointer is invalid, nothing more we can do.
-        SyncBlock *pSyncBlock = SyncTableEntry::GetSyncTableEntry()[nb].m_SyncBlock;
-        if (!pSyncBlock)
-        {
-            continue;
-        }
-        
-        // If we happen to have a CCW living in the AppDomain being cleaned, then we need to neuter it.
-        //  We do this check early because we have to neuter CCWs for agile objects as well.
-        //  Neutering the object simply means we disconnect the object from the CCW so it can no longer
-        //  be used.  When its ref-count falls to zero, it gets cleaned up.
-        STRESS_LOG1(LF_APPDOMAIN, LL_INFO1000000, "SyncBlock %p.", pSyncBlock);                    
-        InteropSyncBlockInfo* pInteropInfo = pSyncBlock->GetInteropInfoNoCreate();
-        if (pInteropInfo)
-        {
-#ifdef FEATURE_COMINTEROP
-            ComCallWrapper* pWrap = pInteropInfo->GetCCW();
-            if (pWrap)
-            {
-                SimpleComCallWrapper* pSimpleWrapper = pWrap->GetSimpleWrapper();
-                _ASSERTE(pSimpleWrapper);
-                    
-                if (pSimpleWrapper->GetDomainID() == id)
-                {
-                    pSimpleWrapper->Neuter();
-                }
-            }          
-#endif // FEATURE_COMINTEROP
-
-            UMEntryThunk* umThunk=(UMEntryThunk*)pInteropInfo->GetUMEntryThunk();
-                
-            if (umThunk && umThunk->GetDomainId()==id)
-            {
-                umThunk->OnADUnload();
-                STRESS_LOG1(LF_APPDOMAIN, LL_INFO100, "Thunk %x unloaded", umThunk);
-            }       
-
-#ifdef FEATURE_COMINTEROP
-            {
-                // we need to take RCWCache lock to avoid the race with another thread which is 
-                // removing the RCW from cache, decoupling it from the object, and deleting the RCW.
-                RCWCache* pCache = pDomain->GetRCWCache();
-                _ASSERTE(pCache);
-                RCWCache::LockHolder lh(pCache);
-                RCW* pRCW = pInteropInfo->GetRawRCW();
-                if (pRCW && pRCW->GetDomain()==pDomain)
-                {
-                    // We should have initialized the cleanup list with the
-                    // first RCW cache we created
-                    _ASSERTE(g_pRCWCleanupList != NULL);
-
-                    g_pRCWCleanupList->AddWrapper(pRCW);
-
-                    pCache->RemoveWrapper(pRCW);
-                    pInteropInfo->SetRawRCW(NULL);
-                    bModifiedCleanupList=TRUE;
-                }
-            }                         
-#endif // FEATURE_COMINTEROP
-        }
-
-        // NOTE: this will only notify the sync block if it is non-agile and living in the unloading domain.
-        //  Agile objects that are still alive will not get notification!
-        if (pSyncBlock->GetAppDomainIndex() == index)
-        {
-            pSyncBlock->OnADUnload();
-        }
-    }
-    STRESS_LOG1(LF_APPDOMAIN, LL_INFO100, "AD cleanup - %d sync blocks done", nb);
-    // Make sure nobody decreased m_FreeSyncTableIndex behind our back (we would read
-    // off table limits)
-    _ASSERTE(maxIndex <= m_FreeSyncTableIndex);
-
-    if (bModifiedCleanupList)
-        GetThread()->SetSyncBlockCleanup();
-
-    while (GetThread()->RequireSyncBlockCleanup()) //we also might have something in the cleanup list
-        CleanupSyncBlocks();
-    
-#ifdef _DEBUG
-      {            
-            SyncBlockCache::LockHolder lh(SyncBlockCache::GetSyncBlockCache());
-            DWORD maxIndex = m_FreeSyncTableIndex;
-        for (DWORD nb = 1; nb < maxIndex; nb++)
-        {
-            if ((size_t)SyncTableEntry::GetSyncTableEntry()[nb].m_Object.Load() & 1)
-            {
-                continue;
-            }
-
-            // If the syncblock pointer is invalid, nothing more we can do.
-            SyncBlock *pSyncBlock = SyncTableEntry::GetSyncTableEntry()[nb].m_SyncBlock;
-            if (!pSyncBlock)
-            {
-                continue;
-            }            
-            InteropSyncBlockInfo* pInteropInfo = pSyncBlock->GetInteropInfoNoCreate();
-            if (pInteropInfo)
-            {
-                UMEntryThunk* umThunk=(UMEntryThunk*)pInteropInfo->GetUMEntryThunk();
-                
-                if (umThunk && umThunk->GetDomainId()==id)
-                {
-                    _ASSERTE(!umThunk->GetObjectHandle());
-                }
-            }
-            
-        }
-    }
-#endif
-    
-#endif
-}
-
 
 // create the sync block cache
 /* static */
@@ -824,92 +644,6 @@ void SyncBlockCache::Attach()
 {
     LIMITED_METHOD_CONTRACT;
 }
-
-// destroy the sync block cache
-// This method is NO longer called.
-#if 0
-void SyncBlockCache::DoDetach()
-{
-    CONTRACTL
-    {
-        INSTANCE_CHECK;
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    Object *pObj;
-    ObjHeader  *pHeader;
-
-
-    // Ensure that all the critical sections are released.  This is particularly
-    // important in DEBUG, because all critical sections are threaded onto a global
-    // list which would otherwise be corrupted.
-    for (DWORD i=0; i<m_FreeSyncTableIndex; i++)
-        if (((size_t)SyncTableEntry::GetSyncTableEntry()[i].m_Object & 1) == 0)
-            if (SyncTableEntry::GetSyncTableEntry()[i].m_SyncBlock)
-            {
-                // <TODO>@TODO -- If threads are executing during this detach, they will
-                // fail in various ways:
-                //
-                // 1) They will race between us tearing these data structures down
-                //    as they navigate through them.
-                //
-                // 2) They will unexpectedly see the syncblock destroyed, even though
-                //    they hold the synchronization lock, or have been exposed out
-                //    to COM, etc.
-                //
-                // 3) The instance's hash code may change during the shutdown.
-                //
-                // The correct solution involves suspending the threads earlier, but
-                // changing our suspension code so that it allows pumping if we are
-                // in a shutdown case.
-                //
-                // </TODO>
-
-                // Make sure this gets updated because the finalizer thread & others
-                // will continue to run for a short while more during our shutdown.
-                pObj = SyncTableEntry::GetSyncTableEntry()[i].m_Object;
-                pHeader = pObj->GetHeader();
-
-                {
-                    ENTER_SPIN_LOCK(pHeader);
-                    ADIndex appDomainIndex = pHeader->GetAppDomainIndex();
-                    if (! appDomainIndex.m_dwIndex)
-                    {
-                        SyncBlock* syncBlock = pObj->PassiveGetSyncBlock();
-                        if (syncBlock)
-                            appDomainIndex = syncBlock->GetAppDomainIndex();
-                    }
-
-                    pHeader->ResetIndex();
-
-        if (appDomainIndex.m_dwIndex)
-                    {
-                        pHeader->SetIndex(appDomainIndex.m_dwIndex<<SBLK_APPDOMAIN_SHIFT);
-                    }
-                    LEAVE_SPIN_LOCK(pHeader);
-                }
-
-                SyncTableEntry::GetSyncTableEntry()[i].m_Object = (Object *)(m_FreeSyncTableList | 1);
-                m_FreeSyncTableList = i << 1;
-
-                DeleteSyncBlock(SyncTableEntry::GetSyncTableEntry()[i].m_SyncBlock);
-            }
-}
-#endif
-
-// destroy the sync block cache
-/* static */
-// This method is NO longer called.
-#if 0
-void SyncBlockCache::Detach()
-{
-    SyncBlockCache::GetSyncBlockCache()->DoDetach();
-}
-#endif
-
 
 // create the sync block cache
 /* static */
@@ -933,7 +667,7 @@ void SyncBlockCache::Start()
     for (int i=0; i<SYNC_TABLE_INITIAL_SIZE+1; i++) {
         SyncTableEntry::GetSyncTableEntry()[i].m_SyncBlock = NULL;
     }
-#endif    
+#endif
 
     SyncTableEntry::GetSyncTableEntry()[0].m_SyncBlock = 0;
     SyncBlockCache::GetSyncBlockCache() = new (&g_SyncBlockCacheInstance) SyncBlockCache;
@@ -1100,7 +834,7 @@ void SyncBlockCache::Grow()
     CONTRACTL_END;
 
     STRESS_LOG0(LF_SYNC, LL_INFO10000, "SyncBlockCache::NewSyncBlockSlot growing SyncBlockCache \n");
-        
+
     NewArrayHolder<SyncTableEntry> newSyncTable (NULL);
     NewArrayHolder<DWORD>          newBitMap    (NULL);
     DWORD *                        oldBitMap;
@@ -1192,7 +926,7 @@ DWORD SyncBlockCache::NewSyncBlockSlot(Object *obj)
         INJECT_FAULT(COMPlusThrowOM(););
     }
     CONTRACTL_END;
-    _ASSERTE(m_CacheLock.OwnedByCurrentThread()); // GetSyncBlock takes the lock, make sure no one else does.  
+    _ASSERTE(m_CacheLock.OwnedByCurrentThread()); // GetSyncBlock takes the lock, make sure no one else does.
 
     DWORD indexNewEntry;
     if (m_FreeSyncTableList)
@@ -1203,7 +937,7 @@ DWORD SyncBlockCache::NewSyncBlockSlot(Object *obj)
     }
     else if ((indexNewEntry = (DWORD)(m_FreeSyncTableIndex)) >= m_SyncTableSize)
     {
-        // This is kept out of line to keep stuff like the C++ EH prolog (needed for holders) off 
+        // This is kept out of line to keep stuff like the C++ EH prolog (needed for holders) off
         // of the common path.
         Grow();
     }
@@ -1227,8 +961,8 @@ DWORD SyncBlockCache::NewSyncBlockSlot(Object *obj)
 
     CardTableSetBit (indexNewEntry);
 
-    // In debug builds the m_SyncBlock at indexNewEntry should already be null, since we should 
-    // start out with a null table and always null it out on delete. 
+    // In debug builds the m_SyncBlock at indexNewEntry should already be null, since we should
+    // start out with a null table and always null it out on delete.
     _ASSERTE(SyncTableEntry::GetSyncTableEntry() [indexNewEntry].m_SyncBlock == NULL);
     SyncTableEntry::GetSyncTableEntry() [indexNewEntry].m_SyncBlock = NULL;
     SyncTableEntry::GetSyncTableEntry() [indexNewEntry].m_Object = obj;
@@ -1239,7 +973,7 @@ DWORD SyncBlockCache::NewSyncBlockSlot(Object *obj)
 }
 
 
-// free a used sync block, only called from CleanupSyncBlocks.  
+// free a used sync block, only called from CleanupSyncBlocks.
 void SyncBlockCache::DeleteSyncBlock(SyncBlock *psb)
 {
     CONTRACTL
@@ -1372,9 +1106,9 @@ void SyncBlockCache::GCWeakPtrScan(HANDLESCANPROC scanProc, uintptr_t lp1, uintp
    if (GCHeapUtilities::GetGCHeap()->GetCondemnedGeneration() < GCHeapUtilities::GetGCHeap()->GetMaxGeneration())
    {
 #ifdef VERIFY_HEAP
-        //for VSW 294550: we saw stale obeject reference in SyncBlkCache, so we want to make sure the card 
-        //table logic above works correctly so that every ephemeral entry is promoted. 
-        //For verification, we make a copy of the sync table in relocation phase and promote it use the 
+        //for VSW 294550: we saw stale obeject reference in SyncBlkCache, so we want to make sure the card
+        //table logic above works correctly so that every ephemeral entry is promoted.
+        //For verification, we make a copy of the sync table in relocation phase and promote it use the
         //slow approach and compare the result with the original one
         DWORD freeSyncTalbeIndexCopy = m_FreeSyncTableIndex;
         SyncTableEntry * syncTableShadow = NULL;
@@ -1383,7 +1117,7 @@ void SyncBlockCache::GCWeakPtrScan(HANDLESCANPROC scanProc, uintptr_t lp1, uintp
             syncTableShadow = new(nothrow) SyncTableEntry [m_FreeSyncTableIndex];
             if (syncTableShadow)
             {
-                memcpy (syncTableShadow, SyncTableEntry::GetSyncTableEntry(), m_FreeSyncTableIndex * sizeof (SyncTableEntry));                
+                memcpy (syncTableShadow, SyncTableEntry::GetSyncTableEntry(), m_FreeSyncTableIndex * sizeof (SyncTableEntry));
             }
         }
 #endif //VERIFY_HEAP
@@ -1432,10 +1166,10 @@ void SyncBlockCache::GCWeakPtrScan(HANDLESCANPROC scanProc, uintptr_t lp1, uintp
             else
                 break;
         }
-        
+
 #ifdef VERIFY_HEAP
-        //for VSW 294550: we saw stale obeject reference in SyncBlkCache, so we want to make sure the card 
-        //table logic above works correctly so that every ephemeral entry is promoted. To verify, we make a 
+        //for VSW 294550: we saw stale obeject reference in SyncBlkCache, so we want to make sure the card
+        //table logic above works correctly so that every ephemeral entry is promoted. To verify, we make a
         //copy of the sync table and promote it use the slow approach and compare the result with the real one
         if (g_pConfig->GetHeapVerifyLevel()& EEConfig::HEAPVERIFY_SYNCBLK)
         {
@@ -1455,7 +1189,7 @@ void SyncBlockCache::GCWeakPtrScan(HANDLESCANPROC scanProc, uintptr_t lp1, uintp
                                 DebugBreak ();
                         }
                     }
-                } 
+                }
                 delete []syncTableShadow;
                 syncTableShadow = NULL;
             }
@@ -1491,7 +1225,7 @@ void SyncBlockCache::GCWeakPtrScan(HANDLESCANPROC scanProc, uintptr_t lp1, uintp
             for (int nb = 1; nb < (int)m_FreeSyncTableIndex; nb++)
             {
                 Object* o = SyncTableEntry::GetSyncTableEntry()[nb].m_Object;
-                if (((size_t)o & 1) == 0)
+                if (o && ((size_t)o & 1) == 0)
                 {
                     o->Validate();
                 }
@@ -1611,15 +1345,15 @@ void SyncBlockCache::GCDone(BOOL demoting, int max_gen)
     }
     CONTRACTL_END;
 
-    if (demoting && 
-        (GCHeapUtilities::GetGCHeap()->GetCondemnedGeneration() == 
+    if (demoting &&
+        (GCHeapUtilities::GetGCHeap()->GetCondemnedGeneration() ==
          GCHeapUtilities::GetGCHeap()->GetMaxGeneration()))
     {
         //scan the bitmap
         size_t dw = 0;
         while (1)
         {
-            while (dw < BitMapSize (m_SyncTableSize) && 
+            while (dw < BitMapSize (m_SyncTableSize) &&
                    (m_EphemeralBitmap[dw]==(DWORD)~0))
             {
                 dw++;
@@ -1684,7 +1418,7 @@ void SyncBlockCache::VerifySyncTableEntry()
     {
         Object* o = SyncTableEntry::GetSyncTableEntry()[nb].m_Object;
         // if the slot was just allocated, the object may still be null
-        if (o && (((size_t)o & 1) == 0)) 
+        if (o && (((size_t)o & 1) == 0))
         {
             //there is no need to verify next object's header because this is called
             //from verify_heap, which will verify every object anyway
@@ -1697,7 +1431,7 @@ void SyncBlockCache::VerifySyncTableEntry()
             //
             static const DWORD max_iterations = 100;
             DWORD loop = 0;
-            
+
             for (; loop < max_iterations; loop++)
             {
                 // The syncblock index may be updating by another thread.
@@ -1707,7 +1441,7 @@ void SyncBlockCache::VerifySyncTableEntry()
                 }
                 __SwitchToThread(0, CALLER_LIMITS_SPINNING);
             }
-            
+
             DWORD idx = o->GetHeader()->GetHeaderSyncBlockIndex();
             _ASSERTE(idx == nb || ((0 == idx) && (loop == max_iterations)));
             _ASSERTE(!GCHeapUtilities::GetGCHeap()->IsEphemeral(o) || CardSetP(CardOf(nb)));
@@ -1795,21 +1529,8 @@ void DumpSyncBlockCache()
                 descrip = param.descrip;
                 isString = param.isString;
             }
-            ADIndex idx;
-            if (oref)
-                idx = pEntry->m_Object->GetHeader()->GetRawAppDomainIndex();
-            if (! idx.m_dwIndex && pEntry->m_SyncBlock)
-                idx = pEntry->m_SyncBlock->GetAppDomainIndex();
-            if (idx.m_dwIndex && ! SystemDomain::System()->TestGetAppDomainAtIndex(idx))
-            {
-                sprintf_s(buffer, COUNTOF(buffer), "** unloaded (%3.3x) %s", idx.m_dwIndex, descrip);
-                descrip = buffer;
-            }
-            else
-            {
-                sprintf_s(buffer, COUNTOF(buffer), "(AD %3.3x) %s", idx.m_dwIndex, descrip);
-                descrip = buffer;
-            }
+            sprintf_s(buffer, COUNTOF(buffer), "%s", descrip);
+            descrip = buffer;
         }
         if (dumpSBStyle < 2)
             LogSpewAlways("[%4.4d]: %8.8x %s\n", nb, oref, descrip);
@@ -1862,7 +1583,6 @@ BOOL ObjHeader::TryEnterObjMonitor(INT32 timeOut)
 AwareLock::EnterHelperResult ObjHeader::EnterObjMonitorHelperSpin(Thread* pCurThread)
 {
     CONTRACTL{
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
@@ -2004,7 +1724,7 @@ BOOL ObjHeader::LeaveObjMonitor()
             }
             return TRUE;
         case AwareLock::LeaveHelperAction_Yield:
-            YieldProcessor();
+            YieldProcessorNormalized();
             continue;
         case AwareLock::LeaveHelperAction_Contention:
             // Some thread is updating the syncblock value.
@@ -2024,7 +1744,7 @@ BOOL ObjHeader::LeaveObjMonitor()
     }
 }
 
-// The only difference between LeaveObjMonitor and LeaveObjMonitorAtException is switch 
+// The only difference between LeaveObjMonitor and LeaveObjMonitorAtException is switch
 // to preemptive mode around __SwitchToThread
 BOOL ObjHeader::LeaveObjMonitorAtException()
 {
@@ -2056,12 +1776,12 @@ BOOL ObjHeader::LeaveObjMonitorAtException()
             }
             return TRUE;
         case AwareLock::LeaveHelperAction_Yield:
-            YieldProcessor();
+            YieldProcessorNormalized();
             continue;
         case AwareLock::LeaveHelperAction_Contention:
             // Some thread is updating the syncblock value.
             //
-            // We never toggle GC mode while holding the spinlock (BeginNoTriggerGC/EndNoTriggerGC 
+            // We never toggle GC mode while holding the spinlock (BeginNoTriggerGC/EndNoTriggerGC
             // in EnterSpinLock/ReleaseSpinLock ensures it). Thus we do not need to switch to preemptive
             // while waiting on the spinlock.
             //
@@ -2089,7 +1809,6 @@ BOOL ObjHeader::GetThreadOwningMonitorLock(DWORD *pThreadId, DWORD *pAcquisition
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
 #ifndef DACCESS_COMPILE
         if (!IsGCSpecialThread ()) {MODE_COOPERATIVE;} else {MODE_ANY;}
 #endif
@@ -2184,13 +1903,13 @@ DEBUG_NOINLINE void ObjHeader::EnterSpinLock()
     while (TRUE)
     {
 #ifdef _DEBUG
-#ifdef _WIN64
+#ifdef BIT64
         // Give 64bit more time because there isn't a remoting fast path now, and we've hit this assert
-        // needlessly in CLRSTRESS. 
+        // needlessly in CLRSTRESS.
         if (i++ > 30000)
-#else            
+#else
         if (i++ > 10000)
-#endif // _WIN64            
+#endif // BIT64
             _ASSERTE(!"ObjHeader::EnterLock timed out");
 #endif
         // get the value so that it doesn't get changed under us.
@@ -2211,7 +1930,7 @@ DEBUG_NOINLINE void ObjHeader::EnterSpinLock()
             {
                 if  (! (m_SyncBlockValue & BIT_SBLK_SPIN_LOCK))
                     break;
-                YieldProcessor();               // indicate to the processor that we are spining
+                YieldProcessorNormalized(); // indicate to the processor that we are spinning
             }
             if  (m_SyncBlockValue & BIT_SBLK_SPIN_LOCK)
                 __SwitchToThread(0, ++dwSwitchCount);
@@ -2274,178 +1993,7 @@ DEBUG_NOINLINE void ObjHeader::ReleaseSpinLock()
 
 #endif //!DACCESS_COMPILE
 
-ADIndex ObjHeader::GetRawAppDomainIndex()
-{
-    LIMITED_METHOD_CONTRACT;
-    SUPPORTS_DAC;
-
-    // pull the value out before checking it to avoid race condition
-    DWORD value = m_SyncBlockValue.LoadWithoutBarrier();
-    if ((value & BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX) == 0)
-        return ADIndex((value >> SBLK_APPDOMAIN_SHIFT) & SBLK_MASK_APPDOMAININDEX);
-    return ADIndex(0);
-}
-
-ADIndex ObjHeader::GetAppDomainIndex()
-{
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_SO_TOLERANT;
-    STATIC_CONTRACT_SUPPORTS_DAC;
-
-    ADIndex indx = GetRawAppDomainIndex();
-    if (indx.m_dwIndex)
-        return indx;
-    SyncBlock* syncBlock = PassiveGetSyncBlock();
-    if (! syncBlock)
-        return ADIndex(0);
-
-    return syncBlock->GetAppDomainIndex();
-}
-
 #ifndef DACCESS_COMPILE
-
-void ObjHeader::SetAppDomainIndex(ADIndex indx)
-{
-    CONTRACTL
-    {
-        INSTANCE_CHECK;
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        INJECT_FAULT(COMPlusThrowOM(););
-    }
-    CONTRACTL_END;
-
-    //
-    // This should only be called during the header initialization,
-    // so don't worry about races.
-    //
-
-    BOOL done = FALSE;
-
-#ifdef _DEBUG
-    static int forceSB = -1;
-
-    if (forceSB == -1)
-        forceSB = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_ADForceSB);
-
-    if (forceSB)
-        // force a synblock so we get one for every object.
-        GetSyncBlock();
-#endif
-
-    if (GetHeaderSyncBlockIndex() == 0 && indx.m_dwIndex < SBLK_MASK_APPDOMAININDEX)
-    {
-        ENTER_SPIN_LOCK(this);
-        //Try one more time
-        if (GetHeaderSyncBlockIndex() == 0)
-        {
-            _ASSERTE(GetRawAppDomainIndex().m_dwIndex == 0);
-            // can store it in the object header
-            FastInterlockOr(&m_SyncBlockValue, indx.m_dwIndex << SBLK_APPDOMAIN_SHIFT);
-            done = TRUE;
-        }
-        LEAVE_SPIN_LOCK(this);
-    }
-
-    if (!done)
-    {
-        // must create a syncblock entry and store the appdomain indx there
-        SyncBlock *psb = GetSyncBlock();
-        _ASSERTE(psb);
-        psb->SetAppDomainIndex(indx);
-    }
-}
-
-void ObjHeader::ResetAppDomainIndex(ADIndex indx)
-{
-    CONTRACTL
-    {
-        INSTANCE_CHECK;
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    //
-    // This should only be called during the header initialization,
-    // so don't worry about races.
-    //
-
-    BOOL done = FALSE;
-
-    if (GetHeaderSyncBlockIndex() == 0 && indx.m_dwIndex < SBLK_MASK_APPDOMAININDEX)
-    {
-        ENTER_SPIN_LOCK(this);
-        //Try one more time
-        if (GetHeaderSyncBlockIndex() == 0)
-        {
-            // can store it in the object header
-            while (TRUE)
-            {
-                DWORD oldValue = m_SyncBlockValue.LoadWithoutBarrier();
-                DWORD newValue = (oldValue & (~(SBLK_MASK_APPDOMAININDEX << SBLK_APPDOMAIN_SHIFT))) |
-                    (indx.m_dwIndex << SBLK_APPDOMAIN_SHIFT);
-                if (FastInterlockCompareExchange((LONG*)&m_SyncBlockValue,
-                                                 newValue,
-                                                 oldValue) == (LONG)oldValue)
-                {
-                    break;
-                }
-            }
-            done = TRUE;
-        }
-        LEAVE_SPIN_LOCK(this);
-    }
-
-    if (!done)
-    {
-        // must create a syncblock entry and store the appdomain indx there
-        SyncBlock *psb = GetSyncBlock();
-        _ASSERTE(psb);
-        psb->SetAppDomainIndex(indx);
-    }
-}
-
-void ObjHeader::ResetAppDomainIndexNoFailure(ADIndex indx)
-{
-    CONTRACTL
-    {
-        INSTANCE_CHECK;
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        PRECONDITION(indx.m_dwIndex < SBLK_MASK_APPDOMAININDEX);
-    }
-    CONTRACTL_END;
-
-    ENTER_SPIN_LOCK(this);
-    if (GetHeaderSyncBlockIndex() == 0)
-    {
-        // can store it in the object header
-        while (TRUE)
-        {
-            DWORD oldValue = m_SyncBlockValue.LoadWithoutBarrier();
-            DWORD newValue = (oldValue & (~(SBLK_MASK_APPDOMAININDEX << SBLK_APPDOMAIN_SHIFT))) |
-                (indx.m_dwIndex << SBLK_APPDOMAIN_SHIFT);
-            if (FastInterlockCompareExchange((LONG*)&m_SyncBlockValue,
-                                             newValue,
-                                             oldValue) == (LONG)oldValue)
-            {
-                break;
-            }
-        }
-    }
-    else
-    {
-        SyncBlock *psb = PassiveGetSyncBlock();
-        _ASSERTE(psb);
-        psb->SetAppDomainIndex(indx);
-    }
-    LEAVE_SPIN_LOCK(this);
-}
 
 DWORD ObjHeader::GetSyncBlockIndex()
 {
@@ -2464,13 +2012,6 @@ DWORD ObjHeader::GetSyncBlockIndex()
     if ((indx = GetHeaderSyncBlockIndex()) == 0)
     {
         BOOL fMustCreateSyncBlock = FALSE;
-
-        if (GetAppDomainIndex().m_dwIndex)
-        {
-            // if have an appdomain set then must create a sync block to store it
-            fMustCreateSyncBlock = TRUE;
-        }
-        else
         {
             //Need to get it from the cache
             SyncBlockCache::LockHolder lh(SyncBlockCache::GetSyncBlockCache());
@@ -2482,8 +2023,7 @@ DWORD ObjHeader::GetSyncBlockIndex()
                 // Now the header will be stable - check whether hashcode, appdomain index or lock information is stored in it.
                 DWORD bits = GetBits();
                 if (((bits & (BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX | BIT_SBLK_IS_HASHCODE)) == (BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX | BIT_SBLK_IS_HASHCODE)) ||
-                    ((bits & BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX) == 0 &&
-                     (bits & ((SBLK_MASK_APPDOMAININDEX<<SBLK_APPDOMAIN_SHIFT)|SBLK_MASK_LOCK_RECLEVEL|SBLK_MASK_LOCK_THREADID)) != 0))
+                    ((bits & BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX) == 0))
                 {
                     // Need a sync block to store this info
                     fMustCreateSyncBlock = TRUE;
@@ -2513,38 +2053,17 @@ BOOL ObjHeader::Validate (BOOL bVerifySyncBlkIndex)
 {
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_MODE_COOPERATIVE;
-    
+
     DWORD bits = GetBits ();
     Object * obj = GetBaseObject ();
     BOOL bVerifyMore = g_pConfig->GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_SYNCBLK;
     //the highest 2 bits have reloaded meaning
-    //for string objects:
-    //         BIT_SBLK_STRING_HAS_NO_HIGH_CHARS   0x80000000
-    //         BIT_SBLK_STRING_HIGH_CHARS_KNOWN    0x40000000
-    //         BIT_SBLK_STRING_HAS_SPECIAL_SORT    0xC0000000
-    //for other objects:
-    //         BIT_SBLK_AGILE_IN_PROGRESS          0x80000000
+    //         BIT_UNUSED                          0x80000000
     //         BIT_SBLK_FINALIZER_RUN              0x40000000
-    if (bits & BIT_SBLK_STRING_HIGH_CHAR_MASK)
+    if (bits & BIT_SBLK_FINALIZER_RUN)
     {
-        if (obj->GetGCSafeMethodTable () == g_pStringClass)
-        {
-            if (bVerifyMore)
-            {
-                ASSERT_AND_CHECK (((StringObject *)obj)->ValidateHighChars());
-            }
-        }
-        else
-        {
-            //BIT_SBLK_AGILE_IN_PROGRESS is set only in debug build
-            ASSERT_AND_CHECK (!(bits & BIT_SBLK_AGILE_IN_PROGRESS));
-            if (bits & BIT_SBLK_FINALIZER_RUN)
-            {
-                ASSERT_AND_CHECK (obj->GetGCSafeMethodTable ()->HasFinalizer ());
-            }
-        }
+        ASSERT_AND_CHECK (obj->GetGCSafeMethodTable ()->HasFinalizer ());
     }
 
     //BIT_SBLK_GC_RESERVE (0x20000000) is only set during GC. But for frozen object, we don't clean the bit
@@ -2562,18 +2081,18 @@ BOOL ObjHeader::Validate (BOOL bVerifySyncBlkIndex)
     }
 
     //Don't know how to verify BIT_SBLK_SPIN_LOCK (0x10000000)
-    
+
     //BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX (0x08000000)
     if (bits & BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX)
     {
-        //if BIT_SBLK_IS_HASHCODE (0x04000000) is not set, 
+        //if BIT_SBLK_IS_HASHCODE (0x04000000) is not set,
         //rest of the DWORD is SyncBlk Index
         if (!(bits & BIT_SBLK_IS_HASHCODE))
         {
             if (bVerifySyncBlkIndex  && GCHeapUtilities::GetGCHeap()->RuntimeStructuresValid ())
             {
                 DWORD sbIndex = bits & MASK_SYNCBLOCKINDEX;
-                ASSERT_AND_CHECK(SyncTableEntry::GetSyncTableEntry()[sbIndex].m_Object == obj);             
+                ASSERT_AND_CHECK(SyncTableEntry::GetSyncTableEntry()[sbIndex].m_Object == obj);
             }
         }
         else
@@ -2583,28 +2102,15 @@ BOOL ObjHeader::Validate (BOOL bVerifySyncBlkIndex)
     }
     else
     {
-        //if BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX is clear, rest of DWORD is thin lock thread ID, 
+        //if BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX is clear, rest of DWORD is thin lock thread ID,
         //thin lock recursion level and appdomain index
         DWORD lockThreadId = bits & SBLK_MASK_LOCK_THREADID;
         DWORD recursionLevel = (bits & SBLK_MASK_LOCK_RECLEVEL) >> SBLK_RECLEVEL_SHIFT;
         //if thread ID is 0, recursionLeve got to be zero
         //but thread ID doesn't have to be valid because the lock could be orphanend
-        ASSERT_AND_CHECK (lockThreadId != 0 || recursionLevel == 0 );     
-
-        DWORD adIndex  = (bits >> SBLK_APPDOMAIN_SHIFT) & SBLK_MASK_APPDOMAININDEX;
-        if (adIndex!= 0)
-        {
-#ifndef _DEBUG            
-            //in non debug build, only objects of domain neutral type have appdomain index in header
-            ASSERT_AND_CHECK (obj->GetGCSafeMethodTable()->IsDomainNeutral());
-#endif //!_DEBUG
-            //todo: validate the AD index. 
-            //The trick here is agile objects could have a invalid AD index. Ideally we should call 
-            //Object::GetAppDomain to do all the agile validation but it has side effects like mark the object to 
-            //be agile and it only does the check if g_pConfig->AppDomainLeaks() is on
-        }
+        ASSERT_AND_CHECK (lockThreadId != 0 || recursionLevel == 0 );
     }
-    
+
     return TRUE;
 }
 
@@ -2649,7 +2155,7 @@ SyncBlock *ObjHeader::GetSyncBlock()
 
     if (syncBlock)
     {
-#ifdef _DEBUG 
+#ifdef _DEBUG
         // Has our backpointer been correctly updated through every GC?
         PTR_SyncTableEntry pEntries(SyncTableEntry::GetSyncTableEntry());
         _ASSERTE(pEntries[GetHeaderSyncBlockIndex()].m_Object == GetBaseObject());
@@ -2692,16 +2198,10 @@ SyncBlock *ObjHeader::GetSyncBlock()
             new (syncBlock) SyncBlock(indx);
 
             {
-                // after this point, nobody can update the index in the header to give an AD index
+                // after this point, nobody can update the index in the header
                 ENTER_SPIN_LOCK(this);
 
                 {
-                    // If there's an appdomain index stored in the header, transfer it to the syncblock
-
-                    ADIndex dwAppDomainIndex = GetAppDomainIndex();
-                    if (dwAppDomainIndex.m_dwIndex)
-                        syncBlock->SetAppDomainIndex(dwAppDomainIndex);
-
                     // If the thin lock in the header is in use, transfer the information to the syncblock
                     DWORD bits = GetBits();
                     if ((bits & BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX) == 0)
@@ -2733,7 +2233,7 @@ SyncBlock *ObjHeader::GetSyncBlock()
 
                 SyncTableEntry::GetSyncTableEntry() [indx].m_SyncBlock = syncBlock;
 
-                // in order to avoid a race where some thread tries to get the AD index and we've already nuked it,
+                // in order to avoid a race where some thread tries to get the AD index and we've already zapped it,
                 // make sure the syncblock etc is all setup with the AD index prior to replacing the index
                 // in the header
                 if (GetHeaderSyncBlockIndex() == 0)
@@ -2941,7 +2441,6 @@ BOOL AwareLock::TryEnter(INT32 timeOut)
     CONTRACTL_END;
 
     Thread  *pCurThread = GetThread();
-    TESTHOOKCALL(AppDomainCanBeUnloaded(pCurThread->GetDomain()->GetId().m_dwId, FALSE));
 
     if (pCurThread->IsAbortRequested())
     {
@@ -3037,6 +2536,17 @@ inline void LogContention()
 #define LogContention()
 #endif
 
+double ComputeElapsedTimeInNanosecond(LARGE_INTEGER startTicks, LARGE_INTEGER endTicks)
+{
+    static LARGE_INTEGER freq;
+    if (freq.QuadPart == 0)
+        QueryPerformanceFrequency(&freq);
+
+    const double NsPerSecond = 1000 * 1000 * 1000;
+    LONGLONG elapsedTicks = endTicks.QuadPart - startTicks.QuadPart;
+    return (elapsedTicks * NsPerSecond) / freq.QuadPart;
+}
+
 BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
 {
     STATIC_CONTRACT_THROWS;
@@ -3054,12 +2564,19 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
     // the object associated with this lock.
     _ASSERTE(pCurThread->PreemptiveGCDisabled());
 
-    COUNTER_ONLY(GetPerfCounters().m_LocksAndThreads.cContention++);
+    BOOLEAN IsContentionKeywordEnabled = ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, TRACE_LEVEL_INFORMATION, CLR_CONTENTION_KEYWORD);
+    LARGE_INTEGER startTicks = { {0} };
 
-    // Fire a contention start event for a managed contention
-    FireEtwContentionStart_V1(ETW::ContentionLog::ContentionStructs::ManagedContention, GetClrInstanceId());
+    if (IsContentionKeywordEnabled)
+    {
+        QueryPerformanceCounter(&startTicks);
+
+        // Fire a contention start event for a managed contention
+        FireEtwContentionStart_V1(ETW::ContentionLog::ContentionStructs::ManagedContention, GetClrInstanceId());
+    }
 
     LogContention();
+    Thread::IncrementMonitorLockContentionCount(pCurThread);
 
     OBJECTREF obj = GetOwningObject();
 
@@ -3079,49 +2596,51 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
 
         for (;;)
         {
-            // We might be interrupted during the wait (Thread.Interrupt), so we need an
-            // exception handler round the call.
-            struct Param
-            {
-                AwareLock *pThis;
-                INT32 timeOut;
-                DWORD ret;
-            } param;
-            param.pThis = this;
-            param.timeOut = timeOut;
-
             // Measure the time we wait so that, in the case where we wake up
             // and fail to acquire the mutex, we can adjust remaining timeout
             // accordingly.
             ULONGLONG start = CLRGetTickCount64();
 
-            EE_TRY_FOR_FINALLY(Param *, pParam, &param)
+            // It is likely the case that An APC threw an exception, for instance Thread.Interrupt(). The wait subsystem
+            // guarantees that if a signal to the event being waited upon is observed by the woken thread, that thread's
+            // wait will return WAIT_OBJECT_0. So in any race between m_SemEvent being signaled and the wait throwing an
+            // exception, a thread that is woken by an exception would not observe the signal, and the signal would wake
+            // another thread as necessary.
+
+            // We must decrement the waiter count in the case an exception happened. This holder takes care of that
+            class UnregisterWaiterHolder
             {
-                pParam->ret = pParam->pThis->m_SemEvent.Wait(pParam->timeOut, TRUE);
-                _ASSERTE((pParam->ret == WAIT_OBJECT_0) || (pParam->ret == WAIT_TIMEOUT));
-            }
-            EE_FINALLY
-            {
-                if (GOT_EXCEPTION())
+                LockState* m_pLockState;
+            public:
+                UnregisterWaiterHolder(LockState* pLockState) : m_pLockState(pLockState)
                 {
-                    // It is likely the case that An APC threw an exception, for instance Thread.Interrupt(). The wait subsystem
-                    // guarantees that if a signal to the event being waited upon is observed by the woken thread, that thread's
-                    // wait will return WAIT_OBJECT_0. So in any race between m_SemEvent being signaled and the wait throwing an
-                    // exception, a thread that is woken by an exception would not observe the signal, and the signal would wake
-                    // another thread as necessary.
-
-                    // We must decrement the waiter count.
-                    m_lockState.InterlockedUnregisterWaiter();
                 }
-            } EE_END_FINALLY;
 
-            ret = param.ret;
+                ~UnregisterWaiterHolder()
+                {
+                    if (m_pLockState != NULL)
+                    {
+                        m_pLockState->InterlockedUnregisterWaiter();
+                    }
+                }
+
+                void SuppressRelease()
+                {
+                    m_pLockState = NULL;
+                }
+            } unregisterWaiterHolder(&m_lockState);
+
+            ret = m_SemEvent.Wait(timeOut, TRUE);
+            _ASSERTE((ret == WAIT_OBJECT_0) || (ret == WAIT_TIMEOUT));
+
             if (ret != WAIT_OBJECT_0)
             {
-                // We timed out, decrement waiter count.
-                m_lockState.InterlockedUnregisterWaiter();
+                // We timed out
+                // (the holder unregisters the waiter here)
                 break;
             }
+
+            unregisterWaiterHolder.SuppressRelease();
 
             // Spin a bit while trying to acquire the lock. This has a few benefits:
             // - Spinning helps to reduce waiter starvation. Since other non-waiter threads can take the lock while there are
@@ -3188,8 +2707,17 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
     GCPROTECT_END();
     DecrementTransientPrecious();
 
-    // Fire a contention end event for a managed contention
-    FireEtwContentionStop(ETW::ContentionLog::ContentionStructs::ManagedContention, GetClrInstanceId());
+    if (IsContentionKeywordEnabled)
+    {
+        LARGE_INTEGER endTicks;
+        QueryPerformanceCounter(&endTicks);
+
+        double elapsedTimeInNanosecond = ComputeElapsedTimeInNanosecond(startTicks, endTicks);
+
+        // Fire a contention end event for a managed contention
+        FireEtwContentionStop_V1(ETW::ContentionLog::ContentionStructs::ManagedContention, GetClrInstanceId(), elapsedTimeInNanosecond);
+    }
+
 
     if (ret == WAIT_TIMEOUT)
     {
@@ -3363,16 +2891,7 @@ BOOL SyncBlock::Wait(INT32 timeOut, BOOL exitContext)
         syncState.m_EnterCount = LeaveMonitorCompletely();
         _ASSERTE(syncState.m_EnterCount > 0);
 
-        Context* targetContext;
-        targetContext = pCurThread->GetContext();
-        _ASSERTE(targetContext);
-        Context* defaultContext;
-        defaultContext = pCurThread->GetDomain()->GetDefaultContext();
-        _ASSERTE(defaultContext);
-        _ASSERTE( exitContext==NULL || targetContext == defaultContext);
-        {
-            isTimedOut = pCurThread->Block(timeOut, &syncState);
-        }
+        isTimedOut = pCurThread->Block(timeOut, &syncState);
     }
     GCPROTECT_END();
     m_Monitor.DecrementTransientPrecious();
@@ -3422,8 +2941,8 @@ bool SyncBlock::SetInteropInfo(InteropSyncBlockInfo* pInteropInfo)
     // We could be agile, but not have noticed yet.  We can't assert here
     //  that we live in any given domain, nor is this an appropriate place
     //  to re-parent the syncblock.
-/*    _ASSERTE (m_dwAppDomainIndex.m_dwIndex == 0 || 
-              m_dwAppDomainIndex == SystemDomain::System()->DefaultDomain()->GetIndex() || 
+/*    _ASSERTE (m_dwAppDomainIndex.m_dwIndex == 0 ||
+              m_dwAppDomainIndex == SystemDomain::System()->DefaultDomain()->GetIndex() ||
               m_dwAppDomainIndex == GetAppDomain()->GetIndex());
     m_dwAppDomainIndex = GetAppDomain()->GetIndex();
 */
@@ -3435,7 +2954,7 @@ bool SyncBlock::SetInteropInfo(InteropSyncBlockInfo* pInteropInfo)
 #ifdef EnC_SUPPORTED
 // Store information about fields added to this object by EnC
 // This must be called from a thread in the AppDomain of this object instance
-void SyncBlock::SetEnCInfo(EnCSyncBlockInfo *pEnCInfo) 
+void SyncBlock::SetEnCInfo(EnCSyncBlockInfo *pEnCInfo)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -3445,20 +2964,11 @@ void SyncBlock::SetEnCInfo(EnCSyncBlockInfo *pEnCInfo)
     // Store the field info (should only ever happen once)
     _ASSERTE( m_pEnCInfo == NULL );
     m_pEnCInfo = pEnCInfo;
-
-    // Also store the AppDomain that this object lives in.
-    // Also verify that the AD was either not yet set, or set correctly before overwriting it.
-    // I'm not sure why it should ever be set to the default domain and then changed to a different domain,
-    // perhaps that can be removed.
-    _ASSERTE (m_dwAppDomainIndex.m_dwIndex == 0 || 
-              m_dwAppDomainIndex == SystemDomain::System()->DefaultDomain()->GetIndex() || 
-              m_dwAppDomainIndex == GetAppDomain()->GetIndex());
-    m_dwAppDomainIndex = GetAppDomain()->GetIndex();
 }
 #endif // EnC_SUPPORTED
 #endif // !DACCESS_COMPILE
 
-#if defined(_WIN64) && defined(_DEBUG)
+#if defined(BIT64) && defined(_DEBUG)
 void ObjHeader::IllegalAlignPad()
 {
     WRAPPER_NO_CONTRACT;
@@ -3469,6 +2979,6 @@ void ObjHeader::IllegalAlignPad()
 #endif
     _ASSERTE(m_alignpad == 0);
 }
-#endif // _WIN64 && _DEBUG
+#endif // BIT64 && _DEBUG
 
 

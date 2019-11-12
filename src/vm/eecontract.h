@@ -6,7 +6,7 @@
 // EEContract.h
 //
 
-// ! I am the owner for issues in the contract *infrastructure*, not for every 
+// ! I am the owner for issues in the contract *infrastructure*, not for every
 // ! CONTRACT_VIOLATION dialog that comes up. If you interrupt my work for a routine
 // ! CONTRACT_VIOLATION, you will become the new owner of this file.
 // ---------------------------------------------------------------------------
@@ -16,7 +16,6 @@
 #define EECONTRACT_H_
 
 #include "contract.h"
-#include "stackprobe.h"
 
 // --------------------------------------------------------------------------------
 // EECONTRACT is an extension of the lower level CONTRACT macros to include some
@@ -36,13 +35,13 @@ class EEContract : public BaseContract
     virtual void DestructorDefinedThatCallsRestore(){}
 
   public:
-    __declspec(nothrow) ~EEContract()
+    NOTHROW_DECL ~EEContract()
     {
         Restore();
     }
 
     void Disable();
-    void DoChecks(UINT testmask, __in_z const char *szFunction, __in_z char *szFile, int lineNum);
+    void DoChecks(UINT testmask, __in_z const char *szFunction, __in_z const char *szFile, int lineNum);
 };
 
 
@@ -109,7 +108,6 @@ class EEContract : public BaseContract
     THROWS;                     \
     GC_TRIGGERS;                \
     MODE_PREEMPTIVE;            \
-    SO_INTOLERANT;              \
     INJECT_FAULT(COMPlusThrowOM();); \
 
 #endif  // EECONTRACT_H_

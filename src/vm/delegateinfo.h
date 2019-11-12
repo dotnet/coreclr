@@ -11,7 +11,7 @@
 **          and its inner classes
 **
 
-** 
+**
 ===========================================================*/
 #ifndef DELEGATE_INFO
 #define DELEGATE_INFO
@@ -21,7 +21,6 @@ typedef DelegateInfo* DelegateInfoPtr;
 
 struct DelegateInfo
 {
-    ADID            m_appDomainId;
     OBJECTHANDLE    m_stateHandle;
     OBJECTHANDLE    m_eventHandle;
     OBJECTHANDLE    m_registeredWaitHandle;
@@ -37,7 +36,7 @@ struct DelegateInfo
             // Remove this comment once that work is done
             NOTHROW;
             GC_TRIGGERS;
-            MODE_COOPERATIVE; 
+            MODE_COOPERATIVE;
             FORBID_FAULT;
         }
         CONTRACTL_END;
@@ -52,8 +51,7 @@ struct DelegateInfo
     }
 #endif
 
-    static DelegateInfo  *MakeDelegateInfo(AppDomain *pAppDomain,
-                                           OBJECTREF *state,
+    static DelegateInfo  *MakeDelegateInfo(OBJECTREF *state,
                                            OBJECTREF *waitEvent,
                                            OBJECTREF *registeredWaitObject);
 };

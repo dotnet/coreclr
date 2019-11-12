@@ -3,15 +3,14 @@
 // See the LICENSE file in the project root for more information.
 /*============================================================
 **
-** 
-** 
+**
+**
 **
 **
 ** Purpose: List for exceptions.
 **
-** 
+**
 ===========================================================*/
-
 
 namespace System.Collections
 {
@@ -23,17 +22,15 @@ namespace System.Collections
     // Needs to be public to support binary serialization compatibility
     public class ListDictionaryInternal : IDictionary
     {
-        private DictionaryNode head; // Do not rename (binary serialization)
+        private DictionaryNode? head; // Do not rename (binary serialization)
         private int version; // Do not rename (binary serialization)
         private int count; // Do not rename (binary serialization)
-        [NonSerialized]
-        private object _syncRoot;
 
         public ListDictionaryInternal()
         {
         }
 
-        public object this[object key]
+        public object? this[object key]
         {
             get
             {
@@ -41,7 +38,7 @@ namespace System.Collections
                 {
                     throw new ArgumentNullException(nameof(key), SR.ArgumentNull_Key);
                 }
-                DictionaryNode node = head;
+                DictionaryNode? node = head;
 
                 while (node != null)
                 {
@@ -60,10 +57,9 @@ namespace System.Collections
                     throw new ArgumentNullException(nameof(key), SR.ArgumentNull_Key);
                 }
 
-
                 version++;
-                DictionaryNode last = null;
-                DictionaryNode node;
+                DictionaryNode? last = null;
+                DictionaryNode? node;
                 for (node = head; node != null; node = node.next)
                 {
                     if (node.key.Equals(key))
@@ -94,77 +90,30 @@ namespace System.Collections
             }
         }
 
-        public int Count
-        {
-            get
-            {
-                return count;
-            }
-        }
+        public int Count => count;
 
-        public ICollection Keys
-        {
-            get
-            {
-                return new NodeKeyValueCollection(this, true);
-            }
-        }
+        public ICollection Keys => new NodeKeyValueCollection(this, true);
 
-        public bool IsReadOnly
-        {
-            get
-            {
-                return false;
-            }
-        }
+        public bool IsReadOnly => false;
 
-        public bool IsFixedSize
-        {
-            get
-            {
-                return false;
-            }
-        }
+        public bool IsFixedSize => false;
 
-        public bool IsSynchronized
-        {
-            get
-            {
-                return false;
-            }
-        }
+        public bool IsSynchronized => false;
 
-        public object SyncRoot
-        {
-            get
-            {
-                if (_syncRoot == null)
-                {
-                    System.Threading.Interlocked.CompareExchange<object>(ref _syncRoot, new object(), null);
-                }
-                return _syncRoot;
-            }
-        }
+        public object SyncRoot => this;
 
-        public ICollection Values
-        {
-            get
-            {
-                return new NodeKeyValueCollection(this, false);
-            }
-        }
+        public ICollection Values => new NodeKeyValueCollection(this, false);
 
-        public void Add(object key, object value)
+        public void Add(object key, object? value)
         {
             if (key == null)
             {
                 throw new ArgumentNullException(nameof(key), SR.ArgumentNull_Key);
             }
 
-
             version++;
-            DictionaryNode last = null;
-            DictionaryNode node;
+            DictionaryNode? last = null;
+            DictionaryNode? node;
             for (node = head; node != null; node = node.next)
             {
                 if (node.key.Equals(key))
@@ -207,7 +156,7 @@ namespace System.Collections
             {
                 throw new ArgumentNullException(nameof(key), SR.ArgumentNull_Key);
             }
-            for (DictionaryNode node = head; node != null; node = node.next)
+            for (DictionaryNode? node = head; node != null; node = node.next)
             {
                 if (node.key.Equals(key))
                 {
@@ -231,7 +180,7 @@ namespace System.Collections
             if (array.Length - index < this.Count)
                 throw new ArgumentException(SR.ArgumentOutOfRange_Index, nameof(index));
 
-            for (DictionaryNode node = head; node != null; node = node.next)
+            for (DictionaryNode? node = head; node != null; node = node.next)
             {
                 array.SetValue(new DictionaryEntry(node.key, node.value), index);
                 index++;
@@ -255,8 +204,8 @@ namespace System.Collections
                 throw new ArgumentNullException(nameof(key), SR.ArgumentNull_Key);
             }
             version++;
-            DictionaryNode last = null;
-            DictionaryNode node;
+            DictionaryNode? last = null;
+            DictionaryNode? node;
             for (node = head; node != null; node = node.next)
             {
                 if (node.key.Equals(key))
@@ -275,18 +224,17 @@ namespace System.Collections
             }
             else
             {
-                last.next = node.next;
+                last!.next = node.next;
             }
             count--;
         }
 
         private class NodeEnumerator : IDictionaryEnumerator
         {
-            private ListDictionaryInternal list;
-            private DictionaryNode current;
-            private int version;
+            private readonly ListDictionaryInternal list;
+            private DictionaryNode? current;
+            private readonly int version;
             private bool start;
-
 
             public NodeEnumerator(ListDictionaryInternal list)
             {
@@ -296,13 +244,7 @@ namespace System.Collections
                 current = null;
             }
 
-            public object Current
-            {
-                get
-                {
-                    return Entry;
-                }
-            }
+            public object Current => Entry;
 
             public DictionaryEntry Entry
             {
@@ -328,7 +270,7 @@ namespace System.Collections
                 }
             }
 
-            public object Value
+            public object? Value
             {
                 get
                 {
@@ -358,7 +300,7 @@ namespace System.Collections
                         current = current.next;
                     }
                 }
-                return (current != null);
+                return current != null;
             }
 
             public void Reset()
@@ -372,11 +314,10 @@ namespace System.Collections
             }
         }
 
-
         private class NodeKeyValueCollection : ICollection
         {
-            private ListDictionaryInternal list;
-            private bool isKeys;
+            private readonly ListDictionaryInternal list;
+            private readonly bool isKeys;
 
             public NodeKeyValueCollection(ListDictionaryInternal list, bool isKeys)
             {
@@ -394,7 +335,7 @@ namespace System.Collections
                     throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_NeedNonNegNum);
                 if (array.Length - index < list.Count)
                     throw new ArgumentException(SR.ArgumentOutOfRange_Index, nameof(index));
-                for (DictionaryNode node = list.head; node != null; node = node.next)
+                for (DictionaryNode? node = list.head; node != null; node = node.next)
                 {
                     array.SetValue(isKeys ? node.key : node.value, index);
                     index++;
@@ -406,7 +347,7 @@ namespace System.Collections
                 get
                 {
                     int count = 0;
-                    for (DictionaryNode node = list.head; node != null; node = node.next)
+                    for (DictionaryNode? node = list.head; node != null; node = node.next)
                     {
                         count++;
                     }
@@ -414,34 +355,21 @@ namespace System.Collections
                 }
             }
 
-            bool ICollection.IsSynchronized
-            {
-                get
-                {
-                    return false;
-                }
-            }
+            bool ICollection.IsSynchronized => false;
 
-            object ICollection.SyncRoot
-            {
-                get
-                {
-                    return list.SyncRoot;
-                }
-            }
+            object ICollection.SyncRoot => list.SyncRoot;
 
             IEnumerator IEnumerable.GetEnumerator()
             {
                 return new NodeKeyValueEnumerator(list, isKeys);
             }
 
-
             private class NodeKeyValueEnumerator : IEnumerator
             {
-                private ListDictionaryInternal list;
-                private DictionaryNode current;
-                private int version;
-                private bool isKeys;
+                private readonly ListDictionaryInternal list;
+                private DictionaryNode? current;
+                private readonly int version;
+                private readonly bool isKeys;
                 private bool start;
 
                 public NodeKeyValueEnumerator(ListDictionaryInternal list, bool isKeys)
@@ -453,7 +381,7 @@ namespace System.Collections
                     current = null;
                 }
 
-                public object Current
+                public object? Current
                 {
                     get
                     {
@@ -483,7 +411,7 @@ namespace System.Collections
                             current = current.next;
                         }
                     }
-                    return (current != null);
+                    return current != null;
                 }
 
                 public void Reset()
@@ -501,9 +429,9 @@ namespace System.Collections
         [Serializable]
         private class DictionaryNode
         {
-            public object key;
-            public object value;
-            public DictionaryNode next;
+            public object key = null!;
+            public object? value;
+            public DictionaryNode? next;
         }
     }
 }

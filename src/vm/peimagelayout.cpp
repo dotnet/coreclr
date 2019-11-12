@@ -3,11 +3,16 @@
 // See the LICENSE file in the project root for more information.
 
 
-// 
+//
 
 #include "common.h"
 #include "peimagelayout.h"
 #include "peimagelayout.inl"
+#include "dataimage.h"
+
+#if defined(PLATFORM_WINDOWS) && !defined(CROSSGEN_COMPILE)
+#include "amsi.h"
+#endif
 
 #ifndef DACCESS_COMPILE
 PEImageLayout* PEImageLayout::CreateFlat(const void *flat, COUNT_T size,PEImage* pOwner)
@@ -40,7 +45,7 @@ PEImageLayout* PEImageLayout::Load(PEImage* pOwner, BOOL bNTSafeLoad, BOOL bThro
     STANDARD_VM_CONTRACT;
 
 #if defined(CROSSGEN_COMPILE) || defined(FEATURE_PAL)
-    return PEImageLayout::Map(pOwner->GetFileHandle(), pOwner);
+    return PEImageLayout::Map(pOwner);
 #else
     PEImageLayoutHolder pAlloc(new LoadedImageLayout(pOwner,bNTSafeLoad,bThrowOnError));
     if (pAlloc->GetBase()==NULL)
@@ -49,13 +54,13 @@ PEImageLayout* PEImageLayout::Load(PEImage* pOwner, BOOL bNTSafeLoad, BOOL bThro
 #endif
 }
 
-PEImageLayout* PEImageLayout::LoadFlat(HANDLE hFile,PEImage* pOwner)
+PEImageLayout* PEImageLayout::LoadFlat(PEImage* pOwner)
 {
     STANDARD_VM_CONTRACT;
-    return new FlatImageLayout(hFile,pOwner);
+    return new FlatImageLayout(pOwner);
 }
 
-PEImageLayout* PEImageLayout::Map(HANDLE hFile, PEImage* pOwner)
+PEImageLayout* PEImageLayout::Map(PEImage* pOwner)
 {
     CONTRACT(PEImageLayout*)
     {
@@ -67,12 +72,12 @@ PEImageLayout* PEImageLayout::Map(HANDLE hFile, PEImage* pOwner)
         POSTCONDITION(RETVAL->CheckFormat());
     }
     CONTRACT_END;
-    
-    PEImageLayoutHolder pAlloc(new MappedImageLayout(hFile,pOwner));
+
+    PEImageLayoutHolder pAlloc(new MappedImageLayout(pOwner));
     if (pAlloc->GetBase()==NULL)
     {
         //cross-platform or a bad image
-        PEImageLayoutHolder pFlat(new FlatImageLayout(hFile, pOwner));
+        PEImageLayoutHolder pFlat(new FlatImageLayout(pOwner));
         if (!pFlat->CheckFormat())
             ThrowHR(COR_E_BADIMAGEFORMAT);
 
@@ -81,10 +86,8 @@ PEImageLayout* PEImageLayout::Map(HANDLE hFile, PEImage* pOwner)
     else
         if(!pAlloc->CheckFormat())
             ThrowHR(COR_E_BADIMAGEFORMAT);
-    RETURN pAlloc.Extract();    
+    RETURN pAlloc.Extract();
 }
-
-#ifdef FEATURE_PREJIT
 
 #ifdef FEATURE_PAL
 DWORD SectionCharacteristicsToPageProtection(UINT characteristics)
@@ -282,6 +285,9 @@ void PEImageLayout::ApplyBaseRelocations()
                                dwOldProtection, &dwOldProtection))
             ThrowLastError();
     }
+#ifdef FEATURE_PAL
+    PAL_LOADMarkSectionAsNotNeeded((void*)dir);
+#endif // FEATURE_PAL
 #endif // CROSSGEN_COMPILE
 
     if (pFlushRegion != NULL)
@@ -289,10 +295,9 @@ void PEImageLayout::ApplyBaseRelocations()
         ClrFlushInstructionCache(pFlushRegion, cbFlushRegion);
     }
 }
-#endif // FEATURE_PREJIT
 
 
-RawImageLayout::RawImageLayout(const void *flat, COUNT_T size,PEImage* pOwner)
+RawImageLayout::RawImageLayout(const void *flat, COUNT_T size, PEImage* pOwner)
 {
     CONTRACTL
     {
@@ -308,18 +313,31 @@ RawImageLayout::RawImageLayout(const void *flat, COUNT_T size,PEImage* pOwner)
 
     if (size)
     {
-        HandleHolder mapping(WszCreateFileMapping(INVALID_HANDLE_VALUE, NULL, 
-                                               PAGE_READWRITE, 0, 
-                                               size, NULL));
+#if defined(PLATFORM_WINDOWS) && !defined(CROSSGEN_COMPILE)
+        if (Amsi::IsBlockedByAmsiScan((void*)flat, size))
+        {
+            // This is required to throw a BadImageFormatException for compatibility, but
+            // use the message from ERROR_VIRUS_INFECTED to give better insight on what's wrong
+            SString virusHrString;
+            GetHRMsg(HRESULT_FROM_WIN32(ERROR_VIRUS_INFECTED), virusHrString);
+            ThrowHR(COR_E_BADIMAGEFORMAT, virusHrString);
+        }
+#endif // defined(PLATFORM_WINDOWS) && !defined(CROSSGEN_COMPILE)
+
+        HandleHolder mapping(WszCreateFileMapping(INVALID_HANDLE_VALUE,
+                                                  NULL,
+                                                  PAGE_READWRITE,
+                                                  0,
+                                                  size,
+                                                  NULL));
         if (mapping==NULL)
             ThrowLastError();
         m_DataCopy.Assign(CLRMapViewOfFile(mapping, FILE_MAP_ALL_ACCESS, 0, 0, 0));
         if(m_DataCopy==NULL)
-            ThrowLastError();    
+            ThrowLastError();
         memcpy(m_DataCopy,flat,size);
         flat=m_DataCopy;
     }
-    TESTHOOKCALL(ImageMapped(GetPath(),flat,IM_FLAT));
     Init((void*)flat,size);
 }
 RawImageLayout::RawImageLayout(const void *mapped, PEImage* pOwner, BOOL bTakeOwnership, BOOL bFixedUp)
@@ -341,14 +359,13 @@ RawImageLayout::RawImageLayout(const void *mapped, PEImage* pOwner, BOOL bTakeOw
 #ifndef FEATURE_PAL
         PathString wszDllName;
         WszGetModuleFileName((HMODULE)mapped, wszDllName);
-        
+
         m_LibraryHolder=CLRLoadLibraryEx(wszDllName,NULL,GetLoadWithAlteredSearchPathFlag());
 #else // !FEATURE_PAL
         _ASSERTE(!"bTakeOwnership Should not be used on FEATURE_PAL");
 #endif // !FEATURE_PAL
     }
 
-    TESTHOOKCALL(ImageMapped(GetPath(),mapped,bFixedUp?IM_IMAGEMAP|IM_FIXEDUP:IM_IMAGEMAP));    
     IfFailThrow(Init((void*)mapped,(bool)(bFixedUp!=FALSE)));
 }
 
@@ -360,32 +377,31 @@ ConvertedImageLayout::ConvertedImageLayout(PEImageLayout* source)
         STANDARD_VM_CHECK;
     }
     CONTRACTL_END;
-    m_Layout=LAYOUT_LOADED;    
+    m_Layout=LAYOUT_LOADED;
     m_pOwner=source->m_pOwner;
     _ASSERTE(!source->IsMapped());
-    
+
     if (!source->HasNTHeaders())
         EEFileLoadException::Throw(GetPath(), COR_E_BADIMAGEFORMAT);
     LOG((LF_LOADER, LL_INFO100, "PEImage: Opening manually mapped stream\n"));
 
 
-    m_FileMap.Assign(WszCreateFileMapping(INVALID_HANDLE_VALUE, NULL, 
-                                               PAGE_READWRITE, 0, 
+    m_FileMap.Assign(WszCreateFileMapping(INVALID_HANDLE_VALUE, NULL,
+                                               PAGE_READWRITE, 0,
                                                source->GetVirtualSize(), NULL));
     if (m_FileMap == NULL)
         ThrowLastError();
-        
 
-    m_FileView.Assign(CLRMapViewOfFileEx(m_FileMap, FILE_MAP_ALL_ACCESS, 0, 0, 0, 
+
+    m_FileView.Assign(CLRMapViewOfFile(m_FileMap, FILE_MAP_ALL_ACCESS, 0, 0, 0,
                                 (void *) source->GetPreferredBase()));
     if (m_FileView == NULL)
         m_FileView.Assign(CLRMapViewOfFile(m_FileMap, FILE_MAP_ALL_ACCESS, 0, 0, 0));
-    
+
     if (m_FileView == NULL)
         ThrowLastError();
-    
+
     source->LayoutILOnly(m_FileView, TRUE); //@TODO should be false for streams
-    TESTHOOKCALL(ImageMapped(GetPath(),m_FileView,IM_IMAGEMAP));            
     IfFailThrow(Init(m_FileView));
 
 #ifdef CROSSGEN_COMPILE
@@ -394,7 +410,7 @@ ConvertedImageLayout::ConvertedImageLayout(PEImageLayout* source)
 #endif
 }
 
-MappedImageLayout::MappedImageLayout(HANDLE hFile, PEImage* pOwner)
+MappedImageLayout::MappedImageLayout(PEImage* pOwner)
 {
     CONTRACTL
     {
@@ -404,6 +420,8 @@ MappedImageLayout::MappedImageLayout(HANDLE hFile, PEImage* pOwner)
     CONTRACTL_END;
     m_Layout=LAYOUT_MAPPED;
     m_pOwner=pOwner;
+
+    HANDLE hFile = pOwner->GetFileHandle();
 
     // If mapping was requested, try to do SEC_IMAGE mapping
     LOG((LF_LOADER, LL_INFO100, "PEImage: Opening OS mapped %S (hFile %p)\n", (LPCWSTR) GetPath(), hFile));
@@ -420,7 +438,7 @@ MappedImageLayout::MappedImageLayout(HANDLE hFile, PEImage* pOwner)
 #ifndef CROSSGEN_COMPILE
 
         // Capture last error as it may get reset below.
-        
+
         DWORD dwLastError = GetLastError();
         // There is no reflection-only load on CoreCLR and so we can always throw an error here.
         // It is important on Windows Phone. All assemblies that we load must have SEC_IMAGE set
@@ -452,14 +470,13 @@ MappedImageLayout::MappedImageLayout(HANDLE hFile, PEImage* pOwner)
     m_FileView.Assign(CLRMapViewOfFile(m_FileMap, 0, 0, 0, 0));
     if (m_FileView == NULL)
         ThrowLastError();
-    TESTHOOKCALL(ImageMapped(GetPath(),m_FileView,IM_IMAGEMAP));    
     IfFailThrow(Init((void *) m_FileView));
 
 #ifdef CROSSGEN_COMPILE
     //Do base relocation for PE. Unlike LoadLibrary, MapViewOfFile will not do that for us even with SEC_IMAGE
     if (pOwner->IsTrustedNativeImage())
     {
-        // This should never happen in correctly setup system, but do a quick check right anyway to 
+        // This should never happen in correctly setup system, but do a quick check right anyway to
         // avoid running too far with bogus data
 
         if (!HasCorHeader())
@@ -510,7 +527,7 @@ MappedImageLayout::MappedImageLayout(HANDLE hFile, PEImage* pOwner)
 
     if (m_LoadedFile == NULL)
     {
-        // For CoreCLR, try to load all files via LoadLibrary first. If LoadLibrary did not work, retry using 
+        // For CoreCLR, try to load all files via LoadLibrary first. If LoadLibrary did not work, retry using
         // regular mapping - but not for native images.
         if (pOwner->IsTrustedNativeImage())
             ThrowHR(E_FAIL); // we don't have any indication of what kind of failure. Possibly a corrupt image.
@@ -520,7 +537,6 @@ MappedImageLayout::MappedImageLayout(HANDLE hFile, PEImage* pOwner)
     LOG((LF_LOADER, LL_INFO1000, "PEImage: image %S (hFile %p) mapped @ %p\n",
         (LPCWSTR) GetPath(), hFile, (void*)m_LoadedFile));
 
-    TESTHOOKCALL(ImageMapped(GetPath(),m_LoadedFile,IM_IMAGEMAP));
     IfFailThrow(Init((void *) m_LoadedFile));
 
     if (!HasCorHeader())
@@ -553,14 +569,14 @@ LoadedImageLayout::LoadedImageLayout(PEImage* pOwner, BOOL bNTSafeLoad, BOOL bTh
         PRECONDITION(CheckPointer(pOwner));
     }
     CONTRACTL_END;
-    
-    m_Layout=LAYOUT_LOADED;    
+
+    m_Layout=LAYOUT_LOADED;
     m_pOwner=pOwner;
 
     DWORD dwFlags = GetLoadWithAlteredSearchPathFlag();
     if (bNTSafeLoad)
         dwFlags|=DONT_RESOLVE_DLL_REFERENCES;
-        
+
     m_Module = CLRLoadLibraryEx(pOwner->GetPath(), NULL, dwFlags);
     if (m_Module == NULL)
     {
@@ -571,24 +587,26 @@ LoadedImageLayout::LoadedImageLayout(PEImage* pOwner, BOOL bNTSafeLoad, BOOL bTh
         HRESULT hr = HRESULT_FROM_GetLastError();
         EEFileLoadException::Throw(pOwner->GetPath(), hr, NULL);
     }
-    TESTHOOKCALL(ImageMapped(GetPath(),m_Module,IM_LOADLIBRARY));
     IfFailThrow(Init(m_Module,true));
 
     LOG((LF_LOADER, LL_INFO1000, "PEImage: Opened HMODULE %S\n", (LPCWSTR) GetPath()));
 }
 #endif // !CROSSGEN_COMPILE && !FEATURE_PAL
 
-FlatImageLayout::FlatImageLayout(HANDLE hFile, PEImage* pOwner)
+FlatImageLayout::FlatImageLayout(PEImage* pOwner)
 {
     CONTRACTL
     {
         CONSTRUCTOR_CHECK;
         STANDARD_VM_CHECK;
-        PRECONDITION(CheckPointer(pOwner));        
+        PRECONDITION(CheckPointer(pOwner));
     }
     CONTRACTL_END;
-    m_Layout=LAYOUT_FLAT;    
-    m_pOwner=pOwner;    
+    m_Layout=LAYOUT_FLAT;
+    m_pOwner=pOwner;
+
+    HANDLE hFile = pOwner->GetFileHandle();
+
     LOG((LF_LOADER, LL_INFO100, "PEImage: Opening flat %S\n", (LPCWSTR) GetPath()));
 
     COUNT_T size = SafeGetFileSize(hFile, NULL);
@@ -596,9 +614,9 @@ FlatImageLayout::FlatImageLayout(HANDLE hFile, PEImage* pOwner)
     {
         ThrowLastError();
     }
-        
+
     // It's okay if resource files are length zero
-    if (size > 0) 
+    if (size > 0)
     {
         m_FileMap.Assign(WszCreateFileMapping(hFile, NULL, PAGE_READONLY, 0, 0, NULL));
         if (m_FileMap == NULL)
@@ -608,7 +626,6 @@ FlatImageLayout::FlatImageLayout(HANDLE hFile, PEImage* pOwner)
         if (m_FileView == NULL)
             ThrowLastError();
     }
-    TESTHOOKCALL(ImageMapped(GetPath(),m_FileView,IM_FLAT));    
     Init(m_FileView, size);
 }
 

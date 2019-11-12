@@ -4,10 +4,10 @@
 //
 // --------------------------------------------------------------------------------------------------
 // configuration.cpp
-// 
+//
 //
 // Access and update configuration values, falling back on legacy CLRConfig methods where necessary.
-// 
+//
 // --------------------------------------------------------------------------------------------------
 
 #include "stdafx.h"
@@ -77,6 +77,17 @@ DWORD Configuration::GetKnobDWORDValue(LPCWSTR name, DWORD defaultValue)
     }
 
     return defaultValue;
+}
+
+ULONGLONG Configuration::GetKnobULONGLONGValue(LPCWSTR name)
+{
+    LPCWSTR knobValue = GetConfigurationValue(name);
+    if (knobValue != nullptr)
+    {
+        return _wcstoui64(knobValue, nullptr, 0);
+    }
+
+    return 0;
 }
 
 LPCWSTR Configuration::GetKnobStringValue(LPCWSTR name, const CLRConfig::ConfigStringInfo& stringInfo)

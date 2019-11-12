@@ -4,7 +4,7 @@
 // IBClogger.H
 //
 
-// 
+//
 // Infrastructure for recording touches of EE data structures
 //
 //
@@ -40,21 +40,21 @@ typedef PTR_VOID HashDatum;
 
 typedef Pair< Module*, mdToken > RidMapLogData;
 
-#if defined(FEATURE_PREJIT) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 #define IBCLOGGER_ENABLED
 #endif
 
 #ifdef IBCLOGGER_ENABLED
 //
 //  Base class for IBC probe callback
-// 
+//
 typedef void (* const pfnIBCAccessCallback)(IBCLogger* pLogger, const void * pValue, const void * pValue2);
 
 class IbcCallback
 {
 public:
     IbcCallback(pfnIBCAccessCallback pCallback, const void * pValue1, const void * pValue2)
-        : m_pCallback(pCallback), 
+        : m_pCallback(pCallback),
         m_pValue1(pValue1),
         m_pValue2(pValue2),
         m_tryCount(0)
@@ -68,7 +68,7 @@ public:
         WRAPPER_NO_CONTRACT;
 
         m_pCallback(&g_IBCLogger, m_pValue1, m_pValue2);
-    }   
+    }
 
     SIZE_T GetPfn() const
     {
@@ -76,7 +76,7 @@ public:
 
         return (SIZE_T) m_pCallback;
     }
-       
+
     pfnIBCAccessCallback  GetCallback() const
     {
         LIMITED_METHOD_CONTRACT;
@@ -164,12 +164,12 @@ public:
         LIMITED_METHOD_CONTRACT;
 
         return (k1->GetCallback() == k2->GetCallback()) &&
-               (k1->GetValue1() == k2->GetValue1()) && 
+               (k1->GetValue1() == k2->GetValue1()) &&
                (k1->GetValue2() == k2->GetValue2());
-    }   
+    }
 
     static count_t Hash(key_t k)
-    { 
+    {
         LIMITED_METHOD_CONTRACT;
 
         SIZE_T hashLarge = (SIZE_T)k->GetCallback() ^
@@ -191,23 +191,23 @@ public:
 #endif // POINTER_BITS
     }
 
-    static const element_t Null() 
+    static element_t Null()
 {
         WRAPPER_NO_CONTRACT;
         return NULL;
     }
-    
-    static bool IsNull(element_t e) 
+
+    static bool IsNull(element_t e)
     {
         LIMITED_METHOD_CONTRACT;
         return e == NULL;
     }
 
-    static const element_t Deleted()
+    static element_t Deleted()
     {
         WRAPPER_NO_CONTRACT;
         return (element_t)-1;
-    }   
+    }
 
     static bool IsDeleted(const element_t e)
     {
@@ -226,23 +226,23 @@ public:
 
     // BOOL IsLoggingDisable()
     // This indicates that logging is currently disabled for this thread
-    // This is used to prevent the logging functionality from 
+    // This is used to prevent the logging functionality from
     // triggerring more logging (and thus causing a deadlock)
     // It is also used to prevent IBC logging whenever a IBCLoggingDisabler
     // object is used. For example we use this to disable IBC profiling
-    // whenever a thread starts a JIT compile event. That is because we 
+    // whenever a thread starts a JIT compile event. That is because we
     // don't want to "pollute" the IBC data gathering for the things
     // that the JIT compiler touches.
     // Finally since our IBC logging will need to allocate unmanaged memory
     // we also disable IBC logging when we are inside a "can't alloc region"
-    // Typically this occurs when a thread is performing a GC. 
+    // Typically this occurs when a thread is performing a GC.
     BOOL IsLoggingDisabled()
     {
         LIMITED_METHOD_CONTRACT;
         return m_fLoggingDisabled || IsInCantAllocRegion();
     }
 
-    // We want to disable IBC logging, any further log calls are to be ignored until 
+    // We want to disable IBC logging, any further log calls are to be ignored until
     // we call EnableLogging()
     //
     // This method returns true if it changed the value of m_fLoggingDisabled from false to true
@@ -329,7 +329,7 @@ private:
 //
 // IBCLoggerAwareAllocMemTracker should be used for allocation of IBC tracked structures during type loading.
 //
-// If type loading fails, the delayed IBC callbacks may contain pointers to the failed type or method. 
+// If type loading fails, the delayed IBC callbacks may contain pointers to the failed type or method.
 // IBCLoggerAwareAllocMemTracker will ensure that the delayed IBC callbacks are flushed before the memory of
 // the failed type or method is reclaimed. Otherwise, there would be stale pointers in the delayed IBC callbacks
 // that would cause crashed during IBC logging.
@@ -349,10 +349,15 @@ public:
 
 typedef const void * pfnIBCAccessCallback;
 
+class ThreadLocalIBCInfo;
 class IBCLoggingDisabler
 {
 public:
     IBCLoggingDisabler()
+    {
+    }
+
+    IBCLoggingDisabler(ThreadLocalIBCInfo*)
     {
     }
 
@@ -369,6 +374,10 @@ public:
     }
 
     ~ThreadLocalIBCInfo()
+    {
+    }
+
+    void FlushDelayedCallbacks()
     {
     }
 };
@@ -389,7 +398,7 @@ public:
 
 
 // IBCLogger is responsible for collecting profile data.  Logging is turned on by the
-// COMPlus_ZapBBInstr environment variable, and the actual writing to the file 
+// COMPlus_ZapBBInstr environment variable, and the actual writing to the file
 // occurs in code:Module.WriteMethodProfileDataLogFile
 class IBCLogger
 {
@@ -422,7 +431,7 @@ public:                                                 \
     }                                                   \
                                                         \
 private:                                                \
-    __declspec(noinline) static void Log##name##AccessStatic(const void * p) \
+    NOINLINE static void Log##name##AccessStatic(const void * p) \
     {                                                   \
         WRAPPER_NO_CONTRACT;                               \
         /* To make the logging callsite as small as */  \
@@ -445,7 +454,7 @@ private:
 
     void DelayedCallbackPtr(pfnIBCAccessCallback callback, const void * pValue1, const void * pValue2 = NULL);
 
-#else // FEATURE_PREJIT && !DACCESS_COMPILE
+#else // IBCLOGGER_ENABLED
 
 #define LOGACCESS_PTR(name,type)                        \
 public:                                                 \
@@ -455,15 +464,35 @@ public:                                                 \
 public:                                                 \
     void Log##name##Access(type p) { SUPPORTS_DAC; }    \
 
-#endif // FEATURE_PREJIT && !DACCESS_COMPILE
-
-    // Log access to method desc (which adds the method desc to the required list)
-    // Implemented by : code:IBCLogger.LogMethodDescAccessHelper
-    LOGACCESS_PTR(MethodDesc, const MethodDesc)
+#endif // IBCLOGGER_ENABLED
 
     // Log access to method code or method header
     // Implemented by : code:IBCLogger.LogMethodCodeAccessHelper
     LOGACCESS_PTR(MethodCode, MethodDesc)
+
+    // Log access to gc info
+    // Implemented by : code:IBCLogger.LogMethodGCInfoAccessHelper
+    LOGACCESS_PTR(MethodGCInfo, MethodDesc)
+
+// The accesses to individual datastructures matter for fragile NGen only
+#ifndef FEATURE_PREJIT
+
+#undef LOGACCESS_PTR
+#undef LOGACCESS_VALUE
+
+#define LOGACCESS_PTR(name,type)                        \
+public:                                                 \
+    void Log##name##Access(type* p) { SUPPORTS_DAC; }   \
+
+#define LOGACCESS_VALUE(name, type)                     \
+public:                                                 \
+    void Log##name##Access(type p) { SUPPORTS_DAC; }    \
+
+#endif // FEATURE_PREJIT
+
+    // Log access to method desc (which adds the method desc to the required list)
+    // Implemented by : code:IBCLogger.LogMethodDescAccessHelper
+    LOGACCESS_PTR(MethodDesc, const MethodDesc)
 
     // Log access to the NDirect data stored for a MethodDesc
     // also implies that the IL_STUB for the NDirect method is executed
@@ -481,10 +510,6 @@ public:                                                 \
     // Log access to method desc (which addes the method desc to the required list)
     // Implemented by : code:IBCLogger.LogMethodPrecodeWriteAccessHelper
     LOGACCESS_PTR(MethodPrecodeWrite,MethodDesc)
-
-    // Log access to gc info
-    // Implemented by : code:IBCLogger.LogMethodGCInfoAccessHelper
-    LOGACCESS_PTR(MethodGCInfo, MethodDesc)
 
     // Log access to method table
     // Implemented by : code:IBCLogger.LogMethodTableAccessHelper
@@ -579,23 +604,13 @@ public:
     // Methods for enabling/disabling instrumentation.
     void EnableAllInstr();
     void DisableAllInstr();
-#else // IBCLOGGER_ENABLED
-    void EnableAllInstr()
-    {
-    }
 
-    void DisableAllInstr()
-    {
-    }
-#endif // IBCLOGGER_ENABLED
-
-#ifndef DACCESS_COMPILE
     void DisableRidAccessOrderInstr();
     void DisableMethodDescAccessInstr();
 
     inline BOOL InstrEnabled()
     {
-         SUPPORTS_DAC;
+        SUPPORTS_DAC;
         return (dwInstrEnabled != 0);
     }
 
@@ -613,9 +628,28 @@ private:
 
 private:
     DWORD dwInstrEnabled;
-    
+
     static CrstStatic m_sync;
-#endif // DACCESS_COMPILE
+#else // IBCLOGGER_ENABLED
+    void EnableAllInstr()
+    {
+    }
+
+    void DisableAllInstr()
+    {
+    }
+
+    inline BOOL InstrEnabled()
+    {
+        return false;
+    }
+
+    static CrstStatic * GetSync()
+    {
+        _ASSERTE(false);
+        return NULL;
+    }
+#endif // IBCLOGGER_ENABLED
 };
 
 #endif // IBCLOGGER_H

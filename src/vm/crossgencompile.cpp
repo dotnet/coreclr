@@ -113,10 +113,6 @@ GVAL_IMPL_INIT(DWORD, g_fHostConfig, 0);
 
 GVAL_IMPL_INIT(GCHeapType, g_heap_type, GC_HEAP_WKS);
 
-void UpdateGCSettingFromHost()
-{
-}
-
 HRESULT GetExceptionHResult(OBJECTREF throwable)
 {
     return E_FAIL;
@@ -124,7 +120,7 @@ HRESULT GetExceptionHResult(OBJECTREF throwable)
 
 //---------------------------------------------------------------------------------------
 //
-// Dynamically unreachable implementation of profiler callbacks. Note that we can't just 
+// Dynamically unreachable implementation of profiler callbacks. Note that we can't just
 // disable PROFILING_SUPPORTED for crossgen because of it affects data layout and FCall tables.
 //
 
@@ -235,11 +231,6 @@ ClassID TypeHandleToClassID(TypeHandle th)
 // Stubed-out implementations of functions that can do anything useful only when we are actually running managed code
 //
 
-MethodTable *Object::GetTrueMethodTable()
-{
-    UNREACHABLE();
-}
-
 FuncPtrStubs::FuncPtrStubs()
     : m_hashTableCrst(CrstFuncPtrStubs, CRST_UNSAFE_ANYMODE)
 {
@@ -281,17 +272,12 @@ void CrawlFrame::GetExactGenericInstantiations(Instantiation *pClassInst, Instan
     UNREACHABLE();
 }
 
-OBJECTREF AppDomain::GetExposedObject()
-{
-    UNREACHABLE();
-}
-
 BOOL Object::SupportsInterface(OBJECTREF pObj, MethodTable* pInterfaceMT)
 {
     UNREACHABLE();
 }
 
-GCFrame::GCFrame(OBJECTREF *pObjRefs, UINT numObjRefs, BOOL maybeInterior)
+GCFrame::GCFrame(Thread* pThread, OBJECTREF *pObjRefs, UINT numObjRefs, BOOL maybeInterior)
 {
 }
 
@@ -303,10 +289,6 @@ void GCFrame::GcScanRoots(promote_func *fn, ScanContext* sc)
 void HijackFrame::GcScanRoots(promote_func *fn, ScanContext* sc)
 {
     UNREACHABLE();
-}
-
-VOID GCFrame::Pop()
-{
 }
 
 void Frame::Push()
@@ -328,7 +310,7 @@ Assembly * SystemDomain::GetCallersAssembly(StackCrawlMark * stackMark, AppDomai
 }
 
 void EnableStressHeapHelper()
-{ 
+{
     UNREACHABLE();
 }
 
@@ -358,11 +340,11 @@ void DynamicMethodTable::Destroy()
 }
 
 void SyncClean::AddEEHashTable(EEHashEntry** entry)
-{ 
+{
 }
 
 void SyncClean::AddHashMap(Bucket *bucket)
-{ 
+{
 }
 
 #ifdef FEATURE_COMINTEROP
@@ -373,19 +355,23 @@ LONG ComCallWrapperTemplate::Release()
 #endif
 
 extern "C" UINT_PTR STDCALL GetCurrentIP()
-{ 
+{
     return 0;
 }
 
-void EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo, LPCWSTR errorSource, LPCWSTR argExceptionString)
-{ 
+// This method must return a value to avoid getting non-actionable dumps on x86.
+// If this method were a DECLSPEC_NORETURN then dumps would not provide the necessary
+// context at the point of the failure
+int NOINLINE EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo, LPCWSTR errorSource, LPCWSTR argExceptionString)
+{
     fprintf(stderr, "Fatal error: %08x\n", exitCode);
     ExitProcess(exitCode);
+    return -1;
 }
 
 //---------------------------------------------------------------------------------------
 
-Assembly * AppDomain::RaiseAssemblyResolveEvent(AssemblySpec * pSpec, BOOL fPreBind)
+Assembly * AppDomain::RaiseAssemblyResolveEvent(AssemblySpec * pSpec)
 {
     return NULL;
 }
@@ -402,9 +388,4 @@ DomainAssembly * AppDomain::RaiseTypeResolveEventThrowing(DomainAssembly* pAssem
 
 void AppDomain::RaiseLoadingAssemblyEvent(DomainAssembly *pAssembly)
 {
-}
-
-BOOL AppDomain::BindingByManifestFile()
-{
-    return FALSE;
 }

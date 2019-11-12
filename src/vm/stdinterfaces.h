@@ -48,7 +48,6 @@ public:
 class Assembly;
 class Module;
 class MethodTable;
-struct ITypeLibExporterNotifySink;
 
 typedef HRESULT (__stdcall* PCOMFN)(void);
 
@@ -62,16 +61,6 @@ typedef HRESULT (__stdcall* PCOMFN)(void);
 extern BYTE         g_UnmarshalSecret[sizeof(GUID)];
 extern bool         g_fInitedUnmarshalSecret;
 
-struct ExportTypeLibFromLoadedAssembly_Args
-{
-    Assembly*                   pAssembly;
-    LPCWSTR                     szTlb;
-    ITypeLib**                  ppTlb;
-    ITypeLibExporterNotifySink* pINotify;
-    int                         flags;
-    HRESULT                     hr;
-};
-
 // make sure to keep the following enum and the g_stdVtables array in sync
 enum Enum_StdInterfaces
 {
@@ -80,7 +69,6 @@ enum Enum_StdInterfaces
     enum_IMarshal,
     enum_ISupportsErrorInfo,
     enum_IErrorInfo,
-    enum_IManagedObject,
     enum_IConnectionPointContainer,
     enum_IObjectSafety,
     enum_IDispatchEx,
@@ -115,8 +103,8 @@ inline static Enum_StdInterfaces GetStdInterfaceKind(PTR_IUnknown pUnk)
 
     PTR_SLOT pVtable = dac_cast<PTR_SLOT>(*(dac_cast<PTR_TADDR>(pUnk)));
     PTR_StdInterfaceDesc pDesc = dac_cast<PTR_StdInterfaceDesc>(dac_cast<PTR_BYTE>(pVtable) - offsetof(StdInterfaceDesc<1>, m_vtable));
-    
-#ifndef DACCESS_COMPILE   
+
+#ifndef DACCESS_COMPILE
     // Make sure the interface kind is the right one
     // Only do this in non-DAC build as I don't want to bring in g_rgStdVtables global variable
     _ASSERTE(g_rgStdVtables[pDesc->m_StdInterfaceKind] == pVtable);
@@ -129,12 +117,11 @@ inline static Enum_StdInterfaces GetStdInterfaceKind(PTR_IUnknown pUnk)
 // IUnknown is part of IDispatch
 // Common vtables for well-known COM interfaces
 // shared by all COM+ callable wrappers.
-extern const StdInterfaceDesc<3>  g_InnerUnknown;         
+extern const StdInterfaceDesc<3>  g_InnerUnknown;
 extern const StdInterfaceDesc<4>  g_IProvideClassInfo;
-extern const StdInterfaceDesc<9>  g_IMarshal;         
+extern const StdInterfaceDesc<9>  g_IMarshal;
 extern const StdInterfaceDesc<4>  g_ISupportsErrorInfo;
-extern const StdInterfaceDesc<8>  g_IErrorInfo;       
-extern const StdInterfaceDesc<5>  g_IManagedObject;   
+extern const StdInterfaceDesc<8>  g_IErrorInfo;
 extern const StdInterfaceDesc<5>  g_IConnectionPointContainer;
 extern const StdInterfaceDesc<5>  g_IObjectSafety;
 extern const StdInterfaceDesc<15> g_IDispatchEx;
@@ -402,20 +389,6 @@ HRESULT __stdcall Marshal_DisconnectObject_Wrapper (IMarshal* pMarsh, ULONG dwRe
 
 
 //------------------------------------------------------------------------------------------
-//      IManagedObject methods for COM+ objects
-
-interface IManagedObject;
-
-HRESULT __stdcall ManagedObject_GetObjectIdentity_Wrapper(IManagedObject *pManaged,
-                                    BSTR* pBSTRGUID, DWORD* pAppDomainID,
-                                    void** pCCW);
-
-
-HRESULT __stdcall ManagedObject_GetSerializedBuffer_Wrapper(IManagedObject *pManaged,
-                                    BSTR* pBStr);
-
-
-//------------------------------------------------------------------------------------------
 //      IConnectionPointContainer methods for COM+ objects
 
 interface IEnumConnectionPoints;
@@ -446,8 +419,8 @@ HRESULT __stdcall ObjectSafety_SetInterfaceSafetyOptions_Wrapper(IUnknown* pUnk,
 
 //------------------------------------------------------------------------------------------
 //      ICustomPropertyProvider methods for Jupiter
-HRESULT __stdcall ICustomPropertyProvider_GetProperty_Wrapper(IUnknown *pPropertyProvider, 
-                                                              HSTRING hstrName, 
+HRESULT __stdcall ICustomPropertyProvider_GetProperty_Wrapper(IUnknown *pPropertyProvider,
+                                                              HSTRING hstrName,
                                                               /* [out] */ IUnknown **ppProperty);
 
 // Windows.UI.DirectUI.Xaml.TypeNameNative
@@ -457,15 +430,15 @@ struct TypeNameNative
     int         typeKind;
 };
 
-HRESULT __stdcall ICustomPropertyProvider_GetIndexedProperty_Wrapper(IUnknown *pPropertyProvider, 
-                                                                     HSTRING hstrName, 
+HRESULT __stdcall ICustomPropertyProvider_GetIndexedProperty_Wrapper(IUnknown *pPropertyProvider,
+                                                                     HSTRING hstrName,
                                                                      TypeNameNative indexedParamType,
                                                                      /* [out, retval] */ IUnknown **ppProperty);
 
-HRESULT __stdcall ICustomPropertyProvider_GetStringRepresentation_Wrapper(IUnknown *pPropertyProvider, 
+HRESULT __stdcall ICustomPropertyProvider_GetStringRepresentation_Wrapper(IUnknown *pPropertyProvider,
                                                                           /* [out, retval] */ HSTRING *phstrStringRepresentation);
 
-HRESULT __stdcall ICustomPropertyProvider_GetType_Wrapper(IUnknown *pPropertyProvider, 
+HRESULT __stdcall ICustomPropertyProvider_GetType_Wrapper(IUnknown *pPropertyProvider,
                                                           /* [out, retval] */ TypeNameNative *pTypeIdentifier);
 
 HRESULT __stdcall IStringable_ToString_Wrapper(IUnknown* pStringable,
@@ -482,10 +455,6 @@ HRESULT __stdcall ICCW_Peg_Wrapper(IUnknown *pUnk);
 HRESULT __stdcall ICCW_Unpeg_Wrapper(IUnknown *pUnk);
 
 
-
-#ifdef MDA_SUPPORTED
-VOID __stdcall DirtyCast_Assert(IUnknown* pUnk);
-#endif
 
 // IUNKNOWN wrappers
 
@@ -534,28 +503,7 @@ InternalDispatchImpl_Invoke (
 IErrorInfo *GetSupportedErrorInfo(IUnknown *iface, REFIID riid, BOOL checkForIRestrictedErrInfo = TRUE);
 
 //------------------------------------------------------------------------------------------
-// Helper functions that return HRESULT's instead of throwing exceptions.
-HRESULT TryGetGuid(MethodTable* pClass, GUID* pGUID, BOOL b);
-
-//------------------------------------------------------------------------------------------
 // Helpers to get the ITypeInfo* for a type.
-HRESULT ExportTypeLibFromLoadedAssemblyNoThrow(Assembly *pAssembly, LPCWSTR szTlb, ITypeLib **ppTlb, ITypeLibExporterNotifySink *pINotify, int flags);
-void    ExportTypeLibFromLoadedAssembly(Assembly *pAssembly, LPCWSTR szTlb, ITypeLib **ppTlb, ITypeLibExporterNotifySink *pINotify, int flags);
-HRESULT GetITypeLibForEEClass(MethodTable *pMT, ITypeLib **ppTLB, int bAutoCreate, int flags);
-HRESULT GetITypeInfoForEEClass(MethodTable *pMT, ITypeInfo **ppTI, int bClassInfo=false, int bAutoCreate=true, int flags=0);
-HRESULT GetTypeLibIdForRegisteredEEClass(MethodTable *pMT, GUID *pGuid);
-HRESULT GetDefaultInterfaceForCoclass(ITypeInfo *pTI, ITypeInfo **ppTIDef);
-
-//-------------------------------------------------------------------------------------
-// Helper to get the ITypeLib* for a Assembly.
-HRESULT GetITypeLibForAssembly(Assembly *pAssembly, ITypeLib **ppTLB, int bAutoCreate, int flags);
-
-//-------------------------------------------------------------------------------------
-// Helper to get the GUID of the typelib that is created from an assembly.
-HRESULT GetTypeLibGuidForAssembly(Assembly *pAssembly, GUID *pGuid);
-
-//-------------------------------------------------------------------------------------
-// Helper for IInspectable's GetRuntimeClassName on an IReference<T> or IReferenceArray<T>.
-void GetRuntimeClassNameForIReferenceOrIReferenceArray(MethodTable* pInstantiatedType, BOOL fIsIReferenceArray, SString& className);
+HRESULT GetITypeInfoForEEClass(MethodTable *pMT, ITypeInfo **ppTI, bool bClassInfo = false);
 
 #endif

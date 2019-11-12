@@ -14,12 +14,12 @@ internal static partial class Interop
         private static extern unsafe byte* GetCwd(byte* buffer, int bufferLength);
 
         internal static unsafe string GetCwd()
-        {      
+        {
             const int StackLimit = 256;
-       
+
             // First try to get the path into a buffer on the stack
             byte* stackBuf = stackalloc byte[StackLimit];
-            string result = GetCwdHelper(stackBuf, StackLimit);
+            string? result = GetCwdHelper(stackBuf, StackLimit);
             if (result != null)
             {
                 return result;
@@ -27,7 +27,7 @@ internal static partial class Interop
 
             // If that was too small, try increasing large buffer sizes
             int bufferSize = StackLimit;
-            do
+            while (true)
             {
                 checked { bufferSize *= 2; }
                 byte[] buf = ArrayPool<byte>.Shared.Rent(bufferSize);
@@ -47,10 +47,9 @@ internal static partial class Interop
                     ArrayPool<byte>.Shared.Return(buf);
                 }
             }
-            while (true);
         }
 
-        private static unsafe string GetCwdHelper(byte* ptr, int bufferSize)
+        private static unsafe string? GetCwdHelper(byte* ptr, int bufferSize)
         {
             // Call the real getcwd
             byte* result = GetCwd(ptr, bufferSize);

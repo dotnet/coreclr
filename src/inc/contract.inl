@@ -5,7 +5,7 @@
 // Contract.inl
 //
 
-// ! I am the owner for issues in the contract *infrastructure*, not for every 
+// ! I am the owner for issues in the contract *infrastructure*, not for every
 // ! CONTRACT_VIOLATION dialog that comes up. If you interrupt my work for a routine
 // ! CONTRACT_VIOLATION, you will become the new owner of this file.
 // ---------------------------------------------------------------------------
@@ -22,25 +22,7 @@
 
 #ifdef ENABLE_CONTRACTS_IMPL
 
-#ifdef FEATURE_STACK_PROBE
-/* FLAG to turn on/off dynamic SO Contract checking */
-extern BOOL g_EnableDefaultRWValidation;
-
-/* Used to report any code with SO_NOT_MAINLINE being run in a test environment
- * with COMPLUS_NO_SO_NOT_MAINLINE enabled
- */
-void SONotMainlineViolation(const char *szFunction, const char *szFile, int lineNum);
-
-/* Wrapper over SOTolerantViolation(). Used to report SO_Intolerant functions being called 
- * from SO_tolerant funcs without stack probing.
- */
-void SoTolerantViolationHelper(const char *szFunction,
-                               const char *szFile,
-                               int   lineNum);
-#endif
-
-
-inline void BaseContract::DoChecks(UINT testmask, __in_z const char *szFunction, __in_z char *szFile, int lineNum)
+inline void BaseContract::DoChecks(UINT testmask, __in_z const char *szFunction, __in_z const char *szFile, int lineNum)
 {
     STATIC_CONTRACT_DEBUG_ONLY;
     STATIC_CONTRACT_NOTHROW;
@@ -72,29 +54,6 @@ inline void BaseContract::DoChecks(UINT testmask, __in_z const char *szFunction,
     {
         m_pClrDebugState->SetDebugOnly();
     }
-
-#ifdef FEATURE_STACK_PROBE //Dynamic SO contract checks only required when SO infrastructure is present.
-
-    if (testmask & SO_MAINLINE_No)
-    {
-        static DWORD dwCheckNotMainline = -1;
-
-        // Some tests should never hit an SO_NOT_MAINLINE contract
-        if (dwCheckNotMainline == -1)
-            dwCheckNotMainline = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_NO_SO_NOT_MAINLINE);
-
-
-        if (dwCheckNotMainline)
-        {
-            SONotMainlineViolation(m_contractStackRecord.m_szFunction,
-                                   m_contractStackRecord.m_szFile,
-                                   m_contractStackRecord.m_lineNum);
-        }
-
-        m_pClrDebugState->SetSONotMainline();
-    }
-
-#endif // FEATURE_STACK_PROBE
 
     switch (testmask & FAULT_Mask)
     {
@@ -170,34 +129,10 @@ inline void BaseContract::DoChecks(UINT testmask, __in_z const char *szFunction,
                 }
                 m_pClrDebugState->SetMaxLoadTypeLevel(newTypeLoadLevel);
                 m_pClrDebugState->ViolationMaskReset(LoadsTypeViolation);
-                
+
             }
             break;
     }
-
-#ifdef FEATURE_STACK_PROBE
-
-    switch (testmask & SO_TOLERANCE_Mask)
-    {
-        case SO_TOLERANT_No:
-            if (g_EnableDefaultRWValidation)
-            {
-                m_pClrDebugState->CheckIfSOIntolerantOK(m_contractStackRecord.m_szFunction,
-                                                        m_contractStackRecord.m_szFile,
-                                                        m_contractStackRecord.m_lineNum);
-            }
-            break;
-        
-        case SO_TOLERANT_Yes:
-        case SO_TOLERANCE_Disabled:
-            // Nothing
-            break;
-
-        default:
-            UNREACHABLE();
-    }
-
-#endif // FEATURE_STACK_PROBE
 
     if (testmask & CAN_RETAKE_LOCK_No)
     {
@@ -207,7 +142,7 @@ inline void BaseContract::DoChecks(UINT testmask, __in_z const char *szFunction,
 
     switch (testmask & CAN_TAKE_LOCK_Mask)
     {
-        case CAN_TAKE_LOCK_Yes: 
+        case CAN_TAKE_LOCK_Yes:
             m_pClrDebugState->CheckOkayToLock(m_contractStackRecord.m_szFunction,
                                               m_contractStackRecord.m_szFile,
                                               m_contractStackRecord.m_lineNum);
@@ -288,16 +223,16 @@ inline void ClrDebugState::CheckOkayToLock(__in_z const char *szFunction, __in_z
                         szFunction,
                         szFile,
                         lineNum);
-                        
+
     }
 }
 
 
 inline void ClrDebugState::LockTaken(DbgStateLockType dbgStateLockType,
-                                     UINT cTakes, 
-                                     void * pvLock, 
-                                     __in_z const char * szFunction, 
-                                     __in_z const char * szFile, 
+                                     UINT cTakes,
+                                     void * pvLock,
+                                     __in_z const char * szFunction,
+                                     __in_z const char * szFile,
                                      int lineNum)
 {
     STATIC_CONTRACT_DEBUG_ONLY;
@@ -346,7 +281,7 @@ inline void ClrDebugState::LockReleased(DbgStateLockType dbgStateLockType, UINT 
 
     if (!IsOkToRetakeLock())
     {
-        // It is very suspicious to release any locks being hold at the time this function was 
+        // It is very suspicious to release any locks being hold at the time this function was
         // called in a CANNOT_RETAKE_LOCK scope
         _ASSERTE(m_LockState.IsSafeToRelease(cReleases));
     }
@@ -386,9 +321,9 @@ inline UINT ClrDebugState::GetCombinedLockCount()
 
 inline void DbgStateLockData::LockTaken(DbgStateLockType dbgStateLockType,
                                         UINT cTakes,      // # times we're taking this lock (usually 1)
-                                        void * pvLock, 
-                                        __in_z const char * szFunction, 
-                                        __in_z const char * szFile, 
+                                        void * pvLock,
+                                        __in_z const char * szFunction,
+                                        __in_z const char * szFile,
                                         int lineNum)
 {
     STATIC_CONTRACT_NOTHROW;
@@ -464,7 +399,7 @@ inline void DbgStateLockData::LockReleased(DbgStateLockType dbgStateLockType, UI
         // were released out of order.  However, it will eventually correct itself once all
         // the out-of-order locks have been released.  And our count
         // (i.e., m_rgcLocksTaken[dbgStateLockType]) will always be accurate
-        memset(&(m_rgTakenLockInfos[i]), 
+        memset(&(m_rgTakenLockInfos[i]),
                0,
                sizeof(m_rgTakenLockInfos[i]));
     }
@@ -480,7 +415,7 @@ inline void DbgStateLockData::SetStartingValues()
 inline UINT DbgStateLockData::GetLockCount(DbgStateLockType dbgStateLockType)
 {
     _ASSERTE(UINT(dbgStateLockType) < kDbgStateLockType_Count);
-    return m_rgcLocksTaken[dbgStateLockType]; 
+    return m_rgcLocksTaken[dbgStateLockType];
 }
 
 inline UINT DbgStateLockData::GetCombinedLockCount()
@@ -498,7 +433,7 @@ inline void DbgStateLockState::SetStartingValues()
     m_pLockData = NULL;     // Will get filled in by CLRInitDebugState()
 }
 
-// We set a marker to record the number of locks that have been taken when 
+// We set a marker to record the number of locks that have been taken when
 // CANNOT_RETAKE_LOCK contract is constructed.
 inline void DbgStateLockState::OnEnterCannotRetakeLockFunction()
 {
@@ -512,8 +447,8 @@ inline BOOL DbgStateLockState::IsLockRetaken(void * pvLock)
 
     // m_cLocksEnteringCannotRetakeLock records the number of locks that were taken
     // when CANNOT_RETAKE_LOCK contract was constructed.
-    for (UINT i = 0; 
-        i < min(_countof(m_pLockData->m_rgTakenLockInfos), m_cLocksEnteringCannotRetakeLock); 
+    for (UINT i = 0;
+        i < min(_countof(m_pLockData->m_rgTakenLockInfos), m_cLocksEnteringCannotRetakeLock);
         ++i)
     {
         if (m_pLockData->m_rgTakenLockInfos[i].m_pvLock == pvLock)
@@ -539,52 +474,9 @@ inline DbgStateLockData * DbgStateLockState::GetDbgStateLockData()
     return m_pLockData;
 }
 
-#ifdef FEATURE_STACK_PROBE
-// We don't want to allow functions that use holders to EX_TRY to be intolerant
-// code... if an exception were to occur, the holders and EX_CATCH/FINALLY would
-// have less than 1/4 clean up.
-inline void EnsureSOIntolerantOK(const char *szFunction,
-                                  const char *szFile,
-                                  int   lineNum)
-{
-    // We don't want to use a holder here, because a holder will
-    // call EnsureSOIntolerantOK
-    
-    DWORD error = GetLastError();
-    if (! g_EnableDefaultRWValidation)
-    {
-        SetLastError(error);
-        return;
-    }
-    ClrDebugState *pClrDebugState = CheckClrDebugState();
-    if (! pClrDebugState)
-    {
-        SetLastError(error);
-        return;
-    }
-    pClrDebugState->CheckIfSOIntolerantOK(szFunction, szFile, lineNum);
-    SetLastError(error);
-}
-
-inline void ClrDebugState::CheckIfSOIntolerantOK(const char *szFunction,
-                                                 const char *szFile,
-                                                 int   lineNum)
-
-{
-    // If we are an RW function on a managed thread, we must be in SO-intolerant mode.   Ie. we must be behind a probe.  
-    if (IsSOIntolerant() || IsDebugOnly() || IsSONotMainline() || (m_violationmask & SOToleranceViolation) ||
-        !g_fpShouldValidateSOToleranceOnThisThread || !g_fpShouldValidateSOToleranceOnThisThread())
-    {
-        return;
-    }
-    SoTolerantViolationHelper(szFunction, szFile, lineNum);
-}
-
-#endif
-
 inline
 void CONTRACT_ASSERT(const char *szElaboration,
-                     UINT  whichTest,        
+                     UINT  whichTest,
                      UINT  whichTestMask,
                      const char *szFunction,
                      const char *szFile,
@@ -650,7 +542,7 @@ void CONTRACT_ASSERT(const char *szElaboration,
                             pRec->m_szFile,
                             pRec->m_lineNum
                             );
-                
+
                     strcat_s(Buf, _countof(Buf), tmpbuf);
                 }
 
@@ -687,7 +579,7 @@ void CONTRACT_ASSERT(const char *szElaboration,
                    "\n"
                    );
         }
-        
+
         strcat_s(Buf,_countof(Buf), "\n\n");
 
         if (!foundconflict && count != 0)
@@ -712,7 +604,7 @@ FORCEINLINE BOOL BaseContract::EnforceContract()
 {
     if (s_alwaysEnforceContracts)
         return TRUE;
-    else 
+    else
         return CHECK::EnforceAssert();
 }
 

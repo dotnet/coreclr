@@ -4,11 +4,11 @@
 //
 // FILE: ProfToEEInterfaceImpl.inl
 //
-// Inline implementation of portions of the code used to help implement the 
+// Inline implementation of portions of the code used to help implement the
 // ICorProfilerInfo* interfaces, which allow the Profiler to communicate with the EE.
 //
 
-// 
+//
 // ======================================================================================
 
 #ifndef __PROFTOEEINTERFACEIMPL_INL__
@@ -22,7 +22,7 @@
 
 //---------------------------------------------------------------------------------------
 //
-// "Callback flags" are typically set on the current EE Thread object just before we 
+// "Callback flags" are typically set on the current EE Thread object just before we
 // call into a profiler (see SetCallbackStateFlagsHolder).  This helps us remember that
 // we deliberately called into the profiler, as opposed to the profiler gaining control
 // by hijacking a thread. This helper function is used in PROFILER_TO_CLR_ENTRYPOINT_SYNC
@@ -50,7 +50,6 @@ inline BOOL AreCallbackStateFlagsSet(DWORD dwFlags)
         MODE_ANY;
         CANNOT_TAKE_LOCK;
         EE_THREAD_NOT_REQUIRED;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -64,9 +63,10 @@ inline BOOL AreCallbackStateFlagsSet(DWORD dwFlags)
     BOOL fRet;
     BEGIN_GETTHREAD_ALLOWED_IN_NO_THROW_REGION;
     DWORD dwProfilerCallbackFullStateFlags = pThread->GetProfilerCallbackFullState();
-    if ((dwProfilerCallbackFullStateFlags & COR_PRF_CALLBACKSTATE_FORCEGC_WAS_CALLED) != 0)
+    if (((dwProfilerCallbackFullStateFlags & COR_PRF_CALLBACKSTATE_FORCEGC_WAS_CALLED) != 0)
+        || ((dwProfilerCallbackFullStateFlags & COR_PRF_CALLBACKSTATE_REJIT_WAS_CALLED) != 0))
     {
-        // Threads on which ForceGC() was successfully called should be treated just
+        // Threads on which ForceGC() or RequestReJIT() was successfully called should be treated just
         // like native threads.  Profiler can do whatever it wants
         return TRUE;
     }
@@ -95,7 +95,7 @@ inline BOOL IsCalledAsynchronously()
 // Simple helper that decides whether we should avoid calling into the host. Generally,
 // host calls should be avoided if the current Info method was called asynchronously
 // (i.e., from an F1-style hijack), for fear of re-entering the host (mainly SQL).
-// 
+//
 // Server GC threads are native (non-EE) threads, which therefore do not track enough
 // state for us to determine if a call is made asynhronously on those threads. So we
 // pessimistically assume that the current call on a server GC thread is from a hijack
@@ -117,9 +117,9 @@ inline BOOL ShouldAvoidHostCalls()
 {
     LIMITED_METHOD_CONTRACT;
 
-    return 
+    return
     (
-        IsCalledAsynchronously() || 
+        IsCalledAsynchronously() ||
         (
             (GetThreadNULLOk() == NULL) && IsGCSpecialThread()
         )
@@ -129,7 +129,7 @@ inline BOOL ShouldAvoidHostCalls()
 
 //---------------------------------------------------------------------------------------
 //
-// Simple helper that returns nonzero iff the current thread is a non-EE thread in the 
+// Simple helper that returns nonzero iff the current thread is a non-EE thread in the
 // process of doing a GC
 //
 
@@ -179,14 +179,14 @@ inline ProfToEEInterfaceImpl::ProfToEEInterfaceImpl()
 };
 
 
-inline BOOL IsClassOfMethodTableInited(MethodTable * pMethodTable, AppDomain * pAppDomain)
+inline BOOL IsClassOfMethodTableInited(MethodTable * pMethodTable)
 {
     LIMITED_METHOD_CONTRACT;
 
     return (pMethodTable->IsRestored() &&
         (pMethodTable->GetModuleForStatics() != NULL) &&
-        (pMethodTable->GetDomainLocalModule(pAppDomain) != NULL) &&
-        pMethodTable->IsClassInited(pAppDomain));
+        (pMethodTable->GetDomainLocalModule() != NULL) &&
+        pMethodTable->IsClassInited());
 }
 
 

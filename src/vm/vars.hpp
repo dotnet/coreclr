@@ -20,7 +20,7 @@ typedef LPVOID  DictionaryEntry;
 /* Define the implementation dependent size types */
 
 #ifndef _INTPTR_T_DEFINED
-#ifdef  _WIN64
+#ifdef  BIT64
 typedef __int64             intptr_t;
 #else
 typedef int                 intptr_t;
@@ -29,7 +29,7 @@ typedef int                 intptr_t;
 #endif
 
 #ifndef _UINTPTR_T_DEFINED
-#ifdef  _WIN64
+#ifdef  BIT64
 typedef unsigned __int64    uintptr_t;
 #else
 typedef unsigned int        uintptr_t;
@@ -38,7 +38,7 @@ typedef unsigned int        uintptr_t;
 #endif
 
 #ifndef _PTRDIFF_T_DEFINED
-#ifdef  _WIN64
+#ifdef  BIT64
 typedef __int64             ptrdiff_t;
 #else
 typedef int                 ptrdiff_t;
@@ -48,7 +48,7 @@ typedef int                 ptrdiff_t;
 
 
 #ifndef _SIZE_T_DEFINED
-#ifdef  _WIN64
+#ifdef  BIT64
 typedef unsigned __int64 size_t;
 #else
 typedef unsigned int     size_t;
@@ -56,11 +56,6 @@ typedef unsigned int     size_t;
 #define _SIZE_T_DEFINED
 #endif
 
-
-#ifndef _WCHAR_T_DEFINED
-typedef unsigned short wchar_t;
-#define _WCHAR_T_DEFINED
-#endif
 
 #include "util.hpp"
 #include <corpriv.h>
@@ -79,6 +74,9 @@ class LoaderHeap;
 class IGCHeap;
 class Object;
 class StringObject;
+#ifdef FEATURE_UTF8STRING
+class Utf8StringObject;
+#endif // FEATURE_UTF8STRING
 class ArrayClass;
 class MethodTable;
 class MethodDesc;
@@ -159,8 +157,7 @@ class OBJECTREF {
 
         class ReflectClassBaseObject* m_asReflectClass;
         class ExecutionContextObject* m_asExecutionContext;
-        class AppDomainBaseObject* m_asAppDomainBase;
-        class PermissionSetObject* m_asPermissionSetObject;
+        class AssemblyLoadContextBaseObject* m_asAssemblyLoadContextBase;
     };
 
     public:
@@ -313,6 +310,10 @@ class REF : public OBJECTREF
 #define OBJECTREFToObject(objref)  ((objref).operator-> ())
 #define ObjectToSTRINGREF(obj)     (STRINGREF(obj))
 #define STRINGREFToObject(objref)  (*( (StringObject**) &(objref) ))
+#ifdef FEATURE_UTF8STRING
+#define ObjectToUTF8STRINGREF(obj)   (UTF8STRINGREF(obj))
+#define UTF8STRINGREFToObject(objref) (*( (Utf8StringObject**) &(objref) ))
+#endif // FEATURE_UTF8STRING
 
 #else   // _DEBUG_IMPL
 
@@ -323,6 +324,10 @@ class REF : public OBJECTREF
 #define OBJECTREFToObject(objref) ((PTR_Object) (objref))
 #define ObjectToSTRINGREF(obj)    ((PTR_StringObject) (obj))
 #define STRINGREFToObject(objref) ((PTR_StringObject) (objref))
+#ifdef FEATURE_UTF8STRING
+#define ObjectToUTF8STRINGREF(obj)    ((PTR_Utf8StringObject) (obj))
+#define UTF8STRINGREFToObject(objref) ((PTR_Utf8StringObject) (objref))
+#endif // FEATURE_UTF8STRING
 
 #endif // _DEBUG_IMPL
 
@@ -352,7 +357,7 @@ EXTERN IBCLogger            g_IBCLogger;
 // that does not allow g_TrapReturningThreads to creep up unchecked.
 EXTERN Volatile<LONG>       g_trtChgStamp;
 EXTERN Volatile<LONG>       g_trtChgInFlight;
-EXTERN char *               g_ExceptionFile;
+EXTERN const char *         g_ExceptionFile;
 EXTERN DWORD                g_ExceptionLine;
 EXTERN void *               g_ExceptionEIP;
 #endif
@@ -363,6 +368,9 @@ GPTR_DECL(MethodTable,      g_pObjectClass);
 GPTR_DECL(MethodTable,      g_pRuntimeTypeClass);
 GPTR_DECL(MethodTable,      g_pCanonMethodTableClass);  // System.__Canon
 GPTR_DECL(MethodTable,      g_pStringClass);
+#ifdef FEATURE_UTF8STRING
+GPTR_DECL(MethodTable,      g_pUtf8StringClass);
+#endif // FEATURE_UTF8STRING
 GPTR_DECL(MethodTable,      g_pArrayClass);
 GPTR_DECL(MethodTable,      g_pSZArrayHelperClass);
 GPTR_DECL(MethodTable,      g_pNullableClass);
@@ -383,8 +391,6 @@ GPTR_DECL(MethodTable,      g_pOverlappedDataClass);
 
 GPTR_DECL(MethodTable,      g_TypedReferenceMT);
 
-GPTR_DECL(MethodTable,      g_pByteArrayMT);
-
 #ifdef FEATURE_COMINTEROP
 GPTR_DECL(MethodTable,      g_pBaseCOMObject);
 GPTR_DECL(MethodTable,      g_pBaseRuntimeClass);
@@ -393,8 +399,6 @@ GPTR_DECL(MethodTable,      g_pBaseRuntimeClass);
 #ifdef FEATURE_ICASTABLE
 GPTR_DECL(MethodTable,      g_pICastableInterface);
 #endif // FEATURE_ICASTABLE
-
-GPTR_DECL(MethodDesc,       g_pExecuteBackoutCodeHelperMethod);
 
 GPTR_DECL(MethodDesc,       g_pObjectFinalizerMD);
 
@@ -469,28 +473,9 @@ extern int g_IGCTrimCommit;
 #endif
 
 extern BOOL g_fEnableETW;
-extern BOOL g_fEnableARM;
 
 // Returns a BOOL to indicate if the runtime is active or not
-BOOL IsRuntimeActive(); 
-
-//
-// Can we run managed code?
-//
-struct LoaderLockCheck
-{
-    enum kind
-    {
-        ForMDA,
-        ForCorrectness,
-        None,
-    };
-};
-BOOL CanRunManagedCode(LoaderLockCheck::kind checkKind, HINSTANCE hInst = 0);
-inline BOOL CanRunManagedCode(HINSTANCE hInst = 0)
-{
-    return CanRunManagedCode(LoaderLockCheck::ForMDA, hInst);
-}
+BOOL IsRuntimeActive();
 
 //
 // Global state variable indicating if the EE is in its init phase.
@@ -516,10 +501,6 @@ EXTERN BOOL g_fComStarted;
 GVAL_DECL(DWORD, g_fEEShutDown);
 EXTERN DWORD g_fFastExitProcess;
 EXTERN BOOL g_fFatalErrorOccurredOnGCThread;
-#ifndef DACCESS_COMPILE
-EXTERN BOOL g_fSuspendOnShutdown;
-EXTERN BOOL g_fSuspendFinalizerOnShutdown;
-#endif // DACCESS_COMPILE
 EXTERN Volatile<LONG> g_fForbidEnterEE;
 GVAL_DECL(bool, g_fProcessDetach);
 EXTERN bool g_fManagedAttach;
@@ -542,15 +523,10 @@ enum FWStatus
 };
 
 EXTERN DWORD g_FinalizerWaiterStatus;
-extern ULONGLONG g_ObjFinalizeStartTime;
-extern Volatile<BOOL> g_FinalizerIsRunning;
-extern Volatile<ULONG> g_FinalizerLoopCount;
 
 #if defined(FEATURE_PAL) && defined(FEATURE_EVENT_TRACE)
 extern Volatile<BOOL> g_TriggerHeapDump;
 #endif // FEATURE_PAL
-
-extern LONG GetProcessedExitProcessEventCount();
 
 #ifndef DACCESS_COMPILE
 //
@@ -582,12 +558,6 @@ EXTERN bool g_fInControlC;
 
 // There is a global table of prime numbers that's available for e.g. hashing
 extern const DWORD g_rgPrimes[71];
-
-//
-// Cached command line file provided by the host.
-//
-extern LPWSTR g_pCachedCommandLine;
-extern LPWSTR g_pCachedModuleFileName;
 
 //
 // Macros to check debugger and profiler settings.
@@ -656,7 +626,7 @@ inline bool CORDebuggerAttached()
 #else // DEBUGGING_SUPPORTED
 
 #define CORDisableJITOptimizations(dwDebuggerBits) FALSE
-         
+
 #endif// DEBUGGING_SUPPORTED
 
 #endif// defined(PROFILING_SUPPORTED) || defined(PROFILING_SUPPORTED_DATA)
@@ -682,61 +652,6 @@ GVAL_DECL(SIZE_T, g_runtimeVirtualSize);
 #ifndef MAXULONGLONG
 #define MAXULONGLONG                     UI64(0xffffffffffffffff)
 #endif
-
-// #ADID_vs_ADIndex
-// code:ADID is an ID for an appdomain that is sparse and remains unique within the process for the lifetime of the process.
-// Remoting and (I believe) the thread pool use the former as a way of referring to appdomains outside of their normal lifetime safely.
-// Interop also uses ADID to handle issues involving unloaded domains.
-// 
-// code:ADIndex is an ID for an appdomain that's dense and may be reused once the appdomain is unloaded.
-// This is useful for fast array based lookup from a number to an appdomain property.  
-struct ADIndex
-{
-    DWORD m_dwIndex;
-    ADIndex ()
-    : m_dwIndex(0)
-    {}
-    explicit ADIndex (DWORD id)
-    : m_dwIndex(id)
-    {
-        SUPPORTS_DAC;
-    }
-    BOOL operator==(const ADIndex& ad) const
-    {
-        return m_dwIndex == ad.m_dwIndex;
-    }
-    BOOL operator!=(const ADIndex& ad) const
-    {
-        return m_dwIndex != ad.m_dwIndex;
-    }
-};
-
-// An ADID is a number that represents an appdomain.  They are allcoated with code:SystemDomain::GetNewAppDomainId
-// ADIDs are NOT reused today, so they are unique even after the appdomain dies.  
-// 
-// see also code:BaseDomain::m_dwId 
-// see also code:ADIndex
-// see also code:ADIndex#ADID_vs_ADIndex
-struct ADID
-{
-    DWORD m_dwId;
-    ADID ()
-    : m_dwId(0)
-    {LIMITED_METHOD_CONTRACT;}
-    explicit ADID (DWORD id)
-    : m_dwId(id)
-    {LIMITED_METHOD_CONTRACT;}
-    BOOL operator==(const ADID& ad) const
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        return m_dwId == ad.m_dwId;
-    }
-    BOOL operator!=(const ADID& ad) const
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_dwId != ad.m_dwId;
-    }
-};
 
 struct TPIndex
 {
@@ -818,6 +733,7 @@ extern CEECompileInfo *g_pCEECompileInfo;
 
 #ifdef FEATURE_READYTORUN_COMPILER
 extern bool g_fReadyToRunCompilation;
+extern bool g_fLargeVersionBubble;
 #endif
 
 // Returns true if this is NGen compilation process.
@@ -842,8 +758,8 @@ inline BOOL NingenEnabled()
 #endif
 }
 
-// Passed to JitManager APIs to determine whether to avoid calling into the host. 
-// The profiling API stackwalking uses this to ensure to avoid re-entering the host 
+// Passed to JitManager APIs to determine whether to avoid calling into the host.
+// The profiling API stackwalking uses this to ensure to avoid re-entering the host
 // (particularly SQL) from a hijacked thread.
 enum HostCallPreference
 {

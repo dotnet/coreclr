@@ -31,12 +31,36 @@
 #define _DEBUG_IMPL 1
 #endif
 
+#if __GNUC__
+#ifndef __cdecl
+#define __cdecl	__attribute__((__cdecl__))
+#endif
+#endif
+
+#ifndef NOTHROW_DECL
+#ifdef _MSC_VER
+#define NOTHROW_DECL __declspec(nothrow)
+#else
+#define NOTHROW_DECL __attribute__((nothrow))
+#endif // !_MSC_VER
+#endif // !NOTHROW_DECL
+
+#ifndef NOINLINE
+#ifdef _MSC_VER
+#define NOINLINE __declspec(noinline)
+#else
+#define NOINLINE __attribute__((noinline))
+#endif // !_MSC_VER
+#endif // !NOINLINE
+
+#define ANALYZER_NORETURN
+
 //
 // CPP_ASSERT() can be used within a class definition, to perform a
 // compile-time assertion involving private names within the class.
 //
 // MS compiler doesn't allow redefinition of the typedef within a template.
-// gcc doesn't allow redefinition of the typedef within a class, though 
+// gcc doesn't allow redefinition of the typedef within a class, though
 // it does at file scope.
 #define CPP_ASSERT(n, e) typedef char __C_ASSERT__##n[(e) ? 1 : -1];
 
@@ -67,7 +91,7 @@
 // errors. Once they fix all the places that need attention for portability,
 // they can define PORTABILITY_ASSERT and PORTABILITY_WARNING to cause
 // compile-time errors to make sure that they haven't missed anything.
-// 
+//
 // If it is reasonably possible all codepaths containing PORTABILITY_ASSERT
 // should be compilable (e.g. functions should return NULL or something if
 // they are expected to return a value).
@@ -82,7 +106,7 @@
 #else
 // Ports in progress - run-time asserts only
 #define PORTABILITY_WARNING(message)
-#define PORTABILITY_ASSERT(message)     _ASSERTE(false && message)
+#define PORTABILITY_ASSERT(message)     _ASSERTE(false && (message))
 #endif
 
 #define DIRECTORY_SEPARATOR_CHAR_A '\\'
@@ -141,31 +165,17 @@
 #define IMAGE_IMPORT_DESC_FIELD(img, f)     ((img).f)
 #endif
 
-//Remove these "unanonymous" unions from newer builds for now.  Confirm that they were never needed when we
-//bring back Rotor.
 #define IMAGE_RDE_ID(img) ((img)->Id)
-#ifndef IMAGE_RDE_ID
-#define IMAGE_RDE_ID(img)        ((img)->Id)
-#endif
 
 #define IMAGE_RDE_NAME(img) ((img)->Name)
-#ifndef IMAGE_RDE_NAME
-#define IMAGE_RDE_NAME(img)      ((img)->Name)
-#endif
 
 #define IMAGE_RDE_OFFSET(img) ((img)->OffsetToData)
-#ifndef IMAGE_RDE_OFFSET
-#define IMAGE_RDE_OFFSET(img)    ((img)->OffsetToData)
-#endif
 
 #ifndef IMAGE_RDE_NAME_FIELD
 #define IMAGE_RDE_NAME_FIELD(img, f)    ((img)->f)
 #endif
 
 #define IMAGE_RDE_OFFSET_FIELD(img, f) ((img)->f)
-#ifndef IMAGE_RDE_OFFSET_FIELD
-#define IMAGE_RDE_OFFSET_FIELD(img, f)  ((img)->f)
-#endif
 
 #ifndef IMAGE_FE64_FIELD
 #define IMAGE_FE64_FIELD(img, f)    ((img).f)
@@ -185,7 +195,7 @@
 // integer constants. 64-bit integer constants should be wrapped in the
 // declarations listed here.
 //
-// Each of the #defines here is wrapped to avoid conflicts with rotor_pal.h.
+// Each of the #defines here is wrapped to avoid conflicts with pal.h.
 
 #if defined(_MSC_VER)
 
@@ -232,7 +242,7 @@
 // - It is not possible to directly use the local variables in the filter.
 // All the local information that the filter has to need to know about should
 // be passed through pv parameter
-//  
+//
 // - Do not use goto to jump out of the PAL_TRY block
 // (jumping out of the try block is not a good idea even on Win32, because of
 // it causes stack unwind)
@@ -260,7 +270,7 @@
 //   ....
 // }
 // PAL_ENDTRY
-// 
+//
 //
 // LONG MyFilter(PEXCEPTION_POINTERS *pExceptionInfo, PVOID pv)
 // {
@@ -393,7 +403,7 @@
         static void Run(__ParamType __paramDef)                                 \
     {                                                                           \
             PAL_TRY_HANDLER_DBG_BEGIN_DLLMAIN(__reason)
- 
+
 #define PAL_EXCEPT(Disposition)                                                 \
             PAL_TRY_HANDLER_DBG_END                                             \
         }                                                                       \
@@ -442,7 +452,7 @@
     __ParamType __paramDef; __paramDef = __param;                               \
     PAL_TRY_NAKED                                                               \
     PAL_TRY_HANDLER_DBG_BEGIN_DLLMAIN(__reason)
- 
+
 #define PAL_EXCEPT(Disposition)                                                 \
         PAL_TRY_HANDLER_DBG_END                                                 \
         PAL_EXCEPT_NAKED(Disposition)
@@ -463,7 +473,7 @@
 
 // Executes the handler if the specified exception code matches
 // the one in the exception. Otherwise, returns EXCEPTION_CONTINUE_SEARCH.
-#define PAL_EXCEPT_IF_EXCEPTION_CODE(dwExceptionCode) PAL_EXCEPT((GetExceptionCode() == dwExceptionCode)?EXCEPTION_EXECUTE_HANDLER:EXCEPTION_CONTINUE_SEARCH)
+#define PAL_EXCEPT_IF_EXCEPTION_CODE(dwExceptionCode) PAL_EXCEPT((GetExceptionCode() == (dwExceptionCode))?EXCEPTION_EXECUTE_HANDLER:EXCEPTION_CONTINUE_SEARCH)
 
 #define PAL_CPP_TRY try
 #define PAL_CPP_ENDTRY
@@ -484,33 +494,33 @@
 //  SELECTANY declares a variable as extern to give it external linkage
 //  and it provides __declspec(selectany) to instruct the linker to merge
 //  duplicate external const static data copies into one.
-//  
+//
 #if defined(SOURCE_FORMATTING)
 #define SELECTANY extern
 #else
+#if defined(__GNUC__)
+#define SELECTANY extern __attribute__((weak))
+#else
 #define SELECTANY extern __declspec(selectany)
+#endif
 #endif
 #if defined(SOURCE_FORMATTING)
 #define __annotation(x)
 #endif
-        
 
-#if defined(_DEBUG_IMPL) && !defined(JIT_BUILD) && !defined(JIT64_BUILD) && !defined(CROSS_COMPILE) && !defined(_TARGET_ARM_) // @ARMTODO: no contracts for speed
+
+#if defined(_DEBUG_IMPL) && !defined(JIT_BUILD) && !defined(JIT64_BUILD) && !defined(CROSS_COMPILE) && !defined(DISABLE_CONTRACTS)
 #define PAL_TRY_HANDLER_DBG_BEGIN                                               \
     BOOL ___oldOkayToThrowValue = FALSE;                                        \
-    SO_INFRASTRUCTURE_CODE(BOOL ___oldSOTolerantState = FALSE;)                \
     ClrDebugState *___pState = ::GetClrDebugState();                            \
     __try                                                                       \
     {                                                                           \
         ___oldOkayToThrowValue = ___pState->IsOkToThrow();                      \
-        SO_INFRASTRUCTURE_CODE(___oldSOTolerantState = ___pState->IsSOTolerant();) \
-        ___pState->SetOkToThrow();                                        \
-        PAL_ENTER_THROWS_REGION;
+        ___pState->SetOkToThrow();
 
 // Special version that avoids touching the debug state after doing work in a DllMain for process or thread detach.
 #define PAL_TRY_HANDLER_DBG_BEGIN_DLLMAIN(_reason)                              \
     BOOL ___oldOkayToThrowValue = FALSE;                                        \
-    SO_INFRASTRUCTURE_CODE(BOOL ___oldSOTolerantState = FALSE;)                \
     ClrDebugState *___pState = NULL;                                            \
     if (_reason != DLL_PROCESS_ATTACH)                                          \
         ___pState = CheckClrDebugState();                                       \
@@ -519,17 +529,14 @@
         if (___pState)                                                          \
         {                                                                       \
             ___oldOkayToThrowValue = ___pState->IsOkToThrow();                  \
-            SO_INFRASTRUCTURE_CODE(___oldSOTolerantState = ___pState->IsSOTolerant();) \
             ___pState->SetOkToThrow();                                        \
         }                                                                       \
         if ((_reason == DLL_PROCESS_DETACH) || (_reason == DLL_THREAD_DETACH))  \
         {                                                                       \
             ___pState = NULL;                                                   \
-        }                                                                       \
-        PAL_ENTER_THROWS_REGION;
+        }
 
 #define PAL_TRY_HANDLER_DBG_END                                                 \
-        PAL_LEAVE_THROWS_REGION                                                 \
     }                                                                           \
     __finally                                                                   \
     {                                                                           \
@@ -537,21 +544,16 @@
         {                                                                       \
             _ASSERTE(___pState == CheckClrDebugState());                        \
             ___pState->SetOkToThrow( ___oldOkayToThrowValue );                \
-            SO_INFRASTRUCTURE_CODE(___pState->SetSOTolerance( ___oldSOTolerantState );) \
         }                                                                       \
     }
 
-#define PAL_ENDTRY_NAKED_DBG                                                    \
-    if (__exHandled)                                                            \
-    {                                                                           \
-        RESTORE_SO_TOLERANCE_STATE;                                             \
-    }                                                                           \
-    
+#define PAL_ENDTRY_NAKED_DBG
+
 #else
 #define PAL_TRY_HANDLER_DBG_BEGIN                   ANNOTATION_TRY_BEGIN;
 #define PAL_TRY_HANDLER_DBG_BEGIN_DLLMAIN(_reason)  ANNOTATION_TRY_BEGIN;
 #define PAL_TRY_HANDLER_DBG_END                     ANNOTATION_TRY_END;
-#define PAL_ENDTRY_NAKED_DBG                                                          
+#define PAL_ENDTRY_NAKED_DBG
 #endif // defined(ENABLE_CONTRACTS_IMPL) && !defined(JIT64_BUILD)
 
 
@@ -571,23 +573,23 @@
 #define GET_UNALIGNED_32(_pObject)  (*(UINT32 UNALIGNED *)(_pObject))
 #define GET_UNALIGNED_64(_pObject)  (*(UINT64 UNALIGNED *)(_pObject))
 
-// Set Value on an potentially unaligned object 
+// Set Value on an potentially unaligned object
 #define SET_UNALIGNED_16(_pObject, _Value)  (*(UNALIGNED UINT16 *)(_pObject)) = (UINT16)(_Value)
 #define SET_UNALIGNED_32(_pObject, _Value)  (*(UNALIGNED UINT32 *)(_pObject)) = (UINT32)(_Value)
-#define SET_UNALIGNED_64(_pObject, _Value)  (*(UNALIGNED UINT64 *)(_pObject)) = (UINT64)(_Value) 
+#define SET_UNALIGNED_64(_pObject, _Value)  (*(UNALIGNED UINT64 *)(_pObject)) = (UINT64)(_Value)
 
 // Get Unaligned values from a potentially unaligned object and swap the value
 #define GET_UNALIGNED_VAL16(_pObject) VAL16(GET_UNALIGNED_16(_pObject))
 #define GET_UNALIGNED_VAL32(_pObject) VAL32(GET_UNALIGNED_32(_pObject))
 #define GET_UNALIGNED_VAL64(_pObject) VAL64(GET_UNALIGNED_64(_pObject))
 
-// Set a swap Value on an potentially unaligned object 
+// Set a swap Value on an potentially unaligned object
 #define SET_UNALIGNED_VAL16(_pObject, _Value) SET_UNALIGNED_16(_pObject, VAL16((UINT16)_Value))
 #define SET_UNALIGNED_VAL32(_pObject, _Value) SET_UNALIGNED_32(_pObject, VAL32((UINT32)_Value))
 #define SET_UNALIGNED_VAL64(_pObject, _Value) SET_UNALIGNED_64(_pObject, VAL64((UINT64)_Value))
 #endif
 
-#ifdef _WIN64
+#ifdef BIT64
 #define VALPTR(x) VAL64(x)
 #define GET_UNALIGNED_PTR(x) GET_UNALIGNED_64(x)
 #define GET_UNALIGNED_VALPTR(x) GET_UNALIGNED_VAL64(x)

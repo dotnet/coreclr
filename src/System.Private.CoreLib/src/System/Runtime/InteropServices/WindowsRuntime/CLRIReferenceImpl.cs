@@ -2,33 +2,25 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-
-using System;
 using System.Collections;
 using System.Diagnostics;
-using System.Reflection;
-using System.Security;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
     internal sealed class CLRIReferenceImpl<T> : CLRIPropertyValueImpl, IReference<T>, IGetProxyTarget
     {
-        private T _value;
+        private readonly T _value;
 
         public CLRIReferenceImpl(PropertyType type, T obj)
-            : base(type, obj)
+            : base(type, obj!)
         {
             Debug.Assert(obj != null, "Must not be null");
             _value = obj;
         }
 
-        public T Value
-        {
-            get { return _value; }
-        }
+        public T Value => _value;
 
-        public override string ToString()
+        public override string? ToString()
         {
             if (_value != null)
             {
@@ -42,7 +34,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         object IGetProxyTarget.GetTarget()
         {
-            return (object)_value;
+            return _value!;
         }
 
         // We have T in an IReference<T>.  Need to QI for IReference<T> with the appropriate GUID, call
@@ -55,7 +47,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             Debug.Assert(wrapper != null);
             IReference<T> reference = (IReference<T>)wrapper;
             Debug.Assert(reference != null, "CLRIReferenceImpl::UnboxHelper - QI'ed for IReference<" + typeof(T) + ">, but that failed.");
-            return reference.Value;
+            return reference.Value!;
         }
     }
 
@@ -65,8 +57,8 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                                                       IReferenceArray<T>,
                                                       IList                     // Jupiter data binding needs IList/IEnumerable
     {
-        private T[] _value;
-        private IList _list;
+        private readonly T[] _value;
+        private readonly IList _list;
 
         public CLRIReferenceArrayImpl(PropertyType type, T[] obj)
             : base(type, obj)
@@ -78,12 +70,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             _list = (IList)_value;
         }
 
-        public T[] Value
-        {
-            get { return _value; }
-        }
+        public T[] Value => _value;
 
-        public override string ToString()
+        public override string? ToString()
         {
             if (_value != null)
             {
@@ -108,25 +97,18 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // IList & ICollection methods.
         // This enables two-way data binding and index access in Jupiter
         //
-        object IList.this[int index]
+        object? IList.this[int index]
         {
-            get
-            {
-                return _list[index];
-            }
-
-            set
-            {
-                _list[index] = value;
-            }
+            get => _list[index];
+            set => _list[index] = value;
         }
 
-        int IList.Add(object value)
+        int IList.Add(object? value)
         {
             return _list.Add(value);
         }
 
-        bool IList.Contains(object value)
+        bool IList.Contains(object? value)
         {
             return _list.Contains(value);
         }
@@ -136,33 +118,21 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             _list.Clear();
         }
 
-        bool IList.IsReadOnly
-        {
-            get
-            {
-                return _list.IsReadOnly;
-            }
-        }
+        bool IList.IsReadOnly => _list.IsReadOnly;
 
-        bool IList.IsFixedSize
-        {
-            get
-            {
-                return _list.IsFixedSize;
-            }
-        }
+        bool IList.IsFixedSize => _list.IsFixedSize;
 
-        int IList.IndexOf(object value)
+        int IList.IndexOf(object? value)
         {
             return _list.IndexOf(value);
         }
 
-        void IList.Insert(int index, object value)
+        void IList.Insert(int index, object? value)
         {
             _list.Insert(index, value);
         }
 
-        void IList.Remove(object value)
+        void IList.Remove(object? value)
         {
             _list.Remove(value);
         }
@@ -177,29 +147,11 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             _list.CopyTo(array, index);
         }
 
-        int ICollection.Count
-        {
-            get
-            {
-                return _list.Count;
-            }
-        }
+        int ICollection.Count => _list.Count;
 
-        object ICollection.SyncRoot
-        {
-            get
-            {
-                return _list.SyncRoot;
-            }
-        }
+        object ICollection.SyncRoot => _list.SyncRoot;
 
-        bool ICollection.IsSynchronized
-        {
-            get
-            {
-                return _list.IsSynchronized;
-            }
-        }
+        bool ICollection.IsSynchronized => _list.IsSynchronized;
 
         object IGetProxyTarget.GetTarget()
         {
@@ -224,9 +176,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // For creating instances of Windows Runtime's IReference<T> and IReferenceArray<T>.
     internal static class IReferenceFactory
     {
-        internal static readonly Type s_pointType = Type.GetType("Windows.Foundation.Point, System.Runtime.WindowsRuntime");
-        internal static readonly Type s_rectType = Type.GetType("Windows.Foundation.Rect, System.Runtime.WindowsRuntime");
-        internal static readonly Type s_sizeType = Type.GetType("Windows.Foundation.Size, System.Runtime.WindowsRuntime");
+        internal static readonly Type s_pointType = Type.GetType("Windows.Foundation.Point, System.Runtime.WindowsRuntime")!;
+        internal static readonly Type s_rectType = Type.GetType("Windows.Foundation.Rect, System.Runtime.WindowsRuntime")!;
+        internal static readonly Type s_sizeType = Type.GetType("Windows.Foundation.Size, System.Runtime.WindowsRuntime")!;
 
         internal static object CreateIReference(object obj)
         {
@@ -296,11 +248,11 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             if (propType.HasValue)
             {
                 Type specificType = typeof(CLRIReferenceImpl<>).MakeGenericType(type);
-                return Activator.CreateInstance(specificType, new object[] { propType.Value, obj });
+                return Activator.CreateInstance(specificType, new object[] { propType.GetValueOrDefault(), obj })!;
             }
 
             Debug.Fail("We should not see non-WinRT type here");
-            return null;
+            return null!;
         }
 
         internal static object CreateIReferenceArray(Array obj)
@@ -308,7 +260,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             Debug.Assert(obj != null);
             Debug.Assert(obj.GetType().IsArray);
 
-            Type type = obj.GetType().GetElementType();
+            Type type = obj.GetType().GetElementType()!;
 
             Debug.Assert(obj.Rank == 1 && obj.GetLowerBound(0) == 0 && !type.IsArray);
 
@@ -367,7 +319,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 if (type.IsGenericType &&
                     type.GetGenericTypeDefinition() == typeof(System.Collections.Generic.KeyValuePair<,>))
                 {
-                    object[] objArray = new object[obj.Length];
+                    object?[] objArray = new object?[obj.Length];
                     for (int i = 0; i < objArray.Length; i++)
                     {
                         objArray[i] = obj.GetValue(i);
@@ -389,7 +341,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             {
                 // All WinRT value type will be Property.Other
                 Type specificType = typeof(CLRIReferenceArrayImpl<>).MakeGenericType(type);
-                return Activator.CreateInstance(specificType, new object[] { propType.Value, obj });
+                return Activator.CreateInstance(specificType, new object[] { propType.GetValueOrDefault(), obj })!;
             }
             else
             {

@@ -1,15 +1,16 @@
-# Require at least version 2.8.12 of CMake
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.14)
 
-# Include global configure settings
-include(${CMAKE_CURRENT_SOURCE_DIR}/../configure.cmake)
-include(${CMAKE_CURRENT_SOURCE_DIR}/../configurecompiler.cmake)
+cmake_policy(SET CMP0042 NEW)
+project(Tests)
 
 set(INC_PLATFORM_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/Common/Platform)
 if (WIN32)
-    add_definitions(-DWINDOWS=1)
+    add_definitions(-DWINDOWS)
 endif()
 
+# Include global configure settings
+include(${CMAKE_CURRENT_SOURCE_DIR}/../configurecompiler.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/../configuretools.cmake)
 # Compile options
 
 if (WIN32)
@@ -29,10 +30,6 @@ if (WIN32)
     add_compile_options(-wd4100 -wd4514 -wd4625 -wd4626 -wd4668 -wd4710 -wd4711 -wd4774 -wd4820 -wd5025 -wd5026 -wd5027 -wd5039)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc")
 endif()
-
-if(CLR_CMAKE_PLATFORM_UNIX)
-    add_compile_options(-fPIC)
-endif(CLR_CMAKE_PLATFORM_UNIX)
 
 MACRO(SUBDIRLIST result curdir)
   FILE(GLOB children RELATIVE ${curdir} ${curdir}/*)

@@ -9,7 +9,7 @@ add_definitions(-DUSE_COREDISTOOLS)
 
 if(WIN32)
   #use static crt
-  add_definitions(-MT) 
+  add_definitions(-MT)
 endif(WIN32)
 
 include_directories(.)
@@ -43,15 +43,11 @@ set(SUPERPMI_SOURCES
     ../superpmi-shared/spmidumphelper.cpp
 )
 
-add_precompiled_header(
-    standardpch.h
-    ../superpmi-shared/standardpch.cpp
-    SUPERPMI_SOURCES
-)
-
 _add_executable(superpmi
     ${SUPERPMI_SOURCES}
 )
+
+target_precompile_header(TARGET superpmi HEADER standardpch.h)
 
 if(CLR_CMAKE_PLATFORM_UNIX)
     target_link_libraries(superpmi

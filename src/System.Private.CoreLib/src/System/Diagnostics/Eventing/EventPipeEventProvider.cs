@@ -1,13 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
-using System.Collections.Concurrent;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Security;
-using Microsoft.Win32;
-using System.Diagnostics;
-using System.Collections.Generic;
 
 namespace System.Diagnostics.Tracing
 {
@@ -19,13 +12,13 @@ namespace System.Diagnostics.Tracing
         // Register an event provider.
         unsafe uint IEventProvider.EventRegister(
             EventSource eventSource,
-            UnsafeNativeMethods.ManifestEtw.EtwEnableCallback enableCallback,
+            Interop.Advapi32.EtwEnableCallback enableCallback,
             void* callbackContext,
             ref long registrationHandle)
         {
             uint returnStatus = 0;
             m_provHandle = EventPipeInternal.CreateProvider(eventSource.Name, enableCallback);
-            if(m_provHandle != IntPtr.Zero)
+            if (m_provHandle != IntPtr.Zero)
             {
                 // Fixed registration handle because a new EventPipeEventProvider
                 // will be created for each new EventSource.
@@ -48,9 +41,9 @@ namespace System.Diagnostics.Tracing
         }
 
         // Write an event.
-        unsafe int IEventProvider.EventWriteTransferWrapper(
+        unsafe EventProvider.WriteEventErrorCode IEventProvider.EventWriteTransfer(
             long registrationHandle,
-            ref EventDescriptor eventDescriptor,
+            in EventDescriptor eventDescriptor,
             IntPtr eventHandle,
             Guid* activityId,
             Guid* relatedActivityId,
@@ -58,12 +51,12 @@ namespace System.Diagnostics.Tracing
             EventProvider.EventData* userData)
         {
             uint eventID = (uint)eventDescriptor.EventId;
-            if(eventID != 0 && eventHandle != IntPtr.Zero)
+            if (eventID != 0 && eventHandle != IntPtr.Zero)
             {
                 if (userDataCount == 0)
                 {
                     EventPipeInternal.WriteEventData(eventHandle, eventID, null, 0, activityId, relatedActivityId);
-                    return 0;
+                    return EventProvider.WriteEventErrorCode.NoError;
                 }
 
                 // If Channel == 11, this is a TraceLogging event.
@@ -71,23 +64,23 @@ namespace System.Diagnostics.Tracing
                 // EventPipe metadata is provided via the EventPipeEventProvider.DefineEventHandle.
                 if (eventDescriptor.Channel == 11)
                 {
-                    userData = userData + 3;
-                    userDataCount = userDataCount - 3;
+                    userData += 3;
+                    userDataCount -= 3;
                     Debug.Assert(userDataCount >= 0);
                 }
-                EventPipeInternal.WriteEventData(eventHandle, eventID, userData, (uint) userDataCount, activityId, relatedActivityId);
+                EventPipeInternal.WriteEventData(eventHandle, eventID, userData, (uint)userDataCount, activityId, relatedActivityId);
             }
-            return 0;
+            return EventProvider.WriteEventErrorCode.NoError;
         }
 
         // Get or set the per-thread activity ID.
-        int IEventProvider.EventActivityIdControl(UnsafeNativeMethods.ManifestEtw.ActivityControl ControlCode, ref Guid ActivityId)
+        int IEventProvider.EventActivityIdControl(Interop.Advapi32.ActivityControl ControlCode, ref Guid ActivityId)
         {
             return EventPipeInternal.EventActivityIdControl((uint)ControlCode, ref ActivityId);
         }
 
         // Define an EventPipeEvent handle.
-        unsafe IntPtr IEventProvider.DefineEventHandle(uint eventID, string eventName, long keywords, uint eventVersion, uint level, byte *pMetadata, uint metadataLength)
+        unsafe IntPtr IEventProvider.DefineEventHandle(uint eventID, string eventName, long keywords, uint eventVersion, uint level, byte* pMetadata, uint metadataLength)
         {
             IntPtr eventHandlePtr = EventPipeInternal.DefineEvent(m_provHandle, eventID, keywords, eventVersion, level, pMetadata, metadataLength);
             return eventHandlePtr;

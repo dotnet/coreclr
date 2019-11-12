@@ -4,7 +4,7 @@
 
 namespace System.Globalization
 {
-    internal sealed partial class GlobalizationMode
+    internal static partial class GlobalizationMode
     {
         internal static bool Invariant { get; } = GetGlobalizationInvariantMode();
 
@@ -18,7 +18,7 @@ namespace System.Globalization
             if (!exist)
             {
                 // Linux doesn't support environment variable names include dots
-                string switchValue = Environment.GetEnvironmentVariable("DOTNET_SYSTEM_GLOBALIZATION_INVARIANT");
+                string? switchValue = Environment.GetEnvironmentVariable("DOTNET_SYSTEM_GLOBALIZATION_INVARIANT");
                 if (switchValue != null)
                 {
                     ret = bool.IsTrueStringIgnoreCase(switchValue) || switchValue.Equals("1");

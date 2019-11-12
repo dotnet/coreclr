@@ -40,29 +40,6 @@ SET_DEFAULT_DEBUG_CHANNEL(MEM);
 
 /*++
 Function:
-  RtlMoveMemory
-
-See MSDN doc.
---*/
-VOID
-PALAPI
-RtlMoveMemory(
-          IN PVOID Destination,
-          IN CONST VOID *Source,
-          IN SIZE_T Length)
-{
-    PERF_ENTRY(RtlMoveMemory);
-    ENTRY("RtlMoveMemory(Destination:%p, Source:%p, Length:%d)\n", 
-          Destination, Source, Length);
-    
-    memmove(Destination, Source, Length);
-    
-    LOGEXIT("RtlMoveMemory returning\n");
-    PERF_EXIT(RtlMoveMemory);
-}
-
-/*++
-Function:
   HeapCreate
 
 See MSDN doc.
@@ -98,7 +75,7 @@ HeapCreate(
     {
         ret = (HANDLE)malloc_create_zone(dwInitialSize, 0 /* flags */);
     }
-    
+
 #else // __APPLE__
     ret = (HANDLE)DUMMY_HEAP;
 #endif // __APPLE__
@@ -135,7 +112,7 @@ GetProcessHeap(
 #else
     ret = (HANDLE) DUMMY_HEAP;
 #endif
-  
+
     LOGEXIT("GetProcessHeap returning HANDLE %p\n", ret);
     PERF_EXIT(GetProcessHeap);
     return ret;
@@ -234,7 +211,7 @@ HeapFree(
     BOOL bRetVal = FALSE;
 
     PERF_ENTRY(HeapFree);
-    ENTRY("HeapFree (hHeap=%p, dwFlags = %#x, lpMem=%p)\n", 
+    ENTRY("HeapFree (hHeap=%p, dwFlags = %#x, lpMem=%p)\n",
           hHeap, dwFlags, lpMem);
 
 #ifdef __APPLE__

@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
-using System.Security;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Diagnostics.SymbolStore;
@@ -16,13 +14,13 @@ namespace System.Reflection.Emit
     //
     // This file implements the minimum subset of ISymWrapper.dll required to restore
     // that functionality. Namely, the SymWriter and SymDocumentWriter objects.
-    // 
+    //
     // Ideally we wouldn't need ISymWrapper.dll on desktop either - it's an ugly piece
     // of legacy.  We could just use this (or COM-interop code) everywhere, but we might
     // have to worry about compatibility.
-    // 
+    //
     // We've now got a real implementation even when no debugger is attached.  It's
-    // up to the runtime to ensure it doesn't provide us with an insecure writer 
+    // up to the runtime to ensure it doesn't provide us with an insecure writer
     // (eg. diasymreader) in the no-trust scenarios (no debugger, partial-trust code).
     //-----------------------------------------------------------------------------------
 
@@ -57,7 +55,7 @@ namespace System.Reflection.Emit
                 m_pDocumentWriterSafeHandle = pDocumentWriterSafeHandle;
                 // The handle is actually a pointer to a native ISymUnmanagedDocumentWriter.
                 m_pDocWriter = (ISymUnmanagedDocumentWriter*)m_pDocumentWriterSafeHandle.DangerousGetHandle();
-                m_vtable = (ISymUnmanagedDocumentWriterVTable)(Marshal.PtrToStructure(m_pDocWriter->m_unmanagedVTable, typeof(ISymUnmanagedDocumentWriterVTable)));
+                m_vtable = (ISymUnmanagedDocumentWriterVTable)(Marshal.PtrToStructure(m_pDocWriter->m_unmanagedVTable, typeof(ISymUnmanagedDocumentWriterVTable)))!;
             }
 
             //------------------------------------------------------------------------------
@@ -69,10 +67,10 @@ namespace System.Reflection.Emit
             }
 
 
-            //=========================================================================================
+            // =========================================================================================
             // Public interface methods start here. (Well actually, they're all NotSupported
             // stubs since that's what they are on the real ISymWrapper.dll.)
-            //=========================================================================================
+            // =========================================================================================
 
             //------------------------------------------------------------------------------
             // SetSource() wrapper
@@ -90,7 +88,7 @@ namespace System.Reflection.Emit
                 int hr = m_vtable.SetCheckSum(m_pDocWriter, algorithmId, (uint)checkSum.Length, checkSum);
                 if (hr < 0)
                 {
-                    throw Marshal.GetExceptionForHR(hr);
+                    throw Marshal.GetExceptionForHR(hr)!;
                 }
             }
 
@@ -144,7 +142,7 @@ namespace System.Reflection.Emit
         internal unsafe class SymWriter : ISymbolWriter
         {
             //------------------------------------------------------------------------------
-            // Creates a SymWriter. The SymWriter is a managed wrapper around the unmanaged 
+            // Creates a SymWriter. The SymWriter is a managed wrapper around the unmanaged
             // symbol writer provided by the runtime (ildbsymlib or diasymreader.dll).
             //------------------------------------------------------------------------------
             internal static ISymbolWriter CreateSymWriter()
@@ -155,7 +153,7 @@ namespace System.Reflection.Emit
 
             //------------------------------------------------------------------------------
             // Basic ctor. You'd think this ctor would take the unmanaged symwriter object as an argument
-            // but to fit in with existing desktop code, the unmanaged writer is passed in 
+            // but to fit in with existing desktop code, the unmanaged writer is passed in
             // through a subsequent call to InternalSetUnderlyingWriter
             //------------------------------------------------------------------------------
             private SymWriter()
@@ -165,17 +163,16 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // DefineDocument() wrapper
             //------------------------------------------------------------------------------
-            ISymbolDocumentWriter ISymbolWriter.DefineDocument(string url,
+            ISymbolDocumentWriter? ISymbolWriter.DefineDocument(string url,
                                                                Guid language,
                                                                Guid languageVendor,
                                                                Guid documentType)
             {
-                PunkSafeHandle psymUnmanagedDocumentWriter = new PunkSafeHandle();
-
+                PunkSafeHandle psymUnmanagedDocumentWriter;
                 int hr = m_vtable.DefineDocument(m_pWriter, url, ref language, ref languageVendor, ref documentType, out psymUnmanagedDocumentWriter);
                 if (hr < 0)
                 {
-                    throw Marshal.GetExceptionForHR(hr);
+                    throw Marshal.GetExceptionForHR(hr)!;
                 }
                 if (psymUnmanagedDocumentWriter.IsInvalid)
                 {
@@ -192,7 +189,7 @@ namespace System.Reflection.Emit
                 int hr = m_vtable.OpenMethod(m_pWriter, method.GetToken());
                 if (hr < 0)
                 {
-                    throw Marshal.GetExceptionForHR(hr);
+                    throw Marshal.GetExceptionForHR(hr)!;
                 }
             }
 
@@ -204,7 +201,7 @@ namespace System.Reflection.Emit
                 int hr = m_vtable.CloseMethod(m_pWriter);
                 if (hr < 0)
                 {
-                    throw Marshal.GetExceptionForHR(hr);
+                    throw Marshal.GetExceptionForHR(hr)!;
                 }
             }
 
@@ -259,10 +256,10 @@ namespace System.Reflection.Emit
                 // Regardless, this cast is important for security - we cannot allow our caller to provide
                 // arbitrary instances of this interface.
                 SymDocumentWriter docwriter = (SymDocumentWriter)document;
-                int hr = m_vtable.DefineSequencePoints(m_pWriter, docwriter.GetUnmanaged(), spCount, offsets, lines, columns, endLines, endColumns);
+                int hr = m_vtable.DefineSequencePoints(m_pWriter, docwriter.GetUnmanaged(), spCount!, offsets!, lines!, columns!, endLines!, endColumns!);
                 if (hr < 0)
                 {
-                    throw Marshal.GetExceptionForHR(hr);
+                    throw Marshal.GetExceptionForHR(hr)!;
                 }
             }
 
@@ -275,7 +272,7 @@ namespace System.Reflection.Emit
                 int hr = m_vtable.OpenScope(m_pWriter, startOffset, out ret);
                 if (hr < 0)
                 {
-                    throw Marshal.GetExceptionForHR(hr);
+                    throw Marshal.GetExceptionForHR(hr)!;
                 }
                 return ret;
             }
@@ -288,7 +285,7 @@ namespace System.Reflection.Emit
                 int hr = m_vtable.CloseScope(m_pWriter, endOffset);
                 if (hr < 0)
                 {
-                    throw Marshal.GetExceptionForHR(hr);
+                    throw Marshal.GetExceptionForHR(hr)!;
                 }
             }
 
@@ -318,7 +315,7 @@ namespace System.Reflection.Emit
                                                       endOffset);
                 if (hr < 0)
                 {
-                    throw Marshal.GetExceptionForHR(hr);
+                    throw Marshal.GetExceptionForHR(hr)!;
                 }
             }
 
@@ -330,7 +327,7 @@ namespace System.Reflection.Emit
                 int hr = m_vtable.SetSymAttribute(m_pWriter, parent.GetToken(), name, data.Length, data);
                 if (hr < 0)
                 {
-                    throw Marshal.GetExceptionForHR(hr);
+                    throw Marshal.GetExceptionForHR(hr)!;
                 }
             }
 
@@ -342,14 +339,14 @@ namespace System.Reflection.Emit
                 int hr = m_vtable.UsingNamespace(m_pWriter, name);
                 if (hr < 0)
                 {
-                    throw Marshal.GetExceptionForHR(hr);
+                    throw Marshal.GetExceptionForHR(hr)!;
                 }
             }
 
             //------------------------------------------------------------------------------
             // InternalSetUnderlyingWriter() wrapper.
             //
-            // Furnishes the native ISymUnmanagedWriter* pointer. 
+            // Furnishes the native ISymUnmanagedWriter* pointer.
             //
             // The parameter is actually a pointer to a pointer to an ISymUnmanagedWriter. As
             // with the real ISymWrapper.dll, ISymWrapper performs *no* Release (or AddRef) on pointers
@@ -358,16 +355,16 @@ namespace System.Reflection.Emit
             internal void InternalSetUnderlyingWriter(IntPtr ppUnderlyingWriter)
             {
                 m_pWriter = *((ISymUnmanagedWriter**)ppUnderlyingWriter);
-                m_vtable = (ISymUnmanagedWriterVTable)(Marshal.PtrToStructure(m_pWriter->m_unmanagedVTable, typeof(ISymUnmanagedWriterVTable)));
+                m_vtable = (ISymUnmanagedWriterVTable)(Marshal.PtrToStructure(m_pWriter->m_unmanagedVTable, typeof(ISymUnmanagedWriterVTable)))!;
             }
 
             //------------------------------------------------------------------------------
             // Define delegates for the unmanaged COM methods we invoke.
             //------------------------------------------------------------------------------
             private delegate int DInitialize(ISymUnmanagedWriter* pthis,
-                                             IntPtr emitter,  //IUnknown*
-                                             [MarshalAs(UnmanagedType.LPWStr)] string filename, //WCHAR*
-                                             IntPtr pIStream, //IStream*
+                                             IntPtr emitter,  // IUnknown*
+                                             [MarshalAs(UnmanagedType.LPWStr)] string filename, // WCHAR*
+                                             IntPtr pIStream, // IStream*
                                              [MarshalAs(UnmanagedType.Bool)] bool fFullBuild
                                              );
 
@@ -491,7 +488,7 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             private ISymUnmanagedWriterVTable m_vtable;
         } // class SymWriter
-    } //class SymWrapperCore
+    } // class SymWrapperCore
 
 
 
@@ -513,27 +510,23 @@ namespace System.Reflection.Emit
         {
         }
 
-        override protected bool ReleaseHandle()
+        protected override bool ReleaseHandle()
         {
             m_Release(handle);
             return true;
         }
 
-        public override bool IsInvalid
-        {
-            get { return handle == ((IntPtr)0); }
-        }
+        public override bool IsInvalid => handle == ((IntPtr)0);
 
         private delegate void DRelease(IntPtr punk);         // Delegate type for P/Invoking to coreclr.dll and doing an IUnknown::Release()
-        private static DRelease m_Release;
+        private static DRelease m_Release = (DRelease)Marshal.GetDelegateForFunctionPointer(nGetDReleaseTarget(), typeof(DRelease));
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern IntPtr nGetDReleaseTarget();     // FCall gets us the native DRelease target (so we don't need named dllexport from coreclr.dll)
 
         static PunkSafeHandle()
         {
-            m_Release = (DRelease)(Marshal.GetDelegateForFunctionPointer(nGetDReleaseTarget(), typeof(DRelease)));
             m_Release((IntPtr)0); // make one call to make sure the delegate is fully prepped before we're in the critical finalizer situation.
         }
     } // PunkSafeHandle
-} //namespace System.Reflection.Emit
+} // namespace System.Reflection.Emit

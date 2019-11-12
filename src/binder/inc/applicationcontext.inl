@@ -45,11 +45,6 @@ ExecutionContext *ApplicationContext::GetExecutionContext()
     return m_pExecutionContext;
 }
 
-InspectionContext *ApplicationContext::GetInspectionContext()
-{
-    return m_pInspectionContext;
-}
-
 FailureCache *ApplicationContext::GetFailureCache()
 {
     _ASSERTE(m_pFailureCache != NULL);
@@ -93,18 +88,5 @@ CRITSEC_COOKIE ApplicationContext::GetCriticalSectionCookie()
 {
     return m_contextCS;
 }
-
-#ifdef FEATURE_VERSIONING_LOG
-BindingLog *ApplicationContext::GetBindingLog()
-{
-    return &m_bindingLog;
-}
-
-void ApplicationContext::ClearBindingLog()
-{
-    m_bindingLog.SetDebugLog(NULL);
-}
-#endif // FEATURE_VERSIONING_LOG
-
 
 #endif

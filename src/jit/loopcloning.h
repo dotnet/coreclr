@@ -113,7 +113,7 @@ struct ArrIndex
     void Print(unsigned dim = -1)
     {
         printf("V%02d", arrLcl);
-        for (unsigned i = 0; i < ((dim == -1) ? rank : dim); ++i)
+        for (unsigned i = 0; i < ((dim == (unsigned)-1) ? rank : dim); ++i)
         {
             printf("[V%02d]", indLcls.GetRef(i));
         }
@@ -194,9 +194,9 @@ struct LcMdArrayOptInfo : public LcOptInfo
             index->rank = arrElem->gtArrRank;
             for (unsigned i = 0; i < dim; ++i)
             {
-                index->indLcls.Push(arrElem->gtArrInds[i]->gtLclVarCommon.gtLclNum);
+                index->indLcls.Push(arrElem->gtArrInds[i]->AsLclVarCommon()->GetLclNum());
             }
-            index->arrLcl = arrElem->gtArrObj->gtLclVarCommon.gtLclNum;
+            index->arrLcl = arrElem->gtArrObj->AsLclVarCommon()->GetLclNum();
         }
         return index;
     }
@@ -208,13 +208,13 @@ struct LcMdArrayOptInfo : public LcOptInfo
  */
 struct LcJaggedArrayOptInfo : public LcOptInfo
 {
-    unsigned dim;      // "dim" represents upto what level of the rank this optimization applies to.
-                       //    For example, a[i][j][k] could be the jagged array but if "dim" is 2,
-                       //    then this node is treated as though it were a[i][j]
-    ArrIndex arrIndex; // ArrIndex representation of the array.
-    GenTree* stmt;     // "stmt" where the optimization opportunity occurs.
+    unsigned dim;        // "dim" represents upto what level of the rank this optimization applies to.
+                         //    For example, a[i][j][k] could be the jagged array but if "dim" is 2,
+                         //    then this node is treated as though it were a[i][j]
+    ArrIndex   arrIndex; // ArrIndex representation of the array.
+    Statement* stmt;     // "stmt" where the optimization opportunity occurs.
 
-    LcJaggedArrayOptInfo(ArrIndex& arrIndex, unsigned dim, GenTree* stmt)
+    LcJaggedArrayOptInfo(ArrIndex& arrIndex, unsigned dim, Statement* stmt)
         : LcOptInfo(this, LcJaggedArray), dim(dim), arrIndex(arrIndex), stmt(stmt)
     {
     }
@@ -327,8 +327,8 @@ struct LC_Ident
         Null,
     };
 
-    unsigned  constant; // The constant value if this node is of type "Const", or the lcl num if "Var"
     LC_Array  arrLen;   // The LC_Array if the type is "ArrLen"
+    unsigned  constant; // The constant value if this node is of type "Const", or the lcl num if "Var"
     IdentType type;     // The type of this object
 
     // Equality operator

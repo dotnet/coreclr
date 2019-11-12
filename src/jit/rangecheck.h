@@ -133,13 +133,6 @@ struct Limit
             case keDependent:
                 return true;
             case keBinOpArray:
-                if (IntAddOverflows(cns, i))
-                {
-                    return false;
-                }
-                cns += i;
-                return true;
-
             case keConstant:
                 if (IntAddOverflows(cns, i))
                 {
@@ -147,7 +140,6 @@ struct Limit
                 }
                 cns += i;
                 return true;
-
             case keUndef:
             case keUnknown:
                 // For these values of 'type', conservatively return false
@@ -415,10 +407,10 @@ public:
     struct Location
     {
         BasicBlock*          block;
-        GenTree*             stmt;
+        Statement*           stmt;
         GenTreeLclVarCommon* tree;
         GenTree*             parent;
-        Location(BasicBlock* block, GenTree* stmt, GenTreeLclVarCommon* tree, GenTree* parent)
+        Location(BasicBlock* block, Statement* stmt, GenTreeLclVarCommon* tree, GenTree* parent)
             : block(block), stmt(stmt), tree(tree), parent(parent)
         {
         }
@@ -463,7 +455,7 @@ public:
     // Given a "tree" node, check if it contains array bounds check node and
     // optimize to remove it, if possible. Requires "stmt" and "block" that
     // contain the tree.
-    void OptimizeRangeCheck(BasicBlock* block, GenTree* stmt, GenTree* tree);
+    void OptimizeRangeCheck(BasicBlock* block, Statement* stmt, GenTree* tree);
 
     // Given the index expression try to find its range.
     // The range of a variable depends on its rhs which in turn depends on its constituent variables.
@@ -531,7 +523,7 @@ public:
 
 private:
     // Given a lclvar use, try to find the lclvar's defining assignment and its containing block.
-    GenTreeOp* GetSsaDefAsg(GenTreeLclVarCommon* lclUse, BasicBlock** asgBlock);
+    LclSsaVarDsc* GetSsaDefAsg(GenTreeLclVarCommon* lclUse);
 
     GenTreeBoundsChk* m_pCurBndsChk;
 

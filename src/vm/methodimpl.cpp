@@ -97,7 +97,7 @@ PTR_MethodDesc MethodImpl::GetMethodDesc(DWORD slotIndex, PTR_MethodDesc default
     // from the slot number.
 
     if (result == NULL)
-#ifndef DACCESS_COMPILE 
+#ifndef DACCESS_COMPILE
         result = RestoreSlot(slotIndex, defaultReturn->GetMethodTable());
 #else // DACCESS_COMPILE
         DacNotImpl();
@@ -106,7 +106,7 @@ PTR_MethodDesc MethodImpl::GetMethodDesc(DWORD slotIndex, PTR_MethodDesc default
     return result;
 }
 
-#ifndef DACCESS_COMPILE 
+#ifndef DACCESS_COMPILE
 
 MethodDesc *MethodImpl::RestoreSlot(DWORD index, MethodTable *pMT)
 {
@@ -142,10 +142,7 @@ MethodDesc *MethodImpl::RestoreSlot(DWORD index, MethodTable *pMT)
 
     _ASSERTE(result != NULL);
 
-    // Don't worry about races since we would all be setting the same result
-    if (EnsureWritableExecutablePagesNoThrow(&pImplementedMD.GetValue()[index],
-                                             sizeof(pImplementedMD.GetValue()[index])))
-        pImplementedMD.GetValue()[index].SetValue(result);
+    pImplementedMD.GetValue()[index].SetValue(result);
 
     return result;
 }
@@ -164,7 +161,8 @@ void MethodImpl::SetSize(LoaderHeap *pHeap, AllocMemTracker *pamTracker, DWORD s
     if(size > 0) {
         // An array of DWORDs, the first entry representing count, and the rest representing slot numbers
         S_SIZE_T cbCountAndSlots = S_SIZE_T(sizeof(DWORD)) +        // DWORD for the total count of slots
-                                    S_SIZE_T(size) * S_SIZE_T(sizeof(DWORD)); // DWORD each for the slot numbers
+                                    S_SIZE_T(size) * S_SIZE_T(sizeof(DWORD)) + // DWORD each for the slot numbers
+                                    S_SIZE_T(size) * S_SIZE_T(sizeof(mdToken)); // Token each for the method tokens
 
         // MethodDesc* for each of the implemented methods
         S_SIZE_T cbMethodDescs = S_SIZE_T(size) * S_SIZE_T(sizeof(RelativePointer<MethodDesc *>));
@@ -190,7 +188,7 @@ void MethodImpl::SetSize(LoaderHeap *pHeap, AllocMemTracker *pamTracker, DWORD s
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
-void MethodImpl::SetData(DWORD* slots, RelativePointer<MethodDesc*>* md)
+void MethodImpl::SetData(DWORD* slots, mdToken* tokens, RelativePointer<MethodDesc*>* md)
 {
     CONTRACTL {
         NOTHROW;
@@ -202,6 +200,9 @@ void MethodImpl::SetData(DWORD* slots, RelativePointer<MethodDesc*>* md)
     DWORD *pdwSize = pdwSlots.GetValue();
     DWORD dwSize = *pdwSize;
     memcpy(&(pdwSize[1]), slots, dwSize*sizeof(DWORD));
+
+    // Copy tokens that correspond to the slots above
+    memcpy(&(pdwSize[1 + dwSize]), tokens, dwSize*sizeof(mdToken));
 
     RelativePointer<MethodDesc *> *pImplMD = pImplementedMD.GetValue();
 
@@ -219,7 +220,7 @@ void MethodImpl::Save(DataImage *image)
     DWORD size = GetSize();
     _ASSERTE(size > 0);
 
-    image->StoreStructure(pdwSlots.GetValue(), (size+1)*sizeof(DWORD),
+    image->StoreStructure(pdwSlots.GetValue(), (size+1)*sizeof(DWORD)+size*sizeof(mdToken),
                                     DataImage::ITEM_METHOD_DESC_COLD,
                                     sizeof(DWORD));
     image->StoreStructure(pImplementedMD.GetValue(), size*sizeof(RelativePointer<MethodDesc*>),
@@ -237,7 +238,7 @@ void MethodImpl::Fixup(DataImage *image, PVOID p, SSIZE_T offset)
     for (DWORD iMD = 0; iMD < size; iMD++)
     {
         // <TODO> Why not use FixupMethodDescPointer? </TODO>
-        // <TODO> Does it matter if the MethodDesc needs a restore? </TODO>              
+        // <TODO> Does it matter if the MethodDesc needs a restore? </TODO>
 
         RelativePointer<MethodDesc *> *pRelPtr = pImplementedMD.GetValue();
         MethodDesc * pMD = pRelPtr[iMD].GetValueMaybeNull();
@@ -261,13 +262,13 @@ void MethodImpl::Fixup(DataImage *image, PVOID p, SSIZE_T offset)
 
 #endif //!DACCESS_COMPILE
 
-#ifdef DACCESS_COMPILE 
+#ifdef DACCESS_COMPILE
 
 void
 MethodImpl::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 {
     SUPPORTS_DAC;
-#ifndef STUB_DISPATCH_ALL 
+#ifndef STUB_DISPATCH_ALL
     CONSISTENCY_CHECK_MSG(FALSE, "Stub Dispatch forbidden code");
 #else // STUB_DISPATCH_ALL
     // 'this' memory should already be enumerated as
@@ -277,7 +278,7 @@ MethodImpl::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
     {
         ULONG32 numSlots = GetSize();
         DacEnumMemoryRegion(dac_cast<TADDR>(GetSlotsRawNonNull()),
-                            (numSlots + 1) * sizeof(DWORD));
+                            (numSlots + 1) * sizeof(DWORD) + numSlots * sizeof(mdToken));
 
         if (GetImpMDs().IsValid())
         {
@@ -299,7 +300,7 @@ MethodImpl::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 
 #endif //DACCESS_COMPILE
 
-#ifndef DACCESS_COMPILE 
+#ifndef DACCESS_COMPILE
 MethodImpl::Iterator::Iterator(MethodDesc *pMD) : m_pMD(pMD), m_pImpl(NULL), m_iCur(0)
 {
     LIMITED_METHOD_CONTRACT;

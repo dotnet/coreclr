@@ -12,8 +12,6 @@ interface ICLRPrivAssembly;
 
 interface ICLRPrivResource;
 interface ICLRPrivResourcePath;
-interface ICLRPrivResourceStream;
-interface ICLRPrivResourceHMODULE;
 
 interface ICLRPrivAssemblyInfo;
 
@@ -51,46 +49,14 @@ interface ICLRPrivBinder : IUnknown
         [out, retval] ICLRPrivAssembly ** ppAssembly);
 
     /**********************************************************************************
-     ** VerifyBind
-     **********************************************************************************/
-    HRESULT VerifyBind(
-        [in] IAssemblyName * AssemblyName,
-        [in] ICLRPrivAssembly * pAssembly,
-        [in] ICLRPrivAssemblyInfo * pAssemblyInfo);
-
-    /**********************************************************************************
-     ** GetBinderFlags
-     **  pBinderFlags, pointer to binder flags.
-     **********************************************************************************/
-    HRESULT GetBinderFlags(
-        [out, retval] DWORD *pBinderFlags);
-
-    /**********************************************************************************
      ** GetBinderID
      **  pBinderId, pointer to binder id. The binder id has the following properties
      **        It is a pointer that does not change over the lifetime of a binder object
-     **        It points at an object in memory that will remain allocated for the lifetime of the binder. 
+     **        It points at an object in memory that will remain allocated for the lifetime of the binder.
      **        This value should be the same for a set of binder objects that represent the same binder behavior.
      **********************************************************************************/
     HRESULT GetBinderID(
         [out, retval] UINT_PTR *pBinderId);
-
-    /**********************************************************************************
-     ** FindAssemblyBySpec -- if it has been previously bound, guarantees that the same
-     ** result will be returned; if previous result was successful, the bound
-     ** ICLRPrivAssembly will be returned, and if previous result was not successful
-     ** the same failure HRESULT will be assigned to *pResult. Returns failure HR if
-     ** identity has not been requested previously.
-     **
-     **  pvAssemblySpec - the AssemblySpec identity to bind.
-     **  pResult        - the result of the previous bind request.
-     **  ppAssembly     - when successful, contains the corresponding assembly object.
-     **********************************************************************************/
-    HRESULT FindAssemblyBySpec(
-        [in]          LPVOID pvAppDomain,
-        [in]          LPVOID pvAssemblySpec,
-        [out]         HRESULT * pResult,
-        [out]         ICLRPrivAssembly ** ppAssembly);
 
     /**********************************************************************************
      ** GetLoaderAllocator
@@ -103,13 +69,6 @@ interface ICLRPrivBinder : IUnknown
         [out, retval] LPVOID * pLoaderAllocator);
 };
 
-enum CLR_PRIV_BINDER_FLAGS
-{
-    BINDER_NONE                     = 0x0,
-    BINDER_DESIGNER_BINDING_CONTEXT = 0x1,
-    BINDER_FINDASSEMBLYBYSPEC_REQUIRES_EXACT_MATCH = 0x2,
-};
-    
 /**************************************************************************************
  ** ASSEMBLY_IMAGE_TYPES - The set of assembly image formats.
  **************************************************************************************/
@@ -136,19 +95,6 @@ enum ASSEMBLY_IMAGE_TYPES
 ]
 interface ICLRPrivAssembly : ICLRPrivBinder
 {
-    /**********************************************************************************
-     ** IsShareable - Use to determine if the assembly should be shared.
-     **     NOTE: This method is required to be idempotent. See general comment above.
-     **
-     ** A binder must adhere to the following contract when marking an assembly as
-     ** shareable:
-     **   - all assemblies in the full static binding closure must also be shareable.
-     **
-     ** pbIsShareable - set to TRUE if the assembly can be shared; FALSE otherwise.
-     **********************************************************************************/
-    HRESULT IsShareable(
-        [out, retval] BOOL * pbIsShareable);
-
     /**********************************************************************************
      ** GetAvailableImageTypes - Use to retrieve the set of images available for an
      ** assembly.
@@ -216,48 +162,6 @@ interface ICLRPrivResourcePath : IUnknown
         [out, size_is(cchBuffer), length_is(*pcchBuffer), string, optional] LPWSTR wzBuffer);
 };
 
-/**************************************************************************************
- ** ICLRPrivResourceStream - Encapsulates a resource identified by IStream.
- **************************************************************************************/
-[
-    uuid(2601F621-E462-404C-B299-3E1DE72F8545),
-    version(1.0),
-    local
-]
-interface ICLRPrivResourceStream : IUnknown
-{
-    /**********************************************************************************
-     ** GetStream - Use to retrieve IStream instance corresponding to the resource.
-     **     NOTE: This method is required to be idempotent. See general comment above.
-     **
-     ** riid - the IID of the interface to return. Typically IID_IStream.
-     ** ppvStream - contains the returned interface.
-     **********************************************************************************/
-    HRESULT GetStream(
-        [in]  REFIID riid,
-        [out, iid_is(riid), retval] LPVOID * ppvStream);
-};
-
-/**************************************************************************************
- ** ICLRPrivResourceHMODULE - Encapsulates a resource identified by HMODULE.
- **************************************************************************************/
-[
-    uuid(2601F621-E462-404C-B299-3E1DE72F8546),
-    version(1.0),
-    local
-]
-interface ICLRPrivResourceHMODULE : IUnknown
-{
-    /**********************************************************************************
-     ** GetStream - Use to retrieve the resource's HMODULE value. The HMODULE's
-     ** reference count is not changed; the ICLRPrivResourceHMODULE instance must be
-     ** kept until the HMODULE is either reference counted or no longer used.
-     **     NOTE: This method is required to be idempotent. See general comment above.
-     **********************************************************************************/
-    HRESULT GetHMODULE(
-        [out, retval] HMODULE * phModule);
-};
-
 [
     uuid(8d2d3cc9-1249-4ad4-977d-b772bd4e8a94),
     version(1.0),
@@ -266,7 +170,7 @@ interface ICLRPrivResourceHMODULE : IUnknown
 interface ICLRPrivResourceAssembly : IUnknown
 {
     /**********************************************************************************
-     ** GetAssembly - Use to retrieve the resource's BINDER_SPACE::Assembly value. 
+     ** GetAssembly - Use to retrieve the resource's BINDER_SPACE::Assembly value.
      **     NOTE: This method is required to be idempotent. See general comment above.
      **********************************************************************************/
     HRESULT GetAssembly(
@@ -304,31 +208,10 @@ interface ICLRPrivAssemblyInfo : IUnknown
  ** ICLRPrivAssemblyID_WinRT - Provides identification for WinRT assembly - allows dynamic casting inside code:CLRPrivAssemblyWinRT.
  **************************************************************************************/
 [
-    uuid(4372D277-9906-4FED-BF53-30C0B4010896), 
-    version(1.0), 
+    uuid(4372D277-9906-4FED-BF53-30C0B4010896),
+    version(1.0),
     local
 ]
 interface ICLRPrivAssemblyID_WinRT : IUnknown
 {
-};
-
-/**************************************************************************************
- ** ICLRPrivWinRtTypeBinder - Provides binding to WinRT types that are already loaded.
- **************************************************************************************/
-[
-    uuid(6DE2A085-EFF4-4078-9F60-B9D366736398), 
-    version(1.0), 
-    local
-]
-interface ICLRPrivWinRtTypeBinder : IUnknown
-{
-    /**********************************************************************************
-     ** FindAssemblyForWinRtTypeIfLoaded
-     **  Finds Assembly * for type in AppDomain * if it is loaded.
-     **  Returns NULL if assembly is not loaded or type is not found.
-     **********************************************************************************/
-    void * FindAssemblyForWinRtTypeIfLoaded(
-        void *  pAppDomain, 
-        LPCUTF8 szNamespace, 
-        LPCUTF8 szClassName);
 };

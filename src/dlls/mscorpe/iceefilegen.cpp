@@ -89,10 +89,10 @@ EXTERN_C HRESULT __stdcall CreateICeeFileGen(ICeeFileGen** pCeeFileGen)
 {
     if (!pCeeFileGen)
         return E_POINTER;
-    
+
     ICeeFileGen *gen = new (nothrow) ICeeFileGen();
     IfNullRet(gen);
-   
+
     *pCeeFileGen = gen;
     return S_OK;
 }
@@ -124,7 +124,7 @@ HRESULT ICeeFileGen::CreateCeeFileEx2 (HCEEFILE *ceeFile, DWORD createFlags, LPC
 {
     if (!ceeFile)
         return E_POINTER;
-    
+
     CeeFileGenWriter *gen = NULL;
     HRESULT hr;
     IfFailRet(CeeFileGenWriter::CreateNewInstanceEx(NULL, gen, createFlags, seedFileName));
@@ -139,7 +139,7 @@ HRESULT ICeeFileGen::CreateCeeFileEx2 (HCEEFILE *ceeFile, DWORD createFlags, LPC
     {
         CeeSection *sec = &gen->getIlSection();
         sec->getBlock(sizeof(DWORD), sizeof(DWORD));
-    } 
+    }
 #endif
 
     return S_OK;
@@ -173,7 +173,7 @@ HRESULT ICeeFileGen::DestroyCeeFile(HCEEFILE *ceeFile)
     return S_OK;
 }
 
-// 
+//
 
 HRESULT ICeeFileGen::GetRdataSection (HCEEFILE ceeFile, HCEESECTION *section)
 {
@@ -446,8 +446,6 @@ HRESULT ICeeFileGen::GetHeaderInfo (HCEEFILE ceeFile, PIMAGE_NT_HEADERS *ppNtHea
 
 HRESULT ICeeFileGen::GenerateCeeFile (HCEEFILE ceeFile)
 {
-    SO_NOT_MAINLINE_FUNCTION;
-
     TESTANDRETURNPOINTER(ceeFile);
 
     CeeFileGenWriter *gen = reinterpret_cast<CeeFileGenWriter*>(ceeFile);

@@ -2,10 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-internal partial class Interop
+internal static partial class Interop
 {
     // As defined in winerror.h and https://msdn.microsoft.com/en-us/library/windows/desktop/ms681382.aspx
-    internal partial class Errors
+    internal static partial class Errors
     {
         internal const int ERROR_SUCCESS = 0x0;
         internal const int ERROR_FILE_NOT_FOUND = 0x2;
@@ -18,6 +18,7 @@ internal partial class Interop
         internal const int ERROR_NOT_READY = 0x15;
         internal const int ERROR_SHARING_VIOLATION = 0x20;
         internal const int ERROR_HANDLE_EOF = 0x26;
+        internal const int ERROR_NOT_SUPPORTED = 0x32;
         internal const int ERROR_FILE_EXISTS = 0x50;
         internal const int ERROR_INVALID_PARAMETER = 0x57;
         internal const int ERROR_BROKEN_PIPE = 0x6D;

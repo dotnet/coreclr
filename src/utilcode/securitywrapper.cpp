@@ -5,7 +5,7 @@
 // File: SecurityWrapper.cpp
 //
 
-// 
+//
 // Wrapper around Win32 Security functions
 //
 //*****************************************************************************
@@ -36,8 +36,8 @@ Sid::Sid(PSID pSid)
 // Aesthetic wrapper for Sid equality
 //-----------------------------------------------------------------------------
 bool Sid::Equals(PSID a, PSID b)
-{ 
-    return EqualSid(a, b) != 0; 
+{
+    return EqualSid(a, b) != 0;
 }
 
 //-----------------------------------------------------------------------------
@@ -82,7 +82,7 @@ enum SidType
 // ----------------------------------------------------------------------------
 // GetSidFromProcessWorker
 //
-// Description: 
+// Description:
 //    Internal helper.  Gets the SID for the given process and given sid type
 //
 // Arguments:
@@ -110,7 +110,7 @@ HRESULT GetSidFromProcessWorker(DWORD dwProcessId, SidType sidType, PSID *ppSid)
     TOKEN_USER                  *pTokUser = NULL;
     HANDLE                      hProc = INVALID_HANDLE_VALUE;
     HANDLE                      hToken = INVALID_HANDLE_VALUE;
-    DWORD                       dwRetLength;
+    DWORD                       dwRetLength = 0;
     LPVOID                      pvTokenInfo = NULL;
     TOKEN_INFORMATION_CLASS     tokenInfoClass;
     PSID                        pSidFromTokenInfo = NULL;
@@ -158,7 +158,7 @@ HRESULT GetSidFromProcessWorker(DWORD dwProcessId, SidType sidType, PSID *ppSid)
     }
 
     // Copy over the SID
-    pSidFromTokenInfo = 
+    pSidFromTokenInfo =
         (sidType == kOwnerSid) ?
             ((TOKEN_OWNER *) pvTokenInfo)->Owner :
             ((TOKEN_USER *) pvTokenInfo)->User.Sid;
@@ -179,7 +179,7 @@ HRESULT GetSidFromProcessWorker(DWORD dwProcessId, SidType sidType, PSID *ppSid)
 
     *ppSid = pSid;
     pSid = NULL;
-    
+
 exit:
     if (hToken != INVALID_HANDLE_VALUE)
     {
@@ -256,7 +256,7 @@ HRESULT GetSidFromProcessEXWorker(DWORD dwProcessId, PSID *ppSid)
             if (rgProcessInfo[iProc].pUserSid == NULL)
             {
                 LOG((LF_CORDB, LL_INFO10000,
-                     "SecurityUtil::GetSidFromProcessEx is not able to retreive SID\n"));
+                     "SecurityUtil::GetSidFromProcessEx is not able to retrieve SID\n"));
 
                 // if there is no Sid for the user, don't call GetLengthSid.
                 // It will crash! It is ok to return E_FAIL as caller will ignore it.
@@ -325,7 +325,7 @@ exit:
 // USER sid from the process token.  This seems a little inconsistent, but
 // remains this way for backward compatibility.  The second pair consistently
 // use the USER sid (never the OWNER).
-// 
+//
 // While the USER and OWNER sid are often the same, they are not always the
 // same.  For example, running a process on win2k3 server as a member of the
 // local admin group causes the USER sid to be the logged-on user, and the
@@ -337,19 +337,19 @@ exit:
 
 // ----------------------------------------------------------------------------
 // SidBuffer::InitFromProcessNoThrow
-// 
+//
 // Description:
 //    Initialize this SidBuffer instance with a Sid from the token of the specified
 //    process. Use the OWNER sid from the process token if possible; else use the term
 //    serv API to find the USER sid from the process token. This seems a little
 //    inconsistent, but remains this way for backward compatibility.
-//    
+//
 // Arguments:
 //    * pid - Process ID from which to grab the SID
 //
 // Return Value:
 //    HRESULT indicating success / failure
-//    
+//
 
 HRESULT SidBuffer::InitFromProcessNoThrow(DWORD pid)
 {
@@ -371,8 +371,8 @@ HRESULT SidBuffer::InitFromProcessNoThrow(DWORD pid)
     if (FAILED(hr))
     {
         return hr;
-    }    
-    
+    }
+
     _ASSERTE(m_pBuffer != NULL);
     return S_OK;
 }
@@ -391,23 +391,23 @@ void SidBuffer::InitFromProcess(DWORD pid)
     if (FAILED(hr))
     {
         ThrowHR(hr);
-    }    
+    }
 }
 
 // ----------------------------------------------------------------------------
 // SidBuffer::InitFromProcessAppContainerSidNoThrow
-// 
+//
 // Description:
 //    Initialize this SidBuffer instance with the TokenAppContainerSid from
 //    the process token
-//    
+//
 // Arguments:
 //    * pid - Process ID from which to grab the SID
 //
 // Return Value:
 //    HRESULT indicating success / failure
 //    S_FALSE indicates the process isn't in an AppContainer
-//   
+//
 HRESULT SidBuffer::InitFromProcessAppContainerSidNoThrow(DWORD pid)
 {
     HRESULT hr = S_OK;
@@ -503,18 +503,18 @@ exit:
 
 // ----------------------------------------------------------------------------
 // SidBuffer::InitFromProcessUserNoThrow
-// 
+//
 // Description:
 //    Initialize this SidBuffer instance with a Sid from the token of the specified
 //    process. Use the USER sid from the process token if possible; else use the term
 //    serv API to find the USER sid from the process token.
-//    
+//
 // Arguments:
 //    * pid - Process ID from which to grab the SID
 //
 // Return Value:
 //    HRESULT indicating success / failure
-//    
+//
 
 HRESULT SidBuffer::InitFromProcessUserNoThrow(DWORD pid)
 {
@@ -536,8 +536,8 @@ HRESULT SidBuffer::InitFromProcessUserNoThrow(DWORD pid)
     if (FAILED(hr))
     {
         return hr;
-    }    
-    
+    }
+
     _ASSERTE(m_pBuffer != NULL);
     return S_OK;
 }
@@ -556,7 +556,7 @@ void SidBuffer::InitFromProcessUser(DWORD pid)
     if (FAILED(hr))
     {
         ThrowHR(hr);
-    }    
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -564,7 +564,7 @@ void SidBuffer::InitFromProcessUser(DWORD pid)
 //-----------------------------------------------------------------------------
 Dacl::Dacl(PACL pAcl)
 {
-    m_acl = pAcl;   
+    m_acl = pAcl;
 }
 
 //-----------------------------------------------------------------------------
@@ -586,7 +586,7 @@ ACE_HEADER * Dacl::GetAce(SIZE_T dwAceIndex)
         THROWS;
         GC_NOTRIGGER;
     } CONTRACTL_END;
-    
+
     ACE_HEADER * pAce = NULL;
     BOOL fOk = ::GetAce(m_acl, (DWORD) dwAceIndex, (LPVOID*) &pAce);
     _ASSERTE(fOk == (pAce != NULL));
@@ -632,7 +632,7 @@ Dacl Win32SecurityDescriptor::GetDacl()
     BOOL bPresent;
     BOOL bDaclDefaulted;
     PACL acl;
-    
+
     if (GetSecurityDescriptorDacl(m_pDesc, &bPresent, &acl, &bDaclDefaulted) == 0)
     {
         ThrowLastError();
@@ -703,22 +703,22 @@ HRESULT Win32SecurityDescriptor::InitFromHandleNoThrow(HANDLE h)
         NOTHROW;
         GC_NOTRIGGER;
     } CONTRACTL_END;
-    
+
     _ASSERTE(m_pDesc == NULL); //  only init once.
 
     DWORD       cbNeeded = 0;
 
     DWORD flags = OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION;
-    
+
     // Now get the creator's SID. First get the size of the array needed.
     BOOL fOk = GetKernelObjectSecurity(h, flags, NULL, 0, &cbNeeded);
     DWORD err = GetLastError();
 
-    // Caller should give us a handle for which this succeeds. First call will 
+    // Caller should give us a handle for which this succeeds. First call will
     // fail w/ InsufficientBuffer.
     CONSISTENCY_CHECK_MSGF(fOk || (err == ERROR_INSUFFICIENT_BUFFER), ("Failed to get KernelSecurity for object handle=%p.Err=%d\n", h, err));
-    
-    PSECURITY_DESCRIPTOR pSD = (PSECURITY_DESCRIPTOR) new(nothrow) BYTE[cbNeeded]; 
+
+    PSECURITY_DESCRIPTOR pSD = (PSECURITY_DESCRIPTOR) new(nothrow) BYTE[cbNeeded];
     if( pSD == NULL )
     {
         return E_OUTOFMEMORY;
@@ -731,7 +731,7 @@ HRESULT Win32SecurityDescriptor::InitFromHandleNoThrow(HANDLE h)
         delete [] ((BYTE*) pSD);
         return HRESULT_FROM_WIN32(err);
     }
-    
+
     m_pDesc = pSD;
     return S_OK;
 }
@@ -746,95 +746,5 @@ void Win32SecurityDescriptor::InitFromHandle(HANDLE h)
     if (FAILED(hr))
     {
         ThrowHR(hr);
-    }      
-}
-
-//-----------------------------------------------------------------------------
-// We open several named kernel objects that are well-known names decorated with 
-// pid of some target process (usually a debuggee).
-// Since anybody can create any kernel object with any name, we we want to make
-// sure the objects we're opening were actually created by who we think they 
-// were. Each kernel object has an "owner" property which serves as the 
-// fingerprints of who created the handle.
-// 
-// Check if the handle owner belongs to either the process specified by the 
-// pid or the current process (in case the target process is impersonating us).
-// This lets us know if the handle is spoofed.
-// 
-// Parameters:
-//   handle - handle for kernel object to test
-//   pid - target process that it may belong to.
-//
-// Returns:
-//   false- if we can verify that Owner(handle) is in the set of { Owner(Process(pid)), or Owner(this Process) }
-//           
-//          
-//   true - Elsewise, including if we can't verify that it's false.
-//-----------------------------------------------------------------------------
-bool IsHandleSpoofed(HANDLE handle, DWORD pid)
-{
-    CONTRACTL 
-    {
-        NOTHROW;
     }
-    CONTRACTL_END;
-
-    _ASSERTE(handle != NULL);
-    _ASSERTE(pid != 0);
-    bool fIsSpoofed = true;
-
-    EX_TRY
-    {
-        // Get the owner of the kernel object referenced by the handle.
-        Win32SecurityDescriptor sdHandle;
-        sdHandle.InitFromHandle(handle);
-        Sid sidOwner(sdHandle.GetOwner());
-
-        SidBuffer sbPidOther;
-        SidBuffer sbPidThis;    
-        DWORD pidThis;
-
-        // Is the object owner the "other" pid?
-        sbPidOther.InitFromProcess(pid);
-        if (Sid::Equals(sbPidOther.GetSid(), sidOwner))
-        {
-            // We now know that the kernel object was created by the user of the "other" pid.
-            // This should be the common case by far. It's not spoofed. All is well.
-            fIsSpoofed = false;
-            goto Label_Done;
-        }
-        
-        // Test against our current pid if it's different than the "other" pid.
-        // This can happen if the other process impersonates us. The most common case would
-        // be if we're an admin and the other process (say some service) is impersonating Admin
-        // when it spins up the CLR.
-        pidThis = GetCurrentProcessId();
-        if (pidThis != pid)
-        {
-            sbPidThis.InitFromProcess(pidThis);
-            if (Sid::Equals(sbPidThis.GetSid(), sidOwner))
-            {     
-                // The object was created by somebody pretending to be us. If they had sufficient permissions
-                // to pretend to be us, then we still trust them.
-                fIsSpoofed = false;
-                goto Label_Done;
-            }
-        }
-        
-        // This should only happen if we're being attacked.
-        _ASSERTE(fIsSpoofed);
-        STRESS_LOG2(LF_CORDB, LL_INFO1000, "Security Check failed with mismatch. h=%x,pid=%x", handle, pid);
-
-Label_Done: 
-        ;        
-    }
-    EX_CATCH
-    {
-        // This should only happen if something goes really bad and we can't find the information.
-        STRESS_LOG2(LF_CORDB, LL_INFO1000, "Security Check failed with exception. h=%x,pid=%x", handle, pid);
-        _ASSERTE(fIsSpoofed); // should still have its default value
-    }
-    EX_END_CATCH(SwallowAllExceptions);
-
-    return fIsSpoofed;
 }

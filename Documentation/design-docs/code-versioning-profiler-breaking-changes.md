@@ -1,6 +1,6 @@
 # Code Versioning Profiler Breaking Changes #
 
-The runtime changes done as part of the code versioning feature will cause some (hopefully minor) breaking changes to be visible via the profiler API. My goal is to advertise these coming changes and solicit feedback about what will be easiest for profiler writers to absorb. Currently this feature is only under development in the .Net Core version of the runtime. If you solely support a profiler on full .Net Framework this change doesn't affect you.
+The runtime changes done as part of the code versioning feature will cause some (hopefully minor) breaking changes to be visible via the profiler API. My goal is to advertise these coming changes and solicit feedback about what will be easiest for profiler writers to absorb. Currently this feature is only under development in the .NET Core version of the runtime. If you solely support a profiler on full .NET Framework this change doesn't affect you.
 
 ## Underlying issue ##
 
@@ -10,7 +10,7 @@ Code versioning, and in particular its use for tiered compilation means that the
 
 1. There will be more JITCompilation events, and potentially more ReJIT compilation events than there were before.
 
-2. These JIT events may originate from a background worker thread that may be different from the thread which ultimately runs the jitted code. 
+2. These JIT events may originate from a background worker thread that may be different from the thread which ultimately runs the jitted code.
 
 3. Calls to ICorProfilerInfo4::GetCodeInfo3 will only return information about the first jitted code body for a given FunctionID,rejitID pair. We'll need to create a new API to handle code bodies after the first.
 

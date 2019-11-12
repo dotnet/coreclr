@@ -3,12 +3,14 @@
 // See the LICENSE file in the project root for more information.
 
 #include "common.h"
+#include "eventpipeeventpayload.h"
 #include "eventpipeeventsource.h"
 #include "eventpipe.h"
 #include "eventpipeevent.h"
 #include "eventpipemetadatagenerator.h"
 #include "eventpipeprovider.h"
 #include "eventpipesession.h"
+#include "eventpipesessionprovider.h"
 
 #ifdef FEATURE_PERFTRACING
 
@@ -50,12 +52,13 @@ EventPipeEventSource::EventPipeEventSource()
         0,      /* keywords */
         0,      /* eventVersion */
         EventPipeEventLevel::LogAlways,
+        false,  /* needStack */
         pMetadata,
         (unsigned int)metadataLength);
 
     // Delete the metadata after the event is created.
     // The metadata blob will be copied into EventPipe-owned memory.
-    delete(pMetadata);
+    delete [] pMetadata;
 }
 
 EventPipeEventSource::~EventPipeEventSource()
@@ -90,11 +93,14 @@ void EventPipeEventSource::Enable(EventPipeSession *pSession)
     }
     CONTRACTL_END;
 
-    EventPipeSessionProvider *pSessionProvider = new EventPipeSessionProvider(
+    if (pSession == nullptr)
+        return;
+
+    pSession->AddSessionProvider(new EventPipeSessionProvider(
         s_pProviderName,
-        -1,
-        EventPipeEventLevel::LogAlways);
-    pSession->AddSessionProvider(pSessionProvider);
+        static_cast<UINT64>(-1),
+        EventPipeEventLevel::LogAlways,
+        NULL));
 }
 
 void EventPipeEventSource::SendProcessInfo(LPCWSTR pCommandLine)

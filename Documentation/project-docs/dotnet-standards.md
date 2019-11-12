@@ -3,7 +3,7 @@
 
 There was a very early realization by the founders of .NET that they were creating a new programming technology that had broad applicability across operating systems and CPU types and that advanced the state of the art of late 1990s (when the .NET project started at Microsoft) programming language implementation techniques. This led to considering and then pursuing standardization as an important pillar of establishing .NET in the industry.
 
-The key addition to the state of the art was support for multiple programming languages with a single language runtime, hence the name _Common Language Runtime_. There were many other smaller additions, such as value types, a simple exception model and attributes. Generics and language integrated query were later added to that list. 
+The key addition to the state of the art was support for multiple programming languages with a single language runtime, hence the name _Common Language Runtime_. There were many other smaller additions, such as value types, a simple exception model and attributes. Generics and language integrated query were later added to that list.
 
 Looking back, standardization was quite effective, leading to .NET having a strong presence on iOS and Android, with the Unity and Xamarin offerings, both of which use the Mono runtime. The same may end up being true for .NET on Linux.
 
@@ -17,7 +17,7 @@ The C# language was standardized as [ECMA 334](http://www.ecma-international.org
 **ECMA 334 Resources**
 
 - [ECMA 334 Standard Overview](http://www.ecma-international.org/publications/standards/Ecma-334.htm)
-- [ECMA 334 Standard (PDF)](http://www.ecma-international.org/publications/files/ECMA-ST/Ecma-334.pdf)
+- [ECMA 334 Standard (PDF)](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-334.pdf)
 
 ECMA 335 - CLI
 ==============

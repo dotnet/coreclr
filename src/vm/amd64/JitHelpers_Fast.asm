@@ -10,8 +10,8 @@
 ; ***********************************************************************
 ; File: JitHelpers_Fast.asm, see jithelp.asm for history
 ;
-; Notes: routinues which we believe to be on the hot path for managed 
-;        code in most scenarios. 
+; Notes: routinues which we believe to be on the hot path for managed
+;        code in most scenarios.
 ; ***********************************************************************
 
 
@@ -26,6 +26,10 @@ EXTERN  g_ephemeral_high:QWORD
 EXTERN  g_lowest_address:QWORD
 EXTERN  g_highest_address:QWORD
 EXTERN  g_card_table:QWORD
+
+ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+EXTERN g_card_bundle_table:QWORD
+endif
 
 ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 EXTERN  g_sw_ww_table:QWORD
@@ -70,11 +74,11 @@ LEAF_ENTRY JIT_IsInstanceOfClass, _TEXT
         REPRET
 LEAF_END JIT_IsInstanceOfClass, _TEXT
 
-LEAF_ENTRY JIT_IsInstanceOfClass2, _TEXT        
+LEAF_ENTRY JIT_IsInstanceOfClass2, _TEXT
         ; check if the parent class matches.
         ; start by putting the MethodTable for the instance in rdx
         mov     rdx, qword ptr [rdx]
-        
+
     align 16
     CheckParent:
         ; NULL parent MethodTable* indicates that we're at the top of the hierarchy
@@ -116,7 +120,7 @@ if METHODTABLE_EQUIVALENCE_FLAGS gt 0
         test    dword ptr [rdx + OFFSETOF__MethodTable__m_dwFlags], METHODTABLE_EQUIVALENCE_FLAGS
         jne     SlowPath
 endif ; METHODTABLE_EQUIVALENCE_FLAGS gt 0
-        
+
         ; we didn't find a match in the ParentMethodTable hierarchy
         ; and it isn't a proxy and doesn't have type equivalence, return NULL
         xor     eax, eax
@@ -225,7 +229,7 @@ endm
 
 ; PERF TODO: consider prefetching the entire interface map into the cache
 
-; For all bizarre castes this quickly fails and falls back onto the JITutil_IsInstanceOfAny
+; For all bizarre castes this quickly fails and falls back onto the JITutil_IsInstanceOfInterface
 ; helper, this means that all failure cases take the slow path as well.
 ;
 ; This can trash r10/r11
@@ -239,7 +243,7 @@ LEAF_ENTRY JIT_IsInstanceOfInterface, _TEXT
 
         test    r11w, r11w
         jz      DoBizarre
-        
+
         ; fetch interface map ptr
         mov     rax, [rax + OFFSETOF__MethodTable__m_pInterfaceMap]
 
@@ -257,7 +261,7 @@ ifdef FEATURE_PREJIT
         mov     r10, [rax + OFFSETOF__InterfaceInfo_t__m_pMethodTable]
         FIX_INDIRECTION r10
         cmp     rcx, r10
-else     
+else
         cmp     rcx, [rax + OFFSETOF__InterfaceInfo_t__m_pMethodTable]
 endif
         je      Found
@@ -270,7 +274,7 @@ ifdef FEATURE_PREJIT
         mov     r10, [rax + SIZEOF__InterfaceInfo_t + OFFSETOF__InterfaceInfo_t__m_pMethodTable]
         FIX_INDIRECTION r10
         cmp     rcx, r10
-else     
+else
         cmp     rcx, [rax + SIZEOF__InterfaceInfo_t + OFFSETOF__InterfaceInfo_t__m_pMethodTable]
 endif
         je      Found
@@ -283,7 +287,7 @@ ifdef FEATURE_PREJIT
         mov     r10, [rax + 2 * SIZEOF__InterfaceInfo_t + OFFSETOF__InterfaceInfo_t__m_pMethodTable]
         FIX_INDIRECTION r10
         cmp     rcx, r10
-else     
+else
         cmp     rcx, [rax + 2 * SIZEOF__InterfaceInfo_t + OFFSETOF__InterfaceInfo_t__m_pMethodTable]
 endif
         je      Found
@@ -296,7 +300,7 @@ ifdef FEATURE_PREJIT
         mov     r10, [rax + 3 * SIZEOF__InterfaceInfo_t + OFFSETOF__InterfaceInfo_t__m_pMethodTable]
         FIX_INDIRECTION r10
         cmp     rcx, r10
-else     
+else
         cmp     rcx, [rax + 3 * SIZEOF__InterfaceInfo_t + OFFSETOF__InterfaceInfo_t__m_pMethodTable]
 endif
         je      Found
@@ -343,7 +347,7 @@ LEAF_ENTRY JIT_ChkCastInterface, _TEXT
 
         test    r11w, r11w
         jz      DoBizarre
-      
+
         ; r11 holds number of interfaces
         ; rax is pointer to beginning of interface map list
     align 16
@@ -358,7 +362,7 @@ ifdef FEATURE_PREJIT
         mov     r10, [rax + OFFSETOF__InterfaceInfo_t__m_pMethodTable]
         FIX_INDIRECTION r10
         cmp     rcx, r10
-else     
+else
         cmp     rcx, [rax + OFFSETOF__InterfaceInfo_t__m_pMethodTable]
 endif
         je      Found
@@ -371,7 +375,7 @@ ifdef FEATURE_PREJIT
         mov     r10, [rax + SIZEOF__InterfaceInfo_t + OFFSETOF__InterfaceInfo_t__m_pMethodTable]
         FIX_INDIRECTION r10
         cmp     rcx, r10
-else     
+else
         cmp     rcx, [rax + SIZEOF__InterfaceInfo_t + OFFSETOF__InterfaceInfo_t__m_pMethodTable]
 endif
         je      Found
@@ -384,7 +388,7 @@ ifdef FEATURE_PREJIT
         mov     r10, [rax + 2 * SIZEOF__InterfaceInfo_t + OFFSETOF__InterfaceInfo_t__m_pMethodTable]
         FIX_INDIRECTION r10
         cmp     rcx, r10
-else     
+else
         cmp     rcx, [rax + 2 * SIZEOF__InterfaceInfo_t + OFFSETOF__InterfaceInfo_t__m_pMethodTable]
 endif
         je      Found
@@ -397,7 +401,7 @@ ifdef FEATURE_PREJIT
         mov     r10, [rax + 3 * SIZEOF__InterfaceInfo_t + OFFSETOF__InterfaceInfo_t__m_pMethodTable]
         FIX_INDIRECTION r10
         cmp     rcx, r10
-else     
+else
         cmp     rcx, [rax + 3 * SIZEOF__InterfaceInfo_t + OFFSETOF__InterfaceInfo_t__m_pMethodTable]
 endif
         je      Found
@@ -443,7 +447,7 @@ LEAF_ENTRY JIT_CheckedWriteBarrier, _TEXT
         jb      NotInHeap
         cmp     rcx, [g_highest_address]
         jnb     NotInHeap
-        
+
         jmp     JIT_WriteBarrier
 
     NotInHeap:
@@ -458,9 +462,9 @@ LEAF_ENTRY JIT_PatchedCodeStart, _TEXT
 LEAF_END JIT_PatchedCodeStart, _TEXT
 
 
-; This is used by the mechanism to hold either the JIT_WriteBarrier_PreGrow 
+; This is used by the mechanism to hold either the JIT_WriteBarrier_PreGrow
 ; or JIT_WriteBarrier_PostGrow code (depending on the state of the GC). It _WILL_
-; change at runtime as the GC changes. Initially it should simply be a copy of the 
+; change at runtime as the GC changes. Initially it should simply be a copy of the
 ; larger of the two functions (JIT_WriteBarrier_PostGrow) to ensure we have created
 ; enough space to copy that code in.
 LEAF_ENTRY JIT_WriteBarrier, _TEXT
@@ -524,6 +528,16 @@ ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 
     UpdateCardTable:
         mov     byte ptr [rcx + rax], 0FFh
+ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+        mov     rax, 0F0F0F0F0F0F0F0F0h
+        shr     rcx, 0Ah
+        cmp     byte ptr [rcx + rax], 0FFh
+        jne     UpdateCardBundleTable
+        REPRET
+
+    UpdateCardBundleTable:
+        mov     byte ptr [rcx + rax], 0FFh
+endif
         ret
 
     align 16
@@ -571,6 +585,16 @@ else
 
     UpdateCardTable:
         mov     byte ptr [rcx + rax], 0FFh
+ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+        mov     rax, 0F0F0F0F0F0F0F0F0h
+        shr     rcx, 0Ah
+        cmp     byte ptr [rcx + rax], 0FFh
+        jne     UpdateCardBundleTable
+        REPRET
+
+    UpdateCardBundleTable:
+        mov     byte ptr [rcx + rax], 0FFh
+endif
         ret
 
     align 16
@@ -706,6 +730,19 @@ endif
 
     UpdateCardTable:
         mov     byte ptr [rcx], 0FFh
+ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+        ; check if we need to update the card bundle table
+        ; restore destination address from rdi - rdi has been incremented by 8 already
+        lea     rcx, [rdi-8]
+        shr     rcx, 15h
+        add     rcx, [g_card_bundle_table]
+        cmp     byte ptr [rcx], 0FFh
+        jne     UpdateCardBundleTable
+        REPRET
+
+    UpdateCardBundleTable:
+        mov     byte ptr [rcx], 0FFh
+endif
         ret
 
     align 16
@@ -729,7 +766,7 @@ g_pObjectClass      equ     ?g_pObjectClass@@3PEAVMethodTable@@EA
 
 EXTERN  g_pObjectClass:qword
 extern ArrayStoreCheck:proc
-extern ObjIsInstanceOfNoGC:proc
+extern ObjIsInstanceOfCached:proc
 
 ; TODO: put definition for this in asmconstants.h
 CanCast equ     1
@@ -771,23 +808,23 @@ LEAF_ENTRY JIT_Stelem_Ref, _TEXT
         ; write barrier is not needed for assignment of NULL references
         mov     [rcx + 8*rdx + OFFSETOF__PtrArray__m_Array], r8
         ret
-            
+
     NotExactMatch:
         cmp     r9, [g_pObjectClass]
         je      DoWrite
 
-        jmp     JIT_Stelem_Ref__ObjIsInstanceOfNoGC_Helper
-                                
+        jmp     JIT_Stelem_Ref__ObjIsInstanceOfCached_Helper
+
     ThrowNullReferenceException:
         mov     rcx, CORINFO_NullReferenceException_ASM
         jmp     JIT_InternalThrow
-        
+
     ThrowIndexOutOfRangeException:
         mov     rcx, CORINFO_IndexOutOfRangeException_ASM
-        jmp     JIT_InternalThrow        
+        jmp     JIT_InternalThrow
 LEAF_END JIT_Stelem_Ref, _TEXT
 
-NESTED_ENTRY JIT_Stelem_Ref__ObjIsInstanceOfNoGC_Helper, _TEXT
+NESTED_ENTRY JIT_Stelem_Ref__ObjIsInstanceOfCached_Helper, _TEXT
         alloc_stack         MIN_SIZE
         save_reg_postrsp    rcx, MIN_SIZE + 8h
         save_reg_postrsp    rdx, MIN_SIZE + 10h
@@ -798,8 +835,8 @@ NESTED_ENTRY JIT_Stelem_Ref__ObjIsInstanceOfNoGC_Helper, _TEXT
         mov     rdx, r9
         mov     rcx, r8
 
-        ; TypeHandle::CastResult ObjIsInstanceOfNoGC(Object *pElement, TypeHandle toTypeHnd)
-        call    ObjIsInstanceOfNoGC
+        ; TypeHandle::CastResult ObjIsInstanceOfCached(Object *pElement, TypeHandle toTypeHnd)
+        call    ObjIsInstanceOfCached
 
         mov     rcx, [rsp + MIN_SIZE + 8h]
         mov     rdx, [rsp + MIN_SIZE + 10h]
@@ -818,7 +855,7 @@ NESTED_ENTRY JIT_Stelem_Ref__ObjIsInstanceOfNoGC_Helper, _TEXT
     NeedCheck:
         add     rsp, MIN_SIZE
         jmp     JIT_Stelem_Ref__ArrayStoreCheck_Helper
-NESTED_END JIT_Stelem_Ref__ObjIsInstanceOfNoGC_Helper, _TEXT
+NESTED_END JIT_Stelem_Ref__ObjIsInstanceOfCached_Helper, _TEXT
 
 ; Need to save r8 to provide a stack address for the Object*
 NESTED_ENTRY JIT_Stelem_Ref__ArrayStoreCheck_Helper, _TEXT
@@ -855,14 +892,14 @@ OFFSETOF_GSCOOKIE                   equ 0h
 OFFSETOF_FRAME                      equ OFFSETOF_GSCOOKIE + \
                                         8h
 
-; 
+;
 ; incoming:
 ;
 ;       rsp ->  return address
 ;                 :
 ;
 ; Stack Layout:
-; 
+;
 ; rsp-> callee scratch
 ; + 8h  callee scratch
 ; +10h  callee scratch
@@ -888,7 +925,7 @@ OFFSETOF_FRAME                      equ OFFSETOF_GSCOOKIE + \
 ;
 ; r14 = GetThread();
 ; r15 = GetThread()->GetFrame(); // For restoring/popping the frame
-; 
+;
 NESTED_ENTRY TailCallHelperStub, _TEXT
         PUSH_CALLEE_SAVED_REGISTERS
 
@@ -919,7 +956,7 @@ if 0 ne 0
         ; link the TailCallFrame
         ;
         INLINE_GETTHREAD r14
-        mov     r15, [r14 + OFFSETOF__Thread__m_pFrame]        
+        mov     r15, [r14 + OFFSETOF__Thread__m_pFrame]
         mov     [r13 + OFFSETOF_FRAME + OFFSETOF__Frame__m_Next], r15
         lea     r10, [r13 + OFFSETOF_FRAME]
         mov     [r14 + OFFSETOF__Thread__m_pFrame], r10
@@ -945,7 +982,7 @@ endif ; _DEBUG
         ;
         mov     [r14 + OFFSETOF__Thread__m_pFrame], r15
 
-        ; 
+        ;
         ; epilog
         ;
 
@@ -955,5 +992,37 @@ endif ; _DEBUG
 
 NESTED_END TailCallHelperStub, _TEXT
 
-        end
+; The following helper will access ("probe") a word on each page of the stack
+; starting with the page right beneath rsp down to the one pointed to by r11.
+; The procedure is needed to make sure that the "guard" page is pushed down below the allocated stack frame.
+; The call to the helper will be emitted by JIT in the function/funclet prolog when large (larger than 0x3000 bytes) stack frame is required.
+;
+; NOTE: this helper will NOT modify a value of rsp and can be defined as a leaf function.
 
+PAGE_SIZE equ 1000h
+
+LEAF_ENTRY JIT_StackProbe, _TEXT
+        ; On entry:
+        ;   r11 - points to the lowest address on the stack frame being allocated (i.e. [InitialSp - FrameSize])
+        ;   rsp - points to some byte on the last probed page
+        ; On exit:
+        ;   rax - is not preserved
+        ;   r11 - is preserved
+        ;
+        ; NOTE: this helper will probe at least one page below the one pointed by rsp.
+
+        mov     rax, rsp               ; rax points to some byte on the last probed page
+        and     rax, -PAGE_SIZE        ; rax points to the **lowest address** on the last probed page
+                                       ; This is done to make the following loop end condition simpler.
+
+ProbeLoop:
+        sub     rax, PAGE_SIZE         ; rax points to the lowest address of the **next page** to probe
+        test    dword ptr [rax], eax   ; rax points to the lowest address on the **last probed** page
+        cmp     rax, r11
+        jg      ProbeLoop              ; If (rax > r11), then we need to probe at least one more page.
+
+        ret
+
+LEAF_END JIT_StackProbe, _TEXT
+
+        end

@@ -7,7 +7,7 @@
 
 //
 // Import is soft bound references to elements outside the current module
-// 
+//
 // ======================================================================================
 
 #ifndef __ZAPIMPORT_H__
@@ -21,7 +21,7 @@ class NibbleWriter;
 //
 // ZapImport is the import cell itself
 //
-// Every import cell is uniquely identified by its ZapNodeType and two handles 
+// Every import cell is uniquely identified by its ZapNodeType and two handles
 // (the second handle is optional and is often NULL)
 //
 // Actual implementations inherits from this abstract base class.
@@ -97,7 +97,7 @@ public:
     }
 
     virtual void Save(ZapWriter * pZapWriter);
-    
+
     //
     // Offset of the fixup cell within its section
     //
@@ -143,7 +143,7 @@ public:
 //
 // There is a single instance of it per image.
 //
-class ZapImportTable : public ZapNode
+class ZapImportTable
 {
     //
     // Hashtable key of the import
@@ -175,22 +175,22 @@ class ZapImportTable : public ZapNode
         typedef ImportKey key_t;
 
         static FORCEINLINE key_t GetKey(element_t e)
-        { 
+        {
             LIMITED_METHOD_CONTRACT;
             return ImportKey(e->GetHandle(), e->GetHandle2(), e->GetType());
         }
         static FORCEINLINE BOOL Equals(key_t k1, key_t k2)
-        { 
+        {
             LIMITED_METHOD_CONTRACT;
             return (k1.m_handle == k2.m_handle) && (k1.m_handle2 == k2.m_handle2) && (k1.m_type == k2.m_type);
         }
-        static FORCEINLINE count_t Hash(key_t k) 
+        static FORCEINLINE count_t Hash(key_t k)
         {
             LIMITED_METHOD_CONTRACT;
             return (count_t)(size_t)k.m_handle ^ ((count_t)(size_t)k.m_handle2 << 1) ^ k.m_type;
         }
 
-        static const element_t Null() { LIMITED_METHOD_CONTRACT; return NULL; }
+        static element_t Null() { LIMITED_METHOD_CONTRACT; return NULL; }
         static bool IsNull(const element_t &e) { LIMITED_METHOD_CONTRACT; return e == NULL; }
     };
 
@@ -203,9 +203,6 @@ class ZapImportTable : public ZapNode
     {
         CORINFO_MODULE_HANDLE m_module;
         DWORD m_index;
-
-        USHORT m_wAssemblyRid;
-        USHORT m_wModuleRid;
     };
 
     class ModuleReferenceTraits : public NoRemoveSHashTraits< DefaultSHashTraits<ModuleReferenceEntry *> >
@@ -214,22 +211,22 @@ class ZapImportTable : public ZapNode
         typedef CORINFO_MODULE_HANDLE key_t;
 
         static key_t GetKey(element_t e)
-        { 
+        {
             LIMITED_METHOD_CONTRACT;
             return e->m_module;
         }
-        static BOOL Equals(key_t k1, key_t k2) 
-        { 
+        static BOOL Equals(key_t k1, key_t k2)
+        {
             LIMITED_METHOD_CONTRACT;
             return (k1 == k2);
         }
-        static count_t Hash(key_t k) 
+        static count_t Hash(key_t k)
         {
             LIMITED_METHOD_CONTRACT;
             return (count_t)(size_t)k;
         }
 
-        static const element_t Null() { LIMITED_METHOD_CONTRACT; return NULL; }
+        static element_t Null() { LIMITED_METHOD_CONTRACT; return NULL; }
         static bool IsNull(const element_t &e) { LIMITED_METHOD_CONTRACT; return e == NULL; }
     };
 
@@ -307,7 +304,6 @@ class ZapImportTable : public ZapNode
     SHash< NoRemoveSHashTraits < ZapBlob::SHashTraits > > m_blobs; // Interned ZapBlos for signatures and fixups
 
     ModuleReferenceTable m_moduleReferences;
-    SArray<ModuleReferenceEntry *> m_modules;   // Secondary table of ModuleReferences to allow fast index based lookup
 
     SHash< NoRemoveSHashTraits < ZapBlob::SHashTraits > > m_genericSignatures;
 
@@ -340,7 +336,7 @@ public:
     void EncodeClassInContext(CORINFO_MODULE_HANDLE context, CORINFO_CLASS_HANDLE handle, SigBuilder * pSigBuilder);
     void EncodeField(CORCOMPILE_FIXUP_BLOB_KIND kind, CORINFO_FIELD_HANDLE handle, SigBuilder * pSigBuilder,
             CORINFO_RESOLVED_TOKEN * pResolvedToken = NULL, BOOL fEncodeUsingResolvedTokenSpecStreams = FALSE);
-    void EncodeMethod(CORCOMPILE_FIXUP_BLOB_KIND kind, CORINFO_METHOD_HANDLE handle, SigBuilder * pSigBuilder, 
+    void EncodeMethod(CORCOMPILE_FIXUP_BLOB_KIND kind, CORINFO_METHOD_HANDLE handle, SigBuilder * pSigBuilder,
             CORINFO_RESOLVED_TOKEN * pResolvedToken = NULL, CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken = NULL,
             BOOL fEncodeUsingResolvedTokenSpecStreams = FALSE);
 
@@ -383,7 +379,7 @@ public:
     // This also encoded and places all the import blobs if they are not placed yet.
     void PlaceImport(ZapImport * pImport);
 
-    // Encodes list of fixups and places it into the image. 
+    // Encodes list of fixups and places it into the image.
     // This also places all the import cells if they are not placed yet.
     ZapFixupInfo * PlaceFixups(ZapImport ** pImports);
     void PlaceFixups(ZapImport ** pImports, NibbleWriter& writer);
@@ -402,8 +398,9 @@ public:
     ZapImport * GetStaticFieldAddressImport(CORINFO_FIELD_HANDLE handle);
     ZapImport * GetClassDomainIdImport(CORINFO_CLASS_HANDLE handle);
     ZapImport * GetModuleDomainIdImport(CORINFO_MODULE_HANDLE handleToModule, CORINFO_CLASS_HANDLE handleToClass);
-    ZapImport * GetSyncLockImport(CORINFO_CLASS_HANDLE handle); 
+    ZapImport * GetSyncLockImport(CORINFO_CLASS_HANDLE handle);
     ZapImport * GetIndirectPInvokeTargetImport(CORINFO_METHOD_HANDLE handle);
+    ZapImport * GetPInvokeTargetImport(CORINFO_METHOD_HANDLE handle);
     ZapImport * GetProfilingHandleImport(CORINFO_METHOD_HANDLE handle);
     ZapImport * GetVarArgImport(CORINFO_MODULE_HANDLE handle, mdToken sigOrMemberRefOrDef);
     ZapImport * GetActiveDependencyImport(CORINFO_MODULE_HANDLE moduleFrom, CORINFO_MODULE_HANDLE moduleTo);
@@ -446,23 +443,6 @@ public:
     ZapImport * GetPlacedHelperImport(ReadyToRunHelper helperNum);
     ZapImport * GetHelperImport(ReadyToRunHelper helperNum);
 #endif
-
-    virtual DWORD GetSize()
-    {
-        return m_modules.GetCount() * sizeof(CORCOMPILE_IMPORT_TABLE_ENTRY);
-    }
-
-    virtual UINT GetAlignment()
-    {
-        return sizeof(DWORD);
-    }
-
-    virtual ZapNodeType GetType()
-    {
-        return ZapNodeType_ImportTable;
-    }
-
-    virtual void Save(ZapWriter * pZapWriter);
 };
 
 //
@@ -554,7 +534,7 @@ public:
     {
     }
 
-    void Append(CORINFO_METHOD_HANDLE handle);
+    void Append(CORINFO_METHOD_HANDLE handle, bool isDispatchCell = false);
 
     virtual DWORD GetSize();
 

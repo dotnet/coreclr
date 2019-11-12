@@ -9,15 +9,12 @@
 
 #include "holder.h"
 
-template <typename TYPE> 
+template <typename TYPE>
 inline void DoTheReleaseHost(TYPE *value)
 {
     if (value)
     {
-        BEGIN_SO_TOLERANT_CODE_CALLING_HOST(GetThread());
         value->Release();
-        END_SO_TOLERANT_CODE_CALLING_HOST;
-
     }
 }
 

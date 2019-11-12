@@ -141,7 +141,7 @@ namespace JIT.HardwareIntrinsics.X86
             _dataTable = new SimdScalarUnaryOpTest__DataTable<UInt64>(_data, LargestVectorSize);
         }
 
-        public bool IsSupported => Sse2.IsSupported && (Environment.Is64BitProcess || ((typeof(UInt64) != typeof(long)) && (typeof(UInt64) != typeof(ulong))));
+        public bool IsSupported => Sse2.IsSupported;
 
         public bool Succeeded { get; set; }
 
@@ -296,7 +296,7 @@ namespace JIT.HardwareIntrinsics.X86
         {
             TestLibrary.TestFramework.BeginScenario(nameof(RunUnsupportedScenario));
 
-            Succeeded = false;
+            bool succeeded = false;
 
             try
             {
@@ -304,7 +304,12 @@ namespace JIT.HardwareIntrinsics.X86
             }
             catch (PlatformNotSupportedException)
             {
-                Succeeded = true;
+                succeeded = true;
+            }
+
+            if (!succeeded)
+            {
+                Succeeded = false;
             }
         }
 
@@ -324,17 +329,21 @@ namespace JIT.HardwareIntrinsics.X86
 
         private void ValidateResult(UInt64[] firstOp, UInt64 result, [CallerMemberName] string method = "")
         {
+            bool succeeded = true;
+
             if (firstOp[0] != result)
             {
-                Succeeded = false;
+                succeeded = false;
             }
 
-            if (!Succeeded)
+            if (!succeeded)
             {
                 TestLibrary.TestFramework.LogInformation($"{nameof(Sse2)}.{nameof(Sse2.ConvertToUInt64)}<UInt64>(Vector128<UInt64>): {method} failed:");
                 TestLibrary.TestFramework.LogInformation($"  firstOp: ({string.Join(", ", firstOp)})");
                 TestLibrary.TestFramework.LogInformation($"   result: result");
                 TestLibrary.TestFramework.LogInformation(string.Empty);
+
+                Succeeded = false;
             }
         }
     }

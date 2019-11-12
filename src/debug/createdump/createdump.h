@@ -41,8 +41,8 @@ typedef int T_CONTEXT;
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/ptrace.h> 
-#include <sys/user.h> 
+#include <sys/ptrace.h>
+#include <sys/user.h>
 #include <sys/wait.h>
 #include <sys/procfs.h>
 #include <dirent.h>
@@ -54,6 +54,8 @@ typedef int T_CONTEXT;
 #include <map>
 #include <set>
 #include <vector>
+#include <array>
+#include <string>
 #include "datatarget.h"
 #include "threadinfo.h"
 #include "memoryregion.h"

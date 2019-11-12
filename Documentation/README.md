@@ -11,7 +11,7 @@ Intro to .NET Core
 Getting Started
 ===============
 
-- [Installing the .NET Core SDK](https://www.microsoft.com/net/core)
+- [Installing the .NET Core SDK](https://dotnet.microsoft.com/download)
 - [Official .NET Core Docs](https://docs.microsoft.com/dotnet/core/)
 
 Project Docs
@@ -23,7 +23,7 @@ Project Docs
 - [Contributing Workflow](project-docs/contributing-workflow.md)
 - [Performance Guidelines](project-docs/performance-guidelines.md)
 - [Garbage Collector Guidelines](project-docs/garbage-collector-guidelines.md)
-- [Adding new public APIs to mscorlib](project-docs/adding_new_public_apis.md)
+- [Public APIs in System.Private.CoreLib](project-docs/changing-corelib.md)
 - [Project NuGet Dependencies](https://github.com/dotnet/corefx/blob/master/Documentation/project-docs/project-nuget-dependencies.md)
 
 Coding Guidelines
@@ -56,8 +56,8 @@ Testing and Debugging CoreCLR
 Book of the Runtime
 ===================
 
-The Book of the Runtime is a set of chapters that go in depth into various 
-interesting aspects of the design of the .NET Framework.  
+The Book of the Runtime is a set of chapters that go in depth into various
+interesting aspects of the design of the .NET Framework.
 
 - [Book of the Runtime](botr/README.md)
 
@@ -81,6 +81,6 @@ Other Information
 - [CoreFX Repo documentation](https://github.com/dotnet/corefx/tree/master/Documentation)
 - [Porting to .NET Core](https://github.com/dotnet/corefx/blob/master/Documentation/project-docs/support-dotnet-core-instructions.md)
 - [.NET Standards (Ecma)](project-docs/dotnet-standards.md)
-- [CLR Configuration Knobs](project-docs/clr-configuration-knobs.md)
+- [CLR Configuration Knobs](../src/inc/clrconfigvalues.h)
 - [MSDN Entry for the CLR](http://msdn.microsoft.com/library/8bs2ecf4.aspx)
 - [Wikipedia Entry for the CLR](http://en.wikipedia.org/wiki/Common_Language_Runtime)

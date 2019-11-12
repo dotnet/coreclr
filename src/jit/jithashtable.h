@@ -106,9 +106,9 @@ SELECTANY const JitPrimeInfo jitPrimeInfo[]
     JitPrimeInfo(2473,      0x6a009f01, 10),
     JitPrimeInfo(4327,      0xf2555049, 12),
     JitPrimeInfo(7499,      0x45ea155f, 11),
-    JitPrimeInfo(12973,     0x1434f6d3, 10),               
-    JitPrimeInfo(22433,     0x2ebe18db, 12),               
-    JitPrimeInfo(46559,     0xb42bebd5, 15),               
+    JitPrimeInfo(12973,     0x1434f6d3, 10),
+    JitPrimeInfo(22433,     0x2ebe18db, 12),
+    JitPrimeInfo(46559,     0xb42bebd5, 15),
     JitPrimeInfo(96581,     0xadb61b1b, 16),
     JitPrimeInfo(200341,    0x29df2461, 15),
     JitPrimeInfo(415517,    0xa181c46d, 18),
@@ -116,10 +116,10 @@ SELECTANY const JitPrimeInfo jitPrimeInfo[]
     JitPrimeInfo(1787021,   0x9636c46f, 20),
     JitPrimeInfo(3705617,   0x4870adc1, 20),
     JitPrimeInfo(7684087,   0x8bbc5b83, 22),
-    JitPrimeInfo(15933877,  0x86c65361, 23),           
-    JitPrimeInfo(33040633,  0x40fec79b, 23),           
-    JitPrimeInfo(68513161,  0x7d605cd1, 25),           
-    JitPrimeInfo(142069021, 0xf1da390b, 27),           
+    JitPrimeInfo(15933877,  0x86c65361, 23),
+    JitPrimeInfo(33040633,  0x40fec79b, 23),
+    JitPrimeInfo(68513161,  0x7d605cd1, 25),
+    JitPrimeInfo(142069021, 0xf1da390b, 27),
     JitPrimeInfo(294594427, 0x74a2507d, 27),
     JitPrimeInfo(733045421, 0x5dbec447, 28),
 };
@@ -234,15 +234,25 @@ public:
     // Arguments:
     //    k - the key
     //    v - the value
+    //    kind - Normal, we are not allowed to overwrite
+    //           Overwrite, we are allowed to overwrite
+    //           currently only used by CHK/DBG builds in an assert.
     //
     // Return Value:
-    //    `true` if the key already exists, `false` otherwise.
+    //    `true` if the key exists and was overwritten,
+    //    `false` otherwise.
     //
     // Notes:
-    //    If the key already exists then its associated value is updated to
-    //    the new value.
+    //    If the key already exists and kind is Normal
+    //    this method will assert
     //
-    bool Set(Key k, Value v)
+    enum SetKind
+    {
+        None,
+        Overwrite
+    };
+
+    bool Set(Key k, Value v, SetKind kind = None)
     {
         CheckGrowth();
 
@@ -257,6 +267,7 @@ public:
         }
         if (pN != nullptr)
         {
+            assert(kind == Overwrite);
             pN->m_val = v;
             return true;
         }

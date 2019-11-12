@@ -38,17 +38,11 @@
 #include "cor.h"
 #include "corhdr.h"
 
-#ifdef FEATURE_PREJIT
 #include "corcompile.h"
-#else // FEATURE_PREJIT
-typedef DPTR(struct COR_ILMETHOD) PTR_COR_ILMETHOD;
-struct CORCOMPILE_HEADER { int dummy_field; };
-typedef DPTR(struct CORCOMPILE_HEADER) PTR_CORCOMPILE_HEADER;
-#define CORCOMPILE_IS_POINTER_TAGGED(fixup) (false)
-#endif // FEATURE_PREJIT
 
 #include "readytorun.h"
 typedef DPTR(struct READYTORUN_HEADER) PTR_READYTORUN_HEADER;
+typedef DPTR(struct READYTORUN_SECTION) PTR_READYTORUN_SECTION;
 
 typedef DPTR(IMAGE_COR20_HEADER)    PTR_IMAGE_COR20_HEADER;
 
@@ -111,6 +105,10 @@ inline CHECK CheckOverflow(RVA value1, COUNT_T value2)
 // --------------------------------------------------------------------------------
 
 typedef DPTR(class PEDecoder) PTR_PEDecoder;
+
+typedef bool (*PEDecoder_ResourceTypesCallbackFunction)(LPCWSTR lpType, void* context);
+typedef bool (*PEDecoder_ResourceNamesCallbackFunction)(LPCWSTR lpName, LPCWSTR lpType, void* context);
+typedef bool (*PEDecoder_ResourceCallbackFunction)(LPCWSTR lpName, LPCWSTR lpType, DWORD langid, BYTE* data, COUNT_T cbData, void* context);
 
 class PEDecoder
 {
@@ -257,10 +255,12 @@ class PEDecoder
     PTR_VOID GetTlsRange(COUNT_T *pSize = NULL) const;
     UINT32 GetTlsIndex() const;
 
-#ifndef FEATURE_PAL
     // Win32 resources
     void *GetWin32Resource(LPCWSTR lpName, LPCWSTR lpType, COUNT_T *pSize = NULL) const;
-#endif // FEATURE_PAL
+    bool EnumerateWin32ResourceTypes(PEDecoder_ResourceTypesCallbackFunction callback, void* context) const;
+    bool EnumerateWin32ResourceNames(LPCWSTR lpType, PEDecoder_ResourceNamesCallbackFunction callback, void* context) const;
+    bool EnumerateWin32Resources(LPCWSTR lpName, LPCWSTR lpType, PEDecoder_ResourceCallbackFunction callback, void* context) const;
+  public:
 
     // COR header fields
 
@@ -302,6 +302,8 @@ class PEDecoder
     // Debug directory access, returns NULL if no such entry
     PTR_IMAGE_DEBUG_DIRECTORY GetDebugDirectoryEntry(UINT index) const;
 
+    PTR_CVOID GetNativeManifestMetadata(COUNT_T* pSize = NULL) const;
+
 #ifdef FEATURE_PREJIT
     CHECK CheckNativeHeaderVersion() const;
 
@@ -319,7 +321,6 @@ class PEDecoder
     PCODE GetNativeColdCode(COUNT_T * pSize = NULL) const;
 
     CORCOMPILE_METHOD_PROFILE_LIST *GetNativeProfileDataList(COUNT_T *pSize = NULL) const;
-    PTR_CVOID GetNativeManifestMetadata(COUNT_T *pSize = NULL) const;
     const void *GetNativePreferredBase() const;
     BOOL GetNativeILHasSecurityDirectory() const;
     BOOL GetNativeILIsIbcOptimized() const;
@@ -328,10 +329,6 @@ class PEDecoder
     BOOL IsNativeILDll() const;
     void GetNativeILPEKindAndMachine(DWORD* pdwKind, DWORD* pdwMachine) const;
     CORCOMPILE_DEPENDENCY * GetNativeDependencies(COUNT_T *pCount = NULL) const;
-
-    COUNT_T GetNativeImportTableCount() const;
-    CORCOMPILE_IMPORT_TABLE_ENTRY *GetNativeImportFromIndex(COUNT_T index) const;
-    CHECK CheckNativeImportFromIndex(COUNT_T index) const;
 
     PTR_CORCOMPILE_IMPORT_SECTION GetNativeImportSections(COUNT_T *pCount = NULL) const;
     PTR_CORCOMPILE_IMPORT_SECTION GetNativeImportSectionFromIndex(COUNT_T index) const;
@@ -404,7 +401,7 @@ class PEDecoder
     IMAGE_NT_HEADERS *FindNTHeaders() const;
     IMAGE_COR20_HEADER *FindCorHeader() const;
     CORCOMPILE_HEADER *FindNativeHeader() const;
-   READYTORUN_HEADER *FindReadyToRunHeader() const;
+    READYTORUN_HEADER *FindReadyToRunHeader() const;
 
     // Flat mapping utilities
     RVA InternalAddressToRva(SIZE_T address) const;

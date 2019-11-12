@@ -5,6 +5,7 @@
 
 
 using System;
+using System.Runtime.InteropServices;
 
 internal struct VT
 {
@@ -98,7 +99,7 @@ internal class DblArray3
     public static void f3()
     {
         Array arr = Array.CreateInstance(typeof(double), 1000);
-        if (GC.GetGeneration(arr) != 0)
+        if (GC.GetGeneration(arr) != s_LOH_GEN)
         {
             Console.WriteLine("Generation {0}", GC.GetGeneration(arr));
             throw new Exception();
@@ -126,25 +127,39 @@ internal class DblArray3
         }
     }
 
+    public static void Run(Action f)
+    {
+        try
+        {
+            GC.TryStartNoGCRegion(500_000);
+            f();
+        }
+        finally
+        {
+            GC.EndNoGCRegion();
+        }
+    }
+
     public static int Main()
     {
-        Console.WriteLine(Environment.GetEnvironmentVariable("PROCESSOR_ARCHITECTURE"));
-        if (Environment.GetEnvironmentVariable("PROCESSOR_ARCHITECTURE") == "x86")
+        Console.WriteLine(RuntimeInformation.ProcessArchitecture);
+        if (RuntimeInformation.ProcessArchitecture == Architecture.X86)
         {
             s_LOH_GEN = 2;
         }
+
         try
         {
-            f0();
-            f1a();
-            f1b();
-            f1c();
-            f1d();
-            f2a();
-            f2b();
-            f3();
-            f4();
-            f5();
+            Run(f0);
+            Run(f1a);
+            Run(f1b);
+            Run(f1c);
+            Run(f1d);
+            Run(f2a);
+            Run(f2b);
+            Run(f3);
+            Run(f4);
+            Run(f5);
         }
         catch (Exception e)
         {

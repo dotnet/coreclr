@@ -4,15 +4,14 @@
 
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Security;
 
 namespace System.Reflection.Metadata
 {
     public static class AssemblyExtensions
     {
-        [DllImport(JitHelpers.QCall)]
+        [DllImport(RuntimeHelpers.QCall)]
         [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern unsafe bool InternalTryGetRawMetadata(RuntimeAssembly assembly, ref byte* blob, ref int length);
+        private static extern unsafe bool InternalTryGetRawMetadata(QCallAssembly assembly, ref byte* blob, ref int length);
 
         // Retrieves the metadata section of the assembly, for use with System.Reflection.Metadata.MetadataReader.
         //   - Returns false upon failure. Metadata might not be available for some assemblies, such as AssemblyBuilder, .NET
@@ -38,7 +37,9 @@ namespace System.Reflection.Metadata
                 return false;
             }
 
-            return InternalTryGetRawMetadata(runtimeAssembly, ref blob, ref length);
+            RuntimeAssembly rtAsm = runtimeAssembly;
+
+            return InternalTryGetRawMetadata(new QCallAssembly(ref rtAsm), ref blob, ref length);
         }
     }
 }

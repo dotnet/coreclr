@@ -18,7 +18,7 @@ void DisplayUsage()
         "-c, --clr-path  path to the libcoreclr.so and the managed CLR assemblies\n");
 }
 
-// Parse the command line arguments 
+// Parse the command line arguments
 bool ParseArguments(
         const int argc,
         const char* argv[],
@@ -91,7 +91,7 @@ bool ParseArguments(
     return success;
 }
 
-int corerun(const int argc, const char* argv[])
+int main(const int argc, const char* argv[])
 {
     const char* clrFilesPath;
     const char* managedAssemblyPath;
@@ -154,9 +154,4 @@ int corerun(const int argc, const char* argv[])
                             managedAssemblyArgv);
 
     return exitCode;
-}
-
-int main(const int argc, const char* argv[])
-{
-    return corerun(argc, argv);
 }

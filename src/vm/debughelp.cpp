@@ -20,7 +20,6 @@ BOOL isMemoryReadable(const TADDR start, unsigned len)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -108,7 +107,6 @@ bool isRetAddr(TADDR retAddr, TADDR* whereCalled)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -341,8 +339,8 @@ MethodDesc* AsMethodDesc(size_t addr)
 //  This function will return NULL if the buffer is not large enough.
 /*******************************************************************/
 
-wchar_t* formatMethodTable(MethodTable* pMT,
-                           __out_z __inout_ecount(bufSize) wchar_t* buff,
+WCHAR* formatMethodTable(MethodTable* pMT,
+                           __out_z __inout_ecount(bufSize) WCHAR* buff,
                            DWORD bufSize)
 {
     CONTRACTL
@@ -381,8 +379,8 @@ wchar_t* formatMethodTable(MethodTable* pMT,
 //  return the buffer position for next write.
 /*******************************************************************/
 
-wchar_t* formatMethodDesc(MethodDesc* pMD,
-                          __out_z __inout_ecount(bufSize) wchar_t* buff,
+WCHAR* formatMethodDesc(MethodDesc* pMD,
+                          __out_z __inout_ecount(bufSize) WCHAR* buff,
                           DWORD bufSize)
 {
     CONTRACTL
@@ -404,7 +402,7 @@ wchar_t* formatMethodDesc(MethodDesc* pMD,
     }
 
     buff[bufSize - 1] = W('\0');    // this will guarantee the buffer is also NULL-terminated
-    if(_snwprintf_s( &buff[lstrlenW(buff)] , bufSize -lstrlenW(buff) - 1, _TRUNCATE, W("::%S"), pMD->GetName()) < 0)
+    if(_snwprintf_s( &buff[wcslen(buff)] , bufSize - wcslen(buff) - 1, _TRUNCATE, W("::%S"), pMD->GetName()) < 0)
     {
         return NULL;
     }
@@ -412,8 +410,8 @@ wchar_t* formatMethodDesc(MethodDesc* pMD,
 #ifdef _DEBUG
     if (pMD->m_pszDebugMethodSignature)
     {
-        if(_snwprintf_s(&buff[lstrlenW(buff)],
-                      bufSize -lstrlenW(buff) - 1,
+        if(_snwprintf_s(&buff[wcslen(buff)],
+                      bufSize - wcslen(buff) - 1,
                       _TRUNCATE,
                       W(" %S"),
                       pMD->m_pszDebugMethodSignature) < 0)
@@ -424,7 +422,7 @@ wchar_t* formatMethodDesc(MethodDesc* pMD,
     }
 #endif
 
-    if(_snwprintf_s(&buff[lstrlenW(buff)], bufSize -lstrlenW(buff) - 1, _TRUNCATE, W("(%x)"), (size_t)pMD) < 0)
+    if(_snwprintf_s(&buff[wcslen(buff)], bufSize - wcslen(buff) - 1, _TRUNCATE, W("(%x)"), (size_t)pMD) < 0)
     {
         return NULL;
     }
@@ -462,13 +460,14 @@ int dumpStack(BYTE* topOfStack, unsigned len)
 
     int nLen = MAX_CLASSNAME_LENGTH * 4 + 400;  // this should be enough
 
-    wchar_t *buff = (wchar_t *) qb.AllocThrows(nLen * sizeof(wchar_t));
+    WCHAR *buff = (WCHAR *) qb.AllocThrows(nLen * sizeof(WCHAR));
+    WCHAR *buffEnd = buff + nLen;
 
     while (ptr < end)
     {
         buff[nLen - 1] = W('\0');
 
-        wchar_t* buffPtr = buff;
+        WCHAR* buffPtr = buff;
 
         // stop if we hit unmapped pages
         if (!isMemoryReadable((TADDR)ptr, sizeof(TADDR)))
@@ -478,14 +477,14 @@ int dumpStack(BYTE* topOfStack, unsigned len)
 
         if (isRetAddr((TADDR)*ptr, &whereCalled))
         {
-            if (_snwprintf_s(buffPtr, buff+NumItems(buff)-buffPtr-1, _TRUNCATE,  W("STK[%08X] = %08X "), (size_t)ptr, *ptr)  <0)
+            if (_snwprintf_s(buffPtr, buffEnd - buffPtr, _TRUNCATE,  W("STK[%08X] = %08X "), (size_t)ptr, *ptr) < 0)
             {
                 return(0);
             }
 
-            buffPtr += lstrlenW(buffPtr);
+            buffPtr += wcslen(buffPtr);
 
-            const wchar_t* kind = W("RETADDR ");
+            const WCHAR* kind = W("RETADDR ");
 
             // Is this a stub (is the return address a MethodDesc?
             MethodDesc* ftn = AsMethodDesc(*ptr);
@@ -521,41 +520,41 @@ int dumpStack(BYTE* topOfStack, unsigned len)
                 ftn = ExecutionManager::GetCodeMethodDesc((PCODE)(*ptr));
             }
 
-            if(_snwprintf_s(buffPtr, buff+ nLen -buffPtr-1, _TRUNCATE, W("%s "), kind) < 0)
+            if (_snwprintf_s(buffPtr, buffEnd - buffPtr, _TRUNCATE, W("%s "), kind) < 0)
             {
                 return(0);
             }
 
-            buffPtr += lstrlenW(buffPtr);
+            buffPtr += wcslen(buffPtr);
 
             if (ftn != 0)
             {
                 // buffer is not large enough
-                if( formatMethodDesc(ftn, buffPtr, static_cast<DWORD>(buff+ nLen -buffPtr-1)) == NULL)
+                if (formatMethodDesc(ftn, buffPtr, static_cast<DWORD>(buffEnd - buffPtr)) == NULL)
                 {
                     return(0);
                 }
 
-                buffPtr += lstrlenW(buffPtr);
+                buffPtr += wcslen(buffPtr);
             }
             else
             {
-                wcsncpy_s(buffPtr, nLen - (buffPtr - buff), W("<UNKNOWN FTN>"), _TRUNCATE);
-                buffPtr += lstrlenW(buffPtr);
+                wcsncpy_s(buffPtr, buffEnd - buffPtr, W("<UNKNOWN FTN>"), _TRUNCATE);
+                buffPtr += wcslen(buffPtr);
             }
 
             if (whereCalled != 0)
             {
-                if(_snwprintf_s(buffPtr, buff+ nLen -buffPtr-1, _TRUNCATE, W(" Caller called Entry %X"), whereCalled) <0)
+                if (_snwprintf_s(buffPtr, buffEnd - buffPtr, _TRUNCATE, W(" Caller called Entry %X"), whereCalled) < 0)
                 {
                     return(0);
                 }
 
-                buffPtr += lstrlenW(buffPtr);
+                buffPtr += wcslen(buffPtr);
             }
 
-            wcsncpy_s(buffPtr, nLen - (buffPtr - buff), W("\n"), _TRUNCATE);
-            buffPtr += lstrlenW(buffPtr);
+            wcsncpy_s(buffPtr, buffEnd - buffPtr, W("\n"), _TRUNCATE);
+            buffPtr += wcslen(buffPtr);
             WszOutputDebugString(buff);
         }
 
@@ -563,21 +562,21 @@ int dumpStack(BYTE* topOfStack, unsigned len)
         if (pMT != 0)
         {
             buffPtr = buff;
-            if( _snwprintf_s(buffPtr, buff+ nLen -buffPtr-1, _TRUNCATE, W("STK[%08X] = %08X          MT PARAM "), (size_t)ptr, *ptr ) <0)
+            if ( _snwprintf_s(buffPtr, buffEnd - buffPtr, _TRUNCATE, W("STK[%08X] = %08X          MT PARAM "), (size_t)ptr, *ptr ) < 0)
             {
                 return(0);
             }
 
-            buffPtr += lstrlenW(buffPtr);
+            buffPtr += wcslen(buffPtr);
 
-            if( formatMethodTable(pMT, buffPtr, static_cast<DWORD>(buff+ nLen -buffPtr-1)) == NULL)
+            if (formatMethodTable(pMT, buffPtr, static_cast<DWORD>(buffEnd - buffPtr)) == NULL)
             {
                 return(0);
             }
 
-            buffPtr += lstrlenW(buffPtr);
+            buffPtr += wcslen(buffPtr);
 
-            wcsncpy_s(buffPtr, nLen - (buffPtr - buff), W("\n"), _TRUNCATE);
+            wcsncpy_s(buffPtr, buffEnd - buffPtr, W("\n"), _TRUNCATE);
             WszOutputDebugString(buff);
 
         }
@@ -714,60 +713,6 @@ Thread * CurrentThreadInfo ()
     return GetThread ();
 }
 
-AppDomain *GetAppDomainForObject(UINT_PTR obj)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    return ((Object*)obj)->GetAppDomain();
-}
-
-ADIndex GetAppDomainIndexForObject(UINT_PTR obj)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    return ((Object*)obj)->GetHeader()->GetAppDomainIndex();
-}
-
-AppDomain *GetAppDomainForObjectHeader(UINT_PTR hdr)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    ADIndex indx = ((ObjHeader*)hdr)->GetAppDomainIndex();
-    if (!indx.m_dwIndex)
-    {
-        return NULL;
-    }
-
-    return SystemDomain::GetAppDomainAtIndex(indx);
-}
-
-ADIndex GetAppDomainIndexForObjectHeader(UINT_PTR hdr)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    return ((ObjHeader*)hdr)->GetAppDomainIndex();
-}
-
 SyncBlock *GetSyncBlockForObject(UINT_PTR obj)
 {
     CONTRACTL
@@ -828,40 +773,19 @@ void PrintException(OBJECTREF pObjectRef)
 
     GCPROTECT_BEGIN(pObjectRef);
 
-    if (!IsException(pObjectRef->GetMethodTable()))
+    MethodDescCallSite toString(METHOD__OBJECT__TO_STRING, &pObjectRef);
+
+    ARG_SLOT arg[1] = {
+        ObjToArgSlot(pObjectRef)
+    };
+
+    STRINGREF str = toString.Call_RetSTRINGREF(arg);
+
+    if(str->GetBuffer() != NULL)
     {
-         printf("Specified object is not an exception object.\n");
-    }
-    else
-    {
-        MethodDescCallSite internalToString(METHOD__EXCEPTION__INTERNAL_TO_STRING, &pObjectRef);
-
-        ARG_SLOT arg[1] = {
-            ObjToArgSlot(pObjectRef)
-        };
-
-        STRINGREF str = internalToString.Call_RetSTRINGREF(arg);
-
-        if(str->GetBuffer() != NULL)
-        {
-            WszOutputDebugString(str->GetBuffer());
-        }
+        WszOutputDebugString(str->GetBuffer());
     }
 
-    GCPROTECT_END();
-}
-
-void PrintException(UINT_PTR pObject)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    OBJECTREF pObjectRef = NULL;
-    GCPROTECT_BEGIN(pObjectRef);
     GCPROTECT_END();
 }
 
@@ -872,7 +796,6 @@ const char* FormatSig(MethodDesc* pMD, AppDomain *pDomain, AllocMemTracker *pamT
 
 struct PrintCallbackData {
     BOOL toStdout;
-    BOOL withAppDomain;
 #ifdef _DEBUG
     BOOL toLOG;
 #endif
@@ -891,7 +814,7 @@ StackWalkAction PrintStackTraceCallback(CrawlFrame* pCF, VOID* pData)
 
     MethodDesc* pMD = pCF->GetFunction();
     const int nLen = 2048 - 1;    // keep one character for "\n"
-    wchar_t *buff = (wchar_t*)alloca((nLen + 1) * sizeof(wchar_t));
+    WCHAR *buff = (WCHAR*)alloca((nLen + 1) * sizeof(WCHAR));
     buff[0] = 0;
     buff[nLen-1] = W('\0');                    // make sure the buffer is always NULL-terminated
 
@@ -901,26 +824,13 @@ StackWalkAction PrintStackTraceCallback(CrawlFrame* pCF, VOID* pData)
     {
         MethodTable * pMT = pMD->GetMethodTable();
 
-        if (pCBD->withAppDomain)
-        {
-            if(_snwprintf_s(&buff[lstrlenW(buff)],
-                          nLen -lstrlenW(buff) - 1,
-                          _TRUNCATE,
-                          W("{[%3.3x] %s} "),
-                          pCF->GetAppDomain()->GetId().m_dwId,
-                          pCF->GetAppDomain()->GetFriendlyName(FALSE)) < 0)
-            {
-                return SWA_CONTINUE;
-            }
-        }
-
         DefineFullyQualifiedNameForClass();
 
         LPCUTF8 clsName = GetFullyQualifiedNameForClass(pMT);
 
         if (clsName != 0)
         {
-            if(_snwprintf_s(&buff[lstrlenW(buff)], nLen -lstrlenW(buff) - 1, _TRUNCATE, W("%S::"), clsName) < 0)
+            if(_snwprintf_s(&buff[wcslen(buff)], nLen - wcslen(buff) - 1, _TRUNCATE, W("%S::"), clsName) < 0)
             {
                 return SWA_CONTINUE;
             }
@@ -930,8 +840,8 @@ StackWalkAction PrintStackTraceCallback(CrawlFrame* pCF, VOID* pData)
         // But this routine is diagnostic aid, not customer-reachable so we won't bother to plug.
         AllocMemTracker dummyAmTracker;
 
-        int buffLen = _snwprintf_s(&buff[lstrlenW(buff)],
-                      nLen -lstrlenW(buff) - 1,
+        int buffLen = _snwprintf_s(&buff[wcslen(buff)],
+                      nLen - wcslen(buff) - 1,
                       _TRUNCATE,
                       W("%S %S  "),
                       pMD->GetName(),
@@ -952,8 +862,8 @@ StackWalkAction PrintStackTraceCallback(CrawlFrame* pCF, VOID* pData)
 
             TADDR start = pCF->GetCodeInfo()->GetStartAddress();
 
-            if(_snwprintf_s(&buff[lstrlenW(buff)],
-                          nLen -lstrlenW(buff) - 1,
+            if(_snwprintf_s(&buff[wcslen(buff)],
+                          nLen - wcslen(buff) - 1,
                           _TRUNCATE,
                           W("JIT ESP:%X MethStart:%X EIP:%X(rel %X)"),
                           (size_t)GetRegdisplaySP(regs),
@@ -968,7 +878,7 @@ StackWalkAction PrintStackTraceCallback(CrawlFrame* pCF, VOID* pData)
         else
         {
 
-            if(_snwprintf_s(&buff[lstrlenW(buff)], nLen -lstrlenW(buff) - 1, _TRUNCATE, W("EE implemented")) < 0)
+            if(_snwprintf_s(&buff[wcslen(buff)], nLen - wcslen(buff) - 1, _TRUNCATE, W("EE implemented")) < 0)
             {
                 return SWA_CONTINUE;
             }
@@ -979,8 +889,8 @@ StackWalkAction PrintStackTraceCallback(CrawlFrame* pCF, VOID* pData)
     {
         Frame* frame = pCF->GetFrame();
 
-        if(_snwprintf_s(&buff[lstrlenW(buff)],
-                      nLen -lstrlenW(buff) - 1,
+        if(_snwprintf_s(&buff[wcslen(buff)],
+                      nLen - wcslen(buff) - 1,
                       _TRUNCATE,
                       W("EE Frame is") LFMT_ADDR,
                       (size_t)DBG_ADDR(frame)) < 0)
@@ -1022,7 +932,7 @@ void PrintStackTrace()
     CONTRACTL_END;
 
     WszOutputDebugString(W("***************************************************\n"));
-    PrintCallbackData cbd = {0, 0};
+    PrintCallbackData cbd = {0};
     GetThread()->StackWalkFrames(PrintStackTraceCallback, &cbd, ALLOW_ASYNC_STACK_WALK, 0);
 }
 
@@ -1035,7 +945,7 @@ void PrintStackTraceToStdout()
     }
     CONTRACTL_END;
 
-    PrintCallbackData cbd = {1, 0};
+    PrintCallbackData cbd = {1};
     GetThread()->StackWalkFrames(PrintStackTraceCallback, &cbd, ALLOW_ASYNC_STACK_WALK, 0);
 }
 
@@ -1049,63 +959,8 @@ void PrintStackTraceToLog()
     }
     CONTRACTL_END;
 
-    PrintCallbackData cbd = {0, 0, 1};
-    GetThread()->StackWalkFrames(PrintStackTraceCallback, &cbd, ALLOW_ASYNC_STACK_WALK, 0);
-}
-#endif
-
-void PrintStackTraceWithAD()
-{
-    CONTRACTL
-    {
-        DISABLED(NOTHROW);
-        DISABLED(GC_TRIGGERS);
-    }
-    CONTRACTL_END;
-
-    WszOutputDebugString(W("***************************************************\n"));
     PrintCallbackData cbd = {0, 1};
     GetThread()->StackWalkFrames(PrintStackTraceCallback, &cbd, ALLOW_ASYNC_STACK_WALK, 0);
-}
-
-void PrintStackTraceWithADToStdout()
-{
-    CONTRACTL
-    {
-        DISABLED(NOTHROW);
-        DISABLED(GC_TRIGGERS);
-    }
-    CONTRACTL_END;
-
-    PrintCallbackData cbd = {1, 1};
-    GetThread()->StackWalkFrames(PrintStackTraceCallback, &cbd, ALLOW_ASYNC_STACK_WALK, 0);
-}
-
-#ifdef _DEBUG
-void PrintStackTraceWithADToLog()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    PrintCallbackData cbd = {0, 1, 1};
-    GetThread()->StackWalkFrames(PrintStackTraceCallback, &cbd, ALLOW_ASYNC_STACK_WALK, 0);
-}
-
-void PrintStackTraceWithADToLog(Thread *pThread)
-{
-    CONTRACTL
-    {
-        DISABLED(NOTHROW);
-        DISABLED(GC_TRIGGERS);
-    }
-    CONTRACTL_END;
-
-    PrintCallbackData cbd = {0, 1, 1};
-    pThread->StackWalkFrames(PrintStackTraceCallback, &cbd, ALLOW_ASYNC_STACK_WALK, 0);
 }
 #endif
 
@@ -1244,7 +1099,7 @@ void LogStackTrace()
 {
     WRAPPER_NO_CONTRACT;
 
-    PrintCallbackData cbd = {0, 0, 1};
+    PrintCallbackData cbd = {0, 1};
     GetThread()->StackWalkFrames(PrintStackTraceCallback, &cbd,ALLOW_ASYNC_STACK_WALK, 0);
 }
 #endif

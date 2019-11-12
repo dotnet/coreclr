@@ -16,18 +16,25 @@
 
     IMPORT VarargPInvokeStubWorker
     IMPORT GenericPInvokeCalliStubWorker
+    IMPORT JIT_PInvokeEndRarePath
+
+    IMPORT s_gsCookie
+    IMPORT g_TrapReturningThreads
+
+    SETALIAS InlinedCallFrame_vftable, ??_7InlinedCallFrame@@6B@
+    IMPORT $InlinedCallFrame_vftable
 
 
 ; ------------------------------------------------------------------
 ; Macro to generate PInvoke Stubs.
 ; $__PInvokeStubFuncName : function which calls the actual stub obtained from VASigCookie
 ; $__PInvokeGenStubFuncName : function which generates the IL stubs for PInvoke
-; 
+;
 ; Params :-
 ; $FuncPrefix : prefix of the function name for the stub
 ;                     Eg. VarargPinvoke, GenericPInvokeCalli
 ; $VASigCookieReg : register which contains the VASigCookie
-; $SaveFPArgs : "Yes" or "No" . For varidic functions FP Args are not present in FP regs 
+; $SaveFPArgs : "Yes" or "No" . For varidic functions FP Args are not present in FP regs
 ;                        So need not save FP Args registers for vararg Pinvoke
         MACRO
 
@@ -63,20 +70,20 @@ __PInvokeStubWorkerName SETS "$FuncPrefix":CC:"StubWorker"
             orr             $HiddenArg, $HiddenArg, #1
         ENDIF
 
-        EPILOG_BRANCH_REG   x9 
+        EPILOG_BRANCH_REG   x9
 
 0
         EPILOG_BRANCH       $__PInvokeGenStubFuncName
 
         NESTED_END
 
-        
+
         NESTED_ENTRY $__PInvokeGenStubFuncName
 
         PROLOG_WITH_TRANSITION_BLOCK 0, $SaveFPArgs
 
         ; x2 = Umanaged Target\MethodDesc
-        mov                 x2, $HiddenArg 
+        mov                 x2, $HiddenArg
 
         ; x1 = VaSigCookie
         mov                 x1, $VASigCookieReg
@@ -85,7 +92,7 @@ __PInvokeStubWorkerName SETS "$FuncPrefix":CC:"StubWorker"
         add                 x0, sp, #__PWTB_TransitionBlock
 
         ; save hidden arg
-        mov                 x19, $HiddenArg 
+        mov                 x19, $HiddenArg
 
         ; save VASigCookieReg
         mov                 x20, $VASigCookieReg
@@ -102,26 +109,106 @@ __PInvokeStubWorkerName SETS "$FuncPrefix":CC:"StubWorker"
         EPILOG_WITH_TRANSITION_BLOCK_TAILCALL
 
         EPILOG_BRANCH       $__PInvokeStubFuncName
-     
+
         NESTED_END
-        
+
         MEND
 
+
     TEXTAREA
+
+; ------------------------------------------------------------------
+; JIT_PInvokeBegin helper
+;
+; in:
+; x0 = InlinedCallFrame*
+;
+        LEAF_ENTRY JIT_PInvokeBegin
+
+            ldr     x9, =s_gsCookie
+            ldr     x9, [x9]
+            str     x9, [x0]
+            add     x10, x0, SIZEOF__GSCookie
+
+            ;; set first slot to the value of InlinedCallFrame::`vftable' (checked by runtime code)
+            ldr     x9, =$InlinedCallFrame_vftable
+            str     x9, [x10]
+
+            str     xzr, [x10, #InlinedCallFrame__m_Datum]
+
+            mov     x9, sp
+            str     x9, [x10, #InlinedCallFrame__m_pCallSiteSP]
+            str     fp, [x10, #InlinedCallFrame__m_pCalleeSavedFP]
+            str     lr, [x10, #InlinedCallFrame__m_pCallerReturnAddress]
+
+            ;; x0 = GetThread(), TRASHES x9
+            INLINE_GETTHREAD x0, x9
+
+            ;; pFrame->m_Next = pThread->m_pFrame;
+            ldr     x9, [x0, #Thread_m_pFrame]
+            str     x9, [x10, #Frame__m_Next]
+
+            ;; pThread->m_pFrame = pFrame;
+            str     x10, [x0, #Thread_m_pFrame]
+
+            ;; pThread->m_fPreemptiveGCDisabled = 0
+            str     wzr, [x0, #Thread_m_fPreemptiveGCDisabled]
+
+            ret
+
+        LEAF_END
+
+; ------------------------------------------------------------------
+; JIT_PInvokeEnd helper
+;
+; in:
+; x0 = InlinedCallFrame*
+;
+        LEAF_ENTRY JIT_PInvokeEnd
+
+            add     x0, x0, SIZEOF__GSCookie
+
+            ;; x1 = GetThread(), TRASHES x2
+            INLINE_GETTHREAD x1, x2
+
+            ;; x0 = pFrame
+            ;; x1 = pThread
+
+            ;; pThread->m_fPreemptiveGCDisabled = 1
+            mov     x9, 1
+            str     w9, [x1, #Thread_m_fPreemptiveGCDisabled]
+
+            ;; Check return trap
+            ldr     x9, =g_TrapReturningThreads
+            ldr     x9, [x9]
+            cbnz    x9, RarePath
+
+            ;; pThread->m_pFrame = pFrame->m_Next
+            ldr     x9, [x0, #Frame__m_Next]
+            str     x9, [x1, #Thread_m_pFrame]
+
+            ret
+
+RarePath
+            b       JIT_PInvokeEndRarePath
+
+        LEAF_END
+
+        INLINE_GETTHREAD_CONSTANT_POOL
 
 ; ------------------------------------------------------------------
 ; VarargPInvokeStub & VarargPInvokeGenILStub
 ;
 ; in:
 ; x0 = VASigCookie*
-; x12 = MethodDesc *       
+; x12 = MethodDesc *
 ;
         PINVOKE_STUB VarargPInvoke, x0, x12, {false}
 
 
 ; ------------------------------------------------------------------
 ; GenericPInvokeCalliHelper & GenericPInvokeCalliGenILStub
-; Helper for generic pinvoke calli instruction 
+; Helper for generic pinvoke calli instruction
 ;
 ; in:
 ; x15 = VASigCookie*
@@ -130,5 +217,5 @@ __PInvokeStubWorkerName SETS "$FuncPrefix":CC:"StubWorker"
         PINVOKE_STUB GenericPInvokeCalli, x15, x12, {true}
 
 
-; Must be at very end of file 
+; Must be at very end of file
         END

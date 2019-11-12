@@ -83,7 +83,7 @@ Do not replicate the comments into your actual QCall implementation. This is for
 	class Foo
 	{
 	    // All QCalls should have the following DllImport attribute
-	    [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+	    [DllImport(RuntimeHelpers.QCall, CharSet = CharSet.Unicode)]
 	    // QCalls should always be static extern.
 	    private static extern bool Bar(int flags, string inString, StringHandleOnStack retString);
 
@@ -94,8 +94,8 @@ Do not replicate the comments into your actual QCall implementation. This is for
 	        string retString = null;
 
 	        // The strings are returned from QCalls by taking address
-	        // of a local variable using JitHelpers.GetStringHandle method
-	        if (!Bar(flags, this.Id, JitHelpers.GetStringHandle(ref retString)))
+	        // of a local variable using StringHandleOnStack
+	        if (!Bar(flags, this.Id, new StringHandleOnStack(ref retString)))
 	            FatalError();
 
 	        return retString;
@@ -121,7 +121,7 @@ The QCall entrypoint has to be registered in tables in [vm\ecalllist.h][ecalllis
 	BOOL QCALLTYPE FooNative::Bar(int flags, LPCWSTR wszString, QCall::StringHandleOnStack retString)
 	{
 	    // All QCalls should have QCALL_CONTRACT.
-	    // It is alias for THROWS; GC_TRIGGERS; MODE_PREEMPTIVE; SO_TOLERANT.
+	    // It is alias for THROWS; GC_TRIGGERS; MODE_PREEMPTIVE.
 	    QCALL_CONTRACT;
 
 	    // Optionally, use QCALL_CHECK instead and the expanded form of the contract

@@ -2,17 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-
-using System;
-using System.Security;
 using System.Reflection;
-using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Runtime.CompilerServices;
-using System.Runtime.Serialization;
-using System.StubHelpers;
-using System.Globalization;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
@@ -21,7 +11,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     //
     internal sealed class CustomPropertyImpl : ICustomProperty
     {
-        private PropertyInfo m_property;
+        private readonly PropertyInfo m_property;
 
         //
         // Constructor
@@ -38,40 +28,24 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // ICustomProperty interface implementation
         //
 
-        public string Name
-        {
-            get
-            {
-                return m_property.Name;
-            }
-        }
+        public string Name => m_property.Name;
 
-        public bool CanRead
-        {
-            get
-            {
-                // Return false if the getter is not public
-                return m_property.GetGetMethod() != null;
-            }
-        }
+        public bool CanRead =>
+            // Return false if the getter is not public
+            m_property.GetGetMethod() != null;
 
-        public bool CanWrite
-        {
-            get
-            {
-                // Return false if the setter is not public
-                return m_property.GetSetMethod() != null;
-            }
-        }
+        public bool CanWrite =>
+            // Return false if the setter is not public
+            m_property.GetSetMethod() != null;
 
-        public object GetValue(object target)
+        public object? GetValue(object target)
         {
             return InvokeInternal(target, null, true);
         }
 
         // Unlike normal .Net, Jupiter properties can have at most one indexer parameter. A null
         // indexValue here means that the property has an indexer argument and its value is null.
-        public object GetValue(object target, object indexValue)
+        public object? GetValue(object target, object indexValue)
         {
             return InvokeInternal(target, new object[] { indexValue }, true);
         }
@@ -88,35 +62,33 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             InvokeInternal(target, new object[] { indexValue, value }, false);
         }
 
-        private object InvokeInternal(object target, object[] args, bool getValue)
+        private object? InvokeInternal(object target, object[]? args, bool getValue)
         {
             // Forward to the right object if we are dealing with a proxy
-            IGetProxyTarget proxy = target as IGetProxyTarget;
-            if (proxy != null)
+            if (target is IGetProxyTarget proxy)
             {
                 target = proxy.GetTarget();
             }
 
-            // You can get PropertyInfo for properties with a private getter/public setter (or vice versa) 
-            // even if you pass BindingFlags.Public only. And in this case, passing binding flags to 
+            // You can get PropertyInfo for properties with a private getter/public setter (or vice versa)
+            // even if you pass BindingFlags.Public only. And in this case, passing binding flags to
             // GetValue/SetValue won't work as the default binder ignores those values
             // Use GetGetMethod/GetSetMethod instead
 
             // We get non-public accessors just so that we can throw the correct exception.
-            MethodInfo accessor = getValue ? m_property.GetGetMethod(true) : m_property.GetSetMethod(true);
+            MethodInfo? accessor = getValue ? m_property.GetGetMethod(true) : m_property.GetSetMethod(true);
 
             if (accessor == null)
                 throw new ArgumentException(getValue ? SR.Arg_GetMethNotFnd : SR.Arg_SetMethNotFnd);
 
             if (!accessor.IsPublic)
                 throw new MethodAccessException(
-                    string.Format(
-                        CultureInfo.CurrentCulture,
+                    SR.Format(
                         SR.Arg_MethodAccessException_WithMethodName,
-                        accessor.ToString(),
-                        accessor.DeclaringType.FullName));
+                        accessor,
+                        accessor.DeclaringType!.FullName));
 
-            RuntimeMethodInfo rtMethod = accessor as RuntimeMethodInfo;
+            RuntimeMethodInfo? rtMethod = accessor as RuntimeMethodInfo;
             if (rtMethod == null)
                 throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo);
 
@@ -125,12 +97,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             return rtMethod.Invoke(target, BindingFlags.Default, null, args, null);
         }
 
-        public Type Type
-        {
-            get
-            {
-                return m_property.PropertyType;
-            }
-        }
+        public Type Type => m_property.PropertyType;
     }
 }

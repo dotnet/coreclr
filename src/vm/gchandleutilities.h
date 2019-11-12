@@ -17,7 +17,7 @@ class GCHandleUtilities
 {
 public:
     // Retrieves the GC handle table.
-    static IGCHandleManager* GetGCHandleManager() 
+    static IGCHandleManager* GetGCHandleManager()
     {
         LIMITED_METHOD_CONTRACT;
 
@@ -30,7 +30,6 @@ private:
     GCHandleUtilities() = delete;
 };
 
-void ValidateObjectAndAppDomain(OBJECTREF objRef, ADIndex appDomainIndex);
 void ValidateHandleAssignment(OBJECTHANDLE handle, OBJECTREF objRef);
 void DiagHandleCreated(OBJECTHANDLE handle, OBJECTREF object);
 void DiagHandleDestroyed(OBJECTHANDLE handle);
@@ -41,11 +40,9 @@ inline OBJECTREF ObjectFromHandle(OBJECTHANDLE handle)
     _ASSERTE(handle);
 
 #if defined(_DEBUG_IMPL) && !defined(DACCESS_COMPILE)
-    // not allowed to dispatch virtually on a IGCHandleManager when compiling for DAC
-    DWORD context = (DWORD)GCHandleUtilities::GetGCHandleManager()->GetHandleContext(handle);
     OBJECTREF objRef = ObjectToOBJECTREF(*(Object**)handle);
 
-    ValidateObjectAndAppDomain(objRef, ADIndex(context));
+    VALIDATEOBJECTREF(objRef);
 #endif // defined(_DEBUG_IMPL) && !defined(DACCESS_COMPILE)
 
     // Wrap the raw OBJECTREF and return it
@@ -136,6 +133,18 @@ inline OBJECTHANDLE CreateSizedRefHandle(IGCHandleStore* store, OBJECTREF object
     }
 
     DiagHandleCreated(hnd, object);
+    return hnd;
+}
+
+inline OBJECTHANDLE CreateDependentHandle(IGCHandleStore* store, OBJECTREF primary, OBJECTREF secondary)
+{
+    OBJECTHANDLE hnd = store->CreateDependentHandle(OBJECTREFToObject(primary), OBJECTREFToObject(secondary));
+    if (!hnd)
+    {
+        COMPlusThrowOM();
+    }
+
+    DiagHandleCreated(hnd, primary);
     return hnd;
 }
 
@@ -255,7 +264,6 @@ inline void DestroyHandleCommon(OBJECTHANDLE handle, HandleType type)
         GC_NOTRIGGER;
         MODE_ANY;
         CAN_TAKE_LOCK;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -363,7 +371,6 @@ inline void DestroyWinRTWeakHandle(OBJECTHANDLE handle)
         GC_NOTRIGGER;
         MODE_ANY;
         CAN_TAKE_LOCK;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 

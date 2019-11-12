@@ -7,7 +7,7 @@ of RyuJit as well as adding inlining capabilities to LLILC.
 
 Inlining is a key optimization, directly reducing call overhead and
 indirectly exposing a wider scope for powerful intraprocedural
-optimizations. 
+optimizations.
 
 From an implementation standpoint, an inliner has the following aspects:
 
@@ -31,12 +31,12 @@ overhead. It is anticipated that this work will encompass Machinery,
 Ability, and Profitability.
 
 LLILC does no inlining today. Since we aspire to have LLILC be a
-high-performance .Net code generator, we need to enable inlining in
+high-performance .NET code generator, we need to enable inlining in
 LLILC. LLILC can likely leverage much of LLVM's built-in inlining
 Machinery and Ability, but will need new code for Legality and
 Profitability.
 
-We envision various scenarios for .Net Code generation that impact
+We envision various scenarios for .NET Code generation that impact
 inlining: a first-tier JIT compiler, a higher-tier JIT compiler, a
 fast AOT compiler, and an optimizing AOT compiler. Each scenario calls
 for inlining, but the tradeoffs are different. For a given scenario,
@@ -84,7 +84,7 @@ being compiled are represented as LLVM IR.
 ### Legality
 
 As mentioned above, the legality constraints are generally imposed by
-the CoreCLR runtime. 
+the CoreCLR runtime.
 
 These constraints are already captured in the RyuJit source
 code. However, we generally prefer to at least logically perform all
@@ -95,7 +95,7 @@ profitability or ability early outs may be helping TP by keeping
 RyuJit from doing a lot of exploratory work before ultimately
 rejecting an inline candidate.
 
-LLILC lacks legality checking, and this needs to be implemented. 
+LLILC lacks legality checking, and this needs to be implemented.
 
 ### Ability
 
@@ -130,7 +130,7 @@ sensible to the compiler writer.
 
 The inputs to the heuristic black box are various facts and estimates
 about an inline candidate, based on observations of the caller, callee,
-and call site (collectively, *features*). These features may be booleans, 
+and call site (collectively, *features*). These features may be booleans,
 enumerates (categories), integers, or floating-point values. For example:
 
 * (boolean) `CalleeIsLeaf`, `CallerSiteInTry`
@@ -214,16 +214,16 @@ xml or json markup):
 ```
   Inlining for 9811 Lookup
      [o] 22825 Lookup@Lattice
-        [o] 22827 ??0?$interior_ptr@PAVCell 
+        [o] 22827 ??0?$interior_ptr@PAVCell
         [x] 22826 Lookup@Lattice@@@Z (reason: SizeLimit)
      [o] 21728 ?get_CellList
 
 ```
 
 where `[o]` is a successful inline, `[x]` a failed inline, and
-indentation shows the inlining tree. For .Net compilation we'll need
+indentation shows the inlining tree. For .NET compilation we'll need
 some kind of persistent ID for methods, which may not be all that easy
-to come by. 
+to come by.
 
 This inline log can also be read back by the code generator to enable
 *inline replay* and force the inliner to perform a particular pattern

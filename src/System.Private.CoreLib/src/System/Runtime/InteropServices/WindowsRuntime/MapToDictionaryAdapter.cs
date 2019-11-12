@@ -2,15 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-
-using System;
-using System.Security;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Runtime.CompilerServices;
+using System.Diagnostics.CodeAnalysis;
 using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
@@ -31,29 +25,27 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // V this[K key] { get }
-        internal V Indexer_Get<K, V>(K key)
+        internal V Indexer_Get<K, V>(K key) where K : notnull
         {
             if (key == null)
                 throw new ArgumentNullException(nameof(key));
-
 
             IMap<K, V> _this = Unsafe.As<IMap<K, V>>(this);
             return Lookup(_this, key);
         }
 
         // V this[K key] { set }
-        internal void Indexer_Set<K, V>(K key, V value)
+        internal void Indexer_Set<K, V>(K key, V value) where K : notnull
         {
             if (key == null)
                 throw new ArgumentNullException(nameof(key));
-
 
             IMap<K, V> _this = Unsafe.As<IMap<K, V>>(this);
             Insert(_this, key, value);
         }
 
         // ICollection<K> Keys { get }
-        internal ICollection<K> Keys<K, V>()
+        internal ICollection<K> Keys<K, V>() where K : notnull
         {
             IMap<K, V> _this = Unsafe.As<IMap<K, V>>(this);
             IDictionary<K, V> dictionary = (IDictionary<K, V>)_this;
@@ -61,7 +53,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // ICollection<V> Values { get }
-        internal ICollection<V> Values<K, V>()
+        internal ICollection<V> Values<K, V>() where K : notnull
         {
             IMap<K, V> _this = Unsafe.As<IMap<K, V>>(this);
             IDictionary<K, V> dictionary = (IDictionary<K, V>)_this;
@@ -69,7 +61,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // bool ContainsKey(K key)
-        internal bool ContainsKey<K, V>(K key)
+        internal bool ContainsKey<K, V>(K key) where K : notnull
         {
             if (key == null)
                 throw new ArgumentNullException(nameof(key));
@@ -79,7 +71,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void Add(K key, V value)
-        internal void Add<K, V>(K key, V value)
+        internal void Add<K, V>(K key, V value) where K : notnull
         {
             if (key == null)
                 throw new ArgumentNullException(nameof(key));
@@ -87,13 +79,12 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             if (ContainsKey<K, V>(key))
                 throw new ArgumentException(SR.Argument_AddingDuplicate);
 
-
             IMap<K, V> _this = Unsafe.As<IMap<K, V>>(this);
             Insert(_this, key, value);
         }
 
         // bool Remove(TKey key)
-        internal bool Remove<K, V>(K key)
+        internal bool Remove<K, V>(K key) where K : notnull
         {
             if (key == null)
                 throw new ArgumentNullException(nameof(key));
@@ -109,7 +100,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             catch (Exception ex)
             {
-                if (HResults.E_BOUNDS == ex._HResult)
+                if (HResults.E_BOUNDS == ex.HResult)
                     return false;
 
                 throw;
@@ -117,7 +108,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // bool TryGetValue(TKey key, out TValue value)
-        internal bool TryGetValue<K, V>(K key, out V value)
+        internal bool TryGetValue<K, V>(K key, [MaybeNullWhen(false)] out V value) where K : notnull
         {
             if (key == null)
                 throw new ArgumentNullException(nameof(key));
@@ -125,7 +116,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             IMap<K, V> _this = Unsafe.As<IMap<K, V>>(this);
             if (!_this.HasKey(key))
             {
-                value = default;
+                value = default!;
                 return false;
             }
 
@@ -136,14 +127,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             catch (KeyNotFoundException)
             {
-                value = default;
+                value = default!;
                 return false;
             }
         }
 
         // Helpers:
 
-        private static V Lookup<K, V>(IMap<K, V> _this, K key)
+        private static V Lookup<K, V>(IMap<K, V> _this, K key) where K : notnull
         {
             Debug.Assert(null != key);
 
@@ -153,13 +144,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             catch (Exception ex)
             {
-                if (HResults.E_BOUNDS == ex._HResult)
+                if (HResults.E_BOUNDS == ex.HResult)
                     throw new KeyNotFoundException(SR.Arg_KeyNotFound);
                 throw;
             }
         }
 
-        private static bool Insert<K, V>(IMap<K, V> _this, K key, V value)
+        private static bool Insert<K, V>(IMap<K, V> _this, K key, V value) where K : notnull
         {
             Debug.Assert(null != key);
 

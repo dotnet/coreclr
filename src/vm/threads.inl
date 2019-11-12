@@ -4,8 +4,8 @@
 //
 
 
-// 
-// 
+//
+//
 /*============================================================
 **
 ** Header:  Threads.inl
@@ -23,11 +23,11 @@
 
 #ifndef DACCESS_COMPILE
 
-#ifndef __llvm__
+#ifndef __GNUC__
 EXTERN_C __declspec(thread) ThreadLocalInfo gCurrentThreadInfo;
-#else // !__llvm__
+#else // !__GNUC__
 EXTERN_C __thread ThreadLocalInfo gCurrentThreadInfo;
-#endif // !__llvm__
+#endif // !__GNUC__
 
 EXTERN_C inline Thread* STDCALL GetThread()
 {
@@ -36,7 +36,7 @@ EXTERN_C inline Thread* STDCALL GetThread()
 
 EXTERN_C inline AppDomain* STDCALL GetAppDomain()
 {
-    return gCurrentThreadInfo.m_pAppDomain;
+    return AppDomain::GetCurrentDomain();
 }
 
 #endif // !DACCESS_COMPILE
@@ -73,34 +73,8 @@ Frame* Thread::FindFrame(SIZE_T StackPointer)
 inline void Thread::SetThrowable(OBJECTREF pThrowable DEBUG_ARG(ThreadExceptionState::SetThrowableErrorChecking stecFlags))
 {
     WRAPPER_NO_CONTRACT;
-    
+
     m_ExceptionState.SetThrowable(pThrowable DEBUG_ARG(stecFlags));
-}
-
-inline void Thread::SetKickOffDomainId(ADID ad)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    m_pKickOffDomainId = ad;
-}
-
-
-inline ADID Thread::GetKickOffDomainId()
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    _ASSERTE(m_pKickOffDomainId.m_dwId != 0);
-    return m_pKickOffDomainId;
 }
 
 // get the current notification (if any) from this thread
@@ -108,7 +82,6 @@ inline OBJECTHANDLE Thread::GetThreadCurrNotification()
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
         SUPPORTS_DAC;
@@ -123,7 +96,6 @@ inline void Thread::SetThreadCurrNotification(OBJECTHANDLE handle)
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -137,7 +109,6 @@ inline void Thread::ClearThreadCurrNotification()
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -152,7 +123,6 @@ inline OBJECTREF Thread::GetExposedObjectRaw()
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
@@ -163,14 +133,7 @@ inline OBJECTREF Thread::GetExposedObjectRaw()
 inline void Thread::FinishSOWork()
 {
     WRAPPER_NO_CONTRACT;
-#ifdef FEATURE_STACK_PROBE
-    if (HasThreadStateNC(TSNC_SOWorkNeeded))
-    {
-        ResetThreadStateNC(TSNC_SOWorkNeeded);
-    }
-#else
     _ASSERTE(!HasThreadStateNC(TSNC_SOWorkNeeded));
-#endif
 }
 
 #ifdef FEATURE_COMINTEROP
@@ -219,5 +182,38 @@ inline void Thread::SetGCSpecial(bool fGCSpecial)
     LIMITED_METHOD_CONTRACT;
     m_fGCSpecial = fGCSpecial;
 }
+
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+
+inline Thread::CurrentPrepareCodeConfigHolder::CurrentPrepareCodeConfigHolder(Thread *thread, PrepareCodeConfig *config)
+    : m_thread(thread)
+#ifdef _DEBUG
+    , m_config(config)
+#endif
+{
+    LIMITED_METHOD_CONTRACT;
+    _ASSERTE(thread != nullptr);
+    _ASSERTE(thread == GetThread());
+    _ASSERTE(config != nullptr);
+
+    PrepareCodeConfig *previousConfig = thread->m_currentPrepareCodeConfig;
+    if (previousConfig != nullptr)
+    {
+        config->SetNextInSameThread(previousConfig);
+    }
+    thread->m_currentPrepareCodeConfig = config;
+}
+
+inline Thread::CurrentPrepareCodeConfigHolder::~CurrentPrepareCodeConfigHolder()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    PrepareCodeConfig *config = m_thread->m_currentPrepareCodeConfig;
+    _ASSERTE(config == m_config);
+    m_thread->m_currentPrepareCodeConfig = config->GetNextInSameThread();
+    config->SetNextInSameThread(nullptr);
+}
+
+#endif // !DACCESS_COMPILE && !CROSSGEN_COMPILE
 
 #endif

@@ -7,7 +7,7 @@
 
 //
 // Metadata zapping
-// 
+//
 // ======================================================================================
 
 #ifndef __ZAPMETADATA_H__
@@ -156,7 +156,7 @@ class ZapILMetaData : public ZapMetaData
             LIMITED_METHOD_CONTRACT;
             return k1 == k2;
         }
-        static count_t Hash(key_t k) 
+        static count_t Hash(key_t k)
         {
             LIMITED_METHOD_CONTRACT;
             return k;
@@ -206,13 +206,13 @@ private:
             LIMITED_METHOD_CONTRACT;
             return k1 == k2;
         }
-        static count_t Hash(key_t k) 
+        static count_t Hash(key_t k)
         {
             LIMITED_METHOD_CONTRACT;
-            return (count_t)k;
+            return (count_t)(SIZE_T)k;
         }
 
-        static const element_t Null() { LIMITED_METHOD_CONTRACT; return NULL; }
+        static element_t Null() { LIMITED_METHOD_CONTRACT; return NULL; }
         static bool IsNull(const element_t &e) { LIMITED_METHOD_CONTRACT; return e == NULL; }
     };
 

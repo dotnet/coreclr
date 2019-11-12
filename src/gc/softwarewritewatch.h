@@ -8,7 +8,7 @@
 #include "gcinterface.h"
 #include "gc.h"
 
-#define WRITE_WATCH_UNIT_SIZE 0x1000
+#define WRITE_WATCH_UNIT_SIZE ((size_t)0x1000)
 
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 #ifndef DACCESS_COMPILE
@@ -217,7 +217,7 @@ inline void SoftwareWriteWatch::DisableForGCHeap()
 
     VerifyCreated();
     assert(IsEnabledForGCHeap());
-    g_gc_sw_ww_enabled_for_gc_heap = false;     
+    g_gc_sw_ww_enabled_for_gc_heap = false;
 
     WriteBarrierParameters args = {};
     args.operation = WriteBarrierOp::SwitchToNonWriteWatch;

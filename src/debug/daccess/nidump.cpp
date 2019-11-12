@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 
-// 
+//
  /*vim: set foldmethod=marker: */
 #include <stdafx.h>
 
@@ -14,6 +14,7 @@
 
 #include <comcallablewrapper.h>
 #include <gcdump.h>
+#include <fieldmarshaler.h>
 
 #if !defined(FEATURE_CORESYSTEM)
 #include <algorithm>
@@ -62,55 +63,55 @@
  * copied from cor.h.  Modified to operate on PTR_PCCOR_SIGNATUREs
  */
 inline ULONG DacSigUncompressBigData(
-    PTR_CCOR_SIGNATURE &pData)             // [IN,OUT] compressed data 
+    PTR_CCOR_SIGNATURE &pData)             // [IN,OUT] compressed data
 {
     ULONG res;
 
-    // 1 byte data is handled in DacSigUncompressData   
-    //  _ASSERTE(*pData & 0x80);    
+    // 1 byte data is handled in DacSigUncompressData
+    //  _ASSERTE(*pData & 0x80);
 
-    // Medium.  
-    if ((*pData & 0xC0) == 0x80)  // 10?? ????  
-    {   
+    // Medium.
+    if ((*pData & 0xC0) == 0x80)  // 10?? ????
+    {
         res = (ULONG)((*pData++ & 0x3f) << 8);
         res |= *pData++;
-    }   
-    else // 110? ???? 
+    }
+    else // 110? ????
     {
         res = (*pData++ & 0x1f) << 24;
         res |= *pData++ << 16;
         res |= *pData++ << 8;
         res |= *pData++;
     }
-    return res; 
+    return res;
 }
 FORCEINLINE ULONG DacSigUncompressData(
-    PTR_CCOR_SIGNATURE &pData)             // [IN,OUT] compressed data 
+    PTR_CCOR_SIGNATURE &pData)             // [IN,OUT] compressed data
 {
-    // Handle smallest data inline. 
-    if ((*pData & 0x80) == 0x00)        // 0??? ????    
-        return *pData++;    
-    return DacSigUncompressBigData(pData);  
+    // Handle smallest data inline.
+    if ((*pData & 0x80) == 0x00)        // 0??? ????
+        return *pData++;
+    return DacSigUncompressBigData(pData);
 }
 //const static mdToken g_tkCorEncodeToken[4] ={mdtTypeDef, mdtTypeRef, mdtTypeSpec, mdtBaseType};
 
 // uncompress a token
-inline mdToken DacSigUncompressToken(   // return the token.    
-    PTR_CCOR_SIGNATURE &pData)             // [IN,OUT] compressed data 
+inline mdToken DacSigUncompressToken(   // return the token.
+    PTR_CCOR_SIGNATURE &pData)             // [IN,OUT] compressed data
 {
-    mdToken     tk; 
-    mdToken     tkType; 
+    mdToken     tk;
+    mdToken     tkType;
 
-    tk = DacSigUncompressData(pData);   
-    tkType = g_tkCorEncodeToken[tk & 0x3];  
-    tk = TokenFromRid(tk >> 2, tkType); 
-    return tk;  
+    tk = DacSigUncompressData(pData);
+    tkType = g_tkCorEncodeToken[tk & 0x3];
+    tk = TokenFromRid(tk >> 2, tkType);
+    return tk;
 }
 // uncompress encoded element type
 FORCEINLINE CorElementType DacSigUncompressElementType(//Element type
-    PTR_CCOR_SIGNATURE &pData)             // [IN,OUT] compressed data 
+    PTR_CCOR_SIGNATURE &pData)             // [IN,OUT] compressed data
 {
-    return (CorElementType)*pData++;    
+    return (CorElementType)*pData++;
 }
 
 
@@ -421,7 +422,7 @@ struct OptionDependencies
     CLRNativeImageDumpOptions m_dep;
 };
 
-static OptionDependencies g_dependencies[] = 
+static OptionDependencies g_dependencies[] =
 {
 #define OPT_DEP(value, dep) OptionDependencies(CLRNATIVEIMAGE_ ## value,\
                                                CLRNATIVEIMAGE_ ## dep)
@@ -444,16 +445,16 @@ static OptionDependencies g_dependencies[] =
 
 // Metadata helpers for DAC
 // This is mostly copied from mscoree.cpp which isn't available in mscordacwks.dll.
-// 
+//
 
 // This function gets the Dispenser interface given the CLSID and REFIID.
-STDAPI MetaDataGetDispenser(
+STDAPI DLLEXPORT MetaDataGetDispenser(
     REFCLSID     rclsid,    // The class to desired.
     REFIID       riid,      // Interface wanted on class factory.
     LPVOID FAR * ppv)       // Return interface pointer here.
 {
     _ASSERTE(rclsid == CLSID_CorMetaDataDispenser);
-    
+
     return InternalCreateMetaDataDispenser(riid, ppv);
 }
 
@@ -631,7 +632,7 @@ NativeImageDumper::DumpNativeImage()
 
     DisplayStartCategory( "File", PE_INFO );
     DisplayWriteElementStringW( "path", m_name, PE_INFO );
-    
+
     DisplayWriteElementInt( "diskSize", m_decoder.GetSize(), PE_INFO );
     _ASSERTE(sizeof(IMAGE_DOS_HEADER) < m_decoder.GetSize());
 
@@ -744,7 +745,7 @@ NativeImageDumper::DumpNativeImage()
 
     for ( COUNT_T i = 0; i < IMAGE_NUMBEROF_DIRECTORY_ENTRIES; i++)
     {
-        static const char *directoryNames[] = 
+        static const char *directoryNames[] =
         {
             /* 0*/"IMAGE_DIRECTORY_ENTRY_EXPORT",
             /* 1*/"IMAGE_DIRECTORY_ENTRY_IMPORT",
@@ -817,22 +818,22 @@ NativeImageDumper::DumpNativeImage()
         DisplayWriteFieldUInt( MinorRuntimeVersion, pCor->MinorRuntimeVersion, IMAGE_COR20_HEADER, COR_INFO );
 
         // Symbol table and startup information
-        WRITE_COR20_FIELD(MetaData); 
+        WRITE_COR20_FIELD(MetaData);
         DisplayWriteFieldEnumerated( Flags, pCor->Flags, IMAGE_COR20_HEADER, s_CorHdrFlags, W(", "), COR_INFO );
         DisplayWriteFieldUInt( EntryPointToken, pCor->EntryPointToken, IMAGE_COR20_HEADER, COR_INFO );
 
         // Binding information
-        WRITE_COR20_FIELD(Resources); 
-        WRITE_COR20_FIELD(StrongNameSignature); 
+        WRITE_COR20_FIELD(Resources);
+        WRITE_COR20_FIELD(StrongNameSignature);
 
         // Regular fixup and binding information
-        WRITE_COR20_FIELD(CodeManagerTable); 
+        WRITE_COR20_FIELD(CodeManagerTable);
         WRITE_COR20_FIELD(VTableFixups);
-        WRITE_COR20_FIELD(ExportAddressTableJumps);  
+        WRITE_COR20_FIELD(ExportAddressTableJumps);
 
         // Precompiled image info
-        WRITE_COR20_FIELD(ManagedNativeHeader);  
-        
+        WRITE_COR20_FIELD(ManagedNativeHeader);
+
         m_display->EndStructure(); //IMAGE_COR20_HEADER
 #undef WRITE_COR20_FIELD
     }
@@ -1012,7 +1013,7 @@ NativeImageDumper::DumpNativeImage()
             DisplayWriteElementAddressNamedW( "Resource", resourceName,
                                               DPtrToPreferredAddr(res),
                                               resSize + sizeof(DWORD),
-                                              RESOURCES );            
+                                              RESOURCES );
         }
         DisplayEndArray( "Total Resources", COR_INFO ); //Resources
         DisplayEndStructure( COR_INFO ); //resource
@@ -1079,7 +1080,7 @@ NativeImageDumper::DumpNativeImage()
             DisplayStartStructure("CORCOMPILE_DEPENDENCY", DPtrToPreferredAddr(deps + i),
                                   sizeof(deps[i]), COR_INFO );
             WriteFieldMDTokenImport( dwAssemblyRef, deps[i].dwAssemblyRef,
-                                     CORCOMPILE_DEPENDENCY, COR_INFO, 
+                                     CORCOMPILE_DEPENDENCY, COR_INFO,
                                      m_manifestImport );
             WriteFieldMDTokenImport( dwAssemblyDef, deps[i].dwAssemblyDef,
                                      CORCOMPILE_DEPENDENCY, COR_INFO,
@@ -1122,13 +1123,6 @@ NativeImageDumper::DumpNativeImage()
         DisplayEndArray( "Total Dependencies", COR_INFO );
         DisplayEndStructure(COR_INFO); //CORCOMPILE_VERSION_INFO
 
-        //Now load all dependencies and imports.  There may be more
-        //dependencies than imports, so make sure to get them all.
-        for( COUNT_T i = 0; i < m_decoder.GetNativeImportTableCount(); ++i )
-        {
-            NativeImageDumper::Import * import = OpenImport(i);
-            TraceDumpImport( i, import ); 
-        }
         NativeImageDumper::Dependency * traceDependency = OpenDependency(0);
         TraceDumpDependency( 0, traceDependency );
 
@@ -1155,7 +1149,7 @@ NativeImageDumper::DumpNativeImage()
                 break;
             }
         }
-        
+
         //If we're actually dumping mscorlib, remap the mscorlib dependency to our own native image.
         if( (mscorlib == NULL) || !wcscmp(m_name, CoreLibName_W))
         {
@@ -1192,7 +1186,7 @@ NativeImageDumper::DumpNativeImage()
 
         }
     }
-    
+
 
     // @todo: VTable Fixups
 
@@ -1251,7 +1245,7 @@ void NativeImageDumper::DumpNative()
 
     IF_OPT(NATIVE_TABLES)
         DumpHelperTable();
-    
+
     PTR_Module module = (TADDR)m_decoder.GetPersistedModuleImage();
 
     //this needs to run for precodes to load the tables that identify precode ranges
@@ -1266,16 +1260,6 @@ void NativeImageDumper::DumpNative()
         DumpTypes( module );
 }
 
-void NativeImageDumper::TraceDumpImport(int idx, NativeImageDumper::Import * import)
-{
-    IF_OPT(DEBUG_TRACE)
-    {
-        m_display->ErrorPrintF("Import: %d\n", idx);
-        m_display->ErrorPrintF("\tDependency: %p\n", import->dependency);
-        m_display->ErrorPrintF("\twAssemblyRid: %d\n", import->entry->wAssemblyRid);
-        m_display->ErrorPrintF("\twModuleRid %d\n", import->entry->wModuleRid);
-    }
-}
 void NativeImageDumper::TraceDumpDependency(int idx, NativeImageDumper::Dependency * dependency)
 {
     IF_OPT(DEBUG_TRACE)
@@ -1369,7 +1353,7 @@ void NativeImageDumper::WriteElementsMetadata( const char * elementName,
     //number of streams.
     PTR_STORAGEHEADER sHdr(data + sizeof(*root) + root->iVersionString);
     DisplayStartArray( "Pools", NULL, ALWAYS );
-    
+
     //now check the pools
 
     //start of stream headers
@@ -1387,7 +1371,7 @@ void NativeImageDumper::WriteElementsMetadata( const char * elementName,
         streamHeader = PTR_STORAGESTREAM(PTR_TO_TADDR(streamHeader)
                                          + ALIGN_UP(offsetof(STORAGESTREAM, rcName) + strlen(streamHeader->rcName) + 1, 4));
     }
-    
+
     DisplayEndArray( "Total Pools", ALWAYS ); //Pools
     DisplayEndStructure( ALWAYS ); //nativeMetadata
 }
@@ -1408,9 +1392,9 @@ void NativeImageDumper::OpenMetadata()
     IfFailThrow(pDispenser->SetOption(MetaDataCheckDuplicatesFor, &opt));
 
     data = PTR_READ(TO_TADDR(data), size);
-    IfFailThrow(pDispenser->OpenScopeOnMemory(data, size, ofRead, 
+    IfFailThrow(pDispenser->OpenScopeOnMemory(data, size, ofRead,
                                               IID_IMetaDataImport2, (IUnknown **) &m_import));
-    
+
     IfFailThrow(m_import->QueryInterface(IID_IMetaDataAssemblyImport,
                                           (void **)&m_assemblyImport));
 
@@ -1424,7 +1408,7 @@ void NativeImageDumper::OpenMetadata()
         DACCOP_IGNORE(CastBetweenAddressSpaces,"nidump is in-proc and doesn't maintain a clean separation of address spaces (target and host are the same.");
         data = reinterpret_cast<void*>(dac_cast<TADDR>(m_decoder.GetNativeManifestMetadata(&size)));
 
-        IfFailThrow(pDispenser->OpenScopeOnMemory(data, size, ofRead, 
+        IfFailThrow(pDispenser->OpenScopeOnMemory(data, size, ofRead,
                                                   IID_IMetaDataImport2, (IUnknown **) &m_manifestImport));
 
         IfFailThrow(m_manifestImport->QueryInterface(IID_IMetaDataAssemblyImport,
@@ -1753,7 +1737,7 @@ void NativeImageDumper::DumpFixupTables( PTR_Module module )
         TADDR pTableEnd = pTable + size;
 
         TADDR pDataTable(NULL);
-        
+
         if (pImportSection->Signatures != 0)
             pDataTable = m_decoder.GetRvaData(pImportSection->Signatures);
 
@@ -1942,21 +1926,12 @@ void NativeImageDumper::FixupBlobToString(RVA rva, SString& buf)
 
         // print assembly/module info
 
-        PTR_CORCOMPILE_IMPORT_TABLE_ENTRY entry = import->entry;
-        if (entry->wAssemblyRid != 0)
-        {
-            mdToken realRef =
-                MapAssemblyRefToManifest(TokenFromRid(entry->wAssemblyRid,
-                                                      mdtAssemblyRef),
-                                         m_assemblyImport);
-            AppendToken(realRef, buf, m_manifestImport);
-            buf.Append( W(" ") );
-        }
-        if (entry->wModuleRid != 0)
-        {
-            AppendToken(TokenFromRid(entry->wModuleRid, mdtFile), buf, pImport);
-            buf.Append( W(" ") );
-        }
+        mdToken realRef =
+            MapAssemblyRefToManifest(TokenFromRid(import->index,
+                                                    mdtAssemblyRef),
+                                        m_assemblyImport);
+        AppendToken(realRef, buf, m_manifestImport);
+        buf.Append( W(" ") );
     }
 
     // print further info
@@ -2001,7 +1976,7 @@ void NativeImageDumper::FixupBlobToString(RVA rva, SString& buf)
             {
                 buf.Append( W("<unresolved method signature>") );
                 break;
-            }   
+            }
 
             //If we have SlotInsteadOfToken set then this is a slot number (i.e. for an array)
             if( methodFlags & ENCODE_METHOD_SIG_SlotInsteadOfToken )
@@ -2012,7 +1987,7 @@ void NativeImageDumper::FixupBlobToString(RVA rva, SString& buf)
             {
                 // decode the methodToken (a rid is encoded)
                 RID rid = DacSigUncompressData(sig);
-               
+
                 mdMethodDef methodToken = ((methodFlags & ENCODE_METHOD_SIG_MemberRefToken) ? mdtMemberRef : mdtMethodDef) | rid;
 
                 buf.Append( W(" ") );
@@ -2112,7 +2087,7 @@ void NativeImageDumper::FixupBlobToString(RVA rva, SString& buf)
             {
                 // decode the methodToken (a rid is encoded)
                 RID rid = DacSigUncompressData(sig);
-               
+
                 mdMethodDef fieldToken = ((fieldFlags & ENCODE_FIELD_SIG_MemberRefToken) ? mdtMemberRef : mdtFieldDef) | rid;
 
                 buf.Append( W(" ") );
@@ -2220,6 +2195,10 @@ DataToTokenCore:
         buf.Append( W("Indirect P/Invoke target for ") );
         break;
 
+    case ENCODE_PINVOKE_TARGET:
+        buf.Append( W("P/Invoke target for ") );
+        break;
+
     case ENCODE_PROFILING_HANDLE:
         buf.Append( W("Profiling handle for ") );
         goto EncodeMethod;
@@ -2231,21 +2210,12 @@ DataToTokenCore:
             int targetModuleIndex = DacSigUncompressData(sig);
             Import *targetImport = OpenImport(targetModuleIndex);
 
-            CORCOMPILE_IMPORT_TABLE_ENTRY *entry = targetImport->entry;
-            if (entry->wAssemblyRid != 0)
-            {
-                mdToken realRef =
-                    MapAssemblyRefToManifest(TokenFromRid(entry->wAssemblyRid,
-                                                          mdtAssemblyRef),
-                                             m_assemblyImport);
-                AppendToken(realRef, buf, m_manifestImport);
-                buf.Append( W(" ") );
-            }
-            if (entry->wModuleRid != 0)
-            {
-                AppendToken(TokenFromRid(entry->wModuleRid, mdtFile), buf,
-                            targetImport->dependency->pImport);
-            }
+            mdToken realRef =
+                MapAssemblyRefToManifest(TokenFromRid(targetImport->index,
+                                                        mdtAssemblyRef),
+                                            m_assemblyImport);
+            AppendToken(realRef, buf, m_manifestImport);
+            buf.Append( W(" ") );
         }
         break;
 
@@ -2275,7 +2245,7 @@ void NativeImageDumper::WriteElementsFixupTargetAndName(RVA rva)
 
     m_display->WriteElementStringW( "FixupTargetName", (const WCHAR*)buf );
 }
- 
+
 NativeImageDumper::Dependency * NativeImageDumper::GetDependency(mdAssemblyRef token, IMetaDataAssemblyImport *pImport)
 {
     if (RidFromToken(token) == 0)
@@ -2373,7 +2343,7 @@ mdAssemblyRef NativeImageDumper::MapAssemblyRefToManifest(mdAssemblyRef token, I
     ULONG cbHashValue;
 
 
-    IfFailThrow(pAssemblyImport->GetAssemblyRefProps(token, &pbPublicKey, &cbPublicKey, 
+    IfFailThrow(pAssemblyImport->GetAssemblyRefProps(token, &pbPublicKey, &cbPublicKey,
                                                      szAssemblyName, cchName, NULL,
                                                      &metadata, &pbHashValue, &cbHashValue,
                                                      &flags));
@@ -2388,7 +2358,7 @@ mdAssemblyRef NativeImageDumper::MapAssemblyRefToManifest(mdAssemblyRef token, I
         //we need "self".
         return mdAssemblyNil;
     }
-    
+
     mdAssemblyRef ret = mdAssemblyRefNil;
     /*HCORENUM*/ iter = NULL;
     for(;;)
@@ -2464,23 +2434,23 @@ NativeImageDumper::Import * NativeImageDumper::OpenImport(int i)
 {
     if (m_imports == NULL)
     {
-        COUNT_T count = m_decoder.GetNativeImportTableCount();
+        COUNT_T count;
+        m_decoder.GetNativeDependencies(&count);
         m_numImports = count;
         m_imports = new Import [count];
         ZeroMemory(m_imports, count * sizeof(m_imports[0]));
     }
 
-    if (m_imports[i].entry == NULL)
+    if (m_imports[i].index == 0)
     {
         //GetNativeImportFromIndex returns a host pointer.
-        CORCOMPILE_IMPORT_TABLE_ENTRY * entry = m_decoder.GetNativeImportFromIndex(i);
-        m_imports[i].entry = (PTR_CORCOMPILE_IMPORT_TABLE_ENTRY)(TADDR)entry;
+        m_imports[i].index = i;
 
         /*
-        mdToken tok = TokenFromRid(entry->wAssemblyRid, mdtAssemblyRef);
-        Dependency * dependency = GetDependency( MapAssemblyRefToManifest(tok, 
+        mdToken tok = TokenFromRid(entry->index, mdtAssemblyRef);
+        Dependency * dependency = GetDependency( MapAssemblyRefToManifest(tok,
         */
-        Dependency *dependency = GetDependency(TokenFromRid(entry->wAssemblyRid, mdtAssemblyRef));
+        Dependency *dependency = GetDependency(TokenFromRid(i, mdtAssemblyRef));
         m_imports[i].dependency = dependency;
         _ASSERTE(dependency); //Why can this be null?
 
@@ -2497,7 +2467,7 @@ const NativeImageDumper::Dependency *NativeImageDumper::GetDependencyForFixup(RV
     {
         unsigned idx = DacSigUncompressData(sig);
 
-        _ASSERTE(idx >= 0 && idx < (int)m_decoder.GetNativeImportTableCount());
+        _ASSERTE(idx >= 0 && idx < m_numImports);
         return OpenImport(idx)->dependency;
     }
 
@@ -2691,7 +2661,7 @@ NativeImageDumper::Dependency *NativeImageDumper::OpenDependency(int index)
             {
                 dependency.pPreferredBase =
                     TO_TADDR(decoder.GetNativePreferredBase());
-                dependency.size = decoder.Has32BitNTHeaders() ? 
+                dependency.size = decoder.Has32BitNTHeaders() ?
                     decoder.GetNTHeaders32()->OptionalHeader.SizeOfImage :
                     decoder.GetNTHeaders64()->OptionalHeader.SizeOfImage;
             }
@@ -2733,7 +2703,7 @@ NativeImageDumper::Dependency *NativeImageDumper::OpenDependency(int index)
             data = PTR_READ(TO_TADDR(data), size);
             dependency.pMetadataStartHost = TO_TADDR(data);
             IfFailThrow(pDispenser->OpenScopeOnMemory(data, size,
-                                                      ofRead, 
+                                                      ofRead,
                                                       IID_IMetaDataImport2,
                                                       (IUnknown **) &dependency.pImport));
             dependency.fIsMscorlib = isMscorlib;
@@ -2766,10 +2736,10 @@ void NativeImageDumper::TypeToString(PTR_CCOR_SIGNATURE &sig,
 #endif
 
 IMetaDataImport2 * NativeImageDumper::TypeToString(PTR_CCOR_SIGNATURE &sig,
-                                                   SString& buf, 
+                                                   SString& buf,
                                                    IMetaDataImport2 *pImport,
                                                    IMetaDataImport2 *pOrigImport /* =NULL */)
-                                                   
+
 {
     IF_OPT(DISABLE_NAMES)
     {
@@ -2835,9 +2805,9 @@ IMetaDataImport2 * NativeImageDumper::TypeToString(PTR_CCOR_SIGNATURE &sig,
             mdToken token = DacSigUncompressToken(sig);
             AppendTokenName(token, buf, pImport);
         }
-        break;  
+        break;
 
-    case ELEMENT_TYPE_SZARRAY:   
+    case ELEMENT_TYPE_SZARRAY:
         TypeToString(sig, buf, pImport);
         buf.Append( W("[]") );
         break;
@@ -2848,45 +2818,40 @@ IMetaDataImport2 * NativeImageDumper::TypeToString(PTR_CCOR_SIGNATURE &sig,
             unsigned rank = DacSigUncompressData(sig);
             if (rank == 0)
                 buf.Append( W("[??]") );
-            else 
+            else
             {
                 size_t cbLowerBounds;
                 if (!ClrSafeInt<size_t>::multiply(rank, 2*sizeof(int), cbLowerBounds/* passed by ref */))
                     ThrowHR(COR_E_OVERFLOW);
                 int* lowerBounds = (int*) _alloca(cbLowerBounds);
-                int* sizes       = &lowerBounds[rank];  
-                memset(lowerBounds, 0, sizeof(int)*2*rank); 
-                
+                int* sizes       = &lowerBounds[rank];
+                memset(lowerBounds, 0, sizeof(int)*2*rank);
+
                 unsigned numSizes = DacSigUncompressData(sig);
                 _ASSERTE(numSizes <= rank);
                 unsigned int i;
                 for(i =0; i < numSizes; i++)
-                    sizes[i] = DacSigUncompressData(sig);   
-                
-                unsigned numLowBounds = DacSigUncompressData(sig);  
-                _ASSERTE(numLowBounds <= rank); 
-                for(i = 0; i < numLowBounds; i++)   
-                    lowerBounds[i] = DacSigUncompressData(sig); 
-                
+                    sizes[i] = DacSigUncompressData(sig);
+
+                unsigned numLowBounds = DacSigUncompressData(sig);
+                _ASSERTE(numLowBounds <= rank);
+                for(i = 0; i < numLowBounds; i++)
+                    lowerBounds[i] = DacSigUncompressData(sig);
+
                 buf.Append(W("["));
-                for(i = 0; i < rank; i++)   
-                {   
-                    if (sizes[i] != 0 && lowerBounds[i] != 0)   
-                    {   
-                        if (lowerBounds[i] == 0)    
-                            buf.AppendPrintf( W("%s"), sizes[i] );
-                        else    
-                        {   
-                            buf.AppendPrintf( W("%d ..."), lowerBounds[i] );
-                            if (sizes[i] != 0)  
-                                buf.AppendPrintf( W("%d"),
-                                                  lowerBounds[i] + sizes[i]
-                                                  + 1 );
-                        }   
-                    }   
-                    if (i < rank-1) 
+                for(i = 0; i < rank; i++)
+                {
+                    if (sizes[i] != 0 && lowerBounds[i] != 0)
+                    {
+                        buf.AppendPrintf( W("%d ..."), lowerBounds[i] );
+                        if (sizes[i] != 0)
+                            buf.AppendPrintf( W("%d"),
+                                              lowerBounds[i] + sizes[i]
+                                              + 1 );
+                    }
+                    if (i < rank-1)
                         buf.Append( W(",") );
-                }   
+                }
                 buf.Append( W("]") );
             }
         }
@@ -2895,7 +2860,7 @@ IMetaDataImport2 * NativeImageDumper::TypeToString(PTR_CCOR_SIGNATURE &sig,
     case ELEMENT_TYPE_MVAR:
         buf.Append( W("!") );
         // fall through
-    case ELEMENT_TYPE_VAR:   
+    case ELEMENT_TYPE_VAR:
         buf.AppendPrintf( W("!%d"), DacSigUncompressData(sig));
         break;
 
@@ -2915,7 +2880,7 @@ IMetaDataImport2 * NativeImageDumper::TypeToString(PTR_CCOR_SIGNATURE &sig,
             buf.Append( W("<") );
             for (unsigned i = 0; i < ntypars; i++)
             {
-                if (i > 0) 
+                if (i > 0)
                     buf.Append( W(",") );
                 // switch pImport back to our original Metadata importer
                 TypeToString(sig, buf, pOrigImport, pOrigImport);
@@ -2923,12 +2888,12 @@ IMetaDataImport2 * NativeImageDumper::TypeToString(PTR_CCOR_SIGNATURE &sig,
             buf.Append( W(">") );
         }
         break;
-               
+
     case ELEMENT_TYPE_FNPTR:
         buf.Append( W("(fnptr)") );
         break;
-    
-        // Modifiers or depedant types  
+
+        // Modifiers or depedant types
     case ELEMENT_TYPE_PINNED:
         TypeToString(sig, buf, pImport, pOrigImport);
         buf.Append( W(" pinned") );
@@ -2947,10 +2912,10 @@ IMetaDataImport2 * NativeImageDumper::TypeToString(PTR_CCOR_SIGNATURE &sig,
     case ELEMENT_TYPE_SENTINEL:
     case ELEMENT_TYPE_END:
     default:
-        _ASSERTE(!"Unknown Type");  
+        _ASSERTE(!"Unknown Type");
         IfFailThrow(E_FAIL);
-        break;  
-    }   
+        break;
+    }
     return pRet;
 }
 
@@ -3026,7 +2991,7 @@ void NativeImageDumper::DumpMethods(PTR_Module module)
 #ifdef USE_CORCOMPILE_HEADER
     CoverageRead( hotCodeTable, hotCodeTableSize );
     CoverageRead( coldCodeTable, coldCodeTableSize );
-#endif 
+#endif
 
     DisplayEndCategory( METHODS ); //Code
 
@@ -3060,9 +3025,9 @@ void NativeImageDumper::DumpCompleteMethod(PTR_Module module, MethodIterator& mi
 {
     PTR_MethodDesc md = mi.GetMethodDesc();
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     PTR_RUNTIME_FUNCTION pRuntimeFunction = mi.GetRuntimeFunction();
-#endif 
+#endif
 
     //Read the GCInfo to get the total method size.
     unsigned methodSize = 0;
@@ -3147,7 +3112,7 @@ void NativeImageDumper::DumpCompleteMethod(PTR_Module module, MethodIterator& mi
                             DPtrToPreferredAddr(md),
                             METHODS);
 
-    DisplayStartStructure( "m_gcInfo", 
+    DisplayStartStructure( "m_gcInfo",
                            DPtrToPreferredAddr(gcInfo),
                            gcInfoSize,
                            METHODS );
@@ -3241,7 +3206,7 @@ void NativeImageDumper::DumpCompleteMethod(PTR_Module module, MethodIterator& mi
                      (ULONG32)ALIGN_UP(hotCodeSize, CODE_SIZE_ALIGN));
     }
 
-    DisplayEndStructure(METHODS); //HotCode 
+    DisplayEndStructure(METHODS); //HotCode
 
     if( coldCodePtr != NULL )
     {
@@ -3386,7 +3351,7 @@ SIZE_T NativeImageDumper::TranslateFixupCallback(IXCLRDisassemblySupport *dis,
     case sizeof(void*):
         targetOffset = *PTR_SIZE_T(taddr);
         break;
-#ifdef _WIN64
+#ifdef BIT64
     case sizeof(INT32):
         targetOffset = *PTR_INT32(taddr);
         break;
@@ -3429,7 +3394,7 @@ size_t NativeImageDumper::TranslateSymbol(IXCLRDisassemblySupport *dis,
         COUNT_T helperTableSize;
         void *helperTable = m_decoder.GetNativeHelperTable(&helperTableSize);
 
-        if (rva >= m_decoder.GetDataRva(TO_TADDR(helperTable)) 
+        if (rva >= m_decoder.GetDataRva(TO_TADDR(helperTable))
             && rva < (m_decoder.GetDataRva(TO_TADDR(helperTable))
                       +helperTableSize))
         {
@@ -3454,7 +3419,7 @@ size_t NativeImageDumper::TranslateSymbol(IXCLRDisassemblySupport *dis,
                 int MethodIndex = NativeUnwindInfoLookupTable::LookupUnwindInfoForMethod(rva, pNgenLayout->m_pRuntimeFunctions[iRange], 0, pNgenLayout->m_nRuntimeFunctions[iRange] - 1);
                 if (MethodIndex >= 0)
                 {
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
                     while (pNgenLayout->m_MethodDescs[iRange][MethodIndex] == 0)
                         MethodIndex--;
 #endif
@@ -3480,7 +3445,7 @@ size_t NativeImageDumper::TranslateSymbol(IXCLRDisassemblySupport *dis,
 
                 PTR_CORCOMPILE_COLD_METHOD_ENTRY pColdCodeMap = pNgenLayout->m_ColdCodeMap;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
                 while (pColdCodeMap[ColdMethodIndex].mainFunctionEntryRVA == 0)
                     ColdMethodIndex--;
 
@@ -3519,10 +3484,6 @@ size_t NativeImageDumper::TranslateSymbol(IXCLRDisassemblySupport *dis,
                 case PRECODE_NDIRECT_IMPORT:
                     precodeName = "NDirectImportPrecode"; break;
 #endif // HAS_NDIRECT_IMPORT_PRECODE
-#ifdef HAS_REMOTING_PRECODE
-                case PRECODE_REMOTING:
-                    precodeName = "RemotingPrecode"; break;
-#endif // HAS_REMOTING_PRECODE
 #ifdef HAS_FIXUP_PRECODE
                 case PRECODE_FIXUP:
                     precodeName = "FixupPrecode"; break;
@@ -3532,7 +3493,7 @@ size_t NativeImageDumper::TranslateSymbol(IXCLRDisassemblySupport *dis,
                     precodeName = "ThisPtrRetBufPrecode"; break;
 #endif // HAS_THISPTR_RETBUF_PRECODE
                 }
-                
+
                 if( precodeName )
                 {
                     //hot or cold?
@@ -3664,7 +3625,7 @@ IMAGE_SECTION_HEADER * NativeImageDumper::FindSection( char const * name )
     if ( ! numberOfSections )
         return NULL;
 
-    return curSection;    
+    return curSection;
 }
 
 NativeImageDumper::EnumMnemonics NativeImageDumper::s_ModulePersistedFlags[] =
@@ -3686,15 +3647,14 @@ NativeImageDumper::EnumMnemonics NativeImageDumper::s_ModulePersistedFlags[] =
     MPF_ENTRY(DEFAULT_DLL_IMPORT_SEARCH_PATHS_IS_CACHED),
     MPF_ENTRY(DEFAULT_DLL_IMPORT_SEARCH_PATHS_STATUS),
 
-    MPF_ENTRY(NEUTRAL_RESOURCES_LANGUAGE_IS_CACHED),
     MPF_ENTRY(COMPUTED_METHODDEF_TO_PROPERTYINFO_MAP),
-    MPF_ENTRY(LOW_LEVEL_SYSTEM_ASSEMBLY_BY_NAME),    
+    MPF_ENTRY(LOW_LEVEL_SYSTEM_ASSEMBLY_BY_NAME),
 #undef MPF_ENTRY
 };
 
 //VirtualSectionTypes.
 #define TEXTIFY(x) W(#x)
-static const NativeImageDumper::EnumMnemonics s_virtualSectionFlags [] = 
+static const NativeImageDumper::EnumMnemonics s_virtualSectionFlags [] =
 {
 
 #define CORCOMPILE_SECTION_IBCTYPE(ibcType, _value) NativeImageDumper::EnumMnemonics(_value, TEXTIFY(ibcType)),
@@ -3705,7 +3665,7 @@ static const NativeImageDumper::EnumMnemonics s_virtualSectionFlags [] =
     CORCOMPILE_SECTION_RANGE_TYPES()
 #undef CORCOMPILE_SECTION_RANGE_TYPE
 };
-const WCHAR * g_sectionNames[] = 
+const WCHAR * g_sectionNames[] =
 {
     W("SECTION_DUMMY"), // the first section start at 0x1. Make the array 1 based.
 #define CORCOMPILE_SECTION_TYPE(section) W("SECTION_") TEXTIFY(section),
@@ -3732,7 +3692,7 @@ void NativeImageDumper::DumpModule( PTR_Module module )
     DisplayStartStructure( "module", DPtrToPreferredAddr(module),
                            sizeof(*module), MODULE );
     PTR_PEFile file = module->m_file;
-    _ASSERTE(file == NULL); 
+    _ASSERTE(file == NULL);
     DisplayWriteFieldPointer( m_file, DPtrToPreferredAddr(file), Module,
                               MODULE );
 
@@ -3743,7 +3703,7 @@ void NativeImageDumper::DumpModule( PTR_Module module )
     _ASSERTE(module->m_dwTransientFlags == 0U);
     DisplayWriteFieldUInt(m_dwTransientFlags, module->m_dwTransientFlags,
                           Module, MODULE );
-                           
+
 
 
     DisplayWriteFieldEnumerated( m_dwPersistedFlags, module->m_dwPersistedFlags,
@@ -3809,7 +3769,6 @@ void NativeImageDumper::DumpModule( PTR_Module module )
     {
         DisplayWriteFieldPointer( m_pBinder, NULL, Module, MODULE );
     }
-    _ASSERTE(module->m_activeDependencies.GetCount() == 0);
 
 
     /* REVISIT_TODO Tue 10/25/2005
@@ -3823,13 +3782,13 @@ void NativeImageDumper::DumpModule( PTR_Module module )
                              + offsetof(Module, m_TypeDefToMethodTableMap) );
     TraverseMap( lookupMap, "m_TypeDefToMethodTableMap",
                  offsetof(Module, m_TypeDefToMethodTableMap),
-                 fieldsize(Module, m_TypeDefToMethodTableMap), 
+                 fieldsize(Module, m_TypeDefToMethodTableMap),
                  &NativeImageDumper::IterateTypeDefToMTCallback );
 
     lookupMap = PTR_LookupMapBase( PTR_TO_TADDR(module)
                                + offsetof(Module, m_TypeRefToMethodTableMap) );
 
-    TraverseMap( lookupMap, "m_TypeRefToMethodTableMap", 
+    TraverseMap( lookupMap, "m_TypeRefToMethodTableMap",
                  offsetof(Module, m_TypeRefToMethodTableMap),
                  fieldsize(Module, m_TypeRefToMethodTableMap),
                  &NativeImageDumper::IterateTypeRefToMTCallback );
@@ -3848,7 +3807,7 @@ void NativeImageDumper::DumpModule( PTR_Module module )
                  fieldsize(Module, m_FieldDefToDescMap),
                  &NativeImageDumper::IterateFieldDefToFDCallback);
 
-    TraverseMemberRefToDescHash(module->m_pMemberRefToDescHashTable, "m_pMemberRefToDescHashTable", 
+    TraverseMemberRefToDescHash(module->m_pMemberRefToDescHashTable, "m_pMemberRefToDescHashTable",
                                 offsetof(Module, m_pMemberRefToDescHashTable),
                                 fieldsize(Module, m_pMemberRefToDescHashTable),
                                 FALSE);
@@ -3890,7 +3849,7 @@ void NativeImageDumper::DumpModule( PTR_Module module )
 
     TraverseTypeHash( module->m_pAvailableParamTypes, "m_pAvailableParamTypes",
                       offsetof(Module, m_pAvailableParamTypes),
-                      fieldsize(Module, m_pAvailableParamTypes) ); 
+                      fieldsize(Module, m_pAvailableParamTypes) );
     TraverseInstMethodHash( module->m_pInstMethodHashTable,
                             "m_pInstMethodHashTable",
                             offsetof(Module, m_pInstMethodHashTable),
@@ -3912,7 +3871,7 @@ void NativeImageDumper::DumpModule( PTR_Module module )
     }
 
 #ifdef FEATURE_COMINTEROP
-    TraverseGuidToMethodTableHash( module->m_pGuidToTypeHash, 
+    TraverseGuidToMethodTableHash( module->m_pGuidToTypeHash,
                             "m_pGuidToTypeHash",
                             offsetof(Module, m_pGuidToTypeHash),
                             fieldsize(Module, m_pGuidToTypeHash),
@@ -3937,7 +3896,7 @@ void NativeImageDumper::DumpModule( PTR_Module module )
                                                        m_ModuleCtorInfo) );
 
     DisplayStartStructureWithOffset( m_ModuleCtorInfo,
-                                     DPtrToPreferredAddr(ctorInfo), 
+                                     DPtrToPreferredAddr(ctorInfo),
                                      sizeof(*ctorInfo),
                                      Module, SLIM_MODULE_TBLS );
     DisplayWriteFieldInt( numElements, ctorInfo->numElements, ModuleCtorInfo,
@@ -4056,7 +4015,7 @@ void NativeImageDumper::DumpModule( PTR_Module module )
      * dependencies.
      * As well as the thunks.
      */
-    
+
     /* REVISIT_TODO Wed 09/21/2005
      * Dump the following
      */
@@ -4165,7 +4124,7 @@ void NativeImageDumper::IterateTypeRefToMTCallback( TADDR mtTarget,
     else
     {
         TempBuffer buf;
-        MethodTableToString( mt, buf ); 
+        MethodTableToString( mt, buf );
         DisplayWriteElementFlag( "fake", false, MODULE_TABLES );
         DisplayWriteElementStringW( "Name", (const WCHAR*)buf, MODULE_TABLES );
     }
@@ -4269,7 +4228,7 @@ void NativeImageDumper::IterateMemberRefToDescCallback( TADDR mrTarget,
     else if( CORCOMPILE_IS_POINTER_TAGGED(mrTarget) )
     {
         WriteElementsFixupBlob( NULL, mrTarget );
-    }    
+    }
     else if( isFieldRef )
     {
         FieldDescToString( PTR_FieldDesc(mrTarget), buf );
@@ -4352,7 +4311,7 @@ void NativeImageDumper::IterateFileReferencesCallback(TADDR moduleTarget,
 
 void NativeImageDumper::IterateManifestModules( TADDR moduleTarget,
                                                TADDR flags,
-                                               PTR_LookupMapBase map, 
+                                               PTR_LookupMapBase map,
                                                DWORD rid )
 {
     DisplayStartElement( "Entry", MODULE_TABLES );
@@ -4415,7 +4374,7 @@ void NativeImageDumper::TraverseMap(PTR_LookupMapBase map, const char * name,
         _ASSERTE(current == map || current->hotItemList == NULL);
         current = current->pNext;
     }while( current != NULL );
-    
+
     DisplayEndArray( "Total Tables", MODULE ); //Tables
 
     DisplayWriteFieldAddress( hotItemList,
@@ -4434,7 +4393,7 @@ void NativeImageDumper::TraverseMap(PTR_LookupMapBase map, const char * name,
             TADDR flags = 0;
             TADDR element = iter.GetElementAndFlags(&flags);
             (this->*cb)( element, flags, map, rid );
-            rid++;                         
+            rid++;
         }
 
     }
@@ -4656,7 +4615,7 @@ void NativeImageDumper::TraverseGuidToMethodTableEntry(void *pContext, PTR_GuidT
     }
 
     WriteFieldMethodTable(m_pMT, pEntry->m_pMT, GuidToMethodTableEntry, ALWAYS);
-    
+
     TempBuffer buf;
     GuidToString( *(pEntry->m_Guid), buf );
     DisplayWriteFieldStringW( m_Guid, (const WCHAR *)buf, GuidToMethodTableEntry, ALWAYS );
@@ -4664,7 +4623,7 @@ void NativeImageDumper::TraverseGuidToMethodTableEntry(void *pContext, PTR_GuidT
     DisplayEndStructure( SLIM_MODULE_TBLS );
 }
 
-void NativeImageDumper::TraverseGuidToMethodTableHash(PTR_GuidToMethodTableHashTable pTable, 
+void NativeImageDumper::TraverseGuidToMethodTableHash(PTR_GuidToMethodTableHashTable pTable,
                         const char * name,
                         unsigned offset,
                         unsigned fieldSize,
@@ -4694,11 +4653,11 @@ void NativeImageDumper::TraverseMemberRefToDescHashEntry(void *pContext, PTR_Mem
         WriteFieldFieldDesc(m_value, dac_cast<PTR_FieldDesc>(pEntry->m_value & (~MEMBER_REF_MAP_ALL_FLAGS)), MemberRefToDescHashEntry, MODULE_TABLES);
     else
         WriteFieldMethodDesc(m_value, dac_cast<PTR_MethodDesc>(pEntry->m_value), MemberRefToDescHashEntry, MODULE_TABLES);
-    
+
     DisplayEndStructure( SLIM_MODULE_TBLS );
 }
 
-void NativeImageDumper::TraverseMemberRefToDescHash(PTR_MemberRefToDescHashTable pTable, 
+void NativeImageDumper::TraverseMemberRefToDescHash(PTR_MemberRefToDescHashTable pTable,
                         const char * name,
                         unsigned offset,
                         unsigned fieldSize,
@@ -4728,7 +4687,7 @@ void NativeImageDumper::TraverseTypeHashEntry(void *pContext, PTR_EETypeHashEntr
                                fieldsize(EETypeHashEntry, m_data),
                                th);
     }
-            
+
     if (!CORCOMPILE_IS_POINTER_TAGGED(th.AsTAddr()) && th.IsTypeDesc())
     {
         PTR_TypeDesc td(th.AsTypeDesc());
@@ -5010,7 +4969,7 @@ void NativeImageDumper::MethodTableToString( PTR_MethodTable mt, SString& buf )
     else
     {
         _ASSERTE(!CORCOMPILE_IS_POINTER_TAGGED(PTR_TO_TADDR(mt)));
-        const Dependency * dependency; 
+        const Dependency * dependency;
         if( !mt->IsClassPointerValid() )
         {
             if( isSelf(GetDependencyForPointer(PTR_TO_TADDR(mt))) )
@@ -5206,7 +5165,7 @@ const NativeImageDumper::EnumMnemonics s_Subsystems[] =
 #undef S_ENTRY
 };
 
-const NativeImageDumper::EnumMnemonics s_CorCompileHdrFlags[] = 
+const NativeImageDumper::EnumMnemonics s_CorCompileHdrFlags[] =
 {
 #define CCHF_ENTRY(f) NativeImageDumper::EnumMnemonics(f, W(#f))
     CCHF_ENTRY(CORCOMPILE_HEADER_HAS_SECURITY_DIRECTORY),
@@ -5257,7 +5216,7 @@ const NativeImageDumper::EnumMnemonics s_IFH_Characteristics[] =
 #undef IFH_ENTRY
 };
 
-const NativeImageDumper::EnumMnemonics s_ImportSectionType[] = 
+const NativeImageDumper::EnumMnemonics s_ImportSectionType[] =
 {
 #define IST_ENTRY(f) NativeImageDumper::EnumMnemonics(f, 0, W(#f))
     IST_ENTRY(CORCOMPILE_IMPORT_TYPE_UNKNOWN),
@@ -5270,7 +5229,7 @@ const NativeImageDumper::EnumMnemonics s_ImportSectionType[] =
 #undef IST_ENTRY
 };
 
-const NativeImageDumper::EnumMnemonics s_ImportSectionFlags[] = 
+const NativeImageDumper::EnumMnemonics s_ImportSectionFlags[] =
 {
 #define IST_FLAGS(f) NativeImageDumper::EnumMnemonics(f, W(#f))
     IST_FLAGS(CORCOMPILE_IMPORT_FLAGS_EAGER),
@@ -5321,7 +5280,7 @@ void NativeImageDumper::DumpNativeHeader()
                                          CORCOMPILE_IMPORT_SECTION, s_ImportSectionFlags, W(", "), ALWAYS );
             DisplayWriteFieldEnumerated( Type, pImportSections[i].Type,
                                          CORCOMPILE_IMPORT_SECTION, s_ImportSectionType, W(""), ALWAYS );
-            
+
             DisplayWriteFieldUInt( EntrySize, pImportSections[i].EntrySize,
                                    CORCOMPILE_IMPORT_SECTION, ALWAYS );
             DisplayWriteFieldUInt( Signatures, pImportSections[i].Signatures,
@@ -5332,22 +5291,6 @@ void NativeImageDumper::DumpNativeHeader()
 
         }
         DisplayEndArray( NULL, ALWAYS ); //delayLoads
-
-        WRITE_NATIVE_FIELD(ImportTable);
-        DisplayStartArray( "imports", NULL, ALWAYS );
-        PTR_CORCOMPILE_IMPORT_TABLE_ENTRY ent( nativeHeader->ImportTable.VirtualAddress + PTR_TO_TADDR(m_decoder.GetBase()) );
-        for( COUNT_T i = 0; i < nativeHeader->ImportTable.Size / sizeof(*ent); ++i )
-        {
-            DisplayStartStructure( "CORCOMPILE_IMPORT_TABLE_ENTRY",
-                                   DPtrToPreferredAddr(ent + i),
-                                   sizeof(ent[i]), ALWAYS );
-            DisplayWriteFieldUInt( wAssemblyRid, ent[i].wAssemblyRid, 
-                                   CORCOMPILE_IMPORT_TABLE_ENTRY, ALWAYS );
-            DisplayWriteFieldUInt( wModuleRid, ent[i].wModuleRid, 
-                                   CORCOMPILE_IMPORT_TABLE_ENTRY, ALWAYS );
-            DisplayEndStructure( ALWAYS ); //CORCOMPILE_IMPORT_TABLE_ENTRY
-        }
-        DisplayEndArray( NULL, ALWAYS ); //imports
 
         WRITE_NATIVE_FIELD(VersionInfo);
         WRITE_NATIVE_FIELD(DebugMap);
@@ -5360,7 +5303,7 @@ void NativeImageDumper::DumpNativeHeader()
         DisplayStartArray( "VirtualSections", W("%-48s%s"), SLIM_MODULE_TBLS );
         PTR_CORCOMPILE_VIRTUAL_SECTION_INFO sects( nativeHeader->VirtualSectionsTable.VirtualAddress + PTR_TO_TADDR(m_decoder.GetBase()) );
         COUNT_T numVirtualSections = nativeHeader->VirtualSectionsTable.Size / sizeof (CORCOMPILE_VIRTUAL_SECTION_INFO);
-        
+
         for( COUNT_T i = 0; i < numVirtualSections; ++i )
         {
             TempBuffer sectionNameBuf;
@@ -5440,7 +5383,7 @@ void NativeImageDumper::DumpBaseRelocs()
         {
             IMAGE_BASE_RELOCATION * pBaseRelocation = dac_cast<DPTR(IMAGE_BASE_RELOCATION)>(data);
             _ASSERTE(size >= pBaseRelocation->SizeOfBlock);
-            
+
             SIZE_T rel = sizeof(IMAGE_BASE_RELOCATION);
             while (rel < pBaseRelocation->SizeOfBlock)
             {
@@ -5523,7 +5466,6 @@ NativeImageDumper::EnumMnemonics s_MTFlagsLow[] =
     MTFLAG_ENTRY(GenericsMask_GenericInst),
     MTFLAG_ENTRY(GenericsMask_SharedInst),
     MTFLAG_ENTRY(GenericsMask_TypicalInst),
-    MTFLAG_ENTRY(HasRemotingVtsInfo),
     MTFLAG_ENTRY(HasVariance),
     MTFLAG_ENTRY(HasDefaultCtor),
     MTFLAG_ENTRY(HasPreciseInitCctors),
@@ -5553,17 +5495,17 @@ NativeImageDumper::EnumMnemonics s_MTFlagsHigh[] =
 
     MTFLAG_CATEGORY_ENTRY(Class),
     MTFLAG_CATEGORY_ENTRY(Unused_1),
-    MTFLAG_CATEGORY_ENTRY(MarshalByRef),
-    MTFLAG_CATEGORY_ENTRY(Contextful),
+    MTFLAG_CATEGORY_ENTRY(Unused_2),
+    MTFLAG_CATEGORY_ENTRY(Unused_3),
     MTFLAG_CATEGORY_ENTRY(ValueType),
     MTFLAG_CATEGORY_ENTRY(Nullable),
     MTFLAG_CATEGORY_ENTRY(PrimitiveValueType),
     MTFLAG_CATEGORY_ENTRY(TruePrimitive),
 
     MTFLAG_CATEGORY_ENTRY(Interface),
-    MTFLAG_CATEGORY_ENTRY(Unused_2),
-    MTFLAG_CATEGORY_ENTRY(TransparentProxy),
-    MTFLAG_CATEGORY_ENTRY(AsyncPin),
+    MTFLAG_CATEGORY_ENTRY(Unused_4),
+    MTFLAG_CATEGORY_ENTRY(Unused_5),
+    MTFLAG_CATEGORY_ENTRY(Unused_6),
 
     MTFLAG_CATEGORY_ENTRY_WITH_MASK(Array, Array_Mask),
     MTFLAG_CATEGORY_ENTRY_WITH_MASK(IfArrayThenSzArray, IfArrayThenSzArray),
@@ -5576,9 +5518,9 @@ NativeImageDumper::EnumMnemonics s_MTFlagsHigh[] =
 #if defined(FEATURE_COMINTEROP)
     MTFLAG_ENTRY(IfInterfaceThenHasGuidInfo),
 #endif
-#if defined(FEATURE_ICASTABLE)    
+#if defined(FEATURE_ICASTABLE)
     MTFLAG_ENTRY(ICastable),
-#endif    
+#endif
     MTFLAG_ENTRY(HasIndirectParent),
     MTFLAG_ENTRY(ContainsPointers),
     MTFLAG_ENTRY(HasTypeEquivalence),
@@ -5627,10 +5569,7 @@ NativeImageDumper::EnumMnemonics s_WriteableMTFlags[] =
     NativeImageDumper::EnumMnemonics(MethodTableWriteableData::enum_flag_ ## x,\
                                      W(#x))
 
-        WMTFLAG_ENTRY(RemotingConfigChecked),
-        WMTFLAG_ENTRY(RequiresManagedActivation),
         WMTFLAG_ENTRY(Unrestored),
-        WMTFLAG_ENTRY(CriticalTypePrepared),
         WMTFLAG_ENTRY(HasApproxParent),
         WMTFLAG_ENTRY(UnrestoredTypeKey),
         WMTFLAG_ENTRY(IsNotFullyLoaded),
@@ -5781,7 +5720,7 @@ static NativeImageDumper::EnumMnemonics s_VMFlags[] =
         VMF_ENTRY(MARSHALINGTYPE_INHIBIT),
         VMF_ENTRY(MARSHALINGTYPE_FREETHREADED),
         VMF_ENTRY(MARSHALINGTYPE_STANDARD),
-#endif        
+#endif
 #undef VMF_ENTRY
 };
 static NativeImageDumper::EnumMnemonics s_CorFieldAttr[] =
@@ -5904,7 +5843,7 @@ void NativeImageDumper::DumpTypes(PTR_Module module)
                                               + (m_discoveredSlotChunks.End() - m_discoveredSlotChunks.Begin()));
             slotChunkCount = (COUNT_T)(newEndChunks - &*m_discoveredSlotChunks.Begin());
 #endif
-            
+
             for (COUNT_T i = 0; i < slotChunkCount; ++i)
             {
                 DumpMethodTableSlotChunk(m_discoveredSlotChunks[i].addr,
@@ -6117,7 +6056,7 @@ void AppendTypeQualifier( CorElementType kind, DWORD rank, SString& buf )
     case ELEMENT_TYPE_SZARRAY :
         buf.Append( W("[]") );
         break;
-    case ELEMENT_TYPE_ARRAY :        
+    case ELEMENT_TYPE_ARRAY :
         if( rank == 1 )
         {
             buf.Append( W("[*]") );
@@ -6513,14 +6452,14 @@ void NativeImageDumper::EntryPointToString( TADDR pEntryPoint,
                 int MethodIndex = NativeUnwindInfoLookupTable::LookupUnwindInfoForMethod(rva, pNgenLayout->m_pRuntimeFunctions[iRange], 0, pNgenLayout->m_nRuntimeFunctions[iRange] - 1);
                 if (MethodIndex >= 0)
                 {
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
                     while (pNgenLayout->m_MethodDescs[iRange][MethodIndex] == 0)
                         MethodIndex--;
 #endif
 
                     PTR_RUNTIME_FUNCTION pRuntimeFunction = pNgenLayout->m_pRuntimeFunctions[iRange] + MethodIndex;
 
-                    md = NativeUnwindInfoLookupTable::GetMethodDesc(pNgenLayout, pRuntimeFunction, PTR_TO_TADDR(m_decoder.GetBase())); 
+                    md = NativeUnwindInfoLookupTable::GetMethodDesc(pNgenLayout, pRuntimeFunction, PTR_TO_TADDR(m_decoder.GetBase()));
                     break;
                 }
             }
@@ -6765,8 +6704,8 @@ void NativeImageDumper::WriteElementMethodTable( const char * name,
     DoWriteFieldMethodTable( name, UINT_MAX, UINT_MAX, mt );
 }
 void NativeImageDumper::DoWriteFieldMethodTable( const char * name,
-                                                 unsigned offset, 
-                                                 unsigned fieldSize, 
+                                                 unsigned offset,
+                                                 unsigned fieldSize,
                                                  PTR_MethodTable mt )
 {
     if( mt == NULL )
@@ -6863,7 +6802,7 @@ void NativeImageDumper::DumpFieldDesc( PTR_FieldDesc fd, const char * name )
 #pragma warning(disable:21000) // Suppress PREFast warning about overly large function
 #endif
 void
-NativeImageDumper::DumpMethodTable( PTR_MethodTable mt, const char * name, 
+NativeImageDumper::DumpMethodTable( PTR_MethodTable mt, const char * name,
                                     PTR_Module module )
 {
     _ASSERTE(NULL != mt);
@@ -6974,8 +6913,8 @@ NativeImageDumper::DumpMethodTable( PTR_MethodTable mt, const char * name,
         IF_OPT(METHODTABLES)
         {
             DoWriteFieldMethodTable( "m_pParentMethodTable",
-                                     offsetof(MethodTable, m_pParentMethodTable), 
-                                     fieldsize(MethodTable, m_pParentMethodTable), 
+                                     offsetof(MethodTable, m_pParentMethodTable),
+                                     fieldsize(MethodTable, m_pParentMethodTable),
                                      mt->GetParentMethodTable() );
         }
     }
@@ -7010,7 +6949,7 @@ NativeImageDumper::DumpMethodTable( PTR_MethodTable mt, const char * name,
     if( mt->IsArray() )
     {
         WriteFieldTypeHandle( m_ElementTypeHnd,
-                              mt->GetApproxArrayElementTypeHandle(),
+                              mt->GetArrayElementTypeHandle(),
                               MethodTable, METHODTABLES );
     }
 
@@ -7045,7 +6984,7 @@ NativeImageDumper::DumpMethodTable( PTR_MethodTable mt, const char * name,
         if( currentDictionary != NULL )
         {
             PTR_DictionaryEntry entry(currentDictionary->EntryAddr(0));
-            
+
             PTR_DictionaryLayout layout( clazz->GetDictionaryLayout() );
 
             DisplayStartStructure( "Dictionary",
@@ -7214,7 +7153,7 @@ NativeImageDumper::DumpMethodTable( PTR_MethodTable mt, const char * name,
                 sc.nSlots = (mt->GetNumVtableSlots() - mt->GetNumVirtuals());
                 sc.isRelative = false;
                 m_discoveredSlotChunks.AppendEx(sc);
-            } 
+            }
             else if (mt->HasSingleNonVirtualSlot())
             {
                 DumpSlot((unsigned)-1, mt->GetSlot(mt->GetNumVirtuals()));
@@ -7232,7 +7171,7 @@ NativeImageDumper::DumpMethodTable( PTR_MethodTable mt, const char * name,
                 CoverageRead( PTR_TO_TADDR(mt->GetNonVirtualSlotsArray()),
                               mt->GetNonVirtualSlotsArraySize() );
             }
-            
+
         }
         DisplayEndStructure(ALWAYS); //Vtable
     }
@@ -7263,7 +7202,7 @@ NativeImageDumper::DumpMethodTable( PTR_MethodTable mt, const char * name,
     //GenericStatics comes after the generic dictionaries.  So if I
     //don't have extents, I can't print them.
     if( haveCompleteExtents &&
-        mt->HasGenericsStaticsInfo() && 
+        mt->HasGenericsStaticsInfo() &&
         CHECK_OPT(METHODTABLES)
         )
     {
@@ -7328,7 +7267,7 @@ NativeImageDumper::DumpMethodTable( PTR_MethodTable mt, const char * name,
     }
 
     if (haveCompleteExtents &&
-        mt->HasCCWTemplate() 
+        mt->HasCCWTemplate()
         && CHECK_OPT(METHODTABLES)
         )
     {
@@ -7424,7 +7363,7 @@ NativeImageDumper::DumpSlot( unsigned index, PCODE tgt )
 NativeImageDumper::EnumMnemonics NativeImageDumper::s_SSMDExtendedFlags[] =
 {
 #define SSMD_ENTRY(x) NativeImageDumper::EnumMnemonics( x, W(#x) )
-    
+
 #define SSMD_ACCESS_ENTRY(x) NativeImageDumper::EnumMnemonics( x, mdMemberAccessMask, W(#x) )
     SSMD_ACCESS_ENTRY(mdPrivateScope),
     SSMD_ACCESS_ENTRY(mdPrivate),
@@ -7508,7 +7447,6 @@ static NativeImageDumper::EnumMnemonics g_NDirectFlags[] =
         NDF_ENTRY(kStdCall),
         NDF_ENTRY(kThisCall),
         NDF_ENTRY(kIsQCall),
-        NDF_ENTRY(kHasCopyCtorArgs),
         NDF_ENTRY(kStdCallWithRetBuf),
 #undef NDF_ENTRY
 };
@@ -7566,10 +7504,6 @@ void NativeImageDumper::DumpPrecode( PTR_Precode precode, PTR_Module module )
 #ifdef HAS_NDIRECT_IMPORT_PRECODE
     case PRECODE_NDIRECT_IMPORT:
         DISPLAY_PRECODE(NDirectImportPrecode); break;
-#endif
-#ifdef HAS_REMOTING_PRECODE
-    case PRECODE_REMOTING:
-        DISPLAY_PRECODE(RemotingPrecode); break;
 #endif
 #ifdef HAS_FIXUP_PRECODE
     case PRECODE_FIXUP:
@@ -7807,7 +7741,7 @@ void NativeImageDumper::DumpMethodDesc( PTR_MethodDesc md, PTR_Module module )
     if (md->HasStoredSig())
     {
         DisplayStartVStructure( "StoredSigMethodDesc", METHODDESCS );
-        PTR_StoredSigMethodDesc ssmd(md); 
+        PTR_StoredSigMethodDesc ssmd(md);
         //display signature information.
         if( isInRange(ssmd->GetSigRVA()) )
         {
@@ -7824,7 +7758,7 @@ void NativeImageDumper::DumpMethodDesc( PTR_MethodDesc md, PTR_Module module )
         CoverageRead(TO_TADDR(ssmd->GetSigRVA()), ssmd->m_cSig);
         DisplayWriteFieldInt( m_cSig, ssmd->m_cSig,
                               StoredSigMethodDesc, METHODDESCS );
-#ifdef _WIN64
+#ifdef BIT64
         DisplayWriteFieldEnumerated( m_dwExtendedFlags,
                                      ssmd->m_dwExtendedFlags,
                                      StoredSigMethodDesc,
@@ -7844,7 +7778,7 @@ void NativeImageDumper::DumpMethodDesc( PTR_MethodDesc md, PTR_Module module )
         DisplayWriteFieldPointer( m_pResolver,
                                   DPtrToPreferredAddr(dmd->m_pResolver),
                                   DynamicMethodDesc, METHODDESCS );
-#ifndef _WIN64
+#ifndef BIT64
         DisplayWriteFieldEnumerated( m_dwExtendedFlags,
                                      dmd->m_dwExtendedFlags,
                                      DynamicMethodDesc,
@@ -8084,7 +8018,7 @@ void NativeImageDumper::DumpMethodDesc( PTR_MethodDesc md, PTR_Module module )
             {
                 PTR_DictionaryLayout layout(wrapped->IsSharedByGenericMethodInstantiations()
                                             ? dac_cast<TADDR>(wrapped->GetDictLayoutRaw()) : NULL );
-                dictSize = DictionaryLayout::GetFirstDictionaryBucketSize(imd->GetNumGenericMethodArgs(), 
+                dictSize = DictionaryLayout::GetFirstDictionaryBucketSize(imd->GetNumGenericMethodArgs(),
                                                                           layout);
             }
         }
@@ -8192,7 +8126,7 @@ NativeImageDumper::EnumMnemonics NativeImageDumper::s_EECLIFlags[] =
 #pragma warning(push)
 #pragma warning(disable:21000) // Suppress PREFast warning about overly large function
 #endif
-void 
+void
 NativeImageDumper::DumpEEClassForMethodTable( PTR_MethodTable mt )
 {
     PTR_EEClass clazz = mt->GetClass();
@@ -8271,7 +8205,7 @@ NativeImageDumper::DumpEEClassForMethodTable( PTR_MethodTable mt )
                                              offsetof(EEClass, m_pFieldDescList),
                                              fieldsize(EEClass, m_pFieldDescList),
                                              DPtrToPreferredAddr(fdList),
-                                             fdList != NULL ? 
+                                             fdList != NULL ?
                                                 sizeof(*fdList) * fieldCount :
                                                 0 );
     }
@@ -8343,7 +8277,7 @@ NativeImageDumper::DumpEEClassForMethodTable( PTR_MethodTable mt )
             IF_OPT_OR(METHODDESCS, DEBUG_COVERAGE)
             {
                 PTR_Module module = mt->GetModule();
-                if(CORCOMPILE_IS_POINTER_TAGGED(PTR_TO_TADDR(module) )) 
+                if(CORCOMPILE_IS_POINTER_TAGGED(PTR_TO_TADDR(module) ))
                     DumpMethodDesc( md, PTR_Module((TADDR)0) );
                 else
                     DumpMethodDesc( md, module );
@@ -8450,38 +8384,38 @@ NativeImageDumper::DumpEEClassForMethodTable( PTR_MethodTable mt )
                                      VERBOSE_TYPES );
         DisplayWriteFieldInt( m_numCTMFields, eecli->m_numCTMFields,
                               EEClassLayoutInfo, VERBOSE_TYPES );
-        PTR_FieldMarshaler fmArray = eecli->GetFieldMarshalers();
-        DisplayWriteFieldAddress( m_pFieldMarshalers,
+        PTR_NativeFieldDescriptor fmArray = eecli->GetNativeFieldDescriptors();
+        DisplayWriteFieldAddress( m_pNativeFieldDescriptors,
                                   DPtrToPreferredAddr(fmArray),
                                   eecli->m_numCTMFields
-                                  * MAXFIELDMARSHALERSIZE,
+                                  * sizeof(NativeFieldDescriptor),
                                   EEClassLayoutInfo, VERBOSE_TYPES );
         /* REVISIT_TODO Wed 03/22/2006
-         * Dump the various types of FieldMarshalers.
+         * Dump the various types of NativeFieldDescriptors.
          */
 #if 0
-        DisplayStartArrayWithOffset( m_pFieldMarshalers, NULL,
+        DisplayStartArrayWithOffset( m_pNativeFieldDescriptors, NULL,
                                      EEClassLayoutInfo, VERBOSE_TYPES );
         for( unsigned i = 0; i < eecli->m_numCTMFields; ++i )
         {
             /* REVISIT_TODO Wed 03/22/2006
              * Try to display the type of the field marshaler in the future.
              */
-            PTR_FieldMarshaler current = fmArray + i;
-            DisplayStartStructure( "FieldMarshaler",
+            PTR_NativeFieldDescriptor current = fmArray + i;
+            DisplayStartStructure( "NativeFieldDescriptor",
                                    DPtrToPreferredAddr(current),
                                    sizeof(*current), VERBOSE_TYPES );
             WriteFieldFieldDesc( m_pFD, PTR_FieldDesc(TO_TADDR(current->m_pFD)),
-                                 FieldMarshaler, VERBOSE_TYPES );
-            DisplayWriteFieldInt( m_dwExternalOffset,
-                                  current->m_dwExternalOffset, FieldMarshaler,
+                                 NativeFieldDescriptor, VERBOSE_TYPES );
+            DisplayWriteFieldInt( m_offset,
+                                  current->m_offset, NativeFieldDescriptor,
                                   VERBOSE_TYPES );
             DisplayEndStructure( VERBOSE_TYPES ); //FieldMarshaler
         }
-        
-        DisplayEndArray( "Number of FieldMarshalers", VERBOSE_TYPES ); //m_pFieldMarshalers
+
+        DisplayEndArray( "Number of NativeFieldDescriptors", VERBOSE_TYPES ); //m_pNativeFieldDescriptors
 #endif
-        
+
         DisplayEndStructure( EECLASSES ); //LayoutInfo
 
         DisplayEndVStructure( EECLASSES ); //LayoutEEClass
@@ -8517,7 +8451,7 @@ NativeImageDumper::DumpEEClassForMethodTable( PTR_MethodTable mt )
         WriteFieldMethodDesc( m_pInvokeMethod,
                               delegateClass->GetInvokeMethod(),
                               DelegateEEClass, EECLASSES );
-        DumpFieldStub( m_pMultiCastInvokeStub, 
+        DumpFieldStub( m_pMultiCastInvokeStub,
                        delegateClass->m_pMultiCastInvokeStub,
                        DelegateEEClass, EECLASSES );
 
@@ -8569,7 +8503,7 @@ NativeImageDumper::DumpEEClassForMethodTable( PTR_MethodTable mt )
         else
         {
             DumpComPlusCallInfo( compluscall, EECLASSES );
-        }        
+        }
 #endif // FEATURE_COMINTEROP
 
         DisplayEndVStructure( EECLASSES ); //DelegateEEClass
@@ -8794,7 +8728,7 @@ void NativeImageDumper::DumpTypeDesc( PTR_TypeDesc td )
         DisplayStartVStructure( "ParamTypeDesc", TYPEDESCS );
         WriteFieldMethodTable( m_TemplateMT, ptd->GetTemplateMethodTableInternal(),
                                ParamTypeDesc, TYPEDESCS );
-        WriteFieldTypeHandle( m_Arg, ptd->m_Arg, 
+        WriteFieldTypeHandle( m_Arg, ptd->m_Arg,
                               ParamTypeDesc, TYPEDESCS );
         DisplayWriteFieldPointer( m_hExposedClassObject,
                                   DataPtrToDisplay(ptd->m_hExposedClassObject),
@@ -8808,7 +8742,7 @@ void NativeImageDumper::DumpTypeDesc( PTR_TypeDesc td )
         DisplayStartVStructure( "FnPtrTypeDesc", TYPEDESCS );
         DisplayWriteFieldInt( m_NumArgs, ftd->m_NumArgs, FnPtrTypeDesc,
                               TYPEDESCS );
-        DisplayWriteFieldEnumerated( m_CallConv, ftd->m_CallConv, 
+        DisplayWriteFieldEnumerated( m_CallConv, ftd->m_CallConv,
                                      FnPtrTypeDesc, s_CConv, W(", "),
                                      TYPEDESCS );
         DisplayStartArrayWithOffset( m_RetAndArgTypes, W("[%-4s]: %s"),
@@ -8823,7 +8757,7 @@ void NativeImageDumper::DumpTypeDesc( PTR_TypeDesc td )
                 WriteElementTypeHandle( "TypeHandle", args[i] );
             DisplayEndElement( TYPEDESCS );
         }
-        DisplayEndArray( "Total Arguments", TYPEDESCS ); 
+        DisplayEndArray( "Total Arguments", TYPEDESCS );
         DisplayEndVStructure( TYPEDESCS );
     }
     else if( tdt == TDT_IsTypeVarTypeDesc )
@@ -8847,7 +8781,7 @@ void NativeImageDumper::DumpTypeDesc( PTR_TypeDesc td )
         {
             DisplayStartStructureWithOffset( m_constraints,
                                              DPtrToPreferredAddr(tvtd->m_constraints),
-                                             sizeof(*tvtd->m_constraints) * 
+                                             sizeof(*tvtd->m_constraints) *
                                              tvtd->m_numConstraints,
                                              TypeVarTypeDesc, TYPEDESCS );
             DisplayStartArray( "Constraints", NULL, TYPEDESCS );
@@ -8868,7 +8802,7 @@ void NativeImageDumper::DumpTypeDesc( PTR_TypeDesc td )
 
         DisplayEndVStructure( TYPEDESCS ); //TypeVarTypeDesc
     }
-    
+
 
     DisplayEndStructure( TYPEDESCS ); // g_typeDescTypeNames
 
@@ -8987,7 +8921,7 @@ void NativeImageDumper::DumpReadyToRun()
         DumpBaseRelocs();
 }
 
-const NativeImageDumper::EnumMnemonics s_ReadyToRunFlags[] = 
+const NativeImageDumper::EnumMnemonics s_ReadyToRunFlags[] =
 {
 #define RTR_FLAGS(f) NativeImageDumper::EnumMnemonics(f, W(#f))
     RTR_FLAGS(READYTORUN_FLAG_PLATFORM_NEUTRAL_SOURCE),
@@ -9153,7 +9087,7 @@ void NativeImageDumper::DumpReadyToRunMethod(PCODE pEntryPoint, PTR_RUNTIME_FUNC
         DisassembleMethod(codeStartHost, methodSize);
     }
 
-    DisplayEndStructure(METHODS); //Code 
+    DisplayEndStructure(METHODS); //Code
 
     DisplayEndElement(METHODS); //Method
 }
@@ -9171,6 +9105,17 @@ mdTypeRef NativeImageDumper::FindTypeRefForMT( PTR_MethodTable mt )
 }
 #endif
 
+#else //!FEATURE_PREJIT
+//dummy implementation for dac
+HRESULT ClrDataAccess::DumpNativeImage(CLRDATA_ADDRESS loadedBase,
+    LPCWSTR name,
+    IXCLRDataDisplay* display,
+    IXCLRLibrarySupport* support,
+    IXCLRDisassemblySupport* dis)
+{
+    return E_FAIL;
+}
+#endif //FEATURE_PREJIT
 
 /* REVISIT_TODO Mon 10/10/2005
  * Here is where it gets bad.  There is no DAC build of gcdump, so instead
@@ -9190,7 +9135,7 @@ mdTypeRef NativeImageDumper::FindTypeRefForMT( PTR_MethodTable mt )
 #undef NOTHROW
 #undef GC_NOTRIGGER
 
-#if defined _DEBUG && defined _TARGET_X86_ 
+#if defined _DEBUG && defined _TARGET_X86_
 #ifdef _MSC_VER
 // disable FPO for checked build
 #pragma optimize("y", off)
@@ -9216,16 +9161,3 @@ mdTypeRef NativeImageDumper::FindTypeRefForMT( PTR_MethodTable mt )
 #pragma warning(default:4244)
 #pragma warning(default:4189)
 #endif // __MSC_VER
-
-
-#else //!FEATURE_PREJIT
-//dummy implementation for dac
-HRESULT ClrDataAccess::DumpNativeImage(CLRDATA_ADDRESS loadedBase,
-                                       LPCWSTR name,
-                                       IXCLRDataDisplay * display,
-                                       IXCLRLibrarySupport * support,
-                                       IXCLRDisassemblySupport * dis)
-{
-    return E_FAIL;
-}
-#endif //FEATURE_PREJIT

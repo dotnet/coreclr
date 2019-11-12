@@ -1,15 +1,15 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
-// 
+//
 // File: RegMeta_IMetaDataImport.cpp
-// 
+//
 
-// 
+//
 // Methods of code:RegMeta class which implement public API interfaces:
 //  * code:IMetaDataImport
 //  * code:IMetaDataImport2
-//  
+//
 // ======================================================================================
 
 #include "stdafx.h"
@@ -51,12 +51,12 @@ BOOL RegMeta::IsValidToken(             // true if tk is valid token
     BOOL fRet = FALSE;
     HRESULT hr = S_OK;
     BEGIN_ENTRYPOINT_VOIDRET;
-    
+
     LOCKREADNORET();
 
     // If acquiring the lock failed...
     IfFailGo(hr);
-    
+
     fRet = m_pStgdb->m_MiniMd._IsValidToken(tk);
 
 ErrExit:
@@ -80,9 +80,6 @@ void STDMETHODCALLTYPE RegMeta::CloseEnum(
     if (pmdEnum == NULL)
         return;
 
-    // This function may be called through RCW.  When hosted, we have probed before this call, so the 
-    // following contract violation is OK.
-    CONTRACT_VIOLATION(SOToleranceViolation);
     HENUMInternal::DestroyEnum(pmdEnum);
     END_CLEANUP_ENTRYPOINT;
 } // RegMeta::CloseEnum
@@ -181,18 +178,18 @@ STDMETHODIMP RegMeta::EnumTypeDefs(
     HENUMInternal   **ppmdEnum = reinterpret_cast<HENUMInternal **> (phEnum);
     HENUMInternal   *pEnum;
 
-    LOG((LOGMD, "RegMeta::EnumTypeDefs(0x%08x, 0x%08x, 0x%08x, 0x%08x)\n", 
+    LOG((LOGMD, "RegMeta::EnumTypeDefs(0x%08x, 0x%08x, 0x%08x, 0x%08x)\n",
             phEnum, rTypeDefs, cMax, pcTypeDefs));
     START_MD_PERF();
     LOCKREAD();
-    
+
 
     if ( *ppmdEnum == 0 )
     {
         // instantiating a new ENUM
         CMiniMdRW       *pMiniMd = &(m_pStgdb->m_MiniMd);
 
-        if (pMiniMd->HasDelete() && 
+        if (pMiniMd->HasDelete() &&
             ((m_OptionValue.m_ImportOption & MDImportOptionAllTypeDefs) == 0))
         {
             IfFailGo( HENUMInternal::CreateDynamicArrayEnum( mdtTypeDef, &pEnum) );
@@ -215,12 +212,12 @@ STDMETHODIMP RegMeta::EnumTypeDefs(
         {
             // create the enumerator
             IfFailGo( HENUMInternal::CreateSimpleEnum(
-                mdtTypeDef, 
-                2, 
-                pMiniMd->getCountTypeDefs() + 1, 
+                mdtTypeDef,
+                2,
+                pMiniMd->getCountTypeDefs() + 1,
                 &pEnum) );
         }
-        
+
         // set the output parameter
         *ppmdEnum = pEnum;
     }
@@ -234,7 +231,7 @@ STDMETHODIMP RegMeta::EnumTypeDefs(
 
 ErrExit:
     HENUMInternal::DestroyEnumIfEmpty(ppmdEnum);
-    
+
     STOP_MD_PERF(EnumTypeDefs);
 
     END_ENTRYPOINT_NOTHROW;
@@ -263,11 +260,11 @@ STDMETHODIMP RegMeta::EnumInterfaceImpls(
     InterfaceImplRec    *pRec;
     ULONG               index;
 
-    LOG((LOGMD, "RegMeta::EnumInterfaceImpls(0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x)\n", 
+    LOG((LOGMD, "RegMeta::EnumInterfaceImpls(0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x)\n",
             phEnum, td, rImpls, cMax, pcImpls));
     START_MD_PERF();
     LOCKREAD();
-    
+
     _ASSERTE(TypeFromToken(td) == mdtTypeDef);
 
 
@@ -282,14 +279,14 @@ STDMETHODIMP RegMeta::EnumInterfaceImpls(
         }
         else
         {
-            // table is not sorted so we have to create dynmaic array 
+            // table is not sorted so we have to create dynmaic array
             // create the dynamic enumerator
             //
             ridStart = 1;
             ridEnd = pMiniMd->getCountInterfaceImpls() + 1;
 
             IfFailGo( HENUMInternal::CreateDynamicArrayEnum( mdtInterfaceImpl, &pEnum) );
-            
+
             for (index = ridStart; index < ridEnd; index ++ )
             {
                 IfFailGo(pMiniMd->GetInterfaceImplRecord(index, &pRec));
@@ -307,13 +304,13 @@ STDMETHODIMP RegMeta::EnumInterfaceImpls(
     {
         pEnum = *ppmdEnum;
     }
-    
+
     // fill the output token buffer
     hr = HENUMInternal::EnumWithCount(pEnum, cMax, rImpls, pcImpls);
 
 ErrExit:
     HENUMInternal::DestroyEnumIfEmpty(ppmdEnum);
-    
+
     STOP_MD_PERF(EnumInterfaceImpls);
 
     END_ENTRYPOINT_NOTHROW;
@@ -321,7 +318,7 @@ ErrExit:
     return hr;
 } // RegMeta::EnumInterfaceImpls
 
-STDMETHODIMP RegMeta::EnumGenericParams(HCORENUM *phEnum, mdToken tkOwner, 
+STDMETHODIMP RegMeta::EnumGenericParams(HCORENUM *phEnum, mdToken tkOwner,
         mdGenericParam rTokens[], ULONG cMaxTokens, ULONG *pcTokens)
 {
     HRESULT             hr = S_OK;
@@ -337,7 +334,7 @@ STDMETHODIMP RegMeta::EnumGenericParams(HCORENUM *phEnum, mdToken tkOwner,
     CMiniMdRW           *pMiniMd = NULL;
 
 
-    LOG((LOGMD, "RegMeta::EnumGenericParams(0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x)\n", 
+    LOG((LOGMD, "RegMeta::EnumGenericParams(0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x)\n",
             phEnum, tkOwner, rTokens, cMaxTokens, pcTokens));
     START_MD_PERF();
     LOCKREAD();
@@ -354,7 +351,7 @@ STDMETHODIMP RegMeta::EnumGenericParams(HCORENUM *phEnum, mdToken tkOwner,
         goto ErrExit;
     }
 
-    
+
     _ASSERTE(TypeFromToken(tkOwner) == mdtTypeDef || TypeFromToken(tkOwner) == mdtMethodDef);
 
 
@@ -378,14 +375,14 @@ STDMETHODIMP RegMeta::EnumGenericParams(HCORENUM *phEnum, mdToken tkOwner,
         }
         else
         {
-            // table is not sorted so we have to create dynamic array 
+            // table is not sorted so we have to create dynamic array
             // create the dynamic enumerator
             //
             ridStart = 1;
             ridEnd = pMiniMd->getCountGenericParams() + 1;
 
             IfFailGo( HENUMInternal::CreateDynamicArrayEnum(mdtGenericParam, &pEnum) );
-            
+
             for (index = ridStart; index < ridEnd; index ++ )
             {
                 IfFailGo(pMiniMd->GetGenericParamRecord(index, &pRec));
@@ -403,7 +400,7 @@ STDMETHODIMP RegMeta::EnumGenericParams(HCORENUM *phEnum, mdToken tkOwner,
     {
         pEnum = *ppmdEnum;
     }
-    
+
     // fill the output token buffer
     hr = HENUMInternal::EnumWithCount(pEnum, cMaxTokens, rTokens, pcTokens);
 
@@ -434,7 +431,7 @@ STDMETHODIMP RegMeta::EnumMethodSpecs(
     ULONG               index;
     CMiniMdRW       *pMiniMd = NULL;
 
-    LOG((LOGMD, "RegMeta::EnumMethodSpecs(0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x)\n", 
+    LOG((LOGMD, "RegMeta::EnumMethodSpecs(0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x)\n",
             phEnum, tkOwner, rTokens, cMaxTokens, pcTokens));
     START_MD_PERF();
     LOCKREAD();
@@ -450,7 +447,7 @@ STDMETHODIMP RegMeta::EnumMethodSpecs(
         goto ErrExit;
     }
 
-    
+
     _ASSERTE(RidFromToken(tkOwner)==0 || TypeFromToken(tkOwner) == mdtMethodDef || TypeFromToken(tkOwner) == mdtMemberRef);
 
 
@@ -462,7 +459,7 @@ STDMETHODIMP RegMeta::EnumMethodSpecs(
         {
             ridStart = 1;
             ridEnd = pMiniMd->getCountMethodSpecs() + 1;
-    
+
             IfFailGo( HENUMInternal::CreateSimpleEnum( mdtMethodSpec, ridStart, ridEnd, &pEnum) );
         }
         else
@@ -478,19 +475,19 @@ STDMETHODIMP RegMeta::EnumMethodSpecs(
                 {
                     IfFailGo(pMiniMd->getMethodSpecsForMethodDef(RidFromToken(tkOwner), &ridEnd, &ridStart));
                 }
-    
+
                 IfFailGo( HENUMInternal::CreateSimpleEnum(mdtMethodSpec, ridStart, ridEnd, &pEnum) );
             }
             else
             {
-                // table is not sorted so we have to create dynamic array 
+                // table is not sorted so we have to create dynamic array
                 // create the dynamic enumerator
                 //
                 ridStart = 1;
                 ridEnd = pMiniMd->getCountMethodSpecs() + 1;
-    
+
                 IfFailGo( HENUMInternal::CreateDynamicArrayEnum(mdtMethodSpec, &pEnum) );
-                
+
                 for (index = ridStart; index < ridEnd; index ++ )
                 {
                     IfFailGo(pMiniMd->GetMethodSpecRecord(index, &pRec));
@@ -508,7 +505,7 @@ STDMETHODIMP RegMeta::EnumMethodSpecs(
     {
         pEnum = *ppmdEnum;
     }
-    
+
     // fill the output token buffer
     hr = HENUMInternal::EnumWithCount(pEnum, cMaxTokens, rTokens, pcTokens);
 
@@ -528,7 +525,7 @@ STDMETHODIMP RegMeta::EnumGenericParamConstraints(
     ULONG       *pcTokens)              // [OUT] Put # of tokens here.
 {
     HRESULT             hr = S_OK;
-    
+
     BEGIN_ENTRYPOINT_NOTHROW;
 
     HENUMInternal       **ppmdEnum = reinterpret_cast<HENUMInternal **> (phEnum);
@@ -539,7 +536,7 @@ STDMETHODIMP RegMeta::EnumGenericParamConstraints(
     ULONG               index;
     CMiniMdRW       *pMiniMd = NULL;
 
-    LOG((LOGMD, "RegMeta::EnumGenericParamConstraints(0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x)\n", 
+    LOG((LOGMD, "RegMeta::EnumGenericParamConstraints(0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x)\n",
             phEnum, tkOwner, rTokens, cMaxTokens, pcTokens));
     START_MD_PERF();
     LOCKREAD();
@@ -571,7 +568,7 @@ STDMETHODIMP RegMeta::EnumGenericParamConstraints(
         }
         else
         {
-            // table is not sorted so we have to create dynamic array 
+            // table is not sorted so we have to create dynamic array
             // create the dynamic enumerator
             //
             ridStart = 1;
@@ -584,7 +581,7 @@ STDMETHODIMP RegMeta::EnumGenericParamConstraints(
                 IfFailGo(pMiniMd->GetGenericParamConstraintRecord(index, &pRec));
                 if ( tkOwner == pMiniMd->getOwnerOfGenericParamConstraint(pRec))
                 {
-                    IfFailGo( HENUMInternal::AddElementToEnum(pEnum, TokenFromRid(index, 
+                    IfFailGo( HENUMInternal::AddElementToEnum(pEnum, TokenFromRid(index,
                                                                        mdtGenericParamConstraint)));
                 }
             }
@@ -597,7 +594,7 @@ STDMETHODIMP RegMeta::EnumGenericParamConstraints(
     {
         pEnum = *ppmdEnum;
     }
-    
+
     // fill the output token buffer
     hr = HENUMInternal::EnumWithCount(pEnum, cMaxTokens, rTokens, pcTokens);
 
@@ -605,7 +602,7 @@ ErrExit:
     HENUMInternal::DestroyEnumIfEmpty(ppmdEnum);
     STOP_MD_PERF(EnumGenericParamConstraints);
     END_ENTRYPOINT_NOTHROW;
-    
+
     return hr;
 }
 
@@ -626,9 +623,9 @@ STDMETHODIMP RegMeta::EnumTypeRefs(
     ULONG           cTotal;
     HENUMInternal   *pEnum = *ppmdEnum;
 
-    
 
-    LOG((LOGMD, "RegMeta::EnumTypeRefs(0x%08x, 0x%08x, 0x%08x, 0x%08x)\n", 
+
+    LOG((LOGMD, "RegMeta::EnumTypeRefs(0x%08x, 0x%08x, 0x%08x, 0x%08x)\n",
             phEnum, rTypeRefs, cMax, pcTypeRefs));
     START_MD_PERF();
     LOCKREAD();
@@ -644,17 +641,17 @@ STDMETHODIMP RegMeta::EnumTypeRefs(
         // set the output parameter
         *ppmdEnum = pEnum;
     }
-    
+
     // fill the output token buffer
     hr = HENUMInternal::EnumWithCount(pEnum, cMax, rTypeRefs, pcTypeRefs);
-        
+
 ErrExit:
     HENUMInternal::DestroyEnumIfEmpty(ppmdEnum);
 
-    
+
     STOP_MD_PERF(EnumTypeRefs);
     END_ENTRYPOINT_NOTHROW;
-    
+
     return hr;
 } // STDMETHODIMP RegMeta::EnumTypeRefs()
 
@@ -669,7 +666,7 @@ STDMETHODIMP RegMeta::FindTypeDefByName(// S_OK or error.
     HRESULT     hr = S_OK;
     BEGIN_ENTRYPOINT_NOTHROW
 
-    LOG((LOGMD, "{%08x} RegMeta::FindTypeDefByName(%S, 0x%08x, 0x%08x)\n", 
+    LOG((LOGMD, "{%08x} RegMeta::FindTypeDefByName(%S, 0x%08x, 0x%08x)\n",
             this, MDSTR(wzTypeDef), tkEnclosingClass, ptd));
     START_MD_PERF();
     LOCKREAD();
@@ -692,16 +689,16 @@ STDMETHODIMP RegMeta::FindTypeDefByName(// S_OK or error.
     *ptd = mdTypeDefNil;
 
     ns::SplitInline(szTypeDef, szNamespace, szName);
-    hr = ImportHelper::FindTypeDefByName(&(m_pStgdb->m_MiniMd), 
-                                        szNamespace, 
-                                        szName, 
-                                        tkEnclosingClass, 
+    hr = ImportHelper::FindTypeDefByName(&(m_pStgdb->m_MiniMd),
+                                        szNamespace,
+                                        szName,
+                                        tkEnclosingClass,
                                         ptd);
 ErrExit:
-    
+
     STOP_MD_PERF(FindTypeDefByName);
     END_ENTRYPOINT_NOTHROW;
-    
+
     return hr;
 } // STDMETHODIMP RegMeta::FindTypeDefByName()
 
@@ -720,9 +717,9 @@ STDMETHODIMP RegMeta::GetScopeProps(
 
     CMiniMdRW   *pMiniMd = &(m_pStgdb->m_MiniMd);
     ModuleRec   *pModuleRec;
- 
 
-    LOG((LOGMD, "RegMeta::GetScopeProps(%S, 0x%08x, 0x%08x, 0x%08x)\n", 
+
+    LOG((LOGMD, "RegMeta::GetScopeProps(%S, 0x%08x, 0x%08x, 0x%08x)\n",
             MDSTR(szName), cchName, pchName, pmvid));
     START_MD_PERF();
     LOCKREAD();
@@ -738,10 +735,10 @@ STDMETHODIMP RegMeta::GetScopeProps(
     if (szName || pchName)
         IfFailGo( pMiniMd->getNameOfModule(pModuleRec, szName, cchName, pchName) );
 ErrExit:
-    
+
     STOP_MD_PERF(GetScopeProps);
     END_ENTRYPOINT_NOTHROW;
-    
+
     return hr;
 } // STDMETHODIMP RegMeta::GetScopeProps()
 
@@ -765,7 +762,7 @@ STDMETHODIMP RegMeta::GetModuleFromScope(// S_OK.
 
     STOP_MD_PERF(GetModuleFromScope);
     END_ENTRYPOINT_NOTHROW;
-    
+
     return hr;
 } // STDMETHODIMP RegMeta::GetModuleFromScope()
 
@@ -782,41 +779,41 @@ HRESULT RegMeta::IsGlobal(              // S_OK ir error.
 
     CMiniMdRW   *pMiniMd = &(m_pStgdb->m_MiniMd);
     mdToken     tkParent;               // Parent of field or method.
-    
+
     LOG((LOGMD, "RegMeta::GetTokenForGlobalType(0x%08x, %08x)\n", tk, pbGlobal));
     //START_MD_PERF();
 
     // No need to lock this function.
-    
+
     if (!IsValidToken(tk))
         IfFailGo(E_INVALIDARG);
-    
+
     switch (TypeFromToken(tk))
     {
     case mdtTypeDef:
         *pbGlobal = IsGlobalMethodParentToken(tk);
         break;
-        
+
     case mdtFieldDef:
         IfFailGo( pMiniMd->FindParentOfFieldHelper(tk, &tkParent) );
         *pbGlobal = IsGlobalMethodParentToken(tkParent);
         break;
-        
+
     case mdtMethodDef:
         IfFailGo( pMiniMd->FindParentOfMethodHelper(tk, &tkParent) );
         *pbGlobal = IsGlobalMethodParentToken(tkParent);
         break;
-        
+
     case mdtProperty:
         IfFailGo( pMiniMd->FindParentOfPropertyHelper(tk, &tkParent) );
         *pbGlobal = IsGlobalMethodParentToken(tkParent);
         break;
-        
+
     case mdtEvent:
         IfFailGo( pMiniMd->FindParentOfEventHelper(tk, &tkParent) );
         *pbGlobal = IsGlobalMethodParentToken(tkParent);
         break;
-        
+
     // Anything else is NOT global.
     default:
         *pbGlobal = FALSE;
@@ -832,7 +829,7 @@ ErrExit:
 //*****************************************************************************
 // return flags for a given class
 //*****************************************************************************
-HRESULT 
+HRESULT
 RegMeta::GetTypeDefProps(
     mdTypeDef td,                   // [IN] TypeDef token for inquiry.
     __out_ecount_opt (cchTypeDef) LPWSTR szTypeDef, // [OUT] Put name here.
@@ -842,19 +839,19 @@ RegMeta::GetTypeDefProps(
     mdToken  *ptkExtends)           // [OUT] Put base class TypeDef/TypeRef here.
 {
     HRESULT hr = S_OK;
-    
+
     BEGIN_ENTRYPOINT_NOTHROW;
-    
+
     CMiniMdRW  *pMiniMd = &(m_pStgdb->m_MiniMd);
     TypeDefRec *pTypeDefRec;
     BOOL        fTruncation = FALSE;    // Was there name truncation?
-    
-    LOG((LOGMD, "{%08x} RegMeta::GetTypeDefProps(0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x)\n", 
-            this, td, szTypeDef, cchTypeDef, pchTypeDef, 
+
+    LOG((LOGMD, "{%08x} RegMeta::GetTypeDefProps(0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x)\n",
+            this, td, szTypeDef, cchTypeDef, pchTypeDef,
             pdwTypeDefFlags, ptkExtends));
     START_MD_PERF();
     LOCKREAD();
-    
+
     if (TypeFromToken(td) != mdtTypeDef)
     {
         hr = S_FALSE;
@@ -870,26 +867,26 @@ RegMeta::GetTypeDefProps(
             *pchTypeDef = 1;
         if ((szTypeDef != NULL) && (cchTypeDef > 0))
             szTypeDef[0] = 0;
-        
+
         hr = S_OK;
         goto ErrExit;
     }
-    
+
     IfFailGo(pMiniMd->GetTypeDefRecord(RidFromToken(td), &pTypeDefRec));
-    
+
     if ((szTypeDef != NULL) || (pchTypeDef != NULL))
     {
         LPCSTR szNamespace;
         LPCSTR szName;
-        
+
         IfFailGo(pMiniMd->getNamespaceOfTypeDef(pTypeDefRec, &szNamespace));
         MAKE_WIDEPTR_FROMUTF8_NOTHROW(wzNamespace, szNamespace);
         IfNullGo(wzNamespace);
-        
+
         IfFailGo(pMiniMd->getNameOfTypeDef(pTypeDefRec, &szName));
         MAKE_WIDEPTR_FROMUTF8_NOTHROW(wzName, szName);
         IfNullGo(wzName);
-        
+
         if (szTypeDef != NULL)
         {
             fTruncation = !(ns::MakePath(szTypeDef, cchTypeDef, wzNamespace, wzName));
@@ -913,14 +910,14 @@ RegMeta::GetTypeDefProps(
     if (ptkExtends != NULL)
     {
         *ptkExtends = pMiniMd->getExtendsOfTypeDef(pTypeDefRec);
-        
+
         // take care of the 0 case
         if (RidFromToken(*ptkExtends) == 0)
         {
             *ptkExtends = mdTypeRefNil;
         }
     }
-    
+
     if (fTruncation && (hr == S_OK))
     {
         if ((szTypeDef != NULL) && (cchTypeDef > 0))
@@ -929,12 +926,12 @@ RegMeta::GetTypeDefProps(
         }
         hr = CLDB_S_TRUNCATION;
     }
-    
+
 ErrExit:
     END_ENTRYPOINT_NOTHROW;
-    
+
     STOP_MD_PERF(GetTypeDefProps);
-    
+
     return hr;
 } // RegMeta::GetTypeDefProps
 
@@ -953,9 +950,9 @@ STDMETHODIMP RegMeta::GetInterfaceImplProps(        // S_OK or error.
     CMiniMdRW       *pMiniMd = NULL;
     InterfaceImplRec *pIIRec = NULL;
 
-    
-    
-    LOG((LOGMD, "RegMeta::GetInterfaceImplProps(0x%08x, 0x%08x, 0x%08x)\n", 
+
+
+    LOG((LOGMD, "RegMeta::GetInterfaceImplProps(0x%08x, 0x%08x, 0x%08x)\n",
             iiImpl, pClass, ptkIface));
     START_MD_PERF();
     LOCKREAD();
@@ -984,7 +981,7 @@ ErrExit:
 //*****************************************************************************
 // Retrieve information about a TypeRef.
 //*****************************************************************************
-STDMETHODIMP 
+STDMETHODIMP
 RegMeta::GetTypeRefProps(
     mdTypeRef tr,                   // The class ref token.
     mdToken  *ptkResolutionScope,   // Resolution scope, ModuleRef or AssemblyRef.
@@ -993,19 +990,19 @@ RegMeta::GetTypeRefProps(
     ULONG    *pchTypeRef)           // Put actual size of name here.
 {
     HRESULT hr = S_OK;
-    
+
     BEGIN_ENTRYPOINT_NOTHROW;
-    
+
     CMiniMdRW  *pMiniMd;
     TypeRefRec *pTypeRefRec;
     BOOL        fTruncation = FALSE;    // Was there name truncation?
-    
-    LOG((LOGMD, "RegMeta::GetTypeRefProps(0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x)\n", 
+
+    LOG((LOGMD, "RegMeta::GetTypeRefProps(0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x)\n",
         tr, ptkResolutionScope, szTypeRef, cchTypeRef, pchTypeRef));
-    
+
     START_MD_PERF();
     LOCKREAD();
-    
+
     if (TypeFromToken(tr) != mdtTypeRef)
     {
         hr = S_FALSE;
@@ -1019,32 +1016,32 @@ RegMeta::GetTypeRefProps(
             *pchTypeRef = 1;
         if ((szTypeRef != NULL) && (cchTypeRef > 0))
             szTypeRef[0] = 0;
-        
+
         hr = S_OK;
         goto ErrExit;
     }
-    
+
     pMiniMd = &(m_pStgdb->m_MiniMd);
     IfFailGo(pMiniMd->GetTypeRefRecord(RidFromToken(tr), &pTypeRefRec));
-    
+
     if (ptkResolutionScope != NULL)
     {
         *ptkResolutionScope = pMiniMd->getResolutionScopeOfTypeRef(pTypeRefRec);
     }
-    
+
     if ((szTypeRef != NULL) || (pchTypeRef != NULL))
     {
         LPCSTR szNamespace;
         LPCSTR szName;
-        
+
         IfFailGo(pMiniMd->getNamespaceOfTypeRef(pTypeRefRec, &szNamespace));
         MAKE_WIDEPTR_FROMUTF8_NOTHROW(wzNamespace, szNamespace);
         IfNullGo(wzNamespace);
-        
+
         IfFailGo(pMiniMd->getNameOfTypeRef(pTypeRefRec, &szName));
         MAKE_WIDEPTR_FROMUTF8_NOTHROW(wzName, szName);
         IfNullGo(wzName);
-        
+
         if (szTypeRef != NULL)
         {
             fTruncation = !(ns::MakePath(szTypeRef, cchTypeRef, wzNamespace, wzName));
@@ -1069,7 +1066,7 @@ RegMeta::GetTypeRefProps(
         }
         hr = CLDB_S_TRUNCATION;
     }
-    
+
 ErrExit:
     STOP_MD_PERF(GetTypeRefProps);
     END_ENTRYPOINT_NOTHROW;
@@ -1095,9 +1092,9 @@ STDMETHODIMP RegMeta::FindTypeRef(      // S_OK or error.
 
     _ASSERTE(wzTypeName && ptk);
 
-    
 
-    LOG((LOGMD, "RegMeta::FindTypeRef(0x%8x, %ls, 0x%08x)\n", 
+
+    LOG((LOGMD, "RegMeta::FindTypeRef(0x%8x, %ls, 0x%08x)\n",
             tkResolutionScope, MDSTR(wzTypeName), ptk));
     START_MD_PERF();
     LOCKREAD();
@@ -1108,15 +1105,15 @@ STDMETHODIMP RegMeta::FindTypeRef(      // S_OK or error.
     ns::SplitInline(szFullName, szNamespace, szName);
 
     // Look up the name.
-    hr = ImportHelper::FindTypeRefByName(pMiniMd, tkResolutionScope, 
-                                         szNamespace, 
-                                         szName, 
+    hr = ImportHelper::FindTypeRefByName(pMiniMd, tkResolutionScope,
+                                         szNamespace,
+                                         szName,
                                          ptk);
 ErrExit:
 
     STOP_MD_PERF(FindTypeRef);
     END_ENTRYPOINT_NOTHROW;
-    
+
     return hr;
 } // STDMETHODIMP RegMeta::FindTypeRef()
 
@@ -1196,7 +1193,7 @@ HRESULT RegMeta::_GetTokenFromSig(              // S_OK or error.
     *pmsig = TokenFromRid(iSigRec, mdtSignature);
 
     // Save signature.
-    IfFailGo(m_pStgdb->m_MiniMd.PutBlob(TBL_StandAloneSig, StandAloneSigRec::COL_Signature, 
+    IfFailGo(m_pStgdb->m_MiniMd.PutBlob(TBL_StandAloneSig, StandAloneSigRec::COL_Signature,
                                 pSigRec, pvSig, cbSig));
     IfFailGo(UpdateENCLog(*pmsig));
 ErrExit:

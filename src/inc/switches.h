@@ -15,7 +15,7 @@
 
 #define GC_CONFIG_DRIVEN
 
-// define this to test data safety for the DAC. See code:DataTest::TestDataSafety. 
+// define this to test data safety for the DAC. See code:DataTest::TestDataSafety.
 #define TEST_DATA_CONSISTENCY
 
 #if !defined(STRESS_LOG) && !defined(FEATURE_UTILCODE_NO_DEPENDENCIES)
@@ -34,10 +34,6 @@
     #define LOGGING
 #endif
 
-#if !defined(_TARGET_X86_) || defined(FEATURE_PAL)
-#define WIN64EXCEPTIONS
-#endif
-
 #if !defined(FEATURE_UTILCODE_NO_DEPENDENCIES)
 // Failpoint support
 #if defined(_DEBUG) && !defined(DACCESS_COMPILE) && !defined(FEATURE_PAL)
@@ -47,13 +43,6 @@
 
 #if 0
     #define APPDOMAIN_STATE
-    #define BREAK_ON_UNLOAD
-    #define AD_LOG_MEMORY
-    #define AD_NO_UNLOAD
-    #define AD_SNAPSHOT
-    #define BREAK_META_ACCESS
-    #define AD_BREAK_ON_CANNOT_UNLOAD
-    #define BREAK_ON_CLSLOAD
 
     // Enable to track details of EESuspension
     #define TIME_SUSPEND
@@ -83,7 +72,7 @@
     #error Please add a new #elif clause and define all portability macros for the new platform
 #endif
 
-#if defined(_WIN64)
+#if defined(BIT64)
 #define JIT_IS_ALIGNED
 #endif
 
@@ -102,9 +91,9 @@
 #endif // defined(FEATURE_ENABLE_GCPOLL) && defined(_TARGET_X86_)
 
 #if !defined(FEATURE_PAL)
-// PLATFORM_SUPPORTS_THREADSUSPEND is defined for platforms where it is safe to call 
-//   SuspendThread.  This API is dangerous on non-Windows platforms, as it can lead to 
-//   deadlocks, due to low level OS resources that the PAL is not aware of, or due to 
+// PLATFORM_SUPPORTS_THREADSUSPEND is defined for platforms where it is safe to call
+//   SuspendThread.  This API is dangerous on non-Windows platforms, as it can lead to
+//   deadlocks, due to low level OS resources that the PAL is not aware of, or due to
 //   the fact that PAL-unaware code in the process may hold onto some OS resources.
 #define PLATFORM_SUPPORTS_SAFE_THREADSUSPEND
 #endif // !FEATURE_PAL
@@ -145,16 +134,6 @@
 
 #endif // _DEBUG
 
-
-
-#if defined(PROFILING_SUPPORTED)
-// On desktop CLR builds, the profiling API uses the event log for end-user-friendly
-// diagnostic messages.  CoreCLR on Windows ouputs debug strings for diagnostic messages.
-// Rotor builds have no access to event log message resources, though, so they simply 
-// display popup dialogs for now.
-#define FEATURE_PROFAPI_EVENT_LOGGING
-#endif // defined(PROFILING_SUPPORTED)
-
 // MUST NEVER CHECK IN WITH THIS ENABLED.
 // This is just for convenience in doing performance investigations in a checked-out enlistment.
 // #define FEATURE_ENABLE_NO_RANGE_CHECKS
@@ -177,7 +156,7 @@
 #endif
 
 // Enables a mode in which GC is completely conservative in stacks and registers: all stack slots and registers
-// are treated as potential pinned interior pointers. When enabled, the runtime flag COMPLUS_GCCONSERVATIVE 
+// are treated as potential pinned interior pointers. When enabled, the runtime flag COMPLUS_GCCONSERVATIVE
 // determines dynamically whether GC is conservative. Note that appdomain unload, LCG and unloadable assemblies
 // do not work reliably with conservative GC.
 #define FEATURE_CONSERVATIVE_GC 1
@@ -193,26 +172,15 @@
 #define FEATURE_64BIT_ALIGNMENT
 #endif
 
-// Prefer double alignment for structs and arrays with doubles. Put arrays of doubles more agressively 
-// into large object heap for performance because large object heap is 8 byte aligned 
-#if !defined(FEATURE_64BIT_ALIGNMENT) && !defined(_WIN64)
+// Prefer double alignment for structs and arrays with doubles. Put arrays of doubles more agressively
+// into large object heap for performance because large object heap is 8 byte aligned
+#if !defined(FEATURE_64BIT_ALIGNMENT) && !defined(BIT64)
 #define FEATURE_DOUBLE_ALIGNMENT_HINT
 #endif
 
 #if defined(FEATURE_CORESYSTEM)
 #define FEATURE_MINIMETADATA_IN_TRIAGEDUMPS
 #endif // defined(FEATURE_CORESYSTEM)
-
-#if defined(FEATURE_PREJIT) && defined(FEATURE_CORESYSTEM)
-// Desktop CLR allows profilers and debuggers to opt out of loading NGENd images, and to
-// JIT everything instead. "FEATURE_TREAT_NI_AS_MSIL_DURING_DIAGNOSTICS" is roughly the
-// equivalent for Apollo, where MSIL images may not be available at all.
-// FEATURE_TREAT_NI_AS_MSIL_DURING_DIAGNOSTICS allows profilers or debuggers to state
-// they don't want to use pregenerated code, and to instead load the NGENd image but
-// treat it as if it were MSIL by ignoring the prejitted code and prebaked structures,
-// and instead to JIT and load types at run-time.
-#define FEATURE_TREAT_NI_AS_MSIL_DURING_DIAGNOSTICS
-#endif
 
 // If defined, support interpretation.
 #if !defined(CROSSGEN_COMPILE)

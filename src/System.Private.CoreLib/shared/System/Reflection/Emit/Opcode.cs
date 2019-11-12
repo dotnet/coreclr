@@ -6,7 +6,7 @@ using System.Threading;
 
 namespace System.Reflection.Emit
 {
-    public struct OpCode
+    public readonly struct OpCode : IEquatable<OpCode>
     {
         //
         // Use packed bitfield for flags to avoid code bloat
@@ -33,8 +33,8 @@ namespace System.Reflection.Emit
 
         internal const int StackChangeShift = 28;               // XXXX0000000000000000000000000000
 
-        private OpCodeValues m_value;
-        private int m_flags;
+        private readonly OpCodeValues m_value;
+        private readonly int m_flags;
 
         internal OpCode(OpCodeValues value, int flags)
         {
@@ -42,75 +42,29 @@ namespace System.Reflection.Emit
             m_flags = flags;
         }
 
-        internal bool EndsUncondJmpBlk()
-        {
-            return (m_flags & EndsUncondJmpBlkFlag) != 0;
-        }
+        internal bool EndsUncondJmpBlk() =>
+            (m_flags & EndsUncondJmpBlkFlag) != 0;
 
-        internal int StackChange()
-        {
-            return (m_flags >> StackChangeShift);
-        }
+        internal int StackChange() =>
+            m_flags >> StackChangeShift;
 
-        public OperandType OperandType
-        {
-            get
-            {
-                return (OperandType)(m_flags & OperandTypeMask);
-            }
-        }
+        public OperandType OperandType => (OperandType)(m_flags & OperandTypeMask);
 
-        public FlowControl FlowControl
-        {
-            get
-            {
-                return (FlowControl)((m_flags >> FlowControlShift) & FlowControlMask);
-            }
-        }
+        public FlowControl FlowControl => (FlowControl)((m_flags >> FlowControlShift) & FlowControlMask);
 
-        public OpCodeType OpCodeType
-        {
-            get
-            {
-                return (OpCodeType)((m_flags >> OpCodeTypeShift) & OpCodeTypeMask);
-            }
-        }
+        public OpCodeType OpCodeType => (OpCodeType)((m_flags >> OpCodeTypeShift) & OpCodeTypeMask);
 
-        public StackBehaviour StackBehaviourPop
-        {
-            get
-            {
-                return (StackBehaviour)((m_flags >> StackBehaviourPopShift) & StackBehaviourMask);
-            }
-        }
+        public StackBehaviour StackBehaviourPop => (StackBehaviour)((m_flags >> StackBehaviourPopShift) & StackBehaviourMask);
 
-        public StackBehaviour StackBehaviourPush
-        {
-            get
-            {
-                return (StackBehaviour)((m_flags >> StackBehaviourPushShift) & StackBehaviourMask);
-            }
-        }
+        public StackBehaviour StackBehaviourPush => (StackBehaviour)((m_flags >> StackBehaviourPushShift) & StackBehaviourMask);
 
-        public int Size
-        {
-            get
-            {
-                return (m_flags >> SizeShift) & SizeMask;
-            }
-        }
+        public int Size => (m_flags >> SizeShift) & SizeMask;
 
-        public short Value
-        {
-            get
-            {
-                return (short)m_value;
-            }
-        }
+        public short Value => (short)m_value;
 
-        private static volatile string[] g_nameCache;
+        private static volatile string[]? g_nameCache;
 
-        public string Name
+        public string? Name
         {
             get
             {
@@ -119,7 +73,7 @@ namespace System.Reflection.Emit
 
                 // Create and cache the opcode names lazily. They should be rarely used (only for logging, etc.)
                 // Note that we do not any locks here because of we always get the same names. The last one wins.
-                string[] nameCache = g_nameCache;
+                string[]? nameCache = g_nameCache;
                 if (nameCache == null)
                 {
                     nameCache = new string[0x11f];
@@ -149,43 +103,23 @@ namespace System.Reflection.Emit
                     return name;
 
                 // Create ilasm style name from the enum value name.
-                name = Enum.GetName(typeof(OpCodeValues), opCodeValue).ToLowerInvariant().Replace("_", ".");
+                name = Enum.GetName(typeof(OpCodeValues), opCodeValue)!.ToLowerInvariant().Replace('_', '.');
                 Volatile.Write(ref nameCache[idx], name);
                 return name;
             }
         }
 
-        public override bool Equals(object obj)
-        {
-            if (obj is OpCode)
-                return Equals((OpCode)obj);
-            else
-                return false;
-        }
+        public override bool Equals(object? obj) =>
+            obj is OpCode other && Equals(other);
 
-        public bool Equals(OpCode obj)
-        {
-            return obj.Value == Value;
-        }
+        public bool Equals(OpCode obj) => obj.Value == Value;
 
-        public static bool operator ==(OpCode a, OpCode b)
-        {
-            return a.Equals(b);
-        }
+        public static bool operator ==(OpCode a, OpCode b) => a.Equals(b);
 
-        public static bool operator !=(OpCode a, OpCode b)
-        {
-            return !(a == b);
-        }
+        public static bool operator !=(OpCode a, OpCode b) => !(a == b);
 
-        public override int GetHashCode()
-        {
-            return Value;
-        }
+        public override int GetHashCode() => Value;
 
-        public override string ToString()
-        {
-            return Name;
-        }
+        public override string? ToString() => Name;
     }
 }

@@ -17,8 +17,6 @@
 #include "eeconfig.h" // This is here even for retail & free builds...
 #include "../../dlls/mscorrc/resource.h"
 
-
-#include "context.h"
 #include "vars.hpp"
 #include <limits.h>
 #include "ilformatter.h"
@@ -63,7 +61,7 @@ GPTR_IMPL(Debugger,         g_pDebugger);
 GPTR_IMPL(EEDebugInterface, g_pEEInterface);
 SVAL_IMPL_INIT(BOOL, Debugger, s_fCanChangeNgenFlags, TRUE);
 
-// This is a public export so debuggers can read and determine if the coreclr 
+// This is a public export so debuggers can read and determine if the coreclr
 // process is waiting for JIT debugging attach.
 GVAL_IMPL_INIT(ULONG, CLRJitAttachState, 0);
 
@@ -195,7 +193,7 @@ void DoCompileTimeCheckOnDbgIpcEventTypes()
 //-----------------------------------------------------------------------------
 // Ctor for AtSafePlaceHolder
 AtSafePlaceHolder::AtSafePlaceHolder(Thread * pThread)
-{   
+{
     _ASSERTE(pThread != NULL);
     if (!g_pDebugger->IsThreadAtSafePlace(pThread))
     {
@@ -223,7 +221,7 @@ bool AtSafePlaceHolder::IsAtUnsafePlace()
 }
 
 //-----------------------------------------------------------------------------
-// Clear the holder. 
+// Clear the holder.
 // Notes:
 //    This can be called multiple times.
 //    Calling this makes the dtor a nop.
@@ -263,7 +261,7 @@ bool IsGuardPageGone()
 
     // We're not going to be called for a unmanaged exception.
     // Should always have a managed thread, but just in case something really
-    // crazy happens, it's not worth an AV. (since this is just being used as a hint)
+    // strange happens, it's not worth an AV. (since this is just being used as a hint)
     if (pThread == NULL)
     {
         return false;
@@ -317,7 +315,7 @@ HelperCanary * Debugger::GetCanary()
 {
     return g_pRCThread->GetCanary();
 }
-    
+
 // IMPORTANT!!!!!
 // Do not call Lock and Unlock directly. Because you might not unlock
 // if exception takes place. Use DebuggerLockHolder instead!!!
@@ -472,15 +470,15 @@ void Debugger::DoNotCallDirectlyPrivateUnlock(void)
 // ---------------------------------------------------------------------------------
 
 // Send an event to the RS to signal that it should test to determine if a crst is held.
-// This is for testing purposes only. 
+// This is for testing purposes only.
 // Arguments:
 //     input:  pCrst     - the lock to test
 //             fOkToTake - true iff the LS does NOT currently hold the lock
-//     output: none 
+//     output: none
 // Notes: The RS will throw if the lock is held. The code that tests the lock will catch the
-//        exception and assert if throwing was not the correct thing to do (determined via the 
+//        exception and assert if throwing was not the correct thing to do (determined via the
 //        boolean). See the case for DB_IPCE_TEST_CRST in code:CordbProcess::RawDispatchEvent.
-// 
+//
 void DataTest::SendDbgCrstEvent(Crst * pCrst, bool fOkToTake)
 {
     DebuggerIPCEvent * pLockEvent = g_pDebugger->m_pRCThread->GetIPCEventSendBuffer();
@@ -495,15 +493,15 @@ void DataTest::SendDbgCrstEvent(Crst * pCrst, bool fOkToTake)
 } // DataTest::SendDbgCrstEvent
 
 // Send an event to the RS to signal that it should test to determine if a SimpleRWLock is held.
-// This is for testing purposes only. 
+// This is for testing purposes only.
 // Arguments:
 //     input:  pRWLock   - the lock to test
 //             fOkToTake - true iff the LS does NOT currently hold the lock
-//     output: none 
+//     output: none
 // Note:  The RS will throw if the lock is held. The code that tests the lock will catch the
-//        exception and assert if throwing was not the correct thing to do (determined via the 
+//        exception and assert if throwing was not the correct thing to do (determined via the
 //        boolean). See the case for DB_IPCE_TEST_RWLOCK in code:CordbProcess::RawDispatchEvent.
-// 
+//
 void DataTest::SendDbgRWLockEvent(SimpleRWLock * pRWLock, bool okToTake)
 {
     DebuggerIPCEvent * pLockEvent = g_pDebugger->m_pRCThread->GetIPCEventSendBuffer();
@@ -516,17 +514,17 @@ void DataTest::SendDbgRWLockEvent(SimpleRWLock * pRWLock, bool okToTake)
     g_pDebugger->SendRawEvent(pLockEvent);
 } // DataTest::SendDbgRWLockEvent
 
-// Takes a series of locks in various ways and signals the RS to test the locks at interesting 
-// points to ensure we reliably detect when the LS holds a lock. If in the course of inspection, the 
-// DAC needs to execute a code path where the LS holds a lock, we assume that the locked data is in 
+// Takes a series of locks in various ways and signals the RS to test the locks at interesting
+// points to ensure we reliably detect when the LS holds a lock. If in the course of inspection, the
+// DAC needs to execute a code path where the LS holds a lock, we assume that the locked data is in
 // an inconsistent state. In this situation, we don't want to report information about this data, so
-// we throw an exception. 
-// This is for testing purposes only. 
-// 
+// we throw an exception.
+// This is for testing purposes only.
+//
 // Arguments: none
 // Return Value: none
 // Notes: See code:CordbProcess::RawDispatchEvent for the RS part of this test and code:Debugger::Startup
-//        for the LS invocation of the test. 
+//        for the LS invocation of the test.
 //        The environment variable TestDataConsistency must be set to 1 to make this test run.
 void DataTest::TestDataSafety()
 {
@@ -709,7 +707,6 @@ void Debugger::SendSimpleIPCEventAndBlock()
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         MAY_DO_HELPER_THREAD_DUTY_THROWS_CONTRACT;
         MAY_DO_HELPER_THREAD_DUTY_GC_TRIGGERS_CONTRACT;
     }
@@ -803,7 +800,6 @@ HRESULT ValidateGCHandle(OBJECTHANDLE oh)
 
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -848,7 +844,6 @@ HRESULT ValidateObject(Object *objPtr)
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -895,15 +890,6 @@ ShutdownTransport()
         g_pDbgTransport = NULL;
     }
 }
-
-void
-AbortTransport()
-{
-    if (g_pDbgTransport != NULL)
-    {
-        g_pDbgTransport->AbortConnection();
-    }
-}
 #endif // FEATURE_DBGIPC_TRANSPORT_VM
 
 
@@ -948,14 +934,16 @@ Debugger::Debugger()
     m_pModules(NULL),
     m_RSRequestedSync(FALSE),
     m_sendExceptionsOutsideOfJMC(TRUE),
-    m_pIDbgThreadControl(NULL),
     m_forceNonInterceptable(FALSE),
     m_pLazyData(NULL),
-    m_defines(_defines)
+    m_defines(_defines),
+    m_isBlockedOnGarbageCollectionEvent(FALSE),
+    m_willBlockOnGarbageCollectionEvent(FALSE),
+    m_isGarbageCollectionEventsEnabled(FALSE),
+    m_isGarbageCollectionEventsEnabledLatch(FALSE)
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         WRAPPER(THROWS);
         WRAPPER(GC_TRIGGERS);
         CONSTRUCTOR_CHECK;
@@ -980,8 +968,8 @@ Debugger::Debugger()
     //------------------------------------------------------------------------------
     // Metadata data structure version numbers
     //
-    // 1 - initial state of the layouts ( .Net 4.5.2 )
-    // 
+    // 1 - initial state of the layouts ( .NET Framework 4.5.2 )
+    //
     // as data structure layouts change, add a new version number
     // and comment the changes
     m_mdDataStructureVersion = 1;
@@ -998,12 +986,11 @@ Debugger::~Debugger()
         NOTHROW;
         GC_NOTRIGGER;
         DESTRUCTOR_CHECK;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 
     // We explicitly leak the debugger object on shutdown. See Debugger::StopDebugger for details.
-    _ASSERTE(!"Debugger dtor should not be called.");   
+    _ASSERTE(!"Debugger dtor should not be called.");
 }
 
 #if defined(FEATURE_HIJACK) && !defined(PLATFORM_UNIX)
@@ -1018,7 +1005,7 @@ inline MemoryRange GetMemoryRangeForFunction(PFN_HIJACK_FUNCTION pfnStart, PFN_H
 }
 
 // static
-MemoryRange Debugger::s_hijackFunction[kMaxHijackFunctions] = 
+MemoryRange Debugger::s_hijackFunction[kMaxHijackFunctions] =
     {GetMemoryRangeForFunction(ExceptionHijack, ExceptionHijackEnd),
      GetMemoryRangeForFunction(RedirectedHandledJITCaseForGCThreadControl_Stub,
                                RedirectedHandledJITCaseForGCThreadControl_StubEnd),
@@ -1034,7 +1021,7 @@ MemoryRange Debugger::s_hijackFunction[kMaxHijackFunctions] =
     };
 #endif // FEATURE_HIJACK && !PLATFORM_UNIX
 
-// Save the necessary information for the debugger to recognize an IP in one of the thread redirection 
+// Save the necessary information for the debugger to recognize an IP in one of the thread redirection
 // functions.
 void Debugger::InitializeHijackFunctionAddress()
 {
@@ -1051,7 +1038,6 @@ void Debugger::InitDebugEventCounting()
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -1198,7 +1184,6 @@ HRESULT Debugger::CheckInitMethodInfoTable()
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -1385,7 +1370,7 @@ ULONG DebuggerMethodInfoTable::CheckDmiTable(void)
 
 //---------------------------------------------------------------------------------------
 //
-// Class constructor for DebuggerEval.  This is the supporting data structure for 
+// Class constructor for DebuggerEval.  This is the supporting data structure for
 // func-eval tracking.
 //
 // Arguments:
@@ -1413,26 +1398,10 @@ DebuggerEval::DebuggerEval(CONTEXT * pContext, DebuggerIPCE_FuncEvalInfo * pEval
     m_classToken = pEvalInfo->funcClassMetadataToken;
 
     // Note: we can't rely on just the DebuggerModule* or AppDomain* because the AppDomain
-    // could get unloaded between now and when the funceval actually starts.  So we stash an 
-    // AppDomain ID which is safe to use after the AD is unloaded.  It's only safe to 
+    // could get unloaded between now and when the funceval actually starts.  So we stash an
+    // AppDomain ID which is safe to use after the AD is unloaded.  It's only safe to
     // use the DebuggerModule* after we've verified the ADID is still valid (i.e. by entering that domain).
     m_debuggerModule = g_pDebugger->LookupOrCreateModule(pEvalInfo->vmDomainFile);
-
-    if (m_debuggerModule == NULL)
-    {
-        // We have no associated code.
-        _ASSERTE((m_evalType == DB_IPCE_FET_NEW_STRING) || (m_evalType == DB_IPCE_FET_NEW_ARRAY));
-        
-        // We'll just do the creation in whatever domain the thread is already in.
-        // It's conceivable that we might want to allow the caller to specify a specific domain, but
-        // ICorDebug provides the debugger with no was to specify the domain.
-        m_appDomainId = m_thread->GetDomain()->GetId();
-    }
-    else
-    {
-        m_appDomainId = m_debuggerModule->GetAppDomain()->GetId();
-    }
-
     m_funcEvalKey = pEvalInfo->funcEvalKey;
     m_argCount = pEvalInfo->argCount;
     m_targetCodeAddr = NULL;
@@ -1508,7 +1477,7 @@ DebuggerEval::DebuggerEval(CONTEXT * pContext, Thread * pThread, Thread::ThreadA
     m_rethrowAbortException = false;
     m_retValueBoxing = Debugger::NoValueTypeBoxing;
     m_requester = requester;
-    
+
     if (pContext == NULL)
     {
         memset(&m_context, 0, sizeof(m_context));
@@ -1634,7 +1603,6 @@ DebuggerHeap * Debugger::GetInteropSafeHeap()
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         THROWS;
         GC_NOTRIGGER;
     }
@@ -1656,7 +1624,6 @@ DebuggerHeap * Debugger::GetInteropSafeHeap_NoThrow()
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -1668,7 +1635,7 @@ DebuggerHeap * Debugger::GetInteropSafeHeap_NoThrow()
         _ASSERTE(!"InteropSafe Heap should have already been initialized in LazyInit");
 
         // Just in case we miss it in retail, convert to OOM here:
-        return NULL;        
+        return NULL;
     }
     return &m_heap;
 }
@@ -1677,7 +1644,6 @@ DebuggerHeap * Debugger::GetInteropSafeExecutableHeap()
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         THROWS;
         GC_NOTRIGGER;
     }
@@ -1699,7 +1665,6 @@ DebuggerHeap * Debugger::GetInteropSafeExecutableHeap_NoThrow()
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -1711,7 +1676,7 @@ DebuggerHeap * Debugger::GetInteropSafeExecutableHeap_NoThrow()
         _ASSERTE(!"InteropSafe Executable Heap should have already been initialized in LazyInit");
 
         // Just in case we miss it in retail, convert to OOM here:
-        return NULL;        
+        return NULL;
     }
     return &m_executableHeap;
 }
@@ -1725,14 +1690,14 @@ DebuggerHeap * Debugger::GetInteropSafeExecutableHeap_NoThrow()
 //    Called during startup path
 //
 // Notes:
-//    If no debugger is attached, this does nothing. 
+//    If no debugger is attached, this does nothing.
 //
 //---------------------------------------------------------------------------------------
 void Debugger::RaiseStartupNotification()
 {
     // Right-side will read this field from OOP via DAC-primitive to determine attach or launch case.
     // We do an interlocked increment to gaurantee this is an atomic memory write, and to ensure
-    // that it's flushed from any CPU cache into memory. 
+    // that it's flushed from any CPU cache into memory.
     InterlockedIncrement(&m_fLeftSideInitialized);
 
 #ifndef FEATURE_DBGIPC_TRANSPORT_VM
@@ -1740,7 +1705,7 @@ void Debugger::RaiseStartupNotification()
     // listening, and we will fail.  However, we still want to initialize the variable above.
     DebuggerIPCEvent startupEvent;
     InitIPCEvent(&startupEvent, DB_IPCE_LEFTSIDE_STARTUP, NULL, VMPTR_AppDomain::NullPtr());
-         
+
     SendRawEvent(&startupEvent);
 
     // RS will set flags from OOP while we're stopped at the event if it wants to attach.
@@ -1786,13 +1751,13 @@ void Debugger::SendRawEvent(const DebuggerIPCEvent * pManagedEvent)
     // We get to send an array of ULONG_PTRs as data with the notification.
     // The debugger can then use ReadProcessMemory to read through this array.
     ULONG_PTR rgData [] = {
-        CLRDBG_EXCEPTION_DATA_CHECKSUM, 
-        (ULONG_PTR) g_pMSCorEE, 
+        CLRDBG_EXCEPTION_DATA_CHECKSUM,
+        (ULONG_PTR) g_pMSCorEE,
         (ULONG_PTR) pManagedEvent
     };
 
     // If no debugger attached, then don't bother raising a 1st-chance exception because nobody will sniff it.
-    // @dbgtodo iDNA: in iDNA case, the recorder may sniff it. 
+    // @dbgtodo iDNA: in iDNA case, the recorder may sniff it.
     if (!IsDebuggerPresent())
     {
         return;
@@ -1808,14 +1773,14 @@ void Debugger::SendRawEvent(const DebuggerIPCEvent * pManagedEvent)
         const DWORD dwFlags = 0; // continuable (eg, Debugger can continue GH)
         RaiseException(CLRDBG_NOTIFICATION_EXCEPTION_CODE, dwFlags, NumItems(rgData), rgData);
 
-        // If debugger continues "GH" (DBG_CONTINUE), then we land here. 
+        // If debugger continues "GH" (DBG_CONTINUE), then we land here.
         // This is the expected path for a well-behaved ICorDebug debugger.
     }
     EX_CATCH
     {
         // If no debugger is attached, or if the debugger continues "GN" (DBG_EXCEPTION_NOT_HANDLED), then we land here.
         // A naive (not-ICorDebug aware) native-debugger won't handle the exception and so land us here.
-        // We may also get here if a debugger detaches at the Exception notification 
+        // We may also get here if a debugger detaches at the Exception notification
         // (and thus implicitly continues GN).
     }
     EX_END_CATCH(SwallowAllExceptions);
@@ -1833,25 +1798,25 @@ void Debugger::SendRawEvent(const DebuggerIPCEvent * pManagedEvent)
 //    This will start a synchronization.
 //
 // Notes:
-//    In V2, this also gives the RS a chance to intialize the IPC protocol.    
+//    In V2, this also gives the RS a chance to intialize the IPC protocol.
 //    Spefically, this needs to be sent before the LS can send a sync-complete.
 //---------------------------------------------------------------------------------------
 void Debugger::SendCreateProcess(DebuggerLockHolder * pDbgLockHolder)
 {
     pDbgLockHolder->Release();
-    
+
     // Encourage helper thread to spin up so that we're in a consistent state.
     PollWaitingForHelper();
 
-    // we don't need to use SENDIPCEVENT_BEGIN/END macros that perform the debug-suspend aware checks, 
+    // we don't need to use SENDIPCEVENT_BEGIN/END macros that perform the debug-suspend aware checks,
     // as this code executes on the startup path...
     SENDIPCEVENT_RAW_BEGIN(pDbgLockHolder);
 
-    // Send a CreateProcess event. 
+    // Send a CreateProcess event.
     // @dbgtodo  pipeline - eliminate these reasons for needing a CreateProcess event (part of pipeline feature crew)
     // This will let the RS know that the IPC block is up + ready, and then the RS can read it.
     // The RS will then update the DCB with enough information so that we can send the sync-complete.
-    // (such as letting us know whether we're interop-debugging or not).        
+    // (such as letting us know whether we're interop-debugging or not).
     DebuggerIPCEvent event;
     InitIPCEvent(&event, DB_IPCE_CREATE_PROCESS, NULL, VMPTR_AppDomain::NullPtr());
     SendRawEvent(&event);
@@ -1863,8 +1828,8 @@ void Debugger::SendCreateProcess(DebuggerLockHolder * pDbgLockHolder)
     TrapAllRuntimeThreads();
 
     // Must have a thread object so that we ensure that we will actually block here.
-    // This ensures the debuggee is actually stopped at startup, and 
-    // this gives the debugger a chance to call SetDesiredNGENFlags before we 
+    // This ensures the debuggee is actually stopped at startup, and
+    // this gives the debugger a chance to call SetDesiredNGENFlags before we
     // set s_fCanChangeNgenFlags to FALSE.
     _ASSERTE(GetThread() != NULL);
     SENDIPCEVENT_RAW_END;
@@ -1877,8 +1842,8 @@ void Debugger::SendCreateProcess(DebuggerLockHolder * pDbgLockHolder)
 HANDLE g_hContinueStartupEvent = INVALID_HANDLE_VALUE;
 
 CLR_ENGINE_METRICS g_CLREngineMetrics = {
-    sizeof(CLR_ENGINE_METRICS), 
-    CorDebugVersion_4_0, 
+    sizeof(CLR_ENGINE_METRICS),
+    CorDebugVersion_4_0,
     &g_hContinueStartupEvent};
 
 #define StartupNotifyEventNamePrefix W("TelestoStartupEvent_")
@@ -1921,6 +1886,16 @@ void NotifyDebuggerOfStartup()
 
 #endif // !FEATURE_PAL
 
+void Debugger::CleanupTransportSocket(void)
+{
+#if defined(FEATURE_PAL) && defined(FEATURE_DBGIPC_TRANSPORT_VM)
+    if (g_pDbgTransport != NULL)
+    {
+        g_pDbgTransport->AbortConnection();
+    }
+#endif // FEATURE_PAL && FEATURE_DBGIPC_TRANSPORT_VM
+}
+
 //---------------------------------------------------------------------------------------
 //
 // Initialize Left-Side debugger object
@@ -1942,7 +1917,6 @@ HRESULT Debugger::Startup(void)
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         THROWS;
         GC_TRIGGERS;
     }
@@ -2016,16 +1990,12 @@ HRESULT Debugger::Startup(void)
         }
     #endif
 
-    #ifdef FEATURE_PAL
-        PAL_InitializeDebug();
-    #endif // FEATURE_PAL
-
         // Lazily initialize the interop-safe heap
 
         // Must be done before the RC thread is initialized.
         // @dbgtodo  - In V2, LS was lazily initialized; but was eagerly pre-initialized if launched by debugger.
         // (This was for perf reasons). But we don't want Launch vs. Attach checks in the LS, so we now always
-        // init. As we move more to OOP, this init will become cheaper.    
+        // init. As we move more to OOP, this init will become cheaper.
         {
             LazyInit();
             DebuggerController::Initialize();
@@ -2034,7 +2004,11 @@ HRESULT Debugger::Startup(void)
         InitializeHijackFunctionAddress();
 
         // Also initialize the AppDomainEnumerationIPCBlock
+    #if !defined(FEATURE_IPCMAN) || defined(FEATURE_DBGIPC_TRANSPORT_VM)
         m_pAppDomainCB = new (nothrow) AppDomainEnumerationIPCBlock();
+    #else
+        m_pAppDomainCB = g_pIPCManagerInterface->GetAppDomainBlock();
+    #endif
 
         if (m_pAppDomainCB == NULL)
         {
@@ -2045,7 +2019,7 @@ HRESULT Debugger::Startup(void)
         hr = InitAppDomainIPC();
         _ASSERTE(SUCCEEDED(hr)); // throws on error.
 
-        // Allows the debugger (and profiler) diagnostics to be disabled so resources like 
+        // Allows the debugger (and profiler) diagnostics to be disabled so resources like
         // the named pipes and semaphores are not created.
         if (CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_EnableDiagnostics) == 0)
         {
@@ -2070,9 +2044,6 @@ HRESULT Debugger::Startup(void)
             ShutdownTransport();
             ThrowHR(hr);
         }
-    #ifdef FEATURE_PAL
-        PAL_SetShutdownCallback(AbortTransport);
-    #endif // FEATURE_PAL
     #endif // FEATURE_DBGIPC_TRANSPORT_VM
 
         RaiseStartupNotification();
@@ -2097,7 +2068,7 @@ HRESULT Debugger::Startup(void)
         }
 
     #ifdef TEST_DATA_CONSISTENCY
-        // if we have set the environment variable TestDataConsistency, run the data consistency test. 
+        // if we have set the environment variable TestDataConsistency, run the data consistency test.
         // See code:DataTest::TestDataSafety for more information
         if ((g_pConfig != NULL) && (g_pConfig->TestDataConsistency() == true))
         {
@@ -2108,14 +2079,14 @@ HRESULT Debugger::Startup(void)
     }
 
 #ifdef FEATURE_PAL
-    // Signal the debugger (via dbgshim) and wait until it is ready for us to 
+    // Signal the debugger (via dbgshim) and wait until it is ready for us to
     // continue. This needs to be outside the lock and after the transport is
     // initialized.
     if (PAL_NotifyRuntimeStarted())
     {
         // The runtime was successfully launched and attached so mark it now
-        // so no notifications are missed especially the initial module load 
-        // which would cause debuggers problems with reliable setting breakpoints 
+        // so no notifications are missed especially the initial module load
+        // which would cause debuggers problems with reliable setting breakpoints
         // in startup code or Main.
        MarkDebuggerAttachedInternal();
     }
@@ -2135,7 +2106,7 @@ HRESULT Debugger::Startup(void)
 //    pThread - the current thread. Must be non-null
 //
 // Notes:
-//    Most debugger initialization is done in code:Debugger.Startup, 
+//    Most debugger initialization is done in code:Debugger.Startup,
 //    However, debugger can't block on synchronization without a Thread object,
 //    so sending IPC events must wait until after we have a thread object.
 //---------------------------------------------------------------------------------------
@@ -2143,7 +2114,6 @@ HRESULT Debugger::StartupPhase2(Thread * pThread)
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         THROWS;
         GC_TRIGGERS;
     }
@@ -2193,7 +2163,7 @@ HRESULT Debugger::StartupPhase2(Thread * pThread)
             // Remove the env var from our process so that the debugger we spin up won't inherit it.
             // Else, if the debugger is managed, we'll have an infinite recursion.
             BOOL fOk = WszSetEnvironmentVariable(DBG_ATTACH_ON_STARTUP_ENV_VAR, NULL);
-            
+
             if (fOk)
             {
                 // We've already created the helper thread (which can service the attach request)
@@ -2229,7 +2199,7 @@ HRESULT Debugger::StartupPhase2(Thread * pThread)
 // controlled point in time. This is useful for those callers into the debugger (e.g.,
 // ETW rundown) that know they will need the lazy data initialized but cannot afford to
 // have it initialized unpredictably or inside a lock.
-// 
+//
 // This may be called more than once, and will know to initialize the lazy data only
 // once.
 //
@@ -2238,7 +2208,6 @@ void Debugger::InitializeLazyDataIfNecessary()
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         THROWS;
         GC_TRIGGERS;
     }
@@ -2263,7 +2232,6 @@ HRESULT Debugger::LazyInitWrapper()
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         PRECONDITION(ThisMaybeHelperThread());
@@ -2292,7 +2260,6 @@ void Debugger::LazyInit()
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         THROWS;
         GC_NOTRIGGER;
         PRECONDITION(ThreadHoldsLock()); // ensure we're serialized, requires GC_NOTRIGGER
@@ -2340,7 +2307,6 @@ void HelperThreadFavor::Init()
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         THROWS;
         GC_NOTRIGGER;
         PRECONDITION(ThisMaybeHelperThread());
@@ -2370,6 +2336,7 @@ DebuggerLazyInit::DebuggerLazyInit() :
     m_CtrlCMutex(NULL),
     m_exAttachEvent(NULL),
     m_exUnmanagedAttachEvent(NULL),
+    m_garbageCollectionBlockerEvent(NULL),
     m_DebuggerHandlingCtrlC(NULL)
 {
 }
@@ -2378,7 +2345,6 @@ void DebuggerLazyInit::Init()
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         THROWS;
         GC_NOTRIGGER;
         PRECONDITION(ThisMaybeHelperThread());
@@ -2407,6 +2373,8 @@ void DebuggerLazyInit::Init()
 
     m_CtrlCMutex             = CreateWin32EventOrThrow(NULL, kAutoResetEvent, FALSE);
     m_DebuggerHandlingCtrlC  = FALSE;
+
+    m_garbageCollectionBlockerEvent = CreateEventW(NULL, TRUE, FALSE, NULL);
 
     // Let the helper thread lazy init stuff too.
     m_RCThread.Init();
@@ -2445,6 +2413,11 @@ DebuggerLazyInit::~DebuggerLazyInit()
     {
         CloseHandle(m_exUnmanagedAttachEvent);
     }
+
+    if (m_garbageCollectionBlockerEvent != NULL)
+    {
+        CloseHandle(m_garbageCollectionBlockerEvent);
+    }
 }
 
 
@@ -2455,7 +2428,7 @@ DebuggerLazyInit::~DebuggerLazyInit()
 //
 // RequestFavor can be called in stack-overflow scenarios and thus explicitly
 // avoids any lazy initialization.
-// It blocks until the favor callback completes. 
+// It blocks until the favor callback completes.
 //
 // Parameters:
 //   fp    - a non-null Favour callback function
@@ -2463,24 +2436,23 @@ DebuggerLazyInit::~DebuggerLazyInit()
 //
 // Return values:
 //   S_OK if the function succeeds, else a failure HRESULT
-//   
+//
 
 HRESULT Debugger::RequestFavor(FAVORCALLBACK fp, void * pData)
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_TRIGGERS;
         PRECONDITION(fp != NULL);
     }
     CONTRACTL_END;
-    
-    if (m_pRCThread == NULL || 
+
+    if (m_pRCThread == NULL ||
         m_pRCThread->GetRCThreadId() == GetCurrentThreadId())
     {
         // Since favors are only used internally, we know that the helper should alway be up and ready
-        // to handle them. Also, since favors can be used in low-stack scenarios, there's not any 
+        // to handle them. Also, since favors can be used in low-stack scenarios, there's not any
         // extra initialization needed for them.
         _ASSERTE(!"Helper not initialized for favors.");
         return E_UNEXPECTED;
@@ -2514,13 +2486,12 @@ void Debugger::StopDebugger(void)
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
     }
     CONTRACTL_END;
-   
-    // Leak almost everything on process exit. The OS will clean it up anyways and trying to 
+
+    // Leak almost everything on process exit. The OS will clean it up anyways and trying to
     // clean it up ourselves is just one more place we may AV / deadlock.
 
 #if defined(FEATURE_DBGIPC_TRANSPORT_VM)
@@ -2537,12 +2508,12 @@ void Debugger::StopDebugger(void)
     TerminateAppDomainIPC ();
 
     //
-    // Tell the VM to clear out all references to the debugger before we start cleaning up, 
+    // Tell the VM to clear out all references to the debugger before we start cleaning up,
     // so that nothing will reference (accidentally) through the partially cleaned up debugger.
     //
-    // NOTE: we cannot clear out g_pDebugger before the delete call because the 
+    // NOTE: we cannot clear out g_pDebugger before the delete call because the
     // stuff in delete (particularly deleteinteropsafe) needs to look at it.
-    // 
+    //
     g_pEEInterface->ClearAllDebugInterfaceReferences();
     g_pDebugger = NULL;
 }
@@ -2560,7 +2531,6 @@ DebuggerMethodInfo *Debugger::CreateMethodInfo(Module *module, mdMethodDef md)
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         THROWS;
         GC_NOTRIGGER;
 
@@ -2615,18 +2585,19 @@ DebuggerMethodInfo *Debugger::CreateMethodInfo(Module *module, mdMethodDef md)
 // <TODO>@Todo If we're passed 0 for the newAddress param, the jit has been
 //      cancelled & should be undone.</TODO>
  ******************************************************************************/
-void Debugger::JITComplete(MethodDesc* fd, TADDR newAddress)
+void Debugger::JITComplete(NativeCodeVersion nativeCodeVersion, TADDR newAddress)
 {
 
     CONTRACTL
     {
-        SO_INTOLERANT;
         THROWS;
         PRECONDITION(!HasDebuggerDataLock());
         PRECONDITION(newAddress != NULL);
         CALLED_IN_DEBUGGERDATALOCK_HOLDER_SCOPE_MAY_GC_TRIGGERS_CONTRACT;
     }
     CONTRACTL_END;
+
+    MethodDesc* fd = nativeCodeVersion.GetMethodDesc();
 
     LOG((LF_CORDB, LL_INFO100000, "D::JITComplete: md:0x%x (%s::%s), address:0x%x.\n",
         fd, fd->m_pszDebugClassName, fd->m_pszDebugMethodName,
@@ -2653,7 +2624,7 @@ void Debugger::JITComplete(MethodDesc* fd, TADDR newAddress)
             goto Exit;
         }
         BOOL jiWasCreated = FALSE;
-        DebuggerJitInfo * ji = dmi->CreateInitAndAddJitInfo(fd, newAddress, &jiWasCreated);
+        DebuggerJitInfo * ji = dmi->CreateInitAndAddJitInfo(nativeCodeVersion, newAddress, &jiWasCreated);
         if (!jiWasCreated)
         {
             // we've already been notified about this code, no work remains.
@@ -2694,7 +2665,6 @@ SIZE_T Debugger::GetArgCount(MethodDesc *fd,BOOL *fVarArg /* = NULL */)
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         THROWS;
         GC_NOTRIGGER;
     }
@@ -2790,7 +2760,6 @@ DebuggerJitInfo *Debugger::GetJitInfo(MethodDesc *fd, const BYTE *pbAddr, Debugg
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         THROWS;
         GC_NOTRIGGER;
         PRECONDITION(!g_pDebugger->HasDebuggerDataLock());
@@ -2798,7 +2767,7 @@ DebuggerJitInfo *Debugger::GetJitInfo(MethodDesc *fd, const BYTE *pbAddr, Debugg
     CONTRACTL_END;
 
     // Address should be non-null and in range of MethodDesc. This lets us tell which EnC version.
-    _ASSERTE(pbAddr != NULL); 
+    _ASSERTE(pbAddr != NULL);
 
     return GetJitInfoWorker(fd, pbAddr, pMethInfo);
 
@@ -2867,7 +2836,7 @@ DebuggerJitInfo *Debugger::GetJitInfoWorker(MethodDesc *fd, const BYTE *pbAddr, 
     // Note the call to GetLatestJitInfo() will lazily create the first DJI if we don't already have one.
     for (; dji != NULL; dji = dji->m_prevJitInfo)
     {
-        if (PTR_TO_TADDR(dji->m_fd) == PTR_HOST_TO_TADDR(fd))
+        if (PTR_TO_TADDR(dji->m_nativeCodeVersion.GetMethodDesc()) == PTR_HOST_TO_TADDR(fd))
         {
             break;
         }
@@ -2884,7 +2853,7 @@ DebuggerJitInfo *Debugger::GetJitInfoWorker(MethodDesc *fd, const BYTE *pbAddr, 
     LOG((LF_CORDB, LL_INFO1000, "D::GJI: for md:0x%x (%s::%s), got dmi:0x%x, dji:0x%x, latest dji:0x%x, latest fd:0x%x, prev dji:0x%x\n",
         fd, fd->m_pszDebugClassName, fd->m_pszDebugMethodName,
         dmi, dji, (dmi ? dmi->GetLatestJitInfo_NoCreate() : 0),
-        ((dmi && dmi->GetLatestJitInfo_NoCreate()) ? dmi->GetLatestJitInfo_NoCreate()->m_fd:0),
+        ((dmi && dmi->GetLatestJitInfo_NoCreate()) ? dmi->GetLatestJitInfo_NoCreate()->m_nativeCodeVersion.GetMethodDesc():0),
         (dji?dji->m_prevJitInfo:0)));
 
     if ((dji != NULL) && (pbAddr != NULL))
@@ -2936,7 +2905,6 @@ DebuggerMethodInfo *Debugger::GetOrCreateMethodInfo(Module *pModule, mdMethodDef
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         SUPPORTS_DAC;
         THROWS;
         GC_NOTRIGGER;
@@ -2983,6 +2951,13 @@ DebuggerMethodInfo *Debugger::GetOrCreateMethodInfo(Module *pModule, mdMethodDef
 
 #ifndef DACCESS_COMPILE
 
+// Helper to use w/ the debug stores.
+BYTE* InteropSafeNoThrowNew(void*, size_t cBytes)
+{
+    BYTE* p = new (interopsafe, nothrow) BYTE[cBytes];
+    return p;
+}
+
 /******************************************************************************
  * GetILToNativeMapping returns a map from IL offsets to native
  * offsets for this code. An array of COR_PROF_IL_TO_NATIVE_MAP
@@ -2994,7 +2969,6 @@ HRESULT Debugger::GetILToNativeMapping(PCODE pNativeCodeStartAddress, ULONG32 cM
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         THROWS;
         GC_TRIGGERS_FROM_GETJITINFO;
     }
@@ -3019,9 +2993,52 @@ HRESULT Debugger::GetILToNativeMapping(PCODE pNativeCodeStartAddress, ULONG32 cM
 #endif // PROFILING_SUPPORTED
 
     MethodDesc *fd = g_pEEInterface->GetNativeCodeMethodDesc(pNativeCodeStartAddress);
-    if (fd == NULL || fd->IsWrapperStub() || fd->IsDynamicMethod())
+    if (fd == NULL || fd->IsWrapperStub())
     {
         return E_FAIL;
+    }
+
+    if (fd->IsDynamicMethod())
+    {
+        if (g_pConfig->GetTrackDynamicMethodDebugInfo())
+        {
+            DebugInfoRequest diq;
+            diq.InitFromStartingAddr(fd, pNativeCodeStartAddress);
+
+            if (cMap == 0)
+            {
+                if (DebugInfoManager::GetBoundariesAndVars(diq, nullptr, nullptr, pcMap, nullptr, nullptr, nullptr))
+                {
+                    return S_OK;
+                }
+
+                return E_FAIL;
+            }
+
+            ICorDebugInfo::OffsetMapping* pMap = nullptr;
+            if (DebugInfoManager::GetBoundariesAndVars(diq, InteropSafeNoThrowNew, nullptr, pcMap, &pMap, nullptr, nullptr))
+            {
+                for (ULONG32 i = 0; i < cMap; ++i)
+                {
+                    map[i].ilOffset = pMap[i].ilOffset;
+                    map[i].nativeStartOffset = pMap[i].nativeOffset;
+                    if (i > 0)
+                    {
+                        map[i - 1].nativeEndOffset = map[i].nativeStartOffset;
+                    }
+                }
+
+                DeleteInteropSafe(pMap);
+
+                return S_OK;
+            }
+
+            return E_FAIL;
+        }
+        else
+        {
+            return E_FAIL;
+        }
     }
 
     DebuggerMethodInfo *pDMI = GetOrCreateMethodInfo(fd->GetModule(), fd->GetMemberDef());
@@ -3059,7 +3076,7 @@ HRESULT Debugger::GetILToNativeMapping(PCODE pNativeCodeStartAddress, ULONG32 cM
     return (S_OK);
 #else
     return E_NOTIMPL;
-#endif 
+#endif
 }
 
 
@@ -3106,20 +3123,20 @@ HRESULT Debugger::GetILToNativeMapping(PCODE pNativeCodeStartAddress, ULONG32 cM
 
 HRESULT Debugger::GetILToNativeMappingIntoArrays(
     MethodDesc * pMethodDesc,
-    PCODE pCode, 
-    USHORT cMapMax, 
+    PCODE pNativeCodeStartAddress,
+    USHORT cMapMax,
     USHORT * pcMap,
-    UINT ** prguiILOffset, 
+    UINT ** prguiILOffset,
     UINT ** prguiNativeOffset)
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         THROWS;
         GC_NOTRIGGER;
     }
     CONTRACTL_END;
-    
+
+    _ASSERTE(pMethodDesc != NULL);
     _ASSERTE(pcMap != NULL);
     _ASSERTE(prguiILOffset != NULL);
     _ASSERTE(prguiNativeOffset != NULL);
@@ -3130,7 +3147,18 @@ HRESULT Debugger::GetILToNativeMappingIntoArrays(
 
     // Get the JIT info by functionId.
 
-    DebuggerJitInfo * pDJI = GetJitInfo(pMethodDesc, (const BYTE *)pCode);
+    if (pMethodDesc->IsWrapperStub() || pMethodDesc->IsDynamicMethod())
+    {
+        return E_FAIL;
+    }
+
+    DebuggerMethodInfo *pDMI = GetOrCreateMethodInfo(pMethodDesc->GetModule(), pMethodDesc->GetMemberDef());
+    if (pDMI == NULL)
+    {
+        return E_FAIL;
+    }
+
+    DebuggerJitInfo *pDJI = pDMI->FindOrCreateInitAndAddJitInfo(pMethodDesc, pNativeCodeStartAddress);
 
     // Dunno what went wrong
     if (pDJI == NULL)
@@ -3175,7 +3203,6 @@ CodeRegionInfo CodeRegionInfo::GetCodeRegionInfo(DebuggerJitInfo *dji, MethodDes
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         SUPPORTS_DAC;
@@ -3194,10 +3221,10 @@ CodeRegionInfo CodeRegionInfo::GetCodeRegionInfo(DebuggerJitInfo *dji, MethodDes
         CodeRegionInfo codeRegionInfo;
 
         // Use method desc from dji if present
-        if (dji && dji->m_fd)
+        if (dji && dji->m_nativeCodeVersion.GetMethodDesc())
         {
-            _ASSERTE(!md || md == dji->m_fd);
-            md = dji->m_fd;
+            _ASSERTE(!md || md == dji->m_nativeCodeVersion.GetMethodDesc());
+            md = dji->m_nativeCodeVersion.GetMethodDesc();
         }
 
         if (!addr)
@@ -3298,7 +3325,7 @@ void Debugger::getBoundariesHelper(MethodDesc * md,
                     // instrumented IL map if one exists.
                     if (dmi->HasInstrumentedILMap())
                     {
-                        InstrumentedILOffsetMapping mapping = 
+                        InstrumentedILOffsetMapping mapping =
                             dmi->GetRuntimeModule()->GetInstrumentedILOffsetMapping(dmi->m_token);
 
                         for (SIZE_T i = 0; i < n; i++)
@@ -3373,7 +3400,6 @@ void Debugger::getBoundaries(MethodDesc * md,
 #ifndef DACCESS_COMPILE
     CONTRACTL
     {
-        SO_INTOLERANT;
         THROWS;
         GC_TRIGGERS;
     }
@@ -3469,7 +3495,6 @@ void Debugger::getVars(MethodDesc * md, ULONG32 *cVars, ICorDebugInfo::ILVarInfo
 #ifndef DACCESS_COMPILE
     CONTRACTL
     {
-        SO_INTOLERANT;
         THROWS;
         GC_TRIGGERS_FROM_GETJITINFO;
         PRECONDITION(!ThisIsHelperThreadWorker());
@@ -3540,8 +3565,8 @@ Exit:
 
 #ifndef DACCESS_COMPILE
 
-// If we have a varargs function, we can't set the IP (we don't know how to pack/unpack the arguments), so if we 
-// call SetIP with fCanSetIPOnly = true, we need to check for that. 
+// If we have a varargs function, we can't set the IP (we don't know how to pack/unpack the arguments), so if we
+// call SetIP with fCanSetIPOnly = true, we need to check for that.
 // Arguments:
 //     input:  nEntries      - number of entries in varNativeInfo
 //             varNativeInfo - array of entries describing the args and locals for the function
@@ -3556,7 +3581,7 @@ BOOL Debugger::IsVarArgsFunction(unsigned int nEntries, PTR_NativeVarInfo varNat
         }
     }
     return FALSE;
-}            
+}
 
 // We want to keep the 'worst' HRESULT - if one has failed (..._E_...) & the
 // other hasn't, take the failing one.  If they've both/neither failed, then
@@ -3572,7 +3597,6 @@ HRESULT Debugger::SetIP( bool fCanSetIPOnly, Thread *thread,Module *module,
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
         PRECONDITION(CheckPointer(thread));
@@ -3608,7 +3632,7 @@ HRESULT Debugger::SetIP( bool fCanSetIPOnly, Thread *thread,Module *module,
 
     LOG((LF_CORDB, LL_INFO1000, "D::SIP: In SetIP ==> fCanSetIPOnly:0x%x <==!\n", fCanSetIPOnly));
 
-    CodeVersionManager *pCodeVersionManager = module->GetCodeVersionManager();    
+    CodeVersionManager *pCodeVersionManager = module->GetCodeVersionManager();
     {
         CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
         ILCodeVersion ilCodeVersion = pCodeVersionManager->GetActiveILCodeVersion(module, mdMeth);
@@ -3633,13 +3657,13 @@ HRESULT Debugger::SetIP( bool fCanSetIPOnly, Thread *thread,Module *module,
     csi.GetStackInfo(ticket, thread, LEAF_MOST_FRAME, NULL);
 
     ULONG offsetNatFrom = csi.m_activeFrame.relOffset;
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
     if (csi.m_activeFrame.IsFuncletFrame())
     {
         offsetNatFrom = (ULONG)((SIZE_T)GetControlPC(&(csi.m_activeFrame.registers)) -
                                 (SIZE_T)(dji->m_addrOfCode));
     }
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
     _ASSERTE(dji != NULL);
 
@@ -3648,11 +3672,11 @@ HRESULT Debugger::SetIP( bool fCanSetIPOnly, Thread *thread,Module *module,
     // the size of the individual funclets or the parent method.
     pbBase = (BYTE*)CORDB_ADDRESS_TO_PTR(dji->m_addrOfCode);
     dwSize = (DWORD)dji->m_sizeOfCode;
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
     // Currently, method offsets are not bigger than 4 bytes even on WIN64.
     // Assert that it is so here.
     _ASSERTE((SIZE_T)dwSize == dji->m_sizeOfCode);
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 
     // Create our structure for analyzing this.
@@ -3660,10 +3684,10 @@ HRESULT Debugger::SetIP( bool fCanSetIPOnly, Thread *thread,Module *module,
     // CanSetIP & SetIP.</TODO>
     int           cFunclet  = 0;
     const DWORD * rgFunclet = NULL;
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
     cFunclet  = dji->GetFuncletCount();
     rgFunclet = dji->m_rgFunclet;
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
     EHRangeTree* pEHRT = new (nothrow) EHRangeTree(csi.m_activeFrame.pIJM,
                                                    csi.m_activeFrame.MethodToken,
@@ -3701,14 +3725,14 @@ HRESULT Debugger::SetIP( bool fCanSetIPOnly, Thread *thread,Module *module,
         // Caveat: we need to go to a sequence point
         if (fIsIL )
         {
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
             int funcletIndexFrom = dji->GetFuncletIndex((CORDB_ADDRESS)offsetNatFrom, DebuggerJitInfo::GFIM_BYOFFSET);
             offsetNatTo = dji->MapILOffsetToNativeForSetIP(offsetILTo, funcletIndexFrom, pEHRT, &exact);
-#else  // WIN64EXCEPTIONS
+#else  // FEATURE_EH_FUNCLETS
             DebuggerJitInfo::ILToNativeOffsetIterator it;
             dji->InitILToNativeOffsetIterator(it, offsetILTo);
             offsetNatTo = it.CurrentAssertOnlyOne(&exact);
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
             if (!exact)
             {
@@ -3854,7 +3878,7 @@ HRESULT Debugger::SetIP( bool fCanSetIPOnly, Thread *thread,Module *module,
         // have garbage left over in them, and we don't want the GC to try and dereference them
         // as object references.  However, we can't easily tell here which of the callee-saved regs
         // are used in this method and therefore safe to clear.
-        // 
+        //
 
         hr = ShuffleVariablesSet(dji,
                             offsetNatTo,
@@ -3913,7 +3937,6 @@ HRESULT Debugger::ShuffleVariablesGet(DebuggerJitInfo  *dji,
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
         PRECONDITION(CheckPointer(dji));
@@ -3974,7 +3997,7 @@ HRESULT Debugger::ShuffleVariablesGet(DebuggerJitInfo  *dji,
          rgVal1,
          rgVal2));
 
-    GetVariablesFromOffset(dji->m_fd,
+    GetVariablesFromOffset(dji->m_nativeCodeVersion.GetMethodDesc(),
                            dji->GetVarNativeInfoCount(),
                            dji->GetVarNativeInfo(),
                            offsetFrom,
@@ -4020,7 +4043,6 @@ HRESULT Debugger::ShuffleVariablesSet(DebuggerJitInfo  *dji,
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
         PRECONDITION(CheckPointer(dji));
@@ -4037,7 +4059,7 @@ HRESULT Debugger::ShuffleVariablesSet(DebuggerJitInfo  *dji,
          (*prgVal1),
          (*prgVal2)));
 
-    HRESULT hr = SetVariablesAtOffset(dji->m_fd,
+    HRESULT hr = SetVariablesAtOffset(dji->m_nativeCodeVersion.GetMethodDesc(),
                                       dji->GetVarNativeInfoCount(),
                                       dji->GetVarNativeInfo(),
                                       offsetTo,
@@ -4127,28 +4149,27 @@ GetSetFrameHelper::GetSetFrameHelper() : m_pMD(NULL), m_rgSize(NULL), m_rgElemTy
 //
 // return value: S_OK or E_OUTOFMEMORY
 //
-HRESULT 
+HRESULT
 GetSetFrameHelper::Init(MethodDesc *pMD)
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
         PRECONDITION(CheckPointer(pMD));
     }
     CONTRACTL_END;
-    
+
     HRESULT hr = S_OK;
     COR_ILMETHOD* pILHeader = NULL;
     m_pMD = pMD;
     MetaSig *pLocSig = NULL;
     MetaSig *pArgSig = NULL;
-    
+
     m_rgSize = NULL;
     m_rgElemType = NULL;
-    
+
     // Initialize decoderOldIL before checking the method argument signature.
     EX_TRY
     {
@@ -4157,39 +4178,39 @@ GetSetFrameHelper::Init(MethodDesc *pMD)
     EX_CATCH_HRESULT(hr);
     if (FAILED(hr))
         return hr;
-    
+
     COR_ILMETHOD_DECODER decoderOldIL(pILHeader);
     mdSignature mdLocalSig = (decoderOldIL.GetLocalVarSigTok()) ? (decoderOldIL.GetLocalVarSigTok()):
                                                                   (mdSignatureNil);
-    
+
     PCCOR_SIGNATURE pCallSig;
     DWORD cbCallSigSize;
-    
+
     pMD->GetSig(&pCallSig, &cbCallSigSize);
-    
+
     if (pCallSig != NULL)
     {
         // Yes, we do need to pass in the text because this might be generic function!
         SigTypeContext tmpContext(pMD);
-        
+
         pArgSig = new (interopsafe, nothrow) MetaSig(pCallSig,
                                                      cbCallSigSize,
                                                      pMD->GetModule(),
                                                      &tmpContext,
                                                      MetaSig::sigMember);
-        
+
         if (pArgSig == NULL)
         {
             IfFailGo(E_OUTOFMEMORY);
         }
-        
+
         m_numArgs = pArgSig->NumFixedArgs();
-        
+
         if (pArgSig->HasThis())
         {
             m_numArgs++;
         }
-        
+
         // <TODO>
         // What should we do in this case?
         // </TODO>
@@ -4198,7 +4219,7 @@ GetSetFrameHelper::Init(MethodDesc *pMD)
             m_numArgs++;
         */
     }
-    
+
     // allocation of pArgSig succeeded
     ULONG cbSig;
     PCCOR_SIGNATURE pLocalSig;
@@ -4215,21 +4236,21 @@ GetSetFrameHelper::Init(MethodDesc *pMD)
                                                      pMD->GetModule(),
                                                      &tmpContext,
                                                      MetaSig::sigLocalVars);
-        
+
         if (pLocSig == NULL)
         {
             IfFailGo(E_OUTOFMEMORY);
         }
     }
-    
+
     // allocation of pLocalSig succeeded
     m_numTotalVars = m_numArgs + (pLocSig != NULL ? pLocSig->NumFixedArgs() : 0);
-    
+
     if (m_numTotalVars > 0)
     {
         m_rgSize     = new (interopsafe, nothrow) SIZE_T[m_numTotalVars];
         m_rgElemType = new (interopsafe, nothrow) CorElementType[m_numTotalVars];
-        
+
         if ((m_rgSize == NULL) || (m_rgElemType == NULL))
         {
             IfFailGo(E_OUTOFMEMORY);
@@ -4249,20 +4270,20 @@ GetSetFrameHelper::Init(MethodDesc *pMD)
                 {
                     pCur = pLocSig;
                 }
-                
+
                 // The "this" argument isn't stored in the signature, so we have to
                 // check for it manually.
                 if (i == 0 && pCur->HasThis())
                 {
                     _ASSERTE(pCur == pArgSig);
-                    
+
                     m_rgElemType[i] = ELEMENT_TYPE_CLASS;
                     m_rgSize[i]     = sizeof(SIZE_T);
                 }
                 else
                 {
                     m_rgElemType[i] = pCur->NextArg();
-                    
+
                     if (m_rgElemType[i] == ELEMENT_TYPE_VALUETYPE)
                     {
                         m_rgSize[i] = GetValueClassSize(pCur);
@@ -4271,39 +4292,39 @@ GetSetFrameHelper::Init(MethodDesc *pMD)
                     {
                         m_rgSize[i] = GetSetFrameHelper::GetSizeOfElement(m_rgElemType[i]);
                     }
-                    
+
                     LOG((LF_CORDB, LL_INFO10000, "GSFH::I: var 0x%x is of type %x, size:0x%x\n",
                          i, m_rgElemType[i], m_rgSize[i]));
                 }
             }
         } // allocation of m_rgSize and m_rgElemType succeeded
     }   // if there are variables to take care of
-    
+
 ErrExit:
     // clean up
     if (pArgSig != NULL)
     {
         DeleteInteropSafe(pArgSig);
     }
-    
+
     if (pLocSig != NULL)
     {
         DeleteInteropSafe(pLocSig);
     }
-    
+
     if (FAILED(hr))
     {
         if (m_rgSize != NULL)
         {
             DeleteInteropSafe(m_rgSize);
         }
-        
+
         if (m_rgElemType != NULL)
         {
             DeleteInteropSafe((int*)m_rgElemType);
         }
     }
-    
+
     return hr;
 } // GetSetFrameHelper::Init
 
@@ -4320,7 +4341,6 @@ GetSetFrameHelper::~GetSetFrameHelper()
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
@@ -4353,7 +4373,6 @@ SIZE_T GetSetFrameHelper::GetSizeOfElement(CorElementType cet)
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
@@ -4371,19 +4390,19 @@ SIZE_T GetSetFrameHelper::GetSizeOfElement(CorElementType cet)
         {
         case ELEMENT_TYPE_I8:
         case ELEMENT_TYPE_U8:
-#if defined(_WIN64)
+#if defined(BIT64)
         case ELEMENT_TYPE_I:
         case ELEMENT_TYPE_U:
-#endif // _WIN64
+#endif // BIT64
         case ELEMENT_TYPE_R8:
                return 8;
 
         case ELEMENT_TYPE_I4:
         case ELEMENT_TYPE_U4:
-#if !defined(_WIN64)
+#if !defined(BIT64)
         case ELEMENT_TYPE_I:
         case ELEMENT_TYPE_U:
-#endif // !_WIN64
+#endif // !BIT64
         case ELEMENT_TYPE_R4:
             return 4;
 
@@ -4425,7 +4444,6 @@ SIZE_T GetSetFrameHelper::GetValueClassSize(MetaSig* pSig)
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
         PRECONDITION(CheckPointer(pSig));
@@ -4472,7 +4490,6 @@ bool GetSetFrameHelper::GetValueClassSizeOfVar(int varNum, ICorDebugInfo::VarLoc
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
@@ -4489,7 +4506,7 @@ bool GetSetFrameHelper::GetValueClassSizeOfVar(int varNum, ICorDebugInfo::VarLoc
 
         *pSize = sizeof(LPVOID);
         return false;
-    } 
+    }
 
     // This check is only safe after we make sure that varNum is not negative.
     if ((UINT)varNum >= m_numTotalVars)
@@ -4546,7 +4563,6 @@ HRESULT Debugger::GetVariablesFromOffset(MethodDesc  *pMD,
     // @todo - convert this to throwing w/ holders. It will be cleaner.
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
         PRECONDITION(CheckPointer(rgpVCs));
@@ -4604,21 +4620,21 @@ HRESULT Debugger::GetVariablesFromOffset(MethodDesc  *pMD,
     for (UINT i = 0; i< varNativeInfoCount;i++)
     {
         // Ignore variables not live at offsetFrom
-        // 
+        //
         // #VarLife
-        // 
+        //
         // The condition below is a little strange. If a var is alive when this is true:
-        // 
+        //
         // startOffset <= offsetFrom < endOffset
-        // 
+        //
         // Then you'd expect the negated expression below to be:
-        // 
+        //
         // startOffset > offsetFrom || endOffset <= offsetFrom
-        // 
+        //
         // instead of what we're doing ("<" instead of "<="):
-        // 
+        //
         // startOffset > offsetFrom || endOffset < offsetFrom
-        // 
+        //
         // I'm not sure if the condition below is a mistake, or if it's intentionally
         // mirroring a workaround from FindNativeInfoInILVariableArray() (Debug\DI\module.cpp)
         // to deal with optimized code. So I'm leaving it alone for now. See
@@ -4646,7 +4662,7 @@ HRESULT Debugger::GetVariablesFromOffset(MethodDesc  *pMD,
                                        pCtx,
                                        rgVal1 + rgValIndex,
                                        rgVal2 + rgValIndex
-                                       WIN64_ARG(cbClass));
+                                       BIT64_ARG(cbClass));
 
             LOG((LF_CORDB|LF_ENC,LL_INFO10000,
                  "D::GVFO [%2d] varnum %d, nonVC type %x, addr %8.8x: %8.8x;%8.8x\n",
@@ -4727,7 +4743,6 @@ HRESULT Debugger::SetVariablesAtOffset(MethodDesc  *pMD,
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
         PRECONDITION(CheckPointer(pCtx));
@@ -4767,7 +4782,7 @@ HRESULT Debugger::SetVariablesAtOffset(MethodDesc  *pMD,
     for (UINT i = 0;i< varNativeInfoCount;i++)
     {
         // Ignore variables not live at offsetTo
-        // 
+        //
         // If this IF condition looks wrong to you, see
         // code:Debugger::GetVariablesFromOffset#VarLife for more info
         if ((varNativeInfo[i].startOffset > offsetTo) ||
@@ -4793,7 +4808,7 @@ HRESULT Debugger::SetVariablesAtOffset(MethodDesc  *pMD,
                                        pCtx,
                                        rgVal1[rgValIndex],
                                        rgVal2[rgValIndex]
-                                       WIN64_ARG(cbClass));
+                                       BIT64_ARG(cbClass));
 
             LOG((LF_CORDB|LF_ENC,LL_INFO10000,
                  "D::SVAO [%2d] varnum %d, nonVC type %x, addr %8.8x: %8.8x;%8.8x\n",
@@ -4854,7 +4869,7 @@ HRESULT Debugger::SetVariablesAtOffset(MethodDesc  *pMD,
     return hr;
 }
 
-BOOL IsDuplicatePatch(SIZE_T *rgEntries, 
+BOOL IsDuplicatePatch(SIZE_T *rgEntries,
                       ULONG cEntries,
                       SIZE_T Entry )
 {
@@ -4898,10 +4913,9 @@ HRESULT Debugger::MapAndBindFunctionPatches(DebuggerJitInfo *djiNew,
 
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         THROWS;
         CALLED_IN_DEBUGGERDATALOCK_HOLDER_SCOPE_MAY_GC_TRIGGERS_CONTRACT;
-        PRECONDITION(!djiNew || djiNew->m_fd == fd);
+        PRECONDITION(!djiNew || djiNew->m_nativeCodeVersion.GetMethodDesc() == fd);
     }
     CONTRACTL_END;
 
@@ -4950,7 +4964,7 @@ HRESULT Debugger::MapAndBindFunctionPatches(DebuggerJitInfo *djiNew,
 
             // If the patch only applies in certain generic instances, don't bind it
             // elsewhere.
-            if(dcp->pMethodDescFilter != NULL && dcp->pMethodDescFilter != djiNew->m_fd)
+            if(dcp->pMethodDescFilter != NULL && dcp->pMethodDescFilter != djiNew->m_nativeCodeVersion.GetMethodDesc())
             {
                 LOG((LF_CORDB, LL_INFO10000, "Patch not in this generic instance\n"));
                 continue;
@@ -5075,12 +5089,12 @@ HRESULT Debugger::MapAndBindFunctionPatches(DebuggerJitInfo *djiNew,
     LOG((LF_CORDB,LL_INFO10000, "D::MABFP: Unlocked patch table\n"));
 
 
-    // Now send any Breakpoint bind error events. 
+    // Now send any Breakpoint bind error events.
     if (listUnbindablePatches.Count() > 0)
     {
         LockAndSendBreakpointSetError(&listUnbindablePatches);
     }
-    
+
     return hr;
 }
 
@@ -5096,7 +5110,6 @@ HRESULT Debugger::MapPatchToDJI( DebuggerControllerPatch *dcp,DebuggerJitInfo *d
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         THROWS;
         CALLED_IN_DEBUGGERDATALOCK_HOLDER_SCOPE_MAY_GC_TRIGGERS_CONTRACT;
         PRECONDITION(djiTo != NULL);
@@ -5163,7 +5176,7 @@ HRESULT Debugger::MapPatchToDJI( DebuggerControllerPatch *dcp,DebuggerJitInfo *d
             // We have an unbound native patch (eg. for PatchTrace), lets try to bind and activate it
             dcp->SetDJI(djiTo);
             LOG((LF_CORDB, LL_EVERYTHING, "trying to bind patch... could be problem\n"));
-            if (DebuggerController::BindPatch(dcp, djiTo->m_fd, NULL))
+            if (DebuggerController::BindPatch(dcp, djiTo->m_nativeCodeVersion.GetMethodDesc(), NULL))
             {
                 DebuggerController::ActivatePatch(dcp);
                 LOG((LF_CORDB, LL_INFO1000, "Application went fine!\n" ));
@@ -5193,11 +5206,10 @@ HRESULT Debugger::MapPatchToDJI( DebuggerControllerPatch *dcp,DebuggerJitInfo *d
 //
 // SendSyncCompleteIPCEvent sends a Sync Complete event to the Right Side.
 //
-void Debugger::SendSyncCompleteIPCEvent()
+void Debugger::SendSyncCompleteIPCEvent(bool isEESuspendedForGC)
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
         PRECONDITION(ThreadHoldsLock());
@@ -5206,11 +5218,21 @@ void Debugger::SendSyncCompleteIPCEvent()
         PRECONDITION(ThreadStore::HoldingThreadStore() || g_fProcessDetach);
 
         // The sync complete is now only sent on a helper thread.
-        PRECONDITION(ThisIsHelperThreadWorker());
+        if (!isEESuspendedForGC)
+        {
+            PRECONDITION(ThisIsHelperThreadWorker());
+        }
         MODE_COOPERATIVE;
 
         // We had better be trapping Runtime threads and not stopped yet.
-        PRECONDITION(m_stopped && m_trappingRuntimeThreads);
+        if (isEESuspendedForGC)
+        {
+            PRECONDITION(m_stopped);
+        }
+        else
+        {
+            PRECONDITION(m_stopped && m_trappingRuntimeThreads);
+        }
     }
     CONTRACTL_END;
 
@@ -5234,7 +5256,7 @@ void Debugger::SendSyncCompleteIPCEvent()
     }
 
     // If we're not marked as attached yet, then do that now.
-    // This can be safely called multiple times. 
+    // This can be safely called multiple times.
     // This can happen in the normal attach case. The Right-side sends an async-break,
     // but we don't want to be considered attach until we've actually gotten our first synchronization.
     // Else threads may slip forward during attach and send debug events while we're tyring to attach.
@@ -5277,16 +5299,16 @@ void Debugger::SendSyncCompleteIPCEvent()
 
 //
 // Lookup or create a DebuggerModule for the given pDomainFile.
-// 
+//
 // Arguments:
 //    pDomainFile - non-null domain file.
-//    
+//
 // Returns:
 //   DebuggerModule instance for the given domain file. May be lazily created.
 //
 // Notes:
 //  @dbgtodo JMC - this should go away when we get rid of DebuggerModule.
-//  
+//
 
 DebuggerModule * Debugger::LookupOrCreateModule(DomainFile * pDomainFile)
 {
@@ -5301,15 +5323,15 @@ DebuggerModule * Debugger::LookupOrCreateModule(DomainFile * pDomainFile)
 }
 
 // Overloaded Wrapper around for VMPTR_DomainFile-->DomainFile*
-// 
+//
 // Arguments:
 //    vmDomainFile - VMPTR cookie for a domain file. This can be NullPtr().
-//    
+//
 // Returns:
 //    Debugger Module instance for the given domain file. May be lazily created.
-//    
+//
 // Notes:
-//    VMPTR comes from IPC events 
+//    VMPTR comes from IPC events
 DebuggerModule * Debugger::LookupOrCreateModule(VMPTR_DomainFile vmDomainFile)
 {
     DomainFile * pDomainFile = vmDomainFile.GetRawPtr();
@@ -5321,19 +5343,18 @@ DebuggerModule * Debugger::LookupOrCreateModule(VMPTR_DomainFile vmDomainFile)
 }
 
 // Lookup or create a DebuggerModule for the given (Module, AppDomain) pair.
-// 
+//
 // Arguments:
 //    pModule - required runtime module. May be domain netural.
 //    pAppDomain - required appdomain that the module is in.
-//    
+//
 // Returns:
 //    Debugger Module isntance for the given domain file. May be lazily created.
-//    
+//
 DebuggerModule* Debugger::LookupOrCreateModule(Module* pModule, AppDomain *pAppDomain)
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -5341,11 +5362,11 @@ DebuggerModule* Debugger::LookupOrCreateModule(Module* pModule, AppDomain *pAppD
 
     LOG((LF_CORDB, LL_INFO1000, "D::LOCM m=0x%x ad=0x%x\n", pModule, pAppDomain));
 
-    // DebuggerModules are relative to a specific AppDomain so we should always be looking up a module / 
+    // DebuggerModules are relative to a specific AppDomain so we should always be looking up a module /
     // AppDomain pair.
     _ASSERTE( pModule != NULL );
     _ASSERTE( pAppDomain != NULL );
-    
+
     // This is called from all over. We just need to lock in order to lookup. We don't need
     // the lock when actually using the DebuggerModule (since it won't be unloaded as long as there is a thread
     // in that appdomain). Many of our callers already have this lock, many don't.
@@ -5357,21 +5378,11 @@ DebuggerModule* Debugger::LookupOrCreateModule(Module* pModule, AppDomain *pAppD
     // with a matching appdomain id
     // it.
 
-    _ASSERTE( SystemDomain::SystemAssembly()->IsDomainNeutral() );
-
     DebuggerModule* dmod = NULL;
 
     if (m_pModules != NULL)
     {
-        if (pModule->GetAssembly()->IsDomainNeutral())
-        {
-            // We have to make sure to lookup the module with the app domain parameter if the module lives in a shared assembly
-            dmod = m_pModules->GetModule(pModule, pAppDomain);
-        }
-        else
-        {
-            dmod = m_pModules->GetModule(pModule);    
-        }
+        dmod = m_pModules->GetModule(pModule);
     }
 
     // If it doesn't exist, create it.
@@ -5380,29 +5391,29 @@ DebuggerModule* Debugger::LookupOrCreateModule(Module* pModule, AppDomain *pAppD
         HRESULT hr = S_OK;
         EX_TRY
         {
-            DomainFile * pDomainFile = pModule->FindDomainFile(pAppDomain);
+            DomainFile * pDomainFile = pModule->GetDomainFile();
             SIMPLIFYING_ASSUMPTION(pDomainFile != NULL);
             dmod = AddDebuggerModule(pDomainFile); // throws
         }
         EX_CATCH_HRESULT(hr);
-        SIMPLIFYING_ASSUMPTION(dmod != NULL); // may not be true in OOM cases; but LS doesn't handle OOM.        
+        SIMPLIFYING_ASSUMPTION(dmod != NULL); // may not be true in OOM cases; but LS doesn't handle OOM.
     }
 
     // The module must be in the AppDomain that was requested
     _ASSERTE( (dmod == NULL) || (dmod->GetAppDomain() == pAppDomain) );
 
     LOG((LF_CORDB, LL_INFO1000, "D::LOCM m=0x%x ad=0x%x -> dm=0x%x\n", pModule, pAppDomain, dmod));
-    return dmod;    
+    return dmod;
 }
 
 // Create a new DebuggerModule object
-// 
+//
 // Arguments:
 //    pDomainFile-  runtime domain file to create debugger module object around
-//    
+//
 // Returns:
 //    New instnace of a DebuggerModule. Throws on failure.
-//    
+//
 DebuggerModule* Debugger::AddDebuggerModule(DomainFile * pDomainFile)
 {
     CONTRACTL
@@ -5411,7 +5422,7 @@ DebuggerModule* Debugger::AddDebuggerModule(DomainFile * pDomainFile)
         GC_NOTRIGGER;
     }
     CONTRACTL_END;
-   
+
     LOG((LF_CORDB, LL_INFO1000, "D::ADM df=0x%x\n", pDomainFile));
     DebuggerDataLockHolder chInfo(this);
 
@@ -5440,13 +5451,12 @@ DebuggerModule* Debugger::AddDebuggerModule(DomainFile * pDomainFile)
 // soon as possible. It also sets the EE up so that Runtime threads that
 // are outside of the EE will trap when they try to re-enter.
 //
-// @TODO:: 
+// @TODO::
 // Neither pDbgLockHolder nor pAppDomain are used.
 void Debugger::TrapAllRuntimeThreads()
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         MAY_DO_HELPER_THREAD_DUTY_THROWS_CONTRACT;
         MAY_DO_HELPER_THREAD_DUTY_GC_TRIGGERS_CONTRACT;
 
@@ -5461,7 +5471,7 @@ void Debugger::TrapAllRuntimeThreads()
     CONTRACTL_END;
 
 #if !defined(FEATURE_DBGIPC_TRANSPORT_VM)
-    // Only sync if RS requested it. 
+    // Only sync if RS requested it.
     if (!m_RSRequestedSync)
     {
         return;
@@ -5493,9 +5503,7 @@ void Debugger::TrapAllRuntimeThreads()
         m_trappingRuntimeThreads = TRUE;
 
         // Take the thread store lock.
-        STRESS_LOG0(LF_CORDB,LL_INFO1000, "About to lock thread Store\n");
-        ThreadSuspend::LockThreadStore(ThreadSuspend::SUSPEND_FOR_DEBUGGER);
-        STRESS_LOG0(LF_CORDB,LL_INFO1000, "Locked thread store\n");
+        assert(ThreadStore::HoldingThreadStore());
 
         // We start the suspension here, and let the helper thread finish it.
         // If there's no helper thread, then we need to do helper duty.
@@ -5538,16 +5546,6 @@ void Debugger::TrapAllRuntimeThreads()
 
             // We will have released the TSL after the call to continue.
         }
-        else
-        {
-            // We have a live and active helper thread which will handle events
-            // from the RS now that we're stopped.
-            // We need to release the TSL which we acquired above. (The helper will
-            // likely take this lock while doing stuff).
-            STRESS_LOG0(LF_CORDB,LL_INFO1000, "About to unlock thread store!\n");
-            ThreadSuspend::UnlockThreadStore(FALSE, ThreadSuspend::SUSPEND_FOR_DEBUGGER);
-            STRESS_LOG0(LF_CORDB,LL_INFO1000, "TART: Unlocked thread store!\n");
-        }
         _ASSERTE(ThreadHoldsLock()); // still hold the lock. (though it may have been toggled)
     }
 }
@@ -5561,7 +5559,6 @@ void Debugger::ReleaseAllRuntimeThreads(AppDomain *pAppDomain)
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
 
@@ -5597,7 +5594,6 @@ int Debugger::GetMethodEncNumber(MethodDesc * pMethod)
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         THROWS;
         GC_NOTRIGGER;
     }
@@ -5617,7 +5613,6 @@ bool Debugger::IsJMCMethod(Module* pModule, mdMethodDef tkMethod)
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
@@ -5657,7 +5652,6 @@ bool Debugger::FirstChanceNativeException(EXCEPTION_RECORD *exception,
 
     CONTRACTL
     {
-        SO_TOLERANT;
         NOTHROW;
 
         // No clear GC_triggers semantics here. See DispatchNativeException.
@@ -5766,15 +5760,15 @@ void Debugger::TraceCall(const BYTE *code)
 
     if (!CORDBUnrecoverableError(this))
     {
-        // There are situations where our callers can't tolerate us throwing.  
+        // There are situations where our callers can't tolerate us throwing.
         EX_TRY
         {
-            // Since we have a try catch and the debugger code can deal properly with 
+            // Since we have a try catch and the debugger code can deal properly with
             // faults occuring inside DebuggerController::DispatchTraceCall, we can safely
             // establish a FAULT_NOT_FATAL region. This is required since some callers can't
             // tolerate faults.
             FAULT_NOT_FATAL();
-            
+
             DebuggerController::DispatchTraceCall(pCurThread, code);
         }
         EX_CATCH
@@ -5803,7 +5797,6 @@ void Debugger::OnMethodEnter(void * pIP)
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -5831,7 +5824,6 @@ DWORD* Debugger::GetJMCFlagAddr(Module * pModule)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pModule));
     }
     CONTRACTL_END;
@@ -5922,7 +5914,6 @@ void Debugger::SetModuleDefaultJMCStatus(Module * pRuntimeModule, bool fStatus)
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
         PRECONDITION(ThisIsHelperThreadWorker());
@@ -5988,6 +5979,139 @@ bool Debugger::ThreadsAtUnsafePlaces(void)
     return (m_threadsAtUnsafePlaces != 0);
 }
 
+void Debugger::SuspendForGarbageCollectionStarted()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+    }
+    CONTRACTL_END;
+
+    this->m_isGarbageCollectionEventsEnabledLatch = this->m_isGarbageCollectionEventsEnabled;
+    this->m_willBlockOnGarbageCollectionEvent = this->m_isGarbageCollectionEventsEnabledLatch;
+}
+
+void Debugger::SuspendForGarbageCollectionCompleted()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+    }
+    CONTRACTL_END;
+
+    if (!CORDebuggerAttached() || !this->m_isGarbageCollectionEventsEnabledLatch)
+    {
+        return;
+    }
+    this->m_isBlockedOnGarbageCollectionEvent = TRUE;
+
+    Thread* pThread = GetThread();
+
+    if (CORDBUnrecoverableError(this))
+        return;
+
+    {
+        Debugger::DebuggerLockHolder dbgLockHolder(this);
+
+        DebuggerIPCEvent* ipce1 = m_pRCThread->GetIPCEventSendBuffer();
+        InitIPCEvent(ipce1,
+            DB_IPCE_BEFORE_GARBAGE_COLLECTION,
+            pThread,
+            pThread->GetDomain());
+
+        m_pRCThread->SendIPCEvent();
+        this->SuspendComplete(true);
+    }
+
+    WaitForSingleObject(this->GetGarbageCollectionBlockerEvent(), INFINITE);
+    ResetEvent(this->GetGarbageCollectionBlockerEvent());
+}
+
+void Debugger::ResumeForGarbageCollectionStarted()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+    }
+    CONTRACTL_END;
+
+    if (!CORDebuggerAttached() || !this->m_isGarbageCollectionEventsEnabledLatch)
+    {
+        return;
+    }
+
+    Thread* pThread = GetThread();
+
+    if (CORDBUnrecoverableError(this))
+        return;
+
+    {
+        Debugger::DebuggerLockHolder dbgLockHolder(this);
+
+        DebuggerIPCEvent* ipce1 = m_pRCThread->GetIPCEventSendBuffer();
+        InitIPCEvent(ipce1,
+            DB_IPCE_AFTER_GARBAGE_COLLECTION,
+            pThread,
+            pThread->GetDomain());
+
+        m_pRCThread->SendIPCEvent();
+        this->SuspendComplete(true);
+    }
+
+    WaitForSingleObject(this->GetGarbageCollectionBlockerEvent(), INFINITE);
+    ResetEvent(this->GetGarbageCollectionBlockerEvent());
+    this->m_isBlockedOnGarbageCollectionEvent = FALSE;
+    this->m_willBlockOnGarbageCollectionEvent = FALSE;
+}
+
+#ifdef FEATURE_DATABREAKPOINT
+void Debugger::SendDataBreakpoint(Thread *thread, CONTEXT *context,
+    DebuggerDataBreakpoint *breakpoint)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+    GC_NOTRIGGER;
+    }
+    CONTRACTL_END;
+
+    if (CORDBUnrecoverableError(this))
+        return;
+
+#ifdef _DEBUG
+    static BOOL shouldBreak = -1;
+    if (shouldBreak == -1)
+        shouldBreak = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_DbgBreakOnSendBreakpoint);
+
+    if (shouldBreak > 0) {
+        _ASSERTE(!"DbgBreakOnSendBreakpoint");
+    }
+#endif
+
+    LOG((LF_CORDB, LL_INFO10000, "D::SDB: breakpoint BP:0x%x\n", breakpoint));
+
+    _ASSERTE((g_pEEInterface->GetThread() &&
+        !g_pEEInterface->GetThread()->m_fPreemptiveGCDisabled) ||
+        g_fInControlC);
+
+    _ASSERTE(ThreadHoldsLock());
+
+    // Send a breakpoint event to the Right Side
+    DebuggerIPCEvent* ipce = m_pRCThread->GetIPCEventSendBuffer();
+    memcpy(&(ipce->DataBreakpointData.context), context, sizeof(CONTEXT));
+    InitIPCEvent(ipce,
+        DB_IPCE_DATA_BREAKPOINT,
+        thread,
+        thread->GetDomain());
+    //_ASSERTE(breakpoint->m_pAppDomain == ipce->vmAppDomain.GetRawPtr());
+
+    m_pRCThread->SendIPCEvent();
+}
+#endif
+
 //
 // SendBreakpoint is called by Runtime threads to send that they've
 // hit a breakpoint to the Right Side.
@@ -6045,15 +6169,15 @@ void Debugger::SendBreakpoint(Thread *thread, CONTEXT *context,
 // Notes:
 //     Can't assume that a debugger is attached (since it may detach before we get the lock).
 void Debugger::SendUserBreakpointAndSynchronize(Thread * pThread)
-{    
+{
     AtSafePlaceHolder unsafePlaceHolder(pThread);
 
     SENDIPCEVENT_BEGIN(this, pThread);
-    
+
     // Actually send the event
     if (CORDebuggerAttached())
     {
-        SendRawUserBreakpoint(pThread);    
+        SendRawUserBreakpoint(pThread);
         TrapAllRuntimeThreads();
     }
 
@@ -6094,7 +6218,7 @@ void Debugger::SendRawUserBreakpoint(Thread * pThread)
 
     LOG((LF_CORDB, LL_INFO10000, "D::SRUB: user breakpoint\n"));
 
-    
+
 
     // Send a breakpoint event to the Right Side
     DebuggerIPCEvent* pEvent = m_pRCThread->GetIPCEventSendBuffer();
@@ -6182,9 +6306,9 @@ void Debugger::SendStep(Thread *thread, CONTEXT *context,
 // Send an EnC remap opportunity and block until it is continued.
 //
 // dji - current method information
-// currentIP - IL offset within that method 
+// currentIP - IL offset within that method
 // resumeIP - address of a SIZE_T that the RS will write to cross-process if they take the
-//  remap opportunity. *resumeIP is untouched if the RS does not remap. 
+//  remap opportunity. *resumeIP is untouched if the RS does not remap.
 //-------------------------------------------------------------------------------------------------
 void Debugger::LockAndSendEnCRemapEvent(DebuggerJitInfo * dji, SIZE_T currentIP, SIZE_T *resumeIP)
 {
@@ -6202,7 +6326,7 @@ void Debugger::LockAndSendEnCRemapEvent(DebuggerJitInfo * dji, SIZE_T currentIP,
     if (CORDBUnrecoverableError(this))
         return;
 
-    MethodDesc * pFD = dji->m_fd;
+    MethodDesc * pFD = dji->m_nativeCodeVersion.GetMethodDesc();
 
     // Note that the debugger lock is reentrant, so we may or may not hold it already.
     Thread *thread = g_pEEInterface->GetThread();
@@ -6320,10 +6444,10 @@ void Debugger::LockAndSendEnCRemapCompleteEvent(MethodDesc *pFD)
 // At this point, the EE is already stopped for handling an EnC ApplyChanges operation, so no need
 // to take locks etc.
 //
-void Debugger::SendEnCUpdateEvent(DebuggerIPCEventType eventType, 
-                                  Module * pModule, 
-                                  mdToken memberToken, 
-                                  mdTypeDef classToken, 
+void Debugger::SendEnCUpdateEvent(DebuggerIPCEventType eventType,
+                                  Module * pModule,
+                                  mdToken memberToken,
+                                  mdTypeDef classToken,
                                   SIZE_T enCVersion)
 {
     CONTRACTL
@@ -6375,7 +6499,7 @@ void Debugger::SendEnCUpdateEvent(DebuggerIPCEventType eventType,
 // Send a BreakpointSetError event to the Right Side if the given patch is for a breakpoint. Note: we don't care if this
 // fails, there is nothing we can do about it anyway, and the breakpoint just wont hit.
 //
-void Debugger::LockAndSendBreakpointSetError(PATCH_UNORDERED_ARRAY * listUnbindablePatches) 
+void Debugger::LockAndSendBreakpointSetError(PATCH_UNORDERED_ARRAY * listUnbindablePatches)
 {
     CONTRACTL
     {
@@ -6385,14 +6509,14 @@ void Debugger::LockAndSendBreakpointSetError(PATCH_UNORDERED_ARRAY * listUnbinda
     CONTRACTL_END;
 
     _ASSERTE(listUnbindablePatches != NULL);
-    
+
     if (CORDBUnrecoverableError(this))
         return;
 
 
     ULONG count = listUnbindablePatches->Count();
     _ASSERTE(count > 0); // must send at least 1 event.
-    
+
 
     Thread *thread = g_pEEInterface->GetThread();
     // Note that the debugger lock is reentrant, so we may or may not hold it already.
@@ -6401,7 +6525,7 @@ void Debugger::LockAndSendBreakpointSetError(PATCH_UNORDERED_ARRAY * listUnbinda
     DebuggerIPCEvent* ipce = m_pRCThread->GetIPCEventSendBuffer();
 
     for(ULONG i =  0; i < count; i++)
-    {        
+    {
         DebuggerControllerPatch *patch = listUnbindablePatches->Table()[i];
         _ASSERTE(patch != NULL);
 
@@ -6546,7 +6670,7 @@ void Debugger::SyncAllThreads(DebuggerLockHolder *dbgLockHolder)
 // Notes:
 //    This function doesn't try to stop the launched native debugger by calling DebugBreak().
 //    It sends a breakpoint event only for managed debuggers.
-//    
+//
 HRESULT Debugger::LaunchDebuggerForUser(Thread * pThread, EXCEPTION_POINTERS * pExceptionInfo,
                                         BOOL useManagedBPForManagedAttach, BOOL explicitUserRequest)
 {
@@ -6557,7 +6681,7 @@ HRESULT Debugger::LaunchDebuggerForUser(Thread * pThread, EXCEPTION_POINTERS * p
     //
     // Initiate a jit attach
     //
-    JitAttach(pThread, pExceptionInfo, useManagedBPForManagedAttach, explicitUserRequest); 
+    JitAttach(pThread, pExceptionInfo, useManagedBPForManagedAttach, explicitUserRequest);
 
     if (useManagedBPForManagedAttach)
     {
@@ -6583,7 +6707,7 @@ HRESULT Debugger::LaunchDebuggerForUser(Thread * pThread, EXCEPTION_POINTERS * p
         //
         DebugBreak();
     }
-    
+
     if (!IsDebuggerPresent())
     {
         LOG((LF_CORDB, LL_ERROR, "D::LDFU: Failed to launch the debugger.\n"));
@@ -6601,9 +6725,9 @@ EXCEPTION_RECORD Debugger::s_DebuggerLaunchJitInfoExceptionRecord = {0};
 CONTEXT          Debugger::s_DebuggerLaunchJitInfoContext = {0};
 
 //----------------------------------------------------------------------------
-// 
+//
 // InitDebuggerLaunchJitInfo - initialize JDI structure on Vista
-// 
+//
 // Arguments:
 //    pThread - the managed thread with the unhandled excpetion
 //    pExceptionInfo - unhandled exception info
@@ -6616,7 +6740,7 @@ void Debugger::InitDebuggerLaunchJitInfo(Thread * pThread, EXCEPTION_POINTERS * 
 {
     LIMITED_METHOD_CONTRACT;
 
-    _ASSERTE((pExceptionInfo != NULL) && 
+    _ASSERTE((pExceptionInfo != NULL) &&
              (pExceptionInfo->ContextRecord != NULL) &&
              (pExceptionInfo->ExceptionRecord != NULL));
 
@@ -6629,7 +6753,7 @@ void Debugger::InitDebuggerLaunchJitInfo(Thread * pThread, EXCEPTION_POINTERS * 
     s_DebuggerLaunchJitInfoContext = *pExceptionInfo->ContextRecord;
 
     s_DebuggerLaunchJitInfo.dwSize = sizeof(s_DebuggerLaunchJitInfo);
-    s_DebuggerLaunchJitInfo.dwThreadID = pThread == NULL ? GetCurrentThreadId() : pThread->GetOSThreadId();  
+    s_DebuggerLaunchJitInfo.dwThreadID = pThread == NULL ? GetCurrentThreadId() : pThread->GetOSThreadId();
     s_DebuggerLaunchJitInfo.lpExceptionRecord = reinterpret_cast<ULONG64>(&s_DebuggerLaunchJitInfoExceptionRecord);
     s_DebuggerLaunchJitInfo.lpContextRecord = reinterpret_cast<ULONG64>(&s_DebuggerLaunchJitInfoContext);
     s_DebuggerLaunchJitInfo.lpExceptionAddress = s_DebuggerLaunchJitInfoExceptionRecord.ExceptionAddress != NULL ?
@@ -6651,9 +6775,9 @@ void Debugger::InitDebuggerLaunchJitInfo(Thread * pThread, EXCEPTION_POINTERS * 
 
 
 //----------------------------------------------------------------------------
-// 
+//
 // GetDebuggerLaunchJitInfo - retrieve the initialized JDI structure on Vista
-// 
+//
 // Arguments:
 //    None
 //
@@ -6739,7 +6863,7 @@ DebuggerLaunchSetting Debugger::GetDbgJITDebugLaunchSetting()
         setting = DLS_ATTACH_DEBUGGER;
     }
 #endif // FEATURE_PAL
-    
+
     return setting;
 }
 
@@ -6772,7 +6896,7 @@ bool Debugger::GetCompleteDebuggerLaunchString(SString * pStrArgsBuf)
     }
     CONTRACTL_END;
 
-#ifndef FEATURE_PAL    
+#ifndef FEATURE_PAL
     DWORD pid = GetCurrentProcessId();
 
     SString ssDebuggerString;
@@ -6784,16 +6908,16 @@ bool Debugger::GetCompleteDebuggerLaunchString(SString * pStrArgsBuf)
         return false;
     }
 
-    // There is no security concern to expect that the debug string we retrieve from HKLM follows a certain 
-    // format because changing HKLM keys requires admin priviledge.  Padding with zeros is not a security mitigation, 
-    // but rather a forward looking compability measure.  If future verions of Windows introduces more parameters for 
+    // There is no security concern to expect that the debug string we retrieve from HKLM follows a certain
+    // format because changing HKLM keys requires admin priviledge.  Padding with zeros is not a security mitigation,
+    // but rather a forward looking compability measure.  If future verions of Windows introduces more parameters for
     // JIT debugger launch, it is preferrable to pass zeros than other random values for those unsupported parameters.
     pStrArgsBuf->Printf(ssDebuggerString, pid, GetUnmanagedAttachEvent(), GetDebuggerLaunchJitInfo(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
     return true;
 #else // !FEATURE_PAL
     return false;
-#endif // !FEATURE_PAL     
+#endif // !FEATURE_PAL
 }
 
 // Proxy code for EDA
@@ -6864,7 +6988,7 @@ HRESULT Debugger::EDAHelper(PROCESS_INFORMATION *pProcessInfo)
     }
     CONTRACTL_END;
 
-#ifndef FEATURE_PAL    
+#ifndef FEATURE_PAL
     LOG((LF_CORDB, LL_INFO10000, "D::EDA: thread 0x%x is launching the debugger.\n", GetCurrentThreadId()));
 
     _ASSERTE(HasLazyData());
@@ -6943,7 +7067,7 @@ HRESULT Debugger::EDAHelper(PROCESS_INFORMATION *pProcessInfo)
 //  willSendManagedEvent - indicates whether or not we plan to send a managed debug event after the jit attach
 //  explicitUserRequest - TRUE if this attach is caused by a call to the Debugger.Launch() API.
 //
-// Returns 
+// Returns
 //    TRUE - if some other thread already has jit attach in progress -> this thread should block until that is complete
 //    FALSE - this is the first thread to jit attach -> this thread should launch the debugger
 //
@@ -6970,7 +7094,7 @@ BOOL Debugger::PreJitAttach(BOOL willSendManagedEvent, BOOL willLaunchDebugger, 
         //        the ThreadStore lock.  The DebuggerMutex has to be broken into two smaller locks
         //        so that you can take that lock here when holding the ThreadStore lock.
         DebuggerLockHolder dbgLockHolder(this);
-        
+
         if (!m_jitAttachInProgress)
         {
             m_jitAttachInProgress = TRUE;
@@ -7080,7 +7204,7 @@ HRESULT Debugger::LaunchJitDebuggerAndNativeAttach(Thread * pThread, EXCEPTION_P
     // Indicate to the caller that the attach was aborted
     if (res == WAIT_OBJECT_0 + 1)
     {
-        LOG((LF_CORDB, LL_INFO10000, "D::LJDANA: Debugger process is unexpectedly terminated!\n"));          
+        LOG((LF_CORDB, LL_INFO10000, "D::LJDANA: Debugger process is unexpectedly terminated!\n"));
         return E_FAIL;
     }
 
@@ -7167,19 +7291,19 @@ void Debugger::PostJitAttach()
 //    explicitUserRequest - TRUE if this attach is caused by a call to the Debugger.Launch() API.
 //
 // Returns:
-//     None. Callers can requery if a debugger is attached. 
+//     None. Callers can requery if a debugger is attached.
 //
 // Assumptions:
 //     This may be called by multiple threads, each firing their own debug events. This function will handle locking.
 //     Thus this could block for an arbitrary length of time:
-//     - may need to prompt the user to decide if an attach occurs. 
+//     - may need to prompt the user to decide if an attach occurs.
 //     - may block waiting for a debugger to attach.
-//      
+//
 // Notes:
 //     The launch string is retrieved from code:GetDebuggerSettingInfo.
 //     This will not do a sync-complete. Instead, the caller can send a debug event (the jit-attach
-//     event, such as a User-breakpoint or unhandled exception) and that can send a sync-complete, 
-//     just as if the debugger was always attached. This ensures that the jit-attach event is in the 
+//     event, such as a User-breakpoint or unhandled exception) and that can send a sync-complete,
+//     just as if the debugger was always attached. This ensures that the jit-attach event is in the
 //     same callback queue as any faked-up events that the Right-side Shim creates.
 //
 void Debugger::JitAttach(Thread * pThread, EXCEPTION_POINTERS * pExceptionInfo, BOOL willSendManagedEvent, BOOL explicitUserRequest)
@@ -7211,7 +7335,7 @@ void Debugger::JitAttach(Thread * pThread, EXCEPTION_POINTERS * pExceptionInfo, 
 //    pExceptionInfo - the unhandled exception info
 //    willSendManagedEvent - true if after getting (or staying) attached we will send
 //                           a managed debug event
-//    explicitUserRequest - true if this attach is caused by a call to the 
+//    explicitUserRequest - true if this attach is caused by a call to the
 //                          Debugger.Launch() API.
 //
 // Returns:
@@ -7223,7 +7347,7 @@ void Debugger::JitAttach(Thread * pThread, EXCEPTION_POINTERS * pExceptionInfo, 
 //   - JIT-atttach debugger spawned, and attached successfully.
 //   - JIT-attach debugger spawned, but declined to attach.
 //   - Failed to spawn jit-attach debugger.
-//  
+//
 //   Ultimately, the only thing that matters at the end is whether a debugger
 //   is now attached, which is retreived via CORDebuggerAttached().
 //-----------------------------------------------------------------------------
@@ -7332,7 +7456,7 @@ struct SendExceptionOnHelperThreadParams
 //   exceptionHandle : handle to the managed exception object (usually
 //       something derived from System.Exception)
 //   fContinuable : true iff continuable
-//   framePointer : frame pointer associated with callback. 
+//   framePointer : frame pointer associated with callback.
 //   nOffset : il offset associated with callback.
 //   eventType : type of callback
 //   dwFlags : additional flags (see CorDebugExceptionFlags).
@@ -7341,8 +7465,8 @@ struct SendExceptionOnHelperThreadParams
 //    S_OK on sucess. Else some error. May also throw.
 //
 // Notes:
-//    This is a helper for code:Debugger.SendExceptionEventsWorker. 
-//    See code:Debugger.SendException for more details about parameters. 
+//    This is a helper for code:Debugger.SendExceptionEventsWorker.
+//    See code:Debugger.SendException for more details about parameters.
 //    This is always called on a managed thread (never the helper thread)
 //    This will synchronize and block.
 //**************************************************************************
@@ -7412,7 +7536,7 @@ HRESULT Debugger::SendExceptionHelperAndBlock(
     }
 
     _ASSERTE(SUCCEEDED(hr) && "D::SE: Send ExceptionCallback2 event failed.");
-    
+
     if (SUCCEEDED(hr))
     {
         // Stop all Runtime threads
@@ -7429,7 +7553,7 @@ HRESULT Debugger::SendExceptionHelperAndBlock(
 // Send various first-chance / unhandled exception events.
 //
 // Assumptions:
-//    Caller has already determined that we want to send exception events. 
+//    Caller has already determined that we want to send exception events.
 //
 // Notes:
 //    This is a helper function for code:Debugger.SendException
@@ -7437,7 +7561,7 @@ void Debugger::SendExceptionEventsWorker(
     Thread * pThread,
     bool fFirstChance,
     bool fIsInterceptable,
-    bool fContinuable, 
+    bool fContinuable,
     SIZE_T currentIP,
     FramePointer framePointer,
     bool atSafePlace)
@@ -7449,7 +7573,7 @@ void Debugger::SendExceptionEventsWorker(
     // Figure out parameters to the IPC events.
     //
     const BYTE *ip;
-               
+
     SIZE_T nOffset = (SIZE_T)ICorDebugInfo::NO_MAPPING;
     DebuggerMethodInfo *pDebugMethodInfo = NULL;
 
@@ -7485,7 +7609,7 @@ void Debugger::SendExceptionEventsWorker(
             }
         }
     }
-    
+
     DebuggerIPCEvent* ipce = m_pRCThread->GetIPCEventSendBuffer();
 
     if (fFirstChance)
@@ -7498,7 +7622,7 @@ void Debugger::SendExceptionEventsWorker(
         //
         // Send the first chance exception if we have not already and if it is not suppressed
         //
-        if (m_sendExceptionsOutsideOfJMC && !pExState->GetFlags()->SentDebugFirstChance()) 
+        if (m_sendExceptionsOutsideOfJMC && !pExState->GetFlags()->SentDebugFirstChance())
         {
             // Blocking here is especially important so that the debugger can mark any code as JMC.
             hr = SendExceptionHelperAndBlock(
@@ -7538,8 +7662,8 @@ void Debugger::SendExceptionEventsWorker(
         //
         // If this is a JMC function, then we send a USER's first chance as well.
         //
-        if ((pDebugMethodInfo != NULL) && 
-            pDebugMethodInfo->IsJMCFunction() && 
+        if ((pDebugMethodInfo != NULL) &&
+            pDebugMethodInfo->IsJMCFunction() &&
             !pExState->GetFlags()->SentDebugUserFirstChance())
         {
             SENDIPCEVENT_BEGIN(this, pThread);
@@ -7609,7 +7733,7 @@ void Debugger::SendExceptionEventsWorker(
 
 //
 // SendException is called by Runtime threads to send that they've hit an Managed exception to the Right Side.
-// This may block this thread and suspend the debuggee, and let the debugger inspect us. 
+// This may block this thread and suspend the debuggee, and let the debugger inspect us.
 //
 // The thread's throwable should be set so that the debugger can inspect the current exception.
 // It does not report native exceptions in native code (which is consistent because those don't have a
@@ -7619,22 +7743,22 @@ void Debugger::SendExceptionEventsWorker(
 // is yet involved.
 //
 // Parameters:
-//    pThread - the thread throwing the exception. 
+//    pThread - the thread throwing the exception.
 //    fFirstChance - true if this is a first chance exception. False if this is an unhandled exception.
-//    currentIP - absolute native address of the exception if it is from managed code. If this is 0, we try to find it 
+//    currentIP - absolute native address of the exception if it is from managed code. If this is 0, we try to find it
 //                based off the thread's current exception state.
 //    currentSP - stack pointer of the exception. This will get converted into a FramePointer and then used by the debugger
 //                to identify which stack frame threw the exception.
 //    currentBSP - additional information for IA64 only to identify the stack frame.
 //    fContinuable - not used.
-//    fAttaching - true iff this exception may initiate a jit-attach. In the common case, if this is true, then 
+//    fAttaching - true iff this exception may initiate a jit-attach. In the common case, if this is true, then
 //                 CorDebuggerAttached() is false. However, since a debugger can attach at any time, it's possible
 //                 for another debugger to race against the jit-attach and win. Thus this may err on the side of being true.
-//    fForceNonInterceptable - This is used to determine if the exception is continuable (ie "Interceptible", 
+//    fForceNonInterceptable - This is used to determine if the exception is continuable (ie "Interceptible",
 //                  we can handle a DB_IPCE_INTERCEPT_EXCEPTION event for it). If true, then the exception can not be continued.
-//                  If false, we get continuation status from the exception properties of the current thread. 
+//                  If false, we get continuation status from the exception properties of the current thread.
 //
-// Returns: 
+// Returns:
 //    S_OK on success (common case by far).
 //    propogates other errors.
 //
@@ -7697,7 +7821,7 @@ HRESULT Debugger::SendException(Thread *pThread,
     if (fAttaching)
     {
         JitAttach(pThread, pExceptionInfo, managedEventNeeded, FALSE);
-        // If the jit-attach occurred, CORDebuggerAttached() may now be true and we can 
+        // If the jit-attach occurred, CORDebuggerAttached() may now be true and we can
         // just act as if a debugger was always attached.
     }
 
@@ -7706,10 +7830,10 @@ HRESULT Debugger::SendException(Thread *pThread,
         {
             // We have to send enabled, so enable now.
             GCX_PREEMP_EEINTERFACE();
-            
+
             // Send the exception events. Even in jit-attach case, we should now be fully attached.
             if (CORDebuggerAttached())
-            {                    
+            {
                 // Initialize frame-pointer associated with exception notification.
                 LPVOID stackPointer;
                 if ((currentSP == 0) && (pExState->GetContextRecord() != NULL))
@@ -7721,18 +7845,18 @@ HRESULT Debugger::SendException(Thread *pThread,
                     stackPointer = (LPVOID)currentSP;
                 }
                 FramePointer framePointer = FramePointer::MakeFramePointer(stackPointer);
-                    
+
 
                 // Do the real work of sending the events
                 SendExceptionEventsWorker(
                     pThread,
                     fFirstChance,
                     fIsInterceptable,
-                    fContinuable, 
+                    fContinuable,
                     currentIP,
                     framePointer,
                     !unsafePlaceHolder.IsAtUnsafePlace());
-            } 
+            }
             else
             {
                 LOG((LF_CORDB,LL_INFO100, "D:SE: Skipping SendIPCEvent because not supposed to send anything, or RS detached.\n"));
@@ -7801,7 +7925,7 @@ void Debugger::ProcessAnyPendingEvals(Thread *pThread)
     // FuncEvalComplete event, so if the user asks for another func eval then there will be a new pending eval when we
     // loop and check again.
     //
-    DebuggerPendingFuncEval *pfe;    
+    DebuggerPendingFuncEval *pfe;
 
     while (GetPendingEvals() != NULL && (pfe = GetPendingEvals()->GetPendingEval(pThread)) != NULL)
     {
@@ -7814,18 +7938,18 @@ void Debugger::ProcessAnyPendingEvals(Thread *pThread)
         // that we can do another nested eval properly.
         GetPendingEvals()->RemovePendingEval(pThread);
 
-        // Go ahead and do the pending func eval. pDE is invalid after this. 
+        // Go ahead and do the pending func eval. pDE is invalid after this.
         void *ret;
         ret = ::FuncEvalHijackWorker(pDE);
 
 
         // The return value should be NULL when FuncEvalHijackWorker is called as part of an exception.
-        _ASSERTE(ret == NULL);                
+        _ASSERTE(ret == NULL);
     }
 
     // If we need to re-throw a ThreadAbortException, go ahead and do it now.
-    if (GetThread()->m_StateNC & Thread::TSNC_DebuggerReAbort)    
-    {    
+    if (GetThread()->m_StateNC & Thread::TSNC_DebuggerReAbort)
+    {
         // Now clear the bit else we'll see it again when we process the Exception notification
         // from this upcoming UserAbort exception.
         pThread->ResetThreadStateNC(Thread::TSNC_DebuggerReAbort);
@@ -7926,14 +8050,14 @@ void Debugger::FirstChanceManagedExceptionCatcherFound(Thread *pThread,
     DWORD nOffset = (DWORD)(SIZE_T)ICorDebugInfo::NO_MAPPING;
     DebuggerMethodInfo *pDebugMethodInfo = NULL;
     DebuggerJitInfo *pDebugJitInfo = NULL;
-    bool isInJMCFunction = false; 
+    bool isInJMCFunction = false;
 
     if (pMD != NULL)
     {
         _ASSERTE(!pMD->IsILStub());
 
         pDebugJitInfo = GetJitInfo(pMD, (const BYTE *) pMethodAddr, &pDebugMethodInfo);
-        if (pDebugMethodInfo != NULL) 
+        if (pDebugMethodInfo != NULL)
         {
             isInJMCFunction = pDebugMethodInfo->IsJMCFunction();
         }
@@ -7941,9 +8065,9 @@ void Debugger::FirstChanceManagedExceptionCatcherFound(Thread *pThread,
 
     // Here we check if debugger opted-out of receiving exception related events from outside of JMC methods
     // or this exception ever crossed JMC frame (in this case we have already sent user first chance event)
-    if (m_sendExceptionsOutsideOfJMC || 
-        isInJMCFunction || 
-        pThread->GetExceptionState()->GetFlags()->SentDebugUserFirstChance()) 
+    if (m_sendExceptionsOutsideOfJMC ||
+        isInJMCFunction ||
+        pThread->GetExceptionState()->GetFlags()->SentDebugUserFirstChance())
     {
         if (pDebugJitInfo != NULL)
         {
@@ -8341,7 +8465,7 @@ FramePointer GetHandlerFramePointer(BYTE *pStack)
 {
     FramePointer handlerFP;
 
-#if !defined(_TARGET_ARM_) && !defined(_TARGET_ARM64_) 
+#if !defined(_TARGET_ARM_) && !defined(_TARGET_ARM64_)
     // Refer to the comment in DispatchUnwind() to see why we have to add
     // sizeof(LPVOID) to the handler ebp.
     handlerFP = FramePointer::MakeFramePointer(LPVOID(pStack + sizeof(void*)));
@@ -8529,7 +8653,7 @@ void LazyInitFavor(void *)
     hr = g_pDebugger->LazyInitWrapper();
     (void)hr; //prevent "unused variable" error from GCC
 
-    // On checked builds, warn that we're hitting a scenario that debugging doesn't support.    
+    // On checked builds, warn that we're hitting a scenario that debugging doesn't support.
     _ASSERTE(SUCCEEDED(hr) || !"Couldn't initialize lazy data for LastChanceManagedException");
 }
 
@@ -8615,21 +8739,21 @@ LONG Debugger::LastChanceManagedException(EXCEPTION_POINTERS * pExceptionInfo,
         // using this thread's stack space.
         if (jitAttachRequested)
         {
-            m_pRCThread->DoFavor((FAVORCALLBACK) LazyInitFavor, NULL);                
+            m_pRCThread->DoFavor((FAVORCALLBACK) LazyInitFavor, NULL);
         }
-        
-        // The only way we don't have lazy data at this point is in an OOM scenario, which 
+
+        // The only way we don't have lazy data at this point is in an OOM scenario, which
         // the debugger doesn't support.
         if (!HasLazyData())
         {
-            return ExceptionContinueSearch;            
+            return ExceptionContinueSearch;
         }
 
 
-        // In Whidbey, we used to set the filter CONTEXT when we hit an unhandled exception while doing 
-        // mixed-mode debugging.  This helps the debugger walk the stack since it can skip the leaf 
-        // portion of the stack (including stack frames in the runtime) and start the stackwalk at the 
-        // faulting stack frame.  The code to set the filter CONTEXT is in a hijack function which is only 
+        // In Whidbey, we used to set the filter CONTEXT when we hit an unhandled exception while doing
+        // mixed-mode debugging.  This helps the debugger walk the stack since it can skip the leaf
+        // portion of the stack (including stack frames in the runtime) and start the stackwalk at the
+        // faulting stack frame.  The code to set the filter CONTEXT is in a hijack function which is only
         // used during mixed-mode debugging.
         if (m_pRCThread->GetDCB()->m_rightSideIsWin32Debugger)
         {
@@ -8720,7 +8844,7 @@ int Debugger::NotifyUserOfFault(bool userBreakpoint, DebuggerLaunchSetting dls)
             // lock is very small.
             SUPPRESS_ALLOCATION_ASSERTS_IN_THIS_SCOPE;
 
-            result = MessageBox(resIDMessage, IDS_DEBUG_SERVICE_CAPTION, 
+            result = MessageBox(resIDMessage, IDS_DEBUG_SERVICE_CAPTION,
                 flags, TRUE, TRUE, pid, pid, tid, tid);
         }
     }
@@ -8783,7 +8907,7 @@ Debugger::ATTACH_ACTION Debugger::ShouldAttachDebuggerProxy(bool fIsUserBreakpoi
 
 //---------------------------------------------------------------------------------------
 // Do policy to determine if we should attach a debugger.
-// 
+//
 // Arguments:
 //    fIsUserBreakpoint - true iff this is in response to a user-breakpoint, else false.
 //
@@ -8828,7 +8952,7 @@ Debugger::ATTACH_ACTION Debugger::ShouldAttachDebugger(bool fIsUserBreakpoint)
 
         // This lock is also part of the above workaround.
         // Must go to preemptive to take this lock since we'll trigger down the road.
-        GCX_PREEMP();       
+        GCX_PREEMP();
         DebuggerLockHolder lockHolder(this);
 
         // We always want to ask about user breakpoints!
@@ -8840,7 +8964,7 @@ Debugger::ATTACH_ACTION Debugger::ShouldAttachDebugger(bool fIsUserBreakpoint)
             // While we could theoretically run into a deadlock if another thread
             // which acquires the debugger lock in cooperative GC mode is blocked
             // on this thread while it is running arbitrary user code out of the
-            // MessageBox message pump, given that this codepath will only be used 
+            // MessageBox message pump, given that this codepath will only be used
             // on Win9x and that the chances of this happenning are quite slim,
             // for Whidbey a GCViolation is acceptable.
             CONTRACT_VIOLATION(GCViolation);
@@ -8881,7 +9005,7 @@ Debugger::ATTACH_ACTION Debugger::ShouldAttachDebugger(bool fIsUserBreakpoint)
 //
 //    This may trigger a Jit attach.
 //    If the debugger is already attached, this will issue a step-out so that the UserBreakpoint
-//    appears to come from the callsite. 
+//    appears to come from the callsite.
 void Debugger::SendUserBreakpoint(Thread * thread)
 {
     CONTRACTL
@@ -8936,12 +9060,12 @@ void Debugger::SendUserBreakpoint(Thread * thread)
     ATTACH_ACTION dbgAction = ShouldAttachDebugger(true);
 
     // No debugger is attached. Consider a JIT attach.
-    // This will do ShouldAttachDebugger() and wait for the results. 
-    // - It may terminate if the user requested that. 
-    // - It may do a full jit-attach. 
+    // This will do ShouldAttachDebugger() and wait for the results.
+    // - It may terminate if the user requested that.
+    // - It may do a full jit-attach.
     if (dbgAction == ATTACH_YES)
     {
-        JitAttach(thread, NULL, TRUE, FALSE); 
+        JitAttach(thread, NULL, TRUE, FALSE);
     }
     else if (dbgAction == ATTACH_TERMINATE)
     {
@@ -8956,11 +9080,11 @@ void Debugger::SendUserBreakpoint(Thread * thread)
     {
         _ASSERTE(dbgAction == ATTACH_NO);
     }
-    
+
     if (CORDebuggerAttached())
     {
-        // On jit-attach, we just send the UserBreak event. Don't do an extra step-out. 
-        SendUserBreakpointAndSynchronize(thread);        
+        // On jit-attach, we just send the UserBreak event. Don't do an extra step-out.
+        SendUserBreakpointAndSynchronize(thread);
     }
     else if (IsDebuggerPresent())
     {
@@ -9001,7 +9125,7 @@ void Debugger::ThreadCreated(Thread* pRuntimeThread)
     // Sanity check the thread.
     _ASSERTE(pRuntimeThread != NULL);
     _ASSERTE(pRuntimeThread->GetThreadId() != 0);
-    
+
 
     // Create a thread starter and enable its WillEnterManaged code
     // callback. This will cause the starter to trigger once the
@@ -9126,7 +9250,7 @@ void Debugger::DetachThread(Thread *pRuntimeThread)
     {
         // Send a detach thread event to the Right Side.
         DebuggerIPCEvent * pEvent = m_pRCThread->GetIPCEventSendBuffer();
-        
+
         InitIPCEvent(pEvent,
                      DB_IPCE_THREAD_DETACH,
                      pRuntimeThread,
@@ -9156,13 +9280,15 @@ void Debugger::DetachThread(Thread *pRuntimeThread)
 // SuspendComplete is called when the last Runtime thread reaches a safe point in response to having its trap flags set.
 // This may be called on either the real helper thread or someone doing helper thread duty.
 //
-BOOL Debugger::SuspendComplete()
+// It could also be called for sending garbage collection events (see DebuggerRCThread::SendIPCEvent for more about the
+// thread mode associated with the events)
+//
+BOOL Debugger::SuspendComplete(bool isEESuspendedForGC)
 {
     CONTRACTL
     {
         NOTHROW;
-        GC_TRIGGERS;
-
+        if (isEESuspendedForGC) { GC_NOTRIGGER; } else { GC_TRIGGERS; }
         // This will is conceptually mode-cooperative.
         // But we haven't marked the runtime as stopped yet (m_stopped), so the contract
         // subsystem doesn't realize it yet.
@@ -9184,15 +9310,22 @@ BOOL Debugger::SuspendComplete()
     // We can't throw here (we're in the middle of the runtime suspension logic).
     // But things below us throw. So we catch the exception, but then what state are we in?
 
-    _ASSERTE((!g_pEEInterface->GetThread() || !g_pEEInterface->GetThread()->m_fPreemptiveGCDisabled) || g_fInControlC);
-    _ASSERTE(ThisIsHelperThreadWorker());
+    if (!isEESuspendedForGC) {_ASSERTE((!g_pEEInterface->GetThread() || !g_pEEInterface->GetThread()->m_fPreemptiveGCDisabled) || g_fInControlC); }
+    if (!isEESuspendedForGC) { _ASSERTE(ThisIsHelperThreadWorker()); }
 
     STRESS_LOG0(LF_CORDB, LL_INFO10000, "D::SC: suspension complete\n");
 
     // We have suspended runtime.
 
     // We're stopped now. Marking m_stopped allows us to use MODE_COOPERATIVE contracts.
-    _ASSERTE(!m_stopped && m_trappingRuntimeThreads);
+    if (isEESuspendedForGC)
+    {
+        _ASSERTE(!m_stopped);
+    }
+    else
+    {
+        _ASSERTE(!m_stopped && m_trappingRuntimeThreads);
+    }
     m_stopped = true;
 
 
@@ -9201,7 +9334,7 @@ BOOL Debugger::SuspendComplete()
         // If we fail to send the SyncComplete, what do we do?
         CONTRACT_VIOLATION(ThrowsViolation);
 
-        SendSyncCompleteIPCEvent(); // sets m_stopped = true...
+        SendSyncCompleteIPCEvent(isEESuspendedForGC); // sets m_stopped = true...
     }
 
     // Everything in the next scope is meant to mimic what we do UnlockForEventSending minus EnableEventHandling.
@@ -9264,8 +9397,8 @@ void Debugger::SendCreateAppDomainEvent(AppDomain * pRuntimeAppDomain)
         return;
     }
 
-    STRESS_LOG2(LF_CORDB, LL_INFO10000, "D::SCADE: AppDomain creation:%#08x, %#08x\n",
-            pRuntimeAppDomain, pRuntimeAppDomain->GetId().m_dwId);
+    STRESS_LOG1(LF_CORDB, LL_INFO10000, "D::SCADE: AppDomain creation:%#08x\n",
+            pRuntimeAppDomain);
 
 
 
@@ -9319,8 +9452,8 @@ void Debugger::SendExitAppDomainEvent(AppDomain* pRuntimeAppDomain)
     LOG((LF_CORDB, LL_INFO100, "D::EAD: Exit AppDomain 0x%08x.\n",
         pRuntimeAppDomain));
 
-    STRESS_LOG3(LF_CORDB, LL_INFO10000, "D::EAD: AppDomain exit:%#08x, %#08x, %#08x\n",
-            pRuntimeAppDomain, pRuntimeAppDomain->GetId().m_dwId, CORDebuggerAttached());
+    STRESS_LOG2(LF_CORDB, LL_INFO10000, "D::EAD: AppDomain exit:%#08x, %#08x\n",
+            pRuntimeAppDomain, CORDebuggerAttached());
 
     Thread *thread = g_pEEInterface->GetThread();
     // Prevent other Runtime threads from handling events.
@@ -9392,7 +9525,7 @@ void Debugger::LoadAssembly(DomainAssembly * pDomainAssembly)
     Thread *pThread = g_pEEInterface->GetThread();
     SENDIPCEVENT_BEGIN(this, pThread)
 
-    
+
     if (CORDebuggerAttached())
     {
         // Send a load assembly event to the Right Side.
@@ -9494,15 +9627,15 @@ void Debugger::LoadModule(Module* pRuntimeModule,
     if (CORDBUnrecoverableError(this))
         return;
 
-    // If this is a dynamic module, then it's part of a multi-module assembly. The manifest 
-    // module within the assembly contains metadata for all the module names in the assembly. 
+    // If this is a dynamic module, then it's part of a multi-module assembly. The manifest
+    // module within the assembly contains metadata for all the module names in the assembly.
     // When a new dynamic module is created, the manifest module's metadata is updated to
-    // include the new module (see code:Assembly.CreateDynamicModule). 
-    // So we need to update the RS's copy of the metadata. One place the manifest module's 
+    // include the new module (see code:Assembly.CreateDynamicModule).
+    // So we need to update the RS's copy of the metadata. One place the manifest module's
     // metadata gets used is in code:DacDbiInterfaceImpl.GetModuleSimpleName
-    // 
+    //
     // See code:ReflectionModule.CaptureModuleMetaDataToMemory for why we send the metadata-refresh here.
-    if (pRuntimeModule->IsReflection() && !pRuntimeModule->IsManifest() && !fAttaching) 
+    if (pRuntimeModule->IsReflection() && !pRuntimeModule->IsManifest() && !fAttaching)
     {
         HRESULT hr = S_OK;
         EX_TRY
@@ -9515,18 +9648,18 @@ void Debugger::LoadModule(Module* pRuntimeModule,
             _ASSERTE(pManifestModule->IsManifest());
             _ASSERTE(pManifestModule->GetAssembly() == pRuntimeModule->GetAssembly());
 
-            DomainFile * pManifestDomainFile = pManifestModule->GetDomainFile(pAppDomain);
+            DomainFile * pManifestDomainFile = pManifestModule->GetDomainFile();
 
             DebuggerLockHolder dbgLockHolder(this);
 
             // Raise the debug event.
             // This still tells the debugger that the manifest module metadata is invalid and needs to
-            // be refreshed. 
+            // be refreshed.
             DebuggerIPCEvent eventMetadataUpdate;
             InitIPCEvent(&eventMetadataUpdate, DB_IPCE_METADATA_UPDATE, NULL, pAppDomain);
 
             eventMetadataUpdate.MetadataUpdateData.vmDomainFile.SetRawPtr(pManifestDomainFile);
-                 
+
             SendRawEvent(&eventMetadataUpdate);
         }
         EX_CATCH_HRESULT(hr);
@@ -9579,7 +9712,7 @@ void Debugger::LoadModule(Module* pRuntimeModule,
         {
             TrapAllRuntimeThreads();
         }
-        EX_CATCH_HRESULT(hr); // @dbgtodo  synchronization - catch exception and go on to restore state. 
+        EX_CATCH_HRESULT(hr); // @dbgtodo  synchronization - catch exception and go on to restore state.
         // Synchronization feature crew needs to figure out what happens to TrapAllRuntimeThreads().
     }
 
@@ -9597,7 +9730,7 @@ void Debugger::LoadModule(Module* pRuntimeModule,
         {
             SendUpdateModuleSymsEventAndBlock(pRuntimeModule, pAppDomain);
         }
-        EX_CATCH_HRESULT(hr); 
+        EX_CATCH_HRESULT(hr);
     }
 
     // Now that we're done with the load module event, can no longer change Jit flags.
@@ -9664,7 +9797,7 @@ void Debugger::LoadModuleFinished(Module * pRuntimeModule, AppDomain * pAppDomai
 #ifdef _DEBUG
     {
         // This notification is called once the module is loaded
-        DomainFile * pDomainFile = pRuntimeModule->FindDomainFile(pAppDomain);
+        DomainFile * pDomainFile = pRuntimeModule->GetDomainFile();
         _ASSERTE((pDomainFile != NULL) && (pDomainFile->GetLoadLevel() >= FILE_LOADED));
     }
 #endif // _DEBUG
@@ -9734,7 +9867,7 @@ void Debugger::LoadModuleFinished(Module * pRuntimeModule, AppDomain * pAppDomai
 // Notes:
 //   This is just a ping event. Debugger must query for actual symbol contents.
 //   This keeps the launch + attach cases identical.
-//   This just sends the raw event and does not synchronize the runtime. 
+//   This just sends the raw event and does not synchronize the runtime.
 //   Use code:Debugger.SendUpdateModuleSymsEventAndBlock for that.
 void Debugger::SendRawUpdateModuleSymsEvent(Module *pRuntimeModule, AppDomain *pAppDomain)
 {
@@ -9756,7 +9889,7 @@ void Debugger::SendRawUpdateModuleSymsEvent(Module *pRuntimeModule, AppDomain *p
     if (CORDBUnrecoverableError(this))
         return;
 
-    // This event is used to trigger the ICorDebugManagedCallback::UpdateModuleSymbols 
+    // This event is used to trigger the ICorDebugManagedCallback::UpdateModuleSymbols
     // callback.  That callback is defined to pass a PDB stream, and so we still use this
     // only for legacy compatibility reasons when we've actually got PDB symbols.
     // New clients know they must request a new symbol reader after ClassLoad events.
@@ -9768,8 +9901,8 @@ void Debugger::SendRawUpdateModuleSymsEvent(Module *pRuntimeModule, AppDomain *p
 
     DebuggerIPCEvent* ipce = NULL;
     ipce = m_pRCThread->GetIPCEventSendBuffer();
-    InitIPCEvent(ipce, DB_IPCE_UPDATE_MODULE_SYMS, 
-                 g_pEEInterface->GetThread(), 
+    InitIPCEvent(ipce, DB_IPCE_UPDATE_MODULE_SYMS,
+                 g_pEEInterface->GetThread(),
                  pAppDomain);
 
     ipce->UpdateModuleSymsData.vmDomainFile.SetRawPtr((module ? module->GetDomainFile() : NULL));
@@ -9780,17 +9913,17 @@ void Debugger::SendRawUpdateModuleSymsEvent(Module *pRuntimeModule, AppDomain *p
 //
 // UpdateModuleSyms is called when the symbols for a module need to be
 // sent to the Right Side because they've changed.
-// 
+//
 // Arguments:
 //   pRuntimeModule - required, module to send symbols for. May be domain neutral.
 //   pAppDomain - required, appdomain that module is in.
-//     
-//     
-// Notes: 
+//
+//
+// Notes:
 //    This will send the event (via code:Debugger.SendRawUpdateModuleSymsEvent) and then synchronize
 //    the runtime waiting for a continue.
-//   
-//    This should only be called in cases where we reasonably expect to send symbols. 
+//
+//    This should only be called in cases where we reasonably expect to send symbols.
 //    However, this may not send symbols if the symbols aren't available.
 void Debugger::SendUpdateModuleSymsEventAndBlock(Module* pRuntimeModule, AppDomain *pAppDomain)
 {
@@ -9821,7 +9954,7 @@ void Debugger::SendUpdateModuleSymsEventAndBlock(Module* pRuntimeModule, AppDoma
     // Actually send the event
     if (CORDebuggerAttached())
     {
-        SendRawUpdateModuleSymsEvent(pRuntimeModule, pAppDomain);    
+        SendRawUpdateModuleSymsEvent(pRuntimeModule, pAppDomain);
         TrapAllRuntimeThreads();
     }
 
@@ -9833,7 +9966,7 @@ void Debugger::SendUpdateModuleSymsEventAndBlock(Module* pRuntimeModule, AppDoma
 // UnloadModule is called by the Runtime for each module (including shared ones)
 // in an AppDomain that is being unloaded, when a debugger is attached.
 // In the EE, a module may be domain-neutral and therefore shared across all AppDomains.
-// We abstract this detail away in the Debugger and consider each such EE module to correspond 
+// We abstract this detail away in the Debugger and consider each such EE module to correspond
 // to multiple "Debugger Module" instances (one per AppDomain).
 // Therefore, this doesn't necessarily mean the runtime is unloading the module, just
 // that the Debugger should consider it's (per-AppDomain) DebuggerModule to be unloaded.
@@ -9881,7 +10014,7 @@ void Debugger::UnloadModule(Module* pRuntimeModule,
             pRuntimeModule, pAppDomain, pRuntimeModule->IsIStream());
 
         // Note: the appdomain the module was loaded in must match the appdomain we're unloading it from. If it doesn't,
-        // then we've either found the wrong DebuggerModule in LookupModule or we were passed bad data.        
+        // then we've either found the wrong DebuggerModule in LookupModule or we were passed bad data.
         _ASSERTE(module->GetAppDomain() == pAppDomain);
 
         // Send the unload module event to the Right Side.
@@ -9897,11 +10030,7 @@ void Debugger::UnloadModule(Module* pRuntimeModule,
 
         // Remove all patches that apply to this module/AppDomain combination
         AppDomain* domainToRemovePatchesIn = NULL;  // all domains by default
-        if( pRuntimeModule->GetAssembly()->IsDomainNeutral() )
-        {
-            // Deactivate all the patches specific to the AppDomain being unloaded
-            domainToRemovePatchesIn = pAppDomain;
-        }
+
         // Note that we'll explicitly NOT delete DebuggerControllers, so that
         // the Right Side can delete them later.
         DebuggerController::RemovePatchesFromModule(pRuntimeModule, domainToRemovePatchesIn);
@@ -9909,28 +10038,25 @@ void Debugger::UnloadModule(Module* pRuntimeModule,
         // Deactive all JMC functions in this module.  We don't do this for shared assemblies
         // because JMC status is not maintained on a per-AppDomain basis and we don't
         // want to change the JMC behavior of the module in other domains.
-        if( !pRuntimeModule->GetAssembly()->IsDomainNeutral() )
+        LOG((LF_CORDB, LL_EVERYTHING, "Setting all JMC methods to false:\n"));
+        DebuggerDataLockHolder debuggerDataLockHolder(this);
+        DebuggerMethodInfoTable * pTable = GetMethodInfoTable();
+        if (pTable != NULL)
         {
-            LOG((LF_CORDB, LL_EVERYTHING, "Setting all JMC methods to false:\n"));
-            DebuggerDataLockHolder debuggerDataLockHolder(this);
-            DebuggerMethodInfoTable * pTable = GetMethodInfoTable();
-            if (pTable != NULL)
-            {
-                HASHFIND info;
+            HASHFIND info;
 
-                for (DebuggerMethodInfo *dmi = pTable->GetFirstMethodInfo(&info);
-                    dmi != NULL;
-                    dmi = pTable->GetNextMethodInfo(&info))
+            for (DebuggerMethodInfo *dmi = pTable->GetFirstMethodInfo(&info);
+                dmi != NULL;
+                dmi = pTable->GetNextMethodInfo(&info))
+            {
+                if (dmi->m_module == pRuntimeModule)
                 {
-                    if (dmi->m_module == pRuntimeModule)
-                    {
-                        dmi->SetJMCStatus(false);
-                    }
+                    dmi->SetJMCStatus(false);
                 }
             }
-            LOG((LF_CORDB, LL_EVERYTHING, "Done clearing JMC methods!\n"));
         }
-    
+        LOG((LF_CORDB, LL_EVERYTHING, "Done clearing JMC methods!\n"));
+
         // Delete the Left Side representation of the module.
         if (m_pModules != NULL)
         {
@@ -9950,12 +10076,10 @@ LExit:
     SENDIPCEVENT_END;
 }
 
-// Called when this module is completely gone from ALL AppDomains, regardless of 
-// whether a debugger is attached.  
-// Note that this doesn't get called until after the ADUnload is complete, which happens 
-// asyncronously in Whidbey (and won't happen at all if the process shuts down first).
+// Called when this module is completely gone from ALL AppDomains, regardless of
+// whether a debugger is attached.
 // This is normally not called only domain-neutral assemblies because they can't be unloaded.
-// However, it may be called if the loader fails to completely load a domain-neutral assembly. 
+// However, it may be called if the loader fails to completely load a domain-neutral assembly.
 void Debugger::DestructModule(Module *pModule)
 {
     CONTRACTL
@@ -9975,7 +10099,7 @@ void Debugger::DestructModule(Module *pModule)
     DebuggerLockHolder dbgLockHolder(this);
 
     // We should have removed all patches at AD unload time (or detach time if the
-    // debugger detached).   
+    // debugger detached).
     _ASSERTE( !DebuggerController::ModuleHasPatches(pModule) );
 
     // Do module clean-up that applies even when no debugger is attached.
@@ -10022,7 +10146,7 @@ void Debugger::RemoveModuleReferences( Module* pModule )
 
             // DebuggerDataLockHolder out of scope - release implied
         }
-    } 
+    }
 }
 
 //---------------------------------------------------------------------------------------
@@ -10030,7 +10154,7 @@ void Debugger::RemoveModuleReferences( Module* pModule )
 // SendClassLoadUnloadEvent - notify the RS of a class either loading or unloading.
 //
 // Arguments:
-//    
+//
 //    fAttaching - true if a debugger is in the process of attaching
 //
 // Return Value:
@@ -10055,9 +10179,9 @@ void Debugger::SendClassLoadUnloadEvent (mdTypeDef classMetadataToken,
         classMetadataToken, fIsLoadEvent, pClassDebuggerModule, pAppDomain));
 
     DebuggerIPCEvent * pEvent = m_pRCThread->GetIPCEventSendBuffer();
-    
+
     BOOL fIsReflection = pClassDebuggerModule->GetRuntimeModule()->IsReflection();
-    
+
     if (fIsLoadEvent == TRUE)
     {
         // We need to update Metadata before Symbols (since symbols depend on metadata)
@@ -10134,7 +10258,7 @@ BOOL Debugger::SendSystemClassLoadUnloadEvent(mdTypeDef classMetadataToken,
         // triggers too early in the loading process. FindDomainFile will not become
         // non-NULL until the module is fully loaded into the domain which is what we
         // want.
-        if (classModule->FindDomainFile(pAppDomain) != NULL )
+        if (classModule->GetDomainFile() != NULL )
         {
             // Find the Left Side module that this class belongs in.
             DebuggerModule* pModule = LookupOrCreateModule(classModule, pAppDomain);
@@ -10187,10 +10311,10 @@ BOOL  Debugger::LoadClass(TypeHandle th,
         return FALSE;
 
     // Note that pAppDomain may be null.  The AppDomain isn't used here, and doesn't make a lot of sense since
-    // we may be delivering the notification for a class in an assembly which is loaded into multiple AppDomains.  We 
-    // handle this in SendSystemClassLoadUnloadEvent below by looping through all AppDomains and dispatching 
+    // we may be delivering the notification for a class in an assembly which is loaded into multiple AppDomains.  We
+    // handle this in SendSystemClassLoadUnloadEvent below by looping through all AppDomains and dispatching
     // events for each that contain this assembly.
-    
+
     LOG((LF_CORDB, LL_INFO10000, "D::LC: load class Tok:%#08x Mod:%#08x AD:%#08x classMod:%#08x modName:%ls\n",
          classMetadataToken, (pAppDomain == NULL) ? NULL : LookupOrCreateModule(classModule, pAppDomain),
          pAppDomain, classModule, classModule->GetDebugName()));
@@ -10307,20 +10431,19 @@ void Debugger::FuncEvalComplete(Thread* pThread, DebuggerEval *pDE)
     if (pDE->m_rethrowAbortException)
     {
         pThread->SetThreadStateNC(Thread::TSNC_DebuggerReAbort);
-    }        
+    }
 
 
     //
     // Get the domain that the result is valid in. The RS will cache this in the ICorDebugValue
-    // Note: it's possible that the AppDomain has (or is about to be) unloaded, which could lead to a 
-    // crash when we use the DebuggerModule.  Ideally we'd only be using AppDomain IDs here. 
+    // Note: it's possible that the AppDomain has (or is about to be) unloaded, which could lead to a
+    // crash when we use the DebuggerModule.  Ideally we'd only be using AppDomain IDs here.
     // We can't easily convert our ADID to an AppDomain* (SystemDomain::GetAppDomainFromId)
-    // because we can't proove that that the AppDomain* would be valid (not unloaded). 
+    // because we can't proove that that the AppDomain* would be valid (not unloaded).
     //
     AppDomain *pDomain = pThread->GetDomain();
     AppDomain *pResultDomain = ((pDE->m_debuggerModule == NULL) ? pDomain : pDE->m_debuggerModule->GetAppDomain());
-    _ASSERTE( pResultDomain->GetId() == pDE->m_appDomainId );
-    
+
     // Send a func eval complete event to the Right Side.
     DebuggerIPCEvent* ipce = m_pRCThread->GetIPCEventSendBuffer();
     InitIPCEvent(ipce, DB_IPCE_FUNC_EVAL_COMPLETE, pThread, pDomain);
@@ -10342,10 +10465,10 @@ void Debugger::FuncEvalComplete(Thread* pThread, DebuggerEval *pDE)
     _ASSERTE(ipce->FuncEvalComplete.resultType.elementType != ELEMENT_TYPE_VALUETYPE);
 
     // We must adjust the result address to point to the right place
-    ipce->FuncEvalComplete.resultAddr = ArgSlotEndianessFixup((ARG_SLOT*)ipce->FuncEvalComplete.resultAddr, 
+    ipce->FuncEvalComplete.resultAddr = ArgSlotEndianessFixup((ARG_SLOT*)ipce->FuncEvalComplete.resultAddr,
         GetSizeForCorElementType(ipce->FuncEvalComplete.resultType.elementType));
 
-    LOG((LF_CORDB, LL_INFO1000, "D::FEC: returned el %04x resultAddr %p\n", 
+    LOG((LF_CORDB, LL_INFO1000, "D::FEC: returned el %04x resultAddr %p\n",
         ipce->FuncEvalComplete.resultType.elementType, ipce->FuncEvalComplete.resultAddr));
 
     m_pRCThread->SendIPCEvent();
@@ -10475,7 +10598,7 @@ BYTE* Debugger::SerializeModuleMetaData(Module * pModule, DWORD * countBytes)
         ThrowHR(hr);
     }
     _ASSERTE(pInternalEmitter != NULL);
-        
+
     hr = pInternalEmitter->SetMDUpdateMode(MDUpdateExtension, &originalUpdateMode);
     if(FAILED(hr))
     {
@@ -10483,7 +10606,7 @@ BYTE* Debugger::SerializeModuleMetaData(Module * pModule, DWORD * countBytes)
         ThrowHR(hr);
     }
     _ASSERTE(originalUpdateMode == MDUpdateFull);
-       
+
     hr = pEmitter->GetSaveSize(cssQuick, countBytes);
     if(FAILED(hr))
     {
@@ -10504,7 +10627,7 @@ BYTE* Debugger::SerializeModuleMetaData(Module * pModule, DWORD * countBytes)
     }
     EX_END_CATCH(SwallowAllExceptions);
     _ASSERTE(metadataBuffer != NULL); // allocation would throw first
-    
+
     // Caller ensures serialization that guarantees that the metadata doesn't grow underneath us.
     hr = pEmitter->SaveToMemory(metadataBuffer, *countBytes);
     if(FAILED(hr))
@@ -10514,7 +10637,7 @@ BYTE* Debugger::SerializeModuleMetaData(Module * pModule, DWORD * countBytes)
         pInternalEmitter->SetMDUpdateMode(originalUpdateMode, NULL);
         ThrowHR(hr);
     }
-    
+
     pInternalEmitter->SetMDUpdateMode(originalUpdateMode, NULL);
     LOG((LF_CORDB, LL_INFO10000, "Debugger::SMMD exiting\n"));
     return metadataBuffer;
@@ -10559,7 +10682,7 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
     {
         THROWS;
         if (g_pEEInterface->GetThread() != NULL) { GC_TRIGGERS; } else { GC_NOTRIGGER; }
-        
+
         PRECONDITION(ThisIsHelperThreadWorker());
 
         if (m_stopped)
@@ -10609,10 +10732,17 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
     // be sent as part of attach if debugger was launched by managed app.
     //
     DebuggerLockHolder dbgLockHolder(this, FALSE);
+    bool lockedThreadStore = false;
 
     if ((pEvent->type & DB_IPCE_TYPE_MASK) == DB_IPCE_ASYNC_BREAK ||
-        (pEvent->type & DB_IPCE_TYPE_MASK) == DB_IPCE_ATTACHING)
+        (pEvent->type & DB_IPCE_TYPE_MASK) == DB_IPCE_ATTACHING ||
+        this->m_willBlockOnGarbageCollectionEvent)
     {
+        if (!this->m_willBlockOnGarbageCollectionEvent && !this->m_stopped)
+        {
+            lockedThreadStore = true;
+            ThreadSuspend::LockThreadStore(ThreadSuspend::SUSPEND_FOR_DEBUGGER);
+        }
         dbgLockHolder.Acquire();
     }
     else
@@ -10625,14 +10755,14 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
     switch (pEvent->type & DB_IPCE_TYPE_MASK)
     {
 
-    case DB_IPCE_ATTACHING:       
+    case DB_IPCE_ATTACHING:
         // In V3, Attach is atomic, meaning that there isn't a complex handshake back and forth between LS + RS.
         // the RS sends a single-attaching event and attaches at the first response from the Left-side.
         StartCanaryThread();
-        
+
         // In V3 after attaching event was handled we iterate throughout all ADs and made shadow copies of PDBs in the BIN directories.
         // After all AppDomain, DomainAssembly and modules iteration was available in out-of-proccess model in V4 the code that enables
-        // PDBs to be copied was not called at attach time. 
+        // PDBs to be copied was not called at attach time.
         // Eliminating PDBs copying side effect is an issue: Dev10 #927143
         EX_TRY
         {
@@ -10641,12 +10771,12 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
         EX_CATCH_HRESULT(hr); // ignore failures
 
         if (m_jitAttachInProgress)
-        { 
-            // For jit-attach, mark that we're attached now. 
-            // This lets callers to code:Debugger.JitAttach check the flag and 
+        {
+            // For jit-attach, mark that we're attached now.
+            // This lets callers to code:Debugger.JitAttach check the flag and
             // send the jit-attach event just like a normal event.
             MarkDebuggerAttachedInternal();
-            
+
             // set the managed attach event so that waiting threads can continue
             VERIFY(SetEvent(GetAttachEvent()));
             break;
@@ -10675,7 +10805,7 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
                 _ASSERTE(ThreadHoldsLock());
 
                 // Simply trap all Runtime threads if we're not already trying to.
-                if (!m_trappingRuntimeThreads)
+                if (!m_willBlockOnGarbageCollectionEvent && !m_trappingRuntimeThreads)
                 {
                     // If the RS sent an Async-break, then that's an explicit request.
                     m_RSRequestedSync = TRUE;
@@ -10687,18 +10817,24 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
 
     case DB_IPCE_CONTINUE:
         {
-            GetCanary()->ClearCache();
-        
-            fContinue = ResumeThreads(pEvent->vmAppDomain.GetRawPtr());
+            if (this->m_isBlockedOnGarbageCollectionEvent)
+            {
+                this->m_stopped = false;
+                SetEvent(this->GetGarbageCollectionBlockerEvent());
+            }
+            else
+            {
+                fContinue = ResumeThreads(pEvent->vmAppDomain.GetRawPtr());
 
                 //
                 // Go ahead and release the TSL now that we're continuing. This ensures that we've held
                 // the thread store lock the entire time the Runtime was just stopped.
                 //
                 ThreadSuspend::UnlockThreadStore(FALSE, ThreadSuspend::SUSPEND_FOR_DEBUGGER);
-
-            break;
             }
+            GetCanary()->ClearCache();
+            break;
+        }
 
     case DB_IPCE_BREAKPOINT_ADD:
         {
@@ -10717,7 +10853,7 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
             Module * pModule = pDebuggerModule->GetRuntimeModule();
             DebuggerMethodInfo * pDMI = GetOrCreateMethodInfo(pModule, pEvent->BreakpointData.funcMetadataToken);
             MethodDesc * pMethodDesc = pEvent->BreakpointData.nativeCodeMethodDescToken.UnWrap();
-        
+
             DebuggerJitInfo * pDJI =  NULL;
             if ((pMethodDesc != NULL) && (pDMI != NULL))
             {
@@ -10756,14 +10892,14 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
             }
 
             LOG((LF_CORDB,LL_INFO10000,"\tBP Add: BPTOK:"
-                "0x%x, tok=0x%08x, offset=0x%x, isIL=%d dm=0x%x m=0x%x\n", 
+                "0x%x, tok=0x%08x, offset=0x%x, isIL=%d dm=0x%x m=0x%x\n",
                  pDebuggerBP,
                  pEvent->BreakpointData.funcMetadataToken,
                  pEvent->BreakpointData.offset,
                  pEvent->BreakpointData.isIL,
                  pDebuggerModule,
                  pModule));
-        
+
             //
             // We're using a two-way event here, so we place the
             // result event into the _receive_ buffer, not the send
@@ -10892,7 +11028,7 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
             else
             {
                 DebuggerStepper * pStepper;
-                 
+
                 if (pEvent->StepData.IsJMCStop)
                 {
                     pStepper = new (interopsafe, nothrow) DebuggerJMCStepper(pThread,
@@ -10959,8 +11095,8 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
             CorDebugThreadState debugState = pEvent->SetAllDebugState.debugState;
 
             LOG((LF_CORDB,LL_INFO10000,"HandleIPCE: SetAllDebugState: except thread 0x%08x (ID:0x%x) to state 0x%x\n",
-                 pThread, 
-                 (pThread != NULL) ? GetThreadIdHelper(pThread) : 0, 
+                 pThread,
+                 (pThread != NULL) ? GetThreadIdHelper(pThread) : 0,
                  debugState));
 
             if (!g_fProcessDetach)
@@ -11002,9 +11138,7 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
             if(fValid)
             {
                 // Get the appdomain
-                IGCHandleManager *mgr = GCHandleUtilities::GetGCHandleManager();
-                ADIndex appDomainIndex = ADIndex(reinterpret_cast<DWORD>(mgr->GetHandleContext(objectHandle)));
-                pAppDomain = SystemDomain::GetAppDomainAtIndex(appDomainIndex);
+                pAppDomain = AppDomain::GetCurrentDomain();
 
                 _ASSERTE(pAppDomain != NULL);
             }
@@ -11054,13 +11188,13 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
             DebuggerModule *pDebuggerModule = LookupOrCreateModule(pEvent->SetClassLoad.vmDomainFile);
 
             _ASSERTE(pDebuggerModule != NULL);
-            
+
             LOG((LF_CORDB, LL_INFO10000,
                  "D::HIPCE: class load flag is %d for module 0x%p\n",
-                 pEvent->SetClassLoad.flag, 
+                 pEvent->SetClassLoad.flag,
                  pDebuggerModule));
 
-            pDebuggerModule->EnableClassLoadCallbacks((BOOL)pEvent->SetClassLoad.flag);            
+            pDebuggerModule->EnableClassLoadCallbacks((BOOL)pEvent->SetClassLoad.flag);
         }
         break;
 
@@ -11108,8 +11242,8 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
                 DebuggerJitInfo * pDJI = NULL;
                 if (pDMI != NULL)
                 {
-                    // In the EnC case, if we look for an older version, we need to find the DJI by starting 
-                    // address, rather than just by MethodDesc. In the case of generics, we may need to create a DJI, so we 
+                    // In the EnC case, if we look for an older version, we need to find the DJI by starting
+                    // address, rather than just by MethodDesc. In the case of generics, we may need to create a DJI, so we
                     pDJI = pDMI->FindOrCreateInitAndAddJitInfo(pEvent->SetIP.vmMethodDesc.GetRawPtr(),
                                                                PINSTRToPCODE((TADDR)pEvent->SetIP.startAddress));
                 }
@@ -11118,7 +11252,7 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
                 {
                     CHECK_IF_CAN_TAKE_HELPER_LOCKS_IN_THIS_SCOPE(&(pIPCResult->hr), GetCanary());
 
-                    if (SUCCEEDED(pIPCResult->hr))                    
+                    if (SUCCEEDED(pIPCResult->hr))
                     {
                         pIPCResult->hr = SetIP(pEvent->SetIP.fCanSetIPOnly,
                                           pThread,
@@ -11153,7 +11287,7 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
         // Note that we'd like to be able to do this assert here
         //      _ASSERTE(DebuggerController::GetNumberOfPatches() == 0);
         // However controllers may get queued for deletion if there is outstanding
-        // work and so we can't gaurentee the deletion will complete now.  
+        // work and so we can't gaurentee the deletion will complete now.
         // @dbgtodo  inspection: This shouldn't be an issue in the complete V3 architecture
 
         MarkDebuggerUnattachedInternal();
@@ -11201,14 +11335,23 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
         // the detach reply before the process exits if the main thread is near exiting.
         m_pRCThread->SendIPCReply();
 
-        // Let the process run free now... there is no debugger to bother it anymore.
-        fContinue = ResumeThreads(NULL);
+        if (this->m_isBlockedOnGarbageCollectionEvent)
+        {
+            this->m_stopped = FALSE;
+            SetEvent(this->GetGarbageCollectionBlockerEvent());
+        }
+        else
+        {
+            // Let the process run free now... there is no debugger to bother it anymore.
+            fContinue = ResumeThreads(pEvent->vmAppDomain.GetRawPtr());
 
-        //
-        // Go ahead and release the TSL now that we're continuing. This ensures that we've held
-        // the thread store lock the entire time the Runtime was just stopped.
-        //
-        ThreadSuspend::UnlockThreadStore(FALSE, ThreadSuspend::SUSPEND_FOR_DEBUGGER);
+            //
+            // Go ahead and release the TSL now that we're continuing. This ensures that we've held
+            // the thread store lock the entire time the Runtime was just stopped.
+            //
+            ThreadSuspend::UnlockThreadStore(FALSE, ThreadSuspend::SUSPEND_FOR_DEBUGGER);
+        }
+
         break;
 
 #ifndef DACCESS_COMPILE
@@ -11272,19 +11415,7 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
 
     case DB_IPCE_GET_THREAD_FOR_TASKID:
         {
-             TASKID taskid = pEvent->GetThreadForTaskId.taskid;
-             Thread *pThread = ThreadStore::GetThreadList(NULL);
              Thread *pThreadRet = NULL;
-
-             while (pThread != NULL)
-             {
-                 if (pThread->GetTaskId() == taskid)
-                 {
-                     pThreadRet = pThread;
-                     break;
-                 }
-                 pThread = ThreadStore::GetThreadList(pThread);
-             }
 
              // This is a synchronous event (reply required)
              pEvent = m_pRCThread->GetIPCEventReceiveBuffer();
@@ -11332,7 +11463,7 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
                      pEvent->CreateHandleResult.vmObjectHandle.SetRawPtr(objectHandle);
                  }
              }
-             
+
              m_pRCThread->SendIPCReply();
              break;
         }
@@ -11406,7 +11537,7 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
 
     case DB_IPCE_CONTROL_C_EVENT_RESULT:
         {
-            // store the result of whether the event has been handled by the debugger and 
+            // store the result of whether the event has been handled by the debugger and
             // wake up the thread waiting for the result
             SetDebuggerHandlingCtrlC(pEvent->hr == S_OK);
             VERIFY(SetEvent(GetCtrlCMutex()));
@@ -11546,7 +11677,7 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
 
             Module * pModule = pEvent->MetadataUpdateRequest.vmModule.GetRawPtr();
             LOG((LF_CORDB, LL_INFO100000, "D::HIPCE Got module 0x%x\n", pModule));
-            
+
             DWORD countBytes = 0;
 
             // This will allocate memory. Debugger will then copy from here and send a
@@ -11556,7 +11687,7 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
             {
                 LOG((LF_CORDB, LL_INFO100000, "D::HIPCE Calling SerializeModuleMetaData\n"));
                 pData = SerializeModuleMetaData(pModule, &countBytes);
-                
+
             }
             EX_CATCH_HRESULT(hr);
 
@@ -11564,12 +11695,12 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
 
             DebuggerIPCEvent * pResult = m_pRCThread->GetIPCEventReceiveBuffer();
             InitIPCEvent(pResult, DB_IPCE_RESOLVE_UPDATE_METADATA_1_RESULT, NULL, NULL);
-            
+
             pResult->MetadataUpdateRequest.pMetadataStart = pData;
             pResult->MetadataUpdateRequest.nMetadataSize = countBytes;
             pResult->hr = hr;
             LOG((LF_CORDB, LL_INFO1000000, "D::HIPCE metadataStart=0x%x, nMetadataSize=0x%x\n", pData, countBytes));
-            
+
             m_pRCThread->SendIPCReply();
             LOG((LF_CORDB, LL_INFO1000000, "D::HIPCE reply sent\n"));
         }
@@ -11598,6 +11729,10 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
 
     STRESS_LOG0(LF_CORDB, LL_INFO10000, "D::HIPCE: finished handling event\n");
 
+    if (lockedThreadStore)
+    {
+        ThreadSuspend::UnlockThreadStore(FALSE, ThreadSuspend::SUSPEND_FOR_DEBUGGER);
+    }
     // dbgLockHolder goes out of scope - implicit Release
     return fContinue;
 }
@@ -11659,18 +11794,18 @@ HRESULT Debugger::GetAndSendInterceptCommand(DebuggerIPCEvent *event)
             {
                 //
                 // If the target frame is below the point where the current exception was
-                // thrown from, then we should reject this interception command.  This 
+                // thrown from, then we should reject this interception command.  This
                 // can happen in a func-eval during an exception callback, or during a
                 // breakpoint in a filter function.  Or it can just be a user error.
                 //
                 CONTEXT* pContext = pExState->GetContextRecord();
 
-                // This is an approximation on IA64, where we should use the caller SP instead of 
-                // the current SP.  However, if the targetFramePointer is valid, the comparison should 
-                // still work.  targetFramePointer should be valid because it ultimately comes from a 
+                // This is an approximation on IA64, where we should use the caller SP instead of
+                // the current SP.  However, if the targetFramePointer is valid, the comparison should
+                // still work.  targetFramePointer should be valid because it ultimately comes from a
                 // full stackwalk.
                 FramePointer excepFramePointer = FramePointer::MakeFramePointer(GetSP(pContext));
-                
+
                 if (IsCloserToRoot(excepFramePointer, targetFramePointer))
                 {
                     hr = CORDBG_E_CURRENT_EXCEPTION_IS_OUTSIDE_CURRENT_EXECUTION_SCOPE;
@@ -11687,7 +11822,7 @@ HRESULT Debugger::GetAndSendInterceptCommand(DebuggerIPCEvent *event)
                 //
                 if (pExState->GetContextRecord() != NULL)
                 {
-                    // If the faulting instruction is not in managed code, then the interception frame 
+                    // If the faulting instruction is not in managed code, then the interception frame
                     // must be non-leaf.
                     if (!g_pEEInterface->IsManagedNativeCode((BYTE *)(GetIP(pExState->GetContextRecord()))))
                     {
@@ -11719,10 +11854,10 @@ HRESULT Debugger::GetAndSendInterceptCommand(DebuggerIPCEvent *event)
 
                     ULONG relOffset = csi.m_activeFrame.relOffset;
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
                     int funcletIndex = PARENT_METHOD_INDEX;
 
-                    // For funclets, we need to make sure that the stack empty sequence point we use is 
+                    // For funclets, we need to make sure that the stack empty sequence point we use is
                     // in the same funclet as the current offset.
                     if (csi.m_activeFrame.IsFuncletFrame())
                     {
@@ -11731,7 +11866,7 @@ HRESULT Debugger::GetAndSendInterceptCommand(DebuggerIPCEvent *event)
 
                     // Refer to the loop using pMap below.
                     DebuggerILToNativeMap* pMap = NULL;
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
                     for (unsigned int i = 0; i < pJitInfo->GetSequenceMapCount(); i++)
                     {
@@ -11768,23 +11903,23 @@ HRESULT Debugger::GetAndSendInterceptCommand(DebuggerIPCEvent *event)
                         }
 
                         if ((foundOffset < startOffset) && (startOffset <= relOffset)
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
                             // Check if we are still in the same funclet.
                             && (funcletIndex == pJitInfo->GetFuncletIndex(startOffset, DebuggerJitInfo::GFIM_BYOFFSET))
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
                            )
                         {
                             LOG((LF_CORDB, LL_INFO10000, "D::HIPCE: updating breakpoint at native offset 0x%x\n",
                                  startOffset));
                             foundOffset = startOffset;
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
                             // Save the map entry for modification later.
                             pMap = &(pJitInfo->GetSequenceMap()[i]);
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
                         }
                     }
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
                     // This is nasty.  Starting recently we could have multiple sequence points with the same IL offset
                     // in the SAME funclet/parent method (previously different sequence points with the same IL offset
                     // imply that they are in different funclet/parent method).  Fortunately, we only run into this
@@ -11804,7 +11939,7 @@ HRESULT Debugger::GetAndSendInterceptCommand(DebuggerIPCEvent *event)
                         }
                     }
                     _ASSERTE(foundOffset < relOffset);
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
                     //
                     // Set up a breakpoint on the intercept IP
@@ -11993,10 +12128,10 @@ void Debugger::TypeHandleToBasicTypeInfo(AppDomain *pAppDomain, TypeHandle th, D
     case ELEMENT_TYPE_CLASS:
     case ELEMENT_TYPE_VALUETYPE:
         {
-            res->vmTypeHandle = th.HasInstantiation() ? WrapTypeHandle(th) : VMPTR_TypeHandle::NullPtr(); 
+            res->vmTypeHandle = th.HasInstantiation() ? WrapTypeHandle(th) : VMPTR_TypeHandle::NullPtr();
                                                                              // only set if instantiated
             res->metadataToken = th.GetCl();
-            DebuggerModule * pDModule = LookupOrCreateModule(th.GetModule(), pAppDomain);            
+            DebuggerModule * pDModule = LookupOrCreateModule(th.GetModule(), pAppDomain);
             res->vmDomainFile.SetRawPtr((pDModule ? pDModule->GetDomainFile() : NULL));
             break;
         }
@@ -12047,8 +12182,8 @@ void Debugger::TypeHandleToExpandedTypeInfo(AreValueTypesBoxed boxed,
     case ELEMENT_TYPE_SZARRAY:
         _ASSERTE(th.IsArray());
         res->ArrayTypeData.arrayRank = th.AsArray()->GetRank();
-        TypeHandleToBasicTypeInfo(pAppDomain, 
-                                  th.AsArray()->GetArrayElementTypeHandle(), 
+        TypeHandleToBasicTypeInfo(pAppDomain,
+                                  th.AsArray()->GetArrayElementTypeHandle(),
                                   &(res->ArrayTypeData.arrayTypeArg));
         break;
 
@@ -12060,8 +12195,8 @@ void Debugger::TypeHandleToExpandedTypeInfo(AreValueTypesBoxed boxed,
             goto treatAllValuesAsBoxed;
         }
         _ASSERTE(th.IsTypeDesc());
-        TypeHandleToBasicTypeInfo(pAppDomain, 
-                                  th.AsTypeDesc()->GetTypeParam(), 
+        TypeHandleToBasicTypeInfo(pAppDomain,
+                                  th.AsTypeDesc()->GetTypeParam(),
                                   &(res->UnaryTypeData.unaryTypeArg));
         break;
 
@@ -12150,7 +12285,7 @@ HRESULT Debugger::BasicTypeInfoToTypeHandle(DebuggerIPCE_BasicTypeData *data, Ty
             }
             break;
         }
-    
+
     case ELEMENT_TYPE_FNPTR:
         {
             _ASSERTE(!data->vmTypeHandle.IsNull());
@@ -12243,7 +12378,7 @@ TypeHandle Debugger::TypeDataWalk::ReadTypeHandle()
             th = ReadInstantiation(pDebuggerModule->GetRuntimeModule(), data->data.ClassTypeData.metadataToken, data->numTypeArgs);
             break;
         }
-    
+
     case ELEMENT_TYPE_FNPTR:
         {
             SIZE_T cbAllocSize;
@@ -12359,7 +12494,7 @@ HRESULT Debugger::AllocateRemoteBuffer( ULONG bufSize, void **ppBuffer )
     if (pBuffer == NULL)
             {
         return E_OUTOFMEMORY;
-        }            
+        }
 
     // Track the allocation so we can free it later
     void **ppNextBlob = GetMemBlobs()->Append();
@@ -12442,7 +12577,7 @@ HRESULT Debugger::ReleaseRemoteBuffer(void *pBuffer, bool removeFromBlobList)
         }
 
         // We should have found a match.  All buffers passed to ReleaseRemoteBuffer
-        // should have been allocated with AllocateRemoteBuffer and not yet freed. 
+        // should have been allocated with AllocateRemoteBuffer and not yet freed.
         _ASSERTE( i < cBlobs );
     }
 
@@ -12563,7 +12698,7 @@ bool Debugger::IsThreadAtSafePlaceWorker(Thread *thread)
         CONTEXT ctx;
         ZeroMemory(&rd, sizeof(rd));
         ZeroMemory(&ctx, sizeof(ctx));
-#if defined(_TARGET_X86_) && !defined(WIN64EXCEPTIONS)
+#if defined(_TARGET_X86_) && !defined(FEATURE_EH_FUNCLETS)
         rd.ControlPC = ctx.Eip;
         rd.PCTAddr = (TADDR)&(ctx.Eip);
 #else
@@ -12705,7 +12840,7 @@ void Debugger::GetVarInfo(MethodDesc *       fd,   // [IN] method of interest
     {
         ji = GetLatestJitInfoFromMethodDesc(fd);
     }
-    _ASSERTE(fd == ji->m_fd);
+    _ASSERTE(fd == ji->m_nativeCodeVersion.GetMethodDesc());
 
     PREFIX_ASSUME(ji != NULL);
 
@@ -12719,7 +12854,7 @@ void Debugger::GetVarInfo(MethodDesc *       fd,   // [IN] method of interest
 
 //---------------------------------------------------------------------------------------
 //
-// Apply an EnC edit to the CLR datastructures and send the result event to the 
+// Apply an EnC edit to the CLR datastructures and send the result event to the
 // debugger right-side.
 //
 // Arguments:
@@ -12736,7 +12871,7 @@ void Debugger::GetVarInfo(MethodDesc *       fd,   // [IN] method of interest
 // Notes:
 //
 // This is just the first half of processing an EnC request (hot swapping).  This updates
-// the metadata and other CLR data structures to reflect the edit, but does not directly 
+// the metadata and other CLR data structures to reflect the edit, but does not directly
 // affect code which is currently running.  In order to achieve on-stack replacement
 // (remap of running code), we mine all old methods with "EnC remap breakpoints"
 // (instances of DebuggerEnCBreakpoint) at many sequence points.  When one of those
@@ -12825,7 +12960,7 @@ private:
 // is a valid Remap Breakpoint location (not in a special offset, must be empty stack, and not in a handler.
 //
 EnCSequencePointHelper::EnCSequencePointHelper(DebuggerJitInfo *pJitInfo)
-    : m_pOffsetToHandlerInfo(NULL), 
+    : m_pOffsetToHandlerInfo(NULL),
       m_pJitInfo(pJitInfo)
 {
     CONTRACTL
@@ -12845,9 +12980,9 @@ EnCSequencePointHelper::EnCSequencePointHelper(DebuggerJitInfo *pJitInfo)
     for (unsigned int i = 0; i < m_pJitInfo->GetSequenceMapCount(); i++)
     {
         // By default this slot is unused.  We want the indexes in m_pOffsetToHandlerInfo
-        // to correspond to the indexes of m_pJitInfo->GetSequenceMapCount, so we rely 
+        // to correspond to the indexes of m_pJitInfo->GetSequenceMapCount, so we rely
         // on a -1 offset to indicate that a DebuggerOffsetToHandlerInfo is unused.
-        // However, it would be cleaner and permit a simpler API to the EE if we just 
+        // However, it would be cleaner and permit a simpler API to the EE if we just
         // had an array mapping the offsets instead.
         m_pOffsetToHandlerInfo[i].offset = (SIZE_T) -1;
         m_pOffsetToHandlerInfo[i].isInFilterOrHandler = FALSE;
@@ -12864,7 +12999,7 @@ EnCSequencePointHelper::EnCSequencePointHelper(DebuggerJitInfo *pJitInfo)
             continue;
         }
 
-        // Skip duplicate sequence points 
+        // Skip duplicate sequence points
         if (i >=1 && offset == pJitInfo->GetSequenceMap()[i-1].nativeStartOffset)
         {
             LOG((LF_ENC, LL_INFO10000,
@@ -12886,7 +13021,7 @@ EnCSequencePointHelper::EnCSequencePointHelper(DebuggerJitInfo *pJitInfo)
             continue;
         }
 
-        // So far this sequence point looks good, so store it's native offset so we can get 
+        // So far this sequence point looks good, so store it's native offset so we can get
         // EH information about it from the EE.
         LOG((LF_ENC, LL_INFO10000,
              "D::UF: possibly placing E&C breakpoint at offset "
@@ -12959,7 +13094,7 @@ BOOL EnCSequencePointHelper::ShouldSetRemapBreakpoint(unsigned int offsetIndex)
 //-----------------------------------------------------------------------------
 // For each function that's EnC-ed, the EE will call either UpdateFunction
 // (if the function already is loaded + jitted) or AddFunction
-// 
+//
 // This is called before the EE updates the MethodDesc, so pMD does not yet
 // point to the version we'll be remapping to.
 //-----------------------------------------------------------------------------
@@ -12981,10 +13116,10 @@ HRESULT Debugger::UpdateFunction(MethodDesc* pMD, SIZE_T encVersion)
     Module *pModule = g_pEEInterface->MethodDescGetModule(pMD);
     _ASSERTE(pModule != NULL);
     mdToken methodDef = pMD->GetMemberDef();
-    SendEnCUpdateEvent(DB_IPCE_ENC_UPDATE_FUNCTION, 
-                       pModule, 
-                       methodDef, 
-                       pMD->GetMethodTable()->GetCl(), 
+    SendEnCUpdateEvent(DB_IPCE_ENC_UPDATE_FUNCTION,
+                       pModule,
+                       methodDef,
+                       pMD->GetMethodTable()->GetCl(),
                        encVersion);
 
     DebuggerMethodInfo *dmi = GetOrCreateMethodInfo(pModule, methodDef);
@@ -13049,8 +13184,8 @@ HRESULT Debugger::UpdateFunction(MethodDesc* pMD, SIZE_T encVersion)
         DebuggerEnCBreakpoint *bp;
 
         // Create and activate a new EnC remap breakpoint here in the old version of the method
-        bp = new (interopsafe) DebuggerEnCBreakpoint( offset, 
-                                                      pJitInfo, 
+        bp = new (interopsafe) DebuggerEnCBreakpoint( offset,
+                                                      pJitInfo,
                                                       DebuggerEnCBreakpoint::REMAP_PENDING,
                                                      (AppDomain *)pModule->GetDomain());
 
@@ -13092,7 +13227,7 @@ HRESULT Debugger::UpdateNotYetLoadedFunction(mdMethodDef token, Module * pModule
     HRESULT hr = pModule->GetMDImport()->GetParentToken(token, &classToken);
     if (FAILED(hr))
     {
-        // We never expect this to actually fail, but just in case it does for some other crazy reason,
+        // We never expect this to actually fail, but just in case it does for some other strange reason,
         // we'll return before we AV.
         CONSISTENCY_CHECK_MSGF(false, ("Class lookup failed:mdToken:0x%08x, pModule=%p. hr=0x%08x\n", token, pModule, hr));
         return hr;
@@ -13105,8 +13240,8 @@ HRESULT Debugger::UpdateNotYetLoadedFunction(mdMethodDef token, Module * pModule
 }
 
 // Called to add a new function when the type has been loaded already.
-// This is effectively the same as above, except that we're given a 
-// MethodDesc instead of a module and token.  
+// This is effectively the same as above, except that we're given a
+// MethodDesc instead of a module and token.
 // This should probably be merged into a single method since the caller
 // should always have a module and token available in both cases.
 HRESULT Debugger::AddFunction(MethodDesc* pMD, SIZE_T encVersion)
@@ -13121,7 +13256,7 @@ HRESULT Debugger::AddFunction(MethodDesc* pMD, SIZE_T encVersion)
     }
     CONTRACTL_END;
 
-    DebuggerDataLockHolder debuggerDataLockHolder(this);    
+    DebuggerDataLockHolder debuggerDataLockHolder(this);
 
     LOG((LF_CORDB, LL_INFO10000, "D::AF: adding "
          "%s::%s to version %d\n", pMD->m_pszDebugClassName, pMD->m_pszDebugMethodName, encVersion));
@@ -13132,10 +13267,10 @@ HRESULT Debugger::AddFunction(MethodDesc* pMD, SIZE_T encVersion)
     mdToken methodDef = pMD->GetMemberDef();
 
     // tell the RS that this function has been added so that it can create new CorDBFunction
-    SendEnCUpdateEvent( DB_IPCE_ENC_ADD_FUNCTION, 
-                        pModule, 
-                        methodDef, 
-                        pMD->GetMethodTable()->GetCl(), 
+    SendEnCUpdateEvent( DB_IPCE_ENC_ADD_FUNCTION,
+                        pModule,
+                        methodDef,
+                        pMD->GetMethodTable()->GetCl(),
                         encVersion);
 
     DebuggerMethodInfo *dmi = CreateMethodInfo(pModule, methodDef);
@@ -13162,10 +13297,10 @@ HRESULT Debugger::AddField(FieldDesc* pFD, SIZE_T encVersion)
          "%8.8d::%8.8d to version %d\n", pFD->GetApproxEnclosingMethodTable()->GetCl(), pFD->GetMemberDef(), encVersion));
 
     // tell the RS that this field has been added so that it can update it's structures
-    SendEnCUpdateEvent( DB_IPCE_ENC_ADD_FIELD, 
-                        pFD->GetModule(), 
-                        pFD->GetMemberDef(), 
-                        pFD->GetApproxEnclosingMethodTable()->GetCl(), 
+    SendEnCUpdateEvent( DB_IPCE_ENC_ADD_FIELD,
+                        pFD->GetModule(),
+                        pFD->GetMemberDef(),
+                        pFD->GetApproxEnclosingMethodTable()->GetCl(),
                         encVersion);
 
     return S_OK;
@@ -13212,14 +13347,14 @@ HRESULT Debugger::RemapComplete(MethodDesc* pMD, TADDR addr, SIZE_T nativeOffset
         return E_OUTOFMEMORY;
     }
     _ASSERTE(pJitInfo->m_addrOfCode + nativeOffset == addr);
-    
+
     DebuggerEnCBreakpoint *bp;
 
     // Create and activate a new REMAP_COMPLETE EnC breakpoint to let us know when
     // the EE has completed the remap process.
     // This will be deleted when the patch is hit.
-    bp = new (interopsafe, nothrow) DebuggerEnCBreakpoint( nativeOffset, 
-                                                           pJitInfo, 
+    bp = new (interopsafe, nothrow) DebuggerEnCBreakpoint( nativeOffset,
+                                                           pJitInfo,
                                                            DebuggerEnCBreakpoint::REMAP_COMPLETE,
                                        (AppDomain *)pMD->GetModule()->GetDomain());
     if (bp == NULL)
@@ -13233,7 +13368,7 @@ HRESULT Debugger::RemapComplete(MethodDesc* pMD, TADDR addr, SIZE_T nativeOffset
 //-----------------------------------------------------------------------------
 // Called by EnC stuff to map an IL offset to a native offset for the given
 // method described by (pMD, nativeFnxStart).
-// 
+//
 // pMD - methoddesc for method being remapped
 // ilOffset - incoming offset in old method to remap.
 // nativeFnxStart - address of new function. This can be used to find the DJI
@@ -13266,7 +13401,7 @@ HRESULT Debugger::MapILInfoToCurrentNative(MethodDesc *pMD,
     *nativeOffset = 0;
     DebuggerJitInfo *djiTo = GetJitInfo( pMD, (const BYTE *)nativeFnxStart);
     if (djiTo == NULL)
-    {        
+    {
         _ASSERTE(!"No DJI in EnC case: should only happen on oom. Debugger doesn't support OOM.");
         return E_FAIL;
     }
@@ -13284,7 +13419,7 @@ HRESULT Debugger::MapILInfoToCurrentNative(MethodDesc *pMD,
 //
 // Arguments:
 //     pContext - context from which we were hijacked. Always non-null.
-//     pRecord - exception record if hijacked from an exception event. 
+//     pRecord - exception record if hijacked from an exception event.
 //              Else null (if hijacked from a managed IP).
 //     reason - hijack reason. Use this to delegate to the proper hijack stub.
 //     pData   - arbitrary data for the hijack to use. (eg, such as a DebuggerEval object)
@@ -13294,14 +13429,14 @@ HRESULT Debugger::MapILInfoToCurrentNative(MethodDesc *pMD,
 //
 // Assumptions:
 //     If hijacked at an exception event, the debugger must have cleared the exception.
-//     
+//
 // Notes:
 //     The debugger hijacked the thread to get us here via the DacDbi Hijack primitive.
 //     This is called from a hand coded asm stub.
 //
 void STDCALL ExceptionHijackWorker(
-    CONTEXT * pContext, 
-    EXCEPTION_RECORD * pRecord, 
+    CONTEXT * pContext,
+    EXCEPTION_RECORD * pRecord,
     EHijackReason::EHijackReason reason,
     void * pData)
 {
@@ -13312,12 +13447,12 @@ void STDCALL ExceptionHijackWorker(
     {
         case EHijackReason::kUnhandledException:
             STRESS_LOG0(LF_CORDB,LL_INFO10, "D::EHW: Calling g_pDebugger->UnhandledHijackWorker()\n");
-            _ASSERTE(pData == NULL); 
+            _ASSERTE(pData == NULL);
             g_pDebugger->UnhandledHijackWorker(pContext, pRecord);
             break;
 #ifdef FEATURE_INTEROP_DEBUGGING
     case EHijackReason::kM2UHandoff:
-            _ASSERTE(pData == NULL); 
+            _ASSERTE(pData == NULL);
             g_pDebugger->M2UHandoffHijackWorker(pContext, pRecord);
             break;
     case EHijackReason::kFirstChanceSuspend:
@@ -13336,19 +13471,19 @@ void STDCALL ExceptionHijackWorker(
     // Currently, no Hijack actually returns yet.
     UNREACHABLE();
 
-    // If we return to this point, then we'll restore ourselves.    
-    // We've got the context that we were hijacked from, so we should be able to just 
+    // If we return to this point, then we'll restore ourselves.
+    // We've got the context that we were hijacked from, so we should be able to just
     // call SetThreadContext on ourself to fix us.
 }
 
-#if defined(WIN64EXCEPTIONS) && !defined(FEATURE_PAL)
+#if defined(FEATURE_EH_FUNCLETS) && !defined(FEATURE_PAL)
 
 #if defined(_TARGET_AMD64_)
 // ----------------------------------------------------------------------------
 // EmptyPersonalityRoutine
 //
-// Description: 
-//    This personality routine is used to work around a limitation of the OS unwinder when we return 
+// Description:
+//    This personality routine is used to work around a limitation of the OS unwinder when we return
 //    ExceptionCollidedUnwind.
 //    See code:ExceptionHijackPersonalityRoutine for more information.
 //
@@ -13385,29 +13520,29 @@ EXCEPTION_DISPOSITION EmptyPersonalityRoutine(IN     PEXCEPTION_RECORD   pExcept
 //
 // Notes:
 //    We just need 1 personality routine for the tiny assembly hijack stub.
-//    All the C++ code invoked by the stub is ok. 
+//    All the C++ code invoked by the stub is ok.
 //
-//    This needs to fetch the original context that this thread was hijacked from 
+//    This needs to fetch the original context that this thread was hijacked from
 //    (which the hijack pushed onto the stack) and pass that back to the OS. This lets
 //    ths OS unwind out of the hijack.
-//    
+//
 //    This function should only be executed if an unhandled exception is intercepted by a managed debugger.
 //    Otherwise there should never be a 2nd pass exception dispatch crossing the hijack stub.
-//    
+//
 //    The basic idea here is straightforward.  The OS does an exception dispatch and hit our hijack stub.
 //    Since the hijack stub is not unwindable, we need a personality routine to restore the CONTEXT and
 //    tell the OS to continue the dispatch with that CONTEXT by returning ExceptionCollidedUnwind.
-//    
-//    However, empricially, the OS expects that when we return ExceptionCollidedUnwind, the function 
-//    represented by the CONTEXT has a personality routine.  The OS will actually AV if we return a NULL 
-//    personality routine.  
-//    
-//    On AMD64, we work around this by using an empty personality routine. 
+//
+//    However, empricially, the OS expects that when we return ExceptionCollidedUnwind, the function
+//    represented by the CONTEXT has a personality routine.  The OS will actually AV if we return a NULL
+//    personality routine.
+//
+//    On AMD64, we work around this by using an empty personality routine.
 
 EXTERN_C EXCEPTION_DISPOSITION
 ExceptionHijackPersonalityRoutine(IN     PEXCEPTION_RECORD   pExceptionRecord
-                        WIN64_ARG(IN     ULONG64             MemoryStackFp)
-                    NOT_WIN64_ARG(IN     ULONG32             MemoryStackFp),
+                        BIT64_ARG(IN     ULONG64             MemoryStackFp)
+                    NOT_BIT64_ARG(IN     ULONG32             MemoryStackFp),
                                   IN OUT PCONTEXT            pContextRecord,
                                   IN OUT PDISPATCHER_CONTEXT pDispatcherContext
                                  )
@@ -13427,7 +13562,7 @@ ExceptionHijackPersonalityRoutine(IN     PEXCEPTION_RECORD   pExceptionRecord
     // DacDbiInterfaceImpl::Hijack. This works because ExceptionHijack
     // allocates exactly 4 stack slots.
     pHijackContext = *reinterpret_cast<CONTEXT **>(pDispatcherContext->EstablisherFrame + 0x20);
-    
+
     // This copies pHijackContext into pDispatcherContext, which the OS can then
     // use to walk the stack.
     FixupDispatcherContext(pDispatcherContext, pHijackContext, pContextRecord, (PEXCEPTION_ROUTINE)EmptyPersonalityRoutine);
@@ -13440,7 +13575,7 @@ ExceptionHijackPersonalityRoutine(IN     PEXCEPTION_RECORD   pExceptionRecord
     // exactly the behavior we want.
     return ExceptionCollidedUnwind;
 }
-#endif // WIN64EXCEPTIONS && !FEATURE_PAL
+#endif // FEATURE_EH_FUNCLETS && !FEATURE_PAL
 
 
 // UEF Prototype from excep.cpp
@@ -13454,21 +13589,21 @@ LONG InternalUnhandledExceptionFilter_Worker(EXCEPTION_POINTERS *pExceptionInfo)
 //     pRecord - exception record of the exception that this was hijacked at.
 //     pData - random data.
 // Notes:
-// When under a native-debugger, the OS does not invoking the Unhandled Exception Filter (UEF). 
+// When under a native-debugger, the OS does not invoking the Unhandled Exception Filter (UEF).
 // It dispatches a 2nd-chance Exception event instead.
 // However, the CLR's UEF does lots of useful work (like dispatching the 2nd-chance managed exception,
-// allowing func-eval on 2nd-chance, and allowing intercepting unhandled exceptions). 
+// allowing func-eval on 2nd-chance, and allowing intercepting unhandled exceptions).
 // So we'll emulate the OS behavior here by invoking the CLR's UEF directly.
 //
 void Debugger::UnhandledHijackWorker(CONTEXT * pContext, EXCEPTION_RECORD * pRecord)
-{   
+{
     CONTRACTL
     {
         // The ultimate protection shield is that this hijack can be executed under the same circumstances
         // as a top-level UEF that pinvokes into managed code
         // - That means we're GC-triggers safe
         // - that means that we can crawl the stack. (1st-pass EH logic ensures this).
-        // We need to be GC-triggers because this may invoke a func-eval. 
+        // We need to be GC-triggers because this may invoke a func-eval.
         GC_TRIGGERS;
 
         // Don't throw out of a hijack! There's nobody left to catch this.
@@ -13477,7 +13612,7 @@ void Debugger::UnhandledHijackWorker(CONTEXT * pContext, EXCEPTION_RECORD * pRec
         // We expect to always be in preemptive here by the time we get this unhandled notification.
         // We know this is true because a native UEF is preemptive.
         // More detail:
-        //   1) If we got here from a software exception (eg, Throw from C#), then the jit helper 
+        //   1) If we got here from a software exception (eg, Throw from C#), then the jit helper
         //       toggled us to preemptive before calling RaiseException().
         //   2) If we got here from a hardware exception in managed code, then the 1st-pass already did
         //       some magic to get us into preemptive. On x86, this is magic. On 64-bit, it did some magic
@@ -13501,7 +13636,7 @@ void Debugger::UnhandledHijackWorker(CONTEXT * pContext, EXCEPTION_RECORD * pRec
 
     BOOL fSOException = FALSE;
 
-    if ((pRecord != NULL) && 
+    if ((pRecord != NULL) &&
         (pRecord->ExceptionCode == STATUS_STACK_OVERFLOW))
     {
         fSOException = TRUE;
@@ -13514,18 +13649,17 @@ void Debugger::UnhandledHijackWorker(CONTEXT * pContext, EXCEPTION_RECORD * pRec
     PostJitAttach();
 
     // On Win7 WatsonLastChance returns CONTINUE_SEARCH for unhandled exceptions execpt stack overflow, and
-    // lets OS launch debuggers for us.  Before the unhandled exception reaches the OS, CLR UEF has already 
+    // lets OS launch debuggers for us.  Before the unhandled exception reaches the OS, CLR UEF has already
     // processed this unhandled exception.  Thus, we should not call into CLR UEF again if it is the case.
-    if (pThread && 
-        (pThread->HasThreadStateNC(Thread::TSNC_ProcessedUnhandledException) || 
-         pThread->HasThreadStateNC(Thread::TSNC_AppDomainContainUnhandled) ||
+    if (pThread &&
+        (pThread->HasThreadStateNC(Thread::TSNC_ProcessedUnhandledException) ||
          fSOException))
     {
 
         FrameWithCookie<FaultingExceptionFrame> fef;
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
         *((&fef)->GetGSCookiePtr()) = GetProcessGSCookie();
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
         if ((pContext != NULL) && fSOException)
         {
             GCX_COOP();     // Must be cooperative to modify frame chain.
@@ -13534,15 +13668,15 @@ void Debugger::UnhandledHijackWorker(CONTEXT * pContext, EXCEPTION_RECORD * pRec
             // exception.  Our hijack code runs in the exception context, and overwrites the stack space
             // after SO excpetion, so this frame was popped out before invoking RaiseFailFast.  We need to
             // put it back here for running func-eval code.
-            // This cumbersome code should be removed once SO synchronization is moved to be completely 
-            // out-of-process. 
+            // This cumbersome code should be removed once SO synchronization is moved to be completely
+            // out-of-process.
             fef.InitAndLink(pContext);
         }
 
         STRESS_LOG0(LF_CORDB, LL_INFO10, "D::EHW: Calling NotifyDebuggerLastChance\n");
         NotifyDebuggerLastChance(pThread, &exceptionInfo, TRUE);
 
-        // Continuing from a second chance managed exception causes the process to exit.    
+        // Continuing from a second chance managed exception causes the process to exit.
         TerminateProcess(GetCurrentProcess(), 0);
     }
 
@@ -13560,8 +13694,8 @@ void Debugger::UnhandledHijackWorker(CONTEXT * pContext, EXCEPTION_RECORD * pRec
 
     // If intercepted, then this never returns. It will manually invoke the unwinders and fix the context.
 
-    // InternalUnhandledExceptionFilter_Worker has a throws contract, but should not be throwing in any 
-    // conditions we care about. This hijack should never throw, so catch everything.  
+    // InternalUnhandledExceptionFilter_Worker has a throws contract, but should not be throwing in any
+    // conditions we care about. This hijack should never throw, so catch everything.
     HRESULT hrIgnore;
     EX_TRY
     {
@@ -13569,7 +13703,7 @@ void Debugger::UnhandledHijackWorker(CONTEXT * pContext, EXCEPTION_RECORD * pRec
     }
     EX_CATCH_HRESULT(hrIgnore);
 
-    // Continuing from a second chance managed exception causes the process to exit.    
+    // Continuing from a second chance managed exception causes the process to exit.
     TerminateProcess(GetCurrentProcess(), 0);
 }
 
@@ -13609,10 +13743,8 @@ VOID Debugger::M2UHandoffHijackWorker(CONTEXT *pContext,
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_TRIGGERS; // from sending managed event
     STATIC_CONTRACT_MODE_PREEMPTIVE; // we're in umanaged code.
-    SO_NOT_MAINLINE_FUNCTION;
 
-
-    LOG((LF_CORDB, LL_INFO1000, "D::M2UHHW: Context=0x%p exception record=0x%p\n", 
+    LOG((LF_CORDB, LL_INFO1000, "D::M2UHHW: Context=0x%p exception record=0x%p\n",
         pContext, pExceptionRecord));
 
     // We should only be here for a BP
@@ -13667,7 +13799,7 @@ VOID Debugger::M2UHandoffHijackWorker(CONTEXT *pContext,
 }
 
 //-----------------------------------------------------------------------------
-// This hijack is run after receiving an IB event that we don't know how the 
+// This hijack is run after receiving an IB event that we don't know how the
 // debugger will want to continue. Under the covers we clear the event and divert
 // execution here where we block until the debugger decides whether or not to clear
 // the event. At that point we exit this hijack and the LS diverts execution back
@@ -13718,7 +13850,7 @@ LONG Debugger::FirstChanceSuspendHijackWorker(CONTEXT *pContext,
 #endif
 
     // This memory is used as IPC during the hijack. We will place a pointer to this in
-    // the EE debugger word (a TLS slot that works even on the debugger break-in thread) 
+    // the EE debugger word (a TLS slot that works even on the debugger break-in thread)
     // and then the RS can write info into the memory.
     DebuggerIPCFirstChanceData fcd;
 
@@ -13750,7 +13882,7 @@ LONG Debugger::FirstChanceSuspendHijackWorker(CONTEXT *pContext,
         SPEW(fprintf(stderr, "0x%x D::FCHF: Signaling hijack started.\n", tid));
         SignalHijackStarted();
         SPEW(fprintf(stderr, "0x%x D::FCHF: Signaling hijack started complete. DebugCounter=0x%x\n", tid, pFcd->debugCounter));
-        
+
         if (pFcd->action == HIJACK_ACTION_WAIT)
         {
             // This exception does NOT belong to the CLR.
@@ -13822,7 +13954,7 @@ LONG Debugger::FirstChanceSuspendHijackWorker(CONTEXT *pContext,
         _ASSERTE(pFcd->action == HIJACK_ACTION_EXIT_UNHANDLED);
         return EXCEPTION_CONTINUE_SEARCH;
     }
-} 
+}
 
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
 void GenericHijackFuncHelper()
@@ -14389,8 +14521,8 @@ void Debugger::SendMDANotification(
             // - S_OK if we do a jit-attach,
             // - S_FALSE if a debugger is already attached.
             // - Error in other cases..
-            
-            JitAttach(pThread, NULL, TRUE, FALSE); 
+
+            JitAttach(pThread, NULL, TRUE, FALSE);
         }
 
         // Debugger may be attached now...
@@ -14451,9 +14583,9 @@ void Debugger::SendLogMessage(int iLevel,
 
     // Send Log message event to the Right Side
     SendRawLogMessage(
-        pThread, 
-        pAppDomain, 
-        iLevel, 
+        pThread,
+        pAppDomain,
+        iLevel,
         pSwitchName,
         pMessage);
 
@@ -14476,7 +14608,7 @@ void Debugger::SendRawLogMessage(
     AppDomain                                 *pAppDomain,
     int                                        iLevel,
     SString *   pCategory,
-    SString *   pMessage 
+    SString *   pMessage
 )
 {
     DebuggerIPCEvent* ipce;
@@ -14574,7 +14706,7 @@ void Debugger::SendLogSwitchSetting(int iLevel,
 //     input: pThread    - thread on which the notification occurred
 //            pDomain    - domain file for the domain in which the notification occurred
 //            classToken - metadata token for the type of the notification object
-void Debugger::SendCustomDebuggerNotification(Thread * pThread, 
+void Debugger::SendCustomDebuggerNotification(Thread * pThread,
                                               DomainFile * pDomain,
                                               mdTypeDef classToken)
 {
@@ -14611,7 +14743,7 @@ void Debugger::SendCustomDebuggerNotification(Thread * pThread,
         ipce->CustomNotification.classToken = classToken;
         ipce->CustomNotification.vmDomainFile = vmDomainFile;
 
- 
+
         m_pRCThread->SendIPCEvent();
 
         // Stop all Runtime threads
@@ -14650,12 +14782,11 @@ HRESULT Debugger::AddAppDomainToIPC(AppDomain *pAppDomain)
     HRESULT hr = S_OK;
     LPCWSTR szName = NULL;
 
-    LOG((LF_CORDB, LL_INFO100, "D::AADTIPC: Executing AADTIPC for AppDomain 0x%08x (0x%x).\n",
-        pAppDomain,
-        pAppDomain->GetId().m_dwId));
+    LOG((LF_CORDB, LL_INFO100, "D::AADTIPC: Executing AADTIPC for AppDomain 0x%08x.\n",
+        pAppDomain));
 
-    STRESS_LOG2(LF_CORDB, LL_INFO10000, "D::AADTIPC: AddAppDomainToIPC:%#08x, %#08x\n",
-            pAppDomain, pAppDomain->GetId().m_dwId);
+    STRESS_LOG1(LF_CORDB, LL_INFO10000, "D::AADTIPC: AddAppDomainToIPC:%#08x\n",
+            pAppDomain);
 
 
 
@@ -14695,9 +14826,6 @@ HRESULT Debugger::AddAppDomainToIPC(AppDomain *pAppDomain)
             goto LErrExit;
         }
 
-        // copy the ID
-        pAppDomainInfo->m_id = pAppDomain->GetId().m_dwId;
-
         // Now set the AppDomainName.
 
         /*
@@ -14724,7 +14852,7 @@ LErrExit:
         // UnLock the list
         m_pAppDomainCB->Unlock();
 
-        // Send event to debugger if one is attached.  
+        // Send event to debugger if one is attached.
         if (CORDebuggerAttached())
         {
             SendCreateAppDomainEvent(pAppDomain);
@@ -14736,7 +14864,7 @@ LErrExit:
 
 
 /******************************************************************************
- * Remove the AppDomain from the list stored in the IPC block and send an ExitAppDomain 
+ * Remove the AppDomain from the list stored in the IPC block and send an ExitAppDomain
  * event to the debugger if attached.
  ******************************************************************************/
 HRESULT Debugger::RemoveAppDomainFromIPC (AppDomain *pAppDomain)
@@ -14745,15 +14873,13 @@ HRESULT Debugger::RemoveAppDomainFromIPC (AppDomain *pAppDomain)
     {
         MAY_DO_HELPER_THREAD_DUTY_THROWS_CONTRACT;
         MAY_DO_HELPER_THREAD_DUTY_GC_TRIGGERS_CONTRACT;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 
     HRESULT hr = E_FAIL;
 
-    LOG((LF_CORDB, LL_INFO100, "D::RADFIPC: Executing RADFIPC for AppDomain 0x%08x (0x%x).\n",
-        pAppDomain,
-        pAppDomain->GetId().m_dwId));
+    LOG((LF_CORDB, LL_INFO100, "D::RADFIPC: Executing RADFIPC for AppDomain 0x%08x.\n",
+        pAppDomain));
 
     // if none of the slots are occupied, then simply return.
     if (m_pAppDomainCB->m_iNumOfUsedSlots == 0)
@@ -14803,7 +14929,6 @@ HRESULT Debugger::UpdateAppDomainEntryInIPC(AppDomain *pAppDomain)
     {
         NOTHROW;
         if (GetThread()) { GC_TRIGGERS;} else {DISABLED(GC_NOTRIGGER);}
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 
@@ -14852,7 +14977,6 @@ HRESULT Debugger::CopyModulePdb(Module* pRuntimeModule)
     {
         THROWS;
         MAY_DO_HELPER_THREAD_DUTY_GC_TRIGGERS_CONTRACT;
-        SO_NOT_MAINLINE;
 
         PRECONDITION(ThisIsHelperThread());
         MODE_ANY;
@@ -14879,7 +15003,6 @@ HRESULT Debugger::IterateAppDomainsForPdbs()
     {
         THROWS;
         MAY_DO_HELPER_THREAD_DUTY_GC_TRIGGERS_CONTRACT;
-        SO_NOT_MAINLINE;
 
         PRECONDITION(ThisIsHelperThread());
         MODE_ANY;
@@ -14898,7 +15021,7 @@ HRESULT Debugger::IterateAppDomainsForPdbs()
 
     while (pADInfo)
     {
-        STRESS_LOG3(LF_CORDB, LL_INFO100, "Iterating over domain %#08x AD:%#08x %ls\n", pADInfo->m_pAppDomain->GetId().m_dwId, pADInfo->m_pAppDomain, pADInfo->m_szAppDomainName);
+        STRESS_LOG2(LF_CORDB, LL_INFO100, "Iterating over domain AD:%#08x %ls\n", pADInfo->m_pAppDomain, pADInfo->m_szAppDomainName);
 
         AppDomain::AssemblyIterator i;
         i = pADInfo->m_pAppDomain->IterateAssembliesEx((AssemblyIterationFlags)(kIncludeLoaded | kIncludeLoading | kIncludeExecution));
@@ -14923,7 +15046,7 @@ HRESULT Debugger::IterateAppDomainsForPdbs()
                 CopyModulePdb(pDomainAssembly->GetModule());
             }
         }
-        
+
         // Get the next appdomain in the list
         pADInfo = m_pAppDomainCB->FindNext(pADInfo);
     }
@@ -14946,7 +15069,6 @@ HRESULT Debugger::InitAppDomainIPC(void)
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_INTOLERANT;
 
         PRECONDITION(CheckPointer(m_pAppDomainCB));
     }
@@ -15021,7 +15143,7 @@ HRESULT Debugger::InitAppDomainIPC(void)
     dwStrLen = WszGetModuleFileName(NULL,
                                     szExeName);
 
-    
+
     // If we couldn't get the name, then use a nice default.
     if (dwStrLen == 0)
     {
@@ -15063,7 +15185,6 @@ HRESULT Debugger::TerminateAppDomainIPC(void)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 
@@ -15114,7 +15235,7 @@ HRESULT Debugger::TerminateAppDomainIPC(void)
 
     // We're done. release and close the mutex.  Note that this must be done
     // after we clear it out above to ensure there is no race condition.
-    if( m != NULL ) 
+    if( m != NULL )
     {
         VERIFY(ReleaseMutex(m));
         m.Close();
@@ -15137,7 +15258,6 @@ HRESULT Debugger::FuncEvalSetup(DebuggerIPCE_FuncEvalInfo *pEvalInfo,
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -15180,6 +15300,13 @@ HRESULT Debugger::FuncEvalSetup(DebuggerIPCE_FuncEvalInfo *pEvalInfo,
     if (filterContext == NULL && !fInException)
     {
         return CORDBG_E_ILLEGAL_AT_GC_UNSAFE_POINT;
+    }
+
+    if (filterContext != NULL && ::GetSP(filterContext) != ALIGN_DOWN(::GetSP(filterContext), STACK_ALIGN_SIZE))
+    {
+        // SP is not aligned, we cannot do a FuncEval here
+        LOG((LF_CORDB, LL_INFO1000, "D::FES SP is unaligned"));
+        return CORDBG_E_FUNC_EVAL_BAD_START_POINT;
     }
 
     // Create a DebuggerEval to hold info about this eval while its in progress. Constructor copies the thread's
@@ -15256,7 +15383,7 @@ HRESULT Debugger::FuncEvalSetup(DebuggerIPCE_FuncEvalInfo *pEvalInfo,
         //
         // To prevent GCs until the func-eval gets a chance to run, we increment the counter here.
         // We only need to do this if we have changed the filter CONTEXT, since the stack will be unwalkable
-        // in this case. 
+        // in this case.
         //
         g_pDebugger->IncThreadsAtUnsafePlaces();
     }
@@ -15295,7 +15422,6 @@ HRESULT Debugger::FuncEvalSetupReAbort(Thread *pThread, Thread::ThreadAbortReque
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -15314,6 +15440,13 @@ HRESULT Debugger::FuncEvalSetupReAbort(Thread *pThread, Thread::ThreadAbortReque
     if (filterContext == NULL)
     {
         return CORDBG_E_ILLEGAL_AT_GC_UNSAFE_POINT;
+    }
+
+    if (::GetSP(filterContext) != ALIGN_DOWN(::GetSP(filterContext), STACK_ALIGN_SIZE))
+    {
+        // SP is not aligned, we cannot do a FuncEval here
+        LOG((LF_CORDB, LL_INFO1000, "D::FESRA: SP is unaligned"));
+        return CORDBG_E_FUNC_EVAL_BAD_START_POINT;
     }
 
     // Create a DebuggerEval to hold info about this eval while its in progress. Constructor copies the thread's
@@ -15385,7 +15518,7 @@ Debugger::FuncEvalAbort(
 
     DebuggerEval *pDE = (DebuggerEval*) debuggerEvalKey;
     HRESULT hr = S_OK;
-    CHECK_IF_CAN_TAKE_HELPER_LOCKS_IN_THIS_SCOPE(&hr, GetCanary());    
+    CHECK_IF_CAN_TAKE_HELPER_LOCKS_IN_THIS_SCOPE(&hr, GetCanary());
     if (FAILED(hr))
     {
         return hr;
@@ -15442,12 +15575,11 @@ Debugger::FuncEvalRudeAbort(
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
     HRESULT hr = S_OK;
-    CHECK_IF_CAN_TAKE_HELPER_LOCKS_IN_THIS_SCOPE(&hr, GetCanary());    
+    CHECK_IF_CAN_TAKE_HELPER_LOCKS_IN_THIS_SCOPE(&hr, GetCanary());
     if (FAILED(hr))
     {
         return hr;
@@ -15455,7 +15587,7 @@ Debugger::FuncEvalRudeAbort(
 
 
     DebuggerEval *pDE = debuggerEvalKey;
-    
+
 
     if (!(pDE->m_aborting & DebuggerEval::FE_ABORT_RUDE))
     {
@@ -15549,7 +15681,7 @@ HRESULT Debugger::SetReference(void *objectRefAddress,
         OBJECTREF *dst = (OBJECTREF*)objectRefAddress;
         OBJECTREF  src = *((OBJECTREF*)&newReference);
 
-        SetObjectReferenceUnchecked(dst, src);
+        SetObjectReference(dst, src);
     }
     else
     {
@@ -15588,7 +15720,7 @@ HRESULT Debugger::SetValueClass(void *oldData, void *newData, DebuggerIPCE_Basic
         return CORDBG_E_CLASS_NOT_LOADED;
 
     // Update the value class.
-    CopyValueClassUnchecked(oldData, newData, th.GetMethodTable());
+    CopyValueClass(oldData, newData, th.GetMethodTable());
 
     // Free the buffer that is holding the new data. This is a buffer that was created in response to a GET_BUFFER
     // message, so we release it with ReleaseRemoteBuffer.
@@ -15657,7 +15789,6 @@ void Debugger::ShutdownBegun(void)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 
@@ -15697,7 +15828,6 @@ void Debugger::LockDebuggerForShutdown(void)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_INTOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -15742,7 +15872,6 @@ void Debugger::DisableDebugger(void)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_INTOLERANT;
         PRECONDITION(ThisMaybeHelperThread());
     }
     CONTRACTL_END;
@@ -15769,7 +15898,6 @@ void Debugger::DoHelperThreadDuty()
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         THROWS;
         WRAPPER(GC_TRIGGERS);
     }
@@ -15837,15 +15965,15 @@ void Debugger::DoHelperThreadDuty()
 
 // This function is called from the EE to notify the right side
 // whenever the name of a thread or AppDomain changes
-//   
+//
 // Notes:
 //   This just sends a ping event to notify that the name has been changed.
 //   It does not send the actual updated name. Instead, the debugger can query for the name.
-//   
+//
 //   For an AppDomain name change:
 //   - pAppDoamin != NULL
 //   - name retrieved via ICorDebugAppDomain::GetName
-//   
+//
 //   For a Thread name change:
 //   - pAppDomain == NULL, pThread != NULL
 //   - name retrieved via a func-eval of Thread::get_Name
@@ -15853,7 +15981,6 @@ HRESULT Debugger::NameChangeEvent(AppDomain *pAppDomain, Thread *pThread)
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         MAY_DO_HELPER_THREAD_DUTY_THROWS_CONTRACT;
         MAY_DO_HELPER_THREAD_DUTY_GC_TRIGGERS_CONTRACT;
     }
@@ -15867,8 +15994,8 @@ HRESULT Debugger::NameChangeEvent(AppDomain *pAppDomain, Thread *pThread)
     if (g_pEEInterface->GetThread() == NULL)
         return S_OK;
 
-    // Skip if thread doesn't yet have native ID. 
-    // This can easily happen if an app sets Thread.Name before it calls Thread.Start. 
+    // Skip if thread doesn't yet have native ID.
+    // This can easily happen if an app sets Thread.Name before it calls Thread.Start.
     // Since this is just a ping-event, it's ignorable. The debugger can query the thread name at Thread.Start in this case.
     // This emulates whidbey semantics.
     if (pThread != NULL)
@@ -15902,7 +16029,7 @@ HRESULT Debugger::NameChangeEvent(AppDomain *pAppDomain, Thread *pThread)
         }
         else
         {
-            // Thread Name 
+            // Thread Name
             ipce->NameChange.eventType = THREAD_NAME_CHANGE;
             _ASSERTE (pThread);
             ipce->NameChange.vmThread.SetRawPtr(pThread);
@@ -15939,7 +16066,6 @@ BOOL Debugger::SendCtrlCToDebugger(DWORD dwCtrlType)
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         MAY_DO_HELPER_THREAD_DUTY_THROWS_CONTRACT;
         MAY_DO_HELPER_THREAD_DUTY_GC_TRIGGERS_CONTRACT;
     }
@@ -16002,25 +16128,6 @@ HRESULT Debugger::UpdateSpecialThreadList(DWORD cThreadArrayLength,
     return (S_OK);
 }
 
-// Updates the pointer for the debugger services
-void Debugger::SetIDbgThreadControl(IDebuggerThreadControl *pIDbgThreadControl)
-{
-    CONTRACTL
-    {
-        SO_NOT_MAINLINE;
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-    if (m_pIDbgThreadControl)
-        m_pIDbgThreadControl->Release();
-
-    m_pIDbgThreadControl = pIDbgThreadControl;
-
-    if (m_pIDbgThreadControl)
-        m_pIDbgThreadControl->AddRef();
-}
-
 //
 // If a thread is Win32 suspended right after hitting a breakpoint instruction, but before the OS has transitioned the
 // thread over to the user-level exception dispatching logic, then we may see the IP pointing after the breakpoint
@@ -16042,7 +16149,6 @@ BOOL Debugger::IsThreadContextInvalid(Thread *pThread)
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -16058,7 +16164,7 @@ BOOL Debugger::IsThreadContextInvalid(Thread *pThread)
     if (success)
     {
         // Check single-step flag
-        if (IsSSFlagEnabled(reinterpret_cast<DT_CONTEXT *>(&ctx) ARM_ARG(pThread)))
+        if (IsSSFlagEnabled(reinterpret_cast<DT_CONTEXT *>(&ctx) ARM_ARG(pThread) ARM64_ARG(pThread)))
         {
             // Can't hijack a thread whose SS-flag is set. This could lead to races
             // with the thread taking the SS-exception.
@@ -16097,8 +16203,8 @@ BOOL Debugger::IsThreadContextInvalid(Thread *pThread)
         }
         EX_END_CATCH(SwallowAllExceptions);
 #else // _TARGET_X86_
-        // Non-x86 can detect whether the thread is suspended after an exception is hit but before 
-        // the kernel has dispatched the exception to user mode by trap frame reporting.  
+        // Non-x86 can detect whether the thread is suspended after an exception is hit but before
+        // the kernel has dispatched the exception to user mode by trap frame reporting.
         // See Thread::IsContextSafeToRedirect().
 #endif // _TARGET_X86_
     }
@@ -16118,7 +16224,6 @@ void Debugger::CreateConnection(CONNID dwConnectionId, __in_z WCHAR *wzName)
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         MAY_DO_HELPER_THREAD_DUTY_THROWS_CONTRACT;
         MAY_DO_HELPER_THREAD_DUTY_GC_TRIGGERS_CONTRACT;
     }
@@ -16166,7 +16271,6 @@ void Debugger::DestroyConnection(CONNID dwConnectionId)
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         MAY_DO_HELPER_THREAD_DUTY_THROWS_CONTRACT;
         MAY_DO_HELPER_THREAD_DUTY_GC_TRIGGERS_CONTRACT;
     }
@@ -16201,7 +16305,6 @@ void Debugger::ChangeConnection(CONNID dwConnectionId)
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         MAY_DO_HELPER_THREAD_DUTY_THROWS_CONTRACT;
         MAY_DO_HELPER_THREAD_DUTY_GC_TRIGGERS_CONTRACT;
     }
@@ -16257,7 +16360,6 @@ bool ThisIsHelperThreadWorker(void)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -16374,15 +16476,15 @@ void Debugger::ReleaseDebuggerDataLock(Debugger *pDebugger)
 #else // DACCESS_COMPILE
 
 // determine whether the LS holds the data lock. If it does, we will assume the locked data is in an
-// inconsistent state and will throw an exception. The DAC will execute this if we are executing code 
-// that takes the lock. 
+// inconsistent state and will throw an exception. The DAC will execute this if we are executing code
+// that takes the lock.
 // Arguments: input: pDebugger - the LS debugger data structure
 /* static */
 void Debugger::AcquireDebuggerDataLock(Debugger *pDebugger)
 {
     SUPPORTS_DAC;
 
-    if (pDebugger->GetDebuggerDataLock()->GetEnterCount() != 0) 
+    if (pDebugger->GetDebuggerDataLock()->GetEnterCount() != 0)
     {
         ThrowHR(CORDBG_E_PROCESS_NOT_SYNCHRONIZED);
     }
@@ -16558,7 +16660,6 @@ DebuggerHeap::~DebuggerHeap()
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -16598,7 +16699,6 @@ HRESULT DebuggerHeap::Init(BOOL fExecutable)
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -16609,7 +16709,7 @@ HRESULT DebuggerHeap::Init(BOOL fExecutable)
     m_fExecutable = fExecutable;
 
 #ifdef USE_INTEROPSAFE_HEAP
-    // If already inited, then we're done. 
+    // If already inited, then we're done.
     // We normally don't double-init. However, we may oom between when we allocate the heap and when we do other initialization.
     // We don't worry about backout code to free the heap. Rather, we'll just leave it alive and nop if we try to allocate it again.
     if (IsInit())
@@ -16704,7 +16804,6 @@ void *DebuggerHeap::Alloc(DWORD size)
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -16768,7 +16867,6 @@ void *DebuggerHeap::Realloc(void *pMem, DWORD newSize, DWORD oldSize)
 {
     CONTRACTL
     {
-        SO_NOT_MAINLINE;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -16807,7 +16905,6 @@ void DebuggerHeap::Free(void *pMem)
 {
     CONTRACTL
     {
-        SO_INTOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
     }
@@ -16866,7 +16963,7 @@ int Debugger::MessageBox(
                   UINT uText,       // Resource Identifier for Text message
                   UINT uCaption,    // Resource Identifier for Caption
                   UINT uType,       // Style of MessageBox
-                  BOOL displayForNonInteractive,    // Display even if the process is running non interactive 
+                  BOOL displayForNonInteractive,    // Display even if the process is running non interactive
                   BOOL showFileNameInTitle,         // Flag to show FileName in Caption
                   ...)              // Additional Arguments
 {
@@ -16952,7 +17049,7 @@ void Debugger::StartCanaryThread()
 {
      // we need to already have the rcthread running and the pointer stored
     _ASSERTE(m_pRCThread != NULL && g_pRCThread == m_pRCThread);
-    _ASSERTE(m_pRCThread->GetDCB() != NULL); 
+    _ASSERTE(m_pRCThread->GetDCB() != NULL);
     _ASSERTE(GetCanary() != NULL);
 
     GetCanary()->Init();

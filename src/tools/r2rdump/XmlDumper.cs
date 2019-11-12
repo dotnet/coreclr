@@ -38,6 +38,10 @@ namespace R2RDump
             _ignoredProperties.Add(typeof(RuntimeFunction), "UnwindRVA", attrs);
             _ignoredProperties.Add(typeof(R2RSection), "RelativeVirtualAddress", attrs);
             _ignoredProperties.Add(typeof(R2RSection), "Size", attrs);
+
+            XmlAttributes ignoreAlways = new XmlAttributes();
+            ignoreAlways.XmlIgnore = true;
+            _ignoredProperties.Add(typeof(R2RReader), "ImportCellNames", ignoreAlways);
         }
 
         internal override void Begin()
@@ -114,6 +118,17 @@ namespace R2RDump
             }
         }
 
+        internal override void DumpEntryPoints()
+        {
+            XmlNode entryPointsNode = XmlDocument.CreateNode("element", "EntryPoints", "");
+            _rootNode.AppendChild(entryPointsNode);
+            AddXMLAttribute(entryPointsNode, "Count", _r2r.R2RMethods.Count.ToString());
+            foreach (R2RMethod method in NormalizedMethods())
+            {
+                DumpMethod(method, entryPointsNode);
+            }
+        }
+
         internal override void DumpAllMethods()
         {
             XmlNode methodsNode = XmlDocument.CreateNode("element", "Methods", "");
@@ -126,7 +141,7 @@ namespace R2RDump
         }
 
         /// <summary>
-        /// Dumps one R2RMethod. 
+        /// Dumps one R2RMethod.
         /// </summary>
         internal override void DumpMethod(R2RMethod method, XmlNode parentNode)
         {
@@ -166,7 +181,7 @@ namespace R2RDump
         }
 
         /// <summary>
-        /// Dumps one runtime function. 
+        /// Dumps one runtime function.
         /// </summary>
         internal override void DumpRuntimeFunction(RuntimeFunction rtf, XmlNode parentNode)
         {
@@ -304,7 +319,7 @@ namespace R2RDump
                             }
                             if (importSection.AuxiliaryDataRVA != 0)
                             {
-                                DumpBytes(importSection.AuxiliaryDataRVA, (uint)importSection.AuxiliaryData.Size, importSectionsNode, "AuxiliaryDataBytes");
+                                DumpBytes(importSection.AuxiliaryDataRVA, (uint)importSection.AuxiliaryDataSize, importSectionsNode, "AuxiliaryDataBytes");
                             }
                         }
                         foreach (R2RImportSection.ImportSectionEntry entry in importSection.Entries)

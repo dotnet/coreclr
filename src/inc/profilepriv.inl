@@ -1,15 +1,15 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
-// 
+//
 // ProfilePriv.inl
-// 
+//
 
-// 
+//
 // Inlined functions used by the Profiling API and throughout the EE. Most notably are
 // the CORProfilerTrack* functions that test whether a profiler is active and responding
 // to various callbacks
-// 
+//
 
 // ======================================================================================
 #ifndef _ProfilePriv_inl_
@@ -61,7 +61,7 @@ inline void ProfControlBlock::Init()
 
 #ifdef PROF_TEST_ONLY_FORCE_OBJECT_ALLOCATED
     fTestOnlyForceObjectAllocated = FALSE;
-#endif 
+#endif
 
 #ifdef _DEBUG
     fTestOnlyEnableICorProfilerInfo = FALSE;
@@ -70,13 +70,17 @@ inline void ProfControlBlock::Init()
     fConcurrentGCDisabledForAttach = FALSE;
 
     ResetPerSessionStatus();
+
+    fProfControlBlockInitialized = TRUE;
+
+    fProfilerRequestedRuntimeSuspend = FALSE;
 }
 
 // Reset those variables that is only for the current attach session
 inline void ProfControlBlock::ResetPerSessionStatus()
 {
     LIMITED_METHOD_CONTRACT;
-    
+
     pProfInterface = NULL;
     dwEventMask = COR_PRF_MONITOR_NONE;
     dwEventMaskHigh = COR_PRF_HIGH_MONITOR_NONE;
@@ -107,13 +111,12 @@ inline BOOL CORProfilerFunctionIDMapperEnabled()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    return (CORProfilerPresent() && 
+    return (CORProfilerPresent() &&
         (
-         ((&g_profControlBlock)->pProfInterface->GetFunctionIDMapper()  != NULL) || 
+         ((&g_profControlBlock)->pProfInterface->GetFunctionIDMapper()  != NULL) ||
          ((&g_profControlBlock)->pProfInterface->GetFunctionIDMapper2() != NULL)
         ));
 }
@@ -125,7 +128,6 @@ inline BOOL CORProfilerTrackJITInfo()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -140,7 +142,6 @@ inline BOOL CORProfilerTrackCacheSearches()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -155,7 +156,6 @@ inline BOOL CORProfilerTrackModuleLoads()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -170,7 +170,6 @@ inline BOOL CORProfilerTrackAssemblyLoads()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -185,7 +184,6 @@ inline BOOL CORProfilerTrackAppDomainLoads()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -200,7 +198,6 @@ inline BOOL CORProfilerTrackThreads()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -215,7 +212,6 @@ inline BOOL CORProfilerTrackClasses()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -230,7 +226,6 @@ inline BOOL CORProfilerTrackGC()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -245,11 +240,10 @@ inline BOOL CORProfilerTrackAllocationsEnabled()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    return 
+    return
         (
 #ifdef PROF_TEST_ONLY_FORCE_OBJECT_ALLOCATED
             (&g_profControlBlock)->fTestOnlyForceObjectAllocated ||
@@ -266,13 +260,27 @@ inline BOOL CORProfilerTrackAllocations()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
     return
             (CORProfilerTrackAllocationsEnabled() &&
             ((&g_profControlBlock)->dwEventMask & COR_PRF_MONITOR_OBJECT_ALLOCATED));
+}
+
+inline BOOL CORProfilerTrackLargeAllocations()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        CANNOT_TAKE_LOCK;
+    }
+    CONTRACTL_END;
+
+    return
+            (CORProfilerPresent() &&
+            ((&g_profControlBlock)->dwEventMaskHigh & COR_PRF_HIGH_MONITOR_LARGEOBJECT_ALLOCATED));
 }
 
 inline BOOL CORProfilerEnableRejit()
@@ -282,7 +290,6 @@ inline BOOL CORProfilerEnableRejit()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -297,27 +304,11 @@ inline BOOL CORProfilerTrackExceptions()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
     return (CORProfilerPresent() &&
             ((&g_profControlBlock)->dwEventMask & COR_PRF_MONITOR_EXCEPTIONS));
-}
-
-inline BOOL CORProfilerTrackCLRExceptions()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
-    }
-    CONTRACTL_END;
-
-    return (CORProfilerPresent() &&
-            ((&g_profControlBlock)->dwEventMask & COR_PRF_MONITOR_CLR_EXCEPTIONS));
 }
 
 inline BOOL CORProfilerTrackTransitions()
@@ -327,7 +318,6 @@ inline BOOL CORProfilerTrackTransitions()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -342,7 +332,6 @@ inline BOOL CORProfilerTrackEnterLeave()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -362,7 +351,6 @@ inline BOOL CORProfilerTrackCCW()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -377,7 +365,6 @@ inline BOOL CORProfilerTrackRemoting()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -392,12 +379,11 @@ inline BOOL CORProfilerTrackRemotingCookie()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
     return
-        (CORProfilerPresent() && 
+        (CORProfilerPresent() &&
         (((&g_profControlBlock)->dwEventMask & COR_PRF_MONITOR_REMOTING_COOKIE)
                              == COR_PRF_MONITOR_REMOTING_COOKIE));
 }
@@ -409,12 +395,11 @@ inline BOOL CORProfilerTrackRemotingAsync()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
     return
-        (CORProfilerPresent() && 
+        (CORProfilerPresent() &&
         (((&g_profControlBlock)->dwEventMask & COR_PRF_MONITOR_REMOTING_ASYNC)
                              == COR_PRF_MONITOR_REMOTING_ASYNC));
 }
@@ -426,7 +411,6 @@ inline BOOL CORProfilerTrackSuspends()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -441,7 +425,6 @@ inline BOOL CORProfilerDisableInlining()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -456,7 +439,6 @@ inline BOOL CORProfilerJITMapEnabled()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -471,7 +453,6 @@ inline BOOL CORProfilerDisableOptimizations()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
@@ -487,7 +468,6 @@ inline BOOL CORProfilerUseProfileImages()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -499,7 +479,7 @@ inline BOOL CORProfilerUseProfileImages()
     if (!CORProfilerPresent())
         return FALSE;
 
-    if (((&g_profControlBlock)->dwEventMask & 
+    if (((&g_profControlBlock)->dwEventMask &
             COR_PRF_REQUIRE_PROFILE_IMAGE) == 0)
         return FALSE;
 
@@ -523,7 +503,7 @@ inline BOOL CORProfilerTrackConditionalWeakTableElements()
 
 // CORProfilerPresentOrInitializing() returns nonzero iff a CLR Profiler is actively
 // loaded and ready to receive callbacks OR a CLR Profiler has loaded just enough that it
-// is ready to receive (or is currently executing inside) its Initialize() callback. 
+// is ready to receive (or is currently executing inside) its Initialize() callback.
 // Typically, you'll want to use code:CORProfilerPresent instead of this.  But there is
 // some internal profiling API code that wants to test for event flags for a profiler
 // that may still be initializing, and this function is appropriate for that code.
@@ -534,7 +514,7 @@ inline BOOL CORProfilerPresentOrInitializing()
 }
 
 // These return whether a CLR Profiler has requested the specified functionality.
-// 
+//
 // Note that, unlike the above functions, a profiler that's not done loading (and is
 // still somewhere in the initialization phase) still counts. This is only safe because
 // these functions are not used to determine whether to issue a callback. These functions
@@ -548,11 +528,10 @@ inline BOOL CORProfilerELT3SlowPathEnabled()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    return (CORProfilerPresentOrInitializing() && 
+    return (CORProfilerPresentOrInitializing() &&
         ((&g_profControlBlock)->dwEventMask & (COR_PRF_ENABLE_FUNCTION_ARGS | COR_PRF_ENABLE_FUNCTION_RETVAL | COR_PRF_ENABLE_FRAME_INFO)));
 }
 
@@ -563,11 +542,10 @@ inline BOOL CORProfilerELT3SlowPathEnterEnabled()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    return (CORProfilerPresentOrInitializing() && 
+    return (CORProfilerPresentOrInitializing() &&
         ((&g_profControlBlock)->dwEventMask & (COR_PRF_ENABLE_FUNCTION_ARGS | COR_PRF_ENABLE_FRAME_INFO)));
 }
 
@@ -578,11 +556,10 @@ inline BOOL CORProfilerELT3SlowPathLeaveEnabled()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    return (CORProfilerPresentOrInitializing() && 
+    return (CORProfilerPresentOrInitializing() &&
         ((&g_profControlBlock)->dwEventMask & (COR_PRF_ENABLE_FUNCTION_RETVAL | COR_PRF_ENABLE_FRAME_INFO)));
 }
 
@@ -593,11 +570,10 @@ inline BOOL CORProfilerELT3SlowPathTailcallEnabled()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    return (CORProfilerPresentOrInitializing() && 
+    return (CORProfilerPresentOrInitializing() &&
         ((&g_profControlBlock)->dwEventMask & (COR_PRF_ENABLE_FRAME_INFO)));
 }
 
@@ -608,11 +584,10 @@ inline BOOL CORProfilerELT2FastPathEnterEnabled()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    return (CORProfilerPresentOrInitializing() && 
+    return (CORProfilerPresentOrInitializing() &&
         (!((&g_profControlBlock)->dwEventMask & (COR_PRF_ENABLE_STACK_SNAPSHOT | COR_PRF_ENABLE_FUNCTION_ARGS | COR_PRF_ENABLE_FRAME_INFO))));
 }
 
@@ -623,11 +598,10 @@ inline BOOL CORProfilerELT2FastPathLeaveEnabled()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    return (CORProfilerPresentOrInitializing() && 
+    return (CORProfilerPresentOrInitializing() &&
         (!((&g_profControlBlock)->dwEventMask & (COR_PRF_ENABLE_STACK_SNAPSHOT | COR_PRF_ENABLE_FUNCTION_RETVAL | COR_PRF_ENABLE_FRAME_INFO))));
 }
 
@@ -638,11 +612,10 @@ inline BOOL CORProfilerELT2FastPathTailcallEnabled()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    return (CORProfilerPresentOrInitializing() && 
+    return (CORProfilerPresentOrInitializing() &&
         (!((&g_profControlBlock)->dwEventMask & (COR_PRF_ENABLE_STACK_SNAPSHOT | COR_PRF_ENABLE_FRAME_INFO))));
 }
 
@@ -653,11 +626,10 @@ inline BOOL CORProfilerFunctionArgsEnabled()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    return (CORProfilerPresentOrInitializing() && 
+    return (CORProfilerPresentOrInitializing() &&
         ((&g_profControlBlock)->dwEventMask & COR_PRF_ENABLE_FUNCTION_ARGS));
 }
 
@@ -668,11 +640,10 @@ inline BOOL CORProfilerFunctionReturnValueEnabled()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    return (CORProfilerPresentOrInitializing() && 
+    return (CORProfilerPresentOrInitializing() &&
         ((&g_profControlBlock)->dwEventMask & COR_PRF_ENABLE_FUNCTION_RETVAL));
 }
 
@@ -683,11 +654,10 @@ inline BOOL CORProfilerFrameInfoEnabled()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    return (CORProfilerPresentOrInitializing() && 
+    return (CORProfilerPresentOrInitializing() &&
         ((&g_profControlBlock)->dwEventMask & COR_PRF_ENABLE_FRAME_INFO));
 }
 
@@ -698,11 +668,10 @@ inline BOOL CORProfilerStackSnapshotEnabled()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    return (CORProfilerPresentOrInitializing() && 
+    return (CORProfilerPresentOrInitializing() &&
         ((&g_profControlBlock)->dwEventMask & COR_PRF_ENABLE_STACK_SNAPSHOT));
 }
 
@@ -713,11 +682,10 @@ inline BOOL CORProfilerAddsAssemblyReferences()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
-    return (CORProfilerPresent() && 
+    return (CORProfilerPresent() &&
         ((&g_profControlBlock)->dwEventMaskHigh & COR_PRF_HIGH_ADD_ASSEMBLY_REFERENCES));
 }
 
@@ -728,7 +696,6 @@ inline BOOL CORProfilerInMemorySymbolsUpdatesEnabled()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -743,7 +710,6 @@ inline BOOL CORProfilerIsMonitoringDynamicFunctionUnloads()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
@@ -753,18 +719,45 @@ inline BOOL CORProfilerIsMonitoringDynamicFunctionUnloads()
 
 inline BOOL CORProfilerDisableTieredCompilation()
 {
-    CONTRACTL 
+    CONTRACTL
     {
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 
 
     return (CORProfilerPresent() &&
          ((&g_profControlBlock)->dwEventMaskHigh & COR_PRF_HIGH_DISABLE_TIERED_COMPILATION));
+}
+
+inline BOOL CORProfilerTrackBasicGC()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        CANNOT_TAKE_LOCK;
+    }
+    CONTRACTL_END;
+
+    return (CORProfilerPresent() &&
+         ((&g_profControlBlock)->dwEventMaskHigh & COR_PRF_HIGH_BASIC_GC));
+}
+
+inline BOOL CORProfilerTrackGCMovedObjects()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        CANNOT_TAKE_LOCK;
+    }
+    CONTRACTL_END;
+
+    return (CORProfilerPresent() &&
+         ((&g_profControlBlock)->dwEventMaskHigh & COR_PRF_HIGH_MONITOR_GC_MOVED_OBJECTS));
 }
 
 #if defined(PROFILING_SUPPORTED) && !defined(CROSSGEN_COMPILE)
@@ -776,14 +769,14 @@ inline BOOL CORProfilerDisableTieredCompilation()
 // the stack to increment the evacuation counter inside the EE Thread. Upon returning to
 // EE, this EvacuationCounterHolder object when being destroyed decreases the evacuation
 // counter by one.
-// 
+//
 // Do not use this object directly.  Use BEGIN_PIN_PROFILER / END_PIN_PROFILER defined
 // below.
-// 
+//
 // See code:ProfilingAPIUtility::InitializeProfiling#LoadUnloadCallbackSynchronization.
-// 
-typedef Wrapper<Thread *, ProfilingAPIUtility::IncEvacuationCounter, ProfilingAPIUtility::DecEvacuationCounter, 
-    (UINT_PTR)0, CompareDefault<Thread *>, HSV_NoValidation> EvacuationCounterHolder;
+//
+typedef Wrapper<Thread *, ProfilingAPIUtility::IncEvacuationCounter, ProfilingAPIUtility::DecEvacuationCounter,
+    (UINT_PTR)0, CompareDefault<Thread *>> EvacuationCounterHolder;
 
 
 //---------------------------------------------------------------------------------------
@@ -814,11 +807,11 @@ typedef Wrapper<Thread *, ProfilingAPIUtility::IncEvacuationCounter, ProfilingAP
 //        }
 //        END_PIN_PROFILER();
 //    }
-//        
+//
 // This ensures that the extra condition check (in this case "if
 // (!pNSL->pMD->IsQCall())") is only evaluated if the profiler is loaded. That way, we're
 // not executing extra, unnecessary instructions when no profiler is present.
-// 
+//
 // See code:ProfilingAPIUtility::InitializeProfiling#LoadUnloadCallbackSynchronization
 // for more details about how the synchronization works.
 #define BEGIN_PIN_PROFILER(condition)                                                       \
