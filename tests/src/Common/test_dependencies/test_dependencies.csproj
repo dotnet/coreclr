@@ -8,15 +8,15 @@
     <DisablePackageAssetsCache>true</DisablePackageAssetsCache>
     <RuntimeIdentifiers>win-arm;win-arm64;win-x64;win-x86;$(TargetRid)</RuntimeIdentifiers>
   </PropertyGroup>
-  <ItemGroup Condition="$(__SkipFXRestore) != 'true'" >
+  <ItemGroup Condition="'$(__SkipFXRestore)' != 'true'" >
     <PackageReference Include="Microsoft.Private.CoreFx.NETCoreApp" Version="$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)"/>
-  </ItemGroup>
-  <ItemGroup>
     <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)" />
     <PackageReference Include="System.Security.Permissions" Version="$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)" />
     <PackageReference Include="System.Diagnostics.EventLog" Version="$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)" />
     <PackageReference Include="System.Drawing.Common" Version="$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)" />
     <PackageReference Include="System.Runtime.Intrinsics.Experimental" Version="$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.Diagnostics.Tools.RuntimeClient" Version="$(MicrosoftDiagnosticsToolsRuntimeClientVersion)" />
   </ItemGroup>
   <Target Name="Build" DependsOnTargets="$(TraversalBuildDependsOn)" />
