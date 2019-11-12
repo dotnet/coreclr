@@ -1051,7 +1051,7 @@ namespace System
 
         // Replaces all instances of oldChar with newChar.
         //
-        public unsafe string Replace(char oldChar, char newChar)
+        public string Replace(char oldChar, char newChar)
         {
             if (oldChar == newChar)
                 return this;
