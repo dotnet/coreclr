@@ -193,7 +193,7 @@ build_native()
         __versionSourceFile="$intermediatesForBuild/version.c"
         if [ $__SkipGenerateVersion == 0 ]; then
             pwd
-            "$__RepoRootDir/eng/common/msbuild.sh" $__ArcadeScriptArgs $__ProjectRoot/eng/empty.csproj \
+            "$__RepoRootDir/eng/common/msbuild.sh" $__ArcadeScriptArgs $__RepoRootDir/eng/empty.csproj \
                                                    /p:NativeVersionFile=$__versionSourceFile \
                                                    /t:GenerateNativeVersionFile /restore \
                                                    $__CommonMSBuildArgs $__UnprocessedBuildArgs
@@ -231,7 +231,7 @@ build_native()
             extraCmakeArguments="$extraCmakeArguments -DCLR_CMAKE_ENABLE_CODE_COVERAGE=1"
         fi
 
-        nextCommand="\"$scriptDir/gen-buildsys.sh\" \"$__ProjectRoot\" \"$intermediatesForBuild\" $platformArch $__BuildType $generator $scan_build $extraCmakeArguments $__cmakeargs"
+        nextCommand="CONFIG_DIR=\"$__RepoRootDir/eng/common/cross\" \"$scriptDir/gen-buildsys.sh\" \"$__ProjectRoot\" \"$intermediatesForBuild\" $platformArch $__BuildType $generator $scan_build $extraCmakeArguments $__cmakeargs"
         echo "Invoking $nextCommand"
         eval $nextCommand
 
