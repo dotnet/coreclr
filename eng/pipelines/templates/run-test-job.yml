@@ -393,5 +393,5 @@ jobs:
         archiveType: $(archiveType)
         tarCompression: $(tarCompression)
         archiveExtension: $(archiveExtension)
-        artifactName: $(testArtifactName)
+        artifactName: $(finalTestArtifactName)
         displayName: 'Final_Submitted_Tests_$(osGroup)$(osSubgroup)_$(archType)_$(buildConfig)_${{ parameters.testGroup }}'
